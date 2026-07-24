@@ -55,5 +55,30 @@ for wt in "${WTS[@]}"; do
   fi
 done
 
+# A builder mid-edit must never break the world the user is playing. Typecheck
+# the merged result; if it fails, rebuild from BASE adding worktrees ONE AT A
+# TIME and dropping any that break it. The user keeps a working world, and the
+# broken builder simply stops appearing until it is healthy again.
+check() { ( cd "$LIVE/street" && npx --no-install tsc --noEmit >/dev/null 2>&1 ); }
+
+if ! check; then
+  git -C "$LIVE" reset -q --hard "$BASE"
+  merged=(); broken=()
+  i=0
+  for wt in "${WTS[@]}"; do
+    [ -d "$wt" ] || continue
+    name=$(basename "$wt"); c="${sigs[$i]}"; i=$((i+1))
+    [ "$c" = "$(git -C "$LIVE" rev-parse HEAD)" ] && continue
+    before=$(git -C "$LIVE" rev-parse HEAD)
+    if git -C "$LIVE" merge -q --no-edit -m "live: $name" "$c" >/dev/null 2>&1 && check; then
+      merged+=("$name")
+    else
+      git -C "$LIVE" merge --abort >/dev/null 2>&1
+      git -C "$LIVE" reset -q --hard "$before"
+      broken+=("$name")
+    fi
+  done
+fi
+
 echo "$sig" > "$STATE"
-echo "merged: ${merged[*]:-none}${conflicted:+  CONFLICTED: ${conflicted[*]}}"
+echo "merged: ${merged[*]:-none}${conflicted:+  CONFLICTED: ${conflicted[*]}}${broken:+  DROPPED(broken): ${broken[*]}}"

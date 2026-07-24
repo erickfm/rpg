@@ -10,25 +10,21 @@ Companion to `CLAUDE.md` (project rules) and `FEATURE-REQUESTS.md` (the log).
 
 ## 1. The thesis
 
-**The constraint here is agent bandwidth, not review bandwidth.**
+**The bottleneck moves. Find where it is now, not where it was.**
 
-The usual finding is the reverse — teams adopting coding agents report ~98% more
-PRs against a 91% rise in review time, and 85% now name review as their primary
-bottleneck. That is the default failure mode and it is worth knowing.
+It has been in three different places in one session:
 
-It is not this project's. Erick has a clear vision and strong opinions, produces
-direction faster than agents can absorb it, and has so far been throttled by how
-much agent time he could point at the world. This is also a game, not
-production: everything is revertible, so the cost of a bad merge is low and the
-cost of moving slowly is real.
+1. *Assumed* to be the user's review capacity. **Wrong** — Erick has a clear
+   vision and generates direction faster than agents absorb it.
+2. Then genuinely **agent bandwidth** — so we added builders.
+3. Then **the desk itself**, and this is the one that actually hurt: builder
+   work sat unmerged for over an hour, one builder accumulated a ten-item
+   queue on one file, and the live world served a broken build — all while
+   the desk was heads-down writing code instead of running the queue.
 
-So: **bias toward more parallelism, not less.** The caps in this document are
-starting points to grow from, not ceilings to respect. What still deserves care
-is the *coherence* of the world — one hand has held its look for six rounds, and
-that is the thing more hands could actually damage. Guard the look; spend
-freely on throughput.
-
----
+The lesson is not "add agents". It is that a parallel setup has a *coordination*
+job that must be done continuously, and if the coordinator starts building, the
+whole thing silently stalls. See §11.
 
 ## 2. What makes this project specifically awkward
 
@@ -108,6 +104,15 @@ Every incoming request is one of two kinds.
 Parallelizing tuning is pointless — only one thing can be evaluated at a time.
 Serializing building wastes wall-clock. Most setups fail by choosing one
 topology for both.
+
+**Measured: the desk is roughly 10x faster than a builder on small work.** The
+alley cat took a builder three rounds and 40+ minutes and was still wrong; the
+tree rewrite took the desk three minutes. The round trip — write brief, builder
+loads context, builder works, user screenshots, desk diagnoses, desk corrects —
+dominates anything small. So:
+
+> **If writing the brief would take longer than making the change, make the
+> change.**
 
 **Collision rule:** a request that lands in a module a builder already owns does
 not start a second agent. It goes to that builder as a follow-up, or waits.

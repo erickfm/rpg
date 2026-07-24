@@ -74,88 +74,39 @@ export function makeHud(purse: Purse): Hud {
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    watchWrap.style.cssText = 'position:fixed;left:50%;bottom:34px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(150%) rotate(-4deg);transition:transform .18s ease-out;';
+    watchWrap.style.cssText = 'position:fixed;left:52%;bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
-    watchCv.width = 172; watchCv.height = 78;
-    watchCv.style.cssText = 'width:430px;height:195px;image-rendering:pixelated;display:block;';
+    watchCv.width = 120; watchCv.height = 72;
+    watchCv.style.cssText = 'width:330px;height:198px;image-rendering:pixelated;display:block;';
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
-    watchCv.width = 172; watchCv.height = 78;
+    watchCv.width = 120; watchCv.height = 72;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
-  // Looking down at your own wrist.
-  //
-  // Three earlier attempts read as "an arm sticking out with a fist in front
-  // of you". The reason was composition, not drawing: the forearm was a
-  // floating band that stopped short of the frame with a gap either side, so
-  // it read as a disembodied cuff rather than part of you. What makes it feel
-  // like YOUR arm is that it is CUT OFF by the frame — the forearm runs off
-  // the LEFT edge, and the HAND continues off to the RIGHT past the watch.
-  // You are seeing a section of your own arm, not a limb posed in front of
-  // your face. Nothing is foreshortened toward the camera.
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
-    const W = 172, H = 78;
-    g.clearRect(0, 0, W, H);
-    const { skin, skinHi, skinLo } = player;
-
-    // ── forearm: runs OFF the left edge, no gap, no rounded end ──────────
-    g.fillStyle = skin;   g.fillRect(0, 20, 78, 40);
-    g.fillStyle = skinHi; g.fillRect(0, 20, 78, 5);        // top of the arm catches light
-    g.fillStyle = skinLo; g.fillRect(0, 53, 78, 7);        // underside in shadow
-    // sleeve cuff biting the very edge — implies the rest of you off-frame
-    g.fillStyle = player.sleeve;   g.fillRect(0, 17, 13, 46);
-    g.fillStyle = player.cuff; g.fillRect(0, 17, 13, 4);
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(13, 17, 3, 46);
-
-    // ── the wrist narrows slightly where the watch sits ──────────────────
-    g.fillStyle = skin; g.fillRect(78, 23, 26, 34);
-    g.fillStyle = skinLo; g.fillRect(78, 51, 26, 6);
-
-    // ── the hand, continuing RIGHT and off the frame ─────────────────────
-    g.fillStyle = skin;   g.fillRect(104, 19, 44, 42);     // back of the hand
-    g.fillStyle = skinHi; g.fillRect(104, 19, 44, 5);
-    g.fillStyle = skinLo; g.fillRect(104, 54, 44, 7);
-    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(104, 19, 3, 42);  // wrist crease
-    // knuckles and fingers folding away from you — seen from above, so they
-    // read as short segments, never as a fist pointed at the camera
-    g.fillStyle = skin; g.fillRect(148, 19, 24, 42);       // fingers as ONE mass…
-    g.fillStyle = skinHi; g.fillRect(148, 19, 24, 3);
-    g.fillStyle = skinLo;                                   // …separated by creases,
-    for (const fy of [28, 38, 48]) g.fillRect(148, fy, 24, 1);   // not gaps
-    g.fillStyle = 'rgba(0,0,0,0.13)';
-    for (const fy of [29, 39, 49]) g.fillRect(148, fy, 24, 1);
-    g.fillStyle = 'rgba(0,0,0,0.16)';
-    g.fillRect(147, 19, 2, 42);                            // knuckle line
-    // thumb, tucked along the near edge and running off the bottom
-    g.fillStyle = skinLo; g.fillRect(112, 58, 26, 20);
-    g.fillStyle = skin;   g.fillRect(112, 58, 26, 15);
-
-    // ── the watch itself ─────────────────────────────────────────────────
-    // The case is WIDE along the forearm so the digits actually fit — a
-    // narrow face meant '16:13' overflowed the LCD and clipped. Readability
-    // beats strict anatomy on a HUD element you glance at.
-    g.fillStyle = '#26282e'; g.fillRect(62, 14, 14, 52);   // strap, arm side
-    g.fillRect(114, 14, 14, 52);                           // strap, hand side
-    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(62, 14, 3, 52);
-    g.fillStyle = '#1a1c20'; g.fillRect(72, 16, 46, 48);   // keeper under the case
-    g.fillStyle = '#3a3d45'; g.fillRect(74, 19, 42, 42);   // case
-    g.fillStyle = '#4a4e58'; g.fillRect(74, 19, 42, 3);    // top bevel
-    g.fillStyle = '#2b2e35'; g.fillRect(74, 58, 42, 3);    // bottom shadow
-    g.fillStyle = '#14161a'; g.fillRect(77, 23, 36, 34);   // bezel well
-    g.fillStyle = '#9cab8b'; g.fillRect(79, 26, 32, 21);   // LCD
-    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(79, 26, 32, 3);
+    g.clearRect(0, 0, 120, 72);
+    // STEP 1 of an incremental rebuild (an all-at-once redraw was rejected).
+    // Only change so far: the forearm runs OFF THE LEFT EDGE instead of
+    // floating with a gap either side. A limb cut by the frame reads as your
+    // own arm; a band with air around it reads as a disembodied cuff.
+    g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(0, 6, 10, 66);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
+    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
+    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
+    g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
+    g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
+    g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
     const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
     const m2 = String(mins % 60).padStart(2, '0');
-    g.fillStyle = '#1c2a1c';
-    g.font = 'bold 13px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(`${hh}:${m2}`, 95, 36);
-    g.fillStyle = '#7f8590'; g.font = '5px monospace';
-    g.fillText('QUARTZ', 95, 52);
+    g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
+    g.fillText(`${hh}:${m2}`, 60, 38);
+    g.fillStyle = '#8a8d95'; g.font = '5px monospace';
+    g.fillText('CROSSTOWN QUARTZ', 60, 50);
   };
-
   const WALLET_W = 180, WALLET_H = 140;
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
   let walletCv: HTMLCanvasElement;
