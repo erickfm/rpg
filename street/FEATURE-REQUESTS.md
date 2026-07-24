@@ -9,6 +9,26 @@ published to the playable artifact.
 
 ## In progress
 
+- **Sidewalk + kerb detail pass.** The kerb is an untextured sharp
+  rectangle (flat `kerbFaceM` 0x97928a, a 0.14 m box edge) — it reads as a
+  grey bar, not concrete or granite. And the corner doesn't behave like a
+  real corner: the walks meet in a square butt joint instead of turning.
+  Wanted:
+  - Textured kerb face — real kerbs are cast/cut in segments with vertical
+    joints every few feet, a slightly rounded (battered) top edge rather
+    than a sharp 90°, staining and chipping down at road level.
+  - **A gutter pan** — real streets have a concrete strip (~0.3–0.6 m)
+    between the kerb and the asphalt, distinctly lighter than the road.
+    Its absence is a big part of why the kerb currently reads as a bare
+    rectangle sitting on tarmac.
+  - **A proper corner return** — kerbs curve around a corner on a radius
+    (~3–6 m at a city intersection), and the sidewalk follows that curve.
+    Right now the walks just abut at 90°.
+  - Kerb ramp at the corner (ADA, so period-correct for '97), gutter
+    running to a catch basin at the corner low point.
+  - Sidewalk slab detail: scoring joints, staining, patches — attention to
+    detail generally, it's the surface the whole game is walked on.
+
 ## Done — 2026-07-24 reverts + wet streets + citizen nav
 
 - **Watch reverted.** The arm/fist version was worse — back to the wrist-only
