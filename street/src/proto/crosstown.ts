@@ -13,7 +13,8 @@ import { FPRig, type AABB } from './fp';
 // ═══════════════════════════════════════════════════════════════════════════
 import { L, ROAD_HALF, WALK, FACE, PARK_X, DRIVE_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng';
 import { pixTex } from './ct/paint';
-import { asphaltTex, walkTex } from './ct/tex-world';
+import { asphaltTex } from './ct/tex-world';
+import { walkTex } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
