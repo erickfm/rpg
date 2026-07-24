@@ -7,7 +7,9 @@ the re-cast block after rebasing onto mainline.
 Touched:   notes/seam-audit.md (report, 273 lines)
            scripts/seams.mjs, seams2.mjs, seams3.mjs   (round 1, 158 shots)
            scripts/seams4.mjs, seams5.mjs, seams6.mjs  (round 2, 66 shots)
-           **nothing under street/src/** — `git diff live..HEAD -- street/src/` is empty
+           **nothing under street/src/** — verify with
+           `git diff --stat $(git merge-base live HEAD)..HEAD -- street/src/`,
+           which is empty (a plain `live..HEAD` is not a valid check: live moves)
 Verified:  shots/seam-*.png (round 1) · shots/seam2-*.png (round 2).
            Signs proved by matched pairs from opposite sides, not by one crop.
            Bodega reachability proved by driving the rig with real key input,
