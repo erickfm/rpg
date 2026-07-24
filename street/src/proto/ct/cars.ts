@@ -199,25 +199,38 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       for (let y = 4; y < 46; y += 7) g2.fillRect(0, y, 32, 2); // corrugations
       dither(g2, 32, 48, 30);
     });
-    // tub is recessed inside the body (a rim of slab shows around it) and
-    // rides low — rails only just above the beltline
+    // The bed is part of the BODY, not a box sitting on it. Two rules, both
+    // from a playtest note that it "looked too high and not flush with the
+    // cabin":
+    //   * bed sides are FLUSH with the body sides (outer face at x = ±0.85,
+    //     same plane as the cab) — they used to be inset to 0.74, which read
+    //     as a separate tub perched on the slab;
+    //   * the rail top sits just above the beltline (0.89), not 0.19 m over
+    //     it — a real pickup's rail lines up near the base of the cab glass.
+    const RAIL_T = 0.97;          // rail top: a touch proud of the beltline
+    const RAIL_H = 0.18;
+    const WALL_T = 0.16;          // wall thickness
+    const BODY_HALF = 0.85;       // body side plane — rails are flush to it
     const wallLen = half - 0.65;
-    const floor2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.05, wallLen), [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
-    floor2.position.set(0, 0.845, 0.55 + wallLen / 2);
+    const floorY = RAIL_T - RAIL_H - 0.02;   // tub floor, visible over the rail
+    const floor2 = new THREE.Mesh(
+      new THREE.BoxGeometry(BODY_HALF * 2 - WALL_T * 2, 0.05, wallLen),
+      [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
+    floor2.position.set(0, floorY, 0.55 + wallLen / 2);
     g.add(floor2);
     for (const s of [-1, 1]) {
       const railWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.24, wallLen),
+        new THREE.BoxGeometry(WALL_T, RAIL_H, wallLen),
         s < 0 ? [inM, outM, rimM, darkM, inM, inM] : [outM, inM, rimM, darkM, inM, inM],
       );
-      railWall.position.set(s * 0.66, 0.96, 0.55 + wallLen / 2);
+      railWall.position.set(s * (BODY_HALF - WALL_T / 2), RAIL_T - RAIL_H / 2, 0.55 + wallLen / 2);
       g.add(railWall);
     }
-    const head = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.24, 0.1), [outM, outM, rimM, darkM, inM, inM]);
-    head.position.set(0, 0.96, 0.5);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, RAIL_H, 0.1), [outM, outM, rimM, darkM, inM, inM]);
+    head.position.set(0, RAIL_T - RAIL_H / 2, 0.5);
     g.add(head);
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.24, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
-    gate.position.set(0, 0.96, half - 0.05);
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, RAIL_H, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
+    gate.position.set(0, RAIL_T - RAIL_H / 2, half - 0.05);
     g.add(gate);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
