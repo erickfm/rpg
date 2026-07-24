@@ -544,25 +544,19 @@ export function buildGround(o: GroundOpts): Ground {
     V(chamPos, p.x, pT, p.z); T(chamUv, pk, 0);
     V(chamPos, qcx, q.h, qcz); T(chamUv, qk, 1);
     V(chamPos, q.x, qT, q.z); T(chamUv, qk, 0);
-    // red kerb paint, where the block is marked: the same face and arris
-    // quads again, sharing their uv so the wear sits on the same texels.
-    // Depth-offset rather than pushed out in space, so there is no lip.
+    // Red kerb paint: the VERTICAL FACE quad again, and only that. It must
+    // never go onto the rounded arris — paint lying over a rounded lip reads
+    // as a cylindrical rail sitting on the kerb rather than as paint on a
+    // wall. The face is covered corner to corner, top to bottom, so it reads
+    // as a painted face and not as a sliver along an edge. Depth-offset
+    // rather than pushed out in space, so there is no lip.
     if (isRed((p.s + q.s) / 2)) {
       V(pntPos, p.x, KBOT, p.z); T(pntUv, pk, 0);
-      V(pntPos, p.x, pT, p.z); T(pntUv, pk, pvT);
-      V(pntPos, q.x, qT, q.z); T(pntUv, qk, qvT);
+      V(pntPos, p.x, pT, p.z); T(pntUv, pk, 1);
+      V(pntPos, q.x, qT, q.z); T(pntUv, qk, 1);
       V(pntPos, p.x, KBOT, p.z); T(pntUv, pk, 0);
-      V(pntPos, q.x, qT, q.z); T(pntUv, qk, qvT);
+      V(pntPos, q.x, qT, q.z); T(pntUv, qk, 1);
       V(pntPos, q.x, KBOT, q.z); T(pntUv, qk, 0);
-      // over the rounded top too — the roller goes across the arris. v 0.6→1
-      // samples the sheet's top four rows across the arris's four texels, so
-      // it stays 1:1 instead of stretching a row.
-      V(pntPos, p.x, pT, p.z); T(pntUv, pk, 0.6);
-      V(pntPos, pcx, p.h, pcz); T(pntUv, pk, 1);
-      V(pntPos, qcx, q.h, qcz); T(pntUv, qk, 1);
-      V(pntPos, p.x, pT, p.z); T(pntUv, pk, 0.6);
-      V(pntPos, qcx, q.h, qcz); T(pntUv, qk, 1);
-      V(pntPos, q.x, qT, q.z); T(pntUv, qk, 0.6);
     }
     // gutter pan, out into the road, cross-sloped back to the kerb
     const pgx = p.x - p.nx * GW, pgz = p.z - p.nz * GW;

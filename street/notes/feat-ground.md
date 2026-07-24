@@ -4,7 +4,7 @@ The ground is the surface the whole game is walked on and it was the least
 detailed thing in the world. Rebuilt from construction references, not memory.
 
 **Base:** `1aba540`
-**Commits:** `9c9b640` (walkTex split) · `47823fd` (the ground) · `7298f6c` (red kerb by rule, thin-face rules, colliders)
+**Commits:** `9c9b640` (walkTex split) · `47823fd` (the ground) · `7298f6c` (red kerb by rule, thin-face rules, colliders) · `64ae518` (paint on the face, flat)
 
 ---
 
@@ -90,6 +90,14 @@ the kerb sheet, stretching every dark pixel in that row across the full 6 cm
 of the chamfer. Then the red paint randomised top/bottom/fade **per pixel
 column** — as high-frequency as it is possible to be. Both read as speckle.
 
+**1b. Paint belongs on the FACE, flat.** Red on the rounded arris reads as a
+cylindrical rail lying on the kerb, and any lengthwise light/dark variation
+on a rounded lip reinforces that. So the paint quad is the vertical face only
+— never the chamfer — and `paintTex` is *vertically uniform*: every row of the
+sheet is identical, which also makes a horizontal seam-like streak impossible
+by construction. Wear is full-height bites only, for the same reason. All
+shading comes from the geometry.
+
 **2. Red kerb has a meaning, so it is placed by rule, never by hand.**
 It marks no-parking, so every place on the block that meets a condition gets
 the same treatment:
@@ -133,6 +141,8 @@ but that file isn't mine.
 - `shots/kb-return-over.png` — the return from above; the radius and the slab grid following it.
 - `shots/kb-return-off.png` — the corner from across the street.
 - `shots/kb-face-near.png`, `kb-along.png` — kerb face and gutter mid-block, close.
+- `shots/kb-paint-corner.png` — the clearest look at the painted face: flat red
+  on the vertical face, concrete arris above it, chip gaps as wear.
 - `shots/kb-paint-hydrant-along.png` — the hydrant fire zone.
 - `shots/kb-parked-row.png` — the parked cars.
 - `shots/kb-bend-in.png` — the inside of the bend, where the walk noses out.
