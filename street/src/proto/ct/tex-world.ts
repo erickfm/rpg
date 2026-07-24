@@ -129,8 +129,8 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
   ][v % 4];
   const cx = TREE_W / 2;
   const cy = 20 + Math.floor(r() * 5);          // crown centre, high on the sprite
-  const RX = 22 + Math.floor(r() * 7);          // 1.10–1.45 m: wide…
-  const RY = 15 + Math.floor(r() * 6);          // …but shallow, so heads clear it
+  const RX = 23 + Math.floor(r() * 7);          // 1.15–1.45 m: wide…
+  const RY = 16 + Math.floor(r() * 6);          // …but shallow, so heads clear it
   const lobes = 5 + Math.floor(r() * 3);
   return pixTex(TREE_W, H, (g) => {
     // trunk runs from inside the crown to the ground, so no gap ever shows

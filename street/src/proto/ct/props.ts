@@ -32,11 +32,12 @@ export function buildProps(ctx: CtxBuild): Props {
   const WET = new THREE.Color(0x5a626e);
   // ── weather: some hours it rains ────────────────────────────────────────
   const RAIN_N = 500;
+  const RAIN_BOX = 30;   // world-space wrap period for raindrops
   const rainPos = new Float32Array(RAIN_N * 3);
   for (let i = 0; i < RAIN_N; i++) {
-    rainPos[i * 3] = (Math.random() - 0.5) * 30;
+    rainPos[i * 3] = (Math.random() - 0.5) * RAIN_BOX;
     rainPos[i * 3 + 1] = Math.random() * 14;
-    rainPos[i * 3 + 2] = (Math.random() - 0.5) * 30;
+    rainPos[i * 3 + 2] = (Math.random() - 0.5) * RAIN_BOX;
   }
   const rainGeo = new THREE.BufferGeometry();
   rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
@@ -83,7 +84,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
     const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
-    const H = 88 + Math.floor(rnd() * 24);          // 4.4 – 5.6 m; crown bottom stays >2.2 m
+    const H = 90 + Math.floor(rnd() * 24);          // 4.5 – 5.7 m; crown bottom stays >2.2 m
     const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
@@ -195,12 +196,24 @@ export function buildProps(ctx: CtxBuild): Props {
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
       rainM.opacity = 0.55 * rainLevel;
-      rain.position.set(px, 0, pz);
+      // Rain belongs to the WORLD, not to the camera. The volume used to be
+      // pinned to the player every frame (rain.position.set(px,0,pz)) with
+      // fixed local x/z, so every drop translated exactly with you — a
+      // personal rain cloud you could never walk out from under.
+      //
+      // Now drops live in world coordinates and only ever wrap by a WHOLE box
+      // width when they fall outside the volume around you. Because the
+      // distribution is uniform, a full-period jump is invisible — so you get
+      // rain that stays put in the world while still covering wherever you are.
       const rp = rain.geometry.getAttribute('position') as THREE.BufferAttribute;
       for (let i = 0; i < RAIN_N; i++) {
         let ry = rp.getY(i) - dt * 13;
         if (ry < 0) ry += 14;
-        rp.setY(i, ry);
+        const rx = rp.getX(i), rz = rp.getZ(i);
+        rp.setXYZ(i,
+          rx - RAIN_BOX * Math.round((rx - px) / RAIN_BOX),
+          ry,
+          rz - RAIN_BOX * Math.round((rz - pz) / RAIN_BOX));
       }
       rp.needsUpdate = true;
     }

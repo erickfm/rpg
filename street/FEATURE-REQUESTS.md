@@ -68,6 +68,11 @@ published to the playable artifact.
   earlier note: some of them are missing brick entirely while the rear wall
   (which the user likes) has it. Screenshots in `shots/al-*.png`.
 
+- **Rain should belong to the world, not the camera.** It followed the
+  player exactly — a personal rain cloud you could never walk out from
+  under. FIXED: drops now live in world coordinates and only wrap by a
+  whole box width when they fall outside the volume around you.
+
 - **Night should feel darker.** The dusk/night curve doesn't get dark
   enough; night reads as dim evening rather than night.
 
