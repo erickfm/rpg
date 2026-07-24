@@ -27,6 +27,10 @@ export interface Look {
   build?: number;
   /** how far the legs swing on the moving frame; tied to walking speed */
   stride?: number;
+  /** 0 = clean, 1 = unwashed: stains, unshaven jaw, unkempt hair. Reconciled
+   *  from a parallel branch that added it for the hermit while this file was
+   *  being restructured — both changes were wanted, so both survive. */
+  grime?: number;
 }
 
 /** multiply a hex colour — used so the eyes and the hair shadow stay in the
@@ -43,6 +47,7 @@ export function citizenAtlas(o: Look): THREE.Texture {
   const { jacket, pants, skin, hair, fit } = o;
   const accent = o.accent || '#8a3a2e';
   const cut: HairCut = o.cut ?? 'short';
+  const grime = o.grime ?? 0;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -90,6 +95,20 @@ export function citizenAtlas(o: Look): THREE.Texture {
         const torsoBot = fit === 'coat' ? 45 : 39;
         g.fillStyle = jacket;
         g.fillRect(cx - tw, oy + 20, tw * 2, torsoBot - 20);
+        if (grime > 0) {
+          // Unwashed: sweat-yellowed collar and pits, food stains down the
+          // front, grubby cuffs. Drawn as low-alpha blotches so they read as
+          // dirt in the cloth rather than as pattern.
+          const G = `rgba(96,80,44,${0.20 * grime})`;
+          const G2 = `rgba(60,48,30,${0.26 * grime})`;
+          g.fillStyle = G;
+          g.fillRect(cx - 7, oy + 20, 14, 3);          // collar
+          g.fillRect(cx - 7, oy + 25, 3, 5); g.fillRect(cx + 4, oy + 25, 3, 5);  // pits
+          g.fillStyle = G2;
+          g.fillRect(cx - 3, oy + 30, 4, 3);           // down the front
+          g.fillRect(cx + 1, oy + 34, 3, 2);
+          g.fillRect(cx - 6, oy + 36, 3, 2);
+        }
         // soft edge shading only — narrow 2 px rim lighting, not wide bands, so
         // the torso reads as rounded cloth instead of vertical stripes
         if (view < 4) {

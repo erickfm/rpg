@@ -583,7 +583,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Palette: a yellowed, sweated-through undershirt rather than the crisp
     // white he used to wear, and GRIME turns on the stains, the unshaven jaw
     // and the messy hair in ct/citizens.ts.
-    hermitTex = citizenAtlas('#c9c0a6', '#454149', '#c08d63', '#3a3226', 'plain', '#8a3a2e', 1);
+    hermitTex = citizenAtlas({
+      jacket: '#c9c0a6',      // a yellowed undershirt, not the crisp white
+      pants: '#454149', skin: '#c08d63', hair: '#3a3226',
+      fit: 'plain', cut: 'long', build: 1, grime: 1,   // unkempt, grown out
+    });
     hermitTex.repeat.set(1 / 5, 1 / 2);
     const hermitGeo = new THREE.PlaneGeometry(0.95, 1.9);
     hermitGeo.translate(0, 0.95, 0);       // origin at his feet, like the citizens
