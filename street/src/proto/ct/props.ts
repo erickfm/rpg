@@ -79,12 +79,20 @@ export function buildProps(ctx: CtxBuild): Props {
   // tree well instead of a strip.
   const pitGeo = new THREE.PlaneGeometry(0.8, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
+  // Hand-tuned height exceptions. This is a hand-authored block, so a tree
+  // that reads wrong in its particular spot gets trimmed by index rather than
+  // by re-rolling the seed and disturbing every other tree. treeIdx 2 stands
+  // at z=-30, in front of ARCADE (which spans z -35..-22), and drew tall
+  // enough to crowd the sign.
+  const TREE_TRIM: Record<number, number> = { 2: 0.85 };
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
     const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
-    const H = 90 + Math.floor(rnd() * 24);          // 4.5 – 5.7 m; crown bottom stays >2.2 m
+    // rnd() is consumed for EVERY tree regardless, so trimming one does not
+    // shift the seeded stream and change the others.
+    const H = Math.round((90 + Math.floor(rnd() * 24)) * (TREE_TRIM[treeIdx] ?? 1));
     const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
