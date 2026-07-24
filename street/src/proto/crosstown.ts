@@ -126,6 +126,7 @@ export function makeCrosstown(): Proto {
     car.position.set(x, 0, z);
     car.rotation.y = ry;
     scene.add(car);
+    props.lit(car);          // parked in a lamp pool? then it catches it
     const cb = { minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] };
     carColliders.push(cb); citAvoid.push(cb);
   });
@@ -136,7 +137,7 @@ export function makeCrosstown(): Proto {
   const taxi = makeCar('sedan', 0, true);
   const bus = makeBus();
   const traffic = [...plain, taxi, bus];
-  traffic.forEach((c) => { c.visible = false; scene.add(c); });
+  traffic.forEach((c) => { c.visible = false; scene.add(c); props.lit(c); });
   let cruiser = traffic[0];
   let cruiseDir = -1;
   let cruiseWait = 5; // gap between cars
@@ -180,6 +181,7 @@ export function makeCrosstown(): Proto {
     const z = 2 - i * 23; // spread thin over the whole block
     mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
+    props.lit(mesh);         // people walk through the pools too
     // ±0.25, not ±0.30: bodies read the tiniest bit too wide to slip past.
     // With the rig's 0.36 m radius that puts the gap needed to squeeze by a
     // person at 0.61 m instead of 0.72 m.

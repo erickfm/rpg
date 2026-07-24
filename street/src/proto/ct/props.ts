@@ -17,8 +17,13 @@ import type { CtxBuild } from './ctx';
 // payphone must not be shuffled, here or against the modules around it.
 
 export interface Props {
-  /** streetlamp lenses + halos + road pools, on the night curve (0…1) */
+  /** streetlamp lenses + halos + road pools, on the night curve (0…1).
+   *  Also drives the lamplight tint over everything registered with lit(). */
   setLampNight: (v: number) => void;
+  /** register an object standing in the street so it CATCHES the lamplight.
+   *  Same idea as the wet registry, but keyed on position: the object's
+   *  distance to the nearest lamp head decides how much amber it takes. */
+  lit: (root: THREE.Object3D) => void;
   /** rain flattens the light — nudge the sky colour toward the storm grey */
   rainSky: (c: THREE.Color) => void;
   /** advance the weather: fades in/out by the hour, tints the wet ground */
@@ -66,6 +71,69 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(m);
     return m;
   }
+  // ── the lamplight registry ──────────────────────────────────────────────
+  //
+  // The world is entirely MeshBasic — there are no lights to respond to — so
+  // "being lit" is done the same way "being wet" already is: keep the base
+  // colour of every material that stands in the street, and each frame lerp
+  // it toward a sodium amber. Unlike rain this depends on WHERE the thing is,
+  // so we keep the root object too and measure it against the lamp heads.
+  //
+  // Cost: a few dozen objects against eight lamps, once a frame, and only
+  // after dusk — by day the night curve is 0 and the whole pass returns
+  // immediately. No per-vertex or per-pixel work anywhere.
+  const lampHeads: { x: number; z: number }[] = [];
+  interface Lit { o: THREE.Object3D; m: THREE.MeshBasicMaterial; base: THREE.Color }
+  const litList: Lit[] = [];
+  const litSeen = new Set<THREE.Material>();
+  const SODIUM = new THREE.Color(0xffc077);
+  const LAMP_R = 4.0;        // the pools read about this wide
+  const LIT_MAX = 0.62;      // never wash a surface out completely
+  const lit = (root: THREE.Object3D) => {
+    root.traverse((o) => {
+      const mm = (o as THREE.Mesh).material;
+      if (!mm) return;
+      for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
+        // additive halos and glows drive themselves off the night curve
+        // already; tinting them too would double-count
+        if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
+        litSeen.add(m);
+        litList.push({ o: root, m, base: m.color.clone() });
+      }
+    });
+  };
+  let litLast = -1;
+  const updateLit = (night: number) => {
+    if (night <= 0.001 && litLast <= 0.001) return;   // broad daylight: free
+    litLast = night;
+    for (const e of litList) {
+      const p = e.o.position;
+      let best = 0;
+      for (const h of lampHeads) {
+        const dx = p.x - h.x, dz = p.z - h.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 >= LAMP_R * LAMP_R) continue;
+        const f = 1 - Math.sqrt(d2) / LAMP_R;
+        if (f > best) best = f;
+      }
+      // smoothstep, not a square: a squared falloff only reaches 0.23 two
+      // metres from the head, which is too faint to read as being lit at all.
+      // This keeps the soft edge but actually fills the middle of the pool.
+      const f = best * best * (3 - 2 * best);
+      e.m.color.copy(e.base).lerp(SODIUM, night * f * LIT_MAX);
+    }
+  };
+
+  // light spilling onto the wall behind each lamp, so the brick beside a
+  // lamp isn't as flat-black as the brick mid-block
+  const wallSplashT = pixTex(32, 48, (g) => {
+    const gr = g.createRadialGradient(16, 17, 1, 16, 17, 26);
+    gr.addColorStop(0, 'rgba(255,192,116,0.55)');
+    gr.addColorStop(0.45, 'rgba(255,176,96,0.20)');
+    gr.addColorStop(1, 'rgba(255,176,96,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 48);
+  });
+
   // street trees — the sprite cutouts are back (they belong here): fixed
   // crown texels, trunk-only variation, planted in dirt pits, and only the
   // trunk is solid so the sidewalk stays walkable. The bed hugs the KERB side
@@ -99,6 +167,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const H = Math.round((90 + Math.floor(rnd() * 24)) * (TREE_TRIM[treeIdx] ?? 1));
     const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
+    lit(tree);
     const pit = new THREE.Mesh(pitGeo, pitMat);
     pit.rotation.x = -Math.PI / 2;
     pit.position.set(tx, sidewalkY + 0.006, pz2);
@@ -155,6 +224,16 @@ export function buildProps(ctx: CtxBuild): Props {
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4),
       new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, z); scene.add(pool);
+    lampHeads.push({ x: headX, z });
+    // light spilling up the wall behind the lamp, on the same night curve as
+    // the halo — otherwise the brick beside a lamp is as black as the brick
+    // mid-block, which is what makes the street read as unlit
+    const splash = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 5.0),
+      new THREE.MeshBasicMaterial({ map: wallSplashT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    splash.position.set(s * (FACE - 0.06), sidewalkY + 2.7, z);
+    splash.rotation.y = -s * Math.PI / 2;   // face the street, not the brick
+    scene.add(splash);
+    nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
     nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.85 });
   };
   // staggered down the block, kept clear of the tree pits (every 14 m at −2,−16…)
@@ -168,6 +247,7 @@ export function buildProps(ctx: CtxBuild): Props {
   const hyX = ROAD_HALF + 0.35, hyZ = -6;
   const hyd = board(hydrantSprite(), 0.8, 1.2, hyX, hyZ);
   hyd.position.y = sidewalkY;
+  lit(hyd);
   obstacle({ minX: hyX - 0.18, maxX: hyX + 0.18, minZ: hyZ - 0.18, maxZ: hyZ + 0.18 });
   // pigeons peck along the kerb — most spook when you walk up; the odd bold
   // one holds its ground until you all but step on it
@@ -195,6 +275,7 @@ export function buildProps(ctx: CtxBuild): Props {
   const phone = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.3, 0.9), flat(payphoneTex()));
   phone.position.set(-(FACE - 0.55), sidewalkY + 1.15, -11);
   scene.add(phone);
+  lit(phone);
   obstacle({ minX: -(FACE - 0.05), maxX: -(FACE - 1.05), minZ: -11.55, maxZ: -10.45 });
 
   // weather: the rain comes and goes by the hour, and the ground
@@ -369,6 +450,9 @@ export function buildProps(ctx: CtxBuild): Props {
   // tree at z = −29.5 and the lamp at z = −51, clear of the Whitmore door.
   const STOP_Z = -33.5, BENCH_Z = -36.6;
   const metalM = new THREE.MeshBasicMaterial({ color: 0x2b3138 });
+  // the bench gets its OWN instance: the lamplight registry binds a material
+  // to one position, and the bench stands 3 m from the pole
+  const benchM = new THREE.MeshBasicMaterial({ color: 0x2b3138 });
   const flatT2 = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
 
   // the flag sign — dark blue field, white pictogram, route number
@@ -386,14 +470,18 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillText('BUS', 16, 7);
     g.fillText('42', 16, 38);
   });
-  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.5, 0.08), metalM);
-  pole.position.set(ROAD_HALF + 0.32, sidewalkY + 1.25, STOP_Z);
+  // Sign height is set to the standard: the bottom of a bus stop flag sits
+  // 2.2–2.5 m above the walk. This one is at the LOW end, 2.20.
+  const FLAG_BOT = 2.20, FLAG_H = 0.52;
+  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, FLAG_BOT + FLAG_H + 0.08, 0.08), metalM);
+  pole.position.set(ROAD_HALF + 0.32, sidewalkY + (FLAG_BOT + FLAG_H + 0.08) / 2, STOP_Z);
   scene.add(pole);
   // the flag faces UP-STREET so it reads to an approaching bus (and to you,
   // walking down the block); it is painted on both faces like a real one
-  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.58, 0.04), flatT2(flagT));
-  flag.position.set(ROAD_HALF + 0.32, sidewalkY + 2.16, STOP_Z);
+  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.40, FLAG_H, 0.04), flatT2(flagT));
+  flag.position.set(ROAD_HALF + 0.32, sidewalkY + FLAG_BOT + FLAG_H / 2, STOP_Z);
   scene.add(flag);
+  lit(pole); lit(flag);
   obstacle({ minX: ROAD_HALF + 0.23, maxX: ROAD_HALF + 0.41, minZ: STOP_Z - 0.09, maxZ: STOP_Z + 0.09 });
 
   // the bench: slat seat, slat back, cast ends, ad panel to the road
@@ -417,30 +505,66 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillText('TWO SLICES $1.75', 48, 18);
     dither(g, 96, 22, 50);
   });
-  const BX0 = ROAD_HALF + 0.10;   // backrest, hard against the kerb
-  const BX1 = ROAD_HALF + 0.66;   // front of the seat
-  // material order is [+x, -x, +y, -y, +z, -z]; the ad goes on -x, the ROAD
-  // side, where the traffic it was sold to can see it
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.44, 1.8),
-    [flatT2(slatT), flatT2(adT), metalM, metalM, metalM, metalM]);
-  back.position.set(BX0, sidewalkY + 0.68, BENCH_Z);
+  // A bus bench, built the way one actually is: a horizontal SEAT of slats at
+  // 0.45 m, a BACKREST rising from the seat's back edge to 0.88 m, and four
+  // legs under it. The advertisement is printed ON the backrest — it is the
+  // panel you lean against, not a billboard standing behind the seat.
+  //
+  // The back edge is the ROAD side, because that is the way ad benches face:
+  // the sitter looks at the shopfronts and the advertiser gets the traffic.
+  const BX_BACK = ROAD_HALF + 0.10;          // outer face of the backrest
+  const BX_SEAT0 = BX_BACK + 0.07;           // seat starts where the back ends
+  const BX_SEAT1 = BX_SEAT0 + 0.50;          // 0.50 m of seat depth
+  const SEAT_Y = sidewalkY + 0.45;
+  const BACK_TOP = sidewalkY + 0.88;
+  const BENCH_L = 1.8;
+
+  // backrest = the ad panel. [+x, -x, +y, -y, +z, -z]: slats face the sitter,
+  // the ad faces the roadway.
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.07, BACK_TOP - SEAT_Y, BENCH_L),
+    [flatT2(slatT), flatT2(adT), benchM, benchM, benchM, benchM]);
+  back.position.set(BX_BACK + 0.035, (SEAT_Y + BACK_TOP) / 2, BENCH_Z);
   scene.add(back);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.06, 1.8),
-    [metalM, metalM, flatT2(slatT), metalM, metalM, metalM]);
-  seat.position.set((BX0 + BX1) / 2, sidewalkY + 0.44, BENCH_Z);
-  scene.add(seat);
-  for (const s of [-1, 1]) {
-    const end = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.46, 0.07), metalM);
-    end.position.set((BX0 + BX1) / 2, sidewalkY + 0.23, BENCH_Z + s * 0.87);
-    scene.add(end);
+  lit(back);
+  // seat: three slats with gaps, so it reads as seating rather than a slab
+  for (let i = 0; i < 3; i++) {
+    const w = 0.15;
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, BENCH_L),
+      [benchM, benchM, flatT2(slatT), benchM, flatT2(slatT), flatT2(slatT)]);
+    slat.position.set(BX_SEAT0 + w / 2 + i * 0.175, SEAT_Y - 0.025, BENCH_Z);
+    scene.add(slat);
+    lit(slat);
   }
-  obstacle({ minX: BX0 - 0.05, maxX: BX1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
+  // four legs, not a solid box
+  for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.05, BX_SEAT1 - 0.05]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), benchM);
+    leg.position.set(lx, sidewalkY + 0.225, BENCH_Z + sz * 0.78);
+    scene.add(leg);
+  }
+  // a proper contact shadow on the flags, so it sits ON the pavement
+  const benchShadowT = pixTex(24, 48, (g) => {
+    const gr = g.createLinearGradient(0, 0, 24, 0);
+    gr.addColorStop(0, 'rgba(20,18,15,0.34)');
+    gr.addColorStop(0.7, 'rgba(20,18,15,0.16)');
+    gr.addColorStop(1, 'rgba(20,18,15,0)');
+    g.fillStyle = gr; g.fillRect(0, 2, 24, 44);
+  });
+  const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.78, BENCH_L + 0.12),
+    new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false }));
+  bshadow.rotation.x = -Math.PI / 2;
+  bshadow.position.set(BX_BACK + 0.36, sidewalkY + 0.004, BENCH_Z);
+  scene.add(bshadow);
+  // the collider stays inside the lamp-pole envelope (they block to x ≈ 6.11
+  // with the rig's 0.36 m radius) so the bench never becomes the pinch point
+  obstacle({ minX: BX_BACK - 0.05, maxX: BX_SEAT1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
   return {
     setLampNight: (v) => {
       for (const g of nightLit) g.mat.opacity = g.base * v;
       lensM.color.copy(lensDay).lerp(lensLit, v);
+      updateLit(v);   // and everything standing in a pool takes the amber
     },
+    lit,
     rainSky: (c) => { if (rainLevel > 0.01) c.lerp(RAIN_SKY, rainLevel * 0.5); },
     scatter: (x, z, y) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), crumbMat);
