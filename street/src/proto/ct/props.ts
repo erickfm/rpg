@@ -83,22 +83,34 @@ export function buildProps(ctx: CtxBuild): Props {
   // after dusk — by day the night curve is 0 and the whole pass returns
   // immediately. No per-vertex or per-pixel work anywhere.
   const lampHeads: { x: number; z: number }[] = [];
-  interface Lit { o: THREE.Object3D; m: THREE.MeshBasicMaterial; base: THREE.Color }
+  // Each entry keeps the PART's offset inside its parent, not just the parent,
+  // so a 4.5 m car doesn't shift as one block — its near end catches the pool
+  // and its far end doesn't.
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
-  const SODIUM = new THREE.Color(0xffc077);
   const LAMP_R = 4.0;        // the pools read about this wide
-  const LIT_MAX = 0.62;      // never wash a surface out completely
+  // Sodium light WARMS a surface, it does not repaint it. So the base colour
+  // is MULTIPLIED by a warm factor rather than lerped toward amber: a dark
+  // green sedan stays a dark green sedan, slightly warmer. Lerping toward a
+  // flat amber dragged every dark texel — glass, wheel arches, tyre rubber —
+  // up toward brown, which is what read as a graphics bug. Multiplying can't
+  // do that: near-black × 1.15 is still near-black.
+  const WARM_R = 1.15, WARM_G = 1.05, WARM_B = 0.85;
+  // anything darker than this is glass, rubber or ironwork; it stays dark
+  const LIT_MIN_LUM = 0.22;
   const lit = (root: THREE.Object3D) => {
     root.traverse((o) => {
       const mm = (o as THREE.Mesh).material;
       if (!mm) return;
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
-        // additive halos and glows drive themselves off the night curve
-        // already; tinting them too would double-count
         if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
+        // explicitly excluded: dark glass and tyres (see ct/cars.ts)
+        if (m.userData?.noLight) continue;
+        const c = m.color;
+        if (c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722 < LIT_MIN_LUM) continue;
         litSeen.add(m);
-        litList.push({ o: root, m, base: m.color.clone() });
+        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone() });
       }
     });
   };
@@ -107,20 +119,26 @@ export function buildProps(ctx: CtxBuild): Props {
     if (night <= 0.001 && litLast <= 0.001) return;   // broad daylight: free
     litLast = night;
     for (const e of litList) {
-      const p = e.o.position;
+      // the part's world position — cars only ever rotate about Y
+      const a = e.root.rotation.y, ca = Math.cos(a), sa = Math.sin(a);
+      const px = e.root.position.x + e.ox * ca + e.oz * sa;
+      const pz = e.root.position.z - e.ox * sa + e.oz * ca;
       let best = 0;
       for (const h of lampHeads) {
-        const dx = p.x - h.x, dz = p.z - h.z;
+        const dx = px - h.x, dz = pz - h.z;
         const d2 = dx * dx + dz * dz;
         if (d2 >= LAMP_R * LAMP_R) continue;
         const f = 1 - Math.sqrt(d2) / LAMP_R;
         if (f > best) best = f;
       }
-      // smoothstep, not a square: a squared falloff only reaches 0.23 two
-      // metres from the head, which is too faint to read as being lit at all.
-      // This keeps the soft edge but actually fills the middle of the pool.
-      const f = best * best * (3 - 2 * best);
-      e.m.color.copy(e.base).lerp(SODIUM, night * f * LIT_MAX);
+      // smoothstep, not a square: squared only reaches 0.23 two metres from
+      // the head, too faint to read as lit at all
+      const k = night * (best * best * (3 - 2 * best));
+      e.m.color.setRGB(
+        e.base.r * (1 + (WARM_R - 1) * k),
+        e.base.g * (1 + (WARM_G - 1) * k),
+        e.base.b * (1 + (WARM_B - 1) * k),
+      );
     }
   };
 

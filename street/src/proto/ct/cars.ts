@@ -255,6 +255,7 @@ export function makeBus(): THREE.Group {
   const band = '#3f5a52';          // muted transit-authority green
   const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
+  darkM.userData.noLight = true;
   const g = new THREE.Group();
 
   // one tall slab carries the whole body; the paint does the shaping
@@ -284,6 +285,7 @@ export function makeBus(): THREE.Group {
 
   // wheels: front axle well forward, rear axle set back, as on a real bus
   const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+  tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
@@ -313,6 +315,11 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   const bodyM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body) });
   const glassM = new THREE.MeshBasicMaterial({ color: 0x1c2836, side: THREE.DoubleSide });
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
+  // Dark glass under a sodium lamp stays dark glass; rubber stays black.
+  // Flag them so the lamplight registry skips them outright — a warmed
+  // greenhouse reads as a brown slab, which is not a lighting effect.
+  glassM.userData.noLight = true;
+  darkM.userData.noLight = true;
   const g = new THREE.Group();
 
   const spec = {
@@ -440,6 +447,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
 
   // wheels
   const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+  tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);

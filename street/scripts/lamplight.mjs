@@ -52,9 +52,10 @@ if (mode === 'shots' || mode === 'all') {
 }
 
 if (mode === 'probe' || mode === 'all') {
-  // Read the actual material colours off the scene graph. A car standing in a
-  // pool must warm up at night; a car nowhere near a lamp must not move at
-  // all; and by day nothing may differ from its base colour.
+  // Read material colours straight off the scene graph. The bar is not "did
+  // it get amber" — sodium light WARMS a surface, it does not repaint it. So:
+  // the car must change, must stay recognisably its own colour, must not all
+  // shift as one block, and glass/rubber must not move at all.
   const sample = () => page.evaluate(() => {
     const scene = window.__ct.scene();
     const near = (x, z) => {
@@ -69,10 +70,10 @@ if (mode === 'probe' || mode === 'all') {
         const mm = o.material;
         if (!mm) return;
         for (const m of (Array.isArray(mm) ? mm : [mm])) {
-          if (m && m.color) cols.push(m.color.getHexString());
+          if (m && m.color) cols.push([m.color.r, m.color.g, m.color.b]);
         }
       });
-      return cols.join(',');
+      return cols;
     };
     return { hatch: near(3.63, -49), sedan: near(3.93, -13) };
   });
@@ -87,22 +88,40 @@ if (mode === 'probe' || mode === 'all') {
   await page.waitForTimeout(900);
   const back = await sample();
 
-  const warmth = (csv) => {
-    const c = csv.split(',');
-    let r = 0, b = 0;
-    for (const h of c) { r += parseInt(h.slice(0, 2), 16); b += parseInt(h.slice(4, 6), 16); }
-    return (r - b) / c.length;
-  };
-  console.log('\nlamplight probe (material colours read off the scene graph):');
-  console.log(`  hatch (2.1 m from the z=-51 lamp head)  day r-b ${warmth(day.hatch).toFixed(1)}  ->  night ${warmth(night.hatch).toFixed(1)}`);
-  console.log(`  sedan (10 m from any lamp head)         day r-b ${warmth(day.sedan).toFixed(1)}  ->  night ${warmth(night.sedan).toFixed(1)}`);
-  const litUp = warmth(night.hatch) - warmth(day.hatch) > 8;
-  const controlFlat = night.sedan === day.sedan;
-  const restored = back.hatch === day.hatch;
-  console.log(`  ${litUp ? 'OK  ' : 'FAIL'} the car in the pool warms up at night`);
+  const lum = (c) => c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
+  let changed = 0, worstDrift = 0, darkMoved = 0;
+  const ratios = new Set();
+  for (let i = 0; i < day.hatch.length; i++) {
+    const d = day.hatch[i], n = night.hatch[i];
+    const same = d.every((v, k) => Math.abs(v - n[k]) < 1e-4);
+    if (!same) {
+      changed++;
+      ratios.add((n[0] / Math.max(d[0], 1e-6)).toFixed(3));
+      for (let k = 0; k < 3; k++) {
+        worstDrift = Math.max(worstDrift, Math.abs(n[k] - d[k]) / Math.max(d[k], 1e-6));
+      }
+    }
+    if (!same && lum(d) < 0.22) darkMoved++;   // glass, rubber, ironwork
+  }
+  console.log('\nlamplight probe — the hatch parked 2.1 m from the z=-51 lamp head:');
+  console.log(`  ${changed}/${day.hatch.length} materials warm up at night`);
+  console.log(`  largest per-channel change: ${(worstDrift * 100).toFixed(1)}%`);
+  console.log(`  distinct warm ratios across the car: ${ratios.size} (per-part falloff)`);
+  console.log(`  dark materials (glass / tyres / ironwork) that moved: ${darkMoved}`);
+
+  const litUp = changed >= 3;
+  const stillItself = worstDrift > 0.02 && worstDrift < 0.22;   // visible, not a repaint
+  const perPart = ratios.size >= 2;
+  const darkSafe = darkMoved === 0;
+  const controlFlat = JSON.stringify(night.sedan) === JSON.stringify(day.sedan);
+  const restored = JSON.stringify(back.hatch) === JSON.stringify(day.hatch);
+  console.log(`  ${litUp ? 'OK  ' : 'FAIL'} the car in the pool warms up`);
+  console.log(`  ${stillItself ? 'OK  ' : 'FAIL'} it is still the same car (change within 2-22%)`);
+  console.log(`  ${perPart ? 'OK  ' : 'FAIL'} the car does not shift as one block`);
+  console.log(`  ${darkSafe ? 'OK  ' : 'FAIL'} glass, tyres and ironwork are untouched`);
   console.log(`  ${controlFlat ? 'OK  ' : 'FAIL'} the car away from any lamp is untouched`);
-  console.log(`  ${restored ? 'OK  ' : 'FAIL'} it returns exactly to its base colour by day`);
-  if (!litUp || !controlFlat || !restored) process.exit(1);
+  console.log(`  ${restored ? 'OK  ' : 'FAIL'} everything returns exactly to base by day`);
+  if (!litUp || !stillItself || !perPart || !darkSafe || !controlFlat || !restored) process.exit(1);
 }
 
 await browser.close();
