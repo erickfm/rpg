@@ -73,6 +73,25 @@ export interface Apartment {
 export function buildApartment(ctx: CtxBuild): Apartment {
   const { scene, boards, sidewalkY } = ctx;
   const APT_X = 200, APT_Z = -20, ST = 2.7;
+  // ── the switchback ───────────────────────────────────────────────────────
+  // 7 risers over a 2.2 m run per half storey: a 0.193 m rise on a 0.314 m
+  // tread, which is 31.5°. A normal residential pitch (US code allows about
+  // 37°) and steeper than the 27.4° it used to be. Taller risers rather than
+  // shallower treads, so the flight also eats 0.4 m less floor — the half
+  // landing gets that back and is 2.6 m deep now instead of 2.2.
+  //
+  // EVERYTHING downstream is derived from these: the treads, the landing, the
+  // core wall, the sloped soffits, the handrail, the under-stair boxes, the
+  // colliders — and the one that actually bites, the ramp inside aptGround.
+  // The floor-picker does not know about treads; it walks you up a smooth
+  // ramp whose gradient is RISE/RUN. Change the pitch without re-deriving it
+  // and you sink through the stairs or float above them.
+  const STEPS = 7;
+  const RISE = 1.35;                            // half a storey, fixed by ST
+  const RUN = 2.2;                              // horizontal, per half flight
+  const RISER = RISE / STEPS, TREAD = RUN / STEPS;
+  const STAIR_Z0 = 8.4, STAIR_Z1 = STAIR_Z0 + RUN;
+  const LAND_Z1 = 13.2;                         // the shaft's south wall
   // ── the top landing ──────────────────────────────────────────────────────
   // At floor 3 the shaft's west half is where flight A WOULD carry on up to a
   // fourth floor that does not exist, so it was open void. The hall floor
@@ -90,7 +109,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // The landing geometry, the floor-picker and the guard collider all read
   // these three numbers. They must not drift apart — that is the whole bug.
   const NIB_D = 1.2;              // how far the landing reaches into the shaft
-  const NIB_Z1 = 8.4 + NIB_D;     // its open edge: the railing stands here
+  const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
   const TOP_Y = 3 * ST;           // floor 3
   const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
   let lastGy = 0; // last ground height — this is what picks the active floor
@@ -188,7 +207,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(2.4), maxX: AX(2.55), minZ: AZI(0), maxZ: AZI(13.2) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(-0.15), maxZ: AZI(0) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
-      { minX: AX(1.16), maxX: AX(1.24), minZ: AZI(8.4), maxZ: AZI(11.0) }, // centre banister
+      { minX: AX(1.04), maxX: AX(1.36), minZ: AZI(STAIR_Z0), maxZ: AZI(STAIR_Z1) }, // core wall + the handrails on both its faces
       { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.05), maxZ: AZI(3.95) }, // 302's doorway (and the hermit in it)
       stairCap, underStairA, underStairB, aptDoorCap,
     );
@@ -218,36 +237,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const railM = new THREE.MeshBasicMaterial({ color: 0x3a2c20 });
     const landMats = [darkWoodM, darkWoodM, texM(woodFloorT.clone()), darkWoodM, darkWoodM, darkWoodM];
     for (let f = 0; f < 3; f++) {
-      for (let i = 0; i < 8; i++) {
-        const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.36), treadMats);
-        a.position.set(AX(0.6), f * ST + (i + 0.5) * (1.35 / 8), AZI(8.4 + (i + 0.5) * (2.6 / 8)));
+      // tread i's TOP sits at (i+1) risers, so the last one is flush with the
+      // landing and there is no half-step at either end of the flight
+      for (let i = 0; i < STEPS; i++) {
+        const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, TREAD + 0.05), treadMats);
+        a.position.set(AX(0.6), f * ST + (i + 1) * RISER - 0.09, AZI(STAIR_Z0 + (i + 0.5) * TREAD));
         scene.add(a);
-        const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.36), treadMats);
-        b.position.set(AX(1.8), f * ST + 1.35 + (i + 0.5) * (1.35 / 8), AZI(11.0 - (i + 0.5) * (2.6 / 8)));
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, TREAD + 0.05), treadMats);
+        b.position.set(AX(1.8), f * ST + RISE + (i + 1) * RISER - 0.09, AZI(STAIR_Z1 - (i + 0.5) * TREAD));
         scene.add(b);
       }
-      const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 2.2), landMats);
-      land.position.set(AX(1.2), f * ST + 1.35 - 0.07, AZI(12.1));
+      const LAND_D = LAND_Z1 - STAIR_Z1;
+      const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, LAND_D), landMats);
+      land.position.set(AX(1.2), f * ST + RISE - 0.07, AZI(STAIR_Z1 + LAND_D / 2));
       scene.add(land);
       // solid sloped undersides — the flights read as built, not floating
-      const slope = Math.atan2(1.35, 2.6);
-      const underA2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, 2.95), darkWoodM);
-      underA2.position.set(AX(0.6), f * ST + 0.56, AZI(9.7));
+      const slope = Math.atan2(RISE, RUN);
+      const soffit = Math.hypot(RISE, RUN) + 0.06;
+      const underA2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, soffit), darkWoodM);
+      underA2.position.set(AX(0.6), f * ST + RISE / 2 - 0.12, AZI(STAIR_Z0 + RUN / 2));
       underA2.rotation.x = -slope;
       scene.add(underA2);
-      const underB2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, 2.95), darkWoodM);
-      underB2.position.set(AX(1.8), f * ST + 1.9, AZI(9.7));
+      const underB2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, soffit), darkWoodM);
+      underB2.position.set(AX(1.8), f * ST + RISE + RISE / 2 - 0.12, AZI(STAIR_Z0 + RUN / 2));
       underB2.rotation.x = slope;
       scene.add(underB2);
-      // handrails ride the centre divider, one per flight
-      const hrA = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 2.85), railM);
-      hrA.position.set(AX(1.11), f * ST + 1.5, AZI(9.7));
-      hrA.rotation.x = -slope;
-      scene.add(hrA);
-      const hrB = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 2.85), railM);
-      hrB.position.set(AX(1.29), f * ST + 2.85, AZI(9.7));
-      hrB.rotation.x = slope;
-      scene.add(hrB);
     }
     // one solid core wall between the up and down flights — no floating
     // diagonal rails, treads butt into something real
@@ -255,20 +269,86 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // head of the stairs, low enough that it is not a slab left standing in
     // the shaft — and it wears the hall's own wallpaper under a timber cap,
     // so it reads as a plastered core wall instead of a bare grey panel.
-    const CORE_H = TOP_Y + 1.0;
+    // ── the handrail ─────────────────────────────────────────────────────
+    // ONE rail, lobby to floor 3. You can slide your hand from the bottom of
+    // the first flight, round every landing, to the top without letting go.
+    // It used to be two stub rails per flight that both died in mid-air, at
+    // heights that did not match each other or the landing.
+    //
+    // What makes every joint mitre dead flat, with no gooseneck anywhere: the
+    // ramp through the nosings sits half a riser (0.096 m) above each
+    // flight's structural floor, so a rake at 0.904 m above the nosings
+    // arrives at EXACTLY 1.0 m above the floor at the bottom and 1.0 m above
+    // the landing at the top — which is where the landing rail wants to be.
+    // 0.904 over nosings, 1.0 over landings: both well inside code, and the
+    // two reconcile themselves. Change RISE/RUN/STEPS and this still holds;
+    // it falls out of the geometry rather than being tuned by hand.
+    //
+    // The run wraps the ENDS of the core wall — its south end at each half
+    // landing, its north end at each floor — which is what carries the rail
+    // across from one flight to the next and from one storey to the next.
+    const RAIL_H = 1.0;                        // above floor / above landing
+    const WX = AX(1.08), EX = AX(1.32);        // a rail off each core face
+    const RET = 0.07;                          // return past the core's end
+    const CORE_H = TOP_Y + RAIL_H - 0.04;      // cap centreline lands on RAIL_H
     const coreT = wallpaperT.clone();
     coreT.wrapS = coreT.wrapT = THREE.RepeatWrapping;
-    coreT.repeat.set(2.6 / 2.7, CORE_H / 2.7);
+    coreT.repeat.set(RUN / 2.7, CORE_H / 2.7);
     coreT.needsUpdate = true;
     const coreFaceM = texM(coreT);
     const coreEdgeM = new THREE.MeshBasicMaterial({ color: 0x6e6558 });
-    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.12, CORE_H, 2.6),
+    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.12, CORE_H, RUN),
       [coreFaceM, coreFaceM, coreEdgeM, coreEdgeM, coreEdgeM, coreEdgeM]);
-    divider.position.set(AX(1.2), CORE_H / 2, AZI(9.7));
+    divider.position.set(AX(1.2), CORE_H / 2, AZI(STAIR_Z0 + RUN / 2));
     scene.add(divider);
-    const coreCap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 2.6), railM);
-    coreCap.position.set(AX(1.2), CORE_H + 0.035, AZI(9.7));
+    // at floor 3 the core's cap IS the handrail — same centreline, so the
+    // rake coming up the last flight mitres straight into it
+    const coreCap = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, RUN), railM);
+    coreCap.position.set(AX(1.2), TOP_Y + RAIL_H, AZI(STAIR_Z0 + RUN / 2));
     scene.add(coreCap);
+    // the polyline. Continuity is guaranteed by construction: consecutive
+    // points share endpoints, so there is nothing to line up by hand.
+    const railPts: THREE.Vector3[] = [];
+    const P = (x: number, y: number, lz: number) => railPts.push(new THREE.Vector3(x, y, AZI(lz)));
+    P(WX, RAIL_H, STAIR_Z0 - RET);                       // its newel, in the lobby
+    for (let f = 0; f < 3; f++) {
+      P(WX, f * ST + RAIL_H, STAIR_Z0);                  // foot of the first rake
+      P(WX, f * ST + RISE + RAIL_H, STAIR_Z1);           // head of it, at the landing
+      P(WX, f * ST + RISE + RAIL_H, STAIR_Z1 + RET);     // return past the core's south end
+      P(EX, f * ST + RISE + RAIL_H, STAIR_Z1 + RET);     // across it
+      P(EX, f * ST + RISE + RAIL_H, STAIR_Z1);           // onto the east face
+      P(EX, (f + 1) * ST + RAIL_H, STAIR_Z0);            // up the second rake
+      P(EX, (f + 1) * ST + RAIL_H, STAIR_Z0 - RET);      // return past the north end
+      P(WX, (f + 1) * ST + RAIL_H, STAIR_Z0 - RET);      // across, ready for the next
+    }
+    const Z_AXIS = new THREE.Vector3(0, 0, 1);
+    for (let i = 1; i < railPts.length; i++) {
+      const a = railPts[i - 1], b = railPts[i];
+      const d = new THREE.Vector3().subVectors(b, a);
+      // segments overrun by one section so the mitres never open a gap
+      const seg = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.08, d.length() + 0.08), railM);
+      seg.position.copy(a).addScaledVector(d, 0.5);
+      seg.quaternion.setFromUnitVectors(Z_AXIS, d.clone().normalize());
+      scene.add(seg);
+    }
+    // it is fixed to the core wall, so show the fixings: a bracket every
+    // third of a flight, bridging the gap from the wall face to the rail
+    for (let f = 0; f < 3; f++) {
+      for (const t of [0.2, 0.5, 0.8]) {
+        for (const [bx, y, lz] of [
+          [AX(1.11), f * ST + RAIL_H + t * RISE, STAIR_Z0 + t * RUN],
+          [AX(1.29), f * ST + RISE + RAIL_H + t * RISE, STAIR_Z1 - t * RUN],
+        ] as [number, number, number][]) {
+          const br = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.035, 0.035), railM);
+          br.position.set(bx, y - 0.065, AZI(lz));
+          scene.add(br);
+        }
+      }
+    }
+    // the newel the whole run starts from, standing on the lobby floor
+    const newel = new THREE.Mesh(new THREE.BoxGeometry(0.1, RAIL_H + 0.04, 0.1), railM);
+    newel.position.set(WX, (RAIL_H + 0.04) / 2, AZI(STAIR_Z0 - RET));
+    scene.add(newel);
     // ── the top landing itself ───────────────────────────────────────────
     // Carpet on top to match the hall it continues, a ceiling on the
     // underside because you walk up flight A directly beneath it, and a
@@ -289,23 +369,23 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the guard: a railing you can SEE, standing exactly where the stairCap
     // collider starts, so nothing invisible ever stops you
     const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.09), railM);
-    railCap2.position.set(AX(0.6), TOP_Y + 0.95, AZI(NIB_Z1));
+    railCap2.position.set(AX(0.6), TOP_Y + RAIL_H, AZI(NIB_Z1));
     scene.add(railCap2);
     const railLow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.06), railM);
-    railLow.position.set(AX(0.6), TOP_Y + 0.48, AZI(NIB_Z1));
+    railLow.position.set(AX(0.6), TOP_Y + RAIL_H * 0.5, AZI(NIB_Z1));
     scene.add(railLow);
     for (const lx of [0.08, 0.6, 1.12]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.95, 0.07), railM);
-      post.position.set(AX(lx), TOP_Y + 0.475, AZI(NIB_Z1));
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, RAIL_H, 0.07), railM);
+      post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(NIB_Z1));
       scene.add(post);
     }
     // lobby: dead space boxed in under the stairs
     const underM = new THREE.MeshBasicMaterial({ color: 0x1a1b21 });
     const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
-    uA.position.set(AX(1.8), 0.65, AZI(10.8));
+    uA.position.set(AX(1.8), 0.65, AZI((STAIR_Z0 + LAND_Z1) / 2));
     scene.add(uA);
-    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 2.2), underM);
-    uB.position.set(AX(0.6), 0.65, AZI(12.1));
+    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, LAND_Z1 - STAIR_Z1), underM);
+    uB.position.set(AX(0.6), 0.65, AZI((STAIR_Z1 + LAND_Z1) / 2));
     scene.add(uB);
     // doors up the floors — 301 is a real opening; 302 is the hermit's
     const doorTexN = (num: string) => pixTex(32, 64, (g) => {
@@ -458,7 +538,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // the half landings hang theirs off whatever is genuinely above them:
       // the underside of the next landing up, or — at the top of the shaft,
       // where there is no next landing — the building's top ceiling
-      if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + 1.35 - 0.14 : H, AZI(12.5), 0.52);
+      if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + RISE - 0.14 : H, AZI((STAIR_Z1 + LAND_Z1) / 2 + 0.3), 0.52);
     }
     // lobby dressing: mailboxes and the front door
     const mailT = pixTex(48, 32, (g) => {
@@ -646,11 +726,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const aptGround = (wx: number, wz: number): number => {
     const lx = wx - APT_X, lz = wz - APT_Z;
     let rel = 0;
-    if (lx >= 0 && lz > 8.4) {
-      if (lz > 11.0) rel = 1.35;
+    if (lx >= 0 && lz > STAIR_Z0) {
+      if (lz > STAIR_Z1) rel = RISE;
       else {
-        const t = (lz - 8.4) / 2.6;
-        rel = lx < 1.2 ? t * 1.35 : 2.7 - t * 1.35;
+        const t = (lz - STAIR_Z0) / RUN;
+        rel = lx < 1.2 ? t * RISE : 2 * RISE - t * RISE;
       }
     }
     let best = lastGy, bd = Infinity;
@@ -671,7 +751,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // which is exactly the 2.6 m drop this closes. Offered as a candidate
     // rather than special-cased, so the hysteresis still arbitrates: walking
     // DOWN the east flight never sees it, because it is west-half only.
-    if (lx >= 0 && lx < 1.2 && lz > 8.4 && lz <= NIB_Z1) consider(TOP_Y);
+    if (lx >= 0 && lx < 1.2 && lz > STAIR_Z0 && lz <= NIB_Z1) consider(TOP_Y);
     lastGy = best;
     return best;
   };
@@ -688,10 +768,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const updateCaps = (px: number) => {
     // the guard starts at the railing, not at the stairwell mouth: the first
     // NIB_D of the west half is the top landing now and you may stand on it
-    setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(NIB_Z1), AZI(13.2));
+    setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(NIB_Z1), AZI(LAND_Z1));
     const onLobby = px > 100 && lastGy < 0.6;
-    setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(8.4), AZI(13.2));
-    setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.0), AZI(13.2));
+    setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
+    setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
     setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.1), AZI(3.9));
   };
 

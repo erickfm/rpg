@@ -50,6 +50,20 @@ const SHOTS = [
   ['stair-mid-up', AX(1.8), AZ(9.7), at(0, -1.6), 1.0 + 2 * ST, 0.35],
   ['stair-landing-up', AX(1.2), AZ(12.1), at(0, -2.4), 2 * ST + 1.35, 0.20],
 
+  // ── handrail continuity: look straight at each turn, from both sides ────
+  // south end of the core, where the rail wraps from one flight to the next
+  ['rail-turn-landing', AX(1.2), AZ(12.2), at(0, -1.6), 1.35, -0.06],
+  ['rail-turn-landing-w', AX(0.5), AZ(12.0), at(0.7, -1.4), 1.35, -0.02],
+  ['rail-turn-landing-e', AX(1.9), AZ(12.0), at(-0.7, -1.4), 1.35, -0.02],
+  // north end of the core, where it carries across at each floor
+  ['rail-turn-floor1', AX(1.2), AZ(7.0), at(0, 1.4), ST, 0.02],
+  ['rail-turn-floor2', AX(1.2), AZ(7.0), at(0, 1.4), 2 * ST, 0.02],
+  ['rail-turn-floor3', AX(1.2), AZ(7.0), at(0, 1.4), 3 * ST, 0.02],
+  // along the rake, going up and coming back down
+  ['rail-rake-up', AX(0.55), AZ(8.9), at(0.5, 1.6), 0.35, 0.16],
+  ['rail-rake-down', AX(1.85), AZ(9.4), at(-0.5, 1.2), ST + 0.7, -0.18],
+  ['rail-newel', AX(0.7), AZ(7.2), at(0.4, 1.3), 0, -0.20],
+
   // ── door number plates ──────────────────────────────────────────────────
   // 401/301 hang on the WEST wall at AX(0.02); 102/302 on the EAST at AX(2.38)
   ['plate-401', AX(1.2), AZ(5.0), at(-1.18, -1.5), 3 * ST, 0.12],
