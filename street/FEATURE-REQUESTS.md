@@ -9,6 +9,17 @@ published to the playable artifact.
 
 ## In progress
 
+## Done — 2026-07-24 graphical-bug sweep
+
+- **Side-street asphalt no longer smears** — `asphaltTex()` hard-coded
+  `repeat(3, 30)`, tuned for the tall/narrow main road (10×134 m). Reused
+  as-is on the wide/short side-street plane (62×10 m) it stretched each
+  tile to ~21 m wide × 0.33 m deep, so the dither and cracks smeared into
+  long horizontal streaks across the whole corner. Texture repeat is now
+  derived from each plane's real metres (~3.4×4.5 m tiles); the main road
+  is byte-identical, the side road matches its grain. Verified across the
+  full corner sweep (bugsweep.mjs). Rest of the world reviewed clean.
+
 ## Done — 2026-07-24 quality pass, continued
 
 - **LA graffiti** — researched cholo placa lineage (Bojórquez/Prime):

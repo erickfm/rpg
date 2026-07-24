@@ -109,7 +109,9 @@ function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12)
   });
 }
 
-function asphaltTex(): THREE.Texture {
+// one 64px tile ≈ 3.4 m × 4.5 m of road; callers pass the plane size in
+// metres so the grain stays square instead of smearing on wide/short planes.
+function asphaltTex(wMeters = 10, dMeters = 134): THREE.Texture {
   const t = pixTex(64, 64, (g) => {
     g.fillStyle = '#3a3d42'; g.fillRect(0, 0, 64, 64);
     dither(g, 64, 64, 900);
@@ -119,7 +121,7 @@ function asphaltTex(): THREE.Texture {
     for (let i = 0; i < 3; i++) g.fillRect(Math.random() * 60, Math.random() * 60, 4, 3);
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(3, 30);
+  t.repeat.set(Math.max(1, Math.round(wMeters / 3.4)), Math.max(1, Math.round(dMeters / 4.5)));
   return t;
 }
 
@@ -612,7 +614,7 @@ export function makeCrosstown(): Proto {
   const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, 36 - SIDE_Z0), flat(asphaltTex()));
   road.rotation.x = -Math.PI / 2; road.position.z = (36 + SIDE_Z0) / 2;
   scene.add(road);
-  const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), flat(asphaltTex()));
+  const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), flat(asphaltTex(SIDE_X1 + 7, 10)));
   sideRoad.rotation.x = -Math.PI / 2;
   sideRoad.position.set((SIDE_X1 - 7) / 2, 0, (SIDE_Z0 + SIDE_Z1) / 2);
   scene.add(sideRoad);
