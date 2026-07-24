@@ -924,30 +924,32 @@ export function makeCrosstown(): Proto {
     }
     // trash bags: faceted low-poly lumps, vertex-lit from above so the
     // facets read even in flat shading
-    // near-black plastic with a sharp sheen on the top facets — reads as a
-    // full garbage bag, not a rock
-    function trashBag(r: number, tone: number): THREE.Mesh {
-      const geo = new THREE.IcosahedronGeometry(r, 0).toNonIndexed();
-      const pos = geo.getAttribute('position');
-      const col: number[] = [];
-      for (let f = 0; f < pos.count / 3; f++) {
-        const avgY = (pos.getY(f * 3) + pos.getY(f * 3 + 1) + pos.getY(f * 3 + 2)) / (3 * r);
-        const sheen = avgY > 0.35 ? 0.10 + ((f * 37) % 3) * 0.05 : 0; // plastic catches the sky
-        const b = tone + Math.max(0, avgY) * 0.02 + ((f * 37) % 5) * 0.006 + sheen;
-        for (let v = 0; v < 3; v++) col.push(b * 0.9, b * 0.95, b * 1.15);
+    // trash bags: chunky low-segment lumps wearing a PAINTED plastic
+    // texture — dithered wrinkle sheens, dark base — same brush as the
+    // rest of the world
+    const bagT = pixTex(48, 32, (g) => {
+      g.fillStyle = '#1e2026'; g.fillRect(0, 0, 48, 32);
+      g.fillStyle = 'rgba(255,255,255,0.10)';
+      for (let i = 0; i < 7; i++) {
+        g.fillRect((i * 11) % 30, 3 + i * 4 + (i % 3), 14 + ((i * 5) % 12), 1); // wrinkles
       }
-      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-      const bag = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+      g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(6, 1, 22, 2); // sky sheen up top
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 26, 48, 6);      // sitting shadow
+      dither(g, 48, 32, 70);
+    });
+    const bagM = new THREE.MeshBasicMaterial({ map: bagT });
+    function trashBag(r: number): THREE.Mesh {
+      const bag = new THREE.Mesh(new THREE.SphereGeometry(r, 7, 4), bagM);
       bag.scale.y = 0.62;
       return bag;
     }
-    const bagSpots: [number, number, number, number, number][] = [
-      [-9.45, AZ0 - 1.25, 0.34, 0.055, 0.7],
-      [-8.85, AZ0 - 1.0, 0.27, 0.045, 2.1],
-      [-9.15, AZ0 - 0.62, 0.22, 0.065, 4.0],
+    const bagSpots: [number, number, number, number][] = [
+      [-9.45, AZ0 - 1.25, 0.34, 0.7],
+      [-8.85, AZ0 - 1.0, 0.27, 2.1],
+      [-9.15, AZ0 - 0.62, 0.22, 4.0],
     ];
-    for (const [bx, bz, r, tone, yaw] of bagSpots) {
-      const bag = trashBag(r, tone);
+    for (const [bx, bz, r, yaw] of bagSpots) {
+      const bag = trashBag(r);
       bag.position.set(bx, r * 0.55, bz);
       bag.rotation.y = yaw;
       scene.add(bag);
@@ -956,7 +958,7 @@ export function makeCrosstown(): Proto {
     const knot = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.07), new THREE.MeshBasicMaterial({ color: 0x2e3038 }));
     knot.position.set(-9.45, 0.44, AZ0 - 1.25);
     scene.add(knot);
-    const rimBag = trashBag(0.3, 0.055);
+    const rimBag = trashBag(0.3);
     rimBag.position.set(-10.55, 1.18, AZ0 - 1.15);
     scene.add(rimBag);
     // the saddest cat on the block, in a cardboard box
@@ -1000,16 +1002,18 @@ export function makeCrosstown(): Proto {
     cardboard.position.set(-12.9, 0.6, AZ1 + 0.26);
     cardboard.rotation.x = -0.35;
     scene.add(cardboard);
-    // graffiti — tags sprayed on the alley walls
-    const tagTex = (word: string, ink: string, outline: string) => pixTex(96, 40, (g) => {
+    // graffiti — sprayed at the same chunky texel size as the shop signs:
+    // tiny canvas, pixel-doubled outline, a couple of drips
+    const tagTex = (word: string, ink: string, outline: string) => pixTex(40, 14, (g) => {
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = 'bold 26px sans-serif';
-      g.save(); g.translate(48, 18); g.rotate(-0.05);
-      g.lineWidth = 6; g.strokeStyle = outline; g.strokeText(word, 0, 0);
-      g.fillStyle = ink; g.fillText(word, 0, 0);
-      g.restore();
+      g.font = 'bold 9px monospace';
+      g.fillStyle = outline;
+      for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as [number, number][]) {
+        g.fillText(word, 20 + ox, 7 + oy);
+      }
       g.fillStyle = ink;
-      for (let i = 0; i < 5; i++) g.fillRect(14 + i * 16 + ((i * 7) % 9), 28, 2, 5 + ((i * 13) % 8));
+      g.fillText(word, 20, 7);
+      g.fillRect(12, 10, 1, 3); g.fillRect(27, 11, 1, 2); // drips
     });
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
@@ -1017,9 +1021,9 @@ export function makeCrosstown(): Proto {
       m.rotation.y = ry;
       scene.add(m);
     };
-    tag(tagTex('REZO', '#c93a6a', '#e8e4d8'), 1.9, 0.8, -9.6, 1.5, AZ0 - 0.05, Math.PI);
-    tag(tagTex('SNAK', '#3aa89a', '#141416'), 1.6, 0.68, -11.6, 1.1, AZ1 + 0.05, 0);
-    tag(tagTex('KOBRA', '#d8d4c8', '#8a2c22'), 1.5, 0.62, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
+    tag(tagTex('REZO', '#a8485e', '#d8d4c8'), 1.9, 0.66, -9.6, 1.5, AZ0 - 0.05, Math.PI);
+    tag(tagTex('SNAK', '#4a8a7e', '#16181c'), 1.6, 0.56, -11.6, 1.1, AZ1 + 0.05, 0);
+    tag(tagTex('KOBRA', '#d8d4c8', '#7a3026'), 1.5, 0.52, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
   // ── No. 227 — the player's walk-up ──────────────────────────────────────

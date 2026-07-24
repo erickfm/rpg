@@ -11,6 +11,11 @@ published to the playable artifact.
 
 ## Done — 2026-07-24 round 4 (live in artifact)
 
+- **Graffiti + trash bags style-matched** — tags redrawn at shop-sign
+  texel size (chunky pixel spray, muted colors); bags are low-segment
+  lumps wearing a painted, dithered plastic texture instead of smooth
+  vertex shading.
+
 - **The corner** — the main street turns east at its south end into a
   hand-authored side street (FLOWERS, TAILOR, CHOP SUEY, OPTICIAN north;
   GARAGE, THRIFT, MISSION, BILLIARDS, SMOKES south; RADIO closes the west
