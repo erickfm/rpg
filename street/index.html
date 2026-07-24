@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CROSSTOWN ’97</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #style-hud {
+        position: fixed; left: 14px; bottom: 12px; z-index: 10;
+        font: 12px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+        color: #e8e8ea; text-shadow: 0 1px 3px rgba(0,0,0,.8);
+        background: rgba(0,0,0,.35); padding: 8px 11px; border-radius: 6px;
+        pointer-events: none; letter-spacing: .3px;
+      }
+      #style-hud b { color: #fff; font-size: 13px; letter-spacing: .6px; }
+      #style-hud .hint { opacity: .6; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="style-hud"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
