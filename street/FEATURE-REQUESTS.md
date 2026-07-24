@@ -45,9 +45,20 @@ published to the playable artifact.
   an `[E] sleep` prompt, and time passing (advance the clock, fade out/in),
   which ties into the day/night curve.
 
-- **Stairwell top is wrong.** At the top of the flight it looks like you
-  could just fall down a storey — no landing guard/railing reading as
-  solid. The centre core wall is also wrong, and too high.
+- **Stairwell top: needs a floor and a railing.** See
+  `shots/user-stairtop.png`. At the top landing the floor simply ENDS at
+  the stairwell opening — you can walk straight off into the flight below.
+  Wanted: (1) a proper landing floor around the opening, which **must not
+  block walking down the stairs**; (2) a guard railing along the top of the
+  stairs so you can't step off the edge. Also the pale centre core wall
+  reads as a floating grey slab and is too high.
+
+  THE CATCH: the floor here is not a mesh you can just add — height comes
+  from the floor-picker `ground(x,z)` in `ct/apartment.ts` (the one with
+  hysteresis that makes stacked storeys work for a 2D walker). So "add a
+  floor" means extending the landing plateau in that function while
+  leaving the sloped stair region intact, and adding the railing as a
+  collider. Get this wrong and you either fall through or can't descend.
 
 - **The street is too tidy.** Cars are parked too perfectly — spacing and
   alignment read as placed rather than parked. Wanted: less clean overall.
