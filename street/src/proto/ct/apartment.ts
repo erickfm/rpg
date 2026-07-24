@@ -42,6 +42,25 @@ export interface Apartment {
 export function buildApartment(ctx: CtxBuild): Apartment {
   const { scene, boards, sidewalkY } = ctx;
   const APT_X = 200, APT_Z = -20, ST = 2.7;
+  // ── the top landing ──────────────────────────────────────────────────────
+  // At floor 3 the shaft's west half is where flight A WOULD carry on up to a
+  // fourth floor that does not exist, so it was open void. The hall floor
+  // stopped dead at the stairwell and the picker's best offer over there was
+  // flight A, a storey and a half below: step past AZI(8.4) and you dropped
+  // 2.6 m. A collider hid it, which is its own kind of wrong — the floor
+  // visibly ended and something you could not see stopped you.
+  //
+  // So floor the first NIB_D of that half at floor-3 level and put a real
+  // railing on its edge. NIB_D is bounded by HEADROOM, not by taste: flight A
+  // climbs directly underneath, and at 1.2 m deep the far end still clears
+  // the flight below by about 2.0 m. Deepen it and you start clipping the
+  // heads of people walking up.
+  //
+  // The landing geometry, the floor-picker and the guard collider all read
+  // these three numbers. They must not drift apart — that is the whole bug.
+  const NIB_D = 1.2;              // how far the landing reaches into the shaft
+  const NIB_Z1 = 8.4 + NIB_D;     // its open edge: the railing stands here
+  const TOP_Y = 3 * ST;           // floor 3
   const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
   let lastGy = 0; // last ground height — this is what picks the active floor
   const mkCap = (): AABB => ({ minX: 999, maxX: 999, minZ: 999, maxZ: 999 });
@@ -197,9 +216,54 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
     // one solid core wall between the up and down flights — no floating
     // diagonal rails, treads butt into something real
-    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3 * ST + 1.5, 2.6), new THREE.MeshBasicMaterial({ color: 0x685e50 }));
-    divider.position.set(AX(1.2), (3 * ST + 1.5) / 2, AZI(9.7));
+    // It stops 1.0 m above floor 3 — high enough to be the balustrade at the
+    // head of the stairs, low enough that it is not a slab left standing in
+    // the shaft — and it wears the hall's own wallpaper under a timber cap,
+    // so it reads as a plastered core wall instead of a bare grey panel.
+    const CORE_H = TOP_Y + 1.0;
+    const coreT = wallpaperT.clone();
+    coreT.wrapS = coreT.wrapT = THREE.RepeatWrapping;
+    coreT.repeat.set(2.6 / 2.7, CORE_H / 2.7);
+    coreT.needsUpdate = true;
+    const coreFaceM = texM(coreT);
+    const coreEdgeM = new THREE.MeshBasicMaterial({ color: 0x6e6558 });
+    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.12, CORE_H, 2.6),
+      [coreFaceM, coreFaceM, coreEdgeM, coreEdgeM, coreEdgeM, coreEdgeM]);
+    divider.position.set(AX(1.2), CORE_H / 2, AZI(9.7));
     scene.add(divider);
+    const coreCap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 2.6), railM);
+    coreCap.position.set(AX(1.2), CORE_H + 0.035, AZI(9.7));
+    scene.add(coreCap);
+    // ── the top landing itself ───────────────────────────────────────────
+    // Carpet on top to match the hall it continues, a ceiling on the
+    // underside because you walk up flight A directly beneath it, and a
+    // timber fascia on the open edges so it reads as built rather than as a
+    // floating shelf.
+    const nibTop = carpetT.clone();
+    nibTop.wrapS = nibTop.wrapT = THREE.RepeatWrapping;
+    nibTop.repeat.set(1.2 / 1.8, NIB_D / 1.8);
+    nibTop.needsUpdate = true;
+    const nibUnder = ceilT.clone();
+    nibUnder.wrapS = nibUnder.wrapT = THREE.RepeatWrapping;
+    nibUnder.repeat.set(1.2 / 1.8, NIB_D / 1.8);
+    nibUnder.needsUpdate = true;
+    const nib = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.12, NIB_D),
+      [darkWoodM, darkWoodM, texM(nibTop), texM(nibUnder), darkWoodM, darkWoodM]);
+    nib.position.set(AX(0.6), TOP_Y + 0.006 - 0.06, AZI(8.4 + NIB_D / 2));
+    scene.add(nib);
+    // the guard: a railing you can SEE, standing exactly where the stairCap
+    // collider starts, so nothing invisible ever stops you
+    const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.09), railM);
+    railCap2.position.set(AX(0.6), TOP_Y + 0.95, AZI(NIB_Z1));
+    scene.add(railCap2);
+    const railLow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.06), railM);
+    railLow.position.set(AX(0.6), TOP_Y + 0.48, AZI(NIB_Z1));
+    scene.add(railLow);
+    for (const lx of [0.08, 0.6, 1.12]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.95, 0.07), railM);
+      post.position.set(AX(lx), TOP_Y + 0.475, AZI(NIB_Z1));
+      scene.add(post);
+    }
     // lobby: dead space boxed in under the stairs
     const underM = new THREE.MeshBasicMaterial({ color: 0x1a1b21 });
     const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
@@ -547,13 +611,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
     }
     let best = lastGy, bd = Infinity;
+    const consider = (h: number) => {
+      if (h > lastGy + 0.6) return;     // no stepping up half a storey
+      const d = Math.abs(h - lastGy);
+      if (d < bd) { bd = d; best = h; }
+    };
     for (let f = 0; f < 4; f++) {
       const h = rel + f * ST;
       if (h > 3 * ST + 0.01) continue;  // nothing above floor 3
-      if (h > lastGy + 0.6) continue;   // no stepping up half a storey
-      const d = Math.abs(h - lastGy);
-      if (d < bd) { bd = d; best = h; }
+      consider(h);
     }
+    // The top landing is the one surface that is NOT a repeat of the storey
+    // pattern: it exists only at floor 3, only over the shaft's west half,
+    // and only for the first NIB_D of it. Every other candidate is rel+f*ST,
+    // and over there the best of those is flight A a storey and a half down —
+    // which is exactly the 2.6 m drop this closes. Offered as a candidate
+    // rather than special-cased, so the hysteresis still arbitrates: walking
+    // DOWN the east flight never sees it, because it is west-half only.
+    if (lx >= 0 && lx < 1.2 && lz > 8.4 && lz <= NIB_Z1) consider(TOP_Y);
     lastGy = best;
     return best;
   };
@@ -568,7 +643,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
 
   // floor-aware stair guards (2D colliders, so they follow the floor)
   const updateCaps = (px: number) => {
-    setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(8.4), AZI(13.2));
+    // the guard starts at the railing, not at the stairwell mouth: the first
+    // NIB_D of the west half is the top landing now and you may stand on it
+    setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(NIB_Z1), AZI(13.2));
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(8.4), AZI(13.2));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.0), AZI(13.2));
