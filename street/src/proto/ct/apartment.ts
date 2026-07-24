@@ -17,6 +17,36 @@ import type { CtxBuild } from './ctx';
 // player between floors (the warp hook, the street's own groundY, the door
 // jumps) goes through setGy so there is exactly one writer of record.
 
+// A 4×5 texel numeral, stamped rather than typed. Canvas text antialiases —
+// at the sizes this world paints at, 'bold 8px monospace' lands half a texel
+// off the grid and comes out as grey mush, which NearestFilter then magnifies
+// into smear. Anything meant to be READ at this texel density has to be drawn
+// as texels. Bit 3 is the leftmost column of each row.
+const DIGIT: Record<string, number[]> = {
+  '0': [0b1111, 0b1001, 0b1001, 0b1001, 0b1111],
+  '1': [0b0010, 0b0110, 0b0010, 0b0010, 0b0111],
+  '2': [0b1111, 0b0001, 0b1111, 0b1000, 0b1111],
+  '3': [0b1111, 0b0001, 0b0111, 0b0001, 0b1111],
+  '4': [0b1001, 0b1001, 0b1111, 0b0001, 0b0001],
+  '5': [0b1111, 0b1000, 0b1111, 0b0001, 0b1111],
+  '6': [0b1111, 0b1000, 0b1111, 0b1001, 0b1111],
+  '7': [0b1111, 0b0001, 0b0010, 0b0010, 0b0010],
+  '8': [0b1111, 0b1001, 0b1111, 0b1001, 0b1111],
+  '9': [0b1111, 0b1001, 0b1111, 0b0001, 0b1111],
+};
+/** stamp digits at a 5-texel pitch (4 wide, 1 apart) from the top-left texel */
+function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: number, ink: string) {
+  g.fillStyle = ink;
+  for (let i = 0; i < num.length; i++) {
+    const rows = DIGIT[num[i]] ?? [];
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (rows[r] & (1 << (3 - c))) g.fillRect(x0 + i * 5 + c, y0 + r, 1, 1);
+      }
+    }
+  }
+}
+
 export interface Apartment {
   /** local → world helpers; the door spots outside are placed with these */
   AX: (lx: number) => number;
@@ -282,9 +312,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
       g.fillStyle = '#c9b45e'; g.fillRect(24, 33, 3, 3);
       dither(g, 32, 64, 40);
-      g.fillStyle = '#d8d4c8'; g.fillRect(7, 5, 18, 9); // plate painted after the grime
-      g.fillStyle = '#26221c'; g.font = 'bold 8px monospace'; g.textAlign = 'center';
-      g.fillText(num, 16, 12);
+      // The number plate: screwed-on BRASS, fixed after the grime. It used to
+      // be a near-white rectangle — brighter than anything else indoors, so it
+      // pulled the eye off the door it labels — carrying canvas text that
+      // smeared. Brass sits in the same muted register as the hall, and the
+      // numerals are stamped texel by texel so they stay sharp.
+      // Centred on the door: plate x 7…24, numerals 9…22, both about x = 16.
+      g.fillStyle = '#8a7440'; g.fillRect(7, 4, 18, 9);
+      g.fillStyle = '#a89056'; g.fillRect(7, 4, 18, 1);   // lit top edge
+      g.fillStyle = '#5e4e28'; g.fillRect(7, 12, 18, 1);  // shadow under it
+      g.fillStyle = '#6a5a30';                            // four fixing screws
+      g.fillRect(8, 5, 1, 1); g.fillRect(23, 5, 1, 1);
+      g.fillRect(8, 11, 1, 1); g.fillRect(23, 11, 1, 1);
+      stampNum(g, num, 9, 6, '#2e2616');
     });
     const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
       const d = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(doorTexN(num)));
