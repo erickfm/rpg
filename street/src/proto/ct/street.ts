@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
-import { facadeTex, shopfrontTex, resGroundTex } from './tex-world';
+import { facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H } from './tex-world';
 import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
@@ -17,49 +17,181 @@ export function buildStreet(o: {
   SIDE_X1: number; SIDE_Z0: number; SIDE_Z1: number;
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
-  interface BldSpec { nm: string; col: string; w: number; brick: string; floors: number; res?: boolean }
+  // `kind` takes a building OUT of the shopfront system entirely — a civic
+  // building is not a brick box with an awning and a painted name on it, and
+  // the two that carry this block get their own builders below.
+  interface BldSpec { nm: string; col: string; w: number; brick: string; floors: number; res?: boolean; kind?: 'library' | 'church'; front?: 'burger' | 'pawn' | 'tax' }
+  //
+  // ── the block, re-cast ────────────────────────────────────────────────
+  //
+  // Widths are load-bearing, not decoration. Three runs have to land on an
+  // exact number and every roster below is balanced to hit it:
+  //   · WEST before the alley must total 51.2 so PAWN ends on AZ0 = -37
+  //   · WEST after it must total 54.5 so the last shell ends on -98, where
+  //     the corner building takes over
+  //   · EAST before No. 227 must total 49.2, because the walk-up's door and
+  //     its interior live in ct/apartment.ts at a fixed z
+  // Change a width and you must pay for it out of a neighbour in the same run.
   const WEST: (BldSpec | 'alley')[] = [
-    { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
-    { nm: 'LAUNDRY', col: '#2c4a7a', w: 11, brick: '#7a4a3a', floors: 3 },
-    { nm: 'PIZZA', col: '#2e6a34', w: 10.2, brick: '#5c4436', floors: 4 },
-    { nm: 'PAWN', col: '#8a6a22', w: 18, brick: '#835444', floors: 5 },
+    { nm: 'DINER', col: '#8a5a22', w: 9.2, brick: '#6b4034', floors: 4 },
+    // blander and more modern than anything either side of it — the whole
+    // point of standing it next to the library
+    { nm: 'MERIDIAN', col: '#5a6a72', w: 10, brick: '#8a8378', floors: 5 },
+    { nm: 'LIBRARY', col: '', w: 16, brick: '', floors: 0, kind: 'library' },
+    // the loudest thing on the block, in the widest slot on this side, right
+    // up against the quietest — that contrast is doing a lot of work here
+    { nm: 'BURGER BARN', col: '#c8302a', w: 16, brick: '#7a4a3a', floors: 4, front: 'burger' },
     'alley',
-    { nm: 'MUSIC', col: '#6a2c6a', w: 12.5, brick: '#6b4034', floors: 4 },
-    { nm: 'BARBER', col: '#8a2c22', w: 12, brick: '#5c4436', floors: 4 },
-    { nm: 'GROCERY', col: '#2e5a3c', w: 18, brick: '#835444', floors: 5 },
-    { nm: 'HOTEL', col: '#6a4a2c', w: 12, brick: '#7a4a3a', floors: 5 },
+    { nm: 'LAUNDRY', col: '#2c4a7a', w: 12, brick: '#6b4034', floors: 4 },
+    { nm: 'BARBER', col: '#8a2c22', w: 12.5, brick: '#5c4436', floors: 4 },
+    { nm: 'THRIFT', col: '#7a5a2c', w: 14, brick: '#835444', floors: 4 },
+    { nm: 'GROCERY', col: '#2e5a3c', w: 16, brick: '#7a4a3a', floors: 5 },
   ];
   const EAST: BldSpec[] = [
-    { nm: 'BOOKS', col: '#3a5a5a', w: 13, brick: '#5c4436', floors: 4 },
-    { nm: 'HARDWARE', col: '#5a5a2c', w: 12.2, brick: '#6b4034', floors: 3 },
-    { nm: 'CAFE', col: '#6a3a22', w: 11, brick: '#835444', floors: 4 },
-    { nm: 'ARCADE', col: '#3a2c6a', w: 13, brick: '#7a4a3a', floors: 5 },
+    { nm: 'CAFE', col: '#6a3a22', w: 11.2, brick: '#5c4436', floors: 4 },
+    { nm: 'HARDWARE', col: '#5a5a2c', w: 12, brick: '#6b4034', floors: 3 },
+    { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
+    { nm: 'LIQUOR', col: '#8a2c42', w: 13, brick: '#835444', floors: 4 },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
-    { nm: 'LIQUOR', col: '#8a2c42', w: 11, brick: '#5c4436', floors: 3 },
-    { nm: 'DELI', col: '#2e6a5a', w: 10, brick: '#6b4034', floors: 3 },
-    { nm: 'CINEMA', col: '#2c3c7a', w: 12, brick: '#7a4a3a', floors: 5 },
+    { nm: 'PAWN', col: '#6a5a3a', w: 12, brick: '#5c4436', floors: 5, front: 'pawn' },
+    { nm: 'DELI', col: '#2e6a34', w: 11, brick: '#6b4034', floors: 3 },
+    { nm: 'RECORDS', col: '#6a2c6a', w: 10, brick: '#7a4a3a', floors: 3 },
     { nm: 'BODEGA', col: '#b8342a', w: 10, brick: '#6b4034', floors: 3 }, // the corner store
   ];
-  // the corner: shops lining the side street the main drag turns into
+  // The side street. It runs east into the fog, and the far end of it is
+  // somewhere else: the casino and the hotel that feeds it sit out at x = 34
+  // and beyond, read at 40 m through the haze, and are not part of this
+  // block's life. Both rosters stop dead on x = 57, where the cross building
+  // that closes the street begins.
   const NORTH2: BldSpec[] = [
     { nm: 'FLOWERS', col: '#4a7a52', w: 6, brick: '#835444', floors: 3 }, // half of it is the bodega's now
-    { nm: 'TAILOR', col: '#5a4a7a', w: 11, brick: '#5c4436', floors: 4 },
-    { nm: 'CHOP SUEY', col: '#8a3a2e', w: 13, brick: '#6b4034', floors: 3 },
-    { nm: 'OPTICIAN', col: '#2c5a6a', w: 12, brick: '#7a4a3a', floors: 4 },
+    { nm: 'CHOP SUEY', col: '#8a3a2e', w: 11, brick: '#5c4436', floors: 3 },
+    { nm: 'HOTEL ORPHEUS', col: '#6a4a2c', w: 12, brick: '#7a4a3a', floors: 5 },
+    { nm: 'GOLDEN ACES', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
   ];
   const SOUTH2: BldSpec[] = [
-    { nm: 'GARAGE', col: '#5a5f66', w: 13, brick: '#5c4436', floors: 3 },
-    { nm: 'THRIFT', col: '#7a5a2c', w: 12, brick: '#835444', floors: 4 },
-    { nm: 'MISSION', col: '#6a5a4a', w: 14, brick: '#6b4034', floors: 3 },
-    { nm: 'BILLIARDS', col: '#2c5a3a', w: 13, brick: '#7a4a3a', floors: 4 },
-    { nm: 'SMOKES', col: '#8a6a22', w: 12, brick: '#5c4436', floors: 3 },
+    // the parish church has the whole west end of the south side to itself
+    { nm: 'ST BRIGID', col: '', w: 18, brick: '', floors: 0, kind: 'church' },
+    { nm: 'GARAGE', col: '#5a5f66', w: 12, brick: '#5c4436', floors: 3 },
+    { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
+    { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
+    { nm: 'LOANS', col: '#7a6a2c', w: 11, brick: '#7a4a3a', floors: 4 },
   ];
   // Buildings ABUT — a shell is exactly b.w deep, never b.w + slop. Two
   // neighbours share the boundary plane; their facade quads meet edge to
   // edge instead of overlapping, so there is no coplanar strip to z-fight
   // (same rule that fixed the corner road: abut, never overlap).
+  // ── three shopfronts that are NOT the block default ─────────────────────
+  //
+  // Everything else on the street wears shopfrontTex, which is the right
+  // neutral for a barber or a deli. These three are characters, and the
+  // spread between them is the point: the fast-food place is the loudest
+  // thing on the block, the tax office is the least designed, and the
+  // pawnshop is the most defended. All three keep the block's 8 px/m and the
+  // same band heights as shopfrontTex, so they line up with their neighbours.
+  const SB = 52;   // texels over SHOP_BAND_H — the shared band grid
+  // 1997 fast food: saturated brand colours, a fascia twice the usual depth,
+  // and more glass than anyone else because you are supposed to see in.
+  const burgerFront = (brick: string, wM: number) => {
+    const W = Math.max(64, Math.round(wM * 8));
+    return pixTex(W, SB, (g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
+      g.fillStyle = '#c8302a'; g.fillRect(0, 0, W, 16);              // the big red fascia
+      g.fillStyle = '#e8a02a'; g.fillRect(0, 16, W, 3);              // mustard accent stripe
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 19, W, 2);
+      g.fillStyle = '#f2d24a'; g.font = 'bold 9px monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('BURGER BARN', W / 2, 8);
+      g.fillStyle = '#141820'; g.fillRect(4, 21, W - 8, 31);
+      g.fillStyle = '#e8c26a'; g.fillRect(6, 23, W - 12, 25);        // lit right through
+      g.fillStyle = '#8a5a2a';                                       // booths in silhouette
+      for (let x = 10; x < W - 14; x += 17) { g.fillRect(x, 33, 7, 12); g.fillRect(x + 9, 36, 5, 9); }
+      g.fillStyle = '#c8302a'; g.fillRect(Math.round(W * 0.62), 23, 12, 12);  // menu board
+      g.fillStyle = '#f2d24a'; g.fillRect(Math.round(W * 0.62) + 2, 26, 8, 1);
+      g.fillRect(Math.round(W * 0.62) + 2, 29, 8, 1);
+      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), 23, 4, 25);   // door
+      g.fillStyle = '#d8d0c0';                                        // window decals
+      g.fillRect(9, 25, 10, 4); g.fillRect(W - 22, 25, 12, 4);
+      g.fillStyle = '#8a3a24'; g.fillRect(4, 48, W - 8, 4);           // stallriser
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(4, 48, W - 8, 1);
+      dither(g, W, SB, 300);
+    });
+  };
+  // the pawnshop: barred glass, a hand-painted board, and the three balls
+  const pawnFront = (brick: string, wM: number) => {
+    const W = Math.max(64, Math.round(wM * 8));
+    return pixTex(W, SB, (g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let y = 0; y < SB; y += 5) g.fillRect(0, y, W, 1);
+      g.fillStyle = '#6a5a3a'; g.fillRect(3, 2, W - 6, 11);           // a painted board, not a light box
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(3, 13, W - 6, 2);
+      g.fillStyle = '#e8dcc0'; g.font = 'bold 8px monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('PAWN', W / 2 - 12, 7);
+      g.font = 'bold 5px monospace';
+      g.fillText('LOANS  GOLD  TOOLS', W / 2 + 26, 8);
+      g.fillStyle = '#c9a45e';                                        // the three balls
+      for (const bx of [8, 14, 11]) g.beginPath(), g.arc(bx, bx === 11 ? 11 : 6, 2.4, 0, Math.PI * 2), g.fill();
+      g.fillStyle = '#141820'; g.fillRect(5, 14, W - 10, 38);
+      g.fillStyle = '#2e2a26'; g.fillRect(7, 16, W - 14, 32);         // dim, crowded window
+      const junk = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a'];
+      for (let i = 0; i < Math.floor(W / 6); i++) {
+        g.fillStyle = junk[i % 6];
+        g.fillRect(9 + i * 6, 20 + ((i * 7) % 18), 4, 3 + (i % 4) * 2);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.55)';                               // the security bars
+      for (let x = 8; x < W - 8; x += 5) g.fillRect(x, 16, 1, 32);
+      g.fillRect(7, 24, W - 14, 1); g.fillRect(7, 38, W - 14, 1);
+      g.fillStyle = '#3a3020'; g.fillRect(5, 48, W - 10, 4);
+      dither(g, W, SB, 280);
+    });
+  };
+  // the tax office: no sign worth the name, just a banner cable-tied over the
+  // brick and paper taped inside the glass. The least designed thing here.
+  const taxFront = (brick: string, wM: number) => {
+    const W = Math.max(64, Math.round(wM * 8));
+    return pixTex(W, SB, (g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let y = 0; y < SB; y += 5) g.fillRect(0, y, W, 1);
+      // a vinyl banner, sagging a texel in the middle, grommets at the corners
+      const bw = W - 14;
+      g.fillStyle = '#d8d2c4'; g.fillRect(7, 3, bw, 9);
+      g.fillStyle = '#d8d2c4'; g.fillRect(9, 12, bw - 4, 1);          // the sag
+      g.fillStyle = '#2c4a7a'; g.font = 'bold 7px monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('A-1 TAX SERVICE', W / 2, 7);
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      for (const gx of [8, W - 9]) { g.fillRect(gx, 4, 1, 1); g.fillRect(gx, 10, 1, 1); }
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(7, 13, bw, 2);
+      g.fillStyle = '#141820'; g.fillRect(5, 15, W - 10, 37);
+      g.fillStyle = '#cfd6c8'; g.fillRect(7, 17, W - 14, 31);         // flat fluorescent interior
+      g.fillStyle = 'rgba(255,255,255,0.5)';
+      for (let x = 12; x < W - 12; x += 22) g.fillRect(x, 19, 14, 2); // tube fittings
+      // paper signs taped up inside, slightly off square
+      const notes = ['REFUNDS', 'FAST', 'E-FILE'];
+      g.font = 'bold 4px monospace';
+      notes.forEach((n, i) => {
+        const nx = 10 + i * Math.round((W - 26) / 3), ny = 26 + (i % 2) * 6;
+        g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, 18, 8);
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(nx, ny + 8, 18, 1);
+        g.fillStyle = '#8a2c22'; g.fillText(n, nx + 9, ny + 4);
+      });
+      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.5), 17, 4, 31);   // door
+      g.fillStyle = '#6a665e'; g.fillRect(5, 48, W - 10, 4);
+      dither(g, W, SB, 300);
+    });
+  };
+  // A shop's ground floor and a flat's are NOT the same height, and pretending
+  // they were is what made every storefront on this block read undersized:
+  // 3.2 m of band left only 1.92 m of glass, shorter than the door beside it.
+  // Shops get SHOP_BAND_H; the walk-up keeps ENTRANCE.BAND_H, which is what
+  // ct/apartment.ts hangs its door in and is already the right size.
+  const bandOf = (b: BldSpec) => (b.res ? ENTRANCE.BAND_H : SHOP_BAND_H);
   const placeBld = (side: number, z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
+    const gh = bandOf(b);
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
@@ -68,20 +200,433 @@ export function buildStreet(o: {
       ? [facade, endM, roofM, roofM, endM, endM]
       : [endM, facade, roofM, roofM, endM, endM];
     const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, b.w), mats);
-    wall.position.set(side * (FACE + 1.7), h / 2 + 3.2, cz);
+    wall.position.set(side * (FACE + 1.7), h / 2 + gh, cz);
     scene.add(wall);
-    const shopM = flat(b.res ? resGroundTex(b.brick, b.w) : shopfrontTex(b.brick, b.nm, b.col, b.w));
+    const shopM = flat(
+      b.res ? resGroundTex(b.brick, b.w)
+        : b.front === 'burger' ? burgerFront(b.brick, b.w)
+          : b.front === 'pawn' ? pawnFront(b.brick, b.w)
+            : b.front === 'tax' ? taxFront(b.brick, b.w)
+              : shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = side < 0
       ? [shopM, endM, roofM, roofM, endM, endM]
       : [endM, shopM, roofM, roofM, endM, endM];
-    const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.2, b.w), shopMats);
-    shop.position.set(side * (FACE + 1.7), 1.6, cz);
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, gh, b.w), shopMats);
+    shop.position.set(side * (FACE + 1.7), gh / 2, cz);
     scene.add(shop);
+  };
+  // ── civic stone ─────────────────────────────────────────────────────────
+  //
+  // The library and the church are the two buildings on this block that are
+  // NOT shops, and they must not be built out of shop parts. Everything else
+  // here is brick + awning + sign band + glass; these two get their own
+  // vocabulary, and it is the vocabulary that does the work:
+  //
+  //   ASHLAR, not brick — squared stone in 9 px courses against brick's 5 px,
+  //     with PALE lime joints instead of dark ones, so it reads cool and
+  //     coarse next to the warm fine brick either side.
+  //   ARCHED openings, not rectangular holes — round-headed for the library
+  //     (Carnegie branches are classical), pointed for the church.
+  //   CUT lettering, not a painted band — the letters are the shadow of a
+  //     chisel cut with a lit lower lip, which is what makes stone lettering
+  //     read as carved rather than stencilled.
+  //   A REAL PROFILE — projecting doorcases, cornices, buttresses, copings.
+  //     A shopfront is a flat plane; a civic building has depth in its
+  //     silhouette, and that is most of what tells them apart at a glance.
+  const STONE = '#a89e88', STONE_D = '#8a806c', STONE_L = '#c2b8a0';
+  const SLATE = '#4a4e56';
+  const clcg = (s: number) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
+  // squared stone, laid in courses, every third block a shade off
+  const ashlar = (g: CanvasRenderingContext2D, W: number, H: number, r: () => number, courseH = 9, blockW = 22) => {
+    g.fillStyle = STONE; g.fillRect(0, 0, W, H);
+    for (let y = 0, i = 0; y < H; y += courseH, i++) {
+      const off = (i % 2) ? 0 : Math.round(blockW / 2);
+      for (let x = -off; x < W; x += blockW) {
+        const k = r();
+        if (k > 0.8) g.fillStyle = STONE_L; else if (k < 0.22) g.fillStyle = STONE_D; else continue;
+        g.fillRect(x + 1, y + 1, blockW - 2, courseH - 2);
+      }
+    }
+    g.fillStyle = 'rgba(255,255,255,0.16)';          // pale lime bed joint…
+    for (let y = 0; y < H; y += courseH) g.fillRect(0, y, W, 1);
+    g.fillStyle = 'rgba(0,0,0,0.15)';                // …and its shadow under
+    for (let y = 0; y < H; y += courseH) g.fillRect(0, y + 1, W, 1);
+    g.fillStyle = 'rgba(0,0,0,0.12)';
+    for (let y = 0, i = 0; y < H; y += courseH, i++) {
+      const off = (i % 2) ? 0 : Math.round(blockW / 2);
+      for (let x = -off; x < W; x += blockW) g.fillRect(x, y, 1, courseH);
+    }
+  };
+  // an arched opening. Round-headed by default; `pointed` gives the gothic
+  // taper the church wants. Drawn as pixel steps, not a path, so it stays in
+  // the same hand as the rest of the world.
+  const archFill = (g: CanvasRenderingContext2D, cx: number, w: number, yTop: number, yBot: number, col: string, pointed = false) => {
+    const rr = Math.floor(w / 2);
+    const rise = pointed ? Math.round(rr * 1.9) : rr;
+    const spring = yTop + rise;
+    g.fillStyle = col;
+    if (yBot > spring) g.fillRect(cx - rr, spring, w, yBot - spring);
+    for (let dy = 0; dy <= rise; dy++) {
+      const t = (rise - dy) / rise;
+      const hw = pointed ? Math.round(rr * (1 - Math.pow(t, 1.8))) : Math.round(Math.sqrt(Math.max(0, rr * rr - (rise - dy) * (rise - dy))));
+      if (hw > 0) g.fillRect(cx - hw, yTop + dy, hw * 2, 1);
+    }
+  };
+  // lettering CUT into the stone: shadow first, then a lit lower lip
+  const engrave = (g: CanvasRenderingContext2D, text: string, cx: number, cy: number, px: number) => {
+    g.font = `bold ${px}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(255,255,255,0.34)'; g.fillText(text, cx, cy + 1);
+    g.fillStyle = 'rgba(38,30,22,0.62)'; g.fillText(text, cx, cy);
+  };
+  // rose window: stone surround, eight lights of coloured glass, stone boss
+  const roseWin = (g: CanvasRenderingContext2D, cx: number, cy: number, R: number) => {
+    // four hues, not eight. Real glass in a small parish rose is a limited
+    // palette, and eight saturated ones at this texel size read as a beach
+    // ball rather than as leaded glass in a muted street.
+    const glass = ['#7a3e3c', '#3d5470', '#a08348', '#3f6050', '#7a3e3c', '#3d5470', '#a08348', '#3f6050'];
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+      const d = Math.hypot(dx, dy);
+      if (d > R) continue;
+      const a = Math.atan2(dy, dx) + Math.PI;
+      const seg = a / (Math.PI / 4);
+      if (d > R - 2.4) g.fillStyle = STONE_D;
+      else if (d < 3) g.fillStyle = STONE_L;
+      else if (Math.abs(d - (R - 2.4) * 0.56) < 1.2) g.fillStyle = STONE;
+      else if (Math.abs(seg - Math.round(seg)) < 0.075) g.fillStyle = STONE;
+      else g.fillStyle = glass[Math.floor(seg) % 8];
+      g.fillRect(cx + dx, cy + dy, 1, 1);
+    }
+  };
+  const stoneM = () => new THREE.MeshBasicMaterial({ color: 0x9c9280 });
+  const slateM = () => new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
+
+  // ── the library ─────────────────────────────────────────────────────────
+  //
+  // A Carnegie branch, and the brief for it is the user's own line: built by
+  // people who thought public buildings should be beautiful, and not looked
+  // after since. So it gets the full classical kit — rusticated plinth, five
+  // bays, tall round-arched windows, a pedimented doorcase up a flight of
+  // steps, the name CUT into the frieze in Roman capitals with V for U the
+  // way the carvers did it — and then it gets soot down the cornice and
+  // staining under every sill, because nobody has cleaned it in forty years.
+  //
+  // It is deliberately SHORTER than its neighbours. A civic building that
+  // does not reach the party walls either side of it is a real condition and
+  // it reads as one: the block grew past it and left it behind.
+  const LIB_H = 13.2, BAY_H = 6.0, BAY_W = 5.0, BAY_D = 1.8;
+  const placeLibrary = (z: number, b: BldSpec) => {
+    const cz = z - b.w / 2;
+    const LW = Math.round(b.w * 8), LH = Math.round(LIB_H * 11.73);
+    const pm = LH / LIB_H;
+    const yOf = (m: number) => Math.round(LH - m * pm);
+    const bayPx = Math.round(BAY_W * 8);
+    const bx0 = Math.round((LW - bayPx) / 2), bx1 = bx0 + bayPx;   // the bay in texels
+    const wSide = (bx0 / LW) * b.w;                                 // …and in metres
+    // ONE drawing of the whole elevation, sampled three times. Slicing the
+    // same painting keeps the coursing, the quoins and the frieze running
+    // dead straight across the entrance bay, which they would not if each
+    // block were painted separately.
+    const paint = (g: CanvasRenderingContext2D) => {
+      const r = clcg(0x7ab31d);
+      ashlar(g, LW, LH, r);
+      const PL = yOf(2.6);
+      g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, PL, LW, LH - PL);
+      for (let y = PL; y < LH; y += 13) { g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, y, LW, 2); }
+      for (let y = PL, i = 0; y < LH; y += 13, i++) {
+        for (let x = (i % 2) ? 0 : 16; x < LW; x += 32) { g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(x, y, 2, 13); }
+      }
+      g.fillStyle = STONE_L; g.fillRect(0, PL - 3, LW, 3);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, PL, LW, 1);
+      for (let y = 0, i = 0; y < LH; y += 18, i++) {                 // quoins
+        g.fillStyle = (i % 2) ? STONE_L : STONE_D;
+        g.fillRect(0, y, 8, 18); g.fillRect(LW - 8, y, 8, 18);
+      }
+      for (const cx of [Math.round(LW * 0.11), Math.round(LW * 0.28), Math.round(LW * 0.72), Math.round(LW * 0.89)]) {
+        archFill(g, cx, 22, yOf(9.2), yOf(3.2), STONE_D);
+        archFill(g, cx, 18, yOf(9.0), yOf(3.35), '#26303a');
+        g.fillStyle = 'rgba(196,212,222,0.22)';
+        for (let y = yOf(8.3); y < yOf(3.35); y += 10) g.fillRect(cx - 9, y, 18, 1);
+        g.fillRect(cx - 1, yOf(9.0), 2, yOf(3.35) - yOf(9.0));
+        g.fillStyle = STONE_L; g.fillRect(cx - 3, yOf(9.6), 6, 9);
+        g.fillRect(cx - 12, yOf(3.35), 24, 3);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(cx - 12, yOf(3.35) + 3, 24, 2);
+        g.fillStyle = 'rgba(58,48,36,0.18)'; g.fillRect(cx - 9, yOf(3.35) + 5, 18, 14);
+      }
+      // the archivolt round the recess — the only thing drawn at the bay, and
+      // it stops at its edge because everything inside it is real geometry
+      archFill(g, Math.round(LW / 2), bayPx + 12, yOf(BAY_H + 0.6), yOf(0), STONE_D);
+      archFill(g, Math.round(LW / 2), bayPx + 4, yOf(BAY_H + 0.25), yOf(0), STONE_L);
+      const FR = yOf(11.0), FRH = Math.round(1.1 * pm);
+      g.fillStyle = STONE_L; g.fillRect(0, FR, LW, FRH);
+      g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, FR, LW, 1); g.fillRect(0, FR + FRH - 1, LW, 1);
+      engrave(g, 'PVBLIC LIBRARY', Math.round(LW / 2), FR + Math.round(FRH / 2), 9);
+      const CO = yOf(11.9);
+      g.fillStyle = STONE_D; g.fillRect(0, CO, LW, 3);
+      g.fillStyle = STONE_L;
+      for (let x = 2; x < LW; x += 6) g.fillRect(x, CO + 3, 3, 5);
+      g.fillStyle = STONE; g.fillRect(0, CO + 8, LW, 4);
+      g.fillStyle = STONE_L; g.fillRect(0, 0, LW, CO - 4);
+      g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, 0, LW, CO - 4);
+      for (let i = 0; i < 26; i++) {                                 // forty years of soot
+        g.fillStyle = `rgba(46,38,30,${0.05 + r() * 0.08})`;
+        g.fillRect(Math.floor(r() * LW), CO, 2 + Math.floor(r() * 3), Math.round(r() * LH * 0.5));
+      }
+      dither(g, LW, LH, 700);
+    };
+    const slice = (px0: number, px1: number, py0: number, py1: number) =>
+      pixTex(px1 - px0, py1 - py0, (g) => { g.translate(-px0, -py0); paint(g); });
+    const side = stoneM(), roof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const box = (w: number, h: number, cx: number, cy: number, czz: number, face: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w), [face, side, roof, roof, side, side]);
+      m.position.set(-(FACE + 1.7) + cx, cy, czz);
+      scene.add(m);
+    };
+    // the mass, with the entrance bay left OUT of it
+    box(wSide, LIB_H, 0, LIB_H / 2, cz + (b.w - wSide) / 2, flat(slice(0, bx0, 0, LH)));
+    box(wSide, LIB_H, 0, LIB_H / 2, cz - (b.w - wSide) / 2, flat(slice(bx1, LW, 0, LH)));
+    box(BAY_W, LIB_H - BAY_H, 0, (BAY_H + LIB_H) / 2, cz, flat(slice(bx0, bx1, 0, yOf(BAY_H))));
+    // …and the back of the recess, 1.8 m in, carrying the doors
+    const doorT = pixTex(40, 48, (g) => {
+      g.fillStyle = STONE; g.fillRect(0, 0, 40, 48);
+      const r2 = clcg(0x1188cd); ashlar(g, 40, 48, r2, 8, 18);
+      archFill(g, 20, 26, 4, 48, STONE_D);
+      archFill(g, 20, 22, 6, 48, '#2a2118');
+      g.fillStyle = '#4a3a26'; g.fillRect(10, 16, 20, 32);
+      g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(19, 16, 2, 32);
+      g.fillStyle = '#c9a45e'; g.fillRect(16, 30, 2, 4); g.fillRect(22, 30, 2, 4);
+      g.fillStyle = '#8a97a2'; g.fillRect(12, 8, 16, 6);          // fanlight over the doors
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(19, 8, 2, 6);
+      dither(g, 40, 48, 120);
+    });
+    const back = new THREE.Mesh(new THREE.BoxGeometry(3.4 - BAY_D, BAY_H, BAY_W),
+      [flat(doorT), side, side, side, side, side]);
+    back.position.set(-(FACE + 1.7) - BAY_D / 2, BAY_H / 2, cz);
+    scene.add(back);
+    // The steps live INSIDE the recess. A projecting flight would eat a
+    // sidewalk that is only WALK m wide, and this street has no setback to
+    // spend — recessing the bay is how a zero-lot civic building gets its
+    // climb, its depth and its shadow without taking the pavement.
+    const RISE = 0.17, TREAD = (BAY_D - 0.5) / 5;
+    for (let i = 0; i < 5; i++) {
+      const front = -FACE - i * TREAD;                  // this step's nosing
+      const d = Math.abs(front - (-FACE - BAY_D));
+      const st = new THREE.Mesh(new THREE.BoxGeometry(d, KERB_H + (i + 1) * RISE, BAY_W - 0.9),
+        new THREE.MeshBasicMaterial({ color: i % 2 ? 0xa89e88 : 0x9c9280 }));
+      st.position.set(front - d / 2, (KERB_H + (i + 1) * RISE) / 2, cz);
+      scene.add(st);
+    }
+    for (const s of [-1, 1]) {                          // cheek walls either side
+      const ck = new THREE.Mesh(new THREE.BoxGeometry(BAY_D, 1.15, 0.42), stoneM());
+      ck.position.set(-FACE - BAY_D / 2, 0.575, cz + s * (BAY_W / 2 - 0.21));
+      scene.add(ck);
+    }
+    // The profile, all of it inside the 0.3 m the wall collider already
+    // reserves, so the full length of this sidewalk stays walkable.
+    const proj = (w: number, h: number, d: number, y: number, dz = 0, col = 0x9c9280) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(d, h, w), new THREE.MeshBasicMaterial({ color: col }));
+      m.position.set(-FACE + d / 2 - 0.01, y, cz + dz);
+      scene.add(m);
+    };
+    const jamb = BAY_W / 2 + 0.4;
+    proj(0.8, BAY_H + 0.5, 0.28, (BAY_H + 0.5) / 2, -jamb);
+    proj(0.8, BAY_H + 0.5, 0.28, (BAY_H + 0.5) / 2, jamb);
+    proj(BAY_W + 2.4, 0.6, 0.28, BAY_H + 0.8);          // entablature over the pair
+    proj(BAY_W + 1.2, 0.28, 0.28, BAY_H + 1.2, 0, 0xb2a892);
+    proj(BAY_W - 1.4, 0.28, 0.28, BAY_H + 1.48, 0, 0xb2a892);
+    proj(b.w, 0.62, 0.45, 12.15);                       // cornice, well above head height
+    proj(b.w, 0.34, 0.28, LIB_H - 0.17);                // parapet coping
+  };
+
+  // ── the church ──────────────────────────────────────────────────────────
+  //
+  // A small urban Catholic parish church: gabled nave front, a tall pointed
+  // doorway in three recessed orders, lancets, a rose window under the
+  // coping, buttresses stepping down the front, and a tower with a louvred
+  // belfry, a spire and a cross. It is the tallest thing for two streets and
+  // that is the point — a landmark, not a storefront.
+  const placeChurch = (x0: number, zc: number, b: BldSpec) => {
+    const TOWER_W = 5, NAVE_W = b.w - TOWER_W;
+    const NAVE_H = 17, RIDGE = 21.6, TOWER_H = 26, SPIRE = 5.2;
+    const zFront = zc + 1.7;                       // the facade plane, on the street
+    const naveCx = x0 + NAVE_W / 2, towCx = x0 + NAVE_W + TOWER_W / 2;
+    const NW = Math.round(NAVE_W * 8), NH = Math.round(NAVE_H * 11.76);
+    const pm = NH / NAVE_H, yOf = (m: number) => Math.round(NH - m * pm);
+    const naveTex = pixTex(NW, NH, (g) => {
+      const r = clcg(0x3c91e5);
+      ashlar(g, NW, NH, r, 9, 20);
+      const mid = Math.round(NW / 2);
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, yOf(1.5), NW, NH - yOf(1.5)); // plinth
+      g.fillStyle = STONE_L; g.fillRect(0, yOf(1.5) - 2, NW, 2);
+      // the doorway: three recessed orders, pointed, with a tympanum
+      archFill(g, mid, 44, yOf(7.4), yOf(0.55), STONE_D, true);
+      archFill(g, mid, 36, yOf(7.0), yOf(0.55), STONE, true);
+      archFill(g, mid, 30, yOf(6.6), yOf(0.55), 'rgba(0,0,0,0.4)', true);
+      archFill(g, mid, 26, yOf(6.3), yOf(0.55), '#2a2118', true);
+      g.fillStyle = '#4a3524'; g.fillRect(mid - 12, yOf(4.4), 24, yOf(0.55) - yOf(4.4)); // the doors
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(mid - 1, yOf(4.4), 2, yOf(0.55) - yOf(4.4));
+      g.fillStyle = '#8a7a4a';
+      for (const hy of [yOf(3.4), yOf(2.2)]) { g.fillRect(mid - 10, hy, 8, 1); g.fillRect(mid + 3, hy, 8, 1); }
+      g.fillStyle = '#c9a45e'; g.fillRect(mid - 4, yOf(2.4), 2, 4); g.fillRect(mid + 2, yOf(2.4), 2, 4);
+      // steps
+      for (let s = 0; s < 3; s++) {
+        g.fillStyle = s % 2 ? STONE_L : STONE;
+        g.fillRect(mid - 24 - s * 4, yOf(0.2 * (s + 1)), 48 + s * 8, Math.max(2, Math.round(0.2 * pm)));
+      }
+      g.fillStyle = STONE_L; g.fillRect(0, yOf(8.4), NW, 3);        // string course
+      g.fillStyle = 'rgba(0,0,0,0.24)'; g.fillRect(0, yOf(8.4) + 3, NW, 1);
+      // paired lancets either side
+      for (const cx of [Math.round(NW * 0.19), Math.round(NW * 0.81)]) {
+        archFill(g, cx, 16, yOf(13.2), yOf(9.2), STONE_D, true);
+        archFill(g, cx, 12, yOf(13.0), yOf(9.35), '#26303a', true);
+        g.fillStyle = '#7a4a4a'; g.fillRect(cx - 5, yOf(12.0), 10, 6);
+        g.fillStyle = '#3a5a8a'; g.fillRect(cx - 5, yOf(11.0), 10, 6);
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx - 1, yOf(13.0), 2, yOf(9.35) - yOf(13.0));
+        g.fillStyle = STONE_L; g.fillRect(cx - 8, yOf(9.35), 16, 2);
+      }
+      roseWin(g, mid, yOf(14.3), 22);
+      g.fillStyle = 'rgba(46,38,30,0.1)';
+      for (let i = 0; i < 16; i++) g.fillRect(Math.floor(r() * NW), yOf(8.4), 2, Math.round(r() * 60));
+      dither(g, NW, NH, 620);
+    });
+    const roofM = slateM();
+    const nave = new THREE.Mesh(new THREE.BoxGeometry(NAVE_W, NAVE_H, 3.4),
+      [stoneM(), stoneM(), roofM, roofM, flat(naveTex), stoneM()]);
+    nave.position.set(naveCx, NAVE_H / 2, zc);
+    scene.add(nave);
+    // the gable: a real prism, so the silhouette is a gable and not a box
+    const gx0 = x0, gx1 = x0 + NAVE_W, gxm = naveCx;
+    const zf = zc + 1.7, zb = zc - 1.7;
+    // The gable carries the same coursing as the wall under it, mapped with
+    // triangular UVs — (0,0),(1,0),(0.5,1) is the gable's own shape, so the
+    // stone runs on across the eaves instead of stopping at a smooth plate.
+    const gabW = Math.round(NAVE_W * 8), gabH = Math.round((RIDGE - NAVE_H) * 11.76);
+    const gabTex = pixTex(gabW, gabH, (g) => {
+      const r = clcg(0x5d21a7);
+      ashlar(g, gabW, gabH, r, 9, 20);
+      for (let y = 0; y < gabH; y++) {                 // coping along both rakes
+        const xL = Math.round((gabW / 2) * (1 - y / gabH));
+        g.fillStyle = STONE_L;
+        g.fillRect(xL, y, 5, 1); g.fillRect(gabW - xL - 5, y, 5, 1);
+      }
+      dither(g, gabW, gabH, 160);
+    });
+    const triG = (z: number) => {
+      const gm = new THREE.BufferGeometry();
+      const front = z > zc;
+      gm.setAttribute('position', new THREE.Float32BufferAttribute(
+        front ? [gx0, NAVE_H, z, gx1, NAVE_H, z, gxm, RIDGE, z]
+          : [gx1, NAVE_H, z, gx0, NAVE_H, z, gxm, RIDGE, z], 3));
+      gm.setAttribute('uv', new THREE.Float32BufferAttribute(
+        front ? [0, 0, 1, 0, 0.5, 1] : [1, 0, 0, 0, 0.5, 1], 2));
+      gm.computeVertexNormals();
+      return new THREE.Mesh(gm, flat(gabTex));
+    };
+    scene.add(triG(zf)); scene.add(triG(zb));
+    for (const s of [-1, 1]) {                       // the two roof slopes
+      const sm = new THREE.BufferGeometry();
+      const xe = s < 0 ? gx0 : gx1;
+      sm.setAttribute('position', new THREE.Float32BufferAttribute(
+        s < 0 ? [xe, NAVE_H, zb, xe, NAVE_H, zf, gxm, RIDGE, zf, xe, NAVE_H, zb, gxm, RIDGE, zf, gxm, RIDGE, zb]
+          : [xe, NAVE_H, zf, xe, NAVE_H, zb, gxm, RIDGE, zb, xe, NAVE_H, zf, gxm, RIDGE, zb, gxm, RIDGE, zf], 3));
+      sm.computeVertexNormals();
+      scene.add(new THREE.Mesh(sm, roofM));
+    }
+    // an oculus in the gable, and the coping along the rake
+    const ocT = pixTex(16, 16, (g) => {
+      for (let dy = -8; dy < 8; dy++) for (let dx = -8; dx < 8; dx++) {
+        const d = Math.hypot(dx + 0.5, dy + 0.5);
+        if (d > 7.5) continue;
+        g.fillStyle = d > 5.5 ? STONE_D : (((dx + dy) & 1) ? '#3a5a8a' : '#8a3a3a');
+        g.fillRect(dx + 8, dy + 8, 1, 1);
+      }
+    });
+    const oc = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: ocT, alphaTest: 0.5 }));
+    oc.position.set(gxm, NAVE_H + 1.5, zf + 0.02);
+    scene.add(oc);
+    // buttresses — the vertical emphasis, and real depth in the silhouette
+    for (const bx of [gx0 + 0.5, gxm - 3.4, gxm + 3.4, gx1 - 0.5]) {
+      const bt = new THREE.Mesh(new THREE.BoxGeometry(0.9, 12.5, 0.3), stoneM());
+      bt.position.set(bx, 6.25, zFront + 0.15);
+      scene.add(bt);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 0.42), new THREE.MeshBasicMaterial({ color: 0xb2a892 }));
+      cap.position.set(bx, 12.6, zFront + 0.2);
+      scene.add(cap);
+    }
+    // ── the tower ──
+    const TW = Math.round(TOWER_W * 8), TH = Math.round(TOWER_H * 11.76);
+    const tpm = TH / TOWER_H, tyOf = (m: number) => Math.round(TH - m * tpm);
+    const towTex = pixTex(TW, TH, (g) => {
+      const r = clcg(0x91b3c2);
+      ashlar(g, TW, TH, r, 9, 18);
+      for (let y = 0, i = 0; y < TH; y += 18, i++) {           // quoins
+        g.fillStyle = (i % 2) ? STONE_L : STONE_D;
+        g.fillRect(0, y, 6, 18); g.fillRect(TW - 6, y, 6, 18);
+      }
+      const mid = Math.round(TW / 2);
+      for (const m of [8.4, 15.0]) {                           // string courses
+        g.fillStyle = STONE_L; g.fillRect(0, tyOf(m), TW, 3);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, tyOf(m) + 3, TW, 1);
+      }
+      for (const m of [5.4, 11.6]) {                           // slot lancets up the shaft
+        archFill(g, mid, 10, tyOf(m + 2.6), tyOf(m), STONE_D, true);
+        archFill(g, mid, 6, tyOf(m + 2.4), tyOf(m + 0.15), '#26303a', true);
+      }
+      // the belfry: two tall louvred openings
+      for (const cx of [mid - 9, mid + 9]) {
+        archFill(g, cx, 14, tyOf(23.0), tyOf(17.0), STONE_D, true);
+        archFill(g, cx, 10, tyOf(22.8), tyOf(17.2), '#1a1e24', true);
+        g.fillStyle = 'rgba(174,166,148,0.5)';
+        for (let y = tyOf(21.6); y < tyOf(17.2); y += 4) g.fillRect(cx - 5, y, 10, 2);
+      }
+      g.fillStyle = STONE_D; g.fillRect(0, tyOf(24.4), TW, 4);   // cornice
+      g.fillStyle = STONE_L;
+      for (let x = 1; x < TW; x += 5) g.fillRect(x, tyOf(24.4) + 4, 3, 4);
+      g.fillStyle = STONE_L; g.fillRect(0, 0, TW, tyOf(25.4));
+      g.fillStyle = 'rgba(46,38,30,0.1)';
+      for (let i = 0; i < 12; i++) g.fillRect(Math.floor(r() * TW), tyOf(15.0), 2, Math.round(r() * 70));
+      dither(g, TW, TH, 520);
+    });
+    const towM = flat(towTex);
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(TOWER_W, TOWER_H, 3.7),
+      [flat(towTex.clone()), stoneM(), slateM(), slateM(), towM, stoneM()]);
+    tower.position.set(towCx, TOWER_H / 2, zc + 0.15);   // stands 0.3 m proud of the nave front
+    scene.add(tower);
+    // the spire, and the cross on top of it
+    const apex = TOWER_H + SPIRE;
+    const hw = TOWER_W / 2, hd = 1.85, tz = zc + 0.15;
+    const corners: [number, number][] = [
+      [towCx - hw, tz - hd], [towCx + hw, tz - hd], [towCx + hw, tz + hd], [towCx - hw, tz + hd],
+    ];
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = corners[i], [bx, bz] = corners[(i + 1) % 4];
+      const sp = new THREE.BufferGeometry();
+      sp.setAttribute('position', new THREE.Float32BufferAttribute(
+        [ax, TOWER_H, az, bx, TOWER_H, bz, towCx, apex, tz], 3));
+      sp.computeVertexNormals();
+      scene.add(new THREE.Mesh(sp, new THREE.MeshBasicMaterial({ color: 0x3f434b, side: THREE.DoubleSide })));
+    }
+    const crossM = new THREE.MeshBasicMaterial({ color: 0x8a8271 });
+    const cUp = new THREE.Mesh(new THREE.BoxGeometry(0.14, 1.5, 0.14), crossM);
+    cUp.position.set(towCx, apex + 0.75, tz);
+    scene.add(cUp);
+    const cAcross = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.14, 0.14), crossM);
+    cAcross.position.set(towCx, apex + 1.02, tz);
+    scene.add(cAcross);
+    // the notice board every parish has, by the door
+    const ntT = pixTex(24, 16, (g) => {
+      g.fillStyle = '#2e3a2c'; g.fillRect(0, 0, 24, 16);
+      g.fillStyle = '#d8d0c0'; g.fillRect(2, 2, 20, 12);
+      g.fillStyle = '#4a4438'; g.font = 'bold 4px monospace'; g.textAlign = 'center';
+      g.fillText('MASS', 12, 7); g.fillText('SUN 9', 12, 12);
+    });
+    const nt = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.75, 0.1), flat(ntT));
+    nt.position.set(naveCx + 4.6, 1.75, zFront + 0.06);
+    scene.add(nt);
   };
   let zw = 14.2;
   for (const b of WEST) {
     if (b === 'alley') { zw = AZ1; continue; }
-    placeBld(-1, zw, b);
+    if (b.kind === 'library') placeLibrary(zw, b); else placeBld(-1, zw, b);
     zw -= b.w;
   }
   let ze = 14.2;
@@ -93,6 +638,7 @@ export function buildStreet(o: {
   // side-street rosters run along x; facade on the street-facing z side
   const placeBldZ = (x0: number, zc: number, b: BldSpec, facing: 1 | -1) => {
     const cx = x0 + b.w / 2;
+    const gh = bandOf(b);
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
@@ -101,14 +647,14 @@ export function buildStreet(o: {
       ? [endM, endM, roofM, roofM, facade, endM]
       : [endM, endM, roofM, roofM, endM, facade];
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 3.4), mats);
-    wall.position.set(cx, h / 2 + 3.2, zc);
+    wall.position.set(cx, h / 2 + gh, zc);
     scene.add(wall);
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = facing > 0
       ? [endM, endM, roofM, roofM, shopM, endM]
       : [endM, endM, roofM, roofM, endM, shopM];
-    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, 3.2, 3.4), shopMats);
-    shop.position.set(cx, 1.6, zc);
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4), shopMats);
+    shop.position.set(cx, gh / 2, zc);
     scene.add(shop);
   };
   // The bodega is the anchor store on this corner, so it does not stop at the
@@ -119,9 +665,104 @@ export function buildStreet(o: {
   const BODEGA_WING = 6.05;
   placeBldZ(FACE + 3.4, -94.3, { nm: 'BODEGA', col: '#b8342a', w: BODEGA_WING, brick: '#6b4034', floors: 3 }, -1);
   let xn = FACE + 3.4 + BODEGA_WING;
-  for (const b of NORTH2) { placeBldZ(xn, -94.3, b, -1); xn += b.w; }
+  const sideSpans: Record<string, [number, number]> = {};
+  for (const b of NORTH2) { sideSpans[b.nm] = [xn, xn + b.w]; placeBldZ(xn, -94.3, b, -1); xn += b.w; }
+  // ── the far end of the side street ──────────────────────────────────────
+  //
+  // The casino and the hotel are 40 m away, which is most of the way to
+  // FOG_FAR — from this block they are a glow, not a place, and that is
+  // exactly what was asked for. Two things make that work:
+  //
+  //  · the signs stand ABOVE the roofline, where nothing occludes them;
+  //  · the lit parts are `fog: false`. Everything else in the world dissolves
+  //    into the haze on the fog curve, so neon that refuses to is read as
+  //    neon — it is the only thing out there still burning at that distance.
+  //    The boards they are mounted on DO take fog, so the sign hangs in the
+  //    murk instead of looking pasted on top of it.
+  {
+    // NOT `transparent: true`. With alphaTest the cutout is resolved in the
+    // OPAQUE pass, where the depth buffer decides what you see. Marking it
+    // transparent as well pushes both faces of a double-sided sign into the
+    // sorted pass, where the far face can paint over the near one — which is
+    // what made HOTEL read backwards from the west: you were seeing the far
+    // plane's reverse. FrontSide then guarantees each face is only ever seen
+    // from its own side, so this cannot come back.
+    const neonM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.4, fog: false, side: THREE.FrontSide });
+    // A double-sided sign is TWO planes back to back, and the two faces are
+    // mirror images of each other in world space. Hang the same texture on
+    // both and one of them comes out reversed — which only shows up on
+    // asymmetric letters, so HOTEL gave itself away on the E and the L while
+    // the H, O and T looked fine. `scale.x = -1` flips that face's UVs back.
+    // Any sign added here needs the same treatment; check it on a letter
+    // with a handedness, never on one that reads the same both ways.
+    // The fix is applied to the ARTWORK, not to the transform: the back face
+    // gets a texture that was painted mirrored, so the two faces carry
+    // genuinely different images the way a real double-sided sign does.
+    // (Mirroring the mesh instead — scale.x = -1 — does not survive here.)
+    const twoSided = (
+      tw: number, th: number, draw: (g: CanvasRenderingContext2D) => void,
+      w: number, h: number, x: number, y: number, z: number, gap: number,
+    ) => {
+      for (const s of [-1, 1]) {
+        const t = pixTex(tw, th, draw);   // both faces carry the same artwork…
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), neonM(t));
+        m.position.set(x + s * gap, y, z);
+        m.rotation.y = s * Math.PI / 2;
+        scene.add(m);
+      }
+    };
+    const boardM = new THREE.MeshBasicMaterial({ color: 0x24222a, side: THREE.DoubleSide });
+    const casino = sideSpans['GOLDEN ACES'], hotel = sideSpans['HOTEL ORPHEUS'];
+    if (casino) {
+      // A ROOFTOP PYLON, not a fascia sign. Anything mounted at the casino's
+      // own roofline (16.2 m) is hidden behind the hotel next door, which is
+      // 18.6 — and from this block you only ever see the far end down the
+      // length of the street, so an occluded sign is no sign. This one stands
+      // clear of every roof on the side street and is the first thing you
+      // pick out of the haze.
+      // It faces ALONG the street, not across it. A sign hung parallel to its
+      // own facade is edge-on to everyone approaching down the street, which
+      // is the only way this one is ever seen — from the far end of it.
+      const cxm = (casino[0] + casino[1]) / 2, top = SHOP_BAND_H + 3.4 + 4 * 2.4;
+      for (const dz of [-3.2, 3.2]) {                  // two legs it stands on
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4.2, 0.3), boardM);
+        leg.position.set(cxm, top + 2.1, -95.0 + dz);
+        scene.add(leg);
+      }
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.55, 7.4, 9.2), boardM);
+      frame.position.set(cxm, top + 8.0, -95.0);
+      scene.add(frame);
+      twoSided(92, 74, (g) => {
+        g.fillStyle = '#e8c25a'; g.font = 'bold 15px monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('GOLDEN', 46, 26); g.fillText('ACES', 46, 45);
+        g.fillStyle = '#e8574a';
+        g.font = 'bold 9px monospace'; g.fillText('OPEN ALL NITE', 46, 62);
+        g.fillStyle = '#f2d98a';                       // chaser bulbs round the edge
+        for (let x = 3; x < 92; x += 8) { g.fillRect(x, 2, 4, 3); g.fillRect(x, 69, 4, 3); }
+        for (let y = 6; y < 70; y += 8) { g.fillRect(2, y, 3, 4); g.fillRect(87, y, 3, 4); }
+      }, 8.8, 7.0, cxm, top + 8.0, -95.0, 0.29);
+    }
+    if (hotel) {
+      // a blade sign hung off the building at first-floor level, read end-on
+      // down the length of the side street — the way a hotel sign hangs
+      const hx = hotel[1] - 1.1;
+      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.22, 6.6, 0.5), boardM);
+      mast.position.set(hx, 7.4, -96.72);
+      scene.add(mast);
+      twoSided(16, 80, (g) => {
+        g.fillStyle = '#7ad4e8'; g.font = 'bold 11px monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        'HOTEL'.split('').forEach((ch, i) => g.fillText(ch, 8, 11 + i * 13));
+        g.fillStyle = '#e85a8a'; g.fillRect(2, 74, 12, 3);
+      }, 1.5, 6.2, hx, 7.4, -96.72, 0.13);
+    }
+  }
   let xs = -7;
-  for (const b of SOUTH2) { placeBldZ(xs, -111.7, b, 1); xs += b.w; }
+  for (const b of SOUTH2) {
+    if (b.kind === 'church') placeChurch(xs, -111.7, b); else placeBldZ(xs, -111.7, b, 1);
+    xs += b.w;
+  }
   // ── the bodega turns the corner on a canted bay ─────────────────────────
   //
   // The classic American corner store does not meet the intersection with a
@@ -154,7 +795,7 @@ export function buildStreet(o: {
     // one 45° axis instead of reading off-kilter against each other.
     const CHF = WALK;
     const CFW = CHF * Math.SQRT2;                    // 2.55 m of canted bay
-    const SHOP = 3.2, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
+    const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // facadeTex floors its width at 64 px, which on a 2.5 m bay would paint
@@ -219,26 +860,32 @@ export function buildStreet(o: {
     bay.add(bayUp);
     // the shopfront in the bay: recessed doorway dead centre, a run of
     // display glass either side, sign band over the lot
-    const bayFrontT = pixTex(48, 40, (g) => {
-      g.fillStyle = bod.brick; g.fillRect(0, 0, 48, 40);
+    // 52 texels over the taller band, same bands as shopfrontTex so the bay
+    // lines up exactly with the two shopfronts it turns the corner between
+    const bayFrontT = pixTex(48, 52, (g) => {
+      g.fillStyle = bod.brick; g.fillRect(0, 0, 48, 52);
       g.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let y = 0; y < 40; y += 5) g.fillRect(0, y, 48, 1);
-      g.fillStyle = bod.col; g.fillRect(2, 2, 44, 10);            // sign band
+      for (let y = 0; y < 52; y += 5) g.fillRect(0, y, 48, 1);
+      g.fillStyle = bod.col; g.fillRect(2, 2, 44, 11);            // sign band
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 13, 44, 2);
       g.fillStyle = '#f2ead0'; g.font = 'bold 8px monospace';
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(bod.nm, 24, 7);
-      g.fillStyle = '#141820'; g.fillRect(3, 14, 42, 26);         // frames
-      g.fillStyle = '#3a3020'; g.fillRect(5, 16, 38, 22);
-      g.fillStyle = '#5a6a7a'; g.fillRect(6, 17, 9, 20);          // display glass, left
-      g.fillStyle = '#c9a45e'; g.fillRect(7, 25, 7, 8);           // stacked cartons in it
-      g.fillStyle = '#5a6a7a'; g.fillRect(33, 17, 9, 20);         // display glass, right
-      g.fillStyle = '#4a7a3a'; g.fillRect(34, 26, 7, 7);
-      g.fillStyle = '#141820'; g.fillRect(16, 13, 16, 27);        // the door
-      g.fillStyle = '#8a97a2'; g.fillRect(18, 15, 12, 17);        // daylight through it
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(18, 24, 12, 1);
-      g.fillStyle = '#3a2c22'; g.fillRect(18, 33, 12, 6);         // kick plate
-      g.fillStyle = '#c9b45e'; g.fillRect(27, 23, 1, 4);          // handle
-      dither(g, 48, 40, 220);
+      g.fillText(bod.nm, 24, 8);
+      g.fillStyle = '#141820'; g.fillRect(3, 14, 42, 38);         // frames
+      g.fillStyle = '#3a3020'; g.fillRect(5, 16, 38, 32);
+      g.fillStyle = '#5a6a7a'; g.fillRect(6, 17, 9, 31);          // display glass, left
+      g.fillStyle = '#c9a45e'; g.fillRect(7, 28, 7, 12);          // stacked cartons in it
+      g.fillStyle = '#5a6a7a'; g.fillRect(33, 17, 9, 31);         // display glass, right
+      g.fillStyle = '#4a7a3a'; g.fillRect(34, 30, 7, 10);
+      g.fillStyle = '#141820'; g.fillRect(16, 13, 16, 39);        // the door
+      g.fillStyle = '#8a97a2'; g.fillRect(18, 15, 12, 27);        // daylight through it
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(18, 27, 12, 1);
+      g.fillStyle = '#3a2c22'; g.fillRect(18, 43, 12, 6);         // kick plate
+      g.fillStyle = '#c9b45e'; g.fillRect(27, 27, 1, 4);          // handle
+      g.fillStyle = '#4a4034'; g.fillRect(5, 48, 11, 4);          // stallriser either side
+      g.fillRect(32, 48, 11, 4);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(5, 48, 11, 1); g.fillRect(32, 48, 11, 1);
+      dither(g, 48, 52, 280);
     });
     const bayFront = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP), flat(bayFrontT));
     bayFront.position.set(0, SHOP / 2, 0);
@@ -251,9 +898,10 @@ export function buildStreet(o: {
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, 9, 48, 3);
     });
     const awn = new THREE.Mesh(new THREE.BoxGeometry(CFW, 0.1, 0.9), new THREE.MeshBasicMaterial({ map: awnT, side: THREE.DoubleSide }));
-    // the awning tucks UNDER the sign band (band spans 2.24–3.04 m, glass
-    // head is at 2.08) — hung at shopfront-band height it just hides the name
-    awn.position.set(0, 2.15, 0.35);
+    // the awning tucks UNDER the sign band. On the taller band the fascia now
+    // runs 3.15–4.04 m and the glass head is at 2.91, so it hangs at 2.99 —
+    // recheck this whenever SHOP_BAND_H moves, or it covers the name again.
+    awn.position.set(0, 2.99, 0.35);
     awn.rotation.x = -0.18;   // slopes down and away from the face
     bay.add(awn);
     const openT = pixTex(24, 12, (g) => {
@@ -403,7 +1051,7 @@ export function buildStreet(o: {
     scene.add(alleyEnd);
     // ── the alley's two flanks ────────────────────────────────────────────
     // These are the exposed party walls of the two buildings the alley is cut
-    // between: PAWN to the north, MUSIC to the south. They carry the SAME
+    // between: whatever the roster puts north of it, and MUSIC to the south. They carry the SAME
     // brick as the rear wall — 5 px courses, 9 px stretchers, ~11.7 px/m —
     // so the alley reads continuous around both corners. But they are two
     // different buildings with two different histories, so they are painted
@@ -442,7 +1090,7 @@ export function buildStreet(o: {
     };
     const AW = 80;            // 7 m of wall at the rear wall's texel density
     const PXM = 150 / 12.8;   // …and the rear wall's px-per-metre vertically
-    // north flank — PAWN's wall. Warmer red brick, badly patched: a square
+    // north flank — the wall of whatever sits north of the gap. Warmer red brick, badly patched: a square
     // of newer grey brick let in mid-height, a bricked-up service door at
     // the bottom, and a long rust-and-rain streak off a missing downpipe.
     const northFlankT = (H: number) => pixTex(AW, H, (g) => {
@@ -519,7 +1167,7 @@ export function buildStreet(o: {
     // shell face — the shells now stop exactly on AZ0/AZ1, so 1 cm is all
     // the clearance the depth test needs.
     const ai = WEST.indexOf('alley');
-    const topOf = (b: BldSpec) => 3.2 + 3.4 + b.floors * 2.4;
+    const topOf = (b: BldSpec) => bandOf(b) + 3.4 + b.floors * 2.4;
     for (const [paint, spec, az, ry] of [
       [northFlankT, WEST[ai - 1] as BldSpec, AZ0 - 0.01, Math.PI],
       [southFlankT, WEST[ai + 1] as BldSpec, AZ1 + 0.01, 0],

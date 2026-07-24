@@ -39,31 +39,50 @@ export function facadeTex(brick: string, floors: number, wMeters = 12): THREE.Te
   });
 }
 
+/** the shop ground-floor band, in metres. TALLER than the residential one
+ *  (ENTRANCE.BAND_H): a commercial ground floor genuinely is, and when they
+ *  shared 3.2 m the glazing came out 1.92 m — shorter than a doorway, which
+ *  is what made every shop on the block read undersized. */
+export const SHOP_BAND_H = 4.2;
+/** 52 texels over SHOP_BAND_H keeps the old ~0.08 m texel, so the shopfront
+ *  stays exactly as coarse as the brick above it. The extra height is spent
+ *  where it was missing: glass, and a stallriser. */
+const SHOP_BAND_PX = 52;
+
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
-  const W = Math.max(64, Math.round(wMeters * 8));
-  return pixTex(W, 40, (g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, W, 40);
+  const W = Math.max(64, Math.round(wMeters * 8)), H = SHOP_BAND_PX;
+  return pixTex(W, H, (g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
     g.fillStyle = 'rgba(0,0,0,0.2)';
-    for (let y = 0; y < 40; y += 5) g.fillRect(0, y, W, 1);
+    for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
     // sign band caps at ~12 m so wide buildings don't wear a mile of awning
     const bandW = Math.min(W - 8, 96), bandX = Math.round((W - bandW) / 2);
     g.fillStyle = awning;
-    g.fillRect(bandX, 2, bandW, 10);
+    g.fillRect(bandX, 2, bandW, 11);                    // ~0.89 m of fascia
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bandX, 13, bandW, 2);
     g.fillStyle = '#f2ead0';
     g.font = 'bold 8px monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(name, W / 2, 7);
+    g.fillText(name, W / 2, 8);
     g.fillStyle = '#141820';
-    g.fillRect(6, 14, W - 12, 24);
+    g.fillRect(5, 14, W - 10, 38);                      // the shopfront frame
     g.fillStyle = '#3a3020';
-    g.fillRect(8, 16, W - 16, 20);
+    g.fillRect(7, 16, W - 14, 32);                      // ~2.6 m of glazing
     g.fillStyle = '#c9a45e';
-    g.fillRect(10, 22, Math.round(W * 0.31), 12);
+    g.fillRect(10, 24, Math.round(W * 0.31), 18);       // lit from inside
     g.fillStyle = '#5a6a7a';
-    g.fillRect(Math.round(W * 0.6), 16, 6, 20);
+    g.fillRect(Math.round(W * 0.6), 16, 6, 32);
     g.fillStyle = '#2a3440';
-    g.fillRect(Math.round(W * 0.48), 16, 3, 22);
-    dither(g, W, 40, 260);
+    g.fillRect(Math.round(W * 0.48), 16, 3, 32);        // the shop door
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    g.fillRect(7, 21, W - 14, 1);                       // transom bar
+    // the stallriser: the panelled bulkhead under the glass that every real
+    // shopfront has and this one did not, so the glass ran into the pavement
+    g.fillStyle = '#4a4034'; g.fillRect(5, 48, W - 10, 4);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(5, 48, W - 10, 1);
+    g.fillStyle = 'rgba(0,0,0,0.3)';
+    for (let x = 11; x < W - 10; x += 12) g.fillRect(x, 49, 1, 3);
+    dither(g, W, H, 300);
   });
 }
 
