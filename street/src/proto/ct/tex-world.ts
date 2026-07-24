@@ -359,17 +359,34 @@ export function canTopTex(v: number): THREE.Texture {
   });
 }
 
-// a sheet of newspaper gone soft and grey in the wet
-export function newspaperTex(): THREE.Texture {
+// Paper trash: flyers, handbills, folded sheets — gone soft and grey in the
+// wet. Not "a newspaper": the note was "like paper. like flyers and stuff.
+// folded paper trash wet from rain".
+export function paperTex(v: number): THREE.Texture {
   return pixTex(22, 16, (g) => {
-    g.fillStyle = '#b8b4a8'; g.fillRect(1, 1, 20, 14);
-    g.fillStyle = '#8e8a7e'; g.fillRect(1, 1, 20, 3);                  // soaked edge
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(1, 9, 20, 4);         // wet patch
-    g.fillStyle = '#54524c';
-    for (let y = 4; y < 14; y += 2) g.fillRect(3, y, 10, 1);           // columns of type
-    for (let y = 5; y < 13; y += 2) g.fillRect(14, y, 5, 1);
-    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(1, 14, 20, 1);        // it lies flat, edge shadow
-    dither(g, 22, 16, 26);
+    const k = v % 4;
+    if (k === 0) {          // flyer, headline block + columns, half soaked
+      g.fillStyle = '#c2beb2'; g.fillRect(1, 1, 20, 14);
+      g.fillStyle = '#8e8a7e'; g.fillRect(1, 9, 20, 6);           // wet half, darker
+      g.fillStyle = '#4e4c46'; g.fillRect(3, 3, 14, 3);           // headline bar
+      for (let y = 8; y < 14; y += 2) g.fillRect(3, y, 9, 1);
+    } else if (k === 1) {   // folded in half — a crease and a lifted edge
+      g.fillStyle = '#bdb9ad'; g.fillRect(2, 3, 18, 11);
+      g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(10, 3, 1, 11); // fold crease
+      g.fillStyle = '#a9a496'; g.fillRect(11, 3, 9, 11);          // far leaf in shade
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(2, 13, 18, 1);
+    } else if (k === 2) {   // pulpy, soaked through, edges gone dark and curled
+      g.fillStyle = '#a49f92'; g.fillRect(2, 2, 18, 12);
+      g.fillStyle = '#7e796e'; g.fillRect(2, 2, 18, 3);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 11, 18, 3);
+      g.fillStyle = '#8d887c'; g.fillRect(5, 6, 12, 3);
+    } else {                // torn handbill, one ragged edge
+      g.fillStyle = '#c8c2b4'; g.fillRect(3, 2, 16, 12);
+      g.fillStyle = '#9a9488'; g.fillRect(3, 2, 3, 12);
+      g.fillStyle = '#54524c'; for (let y = 5; y < 13; y += 3) g.fillRect(7, y, 9, 1);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(3, 13, 16, 1);
+    }
+    dither(g, 22, 16, 20);
   });
 }
 

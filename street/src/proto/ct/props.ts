@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
-         canTopTex, newspaperTex, scrapTex } from './tex-world';
+         canTopTex, paperTex, scrapTex } from './tex-world';
 import type { CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -286,7 +286,7 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(m);
     return m;
   };
-  const npT = newspaperTex();
+  const paperT = [paperTex(0), paperTex(1), paperTex(2), paperTex(3)];
   const scrapT = [scrapTex(0), scrapTex(1), scrapTex(2)];
   // the gutter line: just off the kerb face, on the road side
   const GUT = ROAD_HALF - 0.22;
@@ -300,10 +300,12 @@ export function buildProps(ctx: CtxBuild): Props {
       flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.001);
     }
   }
-  // two soaked newspapers, flat against the road
-  for (let i = 0; i < 2; i++) {
-    const s2 = i === 0 ? 1 : -1;
-    flatDecal(npT, 0.44, 0.32, s2 * (GUT - 0.10), -20 - i * 37, rnd() * Math.PI, 0.001);
+  // paper trash — flyers, folded sheets, pulpy soaked handbills. More of
+  // these than cans: paper is what actually collects along a wet kerb.
+  for (let i = 0; i < 5; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    flatDecal(paperT[i % 4], 0.34 + rnd() * 0.14, 0.26 + rnd() * 0.10,
+              s2 * (GUT - rnd() * 0.34), -8 - rnd() * (L - 20), rnd() * Math.PI, 0.001);
   }
   // one can up on the sidewalk, against the kerb
   flatDecal(canTopTex(3), 0.32, 0.19, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);

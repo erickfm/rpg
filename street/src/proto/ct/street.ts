@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
-import { facadeTex, shopfrontTex, resGroundTex, walkTex } from './tex-world';
+import { facadeTex, shopfrontTex, resGroundTex } from './tex-world';
+import { walkTex } from './tex-ground';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
 
 // Every building on the block, hand-authored end to end, plus the alley
@@ -284,10 +285,13 @@ export function buildStreet(o: {
       const gap = new THREE.BufferGeometry();
       gap.setAttribute('position', new THREE.Float32BufferAttribute(
         tri.flatMap(([x, z]) => [x, KERB_H, z]), 3));
+      // walkTex now takes WORLD EXTENTS (it aligns the slab grid globally via
+      // repeat+offset), so UVs here are normalised across the triangle's rect
+      // rather than raw world/2 as they were under the old size-based signature.
       gap.setAttribute('uv', new THREE.Float32BufferAttribute(
-        tri.flatMap(([x, z]) => [x / 2, z / 2]), 2));
+        tri.flatMap(([x, z]) => [(x - BX0) / CHF, (z - BZ1) / CHF]), 2));
       gap.computeVertexNormals();
-      const gapT = walkTex(2, 2);
+      const gapT = walkTex(BX0, BX0 + CHF, BZ1, BZ1 + CHF);
       scene.add(new THREE.Mesh(gap, wet(new THREE.MeshBasicMaterial({ map: gapT, side: THREE.DoubleSide }))));
     }
     // Produce crates, not cartons. A slatted crate is BOARDS WITH GAPS: the
