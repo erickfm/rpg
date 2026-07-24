@@ -8,8 +8,16 @@
 import { chromium } from 'playwright';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+page.on('pageerror', (e) => errs.push(String(e.message)));
+page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
-await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 10000 });
+try {
+  await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 20000 });
+} catch {
+  console.error('__ct.scene never appeared. Page errors:\n' + (errs.join('\n') || '(none captured)'));
+  await browser.close(); process.exit(1);
+}
 
 const BOX = 30;
 const res = await page.evaluate(async (BOX) => {

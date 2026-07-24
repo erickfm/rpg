@@ -9,6 +9,26 @@ published to the playable artifact.
 
 ## In progress
 
+- **Re-cast the block.** Replace the current shop rosters with: fast food,
+  casino (placed "out and away" — far end of the side street where it sinks
+  into fog), a corporation, a library, a taxes place, a hotel near the
+  casino, pawnshop, thrift shop, and a Catholic church. Bodega stays.
+  THE KEY POINT: the library and the church cannot be shopfront bands with
+  a name on them — they need their own facade vocabulary or the request
+  fails. Library: *"nice but old, a hallmark of the benefit of public
+  funding and a fervor for public spaces 40 years ago. no longer around"* —
+  i.e. inherited civic grandeur, stone, tall windows, steps, engraved
+  frieze; grand but unmaintained. Church: *"catholic, beautiful"* — stone,
+  arched doorway, lancet windows, rose window, tallest thing on its
+  stretch. Corporation should read blander/more modern than its
+  neighbours; that contrast against the library is the point.
+  Full brief in the alley worktree as `BRIEF-ROSTER.md`.
+
+- **Bus, bench, bus stop.** Wants a bus stop on the block — a bench, a stop
+  sign/flag or shelter, and an actual bus. The bus should presumably use
+  the existing traffic system (there is already a cruising-car pool and a
+  rare taxi) rather than being static.
+
 - **Sidewalk + kerb detail pass.** The kerb is an untextured sharp
   rectangle (flat `kerbFaceM` 0x97928a, a 0.14 m box edge) — it reads as a
   grey bar, not concrete or granite. And the corner doesn't behave like a
