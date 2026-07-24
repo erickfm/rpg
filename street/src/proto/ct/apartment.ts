@@ -267,25 +267,80 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     hermit.position.set(AX(2.3), 2 * ST + 0.98, AZI(3.5));
     hermit.rotation.y = -Math.PI / 2;
     scene.add(hermit);
-    // bare-bulb glows in the hall and on the half landings
-    const glowT = pixTex(32, 32, (g) => {
-      const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15);
-      gr.addColorStop(0, 'rgba(255,225,170,0.85)');
-      gr.addColorStop(1, 'rgba(255,225,170,0)');
-      g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    // ── the hall lights ──────────────────────────────────────────────────
+    // A period flush-mount: bronze ceiling rose, shallow ribbed opal dome
+    // under it. There used to be no fixture at all here — just a bare
+    // additive gradient billboard — so the light read as a smudge on the
+    // ceiling rather than a thing screwed to it.
+    //
+    // Two rules, both learned off the old one:
+    //  1. NOTHING in this world is a smooth gradient. Every other surface is
+    //     hard-edged and nearest-filtered, so the glow is stepped into hard
+    //     concentric discs with a broken outer edge, not blurred.
+    //  2. The glow is a HALO around the fixture, not the light itself — it
+    //     is small and faint. The dome is what you actually read as lit,
+    //     and it is lit by being painted bright (everything is MeshBasic).
+    //
+    // The dome's texture runs rim (v=1, top of canvas) to pole (v=0, bottom),
+    // because SphereGeometry puts v=1 at thetaStart — so the bands read as
+    // turned glass when you stand under it and look up.
+    const opalT = pixTex(16, 12, (g) => {
+      const bands = ['#9a8f74', '#b8ac8c', '#d2c5a2', '#e8dcba', '#f6efd6', '#fdf8e8'];
+      for (let y = 0; y < 12; y++) { g.fillStyle = bands[Math.floor(y / 2)]; g.fillRect(0, y, 16, 1); }
+      g.fillStyle = 'rgba(0,0,0,0.10)';                       // ribs, like a real shade
+      for (let x = 1; x < 16; x += 4) g.fillRect(x, 0, 1, 12);
+      dither(g, 16, 12, 14);
+    });
+    const glowT = pixTex(24, 24, (g) => {
+      const C = 12;
+      const disc = (r: number, fill: string) => {
+        g.fillStyle = fill;
+        for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+          const dx = x + 0.5 - C, dy = y + 0.5 - C;
+          if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
+        }
+      };
+      disc(11, 'rgba(255,226,168,0.07)');                     // hard steps, no gradient
+      disc(8.5, 'rgba(255,230,178,0.11)');
+      disc(6.2, 'rgba(255,236,194,0.16)');
+      disc(4.2, 'rgba(255,242,210,0.22)');
+      disc(2.4, 'rgba(255,248,228,0.30)');
+      g.fillStyle = 'rgba(255,228,172,0.09)';                 // falloff breaks into texels
+      for (let i = 0; i < 70; i++) {
+        const a = Math.random() * Math.PI * 2, rr = 8.5 + Math.random() * 4.5;
+        const x = Math.floor(C + Math.cos(a) * rr), y = Math.floor(C + Math.sin(a) * rr);
+        if (x >= 0 && y >= 0 && x < 24 && y < 24) g.fillRect(x, y, 1, 1);
+      }
     });
     const glowMat = new THREE.MeshBasicMaterial({ map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    for (let f = 0; f < 4; f++) {
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), glowMat);
-      gl.position.set(AX(1.2), f * ST + 2.3, AZI(3.5));
+    // the dome is open at the rim, so it is DoubleSide — you see the inside
+    // of the far wall of the shade when you look up into it
+    const opalM = new THREE.MeshBasicMaterial({ map: opalT, side: THREE.DoubleSide });
+    const roseSideM = new THREE.MeshBasicMaterial({ color: 0x6a5a42 });
+    const roseCapM = new THREE.MeshBasicMaterial({ color: 0x4a3f2e });
+    const domeGeo = new THREE.SphereGeometry(0.19, 10, 3, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+    domeGeo.scale(1, 0.55, 1);                                // shallow, not a half ball
+    const roseGeo = new THREE.CylinderGeometry(0.21, 0.20, 0.05, 10);
+    // ceilY is the ceiling it hangs from; the rose is wider than the dome's
+    // rim so the open edge is capped and never shows as a hole
+    const ceilingLamp = (ceilY: number, wz: number, halo: number) => {
+      const rose = new THREE.Mesh(roseGeo, [roseSideM, roseCapM, roseCapM]);
+      rose.position.set(AX(1.2), ceilY - 0.025, wz);
+      scene.add(rose);
+      const dome = new THREE.Mesh(domeGeo, opalM);
+      dome.position.set(AX(1.2), ceilY - 0.05, wz);
+      scene.add(dome);
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(halo, halo), glowMat);
+      gl.position.set(AX(1.2), ceilY - 0.12, wz);
       boards.push({ m: gl });
       scene.add(gl);
-      if (f < 3) {
-        const g2 = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), glowMat);
-        g2.position.set(AX(1.2), f * ST + 1.35 + 1.95, AZI(12.5));
-        boards.push({ m: g2 });
-        scene.add(g2);
-      }
+    };
+    for (let f = 0; f < 4; f++) {
+      ceilingLamp(f * ST + 2.55, AZI(3.5), 0.6);              // hall, under that floor's ceiling
+      // the half landings hang theirs off whatever is genuinely above them:
+      // the underside of the next landing up, or — at the top of the shaft,
+      // where there is no next landing — the building's top ceiling
+      if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + 1.35 - 0.14 : H, AZI(12.5), 0.52);
     }
     // lobby dressing: mailboxes and the front door
     const mailT = pixTex(48, 32, (g) => {
