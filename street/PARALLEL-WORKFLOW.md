@@ -117,6 +117,23 @@ dominates anything small. So:
 **Collision rule:** a request that lands in a module a builder already owns does
 not start a second agent. It goes to that builder as a follow-up, or waits.
 
+### The queue is a file, not a message
+
+Each builder has `street/notes/queues/<agent>.md`. **The desk writes; builders
+only read.** That asymmetry is deliberate — if both sides edited it they would
+conflict on every merge, which is exactly the problem the queue exists to fix.
+Builders report completion in their handoff note instead.
+
+`scripts/queues.sh` prints every queue plus each worktree's git state in one
+view: what each agent is on, how much is behind it, and whether its work is
+uncommitted, unmerged or behind mainline.
+
+This replaced typing tasks into a builder's terminal, which had **no
+visibility** (the desk could not list what was pending), **no ordering** ("do
+this first" was a plea), **no persistence** (a context reset silently dropped
+items), and **no accounting** — nothing flagged that one builder was holding ten
+items while a functional blocker sat third in line.
+
 ### Always name the owner, out loud
 
 **Every time Erick gives the desk something, the reply must say which agent it
