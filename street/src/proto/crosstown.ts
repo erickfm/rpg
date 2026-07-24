@@ -18,7 +18,7 @@ import { buildGround } from './ct/tex-ground';
 import { type CarKind, makeCar, makeBus } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
-import { type Fit, citizenAtlas, viewFor } from './ct/citizens';
+import { type Look, citizenAtlas, viewFor } from './ct/citizens';
 import { type Board, type CtxBuild, type WetSurface } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
@@ -156,32 +156,60 @@ export function makeCrosstown(): Proto {
   const cruiserBox: AABB = { minX: 999, maxX: 999, minZ: 999, maxZ: 999 };
   citAvoid.push(cruiserBox); // the moving car, too — its box follows it each frame
 
-  // 8-angle citizens walking the block — no two the same size or style
-  interface Outfit { j: string; p: string; s: string; h: string; fit: Fit; acc: string; hs: number; ws: number }
-  const OUTFITS: Outfit[] = [
-    { j: '#3a4a63', p: '#2b2f36', s: '#c9946a', h: '#241a10', fit: 'plain', acc: '', hs: 1.0, ws: 1.0 },
-    { j: '#7a3a34', p: '#3f4650', s: '#b8845a', h: '#101010', fit: 'cap', acc: '#8a3a2e', hs: 1.08, ws: 1.04 },
-    { j: '#3f5a46', p: '#3f5a46', s: '#d9a97c', h: '#8c5a2e', fit: 'dress', acc: '', hs: 0.94, ws: 0.96 },
-    { j: '#5c5266', p: '#2b2f36', s: '#c9946a', h: '#3a2c20', fit: 'hoodie', acc: '', hs: 1.12, ws: 1.08 },
-    { j: '#6a5a3a', p: '#23262c', s: '#b8845a', h: '#d9c25a', fit: 'plain', acc: '', hs: 0.9, ws: 0.94 },
-    { j: '#37505e', p: '#2b2f36', s: '#d9a97c', h: '#1c1410', fit: 'cap', acc: '#2c4a7a', hs: 1.02, ws: 1.0 },
-    { j: '#6e3a5a', p: '#6e3a5a', s: '#e0b088', h: '#4a2c18', fit: 'dress', acc: '', hs: 1.05, ws: 0.98 },
-    { j: '#2f4a4a', p: '#3f4650', s: '#b8845a', h: '#5a3a24', fit: 'hoodie', acc: '', hs: 0.96, ws: 1.06 },
+  // ── the people on the block ─────────────────────────────────────────────
+  //
+  // Six of them, and no two are the same person recoloured. Each carries its
+  // own height, build, skin, hair shape, garment and walking speed. Build is
+  // a SILHOUETTE change in the atlas (torso and shoulder width), separate
+  // from the mesh scale, so the tall ones aren't just the short ones blown up.
+  //
+  // Skin runs the full range you'd actually see on a city street, and hair is
+  // matched to it the way it falls in life rather than assigned at random.
+  // Everyone is painted by the same routine with the same shading.
+  interface Person {
+    look: Look; hs: number; ws: number; sp: number;
+  }
+  const CAST: Person[] = [
+    // tall, broad, long coat, close-cropped hair
+    { look: { jacket: '#3a4a63', pants: '#2b2f36', skin: '#6b4226', hair: '#141014', fit: 'coat', cut: 'crop', build: 1 },
+      hs: 1.09, ws: 1.07, sp: 1.55 },
+    // small and quick, ball cap, hair tied back under it
+    { look: { jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e', fit: 'cap', accent: '#8a3a2e', cut: 'tied', build: -1 },
+      hs: 0.91, ws: 0.94, sp: 1.72 },
+    // unhurried, long hair, dress
+    { look: { jacket: '#3f5a46', pants: '#3f5a46', skin: '#c9946a', hair: '#241a10', fit: 'dress', cut: 'long', build: 0 },
+      hs: 0.97, ws: 0.99, sp: 0.68 },
+    // heavy-set, hood up, ambling
+    { look: { jacket: '#5c5266', pants: '#2b2f36', skin: '#4a2c1a', hair: '#141014', fit: 'hoodie', cut: 'short', build: 1 },
+      hs: 1.05, ws: 1.10, sp: 0.86 },
+    // slight, older, bald, brisk
+    { look: { jacket: '#6a5a3a', pants: '#23262c', skin: '#f0c8a0', hair: '#b8b2a6', fit: 'plain', cut: 'bald', build: -1 },
+      hs: 0.94, ws: 0.92, sp: 1.34 },
+    // average everything, long dark hair, steady pace
+    { look: { jacket: '#37505e', pants: '#2b2f36', skin: '#8d5a34', hair: '#1c1410', fit: 'plain', cut: 'long', build: 0 },
+      hs: 1.02, ws: 1.00, sp: 1.08 },
   ];
-  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number }
+  // Stride is tied to speed, and so is cadence — but each only by the ROOT of
+  // it, because a walker who doubles their pace does not double both. Longer
+  // legs also cover more ground, so height feeds in. Without this a fast
+  // walker just cycles the same short steps quicker, which reads as skating.
+  const strideFor = (sp: number, hs: number) =>
+    Math.max(2, Math.min(5, Math.round(3.2 * Math.sqrt(sp) * hs)));
+
+  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number; cad: number }
   const citizens: Citizen[] = [];
-  // a quiet block: four out on the street at a time, one of each fit
-  const CAST = [OUTFITS[0], OUTFITS[1], OUTFITS[2], OUTFITS[3]];
-  CAST.forEach((o, i) => {
-    const tex = citizenAtlas(o.j, o.p, o.s, o.h, o.fit, o.acc);
+  CAST.forEach((p, i) => {
+    const tex = citizenAtlas({ ...p.look, stride: strideFor(p.sp, p.hs) });
     tex.repeat.set(1 / 5, 1 / 2);
+    // the geometry is translated so the origin is at the FEET, so scaling
+    // height never lifts anyone off the pavement or sinks them into it
     const geo = new THREE.PlaneGeometry(0.95, 1.9);
     geo.translate(0, 0.95, 0);
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
-    mesh.scale.set(o.ws, o.hs, 1);
+    mesh.scale.set(p.ws, p.hs, 1);
     // home lanes sit in the clear strip between the kerb props and the wall
     const lane = (i % 2 ? 1 : -1) * (ROAD_HALF + 1.05 + (i % 3) * 0.17);
-    const z = 2 - i * 23; // spread thin over the whole block
+    const z = 4 - i * 16; // spread thin over the whole block
     mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
     props.lit(mesh);         // people walk through the pools too
@@ -190,7 +218,11 @@ export function makeCrosstown(): Proto {
     // person at 0.61 m instead of 0.72 m.
     const box: AABB = { minX: lane - 0.25, maxX: lane + 0.25, minZ: z - 0.25, maxZ: z + 0.25 };
     propColliders.push(box); // people are solid — the box follows them
-    citizens.push({ mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3 });
+    citizens.push({
+      mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
+      ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
+      cad: 5 * Math.sqrt(p.sp) / p.hs,   // cadence: long legs swing slower
+    });
   });
 
   const colliders: AABB[] = [
@@ -304,6 +336,11 @@ export function makeCrosstown(): Proto {
     busInfo: () => [bus.position.x, bus.position.z, cruiseSpd, busDwell, busServed ? 1 : 0],
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => citizens.map((c) => (c.tex.image as HTMLCanvasElement).toDataURL()),
+    // test affordance: who is on the block, how big and how fast
+    people: () => citizens.map((c) => ({
+      sp: c.sp, cad: c.cad, hs: c.mesh.scale.y, ws: c.mesh.scale.x,
+      footY: c.mesh.position.y,
+    })),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
   };
@@ -418,7 +455,7 @@ export function makeCrosstown(): Proto {
         const [col, mirror] = viewFor(camAng - facing);
         // feet only stride while actually walking; stand still (feet together)
         // when halted, so a stopped person isn't marching in place
-        if (moving) c.anim += dt * 5 * c.sp;
+        if (moving) c.anim += dt * c.cad;   // per-person cadence, see strideFor
         const row = moving ? Math.floor(c.anim) % 2 : 0;
         c.tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
         c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
