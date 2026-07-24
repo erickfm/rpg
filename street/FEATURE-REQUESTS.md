@@ -111,6 +111,14 @@ published to the playable artifact.
   `ct/citizens.ts`). The neighbour should use that same system so he reads
   as a person in the world rather than a standee.
 
+- **Delete the alley plywood and the trash bags.** See
+  `shots/user-alley-junk.png`. The big tan panel behind the REZO tag is the
+  leaning plywood sheet — it reads as a mysterious door, not as junk
+  against a wall. Remove it. The two black lumps on the ground are the
+  trash bags; they read as rocks/blobs and have been redrawn twice without
+  landing. Remove them too. Removing both must not leave floating
+  colliders or a bare patch where they sat.
+
 - **Bodega as a true corner shop: chamfer the corner ALL THE WAY UP.** See
   `shots/user-corner2.png`. The kerb/corner return itself is landed and the
   user loves it ("this corner looks so good") — that stays. What's wanted
