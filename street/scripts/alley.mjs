@@ -23,5 +23,20 @@ await shot('graffiti', () => window.__ct.warp(-9.6, -38.6, Math.atan2(-2, 0.2), 
 await shot('dumpster', () => window.__ct.warp(-9.0, -40.2, Math.atan2(-2.2, -2.0), 0, 0));
 await shot('cat', () => window.__ct.warp(-9.2, -41.4, Math.atan2(-1.3, 1.2), 0, -0.25));
 await shot('cat-close', () => window.__ct.warp(-9.6, -41.9, Math.atan2(-0.8, 0.9), 0, -0.35));
+// ── playtest reply shots (fixed names the user looks at) ──────────────────
+const named = async (file, fn, wait = 400) => {
+  await page.evaluate(fn); await page.waitForTimeout(wait);
+  await page.screenshot({ path: `shots/${file}.png` });
+};
+// the cat, at the distance you actually meet her from
+await named('user-cat', () => window.__ct.warp(-9.55, -41.5, Math.atan2(-1.0, 1.4), 0, -0.18));
+// the six-cat comparison row, all of them at once
+await named('user-cats', () => window.__ct.warp(-10.75, -39.4, 0, 0, -0.3));
+// where the plywood sheet and the trash bags used to be
+await named('user-alley-junk', () => window.__ct.warp(-8.6, -38.7, Math.atan2(-3.2, -0.7), 0, -0.14));
+// the wall behind the REZO tag — must be plain, continuous brick
+await named('user-alley-panel', () => window.__ct.warp(-9.6, -39.7, Math.PI, 0, 0.06));
+// the bodega's canted corner bay, straight across the intersection
+await named('user-bodega-corner', () => window.__ct.warp(2.6, -100.6, Math.atan2(5.4, -5.6), 0, 0.22));
 await browser.close();
 console.log('alley shots done');
