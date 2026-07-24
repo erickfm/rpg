@@ -17,8 +17,22 @@ STATE=/tmp/claude-1000/-home-erick-projects-rpg/live-state
 WTS=("$MAIN" "$ROOT/rpg-ground" "$ROOT/rpg-entrance" "$ROOT/rpg-alley")
 
 snap() {  # a commit sha for the worktree's current state, dirty or not
-  local s; s=$(git -C "$1" stash create 2>/dev/null)
-  [ -n "$s" ] && echo "$s" || git -C "$1" rev-parse HEAD
+  # NOT `git stash create`: that silently ignores UNTRACKED files, so a new
+  # module a builder has written but not yet committed never reaches the live
+  # world while everything importing it already does — the build breaks with
+  # "cannot find module". Instead snapshot through a SEPARATE index file, so
+  # the worktree's real index, files and branch are never touched.
+  local wt="$1" idx
+  idx=$(mktemp /tmp/ct-idx.XXXXXX)
+  GIT_INDEX_FILE="$idx" git -C "$wt" read-tree HEAD 2>/dev/null
+  GIT_INDEX_FILE="$idx" git -C "$wt" add -A 2>/dev/null
+  local tree; tree=$(GIT_INDEX_FILE="$idx" git -C "$wt" write-tree 2>/dev/null)
+  rm -f "$idx"
+  if [ -n "$tree" ]; then
+    git -C "$wt" commit-tree "$tree" -p "$(git -C "$wt" rev-parse HEAD)" -m wip 2>/dev/null
+  else
+    git -C "$wt" rev-parse HEAD
+  fi
 }
 
 sigs=(); for wt in "${WTS[@]}"; do [ -d "$wt" ] && sigs+=("$(snap "$wt")"); done
