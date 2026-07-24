@@ -108,6 +108,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   //
   // The landing geometry, the floor-picker and the guard collider all read
   // these three numbers. They must not drift apart — that is the whole bug.
+  // ── doors ────────────────────────────────────────────────────────────────
+  // The leaf inside doorTexN's painted casing is 26 of the texture's 32
+  // texels, so the plane has to be 32/26 wider than the leaf you want. At
+  // DOOR_W = 1.11 that is a 0.90 m leaf — a normal flat entry door. It used
+  // to be 0.95, i.e. a 0.77 m leaf, which against a 2.1 m height read as a
+  // slot rather than a door.
+  //
+  // DOOR_GAP is the real hole in the west wall that 301's doorway is cut
+  // from — the only door you actually walk THROUGH rather than past. It has
+  // to clear the leaf, and it has to clear the player: the rig is 0.36 m in
+  // radius, so the old 0.80 m gap left 8 cm of daylight and you scraped
+  // through it. 0.95 leaves 23 cm.
+  const DOOR_W = 1.11, DOOR_GAP = 0.95;
   const NIB_D = 1.2;              // how far the landing reaches into the shaft
   const NIB_Z1 = STAIR_Z0 + NIB_D; // its open edge: the railing stands here
   const TOP_Y = 3 * ST;           // floor 3
@@ -194,21 +207,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       return m;
     };
     // hall + stairwell shell. West wall leaves 301's doorway gap on floor 3.
-    wallMesh(3.1, H, AX(0), H / 2, AZI(1.55), Math.PI / 2);
-    wallMesh(9.3, H, AX(0), H / 2, AZI(8.55), Math.PI / 2);
-    wallMesh(0.8, 2 * ST, AX(0), ST, AZI(3.5), Math.PI / 2);
-    wallMesh(0.8, H - 2 * ST - 2.1, AX(0), (H + 2 * ST + 2.1) / 2, AZI(3.5), Math.PI / 2);
+    wallMesh(3.025, H, AX(0), H / 2, AZI(1.5125), Math.PI / 2);
+    wallMesh(9.225, H, AX(0), H / 2, AZI(8.5875), Math.PI / 2);
+    wallMesh(DOOR_GAP, 2 * ST, AX(0), ST, AZI(3.5), Math.PI / 2);
+    wallMesh(DOOR_GAP, H - 2 * ST - 2.1, AX(0), (H + 2 * ST + 2.1) / 2, AZI(3.5), Math.PI / 2);
     wallMesh(13.2, H, AX(2.4), H / 2, AZI(6.6), -Math.PI / 2);
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(0), 0);
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(13.2), Math.PI);
     sevColliders.push(
-      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.1) },
-      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.9), maxZ: AZI(13.2) },
+      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.5 - DOOR_GAP / 2) },
+      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.5 + DOOR_GAP / 2), maxZ: AZI(13.2) },
       { minX: AX(2.4), maxX: AX(2.55), minZ: AZI(0), maxZ: AZI(13.2) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(-0.15), maxZ: AZI(0) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
       { minX: AX(1.04), maxX: AX(1.36), minZ: AZI(STAIR_Z0), maxZ: AZI(STAIR_Z1) }, // core wall + the handrails on both its faces
-      { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.05), maxZ: AZI(3.95) }, // 302's doorway (and the hermit in it)
+      { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) }, // 302's doorway (and the hermit in it)
       stairCap, underStairA, underStairB, aptDoorCap,
     );
     // floors, ceilings
@@ -412,7 +425,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       stampNum(g, num, 9, 6, '#2e2616');
     });
     const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
-      const d = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(doorTexN(num)));
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num)));
       d.position.set(wx, baseY + 1.05, wz);
       d.rotation.y = ry;
       scene.add(d);
@@ -424,12 +437,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
     }
     // 302 ajar: dark slice of his place, the door swung inward, him in it
-    const recess = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), new THREE.MeshBasicMaterial({ color: 0x0c0d10 }));
+    const recess = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), new THREE.MeshBasicMaterial({ color: 0x0c0d10 }));
     recess.position.set(AX(2.39), 2 * ST + 1.05, AZI(3.5));
     recess.rotation.y = -Math.PI / 2;
     scene.add(recess);
-    const leafGeo = new THREE.PlaneGeometry(0.95, 2.1);
-    leafGeo.translate(0.475, 0, 0);
+    const leafGeo = new THREE.PlaneGeometry(DOOR_W, 2.1);
+    leafGeo.translate(DOOR_W / 2, 0, 0);
     const leaf = new THREE.Mesh(leafGeo, texM(doorTexN('302')));
     leaf.position.set(AX(2.44), 2 * ST + 1.05, AZI(3.06));
     leaf.rotation.y = -Math.PI / 2 + 0.85;
@@ -661,7 +674,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#c9b45e'; g.fillRect(24, 36, 3, 3);
       dither(g, 32, 64, 40);
     });
-    const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(frontDoorT));
+    const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(frontDoorT));
     lobbyDoor.position.set(AX(1.2), 1.05, AZI(0.02));
     scene.add(lobbyDoor);
     // 301 — your place: wood floor, a bed, the window with the city in it
@@ -872,7 +885,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const onLobby = px > 100 && lastGy < 0.6;
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
-    setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.1), AZI(3.9));
+    setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
   };
 
   return {
