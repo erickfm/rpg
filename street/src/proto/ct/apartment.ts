@@ -313,6 +313,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
     });
     const glowMat = new THREE.MeshBasicMaterial({ map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    // the pool the fixture throws on the ceiling around itself — same stepped
+    // disc laid flat and dimmed, so the ceiling reads as lit near the lamp
+    // instead of the lamp being a bright dot on a dead grey slab
+    const spillMat = new THREE.MeshBasicMaterial({
+      map: glowT, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x707070, side: THREE.DoubleSide,
+    });
     // the dome is open at the rim, so it is DoubleSide — you see the inside
     // of the far wall of the shade when you look up into it
     const opalM = new THREE.MeshBasicMaterial({ map: opalT, side: THREE.DoubleSide });
@@ -324,6 +331,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // ceilY is the ceiling it hangs from; the rose is wider than the dome's
     // rim so the open edge is capped and never shows as a hole
     const ceilingLamp = (ceilY: number, wz: number, halo: number) => {
+      const spill = new THREE.Mesh(new THREE.PlaneGeometry(halo * 2.4, halo * 2.4), spillMat);
+      spill.rotation.x = Math.PI / 2;                        // laid flat, seen from below
+      spill.position.set(AX(1.2), ceilY - 0.02, wz);
+      scene.add(spill);
       const rose = new THREE.Mesh(roseGeo, [roseSideM, roseCapM, roseCapM]);
       rose.position.set(AX(1.2), ceilY - 0.025, wz);
       scene.add(rose);
