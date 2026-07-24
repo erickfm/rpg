@@ -214,3 +214,64 @@ export SHOT_URL=http://localhost:4185/
 npm run fp after && npm run fpdiff shots/before.json shots/after.json
 node scripts/alley.mjs && npm run sweep
 ```
+
+---
+
+# STATUS — block re-cast (commit 8fceb73)
+
+Committed and safe to build on. Full detail in `notes/feat-roster.md`; this is
+the short version for the module split.
+
+**Touched:** `ct/street.ts`, `ct/tex-world.ts` (shop band only),
+`scripts/roster.mjs` (new). Build clean, `npm run sweep` no new page errors.
+
+## DONE
+
+- **Roster re-cast.** All nine requested places exist. User's named placements
+  applied: BURGER BARN in the old pawnshop slot, PAWN in the old cinema slot,
+  A-1 TAX in the old arcade slot.
+- **Library** — own builder, not a shopfront. Recessed entrance bay (doors 1.8 m
+  back), 5 risers + cheek walls inside the recess, 13.2 m. Sidewalk verified
+  clear: nothing below head height crosses x = -6.7, no colliders added.
+- **Church** — own builder. Gable prism, pointed doorway in three orders,
+  lancets, rose window, buttresses, tower + spire + cross to 32.4 m.
+- **Casino + hotel** at the far end, rooftop pylon facing along the street,
+  lit parts `fog: false`.
+- **Mirrored blade sign** — root cause fixed (`transparent: true` + `alphaTest`
+  put both faces in the sorted pass; the far face painted over the near one).
+  Dropped `transparent`, used `FrontSide`. Verified both faces from both sides.
+- **Shop scale** — `SHOP_BAND_H = 4.2` for shops, residential stays
+  `ENTRANCE.BAND_H = 3.2`; `shopfrontTex` rebalanced to 52 texels with a
+  stallriser. Bodega bay, awning and corner shops rechecked against it.
+
+## NOT DONE
+
+- **Six-cat rig still in the alley** — deliberate, waiting on the user's pick.
+  To keep one: delete `CAT_DESIGNS` and the loop under it, call the winner's
+  `draw` once at `(-10.55, AZ1 + 0.6)`. Nothing else references either.
+- **Bodega `[E]` trigger move** — still outstanding in `crosstown.ts`, unchanged
+  by this work. Coordinates are in the first half of this file.
+- **`ct/props.ts:288`** carries the same redundant `alphaTest` + `transparent`
+  pair that caused the mirrored sign. Cannot show the bug today (it is a
+  player-facing billboard) but it is the same hazard; not my file.
+
+## FOR THE MODULE SPLIT
+
+`ct/street.ts` splits cleanly along these seams — they share almost nothing:
+
+1. **rosters + `placeBld`/`placeBldZ`** — the four roster arrays, `bandOf`, and
+   the two generic placers.
+2. **civic** — `STONE`/`ashlar`/`archFill`/`engrave`/`roseWin`/`clcg`, then
+   `placeLibrary` and `placeChurch`. Self-contained; only needs `flat`, `pixTex`,
+   `dither`, `FACE`.
+3. **character shopfronts** — `burgerFront`/`pawnFront`/`taxFront`, keyed off
+   `BldSpec.front`.
+4. **bodega corner** — the canted bay block, incl. `bodegaBrick` and the
+   sidewalk gap triangle.
+5. **alley** — flanks, dumpster, tags, and the cat rig.
+6. **far end** — the casino pylon and hotel blade, incl. `neonM`/`twoSided`.
+
+Load-bearing constants that must survive the split, all commented in place:
+west-of-alley widths total **51.2**, west-of-alley-south **54.5**, east-before
+No. 227 **49.2**; both side-street rosters end on **x = 57**;
+`SHOP_BAND_H` drives the bodega awning height and the sign heights.
