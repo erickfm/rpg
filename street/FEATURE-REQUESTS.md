@@ -95,6 +95,15 @@ published to the playable artifact.
   the world's texel density, and replace the smooth gradient with a
   tighter stepped/dithered glow that matches the pixel style.
 
+- **Door number plate is mangled.** See `shots/user-doorplate.png`. The
+  "401" plate on the upper-floor door is (a) a stark near-WHITE rectangle,
+  far brighter than anything else in the muted interior palette, and (b)
+  the numerals are smeared and barely legible — the text is being drawn at
+  a size that doesn't land on the texel grid, so it aliases into mush.
+  Same root cause as the clipped entrance plaque. Fix: draw numerals at a
+  texel-aligned size, and tone the plate to brass or brushed aluminium
+  rather than pure white.
+
 - **Night should feel darker.** The dusk/night curve doesn't get dark
   enough; night reads as dim evening rather than night.
 
