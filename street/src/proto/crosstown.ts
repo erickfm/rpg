@@ -104,20 +104,23 @@ export function makeCrosstown(): Proto {
   const props = buildProps(ctx);
 
   // parked cars — a mixed fleet in the parking lanes, parked by PEOPLE.
-  // Four cars sitting at exactly ±PARK_X with 0.02 rad of yaw read as a
-  // machined row, so: the distance off the kerb varies by ~0.3 m, the yaw
-  // spread is up to 0.1 rad and not all one way, and the gaps between them
-  // are deliberately uneven. The hatch is the badly-parked one — out from
-  // the kerb AND crooked — because one obvious offender does more than
-  // nudging all four. Nobody parks in the hydrant's red zone (z -9.5…-2.5).
+  // Cars sitting at exactly ±PARK_X with 0.02 rad of yaw read as a machined
+  // row, so: the distance off the kerb varies by ~0.3 m, the yaw spread is up
+  // to 0.1 rad and not all one way, and the gaps between them are
+  // deliberately uneven. The hatch is the badly-parked one — out from the
+  // kerb AND crooked — because one obvious offender does more than nudging
+  // them all. Nobody parks in the hydrant's red zone (z -9.5…-2.5).
   //
   // Hard limit: |x| + 1.05 (the collider half-width) must stay under
   // ROAD_HALF, or a parked car's box lands on the sidewalk.
+  //
+  // A van used to stand at z=-78 in front of THRIFT and has been cut. Its
+  // collider lived in this table, so it went with it — the row below is the
+  // single source for the parked fleet, its boxes and its lamplight entries.
   const parked: [CarKind, number, number, number, number][] = [
     ['sedan', 1, PARK_X + 0.03, -13, 0.035],          // snug to the kerb, near square
     ['pickup', 3, -(PARK_X - 0.10), -33, Math.PI - 0.075], // a touch out, nose in
     ['hatch', 5, PARK_X - 0.27, -49, -0.10],          // the offender: out and crooked
-    ['van', 2, -(PARK_X + 0.02), -78, Math.PI + 0.025], // tucked in tight
   ];
   const carColliders: AABB[] = [];
   const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
