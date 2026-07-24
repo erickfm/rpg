@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
+import { ENTRANCE } from './tex-world';
 import { FACE } from './rng';
 import type { CtxBuild } from './ctx';
 
@@ -354,14 +355,42 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(-3.1), maxX: AX(-1.94), minZ: AZI(3.45), maxZ: AZI(5.45) },
       { minX: AX(-1.5), maxX: AX(-0.84), minZ: AZI(2.0), maxZ: AZI(2.52) },
     );
-    // street side: a plain walk-up entrance — recessed double door, transom
-    // with the address number, buzzer panel, stone stoop. No nameplate.
-    // East wall, across the street from the alley and a bit north of it.
-    const DOOR_Z = -44;
-    const recessS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.75), new THREE.MeshBasicMaterial({ color: 0x14151a }));
-    recessS.position.set(FACE - 0.02, sidewalkY + 1.375, DOOR_Z);
-    recessS.rotation.y = -Math.PI / 2;
-    scene.add(recessS);
+    // ── street side: the walk-up's front door ────────────────────────────
+    // The building carries NO name. It never gets a nameplate: the gold 227
+    // on the transom is the only identification it has, the way plenty of
+    // real walk-ups are. (It briefly wore a brass plaque — THE WHITMORE,
+    // then THE SYCAMORE — and both are gone. Don't put one back.)
+    //
+    // This is a composition, not a pile of props. tex-world's ENTRANCE owns
+    // the numbers: it reserves a 4 m span in the middle of the residential
+    // ground floor that no window may enter, paints a narrow limestone
+    // doorcase and the dark doorway into it, and lays the window rhythm out
+    // symmetrically either side. Everything below is measured off those same
+    // constants, so nothing can drift back on top of anything else.
+    //
+    // Layout, either side of the door centreline:
+    //   0.000 … 0.875   the doorway opening (painted dark by resGroundTex)
+    //   0.875 … 1.250   the limestone doorcase jamb
+    //   1.250 …         brick; the buzzer panel is centred at 1.55
+    //   2.000           edge of the reserved span; the first window starts a
+    //                   further 1.375 m out, so 1.7 m of clear brick past the
+    //                   buzzer's outer end
+    //
+    // Depth: ONE plane for all the door furniture, 2 cm proud of the brick.
+    // Everything used to sit at its own depth (0.02/0.04/0.05), which is why
+    // the old plaque vanished behind the door leaf and the buzzer detached
+    // from the wall at grazing angles.
+    const DOOR_Z = -44;              // = the residential building's centre z
+    const FRONT = FACE - 0.02;       // the entrance's single depth plane
+    const { OPEN_W, OPEN_BOT, OPEN_TOP, FURN_C } = ENTRANCE;
+    const REVEAL = 0.125;            // dark margin of opening around the door
+    const LEAF_W = OPEN_W - REVEAL * 2;         // 1.50
+    const DOOR_TOP = 2.30, BAR = 0.08, TRANSOM_H = 0.45;
+    const hang = (m: THREE.Mesh, y: number, z: number) => {
+      m.position.set(FRONT, y, z);
+      m.rotation.y = -Math.PI / 2;
+      scene.add(m);
+    };
     const doubleDoorT = pixTex(48, 64, (g) => {
       g.fillStyle = '#22301f'; g.fillRect(0, 0, 48, 64);
       for (const ox of [2, 25]) {
@@ -373,43 +402,70 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#c9b45e'; g.fillRect(21, 34, 2, 4); g.fillRect(25, 34, 2, 4); // handles
       dither(g, 48, 64, 40);
     });
-    const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.15), texM(doubleDoorT));
-    streetDoor.position.set(FACE - 0.05, sidewalkY + 1.075, DOOR_Z);
-    streetDoor.rotation.y = -Math.PI / 2;
-    scene.add(streetDoor);
-    const transomT = pixTex(48, 16, (g) => {
-      g.fillStyle = '#161c24'; g.fillRect(0, 0, 48, 16);
-      g.fillStyle = 'rgba(200,215,225,0.14)'; g.fillRect(2, 2, 44, 12);
-      g.fillStyle = '#d9b95c'; g.font = 'bold 10px monospace'; g.textAlign = 'center';
-      g.fillText('227', 24, 12);
+    // the leaf runs from the threshold to DOOR_TOP; its bottom centimetre is
+    // buried in the stoop so the two can never part and show a hairline
+    const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(LEAF_W, DOOR_TOP - OPEN_BOT), texM(doubleDoorT));
+    hang(streetDoor, (OPEN_BOT + DOOR_TOP) / 2, DOOR_Z);
+    const transomT = pixTex(48, 14, (g) => {
+      g.fillStyle = '#161c24'; g.fillRect(0, 0, 48, 14);
+      g.fillStyle = 'rgba(200,215,225,0.14)'; g.fillRect(2, 2, 44, 10);
+      g.fillStyle = '#d9b95c'; g.font = 'bold 9px monospace'; g.textAlign = 'center';
+      g.fillText('227', 24, 11);
     });
-    const transom = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.45), texM(transomT));
-    transom.position.set(FACE - 0.05, sidewalkY + 2.42, DOOR_Z);
-    transom.rotation.y = -Math.PI / 2;
-    scene.add(transom);
-    const buzzerT = pixTex(12, 24, (g) => {
-      g.fillStyle = '#8a8d95'; g.fillRect(0, 0, 12, 24);
+    const transom = new THREE.Mesh(new THREE.PlaneGeometry(LEAF_W, TRANSOM_H), texM(transomT));
+    hang(transom, DOOR_TOP + BAR + TRANSOM_H / 2, DOOR_Z);
+    // the buzzer panel — the only thing on the brick beside the doorcase now
+    // that the nameplate is gone: 0.30 m clear of the stone, 1.7 m clear of
+    // the nearest window. Nothing hangs on the other side; a walk-up with a
+    // buzzer on one jamb and bare brick on the other is the ordinary case.
+    const FURNITURE_Y = 1.72;
+    const buzzerT = pixTex(16, 32, (g) => {
+      g.fillStyle = '#8a8d95'; g.fillRect(0, 0, 16, 32);
+      g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(0, 0, 16, 1);
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 31, 16, 1);
+      g.fillStyle = '#6e727a'; g.fillRect(2, 3, 12, 26);
       g.fillStyle = '#26282e';
-      for (let y = 3; y < 21; y += 5) { g.fillRect(3, y, 2, 2); g.fillRect(7, y, 2, 2); }
+      for (let y = 5; y < 27; y += 6) { g.fillRect(4, y, 3, 3); g.fillRect(9, y, 3, 3); }
+      dither(g, 16, 32, 18);
     });
-    const buzzer = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.36), texM(buzzerT));
-    buzzer.position.set(FACE - 0.04, sidewalkY + 1.35, DOOR_Z + 0.95);
-    buzzer.rotation.y = -Math.PI / 2;
-    scene.add(buzzer);
-    // brass plaque with the house name
-    const plaqueT = pixTex(64, 16, (g) => {
-      g.fillStyle = '#8a7a4e'; g.fillRect(0, 0, 64, 16);
-      g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(0, 0, 64, 2);
-      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 14, 64, 2);
-      g.fillStyle = '#3a3222'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
-      g.fillText('THE WHITMORE', 32, 11);
+    const buzzer = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.48), texM(buzzerT));
+    hang(buzzer, FURNITURE_Y, DOOR_Z + FURN_C);
+    // the stoop: one worn step, wider than the opening so it reads as built
+    // out of the wall. Its top IS the threshold — the door stands on it —
+    // and its base sinks 2 cm into the walk so no seam can open up there.
+    const STOOP_TOP = OPEN_BOT + 0.01, STOOP_BASE = sidewalkY - 0.02;
+    const STOOP_D = 0.55, STOOP_W = OPEN_W + 0.2;
+    const stoopTreadT = pixTex(18, 62, (g) => {
+      g.fillStyle = '#948f87'; g.fillRect(0, 0, 18, 62);
+      g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, 0, 2, 62);   // nosing catches the sky
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(14, 0, 4, 62);        // shadow at the threshold
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(5, 12, 9, 38);        // worn centre, walked hollow
+      dither(g, 18, 62, 150);
     });
-    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.21), texM(plaqueT));
-    plaque.position.set(FACE - 0.04, sidewalkY + 1.95, DOOR_Z - 0.95);
-    plaque.rotation.y = -Math.PI / 2;
-    scene.add(plaque);
-    const stoop = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 1.7), new THREE.MeshBasicMaterial({ color: 0x97928a }));
-    stoop.position.set(FACE - 0.275, sidewalkY + 0.075, DOOR_Z);
+    const stoopRiserT = pixTex(62, 6, (g) => {
+      g.fillStyle = '#8b867e'; g.fillRect(0, 0, 62, 6);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 62, 1);   // top arris
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 5, 62, 1);         // grime at the walk
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(12, 2, 3, 3); g.fillRect(44, 3, 4, 2); // chips
+      dither(g, 62, 6, 30);
+    });
+    const stoopEndT = pixTex(18, 6, (g) => {
+      g.fillStyle = '#8b867e'; g.fillRect(0, 0, 18, 6);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 18, 1);
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 5, 18, 1);
+      dither(g, 18, 6, 12);
+    });
+    // solid box, so front faces only — texM's DoubleSide is for the planes
+    const flatOf = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t });
+    const stoopBuriedM = new THREE.MeshBasicMaterial({ color: 0x8b867e });
+    const stoopEndM = flatOf(stoopEndT);
+    const stoop = new THREE.Mesh(
+      new THREE.BoxGeometry(STOOP_D, STOOP_TOP - STOOP_BASE, STOOP_W),
+      // [+x buried, -x riser, +y tread, -y buried, +z end, -z end]
+      [stoopBuriedM, flatOf(stoopRiserT), flatOf(stoopTreadT), stoopBuriedM, stoopEndM, stoopEndM],
+    );
+    // 0.40 m of it stands proud of the wall, the rest is buried in the brick
+    stoop.position.set(FACE + 0.15 - STOOP_D / 2, (STOOP_TOP + STOOP_BASE) / 2, DOOR_Z);
     scene.add(stoop);
   }
   // multi-floor ground: pick the floor candidate nearest the last height —

@@ -162,22 +162,138 @@ export function treePitTex(): THREE.Texture {
   });
 }
 
-// residential ground floor — brick continues to the street, two barred
-// windows, no shop band (the walk-up's own face)
-export function resGroundTex(brick: string, wMeters = 12): THREE.Texture {
-  const W = Math.max(64, Math.round(wMeters * 8));
-  return pixTex(W, 32, (g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, W, 32);
+// ── the entrance bay ──────────────────────────────────────────────────────
+// The span of residential ground floor reserved for the front door and its
+// furniture. resGroundTex keeps the window rhythm OUT of it and paints a
+// narrow stone doorcase in the middle; ct/apartment.ts hangs the door,
+// transom, buzzer and stoop inside it. Both sides read these same numbers —
+// that is the whole point of the constant.
+//
+// Before this existed the windows tiled at a fixed pitch straight down the
+// middle of the facade and the entrance props were positioned independently,
+// so the buzzer sat on a window pane and the nameplate ran behind the door
+// frame with its last letter clipped off. Nothing knew about anything else.
+//
+// Datum: y is metres above the base of the ground-floor band (the shop box
+// spans world y 0…3.2, so these are world heights too). The sidewalk top is
+// at y = KERB_H = 0.14. Widths are metres either side of the door centreline.
+//
+// COUPLING, and it is load-bearing: the bay is centred on the BUILDING, so
+// ct/apartment.ts's DOOR_Z must equal the residential building's centre z.
+// It does (No. 227 is 18 m wide with its centre at z = -44, laid out by
+// ct/street.ts's EAST roster). Move the building and the door moves with it.
+export const ENTRANCE = {
+  /** reserved span, centred on the building: no window may enter it. The
+   *  brick runs straight through — reserving the span is a LAYOUT act, not
+   *  a paint act. (It was briefly painted as one big pale stone panel. It
+   *  read as a blank slab pasted onto the building; the brick belongs.)
+   *  4 m, down from 5: the nameplate that used to need the extra room is
+   *  gone, and only the narrow buzzer panel hangs on the brick now. */
+  BAY_W: 4.0,
+  /** the dark doorway opening — 14 texels at 8 px/m */
+  OPEN_W: 1.75,
+  /** the limestone doorcase, outer edge to outer edge: a narrow frame that
+   *  hugs the door and transom, 3 texels of stone down each side */
+  CASE_W: 2.5,
+  /** opening head and threshold; the threshold is the top of the stoop */
+  OPEN_TOP: 2.9,
+  OPEN_BOT: 0.3,
+  /** centre of the buzzer panel, offset from the door centreline — out on
+   *  the brick, clear of the doorcase, well inside the reserved span */
+  FURN_C: 1.55,
+  /** the ground-floor band's height — what converts metres to texels */
+  BAND_H: 3.2,
+} as const;
+
+// residential ground floor — brick continues to the street, barred windows
+// built into the wall (stone lintel over, stone sill under), no shop band:
+// the walk-up's own face. The middle of the facade is given over to the
+// stone entrance bay; the windows are laid out symmetrically in the two
+// panels either side of it and never enter it.
+//
+// Pass bayW = 0 for a residential ground floor with no street door — the
+// window rhythm then runs evenly across the whole width.
+export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W): THREE.Texture {
+  const W = Math.max(64, Math.round(wMeters * 8)), H = 32;
+  const ppmX = W / wMeters, ppmY = H / ENTRANCE.BAND_H;
+  // limestone that reads as STONE against brick, not as bare canvas: warm,
+  // a shade darker than the kerb so it never goes near white, and the same
+  // family as the window sills facadeTex uses on the floors above (#9a8a72)
+  const STONE = '#8b8272', STONE_HI = '#9a9080', STONE_LO = '#6b6355', DARK = '#141820';
+  // the bay, snapped to whole texels and forced symmetric (bx1 = W - bx0) so
+  // its jambs line up with the door ct/apartment.ts hangs between them
+  const bay = Math.min(Math.round(W * 0.55), Math.round(bayW * ppmX));
+  const hasBay = bayW > 0 && bay >= 8;
+  const bx0 = hasBay ? Math.round((W - bay) / 2) : -1, bx1 = W - bx0;
+  // window rhythm: as many as fit the panel with at least a pier's worth of
+  // brick between them and at each end, then spread the slack evenly
+  const winW = Math.max(6, Math.round(1.5 * ppmX));
+  const pierMin = Math.max(4, Math.round(1.0 * ppmX));
+  const panel = (x0: number, x1: number): number[] => {
+    const span = x1 - x0;
+    const n = Math.floor((span - pierMin) / (winW + pierMin));
+    if (n < 1) return [];
+    const pier = (span - n * winW) / (n + 1);
+    return Array.from({ length: n }, (_, i) => Math.round(x0 + pier * (i + 1) + winW * i));
+  };
+  const wins = hasBay ? [...panel(0, bx0), ...panel(bx1, W)] : panel(0, W);
+  return pixTex(W, H, (g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
     g.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let y = 0; y < 32; y += 5) g.fillRect(0, y, W, 1);
-    for (let y = 0; y < 32; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
-    for (let wx = 14; wx < W - 24; wx += 30) {
-      g.fillStyle = '#141820'; g.fillRect(wx, 8, 16, 14);
-      g.fillStyle = '#3a4450'; g.fillRect(wx + 1, 9, 14, 12);
+    for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
+    for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+    for (const wx of wins) {
+      g.fillStyle = STONE; g.fillRect(wx - 1, 6, winW + 2, 2);          // lintel
+      g.fillStyle = STONE_HI; g.fillRect(wx - 1, 6, winW + 2, 1);
+      g.fillStyle = DARK; g.fillRect(wx, 8, winW, 14);                  // reveal
+      g.fillStyle = '#3a4450'; g.fillRect(wx + 1, 9, winW - 2, 12);     // glass
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(wx + 1, 9, 3, 12);
+      // bars every 3 texels, not 4: at a 12-texel window a 4-texel pitch only
+      // fits two, and two bars read as window mullions rather than security
       g.fillStyle = '#1a1c22';
-      for (let bx = wx + 2; bx < wx + 15; bx += 4) g.fillRect(bx, 9, 1, 12);
+      for (let bx = wx + 2; bx < wx + winW - 1; bx += 3) g.fillRect(bx, 9, 1, 12);
+      g.fillStyle = STONE; g.fillRect(wx - 1, 22, winW + 2, 2);         // sill
+      g.fillStyle = STONE_HI; g.fillRect(wx - 1, 22, winW + 2, 1);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(wx - 1, 24, winW + 2, 1);
     }
-    dither(g, W, 32, 80);
+    if (hasBay) {
+      // The doorcase: a NARROW limestone frame hugging the door and transom,
+      // three texels of stone down each side and a lintel over the head —
+      // the way a real walk-up dresses its entrance. The brick either side of
+      // it is untouched; all the reserved span does is keep windows away.
+      const cx0 = Math.round(W / 2 - (ENTRANCE.CASE_W / 2) * ppmX), cx1 = W - cx0;
+      const ox0 = Math.round(W / 2 - (ENTRANCE.OPEN_W / 2) * ppmX), ox1 = W - ox0;
+      const oy0 = Math.round((ENTRANCE.BAND_H - ENTRANCE.OPEN_TOP) * ppmY);
+      const oy1 = Math.round((ENTRANCE.BAND_H - ENTRANCE.OPEN_BOT) * ppmY);
+      g.fillStyle = STONE; g.fillRect(cx0, 0, cx1 - cx0, H);
+      // jamb stones, stacked — coursed only inside the two narrow uprights
+      g.fillStyle = STONE_LO;
+      for (let y = 5; y < H; y += 5) {
+        g.fillRect(cx0, y, ox0 - cx0, 1); g.fillRect(ox1, y, cx1 - ox1, 1);
+      }
+      g.fillStyle = STONE_HI;                                            // lit outer arris
+      g.fillRect(cx0, 0, 1, H); g.fillRect(ox1, oy0, 1, H - oy0);
+      g.fillStyle = 'rgba(0,0,0,0.16)';                                  // shaded inner arris
+      g.fillRect(ox0 - 1, oy0, 1, H - oy0); g.fillRect(cx1 - 1, 0, 1, H);
+      g.fillStyle = STONE_HI; g.fillRect(cx0, 0, cx1 - cx0, 1);          // lintel top
+      // one-texel shadow joint where stone meets brick: a built joint, never
+      // a gap you can see the background through
+      g.fillStyle = 'rgba(0,0,0,0.30)';
+      g.fillRect(cx0 - 1, 0, 1, H); g.fillRect(cx1, 0, 1, H);
+    }
+    dither(g, W, H, 80);
+    // The doorway is punched AFTER the grain, and is the only thing that is.
+    // dither() sprays white specks over the whole texture; inside the black
+    // reveal around the door leaf one white texel is the brightest thing in
+    // frame and reads as a stuck pixel. Nothing in a doorway catches light.
+    if (hasBay) {
+      const ox0 = Math.round(W / 2 - (ENTRANCE.OPEN_W / 2) * ppmX), ox1 = W - ox0;
+      const oy0 = Math.round((ENTRANCE.BAND_H - ENTRANCE.OPEN_TOP) * ppmY);
+      const oy1 = Math.round((ENTRANCE.BAND_H - ENTRANCE.OPEN_BOT) * ppmY);
+      g.fillStyle = DARK; g.fillRect(ox0, oy0, ox1 - ox0, oy1 - oy0);
+      g.fillStyle = 'rgba(0,0,0,0.45)';                                  // shadow cast into it
+      g.fillRect(ox0, oy0, 1, oy1 - oy0); g.fillRect(ox0, oy0, ox1 - ox0, 1);
+    }
   });
 }
 
