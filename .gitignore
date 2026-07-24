@@ -4,3 +4,5 @@ dist/
 
 # per-worktree builder briefs — never shared, and they collide at merge
 BRIEF*.md
+node_modules/
+node_modules
