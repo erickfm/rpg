@@ -123,52 +123,59 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
     g.fillStyle = '#4a3626'; g.fillRect(cx - 3, tTop, 6, H - tTop);
     g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(cx - 3, tTop, 2, H - tTop);
 
-    // A crown is not one blob. It is SEVERAL CLUMPS of foliage at different
-    // depths, with real gaps you can see sky through, and light landing on
-    // the tops while the undersides stay dark. Drawn back-to-front:
-    //   dark rear clumps → mid clumps → lit top clumps → sky holes.
+    // A crown is ONE IRREGULAR MASS, not a bunch of balls. The previous
+    // version drew separate round clumps and it read as broccoli — "this is
+    // not toon town". Depth comes from SHADING INSIDE the mass and from a
+    // RAGGED OUTLINE, never from readable circles.
     const DARK = PAL[1], MID = PAL[0], LIT = PAL[2];
     const ell = (x: number, y: number, rx: number, ry: number, col: string) => {
       g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill();
     };
-    // a couple of branch stubs reaching up into the canopy, seen between clumps
-    g.fillStyle = '#4a3626';
-    g.fillRect(cx - 1, cy - 2, 2, RY + 2);
-    g.fillRect(cx - Math.round(RX * 0.4), cy + 2, 2, 5);
-    g.fillRect(cx + Math.round(RX * 0.3), cy + 1, 2, 6);
+    // one branch reaching up inside, glimpsed through the gaps
+    g.fillStyle = '#4a3626'; g.fillRect(cx - 1, cy - 2, 2, RY + 3);
 
-    // clump field: angle, distance, size and tone, all seeded per tree
-    const N = 5 + Math.floor(r() * 3);
-    type C = [number, number, number, number, number];   // x,y,rx,ry,layer
-    const clumps: C[] = [];
-    for (let i = 0; i < N; i++) {
-      const a = (i / N) * Math.PI * 2 + r() * 0.9;
-      const d = 0.30 + r() * 0.52;
-      clumps.push([
-        cx + Math.cos(a) * RX * d,
-        cy + Math.sin(a) * RY * d,
-        RX * (0.36 + r() * 0.20),
-        RY * (0.40 + r() * 0.22),
-        r(),
-      ]);
+    // base mass
+    ell(cx, cy, RX, RY, MID);
+    // heavily OVERLAPPING bulges just inside the rim — they deform the
+    // silhouette without ever reading as separate blobs
+    for (let i = 0; i < 11; i++) {
+      const a = (i / 11) * Math.PI * 2 + r() * 0.5;
+      const d = 0.72 + r() * 0.20;
+      ell(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
+          RX * (0.26 + r() * 0.12), RY * (0.28 + r() * 0.13), MID);
     }
-    // rear/shadow pass — slightly offset down-right, never on top
-    for (const [x, y, rx, ry] of clumps) ell(x + 1, y + 2, rx, ry, DARK);
-    // body pass
-    for (const [x, y, rx, ry] of clumps) ell(x, y, rx * 0.94, ry * 0.94, MID);
-    // lit tops — only the clumps sitting high in the crown catch light
-    for (const [x, y, rx, ry, l] of clumps) {
-      if (y < cy + RY * 0.15 || l > 0.6) ell(x - 1, y - 2, rx * 0.62, ry * 0.55, LIT);
+    // ragged edge: bite small notches out of the outline so it is never smooth
+    g.save(); g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 22; i++) {
+      const a = (i / 22) * Math.PI * 2 + r() * 0.35;
+      const d = 0.94 + r() * 0.22;
+      g.beginPath();
+      g.ellipse(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
+                1 + r() * 2.2, 1 + r() * 2.0, 0, 0, Math.PI * 2);
+      g.fill();
     }
-    // sky holes: punch through BETWEEN clumps so the canopy breathes
+    // two or three real sky holes, well inside the mass
     for (let i = 0; i < 3; i++) {
-      const a = r() * Math.PI * 2, d = 0.35 + r() * 0.4;
-      const hx = cx + Math.cos(a) * RX * d, hy = cy + Math.sin(a) * RY * d;
-      const hr = 1.5 + r() * 2.2;
-      g.save(); g.globalCompositeOperation = 'destination-out';
-      g.beginPath(); g.ellipse(hx, hy, hr, hr * 0.8, 0, 0, Math.PI * 2); g.fill();
-      g.restore();
+      const a = r() * Math.PI * 2, d = 0.25 + r() * 0.35;
+      g.beginPath();
+      g.ellipse(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
+                1.2 + r() * 1.6, 1.0 + r() * 1.3, 0, 0, Math.PI * 2);
+      g.fill();
     }
+    g.restore();
+
+    // shading INSIDE the mass — an uneven underside in shadow, an uneven
+    // top catching light. Irregular boundaries, so no band ever reads as a
+    // stripe and no patch ever reads as a ball.
+    for (let i = 0; i < 9; i++) {
+      const t = (i / 8) - 0.5;
+      ell(cx + t * RX * 1.5, cy + RY * (0.42 + r() * 0.22), RX * 0.30, RY * 0.26, DARK);
+    }
+    for (let i = 0; i < 7; i++) {
+      const t = (i / 6) - 0.55;
+      ell(cx + t * RX * 1.2, cy - RY * (0.40 + r() * 0.18), RX * 0.26, RY * 0.20, LIT);
+    }
+
     // fine leaf speckle, kept inside the crown
     for (let i = 0; i < 70; i++) {
       const a = Math.random() * Math.PI * 2, rr = Math.random();
