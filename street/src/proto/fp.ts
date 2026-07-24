@@ -35,6 +35,7 @@ export class FPRig {
   private groundY?: (x: number, z: number) => number;
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
+  private jumpHeld = false; // holding the key doesn't re-jump; release first
   private bobT = 0;
   private fwd = new THREE.Vector3();
   private right = new THREE.Vector3();
@@ -90,7 +91,9 @@ export class FPRig {
       this.bobT += dt * (input.keys.has('shift') ? 11 : 7.5);
     }
     // a modest hop
-    if (input.keys.has(' ') && this.airY === 0 && this.vy === 0) this.vy = 3.6;
+    const jumpDown = input.keys.has(' ');
+    if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 3.6;
+    this.jumpHeld = jumpDown;
     if (this.vy !== 0 || this.airY > 0) {
       this.vy -= 11 * dt;
       this.airY = Math.max(0, this.airY + this.vy * dt);

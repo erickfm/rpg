@@ -130,10 +130,10 @@ function walkTex(): THREE.Texture {
   return t;
 }
 
-function treeSprite(k: number): THREE.Texture {
-  return pixTex(64, 96, (g) => {
-    g.fillStyle = '#4a3626'; g.fillRect(28, 58, 8, 38);
-    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(28, 58, 2, 38);
+function treeSprite(k: number, H = 96): THREE.Texture {
+  return pixTex(64, H, (g) => {
+    g.fillStyle = '#4a3626'; g.fillRect(28, 58, 8, H - 58);
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(28, 58, 2, H - 58);
     const greens = k === 1 ? ['#425c2e', '#364c26', '#527038'] : ['#2e5a30', '#25482a', '#3f7038'];
     const blobs: [number, number, number][] = [[32, 34, 26], [18, 44, 16], [46, 42, 15], [26, 22, 14], [42, 24, 12], [32, 40, 18]];
     blobs.forEach(([x, y, r], i) => {
@@ -144,6 +144,17 @@ function treeSprite(k: number): THREE.Texture {
       const a = Math.random() * Math.PI * 2, rr = Math.random() * 24;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
       g.fillRect(Math.floor(32 + Math.cos(a) * rr), Math.floor(34 + Math.sin(a) * rr * 0.9), 2, 2);
+    }
+  });
+}
+
+function treePitTex(): THREE.Texture {
+  return pixTex(32, 32, (g) => {
+    g.fillStyle = '#77776e'; g.fillRect(0, 0, 32, 32);  // concrete rim
+    g.fillStyle = '#3e2f20'; g.fillRect(3, 3, 26, 26);  // soil
+    for (let i = 0; i < 70; i++) {
+      g.fillStyle = Math.random() < 0.5 ? '#4a3826' : '#30241a';
+      g.fillRect(3 + Math.floor(Math.random() * 25), 3 + Math.floor(Math.random() * 25), 2, 1);
     }
   });
 }
@@ -361,20 +372,36 @@ function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
     hood.position.set(0, 0.89, -half + 0.85);
     g.add(hood);
     // short cab, near-vertical rear window
-    g.add(loftCabin(0.81, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(1))));
-    // open bed: floor + side rails + tailgate
-    const bedFloorM = new THREE.MeshBasicMaterial({ color: 0x2a2c30 });
-    const bedFloor = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.05, half - 0.75), bedFloorM);
-    bedFloor.position.set(0, 0.86, (half + 0.7) / 2);
-    g.add(bedFloor);
-    for (const s of [-1, 1]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.32, half - 0.75), bodyM);
-      rail.position.set(s * 0.85, 1.0, (half + 0.7) / 2);
-      g.add(rail);
-    }
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.32, 0.08), bodyM);
-    gate.position.set(0, 1.0, half - 0.06);
-    g.add(gate);
+    g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(1))));
+    // the bed is one solid box, walls flush with the body slab; the open top
+    // is painted — dark corrugated floor inset in a body-colored rim — so
+    // there are no loose rails and nothing to gap
+    const bedLen = half - 0.45;
+    const bedTopT = pixTex(48, 96, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, 48, 96);
+      g2.fillStyle = '#17181c'; g2.fillRect(5, 6, 38, 84);
+      g2.fillStyle = 'rgba(255,255,255,0.10)';
+      for (let y = 10; y < 90; y += 8) g2.fillRect(5, y, 38, 2);
+      dither(g2, 48, 96, 60);
+    });
+    const bedSideT = pixTex(96, 10, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, 96, 10);
+      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 96, 2);
+      g2.fillStyle = 'rgba(0,0,0,0.25)'; g2.fillRect(0, 8, 96, 2);
+      dither(g2, 96, 10, 30);
+    });
+    const bedRearT = pixTex(48, 10, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, 48, 10);
+      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 48, 2);
+      g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(18, 4, 12, 3); // tailgate latch
+      dither(g2, 48, 10, 20);
+    });
+    const bed = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.36, bedLen),
+      [flatT(bedSideT), flatT(bedSideT), flatT(bedTopT), darkM, flatT(bedRearT), darkM],
+    );
+    bed.position.set(0, 1.02, 0.45 + bedLen / 2);
+    g.add(bed);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
@@ -472,10 +499,21 @@ function citizenAtlas(jacket: string, pants: string, skin: string, hair: string,
           else if (view === 2) g.fillRect(cx - 9, oy + 8, 8, 2); // brim points forward
         } else if (style === 'hoodie') {
           g.fillStyle = jacket;
-          if (view === 4) g.fillRect(cx - 7, oy + 4, 14, 15); // hood covers the back of the head
-          else {
+          if (view === 4) g.fillRect(cx - 7, oy + 4, 14, 16); // hood covers the back of the head, meets the sweater
+          else if (view === 3) { // 3/4 back: hood wraps the turned side too
             g.fillRect(cx - 7, oy + 4, 14, 4);
-            g.fillRect(cx - 7, oy + 6, 2, 12); g.fillRect(cx + 5, oy + 6, 2, 12); // hood rim
+            g.fillRect(cx - 7, oy + 6, 2, 14);
+            g.fillRect(cx + 1, oy + 4, 6, 16);
+            g.fillRect(cx - 7, oy + 18, 14, 2);
+          } else if (view === 2) { // profile: rim above the nose, hood over crown and back
+            g.fillRect(cx - 7, oy + 4, 14, 4);
+            g.fillRect(cx - 7, oy + 6, 2, 6);
+            g.fillRect(cx + 1, oy + 4, 6, 16);
+            g.fillRect(cx - 7, oy + 18, 14, 2);
+          } else {
+            g.fillRect(cx - 7, oy + 4, 14, 4);
+            g.fillRect(cx - 7, oy + 6, 2, 14); g.fillRect(cx + 5, oy + 6, 2, 14); // hood rim, down to the shoulders
+            g.fillRect(cx - 7, oy + 18, 14, 2); // cowl bunched at the neck
           }
           if (view <= 1) {
             g.fillStyle = '#e8e4d8';
@@ -543,9 +581,13 @@ export function makeCrosstown(): Proto {
   for (const side of [-1, 1]) {
     let z = 14.2;
     while (z > -L - 2) {
-      const w = 9 + (bi % 3) * 3;
-      // leave the alley mouth open: skip ahead if this building would overlap it
-      if (side === -1 && z > AZ1 && z - w <= AZ0) z = AZ1;
+      let w = 9 + (bi % 3) * 3;
+      // the alley mouth: end the last building flush with the corner, skip
+      // the gap, and resume flush on the far side — no sky slits
+      if (side === -1 && z > AZ1 + 0.1) {
+        if (z <= AZ0 + 0.1) { z = AZ1; continue; }
+        if (z - w < AZ0) w = z - AZ0;
+      }
       const floors = 3 + ((bi * 7) % 3);
       const h = 3.4 + floors * 2.4;
       const cz = z - w / 2;
@@ -625,48 +667,501 @@ export function makeCrosstown(): Proto {
     );
     alleyEnd.position.set(-FACE - 6.9, 6.4, (AZ0 + AZ1) / 2);
     scene.add(alleyEnd);
-    // the dumpster
-    const dumpsterT = pixTex(96, 48, (g) => {
-      g.fillStyle = '#2e5a3c'; g.fillRect(0, 0, 96, 48);
-      g.fillStyle = 'rgba(0,0,0,0.3)';
-      for (let x = 0; x < 96; x += 12) g.fillRect(x, 0, 2, 48);        // ribs
-      g.fillStyle = 'rgba(122,66,40,0.55)';
-      g.fillRect(8, 34, 18, 12); g.fillRect(66, 30, 14, 16);           // rust
-      g.fillStyle = '#c9c4b0'; g.font = 'bold 9px monospace';
-      g.textAlign = 'center'; g.fillText('CITY WASTE', 48, 22);
-      dither(g, 96, 48, 200);
+    // the alley's long sides — plain brick, no gaps back to the sky
+    const alleySideT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#54382e'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(0,0,0,0.22)';
+      for (let y = 0; y < 64; y += 5) g.fillRect(0, y, 64, 1);
+      for (let y = 0; y < 64; y += 10) for (let x = (y % 20) ? 0 : 4; x < 64; x += 9) g.fillRect(x, y, 1, 5);
+      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, 0, 64, 2);
     });
-    const dumpM = new THREE.MeshBasicMaterial({ map: dumpsterT });
-    const dump = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.15, 1.05), dumpM);
-    dump.position.set(-11.2, 0.65, AZ0 - 1.15);
+    alleySideT.wrapS = alleySideT.wrapT = THREE.RepeatWrapping;
+    alleySideT.repeat.set(3, 6);
+    const alleySideM = new THREE.MeshBasicMaterial({ map: alleySideT, side: THREE.DoubleSide });
+    for (const [az, ry] of [[AZ0 - 0.02, Math.PI], [AZ1 + 0.02, 0]] as [number, number][]) {
+      const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, 12.8), alleySideM);
+      sideWall.position.set(-FACE - 3.5, 6.4, az);
+      sideWall.rotation.y = ry;
+      scene.add(sideWall);
+    }
+    // the dumpster: ribbed tub with fork pockets, stencil on the long faces
+    // only, lid hinged on the wall side and propped open onto the wall
+    const dumpFrontT = pixTex(96, 48, (g) => {
+      g.fillStyle = '#2e5a3c'; g.fillRect(0, 0, 96, 48);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 96, 3);            // top lip
+      g.fillStyle = 'rgba(0,0,0,0.3)';
+      for (let x = 6; x < 96; x += 12) g.fillRect(x, 3, 2, 41);                   // ribs
+      g.fillStyle = '#14161a'; g.fillRect(8, 38, 24, 7); g.fillRect(64, 38, 24, 7); // fork pockets
+      g.fillStyle = 'rgba(122,66,40,0.55)';
+      g.fillRect(38, 36, 16, 10); g.fillRect(82, 16, 12, 14);                     // rust
+      g.fillStyle = '#c9c4b0'; g.font = 'bold 9px monospace';
+      g.textAlign = 'center'; g.fillText('CITY WASTE', 48, 20);
+      dither(g, 96, 48, 160);
+    });
+    const dumpSideT = pixTex(48, 48, (g) => {
+      g.fillStyle = '#2e5a3c'; g.fillRect(0, 0, 48, 48);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 48, 3);
+      g.fillStyle = 'rgba(0,0,0,0.3)';
+      for (let x = 5; x < 48; x += 12) g.fillRect(x, 3, 2, 41);
+      g.fillStyle = 'rgba(122,66,40,0.5)'; g.fillRect(10, 34, 14, 12);
+      dither(g, 48, 48, 90);
+    });
+    const dumpFrontM = new THREE.MeshBasicMaterial({ map: dumpFrontT });
+    const dumpSideM = new THREE.MeshBasicMaterial({ map: dumpSideT });
+    const dumpInsideM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+    const dump = new THREE.Mesh(
+      new THREE.BoxGeometry(2.4, 1.1, 1.05),
+      [dumpSideM, dumpSideM, dumpInsideM, dumpInsideM, dumpFrontM, dumpFrontM],
+    );
+    dump.position.set(-11.2, 0.69, AZ0 - 1.15);
     scene.add(dump);
-    const lid = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.07, 1.05), new THREE.MeshBasicMaterial({ color: 0x24482f }));
-    lid.position.set(-11.2, 1.28, AZ0 - 1.35);
-    lid.rotation.x = -0.28; // propped open a crack
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(2.44, 0.06, 1.12), new THREE.MeshBasicMaterial({ color: 0x24482f }));
+    lid.geometry.translate(0, 0.03, -0.56); // pivot runs along its hinge edge
+    lid.position.set(-11.2, 1.24, AZ0 - 0.625);
+    lid.rotation.x = 0.5;
     scene.add(lid);
-    for (const wx of [-12.2, -10.2]) {
-      const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), new THREE.MeshBasicMaterial({ color: 0x0e0f12 }));
-      wheel.position.set(wx, 0.08, AZ0 - 1.15);
+    for (const [wx, wz] of [[-12.15, AZ0 - 0.78], [-10.25, AZ0 - 0.78], [-12.15, AZ0 - 1.52], [-10.25, AZ0 - 1.52]]) {
+      const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.14), new THREE.MeshBasicMaterial({ color: 0x0e0f12 }));
+      wheel.position.set(wx, 0.09, wz);
       scene.add(wheel);
     }
-    // trash bags sprite + a leaning flattened box
-    const trashT = pixTex(48, 32, (g) => {
-      g.fillStyle = '#1c1e24';
-      g.beginPath(); g.arc(14, 22, 10, 0, Math.PI * 2); g.arc(30, 24, 8, 0, Math.PI * 2); g.arc(24, 14, 7, 0, Math.PI * 2); g.fill();
-      g.fillStyle = 'rgba(255,255,255,0.14)';
-      g.beginPath(); g.arc(11, 18, 4, 0, Math.PI * 2); g.arc(27, 11, 3, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#3a3428'; g.fillRect(20, 4, 3, 4);
-    });
-    const trash = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.05), new THREE.MeshBasicMaterial({ map: trashT, alphaTest: 0.5, side: THREE.DoubleSide }));
-    trash.geometry.translate(0, 0.52, 0);
-    trash.position.set(-9.4, 0, AZ0 - 1.2);
-    boards.push({ m: trash });
-    scene.add(trash);
+    // trash bags: faceted low-poly lumps, vertex-lit from above so the
+    // facets read even in flat shading
+    function trashBag(r: number, tone: number): THREE.Mesh {
+      const geo = new THREE.IcosahedronGeometry(r, 0).toNonIndexed();
+      const pos = geo.getAttribute('position');
+      const col: number[] = [];
+      for (let f = 0; f < pos.count / 3; f++) {
+        const avgY = (pos.getY(f * 3) + pos.getY(f * 3 + 1) + pos.getY(f * 3 + 2)) / (3 * r);
+        const b = tone + avgY * 0.05 + ((f * 37) % 5) * 0.012;
+        for (let v = 0; v < 3; v++) col.push(b, b * 1.06, b * 1.28);
+      }
+      geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      const bag = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+      bag.scale.y = 0.66;
+      return bag;
+    }
+    const bagSpots: [number, number, number, number, number][] = [
+      [-9.45, AZ0 - 1.25, 0.34, 0.11, 0.7],
+      [-8.85, AZ0 - 1.0, 0.27, 0.09, 2.1],
+      [-9.15, AZ0 - 0.62, 0.22, 0.13, 4.0],
+    ];
+    for (const [bx, bz, r, tone, yaw] of bagSpots) {
+      const bag = trashBag(r, tone);
+      bag.position.set(bx, r * 0.55, bz);
+      bag.rotation.y = yaw;
+      scene.add(bag);
+    }
+    // knot on the biggest bag, and one more bag heaped over the dumpster rim
+    const knot = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.07), new THREE.MeshBasicMaterial({ color: 0x2e3038 }));
+    knot.position.set(-9.45, 0.44, AZ0 - 1.25);
+    scene.add(knot);
+    const rimBag = trashBag(0.3, 0.12);
+    rimBag.position.set(-10.55, 1.18, AZ0 - 1.15);
+    scene.add(rimBag);
     const cardboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.06), new THREE.MeshBasicMaterial({ color: 0x8a7248 }));
     cardboard.position.set(-12.9, 0.6, AZ1 + 1.4);
     cardboard.rotation.x = 0.18;
     scene.add(cardboard);
   }
+
+  // ── THE SEVILLE — the player's walk-up ──────────────────────────────────
+  // Four stories, a switchback stair, your place (301) on the third floor,
+  // and the hermit across the hall at 302. The interior is parked far east
+  // of the street, past the fog, in the same scene; the doors teleport.
+  const APT_X = 200, APT_Z = -20, ST = 2.7;
+  const AX = (lx: number) => APT_X + lx, AZI = (lz: number) => APT_Z + lz;
+  let lastGy = 0; // last ground height — this is what picks the active floor
+  const mkCap = (): AABB => ({ minX: 999, maxX: 999, minZ: 999, maxZ: 999 });
+  const stairCap = mkCap();       // no stairs above floor 3
+  const underStairA = mkCap();    // lobby: dead space under the flights
+  const underStairB = mkCap();
+  const aptDoorCap = mkCap();     // 301's doorway only opens on floor 3
+  const setCap = (c: AABB, on: boolean, x0: number, x1: number, z0: number, z1: number) => {
+    if (on) { c.minX = x0; c.maxX = x1; c.minZ = z0; c.maxZ = z1; }
+    else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
+  };
+  let hermit!: THREE.Mesh;
+  const sevColliders: AABB[] = [];
+  {
+    const texM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
+    // tired beige stripes; the tile is one 2.7 m story so baseboards land on
+    // every floor of the full-height walls
+    const wallpaperT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#a89a80'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(255,255,255,0.10)';
+      for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 64);
+      g.fillStyle = 'rgba(0,0,0,0.12)';
+      for (let x = 6; x < 64; x += 8) g.fillRect(x, 0, 1, 64);
+      dither(g, 64, 64, 90);
+      g.fillStyle = '#4a3a2c'; g.fillRect(0, 58, 64, 6);
+      g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(0, 58, 64, 1);
+    });
+    const roomWallT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#8a95a0'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(255,255,255,0.08)';
+      for (let x = 0; x < 64; x += 16) g.fillRect(x, 0, 6, 64);
+      dither(g, 64, 64, 80);
+      g.fillStyle = '#3c3428'; g.fillRect(0, 58, 64, 6);
+    });
+    const carpetT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#663832'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let i = 0; i < 40; i++) g.fillRect(Math.floor(Math.random() * 62), Math.floor(Math.random() * 62), 3, 2);
+      g.fillStyle = 'rgba(200,170,120,0.15)';
+      for (let y = 8; y < 64; y += 16) for (let x = (y % 32) ? 2 : 10; x < 60; x += 16) { g.fillRect(x, y, 5, 1); g.fillRect(x + 2, y - 2, 1, 5); }
+      dither(g, 64, 64, 130);
+    });
+    const woodFloorT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#7a5c3c'; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let y = 0; y < 64; y += 8) g.fillRect(0, y, 64, 1);
+      for (let y = 0; y < 64; y += 8) g.fillRect(((y * 13) % 56), y + 1, 1, 7);
+      dither(g, 64, 64, 110);
+    });
+    const ceilT = pixTex(32, 32, (g) => {
+      g.fillStyle = '#8f8a80'; g.fillRect(0, 0, 32, 32);
+      dither(g, 32, 32, 60);
+    });
+    const H = 3 * ST + 2.55; // top-floor ceiling height
+    const wallMesh = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, tex = wallpaperT) => {
+      const t = tex.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(w / 2.7, h / 2.7);
+      t.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), texM(t));
+      m.position.set(cx, cy, cz);
+      m.rotation.y = ry;
+      scene.add(m);
+      return m;
+    };
+    const floorMesh = (y: number, w: number, d: number, cx: number, cz: number, tex = carpetT) => {
+      const t = tex.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(w / 1.8, d / 1.8);
+      t.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), texM(t));
+      m.rotation.x = -Math.PI / 2;
+      m.position.set(cx, y, cz);
+      scene.add(m);
+      return m;
+    };
+    // hall + stairwell shell. West wall leaves 301's doorway gap on floor 3.
+    wallMesh(3.1, H, AX(0), H / 2, AZI(1.55), Math.PI / 2);
+    wallMesh(9.3, H, AX(0), H / 2, AZI(8.55), Math.PI / 2);
+    wallMesh(0.8, 2 * ST, AX(0), ST, AZI(3.5), Math.PI / 2);
+    wallMesh(0.8, H - 2 * ST - 2.1, AX(0), (H + 2 * ST + 2.1) / 2, AZI(3.5), Math.PI / 2);
+    wallMesh(13.2, H, AX(2.4), H / 2, AZI(6.6), -Math.PI / 2);
+    wallMesh(2.4, H, AX(1.2), H / 2, AZI(0), 0);
+    wallMesh(2.4, H, AX(1.2), H / 2, AZI(13.2), Math.PI);
+    sevColliders.push(
+      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.1) },
+      { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.9), maxZ: AZI(13.2) },
+      { minX: AX(2.4), maxX: AX(2.55), minZ: AZI(0), maxZ: AZI(13.2) },
+      { minX: AX(0), maxX: AX(2.4), minZ: AZI(-0.15), maxZ: AZI(0) },
+      { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
+      { minX: AX(1.16), maxX: AX(1.24), minZ: AZI(8.4), maxZ: AZI(11.8) }, // centre banister
+      stairCap, underStairA, underStairB, aptDoorCap,
+    );
+    // floors, ceilings
+    for (let f = 0; f < 4; f++) {
+      floorMesh(f * ST + 0.006, 2.4, 8.4, AX(1.2), AZI(4.2));
+      if (f < 3) floorMesh(f * ST + 2.55, 2.4, 8.4, AX(1.2), AZI(4.2), ceilT);
+    }
+    floorMesh(H, 2.4, 13.2, AX(1.2), AZI(6.6), ceilT);
+    // the switchback: 8 treads up, half landing, 8 treads back
+    const treadM = new THREE.MeshBasicMaterial({ color: 0x6a5038 });
+    const railM = new THREE.MeshBasicMaterial({ color: 0x3a2c20 });
+    for (let f = 0; f < 3; f++) {
+      for (let i = 0; i < 8; i++) {
+        const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.45), treadM);
+        a.position.set(AX(0.6), f * ST + (i + 0.5) * (1.35 / 8), AZI(8.4 + (i + 0.5) * (3.4 / 8)));
+        scene.add(a);
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.45), treadM);
+        b.position.set(AX(1.8), f * ST + 1.35 + (i + 0.5) * (1.35 / 8), AZI(11.8 - (i + 0.5) * (3.4 / 8)));
+        scene.add(b);
+      }
+      const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 1.4), treadM);
+      land.position.set(AX(1.2), f * ST + 1.35 - 0.07, AZI(12.5));
+      scene.add(land);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 3.4), railM);
+      rail.position.set(AX(1.2), f * ST + 1.1, AZI(10.1));
+      rail.rotation.x = -0.38; // follows the flights, roughly
+      scene.add(rail);
+    }
+    // lobby: dead space boxed in under the stairs
+    const underM = new THREE.MeshBasicMaterial({ color: 0x1a1b21 });
+    const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
+    uA.position.set(AX(1.8), 0.65, AZI(10.8));
+    scene.add(uA);
+    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 1.4), underM);
+    uB.position.set(AX(0.6), 0.65, AZI(12.5));
+    scene.add(uB);
+    // doors up the floors — 301 is a real opening; 302 is the hermit's
+    const doorTexN = (num: string) => pixTex(32, 64, (g) => {
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
+      g.fillStyle = '#5c4430'; g.fillRect(3, 3, 26, 61);
+      g.fillStyle = 'rgba(0,0,0,0.3)';
+      g.fillRect(7, 16, 18, 16); g.fillRect(7, 38, 18, 20);
+      g.fillStyle = 'rgba(255,255,255,0.12)';
+      g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
+      g.fillStyle = '#c9b45e'; g.fillRect(24, 33, 3, 3);
+      g.fillStyle = '#d8d4c8'; g.fillRect(10, 6, 12, 7);
+      g.fillStyle = '#26221c'; g.font = 'bold 6px monospace'; g.textAlign = 'center';
+      g.fillText(num, 16, 12);
+      dither(g, 32, 64, 40);
+    });
+    const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(doorTexN(num)));
+      d.position.set(wx, baseY + 1.05, wz);
+      d.rotation.y = ry;
+      scene.add(d);
+    };
+    for (let f = 0; f < 4; f++) {
+      if (f !== 2) {
+        doorPlane(`${f + 1}01`, AX(0.02), f * ST, AZI(3.5), Math.PI / 2);
+        doorPlane(`${f + 1}02`, AX(2.38), f * ST, AZI(3.5), -Math.PI / 2);
+      }
+    }
+    // 302 ajar: dark slice of his place, the door swung inward, him in it
+    const recess = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), new THREE.MeshBasicMaterial({ color: 0x0c0d10 }));
+    recess.position.set(AX(2.39), 2 * ST + 1.05, AZI(3.5));
+    recess.rotation.y = -Math.PI / 2;
+    scene.add(recess);
+    const leafGeo = new THREE.PlaneGeometry(0.95, 2.1);
+    leafGeo.translate(0.475, 0, 0);
+    const leaf = new THREE.Mesh(leafGeo, texM(doorTexN('302')));
+    leaf.position.set(AX(2.44), 2 * ST + 1.05, AZI(3.06));
+    leaf.rotation.y = -Math.PI / 2 + 0.85;
+    scene.add(leaf);
+    // the hermit — a big quiet man; you only ever catch him at his door
+    const hermitT = pixTex(44, 64, (g) => {
+      g.fillStyle = '#4a3c30'; g.fillRect(11, 61, 9, 3); g.fillRect(24, 61, 9, 3);
+      g.fillStyle = '#4a4a52'; g.fillRect(9, 43, 11, 19); g.fillRect(24, 43, 11, 19);
+      g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(9, 43, 11, 3); g.fillRect(24, 43, 11, 3);
+      g.fillStyle = '#d8d4c8';
+      g.beginPath(); g.ellipse(22, 32, 16, 13, 0, 0, Math.PI * 2); g.fill();
+      g.fillRect(6, 32, 32, 12);
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(6, 39, 32, 5);
+      g.fillStyle = '#c9946a';
+      g.fillRect(2, 25, 6, 15); g.fillRect(36, 25, 6, 15);
+      g.fillStyle = '#c9946a'; g.fillRect(15, 8, 14, 13);
+      g.fillRect(13, 15, 18, 7); // jowls
+      g.fillStyle = '#3a3226'; g.fillRect(13, 7, 18, 3); g.fillRect(12, 8, 3, 5); g.fillRect(29, 8, 3, 5);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(14, 19, 16, 3);
+      g.fillStyle = '#241a12'; g.fillRect(18, 12, 2, 2); g.fillRect(25, 12, 2, 2);
+      dither(g, 44, 64, 26);
+    });
+    hermit = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.96), new THREE.MeshBasicMaterial({ map: hermitT, alphaTest: 0.5, side: THREE.DoubleSide }));
+    hermit.position.set(AX(2.3), 2 * ST + 0.98, AZI(3.5));
+    hermit.rotation.y = -Math.PI / 2;
+    scene.add(hermit);
+    // bare-bulb glows in the hall and on the half landings
+    const glowT = pixTex(32, 32, (g) => {
+      const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15);
+      gr.addColorStop(0, 'rgba(255,225,170,0.85)');
+      gr.addColorStop(1, 'rgba(255,225,170,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    });
+    const glowMat = new THREE.MeshBasicMaterial({ map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    for (let f = 0; f < 4; f++) {
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.8), glowMat);
+      gl.position.set(AX(1.2), f * ST + 2.3, AZI(3.5));
+      boards.push({ m: gl });
+      scene.add(gl);
+      if (f < 3) {
+        const g2 = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), glowMat);
+        g2.position.set(AX(1.2), f * ST + 1.35 + 1.95, AZI(12.5));
+        boards.push({ m: g2 });
+        scene.add(g2);
+      }
+    }
+    // lobby dressing: mailboxes and the front door
+    const mailT = pixTex(48, 32, (g) => {
+      g.fillStyle = '#2c2620'; g.fillRect(0, 0, 48, 32);
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
+        g.fillStyle = '#8a7a4e'; g.fillRect(3 + c * 11, 3 + r * 9, 9, 7);
+        g.fillStyle = '#5e5236'; g.fillRect(4 + c * 11, 6 + r * 9, 7, 1);
+      }
+    });
+    const mail = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), texM(mailT));
+    mail.position.set(AX(2.38), 1.4, AZI(1.3));
+    mail.rotation.y = -Math.PI / 2;
+    scene.add(mail);
+    const frontDoorT = pixTex(32, 64, (g) => {
+      g.fillStyle = '#2c3c2e'; g.fillRect(0, 0, 32, 64);
+      g.fillStyle = '#3e5240'; g.fillRect(3, 3, 26, 58);
+      g.fillStyle = '#141820'; g.fillRect(7, 8, 18, 20);
+      g.fillStyle = 'rgba(255,255,255,0.15)';
+      for (let i = 10; i < 28; i += 4) g.fillRect(7, i, 18, 1);
+      g.fillStyle = '#c9b45e'; g.fillRect(24, 36, 3, 3);
+      dither(g, 32, 64, 40);
+    });
+    const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(frontDoorT));
+    lobbyDoor.position.set(AX(1.2), 1.05, AZI(0.02));
+    scene.add(lobbyDoor);
+    // 301 — your place: wood floor, a bed, the window with the city in it
+    wallMesh(3.5, 2.55, AX(-3.2), 2 * ST + 1.275, AZI(3.75), Math.PI / 2, roomWallT);
+    wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(2), 0, roomWallT);
+    wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(5.5), Math.PI, roomWallT);
+    floorMesh(2 * ST + 0.007, 3.2, 3.5, AX(-1.6), AZI(3.75), woodFloorT);
+    floorMesh(2 * ST + 2.55, 3.2, 3.5, AX(-1.6), AZI(3.75), ceilT);
+    const winT = pixTex(32, 32, (g) => {
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 32);
+      g.fillStyle = '#b8c4cc'; g.fillRect(3, 3, 26, 26);
+      g.fillStyle = 'rgba(90,110,130,0.6)'; g.fillRect(3, 18, 26, 11); // rooftops below
+      g.fillStyle = '#3a2c22'; g.fillRect(15, 3, 2, 26); g.fillRect(3, 15, 26, 2);
+    });
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), texM(winT));
+    win.position.set(AX(-3.18), 2 * ST + 1.5, AZI(3.75));
+    win.rotation.y = Math.PI / 2;
+    scene.add(win);
+    const bedM = new THREE.MeshBasicMaterial({ color: 0xb8b4a8 });
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.38, 2.0), bedM);
+    bed.position.set(AX(-2.52), 2 * ST + 0.19, AZI(4.45));
+    scene.add(bed);
+    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.17, 0.1, 1.25), new THREE.MeshBasicMaterial({ color: 0x5a3a3a }));
+    blanket.position.set(AX(-2.52), 2 * ST + 0.42, AZI(4.8));
+    scene.add(blanket);
+    const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.38), new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
+    pillow.position.set(AX(-2.52), 2 * ST + 0.44, AZI(3.68));
+    scene.add(pillow);
+    const dresser = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.5), new THREE.MeshBasicMaterial({ color: 0x4a3626 }));
+    dresser.position.set(AX(-1.17), 2 * ST + 0.375, AZI(2.27));
+    scene.add(dresser);
+    const tvT = pixTex(32, 24, (g) => {
+      g.fillStyle = '#26262c'; g.fillRect(0, 0, 32, 24);
+      g.fillStyle = '#101820'; g.fillRect(3, 3, 22, 18);
+      g.fillStyle = 'rgba(160,200,220,0.25)'; g.fillRect(5, 5, 7, 6);
+    });
+    const tv = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.42), [new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), texM(tvT), new THREE.MeshBasicMaterial({ color: 0x26262c })]);
+    tv.position.set(AX(-1.17), 2 * ST + 0.95, AZI(2.27));
+    scene.add(tv);
+    sevColliders.push(
+      { minX: AX(-3.35), maxX: AX(-3.2), minZ: AZI(2), maxZ: AZI(5.5) },
+      { minX: AX(-3.2), maxX: AX(0), minZ: AZI(1.85), maxZ: AZI(2) },
+      { minX: AX(-3.2), maxX: AX(0), minZ: AZI(5.5), maxZ: AZI(5.65) },
+      { minX: AX(-3.1), maxX: AX(-1.94), minZ: AZI(3.45), maxZ: AZI(5.45) },
+      { minX: AX(-1.5), maxX: AX(-0.84), minZ: AZI(2.0), maxZ: AZI(2.52) },
+    );
+    // street side: the building's door, stoop and nameplate on the west wall
+    const recessS = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.3), new THREE.MeshBasicMaterial({ color: 0x14151a }));
+    recessS.position.set(-FACE + 0.02, sidewalkY + 1.15, -31);
+    recessS.rotation.y = Math.PI / 2;
+    scene.add(recessS);
+    const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.15), texM(frontDoorT));
+    streetDoor.position.set(-FACE + 0.04, sidewalkY + 1.075, -31);
+    streetDoor.rotation.y = Math.PI / 2;
+    scene.add(streetDoor);
+    const sevSignT = pixTex(64, 16, (g) => {
+      g.fillStyle = '#1c2c1e'; g.fillRect(0, 0, 64, 16);
+      g.fillStyle = '#d8cfa0'; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+      g.fillText('THE SEVILLE', 32, 11);
+      g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(0, 0, 64, 1);
+    });
+    const sevSign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), texM(sevSignT));
+    sevSign.position.set(-FACE + 0.03, sidewalkY + 2.62, -31);
+    sevSign.rotation.y = Math.PI / 2;
+    scene.add(sevSign);
+    const stoop = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 1.5), new THREE.MeshBasicMaterial({ color: 0x97928a }));
+    stoop.position.set(-FACE + 0.275, sidewalkY + 0.075, -31);
+    scene.add(stoop);
+  }
+  // multi-floor ground: pick the floor candidate nearest the last height —
+  // that one closure is what makes stacked floors work with a 2D walker
+  const aptGround = (wx: number, wz: number): number => {
+    const lx = wx - APT_X, lz = wz - APT_Z;
+    let rel = 0;
+    if (lx >= 0 && lz > 8.4) {
+      if (lz > 11.8) rel = 1.35;
+      else {
+        const t = (lz - 8.4) / 3.4;
+        rel = lx < 1.2 ? t * 1.35 : 2.7 - t * 1.35;
+      }
+    }
+    let best = lastGy, bd = Infinity;
+    for (let f = 0; f < 4; f++) {
+      const h = rel + f * ST;
+      if (h > 3 * ST + 0.01) continue;  // nothing above floor 3
+      if (h > lastGy + 0.6) continue;   // no stepping up half a storey
+      const d = Math.abs(h - lastGy);
+      if (d < bd) { bd = d; best = h; }
+    }
+    lastGy = best;
+    return best;
+  };
+
+  // ── the clock, the sky it drags around, and the watch ───────────────────
+  let totalMin = 13 * 60 + 20; // one real second = one game minute
+  let watchShown = -1;
+  let doorCd = 0;
+  let hermitForce = -1;
+  const hermitIn = (hAbs: number): boolean => {
+    const h = hAbs % 24;
+    const chance = h >= 12 && h < 18 ? 0.7 : h >= 8 && h < 22 ? 0.22 : 0.04;
+    return ((((hAbs + 7) * 2654435761) >>> 0) % 1000) < chance * 1000;
+  };
+  const SKY_STOPS: [number, string][] = [
+    [0, '#131722'], [5, '#131722'], [6.5, '#4a5464'], [8, '#7d8894'], [10, '#8a97a2'],
+    [16.5, '#8a97a2'], [18.5, '#8f7f74'], [20, '#3a3f52'], [21.5, '#131722'], [24, '#131722'],
+  ];
+  const NIGHT_STOPS: [number, number][] = [
+    [0, 0.34], [5, 0.34], [7, 0.1], [8.5, 0], [17.5, 0], [19, 0.12], [20, 0.24], [21.5, 0.34], [24, 0.34],
+  ];
+  const cA = new THREE.Color(), cB = new THREE.Color(), skyNow = new THREE.Color();
+  const skyAt = (h: number): THREE.Color => {
+    let i = 0;
+    while (i < SKY_STOPS.length - 2 && SKY_STOPS[i + 1][0] < h) i++;
+    const [h0, s0] = SKY_STOPS[i], [h1, s1] = SKY_STOPS[i + 1];
+    const t = THREE.MathUtils.clamp((h - h0) / (h1 - h0), 0, 1);
+    return skyNow.copy(cA.set(s0)).lerp(cB.set(s1), t);
+  };
+  const nightAt = (h: number): number => {
+    let i = 0;
+    while (i < NIGHT_STOPS.length - 2 && NIGHT_STOPS[i + 1][0] < h) i++;
+    const [h0, v0] = NIGHT_STOPS[i], [h1, v1] = NIGHT_STOPS[i + 1];
+    const t = THREE.MathUtils.clamp((h - h0) / (h1 - h0), 0, 1);
+    return v0 + (v1 - v0) * t;
+  };
+  let nightDiv = document.getElementById('ct-night') as HTMLDivElement | null;
+  if (!nightDiv) {
+    nightDiv = document.createElement('div');
+    nightDiv.id = 'ct-night';
+    nightDiv.style.cssText = 'position:fixed;inset:0;background:#0a1024;opacity:0;pointer-events:none;z-index:5;transition:opacity .5s linear;';
+    document.body.appendChild(nightDiv);
+  }
+  let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
+  let watchCv: HTMLCanvasElement;
+  if (!watchWrap) {
+    watchWrap = document.createElement('div');
+    watchWrap.id = 'ct-watch';
+    watchWrap.style.cssText = 'position:fixed;left:50%;bottom:-10px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-5deg);transition:transform .18s ease-out;';
+    watchCv = document.createElement('canvas');
+    watchCv.width = 120; watchCv.height = 72;
+    watchCv.style.cssText = 'width:330px;height:198px;image-rendering:pixelated;display:block;';
+    watchWrap.appendChild(watchCv);
+    document.body.appendChild(watchWrap);
+  } else {
+    watchCv = watchWrap.firstChild as HTMLCanvasElement;
+  }
+  const drawWatch = (mins: number) => {
+    const g = watchCv.getContext('2d')!;
+    g.clearRect(0, 0, 120, 72);
+    g.fillStyle = '#c9946a'; g.fillRect(16, 6, 88, 66);          // wrist
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(16, 6, 10, 66);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
+    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
+    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
+    g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
+    g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
+    g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
+    const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
+    const m2 = String(mins % 60).padStart(2, '0');
+    g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
+    g.fillText(`${hh}:${m2}`, 60, 38);
+    g.fillStyle = '#8a8d95'; g.font = '5px monospace';
+    g.fillText('CROSSTOWN QUARTZ', 60, 50);
+  };
 
   // billboard sprites: trees, hydrant, pigeons
   function board(tex: THREE.Texture, w: number, h: number, x: number, z: number): THREE.Mesh {
@@ -680,15 +1175,22 @@ export function makeCrosstown(): Proto {
   }
   const propColliders: AABB[] = [];
 
-  // trees on the sidewalks — taller, and no two the same height
-  const treeTexes = [treeSprite(0), treeSprite(1)];
+  // trees on the sidewalks — one crown size, only the trunks vary, each in a
+  // square dirt pit cut into the walk
+  const TREE_PX = 0.05; // world units per texel — fixed, so taller never means bigger
+  const pitT = treePitTex();
+  const pitGeo = new THREE.PlaneGeometry(1.5, 1.5);
+  const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.9);
-    const th = 4.4 + rnd() * 1.8;             // 4.4 – 6.2 tall
-    const tw = th * (0.62 + rnd() * 0.1);     // keep proportions
-    const tree = board(treeTexes[Math.abs(Math.round(z / 14)) % 2], tw, th, tx, z);
+    const H = 92 + Math.floor(rnd() * 36);    // 4.6 – 6.4 tall via trunk length alone
+    const tree = board(treeSprite(Math.abs(Math.round(z / 14)) % 2, H), 64 * TREE_PX, H * TREE_PX, tx, z);
     tree.position.y = sidewalkY;
+    const pit = new THREE.Mesh(pitGeo, pitMat);
+    pit.rotation.x = -Math.PI / 2;
+    pit.position.set(tx, sidewalkY + 0.006, z);
+    scene.add(pit);
     propColliders.push({ minX: tx - 0.3, maxX: tx + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
   }
   // hydrant on the right sidewalk
@@ -696,12 +1198,19 @@ export function makeCrosstown(): Proto {
   const hyd = board(hydrantSprite(), 0.8, 1.2, hyX, hyZ);
   hyd.position.y = sidewalkY;
   propColliders.push({ minX: hyX - 0.35, maxX: hyX + 0.35, minZ: hyZ - 0.35, maxZ: hyZ + 0.35 });
-  // pigeons peck along the kerb
-  const pigeons: THREE.Mesh[] = [];
+  // pigeons peck along the kerb — most spook when you walk up; the odd bold
+  // one holds its ground until you all but step on it
+  interface Pigeon {
+    m: THREE.Mesh; x: number; z: number; y: number;
+    vx: number; vy: number; vz: number;
+    state: 'peck' | 'fly'; bold: boolean; t: number; ph: number;
+  }
+  const pigeons: Pigeon[] = [];
   const pigeonT = pigeonSprite();
   for (let i = 0; i < 4; i++) {
-    const b = board(pigeonT, 0.42, 0.42, -(ROAD_HALF + 0.5 + rnd() * 1.2), -20 - rnd() * 4);
-    pigeons.push(b);
+    const x = -(ROAD_HALF + 0.5 + rnd() * 1.2), z = -20 - rnd() * 4;
+    const b = board(pigeonT, 0.42, 0.42, x, z);
+    pigeons.push({ m: b, x, z, y: 0, vx: 0, vy: 0, vz: 0, state: 'peck', bold: rnd() < 0.3, t: 0, ph: i * 2.4 });
   }
 
   // payphone against the left wall
@@ -726,12 +1235,18 @@ export function makeCrosstown(): Proto {
     scene.add(car);
     carColliders.push({ minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] });
   });
-  // the cruiser is the neighborhood taxi; its collider moves with it
-  const cruiser = makeCar('sedan', 0, true);
-  cruiser.position.set(DRIVE_X, 0, 8);
-  scene.add(cruiser);
+  // traffic: one car on the block at a time, entering from a foggy end,
+  // driving through, and leaving. Usually a plain car — the taxi is a rare
+  // sight, maybe one pass in seven.
+  const traffic = [
+    makeCar('sedan', 2), makeCar('hatch', 4), makeCar('van', 5), makeCar('sedan', 3),
+    makeCar('sedan', 0, true), // the taxi, last in the pool
+  ];
+  traffic.forEach((c) => { c.visible = false; scene.add(c); });
+  let cruiser = traffic[0];
   let cruiseDir = -1;
-  const cruiserBox: AABB = { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+  let cruiseWait = 5; // gap between cars
+  const cruiserBox: AABB = { minX: 999, maxX: 999, minZ: 999, maxZ: 999 };
 
   // 8-angle citizens walking the block — no two the same size or style
   interface Outfit { j: string; p: string; s: string; h: string; fit: Fit; acc: string; hs: number; ws: number }
@@ -747,7 +1262,9 @@ export function makeCrosstown(): Proto {
   ];
   interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; z: number; dir: number; sp: number; ph: number }
   const citizens: Citizen[] = [];
-  OUTFITS.forEach((o, i) => {
+  // a quiet block: four out on the street at a time, one of each fit
+  const CAST = [OUTFITS[0], OUTFITS[1], OUTFITS[2], OUTFITS[3]];
+  CAST.forEach((o, i) => {
     const tex = citizenAtlas(o.j, o.p, o.s, o.h, o.fit, o.acc);
     tex.repeat.set(1 / 5, 1 / 2);
     const geo = new THREE.PlaneGeometry(0.95, 1.9);
@@ -755,9 +1272,10 @@ export function makeCrosstown(): Proto {
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
     mesh.scale.set(o.ws, o.hs, 1);
     const lane = (i % 2 ? 1 : -1) * (ROAD_HALF + 0.6 + (i % 3) * 0.5);
-    mesh.position.set(lane, sidewalkY, 4 - i * 11);
+    const z = 2 - i * 23; // spread thin over the whole block
+    mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
-    citizens.push({ mesh, tex, lane, z: 4 - i * 11, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3 });
+    citizens.push({ mesh, tex, lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3 });
   });
 
   const colliders: AABB[] = [
@@ -768,17 +1286,30 @@ export function makeCrosstown(): Proto {
     { minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 },        // dumpster
     ...propColliders,
     ...carColliders,
+    ...sevColliders,
     cruiserBox,
   ];
   const rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
-    bounds: { minX: -FACE - 6.4, maxX: 6.7, minZ: -L - 0.5, maxZ: 13 },
+    bounds: { minX: -FACE - 6.4, maxX: AX(2.4), minZ: -L - 0.5, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
-    groundY: (x) => (Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0),
+    groundY: (x, z) => {
+      if (x > 100) return aptGround(x, z);
+      lastGy = Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0;
+      return lastGy;
+    },
   });
 
   // debug/tour hook
   (window as any).__ct = {
-    warp: (x: number, z: number, yaw?: number) => { rig.pos.set(x, rig.pos.y, z); if (yaw !== undefined) rig.yaw = yaw; },
+    warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
+      rig.pos.set(x, rig.pos.y, z);
+      if (yaw !== undefined) rig.yaw = yaw;
+      if (gy !== undefined) lastGy = gy;
+      if (pitch !== undefined) rig.pitch = pitch;
+    },
+    clock: (h: number, m = 0) => { totalMin = h * 60 + m; },
+    hermit: (v: boolean | null) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
+    atlases: () => citizens.map((c) => (c.tex.image as HTMLCanvasElement).toDataURL()),
   };
 
   return {
@@ -792,6 +1323,42 @@ export function makeCrosstown(): Proto {
     update(dt, t, input) {
       rig.update(dt, input);
       const px = rig.pos.x, pz = rig.pos.z;
+
+      // the clock: one real second is one game minute
+      totalMin += dt;
+      const clockMin = totalMin % 1440;
+      const hourF = clockMin / 60;
+      (scene.background as THREE.Color).copy(skyAt(hourF));
+      scene.fog!.color.copy(skyNow);
+      nightDiv!.style.opacity = String(nightAt(hourF));
+      // the hermit keeps his own hours — mostly afternoons
+      hermit.visible = hermitForce === -1 ? hermitIn(Math.floor(totalMin / 60)) : hermitForce === 1;
+      // look down: your watch
+      const wantWatch = rig.pitch < -0.95;
+      watchWrap!.style.transform = wantWatch
+        ? 'translateX(-50%) translateY(0) rotate(-5deg)'
+        : 'translateX(-50%) translateY(140%) rotate(-5deg)';
+      const mins = Math.floor(clockMin);
+      if (wantWatch && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
+
+      // floor-aware stair guards (2D colliders, so they follow the floor)
+      setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(8.4), AZI(13.2));
+      const onLobby = px > 100 && lastGy < 0.6;
+      setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(8.4), AZI(13.2));
+      setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.8), AZI(13.2));
+      setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.1), AZI(3.9));
+
+      // the building doors swap you between the street and the lobby
+      doorCd = Math.max(0, doorCd - dt);
+      if (doorCd === 0) {
+        if (px < 100 && Math.abs(px - (-FACE + 0.45)) < 0.75 && Math.abs(pz + 31) < 0.8) {
+          rig.pos.set(AX(1.2), rig.pos.y, AZI(1.3));
+          rig.yaw = Math.PI; lastGy = 0; doorCd = 1;
+        } else if (px > 100 && lastGy < 0.5 && Math.abs(px - AX(1.2)) < 0.7 && pz < AZI(0.75)) {
+          rig.pos.set(-FACE + 1.1, rig.pos.y, -31);
+          rig.yaw = Math.PI / 2; lastGy = KERB_H; doorCd = 1;
+        }
+      }
 
       // billboards face the player
       for (const b of boards) {
@@ -812,19 +1379,69 @@ export function makeCrosstown(): Proto {
         c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
         c.tex.offset.y = row === 0 ? 0.5 : 0;
       }
-      // the cruiser rolls the travel lanes end to end, keeping right
-      cruiser.position.z += cruiseDir * 8.5 * dt;
-      if (cruiser.position.z < -L + 6) { cruiseDir = 1; cruiser.position.x = -DRIVE_X; cruiser.rotation.y = Math.PI; }
-      if (cruiser.position.z > 8) { cruiseDir = -1; cruiser.position.x = DRIVE_X; cruiser.rotation.y = 0; }
-      // its collider follows
-      cruiserBox.minX = cruiser.position.x - 1.05;
-      cruiserBox.maxX = cruiser.position.x + 1.05;
-      cruiserBox.minZ = cruiser.position.z - 2.4;
-      cruiserBox.maxZ = cruiser.position.z + 2.4;
-      // pigeons hop on the kerb
-      pigeons.forEach((pg, i) => {
-        pg.position.y = sidewalkY + Math.max(0, Math.sin(t * 6 + i * 2.4)) * 0.06;
-      });
+      // traffic: one car at a time drives through, entering from whichever
+      // end the player can't see into
+      if (cruiseWait > 0) {
+        cruiseWait -= dt;
+        if (cruiseWait <= 0) {
+          cruiser = traffic[rnd() < 0.15 ? traffic.length - 1 : Math.floor(rnd() * (traffic.length - 1))];
+          cruiseDir = pz < -L / 2 ? -1 : 1; // enter from the end farther from the player
+          cruiser.position.set(cruiseDir === -1 ? DRIVE_X : -DRIVE_X, 0, cruiseDir === -1 ? 8 : -L + 6);
+          cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
+          cruiser.visible = true;
+        }
+      } else {
+        cruiser.position.z += cruiseDir * 8.5 * dt;
+        const endZ = cruiseDir === -1 ? -L + 6 : 8;
+        if (cruiseDir === -1 ? cruiser.position.z < endZ : cruiser.position.z > endZ) {
+          if (Math.abs(pz - endZ) > 25) {
+            cruiser.visible = false; // slips around the corner in the fog
+            cruiseWait = 18 + rnd() * 24;
+          } else {
+            // the player is watching this corner — turn around, don't vanish
+            cruiseDir = -cruiseDir;
+            cruiser.position.x = cruiseDir === -1 ? DRIVE_X : -DRIVE_X;
+            cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
+          }
+        }
+      }
+      // its collider follows (parked far away while no car is out)
+      if (cruiser.visible) {
+        cruiserBox.minX = cruiser.position.x - 1.05;
+        cruiserBox.maxX = cruiser.position.x + 1.05;
+        cruiserBox.minZ = cruiser.position.z - 2.5;
+        cruiserBox.maxZ = cruiser.position.z + 2.5;
+      } else {
+        cruiserBox.minX = cruiserBox.maxX = cruiserBox.minZ = cruiserBox.maxZ = 999;
+      }
+      // pigeons: peck the kerb, spook when approached (unless bold)
+      for (const pg of pigeons) {
+        if (pg.state === 'peck') {
+          const d = Math.hypot(px - pg.x, pz - pg.z);
+          if (d < (pg.bold ? 0.7 : 2.4)) {
+            pg.state = 'fly'; pg.t = 0;
+            const a = Math.atan2(pg.x - px, pg.z - pz) + (rnd() - 0.5) * 0.8;
+            pg.vx = Math.sin(a) * 3.2; pg.vz = Math.cos(a) * 3.2; pg.vy = 2.6;
+          }
+          pg.m.position.set(pg.x, sidewalkY + Math.max(0, Math.sin(t * 6 + pg.ph)) * 0.06, pg.z);
+        } else {
+          pg.t += dt;
+          pg.x += pg.vx * dt; pg.z += pg.vz * dt;
+          pg.vy = Math.min(pg.vy + dt * 1.5, 3.4);
+          pg.y += pg.vy * dt;
+          if (Math.abs(pg.x) > FACE - 0.6) { pg.x = Math.sign(pg.x) * (FACE - 0.6); pg.vx = 0; } // climb the wall, don't pass it
+          pg.m.position.set(pg.x, sidewalkY + pg.y + Math.sin(t * 24) * 0.05, pg.z);
+          if (pg.t > 4) {
+            // settle somewhere new down the block, away from the player
+            pg.state = 'peck'; pg.y = 0; pg.bold = rnd() < 0.3;
+            pg.x = (rnd() < 0.5 ? -1 : 1) * (ROAD_HALF + 0.4 + rnd() * 1.4);
+            pg.z = -8 - rnd() * (L - 20);
+            if (Math.hypot(px - pg.x, pz - pg.z) < 8) {
+              pg.z = Math.max(-L + 6, Math.min(2, pz > -L / 2 ? pz - 25 : pz + 25));
+            }
+          }
+        }
+      }
     },
   };
 }
