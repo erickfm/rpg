@@ -14,7 +14,7 @@ import { FPRig, type AABB } from './fp';
 import { L, ROAD_HALF, WALK, FACE, PARK_X, DRIVE_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng';
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
-import { walkTex } from './ct/tex-ground';
+import { buildGround } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
@@ -52,41 +52,12 @@ export function makeCrosstown(): Proto {
   sideRoad.rotation.x = -Math.PI / 2;
   sideRoad.position.set((SIDE_X1 - 7) / 2, 0, (SIDE_Z0 + SIDE_Z1) / 2);
   scene.add(sideRoad);
-  // raised sidewalks with a visible curb face
+  // the sidewalks, the kerb, the gutter pan and the two corner returns —
+  // one module owns every surface you walk on (see ct/tex-ground.ts). It
+  // hands back the ground height for the patches it owns, because the corner
+  // is a radius now and one of the returns ramps down to the crossing.
   const KERB_H = 0.14;
-  const kerbFaceM = new THREE.MeshBasicMaterial({ color: 0x97928a });
-  const walkDarkM = new THREE.MeshBasicMaterial({ color: 0x6a675f });
-  for (const s of [-1, 1]) {
-    const zBot = s > 0 ? SIDE_Z0 : SIDE_Z1 - 2; // west walk wraps the corner
-    const len = 16.5 - zBot;
-    const topM = wet(flat(walkTex(WALK, len)));
-    const mats = s > 0
-      // east walk: -x face is the kerb, and its south END (-z, at z=-98) is
-      // also a kerb so the raised edge WRAPS the corner instead of showing a
-      // dark unfinished notch where the side-street north walk picks up
-      ? [walkDarkM, kerbFaceM, topM, walkDarkM, walkDarkM, kerbFaceM]
-      : [kerbFaceM, walkDarkM, topM, walkDarkM, walkDarkM, walkDarkM]; // +x face is the kerb
-    const walk = new THREE.Mesh(new THREE.BoxGeometry(WALK, KERB_H + 0.04, len), mats);
-    walk.position.set(s * (ROAD_HALF + WALK / 2), (KERB_H + 0.04) / 2 - 0.04, (16.5 + zBot) / 2);
-    scene.add(walk);
-  }
-  // side-street walks: north (in front of the corner shops), south, east end
-  {
-    const north = new THREE.Mesh(new THREE.BoxGeometry(50, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, wet(flat(walkTex(50, 2))), walkDarkM, walkDarkM, kerbFaceM]);
-    north.position.set(32, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z0 + 1);
-    scene.add(north);
-    // starts at x=-5 (not -7) so it ABUTS the wrapped west walk instead of
-    // overlapping it in the SW corner square (two coplanar tops = z-fighting)
-    const south = new THREE.Mesh(new THREE.BoxGeometry(62, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, wet(flat(walkTex(62, 2))), walkDarkM, kerbFaceM, walkDarkM]);
-    south.position.set(26, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z1 - 1);
-    scene.add(south);
-    const east = new THREE.Mesh(new THREE.BoxGeometry(2, KERB_H + 0.04, 12),
-      [walkDarkM, kerbFaceM, wet(flat(walkTex(2, 12))), walkDarkM, walkDarkM, walkDarkM]);
-    east.position.set(SIDE_X1 + 1, (KERB_H + 0.04) / 2 - 0.04, (SIDE_Z0 + SIDE_Z1) / 2 - 1);
-    scene.add(east);
-  }
+  const ground = buildGround({ scene, flat, wet, KERB_H, SIDE_Z0, SIDE_Z1, SIDE_X1, asphalt: asphaltTex });
   const sidewalkY = KERB_H; // prop base height on the walks
   const lineT = pixTex(8, 32, (g) => { g.fillStyle = '#b8a24e'; g.fillRect(2, 0, 4, 18); });
   lineT.wrapS = lineT.wrapT = THREE.RepeatWrapping;
@@ -132,12 +103,21 @@ export function makeCrosstown(): Proto {
   // ── the block's furniture, and the weather over it ─────────────────────
   const props = buildProps(ctx);
 
-  // parked cars — a mixed fleet in the parking lanes
+  // parked cars — a mixed fleet in the parking lanes, parked by PEOPLE.
+  // Four cars sitting at exactly ±PARK_X with 0.02 rad of yaw read as a
+  // machined row, so: the distance off the kerb varies by ~0.3 m, the yaw
+  // spread is up to 0.1 rad and not all one way, and the gaps between them
+  // are deliberately uneven. The hatch is the badly-parked one — out from
+  // the kerb AND crooked — because one obvious offender does more than
+  // nudging all four. Nobody parks in the hydrant's red zone (z -9.5…-2.5).
+  //
+  // Hard limit: |x| + 1.05 (the collider half-width) must stay under
+  // ROAD_HALF, or a parked car's box lands on the sidewalk.
   const parked: [CarKind, number, number, number, number][] = [
-    ['sedan', 1, PARK_X, -15, 0.02],
-    ['pickup', 3, -PARK_X, -34, Math.PI - 0.03],
-    ['hatch', 5, PARK_X, -58, -0.02],
-    ['van', 2, -PARK_X, -76, Math.PI + 0.02],
+    ['sedan', 1, PARK_X + 0.03, -13, 0.035],          // snug to the kerb, near square
+    ['pickup', 3, -(PARK_X - 0.10), -33, Math.PI - 0.075], // a touch out, nose in
+    ['hatch', 5, PARK_X - 0.27, -49, -0.10],          // the offender: out and crooked
+    ['van', 2, -(PARK_X + 0.02), -78, Math.PI + 0.025], // tucked in tight
   ];
   const carColliders: AABB[] = [];
   const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
@@ -218,6 +198,10 @@ export function makeCrosstown(): Proto {
     groundY: (x, z) => {
       if (x > 230) return apt.setGy(0);  // bodega interior, flat
       if (x > 100) return apt.ground(x, z);
+      // the kerb returns are curved and the corner one ramps — the ground
+      // module owns those patches and answers null everywhere else
+      const k = ground.gy(x, z);
+      if (k !== null) return apt.setGy(k);
       if (z < SIDE_Z0 + 2) { // the corner and the side street
         if (z > SIDE_Z0) return apt.setGy(Math.abs(x) > ROAD_HALF ? KERB_H : 0);
         if (z < SIDE_Z1) return apt.setGy(KERB_H);
