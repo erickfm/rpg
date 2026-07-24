@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex } from './paint';
+import { pixTex, dither } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          canTopTex, paperTex, scrapTex } from './tex-world';
@@ -352,6 +352,89 @@ export function buildProps(ctx: CtxBuild): Props {
     p.position.set(s2 * (ROAD_HALF - 0.5 - rnd() * 2.4), 0.012, -5 - rnd() * (L - 16));
     scene.add(p);
   }
+
+  // ── the 42 stop: a flag on a pole, and a bench ──────────────────────────
+  //
+  // Period-correct for '97: a painted metal flag sign on a slim pole, and a
+  // slat bench carrying an advertisement. No shelter, no timetable case, no
+  // real-time sign — those come later. The bench ad faces the ROADWAY, which
+  // is why these benches sit with their backs to the kerb: the advertiser is
+  // buying the eyes of passing traffic, not the riders'.
+  //
+  // Placement is constrained by the walking lane, which this user guards.
+  // Everything here hugs the kerb INSIDE the envelope the lamp poles already
+  // set (they block out to x ≈ 6.11 with the rig's 0.36 m radius, and the
+  // wall bites at 6.34): the bench reaches only 5.66, so it never becomes the
+  // narrowest point on the walk. The spot is the long clear run between the
+  // tree at z = −29.5 and the lamp at z = −51, clear of the Whitmore door.
+  const STOP_Z = -33.5, BENCH_Z = -36.6;
+  const metalM = new THREE.MeshBasicMaterial({ color: 0x2b3138 });
+  const flatT2 = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+
+  // the flag sign — dark blue field, white pictogram, route number
+  const flagT = pixTex(32, 44, (g) => {
+    g.fillStyle = '#e8e4d8'; g.fillRect(0, 0, 32, 44);
+    g.fillStyle = '#2c4a7a'; g.fillRect(1, 1, 30, 42);
+    g.fillStyle = '#e8e4d8'; g.fillRect(2, 12, 28, 20);
+    // a little bus, side on
+    g.fillStyle = '#2c4a7a'; g.fillRect(5, 16, 22, 11);
+    g.fillStyle = '#e8e4d8';
+    for (let x = 7; x < 25; x += 5) g.fillRect(x, 18, 3, 4);
+    g.fillStyle = '#2c4a7a'; g.fillRect(7, 27, 3, 2); g.fillRect(22, 27, 3, 2);
+    g.fillStyle = '#e8e4d8';
+    g.font = 'bold 8px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('BUS', 16, 7);
+    g.fillText('42', 16, 38);
+  });
+  const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.5, 0.08), metalM);
+  pole.position.set(ROAD_HALF + 0.32, sidewalkY + 1.25, STOP_Z);
+  scene.add(pole);
+  // the flag faces UP-STREET so it reads to an approaching bus (and to you,
+  // walking down the block); it is painted on both faces like a real one
+  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.58, 0.04), flatT2(flagT));
+  flag.position.set(ROAD_HALF + 0.32, sidewalkY + 2.16, STOP_Z);
+  scene.add(flag);
+  obstacle({ minX: ROAD_HALF + 0.23, maxX: ROAD_HALF + 0.41, minZ: STOP_Z - 0.09, maxZ: STOP_Z + 0.09 });
+
+  // the bench: slat seat, slat back, cast ends, ad panel to the road
+  const slatT = pixTex(48, 12, (g) => {
+    g.fillStyle = '#6a5a42'; g.fillRect(0, 0, 48, 12);
+    g.fillStyle = 'rgba(0,0,0,0.32)';
+    for (let y = 3; y < 12; y += 4) g.fillRect(0, y, 48, 1);   // slat gaps
+    g.fillStyle = 'rgba(255,255,255,0.12)';
+    for (let y = 0; y < 12; y += 4) g.fillRect(0, y, 48, 1);
+    dither(g, 48, 12, 40);
+  });
+  const adT = pixTex(96, 22, (g) => {
+    g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 96, 22);
+    g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 96, 6);
+    g.fillStyle = '#e8e4d8'; g.font = 'bold 5px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText("TONY'S PIZZA", 48, 3);
+    g.fillStyle = '#2b3138'; g.font = 'bold 6px monospace';
+    g.fillText('555-0143', 48, 12);
+    g.fillStyle = '#6a6458'; g.font = '5px monospace';
+    g.fillText('TWO SLICES $1.75', 48, 18);
+    dither(g, 96, 22, 50);
+  });
+  const BX0 = ROAD_HALF + 0.10;   // backrest, hard against the kerb
+  const BX1 = ROAD_HALF + 0.66;   // front of the seat
+  // material order is [+x, -x, +y, -y, +z, -z]; the ad goes on -x, the ROAD
+  // side, where the traffic it was sold to can see it
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.44, 1.8),
+    [flatT2(slatT), flatT2(adT), metalM, metalM, metalM, metalM]);
+  back.position.set(BX0, sidewalkY + 0.68, BENCH_Z);
+  scene.add(back);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.06, 1.8),
+    [metalM, metalM, flatT2(slatT), metalM, metalM, metalM]);
+  seat.position.set((BX0 + BX1) / 2, sidewalkY + 0.44, BENCH_Z);
+  scene.add(seat);
+  for (const s of [-1, 1]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.46, 0.07), metalM);
+    end.position.set((BX0 + BX1) / 2, sidewalkY + 0.23, BENCH_Z + s * 0.87);
+    scene.add(end);
+  }
+  obstacle({ minX: BX0 - 0.05, maxX: BX1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
   return {
     setLampNight: (v) => {

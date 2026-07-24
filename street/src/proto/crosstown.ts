@@ -15,7 +15,7 @@ import { L, ROAD_HALF, WALK, FACE, PARK_X, DRIVE_X, FOG_NEAR, FOG_FAR, rnd } fro
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround } from './ct/tex-ground';
-import { type CarKind, makeCar } from './ct/cars';
+import { type CarKind, makeCar, makeBus } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { type Fit, citizenAtlas, viewFor } from './ct/citizens';
@@ -129,13 +129,13 @@ export function makeCrosstown(): Proto {
     const cb = { minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] };
     carColliders.push(cb); citAvoid.push(cb);
   });
-  // traffic: one car on the block at a time, entering from a foggy end,
-  // driving through, and leaving. Usually a plain car — the taxi is a rare
-  // sight, maybe one pass in seven.
-  const traffic = [
-    makeCar('sedan', 2), makeCar('hatch', 4), makeCar('van', 5), makeCar('sedan', 3),
-    makeCar('sedan', 0, true), // the taxi, last in the pool
-  ];
+  // traffic: one vehicle on the block at a time, entering from a foggy end,
+  // driving through, and leaving. Usually a plain car; the taxi is a rare
+  // sight and the 42 bus rarer still — roughly one pass in nine.
+  const plain = [makeCar('sedan', 2), makeCar('hatch', 4), makeCar('van', 5), makeCar('sedan', 3)];
+  const taxi = makeCar('sedan', 0, true);
+  const bus = makeBus();
+  const traffic = [...plain, taxi, bus];
   traffic.forEach((c) => { c.visible = false; scene.add(c); });
   let cruiser = traffic[0];
   let cruiseDir = -1;
@@ -272,6 +272,16 @@ export function makeCrosstown(): Proto {
       if (pitch !== undefined) rig.pitch = pitch;
     },
     clock: (h: number, m = 0) => { totalMin = h * 60 + m; },
+    // test affordance: the 42 is rare on purpose, so put it on the block now
+    bus: (z = -20, dir: 1 | -1 = -1) => {
+      cruiser = bus;
+      cruiseDir = dir;
+      const lx = (bus.userData.laneX ?? DRIVE_X) as number;
+      cruiser.position.set(dir === -1 ? lx : -lx, 0, z);
+      cruiser.rotation.y = dir === -1 ? 0 : Math.PI;
+      cruiser.visible = true;
+      cruiseWait = 0;
+    },
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => citizens.map((c) => (c.tex.image as HTMLCanvasElement).toDataURL()),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
@@ -396,17 +406,24 @@ export function makeCrosstown(): Proto {
       }
       // traffic: one car at a time drives through, entering from whichever
       // end the player can't see into
+      // each vehicle carries its own lane offset, length and speed, so the
+      // bus can hug the centre line (it is too wide to share the cars' lane
+      // without brushing the parked ones) and roll slower than they do
+      const laneX = () => (cruiser.userData.laneX ?? DRIVE_X) as number;
       if (cruiseWait > 0) {
         cruiseWait -= dt;
         if (cruiseWait <= 0) {
-          cruiser = traffic[rnd() < 0.15 ? traffic.length - 1 : Math.floor(rnd() * (traffic.length - 1))];
+          // mostly a plain car; the taxi about one pass in seven, the bus
+          // about one in nine
+          const roll = rnd();
+          cruiser = roll < 0.11 ? bus : roll < 0.26 ? taxi : plain[Math.floor(rnd() * plain.length)];
           cruiseDir = pz < -L / 2 ? -1 : 1; // enter from the end farther from the player
-          cruiser.position.set(cruiseDir === -1 ? DRIVE_X : -DRIVE_X, 0, cruiseDir === -1 ? 8 : -L + 6);
+          cruiser.position.set(cruiseDir === -1 ? laneX() : -laneX(), 0, cruiseDir === -1 ? 8 : -L + 6);
           cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
           cruiser.visible = true;
         }
       } else {
-        cruiser.position.z += cruiseDir * 8.5 * dt;
+        cruiser.position.z += cruiseDir * ((cruiser.userData.speed ?? 8.5) as number) * dt;
         const endZ = cruiseDir === -1 ? -L + 6 : 8;
         if (cruiseDir === -1 ? cruiser.position.z < endZ : cruiser.position.z > endZ) {
           if (Math.abs(pz - endZ) > 25) {
@@ -415,17 +432,18 @@ export function makeCrosstown(): Proto {
           } else {
             // the player is watching this corner — turn around, don't vanish
             cruiseDir = -cruiseDir;
-            cruiser.position.x = cruiseDir === -1 ? DRIVE_X : -DRIVE_X;
+            cruiser.position.x = cruiseDir === -1 ? laneX() : -laneX();
             cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
           }
         }
       }
-      // its collider follows (parked far away while no car is out)
+      // its collider follows (parked far away while nothing is out)
       if (cruiser.visible) {
-        cruiserBox.minX = cruiser.position.x - 1.05;
-        cruiserBox.maxX = cruiser.position.x + 1.05;
-        cruiserBox.minZ = cruiser.position.z - 2.5;
-        cruiserBox.maxZ = cruiser.position.z + 2.5;
+        const hl = (cruiser.userData.halfLen ?? 2.5) as number;
+        cruiserBox.minX = cruiser.position.x - 1.15;
+        cruiserBox.maxX = cruiser.position.x + 1.15;
+        cruiserBox.minZ = cruiser.position.z - hl;
+        cruiserBox.maxZ = cruiser.position.z + hl;
       } else {
         cruiserBox.minX = cruiserBox.maxX = cruiserBox.minZ = cruiserBox.maxZ = 999;
       }

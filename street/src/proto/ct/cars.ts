@@ -126,6 +126,164 @@ function loftCabin(
   return new THREE.Mesh(geo, [glassM, roofM, sideM]);
 }
 
+// ═══════════════════════════════ the bus ══════════════════════════════════
+//
+// A 30-foot city transit bus. The RTS — the American city bus of this era —
+// was built in 30/35/40 ft lengths at 96 or 102 in wide; the 30 is the only
+// one that clears the parked cars on a street this narrow, so that is what
+// runs this route. Period details, not invented: sliding PLUG doors front
+// and rear, a roller destination sign (electronic signs existed by '97 but
+// rollsigns were still everywhere), and a painted livery band — full vinyl
+// wraps came later. Flat-sided rather than the RTS's famous curved panels:
+// at 21 px/m a curve reads as noise, so the curve is implied in the paint.
+//
+// Doors are on LOCAL +x. The traffic system flips the bus 180° to run the
+// other way, which swings local +x to the other side of the road — so the
+// doors face the kerb in BOTH directions without any special-casing.
+const BUS_LEN = 9.1, BUS_HW = 1.1, BUS_H = 2.35, BUS_Y0 = 0.5;
+const BUS_AXLE_F = -2.9, BUS_AXLE_R = 2.6;
+const BUS_PX = 21;   // px per metre, matching the cars' 96 px / 4.5 m
+
+function busSideTex(doors: boolean, body: string, band: string): THREE.Texture {
+  const W = Math.round(BUS_LEN * BUS_PX), H = Math.round(BUS_H * BUS_PX);
+  return pixTex(W, H, (g) => {
+    g.fillStyle = body; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, 0, W, 3);   // roof edge
+    // window band
+    const wy0 = 8, wy1 = 26;
+    g.fillStyle = '#1b2028'; g.fillRect(4, wy0 - 1, W - 8, wy1 - wy0 + 2);
+    for (let x = 6; x < W - 6; x += 13) {
+      g.fillStyle = '#33465a'; g.fillRect(x, wy0, 10, wy1 - wy0);
+      g.fillStyle = 'rgba(255,255,255,0.20)'; g.fillRect(x + 1, wy0 + 1, 3, wy1 - wy0 - 2);
+    }
+    // livery band under the glass, then the darker skirt
+    g.fillStyle = band; g.fillRect(0, 30, W, 6);
+    g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(0, 30, W, 1);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 40, W, H - 40);
+    // wheel arches at the real axle positions
+    g.fillStyle = '#0a0b0e';
+    for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
+      const ax = Math.round(((wz + BUS_LEN / 2) / BUS_LEN) * W);
+      g.beginPath(); g.arc(ax, H, 10, Math.PI, 0); g.fill();
+    }
+    if (doors) {
+      // sliding plug doors: front single leaf behind the front axle, rear
+      // double leaf ahead of the rear axle. Glazed nearly to the floor.
+      for (const [wz, wide] of [[-2.35, 0.95], [1.5, 1.25]] as [number, number][]) {
+        const dx = Math.round(((wz + BUS_LEN / 2) / BUS_LEN) * W);
+        const dw = Math.round(wide * BUS_PX);
+        g.fillStyle = '#20262e'; g.fillRect(dx, 5, dw, 34);
+        g.fillStyle = '#39485c'; g.fillRect(dx + 2, 8, dw - 4, 28);
+        g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(dx + 3, 9, 2, 26);
+        g.fillStyle = '#c9c4b4'; g.fillRect(dx, 5, dw, 1); g.fillRect(dx, 38, dw, 1);
+        g.fillStyle = '#20262e'; g.fillRect(dx + Math.round(dw / 2) - 1, 5, 2, 34); // leaf split
+      }
+    }
+    dither(g, W, H, 90);
+  });
+}
+
+function busFrontTex(body: string, band: string): THREE.Texture {
+  return pixTex(48, 48, (g) => {
+    g.fillStyle = body; g.fillRect(0, 0, 48, 48);
+    g.fillStyle = '#1b2028'; g.fillRect(3, 9, 42, 20);   // windshield
+    g.fillStyle = '#33465a'; g.fillRect(5, 11, 38, 16);
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(6, 12, 10, 14);
+    g.fillStyle = band; g.fillRect(0, 31, 48, 5);
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(0, 40, 48, 8);   // bumper shadow
+    g.fillStyle = '#e8e4c0'; g.fillRect(4, 37, 8, 5); g.fillRect(36, 37, 8, 5); // headlights
+    g.fillStyle = '#c9c4b4'; g.fillRect(0, 43, 48, 3);            // bumper
+    dither(g, 48, 48, 40);
+  });
+}
+
+function busRearTex(body: string, band: string): THREE.Texture {
+  return pixTex(48, 48, (g) => {
+    g.fillStyle = body; g.fillRect(0, 0, 48, 48);
+    g.fillStyle = '#1b2028'; g.fillRect(6, 8, 36, 15);   // rear window
+    g.fillStyle = '#2c3a4a'; g.fillRect(8, 10, 32, 11);
+    g.fillStyle = band; g.fillRect(0, 31, 48, 5);
+    g.fillStyle = 'rgba(0,0,0,0.35)';                    // engine grille
+    for (let y = 26; y < 30; y += 2) g.fillRect(10, y, 28, 1);
+    g.fillStyle = '#8a1c1c'; g.fillRect(3, 37, 8, 6); g.fillRect(37, 37, 8, 6);
+    g.fillStyle = '#c9c4b4'; g.fillRect(0, 44, 48, 3);
+    dither(g, 48, 48, 40);
+  });
+}
+
+function busRoofTex(body: string): THREE.Texture {
+  return pixTex(32, 96, (g) => {
+    g.fillStyle = body; g.fillRect(0, 0, 32, 96);
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    g.fillRect(8, 10, 16, 12);   // roof hatches
+    g.fillRect(8, 62, 16, 14);   // a/c hump
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(8, 10, 16, 1); g.fillRect(8, 62, 16, 1);
+    dither(g, 32, 96, 50);
+  });
+}
+
+// the roller sign: a linen roll behind glass, lit from inside
+function busRollTex(): THREE.Texture {
+  return pixTex(80, 14, (g) => {
+    g.fillStyle = '#0e0f12'; g.fillRect(0, 0, 80, 14);
+    g.fillStyle = '#141519'; g.fillRect(1, 1, 78, 12);
+    g.fillStyle = '#d8b048';
+    g.font = 'bold 9px monospace';
+    g.textAlign = 'left'; g.textBaseline = 'middle';
+    g.fillText('42', 4, 7);
+    g.font = 'bold 8px monospace';
+    g.fillText('CROSSTOWN', 20, 7);
+  });
+}
+
+/** the block's bus — a Group shaped like the cars so the traffic pool can
+ *  drive it without knowing what it is */
+export function makeBus(): THREE.Group {
+  const body = '#b9b2a2';          // municipal cream, weathered
+  const band = '#3f5a52';          // muted transit-authority green
+  const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+  const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
+  const g = new THREE.Group();
+
+  // one tall slab carries the whole body; the paint does the shaping
+  const sideDoors = flatT(busSideTex(true, body, band));
+  const sidePlain = flatT(busSideTex(false, body, band));
+  const shell = new THREE.Mesh(
+    new THREE.BoxGeometry(BUS_HW * 2, BUS_H, BUS_LEN),
+    [sideDoors, sidePlain, flatT(busRoofTex(body)), darkM,
+      flatT(busRearTex(body, band)), flatT(busFrontTex(body, band))],
+  );
+  shell.position.y = BUS_Y0 + BUS_H / 2;
+  g.add(shell);
+
+  // roof cap, slightly inset — breaks the silhouette so it isn't one brick
+  const cap = new THREE.Mesh(
+    new THREE.BoxGeometry(BUS_HW * 2 - 0.16, 0.12, BUS_LEN - 0.5),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(body).multiplyScalar(0.94) }),
+  );
+  cap.position.set(0, BUS_Y0 + BUS_H + 0.05, 0);
+  g.add(cap);
+
+  // the roller sign, above the windshield
+  const roll = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.26, 0.06), flatT(busRollTex()));
+  roll.position.set(0, BUS_Y0 + BUS_H - 0.30, -BUS_LEN / 2 - 0.02);
+  g.add(roll);
+
+  // wheels: front axle well forward, rear axle set back, as on a real bus
+  const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+  const capM = flatT(hubcapTex());
+  for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
+    w.rotation.z = Math.PI / 2;
+    w.position.set(wx, 0.44, wz);
+    g.add(w);
+  }
+  g.userData.halfLen = BUS_LEN / 2;   // the traffic collider is longer for this one
+  g.userData.laneX = 1.35;            // hugs the centre line to clear parked cars
+  g.userData.speed = 6.4;             // and it is slower than the cars
+  return g;
+}
+
 export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
   const body = taxi ? '#c9a12e' : CAR_COLORS[colorIdx % CAR_COLORS.length];
   const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
