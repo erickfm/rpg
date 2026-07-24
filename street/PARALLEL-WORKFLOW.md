@@ -117,6 +117,30 @@ dominates anything small. So:
 **Collision rule:** a request that lands in a module a builder already owns does
 not start a second agent. It goes to that builder as a follow-up, or waits.
 
+### Always name the owner, out loud
+
+**Every time Erick gives the desk something, the reply must say which agent it
+went to.** Not a summary at the end of a batch — per request, every time.
+
+> "Tree tufts → **me** (desk, `tex-world.ts`), landing in a minute."
+> "Church tower → **builder D**, queued behind the BURGER BARN palette."
+
+Why it matters:
+
+- **Routing is invisible otherwise.** The desk hides who-owns-what by design
+  (§3), and the cost of that convenience is that Erick cannot tell whether a
+  request is being done now, queued behind six others, or dropped.
+- **It makes reordering possible.** If he can see something landed behind a
+  ten-item queue, he can say "jump that". He cannot ask for a priority change
+  he cannot see. The bodega corner sat behind lower-value work for three
+  separate asks because the queue position was never stated.
+- **It surfaces desk mistakes early.** Saying "→ builder D" out loud when D
+  already has ten items is the moment the desk should notice the queue is
+  wrong. Written down, it is obvious; unwritten, it accumulates.
+
+State the queue position too when it is not immediate: *"builder C, third in
+line, roughly 20 minutes"* beats *"sent to builder C"*.
+
 ---
 
 ## 5. Prerequisites (do these before adding a second agent)
