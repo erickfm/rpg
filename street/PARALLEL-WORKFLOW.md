@@ -142,12 +142,22 @@ not start a second agent. It goes to that builder as a follow-up, or waits.
       regions. They need a deliberately designed context object, not a
       mechanical extraction. Until then, treat `crosstown.ts` as one owner.
 
-- [ ] **Make the preview port env-driven.** One line per script:
-      `const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';`
-      Then each agent gets its own port: 4177 desk, 4178 builder A, 4179 B.
-- [ ] **Create `street/notes/`** for handoff notes (§7).
+- [x] **Make the preview port env-driven.** Done — all 19 scripts honour
+      `SHOT_URL`. Each agent gets its own port: 5177 the live world, 4178+ per
+      builder.
+- [x] **Create `street/notes/`** for handoff notes (§7).
 - [ ] **Stamp the build.** Render the short commit sha somewhere in-frame so
-      playtest feedback can be tied to a specific build (§8).
+      playtest feedback can be tied to a specific build (§9). Still not done,
+      and stale-build feedback has cost real work twice.
+
+**Stage 2b landed too** (a builder did it): `crosstown.ts` 1213 → ~440 lines,
+with `ct/apartment.ts`, `ct/hud.ts`, `ct/props.ts` and `ct/ctx.ts` split out.
+The `lastGy` floor-picker became module-owned with `gy()`/`setGy()`. Later
+splits added `ct/tex-ground.ts` (kerb/gutter/walk) and `ct/cat.ts`.
+
+**The file that is now the monolith is `ct/street.ts`** — every building, the
+alley and the corner. It is where one builder accumulated a ten-item queue.
+Split it the same way before putting more than one agent on the block.
 
 ### Worktree setup
 
@@ -322,6 +332,125 @@ Two known ways feedback goes bad here:
   when the session is mostly tuning.
 - **Never spin up an agent for a request smaller than its brief.** If writing
   the brief takes longer than the change, the desk just does it.
+
+---
+
+## 11. The desk's own failure modes
+
+The desk is the single point of failure and it fails **silently**. Every one of
+these happened in one session:
+
+| failure | what it looked like | the rule |
+|---|---|---|
+| **Stopped merging** | 7 builder commits stranded on branches for an hour, then 13 more. Work reached the user only through the live world, unverified and unbuildable-on. | Merge after *every* builder task. A branch with commits on it is a bug. |
+| **Went heads-down building** | Spent a long stretch writing the watch. In that window a builder stalled 42 min with 0 commits, another broke the live world, and nobody noticed. | The desk does not take long IC tasks. Small changes yes; anything needing sustained focus goes to a builder. |
+| **Let one builder become a queue** | One agent held ~10 items on one file. That is not a team, it is a serial worker with extra steps. | If a builder's queue exceeds ~2 items, the file needs splitting, not the queue lengthening. |
+| **Bookkeeping ate the clock** | 43% of desk commits were logging-only. Every one is latency the user waits through. | Batch the log. Ship first, write it up at a breakpoint. |
+| **Edited another builder's file** | Extracted `cat.ts` out of `street.ts` while a builder was in it. Broke the live merge; repairing it corrupted a third worktree. | **File ownership beats speed, even for one-liners.** A queued one-liner costs a minute; a cross-builder conflict costs ten plus a broken world. |
+
+The meta-lesson: **a parallel setup has a coordination job that must run
+continuously.** The moment the coordinator starts building, everything stalls
+and nothing announces it.
+
+---
+
+## 12. How to give a builder feedback
+
+This turned out to matter more than how briefs are written, because most builder
+time is spent on *corrections*, not first drafts.
+
+**Diagnose, don't instruct.** The single highest-leverage habit. Examples that
+all paid off:
+
+- *"the l is backwards"* → the real finding was **the whole sign is mirrored**;
+  H, O and T are symmetrical so they hide it. Patching the L would have shipped
+  a broken E. The instruction became "audit every sign for back-face rendering".
+- *red kerb speckle* → not "make it less noisy" but **the kerb face is 1–2
+  texels tall; any fine detail on it must alias**. That produced a general rule
+  for thin faces instead of a fourth failed attempt.
+- *cars turning brown* → not "tune the lighting" but **lerping toward amber
+  replaces the colour instead of warming it; multiply the base instead**.
+- *"what is this?" (a litter can)* → **it was a billboard**, which always rotates
+  to face you, so a side-view can stands on end as a card when you look down.
+
+A builder given a symptom fixes one instance. A builder given the cause fixes
+the class and stops reintroducing it.
+
+**Lead with what is approved, quoting the user.** Builders regress liked work
+while fixing something adjacent. Every correction should open with the specific
+things to protect — *"the user said 'this corner looks so good'; the gutter,
+rounded kerb and corner return are landed and approved, do not disturb them"*.
+
+**Two failures, then delete.** If a detail has been redrawn twice and still
+misses, remove it. The trash bags took two passes; the red kerb took four
+before this rule was applied. Say it in the brief: *"if you cannot make it read
+within these rules, delete it and say so in your handoff."*
+
+**Never interrupt mid-task.** Corrections mid-flight reset a builder's context
+and stretch a 20-minute job into an hour. Queue them as the next task, and say
+explicitly *"finish and commit what you are on first."*
+
+**Verify claims before relaying them.** A user report of *"the neighbour is
+still flat"* looked like a builder failure. Reading the code showed the 8-angle
+atlas was implemented correctly — he simply stood in a doorway where only one
+angle is ever visible. The fix was to move him, not to redo the work.
+
+---
+
+## 13. The integration world
+
+Builders work in isolated worktrees, but the user needs **one** world to play
+that shows everything at once, or feedback is always about a stale build.
+
+`scripts/live-integrate.sh` rebuilds a `live` branch every 15s as
+*mainline + every worktree's current state*, and `rpg-live` is served on 5177.
+
+Three hazards, all hit for real:
+
+1. **`git stash create` silently ignores untracked files.** A new module a
+   builder had written but not committed never reached the live world while
+   everything importing it did — "cannot find module". Snapshot through a
+   separate `GIT_INDEX_FILE` instead, which captures untracked files without
+   touching the worktree's real index, files or branch.
+2. **`node_modules/` with a trailing slash does not match a symlink.** The
+   per-worktree symlinks leaked into every merge and blocked it. Also: a
+   `reset --hard` can delete the live worktree's own symlink, which silently
+   breaks the dev server.
+3. **One builder mid-edit can break the world.** The integrator now typechecks
+   the merged result and, if it fails, rebuilds from base adding worktrees one
+   at a time, **dropping whichever one is broken**. The user keeps a working
+   world; the broken builder stops appearing until it is green.
+
+Corollary: **`live` is a scratch branch**, rebuilt from scratch each cycle.
+Real merges into the mainline still go through rebase + typecheck + build.
+Nothing half-finished enters real history.
+
+---
+
+## 14. Working with taste
+
+Most requests here are judgements, not specifications. Three things that helped:
+
+**Comparison rigs beat iteration.** The alley cat took four rounds one-at-a-time
+and was still wrong. Rendering **six variants side by side** in one screenshot
+resolved it in two. When a request is "make it nicer", build a rig showing N
+options at once and let the user point. It is usually cheaper than one more
+round trip.
+
+**Parameterise only after the shape is approved.** Once the user picked two
+silhouettes out of six, those became templates taking a "coat" description, and
+twelve more variants cost one line each. Parameterising *before* approval just
+multiplies the wrong thing.
+
+**Keep the machinery after shipping one.** Only one cat shipped, but the
+`alert`/`curl` templates and the coat options stayed. Four rounds of iteration
+became reusable structure rather than being thrown away.
+
+**Read the request for the constraint underneath it.** *"Steps up to a library"*
+plus a 2 m sidewalk with zero setback is a contradiction; the resolution
+(recess the entrance into the building mass) is the actual answer and neither
+half of the request states it. Finding that is the desk's job, not the
+builder's.
 
 ---
 
