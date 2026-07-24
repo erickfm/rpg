@@ -7,11 +7,11 @@
 
 ## Now
 
-- [ ] **Get green.** 3 commits behind mainline and conflicting on
-      `ct/citizens.ts`. Rebase on `add-stick-and-city98`; keep BOTH the desk's
-      profile-feet fix (`view === 2` gets longer, nearly-overlapping shoes) and
-      your variety work. Nothing you have built is visible to the user until
-      this lands — the integrator drops broken worktrees from the live world.
+- [ ] **Get green.** Conflicting on `ct/citizens.ts`, which another builder
+      rewrote and which is now merged. Do NOT merge yours —
+      `git checkout add-stick-and-city98 -- street/src/proto/ct/citizens.ts`,
+      then rebase and commit. Nothing you have built is visible to the user
+      until this lands; the integrator drops broken worktrees.
 
 ## Next
 
@@ -36,13 +36,9 @@
 - [ ] **Parking should VARY, including perfect.** Not four hand-tuned offsets —
       draw from a distribution off the seeded `rnd()` so some land near-perfect,
       one or two are off, and occasionally one is badly crooked.
-- [ ] **Citizen variety.** Height/build ±8–10% with independent width. Wider
-      speed range, and STRIDE MUST SCALE WITH SPEED — the walk cycle currently
-      advances on a fixed phase, so fast and slow walkers take the same size
-      steps, which reads wrong. Varied skin tones with hair matched sensibly;
-      hair shape variety; gender through build/hair/clothing rather than the
-      single `dress` fit. Target: no two people on screen look like the same
-      person recoloured.
+- [ ] ~~Citizen variety~~ — **DONE BY ANOTHER BUILDER, do not redo.** Landed on
+      mainline: build/skin/hair/garment/pace with stride tied to speed. Take
+      mainline's `ct/citizens.ts` wholesale if yours conflicts.
 
 ## Done
 
