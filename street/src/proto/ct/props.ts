@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pixTex } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
-import { treeSprite, treePitTex, hydrantSprite, pigeonSprite, payphoneTex } from './tex-world';
+import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex } from './tex-world';
 import type { CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -72,15 +72,19 @@ export function buildProps(ctx: CtxBuild): Props {
   // RADIUS is 0.42 and the building wall's collider already reaches x≈6.28,
   // so the trunk collider must be tight and kerb-hugging to leave a real lane:
   // trunk to 5.48 + 0.42 = walkable from x≈5.9, wall from x≈6.28 → ~0.4 m clear.
-  const pitGeo = new THREE.PlaneGeometry(0.8, 2.0);
+  // Width 0.8 is deliberate and stays — it's what leaves a real lane past the
+  // tree. Length was 2.0 (two whole slabs down the walk, which read as a long
+  // trench); 1.0 is a single slab, so the pit is a square-ish bed like a real
+  // tree well instead of a strip.
+  const pitGeo = new THREE.PlaneGeometry(0.8, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
     const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
-    const H = 80 + Math.floor(rnd() * 28);          // 4.0 – 5.4 m, trunk-only variation
-    const tree = board(treeSprite(treeIdx % 2, H), 32 * TREE_PX, H * TREE_PX, tx, pz2);
+    const H = 106 + Math.floor(rnd() * 30);         // 5.3 – 6.8 m; crown clears head height
+    const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
     pit.rotation.x = -Math.PI / 2;

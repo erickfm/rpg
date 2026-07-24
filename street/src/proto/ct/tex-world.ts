@@ -99,24 +99,52 @@ export function walkTex(wMeters: number, dMeters: number): THREE.Texture {
 }
 
 // the sprite tree — a painted cutout that turns to face you, Quake-style.
-// Crown pixels are fixed; H only stretches the trunk (taller never means
-// bigger).
-export function treeSprite(k: number, H = 84): THREE.Texture {
-  // slim street tree: crown 1.6 m wide, bottom of crown well above head
-  // height, trunk narrow enough to slip past on a 2 m walk
-  return pixTex(32, H, (g) => {
-    g.fillStyle = '#4a3626'; g.fillRect(13, 38, 6, H - 38);
-    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(13, 38, 2, H - 38);
-    const greens = k === 1 ? ['#425c2e', '#364c26', '#527038'] : ['#2e5a30', '#25482a', '#3f7038'];
-    const blobs: [number, number, number][] = [[16, 17, 13], [8, 25, 8], [24, 23, 8], [10, 10, 7], [22, 11, 7], [16, 29, 9]];
-    blobs.forEach(([x, y, r], i) => {
-      g.fillStyle = greens[i % 3];
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-    });
-    for (let i = 0; i < 60; i++) {
-      const a = Math.random() * Math.PI * 2, rr = Math.random() * 12;
+//
+// The crown is WIDER than the walk on purpose: a real street tree's canopy
+// overhangs the kerb and the road. It clears head height, and collision is
+// trunk-only, so the sidewalk stays as walkable as it was — the crown is
+// allowed to be generous because you walk *under* it.
+export const TREE_W = 64;   // texels; × TREE_PX(0.05) = 3.2 m of canopy
+
+// Every tree is seeded off its own index, so no two share a silhouette,
+// palette or size. `v` is the tree's index, not a 0/1 variant.
+export function treeSprite(v: number, H = 96): THREE.Texture {
+  let s = Math.imul(v + 1, 2654435761) >>> 0;
+  const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+  const PAL = [
+    ['#2e5a30', '#25482a', '#3f7038'],
+    ['#425c2e', '#364c26', '#527038'],
+    ['#38562f', '#2a4326', '#4a6c36'],
+    ['#2b5236', '#22412c', '#3a6a42'],
+  ][v % 4];
+  const cx = TREE_W / 2;
+  const cy = 29 + Math.floor(r() * 6);          // crown centre
+  const R = 21 + Math.floor(r() * 8);           // core radius (was a flat 13)
+  const squash = 0.86 + r() * 0.3;              // some crowns rounder, some taller
+  const lobes = 5 + Math.floor(r() * 3);
+  return pixTex(TREE_W, H, (g) => {
+    // trunk runs from inside the crown to the ground, so no gap ever shows
+    const tTop = Math.floor(cy + R * squash) - 5;
+    g.fillStyle = '#4a3626'; g.fillRect(cx - 3, tTop, 6, H - tTop);
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(cx - 3, tTop, 2, H - tTop);
+    // solid core first, then bushy lobes around its edge — reads as one mass
+    // rather than a ring of disconnected blobs
+    g.fillStyle = PAL[0];
+    g.beginPath(); g.ellipse(cx, cy, R, R * squash, 0, 0, Math.PI * 2); g.fill();
+    for (let i = 0; i < lobes; i++) {
+      const a = (i / lobes) * Math.PI * 2 + r() * 0.8;
+      const d = R * (0.5 + r() * 0.45);
+      const lr = R * (0.4 + r() * 0.3);
+      g.fillStyle = PAL[i % 3];
+      g.beginPath();
+      g.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d * squash, lr, 0, Math.PI * 2);
+      g.fill();
+    }
+    // dapples, clamped inside the crown so no stray pixels float off it
+    for (let i = 0; i < 110; i++) {
+      const a = Math.random() * Math.PI * 2, rr = Math.random() * R * 1.05;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
-      g.fillRect(Math.floor(16 + Math.cos(a) * rr), Math.floor(18 + Math.sin(a) * rr * 0.95), 2, 2);
+      g.fillRect(Math.floor(cx + Math.cos(a) * rr), Math.floor(cy + Math.sin(a) * rr * squash), 2, 2);
     }
   });
 }
