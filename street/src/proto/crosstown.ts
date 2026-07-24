@@ -123,7 +123,9 @@ function asphaltTex(): THREE.Texture {
   return t;
 }
 
-function walkTex(): THREE.Texture {
+// one 64px tile = a 2×2 block of 1 m slabs. Callers pass the surface size
+// so the slab grid is exactly 1 m everywhere — walks, corners, all of it.
+function walkTex(wMeters: number, dMeters: number): THREE.Texture {
   const t = pixTex(64, 64, (g) => {
     g.fillStyle = '#84817a'; g.fillRect(0, 0, 64, 64);
     g.fillStyle = 'rgba(0,0,0,0.25)';
@@ -132,38 +134,46 @@ function walkTex(): THREE.Texture {
     dither(g, 64, 64, 500);
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(1, 40);
+  t.repeat.set(wMeters / 2, dMeters / 2);
   return t;
 }
 
 // the sprite tree — a painted cutout that turns to face you, Quake-style.
 // Crown pixels are fixed; H only stretches the trunk (taller never means
 // bigger).
-function treeSprite(k: number, H = 96): THREE.Texture {
-  return pixTex(64, H, (g) => {
-    g.fillStyle = '#4a3626'; g.fillRect(28, 58, 8, H - 58);
-    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(28, 58, 2, H - 58);
+function treeSprite(k: number, H = 84): THREE.Texture {
+  // slim street tree: crown 1.6 m wide, bottom of crown well above head
+  // height, trunk narrow enough to slip past on a 2 m walk
+  return pixTex(32, H, (g) => {
+    g.fillStyle = '#4a3626'; g.fillRect(13, 38, 6, H - 38);
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(13, 38, 2, H - 38);
     const greens = k === 1 ? ['#425c2e', '#364c26', '#527038'] : ['#2e5a30', '#25482a', '#3f7038'];
-    const blobs: [number, number, number][] = [[32, 34, 26], [18, 44, 16], [46, 42, 15], [26, 22, 14], [42, 24, 12], [32, 40, 18]];
+    const blobs: [number, number, number][] = [[16, 17, 13], [8, 25, 8], [24, 23, 8], [10, 10, 7], [22, 11, 7], [16, 29, 9]];
     blobs.forEach(([x, y, r], i) => {
       g.fillStyle = greens[i % 3];
       g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
     });
-    for (let i = 0; i < 90; i++) {
-      const a = Math.random() * Math.PI * 2, rr = Math.random() * 24;
+    for (let i = 0; i < 60; i++) {
+      const a = Math.random() * Math.PI * 2, rr = Math.random() * 12;
       g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
-      g.fillRect(Math.floor(32 + Math.cos(a) * rr), Math.floor(34 + Math.sin(a) * rr * 0.9), 2, 2);
+      g.fillRect(Math.floor(16 + Math.cos(a) * rr), Math.floor(18 + Math.sin(a) * rr * 0.95), 2, 2);
     }
   });
 }
 
+// the pit replaces a 2×2 block of sidewalk slabs: concrete rim at slab
+// tone, joint shadows on the edges, soil inset — it FITS the grid
 function treePitTex(): THREE.Texture {
-  return pixTex(32, 32, (g) => {
-    g.fillStyle = '#77776e'; g.fillRect(0, 0, 32, 32);  // concrete rim
-    g.fillStyle = '#3e2f20'; g.fillRect(3, 3, 26, 26);  // soil
-    for (let i = 0; i < 70; i++) {
+  return pixTex(38, 38, (g) => {
+    g.fillStyle = '#84817a'; g.fillRect(0, 0, 38, 38);
+    g.fillStyle = 'rgba(0,0,0,0.25)';
+    g.fillRect(0, 0, 38, 1); g.fillRect(0, 37, 38, 1);
+    g.fillRect(0, 0, 1, 38); g.fillRect(37, 0, 1, 38);
+    g.fillStyle = '#3e2f20'; g.fillRect(4, 4, 30, 30);
+    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(4, 4, 30, 2); // soil sits low
+    for (let i = 0; i < 80; i++) {
       g.fillStyle = Math.random() < 0.5 ? '#4a3826' : '#30241a';
-      g.fillRect(3 + Math.floor(Math.random() * 25), 3 + Math.floor(Math.random() * 25), 2, 1);
+      g.fillRect(4 + Math.floor(Math.random() * 29), 5 + Math.floor(Math.random() * 28), 2, 1);
     }
   });
 }
@@ -557,10 +567,10 @@ function citizenAtlas(jacket: string, pants: string, skin: string, hair: string,
             g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
             g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 4, 4, 16);
             g.fillStyle = skin; g.fillRect(cx - 6, oy + 12, 4, 6);
-          } else { // front views: rim frames the face, cowl at the neck
+          } else { // front views: rim frames the face — chin stays clear
             g.fillRect(cx - 7, oy + 4, 14, 4);
             g.fillRect(cx - 7, oy + 6, 2, 14); g.fillRect(cx + 5, oy + 6, 2, 14);
-            g.fillRect(cx - 7, oy + 18, 14, 2);
+            g.fillRect(cx - 7, oy + 18, 3, 2); g.fillRect(cx + 4, oy + 18, 3, 2);
             g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
             g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 5, oy + 4, 2, 16);
             g.fillStyle = '#e8e4d8';
@@ -609,14 +619,14 @@ export function makeCrosstown(): Proto {
   // raised sidewalks with a visible curb face
   const KERB_H = 0.14;
   const kerbFaceM = new THREE.MeshBasicMaterial({ color: 0x97928a });
-  const walkTopM = flat(walkTex());
   const walkDarkM = new THREE.MeshBasicMaterial({ color: 0x6a675f });
   for (const s of [-1, 1]) {
-    const mats = s > 0
-      ? [walkDarkM, kerbFaceM, walkTopM, walkDarkM, walkDarkM, walkDarkM]  // -x face is the kerb
-      : [kerbFaceM, walkDarkM, walkTopM, walkDarkM, walkDarkM, walkDarkM]; // +x face is the kerb
     const zBot = s > 0 ? SIDE_Z0 : SIDE_Z1 - 2; // west walk wraps the corner
     const len = 16.5 - zBot;
+    const topM = flat(walkTex(WALK, len));
+    const mats = s > 0
+      ? [walkDarkM, kerbFaceM, topM, walkDarkM, walkDarkM, walkDarkM]  // -x face is the kerb
+      : [kerbFaceM, walkDarkM, topM, walkDarkM, walkDarkM, walkDarkM]; // +x face is the kerb
     const walk = new THREE.Mesh(new THREE.BoxGeometry(WALK, KERB_H + 0.04, len), mats);
     walk.position.set(s * (ROAD_HALF + WALK / 2), (KERB_H + 0.04) / 2 - 0.04, (16.5 + zBot) / 2);
     scene.add(walk);
@@ -624,15 +634,15 @@ export function makeCrosstown(): Proto {
   // side-street walks: north (in front of the corner shops), south, east end
   {
     const north = new THREE.Mesh(new THREE.BoxGeometry(50, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, walkTopM, walkDarkM, walkDarkM, kerbFaceM]);
+      [walkDarkM, walkDarkM, flat(walkTex(50, 2)), walkDarkM, walkDarkM, kerbFaceM]);
     north.position.set(32, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z0 + 1);
     scene.add(north);
     const south = new THREE.Mesh(new THREE.BoxGeometry(64, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, walkTopM, walkDarkM, kerbFaceM, walkDarkM]);
+      [walkDarkM, walkDarkM, flat(walkTex(64, 2)), walkDarkM, kerbFaceM, walkDarkM]);
     south.position.set(25, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z1 - 1);
     scene.add(south);
     const east = new THREE.Mesh(new THREE.BoxGeometry(2, KERB_H + 0.04, 12),
-      [walkDarkM, kerbFaceM, walkTopM, walkDarkM, walkDarkM, walkDarkM]);
+      [walkDarkM, kerbFaceM, flat(walkTex(2, 12)), walkDarkM, walkDarkM, walkDarkM]);
     east.position.set(SIDE_X1 + 1, (KERB_H + 0.04) / 2 - 0.04, (SIDE_Z0 + SIDE_Z1) / 2 - 1);
     scene.add(east);
   }
@@ -1007,52 +1017,44 @@ export function makeCrosstown(): Proto {
     cardboard.position.set(-12.9, 0.6, AZ1 + 0.26);
     cardboard.rotation.x = -0.35;
     scene.add(cardboard);
-    // graffiti, the real forms: a THROW-UP is two colors — fat overlapping
-    // bubble letters, outline + fill + a shine — and a TAG is one color,
-    // one fast line, leaned and rhythmic. No neat baselines, no stickers.
-    const throwUpTex = (word: string, fill: string, outline: string) => pixTex(56, 22, (g) => {
-      const n = word.length, cw = 46 / n;
-      for (let i = 0; i < n; i++) {
-        g.save();
-        g.translate(6 + cw * (i + 0.5), 10 + (i % 2 ? 1.5 : -1));
-        g.rotate((i % 2 ? 1 : -1) * 0.13);
-        g.fillStyle = fill;
-        g.beginPath(); g.ellipse(0, 0, cw * 0.64, 8.5, 0, 0, Math.PI * 2); g.fill();
-        g.strokeStyle = outline; g.lineWidth = 1.6;
-        g.beginPath(); g.ellipse(0, 0, cw * 0.64, 8.5, 0, 0, Math.PI * 2); g.stroke();
-        g.fillStyle = outline;
-        g.font = 'bold 11px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText(word[i], 0, 0.5);
-        g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(-cw * 0.3, -6, 3, 2);
-        g.restore();
-      }
-      g.fillStyle = fill;
-      g.fillRect(12, 18, 1, 4); g.fillRect(38, 19, 1, 3); // drips
-    });
-    const handTagTex = (word: string, ink: string) => pixTex(48, 16, (g) => {
-      g.fillStyle = ink;
-      g.font = 'bold italic 10px monospace';
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      const n = word.length;
-      for (let i = 0; i < n; i++) {
-        g.save();
-        g.translate(8 + (32 / (n - 1)) * i, 7 + ((i * 7) % 3) - 1); // tight, jittered baseline
-        g.rotate(-0.16 + (i % 3) * 0.08);
-        g.fillText(word[i], 0, 0);
-        g.restore();
-      }
-      g.fillRect(6, 12, 34, 1); g.fillRect(38, 10, 4, 1); g.fillRect(41, 8, 2, 1); // underline swoosh, tail up
-      g.fillRect(10, 13, 1, 3); // drip
-    });
+    // LA graffiti — cholo placa lineage (Bojórquez/Prime, not East-Coast
+    // bubbles): ALL CAPS square block letters stood shoulder to shoulder,
+    // upright, ONE color, hard underline. Hand-built 5×7 glyphs so the
+    // strokes are square, not font curves.
+    const PLACA: Record<string, [number, number, number, number][]> = {
+      R: [[0, 0, 1, 7], [0, 0, 4, 1], [4, 1, 1, 2], [0, 3, 4, 1], [2, 4, 1, 1], [3, 5, 1, 1], [4, 6, 1, 1]],
+      E: [[0, 0, 1, 7], [0, 0, 5, 1], [0, 3, 4, 1], [0, 6, 5, 1]],
+      Z: [[0, 0, 5, 1], [4, 1, 1, 1], [3, 2, 1, 1], [2, 3, 1, 1], [1, 4, 1, 1], [0, 5, 1, 1], [0, 6, 5, 1]],
+      O: [[0, 0, 5, 1], [0, 6, 5, 1], [0, 1, 1, 5], [4, 1, 1, 5]],
+      S: [[0, 0, 5, 1], [0, 1, 1, 2], [0, 3, 5, 1], [4, 4, 1, 2], [0, 6, 5, 1]],
+      N: [[0, 0, 1, 7], [4, 0, 1, 7], [1, 1, 1, 2], [2, 3, 1, 1], [3, 4, 1, 2]],
+      A: [[0, 1, 1, 6], [4, 1, 1, 6], [1, 0, 3, 1], [1, 3, 3, 1]],
+      K: [[0, 0, 1, 7], [3, 0, 1, 1], [2, 1, 1, 1], [1, 2, 1, 2], [2, 4, 1, 1], [3, 5, 1, 1], [4, 6, 1, 1]],
+      B: [[0, 0, 1, 7], [0, 0, 4, 1], [4, 1, 1, 2], [0, 3, 4, 1], [4, 4, 1, 2], [0, 6, 4, 1]],
+    };
+    const placaTex = (word: string, ink: string) => {
+      const W = word.length * 7 + 3;
+      return pixTex(W, 20, (g) => {
+        g.fillStyle = ink;
+        for (let i = 0; i < word.length; i++) {
+          const x0 = 2 + i * 7;
+          for (const [sx, sy, sw, sh] of PLACA[word[i]] ?? []) {
+            g.fillRect(x0 + sx, 1 + sy * 2, sw, sh * 2); // ×2 tall — soldiers, not squares
+          }
+        }
+        g.fillRect(2, 17, W - 6, 1); // the hard underline
+        g.fillRect(W - 5, 16, 2, 1); // finished with a flick
+      });
+    };
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
       m.position.set(x, y, z);
       m.rotation.y = ry;
       scene.add(m);
     };
-    tag(throwUpTex('REZO', '#a8485e', '#2a2026'), 1.9, 0.75, -9.6, 1.45, AZ0 - 0.05, Math.PI);
-    tag(handTagTex('SNAK', '#3a6e64'), 1.5, 0.5, -11.6, 1.1, AZ1 + 0.05, 0);
-    tag(handTagTex('KOBRA', '#c9c4b0'), 1.45, 0.48, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
+    tag(placaTex('REZO', '#16161a'), 1.7, 1.1, -9.6, 1.45, AZ0 - 0.05, Math.PI);
+    tag(placaTex('SNAK', '#c9c4b0'), 1.35, 0.87, -11.6, 1.15, AZ1 + 0.05, 0);
+    tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
   // ── No. 227 — the player's walk-up ──────────────────────────────────────
@@ -1757,20 +1759,21 @@ export function makeCrosstown(): Proto {
   // trunk is solid so the sidewalk stays walkable
   const TREE_PX = 0.05; // world units per texel
   const pitT = treePitTex();
-  const pitGeo = new THREE.PlaneGeometry(1.5, 1.5);
+  const pitGeo = new THREE.PlaneGeometry(1.9, 1.9); // a 2×2 slab block, minus the joint
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
-    const tx = s * (ROAD_HALF + 0.9);
-    const H = 92 + Math.floor(rnd() * 36); // 4.6 – 6.4 m via trunk length alone
-    const tree = board(treeSprite(treeIdx % 2, H), 64 * TREE_PX, H * TREE_PX, tx, z);
+    const tx = s * (ROAD_HALF + WALK / 2);          // dead centre of the walk
+    const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
+    const H = 80 + Math.floor(rnd() * 28);          // 4.0 – 5.4 m, trunk-only variation
+    const tree = board(treeSprite(treeIdx % 2, H), 32 * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
     pit.rotation.x = -Math.PI / 2;
-    pit.position.set(tx, sidewalkY + 0.006, z);
+    pit.position.set(tx, sidewalkY + 0.006, pz2);
     scene.add(pit);
-    propColliders.push({ minX: tx - 0.3, maxX: tx + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
+    propColliders.push({ minX: tx - 0.25, maxX: tx + 0.25, minZ: pz2 - 0.25, maxZ: pz2 + 0.25 });
     treeIdx++;
   }
   // hydrant on the right sidewalk

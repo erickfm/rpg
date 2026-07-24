@@ -11,6 +11,17 @@ published to the playable artifact.
 
 ## Done — 2026-07-24 quality pass, continued
 
+- **LA graffiti** — researched cholo placa lineage (Bojórquez/Prime):
+  hand-built 5×7 square block glyphs, ALL CAPS shoulder-to-shoulder,
+  upright, one color (black/silver), hard underline with a flick. No
+  bubbles, no lean.
+- **Trees walkable + fitted** — crown slimmed to 1.6 m (fits inside the
+  2 m walk, bottom well above head height); sidewalk slabs are now a
+  uniform 1 m grid on every walk, and the dirt pits are exact 2×2-slab
+  blocks snapped to that grid.
+- **Hoodie chin** — removed the jacket-colored cowl band that covered
+  the chin in front views.
+
 - **Sprite trees restored** — the low-poly canopy trees were worse: lost
   the Quake-style rotating-sprite look and blocked the sidewalk. Back to
   the painted cutouts, keeping the good parts: fixed crown texels (taller
