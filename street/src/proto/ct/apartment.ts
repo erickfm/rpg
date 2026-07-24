@@ -379,14 +379,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(NIB_Z1));
       scene.add(post);
     }
-    // lobby: dead space boxed in under the stairs
+    // lobby: the dead space under the half landing stays boxed in, full
+    // width. The east half of the shaft NEARER the hall used to be boxed too
+    // — a flat navy panel that read as a blue wall — and is the basement
+    // stair now; see further down, once the glow material exists.
     const underM = new THREE.MeshBasicMaterial({ color: 0x1a1b21 });
-    const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
-    uA.position.set(AX(1.8), 0.65, AZI((STAIR_Z0 + LAND_Z1) / 2));
-    scene.add(uA);
-    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, LAND_Z1 - STAIR_Z1), underM);
-    uB.position.set(AX(0.6), 0.65, AZI((STAIR_Z1 + LAND_Z1) / 2));
-    scene.add(uB);
+    const underLand = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.3, LAND_Z1 - STAIR_Z1), underM);
+    underLand.position.set(AX(1.2), 0.65, AZI((STAIR_Z1 + LAND_Z1) / 2));
+    scene.add(underLand);
     // doors up the floors — 301 is a real opening; 302 is the hermit's
     const doorTexN = (num: string) => pixTex(32, 64, (g) => {
       g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
@@ -540,6 +540,106 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // where there is no next landing — the building's top ceiling
       if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + RISE - 0.14 : H, AZI((STAIR_Z1 + LAND_Z1) / 2 + 0.3), 0.52);
     }
+    // ── the basement stair ───────────────────────────────────────────────
+    // The east half of the shaft at lobby level was a flat navy box filling
+    // the dead space under flight B, and it read as a blue wall. It is an
+    // opening now: a short flight going down into the dark behind a
+    // padlocked chain-link gate. You can see down it; you cannot go down it.
+    //
+    // Nothing here changes where you can walk, and that is deliberate.
+    // underStairA already blocks this whole half of the shaft whenever you
+    // are on the lobby floor, and the gate stands on that collider's near
+    // face — so the thing that stops you is the thing you can SEE stopping
+    // you, and the floor-picker is never asked for a height down here at
+    // all. There is no way to fall in, because there is nothing to fall to:
+    // the collider is the same one that has always been there.
+    const CX0 = AX(1.2), CX1 = AX(2.4), CZ0 = AZI(STAIR_Z0), CZ1 = AZI(STAIR_Z1);
+    const CW = CX1 - CX0, CD = CZ1 - CZ0, CELL_FLOOR = -2.5, CH = -CELL_FLOOR;
+    const CXM = (CX0 + CX1) / 2, CZM = (CZ0 + CZ1) / 2;
+    const cellarT = pixTex(32, 32, (g) => {
+      g.fillStyle = '#26272d'; g.fillRect(0, 0, 32, 32);
+      g.fillStyle = 'rgba(0,0,0,0.4)';
+      for (let y = 0; y < 32; y += 8) g.fillRect(0, y, 32, 1);   // board-formed concrete
+      for (let x = 0; x < 32; x += 16) g.fillRect(x, 0, 1, 32);
+      g.fillStyle = 'rgba(255,255,255,0.05)';
+      for (let i = 0; i < 12; i++) g.fillRect((i * 7) % 30, (i * 11) % 30, 2, 1);
+      dither(g, 32, 32, 140);
+    });
+    const cellarSurf = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, flat = false) => {
+      const t = cellarT.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(w / 1.6, h / 1.6);
+      t.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide }));
+      m.position.set(cx, cy, cz);
+      if (flat) m.rotation.x = -Math.PI / 2; else m.rotation.y = ry;
+      scene.add(m);
+    };
+    cellarSurf(CD, CH, CX0, CELL_FLOOR + CH / 2, CZM, Math.PI / 2);
+    cellarSurf(CW, CH, CXM, CELL_FLOOR + CH / 2, CZ0, 0);
+    cellarSurf(CW, CD, CXM, CELL_FLOOR, CZM, 0, true);
+    // The east and far walls carry ON UP past the lobby floor, because they
+    // are what you look AT through the gate. Left at floor level they
+    // stopped, and you saw the lit stairwell wallpaper behind the mesh —
+    // which read as a fenced-off bit of corridor rather than a hole going
+    // down. Rough concrete all the way up is also just what the underside of
+    // a stair enclosure is. The far one stops at 1.15 so it stays clear of
+    // flight B's bottom tread coming in overhead.
+    cellarSurf(CD, CH + 2.2, CX1 - 0.01, CELL_FLOOR + (CH + 2.2) / 2, CZM, -Math.PI / 2);
+    cellarSurf(CW, CH + 1.15, CXM, CELL_FLOOR + (CH + 1.15) / 2, CZ1 - 0.02, Math.PI);
+    // the flight: seven steps, and then it is too dark to see the rest
+    const cellStepM = new THREE.MeshBasicMaterial({ color: 0x34353b });
+    const C_RISER = 0.21, C_TREAD = 0.26;
+    for (let i = 0; i < 7; i++) {
+      const st = new THREE.Mesh(new THREE.BoxGeometry(CW - 0.08, 0.1, C_TREAD + 0.04), cellStepM);
+      st.position.set(CXM, -(i + 1) * C_RISER - 0.05, CZ0 + (i + 0.5) * C_TREAD);
+      scene.add(st);
+    }
+    // barely lit — one dim bulb far enough down that you get the bottom of
+    // the flight and nothing else. A basement you can peer into beats a wall.
+    const cellGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), new THREE.MeshBasicMaterial({
+      map: glowT, transparent: true, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x4a4136,
+    }));
+    cellGlow.position.set(CXM, -1.85, CZ1 - 0.4);
+    boards.push({ m: cellGlow });
+    scene.add(cellGlow);
+    // the gate. Chain link drawn as texels: a canvas stroke would antialias
+    // into exactly the grey mush the door numbers had.
+    const linkT = pixTex(24, 24, (g) => {
+      g.clearRect(0, 0, 24, 24);
+      g.fillStyle = '#aeb4bc';
+      for (let i = 0; i < 24; i++) for (const o of [0, 8, 16]) {
+        g.fillRect((i + o) % 24, i, 1, 1);
+        g.fillRect((((o - i) % 24) + 24) % 24, i, 1, 1);
+      }
+    });
+    linkT.wrapS = linkT.wrapT = THREE.RepeatWrapping;
+    linkT.repeat.set((CW - 0.1) / 0.3, 1.95 / 0.3);
+    const GZ = CZ0 + 0.03;
+    const gate = new THREE.Mesh(new THREE.PlaneGeometry(CW - 0.1, 1.95), new THREE.MeshBasicMaterial({
+      map: linkT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
+    }));
+    gate.position.set(CXM, 0.99, GZ);
+    scene.add(gate);
+    const gateM = new THREE.MeshBasicMaterial({ color: 0x41464d });
+    const bar = (w: number, h: number, d: number, cx: number, cy: number) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), gateM);
+      m.position.set(cx, cy, GZ);
+      scene.add(m);
+    };
+    bar(CW, 0.07, 0.07, CXM, 1.96);                  // head
+    bar(CW, 0.07, 0.07, CXM, 0.04);                  // threshold
+    bar(0.07, 2.0, 0.07, CX0 + 0.04, 1.0);           // stiles
+    bar(0.07, 2.0, 0.07, CX1 - 0.04, 1.0);
+    bar(CW, 0.05, 0.05, CXM, 1.16);                  // mid rail
+    bar(0.16, 0.05, 0.05, CXM, 1.05);                // hasp across the meeting stile
+    const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.1, 0.035), new THREE.MeshBasicMaterial({ color: 0x8a7440 }));
+    lockBody.position.set(CXM, 0.95, GZ - 0.05);
+    scene.add(lockBody);
+    const shackle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.06, 0.022), new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }));
+    shackle.position.set(CXM, 1.03, GZ - 0.05);
+    scene.add(shackle);
     // lobby dressing: mailboxes and the front door
     const mailT = pixTex(48, 32, (g) => {
       g.fillStyle = '#2c2620'; g.fillRect(0, 0, 48, 32);

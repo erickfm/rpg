@@ -64,6 +64,13 @@ const SHOTS = [
   ['rail-rake-down', AX(1.85), AZ(9.4), at(-0.5, 1.2), ST + 0.7, -0.18],
   ['rail-newel', AX(0.7), AZ(7.2), at(0.4, 1.3), 0, -0.20],
 
+  // ── the basement stair behind its gate ──────────────────────────────────
+  ['cellar-approach', AX(1.2), AZ(6.0), at(0.6, 2.4), 0, -0.16],
+  ['cellar-gate', AX(1.8), AZ(7.6), at(0, 0.8), 0, -0.30],
+  ['cellar-down', AX(1.8), AZ(7.9), at(0, 0.5), 0, -0.62],
+  ['cellar-lock', AX(1.8), AZ(7.9), at(0, 0.5), 0, -0.12],
+  ['cellar-oblique', AX(0.7), AZ(7.4), at(1.1, 1.0), 0, -0.26],
+
   // ── door number plates ──────────────────────────────────────────────────
   // 401/301 hang on the WEST wall at AX(0.02); 102/302 on the EAST at AX(2.38)
   ['plate-401', AX(1.2), AZ(5.0), at(-1.18, -1.5), 3 * ST, 0.12],
