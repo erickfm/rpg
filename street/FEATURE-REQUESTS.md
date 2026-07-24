@@ -9,6 +9,19 @@ published to the playable artifact.
 
 ## In progress
 
+## Done — 2026-07-24 quality pass (commit 8842d05)
+
+- **Rain never falls indoors** — cuts instantly on entering a building.
+- **Stairwell overhauled**: dimmed interior (darker wallpaper, painted
+  per-storey ceiling shadows), solid centre core wall, sloped flight
+  undersides, real handrails, legible door plates.
+- **Graffiti redrawn from research**: REZO is a proper two-color
+  throw-up (overlapping bubbles, shine, drips); SNAK and KOBRA are
+  one-line handstyle tags. Names are invented writer pseudonyms.
+- **Watch reverted** to the wrist-only close-up per playtest.
+- **Working mode**: smaller batches, screenshot-review every piece
+  against the early rounds' bar before shipping.
+
 ## Done — 2026-07-24 round 4 (live in artifact)
 
 - **Graffiti + trash bags style-matched** — tags redrawn at shop-sign
