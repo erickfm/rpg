@@ -176,6 +176,40 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
       ell(cx + t * RX * 1.2, cy - RY * (0.40 + r() * 0.18), RX * 0.26, RY * 0.20, LIT);
     }
 
+    // A LOWER TUFT — a small bushel further down the trunk, offset to one
+    // side. The side branch carrying it is deliberately NOT drawn: the eye
+    // infers it, and drawing a twig at this texel size just makes a smudge.
+    // Not every tree gets one, and a few get two, so the row down the block
+    // does not repeat.
+    const tufts = r() < 0.30 ? 0 : (r() < 0.78 ? 1 : 2);
+    for (let t = 0; t < tufts; t++) {
+      const side = r() < 0.5 ? -1 : 1;
+      const ty = cy + RY + 9 + Math.floor(r() * 7) + t * 11;
+      const tx = cx + side * (RX * (0.34 + r() * 0.26));
+      const trx = RX * (0.26 + r() * 0.12), try_ = RY * (0.24 + r() * 0.11);
+      ell(tx, ty, trx, try_, MID);
+      ell(tx + side * trx * 0.3, ty + try_ * 0.35, trx * 0.62, try_ * 0.6, DARK);
+      ell(tx - side * trx * 0.25, ty - try_ * 0.4, trx * 0.5, try_ * 0.42, LIT);
+      // same ragged treatment as the crown so it belongs to the same tree
+      g.save(); g.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + r() * 0.4;
+        g.beginPath();
+        g.ellipse(tx + Math.cos(a) * trx * (0.92 + r() * 0.2),
+                  ty + Math.sin(a) * try_ * (0.92 + r() * 0.2),
+                  0.9 + r() * 1.3, 0.9 + r() * 1.2, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.restore();
+      // a few leaf specks so it reads as foliage, not a green pebble
+      for (let i = 0; i < 14; i++) {
+        const a = Math.random() * Math.PI * 2, rr = Math.random();
+        g.fillStyle = Math.random() < 0.5 ? 'rgba(206,224,148,0.45)' : 'rgba(12,28,12,0.35)';
+        g.fillRect(Math.floor(tx + Math.cos(a) * rr * trx * 0.85),
+                   Math.floor(ty + Math.sin(a) * rr * try_ * 0.85), 2, 2);
+      }
+    }
+
     // fine leaf speckle, kept inside the crown
     for (let i = 0; i < 70; i++) {
       const a = Math.random() * Math.PI * 2, rr = Math.random();
