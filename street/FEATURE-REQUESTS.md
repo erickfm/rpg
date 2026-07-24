@@ -104,6 +104,13 @@ published to the playable artifact.
   texel-aligned size, and tone the plate to brass or brushed aluminium
   rather than pure white.
 
+- **The neighbour is a flat cutout.** See `shots/user-hermit.png`. The
+  hermit is a single front-facing sprite — it never turns. Every person on
+  the street already uses the Quake-style 8-angle billboard
+  (`citizenAtlas` 5 views x 2 frames + `viewFor(rel)` picking the sector in
+  `ct/citizens.ts`). The neighbour should use that same system so he reads
+  as a person in the world rather than a standee.
+
 - **Night should feel darker.** The dusk/night curve doesn't get dark
   enough; night reads as dim evening rather than night.
 
