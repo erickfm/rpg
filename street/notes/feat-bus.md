@@ -86,6 +86,21 @@ lane. `window.__ct.bus(z, dir)` puts it on the block on demand and
 - `shots/bs-clearance.png` — the bus against the parked cars it squeezes past.
 - `shots/bs-northbound.png` — running the other way, doors to the far kerb.
 
+### Bench rebuild (feedback, commit `3a922ec`)
+
+The first bench was a billboard with a slab near it. Rebuilt as an actual
+bench: horizontal slat seat at 0.45 m, backrest rising from the seat's back
+edge to 0.88 m, four legs, and a contact shadow on the flags. **The ad is the
+backrest**, not a panel standing behind the seat — that is how ad benches are
+built. Bench metal is its own material instance so the lamplight registry
+can't pin it to the sign pole 3 m away.
+
+Sign height: I set the flag bottom to **2.20 m** above the walk, the low end
+of the 2.2–2.5 m standard quoted to me. Worth knowing that it was previously
+at **1.87 m**, i.e. *below* that range — so this change raised it ~33 cm
+rather than lowering it. If it still reads as too high, the standard is the
+thing to argue with, and `FLAG_BOT` in `ct/props.ts` is the single number.
+
 ### Left undone / for whoever picks this up
 
 - **A bus stop is a no-parking zone, and my own red-kerb rule in
