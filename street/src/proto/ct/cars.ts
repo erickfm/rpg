@@ -144,7 +144,7 @@ const BUS_LEN = 9.1, BUS_HW = 1.1, BUS_H = 2.35, BUS_Y0 = 0.5;
 const BUS_AXLE_F = -2.9, BUS_AXLE_R = 2.6;
 const BUS_PX = 21;   // px per metre, matching the cars' 96 px / 4.5 m
 
-function busSideTex(doors: boolean, body: string, band: string): THREE.Texture {
+function busSideTex(doors: boolean, body: string, band: string, open = false): THREE.Texture {
   const W = Math.round(BUS_LEN * BUS_PX), H = Math.round(BUS_H * BUS_PX);
   return pixTex(W, H, (g) => {
     g.fillStyle = body; g.fillRect(0, 0, W, H);
@@ -173,10 +173,22 @@ function busSideTex(doors: boolean, body: string, band: string): THREE.Texture {
         const dx = Math.round(((wz + BUS_LEN / 2) / BUS_LEN) * W);
         const dw = Math.round(wide * BUS_PX);
         g.fillStyle = '#20262e'; g.fillRect(dx, 5, dw, 34);
-        g.fillStyle = '#39485c'; g.fillRect(dx + 2, 8, dw - 4, 28);
-        g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(dx + 3, 9, 2, 26);
+        if (open) {
+          // leaves slid back against the jambs, dark saloon and step well
+          // showing between them — this is what sells a bus that has stopped
+          g.fillStyle = '#0b0d10'; g.fillRect(dx + 2, 7, dw - 4, 31);
+          g.fillStyle = '#1d232b'; g.fillRect(dx + 3, 30, dw - 6, 8);   // step well
+          const leaf = Math.max(2, Math.round(dw * 0.22));
+          for (const lx of [dx + 1, dx + dw - leaf - 1]) {
+            g.fillStyle = '#39485c'; g.fillRect(lx, 8, leaf, 28);
+            g.fillStyle = 'rgba(255,255,255,0.20)'; g.fillRect(lx + 1, 9, 1, 26);
+          }
+        } else {
+          g.fillStyle = '#39485c'; g.fillRect(dx + 2, 8, dw - 4, 28);
+          g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(dx + 3, 9, 2, 26);
+          g.fillStyle = '#20262e'; g.fillRect(dx + Math.round(dw / 2) - 1, 5, 2, 34); // leaf split
+        }
         g.fillStyle = '#c9c4b4'; g.fillRect(dx, 5, dw, 1); g.fillRect(dx, 38, dw, 1);
-        g.fillStyle = '#20262e'; g.fillRect(dx + Math.round(dw / 2) - 1, 5, 2, 34); // leaf split
       }
     }
     dither(g, W, H, 90);
@@ -247,6 +259,7 @@ export function makeBus(): THREE.Group {
 
   // one tall slab carries the whole body; the paint does the shaping
   const sideDoors = flatT(busSideTex(true, body, band));
+  const sideOpen = flatT(busSideTex(true, body, band, true));
   const sidePlain = flatT(busSideTex(false, body, band));
   const shell = new THREE.Mesh(
     new THREE.BoxGeometry(BUS_HW * 2, BUS_H, BUS_LEN),
@@ -281,6 +294,16 @@ export function makeBus(): THREE.Group {
   g.userData.halfLen = BUS_LEN / 2;   // the traffic collider is longer for this one
   g.userData.laneX = 1.35;            // hugs the centre line to clear parked cars
   g.userData.speed = 6.4;             // and it is slower than the cars
+  // the kerb-side door panel swaps to a leaves-open version while it stands
+  // at the stop. Front door is at local z = -2.35, which is what the sim
+  // lines up with the flag pole.
+  g.userData.doorZ = -2.35;
+  let shown = false;
+  g.userData.setDoors = (open: boolean) => {
+    if (open === shown) return;
+    shown = open;
+    (shell.material as THREE.Material[])[0] = open ? sideOpen : sideDoors;
+  };
   return g;
 }
 

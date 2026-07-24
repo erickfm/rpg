@@ -140,6 +140,15 @@ export function makeCrosstown(): Proto {
   let cruiser = traffic[0];
   let cruiseDir = -1;
   let cruiseWait = 5; // gap between cars
+  // the 42 actually calls at the stop. Only SOUTHBOUND: the doors are on the
+  // bus's local +x, which is the east kerb only when it faces -z, and the
+  // stop is on the east walk. A northbound bus is serving the other side of
+  // the route and sails past — the pair stop across the street isn't built.
+  const STOP_FLAG_Z = -33.5;                       // the flag pole (ct/props.ts)
+  const BUS_STOP_Z = STOP_FLAG_Z - (bus.userData.doorZ as number); // centre when the door lines up
+  let cruiseSpd = 0;      // eased, so the bus brakes and pulls away smoothly
+  let busDwell = 0;       // seconds left standing at the stop
+  let busServed = false;  // this run has already called
   const cruiserBox: AABB = { minX: 999, maxX: 999, minZ: 999, maxZ: 999 };
   citAvoid.push(cruiserBox); // the moving car, too — its box follows it each frame
 
@@ -281,7 +290,13 @@ export function makeCrosstown(): Proto {
       cruiser.rotation.y = dir === -1 ? 0 : Math.PI;
       cruiser.visible = true;
       cruiseWait = 0;
+      cruiseSpd = (bus.userData.speed ?? 8.5) as number;
+      busDwell = 0; busServed = false;
+      bus.userData.setDoors(false);
     },
+    // …and read back what it's doing, so the stop can be verified as motion
+    // rather than guessed at from a still
+    busInfo: () => [bus.position.x, bus.position.z, cruiseSpd, busDwell, busServed ? 1 : 0],
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => citizens.map((c) => (c.tex.image as HTMLCanvasElement).toDataURL()),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
@@ -421,9 +436,28 @@ export function makeCrosstown(): Proto {
           cruiser.position.set(cruiseDir === -1 ? laneX() : -laneX(), 0, cruiseDir === -1 ? 8 : -L + 6);
           cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
           cruiser.visible = true;
+          cruiseSpd = (cruiser.userData.speed ?? 8.5) as number; // already rolling
+          busDwell = 0; busServed = false;
+          bus.userData.setDoors(false);
         }
       } else {
-        cruiser.position.z += cruiseDir * ((cruiser.userData.speed ?? 8.5) as number) * dt;
+        const base = (cruiser.userData.speed ?? 8.5) as number;
+        let want = base;
+        if (cruiser === bus && cruiseDir === -1) {
+          const dz = cruiser.position.z - BUS_STOP_Z;   // metres short of the stop
+          if (!busServed && dz < 16 && dz > -1) {
+            // brake in proportion to what's left, so it arrives at a standstill
+            want = Math.max(0, base * Math.min(1, dz / 11));
+            if (dz < 0.35) { busDwell = 4 + rnd() * 3; busServed = true; }
+          }
+          if (busDwell > 0) { busDwell -= dt; want = 0; }
+          bus.userData.setDoors(busDwell > 0);
+          // and it pulls in to the kerb to serve, then eases back out
+          const tx = (!busServed && dz < 20) || busDwell > 0 || (busServed && dz > -16) ? 3.55 : laneX();
+          cruiser.position.x += (tx - cruiser.position.x) * Math.min(1, dt * 1.2);
+        }
+        cruiseSpd += (want - cruiseSpd) * Math.min(1, dt * 1.7);
+        cruiser.position.z += cruiseDir * cruiseSpd * dt;
         const endZ = cruiseDir === -1 ? -L + 6 : 8;
         if (cruiseDir === -1 ? cruiser.position.z < endZ : cruiser.position.z > endZ) {
           if (Math.abs(pz - endZ) > 25) {
