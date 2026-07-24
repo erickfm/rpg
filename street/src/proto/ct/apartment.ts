@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
 import { ENTRANCE } from './tex-world';
+import { citizenAtlas, viewFor } from './citizens';
 import { FACE } from './rng';
 import type { CtxBuild } from './ctx';
 
@@ -103,6 +104,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
   };
   let hermit!: THREE.Mesh;
+  let hermitTex!: THREE.Texture;
+  // he stands in his doorway on the east wall, so he faces WEST into the
+  // hall. Same convention the street citizens use for `facing`: 0 is +z.
+  const HERMIT_FACING = -Math.PI / 2;
   const sevColliders: AABB[] = [];
   {
     const texM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
@@ -349,27 +354,25 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     leaf.position.set(AX(2.44), 2 * ST + 1.05, AZI(3.06));
     leaf.rotation.y = -Math.PI / 2 + 0.85;
     scene.add(leaf);
-    // the hermit — a big quiet man; you only ever catch him at his door
-    const hermitT = pixTex(44, 64, (g) => {
-      g.fillStyle = '#4a3c30'; g.fillRect(11, 61, 9, 3); g.fillRect(24, 61, 9, 3);
-      g.fillStyle = '#4a4a52'; g.fillRect(9, 43, 11, 19); g.fillRect(24, 43, 11, 19);
-      g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(9, 43, 11, 3); g.fillRect(24, 43, 11, 3);
-      g.fillStyle = '#d8d4c8';
-      g.beginPath(); g.ellipse(22, 32, 16, 13, 0, 0, Math.PI * 2); g.fill();
-      g.fillRect(6, 32, 32, 12);
-      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(6, 39, 32, 5);
-      g.fillStyle = '#c9946a';
-      g.fillRect(2, 25, 6, 15); g.fillRect(36, 25, 6, 15);
-      g.fillStyle = '#c9946a'; g.fillRect(15, 8, 14, 13);
-      g.fillRect(13, 15, 18, 7); // jowls
-      g.fillStyle = '#3a3226'; g.fillRect(13, 7, 18, 3); g.fillRect(12, 8, 3, 5); g.fillRect(29, 8, 3, 5);
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(14, 19, 16, 3);
-      g.fillStyle = '#241a12'; g.fillRect(18, 12, 2, 2); g.fillRect(25, 12, 2, 2);
-      dither(g, 44, 64, 26);
-    });
-    hermit = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 1.96), new THREE.MeshBasicMaterial({ map: hermitT, alphaTest: 0.5, side: THREE.DoubleSide }));
-    hermit.position.set(AX(2.3), 2 * ST + 0.98, AZI(3.5));
-    hermit.rotation.y = -Math.PI / 2;
+    // the hermit — a big quiet man; you only ever catch him at his door.
+    //
+    // He gets exactly what everyone on the street gets: the 5-view × 2-frame
+    // citizen atlas, billboarded, with the far four angles done by mirroring.
+    // He used to be a bespoke single cutout pinned at one fixed rotation, so
+    // he stayed dead-on to you no matter where you stood in the hall — the
+    // one figure in the world that did not turn.
+    //
+    // Same palette he always wore: pale undershirt, dark work trousers.
+    // Scaled up off the standard citizen plane because he is a big man, and
+    // parked on the feet-together frame because he never walks anywhere.
+    hermitTex = citizenAtlas('#d8d4c8', '#4a4a52', '#c9946a', '#3a3226', 'plain');
+    hermitTex.repeat.set(1 / 5, 1 / 2);
+    const hermitGeo = new THREE.PlaneGeometry(0.95, 1.9);
+    hermitGeo.translate(0, 0.95, 0);       // origin at his feet, like the citizens
+    hermit = new THREE.Mesh(hermitGeo, new THREE.MeshBasicMaterial({ map: hermitTex, alphaTest: 0.5, side: THREE.DoubleSide }));
+    hermit.scale.set(1.2, 1.1, 1);
+    hermit.position.set(AX(2.28), 2 * ST, AZI(3.5));
+    boards.push({ m: hermit });            // the sim loop turns him to face you
     scene.add(hermit);
     // ── the hall lights ──────────────────────────────────────────────────
     // A period flush-mount: bronze ceiling rose, shallow ribbed opal dome
@@ -699,7 +702,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     updateCaps,
-    updateHermit: (hAbs) => { hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1; },
+    updateHermit: (hAbs) => {
+      hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+      if (!hermit.visible) return;
+      // The billboard pass in the sim loop has already turned him to face the
+      // player, so his own yaw IS the angle to the camera — no need for the
+      // player's position here, which is why this still takes only the hour.
+      // (It runs a frame behind the billboard pass. On a man who does not
+      // move, one frame of lag is not a thing you can see.)
+      const [col, mirror] = viewFor(hermit.rotation.y - HERMIT_FACING);
+      hermitTex.repeat.x = mirror ? -1 / 5 : 1 / 5;
+      hermitTex.offset.x = mirror ? (col + 1) / 5 : col / 5;
+      hermitTex.offset.y = 0.5;            // standing still: feet together
+    },
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
   };
 }
