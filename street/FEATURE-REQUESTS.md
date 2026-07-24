@@ -9,6 +9,92 @@ published to the playable artifact.
 
 ## In progress
 
+## Done — 2026-07-24 reverts + wet streets + citizen nav
+
+- **Watch reverted.** The arm/fist version was worse — back to the wrist-only
+  close-up. (The `player` outfit config stays for the held wallet + future
+  clothing.)
+- **Tree crowns reverted** to the original bushy sprite (the rewrite looked
+  worse than ever). Kept the kerb-side walkable placement from the earlier
+  pass so you can still slip past them.
+- **Wet streets when it rains.** The roads and sidewalks darken + cool toward
+  a wet slate as the rain builds (tinting the unlit ground materials on the
+  rain curve), so the whole ground reads soaked, not just the falling rain.
+- **Citizens no longer phase through props.** They walk clear home lanes
+  between the kerb clutter and the wall, and actively steer AROUND any solid
+  prop ahead (tree, lamp, hydrant, parked or moving car) — sidestep first,
+  turn back if truly boxed. They still phase only through YOU (and only when
+  stuck), never through the things you collide with.
+
+## Done — 2026-07-24 hands, crowns, citizens, hoodie
+
+- **Hoodie no longer striped.** The torso's shading was two hard 4 px
+  light/dark bands that lined up with the hood shading + bright drawstrings
+  into one vertical stripe. Softened to 2 px rim lighting, dropped the centre
+  seam, dimmed the drawstrings. Reads as rounded cloth now (helps every
+  citizen, not just the hoodie).
+- **Watch has an arm.** First-person: a relaxed fist + wrist + the watch +
+  a sweater forearm running off the bottom of the frame. Sleeve/skin come
+  from a new `player` outfit config — the seam for a real wardrobe later
+  (a tee would just leave the forearm bare). Watch kept at its spot/angle.
+- **Wallet is held, not a menu.** Now an open bifold gripped in both thumbs,
+  centred and sliding up into first-person view like the watch — ID + your
+  pockets on the left leaf, cash on the right. No more corner popup.
+- **Bigger, varied tree crowns.** Rewrote the crown: a solid core + bushy
+  lobes on a wider canvas, with per-tree seeded size/shape/palette so no two
+  heads match. Dapples clamped inside the crown (no more stray streak).
+- **Fire hydrant** gets the tree treatment — kerb-hugging with a tight
+  collider, off the walking lane.
+- **Feet stop when the person stops.** The walk cycle only advances while a
+  citizen is actually moving; halted people stand with feet together instead
+  of marching in place.
+- **Citizen collision: temporary phase.** People are solid and halt a step
+  short, but if held against you for ~1.4 s they give up and squeeze through,
+  going non-solid only until they're clear (>1.4 m), then solid again. Fixes
+  the softlock without making anyone permanently walk-through-able.
+
+## Done — 2026-07-24 walkability + polish pass
+
+- **Trees no longer block the walk.** The trunk + pit sat dead-centre of the
+  2 m walk, and with player RADIUS 0.42 the lanes on either side were ~0.16 m
+  — impassable. The bed is now a 0.8 m planting strip flush against the kerb
+  (road side) with a tight trunk-only collider, opening a ~0.4 m clean lane
+  on the building side. Verified by walking straight past a tree on the
+  sidewalk (8.3 m, no stop).
+- **No more softlock when boxed in.** A citizen walking up behind you while a
+  tree/car/building held the other three sides could wall you in — they were
+  solid and only stopped a step short. Now a citizen's collider is disabled
+  whenever they're within 1.15 m of you: solid at a distance, always
+  passable up close. Swept the block hugging the wall through citizen
+  territory — 0 frames unable to move.
+- **Streetlamp de-junked.** Kept the bishop crook the user liked but removed
+  the diagonal brace strut (the "third length" jutting from the L). Clean
+  pole + arm + a downlight head that hangs off the arm's end.
+- **Raindrops smaller.** Streak point size 0.5 → 0.3.
+
+## Done — 2026-07-24 night lamps + corner/exit fixes
+
+- **Stuck exiting the bodega — fixed.** The old exit dropped you at
+  `(8.7,-97.2)`, only 0.35 m from the "into the BODEGA" re-enter trigger
+  (r=1.1) and wedged against the fruit-crate collider — so you'd get sucked
+  straight back in, or press into the crates and not move. Now you step out
+  to `(11,-97.3)` facing across the side street: clear of every collider and
+  2.3 m outside the re-enter radius. Verified with a real WASD walk-out test
+  (moves freely in 3 directions; the 4th correctly stops at the solid
+  crates).
+- **Corner sidewalk no longer jank.** Two real defects at the turn: (1) the
+  west walk (wrapping to z=-110) and the south side-street walk both covered
+  the SW corner square `x-7..-5, z-108..-110` — two coplanar tops = z-fight
+  shimmer. South walk now starts at x=-5 so they abut. (2) The east walk's
+  south END face at the SE convex corner was `walkDark` (an unfinished dark
+  notch) while the side-street kerb picked up at x=7 — it now carries the
+  light kerb face so the raised edge WRAPS the corner cleanly.
+- **Night streetlamps.** Sodium-vapor heads on bishop-crook cast-iron poles,
+  staggered down the block between the tree pits + a pair at the corner.
+  Dark iron by day; at dusk the lens warms and an amber halo + road pool
+  fade in on the same night curve as the sky (additive glow, billboarded
+  halo — same technique as the interior bulbs). Verified day/dusk/night.
+
 ## Done — 2026-07-24 graphical-bug sweep
 
 - **Side-street asphalt no longer smears** — `asphaltTex()` hard-coded

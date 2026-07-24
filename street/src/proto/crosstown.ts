@@ -517,13 +517,14 @@ function citizenAtlas(jacket: string, pants: string, skin: string, hair: string,
         g.fillRect(cx + stride, oy + 57, 6, 3);
         g.fillStyle = jacket;
         g.fillRect(cx - 7, oy + 20, 14, 19);
+        // soft edge shading only — narrow 2 px rim lighting, not wide bands, so
+        // the torso reads as rounded cloth instead of vertical stripes
         if (view < 4) {
-          g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 20, 4, 19);
-          g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 20, 4, 19);
+          g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(cx - 7, oy + 20, 2, 19);
+          g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(cx + 5, oy + 20, 2, 19);
         } else {
           g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx - 7, oy + 20, 14, 19);
         }
-        if (view === 0) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(cx - 1, oy + 21, 1, 17); }
         if (view === 4) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(cx - 6, oy + 24, 12, 2); }
         if (style === 'dress') { // flared skirt over the hips
           g.fillStyle = jacket;
@@ -559,24 +560,22 @@ function citizenAtlas(jacket: string, pants: string, skin: string, hair: string,
           // highlight/shadow overlays, so the color reads identical
           if (view === 4) { // dead back: hood swallows the head
             g.fillRect(cx - 7, oy + 4, 14, 16);
-            g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx - 7, oy + 4, 14, 16);
+            g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(cx - 7, oy + 4, 14, 16);
           } else if (view === 3) { // 3/4 back: hood covers everything, no face
             g.fillRect(cx - 7, oy + 4, 14, 16);
-            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 4, 16);
-            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 4, 4, 16);
+            g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(cx - 7, oy + 4, 2, 16);
+            g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(cx + 5, oy + 4, 2, 16);
           } else if (view === 2) { // profile: hood over the whole head, one sliver of face in the opening
             g.fillRect(cx - 7, oy + 4, 14, 16);
-            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
-            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 4, 4, 16);
+            g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(cx + 5, oy + 4, 2, 16);
             g.fillStyle = skin; g.fillRect(cx - 6, oy + 12, 4, 6);
           } else { // front views: rim frames the face — chin stays clear
             g.fillRect(cx - 7, oy + 4, 14, 4);
             g.fillRect(cx - 7, oy + 6, 2, 14); g.fillRect(cx + 5, oy + 6, 2, 14);
             g.fillRect(cx - 7, oy + 18, 3, 2); g.fillRect(cx + 4, oy + 18, 3, 2);
-            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
-            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 5, oy + 4, 2, 16);
-            g.fillStyle = '#e8e4d8';
-            g.fillRect(cx - 2, oy + 21, 1, 5); g.fillRect(cx + 1, oy + 21, 1, 5); // drawstrings
+            g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(cx + 5, oy + 4, 2, 16);
+            g.fillStyle = 'rgba(220,216,204,0.5)'; // soft drawstrings, not bright stripes
+            g.fillRect(cx - 1, oy + 21, 1, 4); g.fillRect(cx + 1, oy + 21, 1, 4);
           }
         }
         g.fillStyle = '#241a12';
@@ -610,11 +609,16 @@ export function makeCrosstown(): Proto {
   // end (the corner). Same road width, same kerbs, fog owns the far end.
   const SIDE_Z0 = -98, SIDE_Z1 = -108;  // side-street road band
   const SIDE_X1 = 55;                   // side street runs east to here
+  // wet-look plumbing: horizontal ground surfaces darken + cool toward WET as
+  // the rain comes in (everything is unlit, so we tint the map materials).
+  const wetMats: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  const WET = new THREE.Color(0x5a626e);
+  const wet = (m: THREE.MeshBasicMaterial) => { wetMats.push({ m, base: m.color.clone() }); return m; };
   // the two road planes ABUT at z = -98 — never overlap, never z-fight
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, 36 - SIDE_Z0), flat(asphaltTex()));
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, 36 - SIDE_Z0), wet(flat(asphaltTex())));
   road.rotation.x = -Math.PI / 2; road.position.z = (36 + SIDE_Z0) / 2;
   scene.add(road);
-  const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), flat(asphaltTex(SIDE_X1 + 7, 10)));
+  const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), wet(flat(asphaltTex(SIDE_X1 + 7, 10))));
   sideRoad.rotation.x = -Math.PI / 2;
   sideRoad.position.set((SIDE_X1 - 7) / 2, 0, (SIDE_Z0 + SIDE_Z1) / 2);
   scene.add(sideRoad);
@@ -625,9 +629,12 @@ export function makeCrosstown(): Proto {
   for (const s of [-1, 1]) {
     const zBot = s > 0 ? SIDE_Z0 : SIDE_Z1 - 2; // west walk wraps the corner
     const len = 16.5 - zBot;
-    const topM = flat(walkTex(WALK, len));
+    const topM = wet(flat(walkTex(WALK, len)));
     const mats = s > 0
-      ? [walkDarkM, kerbFaceM, topM, walkDarkM, walkDarkM, walkDarkM]  // -x face is the kerb
+      // east walk: -x face is the kerb, and its south END (-z, at z=-98) is
+      // also a kerb so the raised edge WRAPS the corner instead of showing a
+      // dark unfinished notch where the side-street north walk picks up
+      ? [walkDarkM, kerbFaceM, topM, walkDarkM, walkDarkM, kerbFaceM]
       : [kerbFaceM, walkDarkM, topM, walkDarkM, walkDarkM, walkDarkM]; // +x face is the kerb
     const walk = new THREE.Mesh(new THREE.BoxGeometry(WALK, KERB_H + 0.04, len), mats);
     walk.position.set(s * (ROAD_HALF + WALK / 2), (KERB_H + 0.04) / 2 - 0.04, (16.5 + zBot) / 2);
@@ -636,15 +643,17 @@ export function makeCrosstown(): Proto {
   // side-street walks: north (in front of the corner shops), south, east end
   {
     const north = new THREE.Mesh(new THREE.BoxGeometry(50, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, flat(walkTex(50, 2)), walkDarkM, walkDarkM, kerbFaceM]);
+      [walkDarkM, walkDarkM, wet(flat(walkTex(50, 2))), walkDarkM, walkDarkM, kerbFaceM]);
     north.position.set(32, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z0 + 1);
     scene.add(north);
-    const south = new THREE.Mesh(new THREE.BoxGeometry(64, KERB_H + 0.04, 2),
-      [walkDarkM, walkDarkM, flat(walkTex(64, 2)), walkDarkM, kerbFaceM, walkDarkM]);
-    south.position.set(25, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z1 - 1);
+    // starts at x=-5 (not -7) so it ABUTS the wrapped west walk instead of
+    // overlapping it in the SW corner square (two coplanar tops = z-fighting)
+    const south = new THREE.Mesh(new THREE.BoxGeometry(62, KERB_H + 0.04, 2),
+      [walkDarkM, walkDarkM, wet(flat(walkTex(62, 2))), walkDarkM, kerbFaceM, walkDarkM]);
+    south.position.set(26, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z1 - 1);
     scene.add(south);
     const east = new THREE.Mesh(new THREE.BoxGeometry(2, KERB_H + 0.04, 12),
-      [walkDarkM, kerbFaceM, flat(walkTex(2, 12)), walkDarkM, walkDarkM, walkDarkM]);
+      [walkDarkM, kerbFaceM, wet(flat(walkTex(2, 12))), walkDarkM, walkDarkM, walkDarkM]);
     east.position.set(SIDE_X1 + 1, (KERB_H + 0.04) / 2 - 0.04, (SIDE_Z0 + SIDE_Z1) / 2 - 1);
     scene.add(east);
   }
@@ -1503,6 +1512,10 @@ export function makeCrosstown(): Proto {
     nightDiv.style.cssText = 'position:fixed;inset:0;background:#0a1024;opacity:0;pointer-events:none;z-index:5;transition:opacity .5s linear;';
     document.body.appendChild(nightDiv);
   }
+  // the player's own clothing — one place to swap later (a real wardrobe).
+  // `sleeve` is the forearm covering (a sweater here); a tee would just leave
+  // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
+  const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
@@ -1537,37 +1550,60 @@ export function makeCrosstown(): Proto {
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
     g.fillText('CROSSTOWN QUARTZ', 60, 50);
   };
+  const WALLET_W = 180, WALLET_H = 140;
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
   let walletCv: HTMLCanvasElement;
   if (!walletWrap) {
     walletWrap = document.createElement('div');
     walletWrap.id = 'ct-wallet';
-    walletWrap.style.cssText = 'position:fixed;left:16px;bottom:-6px;z-index:11;pointer-events:none;transform:translateY(130%) rotate(3deg);transition:transform .18s ease-out;';
+    walletWrap.style.cssText = 'position:fixed;left:50%;bottom:-8px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(150%) rotate(2deg);transition:transform .18s ease-out;';
     walletCv = document.createElement('canvas');
-    walletCv.width = 150; walletCv.height = 110;
-    walletCv.style.cssText = 'width:300px;height:220px;image-rendering:pixelated;display:block;';
+    walletCv.width = WALLET_W; walletCv.height = WALLET_H;
+    walletCv.style.cssText = 'width:340px;height:264px;image-rendering:pixelated;display:block;';
     walletWrap.appendChild(walletCv);
     document.body.appendChild(walletWrap);
   } else {
     walletCv = walletWrap.firstChild as HTMLCanvasElement;
+    walletCv.width = WALLET_W; walletCv.height = WALLET_H;
   }
+  // first-person: an open bifold held in front of you in both hands — not a
+  // corner menu. Thumbs grip the near edge; left leaf is your ID + pockets,
+  // right leaf the cash. Slides up into view like the watch.
   const drawWallet = () => {
     const g = walletCv.getContext('2d')!;
-    g.clearRect(0, 0, 150, 110);
-    g.fillStyle = '#6a8a5a'; g.fillRect(16, 8, 70, 14);      // bills peeking out
-    g.fillStyle = '#587a4a'; g.fillRect(22, 4, 58, 12);
-    g.fillStyle = '#4a3626'; g.fillRect(4, 18, 142, 88);     // leather bifold
-    g.fillStyle = '#3a2a1c'; g.fillRect(4, 18, 142, 8);
-    g.strokeStyle = 'rgba(255,255,255,0.22)'; g.setLineDash([3, 3]);
-    g.strokeRect(8.5, 22.5, 133, 79); g.setLineDash([]);
-    g.fillStyle = '#e8e4d8'; g.font = 'bold 15px monospace'; g.textAlign = 'center';
-    g.fillText(`$${cash.toFixed(2)}`, 75, 50);
-    g.font = '9px monospace'; g.fillStyle = '#c9c4b0';
-    let iy = 70;
-    for (const [k, n] of Object.entries(inv)) {
-      if (n > 0) { g.fillText(`${k} ×${n}`, 75, iy); iy += 12; }
-    }
-    if (iy === 70) g.fillText('(empty pockets)', 75, iy);
+    g.clearRect(0, 0, WALLET_W, WALLET_H);
+    const { skin, skinHi, skinLo } = player;
+    const wx = 20, wy = 16, ww = 140, wh = 104;
+    g.fillStyle = '#2e2116'; g.fillRect(wx - 3, wy - 3, ww + 6, wh + 6);  // edge shadow
+    g.fillStyle = '#4a3626'; g.fillRect(wx, wy, ww, wh);                  // leather
+    g.fillStyle = '#5a4230'; g.fillRect(wx, wy, ww, 4);                   // top sheen
+    g.fillStyle = '#2e2116'; g.fillRect(wx + ww / 2 - 1, wy, 2, wh);      // centre fold
+    g.strokeStyle = 'rgba(222,210,180,0.22)'; g.setLineDash([3, 3]);
+    g.strokeRect(wx + 4.5, wy + 4.5, ww - 9, wh - 9); g.setLineDash([]);
+    // right leaf — bills + cash total
+    const rx = wx + ww / 2 + 8;
+    g.fillStyle = '#587a4a'; g.fillRect(rx + 2, wy + 8, 52, 8);
+    g.fillStyle = '#6a8a5a'; g.fillRect(rx, wy + 12, 56, 34);
+    g.fillStyle = '#7a9a68'; g.fillRect(rx, wy + 12, 56, 3);
+    g.fillStyle = '#24301c'; g.font = 'bold 13px monospace'; g.textAlign = 'center';
+    g.fillText(`$${cash.toFixed(2)}`, rx + 28, wy + 34);
+    // left leaf — ID card over your pockets (item list)
+    const lx = wx + 9;
+    g.fillStyle = '#c9b48a'; g.fillRect(lx, wy + 8, 54, 20);
+    g.fillStyle = '#8a7a58'; g.fillRect(lx + 2, wy + 10, 18, 16);
+    g.fillStyle = '#6a5a3c'; g.fillRect(lx + 23, wy + 12, 28, 2); g.fillRect(lx + 23, wy + 16, 24, 2); g.fillRect(lx + 23, wy + 20, 20, 2);
+    g.fillStyle = '#e8e2d0'; g.font = '7px monospace'; g.textAlign = 'left';
+    let iy = wy + 42;
+    for (const [k, n] of Object.entries(inv)) { if (n > 0) { g.fillText(`${k} x${n}`, lx, iy); iy += 10; } }
+    if (iy === wy + 42) { g.fillStyle = '#9a927e'; g.fillText('(empty pockets)', lx, iy); }
+    // thumbs gripping the near corners
+    const thumb = (tx: number) => {
+      g.fillStyle = skin; g.fillRect(tx, wy + wh - 22, 26, 34);
+      g.fillStyle = skinHi; g.fillRect(tx, wy + wh - 22, 26, 3);
+      g.fillStyle = skinLo; g.fillRect(tx, wy + wh + 8, 26, 4);
+      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(tx + 7, wy + wh - 14, 12, 14); // nail
+    };
+    thumb(wx - 8); thumb(wx + ww - 18);
   };
   let promptDiv = document.getElementById('ct-prompt') as HTMLDivElement | null;
   if (!promptDiv) {
@@ -1736,7 +1772,7 @@ export function makeCrosstown(): Proto {
   const rainT = pixTex(8, 16, (g) => {
     g.fillStyle = 'rgba(214,222,232,0.8)'; g.fillRect(3, 1, 2, 13);
   });
-  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.5, transparent: true, opacity: 0, depthWrite: false });
+  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.3, transparent: true, opacity: 0, depthWrite: false });
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
   scene.add(rain);
@@ -1755,18 +1791,28 @@ export function makeCrosstown(): Proto {
     return m;
   }
   const propColliders: AABB[] = [];
+  // solid props the citizens must steer AROUND (never walk/phase through) —
+  // trees, lamp poles, the hydrant, the payphone, and the cars
+  const citAvoid: AABB[] = [];
+  const obstacle = (b: AABB) => { propColliders.push(b); citAvoid.push(b); return b; };
 
   // street trees — the sprite cutouts are back (they belong here): fixed
   // crown texels, trunk-only variation, planted in dirt pits, and only the
-  // trunk is solid so the sidewalk stays walkable
+  // trunk is solid so the sidewalk stays walkable. The bed hugs the KERB side
+  // (a 1×2-slab strip) so the building half of the 2 m walk is a clear lane
+  // you can always slip past on — no more full-width tree blocking the path.
   const TREE_PX = 0.05; // world units per texel
   const pitT = treePitTex();
-  const pitGeo = new THREE.PlaneGeometry(1.9, 1.9); // a 2×2 slab block, minus the joint
+  // a 0.8 m planting strip flush against the kerb (x 5.0–5.8). The player
+  // RADIUS is 0.42 and the building wall's collider already reaches x≈6.28,
+  // so the trunk collider must be tight and kerb-hugging to leave a real lane:
+  // trunk to 5.48 + 0.42 = walkable from x≈5.9, wall from x≈6.28 → ~0.4 m clear.
+  const pitGeo = new THREE.PlaneGeometry(0.8, 2.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
-    const tx = s * (ROAD_HALF + WALK / 2);          // dead centre of the walk
+    const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
     const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
     const H = 80 + Math.floor(rnd() * 28);          // 4.0 – 5.4 m, trunk-only variation
     const tree = board(treeSprite(treeIdx % 2, H), 32 * TREE_PX, H * TREE_PX, tx, pz2);
@@ -1775,14 +1821,72 @@ export function makeCrosstown(): Proto {
     pit.rotation.x = -Math.PI / 2;
     pit.position.set(tx, sidewalkY + 0.006, pz2);
     scene.add(pit);
-    propColliders.push({ minX: tx - 0.25, maxX: tx + 0.25, minZ: pz2 - 0.25, maxZ: pz2 + 0.25 });
+    obstacle({ minX: tx - 0.08, maxX: tx + 0.08, minZ: pz2 - 0.12, maxZ: pz2 + 0.12 });
     treeIdx++;
   }
-  // hydrant on the right sidewalk
-  const hyX = ROAD_HALF + 0.8, hyZ = -6;
+
+  // ── streetlamps: sodium-vapor heads on bishop-crook poles. Dark cast iron
+  //    by day; at dusk the lens warms up and an amber halo pools over the wet
+  //    asphalt. Opacity is driven off the same night curve as the sky. ──────
+  const nightLit: { mat: THREE.MeshBasicMaterial; base: number }[] = [];
+  const lampGlowT = pixTex(32, 32, (g) => {
+    const gr = g.createRadialGradient(16, 16, 1, 16, 16, 16);
+    gr.addColorStop(0, 'rgba(255,198,120,0.90)');
+    gr.addColorStop(0.5, 'rgba(255,178,96,0.30)');
+    gr.addColorStop(1, 'rgba(255,178,96,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  });
+  const lampPoolT = pixTex(48, 48, (g) => {
+    const gr = g.createRadialGradient(24, 24, 2, 24, 24, 24);
+    gr.addColorStop(0, 'rgba(255,190,110,0.55)');
+    gr.addColorStop(0.55, 'rgba(255,180,100,0.15)');
+    gr.addColorStop(1, 'rgba(255,180,100,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 48, 48);
+  });
+  const poleM = new THREE.MeshBasicMaterial({ color: 0x24291f });   // dark cast iron
+  const poleHi = new THREE.MeshBasicMaterial({ color: 0x323826 });
+  const lensM = new THREE.MeshBasicMaterial({ color: 0x3a3324 });   // shared: dark glass by day, warms at night
+  const lensDay = new THREE.Color(0x3a3324), lensLit = new THREE.Color(0xffcc82);
+  const LAMP_H = 5.0;
+  const makeLamp = (s: number, z: number) => {
+    const bx = s * (ROAD_HALF + 0.55);          // just inside the kerb
+    const reach = 1.25;                         // crook arm reaches over the road
+    const headX = bx - s * reach;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.28), poleHi);
+    base.position.set(bx, sidewalkY + 0.25, z); scene.add(base);
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.14, LAMP_H, 0.14), poleM);
+    pole.position.set(bx, sidewalkY + LAMP_H / 2, z); scene.add(pole);
+    // clean L crook: vertical pole + one horizontal arm (no diagonal strut) +
+    // a lamp head that hangs DOWN off the arm's far end
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(reach, 0.12, 0.12), poleM);
+    arm.position.set(bx - s * reach / 2, sidewalkY + LAMP_H - 0.05, z); scene.add(arm);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.32), poleHi);
+    head.position.set(headX, sidewalkY + LAMP_H - 0.16, z); scene.add(head);
+    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.24), lensM);
+    lens.position.set(headX, sidewalkY + LAMP_H - 0.31, z); scene.add(lens);
+    obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7),
+      new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.position.set(headX, sidewalkY + LAMP_H - 0.22, z);
+    boards.push({ m: halo }); scene.add(halo);
+    nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4),
+      new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, z); scene.add(pool);
+    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.85 });
+  };
+  // staggered down the block, kept clear of the tree pits (every 14 m at −2,−16…)
+  [[-1, -9], [1, -23], [-1, -37], [1, -51], [-1, -65], [1, -79]].forEach(([s, z]) => makeLamp(s, z));
+  // two more lighting the corner turn
+  makeLamp(-1, -93);
+  makeLamp(1, -93);
+
+  // hydrant on the right sidewalk — hard against the kerb like the trees, with
+  // a tight collider, so it doesn't block the building-side walking lane
+  const hyX = ROAD_HALF + 0.35, hyZ = -6;
   const hyd = board(hydrantSprite(), 0.8, 1.2, hyX, hyZ);
   hyd.position.y = sidewalkY;
-  propColliders.push({ minX: hyX - 0.35, maxX: hyX + 0.35, minZ: hyZ - 0.35, maxZ: hyZ + 0.35 });
+  obstacle({ minX: hyX - 0.18, maxX: hyX + 0.18, minZ: hyZ - 0.18, maxZ: hyZ + 0.18 });
   // pigeons peck along the kerb — most spook when you walk up; the odd bold
   // one holds its ground until you all but step on it
   interface Pigeon {
@@ -1809,7 +1913,7 @@ export function makeCrosstown(): Proto {
   const phone = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.3, 0.9), flat(payphoneTex()));
   phone.position.set(-(FACE - 0.55), sidewalkY + 1.15, -11);
   scene.add(phone);
-  propColliders.push({ minX: -(FACE - 0.05), maxX: -(FACE - 1.05), minZ: -11.55, maxZ: -10.45 });
+  obstacle({ minX: -(FACE - 0.05), maxX: -(FACE - 1.05), minZ: -11.55, maxZ: -10.45 });
 
   // parked cars — a mixed fleet in the parking lanes
   const parked: [CarKind, number, number, number, number][] = [
@@ -1825,7 +1929,8 @@ export function makeCrosstown(): Proto {
     car.position.set(x, 0, z);
     car.rotation.y = ry;
     scene.add(car);
-    carColliders.push({ minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] });
+    const cb = { minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] };
+    carColliders.push(cb); citAvoid.push(cb);
   });
   // traffic: one car on the block at a time, entering from a foggy end,
   // driving through, and leaving. Usually a plain car — the taxi is a rare
@@ -1839,6 +1944,7 @@ export function makeCrosstown(): Proto {
   let cruiseDir = -1;
   let cruiseWait = 5; // gap between cars
   const cruiserBox: AABB = { minX: 999, maxX: 999, minZ: 999, maxZ: 999 };
+  citAvoid.push(cruiserBox); // the moving car, too — its box follows it each frame
 
   // 8-angle citizens walking the block — no two the same size or style
   interface Outfit { j: string; p: string; s: string; h: string; fit: Fit; acc: string; hs: number; ws: number }
@@ -1852,7 +1958,7 @@ export function makeCrosstown(): Proto {
     { j: '#6e3a5a', p: '#6e3a5a', s: '#e0b088', h: '#4a2c18', fit: 'dress', acc: '', hs: 1.05, ws: 0.98 },
     { j: '#2f4a4a', p: '#3f4650', s: '#b8845a', h: '#5a3a24', fit: 'hoodie', acc: '', hs: 0.96, ws: 1.06 },
   ];
-  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; z: number; dir: number; sp: number; ph: number; box: AABB }
+  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number }
   const citizens: Citizen[] = [];
   // a quiet block: four out on the street at a time, one of each fit
   const CAST = [OUTFITS[0], OUTFITS[1], OUTFITS[2], OUTFITS[3]];
@@ -1863,13 +1969,14 @@ export function makeCrosstown(): Proto {
     geo.translate(0, 0.95, 0);
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
     mesh.scale.set(o.ws, o.hs, 1);
-    const lane = (i % 2 ? 1 : -1) * (ROAD_HALF + 0.6 + (i % 3) * 0.5);
+    // home lanes sit in the clear strip between the kerb props and the wall
+    const lane = (i % 2 ? 1 : -1) * (ROAD_HALF + 1.05 + (i % 3) * 0.17);
     const z = 2 - i * 23; // spread thin over the whole block
     mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
     const box: AABB = { minX: lane - 0.3, maxX: lane + 0.3, minZ: z - 0.3, maxZ: z + 0.3 };
     propColliders.push(box); // people are solid — the box follows them
-    citizens.push({ mesh, tex, lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3, box });
+    citizens.push({ mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3 });
   });
 
   const colliders: AABB[] = [
@@ -1936,7 +2043,10 @@ export function makeCrosstown(): Proto {
       x: 240.5, z: -17, r: 1.0,
       ok: () => rig.pos.x > 230,
       label: () => 'out to the street',
-      act: () => jumpTo(8.7, -97.2, 0, KERB_H),
+      // step out onto the north side-street walk, facing OUT across the street —
+      // clear of the corner wall + fruit crates, and well outside the re-enter
+      // trigger radius so you can't get sucked straight back in (the old bug)
+      act: () => jumpTo(11, -97.3, 0, KERB_H),
     },
     {
       x: 242.2, z: -17.5, r: 1.0,
@@ -1962,6 +2072,7 @@ export function makeCrosstown(): Proto {
     clock: (h: number, m = 0) => { totalMin = h * 60 + m; },
     hermit: (v: boolean | null) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
     atlases: () => citizens.map((c) => (c.tex.image as HTMLCanvasElement).toDataURL()),
+    pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, lastGy],
   };
 
   return {
@@ -1985,6 +2096,10 @@ export function makeCrosstown(): Proto {
       (scene.background as THREE.Color).copy(skyCol);
       scene.fog!.color.copy(skyNow);
       nightDiv!.style.opacity = String(nightAt(hourF));
+      // streetlamps warm up on the same night curve (0 by day, full at deep night)
+      const lampNight = THREE.MathUtils.clamp((nightAt(hourF) - 0.03) / 0.28, 0, 1);
+      for (const g of nightLit) g.mat.opacity = g.base * lampNight;
+      lensM.color.copy(lensDay).lerp(lensLit, lampNight);
       // the hermit keeps his own hours — mostly afternoons
       hermit.visible = hermitForce === -1 ? hermitIn(Math.floor(totalMin / 60)) : hermitForce === 1;
       // look down: your watch
@@ -1999,7 +2114,7 @@ export function makeCrosstown(): Proto {
       if (rmb && !rmbHeld) {
         walletOpen = !walletOpen;
         if (walletOpen) drawWallet();
-        walletWrap!.style.transform = walletOpen ? 'translateY(0) rotate(3deg)' : 'translateY(130%) rotate(3deg)';
+        walletWrap!.style.transform = walletOpen ? 'translateX(-50%) translateY(0) rotate(2deg)' : 'translateX(-50%) translateY(150%) rotate(2deg)';
       }
       rmbHeld = rmb;
       // E: nearest live spot wins; with nothing near, E feeds the birds
@@ -2036,6 +2151,8 @@ export function makeCrosstown(): Proto {
       const wantRain = rainAt(Math.floor(totalMin / 60)) && px < 100 ? 1 : 0;
       rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
       if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
+      // the ground darkens + cools as it wets down (roads and walks)
+      for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.8);
       rain.visible = rainLevel > 0.02;
       if (rain.visible) {
         rainM.opacity = 0.55 * rainLevel;
@@ -2061,20 +2178,58 @@ export function makeCrosstown(): Proto {
       for (const b of boards) {
         b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
       }
-      // citizens: ping-pong the block, show the correct painted angle.
-      // They stop a step short of you (solid, but never trap you).
+      // citizens: ping-pong the block, show the correct painted angle. They are
+      // SOLID and politely halt a step short of you — but if held up against you
+      // for a beat (stuck timer), they give up and squeeze through, going
+      // non-solid only until they're clear, then solid again. So they never
+      // wall you in for good, and never become permanently uncollidable.
+      // is a citizen's footprint clear of every solid PROP (trees, cars, …)?
+      // (the player isn't in this set — people phase the player, never props)
+      const clearAt = (x: number, z: number) =>
+        !citAvoid.some((a) => x + 0.28 > a.minX && x - 0.28 < a.maxX && z + 0.28 > a.minZ && z - 0.28 < a.maxZ);
       for (const c of citizens) {
-        if (Math.hypot(px - c.lane, pz - c.z) > 1.0) c.z += c.dir * c.sp * dt;
+        const dist = Math.hypot(px - c.lane, pz - c.z);
+        if (dist < 1.05) c.stuck += dt; else c.stuck = Math.max(0, c.stuck - dt * 2);
+        if (!c.ghost && c.stuck > 1.4) c.ghost = true;       // fed up → push past YOU
+        if (c.ghost && dist > 1.4) { c.ghost = false; c.stuck = 0; } // clear → solid again
+        const holding = dist < 1.0 && !c.ghost;              // standing a step short of you
+        let moving = !holding;
+        if (moving) {
+          const s = Math.sign(c.home);
+          const nz = c.z + c.dir * c.sp * dt;
+          if (clearAt(c.lane, nz)) {
+            c.z = nz;
+            c.lane += (c.home - c.lane) * Math.min(1, dt * 2); // ease back to home lane
+          } else {
+            // a solid prop is ahead — step laterally to go AROUND it (never through)
+            let target: number | null = null;
+            for (const off of [0.45, 0.8, -0.45, 1.15]) {
+              const x = c.home + off * s;
+              if (Math.abs(x) >= ROAD_HALF + 0.55 && Math.abs(x) <= FACE - 0.35 && clearAt(x, nz)) { target = x; break; }
+            }
+            if (target !== null) {
+              c.lane += (target - c.lane) * Math.min(1, dt * 5);
+              if (clearAt(c.lane, c.z + c.dir * c.sp * dt * 0.5)) c.z += c.dir * c.sp * dt * 0.5;
+            } else { c.dir *= -1; moving = false; }  // boxed in — turn back
+          }
+        }
         if (c.z < -L + 4) { c.z = -L + 4; c.dir = 1; }
         if (c.z > 10) { c.z = 10; c.dir = -1; }
-        c.box.minX = c.lane - 0.3; c.box.maxX = c.lane + 0.3;
-        c.box.minZ = c.z - 0.3; c.box.maxZ = c.z + 0.3;
+        if (c.ghost) {
+          c.box.minX = c.box.maxX = 1e5; c.box.minZ = c.box.maxZ = 1e5; // slip past you
+        } else {
+          c.box.minX = c.lane - 0.3; c.box.maxX = c.lane + 0.3;
+          c.box.minZ = c.z - 0.3; c.box.maxZ = c.z + 0.3;
+        }
         c.mesh.position.set(c.lane, sidewalkY, c.z);
         c.mesh.rotation.y = Math.atan2(px - c.lane, pz - c.z);
         const facing = Math.atan2(0, c.dir); // 0 for +z, π for -z... atan2(0,-1)=π ✓
         const camAng = Math.atan2(px - c.lane, pz - c.z);
         const [col, mirror] = viewFor(camAng - facing);
-        const row = Math.floor(t * 5 * c.sp + c.ph) % 2;
+        // feet only stride while actually walking; stand still (feet together)
+        // when halted, so a stopped person isn't marching in place
+        if (moving) c.anim += dt * 5 * c.sp;
+        const row = moving ? Math.floor(c.anim) % 2 : 0;
         c.tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
         c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
         c.tex.offset.y = row === 0 ? 0.5 : 0;
