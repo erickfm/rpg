@@ -40,6 +40,15 @@ published to the playable artifact.
   in front of your face. (History: whole-arm version → reverted;
   fist+forearm version → reverted; currently wrist-only.)
 
+- **Sleep in your room.** Wants to be able to enter 301 and sleep — a real
+  gameplay verb, not just a lit interior. Implies a bed to interact with,
+  an `[E] sleep` prompt, and time passing (advance the clock, fade out/in),
+  which ties into the day/night curve.
+
+- **Stairwell top is wrong.** At the top of the flight it looks like you
+  could just fall down a storey — no landing guard/railing reading as
+  solid. The centre core wall is also wrong, and too high.
+
 - **The street is too tidy.** Cars are parked too perfectly — spacing and
   alignment read as placed rather than parked. Wanted: less clean overall.
   Nudge parking positions/angles off-true, and scatter small litter — a can
