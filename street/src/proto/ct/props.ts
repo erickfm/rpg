@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { pixTex } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
-import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex } from './tex-world';
+import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
+         canSprite, newspaperTex, scrapTex } from './tex-world';
 import type { CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -268,6 +269,49 @@ export function buildProps(ctx: CtxBuild): Props {
       }
     }
   };
+
+
+  // ── litter, in the gutter where it actually collects ────────────────────
+  // Placed LAST on purpose: rnd() is a shared seeded stream and the trees and
+  // pigeons above draw from it, so anything new has to come after them or it
+  // shifts the whole world. Kept deliberately sparse — the note was "just
+  // trying to add detail and realism. dont go over board." Nothing here is
+  // solid; you walk straight over it.
+  const flatDecal = (tex: THREE.Texture, w: number, d: number, x: number, z: number, rot: number, y: number) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: true }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = rot;
+    m.position.set(x, y + 0.004, z);
+    scene.add(m);
+    return m;
+  };
+  const npT = newspaperTex();
+  const scrapT = [scrapTex(0), scrapTex(1), scrapTex(2)];
+  // the gutter line: just off the kerb face, on the road side
+  const GUT = ROAD_HALF - 0.22;
+  for (let i = 0; i < 7; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    const z = -6 - rnd() * (L - 18);
+    const x = s2 * (GUT - rnd() * 0.30);
+    if (rnd() < 0.42) {
+      // a can, standing proud of the road on its side
+      const c = board(canSprite(i), 0.30, 0.19, x, z);
+      c.position.y = 0.02;
+    } else {
+      flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.001);
+    }
+  }
+  // two soaked newspapers, flat against the road
+  for (let i = 0; i < 2; i++) {
+    const s2 = i === 0 ? 1 : -1;
+    flatDecal(npT, 0.44, 0.32, s2 * (GUT - 0.10), -20 - i * 37, rnd() * Math.PI, 0.001);
+  }
+  // one can up on the sidewalk, against the kerb
+  {
+    const c = board(canSprite(3), 0.30, 0.19, ROAD_HALF + 0.22, -47.5);
+    c.position.y = sidewalkY + 0.02;
+  }
 
   return {
     setLampNight: (v) => {

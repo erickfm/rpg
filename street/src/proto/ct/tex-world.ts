@@ -234,3 +234,46 @@ export function payphoneTex(): THREE.Texture {
     dither(g, 32, 64, 60);
   });
 }
+
+// ── street litter ──────────────────────────────────────────────────────────
+// Sparse gutter debris. Deliberately small and few: the note was "just trying
+// to add detail and realism. dont go over board."
+
+// a crushed soda can lying on its side
+export function canSprite(v: number): THREE.Texture {
+  const cols = ['#b8342a', '#2c6a8a', '#d8a02a', '#4a7a3a'];
+  const c = cols[v % cols.length];
+  return pixTex(16, 10, (g) => {
+    g.fillStyle = c; g.fillRect(1, 3, 13, 5);
+    g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(1, 3, 13, 1);   // top rim light
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(1, 7, 13, 1);
+    g.fillStyle = '#c8ccd0'; g.fillRect(0, 3, 2, 5); g.fillRect(13, 3, 3, 5); // bare alu ends
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(6, 3, 1, 5);          // crush crease
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(4, 4, 2, 1); g.fillRect(9, 6, 2, 1);
+  });
+}
+
+// a sheet of newspaper gone soft and grey in the wet
+export function newspaperTex(): THREE.Texture {
+  return pixTex(22, 16, (g) => {
+    g.fillStyle = '#b8b4a8'; g.fillRect(1, 1, 20, 14);
+    g.fillStyle = '#8e8a7e'; g.fillRect(1, 1, 20, 3);                  // soaked edge
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(1, 9, 20, 4);         // wet patch
+    g.fillStyle = '#54524c';
+    for (let y = 4; y < 14; y += 2) g.fillRect(3, y, 10, 1);           // columns of type
+    for (let y = 5; y < 13; y += 2) g.fillRect(14, y, 5, 1);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(1, 14, 20, 1);        // it lies flat, edge shadow
+    dither(g, 22, 16, 26);
+  });
+}
+
+// nondescript flattened scraps — wrappers, cup, cardboard
+export function scrapTex(v: number): THREE.Texture {
+  return pixTex(14, 12, (g) => {
+    const pal = [['#c9c2b2', '#a09884'], ['#8a6a4a', '#6a4f38'], ['#c0b0a0', '#93857a']][v % 3];
+    g.fillStyle = pal[0]; g.fillRect(2, 3, 10, 7);
+    g.fillStyle = pal[1]; g.fillRect(2, 8, 10, 2);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(2, 10, 10, 1);
+    dither(g, 14, 12, 14);
+  });
+}
