@@ -29,6 +29,24 @@ published to the playable artifact.
   - Sidewalk slab detail: scoring joints, staining, patches — attention to
     detail generally, it's the surface the whole game is walked on.
 
+- **Watch: make it read as looking down at your own wrist.** Asked for
+  several times now and every attempt has come back as *an arm sticking
+  out with a fist in front of you* — wrong. The framing the user wants:
+  the visible section is the **wrist**, the forearm runs off the **left**
+  edge of the frame (cut off, not drawn as a whole limb), and the **hand**
+  is on the **right** of the watch. Horizontal wrist across the view, no
+  foreshortened fist pointing at the camera. The feeling to hit is the
+  ordinary one of glancing down at your own wrist — not a raised arm posed
+  in front of your face. (History: whole-arm version → reverted;
+  fist+forearm version → reverted; currently wrist-only.)
+
+- **Trees: crowns bigger and more varied; dirt pit shorter.** Placement on
+  the sidewalk is right and the pit **width** is good — the user fits past
+  it, keep that exactly. Two changes: (1) crowns should be **bigger and
+  more varied** between trees — they currently read same-y and undersized;
+  (2) the pit is too **long** — it fills two tile blocks down the walk;
+  shorten along the street axis while keeping the width.
+
 ## Done — 2026-07-24 reverts + wet streets + citizen nav
 
 - **Watch reverted.** The arm/fist version was worse — back to the wrist-only
