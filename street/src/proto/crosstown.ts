@@ -422,23 +422,25 @@ function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
       for (let y = 4; y < 46; y += 7) g2.fillRect(0, y, 32, 2); // corrugations
       dither(g2, 32, 48, 30);
     });
+    // tub is recessed inside the body (a rim of slab shows around it) and
+    // rides low — rails only just above the beltline
     const wallLen = half - 0.65;
-    const floor2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, wallLen), [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
-    floor2.position.set(0, 0.855, 0.55 + wallLen / 2);
+    const floor2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.05, wallLen), [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
+    floor2.position.set(0, 0.845, 0.55 + wallLen / 2);
     g.add(floor2);
     for (const s of [-1, 1]) {
       const railWall = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.34, wallLen),
+        new THREE.BoxGeometry(0.16, 0.24, wallLen),
         s < 0 ? [inM, outM, rimM, darkM, inM, inM] : [outM, inM, rimM, darkM, inM, inM],
       );
-      railWall.position.set(s * 0.8, 1.01, 0.55 + wallLen / 2);
+      railWall.position.set(s * 0.66, 0.96, 0.55 + wallLen / 2);
       g.add(railWall);
     }
-    const head = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.34, 0.1), [outM, outM, rimM, darkM, inM, inM]);
-    head.position.set(0, 1.01, 0.5);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.24, 0.1), [outM, outM, rimM, darkM, inM, inM]);
+    head.position.set(0, 0.96, 0.5);
     g.add(head);
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.34, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
-    gate.position.set(0, 1.01, half - 0.05);
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(1.48, 0.24, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
+    gate.position.set(0, 0.96, half - 0.05);
     g.add(gate);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
@@ -588,10 +590,17 @@ export function makeCrosstown(): Proto {
 
   const flat = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m });
 
-  // ground: road wide enough for a parked lane + travel lane each side
+  // ground: the main street, and a side street it turns into at the south
+  // end (the corner). Same road width, same kerbs, fog owns the far end.
+  const SIDE_Z0 = -98, SIDE_Z1 = -108;  // side-street road band
+  const SIDE_X1 = 55;                   // side street runs east to here
   const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, L + 44), flat(asphaltTex()));
   road.rotation.x = -Math.PI / 2; road.position.z = -L / 2 + 14;
   scene.add(road);
+  const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), flat(asphaltTex()));
+  sideRoad.rotation.x = -Math.PI / 2;
+  sideRoad.position.set((SIDE_X1 - 7) / 2, 0.008, (SIDE_Z0 + SIDE_Z1) / 2);
+  scene.add(sideRoad);
   // raised sidewalks with a visible curb face
   const KERB_H = 0.14;
   const kerbFaceM = new THREE.MeshBasicMaterial({ color: 0x97928a });
@@ -601,9 +610,26 @@ export function makeCrosstown(): Proto {
     const mats = s > 0
       ? [walkDarkM, kerbFaceM, walkTopM, walkDarkM, walkDarkM, walkDarkM]  // -x face is the kerb
       : [kerbFaceM, walkDarkM, walkTopM, walkDarkM, walkDarkM, walkDarkM]; // +x face is the kerb
-    const walk = new THREE.Mesh(new THREE.BoxGeometry(WALK, KERB_H + 0.04, L + 44), mats);
-    walk.position.set(s * (ROAD_HALF + WALK / 2), (KERB_H + 0.04) / 2 - 0.04, -L / 2 + 14);
+    const zBot = s > 0 ? SIDE_Z0 : SIDE_Z1 - 2; // west walk wraps the corner
+    const len = 16.5 - zBot;
+    const walk = new THREE.Mesh(new THREE.BoxGeometry(WALK, KERB_H + 0.04, len), mats);
+    walk.position.set(s * (ROAD_HALF + WALK / 2), (KERB_H + 0.04) / 2 - 0.04, (16.5 + zBot) / 2);
     scene.add(walk);
+  }
+  // side-street walks: north (in front of the corner shops), south, east end
+  {
+    const north = new THREE.Mesh(new THREE.BoxGeometry(50, KERB_H + 0.04, 2),
+      [walkDarkM, walkDarkM, walkTopM, walkDarkM, walkDarkM, kerbFaceM]);
+    north.position.set(32, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z0 + 1);
+    scene.add(north);
+    const south = new THREE.Mesh(new THREE.BoxGeometry(64, KERB_H + 0.04, 2),
+      [walkDarkM, walkDarkM, walkTopM, walkDarkM, kerbFaceM, walkDarkM]);
+    south.position.set(25, (KERB_H + 0.04) / 2 - 0.04, SIDE_Z1 - 1);
+    scene.add(south);
+    const east = new THREE.Mesh(new THREE.BoxGeometry(2, KERB_H + 0.04, 12),
+      [walkDarkM, kerbFaceM, walkTopM, walkDarkM, walkDarkM, walkDarkM]);
+    east.position.set(SIDE_X1 + 1, (KERB_H + 0.04) / 2 - 0.04, (SIDE_Z0 + SIDE_Z1) / 2 - 1);
+    scene.add(east);
   }
   const sidewalkY = KERB_H; // prop base height on the walks
   const lineT = pixTex(8, 32, (g) => { g.fillStyle = '#b8a24e'; g.fillRect(2, 0, 4, 18); });
@@ -612,6 +638,14 @@ export function makeCrosstown(): Proto {
   const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, L + 44), new THREE.MeshBasicMaterial({ map: lineT, alphaTest: 0.5 }));
   line.rotation.x = -Math.PI / 2;
   line.position.set(0, 0.03, -L / 2 + 14);
+  const lineT2 = lineT.clone();
+  lineT2.repeat.set(1, 22);
+  lineT2.needsUpdate = true;
+  const line2 = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 48), new THREE.MeshBasicMaterial({ map: lineT2, alphaTest: 0.5 }));
+  line2.rotation.x = -Math.PI / 2;
+  line2.rotation.z = Math.PI / 2;
+  line2.position.set(30, 0.032, (SIDE_Z0 + SIDE_Z1) / 2);
+  scene.add(line2);
   scene.add(line);
 
   // buildings — every one a specific place, laid by hand end to end.
@@ -639,7 +673,21 @@ export function makeCrosstown(): Proto {
     { nm: 'LIQUOR', col: '#8a2c42', w: 11, brick: '#5c4436', floors: 3 },
     { nm: 'DELI', col: '#2e6a5a', w: 10, brick: '#6b4034', floors: 3 },
     { nm: 'CINEMA', col: '#2c3c7a', w: 12, brick: '#7a4a3a', floors: 5 },
-    { nm: 'BANK', col: '#3a4a63', w: 12, brick: '#5c4436', floors: 4 },
+    { nm: 'BODEGA', col: '#b8342a', w: 10, brick: '#6b4034', floors: 3 }, // the corner store
+  ];
+  // the corner: shops lining the side street the main drag turns into
+  const NORTH2: BldSpec[] = [
+    { nm: 'FLOWERS', col: '#4a7a52', w: 12, brick: '#835444', floors: 3 },
+    { nm: 'TAILOR', col: '#5a4a7a', w: 11, brick: '#5c4436', floors: 4 },
+    { nm: 'CHOP SUEY', col: '#8a3a2e', w: 13, brick: '#6b4034', floors: 3 },
+    { nm: 'OPTICIAN', col: '#2c5a6a', w: 12, brick: '#7a4a3a', floors: 4 },
+  ];
+  const SOUTH2: BldSpec[] = [
+    { nm: 'GARAGE', col: '#5a5f66', w: 13, brick: '#5c4436', floors: 3 },
+    { nm: 'THRIFT', col: '#7a5a2c', w: 12, brick: '#835444', floors: 4 },
+    { nm: 'MISSION', col: '#6a5a4a', w: 14, brick: '#6b4034', floors: 3 },
+    { nm: 'BILLIARDS', col: '#2c5a3a', w: 13, brick: '#7a4a3a', floors: 4 },
+    { nm: 'SMOKES', col: '#8a6a22', w: 12, brick: '#5c4436', floors: 3 },
   ];
   const placeBld = (side: number, z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
@@ -669,21 +717,111 @@ export function makeCrosstown(): Proto {
   }
   let ze = 14.2;
   for (const b of EAST) { placeBld(1, ze, b); ze -= b.w; }
+  // side-street rosters run along x; facade on the street-facing z side
+  const placeBldZ = (x0: number, zc: number, b: BldSpec, facing: 1 | -1) => {
+    const cx = x0 + b.w / 2;
+    const h = 3.4 + b.floors * 2.4;
+    const facade = flat(facadeTex(b.brick, b.floors, b.w));
+    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
+    const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const mats = facing > 0
+      ? [endM, endM, roofM, roofM, facade, endM]
+      : [endM, endM, roofM, roofM, endM, facade];
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.05, h, 3.4), mats);
+    wall.position.set(cx, h / 2 + 3.2, zc);
+    scene.add(wall);
+    const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
+    const shopMats = facing > 0
+      ? [endM, endM, roofM, roofM, shopM, endM]
+      : [endM, endM, roofM, roofM, endM, shopM];
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.05, 3.2, 3.4), shopMats);
+    shop.position.set(cx, 1.6, zc);
+    scene.add(shop);
+  };
+  let xn = 10.45; // east of the bodega — the corner belongs to it
+  for (const b of NORTH2) { placeBldZ(xn, -94.3, b, -1); xn += b.w; }
+  let xs = -7;
+  for (const b of SOUTH2) { placeBldZ(xs, -111.7, b, 1); xs += b.w; }
+  // the bodega wraps the corner: second shopfront on its side-street face,
+  // striped awning, neon OPEN, fruit crates out front
+  {
+    const bodegaSouthM = flat(shopfrontTex('#6b4034', 'BODEGA', '#b8342a', 3.4));
+    const southFront = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.2), bodegaSouthM);
+    southFront.position.set(FACE + 1.7, 1.6, -96.1);
+    southFront.rotation.y = Math.PI;
+    scene.add(southFront);
+    // brick + windows continue on the side-street face above the shop
+    const southUp = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 10.6), flat(facadeTex('#6b4034', 3, 3.4)));
+    southUp.position.set(FACE + 1.7, 3.2 + 5.3, -96.1);
+    southUp.rotation.y = Math.PI;
+    scene.add(southUp);
+    const awnT = pixTex(48, 12, (g) => {
+      for (let x = 0; x < 48; x += 8) {
+        g.fillStyle = (x / 8) % 2 ? '#b8342a' : '#d8d0c0';
+        g.fillRect(x, 0, 8, 12);
+      }
+      g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, 9, 48, 3);
+    });
+    const awnM = new THREE.MeshBasicMaterial({ map: awnT, side: THREE.DoubleSide });
+    const awn = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.1, 0.9), awnM);
+    awn.position.set(FACE + 1.7, 2.62, -96.45);
+    awn.rotation.x = 0.18;
+    scene.add(awn);
+    const openT = pixTex(24, 12, (g) => {
+      g.fillStyle = '#141416'; g.fillRect(0, 0, 24, 12);
+      g.fillStyle = '#e8574a'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
+      g.fillText('OPEN', 12, 9);
+    });
+    const open = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.35), flat(openT));
+    open.position.set(FACE + 0.6, 2.0, -96.14);
+    open.rotation.y = Math.PI;
+    scene.add(open);
+    const crateT = pixTex(24, 16, (g) => {
+      g.fillStyle = '#8a6a3a'; g.fillRect(0, 0, 24, 16);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 5, 24, 1); g.fillRect(0, 11, 24, 1);
+    });
+    const fruitTop = (c1: string, c2: string) => pixTex(24, 24, (g) => {
+      g.fillStyle = '#6a4a26'; g.fillRect(0, 0, 24, 24);
+      for (let i = 0; i < 24; i++) {
+        g.fillStyle = i % 2 ? c1 : c2;
+        g.beginPath(); g.arc(3 + (i % 6) * 4, 4 + Math.floor(i / 6) * 5, 2, 0, Math.PI * 2); g.fill();
+      }
+    });
+    const crateM = flat(crateT);
+    for (const [cxx, czz, top] of [
+      [7.9, -96.6, fruitTop('#d88a2a', '#c9762a')],
+      [9.3, -96.55, fruitTop('#8a3a2e', '#a84a36')],
+    ] as [number, number, THREE.Texture][]) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55), [crateM, crateM, flat(top), crateM, crateM, crateM]);
+      crate.position.set(cxx, sidewalkY + 0.2, czz);
+      scene.add(crate);
+    }
+  }
+  // south-west corner building closes the side street's west end
+  placeBld(-1, -98, { nm: 'RADIO', col: '#3a4a7a', w: 12, brick: '#835444', floors: 4 });
+  // east cross building — the side street disappears into the fog toward it
+  {
+    const eEnd = new THREE.MeshBasicMaterial({ color: 0x53382e });
+    const eRoof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const eWall = new THREE.Mesh(
+      new THREE.BoxGeometry(6, 13.6, 24),
+      [eEnd, flat(facadeTex('#5c4436', 4, 22)), eRoof, eRoof, eEnd, eEnd],
+    );
+    eWall.position.set(SIDE_X1 + 5, 6.8, (SIDE_Z0 + SIDE_Z1) / 2);
+    scene.add(eWall);
+  }
 
   // billboard registry (declared early — the alley adds to it too)
   interface Board { m: THREE.Mesh }
   const boards: Board[] = [];
 
-  // cross buildings closing both ends — the street is a place, not a plane
-  for (const [ez, brick] of [[16.5, '#5c4436'], [-L - 4.5, '#6b4034']] as [number, string][]) {
-    const facade = flat(facadeTex(brick, 4, 30));
+  // cross building closing the north end; the south end turns the corner now
+  {
+    const facade = flat(facadeTex('#5c4436', 4, 30));
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const facing = ez > 0
-      ? [endM, endM, roofM, roofM, endM, facade]   // faces -z (toward street)
-      : [endM, endM, roofM, roofM, facade, endM];  // faces +z
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6), facing);
-    wall.position.set(0, 6.8, ez);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6), [endM, endM, roofM, roofM, endM, facade]);
+    wall.position.set(0, 6.8, 16.5);
     scene.add(wall);
   }
 
@@ -724,16 +862,18 @@ export function makeCrosstown(): Proto {
     );
     alleyEnd.position.set(-FACE - 6.9, 6.4, (AZ0 + AZ1) / 2);
     scene.add(alleyEnd);
-    // the alley's long sides — plain brick, no gaps back to the sky
-    const alleySideT = pixTex(64, 64, (g) => {
-      g.fillStyle = '#54382e'; g.fillRect(0, 0, 64, 64);
+    // the alley's long sides — plain brick. The tile is exactly 7 bricks ×
+    // 12 courses so it wraps with no seam, and no baked edge highlights.
+    const alleySideT = pixTex(63, 60, (g) => {
+      g.fillStyle = '#54382e'; g.fillRect(0, 0, 63, 60);
       g.fillStyle = 'rgba(0,0,0,0.22)';
-      for (let y = 0; y < 64; y += 5) g.fillRect(0, y, 64, 1);
-      for (let y = 0; y < 64; y += 10) for (let x = (y % 20) ? 0 : 4; x < 64; x += 9) g.fillRect(x, y, 1, 5);
-      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, 0, 64, 2);
+      for (let y = 0; y < 60; y += 5) g.fillRect(0, y, 63, 1);
+      for (let y = 0; y < 60; y += 10) for (let x = (y % 20) ? 0 : 4; x < 63; x += 9) g.fillRect(x, y, 1, 5);
+      g.fillStyle = 'rgba(255,255,255,0.05)';
+      for (let i = 0; i < 26; i++) g.fillRect(((i * 23) % 61), ((i * 13) % 57), 2, 1); // worn faces
     });
     alleySideT.wrapS = alleySideT.wrapT = THREE.RepeatWrapping;
-    alleySideT.repeat.set(1.28, 2.34); // 64 px ≈ 5.5 m — matches facade brick courses
+    alleySideT.repeat.set(1.3, 2.36); // ≈ facade brick course size
     const alleySideM = new THREE.MeshBasicMaterial({ map: alleySideT, side: THREE.DoubleSide });
     for (const [az, ry] of [[AZ0 - 0.02, Math.PI], [AZ1 + 0.02, 0]] as [number, number][]) {
       const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, 12.8), alleySideM);
@@ -784,24 +924,27 @@ export function makeCrosstown(): Proto {
     }
     // trash bags: faceted low-poly lumps, vertex-lit from above so the
     // facets read even in flat shading
+    // near-black plastic with a sharp sheen on the top facets — reads as a
+    // full garbage bag, not a rock
     function trashBag(r: number, tone: number): THREE.Mesh {
       const geo = new THREE.IcosahedronGeometry(r, 0).toNonIndexed();
       const pos = geo.getAttribute('position');
       const col: number[] = [];
       for (let f = 0; f < pos.count / 3; f++) {
         const avgY = (pos.getY(f * 3) + pos.getY(f * 3 + 1) + pos.getY(f * 3 + 2)) / (3 * r);
-        const b = tone + avgY * 0.05 + ((f * 37) % 5) * 0.012;
-        for (let v = 0; v < 3; v++) col.push(b, b * 1.06, b * 1.28);
+        const sheen = avgY > 0.35 ? 0.10 + ((f * 37) % 3) * 0.05 : 0; // plastic catches the sky
+        const b = tone + Math.max(0, avgY) * 0.02 + ((f * 37) % 5) * 0.006 + sheen;
+        for (let v = 0; v < 3; v++) col.push(b * 0.9, b * 0.95, b * 1.15);
       }
       geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
       const bag = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
-      bag.scale.y = 0.66;
+      bag.scale.y = 0.62;
       return bag;
     }
     const bagSpots: [number, number, number, number, number][] = [
-      [-9.45, AZ0 - 1.25, 0.34, 0.11, 0.7],
-      [-8.85, AZ0 - 1.0, 0.27, 0.09, 2.1],
-      [-9.15, AZ0 - 0.62, 0.22, 0.13, 4.0],
+      [-9.45, AZ0 - 1.25, 0.34, 0.055, 0.7],
+      [-8.85, AZ0 - 1.0, 0.27, 0.045, 2.1],
+      [-9.15, AZ0 - 0.62, 0.22, 0.065, 4.0],
     ];
     for (const [bx, bz, r, tone, yaw] of bagSpots) {
       const bag = trashBag(r, tone);
@@ -813,9 +956,45 @@ export function makeCrosstown(): Proto {
     const knot = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.07), new THREE.MeshBasicMaterial({ color: 0x2e3038 }));
     knot.position.set(-9.45, 0.44, AZ0 - 1.25);
     scene.add(knot);
-    const rimBag = trashBag(0.3, 0.12);
+    const rimBag = trashBag(0.3, 0.055);
     rimBag.position.set(-10.55, 1.18, AZ0 - 1.15);
     scene.add(rimBag);
+    // the saddest cat on the block, in a cardboard box
+    const cardM = new THREE.MeshBasicMaterial({ color: 0xa8845a });
+    const cardDark = new THREE.MeshBasicMaterial({ color: 0x8a6a44 });
+    const catBox = new THREE.Group();
+    const bfloor = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.55), cardDark);
+    bfloor.position.y = 0.02;
+    catBox.add(bfloor);
+    for (const [wx2, wz2, ww, wd] of [[0, -0.26, 0.55, 0.04], [0, 0.26, 0.55, 0.04], [-0.26, 0, 0.04, 0.55], [0.26, 0, 0.04, 0.55]] as [number, number, number, number][]) {
+      const wallB = new THREE.Mesh(new THREE.BoxGeometry(ww, 0.3, wd), cardM);
+      wallB.position.set(wx2, 0.17, wz2);
+      catBox.add(wallB);
+    }
+    const flap = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.03, 0.28), cardM);
+    flap.position.set(0, 0.33, -0.38);
+    flap.rotation.x = -0.5; // one flap hangs open
+    catBox.add(flap);
+    catBox.position.set(-10.5, 0, AZ1 + 0.75);
+    catBox.rotation.y = 0.4;
+    scene.add(catBox);
+    const catT = pixTex(24, 24, (g) => {
+      g.fillStyle = '#7a7e86';
+      g.fillRect(7, 10, 10, 10);                     // hunched body
+      g.fillRect(8, 4, 8, 8);                        // head
+      g.fillStyle = '#6a6e76';
+      g.fillRect(7, 3, 3, 3); g.fillRect(14, 3, 3, 3); // ears, drooped
+      g.fillStyle = '#141416';
+      g.fillRect(9, 8, 2, 3); g.fillRect(13, 8, 2, 3); // big sad eyes
+      g.fillStyle = '#4a4e56'; g.fillRect(11, 11, 2, 1); // little nose
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(8, 12, 8, 1); // downturned mouth
+      g.fillStyle = '#6a6e76'; g.fillRect(6, 18, 12, 2); // tail curled round
+    });
+    const cat = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), new THREE.MeshBasicMaterial({ map: catT, alphaTest: 0.5, side: THREE.DoubleSide }));
+    cat.geometry.translate(0, 0.17, 0);
+    cat.position.set(-10.5, 0.05, AZ1 + 0.75);
+    boards.push({ m: cat });
+    scene.add(cat);
     // plywood sheet leaning back against the south wall, feet kicked out
     const cardboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.06), new THREE.MeshBasicMaterial({ color: 0x8a7248 }));
     cardboard.position.set(-12.9, 0.6, AZ1 + 0.26);
@@ -1181,6 +1360,18 @@ export function makeCrosstown(): Proto {
     buzzer.position.set(FACE - 0.04, sidewalkY + 1.35, DOOR_Z + 0.95);
     buzzer.rotation.y = -Math.PI / 2;
     scene.add(buzzer);
+    // brass plaque with the house name
+    const plaqueT = pixTex(64, 16, (g) => {
+      g.fillStyle = '#8a7a4e'; g.fillRect(0, 0, 64, 16);
+      g.fillStyle = 'rgba(255,255,255,0.25)'; g.fillRect(0, 0, 64, 2);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 14, 64, 2);
+      g.fillStyle = '#3a3222'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
+      g.fillText('THE WHITMORE', 32, 11);
+    });
+    const plaque = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 0.21), texM(plaqueT));
+    plaque.position.set(FACE - 0.04, sidewalkY + 1.95, DOOR_Z - 0.95);
+    plaque.rotation.y = -Math.PI / 2;
+    scene.add(plaque);
     const stoop = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 1.7), new THREE.MeshBasicMaterial({ color: 0x97928a }));
     stoop.position.set(FACE - 0.275, sidewalkY + 0.075, DOOR_Z);
     scene.add(stoop);
@@ -1212,7 +1403,6 @@ export function makeCrosstown(): Proto {
   // ── the clock, the sky it drags around, and the watch ───────────────────
   let totalMin = 13 * 60 + 20; // one real second = one game minute
   let watchShown = -1;
-  let doorCd = 0;
   let hermitForce = -1;
   // pockets: some cash and a box of cereal to start
   let cash = 14.5;
@@ -1333,6 +1523,180 @@ export function makeCrosstown(): Proto {
     }
     if (iy === 70) g.fillText('(empty pockets)', 75, iy);
   };
+  let promptDiv = document.getElementById('ct-prompt') as HTMLDivElement | null;
+  if (!promptDiv) {
+    promptDiv = document.createElement('div');
+    promptDiv.id = 'ct-prompt';
+    promptDiv.style.cssText = 'position:fixed;left:50%;bottom:88px;transform:translateX(-50%);z-index:10;'
+      + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.5);'
+      + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
+    document.body.appendChild(promptDiv);
+  }
+
+  // ── the bodega interior — one bright little room off the corner ─────────
+  const bodegaColliders: AABB[] = [];
+  {
+    const texM2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
+    const linoT = pixTex(32, 32, (g) => {
+      for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
+        g.fillStyle = (x + y) % 2 ? '#8a8578' : '#b0a996';
+        g.fillRect(x * 16, y * 16, 16, 16);
+      }
+      dither(g, 32, 32, 50);
+    });
+    linoT.wrapS = linoT.wrapT = THREE.RepeatWrapping;
+    linoT.repeat.set(6, 6);
+    const bfloor = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), texM2(linoT));
+    bfloor.rotation.x = -Math.PI / 2;
+    bfloor.position.set(244, 0.005, -15);
+    scene.add(bfloor);
+    const plasterT = pixTex(32, 54, (g) => {
+      g.fillStyle = '#9aa88e'; g.fillRect(0, 0, 32, 54);
+      g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(0, 46, 32, 8); // scuffed base
+      dither(g, 32, 54, 60);
+    });
+    const bWall = (w: number, cx: number, cz: number, ry: number) => {
+      const t = plasterT.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(w / 2.7, 1);
+      t.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, 2.7), texM2(t));
+      m.position.set(cx, 1.35, cz);
+      m.rotation.y = ry;
+      scene.add(m);
+    };
+    bWall(8, 244, -19, 0);
+    bWall(8, 244, -11, Math.PI);
+    bWall(8, 240, -15, Math.PI / 2);
+    bWall(8, 248, -15, -Math.PI / 2);
+    const bCeil = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), new THREE.MeshBasicMaterial({ color: 0xb0aa9c, side: THREE.DoubleSide }));
+    bCeil.rotation.x = -Math.PI / 2;
+    bCeil.position.set(244, 2.7, -15);
+    scene.add(bCeil);
+    // interior door back to the street, on the west wall
+    const bDoorT = pixTex(32, 64, (g) => {
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
+      g.fillStyle = '#8a97a2'; g.fillRect(4, 4, 24, 40); // daylight in the glass
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(4, 24, 24, 2);
+      g.fillStyle = '#c9b45e'; g.fillRect(25, 34, 3, 3);
+    });
+    const bDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM2(bDoorT));
+    bDoor.position.set(240.02, 1.05, -17);
+    bDoor.rotation.y = Math.PI / 2;
+    scene.add(bDoor);
+    // stocked shelves — two gondolas up the middle
+    const shelfT = pixTex(64, 32, (g) => {
+      g.fillStyle = '#5a4632'; g.fillRect(0, 0, 64, 32);
+      const cols = ['#b8342a', '#d8a02a', '#2c6a8a', '#4a7a3a', '#d8d0c0', '#8a3a6a'];
+      for (const sy of [2, 13, 24]) {
+        g.fillStyle = '#3a2c20'; g.fillRect(0, sy + 8, 64, 2);
+        for (let x = 2; x < 62; x += 5) {
+          g.fillStyle = cols[(x / 5 + sy) % 6 | 0];
+          g.fillRect(x, sy, 4, 8);
+        }
+      }
+      dither(g, 64, 32, 40);
+    });
+    const shelfM = texM2(shelfT);
+    const shelfEndM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    for (const gz of [-16.2, -13.9]) {
+      const gond = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.35, 0.8), [shelfEndM, shelfEndM, shelfEndM, shelfEndM, shelfM, shelfM]);
+      gond.position.set(243.6, 0.675, gz);
+      scene.add(gond);
+      bodegaColliders.push({ minX: 242, maxX: 245.2, minZ: gz - 0.4, maxZ: gz + 0.4 });
+    }
+    // the cooler hums along the east wall
+    const coolerT = pixTex(96, 48, (g) => {
+      g.fillStyle = '#d8d4c8'; g.fillRect(0, 0, 96, 48);
+      for (let d = 0; d < 3; d++) {
+        const x = 4 + d * 30;
+        g.fillStyle = '#16242e'; g.fillRect(x, 4, 26, 40);
+        g.fillStyle = 'rgba(160,200,220,0.25)'; g.fillRect(x + 2, 6, 8, 36);
+        for (let r = 0; r < 3; r++) for (let b = 0; b < 4; b++) {
+          g.fillStyle = ['#b8342a', '#2c6a8a', '#d8a02a', '#4a7a3a'][(r + b + d) % 4];
+          g.fillRect(x + 3 + b * 6, 12 + r * 10, 4, 7);
+        }
+      }
+      dither(g, 96, 48, 30);
+    });
+    const cooler = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 2.0, 5),
+      [new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }), texM2(coolerT), new THREE.MeshBasicMaterial({ color: 0xb8b4a8 }), shelfEndM, shelfEndM, shelfEndM],
+    );
+    cooler.position.set(247.6, 1.0, -14.6);
+    scene.add(cooler);
+    bodegaColliders.push({ minX: 247.2, maxX: 248, minZ: -17.2, maxZ: -12 });
+    // counter, register, and the man himself
+    const counterT = pixTex(64, 24, (g) => {
+      g.fillStyle = '#6a5038'; g.fillRect(0, 0, 64, 24);
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let y = 6; y < 24; y += 8) g.fillRect(0, y, 64, 1);
+      g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(0, 0, 64, 2);
+    });
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.95, 0.7), [shelfEndM, shelfEndM, texM2(counterT), shelfEndM, texM2(counterT), shelfEndM]);
+    counter.position.set(242.2, 0.475, -18.15);
+    scene.add(counter);
+    bodegaColliders.push({ minX: 240.9, maxX: 243.5, minZ: -18.5, maxZ: -17.8 });
+    const reg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.35), new THREE.MeshBasicMaterial({ color: 0x2a2c32 }));
+    reg.position.set(242.9, 1.11, -18.2);
+    scene.add(reg);
+    const keeperT = pixTex(40, 64, (g) => {
+      g.fillStyle = '#4a4a52'; g.fillRect(10, 44, 8, 18); g.fillRect(22, 44, 8, 18); // slacks
+      g.fillStyle = '#8a95a0'; g.fillRect(8, 22, 24, 24);                            // shirt
+      g.fillStyle = '#d8d4c8'; g.fillRect(12, 26, 16, 20);                           // apron
+      g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(12, 26, 16, 2);
+      g.fillStyle = '#c9946a'; g.fillRect(3, 24, 5, 13); g.fillRect(32, 24, 5, 13);  // arms
+      g.fillStyle = '#b8845a'; g.fillRect(14, 8, 12, 13);                            // head
+      g.fillStyle = '#241a12'; g.fillRect(13, 6, 14, 4);                             // hair
+      g.fillStyle = '#241a12'; g.fillRect(16, 13, 2, 2); g.fillRect(22, 13, 2, 2);   // eyes
+      g.fillStyle = '#3a2c20'; g.fillRect(15, 17, 10, 2);                            // moustache
+      dither(g, 40, 64, 20);
+    });
+    const keeper = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.92), new THREE.MeshBasicMaterial({ map: keeperT, alphaTest: 0.5, side: THREE.DoubleSide }));
+    keeper.position.set(242.2, 0.96, -18.68);
+    scene.add(keeper);
+    bodegaColliders.push(
+      { minX: 239.8, maxX: 240, minZ: -19.2, maxZ: -10.8 },
+      { minX: 248, maxX: 248.2, minZ: -19.2, maxZ: -10.8 },
+      { minX: 239.8, maxX: 248.2, minZ: -19.2, maxZ: -19 },
+      { minX: 239.8, maxX: 248.2, minZ: -11, maxZ: -10.8 },
+    );
+    // warm bulb glow over the aisle
+    const bulbT = pixTex(32, 32, (g) => {
+      const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15);
+      gr.addColorStop(0, 'rgba(255,235,190,0.8)');
+      gr.addColorStop(1, 'rgba(255,235,190,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    });
+    const bulbM = new THREE.MeshBasicMaterial({ map: bulbT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    for (const gz of [-17.5, -13.5]) {
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.0), bulbM);
+      gl.position.set(244, 2.45, gz);
+      gl.rotation.x = Math.PI / 2;
+      scene.add(gl);
+    }
+  }
+
+  // ── weather: some hours it rains ────────────────────────────────────────
+  const RAIN_N = 500;
+  const rainPos = new Float32Array(RAIN_N * 3);
+  for (let i = 0; i < RAIN_N; i++) {
+    rainPos[i * 3] = (Math.random() - 0.5) * 30;
+    rainPos[i * 3 + 1] = Math.random() * 14;
+    rainPos[i * 3 + 2] = (Math.random() - 0.5) * 30;
+  }
+  const rainGeo = new THREE.BufferGeometry();
+  rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
+  const rainT = pixTex(8, 16, (g) => {
+    g.fillStyle = 'rgba(214,222,232,0.8)'; g.fillRect(3, 1, 2, 13);
+  });
+  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.5, transparent: true, opacity: 0, depthWrite: false });
+  const rain = new THREE.Points(rainGeo, rainM);
+  rain.visible = false;
+  scene.add(rain);
+  let rainLevel = 0;
+  const RAIN_SKY = new THREE.Color('#5a626e');
+  const rainAt = (h: number) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
 
   // billboard sprites: trees, hydrant, pigeons
   function board(tex: THREE.Texture, w: number, h: number, x: number, z: number): THREE.Mesh {
@@ -1478,27 +1842,85 @@ export function makeCrosstown(): Proto {
   });
 
   const colliders: AABB[] = [
-    { minX: FACE - 0.3, maxX: FACE + 8, minZ: -L - 10, maxZ: 20 },          // right wall
-    { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: -L - 10, maxZ: AZ1 },       // left wall south of alley
+    { minX: FACE - 0.3, maxX: FACE + 8, minZ: -96, maxZ: 20 },              // right wall (stops at the corner)
+    { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: -112, maxZ: AZ1 },          // left wall south of alley, wraps the corner
     { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: AZ0, maxZ: 20 },            // left wall north of alley
+    { minX: 6.8, maxX: SIDE_X1 + 2, minZ: -96.3, maxZ: -92 },               // corner shops, north of the side street
+    { minX: -7, maxX: SIDE_X1 + 2, minZ: -113, maxZ: -109.7 },              // south side of the side street
+    { minX: SIDE_X1 + 1.7, maxX: SIDE_X1 + 9, minZ: -112, maxZ: -92 },      // east end of the side street
+    { minX: 7.5, maxX: 9.7, minZ: -96.9, maxZ: -96.2 },                     // bodega fruit crates
     { minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 }, // alley end wall
     { minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 },        // dumpster
     ...propColliders,
     ...carColliders,
     ...sevColliders,
+    ...bodegaColliders,
     cruiserBox,
   ];
   const rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
-    bounds: { minX: -FACE - 6.4, maxX: AX(2.4), minZ: -L - 0.5, maxZ: 13 },
+    bounds: { minX: -FACE - 6.4, maxX: 260, minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     groundY: (x, z) => {
+      if (x > 230) { lastGy = 0; return 0; }  // bodega interior, flat
       if (x > 100) return aptGround(x, z);
+      if (z < SIDE_Z0 + 2) { // the corner and the side street
+        if (z > SIDE_Z0) lastGy = Math.abs(x) > ROAD_HALF ? KERB_H : 0;
+        else if (z < SIDE_Z1) lastGy = KERB_H;
+        else lastGy = x > SIDE_X1 || x < -ROAD_HALF ? KERB_H : 0;
+        return lastGy;
+      }
       lastGy = Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0;
       return lastGy;
     },
   });
 
   // debug/tour hook
+  // E is one key for the whole world: doors, buying, feeding the birds
+  interface Spot { x: number; z: number; r: number; label: () => string; ok: () => boolean; act: () => void }
+  const jumpTo = (x: number, z: number, yaw: number, gy: number) => {
+    rig.pos.set(x, rig.pos.y, z);
+    rig.yaw = yaw;
+    lastGy = gy;
+  };
+  const SPOTS: Spot[] = [
+    {
+      x: FACE - 0.45, z: -44, r: 1.05,
+      ok: () => rig.pos.x < 100 && lastGy < 1,
+      label: () => 'enter THE WHITMORE',
+      act: () => jumpTo(AX(1.2), AZI(1.3), Math.PI, 0),
+    },
+    {
+      x: AX(1.2), z: AZI(0.4), r: 0.95,
+      ok: () => rig.pos.x > 100 && rig.pos.x < 230 && lastGy < 0.5,
+      label: () => 'out to the street',
+      act: () => jumpTo(FACE - 1.1, -44, -Math.PI / 2, KERB_H),
+    },
+    {
+      x: 8.7, z: -96.85, r: 1.1,
+      ok: () => rig.pos.x < 100,
+      label: () => 'into the BODEGA',
+      act: () => jumpTo(241.3, -17, Math.PI / 2, 0),
+    },
+    {
+      x: 240.5, z: -17, r: 1.0,
+      ok: () => rig.pos.x > 230,
+      label: () => 'out to the street',
+      act: () => jumpTo(8.7, -97.2, 0, KERB_H),
+    },
+    {
+      x: 242.2, z: -17.5, r: 1.0,
+      ok: () => rig.pos.x > 230,
+      label: () => cash >= 2.5 ? 'buy cereal — $2.50' : 'cereal $2.50 — you’re short',
+      act: () => { if (cash >= 2.5) { cash -= 2.5; inv.CEREAL = (inv.CEREAL ?? 0) + 1; if (walletOpen) drawWallet(); } },
+    },
+    {
+      x: 246.9, z: -14.6, r: 1.0,
+      ok: () => rig.pos.x > 230,
+      label: () => cash >= 1.25 ? 'buy soda — $1.25' : 'soda $1.25 — you’re short',
+      act: () => { if (cash >= 1.25) { cash -= 1.25; inv.SODA = (inv.SODA ?? 0) + 1; if (walletOpen) drawWallet(); } },
+    },
+  ];
+
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
       rig.pos.set(x, rig.pos.y, z);
@@ -1527,7 +1949,9 @@ export function makeCrosstown(): Proto {
       totalMin += dt;
       const clockMin = totalMin % 1440;
       const hourF = clockMin / 60;
-      (scene.background as THREE.Color).copy(skyAt(hourF));
+      const skyCol = skyAt(hourF);
+      if (rainLevel > 0.01) skyCol.lerp(RAIN_SKY, rainLevel * 0.5); // rain flattens the light
+      (scene.background as THREE.Color).copy(skyCol);
       scene.fog!.color.copy(skyNow);
       nightDiv!.style.opacity = String(nightAt(hourF));
       // the hermit keeps his own hours — mostly afternoons
@@ -1547,21 +1971,51 @@ export function makeCrosstown(): Proto {
         walletWrap!.style.transform = walletOpen ? 'translateY(0) rotate(3deg)' : 'translateY(130%) rotate(3deg)';
       }
       rmbHeld = rmb;
-      // E scatters a handful of cereal in front of you
+      // E: nearest live spot wins; with nothing near, E feeds the birds
+      let active: Spot | null = null;
+      for (const s of SPOTS) {
+        if (s.ok() && Math.hypot(px - s.x, pz - s.z) < s.r) { active = s; break; }
+      }
+      if (active) {
+        promptDiv!.textContent = `[E] ${active.label()}`;
+        promptDiv!.style.display = 'block';
+      } else {
+        promptDiv!.style.display = 'none';
+      }
+      // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
-      if (feedDown && !feedHeld && (inv.CEREAL ?? 0) > 0 && px < 100) {
-        inv.CEREAL--;
-        const cx2 = px + Math.sin(rig.yaw) * 1.3, cz2 = pz - Math.cos(rig.yaw) * 1.3;
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), crumbMat);
-        m.rotation.x = -Math.PI / 2;
-        m.rotation.z = rnd() * Math.PI;
-        m.position.set(cx2, lastGy + 0.012, cz2);
-        scene.add(m);
-        if (crumbs) scene.remove(crumbs.m);
-        crumbs = { x: cx2, z: cz2, y: lastGy, t: 35, m };
-        if (walletOpen) drawWallet();
+      if (feedDown && !feedHeld) {
+        if (active) {
+          active.act();
+        } else if ((inv.CEREAL ?? 0) > 0 && px < 100) {
+          inv.CEREAL--;
+          const cx2 = px + Math.sin(rig.yaw) * 1.3, cz2 = pz - Math.cos(rig.yaw) * 1.3;
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), crumbMat);
+          m.rotation.x = -Math.PI / 2;
+          m.rotation.z = rnd() * Math.PI;
+          m.position.set(cx2, lastGy + 0.012, cz2);
+          scene.add(m);
+          if (crumbs) scene.remove(crumbs.m);
+          crumbs = { x: cx2, z: cz2, y: lastGy, t: 35, m };
+          if (walletOpen) drawWallet();
+        }
       }
       feedHeld = feedDown;
+      // weather: the rain comes and goes by the hour
+      const wantRain = rainAt(Math.floor(totalMin / 60)) && px < 100 ? 1 : 0;
+      rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
+      rain.visible = rainLevel > 0.02;
+      if (rain.visible) {
+        rainM.opacity = 0.55 * rainLevel;
+        rain.position.set(px, 0, pz);
+        const rp = rain.geometry.getAttribute('position') as THREE.BufferAttribute;
+        for (let i = 0; i < RAIN_N; i++) {
+          let ry = rp.getY(i) - dt * 13;
+          if (ry < 0) ry += 14;
+          rp.setY(i, ry);
+        }
+        rp.needsUpdate = true;
+      }
 
       // floor-aware stair guards (2D colliders, so they follow the floor)
       setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(8.4), AZI(13.2));
@@ -1570,17 +2024,6 @@ export function makeCrosstown(): Proto {
       setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.0), AZI(13.2));
       setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.1), AZI(3.9));
 
-      // the building doors swap you between the street and the lobby
-      doorCd = Math.max(0, doorCd - dt);
-      if (doorCd === 0) {
-        if (px < 100 && Math.abs(px - (FACE - 0.45)) < 0.75 && Math.abs(pz + 44) < 0.8) {
-          rig.pos.set(AX(1.2), rig.pos.y, AZI(1.3));
-          rig.yaw = Math.PI; lastGy = 0; doorCd = 1;
-        } else if (px > 100 && lastGy < 0.5 && Math.abs(px - AX(1.2)) < 0.7 && pz < AZI(0.75)) {
-          rig.pos.set(FACE - 1.1, rig.pos.y, -44);
-          rig.yaw = -Math.PI / 2; lastGy = KERB_H; doorCd = 1;
-        }
-      }
 
       // billboards face the player
       for (const b of boards) {

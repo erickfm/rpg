@@ -7,11 +7,34 @@ published to the playable artifact.
 
 ## Inbox
 
-- **Add a corner** — the street should turn somewhere; a real corner to
-  walk around, not just closed ends.
-- **Add a bodega** — classic corner store (pairs with the corner).
-
 ## In progress
+
+## Done — 2026-07-24 round 4 (live in artifact)
+
+- **The corner** — the main street turns east at its south end into a
+  hand-authored side street (FLOWERS, TAILOR, CHOP SUEY, OPTICIAN north;
+  GARAGE, THRIFT, MISSION, BILLIARDS, SMOKES south; RADIO closes the west
+  stub; the east end sinks into the fog). Kerbs, dashes, and ground rules
+  wrap the turn.
+- **The bodega** — owns the corner: shopfronts on both street faces,
+  striped awning, neon OPEN, fruit crates, and a walk-in interior
+  (checker lino, stocked gondolas, humming cooler, counter + register +
+  shopkeeper). Buy cereal ($2.50) or soda ($1.25) with real cash.
+- **E to go inside places** — one prompt-driven key: doors show
+  "[E] enter …" when near; E also buys at the bodega and still feeds the
+  birds when nothing else is in reach.
+- **Rain from time to time** — hash-driven rainy hours, camera-following
+  streaks, sky flattens while it falls.
+- **Sad alley cat in a cardboard box** — by the south alley wall, one
+  flap open.
+- **Building renamed** — "THE WHITMORE" on a brass plaque; SEVILLE gone
+  (user note about it referred to a stale build — the transom says 227).
+- **Alley brick behind the dumpster fixed** — seamless 7×12-brick tile,
+  no baked edge highlight, no repeating seams.
+- **Trash bags read as bags** — near-black plastic with a sharp top
+  sheen instead of grey stone.
+- **Pickup bed lowered and recessed** — tub sits inside the body with a
+  slab rim showing all round, rails just above the beltline.
 
 ## Done — 2026-07-24 round 3 (live in artifact, commit 2ec33e2)
 
