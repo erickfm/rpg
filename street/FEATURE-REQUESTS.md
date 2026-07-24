@@ -40,6 +40,11 @@ published to the playable artifact.
   in front of your face. (History: whole-arm version → reverted;
   fist+forearm version → reverted; currently wrist-only.)
 
+- **The street is too tidy.** Cars are parked too perfectly — spacing and
+  alignment read as placed rather than parked. Wanted: less clean overall.
+  Nudge parking positions/angles off-true, and scatter small litter — a can
+  in the gutter, that kind of thing.
+
 - **Building edge seams.** Visible vertical seams/gaps where one building
   meets the next — confirmed in `shots/tr-two-trees-e.png` between No. 227
   and ARCADE.
