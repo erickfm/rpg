@@ -239,17 +239,22 @@ export function payphoneTex(): THREE.Texture {
 // Sparse gutter debris. Deliberately small and few: the note was "just trying
 // to add detail and realism. dont go over board."
 
-// a crushed soda can lying on its side
-export function canSprite(v: number): THREE.Texture {
-  const cols = ['#b8342a', '#2c6a8a', '#d8a02a', '#4a7a3a'];
+// A crushed can, drawn TOP-DOWN because it lies on the road as a flat decal.
+// It must NOT be a billboard: billboards rotate to face the camera, so a can
+// drawn in side view stands up on end as a flat card the moment you look down
+// at it. Anything lying on the ground gets drawn from above.
+export function canTopTex(v: number): THREE.Texture {
+  const cols = ['#b8342a', '#2c6a8a', '#c9a02a', '#4a7a3a'];
   const c = cols[v % cols.length];
-  return pixTex(16, 10, (g) => {
-    g.fillStyle = c; g.fillRect(1, 3, 13, 5);
-    g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(1, 3, 13, 1);   // top rim light
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(1, 7, 13, 1);
-    g.fillStyle = '#c8ccd0'; g.fillRect(0, 3, 2, 5); g.fillRect(13, 3, 3, 5); // bare alu ends
-    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(6, 3, 1, 5);          // crush crease
-    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(4, 4, 2, 1); g.fillRect(9, 6, 2, 1);
+  return pixTex(20, 12, (g) => {
+    // body: a squashed cylinder seen from above, ends lighter bare aluminium
+    g.fillStyle = '#b9bcc0'; g.fillRect(2, 3, 16, 6);
+    g.fillStyle = c; g.fillRect(6, 3, 9, 6);                    // label band
+    g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(2, 3, 16, 1);  // top highlight
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(2, 8, 16, 1);        // contact shadow
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(10, 3, 1, 6);        // crush crease
+    g.fillStyle = '#8f9296'; g.fillRect(1, 4, 2, 4); g.fillRect(17, 4, 2, 4); // rims
+    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(3, 9, 14, 1);
   });
 }
 

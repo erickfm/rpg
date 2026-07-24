@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
-         canSprite, newspaperTex, scrapTex } from './tex-world';
+         canTopTex, newspaperTex, scrapTex } from './tex-world';
 import type { CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -295,9 +295,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const z = -6 - rnd() * (L - 18);
     const x = s2 * (GUT - rnd() * 0.30);
     if (rnd() < 0.42) {
-      // a can, standing proud of the road on its side
-      const c = board(canSprite(i), 0.30, 0.19, x, z);
-      c.position.y = 0.02;
+      flatDecal(canTopTex(i), 0.32, 0.19, x, z, rnd() * Math.PI, 0.001);
     } else {
       flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.001);
     }
@@ -308,10 +306,7 @@ export function buildProps(ctx: CtxBuild): Props {
     flatDecal(npT, 0.44, 0.32, s2 * (GUT - 0.10), -20 - i * 37, rnd() * Math.PI, 0.001);
   }
   // one can up on the sidewalk, against the kerb
-  {
-    const c = board(canSprite(3), 0.30, 0.19, ROAD_HALF + 0.22, -47.5);
-    c.position.y = sidewalkY + 0.02;
-  }
+  flatDecal(canTopTex(3), 0.32, 0.19, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
 
   return {
     setLampNight: (v) => {
