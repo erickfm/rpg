@@ -1,0 +1,51 @@
+name: Deploy CROSSTOWN '97
+
+on:
+  push:
+    branches: [main, add-stick-and-city98]
+    paths: ['street/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: street/package-lock.json
+      - name: Install
+        working-directory: street
+        run: npm ci
+      - name: Typecheck
+        working-directory: street
+        run: npx tsc --noEmit
+      # base=./ so assets resolve under the /rpg/ subpath. Done here rather than
+      # in a vite.config so the local build and pack-artifact.mjs stay unchanged.
+      - name: Build
+        working-directory: street
+        run: npx vite build --base=./
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: street/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
