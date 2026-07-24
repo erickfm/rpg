@@ -110,26 +110,13 @@ export function buildCatRig(o: {
     if (c.F3) p(c.F3, [18, 21, 2, 1], [9, 26, 1, 2], [5, 26, 1, 2]);
   };
 
-  // ROUND 3. The user picked two of the twelve: BLACK-ALERT and SMOKE-BLUE.
-  // Both are the `alert` silhouette, so these are deliberately SUBTLE
-  // variations on those two coats — fur temperature, a ghost-tabby that only
-  // shows in certain light, eye tone, a white chest fleck. Nothing here
-  // changes the shape; the shape is settled.
+  // CHOSEN, after three rounds of playtest: the black cat with amber eyes,
+  // on the `alert` silhouette (upright sit, ears wide on the skull, tail
+  // held straight out). The comparison rig is gone; the `curl` template and
+  // the coat options are kept because they cost nothing and the next animal
+  // in this world will want them.
   const CAT_DESIGNS: { nm: string; draw: Draw }[] = [
-    // ── black family ────────────────────────────────────────────────────
-    { nm: 'black',        draw: alert({ F: '#2f2d33', eye: '#d0a83c' }) },              // the original
-    { nm: 'black-warm',   draw: alert({ F: '#332e2b', eye: '#d0a83c' }) },              // browner black
-    { nm: 'black-cool',   draw: alert({ F: '#2a2d36', eye: '#d0a83c' }) },              // blue-black
-    { nm: 'black-ghost',  draw: alert({ F: '#2f2d33', F2: '#3a3841', eye: '#d0a83c' }) },// faint ghost tabby
-    { nm: 'black-green',  draw: alert({ F: '#2f2d33', eye: '#7d9463' }) },              // green eyes
-    { nm: 'black-pale',   draw: alert({ F: '#2f2d33', eye: '#e2cb72' }) },              // paler yellow eye
-    { nm: 'black-fleck',  draw: alert({ F: '#2f2d33', eye: '#d0a83c', spot: true }) },  // small white chest fleck
-    // ── smoke family ────────────────────────────────────────────────────
-    { nm: 'smoke',        draw: alert({ F: '#6a7280', eye: '#c9a83c', paw: '#7d8492' }) },  // the original
-    { nm: 'smoke-light',  draw: alert({ F: '#7b8391', eye: '#c9a83c', paw: '#8c93a0' }) },
-    { nm: 'smoke-dark',   draw: alert({ F: '#5a6270', eye: '#c9a83c', paw: '#6b7280' }) },
-    { nm: 'smoke-ghost',  draw: alert({ F: '#6a7280', F2: '#5d6472', eye: '#c9a83c', paw: '#7d8492' }) },
-    { nm: 'smoke-copper', draw: alert({ F: '#6a7280', eye: '#b8763a', paw: '#7d8492' }) },
+    { nm: 'black', draw: alert({ F: '#2f2d33', eye: '#d0a83c' }) },
   ];
 
   // a contact shadow apiece so they sit on the ground instead of hovering
