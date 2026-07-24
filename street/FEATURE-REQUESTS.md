@@ -9,6 +9,17 @@ published to the playable artifact.
 
 ## In progress
 
+## Done — 2026-07-24 quality pass, continued
+
+- **Sprite trees restored** — the low-poly canopy trees were worse: lost
+  the Quake-style rotating-sprite look and blocked the sidewalk. Back to
+  the painted cutouts, keeping the good parts: fixed crown texels (taller
+  = longer trunk only), dirt pits, trunk-only collision so the walk stays
+  walkable.
+- **Corner road graphical bug fixed** — the main-road and side-road
+  planes overlapped 8 mm apart and z-fought; they now abut exactly at the
+  corner.
+
 ## Done — 2026-07-24 quality pass (commit 8842d05)
 
 - **Rain never falls indoors** — cuts instantly on entering a building.

@@ -136,21 +136,25 @@ function walkTex(): THREE.Texture {
   return t;
 }
 
-// faceted canopy blob — vertex-lit from above so the facets read even in
-// flat shading (same trick as the alley trash bags)
-function canopyBlob(r: number, base: THREE.Color, squash: number, seed: number): THREE.Mesh {
-  const geo = new THREE.IcosahedronGeometry(r, 0).toNonIndexed();
-  const pos = geo.getAttribute('position');
-  const col: number[] = [];
-  for (let f = 0; f < pos.count / 3; f++) {
-    const avgY = (pos.getY(f * 3) + pos.getY(f * 3 + 1) + pos.getY(f * 3 + 2)) / (3 * r);
-    const v = 0.68 + avgY * 0.24 + (((f + seed) * 37) % 5) * 0.04;
-    for (let k = 0; k < 3; k++) col.push(base.r * v, base.g * v, base.b * v);
-  }
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
-  m.scale.y = squash;
-  return m;
+// the sprite tree — a painted cutout that turns to face you, Quake-style.
+// Crown pixels are fixed; H only stretches the trunk (taller never means
+// bigger).
+function treeSprite(k: number, H = 96): THREE.Texture {
+  return pixTex(64, H, (g) => {
+    g.fillStyle = '#4a3626'; g.fillRect(28, 58, 8, H - 58);
+    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(28, 58, 2, H - 58);
+    const greens = k === 1 ? ['#425c2e', '#364c26', '#527038'] : ['#2e5a30', '#25482a', '#3f7038'];
+    const blobs: [number, number, number][] = [[32, 34, 26], [18, 44, 16], [46, 42, 15], [26, 22, 14], [42, 24, 12], [32, 40, 18]];
+    blobs.forEach(([x, y, r], i) => {
+      g.fillStyle = greens[i % 3];
+      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    });
+    for (let i = 0; i < 90; i++) {
+      const a = Math.random() * Math.PI * 2, rr = Math.random() * 24;
+      g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
+      g.fillRect(Math.floor(32 + Math.cos(a) * rr), Math.floor(34 + Math.sin(a) * rr * 0.9), 2, 2);
+    }
+  });
 }
 
 function treePitTex(): THREE.Texture {
@@ -594,12 +598,13 @@ export function makeCrosstown(): Proto {
   // end (the corner). Same road width, same kerbs, fog owns the far end.
   const SIDE_Z0 = -98, SIDE_Z1 = -108;  // side-street road band
   const SIDE_X1 = 55;                   // side street runs east to here
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, L + 44), flat(asphaltTex()));
-  road.rotation.x = -Math.PI / 2; road.position.z = -L / 2 + 14;
+  // the two road planes ABUT at z = -98 — never overlap, never z-fight
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_HALF * 2, 36 - SIDE_Z0), flat(asphaltTex()));
+  road.rotation.x = -Math.PI / 2; road.position.z = (36 + SIDE_Z0) / 2;
   scene.add(road);
   const sideRoad = new THREE.Mesh(new THREE.PlaneGeometry(SIDE_X1 + 7, 10), flat(asphaltTex()));
   sideRoad.rotation.x = -Math.PI / 2;
-  sideRoad.position.set((SIDE_X1 - 7) / 2, 0.008, (SIDE_Z0 + SIDE_Z1) / 2);
+  sideRoad.position.set((SIDE_X1 - 7) / 2, 0, (SIDE_Z0 + SIDE_Z1) / 2);
   scene.add(sideRoad);
   // raised sidewalks with a visible curb face
   const KERB_H = 0.14;
@@ -634,10 +639,10 @@ export function makeCrosstown(): Proto {
   const sidewalkY = KERB_H; // prop base height on the walks
   const lineT = pixTex(8, 32, (g) => { g.fillStyle = '#b8a24e'; g.fillRect(2, 0, 4, 18); });
   lineT.wrapS = lineT.wrapT = THREE.RepeatWrapping;
-  lineT.repeat.set(1, 40);
-  const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, L + 44), new THREE.MeshBasicMaterial({ map: lineT, alphaTest: 0.5 }));
+  lineT.repeat.set(1, 38);
+  const line = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 36 - SIDE_Z0), new THREE.MeshBasicMaterial({ map: lineT, alphaTest: 0.5 }));
   line.rotation.x = -Math.PI / 2;
-  line.position.set(0, 0.03, -L / 2 + 14);
+  line.position.set(0, 0.03, (36 + SIDE_Z0) / 2);
   const lineT2 = lineT.clone();
   lineT2.repeat.set(1, 22);
   lineT2.needsUpdate = true;
@@ -1747,36 +1752,20 @@ export function makeCrosstown(): Proto {
   }
   const propColliders: AABB[] = [];
 
-  // street trees — real low-poly geometry: a leaning 5-sided trunk with
-  // 2-3 faceted canopy blobs, planted in a square dirt pit. No billboards.
+  // street trees — the sprite cutouts are back (they belong here): fixed
+  // crown texels, trunk-only variation, planted in dirt pits, and only the
+  // trunk is solid so the sidewalk stays walkable
+  const TREE_PX = 0.05; // world units per texel
   const pitT = treePitTex();
   const pitGeo = new THREE.PlaneGeometry(1.5, 1.5);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
-  const barkM = new THREE.MeshBasicMaterial({ color: 0x4a3626 });
-  const TREE_GREENS = [new THREE.Color('#3e6a36'), new THREE.Color('#52642e')];
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.9);
-    const tree = new THREE.Group();
-    const trunkH = 1.8 + rnd() * 0.8;
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.15, trunkH, 5), barkM);
-    trunk.position.y = trunkH / 2;
-    tree.add(trunk);
-    const green = TREE_GREENS[treeIdx % 2];
-    const c0 = canopyBlob(0.9 + rnd() * 0.3, green, 0.82, treeIdx);
-    c0.position.y = trunkH + 0.5;
-    tree.add(c0);
-    const c1 = canopyBlob(0.55 + rnd() * 0.2, green, 0.75, treeIdx + 3);
-    c1.position.set(0.45 + rnd() * 0.2, trunkH + 0.15, (rnd() - 0.5) * 0.5);
-    tree.add(c1);
-    const c2 = canopyBlob(0.45 + rnd() * 0.2, green, 0.7, treeIdx + 5);
-    c2.position.set(-(0.4 + rnd() * 0.2), trunkH + 0.3, (rnd() - 0.5) * 0.5);
-    tree.add(c2);
-    tree.rotation.y = rnd() * Math.PI * 2;
-    tree.rotation.z = (rnd() - 0.5) * 0.14; // a little lean
-    tree.position.set(tx, sidewalkY, z);
-    scene.add(tree);
+    const H = 92 + Math.floor(rnd() * 36); // 4.6 – 6.4 m via trunk length alone
+    const tree = board(treeSprite(treeIdx % 2, H), 64 * TREE_PX, H * TREE_PX, tx, z);
+    tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
     pit.rotation.x = -Math.PI / 2;
     pit.position.set(tx, sidewalkY + 0.006, z);
