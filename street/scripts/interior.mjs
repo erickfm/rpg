@@ -79,14 +79,24 @@ const SHOTS = [
   ['plate-102', AX(1.2), AZ(5.0), at(1.18, -1.5), 0, 0.12],
   ['plate-302-ajar', AX(1.2), AZ(5.0), at(1.18, -1.5), 2 * ST, 0.10],
 
-  // ── the hermit, from every side ─────────────────────────────────────────
-  ['hermit-front', AX(0.9), AZ(3.5), at(1.4, 0), 2 * ST, 0.05],
-  ['hermit-near', AX(1.5), AZ(3.5), at(0.8, 0), 2 * ST, 0.05],
-  ['hermit-oblique-n', AX(1.1), AZ(2.2), at(1.2, 1.3), 2 * ST, 0.05],
-  ['hermit-oblique-s', AX(1.1), AZ(4.8), at(1.2, -1.3), 2 * ST, 0.05],
-  ['hermit-graze-n', AX(2.0), AZ(1.4), at(0.3, 2.1), 2 * ST, 0.05],
-  ['hermit-graze-s', AX(2.0), AZ(5.6), at(0.3, -2.1), 2 * ST, 0.05],
-  ['hermit-far', AX(1.2), AZ(7.6), at(1.1, -4.1), 2 * ST, 0.02],
+  // ── the hermit — he stands at AX(1.95) in the hall now, not in the door ─
+  ['hermit-front', AX(0.7), AZ(3.5), at(1.25, 0), 2 * ST, 0.05],
+  ['hermit-near', AX(1.1), AZ(3.5), at(0.85, 0), 2 * ST, 0.05],
+  ['hermit-oblique-n', AX(0.9), AZ(2.3), at(1.05, 1.2), 2 * ST, 0.05],
+  ['hermit-oblique-s', AX(0.9), AZ(4.7), at(1.05, -1.2), 2 * ST, 0.05],
+  ['hermit-graze-n', AX(1.9), AZ(1.5), at(0.05, 2.0), 2 * ST, 0.05],
+  ['hermit-graze-s', AX(1.9), AZ(5.5), at(0.05, -2.0), 2 * ST, 0.05],
+  ['hermit-far', AX(1.0), AZ(7.4), at(0.95, -3.9), 2 * ST, 0.02],
+  ['hermit-past', AX(0.5), AZ(3.5), at(1.45, 0), 2 * ST, 0.30],
+
+  // ── wall thickness, jambs, casing, and 301's door ───────────────────────
+  ['door301-hall', AX(1.5), AZ(3.5), at(-1.5, 0), 2 * ST, 0.04],
+  ['door301-edge', AX(0.62), AZ(5.3), at(-0.62, -1.85), 2 * ST, 0.02],
+  ['door301-edge2', AX(0.62), AZ(1.7), at(-0.62, 1.85), 2 * ST, 0.02],
+  ['door301-room', AX(-1.7), AZ(3.5), at(1.7, 0), 2 * ST, 0.04],
+  ['door301-thru', AX(0.3), AZ(3.5), at(-0.3, 0), 2 * ST, -0.10],
+  ['door302-recess', AX(1.1), AZ(5.0), at(1.3, -1.5), 2 * ST, 0.04],
+  ['hall-doors-jamb', AX(1.2), AZ(6.2), at(-1.1, 2.7), 0, 0.02],
 ];
 
 for (const [name, x, z, yaw, gy, pitch] of SHOTS) {

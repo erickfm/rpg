@@ -131,6 +131,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const underStairA = mkCap();    // lobby: dead space under the flights
   const underStairB = mkCap();
   const aptDoorCap = mkCap();     // 301's doorway only opens on floor 3
+  const hermitCap = mkCap();      // he is solid, but only when he is in
   const setCap = (c: AABB, on: boolean, x0: number, x1: number, z0: number, z1: number) => {
     if (on) { c.minX = x0; c.maxX = x1; c.minZ = z0; c.maxZ = z1; }
     else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
@@ -184,16 +185,58 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       dither(g, 32, 32, 60);
     });
     const H = 3 * ST + 2.55; // top-floor ceiling height
+    // ── walls have THICKNESS ─────────────────────────────────────────────
+    // They were single planes, so every opening was a hole cut in paper: you
+    // stood in a doorway and the wall had no edge. A stud wall is ~0.14 m and
+    // you SEE that at every opening, as the reveal down each side and the
+    // head above. That one fact is most of what separates a building from a
+    // set, so it is fixed here, once, for every wall in the walk-up rather
+    // than patched opening by opening.
+    //
+    // The box's thin axis is its local z, which the ry rotation carries round
+    // to the wall's normal — so the two big faces stay the papered ones and
+    // the four narrow faces are cut plaster. The ends of a wall segment are
+    // exactly what you look at when you stand in a doorway.
+    const WALL_T = 0.14;
+    const jambM = new THREE.MeshBasicMaterial({ color: 0x8b8271 });
     const wallMesh = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, tex = wallpaperT) => {
       const t = tex.clone();
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.repeat.set(w / 2.7, h / 2.7);
       t.needsUpdate = true;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), texM(t));
+      const face = new THREE.MeshBasicMaterial({ map: t });
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, WALL_T),
+        [jambM, jambM, jambM, jambM, face, face]);
       m.position.set(cx, cy, cz);
       m.rotation.y = ry;
       scene.add(m);
       return m;
+    };
+    // architrave: trim standing proud of the wall face on BOTH sides of an
+    // opening, because you see both. A plain hole in wallpaper reads
+    // unfinished no matter how much depth the reveal has.
+    const trimM = new THREE.MeshBasicMaterial({ color: 0x473729 });
+    // a0/a1 are the opening's extents along whichever axis the wall runs
+    const casing = (wallN: number, a0: number, a1: number, yBase: number, yTop: number, alongZ = true) => {
+      const z0 = a0, z1 = a1;
+      const T = 0.028, W = 0.085;                    // projection, and trim width
+      for (const s of [1, -1]) {
+        const off = wallN + s * (WALL_T / 2 + T / 2);
+        const put = (a: number, b: number, c: number, px: number, pz: number, py: number) => {
+          const m = new THREE.Mesh(new THREE.BoxGeometry(a, b, c), trimM);
+          m.position.set(px, py, pz);
+          scene.add(m);
+        };
+        if (alongZ) {                                 // wall runs along z, normal is x
+          put(T, yTop - yBase + W, W, off, z0 - W / 2, (yBase + yTop + W) / 2);
+          put(T, yTop - yBase + W, W, off, z1 + W / 2, (yBase + yTop + W) / 2);
+          put(T, W, z1 - z0 + W * 2, off, (z0 + z1) / 2, yTop + W / 2);
+        } else {                                      // wall runs along x, normal is z
+          put(W, yTop - yBase + W, T, z0 - W / 2, off, (yBase + yTop + W) / 2);
+          put(W, yTop - yBase + W, T, z1 + W / 2, off, (yBase + yTop + W) / 2);
+          put(z1 - z0 + W * 2, W, T, (z0 + z1) / 2, off, yTop + W / 2);
+        }
+      }
     };
     const floorMesh = (y: number, w: number, d: number, cx: number, cz: number, tex = carpetT) => {
       const t = tex.clone();
@@ -211,9 +254,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     wallMesh(9.225, H, AX(0), H / 2, AZI(8.5875), Math.PI / 2);
     wallMesh(DOOR_GAP, 2 * ST, AX(0), ST, AZI(3.5), Math.PI / 2);
     wallMesh(DOOR_GAP, H - 2 * ST - 2.1, AX(0), (H + 2 * ST + 2.1) / 2, AZI(3.5), Math.PI / 2);
-    wallMesh(13.2, H, AX(2.4), H / 2, AZI(6.6), -Math.PI / 2);
+    // the east wall is pierced too: 302 is a real opening now, not a black
+    // quad stuck on the face. Same four pieces as 301's side.
+    wallMesh(3.025, H, AX(2.4), H / 2, AZI(1.5125), -Math.PI / 2);
+    wallMesh(9.225, H, AX(2.4), H / 2, AZI(8.5875), -Math.PI / 2);
+    wallMesh(DOOR_GAP, 2 * ST, AX(2.4), ST, AZI(3.5), -Math.PI / 2);
+    wallMesh(DOOR_GAP, H - 2 * ST - 2.1, AX(2.4), (H + 2 * ST + 2.1) / 2, AZI(3.5), -Math.PI / 2);
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(0), 0);
     wallMesh(2.4, H, AX(1.2), H / 2, AZI(13.2), Math.PI);
+    // architrave round both flat doorways, on both faces of each
+    const DOOR_Z0 = AZI(3.5 - DOOR_GAP / 2), DOOR_Z1 = AZI(3.5 + DOOR_GAP / 2);
+    casing(AX(0), DOOR_Z0, DOOR_Z1, 2 * ST, 2 * ST + 2.1);
+    casing(AX(2.4), DOOR_Z0, DOOR_Z1, 2 * ST, 2 * ST + 2.1);
     sevColliders.push(
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(0), maxZ: AZI(3.5 - DOOR_GAP / 2) },
       { minX: AX(-0.15), maxX: AX(0), minZ: AZI(3.5 + DOOR_GAP / 2), maxZ: AZI(13.2) },
@@ -222,7 +274,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
       { minX: AX(1.04), maxX: AX(1.36), minZ: AZI(STAIR_Z0), maxZ: AZI(STAIR_Z1) }, // core wall + the handrails on both its faces
       { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) }, // 302's doorway (and the hermit in it)
-      stairCap, underStairA, underStairB, aptDoorCap,
+      stairCap, underStairA, underStairB, aptDoorCap, hermitCap,
     );
     // floors, ceilings
     for (let f = 0; f < 4; f++) {
@@ -401,14 +453,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     underLand.position.set(AX(1.2), 0.65, AZI((STAIR_Z1 + LAND_Z1) / 2));
     scene.add(underLand);
     // doors up the floors — 301 is a real opening; 302 is the hermit's
-    const doorTexN = (num: string) => pixTex(32, 64, (g) => {
+    // knob=false for leaves that carry a MODELLED handle instead — drawing
+    // both gives the door two knobs in different places
+    const doorTexN = (num: string, knob = true) => pixTex(32, 64, (g) => {
       g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
       g.fillStyle = '#5c4430'; g.fillRect(3, 3, 26, 61);
       g.fillStyle = 'rgba(0,0,0,0.3)';
       g.fillRect(7, 16, 18, 16); g.fillRect(7, 38, 18, 20);
       g.fillStyle = 'rgba(255,255,255,0.12)';
       g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
-      g.fillStyle = '#c9b45e'; g.fillRect(24, 33, 3, 3);
+      if (knob) { g.fillStyle = '#c9b45e'; g.fillRect(24, 33, 3, 3); }
       dither(g, 32, 64, 40);
       // The number plate: screwed-on BRASS, fixed after the grime. It used to
       // be a near-white rectangle — brighter than anything else indoors, so it
@@ -432,21 +486,77 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     };
     for (let f = 0; f < 4; f++) {
       if (f !== 2) {
-        doorPlane(`${f + 1}01`, AX(0.02), f * ST, AZI(3.5), Math.PI / 2);
-        doorPlane(`${f + 1}02`, AX(2.38), f * ST, AZI(3.5), -Math.PI / 2);
+        doorPlane(`${f + 1}01`, AX(0.085), f * ST, AZI(3.5), Math.PI / 2);
+        doorPlane(`${f + 1}02`, AX(2.315), f * ST, AZI(3.5), -Math.PI / 2);
       }
     }
-    // 302 ajar: dark slice of his place, the door swung inward, him in it
-    const recess = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), new THREE.MeshBasicMaterial({ color: 0x0c0d10 }));
-    recess.position.set(AX(2.39), 2 * ST + 1.05, AZI(3.5));
-    recess.rotation.y = -Math.PI / 2;
-    scene.add(recess);
-    const leafGeo = new THREE.PlaneGeometry(DOOR_W, 2.1);
-    leafGeo.translate(DOOR_W / 2, 0, 0);
-    const leaf = new THREE.Mesh(leafGeo, texM(doorTexN('302')));
-    leaf.position.set(AX(2.44), 2 * ST + 1.05, AZI(3.06));
-    leaf.rotation.y = -Math.PI / 2 + 0.85;
-    scene.add(leaf);
+    // ── 302, ajar ────────────────────────────────────────────────────────
+    // It was a flat black quad hung on the wall face. Pure black behind a
+    // hard edge reads as a hole cut in the wall, not as a dark room — and it
+    // was also what sliced the hermit in half, since his billboard swept
+    // straight through it as it turned. Now it is a real opening with a real
+    // room behind it: 1.2 m of unlit hallway, dim rather than black, so the
+    // eye reads depth instead of a cutout.
+    const RECESS_D = 1.2;
+    const dimRoomT = pixTex(32, 32, (g) => {
+      g.fillStyle = '#191a20'; g.fillRect(0, 0, 32, 32);
+      g.fillStyle = 'rgba(255,255,255,0.035)';
+      for (let x = 0; x < 32; x += 8) g.fillRect(x, 0, 3, 32);   // his wallpaper, barely there
+      dither(g, 32, 32, 60);
+    });
+    const dimRoomM = new THREE.MeshBasicMaterial({ map: dimRoomT, side: THREE.DoubleSide });
+    const recessSurf = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, flat = false) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), dimRoomM);
+      m.position.set(cx, cy, cz);
+      if (flat) m.rotation.x = -Math.PI / 2; else m.rotation.y = ry;
+      scene.add(m);
+    };
+    {
+      const x0 = AX(2.4) + WALL_T / 2, x1 = x0 + RECESS_D, xm = (x0 + x1) / 2;
+      const yb = 2 * ST, yt = yb + 2.1, ym = (yb + yt) / 2;
+      const zm = AZI(3.5);
+      recessSurf(DOOR_GAP, 2.1, x1, ym, zm, -Math.PI / 2);          // back wall
+      recessSurf(RECESS_D, 2.1, xm, ym, DOOR_Z0, 0);                 // north return
+      recessSurf(RECESS_D, 2.1, xm, ym, DOOR_Z1, Math.PI);           // south return
+      recessSurf(RECESS_D, DOOR_GAP, xm, yt, zm, 0, true);           // ceiling
+      recessSurf(RECESS_D, DOOR_GAP, xm, yb + 0.01, zm, 0, true);    // floor
+      // his door, swung back inside — a box now, so the leaf has an edge
+      const leafGeo = new THREE.BoxGeometry(DOOR_W - 0.2, 2.05, 0.045);
+      leafGeo.translate(-(DOOR_W - 0.2) / 2, 0, 0);                  // hinge at the +x edge
+      const leafEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
+      const leaf = new THREE.Mesh(leafGeo,
+        [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, texM(doorTexN('302')), texM(doorTexN('302'))]);
+      leaf.position.set(x0 + 0.05, yb + 1.05, DOOR_Z0 + 0.04);
+      leaf.rotation.y = Math.PI - 0.28;                              // open, back against his wall
+      scene.add(leaf);
+    }
+    // ── 301's door ───────────────────────────────────────────────────────
+    // There was no door at all — just a hole. You teleport into the flat, so
+    // the honest read is the leaf standing open, swung back against the wall
+    // inside the room: a box rather than a plane, so the edge shows its
+    // thickness, with a knob on the free stile and hinges on the jamb.
+    {
+      const LW = DOOR_W - 0.2;                        // 0.91 m leaf in a 0.95 m gap
+      const g301 = new THREE.BoxGeometry(LW, 2.05, 0.045);
+      g301.translate(-LW / 2, 0, 0);                  // hinge at the +x edge
+      const edgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
+      const faceM = texM(doorTexN('301', false));
+      const leaf301 = new THREE.Group();
+      leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, faceM, faceM]));
+      const knob = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.1),
+        new THREE.MeshBasicMaterial({ color: 0xc9b45e }));
+      knob.position.set(-LW + 0.09, -0.02, 0);
+      leaf301.add(knob);
+      leaf301.position.set(AX(-0.09), 2 * ST + 1.05, DOOR_Z0 + 0.04);
+      leaf301.rotation.y = -Math.PI / 2 + 0.25;       // back against the room's wall
+      scene.add(leaf301);
+      const hingeM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
+      for (const hy of [2 * ST + 0.32, 2 * ST + 1.78]) {
+        const hg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.022), hingeM);
+        hg.position.set(AX(-0.032), hy, DOOR_Z0 + 0.013);
+        scene.add(hg);
+      }
+    }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
     // He gets exactly what everyone on the street gets: the 5-view × 2-frame
@@ -455,16 +565,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // he stayed dead-on to you no matter where you stood in the hall — the
     // one figure in the world that did not turn.
     //
-    // Same palette he always wore: pale undershirt, dark work trousers.
-    // Scaled up off the standard citizen plane because he is a big man, and
-    // parked on the feet-together frame because he never walks anywhere.
-    hermitTex = citizenAtlas('#d8d4c8', '#4a4a52', '#c9946a', '#3a3226', 'plain');
+    // He STANDS IN THE HALL, not in the doorway, and that is load-bearing
+    // for two separate complaints:
+    //
+    //  · He was being sliced in half by a hard vertical edge. He stood on the
+    //    door plane and his billboard rotates to face you, so as it turned it
+    //    swept straight through that plane. His opaque half-width is 0.36 m
+    //    (the atlas paints him cx±10 of 32, times the 1.14 m plane), so his
+    //    rotation circle only clears the wall face at AX(2.4) if he stands at
+    //    AX(2.04) or less. AX(1.95) leaves ~9 cm.
+    //  · He also looked flat even after getting the 8-angle atlas, and the
+    //    atlas was never the problem: standing in a doorway at the end of a
+    //    corridor, you can only ever come at him from the front, so exactly
+    //    one of five painted columns was ever on screen. Out in the hall you
+    //    can walk round him and the other four finally show.
+    //
+    // Palette: a yellowed, sweated-through undershirt rather than the crisp
+    // white he used to wear, and GRIME turns on the stains, the unshaven jaw
+    // and the messy hair in ct/citizens.ts.
+    hermitTex = citizenAtlas('#c9c0a6', '#454149', '#c08d63', '#3a3226', 'plain', '#8a3a2e', 1);
     hermitTex.repeat.set(1 / 5, 1 / 2);
     const hermitGeo = new THREE.PlaneGeometry(0.95, 1.9);
     hermitGeo.translate(0, 0.95, 0);       // origin at his feet, like the citizens
     hermit = new THREE.Mesh(hermitGeo, new THREE.MeshBasicMaterial({ map: hermitTex, alphaTest: 0.5, side: THREE.DoubleSide }));
     hermit.scale.set(1.2, 1.1, 1);
-    hermit.position.set(AX(2.28), 2 * ST, AZI(3.5));
+    hermit.position.set(AX(1.95), 2 * ST, AZI(3.5));
     boards.push({ m: hermit });            // the sim loop turns him to face you
     scene.add(hermit);
     // ── the hall lights ──────────────────────────────────────────────────
@@ -662,7 +787,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
     });
     const mail = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), texM(mailT));
-    mail.position.set(AX(2.38), 1.4, AZI(1.3));
+    mail.position.set(AX(2.315), 1.4, AZI(1.3));
     mail.rotation.y = -Math.PI / 2;
     scene.add(mail);
     const frontDoorT = pixTex(32, 64, (g) => {
@@ -675,7 +800,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       dither(g, 32, 64, 40);
     });
     const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(frontDoorT));
-    lobbyDoor.position.set(AX(1.2), 1.05, AZI(0.02));
+    lobbyDoor.position.set(AX(1.2), 1.05, AZI(0.085));
     scene.add(lobbyDoor);
     // 301 — your place: wood floor, a bed, the window with the city in it
     wallMesh(3.5, 2.55, AX(-3.2), 2 * ST + 1.275, AZI(3.75), Math.PI / 2, roomWallT);
@@ -690,7 +815,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#3a2c22'; g.fillRect(15, 3, 2, 26); g.fillRect(3, 15, 26, 2);
     });
     const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), texM(winT));
-    win.position.set(AX(-3.18), 2 * ST + 1.5, AZI(3.75));
+    win.position.set(AX(-3.115), 2 * ST + 1.5, AZI(3.75));
     win.rotation.y = Math.PI / 2;
     scene.add(win);
     const bedM = new THREE.MeshBasicMaterial({ color: 0xb8b4a8 });
@@ -720,6 +845,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(-3.2), maxX: AX(0), minZ: AZI(5.5), maxZ: AZI(5.65) },
       { minX: AX(-3.1), maxX: AX(-1.94), minZ: AZI(3.45), maxZ: AZI(5.45) },
       { minX: AX(-1.5), maxX: AX(-0.84), minZ: AZI(2.0), maxZ: AZI(2.52) },
+      // 301's leaf, standing open against the wall — a door is solid even
+      // when it is open. Safe on every floor: west of AX(0) is only ever
+      // reachable through 301's opening, which aptDoorCap gates to floor 3.
+      // it stops SHORT of the opening (3.02 vs the jamb at 3.025) so the
+      // doorway keeps its full 0.95 m clear — the door is solid, but it must
+      // not be the thing that narrows the gap you walk through
+      { minX: AX(-0.34), maxX: AX(-0.03), minZ: AZI(2.10), maxZ: AZI(3.02) },
     );
     // ── street side: the walk-up's front door ────────────────────────────
     // The building carries NO name. It never gets a nameplate: the gold 227
@@ -897,6 +1029,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     updateCaps,
     updateHermit: (hAbs) => {
       hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+      // solid while he is standing there — he is out in the hall now, so
+      // without this you walk straight through him. Floor-gated like every
+      // other cap, because colliders here are 2D and the hall is stacked 4 deep.
+      setCap(hermitCap, hermit.visible && Math.abs(lastGy - 2 * ST) < 0.5,
+        AX(1.69), AX(2.21), AZI(3.24), AZI(3.76));
       if (!hermit.visible) return;
       // The billboard pass in the sim loop has already turned him to face the
       // player, so his own yaw IS the angle to the camera — no need for the

@@ -3,7 +3,16 @@ import { pixTex } from './paint';
 
 export const FW = 32, FH = 64;
 export type Fit = 'plain' | 'cap' | 'dress' | 'hoodie';
-export function citizenAtlas(jacket: string, pants: string, skin: string, hair: string, style: Fit = 'plain', accent = '#8a3a2e'): THREE.Texture {
+/**
+ * `grime` (0…1) is for people who have not left the building in a while: it
+ * sweats the shirt through at the collar and the underarms, drops a couple of
+ * marks down the front and onto the trousers, leaves the jaw unshaven and the
+ * hair unbrushed. Everything it draws is the same 1–2 texel vocabulary as the
+ * rim shading, so a grimy citizen still reads as the same hand as a clean one.
+ * At 0 — every existing caller — not one extra fill happens and the atlas is
+ * byte-identical to before.
+ */
+export function citizenAtlas(jacket: string, pants: string, skin: string, hair: string, style: Fit = 'plain', accent = '#8a3a2e', grime = 0): THREE.Texture {
   return pixTex(FW * 5, FH * 2, (g) => {
     for (let view = 0; view < 5; view++) {
       for (let frame = 0; frame < 2; frame++) {
@@ -45,6 +54,20 @@ export function citizenAtlas(jacket: string, pants: string, skin: string, hair: 
           g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx - 7, oy + 20, 14, 19);
         }
         if (view === 4) { g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(cx - 6, oy + 24, 12, 2); }
+        if (grime > 0) {
+          // sweat and grease into the shirt. The torso is cx±7 for every
+          // view, so these land the same way all the way round him.
+          const st = (a: number) => `rgba(150,122,62,${(a * grime).toFixed(3)})`;
+          g.fillStyle = st(0.30); g.fillRect(cx - 7, oy + 20, 14, 3);   // collar ring
+          g.fillStyle = st(0.22); g.fillRect(cx - 7, oy + 34, 14, 5);   // waistband
+          g.fillStyle = st(0.26); g.fillRect(cx - 7, oy + 23, 2, 8);    // underarms
+          g.fillStyle = st(0.26); g.fillRect(cx + 5, oy + 23, 2, 8);
+          g.fillStyle = st(0.34); g.fillRect(cx - 2, oy + 27, 3, 2);    // spilled down the front
+          g.fillStyle = st(0.28); g.fillRect(cx + 1, oy + 30, 2, 2);
+          g.fillStyle = `rgba(24,20,15,${(0.22 * grime).toFixed(3)})`;  // and onto the trousers
+          if (view === 2) g.fillRect(cx - 2 - stride, oy + 46, 3, 4);
+          else { g.fillRect(cx - 5 - stride, oy + 46, 3, 4); g.fillRect(cx + 2 + stride, oy + 52, 2, 3); }
+        }
         if (style === 'dress') { // flared skirt over the hips
           g.fillStyle = jacket;
           g.fillRect(cx - 7, oy + 32, 14, 6);
@@ -64,10 +87,23 @@ export function citizenAtlas(jacket: string, pants: string, skin: string, hair: 
         g.fillRect(cx - 5, oy + 8, 10, 12);
         g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 8, 3, 12);
         g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx + 2, oy + 8, 3, 12);
+        if (grime > 0) {                                              // days unshaven
+          g.fillStyle = `rgba(58,44,34,${(0.34 * grime).toFixed(3)})`;
+          g.fillRect(cx - 5, oy + 15, 10, 5);
+        }
         g.fillStyle = hair;
         if (view === 4) { g.fillRect(cx - 6, oy + 5, 12, 14); }
         else if (view === 3) { g.fillRect(cx - 6, oy + 5, 12, 9); g.fillRect(cx + 1, oy + 5, 5, 13); }
         else { g.fillRect(cx - 6, oy + 5, 12, 5); g.fillRect(cx - 6, oy + 8, 2, 4); }
+        if (grime > 0) {
+          // unbrushed: ONE tuft up, off to one side, and a ragged fringe.
+          // Symmetric tufts either side of the crown read as ears or horns,
+          // which is a different character entirely.
+          g.fillStyle = hair;
+          g.fillRect(cx + 3, oy + 3, 3, 2);
+          g.fillRect(cx - 6, oy + 10, 2, 2);
+          g.fillRect(cx + 4, oy + 9, 2, 2);
+        }
         if (style === 'cap') { // ball cap over the hair
           g.fillStyle = accent;
           g.fillRect(cx - 6, oy + 4, 12, 5);
