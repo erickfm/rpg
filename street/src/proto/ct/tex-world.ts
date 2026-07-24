@@ -204,8 +204,11 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
     for (let t = 0; t < tufts; t++) {
       const side = r() < 0.5 ? -1 : 1;
       const ty = cy + RY + 9 + Math.floor(r() * 7) + t * 11;
-      const tx = cx + side * (RX * (0.34 + r() * 0.26));
-      const trx = RX * (0.26 + r() * 0.12), try_ = RY * (0.24 + r() * 0.11);
+      // Hug the trunk. At the old offset (0.34-0.60 of RX) a tuft's inner
+      // edge could sit ~11 texels clear of the trunk and read as a bush
+      // hovering in mid-air. This range guarantees it always overlaps.
+      const tx = cx + side * (RX * (0.15 + r() * 0.15));
+      const trx = RX * (0.23 + r() * 0.10), try_ = RY * (0.21 + r() * 0.09);
       ell(tx, ty, trx, try_, MID);
       ell(tx + side * trx * 0.3, ty + try_ * 0.35, trx * 0.62, try_ * 0.6, DARK);
       ell(tx - side * trx * 0.25, ty - try_ * 0.4, trx * 0.5, try_ * 0.42, LIT);
