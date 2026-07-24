@@ -92,7 +92,20 @@ if (mode === 'walk' || mode === 'all') {
   // The kerb-side strip: the flag pole must not pinch it. (The BENCH is
   // solid and does occupy that strip — you walk round it on the lane above,
   // which is the point of keeping the bench inside the lamp-pole envelope.)
-  all = await hike('east walk, kerb strip past the flag pole', 5.85, -28, 0, 2, 'z') && all;
+  // The kerb strip: assert it CLEARS THE POLE, not a raw distance. Walking
+  // on for long enough always ends at the bench (solid, by design, at
+  // z=-35.3) and citizens are solid too until they give way after 1.4 s — so
+  // a distance test here measures the furniture, not the pole.
+  await page.evaluate(() => window.__ct.warp(5.85, -28, 0, 0.14, 0));
+  await page.waitForTimeout(120);
+  await page.keyboard.down('w');
+  await page.waitForTimeout(4000);
+  await page.keyboard.up('w');
+  const poleEnd = (await page.evaluate(() => window.__ct.pos()))[2];
+  const clearedPole = poleEnd < -34.0;   // the flag pole stands at z=-33.5
+  console.log(`  ${clearedPole ? 'OK  ' : 'STUCK'} east walk, kerb strip past the flag pole: ` +
+    `reached z=${poleEnd.toFixed(1)} (pole at -33.5, bench stops you at -35.3)`);
+  all = clearedPole && all;
   if (!all) { console.error('\nWALK FAILED — the stop blocks the lane'); process.exit(1); }
 }
 
