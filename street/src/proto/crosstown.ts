@@ -103,28 +103,60 @@ export function makeCrosstown(): Proto {
   // ── the block's furniture, and the weather over it ─────────────────────
   const props = buildProps(ctx);
 
-  // parked cars — a mixed fleet in the parking lanes, parked by PEOPLE.
-  // Cars sitting at exactly ±PARK_X with 0.02 rad of yaw read as a machined
-  // row, so: the distance off the kerb varies by ~0.3 m, the yaw spread is up
-  // to 0.1 rad and not all one way, and the gaps between them are
-  // deliberately uneven. The hatch is the badly-parked one — out from the
-  // kerb AND crooked — because one obvious offender does more than nudging
-  // them all. Nobody parks in the hydrant's red zone (z -9.5…-2.5).
+  // ── the parked cars ─────────────────────────────────────────────────────
   //
-  // Hard limit: |x| + 1.05 (the collider half-width) must stay under
-  // ROAD_HALF, or a parked car's box lands on the sidewalk.
+  // How well each is parked is DRAWN, not hand-placed. Hand-tuning offsets
+  // only swaps one fixed arrangement for another; this samples a spread, so
+  // near-perfect parking is a legitimate outcome rather than something the
+  // arrangement excludes. Drawn off the SEEDED stream, so it is stable within
+  // a session rather than jittering frame to frame.
   //
   // A van used to stand at z=-78 in front of THRIFT and has been cut. Its
-  // collider lived in this table, so it went with it — the row below is the
+  // collider lived in this table, so it went with it — the table below is the
   // single source for the parked fleet, its boxes and its lamplight entries.
-  const parked: [CarKind, number, number, number, number][] = [
-    ['sedan', 1, PARK_X + 0.03, -13, 0.035],          // snug to the kerb, near square
-    ['pickup', 3, -(PARK_X - 0.10), -33, Math.PI - 0.075], // a touch out, nose in
-    ['hatch', 5, PARK_X - 0.27, -49, -0.10],          // the offender: out and crooked
+  //
+  // The two hard walls, which the spread cannot cross:
+  //   PARK_SNUG  |x| + 1.05 = 4.98 < ROAD_HALF — collider never on the walk
+  //   PARK_OUT   |x| − 1.05 = 2.57 — collider never in the travel lane
+  //              (cars cruise at 1.5 and the bus at 1.35, both to 2.55)
+  const PARK_SNUG = 3.93, PARK_OUT = 3.62;
+  // Each car gets a tidiness CLASS, and the classes are dealt out shuffled.
+  // Drawing all three independently is the obvious thing and it is wrong at
+  // this sample size: with only three cars, three tidy ones comes up about a
+  // fifth of the time, which is the machined row this was meant to fix (the
+  // first seeded draw did exactly that — 4 cm, 6 cm, 2 cm, all square).
+  // Stratifying guarantees the ROW reads as varied, while each car's actual
+  // gap and angle are still drawn inside its class. Perfect parking stays a
+  // real outcome — one car always gets it.
+  const PARK_CLASS = ['perfect', 'ordinary', 'out'];
+  for (let i = PARK_CLASS.length - 1; i > 0; i--) {   // Fisher–Yates, seeded
+    const j = Math.floor(rnd() * (i + 1));
+    [PARK_CLASS[i], PARK_CLASS[j]] = [PARK_CLASS[j], PARK_CLASS[i]];
+  }
+  const parkGap = (cls: string) =>
+    cls === 'perfect' ? rnd() * 0.05
+      : cls === 'ordinary' ? 0.05 + rnd() * 0.12
+        : 0.17 + rnd() * 0.14;                  // out from the kerb
+  const parkYaw = (cls: string) => {
+    const s = rnd() < 0.5 ? -1 : 1;
+    return s * (cls === 'perfect' ? rnd() * 0.012
+      : cls === 'ordinary' ? 0.012 + rnd() * 0.038
+        : 0.04 + rnd() * 0.06);                 // left it at an angle
+  };
+  // kind, colour, which kerb, roughly where
+  const parked: [CarKind, number, number, number][] = [
+    ['sedan', 1, 1, -13],
+    ['pickup', 3, -1, -33],
+    ['hatch', 5, 1, -49],
   ];
   const carColliders: AABB[] = [];
   const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
-  parked.forEach(([kind, ci, x, z, ry]) => {
+  parked.forEach(([kind, ci, side, z0], pi) => {
+    const cls = PARK_CLASS[pi % PARK_CLASS.length];
+    const gap = Math.min(parkGap(cls), PARK_SNUG - PARK_OUT);
+    const x = side * (PARK_SNUG - gap);
+    const z = z0 + (rnd() - 0.5) * 2.4;         // and they don't sit on a rhythm
+    const ry = (side > 0 ? 0 : Math.PI) + parkYaw(cls);
     const car = makeCar(kind, ci);
     car.position.set(x, 0, z);
     car.rotation.y = ry;
