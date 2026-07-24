@@ -40,6 +40,27 @@ published to the playable artifact.
   in front of your face. (History: whole-arm version → reverted;
   fist+forearm version → reverted; currently wrist-only.)
 
+- **Apartment entrance overlaps.** Ground-floor windows collide with the
+  buzzer panel, the plaque and the door signage — things are drawn on top
+  of each other instead of laid out. Wants a real **quality review** of
+  that facade: screenshot it, look for texture overlaps, gaps/seams, and
+  anything drawn at the wrong depth, then fix the layout so each element
+  has its own space.
+
+- **Rename THE WHITMORE.** User doesn't want the walk-up named after an
+  Anglo surname. The world already carries an LA lineage (the placa
+  graffiti research), so a Spanish building name fits and is true to real
+  LA walk-ups (El Royale, Las Palmas, El Mirador, Villa Carlotta).
+  Going with **EL MIRADOR** — "the lookout", which suits a building you
+  climb to the third floor of. One-line change on the brass plaque if you
+  want a different one.
+
+- **Alley side walls have no brick.** The rear wall is right and the user
+  likes it, but the left and right walls (the left one carries the REZO
+  tag) are untextured — so the alley reads as discontinuous, brick behind
+  and flat colour to either side. Give the side walls the same brick as the
+  rear wall, continuous around the corner.
+
 - **Trees: crowns bigger and more varied; dirt pit shorter.** Placement on
   the sidewalk is right and the pit **width** is good — the user fits past
   it, keep that exactly. Two changes: (1) crowns should be **bigger and
