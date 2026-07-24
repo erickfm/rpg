@@ -1,3 +1,89 @@
+# Builder D — handoff
+
+Working from `notes/queues/D-alley.md`: read it, take the top unchecked item
+under `## Now`, commit, re-read before the next. I do not edit that file —
+completions are reported here. Older runs are further down this note.
+
+---
+
+# LATEST RUN — bodega blocker (commit `fa62171`)
+
+## `## Now` → **BLOCKER: you cannot enter the bodega** — DONE
+
+**The diagnosis in the queue was not the cause.** It was not the chamfer
+colliders. It was the **fruit-crate collider**: one 2.2 m box,
+`x 7.5…9.7, z -96.9…-96.2`, spanning the whole canted-bay frontage — with the
+bodega's `[E]` spot at `(8.7, -96.85)` sitting **inside** it. The trigger was
+enclosed by an obstacle, so the only way into its 1.1 m radius was from due
+south of the crates, which is not a path anyone walks.
+
+Reproduced by driving the player, not by looking:
+
+| approach | before | after |
+|---|---|---|
+| east along the side-street walk | stopped dead at **x = 7.13** | prompt, **enters** |
+| west along the side-street walk | stopped dead at **x = 10.07** | prompt, **enters** |
+| diagonally at the canted face | stopped at **(7.11, -96.67)** | prompt, **enters** |
+
+Those two stop values are exactly the crate box inflated by the rig's `RADIUS`
+(0.36) — `7.5 − 0.36` and `9.7 + 0.36`. That is what proved it was the crates.
+
+**Fix**
+- Crates moved east to `x 10.05 / 10.95`, `z ≈ -96.28` — clear of the doorway
+  and tight against the wing frontage, so they are out of the walking lane too.
+  (`ct/street.ts`, mine.)
+- Their collider became **two boxes, one per crate**, each no bigger than the
+  crate it represents, replacing the single oversized box. (`crosstown.ts` —
+  the queue asked for the collider gap; I did **not** touch the `SPOTS` array.)
+
+**Verified by actually pressing E** on my own build, three approaches:
+`rig.pos.x` goes `8 → 241.3` (inside the shop). `npm run sweep`: same warnings
+as baseline, no new page errors.
+
+**Door world coords, as requested**
+- canted face runs `A (7, -94) → B (9, -96)`; outward normal `(-1,-1)/√2`, so
+  it faces south-west across the crossing
+- **door centre `(8.0, -95.0)`**, sill at ground, opening ~2.0 m wide
+- the existing `[E]` spot `(8.7, -96.85) r 1.1` **now works and needs no
+  change**. If you ever want it on the door's own axis, `(7.19, -95.81)` is
+  1.15 m out along the normal and is reachable from the pavement.
+
+## Two things that are not mine, found on the way
+
+**1. Mainline did not compile.** `ct/apartment.ts:586` still called the old
+positional `citizenAtlas(...)`; the `Look`-object rewrite in `ct/citizens.ts`
+changed the signature. *Nothing* could build — every builder was blocked. I
+adapted the call site so the tree compiles.
+
+**This needs a real fix from whoever owns those two files:** the rewrite
+**dropped the `grime` flag** that call passed as its 7th argument and nothing in
+`Look` replaces it. The comment directly above it still describes the hermit's
+stains, unshaven jaw and messy hair — he has lost all three. I did not invent a
+replacement; that is a design call on someone else's character.
+
+**2. Port 4181 is not free.** The queue assigns me 4181, but it is held by
+`/home/erick/projects/rpg` running `vite preview --port 4177`, drifted onto it.
+This has caught me twice — a test ran green against *another worktree's build*.
+I now verify on **4185 `--strictPort`** and check the served bundle hash matches
+the one I just built. Suggest pinning every worktree with `--strictPort`, or
+stopping the drifting 4177 server.
+
+## Queue accuracy — some `## Next` items are already done
+
+- **Shop resizing** — done and in the tree. `SHOP_BAND_H = 4.2`, residential
+  still `ENTRANCE.BAND_H = 3.2`, texture 52 texels, glazing 2.59 m, 0.32 m
+  stallriser, sign band 0.89 m.
+- **Signs (b), the HOTEL blade back-face** — done. Root cause was
+  `transparent: true` *alongside* `alphaTest`, which puts both faces of a
+  two-sided sign in the sorted pass so the far one paints over the near one.
+  Dropping `transparent` + using `FrontSide` fixed it. **(a) and (c) are still
+  open** and are genuinely separate bugs.
+
+Still open, untouched: bodega door readability, filling the crates, church
+tower removal, signs (a)/(c), window lights, the corporation.
+
+---
+
 # feat/alley — handoff
 
 Everything below landed in `src/proto/ct/street.ts` and `scripts/alley.mjs`
