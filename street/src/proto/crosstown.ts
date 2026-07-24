@@ -1002,18 +1002,42 @@ export function makeCrosstown(): Proto {
     cardboard.position.set(-12.9, 0.6, AZ1 + 0.26);
     cardboard.rotation.x = -0.35;
     scene.add(cardboard);
-    // graffiti — sprayed at the same chunky texel size as the shop signs:
-    // tiny canvas, pixel-doubled outline, a couple of drips
-    const tagTex = (word: string, ink: string, outline: string) => pixTex(40, 14, (g) => {
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.font = 'bold 9px monospace';
-      g.fillStyle = outline;
-      for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]] as [number, number][]) {
-        g.fillText(word, 20 + ox, 7 + oy);
+    // graffiti, the real forms: a THROW-UP is two colors — fat overlapping
+    // bubble letters, outline + fill + a shine — and a TAG is one color,
+    // one fast line, leaned and rhythmic. No neat baselines, no stickers.
+    const throwUpTex = (word: string, fill: string, outline: string) => pixTex(56, 22, (g) => {
+      const n = word.length, cw = 46 / n;
+      for (let i = 0; i < n; i++) {
+        g.save();
+        g.translate(6 + cw * (i + 0.5), 10 + (i % 2 ? 1.5 : -1));
+        g.rotate((i % 2 ? 1 : -1) * 0.13);
+        g.fillStyle = fill;
+        g.beginPath(); g.ellipse(0, 0, cw * 0.64, 8.5, 0, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = outline; g.lineWidth = 1.6;
+        g.beginPath(); g.ellipse(0, 0, cw * 0.64, 8.5, 0, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = outline;
+        g.font = 'bold 11px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(word[i], 0, 0.5);
+        g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(-cw * 0.3, -6, 3, 2);
+        g.restore();
       }
+      g.fillStyle = fill;
+      g.fillRect(12, 18, 1, 4); g.fillRect(38, 19, 1, 3); // drips
+    });
+    const handTagTex = (word: string, ink: string) => pixTex(48, 16, (g) => {
       g.fillStyle = ink;
-      g.fillText(word, 20, 7);
-      g.fillRect(12, 10, 1, 3); g.fillRect(27, 11, 1, 2); // drips
+      g.font = 'bold italic 10px monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      const n = word.length;
+      for (let i = 0; i < n; i++) {
+        g.save();
+        g.translate(8 + (32 / (n - 1)) * i, 7 + ((i * 7) % 3) - 1); // tight, jittered baseline
+        g.rotate(-0.16 + (i % 3) * 0.08);
+        g.fillText(word[i], 0, 0);
+        g.restore();
+      }
+      g.fillRect(6, 12, 34, 1); g.fillRect(38, 10, 4, 1); g.fillRect(41, 8, 2, 1); // underline swoosh, tail up
+      g.fillRect(10, 13, 1, 3); // drip
     });
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
@@ -1021,9 +1045,9 @@ export function makeCrosstown(): Proto {
       m.rotation.y = ry;
       scene.add(m);
     };
-    tag(tagTex('REZO', '#a8485e', '#d8d4c8'), 1.9, 0.66, -9.6, 1.5, AZ0 - 0.05, Math.PI);
-    tag(tagTex('SNAK', '#4a8a7e', '#16181c'), 1.6, 0.56, -11.6, 1.1, AZ1 + 0.05, 0);
-    tag(tagTex('KOBRA', '#d8d4c8', '#7a3026'), 1.5, 0.52, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
+    tag(throwUpTex('REZO', '#a8485e', '#2a2026'), 1.9, 0.75, -9.6, 1.45, AZ0 - 0.05, Math.PI);
+    tag(handTagTex('SNAK', '#3a6e64'), 1.5, 0.5, -11.6, 1.1, AZ1 + 0.05, 0);
+    tag(handTagTex('KOBRA', '#c9c4b0'), 1.45, 0.48, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
   // ── No. 227 — the player's walk-up ──────────────────────────────────────
@@ -1049,14 +1073,16 @@ export function makeCrosstown(): Proto {
     // tired beige stripes; the tile is one 2.7 m story so baseboards land on
     // every floor of the full-height walls
     const wallpaperT = pixTex(64, 64, (g) => {
-      g.fillStyle = '#a89a80'; g.fillRect(0, 0, 64, 64);
-      g.fillStyle = 'rgba(255,255,255,0.10)';
+      g.fillStyle = '#7e7460'; g.fillRect(0, 0, 64, 64); // dim halls — one bare bulb's worth
+      g.fillStyle = 'rgba(255,255,255,0.08)';
       for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 64);
-      g.fillStyle = 'rgba(0,0,0,0.12)';
+      g.fillStyle = 'rgba(0,0,0,0.14)';
       for (let x = 6; x < 64; x += 8) g.fillRect(x, 0, 1, 64);
       dither(g, 64, 64, 90);
-      g.fillStyle = '#4a3a2c'; g.fillRect(0, 58, 64, 6);
-      g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(0, 58, 64, 1);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, 64, 5);  // ceiling shadow each storey
+      g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, 5, 64, 4);
+      g.fillStyle = '#3e3024'; g.fillRect(0, 58, 64, 6);
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 58, 64, 1);
     });
     const roomWallT = pixTex(64, 64, (g) => {
       g.fillStyle = '#8a95a0'; g.fillRect(0, 0, 64, 64);
@@ -1081,7 +1107,7 @@ export function makeCrosstown(): Proto {
       dither(g, 64, 64, 110);
     });
     const ceilT = pixTex(32, 32, (g) => {
-      g.fillStyle = '#8f8a80'; g.fillRect(0, 0, 32, 32);
+      g.fillStyle = '#6e6a60'; g.fillRect(0, 0, 32, 32);
       dither(g, 32, 32, 60);
     });
     const H = 3 * ST + 2.55; // top-floor ceiling height
@@ -1162,11 +1188,31 @@ export function makeCrosstown(): Proto {
       const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 2.2), landMats);
       land.position.set(AX(1.2), f * ST + 1.35 - 0.07, AZI(12.1));
       scene.add(land);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 2.7), railM);
-      rail.position.set(AX(1.2), f * ST + 1.15, AZI(9.7));
-      rail.rotation.x = -0.48; // follows the steeper flights
-      scene.add(rail);
+      // solid sloped undersides — the flights read as built, not floating
+      const slope = Math.atan2(1.35, 2.6);
+      const underA2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, 2.95), darkWoodM);
+      underA2.position.set(AX(0.6), f * ST + 0.56, AZI(9.7));
+      underA2.rotation.x = -slope;
+      scene.add(underA2);
+      const underB2 = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.14, 2.95), darkWoodM);
+      underB2.position.set(AX(1.8), f * ST + 1.9, AZI(9.7));
+      underB2.rotation.x = slope;
+      scene.add(underB2);
+      // handrails ride the centre divider, one per flight
+      const hrA = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 2.85), railM);
+      hrA.position.set(AX(1.11), f * ST + 1.5, AZI(9.7));
+      hrA.rotation.x = -slope;
+      scene.add(hrA);
+      const hrB = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.09, 2.85), railM);
+      hrB.position.set(AX(1.29), f * ST + 2.85, AZI(9.7));
+      hrB.rotation.x = slope;
+      scene.add(hrB);
     }
+    // one solid core wall between the up and down flights — no floating
+    // diagonal rails, treads butt into something real
+    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3 * ST + 1.5, 2.6), new THREE.MeshBasicMaterial({ color: 0x685e50 }));
+    divider.position.set(AX(1.2), (3 * ST + 1.5) / 2, AZI(9.7));
+    scene.add(divider);
     // lobby: dead space boxed in under the stairs
     const underM = new THREE.MeshBasicMaterial({ color: 0x1a1b21 });
     const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
@@ -1184,10 +1230,10 @@ export function makeCrosstown(): Proto {
       g.fillStyle = 'rgba(255,255,255,0.12)';
       g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
       g.fillStyle = '#c9b45e'; g.fillRect(24, 33, 3, 3);
-      g.fillStyle = '#d8d4c8'; g.fillRect(10, 6, 12, 7);
-      g.fillStyle = '#26221c'; g.font = 'bold 6px monospace'; g.textAlign = 'center';
-      g.fillText(num, 16, 12);
       dither(g, 32, 64, 40);
+      g.fillStyle = '#d8d4c8'; g.fillRect(7, 5, 18, 9); // plate painted after the grime
+      g.fillStyle = '#26221c'; g.font = 'bold 8px monospace'; g.textAlign = 'center';
+      g.fillText(num, 16, 12);
     });
     const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
       const d = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 2.1), texM(doorTexN(num)));
@@ -1455,45 +1501,32 @@ export function makeCrosstown(): Proto {
     watchWrap.id = 'ct-watch';
     watchWrap.style.cssText = 'position:fixed;left:52%;bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
-    watchCv.width = 120; watchCv.height = 170;
-    watchCv.style.cssText = 'width:312px;height:442px;image-rendering:pixelated;display:block;';
+    watchCv.width = 120; watchCv.height = 72;
+    watchCv.style.cssText = 'width:330px;height:198px;image-rendering:pixelated;display:block;';
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
-    watchCv.width = 120; watchCv.height = 170;
+    watchCv.width = 120; watchCv.height = 72;
   }
-  // the whole left arm comes up: curled hand, wrist with the watch, forearm
-  // into a jacket cuff at the bottom of the screen
+  // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
-    g.clearRect(0, 0, 120, 170);
-    const skin = '#c9946a';
-    g.fillStyle = skin;                                     // forearm
-    g.beginPath();
-    g.moveTo(24, 170); g.lineTo(30, 96); g.lineTo(90, 96); g.lineTo(96, 170);
-    g.closePath(); g.fill();
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(28, 96, 8, 74);
-    g.fillStyle = '#3a4a63'; g.fillRect(18, 148, 84, 22);   // jacket cuff
-    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(18, 148, 84, 4);
-    g.fillStyle = skin; g.fillRect(30, 60, 60, 38);         // wrist
-    g.beginPath(); g.ellipse(60, 38, 33, 25, 0, 0, Math.PI * 2); g.fill(); // curled hand
-    g.fillStyle = 'rgba(0,0,0,0.18)';
-    for (let i = 0; i < 4; i++) g.fillRect(36 + i * 14, 20, 2, 11); // knuckles
-    g.fillStyle = skin;
-    g.beginPath(); g.ellipse(29, 48, 10, 14, 0.5, 0, Math.PI * 2); g.fill(); // thumb
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(30, 60, 8, 38);
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(84, 60, 6, 38);
-    g.fillStyle = '#26282e'; g.fillRect(28, 62, 64, 34);    // strap
-    g.fillStyle = '#3a3d45'; g.fillRect(32, 60, 56, 38);    // case
-    g.fillStyle = '#14161a'; g.fillRect(35, 63, 50, 32);
-    g.fillStyle = '#9cab8b'; g.fillRect(38, 67, 44, 21);    // LCD
+    g.clearRect(0, 0, 120, 72);
+    g.fillStyle = '#c9946a'; g.fillRect(16, 6, 88, 66);          // wrist
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(16, 6, 10, 66);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
+    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
+    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
+    g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
+    g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
+    g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
     const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
     const m2 = String(mins % 60).padStart(2, '0');
     g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
-    g.fillText(`${hh}:${m2}`, 60, 82);
+    g.fillText(`${hh}:${m2}`, 60, 38);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
-    g.fillText('CROSSTOWN QUARTZ', 60, 93);
+    g.fillText('CROSSTOWN QUARTZ', 60, 50);
   };
   let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
   let walletCv: HTMLCanvasElement;
@@ -2008,6 +2041,7 @@ export function makeCrosstown(): Proto {
       // weather: the rain comes and goes by the hour
       const wantRain = rainAt(Math.floor(totalMin / 60)) && px < 100 ? 1 : 0;
       rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
+      if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
       rain.visible = rainLevel > 0.02;
       if (rain.visible) {
         rainM.opacity = 0.55 * rainLevel;
