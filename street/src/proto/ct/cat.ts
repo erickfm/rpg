@@ -57,6 +57,7 @@ export function buildCatRig(o: {
     eye: string;          // iris
     paw?: string;         // paw / toe
     bib?: boolean;        // white chest + paws (tuxedo)
+    spot?: boolean;       // just a small white fleck at the throat
   }
   const PINK = '#8a5f62', DARK = '#141216', GLINT = '#f2ead0', WHISK = '#efe8d8';
 
@@ -78,6 +79,7 @@ export function buildCatRig(o: {
       p(F, [x, y, w, h]); p(LI, [x, y, 2, h]); p(SH, [x + w - 2, y, 2, h]);
     }
     if (c.bib) { p('#e6e2d6', [8, 15, 4, 6], [6, 24, 3, 3], [10, 24, 3, 3]); }
+    if (c.spot) p('#e6e2d6', [9, 15, 2, 3]);
     p(c.paw ?? '#4a4850', [6, 24, 3, 3], [10, 24, 3, 3]);
     if (c.bib) p('#e6e2d6', [6, 25, 3, 2], [10, 25, 3, 2]);
     p(F, [13, 21, 7, 2]); p(LI, [13, 22, 7, 1]);
@@ -108,22 +110,26 @@ export function buildCatRig(o: {
     if (c.F3) p(c.F3, [18, 21, 2, 1], [9, 26, 1, 2], [5, 26, 1, 2]);
   };
 
+  // ROUND 3. The user picked two of the twelve: BLACK-ALERT and SMOKE-BLUE.
+  // Both are the `alert` silhouette, so these are deliberately SUBTLE
+  // variations on those two coats — fur temperature, a ghost-tabby that only
+  // shows in certain light, eye tone, a white chest fleck. Nothing here
+  // changes the shape; the shape is settled.
   const CAT_DESIGNS: { nm: string; draw: Draw }[] = [
-    // the two the user approved, unchanged
-    { nm: 'black-alert',   draw: alert({ F: '#2f2d33', eye: '#d0a83c' }) },
-    { nm: 'calico-curl',   draw: curl({ F: '#d8d2c4', F2: '#b8763a', F3: '#3a3230', eye: '#8a9a62' }) },
-    // alert variants
-    { nm: 'grey-tabby',    draw: alert({ F: '#6e6a66', F2: '#4f4c48', eye: '#8a9a62' }) },
-    { nm: 'tuxedo',        draw: alert({ F: '#2b2930', eye: '#7fa06a', bib: true }) },
-    { nm: 'ginger-alert',  draw: alert({ F: '#b0703a', F2: '#8c5326', eye: '#7d9463' }) },
-    { nm: 'smoke-blue',    draw: alert({ F: '#6a7280', eye: '#c9a83c', paw: '#7d8492' }) },
-    { nm: 'cream-point',   draw: alert({ F: '#cbbda4', F2: '#6a5a4a', eye: '#6f97b8' }) },
-    { nm: 'brown-tabby',   draw: alert({ F: '#7a5a3c', F2: '#5a3f28', eye: '#c9a83c' }) },
-    // curl variants
-    { nm: 'black-curl',    draw: curl({ F: '#33313a', eye: '#d0a83c' }) },
-    { nm: 'ginger-curl',   draw: curl({ F: '#b8763a', F2: '#96592a', eye: '#8a9a62' }) },
-    { nm: 'tortie-curl',   draw: curl({ F: '#4a3a34', F2: '#a8642e', F3: '#2c2422', eye: '#c9a83c' }) },
-    { nm: 'white-curl',    draw: curl({ F: '#ddd8cb', F2: '#b9b2a2', eye: '#6f97b8' }) },
+    // ── black family ────────────────────────────────────────────────────
+    { nm: 'black',        draw: alert({ F: '#2f2d33', eye: '#d0a83c' }) },              // the original
+    { nm: 'black-warm',   draw: alert({ F: '#332e2b', eye: '#d0a83c' }) },              // browner black
+    { nm: 'black-cool',   draw: alert({ F: '#2a2d36', eye: '#d0a83c' }) },              // blue-black
+    { nm: 'black-ghost',  draw: alert({ F: '#2f2d33', F2: '#3a3841', eye: '#d0a83c' }) },// faint ghost tabby
+    { nm: 'black-green',  draw: alert({ F: '#2f2d33', eye: '#7d9463' }) },              // green eyes
+    { nm: 'black-pale',   draw: alert({ F: '#2f2d33', eye: '#e2cb72' }) },              // paler yellow eye
+    { nm: 'black-fleck',  draw: alert({ F: '#2f2d33', eye: '#d0a83c', spot: true }) },  // small white chest fleck
+    // ── smoke family ────────────────────────────────────────────────────
+    { nm: 'smoke',        draw: alert({ F: '#6a7280', eye: '#c9a83c', paw: '#7d8492' }) },  // the original
+    { nm: 'smoke-light',  draw: alert({ F: '#7b8391', eye: '#c9a83c', paw: '#8c93a0' }) },
+    { nm: 'smoke-dark',   draw: alert({ F: '#5a6270', eye: '#c9a83c', paw: '#6b7280' }) },
+    { nm: 'smoke-ghost',  draw: alert({ F: '#6a7280', F2: '#5d6472', eye: '#c9a83c', paw: '#7d8492' }) },
+    { nm: 'smoke-copper', draw: alert({ F: '#6a7280', eye: '#b8763a', paw: '#7d8492' }) },
   ];
 
   // a contact shadow apiece so they sit on the ground instead of hovering
