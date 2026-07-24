@@ -24,6 +24,8 @@ export interface Props {
    *  Same idea as the wet registry, but keyed on position: the object's
    *  distance to the nearest lamp head decides how much amber it takes. */
   lit: (root: THREE.Object3D) => void;
+  /** register the rest of the block so it loses the ambient after dark */
+  dimWorld: (root: THREE.Object3D) => void;
   /** rain flattens the light — nudge the sky colour toward the storm grey */
   rainSky: (c: THREE.Color) => void;
   /** advance the weather: fades in/out by the hour, tints the wet ground */
@@ -86,7 +88,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.
-  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color }
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   const LAMP_R = 4.0;        // the pools read about this wide
@@ -97,9 +99,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // up toward brown, which is what read as a graphics bug. Multiplying can't
   // do that: near-black × 1.15 is still near-black.
   const WARM_R = 1.15, WARM_G = 1.05, WARM_B = 0.85;
+  // ── night, done in the WORLD instead of on the lens ────────────────────
+  //
+  // A fullscreen wash does not make darkness, it removes CONTRAST: every
+  // surface loses the same light, so the gaps between lamps end up exactly as
+  // bright as the pools under them and the frame flattens to one grey. So the
+  // wash is pulled right down (see ct/hud.ts) and the materials themselves go
+  // dark, the same way wetMats already takes them toward wet.
+  //
+  // That gives the lamps something to work against: NIGHT_FLOOR is what is
+  // left of the ambient at 3am, and POOL_GAIN is what a lamp hands back — so
+  // a car under a lamp sits near daylight while the kerb 8 m away is at a
+  // third of it. The dynamic range is the gap between those two numbers.
+  const NIGHT_FLOOR = 0.30, POOL_GAIN = 1.9;
+  let nightNow = 0;
+  const ambient = () => 1 - nightNow * (1 - NIGHT_FLOOR);
   // anything darker than this is glass, rubber or ironwork; it stays dark
   const LIT_MIN_LUM = 0.22;
-  const lit = (root: THREE.Object3D) => {
+  const register = (root: THREE.Object3D, pool: boolean) => {
     root.traverse((o) => {
       const mm = (o as THREE.Mesh).material;
       if (!mm) return;
@@ -110,15 +127,39 @@ export function buildProps(ctx: CtxBuild): Props {
         const c = m.color;
         if (c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722 < LIT_MIN_LUM) continue;
         litSeen.add(m);
-        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone() });
+        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool });
+      }
+    });
+  };
+  const lit = (root: THREE.Object3D) => register(root, true);
+  // Everything else on the block: it loses the ambient at night like anything
+  // would, but a lamp does not pick it out — the buildings already get the
+  // wall splash and the road already gets the pool decal, and warming a 12 m
+  // wall off its centre point would be wrong anyway.
+  const dimWorld = (root: THREE.Object3D) => {
+    root.traverse((o) => {
+      if (Math.abs(o.position.x) > 100) return;      // interiors keep their own light
+      const mm = (o as THREE.Mesh).material;
+      if (!mm) return;
+      for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
+        if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
+        if (wetMats.some((w) => w.m === m)) continue; // updateRain owns those
+        litSeen.add(m);
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false });
       }
     });
   };
   let litLast = -1;
   const updateLit = (night: number) => {
+    nightNow = night;
     if (night <= 0.001 && litLast <= 0.001) return;   // broad daylight: free
     litLast = night;
+    const amb = ambient();
     for (const e of litList) {
+      if (!e.pool) {   // world geometry: ambient only
+        e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb);
+        continue;
+      }
       // the part's world position — cars only ever rotate about Y
       const a = e.root.rotation.y, ca = Math.cos(a), sa = Math.sin(a);
       const px = e.root.position.x + e.ox * ca + e.oz * sa;
@@ -134,10 +175,13 @@ export function buildProps(ctx: CtxBuild): Props {
       // smoothstep, not a square: squared only reaches 0.23 two metres from
       // the head, too faint to read as lit at all
       const k = night * (best * best * (3 - 2 * best));
+      // dark by default, and the lamp gives it back — capped so a pool reads
+      // as lit rather than blown out
+      const mul = Math.min(1, amb * (1 + k * POOL_GAIN));
       e.m.color.setRGB(
-        e.base.r * (1 + (WARM_R - 1) * k),
-        e.base.g * (1 + (WARM_G - 1) * k),
-        e.base.b * (1 + (WARM_B - 1) * k),
+        e.base.r * mul * (1 + (WARM_R - 1) * k),
+        e.base.g * mul * (1 + (WARM_G - 1) * k),
+        e.base.b * mul * (1 + (WARM_B - 1) * k),
       );
     }
   };
@@ -587,6 +631,7 @@ export function buildProps(ctx: CtxBuild): Props {
       updateLit(v);   // and everything standing in a pool takes the amber
     },
     lit,
+    dimWorld,
     rainSky: (c) => { if (rainLevel > 0.01) c.lerp(RAIN_SKY, rainLevel * 0.5); },
     scatter: (x, z, y) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), crumbMat);

@@ -174,7 +174,13 @@ export function makeHud(purse: Purse): Hud {
 
   return {
     skyAt, nightAt,
-    setNight: (v) => { nightDiv!.style.opacity = String(v); },
+    // The wash is now a THIN cool cast, not the darkness itself. It used to
+    // carry the whole night at 0.58, which flattened contrast: every surface
+    // lost the same light, so the gaps between lamps were as bright as the
+    // pools under them. ct/props.ts darkens the actual materials instead, and
+    // this just tints what is left. nightAt() is unchanged — it is still the
+    // canonical "how night is it" curve that drives the lamps.
+    setNight: (v) => { nightDiv!.style.opacity = String(v * 0.28); },
     watch: (want, mins) => {
       watchWrap!.style.transform = want
         ? 'translateX(-50%) translateY(0) rotate(-5deg)'

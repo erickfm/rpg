@@ -273,6 +273,13 @@ export function makeCrosstown(): Proto {
     ...bodegaColliders,
     cruiserBox,
   ];
+  // Everything is built by now, so sweep the block into the night registry:
+  // the buildings, the ground, the furniture. Anything already registered for
+  // the lamplight (cars, people, kerb props) or owned by the rain keeps its
+  // own entry — this only picks up what nothing else was tinting, which is
+  // most of the world and all of the reason it used to flatten after dark.
+  props.dimWorld(scene);
+
   const rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
     bounds: { minX: -FACE - 6.4, maxX: 260, minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
@@ -396,12 +403,16 @@ export function makeCrosstown(): Proto {
       const skyCol = hud.skyAt(hourF);
       props.rainSky(skyCol); // rain flattens the light
       (scene.background as THREE.Color).copy(skyCol);
-      scene.fog!.color.copy(skyCol);
       const night = hud.nightAt(hourF);
       hud.setNight(night);
       // streetlamps warm up on the same night curve (0 by day, full at deep night)
       const lampNight = THREE.MathUtils.clamp((night - 0.03) / 0.28, 0, 1);
       props.setLampNight(lampNight);
+      // Fog goes DARKER than the sky once the sun is down. By day it matches,
+      // so the street simply fades into the haze; after dark, distance falling
+      // toward black instead of toward the sky grey gives depth down the block
+      // for free — the far end reads as unlit rather than as bright haze.
+      scene.fog!.color.copy(skyCol).multiplyScalar(1 - 0.5 * lampNight);
       // the hermit keeps his own hours — mostly afternoons
       apt.updateHermit(Math.floor(totalMin / 60));
       // look down: your watch
