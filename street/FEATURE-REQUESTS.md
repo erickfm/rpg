@@ -73,6 +73,17 @@ published to the playable artifact.
   under. FIXED: drops now live in world coordinates and only wrap by a
   whole box width when they fall outside the volume around you.
 
+- **Ceiling lamps in the walk-up look wrong.** See
+  `shots/user-ceilinglamp.png`. Two distinct problems: (1) **there is no
+  fixture at all** — it's a bare glow decal on the ceiling, no shade, no
+  bulb, no ceiling rose, so it reads as a smudge rather than a light;
+  (2) **it's a smooth radial gradient in a world that is entirely
+  hard-edged nearest-filtered texels** — the blur is wildly off-style
+  against every other surface. Fix: model an actual period flush-mount
+  (shallow opal dome, or a schoolhouse globe on a short stem), painted at
+  the world's texel density, and replace the smooth gradient with a
+  tighter stepped/dithered glow that matches the pixel style.
+
 - **Night should feel darker.** The dusk/night curve doesn't get dark
   enough; night reads as dim evening rather than night.
 
