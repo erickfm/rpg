@@ -122,25 +122,59 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
     const tTop = cy + RY - 4;
     g.fillStyle = '#4a3626'; g.fillRect(cx - 3, tTop, 6, H - tTop);
     g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(cx - 3, tTop, 2, H - tTop);
-    // solid core first, then bushy lobes around its edge — reads as one mass
-    // rather than a ring of disconnected blobs
-    g.fillStyle = PAL[0];
-    g.beginPath(); g.ellipse(cx, cy, RX, RY, 0, 0, Math.PI * 2); g.fill();
-    for (let i = 0; i < lobes; i++) {
-      const a = (i / lobes) * Math.PI * 2 + r() * 0.8;
-      g.fillStyle = PAL[i % 3];
-      g.beginPath();
-      g.ellipse(cx + Math.cos(a) * RX * (0.45 + r() * 0.35),
-                cy + Math.sin(a) * RY * (0.45 + r() * 0.35),
-                RX * (0.34 + r() * 0.2), RY * (0.42 + r() * 0.24), 0, 0, Math.PI * 2);
-      g.fill();
+
+    // A crown is not one blob. It is SEVERAL CLUMPS of foliage at different
+    // depths, with real gaps you can see sky through, and light landing on
+    // the tops while the undersides stay dark. Drawn back-to-front:
+    //   dark rear clumps → mid clumps → lit top clumps → sky holes.
+    const DARK = PAL[1], MID = PAL[0], LIT = PAL[2];
+    const ell = (x: number, y: number, rx: number, ry: number, col: string) => {
+      g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    };
+    // a couple of branch stubs reaching up into the canopy, seen between clumps
+    g.fillStyle = '#4a3626';
+    g.fillRect(cx - 1, cy - 2, 2, RY + 2);
+    g.fillRect(cx - Math.round(RX * 0.4), cy + 2, 2, 5);
+    g.fillRect(cx + Math.round(RX * 0.3), cy + 1, 2, 6);
+
+    // clump field: angle, distance, size and tone, all seeded per tree
+    const N = 5 + Math.floor(r() * 3);
+    type C = [number, number, number, number, number];   // x,y,rx,ry,layer
+    const clumps: C[] = [];
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2 + r() * 0.9;
+      const d = 0.30 + r() * 0.52;
+      clumps.push([
+        cx + Math.cos(a) * RX * d,
+        cy + Math.sin(a) * RY * d,
+        RX * (0.36 + r() * 0.20),
+        RY * (0.40 + r() * 0.22),
+        r(),
+      ]);
     }
-    // dapples, clamped inside the crown so no stray pixels float off it
-    for (let i = 0; i < 110; i++) {
+    // rear/shadow pass — slightly offset down-right, never on top
+    for (const [x, y, rx, ry] of clumps) ell(x + 1, y + 2, rx, ry, DARK);
+    // body pass
+    for (const [x, y, rx, ry] of clumps) ell(x, y, rx * 0.94, ry * 0.94, MID);
+    // lit tops — only the clumps sitting high in the crown catch light
+    for (const [x, y, rx, ry, l] of clumps) {
+      if (y < cy + RY * 0.15 || l > 0.6) ell(x - 1, y - 2, rx * 0.62, ry * 0.55, LIT);
+    }
+    // sky holes: punch through BETWEEN clumps so the canopy breathes
+    for (let i = 0; i < 3; i++) {
+      const a = r() * Math.PI * 2, d = 0.35 + r() * 0.4;
+      const hx = cx + Math.cos(a) * RX * d, hy = cy + Math.sin(a) * RY * d;
+      const hr = 1.5 + r() * 2.2;
+      g.save(); g.globalCompositeOperation = 'destination-out';
+      g.beginPath(); g.ellipse(hx, hy, hr, hr * 0.8, 0, 0, Math.PI * 2); g.fill();
+      g.restore();
+    }
+    // fine leaf speckle, kept inside the crown
+    for (let i = 0; i < 70; i++) {
       const a = Math.random() * Math.PI * 2, rr = Math.random();
-      g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
-      g.fillRect(Math.floor(cx + Math.cos(a) * rr * RX * 0.95),
-                 Math.floor(cy + Math.sin(a) * rr * RY * 0.95), 2, 2);
+      g.fillStyle = Math.random() < 0.5 ? 'rgba(206,224,148,0.50)' : 'rgba(12,28,12,0.40)';
+      g.fillRect(Math.floor(cx + Math.cos(a) * rr * RX * 0.92),
+                 Math.floor(cy + Math.sin(a) * rr * RY * 0.92), 2, 2);
     }
   });
 }
