@@ -5,7 +5,13 @@ export const WALK = 2.0;      // sidewalk width
 export const FACE = ROAD_HALF + WALK; // building faces at ±7
 export const PARK_X = 3.9;    // parking lane centre
 export const DRIVE_X = 1.5;   // travel lane centre
-export const FOG_NEAR = 9, FOG_FAR = 60;
+// Haze used to start 9 m from your face and go opaque by 60 m, which blurred
+// things well inside the block. Pushed back so you can read the length of the
+// street. NOT pushed further: the fog is load-bearing — it's what swallows the
+// cross-buildings closing each end (street runs 96 m) and the far end of the
+// side street (which runs to x=55). Take FOG_FAR much past ~100 and you start
+// seeing the seams of the world instead of a city continuing past them.
+export const FOG_NEAR = 22, FOG_FAR = 100;
 
 // ONE shared seeded stream. Order of rnd() calls determines tree heights
 // and pigeon placement — do not reorder construction across modules.
