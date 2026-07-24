@@ -40,6 +40,23 @@ published to the playable artifact.
   in front of your face. (History: whole-arm version → reverted;
   fist+forearm version → reverted; currently wrist-only.)
 
+- **Building edge seams.** Visible vertical seams/gaps where one building
+  meets the next — confirmed in `shots/tr-two-trees-e.png` between No. 227
+  and ARCADE.
+
+- **The alley cat is not a cat.** Confirmed in `shots/al-cat-close.png`: a
+  ~10 px grey blob with two eye dots, sunk in a cardboard box — it reads as
+  a mouse. **Drop the cardboard box entirely** and draw a proper, cute cat
+  at a readable size: recognisable ears, tail, curled or sitting pose.
+
+- **Alley side walls are mirror-identical.** Left and right are literally
+  the same texture, which reads as artificial. They should differ — and
+  earlier note: some of them are missing brick entirely while the rear wall
+  (which the user likes) has it. Screenshots in `shots/al-*.png`.
+
+- **Night should feel darker.** The dusk/night curve doesn't get dark
+  enough; night reads as dim evening rather than night.
+
 - **Apartment entrance overlaps.** Ground-floor windows collide with the
   buzzer panel, the plaque and the door signage — things are drawn on top
   of each other instead of laid out. Wants a real **quality review** of
