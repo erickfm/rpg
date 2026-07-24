@@ -264,7 +264,13 @@ export function makeCrosstown(): Proto {
     { minX: 6.8, maxX: SIDE_X1 + 2, minZ: -96.3, maxZ: -92 },               // corner shops, north of the side street
     { minX: -7, maxX: SIDE_X1 + 2, minZ: -113, maxZ: -109.7 },              // south side of the side street
     { minX: SIDE_X1 + 1.7, maxX: SIDE_X1 + 9, minZ: -112, maxZ: -92 },      // east end of the side street
-    { minX: 7.5, maxX: 9.7, minZ: -96.9, maxZ: -96.2 },                     // bodega fruit crates
+    // the two fruit crates, one box each and no wider than the crate it is.
+    // This was a single 2.2 m box spanning the whole canted-bay frontage with
+    // the bodega's [E] spot stranded inside it — the reason you could not get
+    // into the shop. The crates have moved east, clear of the doorway; if they
+    // move again these two must follow, or the door closes itself.
+    { minX: 9.74, maxX: 10.36, minZ: -96.56, maxZ: -96.00 },
+    { minX: 10.64, maxX: 11.26, minZ: -96.53, maxZ: -95.97 },
     { minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 }, // alley end wall
     { minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 },        // dumpster
     ...propColliders,
