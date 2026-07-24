@@ -207,7 +207,8 @@ export function buildProps(ctx: CtxBuild): Props {
     for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.95);
     // water pools slower than it falls, and lingers after it stops
     puddleLevel += (rainLevel - puddleLevel) * Math.min(1, dt * 0.22);
-    puddleM.opacity = 0.9 * Math.min(1, puddleLevel * 1.15);
+    puddleM.opacity = 0.72 * Math.min(1, puddleLevel * 1.15);
+    puddleM.visible = puddleLevel > 0.03;   // bone dry means NO puddle at all
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
       rainM.opacity = 0.55 * rainLevel;
@@ -325,14 +326,20 @@ export function buildProps(ctx: CtxBuild): Props {
   // Appended last: rnd() is a shared seeded stream and everything above draws
   // from it.
   const puddleT = pixTex(48, 32, (g) => {
-    g.fillStyle = 'rgba(28,34,44,0.85)';
-    g.beginPath(); g.ellipse(24, 16, 22, 13, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(52,62,76,0.75)';
-    g.beginPath(); g.ellipse(24, 16, 18, 10, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(150,168,190,0.40)';           // sky sheen
-    g.beginPath(); g.ellipse(19, 12, 9, 4, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(180,196,214,0.30)';
-    g.fillRect(12, 20, 12, 1); g.fillRect(27, 14, 8, 1);
+    // Water on asphalt is DARKER than the dry road, not lighter. The first
+    // version had a big pale sheen and at night it read as a glowing blob
+    // sitting on the tarmac. Now: a dark body, a soft alpha edge so it does
+    // not look like a decal, and only a whisper of sky sheen.
+    const ring = (rx: number, ry: number, col: string) => {
+      g.fillStyle = col; g.beginPath(); g.ellipse(24, 16, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    };
+    ring(23, 14, 'rgba(20,24,32,0.30)');     // soft outer feather
+    ring(20, 12, 'rgba(17,21,28,0.55)');
+    ring(16, 9.5, 'rgba(14,18,24,0.72)');    // dark body
+    g.fillStyle = 'rgba(120,140,168,0.16)';  // faint sky glance, off-centre
+    g.beginPath(); g.ellipse(19, 12, 7, 3, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(150,168,196,0.13)';  // one thin catch-light streak
+    g.fillRect(14, 19, 11, 1);
   });
   const puddleM = new THREE.MeshBasicMaterial({
     map: puddleT, transparent: true, opacity: 0, depthWrite: false });

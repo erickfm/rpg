@@ -177,17 +177,19 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     // the bed is a real open tub: thick walls flush with the slab, a dark
     // floor you can see over the rails, headboard sealed against the cab.
     // Outer faces carry body paint with highlight/shadow so edges read.
-    const bedSideT = pixTex(96, 10, (g2) => {
-      g2.fillStyle = body; g2.fillRect(0, 0, 96, 10);
+    const bedSideT = pixTex(96, 20, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, 96, 20);
       g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 96, 2);
-      g2.fillStyle = 'rgba(0,0,0,0.25)'; g2.fillRect(0, 8, 96, 2);
-      dither(g2, 96, 10, 30);
+      g2.fillStyle = 'rgba(0,0,0,0.25)'; g2.fillRect(0, 18, 96, 2);
+      g2.fillStyle = 'rgba(0,0,0,0.14)'; g2.fillRect(0, 11, 96, 1);  // side crease
+      dither(g2, 96, 20, 50);
     });
-    const bedRearT = pixTex(48, 10, (g2) => {
-      g2.fillStyle = body; g2.fillRect(0, 0, 48, 10);
+    const bedRearT = pixTex(48, 20, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, 48, 20);
       g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 48, 2);
-      g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(18, 4, 12, 3); // tailgate latch
-      dither(g2, 48, 10, 20);
+      g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(18, 9, 12, 4); // tailgate latch
+      g2.fillStyle = 'rgba(0,0,0,0.14)'; g2.fillRect(0, 15, 48, 1);
+      dither(g2, 48, 20, 34);
     });
     const bodyC = new THREE.Color(body);
     const outM = flatT(bedSideT);
@@ -208,11 +210,14 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     //   * the rail top sits just above the beltline (0.89), not 0.19 m over
     //     it — a real pickup's rail lines up near the base of the cab glass.
     const RAIL_T = 0.97;          // rail top: a touch proud of the beltline
-    const RAIL_H = 0.18;
+    const FLOOR_Y = 0.62;         // tub floor — sits just above the axle line.
+                                  // Was 0.77, which made a 0.20 m tub: the bed
+                                  // read as a tray. 0.35 m is a real load bed.
     const WALL_T = 0.16;          // wall thickness
     const BODY_HALF = 0.85;       // body side plane — rails are flush to it
     const wallLen = half - 0.65;
-    const floorY = RAIL_T - RAIL_H - 0.02;   // tub floor, visible over the rail
+    const RAIL_H = RAIL_T - FLOOR_Y;   // walls run the full depth of the tub
+    const floorY = FLOOR_Y;
     const floor2 = new THREE.Mesh(
       new THREE.BoxGeometry(BODY_HALF * 2 - WALL_T * 2, 0.05, wallLen),
       [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
