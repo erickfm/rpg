@@ -1,5 +1,13 @@
 # Seam & texture-continuity audit — CROSSTOWN '97
 
+> **Round 2 (live @ `9610e25`) is at the bottom of this file.** The block was
+> re-cast after round 1 — new roster, new landmarks, `SHOP_BAND_H` introduced —
+> so every camera below is aimed at a building that has since moved. Round 2
+> re-shoots against the current world and says which of these 28 findings
+> survived. Read the triage table there before acting on anything here.
+
+## Round 1 — baseline `d731273`
+
 **Branch** `audit/seams` @ `d731273` · read-only · nothing under `street/src/` was
 touched. Sweep scripts added: `scripts/seams.mjs` (97 shots), `scripts/seams2.mjs`
 (49 shots + a walkability probe), `scripts/seams3.mjs` (12 shots). All images are
@@ -187,3 +195,79 @@ The bodega items I *can* speak to from this branch's evidence:
 None of these five were logged to `street/FEATURE-REQUESTS.md` from here — that
 file is owned by whoever holds the live branch, and an edit from this worktree
 would collide.
+
+---
+
+# Round 2 — re-run against the re-cast block (`live` @ `9610e25`)
+
+Round 1 was shot at `d731273`. Since then ~2,000 lines landed across every file
+it covered: the whole roster was re-cast, `SHOP_BAND_H` was introduced, and four
+landmarks arrived (library, church, casino pylon, hotel blade). Sweep
+`scripts/seams4.mjs` (50 shots, layout recomputed from the new rosters),
+`scripts/seams5.mjs` + `scripts/seams6.mjs` (16 shots, signs from both sides).
+Images are `shots/seam2-*.png`.
+
+Current layout, for anyone aiming a camera:
+
+```
+WEST  z   DINER 14.2..5 · MERIDIAN 5..-5 · LIBRARY -5..-21 · BURGER BARN -21..-37
+          [alley -37..-43.5] · LAUNDRY -43.5..-55.5 · BARBER -55.5..-68
+          THRIFT -68..-82 · GROCERY -82..-98
+EAST  z   CAFE 14.2..3 · HARDWARE 3..-9 · A-1 TAX -9..-22 · LIQUOR -22..-35
+          No.227 -35..-53 · PAWN -53..-65 · DELI -65..-76 · RECORDS -76..-86
+          BODEGA -86..-96
+NORTH2 x  FLOWERS 16.45..22.45 · CHOP SUEY 22.45..33.45
+          HOTEL ORPHEUS 33.45..45.45 · GOLDEN ACES 45.45..57
+SOUTH2 x  ST BRIGID -7..11 · GARAGE 11..23 · BILLIARDS 23..35 · SMOKES 35..46
+          LOANS 46..57
+```
+
+## New findings
+
+| # | sev | kind | where (world coords + camera) | what's wrong | likely file | screenshot |
+|---|-----|------|-------------------------------|--------------|-------------|------------|
+| R1 | **high** | mirrored texture | **both** `twoSided` signs: HOTEL blade at (44.35, 7.4, −96.72), GOLDEN ACES pylon at (51.225, 25.2, −95.0). Cam (42, −96.72) vs (46.5, −96.72); (34, −103) vs (56, −103) | **The mirroring is not fixed.** `twoSided` builds two planes at `rotation.y = ±π/2` and calls `pixTex(tw, th, draw)` with the **identical** `draw` for both, so the two faces are mirror images in world space. Demonstrated: the blade's `E` and `L` read correctly from the west and reversed from the east; GOLDEN ACES reads correctly from the west and reversed from the east. Both faces are reachable on foot (the side street runs to x = 57). The comment above the helper asserts the opposite — *"the back face gets a texture that was painted mirrored, so the two faces carry genuinely different images"* — and no code does that. A future reader will believe this is handled. | `ct/street.ts` `twoSided()` | `seam2-Z-blade-west-near` / `seam2-Z-blade-east-near`, `seam2-W-marquee-west-reach` / `seam2-W-marquee-east-r2` |
+| R2 | **high** | floating geometry | GOLDEN ACES rooftop pylon, legs at z = −91.8 and −98.2, frame box z −99.6…−90.4 | **The pylon stands on nothing.** GOLDEN ACES' shell is only 3.4 m deep — z −96.0…−92.6. The two legs are placed at `−95.0 ± 3.2`, i.e. 0.8 m *behind* the back wall and 2.2 m *in front of* the facade, out over the sidewalk. Their bottoms are at the correct roof height (17.2 m) but there is no roof under either of them. The 9.2 m frame box overhangs the building by 3.6 m at the front and 2.2 m at the back. From the street the whole pylon reads as hovering — which is the original "hanging out with no sense" complaint in a new form. | `ct/street.ts` (casino pylon) | `seam2-W-marquee-west-reach`, `seam2-Z-marquee-east` |
+| R3 | **high** | texture continuity | z = −35 (LIQUOR ∣ No. 227) and z = −53 (No. 227 ∣ PAWN). Cam (−1, −53) yaw +x | **New, introduced by `SHOP_BAND_H`.** `bandOf()` gives shops 4.2 m and the walk-up `ENTRANCE.BAND_H` = 3.2 m, so the ground-floor/upper-wall boundary — the one continuous horizontal datum running the length of the block — **steps 1.0 m** at both of No. 227's party walls. It is the player's home building and the step is at eye level. | `ct/street.ts` `bandOf()` + `ct/tex-world.ts` | `seam2-V-res-band-step`, `seam2-V-res-band-step-2` |
+| R4 | medium | untextured | LIBRARY z −5…−21 (LIB_H 13.2) between MERIDIAN (5 floors) and BURGER BARN (4 floors) | Round-1 finding 1 recurring on the most carefully composed building on the block: the library is shorter than both neighbours, so a slab of flat `#53382e` sits on each of its shoulders, framing the entablature. | `ct/street.ts` | `seam2-N-library-front` |
+| R5 | medium | palette (open request) | BURGER BARN, west z −21…−37 | The red/yellow the user asked to drop is still in four places: fascia lettering `#f2d24a`, the mustard accent stripe `#e8a02a`, the interior glow `#e8c26a`, and the menu-board rules `#f2d24a`. | `ct/street.ts` `burgerFront()` | `seam2-Z-burger-close`, `seam2-Z-burger-night` |
+| R6 | low | duplicate resource | `twoSided()` | `pixTex()` is called once per face with identical arguments, so every two-sided sign allocates two identical canvases and two GPU textures. Harmless today; it becomes a real difference the moment one of them picks up `dither()`, which is unseeded. | `ct/street.ts` | — |
+
+## Triage of the round-1 findings against the current world
+
+| round-1 # | status | note |
+|---|---|---|
+| 1 (untextured party walls) | **still live** | `endM` unchanged, and height variation increased. Now also frames the library (R4). |
+| 2 (bodega chamfer brick) | **still live** | `facadeTex` and `bodegaBrick` both untouched. `seam2-V-bodega-arris` |
+| 3 (shop band vs wall courses) | **still live** | `SHOP_BAND_PX` 52 over 4.2 m = 12.38 px/m → 0.404 m courses against 0.447–0.457 above. The seam moved from y = 3.2 to y = 4.2; the mismatch is unchanged. Now compounded by R3. |
+| 5 (bodega unreachable from the walk) | **still live, unchanged** | Re-probed on live: walking west along the north walk you stop at **x = 10.09**, closest approach **1.39 m** against a 1.1 m trigger — no prompt. Off the roadway: 0.44 m, prompt fires. Collider `{7.5, 9.7, −96.9, −96.2}` is byte-identical in `crosstown.ts`. |
+| 6 (road grain at z = −98) | **still live** | `seam2-V-road-seam-98` |
+| 7 (courses break on floor-count change) | **still live** | `facadeTex` untouched. `seam2-V-endcap-east` |
+| 4, 16, 18, 19, 26 (alley) | **still live** | Alley code untouched; BURGER BARN is now the north neighbour, so the flank palettes belong to a different building than the comments say. `seam2-V-alley-mouth-plan`, `seam2-V-alley-up` |
+| 11 (tree pits off the slab grid) | **still live** | `seam2-V-treepit-plan` |
+| 8, 9, 10 (north/east cross buildings) | **not re-shot** | Rosters around them changed; needs its own pass. |
+| 12, 13 (bay shopfront / narrow-shop clamp) | **still live** | `Math.max(64, …)` unchanged; FLOWERS is still 6 m. |
+| 20 (centre-line dash pitch) | **still live** | `crosstown.ts` lines unchanged. |
+| 27 (`THE WHITMORE` label) | **still live** | `crosstown.ts` `SPOTS[0]`. |
+| 14, 15, 21, 22, 23, 24, 25, 28 | **not re-verified** | Interiors, gutter noise, awning, kerb ramp — those files did not change, so I expect them unchanged, but they are not re-shot. |
+
+## Notes for the two open build requests
+
+**Church tower** (`ST BRIGID`, x −7…11, facade z = −110). Baseline shots before
+removal: `seam2-N-church-front-wide`, `seam2-N-church-below`,
+`seam2-N-church-roof-plan`, `seam2-Z-church-tower`, `seam2-Z-church-tower-2`.
+Two things the "reads as finished" check will need:
+
+- The tower carries a **dark spire as well as the cross** (visible at distance in
+  `seam2-Z-blade-east-near` and `seam2-N-aces-graze`). It is the block's only
+  vertical accent on the side street and the one thing that reads at 40 m — with
+  it gone, the south side of the side street has no silhouette event at all.
+- The gable already has a small round medallion at its apex
+  (`seam2-N-church-front-wide`, above the rose window), so a modest cross there
+  has somewhere to sit without re-composing the front.
+
+**Signs.** R1 and R2 are the two live defects. R1 is one fix in one helper and it
+cures both signs. R2 is arithmetic: the legs need to land inside z −96.0…−92.6.
+The other original complaints — marquee squared to the street, standing on legs
+and a frame rather than one stick — are **already addressed** on live and read
+correctly (`seam2-W-marquee-west-reach`).
