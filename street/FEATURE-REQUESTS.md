@@ -111,15 +111,17 @@ published to the playable artifact.
   `ct/citizens.ts`). The neighbour should use that same system so he reads
   as a person in the world rather than a standee.
 
-- **Bodega door onto the corner; better corner.** See
-  `shots/user-corner.png`. The bodega wraps the corner but its door + OPEN
-  sign sit on the SIDE-street face, and the corner itself is a plain 90
-  brick pier. Wanted: the entrance ON the corner. The authentic pattern is
-  a **canted (chamfered) corner entrance** — the building corner cut at 45
-  with the door set into that face, which is how real corner stores are
-  built and why they read as corner stores. Needs: the chamfered facade
-  bay, door + awning + OPEN on it, the `[E] enter` trigger moved to match,
-  and the interior door aligned to the new opening.
+- **Bodega as a true corner shop: chamfer the corner ALL THE WAY UP.** See
+  `shots/user-corner2.png`. The kerb/corner return itself is landed and the
+  user loves it ("this corner looks so good") — that stays. What's wanted
+  now is architectural: **cut the building corner at 45 for its FULL
+  HEIGHT**, ground floor to roofline, not just a ground-floor nick, and put
+  the bodega door in that cut face. This is the real corner-store form —
+  a canted corner bay running the whole elevation, with the entrance in it.
+  Needs: the chamfered facade bay full height (brick above, shopfront
+  below), door + awning + OPEN moved onto the cut face, the `[E] enter`
+  trigger moved to match, the interior door realigned to the new opening,
+  and the kerb/sidewalk in front of it still walkable.
 
 - **Night should feel darker.** DONE — night wash peak 0.34 -> 0.58, dusk
   ramps harder, sky night colour deepened. Streetlamps now read as the
