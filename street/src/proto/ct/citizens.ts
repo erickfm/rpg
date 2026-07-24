@@ -22,8 +22,18 @@ export function citizenAtlas(jacket: string, pants: string, skin: string, hair: 
           g.fillRect(cx + 1 + stride, oy + 38, 4, 21);
         }
         g.fillStyle = '#16161a';
-        g.fillRect(cx - 6 - stride, oy + 57, 6, 3);
-        g.fillRect(cx + stride, oy + 57, 6, 3);
+        if (view === 2) {
+          // PROFILE. Feet were drawn at the same spread as the front views —
+          // 12 texels apart under a body only 4 wide — so from the side they
+          // detached and read as two shoes floating beside the person. Seen
+          // from the side you look along the shoe, so it is LONGER and the
+          // two nearly overlap, parted only by the stride.
+          g.fillRect(cx - 5 - stride, oy + 57, 9, 3);
+          g.fillRect(cx - 3 + stride, oy + 57, 9, 3);
+        } else {
+          g.fillRect(cx - 6 - stride, oy + 57, 6, 3);
+          g.fillRect(cx + stride, oy + 57, 6, 3);
+        }
         g.fillStyle = jacket;
         g.fillRect(cx - 7, oy + 20, 14, 19);
         // soft edge shading only — narrow 2 px rim lighting, not wide bands, so

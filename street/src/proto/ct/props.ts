@@ -395,15 +395,19 @@ export function buildProps(ctx: CtxBuild): Props {
   const paperT = [paperTex(0), paperTex(1), paperTex(2), paperTex(3)];
   const scrapT = [scrapTex(0), scrapTex(1), scrapTex(2)];
   // the gutter line: just off the kerb face, on the road side
-  const GUT = ROAD_HALF - 0.22;
+  // Hard against the kerb. This was ROAD_HALF - 0.22, chosen before the gutter
+  // pan existed; once the pan went in, the litter sat just OUTSIDE it on open
+  // asphalt, which is not where litter collects. Water runs to the kerb and
+  // takes the rubbish with it, so it piles in the last few centimetres.
+  const GUT = ROAD_HALF - 0.10;
   for (let i = 0; i < 7; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
     const z = -6 - rnd() * (L - 18);
-    const x = s2 * (GUT - rnd() * 0.30);
+    const x = s2 * (GUT - rnd() * 0.20);
     if (rnd() < 0.42) {
-      flatDecal(canTopTex(i), 0.40, 0.23, x, z, rnd() * Math.PI, 0.001);
+      flatDecal(canTopTex(i), 0.40, 0.23, x, z, rnd() * Math.PI, 0.014);
     } else {
-      flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.001);
+      flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.014);
     }
   }
   // paper trash — flyers, folded sheets, pulpy soaked handbills. More of
@@ -411,7 +415,7 @@ export function buildProps(ctx: CtxBuild): Props {
   for (let i = 0; i < 5; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
     flatDecal(paperT[i % 4], 0.34 + rnd() * 0.14, 0.26 + rnd() * 0.10,
-              s2 * (GUT - rnd() * 0.34), -8 - rnd() * (L - 20), rnd() * Math.PI, 0.001);
+              s2 * (GUT - rnd() * 0.22), -8 - rnd() * (L - 20), rnd() * Math.PI, 0.014);
   }
   // one can up on the sidewalk, against the kerb
   flatDecal(canTopTex(3), 0.40, 0.23, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
