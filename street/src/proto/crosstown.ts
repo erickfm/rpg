@@ -43,8 +43,10 @@ function dither(g: CanvasRenderingContext2D, w: number, h: number, n: number) {
   }
 }
 
-function facadeTex(brick: string, floors: number): THREE.Texture {
-  const W = 96, H = 32 + floors * 28;
+// facades are ~8 px/m wide so brick size and window rhythm stay constant
+// no matter how wide the building is
+function facadeTex(brick: string, floors: number, wMeters = 12): THREE.Texture {
+  const W = Math.max(64, Math.round(wMeters * 8)), H = 32 + floors * 28;
   return pixTex(W, H, (g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
@@ -55,9 +57,10 @@ function facadeTex(brick: string, floors: number): THREE.Texture {
     g.fillRect(0, 0, W, 6);
     g.fillStyle = 'rgba(0,0,0,0.3)';
     g.fillRect(0, 6, W, 2);
+    const cols = Math.max(2, Math.floor((W - 10) / 22));
     for (let f = 0; f < floors; f++) {
       const y = 14 + f * 28;
-      for (let c = 0; c < 4; c++) {
+      for (let c = 0; c < cols; c++) {
         const x = 8 + c * 22;
         const lit = ((f * 7 + c * 3) % 5) === 0;
         g.fillStyle = '#1a1c22';
@@ -78,28 +81,31 @@ function facadeTex(brick: string, floors: number): THREE.Texture {
   });
 }
 
-function shopfrontTex(brick: string, name: string, awning: string): THREE.Texture {
-  return pixTex(96, 40, (g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, 96, 40);
+function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
+  const W = Math.max(64, Math.round(wMeters * 8));
+  return pixTex(W, 40, (g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, 40);
     g.fillStyle = 'rgba(0,0,0,0.2)';
-    for (let y = 0; y < 40; y += 5) g.fillRect(0, y, 96, 1);
+    for (let y = 0; y < 40; y += 5) g.fillRect(0, y, W, 1);
+    // sign band caps at ~12 m so wide buildings don't wear a mile of awning
+    const bandW = Math.min(W - 8, 96), bandX = Math.round((W - bandW) / 2);
     g.fillStyle = awning;
-    g.fillRect(4, 2, 88, 10);
+    g.fillRect(bandX, 2, bandW, 10);
     g.fillStyle = '#f2ead0';
     g.font = 'bold 8px monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(name, 48, 7);
+    g.fillText(name, W / 2, 7);
     g.fillStyle = '#141820';
-    g.fillRect(6, 14, 84, 24);
+    g.fillRect(6, 14, W - 12, 24);
     g.fillStyle = '#3a3020';
-    g.fillRect(8, 16, 80, 20);
+    g.fillRect(8, 16, W - 16, 20);
     g.fillStyle = '#c9a45e';
-    g.fillRect(10, 22, 30, 12);
+    g.fillRect(10, 22, Math.round(W * 0.31), 12);
     g.fillStyle = '#5a6a7a';
-    g.fillRect(58, 16, 6, 20);
+    g.fillRect(Math.round(W * 0.6), 16, 6, 20);
     g.fillStyle = '#2a3440';
-    g.fillRect(46, 16, 3, 22);
-    dither(g, 96, 40, 260);
+    g.fillRect(Math.round(W * 0.48), 16, 3, 22);
+    dither(g, W, 40, 260);
   });
 }
 
@@ -130,22 +136,21 @@ function walkTex(): THREE.Texture {
   return t;
 }
 
-function treeSprite(k: number, H = 96): THREE.Texture {
-  return pixTex(64, H, (g) => {
-    g.fillStyle = '#4a3626'; g.fillRect(28, 58, 8, H - 58);
-    g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(28, 58, 2, H - 58);
-    const greens = k === 1 ? ['#425c2e', '#364c26', '#527038'] : ['#2e5a30', '#25482a', '#3f7038'];
-    const blobs: [number, number, number][] = [[32, 34, 26], [18, 44, 16], [46, 42, 15], [26, 22, 14], [42, 24, 12], [32, 40, 18]];
-    blobs.forEach(([x, y, r], i) => {
-      g.fillStyle = greens[i % 3];
-      g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-    });
-    for (let i = 0; i < 90; i++) {
-      const a = Math.random() * Math.PI * 2, rr = Math.random() * 24;
-      g.fillStyle = Math.random() < 0.5 ? 'rgba(200,220,140,0.45)' : 'rgba(10,25,10,0.45)';
-      g.fillRect(Math.floor(32 + Math.cos(a) * rr), Math.floor(34 + Math.sin(a) * rr * 0.9), 2, 2);
-    }
-  });
+// faceted canopy blob — vertex-lit from above so the facets read even in
+// flat shading (same trick as the alley trash bags)
+function canopyBlob(r: number, base: THREE.Color, squash: number, seed: number): THREE.Mesh {
+  const geo = new THREE.IcosahedronGeometry(r, 0).toNonIndexed();
+  const pos = geo.getAttribute('position');
+  const col: number[] = [];
+  for (let f = 0; f < pos.count / 3; f++) {
+    const avgY = (pos.getY(f * 3) + pos.getY(f * 3 + 1) + pos.getY(f * 3 + 2)) / (3 * r);
+    const v = 0.68 + avgY * 0.24 + (((f + seed) * 37) % 5) * 0.04;
+    for (let k = 0; k < 3; k++) col.push(base.r * v, base.g * v, base.b * v);
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  m.scale.y = squash;
+  return m;
 }
 
 function treePitTex(): THREE.Texture {
@@ -156,6 +161,25 @@ function treePitTex(): THREE.Texture {
       g.fillStyle = Math.random() < 0.5 ? '#4a3826' : '#30241a';
       g.fillRect(3 + Math.floor(Math.random() * 25), 3 + Math.floor(Math.random() * 25), 2, 1);
     }
+  });
+}
+
+// residential ground floor — brick continues to the street, two barred
+// windows, no shop band (the walk-up's own face)
+function resGroundTex(brick: string, wMeters = 12): THREE.Texture {
+  const W = Math.max(64, Math.round(wMeters * 8));
+  return pixTex(W, 32, (g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, 32);
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let y = 0; y < 32; y += 5) g.fillRect(0, y, W, 1);
+    for (let y = 0; y < 32; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+    for (let wx = 14; wx < W - 24; wx += 30) {
+      g.fillStyle = '#141820'; g.fillRect(wx, 8, 16, 14);
+      g.fillStyle = '#3a4450'; g.fillRect(wx + 1, 9, 14, 12);
+      g.fillStyle = '#1a1c22';
+      for (let bx = wx + 2; bx < wx + 15; bx += 4) g.fillRect(bx, 9, 1, 12);
+    }
+    dither(g, W, 32, 80);
   });
 }
 
@@ -373,17 +397,9 @@ function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
     g.add(hood);
     // short cab, near-vertical rear window
     g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(1))));
-    // the bed is one solid box, walls flush with the body slab; the open top
-    // is painted — dark corrugated floor inset in a body-colored rim — so
-    // there are no loose rails and nothing to gap
-    const bedLen = half - 0.45;
-    const bedTopT = pixTex(48, 96, (g2) => {
-      g2.fillStyle = body; g2.fillRect(0, 0, 48, 96);
-      g2.fillStyle = '#17181c'; g2.fillRect(5, 6, 38, 84);
-      g2.fillStyle = 'rgba(255,255,255,0.10)';
-      for (let y = 10; y < 90; y += 8) g2.fillRect(5, y, 38, 2);
-      dither(g2, 48, 96, 60);
-    });
+    // the bed is a real open tub: thick walls flush with the slab, a dark
+    // floor you can see over the rails, headboard sealed against the cab.
+    // Outer faces carry body paint with highlight/shadow so edges read.
     const bedSideT = pixTex(96, 10, (g2) => {
       g2.fillStyle = body; g2.fillRect(0, 0, 96, 10);
       g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 96, 2);
@@ -396,12 +412,34 @@ function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
       g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(18, 4, 12, 3); // tailgate latch
       dither(g2, 48, 10, 20);
     });
-    const bed = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 0.36, bedLen),
-      [flatT(bedSideT), flatT(bedSideT), flatT(bedTopT), darkM, flatT(bedRearT), darkM],
-    );
-    bed.position.set(0, 1.02, 0.45 + bedLen / 2);
-    g.add(bed);
+    const bodyC = new THREE.Color(body);
+    const outM = flatT(bedSideT);
+    const rimM = new THREE.MeshBasicMaterial({ color: bodyC.clone().multiplyScalar(1.16) });
+    const inM = new THREE.MeshBasicMaterial({ color: bodyC.clone().multiplyScalar(0.6) });
+    const bedFloorT = pixTex(32, 48, (g2) => {
+      g2.fillStyle = '#17181c'; g2.fillRect(0, 0, 32, 48);
+      g2.fillStyle = 'rgba(255,255,255,0.1)';
+      for (let y = 4; y < 46; y += 7) g2.fillRect(0, y, 32, 2); // corrugations
+      dither(g2, 32, 48, 30);
+    });
+    const wallLen = half - 0.65;
+    const floor2 = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, wallLen), [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
+    floor2.position.set(0, 0.855, 0.55 + wallLen / 2);
+    g.add(floor2);
+    for (const s of [-1, 1]) {
+      const railWall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.34, wallLen),
+        s < 0 ? [inM, outM, rimM, darkM, inM, inM] : [outM, inM, rimM, darkM, inM, inM],
+      );
+      railWall.position.set(s * 0.8, 1.01, 0.55 + wallLen / 2);
+      g.add(railWall);
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.34, 0.1), [outM, outM, rimM, darkM, inM, inM]);
+    head.position.set(0, 1.01, 0.5);
+    g.add(head);
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.34, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
+    gate.position.set(0, 1.01, half - 0.05);
+    g.add(gate);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
@@ -499,23 +537,26 @@ function citizenAtlas(jacket: string, pants: string, skin: string, hair: string,
           else if (view === 2) g.fillRect(cx - 9, oy + 8, 8, 2); // brim points forward
         } else if (style === 'hoodie') {
           g.fillStyle = jacket;
-          if (view === 4) g.fillRect(cx - 7, oy + 4, 14, 16); // hood covers the back of the head, meets the sweater
-          else if (view === 3) { // 3/4 back: hood wraps the turned side too
+          // the hood is the same cloth as the sweater: same fill AND the same
+          // highlight/shadow overlays, so the color reads identical
+          if (view === 4) { // dead back: hood swallows the head
+            g.fillRect(cx - 7, oy + 4, 14, 16);
+            g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx - 7, oy + 4, 14, 16);
+          } else if (view === 3) { // 3/4 back: hood covers everything, no face
+            g.fillRect(cx - 7, oy + 4, 14, 16);
+            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 4, 16);
+            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 4, 4, 16);
+          } else if (view === 2) { // profile: hood over the whole head, one sliver of face in the opening
+            g.fillRect(cx - 7, oy + 4, 14, 16);
+            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
+            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 3, oy + 4, 4, 16);
+            g.fillStyle = skin; g.fillRect(cx - 6, oy + 12, 4, 6);
+          } else { // front views: rim frames the face, cowl at the neck
             g.fillRect(cx - 7, oy + 4, 14, 4);
-            g.fillRect(cx - 7, oy + 6, 2, 14);
-            g.fillRect(cx + 1, oy + 4, 6, 16);
+            g.fillRect(cx - 7, oy + 6, 2, 14); g.fillRect(cx + 5, oy + 6, 2, 14);
             g.fillRect(cx - 7, oy + 18, 14, 2);
-          } else if (view === 2) { // profile: rim above the nose, hood over crown and back
-            g.fillRect(cx - 7, oy + 4, 14, 4);
-            g.fillRect(cx - 7, oy + 6, 2, 6);
-            g.fillRect(cx + 1, oy + 4, 6, 16);
-            g.fillRect(cx - 7, oy + 18, 14, 2);
-          } else {
-            g.fillRect(cx - 7, oy + 4, 14, 4);
-            g.fillRect(cx - 7, oy + 6, 2, 14); g.fillRect(cx + 5, oy + 6, 2, 14); // hood rim, down to the shoulders
-            g.fillRect(cx - 7, oy + 18, 14, 2); // cowl bunched at the neck
-          }
-          if (view <= 1) {
+            g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(cx - 7, oy + 4, 2, 16);
+            g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(cx + 5, oy + 4, 2, 16);
             g.fillStyle = '#e8e4d8';
             g.fillRect(cx - 2, oy + 21, 1, 5); g.fillRect(cx + 1, oy + 21, 1, 5); // drawstrings
           }
@@ -573,46 +614,61 @@ export function makeCrosstown(): Proto {
   line.position.set(0, 0.03, -L / 2 + 14);
   scene.add(line);
 
-  // buildings — the original hand-laid street
-  const bricks = ['#6b4034', '#7a4a3a', '#5c4436', '#835444'];
-  const shops: [string, string][] = [['GROCERY', '#8a2c22'], ['LAUNDRY', '#2c4a7a'], ['PIZZA', '#2e6a34'], ['MUSIC', '#6a2c6a'], ['DINER', '#8a5a22'], ['BOOKS', '#3a5a5a']];
+  // buildings — every one a specific place, laid by hand end to end.
+  // West carries the walk-up (No. 227, res facade, entrance at z=-31) and
+  // the alley; nothing on the street is filler.
   const AZ0 = -37, AZ1 = -43.5; // the alley gap in the left wall
-  let bi = 0;
-  for (const side of [-1, 1]) {
-    let z = 14.2;
-    while (z > -L - 2) {
-      let w = 9 + (bi % 3) * 3;
-      // the alley mouth: end the last building flush with the corner, skip
-      // the gap, and resume flush on the far side — no sky slits
-      if (side === -1 && z > AZ1 + 0.1) {
-        if (z <= AZ0 + 0.1) { z = AZ1; continue; }
-        if (z - w < AZ0) w = z - AZ0;
-      }
-      const floors = 3 + ((bi * 7) % 3);
-      const h = 3.4 + floors * 2.4;
-      const cz = z - w / 2;
-      const brick = bricks[bi % bricks.length];
-      const facade = flat(facadeTex(brick, floors));
-      const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
-      const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-      const mats = side < 0
-        ? [facade, endM, roofM, roofM, endM, endM]
-        : [endM, facade, roofM, roofM, endM, endM];
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w), mats);
-      wall.position.set(side * (FACE + 1.7), h / 2 + 3.2, cz);
-      scene.add(wall);
-      const [nm, col] = shops[bi % shops.length];
-      const shopM = flat(shopfrontTex(brick, nm, col));
-      const shopMats = side < 0
-        ? [shopM, endM, roofM, roofM, endM, endM]
-        : [endM, shopM, roofM, roofM, endM, endM];
-      const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.2, w), shopMats);
-      shop.position.set(side * (FACE + 1.7), 1.6, cz);
-      scene.add(shop);
-      z = cz - w / 2 + 0.05; // slight overlap — no sky slits between buildings
-      bi++;
-    }
+  interface BldSpec { nm: string; col: string; w: number; brick: string; floors: number; res?: boolean }
+  const WEST: (BldSpec | 'alley')[] = [
+    { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
+    { nm: 'LAUNDRY', col: '#2c4a7a', w: 11, brick: '#7a4a3a', floors: 3 },
+    { nm: 'PIZZA', col: '#2e6a34', w: 10.2, brick: '#5c4436', floors: 4 },
+    { nm: 'PAWN', col: '#8a6a22', w: 18, brick: '#835444', floors: 5 },
+    'alley',
+    { nm: 'MUSIC', col: '#6a2c6a', w: 12.5, brick: '#6b4034', floors: 4 },
+    { nm: 'BARBER', col: '#8a2c22', w: 12, brick: '#5c4436', floors: 4 },
+    { nm: 'GROCERY', col: '#2e5a3c', w: 18, brick: '#835444', floors: 5 },
+    { nm: 'HOTEL', col: '#6a4a2c', w: 12, brick: '#7a4a3a', floors: 5 },
+  ];
+  const EAST: BldSpec[] = [
+    { nm: 'BOOKS', col: '#3a5a5a', w: 13, brick: '#5c4436', floors: 4 },
+    { nm: 'HARDWARE', col: '#5a5a2c', w: 12.2, brick: '#6b4034', floors: 3 },
+    { nm: 'CAFE', col: '#6a3a22', w: 11, brick: '#835444', floors: 4 },
+    { nm: 'ARCADE', col: '#3a2c6a', w: 13, brick: '#7a4a3a', floors: 5 },
+    { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
+    { nm: 'LIQUOR', col: '#8a2c42', w: 11, brick: '#5c4436', floors: 3 },
+    { nm: 'DELI', col: '#2e6a5a', w: 10, brick: '#6b4034', floors: 3 },
+    { nm: 'CINEMA', col: '#2c3c7a', w: 12, brick: '#7a4a3a', floors: 5 },
+    { nm: 'BANK', col: '#3a4a63', w: 12, brick: '#5c4436', floors: 4 },
+  ];
+  const placeBld = (side: number, z: number, b: BldSpec) => {
+    const cz = z - b.w / 2;
+    const h = 3.4 + b.floors * 2.4;
+    const facade = flat(facadeTex(b.brick, b.floors, b.w));
+    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
+    const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const mats = side < 0
+      ? [facade, endM, roofM, roofM, endM, endM]
+      : [endM, facade, roofM, roofM, endM, endM];
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, b.w + 0.05), mats);
+    wall.position.set(side * (FACE + 1.7), h / 2 + 3.2, cz);
+    scene.add(wall);
+    const shopM = flat(b.res ? resGroundTex(b.brick, b.w) : shopfrontTex(b.brick, b.nm, b.col, b.w));
+    const shopMats = side < 0
+      ? [shopM, endM, roofM, roofM, endM, endM]
+      : [endM, shopM, roofM, roofM, endM, endM];
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, 3.2, b.w + 0.05), shopMats);
+    shop.position.set(side * (FACE + 1.7), 1.6, cz);
+    scene.add(shop);
+  };
+  let zw = 14.2;
+  for (const b of WEST) {
+    if (b === 'alley') { zw = AZ1; continue; }
+    placeBld(-1, zw, b);
+    zw -= b.w;
   }
+  let ze = 14.2;
+  for (const b of EAST) { placeBld(1, ze, b); ze -= b.w; }
 
   // billboard registry (declared early — the alley adds to it too)
   interface Board { m: THREE.Mesh }
@@ -620,7 +676,7 @@ export function makeCrosstown(): Proto {
 
   // cross buildings closing both ends — the street is a place, not a plane
   for (const [ez, brick] of [[16.5, '#5c4436'], [-L - 4.5, '#6b4034']] as [number, string][]) {
-    const facade = flat(facadeTex(brick, 4));
+    const facade = flat(facadeTex(brick, 4, 30));
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const facing = ez > 0
@@ -648,17 +704,18 @@ export function makeCrosstown(): Proto {
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     scene.add(floorA);
-    // bare-brick end wall (no shop, one grimy window)
-    const bareBrickT = pixTex(64, 96, (g) => {
-      g.fillStyle = '#5a3a30'; g.fillRect(0, 0, 64, 96);
+    // bare-brick end wall (no shop, one grimy window) — same brick course
+    // density as the street facades (~11.7 px/m, 5 px courses)
+    const bareBrickT = pixTex(80, 150, (g) => {
+      g.fillStyle = '#5a3a30'; g.fillRect(0, 0, 80, 150);
       g.fillStyle = 'rgba(0,0,0,0.22)';
-      for (let y = 0; y < 96; y += 5) g.fillRect(0, y, 64, 1);
-      for (let y = 0; y < 96; y += 10) for (let x = (y % 20) ? 0 : 4; x < 64; x += 9) g.fillRect(x, y, 1, 5);
-      g.fillStyle = '#1a1c22'; g.fillRect(24, 22, 16, 18);
-      g.fillStyle = '#3a4450'; g.fillRect(26, 24, 12, 14);
+      for (let y = 0; y < 150; y += 5) g.fillRect(0, y, 80, 1);
+      for (let y = 0; y < 150; y += 10) for (let x = (y % 20) ? 0 : 4; x < 80; x += 9) g.fillRect(x, y, 1, 5);
+      g.fillStyle = '#1a1c22'; g.fillRect(30, 35, 20, 28);
+      g.fillStyle = '#3a4450'; g.fillRect(32, 37, 16, 24);
       g.fillStyle = 'rgba(0,0,0,0.3)';
-      for (let k = 0; k < 4; k++) g.fillRect(Math.floor(Math.random() * 60), 0, 2, Math.floor(96 * Math.random()));
-      dither(g, 64, 96, 400);
+      for (let k = 0; k < 4; k++) g.fillRect(Math.floor(Math.random() * 76), 0, 2, Math.floor(150 * Math.random()));
+      dither(g, 80, 150, 700);
     });
     const endWallM = new THREE.MeshBasicMaterial({ color: 0x3d2a24 });
     const alleyEnd = new THREE.Mesh(
@@ -676,7 +733,7 @@ export function makeCrosstown(): Proto {
       g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, 0, 64, 2);
     });
     alleySideT.wrapS = alleySideT.wrapT = THREE.RepeatWrapping;
-    alleySideT.repeat.set(3, 6);
+    alleySideT.repeat.set(1.28, 2.34); // 64 px ≈ 5.5 m — matches facade brick courses
     const alleySideM = new THREE.MeshBasicMaterial({ map: alleySideT, side: THREE.DoubleSide });
     for (const [az, ry] of [[AZ0 - 0.02, Math.PI], [AZ1 + 0.02, 0]] as [number, number][]) {
       const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, 12.8), alleySideM);
@@ -759,13 +816,34 @@ export function makeCrosstown(): Proto {
     const rimBag = trashBag(0.3, 0.12);
     rimBag.position.set(-10.55, 1.18, AZ0 - 1.15);
     scene.add(rimBag);
+    // plywood sheet leaning back against the south wall, feet kicked out
     const cardboard = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.3, 0.06), new THREE.MeshBasicMaterial({ color: 0x8a7248 }));
-    cardboard.position.set(-12.9, 0.6, AZ1 + 1.4);
-    cardboard.rotation.x = 0.18;
+    cardboard.position.set(-12.9, 0.6, AZ1 + 0.26);
+    cardboard.rotation.x = -0.35;
     scene.add(cardboard);
+    // graffiti — tags sprayed on the alley walls
+    const tagTex = (word: string, ink: string, outline: string) => pixTex(96, 40, (g) => {
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = 'bold 26px sans-serif';
+      g.save(); g.translate(48, 18); g.rotate(-0.05);
+      g.lineWidth = 6; g.strokeStyle = outline; g.strokeText(word, 0, 0);
+      g.fillStyle = ink; g.fillText(word, 0, 0);
+      g.restore();
+      g.fillStyle = ink;
+      for (let i = 0; i < 5; i++) g.fillRect(14 + i * 16 + ((i * 7) % 9), 28, 2, 5 + ((i * 13) % 8));
+    });
+    const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+      m.position.set(x, y, z);
+      m.rotation.y = ry;
+      scene.add(m);
+    };
+    tag(tagTex('REZO', '#c93a6a', '#e8e4d8'), 1.9, 0.8, -9.6, 1.5, AZ0 - 0.05, Math.PI);
+    tag(tagTex('SNAK', '#3aa89a', '#141416'), 1.6, 0.68, -11.6, 1.1, AZ1 + 0.05, 0);
+    tag(tagTex('KOBRA', '#d8d4c8', '#8a2c22'), 1.5, 0.62, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
-  // ── THE SEVILLE — the player's walk-up ──────────────────────────────────
+  // ── No. 227 — the player's walk-up ──────────────────────────────────────
   // Four stories, a switchback stair, your place (301) on the third floor,
   // and the hermit across the hall at 302. The interior is parked far east
   // of the street, past the fog, in the same scene; the doors teleport.
@@ -860,7 +938,8 @@ export function makeCrosstown(): Proto {
       { minX: AX(2.4), maxX: AX(2.55), minZ: AZI(0), maxZ: AZI(13.2) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(-0.15), maxZ: AZI(0) },
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
-      { minX: AX(1.16), maxX: AX(1.24), minZ: AZI(8.4), maxZ: AZI(11.8) }, // centre banister
+      { minX: AX(1.16), maxX: AX(1.24), minZ: AZI(8.4), maxZ: AZI(11.0) }, // centre banister
+      { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.05), maxZ: AZI(3.95) }, // 302's doorway (and the hermit in it)
       stairCap, underStairA, underStairB, aptDoorCap,
     );
     // floors, ceilings
@@ -869,24 +948,40 @@ export function makeCrosstown(): Proto {
       if (f < 3) floorMesh(f * ST + 2.55, 2.4, 8.4, AX(1.2), AZI(4.2), ceilT);
     }
     floorMesh(H, 2.4, 13.2, AX(1.2), AZI(6.6), ceilT);
-    // the switchback: 8 treads up, half landing, 8 treads back
-    const treadM = new THREE.MeshBasicMaterial({ color: 0x6a5038 });
+    // the switchback: steeper now — 8 treads over a 2.6 m run (~28°), wood
+    // grain on top, painted risers, a generous half landing
+    const treadTopT = pixTex(32, 16, (g) => {
+      g.fillStyle = '#6a5038'; g.fillRect(0, 0, 32, 16);
+      g.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let y = 4; y < 16; y += 4) g.fillRect(0, y, 32, 1);
+      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(10, 4, 12, 12); // worn centre
+      g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(0, 0, 32, 2); // nosing
+      dither(g, 32, 16, 40);
+    });
+    const riserT = pixTex(32, 12, (g) => {
+      g.fillStyle = '#54402c'; g.fillRect(0, 0, 32, 12);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 32, 2);
+      dither(g, 32, 12, 24);
+    });
+    const darkWoodM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    const treadMats = [darkWoodM, darkWoodM, texM(treadTopT), darkWoodM, texM(riserT), texM(riserT)];
     const railM = new THREE.MeshBasicMaterial({ color: 0x3a2c20 });
+    const landMats = [darkWoodM, darkWoodM, texM(woodFloorT.clone()), darkWoodM, darkWoodM, darkWoodM];
     for (let f = 0; f < 3; f++) {
       for (let i = 0; i < 8; i++) {
-        const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.45), treadM);
-        a.position.set(AX(0.6), f * ST + (i + 0.5) * (1.35 / 8), AZI(8.4 + (i + 0.5) * (3.4 / 8)));
+        const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.36), treadMats);
+        a.position.set(AX(0.6), f * ST + (i + 0.5) * (1.35 / 8), AZI(8.4 + (i + 0.5) * (2.6 / 8)));
         scene.add(a);
-        const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.45), treadM);
-        b.position.set(AX(1.8), f * ST + 1.35 + (i + 0.5) * (1.35 / 8), AZI(11.8 - (i + 0.5) * (3.4 / 8)));
+        const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, 0.36), treadMats);
+        b.position.set(AX(1.8), f * ST + 1.35 + (i + 0.5) * (1.35 / 8), AZI(11.0 - (i + 0.5) * (2.6 / 8)));
         scene.add(b);
       }
-      const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 1.4), treadM);
-      land.position.set(AX(1.2), f * ST + 1.35 - 0.07, AZI(12.5));
+      const land = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 2.2), landMats);
+      land.position.set(AX(1.2), f * ST + 1.35 - 0.07, AZI(12.1));
       scene.add(land);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 3.4), railM);
-      rail.position.set(AX(1.2), f * ST + 1.1, AZI(10.1));
-      rail.rotation.x = -0.38; // follows the flights, roughly
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.92, 2.7), railM);
+      rail.position.set(AX(1.2), f * ST + 1.15, AZI(9.7));
+      rail.rotation.x = -0.48; // follows the steeper flights
       scene.add(rail);
     }
     // lobby: dead space boxed in under the stairs
@@ -894,8 +989,8 @@ export function makeCrosstown(): Proto {
     const uA = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 4.8), underM);
     uA.position.set(AX(1.8), 0.65, AZI(10.8));
     scene.add(uA);
-    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 1.4), underM);
-    uB.position.set(AX(0.6), 0.65, AZI(12.5));
+    const uB = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 2.2), underM);
+    uB.position.set(AX(0.6), 0.65, AZI(12.1));
     scene.add(uB);
     // doors up the floors — 301 is a real opening; 302 is the hermit's
     const doorTexN = (num: string) => pixTex(32, 64, (g) => {
@@ -1044,27 +1139,50 @@ export function makeCrosstown(): Proto {
       { minX: AX(-3.1), maxX: AX(-1.94), minZ: AZI(3.45), maxZ: AZI(5.45) },
       { minX: AX(-1.5), maxX: AX(-0.84), minZ: AZI(2.0), maxZ: AZI(2.52) },
     );
-    // street side: the building's door, stoop and nameplate on the west wall
-    const recessS = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.3), new THREE.MeshBasicMaterial({ color: 0x14151a }));
-    recessS.position.set(-FACE + 0.02, sidewalkY + 1.15, -31);
-    recessS.rotation.y = Math.PI / 2;
+    // street side: a plain walk-up entrance — recessed double door, transom
+    // with the address number, buzzer panel, stone stoop. No nameplate.
+    // East wall, across the street from the alley and a bit north of it.
+    const DOOR_Z = -44;
+    const recessS = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 2.75), new THREE.MeshBasicMaterial({ color: 0x14151a }));
+    recessS.position.set(FACE - 0.02, sidewalkY + 1.375, DOOR_Z);
+    recessS.rotation.y = -Math.PI / 2;
     scene.add(recessS);
-    const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 2.15), texM(frontDoorT));
-    streetDoor.position.set(-FACE + 0.04, sidewalkY + 1.075, -31);
-    streetDoor.rotation.y = Math.PI / 2;
-    scene.add(streetDoor);
-    const sevSignT = pixTex(64, 16, (g) => {
-      g.fillStyle = '#1c2c1e'; g.fillRect(0, 0, 64, 16);
-      g.fillStyle = '#d8cfa0'; g.font = 'bold 8px monospace'; g.textAlign = 'center';
-      g.fillText('THE SEVILLE', 32, 11);
-      g.fillStyle = 'rgba(255,255,255,0.15)'; g.fillRect(0, 0, 64, 1);
+    const doubleDoorT = pixTex(48, 64, (g) => {
+      g.fillStyle = '#22301f'; g.fillRect(0, 0, 48, 64);
+      for (const ox of [2, 25]) {
+        g.fillStyle = '#3a4c34'; g.fillRect(ox, 2, 21, 62);
+        g.fillStyle = '#16202a'; g.fillRect(ox + 3, 6, 15, 26);   // glass pane
+        g.fillStyle = 'rgba(200,215,225,0.25)'; g.fillRect(ox + 4, 7, 5, 24);
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(ox + 3, 38, 15, 20); // lower panel
+      }
+      g.fillStyle = '#c9b45e'; g.fillRect(21, 34, 2, 4); g.fillRect(25, 34, 2, 4); // handles
+      dither(g, 48, 64, 40);
     });
-    const sevSign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), texM(sevSignT));
-    sevSign.position.set(-FACE + 0.03, sidewalkY + 2.62, -31);
-    sevSign.rotation.y = Math.PI / 2;
-    scene.add(sevSign);
-    const stoop = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 1.5), new THREE.MeshBasicMaterial({ color: 0x97928a }));
-    stoop.position.set(-FACE + 0.275, sidewalkY + 0.075, -31);
+    const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 2.15), texM(doubleDoorT));
+    streetDoor.position.set(FACE - 0.05, sidewalkY + 1.075, DOOR_Z);
+    streetDoor.rotation.y = -Math.PI / 2;
+    scene.add(streetDoor);
+    const transomT = pixTex(48, 16, (g) => {
+      g.fillStyle = '#161c24'; g.fillRect(0, 0, 48, 16);
+      g.fillStyle = 'rgba(200,215,225,0.14)'; g.fillRect(2, 2, 44, 12);
+      g.fillStyle = '#d9b95c'; g.font = 'bold 10px monospace'; g.textAlign = 'center';
+      g.fillText('227', 24, 12);
+    });
+    const transom = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.45), texM(transomT));
+    transom.position.set(FACE - 0.05, sidewalkY + 2.42, DOOR_Z);
+    transom.rotation.y = -Math.PI / 2;
+    scene.add(transom);
+    const buzzerT = pixTex(12, 24, (g) => {
+      g.fillStyle = '#8a8d95'; g.fillRect(0, 0, 12, 24);
+      g.fillStyle = '#26282e';
+      for (let y = 3; y < 21; y += 5) { g.fillRect(3, y, 2, 2); g.fillRect(7, y, 2, 2); }
+    });
+    const buzzer = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.36), texM(buzzerT));
+    buzzer.position.set(FACE - 0.04, sidewalkY + 1.35, DOOR_Z + 0.95);
+    buzzer.rotation.y = -Math.PI / 2;
+    scene.add(buzzer);
+    const stoop = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.15, 1.7), new THREE.MeshBasicMaterial({ color: 0x97928a }));
+    stoop.position.set(FACE - 0.275, sidewalkY + 0.075, DOOR_Z);
     scene.add(stoop);
   }
   // multi-floor ground: pick the floor candidate nearest the last height —
@@ -1073,9 +1191,9 @@ export function makeCrosstown(): Proto {
     const lx = wx - APT_X, lz = wz - APT_Z;
     let rel = 0;
     if (lx >= 0 && lz > 8.4) {
-      if (lz > 11.8) rel = 1.35;
+      if (lz > 11.0) rel = 1.35;
       else {
-        const t = (lz - 8.4) / 3.4;
+        const t = (lz - 8.4) / 2.6;
         rel = lx < 1.2 ? t * 1.35 : 2.7 - t * 1.35;
       }
     }
@@ -1096,6 +1214,12 @@ export function makeCrosstown(): Proto {
   let watchShown = -1;
   let doorCd = 0;
   let hermitForce = -1;
+  // pockets: some cash and a box of cereal to start
+  let cash = 14.5;
+  const inv: Record<string, number> = { CEREAL: 3 };
+  let walletOpen = false;
+  let rmbHeld = false;
+  let feedHeld = false;
   const hermitIn = (hAbs: number): boolean => {
     const h = hAbs % 24;
     const chance = h >= 12 && h < 18 ? 0.7 : h >= 8 && h < 22 ? 0.22 : 0.04;
@@ -1135,32 +1259,79 @@ export function makeCrosstown(): Proto {
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    watchWrap.style.cssText = 'position:fixed;left:50%;bottom:-10px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-5deg);transition:transform .18s ease-out;';
+    watchWrap.style.cssText = 'position:fixed;left:52%;bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
-    watchCv.width = 120; watchCv.height = 72;
-    watchCv.style.cssText = 'width:330px;height:198px;image-rendering:pixelated;display:block;';
+    watchCv.width = 120; watchCv.height = 170;
+    watchCv.style.cssText = 'width:312px;height:442px;image-rendering:pixelated;display:block;';
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
+    watchCv.width = 120; watchCv.height = 170;
   }
+  // the whole left arm comes up: curled hand, wrist with the watch, forearm
+  // into a jacket cuff at the bottom of the screen
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
-    g.clearRect(0, 0, 120, 72);
-    g.fillStyle = '#c9946a'; g.fillRect(16, 6, 88, 66);          // wrist
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(16, 6, 10, 66);
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
-    g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
-    g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
-    g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
-    g.fillStyle = '#14161a'; g.fillRect(35, 17, 50, 36);
-    g.fillStyle = '#9cab8b'; g.fillRect(38, 21, 44, 23);         // LCD
+    g.clearRect(0, 0, 120, 170);
+    const skin = '#c9946a';
+    g.fillStyle = skin;                                     // forearm
+    g.beginPath();
+    g.moveTo(24, 170); g.lineTo(30, 96); g.lineTo(90, 96); g.lineTo(96, 170);
+    g.closePath(); g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(28, 96, 8, 74);
+    g.fillStyle = '#3a4a63'; g.fillRect(18, 148, 84, 22);   // jacket cuff
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(18, 148, 84, 4);
+    g.fillStyle = skin; g.fillRect(30, 60, 60, 38);         // wrist
+    g.beginPath(); g.ellipse(60, 38, 33, 25, 0, 0, Math.PI * 2); g.fill(); // curled hand
+    g.fillStyle = 'rgba(0,0,0,0.18)';
+    for (let i = 0; i < 4; i++) g.fillRect(36 + i * 14, 20, 2, 11); // knuckles
+    g.fillStyle = skin;
+    g.beginPath(); g.ellipse(29, 48, 10, 14, 0.5, 0, Math.PI * 2); g.fill(); // thumb
+    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(30, 60, 8, 38);
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(84, 60, 6, 38);
+    g.fillStyle = '#26282e'; g.fillRect(28, 62, 64, 34);    // strap
+    g.fillStyle = '#3a3d45'; g.fillRect(32, 60, 56, 38);    // case
+    g.fillStyle = '#14161a'; g.fillRect(35, 63, 50, 32);
+    g.fillStyle = '#9cab8b'; g.fillRect(38, 67, 44, 21);    // LCD
     const hh = String(Math.floor(mins / 60) % 24).padStart(2, '0');
     const m2 = String(mins % 60).padStart(2, '0');
     g.fillStyle = '#1c2a1c'; g.font = 'bold 14px monospace'; g.textAlign = 'center';
-    g.fillText(`${hh}:${m2}`, 60, 38);
+    g.fillText(`${hh}:${m2}`, 60, 82);
     g.fillStyle = '#8a8d95'; g.font = '5px monospace';
-    g.fillText('CROSSTOWN QUARTZ', 60, 50);
+    g.fillText('CROSSTOWN QUARTZ', 60, 93);
+  };
+  let walletWrap = document.getElementById('ct-wallet') as HTMLDivElement | null;
+  let walletCv: HTMLCanvasElement;
+  if (!walletWrap) {
+    walletWrap = document.createElement('div');
+    walletWrap.id = 'ct-wallet';
+    walletWrap.style.cssText = 'position:fixed;left:16px;bottom:-6px;z-index:11;pointer-events:none;transform:translateY(130%) rotate(3deg);transition:transform .18s ease-out;';
+    walletCv = document.createElement('canvas');
+    walletCv.width = 150; walletCv.height = 110;
+    walletCv.style.cssText = 'width:300px;height:220px;image-rendering:pixelated;display:block;';
+    walletWrap.appendChild(walletCv);
+    document.body.appendChild(walletWrap);
+  } else {
+    walletCv = walletWrap.firstChild as HTMLCanvasElement;
+  }
+  const drawWallet = () => {
+    const g = walletCv.getContext('2d')!;
+    g.clearRect(0, 0, 150, 110);
+    g.fillStyle = '#6a8a5a'; g.fillRect(16, 8, 70, 14);      // bills peeking out
+    g.fillStyle = '#587a4a'; g.fillRect(22, 4, 58, 12);
+    g.fillStyle = '#4a3626'; g.fillRect(4, 18, 142, 88);     // leather bifold
+    g.fillStyle = '#3a2a1c'; g.fillRect(4, 18, 142, 8);
+    g.strokeStyle = 'rgba(255,255,255,0.22)'; g.setLineDash([3, 3]);
+    g.strokeRect(8.5, 22.5, 133, 79); g.setLineDash([]);
+    g.fillStyle = '#e8e4d8'; g.font = 'bold 15px monospace'; g.textAlign = 'center';
+    g.fillText(`$${cash.toFixed(2)}`, 75, 50);
+    g.font = '9px monospace'; g.fillStyle = '#c9c4b0';
+    let iy = 70;
+    for (const [k, n] of Object.entries(inv)) {
+      if (n > 0) { g.fillText(`${k} ×${n}`, 75, iy); iy += 12; }
+    }
+    if (iy === 70) g.fillText('(empty pockets)', 75, iy);
   };
 
   // billboard sprites: trees, hydrant, pigeons
@@ -1175,23 +1346,42 @@ export function makeCrosstown(): Proto {
   }
   const propColliders: AABB[] = [];
 
-  // trees on the sidewalks — one crown size, only the trunks vary, each in a
-  // square dirt pit cut into the walk
-  const TREE_PX = 0.05; // world units per texel — fixed, so taller never means bigger
+  // street trees — real low-poly geometry: a leaning 5-sided trunk with
+  // 2-3 faceted canopy blobs, planted in a square dirt pit. No billboards.
   const pitT = treePitTex();
   const pitGeo = new THREE.PlaneGeometry(1.5, 1.5);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
+  const barkM = new THREE.MeshBasicMaterial({ color: 0x4a3626 });
+  const TREE_GREENS = [new THREE.Color('#3e6a36'), new THREE.Color('#52642e')];
+  let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.9);
-    const H = 92 + Math.floor(rnd() * 36);    // 4.6 – 6.4 tall via trunk length alone
-    const tree = board(treeSprite(Math.abs(Math.round(z / 14)) % 2, H), 64 * TREE_PX, H * TREE_PX, tx, z);
-    tree.position.y = sidewalkY;
+    const tree = new THREE.Group();
+    const trunkH = 1.8 + rnd() * 0.8;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.15, trunkH, 5), barkM);
+    trunk.position.y = trunkH / 2;
+    tree.add(trunk);
+    const green = TREE_GREENS[treeIdx % 2];
+    const c0 = canopyBlob(0.9 + rnd() * 0.3, green, 0.82, treeIdx);
+    c0.position.y = trunkH + 0.5;
+    tree.add(c0);
+    const c1 = canopyBlob(0.55 + rnd() * 0.2, green, 0.75, treeIdx + 3);
+    c1.position.set(0.45 + rnd() * 0.2, trunkH + 0.15, (rnd() - 0.5) * 0.5);
+    tree.add(c1);
+    const c2 = canopyBlob(0.45 + rnd() * 0.2, green, 0.7, treeIdx + 5);
+    c2.position.set(-(0.4 + rnd() * 0.2), trunkH + 0.3, (rnd() - 0.5) * 0.5);
+    tree.add(c2);
+    tree.rotation.y = rnd() * Math.PI * 2;
+    tree.rotation.z = (rnd() - 0.5) * 0.14; // a little lean
+    tree.position.set(tx, sidewalkY, z);
+    scene.add(tree);
     const pit = new THREE.Mesh(pitGeo, pitMat);
     pit.rotation.x = -Math.PI / 2;
     pit.position.set(tx, sidewalkY + 0.006, z);
     scene.add(pit);
     propColliders.push({ minX: tx - 0.3, maxX: tx + 0.3, minZ: z - 0.3, maxZ: z + 0.3 });
+    treeIdx++;
   }
   // hydrant on the right sidewalk
   const hyX = ROAD_HALF + 0.8, hyZ = -6;
@@ -1210,8 +1400,15 @@ export function makeCrosstown(): Proto {
   for (let i = 0; i < 4; i++) {
     const x = -(ROAD_HALF + 0.5 + rnd() * 1.2), z = -20 - rnd() * 4;
     const b = board(pigeonT, 0.42, 0.42, x, z);
-    pigeons.push({ m: b, x, z, y: 0, vx: 0, vy: 0, vz: 0, state: 'peck', bold: rnd() < 0.3, t: 0, ph: i * 2.4 });
+    pigeons.push({ m: b, x, z, y: 0, vx: 0, vy: 0, vz: 0, state: 'peck', bold: rnd() < 0.18, t: 0, ph: i * 2.4 });
   }
+  // scattered cereal draws them in and holds them there
+  const crumbT = pixTex(32, 32, (g) => {
+    g.fillStyle = '#d9c9a0';
+    for (let i = 0; i < 42; i++) g.fillRect(Math.floor(Math.random() * 30), Math.floor(Math.random() * 30), 2, 2);
+  });
+  const crumbMat = new THREE.MeshBasicMaterial({ map: crumbT, alphaTest: 0.5, side: THREE.DoubleSide });
+  let crumbs: { x: number; z: number; y: number; t: number; m: THREE.Mesh } | null = null;
 
   // payphone against the left wall
   const phone = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.3, 0.9), flat(payphoneTex()));
@@ -1260,7 +1457,7 @@ export function makeCrosstown(): Proto {
     { j: '#6e3a5a', p: '#6e3a5a', s: '#e0b088', h: '#4a2c18', fit: 'dress', acc: '', hs: 1.05, ws: 0.98 },
     { j: '#2f4a4a', p: '#3f4650', s: '#b8845a', h: '#5a3a24', fit: 'hoodie', acc: '', hs: 0.96, ws: 1.06 },
   ];
-  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; z: number; dir: number; sp: number; ph: number }
+  interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; z: number; dir: number; sp: number; ph: number; box: AABB }
   const citizens: Citizen[] = [];
   // a quiet block: four out on the street at a time, one of each fit
   const CAST = [OUTFITS[0], OUTFITS[1], OUTFITS[2], OUTFITS[3]];
@@ -1275,7 +1472,9 @@ export function makeCrosstown(): Proto {
     const z = 2 - i * 23; // spread thin over the whole block
     mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
-    citizens.push({ mesh, tex, lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3 });
+    const box: AABB = { minX: lane - 0.3, maxX: lane + 0.3, minZ: z - 0.3, maxZ: z + 0.3 };
+    propColliders.push(box); // people are solid — the box follows them
+    citizens.push({ mesh, tex, lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3, box });
   });
 
   const colliders: AABB[] = [
@@ -1340,23 +1539,46 @@ export function makeCrosstown(): Proto {
         : 'translateX(-50%) translateY(140%) rotate(-5deg)';
       const mins = Math.floor(clockMin);
       if (wantWatch && mins !== watchShown) { drawWatch(mins); watchShown = mins; }
+      // right-click: flip the wallet out / away
+      const rmb = input.keys.has('rmb');
+      if (rmb && !rmbHeld) {
+        walletOpen = !walletOpen;
+        if (walletOpen) drawWallet();
+        walletWrap!.style.transform = walletOpen ? 'translateY(0) rotate(3deg)' : 'translateY(130%) rotate(3deg)';
+      }
+      rmbHeld = rmb;
+      // E scatters a handful of cereal in front of you
+      const feedDown = input.keys.has('e');
+      if (feedDown && !feedHeld && (inv.CEREAL ?? 0) > 0 && px < 100) {
+        inv.CEREAL--;
+        const cx2 = px + Math.sin(rig.yaw) * 1.3, cz2 = pz - Math.cos(rig.yaw) * 1.3;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), crumbMat);
+        m.rotation.x = -Math.PI / 2;
+        m.rotation.z = rnd() * Math.PI;
+        m.position.set(cx2, lastGy + 0.012, cz2);
+        scene.add(m);
+        if (crumbs) scene.remove(crumbs.m);
+        crumbs = { x: cx2, z: cz2, y: lastGy, t: 35, m };
+        if (walletOpen) drawWallet();
+      }
+      feedHeld = feedDown;
 
       // floor-aware stair guards (2D colliders, so they follow the floor)
       setCap(stairCap, lastGy > 3 * ST - 0.12, AX(0), AX(1.2), AZI(8.4), AZI(13.2));
       const onLobby = px > 100 && lastGy < 0.6;
       setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(8.4), AZI(13.2));
-      setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.8), AZI(13.2));
+      setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(11.0), AZI(13.2));
       setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.1), AZI(3.9));
 
       // the building doors swap you between the street and the lobby
       doorCd = Math.max(0, doorCd - dt);
       if (doorCd === 0) {
-        if (px < 100 && Math.abs(px - (-FACE + 0.45)) < 0.75 && Math.abs(pz + 31) < 0.8) {
+        if (px < 100 && Math.abs(px - (FACE - 0.45)) < 0.75 && Math.abs(pz + 44) < 0.8) {
           rig.pos.set(AX(1.2), rig.pos.y, AZI(1.3));
           rig.yaw = Math.PI; lastGy = 0; doorCd = 1;
         } else if (px > 100 && lastGy < 0.5 && Math.abs(px - AX(1.2)) < 0.7 && pz < AZI(0.75)) {
-          rig.pos.set(-FACE + 1.1, rig.pos.y, -31);
-          rig.yaw = Math.PI / 2; lastGy = KERB_H; doorCd = 1;
+          rig.pos.set(FACE - 1.1, rig.pos.y, -44);
+          rig.yaw = -Math.PI / 2; lastGy = KERB_H; doorCd = 1;
         }
       }
 
@@ -1364,11 +1586,14 @@ export function makeCrosstown(): Proto {
       for (const b of boards) {
         b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
       }
-      // citizens: ping-pong the block, show the correct painted angle
+      // citizens: ping-pong the block, show the correct painted angle.
+      // They stop a step short of you (solid, but never trap you).
       for (const c of citizens) {
-        c.z += c.dir * c.sp * dt;
+        if (Math.hypot(px - c.lane, pz - c.z) > 1.0) c.z += c.dir * c.sp * dt;
         if (c.z < -L + 4) { c.z = -L + 4; c.dir = 1; }
         if (c.z > 10) { c.z = 10; c.dir = -1; }
+        c.box.minX = c.lane - 0.3; c.box.maxX = c.lane + 0.3;
+        c.box.minZ = c.z - 0.3; c.box.maxZ = c.z + 0.3;
         c.mesh.position.set(c.lane, sidewalkY, c.z);
         c.mesh.rotation.y = Math.atan2(px - c.lane, pz - c.z);
         const facing = Math.atan2(0, c.dir); // 0 for +z, π for -z... atan2(0,-1)=π ✓
@@ -1414,16 +1639,27 @@ export function makeCrosstown(): Proto {
       } else {
         cruiserBox.minX = cruiserBox.maxX = cruiserBox.minZ = cruiserBox.maxZ = 999;
       }
-      // pigeons: peck the kerb, spook when approached (unless bold)
+      // pigeons: peck, chase scattered cereal, spook when approached
+      if (crumbs) {
+        crumbs.t -= dt;
+        if (crumbs.t <= 0) { scene.remove(crumbs.m); crumbs = null; }
+      }
       for (const pg of pigeons) {
         if (pg.state === 'peck') {
+          const cd = crumbs ? Math.hypot(crumbs.x - pg.x, crumbs.z - pg.z) : Infinity;
+          if (crumbs && cd > 1.1 && cd < 9) { // cereal pulls them in
+            const a = Math.atan2(crumbs.x - pg.x, crumbs.z - pg.z);
+            pg.x += Math.sin(a) * 1.5 * dt; pg.z += Math.cos(a) * 1.5 * dt;
+          }
           const d = Math.hypot(px - pg.x, pz - pg.z);
-          if (d < (pg.bold ? 0.7 : 2.4)) {
+          const spookAt = cd < 1.4 ? 0.5 : pg.bold ? 0.7 : 3.5; // feeding birds let you get close
+          if (d < spookAt) {
             pg.state = 'fly'; pg.t = 0;
             const a = Math.atan2(pg.x - px, pg.z - pz) + (rnd() - 0.5) * 0.8;
             pg.vx = Math.sin(a) * 3.2; pg.vz = Math.cos(a) * 3.2; pg.vy = 2.6;
           }
-          pg.m.position.set(pg.x, sidewalkY + Math.max(0, Math.sin(t * 6 + pg.ph)) * 0.06, pg.z);
+          const pgy = Math.abs(pg.x) > ROAD_HALF && Math.abs(pg.x) < FACE + 0.3 ? KERB_H : 0;
+          pg.m.position.set(pg.x, pgy + Math.max(0, Math.sin(t * 6 + pg.ph)) * 0.06, pg.z);
         } else {
           pg.t += dt;
           pg.x += pg.vx * dt; pg.z += pg.vz * dt;
@@ -1433,7 +1669,7 @@ export function makeCrosstown(): Proto {
           pg.m.position.set(pg.x, sidewalkY + pg.y + Math.sin(t * 24) * 0.05, pg.z);
           if (pg.t > 4) {
             // settle somewhere new down the block, away from the player
-            pg.state = 'peck'; pg.y = 0; pg.bold = rnd() < 0.3;
+            pg.state = 'peck'; pg.y = 0; pg.bold = rnd() < 0.18;
             pg.x = (rnd() < 0.5 ? -1 : 1) * (ROAD_HALF + 0.4 + rnd() * 1.4);
             pg.z = -8 - rnd() * (L - 20);
             if (Math.hypot(px - pg.x, pz - pg.z) < 8) {

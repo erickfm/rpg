@@ -36,8 +36,15 @@ renderer.domElement.addEventListener('click', () => {
 document.addEventListener('pointerlockchange', () => { input.locked = document.pointerLockElement === renderer.domElement; });
 // drag-to-look fallback for environments without pointer lock (e.g. embedded pages)
 let dragging = false;
-renderer.domElement.addEventListener('mousedown', () => { dragging = true; });
-window.addEventListener('mouseup', () => { dragging = false; });
+renderer.domElement.addEventListener('mousedown', (e) => {
+  dragging = true;
+  if (e.button === 2) input.keys.add('rmb'); // right button reaches worlds as a pseudo-key
+});
+window.addEventListener('mouseup', (e) => {
+  dragging = false;
+  if (e.button === 2) input.keys.delete('rmb');
+});
+window.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('mousemove', (e) => {
   if (input.locked) { input.mouseDX += e.movementX; input.mouseDY += e.movementY; }
   else if (dragging) { input.mouseDX += e.movementX; input.mouseDY += e.movementY; }
@@ -82,7 +89,7 @@ function load(i: number) {
   hud.innerHTML =
     `<b>${current.name}</b>  <span class="hint">${currentIndex + 1}/${REGISTRY.length}</span><br>` +
     `${current.feel}<br>` +
-    `<span class="hint">click to look · WASD walk · Z/X or 1–9,0 switch studio</span>`;
+    `<span class="hint">click to look · WASD walk · Shift run · C crouch · Space jump · E feed · look down = watch · right-click = wallet</span>`;
 }
 
 function applyAspect() {

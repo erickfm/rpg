@@ -36,6 +36,7 @@ export class FPRig {
   private airY = 0;   // height above the ground while jumping
   private vy = 0;
   private jumpHeld = false; // holding the key doesn't re-jump; release first
+  private crouchT = 0; // 0 standing, 1 crouched — eased so the camera dips smoothly
   private bobT = 0;
   private fwd = new THREE.Vector3();
   private right = new THREE.Vector3();
@@ -81,9 +82,12 @@ export class FPRig {
     if (input.keys.has('s')) mv.sub(this.fwd);
     if (input.keys.has('a')) mv.sub(this.right);
     if (input.keys.has('d')) mv.add(this.right);
+    // hold C to crouch: low camera, slow steps
+    this.crouchT += ((input.keys.has('c') ? 1 : 0) - this.crouchT) * Math.min(1, dt * 9);
     const moving = mv.lengthSq() > 0;
     if (moving) {
-      mv.normalize().multiplyScalar((input.keys.has('shift') ? this.run : this.speed) * dt);
+      const sp = (input.keys.has('shift') ? this.run : this.speed) * (1 - 0.55 * this.crouchT);
+      mv.normalize().multiplyScalar(sp * dt);
       const nx = THREE.MathUtils.clamp(this.pos.x + mv.x, this.bounds.minX, this.bounds.maxX);
       if (!this.blocked(nx, this.pos.z)) this.pos.x = nx;
       const nz = THREE.MathUtils.clamp(this.pos.z + mv.z, this.bounds.minZ, this.bounds.maxZ);
@@ -101,7 +105,7 @@ export class FPRig {
     }
     const gy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
     const grounded = this.airY === 0;
-    const y = this.height + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
+    const y = this.height - this.crouchT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
     this.cam.position.set(this.pos.x, y, this.pos.z);
     this.look.set(
       Math.sin(this.yaw) * Math.cos(this.pitch),
