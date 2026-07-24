@@ -34,11 +34,14 @@ export function makeHud(purse: Purse): Hud {
   let watchShown = -1;
   let walletOpen = false;
   const SKY_STOPS: [number, string][] = [
-    [0, '#131722'], [5, '#131722'], [6.5, '#4a5464'], [8, '#7d8894'], [10, '#8a97a2'],
-    [16.5, '#8a97a2'], [18.5, '#8f7f74'], [20, '#3a3f52'], [21.5, '#131722'], [24, '#131722'],
+    [0, '#0d1018'], [5, '#0d1018'], [6.5, '#4a5464'], [8, '#7d8894'], [10, '#8a97a2'],
+    [16.5, '#8a97a2'], [18.5, '#8f7f74'], [20, '#3a3f52'], [21.5, '#0d1018'], [24, '#0d1018'],
   ];
+  // Night wash. Peak was 0.34, which read as a dim evening rather than night;
+  // 0.58 lets the sodium streetlamps actually be the light source they were
+  // built to be. Dusk ramps harder too, so the turn feels like nightfall.
   const NIGHT_STOPS: [number, number][] = [
-    [0, 0.34], [5, 0.34], [7, 0.1], [8.5, 0], [17.5, 0], [19, 0.12], [20, 0.24], [21.5, 0.34], [24, 0.34],
+    [0, 0.58], [5, 0.58], [7, 0.18], [8.5, 0], [17.5, 0], [19, 0.20], [20, 0.40], [21.5, 0.58], [24, 0.58],
   ];
   const cA = new THREE.Color(), cB = new THREE.Color(), skyNow = new THREE.Color();
   const skyAt = (h: number): THREE.Color => {

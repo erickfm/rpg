@@ -111,8 +111,19 @@ published to the playable artifact.
   `ct/citizens.ts`). The neighbour should use that same system so he reads
   as a person in the world rather than a standee.
 
-- **Night should feel darker.** The dusk/night curve doesn't get dark
-  enough; night reads as dim evening rather than night.
+- **Bodega door onto the corner; better corner.** See
+  `shots/user-corner.png`. The bodega wraps the corner but its door + OPEN
+  sign sit on the SIDE-street face, and the corner itself is a plain 90
+  brick pier. Wanted: the entrance ON the corner. The authentic pattern is
+  a **canted (chamfered) corner entrance** — the building corner cut at 45
+  with the door set into that face, which is how real corner stores are
+  built and why they read as corner stores. Needs: the chamfered facade
+  bay, door + awning + OPEN on it, the `[E] enter` trigger moved to match,
+  and the interior door aligned to the new opening.
+
+- **Night should feel darker.** DONE — night wash peak 0.34 -> 0.58, dusk
+  ramps harder, sky night colour deepened. Streetlamps now read as the
+  light source. See `shots/night-night.png`.
 
 - **Apartment entrance overlaps.** Ground-floor windows collide with the
   buzzer panel, the plaque and the door signage — things are drawn on top
