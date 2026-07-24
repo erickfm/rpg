@@ -347,15 +347,21 @@ export function payphoneTex(): THREE.Texture {
 export function canTopTex(v: number): THREE.Texture {
   const cols = ['#b8342a', '#2c6a8a', '#c9a02a', '#4a7a3a'];
   const c = cols[v % cols.length];
-  return pixTex(20, 12, (g) => {
-    // body: a squashed cylinder seen from above, ends lighter bare aluminium
-    g.fillStyle = '#b9bcc0'; g.fillRect(2, 3, 16, 6);
-    g.fillStyle = c; g.fillRect(6, 3, 9, 6);                    // label band
-    g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(2, 3, 16, 1);  // top highlight
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(2, 8, 16, 1);        // contact shadow
-    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(10, 3, 1, 6);        // crush crease
-    g.fillStyle = '#8f9296'; g.fillRect(1, 4, 2, 4); g.fillRect(17, 4, 2, 4); // rims
-    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(3, 9, 14, 1);
+  return pixTex(24, 14, (g) => {
+    // A can this size is only ~10 screen pixels, so the SILHOUETTE has to do
+    // all the work: hard dark outline all round, label band centred with
+    // equal aluminium ends, ribbing to say "cylinder". Without the outline it
+    // read as an unidentifiable yellow-and-white wedge.
+    g.fillStyle = '#16181c'; g.fillRect(1, 2, 22, 10);            // outline
+    g.fillStyle = '#c2c6ca'; g.fillRect(2, 3, 20, 8);             // bare aluminium
+    g.fillStyle = c; g.fillRect(7, 3, 10, 8);                     // label, centred
+    g.fillStyle = 'rgba(255,255,255,0.34)'; g.fillRect(2, 3, 20, 1);
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(2, 10, 20, 1);
+    g.fillStyle = '#8f9296';                                      // end rims
+    g.fillRect(2, 3, 1, 8); g.fillRect(4, 3, 1, 8);
+    g.fillRect(19, 3, 1, 8); g.fillRect(21, 3, 1, 8);
+    g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(11, 3, 1, 8);    // crush crease
+    g.fillStyle = 'rgba(0,0,0,0.40)'; g.fillRect(3, 12, 18, 1);   // contact shadow
   });
 }
 

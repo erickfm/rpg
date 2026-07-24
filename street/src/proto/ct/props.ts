@@ -43,13 +43,16 @@ export function buildProps(ctx: CtxBuild): Props {
   const rainGeo = new THREE.BufferGeometry();
   rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
   const rainT = pixTex(8, 16, (g) => {
-    g.fillStyle = 'rgba(214,222,232,0.8)'; g.fillRect(3, 1, 2, 13);
+    // one texel wide, not two — a 2 px streak reads as a thick dash at this
+    // point size and the rain looked like falling grit rather than water
+    g.fillStyle = 'rgba(214,222,232,0.75)'; g.fillRect(4, 1, 1, 14);
   });
-  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.3, transparent: true, opacity: 0, depthWrite: false });
+  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.22, transparent: true, opacity: 0, depthWrite: false });
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
   scene.add(rain);
   let rainLevel = 0;
+  let puddleLevel = 0;
   const RAIN_SKY = new THREE.Color('#5a626e');
   const rainAt = (h: number) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
 
@@ -201,7 +204,10 @@ export function buildProps(ctx: CtxBuild): Props {
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
     if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
     // the ground darkens + cools as it wets down (roads and walks)
-    for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.8);
+    for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.95);
+    // water pools slower than it falls, and lingers after it stops
+    puddleLevel += (rainLevel - puddleLevel) * Math.min(1, dt * 0.22);
+    puddleM.opacity = 0.9 * Math.min(1, puddleLevel * 1.15);
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
       rainM.opacity = 0.55 * rainLevel;
@@ -295,7 +301,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const z = -6 - rnd() * (L - 18);
     const x = s2 * (GUT - rnd() * 0.30);
     if (rnd() < 0.42) {
-      flatDecal(canTopTex(i), 0.32, 0.19, x, z, rnd() * Math.PI, 0.001);
+      flatDecal(canTopTex(i), 0.40, 0.23, x, z, rnd() * Math.PI, 0.001);
     } else {
       flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.001);
     }
@@ -308,7 +314,37 @@ export function buildProps(ctx: CtxBuild): Props {
               s2 * (GUT - rnd() * 0.34), -8 - rnd() * (L - 20), rnd() * Math.PI, 0.001);
   }
   // one can up on the sidewalk, against the kerb
-  flatDecal(canTopTex(3), 0.32, 0.19, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
+  flatDecal(canTopTex(3), 0.40, 0.23, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
+
+
+  // ── puddles ─────────────────────────────────────────────────────────────
+  // The ground tinting alone reads as "damp"; standing water is what makes it
+  // read as RAIN. These sit in the gutter and in low spots on the road, fade
+  // in behind the rain curve (water takes a moment to pool, so they lag), and
+  // carry a pale sheen so they catch the sky rather than just being dark.
+  // Appended last: rnd() is a shared seeded stream and everything above draws
+  // from it.
+  const puddleT = pixTex(48, 32, (g) => {
+    g.fillStyle = 'rgba(28,34,44,0.85)';
+    g.beginPath(); g.ellipse(24, 16, 22, 13, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(52,62,76,0.75)';
+    g.beginPath(); g.ellipse(24, 16, 18, 10, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(150,168,190,0.40)';           // sky sheen
+    g.beginPath(); g.ellipse(19, 12, 9, 4, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = 'rgba(180,196,214,0.30)';
+    g.fillRect(12, 20, 12, 1); g.fillRect(27, 14, 8, 1);
+  });
+  const puddleM = new THREE.MeshBasicMaterial({
+    map: puddleT, transparent: true, opacity: 0, depthWrite: false });
+  for (let i = 0; i < 9; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    const w = 1.5 + rnd() * 1.9;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.5 + rnd() * 0.22)), puddleM);
+    p.rotation.x = -Math.PI / 2;
+    p.rotation.z = rnd() * Math.PI;
+    p.position.set(s2 * (ROAD_HALF - 0.5 - rnd() * 2.4), 0.012, -5 - rnd() * (L - 16));
+    scene.add(p);
+  }
 
   return {
     setLampNight: (v) => {
