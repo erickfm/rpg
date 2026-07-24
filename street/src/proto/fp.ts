@@ -19,7 +19,12 @@ export interface FPOpts {
   groundY?: (x: number, z: number) => number;
 }
 
-const RADIUS = 0.42;
+// Player collision capsule. 0.42 made bodies feel fractionally too wide to
+// slip past things — with a citizen's own ±0.30 box that needed 0.72 m of
+// clearance to pass a person. Only ever reduce this: every lane in the world
+// (the 2 m walk past a tree, the alley mouth, doorways) was tuned against the
+// old value, so a smaller radius can only make gaps easier, never trap you.
+const RADIUS = 0.36;   // was 0.42
 
 export class FPRig {
   yaw: number;
@@ -50,7 +55,7 @@ export class FPRig {
     // DEBUG: sprint cranked up for getting around the world fast while we
     // build it. Shipping value was 6.4 (2x walk) -- restore that before this
     // is treated as a real movement feel.
-    this.run = o.run ?? 16.0;   // was: o.run ?? 6.4
+    this.run = o.run ?? 42.0;   // was: o.run ?? 6.4
     this.bob = o.bob ?? 0.035;
     this.bounds = o.bounds;
     this.colliders = o.colliders ?? [];
