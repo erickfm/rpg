@@ -1,279 +1,191 @@
-# feat/entrance — the walk-up's front
+# feat/entrance — builder C handoff
 
-Branch `feat/entrance`. Owns `ct/apartment.ts`, `resGroundTex` in
-`ct/tex-world.ts`, and the new `scripts/entrance.mjs`. Nothing else touched.
-
----
-
-## THE HEADLINE FOR THE DESK
-
-**The building has no name.** Not THE WHITMORE, not EL MIRADOR (proposed in
-the brief, rejected), not THE SYCAMORE (asked for, built, then removed). The
-brass plaque is gone entirely. The gold **227** on the transom is the only
-identification the building has, which is how plenty of real walk-ups are.
-
-**→ `crosstown.ts:241` still reads `label: () => 'enter THE WHITMORE'`.**
-That file is builder B's this round, so I did not touch it. The brief
-expected the desk to swap in a new name at merge; there is no name now, so
-that line needs a nameless label instead — `'enter the walk-up'`, or
-`'enter No. 227'` to match the transom. **Do not let this ship as WHITMORE**;
-it is the only place the dead name survives, and it is the string the player
-actually reads at the door.
+Worktree `../rpg-entrance`. Owns `ct/apartment.ts` and `resGroundTex` in
+`ct/tex-world.ts`. Queue: `notes/queues/C-entrance.md`.
 
 ---
 
-## What changed
+## QUEUE STATUS — everything in C-entrance.md is done
 
-### 1. The entrance is a composition now, not a pile of props
+**Every unchecked item in my queue is already committed**, including all three
+under `## Next`. The file was written just before `bd3a241` landed, so it does
+not yet know about them. Desk: these can all move to `## Done`.
 
-The root cause of every reported defect: `resGroundTex` tiled barred windows
-at a fixed pitch straight across the middle of the facade, and `apartment.ts`
-positioned the door furniture independently. Neither knew the other existed,
-so they landed on top of each other.
+| queue item | commit |
+|---|---|
+| `## Now` — Hermit clipped and too clean | `bd3a241` |
+| `## Next` — Paper-thin walls | `bd3a241` |
+| `## Next` — 301 has no door | `bd3a241` |
+| `## Next` — Ceiling lamps | `28b521d` |
 
-The fix is a single shared definition — **`ENTRANCE` in `ct/tex-world.ts`**.
-The texture and the props both read it. The texture keeps the window rhythm
-out of a reserved 4 m span and paints a narrow limestone doorcase in the
-middle of it; `apartment.ts` hangs the door, transom, buzzer and stoop inside
-that same span. They cannot drift apart because there is one set of numbers.
+I re-verified all four against the working tree rather than trusting memory,
+because a merge (`18bba56`, profile feet + litter) landed underneath my last
+commit and touched `ct/citizens.ts`, which my grime code is inside. Rebuilt
+and re-shot all 48 interior angles afterwards: the merge and my changes
+coexist correctly, and the other builder's profile-feet fix is visibly working
+under the grime — see `shots/interior-postmerge/hermit-graze-s.png`.
 
-Layout, either side of the door centreline:
-
-```
-0.000 … 0.875   doorway opening   (painted dark by resGroundTex)
-0.875 … 1.250   limestone doorcase jamb
-1.250 …         brick; buzzer panel centred at 1.55
-2.000           edge of the reserved span
-3.375           inner edge of the nearest window
-```
-
-Everything lands on whole texels. The facade is 8 px/m across and 10 px/m up,
-so the opening is exactly 14 × 26 texels and the painted doorway registers
-with the door geometry to the texel. That is what stops hairline gaps.
-
-### 2. The three reported defects
-
-| reported | cause | fix |
-|---|---|---|
-| plaque clipped to "THE WHITMOR" | plaque at x=6.96 sat *behind* the door leaf at x=6.95 and was occluded by it | all door furniture on ONE depth plane, 2 cm proud of the brick; and the plaque is gone anyway |
-| plaque overlapping the left window | window pitch ran through the entrance; only 13 cm of brick between them | windows excluded from the reserved span; nearest window is now 3.375 m from the centreline |
-| buzzer drawn on the right window | same | same; buzzer sits on clear brick, 1.7 m from the nearest window |
-
-### 3. Two more I found in the review, not reported
-
-- **The door was sunk into the stoop.** Door base sat at the sidewalk (0.14)
-  while the stoop top was 0.29, so the step cut the bottom off the door. The
-  stoop top *is* the threshold now (0.31) and the door stands on it, with its
-  bottom centimetre buried so the two can never part and show a seam.
-- **The buzzer detached from the wall at grazing angles** — it was 4 cm proud.
-  Now 2 cm, along with everything else.
-
-### 4. The stoop (explicitly in scope per the user)
-
-Was a flat untextured slab: one colour on every face, so it had no form. Now
-a proper step — painted tread with a nosing highlight, a worn hollow down the
-middle and a threshold shadow; a riser with a lit top arris, grime where it
-meets the walk, and a couple of chips; stone end faces. Widened to 1.95 m so
-it is wider than the opening, deepened to project 0.40 m, and its base sinks
-2 cm into the sidewalk so no seam can open at the pavement.
-
-### 5. The window rhythm itself
-
-Windows are now laid out symmetrically about the door: as many as fit each
-panel with at least a pier's worth of brick between them and at each end,
-slack spread evenly. Each one is *built into the wall* — stone lintel over,
-stone sill under, dark reveal — instead of being a hole punched in brick.
-Stone tone matches the sills `facadeTex` uses on the floors above.
-
-Bar pitch went 4 texels → 3. At the narrower 12-texel window a 4-texel pitch
-only fits two bars, and two bars read as window mullions, not security. I
-caught this in `res-north-end.png` after the first pass.
+**My queue is empty. I am idle and available for the next item.**
 
 ---
 
-## The one thing that got rebuilt twice
+## What landed this session
 
-First attempt reserved the span by **painting the whole 4 m bay as a pale
-stone panel**. Rejected, correctly — it read as a blank slab pasted onto the
-building and dominated the facade. Reserving the span is a *layout* act, not
-a *paint* act. The brick now runs straight through the entrance bay and the
-only stone is the narrow doorcase hugging the door and transom. There is a
-comment on `ENTRANCE.BAY_W` saying so, so nobody re-paints it.
+Nine commits, each verified before the next started.
 
----
+**`eaa04af` — build unblock (not my file).** The tree did not typecheck:
+`walkTex` had moved to `ct/tex-ground.ts` and changed signature, but
+`ct/street.ts` still imported the old one. Nothing could build, so I made the
+minimal fix. Worth a look from whoever owns the ground refactor — `buildGround`
+now builds the corner returns itself, so that triangle may be a redundant
+coplanar patch that should be deleted rather than fixed.
 
-## Which shots to look at
+**`28b521d` — hall lights.** The lamps were a bare additive radial-gradient
+billboard with no fixture: no shade, no bulb, no ceiling rose. Modelled a
+period flush-mount — bronze rose, shallow ribbed opal dome, low-segment so it
+stays faceted like the rest of the geometry. The dome's texture runs rim→pole
+because that is how `SphereGeometry` lays `v` out from `thetaStart`, so the
+bands read as turned glass from underneath. Glow stepped into hard concentric
+discs with an edge that breaks into loose texels, plus a dimmed copy laid flat
+for the pool a flush-mount actually throws on the ceiling. All seven fixtures.
 
-`shots/entrance-final/` — 27 angles, from `scripts/entrance.mjs` (new, mine).
+**`f9c4969` — stairwell top.** Probed the floor-picker first and found the
+exact failure: **a 2.6 m drop in one step at lz 8.6**. At floor 3 the shaft's
+west half is where flight A would carry on up to a fourth floor that does not
+exist, so the picker's best offer over there was flight A a storey and a half
+below. A collider hid the hole, which is its own kind of wrong — the floor
+visibly ended and something you could not see stopped you. Added a landing
+whose depth is bounded by **headroom, not taste** (flight A climbs underneath;
+1.2 m keeps ~2.0 m clearance) and a railing standing exactly on the collider.
+The landing is offered to the picker as an extra *candidate* rather than
+special-cased into `rel`, so hysteresis still arbitrates and descent is
+untouched.
 
-Worth your time, in order:
+**`cb25fcb` — door numbers.** The smear was canvas text at `bold 8px
+monospace` landing off the texel grid, with NearestFilter then magnifying the
+antialiasing into porridge. Numerals stamped from a 4×5 bitmap table; plate
+toned from near-white to brass so it stops being the brightest thing indoors.
 
-- **`straight-near.png`** — the composition. Nothing overlaps anything.
-- **`facade-wide.png`** — the whole 18 m residential facade in context.
-- **`transom.png`** — the 227 and the reveal around the door.
-- **`stoop-oblique.png`** — the step reading as built stone.
-- **`graze-s.png` / `graze-n-low.png`** — eye almost on the wall, looking
-  along it. This is the pair that would show z-fighting or a seam if there
-  were one. There isn't.
-- **`jamb-west-near.png`** — the brick where the plaque used to hang, to
-  prove there is no hole, no floating fixing, no gap.
+**`a7190c0` — hermit on the citizen atlas.** `updateHermit` still takes only
+the hour: the billboard pass has already turned him by the time it runs, so
+his own yaw *is* the angle to the camera. That kept the change inside
+`ct/apartment.ts` with no signature to renegotiate with `crosstown.ts`.
 
-`shots/entrance-before/` is the same 27 angles on the unmodified branch.
+**`e90fea7` — steeper stairs + continuous handrail.** One commit because the
+rail geometry is *derived* from the pitch; splitting them would mean
+committing a rail wrong by construction. 27.4° → 31.5°. Rise is fixed at
+1.35 m by the storey height, so steepening is entirely a matter of run:
+1.35/tan(31.5°) = 2.2 m. Taller risers rather than shallower treads — 7 of
+0.193 m on 0.314 m treads — so the flight eats 0.4 m less floor and the half
+landing gets it back.
 
-Progression, if anyone wants it: `entrance-before` → `entrance-r1` (pale
-panel, rejected) → `entrance-r2` (brick + doorcase) → `entrance-r3` (bars,
-stone tone) → `entrance-final` (nameplate removed, span retuned to 4 m).
+The nice result on the rail: the ramp through the nosings sits half a riser
+(0.096 m) above each flight's floor, so a rake at **0.904 m above the nosings
+arrives at exactly 1.0 m above the floor at the bottom and 1.0 m above the
+landing at the top**. Every joint mitres flat and no gooseneck is needed. It
+falls out of the geometry rather than being tuned, so it still holds if the
+pitch changes again. Continuity is guaranteed by construction — the run is a
+polyline whose segments share endpoints, wrapping the *ends* of the core wall.
 
----
+**`b956763` — basement.** The navy panel under the stairs is now a short
+flight descending into the dark behind a padlocked chain-link gate. The gate
+stands on the collider that was *already* there, so what stops you is what you
+can see stopping you, and the picker is never asked for a height down there.
 
-## Blast radius — proved, not assumed
+**`45864b0` — wider doors.** The leaf inside `doorTexN`'s painted casing is 26
+of 32 texels, so a 0.95 m plane was a 0.77 m leaf. `DOOR_W` 1.11 gives 0.90 m.
+301's real wall gap went 0.80 → 0.95: at a 0.36 m rig radius the old gap left
+8 cm and you scraped through.
 
-`npm run fp` before/after. The raw `fpdiff` shows 68 structure differences,
-**and they are noise**: I added three textures (the stoop's tread, riser and
-ends), which shifts the seeded `Math.random()` stream, so every texture
-created afterwards gets different dither grain and therefore a different
-hash. Strip the texture hashes and the real picture is:
+**`bd3a241` — walls, 301's door, hermit forward + grime.** Three reports, one
+root cause: openings with no depth. `wallMesh` builds a box now (0.14 m), so
+this is fixed **once for every wall** rather than opening by opening — the
+box's thin axis is its local z, which the `ry` rotation already carries round
+to the wall normal. Everything that used to sit ~0.02 off a wall *plane* was
+consequently buried inside the wall and had to move out onto the new faces
+(door leaves, mailboxes, lobby door, 301's window).
 
-```
-structure   395 vs 393    6 meshes removed, 4 added   (net -2)
-places      395 vs 393    every change at x 6.7-7.0, z -42…-45
-```
+The hermit was being sliced by the flat black door quad — he stood on it and
+his billboard rotates, so it swept through the plane as it turned. His opaque
+half-width is 0.36 m (the atlas paints him cx±10 of 32, times the 1.14 m
+plane), so his rotation circle only clears the wall at AX(2.04) or less;
+AX(1.95) leaves 9 cm. That also settles the older "neighbour is still flat"
+complaint — the atlas was never the problem, but in a doorway at the end of a
+corridor exactly one of five painted columns was ever on screen.
 
-Removed: old stoop, plaque, old buzzer, old transom, old door, and the
-separate dark recess plane. Added: new stoop, transom, buzzer, door. Net −2
-is the plaque and the recess plane, both deliberate.
-
-The recess plane is worth calling out: it was a 1.6 × 2.75 dark plane floating
-0.02 m in front of the wall pretending to be a doorway. The texture paints the
-doorway now, exactly registered, so the plane is redundant — one fewer surface
-and one fewer chance to z-fight.
-
-Only other movement: four props drifting 2–7 cm, which is the documented
-pigeon noise floor. **Nothing outside the entrance moved.**
-
-If you want to re-run that separation, the helper is 20 lines: strip
-`/\d+x\d+:[0-9a-f]+/` from the structure signatures and re-diff as multisets.
-Worth folding into `scripts/fpdiff.mjs` as a `--geom` flag — any change that
-adds a texture will hit this same wall of false positives.
-
----
-
-## Verification
-
-- `npm run build` — clean (tsc + vite).
-- `npm run sweep` — 48 shots, no page errors. Only the pre-existing
-  `THREE.Clock` deprecation, a teardown context-loss, and GL driver perf
-  messages; identical to baseline.
-- `scripts/verify.mjs` — lobby, stairs, hermit, room 301 all fine.
-- **Door tested end to end**, which `verify.mjs` does not do (it warps rather
-  than pressing E): stand on the spot → `[E] enter THE WHITMORE` → press E →
-  land at 201.2, −18.7 in the lobby. Passes.
-- **`resGroundTex` checked at 13 widths** from 8 m to 40 m, plus the
-  `bayW = 0` variant. Invariants hold everywhere: no window enters the
-  reserved span, nothing runs off the texture edge, the layout is
-  mirror-symmetric, and the doorcase always sits inside the bay.
-
----
-
-## Known issues I did NOT fix (out of my files, or out of scope)
-
-### The lobby exit is broken — pre-existing, and it is builder B's file
-
-`[E] out to the street` from the lobby **does not work**. You press E and stay
-put. I verified this on the unmodified baseline before my changes, so I did
-not cause it.
-
-Cause: `crosstown.ts` drops you at `FACE - 1.1` = x 5.9, but the *enter* spot
-is at `FACE - 0.45` = x 6.55 with radius 1.05. You land 0.65 m away — inside
-the re-enter trigger — and a single held E ping-pongs you straight back in.
-
-This is the exact bug the bodega exit comment in `crosstown.ts` says was
-already fixed *there* ("well outside the re-enter trigger radius so you can't
-get sucked straight back in (the old bug)"). The walk-up never got the same
-treatment. One-line fix — move the exit to about `FACE - 2.2`, or shrink the
-enter radius — but it is in builder B's file this round.
-
-### Cosmetic, noted not fixed
-
-- **Ground-floor brick courses are 0.50 m; the facade above uses 0.446 m.**
-  `resGroundTex` is 32 px over 3.2 m, `facadeTex` is 172 px over 15.4 m. There
-  is a slight course-pitch step at the storey line. Pre-existing, affects every
-  building on the street, and fixing it means touching shared brick — a
-  whole-facade decision, not an entrance one.
-- **Ground-floor windows do not align to the upper-floor column grid.** The
-  upper columns sit on a 22 px pitch phased from the left edge; mine are
-  symmetric about the door instead. I chose symmetry about the entrance
-  deliberately — it is what the brief was about — but the two grids are
-  visibly independent in `facade-wide.png` if you go looking.
-- **Residential buildings under ~11 m get no ground-floor windows at all.**
-  A 4 m entrance bay leaves panels too narrow for a 1.5 m window plus piers.
-  Degrades gracefully (bare brick, doorcase still correct) rather than
-  overlapping, which is the right failure, but it is a real limit.
-- **The stoop is not a collider.** You can walk through the step rather than
-  onto it. Pre-existing, invisible in first person because the camera rides
-  well above a 0.17 m step, and adding a collider is a `props.ts`/rig concern.
+`citizenAtlas` gained an optional `grime` 0…1. At 0 — every existing caller —
+not one extra fill happens, so the four street citizens are byte-identical.
 
 ---
 
-## NOT DONE — other requests that landed on ct/apartment.ts
+## How the floor-picker work was verified
 
-Scope was cut deliberately so the desk can split `apartment.ts` into modules
-and let several builders work the interior in parallel instead of queueing.
-**None of the following were started.** Screenshots are already in
-`street/shots/`.
+Anything touching `ground(x,z)` was checked by **walking the picker step by
+step, feeding its own output back in** — the only way to see what hysteresis
+actually does, and something a screenshot cannot show. `warp()` sets `gy`,
+which *is* `lastGy`; the sim re-picks from it; `pos()[3]` is the result.
 
-1. **Ceiling lamps** — `shots/user-ceilinglamp.png`. Two problems. (a) There
-   is no fixture at all: a bare glow decal on the ceiling, no shade, no bulb,
-   no ceiling rose, so it reads as a smudge. (b) It is a smooth radial
-   gradient in a world that is otherwise entirely hard-edged nearest-filtered
-   texels — badly off-style, too large and too soft. Wants a modelled period
-   flush-mount (shallow opal dome, or a schoolhouse globe on a short stem)
-   painted at world texel density, and a tighter stepped/dithered glow instead
-   of the gradient. Applies to *every* interior lamp in `apartment.ts` with
-   this problem, not just the hall one. The glow textures are the `glowT` /
-   `glowMat` block.
+- Stairs: 10 walks, lobby → floor 3 and back down every flight, both lanes.
+  All continuous, biggest single step 0.12 m against a 0.193 m riser, each
+  landing exactly on its floor.
+- Basement: walking the east lane straight through the shaft, the picker never
+  once returns a height below the lobby floor. There is nothing to fall into.
+- 301's doorway: crossed both directions, hugging either jamb, level the whole
+  way on floor 3.
 
-2. **Stairwell top** — `shots/user-stairtop.png`. The top landing floor ends
-   at the stairwell opening; you can walk straight off into the flight below.
-   Needs a landing floor around the opening that still lets you walk *down*,
-   plus a guard railing along the top of the stairs. The pale centre core wall
-   also reads as a floating grey slab and is too high.
-   **The catch, and it is a real one:** floor height here comes from the
-   floor-picker `ground(x, z)` with hysteresis, *not* from mesh colliders. So
-   adding a floor means extending the landing plateau inside that function
-   while leaving the sloped stair region intact, and adding the railing as an
-   obstacle. Get it wrong and you either fall through the floor or cannot
-   descend at all. Test by actually walking up and back down, not by warping.
-
-3. **Door number plate** — `shots/user-doorplate.png`. The 401 plate is a
-   stark near-white rectangle far brighter than the muted interior palette,
-   and the numerals are smeared because the text size does not land on the
-   texel grid. Same root cause as the entrance plaque. Wants texel-aligned
-   numerals and a brass or brushed-aluminium tone. It is `doorTexN` in
-   `apartment.ts`.
-
-4. **Flat neighbour** — screenshot in `shots/user-*.png`. Not specified to me
-   beyond the name; pick it up from the original request.
+Also standing: `npm run build` clean, `npm run sweep` 48 shots with no page
+errors, `scripts/verify.mjs` passing, and the street entrance tested end to
+end by actually pressing E (`verify.mjs` warps instead).
 
 ---
 
-## Files
+## Two things still open in `crosstown.ts` — NOT my file
 
-```
-M  src/proto/ct/apartment.ts     entrance rebuilt; plaque deleted; stoop textured
-M  src/proto/ct/tex-world.ts     ENTRANCE constant + resGroundTex rewritten
-A  scripts/entrance.mjs          27-angle entrance review sweep
-A  notes/feat-entrance.md        this
-```
+Both were reported earlier and are still there as of `bd3a241`.
 
-`resGroundTex`'s signature gained an optional third argument
-(`bayW = ENTRANCE.BAY_W`); the existing call in `ct/street.ts` is unchanged
-and still correct. `ENTRANCE` is a new export in `tex-world.ts` — the brief
-scoped me to `resGroundTex` only, so flagging it: it sits directly above
-`resGroundTex` and nothing else in that file was touched.
+1. **`crosstown.ts:243` still reads `'enter THE WHITMORE'`.** The building has
+   carried no name since the nameplate came off — the gold 227 on the transom
+   is its only identification. This is the string the player reads at the
+   door, so it is the one place the dead name is still visible.
 
-**Load-bearing coupling to know about:** `ENTRANCE` centres the bay on the
-*building*, so `apartment.ts`'s `DOOR_Z` must equal the residential
-building's centre z. It does — No. 227 is 18 m wide centred at z = −44, laid
-out by `ct/street.ts`'s EAST roster. Move that building and the door must
-move with it. Commented in both files.
+2. **The lobby `[E] out to the street` exit does not work.** Press E and you
+   stay put. I verified this on the unmodified baseline before any of my
+   changes, so it is pre-existing. The exit lands at `FACE - 1.1` (x 5.9) but
+   the *enter* spot is `FACE - 0.45` (x 6.55) with radius 1.05 — you land
+   0.65 m away, inside the re-enter trigger, and one held E ping-pongs you
+   straight back in. It is the same bug `crosstown.ts`'s own bodega-exit
+   comment says was fixed *there* by landing well outside the radius; the
+   walk-up never got the same treatment. One-line fix.
+
+---
+
+## Notes for the desk
+
+- **Port.** `C-entrance.md` says port 4180, but 4180 is held by a stale
+  `vite preview` from a *different* repo (`/home/erick/projects/rpg`), which
+  silently served me the wrong world until I caught it. I am on **4190 with
+  `--strictPort`** so it fails loudly instead of drifting. Worth fixing in the
+  queue file, or killing the squatter.
+- **`fpdiff` gives false positives on any change that adds a texture.** The
+  seeded `Math.random()` stream shifts, so every texture created afterwards
+  gets different dither grain — my entrance change showed 68 structure diffs
+  of which the real count was 6 removed / 4 added. Strip
+  `/\d+x\d+:[0-9a-f]+/` from the structure signatures and re-diff as
+  multisets. Worth folding into `scripts/fpdiff.mjs` as a `--geom` flag.
+- **`scripts/interior.mjs`** is mine and new: 48 interior angles — lamps,
+  stairwell, rail joints from both sides, cellar, door plates, hermit from
+  every reachable side, wall reveals. `scripts/entrance.mjs` is the 27-angle
+  facade sweep from the earlier round.
+
+## Known limits, deliberate
+
+- **Residential buildings under ~11 m get no ground-floor windows.** A 4 m
+  entrance bay leaves panels too narrow for a 1.5 m window plus piers. It
+  degrades to bare brick with the doorcase still correct, which is the right
+  failure, but it is a real limit of `resGroundTex`.
+- **Ground-floor brick courses are 0.50 m; the facade above is 0.446 m.**
+  A slight course-pitch step at the storey line. Pre-existing, affects every
+  building, and fixing it means touching shared brick.
+- **The stoop is not a collider.** You walk through the step rather than onto
+  it. Invisible in first person because the camera rides well above a 0.17 m
+  step; adding one is a `props.ts`/rig concern.
