@@ -83,7 +83,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
     const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
-    const H = 106 + Math.floor(rnd() * 30);         // 5.3 – 6.8 m; crown clears head height
+    const H = 88 + Math.floor(rnd() * 24);          // 4.4 – 5.6 m; crown bottom stays >2.2 m
     const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     const pit = new THREE.Mesh(pitGeo, pitMat);
