@@ -171,7 +171,10 @@ export function makeCrosstown(): Proto {
     const z = 2 - i * 23; // spread thin over the whole block
     mesh.position.set(lane, sidewalkY, z);
     scene.add(mesh);
-    const box: AABB = { minX: lane - 0.3, maxX: lane + 0.3, minZ: z - 0.3, maxZ: z + 0.3 };
+    // ±0.25, not ±0.30: bodies read the tiniest bit too wide to slip past.
+    // With the rig's 0.36 m radius that puts the gap needed to squeeze by a
+    // person at 0.61 m instead of 0.72 m.
+    const box: AABB = { minX: lane - 0.25, maxX: lane + 0.25, minZ: z - 0.25, maxZ: z + 0.25 };
     propColliders.push(box); // people are solid — the box follows them
     citizens.push({ mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: 0.85 + (i % 4) * 0.3, ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3 });
   });
@@ -375,8 +378,8 @@ export function makeCrosstown(): Proto {
         if (c.ghost) {
           c.box.minX = c.box.maxX = 1e5; c.box.minZ = c.box.maxZ = 1e5; // slip past you
         } else {
-          c.box.minX = c.lane - 0.3; c.box.maxX = c.lane + 0.3;
-          c.box.minZ = c.z - 0.3; c.box.maxZ = c.z + 0.3;
+          c.box.minX = c.lane - 0.25; c.box.maxX = c.lane + 0.25;
+          c.box.minZ = c.z - 0.25; c.box.maxZ = c.z + 0.25;
         }
         c.mesh.position.set(c.lane, sidewalkY, c.z);
         c.mesh.rotation.y = Math.atan2(px - c.lane, pz - c.z);

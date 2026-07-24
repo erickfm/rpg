@@ -53,6 +53,18 @@ const RAMP_H = 0.025;  // kerb reveal at the foot of the ramp (a ½ in lip — p
 const RAMP_W = 0.6;    // half-width of the ramp run (1.2 m clear, over the 36 in minimum)
 const RAMP_F = 0.9;    // flared side either side of the run
 
+/** A texture for a strip thinner than ~0.3 m. Mipmaps are the crawl: a
+ *  nearest-mipmap lookup across a face only a few screen pixels tall swaps
+ *  level every frame as you walk. These surfaces are small on screen and
+ *  deliberately low-detail, so drop the chain entirely. */
+function thin(t: THREE.Texture): THREE.Texture {
+  t.minFilter = THREE.NearestFilter;
+  t.generateMipmaps = false;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.needsUpdate = true;
+  return t;
+}
+
 /** how far the arris chamfer rises — scaled down where the kerb is ramped
  *  away, so the chamfer can never eat more than the reveal it sits on */
 const rise = (h: number) => Math.min(0.03, h * 0.4);
@@ -159,22 +171,21 @@ function kerbTex(): THREE.Texture {
       g.fillStyle = '#4a463f'; g.fillRect(x, 0, 2, KH);
       g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(x + 2, 0, 1, KH);
     }
-    // grime washing down the face — sparse, and wide enough to survive being
-    // seen end-on (single-texel noise is what crawls)
-    for (let i = 0; i < 16; i++) {
-      const x = Math.floor(Math.random() * KW), h = 2 + Math.floor(Math.random() * 4);
-      g.fillStyle = `rgba(40,36,30,${0.10 + Math.random() * 0.14})`;
-      g.fillRect(x, KH - h, 2 + Math.floor(Math.random() * 3), h);
+    // Staining only, in patches wide enough to still be many texels across
+    // when the face is seen end-on. NO dither and no single-texel marks: on a
+    // strip this thin they alias into a crawling line rather than reading as
+    // grime. Large features are the only kind that survive here.
+    for (let i = 0; i < 14; i++) {
+      const x = Math.floor(Math.random() * KW), h = 2 + Math.floor(Math.random() * 3);
+      g.fillStyle = `rgba(40,36,30,${0.10 + Math.random() * 0.12})`;
+      g.fillRect(x, KH - h - 3, 10 + Math.floor(Math.random() * 26), h);
     }
-    // splash staining along the bottom third
-    for (let i = 0; i < 40; i++) {
-      g.fillStyle = Math.random() < 0.6 ? 'rgba(30,27,22,0.26)' : 'rgba(150,144,132,0.14)';
-      g.fillRect(Math.floor(Math.random() * KW), 5 + Math.floor(Math.random() * 3), 2 + Math.floor(Math.random() * 4), 1);
+    for (let i = 0; i < 10; i++) {
+      g.fillStyle = 'rgba(30,27,22,0.20)';
+      g.fillRect(Math.floor(Math.random() * KW), 5, 14 + Math.floor(Math.random() * 30), 2);
     }
-    dither(g, KW, KH, 90);   // ~1% — the old 10% was the crawl
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return thin(t);
 }
 
 // ── the arris ─────────────────────────────────────────────────────────────
@@ -200,8 +211,7 @@ function arrisTex(): THREE.Texture {
       g.fillStyle = '#585349'; g.fillRect(x + 1, 0, w - 3, 1);
     }
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return thin(t);
 }
 
 // ── the gutter pan ────────────────────────────────────────────────────────
@@ -246,57 +256,59 @@ function gutterTex(): THREE.Texture {
 // tyres and boots scuff it, eaten away along the bottom where the gutter
 // throws grit at it, and ragged at both ends of every stroke. Wear is drawn as
 // BLOBS, never single-pixel noise — same reason the arris speckle had to go.
+// THE RULE FOR THIN FACES, learned twice on this surface: the kerb face is
+// 0.14 m tall. Any dither, per-column variation, gradient or fine chipping
+// put into a strip that thin becomes aliasing, and a nearest-mipmap lookup at
+// a grazing angle turns that aliasing into a crawling band. So this sheet is
+// deliberately COARSE: 32 px/m, a solid band, and features measured in
+// tenths of a metre. No noise of any kind, and no mipmaps (see thin() below).
+const PW = Math.round(SEG_K * 32), PH = 5;   // 12 m × 0.15 m at 32 px/m
+
 function paintTex(): THREE.Texture {
-  const t = pixTex(KW, KH, (g) => {
-    // the stroke: rows 0–6, i.e. the visible face down to the gutter line
-    for (let x = 0; x < KW; x++) {
-      const top = Math.random() < 0.06 ? 1 : 0;                  // roller skips the arris
-      const bot = 6 + (Math.random() < 0.3 ? 1 : 0);             // ragged bottom edge
-      const fade = 0.72 + Math.random() * 0.18;
-      for (let y = top; y <= bot; y++) {
-        const sun = y < 3 ? 1.08 : 0.95;                          // sun-bleached up top
-        const r = Math.round(150 * fade * sun), gg = Math.round(52 * fade), b = Math.round(42 * fade);
-        g.fillStyle = `rgb(${r},${gg},${b})`;
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-    // chalky highlights — where the pigment has powdered off but not lifted
-    for (let i = 0; i < 90; i++) {
-      const x = Math.floor(Math.random() * KW), y = Math.floor(Math.random() * 6);
-      g.fillStyle = `rgba(206,150,138,${0.10 + Math.random() * 0.20})`;
-      g.fillRect(x, y, 2 + Math.floor(Math.random() * 6), 1 + Math.floor(Math.random() * 2));
-    }
-    // worn clean through: bare concrete shows. Densest along the bottom, where
-    // the grit is, and a few knocks along the top edge.
+  const t = pixTex(PW, PH, (g) => {
+    // faded oxide red — dusty and desaturated, sitting near the brick rather
+    // than shouting over it. Three flat bands, nothing per-pixel.
+    g.fillStyle = '#7a4c42'; g.fillRect(0, 0, PW, 4);
+    g.fillStyle = '#85574c'; g.fillRect(0, 0, PW, 1);   // sun-bleached at the top
+    g.fillStyle = '#6a4239'; g.fillRect(0, 3, PW, 1);   // dirtier down by the gutter
+    // a couple of LARGE chips worn back to concrete — 0.4–1.3 m across, so
+    // they are still many texels wide when the face is seen end-on
     g.globalCompositeOperation = 'destination-out';
-    const bite = (x: number, y: number, w: number, h: number) => { g.fillStyle = '#000'; g.fillRect(x, y, w, h); };
-    for (let i = 0; i < 34; i++) {                                // bottom scour
-      const x = Math.floor(Math.random() * KW);
-      bite(x, 5 + Math.floor(Math.random() * 2), 3 + Math.floor(Math.random() * 9), 2 + Math.floor(Math.random() * 2));
+    g.fillStyle = '#000';
+    for (const [at, w, y, h] of [
+      [0.13, 1.10, 2, 3],   // a long scrape along the bottom
+      [0.38, 0.45, 0, 2],   // knocked off the top edge
+      [0.66, 0.85, 1, 4],   // gone right through
+      [0.88, 0.40, 3, 2],
+    ] as [number, number, number, number][]) {
+      g.fillRect(Math.round(at * PW), y, Math.round(w * 32), h);
     }
-    for (let i = 0; i < 16; i++) {                                // top-edge scuffs
-      const x = Math.floor(Math.random() * KW);
-      bite(x, 0, 4 + Math.floor(Math.random() * 10), 1 + Math.floor(Math.random() * 2));
-    }
-    for (let i = 0; i < 10; i++) {                                // whole flakes gone
-      const x = Math.floor(Math.random() * KW);
-      bite(x, 1 + Math.floor(Math.random() * 4), 3 + Math.floor(Math.random() * 7), 2 + Math.floor(Math.random() * 3));
-    }
-    bite(0, 0, 0, 0);
     g.globalCompositeOperation = 'source-over';
   });
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return thin(t);
 }
 
-// Where the block is actually marked. Sparse on purpose: a fire zone at the
-// hydrant, and the approach to the corner. Both on the east kerb.
-const PAINTED: [number, number][] = [
-  [-9.5, -2.5],    // hydrant frontage (the hydrant stands at z = -6)
-  [-94.5, -89.0],  // no parking on the run up to the corner return
-];
-const isPainted = (x: number, z: number) =>
-  x > 0 && Math.abs(x - ROAD_HALF) < 0.5 && PAINTED.some(([a, b]) => z >= a && z <= b);
+// ── WHERE the kerb is painted, and why ────────────────────────────────────
+//
+// Red kerb is not decoration — it MEANS no parking. So it is placed by rule,
+// never by hand, and every place on the block that meets a condition gets the
+// same treatment. Paint one side of a corner and you must paint the other.
+//
+//   RULE 1 — hydrant frontage: 3 m either side of a fire hydrant.
+//   RULE 2 — intersection approach: the whole of each kerb return at the
+//            main street / side street junction, plus 4 m back along BOTH
+//            legs of it. Every leg of that junction, both sides of both
+//            streets, identically.
+//
+// Both are computed from the kerb path itself (as arclength ranges), so they
+// follow the corner geometry and cannot drift out of sync with it. The closed
+// east end of the side street is NOT an intersection, so it gets none.
+const HYD_CLEAR = 3.0;   // either side of a hydrant
+const CNR_CLEAR = 4.0;   // back along each leg from a junction return
+
+// The block's only fire hydrant. ct/props.ts owns the hydrant itself and
+// plants it at (ROAD_HALF + 0.35, -6); this is the kerb line it fronts.
+const HYDRANTS: [number, number][] = [[ROAD_HALF + 0.35, -6]];
 
 // 2 ft × 3 ft cast-iron grate, parallel slots
 function grateTex(): THREE.Texture {
@@ -342,6 +354,10 @@ const KPATH: [number, number][] = [
 ];
 const KR = [0, 2.0, 2.0, 2.0, 3.5, 0];      // fillet radius per vertex
 const KRAMP = [false, false, false, false, true, false]; // kerb ramp on the corner return
+// Which vertices are the main-street / side-street JUNCTION. The two at x=55
+// are the closed east end of the side street, not an intersection, so they
+// are not corner approaches and carry no red kerb (see the paint rules above).
+const KJUNC = [false, true, false, false, true, false];
 
 interface Fillet {
   cx: number; cz: number; r: number; sgn: number;   // arc centre, radius, walk side
@@ -349,6 +365,8 @@ interface Fillet {
   ax: number; az: number;                            // fan apex (the walk's back corner)
   aIn: number; dA: number; len: number; ramp: boolean;
   ring: number[];                                    // sample indices along the arc
+  sIn: number; sOut: number;                         // arclength at each end of the arc
+  junction: boolean;                                 // part of the real intersection
 }
 interface Sample { x: number; z: number; nx: number; nz: number; s: number; h: number }
 
@@ -400,6 +418,7 @@ function buildPath(KERB_H: number): { pts: Sample[]; fillets: Fillet[] } {
     const f: Fillet = {
       cx: fcx, cz: fcz, r, sgn, vx: bx, vz: bz, ax: 0, az: 0,
       aIn, dA, len, ramp: KRAMP[i], ring: [],
+      sIn: s, sOut: s + len, junction: KJUNC[i],
     };
     const onx = oz, onz = -ox;                     // left normal of the outgoing run
     // the fan apex is the walk's BACK corner: at the building line on an
@@ -449,6 +468,25 @@ export interface Ground {
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
   const { pts, fillets } = buildPath(KERB_H);
+
+  // ── apply the red-kerb rules to this particular block ──────────────────
+  // Both rules resolve to arclength ranges along the kerb path, so they wrap
+  // the corner geometry automatically and stay mirrored by construction: a
+  // junction return paints BOTH its legs, so if one side of the corner is
+  // red, the other side necessarily is too.
+  const redZones: [number, number][] = [];
+  for (const f of fillets) {
+    if (f.junction) redZones.push([f.sIn - CNR_CLEAR, f.sOut + CNR_CLEAR]);
+  }
+  for (const [hx, hz] of HYDRANTS) {
+    let best = -1, bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.hypot(p.x - hx, p.z - hz);
+      if (d < bestD) { bestD = d; best = p.s; }
+    }
+    if (best >= 0) redZones.push([best - HYD_CLEAR, best + HYD_CLEAR]);
+  }
+  const isRed = (s: number) => redZones.some(([a, b]) => s >= a && s <= b);
 
   // ── the walks themselves: raised slabs, inset from the kerb line by the
   //    chamfer so the walk top and the rounded arris ABUT and never overlap
@@ -509,7 +547,7 @@ export function buildGround(o: GroundOpts): Ground {
     // red kerb paint, where the block is marked: the same face and arris
     // quads again, sharing their uv so the wear sits on the same texels.
     // Depth-offset rather than pushed out in space, so there is no lip.
-    if (isPainted((p.x + q.x) / 2, (p.z + q.z) / 2)) {
+    if (isRed((p.s + q.s) / 2)) {
       V(pntPos, p.x, KBOT, p.z); T(pntUv, pk, 0);
       V(pntPos, p.x, pT, p.z); T(pntUv, pk, pvT);
       V(pntPos, q.x, qT, q.z); T(pntUv, qk, qvT);
