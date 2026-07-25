@@ -40,8 +40,27 @@ snap() {  # a commit sha for the worktree's current state, dirty or not
   fi
 }
 
-sigs=(); for wt in "${WTS[@]}"; do [ -d "$wt" ] && sigs+=("$(snap "$wt")"); done
-sig="${sigs[*]}$(git -C "$MAIN" rev-parse $BASE)"
+# CONTENT signature, not commit signature.
+#
+# `snap` calls `commit-tree`, which mints a NEW commit SHA every cycle because
+# the commit timestamp changes — even when the tree is byte-identical. So a
+# signature built from those SHAs never matches the previous one, the "nothing
+# moved" check below never fired, and the live branch was rewritten every 15
+# seconds whether or not a builder had touched anything.
+#
+# Vite watches that branch. The user reported the world "restarts on a loop,
+# making it unplayable" — it was reloading every 15 seconds, all day, because
+# this signature could not tell "no change" from "changed".
+#
+# Hash the TREES instead. Identical content gives an identical signature and
+# the run exits before touching a single file.
+sigs=(); trees=()
+for wt in "${WTS[@]}"; do
+  [ -d "$wt" ] || continue
+  c=$(snap "$wt"); sigs+=("$c")
+  trees+=("$(git -C "$wt" rev-parse "$c^{tree}" 2>/dev/null)")
+done
+sig="${trees[*]}$(git -C "$MAIN" rev-parse "$BASE^{tree}")"
 [ -f "$STATE" ] && [ "$(cat "$STATE")" = "$sig" ] && exit 0   # nothing moved
 
 git -C "$LIVE" reset -q --hard "$BASE" 2>/dev/null || exit 1
