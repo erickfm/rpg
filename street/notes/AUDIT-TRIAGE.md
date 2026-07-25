@@ -857,3 +857,51 @@ these files is mine to edit.
 > on screen the whole time and nothing compared it to zero.** Printing is not
 > asserting, and a check that reports its subject count without testing it is
 > telling you exactly what it failed to check.
+
+## Closing my own two open flags: `lot-frontage` confirmed, `rain` cleared
+
+I left those two "flagged, not asserted" last round. Leaving a grep result for
+someone else to resolve is half an answer, so I read both.
+
+### `lot-frontage` — **confirmed**, and only one of its three sets is at risk
+
+```
+line 153   const mine = measure(span[0], span[1]);
+line 160   `lot  frontage z … , ${mine.length} samples every 0.25 m`     ← printed
+line 188   const bad = mine.filter((r) => r[1] < CLEAR - 0.05);
+```
+
+Same shape as the others: the sample count is **printed and never asserted**. If
+the lot's frontage span ever collapsed — the module failing to build, `span[0] ≈
+span[1]` — `measure` returns nothing, `bad` is empty, and the check passes having
+measured no pavement at all.
+
+**But its other two sets must be allowed to be empty**, and this matters for
+whoever fixes it: `fromSite` and `kerbside` are lists of *intruders*, guarded by
+`if (fromSite.length)`. **Empty there is the pass condition.** A guard bolted onto
+the wrong collection would turn a clean lot into a permanent red. The one line
+belongs on `mine`, not on the intruder lists.
+
+### `rain` — **cleared**
+
+```
+const PAIR = [NIGHT_H, DAY_H];      // a fixed two-element literal
+for (const h of PAIR) { … }
+if (soaked < SOAK_TO) { …; process.exitCode = 1; }
+```
+
+It iterates a **fixed pair**, which cannot be empty, and its assertion is a
+**threshold on a measured value**, not a filter over a collection. My grep
+flagged it for having no `.length === 0` guard; it does not need one. **No
+defect — withdrawn.**
+
+### Final tally, and what the scan was worth
+
+**3 confirmed of 4 flagged**: `spots-walk`, `no-silent-pass`, `lot-frontage`.
+One false positive — a **25% error rate on the grep**, which is why every one of
+them was read before being reported and why `rain` never became a routed defect.
+
+> A scan that names candidates is worth running; a scan whose output is published
+> unread is a way of being wrong at scale. The four names took a minute to
+> generate and the three verdicts took twenty to establish — **and the ratio is
+> the job.**
