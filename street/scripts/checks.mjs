@@ -31,14 +31,34 @@ const CHECKS = [
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
 ];
 
+// A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
+//
+// This printed nothing until every check had finished. That was fine at six and
+// stopped being fine the moment other builders registered theirs (3dfe0217):
+// the suite now runs long enough that a caller with a two-minute limit sees no
+// output at all and cannot tell a slow check from a hung one. A runner that
+// looks hung gets killed, and a killed suite reports nothing.
+//
+// 180 s each. Nothing here has ever taken more than ~40 s against a live
+// preview, so a check past three minutes is stuck rather than thorough, and
+// saying which one is stuck is the whole point.
+const PER_CHECK_MS = 180_000;
 const rows = [];
 for (const [name, question, hasSelftest] of CHECKS) {
   if (SELFTEST && !hasSelftest) { rows.push([name, 'no selftest', '—']); continue; }
   const args = [`scripts/${name}.mjs`, ...(SELFTEST ? ['--selftest'] : [])];
-  const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8' });
+  process.stderr.write(`  … ${name}\n`);
+  const t0 = Date.now();
+  const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS });
+  const secs = ((Date.now() - t0) / 1000).toFixed(0);
+  if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGTERM') {
+    rows.push([name, question, `TIMED OUT after ${secs}s`]);
+    process.exitCode = 1;
+    continue;
+  }
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   const wrongWorld = out.includes('MEASURING THE WRONG WORLD');
-  rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`]);
+  rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`, secs]);
   if (r.status !== 0) process.exitCode = 1;
   // On failure the detail matters more than the summary, so pass it through.
   if (r.status !== 0) console.log(out.trimEnd() + '\n');
@@ -46,6 +66,7 @@ for (const [name, question, hasSelftest] of CHECKS) {
 
 const w = Math.max(...rows.map(([n]) => n.length));
 console.log(SELFTEST ? '\nSELFTEST — each check was broken on purpose:' : `\nchecks against ${URL}:`);
-for (const [name, question, status] of rows)
-  console.log(`  ${status === 'ok' ? '✓' : status === '—' ? '·' : '✗'} ${name.padEnd(w)}  ${status === 'ok' ? question : status}`);
+for (const [name, question, status, secs] of rows)
+  console.log(`  ${status === 'ok' ? '✓' : status === '—' ? '·' : '✗'} ${name.padEnd(w)}  ${status === 'ok' ? question : status}`
+    + (secs && +secs >= 20 ? `   (${secs}s)` : ''));
 if (process.exitCode) console.log('\nSomething above is red. It is not gating the build; it is telling you.');
