@@ -225,3 +225,52 @@ constant fixed at 5.35 the whole world clears 1.09 m, so the guard can assert
 **min gap ≥ 1.00 m** — a real margin — instead of ratcheting at today's 0.89.
 Still no new export needed; `__ct.colliders()` is enough; still sample twice to
 drop the six movers.
+
+---
+
+# Round 4 — the one-constant fix landed, and it hit every predicted number
+
+Round 3 said the twelve tight stretches were one placement constant, not twelve
+tickets, and made a specific prediction:
+
+> Move the lamp centre from **5.55 to 5.35** — near edge 5.15, still 0.15 m
+> clear of the kerb — and the far edge comes to 5.55: **every 0.95 m stretch
+> becomes 1.15 m, and the worst point anywhere (0.89 m) becomes 1.09 m.**
+
+Re-measured at `05fb9627`:
+
+| | Round 3 | **now** |
+|---|---|---|
+| stretches under 1.20 m | 15 | **9** |
+| the 0.95–0.97 m cluster (12 stretches) | 0.95–0.97 | **gone** |
+| east walk at z −92.9 | 0.95 (span 5.75 … 6.7) | **1.15** (span **5.55** … 6.7) |
+| west walk at z −92.9 | **0.89** | **1.09** |
+
+**1.15 and 1.09, to the centimetre.** The lamp's far edge is now 5.55 where it
+was 5.75, which is a centre of 5.35 — the number recommended, adopted exactly.
+
+That is the whole of Round 3's finding closed by one constant, as claimed.
+
+## What is left, and it is the same shape
+
+The tightest point in the world is now **0.90 m, west walk at z −71.4**, free
+span −6.64 … −5.74. That is **not the lamp** — it is the **0.16 × 0.24 m
+sign/meter post at x ±5.66**, which Round 3 listed as its own row and which
+nobody has moved.
+
+It has the same slack the lamp had. Its outer edge is 5.74 against a kerb at
+5.00, so it is carrying **0.74 m of unused room toward the road**. Give it the
+lamp's new offset — centre 5.46, outer edge 5.54 — and the 0.90 m becomes
+**1.10 m**, and with it the last four sub-1.15 stretches on both walks.
+
+**One more constant, in one more file.** Same argument, same arithmetic, and
+this time with a landed precedent showing the number comes out where the
+prediction says it will.
+
+## The permanent test is now worth more than when I proposed it
+
+Round 1 recommended a guard asserting the lane every build, and noted it would
+have to ratchet at the world's then-worst 0.89 m. After this fix the world
+clears **0.90 m**, and after the sign post moves it would clear **1.09 m** —
+so the guard can assert **≥ 1.00 m** with real margin rather than pinning
+today's worst case as tomorrow's floor. Builder A owns `scripts/**`.
