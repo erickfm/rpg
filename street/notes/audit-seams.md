@@ -26,7 +26,7 @@ stated rule, **[C]** circular (proves the pipeline, not the value).
 
 **[I] has been split, because it was too generous.** Having reproduced another
 agent's figure with the same jumped clock they used and called it confirmation
-(`75e6b5ce`), I re-graded my own markers against a stricter test: *two sides* is
+(`fc18e7f51`), I re-graded my own markers against a stricter test: *two sides* is
 not *two methods*. Where one instrument measures both sides, a systematic error
 in that instrument hits both identically and they agree no matter what is true.
 

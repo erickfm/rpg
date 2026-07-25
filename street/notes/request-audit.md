@@ -1767,7 +1767,7 @@ guard proposed.
 
 # My "5 of 5 doors verified" checked exactly the five that were **told**, and none that guessed
 
-A's `eedeacff` adds `FrontageWorld.doorDeclared`, recording which facades were
+A's `eba406e17` adds `FrontageWorld.doorDeclared`, recording which facades were
 given the door position and which fell back to guessing:
 
 ```

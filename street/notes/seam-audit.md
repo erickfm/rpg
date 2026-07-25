@@ -1,6 +1,6 @@
 # Seam & texture-continuity audit — CROSSTOWN '97
 
-> **Round 2 (live @ `9610e25`) is at the bottom of this file.** The block was
+> **Round 2 (live @ `9610e25` — **a build that never reached mainline; this hash resolves for nobody**) is at the bottom of this file.** The block was
 > re-cast after round 1 — new roster, new landmarks, `SHOP_BAND_H` introduced —
 > so every camera below is aimed at a building that has since moved. Round 2
 > re-shoots against the current world and says which of these 28 findings
