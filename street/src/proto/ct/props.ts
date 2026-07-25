@@ -1170,7 +1170,30 @@ export function buildProps(ctx: CtxBuild): Props {
       const img = (w.m.map?.image as { height?: number; width?: number } | undefined);
       const holdsWater = !!img?.height && img.height < 32;
       const wSurf = Math.pow(wetness, holdsWater ? 0.55 : 1.7);
-      w.m.color.copy(w.base).lerp(WET, wSurf * 0.95).multiplyScalar(amb);
+      // WET DARKENS. IT NEVER LIGHTENS, and until 5a24c796 this could.
+      //
+      // The lerp pulls a surface toward WET, a fixed grey-blue at luminance
+      // ~0.14. That darkens everything it was written for — asphalt, concrete,
+      // the gutter pan — because they are all brighter than it. Register
+      // anything DARKER and the same line runs the other way: the casino's red
+      // entrance runner, #7a2028 at 0.053, came out at 0.1148. +116%, a pale
+      // grey-blue mat lighter than the wet pavement around it.
+      //
+      // That was found by wiring a dark surface to the registerWet I published
+      // and LOOKING at it. The number alone read as a success — it moved, in a
+      // registry every other ground surface uses — which is the whole argument
+      // for the screenshot.
+      //
+      // Clamping per channel keeps every existing surface bit-identical: they
+      // are brighter than WET, so the lerp already lowers them and the min is a
+      // no-op. It only bites on the case that was wrong. A near-black surface
+      // now stays near-black when it rains, which is what wet asphalt does to
+      // something already darker than wet asphalt.
+      const c = w.m.color.copy(w.base).lerp(WET, wSurf * 0.95);
+      c.r = Math.min(c.r, w.base.r);
+      c.g = Math.min(c.g, w.base.g);
+      c.b = Math.min(c.b, w.base.b);
+      c.multiplyScalar(amb);
       // The road, live. BOTH the road and the walk are broad 64x64 sheets and
       // the wet registry carries no position, so "the last 64x64 one" picked
       // whichever happened to come last — and when that was the pale concrete
