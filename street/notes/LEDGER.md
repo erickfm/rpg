@@ -76,3 +76,5 @@ user anything is finished.
 | OPEN | F | make sure the people in the buildings are in the right orientation. (b | |
 | OPEN | E | what is the shadow geometry here? did you end up answering what that w | |
 | OPEN | F | why are these decorations simply floating in the air in the diner? / t | |
+| OPEN | E | park bench looks bad and clips the drinking fountain | |
+| OPEN | E | park bench looks awful and clips into fountain, also no shrubs like i  | |
