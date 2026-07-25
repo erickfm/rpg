@@ -536,6 +536,18 @@ export function buildProps(ctx: CtxBuild): Props {
       // dark by default, and the lamp gives it back — capped so a pool reads
       // as lit rather than blown out
       const mul = Math.min(1, amb * (1 + k * POOL_GAIN));
+      // SAY WHEN A LAMP IS HOLDING SOMETHING UP. The cap means anything close
+      // enough to a lamp comes back to exactly its daylight colour, so it is
+      // graded, written every frame, and UNCHANGED — which from outside looks
+      // identical to never having been touched. That is the last thing
+      // nightgrade could not explain: one 3.90 m rail in the park at 0.076
+      // luminance, 3.29 m from a lantern, which its own elevation test could
+      // not account for because the cause is horizontal, not vertical.
+      //
+      // Written only on change, so this costs nothing per frame in the steady
+      // state — most materials are either in a pool all night or never.
+      const held = mul > 0.995 && k > 0;
+      if (!!e.m.userData.poolLit !== held) e.m.userData.poolLit = held;
       e.m.color.setRGB(
         e.base.r * mul * (1 + (WARM_R - 1) * k),
         e.base.g * mul * (1 + (WARM_G - 1) * k),
