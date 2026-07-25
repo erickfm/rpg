@@ -17,6 +17,29 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **CAFE and HARDWARE become a used car lot — roster half.** The user:
+      *"turn hardware and cafe into a used car lot"*.
+
+      They are the first two entries in EAST and already adjacent — CAFE 11.2
+      then HARDWARE 12 — so like the bank this needs no swap. Take both out
+      and hand the **23.2 m** to an open lot. The EAST-before-No.227 run still
+      totals 49.2, which is load-bearing because the walk-up's door and
+      interior sit at a fixed z in `ct/apartment.ts`.
+
+      **Your half is the roster and the ground only.** The lot itself —
+      surfacing, fence, office, signage, stock — goes to builder C in a new
+      `ct/lot.ts`, the same way the park went to E. Report the exact z-span
+      through the desk when you commit.
+
+      Two things that are yours and easy to miss:
+      · the neighbours now have **exposed party walls** on the lot side. A
+        blank flank facing a car lot is right, but it must be a finished
+        flank, not the raw end of a shell — same note as the park.
+      · this is the **second gap in the block's walls** after the park. They
+        are on opposite sides and opposite ends, which is good, but check the
+        sightline: standing in one you may now see straight through to the
+        other, and the street should not read as having holes punched in it.
+
 - [ ] **The produce crates read as ONE GIANT FRUIT each.** The user, looking
       at your `530d385`: *"what is this?"* Ref: `shots/user-crates3.png`.
 
