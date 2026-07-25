@@ -510,3 +510,73 @@ sharpen it: **a read screenshot is not an observation of what you aimed at,
 either.** The frame has to be checked for its subject before it is evidence of
 anything. Every shot I take from here names what it expects to see, and I say
 so when it isn't there.
+
+---
+
+# Round 2 — re-shot with a harness that aims from the source. Three verdicts.
+
+`scripts/aim.mjs` replaces the harness that produced five useless frames.
+Nothing in the scene is named (**3,341 objects, 0 names**), so it finds subjects
+by geometric signature and never by a coordinate I remember. Before any shot it
+requires three things, and the middle one is what was missing before:
+
+1. the camera point is **standable** — outside every collider at `RADIUS 0.36`
+2. the camera has **line of sight** — the ray to the subject is sampled every
+   0.20 m and must cross no collider other than the subject's own
+3. the warp is **verified to have landed**, `__ct.pos()` agreeing to 0.06 m
+
+It found 7 car-like clusters and 11 bench-like clusters by shape alone, and
+reported 39–108 valid cameras per subject where the old harness had one guess.
+Every shot below declares what it expected to see.
+
+## WHEEL ARCHES — **NOT DONE.** Confirmed on two different vehicles.
+
+`shots/aim-car0-arch.png` (maroon sedan, x 3.79 z −13.96) and
+`aim-car1-arch.png` (olive pickup, x −3.92 z −30.04), both side-on at 2.6 m.
+
+The wheels are **dark octagonal discs standing proud of a perfectly straight
+body sill**. On both vehicles the white side stripe runs unbroken from front to
+rear, straight through the space above each wheel. There is no cut-out, no
+curved lip, no recess and no shadow where an arch would be — the wheel reads as
+a disc laid against a flat slab side, which is exactly the complaint.
+
+This is the clearest NOT DONE in the audit, and it is a two-model result rather
+than one bad car.
+
+## BURGER BARN palette — **DONE.**
+
+Visible in `aim-car1-arch.png`: the fascia band is red, the awning is cream with
+red dashes, the stallriser and pilasters are tan. **No yellow anywhere on the
+building.** The user asked to move it off red-and-yellow to red-and-beige and
+that is what is standing there.
+
+## PARK BENCHES — legs are solid, **not coplanar planes.**
+
+`shots/aim-bench0-legs.png` (x −7.43, z −91.8) at 2.0 m: wooden slat seat and
+back on **solid dark-green box end-frames with real depth**, casting against the
+paving. Whatever the bus bench does, the park benches are not two crossed
+planes. The frame also shows the park path, railings, lawn, trees and hoop
+racks — a fourth independent confirmation that the park is furnished.
+
+## The bench AD — still **NOT CHECKED**, and now I know why
+
+The user's ask was whether the *ad* is framed rather than clipped and whether
+*its* legs are non-coplanar. My shape finder returned 11 bench-like clusters and
+**none of them is an advertising panel**. The two flat 1.90 × 0.05 × 0.47 slabs
+it picked at x = −8.65 turned out, on inspection of `aim-benchad1.png`, to be a
+courtyard ledge — a plinth cap, not a bench.
+
+So this is not a failed shot, it is a **failed search**: an ad panel would be a
+vertical board roughly 1.8 × 0.6 sitting below or behind a seat, and no such
+thing was found anywhere in the world by shape. Either it does not exist yet or
+its geometry is unlike what I searched for. I am not grading it either way.
+
+## Coverage, honestly
+
+Answered this round: wheel arches, the burger barn palette, park bench legs.
+Still open and still not graded: the car lot interior and its office, the bench
+ad, interior people through 8 angles, the 301 door, facade-door alignment for
+the bodega/diner/tax service, and wetness after rain. The citizen signature I
+had been using (a 320-wide sprite sheet) now matches **nothing** — `c16457c8`
+changed the crowd — so the interior-people check needs a new signature before it
+can run at all.
