@@ -47,6 +47,38 @@ This is now the fourth thing settled by a module declaring what only it knows:
 | `userData.selfLit` / `graded` / `poolLit` | a checker guessing why a thing did not dim |
 | `userData.surface` | a checker guessing whether a face is even brick |
 
+## Then I used it myself (`2d29dc23`)
+
+`21292ebb` scoped the unjudgeable half properly — **49 distinct faces, 27
+brick-like, in three groups with three owners** — which turns a wall of
+coordinates into three yes/no questions. Good work, and it prompted me to notice
+I had built the mechanism, told other modules to use it, and left my own nine
+textures sitting in the column I was asking everyone else to empty.
+
+```
+asphaltTex, treePitTex                       -> 'ground'
+treeSprite                                   -> 'foliage'
+hydrantSprite, pigeonSprite, payphoneTex,
+canTopTex, paperTex, scrapTex                -> 'detail'
+
+seampairs:  one side says it is not brick    0 -> 4
+            UNJUDGEABLE                     90 -> 86
+```
+
+The remaining 86 are other modules' textures, one line each.
+
+### An ownership question answered NO, which is worth as much as a yes
+
+Group 2 of that round is *"a stallriser/pilaster family at x ±6.9 at a
+consistent 9.41 px/m — whoever owns it"*. Stallrisers are shopfront vocabulary
+and shopfronts are mine, so I checked instead of assuming.
+
+**It is not mine.** The 9.41 face measures 3.40 × 5.00 m on a 32 × 48 canvas, and
+my only 32 × 48 canvas is `hydrantSprite`, which is 0.3 m tall. Every texture my
+file produces is now declared and none is that face. Still unowned — but the
+coordinates now rule me out rather than merely failing to rule me in, and that is
+a smaller search for whoever picks it up.
+
 ## Proven a no-op, and the control earned its keep
 
 Textures `dac59c30` and structure identical with and without the change on the
