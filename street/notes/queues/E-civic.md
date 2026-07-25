@@ -14,6 +14,26 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The park should be DEEPER.** The user, on the park you are building:
+      *"park should be deeper"*.
+
+      It has 30 m of frontage but it is only as deep as a building would be,
+      so it reads as a wide gap in the wall rather than as a place. Push the
+      back of it well past the facade line — a park you can walk INTO and lose
+      the street behind you is a different thing from a set-back you look at.
+
+      What depth buys you, and it is worth using rather than just extending
+      the grass: a path that goes somewhere and turns, a back that is screened
+      by planting or a wall so the world does not just end, benches facing
+      into the park rather than out at the traffic, and somewhere you cannot
+      see from the sidewalk — which is the whole reason to have depth.
+
+      Watch the block behind it. The west facades are the world's edge at
+      x ≈ −7 and beyond that is dead ground the player has never seen; if the
+      park reaches back into it, whatever closes the far side has to be real.
+      Fog will do some of it, a back wall or a row of trees does the rest.
+      Coordinate with builder D through the desk on how far back it can go.
+
 - [ ] **Inlay the church, give it steps, and a small courtyard.** The user:
       *"inlay the church and give it some stairs similar to the library but
       keep the design of the church. the church facade is good i just want it
