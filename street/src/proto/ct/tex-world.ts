@@ -349,22 +349,10 @@ function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w:
 // thing on the block, the tax office is the least designed, and the
 // pawnshop is the most defended. All three keep the block's 8 px/m and the
 // same band heights as shopfrontTex, so they line up with their neighbours.
-// The three custom shop bands below were authored on a (wM*8) x 52 canvas —
-// 8 x 12.38 px/m — while every other band on the block runs at the shared
-// 2x masonry density. bandSurf() hands them the correct canvas and re-bases
-// the coordinates they were drawn in: `bx`/`by` map an old texel onto the
-// same WORLD position on the new one, so the art is unchanged and no painter
-// here carries a px/m of its own.
-const OLD_SB = 52;
-const bandSurf = (wM: number) => {
-  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
-  const oldW = Math.max(64, Math.round(wM * 8));
-  return {
-    surf, W: surf.W, H: surf.H,
-    bx: (v: number) => Math.round(v * surf.W / oldW),
-    by: (v: number) => Math.round(v * surf.H / OLD_SB),
-  };
-};
+// All three are now written in METRES like everything else here. The
+// bandSurf()/ox/oy scaffolding that re-based their legacy texel coordinates
+// onto a correctly dense canvas during the density work is gone with them —
+// it was always meant to be temporary, and there is nothing left using it.
 // 1997 fast food: saturated brand colours, a fascia twice the usual depth,
 // and more glass than anyone else because you are supposed to see in.
 /**
@@ -444,33 +432,93 @@ export const burgerFront = (brick: string, wM: number) => {
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
   });
 };
-// the pawnshop: barred glass, a hand-painted board, and the three balls
+/**
+ * THE PAWNSHOP — the most defended thing on the street.
+ *
+ * Character is layers: goods behind glass behind a steel grille, and the
+ * grille is what you actually see first. That layering is the depth here —
+ * a lit shelf at the back, dim glass over it, then bars in front casting onto
+ * both. A hand-painted board, because nobody has spent money on this frontage
+ * since the balls went up.
+ */
 export const pawnFront = (brick: string, wM: number) => {
-  const { surf, W, H: SB, bx, by } = bandSurf(wM);
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const BOARD = '#6a5a3a', GOLD = '#c9a45e', STEEL = '#40453f';
+  const GOODS = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a', '#a8a29a'];
   return surf.paint((g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, W, SB);
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
-    g.fillStyle = '#6a5a3a'; g.fillRect(bx(3), by(2), W - bx(6), by(11));  // a painted board, not a light box
-    g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx(3), by(13), W - bx(6), by(2));
-    g.fillStyle = '#e8dcc0'; g.font = `bold ${by(8)}px monospace`;
+    // hand-painted board, brush-streaked along its length
+    const fy = m(0.16), fh = m(0.92);
+    proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
+    g.fillStyle = 'rgba(0,0,0,0.10)';
+    for (let x = m(0.25); x < W - m(0.25); x += m(0.28)) if ((x / m(0.28)) % 3 < 1) g.fillRect(x, fy, m(0.14), fh);
+    g.font = `bold ${m(0.5)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('PAWN', W / 2 - bx(12), by(7));
-    g.font = `bold ${by(5)}px monospace`;
-    g.fillText('LOANS  GOLD  TOOLS', W / 2 + bx(26), by(8));
-    g.fillStyle = '#c9a45e';                                        // the three balls
-    for (const b of [8, 14, 11]) g.beginPath(), g.arc(bx(b), b === 11 ? by(11) : by(6), by(2.4), 0, Math.PI * 2), g.fill();
-    g.fillStyle = '#141820'; g.fillRect(bx(5), by(14), W - bx(10), by(38));
-    g.fillStyle = '#2e2a26'; g.fillRect(bx(7), by(16), W - bx(14), by(32));  // dim, crowded window
-    const junk = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a'];
-    for (let i = 0; i < Math.floor(W / bx(6)); i++) {
-      g.fillStyle = junk[i % 6];
-      g.fillRect(bx(9) + i * bx(6), by(20) + ((i * by(7)) % by(18)), bx(4), by(3) + (i % 4) * by(2));
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText('PAWN', W * 0.42 + 1, fy + fh / 2 + 1);
+    g.fillStyle = '#e8dcc0'; g.fillText('PAWN', W * 0.42, fy + fh / 2);
+    g.font = `bold ${m(0.3)}px monospace`;
+    g.fillStyle = '#c9bfa0'; g.fillText('LOANS  GOLD  TOOLS', W * 0.72, fy + fh / 2 + m(0.06));
+    // the three balls, hung off the board so they cast onto it
+    const bx0 = m(1.0), by0 = fy + fh * 0.5, br = m(0.19);
+    for (const [ox2, oy2] of [[0, -0.28], [0.42, -0.28], [0.21, 0.14]] as [number, number][]) {
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      g.beginPath(); g.ellipse(bx0 + m(ox2) + 1, by0 + m(oy2) + 1, br, br, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = GOLD;
+      g.beginPath(); g.ellipse(bx0 + m(ox2), by0 + m(oy2), br, br, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.35)';
+      g.beginPath(); g.ellipse(bx0 + m(ox2) - br * 0.3, by0 + m(oy2) - br * 0.3, br * 0.35, br * 0.35, 0, 0, Math.PI * 2); g.fill();
     }
-    g.fillStyle = 'rgba(0,0,0,0.55)';                               // the security bars
-    for (let x = bx(8); x < W - bx(8); x += bx(5)) g.fillRect(x, by(16), 1, by(32));
-    g.fillRect(bx(7), by(24), W - bx(14), 1); g.fillRect(bx(7), by(38), W - bx(14), 1);
-    g.fillStyle = '#3a3020'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
-    dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
+    const ox = m(0.4), oy = fy + fh + m(0.28), ow = W - m(0.8), oh = H - oy - m(0.05);
+    g.fillStyle = '#1d1a16'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.8);
+    glazed(g, surf, gx, gy, gw, gh, '#2b2622');
+    // ONE bulb over a shelf of pledged goods — instruments, tools, a guitar
+    // neck. Dim, because nothing in here is a display, it is storage.
+    g.fillStyle = '#8a7a4e'; g.fillRect(gx, gy, gw, m(0.18));
+    g.fillStyle = 'rgba(138,122,78,0.20)'; g.fillRect(gx, gy + m(0.18), gw, m(0.4));
+    let sd = 0x51a3f7;
+    const r = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+    // two shelves, both crowded — a pawnshop window is inventory, not display
+    for (const sy of [gy + m(1.15), gy + m(2.25)]) {
+      g.fillStyle = '#3e372c'; g.fillRect(gx, sy, gw, m(0.1));
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(gx, sy + m(0.1), gw, m(0.1));      // under the shelf
+      for (let x = gx + m(0.3); x < gx + gw - m(0.4); x += m(0.58)) {
+        const hgt = m(0.4) + Math.round(r() * m(0.45));
+        g.fillStyle = GOODS[Math.floor(r() * GOODS.length)];
+        g.fillRect(x, sy - hgt, m(0.34), hgt);
+        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, sy - hgt, m(0.34), m(0.06));
+      }
+    }
+    for (let x = gx + m(0.4); x < gx + gw - m(0.5); x += m(0.85)) {                   // stacked on the floor
+      const hgt = m(0.3) + Math.round(r() * m(0.4));
+      g.fillStyle = GOODS[Math.floor(r() * GOODS.length)];
+      g.fillRect(x, gy + gh - m(0.35) - hgt, m(0.4), hgt);
+    }
+    g.fillStyle = '#211d19'; g.fillRect(gx, gy + gh - m(0.35), gw, m(0.35));          // floor
+    // the grille, IN FRONT of the glass — a separate plane, so it gets its own
+    // highlight and throws its own shadow onto everything behind it
+    for (let x = gx + m(0.2); x < gx + gw - m(0.05); x += m(0.46)) {
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(x + 1, gy, Math.max(1, m(0.07)), gh);
+      g.fillStyle = STEEL; g.fillRect(x, gy, Math.max(1, m(0.07)), gh);
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, gy, 1, gh);
+    }
+    for (const yy of [gy + m(0.55), gy + m(1.75), gy + gh - m(0.4)]) {                // horizontal rails
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(gx, yy + 1, gw, Math.max(1, m(0.08)));
+      g.fillStyle = STEEL; g.fillRect(gx, yy, gw, Math.max(1, m(0.08)));
+    }
+    // door, barred to match, with a heavy kick plate
+    const dw = m(1.05), dx = gx + gw - dw - m(0.2);
+    g.fillStyle = '#332c24'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.9));
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.06));
+    g.fillStyle = GOLD; g.fillRect(dx + dw - m(0.2), gy + m(1.5), m(0.08), m(0.28));
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#3a3020');
+    g.fillStyle = 'rgba(26,22,16,0.34)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 5));
   });
 };
 // the tax office: no sign worth the name, just a banner cable-tied over the
