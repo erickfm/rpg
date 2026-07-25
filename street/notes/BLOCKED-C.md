@@ -159,3 +159,22 @@ slow, longer after a long storm and longer again at night"* — testable from
 outside for the first time; today nothing can assert it.
 
 Not a patch: `ct/ctx.ts` and `ct/props.ts` are not mine.
+
+
+---
+
+## Who owns `ct/lot.ts`?
+
+Not blocking work — I have been editing it all week and will continue — but it
+is unrecorded, and I would rather ask than assume:
+
+- `OWNERSHIP.md` does not list it.
+- My queue header lists `ct/apartment.ts` and `resGroundTex` and not it.
+- The desk routes all of its tasks to me.
+
+`scripts/ownership.sh C` therefore clears my edits to it by default rather than
+by decision, and would clear anyone else's too — see `notes/C-ownership-hole.md`
+for the measurement, which is a general defect in the guard rather than a
+question about this one file.
+
+One line in the table settles it either way.
