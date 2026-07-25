@@ -621,6 +621,25 @@ measurement.** `reportWorld` already prints the URL and the build for scripts
 that use it; a `[doors]`-style count taken by hand in a console has no such
 stamp, and this is what that costs.
 
+### One loose thread: there is nothing to bisect
+
+`b3379db6` is newer than the reconciliation and still says the drop *"regressed
+inside that range"* — 8 of 8 at `cb696d3d`, 7 of 8 at HEAD. **That range cannot
+contain a regression:**
+
+```
+$ git log --oneline cb696d3d..add-stick-and-city98 -- src/proto/ | wc -l
+0
+```
+
+Zero source commits. The bundle is byte-identical across it, which is why the
+same note also reports 7 of 8 *"detached at the same commit"* — its own evidence
+already contradicts the range framing. The 8-of-8 was the dev server, as
+`f49fdab5` independently concluded.
+
+Saying so because a bisect over that range is the obvious next move for whoever
+picks this up, and it would spend a session finding nothing.
+
 Two things worth doing, neither mine: the door checks should run against
 `vite preview` specifically, and A's fix — move the lookup into a leaf that
 globs nothing — removes the dependence rather than the symptom and should still
