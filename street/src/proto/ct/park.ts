@@ -435,8 +435,17 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     benchRun.push([lx1 + PATH_W / 2 + 0.42, z, -Math.PI / 2]);          // street leg
     if (z > lz0 + 8 && z < lz1 - 8) benchRun.push([lx0 - PATH_W / 2 - 0.42, z, Math.PI / 2]);
   }
-  benchRun.push([lx1 - 5.5, lz0 - 1.05, Math.PI]);                      // the two ends
-  benchRun.push([lx1 - 9.0, lz1 + 1.05, 0]);
+  // …and along both END legs, the whole way out, not just at the street end.
+  // The near half of this park was furnished where it could be WALKED and the
+  // far half only structured — trees, hedge, the loop itself — because 25 m of
+  // it is behind the clamp and nothing out there could be tested by walking to
+  // it. That is a reason for the gap, not a defence of it: it is visible from
+  // the gate today and walkable the moment `bounds.minX` moves, so it gets the
+  // same furniture as the near half at the same spacing.
+  for (let x = lx1 - 5.5; x > lx0 + 4.0; x -= 9.4) {
+    benchRun.push([x, lz0 - 1.05, Math.PI]);
+    benchRun.push([x - 3.5, lz1 + 1.05, 0]);
+  }
   for (const [bx, bz, yaw] of benchRun) bench(bx, bz, yaw);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
@@ -510,8 +519,14 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   }
 
   // Bins where the benches are, because that is where the litter is.
-  for (const bz of [gateMid + 3.2, lz0 + 6.0, lz1 - 6.0, gateMid - 12.5]) {
-    const bx2 = inside(0.23);
+  // bins beside the benches at BOTH ends of the park, not just the street end
+  const binAt: [number, number][] = [
+    [inside(0.23), gateMid + 3.2], [inside(0.23), lz0 + 6.0],
+    [inside(0.23), lz1 - 6.0], [inside(0.23), gateMid - 12.5],
+    [lx1 - 14.5, lz0 - 1.5], [lx1 - 18.0, lz1 + 1.5],
+    [lx0 + 4.8, gateMid + 2.0],          // by the shelter at the far end
+  ];
+  for (const [bx2, bz] of binAt) {
     const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.8, 0.46), flat(binT));
     b2.position.set(bx2, KERB_H + 0.4, bz);
     scene.add(b2);
