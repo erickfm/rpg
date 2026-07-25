@@ -3,6 +3,7 @@ import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { frontageOf } from './tex-world';
+import { doorWorldFor, roomWidthFor } from './doors';
 import { FACE } from './rng';
 
 // ── the interior kit ──────────────────────────────────────────────────────
@@ -345,12 +346,17 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const localOf = (alongFrontage: number) => fr && F
     ? fr.side * (worldOf(alongFrontage) - fr.cz) * (W / F.frontageM)
     : 0;
-  const doorWorld = F && fr ? worldOf(F.doorCentreM) : null;
+  // THE ROOM'S DOOR, not the facade's. `ct/doors.ts` holds the declaration
+  // this room made at module scope and the facade painter reads the same
+  // entry, so the two cannot disagree — and when they move, the painted door
+  // is what moves. See the note at the top of ct/doors.ts for why the room is
+  // the authority and not the shopfront.
+  const doorWorld = fr ? doorWorldFor(fr.name) : null;
   // The room is as wide as the building, less the wall thickness at each end.
   // Room width used to be a number each room picked: the burger barn had
   // 11.36 m of room behind 16 m of frontage — 71%, where the others were
   // 94–97% — and nothing said which was right. This makes it a rule.
-  const W = spec.w ?? (F ? Math.max(4, F.frontageM - 1.2) : 8);
+  const W = spec.w ?? (F ? roomWidthFor(F.frontageM) : 8);
   const D = spec.d, H = spec.h ?? 2.9;
   const pal = spec.palette ?? {};
   const FLOOR = pal.floor ?? 0x8a8578, WALL = pal.wall ?? 0x9aa88e;

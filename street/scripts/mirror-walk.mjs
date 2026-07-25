@@ -39,12 +39,15 @@ const fails = [];
 
 for (const [name, w, cz, side, id, D] of ROOMS) {
   // ── OUTSIDE: which side of the frontage centre is the published door? ──
-  const outward = await p.evaluate(async ([name, w, cz, side]) => {
-    const m = await import('/src/proto/ct/tex-world.ts');
-    const F = m.frontageOf(name, w);
-    const doorZ = side < 0 ? cz + w / 2 - F.doorCentreM : cz - w / 2 + F.doorCentreM;
-    return { doorZ, offsetFromCentre: doorZ - cz };
-  }, [name, w, cz, side]);
+  // The ROOM declares it; the facade is meant to follow. Reading the room's
+  // number here means this test measures whether the two AGREE once A's
+  // painter is reading it too — and until then it measures my half.
+  const outward = await p.evaluate(async ([name]) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    const decl = dm.declaredDoors().find((x) => x.building === name);
+    const doorZ = dm.doorWorldFor(name);
+    return { doorZ, offsetFromCentre: doorZ - decl.cz };
+  }, [name]);
 
   // Stand on the pavement at the middle of the frontage, facing the building.
   // Facing -x on the west side, the observer's right hand points to -z.

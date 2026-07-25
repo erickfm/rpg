@@ -69,15 +69,14 @@ await p.waitForTimeout(400);
 for (const r of ROOMS) {
   if (!r.front) continue;
   const [name, w, cz, side] = r.front;
-  const d = await p.evaluate(async ([name, w, cz, side]) => {
-    const m = await import('/src/proto/ct/tex-world.ts');
-    const F = m.frontageOf(name, w);
-    return {
-      z: side < 0 ? cz + w / 2 - F.doorCentreM : cz - w / 2 + F.doorCentreM,
-      at: F.doorOffsetM * (Math.max(4, F.frontageM - 1.2) / F.frontageM),
-      W: Math.max(4, F.frontageM - 1.2),
-    };
-  }, [name, w, cz, side]);
+  // From the ROOM's declaration, which is the authority — the facade follows
+  // it. Reading `frontageOf` here tested the old direction and failed every
+  // room the moment it flipped.
+  const d = await p.evaluate(async ([name, w]) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    const decl = dm.declaredDoors().find((x) => x.building === name);
+    return { z: dm.doorWorldFor(name), at: decl.at, W: dm.roomWidthFor(w) };
+  }, [name, w]);
   r.doorX = side * (FACE - 0.75);
   r.doorZ = d.z; r.at = d.at; r.W = d.W;
   if (side > 0) r.east = true;

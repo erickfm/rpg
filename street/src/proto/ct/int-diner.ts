@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 
 // The DINER, inside.
 //
@@ -30,6 +31,19 @@ import { buildRoom } from './interior';
 // [E] spot on the pavement and the spot you step back out onto all come from
 // there. The only facts left in this file are which building it is and how
 // wide, and those come out of D's roster.
+/**
+ * WHERE THIS ROOM'S DOOR IS. Declared here, in the local terms the room is
+ * actually laid out around, and the FACADE follows it — `ct/doors.ts` explains
+ * why that direction and not the other one.
+ *
+ * `at` is the number this room was built against: the counter, the seating and
+ * the walking route are all placed relative to it. Changing it moves the
+ * painted shopfront door to match, not the other way round.
+ */
+export const DOOR: DoorDecl = {
+  building: 'DINER', w: 12, cz: -49.5, side: -1, at: -2.6, width: 1.15,
+};
+
 export function buildDiner(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'diner',
@@ -41,7 +55,7 @@ export function buildDiner(ctx: CtxBuild): void {
     frontage: { name: 'DINER', w: 12, cz: -49.5, side: -1 },
     // door, width, the [E] spot on the street and the way back out are all
     // derived from that — see RoomSpec.frontage. Nothing here is typed twice.
-    door: { r: 1.05 },
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
   });
 
   const { put, solid } = room;

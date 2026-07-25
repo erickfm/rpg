@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 
 // THE THRIFT STORE, inside.
 //
@@ -34,6 +35,19 @@ import { buildRoom } from './interior';
 // with BARBER, moving it 13 m up the block, and A's descriptor put its door
 // hard left instead of near the middle. The prompt was standing in the park.
 
+/**
+ * WHERE THIS ROOM'S DOOR IS. Declared here, in the local terms the room is
+ * actually laid out around, and the FACADE follows it — `ct/doors.ts` explains
+ * why that direction and not the other one.
+ *
+ * `at` is the number this room was built against: the counter, the seating and
+ * the walking route are all placed relative to it. Changing it moves the
+ * painted shopfront door to match, not the other way round.
+ */
+export const DOOR: DoorDecl = {
+  building: 'THRIFT', w: 12.5, cz: -61.75, side: -1, at: -2.2, width: 1.1,
+};
+
 export function buildThrift(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'thrift',
@@ -54,7 +68,7 @@ export function buildThrift(ctx: CtxBuild): void {
       kind: 'strip', tint: 0xe4e8dc, count: 3, dead: [1],
     },
     frontage: { name: 'THRIFT', w: 12.5, cz: -61.75, side: -1 },
-    door: { r: 1.05 },
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
   });
 
   const { put, solid } = room;

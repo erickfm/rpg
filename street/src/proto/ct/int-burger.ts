@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 
 // BURGER BARN, inside.
 //
@@ -29,6 +30,19 @@ const BB_INSIDE = 0xe0d2b4;
 // which was right at the time and wrong the moment A moved the door: the
 // derivation said z = -28.25 and the published door is now at -29.0.
 
+/**
+ * WHERE THIS ROOM'S DOOR IS. Declared here, in the local terms the room is
+ * actually laid out around, and the FACADE follows it — `ct/doors.ts` explains
+ * why that direction and not the other one.
+ *
+ * `at` is the number this room was built against: the counter, the seating and
+ * the walking route are all placed relative to it. Changing it moves the
+ * painted shopfront door to match, not the other way round.
+ */
+export const DOOR: DoorDecl = {
+  building: 'BURGER BARN', w: 16, cz: -29, side: -1, at: -3.6, width: 1.2,
+};
+
 export function buildBurger(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'burger',
@@ -49,7 +63,7 @@ export function buildBurger(ctx: CtxBuild): void {
     // is not an accident in these places.
     light: { kind: 'troffer', tint: 0xeaf2f6, count: 4 },
     frontage: { name: 'BURGER BARN', w: 16, cz: -29, side: -1 },
-    door: { r: 1.05 },
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
   });
 
   const { put, solid } = room;
