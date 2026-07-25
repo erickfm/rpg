@@ -45,6 +45,10 @@ const ROOMS = [
   {
     id: 'hotel', label: /ORPHEUS/,
     keeper: [-3.6, -0.65],   // the guest side of the reception desk
+    // "One lamp out" — the queue's own words, and the last line of the brief
+    // that built this room. Four fittings at ceiling height, one a different
+    // colour from the rest.
+    deadFitting: 4,
 
     building: 'HOTEL ORPHEUS', at: -3.4, hasWindow: true,
     clearZ: -3.9,
@@ -649,6 +653,39 @@ for (room of rooms) {
         + ` — authored facing ${f2(facing)} rad ±0.39, from ${v.d} m`;
     }
     check('the keeper is looking at you, not away', ok, detail);
+  }
+
+  // ── the lamp that is out ─────────────────────────────────────────────
+  //
+  // The hotel brief ends "One lamp out", and its whole idea is the gap between
+  // what was grand and what has happened to it — a room where every fitting works
+  // is a different room. It is the same class as the dead bulbs in the casino's
+  // chase, which are already guarded: a single deliberate defect that a refactor
+  // regenerating the fitting loop erases silently, leaving the place tidier than
+  // it was asked to be and nothing to show for it.
+  if (room.deadFitting) {
+    const f = await p.evaluate(([cx, want]) => {
+      const s = window.__ct.scene(); s.updateMatrixWorld(true);
+      const found = [];
+      s.traverse((o) => {
+        if (!o.isMesh || !o.geometry) return;
+        const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
+        const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+        if (Math.abs((bb.min.x + bb.max.x) / 2 - cx) > 8 || Math.abs((bb.min.z + bb.max.z) / 2) > 8) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!m || !m.color) return;
+        const w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y;
+        // the fittings proper: one size, at one height, not the ceiling panels
+        if (bb.min.y > 2.9 && bb.min.y < 3.15 && h < 0.35 && w > 0.5 && w < 0.9) found.push(m.color.getHexString());
+      });
+      return { n: found.length, cols: [...new Set(found)], want };
+    }, [CX, room.deadFitting]);
+    const lit = (h) => { const v = parseInt(h, 16); return 0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255); };
+    const dark = f.cols.filter((c) => f.cols.some((o) => lit(o) > lit(c) * 1.5));
+    check(`${room.deadFitting} ceiling fittings and one of them out`,
+      f.n === room.deadFitting && dark.length === 1,
+      `${f.n} fittings, ${f.cols.length} distinct colours (${f.cols.map((c) => '#' + c).join(' ')}), `
+        + `${dark.length} markedly darker than the rest`);
   }
 
   // ── the customer side has to be a room you can stand in ──────────────
