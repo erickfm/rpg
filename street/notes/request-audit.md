@@ -454,3 +454,59 @@ the user's own words. It was true when measured and false eleven commits later.
 important it is to re-check before anyone quotes it. I would rather have caught
 this myself — as here — than have the desk route a builder to fix a park that
 had already been fixed.
+
+---
+
+# I read the eleven screenshots. Five of six unread ones are aimed at nothing.
+
+The user told me to read `shots/pl-P5` … `P15`. I had cited P2, P5, P6, P7, P10
+and P13 and had **never opened P8, P9, P11, P12, P14, P15** — the six behind
+every one of my NOT CHECKED verdicts. Opening them:
+
+| shot | meant to show | what is actually in frame |
+|---|---|---|
+| `pl-P9-lot-inside` | the car lot | **inside solid geometry** — brick from behind, roof underside overhead |
+| `pl-P15-lot-office` | the lot office | **blank grey**. No world at all |
+| `pl-P11-bench-legs` | bench legs non-coplanar | **the alley** — dumpster, crates, the cat. No bench in frame |
+| `pl-P12-car` | wheel arches | **a car roof at point-blank**, filling the lower half. No arch visible |
+| `pl-P14-diner-keeper` | an interior person turning | the diner, correctly — **but no person in frame** |
+| `pl-P8-lot-street` | the lot from the street | usable |
+
+**Five of six.** Two inside geometry, two aimed at the wrong object, one aimed
+at the right room and missing the subject.
+
+This is the landing bug and the aim-from-memory bug, photographed. `pl-P9` is
+`GOTCHAS.md` §10 as well — those are interior wall faces seen from behind,
+which is what you get when `warp` drops you inside a building and the rig only
+blocks *movement*, not placement.
+
+## What this settles
+
+Every one of my NOT CHECKED verdicts stays NOT CHECKED. Reading the shots did
+not let me grade a single open item — **but it explains all of them**, and it
+retires the question of whether those checks were merely unlucky. They were
+never pointed at their subject.
+
+It also settles that refusing to grade was right for a reason I had not fully
+appreciated at the time: I assumed the shots were of the right place and merely
+inconclusive. They are of the wrong place. Had I graded from them I would have
+reported on the alley while claiming to report on a bench.
+
+## What the frames do show, incidentally — observed, not inferred
+
+- `pl-P11` — the **black cat reads clearly** against the brick at range, yellow
+  eyes legible; dumpster, blue crates and cardboard all present. Reconfirms the
+  alley-litter DONE from a second angle.
+- `pl-P12` — **A-1 TAX SERVICE** fascia is clean and legible, its door is
+  recessed with a visible push-bar, and the car-lot fence, bunting and stock
+  are all there behind it. Bunting confirmed from a second angle.
+- `pl-P14` — the **diner interior is good**: checker floor, red booths, window
+  band at the right height. The room is not in question; only its occupant is.
+
+## Standing correction to my own method
+
+`GOTCHAS.md` §20 says an unread screenshot is not an observation. These six
+sharpen it: **a read screenshot is not an observation of what you aimed at,
+either.** The frame has to be checked for its subject before it is evidence of
+anything. Every shot I take from here names what it expects to see, and I say
+so when it isn't there.
