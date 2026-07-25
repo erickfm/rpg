@@ -60,11 +60,28 @@ export function citizenAtlas(o: Look): THREE.Texture {
         const cx = ox + FW / 2;
         const stride = frame === 0 ? 0 : strideMax;
         // ── legs ──────────────────────────────────────────────────────
-        g.fillStyle = fit === 'dress' ? skin : pants; // dresses show legs
+        //
+        // THE UNMIRRORED PROFILE FACES LEFT. Every other feature already says
+        // so — the nose at cx-7, the eye at cx-4, the cap brim at cx-9 (its
+        // comment reads "brim points forward"), the long hair falling at cx+1
+        // behind the skull. The legs and feet below are the only parts that did
+        // not know it, and `viewFor` mirrors this column for the other side, so
+        // getting it right here gets both profiles right.
+        const pantsC = fit === 'dress' ? skin : pants; // dresses show legs
+        // How far each leg is thrown from the body's centre line. The +1 is the
+        // fix for a STANDING profile having exactly one leg: at stride 0 the two
+        // legs were both drawn at cx-2, i.e. on top of each other.
+        const legOff = stride + 1;
+        g.fillStyle = pantsC;
         if (view === 2) {
-          g.fillRect(cx - 2 - stride, oy + 38, 4, 21);
-          g.fillStyle = 'rgba(0,0,0,0.35)';
-          g.fillRect(cx - 2 + stride, oy + 38, 4, 21);
+          // Back leg first, in an OPAQUE darker tone, then the front leg over
+          // it. It used to be a 35%-black overlay — which with alphaTest 0.5
+          // disappears anywhere it is not sitting on top of the front leg, so
+          // simply offsetting it would have drawn nothing at all.
+          g.fillStyle = shade(pantsC, 0.62);
+          g.fillRect(cx - 2 + legOff, oy + 38, 4, 21);
+          g.fillStyle = pantsC;
+          g.fillRect(cx - 2 - legOff, oy + 38, 4, 21);
         } else {
           g.fillRect(cx - 5 - stride, oy + 38, 4, 21);
           g.fillRect(cx + 1 + stride, oy + 38, 4, 21);
@@ -73,20 +90,35 @@ export function citizenAtlas(o: Look): THREE.Texture {
         }
         g.fillStyle = '#16161a';
         if (view === 2) {
-          // PROFILE. Feet were drawn at the same spread as the front views —
-          // 12 texels apart under a body only 4 wide — so from the side they
-          // detached and read as two shoes floating beside the person. Seen
-          // from the side you look along the shoe, so it is LONGER and the
-          // two nearly overlap, parted only by the stride.
+          // PROFILE FEET, third attempt. The shape is what was wrong, not the
+          // placement: it spanned cx-5 … cx+6 around a leg at cx-2 … cx+2, so
+          // it stuck out about as far behind the ankle as in front of it. A
+          // foot symmetric about the ankle cannot say which way it points, and
+          // the eye resolves that as BACKWARDS — the user's own word.
           //
-          // Capped at 3 because stride is now per-person (2–5, tied to walking
-          // speed). The shoe is 9 long and the two are set 2 + 2·stride apart,
-          // so past stride 3.5 they part company again and the long-striding
-          // walkers get the floating-shoes bug back. The legs above carry the
-          // full stride, so the pace still reads.
-          const fs = Math.min(stride, 3);
-          g.fillRect(cx - 5 - fs, oy + 57, 9, 3);
-          g.fillRect(cx - 3 + fs, oy + 57, 9, 3);
+          // A real profile foot has the ankle near the back: a stub of heel
+          // behind it and the whole length forward. 8 texels long with the
+          // ankle 1 from the heel is, at this sprite's 3 cm/texel, a 24 cm foot
+          // with 3 cm of heel — and it points LEFT, the way this view faces.
+          //
+          // Each shoe sits under ITS OWN leg now (ankle on that leg's centre)
+          // rather than at a separately capped offset. That is what keeps the
+          // old "two shoes floating beside the person" bug from coming back:
+          // the shoes used to be flung 12 texels apart while both legs were
+          // drawn at the same x, so they floated either side of one narrow leg.
+          // With the legs splaying by the same stride, a shoe is always
+          // attached to a leg — at stride 5 the front pair is out in front and
+          // the back shoe's toe reaches under the body, which is what a stride
+          // looks like from the side.
+          // The ankles are separated by `stride`, one texel less than the legs
+          // are. At rest that collapses them onto each other, so a standing
+          // profile has ONE shoe of the right length (8 texels) instead of an
+          // 11-texel plank made of two offset ones — while the legs keep their
+          // split and still read as two. Walking, each shoe sits under its leg.
+          for (const s of [1, -1]) {
+            const ankle = cx + s * stride;
+            g.fillRect(ankle - 7, oy + 57, 8, 3);
+          }
         } else {
           g.fillRect(cx - 6 - stride, oy + 57, 6, 3);
           g.fillRect(cx + stride, oy + 57, 6, 3);

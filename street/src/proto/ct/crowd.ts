@@ -66,7 +66,9 @@ const CAST: Person[] = [
 const strideFor = (sp: number, hs: number) =>
   Math.max(2, Math.min(5, Math.round(3.2 * Math.sqrt(sp) * hs)));
 
-interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number; cad: number }
+interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number; cad: number;
+  /** what the sprite is currently showing — for the feet check, see `views` */
+  view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
 export interface Crowd {
   /** test affordance: every person's painted sprite sheet (scripts/people.mjs) */
@@ -77,6 +79,12 @@ export interface Crowd {
    *  not drive through a person — so this has to be live positions, not the
    *  build-time cast. */
   walkers: () => { x: number; z: number }[];
+  /** test affordance: which atlas column each person is showing and whether it
+   *  is mirrored, with the billboard's yaw and their direction of travel. This
+   *  is what makes "does the painted toe point the way they walk" checkable —
+   *  the profile column is asymmetric now, so the mirror matters and a
+   *  screenshot of one angle cannot answer it (scripts/feet-check.mjs). */
+  views: () => { dir: number; col: number; mirror: boolean; yaw: number; moving: boolean }[];
 }
 
 export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
@@ -170,6 +178,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       c.tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
       c.tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
       c.tex.offset.y = row === 0 ? 0.5 : 0;
+      c.view = { col, mirror, yaw: c.mesh.rotation.y, moving };
     }
   }, ORDER.LATE);
 
@@ -180,5 +189,9 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       footY: c.mesh.position.y,
     })),
     walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z })),
+    views: () => citizens.map((c) => ({
+      dir: c.dir, col: c.view?.col ?? -1, mirror: !!c.view?.mirror,
+      yaw: c.view?.yaw ?? 0, moving: !!c.view?.moving,
+    })),
   };
 }

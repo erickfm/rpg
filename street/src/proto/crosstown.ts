@@ -425,6 +425,9 @@ export function makeCrosstown(): Proto {
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast
     people: () => crowd.people(),
+    // test affordance: which painted angle each person is showing, mirrored or
+    // not, so the profile feet can be checked against travel (scripts/feet-check.mjs)
+    views: () => crowd.views(),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
     // test affordance: "is my [E] spot inside something solid?" is the single
     // most expensive question in this project — GOTCHAS §8, and the reason the
