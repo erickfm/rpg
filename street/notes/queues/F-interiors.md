@@ -28,6 +28,38 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **THE PARK AND THE CAR LOT ARE NOT IN THE WORLD. Three lines. Do this
+      first, commit it alone, then continue.**
+
+      `ct/park.ts` exports `buildPark`. `ct/lot.ts` exports `buildLot`.
+      **Neither is called from anywhere.** Both are finished modules by
+      builders E and C; D has already cleared the ground for both. The user
+      went looking for the park and found a blank brick wall, and has now
+      asked where the car lot went.
+
+      Import and call both, walk into each, commit that and nothing else.
+
+      **This is the fifth time this exact failure has shipped.** The casino,
+      the hotel and the tax office were all written, committed and never
+      constructed; the desk found those and had you wire them. Now the park
+      and the lot have landed the same way, and the pattern is not a
+      coincidence — it is structural, and it is the desk's fault for letting
+      it stand:
+
+      > A builder can write a complete module, commit it, and have no way to
+      > put it in the world, because the one line that constructs it lives in
+      > `crosstown.ts` — which is desk-owned. So the last step of every new
+      > module depends on the desk noticing. Five times it did not.
+
+      **The structural half is going to builder A** (a build-time check that
+      fails when a `ct/*.ts` exports a `build*` and nothing calls it), so do
+      NOT bundle it into your commit — bundling a fix with its refactor is
+      what cost 74 minutes earlier tonight. Yours is the three lines.
+
+      Then tell the desk whether the interior self-registration you built for
+      the rooms can be generalised to world modules too, so the registry and
+      A's check meet in the middle rather than duplicating.
+
 - [ ] **The diner's [E] prompt is on the BANK. Re-anchor it, then sweep every
       spot.** The user: *"theres still a diner entrance by the bank. i think we
       have to make sure all press e to enter options are aligned with the doors
