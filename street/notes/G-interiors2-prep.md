@@ -58,9 +58,9 @@ Flagging it only so nobody "fixes" the kit floor on my account.
 
 An interior's [E] spot has to land on the world position of the door *painted*
 on the facade, not near it. These are derived from the rosters in `street.ts`
-and then **walked** — `scripts/G-approach.mjs` stands the player back on the
-walk and walks them into each facade, because `__ct.warp` does no collision
-resolution and warping onto a spot proves nothing (GOTCHAS §8).
+and then **walked** — at the time by `scripts/G-approach.mjs` (since deleted; the
+same walk is now in `scripts/G-rooms-walk.mjs`), because `__ct.warp` does no
+collision resolution and warping onto a spot proves nothing (GOTCHAS §8).
 
 | building | roster span | painted door | [E] spot | step-out lands | yaw | gy |
 |---|---|---|---|---|---|---|
@@ -146,14 +146,21 @@ whose standing rule is that the 2 m lane is sacred it is worth someone
 deciding it is intentional. Lamps sit at z = −23, −51, −79 on the east side and
 −9, −37, −65 on the west; none of them is near my doors.
 
-## Tools left behind
+## ~~Tools left behind~~ — BOTH DELETED in `bbe25ca43`, and what replaced them
 
-- `scripts/G-approach.mjs` — walks into each of my four facades, reports how
-  close the capsule gets and the ground height there.
-- `scripts/G-lane.mjs` — walks every lane across a walk's width to tell a
-  pinch apart from a blockage.
+- ~~`scripts/G-approach.mjs`~~ — walked into each of my four facades. Its job is
+  now `scripts/G-rooms-walk.mjs`: the prompt walk, the `[E]` entry, and the
+  exactness check that the spot sits within 1 cm of the published door.
+- ~~`scripts/G-lane.mjs`~~ — walked every lane across a walk's width. Superseded
+  by the registered `builtlane` and by `G-vice-walk`'s band measurement, which
+  drops movers and reports the **width of the clear route** rather than
+  per-lane blocked/clear.
 
-Both take `SHOT_URL`, default `http://localhost:4186/`.
+**`G-lane` was deleted for being wrong, not just old.** It reported three
+side-street lanes `STUCK at x ≈ 19.4`, which reads as a blocked pavement; that is
+one 0.4 m post at x 19.8..20.2 leaving a 0.61 m clear band, against the 0.23 m the
+lane audit accepts. It never computed the band. The measurement is kept in
+`G-interiors2-handoff.md` so deleting the script did not delete what it found.
 
 ## Next, the moment F lands the kit
 
