@@ -70,9 +70,26 @@ A 45° face has no `axis` and no single `facePos`. So the bay cannot register a
 frontage that is *correct*, and the choice is between three things I should not
 make alone:
 
-1. **Stop the wing claiming the name** — register it as `BODEGA WING` or not at
-   all. One line in my file. Fixes the wrong answer; leaves the bay with no
-   entry, which is where `7b100b65` thought we already were.
+1. **Stop the wing claiming the name** — ~~one line in my file~~. **It is not.
+   I checked, and this is the thing that decides the whole item.**
+
+   `b.nm` drives BOTH ends:
+
+   ```
+   ct/street.ts:936   shopfrontTex(b.brick, b.nm, …)     paints BODEGA on the band
+   ct/street.ts:933   shopfrontRelief({ name: b.nm, … })
+   ct/tex-world.ts:744  registerFrontage(o.name, …)      registers under BODEGA
+   ```
+
+   So renaming the wing to stop it answering for the bodega also **repaints its
+   sign**, and the sign is correct — the wing IS the bodega's side elevation and
+   should read BODEGA. There is no way to separate the two from my file.
+
+   The smallest thing that would work is an **optional `frontageName` on
+   `shopfrontRelief`'s options**, defaulting to `name`: additive, no existing
+   caller changes, and the wing then passes `frontageName: 'BODEGA WING'` or
+   opts out of registration entirely. That is `ct/tex-world.ts` — A's file and
+   A's API shape, not something I should decide by writing it.
 2. **Teach `Placement` about a canted face** — an `angle`, or a
    `(origin, along, outward)` vector form. Correct, reusable, and A's type in
    A's file.
@@ -97,3 +114,26 @@ radius reaching the kerb and stopping — cannot include the bodega under any of
 the three options except 2. Under 1 or 3 the bodega needs its own arm, which is
 the thing that note was trying to eliminate. Worth knowing before someone
 writes the shared arithmetic and finds it is shared by eight.
+
+---
+
+## The audit found the same thing from the other side, and it agrees
+
+`request-audit.md` §"One gap in the roster itself": *"The BODEGA has no
+published frontage. Probing (6, −95.4) … returns nothing from `__frontages`,
+while every other shopfront I probed resolves."*
+
+Both true, and worth reconciling because they imply different fixes: there IS a
+BODEGA entry, and it does not cover the bay. Probing the bay finds nothing;
+probing by name finds the wing. "No frontage" and "a frontage on the wrong
+wall" look the same from a point probe and are not the same bug.
+
+The audit also anticipates the state option 1 would produce and accepts it in
+advance: *"a roster that covers every shopfront but one is still a large
+improvement, and the one it misses is the one shaped differently … but a future
+finding on the bodega's face will come back `(no frontage covers it)` and look
+unattributable when it is not."*
+
+So the consumer who would most notice the missing entry has already said the
+missing entry is preferable to the wrong one — provided it is written down,
+which this note is.
