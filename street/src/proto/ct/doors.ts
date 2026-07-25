@@ -80,7 +80,7 @@ function ensure(): void {
   if (collected) return;
   collected = true;
   for (const path of Object.keys(MODS).sort()) {
-    const d = MODS[path].DOOR as DoorDecl | undefined;
+    const d = MODS[path]?.DOOR as DoorDecl | undefined;
     if (!d || typeof d.building !== 'string') continue;
     if (DECLS.has(d.building)) {
       console.warn(`[doors] two rooms both claim ${d.building} — ${path} ignored`);
