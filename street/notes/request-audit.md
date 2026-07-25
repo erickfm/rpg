@@ -998,3 +998,47 @@ mid-measurement, and the honest output is an error rather than a reading. It
 measures *static* figures cleanly, which is where the question mattered: the
 user asked about the people **inside** the shops, and all eight of those are
 standing still and all eight turn correctly.
+
+## The BODEGA's `[E]` is the only one that does not reach the pavement centreline
+
+Three probes had singled this shop out — canted bay, no `__frontages` entry, and
+a prompt my line sweep could not find. Mapped properly with a 2D patch sweep at
+0.2 m (`scripts/bodega.mjs`), visibility-checked prompt read:
+
+```
+swept x 4.8…9.4 × z −91.5…−100.5:  706 standable points, 372 inside colliders
+
+[E] into the BODEGA — 109 points
+   x 6.2 … 8.6     z −96.9 … −94.5
+   nearest edge to the walk line (x = 5.9):  0.3 m
+```
+
+**The trigger is large and healthy** — 2.4 × 2.4 m, 109 standable points. Nothing
+is blocked, and the entry defect the user originally reported is long fixed.
+
+**But its nearest edge is x = 6.2, and the pavement centreline is x = 5.9.** My
+line sweep missed it by 30 cm, and so does a player.
+
+### Why that is worth a builder's attention
+
+`doorshot.mjs` walking the centreline finds **seven doors**: DINER, THRIFT,
+A-1 TAX, No. 227, PAWN, BURGER BARN, and the bus stop. Every one of them
+announces itself to somebody simply walking down the pavement.
+
+> **The bodega is the only shop in the world you have to step toward to be told
+> you can enter.** Not blocked — but silent from the one line every player walks.
+
+That is a 0.3 m difference and it is invisible in code: the bodega's trigger is
+authored against its **canted bay**, which is set back from the flat frontages
+either side, so a trigger sized identically to its neighbours' starts further in.
+
+### What I am not claiming
+
+Whether this matters is a design call, not mine. A recessed shop that requires
+a step toward the door is arguably more real, not less. **What I can say is that
+it is unique** — one shop of eight behaves differently from a player's point of
+view, and nothing in the code says so on purpose.
+
+If it should match its neighbours, the fix is to extend the trigger 0.3 m toward
+the kerb. If the recess is deliberate, it is worth a line saying so, because this
+is now the fourth time this shop has come back as an anomaly in an audit.
