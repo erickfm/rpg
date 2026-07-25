@@ -2479,3 +2479,42 @@ every silhouette. **My contribution to that decision is now a confirmation rathe
 than a complication:** the tyre stands **0.04 m proud, not 0.11**, so the
 occlusion is what H's arithmetic says it is, and the crescent is the size the
 measurements say it is. Nobody needs to reopen the geometry before answering.
+
+## GRADED: "the wheels need to not clip through" — the flare works
+
+The user's words, and one of the two faults he has raised twice:
+
+> **"pickup looks great but the wheels need to not clip through, maybe we need to
+> have some inlaid wheel things pickups have"**
+
+`7f0909aa4` gives every car a **fender flare** — a panel standing proud of the
+tyre, so the tyre stops being the outermost thing on the car. Its author also
+says the honest thing about the delay: *"I have been holding this behind a
+beltline ruling for a long time, and that was the wrong call."*
+
+**Measured, and the signature is unambiguous:**
+
+```
+car (3.79, -13.96)   14 meshes (was 10)   outermost panel 0.981   tyres 0.923-0.966   all inboard
+car (-3.92,-30.04)   16 meshes (was 12)   outermost panel 0.957   tyres 0.935-0.947   all inboard
+```
+
+**+4 meshes per car — one flare box per wheel.** The second car is the one that
+matters: its outermost panel moved **0.826 → 0.957**, and its four tyres went
+from **proud by 0.109–0.121** to **inboard**. Every tyre I can measure is now
+behind a panel. That is exactly what the user asked for — the wheel sits *in*
+something instead of standing through it.
+
+**DONE**, and it closes the second of the two faults he had to report twice.
+
+**One number I am not asserting.** The commit describes the flare as *6 cm proud
+of the tyre's outer wall*; I measure the margin at **1.0–1.5 cm**. The
+`flank half-width` column I am reading is the one I marked unreliable two rounds
+ago — it finds the panel by shape and disagreed with `ct/cars.ts` before. So the
+**direction is certain and the magnitude is not mine to state**; if 6 cm was the
+intent, the owner should check which panel my finder is reading.
+
+**This also retires my own open question.** I had flagged tyres reading
+0.109–0.121 proud against an arithmetic 0.04 and could not explain the gap. With
+the flare in, the same probe reads them inboard on both cars — the panel moved,
+which is what the flare is. The question is answered by the fix rather than by me.
