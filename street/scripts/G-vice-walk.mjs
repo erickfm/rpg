@@ -17,6 +17,27 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const KERB_H = 0.14, RADIUS = 0.36;   // the player capsule, for the geometric band
+const SCRIPT = 'G-vice-walk', EXTRA = '';
+// GOTCHAS §34, shape one: a flag this script does not recognise must not be
+// ignored. `checks.mjs` invokes selftests as `--selftest`, and every argument
+// here that is not that was being skipped silently — so a renamed or mistyped
+// flag would run the ORDINARY suite and exit 0, reporting a selftest pass for a
+// selftest that never ran. Green, fast, and indistinguishable from the real
+// thing, which is the whole of §34.
+//
+// Not `lib/modes.mjs`: that takes a bare mode word in argv[2] and this takes an
+// optional flag plus an optional room id, so it does not fit. Same refusal, same
+// wording, and before chromium.launch() either way.
+const KNOWN_FLAGS = ['--selftest'];
+for (const a of process.argv.slice(2)) {
+  if (!a.startsWith('--')) continue;
+  if (KNOWN_FLAGS.includes(a)) continue;
+  console.error(`${SCRIPT}: unknown flag ${JSON.stringify(a)}`);
+  console.error(`  flags are: ${KNOWN_FLAGS.join(' ')}${EXTRA}`);
+  console.error('  refusing to exit 0 having checked nothing.');
+  process.exit(2);
+}
+
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 const errs = [];
