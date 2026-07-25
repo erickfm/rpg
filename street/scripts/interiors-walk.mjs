@@ -44,9 +44,7 @@ const ROOMS = [
     doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
   },
   {
-    id: 'tax', label: /A-1 TAX/, W: 12.0, D: 8.5,
-    // EAST side of the block, so the facade is at +7.0 and you approach from +x
-    doorX: FACE - 0.45, doorZ: -15.25, at: -4.2, east: true,
+    id: 'tax', label: /A-1 TAX/, D: 8.5, front: ['A-1 TAX', 13, -15.5, 1],
   },
 ];
 

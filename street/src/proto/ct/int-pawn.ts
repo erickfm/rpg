@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 import { FACE } from './rng';
 
 // The PAWN SHOP, inside.
@@ -51,6 +52,16 @@ import { FACE } from './rng';
 // the room's doorway, the standing room and the [E] spot together. Typing a
 // local offset beside a world one is exactly how the diner's prompt ended up
 // outside the bank.
+/**
+ * WHERE THIS ROOM'S DOOR IS — declared by the ROOM; the facade follows it.
+ * See ct/doors.ts for why that direction. Written against the position this
+ * room is actually laid out around, so the painted shopfront door moves to
+ * match rather than the furniture moving to match the paint.
+ */
+export const DOOR: DoorDecl = {
+  building: 'PAWN', w: 15, cz: -60.5, side: 1, at: 0, width: 1.15,
+};
+
 export function buildPawn(ctx: CtxBuild): void {
   const DOOR_Z = -59.06;
   const BLD_Z0 = -65.0, BLD_Z1 = -53.0;

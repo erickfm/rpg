@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 import { FACE } from './rng';
 
 // A-1 TAX SERVICE, inside.
@@ -30,29 +31,30 @@ import { FACE } from './rng';
 // street.ts's EAST roster, facade on x = +7.0. `taxFront` paints its door at
 // W * 0.5 of a 104-texel shopfront, which lands at world z = -15.25 — derived
 // and walked in notes/G-interiors2-prep.md, not eyeballed.
+/**
+ * WHERE THIS ROOM'S DOOR IS — declared by the ROOM; the facade follows it.
+ * See ct/doors.ts for why that direction. Written against the position this
+ * room is actually laid out around, so the painted shopfront door moves to
+ * match rather than the furniture moving to match the paint.
+ */
+export const DOOR: DoorDecl = {
+  building: 'A-1 TAX', w: 13, cz: -15.5, side: 1, at: -4.2, width: 1.15,
+};
+
 export function buildTax(ctx: CtxBuild): void {
-  const DOOR_Z = -15.25;
   const room = buildRoom(ctx, {
     id: 'tax',
     label: 'into A-1 TAX SERVICE',
     // 2.75 m — a suspended ceiling dropped under whatever the building
     // actually gives you, which is what every one of these offices did.
-    w: 12.0, d: 8.5, h: 2.75,
+    d: 8.5, h: 2.75,
     palette: { floor: 0x8e8a7e, wall: 0xc2bda8, ceil: 0xc8c4b4, trim: 0x6a6458 },
-    door: {
-      x: FACE - 0.45, z: DOOR_Z, r: 1.05,
-      at: -4.2, width: 1.15,
-      // Along the walk, south, 1.5 m. Same reasoning as the diner on the
-      // opposite side of the street: straight out from the door would land
-      // inside the way-in trigger. At x = 6.1 the 0.36 m capsule sits between
-      // the wall collider at 6.7 and the kerb at 5.0, inside the 2 m lane
-      // (GOTCHAS §9). The nearest street furniture is the tree at z = -29.5
-      // and the lamp at z = -23, both well clear.
-      outX: FACE - 0.9, outZ: DOOR_Z - 1.5, outYaw: -Math.PI / 2, outGy: ctx.KERB_H,
-    },
-    // The shopfront is mostly glass with paper taped inside it, so the room
-    // gets a wide window. East of the door and clear of it.
-    window: { at: 1.8, w: 5.0, h: 1.5, sill: 0.95 },
+    frontage: { name: 'A-1 TAX', w: 13, cz: -15.5, side: 1 },
+    // The door, its width, the [E] spot on the pavement and the way back out
+    // all derive from DOOR above — one authoring, not two. The [E] spot used
+    // to be hand-typed at z = -15.25 while the room was laid out around a door
+    // 4.9 m away from it, which is the misalignment the user reported.
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
   });
 
   const { put, solid } = room;
