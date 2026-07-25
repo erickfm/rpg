@@ -319,3 +319,48 @@ I am recording it rather than routing it: nothing is blocked, and a pavement
 where you have to edge past someone is a street, not a bug. The number is worth
 having because **every lane figure in this report is a built-lane figure**, and
 this is the first measurement of what a player actually walks through.
+
+## Round 6 — the lane as played: median **0.77 m**, and it touches 0.72 m
+
+Every lane figure in this report — mine and everyone's — drops the moving
+colliders, so they all describe **a pavement with nobody on it.** Twenty samples
+of the live world over ~18 s, movers included:
+
+```
+20 samples of the world's narrowest pavement passage
+
+   best   1.12 m
+   median 0.77 m
+   worst  0.72 m        ← the player capsule is 0.72 m
+   samples under 0.90 m:  14 of 20
+   samples under 0.72 m:   0 of 20   (never impassable)
+
+built lane, movers dropped: 1.15 m
+```
+
+**The built lane is 1.15 m. The lived lane's median is 0.77 m.**
+
+Stated precisely, because the distinction matters: this is the narrowest passage
+**anywhere on the two walks at that instant**, not the width where the player
+happens to be standing. A player meets it only by walking to it. But **70% of
+the time, some stretch of pavement is under 0.90 m**, and at its worst the gap
+is **exactly the player's own width — zero clearance.**
+
+**It is never impassable.** Zero of twenty samples fell below 0.72 m, which is
+the number that would actually stop someone.
+
+### Why this is worth having
+
+`GOTCHAS.md` §9 says the 2 m lane is sacred, and every measurement made against
+that rule — including all five of my earlier rounds — has been of an empty
+street. **The rule is enforced on a condition the player rarely experiences.**
+
+That is not an argument for widening anything. Citizens walking on pavements is
+the entire point of having them, and edging past someone is what a busy street
+feels like. It is an argument for **knowing which number you are quoting**:
+
+> **1.15 m is the pavement. 0.77 m is the walk.**
+
+I am recording this rather than routing it. Nothing is blocked, no rule is
+broken, and the only thing that would change my mind is a sample below 0.72 m —
+which twenty attempts did not produce.
