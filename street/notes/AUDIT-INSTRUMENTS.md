@@ -523,6 +523,31 @@ Anyone running `--slow` here should rebase, build, and then **not touch git
 until it finishes** — which is a real constraint worth knowing before spending
 twelve minutes twice, as I did.
 
+### Third attempt, on a genuinely frozen HEAD: still not completed
+
+I did it properly — rebased, built, started the run, and touched no git command
+at all while it ran. **It passed ten minutes without producing a line of
+output.** `interiors-walk` alone exceeded nine minutes in an earlier solo run
+and did not finish then either.
+
+So after three attempts the honest conclusion is not about my workflow:
+
+> **The `--slow` tier is not runnable in a session that also commits.** Its
+> longest member takes over nine minutes on its own, the runner emits nothing
+> until every check has finished, and the world guard — correctly — invalidates
+> the entire run if HEAD moves at any point during it.
+
+Those three together mean the tier is effectively **write-only**: it exists, it
+is registered, and the conditions for observing its result are hard to meet.
+That is worth the toolchain owner's attention more than any individual check in
+it. **Streaming each result as it completes would fix most of it** — a run that
+prints `✓ spots-walk` at minute three is useful even if minute twelve never
+arrives.
+
+*(`spots-walk` and `seats-walk` I have run individually, and both pass. The
+other four — `world-wired`, `steps-walk`, `civic-doors-walk`, `interiors-walk` —
+remain unrun by me.)*
+
 **So my "28 green, one red" covers the FAST tier only.** The six walking suites
 are unrun by me and I am not claiming anything about them. `spots-walk` and
 `seats-walk` I have run individually and they pass; the other four I have not.

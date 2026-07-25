@@ -1174,7 +1174,11 @@ and I treated it as one because it fitted a defect I wanted to have found.
 
 ## Status
 
-- **Pattern #1: CLEAN.** No further verification needed on current evidence.
+- **Pattern #1: CLEAN** — but see Round 15 before quoting this. The per-face
+  "0 stamps disagree" half of it is **circular** (canvas and mesh are sized from
+  the same `(wM, hM)` at one call site). What stands independently is the
+  **rule** (every texture declares 8/16/32) and the **junction** test
+  (`seampairs`, two different faces, no shared ancestor).
 - `scripts/masonry.mjs` and `scripts/seampairs.mjs` are both fixed and now handle
   box faces. `seampairs.mjs` is still worth having — *"does this face agree with
   the one it touches"* remains the right question, and it now answers **yes**.
@@ -1999,7 +2003,11 @@ Started from *"the casino's door is declared and never arrives."* Now:
 - **why the casino** — nothing in its source; it lands in a 1.7 KB window
 - **why `doors.ts` and not the other two globs** — it is bound 94 KB early because
   the rooms import it
-- **the fix** — remove that import; the working glob proves the shape
+- **the fix** — ~~remove that import; the working glob proves the shape~~
+  **FALSIFIED in Round 17**: `doorStandFor` calls `ensure()` and reads the
+  glob-filled registry, so it cannot move to a leaf. The real candidate is
+  `{ eager: false }`, which the file's own "collected LAZILY" comment was
+  already reaching for.
 - **verification** — `scripts/globorder.mjs`, no runtime, exit-coded
 - **player impact** — none; all 8 doors open and land in the right room
 
@@ -2173,3 +2181,47 @@ turns `ensure()` async or requires the importers to be resolved before first
 use, which is a real design question. But it is the fix the file's own comment
 was already reaching for, and it is a much better answer than the leaf module I
 proposed three times.
+
+## Round 18 — the emission map, and `vice` is dead a third time
+
+Byte offsets from the bundle, with the glob literal at **810,528**:
+
+```
+civic.ts         595,037   before
+vice.ts          614,905   before        ← 196 KB before the glob
+int-hotel.ts     719,710   before
+doors.ts         810,280   before        ← 248 bytes before its own glob
+int-casino.ts    812,294   ** AFTER **
+interior.ts      819,416   ** AFTER **
+civic-doors.ts   827,576   ** AFTER **
+world.ts         828,758   ** AFTER **
+```
+
+**`vice.ts` is bound 196 KB before the glob.** I proposed three times that the
+casino's unique `./vice` import was what singled it out — as a cycle route
+(disproved by tracing), as extra depth (disproved by measurement), and as an
+emission delay. **All three are now dead, the last one by its own byte offset.**
+
+### The structure, completely established
+
+```
+no int-*.ts is imported BY NAME anywhere — all eight are glob-only
+interior.ts is imported by name by all eight rooms and by civic-doors.ts
+interior.ts ──4 values──▶ doors.ts ──glob──▶ interior.ts     ← the cycle
+```
+
+`doors.ts` binds **248 bytes** before the glob literal inside it, which is what
+you would expect; the four modules that land after it are exactly the four
+mainline named.
+
+### Why the casino and not the hotel — I am stopping here
+
+Both are chamfered corners, both import `doorStandFor` as a value, both are
+glob-only, and `int-hotel` binds 90 KB *before* the glob while `int-casino`
+binds 1.8 KB *after*. Nothing in the source distinguishes them; I have tested
+every structural difference I can measure and found none that predicts it.
+
+> **The selection is internal to the bundler's traversal order, and that is a
+> complete answer, not a gap.** The fix does not depend on knowing which module
+> loses — `{ eager: false }` removes the whole class, and the guard
+> `doors-declared` catches it whichever room it lands on.
