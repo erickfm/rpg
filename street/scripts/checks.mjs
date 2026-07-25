@@ -179,7 +179,7 @@ const CHECKS = [
   ['crowd-net',        'do people route the block, cross only at crossings?', false, [], true],
   ['side-walk',        'are both side-street walks clear, doors reachable?',  false, [], true],
   ['jitter',           'does a walker flip-flop when it passes somebody?',    false, [], true],
-  ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', false, [], true],
+  ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

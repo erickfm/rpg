@@ -328,6 +328,17 @@ const CASES = [
     'const zDrawn = z0 + (Math.random() - 0.5) * 2.4;',
     'park-repro.mjs', [], 'parking that re-rolls on every load'],
 
+  // Pushes every walkable node 0.95 m further from the kerb, so citizens stand
+  // against the shopfronts. A stopped body then seals the 2 m lane (GOTCHAS §9)
+  // instead of leaving a gap beside it. Watched by hand when the check was
+  // written — 153 of 714 samples sealed, tightest gap 0 m — and encoded here
+  // because crowd-walk was registered with no selftest at all, which GOTCHAS 34
+  // is the house rule about.
+  ['crowd-lane', 'src/proto/ct/crowd-net.ts',
+    'const IN = 1.0;',
+    'const IN = 1.95;',
+    'crowd-walk.mjs', [], 'citizens standing where a stopped body seals the walk'],
+
   // The three-band face, restored. 10 texels of head cannot carry 3 texels of
   // shading either side without reading as skin discolouration.
   ['faces-bands', 'src/proto/ct/citizens.ts',
