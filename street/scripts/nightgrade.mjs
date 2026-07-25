@@ -87,6 +87,7 @@ console.log('23:00 ', JSON.stringify(night.avg));
 // changed, while the class average moved. Both cannot be true. Read at 23:00
 // you are reading the night's own state, not what the module asked for. So the
 // flags are captured inside the NOON probe, alongside the colour.
+const BOUNDS = await p.evaluate(() => globalThis.__bounds ?? []);
 await b.close();
 
 // WHAT THIS TESTS, AFTER db76dc26 MOVED THE GROUND UNDER IT
@@ -153,6 +154,20 @@ const skipped = pairs;
 // The alternative was a table of named regions — "the car lot is 30..60" — and
 // that is the stale-constant habit this file has already been bitten by once.
 // Clusters come out of the data, so they follow the world.
+// A CLUSTER IS A PLACE, NOT AN OWNER — and I got that wrong in prose.
+//
+// This printed `34 50 -101 -94` with thirteen materials in it, and I called it
+// "the car lot" in a note. It is not: ct/lot.ts's office board is at x 26.07,
+// z 2.6, and the thirteen are a neon module. The tool reported a location
+// honestly and I attached a name to it by eye, which is the same remembered-
+// coordinate habit that has misrouted this finding twice.
+//
+// So: ask, do not guess. A module that publishes its own box gets named; one
+// that does not is printed as coordinates and explicitly NOT attributed.
+// ct/lot.ts publishes `LOT.bounds` (0bd7a0c1); the registry below is the same
+// idea reachable from a script, and it is empty until modules opt in.
+const owner = (x, z) => (BOUNDS.find((b) =>
+  x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ)?.name) ?? null;
 const cl = [];
 for (const m of skipped) {
   const near = cl.find((c) => Math.abs(c.cx - m.x) < 14 && Math.abs(c.cz - m.z) < 14);
@@ -166,7 +181,8 @@ for (const c of cl) {
   const pad = 3, box = [Math.min(...xs) - pad, Math.max(...xs) + pad,
                         Math.min(...zs) - pad, Math.max(...zs) + pad].map((n) => n.toFixed(0));
   const kinds = [...new Set(c.list.map((m) => m.shape))];
-  console.log(`  ${String(c.list.length).padStart(3)} at ${c.cx.toFixed(0)},${c.cz.toFixed(0)}  ${kinds.slice(0, 2).join(' / ')}${kinds.length > 2 ? ` /+${kinds.length - 2}` : ''}`);
+  const who = owner(c.cx, c.cz);
+  console.log(`  ${String(c.list.length).padStart(3)} at ${c.cx.toFixed(0)},${c.cz.toFixed(0)}  ${who ? who : '(unattributed)'}  ${kinds.slice(0, 2).join(' / ')}${kinds.length > 2 ? ` /+${kinds.length - 2}` : ''}`);
   console.log(`      node scripts/nightgrade.mjs ${box.join(' ')}`);
 }
 console.log(`
@@ -174,7 +190,13 @@ A cut-out discards its fragment and never blends, so \`transparent: true\` buys
 these nothing. Since db76dc26 it no longer costs them their night grading, but
 it still moves them into the sorted transparent queue, where DoubleSide geometry
 picks up sorting artifacts it would never have had. Delete the flag; keep the
-alphaTest.`);
+alphaTest.
+
+A cluster marked (unattributed) is a LOCATION, not an owner. No module claimed
+that ground. Publish your box the way ct/lot.ts publishes LOT.bounds and push it
+to globalThis.__bounds as { name, minX, maxX, minZ, maxZ }, and this names you
+instead of leaving the next reader to guess by eye — which has now misrouted
+this same finding twice.`);
 if (!SCOPED) {
   console.log(`
 Informational: no box was given, so this is the whole world and some of these
