@@ -19,9 +19,11 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
-// same predicate as ct/props.ts rainAt(), and as wetness.mjs duplicates it
-const rainy = (h) => (((h % 24) + 24) % 24) === 14 ||
-  ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
+// ASK, DO NOT COPY. props.ts publishes rainAt on scene.userData precisely so
+// nothing has to mirror it, after e0c68e46 found the old formula wrong and two
+// hand-copies of it stale in scripts/. Mine was the third, and it silently
+// picked a "rainy" hour that no longer rains -- 65 responders became 1. The
+// predicate is now read from the world at run time; see rainyFrom() below.
 
 const b = await chromium.launch();
 const p = await b.newPage();
@@ -29,11 +31,25 @@ await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
 
-// a wet hour the world guarantees, and the nearest dry hour, so the sun barely moves
-const wetH = Number(process.env.WET_H ?? 14);
+// the world's own predicate, read rather than reimplemented
+const rainSched = await p.evaluate(() => {
+  const f = window.__ct.scene().userData.rainAt;
+  if (typeof f !== 'function') return null;
+  return Array.from({ length: 400 }, (_, h) => !!f(h));
+});
+if (!rainSched) { console.error('scene.userData.rainAt not published — cannot pick hours honestly'); process.exit(2); }
+const rainy = (h) => rainSched[h];
+// NIGHT=1 picks a rainy night hour and the nearest dry night hour, from the
+// world's schedule rather than from a local guess about when it rains.
+const isNight = (h) => { const l = ((h % 24) + 24) % 24; return l >= 22 || l <= 2; };
+const nightWet = rainSched.findIndex((r, i) => r && i >= 24 && isNight(i));
+const wetH = Number(process.env.WET_H ?? (process.env.NIGHT === '1' ? nightWet
+  : rainSched.findIndex((r, i) => r && i >= 12)));
 const dryH = process.env.DRY_H ? Number(process.env.DRY_H)
-  : [13, 15, 12, 16, 11, 17].find((h) => !rainy(h));
-if (dryH === undefined) { console.error('no dry hour near 14'); process.exit(2); }
+  : [wetH - 1, wetH + 1, wetH - 2, wetH + 2, wetH - 3]
+      .find((h) => h >= 0 && !rainy(h) && (process.env.NIGHT !== '1' || isNight(h)));
+if (dryH === undefined) { console.error('no dry hour near the wet one'); process.exit(2); }
+console.log(`rain predicate read from scene.userData.rainAt · wet ${wetH}, dry ${dryH}`);
 
 // MEASURED, not guessed: after clock(14) the road walks 1.000 → 0.597 → 0.329 →
 // 0.224 → 0.186 → 0.172 → 0.167 → 0.165 at two-second intervals. The wet look
@@ -53,7 +69,7 @@ const SETTLE_MS = 18000;
 const STEP = process.env.NOSTEP !== '1';
 const sample = async (h) => {
   if (STEP) {
-    const from = h - 12;                       // walk the last 12 hours in
+    const from = h - Number(process.env.STEP_HOURS ?? 12);   // walk this many hours in
     for (let k = from; k < h; k++) {
       await p.evaluate((hh) => window.__ct.clock(hh), k);
       await p.waitForTimeout(700);

@@ -1307,3 +1307,42 @@ independent **of method**, not merely of author.
 
 `wetsweep.mjs` now steps by default. `NOSTEP=1` restores the old behaviour for
 comparison, and nothing should trust it.
+
+## My rain predicate was a third stale hand-copy — and it silently emptied the sweep
+
+`e0c68e46` found the weather formula wrong and rewrote it, noting that
+`scripts/rain.mjs` and `scripts/wetness.mjs` each carried a hand-copy labelled
+*"keep in step with `rainAt()` in ct/props.ts"* — *"two copies of a formula that
+just turned out to be wrong, which is two places to forget."*
+
+**Mine was the third.** `wetsweep.mjs` duplicated the old
+`Math.imul(h, 2246822519) % 100 < 30`, and the moment the world's formula
+changed my "rainy" hour stopped raining. The sweep did not error — it reported
+**n=1 responder** where it had reported 65, which reads like a catastrophic
+regression in the world and was a stale constant in my own file.
+
+`props.ts` now **publishes** `rainAt` on `scene.userData` so nothing has to
+mirror it, and the sweep reads it from the world at run time. This is my own
+stated rule arriving as a bill: *prefer a probe that asks over a probe that
+guesses* — I wrote that about other people's scripts and then shipped a guess.
+
+### The measurement, on the world's own schedule and adjacent hours
+
+Reading the published predicate lets the sweep pick **hour 70 dry against hour
+71 rainy** — one hour apart, so the 72-hour jump confound is gone rather than
+merely controlled:
+
+| | responders | strength |
+|---|---|---|
+| day (13 → 14) | **66** | median **−66.6%** |
+| night (70 → 71) | **66** | median **−49.4%** |
+
+**66 wet-registered surfaces, identical day and night**, responding at −66.6% by
+day and −49.4% after dark — night is about **74% of daytime strength**. That
+supersedes every night figure I have published: not −83.5%, not "exactly daytime
+strength", and not dead either.
+
+**Withdrawn with the predicate:** my analysis that "the longest dry run before
+any night hour is 3 hours" was computed from the stale formula and I am not
+restating it. The periodicity finding belongs to `e0c68e46` and `cd37b59b`, who
+measured it against the real one.
