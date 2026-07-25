@@ -294,3 +294,53 @@ back and it is now blocking a real red rather than a hypothetical one.
 `int-casino.ts` and `int-hotel.ts` are not mine. **Desk: this needs an owner,
 and the diagnosis is already complete enough that whoever takes it is doing
 twenty minutes of typing rather than an investigation.**
+
+---
+
+## Audited against HEAD, the way `580963ad` audited its own — nothing here is stale
+
+A checked their blocker for sections that had gone false and found two. I did
+the same to this file rather than assume it had aged well. Re-measured at
+`580963ad`:
+
+```
+__frontages is an ARRAY of 16; 5 with doorDeclared
+BODEGA  axis x  lo 10.4  hi 16.45  facePos -96  doorWorld 12.8234  doorDeclared false
+```
+
+**Every figure in this file still holds.** The entry exists, it is the wing, its
+door is at 12.82, and it is still flagged as a guess. `frontageWorld()` still has
+no callers outside `ct/tex-world.ts`, so it is still latent rather than live. And
+`notes/A-frontage-signature.md` still mentions `declaredDoors`, `cut face`,
+`canted` and `bodega` **zero times**, so the timing section stands too.
+
+### One thing HAS changed, and it is the caveat I added last round
+
+`doors-declared` at HEAD:
+
+```
+8 modules declare a DOOR; 8 reached declaredDoors()
+every declared door arrived.
+```
+
+The casino's door is back. **The caveat is not withdrawn**, because `29ce42d8`
+says it plainly — the door is fixed, the mechanism that lost it is not. Three
+modules still resolve to an undefined namespace at collection time. If option 3
+is chosen, the wording still needs to say that `declaredDoors()` is collected
+through an eager glob and that a count is the only way to notice a miss. What
+changes is that the example is now historical rather than current.
+
+### And a trap in the contract itself, which I fell into just now
+
+My own probe read `__frontages['BODEGA']` and got `undefined`. I nearly reported
+that this blocker's central claim had gone false.
+
+**`__frontages` is an ARRAY, not a name-keyed map.** `A-frontage-signature.md`
+says *"every `FrontageWorld` with its `name`, for scripts"*, which reads
+naturally as a map — `Object.keys()` on the array returns sixteen INDICES, so a
+wrong probe even reports a plausible count of 16 before failing on the lookup.
+
+That is worth one word in A's document before F builds against it, and it is a
+candidate explanation for `10f8da2d`'s withdrawn "the BODEGA has no published
+frontage" — a name lookup against an array returns exactly nothing, for every
+shop, in a way that looks like a finding about one.
