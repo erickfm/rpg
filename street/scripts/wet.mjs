@@ -110,24 +110,48 @@ if (mode === 'probe' || mode === 'all') {
   console.log(`  ${individual ? 'OK  ' : 'FAIL'} puddles fill individually (${spread.size} distinct depths), not in lockstep`);
   console.log(`  ${gutterHolds ? 'OK  ' : 'FAIL'} the gutter and the road crown dry at different rates`);
 
-  // THE REFLECTION. This is the fix for the contrast inversion, and the whole
-  // claim is that it scales with the LIGHT rather than being a fixed sheet —
-  // so it must be strong in a daytime storm and near nothing in a small-hours
-  // one, in the same world state otherwise. A fixed sheet cannot do that, and
-  // a sheet that fails this is back to being a pale smear on a dark road.
-  const dayWet = [...Array(48).keys()].find((h) => rainy(h) && (h % 24) >= 11 && (h % 24) <= 16);
-  const nightWet = [...Array(48).keys()].find((h) => rainy(h) && ((h % 24) <= 3 || (h % 24) >= 22));
-  const reflAt = async (h) => {
+  // DARKER THAN THE ROAD, AT EVERY HOUR. This replaces an assertion about a
+  // REFLECTION layer that puddle pass five deleted — the check outlived the
+  // feature by a day and was failing for the right reason with the wrong
+  // message, which is its own kind of wrong.
+  //
+  // The contract now is simpler and stronger. The puddle body is tinted to a
+  // fraction of the road's CURRENT colour every frame, so the composite lands
+  // at ~0.55 x road whatever the hour and whatever the weather. The original
+  // bug was that a FIXED dark sheet got overtaken when the wet tint crushed
+  // the road six times darker, and the contrast inverted. Defined relative to
+  // the road, it cannot.
+  const contrastAt = async (h) => {
     await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
     await page.waitForTimeout(9000);
-    return Math.max(...(await read()).refl);
+    return page.evaluate(() => {
+      const sc = window.__ct.scene();
+      let road = null, pud = null;
+      sc.traverse((o) => {
+        const im = o.material?.map?.image; if (!o.isMesh || !im) return;
+        const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+        if (im.width === 64 && im.height === 64 && !o.material.transparent)
+          road = road === null ? L : Math.min(road, L);       // asphalt is the darkest broad sheet
+        if (im.width === 48 && im.height === 32 && o.material.transparent &&
+            o.material.blending === 1 && !pud && o.material.opacity > 0.1)
+          pud = { L, op: o.material.opacity };
+      });
+      if (road === null || !pud) return null;
+      return { road: +road.toFixed(4),
+               composite: +(pud.L * pud.op + road * (1 - pud.op)).toFixed(4) };
+    });
   };
-  const rDay = await reflAt(dayWet), rNight = await reflAt(nightWet);
-  console.log(`\n  reflection in a storm at ${dayWet % 24}:00 = ${rDay.toFixed(3)}, ` +
-    `at ${nightWet % 24}:00 = ${rNight.toFixed(3)}`);
-  const scales = rDay > 0.25 && rNight < rDay * 0.25;
-  console.log(`  ${scales ? 'OK  ' : 'FAIL'} standing water REFLECTS, and the reflection scales with the light`);
-  if (!scales) process.exitCode = 1;
+  const dayWet2 = [...Array(48).keys()].find((h) => rainy(h) && (h % 24) >= 11 && (h % 24) <= 16);
+  const wetC = await contrastAt(dayWet2), dryC = await contrastAt(13);
+  const levels = (c) => c ? ((c.road - c.composite) * 255).toFixed(1) : 'n/a';
+  console.log(`\n  puddle against the road, in a storm at ${dayWet2 % 24}:00 — ` +
+    `road ${wetC?.road}, puddle ${wetC?.composite} => ${levels(wetC)} levels DARKER`);
+  console.log(`  and on a dry afternoon — road ${dryC?.road}, puddle ${dryC?.composite} ` +
+    `=> ${levels(dryC)} levels DARKER`);
+  const neverInverts = wetC && dryC &&
+    wetC.composite < wetC.road && dryC.composite < dryC.road;
+  console.log(`  ${neverInverts ? 'OK  ' : 'FAIL'} standing water is darker than the road it sits on, wet AND dry`);
+  if (!neverInverts) process.exitCode = 1;
   if (!rainStopped || !stillFilling || !stillDark || !streetStillWet || !individual || !gutterHolds) process.exit(1);
 }
 

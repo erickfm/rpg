@@ -40,6 +40,18 @@ export function buildProps(ctx: CtxBuild): Props {
   const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
   const WET = new THREE.Color(0x5a626e);
   // ── weather: some hours it rains ────────────────────────────────────────
+  // A builder looking at a daytime storm reported "no rain particles in frame",
+  // and they were right — but not for the reason either of us first guessed.
+  //
+  // Not daylight: the per-drop contrast against the sky is 111 of 255 levels at
+  // 15:00 against 131 at 05:00, so a drop is nearly as visible by day.
+  // Not the count: tripling it to 1500 made no visible difference at all.
+  //
+  // It is the SIZE. A drop was 0.22 world units with size attenuation on, and
+  // the streak inside its sheet is one texel of eight — so at 15 m, in an 88°
+  // field over 900 px, each drop is about 7 px tall and well under a pixel
+  // WIDE. A sub-pixel hairline is mostly thrown away by the pixel grid however
+  // many of them there are, which is exactly why more did not help.
   const RAIN_N = 500;
   const RAIN_BOX = 30;   // world-space wrap period for raindrops
   const rainPos = new Float32Array(RAIN_N * 3);
@@ -55,7 +67,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // point size and the rain looked like falling grit rather than water
     g.fillStyle = 'rgba(214,222,232,0.75)'; g.fillRect(4, 1, 1, 14);
   });
-  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.22, transparent: true, opacity: 0, depthWrite: false });
+  const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.36, transparent: true, opacity: 0, depthWrite: false });
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
   scene.add(rain);
