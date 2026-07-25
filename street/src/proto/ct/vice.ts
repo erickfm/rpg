@@ -202,6 +202,39 @@ export function buildVice(o: {
     }
   };
 
+  // ═══ a FLANK is not a colour ═══════════════════════════════════════════
+  //
+  // The user, twice: "this looks bad because the front of the bank doesnt match
+  // the side fix this". Every shell on the block got its own masonry on the
+  // sides and returns; these two did not, because they were split into this file
+  // before that work landed and it did not travel with them. What was here was
+  // `endM` — one flat 0x53382e on three faces of both boxes, against a painted
+  // facade. D measured 12 such faces and could not fix them: this file is mine.
+  //
+  // Same hand as `facadeTex` deliberately — `masonry` at the block's px/m, real
+  // courses, weathered from the top — so a flank reads as the same building seen
+  // from the side rather than as a different, cheaper one. `baseY` is what keeps
+  // the courses of the upper box continuous with the band below it, so the
+  // brick does not restart at the shopfront line.
+  const flankTex = (brick: string, wM: number, hM: number, baseY: number) => {
+    const s = masonry(wM, hM, baseY);
+    const W = s.W, H = s.H;
+    return s.paint((g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, W, H);
+      s.courses(g);
+      // A flank weathers from the parapet down — rain carries the soot off the
+      // roof and it never reaches the bottom third. Without this the wall reads
+      // as new brick, which on this pair is the wrong century.
+      const soot = Math.max(1, Math.round(H * 0.42));
+      for (let y = 0; y < soot; y++) {
+        g.fillStyle = `rgba(28,22,18,${(0.30 * (1 - y / soot)).toFixed(3)})`;
+        g.fillRect(0, y, W, 1);
+      }
+      grime(g, W, Math.round(H * 0.10), Math.max(4, Math.round(H * 0.34)), Math.max(8, Math.round(W / 6)));
+      dither(g, W, H, 260);
+    });
+  };
+
   // ═══ the casino's shopfront band ═══════════════════════════════════════
   //
   // The entrance is drawn where VICE_DOOR_X says it is, which is the same number
@@ -368,15 +401,23 @@ export function buildVice(o: {
     const h = 3.4 + b.floors * 2.4;
     spans[b.nm] = [x0, x0 + b.w];
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    // BoxGeometry face order is [+x, -x, +y, -y, +z, -z], so the facade is index
+    // 5 and 0/1/4 are the two flanks and the back — exactly the three D measured
+    // as flat brown on each box. The +-x faces span the DEPTH, the +z face spans
+    // the WIDTH; painting both from one texture is how you get brick that
+    // stretches on one pair of faces and not the other.
+    const xt = flat(flankTex(b.brick, 3.4, h, gh));
+    const zt = flat(flankTex(b.brick, b.w, h, gh));
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 3.4),
-      [endM, endM, roofM, roofM, endM, facade]);
+      [xt, xt, roofM, roofM, zt, facade]);
     wall.position.set(cx, h / 2 + gh, zc);
     scene.add(wall);
     const bandM = flat(b.nm === 'GOLDEN ACES' ? acesBand(b, x0) : orpheusBand(b, x0));
+    const xs = flat(flankTex(b.brick, 3.4, gh, 0));
+    const zs = flat(flankTex(b.brick, b.w, gh, 0));
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4),
-      [endM, endM, roofM, roofM, endM, bandM]);
+      [xs, xs, roofM, roofM, zs, bandM]);
     shop.position.set(cx, gh / 2, zc);
     scene.add(shop);
     solid({ minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 0.3, maxZ: zc + 1.7 + 8 });
