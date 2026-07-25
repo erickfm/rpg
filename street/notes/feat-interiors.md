@@ -790,3 +790,27 @@ it was mine to do.
 
 **That closes the last open question I could answer myself.** Everything else
 outstanding needs someone else's decision or someone else's file.
+
+---
+
+# The church is landed; the world the user plays has not caught up
+
+`int-church.ts` is on `add-stick-and-city98` and my branch is 0 ahead — the
+train ran. `seats-walk` reports **80/80** across the world including all 18
+pews, and the church walks 25/25 in and out.
+
+**The live integration world on :5177 is still serving a pre-church build.** At
+build `811fe7f1c` it reports nine rooms without the church, and the prompt at
+the top of the flight still reads `try the doors of the church` — my
+locked-door placeholder, which `claimed()` retires automatically the moment the
+room is present. So the mechanism is fine; the build is old.
+
+**What that means for the user:** they asked to go into the church twice, it is
+built and verified, and if they load the world right now they still meet a
+locked door. Nothing in my ownership can change that — `live-integrate.sh`
+rebuilds :5177 and it is the desk's.
+
+Also visible in the same reading, and good news for the other half of the same
+complaint — *"i cant walk up the stairs or go in, same as library"*: **the live
+world already has a `library` room**, so E has landed that interior. Between
+the two, the whole of that user request is now built.
