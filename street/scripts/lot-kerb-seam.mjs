@@ -55,7 +55,19 @@ await reportWorld(page, URL);
 // is down-kerb. FACE_TOP is 0.140 - 0.030 because the chamfered arris rises
 // from the face top to the kerb top over the last 6.25 cm — comparing against
 // 0.140 fails a correct kerb, which kerbcut records having learned the hard way.
-const FACE_TOP = 0.140 - 0.030;
+// MEASURED, not remembered. This was `0.140 - 0.030` — B's KERB_H minus the
+// chamfer rise — mirrored into my file from their module. 716b21d13 and
+// cc2d8bb56 spent this week pulling exactly that kind of literal out of two
+// other harnesses, and a copy of someone else's constant is the same hazard
+// door301 carries confirmPivot for: change the kerb and this keeps running,
+// thresholding a profile against a height the world no longer has.
+//
+// The profile already contains the answer. Full reveal is the tallest the kerb
+// face gets across the sampled run — the stretches either side of the cut,
+// which are by definition uncut — so take it from the data and threshold at
+// half of that. Self-calibrating: if the kerb is rebuilt at another height this
+// still finds its cut, and if there is no kerb at all the guard below fires.
+const faceTop = (prof) => Math.max(...prof.map(([, v]) => v));
 const prof = await page.evaluate(() => {
   const sc = window.__ct.scene();
   const bins = new Map();
@@ -73,6 +85,8 @@ const prof = await page.evaluate(() => {
   });
   return [...bins.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => [k, +v.toFixed(4)]);
 });
+const FACE_TOP = faceTop(prof);
+console.log(`  full reveal measured at ${FACE_TOP.toFixed(3)} m (was a remembered 0.110)`);
 const down = prof.filter(([, v]) => v < FACE_TOP / 2).map(([k]) => k);
 if (!down.length) {
   console.error('\nNO DOWN-KERB anywhere along the sampled run — there is no cut to line up with.');

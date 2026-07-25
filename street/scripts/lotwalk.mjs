@@ -96,7 +96,15 @@ if (SELFTEST) {
 const start = 5.6;
 const RESULT = [];
 for (const z of ZS) {
-  await p.evaluate(([x, z]) => window.__ct.warp(x, z, Math.PI / 2, 0.14, 0), [start, z]);
+  // ASK THE WORLD WHERE THE FLOOR IS. This warped onto a remembered 0.14 —
+  // the pavement's height, true today and true only because this stretch is
+  // flat. 716b21d13 and cc2d8bb56 pulled the same literal out of two other
+  // harnesses for the same reason: the invariant is FEET ON THE FLOOR BENEATH
+  // THEM, and crosstown.ts publishes where that is. The park grew a mound and
+  // a dish this week; the first surface at another level turns a remembered
+  // height into a rig standing in the air or sunk in the deck, and the check
+  // fails on a world that is fine.
+  await p.evaluate(([x, z]) => window.__ct.warp(x, z, Math.PI / 2, window.__ct.groundAt(x, z), 0), [start, z]);
   await p.waitForTimeout(120);
   await p.keyboard.down('w');
   // WALK UNTIL IT STOPS, don't hold W for a fixed time. Movement is driven by
