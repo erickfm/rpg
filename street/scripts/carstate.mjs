@@ -23,7 +23,16 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];
-page.on('pageerror', (e) => errs.push(String(e)));
+// THE INTEGRATION WORLD DROPS ITS HMR SOCKET, and that is not a defect in the
+// world. `live-integrate.sh` rebuilds every 15 s, so Vite's client reports
+// "WebSocket closed without opened" — reportWorld's own banner says to expect
+// exactly one. Counting it as a page error made every probe of mine exit 1
+// against :5177 with all assertions green, which defeats the opt-in
+// (SHOT_WORLD=integration) that was added so this could be asked at all.
+// Dropped ONLY that message, ONLY in that mode: a real error still fails.
+const HMR_NOISE = /WebSocket closed without opened/;
+const noise = (m) => process.env.SHOT_WORLD === 'integration' && HMR_NOISE.test(m);
+page.on('pageerror', (e) => { const m = String(e); if (!noise(m)) errs.push(m); });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct?.carVariant !== undefined, { timeout: 10000 });
 await reportWorld(page, URL);

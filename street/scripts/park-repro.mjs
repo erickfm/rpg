@@ -71,9 +71,25 @@ const arrangement = async (page) => {
 
 const line = (c) => `${c.id}|${c.x}|${c.y}|${c.z}|${c.ry}`;
 
+// THE BUILD MUST NOT MOVE BETWEEN THE TWO LOADS. This compares two independent
+// page loads, and the live integration world rebuilds every 15 s — so a rebuild
+// landing between them looks EXACTLY like the defect this exists to catch, and
+// would report "parking re-rolls on every load" about a world that is fine. It
+// exited 1 against :5177 once and 0 a minute later, which is the signature.
+// Stamp both loads and refuse to compare across a change.
+const stampOf = (page) => page.evaluate(() => {
+  for (const el of document.querySelectorAll('div')) {
+    if (el.children.length) continue;
+    const m = (el.textContent || '').match(/^([0-9a-f]{7,40})(\+?)\s+\d\d:\d\d$/);
+    if (m) return m[1] + (m[2] || '');
+  }
+  return null;
+});
+
 const p1 = await browser.newPage({ viewport: { width: 900, height: 600 } });
 await p1.goto(URL, { waitUntil: 'networkidle' });
 await reportWorld(p1, URL);
+const stampA = await stampOf(p1);
 const A = await arrangement(p1);
 await p1.close();
 
@@ -83,8 +99,17 @@ await p1.close();
 const ctx2 = await browser.newContext({ viewport: { width: 900, height: 600 } });
 const p2 = await ctx2.newPage();
 await p2.goto(URL, { waitUntil: 'networkidle' });
+const stampB = await stampOf(p2);
 const B = await arrangement(p2);
 await ctx2.close();
+
+if (stampA && stampB && stampA !== stampB) {
+  console.error(`\nINCONCLUSIVE — the build changed between the two loads: ${stampA} then ${stampB}. ` +
+    'Two different worlds cannot be compared for reproducibility, and calling that a re-roll ' +
+    'would be a false report. Re-run against a build that is holding still.');
+  await browser.close();
+  process.exit(2);
+}
 
 if (A.length < 3 || B.length < 3) {
   console.error(`INCONCLUSIVE — found ${A.length} and ${B.length} stationary cars across the two loads. ` +
