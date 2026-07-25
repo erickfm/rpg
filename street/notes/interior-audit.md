@@ -403,3 +403,98 @@ story of this audit.
 
 - Casino and hotel remain source-only; six of ten rooms unwritten.
 - Floor density still varies (18.6–20.4) and is still anisotropic within rooms.
+
+---
+
+# Round 6 — seven rooms written, three in the world
+
+Base `add-stick-and-city98` @ `499892c7`. Since round 5: **`int-pawn.ts`** and
+**`int-tax.ts`** landed. Neither is wired. Neither are the casino or the hotel.
+
+## Finding 10, escalated twice over
+
+| | round 3 | round 4 | **round 6** |
+|---|---|---|---|
+| rooms written | 4 | 4 | **7** |
+| rooms in the world | 2 | 2 | **3** |
+| unwired | casino | casino, hotel | **casino, hotel, pawn, tax** |
+
+`buildCasino`, `buildHotel`, `buildPawn` and `buildTax` are all exported and
+none is called. `grep -c` in `crosstown.ts` returns 0 for each; slab 3 measures
+empty. **Four of seven finished rooms are unreachable, and the count has grown
+in each of the three rounds since it was first reported.** Two builders have now
+each shipped two rooms that no player can enter.
+
+This is the strongest evidence yet for the mechanism named in round 4: the kit
+made a room's *contents* self-registering and left the room's *own existence* as
+one hand-written line in the most contended file in the project, with nothing
+checking it. It is not a builder oversight three times over — it is a missing
+build-time assert. The kit already knows every id it has handed a slab to.
+
+## Finding 13, differentiated — the collision refactor reached one stretch
+
+Round 5 reported the entry-trigger debt as uniform. It no longer is: the thrift
+store now measures **0.01 m closest / 1.04 m margin / centre reachable**, where
+in round 5 it was 0.21 / 0.84 / blocked. Its door coordinate has not changed.
+
+So I mapped the reachable limit along both facades (`scripts/facade.mjs`, walking
+into the wall every 4 m):
+
+| stretch | limiting x | meaning |
+|---|---|---|
+| west wall, z ≥ −68 | **−6.29 … −6.34** | still inset 0.3 m |
+| west wall, z ≤ −72 | **−6.64** | at the true facade — refactor applied |
+| east wall, entire length | **6.28 … 6.34** | still inset 0.3 m |
+
+*(the outliers at −7.3 to −9.4 are the alley, the new park and the library
+courtyard, where there is no building to stop you — correct)*
+
+> **D's "collision follows geometry" has reached the west facade south of about
+> z = −70 and nowhere else.** Everything north of it, and the whole east wall,
+> still stops the player at ±6.3 against a facade at ±7.
+
+That is exactly why the thrift store came good and the diner, burger barn and
+No. 227 did not — thrift's door sits at z = −74.94, inside the converted stretch.
+It also gives a one-number acceptance test for the rest of the work: **the limit
+should read ±6.64 everywhere a facade stands.**
+
+## The two new rooms (spec only — not in the world)
+
+| | pawn | tax |
+|---|---|---|
+| clear | 11.0 × 8.0 | 12.0 × 8.5 |
+| ceiling | 2.80 | 2.75 |
+| frontage | 15 m | 13 m |
+| clear + walls ÷ frontage | 11.36 / 15 = **76 %** | 12.36 / 13 = **95 %** |
+
+I drafted this section claiming both new rooms fill their frontage and that "the
+three low ones are the three oldest" — then read the roster and found **PAWN is
+15 m, not the 12 m I assumed**. That is the second time this round-trip has
+caught me: roster widths move, and any number of mine older than one rebase is
+suspect. Corrected, the seven rooms read:
+
+| room | clear + walls | frontage | fill |
+|---|---|---|---|
+| thrift | 8.36 m | 12.5 m | 67 % |
+| burger barn | 11.36 m | 16 m | 71 % |
+| diner | 8.96 m | 12 m | 75 % |
+| pawn* | 11.36 m | 15 m | 76 % |
+| casino* | 10.86 m | 11.55 m | 94 % |
+| hotel* | 11.36 m | 12 m | 95 % |
+| tax* | 12.36 m | 13 m | 95 % |
+
+Round 5's statement survives and the "newest fill better" story does not: room
+widths are 8.0–12.0 m against frontages of 11.55–16 m, with **no relationship
+between the two**. Every room that "fills its frontage" is one that happens to
+stand behind a narrow building. The tax office is the first room anyone has
+built wider than 11 m.
+
+**Ceiling spread unchanged at 0.9 m** — casino 2.50, thrift 2.75, tax 2.75, pawn
+2.80, diner 3.00, burger 3.20, hotel 3.40.
+
+## Coverage — round 6
+
+- Four of seven rooms are source-only; their ceilings, densities, light, doors
+  and colliders are **unmeasured**. Everything above about them is read off
+  `RoomSpec`, not off the world.
+- Three of ten rooms still unwritten.
