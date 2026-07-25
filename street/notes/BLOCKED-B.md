@@ -96,6 +96,25 @@ bench and the lamps in the roadway.
 4. **A `'light'` kind for `SurfaceKind`** — `ct/paint.ts`, A's call. Five of the
    nine textures I declared are light, not material, and `'detail'` is the
    closest honest fit rather than the right one.
+5. **`density` is red, and the face is `civic`'s.** Confirmed at two builds
+   (`baf8a2f7` and `464934f0`), so it is not a stale-world artifact:
+
+   ```
+   declared 5x26 m at 8 px/m, mapped to 3.7x26 m (26% off) at (11.2, 13, -70.5)
+   ```
+
+   The mechanism, measured rather than guessed: that mesh is `BoxGeometry
+   5 × 26 × 3.7` carrying one `40 × 208` canvas. 40 px over the 5 m face is the
+   declared 8 px/m; the same 40 px over the 3.7 m ends is 10.8. One texture on a
+   box whose faces are not the same width will always do this — it needs
+   per-face maps or a repeat set from each face's own size.
+
+   Worth noting how it became routable. Two rounds ago this was one of three
+   faces **nobody could attribute**, and `4906af20` refused to guess at it. The
+   `userData.mod` stamps turned that into a lookup, so a density failure on it
+   now arrives with an owner attached instead of starting another round of
+   "whose is this". That is the stamp work paying for itself, on someone else's
+   finding rather than mine.
 
 ---
 
