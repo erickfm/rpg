@@ -1559,44 +1559,13 @@ function buildLot(o: {
     // has taken to the tip, a hose left coiled by the office door, and oil
     // where cars have stood for years.
 
-    // the sandwich board, at the mouth where it would be dragged out
-    // The canvas is sized from the LONGEST line and the aspect is taken from
-    // the face it lands on (0.62 wide by 0.86 tall), not chosen. Picking 52 px
-    // by eye is what shipped "TODA / ONLY / NO CREDI" — a 5-char line at 2 px
-    // per texel needs 58, and a 9-char line at 1 px needs 53. Same clipping
-    // that has now bitten the office board and the price cards; the rule is
-    // that no canvas here gets a number typed into it directly.
-    const BW = 62, BH = 86;
-    const wOf = (t: string, px: number) => (t.length - 1) * 6 * px + 5 * px;
-    const mid = (g: CanvasRenderingContext2D, t: string, y: number, px: number, ink: string) =>
-      stamp(g, t, Math.round((BW - wOf(t, px)) / 2), y, px, ink);
-    const boardFaceT = surfTex('sign', BW, BH, (g) => {
-      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, BW, BH);
-      g.fillStyle = '#2a2118'; g.fillRect(0, 0, BW, 3); g.fillRect(0, BH - 3, BW, 3);
-      mid(g, 'TODAY', 10, 2, '#c0392f');
-      mid(g, 'ONLY', 26, 2, '#c0392f');
-      g.fillStyle = '#c0392f'; g.fillRect(8, 44, BW - 16, 2);
-      mid(g, 'NO CREDIT', 52, 1, '#25406b');
-      mid(g, 'NO PROBLEM', 62, 1, '#25406b');
-      mid(g, 'WE FINANCE', 74, 1, '#2a2118');
-      dither(g, BW, BH, 30);
-    });
-    const boardEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
-    // Dragged out to the SOUTH side of the opening. In the middle of it, it
-    // was the second thing blocking the lane; a board is put where it is seen
-    // from the pavement and where nobody has to steer around it.
-    const sandZ = zS + span * SITE_GATE + 0.45;
-    for (const lean of [0.18, -0.18]) {
-      // the box is 0.04 thick in X, so its LARGE faces are +-x — indices 0
-      // and 1. Put the lettering on 4/5 and it lands on two 4 cm edges and
-      // the board comes back blank, which is exactly what happened.
-      const leaf2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.86, 0.62),
-        [flat(boardFaceT), flat(boardFaceT), boardEdgeM, boardEdgeM, boardEdgeM, boardEdgeM]);
-      leaf2.position.set(X0 + 1.5 + lean * 0.5, Y + 0.44, sandZ);
-      leaf2.rotation.z = lean;
-      scene.add(leaf2);
-    }
-    solid({ minX: X0 + 1.2, maxX: X0 + 1.8, minZ: sandZ - 0.4, maxZ: sandZ + 0.4 });
+    // THE SANDWICH BOARD IS GONE. The user: *"drop the 'TODAY ONLY' sandwich
+    // board — I don't like it."* Removed whole rather than shrunk or moved:
+    // the ask was not about its size or its place.
+    //
+    // Its collider goes with it. A board that is not drawn but still stops you
+    // is worse than the board was — an invisible wall at the mouth of the
+    // gate, on the one route in.
 
     // tyre stacks. Rubber is not black — it is a very dark warm grey, and a
     // stack reads by the gaps between the treads, so each one is its own ring

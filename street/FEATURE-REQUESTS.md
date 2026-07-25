@@ -72,6 +72,31 @@ published to the playable artifact.
 - **"pickup looks great but the wheels need to not clip through, maybe we need to have some inlaid wheel things pickups have / on the car idk if the doors make sense"** → **H**
 - **"park should be much deeper, like 4-5x deeper. and make it nice, a nice park with trees and a litle field maybe even a play area but not necessary maybe just a field with a walking route around the field?"** → **E**
 
+### 2026-07-25 — lot priority order, items 1-4 (→ builder C, `ct/lot.ts`)
+
+The user, giving priority order and noting the first two had been reported
+**twice**:
+
+> *"(1) CARS BACKWARDS ON THE LEFT ROW ... derive each car's heading from which
+> side of the aisle it is on, because a far row is a MIRROR of the near row and
+> not a copy. (2) CARS CLIPPING INTO EACH OTHER: measure box against box at
+> real dimensions, not centre spacing — the fleet is MIXED. Do the rotation
+> first, then measure. Target is no overlap with a small honest gap, 30-60cm.
+> Also check the fence, office, pole sign, cones and board. (3) DROP THE 'TODAY
+> ONLY' SANDWICH BOARD — the user does not like it. (4) THE POLE SIGN LOOKS OFF
+> — the panel is tiny against an enormous pole and the two faces read as skewed
+> rather than flat or back-to-back. Make it much bigger relative to the mast,
+> and if it is double-sided use two single-sided planes back to back per
+> GOTCHAS 10."*
+
+**All four routed to C.** (1) and (2) were already built and verified — nose-out
+derived per side, 21/21; clipping measured with an oriented-box test, 6 overlaps
+to 0, closest 0.42 m — but had not reached the played world: **34 of my commits
+were sitting unlanded because the merge train had not been run.** `land.sh
+--dry` lists five builders and 116 commits waiting. That is why the same two
+items were reported twice. (3) and (4) done fresh.
+
+
 ### 2026-07-25 — no car may clip another (→ builder C, `ct/lot.ts`)
 
 > *"make sure none of the cars in the lot are clipping into each other. You are
