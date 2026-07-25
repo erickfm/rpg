@@ -71,12 +71,20 @@ moment it lands:** `scripts/steps-walk.mjs` covers both flights.
 
 ---
 
-## Still needing a decision, not a fix
+## RESOLVED — the flights lead somewhere now
 
-Neither flight leads anywhere: no `[E]` at the top of either, and neither
-building has an interior. My recommendation is a locked-door response rather
-than two more rooms — a climb that ends in a prompt is honest, a climb that
-ends in nothing is not. That is a content call and I have not made it.
+I had this filed as "needing a decision, not a fix", with the recommendation
+already written: a locked-door response rather than two more rooms. That was
+wrong twice. It was not blocked on anyone, and the user had already made the
+call — *"Do NOT leave a flight of steps that leads to nothing."*
+
+Done in `ct/int-civic.ts` (`0ecfd662`). Both doors answer; `claimed()` hands
+the door over automatically the moment a real room registers for that
+building, so E's library interior needs no coordination with me.
+
+Note the church's prompt sits at its doors and is reachable **today**, from
+0.44 m short of them — so blocker 2 below no longer costs the player a
+response, only the last stride. It is still worth fixing.
 
 ---
 
