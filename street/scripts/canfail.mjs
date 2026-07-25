@@ -140,26 +140,47 @@ const dirty = () => sh('git status --porcelain src/').trim();
 // So the mutation is recorded on DISK before it is applied, and any run that
 // finds a stale record undoes it first. Survives SIGTERM, SIGKILL and a power
 // cut, and only ever reverts the one file it wrote down.
-const LOCK = '.canfail-mutated';      // which file is mutated right now
-const BACKUP = '.canfail-original';   // and exactly what it held before
+const STATE = '.canfail-state.json';   // { pid, file, backup }
 
-// Crash recovery, not signal handling. A 2-minute harness timeout SIGTERMed a
-// run mid-mutation and node died inside a synchronous `npm run build`, where
-// the event loop cannot turn and no JS handler runs — SIGKILL would not run one
-// either. So the original bytes go to disk BEFORE the edit and any later run
-// puts them back. Survives SIGTERM, SIGKILL and a power cut.
-if (existsSync(LOCK) && existsSync(BACKUP)) {
-  const f = readFileSync(LOCK, 'utf8').trim();
-  if (f) { writeFileSync(f, readFileSync(BACKUP)); console.log(`recovered ${f} from a killed run`); }
-  rmSync(LOCK, { force: true }); rmSync(BACKUP, { force: true });
-  try { sh('npm run build'); } catch {}
+// ONE AT A TIME. Two of these ran concurrently once — a background full run and
+// a foreground subset — and they shared a single backup file. One process wrote
+// the OTHER file's original bytes over props.ts, which came out of it holding
+// tex-ground.ts and 1481 lines shorter. Nothing reached a commit, but the
+// working tree was destroyed and only `tsc` caught it.
+//
+// The backup is per-file now, and the state file carries the owning PID so a
+// second run refuses instead of interleaving. Both were needed: per-file names
+// alone would still have let two runs fight over the same file.
+const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+
+if (existsSync(STATE)) {
+  let st = null;
+  try { st = JSON.parse(readFileSync(STATE, 'utf8')); } catch {}
+  if (st && st.pid && st.pid !== process.pid && alive(st.pid)) {
+    console.error(`REFUSING: canfail is already running as pid ${st.pid}.\n` +
+                  `Two runs share the source tree and will overwrite each other.`);
+    process.exit(2);
+  }
+  // Crash recovery. Not signal handling: a 2-minute timeout SIGTERMed a run
+  // mid-mutation and node died inside a synchronous `npm run build`, where the
+  // event loop cannot turn and no JS handler runs — SIGKILL would not run one
+  // either. So the original bytes go to disk BEFORE the edit, and the next run
+  // puts them back. Survives SIGTERM, SIGKILL and a power cut.
+  if (st && st.file && st.backup && existsSync(st.backup)) {
+    writeFileSync(st.file, readFileSync(st.backup));
+    console.log(`recovered ${st.file} from a run that died as pid ${st.pid}`);
+    rmSync(st.backup, { force: true });
+    try { sh('npm run build'); } catch {}
+  }
+  rmSync(STATE, { force: true });
 }
 
-let touched = null;
+let touched = null, backupPath = null;
 const restore = () => {
-  if (touched && existsSync(BACKUP)) { writeFileSync(touched, readFileSync(BACKUP)); }
-  touched = null;
-  rmSync(LOCK, { force: true }); rmSync(BACKUP, { force: true });
+  if (touched && backupPath && existsSync(backupPath)) writeFileSync(touched, readFileSync(backupPath));
+  if (backupPath) rmSync(backupPath, { force: true });
+  touched = null; backupPath = null;
+  rmSync(STATE, { force: true });
 };
 process.on('exit', restore);
 // SIGTERM as well as SIGINT, and this is not defensive padding — a 2-minute
@@ -180,8 +201,9 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
   try {
-    writeFileSync(BACKUP, src);       // the exact bytes back, whatever state they were in
-    writeFileSync(LOCK, file);        // on disk BEFORE the edit, so a kill is survivable
+    backupPath = `.canfail-backup-${file.split('/').pop()}`;   // per FILE, never shared
+    writeFileSync(backupPath, src);   // the exact bytes back, whatever state they were in
+    writeFileSync(STATE, JSON.stringify({ pid: process.pid, file, backup: backupPath }));
     touched = file;
     writeFileSync(file, src.replace(needle, repl));
     try { sh('npm run build'); }

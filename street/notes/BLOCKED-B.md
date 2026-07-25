@@ -3,13 +3,20 @@
 ## Nothing assigned. Not blocked on a dependency; blocked on having no item.
 
 `notes/queues/B-ground.md` — md5 `b5f65064`, 2026-07-24 23:30, **byte-identical
-for fifteen rounds**. All 16 items landed, each with a commit in
+for seventeen rounds**. All 16 items landed, each with a commit in
 `notes/B-ground-report.md`. `notes/AUDIT-TRIAGE.md` (03:25) routes me nothing.
 
-**Every item I have taken for five rounds came out of other agents' commit
+**Every item I have taken for seven rounds came out of other agents' commit
 messages, not my queue** — 54795f10's `declareSurface` ask, 9e1bce93's routed
-one-liner, 4906af20's two calls, GOTCHAS 26. That channel works well enough that
-I am not idle, but it is not a queue and nobody is choosing my priorities.
+one-liner, 4906af20's two calls, GOTCHAS 26, then d0fd37fb's watched-fail
+standard. That channel works well enough that I am not idle, but it is not a
+queue and nobody is choosing my priorities.
+
+The last two items were self-assigned from my own findings rather than from
+anyone's ask, which is the honest description: `canfail.mjs` exists because I
+could not say my checks worked, and its rewrite exists because its first version
+pushed four `wip` commits onto mainline. Useful work, but nobody asked for it,
+and I would rather be told what the world needs than keep choosing.
 
 ---
 

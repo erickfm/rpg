@@ -108,6 +108,63 @@ source tree restored clean
 Survives SIGTERM, SIGKILL and a power cut, and only ever reverts the one path it
 wrote down — so it can never eat unrelated work.
 
+### …and the guard itself pushed me into the worse mistake
+
+The first version also **refused to start on a dirty tree**, because it restored
+with `git checkout --` and that would have destroyed uncommitted work. Safe, and
+wrong: it made me commit to get clean, and on a branch that auto-merges every
+15 seconds **four `wip` commits reached mainline** before I noticed — one of them
+(`fabd6de2`) real source, the `basinPart` stamps and the throat assertion,
+landed under the message "wip3".
+
+A tool whose safety rule pushes you into a worse habit has only moved the
+failure. So it no longer consults git at all: it keeps a **byte copy** of the
+file it is about to edit and writes those exact bytes back. Uncommitted work
+survives a run untouched, the dirty-tree refusal is gone, and there is no longer
+any reason to commit before running it.
+
+Proven with real uncommitted work in the tree, both paths:
+
+```
+edit props.ts, do not commit      md5 28e4090fe9
+run canfail glow                  CAUGHT; md5 28e4090fe9, edit intact
+kill -9 mid-mutation, run again   recovered; md5 28e4090fe9, edit intact
+```
+
+The old version would have thrown that edit away on the recovery path. The exit
+check changed with it — no longer "is the tree clean", which is now allowed to
+be false, but "does every mutated file hold its original text again".
+
+### Then I ran two copies at once and it destroyed props.ts
+
+The byte-copy rewrite was correct for one process and I never asked what two
+would do. I left a full run going in the background and started a subset in the
+foreground; both mutated source, and **both used the same single backup file**.
+One wrote the other's original bytes over `ct/props.ts`, which came out of it
+holding `ct/tex-ground.ts`'s contents — 2400 lines down to 919, `buildProps`
+gone.
+
+Nothing reached a commit. The damage was confined to my working tree, the real
+content was in git, and `tsc` caught it within a minute. But the tool did that,
+not a mistake in the mutation list, and "do not run two" is not a fix.
+
+Two changes, and both were needed:
+
+- **the backup is per-file** — `.canfail-backup-props.ts`, never one shared name
+- **the state file carries the owning PID**, and a second run refuses outright:
+
+```
+REFUSING: canfail is already running as pid 2603705.
+Two runs share the source tree and will overwrite each other.
+```
+
+Verified by overlapping two runs on purpose: the second refused, the first
+finished 3/3 undisturbed, `tsc` clean, no stray state files. Per-file names
+alone would not have been enough — two runs would still have fought over the
+same file — which is why the PID check is there as well.
+
+All ten re-verified under the new implementation, in batches.
+
 ---
 
 *Written 2026-07-25. Harness: `scripts/canfail.mjs`.*
