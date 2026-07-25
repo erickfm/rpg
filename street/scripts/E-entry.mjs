@@ -1,0 +1,21 @@
+// The first thing a player sees, and the two objects nobody has looked at up
+// close: the gate sequence, the fountain, the memorial.
+import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const b = await chromium.launch();
+const page = await b.newPage({ viewport: { width: 1000, height: 620 } });
+await page.goto(URL, { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(page, URL);
+await page.evaluate(() => window.__ct.clock(13, 30));
+const shot = async (n, x, z, yaw, p = 0.02) => {
+  await page.evaluate(([x, z, y, pi]) => window.__ct.warp(x, z, y, 0.14, pi), [x, z, yaw, p]);
+  await page.waitForTimeout(1100);
+  await page.screenshot({ path: `shots/E-entry/${n}.png` });
+};
+await shot('a-approaching-the-gate', -5.2, -83.0, -Math.PI / 2, 0.04);
+await shot('b-through-the-gate', -9.5, -83.0, -Math.PI / 2, 0.02);
+await shot('c-the-fountain', -13.9, -87.2, Math.PI / 2, 0.0);
+await shot('d-the-memorial', -13.4, -71.6, Math.PI / 2, 0.06);
+await b.close();

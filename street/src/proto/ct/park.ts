@@ -718,7 +718,45 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     g.fillStyle = '#8a7a62'; g.fillRect(0, 0, 16, 3);            // coping
   });
   const pierM = flat(pierT);
-  const capM = new THREE.MeshBasicMaterial({ color: 0x8a7a62 });
+  // ── THE SAME AUDIT B RAN ON THE FORECOURT, RUN ON THE PARK ──────────────
+  //
+  // The desk, after B's measurements: *"check the rest of what you own for
+  // untextured flat-colour meshes, because the church forecourt and the park
+  // will have the same."* They do. The memorial, the drinking fountain, the
+  // copings and the kerb edging were all flat colour, and B's sentence applies
+  // to every one of them: *"a flat colour is not a material... an untextured
+  // quad has no grain for the eye to attach to and no joints to give it scale,
+  // so it reads as a tint over the paving rather than as a piece of paving."*
+  //
+  // One stone canvas at the world's 32 px/m, cloned per member with its repeat
+  // taken from that member's real metres. Same fix as the shelter's timber and
+  // the library's steps, for the same reason.
+  const PK_TILE = 1.5, PK_PX = Math.round(PK_TILE * 32);
+  const stoneCanvas = (base: string, lo: string, hi: string) =>
+    pixTex(PK_PX, PK_PX, (g) => {
+      const r = clcg(0x3f19a2);
+      g.fillStyle = base; g.fillRect(0, 0, PK_PX, PK_PX);
+      for (let i = 0; i < PK_PX * PK_PX * 0.2; i++) {
+        g.fillStyle = r() > 0.6 ? hi : lo;
+        g.fillRect(Math.floor(r() * PK_PX), Math.floor(r() * PK_PX), 1, 1);
+      }
+      for (let i = 0; i < 6; i++) {                    // weathering in patches
+        g.fillStyle = `rgba(72,68,56,${(0.05 + r() * 0.07).toFixed(3)})`;
+        g.fillRect(Math.floor(r() * PK_PX), Math.floor(r() * PK_PX),
+          4 + Math.floor(r() * 11), 3 + Math.floor(r() * 8));
+      }
+      dither(g, PK_PX, PK_PX, Math.round(PK_PX * PK_PX * 0.05));
+    });
+  const PK_STONE = stoneCanvas('#9a958a', '#8c8779', '#a9a496');
+  const PK_CONC = stoneCanvas('#8a8478', '#7d786c', '#99938６'.replace('６', '6'));
+  const stoneOf = (t: THREE.Texture, wM: number, hM: number) => {
+    const c = t.clone();
+    c.needsUpdate = true;
+    c.wrapS = THREE.RepeatWrapping; c.wrapT = THREE.RepeatWrapping;
+    c.repeat.set(Math.max(0.15, wM / PK_TILE), Math.max(0.15, hM / PK_TILE));
+    return flat(c);
+  };
+  const capM = stoneOf(PK_STONE, 1.0, 0.3);
   for (const gz of [gz0, gz1]) {
     const px = inside(0.35), dir = gz === gz0 ? -1 : 1;   // cap included
     const pier = new THREE.Mesh(new THREE.BoxGeometry(0.56, 1.62, 0.56), pierM);
@@ -744,7 +782,7 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   const woodM = new THREE.MeshBasicMaterial({ color: 0x5c4a33 });
   const woodM2 = new THREE.MeshBasicMaterial({ color: 0x51402c });
   const ironM = new THREE.MeshBasicMaterial({ color: 0x39403a });
-  const concM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+  const concM = stoneOf(PK_CONC, 0.5, 1.1);          // the drinking fountain
 
   // Benches: heavy cast ends and slatted seat and back, the pattern every
   // parks department in America bolted down and never replaced. They stand
@@ -1025,7 +1063,7 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // A municipal path has an edging strip holding the grass off it, and
   // without one the loop's edges dissolve into the field at any distance.
   // Same granite as the frontage kerb, laid flat rather than proud.
-  const edgeM = new THREE.MeshBasicMaterial({ color: 0x8a8780 });
+  const edgeM = stoneOf(PK_STONE, 2.0, 0.14);        // the path edging
   const edging = (x0: number, x1: number, z0: number, z1: number) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), 0.07, Math.abs(z1 - z0)), edgeM);
     m.position.set((x0 + x1) / 2, KERB_H + 0.035, (z0 + z1) / 2);
@@ -1094,8 +1132,8 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // outside the loop's north-east turn, so the corner has a reason to be
   // there and the field is not intruded on
   const memX = lx1 + 2.4, memZ = lz1 + 2.4;
-  const stoneA = new THREE.MeshBasicMaterial({ color: 0x9a958a });
-  const stoneB = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+  const stoneA = stoneOf(PK_STONE, 1.2, 1.2);        // the memorial
+  const stoneB = stoneOf(PK_CONC, 1.2, 1.2);
   for (const [i, w2] of [[0, 2.4], [1, 1.9]] as [number, number][]) {
     const st = new THREE.Mesh(new THREE.BoxGeometry(w2, 0.18, w2), i % 2 ? stoneB : stoneA);
     st.position.set(memX, KERB_H + 0.09 + i * 0.18, memZ);
