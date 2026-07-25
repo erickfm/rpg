@@ -158,6 +158,30 @@ if (process.argv.includes('--selftest')) {
   process.exit(caught === 3 ? 0 : 1);
 }
 
+// WHY THESE READ AN ABSOLUTE y AND NOT A HEIGHT ABOVE THE FLOOR.
+//
+// 716b21d13 says ask groundAt where the floor is rather than remembering it is
+// 0.14, and I tried it: `pos()` returns the ground as p[3], so "how far above
+// its own floor" looked like the honest quantity, and it is — everywhere except
+// straight after a warp.
+//
+// crosstown.ts: `warp: (x, z, ...) => { rig.pos.set(x, rig.pos.y, z); … }`.
+// **Warp preserves y.** It teleports in x and z and leaves the player's height
+// exactly where the previous position left it, so a harness that warps and then
+// reads height is reading the FLOOR IT CAME FROM. Measured at the churchyard,
+// where the ground rises to 0.349: the offset reads 1.271 instead of 1.480 and
+// stays there for four seconds, because nothing is settling — the y was never
+// wrong, it was never updated.
+//
+// So the offset form fails on a sound world, which is GOTCHAS §34 the other way
+// up. The absolute-y form below is loose — ±0.9 would swallow a 0.8 m drop —
+// but it is loose in the safe direction and it does not depend on a y that the
+// harness itself has invalidated. Tightening it needs the walk to settle the
+// player onto the floor first, which is a bigger change than this note.
+//
+// a9d88ecf5 hit the same thing from the other side: "my harnesses read the
+// wrong floor".
+
 console.log('\n1. the library courtyard');
 // z -19 is ON the south jamb of the mouth: probe there and the player scrapes
 // the corner and makes only 0.36 m. The mouth runs z -19.5 … -10.5 (probed),
