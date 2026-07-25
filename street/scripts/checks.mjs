@@ -38,6 +38,7 @@ const CHECKS = [
   ['frontage-honours', 'did the facade paint the door the room declared?', true],
   ['burger-palette',  'has BURGER BARN gone back to mustard?',            true],
   ['tree-crown',      'can you read a window through a tree again?',      true],
+  ['window-lattice',  'are the lit windows a lattice again?',             true],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],

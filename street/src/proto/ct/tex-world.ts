@@ -181,14 +181,19 @@ function facadeWindows(
   // window bays: as many as fit at BAY_M pitch inside a margin each end
   const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
   const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
-  const cells: { x: number; y: number; lit: boolean }[] = [];
+  // f and c travel with each cell. They cost nothing here and they are the only
+  // way anything outside can ask "are the lit windows a LATTICE again?" — the
+  // user's original report was diagonal stripes, and a lattice is a property of
+  // (floor, column), not of pixels. Recovering them from a painted canvas means
+  // re-deriving the layout this function already is the authority for.
+  const cells: { x: number; y: number; lit: boolean; f: number; c: number }[] = [];
   for (let f = 0; f < floors; f++) {
     // storey f counted from the BOTTOM, so a 4- and a 5-storey neighbour
     // share every window band they both have (seam finding 7)
     const sill = sill0 + f * FLOOR_M;                   // metres above the wall's foot
     const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
     for (let c = 0; c < cols; c++) {
-      cells.push({ x: m(MARGIN_M + slack + c * BAY_M), y, lit: litAt(f, c) });
+      cells.push({ x: m(MARGIN_M + slack + c * BAY_M), y, lit: litAt(f, c), f, c });
     }
   }
   return { surf, W, H, m, cells, winW: m(WIN_W), winH: m(WIN_H), sillT: m(SILL_M) };
@@ -251,7 +256,14 @@ export function facadeLitTex(
     brick, floors, wMeters, wallHeight(floors), DEFAULT_BASE_Y, 2, SKIRT_M,
     o.variant ?? 0, o.pct ?? 19,
   );
-  return surf.paint((g) => {
+  // Publish the lit GRID, not just the pixels. The user reported lit windows
+  // forming diagonal stripes, because the choice was `(f*7 + c*3) % 5 === 0` —
+  // a linear congruence, which is a lattice and not a scatter. It is fixed, and
+  // nothing would notice if it came back: from outside, lit windows are bright
+  // rectangles in a canvas and the (floor, column) structure is invisible.
+  // scripts/window-lattice.mjs is the consumer.
+  const litGrid = cells.filter((k) => k.lit).map((k) => [k.f, k.c]);
+  const litTex = surf.paint((g) => {
     for (const { x, y, lit } of cells) {
       if (!lit) continue;
       g.fillStyle = '#c9a45e';
@@ -260,6 +272,8 @@ export function facadeLitTex(
       g.fillRect(x, y + winH - m(0.6), winW, m(0.6));
     }
   });
+  litTex.userData.windows = { floors, cols: Math.max(...cells.map((k) => k.c)) + 1, lit: litGrid };
+  return litTex;
 }
 
 /** the shop ground-floor band, in metres. TALLER than the residential one
