@@ -100,6 +100,9 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
     paint: (draw: (g: CanvasRenderingContext2D) => void) => {
       const t = pixTex(W, H, draw);
       t.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H };
+      // and say what it IS, not only how dense it is — see declareSurface().
+      // Everything masonry() paints is brick by definition, so this one is free.
+      t.userData.surface = 'brick';
       return t;
     },
   };

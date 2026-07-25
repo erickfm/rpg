@@ -39,6 +39,10 @@ const out = await p.evaluate(() => {
     // painted brick-like face standing next to declared masonry. Collecting
     // only stamps made that case invisible here by construction.
     const ms = (m.map.userData && m.map.userData.masonry) || null;
+    // What the painter says this surface IS (declareSurface in ct/paint.ts).
+    // Null means nobody has said, which is UNJUDGEABLE rather than suspect —
+    // and counted as such at the bottom, so the gap stays visible.
+    const kind = (m.map.userData && m.map.userData.surface) || null;
     const e=o.matrixWorld.elements, len=(a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
     const S=[len(0,1,2),len(4,5,6),len(8,9,10)], pr=o.geometry.parameters||{};
     let fw, fh;
@@ -104,7 +108,7 @@ const out = await p.evaluate(() => {
     }
     faces.push({ u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
                  v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
-                 declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null,
+                 declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null, kind,
                  pts, nrm,
                  x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
                  at:[+((bb.min.x+bb.max.x)/2).toFixed(1),+((bb.min.y+bb.max.y)/2).toFixed(1),+((bb.min.z+bb.max.z)/2).toFixed(1)] });
@@ -137,6 +141,7 @@ const out = await p.evaluate(() => {
     const rV = Math.max(a.v,c.v)/Math.min(a.v,c.v);
     pairs.push({ rU:+rU.toFixed(2), rV:+rV.toFixed(2), a:{u:a.u,v:a.v,d:a.declared,at:a.at}, c:{u:c.u,v:c.v,d:c.declared,at:c.at},
       mixed: a.stamped !== c.stamped,
+      kinds: [a.kind, c.kind],
       bothOnGrid: [a.declared,c.declared].every(d=>d!==null&&(Math.abs(d-8)<0.01||Math.abs(d-16)<0.01)) });
   }
   return { nFaces: faces.length, nPairs: pairs.length, pairs };
@@ -166,7 +171,17 @@ const mixed = out.pairs.filter(q => q.mixed && (q.rU > 1.15 || q.rV > 1.15));
 const onGridU = (f) => Math.abs(f.u - 8) < 0.5 || Math.abs(f.u - 16) < 0.5;
 const und = (q) => (q.a.d !== null ? q.c : q.a);
 const offGrid = mixed.filter((q) => !onGridU(und(q)));
+// Three columns, not one list. A pair is only ANSWERABLE when both faces have
+// said what they are; otherwise the tool is guessing, and guessing is what put
+// ivy on a brick list.
+const bothBrick = mixed.filter(q => q.kinds.every(k => k === 'brick'));
+const notBrick  = mixed.filter(q => q.kinds.some(k => k && k !== 'brick'));
+const unknown   = mixed.filter(q => q.kinds.some(k => !k) && !q.kinds.some(k => k && k !== 'brick'));
 console.log(`\nDECLARED masonry touching UNDECLARED brick-like faces, densities disagreeing: ${mixed.length}`);
+console.log(`   brick vs brick, a real seam question:  ${bothBrick.length}`);
+console.log(`   one side says it is not brick:         ${notBrick.length}`);
+console.log(`   UNJUDGEABLE — nobody has said what the other face is: ${unknown.length}`);
+console.log(`   one line at the texture fixes that: declareSurface(tex, 'brick'|'sign'|…) in ct/paint.ts`);
 console.log(`   of those, the undeclared face is itself OFF the 8/16 grid: ${offGrid.length}` +
   ` — those are the ones a photograph of mismatched brick could be`);
 console.log(`   the rest read 8 or 16 and are a provenance question, not a visual one`);

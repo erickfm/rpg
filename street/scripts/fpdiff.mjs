@@ -14,6 +14,15 @@ const cmp = (key) => {
   return { key, a: a.length, b: b.length, onlyA, onlyB };
 };
 let worst = 0;
+// Does the world contain the same objects in both dumps? `structure` is
+// geometry + material with no position in it, so if it is identical then
+// nothing was added, removed or reshaped — and every `places` difference is
+// therefore the SAME objects standing somewhere else. In a hand-built world
+// the only things that do that are the ones that walk.
+const structureSame = (() => {
+  const a = A._structure ?? [], b = B._structure ?? [];
+  return a.length === b.length && [...a].sort().join('\n') === [...b].sort().join('\n');
+})();
 for (const key of ['textures', 'structure', 'places']) {
   const r = cmp(key);
   worst = Math.max(worst, r.onlyA.length);
@@ -54,9 +63,22 @@ for (const key of ['textures', 'structure', 'places']) {
         return !r.onlyB.some((b) => { const pb = pos(b);
           return pb.length === 3 && Math.hypot(pa[0] - pb[0], pa[1] - pb[1], pa[2] - pb[2]) < 0.05; });
       });
-      console.log(far.length
-        ? `   → ${far.length} moved further than 5 cm: NOT drift, something was placed differently`
-        : '   → every one has a partner within 5 cm: DRIFT (walkers, pigeons), not a move');
+      // A 5 cm threshold is right for a pigeon shuffling and wrong for a citizen,
+      // who crosses metres between two runs. Calling that "something was placed
+      // differently" is a false alarm, and it fired on a change that touched no
+      // geometry at all — which is how a checker teaches people to ignore it.
+      //
+      // The arbiter is `structure`: identical structure means the same objects
+      // exist in both dumps, so anything that moved is an object that moves.
+      if (!far.length) {
+        console.log('   → every one has a partner within 5 cm: DRIFT (pigeons), not a move');
+      } else if (structureSame) {
+        console.log(`   → ${far.length} moved further than 5 cm, but STRUCTURE IS IDENTICAL — the same`);
+        console.log('     objects are simply standing elsewhere. That is walkers, not placement.');
+      } else {
+        console.log(`   → ${far.length} moved further than 5 cm AND structure changed too:`);
+        console.log('     something was genuinely placed differently.');
+      }
     }
   }
 }
