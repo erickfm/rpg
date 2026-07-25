@@ -237,6 +237,34 @@ colours are their appearance and comparing them is like with like.
 a fault someone else published this session, and the first time the answer was
 already right.
 
+### Deleted `G-approach.mjs` and `G-lane.mjs`, and what they were still saying
+
+Auditing my own scripts after `643ceddd9` turned up two I had forgotten: early
+diagnostics from before `G-rooms-walk` and `G-vice-walk` existed. Neither is
+registered, and **neither has a `--selftest`, so `checks-registered` cannot even
+see them** — worse than the red it flags for the other two, because a silent
+never-run script looks like nothing at all.
+
+Both were superseded: `G-approach`'s job (the `[E]` spot must be REACHED, not
+warped onto) is `G-rooms-walk`'s prompt/enter/exactness checks, and `G-lane`'s is
+the registered `builtlane` plus the band measurement in `G-vice-walk`.
+
+**`G-lane` was also actively misleading, which is why this is a deletion rather
+than a shrug.** It still runs, and reports three of four side-street lanes
+`STUCK at x ≈ 19.4`. That reads as a blocked pavement. Measured with static
+colliders instead:
+
+```
+x 19.8..20.2   z -97.85..-97.45     one 0.4 m post
+```
+
+Real and static — not a citizen — but it leaves a **0.61 m clear centre band**
+against the 0.23 m the lane audit accepts. Passable, and 13 m west of my nearest
+building. `G-lane` says STUCK because it reports per-lane blockage without ever
+computing the band, which is exactly the flaw `G-vice-walk`'s band check was
+rewritten to remove. A script that shouts about a sound pavement, that nobody
+runs and no tool can see, is a trap for whoever runs it next.
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
