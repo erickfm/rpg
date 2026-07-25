@@ -1,50 +1,51 @@
-## audit/seams — all seven rooms in the world; six of nine doors blocked
+## audit/seams — light measured across all seven rooms; I am withdrawing finding 15
 
-Two commits this pass, one outcome each.
-Base `3646cc3e`.
+Queue `## Now` (interiors, standing). Base `33507a7f`.
+Report: `notes/interior-audit.md`, Round 12.
 
-Touched:   notes/interior-audit.md (+Rounds 10, 11), notes/audit-seams.md,
-           scripts/triggers.mjs (+pawn), scripts/interiors.mjs (7 slabs)
+Touched:   notes/interior-audit.md (+Round 12), notes/audit-seams.md,
+           scripts/lightset.mjs (new)
            **nothing under street/src/**
 
-### Round 10 (`67cb7571`) — finding 10 is CLOSED
+Closes the last gap I was carrying — the four newest rooms had never been
+through the round-7 light comparison. All seven now shot from a matched station,
+measuring **mean rendered frame luminance** (round 7 established that ceiling-
+material luminance is the wrong statistic; it misses the glow).
 
-`0b6d6630` replaced the hand-written `buildX(ctx)` calls with
-`buildAllInteriors`, which globs `./int-*.ts`, sorts by path for deterministic
-slab addresses, and calls each module's `build…()` export. **Measured: slabs 0–6
-all populated. Seven rooms, seven slabs.** The pawn shop, unwired for three
-rounds, is in.
+| burger | tax | diner | thrift | hotel | pawn | casino |
+|---|---|---|---|---|---|---|
+| 0.720 | 0.702 | 0.638 | 0.630 | 0.549 | 0.398 | **0.228** |
 
-> 1 of 4 unreachable → 2 of 4 → 4 of 7 → 1 of 7 → **0 of 7.**
+### Finding 15 is withdrawn
 
-The fix is stronger than the assert I proposed in round 4: the failure now
-**cannot be made**, rather than being detected. Slab addresses changed with it
-— burger 0, casino 1, diner 2, hotel 3, pawn 4, tax 5, thrift 6.
+Round 7 read **three** rooms and called the lighting level indefensible. Seven
+rooms show a different shape:
 
-**Seven rooms, four agents, wall thickness 0.18 and wall density 11.9 × ~12.0 in
-every one.** Everything still disagreeing is a free parameter: seven distinct
-ceiling heights spanning 0.9 m, ceiling luminance 5.6 : 1, floor density
-18.3–21.3 and anisotropic within rooms.
+- **Four ordinary retail rooms cluster at 0.630–0.720** — 14 % across four rooms
+  by three agents. Close agreement, not drift.
+- **Three deliberately darker venues form a graduated ramp** — hotel 0.549, pawn
+  0.398, casino 0.228 — each matching its own brief, and both dark rooms fully
+  readable. The casino is dark carpet and ceiling with lit slot fronts and a lit
+  cage, which is exactly what its file says it is for.
 
-**Finding 12 — the tool landed, nothing uses it.** `b002bea9` published
-`frontageOf(name, wMeters)`, exactly what this audit asked for in round 5 after
-being caught twice by stale roster widths. But `grep -l frontageOf
-src/proto/ct/int-*.ts` returns nothing and room widths are unchanged. One import
-per room away from closed.
+The set is coherent. I carried this as a medium finding for five rounds on a
+three-room sample.
 
-### Round 11 (this commit) — all nine street doors
+What survives is narrower and still worth the desk knowing: **the kit fixes lamp
+count from room depth and leaves output free**, so this coherence comes from
+seven builders' individual judgement, not from anything the kit guarantees. It
+held; there is no evidence it keeps holding for rooms eight to ten.
 
-| reachable | blocked |
-|---|---|
-| GOLDEN ACES 1.05 (100 %) · HOTEL 1.05 (100 %) · BODEGA 1.09 (99 %) | No. 227, BURGER, TAX, **PAWN** 0.84 (80 %) · DINER 0.83 · THRIFT **0.78 (74 %)** |
+**Finding 16 stands** — the thrift's two tubes still glow differently from each
+other. A within-room inconsistency is unaffected by sample size.
 
-**The split is geographic, not per-builder.** Every side-street and corner door
-is fully reachable; **every main-street door is blocked.** Six of nine.
+### The lesson I keep relearning
 
-Seven rooms have now independently placed a door 0.45 m off the facade — the
-correct thing to do — and six are inside solid because of where the *street*
-says the wall is. The pawn shop inherited the debt on arrival. This is not
-fixable from the interior side; it is the round-6 facade map showing through.
+Third time this audit: **a set-level claim needs the whole set.** It caught me on
+the frontage percentages twice (stale roster widths) and now on lighting (three
+of ten rooms). Worth stating plainly in my own reports so the desk can weight my
+set-level findings by how much of the set I had.
 
-Left:      Three of ten rooms unwritten. The four newest rooms have not been
-           through the round-7 side-by-side light comparison.
+Left:      Three of ten rooms unwritten — this conclusion is provisional at 7/10.
+           Daylight only; the recent night-lighting work was not checked against
+           interiors.

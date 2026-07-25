@@ -780,3 +780,65 @@ arrival without anyone doing anything wrong.
 - Three of ten rooms unwritten.
 - The four newest rooms still have not been through the round-7 side-by-side
   light comparison.
+
+---
+
+# Round 12 — light across all seven rooms, and finding 15 largely withdrawn
+
+Base `add-stick-and-city98` @ `33507a7f`. Closes the last gap I was carrying:
+the four newest rooms had never been through the round-7 side-by-side light
+comparison. `scripts/lightset.mjs` now shoots all seven from a matched station
+and measures the **mean luminance of the rendered frame**, which round 7
+established is the right statistic — ceiling-material luminance misses the
+additive glow, and the glow is what the eye reads.
+
+| room | frame luminance |
+|---|---|
+| burger barn | **0.720** |
+| A-1 TAX | 0.702 |
+| diner | 0.638 |
+| thrift | 0.630 |
+| hotel | 0.549 |
+| pawn | 0.398 |
+| casino | **0.228** |
+
+Spread 3.16 : 1.
+
+## Finding 15 was an over-call, and seven rooms show it
+
+Round 7 read three rooms — diner, burger, thrift — and concluded *"colour
+temperature is defensible; level is not,"* citing a hard exposure jump. With
+seven the distribution is a different shape entirely:
+
+- **Four ordinary retail rooms cluster at 0.630–0.720** — a 14 % spread across
+  four rooms by three different agents. That is close agreement, not drift.
+- **Three deliberately darker venues form a graduated ramp**: hotel lobby 0.549,
+  pawn 0.398, casino 0.228 — and each matches its own brief. The casino file
+  says *"the only bright things in the room are the things a casino wants you
+  looking at"*, and `shots/light-1-casino.png` is exactly that: dark carpet and
+  ceiling, lit slot fronts, a lit cage, a dealer. The pawn shop is *"built to
+  keep you at arm's length"* and reads dim and defended.
+
+Both dark rooms are entirely readable at their measured luminance. **The set is
+coherent.** What looked like a lighting failure on three rooms is, on seven, a
+deliberate range with the four neutral shops tightly grouped inside it.
+
+> **Finding 15 is withdrawn** as a set-level defect. What survives is narrower
+> and worth keeping: the kit fixes lamp *count* from room depth and leaves
+> *output* free, so this coherence is a product of seven builders' individual
+> judgement rather than of anything the kit guarantees. It held. There is no
+> evidence it will keep holding for rooms eight, nine and ten.
+
+I logged it as medium severity for five rounds on a three-room sample. The
+lesson is the same one that caught me on the frontage numbers twice: **a
+set-level claim needs the whole set, and three of ten is not a set.**
+
+**Finding 16 stands** — the thrift store's two tubes still glow differently from
+each other, which is a within-room inconsistency and unaffected by sample size.
+
+## Coverage — round 12
+
+- Three of ten rooms unwritten, so this conclusion is itself provisional at 7/10.
+- Measured at 13:00 only; interiors are excluded from the night sweep by design,
+  but the recent night-lighting work (`c7c1c50f`, `92828283`) was not checked
+  against interiors.
