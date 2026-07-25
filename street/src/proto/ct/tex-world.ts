@@ -274,16 +274,45 @@ export const SHOP_MULT = 2;
  * int-*.ts rooms already write it: signed metres from the frontage CENTRE,
  * negative to the left. Use whichever suits; they cannot disagree.
  */
+/**
+ * Where a frontage sits in the world. `uDir` is the ONE piece of handedness in
+ * the system, and it is measured off the mesh rather than assumed: a west
+ * facade's canvas u runs along -z, an east facade's along +z, a side-street
+ * one along -x. That is not a quirk. A room and its facade are the two faces
+ * of one wall, so their handedness is opposite by construction.
+ */
+export interface Placement {
+  /** the world axis the frontage runs along */
+  axis: 'x' | 'z';
+  /** its extent on that axis */
+  loWorld: number; hiWorld: number;
+  /** the facade plane on the OTHER axis, and which way is outdoors */
+  facePos: number; outward: 1 | -1;
+  /** which world direction canvas u increases in, along `axis` */
+  uDir: 1 | -1;
+}
+
+/**
+ * The frontage in CANVAS space — metres from u = 0, the painters' own terms.
+ *
+ * DEPRECATED outside this file. The positional fields are LOCAL OFFSETS, and
+ * local offsets are exactly what let the tax office's interior door and its
+ * facade door disagree: each side authored its own number in its own space and
+ * the mirror between them travelled as an assumption. `frontageWorld()` is the
+ * replacement. These stay only so that migrating `ct/interior.ts` is a choice
+ * F makes rather than a build I broke — see BLOCKED-A.md.
+ */
 export interface Frontage {
   /** full width of the shopfront, metres */
   frontageM: number;
-  /** door centre, metres from the left edge */
+  /** @deprecated local offset — use frontageWorld().doorWorld */
   doorCentreM: number;
-  /** door centre, signed metres from the frontage centre (the `at:` convention) */
+  /** @deprecated local offset — use frontageWorld().doorWorld */
   doorOffsetM: number;
   doorWidthM: number;
-  /** the glazed span, metres from the left edge */
+  /** @deprecated local offsets — use frontageWorld().glazingLo/HiWorld */
   glazingStartM: number;
+  /** @deprecated local offsets — use frontageWorld().glazingLo/HiWorld */
   glazingEndM: number;
   /** stallriser height above the pavement, metres */
   stallriserH: number;
@@ -404,6 +433,85 @@ export function frontageOf(name: string, wMeters: number): Frontage {
   };
 }
 
+// ═════════════════ WHERE A SHOPFRONT IS, IN THE WORLD ══════════════════════
+//
+// Standing inside the tax office the door is on your right; step out, turn
+// round, and it must be on the left of the facade. A room and its facade are
+// the two faces of ONE WALL, so their handedness is opposite by construction —
+// and nothing knew that, because each side authored its own offset in its own
+// local space and the mirror between them was carried around as an assumption.
+//
+// So positions are published in WORLD COORDINATES on the axis the roster lays
+// buildings out along: world z for a main-block shop, world x for a side-street
+// one. Then the painter converts world → texel column, a room converts world →
+// its own local space applying whatever mirror its facing implies, and an [E]
+// spot uses the number as it stands. Three consumers, one number, the mirror
+// happening once inside each rather than travelling between them. A room later
+// flipped to face the other way keeps working, which left/right bookkeeping
+// never gives you.
+
+export interface FrontageWorld extends Placement {
+  frontageM: number;
+  /** DOOR CENTRE IN WORLD COORDINATES on `axis`. Not an offset, not a side. */
+  doorWorld: number;
+  doorWidthM: number;
+  /** the glazed span in world coordinates, lo <= hi whatever uDir is */
+  glazingLoWorld: number;
+  glazingHiWorld: number;
+  stallriserH: number;
+  fasciaH: number;
+  fasciaBottomM: number;
+  glazingBottomM: number;
+  glazingTopM: number;
+}
+
+// Populated as the street builds — shopfrontRelief already runs once per
+// shopfront and already receives the placement — and read afterwards by the
+// rooms and the [E] spots. A register rather than a second computation, on
+// purpose: the moment two places work out where a door is they are free to
+// disagree, which is the whole bug.
+const FRONTAGES = new Map<string, FrontageWorld>();
+
+/** canvas metres from u = 0 → a world coordinate on the frontage axis */
+const toWorld = (p: Placement, alongU: number) =>
+  p.uDir > 0 ? p.loWorld + alongU : p.hiWorld - alongU;
+
+export function registerFrontage(name: string, wMeters: number, p: Placement): FrontageWorld {
+  const L = frontageOf(name, wMeters);
+  const a = toWorld(p, L.glazingStartM), b = toWorld(p, L.glazingEndM);
+  const f: FrontageWorld = {
+    ...p,
+    frontageM: wMeters,
+    doorWorld: toWorld(p, L.doorCentreM),
+    doorWidthM: L.doorWidthM,
+    glazingLoWorld: Math.min(a, b),
+    glazingHiWorld: Math.max(a, b),
+    stallriserH: L.stallriserH,
+    fasciaH: L.fasciaH,
+    fasciaBottomM: L.fasciaBottomM,
+    glazingBottomM: L.glazingBottomM,
+    glazingTopM: L.glazingTopM,
+  };
+  FRONTAGES.set(name, f);
+  // test affordance, same spirit as crosstown.ts's `scene: () => scene`: this
+  // is the shared contract three consumers depend on, so it has to be readable
+  // from outside to be checkable at all.
+  (globalThis as Record<string, unknown>).__frontages = [...FRONTAGES.values()];
+  return f;
+}
+
+/** THE shared answer to "where is this shop's door?". Null before the street
+ *  has built — every consumer runs after it, so null means a name typo. */
+export function frontageWorld(name: string): FrontageWorld | null {
+  return FRONTAGES.get(name) ?? null;
+}
+
+/** world coordinate on the frontage axis → 0..1 across the canvas. The mirror,
+ *  applied once, here, for anything that needs to draw ON the facade. */
+export function uAt(f: FrontageWorld, world: number): number {
+  return (f.uDir > 0 ? world - f.loWorld : f.hiWorld - world) / f.frontageM;
+}
+
 /**
  * THE ROOM BEHIND THE GLASS.
  *
@@ -503,6 +611,21 @@ export function shopfrontRelief(o: {
   rotY: number;
 }): void {
   const F = frontageOf(o.name, o.wMeters);
+  // Publish where this frontage actually is, while we still have the placement
+  // in hand. rotY tells us the axis, the outward normal and — the only piece of
+  // handedness in the system — which way canvas u runs. Those four values were
+  // MEASURED off the meshes' uv attribute, not assumed: a west facade's u runs
+  // along -z, an east facade's along +z, a side-street one along -x.
+  const half = o.wMeters / 2;
+  const R = ((o.rotY % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const near = (a: number) => Math.abs(R - a) < 0.01;
+  const place: Placement | null =
+    near(Math.PI / 2) ? { axis: 'z', loWorld: o.z - half, hiWorld: o.z + half, facePos: o.x, outward: 1, uDir: -1 }
+    : near(Math.PI * 1.5) ? { axis: 'z', loWorld: o.z - half, hiWorld: o.z + half, facePos: o.x, outward: -1, uDir: 1 }
+    : near(0) ? { axis: 'x', loWorld: o.x - half, hiWorld: o.x + half, facePos: o.z, outward: 1, uDir: 1 }
+    : near(Math.PI) ? { axis: 'x', loWorld: o.x - half, hiWorld: o.x + half, facePos: o.z, outward: -1, uDir: -1 }
+    : null;
+  if (place) registerFrontage(o.name, o.wMeters, place);
   const g = new THREE.Group();
   g.position.set(o.x, 0, o.z);
   g.rotation.y = o.rotY;
@@ -510,7 +633,6 @@ export function shopfrontRelief(o: {
 
   const CORNICE = 0.20, BED = 0.13, JAMB = 0.12, CILL = 0.11, PLINTH = 0.09;
   const RECESS = 0.45;                 // how far back the room sits
-  const half = o.wMeters / 2;
   const along = (mFromLeft: number) => mFromLeft - half;   // frontage metres → local x
   // Separate material instances on purpose: ct/props.ts's dimWorld() grades a
   // material ONCE, by the elevation of the first mesh it sees wearing it. Share
