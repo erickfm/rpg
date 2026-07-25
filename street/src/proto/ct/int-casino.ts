@@ -83,11 +83,14 @@ const standOf = (d: DoorDecl, standoff = 0.75) =>
  */
 export const DOOR: DoorDecl = {
   building: 'GOLDEN ACES', w: 11.55, cz: 51.225, side: 1, at: 0,
-  width: 1.15,
-  // THE LEAF THIS BUILDING SHOULD DECLARE, and why it is not declared yet:
-  //
-  //   leaf: { clearW: 2.4, h: 2.7, leaves: 2,
-  //           frame: { colour: 0xc8a94e, material: 'brass' }, glazing: 'full' }
+  // WHAT THE DOOR IS — the user's own complaint, routed to F: "the interior
+  // door doesnt match the exterior doorway". The exterior is a wide gold-framed
+  // DOUBLE door under a lit canopy; the room was building a narrow single
+  // domestic leaf with a small window. Both sides read this now.
+  leaf: {
+    clearW: 2.4, h: 2.7, leaves: 2,
+    frame: { colour: 0xc8a94e, material: 'brass' }, glazing: 'full',
+  },
   //
   // That is the user's screenshot — "a wide gold-framed DOUBLE door under a lit
   // canopy" — and the kit reads it correctly: with it declared the room's
@@ -162,7 +165,10 @@ export function buildCasino(ctx: CtxBuild): void {
       // in the world right now". That framing was wrong: it is not a trade
       // between two design options, it is a trade between a user instruction and
       // a preference of mine. Those do not rank equally.
-      at: 0, width: 1.15,
+      at: 0,
+      // no `width` here: the kit takes the opening from the declared leaf, and
+      // typing it beside the declaration is what let a single-leaf room sit in
+      // a double-door building in the first place.
       // Step out ALONG the walk, east, away from the way-in trigger. The north
       // side-street walk is only the 2 m band z ∈ (-98, -96) and the building
       // collider eats down to -96.3, so there is about a metre of standing
