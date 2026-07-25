@@ -95,3 +95,42 @@ written in my queue in the user's words. So: reported, not done.
 **Until then:** if `fpdiff` shows you exactly three `r=0.075` spheres differing
 only in material colour and nothing else, that is the chase, and your change is
 clean. Anything else in the list is real.
+
+---
+
+## Update: `tints` is a SECOND unstable column, and it is not the chase
+
+Found while proving the deprecated-field migration was a no-op. Two runs of
+**identical code**, nothing touched between them:
+
+```
+run 1   textures=951d46e3  structure=ba64acce  tints=e883664f  places=206665f6
+run 2   textures=951d46e3  structure=ba64acce  tints=611e839f  places=8e91700
+```
+
+`tints` flips between exactly two values, run to run. It is not the chase bulbs
+described above — that leak is in `structure`, and `structure` is rock steady
+here across every run I have taken today.
+
+I have not chased what drives it; the likely candidates are the rain wetness
+state or the night wash, both of which rewrite material colours on their own
+clock the way the chase does, and both of which the dump does not pin. Whoever
+owns `wetMats` or the night grade will know in a minute.
+
+**What matters for anyone reading an `fp` diff.** CLAUDE.md's rule — *"Textures
+and structure must match"* — is still exactly right, and is now doing more work
+than it looks like it is: **two of the four columns are noise**, and only the
+two the rule names are evidence.
+
+```
+textures    stable    evidence
+structure   stable    evidence, EXCEPT the three chase bulbs documented above
+tints       UNSTABLE  ignore
+places      UNSTABLE  ignore — the drifting pigeons, the documented noise floor
+```
+
+If you are about to explain away a difference in `textures` or `structure`,
+don't. If you are about to worry about one in `tints` or `places`, don't do
+that either — take a second reading of the same build first and see whether it
+moves on its own. That control costs one command and it is the only thing that
+separates the two cases.
