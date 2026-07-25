@@ -302,6 +302,20 @@ file I own, on work already delivered.**
 **The ruling:** re-point both entries at G, or mark them done. `FEATURE-REQUESTS.md`
 is the desk's file.
 
+**And the inverse is clean, which completes the picture.** I checked the log the
+other way too — every request routed *to* G. There are exactly two:
+
+```
+:33  "i want to build out the insides of the following…"  → G: casino, hotel, pawn, tax
+:89  "the front facade of the casino and the hotel are so low effort and boring"
+     → G, extracted into ct/vice.ts
+```
+
+Both delivered. **So nothing a user has asked for is outstanding against me** —
+the two entries above are also delivered, they are simply filed under another
+builder's name. There is no user-visible work waiting in my area, which is worth
+the desk knowing when it decides what to do with the seat.
+
 ## 7. The casino and hotel facades are centred; their interior doorways are not
 
 **A decision, not a bug, and not mine to take alone** — it trades against the
