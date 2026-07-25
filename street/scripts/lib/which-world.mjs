@@ -141,7 +141,23 @@ export async function reportWorld(page, url) {
       console.error(`  builder's tree are not evidence about yours.`);
       console.error(`  Fix: start your own preview, or set SHOT_URL to it.\n`);
     }
-    throw new Error(`wrong world: served ${tag}, local ${head}`);
+    // EXIT 3, not a throw. An unhandled throw exits 1, which is exactly what a
+    // FAILED CHECK exits with, so "the build moved under me" and "the world is
+    // broken" arrive as the same status. BLOCKED-H asked for this after a
+    // feet-check red that was probably a rebuild mid-run and could not be shown
+    // to be one, because the output had been discarded and only the status
+    // survived. I have hit the same confusion four times in one session — most
+    // sharply when D-walk read "3 of 3 FAILED" under load and every one was
+    // this guard.
+    //
+    // 3 because 2 is taken: scripts/checks.mjs exits 2 for "nothing is serving
+    // that URL", and INCONCLUSIVE is 2 across H's probes. checks.mjs already
+    // string-matches the banner above, which keeps working — this gives the
+    // same distinction to anyone running a single check by hand.
+    //
+    // process.exit rather than a code plus a throw, because node forces 1 on an
+    // uncaught exception and would overwrite it.
+    process.exit(3);
   }
   console.log(`measuring ${url}  build ${tag}${served.dirty ? ' (uncommitted changes, as expected)' : ''}`);
   return served;

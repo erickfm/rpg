@@ -1134,3 +1134,30 @@ time, and the identical-parameters mutant still fails.
 The verdict was never in danger — `>= 12` against 18 or 19 is the same answer —
 but a headline number that moves on an unchanged world is exactly what teaches
 people to stop reading it.
+
+## `reportWorld` now exits 3, so an abort stops looking like a failure
+
+`BLOCKED-H` (`e0b0c5fd`) asked for this and could not patch it — *"lib/which-world.mjs is not mine, so this is a request rather than a patch"*. It is a
+request I had already paid for four times in one session, most sharply when
+`D-walk` read **3 of 3 FAILED** under load and every one of them was this guard,
+not a flake.
+
+An unhandled throw exits 1, which is what a failed check exits with, so *"the
+build moved under me"* and *"the world is broken"* arrive as the same status.
+H's `feet-check` red could not be shown to be a rebuild-mid-run because only the
+status survived.
+
+Now:
+
+```
+matching build        exit 0
+mismatched build      exit 3     <- was 1
+real assertion fail   exit 1
+```
+
+3 because 2 is taken — `checks.mjs` exits 2 for "nothing is serving that URL",
+and INCONCLUSIVE is 2 across H's probes. `process.exit` rather than a code plus
+a throw, because node forces 1 on an uncaught exception and would overwrite it.
+
+`checks.mjs` now reads the status first and keeps the banner string-match as a
+fallback, so nothing that predates the code regresses.

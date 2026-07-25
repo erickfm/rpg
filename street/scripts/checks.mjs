@@ -211,7 +211,10 @@ for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
     continue;
   }
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const wrongWorld = out.includes('MEASURING THE WRONG WORLD');
+  // Status first, banner second. reportWorld exits 3 for "that is not my build"
+  // (BLOCKED-H), which is a status this runner can trust; the string match stays
+  // as a fallback for any check that predates it or prints without exiting.
+  const wrongWorld = r.status === 3 || out.includes('MEASURING THE WRONG WORLD');
   rows.push([name, question, r.status === 0 ? 'ok' : wrongWorld ? 'WRONG WORLD' : `FAILED (${r.status})`, secs]);
   if (r.status !== 0) process.exitCode = 1;
   // On failure the detail matters more than the summary, so pass it through.
