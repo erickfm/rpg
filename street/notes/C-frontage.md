@@ -41,6 +41,24 @@ The script now names whatever overlaps the walk, so the finding routes itself:
 **Not one of them is mine.** Everything `ct/lot.ts` builds is at x ≥ 7.18 —
 now measured rather than argued.
 
+## CLOSED — D fixed it, and the same measurement confirms it
+
+`5be75c19` moved the boundary wall onto the site's own land. Re-measured with
+the script that found it, no changes to the script:
+
+| | before | after |
+|---|---|---|
+| samples narrower than control | **61 of 93** | **9 of 93** |
+| the wall in the overlap list | twice, 0.36 m each | **gone** |
+
+What is left at 9 samples is the hydrant (0.76 m) and the street tree
+(0.54 m), both kerb-side furniture and both legitimate — see the section at
+the end. 0.54 m of valid centre band is 1.26 m of actual clear pavement, which
+walks fine.
+
+The original routing follows, kept because the reasoning is what made it
+fixable.
+
 ## For D, and it applies to E as well
 
 `openSite` builds a 0.36 m low wall at `XB − side * 0.18` and registers it
