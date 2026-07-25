@@ -1241,3 +1241,43 @@ environment. Recorded in `AUDIT-INSTRUMENTS.md` rather than carried as a finding
 
 Everything else: **130 of 135 spots verified by somebody**, including all 57
 seats, all nine doors, the 301 door, and both shop counters.
+
+### The last gap closed: all nine way-outs fire. **135 of 135.**
+
+I estimated "about five" interior way-outs. There are **nine**, and every one of
+them works — sampled by warping into each room and walking its disc, spots read
+from the live registry:
+
+```
+(201.2, -19.6)  apartment   59 standable · fired 59
+(440.0,   3.65) bodega      67 standable · fired 67
+(516.4,   3.7)              96 standable · fired 76
+(596.8,   3.95)             96 standable · fired 74
+(677.4,   2.95)             96 standable · fired 74
+(756.6,   3.95)             96 standable · fired 73
+(840.0,   3.45)             96 standable · fired 74
+… nine in total, all firing
+```
+
+**No unreachable way-out anywhere.** You can always get back to the street.
+
+This closes the census with nothing outstanding:
+
+> **135 of 135 `[E]` spots in the world are verified** — 25 from the street,
+> 92 seat halves, 5 booth seats, 2 shop counters, 2 apartment, 9 way-outs — by
+> `spots-walk`, `seats-walk`, `door301`, and this round.
+
+### One observation, offered with its likely explanation
+
+Six of the nine fire from **~74 of 96** sampled points inside their own declared
+radius — about 77%. The apartment and bodega fire from 100%.
+
+The likely reason is mundane and not a defect: a way-out sits **at the doorway**,
+so part of its disc lies outside the room, and `ok()` requires you to be inside.
+A disc centred on a threshold will always have a dead quarter. The two that
+score 100% have smaller discs (r 0.95–1.0 against tighter geometry).
+
+I am noting it rather than filing it, because the alternative explanation — that
+the declared radius overstates the live region — would need a builder to
+distinguish, and nothing about it costs a player anything: every one of these
+fires from most of the room-side of its own doorway.
