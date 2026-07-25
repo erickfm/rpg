@@ -16,6 +16,43 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Round three verdict: ship 2, 4, 7 and 11. Take the rig down.** The
+      user: *"for trash i like 2, 7, 11, and 4"*.
+
+      Against your manifest that is:
+      · **2 folded newspaper** — and this is the REWORKED one, so your
+        grimier-and-thinner fix is confirmed. The 2.4 cm profile with the
+        half-lifted top leaf was the right call.
+      · **4 flattened cardboard**
+      · **7 milk crate**
+      · **11 fountain cup**
+
+      **One judgement call the desk made, flag it if you disagree.** Candidate
+      1, the coffee cup, is not in this list — but the user approved it
+      explicitly last round (*"coffee cup is good"*) and nothing has said
+      otherwise. Treat it as still approved and ship it, giving five types.
+      The risk is that 11 (fountain cup) was meant to REPLACE it, since they
+      are the same idea at different sizes. If both in the world start reading
+      as one repeated object, say so and the desk will ask.
+
+      Also keep the **two gutter decals the user liked in situ** — your report
+      established those are the old placements, not rig candidates, so they
+      are a separate approved thing and should not be swept away with the rig.
+
+      Then:
+      · **remove the rig from the alley** entirely
+      · **delete every placement of the rejected banded rectangle**
+      · place the approved set through the world — gutter, alley, under the
+        bench, by the bins, the car lot when C lands it — on `surfaceY(x)` so
+        nothing gets buried, varying rotation so no two read as copies
+      · keep every rejected candidate drawn but unplaced
+
+      **Your correction on the grime variation was useful and the desk was
+      wrong** — I assumed per-instance variation was carrying those two pieces
+      and it does not exist. Do not build it now just because I guessed at it;
+      five distinct objects is a real vocabulary and repetition is a problem
+      to solve if it appears, not before.
+
 - [ ] **REJECTED — remove every instance.** The user: *"i dont like the trash
       that looks like this please get rid of all of them"*. Ref:
       `shots/user-trash-reject.png`.
