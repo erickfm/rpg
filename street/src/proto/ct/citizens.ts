@@ -342,3 +342,89 @@ export function viewAt(sector: number): [number, boolean] {
 export function viewFor(rel: number): [number, boolean] {
   return viewAt(sectorAt(rel));
 }
+
+// ── THE PRIMITIVE: one call, one person ────────────────────────────────────
+//
+// Every person indoors is currently a hand-painted single-view plane — the diner
+// waitress, the bodega keeper, the casino, the hotel, the tax office — because
+// wiring the 8-angle atlas by hand is a dozen lines of billboard and UV
+// arithmetic and nobody should have to know it. This is that dozen lines, once.
+//
+// It is the primitive under a room-level helper, not a competitor to one: an
+// interior kit can wrap this in `room.person()` and callers never see it.
+//
+//   const w = citizenSprite(
+//     { jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e',
+//       fit: 'plain', cut: 'tied', build: -1, stride: 3 },
+//     { facing: Math.PI, h: 0.97, w: 0.99 },
+//   );
+//   w.mesh.position.set(x, floorY, z);        // origin is at the FEET
+//   scene.add(w.mesh);
+//   ctx.onFrame(({ px, pz, dt }) => w.update(px, pz, dt));
+//
+// That is the whole of it. The billboard turn, the choice of painted view, the
+// mirroring of the back half, the standing-vs-walking frame and the hysteresis
+// that stops the sprite flickering on a view boundary are all handled here.
+
+export interface CitizenSprite {
+  /** ready to add. The geometry's origin is at the FEET, so set position to
+   *  floor height and scaling never sinks anyone into the floor. */
+  mesh: THREE.Mesh;
+  /** Call once per frame with the player's position. Turns the billboard and
+   *  picks the painted view. `dt` only matters if the person is walking. */
+  update: (px: number, pz: number, dt?: number) => void;
+  /** Which way the person is TURNED, as atan2(vx, vz) — 0 faces +z, π faces -z.
+   *  For somebody walking, pass their direction of travel. */
+  setFacing: (rad: number) => void;
+  /** Walking animates the two painted frames; standing holds feet-together.
+   *  A stationary person whose feet keep striding reads as broken. */
+  setWalking: (on: boolean) => void;
+}
+
+export function citizenSprite(look: Look, o: {
+  /** initial facing, atan2(vx, vz). Default 0 = facing +z. */
+  facing?: number;
+  /** mesh scale — height and width vary independently of `build` */
+  h?: number; w?: number;
+  /** steps per second while walking; long legs swing slower */
+  cadence?: number;
+} = {}): CitizenSprite {
+  const tex = citizenAtlas(look);
+  tex.repeat.set(1 / 5, 1 / 2);
+  const geo = new THREE.PlaneGeometry(0.95, 1.9);
+  geo.translate(0, 0.95, 0);                 // origin at the feet
+  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
+  }));
+  mesh.scale.set(o.w ?? 1, o.h ?? 1, 1);
+  let facing = o.facing ?? 0;
+  let walking = false;
+  let sector = -1;
+  let anim = 0;
+  const cad = o.cadence ?? 5;
+  return {
+    mesh,
+    setFacing: (rad) => { facing = rad; },
+    setWalking: (on) => { walking = on; },
+    update: (px, pz, dt = 0) => {
+      const camAng = Math.atan2(px - mesh.position.x, pz - mesh.position.z);
+      mesh.rotation.y = camAng;               // the plane turns to face you
+      // Hysteresis on the view, and it is not optional: rounding the heading to
+      // one of 8 sectors switches at the exact midpoint, so a person whose angle
+      // sits on a boundary flips between two painted columns every frame and
+      // reads as twitching. Hold the current sector until clearly past it.
+      const sPos = sectorAt(camAng - facing);
+      if (sector < 0) sector = ((Math.round(sPos) % 8) + 8) % 8;
+      let away = sPos - sector;
+      while (away > 4) away -= 8;
+      while (away < -4) away += 8;
+      if (Math.abs(away) > 0.7) sector = ((Math.round(sPos) % 8) + 8) % 8;
+      const [col, mirror] = viewAt(sector);
+      if (walking) anim += dt * cad;
+      const row = walking ? Math.floor(anim) % 2 : 0;
+      tex.repeat.x = mirror ? -1 / 5 : 1 / 5;
+      tex.offset.x = mirror ? (col + 1) / 5 : col / 5;
+      tex.offset.y = row === 0 ? 0.5 : 0;
+    },
+  };
+}

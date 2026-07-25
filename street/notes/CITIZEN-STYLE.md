@@ -1,6 +1,7 @@
 # People in CROSSTOWN '97
 
 **If you need a person, CALL THE ATLAS. Do not draw a plane.**
+**One call:** `citizenSprite(look, opts)` — see the next section.
 
 `ct/citizens.ts` is the only place a person is drawn properly in this world. It
 paints one sprite sheet per person: **5 views** — front, 3/4, profile, 3/4 back,
@@ -31,7 +32,45 @@ adjectives below, the sheet.
 
 ---
 
-## Calling it
+## "I need a person" — the one-call answer
+
+```ts
+import { citizenSprite } from './citizens';
+
+const w = citizenSprite(
+  { jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e',
+    fit: 'plain', cut: 'tied', build: -1, stride: 3 },
+  { facing: Math.PI, h: 0.97, w: 0.99 },
+);
+w.mesh.position.set(x, floorY, z);          // the origin is at the FEET
+scene.add(w.mesh);
+ctx.onFrame(({ px, pz, dt }) => w.update(px, pz, dt));
+```
+
+Three lines and a hook, and you get the whole 8-angle behaviour the street
+citizens have: the billboard turn, the choice of painted view, the mirroring of
+the back half, standing-vs-walking frames, and the hysteresis that stops the
+sprite flickering when the angle sits on a view boundary.
+
+| | |
+|---|---|
+| `citizenSprite(look, opts?)` | returns `{ mesh, update, setFacing, setWalking }` |
+| `opts.facing` | initial facing, `atan2(vx, vz)`. 0 faces +z, π faces −z. Default 0 |
+| `opts.h`, `opts.w` | mesh scale, height and width, independent of `build` |
+| `opts.cadence` | steps per second while walking (default 5) |
+| `update(px, pz, dt?)` | once per frame with the PLAYER's position. `dt` only matters while walking |
+| `setFacing(rad)` | which way they are turned; pass direction of travel for a walker |
+| `setWalking(on)` | animates the two frames. A standing person whose feet stride reads as broken |
+
+**For a person who just stands there** — a shopkeeper, a waitress — that is all
+of it: set `facing`, never call `setWalking`, and they turn to watch you through
+all eight angles.
+
+**Interiors:** builder F is wrapping this in `room.person()` at the kit level,
+which is the right altitude for a room. Use that when it lands; `citizenSprite`
+is the primitive underneath it, and either way you are calling the atlas.
+
+## Calling it by hand
 
 ```ts
 import { type Look, citizenAtlas, viewFor, FW, FH } from './citizens';
@@ -68,8 +107,10 @@ tex.offset.y = row === 0 ? 0.5 : 0;                   // row 0 = standing
 ±1 axis code. A standing person keeps the last one rather than snapping to face
 +z.
 
-A worked example of all of this, including a stationary person, is
-`ct/apartment.ts` (the hermit). The full walking version is `ct/crowd.ts`.
+You should not need any of the above — `citizenSprite` does it. It is written out
+because somebody eventually has to change it, and because `ct/crowd.ts` does its
+own version to drive six people off one shared pass. A worked stationary example
+is the hermit in `ct/apartment.ts`.
 
 ---
 
