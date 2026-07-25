@@ -481,6 +481,45 @@ attempt at out-thinking a pedestrian.
 
 ---
 
+## ANSWERED for G: props publishes the night factor and the rain now
+
+`4462995c` found `ct/vice.ts` deriving "how dark is it" from `scene.background`
+luminance, and `props.ts` lerps the sky toward `RAIN_SKY` when it rains — so a
+downpour LIFTS the value that heuristic reads and it puts 12.5% *less* glow on
+wet asphalt. Backwards against a brief that asks for colour thrown onto wet
+asphalt. It ruled the fix to be mine: *"let the thing that knows say so, instead
+of three modules each guessing it from appearances."*
+
+Done, on `scene.userData`, updated every frame from the values props already
+computes:
+
+```
+scene.userData.nightFactor   0 broad day … 1 fully night
+scene.userData.rainLevel     0 dry … 1 downpour
+scene.userData.wetness       how wet the GROUND is; lags rain
+```
+
+The case that motivated it, measured:
+
+```
+23:00 dry night   night=1.000  rain=0.000  background=0.0053
+00:00 WET night   night=1.000  rain=0.738  background=0.0476   ← 9x lift
+```
+
+The background lifts nine-fold and `nightFactor` does not move. Any module
+holding `scene` can read it — no new plumbing, and none of the cross-module
+material sampling `4462995c` rightly called worse than the bug.
+
+**On `scene.userData` rather than the `Frame` interface** because `ct/ctx.ts` is
+not mine to widen. If the desk would rather it travelled on `Frame`, that is a
+one-line addition there and these three writes become redundant; I would not
+change another builder's interface to answer a question about mine.
+
+Regression checked: glow, park, wetness, grade-sane, nightgrade and rain all
+PASS; grade-nan and rain-memory still CAUGHT.
+
+---
+
 ## ROUTING: the road centre lines stay bone dry in a downpour
 
 `5333a1ce` found the alley dry in the rain because it was never passed to

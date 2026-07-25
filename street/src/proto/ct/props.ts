@@ -521,6 +521,24 @@ export function buildProps(ctx: CtxBuild): Props {
   let wetLast = 0;
   const updateLit = (night: number) => {
     nightNow = night;
+    // PUBLISH WHAT THIS MODULE KNOWS. 4462995c: ct/vice.ts derives "how dark is
+    // it" from scene.background luminance, and props.ts lerps the sky toward
+    // RAIN_SKY when it rains — so a downpour LIFTS the value its heuristic
+    // reads and it puts 12.5% LESS glow on wet asphalt, which is backwards
+    // against a brief that asks for colour thrown onto wet asphalt.
+    //
+    // Its ruling was that this belongs here: "let the thing that knows say so,
+    // instead of three modules each guessing it from appearances". It is right,
+    // and it is the same move as declareSurface, userData.mod and the isGlass
+    // split — every one of those replaced an inference with a declaration.
+    //
+    // On scene.userData rather than the Frame interface because ct/ctx.ts is
+    // not mine to widen, and because every module already holds `scene`. A
+    // reader needs no new plumbing and no cross-module material sampling, which
+    // 4462995c rightly called worse than the bug.
+    scene.userData.nightFactor = night;      // 0 broad day … 1 fully night
+    scene.userData.rainLevel = rainLevel;    // 0 dry … 1 downpour
+    scene.userData.wetness = wetness;        // how wet the GROUND is; lags rain
     // Free in broad daylight — but this pass now carries the RAIN as well as
     // the night, so a dry-and-sunny early-out has to check both or walls
     // never get wet during a daytime storm. That is exactly what happened.
