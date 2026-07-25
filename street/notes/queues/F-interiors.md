@@ -28,6 +28,55 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **The bodega `[E]` spot is not on its facade door — and DO NOT touch the
+      facade.** The user: *"the bodega entrance is not where the facade door
+      is. do not change the facade i love it just make the entrance where i
+      press e actually aligned."*
+
+      That instruction is unusually specific and it settles something. The
+      bodega's canted-bay facade is **approved and must not move.** Only the
+      `[E]` spot moves, onto the door that is drawn.
+
+      This is now the third misaligned entrance — diner, tax service, bodega —
+      and it is the same root cause the frontage descriptor exists to kill.
+      But note the bodega is a special case worth handling carefully: its door
+      is on a **chamfered face at 45°**, not on a flat frontage, so "a
+      position along the frontage" needs to mean a point on that cut face
+      with an outward normal of `(-1,-1)/√2`. Builder D reported the geometry
+      when it fixed the blocker: the canted face runs A (7, −94) → B (9, −96),
+      **door centre (8.0, −95.0)**. Use that.
+
+      Put the spot on the door, walk up to it from all three approaches D
+      tested (east along the side-street walk, west along it, and diagonally
+      at the canted face), and confirm the prompt fires at the door rather
+      than beside it.
+
+      **And make the descriptor handle chamfers**, since you are building it:
+      a frontage that is not parallel to the street is a real case here, and
+      if the descriptor only understands axis-aligned frontages the bodega
+      will fall out of it again the next time anything moves.
+
+- [ ] **The bodega interior is small and sad, and its keeper is cardboard.**
+      The user: *"bodega is also a bit small and sad. and the people inside
+      these places are always flat and not like the people on the street."*
+
+      `ct/bodega.ts` predates the interior kit — it is the one room that was
+      never built on it, and it shows. Bring it onto the kit like the others,
+      which gets it the shell, the wall thickness, the jambs and the lighting
+      the newer rooms have.
+
+      Then make it a real bodega: it is currently one small room with two
+      gondolas, a cooler and a counter. A corner bodega is **crammed** —
+      aisles too narrow, stock to the ceiling, a deli case, a coffee station,
+      lottery tickets and cigarettes behind the counter, a bell on the door,
+      handwritten signs, a cat. Bigger, and much denser.
+
+      The keeper must use the **8-angle atlas**, not a painted plane — that is
+      the same `room.person()` helper you are already queued to build, and
+      builder H is writing `notes/CITIZEN-STYLE.md` so agents stop
+      hand-drawing people. The bodega keeper is the oldest instance of that
+      mistake; fix it with the helper rather than by redrawing the plane.
+
 - [ ] **The CHURCH steps still cannot be climbed — `courtGround` covers the
       library only.** The user: *"church i still cant walk into i cant walk up
       the stairs or go in, same as library."*
