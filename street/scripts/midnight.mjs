@@ -88,7 +88,15 @@ const found = await page.evaluate(() => {
       }
     }
   });
-  return { byMod, mine };
+  // A CONTROL: something known-graded, read at the same moment. If this is not
+  // dark then the world is not at night and every judgement below it is void.
+  let control = null;
+  window.__ct.scene().traverse((o) => {
+    if (o.userData?.alley !== 'flank' || control !== null) return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (m && m.color) control = +((m.color.r + m.color.g + m.color.b) / 3).toFixed(3);
+  });
+  return { byMod, mine, control };
 });
 
 let fails = 0;
@@ -96,6 +104,19 @@ const say = (ok, name, detail) => {
   if (!ok) fails++;
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}: ${detail}`);
 };
+
+// The control first, because a failure here voids the rest rather than adding
+// to it. This check sets the clock to 23:00 and then judges what is "bright",
+// which silently assumes 23:00 is dark. It is not an assumption I can verify
+// from outside — de492304 publishes nightFactor from props to vice, but not
+// onto window.__ct, so there is no night factor to read. So instead it reads a
+// material it KNOWS is graded (an alley flank, stamped by ct/street.ts) and
+// requires it to actually be dark. If the night curve ever moves, this fails
+// loudly instead of measuring a daylit world and passing.
+say(found.control !== null && found.control < 0.2,
+  'the world is actually at night, so the rest means something',
+  found.control === null ? 'no graded reference material found'
+    : `graded alley flank at ${found.control} (needs < 0.2; it is 1.0 by day)`);
 
 const others = Object.entries(found.byMod)
   .filter(([k]) => k !== 'street')
