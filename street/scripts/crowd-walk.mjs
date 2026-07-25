@@ -51,6 +51,14 @@ const walkers = () => page.evaluate(() => {
   return cast.map((c) => ({
     x: +c.x.toFixed(3), z: +c.z.toFixed(3),
     y: yAt.get(`${c.x.toFixed(2)},${c.z.toFixed(2)}`) ?? null,
+    // ASK THE WORLD WHERE ITS FLOOR IS. crosstown.ts publishes groundAt(x, z);
+    // this used to assert y === 0.14, a remembered number, AND that all six
+    // shared one height. Both hold today only because the crowd happens to walk
+    // one flat pavement — the park has a mound and a dish now, and the first
+    // time anybody routes over a surface at another level this check fails on a
+    // world that is fine. cc2d8bb56 hit exactly this hunting for the lowest
+    // plane instead of asking.
+    ground: +window.__ct.groundAt(c.x, c.z).toFixed(3),
   })).sort((a, b) => a.x - b.x || a.z - b.z);
 });
 
@@ -65,9 +73,11 @@ const w1 = await walkers();
 check(w0.length === 6, `the crowd is six (found ${w0.length}) — other modules' people are not counted`);
 const moved = w0.filter((p, i) => Math.abs(p.z - (w1[i]?.z ?? p.z)) > 0.2).length;
 check(moved >= 4, `they are walking — ${moved}/6 moved >0.2 m in 1.5 s`);
-const ys = w0.map((p) => p.y).filter((y) => y !== null);
-check(ys.length === w0.length && new Set(ys).size === 1 && ys[0] === 0.14,
-  `all ${ys.length} feet planted on the kerb at y=${ys[0]}`);
+const planted = w0.filter((p) => p.y !== null && Math.abs(p.y - p.ground) < 0.011);
+const worstLift = w0.reduce((m, p) => (p.y === null ? m : Math.max(m, Math.abs(p.y - p.ground))), 0);
+check(planted.length === w0.length,
+  `all ${planted.length}/${w0.length} feet planted on the floor beneath them — worst gap `
+  + `${worstLift.toFixed(3)} m (asked of __ct.groundAt, not assumed to be 0.14)`);
 
 // ── 2 & 3. the encounter: they halt a step short, then give up and pass ───
 //
