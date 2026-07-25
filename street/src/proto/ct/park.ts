@@ -1251,57 +1251,102 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
                                                           // and so a different repeat
   const roofM = tiled(roofT, 4.0, 1.45);                  // a slope
   const ridgeM = tiled(roofT, 4.0, 0.34);
-  for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.5, 0.16), postM);
-    post.position.set(shX + dx, KERB_H + 1.25, shZ + dz);
-    scene.add(post);
-    solid({ minX: shX + dx - 0.12, maxX: shX + dx + 0.12, minZ: shZ + dz - 0.12, maxZ: shZ + dz + 0.12 });
-  }
-  // THE ROOF IS PITCHED AND YOU CAN NOW SEE THAT IT IS. It was built pitched
-  // from the start — two slopes at 0.32 rad — and read as a flat slab from
-  // every angle in the park, because the wall plate under it was one solid
-  // 3.6 × 2.7 m box whose flat underside spanned the entire roof and hid both
-  // slopes behind it. The slopes' lowest point was 2.69 m and the plate's top
-  // was 2.69 m: they touched exactly, so nothing of the pitch was ever below
-  // the thing drawn beneath it. A roof you only see the bottom of is a slab.
+  // ── THE SHELTER, REBUILT AS A STRUCTURE ─────────────────────────────────
   //
-  // So the plate becomes a PERIMETER, four members on the post lines with the
-  // middle left open, and the slopes overhang it by 0.2 m all round. Standing
-  // under it you see two soffits rising to a ridge; standing at the gate 26 m
-  // away — which is where this thing is mostly seen from, terminating the
-  // axis — you see a triangle instead of a rectangle.
-  for (const dz of [-1.15, 1.15]) {                     // plates, along the front
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 0.16), plateM);
-    pl.position.set(shX, KERB_H + 2.57, shZ + dz);
+  // The user: *"The roof is a thin skewed slab that does not sit on its posts,
+  // the posts are spindly and inconsistent, and the bench inside is off-centre.
+  // A park shelter is a real structure: four or six posts of consistent square
+  // section, a properly seated hipped or pitched roof with a ridge and even
+  // eaves overhang, a fascia board, and seating arranged symmetrically."*
+  //
+  // Every clause of that was a fault and the middle one was the root: the roof
+  // did not SIT on anything. Two slope boxes floated at a height that happened
+  // to be near the posts, so from any angle where you could see the junction
+  // there was nothing holding them up. A roof is carried, and what carries it is
+  // the thing that was missing — a wall plate on the post heads, with the
+  // rafters bearing on it and the eaves projecting past it.
+  //
+  // So it is built the way one is built, bottom up, every member sized from the
+  // one below it: posts → plate → rafters → ridge → fascia → gable infill.
+  const SH_HX = 1.8, SH_HZ = 1.4;              // half the plan, post centres
+  const SH_POST = 0.18;                        // consistent square section
+  const SH_EAVE_Y = 2.42;                      // top of the posts and the plate
+  const SH_OVER = 0.38;                        // even overhang, all four sides
+  const SH_PITCH = 0.42;                       // ~24°, a shelter not a spire
+  const runX = SH_HX + SH_OVER, runZ = SH_HZ + SH_OVER;
+  const SH_RIDGE_Y = SH_EAVE_Y + 0.12 + runZ * Math.tan(SH_PITCH);
+  // 1 ── four posts, all the same, standing on their own pad
+  for (const dx of [-SH_HX, SH_HX]) for (const dz of [-SH_HZ, SH_HZ]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_EAVE_Y, SH_POST), postM);
+    post.position.set(shX + dx, KERB_H + SH_EAVE_Y / 2, shZ + dz);
+    scene.add(post);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.14, 0.09, SH_POST + 0.14), plateM);
+    pad.position.set(shX + dx, KERB_H + 0.045, shZ + dz);
+    scene.add(pad);
+    solid({ minX: shX + dx - SH_POST / 2, maxX: shX + dx + SH_POST / 2,
+      minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
+  }
+  // 2 ── the wall plate: what the roof actually sits on, on the post lines
+  for (const dz of [-SH_HZ, SH_HZ]) {
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(SH_HX * 2 + SH_POST, 0.14, SH_POST), plateM);
+    pl.position.set(shX, KERB_H + SH_EAVE_Y + 0.07, shZ + dz);
     scene.add(pl);
   }
-  for (const dx of [-1.6, 1.6]) {                       // …and along the ends
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 2.14), endPlateM);
-    pl.position.set(shX + dx, KERB_H + 2.57, shZ);
+  for (const dx of [-SH_HX, SH_HX]) {
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, 0.14, SH_HZ * 2 - SH_POST), plateM);
+    pl.position.set(shX + dx, KERB_H + SH_EAVE_Y + 0.07, shZ);
     scene.add(pl);
   }
-  // Eaves at 2.64 m and 1.35 m of overhang each side, so the ridge lands at
-  // 2.64 + 1.35·tan 0.32 = 3.09 and each slope's centre sits halfway up it.
-  for (const s2 of [-1, 1]) {
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.12, 1.45), roofM);
-    sl.position.set(shX, KERB_H + 2.864, shZ + s2 * 0.675);
-    sl.rotation.x = s2 * 0.32;
+  // 3 ── the two slopes, BEARING ON THE PLATE and projecting past it evenly
+  const slopeLen = runZ / Math.cos(SH_PITCH);
+  for (const sgn of [-1, 1]) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(runX * 2, 0.11, slopeLen), roofM);
+    sl.position.set(shX,
+      KERB_H + SH_EAVE_Y + 0.14 + (runZ / 2) * Math.tan(SH_PITCH),
+      shZ + sgn * runZ / 2);
+    sl.rotation.x = -sgn * SH_PITCH;
     scene.add(sl);
   }
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.13, 0.34), ridgeM);
-  ridge.position.set(shX, KERB_H + 3.09, shZ);
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(runX * 2 + 0.06, 0.13, 0.30), ridgeM);
+  ridge.position.set(shX, KERB_H + SH_RIDGE_Y, shZ);
   scene.add(ridge);
-  for (let i = 0; i < 3; i++) {                         // the bench inside it
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 0.17), i % 2 ? woodM2 : woodM);
-    sl.position.set(shX, KERB_H + 0.45, shZ - 0.85 + i * 0.19);
+  // 4 ── the fascia, which is most of what says "roof" rather than "sheet"
+  for (const sgn of [-1, 1]) {
+    const f = new THREE.Mesh(new THREE.BoxGeometry(runX * 2, 0.17, 0.06), plateM);
+    f.position.set(shX, KERB_H + SH_EAVE_Y + 0.10, shZ + sgn * (runZ + 0.02));
+    scene.add(f);
+  }
+  // 5 ── the gable infill, so the ends are closed and the pitch reads end-on.
+  //      A triangle, because a stack of boxes stepping up to a ridge is a
+  //      staircase and the eye finds it immediately at this texel size.
+  for (const sgn of [-1, 1]) {
+    const gh = SH_RIDGE_Y - (SH_EAVE_Y + 0.14);
+    const tri = new THREE.BufferGeometry();
+    tri.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+      -runZ, 0, 0, runZ, 0, 0, 0, gh, 0,
+    ]), 3));
+    tri.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
+    tri.computeVertexNormals();
+    const g2 = new THREE.Mesh(tri, plateM);
+    g2.position.set(shX + sgn * runX, KERB_H + SH_EAVE_Y + 0.14, shZ);
+    g2.rotation.y = Math.PI / 2;
+    scene.add(g2);
+  }
+  // 6 ── ONE BENCH, CENTRED, facing out of the open side. It was against one
+  //      wall and 0.15 m off the middle, which is what "off-centre" meant.
+  const SB_L = SH_HX * 2 - 0.5;
+  for (let i = 0; i < 3; i++) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(SB_L, 0.05, 0.15), i % 2 ? woodM2 : woodM);
+    sl.position.set(shX, KERB_H + 0.45, shZ - SH_HZ + 0.42 + i * 0.17);
     scene.add(sl);
   }
-  for (const dx of [-1.2, 1.2]) {
-    const end = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.44, 0.5), ironM);
-    end.position.set(shX + dx, KERB_H + 0.22, shZ - 0.66);
+  for (const dx of [-1, 1]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.45, 0.52), ironM);
+    end.position.set(shX + dx * (SB_L / 2 - 0.06), KERB_H + 0.225, shZ - SH_HZ + 0.59);
     scene.add(end);
   }
-  solid({ minX: shX - 1.5, maxX: shX + 1.5, minZ: shZ - 1.0, maxZ: shZ - 0.4 });
+  solid({ minX: shX - SB_L / 2 - 0.1, maxX: shX + SB_L / 2 + 0.1,
+    minZ: shZ - SH_HZ + 0.3, maxZ: shZ - SH_HZ + 0.9 });
   // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
   // destination the loop exists for did not — you walk 26 m to the thing that
   // terminates the axis and it turns out to be scenery. It was the only bench
@@ -1313,8 +1358,8 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
   // sits on (§8), so the corridor you press it from has to be outside the box.
   ctx.seat({
-    x: shX, z: shZ - 0.7, yaw: Math.PI, h: 0.45,
-    approach: { x: shX, z: shZ + 0.25 },
+    x: shX, z: shZ - SH_HZ + 0.6, yaw: Math.PI, h: 0.45,
+    approach: { x: shX, z: shZ + 0.55 },
     label: 'sit in the shelter',
   });
 
