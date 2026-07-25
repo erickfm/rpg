@@ -383,9 +383,65 @@ export function buildCivic(o: {
   // the library's first cut had five steps in it and you could see two. The
   // contrast is painted in: every tread takes the pale stone that faces the
   // sky, every riser the dark one that faces you.
-  const treadM = new THREE.MeshBasicMaterial({ color: 0xb4aa92 });
-  const riserM = new THREE.MeshBasicMaterial({ color: 0x877d69 });
-  const stepSideM = new THREE.MeshBasicMaterial({ color: 0x9c9280 });
+  // ── TEXTURED, BECAUSE A FLAT COLOUR IS NOT A MATERIAL ────────────────────
+  //
+  // The user saw the forecourt as translucent patches over the paving. B
+  // measured it and wrote notes/B-forecourt-patches.md: 26 ground-level meshes
+  // of mine, all registered identically with the night sweep — nothing had
+  // diverged — and **every one untextured flat colour**, seven tints between
+  // them. B's diagnosis is the right one and it is worth stating in full:
+  //
+  //   *"Because a flat colour is not a material. Every other ground surface
+  //   here derives its canvas from its real metres at one density — 32 px/m —
+  //   and carries aggregate, staining and scoring joints. Against that, an
+  //   untextured quad has no grain for the eye to attach to and no joints to
+  //   give it scale, so it reads as a TINT OVER the paving rather than as a
+  //   piece of paving."*
+  //
+  // So: one stone canvas at 32 px/m, cloned per member with its `repeat` taken
+  // from that member's real metres — the same way the park shelter's timber was
+  // fixed this morning, and the same reason. Two surfaces, related but not
+  // identical: SCORED for anything you walk on, so the treads and the landing
+  // carry the joint lines that give a slab its size, and PLAIN for the copings,
+  // gate posts and planters, which are dressed stone rather than paving.
+  const ST_TILE = 1.5;                       // 48 px at 32 px/m
+  const ST_PX = Math.round(ST_TILE * 32);
+  const stoneCanvas = (base: string, lo: string, hi: string, scored: boolean) =>
+    pixTex(ST_PX, ST_PX, (g) => {
+      const r = clcg(scored ? 0x5c3311 : 0x7ab214);
+      g.fillStyle = base; g.fillRect(0, 0, ST_PX, ST_PX);
+      for (let i = 0; i < ST_PX * ST_PX * 0.22; i++) {      // aggregate
+        const k = r();
+        g.fillStyle = k > 0.62 ? hi : lo;
+        g.fillRect(Math.floor(r() * ST_PX), Math.floor(r() * ST_PX), 1, 1);
+      }
+      for (let i = 0; i < 7; i++) {                          // weathering, in patches
+        g.fillStyle = `rgba(74,66,52,${(0.05 + r() * 0.07).toFixed(3)})`;
+        g.fillRect(Math.floor(r() * ST_PX), Math.floor(r() * ST_PX),
+          4 + Math.floor(r() * 12), 3 + Math.floor(r() * 9));
+      }
+      if (scored) {                                          // the joints, one per tile
+        g.fillStyle = 'rgba(58,52,42,0.45)';
+        g.fillRect(0, 0, ST_PX, 1); g.fillRect(0, 0, 1, ST_PX);
+        g.fillStyle = 'rgba(226,220,204,0.20)';              // and its lit lip
+        g.fillRect(0, 1, ST_PX, 1); g.fillRect(1, 0, 1, ST_PX);
+      }
+      dither(g, ST_PX, ST_PX, Math.round(ST_PX * ST_PX * 0.05));
+    });
+  const SCORED = stoneCanvas('#b4aa92', '#a79d86', '#c2b8a0', true);
+  const DRESSED = stoneCanvas('#9c9280', '#8d846f', '#aca290', false);
+  const RISER = stoneCanvas('#877d69', '#7a715e', '#968c76', false);
+  /** a stone material whose grain is at 32 px/m for THIS member's metres */
+  const stoneFace = (t: THREE.Texture, wM: number, hM: number) => {
+    const c = t.clone();
+    c.needsUpdate = true;
+    c.wrapS = THREE.RepeatWrapping; c.wrapT = THREE.RepeatWrapping;
+    c.repeat.set(Math.max(0.12, wM / ST_TILE), Math.max(0.12, hM / ST_TILE));
+    return flat(c);
+  };
+  const treadM = stoneFace(SCORED, 1.4, 4.1);
+  const riserM = stoneFace(RISER, 1.4, 0.19);
+  const stepSideM = stoneFace(DRESSED, 1.4, 1.4);
   const flight = (f: {
     axis: 'x' | 'z';
     /** host-frame (x, z) of u = 0, v = 0 — the street line on the centreline */
@@ -798,7 +854,10 @@ export function buildCivic(o: {
     // neighbour below four floors and this number needs revisiting.
     const FLANK_H = 15.4;
     const pipeM = new THREE.MeshBasicMaterial({ color: 0x3b332c });
-    const capM = new THREE.MeshBasicMaterial({ color: 0xb2a892 });
+    // B's list: the copings at the courtyard mouth, the gate posts and the two
+    // planters were all in the untextured 26. Dressed stone, not paving, so
+    // they take the plain canvas rather than the scored one.
+    const capM = stoneFace(DRESSED, 0.62, 0.62);
     for (const s of [-1, 1]) {
       const zp = s < 0 ? CZ0 : CZ1;                             // the party line
       const pan = new THREE.Mesh(new THREE.PlaneGeometry(SET, FLANK_H),
@@ -1128,9 +1187,9 @@ export function buildCivic(o: {
     // world contrast is PAINTED, not lit. So each one oversails the stage
     // sideways, and its UNDERSIDE is dark: from the pavement you are looking
     // up at these, and the shadow line under the slab is the whole cue.
-    const wTop = new THREE.MeshBasicMaterial({ color: 0xc0b69e });
-    const wUnder = new THREE.MeshBasicMaterial({ color: 0x6d6555 });
-    const wSide = new THREE.MeshBasicMaterial({ color: 0x8f8571 });
+    const wTop = stoneFace(DRESSED, 1.9, 0.36);
+    const wUnder = stoneFace(RISER, 1.9, 0.1);
+    const wSide = stoneFace(DRESSED, 1.9, 0.36);
     const setOff = (bx: number, y: number, w: number, pFrom: number, pTo: number, drop: number) => {
       const run = Math.max(0.05, pFrom - pTo), T = 0.18;
       const th = Math.atan2(drop, run);

@@ -41,7 +41,21 @@ const clcg = (s: number) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>>
 // it is LIGHT, and those are the two axes that separate it from asphalt under
 // every light in the day.
 const PATH = '#9c8b66', PATH_D = '#8a7a58', PATH_L = '#b3a37c';
-const DIRT = '#6b5d47', DIRT_D = '#5e5240';
+// A WORN LINE IN TURF IS THIN GRASS, NOT BARE EARTH — which is what these were.
+//
+// The user, on the field: *"what is this"*, and the desk read it as the mowing
+// stripes being near-black wedges. Standing in it at noon says otherwise, and
+// the honest answer matters more than a quick agreement: **the wedges are the
+// DESIRE LINES.** #6b5d47 is mud, roughly half the luminance of either mown
+// green, and I had laid SEVEN of them fanning across the open middle at up to
+// 0.75 m wide. In a dim frame they go near-black and read as shadows or
+// diggings. The mowing stripes were behind them the whole time, doing nothing,
+// because nothing subtle survives next to something that loud.
+//
+// So the dirt moves most of the way back to grass: paler, desaturated, barely
+// browner than the turf either side. That is what a path worn across a lawn
+// actually looks like — the grass gives up before the soil shows.
+const DIRT = '#7c7658', DIRT_D = '#6f6a4e';
 
 // Takes the build context the whole world is given, plus the site extents
 // ct/street.ts published. The entry point already holds both — it reads
@@ -416,7 +430,13 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     // heaviest tree where nothing grows and the mower cannot reach, and the
     // stripes simply stop where the path takes over — the field plane ends at
     // the loop, so that one comes free.
-    const MOW_LIGHT = '#7c8358', MOW_DARK = '#616a45', MOW_BAND = 2.2;
+    // TWO GREENS 12% APART, IN 1.5 m BANDS. The desk: *"Real mowing stripes are a
+// SUBTLE contrast — two greens maybe 10-15 percent apart in tone, not 60 — and
+// they are narrow."* These were 2.2 m and about 20% apart, which was already
+// closer than the frame suggested; what actually buried them was the mud of the
+// desire lines beside them. Both are fixed together, because either alone would
+// have looked like a fix and not been one.
+const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     const mownT = pixTex(Math.max(8, Math.round(fW * 16)), Math.max(8, Math.round(fD * 16)), (g) => {
       const r = clcg(0x4fd21a);
       const MW = Math.max(8, Math.round(fW * 16)), MH = Math.max(8, Math.round(fD * 16));
@@ -636,13 +656,15 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // 26 m field one line reads as a scratch. These are the four crossings
   // anybody actually makes — gate to each far corner, gate straight through,
   // and the two corners of the loop nobody walks round.
-  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.72);       // straight across
-  worn(lx1 - 1.2, gateMid - 1.4, lx0 + 3.0, lz0 + 5.0, 0.66);     // to the south corner
-  worn(lx1 - 1.2, gateMid + 1.4, lx0 + 3.0, lz1 - 5.0, 0.66);     // and the north
+  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.55);       // straight across
+  worn(lx1 - 1.2, gateMid - 1.4, lx0 + 3.0, lz0 + 5.0, 0.5);      // to the south corner
+  worn(lx1 - 1.2, gateMid + 1.4, lx0 + 3.0, lz1 - 5.0, 0.5);      // and the north
   for (const sgn of [-1, 1]) {
     const cz = sgn < 0 ? lz0 : lz1;
-    worn(lx0 + 0.9, cz - sgn * 0.9, lx0 + 2.6, cz - sgn * 2.4, 0.6);
-    worn(lx1 - 0.9, cz - sgn * 0.9, lx1 - 2.6, cz - sgn * 2.4, 0.6);
+    // THREE LINES, NOT SEVEN. A desire-line network is evidence of where people
+    // go; seven of them is a ploughed field. The corner cuts nearest the gate
+    // are the two anybody actually makes, so they stay and the rest go.
+    if (sgn > 0) worn(lx1 - 0.9, cz - sgn * 0.9, lx1 - 2.6, cz - sgn * 2.4, 0.42);
   }
 
   // ── the fence ────────────────────────────────────────────────────────────
@@ -743,56 +765,90 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // on the path, because the bench's own collider would otherwise hold you
   // further away than `r`.
   const bench = (bx: number, bz: number, yaw: number) => {
-    // yaw is axis-aligned for every bench here, so facing and lateral come
-    // out as unit axes and every box can be sized exactly rather than rotated
-    const fx = Math.round(Math.sin(yaw)), fz = Math.round(-Math.cos(yaw));   // facing
-    const lx = Math.round(Math.cos(yaw)), lz = Math.round(Math.sin(yaw));    // across
-    const box = (f: number, a: number) => [Math.abs(fx) * f + Math.abs(lx) * a,
-      Math.abs(fz) * f + Math.abs(lz) * a] as [number, number];
-    // A bench on the mound stands ON the mound. `parkY` is flat off the grass,
-    // so every bench on the loop is where it always was — and `ctx.seat` takes
-    // `h` as a height ABOVE the floor, which the picker now answers with the
-    // same relief, so the pose follows without being told.
+    // ── REBUILT, AFTER B'S BUS BENCH ─────────────────────────────────────────
     //
-    // The LOWEST ground under its own footprint, not the ground under its
-    // centre. A 1.56 m bench on 1-in-17 measured a 36 mm gap under one cast
-    // end, which is most of the way to the thickness of a slat and reads as a
-    // bench floating off the hill. Taking the minimum beds the uphill end into
-    // the slope instead — buried is invisible, floating is not — and costs
-    // nothing anywhere else, because off the grass all three samples are equal.
-    const y0 = Math.min(parkY(bx, bz),
-      parkY(bx + lx * 0.78, bz + lz * 0.78), parkY(bx - lx * 0.78, bz - lz * 0.78));
-    for (const d of [-0.78, 0.78]) {                  // the two cast ends
-      const [ew, ed] = box(0.62, 0.1);
-      const end = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.44, ed), ironM);
-      end.position.set(bx + lx * d, y0 + 0.22, bz + lz * d);
-      scene.add(end);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.07, ed), ironM);
-      arm.position.set(bx + lx * d, y0 + 0.66, bz + lz * d);
-      scene.add(arm);
+    // The user: *"THE BENCH LOOKS AWFUL: the backrest is a separate panel
+    // floating behind and above the seat, not joined to it — it reads as three
+    // disconnected pieces rather than a bench."* Exactly what it was: two seat
+    // slats at one height, two back slats at another, and a pair of cast ends
+    // that touched neither. Three things in a row is not a bench.
+    //
+    // B rebuilt the bus bench over four passes and the two lessons are in
+    // ct/props.ts in as many words:
+    //
+    //   RECLINE. *"Dead vertical is why it read as a board rather than a seat —
+    //     nothing you would actually lean on is at 90 degrees."* 12° here too.
+    //   PIVOT AT THE FOOT, NOT THE CENTRE. *"the joint with the seat is the
+    //     thing a recline most easily opens up, and rotating about the seat's
+    //     back edge means the two cannot separate no matter what angle is
+    //     chosen."* So the back's geometry is translated up before it is
+    //     rotated, and its origin sits exactly on the seat's back edge.
+    //
+    // And the third thing that makes it one object rather than three: the cast
+    // ends are an L — a leg under the seat and a stile that RISES BEHIND IT to
+    // carry the back. That is what a park bench end actually is, and it is the
+    // piece that was missing, so nothing had anything to be attached to.
+    //
+    // Built in local coordinates in a group and turned once, instead of the old
+    // axis-by-axis arithmetic: one rotation, applied to everything, so no part
+    // can drift out of line with another.
+    const g = new THREE.Group();
+    const L = 1.72, SEAT_Y = 0.45, SEAT_D = 0.46;
+    const RECLINE = 0.21, BACK_LEN = 0.44;
+    const put = (m: THREE.Object3D, x: number, y: number, z: number) => {
+      m.position.set(x, y, z); g.add(m); return m;
+    };
+    // the two cast ends: leg, seat rail, and the stile that carries the back
+    for (const sx of [-1, 1]) {
+      const ex = sx * (L / 2 - 0.05);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.09, SEAT_Y, SEAT_D * 0.9), ironM),
+        ex, SEAT_Y / 2, 0.02);                                  // the leg
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.07, SEAT_D + 0.06), ironM),
+        ex, SEAT_Y + 0.02, 0.0);                                // the seat rail
+      const stile = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, BACK_LEN + 0.06, 0.07), ironM);
+      stile.position.set(ex, SEAT_Y + (BACK_LEN + 0.06) / 2 * Math.cos(RECLINE),
+        -SEAT_D / 2 - (BACK_LEN + 0.06) / 2 * Math.sin(RECLINE));
+      stile.rotation.x = -RECLINE;                              // leans with the back
+      g.add(stile);
     }
-    for (let i = 0; i < 3; i++) {                     // the seat slats
-      const off = -0.21 + i * 0.2;
-      const [sw, sd] = box(0.17, 1.7);
-      const sl = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.05, sd), i % 2 ? woodM2 : woodM);
-      sl.position.set(bx + fx * off, y0 + 0.45, bz + fz * off);
-      scene.add(sl);
+    // the seat: three slats, front to back
+    for (let i = 0; i < 3; i++) {
+      const z = SEAT_D / 2 - 0.09 - i * 0.165;
+      put(new THREE.Mesh(new THREE.BoxGeometry(L, 0.05, 0.15), i % 2 ? woodM2 : woodM),
+        0, SEAT_Y + 0.055, z);
     }
-    for (let i = 0; i < 2; i++) {                     // …and the back, behind you
-      const [sw, sd] = box(0.05, 1.7);
-      const sl = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.16, sd), i % 2 ? woodM2 : woodM);
-      sl.position.set(bx - fx * 0.26, y0 + 0.62 + i * 0.19, bz - fz * 0.26);
-      scene.add(sl);
+    // the back: its own group, origin ON the seat's back edge, then reclined —
+    // so the joint cannot open however the angle is chosen
+    const back = new THREE.Group();
+    for (let i = 0; i < 2; i++) {
+      const geo = new THREE.BoxGeometry(L, 0.155, 0.05);
+      const sl = new THREE.Mesh(geo, i % 2 ? woodM2 : woodM);
+      sl.position.set(0, 0.10 + i * 0.20, 0);
+      back.add(sl);
     }
-    const [cw, cd] = box(0.34, 0.88);
-    solid({ minX: bx - cw, maxX: bx + cw, minZ: bz - cd, maxZ: bz + cd });
-    // …and every one of them is a seat. They were gated on reachability while
-    // 25 m of the park was behind the clamp — a seat nobody can walk to is a
-    // seat F's harness rightly calls UNREACHABLE — and that gate is gone with
-    // the clamp. All of them now, near end and far.
+    back.position.set(0, SEAT_Y + 0.03, -SEAT_D / 2);
+    back.rotation.x = -RECLINE;
+    g.add(back);
+    const y0 = Math.min(parkY(bx, bz), parkY(bx + Math.cos(yaw) * 0.8, bz + Math.sin(yaw) * 0.8),
+      parkY(bx - Math.cos(yaw) * 0.8, bz - Math.sin(yaw) * 0.8));
+    g.position.set(bx, y0, bz);
+    g.rotation.y = yaw;
+    scene.add(g);
+    const along = Math.abs(Math.round(Math.cos(yaw)));
+    const hx = along ? L / 2 : SEAT_D, hz = along ? SEAT_D : L / 2;
+    solid({ minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz });
+    // THE FACING, named so it cannot collide with anything outside. The rewrite
+    // dropped the old locals `fx`/`fz` and this line kept using them — so `fx`
+    // silently resolved to the FOUNTAIN's `fx`, declared 90 lines further down.
+    // It typechecked, threw `Cannot access 'fx' before initialization` at build
+    // time, and world.ts caught it per-module — so the park lost every object
+    // after the benches: the fountain, the memorial, the shelter, the trees and
+    // the shrubs. A green typecheck and a park with no trees in it.
+    const faceX = Math.round(Math.sin(yaw)), faceZ = Math.round(-Math.cos(yaw));
     ctx.seat({
       x: bx, z: bz, yaw, h: 0.45,
-      approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
+      approach: { x: bx + faceX * 0.95, z: bz + faceZ * 0.95 },
       label: 'sit on the bench',
     });
   };
@@ -806,6 +862,23 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // it SKIPS the entry: the first cut of this walked a bench straight into the
   // gate opening at z = -83 and you could not get in. GOTCHAS §8 — anything
   // near a way in has to treat the approach as reserved space.
+  // THE DRINKING FOUNTAIN'S FOOTPRINT, declared before the benches are laid
+  // out so they can be tested against it. The user: *"THE BENCH CLIPS THE
+  // DRINKING FOUNTAIN: its right end and backrest pass straight through the
+  // pale plinth. Measure box against box and separate them."* Both stand on the
+  // street leg at x -11.95 and -12.08, so a bench whose z lands near the
+  // fountain's runs straight through it. Measured and filtered below rather
+  // than nudged by hand, so it stays true if either of them moves.
+  const FOUNT_X = lx1 + PATH_W / 2 + 0.55, FOUNT_Z = gateMid - 4.2;
+  const FOUNT = { minX: FOUNT_X - 0.42, maxX: FOUNT_X + 0.42,
+    minZ: FOUNT_Z - 0.42, maxZ: FOUNT_Z + 0.42 };
+  const BENCH_HALF = 0.86, BENCH_DEEP = 0.46;        // half-length, and depth each way
+  const clearOfFountain = (bx: number, bz: number, yaw: number) => {
+    const along = Math.abs(Math.round(Math.cos(yaw)));  // 1 if the bench runs in x
+    const hx = along ? BENCH_HALF : BENCH_DEEP, hz = along ? BENCH_DEEP : BENCH_HALF;
+    return bx + hx < FOUNT.minX - 0.12 || bx - hx > FOUNT.maxX + 0.12
+      || bz + hz < FOUNT.minZ - 0.12 || bz - hz > FOUNT.maxZ + 0.12;
+  };
   const benchRun: [number, number, number][] = [];
   const clearOfGate = (z: number) => Math.abs(z - gateMid) > 2.6;
   const spaced = (from: number, to: number, step: number) => {
@@ -827,7 +900,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     benchRun.push([x, lz0 - 1.05, Math.PI]);
     benchRun.push([x, lz1 + 1.05, 0]);
   }
-  for (const [bx, bz, yaw] of benchRun) bench(bx, bz, yaw);
+  for (const [bx, bz, yaw] of benchRun) {
+    if (!clearOfFountain(bx, bz, yaw)) continue;      // it would stand in the fountain
+    bench(bx, bz, yaw);
+  }
   // The mound gets the one thing worth walking off the path for: a tree, and a
   // bench under it turned to face back down the slope at the gate. This is the
   // whole argument for the relief — off the circuit, up 0.45 m, with a view of
@@ -1083,12 +1159,18 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   };
   const hp = clcg(0x64bb17);
   for (const [lx, side] of [[lx0, 1], [lx1, -1]] as [number, number][]) {
-    for (let z = lz0 + 1.2; z < lz1 - 1.2; z += 1.15) {
+    // 0.72 m apart, not 1.15. THE GREY CHEVRONS THE USER ASKED ABOUT are
+    // these: a run of low iron hoop edging, the municipal thing that keeps feet
+    // off the grass. At 1.15 m centres each hoop stands alone against the turf
+    // and reads as a bracket somebody dropped — which is exactly what was
+    // reported, and a fair reading of it. Closed up, the run reads as one piece
+    // of edging, which is what a hoop rail is.
+    for (let z = lz0 + 1.2; z < lz1 - 1.2; z += 0.72) {
       hoop(lx + side * (PATH_W / 2 + 0.25), z, true, (hp() - 0.5) * 0.22);
     }
   }
   for (const [lz, side] of [[lz0, 1], [lz1, -1]] as [number, number][]) {
-    for (let x = lx0 + 1.2; x < lx1 - 1.2; x += 1.15) {
+    for (let x = lx0 + 1.2; x < lx1 - 1.2; x += 0.72) {
       hoop(x, lz + side * (PATH_W / 2 + 0.25), false, (hp() - 0.5) * 0.22);
     }
   }
@@ -1351,8 +1433,13 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   };
   const sb = clcg(0x7ac41f);
   for (const [wallZ, inward] of [[site.minZ, 1], [site.maxZ, -1]] as [number, number][]) {
+    // TO THE STREET END, not to the loop. The first cut stopped at `lx1`, the
+    // loop's street leg — so the last 6 m of both flank walls, the stretch you
+    // stand in front of when you walk through the gate, had none. The user
+    // looked at exactly that stretch and said there were no shrubs, and they
+    // were right about the part of the park they could see.
     let x = site.minX + 1.0;
-    while (x < lx1 - 0.5) {
+    while (x < site.maxX - 1.4) {
       // how blank is the wall here? distance to the nearest tree along this flank
       const gap = Math.min(...flankTreeX.map((tx) => Math.abs(tx - x)), 99);
       const blank = Math.min(1, gap / 3.2);              // 0 under a tree, 1 in the open
