@@ -1768,3 +1768,26 @@ shape-based view and *"not a fault"* — worth knowing before reading that table
 a list of problems, which is what it looks like.
 
 Nothing to fix. Recorded so the next person does not re-run it to find out.
+
+
+## Project state at HEAD, from the pinned runner
+
+Ran the fast tier against a pinned checkout so nothing could move under it:
+
+```
+44 green · 2 red · 0 WRONG WORLD
+```
+
+**Neither red is mine, and I checked rather than inferred from the names:**
+
+- `checks-registered` — `G-rooms-walk.mjs`, `G-vice-walk.mjs` (G's) and
+  `floatlit.mjs` (B's) have selftests and are in no tier, so they run never.
+- `no-silent-pass` — `lamplight.mjs`, `parking.mjs`, `truck.mjs` exit 0 on an
+  unknown mode word.
+
+My six are green, and none of them appears in `no-silent-pass`'s list because
+that check examines scripts which **dispatch on a mode word** and mine take a
+boolean `--selftest`. They are covered anyway: I added the unknown-argument
+guard independently this session, so a mistyped flag exits 2. Worth knowing that
+the coverage is coincidental rather than earned — a mode-dispatching script of
+mine would not be watched by that check today either.
