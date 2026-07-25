@@ -75,6 +75,51 @@ export function interiorMaxX(): number {
  * this module claiming ground it does not own, and the answer would be wrong
  * the day a room sits on a raised floor next to it.
  */
+/** The id of every room that actually got built, in slab order. The wiring
+ *  check reads this — see `scripts/interiors-wired.mjs`. */
+export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
+
+/**
+ * Build every interior there is.
+ *
+ * Writing `ct/int-<name>.ts` is now SUFFICIENT to put a room in the world.
+ * There is no line to add in `crosstown.ts` and therefore no line to forget.
+ *
+ * That mattered: the casino, the hotel and the tax office were each finished,
+ * committed and unreachable, because the one-line `buildX(ctx)` construction
+ * call lived in the desk-owned entry point. Builder G could not wire its own
+ * rooms and nothing checked that anyone had. The auditor reported it three
+ * rounds running. The kit had already removed the need to touch the entry
+ * point for `[E]` spots, colliders and floors — construction was the last
+ * desk-contended step, and this is it going away.
+ *
+ * Conventions, both enforced by `scripts/interiors-wired.mjs`:
+ *   · one `export function build…(ctx)` per file
+ *   · the file `int-<id>.ts` builds the room whose `spec.id` is `<id>`
+ *
+ * Sorted by path so slab addresses are a deterministic property of the file
+ * names rather than of whatever order the bundler happened to hand them over
+ * in — a room that moves slab between builds is a room whose saved position
+ * means nothing.
+ */
+export function buildAllInteriors(ctx: CtxBuild): void {
+  const mods = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
+  for (const path of Object.keys(mods).sort()) {
+    const mod = mods[path];
+    const entry = Object.entries(mod).find(
+      ([k, v]) => k.startsWith('build') && typeof v === 'function');
+    if (!entry) { console.warn(`[interior] ${path} exports no build…() — not built`); continue; }
+    try {
+      (entry[1] as (c: CtxBuild) => void)(ctx);
+    } catch (e) {
+      // One bad room must not take the whole world down with it. Loud, and
+      // the bugsweep reports console errors, so it cannot pass unnoticed —
+      // but the other nine rooms and the street still load.
+      console.error(`[interior] ${path} threw while building:`, e);
+    }
+  }
+}
+
 export function interiorGround(x: number, z: number): number | null {
   if (x < SLAB_X0) return null;
   for (const s of SLABS) if (x >= s.x0 && x < s.x1) return s.gy(x, z) ?? 0;

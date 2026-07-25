@@ -291,8 +291,12 @@ for (room of rooms) {
       await p.waitForTimeout(90);
       await hold('w', 1800);
       const a = await pos();
-      const ex = Math.abs(a[0] - cx) > hw - RADIUS + 0.12;
-      const ez = Math.abs(a[2]) > hd - RADIUS + 0.12;
+      // "Out of the room" is past the OUTER face of the wall (T = 0.18), not
+      // past the inner one. The doorway is a real reveal you can stand in —
+      // the diner's lets you reach z = 3.28 against an inner face at 3.5 —
+      // and calling that an escape fails a room for having a doorway.
+      const ex = Math.abs(a[0] - cx) > hw + 0.18 + 0.05;
+      const ez = Math.abs(a[2]) > hd + 0.18 + 0.05;
       if (ex || ez) {
         escapes++;
         if (escapes <= 3) check(`walked OUT of the room going ${key}`, false,

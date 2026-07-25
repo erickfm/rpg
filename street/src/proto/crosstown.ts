@@ -26,13 +26,7 @@ import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type Play
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX, interiorColliders } from './ct/interior';
-import { buildDiner } from './ct/int-diner';
-import { buildBurger } from './ct/int-burger';
-import { buildThrift } from './ct/int-thrift';
-import { buildCasino } from './ct/int-casino';
-import { buildHotel } from './ct/int-hotel';
-import { buildTax } from './ct/int-tax';
+import { interiorGround, interiorMaxX, interiorColliders, buildAllInteriors, interiorRoomIds } from './ct/interior';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -299,15 +293,12 @@ export function makeCrosstown(): Proto {
   // this programme is running. (Interiors do reshuffle each OTHER's grain;
   // that is harmless, because the shipped world's Math.random is unseeded and
   // repaints every load anyway.)
-  // Adding a room is ONE line here and nothing else — the kit collects each
-  // room's colliders into `interiorColliders()`, spread once below, so the
-  // collider array never grows again however many rooms land.
-  buildDiner(ctx);
-  buildBurger(ctx);
-  buildThrift(ctx);
-  buildCasino(ctx);
-  buildHotel(ctx);
-  buildTax(ctx);
+  // Adding a room is NO lines here. `buildAllInteriors` finds every
+  // `ct/int-*.ts` and builds it, so writing the file is what puts the room in
+  // the world — see the note on that function for the three rooms that sat
+  // finished and unreachable because this used to be a hand-maintained list.
+  // Colliders come back through `interiorColliders()`, spread once below.
+  buildAllInteriors(ctx);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //
@@ -474,6 +465,7 @@ export function makeCrosstown(): Proto {
     // bodega was un-enterable — and it was previously only answerable by
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
+    rooms: () => interiorRoomIds(),
     seats: () => SEATS,
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
