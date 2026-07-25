@@ -723,3 +723,41 @@ instances so the next candidate list is not four glow planes and a paving slab.
 
 Nothing to change in `ct/vice.ts`: the four surfaces are correct as they are,
 and they are the reason the two buildings read as light sources at night.
+
+---
+
+# I watched my own corrected checks fail, and one of them did not
+
+`dbb45d11` makes two silent-pass guards reachable and watches them fail. I had
+just spent three rounds fixing my own instruments and had not done that, so I
+did — and it corrects something I overstated.
+
+**The experiment.** `095c7d63` found the casino and hotel `[E]` spots drifted
+0.25 m from their published door. I had claimed my walk checks were blind to it
+because they typed the door position, and that deriving it from `doorStandFor`
+fixed that. So I put the drift back — restored the hand-typed
+`x: DOOR_X, z: WALK_Z` in `ct/int-casino.ts` — and ran the corrected check.
+
+**26/26. It passed.** The derived check does not catch a 0.25 m drift either.
+
+**Why, and it is obvious in hindsight.** The check stands where the declaration
+says to stand and asks whether the prompt appears. The trigger radius is 1.05 m.
+A spot 0.25 m off still fires. Deriving the number removed the STALENESS — the
+check can no longer be verifying a coordinate the world has moved on from — but
+it never gave the check the resolution to see an error smaller than its own
+tolerance.
+
+**So the claim in `d955a0fc` was too strong.** "A check that types the number it
+is checking is decoration" is right about staleness and wrong if read as "and
+therefore deriving it makes the check sharp". Two different properties, and I
+conflated them.
+
+**Not adding an exactness check here.** `scripts/spots-walk.mjs` already asks
+whether every spot sits on its building's published door, exactly, and that is
+the right place for it — it is a world-wide sweep over all 80 spots rather than
+four rooms' worth. Duplicating it in my suite would be a second authority on the
+same question, which is the fault I have been removing all session.
+
+The division of labour worth stating: **my suite tests that a player standing at
+the door can get in; `spots-walk.mjs` tests that the door is where it says it
+is.** Neither substitutes for the other, and mine should not pretend to.
