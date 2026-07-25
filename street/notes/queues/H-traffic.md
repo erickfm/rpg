@@ -23,6 +23,45 @@ world stops.
 
 ## Now
 
+- [ ] **A pedestrian jitters back and forth as he walks.** The user: *"this
+      red guy glitches back and forth as he walks sometimes idk why"*. Ref:
+      `shots/user-pedglitch.png` — two citizens close together in a narrow
+      lane between the shopfront and a parked truck.
+
+      "Sometimes" and "two of them together in a tight space" narrow it a lot.
+      Three candidates, in the order I would test them:
+
+      1. **Avoidance oscillation.** Two walkers each steering around the
+         other, flipping side every frame because each one's decision is
+         re-made from scratch and inverts the other's. Classic, and the
+         geometry in that shot is exactly when it bites: a lane too narrow for
+         two abreast. Fix by making the choice STICKY — once a walker commits
+         to passing on a side, it holds that until it is clear — and by
+         breaking ties deterministically (lower id yields, or both bear right)
+         rather than symmetrically. A symmetric rule guarantees the deadlock.
+      2. **View-index flicker in the atlas.** The 8-angle sprite picks a view
+         from the heading; if the heading sits on a boundary between two
+         views, tiny steering changes snap the sprite between them and it
+         reads as the whole person twitching. Needs **hysteresis**: hold the
+         current view until the heading is clearly past the boundary, don't
+         switch at the exact midpoint. You own both `ct/crowd.ts` and
+         `ct/citizens.ts` now, so you can see both halves.
+      3. **Collider push-out fighting.** If a walker is inside `citAvoid` and
+         gets pushed out each frame back into it, it buzzes in place. Builder
+         F is adding depenetration to the PLAYER rig for the same class of
+         bug — worth reading what F does and applying the same logic here, as
+         a walker shoved into a wall should also resolve rather than vibrate.
+
+      Also check the lane itself: in that shot the walkable strip between the
+      shopfront and the parked truck looks tight. If two citizens cannot pass
+      each other there, that is a **layout** bug, not a steering one — and the
+      parked-gap rule in your queue applies to pedestrians as well as to the
+      player. The 2 m sidewalk lane is sacred (`GOTCHAS.md` §9).
+
+      Verify by WATCHING, not by screenshot: put two walkers on a collision
+      course in a narrow spot and look for the flip-flop. It is a motion bug,
+      so a still frame cannot show it.
+
 - [ ] **Wheels clip through the bodies, and the doors do not read as doors.**
       Two notes on the fleet, same pass.
 
