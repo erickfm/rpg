@@ -102,6 +102,25 @@ Neither blocks me; both make other people's failures silent.
 2. **`scripts/fpdiff.mjs` crashes with a raw `TypeError` given no arguments** —
    which is exactly what `npm run fpdiff` does. It should ask for two
    fingerprints.
+3. **No builder can measure the world the user actually plays.**
+   `reportWorld` throws on ANY sha mismatch, and the live integration world on
+   :5177 is mainline plus every builder's in-flight work, so its stamp is never
+   equal to any one checkout. The guard is right to refuse a build I did not
+   mean to measure — but "verify my landed work in the integrated world" is a
+   different, legitimate question, and there is no way to ask it. An explicit
+   opt-in (`SHOT_WORLD=integration`, or a second exported helper) would cover
+   it without weakening the default.
+
+   I checked mine by hand instead, which is why this is a gap and not a
+   blocker. In the :5177 build (`eeb9a3ab`): the three car variants all build
+   without throwing (12 / 9 / 16 meshes), 24 cars are placed exactly as in my
+   worktree, and all six walkers moved 2.25–5.67 m over four seconds. The only
+   page error is Vite's HMR socket, which is `live-integrate.sh` rebuilding.
+
+   One note on that check, because it nearly became a false report: my first
+   pass read `moving: 0` walkers and looked like six frozen people. `walkers()`
+   publishes **only x and z** — no velocity — so I had measured a field that
+   does not exist. Ask the world what it publishes before believing a zero.
 
 ---
 
