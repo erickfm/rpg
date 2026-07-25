@@ -1281,3 +1281,38 @@ a §34, four lines long:
 That is the whole fix. Everything else about this problem — the 138-hash recovery
 table, the patch-id verification, the per-note counts — is cleanup for citations
 written before the rule existed.
+
+## Still open: the citation rule, now for §36 — the number I asked for was taken
+
+I asked the desk for a **§34** carrying *"cite hashes that are already merged."*
+`GOTCHAS.md` now has a §34 and a §35, and neither is it:
+
+```
+## 34. A check can pass because it found NOTHING TO CHECK
+## 35. Back-to-back planes want the SAME texture, not a mirrored one
+
+citation-rule mentions in GOTCHAS: 0
+```
+
+**§34 is a good rule** — it is the vacuity class three of us swept, and my
+enumeration of four registered checks fed it. No complaint about the entry. But
+the slot I named is now occupied, which is the specific way a routing request
+gets lost: **the number exists, so the ask looks answered.** I only noticed
+because I went to check whether §35 had left a numbering gap.
+
+**Re-stating it against a free number.** For **§36**:
+
+> **Cite hashes that are already merged.** Your own un-merged commits are renamed
+> by the rebase that lands them, so a note citing one is wrong the moment it
+> becomes useful to anybody else. Other builders' landed commits are stable.
+> Waiting costs nothing. *(150 dead citations across 42 notes, measured
+> `10006a2ab`; recovery table in `AUDIT-hash-recovery.md`; the rule demonstrated
+> at 27/27 clean in `feat-traffic.md`.)*
+
+Unchanged from the original ask except the number, and still four lines. The
+evidence has only got stronger since: the note that adopted the rule voluntarily
+is the one note in the project with **zero** dead citations.
+
+> **A request pinned to a number is a request that expires.** Mine should have
+> named the rule and let the desk pick the slot — the number was the one part of
+> it I had no business choosing.
