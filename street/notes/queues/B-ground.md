@@ -16,6 +16,37 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Litter clips into the kerb. Placement must respect the object's
+      FOOTPRINT, not just its centre.** The user: *"dont like when the trash
+      clips like this we need to be better about our graphics"*. Ref:
+      `shots/user-trashclip.png` — the fountain cup is half inside the kerb.
+
+      This is the third generation of the same bug and it is worth naming so
+      it stops recurring. First the decals were laid at one flat `y` and ended
+      up **under** the gutter pan. You fixed that with `surfaceY(x)`, which
+      samples the height **at a point**. Now the litter is 3D solids with real
+      extent, and a point sample is no longer enough: the cup is placed near
+      the kerb line, its centre resolves to the sidewalk, and the half of it
+      that overhangs the drop intersects the kerb.
+
+      **The rule: an object must sit entirely on one surface.** Three
+      surfaces meet along that line at three different heights — road 0,
+      gutter pan cross-sloped, walk at `sidewalkY` — so before placing,
+      sample `surfaceY` at the object's **footprint corners**, not its centre.
+      If they disagree, the object is straddling a discontinuity: either move
+      it clear of the line by at least its half-extent, or drop it to the
+      lower surface and let it sit against the kerb rather than in it.
+
+      Objects resting against the kerb face is a GOOD look — a cup wedged in
+      the gutter against the kerb is exactly right — so the fix is not to ban
+      the kerb line, it is to place them beside it rather than through it.
+
+      **Sweep every placement**, not just this one: the approved five types
+      wherever they are, in the gutter, the alley, by the bins, and anything
+      else you place on the ground. And apply the same footprint test to the
+      tree pits — your own report flags them overhanging the kerb chamfer by
+      ~6 cm, which is the same defect.
+
 - [ ] **Ship the approved trash set and take the rig down.** Five types:
       **1 coffee cup**, **11 fountain cup** (the user confirmed *"i like having
       both cups"* — draw them as clearly different objects, small tapered paper
