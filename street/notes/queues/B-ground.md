@@ -16,6 +16,52 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Night: wider beams, darker darks, and STARS.** The user: *"make street
+      light a bit more broad in their emitted light (like a wider beam) and
+      make the unilluminated stuff darker. it should feel scarier at night i
+      want to be able to see stars sometimes."*
+
+      This is the fifth pass on night and the user keeps coming back to it,
+      which means it matters more than most of the queue. Read the whole ask
+      as one idea rather than three tweaks: **they want more contrast, not
+      more light.** Wider pools and darker gaps push in the same direction —
+      bigger islands of warmth in a bigger sea of dark — and "scarier" is what
+      that combination produces.
+
+      · **Wider beam.** `LAMP_R` and the falloff currently give a small tight
+        disc. Widen the radius and soften the shoulder so a pool reaches
+        further and fades out over a longer distance. A real sodium lamp lights
+        a stretch of pavement, not a spot. Keep the centre where it is; it is
+        the edge that needs to travel.
+      · **Darker darks.** Take `FLOOR_GROUND` (0.07) and `FLOOR_HIGH` (0.06)
+        down further, and reconsider `FLOOR_LOW` (0.30) — that band is still
+        four times the road, and you noted yourself it had quietly become the
+        brightest thing left. **Lit windows and signs must NOT come down with
+        it** — they are the reward for the street going dark, and they are
+        also most of what will still read once the ambient is near zero.
+      · **Fog at night should go toward black, not grey.** A grey fog on a
+        dark street is a glowing wall at the end of it; near-black fog is what
+        makes a street feel like it continues into something.
+
+      · **STARS.** Only on clear nights — never while it is raining, since you
+        own `rainLevel` and can gate on it. Fade in as night deepens and out
+        at dawn on the same curve the rest of your night work uses. Keep them
+        in your own module: a star field can be a texture on the sky or a
+        points cloud, and either way it does NOT need `crosstown.ts` — the
+        sky colour is computed there and `props.rainSky` already nudges it, so
+        add the field from `ct/props.ts` and let it read the same night value.
+
+        Draw them in the house style: hard single texels, a handful of
+        brighter ones, no smooth glow — the lamp halo already taught us what a
+        soft gradient looks like in this world. And **not too many.** This is a
+        city with sodium lamps; you would see a scattering, not a planetarium.
+        A dozen or two that you notice when you look up beats a dense field.
+
+      This is a big visual change to a thing that has already been reverted
+      once — **land it in pieces**, not one commit. Beam width first, then the
+      floors, then the stars. If any step comes back worse, you have a clean
+      revert point rather than an all-or-nothing.
+
 - [ ] **Tree pits need clearance from the kerb, and puddles belong IN the
       gutter.** The user: *"i dont like how close the tree bases are to the
       edge here i think ideal would be with a bit of clearence on the curb
