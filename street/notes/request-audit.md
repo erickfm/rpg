@@ -767,3 +767,33 @@ saying otherwise would have been a third wrong answer.
 
 The player's test — stand where the prompt fires and look — is the one that
 works, and it is also the one the user actually asked for.
+
+## THE 301 DOOR — **DONE**, and it does more than was asked.
+
+Run against the live world, reading `__ct.colliders()` at each step, so "is it
+shut" is a collider fact rather than a picture of a door:
+
+| state | blocked? | prompt |
+|---|---|---|
+| open at rest | `false` | `[E] close the door` |
+| after **E** | **`true`** | `[E] open the door` |
+| re-opened | `false` | `[E] close the door` |
+| **standing in the swing** | — | **`[E] step clear of the door`** |
+| after **E**, in the swing | **`false`** — it refuses | |
+| a pace back, after **E** | **`true`** | |
+
+The user asked whether the door could be closed. It closes, it **blocks** when
+closed, it reopens, and it **will not shut on you** — and rather than silently
+failing it changes the prompt to say why. That last part was not requested and
+is the difference between a door that works and a door that feels built.
+
+`shots/d301/05-shut-square.png` confirms it visually: the leaf square in its
+frame, panelled, brass handle, nameplate, striped paper either side.
+
+**Note for the harness's owner:** `02-shut.png` is pitched at the ceiling — the
+light fitting fills the frame and the door is a sliver at the bottom edge. The
+prompt text in it still proves the state, and `05-shut-square` is aimed
+properly, so nothing is wrong with the result. But it is the same aiming defect
+I have now hit in four separate places, in someone else's harness this time.
+The collider readout is what makes this script trustworthy; the frames are
+decoration and one of them missed.
