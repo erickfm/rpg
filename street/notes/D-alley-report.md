@@ -1103,3 +1103,34 @@ selftests still pass.
 The general lesson, which cost me two rounds: **an exact hash answers "are these
 byte-identical", and I kept asking it "do these look the same".** Those come
 apart the moment anything in the paint is random.
+
+
+## Two margins worth naming, after `1a9e0ed9`
+
+That commit separates *"passed by exactly zero"* (a hazard) from *"passes by zero
+on purpose"* (fine). Both exist in my checks and they are not the same thing.
+
+**On purpose:** `alleycheck`'s rear wall reads *17.2 m against the taller
+neighbour at 17.2 m* — equality, every time. `END_H = max(neighbour tops)` and
+every building on the west run is the same height, so equality IS the design and
+a 0.05 epsilon absorbs float. It would be wrong for this to pass by a margin.
+
+**Not on purpose, and now fixed:** the clustered wall count read 19 five times
+and 18 once. The distribution says why — all 630 pairs among the 36 faces:
+
+```
+0.0  x17     <- the two faces of one shell, which share a material object
+(nothing at all between 0 and 6)
+6:12  7:12  8:12  9:16  10:16  11:8  12:24  13:16  14:20 ...
+```
+
+The same wall re-read across page loads drifts at most 2.22. So the gap is
+**[2.22, 6.0]** and I had put the threshold at **6** — the lip of the first
+populated bucket, with a dozen pairs sitting on it for speckle to push across.
+**A threshold on the edge of a cluster is not a threshold.** Moved to 4: 1.8
+above the noise, 2.0 below the nearest real difference. Five runs, 19 every
+time, and the identical-parameters mutant still fails.
+
+The verdict was never in danger — `>= 12` against 18 or 19 is the same answer —
+but a headline number that moves on an unchanged world is exactly what teaches
+people to stop reading it.

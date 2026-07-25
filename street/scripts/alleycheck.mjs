@@ -180,10 +180,22 @@ const neigh = await page.evaluate(() => {
 // lands near a boundary and flips on 2 units of speckle. Measured, the mutant
 // that paints every return from identical parameters still read 17 of 36.
 //
-// So walls are grouped by DISTANCE, with the threshold taken from measurement:
-// the same wall drifts at most 2.22/255 across page loads, two deliberately
-// different walls differ by 20.17. 6 sits between them with room either side.
-const SAME = 6;
+// So walls are grouped by DISTANCE, and the threshold comes from the measured
+// distribution rather than from taste. All 630 pairs among the 36 faces:
+//
+//     0.0   x17     <- the two faces of one shell, which share a material
+//     (nothing at all between 0 and 6)
+//     6:12  7:12  8:12  9:16  10:16  11:8  12:24  13:16  14:20 ...
+//
+// and the same wall re-read across two page loads drifts at most 2.22/255.
+// So the gap is [2.22, 6.0] and the threshold belongs in the middle of it.
+//
+// I first put it at 6, which is the EDGE of the first populated bucket, and the
+// count flipped 19/18 between runs because a dozen pairs sit right there and
+// speckle drift pushes them across. A threshold on the lip of a cluster is not
+// a threshold. 4 is 1.8 above the noise and 2.0 below the nearest real
+// difference.
+const SAME = 4;
 const countWalls = (descs) => {
   const reps = [];
   for (const d of descs) {
