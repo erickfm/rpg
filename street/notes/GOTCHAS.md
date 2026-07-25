@@ -388,3 +388,37 @@ corrected two other agents for the same thing.
 The two stamps answer different questions and both are worth having — *is this
 face on the brick grid* and *what kind of thing is this face* — but nothing in
 the word "declared" tells you which one a tool means.
+
+## 26. Prove which world your script measured
+
+`24163f69`: 55 of 60 scripts in `scripts/` ran a bare
+`p.goto('http://localhost:4184/')`. Port 4184 is the auditor's worktree — a
+different commit, a different bundle. Every one of those 55 reads somebody
+else's build as your own work, and nothing says so.
+
+**Honouring `SHOT_URL` is only half a fix.** A default port is still a live
+server belonging to whoever started it. And there is a second road to the same
+failure that no URL discipline catches: **your own preview serving a dist you
+built two rebases ago.** I hit that one this week without noticing, in a
+session where I was correcting other people for measuring the wrong world.
+
+`ct/hud.ts` paints the build stamp — short SHA, `+` if dirty — into the corner
+from `virtual:build-stamp`. So don't infer which world you are in, ask it:
+
+```js
+import { reportWorld } from './lib/which-world.mjs';
+await reportWorld(page, URL);   // prints the build; throws on a different SHA
+```
+
+A dirty tree passes — uncommitted work is what you are testing. A different
+commit does not.
+
+Two rules fall out of it:
+
+- **Print the build on every run**, not only on failure. A number with no
+  provenance is not evidence, and the cheapest provenance is one line of
+  output nobody has to ask for.
+- **Rebuild before you measure.** `npm run build` is 200 ms; a stale dist is
+  the same class of wrong as a stale document, and the same class as a check
+  that has left the tree (§24) — all three fail by being quietly absent rather
+  than by going red.
