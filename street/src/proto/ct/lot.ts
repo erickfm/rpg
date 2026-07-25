@@ -21,6 +21,7 @@ const surfTex = (kind: SurfaceKind, w: number, h: number,
 import { FACE } from './rng';
 import { makeCar, type CarKind, type CarState } from './cars';
 import { citizenSprite } from './citizens';
+import { weedTuft } from './weeds';
 
 // ── THE USED CAR LOT ──────────────────────────────────────────────────────
 //
@@ -1484,30 +1485,10 @@ function buildLot(o: {
     // the perimeter, and in the seam where the asphalt meets a wall. Weeds in
     // the middle of a live drive aisle is the tell that they were scattered
     // rather than placed, so the aisle band is excluded outright.
-    const weedT = surfTex('foliage', 12, 14, (g) => {
-      g.clearRect(0, 0, 12, 14);
-      for (let b = 0; b < 7; b++) {
-        const bx = 2 + ((b * 5) % 9), lean = ((b * 7) % 5) - 2, hgt = 6 + ((b * 11) % 7);
-        g.fillStyle = b % 3 === 0 ? '#6e7a3a' : (b % 3 === 1 ? '#57682e' : '#7d8646');
-        for (let k = 0; k < hgt; k++) {
-          const px2 = bx + Math.round((lean * k) / hgt);
-          g.fillRect(px2, 13 - k, 1, 1);
-          if (k > hgt - 3) g.fillRect(px2 + (b % 2 ? 1 : -1), 13 - k, 1, 1);
-        }
-      }
-    });
-    const weedM = new THREE.MeshBasicMaterial({ map: weedT, alphaTest: 0.4, side: THREE.DoubleSide });
-    const weed = (wx: number, wz: number, sc: number) => {
-      // Two crossed quads, not one. A single plane vanishes edge-on, and a
-      // tuft of grass that disappears when you walk past it is worse than no
-      // tuft at all — the same reason the bunting is not a billboard.
-      for (const ry of [0, Math.PI / 2]) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.30 * sc, 0.35 * sc), weedM);
-        m.position.set(wx, Y + 0.175 * sc, wz);
-        m.rotation.y = ry;
-        scene.add(m);
-      }
-    };
+    // The tuft itself now lives in ct/weeds.ts, exported so B's street and E's
+    // park use the SAME weed rather than each drawing a second one. This file
+    // keeps only the thing that is actually the lot's: WHERE a weed grows here,
+    // which is where a car has never driven.
     for (let i = 0; i < 26; i++) {
       const h = (i * 2654435761) >>> 0;
       const edge = i % 4;
@@ -1517,7 +1498,7 @@ function buildLot(o: {
       else if (edge === 2) { wx = X0 + 1.0 + ((h >>> 7) % 2100) / 100; wz = zS + 0.5 + ((h >>> 13) % 60) / 100; }
       else { wx = X1 - 0.5 - ((h >>> 15) % 60) / 100; wz = zS + 0.8 + ((h >>> 17) % 2100) / 100; }
       if (edge === 0 && wz > zMid - AISLE_HW - 0.4 && wz < zMid + AISLE_HW + 0.4) continue;  // not in the gateway
-      weed(wx, wz, 0.7 + ((h >>> 19) % 60) / 100);
+      scene.add(weedTuft({ x: wx, z: wz, y: Y, scale: 0.7 + ((h >>> 19) % 60) / 100, seed: i }));
     }
 
     // THE FLAGPOLE, at the front corner where a lot puts one, south of the
