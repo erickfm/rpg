@@ -57,7 +57,7 @@ ROOMS = await p.evaluate(() => {
                // side * (FACE - 0.75) was a guess that stopped working — every
                // room failed with "could not get in to check" — and doorStandFor
                // already publishes the answer, normal included, chamfer included.
-               stand: d.stand, n: { x: d.point.nx, z: d.point.nz } };
+               stand: d.stand, n: { x: d.point.nx, z: d.point.nz }, widthM: d.widthM };
     })
     .filter(Boolean);
 });
@@ -67,7 +67,7 @@ const pos = () => p.evaluate(() => window.__ct.pos());
 const fails = [];
 const unmeasured = [];
 
-for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n } of ROOMS) {
+for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n, widthM } of ROOMS) {
   const id = name;
   // ── OUTSIDE: which side of the frontage centre is the published door? ──
   // The ROOM declares it; the facade is meant to follow. Reading the room's
@@ -146,28 +146,31 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n } of ROOMS) {
     return best > -1e8 ? best : null;
   }, [cx, roomW / 2]);
   if (hd === null) { fails.push(`${id}: could not find the front wall inside`); continue; }
-  const gap = await p.evaluate(([cx, R, hw, hd]) => {
-    const cols = window.__ct.colliders();
-    const free = (x, z) => !cols.some((c) =>
-      x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
-    const z = hd - 0.28;
-    let run = null, best = null;
-    for (let lx = -hw; lx <= hw; lx += 0.05) {
-      if (free(cx + lx, z)) { if (!run) run = { a: lx, b: lx }; else run.b = lx; }
-      else { if (run && (!best || run.b - run.a > best.b - best.a)) best = run; run = null; }
-    }
-    if (run && (!best || run.b - run.a > best.b - best.a)) best = run;
-    return best ? { lx: +(((best.a + best.b) / 2)).toFixed(2), width: +(best.b - best.a).toFixed(2) } : null;
-  }, [cx, RADIUS, roomW / 2, hd]);
-  // COULD NOT MEASURE IS NOT THE SAME AS DOES NOT MIRROR, and conflating them
-  // is how a harness earns a reputation for crying wolf. This script reported
-  // "5/5 rooms do not mirror" while four of the five were verified mirrored by
-  // walking them (notes/A-mirror-verified.md). It had not found their doorways;
-  // it had not disproved anything.
+  // THE DOORWAY IS A COLLIDER, AND IT STANDS PROUD OF THE WALL.
   //
-  // A doorway further from the room centre than the room's own half-width is
-  // also impossible — PAWN read local x -6.23 in a 10.8 m room — so that is a
-  // failed measurement too, not a finding about the world.
+  // Three scans failed here looking for a GAP. There is none: the door has its
+  // own collider. Measured, and the rule is exact —
+  //
+  //   DINER    wall z 3.50..3.68   door [676.8, 678.0] z 3.68..3.86  w 1.15
+  //   A-1 TAX  wall z 4.25..4.43   door [915.2, 916.4] z 4.43..4.61  w 1.15
+  //
+  // the door leaf sits one wall-thickness FURTHER OUT than the wall plane, so
+  // its minZ is the wall's maxZ. That also breaks the tie width alone could not:
+  // A-1 TAX has a 1.31 m wall piece beside its 1.15 m door, and only the door
+  // starts where the wall ends. Its width matches the DECLARED widthM exactly,
+  // which is the second half of the check rather than the whole of it.
+  const gap = await p.evaluate(([cx, hw, hd, wantW]) => {
+    const cands = window.__ct.colliders().filter((c) =>
+      Math.abs(c.minZ - hd) < 0.06 && c.maxX > cx - hw - 1 && c.minX < cx + hw + 1
+      && c.maxX - c.minX > 0.5 && c.maxX - c.minX < 3);
+    if (!cands.length) return null;
+    const pick = wantW
+      ? cands.reduce((best, c) =>
+          Math.abs((c.maxX - c.minX) - wantW) < Math.abs((best.maxX - best.minX) - wantW) ? c : best)
+      : cands[0];
+    return { lx: +(((pick.minX + pick.maxX) / 2) - cx).toFixed(2),
+             width: +(pick.maxX - pick.minX).toFixed(2) };
+  }, [cx, roomW / 2, hd, widthM]);
   // WHEN IT CANNOT MEASURE, SAY WHAT IT SAW. Three attempts at this scan each
   // failed for a reason I guessed wrong, because the failure printed one word.
   if (!gap) {
@@ -225,6 +228,22 @@ if (!measured) {
   console.log(`NOTHING MEASURED — ${ROOMS.length} rooms, 0 checked. This is not a pass.`);
 } else if (fails.length) {
   console.log(`${fails.length} of ${measured} measured rooms do not mirror`);
+  // CONFLICT WITH HAND VERIFICATION — do not read the line above as a finding.
+  //
+  // notes/A-mirror-verified.md records A-1 TAX, the diner, Burger Barn and
+  // THRIFT each walked by hand, with shots, and each mirroring correctly. This
+  // harness now measures those same four and calls all four SAME SIDE. One of
+  // the two is wrong and I have not determined which.
+  //
+  // The doorway detection is newly correct and measured; the SIDE convention is
+  // the untested half — `observerRight = side < 0 ? -1 : 1` for outside, and
+  // `sign(gap.lx) * -1` for inside. Either could have its sign the wrong way
+  // round, and a sign error would flip exactly these four and nothing else.
+  console.log(`
+  DO NOT ROUTE THIS YET. notes/A-mirror-verified.md has these same rooms walked
+  by hand, with shots, mirroring correctly. The doorway detection above is new
+  and measured; the left/right convention is not yet checked against it. One of
+  the two is wrong. Resolve that before anyone is told their room is backwards.`);
 } else {
   console.log(`all ${measured} MEASURED rooms mirror: the door swaps sides when you walk through it`
     + (unmeasured.length ? `  (${unmeasured.length} unmeasured — NOT verified)` : ''));
