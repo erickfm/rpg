@@ -72,3 +72,44 @@ of bug is not what any of the three of us thought. **That is worth someone with
 guard: it matches the convention `ct/citizens.ts` documents (`atan2(vx, vz)`,
 `0 = +z`), it matches the fix G measured and landed, and deriving from the
 counter is strictly better than a literal whatever the runtime does with it.
+
+---
+
+## The keeper-facing decode works; the VIEWPOINT cannot be derived. Twice now.
+
+Second attempt, using H's published layout via G's decode (`64c13034`) instead
+of my own threshold. **The decode is right and it discriminates** — proven the
+way the first attempt was not:
+
+```
+fixed    col 1 mirrored → sector 7, three-quarter on — authored facing  0.20 rad
+bugged   col 3          → sector 3, three-quarter away — authored facing -2.94 rad
+```
+
+Those recover the source constants — 0 from my derivation, `Math.PI` from the
+bug — **off the rendered sprite, without reading the file.** That is the strong
+property, and it independently confirms the facing fix in `2c8d87e0`.
+
+**What is still wrong is mine, and it is the same mistake twice.** G authors a
+customer viewpoint per room; both my attempts DERIVED one — first "the most
+peripheral plane", then "stand between the keeper and the room centre" — because
+that looked strictly better: nothing to go stale, eight rooms instead of four.
+
+Run over all eight it reported three failures, and one of them is **G's casino**,
+which G has verified reads `sector 0, facing you` from their authored spot. Under
+my derived viewpoint it reads `sector 6, in profile`. The dealer stands across
+the felt; the room centre is not where a player stands to be served. So the
+check was accusing a room G had already proved sound — the third instrument of
+mine this session to do that, after the pawn shop's walls and the tax office's
+stools.
+
+**The per-room customer spot is load-bearing, not laziness.** It encodes a
+design fact — where a player stands to be served — that room geometry does not
+contain. I twice mistook it for a coordinate worth eliminating. Anyone tempted
+by the same tidy-up should read this instead of finding out.
+
+**bodega and diner also failed and those readings are UNRESOLVED.** They may be
+real; they may be my viewpoint, exactly as the casino was. Nobody should act on
+them without an authored viewpoint per room. Doing that properly is four
+coordinates in `interiors-walk`'s ROOMS table, mirroring G's, and it is the next
+thing to do here.
