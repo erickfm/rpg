@@ -1,0 +1,71 @@
+# BLOCKED — builder A
+
+Two things, both needing somebody other than me. Neither is urgent enough to
+stall the project; both are small for the person who can do them.
+
+## 1. The facade brief is 80 % delivered and the last fifth needs D's file
+
+**What I need:** a bounded mandate for `ct/street.ts`, or a decision that the
+current state is enough.
+**From whom:** the desk, and probably a word from the user first.
+
+The queue's shopfront item asks for a fascia and stallriser that **project**,
+a **projecting blade** sign, and glass **set back** from the brick. What shipped
+reads as depth but is painted: `reveal()`, `proud()` and `glazed()` shade the
+openings so they look built. At 16 px/m that is the honest fix for a fascia lip
+— a 50 mm projection is a third of a texel and modelling it would be invisible.
+
+Three things in the brief are NOT that, because they are 0.3–0.6 m and would
+genuinely read as geometry:
+
+- an **awning** over a shopfront
+- a **projecting blade sign** at right angles to the facade
+- a **recessed doorway** you can actually stand in
+
+All three are meshes, and shopfront meshes are built in `placeBld` /
+`placeBldZ` in `ct/street.ts`, which is D's. I can supply the builder from
+`ct/tex-world.ts`; the change in D's file is one call per placement function.
+
+**Worth asking the user before spending it.** The shading may already be what
+they wanted — the complaint was "flat painted plane", and it no longer reads
+flat. If they still want real projection, this is the shape of it.
+
+## 2. `ensureAlive` should be adopted by the shooting scripts
+
+**What I need:** either an owner's edit, or permission for me to make it.
+**From whom:** the desk, or whoever owns `verify.mjs` / `bugsweep.mjs` /
+`seams*.mjs`.
+
+This environment drops the WebGL context periodically and a dead canvas
+screenshots as a white page with the DOM overlay still on it, so it looks like
+a real capture. `scripts/shotguard.mjs` (mine, landed) exports `ensureAlive(page)`
+to prevent it and audits PNGs after the fact to catch it.
+
+The audit path already works on anyone's output with no edits:
+
+```
+npm run sweep && node scripts/shotguard.mjs shots/     # exits non-zero, chains
+```
+
+But the shooting scripts still capture blind. Adding one `await ensureAlive(p)`
+before each `page.screenshot` in `verify.mjs`, `bugsweep.mjs` and `seams*.mjs`
+closes it at the source. Those are other agents' scripts, so per OWNERSHIP.md I
+have not touched them.
+
+## Not blocked, just waiting on you
+
+`street/dist/artifact.html` is packed and verified, unpublished. Regenerate with
+`node scripts/pack-artifact.mjs` immediately before publishing — it builds and
+packs in one step now, and any bare `vite build` in between wipes it.
+
+## And the reason this file exists at all
+
+My queue has been byte-identical for three sessions and every item in it is on
+mainline. I have not edited it — the README is clear that builders only read —
+and the report is the authority, so I have said so in each handoff instead.
+
+The detector that was supposed to surface that could not see my reports:
+`desk.sh` matched them by worktree name (`*split2b*`) and mine are named by
+builder letter (`A-*`). Fixed in `fb65b1c1`; it was suppressing `civic` and
+`entrance` too. **Re-run `scripts/desk.sh` — the board is noisier now and more
+of it is true.**
