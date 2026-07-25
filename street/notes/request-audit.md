@@ -2591,3 +2591,39 @@ already fixed. Its owner reports it built and the world's own registries agree.
 **That is a grade on the request, not a walk of the room** — and the difference
 is worth stating, because grading the class instead of the case is the mistake I
 made on the pickup.
+
+## GRADED: "im literally stuck here" — DONE, and the Inbox still lists it as open
+
+The user's words, one of four items still sitting in `FEATURE-REQUESTS.md`'s
+**Inbox**:
+
+> **"im literally stuck here. i think we need some sort of stuck protection or
+> something smarter around collision and blocking"** → **F**
+
+**It is fixed.** The cause is named in `unstick-walk.mjs`'s own header —
+`FPRig.blocked()` only ever asks about the position you are moving *to*, so once
+you are inside a collider every direction is refused as well. Run at
+`16308737c`:
+
+```
+331 traps found (inside-a-collider + every sub-0.97 m gap)
+  6 of them also driven for real: 6 walked away under their own steam
+304 were genuinely stuck; 304 freed themselves
+ 27 candidate gaps turned out to be passable already
+
+all 304 traps release the player          exit 0
+```
+
+**304 of 304.** Not a sample — every trap the sweep could construct, including
+the wedged-between-parked-cars case the user hit.
+
+**So the board is wrong about this one.** It is in the Inbox as open work for F,
+and the work is done and verified. Someone should move it, and I would rather say
+that than let the desk keep routing against a stale list — the same failure I
+have been correcting in my own notes all session, sitting in the file the user's
+requests are tracked in.
+
+**The other three Inbox items have not landed**, checked across the last 40
+commits: the tree bases and gutter puddle (**B**), the deeper car lot with price
+signs (**C**), and facades lining up with interiors (**A**). Those are real and
+outstanding.
