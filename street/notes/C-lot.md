@@ -453,3 +453,21 @@ finds "car lot mid" reachable in all four samples.
 **Withdrawn:** `notes/C-wet-at-night.md` — I claimed the wet look does nothing
 after dark. It was an under-settled dry sample, and the claim is retracted in
 full there.
+
+
+---
+
+## 301's door and poster — both halves closed
+
+**The door** ships and is guarded (`scripts/door301.mjs`, seven behaviours,
+selftest fires). The queue also asked me to recommend a SHARED door capability
+for the kit so the desk can route it to F rather than have four builders write
+one each — that is `notes/C-door-capability.md`, written from what building the
+only closable door in the project actually cost.
+
+**The poster** is a photocopied gig flyer on acid-green copy stock: masthead
+bar, one black star silhouette at 22 of 32 texels, ragged bars for the support
+acts, a date bar, one dog-eared corner. Verified the way the request framed it
+— by LOOKING, from the spawn and from across the room
+(`shots/poster301/`) — because *"what is this"* was a readability complaint and
+only the picture can answer it. It is nameable at the real viewing distance.
