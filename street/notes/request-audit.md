@@ -2213,3 +2213,53 @@ several of them written today in response to gaps I named.
 radius, determinism, player impact, a one-command diagnostic, and a fix whose
 correctness is demonstrated by another glob in the same bundle. **There is
 nothing left to investigate on it** — only to do.
+
+---
+
+# Three of the four unrun walking suites, run directly — and the church is **locked**
+
+The six walking suites run last in `--slow`, which is why I kept losing them.
+Invoked directly instead, skipping the twelve-minute preamble:
+
+```
+world-wired       8 interior files on disk, 8 rooms registered in the world
+                  every interior on disk is built and reachable            ✓
+
+steps-walk        church: walked 2.69 m up, gy 0.14 → 0.55
+                  church: walked back down, gy 0.55 → 0.14
+                  the steps climb and descend, and nothing sinks           ✓
+
+civic-doors-walk  church: climbed to gy 0.55, prompt "[E] try the doors
+                  of the church"
+                  church: pressed E → "[E] the church is locked"
+                  both civic flights lead somewhere: the doors answer      ✓
+```
+
+## It confirms my church figure, including the caveat
+
+I measured the church flight at **gy 0.31 → 0.51** and wrote that *"E reports
+0.55 at the doors; my grid stops at 0.5 m and at the edge of free ground, so
+0.51 is the last tread I could stand on, not the top."*
+
+**`steps-walk` walks it to 0.55.** The caveat was right and the discrepancy was
+exactly what I said it was.
+
+## And something I never checked: pressing E
+
+**`[E] try the doors of the church` → `[E] the church is locked`.**
+
+I verified that the civic door spots exist and fire — 73/73 for the library,
+68/80 for the church — and **never pressed the key.** The church does not open.
+
+That is a **deliberate, authored response**, not a failure: something wrote that
+string. But the user's request was *"can you walk up the LIBRARY steps and the
+CHURCH steps **and go in**"*, and the church's answer is no.
+
+> **The climb works, the arrival works, the door answers, and the answer is
+> "locked".** Whether that satisfies the request is the user's call and not
+> mine — but my earlier grading said the steps request was closed end to end,
+> and it is closed **up to the threshold**.
+
+I have corrected that above rather than leaving a DONE that covers less than it
+sounds like. **`interiors-walk` remains the one suite I have never completed** —
+it exceeded nine minutes solo, twice.
