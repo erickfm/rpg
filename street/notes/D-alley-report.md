@@ -5,6 +5,36 @@ edit the queue.
 
 ---
 
+## My notes, and which are live
+
+This file is 1200+ lines and seven sibling notes were reachable only by listing
+the directory — `f214cf76` and `fef145bb` hit the same thing. Index first.
+
+| note | what it is | status |
+|---|---|---|
+| **`BLOCKED-D.md`** | the BODEGA frontage names the wing, not the door | **LIVE — the only thing blocking me**, needs a desk ruling |
+| `D-pinned-suite.md` | `scripts/pinned-suite.sh`, a checkout that cannot move under a run | live tool; answers BLOCKED-H §3 and §4 |
+| `D-integration-optin-exists.md` | `SHOT_WORLD=integration` already landed | **for H** — evidence their open item can close |
+| `D-bright-at-midnight.md` | 158 materials bright at 23:00 with no record why | routed; G's 78 and C's 13 answered, B fixed 17 |
+| `D-graffiti-glowed.md` | the alley tags rendered 16x brighter than their wall | fixed (`4955621e`); cause fixed at root by `34a3ed95` |
+| `D-the-post-is-a-person.md` | the "mid-pavement post" is a walker | settled; `3f7b2623` retracted |
+| `D-pgrep-is-not-yours.md` | `pgrep -f` matches other builders' processes | rule, not a patch; four waiters were blocked 3h+ |
+
+**The rest of this file is chronological and mostly history.** What is still
+worth reading in it: the mover audit of my probes, the stopwatch sweep and the
+one threshold I would not defend, the settle-ramp discriminator, and the rain
+sweep. Everything above them is superseded by the code.
+
+## What guards my area
+
+`alleycheck` · `builtlane` · `shells` · `windowlights` · `midnight` · `D-walk`,
+all registered in `scripts/checks.mjs` and green, including against the live
+`:5177` build with `SHOT_WORLD=integration`. `scripts/alley.mjs` shoots the
+alley in four conditions — day, dry night, daytime rain, wet night — because
+two of those four turned up real defects the first time anyone looked.
+
+---
+
 # LATEST — used car lot landed; queue now blocked on other builders
 
 `a9133e25` · build clean · sweep no new page errors · `health.mjs` WORLD OK ·
