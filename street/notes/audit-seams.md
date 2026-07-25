@@ -1,49 +1,52 @@
-## audit/seams — pattern #1 still clean; both floating signs fixed; one new float indoors
+## audit/seams — interiors round 7: exits all correct, light is not
 
-Two queue items worked. Base `5803367e`.
+Queue `## Now` (interiors, standing) at `bfbb0b7c`. No new rooms and no wiring
+change since round 6, so this round closes two gaps I had been carrying in my
+own coverage section rather than measuring.
 
-Touched:   notes/seam-audit.md (+regression check), notes/float-audit.md
-           (+Round 2), notes/interior-audit.md (+Round 6, previous commit),
-           scripts/facade.mjs, scripts/thriftfloat.mjs
+Touched:   notes/interior-audit.md (+Round 7), notes/audit-seams.md,
+           scripts/exits.mjs (new), scripts/intcompare.mjs (new)
            **nothing under street/src/**
+Base:      bfbb0b7c
 
-### `## Next` — pattern #1: no regression after ten more commits
+### Exits — sound in all three rooms
 
-Ten commits touched the three masonry files since the last check, including
-`b5f8264a` (MERIDIAN and LAUNDRY merged into one **19.2 m** bank), `e71b1da4`
-(pawnshop rebuilt, "the last legacy-texel painter" retired), `499892c7` (church
-inlaid) and `5cbb1620` (four shopfronts given depth). Re-measured: **every
-masonry face is still 8 × 8 or 16 × 16.**
+Stood on each way-out spot, pressed E, checked the landing:
 
-The bank merge is the case worth noting — a facade wider than anything that
-existed when `masonry()` was written came out at **8.02 × 8.00**, band at
-**15.99 × 15.95**, with nobody thinking about it. That is the property the
-helper was bought for, demonstrated rather than asserted.
+| room | lands | on walk | to its own trigger | prompt on landing | can move |
+|---|---|---|---|---|---|
+| diner | (−6.10, 8.10) | yes | 1.57 m (r = 1.05) | none | 4/4 |
+| burger barn | (−6.10, −26.75) | yes | 1.57 m | none | 4/4 |
+| thrift | (−6.10, −73.44) | yes | 1.57 m | none | 4/4 |
 
-**One new non-conforming face, and it is not masonry.** The GOLDEN ACES pylon
-sign now measures **13.53 × 11.94** (was 10.45 × 10.57): `d2e5d02d` resized the
-boards and the canvas did not follow, so near-square texels became 1.13 : 1.
-Signage never went through `masonry()` and arguably should not — but it is the
-same failure in a subsystem the pattern does not cover: **a canvas that does not
-move when its surface does.** Worth a decision rather than a drive-by fix.
+Identical and correct in every respect the kit set out to guarantee. **The exit
+half of the door contract is sound.** Previously only the diner had been walked.
 
-### Float audit — both my findings are closed
+### Light — the number I had been reporting was the wrong number
 
-`d2e5d02d` anchored both signs. The detector is down to **3 floating components
-of 1,098 meshes**, from 11 of 530. The HOTEL blade now has **visible brackets
-tying it back to the brick** — the remedy recommended in `notes/float-audit.md`
-finding 1. The pylon is anchored. Remaining floats are the two bodega bulb
-glows, which are additive light and correct.
+Matched cameras in all three rooms (`shots/cmp-*-back.png`):
 
-**One new float, and it is the first one indoors:** a two-sided price card in the
-thrift store at (602.2, 1.42, −2.42) hovers **0.325 m above the shelf beneath
-it**, nearest geometry in any direction. Low severity; logged because it is the
-first instance of the brief's "hanging shop signage" category and because it
-tells the interior builders that `scripts/floats.mjs` covers their rooms too.
+| | fixture | glow | reads as |
+|---|---|---|---|
+| diner | one warm dome | soft radial pool | warm, low, cosy |
+| burger barn | four cool troffers | hard rectangular bloom, near-white | **very bright** |
+| thrift | two tubes | one faint pool, one **none at all** | **flat, dim** |
 
-### Not re-verified
+Colour temperature is defensible — warm diner, cool fast food, cool thrift is
+right for the venues. **Level is not**: walking diner → burger → thrift the
+exposure jumps hard both ways.
 
-The **mirroring** of the two signs (seam audit R1) was not re-checked. It needs
-the matched opposite-side pair that settled it originally; a steep-angle shot
-cannot judge it. **Unknown, not clean** — worth one pass when someone is next in
-that code.
+Worth flagging about my own method: the ceiling-luminance figures I reported for
+six rounds (0.714 / 0.832 / 0.745) **understated this badly.** They measure the
+ceiling *material*, not the additive glow on top of it, and the glow is what the
+eye reads. Judging it needed a matched camera, not a better statistic.
+
+New finding 15: the kit fixes lamp **count** from room depth and leaves
+**output** entirely free — backwards. Count is what a builder should choose;
+output is what has to agree across ten rooms.
+New finding 16: the thrift's two tubes glow differently from each other — one
+has a ceiling pool, one has none. Reads as a broken fixture, not a choice.
+
+Left:      Jamb reveals not re-shot in burger/thrift (thickness measures 0.18 in
+           both, and the reveal was verified in the diner in round 1). Four of
+           seven rooms source-only; three of ten unwritten.

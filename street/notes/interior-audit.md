@@ -498,3 +498,64 @@ built wider than 11 m.
   and colliders are **unmeasured**. Everything above about them is read off
   `RoomSpec`, not off the world.
 - Three of ten rooms still unwritten.
+
+---
+
+# Round 7 — closing my own coverage gaps: exits walked, light judged
+
+Base `add-stick-and-city98` @ `bfbb0b7c`. No new rooms and no wiring change
+since round 6, so this round closes two gaps I had been carrying in the
+"coverage" section rather than measuring: the exits of the rooms I never walked
+out of, and light judged side by side instead of as a luminance number.
+
+## Exits — all three correct and identical (`scripts/exits.mjs`)
+
+Stood on each room's way-out spot, pressed E, and checked where the player
+actually lands:
+
+| room | prompt inside | lands at | on the walk? | distance to its own way-in trigger | prompt on landing | can move? |
+|---|---|---|---|---|---|---|
+| diner | `[E] out to the street` | (−6.10, 8.10) | yes | 1.57 m (trigger r = 1.05) | none | 4/4 |
+| burger barn | `[E] out to the street` | (−6.10, −26.75) | yes | 1.57 m | none | 4/4 |
+| thrift | `[E] out to the street` | (−6.10, −73.44) | yes | 1.57 m | none | 4/4 |
+
+Identical in all three, and correct in every respect the kit set out to
+guarantee: you land on the sidewalk at kerb height, 1.57 m clear of the trigger
+you just used so you cannot be sucked back in, with no prompt showing so the E
+you are still holding does nothing. **The exit half of the door contract is
+sound across every room that is in the world.**
+
+## Light, judged as a set (`shots/cmp-*-back.png`, matched cameras)
+
+Same station in each room — 1.5 m in from the front wall, on the centreline,
+looking at the back wall, same pitch — so these are comparable by eye:
+
+| | fixture | glow | reads as |
+|---|---|---|---|
+| diner | one warm dome | soft radial pool on the ceiling | warm, low, cosy |
+| burger barn | **four cool troffers** | **hard-edged rectangular bloom, near-white** | very bright, cool |
+| thrift | two fluorescent tubes | almost none — one tube has a faint pool, the other has **no glow at all** | flat, dim, cool |
+
+**Colour temperature is defensible; level is not.** Warm diner, cool fast food,
+cool thrift is exactly right for the venues. But walking diner → burger → thrift
+the exposure jumps hard in both directions: the burger barn's ceiling is near-
+white and its troffers bloom, while the thrift's tubes barely register as light
+sources at all. The luminance figures I have been reporting (0.714 / 0.832 /
+0.745) understated this badly — they measure the ceiling material, not the glow
+on top of it, and the glow is what the eye reads.
+
+| # | sev | instance | file | what's wrong |
+|---|-----|----------|------|--------------|
+| 15 | medium | three rooms, three lighting *systems* | `ct/interior.ts` + the three room files | The kit supplies one warm radial bulb and a `light: {kind, tint, count}` escape hatch. The diner takes the default, the burger barn declares four cool troffers, the thrift draws tube fixtures with next to no glow. Nothing relates their **output** — so the set has one room you squint in and one you can barely see the light in. The kit fixes lamp count from depth (`round(D/3.5)`) and leaves brightness entirely free, which is backwards: count is the thing a builder should choose and output is the thing that has to agree. |
+| 16 | low | the thrift's two tubes glow differently from each other | `ct/int-thrift.ts` | One tube has a faint ceiling pool, the other has none. Inconsistent within a single room, which reads as one fixture being broken rather than as a lighting choice. |
+
+**Finding 3 confirmed visually:** all three ceilings are the flat untextured
+colour. In the thrift and the diner it reads as an absence; in the burger barn
+the troffer bloom covers for it.
+
+## Coverage — round 7
+
+- **Jamb reveals not re-shot.** Wall thickness measures 0.18 m in all three
+  rooms, which is what produces the reveal, and I verified it visually in the
+  diner in round 1 — but I have not looked at the burger or thrift jambs.
+- Four of seven rooms still source-only; three of ten unwritten.
