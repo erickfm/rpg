@@ -5,6 +5,7 @@ import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
 import { buildCivic, type BldSpec } from './civic';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
+import { type AABB } from '../fp';
 
 // Every building on the block, hand-authored end to end, plus the alley
 // cut into the west wall. Adds meshes + billboard sprites; owns no state.
@@ -18,6 +19,22 @@ export function buildStreet(o: {
   SIDE_X1: number; SIDE_Z0: number; SIDE_Z1: number;
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
+  // ── collision, registered by the module that draws the building ─────────
+  //
+  // This used to be two rectangles hand-written in crosstown.ts spanning the
+  // whole block, which meant collision could not follow geometry: the library
+  // courtyard was walled off by a blanket that knew nothing about it, and the
+  // bodega's canted corner collided square. Same failure the [E] spots and the
+  // frame hooks already outgrew, same fix — whoever draws it registers it.
+  //
+  // The two numbers every footprint below is built from:
+  //   0.3  the cushion in FRONT of a facade. Projecting doorcases, stallrisers
+  //        and the bodega's tower all live inside it, so nothing sticks
+  //        through the collider into the walking lane (GOTCHAS §9).
+  //   8    the depth BEHIND a facade. Shells are only 3.4 m deep; the extra
+  //        stops you running round the back into the dead ground.
+  const colliders: AABB[] = [];
+  const solid = (b: AABB) => { colliders.push(b); return b; };
   // `kind` takes a building OUT of the shopfront system entirely — a civic
   // building is not a brick box with an awning and a painted name on it, and
   // the two that carry this block get their own builders below.
@@ -239,6 +256,9 @@ export function buildStreet(o: {
     const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, gh, b.w), shopMats);
     shop.position.set(side * (FACE + 1.7), gh / 2, cz);
     scene.add(shop);
+    solid(side < 0
+      ? { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
+      : { minX: FACE - 0.3, maxX: FACE + 8, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
   };
   // ── civic stone ─────────────────────────────────────────────────────────
   //
@@ -272,6 +292,11 @@ export function buildStreet(o: {
     g.rotation.y = -Math.PI / 2;
     g.position.set(FACE + 1.7, 0, z - b.w);
     scene.add(g);
+    // The church does not go through placeBld, so it has to register its own
+    // footprint or it is not there at all — with the blanket wall gone you
+    // walked straight through the nave. The 0.3 cushion covers the tower,
+    // which stands exactly that far proud of the facade.
+    solid({ minX: FACE - 0.3, maxX: FACE + 8, minZ: z - b.w, maxZ: z });
   };
   let ze = 14.2;
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
@@ -301,6 +326,9 @@ export function buildStreet(o: {
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4), shopMats);
     shop.position.set(cx, gh / 2, zc);
     scene.add(shop);
+    solid(facing > 0
+      ? { minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 8, maxZ: zc + 1.7 + 0.3 }
+      : { minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 0.3, maxZ: zc + 1.7 + 8 });
   };
   // The bodega is the anchor store on this corner, so it does not stop at the
   // canted bay — it runs on down the side street, taking the first 6 m of what
@@ -443,6 +471,24 @@ export function buildStreet(o: {
     const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    // The corner's footprint FOLLOWS THE CUT. The shell is the rectangle
+    // BX0…BX1 × BZ1…BZ0 minus the triangle the chamfer takes out of its
+    // south-west corner — the void is x ≥ BX0, z ≤ BZ1 + CHF and
+    // x + z ≤ BX0 + BZ1 + CHF. An AABB cannot be diagonal, so the cut is
+    // approximated by a staircase of thin bands, each starting at the
+    // MOST PERMISSIVE x in its band so the stair never eats walkable ground
+    // — the 0.36 m player radius more than covers the sliver of masonry that
+    // leaves unblocked. Collide square here and you clip the cut face, which
+    // is exactly what the user reported.
+    {
+      const CUT = BX0 + BZ1 + CHF;                    // x + z along the cut
+      const BAND = 0.25;
+      for (let z = BZ1; z < BZ1 + CHF - 1e-6; z += BAND) {
+        solid({ minX: CUT - z, maxX: BX1 + 8, minZ: z, maxZ: z + BAND });
+      }
+      // …and the rest of the block, north of the cut, at full width
+      solid({ minX: BX0 - 0.3, maxX: BX1 + 8, minZ: BZ1 + CHF, maxZ: BZ0 });
+    }
     // The corner used to carry its own brick painter, because facadeTex once
     // floored its canvas at 64 px and would have painted a 2 m bay three times
     // finer than the elevation beside it. That clamp is gone and the density
@@ -612,6 +658,9 @@ export function buildStreet(o: {
     ] as [number, number, THREE.Texture][]) {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55), [crateM, crateM, flat(top), crateM, crateM, crateM]);
       crate.position.set(cxx, sidewalkY + 0.2, czz);
+      // one box per crate and no bigger than the crate. A single generous box
+      // across both is what swallowed the bodega's [E] spot (GOTCHAS §8).
+      solid({ minX: cxx - 0.31, maxX: cxx + 0.31, minZ: czz - 0.28, maxZ: czz + 0.28 });
       scene.add(crate);
     }
   }
@@ -680,6 +729,7 @@ export function buildStreet(o: {
       [new THREE.MeshBasicMaterial({ map: bareBrickT }), endWallM, endWallM, endWallM, endWallM, endWallM],
     );
     alleyEnd.position.set(-FACE - 6.9, 6.4, (AZ0 + AZ1) / 2);
+    solid({ minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 });
     scene.add(alleyEnd);
     // ── the alley's two flanks ────────────────────────────────────────────
     // These are the exposed party walls of the two buildings the alley is cut
@@ -860,6 +910,7 @@ export function buildStreet(o: {
       [dumpSideM, dumpSideM, dumpInsideM, dumpInsideM, dumpFrontM, dumpFrontM],
     );
     dump.position.set(-11.2, 0.69, AZ0 - 1.15);
+    solid({ minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 });
     scene.add(dump);
     const lid = new THREE.Mesh(new THREE.BoxGeometry(2.44, 0.06, 1.12), new THREE.MeshBasicMaterial({ color: 0x24482f }));
     lid.geometry.translate(0, 0.03, -0.56); // pivot runs along its hinge edge
@@ -919,4 +970,5 @@ export function buildStreet(o: {
     tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
+  return { colliders };
 }

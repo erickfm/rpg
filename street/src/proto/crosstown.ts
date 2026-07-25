@@ -19,6 +19,7 @@ import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
+import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
@@ -84,7 +85,7 @@ export function makeCrosstown(): Proto {
   // the alley; nothing on the street is filler.
   const AZ0 = -37, AZ1 = -43.5; // the alley gap in the left wall
   const boards: Board[] = [];
-  buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
+  const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
   // solid props the citizens must steer AROUND (never walk/phase through) —
   // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
   // here because every module that builds appends to the same two lists.
@@ -249,21 +250,18 @@ export function makeCrosstown(): Proto {
   buildBurger(ctx);
 
   const colliders: AABB[] = [
-    { minX: FACE - 0.3, maxX: FACE + 8, minZ: -96, maxZ: 20 },              // right wall (stops at the corner)
-    { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: -112, maxZ: AZ1 },          // left wall south of alley, wraps the corner
-    { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: AZ0, maxZ: 20 },            // left wall north of alley
-    { minX: 6.8, maxX: SIDE_X1 + 2, minZ: -96.3, maxZ: -92 },               // corner shops, north of the side street
-    { minX: -7, maxX: SIDE_X1 + 2, minZ: -113, maxZ: -109.7 },              // south side of the side street
+    // The block's collision comes from the modules that DRAW it, not from
+    // rectangles written here. This used to be two blanket walls spanning the
+    // whole street, plus one across the corner shops, and because they knew
+    // nothing about the buildings they described, collision could not follow
+    // geometry: they walled off E's library courtyard and squared off the
+    // bodega's canted corner. ct/street.ts now registers a real footprint per
+    // building as it places it — following the chamfer, leaving the alley
+    // mouth open, and skipping the library entirely so ct/civic.ts's own
+    // colliders are the only thing there.
+    ...street.colliders,
+    ...COURT.colliders,
     { minX: SIDE_X1 + 1.7, maxX: SIDE_X1 + 9, minZ: -112, maxZ: -92 },      // east end of the side street
-    // the two fruit crates, one box each and no wider than the crate it is.
-    // This was a single 2.2 m box spanning the whole canted-bay frontage with
-    // the bodega's [E] spot stranded inside it — the reason you could not get
-    // into the shop. The crates have moved east, clear of the doorway; if they
-    // move again these two must follow, or the door closes itself.
-    { minX: 9.74, maxX: 10.36, minZ: -96.56, maxZ: -96.00 },
-    { minX: 10.64, maxX: 11.26, minZ: -96.53, maxZ: -95.97 },
-    { minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 }, // alley end wall
-    { minX: -12.5, maxX: -9.9, minZ: AZ0 - 1.75, maxZ: AZ0 - 0.55 },        // dumpster
     ...propColliders,
     ...carColliders,
     ...apt.colliders,
@@ -312,6 +310,13 @@ export function makeCrosstown(): Proto {
         if (z < SIDE_Z1) return apt.setGy(KERB_H);
         return apt.setGy(x > SIDE_X1 || x < -ROAD_HALF ? KERB_H : 0);
       }
+      // The library courtyard is paved at KERB_H and reaches back well past
+      // FACE + 0.3, where the rule below stops answering — walk into it and
+      // the floor drops away. ct/civic.ts publishes its extents and its paving
+      // level for exactly this, so the notch and the floor come off ONE import
+      // instead of being restated here.
+      if (COURT.live && x >= COURT.minX && x <= COURT.maxX
+        && z >= COURT.minZ && z <= COURT.maxZ) return apt.setGy(COURT.y);
       return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
     },
   });
