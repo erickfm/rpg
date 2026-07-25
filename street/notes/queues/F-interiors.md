@@ -28,6 +28,38 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **The diner's [E] prompt is on the BANK. Re-anchor it, then sweep every
+      spot.** The user: *"theres still a diner entrance by the bank. i think we
+      have to make sure all press e to enter options are aligned with the doors
+      on the facades"*.
+
+      **The desk dropped this handoff, not you.** D moved the diner and left
+      the number in `ct/street.ts` right above the roster entry — *"z −55.5 …
+      −43.5, centre −49.5 — ct/int-diner.ts anchors its door here"* — and the
+      desk never relayed it. `int-diner.ts` still says `const DZ = 9.6`, which
+      is the old slot, and that slot is now part of the bank.
+
+      **The number is −49.5.** Re-anchor and walk it: stand outside the diner
+      at its real position, press E, come back out, and confirm there is no
+      prompt anywhere near the bank.
+
+      **Then sweep every other `[E]` spot against its building**, because the
+      block has been re-cast repeatedly today and this will not be the only
+      one. Buildings that MOVED: the diner, the thrift (now 12.5 m and one
+      slot north), the church (side street → main block, east side), and the
+      whole BARBER/GROCERY frontage which is now a park. Buildings that
+      VANISHED: CAFE, HARDWARE, MERIDIAN, LAUNDRY, BARBER, GROCERY. Any spot
+      still pointing at one of those is orphaned.
+
+      **This is exactly the case for the frontage descriptor** you and builder
+      A are already queued to build. A hand-typed `DZ = 9.6` cannot know its
+      building moved; a spot derived from the facade's published door position
+      moves with it and cannot go stale. So fix the number now as its own
+      commit, and treat this as the strongest argument for landing the
+      descriptor work straight after — the user has now hit the same class of
+      bug three times: triggers inside walls, interiors not matching facades,
+      and now a prompt on the wrong building entirely.
+
 - [ ] **Interior people must use the 8-angle citizen atlas, like the street
       does.** The user: *"i want the people inside the buildings to be as
       detailed and quake-view like as the pedestrians on the street"*.
