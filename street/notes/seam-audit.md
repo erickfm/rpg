@@ -1837,3 +1837,68 @@ lines.
 
 I am recording the three dead ends so the next person does not spend the
 afternoon I just spent on them.
+
+---
+
+# Round 14f — SOLVED. The casino's binding is emitted **after** the glob that reads it.
+
+Three source-level explanations failed because the answer is not in the source.
+It is in the bundle, and it is exact.
+
+`import.meta.glob(..., { eager: true })` compiles to an **object literal** whose
+values are the module namespace bindings. So the question is simply: is each
+binding declared **before** that literal is constructed?
+
+Measured on `dist/assets/index-DOohIz3z.js`:
+
+```
+the glob object literal is at byte 810,068
+
+module        id     declared at    before the glob?
+int-bodega    Wf         689,332    yes
+int-burger    qf         694,747    yes
+int-diner     dp         712,776    yes
+int-hotel     mp         719,109    yes
+int-pawn      _p         726,400    yes
+int-tax       bp         734,280    yes
+int-thrift    Cp         740,171    yes
+int-casino    rm         811,650    ** NO — after **
+interior      om         818,760    ** NO — after **
+civic-doors   bm         826,809    ** NO — after **
+```
+
+> **Seven rooms are bound between bytes 689K and 740K, comfortably before the
+> glob at 810K. `int-casino` is bound at 811,650 — 1.6 KB *after* the object
+> that references it.** At the moment the literal is constructed its value is
+> `undefined`, so `MODS["./int-casino.ts"].DOOR` is never read and the casino's
+> door is never collected.
+
+**That is exactly the set mainline names** as resolving undefined — `int-casino`,
+`interior`, `civic-doors` (and `world`, itself a globber). Not a coincidence,
+not an inference: three names, three byte offsets, all after 810,068.
+
+## And it rescues the hypothesis I disproved
+
+I proposed that the casino's unique `import { tube } from './vice'` was what
+singled it out, then disproved that twice — `vice` opens no cycle route and adds
+no depth. **It was the right suspect for the wrong reason.** `vice` is a large
+module bound late in the bundle, and importing it pushes `int-casino`'s own
+binding past the glob. The mechanism is **emission order**, which no import
+graph and no depth metric can show.
+
+## The diagnostic, for anyone who needs it again
+
+Two greps, no runtime:
+
+1. find `"./int-` in the bundle → the glob literal's byte offset
+2. find where each room's namespace identifier is declared
+
+**Any module bound after that offset loses whatever the glob was reading.**
+
+## What this changes about the fix
+
+Nothing — it strengthens it. `doorStandFor` in a leaf module removes the rooms'
+import of `./doors`, so nothing needs to be bound before anything else. But it
+also means the current failure is **reproducible and explainable**, which it was
+not an hour ago: the desk can now verify a fix by checking that no room's
+binding sits after the glob, rather than by counting doors and hoping.
