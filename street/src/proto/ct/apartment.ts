@@ -1508,6 +1508,68 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     });    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
     poster.position.set(AX(-1.05), RY + 1.55, AZI(2.085));
     scene.add(poster);
+
+    // ── the north wall, above the bed ────────────────────────────────────
+    // Found by re-walking the building after the spawn moved in here
+    // (notes/C-entrance-report.md, "RE-WALK"). You wake facing the window, and
+    // three of the four directions you can turn to pay off — the window and
+    // the street below, the poster and the TV to the south, your own door with
+    // the 301 plate. North was bare from the bed's head to the ceiling, which
+    // in a room 3.5 m deep is a quarter of what you see in the first five
+    // seconds.
+    //
+    // Both of these hang ABOVE THE BED and are sized to be read from the
+    // SPAWN, 1.2 m away and off to one side — not from the middle of the room.
+    // Small enough that the wall is still mostly wall; a second poster up here
+    // would have made the room read as decorated rather than lived in.
+    //
+    // rotation.y = PI on both. The south poster faces +z into the room with no
+    // rotation; this wall is the other one, so its artwork has to be turned to
+    // face -z or it reads mirrored — texM is DoubleSide, so getting this wrong
+    // shows nothing missing, just a backwards calendar.
+    // THE WALL IS A BOX AND AZI(5.5) IS ITS CENTRELINE, not its face. It is
+    // 0.14 deep, so the room side is AZI(5.5) - 0.07 and anything hung at
+    // AZI(5.49) is entombed inside the plaster — which is exactly what my
+    // first attempt did: both meshes present, visible:true, at the right x and
+    // y, and invisible. 0.015 proud of the face is what the south poster uses.
+    const NORTH_Z = AZI(5.5) - 0.07 - 0.015;
+    const calT = surfTex('detail', 30, 40, (g) => {
+      g.fillStyle = '#8c3a2e'; g.fillRect(0, 0, 30, 12);            // the month block
+      stampNum(g, '1997', 5, 3, '#e8dcb8');
+      g.fillStyle = '#e8e0cc'; g.fillRect(0, 12, 30, 28);           // the grid page
+      g.fillStyle = '#5a5348';
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) g.fillRect(2 + c * 4, 15 + r * 5, 2, 2);
+      // one day ringed in biro, which is the whole reason a calendar is on a
+      // wall rather than in a drawer
+      g.fillStyle = '#2f4f8c';
+      g.fillRect(9, 24, 6, 1); g.fillRect(9, 29, 6, 1);
+      g.fillRect(9, 24, 1, 6); g.fillRect(14, 24, 1, 6);
+      dither(g, 30, 40, 26);
+    });
+    const cal = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.40), texM(calT));
+    cal.position.set(AX(-2.45), RY + 1.66, NORTH_Z);
+    cal.rotation.y = Math.PI;
+    scene.add(cal);
+    // three snapshots taped up in a row, curling at one corner. Alpha outside
+    // them so it is three photographs and not a photograph-coloured rectangle.
+    const snapT = surfTex('detail', 34, 13, (g) => {
+      g.clearRect(0, 0, 34, 13);
+      const shot = (x0: number, sky: string, ground: string, figure: string) => {
+        g.fillStyle = '#e6e2d6'; g.fillRect(x0, 0, 10, 12);          // the white border
+        g.fillStyle = sky; g.fillRect(x0 + 1, 1, 8, 6);
+        g.fillStyle = ground; g.fillRect(x0 + 1, 7, 8, 4);
+        g.fillStyle = figure; g.fillRect(x0 + 4, 4, 2, 5);           // somebody, unreadably
+        g.fillStyle = 'rgba(255,255,255,0.45)'; g.fillRect(x0 + 3, 0, 4, 2);  // the tape
+      };
+      shot(0, '#7d94a8', '#4a5a48', '#3a3128');
+      shot(12, '#c8b48a', '#8a7a5c', '#42352a');
+      shot(24, '#6a7f9a', '#586a52', '#2e2a24');
+      dither(g, 34, 13, 20);
+    });
+    const snaps = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.153), texM(snapT));
+    snaps.position.set(AX(-1.62), RY + 1.52, NORTH_Z);
+    snaps.rotation.y = Math.PI;
+    scene.add(snaps);
     // lit by the same fixture as the landing outside the door
     ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
     sevColliders.push(

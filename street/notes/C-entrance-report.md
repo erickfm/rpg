@@ -273,7 +273,7 @@ the gold reads `Γ55` through the glass — which is `227` mirrored, exactly as
 intended: under a horizontal flip the 5x5 glyph for `2` becomes the glyph for
 `5` and `7` becomes `Γ`. `18-transom-inside.png`.
 
-### NEW — the north wall of 301 is bare, floor to ceiling
+### NEW — the north wall of 301 is bare, floor to ceiling — NOW FIXED
 
 `03-301-north.png`. The only finding of this pass, and the spawn is what
 promotes it from a detail to the first thing worth fixing in the building.
@@ -288,6 +288,21 @@ It does not want much: a calendar, a mirror, a chest of drawers, something
 stacked against the skirting. Whoever takes it should look at it FROM THE
 SPAWN rather than from the middle of the room, because that is the only angle
 the player is guaranteed to see it from.
+
+**Fixed the same session** — a 1997 wall calendar with one day ringed in biro,
+and three snapshots taped up in a row, both above the bed and both sized to be
+read from the spawn rather than from the middle of the room
+(`20-north-from-spawn.png`). Deliberately small: the wall is still mostly
+wall, and a second poster up here would have made the room read as decorated
+rather than lived in.
+
+One thing worth knowing before hanging anything else in this building:
+**`AZI(5.5)` is the north wall's CENTRELINE, not its face.** The wall is a
+0.14 m box, so the room side is `AZI(5.5) - 0.07`, and my first attempt hung
+both meshes at `AZI(5.49)` — entombed inside the plaster. They reported
+`visible: true` at the right x and y and rendered nothing, which is a very
+quiet way to be wrong. The south poster's 0.015 m proud of its inner face is
+the number to copy.
 
 ### Two things I chased and had to drop, so nobody re-chases them
 
