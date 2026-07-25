@@ -1,5 +1,18 @@
 # BLOCKED — builder A
 
+## The glazing patch now has a visible symptom: the diner's blank wall
+
+`56604bc8` found *"the diner's left wall is blank — the whole west third bare
+plaster"* and was about to route furniture for it. Computed through
+`interior.ts`'s own trim, the diner loses **2.21 m of glass** to the old
+conversion and is left with a **2.70 m** bare stretch that the world-coordinate
+fields would glaze. One quarter of a 10.8 m room.
+
+The diner is the **only** one of sixteen frontages where the two conventions
+disagree, and it is the reference interior. Full numbers in
+`A-glazing-handoff.md`. **Furnishing that wall before the patch lands decorates
+the bug.**
+
 ## URGENT-ISH: G's `Room.glazing` ask would cement the deprecated fields
 
 G asked F (`cf0609d4`) for `Room.glazing`. The value it wants is `glaze`, and

@@ -104,6 +104,44 @@ frontage's `outward`. If that is wrong the arithmetic changes — but a wrong
 mapping would scramble many frontages, not leave fifteen exact and one
 asymmetric, so I believe it.
 
+## URGENT: the diner's "blank wall" is probably 2.21 m of lost glass
+
+`56604bc8` reports, and deliberately did not build:
+
+> **The diner's left wall is blank** — the whole west third of the room is bare
+> plaster… a jukebox, a cigarette machine, a coat rack… would each fix it, and
+> the diner is the reference interior so whatever goes there sets the pattern.
+
+**Do not furnish it yet.** The diner is the one frontage of sixteen where the
+two glazing conventions disagree, and the size of the disagreement is the size
+of the blank wall. Computed from the published registry, through `interior.ts`'s
+own trimming rule, in room-local metres:
+
+```
+DINER frontage 12 m, room W = 10.8 m, spanning -5.40 .. 5.40
+door local 2.60, width 1.05
+
+AFTER TRIM  with my world fields:   glass -4.91 .. 1.95   (6.86 m)
+AFTER TRIM  as interior.ts does it: glass -2.70 .. 1.95   (4.65 m)
+```
+
+The conversion loses **2.21 m of glass off the left end**, and leaves a
+**2.70 m** bare stretch — one quarter of the room, at one end — which under the
+world-coordinate fields would be window.
+
+**So the blank wall may not be an unfinished room. It may be the bug.** If it is,
+furnishing it decorates the defect and makes it expensive to undo later: a
+jukebox placed against that wall is in front of a window once the patch lands,
+and the diner is the reference interior, so the pattern propagates.
+
+**One look confirms it**, and I would rather someone standing in the room checked
+than take my algebra for it: the bare end should measure about **2.7 m**. If it
+does, it is this. If it is much smaller, the room has some other reason and the
+furniture item is real.
+
+I have not built or moved anything. This is the same two-line patch as above —
+it is the concrete cost of leaving it unapplied.
+
 ## What I am not doing
 
 I have not touched `ct/interior.ts`. It is F's, I have no mandate, and
