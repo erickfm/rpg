@@ -65,7 +65,7 @@ const CHECKS = [
   ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water']],
   ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool'], ['probe']],
-  ['park',             'is the park lit, or black at night?',              ['park', 'park-walk']],
+  ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk']],
   ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],
   ['basin',            'are BOTH catch basins real casting, sunk and proud?', ['basin', 'basin-west']],
   ['kerbcut',          'is there a curb cut, and is it at the lot?',       ['kerbcut', 'kerbcut-moved']],

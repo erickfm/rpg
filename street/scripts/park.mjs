@@ -56,11 +56,26 @@ const r = await page.evaluate(() => {
   });
   // additive emitters that actually carry opacity right now
   let lit = 0;
+  const emitters = [];
   sc.traverse((o) => {
     if (o.isMesh && o.material?.blending === 2 && o.material.opacity > 0.05 &&
-        o.position.x < -8 && o.position.x > -40) lit++;
+        o.position.x < -8 && o.position.x > -40) {
+      lit++; emitters.push([o.position.x, o.position.z]);
+    }
   });
-  return { site, lamps, floorLum, lit };
+  // PER LANTERN, NOT A TOTAL. `lit` is a count over the whole park, and the bar
+  // on it was 8 while the world lights 20 — so six lanterns could go black and
+  // the remaining four would clear it. This park is the one the auditor found
+  // "NOT lit — ZERO light sources" and the user called the shittiest he had
+  // seen; a check on it that tolerates most of the lamps failing is not
+  // checking the thing that was wrong.
+  //
+  // Each lantern carries a halo and a ground pool. Pair emitters to lanterns by
+  // position and report the WORST-lit lantern, which is the only number that
+  // can say "they are all emitting".
+  const perLamp = lamps.map(([lx, lz]) =>
+    emitters.filter(([ex, ez]) => Math.hypot(ex - lx, ez - lz) < 1.2).length);
+  return { site, lamps, floorLum, lit, perLamp, darkest: perLamp.length ? Math.min(...perLamp) : 0 };
 });
 
 console.log(`\n  park site: x ${r.site?.minX} … ${r.site?.maxX}, z ${r.site?.minZ} … ${r.site?.maxZ}`);
@@ -86,12 +101,23 @@ const offs = r.lamps.map(([x, z]) => +toLoop(x, z).toFixed(2));
 const worst = Math.max(...offs);
 console.log(`  each lantern's distance from the loop path: ${offs.join(', ')}`);
 
-const okCount = r.lamps.length >= 8;
+// TEN, and it is structural rather than a magic number: ct/props.ts builds four
+// lanterns per leg on two legs, plus one at each end of the loop "so the corners
+// are not the dark bit". That count does not move when E re-cuts the park — the
+// legs get longer, not more numerous — so a floor of 8 bought nothing except
+// room for the two END lamps to disappear unnoticed, which is exactly the
+// failure the comment that placed them was written to prevent.
+const okCount = r.lamps.length >= 10;
 const okLit = r.lit >= 8;
+// whatever lanterns the park has — the count follows E's site cut — every one
+// of them must be carrying light, not just enough of them to reach a total
+const okEach = r.perLamp.length > 0 && r.darkest >= 1;
 const okBeside = worst <= 1.3;             // beside it, not on it and not adrift
 const okClear = Math.min(...offs) >= 0.75; // off the 1.5 m path itself
 console.log(`\n  ${okCount ? 'OK  ' : 'FAIL'} the park HAS light sources (${r.lamps.length})`);
 console.log(`  ${okLit ? 'OK  ' : 'FAIL'} they are emitting at 3am (${r.lit} sheets lit)`);
+console.log(`  ${okEach ? 'OK  ' : 'FAIL'} EVERY lantern is carrying light ` +
+  `(worst has ${r.darkest} emitter${r.darkest === 1 ? '' : 's'}; per lamp ${r.perLamp.join(',')})`);
 console.log(`  ${okBeside ? 'OK  ' : 'FAIL'} every lantern stands beside the loop (worst ${worst} m)`);
 console.log(`  ${okClear ? 'OK  ' : 'FAIL'} none stands ON the 1.5 m path (nearest ${Math.min(...offs)} m)`);
 
@@ -195,5 +221,5 @@ await shot('path-day', lx1, lz0 + 1.5, lx1, lz1, 0.14, -0.02);
 
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!okCount || !okLit || !okBeside || !okClear || !walked) process.exit(1);
+if (!okCount || !okLit || !okEach || !okBeside || !okClear || !walked) process.exit(1);
 console.log('\nno page errors');

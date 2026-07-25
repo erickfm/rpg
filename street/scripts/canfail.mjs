@@ -116,6 +116,16 @@ const CASES = [
   // loosened that criterion — distance alone was one pedestrian from flipping
   // — and a criterion I loosened without a mutation behind it is a criterion
   // I have only assumed still works.
+  // Darkens SOME of the park's lanterns, not all: the two end lamps stop being
+  // built, so eight remain and sixteen sheets stay lit. The old bar was "8 or
+  // more sheets lit" against a world that lights 20, so this passed — six
+  // lanterns could have gone black behind it. This is the park the auditor
+  // found "NOT lit — ZERO light sources".
+  ['park-partial', PROPS,
+    '    for (const cz of [lz0 + 0.95, lz1 - 0.95]) {\n      makeParkLamp((lx0 + lx1) / 2, cz);\n    }',
+    '    for (const cz of [] as number[]) {\n      makeParkLamp((lx0 + lx1) / 2, cz);\n    }',
+    'park.mjs', [], 'the park lit everywhere except its two ends'],
+
   ['park-walk', PROPS,
     'obstacle({ minX: x - 0.16, maxX: x + 0.16, minZ: z - 0.16, maxZ: z + 0.16 });',
     'obstacle({ minX: x - 2.4, maxX: x + 2.4, minZ: z - 2.4, maxZ: z + 2.4 });',
