@@ -118,6 +118,43 @@ That is shopfront-band density at shopfront-band height, but `masonry()` did not
 paint them — so there is a band being painted somewhere other than the shopfront
 kit. Worth its owner knowing; not mine, and I am not guessing whose.
 
+## And that list was itself wrong (`72df901c`)
+
+`62fdb232` reported seampairs calling a **declared** face UNDECLARED, queried
+every mesh at the coordinate my tool printed, and found the face there declares
+`'ground'`. Right on both counts. Two separate faults underneath:
+
+**1. The list was wrong.** Pair endpoints carried `{u, v, d, at}` and **not
+`kind`**, so `f.kind` was always `undefined` and *every* face in an unjudgeable
+pair was listed as needing a declaration — including ones that already had one.
+
+```
+18 distinct faces are what is actually missing   (was 51)
+```
+
+**Thirty-three of the fifty-one were already declared.** That list is the thing
+people were meant to act on, so it was the worst possible place to be wrong —
+and it was wrong from the moment I added it, one commit earlier, in the very
+change whose point was "name them so nobody has to guess".
+
+**2. The word.** The examples printed `UNDECLARED` for any face `masonry()` did
+not paint, which includes every face that *does* declare as `'ground'`, `'sign'`
+or `'detail'`. `d: null` means "no masonry stamp"; I printed it as "undeclared",
+and that is what a reader acts on. It says what the face is now:
+
+```
+u 11.05×   declared 'detail' 1.45×3.56 px/m at (45.2,5.2,-98.6)
+           touching masonry 16 px/m at (51.2,2.1,-94.3)
+```
+
+The bucket counts were correct throughout — 63 unjudgeable, 52 answered, 0
+brick-vs-brick. **Only the actionable list and its labels were lying**, which is
+the combination that costs somebody else an afternoon instead of me one.
+
+Worth naming the pattern: I have now twice shipped a *reporting* bug in the same
+turn as fixing a *reporting* bug, because I tested the number I was thinking
+about and not the line next to it.
+
 ## Proven a no-op, and the control earned its keep
 
 Textures `dac59c30` and structure identical with and without the change on the
