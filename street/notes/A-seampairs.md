@@ -185,6 +185,46 @@ the wrong reason: it removes ivy, which is a cut-out, but the four faces it
 appeared to remove were the walls behind the ivy, and those are now excluded by
 the honest pairing fix instead.
 
+## Where this ended up (`a5a195a8`)
+
+`a86f970d` declared nine more faces, including the x±6.9 family. The seam
+question is effectively answered:
+
+```
+419 masonry faces · 1998 touching pairs
+LIKE-FOR-LIKE (same declared density): 925 pairs, disagreeing:  0
+brick vs brick, a real seam question:                           0
+one side says it is not brick:                                105
+UNJUDGEABLE:                                                   10   (from 150)
+   resting on 3 distinct faces, 7 pairs off-grid
+no two faces that should draw the same brick draw different brick
+```
+
+And it left one of my summary lines false. *"The undeclared face is off the
+8/16 grid: 110 — those are the ones a photograph of mismatched brick could be"*
+counted every mixed pair. Right when every mixed pair was a candidate; wrong the
+moment modules declared, because a face declared `'detail'` is **legitimately**
+off the grid — a door handle is not brick and is not meant to be 8 px/m. Over
+the population still open it is **7**. The line overstated by a hundred.
+
+### The pattern, now that it has happened four times
+
+| # | line | why it went stale |
+|---|---|---|
+| 1 | `declared-DIFFERENT … SHOP_MULT is 2` | ratio range grew to 4.03× when flagstone paving entered |
+| 2 | same line again | unstamped faces leaked into it |
+| 3 | `UNDECLARED` in the examples | meant "no masonry stamp", read as "nobody declared it" |
+| 4 | `off the 8/16 grid: 110` | counted answered pairs after the world answered them |
+
+**None was wrong the day it was written.** They go stale because the world
+answers the question underneath them and the line goes on describing the
+question. That is a different failure from a bug, and it is not caught by tests —
+only by re-reading the output as if you had never seen it.
+
+I also broke the script making this fix — moved a computation above the variable
+it reads, temporal dead zone — and caught it because I ran it and saw `rc=1`,
+not because I reread the diff and called it obvious.
+
 ## The pattern across three rounds
 
 | round | claim | actual |
