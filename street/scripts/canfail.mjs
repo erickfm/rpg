@@ -23,10 +23,41 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const PROPS = 'src/proto/ct/props.ts';
 const GROUND = 'src/proto/ct/tex-ground.ts';
+const TEXW = 'src/proto/ct/tex-world.ts';   // A's
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
 const CASES = [
+  // ── A's two, added by A. Both mutate the thing the check exists to catch,
+  // and both are in tex-world.ts, so a source mutation reaches them where a
+  // runtime one might not — the failure mode that beat A's own selftests twice
+  // (props.ts re-stamps userData every frame; the sky is rewritten every frame).
+  //
+  // NO seethrough CASE, and the reason is worth more than the case.
+  //
+  // Two mutations were tried and the check SLEPT through both, correctly.
+  //
+  //   hide every shopfront's interior backing  — a shopfront front is a solid
+  //     box, so the backing only matters where the face is a real cut-out, and
+  //     exactly one is: the bodega's canted bay. Removing backings world-wide
+  //     removes nothing anyone could see through.
+  //   hide the BAY's backing, the historical bug verbatim — still nothing,
+  //     because D's rebuild put masonry behind the chamfer. The bay is now
+  //     prevented twice over: a backing in front of a wall.
+  //
+  // So there is no single-line source mutation that produces see-through any
+  // more, which is a statement about the world being sound rather than about
+  // the check. A case that is permanently red teaches people to ignore this
+  // suite, so it is not here. check-seethrough keeps its own --selftest, which
+  // hides faces AND backings together and does go red.
+  // The density stamp is what pattern #1 is verified against. Claim a face was
+  // painted for a width it was not, and density.mjs must notice the canvas does
+  // not fit the face it landed on.
+  ['density', TEXW,
+    't.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H };',
+    't.userData.masonry = { ppm, mult, wMeters: wMeters * 1.4, hMeters, baseY, W, H };',
+    'density.mjs', [], 'masonry painted for a width it was not mapped to'],
+
   // Moves the kerb line the guard protects out to infinity rather than
   // neutering the function: same effect (nothing is ever pushed clear), but it
   // still typechecks, and an uncompilable mutation tests nothing.
