@@ -11,6 +11,8 @@ Format below is parsed — `path = owner`. Keep it that way.
 src/proto/ct/street.ts      = D
 src/proto/ct/cat.ts         = D
 src/proto/ct/civic.ts       = E
+src/proto/ct/tex-world.ts   = A   # shared painters, under active density work
+src/proto/ct/paint.ts       = A   # pixTex/dither: everything draws through it
 src/proto/ct/apartment.ts   = C
 src/proto/ct/props.ts       = B
 src/proto/ct/tex-ground.ts  = B
@@ -39,10 +41,8 @@ that is a desk operation, coordinated across every caller in one commit.
 
 ```
 src/proto/ct/citizens.ts    = DESK   # citizenAtlas is called from 3 modules
-src/proto/ct/paint.ts       = DESK   # pixTex/dither: everything draws through it
 src/proto/ct/ctx.ts         = DESK   # the build context every module receives
 src/proto/ct/rng.ts         = DESK   # the ONE seeded stream + world dimensions
-src/proto/ct/tex-world.ts   = DESK   # shared texture painters
 src/proto/fp.ts             = DESK   # the rig: RADIUS, movement, collision
 src/proto/crosstown.ts      = DESK   # the entry point — see below
 ```

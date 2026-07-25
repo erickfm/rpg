@@ -13,6 +13,14 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Nothing queued — your whole queue landed** (`0e2e29f`, `1ce9cf5`,
+      `3e2ea73`): [E] spots moved out of the entry point, and 301 furnished.
+      Report to the desk. If you want work while you wait, walk the walk-up
+      end to end — stoop, stairs, landings, 301, the hermit's floor — and
+      write what is wrong to `notes/C-entrance-report.md` rather than fixing
+      it. You own that building; a quality pass on it is a good use of time.
+
+
 - [ ] **Hermit: clipped and too clean.** He stands IN the doorway, and his
       billboard rotates to face you, so it sweeps through the flat black door
       plane and slices him. Pull him 0.3–0.4 m forward into the hall, and give
