@@ -1346,3 +1346,40 @@ strength", and not dead either.
 any night hour is 3 hours" was computed from the stale formula and I am not
 restating it. The periodicity finding belongs to `e0c68e46` and `cd37b59b`, who
 measured it against the real one.
+
+## `basin.mjs` carries a fourth copy of the stale rain formula — right today, by luck
+
+`e0c68e46` rewrote the weather formula and named two stale hand-copies; mine was
+the third. **`basin.mjs:130` is the fourth**, still carrying the pre-rewrite
+`Math.imul(h, 2246822519) % 100 < 30` under a comment that is now false —
+*"duplicated here because scripts cannot import from the TS module"*. They can
+ask now: `rainAt` is published on `scene.userData`.
+
+`scripts/basincheck.mjs` compares the copy against the world:
+
+```
+basin.mjs picks the first hour its STALE predicate calls rainy:  h=0
+the world's published rainAt says that hour is:                  RAINY  ✓
+hours 0..47 where the stale copy and the world disagree:         16 of 48
+
+stale : RR...RR...RR..RR....R...RR...R....R...RR...RR...
+world : RR........R...R.RR...R..............R.R.........
+```
+
+**Not broken — and only by coincidence.** The copy is wrong on a third of the
+schedule and happens to agree on the single hour basin uses, because both call
+hour 0 rainy. It breaks the moment either the formula moves again or the first
+rainy hour shifts. That is precisely how my own sweep failed: silently, reporting
+a plausible number about the wrong weather.
+
+### And a second one that IS biting now
+
+`basin.mjs:134` waits **7000 ms** after setting the clock before shooting. The
+wet look needs **~16 s** to settle — measured on the road: `1.000 → 0.597 →
+0.329 → 0.224 → 0.186 → 0.172 → 0.167 → 0.165` at two-second intervals. At 7 s
+the road is around **0.25 against a settled 0.165**, so the `wet-over` and
+`wet-gutter` frames show a street roughly **half-soaked**, not wet.
+
+That matters more than it would in a numeric check, because these are frames a
+human is meant to *look at* — GOTCHAS §20's point. Whoever owns `basin.mjs` has
+a one-line fix for each: read the published `rainAt`, and wait 18 s.
