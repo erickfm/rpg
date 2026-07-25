@@ -171,6 +171,19 @@ function buildLot(o: {
   const decals: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
   const decal = <T extends THREE.MeshBasicMaterial>(m: T): T => {
     decals.push({ m, base: m.color.clone() });
+    // SAY SO, for the same reason props.ts:290 stamps its own. From outside,
+    // "this module dims it itself" and "nobody dims it and it glows at
+    // midnight" are the same picture: transparent, ungraded, bright at 23:00.
+    // e91df374 swept the world for exactly that signature and had to route
+    // mine as "C's 13 unexamined" — a count, because the material could not
+    // answer for itself.
+    //
+    // It can now. `graded` is the right flag by its own definition — props.ts
+    // calls it "was offered to the dimmer and did not move is decidable from
+    // outside" — and these ARE written every frame, by the loop at the foot of
+    // this file, just not by props.ts's dimmer. The stamp says the colour is
+    // OWNED, not who owns it.
+    m.userData.graded = true;
     return m;
   };
   const colliders: AABB[] = [];
@@ -1629,6 +1642,16 @@ function buildLot(o: {
       map: stepDisc(24, 11), transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
+    // These two are LIGHTS — additive, opacity driven UP by f.night, dark by
+    // day. The comment at the head of this file already says the additive
+    // glows must never go in the decal list, because dimming a light at night
+    // is backwards; `selfLit` is that same sentence written where a script can
+    // read it. props.ts:370 defines it as the sheet a grader "deliberately
+    // keeps", which is exactly what these are.
+    //
+    // `graded` too: their night value is owned and written every frame, so
+    // "nobody is looking after this" is false for them as well.
+    haloM.userData.selfLit = true; haloM.userData.graded = true;
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), haloM);
     const [ax, az] = off(0.62);
     halo.position.set(ax, Y + 5.9, az);
@@ -1637,6 +1660,7 @@ function buildLot(o: {
       map: stepDisc(32, 15), transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0xb9a882,
     });
+    poolM.userData.selfLit = true; poolM.userData.graded = true;
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(13.0, 9.0), poolM);
     pool.rotation.x = -Math.PI / 2;
     pool.rotation.z = -aim;

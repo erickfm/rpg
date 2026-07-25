@@ -851,6 +851,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       }
     });
     const glowMat = new THREE.MeshBasicMaterial({ map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    // SELF-LIT, and stamped rather than merely true. These are the light
+    // itself: additive, and constant on purpose, because a hallway lamp does
+    // not switch off at noon — the same reason interiors-walk asserts "the
+    // room keeps its own light after dark". But from outside, a lamp that is
+    // meant to be bright and a sheet nobody remembered to dim are the same
+    // picture: transparent, ungraded, bright at 23:00. e91df374 swept for that
+    // signature; these eight would have come back as "C's 8 unexamined" and
+    // cost someone the afternoon I just spent on the other thirteen.
+    glowMat.userData.selfLit = true; glowMat.userData.graded = true;
     // the pool the fixture throws on the ceiling around itself — same stepped
     // disc laid flat and dimmed, so the ceiling reads as lit near the lamp
     // instead of the lamp being a bright dot on a dead grey slab
@@ -858,6 +867,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       map: glowT, transparent: true, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0x707070, side: THREE.DoubleSide,
     });
+    spillMat.userData.selfLit = true; spillMat.userData.graded = true;
     // the dome is open at the rim, so it is DoubleSide — you see the inside
     // of the far wall of the shade when you look up into it
     const opalM = new THREE.MeshBasicMaterial({ map: opalT, side: THREE.DoubleSide });

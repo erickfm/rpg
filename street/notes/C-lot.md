@@ -172,6 +172,43 @@ the population every future misroute comes from. Not mine to fix — stamping at
 the creation points is H's ask of the desk — but the argument now has a figure
 under it, and `scripts/whose.mjs` already exists to re-measure it.
 
+**~~The 13 glowing-at-midnight candidates.~~ EXAMINED — all deliberate, now
+declared.** `e91df374` swept the world for its graffiti bug's signature
+(transparent, no alphaTest, ungraded, not `selfLit`, brighter than 0.5 at 23:00)
+and routed the counts honestly, saying outright that the signature cannot
+separate deliberate from missed: *"C's 13 unexamined."*
+
+Examined. **All 13 change with the clock; none is the bug.**
+
+```
+12 decals + the ghost sign   day v=1  ->  night v=0.727     (my own dim loop)
+the pole-sign halo           day op=0 ->  night op=0.551    (a light coming ON)
+```
+
+The 0.727 is `1 - 0.47 * f.night` with `f.night = 0.58`, and the halo is
+`0.95 * 0.58` — the same two numbers from opposite ends, which is what tells
+you it is one system working rather than two coincidences.
+
+They were undeclarable, not undimmed. props.ts's `dimWorld` correctly skips
+`transparent`, so this module dims its own decals — and from outside, "dimmed
+by its own module" and "nobody dims it" are the same picture. Now stamped:
+`graded` on the decals (props.ts:290 defines it as *"was offered to the dimmer
+and did not move is decidable from outside"* — the flag says the colour is
+OWNED, not who owns it), and `selfLit` + `graded` on the halo and its ground
+pool, which are lights and must never dim.
+
+**And 8 more of mine that nobody had routed yet.** Running the same signature
+turned up `walkup: 8` — the walk-up's ceiling-lamp glows and their ceiling
+spill. Constant on purpose: a hallway lamp does not switch off at noon, which
+is the same thing `interiors-walk` asserts when it checks the rooms keep their
+own light after dark. Stamped `selfLit` too, before someone spent an afternoon
+routing them back to me.
+
+```
+lot 13 -> 0        walkup 8 -> 0
+textures / structure / tints all IDENTICAL across the change; 3 pigeons drifted
+```
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
