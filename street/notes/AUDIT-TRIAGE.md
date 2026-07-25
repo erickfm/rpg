@@ -792,3 +792,68 @@ properly.
 > Measuring it correctly made it **worse each time**. That is worth saying
 > plainly to whoever picks up the fix: the three earlier numbers were not
 > conservative estimates, they were wrong in a consistent direction.
+
+# Assertions over an empty set: 4 registered checks, and one of them is `no-silent-pass`
+
+Three agents have now found this class one instance at a time — `32d9d6521`
+(five of its own), my `ae7a30bba` (two of mine), and `80b6abfe6`, where
+**`footprint` passed with ZERO tree pits and its author watched it happen**.
+Found singly three times is the signal to enumerate, so I swept all **56
+registered checks** for assertions that iterate a subject set without ever
+testing that the set is non-empty. **Four.**
+
+### `spots-walk` — the serious one
+
+```
+line  68   const spots = await p.evaluate(() => window.__ct.spots());
+line  70   console.log(`${spots.length} [E] spots registered`)      ← printed
+line 156   process.exit(fails.length || errs.length ? 1 : 0);       ← never consulted
+```
+
+It **prints** the count and **never asserts** it. If `__ct.spots()` came back
+empty it would report `0 [E] spots registered`, find no failures, and **exit 0**.
+
+This is not hypothetical in this codebase: `globorder.mjs` exists because
+declarations are **silently dropped when a binding is emitted after the glob
+that reads it**, which is exactly how a registry ends up short or empty. And the
+guarantee at stake is one the header records the user asking for **three times**
+— *"make sure all press e work"*.
+
+### `no-silent-pass` — the same defect, in the check built to prevent it
+
+```
+line 37   const suspects = readdirSync(dir)…
+line 85   process.exit(1);                       ← only when `bad`
+line 87   `no check in this suite can pass by doing nothing (${suspects.length} scripts)`
+```
+
+If the `readdirSync` filter ever stops matching — a rename, a moved directory —
+`suspects` is empty, nothing is executed, and it exits 0 printing
+
+> *"no check in this suite can pass by doing nothing (**0** scripts)"*
+
+**A vacuous pass, announcing that vacuous passes are impossible.** Its own header
+says it is *"named for what it asserts"*; on an empty list it asserts nothing and
+says so in the same breath.
+
+### The other two, flagged and not confirmed
+
+`lot-frontage` and `rain` both assert and neither tests a subject count, but I
+have **not** established that their sets can actually be empty — my scan is a
+grep, and their iterations may be over fixed literals. **Flagged for their
+owners, not asserted by me.**
+
+### The fix is one line each, and it is the same line
+
+```js
+if (spots.length === 0) { console.error('CANNOT ANSWER — no spots registered'); process.exit(3); }
+```
+
+Exit **3**, GOTCHAS 32's code for *the check never ran* — the same fix I applied
+to my own two in `ae7a30bba`. **Four checks, four one-line guards**, and none of
+these files is mine to edit.
+
+> The pattern underneath: every one of these prints the count. **The number was
+> on screen the whole time and nothing compared it to zero.** Printing is not
+> asserting, and a check that reports its subject count without testing it is
+> telling you exactly what it failed to check.
