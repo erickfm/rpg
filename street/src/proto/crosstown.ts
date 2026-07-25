@@ -29,6 +29,7 @@ import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorColliders } from './ct/interior';
 import { buildDiner } from './ct/int-diner';
 import { buildBurger } from './ct/int-burger';
+import { buildThrift } from './ct/int-thrift';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -249,6 +250,7 @@ export function makeCrosstown(): Proto {
   // collider array never grows again however many rooms land.
   buildDiner(ctx);
   buildBurger(ctx);
+  buildThrift(ctx);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //

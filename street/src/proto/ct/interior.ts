@@ -140,7 +140,24 @@ export interface RoomSpec {
    * shipped it ten more times. The glow is stepped on the texel grid now and
    * it hangs under something you can see.
    */
-  light?: { kind?: 'dome' | 'troffer'; tint?: number; count?: number };
+  light?: {
+    /**
+     * `dome` — a shallow opal flush-mount. Domestic, warm, a diner.
+     * `troffer` — a recessed fluorescent tray. A suspended commercial ceiling.
+     * `strip` — a bare batten screwed to the soffit, tube showing. A unit that
+     *   was cheaply converted and never finished; the thrift store, the back
+     *   of a pawn shop.
+     */
+    kind?: 'dome' | 'troffer' | 'strip';
+    tint?: number;
+    count?: number;
+    /**
+     * Indices of fixtures that are OUT — no glow, and a dead grey tube.
+     * A room where every light works is a room that has a facilities budget,
+     * which is a thing some of these places conspicuously do not have.
+     */
+    dead?: number[];
+  };
 }
 
 export interface Room {
@@ -155,6 +172,23 @@ export interface Room {
   /** add a mesh positioned in LOCAL coordinates. Always place through this
    *  rather than `group.add` — see the note on `group`. */
   put: (m: THREE.Object3D, lx: number, y: number, lz: number) => THREE.Object3D;
+  /**
+   * A sign readable from BOTH sides — two back-to-back single-sided planes,
+   * not one `DoubleSide` plane.
+   *
+   * GOTCHAS §10: a DoubleSide plane viewed from behind is mirrored, because
+   * three.js flips the normal and leaves the UVs alone. Symmetrical letters
+   * hide it (a HOTEL blade sign shipped backwards; only the E and L gave it
+   * away) and asymmetrical ones make it glaring. A shop is full of signs you
+   * walk around — price cards on a rail, a notice in a window — so "which way
+   * does this one face" is a question every room would otherwise have to get
+   * right one sign at a time. This makes it not a question.
+   *
+   * Coincident planes do NOT z-fight here: each is FrontSide, so from any
+   * given side exactly one of them is drawn and the other is culled.
+   */
+  sign: (map: THREE.Texture, w: number, h: number,
+    lx: number, y: number, lz: number, rotY?: number) => void;
   /** a collider in LOCAL coordinates, centred on (lx,lz) */
   solid: (lx: number, lz: number, w: number, d: number) => AABB;
   /** every collider this room has registered — hand these to the rig */
@@ -443,7 +477,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // reproduced that mistake exactly, and ten rooms were about to inherit it.
   const lit = spec.light ?? {};
   const kind = lit.kind ?? 'dome';
-  const tint = new THREE.Color(lit.tint ?? (kind === 'troffer' ? 0xe8f0f4 : 0xffebbe));
+  const tint = new THREE.Color(lit.tint ?? (kind === 'dome' ? 0xffebbe : 0xe8f0f4));
   const rgb = `${Math.round(tint.r * 255)},${Math.round(tint.g * 255)},${Math.round(tint.b * 255)}`;
   // A halo quantised onto the texel grid: four hard steps, no interpolation.
   // Same job as a gradient, drawn the way everything else in this world is.
@@ -469,30 +503,60 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // bought object, and taking TRIM here gave the burger barn bright red
   // ceiling troffers, which no building has ever had.
   const roseM = new THREE.MeshBasicMaterial({ color: 0xc4c0b8 });
+  // a tube that has gone: grey-green, slightly darker than the ceiling, with
+  // the blackened ends a dead fluorescent always has
+  const deadM = new THREE.MeshBasicMaterial({ color: 0x9a9a92 });
+  const out = new Set(lit.dead ?? []);
 
   const lamps = Math.max(1, lit.count ?? Math.round(D / 3.5));
   for (let i = 0; i < lamps; i++) {
     const lz = -hd + D * ((i + 0.5) / lamps);
-    if (kind === 'troffer') {
+    const off = out.has(i);
+    const lampM = off ? deadM : diffuserM;
+    if (kind === 'strip') {
+      // Batten: a channel screwed flat to the soffit with the tube exposed
+      // under it. No diffuser, no tray, nowhere for the dust to hide — which
+      // is exactly why it reads as the cheap option.
+      const chan = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 0.12), roseM);
+      place(chan, 0, H - 0.04, lz);
+      const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 1.5, 8), lampM);
+      tube.rotation.z = Math.PI / 2;
+      place(tube, 0, H - 0.12, lz);
+      for (const ex of [-0.76, 0.76]) {          // the blackened end caps
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.09, 8),
+          off ? new THREE.MeshBasicMaterial({ color: 0x54544e }) : roseM);
+        cap.rotation.z = Math.PI / 2;
+        place(cap, ex, H - 0.12, lz);
+      }
+      if (!off) {
+        const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.8), haloM);
+        gl.rotation.x = Math.PI / 2;
+        place(gl, 0, H - 0.19, lz);
+      }
+    } else if (kind === 'troffer') {
       // a recessed fluorescent tray: the 1997 commercial ceiling, and the
       // reason a fast-food room feels harder than a diner
       const tray = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.42), roseM);
       place(tray, 0, H - 0.05, lz);
-      const dif = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.34), diffuserM);
+      const dif = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.34), lampM);
       dif.rotation.x = Math.PI / 2;
       place(dif, 0, H - 0.105, lz);
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.95), haloM);
-      gl.rotation.x = Math.PI / 2;
-      place(gl, 0, H - 0.12, lz);
+      if (!off) {
+        const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.95), haloM);
+        gl.rotation.x = Math.PI / 2;
+        place(gl, 0, H - 0.12, lz);
+      }
     } else {
       // a shallow opal flush-mount on a ceiling rose
       const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 8), roseM);
       place(rose, 0, H - 0.03, lz);
-      const dome = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.13, 10), diffuserM);
+      const dome = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.13, 10), lampM);
       place(dome, 0, H - 0.12, lz);
-      const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.05), haloM);
-      gl.rotation.x = Math.PI / 2;
-      place(gl, 0, H - 0.2, lz);
+      if (!off) {
+        const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.05), haloM);
+        gl.rotation.x = Math.PI / 2;
+        place(gl, 0, H - 0.2, lz);
+      }
     }
   }
 
@@ -574,6 +638,14 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   return {
     cx, cz, W, D, H, wx, wz, group, colliders,
     put: (m, lx, y, lz) => place(m, lx, y, lz),
+    sign: (map, w, h, lx, y, lz, rotY = 0) => {
+      for (const flip of [0, Math.PI]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ map, side: THREE.FrontSide }));
+        m.rotation.y = rotY + flip;
+        place(m, lx, y, lz);
+      }
+    },
     solid: (lx, lz, w, d) => wall(lx - w / 2, lx + w / 2, lz - d / 2, lz + d / 2),
     inside: () => player.x() >= x0 && player.x() < x1,
   };

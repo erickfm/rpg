@@ -8,21 +8,39 @@ import { chromium } from 'playwright';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 
-// One entry per room. `cx` is the slab centre — SLAB_X0 + i*80 + 40, in the
-// order the rooms are built in crosstown.ts.
+// One entry per room. The slab centre is NOT hardcoded — it is discovered by
+// walking in and reading where you land. Slabs are handed out in build order,
+// so hardcoding them means every room's test breaks the day another builder's
+// room is wired in ahead of yours, which with four agents on this programme is
+// a matter of days.
 const ROOMS = [
   {
-    id: 'diner', label: /DINER/, cx: 440, W: 8.6, D: 7.0,
+    id: 'diner', label: /DINER/, W: 8.6, D: 7.0,
     doorX: -(FACE - 0.45), doorZ: 9.6, at: -2.6,
     // a start point that is genuinely clear of furniture, and the lane it sits on
     lane: -0.35, laneHalf: 3.6,
     backProbeX: 3.8, frontProbeX: -3.0,
   },
   {
-    id: 'burger', label: /BURGER/, cx: 520, W: 11.0, D: 8.5,
+    id: 'burger', label: /BURGER/, W: 11.0, D: 8.5,
     doorX: -(FACE - 0.45), doorZ: -28.25, at: -3.6,
     lane: -1.6, laneHalf: 4.8,
     backProbeX: -4.6, frontProbeX: -4.6,
+  },
+  {
+    id: 'thrift', label: /THRIFT/, W: 8.0, D: 6.5,
+    doorX: -(FACE - 0.45), doorZ: -74.94, at: -2.2,
+    // the clear cross-room lane runs in FRONT of the rails, between them and
+    // the window — the rails themselves are meant to be a squeeze
+    lane: 2.4, laneHalf: 3.3,
+    backProbeX: 0.6, frontProbeX: -3.2,
+    // …and because "dense but walkable" is this room's whole risk, it also
+    // gets its aisles walked: between rail rows, and down the open spine.
+    aisles: [
+      ['between the front two rails', 0.45, 3.3],
+      ['between the back two rails', -0.9, 3.3],
+      ['down the open spine to the till', 1.8, null],
+    ],
   },
 ];
 
@@ -54,8 +72,9 @@ const f2 = (n) => +n.toFixed(2);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 
 for (room of rooms) {
-  const { cx, W, D } = room;
+  const { W, D } = room;
   const hw = W / 2, hd = D / 2;
+  let cx = 0;   // discovered on entry, below
 
   // ── 1. can you get in AT ALL, and from every direction someone would try ──
   //
@@ -121,8 +140,12 @@ for (room of rooms) {
 
   await press();
   const inside = await pos();
-  check('E puts you inside the room', Math.abs(inside[0] - cx) < 40,
-    `pos=${inside.slice(0, 3).map(f2)} (slab centre ${cx})`);
+  // slabs start at x = 400 and are 80 m wide; you land at the door of yours,
+  // so the slab you are standing in tells you where the room is
+  cx = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+  check('E puts you inside a room in the interior belt',
+    inside[0] >= 400 && Math.abs(inside[0] - cx) < 40,
+    `pos=${inside.slice(0, 3).map(f2)} → slab centre ${cx}`);
 
   // ── 2. facing and floor ──
   const beforeF = await pos();
@@ -194,6 +217,22 @@ for (room of rooms) {
   const backB = await pos();
   check('…and back the other way', backA[0] - backB[0] > room.laneHalf * 1.6,
     `travelled ${f2(backA[0] - backB[0])} m`);
+
+  // ── 4b. the tight aisles, for rooms whose whole brief is being crowded ──
+  //
+  // "End to end" is satisfied by one clear lane, which is not enough for a
+  // room designed to be a squeeze: a shop you can only cross by one route is a
+  // corridor. Each declared aisle is walked in full.
+  for (const [what, az, halfOrNull] of room.aisles ?? []) {
+    const half = halfOrNull ?? room.laneHalf;
+    await warp(cx - half, az, Math.PI / 2, 0);
+    await p.waitForTimeout(150);
+    const a0 = await pos();
+    await hold('w', 3200);
+    const a1 = await pos();
+    check(`you can walk ${what}`, a1[0] - a0[0] > half * 1.5,
+      `travelled ${f2(a1[0] - a0[0])} m of ${f2(half * 2)} (want > ${f2(half * 1.5)})`);
+  }
 
   // ── 5. the way out, and NOT straight back in ──
   await warp(cx + room.at, room.lane, Math.PI, 0);
