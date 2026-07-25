@@ -213,6 +213,30 @@ construction: `rotation.y` derives from the same `face` variable that positions
 each row, so both rows of a back-to-back bank face their own aisle. That is what
 §23 asks for, written before §23 existed.
 
+### My checks do not make the tint-vs-appearance mistake — swept after `114c5bef7`
+
+`MeshBasicMaterial.color` is a tint, white by default, so comparing a flat
+material's colour with a textured one's is comparing a colour to a placeholder. I
+made that error in prose twice (withdrawn in `8ed8f34bc`, resolved in
+`99a6a5d0c`), so the suites needed sweeping for it too. Every colour reading in
+both:
+
+| where | what it does | sound? |
+|---|---|---|
+| `the room keeps its own light after dark` | same materials by index, noon vs night | **delta** ✓ |
+| `the brick and stone DO go dark after dark` | same materials, 13:00 vs 02:00 | **delta** ✓ |
+| `the chase RUNS` / `some bulbs never light` | luminance ACROSS materials | flat vs flat ✓ |
+| the spill and window checks | opacity and pane counts, not colour | n/a ✓ |
+
+The chase one is the only cross-material comparison, and it is safe for a reason
+worth stating rather than assuming: `phaseM` and `deadM` are both
+`MeshBasicMaterial({ color })` with **no map** (`ct/vice.ts:444-446`), so their
+colours are their appearance and comparing them is like with like.
+
+**Clean — nothing to change.** Third time I have swept my own instruments against
+a fault someone else published this session, and the first time the answer was
+already right.
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
