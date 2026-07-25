@@ -357,3 +357,53 @@ street is wet and there is no rain and no standing water in it.** That is what a
 player would see, and it is enough to hand to whoever owns `ct/props.ts` — with
 the explicit warning that my instrumentation of it disagreed with itself and
 should be rebuilt rather than believed.
+
+---
+
+# Re-check at `7f67c56b` — the 12 mirrored faces are NOT closed
+
+Two mirroring fixes landed after I logged them: `e0fdad7e` ("A-1 TAX mirrors —
+the original complaint, closed") and `7d27c5f0` ("Burger Barn mirrors too: door
+right inside, left outside"). Re-ran the handedness check to see whether they
+reached these.
+
+| | previous run | **now** |
+|---|---|---|
+| faces checked | 193 | **207** (the world grew) |
+| **mirrored** | 12 | **12 — the same twelve** |
+| coordinates | x 7.18, z +13.23 → −8.03 | **identical** |
+| u·right | −0.997 / −0.972 | **identical** |
+
+**Unchanged, to three decimal places.** The two fixes that landed addressed
+**facade-to-interior door-side mirroring** — which door edge a room's opening
+sits on, and making the painted facade agree with it. That is a real and
+different defect, and closing it was right. It does not touch these.
+
+## What the twelve actually are
+
+Reading the geometry rather than guessing: they are flat in **x** (normal ±x), so
+they face **across the street**, standing at x = 7.18 — 0.18 m proud of the east
+facade. Two families:
+
+| six at | size (x × y × z) | canvas | density |
+|---|---|---|---|
+| y = 2.70 | 0 × 0.77 × 1.98 | 64 × 20 | 32 px/m along z, 26 px/m up |
+| y = 3.01 | 0 × 1.07 × 2.08 | 64 × 20 | 31 px/m along z, 19 px/m up |
+
+So: **1.98–2.08 m long, 0.77–1.07 m tall, at head-to-fascia height, running the
+length of the east shopfronts from z = +13.2 to z = −8.0** — the stretch a player
+walks first. `DoubleSide` with their front faces pointing into the building, so
+the street sees the mirrored back (`GOTCHAS.md` §10).
+
+Note the canvases are **non-square texels** as well (31 × 19 px/m on the taller
+family), which is the lighting-and-signage anisotropy already logged in
+`notes/seam-audit.md` — same objects, second defect.
+
+## Routing
+
+These are on the **east shopfronts**, so `ct/street.ts` (D) unless the shopfront
+furniture has moved to another module since. The fix is the standard one for
+this class: give each face its own correctly-handed artwork, or make them
+`FrontSide` and place a second plane for the other side — which is what
+`twoSided()` already does for the neon, and what its comment claims it does with
+mirrored artwork but does not.
