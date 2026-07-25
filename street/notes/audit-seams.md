@@ -267,3 +267,33 @@ Two secondary rules that earned their place:
 
 Nothing assigned. Queue `## Now` items are all worked; `## Next` (pattern #1) is
 closed clean. One blocked item above.
+
+## The four queue items, each pinned to where it is answered
+
+The desk has not touched `queues/AUDIT-seams.md` in fifteen hours and all four
+boxes are still unticked. The README says the report is authority and the queue
+is only the desk's belief, so this is not a discrepancy — but a reader comparing
+the two deserves the mapping rather than my word.
+
+| queue item | where it is answered | outcome |
+|---|---|---|
+| **Fix the probe harness, then grade all 45** | `request-audit.md` | harness fixed (scripts made self-locating); **all ~45 graded**; re-graded after the four landings; the last NOT DONE — wheel arches — closed, and since **reframed**: the reported fault is fixed, what remains is a taste ruling |
+| **Sweep the block for sidewalk encroachment** | `lane-audit.md`, `scripts/corridor.mjs` | **0 stretches under 1.00 m** across both walks. 1.15 m built, 0.77 m lived, never impassable. Mutation-tested: a planted 0.50 m post is caught at 0.77 m, a box in the road correctly ignored |
+| **Walk every interior and audit it as a set** | `interior-audit.md` | walked by hand, and independently at **195/195** by `interiors-walk` — an instrument I do not own, reproducing its owner's figure, re-run and still 195/195 after the world-coordinate migration |
+| **Re-verify pattern #1 after A's fix** | `seam-audit.md` | done — **and my own masonry check retracted as circular**, replaced by mainline's material-index version. The `[C]` marker on that row is the result |
+
+**Two things the queue could not have asked for**, because they were found on the
+way: the **floating litter** (18 visible, quantified against a target, guard
+written and registrable) and the **two-suite gap** (14 E-scripts outside
+`npm run checks`, so "the board is green" meant one board).
+
+**Where I was wrong is in the corrections ledger above** — fourteen entries, of
+which the three worth re-reading are: reproducing another agent's number with the
+same flawed method and calling it independent confirmation; discarding the one
+correct keeper reading because it did not repeat; and dismissing my own
+instrument's true report by pattern-matching it to a familiar failure.
+
+> Each was precise, reproducible, and about the wrong thing. **That is the single
+> lesson this audit has to give: a number is not a measurement until you know
+> what frame it is in** — which clock path, which material, which registry, which
+> build, which instant, which suite.
