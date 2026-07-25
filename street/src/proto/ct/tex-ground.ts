@@ -77,6 +77,11 @@ export const gutterSurfaceY = (d: number) =>
   GY_K + (GY_R - GY_K) * Math.min(1, Math.max(0, d / GW));
 /** how wide that pan is, from the kerb outward */
 export const GUTTER_W = GW;
+/** The walk does not begin at ROAD_HALF — it begins this far outboard of it,
+ *  where the kerb's top arris chamfer ends. Anything ct/props.ts lays on the
+ *  pavement has to start outside this or it overhangs the chamfer, which is
+ *  exactly what the tree pits were doing. */
+export const KERB_CHAMFER = CH;
 
 // ── the sidewalk sheet ────────────────────────────────────────────────────
 // One 256 px tile = 8 m of walk at 32 px/m, so the scoring grid is 1 m and

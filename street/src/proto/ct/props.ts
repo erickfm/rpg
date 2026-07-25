@@ -3,7 +3,7 @@ import { pixTex, dither } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          paperTex, scrapTex } from './tex-world';
-import { gutterSurfaceY, GUTTER_W } from './tex-ground';
+import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -367,7 +367,25 @@ export function buildProps(ctx: CtxBuild): Props {
   // tree. Length was 2.0 (two whole slabs down the walk, which read as a long
   // trench); 1.0 is a single slab, so the pit is a square-ish bed like a real
   // tree well instead of a strip.
-  const pitGeo = new THREE.PlaneGeometry(0.8, 1.0);
+  // The pit used to be 0.8 wide starting at x = ±5.0 — hard against the kerb
+  // line, with no walk between it and the drop, and in fact 6.25 cm PAST the
+  // walk, because the walk sheet starts at ROAD_HALF + CH where the arris
+  // chamfer ends. So the pit's road edge was overhanging the chamfer, which my
+  // own report flagged and nothing had picked up.
+  //
+  // Real street trees sit inboard with a continuous strip of pavement at the
+  // kerb — you need somewhere to stand when you get out of a car, and the
+  // strip is what stops the pit edge crumbling into the gutter. PIT_CLEAR is
+  // that strip, and it is the same at every pit on the block.
+  //
+  // A full 1 m slab of clearance does not fit and would be a worse answer than
+  // this: the walk is 1.94 m of usable width (ROAD_HALF + CH to FACE), so a
+  // 1 m band plus a 0.8 m pit leaves 14 cm at the building line. 0.50 m of
+  // kerb-side strip with a 0.6 m pit leaves 0.84 m at the building, which
+  // keeps the tree kerb-side of the walk's centre where a street tree belongs.
+  const PIT_W = 0.6, PIT_CLEAR = 0.50;
+  const PIT_X = ROAD_HALF + CHAMFER + PIT_CLEAR + PIT_W / 2;
+  const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   // Hand-tuned height exceptions. This is a hand-authored block, so a tree
   // that reads wrong in its particular spot gets trimmed by index rather than
@@ -395,7 +413,7 @@ export function buildProps(ctx: CtxBuild): Props {
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
-    const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
+    const tx = s * PIT_X;                          // inboard, with PIT_CLEAR of walk at the kerb
     const pz2 = Math.round(z - 0.5) + 0.5 + (TREE_SHIFT[treeIdx] ?? 0); // snapped to the 1 m slab grid
     // rnd() is consumed for EVERY tree regardless, so trimming one does not
     // shift the seeded stream and change the others.
@@ -707,6 +725,48 @@ export function buildProps(ctx: CtxBuild): Props {
     if (ax > ROAD_HALF - GUTTER_W) return gutterSurfaceY(ROAD_HALF - ax);
     return 0;                                                   // open road
   };
+  // ── nothing may straddle a step in the ground ───────────────────────────
+  //
+  // This is the THIRD generation of one bug, so this time it is a rule rather
+  // than a fix:
+  //   1. everything was laid at a single flat y, and the gutter puddles ended
+  //      up under the cross-sloped pan
+  //   2. surfaceY(x) fixed that by sampling the ground at a POINT — which is
+  //      right for a decal, because a decal has no thickness and no extent
+  //   3. the litter is 3D solids with real extent, so a point sample says
+  //      "this is on the walk" while a third of the object is inside the kerb
+  //
+  // The ground has one CLIFF in it — the kerb face at |x| = ROAD_HALF, a 12 cm
+  // step — and one small lip where the gutter pan meets the asphalt, which is
+  // 18 mm. They want opposite treatment.
+  //
+  // Nothing may straddle the cliff. Whatever single y it is given, part of the
+  // object ends up inside the kerb, and no y exists that is right for both
+  // sides. So slide it clear by its own half-extent, to whichever side is
+  // nearer, leaving 5 mm — which also gets the look that was wanted, a piece
+  // resting hard AGAINST the kerb rather than growing through it.
+  //
+  // The lip wants the opposite. Pushing every piece of gutter litter clear of
+  // an 18 mm step would march all of it out into the road, which is not where
+  // litter goes. There, sample the ground across the whole footprint and take
+  // the HIGHEST, so a piece rides up on the lip instead of sinking under it.
+  const KERB_X = ROAD_HALF;
+  // half-extent along x of a w × d rectangle turned by rot on the ground plane
+  const halfX = (w: number, d: number, rot: number) =>
+    (Math.abs(Math.cos(rot)) * w + Math.abs(Math.sin(rot)) * d) / 2;
+  const clearOfKerb = (x: number, hx: number) => {
+    for (const line of [KERB_X, -KERB_X]) {
+      if (x - hx < line && x + hx > line) {
+        const lo = line - hx - 0.005, hi = line + hx + 0.005;
+        return Math.abs(lo - x) <= Math.abs(hi - x) ? lo : hi;
+      }
+    }
+    return x;
+  };
+  // the ground under a footprint that has already been cleared of the kerb, so
+  // taking the max cannot accidentally lift something onto the walk
+  const groundUnder = (x: number, hx: number) =>
+    Math.max(surfaceY(x - hx), surfaceY(x), surfaceY(x + hx));
   const flatDecal = (tex: THREE.Texture, w: number, d: number, x: number, z: number, rot: number, y: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
       new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: true }));
@@ -737,17 +797,21 @@ export function buildProps(ctx: CtxBuild): Props {
   // the user did approve (scrapTex and paperTex, both below) have no ring at
   // all; their dark side does the work. Let the object's own shading carry the
   // silhouette, never a border.
+  // Every one of these goes through the footprint rule above. A 0.48 m sheet
+  // centred 10 cm off the kerb reaches 14 cm PAST it, and the half that lands
+  // on the walk sits 12 cm underground — the same defect as the litter, in the
+  // flat primitive, and it was here before the solids ever were.
   for (let i = 0; i < 7; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
     const z = -6 - rnd() * (L - 18);
     const x = s2 * (GUT - rnd() * 0.20);
     // this draw used to pick can-or-scrap; it now picks between the two
     // approved sheets, so the seeded stream is unchanged (GOTCHAS §2)
-    if (rnd() < 0.42) {
-      flatDecal(paperT[i % 4], 0.30, 0.24, x, z, rnd() * Math.PI, 0.014);
-    } else {
-      flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.014);
-    }
+    const paper = rnd() < 0.42;
+    const rot = rnd() * Math.PI;
+    const w = paper ? 0.30 : 0.26, d = paper ? 0.24 : 0.22;
+    const hx = halfX(w, d, rot), cx = clearOfKerb(x, hx);
+    flatDecal(paper ? paperT[i % 4] : scrapT[i % 3], w, d, cx, z, rot, groundUnder(cx, hx));
   }
   // paper trash — flyers, folded sheets, pulpy soaked handbills. More of
   // these than cans: paper is what actually collects along a wet kerb.
@@ -755,12 +819,18 @@ export function buildProps(ctx: CtxBuild): Props {
     const s2 = rnd() < 0.5 ? -1 : 1;
     const pw = 0.34 + rnd() * 0.14, pd = 0.26 + rnd() * 0.10;
     const px2 = s2 * (GUT - rnd() * 0.22);
-    flatDecal(paperT[i % 4], pw, pd, px2, -8 - rnd() * (L - 20), rnd() * Math.PI, surfaceY(px2));
+    const pz3 = -8 - rnd() * (L - 20), prot = rnd() * Math.PI;
+    const phx = halfX(pw, pd, prot), pcx = clearOfKerb(px2, phx);
+    flatDecal(paperT[i % 4], pw, pd, pcx, pz3, prot, groundUnder(pcx, phx));
   }
   // one piece up on the sidewalk, against the kerb. This was the can, and it
   // is the exact one the user pointed at — green band, black ring, reading as
   // a sticker on the slab. Same spot, approved sheet.
-  flatDecal(scrapT[1], 0.28, 0.24, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
+  {
+    const w = 0.28, d = 0.24, rot = 0.7, hx = halfX(w, d, rot);
+    const cx = clearOfKerb(ROAD_HALF + 0.22, hx);
+    flatDecal(scrapT[1], w, d, cx, -47.5, rot, groundUnder(cx, hx));
+  }
 
 
   // ── puddles ─────────────────────────────────────────────────────────────
@@ -821,21 +891,45 @@ export function buildProps(ctx: CtxBuild): Props {
       map: run ? run.tex : puddleT, transparent: true, opacity: 0, depthWrite: false });
     m.visible = false;
     const aspect = 0.42 + rnd() * 0.3, spin = rnd() * Math.PI;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, run ? run.len : w * aspect), m);
+    const d = run ? run.len : w * aspect;
+    const rot = run ? 0 : spin;             // a run lies ALONG the gutter, so it is never spun
+    // Water gets the footprint rule too, but only half of it. It may not cross
+    // the KERB — a puddle that runs up over a 12 cm kerb from the pavement
+    // side is backwards, and half of it would be under the walk anyway. It
+    // deliberately does NOT get groundUnder: water fills a depression to a
+    // LEVEL, so a sheet sitting a few millimetres under the high rim of the
+    // cross-sloped pan is not a bug, it is what water does. Lifting it to the
+    // highest ground under its footprint would float it over the low side.
+    const cx = clearOfKerb(x, halfX(w, d, rot));
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m);
     p.rotation.x = -Math.PI / 2;            // a ground DECAL, never a billboard
-    p.rotation.z = run ? 0 : spin;          // a run lies ALONG the gutter, so it is never spun
-    p.position.set(x, surfaceY(x) + 0.005, z);   // a film ON the surface, not through it
+    p.rotation.z = rot;
+    p.position.set(cx, surfaceY(cx) + 0.005, z);  // a film ON the surface, not through it
     scene.add(p);
     puddles.push({ m, lo, hi, max });
   };
-  // Where water actually goes. The gutter pan first — that is what it is for
-  // — then the catch basins it drains to, then a few low spots out on the
-  // crown, then under the drip line where an awning sheds onto the walk.
-  const PAN_X = ROAD_HALF - 0.28;           // in the pan, hard against the kerb
+  // Where water actually goes, and it is not "anywhere". The pan is the low
+  // point of the whole street — I built it cross-sloped 0.018 down to 0.006 at
+  // the kerb — so water runs to the kerb line and stays there. It reads as a
+  // RIBBON along the kerb, not as discs scattered about.
+  //
+  // The old version was six discs 1.5 to 3.7 m ACROSS, centred in a 45 cm pan.
+  // Two things wrong with that at once: a disc that wide necessarily runs up
+  // over the kerb and out onto the crown, so most of each one was either
+  // buried under the walk or sitting on ground the water never reaches; and a
+  // disc is the wrong shape for a channel.
+  //
+  // This is also the honest answer to my own earlier finding — that every
+  // puddle sits in a 45 cm strip nobody walks in, so nobody sees them. The fix
+  // is a LONGER, continuous ribbon that you read from anywhere on the street,
+  // not scattering water onto the pavement where water does not go.
+  const PAN_X = ROAD_HALF - 0.22;           // centred in the pan
   for (let i = 0; i < 6; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
-    addPuddle(s2 * (PAN_X - rnd() * 0.22), -6 - rnd() * (L - 18),
-              1.5 + rnd() * 2.2, 0.04 + rnd() * 0.10, 0.42 + rnd() * 0.3, 0.62 + rnd() * 0.22);
+    const zc = -6 - rnd() * (L - 18);
+    const len = 3.4 + rnd() * 3.6;          // 3.4-7 m runs, so they read as a channel
+    addPuddle(s2 * PAN_X, zc, 0.40, 0.04 + rnd() * 0.10, 0.42 + rnd() * 0.3,
+              0.62 + rnd() * 0.22, { len, tex: trackT });
   }
   // The two catch basins (ct/tex-ground.ts puts them here) — the lowest points
   // on the block, so these fill first and outlast everything. Laid ALONG the
@@ -865,7 +959,9 @@ export function buildProps(ctx: CtxBuild): Props {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, len),
       new THREE.MeshBasicMaterial({ map: stainT, transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
-    m.position.set(x, surfaceY(x) + 0.003, z);
+    // a grime decal is ON the concrete, unlike water, so it takes the highest
+    // ground under its footprint — under the pan's high side it is invisible
+    m.position.set(x, groundUnder(x, 0.17) + 0.003, z);
     scene.add(m);
   };
   stain(ROAD_HALF - 0.22, BASIN_Z[0] + 1.55, 3.1);
@@ -876,11 +972,19 @@ export function buildProps(ctx: CtxBuild): Props {
     addPuddle(s2 * (1.2 + rnd() * 2.2), -10 - rnd() * (L - 26),
               1.3 + rnd() * 1.5, 0.45 + rnd() * 0.22, 0.9, 0.44 + rnd() * 0.16);
   }
-  // under the drip line: an awning sheds its whole roof onto one strip of walk
+  // The only water on the WALK, and it has a reason: an awning sheds its whole
+  // roof along one line, so what collects under it is a strip following the
+  // awning's edge, not a pool. It was a 1.9 m disc centred 0.9 m off the kerb,
+  // which reached 5 cm PAST the kerb line — water spilling over a kerb from
+  // the pavement side, which is backwards. Now a 45 cm strip on the drip line
+  // at x = ±5.75, so its footprint stays between the chamfer and the building
+  // and never crosses the kerb edge.
+  const DRIP_X = ROAD_HALF + 0.75;
   for (let i = 0; i < 2; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
-    addPuddle(s2 * (ROAD_HALF + 0.9), -14 - rnd() * (L - 34),
-              1.0 + rnd() * 0.9, 0.16 + rnd() * 0.12, 0.6, 0.5 + rnd() * 0.14);
+    addPuddle(s2 * DRIP_X, -14 - rnd() * (L - 34),
+              0.45, 0.16 + rnd() * 0.12, 0.6, 0.5 + rnd() * 0.14,
+              { len: 1.6 + rnd() * 1.1, tex: trackT });
   }
 
   // ── the 42 stop: a flag on a pole, and a bench ──────────────────────────
@@ -1478,17 +1582,37 @@ export function buildProps(ctx: CtxBuild): Props {
     // every candidate carries its own built-in skew; this turns the whole
     // piece on top of it, so no two placements of one object are copies
     o.rotation.y += yaw;
-    const gy = y ?? surfaceY(x);          // surfaceY knows the gutter's cross-slope
-    o.position.set(x, gy, z);
+    // MEASURE the footprint rather than declare it. These are groups of five
+    // or six little meshes at hand-written offsets, and the fountain cup's
+    // straw reaches 58 cm from the origin on one side and 21 cm on the other —
+    // a number I would have got wrong by hand, and did. Box3 after the
+    // rotation is applied gives the real half-extent, straw included.
+    o.updateMatrixWorld(true);
+    const bb = new THREE.Box3().setFromObject(o);   // still at the origin, so this is the half-extent
+    const hx = Math.max(-bb.min.x, bb.max.x);
+    // the alley has no kerb and its own walls; the street has both a kerb and
+    // a building line, and growing through a wall is the same bug as growing
+    // through a kerb
+    let cx = y === undefined ? clearOfKerb(x, hx) : x;
+    if (y === undefined) cx = Math.min(FACE - hx - 0.02, Math.max(-FACE + hx + 0.02, cx));
+    const gy = y ?? groundUnder(cx, hx);
+    // SEAT it on the measured box rather than trusting the y each candidate
+    // was drawn at. Those were hand-written — a cylinder lying down wants its
+    // centre at exactly its radius, and the coffee cup was 6 mm under that and
+    // the fountain cup 8 mm, so both were sunk into the pavement before any of
+    // the kerb business. It is the same mistake as the footprint one in a
+    // different axis: a number that was guessed where it could be measured.
+    o.position.set(cx, gy - bb.min.y, z);
     // tagged so scripts/trash.mjs can find MY litter and not every group in
     // the scene — the side street and the car lot have their own props sitting
     // at ground level and they are not mine to measure
     o.userData.litter = name;
     o.userData.groundY = gy;
+    o.userData.halfX = hx;
     scene.add(o);
     lit(o);                               // they take the lamplight like anything else
     const [fw, fd] = FOOT[name] ?? [0.5, 0.4];
-    contact(fw, fd, x, z, gy, yaw);
+    contact(fw, fd, cx, z, gy, yaw);
   };
   // Where rubbish actually ends up: against the kerb where the water leaves it,
   // in the alley by the bins, blown up against the building line, and under the
@@ -1497,11 +1621,18 @@ export function buildProps(ctx: CtxBuild): Props {
   // a collider, which is the only way to add them without touching the 2 m lane.
   // Hand-placed, no rnd(), so the seeded stream is untouched (GOTCHAS §2).
   const GUT_L = -(ROAD_HALF - 0.14), GUT_R = ROAD_HALF - 0.14;
-  // the gutter line
-  drop('coffee cup', GUT_L, -21.6, 0.90);
-  drop('coffee cup', GUT_R + 0.04, -33.9, 1.70);
-  drop('fountain cup', GUT_R + 0.02, -54.3, -2.20);
-  drop('folded newspaper', GUT_L + 0.04, -68.4, 0.30);
+  // The gutter line, and every piece here lies ALONG the kerb rather than
+  // across it. That is what actually happens — a cup rolls until the kerb
+  // stops it — and it is also what lets them sit hard against the kerb at all:
+  // the fountain cup measures 1.16 m across its worst diagonal once the straw
+  // is counted, so laid across the pan it can only ever be centred out on the
+  // asphalt. Turned along the kerb its half-extent is 12 cm and it fits in a
+  // 45 cm pan with room to spare. Each yaw is offset a little from square so
+  // they are not parallel copies.
+  drop('coffee cup', GUT_L, -21.6, -1.62);
+  drop('coffee cup', GUT_R + 0.04, -33.9, 1.49);
+  drop('fountain cup', GUT_R + 0.02, -54.3, 1.92);
+  drop('folded newspaper', GUT_L + 0.04, -68.4, 1.80);
   // the alley, round the dumpster — crates live here, not on a sidewalk
   drop('milk crate', -12.20, -39.60, 0.35, ALLEY_Y);
   drop('milk crate', -11.55, -40.35, -0.80, ALLEY_Y);
