@@ -16,6 +16,36 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Trash rig verdict: ship 3 and 5, take the rig down.** The user:
+      *"coffee cup is good, i like newspaper as well, 3 + 5 respectively.
+      newspaper needs to be grimier and thinner."*
+
+      Checked against your v2 manifest — **3 is the coffee cup, 5 is the
+      folded newspaper**. Those two are approved. The other five are not; the
+      user named two out of seven and said nothing about the rest.
+
+      · **Fix the newspaper first: grimier and thinner.** Thinner is
+        geometric — it is a folded broadsheet lying flat, so it should be a
+        few centimetres, not a slab. Grimier is the surface: grey-brown rather
+        than white, wet at one corner, footprinted, the fold darker than the
+        faces, ink bled where it has been rained on. It is the one piece of
+        litter that has been outside for a week.
+      · **Then take the rig out of the alley** and place 3 and 5 through the
+        world properly — gutter, alley, under the bench, by the bins, against
+        the kerb. Follow the placement rules you already worked out: they sit
+        on `surfaceY(x)` so nothing gets buried, and they are not solid.
+      · **Keep the other five in the file but unplaced.** Do not delete the
+        code. Two litter types is a thin vocabulary and the user may well want
+        a third once they see these in place; reviving a drawn candidate is
+        minutes, redrawing it is not.
+      · Two types repeated everywhere will read as repetition — vary rotation,
+        and vary the newspaper's grime and fold so no two are identical.
+
+      Your v2 write-up was the right call and worth saying so: you diagnosed
+      your own miss precisely — judging from above, flat being the wrong
+      primitive — and the rebuild landed two approvals out of seven from a
+      user who could not identify one of fourteen.
+
 - [ ] **REVERT the lamp glow and pool. They are worse than what they
       replaced.** The user: *"street lights look so much worse than they did
       before"*. Ref: `shots/user-lamppool-bad.png`.
