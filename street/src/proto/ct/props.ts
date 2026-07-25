@@ -174,7 +174,20 @@ export function buildProps(ctx: CtxBuild): Props {
   // much of what still read as "not dark enough". Lit signage keeps its
   // brightness because it is bright in the SHEET; the unlit masonry beside it
   // has no business being four times the pavement.
-  const FLOOR_GROUND = 0.07, FLOOR_LOW = 0.19, FLOOR_HIGH = 0.05;
+  // Night five. All three floors come down, because what was being asked for
+  // across four rounds is CONTRAST, not less light — and the way to get it is
+  // to make the unlit parts darker while the lamps hand back exactly as much
+  // as they did. Wider pools (piece 1) against deeper gaps (here) is the same
+  // idea pushed from both ends, and "scarier" is what that combination
+  // produces.
+  //
+  // FLOOR_SIGN is the piece that makes this safe. A lit window or an
+  // illuminated fascia must NOT come down with the masonry beside it — that is
+  // the whole reward for a dark street — and until now nothing could tell them
+  // apart, because every one of these materials has color = white and keeps
+  // all of its brightness in the TEXTURE. See isSelfLit below.
+  const FLOOR_GROUND = 0.045, FLOOR_LOW = 0.115, FLOOR_HIGH = 0.03;
+  const FLOOR_SIGN = 1.0;      // a light source does not dim when the sun sets
   const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
   const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
   // splash-back is a ground-level phenomenon: full strength at the pavement,
@@ -220,6 +233,48 @@ export function buildProps(ctx: CtxBuild): Props {
   // would, but a lamp does not pick it out — the buildings already get the
   // wall splash and the road already gets the pool decal, and warming a 12 m
   // wall off its centre point would be wrong anyway.
+  // Is this sheet carrying its OWN light?
+  //
+  // There is no flag to read and there cannot be one: the shopfronts, signage
+  // and windows are built in ct/street.ts and ct/civic.ts, which are not mine,
+  // and in any case every one of those materials has color = white and keeps
+  // all of its brightness in the texture. So m.color cannot distinguish a lit
+  // window from dark brick — they are the same white. The sheet has to be
+  // looked at.
+  //
+  // The test is bright AND CHROMATIC, and the second half is the important
+  // one. Brightness alone fails: a white awning stripe and a pale roller
+  // shutter are both near-white, and both genuinely should go dark at 3am
+  // because neither is a light source. What a lit window, a neon tube and an
+  // illuminated fascia have in common is saturated colour held at high value,
+  // and unlit architecture — brick, concrete, painted steel — does not have
+  // that anywhere on it.
+  //
+  // Cached per texture: sheets are shared across many meshes and this reads
+  // the whole canvas.
+  const sheetLit = new Map<string, boolean>();
+  const isSelfLit = (t: THREE.Texture | null | undefined): boolean => {
+    const img = t?.image as HTMLCanvasElement | undefined;
+    if (!img || typeof img.getContext !== 'function') return false;
+    const key = t!.uuid;
+    const seen = sheetLit.get(key);
+    if (seen !== undefined) return seen;
+    let hot = 0, n = 0;
+    try {
+      const g = img.getContext('2d', { willReadFrequently: true });
+      const d = g!.getImageData(0, 0, img.width, img.height).data;
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] < 128) continue;                 // transparent texels say nothing
+        n++;
+        const mx = Math.max(d[i], d[i + 1], d[i + 2]);
+        const mn = Math.min(d[i], d[i + 1], d[i + 2]);
+        if (mx > 199 && mx - mn > 26) hot++;          // bright, and not grey
+      }
+    } catch { /* zero-sized or unreadable — treat as ordinary masonry */ }
+    const v = n > 0 && hot / n > 0.08;
+    sheetLit.set(key, v);
+    return v;
+  };
   const dimWorld = (root: THREE.Object3D) => {
     root.traverse((o) => {
       if (Math.abs(o.position.x) > 100) return;      // interiors keep their own light
@@ -241,8 +296,10 @@ export function buildProps(ctx: CtxBuild): Props {
         const bx = new THREE.Box3().setFromObject(o);
         const span = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z);
         const poolable = wy.y < 4.5 && Number.isFinite(span) && span < 6;
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable,
-                       floor: floorFor(wy.y), wetK: wetKFor(wy.y) });
+        const selfLit = isSelfLit(m.map);
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable && !selfLit,
+                       floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
+                       wetK: selfLit ? 0 : wetKFor(wy.y) });
       }
     });
     // ── and stand a splash sheet against every wall on the building line ──
