@@ -132,6 +132,54 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const underStairB = mkCap();
   const aptDoorCap = mkCap();     // 301's doorway only opens on floor 3
   const hermitCap = mkCap();      // he is solid, but only when he is in
+  const doorShutCap = mkCap();    // 301's leaf, when it is actually shut
+
+  // ── 301's door, open and shut ────────────────────────────────────────────
+  // The user: *"i want to be able to close this door"*. Being able to shut it
+  // is most of the difference between a room and a corridor you happen to be
+  // standing in.
+  //
+  // The leaf hangs on a pivot at the DOOR_Z0 jamb and its tip travels on a
+  // circle of radius LEAF_W about that pivot. Both end poses fall out of that
+  // one fact rather than being posed by eye:
+  //   SHUT  the tip is at pivot + LEAF_W in +z, which lands it just short of
+  //         the far jamb — so the leaf fills the gap and touches neither end
+  //   OPEN  swung back flat against the room wall, which is where a door in a
+  //         one-room flat actually lives
+  const DOOR_A_OPEN = -Math.PI / 2 + 0.25;
+  const DOOR_A_SHUT = Math.PI / 2;
+  let doorShut = false;           // persists for the session, not per visit
+  let doorA = DOOR_A_OPEN;        // where the leaf is right now
+  let leaf301: THREE.Group | null = null;
+  let DOOR_PIV_X = 0, DOOR_PIV_Z = 0, DOOR_LEAF_W = 0.91;
+
+  /** Is the player clear of the volume the leaf sweeps on its way shut?
+   *
+   *  A door that shuts THROUGH you is worse than one that never shuts, and
+   *  the swing here is nearly 170 degrees, so this is not a corner case — the
+   *  natural place to stand and look at the door is inside the arc.
+   *
+   *  The tip travels on a circle of radius LEAF_W about the pivot, so the
+   *  swept volume is an annular sector: everything within LEAF_W of the pivot
+   *  whose bearing lies between the open and the shut pose. The rig is a
+   *  0.36 m cylinder, so it is that radius grown by RIG. Outside the radius
+   *  the bearing does not matter, which is what lets you stand a pace back
+   *  and shut the door from anywhere. */
+  const doorClear = (px: number, pz: number): boolean => {
+    const dx = px - DOOR_PIV_X, dz = pz - DOOR_PIV_Z;
+    const d = Math.hypot(dx, dz);
+    if (d > DOOR_LEAF_W + 0.36) return true;          // a pace back: always fine
+    if (d < 0.12) return false;                        // standing on the hinge
+    // The tip of the leaf at angle a points along (-cos a, sin a), so a
+    // bearing b corresponds to the angle a = PI - b. Map the player into the
+    // leaf's own angle and ask whether it falls inside the travel.
+    let a = Math.PI - Math.atan2(dz, dx);
+    while (a > Math.PI) a -= 2 * Math.PI;
+    while (a < -Math.PI) a += 2 * Math.PI;
+    const lo = Math.min(DOOR_A_OPEN, DOOR_A_SHUT) - 0.12;
+    const hi = Math.max(DOOR_A_OPEN, DOOR_A_SHUT) + 0.12;
+    return a < lo || a > hi;
+  };
   const setCap = (c: AABB, on: boolean, x0: number, x1: number, z0: number, z1: number) => {
     if (on) { c.minX = x0; c.maxX = x1; c.minZ = z0; c.maxZ = z1; }
     else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
@@ -274,7 +322,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(0), maxX: AX(2.4), minZ: AZI(13.2), maxZ: AZI(13.35) },
       { minX: AX(1.04), maxX: AX(1.36), minZ: AZI(STAIR_Z0), maxZ: AZI(STAIR_Z1) }, // core wall + the handrails on both its faces
       { minX: AX(2.25), maxX: AX(2.4), minZ: AZI(3.5 - DOOR_GAP / 2), maxZ: AZI(3.5 + DOOR_GAP / 2) }, // 302's doorway (and the hermit in it)
-      stairCap, underStairA, underStairB, aptDoorCap, hermitCap,
+      stairCap, underStairA, underStairB, aptDoorCap, hermitCap, doorShutCap,
     );
     // floors, ceilings
     for (let f = 0; f < 4; f++) {
@@ -476,7 +524,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#6a5a30';                            // four fixing screws
       g.fillRect(8, 5, 1, 1); g.fillRect(23, 5, 1, 1);
       g.fillRect(8, 11, 1, 1); g.fillRect(23, 11, 1, 1);
-      stampNum(g, num, 9, 6, '#2e2616');
+      if (num) stampNum(g, num, 9, 6, '#2e2616');
+    });
+    /** The INSIDE face of a flat's own front door. Same leaf, no number and no
+     *  plate: the number is how the hall tells your door from the hermit's,
+     *  and you do not need telling which door is yours from your own side.
+     *  It used to carry 301 on both faces, which read as a second door
+     *  standing in the room whenever it was open. */
+    const doorTexInner = () => pixTex(32, 64, (g) => {
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
+      g.fillStyle = '#57402c'; g.fillRect(3, 3, 26, 61);
+      g.fillStyle = 'rgba(0,0,0,0.3)';
+      g.fillRect(7, 16, 18, 16); g.fillRect(7, 38, 18, 20);
+      g.fillStyle = 'rgba(255,255,255,0.12)';
+      g.fillRect(7, 16, 18, 2); g.fillRect(7, 38, 18, 2);
+      // a security chain and its slide, because this is the side you use
+      g.fillStyle = '#8d8d92'; g.fillRect(5, 22, 6, 2);
+      g.fillStyle = '#6e6e74'; for (let i = 0; i < 5; i++) g.fillRect(11 + i * 2, 23, 1, 1);
+      dither(g, 32, 64, 40);
     });
     const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
       const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num)));
@@ -531,31 +596,56 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       scene.add(leaf);
     }
     // ── 301's door ───────────────────────────────────────────────────────
-    // There was no door at all — just a hole. You teleport into the flat, so
-    // the honest read is the leaf standing open, swung back against the wall
-    // inside the room: a box rather than a plane, so the edge shows its
-    // thickness, with a knob on the free stile and hinges on the jamb.
+    // There was no door at all — just a hole. Then a leaf standing permanently
+    // open, which is honest but is also why the room never read as YOURS. It
+    // now swings, on an [E] spot, and the collider follows it.
     {
       const LW = DOOR_W - 0.2;                        // 0.91 m leaf in a 0.95 m gap
       const g301 = new THREE.BoxGeometry(LW, 2.05, 0.045);
       g301.translate(-LW / 2, 0, 0);                  // hinge at the +x edge
       const edgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
-      const faceM = texM(doorTexN('301', false));
-      const leaf301 = new THREE.Group();
-      leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, faceM, faceM]));
+      // Face 4 is +z, face 5 is -z. Shut, the leaf is rotated a quarter turn,
+      // which sends local +z to world +x — the HALL. So the numbered face is
+      // index 4 and the room only ever sees the plain inner leaf.
+      const hallM = texM(doorTexN('301', false));
+      const roomM = texM(doorTexInner());
+      leaf301 = new THREE.Group();
+      leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, hallM, roomM]));
       const knob = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.1),
         new THREE.MeshBasicMaterial({ color: 0xc9b45e }));
       knob.position.set(-LW + 0.09, -0.02, 0);
       leaf301.add(knob);
-      leaf301.position.set(AX(-0.09), 2 * ST + 1.05, DOOR_Z0 + 0.04);
-      leaf301.rotation.y = -Math.PI / 2 + 0.25;       // back against the room's wall
+      // THE PIVOT, and the two clearances that come off it. The hinge used to
+      // sit 0.04 from the jamb, which is exactly LW + 0.04 = DOOR_GAP — the
+      // tip arrived flush ON the far jamb with nothing between them. At 0.02
+      // the shut leaf spans DOOR_Z0+0.02 to DOOR_Z0+0.93 inside a gap that
+      // ends at DOOR_Z0+0.95, so there is 2 cm at the strike and 2 cm at the
+      // hinge and it clips neither end of its travel.
+      DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z0 + 0.02; DOOR_LEAF_W = LW;
+      leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.05, DOOR_PIV_Z);
+      leaf301.rotation.y = doorA;
       scene.add(leaf301);
       const hingeM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
       for (const hy of [2 * ST + 0.32, 2 * ST + 1.78]) {
         const hg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.022), hingeM);
-        hg.position.set(AX(-0.032), hy, DOOR_Z0 + 0.013);
+        hg.position.set(AX(-0.032), hy, DOOR_PIV_Z - 0.007);   // on the pivot line
         scene.add(hg);
       }
+
+      // Where you stand to work it. Out in front of the leaf and back from it,
+      // on the room side — a door you can only reach by standing inside its
+      // own swing is a door you can never shut.
+      ctx.spot({
+        x: DOOR_PIV_X - 0.55, z: DOOR_PIV_Z + 1.45, r: 0.95,
+        ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+        label: () => (doorShut ? 'open the door'
+          : doorClear(ctx.player.x(), ctx.player.z()) ? 'close the door'
+            : 'step clear of the door'),
+        act: () => {
+          if (!doorShut && !doorClear(ctx.player.x(), ctx.player.z())) return;
+          doorShut = !doorShut;
+        },
+      });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
     //
@@ -1218,7 +1308,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // Registered rather than called by name from the sim loop: the entry point
   // no longer knows this module has per-frame work. WORLD order because the
   // stair guards and the hermit's presence are state that later passes read.
-  ctx.onFrame((f) => { updateCaps(f.px); updateHermitAt(f.hourAbs); }, ORDER.WORLD);
+  ctx.onFrame((f) => { updateCaps(f.px); updateDoor(f.dt); updateHermitAt(f.hourAbs); }, ORDER.WORLD);
 
   const updateCaps = (px: number) => {
     // the guard starts at the railing, not at the stairwell mouth: the first
@@ -1228,6 +1318,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     setCap(underStairA, onLobby, AX(1.2), AX(2.4), AZI(STAIR_Z0), AZI(LAND_Z1));
     setCap(underStairB, onLobby, AX(0), AX(1.2), AZI(STAIR_Z1), AZI(LAND_Z1));
     setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
+  };
+
+  /** Swing the leaf toward wherever it has been asked to be, and keep the
+   *  collider on it. The cap goes on only once the leaf is nearly home:
+   *  a door blocks when it is SHUT, not while it is still travelling, and
+   *  raising the cap early is how you get sealed in behind a moving door. */
+  const updateDoor = (dt: number) => {
+    if (!leaf301) return;
+    const target = doorShut ? DOOR_A_SHUT : DOOR_A_OPEN;
+    if (doorA !== target) {
+      const step = 4.2 * Math.min(dt, 0.05);           // ~0.7 s end to end
+      doorA += Math.sign(target - doorA) * Math.min(step, Math.abs(target - doorA));
+      leaf301.rotation.y = doorA;
+    }
+    // The gap is 0.95 and the leaf is 0.91 of it, so the cap is the whole
+    // doorway: 2 cm of daylight at each jamb is not somewhere a 0.36 m rig
+    // was ever getting through, and a collider with a hole in it reads as a
+    // bug rather than as a draught.
+    setCap(doorShutCap,
+      doorA > DOOR_A_SHUT - 0.10 && Math.abs(lastGy - 2 * ST) < 0.5,
+      AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
   };
 
   const updateHermitAt = (hAbs: number) => {
