@@ -1,6 +1,15 @@
 // Independent check of "one masonry density": for every textured mesh, pair the
 // texture canvas with the face it is mapped to and report px/m on BOTH axes.
 // A single density means every wall lands on the same pair of numbers.
+//
+// Face size comes from the mesh's LOCAL geometry parameters scaled by its world
+// scale — NOT from a world bounding box. The bounding box is wrong the moment
+// anything sits in a rotated group: the x and z extents swap, so a face gets
+// measured against the wrong edge. That mis-reported the bodega canted bay
+// (rotated 135 degrees) as 11.5 x 11.7 when it is 8.13, and the whole church
+// (ct/street.ts placeChurchEast rotates the group -90) as 10.81 / 5.92 / 30.59
+// when every face of it is 8.00. Both were chased as real defects before the
+// tool was suspected. Local dimensions have no such ambiguity.
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
@@ -14,8 +23,16 @@ const r = await p.evaluate(() => {
     if (!o.isMesh || !o.geometry) return;
     for (let q=o;q;q=q.parent) if (q.visible===false) return;
     const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
-    const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
-    const sz = [bb.max.x-bb.min.x, bb.max.y-bb.min.y, bb.max.z-bb.min.z];
+    const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);   // for reporting position only
+    // world scale off the matrix basis vectors, so rotation cannot leak in
+    const e = o.matrixWorld.elements;
+    const len = (a, b, c) => Math.hypot(e[a], e[b], e[c]);
+    const S = [len(0,1,2), len(4,5,6), len(8,9,10)];
+    const par = g.parameters ?? {};
+    const local = par.width !== undefined
+      ? [par.width * S[0], (par.height ?? 0) * S[1], (par.depth ?? 0) * S[2]]
+      : [ (bb.max.x-bb.min.x), (bb.max.y-bb.min.y), (bb.max.z-bb.min.z) ];  // fallback: unparameterised
+    const sz = local;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     // BoxGeometry material order [+x,-x,+y,-y,+z,-z]; the two side faces that
     // carry a facade are index 0/1 (face = depth x height) and 4/5 (width x height)
@@ -28,7 +45,9 @@ const r = await p.evaluate(() => {
         if (i === 0 || i === 1) { fw = sz[2]; fh = sz[1]; }
         else if (i === 4 || i === 5) { fw = sz[0]; fh = sz[1]; }
         else { fw = sz[0]; fh = sz[2]; }
-      } else { // planes: the two non-zero extents
+      } else if (par.width !== undefined) {   // PlaneGeometry: local w x h, always
+        fw = sz[0]; fh = sz[1];
+      } else {                                 // unparameterised: fall back to extents
         const nz = [0,1,2].filter(k => sz[k] > 1e-4);
         if (nz.length < 2) return;
         fw = sz[nz[0]]; fh = sz[nz[1]];
