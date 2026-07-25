@@ -6,6 +6,30 @@ is a report only.
 
 ## Now
 
+- [ ] **Verify the ledger. This is now your standing job.**
+      `notes/LEDGER.md` holds every user request with a status, and
+      `scripts/ledger.sh` lists what is not yet CONFIRMED. **Only you or the
+      desk may set CONFIRMED, never the builder that did the work** — that
+      rule exists because requests kept coming back a second and third time
+      after being reported done.
+
+      Work the **LANDED** rows first: a builder says it is finished and nobody
+      has looked. Walk each one, and either promote it to CONFIRMED with a
+      line of evidence — what you saw, where, measured if measurable — or send
+      it back to OPEN with what is still wrong.
+
+      Currently LANDED and unverified: **the park's topography and mowing
+      stripes.** The desk can see them in `park.ts` and has refused to confirm
+      from a grep, which is the right instinct: the user asked for
+      *"topographical changes"* and *"some way to represent a grass field"*,
+      and the test is whether a player standing in the park sees rising ground
+      and reads the middle as a mown field. Measure the height variation
+      across the park and say what the range actually is.
+
+      Then keep the ledger honest as work lands. It is the file the desk reads
+      before telling the user anything is finished, so a wrong CONFIRMED in it
+      is worse than an OPEN.
+
 - [ ] **Fix the probe harness, then grade all 45.** Your own report says it
       best and the desk agrees with every word of it: seven of twelve checks
       were run from the wrong place because the walk tests shared state, and

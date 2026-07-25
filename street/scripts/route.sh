@@ -50,7 +50,18 @@ PY
 # until two builders had 111 commits stranded between them, which is hours of
 # finished work the user could not see, caused entirely by an uncommitted
 # markdown file.
-git -C "$MAIN" add street/FEATURE-REQUESTS.md >/dev/null 2>&1
+# Append to the LEDGER too, as OPEN. This is the row that stops the desk
+# telling the user something is done because a builder committed it.
+python3 - "$QUOTE" "$AGENT" <<'LEDGER' 2>/dev/null
+import sys
+q, a = sys.argv[1][:70], sys.argv[2]
+p = '/home/erick/projects/rpg/street/notes/LEDGER.md'
+s = open(p).read()
+if q not in s:
+    s = s.rstrip('\n') + f'\n| OPEN | {a} | {q} | |\n'
+    open(p, 'w').write(s)
+LEDGER
+git -C "$MAIN" add street/FEATURE-REQUESTS.md street/notes/LEDGER.md >/dev/null 2>&1
 git -C "$MAIN" commit -q -m "Log: \"$QUOTE\" -> $AGENT" >/dev/null 2>&1
 echo "logged: \"$QUOTE\" -> $AGENT"
 
