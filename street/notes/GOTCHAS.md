@@ -645,3 +645,33 @@ can catch this for you today. Recording the mode in the dump and refusing a
 cross-mode `fpdiff` would — offered to whoever owns those two, in
 `notes/C-texture-hash.md`; `scripts/**` says do not edit another builder's file
 and I have not.
+
+## 32. Exit 3 means the check never ran
+
+`reportWorld` aborts with **exit 3** when the server is not serving your build.
+It is not a failure of the thing being checked — **no measurement was taken**,
+and nothing at all follows about the world.
+
+```
+0   measured, and it is fine
+1   measured, and it is WRONG
+2   usage, or a --selftest that was not caught
+3   ABORTED — wrong world, nothing measured
+```
+
+Until `BLOCKED-H` asked for it and `ec7aae0d` did it, a wrong-world abort was
+an unhandled throw, which node turns into exit 1 — the same code as a real
+failure. H lost a red to that ambiguity in a batch that discarded output;
+another builder read "3 of 3 FAILED" from D-walk under load where every one was
+this guard; I twice reported checks as "red" in front of the user when they had
+simply aborted on a stale dist or an empty port.
+
+**So do not read a 3 as bad news about the world, and do not read it as good
+news either.** Rebuild, restart your preview, and run it again.
+
+The trap this leaves elsewhere: anything that treats *non-zero* as
+"the check noticed" now needs to say *non-zero except 3*. `canfail.mjs` is the
+live example — it records CAUGHT on any non-zero exit, so a check that never
+ran certifies as one that caught its mutation, which is a false green in the
+tool whose whole job is proving checks can fail. Written up for its owner in
+`notes/C-wrong-world-exit.md`.
