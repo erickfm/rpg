@@ -23,6 +23,20 @@ nothing, is the right one regardless of who measures what.
 
 Everything else in `npm run checks` is green.
 
+**And every guard of mine was watched firing at this HEAD**, not merely observed
+to pass — ten `--selftest` runs, ten catches:
+
+```
+check-seethrough  density   nightgrade   seampairs   frontage-honours
+burger-palette    tree-crown  window-lattice  shop-interior  check-wiring
+```
+
+That distinction is the whole argument of this session. A green run says the
+world is fine *if* the check still works; a selftest says the check still works.
+Two of mine had stopped working at some point without anyone noticing — the bay
+camera aimed at brick beside the glass, and `mirror-walk`, whose two sides were
+the same expression and which therefore could never have passed.
+
 ## Waiting on someone else
 
 | what | who | state |
