@@ -20,9 +20,13 @@ still shows them unchecked and `## Done` still reads *"nothing yet — you are n
 that is the desk's bookkeeping, and the map from each item to its commit is in
 **"Every item in `notes/queues/G-interiors2.md`, and where it landed"** below.
 
-**Verification, re-measured at `fe1c57e0e` (2026-07-25), against a `vite preview`
+**Verification, re-measured at `3237c395f` (2026-07-25), against a `vite preview`
 of `dist` built from that commit — not the dev server:** `G-rooms-walk` **114/114**,
-`G-vice-walk` **18/18**, `doors-declared` **8 of 8**, ownership clean. See §5 for
+`G-vice-walk` **18/18**, `doors-declared` **10 of 10**, `mirror-walk` 5/5 rooms
+mirror, ownership clean. Run against the bundle specifically because the user's
+alignment fix — centring both interior doorways — has to reach the world he
+actually plays, and §28 is how a door of mine went missing while dev stayed
+green. See §5 for
 why the built bundle matters more than it sounds — it is how the GOLDEN ACES door
 went missing while dev stayed green.
 
