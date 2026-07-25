@@ -13,11 +13,14 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-frontage.mjs
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const ROAD_HALF = 5.0, FACE = 7.0, R = 0.36;
 const b = await chromium.launch();
 const p = await b.newPage();
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4190/', { waitUntil: 'networkidle' });
+const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, URL);
 
 // The lot's own frontage, asked for rather than remembered: its stamped meshes.
 const span = await p.evaluate(() => {

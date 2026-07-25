@@ -9,6 +9,7 @@
 // The cut is z 2.6, half-width 3.4, with 0.9 m flares — the same centre and
 // width as ct/lot.ts's drive aisle, so the two have to line up exactly.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const out = process.argv[2] ?? 'shots/curbcut';
@@ -20,6 +21,7 @@ const errs = [];
 p.on('pageerror', (e) => errs.push(e.message));
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, URL);
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(700);
 const SH = [

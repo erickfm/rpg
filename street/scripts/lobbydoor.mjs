@@ -1,6 +1,7 @@
 // The front door from both sides, one after the other — the only way to see
 // whether it is the same door. Report finding 1.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const out = process.argv[2] ?? 'shots/lobbydoor';
@@ -12,6 +13,7 @@ const errs = [];
 p.on('pageerror', e => errs.push(e.message));
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, URL);
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(600);
 const SH = [
