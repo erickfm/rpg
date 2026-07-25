@@ -78,3 +78,4 @@ user anything is finished.
 | OPEN | F | why are these decorations simply floating in the air in the diner? / t | |
 | OPEN | E | park bench looks bad and clips the drinking fountain | |
 | OPEN | E | park bench looks awful and clips into fountain, also no shrubs like i  | |
+| OPEN | G | make the library interior larger and more ambitious / why is church lo | |
