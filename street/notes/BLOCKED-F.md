@@ -169,3 +169,50 @@ live. It stops being latent the moment a non-`int-` module declares a door.
 
 My recommendation is (3), and (2) as a stopgap that someone must remember —
 which by this project's own history is the weaker half of the pair.
+
+---
+
+## OPEN — a seated player is teleported 523 m, and it is not what I first thought
+
+`05694164a` reports `seats-walk` as "FLAKY, not broken" — 56/58, 57/58, 56/58,
+58/58 on one build. Reproduced here, and the symptom is not a flaky measurement:
+
+```
+FAIL  seat 30/58 "sit down" @ 522.11,-1.22
+      walked off the seat: moved 523.44 m while seated
+```
+
+**523 m is a teleport, not drift.** The seat is inside the burger barn slab
+(x ≈ 516–522) and the player ends up around x −1, which is the street. So a
+seated player is being thrown out of the room, and the check is right to fail.
+
+The harness sits, then holds w, s, a and d for 200 ms each — 800 ms seated —
+and measures displacement. Any real player who sits still for a second is inside
+that window.
+
+### My first hypothesis was wrong, and here is why, so nobody re-chases it
+
+I built the stuck-protection, and it fits perfectly: a seated capsule overlaps
+its own stool, `unstick` judges the position illegal, and after `PATIENCE`
+(0.45 s, well inside 800 ms) it jumps the player to `lastGood` — which would be
+the street position from before they teleported into the room.
+
+**It is already guarded.** `src/proto/fp.ts:282` calls `unstick` *after* the
+seated early return at :257, with the reason written at the call site: *"a seat
+deliberately puts you inside your own chair, and shoving you off it would be the
+cure killing the patient."* So `unstick` does not run while seated and cannot be
+the cause.
+
+### What is actually unknown
+
+Movement is locked by the same early return, so neither the keys nor the
+depenetrator should be able to move a seated player at all. Something else
+writes the position. Candidates I have NOT ruled out: a spot's `act()` firing
+without `[E]`, the seat releasing mid-hold so the reading straddles two states,
+or the interior way-out being triggered by something other than the key.
+
+`fp.ts` is a bounded-mandate file for me and the seat mechanic is mine, so this
+is likely mine to fix — I am out of runway this session, not out of ownership.
+**Reproduce:** `SHOT_URL=… node scripts/seats-walk.mjs`, look for a failure with
+a displacement in the hundreds of metres; it is intermittent and not always the
+same seat (mainline saw two at x −8.65, I saw one at x 522.11).
