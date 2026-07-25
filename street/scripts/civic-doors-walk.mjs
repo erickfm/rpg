@@ -16,6 +16,7 @@
 //   3. pressing E changes what it says — the door answers.
 //   4. the answer LAPSES, so the prompt is not stuck on the response forever.
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 // Foot-of-the-steps and top-of-the-flight for each civic building, taken from
@@ -59,7 +60,10 @@ const warp = (x, z, yaw) => p.evaluate(([x, z, yaw]) =>
 // still correct — what breaks is a player's ability to arrive at it, which is
 // the failure this check was written for: "a prompt that exists in an array
 // and never reaches a player".
-const SELFTEST = process.argv.includes('--selftest');
+// Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
+// otherwise run the ordinary suite and exit 0, reporting a selftest pass for
+// a selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 if (SELFTEST) {
   // Mid-flight, NOT at the top: a wall on the landing still leaves the player
   // inside the 1.2 m trigger, so the prompt fires and the check stays green.

@@ -6,6 +6,7 @@
 // the picker either sinks you into the stone or stops you climbing — and both
 // look like "the steps do not work".
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
@@ -32,7 +33,10 @@ const gyAt = async (x, z) => {
 // assertion still passes and only the WALK fails — which is the right shape:
 // this check exists because a flight can report a 0.99 m landing and still not
 // be climbable, and that is exactly the half being proven here.
-const SELFTEST = process.argv.includes('--selftest');
+// Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
+// otherwise run the ordinary suite and exit 0, reporting a selftest pass for
+// a selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 
 const fails = [];
 const FLIGHTS = [

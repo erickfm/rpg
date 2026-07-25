@@ -21,6 +21,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/world-wired.mjs
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { readdirSync, readFileSync } from 'node:fs';
 
@@ -41,7 +42,10 @@ if (!files.length) { console.error('no ct/int-*.ts files at all — wrong direct
 //
 // Injected AFTER the empty-directory guard above, so a genuinely wrong working
 // directory still exits 2 rather than being masked by the phantom.
-const SELFTEST = process.argv.includes('--selftest');
+// Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
+// otherwise run the ordinary suite and exit 0, reporting a selftest pass for
+// a selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 if (SELFTEST) {
   files.push('int-selftest.ts');
   console.log('selftest: claiming an int-selftest.ts nobody built — this MUST now go red');

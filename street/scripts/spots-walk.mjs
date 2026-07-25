@@ -50,6 +50,7 @@
 // which I tested by moving the thrift's declaration onto the park frontage and
 // watched PASS. Had there been a selftest it would have been one command.
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const RADIUS = 0.36;
@@ -63,7 +64,10 @@ await p.waitForFunction(() => window.__ct?.spots !== undefined, { timeout: 15000
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(300);
 
-const SELFTEST = process.argv.includes('--selftest');
+// Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
+// otherwise run the ordinary suite and exit 0, reporting a selftest pass for
+// a selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 
 const spots = await p.evaluate(() => window.__ct.spots());
 const doors = await p.evaluate(() => window.__ct.doors());

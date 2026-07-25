@@ -5,6 +5,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/interiors-walk.mjs [id]
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
@@ -80,6 +81,11 @@ const ROOMS = [
 // did, and a test asserting a stale number is worse than no test.
 // The room filter is POSITIONAL, so it must skip flags. `process.argv[2]` took
 // `--selftest` as a room name, matched nothing, and the run walked zero rooms.
+// …and unknown flags are REFUSED, not skipped. Skipping them was half a fix:
+// `--selftst` would drop out of the room filter AND out of the selftest test at
+// :165, running the ordinary walk and exiting 0 — a selftest pass for a
+// selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
 if (only && !rooms.length) {
@@ -162,7 +168,7 @@ const DIMS = await p.evaluate(() => window.__ct.roomDims());
 // world changes: the rooms are still built, still furnished, still lit. Only
 // the way in is gone — which is precisely the failure this script exists for,
 // the one that had five modules shipped and unreachable.
-if (process.argv.includes('--selftest')) {
+if (SELFTEST) {
   const n = await p.evaluate(() => {
     let k = 0;
     for (const d of window.__ct.doors()) {

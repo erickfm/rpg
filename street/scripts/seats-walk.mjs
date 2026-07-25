@@ -21,6 +21,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/seats-walk.mjs
 import { chromium } from 'playwright';
+import { flags } from './lib/flags.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const RADIUS = 0.36, SIT_EYE = 0.72, STAND_EYE = 1.62;
@@ -77,7 +78,10 @@ const standableNear = (at, r) => p.evaluate(([at, r, RADIUS]) => {
 // then passed, for three seats, while the player sat somewhere they had not
 // chosen. A selftest does not catch that on its own — but a check you have
 // never watched fail is one you will argue with, and that is how it went.
-const SELFTEST = process.argv.includes('--selftest');
+// Unknown flags are REFUSED, not ignored — a mistyped `--selftest` would
+// otherwise run the ordinary suite and exit 0, reporting a selftest pass for
+// a selftest that never ran (GOTCHAS 34 shape one).
+const SELFTEST = flags(['--selftest']).selftest;
 if (SELFTEST) {
   const v = seats[0];
   await p.evaluate(([x, z]) => window.__ct.colliders().push({
