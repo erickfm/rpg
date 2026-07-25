@@ -19,9 +19,23 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-walk.mjs
 import { chromium } from 'playwright';
 
+// SAY WHICH WORLD THIS MEASURED, every run, before anything else.
+//
+// 24163f69 found 60 scripts hard-coded to localhost:4184 — the auditor's
+// worktree — and 55 of them with no SHOT_URL escape at all, so anyone running
+// one was measuring somebody else's checkout and reading it as their own work.
+// This file was never in that set; it has always honoured SHOT_URL. But its
+// DEFAULT is 4231, which is my port and nobody else's, and a default that
+// happens to answer is exactly how that failure stays invisible.
+//
+// So it prints the target. A wrong number in a passing run is only dangerous
+// while it is unstated.
+const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
+console.log(`D-walk measuring ${URL}${process.env.SHOT_URL ? '' : '   (default — builder D\'s port. Set SHOT_URL to measure your own build.)'}`);
+
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4231/', { waitUntil: 'networkidle' });
+await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.mouse.click(640, 360);
