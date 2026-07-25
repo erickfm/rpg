@@ -9,8 +9,9 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/basin.mjs [shots|probe|wet|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { modes } from './lib/modes.mjs';
 
-const mode = process.argv[2] ?? 'all';
+const mode = modes('basin', ['probe', 'shots', 'wet', 'all']);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 700 } });
 const errors = [];

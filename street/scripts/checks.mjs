@@ -119,6 +119,24 @@ const CHECKS = [
   // wrong: it does not walk, and a check behind a flag nobody passes is the
   // thing this file exists to stop.
   ['spot-coverage',    'is every [E] spot exercised by SOME check?',       true],
+  // RED ON ARRIVAL, and correctly so — it is reporting three real scripts.
+  //
+  // Eight scripts here dispatch on a mode word. Hand one a mode it does not
+  // know (`--probe` for `probe`, the flag form most of this suite takes) and it
+  // matches no branch, falls off the end of the file and exits 0 — a green row
+  // for a check that ran nothing. I found it in five of my own and fixed them
+  // with lib/modes.mjs; lamplight, parking and truck still do it and are not
+  // mine to edit (OWNERSHIP: "do not edit another agent's script"). Routed in
+  // notes/BLOCKED-B.md with the two-line fix.
+  //
+  // Third field is `false` because there is no mutation — and it does not need
+  // one. canfail invokes every check with the SAME correct arguments checks.mjs
+  // does, so it cannot reach this path at all. What proves this check can go
+  // red is that it is red, right now, for three defects nobody planted.
+  //
+  // Discovery is a source grep, not a list: a new script with a mode word is
+  // covered the day it is written, by an author who never read this comment.
+  ['no-silent-pass',   'can any check pass by doing nothing?',             false],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat

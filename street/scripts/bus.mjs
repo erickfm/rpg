@@ -6,8 +6,19 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/bus.mjs [shots|walk|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { modes } from './lib/modes.mjs';
 
-const mode = process.argv[2] ?? 'all';
+// A MODE THIS DOES NOT KNOW MUST BE FATAL, not silently nothing.
+//
+// Found by mistyping it: `node scripts/bus.mjs --walk` — the flag form, which
+// every other script in this suite takes — ran no branch, printed "no page
+// errors" and EXITED 0. One second, green, zero assertions. checks.mjs would
+// have shown a passing row for a stop it never looked at.
+//
+// That is GOTCHAS 27 in my own file: the check had never been watched fail, so
+// nobody knew that failing was something it could decline to do. The four modes
+// are cheap to enumerate, so enumerate them and refuse anything else.
+const mode = modes('bus', ['shots', 'walk', 'bench', 'stop', 'all']);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];

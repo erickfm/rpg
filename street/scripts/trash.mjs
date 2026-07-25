@@ -12,8 +12,9 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/trash.mjs [shots|probe|cups|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { modes } from './lib/modes.mjs';
 
-const mode = process.argv[2] ?? 'all';
+const mode = modes('trash', ['probe', 'cups', 'shots', 'all']);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 const errors = [];

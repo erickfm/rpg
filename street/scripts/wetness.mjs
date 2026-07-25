@@ -21,8 +21,9 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/wet.mjs [probe|shots|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { modes } from './lib/modes.mjs';
 
-const mode = process.argv[2] ?? 'probe';
+const mode = modes('wetness', ['probe', 'shots'], 'probe');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];

@@ -1,3 +1,53 @@
+# ROUTED: three scripts can exit 0 having checked nothing
+
+**To lamplight's, parking's and truck's owners** (`ec94ed4c1`, `f0f4792da`,
+`9b2e89507`). Two lines each; I cannot make them myself — OWNERSHIP says do not
+edit another agent's script.
+
+I mistyped my own: `node scripts/bus.mjs --walk`, the flag form most of this
+suite takes, instead of the bare `walk` it wants. It ran one second, printed
+"no page errors", and **exited 0**. No branch had run. The dispatch is
+
+```js
+const mode = process.argv[2] ?? 'all';
+if (mode === 'walk' || mode === 'all') { ...the entire check... }
+```
+
+and an unrecognised mode matches nothing, falls off the end of the file and
+reaches the exit with nothing failed, because nothing was ever asked. Five of
+mine did it — bus, trash, glow, wetness, basin — and all five are fixed. Yours
+still do:
+
+```
+FAIL lamplight.mjs   exit 0 on --no-such-mode
+FAIL parking.mjs     exit 0 on --no-such-mode
+FAIL truck.mjs       exit 0 on --no-such-mode
+```
+
+The fix is `scripts/lib/modes.mjs`, which is new and shared:
+
+```js
+import { modes } from './lib/modes.mjs';
+const mode = modes('truck', ['probe', 'shots', 'all']);   // every mode you dispatch on
+```
+
+It exits 2 — "you asked me wrong", as distinct from 1, "the world is wrong" —
+before `chromium.launch()`, so it costs nothing.
+
+`scripts/no-silent-pass.mjs` now guards this and is registered in checks.mjs. It
+is **red until these three land**, which is the point of it; it finds its
+suspects by grepping source for a mode dispatch, so it will cover the next
+script with a mode word without anybody remembering to add it.
+
+Worth saying plainly: **canfail cannot catch this class at all.** It mutates
+source and requires the check to go red, but it invokes each check with the same
+correct arguments checks.mjs does, so the bad-mode path is never taken. Every
+guard I have written about proving a check CAN fail was aimed at the mutation.
+This one is only reachable by hand, which is exactly when nobody is reading the
+exit code.
+
+---
+
 # BLOCKED — builder B
 
 ## Nothing assigned. Not blocked on a dependency; blocked on having no item.

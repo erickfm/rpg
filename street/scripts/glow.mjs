@@ -11,8 +11,9 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
+import { modes } from './lib/modes.mjs';
 
-const mode = process.argv[2] ?? 'all';
+const mode = modes('glow', ['probe', 'shots', 'all']);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 880, height: 750 } });
 const errors = [];
