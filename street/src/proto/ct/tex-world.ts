@@ -1168,6 +1168,12 @@ export const burgerFront = (brick: string, wM: number) => {
         g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
       }
     }
+    // transom rail over the glazing, between the lit menu and the booths.
+    // Plastic trim, because that is what this whole front is made of — the one
+    // built feature it was missing against the shop next door that is supposed
+    // to be the plain one.
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(gx, gy + m(1.02), gw, Math.max(1, m(0.09)));
+    g.fillStyle = PLASTIC; g.fillRect(gx, gy + m(1.11), gw, 1);
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.2)), PLASTIC);
     // the door, in its own reveal, with a push bar — resolved above so the
     // room could be dressed around it
@@ -1361,9 +1367,20 @@ export const taxFront = (brick: string, wM: number) => {
     g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.75));           // kick plate
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.06));
     g.fillStyle = GOLD; g.fillRect(dx + dw - m(0.22), gy + m(1.5), m(0.08), m(0.3));   // handle
-    // stallriser: painted board, grubby at the pavement
+    // stallriser: painted board, PANELLED, grubby at the pavement.
+    // The panelling is the gap the user's facade request is really about — the
+    // block default has had a panelled stallriser all along and the three
+    // fronts the user named by name did not, so the shops that are supposed to
+    // have a character were carrying LESS built detail than the quiet barber
+    // next door. Grooves rather than the default's, because this is a painted
+    // timber board and that one is not.
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#6a665e');
+    g.fillStyle = 'rgba(0,0,0,0.24)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.6));
+    for (let i = 1; i < panels; i++) {
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.1), Math.max(1, m(0.08)), rh - m(0.2));
+    }
     g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
   });
@@ -1431,6 +1448,11 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
     for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.5));
     g.fillStyle = 'rgba(216,180,106,0.2)';
     for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.06));
+    // transom bar over the glazing, set just above the booth backs. Steel,
+    // because on this front everything is steel — the same feature the block
+    // default has always had, in this shop's own material.
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(gx, gy + m(0.78), gw, Math.max(1, m(0.08)));
+    g.fillStyle = STEEL; g.fillRect(gx, gy + m(0.86), gw, 1);
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.6)), STEEL_D);
     // door, half-glazed, with a chrome push plate
     // where the ROOM says its door is, falling back to this painter's own
@@ -1447,6 +1469,13 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, STEEL);
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(ox, ry + m(0.06), ow, m(0.08));
+    // FLUTED, which is what a diner's stainless kick rail actually is — and it
+    // is this front's answer to the default's panelled stallriser rather than a
+    // copy of it. A flat chrome slab was the laziest surface on the block.
+    g.fillStyle = 'rgba(30,26,22,0.20)';
+    for (let x = ox + m(0.18); x + m(0.05) < ox + ow - m(0.1); x += m(0.24)) {
+      g.fillRect(x, ry + m(0.12), Math.max(1, m(0.05)), rh - m(0.26));
+    }
     g.fillStyle = STEEL_D; g.fillRect(ox, ry + rh - m(0.14), ow, m(0.14));
     g.fillStyle = 'rgba(30,26,22,0.34)'; g.fillRect(ox, H - m(0.14), ow, m(0.14));
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
