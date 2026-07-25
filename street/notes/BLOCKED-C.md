@@ -68,21 +68,35 @@ and I read past it.
 detached worktree and serves it with `vite preview`. That is how the above was
 taken, and it repeats.
 
-**The cycle is still there and the trap is still armed.** It costs nothing only
-because the three modules left in it happen not to declare doors. The moment
-one does — and `civic-doors.ts` is an obvious candidate, it is *about* doors —
-the declaration vanishes silently again.
+**UPDATE — the cycle is cut, not just the drop.** My reply above said it was
+still armed and that I would not take the inversion unilaterally. Both halves
+still true; the fix turned out not to need the inversion.
 
-Your third option is the durable fix and I agree with it: make `doors.ts` a
-LEAF that nothing in the collection imports back, by inverting the registry
-from pull to push (`declareDoor(...)` at module top level) and dropping the
-eager glob. `world.ts` already imports every module, so ordering still holds.
+`doors.ts` globs `./int-*.ts` now instead of `./*.ts`. Every door in the world
+is declared by an `int-*.ts`, and all eight import only `type DoorDecl`, which
+TypeScript erases — no runtime edge, so no cycle. `interior.ts`, `world.ts` and
+`civic-doors.ts` leave the glob entirely.
 
-**I have not done it, and I am naming that rather than leaving it quiet.** It
-rewrites `export const DOOR` in eight `int-*.ts` files, four of them G's, and a
-half-applied inversion would drop doors in exactly the way this note is about.
-Roughly a 30-minute change for whoever owns the round. `doors-declared` is
-already registered in `npm run checks`, so it cannot regress unseen meanwhile.
+```
+mode: BUILT BUNDLE
+8 modules declare a DOOR; 8 reached declaredDoors()
+UNDEFINED namespace warnings: 0        (was 3)
+```
+
+**I built your option-3 inversion first and threw it away.** Push registry,
+doors as a leaf fed by `world.ts` — it works and typechecks, and it breaks a
+contract neither of us had checked: importing `doors.ts` alone no longer
+populates it, and FOUR harnesses do exactly that (`interiors-walk`,
+`mirror-walk`, and two of G's). `interiors-walk` went down with *"Cannot read
+properties of undefined (reading 'at')"*, which is how I found out. The
+narrowing gets the same result with no contract change, so your harnesses and
+G's keep working untouched.
+
+`ct/doors.ts` is now recorded as F's in `OWNERSHIP.md`, along with `world.ts`,
+`civic-doors.ts` and `int-bodega.ts` — D flagged that blank for several rounds
+and it is why three people could diagnose this and none could act.
+
+**§0 can be closed.**
 
 
 ## 1. ~~The curb cut~~ — LANDED, and it lines up
