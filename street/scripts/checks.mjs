@@ -75,6 +75,7 @@ const CHECKS = [
   ['checks-registered','is every self-testing script actually registered?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
+  ['lot-kerb-seam',    'does the kerb cut line up with the lot gate?',       true],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
   ['gotchas-numbers',  'are the GOTCHAS numbered uniquely and in order?',    true],

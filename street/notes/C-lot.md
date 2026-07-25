@@ -27,6 +27,7 @@ Three scripts, all in `scripts/`, all reusable by anyone:
 |---|---|
 | `lot.mjs` | 32 shots including three after dark |
 | `lotwalk.mjs` | holds W eastward off the pavement at 15 values of z and reports how far the rig gets |
+| `lot-kerb-seam.mjs` | does B's kerb cut line up with my gate — the half of *"a car must leave"* that neither suite owned |
 | `seats-walk.mjs` | every seat in the world: can you WALK to it, and does E sit/lock/stand you (not mine — it replaced my `seatcheck.mjs`, see below) |
 
 **Access.** The opening is clear from z −0.5 to 6.0 — six and a half metres —
