@@ -806,11 +806,28 @@ export function buildStreet(o: {
     g.rotation.y = -Math.PI / 2;
     g.position.set(FACE + 1.7, 0, z - b.w);
     scene.add(g);
-    // The church does not go through placeBld, so it has to register its own
-    // footprint or it is not there at all — with the blanket wall gone you
-    // walked straight through the nave. The 0.3 cushion covers the tower,
-    // which stands exactly that far proud of the facade.
-    solid({ minX: FACE - 0.3, maxX: FACE + 8, minZ: z - b.w, maxZ: z });
+    // NO blanket footprint here any more. This used to be
+    //
+    //     solid({ minX: FACE - 0.3, maxX: FACE + 8, minZ: z - b.w, maxZ: z });
+    //
+    // one box over the whole frontage, written when the church WAS a plain
+    // slab and had no colliders of its own. The church is inlaid now and
+    // ct/civic.ts registers the real thing — the nave, the tower and the
+    // churchyard walls — so this box was doing nothing except sealing the
+    // churchyard shut, exactly the way the old blanket wall sealed E's
+    // library courtyard. Same mistake, same shape, second time.
+    //
+    // WALKED, not assumed, because this is the collider whose removal made
+    // the church walk-through once before (E's patch note, and my own
+    // handoff). Along the whole frontage, walking east off the pavement:
+    //
+    //     z -88 … -62   held at x 6.26 … 6.59   the churchyard wall
+    //     z -80         in, to x 9.23           the GATE, which is the point
+    //     from inside, east   stopped at x 9.24 the nave is still solid
+    //     from inside, west   back out to the street
+    //     eye height 1.62 everywhere, in and out — no floor hole at the gate
+    //
+    // E's scripts/E-yard-walk.mjs passes all four of its walks too.
   };
   let ze = 14.2;
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
