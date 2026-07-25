@@ -72,3 +72,4 @@ user anything is finished.
 | OPEN | AUDIT | verify the ledger | |
 | OPEN | C | big sign should be simpler | |
 | OPEN | C | the garlands are disconnected | |
+| OPEN | D | the atm is still not right | |

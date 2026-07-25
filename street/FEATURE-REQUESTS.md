@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the atm is still not right"** → **D**
 - **"the garlands are disconnected"** → **C**
 - **"big sign should be simpler"** → **C**
 - **"verify the ledger"** → **AUDIT**
