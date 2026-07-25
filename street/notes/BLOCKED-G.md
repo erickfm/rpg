@@ -1,91 +1,94 @@
 # Builder G — blocked
 
-One thing, and it is one room. Everything else in my queue is built, walked and
-in mainline.
+**One thing, and it is cosmetic rather than structural.** Everything in my queue
+is built, walked and live in mainline — including the pawn shop, which is no
+longer blocked on wiring.
 
 ---
 
-## THE PAWN SHOP is blocked on two other people, and it needs both
+## RESOLVED since the last version of this note: the wiring
 
-`ct/int-pawn.ts` is finished and passes 25/25 on its own walk. It is the only
-one of my four rooms you cannot get into, and it needs two one-line changes
-neither of which is mine.
+F did not wire `buildPawn` — F deleted the whole idea. `ct/interior.ts` now
+auto-discovers rooms:
 
-### 1. F — `buildPawn(ctx)` is not wired
-
-F wired three of my four when the kit contract changed:
-
-```
-crosstown.ts:307   buildThrift(ctx);
-crosstown.ts:308   buildCasino(ctx);
-crosstown.ts:309   buildHotel(ctx);
-crosstown.ts:310   buildTax(ctx);
-                   ← buildPawn(ctx) missing, and no `import { buildPawn }`
+```ts
+const mods = import.meta.glob('./int-*.ts', { eager: true });
 ```
 
-Probably deliberate, since I flagged the room as door-blocked in the same
-handoff F would have read. But the room itself is complete and walkable, so it
-can land whenever the door does — or before it, since the [E] spot works today
-at the convention position.
+So a room lands by existing, sorted by path so slab addresses are a property of
+the file name rather than of bundler order. Adding an interior now touches
+exactly one file: the one that owns the room. **All four of mine are live**, and
+the "two lines in `crosstown.ts`" tax I was reporting every run is gone.
 
-```diff
-+import { buildPawn } from './ct/int-pawn';
-@@
-   buildTax(ctx);
-+  buildPawn(ctx);
-```
+Worth knowing for anyone who was working around it as I was: I had a local
+wiring patch I applied and reverted on every commit, and it silently stopped
+doing anything. My test suite passed anyway, which is how I noticed — the room
+was already being built without me.
 
-I do not edit `crosstown.ts`; I wire it locally to run the tests and revert
-before committing, every time.
+---
 
-### 2. D — `pawnFront` paints no door
+## STILL BLOCKED: `pawnFront` paints no door — D
 
-Raised before I built the casino and still true as of this note. `street.ts`'s
-`pawnFront` draws a board, a barred window and a stallriser, and no door rect
-anywhere. Its three neighbours in the same file all paint one:
+Raised before I built the casino and still true. `street.ts`'s `pawnFront`
+draws a board, a barred window and a stallriser, and no door rect anywhere. Its
+three neighbours in the same file all paint one:
 
 | painter | door at |
 |---|---|
 | `burgerFront` | `W * 0.44` |
 | `taxFront` | `W * 0.5` |
-| `shopfrontTex` (the block default) | `W * 0.48` |
+| `shopfrontTex` (block default) | `W * 0.48` |
 | **`pawnFront`** | **none** |
 
-So there is no world position for the entrance to be at, and until there is, a
-player walks up to blank barred glazing and gets an `[E]` prompt out of nowhere.
+**This does not stop anything working.** `ct/int-pawn.ts` puts its `[E]` spot
+where the house convention would put a door — `W * 0.48` of a 96-texel front,
+world `z = -59.06`, within 6 cm of the building centre — and the room passes
+25/25. What it means is that the player walks up to blank barred glazing and
+gets a prompt out of nowhere. A door painted to any of the three conventions
+above lands inside the spot's 1.05 m trigger, so when D paints one, `DOOR_Z` in
+`ct/int-pawn.ts` is the single line to change and I will change it.
 
-**This does not block the room from landing.** `int-pawn.ts` puts its spot where
-the house convention would put a door — `W * 0.48` of a 96-texel front, world
-`z = -59.06`, within 6 cm of the building centre — and any door drawn to any of
-the three conventions above lands inside the spot's 1.05 m trigger. When D
-paints one, `DOOR_Z` in `ct/int-pawn.ts` is the single line to change and I will
-change it.
-
-`street.ts` is D's. I hold a bounded mandate there for the casino and hotel
+`street.ts` is D's. My bounded mandate there covers the casino and hotel
 exteriors only, which is not this.
 
 ---
 
-## Not blocked, for the record
+## Two observations for other owners, neither a blocker
 
-- **The kit's room lights** still cannot be recoloured or suppressed, and it has
-  now bitten twice — the casino wanted warm and dim, the tax office wants cool
-  fluorescent strips, and the kit's warm blobs read as a different fixture among
-  mine. Both rooms shipped anyway because the palette does the work and each
-  room owns its own lamps. `light?: {...} | false` on `RoomSpec` would settle
-  it. F's file, F's call, and not urgent.
-- **`props.ts` was not needed** for the casino/hotel night spill after all, so
-  the coordination the desk offered with B is not required. `dimWorld` already
-  skips `transparent` materials and `scene.background` already carries the night
-  curve, so the two frontages drive themselves. Written up in `ct/vice.ts`.
+**1. A car is parked across the HOTEL ORPHEUS entrance.** `ct/sidestreet.ts`
+parks a hatch at `x0 = 39` on the north kerb; the hotel's door is at `x = 39.51`
+and its step-out lands at `41.06`. The car's collider reaches the pavement edge,
+so stepping out of the hotel you cannot walk straight out into the road — 0.44 m
+and you are against it. Both directions along the walk are clear, the door and
+the step-out both work, and a car pulled up outside a hotel is arguably the
+world working rather than a fault. Flagging it because it was not chosen: the
+`x0 = 39` in that roster and the `39.51` in mine are the same doorway by
+coincidence. If anyone wants the entrance clear, moving that car a few metres
+either way does it.
 
-## State as of this note
+**2. The kit's room lights still cannot be recoloured or suppressed**, and it
+has now bitten twice — the casino wanted warm and dim, the tax office wants cool
+fluorescent strips, and the kit's warm blobs read as a different fixture among
+mine. Both rooms shipped anyway because the palette does the work and each room
+owns its own lamps. `light?: {...} | false` on `RoomSpec` would settle it. F's
+file, F's call, not urgent.
+
+**3. `props.ts` was not needed** for the casino/hotel night spill, so the
+coordination the desk offered with B is not required. `dimWorld` already skips
+`transparent` materials and `scene.background` already carries the night curve,
+so the two frontages drive themselves off a `mesh.onBeforeRender` read. Written
+up at the top of `ct/vice.ts`.
+
+---
+
+## State, re-verified against mainline after the park / car lot / sidestreet landings
 
 | | |
 |---|---|
-| casino interior | in mainline, wired, 26/26 |
-| hotel interior | in mainline, wired, 26/26 |
-| tax interior | in mainline, wired, 25/25 |
-| pawn interior | in mainline, **not wired**, 25/25 when wired locally |
-| casino + hotel exteriors | in mainline, 13/13 |
+| casino interior | live, 26/26 |
+| hotel interior | live, 26/26 |
+| tax interior | live, 25/25 |
+| pawn interior | live, 25/25 — no longer wiring-blocked |
+| casino + hotel exteriors | live, 13/13 |
 | F's rooms with all of mine present | 147/147 |
+| world sweep | 48 shots, no console errors from my code |

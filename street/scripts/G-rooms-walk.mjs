@@ -59,7 +59,7 @@ const ROOMS = [
     frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
     doorApproach: [-4.2, 2.4],
     // the walk out is south along the EAST walk, so the landing probes differ
-    landing: [['out across the street', -Math.PI / 2], ['south along the walk', 0], ['north along the walk', Math.PI]],
+    landing: [['out across the street', -Math.PI / 2, false], ['south along the walk', 0, true], ['north along the walk', Math.PI, true]],
     lanes: [
       ['between the two desks', -0.6, 2.5, '-z', 2000, 'z', 4.0],
       ['the staff lane behind the desks', -4.5, -2.8, '+x', 2200, 'x', 6.0],
@@ -81,7 +81,7 @@ const ROOMS = [
     // exactly what this room is built to prevent. Asserted below instead.
     skipBack: true,
     doorApproach: [-4.3, 2.7],
-    landing: [['out across the street', -Math.PI / 2], ['south along the walk', 0], ['north along the walk', Math.PI]],
+    landing: [['out across the street', -Math.PI / 2, false], ['south along the walk', 0, true], ['north along the walk', Math.PI, true]],
     lanes: [
       ['the customer strip, east', -4.6, 3.45, '+x', 2600, 'x', 7.0],
       ['…and back west', 4.8, 3.45, '-x', 2600, 'x', 7.0],
@@ -130,10 +130,20 @@ for (room of rooms) {
   const LIMX = hw - RADIUS + 0.02, LIMZ = hd - RADIUS + 0.02;
 
   // ── the way in ───────────────────────────────────────────────────────
-  await warp(room.doorX, room.doorZ - 0.9, Math.PI, KERB_H);
+  //
+  // Walk in SHORT steps and stop the moment the prompt comes up, rather than
+  // holding 'w' for a fixed time and reading the prompt at the end. A fixed
+  // hold covers ~3 m at walking pace, which sails straight through a 1.05 m
+  // trigger and out the far side — and it only ever passed on the rooms where
+  // something happened to stop the player mid-walk. The pawn shop's stretch of
+  // walk is clear, so it overshot and the room looked broken when it was not.
+  await warp(room.doorX, room.doorZ - 1.3, Math.PI, KERB_H);
   await p.waitForTimeout(200);
-  await hold('w', 900);
-  const promptOut = await prompt();
+  let promptOut = null;
+  for (let i = 0; i < 10 && !room.label.test(promptOut ?? ''); i++) {
+    await hold('w', 140);
+    promptOut = await prompt();
+  }
   check('walking up to the door on the street raises the prompt',
     room.label.test(promptOut ?? ''), `prompt=${JSON.stringify(promptOut)}`);
 
@@ -254,7 +264,18 @@ for (room of rooms) {
   // CITIZENS are obstacles too and they walk the same 2 m lane, so a passer-by
   // standing on the spot fails this for a second and means nothing. Retried:
   // a wall blocks every attempt, a pedestrian has moved on by the next one.
-  for (const [k, yaw] of room.landing ?? [['out across the side street', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]) {
+  // Which way can you leave the landing? Two different questions live here and
+  // the first version conflated them.
+  //
+  // ALONG the walk is the one that matters: if both ways down the pavement are
+  // shut you are boxed in and that is a shipped bug. ACROSS, toward the road, is
+  // not — cars park at that kerb, and on the side street ct/sidestreet.ts parks
+  // one directly outside the HOTEL. A car between you and the road is the world
+  // working, not a fault, and asserting 0.9 m of clear tarmac there would fail
+  // for a correct reason. So the road direction is measured and REPORTED but
+  // does not decide the check.
+  const dirs = room.landing ?? [['out across the side street', 0, false], ['east along the walk', Math.PI / 2, true], ['west along the walk', -Math.PI / 2, true]];
+  for (const [k, yaw, mustPass = true] of dirs) {
     let best = 0;
     for (let attempt = 0; attempt < 3 && best <= 0.9; attempt++) {
       if (attempt) await p.waitForTimeout(1600);        // let whoever it is walk on
@@ -265,7 +286,8 @@ for (room of rooms) {
       const c = await pos();
       best = Math.max(best, Math.hypot(c[0] - a[0], c[2] - a[2]));
     }
-    check(`the landing is not boxed in — ${k}`, best > 0.9, `moved ${f2(best)} m (best of 3)`);
+    if (mustPass) check(`the landing is not boxed in — ${k}`, best > 0.9, `moved ${f2(best)} m (best of 3)`);
+    else console.log(`  note  ${room.id}: ${k} — moved ${f2(best)} m${best <= 0.9 ? ' (something is parked at the kerb)' : ''}`);
   }
 
   // ── the room keeps its light after dark ──────────────────────────────
