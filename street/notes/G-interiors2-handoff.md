@@ -30,7 +30,7 @@ matters more than it sounds.
 | file | what it is |
 |---|---|
 | `G-interiors2-prep.md` | the door numbers derived and walked before the kit landed |
-| `G-vice-shots.mjs` (script) | day **and night** views of the two buildings, for LOOKING |
+| `G-vice-shots.mjs` (script) | day **and night** views of the two buildings, for LOOKING. **Not a check** — see below |
 | `G-offer-interiors-walk.md` | **live offer to F** — two lines that let `interiors-walk` run against `dist` |
 | `G-casino-door-fix.md` | **superseded.** Kept only for two negative results that rule out obvious fixes |
 
@@ -1671,3 +1671,32 @@ and what the user plays. **I could not settle which, and I am not guessing.**
 
 Reproduce: `SHOT_URL=<dev> npm run fp devA`, again as `devB`, then
 `npm run fpdiff -- shots/devA.json shots/devB.json`.
+
+### `G-vice-shots.mjs` is mine and belongs in the review-sweep exemption
+
+`548a8807d` established that `checks-registered` only audits scripts that
+*offer* a `--selftest`, and is blind to 25 older ones. `AUDIT-TRIAGE.md` then
+sorted those, and its largest bucket is *"review sweeps — produce frames for a
+human, assert only that the shot happened"*, 17 scripts to be `EXEMPT` with the
+reason *"produces review frames, not assertions"*.
+
+**`G-vice-shots` is an eighteenth and is not on that list.** It has no
+`--selftest` (checked, not assumed: zero matches for the detector's pattern), so
+nothing flags it today, and it is squarely in that bucket — its own header says
+*"These are for LOOKING, never for proving (CLAUDE.md, GOTCHAS §1) … Nothing
+here is evidence of anything."*
+
+Recorded here rather than added to that file or to `EXEMPT`, for two reasons.
+The triage and the widened detector are someone else's in-flight work, and an
+`EXEMPT` key for a script with no `--selftest` is inert today — it would sit
+there describing a rule that does not yet look at it. When the detector widens,
+this one wants the same one-line reason as the other seventeen. Flagging it now
+so the count is 18 and mine is not the orphan that gets found last.
+
+**Registered for real, in the same breath:** `G-rooms-walk` and `G-vice-walk` are
+now in `checks.mjs`, SLOW tier, on measured runtimes (158 s and 47 s). They run
+under `npm run checks -- --slow`. `G-offer-checks-entry.md` is still titled *"two
+suites the runner has never seen"*, which was true when it was written and is not
+now; it carries an APPLIED banner at the top saying so, and the mistaken premise
+it opened with — that `scripts/**` is add-to-not-edit across owners — is
+corrected there rather than quietly deleted.
