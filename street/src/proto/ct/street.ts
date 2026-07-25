@@ -977,8 +977,14 @@ export function buildStreet(o: {
     });
     const crateM = flat(crateT);
     for (const [cxx, czz, top] of [
-      [7.9, -96.6, fruitTop('#d88a2a', '#c9762a')],
-      [9.3, -96.55, fruitTop('#8a3a2e', '#a84a36')],
+      // NOT in front of the canted bay. They used to stand at x 7.9 and 9.3,
+      // straight across the door's approach, and their collider is what made
+      // the bodega impossible to enter: you were stopped at x = 7.13 walking
+      // east and x = 10.07 walking west, with the [E] spot stranded inside
+      // the box between. Crates belong against the side-street frontage,
+      // where they dress the shop without standing in its doorway.
+      [10.05, -96.28, fruitTop('#d88a2a', '#c9762a')],
+      [10.95, -96.25, fruitTop('#8a3a2e', '#a84a36')],
     ] as [number, number, THREE.Texture][]) {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55), [crateM, crateM, flat(top), crateM, crateM, crateM]);
       crate.position.set(cxx, sidewalkY + 0.2, czz);
