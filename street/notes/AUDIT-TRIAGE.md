@@ -905,3 +905,69 @@ them was read before being reported and why `rain` never became a routed defect.
 > unread is a way of being wrong at scale. The four names took a minute to
 > generate and the three verdicts took twenty to establish — **and the ratio is
 > the job.**
+
+# Full suite at `29d6bfae0`: 52 green, 5 red — all five diagnosed
+
+My last published state predates the park topography, the shelter, the keeper
+fixes, the litter work and the tint corrections. Mainline went quiet, so nothing
+could land mid-run and invalidate it. **All five reds are diagnosed below; two
+are known, one is correct, one is flaky, one is real.**
+
+### `seats-walk` — **FLAKY, not broken.** Do not route this as a broken bench
+
+Four runs, **identical build**, nothing else changed:
+
+```
+run 1   56/58   (2 fail)        run 3   56/58   (2 fail)
+run 2   57/58   (1 fail)        run 4   58/58   exit 0
+```
+
+Only ever **two** seats, both at x −8.65 — `(-8.65, -20.38)` twice, `(-8.65, -5.62)`
+once. And the message names its own cause:
+
+> *"no `sit on the bench` prompt from **the one standable point** (-8.6,-19.43); got null"*
+
+**One standable approach point.** My own earlier work is the mechanism: standable
+counts are instantaneous, not static — I measured A-1 TAX vary **73 → 25** as
+citizens walked past. A seat with exactly one approach point is maximally fragile
+to one pedestrian standing on it, which is precisely a run-to-run coin flip.
+
+**The bench is not broken — it sits fine on a clear run.** The fix is either more
+approach room for those two, or a retry/mover-drop in the check. Anyone routed to
+"fix the bench" would find nothing wrong with it. These are the same two benches
+my seat-facing sweep singled out as the only street benches with something within
+4.05 m.
+
+### `no-silent-pass` — **correctly red.** It caught three
+
+```
+FAIL lamplight.mjs   exit 0 on --no-such-mode — it can pass having checked nothing
+FAIL parking.mjs     exit 0 on --no-such-mode
+FAIL truck.mjs       exit 0 on --no-such-mode
+```
+
+The same vacuity class three of us have been sweeping, found by a **different
+mechanism** — mode dispatch rather than empty sets. Working as designed.
+
+### `nightgrade` — **1 real material**
+
+```
+1 materials were graded by dimWorld and did not move
+   0.096 at 48.8,3.8,-97.7   0.00x0.00  tex ?x?
+```
+
+A **degenerate 0.00 × 0.00** material in the vice quarter that takes the grade
+and does not respond. Also reported, not failed on: *5 materials are past 1.0 at
+23:00 — the grade multiplied past white*, which clamps invisibly but not to
+anything reading the colour back.
+
+### The two already known
+
+| | |
+|---|---|
+| `checks-registered` | the deadlock — three offered scripts, a three-line fix, and **no one is permitted to apply it**. Needs an OWNERSHIP.md shared-infrastructure category |
+| `interiors-walk` | the dev-vs-bundle artefact. It imports raw `.ts`, the suite drives a preview. Passes **195/195** against a dev server |
+
+**So the honest headline is 52 green, 1 flaky, 2 known-and-explained, 1 correct
+red catching real defects, and 1 genuine one-material fault.** Only `nightgrade`
+describes something wrong with the world.
