@@ -113,7 +113,19 @@ export function buildChurch(ctx: CtxBuild) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.46, 0.4), woodM);
         put(leg, side * PEW_CX + end, 0.23, pz);
       }
-      solid(side * PEW_CX, pz, PEW_W, 0.5);
+      // THE BACKREST IS SOLID, THE SEAT IS NOT.
+      //
+      // This was `solid(…, pz, PEW_W, 0.5)` — the whole pew — which put the
+      // seat point INSIDE its own collider, so 14 of the 18 came back
+      // "UNREACHABLE — no standable point within its 0.62 m trigger". The
+      // user asked that every seat in the game be sittable and I shipped a
+      // church of benches you cannot reach, which is the same fault as the
+      // burger stool that took three attempts to find.
+      //
+      // A pew is not a wall. You step into the row and sit, so only the back
+      // rail blocks — which is what stops you walking through the bank and is
+      // the only part that should.
+      solid(side * PEW_CX, pz - 0.24, PEW_W, 0.16);
       // …and you can sit in it. The user asked that EVERY seat in the game be
       // sittable, and a church full of benches you cannot use would be the
       // largest exception in the world.
