@@ -51,6 +51,39 @@ as a failed measurement rather than a finding.
 I would rather ship it saying "I could not measure four of these" than have it
 quietly pass, or quietly fail, on all five.
 
+## Second pass (`86d14c2f`): entry fixed, scan still weak
+
+BURGER BARN was landing at **x −6.3** — still on the pavement, never inside —
+and being reported as *"could not locate the doorway inside"*. A single `E`
+press takes sometimes and not others, and the guard meant to catch that read
+once and trusted it. Two tries with a re-warp between, and a miss is reported as
+a miss. **All four previously-unentered rooms now get in.**
+
+That moved the failure rather than removing it. The doorway scan still misses in
+four of five. Rather than guess, the measurement for whoever finishes it — DINER,
+from the running world:
+
+```
+room x 674.4 .. 685.6, cx 680.0, roomW 10.8
+back wall   [674.4, 685.6]  z -3.68 .. -3.50   full width
+front wall  [678.0, 685.6]  z  3.50 ..  3.68   PARTIAL — gap is 674.4 .. 678.0
+also spanning [678.9, 684.8] z  1.74 ..  3.36   furniture in front of the wall
+```
+
+The doorway is the missing 3.6 m of front wall at the low-x end. The scan line
+at `maxZ − 0.28 = 3.40` sits inside the collision pad of that **furniture**
+collider as well as the wall's, which is my best explanation for an empty run —
+**a hypothesis, not a finding.** I have not tested it, and saying which is which
+is the point.
+
+### What is fixed and worth having now
+
+- five rooms discovered instead of three hardcoded
+- runs against `preview` at all — it was dev-server-only, i.e. never
+- enters reliably, and says so when it does not
+- reports *"could not measure"* separately from *"does not mirror"*, so it
+  cannot claim four verified rooms are broken
+
 ## One real finding: PAWN
 
 The first measurement ever taken of that room — it was unreachable until the
