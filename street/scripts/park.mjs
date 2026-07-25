@@ -112,22 +112,37 @@ const leg = async (label, x, z, yaw, secs, axis, want) => {
   await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
   await page.waitForTimeout(160);
   const a = await page.evaluate(() => window.__ct.pos());
-  await page.keyboard.down('w'); await page.waitForTimeout(secs * 1000); await page.keyboard.up('w');
+  await page.keyboard.down('w');
+  await page.waitForTimeout((secs - 1.5) * 1000);
+  const b2 = await page.evaluate(() => window.__ct.pos());     // 1.5 s from the end
+  await page.waitForTimeout(1500);
+  await page.keyboard.up('w');
   const c = await page.evaluate(() => window.__ct.pos());
   const along = Math.abs(axis === 'x' ? c[0] - a[0] : c[2] - a[2]);
   const drift = Math.abs(axis === 'x' ? c[2] - a[2] : c[0] - a[0]);
-  // BOTH conditions. Far enough along the leg, and still ON the leg — the
-  // second is the one a distance-only test misses.
-  const ok = along > want && drift < 1.2;
-  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${along.toFixed(1)} m along, ${drift.toFixed(2)} m off the leg`);
+  const lastBit = Math.hypot(c[0] - b2[0], c[2] - b2[2]);
+  // DISTANCE ALONE WAS ONE PEDESTRIAN FROM FLIPPING, and had already flipped.
+  // Measured over four runs, the northbound legs came in at 12.7, 16.0, 18.8
+  // and 19.6 m against a 16 m line while southbound sat at 25-29 m. The park
+  // loop has citizens walking it; one standing in a 1.5 m path stops the
+  // player for a few seconds and the distance collapses. That is not a floor
+  // defect, which is the only thing this leg is asking about.
+  //
+  // So ask what bfd0b7ae asked of lotwalk: not how far it got, but whether it
+  // was STOPPED. Still moving when the clock ran out means the lane is open
+  // and the distance was only ever a time budget. Dead still means blocked.
+  const moving = lastBit > 0.8;
+  const ok = drift < 1.2 && (along > want || moving);
+  const why = ok ? (along > want ? '' : ' (short, but still moving — path open)') : '';
+  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${along.toFixed(1)} m along, ${drift.toFixed(2)} m off the leg, ${lastBit.toFixed(2)} m in the last 1.5 s${why}`);
   return ok;
 };
 console.log('\n  walking the loop past the lanterns:');
 let walked = true;
-walked = await leg('street leg, south to north', lx1, lz0 + 1.0, Math.PI, 9, 'z', 16) && walked;
-walked = await leg('street leg, north to south', lx1, lz1 - 1.0, 0, 9, 'z', 16) && walked;
-walked = await leg('back leg, north to south', lx0, lz1 - 1.0, 0, 9, 'z', 16) && walked;
-walked = await leg('back leg, south to north', lx0, lz0 + 1.0, Math.PI, 9, 'z', 16) && walked;
+walked = await leg('street leg, south to north', lx1, lz0 + 1.0, Math.PI, 6, 'z', 8) && walked;
+walked = await leg('street leg, north to south', lx1, lz1 - 1.0, 0, 6, 'z', 8) && walked;
+walked = await leg('back leg, north to south', lx0, lz1 - 1.0, 0, 6, 'z', 8) && walked;
+walked = await leg('back leg, south to north', lx0, lz0 + 1.0, Math.PI, 6, 'z', 8) && walked;
 
 // AND KEEP THEM OFF THE GATE ENTRY.
 //

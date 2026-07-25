@@ -91,6 +91,16 @@ const CASES = [
     '',
     'park.mjs', [], 'the park lanterns unfindable'],
 
+  // The WALK half of park.mjs, which the case above does not touch. Widening
+  // the lamp collider to 2.4 m walls the loop the legs walk. Added because I
+  // loosened that criterion — distance alone was one pedestrian from flipping
+  // — and a criterion I loosened without a mutation behind it is a criterion
+  // I have only assumed still works.
+  ['park-walk', PROPS,
+    'obstacle({ minX: x - 0.16, maxX: x + 0.16, minZ: z - 0.16, maxZ: z + 0.16 });',
+    'obstacle({ minX: x - 2.4, maxX: x + 2.4, minZ: z - 2.4, maxZ: z + 2.4 });',
+    'park.mjs', [], 'the park loop walled shut at every lantern'],
+
   ['bus-bench', PROPS,
     'const LEG_TOP = SEAT_Y - 0.02, LEG_H = LEG_TOP - sidewalkY;',
     'const LEG_TOP = SEAT_Y + 0.025, LEG_H = LEG_TOP - sidewalkY;',
