@@ -333,3 +333,27 @@ would let a room say what it is lit by. F's file, F's call.
 
 All four room briefs in my queue are built, walked and committed. Nothing is
 left under `## Now` or `## Next` that I can start.
+
+---
+
+# Carried over from BLOCKED-G.md (deleted — the wiring blocker it was written for is gone)
+
+F replaced the two-lines-per-room wiring with auto-discovery in `ct/interior.ts`
+(`import.meta.glob('./int-*.ts')`, sorted by path so slab addresses come from
+file names). A room lands by existing. All four of mine are live.
+
+**One fact outlives that note and should not be lost with it: `pawnFront` in
+`ct/street.ts` still paints no door.** It is the only shopfront painter in that
+file that does not — `burgerFront` uses `W * 0.44`, `taxFront` `W * 0.5`, and the
+block default `W * 0.48`. Nothing is broken by it: `ct/int-pawn.ts` puts its
+`[E]` spot where the convention would put a door (`W * 0.48` of a 96-texel
+front, world `z = -59.06`, within 6 cm of the building centre) and the room
+passes 25/25. The visible cost is that the player walks up to blank barred
+glazing and gets a prompt from nowhere. A door drawn to any of the three
+conventions lands inside the spot's 1.05 m trigger, so when D paints one,
+`DOOR_Z` in `ct/int-pawn.ts` is the one line to change. Not a blocker; cosmetic.
+
+Also still true and still not urgent: the kit's room lights cannot be recoloured
+or suppressed (bitten twice — casino wanted warm and dim, tax office wants cool
+fluorescent), and `ct/props.ts` was never needed for the vice night spill, so the
+coordination the desk offered with B is not required.
