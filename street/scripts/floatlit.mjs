@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
 const NIGHT = Number(process.env.NIGHT_H ?? 23);
+const JSON_OUT = process.env.JSON_OUT === '1';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
@@ -22,7 +23,7 @@ await reportWorld(p,URL);
 for (let h = NIGHT-8; h <= NIGHT; h++) { await p.evaluate((x)=>window.__ct.clock(x), h); await p.waitForTimeout(700); }
 await p.waitForTimeout(3000);
 
-const r = await p.evaluate(() => {
+const r = await p.evaluate((SATCUT) => {
   const lum = m => 0.2126*m.color.r + 0.7152*m.color.g + 0.0722*m.color.b;
   const small=[], broad=[];
   window.__ct.scene().traverse(o=>{
@@ -36,14 +37,20 @@ const r = await p.evaluate(() => {
     // EXCLUDE THINGS THAT ARE SUPPOSED TO GLOW. A lamp bulb reading 1.0 at
     // midnight is the feature, not the defect; my first run listed nine of them
     // at the top, all saturated, most in the park lantern cluster.
-    const selfLit = o.userData?.selfLit || o.parent?.userData?.selfLit || lum(m) >= 0.99;
+    // Exclude only what DECLARES itself lit. My first version also excluded
+    // anything at lum >= 0.99, which is day-dependent: bright litter saturates
+    // in daylight and vanishes from the day pass, so a day-vs-night pairing
+    // silently loses exactly the objects the finding is about. Saturation is
+    // evidence of emissiveness only against a dark sky.
+    const selfLit = !!(o.userData?.selfLit || o.parent?.userData?.selfLit)
+      || (SATCUT && lum(m) >= 0.99);
     const rec={x:+v.x.toFixed(2), z:+v.z.toFixed(2), y:+v.y.toFixed(2), lum:+lum(m).toFixed(4),
                area:+area.toFixed(2), selfLit:!!selfLit};
     if(area < 0.6 && v.y < 0.5 && !selfLit) small.push(rec);
     else if(area > 20) broad.push(rec);
   });
   return {small, broad};
-});
+}, process.env.NIGHT_H === undefined || Number(process.env.NIGHT_H) >= 20);
 await b.close();
 
 // pair each small object with the nearest broad sheet
@@ -52,6 +59,7 @@ const rows = r.small.map(s=>{
   return g ? {...s, glum:g.lum, ratio: g.lum>0 ? +(s.lum/g.lum).toFixed(1) : Infinity} : null;
 }).filter(Boolean).filter(s=>s.lum>0.02).sort((a,c)=>c.ratio-a.ratio);
 
+if (JSON_OUT) { console.log('@@' + JSON.stringify(rows.map(r=>({x:r.x,z:r.z,lum:r.lum,glum:r.glum,ratio:r.ratio})))); process.exit(0); }
 console.log(`night hour ${NIGHT}, stepped · ${r.small.length} small ground objects, ${r.broad.length} broad sheets\n`);
 console.log('  object lum   ground lum   ratio   position');
 for (const s of rows.slice(0,10))

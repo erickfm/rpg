@@ -446,3 +446,52 @@ The corrected table for all nine sprites is `32cb7bd76`'s, not mine: sectors 0,
 live instance of the `offset.x`-only collision I flagged as latent — the keeper
 at x 754.8 decodes as sector 3 instead of 6 without the mirror bit, so that
 hazard is no longer theoretical.
+
+## The floating litter, quantified against a target: the night grade reaches the ground and not the object
+
+`ad9ba9255` tried widening the ground pool 5.6 → 11.2 m, looked at the picture,
+and reverted — correctly, and with the right reason: **the pool decal is
+additive**, so at 3.4 m it adds perhaps 0.05 to a ground sitting at 0.008 while
+the object's own material is at 0.488. *"A gradient that adds a twentieth cannot
+close a gap of sixty."*
+
+That rules out an option but does not say what a fix must achieve. Measuring the
+**same objects by day and by night**, paired by position, does:
+
+```
+  position            OBJECT day→night         GROUND day→night
+  (  4.75, -48.23)    1 → 0.5554 (56% kept)    0.0881 → 0.0043 (4.9% kept)
+  (  5.22, -47.50)    1 → 0.4420 (44% kept)    0.0881 → 0.0043 (4.9% kept)
+  (-11.72, -79.57)    1 → 0.6095 (61% kept)    0.2678 → 0.0108 (4.0% kept)
+  (-12.22, -74.29)    1 → 0.5420 (54% kept)    0.2678 → 0.0108 (4.0% kept)
+```
+
+> **The night grade takes the ground down to 4–5% of its daylight value and the
+> litter down to only 44–61%.** The object is not over-lit — it is
+> **under-darkened**, by a factor of about eleven.
+
+That is the whole defect in one line, and it explains why lighting more ground
+cannot help: nothing is wrong with the ground.
+
+**The target is the day ratio.** The same objects sit at **11.4×** their ground
+in daylight and **129×** at night; the park items at **3.7×** by day and
+**40–56×** at night. A cup being ten times brighter than asphalt is normal and
+readable. The fix is not "make the litter dark" — it is *"apply the night grade
+to litter at the factor the ground already gets"*, and it is done when the night
+ratio is back near the day ratio, not near 1.
+
+Measured over **377 objects paired by position**: median day ratio 0.2×, median
+night ratio 2×. So the median object is fine and the tail is the problem, which
+is consistent with this being visible at specific lamps rather than everywhere.
+
+### A flaw in my own first pairing, worth naming
+
+My first day-vs-night comparison **lost every object the finding is about**. I
+was excluding "self-lit" things as `userData.selfLit` **or `lum ≥ 0.99`** — and
+in daylight the bright litter saturates to 1.0 and was dropped as a lamp. The
+pairing then quietly compared only the objects that were never interesting.
+
+**Saturation is evidence of emissiveness only against a dark sky.** A threshold
+that means one thing at midnight and another at noon cannot be used in a
+measurement that spans both. Excluding only what *declares* itself lit restores
+all 377.
