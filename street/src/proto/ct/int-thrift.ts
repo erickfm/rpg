@@ -55,7 +55,21 @@ export function buildThrift(ctx: CtxBuild): void {
     // Small, and lower than the shops either side of it. The burger barn is
     // 11.0 × 8.5 × 3.2; this is deliberately the opposite end of that so the
     // ceiling is in your eyeline and the walls are close.
-    d: 6.5, h: 2.75,
+    // 9.4 DEEP, up from 6.5. The desk, correcting its own brief: *"THE THRIFT
+    // IS TOO CROWDED, and that one is my fault — I told you 'too much stuff in
+    // too little room' after the user called it thin, and it has overshot. The
+    // answer is NOT to remove stock: the user says the room should be LARGER."*
+    //
+    // So every fixture stays and the floor grows under them. 11.3 x 9.4 is
+    // 106 m2 against 73 — half as much floor again for the same stock, which
+    // turns "you cannot get past the rails" back into "it is packed", and those
+    // are different rooms.
+    //
+    // Depth, not width: width is the FRONTAGE and is not mine to invent — the
+    // kit takes it from the 12.5 m shopfront (roomWidthFor -> 11.3) and a room
+    // wider than its own building is the mirror bug in a new form. Depth is
+    // free: the belt parks rooms in 80 m slabs and nothing is behind this one.
+    d: 9.4, h: 2.75,
     // faded, mismatched, second-hand: cream that used to be white, a worn
     // vinyl floor, and brown trim nobody has repainted since the seventies
     palette: { floor: 0x9a8f7c, wall: 0xc6c0a8, ceil: 0xc4beac, trim: 0x6a4a2c },

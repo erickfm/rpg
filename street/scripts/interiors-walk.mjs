@@ -65,7 +65,7 @@ const ROOMS = [
     // `minMeshes` means NO DENSITY MANDATE for that room, which is a statement
     // — seven briefs did not ask for one.
     minMeshes: 115,
-    id: 'thrift', label: /THRIFT/, D: 6.5, front: ['THRIFT', 12.5, -61.75, -1],
+    id: 'thrift', label: /THRIFT/, D: 9.4, front: ['THRIFT', 12.5, -61.75, -1],
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
     aisles: [

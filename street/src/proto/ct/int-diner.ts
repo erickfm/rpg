@@ -335,9 +335,22 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = '#2a2622'; g.fillRect(9, 5, 1, 5); g.fillRect(10, 9, 4, 1);
     for (const [x, y] of [[9, 2], [9, 17], [2, 9], [17, 9]]) { g.fillStyle = '#2a2622'; g.fillRect(x, y, 2, 1); }
   }), 'detail');
+  // HUNG ON THE WALL, derived from the wall.
+  //
+  // The user, with a screenshot: *"the small white item and the little frame
+  // near the centre are hanging in mid-air, not on any surface."* They were.
+  // These read `WX - wallSide * 0.3`, and `WX` is `hw - 0.36` — the FIXTURE
+  // line, where the jukebox and the cigarette machine stand. So each prop was
+  // positioned relative to the furniture in front of the wall and ended up
+  // 0.66 m out into the room, floating.
+  //
+  // A thing that hangs on a wall has exactly one correct reference and it is
+  // the wall: `hw` is the inner face, and a frame sits a couple of centimetres
+  // proud of it. Nothing about the furniture should enter into it.
+  const WALL_X = wallSide * (hw - 0.03);
   const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), ctx.flat(clockT));
   clock.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-  put(clock, WX - wallSide * 0.3, 2.15, 0.3);
+  put(clock, WALL_X, 2.15, 0.3);
 
   const photoT = (warm: boolean) => declareSurface(pixTex(20, 16, (g) => {
     g.fillStyle = '#5a4632'; g.fillRect(0, 0, 20, 16);
@@ -348,7 +361,7 @@ export function buildDiner(ctx: CtxBuild): void {
   for (const [pz, warm] of [[-1.7, true], [2.1, false]] as [number, boolean][]) {
     const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.29), ctx.flat(photoT(warm)));
     ph.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-    put(ph, WX - wallSide * 0.3, 1.95, pz);
+    put(ph, WALL_X, 1.95, pz);
   }
 
   // ── the menu board, over the pass ──
