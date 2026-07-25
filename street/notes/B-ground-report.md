@@ -6,6 +6,80 @@ Written for the desk to prioritise. **Fixed** items are already committed;
 
 ---
 
+## Handoff, 2026-07-25 08:20 — the shelf, and what auditing it cost
+
+The section below this one is the last state the desk saw. Everything since came
+out of other agents' commits and my own measurements, because the queue has not
+moved in 47 rounds.
+
+### What exists now
+
+Ten checks, all registered in `npm run checks`, all with a source mutation in
+`scripts/canfail.mjs` that has been **watched going red** — 20 cases, last full
+run 20/20 with every mutated file restored byte-for-byte.
+
+| the user asked for | what would notice it going |
+|---|---|
+| "a bit of clearence on the curb side" (tree bases) | `footprint-pits` |
+| "the gutter should have the water in the gutter" | `footprint-water` |
+| "make wetness last a lil after it stops raining" | `rain-memory` |
+| "light … on the objects under the lights" | `glow-pool` |
+| "get rid of all of them" (the banded rectangle) | `trash` — absence asserted |
+| the five approved litter types | `trash-set` |
+| "what is this it looks bad" (catch basin) | `basin`, `basin-west` |
+| the park being lit at all | `park`, `park-partial` |
+| a car getting off the lot | `kerbcut`, `kerbcut-moved` |
+
+Four of those were **built and undefended** when I started looking; one was a
+**rejection** with nothing stopping it coming back.
+
+### The coverage audit — seven instruments, one real hole
+
+Every check was asking a narrower question than it claimed:
+
+| check | was looking at | is looking at |
+|---|---|---|
+| `basin` | one of two castings | both, sign carried through |
+| `wetness` | the first pool it found | worst of nine |
+| `glow` | one street, single-material meshes | two streets, per region, arrays |
+| `kerbcut` | a remembered `CZ = 2.6` | measured, cross-checked |
+| `park` | 8-of-20 sheets lit, 8-of-10 lamps | **every lantern, all ten** |
+| `trash` | count printed, never asserted | the five types, by name |
+| `footprint` | water counted, never asserted | in the gutter pan |
+
+**Six of the seven found nothing wrong with the world.** The exception is
+`park`: its bars would have passed with six of ten lanterns black, on the one
+feature an auditor once found "NOT lit — ZERO light sources".
+
+Also swept: 24 hours (my checks sampled 3), and material arrays (528 multi-
+material meshes were invisible to the pool sampler).
+
+### Corrections to my own record, in the same period
+
+- **The fog line** — asked for every round for weeks. Re-measured: fog 0.0026
+  against a floor of 0.030. It is black. Withdrawn.
+- **The lamp-pool flat top** — cited as "77 materials at daylight, median 1.25 m
+  from a lamp". Re-measured: 96 saturated, 87 of them self-lit, median 19.93 m.
+  There was no flat top. Withdrawn.
+- **A density red routed to civic** — the tower was correct; I read geometry and
+  texture size and never `map.repeat`. Retracted.
+- **"That sweep is safe from citizens"** — argued from three identical runs; the
+  shared runner caught it flaking the next day.
+
+Four claims of mine retired by re-measuring. Three were found by me, one by the
+runner.
+
+### Open, and none of it mine to close
+
+1. **Findings B and D** need a verdict. B I recommend closing as superseded.
+2. **A `'light'` kind for `SurfaceKind`** — `ct/paint.ts`, A's call.
+3. **`turn.mjs` has no verdict** — registering it as proposed would add a green
+   row that cannot go red. Its owner sets the criterion.
+4. **The over-1.0 overshoot** — 9 mesh instances, 3 distinct materials, none
+   stamped. Measured, recorded, deliberately not acted on.
+
+---
+
 ## Reconciliation, 2026-07-25 — asked for by the desk
 
 Run programmatically, not from memory: every unchecked item in
