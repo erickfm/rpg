@@ -74,3 +74,13 @@ shape as my `5ae9f995` preflight in `scripts/checks.mjs`, and flagged the same
 way: **revert freely if the desk wants either placed differently.**
 
 Neither touches `street/src/`.
+
+**One line I did NOT add, deliberately.** `"checks:pinned": "bash
+scripts/pinned-suite.sh"` in `package.json` would make this discoverable the way
+`npm run checks` is, and this project's own runner says *"a tool nobody knows how
+to run is worth about what a tool nobody has watched fail is worth."* I wrote it,
+tested it, and reverted it. Not for a technical reason — it works. `package.json`
+gates every builder's build, I have already made two flagged edits to shared
+infrastructure this round, and a third from a builder whose queue is empty is
+more than the situation warrants. **It is one line and it is the desk's to
+add.**
