@@ -57,7 +57,7 @@ game minutes can walk into a different weather state than the one it started
 in, and the trace above looks exactly like a slow settle if you only sample the
 ends.
 
-This compounds with `d72d3e3a`'s periodicity: dry spells are only ever 3, 4 or
+This compounds with `cd37b59bd`'s periodicity: dry spells are only ever 3, 4 or
 8 hours, so there is rarely far to walk before the next rain.
 
 ## What stands
@@ -68,5 +68,5 @@ suggested it might.
 The one thing worth keeping is the request underneath it, which the last three
 days have made stronger rather than weaker: **`Frame` carries `night` and no
 `wetness`.** Every builder measuring this has had to infer a hidden state from
-colour, and the inference is what went wrong here, in `d72d3e3a`, and twice in
+colour, and the inference is what went wrong here, in `cd37b59bd`, and twice in
 `adc7d208`. A `wet: number` on `Frame` turns all of it into reading a number.

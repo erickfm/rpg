@@ -121,6 +121,7 @@ const CHECKS = [
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['lot-kerb-seam',    'does the kerb cut line up with the lot gate?',       true],
   ['lot-clearance',    'do any cars clip each other or the furniture?',      true],
+  ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
   ['gotchas-numbers',  'are the GOTCHAS numbered uniquely and in order?',    true],
