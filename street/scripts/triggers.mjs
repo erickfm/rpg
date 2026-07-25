@@ -39,9 +39,26 @@ const out = await p.evaluate(async () => {
     for (let z=z0; z>=z1; z-=0.5) {
       const s = await probe(lx, z);
       if (!s) continue;
-      const r = found.get(s) ?? { x: lx, lo: z, hi: z };
+      const r = found.get(s) ?? { x: lx, lo: z, hi: z, axis: 'z' };
       r.lo=Math.min(r.lo,z); r.hi=Math.max(r.hi,z); found.set(s, r);
     }
+  }
+  // the SIDE STREET runs along x, so its walk line is a z. Two more doors live
+  // there (doorsweep finds HOTEL ORPHEUS and GOLDEN ACES) and a census that
+  // stops at the main block is not a census.
+  const probeSide = async (x,z) => {
+    if(!free(x,z)) return null;
+    window.__ct.warp(x,z,Math.PI,0.14,0);
+    await new Promise(r=>requestAnimationFrame(r)); await new Promise(r=>requestAnimationFrame(r));
+    const q=window.__ct.pos();
+    if(Math.abs(q[0]-x)>0.05||Math.abs(q[2]-z)>0.05) return null;
+    return read();
+  };
+  for (let x=8; x<=60; x+=0.5) {
+    const s = await probeSide(x, -97.3);
+    if (!s) continue;
+    const r = found.get(s) ?? { z: -97.3, lo: x, hi: x, axis: 'x' };
+    r.lo=Math.min(r.lo,x); r.hi=Math.max(r.hi,x); found.set(s, r);
   }
   // 2. plus the bodega, which the centreline cannot see -- find it off-line
   for (let z=-92; z>=-100; z-=0.5) {
@@ -53,6 +70,21 @@ const out = await p.evaluate(async () => {
   // 3. for each, sweep the full pavement depth over its own z span
   const res = [];
   for (const [prompt, r] of found) {
+    if (r.axis === 'x') {                       // side street: sweep across z
+      let nearest=null, pts=0;
+      for (let step=0; step<=22; step++) {
+        const z = -97.3 - step*0.2;
+        for (let x=r.lo-1.5; x<=r.hi+1.5; x+=0.25) {
+          const s = await probeSide(x, z);
+          if (s !== prompt) continue;
+          pts++; const d = Math.abs(z) - 95.4;
+          if (nearest===null || d<nearest) nearest=d;
+        }
+      }
+      res.push({ prompt, side:'side st', span:[+r.lo.toFixed(1),+r.hi.toFixed(1)], pts,
+        nearestOffWalk: nearest===null?null:+nearest.toFixed(2) });
+      continue;
+    }
     const east = r.x > 0;
     let nearest = null, pts = 0;
     for (let step=0; step<=22; step++) {

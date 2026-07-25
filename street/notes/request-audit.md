@@ -1075,3 +1075,41 @@ That makes the finding stronger and the fix smaller: the bodega does not need a
 bigger trigger, it needs its existing one moved 0.8 m toward the kerb to sit
 where the other six sit. Whether that is right is still the owner's call — a
 canted bay may want exactly this — but the number is now the one worth quoting.
+
+### The census, completed at nine doors — and the side street is the opposite problem
+
+My first pass stopped at the main block. `doorsweep`'s own line table has the
+side street at **z = −97.3**; I had guessed −95.4 and found nothing, which is
+the fourth time this audit that reading the source beat guessing a coordinate.
+
+Complete, all nine doors:
+
+| door | side | trigger points | nearest edge |
+|---|---|---|---|
+| BURGER BARN, DINER, THRIFT, A-1 TAX, PAWN | main walks | 49–50 each | **0.6 m kerb-side** |
+| No. 227 | east | 38 | 0.4 m kerb-side |
+| **BODEGA** | east | 81 | **0.2 m facade-side** |
+| **HOTEL ORPHEUS** | side st | 22 | **1.9 m past the line** |
+| **GOLDEN ACES** | side st | 26 | **1.9 m past the line** |
+
+**A caution on the last two, stated before the number is used.** The side street
+runs along x, so its walk line is a *z*, and "past the line" there means
+**toward the carriageway**, not toward the facade. The sign convention does not
+transfer, and these two are **not** rankable on the same scale as the seven
+above. I nearly published them in one sorted list, which would have read as
+"the hotel is nine times worse than the bodega" and meant nothing.
+
+What is defensible about them: their triggers extend to **z ≈ −99.2**. My own
+lane audit measured the side street's walkable strip as **−97.25 … −96.3**. So
+those two prompts fire from about **1.9 m south of the walk — over the kerb and
+into the road.**
+
+> The bodega's trigger is too **shy** to meet a player on the pavement. The
+> hotel's and the casino's are generous enough to meet one **standing in the
+> carriageway**. Both are the same defect — a trigger authored without reference
+> to where the pavement actually is — pointing in opposite directions.
+
+Neither is a blocker and I am routing neither as urgent. But the pair makes the
+bodega finding sharper rather than weaker: **the world has no shared convention
+for where a door's trigger should reach**, and the five that agree on 0.6 m agree
+by construction rather than by rule.
