@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
-import { citizenSprite } from './citizens';
 
 // HOTEL ORPHEUS, the lobby.
 //
@@ -146,15 +145,11 @@ export function buildHotel(ctx: CtxBuild): void {
   // So: one clerk, in the 0.6 m staff strip between the desk and the west wall,
   // facing across the counter into the room — `facing: PI/2` is atan2(vx, vz)
   // toward +x. Shirt and tie, no jacket, because it is a long shift on a quiet
-  // night. `citizenSprite` gives him the same eight-angle turn every citizen
-  // outside has; see notes/CITIZEN-STYLE.md.
-  const clerk = citizenSprite(
-    { jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
-      accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 },
-    { facing: Math.PI / 2, h: 1.0, w: 0.98 },
-  );
-  put(clerk.mesh, DESK_X - 0.62, 0, DESK_Z + 0.35);   // origin at the FEET
-  ctx.onFrame(({ px, pz, dt }) => clerk.update(px, pz, dt));
+  // night. `room.person` is the kit's wrapper over the same atlas every citizen
+  // outside uses — the right altitude for a room, per notes/CITIZEN-STYLE.md,
+  // and it owns the per-frame turn so the room does not wire one.
+  room.person({ jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
+      accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 }, DESK_X - 0.62, DESK_Z + 0.35, { facing: Math.PI / 2, h: 1.0, w: 0.98 });
 
   // ── the pigeonholes, on the wall behind the desk ──
   //

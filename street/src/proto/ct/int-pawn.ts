@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
-import { citizenSprite } from './citizens';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
 
@@ -174,15 +173,10 @@ export function buildPawn(ctx: CtxBuild): void {
   // He stands in the staff strip behind the counter, facing the customer floor:
   // `facing: PI` is atan2(vx, vz) toward +z, which is out toward the door. A
   // little grime, because this is a shop where the proprietor works the bench
-  // himself. `citizenSprite` gives him the eight-angle turn every citizen
-  // outside has — see notes/CITIZEN-STYLE.md.
-  const broker = citizenSprite(
-    { jacket: '#4a4238', pants: '#2e2a26', skin: '#c9946a', hair: '#6a6058',
-      accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 },
-    { facing: Math.PI, h: 1.0, w: 1.03 },
-  );
-  put(broker.mesh, room.doorAt + 1.6, 0, CTR_ZC - 0.62);   // origin at the FEET
-  ctx.onFrame(({ px, pz, dt }) => broker.update(px, pz, dt));
+  // himself. `room.person` is the kit's wrapper over the same atlas the street
+  // citizens use, and it owns the per-frame turn — see notes/CITIZEN-STYLE.md.
+  room.person({ jacket: '#4a4238', pants: '#2e2a26', skin: '#c9946a', hair: '#6a6058',
+      accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 }, room.doorAt + 1.6, CTR_ZC - 0.62, { facing: Math.PI, h: 1.0, w: 1.03 });
 
   // ── the back wall, which is now what you walk in facing ──
   //
