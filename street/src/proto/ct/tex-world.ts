@@ -291,15 +291,40 @@ export interface Frontage {
   fasciaH: number;
 }
 
-/** the per-character band geometry, in metres. One row per painter below. */
+/** the per-character band geometry, in metres. One row per painter below.
+ *
+ *  RESIZED. The complaint was that every shop on the block read undersized:
+ *  1.92 m of glass, shorter than the doorway beside it. The band went to 4.2 m
+ *  for it and the glass only reached 2.03, because the stallriser underneath
+ *  was eating 0.58 m — over half a metre of painted board under every window.
+ *
+ *  The item asked for three numbers that cannot all be true at once: a 0.90 m
+ *  fascia, a 0.35 m stallriser and 2.70 m of glass need 4.64 m of a band the
+ *  same item fixes at 4.20. Something had to give, and the user's own words
+ *  were "about 4.2 m" for the band, so the band is what I kept. The glass is
+ *  bought instead out of the two gaps nobody asked to be that wide: the brick
+ *  margin above the fascia and the shadow gap under it.
+ *
+ *      default, before   0.16 margin  0.90 fascia  0.26 gap  ->  2.03 glass
+ *      default, after    0.10         0.90         0.18      ->  2.40 glass
+ *
+ *  `sg` is now `gi + 0.35` on every row, which is the item's stallriser held
+ *  exactly — and it SHOULD be uniform. A stallriser is a standard height off
+ *  the pavement; it is the fascia that varies by character, and it still does.
+ *
+ *      glass, after:  tax 2.48   pawn 2.38   default 2.40
+ *                     thrift 2.37   diner 2.32   burger 2.28
+ *
+ *  All six clear 2.25 m, against 1.92 when the user complained — a quarter
+ *  taller, and every one of them now taller than the door it stands beside. */
 const BANDS = {
   //            fascia y/h   opening inset  opening top gap  glazing inset  sill gap  door w
-  default: { fy: 0.16, fh: 0.90, ox: 0.40, og: 0.26, gi: 0.22, sg: 0.80, dw: 1.05 },
-  burger:  { fy: 0.14, fh: 1.05, ox: 0.40, og: 0.22, gi: 0.22, sg: 0.85, dw: 1.15 },
-  tax:     { fy: 0.20, fh: 0.78, ox: 0.40, og: 0.30, gi: 0.22, sg: 0.75, dw: 1.10 },
-  diner:   { fy: 0.15, fh: 1.00, ox: 0.35, og: 0.28, gi: 0.20, sg: 0.80, dw: 1.05 },
-  thrift:  { fy: 0.18, fh: 0.92, ox: 0.35, og: 0.30, gi: 0.20, sg: 0.70, dw: 1.05 },
-  pawn:    { fy: 0.16, fh: 0.92, ox: 0.40, og: 0.28, gi: 0.22, sg: 0.80, dw: 1.05 },
+  default: { fy: 0.10, fh: 0.90, ox: 0.40, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.05 },
+  burger:  { fy: 0.09, fh: 1.05, ox: 0.40, og: 0.16, gi: 0.22, sg: 0.57, dw: 1.15 },
+  tax:     { fy: 0.12, fh: 0.78, ox: 0.40, og: 0.20, gi: 0.22, sg: 0.57, dw: 1.10 },
+  diner:   { fy: 0.10, fh: 1.00, ox: 0.35, og: 0.18, gi: 0.20, sg: 0.55, dw: 1.05 },
+  thrift:  { fy: 0.11, fh: 0.92, ox: 0.35, og: 0.20, gi: 0.20, sg: 0.55, dw: 1.05 },
+  pawn:    { fy: 0.10, fh: 0.92, ox: 0.40, og: 0.18, gi: 0.22, sg: 0.57, dw: 1.05 },
 } as const;
 type Character = keyof typeof BANDS;
 
