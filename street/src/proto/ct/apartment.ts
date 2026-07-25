@@ -659,19 +659,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const roseGeo = new THREE.CylinderGeometry(0.21, 0.20, 0.05, 10);
     // ceilY is the ceiling it hangs from; the rose is wider than the dome's
     // rim so the open edge is capped and never shows as a hole
-    const ceilingLamp = (ceilY: number, wz: number, halo: number) => {
+    // wx defaults to the hall's centreline; room 301 passes its own so the
+    // flat is lit by the SAME fixture as the landing outside its door
+    const ceilingLamp = (ceilY: number, wz: number, halo: number, wx = AX(1.2)) => {
       const spill = new THREE.Mesh(new THREE.PlaneGeometry(halo * 2.4, halo * 2.4), spillMat);
       spill.rotation.x = Math.PI / 2;                        // laid flat, seen from below
-      spill.position.set(AX(1.2), ceilY - 0.02, wz);
+      spill.position.set(wx, ceilY - 0.02, wz);
       scene.add(spill);
       const rose = new THREE.Mesh(roseGeo, [roseSideM, roseCapM, roseCapM]);
-      rose.position.set(AX(1.2), ceilY - 0.025, wz);
+      rose.position.set(wx, ceilY - 0.025, wz);
       scene.add(rose);
       const dome = new THREE.Mesh(domeGeo, opalM);
-      dome.position.set(AX(1.2), ceilY - 0.05, wz);
+      dome.position.set(wx, ceilY - 0.05, wz);
       scene.add(dome);
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(halo, halo), glowMat);
-      gl.position.set(AX(1.2), ceilY - 0.12, wz);
+      gl.position.set(wx, ceilY - 0.12, wz);
       boards.push({ m: gl });
       scene.add(gl);
     };
@@ -812,43 +814,172 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(5.5), Math.PI, roomWallT);
     floorMesh(2 * ST + 0.007, 3.2, 3.5, AX(-1.6), AZI(3.75), woodFloorT);
     floorMesh(2 * ST + 2.55, 3.2, 3.5, AX(-1.6), AZI(3.75), ceilT);
-    const winT = pixTex(32, 32, (g) => {
-      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 32);
-      g.fillStyle = '#b8c4cc'; g.fillRect(3, 3, 26, 26);
-      g.fillStyle = 'rgba(90,110,130,0.6)'; g.fillRect(3, 18, 26, 11); // rooftops below
-      g.fillStyle = '#3a2c22'; g.fillRect(15, 3, 2, 26); g.fillRect(3, 15, 26, 2);
+    // ── 301, furnished ───────────────────────────────────────────────────
+    // A specific person's room, not a hotel room. Everything here is
+    // somebody's: the frame and the mattress do not match, the middle drawer
+    // has never shut, the TV sits on a milk crate because there is no table,
+    // and the ashtray has not been emptied.
+    //
+    // The room shares the walk-up's conventions rather than inventing its
+    // own — 0.14 m walls with jamb reveals and casing (wallMesh gives it
+    // those for free), the same 2.55 m ceiling, and the SAME flush-mount
+    // fixture as the landing outside its door.
+    //
+    // Layout, so the circulation survives: furniture is pushed to the north
+    // and south walls and the middle of the room is left clear. The band
+    // z 2.65 → 4.40 is open the full width, which is 1.75 m against a rig
+    // that needs 0.72 — you can walk in, cross to the window, and turn round
+    // without touching anything.
+    const RY = 2 * ST + 0.007;               // the floorboards
+    // solid furniture, so front faces only — texM's DoubleSide is for planes
+    const flatOf2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t });
+    const box = (w: number, h: number, d: number, x: number, y: number, z: number,
+                 m: THREE.Material | THREE.Material[], ry = 0) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(AX(x), y, AZI(z));
+      if (ry) b.rotation.y = ry;
+      scene.add(b);
+      return b;
+    };
+    // The view: third floor of No. 227, which stands on the EAST side of the
+    // street with its face turned WEST — so what you see is the far pavement,
+    // the facades opposite, and the mouth of the alley almost straight ahead.
+    // It has to agree with where the building actually is.
+    const winT = pixTex(40, 40, (g) => {
+      g.fillStyle = '#8a97a2'; g.fillRect(0, 0, 40, 40);          // the sky, scene fog colour
+      g.fillStyle = '#6e5347'; g.fillRect(3, 13, 34, 17);         // facades opposite
+      g.fillStyle = 'rgba(0,0,0,0.18)';
+      for (let y = 14; y < 30; y += 4) g.fillRect(3, y, 34, 1);   // brick courses
+      g.fillStyle = '#2e3a46';                                     // their windows
+      for (let wy = 16; wy < 28; wy += 6) for (let wx = 5; wx < 34; wx += 7) g.fillRect(wx, wy, 4, 4);
+      g.fillStyle = '#c9a45e'; g.fillRect(19, 22, 4, 4);          // one lit, someone else up late
+      g.fillStyle = '#141519'; g.fillRect(21, 13, 5, 17);         // the alley mouth, straight across
+      g.fillStyle = '#84817a'; g.fillRect(3, 30, 34, 3);          // far pavement
+      g.fillStyle = '#3a3d42'; g.fillRect(3, 33, 34, 4);          // and the road below
+      g.fillStyle = '#b8a24e'; g.fillRect(9, 35, 5, 1); g.fillRect(24, 35, 5, 1);
+      dither(g, 40, 40, 90);
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 40, 3); g.fillRect(0, 37, 40, 3);
+      g.fillRect(0, 0, 3, 40); g.fillRect(37, 0, 3, 40);          // frame
+      g.fillRect(19, 3, 2, 34); g.fillRect(3, 19, 34, 2);         // glazing bars
     });
     const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), texM(winT));
     win.position.set(AX(-3.115), 2 * ST + 1.5, AZI(3.75));
     win.rotation.y = Math.PI / 2;
     scene.add(win);
-    const bedM = new THREE.MeshBasicMaterial({ color: 0xb8b4a8 });
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.38, 2.0), bedM);
-    bed.position.set(AX(-2.52), 2 * ST + 0.19, AZI(4.45));
-    scene.add(bed);
-    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.17, 0.1, 1.25), new THREE.MeshBasicMaterial({ color: 0x5a3a3a }));
-    blanket.position.set(AX(-2.52), 2 * ST + 0.42, AZI(4.8));
-    scene.add(blanket);
-    const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.12, 0.38), new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
-    pillow.position.set(AX(-2.52), 2 * ST + 0.44, AZI(3.68));
-    scene.add(pillow);
-    const dresser = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.5), new THREE.MeshBasicMaterial({ color: 0x4a3626 }));
-    dresser.position.set(AX(-1.17), 2 * ST + 0.375, AZI(2.27));
-    scene.add(dresser);
+    // the radiator under it — cast-iron columns, painted over so many times
+    // the fins have gone soft
+    const radT = pixTex(24, 16, (g) => {
+      g.fillStyle = '#9c9689'; g.fillRect(0, 0, 24, 16);
+      g.fillStyle = 'rgba(0,0,0,0.28)';
+      for (let x = 2; x < 24; x += 3) g.fillRect(x, 1, 1, 14);    // the columns
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 24, 1);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 15, 24, 1);
+      dither(g, 24, 16, 26);
+    });
+    // the ribs belong on the LONG faces (±x, 0.58 × 1.0), not the ends — the
+    // box is 0.16 deep, so indices 4/5 are the two little end caps
+    const radM = flatOf2(radT), radEnd = new THREE.MeshBasicMaterial({ color: 0x8f897c });
+    box(0.16, 0.58, 1.0, -3.02, RY + 0.32, 3.75, [radM, radM, radEnd, radEnd, radEnd, radEnd]);
+    box(0.05, 0.05, 0.05, -3.02, RY + 0.06, 3.28, new THREE.MeshBasicMaterial({ color: 0x6a6258 })); // the valve
+    // the bed: a good frame under a mattress that was never bought for it —
+    // 6 cm narrower and shoved to one end, so it overhangs at the foot
+    const frameM = new THREE.MeshBasicMaterial({ color: 0x4a3626 });
+    box(1.90, 0.26, 0.92, -2.10, RY + 0.13, 4.86, frameM);
+    for (const [lx, lz] of [[-3.00, 4.45], [-1.20, 4.45], [-3.00, 5.27], [-1.20, 5.27]] as [number, number][]) {
+      box(0.08, 0.13, 0.08, lx, RY + 0.065, lz, frameM);
+    }
+    const mattT = pixTex(32, 20, (g) => {
+      g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 32, 20);
+      g.fillStyle = 'rgba(0,0,0,0.10)';
+      for (let x = 3; x < 32; x += 6) g.fillRect(x, 0, 1, 20);    // ticking stripes
+      g.fillStyle = 'rgba(120,100,70,0.18)'; g.fillRect(6, 8, 9, 6); // an old stain
+      dither(g, 32, 20, 50);
+    });
+    box(1.78, 0.19, 0.86, -2.14, RY + 0.355, 4.86, flatOf2(mattT));
+    // unmade: the blanket thrown back in a heap rather than laid flat
+    const blankM = new THREE.MeshBasicMaterial({ color: 0x6a3f3a });
+    box(1.10, 0.17, 0.90, -1.72, RY + 0.53, 4.88, blankM, 0.06);
+    box(0.62, 0.13, 0.66, -1.35, RY + 0.60, 4.72, blankM, -0.22);
+    const sheetM = new THREE.MeshBasicMaterial({ color: 0xb3ab97 });
+    box(0.70, 0.06, 0.88, -2.55, RY + 0.47, 4.86, sheetM);
+    box(0.46, 0.11, 0.30, -2.86, RY + 0.50, 4.74, new THREE.MeshBasicMaterial({ color: 0xd0cabb }), 0.14); // dented pillow
+    // dresser on the north wall, middle drawer permanently out
+    const dresserT = pixTex(28, 32, (g) => {
+      g.fillStyle = '#4a3626'; g.fillRect(0, 0, 28, 32);
+      g.fillStyle = 'rgba(0,0,0,0.26)';
+      for (const y of [3, 13, 23]) g.fillRect(3, y, 22, 8);
+      g.fillStyle = 'rgba(255,255,255,0.10)';
+      for (const y of [3, 13, 23]) g.fillRect(3, y, 22, 1);
+      g.fillStyle = '#b0a06a';
+      for (const y of [6, 16, 26]) { g.fillRect(9, y, 3, 2); g.fillRect(16, y, 3, 2); }
+      dither(g, 28, 32, 40);
+    });
+    const dresserSideM = new THREE.MeshBasicMaterial({ color: 0x412f21 });
+    box(0.70, 0.82, 0.50, -2.65, RY + 0.41, 2.37,
+      [dresserSideM, dresserSideM, dresserSideM, dresserSideM, flatOf2(dresserT), dresserSideM]);
+    // the drawer that never shuts — proud of the FRONT, into the room
+    box(0.62, 0.20, 0.17, -2.65, RY + 0.44, 2.70, dresserSideM);
+    box(0.54, 0.13, 0.14, -2.65, RY + 0.46, 2.76, new THREE.MeshBasicMaterial({ color: 0x8a8272 }));
+    // an ashtray on top, full
+    box(0.17, 0.04, 0.17, -2.52, RY + 0.84, 2.40, new THREE.MeshBasicMaterial({ color: 0x6a6a70 }));
+    for (const [bx, bz, r] of [[-2.55, 2.37, 0.3], [-2.49, 2.42, -0.5], [-2.52, 2.44, 1.1]] as [number, number, number][]) {
+      box(0.055, 0.022, 0.018, bx, RY + 0.865, bz, new THREE.MeshBasicMaterial({ color: 0xd8d0bc }), r);
+    }
+    // portable TV on a milk crate, because there is no table
+    const crateT = pixTex(20, 20, (g) => {
+      g.fillStyle = '#2f4f78'; g.fillRect(0, 0, 20, 20);
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      for (let y = 2; y < 20; y += 5) for (let x = 2; x < 20; x += 5) g.fillRect(x, y, 3, 3);
+      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 20, 1);
+    });
+    box(0.38, 0.36, 0.38, -1.56, RY + 0.18, 2.34, flatOf2(crateT));
     const tvT = pixTex(32, 24, (g) => {
       g.fillStyle = '#26262c'; g.fillRect(0, 0, 32, 24);
       g.fillStyle = '#101820'; g.fillRect(3, 3, 22, 18);
       g.fillStyle = 'rgba(160,200,220,0.25)'; g.fillRect(5, 5, 7, 6);
+      g.fillStyle = '#3a3a42'; g.fillRect(26, 4, 4, 3); g.fillRect(26, 9, 4, 3);  // dials
+      dither(g, 32, 24, 24);
     });
-    const tv = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.4, 0.42), [new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), new THREE.MeshBasicMaterial({ color: 0x26262c }), texM(tvT), new THREE.MeshBasicMaterial({ color: 0x26262c })]);
-    tv.position.set(AX(-1.17), 2 * ST + 0.95, AZI(2.27));
-    scene.add(tv);
+    const tvBodyM = new THREE.MeshBasicMaterial({ color: 0x26262c });
+    box(0.46, 0.38, 0.40, -1.56, RY + 0.55, 2.34,
+      [tvBodyM, tvBodyM, tvBodyM, tvBodyM, flatOf2(tvT), tvBodyM]);   // screen faces the bed
+    const antM = new THREE.MeshBasicMaterial({ color: 0x9a9aa2 });
+    box(0.02, 0.42, 0.02, -1.68, RY + 0.95, 2.34, antM, 0).rotation.z = 0.38;   // rabbit ears
+    box(0.02, 0.38, 0.02, -1.44, RY + 0.93, 2.34, antM, 0).rotation.z = -0.44;
+    // a chair with yesterday's clothes over the back
+    const chairM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
+    box(0.42, 0.04, 0.40, -0.72, RY + 0.44, 4.82, chairM);
+    for (const [lx, lz] of [[-0.54, 4.65], [-0.90, 4.65], [-0.54, 4.99], [-0.90, 4.99]] as [number, number][]) {
+      box(0.05, 0.44, 0.05, lx, RY + 0.22, lz, chairM);
+    }
+    box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 4.99, chairM);
+    box(0.40, 0.20, 0.26, -0.74, RY + 0.80, 4.94, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
+    box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 4.78, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
+    // a poster on the north wall, taped up and going soft at one corner
+    const postT = pixTex(24, 32, (g) => {
+      g.fillStyle = '#20242e'; g.fillRect(0, 0, 24, 32);
+      g.fillStyle = '#c9563a'; g.fillRect(2, 2, 20, 18);
+      g.fillStyle = '#e8c86a';
+      g.beginPath(); g.arc(12, 11, 6, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#20242e'; g.fillRect(6, 9, 12, 2); g.fillRect(11, 5, 2, 12);
+      g.fillStyle = '#d8d0bc'; g.fillRect(3, 23, 18, 2); g.fillRect(5, 27, 14, 2);
+      dither(g, 24, 32, 30);
+    });
+    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
+    poster.position.set(AX(-1.05), RY + 1.55, AZI(2.085));
+    scene.add(poster);
+    // lit by the same fixture as the landing outside the door
+    ceilingLamp(2 * ST + 2.55, AZI(3.75), 0.55, AX(-1.6));
     sevColliders.push(
       { minX: AX(-3.35), maxX: AX(-3.2), minZ: AZI(2), maxZ: AZI(5.5) },
       { minX: AX(-3.2), maxX: AX(0), minZ: AZI(1.85), maxZ: AZI(2) },
       { minX: AX(-3.2), maxX: AX(0), minZ: AZI(5.5), maxZ: AZI(5.65) },
-      { minX: AX(-3.1), maxX: AX(-1.94), minZ: AZI(3.45), maxZ: AZI(5.45) },
-      { minX: AX(-1.5), maxX: AX(-0.84), minZ: AZI(2.0), maxZ: AZI(2.52) },
+      // the furniture, each box matching what you can see
+      { minX: AX(-3.05), maxX: AX(-1.15), minZ: AZI(4.40), maxZ: AZI(5.32) },  // bed
+      { minX: AX(-3.10), maxX: AX(-2.94), minZ: AZI(3.25), maxZ: AZI(4.25) },  // radiator
+      { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.80) },  // dresser + its open drawer
+      { minX: AX(-1.75), maxX: AX(-1.37), minZ: AZI(2.15), maxZ: AZI(2.53) },  // crate + TV
+      { minX: AX(-0.95), maxX: AX(-0.50), minZ: AZI(4.60), maxZ: AZI(5.04) },  // chair
       // 301's leaf, standing open against the wall — a door is solid even
       // when it is open. Safe on every floor: west of AX(0) is only ever
       // reachable through 301's opening, which aptDoorCap gates to floor 3.
