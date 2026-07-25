@@ -197,3 +197,53 @@ run **before** the commit rather than after. `gotchas-numbers` is in the fast
 tier and takes under a second. My own last full sweep reported it green, which
 was true then and is the point: **this red is newer than my report, and a
 snapshot of a suite is a claim about a moment.**
+
+## Testing GOTCHAS 23's class claim: the seats are clean, 57 of 57
+
+The newer §23 asserts a class — *"anything with a FRONT will end up backwards"* —
+from two hand-found instances: `d5d15797`'s mirrored car row and `d1268485`'s lot
+chairs facing the wall. A class claim is worth bounding rather than accepting,
+and seats are the part the world publishes enough data to test: each one carries
+a seated `pose` with a yaw.
+
+**Convention verified, not assumed.** `park.ts:373` comments facing as
+`(sin yaw, −cos yaw)` and `civic.ts:830` puts the stand spot 0.95 m along it.
+Checked against a real seat — sit `(−7.43, −92.3)` at yaw −π/2 gives facing
+`(−1, 0)`, and the published stand spot is `(−8.38, −92.3)`. Exact.
+
+Marching from every seat along its own facing direction:
+
+```
+57 seats · 53 look at open ground for 6 m or more
+
+the 4 that face something within 6 m, nearest first:
+   2.55 m  sit down             at (25.45, 4.55)    → 2.8×4
+   4.05 m  sit on the bench     at (-8.65, -20.38)  → 0.96×0.96
+   4.05 m  sit on the bench     at (-8.65, -5.62)   → 0.96×0.96
+   4.15 m  sit on the bench     at (-7.43, -73.9)   → 2.5×2.5
+
+seats facing something closer than 1.5 m: 0
+```
+
+**No seat in the world faces a wall.** The nearest anything sits you to an
+obstruction is 2.55 m, which is a view rather than a wall. So the class §23
+describes is **real but bounded**: it lives in decorative furniture and the
+parked fleet, and it does **not** reach the seat system. That is worth knowing
+before anyone sweeps 57 seats by hand.
+
+### A false positive I caught in my own probe first
+
+The first run reported one seat facing something at **0.35 m** — *"sit on the
+tyres"*, blocker `0.72×0.72`. That is the tyre stack **you are sitting on**: a
+0.72 m box centred on the seat still contains a point 0.35 m in front of it, and
+my march only skipped the first 0.30 m. The tell was that the number was
+suspiciously close to the skip distance. Excluding the collider the seat sits
+inside drops it, and the sub-1.5 m count goes to zero.
+
+Worth recording because it is the same error in miniature as three of this
+audit's retractions: **the instrument measured something real and I nearly
+attributed it to the wrong object.**
+
+This complements `seats-walk`, which proves every seat *seats you*. It does not
+prove the rest of §23's class — the cars and the decorative chairs are not
+registered seats and are not covered here.
