@@ -804,13 +804,28 @@ export function buildStreet(o: {
   const ATM_U = 0.36;                       // across the frontage; band u runs -z
   const ATM_R = 0.15;                       // recess depth
   // the OPENING, a little larger than the machine on every side
-  const ATM_W = 0.74, ATM_SILL = KERB_H + 0.84, ATM_TOP = KERB_H + 1.66;
-  // the MACHINE inside it. Lowered as asked: bottom near 0.90, keypad 1.05-1.15,
-  // screen centre ~1.35 — you stand at 1.74 m and look DOWN at the keypad and
-  // slightly down at the screen.
+  const ATM_W = 0.74, ATM_SILL = KERB_H + 0.62, ATM_TOP = KERB_H + 1.66;
+  // the MACHINE inside it.
+  //
+  // THE FASCIA GREW DOWNWARD, which dissolves the conflict I had flagged. It
+  // measured 0.68 m against the "about 1.0 m tall" asked for, and the obvious
+  // fix — raise the top — fought the screen height, because the screen centre is
+  // the midpoint of the top panel and pinning one moves the other. The desk's
+  // ruling: extend DOWN instead. Nothing pinned moves.
+  //
+  //     M_TOP          1.58   unchanged
+  //     screen centre  1.37   unchanged
+  //     keypad centre  1.10   unchanged
+  //     M_BOT          0.90 -> 0.68
+  //     fascia height  0.68 -> 0.90 m
+  //
+  // The desk suggested a bottom near 0.75, which would have given 0.83 m here
+  // because our top is fixed at 1.58 by the screen. 0.68 reaches the 0.9 m the
+  // ruling was aiming at, and the extra 7 cm is apron — the panel the cash slot
+  // sits on, which is what a real machine has a lot of below the keys.
   const M_W = 0.62;
   const M_TOP = KERB_H + 1.58, M_SCREEN_BOT = KERB_H + 1.16;
-  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;
+  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.68;
   const ATM_SCREEN_Y = (M_TOP + M_SCREEN_BOT) / 2;      // 1.37 above the walk
   const ATM_KEYS_Y = (M_SCREEN_BOT + M_KEYS_BOT) / 2;   // 1.10 above the walk
   // depths, from the facade plane. Top deepest, keypad front edge shallowest,
@@ -895,7 +910,17 @@ export function buildStreet(o: {
     const W = Math.max(2, Math.round(wM * PXM)), H = Math.max(2, Math.round(hM * PXM));
     const px = (v: number) => Math.max(1, Math.round(v * PXM));
     return declareSurface(pixTex(W, H, (g) => {
-      g.fillStyle = '#8d949b'; g.fillRect(0, 0, W, H);          // cool grey, nothing warm
+      // GUNMETAL, and this is the ruling's main half. The body was #8d949b
+      // against a #9a9ca0 wall — ten levels apart, 4%, so a real 0.17 m recess
+      // had nothing to read against and three geometry attempts were always
+      // going to miss. Same shape of fault as the puddles that were present,
+      // filled, and invisible because they had crushed to the tone of the wet
+      // road: the geometry was never the problem there either.
+      //
+      // #414a52 against #9a9ca0 is 74 against 156 — a 53% separation, and cooler
+      // as well as darker, so it reads as METAL set into STONE rather than as
+      // more stone. Nothing warm: the library next door is the warm building.
+      g.fillStyle = '#414a52'; g.fillRect(0, 0, W, H);
       if (which === 'screen') {
         // the CRT is most of this panel — it is the object, not a detail
         const sx = px(0.055), sy = px(0.045), sw = W - px(0.19), sh = H - px(0.09);
@@ -918,7 +943,7 @@ export function buildStreet(o: {
         // SEPARATE KEYS, not one grey block: each in its own well with a lit
         // top edge and a shadow under it, which is what makes them read as keys
         // on a shelf you are looking down at.
-        g.fillStyle = '#4b5158'; g.fillRect(0, 0, W, H);
+        g.fillStyle = '#363d44'; g.fillRect(0, 0, W, H);   // shelf, under the body tone
         const kw = px(0.072), kh = px(0.026), gx = px(0.022), gy = px(0.012);
         const k0x = W / 2 - (3 * kw + 2 * gx) / 2, k0y = px(0.012);
         for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
@@ -950,10 +975,21 @@ export function buildStreet(o: {
     // A LIT TOP EDGE AND SHADOWED SIDES, which is what says "cut into" rather
     // than "laid on". Three tones, not one: the head catches light, the jambs
     // are the darkest thing in the opening, the sill sits between them.
-    const head = new THREE.MeshBasicMaterial({ color: 0xa8b0b7 });
-    const jamb = new THREE.MeshBasicMaterial({ color: 0x3f454b });
-    const sill = new THREE.MeshBasicMaterial({ color: 0x767d84 });
-    const backM = new THREE.MeshBasicMaterial({ color: 0x2f343a });
+    // THE REVEAL IS CUT PRECAST, not its own colour. It is the sawn edge of the
+    // wall, so every tone here is the wall's #9a9ca0 shaded by which way the
+    // face points: the head looks DOWN and is in shadow, the sill looks UP and
+    // catches the sky, the jambs sit between and differ from each other so the
+    // opening has a light side and a dark side.
+    //
+    // This is the half of the ruling that makes the recess legible. Previously
+    // the jambs were near-black and the machine was pale — so the reveal read as
+    // a dark frame drawn AROUND a pale panel, which is a picture. Pale cut stone
+    // around a dark machine reads as a hole with something in it.
+    const head = new THREE.MeshBasicMaterial({ color: 0x74797f });   // faces down: shaded
+    const jamb = new THREE.MeshBasicMaterial({ color: 0x8a8d92 });   // lit side
+    const jambDark = new THREE.MeshBasicMaterial({ color: 0x6b7076 }); // shadowed side
+    const sill = new THREE.MeshBasicMaterial({ color: 0xb2b5b9 });   // faces up: lit
+    const backM = new THREE.MeshBasicMaterial({ color: 0x23282d });
     const add = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       b.position.set(x, y, z);
@@ -964,7 +1000,7 @@ export function buildStreet(o: {
     add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_TOP + t / 2, zc, head);
     add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_SILL - t / 2, zc, sill);
     add(ATM_R, hOpen, t, xF - ATM_R / 2, yMid, zc + ATM_W / 2 + t / 2, jamb);
-    add(ATM_R, hOpen, t, xF - ATM_R / 2, yMid, zc - ATM_W / 2 - t / 2, jamb);
+    add(ATM_R, hOpen, t, xF - ATM_R / 2, yMid, zc - ATM_W / 2 - t / 2, jambDark);
     add(0.02, hOpen, ATM_W, xF - ATM_R - 0.01, yMid, zc, backM);   // back of the recess
 
     /** A raked panel. Its TOP edge sits `dTop` behind the facade and its BOTTOM

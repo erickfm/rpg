@@ -117,3 +117,65 @@ stays that way until someone who is not me says which variable is off.
 *Correction inside this note's own making:* the first run reported the eye at
 1.48 m because I read `__ct.pos()[1]`, which is the rig **body**. `__ct.camY()`
 is the eye and is 14 cm higher. The shots and every number above use `camY`.
+
+
+---
+
+# THE RULING, IMPLEMENTED — both halves, one commit
+
+The desk ruled **candidate 2**, and took candidate 1 as well with the conflict
+dissolved by extending the fascia *downward* rather than raising it. Both are in.
+**Measured after the change; not confirmed by me — the auditor walks it.**
+
+## Candidate 2 — tonal separation
+
+The body was `#8d949b` against a `#9a9ca0` wall: 146 vs 156, a 4% separation, so
+a genuine 0.17 m recess had nothing to read against. The desk's parallel is the
+right one — *the puddles that were present, filled and invisible because they had
+crushed to the same tone as the wet road.* Geometry was never the fault there
+either.
+
+```
+machine body   #8d949b -> #414a52     146 -> 74 against a 156 wall   (4% -> 53%)
+panel luminance measured in the built world:  screen 69 · keypad 87 · apron 69
+```
+
+**And the reveal changed with it, which matters as much.** The jambs used to be
+near-black around a pale machine — a dark frame drawn *around* a pale panel,
+which is a picture. The reveal is now cut precast, every tone the wall's own
+`#9a9ca0` shaded by which way the face points: head `#74797f` (faces down,
+shaded), sill `#b2b5b9` (faces up, lit), and the two jambs deliberately
+different — `#8a8d92` lit, `#6b7076` shadowed — so the opening has a light side
+and a dark side. Pale cut stone around a dark machine reads as a hole with
+something in it.
+
+## Candidate 1 — the fascia grew DOWNWARD
+
+The conflict I flagged dissolves exactly as the desk said: nothing pinned moves.
+
+```
+M_TOP          1.58   unchanged
+screen centre  1.37   unchanged
+keypad centre  1.10   unchanged
+M_BOT          0.90 -> 0.68
+FASCIA HEIGHT  0.68 -> 0.900 m
+opening        0.86 -> 1.080 m tall
+```
+
+The ruling suggested a bottom near 0.75, which lands 0.83 m here because the top
+is fixed at 1.58 by the screen. **0.68 reaches the 0.9 m the ruling was aiming
+at**, and the extra 7 cm is apron — the panel the cash slot sits on, which is
+what a real machine has plenty of below the keys.
+
+## Unchanged, and re-measured to prove it
+
+Recess 0.170 m · rake screen 8.1° / keypad 33.7° · screen centre 1.370 ·
+keypad centre 1.100 · width 0.620. The apron's rake moved −45.0° → −21.3°, which
+is arithmetic rather than a decision: it now spans further down over the same
+depth, so it lies flatter.
+
+Shots at eye height (camY 1.760 world = 1.62 above the pavement), 1.5 m out:
+`shots/atm4-front.png`, `atm4-left30.png`, `atm4-right30.png`, `atm4-walkup.png`.
+
+**I am not calling this done.** Three attempts have been rejected and one of
+those rejections was me confirming my own work. Over to the auditor.
