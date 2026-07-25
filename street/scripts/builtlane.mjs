@@ -12,6 +12,15 @@
 // geometry, it is permanent, and every fix I have made in this area — the
 // 0.18 m cushion, the boundary rail that was eating 0.36 m — was exactly it.
 //
+// STATIC ONLY, and that is load-bearing rather than a convenience. 03d90436
+// reported the tightest passage on the street as 0.77 m, bounded by "a 0.50 x
+// 0.50 post standing mid-pavement … no citizen involved". This check drops that
+// box and reports 1.12 m. The box is a PERSON — watched over six seconds it
+// tracks a published walker position exactly and walks 2.8 m down the pavement,
+// standing still in x only because they are walking the centreline. Evidence in
+// notes/D-the-post-is-a-person.md. So the disagreement is not a hole here; it is
+// two different questions, and this one is "what did the BUILDERS leave".
+//
 // STATIC ONLY, on purpose. Two collider snapshots 1.5 s apart; anything whose
 // bounds moved is a citizen or a car and is dropped. That makes this
 // deterministic and about GEOMETRY, and it leaves the moving case to
@@ -69,10 +78,18 @@ const stat = a1.filter((c) => moving.has(key(c)));
 
 const scan = await page.evaluate((boxes) => {
   const RAD = 0.36, S = 0.05;
-  // The two pavements, as bands of x either side of the road.
+  // The two pavements, and the bounds are THE PAVEMENT -- ct/rng.ts has
+  // ROAD_HALF 5.0, WALK 2.0, FACE 7.0, so the walk is x 5.0..7.0, exactly 2 m.
+  //
+  // I first wrote -7.4..-4.6, which is 2.8 m: 0.4 m of ROAD and 0.4 m of
+  // BUILDING counted as pavement. A scan for the widest free run then returns
+  // a corridor partly in the carriageway, and this check reported the street
+  // clearing 1.12 m while the tightest passage on it was 0.77 m. 03d90436
+  // found that pinch by clipping to the real pavement; the band was the whole
+  // difference, and a too-generous band fails in the reassuring direction.
   const WALKS = [
-    { lo: -7.4, hi: -4.6, from: 12, to: -104, side: 'west' },
-    { lo: 4.6, hi: 7.4, from: 12, to: -94, side: 'east' },
+    { lo: -7.0, hi: -5.0, from: 12, to: -104, side: 'west' },
+    { lo: 5.0, hi: 7.0, from: 12, to: -94, side: 'east' },
   ];
   const free = (x, z) => !boxes.some((c) =>
     x > c[0] - RAD && x < c[1] + RAD && z > c[2] - RAD && z < c[3] + RAD);
