@@ -17,6 +17,37 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The cat is jammed in the corner, and the alley grate is lazy.** The
+      user: *"cat is too much in the corner and the grate in the center is
+      such a lazy design. make it match some of our other grate designs"*.
+      Ref: `shots/user-alleygrate.png`.
+
+      **The cat.** It is pressed into the angle where the two walls meet,
+      which is the one place in the alley a cat would not sit — nothing to
+      watch, no line of retreat, and from the mouth of the alley it is barely
+      visible. The user has moved this cat once before (*"i want the cat to be
+      a bit closer to the sidewalk, not so far into the alley"*) so it has
+      form. Put it somewhere a cat actually chooses: on or beside the
+      dumpster, on the crates, in the open with sight of the alley mouth. It
+      should be findable from the street without being the first thing you
+      see.
+
+      **The grate.** What is drawn is four parallel dark lines on the ground —
+      no frame, no depth, no thickness. Builder B built a proper kerb inlet
+      for the gutter with a cast frame, heavy bars and a throat, and the alley
+      grate should be recognisably from the same world: a frame set flush in
+      the paving, bars with real thickness and a dark gap between them so it
+      reads as a hole rather than as stripes, and a little staining where
+      water runs to it.
+
+      **Match, do not copy blind** — an alley drain is a different object from
+      a kerb inlet: it sits in the middle of the floor with the alley falling
+      toward it, so it wants a square or round frame rather than a kerb-side
+      one, and the paving should dish very slightly into it. If the casting
+      itself is B's asset rather than yours, ask the desk and B exports it
+      rather than you drawing a second one — a second grate design is exactly
+      how this project ended up with two of everything.
+
 - [ ] **The bank ATM is too high and does nothing.** The user: *"atm too high
       and doesnt work"*. Ref: `shots/user-atm.png`.
 
