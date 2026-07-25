@@ -1,9 +1,21 @@
 // The parked pickup: its tailgate, and where it stands.
 //
-// Usage: SHOT_URL=http://localhost:4187/ node scripts/truck.mjs [shots|check]
+// Usage: SHOT_URL=http://localhost:4187/ node scripts/truck.mjs [shots|fleet]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+// GOTCHAS 34 SHAPE ONE, and no-silent-pass caught it in this file: an unknown
+// mode used to fall through to the default and exit 0. Ask for `fleet`, get the
+// single-truck shots instead, with nothing said. This produces no assertions —
+// which is why I first judged it harmless and was wrong: it hands back the
+// WRONG OUTPUT under a name the caller chose, and a shot you did not ask for is
+// worse than an error, because you will compare against it.
+const MODES = ['shots', 'fleet'];
 const mode = process.argv[2] ?? 'shots';
+if (!MODES.includes(mode)) {
+  console.error(`INCONCLUSIVE — unknown mode "${mode}". This takes ${MODES.join(' | ')}, ` +
+    'and running the default instead would give you frames you did not ask for.');
+  process.exit(2);
+}
 const tag = process.env.TAG ?? 'now';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
