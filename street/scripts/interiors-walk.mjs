@@ -36,6 +36,24 @@ const ROOMS = [
   {
     // `keeper` is where a PLAYER STANDS to be served — at the till, where you are handed your change.
     keeper: [2.20, -1.75],
+    // THE BRIEF'S HEADLINE, and the only room with one. The user: "too much
+    // stuff in too little room — density is the whole effect, a thrift store
+    // with clear floor space reads as a boutique." The desk measured the
+    // failure as 21 placed objects, thinnest room in the world.
+    //
+    // 115 is CALIBRATED AGAINST THE FAILURE, not guessed under the current
+    // count. My first attempt was 90 — "comfortably below the 128 it builds
+    // today" — and it could never have fired: deleting the entire density pass
+    // leaves 92, because the count is dominated by the shell and the fixtures
+    // that were always there. A floor below the failure state is decoration.
+    //
+    //     density pass present   128 meshes
+    //     density pass deleted    92 meshes   <- what this must catch
+    //
+    // 115 sits between them with 13 of slack for ordinary edits. Absence of
+    // `minMeshes` means NO DENSITY MANDATE for that room, which is a statement
+    // — seven briefs did not ask for one.
+    minMeshes: 115,
     id: 'thrift', label: /THRIFT/, D: 6.5, front: ['THRIFT', 12.5, -61.75, -1],
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
@@ -654,6 +672,28 @@ for (room of rooms) {
     }
     check('the keeper is looking at you, not away',
       sec === 0 || sec === 1 || sec === 7, detail);
+  }
+
+  // ── 5c. the room is still as full as its brief demands ──
+  //
+  // Only for rooms whose brief named density. G guarded "one lamp out" — the
+  // last line of the hotel brief — after finding it unchecked; this is the same
+  // move for the line the thrift was rebuilt around. A brief detail nobody
+  // checks is a brief detail that quietly comes back out.
+  if (room.minMeshes) {
+    const n = await p.evaluate(([cx, hw2, hd2]) => {
+      let k = 0;
+      const V = window.__ct.scene().position.constructor;
+      window.__ct.scene().traverse((o) => {
+        if (!o.isMesh) return;
+        const w = new V(); o.getWorldPosition(w);
+        if (Math.abs(w.x - cx) > hw2 + 1 || Math.abs(w.z) > hd2 + 1) return;
+        k++;
+      });
+      return k;
+    }, [cx, hw, hd]);
+    check('is as full as its brief demands', n >= room.minMeshes,
+      `${n} meshes in the room, floor is ${room.minMeshes}`);
   }
 
   // ── 6. the room keeps its light after dark ──
