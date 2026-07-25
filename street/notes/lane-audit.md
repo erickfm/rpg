@@ -158,3 +158,70 @@ starts at x 5.12, only 0.12 m off the kerb line — would buy back the most.
 
 Nothing else moved. The ranking, the baseline (1.70 m) and the recommendation
 below are unchanged.
+
+---
+
+# Round 3 — re-measured at `c16457c8`. The lane is unchanged, and I now know why.
+
+49 new colliders since Round 2 (164 → **213**, still 6 moving). The park, the
+car lot and the side-street furniture all landed in between. The lane did not
+move: tightest is **still 0.89 m**, same place, same neighbours.
+
+**One real change.** Round 2 recorded *"side street north and south: no stretch
+under 1.20 m at all."* That is no longer true — there are now three, at
+**0.95 m**: north at x = 19.8 and x = 49.8, south at x = 33.8.
+
+## What every tight stretch actually is
+
+I stopped counting instances and asked what forms them. All twelve stretches
+under 1.00 m, on both walks and both side streets, are bounded by **a post**:
+
+| post | size | centre x | spans | gap to a 6.7 facade |
+|---|---|---|---|---|
+| lamp | 0.40 × 0.40 | ±5.55 | 5.35 … 5.75 | **0.95 m** |
+| sign/meter | 0.16 × 0.24 | ±5.66 | 5.58 … 5.74 | **0.96 m** |
+| small post | 0.18 × 0.18 | 5.32 | — | 0.97 m |
+
+Every lamp in the world sits at **x = ±5.55**, to three decimals, on both walks
+and now on the side streets. Nothing is encroaching. Nothing was placed
+carelessly. **Every post is placed correctly to the same rule, and the rule
+yields 0.95 m.**
+
+That is the whole finding, and it is the same shape as seam pattern #1: the
+defect is not that any one post is badly placed, it is that the placement
+constant was chosen without reference to the clearance it leaves behind it.
+
+## The consequence — this is one number, not twelve tickets
+
+Kerb line is 5.00. Facade collider is 6.70. The lane is 1.70 m. A lamp centred
+at 5.55 occupies 5.35 … 5.75, so it eats 0.75 m of that 1.70 and leaves 0.95.
+
+**The lamp has 0.35 m of unused slack toward the road.** Move the lamp centre
+from 5.55 to **5.35** — near edge 5.15, still 0.15 m clear of the kerb, nothing
+overhangs the carriageway — and the far edge comes to 5.55:
+
+> every 0.95 m stretch in the world becomes **1.15 m**, and the worst point
+> anywhere (0.89 m, at the park wall where the facade is 6.64) becomes 1.09 m.
+
+One constant, changed once, lifts all twelve. No geometry redesign, no per-site
+work, no new export.
+
+## What I am not claiming
+
+- 1.15 m is still under the 2.00 m the street is nominally built to. The 1.70 m
+  baseline is set by the facade colliders at `FACE − 0.3`, and that is a
+  separate decision I flagged in Round 1 and am not re-opening here.
+- I have not checked that 5.35 is free of the kerb *mesh* as opposed to the kerb
+  *line* — I measured colliders, which is what the player actually hits, but a
+  lamp base visibly overhanging a kerb would be a paint problem I would not see.
+  Whoever moves it should look at one.
+- Nothing here is impassable. 0.89 m against a 0.72 m player is tight, not
+  blocked, exactly as in Rounds 1 and 2.
+
+## Standing recommendation, now cheaper than before
+
+The permanent test I proposed in Round 1 is more valuable after this: with the
+constant fixed at 5.35 the whole world clears 1.09 m, so the guard can assert
+**min gap ≥ 1.00 m** — a real margin — instead of ratcheting at today's 0.89.
+Still no new export needed; `__ct.colliders()` is enough; still sample twice to
+drop the six movers.
