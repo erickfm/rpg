@@ -1,5 +1,118 @@
 # Builder D — report
 
+Working from `notes/queues/D-alley.md`: rebase, take the top unchecked item,
+commit, re-read, take the next. I don't edit the queue.
+
+All of this run's work is committed and already absorbed into mainline.
+Build clean · sweep no new page errors · `health.mjs` WORLD OK · `ownership.sh D`
+clean apart from the sanctioned collision mandate. Verified on **4231
+`--strictPort`**, checking the served bundle hash against the built one each time.
+
+---
+
+# LATEST RUN — seven items landed, one blocked
+
+| item | commit | note |
+|---|---|---|
+| collision follows geometry | `1fb7921` | the mandate; walked, four proofs |
+| bodega doorway is a real hole | `47ce219` | recessed leaf, boxed reveal, OPEN over the door |
+| DINER ⇄ LAUNDRY identities | `8120f44` | diner now **z −55.5 … −43.5, centre −49.5** |
+| signs: real structure | `713de4b` | (a) and (b) already fixed; (c) was real |
+| BARBER ⇄ THRIFT + park | `e88bbf2` | park site **z −98 … −68, x −14 … −7** |
+| MERIDIAN + LAUNDRY → bank | `b5f8264a` | 19.2 m; resolves the Corporation item |
+| crates, attempt three | `50eaa2b0` | twelve separate fruit, judged at eye height |
+
+Worth keeping:
+
+- **The collision item had two more layers under its stated cause.**
+  `COURT.colliders` was published by `ct/civic.ts` and *never consumed by
+  anything* — E's courtyard colliders were absent, not overridden — and
+  `groundY` stopped answering at `FACE + 0.3`, so walking in dropped you off a
+  ledge. All three had to be fixed together.
+- **The walk test caught a regression I would have shipped**: the church goes
+  through `placeChurchEast`, not `placeBld`, so with the blanket gone you
+  walked straight through the nave. Looking would never have shown it.
+- **Signs (a) and (b) were already closed** by the earlier
+  `transparent`/`FrontSide` fix; `shots/user-signs.png` predates it. (c) was
+  real and worse than reported — the marquee's legs stood at z = −98.2 and
+  −91.8 against a building spanning −96 … −92.6, so one hung over the roadway
+  and the other was buried behind the parapet.
+- **The bank's first entrance was wrong** and the screenshot showed it: a leaf
+  recessed into an opaque band box is a hole with nothing in it. Rebuilt as a
+  projecting granite portal with the doors flush behind it.
+
+---
+
+## BLOCKED — needs the desk
+
+### The bodega corner bay, on builder A
+
+The brief says the bay must *follow whatever A lands rather than inventing its
+own vocabulary a second time*, and to tell you if A has not landed.
+
+**A HAS landed it** (`5cbb162`, `bed0b69`). The problem is that the vocabulary
+is **module-private**:
+
+    tex-world.ts:299  const HI          not exported
+    tex-world.ts:306  function reveal   not exported
+    tex-world.ts:315  function proud    not exported
+    tex-world.ts:324  function glazed   not exported
+    tex-world.ts:335  function mullions not exported
+
+Following A therefore leaves two options, both of which I have been told not to
+take on my own:
+
+1. **export those five from `tex-world.ts`** — allowed by OWNERSHIP.md in the
+   letter ("may add a new export… never change an existing signature"), but A
+   has a **live mandate in that file right now**, and the standing rule is to
+   tell the desk rather than work around a live mandate;
+2. **copy them into `ct/street.ts`** — precisely the second vocabulary the
+   brief forbids.
+
+**What I need:** either A exports those five (no signature changes), or the
+desk sequences the bay to me once A's mandate closes. Then the bay's shared
+rhythm — one stallriser line, one head, one reveal depth, equal bays — is a
+straight application of A's helpers instead of a re-invention.
+
+The rest of that item is already answered:
+- **OPEN over the door** — done in `47ce219`.
+- **Collision on the cut face** — done and walk-proved: stops on the cut at
+  `x+z = −87.56`, and reaches `x = 7.38` at z = −95 where a square wall stops
+  you at 6.34.
+- **Sidewalk scoring running under the building** — checked, **not mine**. The
+  walk slab is `ct/tex-ground.ts` (builder B) and it extends beneath the shell;
+  where the chamfer cuts back, it shows. Handed to the desk as the brief says.
+
+### Window lights — same contention
+
+`facadeTex` is "handed to you for this" but lives in `tex-world.ts`, and A has
+already been in the lit-window code this run (`a3b803c`). Starting there now
+collides with a live mandate. Sequence it after A, or confirm A is out and I
+will take it.
+
+---
+
+## Open and NOT blocked
+
+- **Move my `[E]` spots onto `ctx.spot()`**, out of `crosstown.ts`. Nothing in
+  another builder's way. It is a refactor of the entry point that re-touches
+  the bodega trigger, and that trigger has closed the shop once already
+  (GOTCHAS §8), so it wants its own walk-proof — `scratchpad/collide.mjs` is
+  ready for it.
+
+## Standing note
+
+**Port contention cost three ports this session** — 4181 held by the parent
+checkout's drifting 4177 server, 4184 taken by `rpg-audit` while mine was down
+for a rebuild, 4185 earlier. I now check the served bundle hash against the
+built one before trusting any result, which is how I caught a test running
+green against another worktree's build. A pinned `--strictPort` per worktree
+removes the whole class of problem.
+
+---
+
+# Builder D — report
+
 Working from `notes/queues/D-alley.md`: rebase on `add-stick-and-city98`, take
 the top unchecked item, commit, re-read. I don't edit the queue — completions
 are reported here.
