@@ -32,6 +32,38 @@ hour of work is where the conflicts live.
       instead (the way `wetMats` does for rain), so lamp pools have something to
       contrast against. Consider fog fading toward near-black at night for depth
       falloff. Ref: `shots/user-nightflat.png`
+- [ ] **Wetness must OUTLAST the rain, and the rain must leave puddles.**
+      The user: *"make wetness last a lil after it stops raining"* and *"also
+      make rain cause some puddles"*.
+
+      Both live in `updateRain` in `ct/props.ts`, which you own. What is wrong
+      today: `wetMats` is driven straight off `rainLevel`, so the street is
+      bone dry the instant the last drop lands — the ground has no memory. And
+      `puddleLevel` chases `rainLevel` too, so puddles never OUTLIVE the storm
+      either; they just lag it by a few seconds.
+
+      Give the ground its own state. A `wetness` that rises fast while it is
+      raining and falls SLOWLY when it is not — minutes of game time, not
+      seconds, and slower still at night and after a long soak. Drive
+      `wetMats` and the puddle opacity from `wetness`, not from `rainLevel`.
+      The order you want to see walking out after a storm: rain stops → the
+      street is still dark and reflective → puddles are at their fullest a
+      little AFTER the rain ends, because water is still finding the low
+      spots → then it dries from the middle of the road outward, with the
+      gutter and the puddles last.
+
+      Puddles: there is already a `puddleT`/`puddleM` set. They are too shy —
+      one shared material at 0.72 opacity means they all fade in lockstep and
+      none of them read. Give them individual fill so some pool early and
+      deep and others barely wet; put them where water actually goes (the
+      gutter pan, the catch basin, low spots, under the drip line of awnings).
+      They are ground decals, NOT billboards — `GOTCHAS.md` §3. And they must
+      be DARKER than the surface at night, never lighter; a glowing puddle was
+      already shipped once and rejected.
+
+      Draw any new `rnd()` calls at the END of the module's build (§2) or you
+      will move every tree and pigeon in the world.
+
 - [ ] **Remove the van** parked at THRIFT — 4th entry in `parked`, z = -78.
       Check its collider comes out of `carColliders`/`citAvoid` cleanly.
       Ref: `shots/user-killcar.png`

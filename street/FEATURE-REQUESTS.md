@@ -7,6 +7,22 @@ published to the playable artifact.
 
 ## Inbox
 
+### 2026-07-24, session 3
+
+- **"make wetness last a lil after it stops raining"** → **builder B**
+- **"also make rain cause some puddles"** → **builder B** (same item; the
+  ground needs its own `wetness` state instead of reading `rainLevel`)
+- **"make entire library building a bit recessed so there like a courtyard
+  public 3rd space area"** → **builder E** (new — owns the civic buildings)
+- **"pillars of the church seem not fully thought out. they block the windows
+  i think?"** → **builder E**. Real cause: the lancets are painted in texel
+  space, the buttresses placed in metres, and nothing reconciles the two.
+- **"the sign up top is completely floating. make sure for stuff like this we
+  pay more attention."** → **builder E** (GOLDEN ACES roof sign), and a
+  standing sweep for unsupported objects → **auditor**
+- **"i want more detail for both the hotel and golden aces casino facades"**
+  → **builder E**
+
 ## In progress
 
 - **Re-cast the block.** Replace the current shop rosters with: fast food,

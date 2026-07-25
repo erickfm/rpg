@@ -10,6 +10,7 @@ Format below is parsed — `path = owner`. Keep it that way.
 ```
 src/proto/ct/street.ts      = D
 src/proto/ct/cat.ts         = D
+src/proto/ct/civic.ts       = E
 src/proto/ct/apartment.ts   = C
 src/proto/ct/props.ts       = B
 src/proto/ct/cars.ts        = B
