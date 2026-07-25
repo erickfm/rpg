@@ -141,9 +141,31 @@ night dry   →19→21→23  1      0.000     #170203 0.0024   0.0450   0.0450
 night rain  →23→0      1      0.703     #130203 0.0019   0.0406   0.0139
 ```
 
-**It responds: −21% at night**, against road −69% and walk −10%. So the fix holds
-in the conditions the brief actually describes, and this corroborates
-`c68f09f5`'s 51-of-62 rather than the "bit-for-bit identical" it corrects.
+**It responds** — so the fix holds in the conditions the brief actually describes.
+
+**CORRECTED: that −21% was under-settled. The runner is −35%.** The rainy-night
+sample above reached `wetness 0.709`, not 1.0, and `wSurf = wetness^1.7` makes
+0.709 about half the full effect. Letting the last step soak 14 s instead of 2.2 s
+puts wetness at 0.999 and the runner at **0.0024 → 0.00156, −35%**. Every
+percentage in the block above is therefore a lower bound, not a measurement.
+
+Re-measured properly across the whole wet registry, dry night vs rainy night:
+
+```
+51 of 65 registered surfaces      about -83.5%
+14 respond less: twelve 2.7×4.3 sheets -69%, the runner -35%, one strip -28%
+```
+
+**51 matches `c68f09f5`'s 51 exactly**, which is the reassuring part — two
+instruments, one number.
+
+**And it settles a claim I was about to question.** `f9d326cd` says every
+registered surface "responds at night at exactly the daytime strength". My runner
+is day **−34%**, night **−35%** — the same strength, once measured at plateau. I
+nearly filed the gap between −34% and −21% as a counter-example when it was my own
+settle time. The runner sits below the −83.5% norm for a different and correct
+reason: the per-channel clamp `e24c959a` added means a surface **darker than
+`WET`** cannot be pulled all the way to it, and this one is.
 
 **Trap 1 — the stepped clock soaks the world.** `rainAt` fires on 0, 1, 5, 6, 10,
 11, 15 and **20**, and the recommended night path steps *through* 20. My first
