@@ -81,18 +81,39 @@ bench and the lamps in the roadway.
 
 ## Still needing routing, not self-assignment
 
-1. **The fog line**, `crosstown.ts:504` — `multiplyScalar(1 - 0.5 * lampNight)`
-   leaves grey fog closing off a dark street. `1 - 0.82 * lampNight` fixes it.
-   One line, DESK-owned, **raised every round since the night pass and never
-   answered**.
+1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
+   it does not reproduce.** I asked for this every round for weeks on evidence I
+   never re-took. The line is now `crosstown.ts:672` and the fog is not grey:
+
+   | hour | fog | sky | darkest graded floor |
+   |---|---|---|---|
+   | 23:00 | **0.0026** | 0.0053 | 0.030 |
+   | 13:00 | 0.2988 | 0.2988 | 1.000 |
+
+   The fog is DARKER than the floor it sits against — black, which is what
+   "night fog should go toward BLACK not grey" asked for. Night pass five took
+   the floors and the sky down after I wrote the complaint, and the complaint
+   went on being repeated. Nobody should spend a line of `crosstown.ts` on it.
 2. **Findings B and D need a verdict.** B ("mid-block dark") I recommend closing
    as superseded by night five. D ("parking never re-rolls") is `ct/rng.ts` and
    `ct/cars.ts`.
-3. **The lamp-pool flat top** — measured, deliberately not acted on. At 23:00,
-   **77 materials at full daylight, median 1.25 m from a lamp**. It may be right
-   — a lit thing should look lit — but it was never an explicit decision, and
-   the lamp system has been reverted once for a unilateral change. I will not
-   touch it without a ruling; that is the promise, not indecision.
+3. ~~**The lamp-pool flat top**~~ **WITHDRAWN — the measurement does not
+   reproduce either.** I cited "77 materials at full daylight, median 1.25 m
+   from a lamp" for weeks. At HEAD, 23:00:
+
+   ```
+   96 of 428 graded materials saturated · 87 of those are selfLit
+   median distance to the nearest lamp: 19.93 m
+   ```
+
+   Twenty metres is not a lamp pool. The saturated set is overwhelmingly signs
+   and lit windows, which are supposed to be bright at night, and `nightgrade`
+   — which owns that question — is green. There was no flat top to rule on.
+
+   The 9 saturated materials that are NOT selfLit are the only residue, and
+   they are `nightgrade`'s to judge, not mine to assert. I am not filing them as
+   a finding; I have already sent one owner a false positive this session by
+   publishing a number without checking the term that explained it.
 4. **A `'light'` kind for `SurfaceKind`** — `ct/paint.ts`, A's call. Five of the
    nine textures I declared are light, not material, and `'detail'` is the
    closest honest fit rather than the right one.
