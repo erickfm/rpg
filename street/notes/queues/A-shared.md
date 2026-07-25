@@ -12,6 +12,46 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **FLIP THE AUTHORITY: the INTERIOR declares the door, the facade
+      follows. The desk got this backwards and the user is annoyed.**
+
+      The user: *"instead of doing what i asked which is change the exterior to
+      match the interior you changed the interior to match the exterior.
+      that's annoying."* They are right, and the fault is the desk's brief,
+      not yours — I specified *"A publishes, F consumes"*, which structurally
+      made the facade the source of truth. `tex-world.ts` now says *"this is
+      the one authority"* about the frontage, and `459285df` swapped the ROOM
+      to match it. That is the opposite of what was asked.
+
+      Their original words were explicit: *"the interior of the tax service is
+      on the right side of the interior so i would expect the exterior to
+      match… this should be done for all buildings. make the exteriors match
+      the interiors."*
+
+      **What to change.** Keep everything about the mechanism — one number,
+      world coordinates, three consumers, the mirror applied once inside each.
+      That design was right and the handedness reasoning still holds. **Only
+      the direction of authority moves:**
+      · the ROOM declares its door position, in world coordinates
+      · the FACADE PAINTER reads it and paints its door there
+      · the `[E]` spot reads it, as before
+
+      And it is the better arrangement on the merits, which is worth saying so
+      it does not feel like thrash: a room is hand-built furniture with a
+      counter, a desk and a walking route that all depend on where the door
+      is. A painted facade door is one x position in a texture. Moving the
+      cheap thing to match the expensive one is the right way round.
+
+      **Revert `459285df`'s effect specifically** — the tax office room should
+      go back to having its door where it was, and the tax office FACADE
+      should move instead. Then check every other room the same way.
+
+      **The user's test is the one to use**: stand inside, note which side the
+      door is on, walk out, turn round, and confirm the exterior door is on
+      the mirrored side. Do it for every building, which is what they asked
+      for.
+
+
 - [ ] **Interiors and exteriors must agree on HANDEDNESS, not just position.**
       The user, standing inside the tax office: *"the interior of the tax
       service is on the right side of the interior so i would expect the
