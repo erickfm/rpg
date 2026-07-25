@@ -23,6 +23,30 @@ world stops.
 
 ## Now
 
+- [ ] **Parked cars can leave a gap the player fits into but cannot leave.**
+      The user got wedged between two of yours: *"im literally stuck here"*.
+      Ref: `shots/user-stuck.png`.
+
+      Builder F is adding depenetration to the rig so any trap becomes
+      survivable — that is the safety net. **Your half is not creating the
+      trap.** A safety net that fires regularly is still a bug.
+
+      The player capsule is `RADIUS = 0.36`, so 0.72 m across. A gap between
+      two colliders should be either **comfortably passable (≥ 0.95 m)** or
+      **fully closed** — never in between. The dangerous band is roughly
+      0.4–0.95 m: wide enough to walk into at an angle, too narrow to turn
+      around or walk out of.
+
+      Parking is drawn from the seeded distribution now (`f0f4792`), which is
+      right and the user likes the variety — so **constrain the draw, do not
+      go back to hand-placing.** After sampling each car's offset and angle,
+      check the gap to its neighbour and re-roll or nudge until every gap is
+      out of the dangerous band. Same for a car against the kerb, a car
+      against a tree pit, and a car against the bus bench.
+
+      Apply the rule to the whole fleet, not just the pair in that shot —
+      including the cars you extended down the side street.
+
 - [ ] **Profile feet read backwards. `ct/citizens.ts` is now YOURS.** The
       user: *"legs on these people is still off from the side, looks backwards
       on the feet somehow?"* Ref: `shots/user-feet3.png`.

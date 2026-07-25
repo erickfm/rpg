@@ -28,6 +28,51 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **STUCK PROTECTION — the player can be trapped with no way out. Do this
+      before anything else.** The user: *"im literally stuck here. i think we
+      need some sort of stuck protection or something smarter around collision
+      and blocking"*. Ref: `shots/user-stuck.png` — wedged between two parked
+      cars.
+
+      You have the `fp.ts` mandate from the seat work, so this is yours.
+
+      **The cause, read off the code.** `FPRig.blocked()` is a pure boolean
+      reject: if the *target* position is inside any collider inflated by
+      `RADIUS`, the move is refused. There is **no depenetration anywhere**.
+      So the moment you are inside a collider — you slipped through a gap
+      narrower than the capsule, a car parked onto you, a collider changed
+      under you — every direction you try is also blocked, and you are stuck
+      permanently. The system has no way to express "you are in a bad place,
+      get out".
+
+      **The fix: resolve penetration, do not just reject motion.** Each frame,
+      test the CURRENT position. If it is inside one or more colliders,
+      compute the minimum translation out — for an AABB that is the smallest
+      of the four axis pushes — and move the player along it. Sum or iterate
+      when several overlap. Then normal movement resumes because the player is
+      legal again.
+
+      Make it robust rather than clever:
+      · it must **always terminate** — cap the iterations and, if a position
+        cannot be resolved after a few passes, fall back to pushing toward the
+        nearest known-good point (the road centre line and the sidewalk lane
+        are both always clear).
+      · **do not let it launch you.** Push out at a bounded speed, not
+        instantly, or a player standing legally against a wall will get shoved.
+      · it must not fight the floor picker or the seat state.
+      · a **last-known-good position** updated whenever you are legal and
+        grounded is a cheap and very effective backstop; teleporting there is
+        far better than being stuck.
+
+      **Verify by deliberately getting stuck**: walk into the gap in
+      `shots/user-stuck.png`, walk into the bodega crates, into the dumpster,
+      into a bench, and confirm you always get out. This is a movement change,
+      so it must be walked, never screenshot (`GOTCHAS.md` §1).
+
+      One item, one commit. The parked-car spacing that created THIS trap is
+      builder H's and is queued separately — you are building the safety net
+      that makes any future trap survivable.
+
 - [ ] **Derive every room's door and window from the facade, not by hand.**
       The user: *"i need the facades to line up with the interior. so if the
       door on the interior is full right then the facade must match."*
