@@ -329,6 +329,11 @@ export function makeCrosstown(): Proto {
         if (z < SIDE_Z1) return apt.setGy(KERB_H);
         return apt.setGy(x > SIDE_X1 || x < -ROAD_HALF ? KERB_H : 0);
       }
+      // The park is paved at KERB_H and reaches 7 m back — same problem as the
+      // courtyard below, same answer: the module that owns the ground says
+      // how high it is, and this reads it off one value.
+      const pk = street.park;
+      if (x >= pk.minX && x <= pk.maxX && z >= pk.minZ && z <= pk.maxZ) return apt.setGy(pk.y);
       // The library courtyard is paved at KERB_H and reaches back well past
       // FACE + 0.3, where the rule below stops answering — walk into it and
       // the floor drops away. ct/civic.ts publishes its extents and its paving

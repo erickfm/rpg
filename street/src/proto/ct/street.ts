@@ -52,7 +52,7 @@ export function buildStreet(o: {
   //   · EAST before No. 227 must total 49.2, because the walk-up's door and
   //     its interior live in ct/apartment.ts at a fixed z
   // Change a width and you must pay for it out of a neighbour in the same run.
-  const WEST: (BldSpec | 'alley')[] = [
+  const WEST: (BldSpec | 'alley' | 'park')[] = [
     // DINER and LAUNDRY swapped IDENTITIES, not slots — the widths stay where
     // they are, so both run totals are untouched (51.2 before the alley, 54.5
     // after). Moving the entries bodily would have cost 2.8 m of
@@ -69,9 +69,13 @@ export function buildStreet(o: {
     'alley',
     // z -55.5 … -43.5, centre -49.5 — ct/int-diner.ts anchors its door here
     { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
-    { nm: 'BARBER', col: '#8a2c22', w: 12.5, brick: '#5c4436', floors: 4 },
-    { nm: 'THRIFT', col: '#7a5a2c', w: 14, brick: '#835444', floors: 4 },
-    { nm: 'GROCERY', col: '#2e5a3c', w: 16, brick: '#7a4a3a', floors: 5 },
+    // BARBER and THRIFT swapped identities — widths stay, so the run still
+    // totals 54.5. The swap is what MAKES the park: it puts BARBER beside
+    // GROCERY, and those two together are the 30 m running down to z = -98
+    // where the corner building takes over. With THRIFT between them there
+    // was no 30 m to give away without breaking the run.
+    { nm: 'THRIFT', col: '#7a5a2c', w: 12.5, brick: '#5c4436', floors: 4 },
+    'park',   // the old BARBER 14 + GROCERY 16, given over — see placePark
   ];
   const EAST: BldSpec[] = [
     { nm: 'CAFE', col: '#6a3a22', w: 11.2, brick: '#5c4436', floors: 4 },
@@ -162,9 +166,104 @@ export function buildStreet(o: {
   // this file. street.ts still owns WHERE they stand; civic.ts owns what
   // they look like.
   const { placeLibrary, placeChurch } = buildCivic({ scene, flat, KERB_H });
+  // ── the park ────────────────────────────────────────────────────────────
+  //
+  // 30 m of the west side given over, where BARBER and GROCERY stood. This is
+  // the SITE only: the ground, what encloses it, and the fact that you can
+  // walk into it. What stands IN it — trees, benches, paths — is builder E's,
+  // in ct/park.ts, the same split the library and the church already use.
+  //
+  // Three things the brief flagged, all of them here rather than in E's file
+  // because they are properties of the hole in the street wall, not of the
+  // park:
+  //   · the neighbours now have EXPOSED PARTY WALLS. A blank brick flank
+  //     facing a park is right, but it has to be a finished flank and not the
+  //     raw end of a shell, which is what `endM` gives you.
+  //   · the SKYLINE opens. A 30 m gap in a continuous wall shows whatever is
+  //     behind it, and behind it was nothing — so the site is closed at the
+  //     back by a real rear elevation.
+  //   · COLLISION. The park has to be walk-INTO-able, which is only true
+  //     because footprints are registered per building now: no building, no
+  //     collider, and the mouth is open by construction.
+  const PARK = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
+  const placePark = (z: number, w: number) => {
+    const DEPTH = 7.0;                       // deeper than a shell, so it reads as a place
+    const XF = -FACE - DEPTH, XB = -FACE;
+    const z0 = z - w, z1 = z;
+    PARK.minX = XF; PARK.maxX = XB; PARK.minZ = z0; PARK.maxZ = z1;
+    // the ground. A PLANE at exactly KERB_H that ABUTS the walk at x = -FACE
+    // rather than overlapping it — two coplanar tops z-fight (GOTCHAS §6).
+    const groundT = pixTex(64, 64, (g) => {
+      g.fillStyle = '#6a6f58'; g.fillRect(0, 0, 64, 64);            // worn grass
+      g.fillStyle = '#5c6249';
+      for (let i = 0; i < 90; i++) g.fillRect((i * 23) % 64, (i * 41) % 64, 2, 1);
+      g.fillStyle = '#7a7f66';
+      for (let i = 0; i < 60; i++) g.fillRect((i * 17) % 64, (i * 29) % 64, 1, 1);
+      dither(g, 64, 64, 260);
+    });
+    groundT.wrapS = groundT.wrapT = THREE.RepeatWrapping;
+    groundT.repeat.set(DEPTH / 2, w / 2);
+    const grass = new THREE.Mesh(new THREE.PlaneGeometry(DEPTH, w), wet(flat(groundT)));
+    grass.rotation.x = -Math.PI / 2;
+    grass.position.set((XF + XB) / 2, KERB_H, (z0 + z1) / 2);
+    scene.add(grass);
+    // the two party walls the park has just exposed, given a finished face.
+    // masonry() phases its courses off world Y, so they run level with the
+    // brick on the street elevation either side instead of starting again.
+    const flank = (zAt: number, facing: 1 | -1, brick: string, h: number) => {
+      const ms = masonry(DEPTH, h, 0);
+      const t = ms.paint((g) => {
+        g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
+        ms.courses(g);
+        g.fillStyle = 'rgba(0,0,0,0.16)';                            // soot down the joints
+        for (let i = 0; i < 14; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));  // coping along the top
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
+        dither(g, ms.W, ms.H, Math.round(DEPTH * h * 5));
+      });
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(DEPTH, h), flat(t));
+      p.position.set((XF + XB) / 2, h / 2, zAt);
+      p.rotation.y = facing > 0 ? 0 : Math.PI;
+      scene.add(p);
+    };
+    flank(z1 - 0.01, -1, '#835444', wallHeight(4));   // THRIFT's south flank
+    flank(z0 + 0.01, 1, '#835444', wallHeight(4));    // RADIO's north flank
+    // the back of the site: a rear elevation so the gap opens onto a city and
+    // not onto fog. Blank brick — it is the back of whatever faces the next
+    // street over, and it has never had a window on this side.
+    {
+      const h = wallHeight(4);
+      const ms = masonry(w, h, 0);
+      const t = ms.paint((g) => {
+        g.fillStyle = '#6b4034'; g.fillRect(0, 0, ms.W, ms.H);
+        ms.courses(g);
+        g.fillStyle = 'rgba(0,0,0,0.14)';
+        for (let i = 0; i < 22; i++) g.fillRect((i * 53) % ms.W, 0, 3, Math.round(ms.H * ((i % 7) / 8)));
+        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.55));
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.55), ms.W, ms.m(0.16));
+        dither(g, ms.W, ms.H, Math.round(w * h * 5));
+      });
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), flat(t));
+      back.position.set(XF + 0.01, h / 2, (z0 + z1) / 2);
+      back.rotation.y = Math.PI / 2;
+      scene.add(back);
+      solid({ minX: XF - 8, maxX: XF, minZ: z0, maxZ: z1 });
+    }
+    // a low boundary wall along the street line with the entrance left open,
+    // so the park has an edge rather than bleeding into the pavement
+    const railM = new THREE.MeshBasicMaterial({ color: 0x6d6455 });
+    for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * 0.36], [z1 - w * 0.36, z1 - 0.3]] as [number, number][]) {
+      const len = rz1 - rz0;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, len), railM);
+      wall.position.set(XB - 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
+      scene.add(wall);
+      solid({ minX: XB - 0.36, maxX: XB, minZ: rz0, maxZ: rz1 });
+    }
+  };
   let zw = 14.2;
   for (const b of WEST) {
     if (b === 'alley') { zw = AZ1; continue; }
+    if (b === 'park') { placePark(zw, 30); zw -= 30; continue; }
     if (b.kind === 'library') placeLibrary(zw, b); else placeBld(-1, zw, b);
     zw -= b.w;
   }
@@ -963,5 +1062,5 @@ export function buildStreet(o: {
     tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
-  return { colliders };
+  return { colliders, park: PARK };
 }
