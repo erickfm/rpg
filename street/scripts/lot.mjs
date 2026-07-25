@@ -55,6 +55,10 @@ const SHOTS = [
   ['26-depth-from-gate', 8.0,  4.0, at(14.0, 0),      0.00],
   ['27-depth-oblique',   9.0, 12.0, at(12.0, -12.0),  0.00],
   ['28-rows-recede',     7.6,  8.0, at(15.0, -3.0),  -0.02],
+  ['29-gate-roller',     4.6,  8.6, at(3.4, -0.6),    0.02],
+  ['30-gate-chain',      6.2,  7.6, at(1.4, 0.2),    -0.12],
+  ['31-aisle',           9.6,  6.0, at(0.4, 8.0),    -0.04],
+  ['32-empty-bay',       7.4,  6.0, at(3.0, 2.4),    -0.14],
 ];
 
 for (const [name, x, z, yaw, pitch] of SHOTS) {

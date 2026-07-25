@@ -338,6 +338,70 @@ export function buildLot(o: {
       }
     }
 
+    // ── the rolling gate ─────────────────────────────────────────────────
+    // A lot this size does not have a swing gate; it has a CANTILEVER ROLLER
+    // that runs on a track along the inside of the fence. By day it is parked
+    // open against the fence with the chain and padlock hanging off the
+    // catch, which is the detail that says it gets shut every night. The
+    // frame is the giveaway: a top and bottom rail with a diagonal brace and
+    // a counterweight tail sticking out past the last upright.
+    const gz0 = zN - span * SITE_GATE, gz1 = zS + span * SITE_GATE;   // the mouth
+    {
+      const GH = 1.9, GL = 5.6;                       // leaf height and length
+      const gx = X0 + 0.44;                           // inboard of the fence line
+      const gc = gz0 + 1.4;                           // parked open, north of the mouth
+      const frameM = postM;
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GL, GH - 0.16), linkPanel(GL, GH - 0.16));
+      mesh.position.set(gx, Y + 0.08 + (GH - 0.16) / 2, gc);
+      mesh.rotation.y = Math.PI / 2;
+      scene.add(mesh);
+      const bar = (w: number, h: number, d: number, bx: number, by: number, bz: number, rz = 0) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), frameM);
+        m.position.set(bx, by, bz); if (rz) m.rotation.x = rz;
+        scene.add(m);
+      };
+      bar(0.07, 0.07, GL, gx, Y + GH, gc);                     // top rail
+      bar(0.07, 0.07, GL, gx, Y + 0.08, gc);                   // bottom rail, the track runner
+      for (const o of [-GL / 2, -GL / 6, GL / 6, GL / 2]) bar(0.06, GH, 0.06, gx, Y + GH / 2, gc + o);
+      // the diagonal brace, which is what makes it read as a gate and not a
+      // fence panel that happens to be standing in the wrong place
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.05, Math.hypot(GL, GH) - 0.3, 0.05), frameM);
+      brace.position.set(gx, Y + GH / 2, gc);
+      brace.rotation.x = Math.atan2(GL, GH);
+      scene.add(brace);
+      // the counterweight tail past the last upright — cantilever rollers are
+      // held up by the tail, not by a wheel on the ground
+      bar(0.07, 0.07, 1.7, gx, Y + GH, gc + GL / 2 + 0.85);
+      bar(0.06, GH * 0.55, 0.06, gx, Y + GH - GH * 0.28, gc + GL / 2 + 0.8);
+      // the track the roller runs on, in the ground along the fence
+      const track = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, GL + 2.6),
+        new THREE.MeshBasicMaterial({ color: 0x54585e }));
+      track.position.set(gx, Y + 0.02, gc + 0.4);
+      scene.add(track);
+      solid({ minX: gx - 0.12, maxX: gx + 0.12, minZ: gc - GL / 2, maxZ: gc + GL / 2 });
+      // the chain and padlock, hanging off the catch post at the open end
+      const chainM = new THREE.MeshBasicMaterial({ color: 0x8a9098 });
+      const cpx = X0 + 0.22, cpz = gz0 - 0.1;
+      const catchPost = new THREE.Mesh(new THREE.BoxGeometry(0.09, GH + 0.1, 0.09), frameM);
+      catchPost.position.set(cpx, Y + (GH + 0.1) / 2, cpz);
+      scene.add(catchPost);
+      for (let i2 = 0; i2 < 7; i2++) {                 // links, hanging in a slack curve
+        const t2 = i2 / 6;
+        const link = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.011, 4, 7), chainM);
+        link.rotation.y = i2 % 2 ? 0 : Math.PI / 2;
+        link.position.set(cpx + 0.06, Y + 1.24 - t2 * 0.52 - 0.10 * Math.sin(t2 * Math.PI),
+          cpz + 0.05 + t2 * 0.16);
+        scene.add(link);
+      }
+      const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.03),
+        new THREE.MeshBasicMaterial({ color: 0x8a7440 }));
+      lockBody.position.set(cpx + 0.06, Y + 0.66, cpz + 0.22);
+      scene.add(lockBody);
+      const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.032, 0.009, 4, 8), chainM);
+      shackle.position.set(cpx + 0.06, Y + 0.72, cpz + 0.22);
+      scene.add(shackle);
+    }
+
     // ── bunting ──────────────────────────────────────────────────────────
     // The flags hang from their OWN poles, clear above everything else, which
     // is both how it is really done and the answer to "what is holding that
@@ -565,18 +629,30 @@ export function buildLot(o: {
     // its aisle fits, and the count falls out of whatever depth D sets.
     const DEPTH = X1 - X0;
     const ROW_PITCH = 5.5;
-    const ROWS = Math.max(1, Math.min(4, Math.floor((DEPTH - 2.2) / ROW_PITCH)));
+    // A DRIVE AISLE behind the front row. Rows packed at an even pitch is the
+    // tell that nobody thought about it: the front row is the one that faces
+    // the street and it is also the one that has to be able to LEAVE, so it
+    // gets 6.8 m of clear asphalt behind it to back into and turn. Everything
+    // else is on the normal pitch. The aisle lines up with the mouth, so a
+    // car reverses out of the front row, turns into the aisle, and drives out
+    // through the gate — which is the question the user asked.
+    const AISLE = 6.8;
+    const ROWS = Math.max(1, Math.min(4, 1 + Math.floor((DEPTH - 2.8 - AISLE) / ROW_PITCH)));
+    const rowX = (r: number) => X0 + 2.8 + (r === 0 ? 0 : AISLE + (r - 1) * ROW_PITCH);
     const PER_ROW = Math.max(2, Math.floor((span - 4.0) / 3.4));
     let n = 0;
     for (let r = 0; r < ROWS && n < STOCK.length; r++) {
-      const x = X0 + 2.8 + r * ROW_PITCH;
+      const x = rowX(r);
       // every other row is nudged half a bay down the frontage, so you look
       // BETWEEN the cars in front rather than at their backs
       const stagger = (r % 2) * 1.7;
       for (let k = 0; k < PER_ROW && n < STOCK.length; k++) {
-        const it = STOCK[n];
         const z = zN - 3.6 - stagger - k * 3.4;
         if (z < zS + 2.2) break;
+        // one gap in the front row, where a car sold this morning. The bay
+        // lines and the oil are still there; the car is not.
+        if (r === 0 && k === 2) continue;
+        const it = STOCK[n];
         n++;
         const g0 = new THREE.Group();
         g0.add(makeCar(it.kind, it.col));
