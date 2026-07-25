@@ -904,3 +904,87 @@ the brick. Whether or not that is deliberate, it is the reason there is nothing
 to report: the corner where two walls meet is the hardest thing in this world to
 get right, and in both cases it is not visible. Masking a seam is a legitimate
 way of solving it, and cheaper than making two textures agree.
+
+---
+
+# Round 10 — PATTERN #1 IS NOT CLOSED. 42 of 109 masonry faces, horizontal axis only.
+
+`ddd36f8a` stamps every masonry texture with what it is and at what density, and
+its note says pattern #1 is **clean by declaration**. That is literally true, and
+I can confirm it:
+
+```
+3375 meshes · 978 textured · 109 carry a masonry stamp
+
+DECLARED densities:    85 × 8 (mult 1)     23 × 16 (mult 2)     1 × 32 (mult 4)
+declared off the 8/16 grid: 1
+```
+
+**The declaration is clean. The mapping is not.**
+
+## 42 of 109 stamps disagree with the face they are on
+
+```
+stamps checkable against geometry: 109
+stamps that DISAGREE with their face by >0.6 px/m: 42
+```
+
+And the disagreement has one shape. **All 42 have the vertical axis correct and
+only the horizontal wrong** — the stamp records what the canvas was *painted
+for*, and the face it is applied to is a different width:
+
+| painted for | applied to a face | declared | **measured** |
+|---|---|---|---|
+| 19.2 × 13 m | 15.9 × 13 m | 8 | **9.69** × 8 |
+| 16 × 13 m | 21.6 × 13 m | 8 | **5.93** × 8 |
+| 12 × 13 m | 23.5 × 13 m | 8 | **4.09** × 8 |
+| 12.5 × 13 m | 17.8 × 13 m | 8 | **5.62** × 8 |
+| 12 × 4.2 m | 23.5 × 4.2 m | 16 | **8.17** × 15.95 |
+
+Heights always match — 13 to 13, 4.2 to 4.2 — which is why the vertical density
+is right every time. Widths never do.
+
+**Horizontal density runs 0.43× to 5.83× of declared.** Brick coursing is
+stretched to well over double width on some elevations and compressed on others.
+
+## Is it visible? Yes, and that is the point
+
+Per my own triage rule I have to answer this rather than assume it. Two
+elevations on the same street: one at **4.09 px/m** and one at **9.69 px/m** —
+**a 2.4× difference in brick width between neighbouring buildings**, with the
+courses the correct height on both. Bricks that are the right height and twice
+the width do not read as a different building; they read as *wrong*.
+
+This is the original complaint, unchanged, and it has been hiding behind an axis.
+
+## Why nothing caught it until now
+
+Three things had to line up:
+
+1. **`density.mjs` could not isolate masonry** — its filter was geometric, so
+   109 real masonry faces sat in a net of 367 that also held foliage, ground
+   decals, sidewalk sheets and signage. I reported that as an instrument failure
+   in Round 6 and declined to publish a conformance rate. That was right.
+2. **The declaration alone looks clean**, because the painter *is* computing 8
+   px/m correctly — for the width it was told about.
+3. **`map.repeat` is 1 × 1 on all 42**, so tiling is not compensating. I checked
+   this before writing any of the above, because I made exactly the
+   ignore-the-repeat error on floor density earlier in this audit and did not
+   intend to make it twice.
+
+## The restatement
+
+My Round-3 pattern said the defect is not that a painter computes density badly,
+it is that *any* painter computes it at all. The stamp fixes the computing. This
+is the other half:
+
+> **A density is a property of the pairing, not of the texture.** `masonry()`
+> knows what it painted and at what scale; it does not know what it will be
+> mapped onto. Until the face's real width is what the canvas is sized from —
+> or until the stamp is checked against the face at build time — a correct
+> declaration and a wrong wall can coexist, and they currently do on 39% of the
+> masonry in this world.
+
+The stamp makes this **checkable**, which is a large step forward and is why
+this finding exists at all. `scripts/masonry.mjs` is that check and it takes
+about twenty seconds.
