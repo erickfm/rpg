@@ -16,6 +16,59 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Night, round three — and this time the three complaints are one
+      system.** The user, in the same sitting:
+      · *"i want night darkness to feel more dark"*
+      · *"and for light around the light posts to show up on the objects and
+        entities which are under the lights"*
+      · *"street lights light effect looks odd btw"* — ref
+        `shots/user-lampglow.png`
+
+      Your per-elevation floor model (`FLOOR_GROUND` 0.07 / `FLOOR_LOW` 0.30 /
+      `FLOOR_HIGH` 0.06) and `POOL_GAIN` 12 are good work and the road is
+      genuinely dark now. What is left is specific, and I think it is these
+      four things rather than a tuning pass:
+
+      1. **`LIT_MIN_LUM = 0.22` is why entities under a lamp do not light up.**
+         Anything darker than that luminance is skipped by `register()`
+         entirely — the comment says it is "glass, rubber or ironwork" and
+         should stay dark. But it also catches every dark garment, every dark
+         car body, the dumpster, the railings. A person in a dark coat walking
+         under a lamp gets NOTHING, which is exactly what the user is
+         reporting. Real light falls on dark objects too; it just does not
+         make them bright. Let dark materials into the pool with a scaled
+         response rather than excluding them, and keep the exclusion only for
+         genuinely non-diffuse things — glass and chrome.
+
+      2. **Walls never catch lamp light at all.** `dimWorld` registers world
+         geometry with `pool: false`, so a lamp 5 m up hard against a facade
+         throws nothing onto it. A lamp beside a wall splashes on that wall,
+         and it is one of the strongest cues that the light is real. The
+         comment says warming a 12 m wall off its centre point would be wrong,
+         and that is true — so do it off the FRAGMENT position, or split the
+         registration so a wall's lower box can pool while its upper cannot.
+
+      3. **The glow sprite reads as a floating smudge, not as light.** In the
+         shot it is a soft symmetric radial blob sitting BESIDE the lamp head,
+         visibly detached from it, with a smooth gradient in a world where
+         everything else is hard-edged texels. That is the same note the user
+         gave on the ceiling lamps: *"a bare glow decal, and a smooth radial
+         gradient in a world of hard-edged texels"*. Anchor it at the head,
+         make it a stepped/dithered glow in the house style, and shape it like
+         a lamp throws — downward and asymmetric, not a ball. A visible cone
+         or a brighter pool on the ground under it would do more than the halo
+         does.
+
+      4. **`FLOOR_LOW = 0.30` may now be the brightest thing left.** You kept
+         it deliberately so lit shopfronts stay the reward for a dark street,
+         which was right — but with GROUND at 0.07 the eye-level band is over
+         four times the road. Check whether that is what still reads as "not
+         dark enough". Lit windows and signs must stay bright; the unlit
+         masonry at that height probably should not.
+
+      Walk it at 3am and at dusk, and look at a person and a car passing under
+      a lamp — that is the specific thing the user asked for.
+
 - [ ] **Build a floor-trash comparison rig in the alley.** The user:
       *"items on the floor are all bad i can't tell what they are. in fact how
       about you design some of the floor trash put it in the alley and i'll
