@@ -54,7 +54,16 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 
 await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => window.__ct.clock(13, 0));
-await page.waitForTimeout(800);
+// 2 s, not 800 ms. 2bdebbcf measured that the grade LERPS after a clock jump
+// rather than snapping — 0 out-of-range materials at 500 ms, 9 from 1000 ms.
+//
+// It matters HERE specifically because this check tints the ground magenta and
+// then looks for magenta: dimWorld multiplies those very materials, so a sample
+// taken mid-ramp sees a DIMMER magenta than the world will settle at. Too dim
+// and the pixel test stops recognising it — a see-through shopfront reads as
+// clean. Wrong in the reassuring direction, on the one check the user asked for
+// twice.
+await page.waitForTimeout(2000);
 
 const tinted = await page.evaluate(() => {
   let n = 0;
