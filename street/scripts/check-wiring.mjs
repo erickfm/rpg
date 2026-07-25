@@ -18,8 +18,22 @@
 // wired, it goes in ALLOWED below with a reason — opting out should be a
 // visible decision, not an accident.
 //
-// Wired into `npm run build`, ahead of tsc. The merge train builds after every
-// merge, so a failure lands on the builder that caused it.
+// STOOD DOWN AS A GATE. It ran ahead of tsc in `npm run build` for one commit;
+// the desk stood that down in favour of the better answer — the user asked for
+// automatic incorporation, and builder F is generalising ct/interior.ts's
+// import.meta.glob to all world modules. A check that a contract is followed is
+// worth far less than a contract that cannot be skipped, and that is right.
+//
+// Kept as a DIAGNOSTIC (`npm run wiring`, add -v for the full inventory),
+// because it is still useful in two ways:
+//
+//   1. While F generalises, `npm run wiring -v` prints how all 23 build*
+//      exports are constructed today — which is the inventory that work needs.
+//   2. Afterwards, a glob covers a module only if the module matches the
+//      pattern and exports the expected name. Something misnamed still falls
+//      through the contract silently, and this still says so.
+//
+// It does not fail anything now. Nothing is gated on it.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, dirname, posix } from 'node:path';
 
@@ -33,13 +47,9 @@ const ROOT = 'src/proto';
 const ALLOWED = {
   // 'ct/example.ts': 'why this one is intentionally not in the world',
 
-  // The two live instances. Builder F is wiring both as I write this, so
-  // gating on them today would break every builder's build for work that is
-  // already in hand. They are listed rather than ignored: the reason prints on
-  // EVERY build, so it nags until F's wiring lands and these two lines are
-  // deleted. Deleting them is the last step of that item, not a follow-up.
-  'ct/park.ts': 'builder F is wiring it now — DELETE THIS LINE when that lands',
-  'ct/lot.ts': 'builder F is wiring it now — DELETE THIS LINE when that lands',
+  // park and lot were allow-listed while this gated the build, so it would not
+  // break everyone for work already in F's hands. Nothing is gated now, so
+  // they are better reported honestly: they ARE unconstructed until F lands.
 };
 
 // ── collect every exported build* symbol, and every file under src/proto ────

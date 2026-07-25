@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite --port 5177",
     "live": "TUNNEL=1 vite --port 5177 --host",
-    "build": "node scripts/check-wiring.mjs && tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4177",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
