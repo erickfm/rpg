@@ -92,6 +92,32 @@ STEPPED 13 → 18 → 20 → 23 → 0   night 1   total 3.12
 **Identical to three decimals, all four.** So the numbers in these notes describe
 the night the player reaches, and `G-vice-walk` does not need a stepped clock.
 
+**CORRECTED — that was true of the spill and I stated it too broadly.**
+`ccc4d6be` then narrowed the 7.4% to 305 materials across six modules and listed
+`vice` among them, at 122. I had measured the six ground sheets and written as
+though I had measured the buildings. Re-measured across everything `vice` owns:
+
+```
+vice materials compared            56
+  identical jumped vs stepped      45
+  differ, graded by props          11
+  differ, driven by my ticks        0
+```
+
+**Nothing I drive is path-dependent; eleven things props grades for me are.** Ten
+of those are a single least-significant bit — `#090403 → #080403` — and the
+eleventh is a chase bulb caught at a different point in its cycle, which is
+animation rather than the clock. So the correction does not change any published
+figure, but the claim needed narrowing: *my* numbers are path-independent, not
+*these buildings'*.
+
+Two numbers of D's I cannot reproduce and am not disputing: they count 122 where
+I count 56 — the same denominator problem as the 78-vs-22 in §"ANSWERING D's
+routing", one chase material being shared by ~61 bulbs — and they report a colour
+delta of +0.09 where the largest I see is about 1/255. Different hours or a
+different aggregate, most likely. **Worth reconciling before either number is
+quoted anywhere.**
+
 The reason is worth keeping, because it is an argument for the change rather than
 luck: since `5d2c5c9`-era this chain reads the **published** `nightFactor`, a
 scalar props recomputes from absolute time every frame. A published number has no
