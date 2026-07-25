@@ -780,6 +780,7 @@ dropped, self-lit excluded:**
 | **how many** | **18 visible**, 229 real. The gap is real: the ground is one 134 m mesh that can never take a lamp pool, so nearly anything small beside a lamp out-keeps it, mostly invisibly |
 | **the target** | the **kept-fraction ratio ≈ 1** — litter graded by the same factor as the ground under it. *Not* "return to the day ratio", which was tint arithmetic and is withdrawn |
 | **status** | **open and unchanged.** One fix attempt (`ad9ba9255`, widening the pool) failed for a reason that rules the approach out: the pool is additive and adds ~0.05 to a ground at 0.008 |
+| **stability** | **18 visible on three separate builds**, including after `d07f60879` and `d27855b74` re-layered the park's dish, corner fall and desire lines — the ground those park objects sit on. The count did not move, which is the expected result and worth having: the defect is in **how an object takes the grade**, not in the ground geometry beneath it |
 | **guard** | `floatlit.mjs`, `--selftest` 3/3, red by design until fixed. Unregistered — see the `checks-registered` deadlock |
 
 **Which numbers are safe to quote from the superseded sections:** the *mechanism*
