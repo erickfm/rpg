@@ -11,6 +11,31 @@ door numbers used below were derived and walked there.
 
 ## READ THIS FIRST — what is current, what is closed
 
+### The two live blockers, moved here when `BLOCKED-G.md` was deleted
+
+The user asked for that file to go once I had quoted the queue line in it, and it
+is gone. Six of its eight items were closed by then. These two are still open and
+would have been lost with the file:
+
+1. **`ct/doors.ts` has no owner, and the door-drop class is still open.**
+   `civic-doors.ts`, `interior.ts` and `world.ts` still resolve to an UNDEFINED
+   namespace at collection time in the built bundle. Nothing is being dropped
+   today — `doors-declared` reads 10 of 10 — but the mechanism that dropped
+   GOLDEN ACES' door once is still there, and the file it lives in is assigned to
+   nobody.
+
+2. **`props.ts:420` computes `selfLit` from the material's texture only**, so an
+   untextured author-driven light cannot declare itself. One line, B's call:
+   `const selfLit = isSelfLit(m.map) || m.userData.selfLit === true;`. It is a
+   real behavioural fix rather than check-silencing — it moves my blade bulbs to
+   `FLOOR_SIGN`, sets `wetK: 0`, and drops them from lamp pools they join for
+   nothing. Full write-up and measurements in `notes/G-nightgrade-bulbs.md`. If B
+   takes it I set the flag in `vice.ts` in the same landing.
+
+The queue-file hazard that file was mostly about is with the user now: the clause
+is `notes/queues/G-interiors2.md:100`, *"with the texture flipped horizontally on
+the rear one"*, and the derivation for why it is wrong is `GOTCHAS.md` §35.
+
 This file is **chronological and long**. It is a record of runs, not a status
 page, and several sections are superseded in place rather than deleted. Someone
 else's `f214cf76` made the case for an index; this is mine.
