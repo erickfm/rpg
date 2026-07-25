@@ -114,6 +114,42 @@ module's ground materials from inside my tick, and that would be a worse thing
 than the bug: a hidden cross-module read that breaks silently when someone
 repaints a road.
 
+### The same gap, a second time: the entrance runner never gets wet
+
+`b209275c` found the road centre lines bone dry while the road darkened 83%, so I
+swept my own ground surfaces for it. Six of the seven are additive glow and
+correctly unaffected. The seventh is not:
+
+```
+vice surfaces lying on the ground — dry 13:00 vs raining 15:00
+  3x1.5  at x 51.3, y 0.15   OPAQUE DECAL   lum 0.053 → 0.053   0%
+```
+
+That is `ct/vice.ts:734`, the red runner over the casino's brass threshold. The
+pavement it sits on goes −20% in the rain and the road −78%; the runner does not
+move, because it was never registered with `wet()`. **Structurally identical to
+the centre lines.**
+
+**Visually it is close to nothing**, and I would rather say so than inflate it:
+the runner is `#7a2028` at luminance 0.053, already darker than wet pavement, so
+"fails to darken further" is not something anyone will see. The centre lines were
+bone white on an 83%-darkened road, which is a different order of wrong.
+
+**I did not fix it, for the same reason as above.** `wet()` is right there in
+`CtxBuild` (`ct/ctx.ts:150`) and `ct/street.ts` uses it freely — but `buildVice`
+is handed `{ scene, flat, solid, KERB_H }` and nothing else, so my module cannot
+reach it. The fix is two lines: add `wet` to my signature, and pass it at the one
+call site that exists solely to construct my module (`street.ts:982`). I have not
+made it because `street.ts` is contended and my cross-file mandate was spent on
+the extraction, and **a negligible visual gain is not worth a conflict in a file
+five people are editing.**
+
+**Why this matters more than either defect does.** Two shared systems in a row —
+the night grade and the wet-look — have turned out to be ones `vice.ts` cannot
+participate in, not because of a decision but because the constructor call passes
+four things. The buildings are the world's only light sources and they sit on its
+wettest surface, so those are exactly the two systems they most need.
+
 **The ruling:** pass the night factor — or `rainLevel` — into module ticks, so
 `vice.ts` reads the number `props.ts` already computes instead of re-deriving a
 proxy from the sky. That is `ct/props.ts`'s call. It is the same shape as H's
