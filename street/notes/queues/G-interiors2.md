@@ -31,6 +31,42 @@ style for interiors; copy its shape.
 
 ## Now
 
+- [ ] **The pawn shop is unreadable from inside. Partly my brief's fault.**
+      The user: *"pawn shop interior is janky and odd. i immediately hit a
+      counter. it's like i'm behind the counter i don't get it."* Ref:
+      `shots/user-pawnjank.png`.
+
+      **The desk over-specified this.** My brief said *"the counter should be
+      high and the customer side should feel narrow — a pawn shop is built to
+      keep you at arm's length, and the geometry can say that."* You built
+      exactly that and it is too much: the customer strip is a corridor, the
+      counter runs the length of the room, and every good thing in the shop —
+      the guitars, the stereo stacks, the display case contents — is on the
+      far side of it. So the player reads themselves as being in the staff
+      area, or in a service passage, rather than as a customer.
+
+      **What to change:**
+      · **Real standing room on the customer side.** Not a corridor — a space
+        you can stand in, turn round in, and walk along the case without
+        scraping the wall. Two metres of clear depth minimum. "Kept at arm's
+        length" is expressed by the counter being HIGH and the good stuff
+        being BEHIND it, not by the customer area being tiny.
+      · **You should land in the customer area, facing into the shop.** The
+        `[E]` spot currently drops you against a counter. Enter, and the first
+        thing you see should be the shop — the wall of guitars, the case, the
+        cage — not a worktop 40 cm from your face.
+      · **One counter, along one side or across the back** — not wrapping the
+        room. A wrap is what makes it read as being behind it.
+      · Keep everything you built: the case with rings and watches, the
+        guitars, the stereo stacks, the bars on the window, the tagged goods.
+        The CONTENT is good. This is about where the player stands relative
+        to it.
+
+      Also worth knowing: the desk is landing a frontage descriptor so a
+      room's door position and its facade agree. When it arrives your entry
+      point may move — so put the standing room where the door will be, not
+      where it is today. Ask the desk if you need the number.
+
 - [ ] **The casino and hotel EXTERIORS are yours now. Make them the most
       excessive thing in the world.** The user: *"the front facade of the
       casino and the hotel are so low effort and boring. these building are
