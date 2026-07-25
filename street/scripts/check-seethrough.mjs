@@ -22,9 +22,13 @@
 //   node scripts/check-seethrough.mjs -v         # keep the frames in shots/
 //   node scripts/check-seethrough.mjs --selftest # prove it still catches one
 //
-// HOW MUCH TO TRUST A GREEN RUN. --selftest hides every shopfront face AND
-// every interior backing, and 3 of 16 frontages then flag — enough to prove
-// the detector fires, not enough to claim it would catch any leak anywhere.
+// HOW MUCH TO TRUST A GREEN RUN. --selftest hides every shopfront face, every
+// interior backing and everything standing in the bodega bay's opening, then
+// names which frontages flagged — 4 of 16 — which is enough to prove the
+// detector fires, not enough to claim it would catch any leak anywhere.
+// The bay is reported separately and deliberately: its camera is derived from
+// the cut-out rather than typed, and when it stays silent under selftest that
+// is because solid masonry backs the chamfer, not because nothing was checked.
 // It samples the glazed rectangle head-on from 4 m; a leak only visible from
 // a steep angle or through a sliver at a corner will not show. Treat green as
 // "the obvious version of this bug is not present", which is exactly the
@@ -89,7 +93,36 @@ if (SELFTEST) {
         else if (isPlane) { m.visible = false; m.needsUpdate = true; rooms++; }
       }
     });
-    return `${faces} faces, ${rooms} backings`;
+    // ── and open the BAY properly ──
+    //
+    // The signature hide above is not enough there. The bay's glass is a real
+    // cut-out, but its middle is a solid door LEAF on its own mesh with its own
+    // texture, so hiding the band leaves the doorway plugged and the check has
+    // nothing to see through. That is why the bay never fired in selftest even
+    // after its camera was corrected — the aim was right and the hole was not a
+    // hole. Clear everything standing in the bay's opening.
+    let bayHid = 0;
+    const V = window.__ct.scene(), Vec = V.position.constructor;
+    let front = null;
+    V.traverse((o) => {
+      if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (m?.alphaTest > 0 && m.map?.image?.height === 67) front = o;
+    });
+    if (front) {
+      const P = front.getWorldPosition(new Vec());
+      V.traverse((o) => {
+        if (!o.isMesh) return;
+        const par = o.geometry?.parameters; if (!par) return;
+        if ((par.width ?? 0) > 4 || (par.height ?? 0) > 5) return;   // leave the building itself
+        if (o.getWorldPosition(new Vec()).distanceTo(P) > 1.8) return;
+        for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+          if (!m || m.visible === false) continue;
+          m.visible = false; m.needsUpdate = true; bayHid++;
+        }
+      });
+    }
+    return `${faces} faces, ${rooms} backings, ${bayHid} in the bay opening`;
   });
   console.log(`selftest: hid ${hit} — the check MUST now go red`);
 }
@@ -169,22 +202,83 @@ for (let i = 0; i < fronts.length; i++) {
 // still reported the whole street clean.
 //
 // It sits on a 45° chamfer, so the axis-aligned projection does not describe
-// it. Fixed camera, central box, which is enough for a surface that either
-// shows pavement or does not.
-await page.evaluate(() => window.__ct.warp(6.2, -98.2, 2.42, 0.14, -0.06));
+// it.
+//
+// ── why this camera is FOUND and not typed ──
+//
+// It used to be `warp(6.2, -98.2, 2.42)`, three constants measured by hand once
+// and correct once. The bay is at (8.00, -95.00): that camera stood 14° off the
+// chamfer normal, which put the door's centre at frame x≈0.62 while the sample
+// box ran 0.42..0.60 — it was reading the brick just beside the glass. It had
+// been green for that reason, not because the bay was sound, and `--selftest`
+// could not tell anyone because it matches backings by texture signature and
+// never disturbed the bay at all.
+//
+// That is this file's own sin, the one it was written to catch elsewhere: a
+// detector reporting confidently on a world that moved underneath it. So the
+// camera is now DERIVED — find the cut-out, take its world centre and normal,
+// stand square on. Move the bodega, re-cut the chamfer, rebuild that corner:
+// the camera follows. There is nothing left to go stale.
+const bay = await page.evaluate(() => {
+  const V = window.__ct.scene();
+  const Vec = V.position.constructor, Quat = V.quaternion.constructor;
+  // The bay front is the only alphaTest cut-out wearing the shopfront band
+  // texture — that pair IS the see-through hazard, so it is the right thing to
+  // key on rather than a name or a position.
+  let front = null;
+  V.traverse((o) => {
+    if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (m?.alphaTest > 0 && m.map?.image?.height === 67) front = o;
+  });
+  if (!front) return null;
+  const P = front.getWorldPosition(new Vec());
+  const q = front.getWorldQuaternion(new Quat());
+  const n = new Vec(0, 0, 1).applyQuaternion(q).normalize();
+  // Which way is OUT? The backing plane sits 0.45 m behind the glass, so the
+  // street is the other way. Derived, because guessing the sign is how the old
+  // camera ended up facing a wall.
+  let back = null;
+  V.traverse((o) => {
+    if (o === front || !o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (m?.map?.image?.height !== 67 || m.alphaTest > 0) return;
+    if (o.getWorldPosition(new Vec()).distanceTo(P) < 1.2) back = o;
+  });
+  if (back) {
+    const B = back.getWorldPosition(new Vec());
+    if (n.dot(P.clone().sub(B)) < 0) n.negate();
+  }
+  const par = front.geometry.parameters;
+  const C = P.clone().add(n.clone().multiplyScalar(4.0));
+  const fwd = n.clone().negate();
+  return {
+    x: C.x, z: C.z, yaw: Math.atan2(fwd.x, -fwd.z),
+    px: P.x, py: P.y, pz: P.z, fx: fwd.x, fz: fwd.z,
+    hw: par.width / 2 * 0.6, hh: par.height / 2 * 0.6,   // central 60 %, off the edges
+  };
+});
+if (!bay) { console.error('the bodega bay cut-out was not found — this check is inert, fix it'); await browser.close(); process.exit(2); }
+// pitch 0: the projection below assumes a level camera, so a tilt here would
+// silently shift the box off the glass again.
+await page.evaluate((b) => window.__ct.warp(b.x, b.z, b.yaw, 0.14, 0), bay);
 if (!await ensureAlive(page)) { console.error('canvas not drawing'); process.exit(2); }
 await page.waitForTimeout(220);
 if (KEEP) await page.screenshot({ path: 'shots/seethru-bay.png' });
-const bayN = await page.evaluate(() => {
+const bayN = await page.evaluate(({ bay, dist, camY }) => {
   const cv = document.querySelector('canvas');
   const g = cv.getContext('webgl2') || cv.getContext('webgl');
-  const w = cv.width, h = cv.height;
-  // Tight on the doorway and its transom. A wider box catches the sidewalk
-  // beside the bay at the bottom corners — 91 px of it, which read as a leak
-  // until the pixels' bounding box turned out to be hard against the box's own
-  // left edge rather than anywhere in the glass.
-  const x0 = Math.round(w * 0.42), x1 = Math.round(w * 0.60);
-  const y0 = Math.round(h * 0.28), y1 = Math.round(h * 0.62);
+  const w = cv.width, h = cv.height, aspect = w / h;
+  // The box is the cut-out's OWN rectangle projected, the same arithmetic the
+  // main loop uses — not frame fractions. Fractions are what let the old camera
+  // read brick and call it glass, and they would have to be re-tuned by hand
+  // every time the bay changed size.
+  const t = Math.tan((88 * Math.PI / 180) / 2) * dist;
+  const x0 = Math.max(0, Math.round(w / 2 * (1 - bay.hw / (t * aspect))));
+  const x1 = Math.min(w - 1, Math.round(w / 2 * (1 + bay.hw / (t * aspect))));
+  const y0 = Math.max(0, Math.round(h / 2 * (1 - (bay.py + bay.hh - camY) / t)));
+  const y1 = Math.min(h - 1, Math.round(h / 2 * (1 - (bay.py - bay.hh - camY) / t)));
+  if (x1 - x0 < 8 || y1 - y0 < 8) return -1;      // the bay is not in shot — say so
   const bw = x1 - x0, bh = y1 - y0;
   const px = new Uint8Array(bw * bh * 4);
   g.readPixels(x0, h - y1, bw, bh, g.RGBA, g.UNSIGNED_BYTE, px);
@@ -192,14 +286,38 @@ const bayN = await page.evaluate(() => {
   for (let i = 0; i < px.length; i += 4)
     if (px[i] > 150 && px[i + 1] < 90 && px[i + 2] > 150) n++;
   return n;
-});
+}, { bay, dist: 4.0, camY: 1.62 });
+if (bayN < 0) {
+  console.error('the bay is not in shot from its own derived camera — this check is inert, fix it');
+  process.exit(2);
+}
 if (bayN > 12) bad.push({ i: 'bay', f: { axis: 'chamfer', lo: NaN, hi: NaN, door: NaN }, n: bayN });
 
 await browser.close();
 
 console.log(`see-through: ${fronts.length} shopfronts + the bodega bay checked, ${tinted} ground surfaces tinted`);
 if (SELFTEST) {
-  if (bad.length) { console.log(`  SELFTEST PASSED — the hidden face was caught (${bad.length} flagged)`); process.exit(0); }
+  // Say WHICH fired, not just how many. "4 flagged" is a number you cannot act
+  // on: it does not tell you whether the bodega bay — the one camera in this
+  // file that is hand-aimed rather than read out of the register, and so the
+  // one that goes stale silently when someone rebuilds that corner — was among
+  // them. A selftest that cannot answer that is checking the checker's arithmetic
+  // and not its aim.
+  if (bad.length) {
+    console.log(`  SELFTEST PASSED — the hidden face was caught (${bad.length} flagged)`);
+    console.log(`  fired: ${bad.map(({ i }) => i).join(', ')}`);
+    // Three different things, and they must not be reported as one:
+    //   fired            — the bay leaks when opened, camera and hole both good
+    //   in shot, silent  — the opening was cleared and there is still no ground
+    //                      behind it, i.e. solid geometry backs the chamfer
+    //   not in shot      — handled above with a non-zero exit; the check is inert
+    console.log(bad.some(({ i }) => i === 'bay')
+      ? '  the derived BAY camera is among them — its aim is live'
+      : '  the BAY has its cut-out framed and its opening cleared, and STILL shows\n' +
+        '  no ground: the chamfer is backed by solid masonry, so it cannot leak.\n' +
+        '  That is stronger than passing — there is nothing there to see through.');
+    process.exit(0);
+  }
   console.error('  SELFTEST FAILED — a shopfront was made see-through and this did not notice.');
   console.error('  Do not trust a green run from this script until that is fixed.');
   process.exit(2);
