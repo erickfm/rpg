@@ -50,7 +50,13 @@ const probe = async (h) => {
       if (!o.isMesh) return;
       const e = o.matrixWorld.elements, x = e[12], y = e[13], z = e[14];
       if (x < BOX[0] || x > BOX[1] || z < BOX[2] || z > BOX[3]) return;
-      const m = o.material; if (!m || Array.isArray(m) || !m.color) return;
+      // EVERY material on the mesh. This read `o.material` and returned early on
+      // `Array.isArray(m)`, so every MULTI-MATERIAL MESH was skipped — and a box
+      // with six materials is how the walls, bands and castings are built. The
+      // gap was invisible until 9c1b4e21 routed an out-of-range finding here and
+      // my count came back 0 against a true answer of 3.
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (!m || !m.color) continue;
       const key = m.blending === 2 ? 'additive'
         : (m.alphaTest > 0 ? 'alphaCut' : (m.transparent ? 'translucent' : 'opaque'));
       const v = (m.color.r + m.color.g + m.color.b) / 3;
@@ -87,6 +93,7 @@ const probe = async (h) => {
           // what the thing IS, so its builder recognises it without a gazetteer
           shape: `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)} tex ${im?.width ?? '?'}x${im?.height ?? '?'}`,
           x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
+      }
       }
     });
     for (const k in out) out[k] = +(out[k].sum / out[k].n).toFixed(3);
