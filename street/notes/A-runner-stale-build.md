@@ -109,6 +109,49 @@ that `A-fingerprint.md` found by hashing and that my `nightgrade` flake fix now
 excludes by watching across frames. Three tools, three routes, the same three
 materials.
 
+## For the desk: something outside rebases this worktree every minute or two
+
+Measured, not inferred. I built, started the suite, and 79 seconds later:
+
+```
+dist=772d333f8   head=3aee766e7
+
+git reflog:
+  12:04:18  rebase (finish): returning to refs/heads/feat/split-2b     <- mine
+  12:05:37  rebase (start):  checkout add-stick-and-city98             <- NOT mine
+  12:05:37  rebase (pick) x4 … returning to refs/heads/feat/split-2b
+```
+
+I ran one rebase, at 12:04. The one at 12:05 replayed all four of my commits
+onto a new base and I did not ask for it — `land.sh` or `live-integrate.sh`
+reaching into this worktree is the obvious candidate.
+
+**The consequence is arithmetic: the suite takes twelve minutes and the branch
+is rewritten every one or two.** A full green run in this worktree is a coin
+flip, and the two void runs above were not bad luck.
+
+**I am not calling this blocked**, and I want to be careful about why. My work
+IS verified: every targeted check is green, and I got one clean full-suite run
+(`79f0c83ca` at both ends, 0 WRONG WORLD, 46 green). What is impractical is
+*re-verifying the full suite after every rebase*, which nothing requires.
+Declaring myself blocked on that would be crying wolf — the exact failure I
+have spent this session removing from `nightgrade`.
+
+What I would want the desk to decide, since it owns the merge train:
+
+- is an external rebase of a builder's live worktree intended? It is invisible
+  from inside — nothing announces it, and before this change it presented as
+  sixty-eight checks failing;
+- if it is, the full suite wants somewhere stable to run: a pinned checkout, or
+  a window where the train holds.
+
+Note the guard is **right** to refuse here, and I nearly talked myself out of
+that. A rebase changes the commit id, and my own bytes are identical across it —
+so it is tempting to call the mismatch cosmetic. It is not: upstream moved too,
+so the replayed tree contains other builders' work that the stale `dist/` does
+not. The world really did change. The SHA is not a proxy for anything here; it
+is the answer.
+
 ## The full suite, on a build that stayed put
 
 ```
