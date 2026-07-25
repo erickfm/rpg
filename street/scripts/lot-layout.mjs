@@ -175,6 +175,62 @@ else {
     FAIL.push(`a car at x ${c.x} z ${c.z} presents its TAIL to the aisle (nose dz ${c.hz})`);
 }
 
+// 6 — THE CHAIRS FACE OUT, AND THEY ARE NOT A MATCHED PAIR.
+//
+// The user, twice in one message: *"chairs outside an office face OUT - at the
+// lot, at the cars, at the street. Nobody waiting to hear about their credit
+// sits facing a wall a metre away"*, and *"they are dead straight and
+// perfectly parallel, which reads as placed rather than used ... Vary them."*
+//
+// I fixed both and verified both by measuring once, then guarded neither —
+// which is how a fixed thing quietly becomes a broken thing again. 215901d9a
+// found the same gap by re-reading the brief rather than the code, on the last
+// line of a brief nothing had ever checked.
+//
+// Read as the group's own -x axis out of the world matrix, not rebuilt from a
+// yaw: rebuilding a direction from an angle is what turned these chairs to the
+// wall in the first place, because ctx.seat's yaw and three.js's rotation.y
+// disagree in x.
+const chairs = await p.evaluate(() => {
+  const s = window.__ct.scene(); s.updateMatrixWorld(true); const out = [];
+  s.traverse((o) => {
+    if (!o.isGroup) return;
+    let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
+    if (mod !== 'lot') return;
+    let n = 0, pan = false;
+    o.traverse((c) => { if (c.isMesh) { n++;
+      const g = c.geometry?.parameters;
+      if (g && Math.abs(g.width - 0.44) < 0.01 && Math.abs(g.height - 0.05) < 0.01) pan = true; } });
+    if (!pan || n > 8) return;
+    const e = o.matrixWorld.elements;
+    out.push({ x: +e[12].toFixed(2), z: +e[14].toFixed(2), fx: -e[8], fz: -e[10] });
+  });
+  return out;
+});
+if (chairs.length < 2) FAIL.push(`expected two office chairs, found ${chairs.length}`);
+else {
+  // the office is at the BACK (high x), so facing OUT is facing -x
+  const inward = chairs.filter((c) => c.fx > -0.3);
+  console.log(`  chairs: ${chairs.length}, ${chairs.length - inward.length} facing out at the lot`);
+  for (const c of inward)
+    FAIL.push(`a chair at (${c.x}, ${c.z}) faces the office wall, not the lot (fx ${c.fx.toFixed(2)})`);
+  // varied: not the same heading, and not standing in a line
+  const ang = chairs.map((c) => Math.atan2(c.fz, c.fx));
+  // Smallest angle between two headings. The obvious `((a-b+PI) % 2PI) - PI`
+  // is wrong in JS because `%` keeps the sign of the dividend, so a negative
+  // difference comes back near 2PI: this printed "5.78 rad apart" for a pair
+  // 0.5 rad apart. The assertion still behaved (a parallel pair gives 0 either
+  // way) but the number on screen was nonsense, which is the same fault as a
+  // verdict line nobody checks against its own figure.
+  const dAng = Math.abs(Math.atan2(Math.sin(ang[0] - ang[1]), Math.cos(ang[0] - ang[1])));
+  const dPos = Math.hypot(chairs[0].x - chairs[1].x, chairs[0].z - chairs[1].z);
+  const offset = Math.abs(chairs[0].x - chairs[1].x);
+  console.log(`  varied: ${dAng.toFixed(2)} rad apart, one pushed back ${offset.toFixed(2)} m`);
+  if (dAng < 0.08) FAIL.push(`the chairs are parallel to ${dAng.toFixed(3)} rad — "dead straight and perfectly parallel"`);
+  if (offset < 0.12) FAIL.push(`neither chair is pushed back — ${offset.toFixed(2)} m apart along x`);
+  if (dPos < 0.4) FAIL.push(`the chairs are ${dPos.toFixed(2)} m apart — too close to read as two`);
+}
+
 await b.close();
 if (FAIL.length) {
   console.error(`\nFAILED (${FAIL.length}):`);
