@@ -1542,3 +1542,48 @@ and 49 declarations would mean no tool ever has to guess again.
 (`134d7ba2`) and proposed `scripts/lib/faces.mjs` after finding four copies of
 the face-index logic, two of them wrong — `1a9e4661`. Two of those four copies
 were mine. Sharing that helper is worth more than any finding in this round.)*
+
+## Round 13c — I repaired the instrument that produced my retracted headline
+
+`scripts/masonry.mjs` still contained the bug. Anyone running it today would
+have got the same false "42 of 109" I published and retracted — the script sat
+there for six rounds after the retraction, correct in prose and wrong in code.
+
+Mainline's `1a9e4661` found **four copies of the face-index logic, two of them
+wrong**. This was one of the two. Fixed to index the face from the material
+index, the same way `seampairs.mjs` does, and carrying a header that says what
+it got wrong and why.
+
+**Re-run, fixed:**
+
+```
+3383 meshes · 1979 textured · 236 carry a masonry stamp
+DECLARED:  196 × 8 (mult 1)   39 × 16 (mult 2)   1 × 32 (mult 4)
+stamps checkable against geometry:                    236
+stamps that DISAGREE with their face by >0.6 px/m:      0
+```
+
+**Zero, out of 236.** The face count rose from 109 to 236 because it now walks
+every material index rather than only `material[0]`, so both wall faces of each
+box are checked instead of one. More faces checked, no disagreements — which is
+the strongest form the result has taken.
+
+Pattern #1: **clean**, now confirmed by two independently-written instruments.
+
+### One thing I am flagging, not claiming
+
+`32 px/m (mult 4) at (8.3, 0.1, -77)` — a single face declaring twice the
+16 px/m maximum anything else uses, on an 18 × 2.6 m surface at ground level. It
+is *declared* at 32 and painted at 32, so it is internally consistent and my
+check passes it. Whether mult 4 is intended to exist at all is a question for
+whoever wrote it; I have no evidence it is wrong.
+
+### The lesson worth keeping
+
+A retraction in a report does not repair a script. I wrote three separate notes
+explaining that the box-face measurement was wrong, and left the wrong
+measurement executable in the repo the whole time. **The prose said retracted and
+the code still said 42.**
+
+When `scripts/lib/faces.mjs` lands, all of mine should use it rather than carry a
+fifth copy.

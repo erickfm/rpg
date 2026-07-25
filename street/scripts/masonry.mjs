@@ -15,6 +15,17 @@
 //
 // Face size comes from local geometry parameters times world scale, never from
 // a bounding box -- a rotated group swaps x and z and mis-measures the face.
+//
+// ⚠ THIS SCRIPT PRODUCED A RETRACTED FINDING. Its first version measured every
+// BoxGeometry face against `parameters.width`. A box has four side faces: the
+// ±x pair are `depth` across and the ±z pair are `width`. Using width for all
+// of them reported 42 of 109 masonry faces as wrong when none were, and the
+// claim reached three commits before mainline diagnosed it (7fe644b9).
+//
+// Fixed below by indexing the face from the material index, the same way
+// scripts/seampairs.mjs does. When scripts/lib/faces.mjs lands (proposed in
+// 1a9e4661, because four copies of this logic existed and two were wrong) this
+// should use it instead of carrying a fifth.
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
