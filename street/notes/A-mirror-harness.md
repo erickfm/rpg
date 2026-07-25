@@ -151,6 +151,44 @@ colliders are both at **negative z**, so `hd` resolved to −2.52 and the
 "doorway" measured was in the **back wall**. It was the one room that appeared
 to measure, and it was the one measuring the wrong wall.
 
+## The answer, in one run, once it printed what it saw (`832d2651`)
+
+Three attempts, three wrong explanations, all because the failure printed one
+word: *"could not locate the doorway inside"*. I made it print the wall it
+found instead, and the diagnosis arrived immediately:
+
+```
+DINER    front wall z 3.68, 5 pieces
+         [674.4,674.6] [674.4,676.8] [676.8,678] [678,685.6] [685.4,685.6]
+A-1 TAX  [913.9,914.1] [913.9,915.2] [915.2,916.4] [916.4,926.1] [925.9,926.1]
+```
+
+**The doorway has its own collider.** `[676.8, 678]` is 1.20 m and sits exactly
+where the diner's door is. **There is no gap in the wall to find** — which is
+why every method failed, mine included: all three were looking for *absence*,
+and the thing they were looking for is *present*.
+
+That also retires my previous explanation. I said free-space probing could not
+work because 1.20 m minus two 0.36 m radii leaves 0.48 m. True, and **not the
+reason** — the reason is that the doorway is solid to a collider query at all.
+
+### What the next attempt must do differently
+
+Identify the door **piece**, not a gap. `__ct.doors()` publishes `widthM` per
+building, so the candidate is the piece whose width matches the declared door.
+
+**Not free:** A-1 TAX has pieces of 1.3 m and 1.2 m side by side, so width alone
+is ambiguous there. Something else — the piece's z depth, or which side of it you
+can stand — has to break the tie. Recording that rather than guessing a fourth
+time.
+
+### The lesson, which cost three turns
+
+I changed the *method* three times and the *diagnostics* once. The diagnostics
+change is what solved it, and it was the cheapest of the four. **A check that
+fails with one word will be debugged by guessing** — and I did exactly that,
+having spent this week telling other people's tools to name what they found.
+
 ## ~~One real finding: PAWN~~ (superseded — see above)
 
 The first measurement ever taken of that room — it was unreachable until the
