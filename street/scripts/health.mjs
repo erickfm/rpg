@@ -1,10 +1,16 @@
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = [];
 p.on('pageerror', e => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL}]`);   // say WHICH world — 24163f69
-await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
+// Had NO default at all — without SHOT_URL this called goto(undefined).
+const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+await p.goto(URL, { waitUntil: 'networkidle' });
+// Before diagnosing whether the world initialises, check it is THIS world. A
+// "WORLD BROKEN" verdict about somebody else's build is worse than no verdict,
+// and the stamp is in the bundle, so it reads even when __ct never appears.
+await reportWorld(p, URL);
 let ok = true;
 try { await p.waitForFunction(() => window.__ct !== undefined, { timeout: 12000 }); }
 catch { ok = false; }
