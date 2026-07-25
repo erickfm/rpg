@@ -245,6 +245,36 @@ build `cea5e99e` as it did on `6d151c74`, including after the nearest-spot fix
 from that point under every condition I tried, including the tool's own reader,
 its own timing and its own warp arguments.
 
+### Sixth test: I reproduced its seat-1 sequence verbatim, and it PASSES
+
+Rather than edit A's file I instrumented a copy (`scripts/seatdebug.mjs`) running
+the identical steps on the identical seat: `seats[0]`, its own `standableNear`
+ring search copied line for line, its `warp(x, z, 0, 0)`, its 140 ms wait, its
+`#ct-prompt` reader.
+
+```json
+{ "label": "sit on the bench",
+  "at":    { "x": -8.65, "z": -19.43 },  "r": 0.75,
+  "pose":  { "x": -8.65, "z": -20.38 },
+  "chosen":{ "x": -8.60, "z": -19.43, "ring": 0.05 },
+  "pos":   [-8.6, 1.62, -19.43, 0.14],
+  "elExists": true, "inlineDisplay": "block", "computed": "block",
+  "text": "[E] sit on the bench",
+  "promptAsToolReads": "[E] sit on the bench" }
+```
+
+Same seat, same chosen point (ring 0.05, the first one it tries), prompt element
+`display: block`, and the tool's own read returns the prompt.
+
+**So the fault is not in the seat-1 logic at all.** Ruled out by reproduction,
+not by argument: the standability ring search, the chosen point, the warp
+arguments, the settle time, and the reader all behave correctly on this seat.
+
+Incidental, and not the cause here: `standableNear`'s `blocked()` uses
+`window.__ct.colliders()` **unfiltered** — **94 of 310 colliders** are interior
+belt boxes at x > 400 or otherwise out of range. They cannot affect a bench at
+x −8.65, but any probe ringing near x 400+ would be testing against them.
+
 What is left, and I am not able to test it from outside: something in
 `seats-walk`'s accumulated state by the time it reaches that seat — its
 `standableNear` returning a point I am not reproducing, or a residue of the
