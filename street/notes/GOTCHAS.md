@@ -242,3 +242,44 @@ one missing document, not five bad decisions.
 Read `notes/CITIZEN-STYLE.md` first. It has the options, the rules that are
 easy to get wrong, and a rendered contact sheet so you can SEE the kinds of
 person this world has.
+
+## 22. If you set `alphaTest`, do NOT also set `transparent`
+
+A cut-out and a translucency are different things and three.js treats them
+differently. `alphaTest` **discards** the fragment — it never blends — so on a
+fence, a leaf, a pennant, a sticker, `transparent: true` buys you nothing and
+costs you two things:
+
+- it moves the mesh into the sorted transparent queue, where `DoubleSide`
+  geometry gets sorting artifacts it would never have had; and
+- **it puts the material on `dimWorld`'s skip list.** `ct/props.ts` grades the
+  world for night and deliberately leaves transparent materials alone, because
+  it owns glass and blending a graded colour through a pane is its business.
+
+So a prop that sets both stands at **full daylight brightness at midnight**
+while everything behind it goes dark. Six materials in `ct/lot.ts` did: the
+chain-link, the bunting, the banners, the FTC stickers and the weeds all glowed
+after dark. One flag deleted and they joined the world's own grading, on the
+same curve as everything else, with no special case anywhere.
+
+**This failure is silent by construction** — nobody screenshots their own props
+at 23:00. `scripts/nightgrade.mjs` is the check: it averages material colour by
+class over a world box at noon and at 23:00. Every class should FALL except
+`additive`, which is lights, and a light that dims at night is backwards.
+
+    13:00   opaque 0.415   translucent 0.684   alphaCut 1.000   additive 0.683
+    23:00   opaque 0.221   translucent 0.497   alphaCut 0.374   additive 0.683
+
+`alphaCut` pinned at 1.000 all night was the whole bug, in one line.
+
+**Genuinely translucent decals are the real exception.** An oil stain or a
+faded bay line has to blend to be a stain at all, so it legitimately carries
+`transparent` and `dimWorld` legitimately leaves it — but it is painted ON
+ground that darkens, so an untouched decal gets *brighter* relative to its
+surface as the sun goes down. A module carrying those should dim its own from
+its `onFrame`, and match the factor the world was measured applying rather
+than picking one.
+
+**And check before you file it.** I reported this twice as a bug in
+`ct/props.ts`. It was not: skipping transparent materials is correct, and the
+flag was mine both times.
