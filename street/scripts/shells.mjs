@@ -1,4 +1,4 @@
-// feat/building-depth — is a building a building, or a stage flat?
+// feat/building-depth + feat/flanks — is a building a building, or a stage flat?
 //
 // The complaint was *"every one is a 3.4 m box"*: every shell on the block was
 // 3.4 m deep, so from any angle that showed a return you were looking at scenery
@@ -53,10 +53,17 @@ const shells = await page.evaluate(() => {
     const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
     const at = new o.position.constructor();
     o.getWorldPosition(at);
+    // BoxGeometry face order is [+x,-x,+y,-y,+z,-z]. A shell facing 'x' has its
+    // facade on ±x, so its FLANKS — the returns the complaint was about — are
+    // the ±z faces, and vice versa.
+    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    const flanks = (o.userData.facing === 'x' ? [4, 5] : [0, 1]).map((i) => ms[i]).filter(Boolean);
     out.push({
       depth: +(o.userData.facing === 'x' ? bb.max.x - bb.min.x : bb.max.z - bb.min.z).toFixed(2),
       facing: o.userData.facing,
       at: [+at.x.toFixed(1), +at.z.toFixed(1)],
+      flanksUntextured: flanks.filter((m) => !m.map).length,
+      flankMaps: flanks.filter((m) => m.map).map((m) => m.map.uuid),
     });
   });
   return out;
@@ -80,6 +87,22 @@ say(shallow.length === 0, 'no building is a stage flat',
     : `shallowest is ${depths[0]} m`);
 say(distinct >= 4, 'they are not all the same building',
   `${distinct} distinct depths, ${depths[0]}–${depths[depths.length - 1]} m`);
+
+// ── the second complaint about the same objects ────────────────────────────
+//
+// "the FRONT is a pale precast panel system with a regular window grid, the
+// RETURN is full red brick with NO WINDOWS AT ALL … it is not the wrong shade,
+// it is a different building." Raised twice. The cause was `endM`: ONE flat
+// colour, no texture at all, shared by every shell's returns.
+//
+// Both halves of that are structural and neither is a judgement about how the
+// brick looks: a return had no map, and every return had the SAME no-map.
+const untextured = shells.reduce((n, s) => n + s.flanksUntextured, 0);
+const flankMaps = new Set(shells.flatMap((s) => s.flankMaps));
+say(untextured === 0, 'no return is a flat colour',
+  untextured ? `${untextured} flank faces carry no texture` : `${shells.length * 2} flanks, all textured`);
+say(flankMaps.size >= 12, 'returns are not one shared material',
+  `${flankMaps.size} distinct flank textures across ${shells.length * 2} faces`);
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {
@@ -90,12 +113,14 @@ if (SELFTEST) {
   say(shells.filter((s) => s.depth < 8).length > 5, 'the block is 3.4 m flats (the bug)',
     `${shallow.length} shells under 8 m`);
   say(distinct <= 1, 'every shell is the same depth (the bug)', `${distinct} distinct`);
+  say(untextured > 10, 'the returns are flat colour (the bug)', `${untextured} untextured`);
+  say(flankMaps.size <= 1, 'every return shares one material (the bug)', `${flankMaps.size} distinct`);
   const caught = fails - before;
-  console.log(caught === 2
-    ? '\nSELFTEST PASSED — both inverted assertions were caught'
-    : `\nSELFTEST FAILED — only ${caught} of 2 caught`);
+  console.log(caught === 4
+    ? '\nSELFTEST PASSED — all four inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 4 caught`);
   await browser.close();
-  process.exit(caught === 2 ? 0 : 1);
+  process.exit(caught === 4 ? 0 : 1);
 }
 
 await browser.close();
