@@ -541,3 +541,29 @@ becomes live the moment anyone writes the shared door-disc arithmetic
 `7b100b65` proposes. **Not a one-liner**: `b.nm` drives the painted sign and the
 frontage registration from the same value, so the fix wants an optional
 `frontageName` on `shopfrontRelief` — A's file, A's API shape.
+
+---
+
+# Closed findings, folded in — the seven notes they were in are deleted
+
+`scripts/desk.sh` was printing NINE "D-*.md is newer than its queue" actions
+against me, one per note, and seven of those notes were finished. That is my
+noise on a board people read to decide what to dispatch. Conclusions kept here,
+files removed.
+
+| finding | conclusion |
+|---|---|
+| **`D-blade-routing`** | The audit's "twelve mirrored blades on the east shopfronts" are C's car-lot bunting, not `ct/street.ts`. Symmetric triangle art, so the mirror is invisible; the lot's TEXT banners already face the street correctly. Accepted upstream — `bfe32e8d` now filters cut-outs so ivy and bunting stop being offered as brick. |
+| **`D-churchyard-wired`** | The churchyard was never unwired. E's probe warped with `gy = 0.14` and read 60 ms later; the camera eases, so it read the forced value. 0.55 at their own point. The church steps climb — 0.14 → 0.19 → 0.44 → 0.55, no riser-sized jolt — and `request-audit` graded them NOT DONE off a scan window 20 m south of the church. |
+| **`D-seam-closeout`** | All eight seam-audit findings for `ct/street.ts` closed; six had already been fixed elsewhere and the triage table was stale. Re-measure before re-queuing. |
+| **`D-density-recheck`** | Pattern #1 did not reproduce at HEAD. The auditor found the cause twice over (a box-face index misread) and it is now like-for-like 0. My own contribution included one wrong claim and one right one — see the note's history in git; the label really was mislabelling declared faces. |
+| **`D-splash-identified`** | The unowned x ±6.9 family is the lamp **wall-splash**, and the 8.57 px/m ground family is the lamp **pool** — ten of the then-eighteen unjudgeable faces were one street lamp seen twice. Both declared upstream in `a86f970d`. |
+| **`D-rail-to-E`** | The boundary rail moved off the walk; E's two `E-park-walk` assertions hard-code the old wall face and need −6.64 rather than −6.28. **And I withdrew the hedge row I sent them** — that was my own rail read off a stale bundle. |
+| **`D-decl-discrepancy`** | I read `decl null` as a missing surface declaration when it means "no `masonry()` stamp". Retracted — then half un-retracted, because the tool WAS printing "UNDECLARED" for declared faces and its missing-faces list was 65 % faces needing nothing. Both fixed upstream in `c9a16d97`. |
+
+**Still open, and both are on the board for a reason:**
+
+- `notes/BLOCKED-D.md` — the bodega frontage names the wing's painted door.
+- `notes/D-density-red.md` — the one red in `npm run checks`, civic's church
+  tower, one texture on two different face widths. `civic` has been idle two
+  hours; the fix and a worked example are in the note.
