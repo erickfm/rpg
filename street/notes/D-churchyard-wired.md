@@ -60,3 +60,39 @@ failure mode where the picker answers tread tops and the camera jolts.
 
 **So "i want to be able to walk up those stairs" is done for both buildings.**
 The only thing left is E's probe, and that is E's file — I have not touched it.
+
+---
+
+# Correction: `request-audit.md` grades the church steps NOT DONE off the wrong stretch of street
+
+The audit says:
+
+> **CHURCH STEPS — NOT DONE as a walkable thing.** Scanned x −8 … 14,
+> **z −104 … −114**, which covers the whole church frontage and churchyard:
+> 485 points landed and not one is above 0.20 m.
+
+The scan is sound. The window is not the church.
+
+**The church frontage is z ≈ −88 … −62.** Its gate is at z −80 and its door
+sill at z −79.5 — both measured in this file, above, by walking through them.
+z −104 … −114 is the south side street, twenty-odd metres further on.
+
+Re-ran the audit's own measurement and then the same measurement over the
+church, on current mainline:
+
+    audit's window   x -8..14, z -114..-104   72 points   max gy 0.14
+    church frontage  x  7..12, z  -88..-62    84 points   max gy 0.51 at (9, -80)
+
+0.14 is the kerb. 0.51 is the steps — the same rise the walk-through above
+records as 0.14 → 0.19 → 0.44 → 0.55 into the door.
+
+**So the grade should be DONE**, on the same evidence standard the audit used
+for the library ("steps found and climbable"). `scripts/D-walk.mjs` asserts all
+three properties — that the ground reaches the sill, that it rises gradually
+rather than teleporting, and that no single step gains a whole riser.
+
+Worth noting *why* the window was wrong, because it is a trap this world sets:
+the church was MOVED. It used to be built along the side street and is inlaid
+on the main block now (`ct/street.ts` builds it into a rotated group and owns
+where it stands; `ct/civic.ts` owns what it looks like). A z-range from before
+that move still looks plausible and lands on empty pavement.
