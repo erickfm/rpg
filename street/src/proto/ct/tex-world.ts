@@ -389,7 +389,9 @@ function doorFrac(name: string): number {
 }
 
 /** THE published geometry of a shopfront. Painters draw from it; rooms read it. */
-export function frontageOf(name: string, wMeters: number): Frontage {
+/** the painter's OWN layout, before any room has spoken. Private: the only
+ *  caller that wants it is registerFrontage(), building the fallback. */
+function layoutOf(name: string, wMeters: number): Frontage {
   const k = characterOf(name);
   const B = BANDS[k];
   const ow = wMeters - 2 * B.ox;                       // the opening cut in the brick
@@ -449,6 +451,28 @@ export function frontageOf(name: string, wMeters: number): Frontage {
 // happening once inside each rather than travelling between them. A room later
 // flipped to face the other way keeps working, which left/right bookkeeping
 // never gives you.
+
+/**
+ * The frontage as its consumers should see it: the painter's layout, with the
+ * door moved to wherever the ROOM put it.
+ *
+ * This distinction is not academic. Once a room declares, `layoutOf().
+ * doorCentreM` is no longer where the door IS — it is where the painter would
+ * have put one had nobody told it otherwise. A consumer reading that and
+ * believing it is the door is the same two-places-disagree bug this whole
+ * mechanism exists to end, reintroduced through a stale field. So the public
+ * function answers the question people actually ask.
+ *
+ * Safe to call once the street has built; before that there is no placement to
+ * resolve a world coordinate against and it returns the plain layout, which is
+ * what registerFrontage() wants anyway.
+ */
+export function frontageOf(name: string, wMeters: number): Frontage {
+  const L = layoutOf(name, wMeters);
+  const along = declaredAlongU(name, wMeters);
+  if (along === null) return L;
+  return { ...L, doorCentreM: along, doorOffsetM: along - wMeters / 2 };
+}
 
 export interface FrontageWorld extends Placement {
   frontageM: number;
@@ -514,7 +538,7 @@ const toWorld = (p: Placement, alongU: number) =>
   p.uDir > 0 ? p.loWorld + alongU : p.hiWorld - alongU;
 
 export function registerFrontage(name: string, wMeters: number, p: Placement): FrontageWorld {
-  const L = frontageOf(name, wMeters);
+  const L = layoutOf(name, wMeters);          // the fallback, deliberately unresolved
   const a = toWorld(p, L.glazingStartM), b = toWorld(p, L.glazingEndM);
   // the room's number wins; the painter's own layout is only the fallback for
   // a shop that has no room behind it
