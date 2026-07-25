@@ -213,47 +213,70 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   if (name === 'DINER') return dinerFront(brick, name, wMeters);
   if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
-  const { W, H, ppm } = surf;
-  const m = (v: number) => Math.round(v * ppm);
-  // every dimension below is METRES of real shopfront, converted once
-  const FASCIA_Y = 0.16, FASCIA_H = 0.89, FASCIA_SHADE = 0.16, LETTER_H = 0.65;
-  const BAND_MAX = 12, BAND_INSET = 0.5;   // sign caps at 12 m of fascia
-  const FRAME_X = 0.63, FRAME_Y = 1.13, GLASS_X = 0.88, GLASS_Y = 1.29;
-  const GLASS_H = 2.59, TRANSOM_Y = 1.70, RISER_Y = 3.88, RISER_H = 0.32;
+  const { W, H } = surf, m = surf.m;
+  // The block default. It should NOT have a character — a barber, a deli and
+  // a laundry are supposed to be quiet next to the four that do. What it must
+  // be is BUILT: an opening cut into brick with a reveal, a fascia and a
+  // stallriser that stand off the wall, glazing divided into bays, and
+  // something behind the glass. It was none of those; it was four painted
+  // stripes, which is why the whole block read flat and not just the specials.
+  //
+  // Each shop varies a little off its own name so fifteen of these in a row
+  // are not fifteen copies: how far the door sits along the front, how many
+  // bays, how bright the room behind. Hashed, not rnd() — see facadeTex.
+  let sd = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) sd = Math.imul(sd ^ name.charCodeAt(i), 0x01000193) >>> 0;
+  const vary = (n: number) => { sd = Math.imul(sd ^ 0x9e3779b1, 0x01000193) >>> 0; return (sd >>> 8) % n; };
+  const BAND_MAX = 12, BAND_INSET = 0.5;
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     // the band's foot IS world y = 0, so its courses are the datum the wall
     // above continues from — same 0.5 m spacing, same lines
     surf.courses(g);
+    // fascia: a signboard fixed to the brick, so it throws a shadow
+    const fy = m(0.16), fh = m(0.9);
     const bandW = Math.min(W - m(2 * BAND_INSET), m(BAND_MAX)), bandX = Math.round((W - bandW) / 2);
-    g.fillStyle = awning;
-    g.fillRect(bandX, m(FASCIA_Y), bandW, m(FASCIA_H));
-    g.fillStyle = 'rgba(0,0,0,0.28)';
-    g.fillRect(bandX, m(FASCIA_Y + FASCIA_H), bandW, m(FASCIA_SHADE));
-    g.fillStyle = '#f2ead0';
-    g.font = `bold ${m(LETTER_H)}px monospace`;
+    proud(g, surf, bandX, fy, bandW, fh, awning);
+    g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(bandX, fy + fh - m(0.16), bandW, m(0.16));
+    g.font = `bold ${m(0.6)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(name, W / 2, m(FASCIA_Y + FASCIA_H / 2));
-    g.fillStyle = '#141820';
-    g.fillRect(m(FRAME_X), m(FRAME_Y), W - 2 * m(FRAME_X), H - m(FRAME_Y));   // frame
-    g.fillStyle = '#3a3020';
-    g.fillRect(m(GLASS_X), m(GLASS_Y), W - 2 * m(GLASS_X), m(GLASS_H));       // glazing
-    g.fillStyle = '#c9a45e';
-    g.fillRect(m(1.25), m(1.94), Math.round(W * 0.31), m(1.45));              // lit from inside
-    g.fillStyle = '#5a6a7a';
-    g.fillRect(Math.round(W * 0.6), m(GLASS_Y), m(0.75), m(GLASS_H));
-    g.fillStyle = '#2a3440';
-    g.fillRect(Math.round(W * 0.48), m(GLASS_Y), m(0.38), m(GLASS_H));        // the shop door
-    g.fillStyle = 'rgba(0,0,0,0.3)';
-    g.fillRect(m(GLASS_X), m(TRANSOM_Y), W - 2 * m(GLASS_X), Math.max(1, m(0.08)));
-    // the stallriser: the panelled bulkhead under the glass that every real
-    // shopfront has and this one did not, so the glass ran into the pavement
-    g.fillStyle = '#4a4034'; g.fillRect(m(FRAME_X), m(RISER_Y), W - 2 * m(FRAME_X), m(RISER_H));
-    g.fillStyle = 'rgba(255,255,255,0.12)';
-    g.fillRect(m(FRAME_X), m(RISER_Y), W - 2 * m(FRAME_X), Math.max(1, m(0.08)));
-    g.fillStyle = 'rgba(0,0,0,0.3)';
-    for (let x = m(1.38); x < W - m(1.25); x += m(1.5)) g.fillRect(x, m(RISER_Y + 0.08), Math.max(1, m(0.12)), m(0.24));
-    dither(g, W, H, Math.round(wMeters * SHOP_BAND_H * 6));
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(name, W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = '#f2ead0'; g.fillText(name, W / 2, fy + fh / 2);
+    // the opening, set back from the brick face
+    const ox = m(0.4), oy = fy + fh + m(0.26), ow = W - m(0.8), oh = H - oy - m(0.05);
+    g.fillStyle = '#211d18'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.8);
+    glazed(g, surf, gx, gy, gw, gh, '#38302a');
+    // a room behind: lit ceiling, a shelf run at chest height, dark floor.
+    // Three bands is all it takes to stop the glass reading as a black hole.
+    const warm = ['#c9a45e', '#b8a06a', '#c2a862'][vary(3)];
+    g.fillStyle = warm; g.fillRect(gx, gy, gw, m(0.26));
+    g.fillStyle = 'rgba(201,164,94,0.22)'; g.fillRect(gx, gy + m(0.26), gw, m(0.5));
+    g.fillStyle = '#4a3f33'; g.fillRect(gx, gy + m(1.35), gw, m(0.12));           // shelf
+    g.fillStyle = '#2b241e';
+    for (let x = gx + m(0.35); x < gx + gw - m(0.4); x += m(0.7)) {               // stock on it
+      g.fillRect(x, gy + m(1.35) - m(0.3) - (vary(3) * m(0.06)), m(0.36), m(0.3) + vary(3) * m(0.06));
+    }
+    g.fillStyle = '#241e19'; g.fillRect(gx, gy + gh - m(0.42), gw, m(0.42));      // floor
+    // transom over the glazing, then the bars that divide it
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(gx, gy + m(0.98), gw, Math.max(1, m(0.09)));
+    g.fillStyle = HI; g.fillRect(gx, gy + m(1.07), gw, 1);
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wMeters / 3.4)), '#3e372f');
+    // the door, somewhere along the front rather than always dead centre
+    const dw = m(1.05), dx = gx + Math.round((gw - dw) * (0.18 + vary(5) * 0.16));
+    g.fillStyle = '#3e372f'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#38302a');
+    g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.83));      // its panel
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.06));
+    g.fillStyle = '#8a7a52'; g.fillRect(dx + dw - m(0.2), gy + m(1.45), m(0.08), m(0.26));
+    // stallriser, panelled, and grubby where the pavement reaches it
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#4a4034');
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    for (let x = ox + m(1.1); x < ox + ow - m(0.9); x += m(1.5)) g.fillRect(x, ry + m(0.1), Math.max(1, m(0.1)), rh - m(0.16));
+    g.fillStyle = 'rgba(28,24,18,0.30)'; g.fillRect(ox, H - m(0.14), ow, m(0.14));
+    dither(g, W, H, Math.round(wMeters * SHOP_BAND_H * 5));
   });
 }
 
