@@ -229,6 +229,26 @@ const CASES = [
     '    o.position.set(cx, gy - bb.min.y - 0.05, z);',
     'trash.mjs', ['probe'], 'every piece of litter sunk 5 cm into the pavement'],
 
+  // THE POPULATION, not the position. Every other footprint case moves
+  // something and asks whether the check notices; this one leaves the tree pits
+  // exactly where they are and makes the CHECK unable to see them — the pit
+  // predicate in footprint.mjs matches a 1.0 m plane, so 1.04 is still a tree
+  // pit on the street and no longer a tree pit to the check.
+  //
+  // Before the floors landed this SLEPT, and loudly:
+  //
+  //     on the main street: 31 litter meshes, 0 tree pits, 9 water sheets
+  //     OK  nothing straddles the kerb line (0)     ... every line OK, exit 0
+  //
+  // The clearance verdicts are all absences, and an absence is free over an
+  // empty set. footprint-pits cannot catch this because it moves PIT_X, leaving
+  // the pits matching the predicate — a mutation that keeps the population
+  // intact proves nothing about whether the population is checked.
+  ['footprint-blind', PROPS,
+    'const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);',
+    'const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.04);',
+    'footprint.mjs', [], 'the tree pits still there but invisible to the check that guards them'],
+
   // Aimed at PIT_CLEAR first and footprint.mjs slept — but the check was
   // right and the MUTATION was inert: PIT_CLEAR is derived from PIT_X for the
   // record and positions nothing, so zeroing it changes no geometry. A

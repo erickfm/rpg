@@ -163,6 +163,52 @@ const r = await page.evaluate(() => {
 
 const n = (a) => a.length;
 console.log(`\n  on the main street: ${n(r.litter)} litter meshes, ${n(r.pits)} tree pits, ${n(r.water)} water sheets`);
+
+// DID THIS FIND ANYTHING TO CHECK? Every verdict below is an ABSENCE — nothing
+// straddles, nothing is sunk, nothing clips — and an absence is free when the
+// population is empty. Watched it happen rather than reasoning about it: widen
+// the pit plane from 1.0 m to 1.04 and the predicate at the top of this file no
+// longer recognises a tree pit, so
+//
+//     on the main street: 31 litter meshes, 0 tree pits, 9 water sheets
+//     OK  nothing straddles the kerb line (0)      ... every line OK, exit 0
+//
+// The pits are still there. The user's tree-pit clearance guarantee just stops
+// being checked, silently, and the row in checks.mjs stays green. Worse, the
+// clearance block is wrapped in `if (r.pits.length)`, so it does not even
+// print — there is no output to notice missing.
+//
+// The canfail case `footprint-pits` does NOT cover this: it moves PIT_X, so the
+// pits still match the predicate and are still found. A mutation that keeps the
+// population intact cannot prove the population is checked.
+//
+// Floors, not exact counts — this is guarding against zero and against a
+// predicate that has quietly stopped matching, not pinning the street's
+// contents.
+//
+// I wrote these from memory the first time and put pits at 10. The street has
+// SEVEN, so my new guard failed the unmutated world on its first run: I had
+// written a number instead of measuring one, in the same commit where I fixed a
+// check for not measuring. Measured, at HEAD:
+//
+//     31 litter meshes, 7 tree pits, 9 water sheets
+//
+// Litter is counted in MESHES, not objects — trash.mjs's 12–20 is the object
+// count and each carries several meshes, which is why the two numbers disagree.
+const FLOOR = { litter: 15, pits: 5, water: 6 };
+let thin = false;
+for (const [what, min] of Object.entries(FLOOR)) {
+  const got = r[what].length;
+  if (got >= min) continue;
+  console.log(`  FAIL only ${got} ${what} found, expected at least ${min} — every`
+    + ` verdict below is about ${what.toUpperCase()} and passes for free at zero.`);
+  console.log(`       Either they are gone from the street, or the predicate at the`
+    + ` top of this file no longer recognises them.`);
+  thin = true;
+}
+if (thin) process.exitCode = 1;
+else console.log(`  OK   there is a street here to check (${n(r.litter)}/${n(r.pits)}/${n(r.water)} vs floors ${FLOOR.litter}/${FLOOR.pits}/${FLOOR.water})`);
+
 if (r.pits.length) {
   const inner = Math.min(...r.pits.map((p) => Math.abs(p.x) - (Math.abs(p.maxX) - Math.abs(p.x))));
   const gaps = r.pits.map((p) => +(Math.min(Math.abs(p.minX), Math.abs(p.maxX)) - (5.0 + 0.0625)).toFixed(3));
