@@ -137,7 +137,12 @@ const CHECKS = [
   ['alleycheck',       'is the alley a room, or a gap between two boxes?',   true],
   ['builtlane',        'is the 2 m walk still 2 m of nothing?',              true],
   ['midnight',         'is anything bright at midnight without saying why?',  true],
-  ['alleydish',        'does the alley floor you walk match the one you see?', true],
+  // Two cases, not one, because the feature has two halves that fail
+  // independently: `alleydish` removes the floor registration (you stride flat
+  // over a visible bowl) and `alleydish-flat` flattens the mesh (you sink into
+  // visibly level paving). It carries a --selftest too, but the source
+  // mutations are the stronger evidence and this column prefers them.
+  ['alleydish',        'does the alley floor you walk match the one you see?', ['alleydish', 'alleydish-flat']],
   // ── the ground: kerb, litter, lamps, water ──────────────────────────────
   // Third field as a STRING (or a LIST of them) names cases in
   // scripts/canfail.mjs, which break the guarded thing in source, rebuild, and
@@ -265,6 +270,12 @@ const CHECKS = [
   // idle preview: 77 s, so SLOW by the same rule as the rest of this block.
   // It walks the sacred 2 m lane, the courtyard mouth and the flight, which are
   // the three things GOTCHAS §1 and §9 say a screenshot cannot answer.
+  // Seen flaking, which mainline's note does not record: across eight runs
+  // here, seven were clean (19 PASS, "all walks passed") and ONE printed
+  // "1 FAILED" — I did not capture which assertion before it scrolled and
+  // could not reproduce it in seven attempts. Recorded rather than smoothed
+  // over, so the first intermittent red is met with "seen once already"
+  // rather than as a fresh regression. (D)
   ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
   // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
   // above cannot: it imports a source path no bundle serves. Run the slow tier

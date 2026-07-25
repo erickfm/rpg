@@ -31,6 +31,7 @@ const GROUND = 'src/proto/ct/tex-ground.ts';
 const TEXW = 'src/proto/ct/tex-world.ts';   // A's
 const CARS = 'src/proto/ct/cars.ts';        // H's
 const TOWN = 'src/proto/crosstown.ts';      // desk's, but the parking draw lives in it
+const STREET = 'src/proto/ct/street.ts';    // D's
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
@@ -108,6 +109,27 @@ const CASES = [
     '  { x: ROAD_HALF, z: 2.6, hw: 3.4 },     // the car lot, east kerb',
     '  { x: ROAD_HALF, z: -14.0, hw: 3.4 },   // selftest: cut moved down the block',
     'kerbcut.mjs', [], 'the curb cut somewhere the lot is not'],
+
+  // THE ALLEY DISH IS TWO HALVES AND EITHER ONE ALONE IS A BUG, so both are
+  // mutated. This is the defect the feature was deferred over (`177b0e332`):
+  // dishing the paving you can SEE without registering the floor you WALK gives
+  // a player striding flat across a visible bowl — and it looks finished from
+  // any screenshot, which is why a camera was never going to catch it.
+  ['alleydish', STREET,
+    '    o.ground((x, z) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));',
+    '    /* selftest: the visible half only — no floor registered */',
+    'alleydish.mjs', [], 'the player walking flat over a dip they can see'],
+
+  // The inverse, and it is NOT redundant. The first mutation leaves the mesh
+  // dished and the picker flat; this leaves the picker dished and the mesh
+  // flat, which is a player sinking into paving that is visibly level. A check
+  // that compared either half against a formula instead of against the other
+  // would sleep through exactly one of these two, and it would look identical
+  // to a passing run.
+  ['alleydish-flat', STREET,
+    '        pos.setZ(i, dishAt(-FACE - 3.3 + pos.getX(i), (AZ0 + AZ1) / 2 - pos.getY(i)));',
+    '        pos.setZ(i, 0);   // selftest: flat paving, picker still dishes',
+    'alleydish.mjs', [], 'the player sinking into visibly level paving'],
 
   ['wetness', PROPS,
     'const PUDDLE_C = 0.444;',
