@@ -709,6 +709,43 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       wall.position.set(s * (HW - WALL_T / 2), (ROCKER + RAIL_T) / 2, bedMidZ);
       g.add(wall);
     }
+    // ── THE WHEEL WELL IS A BOX, NOT A HOLE ────────────────────────────────
+    //
+    // The user, with the diagnosis attached: "the tyre penetrates through into
+    // the bed cavity, so looking down into the bed you can see the wheel inside
+    // the truck… you cut an arch into the outer panel but did not build a WELL.
+    // A real wheel well is a box: an outer arch, an INNER WALL that separates
+    // the tyre from the load space, and a top that closes it."
+    //
+    // Exactly right, and the arithmetic agrees. The bed's side wall spans x
+    // 0.74…0.90. The rear tyre spans 0.70…0.94 and tops out at 0.68 against a
+    // bed floor at 0.50. So the tyre passes clean through the wall, pokes 4 cm
+    // into the cavity and stands 18 cm proud of the floor. On a sedan that is
+    // hidden inside a closed body; on an open bed it is in plain sight.
+    //
+    // Inner wall plus lid, per rear wheel. The lid's top face at 0.76 IS the
+    // hump a real pickup has over its rear wheels — free, once the well is a
+    // box. All liner-dark, because every face of it that anyone can see is seen
+    // from inside the bed, and the floor's darkening is what the user asked for
+    // and likes.
+    const WELL_IN = 0.66, WELL_TOP = 0.72, WELL_LID = 0.04;
+    for (const s of [-1, 1]) {
+      const inner = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, WELL_TOP - FLOOR_T, 0.86), linerM);
+      inner.position.set(s * (WELL_IN + 0.02), (FLOOR_T + WELL_TOP) / 2, spec.wheelZ);
+      g.add(inner);
+      // The lid's TOP face is the bed floor continuing over the well, so it takes
+      // the floor's own ribbed material — index 2 is +Y, the same slot floor2
+      // uses. All liner-dark made the hump vanish into the floor it rises out
+      // of; the ribs are what make it read as the floor STEPPING UP, which is
+      // the thing the user says is the most recognisable part of a pickup bed.
+      const lid = new THREE.Mesh(
+        new THREE.BoxGeometry(HW - WELL_IN, WELL_LID, 0.86),
+        [linerM, linerM, floorM, linerM, linerM, linerM]);
+      lid.position.set(s * ((WELL_IN + HW) / 2), WELL_TOP + WELL_LID / 2, spec.wheelZ);
+      g.add(lid);
+    }
+
     // headboard, sealed against the back of the cab. Sits BETWEEN the walls so
     // its sides are not coplanar with their outer faces (GOTCHAS §6).
     const head = new THREE.Mesh(new THREE.BoxGeometry(inW, SKIN_H, 0.1),
