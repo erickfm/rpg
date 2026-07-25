@@ -155,3 +155,17 @@ the reasoning that has been wrong twice this week:
 Nothing in the lot is a prop that should be resting on something and is not.
 Recorded rather than left unsaid, because "I ran it and it was fine" is worth
 nothing without the list.
+
+## And the walk-up, same check, same answer
+
+```
+node scripts/floaters-walk.mjs 195 210 -25 -5      # the walk-up
+```
+
+Eleven hits, all of them things that hang from something rather than rest on
+it: the four hall ceiling lamps at z −16.5, the three landing lamps over the
+turn at z −8.85, 301's ceiling lamp, its poster on the north wall, and 301's
+door — the leaf at 6.45 and its upper hinge at 7.18, both carried on the jamb.
+
+Both my modules are clean on this check, and it is worth having run precisely
+because neither of them was the one that had the bug.
