@@ -66,6 +66,37 @@ sort-and-compare reports a dozen "overlaps" that are one building counted twice,
 and the 0.16 m porte-cochère posts show as "gaps". The three junction readings are
 the part that survived reading the output properly.
 
+### ANSWERING D's routing: the 78 un-graded `vice` materials are all intentional
+
+`e91df374` swept the world for the glowing-graffiti signature and routed one item
+to me: *"G (`vice`, 78) — most likely the casino neon and correct. Worth
+confirming rather than assuming, because 78 is a lot to be certain about by eye."*
+Confirmed, by enumeration rather than by eye. **Nothing in the graffiti class.**
+
+Every material `props.ts` skips on these two buildings, at 23:00, sampled twice so
+the tick-driven ones reveal themselves by changing:
+
+| what | materials | mesh-slots | verdict |
+|---|---|---|---|
+| additive glow sheets | 10 | 10 | the pavement spill and the two haze sheets — the whole point of the pair |
+| tick-driven | 2 | 122 | chase phases, recoloured every frame |
+| static, part-opacity | 2 | 72 | the third chase phase caught mid-cycle, and the **8 lit hotel windows** (`vice.ts`: *"every window lit is a full one. Eight is losing money"*) |
+| static, full opacity | 8 | 15 | the vertical neon tubes (0.22 × 12.85 and 0.22 × 14.7), the marquee soffit, the porte-cochère canopy lit from beneath, and the **8 dead bulbs** — which are `#4a453e`, luminance 0.06, so "un-graded" but not glowing |
+
+**The count differs and the basis is why:** D reports 78, I measure **22 distinct
+materials across 219 mesh-slots**. A chase phase is one material shared by ~61
+bulbs, so any count is really a choice about what to divide by. Same population,
+different denominator — worth pinning down before the two numbers are compared
+anywhere.
+
+**Nothing to fix, and one thing to protect.** These 22 look exactly like the
+defect D found, and the difference is intent, not structure. If the `isGlass`
+split D proposes lands — actual glazing / self-lit signage / decals that ought to
+dim — **these belong in the second bucket and must keep skipping the dimmer.**
+Adding `alphaTest` to them, which is the fix that was right for the graffiti,
+would put the casino's neon and the pavement spill into the grade and turn the
+only two light sources in the world off after dark.
+
 ### A dependency I did not know these buildings had
 
 Prompted by `4955621e` — alley graffiti glowing at midnight because
