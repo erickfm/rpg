@@ -1745,7 +1745,24 @@ export function buildStreet(o: {
       }), 'sign');
     };
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+      // alphaTest, and it is not a rendering preference — it is what stops the
+      // tags GLOWING AT MIDNIGHT. props.ts grades the world down after dark and
+      // skips anything it thinks is glass: `isGlass = m.transparent &&
+      // !(m.alphaTest > 0)`. A transparent decal with no alphaTest is glass by
+      // that test, so these three were never offered to the dimmer at all —
+      // measured, `userData.graded` false and colour still 1.0 at 23:00, while
+      // the brick behind them went to 0.09. Spray paint reading brighter than
+      // the wall it is on.
+      //
+      // Safe here because the art is hard-edged: `placaTex` is fillRect on a
+      // transparent ground, so every texel is fully opaque or fully clear and a
+      // cutout renders identically to a blend. Nothing about the daytime alley
+      // changes; see shots/al-graffiti.png against shots/al-night-in.png.
+      //
+      // Found by SHOOTING THE ALLEY AT NIGHT, which nobody had done — all eight
+      // alley shots were 13:00. A check could not have told me: the tags were
+      // exactly as bright as they were designed to be.
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.5, depthWrite: false }));
       m.position.set(x, y, z);
       m.rotation.y = ry;
       scene.add(m);

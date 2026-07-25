@@ -48,6 +48,22 @@ await shot('graffiti', () => window.__ct.warp(-9.6, -38.6, Math.atan2(-2, 0.2), 
 await shot('dumpster', () => window.__ct.warp(-9.0, -40.2, Math.atan2(-2.2, -2.0), 0, 0));
 await shot('cat', () => window.__ct.warp(-9.2, -41.4, Math.atan2(-1.3, 1.2), 0, -0.25));
 await shot('cat-close', () => window.__ct.warp(-9.6, -41.9, Math.atan2(-0.8, 0.9), 0, -0.35));
+// ── the same alley after dark ─────────────────────────────────────────────
+//
+// Every shot above is 13:00, and they were the only pictures of this alley that
+// existed. The user asked for the world to be "darker at night" and that landed
+// (night wash 0.34 -> 0.58, streetlamps reading as the source) — but the alley
+// is the most ENCLOSED space on the street, it has no lamp of its own, and
+// nobody had ever looked at it after dark. 3ef0654f found the same gap for the
+// vice pair: the brief was nocturnal and no shot was.
+//
+// Same three cameras, 23:00, so the pair can be compared side by side.
+await setClock(page, 23, 0);
+await shot('night-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
+await shot('night-rear', () => window.__ct.warp(-10.0, -40.2, -Math.PI / 2, 0, 0.1));
+await shot('night-dumpster', () => window.__ct.warp(-9.0, -40.2, Math.atan2(-2.2, -2.0), 0, 0));
+await setClock(page, 13, 0);
+
 // ── playtest reply shots (fixed names the user looks at) ──────────────────
 const named = async (file, fn, wait = 400) => {
   await page.evaluate(fn); await page.waitForTimeout(wait);
