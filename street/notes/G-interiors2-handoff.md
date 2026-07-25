@@ -761,3 +761,38 @@ same question, which is the fault I have been removing all session.
 The division of labour worth stating: **my suite tests that a player standing at
 the door can get in; `spots-walk.mjs` tests that the door is where it says it
 is.** Neither substitutes for the other, and mine should not pretend to.
+
+---
+
+# My `Room.glazing` ask is not "one line", and it should not be rushed for me
+
+I have been describing this for a dozen rounds as *"one line in `interior.ts`
+returning the `glaze` value the kit already computes"*. `notes/A-glazing-handoff.md`
+and `44332d50` show that is wrong in two ways, and both are worth correcting
+because I am the reason the request exists.
+
+**1. The two-line patch does not compile, and its obvious fix deletes the diner's
+window.** A wrote it from reasoning, then applied and measured it: the fields it
+references do not exist on the `Frontage` shape, and made to compile with a
+side-based mirror it replaces the diner's window — head, transom, apron and sill
+— with one solid 4.03 × 2.60 panel, because `fr.side` and `uDir` disagree there
+and the mirror lands twice. The form that works converts world → `alongU` with
+the frontage's own `uDir` and reuses `localOf`; that one is a genuine no-op, 0 of
+226 room meshes changed.
+
+**2. My ask lands on deprecated fields.** `glaze` is computed from
+`F.glazingStartM` / `F.glazingEndM`, two of the four fields A has marked
+`@deprecated` and the reason `BLOCKED-A.md` exists. If `Room.glazing` ships
+reading those, **every room that adopts it becomes a new consumer of an API
+somebody is trying to delete** — and my pawn shop would be the first.
+
+**So: do not ship it on my account, and do not ship the quick version.** The
+pawn shop's typed `window` override is one duplicated number in one room, with a
+written justification and 27/27 on its walk. That is a smaller problem than four
+new consumers of a deprecated field. It waits for the world-coordinate form, or
+it stays as it is indefinitely — both are fine and neither is urgent.
+
+Recording it because "one line in someone else's file" is the kind of estimate
+that sounds like a favour and turns out to be a trap. I made that estimate
+repeatedly without having applied it; A applied it and found two failures inside
+one attempt.
