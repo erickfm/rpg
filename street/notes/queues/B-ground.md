@@ -16,6 +16,46 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Trash rig round 3 — the user wants more to choose from.** *"ok update
+      the trash so i can pick some more out."*
+
+      Keep the coffee cup and the newspaper (v2's 3 and 5) — those are
+      approved. **Stand them at the head of the line as 1 and 2**, unchanged,
+      so the user is comparing new candidates against the bar that already
+      passed rather than against each other. Then number the new ones from 3.
+
+      **What the two winners have in common, and it should drive the new
+      set.** Look at which of your seven passed and which did not:
+
+          passed   coffee cup (tall, unmistakable outline)
+                   folded newspaper (large flat rectangle with a fold)
+          failed   crushed can · glass bottle · takeout container ·
+                   chip bag · cigarette pack
+
+      The survivors are the two with a **strong simple silhouette at size**.
+      Everything that failed is either small, or a soft/ambiguous shape, or
+      both. So bias the new set hard toward **large objects with an outline
+      you could recognise as a black shape**. That is the actual selection
+      criterion here, more than colour or detail.
+
+      Candidates worth drawing, all chosen on that basis:
+      · **pizza box** — big, flat, square, instantly readable
+      · **flattened cardboard box**, folded and leaning
+      · **plastic shopping bag** with handles, half-collapsed
+      · **40 oz bottle in a paper bag**, lying down — very 1997
+      · **milk crate**, upended
+      · **broken umbrella**, ribs showing
+      · **phone book**, swollen from rain
+      · **bundled newspapers** tied with string
+      · **fast-food cup with lid and straw** (taller than the coffee cup, so
+        it reads differently rather than duplicating a winner)
+      · **paint can**, dented, lid off
+
+      Same rules as v2, which worked: low 3D solids not decals, drawn
+      oversized, and **judged from standing eye height at walking distance**
+      before you tell me they read. Put the rig back in the alley in the same
+      place so the user knows where to look, and tell me the numbering.
+
 - [ ] **Trash rig verdict: ship 3 and 5, take the rig down.** The user:
       *"coffee cup is good, i like newspaper as well, 3 + 5 respectively.
       newspaper needs to be grimier and thinner."*
