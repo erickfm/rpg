@@ -41,8 +41,43 @@ const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
 // world. It reads nothing but `__ct`, no source imports, so unlike
 // interiors-walk it survives a built bundle — which makes it the only thing
 // that walks a room in the artefact the user actually plays.
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:5177/', { waitUntil: 'networkidle' });
+const URL = process.env.SHOT_URL ?? 'http://localhost:5177/';
+// INTEGRATION MODE vs OWN-BUILD MODE, and the guard depends on which.
+//
+// This started unregistered because it measures a tree that is not this
+// checkout, which would fail GOTCHAS 26 on purpose. That is true of the :5177
+// use and NOT of the other one: pointed at a pinned bundle of this HEAD it is
+// measuring our own build, and there the sha check is exactly what you want.
+//
+// So: enforce it whenever the target is not the integration world, and when it
+// IS, say so loudly instead of quietly skipping. A missing guard nobody
+// mentions is how 55 scripts ended up reading another builder's server.
+const INTEGRATION = /:5177(\/|$)/.test(URL);
+await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
+if (INTEGRATION) {
+  console.log('INTEGRATED WORLD — mainline plus every builder in flight. This is NOT');
+  console.log('this checkout, so no build-stamp check is possible and none is made.');
+  console.log('Read the result as an observation; never quote it about a branch.');
+  console.log('EXPECT IT TO BE FLAKY: live-integrate.sh rebuilds :5177 every 15 s, so a');
+  console.log('walk of any length can be cut off mid-run ("Execution context was');
+  console.log('destroyed") or report a door short. A clean 8/8 there is meaningful; a');
+  console.log('failure is not, until you have seen it twice. The BUNDLE mode below is');
+  console.log('the one to trust — a pinned tree cannot rebuild underneath you.\n');
+} else {
+  const { reportWorld } = await import('./lib/which-world.mjs');
+  await reportWorld(p, URL);                                      // GOTCHAS 26
+}
+// Let the world settle before the FIRST door.
+//
+// The bodega is first in the list and started failing the moment anything
+// changed how long startup took — it teleported nowhere and reported x 7, the
+// street. Nothing was wrong with the bodega; it was being asked before the
+// world had finished coming up, and every later door got that time for free
+// from the doors ahead of it. A check whose first subject is tested under
+// different conditions from the rest is not measuring the subject.
+await p.waitForTimeout(900);
+
 const pos = () => p.evaluate(() => window.__ct.pos());
 const out = [];
 const doors = await p.evaluate(() => window.__ct.doors()

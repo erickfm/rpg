@@ -253,6 +253,10 @@ const CHECKS = [
   // It walks the sacred 2 m lane, the courtyard mouth and the flight, which are
   // the three things GOTCHAS §1 and §9 say a screenshot cannot answer.
   ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
+  // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
+  // above cannot: it imports a source path no bundle serves. Run the slow tier
+  // with PINNED_MODE=preview and this is what covers the artefact.
+  ['integration-doors', 'can you get into all eight rooms in the BUNDLE?',    false, [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an
   // importance tier. Measured: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
