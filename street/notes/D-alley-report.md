@@ -387,3 +387,79 @@ Open in my queue: bodega door readability, filling the crates, signs (a) and
 (c), shop resizing (already in the tree — worth verifying before it is
 promoted), window lights, the corporation, and moving my `[E]` spots onto
 `ctx.spot()`.
+
+---
+
+# QUEUE EMPTY — all nine items landed
+
+The queue file still shows them unchecked because the desk writes it and I only
+read it. Commits so you can tick them off.
+
+**Now**
+
+| item | commits |
+|---|---|
+| **The bank flank** (raised twice) | `1ce3d303`, `06fe7bd3`, `54905bb9` |
+| Open-site depths — two builders blocked | `53969600` |
+| Buildings 3.4 m deep / every flank the same brown | `e466c43c`, `4ce8355d` |
+| CAFE + HARDWARE become a used car lot, roster half | landed; z -9 … 14.2 |
+
+**Next**
+
+| item | commits |
+|---|---|
+| Bodega corner bay | `1d5c7515` |
+| Signs, both bugs | **not mine** — moved with the casino into `ct/vice.ts` (G) |
+| Shop resizing | `bab2a7c3`, plus the band-table refactor before it |
+| Window lights | `de401556`, `065a4e53` |
+| `[E]` spots out of `crosstown.ts` | `570eb41f` — the `SPOTS.push` block is empty |
+
+## The bank flank, because my first diagnosis was wrong
+
+I reported the bank's return as already correct. It was — and it was also
+irrelevant, because you cannot see it. Raycasting from the camera in
+`shots/user-bankflank.png` (pavement north, pavement north-west, roadway
+north-west) hits the same object on every ray, and it is not the bank:
+
+    BoxGeometry(30, 13.6, 6) at (0, 6.8, 16.5)      the north end-cap
+
+It spanned x -15…+15, z 13.5…19.5; the bank spans x -7…-22.9, z -5…14.2.
+**The two shells interpenetrated by 0.7 m** — a brick building standing bodily
+through the bank's precast front, showing a windowless sliver of itself at the
+arris. The user read that as "two materials meeting with nothing reconciling
+them". It was two buildings in the same space.
+
+Fixed in three parts: the cap abuts at z = 14.2 and is `2 x FACE` wide so it
+stops barging across the building line; the bank carries its front round the
+first 3.2 m and then becomes a party wall; every other exposed return got the
+same party-wall vocabulary.
+
+**The duplication behind the rest of it:** the party-wall marks lived inside
+`openSite` for the park and lot walls, and nowhere for the buildings. So the
+sites wore scars and every building return stayed blank — exactly what the
+brief noticed. `partyWallTex` is now the only one.
+
+## For the desk
+
+**E's patch is applied** (`793edfe7`), written out properly rather than as
+their `void 0;` verification stub, which was marked "revert before commit".
+Walked, not assumed: the churchyard opens at the gate (z -80), the nave still
+holds at x 9.24, the walls hold along the whole frontage, eye height never
+leaves 1.62. E's `E-yard-walk.mjs` passes all four walks and still SKIPs its
+gate/climb tests — those need E's *other* patch, `notes/E-steps-crosstown.patch`,
+which is not mine.
+
+**My church proof moved with it.** It asserted x < 6.4, calibrated against the
+blanket that patch removes. A second proof now walks the nave from inside the
+yard, because the old one could not tell "the nave is solid" from "the
+churchyard is sealed" — the confusion that let the bug live.
+
+**`shots/user-bankflank2.png` is not in the repo.** I worked from
+`user-bankflank.png` plus the written description. Worth landing the second.
+
+**One flaky probe, not a world bug.** `collide.mjs`'s library-courtyard walk
+fails intermittently: citizens use that mouth, and one standing in it blocks a
+0.36 m player. It needs to wait for a clear mouth.
+
+**BLOCKED-D.md is deleted**, per your instruction; the additive `ctx` change
+stays.
