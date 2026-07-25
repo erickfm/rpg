@@ -97,7 +97,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.
-  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number }
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   const LAMP_R = 4.0;        // the pools read about this wide
@@ -134,9 +134,32 @@ export function buildProps(ctx: CtxBuild): Props {
   //           where it was: these are the reward for the street going dark.
   //   HIGH    upper floors and roofs. A 5th-floor window surround has nothing
   //           on it.
+  // ── rain on the WALLS ───────────────────────────────────────────────────
+  //
+  // Only horizontal surfaces were ever in wetMats, so every facade stayed bone
+  // dry through a storm and the rain read as something happening to the floor.
+  // Walls join through the SAME sweep that darkens them at night — one writer
+  // per material, which is the rule that keeps this from fighting the night
+  // pass.
+  //
+  // A wet wall is not just a darker wall: it goes cooler and more saturated,
+  // it is worst at the BASE where the pavement throws splash back at it, and
+  // it dries from the top down. The base/top split is expressible because the
+  // shopfront box and the facade box above it are separate meshes — the same
+  // property the night grading leans on.
+  const WET_WALL = new THREE.Color(0.72, 0.80, 0.94);   // darker AND cooler
+  const SPLASH_H = 1.15;        // how far up the pavement throws water
   const FLOOR_GROUND = 0.07, FLOOR_LOW = 0.30, FLOOR_HIGH = 0.06;
   const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
   const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
+  // splash-back is a ground-level phenomenon: full strength at the pavement,
+  // gone by the second floor. Also used as the drying rate — the top dries
+  // first because it was never as wet.
+  // Full strength at the pavement and never below a third up top: rain wets a
+  // whole building, it just soaks the bottom worst. Decaying to almost nothing
+  // by the second storey (the first cut of this) left the upper floors 2%
+  // darker, which is not visible at all.
+  const wetKFor = (y: number) => Math.max(0.35, Math.min(1, 1.15 - y / 12));
   const floorFor = (y: number) => {
     if (y <= 1.0) return FLOOR_GROUND;
     const t = Math.min(1, Math.max(0, (y - LOW_Y) / (HIGH_Y - LOW_Y)));
@@ -159,7 +182,7 @@ export function buildProps(ctx: CtxBuild): Props {
         litSeen.add(m);
         // things in the street are street-level: they go as dark as the road
         // and the lamps buy them back
-        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool, floor: FLOOR_GROUND });
+        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool, floor: FLOOR_GROUND, wetK: 0 });
       }
     });
   };
@@ -181,19 +204,76 @@ export function buildProps(ctx: CtxBuild): Props {
         // and the facade box above it are separate meshes, which is what makes
         // "dark upper floors, lit signage" expressible at all
         const wy = new THREE.Vector3(); o.getWorldPosition(wy);
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false, floor: floorFor(wy.y) });
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false,
+                       floor: floorFor(wy.y), wetK: wetKFor(wy.y) });
       }
     });
+    // ── and stand a splash sheet against every wall on the building line ──
+    //
+    // Derived from the scene rather than from a roster, which is the whole
+    // point: the alley gap, the library's recessed courtyard and any setback
+    // a builder adds later all handle themselves, because a gap in the walls
+    // is simply a gap in the intervals. No cooperation needed from D or E.
+    root.updateMatrixWorld(true);
+    const runs: Record<number, [number, number][]> = { [-1]: [], [1]: [] };
+    const bb = new THREE.Box3();
+    root.traverse((o) => {
+      if (!(o as THREE.Mesh).isMesh || !(o as THREE.Mesh).geometry) return;
+      bb.setFromObject(o);
+      if (bb.max.y - bb.min.y < 2) return;                     // not a wall
+      if (bb.max.x > 90 || bb.min.x < -90) return;             // interiors
+      const side = Math.abs(bb.max.x + FACE) < 0.4 ? -1
+                 : Math.abs(bb.min.x - FACE) < 0.4 ? 1 : 0;    // on the building line?
+      if (!side) return;
+      runs[side].push([bb.min.z, bb.max.z]);
+    });
+    for (const key of [-1, 1]) {
+      const iv = runs[key].sort((a, b) => a[0] - b[0]);
+      const merged: [number, number][] = [];
+      for (const r of iv) {
+        const last = merged[merged.length - 1];
+        if (last && r[0] <= last[1] + 0.05) last[1] = Math.max(last[1], r[1]);
+        else merged.push([r[0], r[1]]);
+      }
+      for (const [z0, z1] of merged) {
+        const len = z1 - z0;
+        if (len < 1.5) continue;
+        const t = splashT.clone(); t.needsUpdate = true;
+        t.repeat.set(len / 4, 1);                              // a streak every ~4 m
+        const m = new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: 0, depthWrite: false });
+        const q = new THREE.Mesh(new THREE.PlaneGeometry(len, SPLASH_H), m);
+        q.position.set(key * (FACE - 0.03), sidewalkY + SPLASH_H / 2, (z0 + z1) / 2);
+        q.rotation.y = -key * Math.PI / 2;                     // face the street
+        scene.add(q);
+        splashMats.push(m);
+      }
+    }
   };
   let litLast = -1;
+  let wetLast = 0;
   const updateLit = (night: number) => {
     nightNow = night;
-    if (night <= 0.001 && litLast <= 0.001) return;   // broad daylight: free
+    // Free in broad daylight — but this pass now carries the RAIN as well as
+    // the night, so a dry-and-sunny early-out has to check both or walls
+    // never get wet during a daytime storm. That is exactly what happened.
+    if (night <= 0.001 && litLast <= 0.001 && wetness <= 0.004 && wetLast <= 0.004) return;
+    wetLast = wetness;
     litLast = night;
     for (const e of litList) {
       const amb = ambient(e.floor);
-      if (!e.pool) {   // world geometry: ambient only, graded by height
-        e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb);
+      if (!e.pool) {
+        // world geometry: ambient by height, and rain by height too. The top
+        // of a building dries first because it was never as wet — the same
+        // exponent trick the gutter uses, inverted.
+        let r = e.base.r * amb, g2 = e.base.g * amb, b2 = e.base.b * amb;
+        if (e.wetK > 0 && wetness > 0.004) {
+          const w = Math.pow(wetness, 0.7 + (1 - e.wetK) * 1.6) * e.wetK
+                  * (1 - 0.4 * nightNow);          // never take a wet wall to black
+          r *= 1 + (WET_WALL.r - 1) * w;
+          g2 *= 1 + (WET_WALL.g - 1) * w;
+          b2 *= 1 + (WET_WALL.b - 1) * w;
+        }
+        e.m.color.setRGB(r, g2, b2);
         continue;
       }
       // the part's world position — cars only ever rotate about Y
@@ -221,6 +301,29 @@ export function buildProps(ctx: CtxBuild): Props {
       );
     }
   };
+
+  // Splash-back: the bottom of a wall is wetter than the top, and no amount of
+  // per-material tinting can say that because a facade is ONE mesh with one
+  // colour. This is the gradient, as a thin sheet stood against the wall.
+  const splashT = pixTex(32, 32, (g) => {
+    for (let y = 0; y < 32; y++) {
+      // opaque at the pavement, gone by roughly a metre up
+      const a = Math.pow(1 - y / 31, 2.1) * 0.62;
+      g.fillStyle = `rgba(28,34,44,${a.toFixed(3)})`;
+      g.fillRect(0, y, 32, 1);
+    }
+    // water running down from a sill or a coping, which is what actually says
+    // "it has been raining" rather than "someone dimmed the wall"
+    for (const [x, w, h] of [[3, 2, 26], [11, 1, 31], [17, 2, 18], [24, 1, 29], [29, 2, 22]] as [number, number, number][]) {
+      for (let y = 32 - h; y < 32; y++) {
+        const a = 0.30 * Math.pow(1 - (y - (32 - h)) / h, 0.35);
+        g.fillStyle = `rgba(24,30,40,${a.toFixed(3)})`;
+        g.fillRect(x, y, w, 1);
+      }
+    }
+  });
+  splashT.wrapS = splashT.wrapT = THREE.RepeatWrapping;
+  const splashMats: THREE.MeshBasicMaterial[] = [];
 
   // light spilling onto the wall behind each lamp, so the brick beside a
   // lamp isn't as flat-black as the brick mid-block
@@ -450,6 +553,15 @@ export function buildProps(ctx: CtxBuild): Props {
       w.m.color.copy(w.base).lerp(WET, wSurf * 0.95).multiplyScalar(amb);
     }
     // water pools slower than it falls, and lingers after it stops
+    // the walls' splash-back rides the same ground state, so it lingers after
+    // the rain exactly as the street does. Eased off at night so a wet wall in
+    // the dark does not go to black.
+    for (const m of splashMats) {
+      // 0.55 not 1.0: the sheet's own alpha peaks at 0.62, and stacking a full
+      // strength multiplier on top of that paints the base of every wall solid
+      m.opacity = 0.55 * Math.pow(wetness, 0.8) * (1 - 0.45 * nightNow);
+      m.visible = m.opacity > 0.015;
+    }
     // Chased off WETNESS, slowly, and aimed a little past it — so while the
     // wetness is already ebbing the pools are still filling, and they crest
     // AFTER the rain has stopped. That late peak is the thing you notice
