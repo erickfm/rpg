@@ -158,6 +158,24 @@ const BAND_MIN = 0.25;
 // list twice, and keep only the boxes that are byte-identical in both. Anything
 // that moved between the snapshots is a citizen or a vehicle.
 //
+// THAT IDIOM HAS A KNOWN HOLE and it is the one that just made the auditor
+// retract a finding (3f7b2623: "the mid-walk post was a stopped citizen"). A
+// pedestrian who happens to stand still across the whole window is byte-identical
+// in both snapshots and gets counted as furniture, which would narrow this band
+// and read as a defect in the frontage.
+//
+// So I measured it rather than assuming the window is long enough. Comparing the
+// 1.5 s static set against one taken over a further 8 s, on this walk:
+//
+//   total 216 · static by 1.5 s 210 · still static after 9.5 s 210
+//   boxes the short window called static but that moved later: 0
+//   band 0.44 m from both sets, z -97.08 … -96.66 either way
+//
+// Zero ghosts, so nothing standing on the side street was mistaken for a post at
+// this HEAD. It is a property of these six movers and this walk, not a guarantee:
+// if this check ever reports a band that is narrow by exactly one citizen's
+// width, take the long-window measurement again before believing it.
+//
 // The walking checks below are unchanged and still walk — geometry says the gap
 // exists, walking says a body can get through it, and I want both.
 const statics = await (async () => {

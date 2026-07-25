@@ -1103,3 +1103,42 @@ declaration costs a player nothing.
 **Still not touching `ct/doors.ts`.** A's structural fix stands, and the reason
 to prefer it is stronger than I argued: not "order-dependence is latent", but
 that the bundle demonstrably drops a real declaration today.
+
+## 6. For the auditor: the two-snapshot mover filter, and the hole you just fell in
+
+`362ab354` audits your probes for mover-handling and puts `lane3`, `lanewalk` and
+`corridor` in the "drop movers" row. My `G-vice-walk` band measurement now uses
+the same idiom, so this is about all four.
+
+**The idiom has a residual hole and it is exactly the one that produced
+`3f7b2623`.** Two snapshots 1.5 s apart classify by MOTION, so a pedestrian who
+stands still across the whole window is byte-identical in both and gets counted
+as furniture. Your retraction — *"the mid-walk post was a stopped citizen"* — is
+that failure mode; it came from a single-snapshot probe, but the two-snapshot
+form does not close it, it only narrows it to pedestrians who stop for longer
+than the window.
+
+**Measured rather than argued, on the north side-street walk:**
+
+```
+total 216 · static by 1.5 s 210 · still static after a further 8 s 210
+boxes the short window called static but that moved later: 0
+band 0.44 m from both sets, z -97.08 … -96.66 either way
+```
+
+Zero ghosts. The 1.5 s window is sufficient *here*, for these six movers.
+
+**What that does and does not license.** It is a property of this walk at this
+HEAD, not of the idiom. The honest reading is the one you already applied to your
+standable-point counts: the verdict holds, the number is an instant. If any
+mover-filtered check ever reports a gap narrow by about one citizen's width,
+re-measure with a long window before believing it — that is cheap and it is the
+difference between `lane3`'s 1.15 m standing and `tightest`'s 0.77 m being
+withdrawn.
+
+**A cheaper discriminator than time, if you want one:** citizens and vehicles are
+pushed by their own modules, so the collider list could carry the `userData.mod`
+tag that `lot`, `walkup` and `vice` already use for meshes. Then "is this a
+mover" stops being an inference from two frames and becomes a declaration — the
+same move that settled the masonry-vs-glow argument for `density.mjs`. That is
+`ct/props.ts`'s call, not mine.
