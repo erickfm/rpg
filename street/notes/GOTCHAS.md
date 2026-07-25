@@ -892,3 +892,25 @@ another agent's script or handoff note"*, and this file is neither. If the desk
 holds `GOTCHAS.md` as desk-only anyway, then §35 is mine and equally out of
 order — revert both, not just this one. My own contribution here is small: 14
 dead citations of my own repaired and re-verified by patch-id (`48b9156a6`).
+
+## 24. Continuous integration and playtesting are incompatible
+
+The live world rebuilt every 15 s from every worktree. With one or two builders
+that felt like magic. With nine it made the world unplayable, and the user said
+so twice in different words — *"the world restarts on a loop"* and *"why does
+the game refresh like every minute"*.
+
+Two separate faults sat behind those:
+
+- **Spurious reloads.** `commit-tree` mints a new commit SHA every cycle from
+  the timestamp alone, so a signature built from commit hashes never matched
+  the previous run and the branch was rewritten even when nothing had changed.
+  Sign on TREES.
+- **Real reloads, which are not a bug.** Nine agents landing work means the
+  world genuinely is different a minute later. A loop that always shows the
+  newest world is precisely a loop that never lets you stand still in one.
+
+So: **the integrator loop is OFF during a playtest.** `scripts/pull-latest.sh`
+refreshes once, on demand, and the user reloads the tab when they choose. Turn
+the loop back on for long unattended runs, at a couple of minutes, not fifteen
+seconds.
