@@ -1643,3 +1643,59 @@ three are quiet only because they declare nothing today.
 The guard I asked for in `BLOCKED-AUDIT-seams.md` — warn rather than skip
 silently — is what caught this, twice. **It should stay, and anything else
 reading a namespace out of a glob should be checked the same way.**
+
+## Round 14b — traced. The loop is real, and **all eight rooms are in it.**
+
+I marked the previous round as inference and said I had not traced a loop edge.
+Traced now, and it took one grep.
+
+**The edges:**
+
+```
+ct/doors.ts:75      import.meta.glob('./*.ts',     { eager: true })
+ct/interior.ts:119  import.meta.glob('./int-*.ts', { eager: true })
+
+int-casino.ts:4     import { buildRoom }    from './interior'
+int-casino.ts:5     import { doorStandFor } from './doors'
+```
+
+So there are two concrete cycles, not a hypothesis:
+
+```
+ct/interior.ts ──glob──▶ int-casino.ts ──import──▶ ct/interior.ts
+ct/doors.ts    ──glob──▶ int-casino.ts ──import──▶ ct/doors.ts
+```
+
+The second is the one that costs a door: `doors.ts` globs its siblings, and
+those siblings import `doors.ts` back, so a sibling's namespace can be
+uninitialised at the moment the glob is read — `MODS[path]` is `undefined` and
+its `DOOR` is never collected.
+
+## The blast radius is every room
+
+| module | imports `./doors` | imports `./interior` | declares a DOOR |
+|---|---|---|---|
+| int-bodega, int-burger, int-casino, int-diner, int-hotel, int-pawn, int-tax, int-thrift | **all 8** | **all 8** | **all 8** |
+
+> **All eight rooms import `./doors`, all eight are globbed by it, and all eight
+> declare a door.** The casino is not special. It is the one that lost this time,
+> and which one loses is decided by module evaluation order — which nobody
+> writes down and nobody controls.
+
+That is also the growth mechanism: *"one module, then four"* is just more rooms
+being added, each importing `./doors` for `doorStandFor` and joining the cycle
+on arrival. **The next room to be built joins it too.**
+
+## The cheap fix, offered to whoever owns `ct/doors.ts`
+
+The only thing the rooms need from `doors.ts` is **`doorStandFor`** (and the
+`DoorDecl` type, which is erased at build time). Move that helper into a leaf
+module that globs nothing — `door-util.ts` — and have the rooms import it from
+there. `doors.ts` keeps its glob and its collection; the rooms no longer import
+back into it; **the cycle disappears for all eight at once** and cannot re-form
+when room nine arrives.
+
+I have not implemented that — I do not touch `src/` — and I have not verified it
+against the build. It is one import line per room and one file move, which is
+worth an hour of somebody's time against a defect that has already taken the
+world down once and silently eaten a door.
