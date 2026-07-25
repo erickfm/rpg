@@ -1,6 +1,21 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
+
+/** `pixTex` + `declareSurface` in one call — see the twin in ct/lot.ts.
+ *
+ *  Every texture this building paints declares what KIND of surface it is, so
+ *  the seam audit can judge it rather than parking it as unjudgeable: from
+ *  outside, a brick face and a painted sign are the same coloured rectangle
+ *  and only the author knows which. This module had 240 textured faces and
+ *  none of them said.
+ *
+ *  Wrapped rather than declared afterwards on purpose: a separate
+ *  `declareSurface(t, …)` line is one you can forget when you add a texture,
+ *  and forgetting it is silent. */
+const surfTex = (kind: SurfaceKind, w: number, h: number,
+                 draw: (g: CanvasRenderingContext2D) => void) =>
+  declareSurface(pixTex(w, h, draw), kind);
 import { ENTRANCE } from './tex-world';
 import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
@@ -207,7 +222,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const texM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
     // tired beige stripes; the tile is one 2.7 m story so baseboards land on
     // every floor of the full-height walls
-    const wallpaperT = pixTex(64, 64, (g) => {
+    const wallpaperT = surfTex('detail', 64, 64, (g) => {
       g.fillStyle = '#7e7460'; g.fillRect(0, 0, 64, 64); // dim halls — one bare bulb's worth
       g.fillStyle = 'rgba(255,255,255,0.08)';
       for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 64);
@@ -230,14 +245,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#3e3024'; g.fillRect(0, 58, 64, 6);
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 58, 64, 1);
     });
-    const roomWallT = pixTex(64, 64, (g) => {
+    const roomWallT = surfTex('detail', 64, 64, (g) => {
       g.fillStyle = '#8a95a0'; g.fillRect(0, 0, 64, 64);
       g.fillStyle = 'rgba(255,255,255,0.08)';
       for (let x = 0; x < 64; x += 16) g.fillRect(x, 0, 6, 64);
       dither(g, 64, 64, 80);
       g.fillStyle = '#3c3428'; g.fillRect(0, 58, 64, 6);
     });
-    const carpetT = pixTex(64, 64, (g) => {
+    const carpetT = surfTex('ground', 64, 64, (g) => {
       g.fillStyle = '#663832'; g.fillRect(0, 0, 64, 64);
       g.fillStyle = 'rgba(0,0,0,0.25)';
       for (let i = 0; i < 40; i++) g.fillRect(Math.floor(Math.random() * 62), Math.floor(Math.random() * 62), 3, 2);
@@ -245,14 +260,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       for (let y = 8; y < 64; y += 16) for (let x = (y % 32) ? 2 : 10; x < 60; x += 16) { g.fillRect(x, y, 5, 1); g.fillRect(x + 2, y - 2, 1, 5); }
       dither(g, 64, 64, 130);
     });
-    const woodFloorT = pixTex(64, 64, (g) => {
+    const woodFloorT = surfTex('ground', 64, 64, (g) => {
       g.fillStyle = '#7a5c3c'; g.fillRect(0, 0, 64, 64);
       g.fillStyle = 'rgba(0,0,0,0.25)';
       for (let y = 0; y < 64; y += 8) g.fillRect(0, y, 64, 1);
       for (let y = 0; y < 64; y += 8) g.fillRect(((y * 13) % 56), y + 1, 1, 7);
       dither(g, 64, 64, 110);
     });
-    const ceilT = pixTex(32, 32, (g) => {
+    const ceilT = surfTex('detail', 32, 32, (g) => {
       g.fillStyle = '#6e6a60'; g.fillRect(0, 0, 32, 32);
       dither(g, 32, 32, 60);
     });
@@ -374,7 +389,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     floorMesh(H, 2.4, 13.2, AX(1.2), AZI(6.6), ceilT);
     // the switchback: steeper now — 8 treads over a 2.6 m run (~28°), wood
     // grain on top, painted risers, a generous half landing
-    const treadTopT = pixTex(32, 16, (g) => {
+    const treadTopT = surfTex('ground', 32, 16, (g) => {
       g.fillStyle = '#6a5038'; g.fillRect(0, 0, 32, 16);
       g.fillStyle = 'rgba(0,0,0,0.2)';
       for (let y = 4; y < 16; y += 4) g.fillRect(0, y, 32, 1);
@@ -382,7 +397,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(0, 0, 32, 2); // nosing
       dither(g, 32, 16, 40);
     });
-    const riserT = pixTex(32, 12, (g) => {
+    const riserT = surfTex('detail', 32, 12, (g) => {
       g.fillStyle = '#54402c'; g.fillRect(0, 0, 32, 12);
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 32, 2);
       dither(g, 32, 12, 24);
@@ -563,7 +578,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // doors up the floors — 301 is a real opening; 302 is the hermit's
     // knob=false for leaves that carry a MODELLED handle instead — drawing
     // both gives the door two knobs in different places
-    const doorTexN = (num: string, knob = true) => pixTex(32, 64, (g) => {
+    const doorTexN = (num: string, knob = true) => surfTex('detail', 32, 64, (g) => {
       g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
       g.fillStyle = '#5c4430'; g.fillRect(3, 3, 26, 61);
       g.fillStyle = 'rgba(0,0,0,0.3)';
@@ -591,7 +606,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
      *  and you do not need telling which door is yours from your own side.
      *  It used to carry 301 on both faces, which read as a second door
      *  standing in the room whenever it was open. */
-    const doorTexInner = () => pixTex(32, 64, (g) => {
+    const doorTexInner = () => surfTex('detail', 32, 64, (g) => {
       g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
       g.fillStyle = '#57402c'; g.fillRect(3, 3, 26, 61);
       g.fillStyle = 'rgba(0,0,0,0.3)';
@@ -658,7 +673,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // room behind it: 1.2 m of unlit hallway, dim rather than black, so the
     // eye reads depth instead of a cutout.
     const RECESS_D = 1.2;
-    const dimRoomT = pixTex(32, 32, (g) => {
+    const dimRoomT = surfTex('detail', 32, 32, (g) => {
       g.fillStyle = '#191a20'; g.fillRect(0, 0, 32, 32);
       g.fillStyle = 'rgba(255,255,255,0.035)';
       for (let x = 0; x < 32; x += 8) g.fillRect(x, 0, 3, 32);   // his wallpaper, barely there
@@ -807,14 +822,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // The dome's texture runs rim (v=1, top of canvas) to pole (v=0, bottom),
     // because SphereGeometry puts v=1 at thetaStart — so the bands read as
     // turned glass when you stand under it and look up.
-    const opalT = pixTex(16, 12, (g) => {
+    const opalT = surfTex('detail', 16, 12, (g) => {
       const bands = ['#9a8f74', '#b8ac8c', '#d2c5a2', '#e8dcba', '#f6efd6', '#fdf8e8'];
       for (let y = 0; y < 12; y++) { g.fillStyle = bands[Math.floor(y / 2)]; g.fillRect(0, y, 16, 1); }
       g.fillStyle = 'rgba(0,0,0,0.10)';                       // ribs, like a real shade
       for (let x = 1; x < 16; x += 4) g.fillRect(x, 0, 1, 12);
       dither(g, 16, 12, 14);
     });
-    const glowT = pixTex(24, 24, (g) => {
+    const glowT = surfTex('detail', 24, 24, (g) => {
       const C = 12;
       const disc = (r: number, fill: string) => {
         g.fillStyle = fill;
@@ -906,7 +921,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const CX0 = AX(1.2), CX1 = AX(2.4), CZ0 = AZI(STAIR_Z0), CZ1 = AZI(STAIR_Z1);
     const CW = CX1 - CX0, CD = CZ1 - CZ0, CELL_FLOOR = -2.5, CH = -CELL_FLOOR;
     const CXM = (CX0 + CX1) / 2, CZM = (CZ0 + CZ1) / 2;
-    const cellarT = pixTex(32, 32, (g) => {
+    const cellarT = surfTex('detail', 32, 32, (g) => {
       g.fillStyle = '#26272d'; g.fillRect(0, 0, 32, 32);
       g.fillStyle = 'rgba(0,0,0,0.4)';
       for (let y = 0; y < 32; y += 8) g.fillRect(0, y, 32, 1);   // board-formed concrete
@@ -956,7 +971,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     scene.add(cellGlow);
     // the gate. Chain link drawn as texels: a canvas stroke would antialias
     // into exactly the grey mush the door numbers had.
-    const linkT = pixTex(24, 24, (g) => {
+    const linkT = surfTex('detail', 24, 24, (g) => {
       g.clearRect(0, 0, 24, 24);
       // #aeb4bc at full alpha put the brightest thing in the lobby on a
       // near-black hole, so the gate pulled the eye off the stairs and read
@@ -1038,7 +1053,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     lockBody.position.set(CXM + 0.045, 0.985, GZ - 0.055);
     scene.add(lockBody);
     // lobby dressing: mailboxes and the front door
-    const mailT = pixTex(48, 32, (g) => {
+    const mailT = surfTex('detail', 48, 32, (g) => {
       g.fillStyle = '#2c2620'; g.fillRect(0, 0, 48, 32);
       for (let r = 0; r < 3; r++) for (let c = 0; c < 4; c++) {
         g.fillStyle = '#8a7a4e'; g.fillRect(3 + c * 11, 3 + r * 9, 9, 7);
@@ -1085,7 +1100,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Same two leaves, seen from behind. What changes is what changes in
     // reality: the glass is now the BRIGHT side, because you are looking at
     // daylight through it, and the handles are on the other hand.
-    const frontDoorT = pixTex(48, 64, (g) => {
+    const frontDoorT = surfTex('detail', 48, 64, (g) => {
       g.fillStyle = '#22301f'; g.fillRect(0, 0, 48, 64);
       for (const ox of [2, 25]) {
         g.fillStyle = '#33452e'; g.fillRect(ox, 2, 21, 62);        // shaded side
@@ -1112,7 +1127,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the daylight through it from the lobby, and the gold 227 is leaf on the
     // street face of the glass, so from in here it reads BACKWARDS. That is
     // the detail that says it is one piece of glass and not two signs.
-    const transomInT = pixTex(48, 14, (g) => {
+    const transomInT = surfTex('sign', 48, 14, (g) => {
       g.fillStyle = '#8fa2ae'; g.fillRect(0, 0, 48, 14);            // daylight
       g.fillStyle = 'rgba(255,255,255,0.20)'; g.fillRect(2, 2, 44, 5);
       g.save(); g.translate(48, 0); g.scale(-1, 1);
@@ -1196,7 +1211,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // street with its face turned WEST — so what you see is the far pavement,
     // the facades opposite, and the mouth of the alley almost straight ahead.
     // It has to agree with where the building actually is.
-    const winT = pixTex(40, 40, (g) => {
+    const winT = surfTex('detail', 40, 40, (g) => {
       g.fillStyle = '#8a97a2'; g.fillRect(0, 0, 40, 40);          // the sky, scene fog colour
       g.fillStyle = '#6e5347'; g.fillRect(3, 13, 34, 17);         // facades opposite
       g.fillStyle = 'rgba(0,0,0,0.18)';
@@ -1261,7 +1276,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.03, 0.075, WIN_W + 0.19, AT, WIN_Y + WIN_H / 2 + 0.075, WIN_LZ, trimW);
     // the radiator under it — cast-iron columns, painted over so many times
     // the fins have gone soft
-    const radT = pixTex(24, 16, (g) => {
+    const radT = surfTex('detail', 24, 16, (g) => {
       g.fillStyle = '#9c9689'; g.fillRect(0, 0, 24, 16);
       g.fillStyle = 'rgba(0,0,0,0.28)';
       for (let x = 2; x < 24; x += 3) g.fillRect(x, 1, 1, 14);    // the columns
@@ -1291,7 +1306,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     for (const [lx, lz] of [[-3.00, 4.45], [-1.20, 4.45], [-3.00, 5.27], [-1.20, 5.27]] as [number, number][]) {
       box(0.08, 0.13, 0.08, lx, RY + 0.065, lz, frameM);
     }
-    const mattT = pixTex(32, 20, (g) => {
+    const mattT = surfTex('detail', 32, 20, (g) => {
       g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 32, 20);
       g.fillStyle = 'rgba(0,0,0,0.10)';
       for (let x = 3; x < 32; x += 6) g.fillRect(x, 0, 1, 20);    // ticking stripes
@@ -1307,7 +1322,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.70, 0.06, 0.88, -2.55, RY + 0.47, 4.86, sheetM);
     box(0.46, 0.11, 0.30, -2.86, RY + 0.50, 4.74, new THREE.MeshBasicMaterial({ color: 0xd0cabb }), 0.14); // dented pillow
     // dresser on the north wall, middle drawer permanently out
-    const dresserT = pixTex(28, 32, (g) => {
+    const dresserT = surfTex('detail', 28, 32, (g) => {
       g.fillStyle = '#4a3626'; g.fillRect(0, 0, 28, 32);
       g.fillStyle = 'rgba(0,0,0,0.26)';
       for (const y of [3, 13, 23]) g.fillRect(3, y, 22, 8);
@@ -1340,14 +1355,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       box(0.055, 0.022, 0.018, bx, RY + 0.865, bz, new THREE.MeshBasicMaterial({ color: 0xd8d0bc }), r);
     }
     // portable TV on a milk crate, because there is no table
-    const crateT = pixTex(20, 20, (g) => {
+    const crateT = surfTex('detail', 20, 20, (g) => {
       g.fillStyle = '#2f4f78'; g.fillRect(0, 0, 20, 20);
       g.fillStyle = 'rgba(0,0,0,0.35)';
       for (let y = 2; y < 20; y += 5) for (let x = 2; x < 20; x += 5) g.fillRect(x, y, 3, 3);
       g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 20, 1);
     });
     box(0.38, 0.36, 0.38, -1.56, RY + 0.18, 2.34, flatOf2(crateT));
-    const tvT = pixTex(32, 24, (g) => {
+    const tvT = surfTex('detail', 32, 24, (g) => {
       g.fillStyle = '#26262c'; g.fillRect(0, 0, 32, 24);
       g.fillStyle = '#101820'; g.fillRect(3, 3, 22, 18);
       g.fillStyle = 'rgba(160,200,220,0.25)'; g.fillRect(5, 5, 7, 6);
@@ -1389,7 +1404,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // text is BARS — the eye reads ragged black lines under a shape as
     // "small print" without ever trying to spell it, and a bar cannot be
     // misread the way a half-drawn word can.
-    const postT = pixTex(32, 44, (g) => {
+    const postT = surfTex('sign', 32, 44, (g) => {
       g.fillStyle = '#a9c93e'; g.fillRect(0, 0, 32, 44);          // copy stock
       g.fillStyle = '#16161a'; g.fillRect(0, 0, 32, 8);           // masthead
       g.fillStyle = '#a9c93e';                                     // knocked out of it
@@ -1478,7 +1493,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       m.rotation.y = -Math.PI / 2;
       scene.add(m);
     };
-    const doubleDoorT = pixTex(48, 64, (g) => {
+    const doubleDoorT = surfTex('detail', 48, 64, (g) => {
       g.fillStyle = '#22301f'; g.fillRect(0, 0, 48, 64);
       for (const ox of [2, 25]) {
         g.fillStyle = '#3a4c34'; g.fillRect(ox, 2, 21, 62);
@@ -1493,7 +1508,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // buried in the stoop so the two can never part and show a hairline
     const streetDoor = new THREE.Mesh(new THREE.PlaneGeometry(LEAF_W, DOOR_TOP - OPEN_BOT), texM(doubleDoorT));
     hang(streetDoor, (OPEN_BOT + DOOR_TOP) / 2, DOOR_Z);
-    const transomT = pixTex(48, 14, (g) => {
+    const transomT = surfTex('sign', 48, 14, (g) => {
       g.fillStyle = '#161c24'; g.fillRect(0, 0, 48, 14);
       g.fillStyle = 'rgba(200,215,225,0.14)'; g.fillRect(2, 2, 44, 10);
       g.fillStyle = '#d9b95c'; g.font = 'bold 9px monospace'; g.textAlign = 'center';
@@ -1506,7 +1521,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // the nearest window. Nothing hangs on the other side; a walk-up with a
     // buzzer on one jamb and bare brick on the other is the ordinary case.
     const FURNITURE_Y = 1.72;
-    const buzzerT = pixTex(16, 32, (g) => {
+    const buzzerT = surfTex('detail', 16, 32, (g) => {
       g.fillStyle = '#8a8d95'; g.fillRect(0, 0, 16, 32);
       g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(0, 0, 16, 1);
       g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 31, 16, 1);
@@ -1522,21 +1537,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // and its base sinks 2 cm into the walk so no seam can open up there.
     const STOOP_TOP = OPEN_BOT + 0.01, STOOP_BASE = sidewalkY - 0.02;
     const STOOP_D = 0.55, STOOP_W = OPEN_W + 0.2;
-    const stoopTreadT = pixTex(18, 62, (g) => {
+    const stoopTreadT = surfTex('ground', 18, 62, (g) => {
       g.fillStyle = '#948f87'; g.fillRect(0, 0, 18, 62);
       g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, 0, 2, 62);   // nosing catches the sky
       g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(14, 0, 4, 62);        // shadow at the threshold
       g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(5, 12, 9, 38);        // worn centre, walked hollow
       dither(g, 18, 62, 150);
     });
-    const stoopRiserT = pixTex(62, 6, (g) => {
+    const stoopRiserT = surfTex('detail', 62, 6, (g) => {
       g.fillStyle = '#8b867e'; g.fillRect(0, 0, 62, 6);
       g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 62, 1);   // top arris
       g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 5, 62, 1);         // grime at the walk
       g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(12, 2, 3, 3); g.fillRect(44, 3, 4, 2); // chips
       dither(g, 62, 6, 30);
     });
-    const stoopEndT = pixTex(18, 6, (g) => {
+    const stoopEndT = surfTex('detail', 18, 6, (g) => {
       g.fillStyle = '#8b867e'; g.fillRect(0, 0, 18, 6);
       g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 18, 1);
       g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 5, 18, 1);

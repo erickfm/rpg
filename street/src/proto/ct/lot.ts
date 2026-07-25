@@ -2,7 +2,22 @@ import * as THREE from 'three';
 import type { Seat } from './ctx';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
+
+/** `pixTex` + `declareSurface` in one call.
+ *
+ *  Every texture this module paints says what KIND of surface it is, so the
+ *  seam audit can judge it instead of parking it in the unjudgeable column —
+ *  from outside the scene graph a brick face and a painted sign are the same
+ *  coloured rectangle, and only the author knows which. This module had 364
+ *  textured faces and not one of them was declared.
+ *
+ *  Wrapping the call rather than declaring afterwards is deliberate: a
+ *  separate `declareSurface(t, …)` statement is a thing you can forget to add
+ *  when you add a texture, and forgetting is silent. */
+const surfTex = (kind: SurfaceKind, w: number, h: number,
+                 draw: (g: CanvasRenderingContext2D) => void) =>
+  declareSurface(pixTex(w, h, draw), kind);
 import { FACE } from './rng';
 import { makeCar, type CarKind } from './cars';
 import { citizenSprite } from './citizens';
@@ -167,7 +182,7 @@ function buildLot(o: {
   // in squares of a slightly different black, cracked along the joints, and
   // dripped on under every bay for twenty years. The faded bay lines are the
   // only geometry on it and they are half gone.
-  const padT = pixTex(64, 64, (g) => {
+  const padT = surfTex('ground', 64, 64, (g) => {
     g.fillStyle = '#3c3e43'; g.fillRect(0, 0, 64, 64);
     // patches: rectangles of a different mix, with a hard cold-joint edge
     for (const [px, py, pw, ph, c] of [
@@ -196,7 +211,7 @@ function buildLot(o: {
   // NearestFilter magnifies the mush — the same failure the door numerals
   // had. One texel wide, and the tile wraps on 24 so the diamonds are
   // continuous across every panel.
-  const linkT = pixTex(24, 24, (g) => {
+  const linkT = surfTex('detail', 24, 24, (g) => {
     g.clearRect(0, 0, 24, 24);
     // Galvanised wire in daylight, not white. At full brightness the mesh
     // was the lightest thing in frame and read as a screen over the block
@@ -247,7 +262,7 @@ function buildLot(o: {
   // hung there all summer. Alpha outside the triangles, so the sky shows
   // through between them — that gap is what makes them read as flags rather
   // than as a painted band.
-  const pennantT = pixTex(64, 20, (g) => {
+  const pennantT = surfTex('detail', 64, 20, (g) => {
     g.clearRect(0, 0, 64, 20);
     // TWO colours, not four. Four competed with the banners, the pole sign
     // and the starbursts, all of which are already loud; red-and-white is the
@@ -276,7 +291,7 @@ function buildLot(o: {
   });
 
   // ── the office ─────────────────────────────────────────────────────────
-  const cabinT = pixTex(32, 24, (g) => {
+  const cabinT = surfTex('detail', 32, 24, (g) => {
     g.fillStyle = '#c9c4b4'; g.fillRect(0, 0, 32, 24);            // painted ply
     g.fillStyle = 'rgba(0,0,0,0.16)';
     for (let y = 3; y < 24; y += 5) g.fillRect(0, y, 32, 1);      // lap boards
@@ -287,7 +302,7 @@ function buildLot(o: {
   // so its front is the most-looked-at face in the lot and it was carrying 32
   // by 24 texels for a 4.6 m wall — 7 per metre, which by GOTCHAS §4 cannot
   // hold a blind slat, let alone what is behind it. At 64 by 40 it can.
-  const cabinWinT = pixTex(64, 40, (g) => {
+  const cabinWinT = surfTex('detail', 64, 40, (g) => {
     g.fillStyle = '#c9c4b4'; g.fillRect(0, 0, 64, 40);
     g.fillStyle = 'rgba(0,0,0,0.16)';
     for (let y = 5; y < 40; y += 8) g.fillRect(0, y, 64, 1);      // lap boards
@@ -331,7 +346,7 @@ function buildLot(o: {
   });
   // The window AC unit's grille. Horizontal louvres and a rusted seam where it
   // has sat in the same hole through several winters.
-  const acT = pixTex(20, 16, (g) => {
+  const acT = surfTex('detail', 20, 16, (g) => {
     g.fillStyle = '#b9b4a6'; g.fillRect(0, 0, 20, 16);
     g.fillStyle = '#6a675e';
     for (let y = 3; y < 14; y += 2) g.fillRect(2, y, 16, 1);
@@ -383,7 +398,7 @@ function buildLot(o: {
   };
   const bannerT = (words: string, bg: string, ink: string) => {
     const W = words.length * 6 * 2 + 8;
-    return pixTex(W, 22, (g) => {
+    return surfTex('sign', W, 22, (g) => {
       g.fillStyle = bg; g.fillRect(0, 0, W, 22);
       g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, W, 2); g.fillRect(0, 20, W, 2);
       stamp(g, words, 4, 6, 2, ink);
@@ -442,7 +457,7 @@ function buildLot(o: {
     // Oil, and faded bays. The site's ground is a clean surface because it
     // serves the park too; what makes it a LOT is twenty years of cars
     // standing in the same places. Decals a few mm above it, never coplanar.
-    const oilT = pixTex(32, 32, (g) => {
+    const oilT = surfTex('ground', 32, 32, (g) => {
       g.clearRect(0, 0, 32, 32);
       g.fillStyle = 'rgba(12,12,14,0.34)';
       for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
@@ -668,7 +683,7 @@ function buildLot(o: {
     // was 80 and clipped the name to "CROSSTO". Size the canvas from the
     // string rather than guessing at it.
     const BOARD_W = 'CROSSTOWN'.length * 6 * 2 + 8;
-    const boardT = pixTex(BOARD_W, 26, (g) => {
+    const boardT = surfTex('sign', BOARD_W, 26, (g) => {
       g.fillStyle = '#25406b'; g.fillRect(0, 0, BOARD_W, 26);
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 0, BOARD_W, 2);
       stamp(g, 'CROSSTOWN', 4, 4, 2, '#e8dcb8');
@@ -785,7 +800,7 @@ function buildLot(o: {
     pole.position.set(px, Y + POLE_H2 / 2, pz);
     scene.add(pole);
     solid({ minX: px - 0.24, maxX: px + 0.24, minZ: pz - 0.24, maxZ: pz + 0.24 });
-    const signT = pixTex(72, 96, (g) => {
+    const signT = surfTex('sign', 72, 96, (g) => {
       g.fillStyle = '#c0392f'; g.fillRect(0, 0, 72, 96);
       g.fillStyle = '#f2ead0'; g.fillRect(3, 3, 66, 90);
       g.fillStyle = '#c0392f'; g.fillRect(6, 6, 60, 30);
@@ -805,7 +820,7 @@ function buildLot(o: {
     sign.rotation.y = -Math.PI / 2;
     scene.add(sign);
     // a small arrow cabinet under it, pointing at the mouth
-    const arrowT = pixTex(40, 16, (g) => {
+    const arrowT = surfTex('sign', 40, 16, (g) => {
       g.fillStyle = '#e0a81c'; g.fillRect(0, 0, 40, 16);
       g.fillStyle = '#2a2118'; g.fillRect(0, 0, 40, 2); g.fillRect(0, 14, 40, 2);
       for (let i2 = 0; i2 < 7; i2++) g.fillRect(6 + i2 * 2, 8 - i2, 2, 1 + i2 * 2);
@@ -838,7 +853,7 @@ function buildLot(o: {
     const bannerT2 = (words: string, bg: string, ink: string, ghost = false) => {
       const W = Math.max(64, words.length * 6 * 2 + 14), H = 30;
       const TIES = Math.max(2, Math.round(W / 46));
-      return pixTex(W, H, (g) => {
+      return surfTex('sign', W, H, (g) => {
         g.clearRect(0, 0, W, H);
         for (let x = 0; x < W; x++) {
           // a scallop per bay between ties, plus a slow overall droop
@@ -922,7 +937,7 @@ function buildLot(o: {
     // survival chance is a function of height and a deterministic hash — not
     // uniform noise, which reads as dither rather than as decay.
     const GW = 168, GH2 = 66;
-    const ghostT = pixTex(GW, GH2, (g) => {
+    const ghostT = surfTex('sign', GW, GH2, (g) => {
       g.clearRect(0, 0, GW, GH2);
       const ink = (x: number, y: number, w: number, h: number) => {
         for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
@@ -1002,7 +1017,7 @@ function buildLot(o: {
     // a hand. That is the whole difference.
     const soapT = (price: string) => {
       const px = 3, W = price.length * 6 * px + 10, H = 5 * px + 12;
-      return pixTex(W, H, (g) => {
+      return surfTex('sign', W, H, (g) => {
         g.clearRect(0, 0, W, H);
         for (let i = 0; i < price.length; i++) {
           const rows = GLYPH[price[i]] ?? GLYPH[' '];
@@ -1020,7 +1035,7 @@ function buildLot(o: {
     // wave in angle rather than tapered.
     const burstT = (price: string) => {
       const N = 56, C = N / 2;
-      return pixTex(N, N, (g) => {
+      return surfTex('sign', N, N, (g) => {
         g.clearRect(0, 0, N, N);
         for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
           const dx = x + 0.5 - C, dy = y + 0.5 - C;
@@ -1042,7 +1057,7 @@ function buildLot(o: {
     // SLOGAN CARD. Small, propped in the corner of the glass.
     const slogT = (words: string, bg: string, ink: string) => {
       const W = words.length * 6 * 2 + 8;
-      return pixTex(W, 18, (g) => {
+      return surfTex('sign', W, 18, (g) => {
         g.fillStyle = bg; g.fillRect(0, 0, W, 18);
         g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 16, W, 2);
         stamp(g, words, 4, 4, 2, ink);
@@ -1051,7 +1066,7 @@ function buildLot(o: {
     // SOLD, across the glass at an angle, on the one that has gone.
     const soldT = () => {
       const W = 4 * 6 * 3 + 12;
-      return pixTex(W, 26, (g) => {
+      return surfTex('sign', W, 26, (g) => {
         g.fillStyle = '#c0392f'; g.fillRect(0, 0, W, 26);
         g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, W, 2);
         stamp(g, 'SOLD', 6, 5, 3, '#f2ead0');
@@ -1095,7 +1110,7 @@ function buildLot(o: {
     // PATTERN rather than as words — masthead, two boxes, yellow band, rule
     // lines. That silhouette is what the eye recognises; the wording is not
     // legible on a real one from outside the glass either.
-    const guideT = pixTex(20, 26, (g) => {
+    const guideT = surfTex('detail', 20, 26, (g) => {
       g.fillStyle = '#f2f0e8'; g.fillRect(0, 0, 20, 26);
       g.fillStyle = '#1a1a1c'; g.fillRect(0, 0, 20, 4);            // masthead
       g.fillStyle = '#f2f0e8'; g.fillRect(2, 1, 16, 2);
@@ -1244,7 +1259,7 @@ function buildLot(o: {
     // the perimeter, and in the seam where the asphalt meets a wall. Weeds in
     // the middle of a live drive aisle is the tell that they were scattered
     // rather than placed, so the aisle band is excluded outright.
-    const weedT = pixTex(12, 14, (g) => {
+    const weedT = surfTex('foliage', 12, 14, (g) => {
       g.clearRect(0, 0, 12, 14);
       for (let b = 0; b < 7; b++) {
         const bx = 2 + ((b * 5) % 9), lean = ((b * 7) % 5) - 2, hgt = 6 + ((b * 11) % 7);
@@ -1296,7 +1311,7 @@ function buildLot(o: {
       finial.position.set(fpx, Y + FPH + 0.09, fpz);
       scene.add(finial);
       solid({ minX: fpx - 0.22, maxX: fpx + 0.22, minZ: fpz - 0.22, maxZ: fpz + 0.22 });
-      const flagT = pixTex(28, 18, (g) => {
+      const flagT = surfTex('detail', 28, 18, (g) => {
         g.fillStyle = '#c0392f'; g.fillRect(0, 0, 28, 18);
         g.fillStyle = '#f2ead0';
         g.beginPath();
@@ -1370,7 +1385,7 @@ function buildLot(o: {
     const wOf = (t: string, px: number) => (t.length - 1) * 6 * px + 5 * px;
     const mid = (g: CanvasRenderingContext2D, t: string, y: number, px: number, ink: string) =>
       stamp(g, t, Math.round((BW - wOf(t, px)) / 2), y, px, ink);
-    const boardFaceT = pixTex(BW, BH, (g) => {
+    const boardFaceT = surfTex('sign', BW, BH, (g) => {
       g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, BW, BH);
       g.fillStyle = '#2a2118'; g.fillRect(0, 0, BW, 3); g.fillRect(0, BH - 3, BW, 3);
       mid(g, 'TODAY', 10, 2, '#c0392f');
@@ -1532,7 +1547,7 @@ function buildLot(o: {
     head.rotation.y = aim;
     head.rotation.z = 0.34;
     scene.add(head);
-    const lensT = pixTex(16, 12, (g) => {
+    const lensT = surfTex('detail', 16, 12, (g) => {
       g.fillStyle = '#f2ead0'; g.fillRect(0, 0, 16, 12);
       g.fillStyle = 'rgba(0,0,0,0.18)';
       for (let x = 2; x < 16; x += 4) g.fillRect(x, 0, 1, 12);
@@ -1548,7 +1563,7 @@ function buildLot(o: {
     // halo at the lens and a pool thrown across the asphalt — both stepped
     // into hard rings rather than blurred, because nothing else in this world
     // is a smooth gradient. Both fade in with the night.
-    const stepDisc = (n: number, R: number) => pixTex(n, n, (g) => {
+    const stepDisc = (n: number, R: number) => surfTex('detail', n, n, (g) => {
       const C = n / 2;
       const disc = (r: number, fill: string) => {
         g.fillStyle = fill;
