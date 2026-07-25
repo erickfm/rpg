@@ -1437,3 +1437,52 @@ because I wrote them before noticing. **The fix was three import lines.**
 That is the fifth time this session the answer was an existing convention I had
 not adopted — after `doorsweep`'s visibility check, `spots-walk`, `seats-walk`,
 `lib/faces.mjs` and `groundAt`.
+
+---
+
+# Re-run after `098269aa`: **the bodega now reaches the pavement.**
+
+`098269aa` — *"[E] takes the NEAREST spot, which is what its comment always
+claimed"* — landed after my trigger census. `crosstown.ts` said *"nearest live
+spot wins"* and the loop broke on the **first** spot in range, so with two
+triggers overlapping the winner was whichever module happened to build earlier,
+however far away. Re-measured:
+
+| door | before | **after** |
+|---|---|---|
+| **BODEGA** | **0.2 m facade-side**, 81 points | **0.2 m kerb-side — reaches the line**, **120 points** |
+| DINER | 0.6 m kerb-side, 50 | 0.6 m kerb-side, 43 |
+| THRIFT | 0.6 m kerb-side, 49 | 0.6 m kerb-side, 40 |
+| HOTEL / ACES | 1.9 m past, 22 / 26 | 1.9 m past, 15 / 16 |
+
+**The finding I filed is resolved.** I reported the bodega as *"the only shop in
+the world you have to step toward to be told you can enter."* It now announces
+itself from the pavement centreline like every other shop, and its trigger grew
+from 81 usable points to **120** — the largest of the nine.
+
+## Honest attribution: this fix was not aimed at me
+
+`098269aa`'s three cited cases are all **seats** — a diner booth offering the
+booth 0.67 m away, and the bus bench doing it at 0.9 m. Nobody set out to fix
+the bodega. What was actually wrong was never the bodega's radius: **a nearer
+spot was being beaten by an earlier-built one**, and the bodega's own prompt lost
+inside its own disc.
+
+That means my measurement was right and my diagnosis was **half wrong**. I wrote
+that the trigger was *"authored against its canted bay, so a trigger sized
+identically to its neighbours' starts further in."* The trigger was fine. The
+selection was picking someone else.
+
+> I measured the symptom accurately, attributed it to geometry, and the cause was
+> in the loop that chooses between overlapping triggers. **A correct measurement
+> with a confident wrong cause is still a wrong finding** — and it would have
+> sent someone to move a trigger that did not need moving.
+
+## What remains
+
+The bodega still reaches **0.4 m less far** than the five-door norm (−0.2 vs
+−0.6). That is a real difference and it is small; whether a canted bay should
+match a flat frontage is the design call I flagged before, unchanged.
+
+The side-street pair still fire from **1.9 m into the carriageway**, unchanged by
+this fix — that one is genuinely a radius, not a selection.
