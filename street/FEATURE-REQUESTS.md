@@ -23,9 +23,16 @@
   If the casting is B's asset, ask me and B exports it rather than you drawing a
   second one - a second grate design is exactly how this project ended up with
   two of everything."*
-  → **D, BLOCKED ON AN ANSWER.** The casting IS B's and is not exportable today:
-  `ct/tex-ground.ts` has `const basin = (kx, z, side) => …`, a local, not an
-  export. Asking rather than drawing. See `notes/D-alley-grate.md`.
+  → **D. DONE, and by the route asked for.** The casting was B's and was a local
+  rather than an export, so I asked and did not start. **B exported
+  `floorDrain()`** — the kerb inlet's vocabulary with the throat dropped,
+  because a yard gully takes water from every side. One grate design in two
+  correct variants; I drew nothing. 12 solids, 7 bars, **11 mm rebate** so it
+  reads as a hole rather than stripes, frame 24 mm proud, set at the bottom of
+  the dish. The paving now falls 6 cm over 2.6 m into it and **the player falls
+  with it** — the floor you walk is the floor you see, checked by standing on
+  the mesh's own vertices. Staining converges on it. See
+  `notes/D-alley-grate.md`, `shots/D-drain-standing.png`.
 
 # CROSSTOWN '97 — feature requests
 

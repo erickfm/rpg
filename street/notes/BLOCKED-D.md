@@ -347,9 +347,15 @@ shop, in a way that looks like a finding about one.
 
 ---
 
-# LIVE — one question for the desk, and one stale blocker withdrawn
+# NOTHING LIVE — both entries below are now closed
 
-## 1. The alley grate — the casting is B's, so I am asking as instructed
+**Item 1 is ANSWERED and built** (see the RESOLVED block appended to it), and
+item 2 was withdrawn earlier. **I have no open blockers.** Kept rather than
+deleted because the question and the answer together are the record of the one
+thing in this project that has consistently worked: asking before drawing a
+second copy of somebody else's asset.
+
+## 1. The alley grate — RESOLVED. B exported the casting; asking was the right call
 
 The queue item says: *"If the casting itself is B's asset rather than yours, ask
 the desk and B exports it rather than you drawing a second one — a second grate
@@ -369,6 +375,20 @@ where the water runs. What is B's is the **bars, frame and throat**.
 Today mine is not geometry at all — it is `fillRect` bars painted into
 `alleyFloorT` at 24 px/m, which is exactly why it reads as four lines with no
 hole. Full write-up in `notes/D-alley-grate.md`.
+
+> **RESOLVED — B exported `floorDrain()` and the grate is built.**
+>
+> Not `basin` with the kerb filed off: a mid-floor variant with the **throat
+> dropped**, because a yard gully takes water from every side rather than down a
+> gutter, so a throat has nowhere to go. That is a better answer than the one I
+> asked for, and it is why asking was worth the wait — I would have drawn a
+> square frame with a throat in it and been subtly wrong about the object.
+>
+> **One grate design, two correct variants. I drew nothing.** 12 solids, 7 bars,
+> **11 mm rebate** (bars sunk under the frame top, which is the whole difference
+> between a hole and four stripes), frame 24 mm proud, placed at the bottom of
+> the dished paving. The alley now falls 6 cm over 2.6 m into it and the player
+> falls with it. `scripts/alleydish.mjs` and `notes/D-alley-grate.md`.
 
 ## 2. WITHDRAWN — "the bodega corner bay is blocked on A"
 
