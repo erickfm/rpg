@@ -167,3 +167,40 @@ ones this file is about, and neither has moved.
 **Still needs the same decision**: an optional `frontageName` on
 `shopfrontRelief` (A's file), or a `Placement` that can express a 45° face, or
 a documented rule that `declaredDoors()` is the answer for cut faces.
+
+---
+
+## `eba406e1` makes the wrong answer DETECTABLE — which changes which option is cheapest
+
+`FrontageWorld.doorDeclared` now records whether a frontage's door came from a
+room's declaration or from the painter's fallback layout. Measured at HEAD:
+
+```
+BODEGA frontage:  { doorWorld: 12.8234, doorDeclared: false }
+16 frontages, 5 with doorDeclared
+```
+
+**So the bodega's frontage door is not merely on the wrong wall — it is flagged
+as a guess.** x 12.82 is where the painter would put a door on a 6.05 m
+frontage, not where any room said its door is. The bodega's room declares its
+door on the canted bay through `DOOR.face`, and that declaration cannot reach a
+frontage whose `Placement` has no way to describe a 45° wall.
+
+That does not close this item — the entry still answers for the bodega and
+still points at the wing — but it changes the shape of the risk and therefore
+the cost of each option:
+
+- **Option 3 (document that `declaredDoors()` is the authority for cut faces)
+  just got much cheaper.** A consumer no longer has to know about the bodega
+  specifically; it can check `doorDeclared` and decline to trust any frontage
+  door that was guessed. That is a general rule with a general signal behind it,
+  which is what was missing when I wrote the three options.
+- **Option 1 (stop the wing claiming the name)** still needs the
+  `frontageName` split, because `b.nm` drives paint and registration together.
+- **Option 2 (a `Placement` that can express 45°)** is still the only one that
+  produces a *correct* entry rather than an absent or ignorable one.
+
+My preference has moved to **3 now, 2 whenever someone is next in that type**.
+1 buys least: it removes a guessed answer that is already labelled as a guess.
+
+Still the desk's call, and A's if it is 2.
