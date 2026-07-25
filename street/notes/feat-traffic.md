@@ -562,6 +562,36 @@ not with a 1.30 m body radius — but parking a car across the north walk gives 
 7.5 s stall immediately. That is why the citizen guard measures the GAP beside a
 stopped body and the hike guard measures the player's progress.
 
+## Checked against D's glowing-graffiti signature (`4955621e`, `e91df374`)
+
+`props.ts` grades the world down after dark and skips anything its `isGlass`
+test catches — `m.transparent && !(m.alphaTest > 0)`. A transparent decal with
+no alphaTest is glass by that test, is never offered to the dimmer, and glows at
+midnight. D found three in the alley and then 158 more across the world:
+**vice 78, props 67, lot 13, street 0.**
+
+**Those counts are grouped by `userData.mod`, and none of my modules stamp one**
+— so my area is not in that sweep at all, in either column. Measured separately,
+at 23:00, and this is the only record of it:
+
+| | |
+|---|---|
+| vehicle materials matching the signature | **0** |
+| my tree billboards and pit decals | 11 found, **0** matching |
+| my four side-street trees | `graded: true`, luminance **0.045** |
+| citizen sprites | 12 materials, all `graded: true`, luminance **0.003** |
+
+The `noLight` materials on the fleet — glass, tyres, engine bay, bed liner —
+cannot trip D's other criterion either ("neither graded nor selfLit and brighter
+than 0.5"): they are deliberately skipped AND all far darker than 0.5.
+
+**Two planes did come back at luminance 1.0 at midnight and they are not mine.**
+They sit at x 603 and x 680 — the interior offset region — and are potted plants
+in somebody's room, correctly outside the street dimmer's scope. My throwaway
+filter said `x > 10`, which is the side street AND every interior in the world.
+Third time attribution has nearly produced a false report from this desk; see
+the ownership-stamp ask in `notes/BLOCKED-H.md`.
+
 ## Probes, and what each is for
 
 | | |
