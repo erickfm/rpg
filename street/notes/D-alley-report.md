@@ -77,11 +77,15 @@ Walked in from the pavement to x = 14.53, floor holding at KERB_H.
 
 | item | status |
 |---|---|
-| bodega corner bay | **blocked on A** |
+| bodega corner bay | **NOT blocked — A exported all five helpers; mine to take** |
 | signs (a) + (b) | **not mine any more — G's** |
 | window lights | **contended with A's live mandate** |
 | shop resizing | **already done** — verify and retire |
 | `[E]` spots migration | **half needs a `ctx` change, which is a desk operation** |
+
+**Bodega bay — NO LONGER blocked (checked at HEAD; the paragraph below is
+history).** `HI`, `reveal`, `proud`, `glazed` and `mullions` are all exported
+from `tex-world.ts` now, lines 973-1009. The original blocker read:
 
 **Bodega bay — blocked on A.** A landed the depth work (`5cbb162`, `bed0b69`)
 but its vocabulary is still module-private: `HI`, `reveal`, `proud`, `glazed`,

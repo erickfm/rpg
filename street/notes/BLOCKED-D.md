@@ -344,3 +344,47 @@ That is worth one word in A's document before F builds against it, and it is a
 candidate explanation for `10f8da2d`'s withdrawn "the BODEGA has no published
 frontage" — a name lookup against an array returns exactly nothing, for every
 shop, in a way that looks like a finding about one.
+
+---
+
+# LIVE — one question for the desk, and one stale blocker withdrawn
+
+## 1. The alley grate — the casting is B's, so I am asking as instructed
+
+The queue item says: *"If the casting itself is B's asset rather than yours, ask
+the desk and B exports it rather than you drawing a second one — a second grate
+design is exactly how this project ended up with two of everything."*
+
+**It is B's and there is nothing to import.** `ct/tex-ground.ts` builds the kerb
+inlets as `const basin = (kx, z, side) => …` — a local, not an export.
+`OWNERSHIP.md`: `tex-ground.ts = B`.
+
+**The question: ask B to export the casting, and I place it?**
+
+What is mine either way, and what I will do the moment the casting lands: the
+drain sits MID-FLOOR with the alley falling to it, so it wants a square frame
+rather than a kerb-side one, the paving dished slightly into it, and staining
+where the water runs. What is B's is the **bars, frame and throat**.
+
+Today mine is not geometry at all — it is `fillRect` bars painted into
+`alleyFloorT` at 24 px/m, which is exactly why it reads as four lines with no
+hole. Full write-up in `notes/D-alley-grate.md`.
+
+## 2. WITHDRAWN — "the bodega corner bay is blocked on A"
+
+My report has said for several rounds that following A's shopfront vocabulary
+needs five names exported from `ct/tex-world.ts`, and the queue item repeats it
+back to me with an offer to queue it to A.
+
+**Do not queue it. A has already exported all five:**
+
+```
+tex-world.ts:973   export const HI
+tex-world.ts:980   export function reveal
+tex-world.ts:989   export function proud
+tex-world.ts:998   export function glazed
+tex-world.ts:1009  export function mullions
+```
+
+So the bodega corner is **not blocked** and is mine to take. My own note was
+stale and would have cost A a round of work that was already done.
