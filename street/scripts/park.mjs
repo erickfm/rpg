@@ -25,14 +25,40 @@ await page.waitForTimeout(1600);
 const r = await page.evaluate(() => {
   const sc = window.__ct.scene();
   // the park's own ground plane tells us the site without trusting a constant
-  let site = null;
+  // BY AREA, not by height. This used to require the plane's y to equal 0.14
+  // to within 1e-6, two lines under a comment promising not to trust a
+  // constant, and the file already records being burned once by an exact-match
+  // predicate that reported ZERO lamps in a park that had ten.
+  //
+  // I tried to replace it with the world's own groundAt(x, z) — the affordance
+  // two other builders adopted this week — and that was WRONG, loudly and
+  // usefully. groundAt at the park centre returns 0.403 against a lawn at
+  // 0.140: the picker is finding whatever stands at (-23, -83), not the grass.
+  // Comparing a plane's y to the floor under its own centre conflates "is this
+  // the ground" with "is anything standing on it".
+  //
+  // Then the tight tolerance turned out to be doing real work. There are TWO
+  // planes here that pass the size and x filters — 32 x 30 at y 0.140 and
+  // 17.75 x 16.5 at y 0.143 — and 1e-6 excluded the second. Any looser
+  // tolerance matches both, the traverse keeps the LAST one, and every
+  // measurement below silently becomes about a site half the size. That is a
+  // worse failure than the one I set out to fix, and it would have been green.
+  //
+  // So neither constant nor picker: take the LARGEST candidate. It is
+  // deterministic regardless of traverse order, indifferent to the floor
+  // height, and the two candidates differ by more than 3x in area.
+  let site = null, bestArea = 0;
   sc.traverse((o) => {
     const g = o.geometry?.parameters;
     if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
-    if (Math.abs(o.position.y - 0.14) > 1e-6 || o.position.x > -8) return;
+    if (o.position.x > -8) return;
     if (g.width < 15 || g.height < 15) return;
+    const area = g.width * g.height;
+    if (area <= bestArea) return;
+    bestArea = area;
     site = { minX: o.position.x - g.width / 2, maxX: o.position.x + g.width / 2,
-             minZ: o.position.z - g.height / 2, maxZ: o.position.z + g.height / 2 };
+             minZ: o.position.z - g.height / 2, maxZ: o.position.z + g.height / 2,
+             y: +o.position.y.toFixed(4), area };
   });
   // Park lanterns, found BY TAG. This matched an exact 0.22 x 0.20 x 0.22 lens
   // box and reported ZERO lamps the moment that geometry changed — in a park
@@ -45,12 +71,15 @@ const r = await page.evaluate(() => {
       lamps.push([+o.position.x.toFixed(2), +o.position.z.toFixed(2), +o.position.y.toFixed(2)]);
   });
   // how bright is the park ground at 3am? sample the material of its floor
-  let floorLum = null;
+  let floorLum = null, floorArea = 0;
   sc.traverse((o) => {
     const g = o.geometry?.parameters;
     if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
-    if (Math.abs(o.position.y - 0.14) > 1e-6 || o.position.x > -8) return;
+    if (o.position.x > -8) return;
     if (g.width < 15 || g.height < 15) return;
+    const area = g.width * g.height;
+    if (area <= floorArea) return;            // the same slab the site came from
+    floorArea = area;
     const c = o.material.color;
     floorLum = +(0.299 * c.r + 0.587 * c.g + 0.114 * c.b).toFixed(4);
   });
@@ -84,6 +113,19 @@ console.log(`  additive emitters carrying light inside the park at 3am: ${r.lit}
 console.log(`  park ground material luminance at 3am: ${r.floorLum}`);
 
 // the loop, by ct/park.ts's own rule
+// A NULL SITE IS A FAILURE, NOT A CRASH. This read r.site.minX straight out and
+// died with `Cannot read properties of null` the moment my own edit stopped the
+// predicate matching. A stack trace is not a verdict: the runner prints it as a
+// failed check with no line saying WHAT was wrong, and a reader has to open the
+// file to learn that the park was never found.
+if (!r.site) {
+  console.error('\n  FAIL no park ground slab found — nothing west of x -8 is a');
+  console.error('  PlaneGeometry of at least 15 x 15 m. Every verdict below would');
+  console.error('  have been about an empty site, so none of them are printed.');
+  await browser.close();
+  process.exit(1);
+}
+console.log(`  park site: the largest slab, ${r.site.area.toFixed(0)} m2 at y ${r.site.y}`);
 const lx0 = r.site.minX + 3.2, lx1 = r.site.maxX - 0.25 - 1.35;
 const lz0 = r.site.minZ + 1.7, lz1 = r.site.maxZ - 1.7;
 // distance from a point to the loop rectangle's PERIMETER
