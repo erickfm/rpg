@@ -41,9 +41,14 @@ const probe = async (h) => {
       out[key].n++; out[key].sum += v;
       // Per MATERIAL as well as per class. The class average is the headline
       // and it is not the test — see the note at the top of this file.
-      if (!each[m.uuid]) each[m.uuid] = { key, v, cut: m.alphaTest > 0, tr: !!m.transparent,
-        reach: Math.abs(o.position.x) <= 100,
-        x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
+      if (!each[m.uuid]) {
+        const g = o.geometry?.parameters || {}, im = m.map?.image;
+        each[m.uuid] = { key, v, cut: m.alphaTest > 0, tr: !!m.transparent,
+          reach: Math.abs(o.position.x) <= 100,
+          // what the thing IS, so its builder recognises it without a gazetteer
+          shape: `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)} tex ${im?.width ?? '?'}x${im?.height ?? '?'}`,
+          x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
+      }
     });
     for (const k in out) out[k] = +(out[k].sum / out[k].n).toFixed(3);
     return { avg: out, each };
@@ -109,8 +114,27 @@ if (!skipped.length) {
 // it is the usage that would have caught that bug without a human reading four
 // floats and knowing what they should have been.
 
-for (const s of skipped.slice(0, 12)) console.log(`     at ${s.x},${s.y},${s.z}`);
-if (skipped.length > 12) console.log(`     …and ${skipped.length - 12} more`);
+// Group by proximity and hand each cluster back as a command you can run.
+//
+// The alternative was a table of named regions — "the car lot is 30..60" — and
+// that is the stale-constant habit this file has already been bitten by once.
+// Clusters come out of the data, so they follow the world.
+const cl = [];
+for (const m of skipped) {
+  const near = cl.find((c) => Math.abs(c.cx - m.x) < 14 && Math.abs(c.cz - m.z) < 14);
+  if (near) { near.list.push(m); near.cx = (near.cx * (near.list.length - 1) + m.x) / near.list.length;
+              near.cz = (near.cz * (near.list.length - 1) + m.z) / near.list.length; }
+  else cl.push({ cx: m.x, cz: m.z, list: [m] });
+}
+cl.sort((a, b) => b.list.length - a.list.length);
+for (const c of cl) {
+  const xs = c.list.map((m) => m.x), zs = c.list.map((m) => m.z);
+  const pad = 3, box = [Math.min(...xs) - pad, Math.max(...xs) + pad,
+                        Math.min(...zs) - pad, Math.max(...zs) + pad].map((n) => n.toFixed(0));
+  const kinds = [...new Set(c.list.map((m) => m.shape))];
+  console.log(`  ${String(c.list.length).padStart(3)} at ${c.cx.toFixed(0)},${c.cz.toFixed(0)}  ${kinds.slice(0, 2).join(' / ')}${kinds.length > 2 ? ` /+${kinds.length - 2}` : ''}`);
+  console.log(`      node scripts/nightgrade.mjs ${box.join(' ')}`);
+}
 console.log(`
 Each of these stands at full daylight brightness at midnight while everything
 behind it goes dark. A cut-out discards its fragment and never blends, so
