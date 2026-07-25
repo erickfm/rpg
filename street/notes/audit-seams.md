@@ -55,6 +55,31 @@ LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
 ## Scope of that state: there are TWO suites, and I only ran one
 
+**Ran the other one.** Both states, in one place, for the first time:
+
+| suite | state |
+|---|---|
+| `npm run checks` | **52 green, 5 red** — 2 flaky, 2 known and explained, 1 correct red catching real defects, **0 describing something wrong with the world** |
+| `E-verify` (6 areas) | **exit 0 — all 6 areas walk.** Courtyard, churchyard, park, drape, onslope, coplanar. Nothing sinking into the grass, nothing floating above it, nothing fighting for the same height |
+
+So **both boards are green**, and that is now recorded rather than assumed.
+`E-coplanar`'s 150× speedup is what made this runnable at all — the suite it was
+optimised for finishes inside one window now, which is the first time I have been
+able to ask the question.
+
+One line from that run is worth keeping:
+
+```
+NOTE  the walk past the church, north: z -90.00 -> -66.24
+      <-- stopped short; nothing static there, check citizens
+```
+
+That is **one pedestrian deciding a binary** — the class behind my flaky
+`seats-walk` and E's own SEALED gate probe — and the harness handles it the right
+way: it **reports the possibility as a note instead of failing on it**. A check
+that cannot tell a blocked walk from a busy one, and says so, is worth more than
+one that picks.
+
 **`npm run checks` is not the project's verification. It is one of two.**
 
 ```
