@@ -361,14 +361,24 @@ if (straights.length < 2) {
 //
 // The entry is found rather than assumed: it is the narrow path quad that
 // reaches the street edge at site.maxX.
-const entry = await page.evaluate((maxX) => {
+const entry = await page.evaluate(([maxX, legX, minX, minZ, maxZ]) => {
   const sc = window.__ct.scene();
-  let best = null;
+  let best = null; const cand = [];
   sc.traverse((o) => {
     const g = o.geometry?.parameters;
     if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
     if (Math.abs(o.position.y - 0.1445) > 0.02) return;
-    if (!g.width || !g.height || g.width > 4 || g.height > 4) return;
+    // NARROW IN ONE AXIS, not small in both. This rejected anything over 4 m
+    // either way, and the entry spur is 5.25 x 1.9 — so the detector could
+    // never have found it, whatever the loop did. The audit read the miss as
+    // "the loop moved away from the boundary", which was true and was not the
+    // reason: the size filter excluded the target from the start.
+    //
+    // A path is a STRIP. What identifies one is that its short side is about a
+    // path's width, not that both sides are short.
+    if (!g.width || !g.height) return;
+    const short = Math.min(g.width, g.height), long = Math.max(g.width, g.height);
+    if (short > 2.6 || long < 1.2) return;
     // THE MOST STREET-WARD PATH SLAB, not "one touching the street edge".
     // 1da5e891 brought the loop in off the boundary and turned its corners, so
     // the entry stopped touching maxX and this went blind — it refused to
@@ -379,19 +389,56 @@ const entry = await page.evaluate((maxX) => {
     // Derive it: whichever path piece reaches furthest toward the street IS the
     // way in, wherever the loop sits. That survives the park being re-cut,
     // which it has been three times.
+    // AND IT MUST ACTUALLY BE THE WAY IN. "Whichever path piece reaches
+    // furthest toward the street" is not enough on its own: with the size
+    // filter widened it started answering z -96.90, a strip at the park's far
+    // south end, and PASSED on it — which is worse than the refusal it
+    // replaced, because a wrong answer is not visible as one.
+    //
+    // The entry is the piece that BRIDGES the boundary and the loop: its
+    // street-ward edge reaches the site's own edge, and its centre lies
+    // outboard of the loop's street leg. Both facts come from the world, not
+    // from a remembered coordinate.
+    // IN THE PARK. The traverse walks the whole world and nothing here bounded
+    // it, so "whichever path piece reaches furthest toward the street" was
+    // answering with quads at x 24, 27 and 51 — the far end of the SIDE STREET,
+    // thirty to sixty metres outside the park. That is why it kept reporting an
+    // entry at z -96.90 and passing on it. A locator with no bounds is not a
+    // locator.
+    if (o.position.x < minX || o.position.x > maxX + 0.6) return;
+    if (o.position.z < minZ || o.position.z > maxZ) return;
     const reach = o.position.x + g.width / 2;
-    if (!best || reach > best.reach) best = { z: o.position.z, d: g.height, x: o.position.x, reach };
+    if (reach < maxX - 0.35) return;               // it does not touch the street
+    if (o.position.x < legX) return;               // it is not outboard of the loop
+    cand.push({ z: +o.position.z.toFixed(2), x: +o.position.x.toFixed(2),
+      w: +g.width.toFixed(2), h: +g.height.toFixed(2), reach: +reach.toFixed(2) });
+    if (!best || reach > best.reach) {
+      best = { z: o.position.z, d: short, x: o.position.x, reach };
+    }
   });
-  return best;
-}, r.site.maxX);
-if (!entry) {
-  console.error('\n  FAIL could not find the gate entry path — this check cannot answer');
-  process.exitCode = 1;
+  return { best, all: cand.sort((a, b) => b.reach - a.reach).slice(0, 6) };
+}, [r.site.maxX, straights.length ? Math.max(...straights.map((q) => q.x)) : r.site.maxX - 6,
+  r.site.minX, r.site.minZ, r.site.maxZ]);
+// Say what it found, and — when it is ambiguous — what else it considered.
+// A locator that names one object is checkable; one that silently picks a
+// winner from a field is how this came to answer with a quad on the side
+// street and pass on it.
+const ent2 = entry?.best ?? null;
+if ((entry?.all?.length ?? 0) > 1) {
+  console.log('  NOTE more than one candidate for the entry:', JSON.stringify(entry.all));
+}
+if (!ent2) {
+  // EXIT 3, NOT 1. GOTCHAS §32: 1 means the world is wrong, and this message
+  // already says the opposite — that the check could not answer. The auditor
+  // caught it reading as a world failure when the locator was the thing that
+  // had broken, which is the exact confusion the code exists to prevent.
+  console.error('\n  INCONCLUSIVE could not find the gate entry path — this check cannot answer');
+  process.exitCode = 3;
 } else {
-  const clear = r.lamps.map(([x, z]) => +Math.abs(z - entry.z).toFixed(2));
+  const clear = r.lamps.map(([x, z]) => +Math.abs(z - ent2.z).toFixed(2));
   const nearest = Math.min(...clear);
-  const ok = nearest > entry.d / 2 + 0.6;
-  console.log(`\n  gate entry at z ${entry.z.toFixed(2)}, ${entry.d.toFixed(2)} m wide`);
+  const ok = nearest > ent2.d / 2 + 0.6;
+  console.log(`\n  gate entry at z ${ent2.z.toFixed(2)}, ${ent2.d.toFixed(2)} m wide`);
   console.log(`  ${ok ? 'OK  ' : 'FAIL'} no lantern stands on the entry (nearest is ${nearest} m off its centreline)`);
   if (!ok) process.exitCode = 1;
 }
