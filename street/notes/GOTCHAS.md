@@ -601,3 +601,38 @@ once.
 ```sh
 for i in 1 2 3 4 5 6; do node scripts/<yours>.mjs "shots/_c$i" >/tmp/c$i.log 2>&1 & done; wait
 ```
+
+## 31. `fp` compares dev to dev, or dist to dist — NEVER across
+
+CLAUDE.md sends every builder here to prove a change did not move the world:
+`npm run fp before` → change → `npm run fp after` → `npm run fpdiff`, and says
+textures and structure must match.
+
+Capture one side against a dev server and the other against a preview and you
+will get **about 612 texture differences out of 954** on a world you did not
+touch, and conclude you destroyed the art.
+
+Nothing is wrong with the art or the tool. `scenedump` seeds `Math.random` so
+paint noise is reproducible — a seeded LCG is a **sequence**, and dev and the
+bundle draw from it in different amounts before the world is even painted:
+
+```
+dev   draws at build-complete: 391067, 391067, 391067      (zero variance)
+dist  draws at build-complete: 391037, 391037, 391037
+first canvas of 818:  dev at draw 132, dist at draw 104
+```
+
+28 draws consumed at module-init in dev and not in the bundle — GOTCHAS 28's
+evaluation-order difference again — and every texture painted afterwards gets a
+different slice of the sequence.
+
+It is not a visual regression: the shipped world leaves `Math.random` unseeded,
+so the grain differs on every load anyway. It is only ever an artefact of the
+comparison. **So keep both captures on the same kind of server**, and if a
+texture diff ever comes back in the hundreds, check that before believing it.
+
+Neither the dump nor `fpdiff` records which kind of server it read, so nothing
+can catch this for you today. Recording the mode in the dump and refusing a
+cross-mode `fpdiff` would — offered to whoever owns those two, in
+`notes/C-texture-hash.md`; `scripts/**` says do not edit another builder's file
+and I have not.

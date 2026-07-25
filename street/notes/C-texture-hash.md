@@ -88,3 +88,19 @@ scope draws randoms during init and dev and the bundle disagree about how much.
 That is a real difference between what we test and what we ship, it is small,
 and it is bounded to init. I have not chased it further because the artefact it
 produces is decorative grain and the tool rule above removes the harm.
+
+
+## Offered, not done
+
+`scenedump.mjs` calls `reportWorld` but does not record the ANSWER in the dump,
+so `fpdiff` has no way to know it is comparing a dev capture against a bundle
+capture. Two small changes would make the mistake impossible instead of merely
+documented:
+
+- `scenedump`: store the served mode (dev server vs built bundle) in the JSON,
+  alongside the SHA it already proves.
+- `fpdiff`: refuse — loudly — when the two dumps disagree about that.
+
+Both are other builders' files and `OWNERSHIP.md` says `scripts/**` may be
+added to but not edited across owners, so this is an offer rather than a patch.
+It is GOTCHAS 31 either way.
