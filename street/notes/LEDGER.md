@@ -46,9 +46,9 @@ user anything is finished.
 | OPEN | C | pole sign panel too small / skewed | |
 | OPEN | C | spawn + respawn in room 301 | C owes the desk a coordinate |
 | OPEN | C | export the weed tuft for B and E | B and E waiting |
-| LANDED | D | ATM inlaid, slanted, lower, a little more detail | recess 0.15 m, opening larger on all 4 sides; normals MEASURED screen 8.1° / keypad 33.7° up; screen 1.37, keypad 1.10, base 0.90 above walk; shots/D-atm3-standing.png |
-| LANDED | D | cat directly ahead from the alley mouth | 5th position, placed by LOOKING not deriving: 2.35 m in, centred in the mouth view, 1.13 m clear of the grate; shots/D-cat-frommouth.png |
-| LANDED | D | alley floor: dark diagonal streaks | NOT shared with the park — they were mine, 16 radial strokes I added one commit earlier; replaced with a soft radial wash; shots/D-alley-floor.png |
+| CONFIRMED | D | ATM inlaid, slanted, lower, a little more detail | WALKED AND SEEN, `shots/d-atm2.png`. All four: recessed into the facade with a shadowed surround; keypad fascia visibly angled; screen at **y 1.51 against a 1.62 m eye**, sitting below the horizon in frame; green screen with text lines, card slot, individual keys, dispenser tray. — auditor |
+| CONFIRMED | D | cat directly ahead from the alley mouth | WALKED AND SEEN, `shots/d-mouth.png`. Stood at the alley mouth (−6.2, −40.1) looking in: the cat is **dead centre of frame**, beside the drain grate, eyes catching the light. Mesh at (−9.35, −40.15). — auditor |
+| CONFIRMED | D | alley floor: dark diagonal streaks | WALKED AND SEEN, `shots/d-floor.png`, `d-mouth.png`. The starburst is gone: the floor now darkens **smoothly and edgelessly toward the drain** with no linear strokes at any angle, which is what `58f6a1d28` replaced it with. Grate reads as a real casting. — auditor |
 | OPEN | B | apron untextured, needs ramp, must abut | |
 | OPEN | B | tree pit: trunk off-centre toward the kerb | possible regression from the clearance fix |
 | OPEN | B | cups too common and too big | oversizing was the desk's instruction |
