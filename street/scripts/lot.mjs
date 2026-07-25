@@ -68,9 +68,9 @@ for (const [name, x, z, yaw, pitch] of SHOTS) {
 await page.evaluate(() => window.__ct.clock(22, 30));
 await page.waitForTimeout(900);
 for (const [name, x, z, yaw, pitch] of [
-  ['19-night-front', -3.0, 4.0, at(10.0, 0), 0.10],
-  ['20-night-flood', 10.5, -2.6, at(4.3, -4.0), 0.30],
-  ['21-night-pool', 9.0, 4.0, at(3.5, -9.0), -0.34],
+  ['19-night-front', -3.0, 2.6, at(10.0, 0), 0.10],
+  ['20-night-aisle', 10.0, 2.6, at(14.0, 0), -0.01],
+  ['21-night-office', 22.0, 2.6, at(6.0, 0), 0.06],
 ]) {
   await page.evaluate(([a, b, c, d]) => window.__ct.warp(a, b, c, 0.14, d), [x, z, yaw, pitch]);
   await page.waitForTimeout(420);

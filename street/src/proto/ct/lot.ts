@@ -1312,8 +1312,23 @@ export function buildLot(o: {
     fpole.position.set(fx, Y + 3.1, fz);
     scene.add(fpole);
     solid({ minX: fx - 0.2, maxX: fx + 0.2, minZ: fz - 0.2, maxZ: fz + 0.2 });
+    // AIMED AT THE AISLE. It used to throw its pool into the back-south
+    // corner, which was reasonable when the stock was in rows across the lot
+    // and is pointless now that everything anybody looks at is the aisle and
+    // the office at the end of it. A floodlight lighting a corner nobody walks
+    // into is the night-time version of a pole with a box on it.
+    //
+    // The pole cannot move — every metre beside the aisle is a parking bay —
+    // so the head SWINGS instead, and the head, lens, halo and pool all take
+    // their bearing from the same two points rather than each being nudged
+    // until it looked right.
+    const AIM_X = X0 + 15.0, AIM_Z = zMid + 0.6;             // where it points
+    const aim = Math.atan2(AIM_Z - fz, -(AIM_X - fx));       // 0 = pointing -x
+    const off = (d: number): [number, number] => [fx + d * -Math.cos(aim), fz + d * Math.sin(aim)];
     const head = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 0.7), new THREE.MeshBasicMaterial({ color: 0x4a4f56 }));
-    head.position.set(fx - 0.3, Y + 6.05, fz);
+    const [hx, hz] = off(0.3);
+    head.position.set(hx, Y + 6.05, hz);
+    head.rotation.y = aim;
     head.rotation.z = 0.34;
     scene.add(head);
     const lensT = pixTex(16, 12, (g) => {
@@ -1323,8 +1338,9 @@ export function buildLot(o: {
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(0, 0, 16, 2);
     });
     const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.26), flat(lensT));
-    lens.position.set(fx - 0.52, Y + 5.94, fz);
-    lens.rotation.y = -Math.PI / 2;
+    const [lx, lz] = off(0.52);
+    lens.position.set(lx, Y + 5.94, lz);
+    lens.rotation.y = -Math.PI / 2 + aim;
     lens.rotation.z = 0.34;
     scene.add(lens);
     // It has to LIGHT something, or it is a pole with a box on it. A stepped
@@ -1351,15 +1367,17 @@ export function buildLot(o: {
       blending: THREE.AdditiveBlending,
     });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), haloM);
-    halo.position.set(fx - 0.62, Y + 5.9, fz);
+    const [ax, az] = off(0.62);
+    halo.position.set(ax, Y + 5.9, az);
     scene.add(halo);
     const poolM = new THREE.MeshBasicMaterial({
       map: stepDisc(32, 15), transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0xb9a882,
     });
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(9.5, 11.5), poolM);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(13.0, 9.0), poolM);
     pool.rotation.x = -Math.PI / 2;
-    pool.position.set(fx - 3.6, Y + 0.012, fz + 2.2);
+    pool.rotation.z = -aim;
+    pool.position.set(AIM_X, Y + 0.012, AIM_Z);
     scene.add(pool);
     o.onFrame?.((f) => {
       haloM.opacity = 0.95 * f.night;
