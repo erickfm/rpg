@@ -180,6 +180,39 @@ time undoes it. A fresh page per row fixes it. **Sequential measurement of a sta
 with memory needs a fresh world, not a longer wait** — and both of my first two
 attempts read as findings about the world rather than about the probe.
 
+### GOTCHAS §23 in my four rooms: two keepers were wrong, nothing else is
+
+The user found the tax preparer facing away and asked me to check the other
+three. **Two of four were backwards** — preparer and pawnbroker, both at
+`facing: Math.PI`, both facing their back wall — and both carried the *same
+copied sentence* asserting that PI pointed the other way. Fixed in `15f86d64`,
+all four now derived from what they serve. The comment is the part worth
+remembering: it was copied along with the constant, and it is why two readings
+missed the bug.
+
+**Then swept the rooms for the rest of the class**, since §23 is "anything with a
+front", not "anything with a face". Every box whose six materials are not all the
+same, asking whether the odd face has something solid 0.5 m in front of it:
+
+```
+GOLDEN ACES    36 fronted boxes, 0 facing into something
+HOTEL ORPHEUS   0
+PAWN            4 fronted boxes, 2 flagged — FALSE POSITIVE
+A-1 TAX         0
+```
+
+The two flagged are the bottom of a four-TV stack against the pawn shop's back
+wall, screens out. What sits 0.5 m in front of them is **the counter**, which is
+where a pawn shop's stock is supposed to be — you look at it over the counter,
+and the top two TVs clear it and are not flagged. **"Blocked" is not "backwards"
+when the blocker is a thing you are meant to see past**, which is the limit of
+this probe and the reason it is written down rather than turned into a check.
+
+The casino's 36 are the slot cabinets, and they were already right by
+construction: `rotation.y` derives from the same `face` variable that positions
+each row, so both rows of a back-to-back bank face their own aisle. That is what
+§23 asks for, written before §23 existed.
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
