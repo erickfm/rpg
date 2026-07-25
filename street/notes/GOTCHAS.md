@@ -294,7 +294,14 @@ cost real time to learn:
 It was not: skipping transparent materials was correct, and the flag was mine
 both times.
 
-## 22. Real is not the same as visible — triage by what a player sees
+## 23. Real is not the same as visible — triage by what a player sees
+
+<!-- Numbered 23, not 22. It landed as a second `## 22` while the existing §22
+     (alphaTest/transparent) was already cited nine times from ct/props.ts and
+     scripts/nightgrade.mjs — including in that script's own pass/fail output,
+     so a reader following "0 materials break GOTCHAS §22" would have landed
+     here instead. Renumbered the newer one because the references all point at
+     the older. — C -->
 
 The auditor's own line, after 3,400 lines of reports across five audits:
 
