@@ -362,6 +362,40 @@ grade — a system reverted once already for a unilateral change.
 
 ---
 
+## I left four `pgrep -f` waiters running, and one blocked for 3h29m
+
+`6a4aea00` found waiter processes from another worktree stuck on
+`until ! pgrep -f "scripts/checks.mjs"`, one of them waiting three hours
+twenty-five minutes on somebody else's run. **They were mine.** Four of them,
+identified by my own session id in their command lines:
+
+```
+2648138  3h29m  pgrep -f "scripts/checks.mjs"     ← the one that commit saw
+2546058  4h02m  pgrep -f "node scripts/canfail"
+2746050  2h57m  pgrep -f "scripts/park.mjs"
+2995358  1h35m  pgrep -f "scripts/bus.mjs"
+```
+
+`pgrep -f` is machine-wide and every checkout has a `scripts/checks.mjs`, so
+each of these was waiting on whichever builder happened to be running that name
+— their own work having finished hours earlier. Killed by PID, after confirming
+each was mine, because matching by name is the whole defect.
+
+**The worst of it is not the idle shells.** 2648138 had three `door301.mjs`
+runs queued behind its wait. Whenever some unrelated builder's `checks.mjs`
+finally stopped, my session would have spawned three browsers into a world I
+was no longer looking at, hours after I asked for them, and attributed the load
+to nobody.
+
+I wrote up the other half of this in `b56a8f5a` — a zombie preview passes
+`pgrep` and serves nothing — and did not join it to the case I was actively
+creating. `pgrep` answers neither *is it alive* nor *is it mine*, and I had
+already established the first half myself.
+
+Wait on the PID you started, on the artefact, or on the service answering.
+
+---
+
 ## A zombie preview passes `pgrep` and serves nothing
 
 Cost me a false FAIL on `kerbcut` while verifying at HEAD. `pgrep -f "vite
