@@ -12,6 +12,52 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **Two bugs in `ct/tex-world.ts`, both found and both small. Do these
+      first — they are minutes, and the facade work below sits on top of them.**
+
+      **(a) Lit windows form diagonal stripes.** The user: *"all the lighting
+      on the windows goes up and to the right for some reason?"* Ref:
+      `shots/user-windiag.png`.
+
+      `facadeTex`, line ~150:
+
+      ```
+      const lit = ((f * 7 + c * 3) % 5) === 0;
+      ```
+
+      That is a linear congruence in floor and column, so each step up the
+      building shifts the lit column by a fixed amount. It cannot produce
+      anything BUT diagonal stripes — it is a lattice, not a scatter. The user
+      spotted it as a pattern before spotting it as a bug, which is the tell.
+
+      Replace it with a hash of `(f, c)` — the file already has an LCG in
+      `clcg`/`treeSprite` you can borrow the shape of — seeded per building so
+      two neighbours do not light identically either. Aim for a similar
+      proportion lit, roughly 1 in 5, but scattered.
+
+      Note builder D has a queued item to make window lights follow the night
+      curve rather than being baked. **Do not build that** — just make the
+      static pattern non-diagonal so D has something sane to animate.
+
+      **(b) Tree canopies are see-through in patches.** The user: *"tree looks
+      transparent in parts that probably shouldnt be transparent?"* Ref:
+      `shots/user-treealpha.png` — you can read brick and a whole window
+      through the middle of the crown.
+
+      It is not the material — `board()` uses `alphaTest: 0.5` with no
+      `transparent`, which is a hard cutout. It is `treeSprite`: the
+      ragged-edge pass runs `globalCompositeOperation = 'destination-out'` and
+      bites notches at `d = 0.94 + r() * 0.22`, i.e. centred anywhere from
+      **94%** of the radius outward. At 0.94, plus the notch's own radius, it
+      is eating into the INTERIOR of the crown and punching alpha-0 holes
+      straight through it.
+
+      The intent — *"bite small notches out of the outline so it is never
+      smooth"* — is right and the ragged silhouette should stay. Constrain the
+      notches to the rim: centres at or beyond the full radius, or re-fill the
+      interior after the destination-out pass. Check the result against a
+      bright wall, which is where a hole shows.
+
 - [ ] **The shopfronts are not good enough. Bring all of them up, and take
       the special fronts into your file while you do it.** The user:
       *"we need much better facades for the tax service, diner, burger barn,
