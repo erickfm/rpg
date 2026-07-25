@@ -81,8 +81,27 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
     at: (v: number) => Math.round(v * ppm),
     /** the brick bond, phased off world Y so it crosses a party wall in step */
     courses: (g: CanvasRenderingContext2D) => courses(g, W, H, hMeters, baseY, ppm),
-    /** paint it. The canvas size is not the caller's to choose. */
-    paint: (draw: (g: CanvasRenderingContext2D) => void) => pixTex(W, H, draw),
+    /**
+     * Paint it. The canvas size is not the caller's to choose.
+     *
+     * The texture is STAMPED with what it is and at what density. The audit's
+     * `density.mjs` cannot answer pattern #1 because its filter is geometric —
+     * foliage, ground decals and signage all end up in a net meant for masonry,
+     * and no amount of shape-guessing separates them. This is the same answer
+     * `userData.mod` gave for ownership: the module that knows declares, and
+     * the tool outside stops inferring.
+     *
+     * The DECLARED ppm is the useful half. Pattern #1 says every masonry face
+     * is painted at one density; an auditor measuring px/m off the geometry is
+     * re-deriving a number this function already knows, and can only ever catch
+     * disagreement between its own arithmetic and mine. With this it can read
+     * the intent and check the mesh against it, which is the actual assertion.
+     */
+    paint: (draw: (g: CanvasRenderingContext2D) => void) => {
+      const t = pixTex(W, H, draw);
+      t.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H };
+      return t;
+    },
   };
 }
 
