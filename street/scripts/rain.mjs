@@ -219,6 +219,13 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 // searching the schedule for an absolute h silently tests a DIFFERENT hour: pick
 // 95 as rainy and you set hour 23, whose weather is whatever it happens to be.
 // The time of day still wraps correctly, so nothing looks wrong.
+// OUTDOORS FIRST, for the same reason wetness.mjs now does it: ct/props.ts cuts
+// the weather when the player is indoors ("it NEVER rains indoors"), and the
+// spawn is room 301 at x 198.6. The shots section below already warps; this
+// memory half never did, so it soaked from inside a building and measured a
+// pool level of 0 for 25 s before giving up.
+await page.evaluate(() => window.__ct.warp(-1.0, -30, 0, 0, -0.05));
+await page.waitForTimeout(300);
 await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
 const SOAK_TO = 0.25, SOAK_CAP = 25000;
 const t0 = Date.now();

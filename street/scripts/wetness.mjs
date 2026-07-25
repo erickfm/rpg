@@ -89,6 +89,19 @@ const read = () => page.evaluate(() => {
 
 if (mode === 'probe' || mode === 'all') {
   console.log(`\nrainy hour ${wetH}, dry hour ${dryH}`);
+  // STAND OUTSIDE FIRST. ct/props.ts cuts the weather when the player is
+  // indoors — `if (px > 100) rainLevel = 0; // it NEVER rains indoors` — and
+  // the spawn is now room 301 at x 198.6, so a check that never moves measures
+  // the weather from inside a building and sees none of it.
+  //
+  // This check used to pass because the spawn used to be on the street. Nothing
+  // about the rain changed; the world moved out from under a script that
+  // assumed where it woke up. I spent most of a round concluding "it never rains
+  // any more" off exactly that, with rainLevel 0 at all seven rainy hours and a
+  // natural clock crossing to confirm it, before warping outdoors and watching
+  // it ramp to 0.999 in four seconds.
+  await page.evaluate(() => window.__ct.warp(6.2, -50, 0, 0.14, 0));
+  await page.waitForTimeout(300);
   await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
   await page.waitForTimeout(5000);                       // let it come down
   const wet = await read();
