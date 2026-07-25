@@ -1902,3 +1902,54 @@ import of `./doors`, so nothing needs to be bound before anything else. But it
 also means the current failure is **reproducible and explainable**, which it was
 not an hour ago: the desk can now verify a fix by checking that no room's
 binding sits after the glob, rather than by counting doors and hoping.
+
+## Round 14g — the diagnostic, as a script. And only **one** of the three globs is broken.
+
+`scripts/globorder.mjs` reads the built bundle, finds every eager-glob object
+literal, and reports any binding declared after the literal that references it.
+No browser, no runtime — it is a property of the emitted file. Exit 1 on any
+finding, so it can gate a build.
+
+```
+index-BV8SPbzt.js  838,603 bytes
+
+glob literal at byte 809,885 — 32 entries, 4 bound AFTER it
+   ** civic-doors.ts   id bm   declared at 826,810 — 16,925 bytes too late
+   ** int-casino.ts    id rm   declared at 811,651 —  1,766 bytes too late
+   ** interior.ts      id om   declared at 818,761 —  8,876 bytes too late
+   ** world.ts         id Om   declared at 827,992 — 18,107 bytes too late
+
+glob literal at byte 819,145 —  8 entries, 0 bound AFTER it
+glob literal at byte 828,081 — 32 entries, 0 bound AFTER it
+```
+
+**Independently reproduces mainline's four**, by name, from the bundle alone.
+
+### The sharper statement this makes possible
+
+There are three eager globs and **only the earliest one is broken.**
+
+| glob | emitted at | late bindings |
+|---|---|---|
+| `ct/doors.ts` `./*.ts` | **809,885** | **4** |
+| `ct/interior.ts` `./int-*.ts` | 819,145 | 0 |
+| `ct/world.ts` `./*.ts` | 828,081 | 0 |
+
+`interior`'s and `world`'s globs are constructed *after* everything they read,
+so they are completely fine. **Eager globbing is not the defect.** The defect is
+that `doors.ts`'s literal is emitted 9 KB before `interior`'s and 18 KB before
+`world`'s, and four modules land in that window.
+
+> The earlier a glob is emitted, the more of the bundle has not happened yet.
+> `ct/doors.ts` is simply first, and first is where this bites.
+
+That also explains why `int-casino` is the only *room* affected — it is bound
+1,766 bytes after the literal, and the other seven are bound 70–120 KB before
+it. The casino is not different in kind; it is different by **1.7 KB of emitted
+output**, which is why nothing in the source could ever have shown it.
+
+### For whoever owns the build
+
+`npm run checks` can call this directly — it needs no world, no page, and takes
+milliseconds. It catches **any** future case of this, not just doors: a new
+eager glob emitted early would be caught the same way.
