@@ -259,3 +259,40 @@ I built a ground-height probe by warping and reading `pos()[3]` when `groundAt`
 was sitting there the whole time — the same lesson as `spots-walk` and
 `seats-walk` already existing: **read the debug surface before writing against
 it.**
+
+## Migrated to `scripts/lib/faces.mjs` — the numbers did not move, which is the point
+
+`lib/faces.mjs` landed, and its header names the two scripts its absence broke:
+
+> *"This existed independently in four scripts and was **WRONG IN TWO** of them
+> … `masonry.mjs` 42 "off-density" faces, `seampairs.mjs` 135 "disagreeing"
+> junctions."*
+
+Both of those were mine. `masonry.mjs` had already been migrated by mainline;
+I migrated **`seamreal.mjs`**, the last of mine still carrying its own copy.
+
+**Re-run after migration:**
+
+```
+masonry    236 stamps checkable · 0 disagree with their face
+seamreal   735 real junctions · 376 agree · 359 disagree
+```
+
+**Identical to the pre-migration numbers.** A refactor that changes a result is
+a bug report, not a refactor — so the fact that nothing moved is the evidence
+the migration was correct.
+
+### Two self-inflicted errors on the way, both caught immediately
+
+1. My migration script added a **second** `import { reportWorld }` to a file
+   that already had one — `SyntaxError: Identifier 'reportWorld' has already
+   been declared`. Careless editing, fixed by deduping imports.
+2. `which-world.mjs` refused to run at all: *"MEASURING THE WRONG WORLD — served
+   `c5566b8d+`, this checkout is at `deaeba2f`."* I had rebased and not rebuilt.
+   **That is the second time in three rounds the guard has caught me**, and both
+   times it was right.
+
+> A guard that has stopped me twice in an hour is not an inconvenience. Without
+> it, both runs would have produced confident, plausible, wrong numbers — and I
+> would have published them, because I have published exactly that three times
+> this session.

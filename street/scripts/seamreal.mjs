@@ -5,12 +5,15 @@
 // Everything before this combined at least one broken half, which is why the
 // numbers moved so much. This is the first run where both halves are sound.
 import { chromium } from 'playwright';
+import { FACE_LIB } from './lib/faces.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
+await p.addInitScript({ content: FACE_LIB });   // window.__faceLib — one copy, not a fifth
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p);
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(1200);
 const out = await p.evaluate(() => {
@@ -29,15 +32,13 @@ const out = await p.evaluate(() => {
       const ms = (m.map.userData && m.map.userData.masonry) || null;
       const e=o.matrixWorld.elements, len=(a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
       const S=[len(0,1,2),len(4,5,6),len(8,9,10)], pr=o.geometry.parameters||{};
-      let fw, fh, nrm;
-      if (o.geometry.type === 'BoxGeometry') {          // [+x,-x,+y,-y,+z,-z]
-        if (mi===0||mi===1)      { fw=(pr.depth??0)*S[2]; fh=(pr.height??0)*S[1]; nrm=[mi===0?1:-1,0,0]; }
-        else if (mi===4||mi===5) { fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1]; nrm=[0,0,mi===4?1:-1]; }
-        else return;                                     // top/bottom: not a wall
-      } else {
-        fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1];
-        const L=Math.hypot(e[8],e[9],e[10])||1; nrm=[e[8]/L,e[9]/L,e[10]/L];
-      }
+      const { fw, fh } = window.__faceLib.dims(o, mi);   // scripts/lib/faces.mjs
+      let nrm;
+      if (o.geometry.type === 'BoxGeometry') {
+        if (mi===0||mi===1) nrm=[mi===0?1:-1,0,0];
+        else if (mi===4||mi===5) nrm=[0,0,mi===4?1:-1];
+        else return;
+      } else { const L=Math.hypot(e[8],e[9],e[10])||1; nrm=[e[8]/L,e[9]/L,e[10]/L]; }
       if (!(fw>0.05&&fh>0.05)) return;
       const img=m.map.image, rep=m.map.repeat;
       F.push({ u:+((img.width*Math.abs(rep.x))/fw).toFixed(2),
