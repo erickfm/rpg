@@ -321,8 +321,24 @@ export function citizenAtlas(o: Look): THREE.Texture {
   });
 }
 
-export function viewFor(rel: number): [number, boolean] {
-  const sector = ((Math.round(rel / (Math.PI / 4)) % 8) + 8) % 8;
+/** Which of the 8 facing sectors an angle falls in, as a CONTINUOUS position:
+ *  2.5 means exactly on the boundary between sectors 2 and 3. The caller needs
+ *  the fraction, not just the rounded index, because switching sprite view at
+ *  the exact midpoint makes a walker whose heading sits on a boundary flicker
+ *  between two views every frame — which reads as the whole person twitching.
+ *  See the hysteresis in ct/crowd.ts. */
+export const sectorAt = (rel: number) => {
+  const s = rel / (Math.PI / 4);
+  return ((s % 8) + 8) % 8;
+};
+
+/** the painted column for a sector, and whether it is drawn mirrored */
+export function viewAt(sector: number): [number, boolean] {
+  const s = ((Math.round(sector) % 8) + 8) % 8;
   const cols = [0, 1, 2, 3, 4, 3, 2, 1];
-  return [cols[sector], sector > 4];
+  return [cols[s], s > 4];
+}
+
+export function viewFor(rel: number): [number, boolean] {
+  return viewAt(sectorAt(rel));
 }

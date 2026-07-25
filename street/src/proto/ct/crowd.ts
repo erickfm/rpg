@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { type Look, citizenAtlas, viewFor } from './citizens';
+import { type Look, citizenAtlas, sectorAt, viewAt } from './citizens';
 import { ROAD_HALF, rnd } from './rng';
 import { buildNet, STRAY, type Activity, type Net } from './crowd-net';
 import { ORDER, type CtxBuild } from './ctx';
@@ -89,6 +89,13 @@ interface Citizen {
   bias: number;
   /** this frame's movement, which is what the sprite's facing comes off now */
   vx: number; vz: number;
+  /** index in the cast — the deterministic tie-break when two of them meet */
+  id: number;
+  /** the lateral offset COMMITTED to, so a pass is not re-decided every frame */
+  pick: number;
+  /** the smoothed heading the sprite is drawn from, and the view sector it is
+   *  holding — both exist to stop a walker twitching, see the frame hook */
+  head: number; sector: number;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -108,6 +115,10 @@ export interface Crowd {
    *  screenshot of one angle cannot answer it (scripts/feet-check.mjs). */
   views: () => { vx: number; vz: number; col: number; mirror: boolean; yaw: number;
     moving: boolean; doing: string; to: string }[];
+  /** test affordance: route between two named nodes of the walkable network, so
+   *  a probe can assert the graph CONNECTS rather than waiting to observe a trip
+   *  that depends on a random destination draw (scripts/crowd-net.mjs) */
+  netRoute: (fromId: string, toId: string) => { hops: number; len: number } | null;
 }
 
 export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
@@ -140,7 +151,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
       cad: 5 * Math.sqrt(p.sp) / p.hs,   // cadence: long legs swing slower
       route: [], at: -1, wait: 0, doing: 'none', jam: 0, bias: 0, vx: 0, vz: 0,
-      was: -1, back: -1,
+      was: -1, back: -1, id: i, pick: 0, head: i % 2 ? 0 : Math.PI, sector: -1,
     });
   });
 
@@ -193,7 +204,12 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     let to = from;
     for (let tries = 0; tries < 10 && to === from; tries++) {
       const wantAct = rnd() < 0.75;
-      const local = rnd() < 0.88 ? 26 : 1e9;          // metres, as the crow flies
+      // A quarter of trips ignore the local radius. That share is load-bearing
+      // in BOTH directions and was tuned twice: too few long trips and the side
+      // street empties out (nobody routes round the corner at all), too many and
+      // everybody is permanently in transit and the errands stop showing,
+      // because a cross-block walk takes the best part of a minute.
+      const local = rnd() < 0.85 ? 26 : 1e9;          // metres, as the crow flies
       const pool = net.nodes
         .map((n, i) => ({ n, i }))
         .filter(({ n, i }) => i !== from && (!wantAct || n.act)
@@ -266,13 +282,48 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         const ahead = citizens.find((q) => q !== c
           && Math.hypot(q.lane - (c.lane + dx * 0.7), q.z - (c.z + dz * 0.7)) < 0.62);
         if (ahead) c.jam += dt; else c.jam = Math.max(0, c.jam - dt * 2);
-        const held = ahead && c.jam < 0.8;             // a pause before squeezing by
-        const step = held ? 0 : c.sp * dt;
+        // ── who gives way ─────────────────────────────────────────────────
+        //
+        // ASYMMETRIC, on purpose. Both-bear-right is symmetric, and a symmetric
+        // rule is what makes two walkers in a lane too narrow for two abreast
+        // each step aside into the other's new path, every frame, for as long as
+        // they are near each other — the back-and-forth in the report.
+        //
+        // But only a HEAD-ON meeting needs anybody to stand. Treating a walker
+        // you have merely caught up with as a conflict was my first cut and it
+        // starved the block: everybody spent their time waiting instead of
+        // walking, nobody completed a long trip, and the side street emptied.
+        // Catching somebody up is a FOLLOW — match their pace and stay behind.
+        //
+        // And the tie-break alternates by PAIR PARITY rather than always
+        // favouring the higher id. Fixed for any given pair, so it cannot
+        // oscillate; different across pairs, so no one walker is the one who
+        // always gives way (id 0 yielded to all five of the others, which is
+        // how the starvation showed up).
+        let held = false, follow = 0;
+        if (ahead) {
+          const mine = Math.hypot(c.vx, c.vz), theirs = Math.hypot(ahead.vx, ahead.vz);
+          const headOn = mine > 1e-4 && theirs > 1e-4
+            && (c.vx * ahead.vx + c.vz * ahead.vz) / (mine * theirs) < 0;
+          if (headOn || theirs <= 1e-4) {
+            const lowerYields = (c.id + ahead.id) % 2 === 0;
+            held = lowerYields ? c.id < ahead.id : c.id > ahead.id;
+          } else {
+            follow = theirs / dt;                     // their speed, to match
+          }
+        }
+        const step = held ? 0 : Math.min(c.sp, follow || c.sp) * dt;
         // try the intended offset first, then wider — prop avoidance and
         // passing are the same manoeuvre. Never wider than the walk allows.
+        // STICKY: whatever offset worked last frame is tried first, and a new
+        // one is only searched for — and then COMMITTED — when it stops working.
+        // Re-deriving the choice from scratch every frame is the other half of
+        // the oscillation: the candidate list is ordered, so a walker would
+        // snap back to its preferred side the instant that side cleared, which
+        // is the moment the other walker had just moved out of it.
         const want = ahead ? Math.max(0.3, c.bias) : c.bias;
         let placed = false;
-        for (const off of [want, want + 0.4, want - 0.8, 0, want + 0.8, want - 0.4]) {
+        for (const off of [c.pick, want, want + 0.4, want - 0.8, 0, want + 0.8, want - 0.4]) {
           const o2 = Math.max(-STRAY, Math.min(STRAY, off));
           const nt = t + step;
           const nx = A.x + dx * nt + rx * o2;
@@ -280,6 +331,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
           if (clearAt(nx, nz2) && clearOfPeople(nx, nz2, c)) {
             vx = nx - c.lane; vz = nz2 - c.z;
             c.lane = nx; c.z = nz2;
+            c.pick = o2;                              // committed until it fails
             placed = true;
             break;
           }
@@ -314,15 +366,36 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       }
       c.mesh.position.set(c.lane, sidewalkY, c.z);
       c.mesh.rotation.y = Math.atan2(px - c.lane, pz - c.z);
-      // Facing follows the ACTUAL direction of travel. It used to be
-      // atan2(0, dir), which only knew ±z — fine when everybody walked one
-      // axis, wrong the moment somebody turns the corner and walks east. The
-      // last non-zero movement is kept so a person standing still keeps facing
-      // the way they were going rather than snapping to face +z.
-      if (Math.hypot(c.vx, c.vz) > 1e-4) c.dir = Math.atan2(c.vx, c.vz);
-      const facing = c.dir;
+      // Facing follows the ACTUAL direction of travel — it used to be
+      // atan2(0, dir), which only knew ±z, and was wrong the moment somebody
+      // turned the corner. But the RAW per-frame velocity is not a heading: it
+      // carries every lateral correction the avoidance makes, so feeding it
+      // straight to the sprite is the third source of twitching. Ease toward it
+      // instead, and keep the last heading while standing still so a halted
+      // person does not snap round to face +z.
+      if (Math.hypot(c.vx, c.vz) > 1e-4) {
+        const want = Math.atan2(c.vx, c.vz);
+        let d = want - c.head;
+        while (d > Math.PI) d -= 2 * Math.PI;         // by the short way round
+        while (d < -Math.PI) d += 2 * Math.PI;
+        c.head += d * Math.min(1, dt * 7);
+      }
+      c.dir = c.head;
       const camAng = Math.atan2(px - c.lane, pz - c.z);
-      const [col, mirror] = viewFor(camAng - facing);
+      // ── view hysteresis ───────────────────────────────────────────────
+      //
+      // Rounding the heading to one of 8 sectors switches view at the exact
+      // midpoint, so a heading sitting on a boundary flips between two painted
+      // columns every frame and the whole person reads as twitching. Hold the
+      // current sector until the heading is clearly past the boundary — a fifth
+      // of a sector, 9° — so crossing it is a decision rather than a coin flip.
+      const sPos = sectorAt(camAng - c.dir);
+      if (c.sector < 0) c.sector = Math.round(sPos) % 8;
+      let away = sPos - c.sector;
+      while (away > 4) away -= 8;
+      while (away < -4) away += 8;
+      if (Math.abs(away) > 0.7) c.sector = ((Math.round(sPos) % 8) + 8) % 8;
+      const [col, mirror] = viewAt(c.sector);
       // feet only stride while actually walking; stand still (feet together)
       // when halted, so a stopped person isn't marching in place
       if (moving) c.anim += dt * c.cad;   // per-person cadence, see strideFor
@@ -344,6 +417,18 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading
+    netRoute: (fromId, toId) => {
+      const a = net.nodes.findIndex((n) => n.id === fromId);
+      const b = net.nodes.findIndex((n) => n.id === toId);
+      if (a < 0 || b < 0) return null;
+      const r = net.route(a, b);
+      let len = 0;
+      for (let i = 0; i + 1 < r.length; i++) {
+        len += Math.hypot(net.nodes[r[i]].x - net.nodes[r[i + 1]].x,
+          net.nodes[r[i]].z - net.nodes[r[i + 1]].z);
+      }
+      return { hops: r.length, len };
+    },
     views: () => citizens.map((c) => ({
       vx: c.vx, vz: c.vz, col: c.view?.col ?? -1, mirror: !!c.view?.mirror,
       yaw: c.view?.yaw ?? 0, moving: !!c.view?.moving,

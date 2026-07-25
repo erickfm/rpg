@@ -459,6 +459,8 @@ export function makeCrosstown(): Proto {
     views: () => crowd.views(),
     // test affordance: where everybody is standing, for the routing probe
     walkers: () => crowd.walkers(),
+    // test affordance: route two named nodes of the walkable network
+    netRoute: (a: string, b: string) => crowd.netRoute(a, b),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
     // test affordance: "is my [E] spot inside something solid?" is the single
     // most expensive question in this project — GOTCHAS §8, and the reason the
