@@ -696,6 +696,43 @@ export function buildVice(o: {
       spill(hx, -97.0, 3.6, 3.0, KERB_H + 0.024, 0x6ad0ea, 0.03, 0.34);
     }
 
+    // ═══ what the pair look like from the BLOCK ════════════════════════
+    //
+    // The view this whole build exists for is the one you get standing at the
+    // corner and looking 45 m down the side street, and at that range every
+    // individual bulb is sub-pixel. The signs still burn through — they are
+    // `fog: false` — but they read as a thin bright sliver, because the AIR
+    // around them does not do anything. Real neon at that distance is mostly
+    // the glow it puts into the haze above itself.
+    //
+    // So: one soft additive sheet standing over the pair, facing back down the
+    // street at the viewer, dark by day and up at night. It is the cheapest
+    // possible version of light pollution and it is what makes the far end of
+    // the street read as somewhere rather than as a wall with a sign on it.
+    //
+    // Kept deliberately weak and very soft-edged. The failure mode here is a
+    // glowing rectangle hanging in the sky, so it is a radial falloff with no
+    // hard edge anywhere near the frame, and it sits BEHIND the roofline of
+    // both buildings so the silhouette still cuts it.
+    if (casino && hotel) {
+      const gx = (hotel[0] + casino[1]) / 2;
+      const haze = new THREE.Mesh(new THREE.PlaneGeometry(26, 17), glowM(0xff9a5a, 0));
+      haze.rotation.y = -Math.PI / 2;            // faces -x, back down the street
+      haze.position.set(gx, 15.5, -95.4);
+      scene.add(haze);
+      const hazeM = haze.material as THREE.MeshBasicMaterial;
+      hazeM.map = soft;
+      // a second, tighter and warmer one down at marquee height, which is what
+      // puts colour in the air over the road rather than over the roofs
+      const low = new THREE.Mesh(new THREE.PlaneGeometry(22, 9), glowM(0xffb060, 0));
+      low.rotation.y = -Math.PI / 2;
+      low.position.set(gx, 5.2, -98.6);
+      scene.add(low);
+      const lowM = low.material as THREE.MeshBasicMaterial;
+      lowM.map = soft;
+      ticks.push((n) => { hazeM.opacity = 0.30 * n; lowM.opacity = 0.22 * n; });
+    }
+
     // ═══ the rooftop pylon — kept, and still the skyline mark ═══════════
     //
     // Unchanged from the version street.ts carried, comment and all. It is the
