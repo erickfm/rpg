@@ -18,15 +18,40 @@ Shot from the door stand point, `/tmp/bod-a.png`:
 So one of the four is done and three stand. Worth saying, because the item reads
 as four and is three.
 
-## What I have NOT established yet
+## Corrected: two of the four are already done, not one
 
-**Whose the scoring is.** The paving is `ct/tex-ground.ts` (B's) and the
-building line is mine. Joints running under a wall is either the ground texture
-not stopping at the frontage or my shell sitting over it, and I have not
-measured which. That decides whether it is a fix or a routing.
+**The shopfront rhythm is fixed and the code says so in the past tense.** The bay
+painter at `street.ts:~1188` reads: *"Every panel used to sit at its own depth
+and its own width, with three different kick-plate heights, so the bay read as
+several unrelated fronts jammed into a corner. Now there is one fascia line, one
+opening, one reveal depth, one cill and one stallriser running the full width."*
+Built from A's `proud`/`reveal`/`glazed`/`mullions`, which is what the item asks
+for. The photograph agrees — one fascia, one opening, one stallriser.
 
-## Next
+What I read as "panels at different widths" in my first pass is the **brick
+piers** either side of the recessed door, which are the corner's structure
+(R1/R2 in the plan comment), not shopfront panels. Different object, and it is
+what a cut corner looks like.
 
-The two shopfront defects — pier widths and kick-plate heights — are mine
-outright, and A's five helpers are what the rest of the block's fronts are built
-from, so following them is the point. Starting there.
+## The scoring: measured, and it is not geometry
+
+No ground plane extends under the bodega. Every ground-facing plane overlapping
+its footprint (x 7..10.4, z -96..-86):
+
+```
+civic  x[7.00,9.60] z[-86.00,-68.00] y 0.140
+```
+
+— E's, north of the bodega, touching only at the z = -86 boundary. **Nothing is
+under the building.** So the scoring does not "run under" it in the sense of
+geometry poking through; the walk texture's joint grid is continuous and the
+building sits on it wherever it happens to land, so joints meet the wall at
+arbitrary offsets. That is a texture-alignment question between B's paving and
+my building line, not a plane clipping through.
+
+## Where that leaves the item
+
+Of the four reported defects, **two are already fixed** (the OPEN neon, the
+shopfront rhythm), one is a misreading of the corner's structure, and one is a
+real but different problem from the one described. Worth the desk knowing before
+more time goes into it.
