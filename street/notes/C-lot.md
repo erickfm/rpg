@@ -225,46 +225,44 @@ my decals painted on it                                        0%
 
 Now registered, and they track it: `0.693 -> 0.211`, -69.5%, 23 of 23.
 
-**The part I got wrong.** I dimmed those decals myself, with `1 - 0.47*f.night`,
-and defended the constant in this file as *"the factor the world's own grader
-was measured applying to this lot"*. The ratio says otherwise:
+**The part I got wrong — and then got wrong a second way.**
+
+I dimmed those decals myself with `1 - 0.47*f.night` and defended the constant
+here as *"the factor the world's own grader was measured applying to this lot"*.
+It was not, and the decals barely moved after dark while the ground they are
+painted on went almost black.
+
+**But the figure I used to say so — "an oil stain 94x brighter than the asphalt
+it is painted on" — is WITHDRAWN.** `114c5bef7` established that
+`MeshBasicMaterial.color` is a TINT, white by default, with the texture
+carrying the appearance; `8ed8f34bc` withdrew two of its own published claims
+for the same reason. Mine is the same mistake. Measured here:
 
 ```
-                 decal   tarmac   ratio
-  noon, dry     0.6933   1.0000   0.693
-  noon, RAIN    0.1552   0.1705   0.910
-  23:00, dry    0.0070   0.0077   0.910
-  23:00 RAIN    0.0070   0.0077   0.910
-
-  23:00 under my 0.47   0.727  vs  0.0077  =  94x the tarmac
+  lot tarmac    1 material, mapped, tint exactly 1.0000   <- a placeholder
+  lot decals   23 materials, only 11 mapped, mean 0.6933  <- a MIXED population
 ```
 
-**And re-measured a THIRD time, stepped rather than jumped** — `3d71b035`
-found a jumped clock is 7.4% brighter than the night a player reaches. Only the
-"dry" rows move, and they move a long way: noon dry reads 0.6933/1.0000 jumped
-and 0.1978/0.2362 stepped, because **the world never offers a dry spell longer
-than 8 hours** and so a stepped arrival always follows recent rain. See
-`notes/C-weather-is-periodic.md`. The ratio — which was the point — holds at
-0.84 to 0.91 throughout.
+So I averaged real flat colours together with placeholder tints and divided the
+result by a placeholder. That number was never a brightness ratio.
 
-**Re-measured at HEAD and these numbers are the corrected ones.** The table I
-first published was taken with a 5 s settle and before `e24c959a` clamped the
-wet look, and both were wrong in my favour: `baa675d7` measured that the wet
-look takes ~16 s to settle, not 5, so my rainy readings were caught mid-soak.
-The conclusion is unchanged and the band is tighter than I claimed — 0.910 in
-three of the four conditions rather than a 0.69-0.91 spread.
+**What survives is every DELTA, because grading multiplies the tint and a
+quantity against itself is sound.** The defect, restated in that form:
 
-An oil stain eighty-seven times brighter than the asphalt it is on. The whole
-argument for dimming them by hand was that an untouched decal *"gets BRIGHTER
-relative to the tarmac as the sun goes down"* — and my fix left it doing
-exactly that, just less. It read fine in every screenshot because 0.727 on a
-black yard looks like a lit stain rather than a wrong one.
+```
+  before the fix   decals  -27%     tarmac  -99%      noon -> wet night
+  after the fix    decals  -99.0%   tarmac  -99.2%    agreeing to 0.2 points
+```
 
-The ratio now holds between 0.69 and 0.91 in all four conditions, which is what
-a stain has to do. `ctx.wet()` was the right home all along: these ARE ground
-surfaces, the registry carries the ground grade AND the wet tint, and
-`updateRain` is its single writer — so this also removes a two-writer hazard
-this file was one frame from, since `Frame` exposes `night` but no wetness.
+That is a better statement of both the bug and the fix than the ratio ever was:
+the decals were being dimmed by a quarter while the ground fell by ninety-nine
+per cent, and now they fall together.
+
+One nuance worth keeping rather than throwing out with the number. A ratio
+between two different materials is meaningless as brightness, but a ratio that
+stays CONSTANT across conditions still shows the two are graded by the same
+factor — the arbitrary part cancels. That is why the old table's stability was
+telling me something true even though its values were not.
 
 Textures and structure IDENTICAL across the change; the tints move, on purpose.
 
@@ -302,16 +300,19 @@ same shape as my own decals reading 94x the tarmac. Worth checking my area
 rather than assuming the decal fix covered it, since the lot has a cone, a
 sandwich board, tyre stacks and price cards.
 
-At a rainy 23:00 with the 18 s soak allowed for, 32 materials in the lot read
-bright against a deck at 0.0065. They split:
+At a rainy 23:00 with the 18 s soak allowed for, 32 materials in the lot sat
+well above the deck's tint. **The multiples I first wrote here — "17.7x the
+deck" — are withdrawn for the reason above: cross-material tint comparisons are
+not brightness.** What the split still establishes is WHOSE they are:
 
 ```
   28  inside CAR groups   mean 0.1032   H's fleet — already routed, 67299640
    4  loose props, mine    mean 0.1088   three frontage banners and one box
 ```
 
-Mine are fine: every one is `graded`, and they fall 87-96% between noon and
-23:00. The banners are vertical vinyl on a fence, so they take the night grade
+Mine are fine, and this rests on deltas rather than multiples: every one is
+`graded`, and each falls 87-96% between noon and 23:00 measured against its own
+daylight value. The banners are vertical vinyl on a fence, so they take the night grade
 but not the wet tint — which is correct, since rain does not pool on a hanging
 sign the way it does on tarmac. Nothing here is the litter defect.
 
