@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
 import { ENTRANCE } from './tex-world';
-import { citizenAtlas, viewFor } from './citizens';
+import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 
@@ -64,8 +64,11 @@ export interface Apartment {
   setGy: (v: number) => number;
   /** per-frame: stair guards that follow the floor you're standing on */
   updateCaps: (px: number) => void;
-  /** per-frame: he keeps his own hours — mostly afternoons */
-  updateHermit: (hAbs: number) => void;
+  /** per-frame: he keeps his own hours — mostly afternoons. Takes the
+   *  player's position now as well, because the sprite turns itself to face
+   *  you rather than reading its own yaw back a frame after the billboard
+   *  pass has set it. */
+  updateHermit: (hAbs: number, px: number, pz: number, dt: number) => void;
   /** debug hook: force him in (true) / out (false) / back on schedule (null) */
   forceHermit: (v: boolean | null) => void;
 }
@@ -185,7 +188,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
   };
   let hermit!: THREE.Mesh;
-  let hermitTex!: THREE.Texture;
+  let hermitSprite!: CitizenSprite;
   // he stands in his doorway on the east wall, so he faces WEST into the
   // hall. Same convention the street citizens use for `facing`: 0 is +z.
   const HERMIT_FACING = -Math.PI / 2;
@@ -755,18 +758,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // Palette: a yellowed, sweated-through undershirt rather than the crisp
     // white he used to wear, and GRIME turns on the stains, the unshaven jaw
     // and the messy hair in ct/citizens.ts.
-    hermitTex = citizenAtlas({
-      jacket: '#c9c0a6',      // a yellowed undershirt, not the crisp white
-      pants: '#454149', skin: '#c08d63', hair: '#3a3226',
-      fit: 'plain', cut: 'long', build: 1, grime: 1,   // unkempt, grown out
-    });
-    hermitTex.repeat.set(1 / 5, 1 / 2);
-    const hermitGeo = new THREE.PlaneGeometry(0.95, 1.9);
-    hermitGeo.translate(0, 0.95, 0);       // origin at his feet, like the citizens
-    hermit = new THREE.Mesh(hermitGeo, new THREE.MeshBasicMaterial({ map: hermitTex, alphaTest: 0.5, side: THREE.DoubleSide }));
-    hermit.scale.set(1.2, 1.1, 1);
+    //
+    // ONE CALL, per notes/CITIZEN-STYLE.md. He predates `citizenSprite` and
+    // was carrying his own copy of everything it does: the atlas, the plane
+    // with its origin moved to the feet, the alphaTest material, a push into
+    // `boards` for the billboard pass, and a hand-rolled `viewFor` that ran a
+    // frame behind that pass and re-derived his own yaw to pick a column.
+    //
+    // All of that is now H's, in one place, and the version in the kit is
+    // better than the one that was here: it does HYSTERESIS on the view, which
+    // this did not. Rounding a heading straight to a column makes the sprite
+    // flip back and forth between two paintings when you stand near a
+    // boundary, and the only reason it never showed on him is that he does not
+    // move — walk a slow arc round him and it would have.
+    hermitSprite = citizenSprite(
+      { jacket: '#c9c0a6',      // a yellowed undershirt, not the crisp white
+        pants: '#454149', skin: '#c08d63', hair: '#3a3226',
+        fit: 'plain', cut: 'long', build: 1, grime: 1 },   // unkempt, grown out
+      { facing: HERMIT_FACING, h: 1.1, w: 1.2 },
+    );
+    hermit = hermitSprite.mesh;
     hermit.position.set(AX(1.95), 2 * ST, AZI(3.5));
-    boards.push({ m: hermit });            // the sim loop turns him to face you
     scene.add(hermit);
     // ── the hall lights ──────────────────────────────────────────────────
     // A period flush-mount: bronze ceiling rose, shallow ribbed opal dome
@@ -1598,7 +1610,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // Registered rather than called by name from the sim loop: the entry point
   // no longer knows this module has per-frame work. WORLD order because the
   // stair guards and the hermit's presence are state that later passes read.
-  ctx.onFrame((f) => { updateCaps(f.px); updateDoor(f.dt); updateHermitAt(f.hourAbs); }, ORDER.WORLD);
+  ctx.onFrame((f) => { updateCaps(f.px); updateDoor(f.dt); updateHermitAt(f.hourAbs, f.px, f.pz, f.dt); }, ORDER.WORLD);
 
   const updateCaps = (px: number) => {
     // the guard starts at the railing, not at the stairwell mouth: the first
@@ -1631,7 +1643,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
   };
 
-  const updateHermitAt = (hAbs: number) => {
+  const updateHermitAt = (hAbs: number, px: number, pz: number, dt: number) => {
     hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
     // solid while he is standing there — he is out in the hall now, so
     // without this you walk straight through him. Floor-gated like every
@@ -1639,15 +1651,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     setCap(hermitCap, hermit.visible && Math.abs(lastGy - 2 * ST) < 0.5,
       AX(1.69), AX(2.21), AZI(3.24), AZI(3.76));
     if (!hermit.visible) return;
-    // The billboard pass in the sim loop has already turned him to face the
-    // player, so his own yaw IS the angle to the camera — no need for the
-    // player's position here, which is why this still takes only the hour.
-    // (It runs a frame behind the billboard pass. On a man who does not
-    // move, one frame of lag is not a thing you can see.)
-    const [col, mirror] = viewFor(hermit.rotation.y - HERMIT_FACING);
-    hermitTex.repeat.x = mirror ? -1 / 5 : 1 / 5;
-    hermitTex.offset.x = mirror ? (col + 1) / 5 : col / 5;
-    hermitTex.offset.y = 0.5;            // standing still: feet together
+    // The sprite does the turning and the column now, and it needs the
+    // player's position to do it — which is why this takes px/pz where it used
+    // to take only the hour and read his own yaw back a frame late.
+    hermitSprite.update(px, pz, dt);
   };
 
   return {

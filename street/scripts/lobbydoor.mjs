@@ -50,6 +50,11 @@ const SH = [
   ['26-shaft-up',   201.2, -8.0, at(0.0, -3.0),  0.86, 1.35],
   ['27-shaft-down', 201.2, -8.0, at(0.0, -3.0), -0.80, 8.1],
   ['28-hall-long',  201.2, -19.0, at(0.0, 12.0), 0.02, 0],
+  // the hermit, from four sides — he is at (201.95, -16.5) on floor 3 (gy 5.4)
+  ['29-hermit-front',200.7, -16.5, at(1.25, 0.0),  0.02, 5.4],
+  ['30-hermit-34',   201.0, -17.6, at(0.95, 1.1),  0.02, 5.4],
+  ['31-hermit-prof', 201.95,-17.9, at(0.0,  1.4),  0.02, 5.4],
+  ['32-hermit-34b',  201.9, -15.2, at(0.05,-1.3),  0.02, 5.4],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);
