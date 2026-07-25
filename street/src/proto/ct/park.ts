@@ -373,14 +373,20 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   scene.add(bin);
   solid({ minX: binX - 0.26, maxX: binX + 0.26, minZ: binZ - 0.26, maxZ: binZ + 0.26 });
 
-  // Planting, in the four corners and nowhere else — which is not where it
-  // wants to be. It wants to be a bed along the back, screening the rear
-  // elevation, because at this depth that wall IS the view. There is no room:
-  // the reachable line is x = -13.4, the loop's back leg is at -12.5 with a
-  // 0.75 m half-width, and the wall is at -14.0. A bed behind the path had
-  // its collider across the path and you could not walk the loop at all —
-  // which is how this was found. The screening arrives with the depth (see
-  // notes/BLOCKED-E.md); until then the corners are what fits.
+  // ── planting ─────────────────────────────────────────────────────────────
+  //
+  // The rear elevation IS the view from the gate at this depth — 13 m of
+  // blank brick 7 m away — and the only thing that can be done about it
+  // until the park is deepened is to break its base. There is exactly 0.75 m
+  // between the back leg of the loop and the wall, so the hedge is 0.65 deep
+  // and lives entirely in it. Its collider stops you 0.36 m short, which is
+  // beside the path and not on it — walked, not assumed.
+  //
+  // It is a privet hedge that nobody has cut square in years: it runs in
+  // lengths with gaps where bits have died out, and it is taller at one end
+  // than the other. What this actually wants is TREES along the back, which
+  // are ct/props.ts and builder B's — asked for through the desk rather than
+  // reached into (GOTCHAS §2: the seeded stream's order is load-bearing).
   const shrubT = pixTex(16, 16, (g) => {
     const r = clcg(0x3ea77c);
     g.fillStyle = '#3f5232'; g.fillRect(0, 0, 16, 16);
@@ -392,16 +398,24 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   });
   const shrubM = flat(shrubT);
   const rb = clcg(0x11d0ee);
-  // sized and set so their colliders clear the loop's end legs by more than
-  // the player's radius — an earlier pair pinched the south end shut
+  const hedgeX = site.minX + 0.33;                  // 0.65 deep against the wall
+  for (let z = site.minZ + 1.2; z < site.maxZ - 1.2;) {
+    const run = 3.0 + rb() * 4.0;
+    const end = Math.min(z + run, site.maxZ - 1.2);
+    const h = 1.5 + rb() * 0.55;
+    const seg = new THREE.Mesh(new THREE.BoxGeometry(0.65, h, end - z), shrubM);
+    seg.position.set(hedgeX, KERB_H + h / 2, (z + end) / 2);
+    scene.add(seg);
+    solid({ minX: site.minX, maxX: site.minX + 0.7, minZ: z, maxZ: end });
+    z = end + 0.9 + rb() * 1.6;                     // the gaps where it died out
+  }
+  // and a shrub in each corner by the railings, where the mower never reaches
   for (const cz of [site.minZ + 0.62, site.maxZ - 0.62]) {
-    for (const cx of [site.minX + 0.8, lx1 - 0.2]) {
-      const h = 1.1 + rb() * 0.7, w = 0.82;
-      const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), shrubM);
-      sh.position.set(cx, KERB_H + h / 2, cz);
-      scene.add(sh);
-      solid({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
-    }
+    const h = 1.1 + rb() * 0.7, w = 0.82;
+    const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), shrubM);
+    sh.position.set(lx1 - 0.2, KERB_H + h / 2, cz);
+    scene.add(sh);
+    solid({ minX: lx1 - 0.2 - w / 2, maxX: lx1 - 0.2 + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
   }
 
   return { colliders };

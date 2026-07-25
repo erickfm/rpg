@@ -69,11 +69,27 @@ for (let x = -13.2; x <= -7.4; x += 0.6) for (let z = -96; z <= -70; z += 4) {
 const bad = s.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
 report('the park floor is walk level everywhere', bad.length === 0,
   bad.length ? `${bad.length}/${s.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${s.length} samples at gy 0.14`);
-// the 2 m walk past it stays clear
-await walk('the sidewalk past the park, south', {
-  at: [-6.2, -66.0], yaw: 0.0, ms: 11000,
-  ok: (p) => p[2] < -96.0, say: (p) => `z -66.00 -> ${f(p[2])}, x ${f(p[0])}`,
-});
+// ── the 2 m walk past the park ───────────────────────────────────────────
+//
+// DIAGNOSTIC, not a check on this park: it reports where the pavement is
+// blocked rather than failing, because nothing here is inside the fence.
+//
+// D's park boundary blocks out to x = -6.28. B's street tree at z = -71.5
+// owns x -5.94…-5.78, which with the player's radius blocks -6.30…-5.42.
+// Those two leave nothing: the building-side lane stops dead at the tree, and
+// so does the kerb-side one, because the walk itself ends at about -5.36. The
+// only way south past this park is with one foot in the road — which is a §9
+// finding for the desk (B's tree, D's wall), not something the park can fix.
+for (const [name, x] of [['building-side', -6.2], ['kerb-side', -5.6], ['in the road', -5.1]]) {
+  await warp(x, -66.0, 0.0);
+  await page.waitForTimeout(150);
+  await page.keyboard.down('w'); await page.waitForTimeout(11000); await page.keyboard.up('w');
+  await page.waitForTimeout(60);
+  const p = await pos();
+  console.log(`NOTE  the ${name} lane past the park: z -66.00 -> ${f(p[2])} at x ${f(p[0])}` +
+    (p[2] > -96 ? '   <-- BLOCKED' : ''));
+}
+
 console.log(fails ? `\n${fails} FAILED` : '\nall walks passed');
 await b.close();
 process.exit(fails ? 1 : 0);
