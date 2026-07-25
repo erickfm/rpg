@@ -1,43 +1,54 @@
-# BLOCKED on C: the weed tuft, and a free diagnosis for E while I wait
+# NOT blocked — and two things in the trackers that say otherwise
 
-**My block.** `notes/LEDGER.md` carries `OPEN | C | export the weed tuft for B
-and E | B and E waiting`. That is the one thing I am waiting on. Nothing else of
-mine is blocked: my four ledger rows are LANDED and awaiting the desk's or the
-auditor's CONFIRMED, which is not mine to set.
+**I withdraw my own block from last round.** I wrote "BLOCKED on C: the weed
+tuft" straight off the ledger row `OPEN | C | export the weed tuft for B and E |
+B and E waiting`. `ct/weeds.ts` already existed and E had already placed tufts
+through the park with it. I took a dependency as read from a tracker instead of
+checking whether it was still true — inside the tracker built to stop exactly
+that. B is not waiting on it; 44 tufts are in the kerb seam.
 
-## For E, since it is the same fault I just explained on the forecourt
+That row is C's to close, not mine, but **the "for B" half of it is satisfied.**
 
-`OPEN | E | park: black rectangles + diagonal streaks`. I had the instrument out
-for the library forecourt so I pointed it at the park, and the answer has the
-same shape — which should save a round of looking for the wrong thing.
+## `scripts/ledger.sh` tells the builder to do what LEDGER.md forbids
 
-**It is NOT a wet/night registration split.** Every flat ground surface in the
-park measures `graded: true`. Same as the forecourt: all registered, none
-diverged from its neighbour. That hypothesis is a real failure mode and it is
-not this one, twice now.
-
-**It is untextured flat colour.** Park ground surfaces of 0.4 m² and up, top
-faces only:
+Running `scripts/ledger.sh B` prints:
 
 ```
-total 26   textured 13   FLAT 13   flat area 29 m2
-5 distinct flat tints;  darkest 0.0576, 0.0760, 0.2328, 0.2428;  lightest 0.3020
+LANDED but never checked — verify these, then mark CONFIRMED:
+ B apron untextured, needs ramp, must abut
+ ...
 ```
 
-Half the park's ground reads as flat colour. **The "black rectangles" are the two
-darkest tints**: three quads of 0.4 m² each at (-35.9, -83.5), (-35.9, -83.7) and
-(-35.9, -83.8) — clustered within 30 cm, tints 0.0576 and 0.0760, against a park
-floor around 0.30. They are at the park's west edge; identifying which object
-they belong to is yours, not mine.
+`notes/LEDGER.md` says, in its own header:
 
-**The remedy is the one I routed to `ct/civic.ts`.** `plazaTex(minX, maxX, minZ,
-maxZ)` is exported from `ct/tex-ground.ts` beside `walkTex` and `apronTex`: canvas
-sized from the surface's real metres at the world's 32 px/m, 1:1 with no repeat.
-It draws civic flagstone, so it suits paths and paved edges rather than grass; if
-the park needs a grass or dirt sheet on the same contract, ask and I will add it
-— that is a texture in my own file, which is the part of this I can do.
+> **LANDED is not done.** The only status that counts is CONFIRMED, and only the
+> desk or the auditor may set it, **never the builder that did the work.**
+
+The instruction is right and the tool's prompt is addressed at whoever audits,
+but it is printed to the builder who just ran it with their own initial. I have
+NOT marked my four CONFIRMED. Left as it is, this asks every builder to
+self-certify, which is the one thing the ledger exists to prevent — and it would
+be invisible afterwards, because a self-confirmed row looks exactly like a
+checked one.
+
+**Routed to whoever owns `scripts/ledger.sh`:** when the argument names a
+builder, that section wants different words — "LANDED, waiting on the desk or
+the auditor to check" — and the "then mark CONFIRMED" line belongs only in the
+unfiltered or auditor view.
+
+## My four are ready to check, and here is what to look at
+
+Not evidence for my own confirmation — a shortcut for whoever does it.
+
+| row | where to stand | what should be true |
+|---|---|---|
+| apron | the drive at (6.0, 2.6), look down | concrete with joints ACROSS the drive, no flat grey; ground runs 0.042 at the kerb to 0.137 at the building line |
+| tree pit | any pit, e.g. (5.46, -57.5) | trunk centred, 0.28 m of dirt each side, 0.117 m of walk at the kerb, well 1.4 m along the street |
+| cups | the bus bench, (5.32, -35.30) | one cup, ~0.19 m, about a sixth of a paving joint; the nearest other cup is 19 m away |
+| forecourt | notes/B-forecourt-patches.md | the explanation, and whether it answers what the user asked |
 
 ---
+
 
 # ROUTED to ct/civic.ts's owner: the forecourt patches the user asked about
 
