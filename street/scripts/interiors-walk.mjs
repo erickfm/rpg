@@ -130,8 +130,26 @@ for (room of rooms) {
   const afterF = await pos();
   check('you spawn facing INTO the room, not at the wall you came through',
     afterF[2] < beforeF[2] - 0.05, `forward moved z ${f2(beforeF[2])} → ${f2(afterF[2])}`);
+  const gyIn = (await pos())[3];
   check('floor height inside is 0 — not sunk, not floating',
-    Math.abs((await pos())[3]) < 0.001, `gy=${(await pos())[3]}`);
+    Math.abs(gyIn) < 0.001, `gy=${gyIn}`);
+  // gy is what the rig stands ON; prove the floor MESH agrees with it, or you
+  // are standing on an invisible plane a few centimetres off the lino.
+  const floorY = await p.evaluate((cx) => {
+    let best = null;
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh || !o.geometry?.parameters) return;
+      const wp = new o.position.constructor();
+      o.getWorldPosition(wp);
+      if (Math.abs(wp.x - cx) > 0.2 || Math.abs(wp.z) > 0.2) return;
+      if (Math.abs(o.rotation.x + Math.PI / 2) > 0.01) return;   // faces up
+      if (best === null || wp.y < best) best = wp.y;
+    });
+    return best;
+  }, cx);
+  check('the floor mesh is where the rig thinks the floor is',
+    floorY !== null && Math.abs(floorY - gyIn) < 0.03,
+    `floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${gyIn}`);
 
   // ── 3. the walls hold ──
   const probe = async (lx, lz, key, axis, limit, sign) => {
