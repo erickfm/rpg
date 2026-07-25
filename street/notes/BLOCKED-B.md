@@ -152,11 +152,23 @@ direction" that note was worried about a third time.
 19:00 never settles at all — it is a ramp hour, the count drifts 162 → 153 over
 eight seconds, and no single sample there is a fact about the hour.
 
-Two consequences beyond that note. My own `grade-sane.mjs` waited 500 ms and is
-now at 1200 ms with the numbers written in. And our counts differed — I
-published 9 at 23:00, they measured 3 — which this does **not** explain, since
-9 is stable from 1 s out; that difference is still open and is probably a filter,
-not a timing.
+My own `grade-sane.mjs` waited 500 ms and is now at 1200 ms with the numbers
+written in.
+
+**The 9-vs-3 difference is not a counting artefact.** `a343e792` closed their
+half (a stale build), and I checked mine three ways at 23:00 with a 2.5 s settle:
+
+```
+9 materials · 9 meshes · 9 graded      of 5625 materials / 3396 meshes
+```
+
+Nine however you count it, so it is not meshes-versus-materials. What the
+offenders have in common is **where they are**: five in a row at x −38.7
+(z −69 … −94), one at x −8.8, all outside a main-street box and all unstamped
+(`mod = ?`). Five identical boxes in a line reads as one repeated object along
+the park's west edge. If the other probe is region-filtered, it would see a
+subset for exactly that reason — worth checking on their side, and it is their
+filter to look at, not mine to guess at.
 
 ---
 

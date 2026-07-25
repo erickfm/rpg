@@ -10,6 +10,7 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/glow.mjs [shots|probe|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats } from './lib/materials.mjs';
 
 const mode = process.argv[2] ?? 'all';
 const browser = await chromium.launch();
@@ -20,6 +21,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + 
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+await installMats(page);   // 4008d7c3: one copy of the multi-material walk
 await page.waitForTimeout(500);
 await page.evaluate(() => window.__ct.clock(2, 30));      // deep night
 await page.waitForTimeout(1200);
@@ -119,7 +121,7 @@ if (mode === 'probe' || mode === 'all') {
       // 0.6103 and 0.045 -> 0.045. The verdict never changed; the sample was a
       // third of what it claimed. A side-street 'far' of 8 was also uncomfortably
       // close to this script's own floor of 4.
-      for (const mat of (Array.isArray(o.material) ? o.material : [o.material])) {
+      for (const mat of window.__mats(o)) {
       if (!mat.map) continue;
       if (!o.userData.graded && !mat.userData?.graded) continue;
       const e = o.matrixWorld.elements, x = e[12], z = e[14];

@@ -29,6 +29,7 @@
 //   SHOT_URL=http://localhost:4279/ node scripts/grade-sane.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats } from './lib/materials.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const browser = await chromium.launch();
@@ -38,6 +39,9 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
+// 4008d7c3 put the multi-material walk in the page so four checks stop
+// retyping it. This one had its own correct copy; one place is better.
+await installMats(page);
 
 const bad = [];
 let materials = 0;
@@ -56,7 +60,7 @@ for (let h = 0; h < 24; h++) {
     const out = { n: 0, faults: [] };
     window.__ct.scene().traverse((o) => {
       if (!o.isMesh || !o.material) return;
-      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      for (const m of window.__mats(o)) {
         const c = m.color; if (!c) continue;
         out.n++;
         const who = () => `${o.userData.mod ?? '?'} ${o.geometry?.type ?? ''} ` +
