@@ -107,21 +107,10 @@ const out = await p.evaluate(() => {
   // Corner-and-centre samples, so a long band only pairs where it actually
   // reaches. The bbox version paired a band with anything inside its frontage-
   // wide box (7d4c345b).
-  const near = (a,c) => {
-    // BACK TO BACK IS NOT A JUNCTION. a31a4cfb's pairclip.mjs drops pairs whose
-    // normals oppose, and it is right: the two faces of one wall are 0.18 m
-    // apart and face away from each other. Nobody can see them meet, because
-    // you cannot stand where both are visible.
-    if (a.nrm && c.nrm) {
-      const dot = a.nrm[0]*c.nrm[0] + a.nrm[1]*c.nrm[1] + a.nrm[2]*c.nrm[2];
-      if (dot < -0.9) return false;
-    }
-    for (const p1 of a.pts) for (const p2 of c.pts) {
-      const dx=p1[0]-p2[0], dy=p1[1]-p2[1], dz=p1[2]-p2[2];
-      if (dx*dx+dy*dy+dz*dz < 0.36) return true;      // 0.6 m
-    }
-    return false;
-  };
+  // one implementation, scripts/lib/faces.mjs — face rectangles measured to the
+  // other face's rectangle as a box, which is pairclip's slab idea on my face
+  // geometry rather than on a mesh bounding box.
+  const near = (a,c) => window.__faceLib.touches(a, c, 0.35);
   const pairs = [];
   for (let i=0;i<faces.length;i++) for (let j=i+1;j<faces.length;j++) {
     if (!near(faces[i],faces[j])) continue;

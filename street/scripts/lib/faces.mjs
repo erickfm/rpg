@@ -42,6 +42,49 @@ window.__faceLib = {
     if (mi===5) return { ctr:[0,0,-D], ax:[1,0,0], ay:[0,1,0] };
     return { ctr:[0, mi===2?H:-H, 0], ax:[1,0,0], ay:[0,0,1] };
   },
+  // DO TWO FACES ACTUALLY MEET?
+  //
+  // Combines the two tests that were developed separately and are each right
+  // about a different thing:
+  //
+  //   seampairs sampled the FACE RECTANGLE — correct about where a face is,
+  //     which a mesh bounding box is not (a shopfront band's box spans a whole
+  //     frontage), but it compared grid point to grid point, and the minimum
+  //     between two coarse grids OVERESTIMATES the gap on a large face.
+  //   pairclip measured POINT TO SLAB — continuous in the second object, so no
+  //     overestimate, and it caught junctions the cheap version dropped, one of
+  //     them a real 0.06 m gap that a plane test put 8 m away. But it sampled
+  //     bounding boxes.
+  //
+  // Face rectangle samples, measured against the other face's own rectangle as
+  // a box. Neither error survives.
+  //
+  // The opposed-normal drop is pairclip's and it is not an optimisation: the two
+  // faces of one wall are 0.18 m apart and face away from each other, so nobody
+  // can stand where both are visible and see them disagree.
+  touches(a, c, tol) {
+    const t = tol === undefined ? 0.35 : tol;
+    if (a.nrm && c.nrm) {
+      const dot = a.nrm[0]*c.nrm[0] + a.nrm[1]*c.nrm[1] + a.nrm[2]*c.nrm[2];
+      if (dot < -0.5) return false;
+    }
+    const box = (f) => {
+      let b = [1e9,1e9,1e9,-1e9,-1e9,-1e9];
+      for (const p of f.pts) {
+        for (let k = 0; k < 3; k++) { if (p[k] < b[k]) b[k] = p[k]; if (p[k] > b[k+3]) b[k+3] = p[k]; }
+      }
+      return b;
+    };
+    const ptToBox = (p, b) => Math.hypot(
+      Math.max(b[0]-p[0], 0, p[0]-b[3]),
+      Math.max(b[1]-p[1], 0, p[1]-b[4]),
+      Math.max(b[2]-p[2], 0, p[2]-b[5]));
+    const ba = box(a), bc = box(c);
+    for (const p of a.pts) if (ptToBox(p, bc) <= t) return true;
+    for (const p of c.pts) if (ptToBox(p, ba) <= t) return true;
+    return false;
+  },
+
   // what the painter said this surface is, and how dense — see ct/paint.ts
   stamp(m) {
     const u = m && m.map && m.map.userData;
