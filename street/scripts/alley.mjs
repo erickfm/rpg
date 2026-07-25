@@ -69,7 +69,22 @@ await setClock(page, 13, 0);
 // 15:00 rains (props.ts rainAt is deterministic on the absolute hour), and the
 // alley floor is registered wet() now. Before that it darkened 6% in a downpour
 // that took the road down 58%: the street soaked, the alley dry.
-await setClock(page, 15, 0);
+// ASK THE WORLD WHICH HOUR RAINS. This shot used to hard-code 15:00, which
+// rained when it was written and does not now — e0c68e46 replaced rainAt, and
+// the frames were quietly photographing a DRY alley labelled as rain. A probe
+// that hard-codes a world constant does not fail when the constant moves; it
+// answers a different question.
+//
+// props.ts publishes the predicate for exactly this reason ("PUBLISHED, so
+// nothing has to mirror it"), so pick a wet DAYTIME hour from the world itself.
+const wetHour = await page.evaluate(() => {
+  const f = window.__ct.scene().userData.rainAt;
+  if (!f) return 15;                              // pre-publication build
+  for (const h of [14, 15, 16, 17, 13, 12, 11, 10, 9]) if (f(h)) return h;
+  return 15;
+});
+console.log(`  rain shots at ${wetHour}:00 — chosen from the world's own rainAt`);
+await setClock(page, wetHour, 0);
 await page.waitForTimeout(6000);          // wet fast, but not instant
 await shot('rain-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
 await shot('rain-floor', () => window.__ct.warp(-10.5, -40.5, -Math.PI / 2, 0, -0.45));
