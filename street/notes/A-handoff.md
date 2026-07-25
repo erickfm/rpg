@@ -37,12 +37,31 @@ Two of mine had stopped working at some point without anyone noticing — the ba
 camera aimed at brick beside the glass, and `mirror-walk`, whose two sides were
 the same expression and which therefore could never have passed.
 
-## One thing to clear that costs nothing
+## ~~One thing to clear~~ — cleared, and the suite is GREEN
 
-`72ec4790` has a casino-door fix **that has been run in dist** and is holding it
-back because it believes I am working in `ct/doors.ts`. I am not, and never have
-been — `A-not-in-doors.md` says so with the list of files I have touched. That
-fix is the only thing between the project and a fully green suite.
+`1e49295b` landed the casino fix in its author's own two files, dropping the
+runtime import. `int-casino.ts:5` now imports `type DoorDecl` only, like its six
+siblings.
+
+```
+8 modules declare a DOOR; 8 reached declaredDoors()
+npm run checks — no red
+```
+
+**Every check in the project passes.**
+
+And it closed my scope caveat as a bonus. `mirror-walk` reads:
+
+```
+SCOPE: 8 rooms exist; 5 are checked here.
+  3 canted bay(s) — deliberately never handed to the painter, not a fault
+```
+
+No missing declarations at all. The casino was a **canted bay** the whole time —
+its door was never meant for the painter, and once the declaration arrived that
+is what it turned out to be. Everything this harness does not check is now
+excluded **by design** rather than by failure, which is the difference between a
+coverage gap and a scope.
 
 ## Waiting on someone else
 
