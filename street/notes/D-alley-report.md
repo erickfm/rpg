@@ -1192,6 +1192,32 @@ a throw, because node forces 1 on an uncaught exception and would overwrite it.
 `checks.mjs` now reads the status first and keeps the banner string-match as a
 fallback, so nothing that predates the code regresses.
 
+## CORRECTION: my wet-night figure was -82% and is -43%
+
+I published *"all three darken -82% on a wet night"* while checking `e24c959a`'s
+lightening concern. That was measured with a **jumped clock** — three rounds
+after I wrote `notes/D-jumping-the-clock.md` telling everyone else not to.
+
+Re-measured both ways:
+
+```
+dry night 23:00   jumped 0.04500    stepped 0.01335    <- 3.4x apart
+wet night 01:00   jumped 0.00768    stepped 0.00767    <- identical
+```
+
+So the true darkening is **-43%**, not -82%. The wet number was right all along;
+the DRY BASELINE was 3.4x too bright, and dividing by it inflated the result.
+
+**The asymmetry is the interesting part.** The wet-night reading is
+path-independent to five decimal places, and the dry-night reading is not. So
+"how much does rain darken this at night" depends entirely on getting the dry
+baseline right — and a jumped baseline exaggerates the effect. Anyone quoting a
+wet-vs-dry ratio after dark should step both ends.
+
+What does NOT change: `e24c959a`'s concern was that the wet look could *lighten*
+a dark surface. It does not, in either measurement, on any of my three floors.
+The conclusion stands; only the magnitude was wrong.
+
 ## Rain sweep of my module after `b209275c`: 3 of 3, and the reason is structural
 
 `b209275c` found *"the road centre lines stay bone dry while the road darkens
