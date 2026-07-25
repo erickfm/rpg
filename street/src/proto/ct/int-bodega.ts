@@ -56,6 +56,15 @@ export function buildBodega(ctx: CtxBuild): void {
     // and low ceiling is half of what makes a corner shop feel like one. It is
     // floor the player was short of, not headroom.
     d: 11.0, h: 2.6,
+    // THE CUT CORNER, matching the building. The user: "if the door for the
+    // bodega is on a cut corner (literally) then the interior should match."
+    //
+    // Outside, the canted bay runs A(7, -94) to B(9, -96) — a 2.83 m face at
+    // 45° across the +x/+z corner, which is the street corner and the one the
+    // player walks up to. `front-right` is that same corner in room-local
+    // terms, and 2.0 of cut along each wall reproduces its length: hypot(2,2)
+    // = 2.83, the face's own measurement rather than a number that looks right.
+    chamfer: { corner: 'front-right', cut: 2.0 },
     palette: { floor: 0xa89e88, wall: 0xc4c8b4, ceil: 0xbcbcae, trim: 0x5a4a34 },
     // Fluorescent battens, and all three work. A bodega is over-lit on
     // purpose — it is open at 2am and the light is half of why you go in.

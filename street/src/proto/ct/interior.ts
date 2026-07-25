@@ -161,6 +161,24 @@ export function interiorGround(x: number, z: number): number | null {
 export interface RoomSpec {
   /** stable id, also the slab key — 'diner', 'pawn', 'casino' */
   id: string;
+  /**
+   * A CUT CORNER, so the room's shape matches its building's.
+   *
+   * The user: *"if the door for the bodega is on a cut corner (literally) then
+   * the interior should match."* Right, and it is the same principle as the
+   * door's position one level up — a room and its building are one object seen
+   * from two sides — so it belongs in the kit rather than in one room, because
+   * the bodega will not be the last cut corner on this block.
+   *
+   * `cut` is how far the chamfer runs back along each of the two walls it
+   * crosses, in metres. The corner behind it becomes dead space the player
+   * cannot reach, which is the honest way to do this additively: the diagonal
+   * wall and its colliders go in TOGETHER, so what you see and what stops you
+   * are the same surface. A shell rewrite would let those two disagree, and a
+   * room that looks square and behaves chamfered is a worse bug than the one
+   * being fixed.
+   */
+  chamfer?: { corner: 'front-left' | 'front-right' | 'back-left' | 'back-right'; cut: number };
   /** the roster name of the building this room is inside, matching its
    *  `DoorDecl.building`. Only needed for a room that declares its door by
    *  `face` and therefore has no `frontage` to be named by — the side-street
@@ -717,6 +735,39 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   wall(hw, hw + T, -hd - T, hd + T);              // right
   wall(-hw - T, dAt - dW / 2, hd, hd + T);        // front, left of the door
   wall(dAt + dW / 2, hw + T, hd, hd + T);         // front, right of the door
+
+  // ── the cut corner, if this room has one ──
+  //
+  // Additive on purpose. The four walls above stay exactly as they are and a
+  // diagonal is placed ACROSS the corner, sealing the square behind it. The
+  // player sees a chamfered room because the diagonal is the only face they can
+  // reach, and the colliders that stop them are the same run of boxes that
+  // carries the mesh — so the two cannot drift apart.
+  if (spec.chamfer) {
+    const { corner, cut } = spec.chamfer;
+    const sx = corner.endsWith('right') ? 1 : -1;      // +x or -x corner
+    const sz = corner.startsWith('front') ? 1 : -1;    // +z (door side) or -z
+    // the cut runs from (sx*hw, sz*(hd-cut)) to (sx*(hw-cut), sz*hd)
+    const ax = sx * hw, az = sz * (hd - cut);
+    const bx = sx * (hw - cut), bz = sz * hd;
+    const mx = (ax + bx) / 2, mz = (az + bz) / 2;
+    const len = Math.hypot(bx - ax, bz - az);
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(len, H, T),
+      [wallMat(len), wallMat(len), trimM, trimM, wallMat(len), wallMat(len)]);
+    panel.rotation.y = Math.atan2(bx - ax, bz - az) - Math.PI / 2;
+    place(panel, mx, H / 2, mz);
+    // …and a stepped run of AABBs along it, because one box cannot be a 45°
+    // face. Steps of ~0.35 m with the capsule at 0.36 leave nothing to slip
+    // through, and the last one overlaps each wall it meets.
+    const steps = Math.max(2, Math.ceil(len / 0.35));
+    for (let i = 0; i < steps; i++) {
+      const t0 = i / steps, t1 = (i + 1) / steps;
+      const x0 = ax + (bx - ax) * t0, z0 = az + (bz - az) * t0;
+      const x1 = ax + (bx - ax) * t1, z1 = az + (bz - az) * t1;
+      wall(Math.min(x0, x1) - T / 2, Math.max(x0, x1) + T / 2,
+           Math.min(z0, z1) - T / 2, Math.max(z0, z1) + T / 2);
+    }
+  }
   // …and the doorway is stopped OUTSIDE the threshold, not in it.
   //
   // Leaving the opening as a plain gap in the collider line is how you get a
