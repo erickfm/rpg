@@ -845,6 +845,19 @@ built the project-wide recovery table this way, and it has a deadline — the
 repair needs the old object still readable, and git is already warning about
 too many unreachable loose objects.
 
+**Do not do what that warning tells you to do.** It ends *"run `git prune` to
+remove them"*, and bare `git prune` removes **every** unreachable loose object
+regardless of age — `--expire <time>` only *narrows* it to objects older than
+that, it is not a safety default. `git gc` is the safe one: it prunes on
+`gc.pruneExpire`, unset in this repo, so git's two-week default protects
+anything recent. The presence of `.git/worktrees/<wt>/gc.log` is what is
+currently suppressing the automatic run — which is why the same warning repeats
+on every commit instead of a gc happening. Deleting that file to make the
+warning go away re-arms the thing the table is racing. The mapping in
+`notes/AUDIT-hash-recovery.md` survives a prune because it is written down; what
+does not survive is the ability to *verify* a mapping by patch-id, and any dead
+citation written after that table was built.
+
 *Provenance, since this section is not the work of the hand that typed it.* The
 rule is `6ce778e4a`'s, the measurements are `5fae9ec5b` and `10006a2ab`, the
 recovery table and the patch-id method are `12be9e163`, and `0a201c46c` is the
