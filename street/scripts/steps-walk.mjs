@@ -28,10 +28,22 @@ const gyAt = async (x, z) => {
 const fails = [];
 const FLIGHTS = [
   { nm: 'library', z: -13.5, fromX: -6.0, toX: -11.5, yawUp: -Math.PI / 2 },
+  // ST BRIGID moved onto the main block: east side, z -68…-86, its forecourt
+  // reached from the pavement walking +x. Same flight, same picker.
+  { nm: 'church', z: -79.0, fromX: 6.0, toX: 10.5, yawUp: Math.PI / 2 },
 ];
 for (const f of FLIGHTS) {
   const bottom = await gyAt(f.fromX, f.z);
-  const top = await gyAt(f.toX, f.z);
+  // find the top by scanning, not by trusting a hand-typed x. The church's
+  // yard ends before the number I first guessed and the sample past it reads
+  // 0.00 — which looks exactly like "the flight is flat".
+  let top = bottom, topX = f.fromX;
+  const dir = Math.sign(f.toX - f.fromX);
+  for (let x = f.fromX; dir > 0 ? x <= f.toX : x >= f.toX; x += dir * 0.2) {
+    const g = await gyAt(x, f.z);
+    if (g > top) { top = g; topX = x; }
+  }
+  console.log(`${f.nm}: highest tread at x=${topX.toFixed(1)}`);
   console.log(`${f.nm}: paving ${bottom.toFixed(2)} at the kerb, ${top.toFixed(2)} at the doors`);
   if (top - bottom < 0.3) { fails.push(`${f.nm}: the picker gives no rise — the flight is flat`); continue; }
 
