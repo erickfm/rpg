@@ -43,7 +43,12 @@ SHA="$(git rev-parse --short HEAD)"
 # Hard-setting a port broke on the second run (the first still held it). Then
 # stepping through ports with curl broke too, because a stale server can hold a
 # port without answering, so curl calls it free when it is not.
-PORT="${PINNED_PORT:-0}"
+# A HIGH RANDOM PORT, not 0. `--port 0` is not "pick anything" to vite dev —
+# it falls back to the 5173 default, and a previous pinned run still holding
+# 5173 then kills this one with "Port 5173 is already in use". Starting high
+# and letting vite step up from there keeps concurrent runs clear of each
+# other, which matters when a run is twenty minutes long.
+PORT="${PINNED_PORT:-$(( 21000 + (RANDOM % 9000) ))}"
 PIN="$(mktemp -d "${TMPDIR:-/tmp}/ct-pinned-XXXXXX")"
 SRV=""
 
@@ -91,6 +96,12 @@ cd "$PIN/$PREFIX"
 # which is the whole point.
 MODE="${PINNED_MODE:-dev}"
 echo "building the pinned tree"
+# Gitignored output directories do not exist in a fresh worktree, and several
+# checks WRITE before they exit. seampairs did its whole analysis, found nothing
+# wrong — "brick vs brick, a real seam question: 0" — and then died on ENOENT
+# opening shots/seampairs.json. A green result reported as a red one is the
+# worst way for a suite to be wrong, and it is the only red in the full tier.
+mkdir -p shots
 npm run build >/dev/null
 
 echo "serving it on :$PORT"
