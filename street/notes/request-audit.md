@@ -797,3 +797,53 @@ properly, so nothing is wrong with the result. But it is the same aiming defect
 I have now hit in four separate places, in someone else's harness this time.
 The collider readout is what makes this script trustworthy; the frames are
 decoration and one of them missed.
+
+## PUDDLES AND WETNESS — the anomaly was mine, not the world's.
+
+I reported an unresolved contradiction: one sweep found **57 puddle decals, many
+at opacity 1**, and a later pass found **none above 0.02**. I flagged it as an
+anomaly, said explicitly it was not a bug, and warned that one of my two numbers
+had to be wrong.
+
+**Neither was wrong.** `ct/props.ts:1002` makes both readings correct:
+
+- puddle and splash opacity is a function of `wetness`, not a constant
+- `wetness` **rises fast and decays slowly** — soaking takes seconds,
+  `dryFor = 48 × (1 + soak × 1.5) × (1 + nightNow × 1.1)` seconds to dry, so
+  longer after a long storm and longer again at night
+- `m.visible = m.opacity > 0.015` **hides them entirely once dry**
+
+Two readings taken at two points in one wet/dry cycle *must* disagree. The
+contradiction was evidence of the feature working.
+
+### Measured, with the hour pinned
+
+A 24-hour sweep is useless here: every wet surface is multiplied by `ambient()`,
+so luminance across the day is mostly the day/night curve. Pinning the clock
+holds ambient *and* `rainAt(hourAbs)` constant, so any remaining movement is the
+wetness term alone.
+
+| hour pinned, 20 s | broad road/walk sheets | kerb + gutter strips | translucent meshes |
+|---|---|---|---|
+| 02 | 0.5592 → 0.5592 (**0**) | 0.5994 → 0.5994 (**0**) | 407 → 407 |
+| 08 | 0.9569 → 0.9572 (+0.0003) | 0.9536 → 0.9538 (+0.0002) | 405 → 405 |
+| **14** | **0.8458 → 0.6625 (−0.1833)** | 0.9663 → 0.957 (−0.0093) | **347 → 354**, mean opacity 0.725 → **0.741** |
+| 20 | 0.5443 → 0.5443 (**0**) | 0.5981 → 0.5981 (**0**) | 425 → 425 |
+
+Three hours sit at steady state and one is visibly in transition — the ground
+darkening by 0.18 while **seven more translucent surfaces come up** and mean
+opacity rises. The street changes state over seconds rather than snapping, which
+is the thing the user asked for.
+
+The split between the two rows is the design working too: `props.ts` gives thin
+strips exponent 0.55 and broad sheets 1.7, so near saturation the broad sheets
+move ~20× more while the gutter barely stirs — and at the dry end that reverses,
+which is what "the gutter is where it is all running TO" means.
+
+### What I did not measure
+
+**I never watched a full dry-down.** At 48–170 s of game time, lengthened by soak
+and by night, it needs a multi-minute hold and I ran 20 s. So I am grading the
+persistence **DONE on construction plus a consistent partial measurement**, not
+on having seen the tail. If anyone wants the tail proven, that is a longer run
+and I will say plainly that I have not done it.
