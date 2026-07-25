@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
-import { type DoorDecl } from './doors';
+import { doorStandFor, type DoorDecl } from './doors';
 
 // HOTEL ORPHEUS, the lobby.
 //
@@ -62,7 +62,13 @@ export function buildHotel(ctx: CtxBuild): void {
     w: 11.0, d: 9.0, h: 3.4,
     palette: { floor: 0x9a9086, wall: 0x8a7f6e, ceil: 0xa89c88, trim: 0x5a4028 },
     door: {
-      x: DOOR_X, z: WALK_Z, r: 1.05,
+      // From the DECLARATION above, not typed again here. Hand-typing it
+      // beside a declaration is the two-authorings problem in miniature, and
+      // it had already drifted: this spot sat at z = {WALK_Z} = -97.0 while the
+      // published door puts you at -96.75, 0.25 m apart. Small, and exactly
+      // the class that grows — scripts/spots-walk.mjs now compares the two and
+      // is how the gap was found.
+      ...(doorStandFor('HOTEL ORPHEUS') ?? { x: DOOR_X, z: WALK_Z }), r: 1.05,
       at: -3.4, width: 1.15,
       // Along the walk, east, for the same reason as the casino: the north
       // side-street walk is a 2 m band and the building collider eats down to

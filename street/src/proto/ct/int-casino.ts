@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
-import { type DoorDecl } from './doors';
+import { doorStandFor, type DoorDecl } from './doors';
 import { tube } from './vice';
 
 // GOLDEN ACES, inside.
@@ -74,7 +74,13 @@ export function buildCasino(ctx: CtxBuild): void {
     w: 10.5, d: 9.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
-      x: DOOR_X, z: WALK_Z, r: 1.05,
+      // From the DECLARATION above, not typed again here. Hand-typing it
+      // beside a declaration is the two-authorings problem in miniature, and
+      // it had already drifted: this spot sat at z = {WALK_Z} = -97.0 while the
+      // published door puts you at -96.75, 0.25 m apart. Small, and exactly
+      // the class that grows — scripts/spots-walk.mjs now compares the two and
+      // is how the gap was found.
+      ...(doorStandFor('GOLDEN ACES') ?? { x: DOOR_X, z: WALK_Z }), r: 1.05,
       // The door is off to one side, so walking in puts the length of the slot
       // banks across your view rather than an aisle straight down the middle.
       at: -3.2, width: 1.15,

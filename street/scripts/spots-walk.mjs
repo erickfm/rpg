@@ -14,20 +14,20 @@
 //               trigger you cannot reach is a trigger that does not exist, and
 //               it is invisible until a player goes looking for it. This is
 //               GOTCHAS §8 asked of every spot at once.
-//   grounded  — is it near anything at all? This catches a spot stranded in
-//               genuinely open ground — mid-road, mid-park — and NOT MUCH ELSE.
-//               I tried to make it catch "your building moved" by moving the
-//               thrift's declaration onto the park frontage, and it passed:
-//               the building line is continuous, so a spot that slides along
-//               it still has something solid within 3 m. Worth knowing before
-//               you trust it.
+//   on its door — for a spot that names a building, is it standing where that
+//               building's PUBLISHED door is? This ASKS `__ct.doors()` rather
+//               than guessing, and that is the whole point of the change.
 //
-// What actually guarantees a spot is on ITS OWN door is the descriptor, not
-// this: `ct/doors.ts` derives the [E] from the same number the painter draws
-// with, so for the six declared rooms they cannot disagree. This sweep is the
-// backstop for everything else, and the reachability half is the part that
-// earns its keep — it names all four doors if they are pushed inside their
-// walls, which is the bug I shipped in the inverted outward normal.
+// It used to guess: "is there anything solid within 3 m", on the theory that a
+// spot left behind by a demolished shop would stand in open air. That is nearly
+// useless and I proved it on myself — I moved the thrift's declaration onto the
+// park frontage to see the check fire, and it passed, because the building line
+// is continuous so a spot sliding along it still has masonry within 3 m.
+//
+// notes/AUDIT-INSTRUMENTS.md states the rule this violated: "Every probe that
+// tried to infer what a thing is from its shape has eventually been wrong…
+// prefer a probe that asks over a probe that guesses." Every one of those was
+// fixed by the world declaring something. Doors declare now, so this asks.
 //
 // A spot whose `ok()` is false right now (an interior's way-out while you are
 // on the street) is REPORTED, not failed: it is gated, not broken.
@@ -44,6 +44,7 @@ await p.waitForFunction(() => window.__ct?.spots !== undefined, { timeout: 15000
 await p.waitForTimeout(300);
 
 const spots = await p.evaluate(() => window.__ct.spots());
+const doors = await p.evaluate(() => window.__ct.doors());
 console.log(`${spots.length} [E] spots registered\n`);
 
 const report = await p.evaluate(([spots, R]) => {
@@ -71,7 +72,7 @@ const report = await p.evaluate(([spots, R]) => {
 }, [spots, RADIUS]);
 
 const fails = [];
-let checked = 0, gated = 0;
+let checked = 0, gated = 0, onDoor = 0;
 for (const s of report) {
   const tag = `"${s.label}" @ ${s.x.toFixed(2)},${s.z.toFixed(2)} r=${s.r}`;
   if (!s.stand) {
@@ -80,13 +81,26 @@ for (const s of report) {
     fails.push(`${tag} — UNREACHABLE: nowhere to stand inside its radius`);
     continue;
   }
-  if (!s.near && s.ok) {
-    fails.push(`${tag} — ORPHANED: nothing solid within 3 m, so it points at a building that is not there`);
+  // A spot whose label names a declared building must stand on that
+  // building's published door. Exact, and it cannot go stale: both sides come
+  // from the same declaration.
+  const named = doors.find((d) => s.label.toUpperCase().includes(d.building.split(' ')[0]));
+  if (named && named.stand) {
+    const off = Math.hypot(s.x - named.stand.x, s.z - named.stand.z);
+    if (off > 0.05) {
+      fails.push(`${tag} — NOT ON ITS DOOR: ${named.building}'s published door puts you at `
+        + `${named.stand.x.toFixed(2)},${named.stand.z.toFixed(2)}, which is ${off.toFixed(2)} m away`);
+      continue;
+    }
+    onDoor++;
+  } else if (!s.near) {
+    fails.push(`${tag} — STRANDED: nothing solid within 3 m and no declared building of that name`);
     continue;
   }
   checked++;
 }
-console.log(`${checked} live spots checked: reachable, and attached to something within 3 m`);
+console.log(`${checked} live spots checked: reachable, and standing where they claim`);
+console.log(`   of those, ${onDoor} name a declared building and sit exactly on its published door`);
 console.log(`${gated} gated by ok() from where the player is standing — a seat you are not on,`);
 console.log(`   or an interior's way-out while you are on the street. scripts/interiors-walk.mjs`);
 console.log(`   enters every room and exercises those; this sweep is for the STREET side, which`);
