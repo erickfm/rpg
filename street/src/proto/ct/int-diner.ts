@@ -187,43 +187,81 @@ export function buildDiner(ctx: CtxBuild): void {
   // giants. Right-sized, three of them fit the window where two sprawled —
   // and three is what makes it a diner rather than a room with tables in it.
   const vinylM = new THREE.MeshBasicMaterial({ color: 0x7a2a28 });
-  const BW = 1.35;                 // bench width — one booth
-  const TZ = hd - 1.35;            // table centres, a stride off the window
-  // Three booths, sharing dividers, under the glass — and on the far side of
-  // the DOOR, wherever the facade has put it. Laid out against a remembered
-  // position they ended up standing across the doorway, because A's descriptor
-  // moved the diner's door 4.8 m along the shopfront and the furniture did not
-  // know. Nothing in this room may hard-code which end the door is at.
-  const away = room.doorAt > 0 ? -1 : 1;          // fill away from the door
-  const BW_PITCH = 1.6;
-  const BXS = [0, 1, 2].map((i) => away * (hw - 1.4 - i * BW_PITCH));
+
+  // ── the booth run, along the window ──
+  //
+  // The user: *"the booths should be perpendicular to the wall and line the
+  // window like a regular diner anywhere you go."* They were islands standing
+  // in the middle of the floor, which is a restaurant, not a diner.
+  //
+  // A real window booth run is one continuous bank: each BENCH is long and
+  // points away from the glass, the two benches of a booth sit either side of
+  // a table so you face your companion ACROSS the room's width with the window
+  // at your shoulder, and adjacent booths are back to back — booth n's far
+  // bench and booth n+1's near bench share a divider. The run lines the whole
+  // window, and the aisle is what is left between it and the counter. Counter
+  // down one side, booths down the other, aisle between: that is the plan of
+  // every diner there has ever been.
+  const BENCH_W = 0.55;            // across the room — how wide you sit
+  const BENCH_L = 1.5;             // away from the window — how long the seat is
+  const TABLE_W = 0.76;            // the gap between two benches of one booth
+  const BACK_T = 0.12;
+  const HALF = TABLE_W / 2 + BENCH_W;                 // booth centre to bench outer
+  const PITCH = 2 * HALF + BACK_T;                    // back-to-back neighbours
+  // benches sit against the glass, their aisle end pointing into the room
+  const BZ = hd - 0.2 - BENCH_L / 2;
+
+  // The run starts clear of the DOOR and fills to the far wall, because the
+  // door is in this same wall — wherever the facade has put it. Laid out
+  // against a remembered position the bank ended up standing across the
+  // doorway once already.
+  const away = room.doorAt > 0 ? -1 : 1;
+  const runStart = room.doorAt + away * (1.15 / 2 + 0.9);   // clear of the opening
+  const wallEnd = away * (hw - 0.25);
+  const span = Math.abs(wallEnd - runStart);
+  const nBooths = Math.max(1, Math.floor((span - BACK_T) / PITCH));
+  const BXS = Array.from({ length: nBooths }, (_, i) => runStart + away * (HALF + BACK_T / 2 + i * PITCH));
+
+  const napkinT = pixTex(8, 8, (g) => {
+    g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 8, 8);
+    g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, 8, 2);
+  });
   for (const bx of BXS) {
-    for (const dz of [-0.6, 0.6]) {
-      const bench = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.45, 0.55), vinylM);
-      put(bench, bx, 0.225, TZ + dz);
-      const backr = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.62, 0.12), vinylM);
-      put(backr, bx, 0.76, TZ + dz * 1.49);
+    for (const sx of [-1, 1]) {
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(BENCH_W, 0.45, BENCH_L), vinylM);
+      put(bench, bx + sx * (TABLE_W / 2 + BENCH_W / 2), 0.225, BZ);
+      // the back is on the OUTER side of each bench: that face is the divider
+      // the neighbouring booth sits against
+      const backr = new THREE.Mesh(new THREE.BoxGeometry(BACK_T, 0.62, BENCH_L), vinylM);
+      put(backr, bx + sx * (HALF + BACK_T / 2), 0.76, BZ);
+      // …and you can sit on it, facing your companion across the table
+      ctx.seat({
+        x: room.wx(bx + sx * (TABLE_W / 2 + BENCH_W / 2)),
+        z: room.wz(BZ - BENCH_L / 2 + 0.45),        // the aisle end, where you get in
+        yaw: sx < 0 ? Math.PI / 2 : -Math.PI / 2,   // across the table
+        h: 0.45, r: 0.85, ok: room.inside, label: 'take a booth seat',
+      });
     }
-    const tbl = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.07, 0.7), formicaFor(1.15, 0.7));
-    put(tbl, bx, 0.74, TZ);
+    const tbl = new THREE.Mesh(new THREE.BoxGeometry(TABLE_W, 0.07, BENCH_L - 0.25), formicaFor(TABLE_W, BENCH_L - 0.25));
+    put(tbl, bx, 0.74, BZ);
+    const tEdge = new THREE.Mesh(new THREE.BoxGeometry(TABLE_W + 0.04, 0.04, BENCH_L - 0.21), chromeM);
+    put(tEdge, bx, 0.705, BZ);
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), chromeM);
-    put(leg, bx, 0.36, TZ);
-    // One seat per booth, on the AISLE bench, facing the window across the
-    // table (yaw π = +z). Not two: the window-side bench sits behind its own
-    // table with the glass at its back, so there is nowhere to stand within
-    // reach of it — a booth is one place to sit, and registering a seat you
-    // can never get to would be a prompt that never appears.
-    ctx.seat({
-      x: room.wx(bx), z: room.wz(TZ - 0.6), yaw: Math.PI, h: 0.45, r: 0.9,
-      ok: room.inside, label: 'take the booth',
-    });
+    put(leg, bx, 0.36, BZ);
+    // a napkin dispenser and a ketchup bottle, against the window end of the
+    // table where they live in every diner
+    const nap = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.1), ctx.flat(napkinT));
+    put(nap, bx - 0.16, 0.83, BZ + BENCH_L / 2 - 0.35);
+    const ket = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.19, 6),
+      new THREE.MeshBasicMaterial({ color: 0xb8342a }));
+    put(ket, bx + 0.14, 0.87, BZ + BENCH_L / 2 - 0.35);
   }
-  // ONE collider for the whole bank, not nine. The dividers between booths are
-  // 0.25 m apart — narrower than the 0.72 m player — so boxing each bench
-  // separately only creates slots you can wedge into and have to shuffle back
-  // out of. The bank is furniture you walk around, so it blocks as one thing.
-  solid((BXS[0] + BXS[BXS.length - 1]) / 2, TZ,
-    BXS[BXS.length - 1] - BXS[0] + BW, 1.9);
+  // ONE collider for the whole bank. The dividers are back to back with no gap
+  // at all, so boxing benches separately would only build slots too narrow to
+  // stand in and too deep to shuffle out of.
+  const runLo = Math.min(BXS[0], BXS[BXS.length - 1]) - HALF - BACK_T / 2;
+  const runHi = Math.max(BXS[0], BXS[BXS.length - 1]) + HALF + BACK_T / 2;
+  solid((runLo + runHi) / 2, BZ, runHi - runLo, BENCH_L + BACK_T);
 
   // ── the menu board, over the pass ──
   const menuT = pixTex(96, 32, (g) => {
