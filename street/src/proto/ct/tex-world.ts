@@ -118,16 +118,20 @@ function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, 
  * the bodega's corner pier passes its own because that face runs all the way
  * to the ground and still has to line its windows up with the elevation.
  */
-export function facadeTex(
+/** Where the windows are on a residential facade, and which of them are lit.
+ *  ONE authority, because two painters now need it: `facadeTex` cuts the
+ *  openings and `facadeLitTex` paints the light coming out of them. If each
+ *  computed the grid itself, the light would drift off the holes it is
+ *  shining through the first time either one changed. */
+export function facadeWindows(
   brick: string, floors: number, wMeters = 12,
   hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
   sill0 = SKIRT_M,
-): THREE.Texture {
+) {
   const surf = masonry(wMeters, hMeters, baseY);
   const { W, H, ppm } = surf;
   const m = (v: number) => Math.round(v * ppm);          // metres → texels
   const WIN_W = 1.5, WIN_H = 1.5, BAY_M = 2.75, SILL_M = 0.2, MARGIN_M = 1.0;
-  const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
   // Which windows are lit. This used to be `(f * 7 + c * 3) % 5 === 0`, which
   // is a linear congruence in storey and column: every storey up shifts the
   // lit column by a fixed amount, so the lit windows can only ever land on
@@ -148,6 +152,30 @@ export function facadeTex(
     h = Math.imul(h ^ (h >>> 13), 0x297a2d39) >>> 0;
     return ((h ^ (h >>> 16)) >>> 0) % 100 < 19;      // ~1 in 5, scattered
   };
+  // window bays: as many as fit at BAY_M pitch inside a margin each end
+  const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
+  const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
+  const cells: { x: number; y: number; lit: boolean }[] = [];
+  for (let f = 0; f < floors; f++) {
+    // storey f counted from the BOTTOM, so a 4- and a 5-storey neighbour
+    // share every window band they both have (seam finding 7)
+    const sill = sill0 + f * FLOOR_M;                   // metres above the wall's foot
+    const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
+    for (let c = 0; c < cols; c++) {
+      cells.push({ x: m(MARGIN_M + slack + c * BAY_M), y, lit: litAt(f, c) });
+    }
+  }
+  return { surf, W, H, m, cells, winW: m(WIN_W), winH: m(WIN_H), sillT: m(SILL_M) };
+}
+
+export function facadeTex(
+  brick: string, floors: number, wMeters = 12,
+  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
+  sill0 = SKIRT_M,
+): THREE.Texture {
+  const { surf, W, H, m, cells, winW, winH, sillT } =
+    facadeWindows(brick, floors, wMeters, hMeters, baseY, minCols, sill0);
+  const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
   return surf.paint((g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
@@ -156,27 +184,18 @@ export function facadeTex(
     g.fillRect(0, 0, W, m(CORNICE_M));
     g.fillStyle = 'rgba(0,0,0,0.3)';
     g.fillRect(0, m(CORNICE_M), W, m(CORNICE_SHADE_M));
-    // window bays: as many as fit at BAY_M pitch inside a margin each end
-    const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
-    const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
-    const winW = m(WIN_W), winH = m(WIN_H);
-    for (let f = 0; f < floors; f++) {
-      // storey f counted from the BOTTOM, so a 4- and a 5-storey neighbour
-      // share every window band they both have (seam finding 7)
-      const sill = sill0 + f * FLOOR_M;                   // metres above the wall's foot
-      const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
-      for (let c = 0; c < cols; c++) {
-        const x = m(MARGIN_M + slack + c * BAY_M);
-        const lit = litAt(f, c);
-        g.fillStyle = '#1a1c22';
-        g.fillRect(x - 1, y - 1, winW + 2, winH + 2);
-        g.fillStyle = lit ? '#c9a45e' : '#2e3a46';
-        g.fillRect(x, y, winW, winH);
-        if (!lit) { g.fillStyle = '#48586a'; g.fillRect(x + Math.round(winW / 2) - 1, y, Math.max(1, m(0.35)), winH); }
-        else { g.fillStyle = '#8a6a3a'; g.fillRect(x, y + winH - m(0.6), winW, m(0.6)); }
-        g.fillStyle = '#9a8a72';
-        g.fillRect(x - 1, y + winH + 1, winW + 2, m(SILL_M));
-      }
+    // Every window is painted DARK, with no exceptions. The light that used to
+    // be baked in here is `facadeLitTex`, on its own sheet, so that at four in
+    // the afternoon the block is not still lit up for a party.
+    for (const { x, y } of cells) {
+      g.fillStyle = '#1a1c22';
+      g.fillRect(x - 1, y - 1, winW + 2, winH + 2);
+      g.fillStyle = '#2e3a46';
+      g.fillRect(x, y, winW, winH);
+      g.fillStyle = '#48586a';
+      g.fillRect(x + Math.round(winW / 2) - 1, y, Math.max(1, m(0.35)), winH);
+      g.fillStyle = '#9a8a72';
+      g.fillRect(x - 1, y + winH + 1, winW + 2, sillT);
     }
     // grime streaks and grain, both per SQUARE METRE — they used to be a flat
     // count per canvas, so a 6 m shop got the same 500 specks as an 18 m block
@@ -186,6 +205,32 @@ export function facadeTex(
       g.fillRect(Math.floor(Math.random() * W), 0, 2, Math.floor(H * Math.random()));
     }
     dither(g, W, H, Math.round(wMeters * hMeters * 3.2));
+  });
+}
+
+/** The light in the windows `facadeTex` just cut, on its own TRANSPARENT sheet
+ *  so it can be faded up and down instead of being baked on at noon. Same
+ *  arguments as `facadeTex` — pass it the same ones and the two line up texel
+ *  for texel.
+ *
+ *  Nothing but the glass is drawn: no brick, no cornice, no sill. A window
+ *  that is not lit contributes no pixels at all, which is what lets the whole
+ *  sheet be faded out to nothing at midday and leave the dark facade behind. */
+export function facadeLitTex(
+  brick: string, floors: number, wMeters = 12,
+  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
+  sill0 = SKIRT_M,
+): THREE.Texture {
+  const { surf, m, cells, winW, winH } =
+    facadeWindows(brick, floors, wMeters, hMeters, baseY, minCols, sill0);
+  return surf.paint((g) => {
+    for (const { x, y, lit } of cells) {
+      if (!lit) continue;
+      g.fillStyle = '#c9a45e';
+      g.fillRect(x, y, winW, winH);
+      g.fillStyle = '#8a6a3a';                          // the room falls off toward the cill
+      g.fillRect(x, y + winH - m(0.6), winW, m(0.6));
+    }
   });
 }
 

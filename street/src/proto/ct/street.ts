@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
-  facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
+  facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
   proud, reveal, glazed, mullions, HI,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
@@ -134,6 +134,53 @@ export function buildStreet(o: {
   // Shops get SHOP_BAND_H; the walk-up keeps ENTRANCE.BAND_H, which is what
   // ct/apartment.ts hangs its door in and is already the right size.
   const bandOf = (b: BldSpec) => (b.res ? ENTRANCE.BAND_H : SHOP_BAND_H);
+  // ── the block goes to bed ────────────────────────────────────────────────
+  //
+  // Lit windows used to be painted INTO the facade, so the same rooms were lit
+  // at four in the morning as at nine at night — and at one in the afternoon,
+  // which is the version you actually notice. The light is now its own
+  // transparent sheet hung a couple of centimetres off each facade, and its
+  // opacity is a function of the hour.
+  //
+  // Two things make this cheap rather than clever. `facadeLitTex` shares the
+  // window grid with `facadeTex`, so the light cannot slide off its holes; and
+  // props.dimWorld() skips any material with `transparent` set, so the night
+  // grading that darkens the brick leaves the light alone without either side
+  // having to know about the other.
+  const litMats: THREE.MeshBasicMaterial[] = [];
+  const litSheet = (
+    tex: THREE.Texture, wM: number, hM: number,
+    x: number, y: number, z: number, ry: number,
+  ) => {
+    const m = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, opacity: 0, depthWrite: false,
+    });
+    litMats.push(m);
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), m);
+    p.position.set(x, y, z);
+    p.rotation.y = ry;
+    p.renderOrder = 2;                                  // over its own facade
+    scene.add(p);
+  };
+  // Not a light sensor — people. Nobody switches a lamp on at noon, the block
+  // is at its fullest around nine, and by four in the morning it is down to
+  // whoever is still up. The curve is continuous across midnight: it leaves
+  // hour 24 at the same value it enters hour 0 with.
+  const ramp = (a: number, b: number, t: number) => THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
+  const windowsAt = (h: number) => {
+    if (h < 5) return 0.16 - 0.06 * ramp(2, 5, h);      // the last ones still up
+    if (h < 7) return 0.10 + 0.36 * ramp(5, 7, h);      // getting up in the dark
+    if (h < 9.5) return 0.46 * (1 - ramp(7, 9.5, h));   // out for the day
+    if (h < 16.5) return 0;                             // nobody lights a room at noon
+    if (h < 20) return ramp(16.5, 20, h);               // home, a window at a time
+    if (h < 22) return 1;                               // the block at its fullest
+    return 1 - 0.84 * ramp(22, 24, h);                  // going to bed
+  };
+  const setWindows = (hourF: number) => {
+    const v = windowsAt(hourF);
+    for (const m of litMats) m.opacity = v;
+  };
+
   const placeBld = (side: number, z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
     const gh = bandOf(b);
@@ -145,6 +192,8 @@ export function buildStreet(o: {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, b.w), mats);
     wall.position.set(cx, h / 2 + gh, cz);
     scene.add(wall);
+    litSheet(facadeLitTex(b.brick, b.floors, b.w), b.w, h,
+      side * (FACE - 0.02), h / 2 + gh, cz, side < 0 ? Math.PI / 2 : -Math.PI / 2);
     const shopM = flat(
       b.res ? resGroundTex(b.brick, b.w)
         : b.front === 'burger' ? burgerFront(b.brick, b.w)
@@ -605,6 +654,8 @@ export function buildStreet(o: {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, dep), mats);
     wall.position.set(cx, h / 2 + gh, czd);
     scene.add(wall);
+    litSheet(facadeLitTex(b.brick, b.floors, b.w), b.w, h,
+      cx, h / 2 + gh, front + facing * 0.02, facing > 0 ? 0 : Math.PI);
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, dep, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, dep), shopMats);
@@ -1273,5 +1324,5 @@ export function buildStreet(o: {
     tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
-  return { colliders, park: PARK, lot: LOT };
+  return { colliders, park: PARK, lot: LOT, setWindows };
 }

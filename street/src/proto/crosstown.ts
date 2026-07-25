@@ -497,6 +497,9 @@ export function makeCrosstown(): Proto {
       // streetlamps warm up on the same night curve (0 by day, full at deep night)
       const lampNight = THREE.MathUtils.clamp((night - 0.03) / 0.28, 0, 1);
       props.setLampNight(lampNight);
+      // and the flats above the shops light up on a curve of their own — the
+      // block keeps people's hours, not the sun's (ct/street.ts owns the shape)
+      street.setWindows(hourF);
       // Fog goes DARKER than the sky once the sun is down. By day it matches,
       // so the street simply fades into the haze; after dark, distance falling
       // toward black instead of toward the sky grey gives depth down the block
