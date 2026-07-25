@@ -1,5 +1,16 @@
 # BLOCKED — builder A
 
+## URGENT-ISH: G's `Room.glazing` ask would cement the deprecated fields
+
+G asked F (`cf0609d4`) for `Room.glazing`. The value it wants is `glaze`, and
+`glaze` is computed at `interior.ts:549` **from two of the four fields I am
+waiting to delete**. If it ships that way, every room using it becomes a new
+consumer and this stops being a five-minute change.
+
+`notes/A-glazing-handoff.md` has the two-line patch that avoids it, and the one
+handedness question F should decide rather than inherit. Timing matters more
+than the change does.
+
 ## Deleting the deprecated `Frontage` fields needs F to finish migrating
 
 **What I need:** `ct/interior.ts` off the last two deprecated fields.
