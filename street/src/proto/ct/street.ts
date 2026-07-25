@@ -139,11 +139,8 @@ export function buildStreet(o: {
     const gh = bandOf(b);
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const mats = side < 0
-      ? [facade, endM, roofM, roofM, endM, endM]
-      : [endM, facade, roofM, roofM, endM, endM];
+    const mats = shellMats(side < 0 ? 0 : 1, facade, 3.4, h, b.w, b.brick, gh, true, roofM);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, b.w), mats);
     wall.position.set(side * (FACE + 1.7), h / 2 + gh, cz);
     scene.add(wall);
@@ -153,9 +150,7 @@ export function buildStreet(o: {
           : b.front === 'pawn' ? pawnFront(b.brick, b.w)
             : b.front === 'tax' ? taxFront(b.brick, b.w)
               : shopfrontTex(b.brick, b.nm, b.col, b.w));
-    const shopMats = side < 0
-      ? [shopM, endM, roofM, roofM, endM, endM]
-      : [endM, shopM, roofM, roofM, endM, endM];
+    const shopMats = shellMats(side < 0 ? 0 : 1, shopM, 3.4, gh, b.w, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, gh, b.w), shopMats);
     shop.position.set(side * (FACE + 1.7), gh / 2, cz);
     scene.add(shop);
@@ -172,6 +167,50 @@ export function buildStreet(o: {
   // this file. street.ts still owns WHERE they stand; civic.ts owns what
   // they look like.
   const { placeLibrary, placeChurch } = buildCivic({ scene, flat, KERB_H });
+  // ── flanks: a return is made of what the building is made of ────────────
+  //
+  // `endM` was ONE flat brown — 0x53382e — on the sides, ends and returns of
+  // every building on the block, whatever its front was made of. So the bank's
+  // pale precast front met a brown brick flank and the corner read as a stage
+  // flat with something else propped up behind it.
+  //
+  // A blind party wall IS correct: a flank does not want the front's windows,
+  // its glazing or its sign. What it must not be is a different MATERIAL. So
+  // the flank is derived from the same `brick` the front is painted from, at
+  // the same masonry density, phased off the same world-Y course grid — and
+  // every building gets its own instead of sharing a constant.
+  //
+  // Same family as the two patterns already fixed: one masonry density for the
+  // world, one authoring of the door position. The defect is always the same
+  // fact decided twice, or decided once and applied where it does not belong.
+  const flankTex = (brick: string, wM: number, hM: number, baseY: number, cope: boolean) => {
+    const ms = masonry(wM, hM, baseY);
+    return ms.paint((g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
+      ms.courses(g);
+      g.fillStyle = 'rgba(0,0,0,0.16)';                       // weather off the parapet
+      for (let i = 0; i < 14; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+      if (cope) {                                             // only where it IS the top
+        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
+      }
+      dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
+    });
+  };
+  /** the six materials of a shell: its front where the front goes, and its own
+   *  masonry on every side and return. `fi` is the BoxGeometry face index the
+   *  facade belongs on (0 +x, 1 -x, 4 +z, 5 -z). */
+  const shellMats = (
+    fi: number, facade: THREE.Material, dx: number, dy: number, dz: number,
+    brick: string, baseY: number, cope: boolean, roofM: THREE.Material,
+  ) => {
+    const xt = flat(flankTex(brick, dz, dy, baseY, cope));    // the +-x faces span z
+    const zt = flat(flankTex(brick, dx, dy, baseY, cope));    // the +-z faces span x
+    const m: THREE.Material[] = [xt, xt, roofM, roofM, zt, zt];
+    m[fi] = facade;
+    return m;
+  };
+
   // ── open sites ──────────────────────────────────────────────────────────
   //
   // A hole in the street wall — the park, and now the used car lot. They are
@@ -379,14 +418,19 @@ export function buildStreet(o: {
   };
   const placeBank = (z: number, w: number) => {
     const cz = z - w / 2, floors = 4, h = wallHeight(floors);
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    // THE REPORTED DEFECT. The bank's front is pale precast and its returns
+    // were the block's brown brick, so it read as a stage flat. bankWall with
+    // floors = 0 is the same panel, the same joints and the same palette with
+    // no windows in it — which is what a blind precast return actually is.
+    const bankFlank = (wM: number, hM: number) => flat(bankWall(wM, hM, 0));
     const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w),
-      [flat(bankWall(w, h, floors)), endM, roofM, roofM, endM, endM]);
+      [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM, bankFlank(3.4, h), bankFlank(3.4, h)]);
     wall.position.set(-(FACE + 1.7), h / 2 + SHOP_BAND_H, cz);
     scene.add(wall);
     const band = new THREE.Mesh(new THREE.BoxGeometry(3.4, SHOP_BAND_H, w),
-      [flat(bankBand(w)), endM, roofM, roofM, endM, endM]);
+      [flat(bankBand(w)), bankFlank(w, SHOP_BAND_H), roofM, roofM,
+        bankFlank(3.4, SHOP_BAND_H), bankFlank(3.4, SHOP_BAND_H)]);
     band.position.set(-(FACE + 1.7), SHOP_BAND_H / 2, cz);
     scene.add(band);
     solid({ minX: -FACE - 8, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
@@ -473,18 +517,13 @@ export function buildStreet(o: {
     const gh = bandOf(b);
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const mats = facing > 0
-      ? [endM, endM, roofM, roofM, facade, endM]
-      : [endM, endM, roofM, roofM, endM, facade];
+    const mats = shellMats(facing > 0 ? 4 : 5, facade, b.w, h, 3.4, b.brick, gh, true, roofM);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 3.4), mats);
     wall.position.set(cx, h / 2 + gh, zc);
     scene.add(wall);
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
-    const shopMats = facing > 0
-      ? [endM, endM, roofM, roofM, shopM, endM]
-      : [endM, endM, roofM, roofM, endM, shopM];
+    const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, 3.4, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4), shopMats);
     shop.position.set(cx, gh / 2, zc);
     scene.add(shop);
@@ -557,7 +596,6 @@ export function buildStreet(o: {
     const CHF = WALK;
     const CFW = CHF * Math.SQRT2;                    // 2.55 m of canted bay
     const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // The corner's footprint FOLLOWS THE CUT. The shell is the rectangle
     // BX0…BX1 × BZ1…BZ0 minus the triangle the chamfer takes out of its
@@ -587,11 +625,13 @@ export function buildStreet(o: {
     {
       const d = BZ0 - (BZ1 + CHF), cz = (BZ0 + BZ1 + CHF) / 2;
       const facade = flat(facadeTex(bod.brick, bod.floors, d));
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, BH, d), [endM, facade, roofM, roofM, endM, endM]);
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, BH, d),
+        shellMats(1, facade, 3.4, BH, d, bod.brick, SHOP, true, roofM));
       wall.position.set((BX0 + BX1) / 2, SHOP + BH / 2, cz);
       scene.add(wall);
       const shopM = flat(shopfrontTex(bod.brick, bod.nm, bod.col, d));
-      const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, SHOP, d), [endM, shopM, roofM, roofM, endM, endM]);
+      const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, SHOP, d),
+        shellMats(1, shopM, 3.4, SHOP, d, bod.brick, 0, false, roofM));
       shop.position.set((BX0 + BX1) / 2, SHOP / 2, cz);
       scene.add(shop);
     }
@@ -599,7 +639,8 @@ export function buildStreet(o: {
     {
       const w = BX1 - (BX0 + CHF);
       const pier = flat(facadeTex(bod.brick, bod.floors, w, TOP, 0, 1, SHOP + 2.4));
-      const p = new THREE.Mesh(new THREE.BoxGeometry(w, TOP, CHF), [endM, endM, roofM, roofM, endM, pier]);
+      const p = new THREE.Mesh(new THREE.BoxGeometry(w, TOP, CHF),
+        shellMats(5, pier, w, TOP, CHF, bod.brick, 0, true, roofM));
       p.position.set((BX0 + CHF + BX1) / 2, TOP / 2, BZ1 + CHF / 2);
       scene.add(p);
     }
@@ -845,11 +886,11 @@ export function buildStreet(o: {
   placeBld(-1, -98, { nm: 'RADIO', col: '#3a4a7a', w: 12, brick: '#835444', floors: 4 });
   // east cross building — the side street disappears into the fog toward it
   {
-    const eEnd = new THREE.MeshBasicMaterial({ color: 0x53382e });
+
     const eRoof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const eWall = new THREE.Mesh(
       new THREE.BoxGeometry(6, 13.6, 24),
-      [eEnd, flat(facadeTex('#5c4436', 4, 24, 13.6, 0)), eRoof, eRoof, eEnd, eEnd],
+      shellMats(1, flat(facadeTex('#5c4436', 4, 24, 13.6, 0)), 6, 13.6, 24, '#5c4436', 0, true, eRoof),
     );
     eWall.position.set(SIDE_X1 + 5, 6.8, (SIDE_Z0 + SIDE_Z1) / 2);
     scene.add(eWall);
@@ -863,9 +904,10 @@ export function buildStreet(o: {
     // 13.6 m tall, not wallHeight(4) = 13.0 — pass the real face or the
     // texture is painted for a wall that does not exist and lands at 7.65 up
     const facade = flat(facadeTex('#5c4436', 4, 30, 13.6, 0));
-    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
+
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6), [endM, endM, roofM, roofM, endM, facade]);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6),
+      shellMats(5, facade, 30, 13.6, 6, '#5c4436', 0, true, roofM));
     wall.position.set(0, 6.8, 16.5);
     scene.add(wall);
   }
