@@ -169,7 +169,38 @@ function buildLot(o: {
   // and the two additive glows must never be in here — they are lights, and
   // dimming a light at night is backwards.
   const decals: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  /**
+   * HAND THE DECALS TO THE WORLD'S WET REGISTRY, and dim them here only if it
+   * will not take them.
+   *
+   * The hand-rolled dimming below was right about the night and blind to the
+   * rain. Measured in the lot, same hour of day, one dry and one rainy so the
+   * day grade is held constant:
+   *
+   *   the tarmac under them (wet-registered)   1.000 -> 0.256   -74%
+   *   these sheets painted on it                            0%
+   *
+   * An oil stain that does not darken when the yard it is on darkens by three
+   * quarters stops being a stain and becomes chalk. It is the same defect
+   * b209275c found in the road's centre lines, and it was mine for the same
+   * reason: `dimWorld` skips `transparent`, I noticed the NIGHT half of that
+   * and wrote my own factor, and the rain half never occurred to me.
+   *
+   * `ctx.wet()` is the right home rather than another local loop. These ARE
+   * ground surfaces — that is the entire description of a decal — and the
+   * registry already carries both halves, the ground grade and the wet tint,
+   * with updateRain as the single writer (props.ts:1129). Registering also
+   * ends the two-writer risk this file was one frame away from: `Frame` does
+   * not expose wetness, so reacting to rain here would have meant a second
+   * hand-rolled constant next to the first.
+   *
+   * 0.47 is gone with it. It was measured — the factor the world's own grader
+   * applied to this lot between 13:00 and 23:00 — but a measured copy of
+   * someone else's behaviour is a copy, and it went stale the moment rain
+   * existed.
+   */
   const decal = <T extends THREE.MeshBasicMaterial>(m: T): T => {
+    if (o.wet) { o.wet(m); return m; }        // the registry stamps graded + wet itself
     decals.push({ m, base: m.color.clone() });
     // SAY SO, for the same reason props.ts:290 stamps its own. From outside,
     // "this module dims it itself" and "nobody dims it and it glows at

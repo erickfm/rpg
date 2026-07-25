@@ -209,6 +209,50 @@ lot 13 -> 0        walkup 8 -> 0
 textures / structure / tints all IDENTICAL across the change; 3 pigeons drifted
 ```
 
+**The lot did not get wet, and my own night fix was wrong by 87x.** The block
+was sweeping modules for rain response (`b209275c`: the road's centre lines
+bone dry while the road darkens 83%). Mine had the same hole, for the same
+reason, and looking at it properly turned up something worse than the hole.
+
+`ct/lot.ts` never called `ctx.wet()` — the helper was aliased at line 191 with
+zero call sites. Measured in the lot at the SAME hour of day, one dry and one
+rainy, so the day grade is held constant:
+
+```
+the tarmac under them (D's, via openSite)   1.000 -> 0.256   -74%
+my decals painted on it                                        0%
+```
+
+Now registered, and they track it: `0.693 -> 0.211`, -69.5%, 23 of 23.
+
+**The part I got wrong.** I dimmed those decals myself, with `1 - 0.47*f.night`,
+and defended the constant in this file as *"the factor the world's own grader
+was measured applying to this lot"*. The ratio says otherwise:
+
+```
+                 decal   tarmac   ratio
+  noon, dry     0.6933   1.0000   0.693      <- now
+  noon, RAIN    0.2117   0.2577   0.822
+  23:00, dry    0.0075   0.0084   0.887
+  23:00 RAIN    0.0070   0.0077   0.908
+
+  23:00 under my 0.47   0.727  vs  0.0084  =  87x the tarmac
+```
+
+An oil stain eighty-seven times brighter than the asphalt it is on. The whole
+argument for dimming them by hand was that an untouched decal *"gets BRIGHTER
+relative to the tarmac as the sun goes down"* — and my fix left it doing
+exactly that, just less. It read fine in every screenshot because 0.727 on a
+black yard looks like a lit stain rather than a wrong one.
+
+The ratio now holds between 0.69 and 0.91 in all four conditions, which is what
+a stain has to do. `ctx.wet()` was the right home all along: these ARE ground
+surfaces, the registry carries the ground grade AND the wet tint, and
+`updateRain` is its single writer — so this also removes a two-writer hazard
+this file was one frame from, since `Frame` exposes `night` but no wetness.
+
+Textures and structure IDENTICAL across the change; the tints move, on purpose.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
