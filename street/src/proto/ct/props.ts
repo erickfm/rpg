@@ -937,94 +937,133 @@ export function buildProps(ctx: CtxBuild): Props {
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
   obstacle({ minX: BX_BACK - 0.05, maxX: BX_SEAT1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
-  // ══════════════════ FLOOR-TRASH COMPARISON RIG ══════════════════════════
+  // ══════════════════ FLOOR-TRASH COMPARISON RIG, v2 ══════════════════════
   //
-  // Fourteen candidates laid out in a numbered line on the alley floor, for
-  // the user to pick from — the same way the six-cat rig settled the cat.
-  // Nothing here is solid and nothing here replaces the street litter; this
-  // is a chooser. Once the winners are picked they get placed properly and
-  // this whole block comes out.
+  // v1 was fourteen flat decals and the user could not identify one of them.
+  // The rig did its job — it got that verdict in one look — but the approach
+  // was wrong, for two reasons worth writing down:
   //
-  // The complaint was not that the litter was too tidy, it was that you
-  // cannot tell what any of it IS. At the world's texel density a 0.35 m
-  // object is around a dozen pixels across, so a shape only reads if it is
-  // drawn for that size. Every candidate below therefore gets:
-  //   · a HARD DARK OUTLINE, so the silhouette survives against the ground
-  //   · ONE high-contrast identifying mark — the red band on a can, the white
-  //     of a newsprint fold — rather than faithful detail that turns to mush
-  //   · a CONTACT SHADOW, so it sits on the floor instead of floating over it
-  // The litter that was rejected twice failed on exactly those three.
+  //   · I JUDGED THEM FROM ABOVE. A flat decal seen from 1.7 m eye height two
+  //     metres away is viewed at about 15-20 degrees off the ground, which
+  //     squashes it to roughly a quarter of its depth. Every shape that read
+  //     beautifully top-down was a three-pixel smear in the only view the game
+  //     actually has.
+  //   · FLAT IS THE WRONG PRIMITIVE. Real litter has height, and that height
+  //     gives it a VERTICAL face — which is the face you see standing up. A
+  //     decal has none. So these are low 3D solids now: a short cylinder lying
+  //     down, a low box. (GOTCHAS §3 forbids BILLBOARDS on the ground because
+  //     they rotate and stand up to face you. Low geometry is not a billboard
+  //     and has none of that problem.)
   //
-  // Uses no rnd() at all, so it cannot disturb the seeded stream (GOTCHAS §2).
-  const TRASH_X = -8.6, TRASH_Z0 = -37.7, TRASH_STEP = 0.44, TRASH_W = 0.36;
-  const tsheet = (draw: (g: CanvasRenderingContext2D) => void) => pixTex(24, 24, draw);
-  // shared vocabulary, so fourteen sketches still look like one hand
-  const shadow = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
-    g.fillStyle = 'rgba(0,0,0,0.34)';
-    g.fillRect(x + 1, y + 2, w, h);
+  // Also: seven candidates, not fourteen. A cigarette end, a bottle cap, a
+  // lottery slip and a receipt are 2-4 cm objects — one or two texels here,
+  // unreadable at any density — so they are cut rather than iterated on.
+  // And everything is drawn 1.5-2x life size, because this is a pixel world
+  // and legibility beats measurement; the cat is not to scale either.
+  //
+  // Nothing here is solid and nothing replaces the street litter. Uses no
+  // rnd(), so the seeded stream is untouched (GOTCHAS §2).
+  const TZ0 = -38.0, TSTEP = 0.62, TX = -8.6;
+  const tsurf = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
+    const t = pixTex(w, h, draw); return new THREE.MeshBasicMaterial({ map: t });
   };
-  const body = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) => {
-    g.fillStyle = '#141118'; g.fillRect(x - 1, y - 1, w + 2, h + 2);   // hard outline
-    g.fillStyle = fill; g.fillRect(x, y, w, h);
+  const plain = (c: string) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
+  const rigAt: THREE.Object3D[] = [];
+  // a short cylinder lying along x — the primitive that does the most work
+  // here, because a can, a bottle and a cup are all one
+  const lying = (r1: number, r2: number, len: number, side: THREE.Material, cap: THREE.Material) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, len, 10), [side, cap, cap]);
+    m.rotation.z = Math.PI / 2;
+    return m;
   };
-  const TRASH: [string, (g: CanvasRenderingContext2D) => void][] = [
-    ['crushed can, side-on', (g) => { shadow(g, 4, 9, 16, 6);
-      body(g, 4, 9, 16, 6, '#b9bcc2');
-      g.fillStyle = '#8e9298'; g.fillRect(9, 9, 2, 6); g.fillRect(14, 9, 2, 6);   // crush ridges
-      g.fillStyle = '#c0392b'; g.fillRect(4, 11, 16, 2); }],                      // the band that says CAN
-    ['can stamped flat', (g) => { shadow(g, 3, 8, 18, 8);
-      body(g, 3, 8, 18, 8, '#c6c9cf');
-      g.fillStyle = '#8e9298'; g.fillRect(3, 11, 18, 1);
-      g.fillStyle = '#c0392b'; g.fillRect(7, 8, 4, 8); }],
-    ['cigarette pack', (g) => { shadow(g, 7, 8, 11, 8);
-      body(g, 7, 8, 11, 8, '#e6e2d8');
-      g.fillStyle = '#b8322c'; g.fillRect(7, 8, 11, 3);
-      g.fillStyle = '#9a968c'; g.fillRect(7, 12, 11, 1); }],
-    ['folded newspaper', (g) => { shadow(g, 3, 7, 18, 10);
-      body(g, 3, 7, 18, 10, '#cfcabb');
-      g.fillStyle = '#8d8878'; g.fillRect(12, 7, 1, 10);                          // the fold
-      g.fillStyle = '#5d5a52'; for (let y = 9; y < 16; y += 2) g.fillRect(5, y, 6, 1); }],
-    ['soaked handbill', (g) => { shadow(g, 4, 8, 16, 8);
-      body(g, 4, 8, 16, 8, '#9a9384');
-      g.fillStyle = '#6f6a5e'; g.fillRect(4, 13, 16, 3);                          // sodden edge
-      g.fillStyle = '#d8d2c4'; g.fillRect(6, 9, 7, 2); }],
-    ['takeout container', (g) => { shadow(g, 5, 7, 14, 10);
-      body(g, 5, 7, 14, 10, '#e8e6de');
-      g.fillStyle = '#b5b2a6'; g.fillRect(5, 11, 14, 1);                          // lid seam
-      g.fillStyle = '#8c887c'; g.fillRect(5, 7, 14, 1); }],
-    ['coffee cup, on its side', (g) => { shadow(g, 4, 9, 16, 6);
-      body(g, 4, 9, 16, 6, '#ddd8cc');
-      g.fillStyle = '#8a8478'; g.fillRect(4, 9, 3, 6);                            // tapers to the base
-      g.fillStyle = '#3a2f28'; g.fillRect(17, 8, 3, 8); }],                       // dark lid
-    ['plastic bag', (g) => { shadow(g, 4, 7, 16, 10);
-      body(g, 4, 7, 16, 10, '#d5d8d6');
-      g.fillStyle = '#b0b4b2'; g.fillRect(7, 9, 4, 6); g.fillRect(14, 11, 3, 4);  // crumple
-      g.fillStyle = '#eef0ee'; g.fillRect(5, 8, 3, 2); }],
-    ['bottle cap', (g) => { shadow(g, 9, 10, 6, 5);
-      body(g, 9, 10, 6, 5, '#2f3a4a');
-      g.fillStyle = '#c9a12e'; g.fillRect(11, 11, 2, 3); }],
-    ['chip bag', (g) => { shadow(g, 3, 8, 18, 8);
-      body(g, 3, 8, 18, 8, '#3c4a63');
-      g.fillStyle = '#e0a92e'; g.fillRect(6, 9, 8, 4);                            // the loud block
-      g.fillStyle = '#7d8a52'; g.fillRect(15, 9, 4, 6); }],
-    ['broken bottle glass', (g) => { shadow(g, 5, 8, 14, 8);
-      g.fillStyle = '#141118';
-      for (const [x, y, w2, h2] of [[5, 9, 6, 5], [12, 8, 5, 4], [10, 14, 5, 3]] as number[][]) g.fillRect(x - 1, y - 1, w2 + 2, h2 + 2);
-      g.fillStyle = '#3f6b4a';
-      for (const [x, y, w2, h2] of [[5, 9, 6, 5], [12, 8, 5, 4], [10, 14, 5, 3]] as number[][]) g.fillRect(x, y, w2, h2);
-      g.fillStyle = '#bfe6c8'; g.fillRect(6, 10, 3, 1); g.fillRect(13, 9, 2, 1); }],
-    ['cigarette end', (g) => { shadow(g, 9, 11, 7, 3);
-      body(g, 9, 11, 7, 3, '#e4e0d4');
-      g.fillStyle = '#b8892e'; g.fillRect(13, 11, 3, 3);                          // the filter
-      g.fillStyle = '#4a423a'; g.fillRect(9, 11, 1, 3); }],
-    ['torn lottery slip', (g) => { shadow(g, 6, 9, 12, 6);
-      body(g, 6, 9, 12, 6, '#e2ddd0');
-      g.fillStyle = '#c0397a'; g.fillRect(6, 10, 12, 2);
-      g.fillStyle = '#8d8878'; g.fillRect(16, 9, 2, 6); }],                       // the torn end
-    ['crumpled receipt', (g) => { shadow(g, 6, 8, 12, 8);
-      body(g, 6, 8, 12, 8, '#f0ece0');
-      g.fillStyle = '#c2bcae'; g.fillRect(6, 11, 12, 1); g.fillRect(10, 8, 1, 8);
-      g.fillStyle = '#8d8878'; for (let y = 9; y < 15; y += 2) g.fillRect(12, y, 4, 1); }],
+  const build: [string, () => THREE.Object3D][] = [
+    ['crushed can', () => {
+      const g0 = new THREE.Group();
+      const can = lying(0.075, 0.075, 0.30,
+        tsurf(24, 24, (g) => {
+          g.fillStyle = '#b9bcc2'; g.fillRect(0, 0, 24, 24);
+          g.fillStyle = '#c0392b'; g.fillRect(0, 9, 24, 7);            // the band that says CAN
+          g.fillStyle = '#8e9298'; g.fillRect(0, 5, 24, 1); g.fillRect(0, 18, 24, 1);
+          g.fillStyle = '#6f7378'; g.fillRect(7, 0, 1, 24); g.fillRect(16, 0, 1, 24);  // crush creases
+        }), plain('#8e9298'));
+      can.scale.y = 0.62;                                    // crushed, not round
+      can.position.y = 0.075 * 0.62; g0.add(can); return g0; }],
+    ['glass bottle', () => {
+      const g0 = new THREE.Group();
+      const side = tsurf(24, 24, (g) => {
+        g.fillStyle = '#3f6b4a'; g.fillRect(0, 0, 24, 24);
+        g.fillStyle = '#5d8f68'; g.fillRect(0, 2, 24, 3);              // highlight along the length
+        g.fillStyle = '#e6e0cc'; g.fillRect(0, 10, 24, 8);             // the label
+        g.fillStyle = '#8a3a2e'; g.fillRect(0, 13, 24, 2);
+      });
+      const body = lying(0.062, 0.062, 0.30, side, plain('#345c40'));
+      body.position.set(0, 0.062, 0); g0.add(body);
+      const neck = lying(0.032, 0.05, 0.13, plain('#3f6b4a'), plain('#2b4a34'));
+      neck.position.set(0.21, 0.062, 0); g0.add(neck);
+      return g0; }],
+    ['coffee cup', () => {
+      const g0 = new THREE.Group();
+      const cup = lying(0.078, 0.055, 0.26,
+        tsurf(24, 24, (g) => {
+          g.fillStyle = '#e4e0d4'; g.fillRect(0, 0, 24, 24);
+          g.fillStyle = '#b8b2a4'; g.fillRect(0, 0, 24, 2);
+          g.fillStyle = '#8a3a2e'; g.fillRect(0, 11, 24, 5);           // a printed band
+        }), plain('#cfc9ba'));
+      cup.position.set(0, 0.072, 0); g0.add(cup);
+      const lid = lying(0.084, 0.084, 0.035, plain('#3a2f28'), plain('#2b241f'));
+      lid.position.set(-0.145, 0.078, 0); g0.add(lid);                 // dark lid, unmistakable
+      return g0; }],
+    ['takeout container', () => {
+      const g0 = new THREE.Group();
+      const sideM = tsurf(24, 16, (g) => {
+        g.fillStyle = '#e8e6de'; g.fillRect(0, 0, 24, 16);
+        g.fillStyle = '#9c988c'; g.fillRect(0, 6, 24, 2);              // the lid seam
+        g.fillStyle = '#c8c4b8'; g.fillRect(0, 14, 24, 2);
+      });
+      const box2 = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.115, 0.24),
+        [sideM, sideM, tsurf(16, 16, (g) => {
+          g.fillStyle = '#f0eee6'; g.fillRect(0, 0, 16, 16);
+          g.fillStyle = '#b5b2a6'; g.fillRect(0, 7, 16, 1); g.fillRect(7, 0, 1, 16);
+        }), plain('#a8a498'), sideM, sideM]);
+      box2.position.y = 0.0575; box2.rotation.y = 0.22; g0.add(box2); return g0; }],
+    ['folded newspaper', () => {
+      const g0 = new THREE.Group();
+      const edge = tsurf(24, 8, (g) => {
+        g.fillStyle = '#cfcabb'; g.fillRect(0, 0, 24, 8);
+        for (let y = 1; y < 8; y += 2) { g.fillStyle = '#a8a294'; g.fillRect(0, y, 24, 1); }  // stacked pages
+      });
+      const np = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.055, 0.27),
+        [edge, edge, tsurf(24, 20, (g) => {
+          g.fillStyle = '#d8d3c4'; g.fillRect(0, 0, 24, 20);
+          g.fillStyle = '#2f2b26'; g.fillRect(2, 2, 20, 4);            // masthead
+          for (let y = 8; y < 19; y += 2) { g.fillStyle = '#6b665c'; g.fillRect(3, y, 18, 1); }
+          g.fillStyle = '#8d8878'; g.fillRect(0, 9, 24, 1);            // the fold
+        }), plain('#b0aa9c'), edge, edge]);
+      np.position.y = 0.0275; np.rotation.y = -0.15; g0.add(np); return g0; }],
+    ['chip bag', () => {
+      const g0 = new THREE.Group();
+      const sideM = tsurf(24, 14, (g) => {
+        g.fillStyle = '#31435e'; g.fillRect(0, 0, 24, 14);
+        g.fillStyle = '#e0a92e'; g.fillRect(3, 3, 12, 8);              // the loud block
+        g.fillStyle = '#c8443a'; g.fillRect(17, 4, 5, 6);
+        g.fillStyle = '#6d7f96'; g.fillRect(0, 0, 24, 1);              // foil glint
+      });
+      const bag = new THREE.Mesh(new THREE.BoxGeometry(0.33, 0.10, 0.21),
+        [sideM, sideM, sideM, plain('#26344a'), sideM, sideM]);
+      bag.position.y = 0.05; bag.rotation.y = 0.4; g0.add(bag);
+      const crum = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.15), plain('#3c5070'));
+      crum.position.set(0.14, 0.075, 0.03); crum.rotation.y = -0.3; g0.add(crum);
+      return g0; }],
+    ['cigarette pack', () => {
+      const g0 = new THREE.Group();
+      const sideM = tsurf(16, 14, (g) => {
+        g.fillStyle = '#e6e2d8'; g.fillRect(0, 0, 16, 14);
+        g.fillStyle = '#b8322c'; g.fillRect(0, 0, 16, 5);              // red top
+        g.fillStyle = '#9a968c'; g.fillRect(0, 9, 16, 1);
+      });
+      const pk = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.10, 0.13),
+        [sideM, sideM, sideM, plain('#c6c2b6'), sideM, sideM]);
+      pk.position.y = 0.05; pk.rotation.y = -0.5; g0.add(pk); return g0; }],
   ];
   const numTex = (n: number) => pixTex(16, 16, (g) => {
     g.fillStyle = 'rgba(10,10,14,0.72)'; g.fillRect(1, 3, 14, 10);
@@ -1032,10 +1071,16 @@ export function buildProps(ctx: CtxBuild): Props {
     g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(String(n), 8, 8);
   });
-  TRASH.forEach(([, draw], i) => {
-    const z = TRASH_Z0 - i * TRASH_STEP;
-    flatDecal(tsheet(draw), TRASH_W, TRASH_W, TRASH_X, z, 0, 0.012);
-    flatDecal(numTex(i + 1), 0.22, 0.22, TRASH_X - 0.46, z, 0, 0.012);
+  const shadeT = pixTex(16, 16, (g) => {
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 3, 12, 10);
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 2, 14, 12);
+  });
+  build.forEach(([, make], i) => {
+    const z = TZ0 - i * TSTEP;
+    const o = make(); o.position.set(TX, 0, z); scene.add(o); rigAt.push(o);
+    lit(o);                                          // they take the lamplight like anything else
+    flatDecal(shadeT, 0.42, 0.34, TX, z, 0, 0.001);  // contact shadow, so it sits on the floor
+    flatDecal(numTex(i + 1), 0.22, 0.22, TX - 0.46, z, 0, 0.012);
   });
 
   return {
