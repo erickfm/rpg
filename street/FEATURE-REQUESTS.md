@@ -11,6 +11,25 @@
   balance"*, then the balance from `purse.cash`, which is the same object the
   wallet reads.
 
+- **The ATM must be INLAID, not painted** — *"Right now the ATM is PAINTED INTO
+  bankBand's texture — a flat rectangle on the facade plane — which is why it
+  reads flat and why 'too high' and 'doesn't work' both landed on it … Build it
+  as a niche: cut the recess back from the facade plane by 12-18cm with a
+  visible reveal on all four sides."*
+  → **D. DONE, one object, one commit.** Real geometry: 12 parts, face set back
+  **150 mm** behind the facade plane, reveal on all four sides, bronze surround
+  at the cut. The recess needed a real hole — the shell's +x face is one opaque
+  quad, so anything behind it is occluded — so `bankBand` now `clearRect`s the
+  opening and the band material carries `alphaTest`. The 1997 vocabulary as
+  listed: hood over the screen, green CRT behind its own bezel, 3×4 rubber
+  keypad with function keys down both screen edges, card slot with a lit arrow,
+  cash slot with shutter, separate receipt and deposit slots, FIRST FEDERAL
+  plate, and CIRRUS/PLUS/STAR/HONOR decals. Wear at the touch points: middle
+  keypad column worn pale, scratched screen surround, a half-peeled sticker.
+  Screen at **1.35 m above the pavement** — and the pavement is KERB_H, which
+  the painted one measured from the band base 14 cm lower. `[E]` still answers
+  with the real purse. `shots/D-atm-oblique.png`, `D-atm-standing.png`.
+
 - **Diagonal streaks on the alley floor** (`shots/user-alleylines.png`) — *"long
   thin dark diagonal streaks running across the paving, on top of the soft dark
   ovals. They read as smears or as a rendering artefact, not as anything … a
