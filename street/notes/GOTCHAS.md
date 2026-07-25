@@ -167,3 +167,15 @@ Two ways, both of which have happened:
 
 `scripts/builder.sh` handles both and then VERIFIES the prompt is empty before
 claiming the agent was briefed. Do not spawn builders by hand.
+
+## 17. Builders stop after ONE item unless told otherwise
+
+A builder that finishes an item, writes a handoff and stops is behaving
+reasonably — but with nine agents it means the desk must poll and re-prompt
+every one of them, and the user experiences that polling latency as the
+project being slow. All nine once went idle within minutes of each other with
+fifty items queued between them.
+
+Brief builders to **work the queue continuously** until it is empty or they
+are genuinely blocked, and to say WHICH of those it is when they stop.
+`scripts/builder.sh` includes this in the brief it sends.

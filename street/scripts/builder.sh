@@ -39,7 +39,7 @@ tmux new-window -d -t crosstown -n "$NAME" -c "$WT" 'claude --permission-mode au
 # Give the agent time to boot, then type the brief and submit it SEPARATELY —
 # sending the text and the Enter in one send-keys is what silently failed.
 sleep 8
-tmux send-keys -t "crosstown:$NAME" "$BRIEF  Use port $PORT."
+tmux send-keys -t "crosstown:$NAME" "$BRIEF  Use port $PORT.  Work your queue CONTINUOUSLY - after you commit an item, rebase, re-read the queue file and take the next one immediately. Do not stop after one item. Only stop when the queue is empty or you are genuinely blocked, and say which."
 sleep 1
 tmux send-keys -t "crosstown:$NAME" Enter
 

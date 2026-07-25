@@ -6,9 +6,21 @@ merge, which is the exact problem the queue exists to solve.
 
 - **Desk** appends tasks, reorders them, and moves finished ones to `## Done`.
 - **Builder** REBASES ON MAINLINE FIRST, then reads its file, takes the top
-  unchecked item under `## Now`,
-  does it, commits, then RE-READS the file (the desk may have reordered while
-  it worked). It never edits the file.
+  unchecked item under `## Now`, does it, commits, then RE-READS the file (the
+  desk may have reordered while it worked) and **immediately takes the next
+  one**. It never edits the file.
+
+  **Do not stop after one item.** Work your queue continuously until it is
+  empty or you are genuinely blocked — a conflict you cannot resolve, a
+  decision only the desk can make, or a file you do not own. Then say which of
+  those it is and stop.
+
+  This matters more than it sounds. Every builder returning to idle after a
+  single item turns the desk into a dispatcher that must poll nine agents and
+  re-prompt each one, and the user experiences all of that latency as the
+  project being slow. It has been measured: nine agents finished an item
+  within a few minutes of each other and every one of them sat idle waiting to
+  be told to continue, with fifty items queued between them.
 - **Completion** is reported in the builder's handoff note, not here.
 
 `scripts/queues.sh` prints every queue at once. **`scripts/desk.sh` is the one
