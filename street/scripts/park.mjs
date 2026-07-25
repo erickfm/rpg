@@ -218,6 +218,40 @@ const cover = await page.evaluate(() => {
     return { at: `${p.x.toFixed(1)},${p.z.toFixed(1)}`, pct: area ? +(100 * covered / area).toFixed(1) : 0 };
   });
 });
+// AND THE GROUND ITSELF, not just things lying on it. The park is a MOUND —
+// groundAt runs from 0.104 at the edge to 0.403 at the centre — while the pool
+// decal is a flat plane. A raise anywhere under a pool puts the light inside the
+// hill, and the coverage test above cannot see that: it looks for opaque meshes
+// drawn over the decal, and terrain is not a mesh it samples.
+//
+// Checked this by hand twice, two rounds apart, and both times only because I
+// happened to read a mainline commit that mentioned the park's ground —
+// b29b2e9aa raised it beside a barrier. Twice is the point at which noticing by
+// chance stops being a method.
+const sunk = await page.evaluate(() => {
+  const sc = window.__ct.scene(); const pools = [];
+  sc.traverse((o) => {
+    if (!o.isMesh || o.material?.blending !== 2) return;
+    const w = o.getWorldPosition(new (o.position.constructor)());
+    if (w.x > -7 || w.x < -40 || w.z > -66 || w.z < -100 || w.y > 1.0) return;
+    const g = o.geometry?.parameters; if (!g?.width) return;
+    pools.push({ x: w.x, z: w.z, y: w.y, w: g.width });
+  });
+  return pools.map((p) => {
+    let under = 0; const N = 7, h = p.w / 2;
+    for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+      const gy = window.__ct.groundAt(p.x - h + (p.w * i) / (N - 1), p.z - h + (p.w * j) / (N - 1));
+      if (typeof gy === 'number' && isFinite(gy) && gy > p.y) under++;
+    }
+    return { at: `${p.x.toFixed(1)},${p.z.toFixed(1)}`, pct: Math.round((under / (N * N)) * 100) };
+  });
+});
+const worstSunk = sunk.length ? Math.max(...sunk.map((s) => s.pct)) : 100;
+const okSunk = sunk.length > 0 && worstSunk === 0;
+console.log(`  ${okSunk ? 'OK  ' : 'FAIL'} no lamp pool is inside the hill it lights ` +
+  `(worst ${worstSunk}% of a pool under the terrain, of ${sunk.length} pools)`);
+for (const t of sunk.filter((t) => t.pct > 0)) console.log(`      ${t.at}: ${t.pct}% below groundAt`);
+
 const worstCover = cover.length ? Math.max(...cover.map((c) => c.pct)) : 0;
 const okCover = cover.length > 0 && worstCover <= 5;
 console.log(`  ${okCover ? 'OK  ' : 'FAIL'} nothing is drawn on top of the lamplight ` +
@@ -377,5 +411,5 @@ await shot('path-day', lx1, lz0 + 1.5, lx1, lz1, 0.14, -0.02);
 
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!okCount || !okLit || !okEach || !okBeside || !okClear || !walked || !okCover) process.exit(1);
+if (!okCount || !okLit || !okEach || !okBeside || !okClear || !walked || !okCover || !okSunk) process.exit(1);
 console.log('\nno page errors');

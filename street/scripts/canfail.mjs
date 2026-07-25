@@ -204,6 +204,17 @@ const CASES = [
     'pool.rotation.x = -Math.PI / 2; pool.position.set(headX, -0.01, headZ); scene.add(pool);',
     'glow.mjs', ['probe'], 'the street lamplight drawn UNDER the road it falls on'],
 
+  // INSIDE THE HILL. park-buried drops the decal into ct/park.ts's LIFT stack
+  // and is caught by the coverage test; this drops it BELOW the terrain, which
+  // that test cannot see — it looks for opaque meshes drawn over the decal, and
+  // the ground is a mound sampled through groundAt rather than a lid. The park
+  // runs from 0.104 at its edge to 0.403 at the centre, so -0.20 is under it
+  // everywhere.
+  ['park-sunk', PROPS,
+    'pool.position.set(x, y0 + 0.05, z); scene.add(pool);',
+    'pool.position.set(x, y0 - 0.20, z); scene.add(pool);',
+    'park.mjs', [], 'the park lamplight buried inside the hill it is meant to light'],
+
   ['park-buried', PROPS,
     'pool.position.set(x, y0 + 0.05, z); scene.add(pool);',
     'pool.position.set(x, y0 + 0.02, z); scene.add(pool);',
