@@ -1,0 +1,243 @@
+// Walk builder G's interiors — the casino and the hotel lobby.
+//
+// Interiors cannot be verified from a screenshot (GOTCHAS §1) and floors and
+// collision least of all (§7), so this drives the real rig: it walks UP to the
+// door on the street, presses E, and then walks the room until something stops
+// it. It never warps onto a trigger — warp does no collision resolution, so
+// warping onto a spot proves only that the number was typed correctly.
+//
+// F's scripts/interiors-walk.mjs does the same for the rooms F owns. That file
+// is F's; this one is mine. Same shape on purpose, including F's harness fix:
+// a probe that never moved has not tested anything, it started inside a
+// collider's 0.36 m pad, and that fails loudly instead of reporting "the wall
+// held" having never taken a step.
+//
+// Usage: SHOT_URL=http://localhost:4186/ node scripts/G-rooms-walk.mjs [id]
+import { chromium } from 'playwright';
+
+const KERB_H = 0.14, RADIUS = 0.36;
+
+// One entry per room. `cx` is NOT hard-coded — the slab a room gets depends on
+// the order rooms are built in crosstown.ts, and that order changes every time
+// another builder lands one. It is read back from where the player actually
+// arrives instead.
+const ROOMS = [
+  {
+    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0, H: 2.5,
+    doorX: 51.29, doorZ: -97.0, at: -3.2, hasWindow: false,
+    // a z that is clear right across the room, for the ±x wall probes
+    clearZ: 3.0,
+    // an x clear of furniture, for the ±z wall probes
+    frontProbeX: 0, backProbeX: -3.0, backProbeZ: -3.0,
+    doorApproach: [-3.2, 2.4],
+    lanes: [
+      ['the aisle between the slot banks, east', -4.2, -0.35, '+x', 2200, 'x', 4.6],
+      ['…and back west', 0.9, -0.35, '-x', 2200, 'x', 4.6],
+      ['the gap between the banks and the felt table', 1.5, 3.0, '-z', 2200, 'z', 3.0],
+      ['the aisle in front of the cage', -4.2, -3.0, '+x', 2200, 'x', 4.6],
+      ['past the felt table on the east wall side', 4.6, 3.0, '-z', 2200, 'z', 3.0],
+    ],
+  },
+  {
+    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0, H: 3.4,
+    doorX: 39.51, doorZ: -97.0, at: -3.4, hasWindow: true,
+    clearZ: -3.9,
+    frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
+    doorApproach: [-3.4, 2.4],
+    lanes: [
+      ['along the reception desk, toward the back', -3.0, 3.0, '-z', 2400, 'z', 5.0],
+      ['…and back toward the door', -3.0, -3.6, '+z', 2400, 'z', 5.0],
+      ['across the lobby in front of the lift', -4.5, -3.9, '+x', 2600, 'x', 7.0],
+      ['between the chairs and the east wall', 4.3, 3.4, '-z', 2000, 'z', 3.0],
+      ['behind the chairs, along the window', 0, 3.85, '+x', 1600, 'x', 2.5],
+    ],
+  },
+];
+
+const only = process.argv[2];
+const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
+if (!rooms.length) { console.error(`no such room: ${only}`); process.exit(2); }
+
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 960, height: 600 } });
+const errs = [];
+p.on('pageerror', (e) => errs.push(String(e.message)));
+const kitWarns = [];
+p.on('console', (m) => { if (/\[interior:/.test(m.text())) kitWarns.push(m.text()); });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4186/', { waitUntil: 'networkidle' });
+await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await p.waitForTimeout(400);
+
+const pos = () => p.evaluate(() => window.__ct.pos());
+const prompt = () => p.evaluate(() => {
+  const d = document.getElementById('ct-prompt');
+  return d && d.style.display !== 'none' ? d.textContent : null;
+});
+const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
+const press = async () => { await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e'); await p.waitForTimeout(260); };
+const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(120); };
+
+const results = [];
+let room = null;
+const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, detail]);
+const f2 = (n) => +n.toFixed(2);
+const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
+
+for (room of rooms) {
+  const hw = room.W / 2, hd = room.D / 2;
+  const LIMX = hw - RADIUS + 0.02, LIMZ = hd - RADIUS + 0.02;
+
+  // ── the way in ───────────────────────────────────────────────────────
+  await warp(room.doorX, room.doorZ - 0.9, Math.PI, KERB_H);
+  await p.waitForTimeout(200);
+  await hold('w', 900);
+  const promptOut = await prompt();
+  check('walking up to the door on the street raises the prompt',
+    room.label.test(promptOut ?? ''), `prompt=${JSON.stringify(promptOut)}`);
+
+  await press();
+  const inside = await pos();
+  check('E puts you inside an interior slab (x ≥ 400)', inside[0] >= 400, `pos=${inside.slice(0, 3).map(f2)}`);
+  if (inside[0] < 400) continue;                    // nothing below can mean anything
+  const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+
+  const beforeF = await pos();
+  await hold('w', 260);
+  const afterF = await pos();
+  check('you spawn facing INTO the room, not at the door you came through',
+    afterF[2] < beforeF[2] - 0.05, `walking forward moved z ${f2(beforeF[2])} → ${f2(afterF[2])}`);
+
+  // ── the floor ────────────────────────────────────────────────────────
+  const gyIn = (await pos())[3];
+  check('floor height inside is 0 (not sunk, not floating)', Math.abs(gyIn) < 0.001, `gy=${gyIn}`);
+  const floorY = await p.evaluate((cx) => {
+    let best = null;
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh || !o.geometry?.parameters) return;
+      const wp = new o.position.constructor();
+      o.getWorldPosition(wp);
+      if (Math.abs(wp.x - cx) > 0.2 || Math.abs(wp.z) > 0.2) return;
+      if (Math.abs(o.rotation.x + Math.PI / 2) > 0.01) return;   // faces up
+      if (best === null || wp.y < best) best = wp.y;
+    });
+    return best;
+  }, CX);
+  check('the floor mesh is where the rig thinks the floor is',
+    floorY !== null && Math.abs(floorY - gyIn) < 0.03,
+    `floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${gyIn}`);
+
+  // read the eye off the rig — the camera is not a child of the scene and
+  // hunting it there always returns nothing
+  const eye = (await pos())[1];
+  check(`the ${room.H} m ceiling clears the eye`, eye > 0.5 && eye < room.H - 0.3,
+    `eye y=${f2(eye)}, ceiling ${room.H}`);
+
+  // ── the walls hold ───────────────────────────────────────────────────
+  const probe = async (lx, lz, key, axis, limit, sign, note) => {
+    await warp(CX + lx, lz, YAW[key], 0);
+    await p.waitForTimeout(150);
+    const a0 = await pos();
+    await hold('w', 2600);
+    const a = await pos();
+    const moved = Math.hypot(a[0] - a0[0], a[2] - a0[2]);
+    const v = axis === 'x' ? a[0] - CX : a[2];
+    const escaped = sign > 0 ? v > limit : v < -limit;
+    check(`wall holds walking ${key}${note ? ' — ' + note : ''}`, !escaped && moved > 0.3,
+      moved <= 0.3 ? `HARNESS: never left the start point (stuck in furniture at local ${f2(lx)},${f2(lz)})`
+        : `walked ${f2(moved)} m, stopped at local ${axis}=${f2(v)} (wall at ${sign > 0 ? '' : '-'}${f2(limit)})`);
+  };
+  await probe(0, room.clearZ, '-x', 'x', LIMX, -1);
+  await probe(0, room.clearZ, '+x', 'x', LIMX, 1);
+  await probe(room.frontProbeX, room.clearZ, '+z', 'z', LIMZ, 1,
+    room.hasWindow ? 'the front wall under the window' : 'the WINDOWLESS front wall');
+  await probe(room.backProbeX, room.backProbeZ, '-z', 'z', LIMZ, -1);
+
+  // the doorway is the one gap in the collider line — the one place a room leaks
+  await warp(CX + room.at, room.clearZ, Math.PI, 0);
+  await p.waitForTimeout(150);
+  await hold('w', 2600);
+  const doorRun = await pos();
+  check('you cannot walk out through the doorway onto dead ground',
+    doorRun[2] < hd + 0.4, `walking at the door reached z=${f2(doorRun[2])} (front wall at ${hd})`);
+
+  // ── the lanes ────────────────────────────────────────────────────────
+  for (const [name, lx, lz, key, ms, axis, want] of room.lanes) {
+    await warp(CX + lx, lz, YAW[key], 0);
+    await p.waitForTimeout(150);
+    const a = await pos();
+    await hold('w', ms);
+    const c = await pos();
+    const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
+    check(name, d > want, `travelled ${f2(d)} m (want > ${want})`);
+  }
+
+  // ── the way out, and NOT straight back in ────────────────────────────
+  await warp(CX + room.doorApproach[0], room.doorApproach[1], Math.PI, 0);
+  await p.waitForTimeout(150);
+  await hold('w', 1400);
+  const dPrompt = await prompt();
+  check('walking to the inside of the door raises the way-out prompt',
+    /out to the street/.test(dPrompt ?? ''), `prompt=${JSON.stringify(dPrompt)}`);
+
+  await press();
+  const back = await pos();
+  check('E at the inside door puts you back on the street', back[0] < 100, `pos=${back.slice(0, 3).map(f2)}`);
+  check('you land on the raised walk, not in the road', Math.abs(back[3] - KERB_H) < 0.001, `gy=${back[3]}`);
+  const afterPrompt = await prompt();
+  check('you are NOT standing in the re-entry trigger after stepping out',
+    !room.label.test(afterPrompt ?? ''), `prompt=${JSON.stringify(afterPrompt)}`);
+  await press();
+  const sucked = await pos();
+  check('a second E on the landing does not suck you straight back in',
+    sucked[0] < 100, `pos=${sucked.slice(0, 3).map(f2)}`);
+
+  for (const [k, yaw] of [['out across the side street', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]) {
+    await warp(back[0], back[2], yaw, KERB_H);
+    await p.waitForTimeout(120);
+    const a = await pos();
+    await hold('w', 500);
+    const c = await pos();
+    check(`the landing is not boxed in — ${k}`, Math.hypot(c[0] - a[0], c[2] - a[2]) > 0.9,
+      `moved ${f2(Math.hypot(c[0] - a[0], c[2] - a[2]))} m`);
+  }
+
+  // ── the room keeps its light after dark ──────────────────────────────
+  // props.dimWorld() skips |x| > 100 so interiors stay lit round the clock —
+  // and the kit's group sits at the world origin precisely so its children
+  // carry world positions and are skipped too.
+  const sample = () => p.evaluate((cx) => {
+    const out = [];
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh) return;
+      const wp = new o.position.constructor();
+      o.getWorldPosition(wp);
+      if (Math.abs(wp.x - cx) > 7 || Math.abs(wp.z) > 7) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) if (m && m.color && !m.transparent) out.push(m.color.getHex());
+    });
+    return out;
+  }, CX);
+  await p.evaluate(() => window.__ct.clock(12, 0));
+  await p.waitForTimeout(500);
+  const noon = await sample();
+  await p.evaluate(() => window.__ct.clock(2, 0));
+  await p.waitForTimeout(900);
+  const night = await sample();
+  const dimmed = noon.filter((c, i) => night[i] !== undefined && night[i] !== c).length;
+  check('the room keeps its own light after dark',
+    dimmed === 0, `${dimmed}/${noon.length} interior materials were dimmed by the night sweep`);
+}
+
+// the kit warns about openings that do not fit and exits that land inside
+// their own trigger; both are silent bugs otherwise
+room = { id: 'kit' };
+const mine = kitWarns.filter((w) => rooms.some((r) => w.includes(`[interior:${r.id}]`)));
+check('no kit warnings for these rooms', mine.length === 0, mine.length ? mine.join(' | ') : 'none');
+
+console.log('');
+for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${name}\n        ${detail}`);
+const bad = results.filter((r) => !r[0]).length;
+console.log(`\n${results.length - bad}/${results.length} passed`);
+if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
+await b.close();
+process.exit(bad ? 1 : 0);

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { AABB } from '../fp';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
@@ -30,7 +29,7 @@ import { buildRoom } from './interior';
 // u = 0.4946 of a 92-texel shopfront, which lands at world x = 51.29 — derived
 // and then walked in notes/G-interiors2-prep.md rather than eyeballed, because
 // an [E] spot that misses its door is invisible until someone tries it.
-export function buildCasino(ctx: CtxBuild): AABB[] {
+export function buildCasino(ctx: CtxBuild): void {
   const DOOR_X = 51.29, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
     id: 'casino',
@@ -357,5 +356,4 @@ export function buildCasino(ctx: CtxBuild): AABB[] {
   pool(6.4, 1.6, bankCx, -0.35);    // the aisle between the banks
   pool(6.4, 1.6, bankCx, -3.0);     // the aisle in front of the cage
 
-  return room.colliders;
 }
