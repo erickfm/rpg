@@ -568,3 +568,40 @@ reason this ledger exists.
 **13/13** on the frontages · `scripts/people-walk.mjs` — *8 atlas figures inside,
 no hand-drawn people left indoors* · `node scripts/health.mjs` OK · `npm run
 build` clean · `./scripts/ownership.sh G` clean.
+
+---
+
+# The pawn shop's window is still authored twice — and why I did not fix it
+
+`ct/int-pawn.ts` supplies `frontage` AND overrides `window: { at: 2.6, w: 3.6,
+h: 1.5, sill: 0.95 }`. `RoomSpec` says an override is allowed but should be
+justified, and there is no justification here — it is the last duplicate number
+in my four rooms, and the inside bars are positioned against it, so a roster
+change moves the glass and leaves the bars behind.
+
+**I tried to remove it and backed the change out.** Recording the attempt so the
+next person does not repeat it:
+
+Dropping the override lets the kit cut the opening from `frontageOf`, which is
+correct. The bars then have to follow the DERIVED glazing, and a room cannot see
+where that is. `Room` exposes `doorAt` but not the glazing span, so I converted
+`F.glazingStartM/glazingEndM` into local x myself, mirroring `interior.ts`'s
+`localOf`. Two attempts, both wrong on screen:
+
+1. a panel each side of the doorway — but the pawn's glazing is ONE run with the
+   door cut near its end, so the left panel landed on a solid brick pier;
+2. deriving the span from `glazingStartM/glazingEndM` through my own copy of the
+   conversion — still a wide panel over brick, so my conversion does not agree
+   with the kit's.
+
+Bars over a brick pier read as a mistake in a way that missing bars do not, so
+the typed override is back and the room is verified at 27/27.
+
+**What would close it: `Room.glazing` — the derived opening's local span, the
+way `Room.doorAt` already gives the derived door.** One field, and the room can
+hang bars, blinds, a security grille or a display riser on real glass without
+re-deriving anything. That is F's file. Until then the override stays and this
+note is the justification `RoomSpec` asks for.
+
+Two failed attempts is the "two failures then delete" line, so I have stopped
+rather than trying a third conversion.
