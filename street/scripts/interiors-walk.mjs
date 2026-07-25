@@ -18,15 +18,23 @@ const ROOMS = [
   {
     // the bodega's door is on a CHAMFER, so its [E] spot is not on an axis —
     // the harness reads it from ct/doors.ts like everything else
+    // `keeper` is where a PLAYER STANDS to be served — the customer side of the corner counter.
+    keeper: [3.90, 1.60],
     id: 'bodega', label: /BODEGA/, D: 8.4, front: ['BODEGA', 10, -95, 1], chamfer: true,
   },
   {
+    // `keeper` is where a PLAYER STANDS to be served — a stool-width out from the service counter.
+    keeper: [-1.40, -1.00],
     id: 'diner', label: /DINER/, D: 7.0, front: ['DINER', 12, -49.5, -1],
   },
   {
+    // `keeper` is where a PLAYER STANDS to be served — in front of the order counter.
+    keeper: [-2.33, -2.00],
     id: 'burger', label: /BURGER/, D: 8.5, front: ['BURGER BARN', 16, -29, -1],
   },
   {
+    // `keeper` is where a PLAYER STANDS to be served — at the till, where you are handed your change.
+    keeper: [2.20, -1.75],
     id: 'thrift', label: /THRIFT/, D: 6.5, front: ['THRIFT', 12.5, -61.75, -1],
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
@@ -547,6 +555,68 @@ for (room of rooms) {
       best = Math.max(best, Math.hypot(c[0] - a[0], c[2] - a[2]));
     }
     check(`the landing is not boxed in — ${what}`, best > 0.9, `moved ${f2(best)} m`);
+  }
+
+  // ── 5b. the keeper is looking AT you, not away ──
+  //
+  // Three builders, one bug: the user found the tax preparer facing his back
+  // wall, G found two of their four, I found ALL FOUR of mine — every one the
+  // literal `facing: Math.PI`, which is -z, the wall behind their own till.
+  //
+  // DECODE IS H'S PUBLISHED LAYOUT VIA G (`64c13034`, `notes/H-atlas-facing.md`),
+  // not my reading of it. `ct/citizens.ts` puts the column in `map.offset.x` and
+  // the MIRROR FLAG in the sign of `map.repeat.x`:
+  //
+  //     mirror = repeat.x < 0
+  //     col    = round(offset.x * 5) - (mirror ? 1 : 0)
+  //
+  // `[col, mirror]` is a bijection over the eight sectors, so one reading from a
+  // known bearing pins the authored facing to ±22.5°. Thresholding `offset.x`
+  // alone does NOT: 0.8 is col 4 or col 3 mirrored, same number, two answers.
+  // I shipped that version to myself first and it passed with the bug put back.
+  //
+  // `keeper` IS AUTHORED PER ROOM AND THAT IS DELIBERATE. It is where a PLAYER
+  // STANDS TO BE SERVED, which room geometry does not contain — and I proved
+  // that by trying twice to derive it. "Between the keeper and the room centre"
+  // reported G's casino as `in profile` when G has verified it reads `facing
+  // you`: the dealer stands across the felt. A room with no `keeper` here is
+  // SKIPPED rather than guessed at; G's four are covered by G's own harness.
+  if (room.keeper) {
+    const [kvx, kvz] = room.keeper;
+    await warp(cx + kvx, kvz, 0, 0);
+    await p.waitForTimeout(150);
+    // the sprite picks its column from where the CAMERA is, so it needs frames
+    // after the warp — reading immediately gets the view from the last position
+    await hold('w', 60);
+    await p.waitForTimeout(500);
+    const v = await p.evaluate(([sx, sz]) => {
+      const sc = window.__ct.scene(); sc.updateMatrixWorld(true);
+      let best = null;
+      sc.traverse((o) => {
+        if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!m?.map?.image || m.map.image.width !== 160) return;   // the atlas
+        const wp = new o.position.constructor(); o.getWorldPosition(wp);
+        const d = Math.hypot(wp.x - sx, wp.z - sz);
+        if (d > 4 || (best && d >= best.d)) return;
+        const mirror = m.map.repeat.x < 0;
+        best = { d: +d.toFixed(2), mirror,
+          col: Math.round(m.map.offset.x * 5) - (mirror ? 1 : 0), x: wp.x, z: wp.z };
+      });
+      return best;
+    }, [cx + kvx, kvz]);
+    const SECTOR = { '0f': 0, '1f': 1, '2f': 2, '3f': 3, '4f': 4, '3t': 5, '2t': 6, '1t': 7 };
+    const WHAT = ['facing you', 'three-quarter on', 'in profile', 'three-quarter away',
+      'facing away', 'three-quarter away', 'in profile', 'three-quarter on'];
+    const sec = v ? SECTOR[`${v.col}${v.mirror ? 't' : 'f'}`] : undefined;
+    let detail = 'no atlas figure within 4 m of the customer spot';
+    if (sec !== undefined) {
+      const a = Math.atan2((cx + kvx) - v.x, kvz - v.z) - sec * Math.PI / 4;
+      detail = `col ${v.col}${v.mirror ? ' mirrored' : ''} → sector ${sec}, ${WHAT[sec]}`
+        + ` — authored facing ${f2(Math.atan2(Math.sin(a), Math.cos(a)))} rad ±0.39, ${v.d} m away`;
+    }
+    check('the keeper is looking at you, not away',
+      sec === 0 || sec === 1 || sec === 7, detail);
   }
 
   // ── 6. the room keeps its light after dark ──

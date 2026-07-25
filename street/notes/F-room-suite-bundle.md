@@ -108,8 +108,10 @@ design fact — where a player stands to be served — that room geometry does n
 contain. I twice mistook it for a coordinate worth eliminating. Anyone tempted
 by the same tidy-up should read this instead of finding out.
 
-**bodega and diner also failed and those readings are UNRESOLVED.** They may be
-real; they may be my viewpoint, exactly as the casino was. Nobody should act on
-them without an authored viewpoint per room. Doing that properly is four
-coordinates in `interiors-walk`'s ROOMS table, mirroring G's, and it is the next
-thing to do here.
+**RESOLVED — bodega and diner were my viewpoint, not the world.** With an
+authored `keeper` spot per room, all four read `sector 0, facing you`, and the
+recovered constants match the source exactly: thrift, diner and burger 0 rad,
+bodega 1.57 rad. The check ships, discriminates (`facing: Math.PI` put back
+reads `sector 4, facing away — authored facing -3.14 rad`), and rooms with no
+authored spot are SKIPPED, so G's four stay covered by G's own harness rather
+than being accused by mine.
