@@ -33,6 +33,41 @@ are **views of the person relative to the viewer**, not compass directions:
 | 2 | yes | 6 | profile, other side |
 | 1 | yes | 7 | 3/4 front, other side |
 
+## READING `offset.x` ALONE IS AMBIGUOUS — you need `repeat.x` too
+
+`3ca7e6d0` builds a guard on `map.offset.x` with the table *"0.0 front, 0.2
+three-quarter, 0.4 profile, 0.6 3/4 back, 0.8/1.0 back"* and a bar at 0.25. That
+mapping holds for the unmirrored half only, because `ct/citizens.ts:425-426`
+stores a mirrored frame as `repeat.x = -1/5` and `offset.x = (col + 1) / 5` —
+the offset moves to the far edge and the repeat runs backwards.
+
+So three of the five offsets mean two different things:
+
+| `offset.x` | unmirrored (`repeat.x > 0`) | mirrored (`repeat.x < 0`) |
+|---|---|---|
+| 0.0 | front | — |
+| 0.2 | 3/4 front | — |
+| **0.4** | profile | **3/4 front** |
+| **0.6** | 3/4 back | profile |
+| **0.8** | back | 3/4 back |
+
+**The live consequence:** a keeper showing a three-quarter front from the
+mirrored side reads as `0.4`, which that guard classifies as profile and FAILS —
+a keeper doing exactly the right thing, failed by the check written to protect
+it. The other two collisions happen to land on the same verdict, so 0.4 is the
+one that bites.
+
+One term fixes it, and recovers the sector exactly:
+
+```js
+const off = m.map.offset.x * 5;
+const sector = m.map.repeat.x < 0 ? 9 - off : off;   // 0 front … 4 back … 7 3/4 front
+const facingness = Math.min(sector, 8 - sector);      // 0 = looking at you, 4 = away
+```
+
+`9 - off` because the mirrored sectors 5, 6, 7 carry columns 3, 2, 1 and so
+offsets 0.8, 0.6, 0.4.
+
 ## Why this makes facing observable
 
 **`[col, mirror] → sector` is a bijection over all eight sectors.** Columns 1–3
