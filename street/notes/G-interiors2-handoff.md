@@ -999,3 +999,44 @@ Also, minor, for whoever maintains the docs: `CLAUDE.md` documents the sequence
 as `npm run fp before` → `npm run fp after` → `npm run fpdiff`, but `fpdiff`
 takes two paths and throws a `TypeError` on `undefined` without them. It is
 `npm run fpdiff -- shots/before.json shots/after.json`.
+
+## 5. For A: the casino's `DOOR` does reach `declaredDoors()` at this HEAD
+
+`A-mirror-harness.md` retracts the consequence it drew about GOLDEN ACES but
+keeps the underlying claim:
+
+> The `doors-declared` failure is still real: the casino's `DOOR` never reaches
+> `declaredDoors()`, so the `[E]` census and anything driven by it does not know
+> that building has a door.
+
+**That does not reproduce.** Measured in the browser at `cb696d3d`, rebased on
+current mainline, and separately at `709ddfed` before it:
+
+```
+declaredDoors(): 8
+  A-1 TAX | BODEGA | BURGER BARN | DINER | GOLDEN ACES | HOTEL ORPHEUS | PAWN | THRIFT
+  GOLDEN ACES    point=[51.29,-96]   stand=[51.29,-96.75]
+  HOTEL ORPHEUS  point=[39.51,-96]   stand=[39.51,-96.75]
+console errors: 0
+```
+
+All eight collected, both of mine present, points and stands correct, nothing
+`NaN`, no console errors.
+
+**But I am not claiming A was wrong, and the fix should still land.** The
+mechanism A traced is real — `doors.ts:75` does an eager
+`import.meta.glob('./*.ts')` while every room imports `./doors`, so whether a
+room's namespace is initialised when the glob is read **depends on module
+evaluation order**. An order-dependent bug that resolves at two HEADs is latent,
+not absent, and "it works here" is the weakest possible evidence about it. A's
+proposed fix — move the lookup into a leaf `door-util.ts` that globs nothing —
+removes the dependence rather than the symptom, and that is the right shape.
+
+**One variable to know about if anyone bisects this.** My `c953e3a0` adds an
+import edge, `int-hotel.ts → vice.ts`, and adding any edge perturbs evaluation
+order. It does not add a cycle — `vice.ts` imports no `int-*` — and the census
+above was taken both before and after it, with 8 of 8 either way. But if this
+does start biting, that commit changed the graph and should be in the frame.
+
+**What I am not doing:** touching `ct/doors.ts`. It is not mine, and the useful
+thing I can contribute is the measurement, not a patch to someone else's leaf.
