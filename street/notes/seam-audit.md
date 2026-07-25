@@ -271,3 +271,85 @@ cures both signs. R2 is arithmetic: the legs need to land inside z −96.0…−
 The other original complaints — marquee squared to the street, standing on legs
 and a frame rather than one stick — are **already addressed** on live and read
 correctly (`seam2-W-marquee-west-reach`).
+
+---
+
+# Round 3 — re-verifying pattern #1 after builder A's density fix
+
+Base `add-stick-and-city98` @ `6976f13`. A's change is `ct/tex-world.ts` only
+(`notes/A-density.md`). Verified independently rather than from A's table:
+`scripts/density.mjs` pairs every texture canvas with the face it is mapped to
+and reports px/m on both axes, so "one density" is measured off the running
+world, not read off a constant. Confirmation shots `shots/reverify-*.png`.
+
+## Measured densities now (103 wall-sized exterior faces)
+
+| surface | px/m across × up | verdict |
+|---|---|---|
+| every `facadeTex` upper wall, 3/4/5 floors | **8.00 × 8.00** | one density, square texels |
+| every `shopfrontTex` band, incl. the three character fronts | **16.0 × 15.95** | 2× — integer multiple, commensurate |
+| `resGroundTex` (No. 227) | **16.0 × 15.94** | on the same grid |
+| FLOWERS, 6 m — the clamp case | **7.93 × 8.02** | clamp gone |
+| bodega canted bay, upper | 11.50 × 11.70 | **untouched** |
+| bodega canted bay, shopfront | 24.0 × 12.38 | **untouched, 1.94 : 1 anisotropic** |
+| east cross building | 7.33 × 7.65 | **untouched** |
+| north cross building | 8.00 × 7.65 | across fixed, up still wrong |
+| library + church ashlar | 8.00 × 11.75 | **new instance, 1.47 : 1 anisotropic** |
+| alley flanks + end wall | 11.43 × 11.72 | **untouched** |
+
+## Which instances actually closed
+
+| finding | verdict | evidence |
+|---|---|---|
+| 3 — shop band vs wall courses | **CLOSED** | band and wall are now 16 and 8 px/m, an exact 2×, so a 0.5 m course is 8 px and 4 px and lands on the same world lines. `reverify-V3-shopband`, `reverify-V1-flowers` |
+| 7 — courses break on floor-count change | **CLOSED** | HARDWARE (3 fl) ∣ A-1 TAX (5 fl): courses run straight through the party wall and the window rows that exist on both sit at the same heights. `reverify-V2-join-3v5` |
+| 13 — narrow-shop clamp | **CLOSED** | CHOP SUEY ∣ FLOWERS ∣ BODEGA in one frame, identical brick across both joins. `reverify-V1-flowers` |
+| 17 — window bands drift up the elevation | **CLOSED as a side effect** | A also found `facadeTex` painting 2.53 m storeys onto 2.4 m ones. Rows now land on real floors. |
+| R3 — 1.0 m band step at No. 227 | **half closed** | the **brick** now crosses the join in phase — the 1.0 m offset is exactly two 0.5 m courses, so it lands in step. The **band line and the window rows still step**, because the building's storeys genuinely are 1.0 m lower. `reverify-V4-227-band` |
+| 2 + 12 — the bodega canted bay | **OPEN, and now worse** | `bodegaBrick` and `bayFrontT` are hand-painted in `ct/street.ts` and were not part of the fix. The bay still runs 11.5 × 11.7 against neighbours that are now a clean 8 × 8 — so fixing the block has **increased** the contrast at the one corner the user actually complained about. `reverify-V5-bodega-arris` |
+| 9 — east cross building | **OPEN** | still `facadeTex(..., 22)` painted onto a 24 m face → 7.33 across. Not a density bug; a wrong argument at the call site. `reverify-V8-east-cross` |
+| 8 — north cross building | **half closed** | across is 8.00 now; up is 7.65, because `street.ts` builds both cross buildings 13.6 m tall while `wallHeight(4)` is 13.0. `tex-world.ts`'s own comment warns that these must stay in step. `reverify-V7-north-cross` |
+| 19 — alley flanks vs street brick | **OPEN** | 11.43 × 11.72, painted in `ct/street.ts`. `reverify-V9-alley-arris` |
+| 4, 6, 20, 21 — alley floor, road grain, centre lines, gutter noise | **OPEN as expected** | these are pattern #5 (ground surfaces), not #1 |
+| 1 — untextured `endM` party walls | **OPEN** | not a density defect. Still visible above every height change, incl. framing the library. `reverify-V2-join-3v5`, `reverify-V6-lib-meridian` |
+
+**New instance of the same pattern**, in a file that did not exist when pattern
+#1 was written: `ct/civic.ts` paints the library and church ashlar at 8.00 ×
+11.75 px/m — square-texel discipline not adopted, 1.47 : 1 anisotropic, and the
+stone course grid is not commensurate with the brick it abuts at every
+civic-to-shop party wall. `reverify-V6-lib-meridian`, `reverify-V6-church-garage`.
+
+## Was the pattern mis-stated?
+
+A says yes and I agree, but for a different reason than A gives.
+
+A's point — that walls need "one density and a y-datum", not the full
+world-space offset `tex-ground.ts` needs — is right, and the horizontal perp
+phase that is left over is genuinely cosmetic.
+
+The bigger miss is one neither of us caught at the time: **pattern #1 was
+written as if `tex-world.ts` were the only place masonry is painted.** It is
+not. Four other painters draw brick or stone — `bodegaBrick` and the alley
+flanks in `ct/street.ts`, `bayFrontT` on the canted bay, and the ashlar in
+`ct/civic.ts` — and none of them import `WALL_PPM`. So a fix that was complete
+*within its file* closed 4 of 10 instances, and the ones it did not reach are
+now the most conspicuous, because their neighbours got tidied and they did not.
+
+Restated, and this is the version worth keeping:
+
+> **Every surface that paints masonry must derive its canvas from the surface's
+> real metres at the world's one density. The defect is not that a painter
+> computes density badly; it is that any painter computes it at all.**
+
+A single exported helper that takes `(widthM, heightM, baseY)` and returns a
+canvas would have made all ten instances impossible, and would make the next one
+impossible too. That is a desk-level change across `tex-world.ts`, `street.ts`
+and `civic.ts` in one commit — the same shape as the signature change A
+correctly declined to make alone.
+
+## Coverage
+
+Shot the ten instances above and measured all 103 exterior wall faces. I did
+**not** re-verify findings 14, 15, 21–25 (interiors, gutter noise, awning, kerb
+ramp) — unrelated files, unchanged. Interiors were measured by density only, not
+walked. Daylight only.
