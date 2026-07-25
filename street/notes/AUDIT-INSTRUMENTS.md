@@ -1706,3 +1706,50 @@ nobody.
 > agent that rebases — which is all of us, every round — writes hashes into notes
 > that are true at the moment of writing and false as soon as the commit lands.
 > `cat-file -e` will keep telling you they are fine.
+
+## A harness that could not fail, and a false regression it would have shipped
+
+`0740fa7a1` found `side-night` **printing FAIL and exiting 0** — a shape neither
+of my sweeps could see, because both keyed on `exitCode = 1` and **a printed
+verdict is not an exit code**. Swept for it. My first pass returned 27, which was
+absurd: my regex only matched literal non-zero arguments, so
+`process.exit(bad || errs.length ? 1 : 0)` looked like no exit at all. **Third
+time this session a detector of mine has been too narrow.** Corrected:
+
+```
+print a FAIL and have no way to exit non-zero: 3
+   doortest   looks   mutate
+```
+
+**Two of the three are mine — including `mutate.mjs`, the harness I wrote to test
+whether other checks can fail.** It printed its own PASS/FAIL and exited 0
+regardless. Both now exit on their verdicts.
+
+### And adding the exit code immediately produced a false regression
+
+With an exit code wired in, `looks.mjs` came back **`exit 1`** on:
+
+> `** FAIL — the tyre stands above the arch **`
+
+That is the **wheel arches** — the item the user asked me to grade last, with
+*"if it still misses, say so plainly"*. I nearly said so. The line:
+
+```js
+const TOP = Math.max(...out.tyres), ARCH = 0.72;   // rocker 0.34 + ARCH_H 0.38
+```
+
+`ARCH` is **car-local**. `TOP` is a **world-space maximum**. The lot's cars are
+lifted to `site.y = KERB_H = 0.14`, so their world tyre tops read **0.803**
+against a car-local **0.663** — exactly 0.14 more. **This is the comparison this
+audit already retracted** (*"94 tyres FAIL"*), left executable in my own file
+afterwards. That is the `masonry.mjs` sin — *a retraction in a report does not
+repair a script* — committed by the person who wrote that sentence.
+
+A global maximum cannot be compared against one arch line while cars sit at
+different heights. Deriving it per car is the fix; until then the line **reports
+and does not assert**, and the arch clause no longer votes in the exit code.
+`looks.mjs` now exits 0 on a clean world and says `CANNOT ANSWER` where it cannot.
+
+> **Giving a script an exit code is not a formality — it promotes every latent
+> comparison in it to a verdict.** Two of mine had been printing a wrong answer
+> for rounds, harmlessly, because nothing was listening.

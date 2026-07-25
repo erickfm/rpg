@@ -73,3 +73,8 @@ console.log(`\n  detector SEES a mid-walk post:      ${caught ? 'YES' : '** NO �
 console.log(`  detector IGNORES a box in the road: ${quiet ? 'YES' : '** NO — it flags things off the walk **'}`);
 console.log(`\n  ${caught && quiet ? 'PASS — "0 stretches under 1.00 m" is a measurement, not a blind spot.'
   : 'FAIL — do not trust the corridor result until this passes.'}`);
+// A HARNESS THAT CANNOT FAIL. This printed FAIL and exited 0 -- in the script I
+// wrote to test whether other checks can fail. 0740fa7a1 found the same shape in
+// side-night; my own sweeps could not see it because they keyed on `exitCode = 1`
+// and a printed verdict is not an exit code.
+process.exitCode = (caught && quiet) ? 0 : 1;

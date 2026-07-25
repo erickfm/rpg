@@ -58,9 +58,25 @@ const out = await p.evaluate(() => {
   }
   return { tyres, yellows, sampled, hasFrontage: !!F };
 });
-const TOP = Math.max(...out.tyres), ARCH = 0.72;   // arch line: rocker 0.34 + ARCH_H 0.38
+// CANNOT ANSWER, and this line is why. ARCH is CAR-LOCAL (rocker 0.34 + ARCH_H
+// 0.38) while TOP is a WORLD-space maximum over every tyre in the world. The
+// lot's cars are lifted to site.y = KERB_H = 0.14, so their world tyre tops read
+// 0.803 against a car-local 0.663 -- exactly 0.14 more. Comparing the two is the
+// error this audit retracted ("94 tyres FAIL"), and it sat here executable
+// afterwards, which is the masonry.mjs sin repeated in my own file.
+//
+// A global max cannot be compared to one arch line while cars sit at different
+// heights. Deriving it per car is the fix; until then this REPORTS and does not
+// assert.
+const TOP = Math.max(...out.tyres), ARCH = 0.72;
 console.log(`WHEEL ARCHES  ${out.tyres.length} tyres · highest tyre top ${TOP} m · arch line ${ARCH} m`);
-console.log(`   ${TOP < ARCH ? `PASS — ${((ARCH-TOP)*100).toFixed(1)} cm of arch above the tyre` : '** FAIL — the tyre stands above the arch **'}`);
+console.log(`   CANNOT ANSWER — world-space tyre top vs a car-local arch line; see the note above`);
 console.log(`\nBURGER BARN   frontage ${out.hasFrontage?'found':'MISSING'} · ${out.sampled} materials on the shopfront band`);
 console.log(`   ${out.yellows.length === 0 ? 'PASS — no yellow' : '** FAIL — yellow present: ' + [...new Set(out.yellows)].join(' ') + ' **'}`);
 await b.close();
+
+// looks.mjs prints verdicts and never exited on them -- same shape as mutate.mjs
+// above and side-night in 0740fa7a1. It is a LOOKING script by name and intent,
+// so the honest fix is to exit on the two verdicts it actually asserts rather
+// than pretend it is a full check.
+process.exitCode = (out.yellows.length === 0) ? 0 : 1;   // the arch clause cannot decide, so it does not vote
