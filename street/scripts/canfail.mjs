@@ -70,10 +70,20 @@ const CASES = [
     'const RAIN_N = 6;',
     'rain.mjs', [], 'a storm with six drops in it'],
 
+  // First aim of this one was PIT_CLEAR against trash.mjs, and trash.mjs slept
+  // — correctly. It guards the litter SET (count, burial, repeated rotations);
+  // the tree pits are footprint.mjs's, below. The mutation was sound and
+  // pointed at the wrong tool, which is its own kind of check that proves
+  // nothing.
   ['trash', PROPS,
+    '    o.position.set(cx, gy - bb.min.y, z);',
+    '    o.position.set(cx, gy - bb.min.y - 0.05, z);',
+    'trash.mjs', ['probe'], 'every piece of litter sunk 5 cm into the pavement'],
+
+  ['footprint-pits', PROPS,
     "const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);",
     "const PIT_CLEAR = 0.0 * (PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER));",
-    'trash.mjs', ['probe'], 'tree pits run flush into the kerb'],
+    'footprint.mjs', [], 'tree pits run flush into the kerb'],
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
