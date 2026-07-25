@@ -14,6 +14,30 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The library courtyard benches are not sittable.** The user: *"i cant
+      sit at the benches at the library"*.
+
+      `ct/park.ts` registers 3 seats through `ctx.seat()`; `ct/civic.ts`
+      registers **zero**. So you wired the park's benches — correctly — and
+      the library courtyard's were built before `ctx.seat()` existed and never
+      went back.
+
+      Register every seat in the courtyard, and check the churchyard too since
+      you built that with the same vocabulary. `ctx.seat()` is builder F's
+      and takes the position, the facing and the seated height — read how
+      `park.ts` calls it rather than inventing arguments.
+
+      Then **sit on each one**: the user's test is pressing E at a bench, so
+      that is the test. Check the facing in particular — a courtyard bench
+      should seat you looking INTO the space, not at the wall behind it, and
+      standing up must not leave you inside the bench or the planting.
+
+      Note this is the same shape as the other misses tonight: a shared
+      capability landed after the thing that should use it, and nothing went
+      back to connect them. If you have other objects that predate
+      `ctx.seat()` — steps people would sit on, a low wall — say so rather
+      than leaving them.
+
 - [ ] **Two on the library front: the fanlight, and the name.**
 
       · **The fanlight glass is a rectangle inside an arch.** Ref:

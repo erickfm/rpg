@@ -13,6 +13,19 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Register any seats in the car lot with `ctx.seat()`.** `ct/lot.ts`
+      registers zero. The user has just reported not being able to sit on the
+      library's benches, which had the same cause — the object was built
+      before or alongside `ctx.seat()` and never connected.
+
+      If the lot has a bench outside the office, a chair by the door, or a
+      stack of tyres someone would sit on, wire them. If it genuinely has no
+      seating, say so and this closes — but a used car lot with somewhere to
+      wait while they "run your credit" is very much in period.
+
+      Read how `ct/park.ts` calls `ctx.seat()` rather than inventing the
+      arguments; it is builder F's API.
+
 - [ ] **The car lot must MAKE SENSE, and then be properly sleazy.** The user:
       *"i like the triangles but it also just looks low effort do a high effort
       sleazy used car lot. make it make sense like how does one even enter,
