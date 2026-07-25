@@ -150,7 +150,22 @@ Neither blocks me; both make other people's failures silent.
 2. **`scripts/fpdiff.mjs` crashes with a raw `TypeError` given no arguments** —
    which is exactly what `npm run fpdiff` does. It should ask for two
    fingerprints.
-3. **The slow tier cannot be completed on a rebasing branch — four attempts,
+3. **"Wrong world" and "real failure" are the same exit code.** `reportWorld`
+   THROWS on a sha mismatch, unhandled, so the script dies with a stack trace
+   and exit 1 — indistinguishable from a check that failed. `checks.mjs` copes
+   by string-matching `MEASURING THE WRONG WORLD` in the output
+   (`checks.mjs:~168`), but a bare run cannot be told apart, and neither can
+   anything reading only the status.
+
+   Cost me a turn: `feet-check` came back red once in a batch run, four
+   subsequent runs were clean at 16/16 cases, and the probable cause is that I
+   had committed and rebased seconds earlier so the preview was mid-rebuild. I
+   cannot prove it, because I had discarded the output in that batch — my
+   error, and the reason this is worth an exit code rather than a habit. A
+   distinct status (2 is taken by INCONCLUSIVE, so 3) would make it decidable.
+   `lib/which-world.mjs` is not mine.
+
+4. **The slow tier cannot be completed on a rebasing branch — four attempts,
    same cause.** `3185527f` lost the six walking suites for the third time:
    *"they are the tail of a twelve-minute run, the most exposed to any HEAD
    movement, and I could not hold still that long."* I tried to be the one who
@@ -170,7 +185,7 @@ Neither blocks me; both make other people's failures silent.
    timed on this build: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
    crowd-net 93 s, corner-traffic 141 s, all green.
 
-4. **No builder can measure the world the user actually plays.**
+5. **No builder can measure the world the user actually plays.**
    `reportWorld` throws on ANY sha mismatch, and the live integration world on
    :5177 is mainline plus every builder's in-flight work, so its stamp is never
    equal to any one checkout. The guard is right to refuse a build I did not
