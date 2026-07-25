@@ -80,7 +80,33 @@ that already passes its own checks.
 
 ---
 
-## 2. Traffic density — `maxActive = 1`
+## 2. The fleet never gets wet, and I should not be the one to fix it
+
+**Measured, not noticed:** one parked sedan's 33 materials have a mean
+luminance of **0.5355 at dry hour 12 and 0.5355 at rainy hour 14** — identical
+to four decimals. The road darkens around it and the car stays matte. Nothing
+of mine calls `ctx.wet`, so no vehicle is in `wetMats`.
+
+**Why this is a ruling and not a task.** `props.ts` states the trap itself:
+registering a material hands its COLOUR to `updateRain` every frame, and there
+must be ONE WRITER PER MATERIAL. My fleet's materials are already written by the
+night grade through `props.lit(car)`. Adding them to the wet registry means two
+writers on the same colour, and the resolution belongs to whoever owns the
+weather, not to me.
+
+B is working through exactly this class right now — `a768f333` moved
+`registerWet` to a module that builds early enough to be reachable, `baa675d7`
+enumerates *"19 flat decals still dry"*, `e24c959a` clamped a wet look that
+could lighten a dark surface by 398%. **The fleet belongs on that list**, and
+the user has asked for wet streets three times.
+
+So: does the fleet join the wet class? If yes, it is B's call how a material
+that is already lit AND wet resolves, and I will make whatever change the fleet
+side needs. If vehicles are deliberately excluded, say so and I will record it
+in `notes/feat-traffic.md` so nobody re-measures it. Either answer takes a line;
+guessing does not.
+
+## 3. Traffic density — `maxActive = 1`
 
 `ct/traffic.ts:239` puts **one vehicle on the block at a time**. It is a
 deliberate choice, not an oversight, and the user has never commented on it
@@ -99,7 +125,7 @@ will delete the note. Either answer is fine; guessing is not.
 
 ---
 
-## 3. `ctx.obstacle` records no owner — desk architecture
+## 4. `ctx.obstacle` records no owner — desk architecture
 
 Colliders come back from `ctx.colliders()` as bare `{minX, maxX, minZ, maxZ}`.
 Meshes are stamped with `userData.mod`, but colliders are not, so a trap-band
