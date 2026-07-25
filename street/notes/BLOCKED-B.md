@@ -153,6 +153,40 @@ rather than assuming: all 19 of mine are registered and reachable.
 
 ---
 
+## Every check I own samples 3 of 24 hours — swept the other 21
+
+The coverage audit went after space: one of two basins, one of nine pools, one
+street of three. It never asked about TIME. My checks run at 13:00, 23:00 and
+03:00, and the night grade ramps between them.
+
+Swept all 24 hours for material colours out of the 0..1 range:
+
+| hours | out of range | worst component | worst offender |
+|---|---|---|---|
+| 09–17 | **0** / 2868 | — | — |
+| night (20–06) | 9 / 2868 | 1.149 | unstamped box at (−7.6, −85.6) |
+| 07, 08, 18, 19 | **91–94** / 2868 | 1.015–1.092 | `tex-ground` at (4.4, −92.5) |
+
+**This is a measurement, not a defect, and I am not filing it as one.** A colour
+component of 1.08 clamps at render, so those materials are pixel-identical to
+ones at exactly 1.0. Nothing is visible, nothing errors, and no page error
+appears at any hour.
+
+What it does say is that the grade multiplies past white during the two ramps —
+the count jumps ten-fold at dawn and dusk and returns to zero in full day. The
+worst single offender at those hours is **mine**: the east catch basin casting.
+It would matter if anyone ever added tone mapping, or read a material colour
+back and trusted it, which is exactly what several of my own checks now do.
+
+The 9 that persist all night are not mine — unstamped, in the park's region, and
+`nightgrade` owns that question.
+
+Recorded rather than acted on, because I have twice this session published a
+number that explained nothing, and the fix here would be a change to the lamp
+grade — a system reverted once already for a unilateral change.
+
+---
+
 ## Still needing routing, not self-assignment
 
 1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
