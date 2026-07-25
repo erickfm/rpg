@@ -842,3 +842,60 @@ each other, which is a within-room inconsistency and unaffected by sample size.
 - Measured at 13:00 only; interiors are excluded from the night sweep by design,
   but the recent night-lighting work (`c7c1c50f`, `92828283`) was not checked
   against interiors.
+
+---
+
+# Round 13 — the diner re-anchor, and an instrument that cannot go stale
+
+Base `add-stick-and-city98` @ `34a9563e`.
+
+`4fe23d0f` fixed something worth recording in its own right: **the diner's `[E]`
+prompt had been standing outside a bank.** D swapped DINER's identity with
+LAUNDRY's, moving it from the first slot to the 12 m slot past the alley, and
+`int-diner.ts` still held `DZ = 9.6`. Pressing E outside the bank took you to a
+diner nowhere near the building you were standing at.
+
+That is precisely the defect class this audit has reported three times — a
+coordinate copied by hand going stale when the thing it describes moves — and
+**my own trigger harness held the same stale 9.6.** So the first outcome of this
+round is a better instrument.
+
+## `scripts/doorsweep.mjs` — find the doors by walking, not by reading
+
+It warps along the pavement line in front of each facade in 0.25 m steps and
+records which prompt is showing. No door coordinate appears anywhere in it, so
+it cannot go stale, and it finds doors the auditor has never heard of.
+
+| prompt | line | span it fires from | width |
+|---|---|---|---|
+| into the PAWN SHOP | east walk | −60.00 … −58.25 | 1.75 m |
+| enter No. 227 | east walk | −45.00 … −43.00 | 2.00 m |
+| into A-1 TAX SERVICE | east walk | −16.25 … −14.25 | 2.00 m |
+| into the BODEGA | side st north | 8.00 … 9.50 | 1.50 m |
+| into the HOTEL ORPHEUS | side st north | 38.75 … 40.50 | 1.75 m |
+| into GOLDEN ACES | side st north | 50.50 … 52.25 | 1.75 m |
+| into the THRIFT STORE | west walk | −75.75 … −74.00 | 1.75 m |
+| **into the DINER** | west walk | **−50.25 … −48.50** | 1.75 m |
+| into BURGER BARN | west walk | −29.25 … −27.25 | 2.00 m |
+
+**Nine doors, nine rooms, and the diner now fires in front of the diner.** The
+re-anchor is correct — the span centres on −49.4 against the building's
+−55.5 … −43.5 slot. No door the auditor did not already know about, and none
+missing.
+
+Span widths of 1.50–2.00 m are consistent with a 1.05 m trigger about a quarter
+of a metre off the walking line, with the variation being my 0.25 m sample step
+rather than real differences.
+
+**What this does not measure:** the sweep warps, so it reports where a prompt
+*would* fire, not where the player can *stand*. Reachability is the separate
+question answered in round 11, and the thrift store is the case that shows why
+both are needed — its prompt fires over a 1.75 m span, and the prop from finding
+17 still keeps the player 0.27 m off its centre.
+
+## Coverage — round 13
+
+- Three of ten rooms unwritten.
+- The sweep covers the two main-street walks and both side-street walks. It does
+  not cover the alley, the park or the car lot; if a door is ever put there,
+  the line list needs a row.

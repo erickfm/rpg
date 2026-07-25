@@ -1,51 +1,41 @@
-## audit/seams — light measured across all seven rooms; I am withdrawing finding 15
+## audit/seams — the diner prompt stood outside a bank; my harness had the same stale number
 
-Queue `## Now` (interiors, standing). Base `33507a7f`.
-Report: `notes/interior-audit.md`, Round 12.
+Queue `## Now` (interiors, standing). Base `34a9563e`.
+Report: `notes/interior-audit.md`, Round 13.
 
-Touched:   notes/interior-audit.md (+Round 12), notes/audit-seams.md,
-           scripts/lightset.mjs (new)
+Touched:   notes/interior-audit.md (+Round 13), notes/audit-seams.md,
+           scripts/doorsweep.mjs (new), removed notes/BLOCKED-AUDIT-seams.md
            **nothing under street/src/**
 
-Closes the last gap I was carrying — the four newest rooms had never been
-through the round-7 light comparison. All seven now shot from a matched station,
-measuring **mean rendered frame luminance** (round 7 established that ceiling-
-material luminance is the wrong statistic; it misses the glow).
+**Unblocked** — the blocker file is deleted; the park, the car lot and D's
+exports landed and both my items have input again.
 
-| burger | tax | diner | thrift | hotel | pawn | casino |
-|---|---|---|---|---|---|---|
-| 0.720 | 0.702 | 0.638 | 0.630 | 0.549 | 0.398 | **0.228** |
+### What `4fe23d0f` fixed, and what it taught me about my own tooling
 
-### Finding 15 is withdrawn
+The diner's `[E]` prompt had been **standing outside a bank**. D swapped DINER's
+identity with LAUNDRY's; `int-diner.ts` still held `DZ = 9.6`; pressing E outside
+the bank teleported you to a diner nowhere near the building you were at.
 
-Round 7 read **three** rooms and called the lighting level indefensible. Seven
-rooms show a different shape:
+That is the defect class this audit has reported three times — a hand-copied
+coordinate going stale when the thing it describes moves. **My own trigger
+harness held the same stale 9.6.** Reporting a pattern while my instrument
+embodies it is not a good look, so I replaced it.
 
-- **Four ordinary retail rooms cluster at 0.630–0.720** — 14 % across four rooms
-  by three agents. Close agreement, not drift.
-- **Three deliberately darker venues form a graduated ramp** — hotel 0.549, pawn
-  0.398, casino 0.228 — each matching its own brief, and both dark rooms fully
-  readable. The casino is dark carpet and ceiling with lit slot fronts and a lit
-  cage, which is exactly what its file says it is for.
+### `scripts/doorsweep.mjs` — doors found by walking, not by reading
 
-The set is coherent. I carried this as a medium finding for five rounds on a
-three-room sample.
+Warps along the pavement in 0.25 m steps and records which prompt shows. **No
+door coordinate appears in it**, so it cannot go stale, and it finds doors I have
+never heard of.
 
-What survives is narrower and still worth the desk knowing: **the kit fixes lamp
-count from room depth and leaves output free**, so this coherence comes from
-seven builders' individual judgement, not from anything the kit guarantees. It
-held; there is no evidence it keeps holding for rooms eight to ten.
+Result: **nine doors, nine rooms, and the diner now fires in front of the
+diner** — span −50.25 … −48.50, centred on −49.4 against its −55.5 … −43.5 slot.
+Nothing missing, nothing unknown. Spans are 1.50–2.00 m, consistent with a
+1.05 m trigger a quarter-metre off the walking line.
 
-**Finding 16 stands** — the thrift's two tubes still glow differently from each
-other. A within-room inconsistency is unaffected by sample size.
+**What it deliberately does not measure:** it warps, so it reports where a prompt
+*would* fire, not where the player can *stand*. Reachability is the round-11
+question and both are needed — the thrift store fires over a 1.75 m span while
+the finding-17 prop still holds the player 0.27 m off its centre.
 
-### The lesson I keep relearning
-
-Third time this audit: **a set-level claim needs the whole set.** It caught me on
-the frontage percentages twice (stale roster widths) and now on lighting (three
-of ten rooms). Worth stating plainly in my own reports so the desk can weight my
-set-level findings by how much of the set I had.
-
-Left:      Three of ten rooms unwritten — this conclusion is provisional at 7/10.
-           Daylight only; the recent night-lighting work was not checked against
-           interiors.
+Left:      Three of ten rooms unwritten. The sweep covers both main-street walks
+           and both side-street walks, not the alley, park or car lot.
