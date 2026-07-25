@@ -41,19 +41,23 @@ Convert world → `alongU` with the frontage's **own** `uDir`, then reuse the
 existing `localOf`, which already works:
 
 ```ts
-import { frontageOf, frontageWorld } from './tex-world';
+import { frontageOf, frontageWorld, alongU } from './tex-world';
 const FW = fr ? frontageWorld(fr.name) : null;
 
-const alongUOf = (world: number) => FW
-  ? (FW.uDir > 0 ? world - FW.loWorld : FW.hiWorld - world) : 0;
-
 // :553
-const dAt = spec.door.at ?? (FW ? localOf(alongUOf(FW.doorWorld))
+const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld))
                                 : F ? localOf(F.doorCentreM) : 0);
 // :563
-const e0 = FW ? localOf(alongUOf(FW.glazingLoWorld)) : localOf(F.glazingStartM);
-const e1 = FW ? localOf(alongUOf(FW.glazingHiWorld)) : localOf(F.glazingEndM);
+const e0 = FW ? localOf(alongU(FW, FW.glazingLoWorld)) : localOf(F.glazingStartM);
+const e1 = FW ? localOf(alongU(FW, FW.glazingHiWorld)) : localOf(F.glazingEndM);
 ```
+
+`alongU` is exported from `ct/tex-world.ts` as of `2bde6593`, so you do not
+restate the handedness arithmetic — **restating it is what applied the mirror
+twice.** My earlier draft here hand-rolled it, and I only noticed because `uAt`
+had zero consumers: it returns a fraction and the caller needs metres. A dead
+export is not always dead code; sometimes it is a live need in the wrong shape,
+and the consumer quietly writing its own is the evidence.
 
 **Measured, not asserted: 0 of 226 room meshes change**, across all eight rooms,
 diner included. `tsc` clean. I applied it, rebuilt, dumped every interior mesh
