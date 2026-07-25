@@ -150,7 +150,21 @@ export interface RoomSpec {
    *  when `frontage` is given — the kit sizes the room off the building. */
   w?: number;
   d: number;
-  /** ceiling height. 2.9 is a shop; a casino or a library wants more */
+  /**
+   * Ceiling height. 2.9 is a shop.
+   *
+   * Which way a room departs from that is a character decision, and it goes
+   * BOTH ways. A library wants more — it is trying to feel civic. A casino
+   * wants LESS: GOLDEN ACES is 2.5 m over a 1.62 m eye, because a casino is
+   * built to make you lose the thread of the time, the weather and the way
+   * out, and a low ceiling is how that is done in geometry. The bodega is 2.6
+   * for the same reason in a different key — cramped is height as much as
+   * floor area.
+   *
+   * This used to read "a casino or a library wants more", which sent exactly
+   * the wrong signal to anyone building one and contradicted a room that
+   * already existed and was right.
+   */
   h?: number;
   /** floor, wall, ceiling, trim — hex ints, muted, 1997 */
   palette?: { floor?: number; wall?: number; ceil?: number; trim?: number };
