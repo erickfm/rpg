@@ -1430,3 +1430,64 @@ false positive.** Corrected here, in the round that replaced the test.
 
 Nothing here changes any finding about the world. It changes how much of the
 pair list is worth a builder's attention, which is the whole point of the list.
+
+---
+
+# Round 13 — the seam question, answered with both halves sound
+
+First run where **both** halves of the instrument are correct: mainline's
+per-face density (a box's four sides are not all `parameters.width` across) and
+my surface-proximity pairing (a bounding box is not the shape). Every earlier
+number combined at least one broken half, which is why they moved so much.
+
+```
+244 wall faces, box sides indexed per material
+REAL junctions — surfaces within 0.35 m, same side, height-overlapping:  735
+   agree within 15%:   376
+   disagree:           359
+```
+
+359 sounds bad. Split by what can actually be judged:
+
+| | count | judgeable? |
+|---|---|---|
+| **stamped vs stamped** | **209** | **yes** — both declare what they are |
+| stamped vs unstamped | 92 | no |
+| unstamped vs unstamped | 58 | no |
+
+## The 209 judgeable disagreements are all the same thing
+
+```
+ratios:  2.00 ×175    2.01 ×16    2.02 ×6    2.04 ×4    1.97–1.98 ×6
+```
+
+**Every one is a 2× ratio, and every one is a declared-8 face against a
+declared-16 face.** That is the shopfront band against the wall — the mult-1 /
+mult-2 adjacency that is deliberate, that I set aside in Round 11, and that
+`f604c531` ruled out *by looking*: the transition happens behind the fascia on
+every character front.
+
+> **Unexplained stamped-vs-stamped disagreements: zero.**
+
+Pattern #1 is clean for the third time, and this is the first time it has been
+checked with a pairing and a density that are both trustworthy.
+
+## The 150 I cannot judge, and why that is the real remaining gap
+
+The unstamped side is unjudgeable, not clean. The largest "disagreements" in the
+whole run are things like **35.56 px/m at y 1.3** against a wall at 8 — which is
+signage, and signage *should* be dense. Comparing a shop sign's texel density to
+a brick wall's is meaningless, and I have no way to tell one from the other from
+outside.
+
+That is exactly the problem `masonry()`'s stamp solved for the faces it paints.
+The same move finishes it:
+
+> **Every unstamped wall-sized face is currently unjudgeable by any seam tool.**
+> Not suspect — unjudgeable. A face that declared *"I am brick"* or *"I am a
+> painted sign"* would move 150 pairs from unknown into one of the two answered
+> columns, and it is the same one-line pattern as `userData.mod`,
+> `userData.masonry` and `__frontages`.
+
+That is the whole remaining seam question, and it is not a defect list — it is a
+missing declaration.
