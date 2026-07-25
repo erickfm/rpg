@@ -168,7 +168,20 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n } of ROOMS) {
   // A doorway further from the room centre than the room's own half-width is
   // also impossible — PAWN read local x -6.23 in a 10.8 m room — so that is a
   // failed measurement too, not a finding about the world.
-  if (!gap || Math.abs(gap.lx) > roomW / 2) {
+  // WHEN IT CANNOT MEASURE, SAY WHAT IT SAW. Three attempts at this scan each
+  // failed for a reason I guessed wrong, because the failure printed one word.
+  if (!gap) {
+    const seen = await p.evaluate(([cx, hw, hd]) => {
+      const near = window.__ct.colliders().filter((c) =>
+        c.maxX > cx - hw - 1 && c.minX < cx + hw + 1 && Math.abs(c.maxZ - hd) < 0.25);
+      return { hd, cx, n: near.length,
+        pieces: near.map((c) => [+c.minX.toFixed(1), +c.maxX.toFixed(1)]).sort((a, b) => a[0] - b[0]) };
+    }, [cx, roomW / 2, hd]);
+    unmeasured.push(`${id}: no doorway found — cx ${seen.cx.toFixed(1)}, front wall z ${seen.hd.toFixed(2)},`
+      + ` ${seen.n} wall piece(s) ${JSON.stringify(seen.pieces)}`);
+    continue;
+  }
+  if (Math.abs(gap.lx) > roomW / 2) {
     unmeasured.push(`${id}: could not locate the doorway inside`
       + (gap ? ` (read local x ${gap.lx} in a ${roomW.toFixed(1)} m room — impossible)` : ''));
     continue;
