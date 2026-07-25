@@ -89,28 +89,40 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     }
     // ── wheel arches ────────────────────────────────────────────────────
     //
-    // STEPPED, not smoothed. A curve in a hard-texel world has to be a
-    // staircase, and the steps have to be COARSE: this face is read at a
-    // grazing angle, which is the exact condition that turned the tailgate into
-    // a crawling checkerboard (GOTCHAS §4). Three steps per side, 3 texels
-    // apart, and no dither inside the opening.
+    // ATTEMPT TWO. The first one was a black RECTANGLE sitting UNDER the tyre,
+    // and the arithmetic says why: its steps were half-widths 10/7/4 at heights
+    // 5/8/10 texels, so the widest was 20 texels at only 5 tall — a flat bar —
+    // and it topped out at y = 0.34 + 10/40 = 0.59, which is BELOW the tyre's top
+    // at 0.68. It never cropped the wheel; it was a smear beneath it.
     //
-    // And it gets a LIP: one texel of highlight along the top of the opening and
-    // a darker one just inside it, so the arch reads as a flared well cut into
-    // the body rather than as a black sticker on a flat slab.
-    const ARCH = [[10, 5], [7, 8], [4, 10]];   // [half-width, height] per step
+    // An arch has to be sized to the TYRE, so it is derived from it here rather
+    // than typed in. The wheel is r = 0.34 at centre y = 0.34, so on this face
+    // (40 texels per metre up, 96/len across) its upper half is an ellipse about
+    // 15 texels tall and 7 either side of the axle. The arch is that ellipse
+    // with clearance around it, which is what puts CLEAR AIR between the tyre's
+    // top and the arch line instead of clamping onto it.
+    //
+    // Stepped, because a curve here has to be a staircase — but stepped ALONG
+    // the ellipse, five coarse steps, so the outline reads as curved. Coarse
+    // because this face is seen at a grazing angle (GOTCHAS §4).
+    const pxPerM = 96 / len;
+    const AR_Y = Math.round(0.34 * 40) + 3;            // tyre top, plus air
+    const AR_X = 0.34 * pxPerM + 2;                    // tyre half-width, plus air
     for (const wz of arches) {
       const ax = Math.round(((wz + len / 2) / len) * 96);
-      for (const [hw, h] of ARCH) {
+      const STEPS = 5;
+      for (let k = 0; k < STEPS; k++) {
+        // walk UP the ellipse and take the half-width at each band
+        const y0 = Math.round((k / STEPS) * AR_Y);
+        const y1 = Math.round(((k + 1) / STEPS) * AR_Y);
+        const t = y1 / AR_Y;                            // 0 at the axle, 1 at the top
+        const hw = Math.max(2, Math.round(AR_X * Math.sqrt(Math.max(0, 1 - t * t))));
         g.fillStyle = '#0a0b0e';
-        g.fillRect(ax - hw, 20 - h, hw * 2, h);
-      }
-      // the lip, following the same staircase
-      for (const [hw, h] of ARCH) {
-        g.fillStyle = 'rgba(255,255,255,0.20)';
-        g.fillRect(ax - hw, 20 - h - 1, hw * 2, 1);
-        g.fillStyle = 'rgba(0,0,0,0.30)';
-        g.fillRect(ax - hw, 20 - h, hw * 2, 1);
+        g.fillRect(ax - hw, 20 - y1, hw * 2, y1 - y0);
+        // the lip: a highlight along the top of each step, so the staircase
+        // reads as a flared edge rather than as a stack of blocks
+        g.fillStyle = 'rgba(255,255,255,0.22)';
+        g.fillRect(ax - hw, 20 - y1, hw * 2, 1);
       }
     }
     dither(g, 96, 20, 120);
@@ -517,18 +529,22 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       g2.fillStyle = 'rgba(255,255,255,0.18)'; g2.fillRect(0, yRow(0.84), skinW, 3); // beltline
       g2.fillStyle = '#d8dade'; g2.fillRect(0, yRow(0.64), skinW, 1);              // chrome strip
       g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(0, yRow(0.44), skinW, skinH - yRow(0.44)); // rocker
-      // The rear wheel arch, which used to be painted on the slab. Stepped and
-      // lipped like the cab's — and on a pickup this is the PRONOUNCED one, so
-      // it is a step taller and gets the flare highlight carried a texel wider
-      // than the opening at each step.
+      // The rear wheel arch. Derived from the TYRE exactly as the cab flank's is
+      // — same ellipse, same five coarse steps — just in this face's own texels,
+      // which are 40 per metre up and PPM_X across. On a pickup this is the
+      // pronounced one, so it carries an extra texel of air and the flare
+      // highlight runs a texel wider than the opening at each step.
       const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
-      for (const [hw, h] of [[11, 7], [8, 10], [5, 12]]) {
+      const arY = Math.round(0.34 * PPM_Y) + 4;
+      const arX = 0.34 * PPM_X + 3;
+      for (let k = 0; k < 5; k++) {
+        const y0 = Math.round((k / 5) * arY), y1 = Math.round(((k + 1) / 5) * arY);
+        const t = y1 / arY;
+        const hw = Math.max(2, Math.round(arX * Math.sqrt(Math.max(0, 1 - t * t))));
         g2.fillStyle = '#0a0b0e';
-        g2.fillRect(ax - hw, skinH - h, hw * 2, h);
+        g2.fillRect(ax - hw, skinH - y1, hw * 2, y1 - y0);
         g2.fillStyle = 'rgba(255,255,255,0.22)';
-        g2.fillRect(ax - hw - 1, skinH - h - 1, hw * 2 + 2, 1);
-        g2.fillStyle = 'rgba(0,0,0,0.28)';
-        g2.fillRect(ax - hw, skinH - h, hw * 2, 1);
+        g2.fillRect(ax - hw - 1, skinH - y1, hw * 2 + 2, 1);
       }
     });
     bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
@@ -631,13 +647,17 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   const front: THREE.Mesh[] = [];
-  // 0.72, not 0.82. The body's flank is at x = ±0.90 and a tyre is 0.24 wide,
-  // so a centre at 0.82 put its outer sidewall at 0.94 — OUTSIDE the body,
-  // which is the "wheels clip through" in the report: the tyre intersected the
-  // flank and stuck out the far side of it. At 0.72 the tyre spans 0.60…0.84 and
-  // sits inside the body with 0.06 m to spare, so it emerges from under the arch
-  // instead of through the panel.
-  for (const wx of [-0.72, 0.72]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
+  // ±0.84, and this is a REVERSAL of my last attempt, which moved them to 0.72
+  // to stop the tyre poking through the panel. It stopped the poking and buried
+  // the wheel: the flank is OPAQUE from y = 0.34 up, so a tyre tucked inside the
+  // body shows only the sliver below the rocker — half a wheel, which reads as a
+  // black bar with something under it.
+  //
+  // There is no third option without cutting a real hole in the flank. A tyre is
+  // visible here only where it stands PROUD of the panel, and that sliver of
+  // outer sidewall is exactly what makes it read as a circle. So it stands 0.06 m
+  // proud on purpose, with the arch curve painted wider than the tyre behind it.
+  for (const wx of [-0.84, 0.84]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
     // see makeBus: YZX so steering turns the wheel about its own vertical.
     // Front is -z (the whole model is built nose-first, see the file header).
