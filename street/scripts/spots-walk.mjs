@@ -127,9 +127,17 @@ for (const s of report) {
 console.log(`${checked} live spots checked: reachable, and standing where they claim`);
 console.log(`   of those, ${onDoor} name a declared building and sit exactly on its published door`);
 console.log(`${gated} gated by ok() from where the player is standing — a seat you are not on,`);
-console.log(`   or an interior's way-out while you are on the street. scripts/interiors-walk.mjs`);
-console.log(`   enters every room and exercises those; this sweep is for the STREET side, which`);
-console.log(`   is where a spot goes stale when its building moves or stops existing.`);
+console.log(`   or an interior's way-out while you are on the street. This sweep is for the`);
+console.log(`   STREET side, which is where a spot goes stale when its building moves or`);
+console.log(`   stops existing.`);
+// This used to claim "interiors-walk enters every room and exercises those",
+// which I wrote without checking. It is true and incomplete — seats-walk holds
+// most of them, and civic-doors-walk and door301 hold four more. Rather than
+// restate it and be wrong again, scripts/spot-coverage.mjs now PROVES it: every
+// one of the 137 registered spots is claimed by a named check, and it goes red
+// when one is not.
+console.log(`   scripts/spot-coverage.mjs proves the other ${gated} are each walked by a`);
+console.log(`   named check, rather than this script asserting it.`);
 for (const f of fails) console.log(`  FAIL  ${f}`);
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();

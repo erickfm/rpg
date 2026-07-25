@@ -88,6 +88,7 @@ const CHECKS = [
   // onto the LIVE `__ct.colliders()`, the same array the movement code tests,
   // so there is nothing to rebuild and no source to mutate.
   ['world-wired',      'is every module that exports a builder called?',    false, [], true],
+  ['spot-coverage',    'is every [E] spot exercised by SOME check?',         true, [], true],
   ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
