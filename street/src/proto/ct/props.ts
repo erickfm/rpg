@@ -937,11 +937,19 @@ export function buildProps(ctx: CtxBuild): Props {
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
   obstacle({ minX: BX_BACK - 0.05, maxX: BX_SEAT1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
-  // ══════════════════ FLOOR-TRASH COMPARISON RIG, v2 ══════════════════════
+  // ══════════════════ FLOOR TRASH ═════════════════════════════════════════
   //
-  // v1 was fourteen flat decals and the user could not identify one of them.
-  // The rig did its job — it got that verdict in one look — but the approach
-  // was wrong, for two reasons worth writing down:
+  // The comparison rig is down. Verdict: "coffee cup is good, i like newspaper
+  // as well, 3 + 5 respectively" — so the cup and the folded newspaper are
+  // placed through the world below and the other five stay drawn but unplaced.
+  // They are kept on purpose: two kinds of litter is thin, and reviving a
+  // candidate that is already drawn is minutes, whereas drawing a new one from
+  // nothing is another round of this.
+  //
+  // Why these seven and not the fourteen that came before — v1 was fourteen
+  // flat decals and the user could not identify one of them. The rig did its
+  // job (it got that verdict in one look) but the approach was wrong, for two
+  // reasons worth keeping:
   //
   //   · I JUDGED THEM FROM ABOVE. A flat decal seen from 1.7 m eye height two
   //     metres away is viewed at about 15-20 degrees off the ground, which
@@ -961,14 +969,13 @@ export function buildProps(ctx: CtxBuild): Props {
   // And everything is drawn 1.5-2x life size, because this is a pixel world
   // and legibility beats measurement; the cat is not to scale either.
   //
-  // Nothing here is solid and nothing replaces the street litter. Uses no
-  // rnd(), so the seeded stream is untouched (GOTCHAS §2).
-  const TZ0 = -38.0, TSTEP = 0.62, TX = -8.6;
+  // Nothing here is solid — you walk straight over litter. Uses no rnd() at
+  // all: every position, angle and grime level below is hand-placed, so the
+  // seeded stream is untouched and no tree or pigeon moves (GOTCHAS §2).
   const tsurf = (w: number, h: number, draw: (g: CanvasRenderingContext2D) => void) => {
     const t = pixTex(w, h, draw); return new THREE.MeshBasicMaterial({ map: t });
   };
   const plain = (c: string) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) });
-  const rigAt: THREE.Object3D[] = [];
   // a short cylinder lying along x — the primitive that does the most work
   // here, because a can, a bottle and a cup are all one
   const lying = (r1: number, r2: number, len: number, side: THREE.Material, cap: THREE.Material) => {
@@ -976,7 +983,10 @@ export function buildProps(ctx: CtxBuild): Props {
     m.rotation.z = Math.PI / 2;
     return m;
   };
-  const build: [string, () => THREE.Object3D][] = [
+  // Everything ever drawn for this, in the order it was drawn. What actually
+  // goes on the ground is chosen by name in RIG below, so a candidate can be
+  // shelved or revived without moving any code.
+  const CATALOGUE: [string, () => THREE.Object3D][] = [
     ['crushed can', () => {
       const g0 = new THREE.Group();
       const can = lying(0.075, 0.075, 0.30,
@@ -1026,20 +1036,57 @@ export function buildProps(ctx: CtxBuild): Props {
           g.fillStyle = '#b5b2a6'; g.fillRect(0, 7, 16, 1); g.fillRect(7, 0, 1, 16);
         }), plain('#a8a498'), sideM, sideM]);
       box2.position.y = 0.0575; box2.rotation.y = 0.22; g0.add(box2); return g0; }],
+    // PICKED (5), then reworked on the note "newspaper needs to be grimier and
+    // thinner". Thinner is geometry: it was a 5.5 cm slab, which is a phone
+    // book, not a paper. A folded broadsheet lying on the ground is about two
+    // centimetres, so 0.024 — and once it is that thin the silhouette has to
+    // come from somewhere else, hence the half-open leaf lifted off the top.
+    // Grimier is surface: it was near-white, which reads as dropped one second
+    // ago on a street where nothing else is clean.
     ['folded newspaper', () => {
       const g0 = new THREE.Group();
-      const edge = tsurf(24, 8, (g) => {
-        g.fillStyle = '#cfcabb'; g.fillRect(0, 0, 24, 8);
-        for (let y = 1; y < 8; y += 2) { g.fillStyle = '#a8a294'; g.fillRect(0, y, 24, 1); }  // stacked pages
+      // only two or three texels tall at this thickness, so the page edge is
+      // two stripes and no more — anything finer is mush at 2 cm
+      const edge = tsurf(24, 4, (g) => {
+        g.fillStyle = '#8f887a'; g.fillRect(0, 0, 24, 4);
+        g.fillStyle = '#6e685d'; g.fillRect(0, 2, 24, 1);
       });
-      const np = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.055, 0.27),
-        [edge, edge, tsurf(24, 20, (g) => {
-          g.fillStyle = '#d8d3c4'; g.fillRect(0, 0, 24, 20);
-          g.fillStyle = '#2f2b26'; g.fillRect(2, 2, 20, 4);            // masthead
-          for (let y = 8; y < 19; y += 2) { g.fillStyle = '#6b665c'; g.fillRect(3, y, 18, 1); }
-          g.fillStyle = '#8d8878'; g.fillRect(0, 9, 24, 1);            // the fold
-        }), plain('#b0aa9c'), edge, edge]);
-      np.position.y = 0.0275; np.rotation.y = -0.15; g0.add(np); return g0; }],
+      const face = tsurf(32, 24, (g) => {
+        g.fillStyle = '#9d9483'; g.fillRect(0, 0, 32, 24);             // newsprint, weathered grey-brown
+        // ink bled by the rain: the masthead first, then a soft halo under it
+        g.fillStyle = '#3a352d'; g.fillRect(3, 2, 26, 4);
+        g.fillStyle = 'rgba(58,53,45,0.42)'; g.fillRect(2, 6, 28, 2);
+        // columns, broken up where the paper has soaked through
+        for (let y = 10; y < 22; y += 2) {
+          g.fillStyle = '#6a6459';
+          g.fillRect(4, y, 11, 1);
+          if (y !== 16) g.fillRect(18, y, 10, 1);
+        }
+        // the fold — the darkest line on it, because that is where the dirt
+        // and the wear both go
+        g.fillStyle = '#544e44'; g.fillRect(0, 12, 32, 1);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 13, 32, 1);
+        // one corner has been sitting in water: darker, and the ink there is
+        // gone rather than sharp
+        g.fillStyle = 'rgba(52,46,38,0.55)'; g.fillRect(0, 17, 11, 7);
+        g.fillStyle = 'rgba(38,34,28,0.45)'; g.fillRect(0, 20, 7, 4);
+        // and somebody has stepped on it
+        g.fillStyle = 'rgba(30,27,23,0.40)';
+        for (let k = 0; k < 4; k++) g.fillRect(19 + k * 3, 3 + k, 2, 9);
+        dither(g, 32, 24, 40);
+      });
+      const np = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.024, 0.30),
+        [edge, edge, face, plain('#7d7668'), edge, edge]);
+      np.position.y = 0.012; g0.add(np);
+      // the top leaf, half lifted off the fold. Two centimetres of paper has
+      // no silhouette from standing height; this gives it one, and it is what
+      // says FOLDED rather than "flat grey rectangle".
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.010, 0.26),
+        [edge, edge, face, plain('#7d7668'), edge, edge]);
+      leaf.position.set(-0.05, 0.030, 0.015);
+      leaf.rotation.set(0, 0.20, -0.13);
+      g0.add(leaf);
+      g0.rotation.y = -0.15; return g0; }],
     ['chip bag', () => {
       const g0 = new THREE.Group();
       const sideM = tsurf(24, 14, (g) => {
@@ -1064,23 +1111,286 @@ export function buildProps(ctx: CtxBuild): Props {
       const pk = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.10, 0.13),
         [sideM, sideM, sideM, plain('#c6c2b6'), sideM, sideM]);
       pk.position.y = 0.05; pk.rotation.y = -0.5; g0.add(pk); return g0; }],
+
+    // ── ROUND THREE ──────────────────────────────────────────────────────
+    // The selection rule comes straight out of round two's result rather than
+    // out of taste. Two of seven passed — the coffee cup and a large flat
+    // rectangle with a fold — and what they share is a strong, simple
+    // SILHOUETTE at size. Everything that failed was small, soft-edged, or
+    // both. So every candidate here is large and has an outline you would
+    // recognise as a black shape with the texture switched off, and each one
+    // carries a single feature no other candidate has: handles, a bail, a
+    // straw, corrugated flutes, a bottle neck out of a bag.
+    ['pizza box', () => {
+      const g0 = new THREE.Group();
+      const top = tsurf(24, 24, (g) => {
+        g.fillStyle = '#c9b493'; g.fillRect(0, 0, 24, 24);              // kraft board
+        g.fillStyle = '#a8322c'; g.fillRect(3, 8, 18, 6);               // the logo band
+        g.fillStyle = '#e2d8c2'; g.fillRect(5, 10, 14, 2);
+        g.fillStyle = 'rgba(92,70,40,0.45)'; g.fillRect(2, 16, 11, 6);  // grease through the board
+        dither(g, 24, 24, 30);
+      });
+      const sideM = tsurf(24, 6, (g) => {
+        g.fillStyle = '#bda98a'; g.fillRect(0, 0, 24, 6);
+        g.fillStyle = '#8e7c62'; g.fillRect(0, 3, 24, 1);
+      });
+      const faces = [sideM, sideM, top, plain('#9c8a6d'), sideM, sideM];
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.05, 0.52), faces);
+      base.position.y = 0.025; g0.add(base);
+      // the lid, hinged open. A closed pizza box is a flat brown square and so
+      // is flattened cardboard; the propped lid is what separates them.
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.03, 0.52), faces);
+      lid.geometry.translate(0, 0, -0.26);              // pivot on the hinge edge
+      lid.position.set(0, 0.055, 0.26); lid.rotation.x = -0.62;
+      g0.add(lid);
+      g0.rotation.y = 0.28; return g0; }],
+    ['flattened cardboard', () => {
+      const g0 = new THREE.Group();
+      const face = tsurf(24, 16, (g) => {
+        g.fillStyle = '#b09272'; g.fillRect(0, 0, 24, 16);
+        g.fillStyle = '#8d7358'; g.fillRect(0, 7, 24, 1);               // the score it folds on
+        g.fillStyle = 'rgba(60,45,30,0.40)'; g.fillRect(14, 9, 8, 5);   // damp
+        g.fillStyle = '#7a6248'; g.fillRect(4, 2, 9, 1); g.fillRect(4, 4, 6, 1);
+        dither(g, 24, 16, 26);
+      });
+      // the flutes on the cut edge are the whole identification — it is the
+      // one thing that says CARDBOARD and not "a brown rectangle"
+      const corr = tsurf(24, 4, (g) => {
+        g.fillStyle = '#c4a988'; g.fillRect(0, 0, 24, 4);
+        for (let x = 0; x < 24; x += 2) { g.fillStyle = '#8b7357'; g.fillRect(x, 1, 1, 3); }
+      });
+      const faces = [corr, corr, face, plain('#8d7358'), corr, corr];
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.020, 0.46), faces);
+      sh.position.y = 0.010; g0.add(sh);
+      const sh2 = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.018, 0.36), faces);
+      sh2.position.set(0.14, 0.031, -0.09); sh2.rotation.set(0, 0.52, -0.10);
+      g0.add(sh2);                                     // a second piece riding up on the first
+      g0.rotation.y = -0.22; return g0; }],
+    ['plastic bag', () => {
+      const g0 = new THREE.Group();
+      const skin = tsurf(20, 16, (g) => {
+        g.fillStyle = '#e8ecef'; g.fillRect(0, 0, 20, 16);
+        g.fillStyle = '#cdd4d9'; g.fillRect(0, 4, 20, 2); g.fillRect(0, 11, 20, 1);
+        g.fillStyle = '#c0392b'; g.fillRect(4, 6, 5, 4);                // printed marks
+        g.fillStyle = '#2f5fa8'; g.fillRect(12, 7, 4, 3);
+      });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.21, 0.26), skin);
+      body.position.y = 0.105; body.rotation.y = 0.30; g0.add(body);
+      const lump = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.13, 0.18), skin);
+      lump.position.set(-0.18, 0.065, 0.05); lump.rotation.y = -0.42; g0.add(lump);
+      // the handles are the point. A white lump on the floor is nothing; two
+      // loops standing off the top of it is a shopping bag from thirty metres.
+      const hm = plain('#dfe4e8');
+      for (const s3 of [-1, 1]) {
+        const arc = new THREE.Mesh(new THREE.TorusGeometry(0.078, 0.013, 4, 9, Math.PI), hm);
+        arc.position.set(s3 * 0.075, 0.205, 0.02);
+        arc.rotation.y = 0.30;
+        g0.add(arc);
+      }
+      return g0; }],
+    ['40oz in a bag', () => {
+      const g0 = new THREE.Group();
+      const bagM = tsurf(24, 24, (g) => {
+        g.fillStyle = '#a8865c'; g.fillRect(0, 0, 24, 24);
+        for (let x = 2; x < 24; x += 6) { g.fillStyle = '#93764f'; g.fillRect(x, 0, 1, 24); }
+        g.fillStyle = '#8d6f49'; g.fillRect(0, 5, 24, 1); g.fillRect(0, 14, 24, 1);
+        dither(g, 24, 24, 28);
+      });
+      const sleeve = lying(0.088, 0.088, 0.34, bagM, plain('#8d6f49'));
+      sleeve.position.y = 0.088; g0.add(sleeve);
+      const flare = lying(0.105, 0.090, 0.05, bagM, plain('#8d6f49'));
+      flare.position.set(0.175, 0.088, 0); g0.add(flare);               // torn top of the sleeve
+      // the green neck out of the brown paper is the joke and the read
+      const neck = lying(0.044, 0.064, 0.15, plain('#3f6b4a'), plain('#2b4a34'));
+      neck.position.set(0.265, 0.088, 0); g0.add(neck);
+      const cap = lying(0.046, 0.046, 0.03, plain('#c9a227'), plain('#b08e1c'));
+      cap.position.set(0.350, 0.088, 0); g0.add(cap);
+      g0.rotation.y = 0.55; return g0; }],
+    ['milk crate', () => {
+      const g0 = new THREE.Group();
+      const wallM = tsurf(20, 12, (g) => {
+        g.fillStyle = '#2f5fa8'; g.fillRect(0, 0, 20, 12);
+        g.fillStyle = 'rgba(0,0,0,0.50)';
+        for (let x = 2; x < 19; x += 4) g.fillRect(x, 3, 2, 7);         // the lattice
+        g.fillStyle = '#4a7cc4'; g.fillRect(0, 0, 20, 2);               // top rail
+      });
+      // built as four walls round an open floor, because the OPEN TOP is the
+      // silhouette that says crate and a solid box would just be a box
+      const S = 0.36, H = 0.25, T = 0.030;
+      const wall = (w: number, d: number, x: number, z: number) => {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), wallM);
+        m.position.set(x, H / 2, z); return m;
+      };
+      g0.add(wall(S, T, 0, S / 2 - T / 2), wall(S, T, 0, -S / 2 + T / 2),
+             wall(T, S, S / 2 - T / 2, 0), wall(T, S, -S / 2 + T / 2, 0));
+      const flr = new THREE.Mesh(new THREE.BoxGeometry(S, 0.022, S), plain('#254980'));
+      flr.position.y = 0.011; g0.add(flr);
+      g0.rotation.y = 0.34; return g0; }],
+    ['broken umbrella', () => {
+      const g0 = new THREE.Group();
+      const canopyM = tsurf(24, 12, (g) => {
+        g.fillStyle = '#23262e'; g.fillRect(0, 0, 24, 12);
+        g.fillStyle = '#31353f'; g.fillRect(0, 3, 24, 1);
+        for (let x = 3; x < 24; x += 6) { g.fillStyle = '#171920'; g.fillRect(x, 0, 1, 12); }
+      });
+      // a half-collapsed canopy: a low-sided cone laid over and squashed
+      const cap2 = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.36, 7), canopyM);
+      cap2.rotation.z = Math.PI / 2;
+      cap2.scale.z = 0.62;                                              // flattened, not a party hat
+      cap2.position.set(-0.14, 0.12, 0);
+      g0.add(cap2);
+      const shaft = lying(0.015, 0.015, 0.46, plain('#3a3d45'), plain('#2b2e35'));
+      shaft.position.set(0.28, 0.048, 0.02); g0.add(shaft);
+      const hook = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.015, 4, 9, Math.PI * 1.25), plain('#5a4632'));
+      hook.position.set(0.52, 0.05, 0.02); hook.rotation.x = -Math.PI / 2;
+      g0.add(hook);                                                     // the crook handle, flat on the floor
+      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.011, 0.011), plain('#4a4e57'));
+      rib.position.set(-0.20, 0.10, 0.14); rib.rotation.set(0, 0.55, 0.32);
+      g0.add(rib);                                                      // one rib sprung out — this is why it is in the bin
+      g0.rotation.y = -0.35; return g0; }],
+    ['swollen phone book', () => {
+      const g0 = new THREE.Group();
+      const pages = tsurf(24, 12, (g) => {
+        g.fillStyle = '#d8c46a'; g.fillRect(0, 0, 24, 12);              // the yellow block, which IS the identification
+        for (let y = 0; y < 12; y += 2) { g.fillStyle = '#b8a352'; g.fillRect(0, y, 24, 1); }
+        g.fillStyle = 'rgba(70,58,30,0.50)'; g.fillRect(0, 8, 24, 4);   // wicked up from the bottom
+      });
+      const cov = tsurf(24, 20, (g) => {
+        g.fillStyle = '#8d3a34'; g.fillRect(0, 0, 24, 20);
+        g.fillStyle = '#c9b98a'; g.fillRect(3, 3, 18, 5);
+        g.fillStyle = '#5e2823'; g.fillRect(0, 15, 24, 5);              // the water line
+        dither(g, 24, 20, 34);
+      });
+      const faces = [pages, pages, cov, plain('#6d2c27'), pages, pages];
+      const bk = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.44), faces);
+      bk.position.y = 0.065; g0.add(bk);
+      // swollen: a second block riding on top and tilted, so the top face is
+      // bowed rather than flat — a flat-topped block reads as a brick
+      const bow = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.06, 0.38), faces);
+      bow.position.set(0.01, 0.155, 0); bow.rotation.set(0.07, 0, 0.06); g0.add(bow);
+      g0.rotation.y = -0.30; return g0; }],
+    ['bundled newspapers', () => {
+      const g0 = new THREE.Group();
+      const stackM = tsurf(24, 16, (g) => {
+        g.fillStyle = '#a49b88'; g.fillRect(0, 0, 24, 16);
+        for (let y = 1; y < 16; y += 2) { g.fillStyle = '#847c6c'; g.fillRect(0, y, 24, 1); }
+        g.fillStyle = 'rgba(40,36,30,0.35)'; g.fillRect(0, 12, 24, 4);
+      });
+      const topM = tsurf(24, 18, (g) => {
+        g.fillStyle = '#9d9483'; g.fillRect(0, 0, 24, 18);
+        g.fillStyle = '#3a352d'; g.fillRect(3, 2, 18, 4);
+        for (let y = 9; y < 17; y += 2) { g.fillStyle = '#6a6459'; g.fillRect(4, y, 16, 1); }
+      });
+      const st = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.20, 0.32),
+        [stackM, stackM, topM, plain('#7d7668'), stackM, stackM]);
+      st.position.y = 0.10; g0.add(st);
+      // the string is what makes this a BUNDLE rather than a heap, and it is
+      // the only difference between this and candidate 2 at a glance
+      const str = plain('#d9d2bd');
+      for (const cz of [-0.09, 0.09]) {
+        const over = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.013, 0.015), str);
+        over.position.set(0, 0.206, cz); g0.add(over);
+        for (const sx of [-1, 1]) {
+          const down = new THREE.Mesh(new THREE.BoxGeometry(0.013, 0.21, 0.015), str);
+          down.position.set(sx * 0.215, 0.10, cz); g0.add(down);
+        }
+      }
+      g0.rotation.y = 0.24; return g0; }],
+    ['fountain cup', () => {
+      const g0 = new THREE.Group();
+      const cupM = tsurf(24, 24, (g) => {
+        g.fillStyle = '#e6e2d6'; g.fillRect(0, 0, 24, 24);
+        g.fillStyle = '#c0392b'; g.fillRect(0, 4, 24, 8);               // loud printed band
+        g.fillStyle = '#e6c84a'; g.fillRect(0, 13, 24, 3);
+        g.fillStyle = '#a8a294'; g.fillRect(0, 21, 24, 3);
+      });
+      const cup2 = lying(0.102, 0.074, 0.33, cupM, plain('#cfc9ba'));
+      cup2.position.y = 0.094; g0.add(cup2);
+      const lid2 = lying(0.110, 0.110, 0.034, plain('#d8d3c6'), plain('#c2bcae'));
+      lid2.position.set(-0.180, 0.100, 0); g0.add(lid2);
+      // the straw is the entire difference between this and candidate 1
+      const straw = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.017, 0.017), plain('#c0392b'));
+      straw.position.set(-0.34, 0.024, 0.07); straw.rotation.y = 0.60; g0.add(straw);
+      g0.rotation.y = -0.42; return g0; }],
+    ['paint can', () => {
+      const g0 = new THREE.Group();
+      const canM = tsurf(24, 20, (g) => {
+        g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, 24, 20);
+        g.fillStyle = '#7d8288'; g.fillRect(0, 0, 24, 2); g.fillRect(0, 17, 24, 3);  // rolled rim, base
+        g.fillStyle = '#c9c3b2'; g.fillRect(3, 5, 18, 9);               // label
+        g.fillStyle = '#2f5fa8'; g.fillRect(5, 7, 14, 3);
+        g.fillStyle = 'rgba(47,95,168,0.75)'; g.fillRect(1, 13, 8, 7);  // a run of paint down the side
+        dither(g, 24, 20, 30);
+      });
+      const can2 = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.25, 12),
+        [canM, plain('#8b9096'), plain('#7d8288')]);
+      can2.position.y = 0.125; g0.add(can2);
+      // the bail handle — an upright cylinder is a tin; an upright cylinder
+      // with a wire hoop over it is a paint can
+      const bail = new THREE.Mesh(new THREE.TorusGeometry(0.112, 0.009, 4, 10, Math.PI), plain('#6e737a'));
+      bail.position.set(0, 0.25, 0); bail.rotation.y = 0.42; g0.add(bail);
+      // the lid levered off and dropped beside it, paint side up
+      const lid3 = new THREE.Mesh(new THREE.CylinderGeometry(0.120, 0.120, 0.016, 12),
+        [plain('#8b9096'), plain('#2f5fa8'), plain('#8b9096')]);
+      lid3.position.set(0.23, 0.008, 0.10); g0.add(lid3);
+      return g0; }],
   ];
+  // The rig line, in the order the user sees it. 1 and 2 are the two that
+  // already passed and they lead so every new candidate is judged against a
+  // bar that has cleared, not against its neighbours. Anything in CATALOGUE
+  // and not named here is drawn but unplaced — see the shelf note below.
+  const RIG = [
+    'coffee cup',            // 1  — passed round two, untouched
+    'folded newspaper',      // 2  — passed round two, plus the requested
+                             //      thinner/grimier fix
+    'pizza box',             // 3
+    'flattened cardboard',   // 4
+    'plastic bag',           // 5
+    '40oz in a bag',         // 6
+    'milk crate',            // 7
+    'broken umbrella',       // 8
+    'swollen phone book',    // 9
+    'bundled newspapers',    // 10
+    'fountain cup',          // 11
+    'paint can',             // 12
+  ];
+  // SHELVED, not deleted: crushed can, glass bottle, takeout container, chip
+  // bag, cigarette pack. They are still in CATALOGUE above. Two kinds of
+  // litter is thin, and reviving something already drawn is a one-line change
+  // to RIG — redrawing it from nothing is another whole round.
   const numTex = (n: number) => pixTex(16, 16, (g) => {
     g.fillStyle = 'rgba(10,10,14,0.72)'; g.fillRect(1, 3, 14, 10);
     g.fillStyle = '#f2ead0';
     g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(String(n), 8, 8);
   });
+  // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
+  // and every texel of a soft shadow is below that, so the v2 shadows were
+  // being discarded outright and nothing was sitting on the floor.
   const shadeT = pixTex(16, 16, (g) => {
     g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 3, 12, 10);
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 2, 14, 12);
   });
-  build.forEach(([, make], i) => {
-    const z = TZ0 - i * TSTEP;
-    const o = make(); o.position.set(TX, 0, z); scene.add(o); rigAt.push(o);
-    lit(o);                                          // they take the lamplight like anything else
-    flatDecal(shadeT, 0.42, 0.34, TX, z, 0, 0.001);  // contact shadow, so it sits on the floor
-    flatDecal(numTex(i + 1), 0.22, 0.22, TX - 0.46, z, 0, 0.012);
+  const contact = (w: number, d: number, x: number, z: number, y: number) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, y + 0.003, z);
+    scene.add(m);
+  };
+  // Two rows of six down the alley rather than one line of twelve: twelve at a
+  // spacing that keeps 0.6 m objects apart would run past the end wall. Both
+  // rows start at z −39.0, clear of the dumpster (which stops at −38.75), and
+  // the numeral sits on the street side of each so you read them walking in.
+  const TZ0 = -39.0, TSTEP = 0.72, ROW_X = [-8.5, -10.3];
+  RIG.forEach((name, i) => {
+    const make = CATALOGUE.find((c) => c[0] === name)?.[1];
+    if (!make) return;
+    const x = ROW_X[Math.floor(i / 6)], z = TZ0 - (i % 6) * TSTEP;
+    const o = make(); o.position.set(x, 0.006, z); scene.add(o);   // alley floor sits at 0.005
+    lit(o);                                        // they take the lamplight like anything else
+    contact(0.62, 0.50, x, z, 0.006);
+    flatDecal(numTex(i + 1), 0.22, 0.22, x + 0.46, z, 0, 0.012);
   });
 
   return {
