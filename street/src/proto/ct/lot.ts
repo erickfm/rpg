@@ -1799,6 +1799,12 @@ function buildLot(o: {
     //
     // `graded` too: their night value is owned and written every frame, so
     // "nobody is looking after this" is false for them as well.
+    // `cLight` is MINE, and it is the one this module's dim check will accept.
+    // props.ts's `selfLit` is set by a heuristic reading the texture — right
+    // about neon, wrong about plastic pennants — so a check that excuses
+    // `selfLit` is blind to exactly the bug that heuristic causes. A light has
+    // to be declared by the hand that built it.
+    haloM.userData.cLight = true;
     haloM.userData.selfLit = true; haloM.userData.graded = true;
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), haloM);
     const [ax, az] = off(0.62);
@@ -1808,6 +1814,7 @@ function buildLot(o: {
       map: stepDisc(32, 15), transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0xb9a882,
     });
+    poolM.userData.cLight = true;
     poolM.userData.selfLit = true; poolM.userData.graded = true;
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(13.0, 9.0), poolM);
     pool.rotation.x = -Math.PI / 2;
