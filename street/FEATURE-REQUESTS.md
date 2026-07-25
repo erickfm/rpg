@@ -6,6 +6,10 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
+- **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
+- **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
+- **"i need the facades to line up with the interior. so if the door on the interior is full right then the facade must match"** → **A**
 
 ### 2026-07-24, session 3
 

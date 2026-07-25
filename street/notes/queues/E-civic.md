@@ -14,6 +14,57 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The park is a BRICK WALL. Rebuild it 4–5× deeper as a real park.**
+      The user: *"park should be much deeper, like 4-5x deeper. and make it
+      nice, a nice park with trees and a litle field maybe even a play area
+      but not necessary maybe just a field with a walking route around the
+      field?"* Ref: `shots/user-park-wall.png`.
+
+      **Look at that screenshot before anything else.** From the street the
+      park is a blank brick wall running the whole 30 m frontage. Whatever is
+      behind it, nobody can see it, walk into it or know it exists. That is
+      the first thing to fix and it is not a depth problem:
+
+      · **the street frontage must be OPEN.** Iron railings with a gate, or a
+        low wall with railings above it — you see THROUGH a park fence. A
+        solid brick wall is a service yard, not a park, and it is why this
+        currently reads as nothing at all.
+      · a park you cannot see into is also a park nobody walks into. The
+        entrance has to be legible from the pavement.
+
+      **Then the depth: four to five times what it has.** It has 30 m of
+      frontage; give it comparable depth so it is a SPACE rather than a
+      set-back. That is a lot of new ground — coordinate with builder D
+      through the desk on how far back it can go, because beyond the facade
+      line is dead ground the player has never seen and whatever closes the
+      far side has to be real.
+
+      **The layout the user described, and it is a good one — build exactly
+      it:**
+      · **a field** — open mown grass in the middle, the largest single thing
+        in it, worn to dirt on the desire lines
+      · **a walking route AROUND the field** — a loop path, not a path that
+        crosses it. A loop is what makes a small park feel bigger than it is,
+        because you can walk it without leaving.
+      · **trees** around the edge and along the path, not scattered through
+        the field — that is what real parks do and it frames the open middle
+      · benches facing the field from the path, using `ctx.seat()` (builder F
+        landed it; do not build your own sit mechanic)
+      · a play area is **optional** — the user said so. Only add it if the
+        space carries it comfortably; a cramped one is worse than none.
+      · bins, a drinking fountain, a noticeboard at the gate
+
+      Keep the tone that is already working: municipal and a little
+      neglected, the same hand as the library — *"built by people who thought
+      public buildings should be beautiful, and not looked after since."*
+      Patchy grass, a bench with a slat missing, one lamp out.
+
+      Constraints: the 2 m pavement lane past it stays clear
+      (`GOTCHAS.md` §9); paving must ABUT the sidewalk, never overlap (§6);
+      trees are `ct/props.ts` (builder B) and the seeded `rnd()` order is
+      load-bearing (§2) — ask through the desk rather than reaching into B's
+      file. **Walk the whole loop** before you close this.
+
 - [ ] **The park should be DEEPER.** The user, on the park you are building:
       *"park should be deeper"*.
 
