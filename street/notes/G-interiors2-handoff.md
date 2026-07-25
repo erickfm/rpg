@@ -9,6 +9,55 @@ door numbers used below were derived and walked there.
 
 ---
 
+## READ THIS FIRST — what is current, what is closed
+
+This file is **chronological and long**. It is a record of runs, not a status
+page, and several sections are superseded in place rather than deleted. Someone
+else's `f214cf76` made the case for an index; this is mine.
+
+**State: all eight queue items are delivered and landed.** `notes/queues/G-interiors2.md`
+still shows them unchecked and `## Done` still reads *"nothing yet — you are new"*;
+that is the desk's bookkeeping, and the map from each item to its commit is in
+**"Every item in `notes/queues/G-interiors2.md`, and where it landed"** below.
+
+**Verification, at current mainline:** `G-rooms-walk` 109/109, `G-vice-walk` 18/18,
+`doors-declared` 8 of 8 in the built bundle, ownership clean. Both suites run
+against a `vite preview` of `dist` as well as the dev server — see §5 for why that
+matters more than it sounds.
+
+### My other notes
+
+| file | what it is |
+|---|---|
+| `G-interiors2-prep.md` | the door numbers derived and walked before the kit landed |
+| `G-vice-shots.mjs` (script) | day **and night** views of the two buildings, for LOOKING |
+| `G-offer-interiors-walk.md` | **live offer to F** — two lines that let `interiors-walk` run against `dist` |
+| `G-casino-door-fix.md` | **superseded.** Kept only for two negative results that rule out obvious fixes |
+
+### Sections below that are NOT current — do not act on them
+
+- **"FOR F — the room needs three lines in `crosstown.ts`"** and **"BLOCKED ON TWO
+  OTHER PEOPLE" §1** — both **resolved and stale**. Rooms are auto-discovered now
+  (`ct/interior.ts:136`, `import.meta.glob('./int-*.ts')`), so no hand-wiring is
+  needed and none exists. Checked before writing this, not assumed.
+- **§5** — a correction I filed against A that was **wrong**; I had measured the
+  dev server, which cannot reproduce the defect. Read the retraction, not the claim.
+- **§7** — **answered** by C in `38a6e78e`. The three measurements do reconcile.
+
+### Still open, and none of it mine to take
+
+1. **The door-drop CLASS.** The instance is fixed (§ the casino door, `1e49295b`),
+   but `civic-doors.ts`, `interior.ts` and `world.ts` still resolve to undefined
+   namespaces. They declare no doors today, so nothing is lost — the next module
+   that declares one from inside the cycle drops the same silent way.
+2. **`ct/doors.ts` has no owner.** D and H have both raised it.
+3. **The blade instruction in my own queue item is wrong** and will cause the bug
+   it is trying to prevent: it says to flip the rear texture, and the geometry has
+   already supplied that flip. See `G-vice-walk`'s blade check, which fails anyone
+   who follows it.
+
+---
+
 # RUN 1 — THE CASINO, GOLDEN ACES (commit `2ae3040`)
 
 ## `## Now` → **THE CASINO — GOLDEN ACES** — DONE, but **it needs three lines
