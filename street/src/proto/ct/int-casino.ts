@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { tube } from './vice';
@@ -109,7 +109,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // not a replacement. 48 texels over 2.4 m is ~20 px/m, matching the kit
   // floor and the diner checker (GOTCHAS §5: density comes from real metres).
   const TILE = 2.4;
-  const carpetT = pixTex(48, 48, (g) => {
+  const carpetT = declareSurface(pixTex(48, 48, (g) => {
     g.fillStyle = '#4a1f24'; g.fillRect(0, 0, 48, 48);
     const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
     // the lattice: a gold diamond around each cell centre
@@ -133,7 +133,7 @@ export function buildCasino(ctx: CtxBuild): void {
       g.fillRect(cx - 3, cy, 7, 1); g.fillRect(cx, cy - 3, 1, 7);
     }
     dither(g, 48, 48, 150);
-  });
+  }), 'ground');
   carpetT.wrapS = carpetT.wrapT = THREE.RepeatWrapping;
   carpetT.repeat.set(Math.round(room.W / TILE), Math.round(room.D / TILE));
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(carpetT));
@@ -154,7 +154,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // reflects is a dark red room with a few gold machines in it. So the panel
   // is near-black, the reflected room is a faint maroon wash, and the only
   // bright marks are thin gold glints where a topper catches it.
-  const mirrorT = pixTex(32, 32, (g) => {
+  const mirrorT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#171319'; g.fillRect(0, 0, 32, 32);          // the channel between panels
     g.fillStyle = '#2a2430'; g.fillRect(1, 1, 30, 30);          // the panel, nearly black
     g.fillStyle = 'rgba(96,40,46,0.40)'; g.fillRect(3, 3, 26, 25);  // the red room in it
@@ -162,7 +162,7 @@ export function buildCasino(ctx: CtxBuild): void {
     for (let i = 0; i < 9; i++) g.fillRect(6 + i, 20 - i, 4, 1);
     g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(2, 2, 28, 2);
     dither(g, 32, 32, 22);
-  });
+  }), 'detail');
   mirrorT.wrapS = mirrorT.wrapT = THREE.RepeatWrapping;
   mirrorT.repeat.set(Math.max(1, Math.round(room.W / 1.6)), Math.max(1, Math.round(room.D / 1.6)));
   const mirror = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(mirrorT));
@@ -268,7 +268,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // single table in it is what a neighbourhood casino actually looks like —
   // the tables are where the house pays staff, so there is exactly as much
   // table as the room can justify.
-  const feltT = pixTex(64, 34, (g) => {
+  const feltT = declareSurface(pixTex(64, 34, (g) => {
     g.fillStyle = '#1e5a3e'; g.fillRect(0, 0, 64, 34);
     g.strokeStyle = 'rgba(216,208,192,0.55)'; g.lineWidth = 1;
     for (const r of [13, 18, 23]) { g.beginPath(); g.arc(32, 40, r, Math.PI, Math.PI * 2); g.stroke(); }
@@ -276,7 +276,7 @@ export function buildCasino(ctx: CtxBuild): void {
     g.fillRect(6, 6, 12, 1); g.fillRect(46, 6, 12, 1);
     g.fillStyle = '#c9a45e'; g.fillRect(29, 3, 6, 2);            // the house's own mark
     dither(g, 64, 34, 40);
-  });
+  }), 'detail');
   // Sized off the lanes it has to leave, not off what looks right in plan. It
   // sits between the east end of the slot banks and the east wall, so its
   // collider decides both of those gaps: 1.9 × 1.2 leaves 0.56 m of clear band
@@ -318,20 +318,20 @@ export function buildCasino(ctx: CtxBuild): void {
   // reach. High counter, barred grille above it, one gap in the bars to pass
   // notes through.
   const CAGE_X = 3.0, CAGE_W = 3.0, CAGE_Z = -hd + 0.3;
-  const cageWoodT = pixTex(48, 20, (g) => {
+  const cageWoodT = declareSurface(pixTex(48, 20, (g) => {
     g.fillStyle = '#3a2620'; g.fillRect(0, 0, 48, 20);
     g.fillStyle = 'rgba(0,0,0,0.25)';
     for (let x = 0; x < 48; x += 12) g.fillRect(x, 0, 1, 20);     // panelling
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 1, 48, 1);
     dither(g, 48, 20, 30);
-  });
+  }), 'detail');
   const cageFrontM = ctx.flat(cageWoodT);
   put(new THREE.Mesh(new THREE.BoxGeometry(CAGE_W, 1.05, 0.6),
     [cageFrontM, cageFrontM, brassM, cageFrontM, cageFrontM, cageFrontM]),
     CAGE_X, 0.525, CAGE_Z);
   solid(CAGE_X, CAGE_Z, CAGE_W, 0.6);
 
-  const grilleT = pixTex(96, 37, (g) => {
+  const grilleT = declareSurface(pixTex(96, 37, (g) => {
     g.fillStyle = '#141014'; g.fillRect(0, 0, 96, 37);
     g.fillStyle = '#2a2228'; g.fillRect(4, 3, 88, 31);           // the room behind
     g.fillStyle = '#3a3038';
@@ -343,18 +343,18 @@ export function buildCasino(ctx: CtxBuild): void {
     g.fillStyle = '#9a9aa0'; g.fillRect(0, 1, 96, 1); g.fillRect(0, 34, 96, 1);
     g.fillStyle = '#141014'; g.fillRect(40, 25, 16, 12);         // the gap you pass notes through
     g.fillStyle = '#c9a45e'; g.fillRect(40, 35, 16, 1);
-  });
+  }), 'detail');
   const grille = new THREE.Mesh(new THREE.PlaneGeometry(CAGE_W, 1.15), ctx.flat(grilleT));
   put(grille, CAGE_X, 1.63, -hd + 0.06);
 
   // CAGE, over the grille. A FrontSide plane on a wall, so GOTCHAS §10 — the
   // mirrored back face of a double-sided sign — cannot bite; but the letters
   // are asymmetric anyway, which is the check that rule asks for.
-  const signT = pixTex(48, 16, (g) => {
+  const signT = declareSurface(pixTex(48, 16, (g) => {
     g.fillStyle = '#241e22'; g.fillRect(0, 0, 48, 16);
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 48, 1); g.fillRect(0, 15, 48, 1);
     tube(g, 'CAGE', 24, 9, 11, '#e8c25a', '#fff4d0', '#2a2018');
-  });
+  }), 'sign');
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.24), ctx.flat(signT)),
     CAGE_X, room.H - 0.56, -hd + 0.06);
 
@@ -405,7 +405,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // clears the sightline to the
   // machines, and the face is PAINTED — a run of diamonds in two golds — because
   // one flat colour over that much area is what made it read as a slab.
-  const valT = pixTex(64, 12, (g) => {
+  const valT = declareSurface(pixTex(64, 12, (g) => {
     g.fillStyle = '#8a6a28'; g.fillRect(0, 0, 64, 12);
     g.fillStyle = '#a8862f';
     for (let x = 0; x < 64; x += 8) {
@@ -415,7 +415,7 @@ export function buildCasino(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, 0, 64, 1);
     g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 11, 64, 1);
     dither(g, 64, 12, 22);
-  });
+  }), 'detail');
   valT.wrapS = THREE.RepeatWrapping;
   const valFaceM = ctx.flat(valT);
   const valTopM = new THREE.MeshBasicMaterial({ color: 0x6a5220 });
@@ -433,11 +433,11 @@ export function buildCasino(ctx: CtxBuild): void {
   void valFaceM;
 
   // ── 777 on the back wall, in the facade's own red tube ──
-  const sevensT = pixTex(72, 26, (g) => {
+  const sevensT = declareSurface(pixTex(72, 26, (g) => {
     g.fillStyle = '#2a1418'; g.fillRect(0, 0, 72, 26);
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 72, 2); g.fillRect(0, 24, 72, 2);
     tube(g, '777', 36, 13, 20, '#ff4a3a', '#ffd8c0', '#3a1016');
-  });
+  }), 'sign');
   put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
   bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
 
@@ -470,12 +470,12 @@ export function buildCasino(ctx: CtxBuild): void {
   // ceiling paints the ceiling instead of the room — it put a blown-out white
   // patch on the mirrors directly above each pool. Down at 2.15 m it reads as
   // light hanging over the machines, which is what it is for.
-  const poolT = pixTex(32, 32, (g) => {
+  const poolT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(240,196,110,0.38)');
     gr.addColorStop(1, 'rgba(240,196,110,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
+  }), 'detail');
   const poolM = new THREE.MeshBasicMaterial({
     map: poolT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const pool = (w: number, d: number, lx: number, lz: number) => {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
@@ -68,7 +68,7 @@ export function buildTax(ctx: CtxBuild): void {
   // and how nobody ever re-lays it. The whole character is that alternate
   // tiles catch the light differently — that faint chequer is the only pattern
   // in the room, and it is not a pattern anybody chose.
-  const carpetT = pixTex(48, 48, (g) => {
+  const carpetT = declareSurface(pixTex(48, 48, (g) => {
     g.fillStyle = '#8e8a7e'; g.fillRect(0, 0, 48, 48);
     for (let ty = 0; ty < 2; ty++) for (let tx = 0; tx < 2; tx++) {
       const turned = (tx + ty) % 2 === 1;
@@ -84,7 +84,7 @@ export function buildTax(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(0,0,0,0.10)';
     g.fillRect(0, 23, 48, 1); g.fillRect(23, 0, 1, 48);          // the tile joints
     dither(g, 48, 48, 60);
-  });
+  }), 'ground');
   carpetT.wrapS = carpetT.wrapT = THREE.RepeatWrapping;
   carpetT.repeat.set(Math.round(room.W / 2.0), Math.round(room.D / 2.0));
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(carpetT));
@@ -96,7 +96,7 @@ export function buildTax(ctx: CtxBuild): void {
   // Mineral tile in a T-bar grid, with one tile pushed up out of its frame and
   // never pushed back — the single detail in this room that says a person has
   // been in here, and it is a person who was looking for a stopcock.
-  const ceilT = pixTex(32, 32, (g) => {
+  const ceilT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#b6b2a2'; g.fillRect(0, 0, 32, 32);           // the T-bar
     g.fillStyle = '#cdc9b8'; g.fillRect(1, 1, 30, 30);           // the tile
     g.fillStyle = 'rgba(0,0,0,0.05)';                            // its fissured face
@@ -105,7 +105,7 @@ export function buildTax(ctx: CtxBuild): void {
     }
     g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(1, 1, 30, 1);
     dither(g, 32, 32, 18);
-  });
+  }), 'detail');
   ceilT.wrapS = ceilT.wrapT = THREE.RepeatWrapping;
   ceilT.repeat.set(Math.round(room.W / 1.2), Math.round(room.D / 1.2));
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(ceilT));
@@ -123,12 +123,12 @@ export function buildTax(ctx: CtxBuild): void {
   // 0.2 m under the diffusers rather than against them: additive blending
   // brightens whatever is BEHIND the plane, so a glow flush to the ceiling
   // paints the ceiling instead of the room — the casino taught me that one.
-  const glowT = pixTex(32, 32, (g) => {
+  const glowT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(226,232,214,0.34)');
     gr.addColorStop(1, 'rgba(226,232,214,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
+  }), 'detail');
   const glowM = new THREE.MeshBasicMaterial({
     map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const diffuserM = new THREE.MeshBasicMaterial({ color: 0xe6e8d8 });
@@ -145,7 +145,7 @@ export function buildTax(ctx: CtxBuild): void {
   // full. The label holders are the detail worth having: a strip of card in a
   // chrome frame on every drawer, which is what makes a bank of grey boxes
   // read as somebody's filing rather than as lockers.
-  const cabT = pixTex(64, 44, (g) => {
+  const cabT = declareSurface(pixTex(64, 44, (g) => {
     g.fillStyle = '#8a8880'; g.fillRect(0, 0, 64, 44);
     for (let d = 0; d < 4; d++) {
       const y = 1 + d * 11;
@@ -156,7 +156,7 @@ export function buildTax(ctx: CtxBuild): void {
       g.fillStyle = '#e8e4d4'; g.fillRect(7, y + 4, 12, 2);       // the card in it
     }
     dither(g, 64, 44, 40);
-  });
+  }), 'detail');
   const cabM = ctx.flat(cabT);
   const CAB_Z = -hd + 0.28, CAB_X0 = -5.5, CAB_N = 5, CAB_W = 1.6;
   for (let i = 0; i < CAB_N; i++) {
@@ -172,13 +172,13 @@ export function buildTax(ctx: CtxBuild): void {
     new THREE.MeshBasicMaterial({ color: 0xa89a7c })), -3.4, 1.47, CAB_Z);
 
   // ── two desks, identical, square to the wall ──
-  const deskTopT = pixTex(48, 32, (g) => {
+  const deskTopT = declareSurface(pixTex(48, 32, (g) => {
     g.fillStyle = '#a89c82'; g.fillRect(0, 0, 48, 32);            // oak-effect laminate
     g.fillStyle = 'rgba(120,90,50,0.16)';
     for (let i = 0; i < 40; i++) g.fillRect(0, (i * 5) % 32, 48, 1);
     g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 48, 1);
     dither(g, 48, 32, 26);
-  });
+  }), 'detail');
   const deskTopM = ctx.flat(deskTopT);
   const deskSideM = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });
   const paperM = new THREE.MeshBasicMaterial({ color: 0xe4dfcc });
@@ -246,7 +246,7 @@ export function buildTax(ctx: CtxBuild): void {
   // West wall. IRS notices, a rates table and a curling poster, each pinned at
   // its own small angle — the only thing in this room that is not square, and
   // only because paper will not stay square.
-  const boardT = pixTex(80, 56, (g) => {
+  const boardT = declareSurface(pixTex(80, 56, (g) => {
     g.fillStyle = '#8a7250'; g.fillRect(0, 0, 80, 56);           // cork
     g.fillStyle = 'rgba(0,0,0,0.10)';
     for (let i = 0; i < 200; i++) g.fillRect((i * 13) % 80, (i * 29) % 56, 1, 1);
@@ -268,7 +268,7 @@ export function buildTax(ctx: CtxBuild): void {
     notice(8, 36, 26, 16, 0.03, '#e2d8c0');
     notice(40, 32, 30, 20, -0.02, '#dfe4d8');
     dither(g, 80, 56, 40);
-  });
+  }), 'sign');
   const board = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.2), ctx.flat(boardT));
   board.rotation.y = Math.PI / 2;                                 // faces +x, into the room
   put(board, -hw + 0.06, 1.55, -1.0);
@@ -278,7 +278,7 @@ export function buildTax(ctx: CtxBuild): void {
   // The casino has no clock, on purpose. This room has one, on purpose, and it
   // is the plainest object in it: a white face, black hands, a grey rim, hung
   // dead centre over the cabinets where everybody waiting can watch it.
-  const clockT = pixTex(32, 32, (g) => {
+  const clockT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#6e6a60'; g.beginPath(); g.arc(16, 16, 15, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#e8e4d8'; g.beginPath(); g.arc(16, 16, 13, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#2e2c28';
@@ -290,7 +290,7 @@ export function buildTax(ctx: CtxBuild): void {
     for (let t = 0; t < 7; t++) g.fillRect(16 + Math.round(Math.sin(2.1) * t), 16 - Math.round(Math.cos(2.1) * t), 1, 1);
     for (let t = 0; t < 10; t++) g.fillRect(16 + Math.round(Math.sin(-1.1) * t), 16 - Math.round(Math.cos(-1.1) * t), 1, 1);
     g.fillStyle = '#8a2c22'; g.fillRect(15, 15, 2, 2);
-  });
+  }), 'sign');
   const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42),
     new THREE.MeshBasicMaterial({ map: clockT, alphaTest: 0.5 }));
   put(clock, 0, 2.18, -hd + 0.06);
@@ -300,7 +300,7 @@ export function buildTax(ctx: CtxBuild): void {
   // The room's one ornament, and it is plastic. Drawn upright and evenly
   // spaced, which is exactly what gives it away — a real plant leans toward
   // the window and this one has never had a reason to.
-  const plantT = pixTex(36, 48, (g) => {
+  const plantT = declareSurface(pixTex(36, 48, (g) => {
     g.fillStyle = '#3a5a34';
     const leaf = (x0: number, y0: number, dx: number, dy: number, n: number, col: string) => {
       g.fillStyle = col;
@@ -316,7 +316,7 @@ export function buildTax(ctx: CtxBuild): void {
     g.fillStyle = '#6a6a60'; g.fillRect(11, 31, 14, 3);
     g.fillStyle = '#2e2a22'; g.fillRect(14, 33, 8, 2);
     dither(g, 36, 48, 18);
-  });
+  }), 'detail');
   const plant = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2),
     new THREE.MeshBasicMaterial({ map: plantT, alphaTest: 0.5, side: THREE.DoubleSide }));
   put(plant, 5.2, 0.6, -3.5);

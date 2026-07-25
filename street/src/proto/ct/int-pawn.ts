@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { FACE } from './rng';
@@ -99,14 +99,14 @@ export function buildPawn(ctx: CtxBuild): void {
   };
 
   // ── the floor ──
-  const floorT = pixTex(40, 40, (g) => {
+  const floorT = declareSurface(pixTex(40, 40, (g) => {
     g.fillStyle = '#6a6058'; g.fillRect(0, 0, 40, 40);
     g.fillStyle = 'rgba(0,0,0,0.10)';
     for (let i = 0; i < 60; i++) g.fillRect((i * 17) % 40, (i * 23) % 40, 3, 1);
     g.fillStyle = 'rgba(255,255,255,0.05)';
     for (let i = 0; i < 30; i++) g.fillRect((i * 29) % 40, (i * 11) % 40, 2, 2);
     dither(g, 40, 40, 70);
-  });
+  }), 'ground');
   floorT.wrapS = floorT.wrapT = THREE.RepeatWrapping;
   floorT.repeat.set(Math.round(room.W / 2.0), Math.round(room.D / 2.0));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(floorT));
@@ -123,7 +123,7 @@ export function buildPawn(ctx: CtxBuild): void {
 
   // ── the counter: one run, straight across the back ──
   const CTR_ZC = -hd + 1.1, CTR_D = 0.75;
-  const caseT = pixTex(96, 22, (g) => {
+  const caseT = declareSurface(pixTex(96, 22, (g) => {
     g.fillStyle = 'rgba(24,26,28,0.85)'; g.fillRect(0, 0, 96, 22);
     g.fillStyle = '#4a4640'; g.fillRect(0, 10, 96, 1);            // the shelf inside
     // rings on the top shelf, watches on the lower — each on its own tag
@@ -137,8 +137,8 @@ export function buildPawn(ctx: CtxBuild): void {
     }
     g.fillStyle = 'rgba(190,215,225,0.16)'; g.fillRect(0, 0, 96, 9);  // the glass
     g.fillStyle = '#8a8478'; g.fillRect(0, 0, 96, 1); g.fillRect(0, 21, 96, 1);
-  });
-  const frontT = pixTex(96, 26, (g) => {
+  }), 'detail');
+  const frontT = declareSurface(pixTex(96, 26, (g) => {
     g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 96, 26);
     g.fillStyle = '#4a3a2c';
     for (let x = 2; x < 96; x += 12) g.fillRect(x, 3, 9, 20);      // panelled
@@ -146,7 +146,7 @@ export function buildPawn(ctx: CtxBuild): void {
     for (let x = 2; x < 96; x += 12) g.fillRect(x, 22, 9, 1);
     g.fillStyle = '#5a4636'; g.fillRect(0, 0, 96, 2);
     dither(g, 96, 26, 50);
-  });
+  }), 'detail');
   const caseM = ctx.flat(caseT), frontM = ctx.flat(frontT);
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.9, CTR_D),
     [frontM, frontM, woodM, frontM, frontM, frontM]), 0, 0.45, CTR_ZC);
@@ -184,7 +184,7 @@ export function buildPawn(ctx: CtxBuild): void {
   // case and cannot reach it. Read left to right: the tools, the guitars, the
   // brass. That order is deliberate — the guitars are dead centre because they
   // are the thing you come in for.
-  const toolT = pixTex(64, 40, (g) => {
+  const toolT = declareSurface(pixTex(64, 40, (g) => {
     g.fillStyle = '#4a453c'; g.fillRect(0, 0, 64, 40);
     g.fillStyle = '#3a3630'; g.fillRect(2, 2, 60, 36);
     g.fillStyle = 'rgba(0,0,0,0.18)';
@@ -202,10 +202,10 @@ export function buildPawn(ctx: CtxBuild): void {
     }
     g.fillStyle = '#5a5348'; g.fillRect(2, 21, 60, 2); g.fillRect(2, 36, 60, 2);
     dither(g, 64, 40, 40);
-  });
+  }), 'detail');
   put(new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.2), ctx.flat(toolT)), -3.1, 2.05, -hd + 0.07);
 
-  const guitarT = pixTex(96, 44, (g) => {
+  const guitarT = declareSurface(pixTex(96, 44, (g) => {
     g.clearRect(0, 0, 96, 44);
     const bodies = ['#8a4a2a', '#3a3a44', '#6a3a2a', '#7a6a3a', '#4a2a2a', '#5a5a4a'];
     for (let i = 0; i < 6; i++) {
@@ -218,14 +218,14 @@ export function buildPawn(ctx: CtxBuild): void {
       g.fillStyle = '#c9a45e'; g.fillRect(x + 2, 32, 7, 1);
       tag(g, x + 3, 37);
     }
-  });
+  }), 'detail');
   // Sized and hung to clear the counter top at 1.25 m. Hung centred on the wall
   // instead, the counter ate the bottom half of every instrument — which is the
   // half with the body on it, so a wall of guitars read as a row of necks.
   put(new THREE.Mesh(new THREE.PlaneGeometry(4.4, 1.45),
     new THREE.MeshBasicMaterial({ map: guitarT, alphaTest: 0.5 })), 0.4, 2.05, -hd + 0.08);
 
-  const brassT = pixTex(40, 72, (g) => {
+  const brassT = declareSurface(pixTex(40, 72, (g) => {
     g.clearRect(0, 0, 40, 72);
     g.fillStyle = '#b08a3a';
     g.fillRect(6, 6, 20, 3); g.fillRect(24, 4, 4, 7);              // trumpet + bell
@@ -238,7 +238,7 @@ export function buildPawn(ctx: CtxBuild): void {
     g.fillRect(14, 46, 4, 14); g.fillRect(12, 60, 10, 6); g.fillRect(15, 42, 3, 5);
     g.fillStyle = '#c9a45e'; for (let i = 0; i < 4; i++) g.fillRect(19, 48 + i * 3, 2, 2);
     tag(g, 24, 56);
-  });
+  }), 'detail');
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.42),
     new THREE.MeshBasicMaterial({ map: brassT, alphaTest: 0.5 })), 3.9, 2.05, -hd + 0.08);
 
@@ -247,7 +247,7 @@ export function buildPawn(ctx: CtxBuild): void {
   // Four sets of four different vintages, none of them on. A pawn shop's TV
   // stack is always this: the thing nobody redeemed. Stacked to 2.1 m so it
   // shows well over a 1.25 m counter — a stack you cannot see is not a stack.
-  const tvT = pixTex(32, 26, (g) => {
+  const tvT = declareSurface(pixTex(32, 26, (g) => {
     g.fillStyle = '#4a453c'; g.fillRect(0, 0, 32, 26);
     g.fillStyle = '#2a2a2e'; g.fillRect(3, 3, 20, 17);             // the tube, dark
     g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(4, 4, 18, 6);
@@ -255,7 +255,7 @@ export function buildPawn(ctx: CtxBuild): void {
     g.fillStyle = '#8a8478'; g.fillRect(26, 6, 3, 2); g.fillRect(26, 10, 3, 2);
     tag(g, 25, 21);
     dither(g, 32, 26, 20);
-  });
+  }), 'detail');
   const tvM = ctx.flat(tvT);
   const tvBackM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
   const sizes: [number, number, number][] = [[0.78, 0.62, 0.55], [0.7, 0.56, 0.5], [0.62, 0.5, 0.46], [0.54, 0.44, 0.42]];
@@ -284,7 +284,7 @@ export function buildPawn(ctx: CtxBuild): void {
   // The one thing the customer can walk right up to, and it is still glass and
   // still locked. It keeps that wall from being blank without giving anything
   // away.
-  const cabT = pixTex(48, 40, (g) => {
+  const cabT = declareSurface(pixTex(48, 40, (g) => {
     g.fillStyle = '#3a3630'; g.fillRect(0, 0, 48, 40);
     g.fillStyle = '#241f22'; g.fillRect(3, 3, 42, 34);
     g.fillStyle = '#4a4640'; g.fillRect(3, 14, 42, 1); g.fillRect(3, 26, 42, 1);
@@ -297,7 +297,7 @@ export function buildPawn(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(190,215,225,0.14)'; g.fillRect(3, 3, 42, 34);
     g.fillStyle = '#8a8478'; g.fillRect(23, 3, 2, 34);             // the mullion
     dither(g, 48, 40, 26);
-  });
+  }), 'detail');
   const cab = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.6), ctx.flat(cabT));
   cab.rotation.y = Math.PI / 2;                                    // faces +x, into the room
   put(cab, -hw + 0.06, 1.5, -0.6);
@@ -315,7 +315,7 @@ export function buildPawn(ctx: CtxBuild): void {
   // CUSTOMER side, which is right: the big electronics are what a shop like
   // this puts where you can see the model numbers, and they are too heavy to
   // walk off with.
-  const shelfT = pixTex(72, 48, (g) => {
+  const shelfT = declareSurface(pixTex(72, 48, (g) => {
     g.fillStyle = '#3a3630'; g.fillRect(0, 0, 72, 48);
     g.fillStyle = '#4a453c'; g.fillRect(1, 1, 70, 46);
     // four shelves of separates — amps, decks, tuners, a pair of speakers
@@ -334,7 +334,7 @@ export function buildPawn(ctx: CtxBuild): void {
       }
     }
     dither(g, 72, 48, 44);
-  });
+  }), 'detail');
   const SH_W = 3.6, SH_H = 2.0, SH_X = hw - 0.22;
   const carcM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
   // Index 1 is the -x face, which is the one looking into the room. Index 0 is
@@ -349,19 +349,19 @@ export function buildPawn(ctx: CtxBuild): void {
 
   // WE BUY GOLD, over it. The one sign a pawn shop always has, and the only
   // thing in this room that is addressed to the street rather than to you.
-  const goldT = pixTex(64, 18, (g) => {
+  const goldT = declareSurface(pixTex(64, 18, (g) => {
     g.fillStyle = '#2a2018'; g.fillRect(0, 0, 64, 18);
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 64, 1); g.fillRect(0, 17, 64, 1);
     g.fillStyle = '#e8c25a'; g.font = 'bold 9px monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('WE BUY GOLD', 32, 9);
-  });
+  }), 'sign');
   const goldSign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.54), ctx.flat(goldT));
   goldSign.rotation.y = -Math.PI / 2;                 // faces -x, into the room
   put(goldSign, hw - 0.06, 2.32, -0.4);
 
   // and two horns hung high where nothing can reach them
-  const hornT = pixTex(40, 24, (g) => {
+  const hornT = declareSurface(pixTex(40, 24, (g) => {
     g.clearRect(0, 0, 40, 24);
     g.fillStyle = '#b08a3a';
     g.fillRect(3, 4, 22, 3); g.fillRect(23, 2, 5, 7);
@@ -370,7 +370,7 @@ export function buildPawn(ctx: CtxBuild): void {
     g.fillStyle = '#a8823a';
     g.fillRect(3, 16, 24, 3); g.fillRect(26, 14, 5, 7);
     tag(g, 12, 19);
-  });
+  }), 'detail');
   const horns = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.9),
     new THREE.MeshBasicMaterial({ map: hornT, alphaTest: 0.5 }));
   horns.rotation.y = -Math.PI / 2;
@@ -381,12 +381,12 @@ export function buildPawn(ctx: CtxBuild): void {
   // The brief asks for them and they are the detail that decides how the room
   // feels: the daylight is already cut into strips before it gets to you. One
   // plane with an alphaTest cutout rather than thirty boxes.
-  const barT = pixTex(48, 16, (g) => {
+  const barT = declareSurface(pixTex(48, 16, (g) => {
     g.clearRect(0, 0, 48, 16);
     g.fillStyle = '#2e2a26';
     for (let x = 1; x < 48; x += 4) g.fillRect(x, 0, 1, 16);
     g.fillRect(0, 1, 48, 1); g.fillRect(0, 14, 48, 1);
-  });
+  }), 'detail');
   barT.wrapS = THREE.RepeatWrapping;
   barT.repeat.set(5, 1);
   const bars = new THREE.Mesh(new THREE.PlaneGeometry(3.7, 1.55),
@@ -394,7 +394,7 @@ export function buildPawn(ctx: CtxBuild): void {
   put(bars, 2.6, 1.72, hd - 0.14);
 
   // ── the sign that says the quiet part ──
-  const noticeT = pixTex(48, 18, (g) => {
+  const noticeT = declareSurface(pixTex(48, 18, (g) => {
     g.fillStyle = '#ded4b8'; g.fillRect(0, 0, 48, 18);
     g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 48, 1); g.fillRect(0, 17, 48, 1);
     g.fillStyle = '#8a2c22'; g.font = 'bold 7px monospace';
@@ -402,17 +402,17 @@ export function buildPawn(ctx: CtxBuild): void {
     g.fillText('NO CHECKS', 24, 6);
     g.fillStyle = '#3a2c22'; g.font = '5px monospace';
     g.fillText('30 DAYS TO REDEEM', 24, 13);
-  });
+  }), 'sign');
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.34), ctx.flat(noticeT)), 2.0, 2.42, -hd + 0.07);
 
   // two caged bulbs over the counter, hung clear of the ceiling so they light
   // the room rather than painting the plaster above it
-  const glowT = pixTex(32, 32, (g) => {
+  const glowT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(244,214,150,0.40)');
     gr.addColorStop(1, 'rgba(244,214,150,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
+  }), 'detail');
   const glowM = new THREE.MeshBasicMaterial({
     map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   for (const lx of [-2.6, 2.6]) {

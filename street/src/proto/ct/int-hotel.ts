@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -87,7 +87,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // The tile is the grand half: a bordered period pattern, cream and ochre
   // with a dark inset at the crossings, laid at ~20 px/m to agree with the
   // kit's own floor (GOTCHAS §5 — density comes from real metres).
-  const tileT = pixTex(48, 48, (g) => {
+  const tileT = declareSurface(pixTex(48, 48, (g) => {
     g.fillStyle = '#b9ab93'; g.fillRect(0, 0, 48, 48);
     g.fillStyle = '#a2907a';                                   // the grout grid
     for (const v of [0, 24]) { g.fillRect(v, 0, 1, 48); g.fillRect(0, v, 48, 1); }
@@ -101,7 +101,7 @@ export function buildHotel(ctx: CtxBuild): void {
       g.fillRect(cx - 7, cy - 2, 1, 4); g.fillRect(cx + 6, cy - 2, 1, 4);
     }
     dither(g, 48, 48, 90);
-  });
+  }), 'ground');
   tileT.wrapS = tileT.wrapT = THREE.RepeatWrapping;
   tileT.repeat.set(Math.round(room.W / 2.4), Math.round(room.D / 2.4));
   const tile = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(tileT));
@@ -112,13 +112,13 @@ export function buildHotel(ctx: CtxBuild): void {
   // desk. It is a different MATERIAL, not a dirtier tile — sheet vinyl in a
   // colour that never matched, with the tile still showing at its edges. That
   // is what makes it read as a repair rather than as wear.
-  const vinylT = pixTex(32, 48, (g) => {
+  const vinylT = declareSurface(pixTex(32, 48, (g) => {
     g.fillStyle = '#6a6358'; g.fillRect(0, 0, 32, 48);
     g.fillStyle = 'rgba(255,255,255,0.06)';
     for (let y = 0; y < 48; y += 6) g.fillRect(0, y, 32, 1);    // the roll's own grain
     g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, 0, 2, 48); g.fillRect(30, 0, 2, 48);
     dither(g, 32, 48, 70);
-  });
+  }), 'ground');
   vinylT.wrapS = vinylT.wrapT = THREE.RepeatWrapping;
   vinylT.repeat.set(1, 3);
   const vinyl = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 6.8), ctx.flat(vinylT));
@@ -132,7 +132,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // and the desk is the thing you walk ALONG. Deep counter, mahogany front,
   // brass rail on top.
   const DESK_X = -4.55, DESK_Z = -1.0, DESK_L = 4.4;
-  const deskT = pixTex(24, 56, (g) => {
+  const deskT = declareSurface(pixTex(24, 56, (g) => {
     g.fillStyle = '#4a2a20'; g.fillRect(0, 0, 24, 56);
     g.fillStyle = '#5c382a';                                    // raised panels
     for (let y = 6; y < 52; y += 16) g.fillRect(3, y, 18, 12);
@@ -140,7 +140,7 @@ export function buildHotel(ctx: CtxBuild): void {
     for (let y = 6; y < 52; y += 16) g.fillRect(3, y + 11, 18, 1);
     g.fillStyle = '#6a4630'; g.fillRect(0, 0, 24, 3);           // the counter's edge
     dither(g, 24, 56, 34);
-  });
+  }), 'detail');
   const deskM = ctx.flat(deskT);
   const deskTopM = new THREE.MeshBasicMaterial({ color: 0x5c3826 });
   put(new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.12, DESK_L),
@@ -178,7 +178,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // The single most hotel-lobby object there is, and the one that carries the
   // story: most of the keys are still on their hooks, which means most of the
   // rooms are empty. A few holes have mail in them that nobody has collected.
-  const holesT = pixTex(96, 40, (g) => {
+  const holesT = declareSurface(pixTex(96, 40, (g) => {
     g.fillStyle = '#3a2418'; g.fillRect(0, 0, 96, 40);
     for (let r = 0; r < 4; r++) for (let c = 0; c < 12; c++) {
       const x = 2 + c * 8, y = 2 + r * 9;
@@ -191,7 +191,7 @@ export function buildHotel(ctx: CtxBuild): void {
     }
     g.fillStyle = '#5a4028'; g.fillRect(0, 38, 96, 2);          // the shelf under
     dither(g, 96, 40, 50);
-  });
+  }), 'detail');
   const holes = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.5), ctx.flat(holesT));
   holes.rotation.y = Math.PI / 2;                                // faces +x, into the room
   put(holes, -hw + 0.06, 1.85, DESK_Z);
@@ -199,7 +199,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // the rate card, framed under glass beside the pigeonholes. Weekly rates,
   // because that is what a hotel quotes when it has stopped being a hotel for
   // travellers and become one for residents — the whole fall, in four lines.
-  const rateT = pixTex(40, 28, (g) => {
+  const rateT = declareSurface(pixTex(40, 28, (g) => {
     g.fillStyle = '#e2dac4'; g.fillRect(0, 0, 40, 28);
     g.fillStyle = '#5a4028'; g.fillRect(0, 0, 40, 1); g.fillRect(0, 27, 40, 1);
     g.fillRect(0, 0, 1, 28); g.fillRect(39, 0, 1, 28);
@@ -213,7 +213,7 @@ export function buildHotel(ctx: CtxBuild): void {
       g.textAlign = 'right'; g.fillText(b, 36, 14 + i * 5);
     });
     g.fillStyle = 'rgba(190,215,225,0.20)'; g.fillRect(1, 1, 38, 26);   // the glass over it
-  });
+  }), 'sign');
   const rate = new THREE.Mesh(new THREE.PlaneGeometry(0.75, 0.52), ctx.flat(rateT));
   rate.rotation.y = Math.PI / 2;
   put(rate, -hw + 0.06, 1.55, DESK_Z + 2.85);
@@ -224,7 +224,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // of it, so a box here would only be a second wall in the same place — and
   // an unnecessary collider next to nothing is how the bodega's door got eaten
   // (GOTCHAS §8).
-  const liftT = pixTex(48, 56, (g) => {
+  const liftT = declareSurface(pixTex(48, 56, (g) => {
     g.fillStyle = '#6a6258'; g.fillRect(0, 0, 48, 56);          // the surround
     g.fillStyle = '#8a8478'; g.fillRect(3, 2, 42, 52);          // the doors
     g.fillStyle = '#5a544a'; g.fillRect(23, 2, 2, 52);          // the seam between them
@@ -234,14 +234,14 @@ export function buildHotel(ctx: CtxBuild): void {
     g.fillStyle = '#9a7c3a'; g.fillRect(38, 26, 5, 8);          // the call plate
     g.fillStyle = '#2a2620'; g.fillRect(39, 28, 3, 2);
     dither(g, 48, 56, 40);
-  });
+  }), 'detail');
   const lift = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.25), ctx.flat(liftT));
   lift.rotation.y = -Math.PI / 2;                                // faces -x, into the room
   put(lift, hw - 0.06, 1.13, -2.0);
 
   // the floor dial over it, stopped between floors — the detail that says the
   // lift has not moved in a while without anyone having to write it down
-  const dialT = pixTex(40, 22, (g) => {
+  const dialT = declareSurface(pixTex(40, 22, (g) => {
     g.fillStyle = '#3a2a1a'; g.fillRect(0, 0, 40, 22);
     g.fillStyle = '#d8cfb4'; g.fillRect(2, 2, 36, 18);
     g.strokeStyle = '#3a2a1a'; g.lineWidth = 1;
@@ -254,7 +254,7 @@ export function buildHotel(ctx: CtxBuild): void {
     g.fillStyle = '#8a2c22';                                     // the needle, between 2 and 3
     const na = Math.PI + 0.46 * Math.PI;
     for (let t = 0; t < 11; t++) g.fillRect(Math.round(20 + Math.cos(na) * t), Math.round(20 + Math.sin(na) * t), 1, 1);
-  });
+  }), 'detail');
   const dial = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.44), ctx.flat(dialT));
   dial.rotation.y = -Math.PI / 2;
   put(dial, hw - 0.06, 2.62, -2.0);
@@ -282,13 +282,13 @@ export function buildHotel(ctx: CtxBuild): void {
   chair(0.5, 2.3, 0x5a6a5c, 0.5, 1.2);      // a green wing-back, the oldest of them
   chair(2.7, 2.3, 0x7a5a3a, 0.38, -1.1);    // a tan one, lower and newer
   chair(1.6, 3.2, 0x6a4a52, 0.44, Math.PI); // maroon, facing the window
-  const lowT = pixTex(32, 20, (g) => {
+  const lowT = declareSurface(pixTex(32, 20, (g) => {
     g.fillStyle = '#5c3826'; g.fillRect(0, 0, 32, 20);
     g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 32, 2);
     g.fillStyle = 'rgba(0,0,0,0.20)';
     for (let x = 0; x < 32; x += 7) g.fillRect(x, 0, 1, 20);
     dither(g, 32, 20, 20);
-  });
+  }), 'detail');
   put(new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.06, 0.6), ctx.flat(lowT)), CH_X, 0.44, CH_Z);
   for (const sx of [-0.4, 0.4]) for (const sz of [-0.2, 0.2]) {
     put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.05), mahogM), CH_X + sx, 0.21, CH_Z + sz);
@@ -303,7 +303,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // In the corner by the door, where it was put to be the first thing you saw.
   // Drawn as a sprite with alphaTest, the same treatment as the diner's
   // waitress — a plant is all silhouette and a box cannot do it.
-  const palmT = pixTex(40, 56, (g) => {
+  const palmT = declareSurface(pixTex(40, 56, (g) => {
     g.fillStyle = '#6a4a2a'; g.fillRect(18, 22, 3, 22);          // the trunk
     // fronds, all of them hanging DOWN — that is the whole difference between
     // a palm and a dead palm, and it is worth more than any amount of brown
@@ -323,7 +323,7 @@ export function buildHotel(ctx: CtxBuild): void {
     g.fillStyle = '#7a4a2e'; g.fillRect(11, 43, 17, 3);
     g.fillStyle = '#3a2e22'; g.fillRect(14, 45, 11, 2);          // dry soil
     dither(g, 40, 56, 24);
-  });
+  }), 'detail');
   const palm = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.6),
     new THREE.MeshBasicMaterial({ map: palmT, alphaTest: 0.5, side: THREE.DoubleSide }));
   put(palm, -4.8, 0.8, 3.6);
@@ -336,7 +336,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // photograph of the ORPHEUS when the awning was new and there were cars
   // outside. Hung a few degrees off level, because nobody has straightened it
   // in years — which says more about the place than any amount of dirt would.
-  const photoT = pixTex(56, 40, (g) => {
+  const photoT = declareSurface(pixTex(56, 40, (g) => {
     g.fillStyle = '#4a3624'; g.fillRect(0, 0, 56, 40);           // the frame
     g.fillStyle = '#6a5238'; g.fillRect(1, 1, 54, 38);
     g.fillStyle = '#cfc6ae'; g.fillRect(4, 4, 48, 32);           // the mount
@@ -350,7 +350,7 @@ export function buildHotel(ctx: CtxBuild): void {
     for (const cx of [12, 24, 38]) g.fillRect(cx, 24, 8, 4);     // cars outside it
     g.fillStyle = 'rgba(190,215,225,0.14)'; g.fillRect(4, 4, 48, 32);
     dither(g, 56, 40, 30);
-  });
+  }), 'detail');
   const photo = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.75), ctx.flat(photoT));
   photo.rotation.z = 0.035;                                       // crooked, and left that way
   put(photo, 1.2, 1.85, -hd + 0.06);
@@ -375,12 +375,12 @@ export function buildHotel(ctx: CtxBuild): void {
   // DIFFERENTLY, not just unlit: a cold grey shade against three warm ones. An
   // unlit copy of a lit thing reads as a rendering mistake; a different colour
   // reads as a dead bulb.
-  const glowT = pixTex(32, 32, (g) => {
+  const glowT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(248,214,140,0.42)');
     gr.addColorStop(1, 'rgba(248,214,140,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
+  }), 'detail');
   const glowM = new THREE.MeshBasicMaterial({
     map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   const litShadeM = new THREE.MeshBasicMaterial({ color: 0xe0cf9a });
