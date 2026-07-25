@@ -1486,3 +1486,54 @@ match a flat frontage is the design call I flagged before, unchanged.
 
 The side-street pair still fire from **1.9 m into the carriageway**, unchanged by
 this fix — that one is genuinely a radius, not a selection.
+
+---
+
+# Correction: the BODEGA **does** have a published frontage. My probes could not read it.
+
+I reported twice that *"the BODEGA has no published frontage"* and built a
+narrative on it — that three separate probes had singled the shop out as built
+differently. **One of those three was my own bug.**
+
+The roster entry exists:
+
+```
+BODEGA   axis: "x"   span 10.4 … 16.45   facePos -96   door 12.8234
+```
+
+**It is an `axis: 'x'` frontage** — it runs along x on the side street's north
+face at z = −96, which is exactly where the bodega is. My probes assumed every
+frontage was `axis: 'z'` and compared a z coordinate against an x span, so
+`route.mjs` returned *"(no frontage covers it)"* for a frontage that covers it
+perfectly well.
+
+## What this invalidates, precisely
+
+- **"The bodega has no frontage entry"** — withdrawn. It has one.
+- **The three-probe narrative** — reduced to two: the canted bay is real, and
+  the trigger sitting off the walk line was real (and has since been fixed by
+  `098269aa`). The third leg was mine.
+- **`doorside2.mjs`'s bodega row** — it compared an interior x-offset against a
+  frontage whose own axis is x, on a facade whose normal runs along z. That
+  comparison is not meaningful and its `centred — undecidable` verdict for the
+  bodega should be read as *no verdict*, not as a measurement.
+
+## What survives, and is a genuine gap
+
+**`GOLDEN ACES` and `HOTEL ORPHEUS` are not in the roster at all.** Sixteen
+frontages are published — BURGER BARN, DINER, THRIFT, A-1 TAX, LIQUOR, PAWN,
+BODEGA, FLOWERS, CHOP SUEY, DELI, RECORDS, GARAGE, BILLIARDS, SMOKES, LOANS,
+RADIO — and the casino and the hotel are not among them, despite both having
+`[E]` doors that `doorsweep` finds and both having interiors.
+
+That is a real coverage gap and it is not an artefact of my axis confusion: I
+checked the names, not the geometry.
+
+## The lesson, which is getting repetitive on purpose
+
+A published record had **two axis conventions** and I only ever handled one.
+Every conclusion I drew from `__frontages` — the door cross-check, the routing
+note, the bodega narrative — silently skipped every `axis: 'x'` entry.
+
+> **A field named `axis` exists because the answer differs by axis.** I read the
+> field, stored it, printed it, and never branched on it.
