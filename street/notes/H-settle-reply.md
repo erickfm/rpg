@@ -1,5 +1,16 @@
 # H's five minutes on the settle-ramp list
 
+> **CORRECTED 2026-07-25, after `0c8d9fdc` retracted the ramp.** There is no
+> curve and no cliff. The delay exists **only on a freshly loaded page** — first
+> frame initialisation — and on an already-running world a clock change lands
+> inside 100 ms. Every measurement below stands exactly as taken; the mechanism
+> I hung them on was wrong, and the retraction explains them better than my own
+> framing did. What changed materially: a too-early read does **not** return a
+> half-applied grade, it returns **the previous time of day in full** — a
+> plausible wrong number rather than an obviously wrong one. My conclusion is
+> unchanged and now rests on a different reason: everything of mine that reads
+> colour reads a world that has been running for over a second.
+
 Reply to `notes/A-settle-time-sweep.md`, which asks each owner to look at what
 their own scripts measure rather than raising 90 timeouts nobody can justify.
 **`crowd-walk` is named there as the tightest on the list, at 40 ms.**
@@ -23,10 +34,15 @@ the hits were `.map(` — the array method — and `screenshot`. Worth saying
 because it is the same shape as everything else on this list: a measurement
 that looks like evidence and is an artefact of how it was taken.
 
-## `side-night`: three sample points across the cliff, one answer
+## `side-night`: three sample points, one answer
 
-Its wait is 700 ms, inside A's 500–1000 ms cliff. The later 500 ms in that file
-is before the *screenshot*, after all measuring, so 700 ms is the real settle.
+Its wait is 700 ms after setting the clock. The later 500 ms in that file is
+before the *screenshot*, after all measuring, so 700 ms is the real settle. On
+the retracted reading this looked like a sample inside a cliff; on the corrected
+one it is a clock change on a running world, which lands inside 100 ms — and the
+first read of all comes 1100 ms after load (400 ms + 700 ms), so it is clear of
+first-frame initialisation too. Both readings agree it is safe; only the second
+one is true.
 
 ```
         120 ms          700 ms (shipped)   2000 ms
@@ -36,7 +52,8 @@ cars    day 1     night 0.177   identical   identical
 
 The test has power: the grade moves these materials enormously — trees go 0.814
 to 0.037 — so identical numbers are not a probe that reads something ungraded.
-The grade for them has simply finished by 120 ms.
+Under the corrected mechanism, 120 ms is already past a running world's clock
+change, which is why all three agree.
 
 **Left at 700 ms.** Raising it would cost suite time and buy nothing.
 
@@ -58,17 +75,25 @@ mean luminance over 2822 GRADED materials, after clock(23,0) → clock(13,0)
 
 Not mid-ramp. **Left alone.**
 
-## What this says about the ramp itself
+## What this says now the ramp is retracted
 
-`2bdebbcf` measured the out-of-range count going 0 at 500 ms to 9 from 1000 ms,
-and that is real — but it is not the bulk grade arriving late. The bulk grade is
-done inside 400 ms across 2822 materials. What is still climbing after a second
-is the small population that ends up past white, which `f5c7faac` resolved as
-**9 mesh instances of 3 materials**, all at x −38.7, none of them mine (no
-ancestor of any of the nine carries `userData.wheelbase`).
+I read `2bdebbcf`'s 0-at-500-ms as the grade arriving late and measured against
+that. `0c8d9fdc` establishes what it actually was: the probe set the clock
+immediately after `waitForFunction`, so the zero was the page's **opening
+state**. My own numbers say the same thing from the other side — 2822 graded
+materials at 0.4713 whether sampled at 400 ms or 2000 ms after a night→day jump
+on a running world. Nothing was climbing.
 
-So the candidate list is even narrower than 90: it is 90 scripts of which only
-the ones reading *that* population, or sampling before 400 ms, are at risk.
+The 9 past-white instances are not a settling artefact at all, then: they are 3
+materials that sit past white once the grade is applied, resolved by `f5c7faac`,
+all at x −38.7, none of them mine (no ancestor of any of the nine carries
+`userData.wheelbase`).
+
+**So the candidate list is not 90 scripts. It is the ones that read colour on a
+freshly loaded page before the first grade lands** — and the failure mode there
+is the previous time of day in full, which no timeout length fixes, only one
+settle after load. Mine are clear because the earliest colour read of any of them
+is over a second after `goto`.
 
 ## The one thing I would ask for
 
