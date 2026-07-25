@@ -226,22 +226,42 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   for (const lz of [lz0, lz1]) {
     lay(lx0 + CHAM, lx1 - CHAM, lz - PATH_W / 2, lz + PATH_W / 2, 'path');   // the ends
   }
-  // …and the four corners that turn between them
+  // …and the four corners that turn between them.
+  //
+  // They OVERLAP the legs on purpose: a PATH_W-wide diagonal meeting a
+  // PATH_W-wide straight at 45° leaves a triangular notch on the outside of
+  // every turn unless it runs past the join, so each corner is drawn 0.3 m long
+  // at both ends. That is eight overlaps of two coplanar surfaces, and both
+  // were at exactly KERB_H + LIFT — the §6 fault, and the flavour of it that a
+  // screenshot cannot be trusted on, because which surface wins depth-fights is
+  // view-dependent and a still frame may show either.
+  //
+  // §6 says abut, never overlap, and where an overlap is the right drawing the
+  // answer this file already uses everywhere else is to separate in y: the
+  // field is at LIFT × 0.5, the paths at 1.0, litter at 1.5, the bald ring at
+  // 2.0, the desire lines at 2.5. The corners take 1.25 — 1.5 mm over the legs
+  // they cross, under everything laid on the grass, and far too little to read
+  // as a lip on a path you walk over.
   const corner = (cx: number, cz: number, sx: number, sz: number) => {
     const len = Math.hypot(CHAM, CHAM) + PATH_W * 0.4;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(PATH_W, len),
       wet(flat(surfaceTex(PATH_W, len, 'path'))));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = -Math.atan2(sx * CHAM, sz * CHAM);
-    m.position.set(cx + sx * CHAM / 2, KERB_H + LIFT, cz + sz * CHAM / 2);
+    m.position.set(cx + sx * CHAM / 2, KERB_H + LIFT * 1.25, cz + sz * CHAM / 2);
     scene.add(m);
   };
   corner(lx0, lz0 + CHAM, 1, -1);
   corner(lx0, lz1 - CHAM, 1, 1);
   corner(lx1, lz0 + CHAM, -1, -1);
   corner(lx1, lz1 - CHAM, -1, 1);
-  // in from the gate to meet the circuit
-  lay(site.maxX, lx1, gateMid - 1.9 / 2, gateMid + 1.9 / 2, 'path');
+  // In from the gate to MEET the circuit — to its near edge, not through it.
+  // Written as `lx1` this ran to the leg's CENTRELINE and overlapped its east
+  // half, 0.75 × 1.9 m of two coplanar path surfaces at the same height, in the
+  // one place every visitor walks over on the way in. Axis-aligned rectangles
+  // can abut exactly, which is what §6 actually asks for, so this is the edge
+  // rather than a y-separation like the corners need.
+  lay(site.maxX, lx1 + PATH_W / 2, gateMid - 1.9 / 2, gateMid + 1.9 / 2, 'path');
 
   // The field itself: mown, and mown in stripes, because a parks department
   // mows in stripes and it is the cheapest way to say "this is maintained,
