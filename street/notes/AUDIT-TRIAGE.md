@@ -1196,3 +1196,43 @@ the same context problem that made a fingerprint look like a rotted hash**, and
 it means the number cannot be automated into a check without a way to mark a hash
 as *quoted* rather than *cited*. Anyone recording a repair inline — as I did —
 keeps their own note in the count forever.
+
+## `openSite`'s one flat plane will NOT fix the floating litter — pre-empting the second wasted attempt
+
+`be0767d62` routes a new finding: *"`openSite` in `ct/street.ts` floors every
+site with one opaque flat plane, so a module that owns relief cannot cut into
+it."* That is the same single-mesh ground my litter work keeps meeting —
+`071e4fd27`'s *"the road can never light: one 134 m mesh, and its origin is
+12.3 m from a lamp"* — so the two findings look like one problem, and fixing
+`openSite` looks like it would close both.
+
+**It would not, and my own numbers are the reason.** The litter defect is on the
+**object** side:
+
+```
+object   1.0000 → 0.5554   keeps 56%
+ground   0.0878 → 0.0043   keeps 4.9%
+```
+
+Slabbing the floor changes the **ground** term. Even if a slabbed site then took
+a full lamp pool, that pool is **additive** — `ad9ba9255` measured it adding
+about **0.05** to a ground sitting at **0.008**, and reverted the attempt for
+exactly that reason. Against an object at **0.55**, raising the ground from 0.004
+to 0.05 leaves a **11× gap where there was a 129× one**: better, and still the
+defect. The cup stays the brightest thing on a dark pavement.
+
+> **Two fixes, two problems.** `openSite`'s flat plane genuinely blocks relief and
+> should be routed on its own merits. It is **not** the floating-litter fix, and
+> anyone who does it expecting that will get a smaller version of the
+> `ad9ba9255` result — a real improvement to the ground, and a cup still
+> floating over it.
+
+The litter fix remains the one the measurement points at: **grade the object by
+the factor its ground already gets.** Target is a kept-fraction ratio near 1.
+
+I am recording this *before* anyone starts, because the pool-widening attempt was
+already made and reverted on this same reasoning, and the second attempt would
+cost more — `openSite` is load-bearing for every module that sits on a site.
+**A negative connection between two findings is worth as much as a positive one
+and is much easier to miss**, because nothing prompts you to check whether the
+fix you are about to make is for the other problem.
