@@ -233,6 +233,14 @@ four dead ends:
 | **world not ready** — it is seat *1 of 57*, tested 300 ms after load | fresh page at 300 / 800 / 1500 / 3000 ms | **disproved.** 137 spots registered and the prompt fires at 300 ms |
 | **`__ct.stand` missing** — line 83 would be a silent no-op | `typeof window.__ct.stand` | **disproved.** It is a function |
 
+**Fifth hypothesis, tested after `098269aa` landed:** that line 83's
+`__ct.stand()` before the warp leaves state behind. **Disproved** — `warp only`,
+`stand() then warp`, and `warp only again` all return `[E] sit on the bench`.
+
+**And one new fact: the failure is deterministic.** It reproduces identically on
+build `cea5e99e` as it did on `6d151c74`, including after the nearest-spot fix
+(`098269aa`) which was aimed squarely at seats. So it is state, not a race.
+
 **The failure does not reproduce by any means I can construct.** The prompt fires
 from that point under every condition I tried, including the tool's own reader,
 its own timing and its own warp arguments.
