@@ -1316,3 +1316,47 @@ is the one note in the project with **zero** dead citations.
 > **A request pinned to a number is a request that expires.** Mine should have
 > named the rule and let the desk pick the slot — the number was the one part of
 > it I had no business choosing.
+
+# `checks-registered` audits the new convention and is blind to everything older — 25 scripts
+
+`ebaae4e7e` found `E-coplanar`'s churchyard box scanning **x −10.5…−7.1** when
+the churchyard is at **positive x, 40 m up the street** — *"the check passed
+every run since I wrote it, having examined nothing."* I swept for that class
+across every script, and it is small: **5 carry inline region literals, 4 of
+those are sample lists or camera distances, and the one real instance is the one
+already fixed.** Class closed.
+
+**The sweep turned up something larger on the way.** `E-coplanar` *"fixed three
+real faults"* and is **not registered**. Nor is `E-yard-walk`, the harness that
+walks the churchyard. Neither trips `checks-registered`, and the reason is
+structural:
+
+```
+scripts that ASSERT, have no --selftest, and are not registered: 25
+```
+
+`checks-registered` opens with *"A check written but never registered runs
+exactly never"* and lists orphans — but its population is **scripts that carry a
+`--selftest`**. That convention arrived after most of these were written, so the
+audit sees the new checks and is blind to the old ones. It currently reports
+**3** orphans while **25** asserting scripts run never beside them.
+
+| | |
+|---|---|
+| `lamplight`, `parking` | asserting checks — and the two `no-silent-pass` just caught **passing vacuously** on an unknown mode. Invisible to the registration audit |
+| `E-coplanar`, `E-yard-walk` | found and fixed real faults; run never |
+| `scenedump`, `shotguard` | tools rather than checks — they belong in the 25 and should **not** be registered |
+
+**Not all 25 should be registered**, and that is the point: **nothing
+distinguishes them and nothing prompts the question.** A one-off diagnostic and a
+proven fault-finder look identical from outside.
+
+The narrow fix is one line in the population: flag scripts that **assert** —
+`process.exit(1)` or `exitCode = 1` — rather than scripts that self-test. That
+turns 3 orphans into 28 candidates, most of which resolve to a one-word `EXEMPT`
+reason, and it stops the audit's own coverage from depending on which convention
+a script was born under.
+
+`checks-registered.mjs` is not a file I edit — and per my earlier finding, **it
+is one of the files nobody is permitted to edit**, which is the same ownership
+gap still open.
