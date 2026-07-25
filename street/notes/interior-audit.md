@@ -1077,3 +1077,65 @@ so it under-reads by whatever the tiling factor is. My earlier 18.3–21.3 figur
 came from a method that accounted for it. Two numbers from two methods are not a
 trend, and I would rather say so than publish a regression that is an artefact
 of my own arithmetic.
+
+## Round 18 — the ceiling spread has a root cause, and it is not the builders
+
+I have reported the 0.90 m ceiling spread three times without a cause. Here it
+is. The kit takes the height as a parameter with a default and a docstring
+(`ct/interior.ts:153`, `:386`):
+
+```ts
+/** ceiling height. 2.9 is a shop; a casino or a library wants more */
+h?: number;
+...
+const D = spec.d, H = spec.h ?? 2.9;
+```
+
+What the eight rooms actually ask for:
+
+| room | asks | vs the 2.9 default |
+|---|---|---|
+| hotel | 3.40 | +0.50 |
+| burger | 3.20 | +0.30 |
+| diner | 3.00 | +0.10 |
+| pawn | 2.80 | −0.10 |
+| tax | 2.75 | −0.15 |
+| thrift | 2.75 | −0.15 |
+| bodega | 2.60 | −0.30 |
+| **casino** | **2.50** | **−0.40** |
+
+**Every room overrides the default. Not one of the eight uses 2.9.** Five of the
+eight go *below* it. The measured ceilings match the requested ones to the
+centimetre, so the kit is honouring every request faithfully — **the kit is not
+broken, the guidance is.**
+
+### The sharp end
+
+The docstring names two examples of rooms that want **more** than 2.9. One of
+them is a casino. **The casino is 2.50 — the lowest ceiling in the world**, and
+0.90 m below the hotel that sits four slabs away.
+
+The kit states its intent and the only room it names by example does the exact
+opposite. Nothing catches that, because a docstring is not a constraint.
+
+### The pattern, stated the way pattern #1 was
+
+> **A default that no caller uses is not a default — it is a number in a
+> comment.** `2.9` has never once been the height of a room in this world. The
+> spread is not eight builders disagreeing with each other; it is eight builders
+> each answering a question the kit asked them and then did not check.
+
+### What I would do about it, and what I would not
+
+- **Not** a mandate to normalise the eight numbers. Varied headroom is good, and
+  the hotel being taller than the bodega is right.
+- **Do** decide whether the casino at 2.50 is deliberate. If it is, the
+  docstring's example is wrong and should be changed — it is actively
+  misleading the next builder. If it is not, the casino is the one room to move.
+- **Consider** whether `h` should be required rather than defaulted. A default
+  nobody uses costs nothing to delete, and deleting it forces the question to be
+  answered on purpose in each room instead of inherited by accident.
+
+This closes the ceiling-height finding as far as an auditor can take it: the
+measurement is confirmed over eight rooms, the cause is identified in the kit
+rather than in any builder, and the decision it needs is a human one.
