@@ -16,6 +16,33 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Rain must wet the BUILDINGS, not just the ground.** The user:
+      *"building should also get affected by the rain"*.
+
+      Today `wetMats` only holds horizontal surfaces — the roads and the walks,
+      registered through `ctx.wet()`. Every facade on the block stays bone dry
+      through a storm, which is most of what you can see, so the rain reads as
+      something happening to the floor rather than to the world.
+
+      **Do it without editing anybody else's file.** `props.ts` already has the
+      pattern: `dimWorld(scene)` traverses the whole scene after everything is
+      built and registers what nothing else claimed. Write the rain equivalent
+      and you need no cooperation from D, E or A — which matters, because all
+      three are live in their files right now.
+
+      A wet wall is not just a darker wall. What actually reads:
+      · darkening that is STRONGEST AT THE BASE — splash-back off the sidewalk
+        soaks the bottom half-metre or so and fades upward
+      · streaks running down from sills, copings and anything that sheds
+      · the wall going slightly cooler and more saturated, not just dimmer
+      · it should dry from the top down, on the same `wetness` state you
+        already built, so it outlasts the rain like the ground does
+
+      Watch the interaction with the night pass: `dimWorld` and your rain
+      registry must not both own the same material, the same way `updateRain`
+      and `dimWorld` already negotiate that today. Do not let a wet wall at
+      night go to black.
+
 - [ ] **Fix the puddle contrast inversion — the desk approves your
       recommendation.** Your diagnosis (`bc20c70`) is the best piece of
       debugging on this project so far: the puddles are present, filled,
