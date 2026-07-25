@@ -29,7 +29,28 @@ whole verification.
 
 ---
 
-## 1. The park cannot be deepened from my file, and 6.4 m is the real ceiling
+## 1. THE DEPTH LANDED WITHOUT THE CLAMP — 25 m of park is unreachable
+
+**Updated.** D's `depth` is **32.0** now. `bounds.minX` in `crosstown.ts` is
+still `-FACE - 6.4` = **−13.4**. Walked and confirmed: you enter the park,
+walk west, and stop dead at x = −13.40 with 25 m of it in front of you.
+
+This is exactly the case this file warned about before the depth landed —
+*"deepening the site alone builds a park you can see and not enter"* — and it
+is now live. **One line, and it is the entry point's.** For the full 32 m:
+
+```ts
+bounds: { minX: -FACE - 33, … }     // -40, clearing the rear wall at -39
+```
+
+I have laid the park out at its TRUE size rather than at the clamp, because
+built to the clamp it was a 6 m strip of path in front of 25 m of bare grass
+inside 13 m walls, which is what the gate looked into. Every metre becomes
+walkable the moment the bound moves and nothing in `ct/park.ts` needs
+changing. Until then `scripts/E-park-walk.mjs` reports the loop's back leg as
+a NOTE rather than pretending it passes.
+
+## 1b. (historical) The park could not be deepened from my file
 
 Queue item: **"Rebuild it 4–5× deeper as a real park."** The frontage half is
 done and live — railings, gate, piers — and from the pavement it now reads as

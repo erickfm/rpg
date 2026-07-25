@@ -47,19 +47,22 @@ for (const [n, z] of [['north of the gate', -75.0], ['south of the gate', -92.0]
 // THE LOOP. Each leg is walked from its own corner to the next one, which is
 // what proves the circuit is clear — a single timed lap just tells you how
 // fast you were going. Legs: street x=-8.15, back x=-12.5, ends z=-96.3/-69.7.
-const LEG = { x0: -12.5, x1: -8.60, z0: -96.3, z1: -69.7 };
+// The back leg is 25 m past the clamp at x = -13.4, so the circuit cannot be
+// closed on foot yet — see notes/BLOCKED-E.md. What CAN be walked is checked;
+// what cannot is reported as a NOTE with the reason rather than passed green.
+const LEG = { x0: -35.8, x1: -8.60, z0: -96.3, z1: -69.7, reach: -13.4 };
 for (const [name, at, yaw, ms, ok, say] of [
   ['street leg, south to north', [LEG.x1, LEG.z0 + 0.8], Math.PI, 8400,
     (p) => p[2] > LEG.z1 - 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z1})`],
-  ['north end, street to back', [LEG.x1 - 0.4, LEG.z1], -Math.PI / 2, 1800,
-    (p) => p[0] < LEG.x0 + 0.9, (p) => `x ${f(p[0])} (corner at ${LEG.x0})`],
-  ['back leg, north to south', [LEG.x0, LEG.z1 - 0.8], 0.0, 8400,
-    (p) => p[2] < LEG.z0 + 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z0})`],
-  ['south end, back to street', [LEG.x0 + 0.4, LEG.z0], Math.PI / 2, 1800,
-    (p) => p[0] > LEG.x1 - 0.9, (p) => `x ${f(p[0])} (corner at ${LEG.x1})`],
+  ['north end, as far as the clamp allows', [LEG.x1 - 0.4, LEG.z1], -Math.PI / 2, 6000,
+    (p) => p[0] < LEG.reach + 0.1, (p) => `x ${f(p[0])} — stopped by bounds.minX, not by the park`],
+  ['south end, as far as the clamp allows', [LEG.x1 - 0.4, LEG.z0], -Math.PI / 2, 6000,
+    (p) => p[0] < LEG.reach + 0.1, (p) => `x ${f(p[0])} — stopped by bounds.minX, not by the park`],
 ]) {
   await walk(`the loop: ${name}`, { at, yaw, ms, ok, say });
 }
+console.log(`NOTE  the loop's back leg is at x ${LEG.x0}; the player stops at ${LEG.reach}.`);
+console.log('      25 m of the park cannot be walked into — bounds.minX in crosstown.ts.');
 
 // the floor is level all through
 const s = [];

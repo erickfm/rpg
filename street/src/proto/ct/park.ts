@@ -63,13 +63,19 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const [gz0, gz1] = gate ?? [site.minZ + W * 0.36, site.maxZ - W * 0.36];
   const gateMid = (gz0 + gz1) / 2;
 
-  // How far back you can actually GET, which is not how far back the park
-  // goes: `crosstown.ts` clamps the player at x = -13.4 and the rear wall
-  // stands at -14.0. Every path is laid inside the reachable part, because a
-  // path you cannot walk to the end of is worse than no path. See
-  // notes/BLOCKED-E.md — when the bound moves, this moves with it.
+  // How far back you can actually GET, which is NOT how far back the park
+  // goes. The site is 32 m deep now; `crosstown.ts` still clamps the player
+  // at x = -13.4, so 25 m of it cannot be walked into. See notes/BLOCKED-E.md.
+  //
+  // The layout is laid out at the site's TRUE size anyway, and that is a
+  // deliberate call. Built to the clamp instead, the park was a 6 m strip of
+  // path in front of 25 m of bare grass inside 13 m walls — which is what the
+  // gate looked into, and it is worse than either a shallow park or a deep
+  // one. The invisible wall at -13.4 exists either way; this at least makes
+  // the space read as a park up to it and past it, and every metre becomes
+  // walkable the moment the bound moves. Nothing here needs changing then.
   const REACH = -13.4;
-  const backX = Math.max(site.minX + 0.6, REACH + 0.9);
+  const backX = site.minX + 3.2;
 
   // ── THE EDGE LINE ────────────────────────────────────────────────────────
   //
@@ -398,8 +404,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // one on the street leg looking back across the grass, one at each end of
   // the loop looking down the length of it
   bench(inside(0.34), gateMid + 4.6, -Math.PI / 2);
-  bench((lx0 + lx1) / 2 + 1.2, lz0 - 1.05, Math.PI);
-  bench((lx0 + lx1) / 2 - 1.2, lz1 + 1.05, 0);
+  // the two end benches sit at the STREET end of each end leg — the middle of
+  // a 25 m leg is well past the clamp, so a seat there could not be sat on
+  bench(Math.max(lx1 - 4.0, REACH + 0.8), lz0 - 1.05, Math.PI);
+  bench(Math.max(lx1 - 6.5, REACH + 0.8), lz1 + 1.05, 0);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
