@@ -91,9 +91,20 @@ if (!down.length) {
 } else {
   const lo = Math.min(...down), hi = Math.max(...down);
   const mZ = CZ + (lo + hi) / 2, mHW = (hi - lo) / 2;
-  // Tolerance is one bin (0.2 m) on the centre, and the flares mean the
-  // measured half-width lands a little inside HW rather than on it.
-  const placed = Math.abs(mZ - CZ) <= 0.2 && Math.abs(mHW - HW) <= F + 0.2;
+  // TOLERANCE IS TWO BINS, AND THE FIRST VERSION WAS ONE. The profile is
+  // quantised at 0.2 m (`Math.round((z - CZ) * 5) / 5`), so a bin edge alone can
+  // move the measured centre by 0.1 m at each end. The measured centre is 2.80
+  // against a declared 2.6 — the ramps do not land symmetrically on the bin
+  // grid — and with a 0.2 m tolerance that passed by EXACTLY ZERO.
+  //
+  // 0fdf2ecd is why this got looked at: rain-memory had been catching its
+  // mutation by 0.005 and stopped, and a check clearing its own bar by nothing
+  // at all is the same thing pointed the other way — one bin edge from failing
+  // a kerb that is fine. A tolerance narrower than the measurement's resolution
+  // is not strictness, it is noise.
+  //
+  // It costs nothing in detection: the mutation moves the cut 16.6 m.
+  const placed = Math.abs(mZ - CZ) <= 0.4 && Math.abs(mHW - HW) <= F + 0.2;
   console.log(`\n  measured cut: centre z ${mZ.toFixed(2)}, half-width ${mHW.toFixed(2)} m ` +
     `(declared ${CZ} / ${HW})`);
   console.log(`  ${placed ? 'OK  ' : 'FAIL'} the cut is where this script was told it is`);

@@ -134,6 +134,39 @@ small block for someone who knows, rather than a row that lies for everyone.
 
 ---
 
+## Margins, after rain-memory caught its mutation by 0.005 and then stopped
+
+`0fdf2ecd` was a check that had gone toothless while still reporting green. The
+obvious follow-up is: what else on this shelf decides on a hair? Measured every
+numeric verdict against its own bar:
+
+| verdict | value | bar | margin |
+|---|---|---|---|
+| `glow` main / side | 13.7× / 18.7× | 3× | large |
+| `basin` throat proud | 6.5 mm | 2–22 mm | 4.5 / 15.5 mm |
+| `park` emitters per lantern | 2 | ≥ 1 | 1 |
+| `park` beside the loop | 0.95 m | ≤ 1.3 m | 0.35 m |
+| `park` lamp count | 10 | ≥ 10 | **zero — deliberate** |
+| `kerbcut` measured centre | 0.200 | ≤ 0.2 | **zero — accidental** |
+
+**The two zeroes are not the same thing**, and separating them is the point.
+
+`park`'s count is an EXACT structural quantity — four lanterns per leg on two
+legs plus one at each end. Ten is not an estimate, so `>= 10` has no margin to
+give and shouldn't: that is the bar that would have let the two end lamps vanish
+when it was `>= 8`.
+
+`kerbcut`'s was a **quantised measurement judged to finer than its own
+resolution**. The profile bins at 0.2 m, the measured centre came out 2.80
+against a declared 2.6, and the test was `<= 0.2` — passing by exactly nothing,
+one bin edge from failing a kerb that is fine. Widened to two bins, which costs
+no detection at all since the mutation moves the cut 16.6 m.
+
+A tolerance narrower than the measurement's resolution is not strictness, it is
+noise with a verdict attached.
+
+---
+
 ## I was wrong about bus.mjs's lane sweep, and the runner caught it in a day
 
 In `a44af5e6` I looked at that sweep, measured it three times at x = 6.15, and
