@@ -95,6 +95,9 @@ const ROOMS = [
       ['round the west side of the floor case', -4.3, 2.6, '-z', 2000, 'z', 4.0],
       ['between the floor case and the counter', 0.9, 0.0, '-x', 1800, 'x', 3.5],
     ],
+    // the desk's number for the "i immediately hit a counter" complaint: two
+    // metres of clear depth on the customer side, sampled across its width
+    minDepth: [2.0, [-5, -3, -1, 0, 1, 3, 5]],
     // the whole point of the room: the stock is behind the counter and stays
     // there, and the counter runs wall to wall so there is no way round it
     noGo: [
@@ -319,6 +322,58 @@ for (room of rooms) {
     const c = await pos();
     const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
     check(name, d < most, `got ${f2(d)} m in (must be < ${most})`);
+  }
+
+  // ── the customer side has to be a room you can stand in ──────────────
+  //
+  // The user's complaint about the pawn shop was "i immediately hit a counter …
+  // it's like i'm behind the counter", and the desk's fix named a number:
+  // "two metres of clear depth minimum". Nothing checked it. The lanes come
+  // closest, but a lane asserts you can TRAVEL along the floor, which a
+  // corridor also passes — the complaint was about depth, not length.
+  //
+  // That is the gap mainline keeps closing elsewhere (86460bdd, 5a47d7c6: a
+  // request in the user's own words with no check behind it), and this one is
+  // worth having because the margin is thin. It measures 2.48 m against a 2.00 m
+  // brief, so ONE display case nudged forward eats it, and nothing would say so.
+  //
+  // Neither end is typed. The front wall comes from `hd`, which was MEASURED off
+  // the room's own floor plane above; the obstruction is found by walking into
+  // it. Depth is then wall-plane to obstruction-face, so it is a number you could
+  // hold a tape to rather than a distance between two body centres.
+  //
+  // Two things I got wrong writing this, both worth leaving as warnings:
+  //
+  //  1. I first found the front wall by walking +z INTO it. At x = 0 the pawn
+  //     shop's door is at -0.06, so that walk goes straight OUT through the
+  //     doorway and reports the wall 0.3 m too far forward. A probe that walks
+  //     toward a wall has to know the wall has a hole in it.
+  //  2. I first started the walk at local z = 0, assuming that was the customer
+  //     strip. It is not at every x: the floor case sits FORWARD of z = 0, so at
+  //     x = -3 the walker started behind the case and measured the gap between
+  //     case and counter — a bigger number than the thing being checked, which
+  //     is the direction that hides a defect. Start at the wall and walk in.
+  if (room.minDepth) {
+    const [want, xs] = room.minDepth;
+    let worst = Infinity, worstX = null, skipped = 0;
+    for (const lx of xs) {
+      const zStart = hd - 0.55;                    // inside the room, clear of the wall
+      await warp(CX + lx, zStart, 0, 0);           // face -z, into the room
+      await p.waitForTimeout(150);
+      const a = await pos();
+      if (Math.abs(a[2] - zStart) > 0.4) { skipped++; continue; }   // something is already there
+      let zMin = a[2];
+      for (let i = 0; i < 10; i++) {
+        await hold('w', 400); const c = await pos();
+        if (zMin - c[2] < 0.05) break; zMin = c[2];
+      }
+      const depth = hd - (zMin - RADIUS);          // wall plane → obstruction face
+      if (depth < worst) { worst = depth; worstX = lx; }
+    }
+    check(`the customer side is ${want} m deep or better, not a corridor`,
+      worst >= want && skipped === 0,
+      skipped ? `HARNESS: could not stand at ${skipped} of ${xs.length} sample x`
+        : `narrowest clear depth ${f2(worst)} m at local x=${worstX} (brief: ${want} m)`);
   }
 
   // ── the way out, and NOT straight back in ────────────────────────────
