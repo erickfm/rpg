@@ -100,6 +100,48 @@ route it through `masonry()`, in which case it is on-grid by construction, or
 accept it as not-masonry and stop counting it against the rule. **Whoever owns
 that face decides; it is not mine.**
 
+## Round 10 challenged this, and the 42 are a box face index (`3f3c3ddb`)
+
+`78f2a637` — *"PATTERN #1 IS NOT CLOSED. 42 of 109 masonry faces, horizontal
+axis only"* — against the stamp above. **The number is real and reproducible.
+The cause is in the reader.**
+
+`masonry.mjs` took `o.material[0]` and measured `parameters.width`. On a
+`BoxGeometry`, **material 0 is the +x face, whose dimensions are DEPTH × height.**
+Height is height on both side faces — which is precisely the signature the round
+spotted and was right to find suspicious: *vertical always correct, horizontal
+always wrong, on every single one.* A fault in the world would not be that tidy.
+
+Measured, reproducing the count exactly:
+
+```
+BoxGeometry meshes whose material[0] carries a masonry stamp:  42
+  declared width == the box's DEPTH   (what material[0] actually is):  42
+  declared width == the box's WIDTH   (what the tool compared against):  0
+```
+
+**Its own table was the proof.** Every "applied to" figure is the box's width
+and every "painted for" figure is the box's depth:
+
+| the round's row | box width | box depth |
+|---|---|---|
+| painted 19.2 → applied 15.9 | 15.9 | **19.2** |
+| painted 16 → applied 21.6 | 21.6 | **16** |
+| painted 12 → applied 23.5 | 23.5 | **12** |
+
+Fixed by indexing faces as `scripts/density.mjs` already does, and by reading
+every material rather than only the first — which is also why it counted 109
+stamps where there are 236. After the fix: **0 disagreements.**
+
+The round's `map.repeat` caution is correct and kept; it simply was not the
+cause, since repeat is 1 on all 236. I checked that first, before looking at the
+tool, because it was the more likely explanation.
+
+**Credit where it is due:** the round found a genuine anomaly and described it
+precisely enough to diagnose. "Vertical right, horizontal wrong, all 42" is what
+made this a ten-minute answer instead of an argument. That is what a good bug
+report does, and it is worth more than being right.
+
 ## What this does not do
 
 It stamps the **texture**, not the mesh, because textures are what my file
