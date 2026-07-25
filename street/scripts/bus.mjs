@@ -129,8 +129,28 @@ if (mode === 'walk' || mode === 'all') {
   console.log('\nwalking past the stop (W held, no mouse):');
   let all = true;
   // straight through the stop on the building-side lane
-  all = await hike('east walk, through the stop southbound', 6.22, -24, 0, 8, 'z', -38) && all;
-  all = await hike('east walk, through the stop northbound', 6.22, -46, Math.PI, 8, 'z', -31) && all;
+  // THE STOP TELLS US WHERE IT IS. These thresholds were -38 and -31, encoding
+  // "past the bench at z -35 and the pole at -33.5" as two constants. Move the
+  // stop and a walk that never reaches it still clears them — the SILENT half
+  // of the remembered-coordinate class, where the loud half (park's gate
+  // detector, kerbcut's CZ) at least refuses to answer.
+  //
+  // The bench stamps userData.benchAd on its ad plate, so it publishes its own
+  // z. Clear it by 3 m either way, derived.
+  const stopZ = await page.evaluate(() => {
+    const S = window.__ct.scene(); S.updateMatrixWorld(true);
+    let z = null;
+    S.traverse((o) => { if (o.isMesh && o.userData.benchAd) z = o.matrixWorld.elements[14]; });
+    return z;
+  });
+  if (stopZ === null) {
+    console.error('  FAIL no bench ad found — cannot locate the stop this walk is about');
+    all = false;
+  } else {
+    console.log(`  the stop, from the world: bench at z ${stopZ.toFixed(2)}`);
+    all = await hike('east walk, through the stop southbound', 6.22, stopZ + 11, 0, 8, 'z', stopZ - 3) && all;
+    all = await hike('east walk, through the stop northbound', 6.22, stopZ - 11, Math.PI, 8, 'z', stopZ + 4) && all;
+  }
   // THE LANE WIDTH IS builtlane.mjs's NOW, and it measures it better than this
   // did. b49036ab samples 446 static cross-sections every 0.5 m and reports the
   // narrowest — 1.12 m at z -92.5, on this very walk — deterministically, with

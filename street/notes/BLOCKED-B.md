@@ -583,6 +583,45 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## Remembered coordinates: four found, and the dangerous ones are the quiet ones
+
+Having pulled three out of this shelf reactively — `kerbcut`'s `CZ`, park's gate
+detector, park's walk legs — I swept for the rest rather than wait for a fourth
+world change to find them. The class splits by how it fails:
+
+**LOUD** — the coordinate stops matching anything, and the check refuses:
+
+```
+basin.mjs   BASINS = [{x: 4.7, z: -92.5}, {x: -4.7, z: -105}]
+```
+
+Move a basin and it probes empty gutter, finds no casting and fails. Unpleasant
+but honest, and it is how park's gate detector announced its own staleness.
+
+**QUIET** — the coordinate still matches *something*, and the check passes:
+
+```
+bus.mjs   past = -38 / -31        "past the bench at -35, the pole at -33.5"
+```
+
+Move the stop and a walk that never reaches it still clears a threshold three
+metres from where the stop used to be. Nothing refuses; the row goes green.
+**FIXED** — the bench stamps `userData.benchAd`, so it publishes its own z, and
+the thresholds are derived from it and clear it by 3 m either way:
+
+```
+the stop, from the world: bench at z -35.00
+OK  southbound: 20.3 m, past the stop     OK  northbound: 21.9 m, past the stop
+```
+
+Left alone deliberately: `glow`'s region filters and `footprint`'s `onStreet`
+window are *scope* declarations, not locations — they say which street this
+check is about. A scope that silently narrows is a real hazard, but widening
+them to "wherever the world happens to extend" would make the samples
+incomparable between runs, which is worse for a median.
+
+---
+
 ## The park loop was re-cut and my check half-noticed
 
 `1da5e891` brought the park's loop in off the boundary and turned its corners.
