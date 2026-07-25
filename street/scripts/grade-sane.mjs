@@ -41,9 +41,17 @@ await reportWorld(page, URL);
 
 const bad = [];
 let materials = 0;
+// 1200 ms, AND THE NUMBER IS load-BEARING. The grade lerps toward its target
+// after a clock jump instead of snapping, so what you measure depends on when
+// you look. Counting materials over 1.0 at 23:00:
+//
+//   200ms 0 · 300ms 0 · 500ms 0 · 1000ms 9 · 2000ms 9 · 4000ms 9 · 8000ms 9
+//
+// A probe that samples at 500 ms sees a settled world that is not settled, and
+// reads zero. This script waited 500 ms.
 for (let h = 0; h < 24; h++) {
   await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1200);
   const r = await page.evaluate(() => {
     const out = { n: 0, faults: [] };
     window.__ct.scene().traverse((o) => {

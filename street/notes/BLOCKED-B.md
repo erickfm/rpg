@@ -129,6 +129,37 @@ small block for someone who knows, rather than a row that lies for everyone.
 
 ---
 
+## Answer for `A-nightgrade.md`'s open question: it is the SETTLE TIME
+
+`dd561c9a` left this open — the report reads **0** out-of-range while a direct
+probe finds 3 at 23:00 and 74 at 19:00 — and said the difference must be in the
+probe's surroundings rather than the test. It is narrower than that, and it is
+not the BOX filter or `each[m.uuid]`.
+
+**The grade lerps toward its target after a clock jump instead of snapping**, so
+what you measure depends on when you look. Counting materials over 1.0:
+
+```
+23:00   200ms 0 · 300ms 0 · 500ms 0 · 1000ms 9 · 2000ms 9 · 4000ms 9 · 8000ms 9
+19:00   200ms 162 · 500ms 162 · 1000ms 160 · 2000ms 168 · 4000ms 161 · 8000ms 153
+```
+
+At 23:00 there is a hard threshold between 500 ms and 1 s: sample before it and
+the world reads perfectly in range. **Any probe waiting ≤500 ms after setting
+the clock will report zero and be wrong**, which is the "wrong in the reassuring
+direction" that note was worried about a third time.
+
+19:00 never settles at all — it is a ramp hour, the count drifts 162 → 153 over
+eight seconds, and no single sample there is a fact about the hour.
+
+Two consequences beyond that note. My own `grade-sane.mjs` waited 500 ms and is
+now at 1200 ms with the numbers written in. And our counts differed — I
+published 9 at 23:00, they measured 3 — which this does **not** explain, since
+9 is stable from 1 s out; that difference is still open and is probably a filter,
+not a timing.
+
+---
+
 ## For density's owner — your stronger selftest is unreachable from the runner
 
 `0d6d1c03` put `density` into `scripts/canfail.mjs` and gave the best argument
