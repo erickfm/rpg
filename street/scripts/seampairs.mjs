@@ -16,7 +16,7 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
 const out = await p.evaluate(() => {
@@ -25,13 +25,25 @@ const out = await p.evaluate(() => {
   s.traverse(o => {
     if (!o.isMesh || !o.geometry) return;
     for (let q=o;q;q=q.parent) if (q.visible===false) return;
-    const m = Array.isArray(o.material)?o.material[0]:o.material;
+    // EVERY material, indexed. This read material[0] and then measured
+    // parameters.width — but on a BoxGeometry material 0 is the +x face, which
+    // is DEPTH x height. That misread produced Round 10's 42 "disagreements"
+    // (3f3c3ddb: declared width == box depth on 42 of 42, == box width on 0 of
+    // 42) and the same numbers reappear here: 4.09 px/m is a 12 m canvas
+    // measured against a 23.5 m width, which is Round 10's row 3 verbatim.
+    const mats = Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach((m, mi) => {
     if (!m || !m.map) return;
     const ms = m.map.userData && m.map.userData.masonry;
     if (!ms) return;
     const e=o.matrixWorld.elements, len=(a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
     const S=[len(0,1,2),len(4,5,6),len(8,9,10)], pr=o.geometry.parameters||{};
-    const fw=(pr.width??0)*S[0], fh=(pr.height??0)*S[1];
+    let fw, fh;
+    if (o.geometry.type === 'BoxGeometry') {           // [+x,-x,+y,-y,+z,-z]
+      if (mi===0||mi===1)      { fw=(pr.depth??0)*S[2]; fh=(pr.height??0)*S[1]; }
+      else if (mi===4||mi===5) { fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1]; }
+      else                     { fw=(pr.width??0)*S[0]; fh=(pr.depth??0)*S[2];  }
+    } else { fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1]; }
     if (!(fw>0.05&&fh>0.05)) return;
     const img=m.map.image; if(!img) return;
     const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox();
@@ -41,6 +53,7 @@ const out = await p.evaluate(() => {
                  declared: ms.ppm,
                  x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
                  at:[+((bb.min.x+bb.max.x)/2).toFixed(1),+((bb.min.y+bb.max.y)/2).toFixed(1),+((bb.min.z+bb.max.z)/2).toFixed(1)] });
+    });
   });
   // neighbours: bboxes within 0.6 m in plan AND overlapping in height
   const near = (a,c) => {
@@ -64,8 +77,29 @@ console.log(`${out.nFaces} masonry faces · ${out.nPairs} touching pairs\n`);
 const bad = out.pairs.filter(q => q.rU > 1.15 || q.rV > 1.15).sort((a,c)=>(c.rU*c.rV)-(a.rU*a.rV));
 console.log(`pairs whose densities DISAGREE by more than 15%: ${bad.length} of ${out.nPairs}`);
 const gridBlind = bad.filter(q => q.bothOnGrid);
-console.log(`   of those, pairs where BOTH faces pass the 8/16 grid check: ${gridBlind.length}  <- invisible to every earlier tool\n`);
-for (const q of bad.slice(0,10))
+console.log(`   of those, pairs where BOTH faces pass the 8/16 grid check: ${gridBlind.length}`);
+
+// ── LIKE-FOR-LIKE IS THE HEADLINE, so compute it rather than leaving it prose ──
+//
+// A shopfront band declares 16 and the wall above it declares 8. They meet, and
+// they are SUPPOSED to differ by exactly SHOP_MULT — that junction is the design,
+// not a defect. Counting it as a disagreement makes the number say the opposite
+// of what it means, and the number is what gets escalated.
+//
+// Only pairs that declare the SAME density are like-for-like: two faces meant to
+// be one continuous run of brick. Those are the ones where a mismatch is a seam
+// a player can see.
+const like = out.pairs.filter(q => Math.abs(q.a.d - q.c.d) < 0.01);
+const likeBad = like.filter(q => q.rU > 1.15 || q.rV > 1.15);
+const unlike = bad.filter(q => Math.abs(q.a.d - q.c.d) >= 0.01);
+const ratios = unlike.map(q => Math.max(q.rU, q.rV));
+console.log(`\nLIKE-FOR-LIKE (both faces declare the same density): ${like.length} pairs`);
+console.log(`   disagreeing by more than 15%: ${likeBad.length}`);
+console.log(`declared-DIFFERENT pairs among the disagreements: ${unlike.length}` +
+  (ratios.length ? ` — ratios ${Math.min(...ratios).toFixed(2)}x to ${Math.max(...ratios).toFixed(2)}x` +
+   ` (SHOP_MULT is 2: a band meeting the wall above it is the design)` : ''));
+console.log('');
+for (const q of (likeBad.length ? likeBad : bad).slice(0,10))
   console.log(`   u ${String(q.rU).padStart(5)}× v ${String(q.rV).padStart(5)}×   ${q.a.u}×${q.a.v} (decl ${q.a.d}) at (${q.a.at.join(',')})   vs   ${q.c.u}×${q.c.v} (decl ${q.c.d}) at (${q.c.at.join(',')})`);
 writeFileSync('shots/seampairs.json', JSON.stringify(out,null,2));
 await b.close();
