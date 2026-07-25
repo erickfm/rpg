@@ -1022,3 +1022,30 @@ for that closes silently.
 **The repair is mechanical** — find the commit on mainline by subject:
 `git log --format=%h --fixed-strings --grep="<subject>" add-stick-and-city98`.
 That is how I fixed three of my four. None of these notes is mine to edit.
+
+## The recovery table, built before the window closes
+
+Last round I noted that the repair window for dead citations **closes silently**:
+fixing one needs the old commit still readable, and git is already warning about
+*"too many unreachable loose objects"*. So I built the mapping while the objects
+exist — `notes/AUDIT-hash-recovery.md`, **138 hashes across 42 notes**, grouped
+by note, largest first.
+
+```
+dead citations: 138 distinct hashes
+  recoverable — same commit on mainline under a new hash:  132
+  not on mainline at all (never landed, or subject edited):  6
+```
+
+**Verified, not inferred.** Subject matching alone could pair two different
+commits sharing a message, so I checked with `git patch-id --stable`: on a
+22-mapping sample, **22 of 22 pairs have an identical patch-id** — the same
+change, re-hashed by the rebase that landed it.
+
+The 6 that cannot be repointed are listed at the end of that file. For those the
+honest repair is the one I applied to `9610e25`: **say in the note that the hash
+resolves for nobody**, rather than substitute a plausible-looking replacement.
+
+**None of the 42 notes is mine to edit** — the table is so that each owner's fix
+is a find-and-replace rather than an investigation, and so that it remains
+possible at all after the next `git gc`.
