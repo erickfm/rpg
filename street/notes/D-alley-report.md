@@ -1161,3 +1161,28 @@ a throw, because node forces 1 on an uncaught exception and would overwrite it.
 
 `checks.mjs` now reads the status first and keeps the banner string-match as a
 fallback, so nothing that predates the code regresses.
+
+## Rain sweep of my module after `b209275c`: 3 of 3, and the reason is structural
+
+`b209275c` found *"the road centre lines stay bone dry while the road darkens
+83%"* — horizontal decals that miss the weather, which is the class my alley
+floor was in until `5333a1ce`. So I swept my own rather than assume the one I
+fixed by eye was the only one.
+
+**Three horizontal ground planes in `mod=street`, and all three darken in rain:**
+the alley floor and the two open-site grounds (park and car lot).
+
+Three is a small number and that is the interesting part. **My module has almost
+no horizontal decals because its ground detail is painted INTO the ground
+texture** rather than laid on top — the alley's nine stains and its 0.4 m gully
+with bars are `fillRect` and `fill()` calls inside `alleyFloorT`, not separate
+planes. So they inherit the floor's wetness for free and the road-markings class
+cannot arise for them.
+
+That was not a decision I made for this reason; `seam-audit.md` finding 4 pushed
+the alley floor onto one dense canvas because the detail was reading as smears.
+It happens to have removed a whole category of weather bug as a side effect,
+which is worth knowing before someone "improves" those stains into decals.
+
+Negative result, recorded so nobody sweeps it twice. Box tops (kerbs, sills) are
+a different question and mostly other people's.
