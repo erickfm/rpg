@@ -405,6 +405,65 @@ export function frontageOf(name: string, wMeters: number): Frontage {
 }
 
 /**
+ * THE ROOM BEHIND THE GLASS.
+ *
+ * The bodega's doorway is a real hole — `ct/street.ts` gives the bay front
+ * `alphaTest: 0.5` and punches the opening out of the texture, which is the
+ * right call and makes the door read as a way in rather than a painted panel.
+ * Measured: 861 of that panel's 3015 texels are discarded. But the bay is a
+ * PLANE with nothing behind it, and the sidewalk is one surface that runs from
+ * the kerb straight on under the buildings — so through the hole you see
+ * pavement, and the shop has a pavement for a floor.
+ *
+ * The fix is not to close the hole again. It is to put a room behind it.
+ *
+ * Dark, but never black: a black rectangle is the "glass is a black hole"
+ * complaint that the depth work was fixing. What sells a room at a glance is
+ * three horizontal facts — a lit ceiling, something at counter height, a floor
+ * in shadow — and a back wall to stop the eye. This is a painted suggestion,
+ * not builder F's real interiors; a shop window has never needed more.
+ */
+export function shopInteriorTex(name: string, wMeters: number, hMeters: number): THREE.Texture {
+  const surf = masonry(wMeters, hMeters, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  // varied off the name so fifteen backings are not one backing fifteen times
+  let sd = 0x9e3779b1;
+  for (let i = 0; i < name.length; i++) sd = Math.imul(sd ^ name.charCodeAt(i), 0x01000193) >>> 0;
+  const r = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
+  const BACK = '#2f2822', CEIL = '#6d5a3e', COUNTER = '#4a3f33', FLOOR = '#1d1916';
+  const STOCK = ['#4a4034', '#3d4450', '#54413a', '#3f4a3a', '#4a3a48'];
+  return surf.paint((g) => {
+    g.fillStyle = BACK; g.fillRect(0, 0, W, H);
+    // ceiling: the only bright thing in here, and it falls off downward
+    g.fillStyle = CEIL; g.fillRect(0, 0, W, m(0.3));
+    for (let i = 0; i < 8; i++) {
+      g.fillStyle = `rgba(109,90,62,${0.20 - i * 0.024})`;
+      g.fillRect(0, m(0.3) + i * m(0.12), W, m(0.12));
+    }
+    // a back wall a shade off the room, so the box has a far side
+    g.fillStyle = '#352d26'; g.fillRect(0, m(1.0), W, m(1.5));
+    // shelving along the back — uneven, because stock is
+    for (let sy = m(1.15); sy < m(2.4); sy += m(0.62)) {
+      g.fillStyle = '#3e352c'; g.fillRect(0, sy, W, m(0.07));
+      for (let x = m(0.2); x < W - m(0.3); x += m(0.5)) {
+        if (r() < 0.25) continue;
+        g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
+        const hh = m(0.22) + Math.round(r() * m(0.2));
+        g.fillRect(x, sy - hh, m(0.3), hh);
+      }
+    }
+    // counter edge at the height a counter is, catching the ceiling light
+    const cy = m(2.55);
+    g.fillStyle = COUNTER; g.fillRect(0, cy, W, m(0.12));
+    g.fillStyle = 'rgba(180,160,120,0.22)'; g.fillRect(0, cy, W, m(0.04));
+    g.fillStyle = '#241f1a'; g.fillRect(0, cy + m(0.12), W, m(0.5));
+    // floor, darkest, so the eye reads depth downward
+    g.fillStyle = FLOOR; g.fillRect(0, H - m(0.9), W, m(0.9));
+    dither(g, W, H, Math.round(wMeters * hMeters * 3));
+  });
+}
+
+/**
  * THE SHOPFRONT IN THREE DIMENSIONS — the part shading cannot do.
  *
  * `reveal()`/`proud()` make a painted plane read as built, and at 16 px/m that
@@ -450,6 +509,7 @@ export function shopfrontRelief(o: {
   o.scene.add(g);
 
   const CORNICE = 0.20, BED = 0.13, JAMB = 0.12, CILL = 0.11, PLINTH = 0.09;
+  const RECESS = 0.45;                 // how far back the room sits
   const half = o.wMeters / 2;
   const along = (mFromLeft: number) => mFromLeft - half;   // frontage metres → local x
   // Separate material instances on purpose: ct/props.ts's dimWorld() grades a
@@ -464,6 +524,19 @@ export function shopfrontRelief(o: {
     g.add(box);
     return box;
   };
+
+  // ── the room behind the glass ─────────────────────────────────────────────
+  //
+  // Set back and OPAQUE, covering the whole band including the door light.
+  // On a solid-box shopfront this is hidden behind the front face and costs one
+  // plane; the moment anyone cuts a real opening in that face — which is
+  // exactly what happened to the bodega bay — there is already a room behind it
+  // rather than a view of the pavement running on under the building.
+  const room = new THREE.Mesh(
+    new THREE.PlaneGeometry(o.wMeters, SHOP_BAND_H),
+    new THREE.MeshBasicMaterial({ map: shopInteriorTex(o.name, o.wMeters, SHOP_BAND_H) }));
+  room.position.set(0, SHOP_BAND_H / 2, -RECESS);
+  g.add(room);
 
   // ── the fascia, framed rather than covered ────────────────────────────────
   const fTop = F.fasciaBottomM + F.fasciaH;

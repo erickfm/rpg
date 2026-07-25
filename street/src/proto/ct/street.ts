@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
   facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
-  proud, reveal, glazed, mullions, HI, shopfrontRelief,
+  proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
 import { walkTex } from './tex-ground';
@@ -953,6 +953,17 @@ export function buildStreet(o: {
       new THREE.MeshBasicMaterial({ map: bayFrontT, alphaTest: 0.5 }));
     bayFront.position.set(0, SHOP / 2, 0);
     bay.add(bayFront);
+    // The bay front is the one shopfront face that is a REAL hole — 861 of its
+    // 3015 texels are discarded by that alphaTest, which is what makes the
+    // doorway read as a way in. It had nothing behind it, and the sidewalk is
+    // one plane that runs from the kerb straight on under the buildings, so
+    // through the hole you saw pavement and the bodega had a pavement for a
+    // floor. The door leaf below covers the doorway; this covers everything
+    // else the alphaTest opens up, and sits behind the leaf.
+    const bayRoom = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP),
+      new THREE.MeshBasicMaterial({ map: shopInteriorTex('BODEGA', CFW, SHOP) }));
+    bayRoom.position.set(0, SHOP / 2, -0.45);
+    bay.add(bayRoom);
     // ── the door itself ───────────────────────────────────────────────────
     //
     // Set BACK behind the shopfront line, with its reveal boxed in, so the
