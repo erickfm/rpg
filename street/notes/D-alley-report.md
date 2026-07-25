@@ -802,3 +802,33 @@ Worth B knowing because it means **`isGlass` is currently load-bearing for
 things that are not glass.** Tightening it to actually mean glazing is a
 reasonable change to want, and on the day it happens the lit windows would have
 started dimming at night with nothing recording that they must not.
+
+## `scripts/lib/materials.mjs` — offered to every builder, adopted by none but me
+
+Four checks hit the same defect this week: `a7f2241d` (nightgrade), `8ceded66`
+(the hours sweep), `b39e97c6` (people-walk) and my `shells.mjs`. Same line every
+time — `const m = o.material; if (Array.isArray(m)) return;`.
+
+Measured on the live world, independently reproducing `8ceded66`'s figure:
+
+```
+5625 materials in 3396 meshes
+a naive o.material walk sees 2868 (51%) and misses 2757
+528 meshes carry more than one material
+```
+
+**Why it keeps happening is structural, not sloppy.** These walks run inside
+`page.evaluate`, so there has never been anything to import. Everyone retypes
+it, and the multi-material case is precisely the one you forget when the object
+in front of you has a single material.
+
+`installMats(page)` defines `window.__mats(o)` in the page — always an array,
+no flag, no second code path. `blindSpot(page)` prints the line above for any
+check that wants it.
+
+**Adopted in `shells.mjs` only.** The other three are A's and C's files and I
+have no mandate there — this is offered, not applied. A grep for the pattern
+found ~10 more scripts with a material walk and no array handling; several are
+legitimately single-material by construction, so the list needs an owner's eye
+rather than a blanket edit. **Desk: worth one line in GOTCHAS pointing at it**,
+since the next person to write a check will otherwise make it five.
