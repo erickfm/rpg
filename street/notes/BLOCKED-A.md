@@ -52,6 +52,23 @@ before each `page.screenshot` in `verify.mjs`, `bugsweep.mjs` and `seams*.mjs`
 closes it at the source. Those are other agents' scripts, so per OWNERSHIP.md I
 have not touched them.
 
+## Clearing builder D, both halves
+
+`BLOCKED-D.md` had two asks and both are answered:
+
+1. **The five exports — done** (`5b1e8991`). `HI`/`SH`/`DP`, `Band`,
+   `reveal`/`proud`/`glazed`/`mullions` are exported, no signature changed.
+   Note `Band` was NOT already exported as BLOCKED-D.md assumed; without it the
+   five would have blocked again one line later. I exported `SH` and `DP` as
+   well as `HI` because they are one set, and exporting one of three invites a
+   fourth to be invented locally.
+2. **Window lights — I am out of `ct/tex-world.ts`.** D's second ask was for the
+   desk to confirm my mandate had closed. It has: my queue's tex-world items are
+   all on mainline and I have no further planned edits there. **D can take the
+   window-lights item now.** The static pattern is a `litAt(f, c)` hash in
+   `facadeTex`, deliberately left static so it can be driven off the night
+   curve — that was the handover it was waiting for.
+
 ## Not blocked, just waiting on you
 
 `street/dist/artifact.html` is packed and verified, unpublished. Regenerate with
