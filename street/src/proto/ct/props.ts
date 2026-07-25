@@ -367,6 +367,86 @@ export function buildProps(ctx: CtxBuild): Props {
         splashMats.push(m);
       }
     }
+
+    // ── and push the litter out of the buildings ────────────────────────────
+    //
+    // The footprint rule tests against GROUND SURFACES. It has nothing to say
+    // about a wall, so a piece placed near a frontage resolves its height
+    // perfectly and then grows into the stallriser — which is what happened to
+    // the milk crate, and A has since made those shopfronts project further.
+    //
+    // Two things this deliberately does NOT do:
+    //
+    // · It does not test against the collider set. ctx exposes obstacle() to
+    //   REGISTER a box and offers no way to read them back, so a module cannot
+    //   see them — but more to the point that would be the wrong test. The bug
+    //   is VISUAL. A stallriser, a sill or a projecting sign that has no
+    //   collider still clips, and a collider that is bigger than its geometry
+    //   would shove litter around for no visible reason.
+    // · It does not test in plan. The two pieces under the bus bench are
+    //   inside the bench's x/z footprint on purpose — they are UNDER the seat,
+    //   which is the whole point of putting them there. Only a real 3D overlap
+    //   counts.
+    //
+    // It runs HERE because dimWorld is the one place a module is handed the
+    // finished world. At the time the litter is placed, the shopfronts it must
+    // avoid do not exist yet.
+    const solidsNear: THREE.Box3[] = [];
+    const bx3 = new THREE.Box3();
+    root.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.geometry || o.userData?.litter) return;
+      bx3.setFromObject(o);
+      if (!Number.isFinite(bx3.min.x)) return;
+      const h = bx3.max.y - bx3.min.y;
+      if (h < 0.25 || bx3.min.y > 1.6) return;      // ground sheets, and things hung high
+      if (bx3.max.x - bx3.min.x > 40 || bx3.max.z - bx3.min.z > 60) return;  // whole-block sheets
+      solidsNear.push(bx3.clone());
+    });
+    const litterBox = new THREE.Box3();
+    for (const o of root.children.slice()) {
+      const kind = o.userData?.litter;
+      if (!kind) continue;
+      for (let pass = 0; pass < 6; pass++) {
+        o.updateMatrixWorld(true);
+        litterBox.setFromObject(o);
+        let best: { ax: 'x' | 'z'; d: number; score: number } | null = null;
+        for (const b2 of solidsNear) {
+          if (litterBox.max.x <= b2.min.x || litterBox.min.x >= b2.max.x) continue;
+          if (litterBox.max.z <= b2.min.z || litterBox.min.z >= b2.max.z) continue;
+          if (litterBox.max.y <= b2.min.y || litterBox.min.y >= b2.max.y) continue;
+          // minimum translation that separates them, in x or z
+          for (const [ax, lo, hi, blo, bhi] of [
+            ['x', litterBox.min.x, litterBox.max.x, b2.min.x, b2.max.x],
+            ['z', litterBox.min.z, litterBox.max.z, b2.min.z, b2.max.z]] as const) {
+            for (const d of [blo - hi - 0.01, bhi - lo + 0.01]) {
+              if (Math.abs(d) > 0.7) continue;      // never teleport a piece across the walk
+              // Prefer moving TOWARD THE ROAD. A piece against a frontage is
+              // nearly always clipping the frontage, and sliding it along the
+              // wall in z only finds the next window sill; stepping off the
+              // wall ends it in one move. Weighted rather than forced, so a
+              // piece that genuinely only needs a nudge in z still gets one.
+              const towardRoad = ax === 'x' && Math.abs(o.position.x + d) < Math.abs(o.position.x);
+              const score = Math.abs(d) * (towardRoad ? 0.45 : 1);
+              if (!best || score < best.score) best = { ax, d, score };
+            }
+          }
+        }
+        if (!best) break;
+        if (best.ax === 'x') {
+          // still may not straddle the kerb, and the ground under it changes
+          const nx = clearOfKerb(o.position.x + best.d, o.userData.halfX ?? 0.3);
+          o.position.x = nx;
+          if (o.userData.onStreet) {
+            const gy2 = groundUnder(nx, o.userData.halfX ?? 0.3);
+            o.position.y += gy2 - o.userData.groundY;
+            o.userData.groundY = gy2;
+          }
+        } else {
+          o.position.z += best.d;
+        }
+      }
+    }
   };
   let litLast = -1;
   let wetLast = 0;
@@ -966,8 +1046,17 @@ export function buildProps(ctx: CtxBuild): Props {
   };
   // the ground under a footprint that has already been cleared of the kerb, so
   // taking the max cannot accidentally lift something onto the walk
-  const groundUnder = (x: number, hx: number) =>
-    Math.max(surfaceY(x - hx), surfaceY(x), surfaceY(x + hx));
+  // Sampled ACROSS the footprint, not at three points. Three was not enough:
+  // the gutter pan rises toward the asphalt joint, so a piece whose footprint
+  // straddles the joint has its highest ground somewhere in the middle of its
+  // own span — at |x| = ROAD_HALF - GUTTER_W — and end-and-centre samples walk
+  // straight past it. That left the fountain cups seated 2 mm under the
+  // concrete, which is exactly the class of bug this function exists to stop.
+  const groundUnder = (x: number, hx: number) => {
+    let hi = surfaceY(x);
+    for (let i = 0; i <= 8; i++) hi = Math.max(hi, surfaceY(x - hx + (2 * hx * i) / 8));
+    return hi;
+  };
   const flatDecal = (tex: THREE.Texture, w: number, d: number, x: number, z: number, rot: number, y: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
       new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: true }));
@@ -1823,34 +1912,45 @@ export function buildProps(ctx: CtxBuild): Props {
   // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
   // and every texel of a soft shadow is below that, so shadows drawn through
   // flatDecal were being discarded outright and nothing sat on the ground.
-  const contact = (w: number, d: number, x: number, z: number, y: number, rot: number) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
-      new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false }));
-    m.rotation.x = -Math.PI / 2;
-    m.rotation.z = rot;
-    m.position.set(x, y + 0.003, z);
-    scene.add(m);
-  };
-  const FOOT: Record<string, [number, number]> = {
-    'coffee cup': [0.42, 0.30],
-    'folded newspaper': [0.54, 0.42],
-    'flattened cardboard': [0.82, 0.58],
-    'milk crate': [0.48, 0.48],
-    'fountain cup': [0.60, 0.34],
-  };
+  // (the contact shadow is parented to each piece in drop(), below)
   const ALLEY_Y = 0.006;                  // ct/street.ts lays the alley slab at 0.005
   const drop = (name: string, x: number, z: number, yaw: number, y?: number) => {
     const make = CATALOGUE.find((c) => c[0] === name)?.[1];
     if (!make) return;
     const o = make();
+    // MEASURE, do not declare. Every number about a piece's size and seating is
+    // taken from its own geometry now, because every one of them that was
+    // hand-written turned out to be wrong: the base heights had the cups 6 and
+    // 8 mm underground, the half-extent guess missed that the fountain cup's
+    // straw reaches 58 cm on one side and 21 on the other, and a hand-written
+    // shadow size made shadows WIDER than the objects casting them, so they
+    // crossed the kerb where the object did not and half of each one vanished
+    // under the pavement. Three versions of one mistake.
+    //
+    // The LOCAL box is taken before the piece is turned, so the shadow can be
+    // a child and inherit the rotation; the WORLD box is taken after, because
+    // that is what the kerb and the building line have to be tested against.
+    o.updateMatrixWorld(true);
+    const bbL = new THREE.Box3().setFromObject(o);
     // every candidate carries its own built-in skew; this turns the whole
     // piece on top of it, so no two placements of one object are copies
     o.rotation.y += yaw;
-    // MEASURE the footprint rather than declare it. These are groups of five
-    // or six little meshes at hand-written offsets, and the fountain cup's
-    // straw reaches 58 cm from the origin on one side and 21 cm on the other —
-    // a number I would have got wrong by hand, and did. Box3 after the
-    // rotation is applied gives the real half-extent, straw included.
+    // The contact shadow is a CHILD of the piece, sized inside the piece's own
+    // LOCAL footprint at 0.92, and attached BEFORE the clearance box is taken.
+    // All three matter. A child moves when dimWorld pushes a piece clear of a
+    // building, and a shadow left at the old spot is worse than none. Sizing it
+    // inside the object stops it being the wider thing. And measuring after it
+    // is attached is what actually makes the guarantee exact — a rectangle
+    // turned 86 degrees has corners that stick out past the world box of the
+    // thin cylinder it covers, so a shadow can cross the kerb the object
+    // clears. Measure the assembled piece and the question does not arise.
+    const sh = new THREE.Mesh(new THREE.PlaneGeometry(
+      (bbL.max.x - bbL.min.x) * 0.92, (bbL.max.z - bbL.min.z) * 0.92),
+      new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false }));
+    sh.rotation.x = -Math.PI / 2;
+    sh.position.set((bbL.max.x + bbL.min.x) / 2, bbL.min.y + 0.003,
+                    (bbL.max.z + bbL.min.z) / 2);
+    o.add(sh);
     o.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(o);   // still at the origin, so this is the half-extent
     const hx = Math.max(-bb.min.x, bb.max.x);
@@ -1860,12 +1960,6 @@ export function buildProps(ctx: CtxBuild): Props {
     let cx = y === undefined ? clearOfKerb(x, hx) : x;
     if (y === undefined) cx = Math.min(FACE - hx - 0.02, Math.max(-FACE + hx + 0.02, cx));
     const gy = y ?? groundUnder(cx, hx);
-    // SEAT it on the measured box rather than trusting the y each candidate
-    // was drawn at. Those were hand-written — a cylinder lying down wants its
-    // centre at exactly its radius, and the coffee cup was 6 mm under that and
-    // the fountain cup 8 mm, so both were sunk into the pavement before any of
-    // the kerb business. It is the same mistake as the footprint one in a
-    // different axis: a number that was guessed where it could be measured.
     o.position.set(cx, gy - bb.min.y, z);
     // tagged so scripts/trash.mjs can find MY litter and not every group in
     // the scene — the side street and the car lot have their own props sitting
@@ -1873,11 +1967,14 @@ export function buildProps(ctx: CtxBuild): Props {
     o.userData.litter = name;
     o.userData.groundY = gy;
     o.userData.halfX = hx;
+    // whether groundY came from surfaceY (street) or was handed in (the alley
+    // slab). Only a street piece may have its height re-resolved if something
+    // later nudges it — surfaceY would put an alley piece 13 cm in the air.
+    o.userData.onStreet = y === undefined;
     scene.add(o);
     lit(o);                               // they take the lamplight like anything else
-    const [fw, fd] = FOOT[name] ?? [0.5, 0.4];
-    contact(fw, fd, cx, z, gy, yaw);
   };
+
   // Where rubbish actually ends up: against the kerb where the water leaves it,
   // in the alley by the bins, blown up against the building line, and under the
   // one bench on the block. Nothing is solid — you walk straight over litter —
@@ -1908,8 +2005,9 @@ export function buildProps(ctx: CtxBuild): Props {
   drop('milk crate', -6.74, -58.2, 0.55);
   drop('folded newspaper', 6.66, -76.0, 1.10);
   // under the bus bench, which is the one place on this street people sit
-  drop('coffee cup', 5.38, -35.6, 0.70);
-  drop('folded newspaper', 5.48, -34.4, -0.50);
+  // between the legs, which stand at x 5.13 and 5.52 and z -35.78 and -34.22
+  drop('coffee cup', 5.32, -35.30, 0.70);
+  drop('folded newspaper', 5.30, -34.80, -0.50);
 
   // ── stars, on clear nights only ─────────────────────────────────────────
   //

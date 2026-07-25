@@ -78,6 +78,56 @@ const r = await page.evaluate(() => {
     if (b.minY < worst - 0.001) out.sunk.push({ ...rec, ground: +worst.toFixed(4) });
   };
 
+  // Everything solid enough to clip against. The FIRST version of the footprint
+  // rule only knew about ground surfaces, so a milk crate resolved its height
+  // correctly and then grew into a stallriser — a wall is not a surface you can
+  // sample a height from, and nothing was asking the question.
+  const box3 = (o) => {
+    o.updateWorldMatrix(true, false);
+    const g = o.geometry; if (!g) return null;
+    if (!g.boundingBox) g.computeBoundingBox();
+    const bb = g.boundingBox, m = o.matrixWorld.elements;
+    const r2 = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity,
+                 minZ: Infinity, maxZ: -Infinity };
+    for (const sx of [bb.min.x, bb.max.x]) for (const sy of [bb.min.y, bb.max.y])
+      for (const sz of [bb.min.z, bb.max.z]) {
+        const wx = m[0]*sx + m[4]*sy + m[8]*sz + m[12];
+        const wy = m[1]*sx + m[5]*sy + m[9]*sz + m[13];
+        const wz = m[2]*sx + m[6]*sy + m[10]*sz + m[14];
+        r2.minX = Math.min(r2.minX, wx); r2.maxX = Math.max(r2.maxX, wx);
+        r2.minY = Math.min(r2.minY, wy); r2.maxY = Math.max(r2.maxY, wy);
+        r2.minZ = Math.min(r2.minZ, wz); r2.maxZ = Math.max(r2.maxZ, wz);
+      }
+    return r2;
+  };
+  const solids = [];
+  sc.traverse((o) => {
+    if (!o.isMesh || !o.geometry || o.userData?.litter) return;
+    let p2 = o; let isLitter = false;
+    while (p2) { if (p2.userData?.litter) { isLitter = true; break; } p2 = p2.parent; }
+    if (isLitter) return;
+    const b2 = box3(o); if (!b2 || !isFinite(b2.minX)) return;
+    if (b2.maxY - b2.minY < 0.25 || b2.minY > 1.6) return;
+    if (b2.maxX - b2.minX > 40 || b2.maxZ - b2.minZ > 60) return;
+    solids.push(b2);
+  });
+  out.clips = [];
+  sc.traverse((o) => {
+    if (!o.userData?.litter) return;
+    o.traverse((c) => {
+      if (!c.isMesh) return;
+      const b2 = box3(c); if (!b2) return;
+      for (const w of solids) {
+        if (b2.maxX <= w.minX || b2.minX >= w.maxX) continue;
+        if (b2.maxY <= w.minY || b2.minY >= w.maxY) continue;
+        if (b2.maxZ <= w.minZ || b2.minZ >= w.maxZ) continue;
+        out.clips.push({ kind: o.userData.litter,
+          x: +o.position.x.toFixed(2), z: +o.position.z.toFixed(1) });
+        return;
+      }
+    });
+  });
+
   sc.traverse((o) => {
     if (o.userData?.litter) { o.traverse((c) => { if (c.isMesh) check(c, o.userData.litter, out.litter); }); return; }
     if (!o.isMesh) return;
@@ -108,7 +158,10 @@ console.log(`\n  ${!r.crossers.length ? 'OK  ' : 'FAIL'} nothing straddles the k
 for (const c of r.crossers.slice(0, 8)) console.log(`      ${c.label} at z ${c.z}: x ${c.minX} … ${c.maxX} crosses ${c.line}`);
 console.log(`  ${!r.sunk.length ? 'OK  ' : 'FAIL'} nothing sits below the ground under it (${r.sunk.length})`);
 for (const s of r.sunk.slice(0, 8)) console.log(`      ${s.label} at z ${s.z}: y ${s.minY} under ground ${s.ground}`);
-if (r.crossers.length || r.sunk.length) process.exitCode = 1;
+const clips = [...new Map((r.clips ?? []).map((c) => [`${c.kind}${c.x}${c.z}`, c])).values()];
+console.log(`  ${!clips.length ? 'OK  ' : 'FAIL'} no litter is inside a building or a prop (${clips.length})`);
+for (const c of clips.slice(0, 8)) console.log(`      ${c.kind} at ${c.x}, ${c.z}`);
+if (r.crossers.length || r.sunk.length || clips.length) process.exitCode = 1;
 
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
