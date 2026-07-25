@@ -1,7 +1,7 @@
 // The alley: both side walls, the rear wall, the dumpster and the cat.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { setClock, setNight } from './lib/clock.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
@@ -58,7 +58,7 @@ await shot('cat-close', () => window.__ct.warp(-9.6, -41.9, Math.atan2(-0.8, 0.9
 // vice pair: the brief was nocturnal and no shot was.
 //
 // Same three cameras, 23:00, so the pair can be compared side by side.
-await setClock(page, 23, 0);
+await setNight(page, 23, 0);
 await shot('night-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
 await shot('night-rear', () => window.__ct.warp(-10.0, -40.2, -Math.PI / 2, 0, 0.1));
 await shot('night-dumpster', () => window.__ct.warp(-9.0, -40.2, Math.atan2(-2.2, -2.0), 0, 0));
@@ -86,7 +86,7 @@ await shot('rain-floor', () => window.__ct.warp(-10.5, -40.5, -Math.PI / 2, 0, -
 // 57.9 dry day, 51.6 wet day, 8.9 dry night, 8.2 wet night. Rain barely shows
 // at night because everything it darkens is already at 0.06, which is right
 // rather than missing.
-await setClock(page, 1, 0);
+await setNight(page, 1, 0);
 await page.waitForTimeout(8000);
 await shot('wetnight-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
 await setClock(page, 13, 0);

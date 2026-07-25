@@ -45,7 +45,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/midnight.mjs [--selftest]
 import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { setNight } from './lib/clock.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -75,10 +75,7 @@ await reportWorld(page, URL);
 // once already: I reported those nine sheets as "opacity 0, invisible, their
 // colour cannot matter" and dropped them from a count, when they are invisible
 // only because of how I set the clock.
-await setClock(page, 20, 0);
-await page.waitForTimeout(1200);
-await setClock(page, 23, 0);
-await page.waitForTimeout(1200);
+await setNight(page, 23, 0);
 
 const found = await page.evaluate(() => {
   const byMod = {};

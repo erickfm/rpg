@@ -100,3 +100,25 @@ export async function setClock(page, h, m = 0, capMs = 8000) {
   }
   return r;
 }
+
+/**
+ * Set a NIGHT hour the way a player reaches it — via the evening.
+ *
+ * `setClock(page, 23)` lands the clock at 23:00 but leaves the world in a state
+ * no player is ever in: the wall-splash sheets stay at opacity 0, and a third of
+ * the world's materials sit about 6% brighter than they should
+ * (notes/D-jumping-the-clock.md has the numbers). 18:00 is not enough to arm it;
+ * 20:00 is.
+ *
+ * Use this for anything measured or photographed after dark. For a DAY hour it
+ * is unnecessary — the world boots at 13:20, so a day hour is already the state
+ * it is in.
+ *
+ * Costs one extra clock set and a settle. Added by D; setClock itself unchanged.
+ */
+export async function setNight(page, h, m = 0, settleMs = 1200) {
+  await setClock(page, 20, 0);
+  await page.waitForTimeout(settleMs);
+  await setClock(page, h, m);
+  await page.waitForTimeout(settleMs);
+}

@@ -48,7 +48,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/windowlights.mjs [--selftest]
 import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
-import { setClock } from './lib/clock.mjs';
+import { setClock, setNight } from './lib/clock.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
@@ -92,7 +92,8 @@ await page.waitForTimeout(900);
 // the 2 s; this one does not, and now says why rather than leaving the next
 // person to re-derive it.
 const warmAt = async (hour) => {
-  await setClock(page, hour, 0);
+  // night hours go via the evening — a jumped night is not the player's night
+  await (hour >= 20 || hour <= 6 ? setNight(page, hour, 0) : setClock(page, hour, 0));
   await page.evaluate(() => window.__ct.warp(-1.2, -40, Math.PI, 0, 0.30));
   await page.waitForTimeout(700);
   return page.evaluate(() => {
@@ -115,7 +116,7 @@ const warmAt = async (hour) => {
 // The sheet opacities, straight off the materials. No camera involved, so no
 // crop, no threshold, and nothing a lamp halo can contribute to.
 const sheetsAt = async (hour) => {
-  await setClock(page, hour, 0);
+  await (hour >= 20 || hour <= 6 ? setNight(page, hour, 0) : setClock(page, hour, 0));
   return page.evaluate(() => {
     const out = {};
     window.__ct.scene().traverse((m) => {

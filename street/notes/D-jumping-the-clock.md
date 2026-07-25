@@ -160,3 +160,33 @@ vice after dark with a jumped clock is measuring an unlit casino.
 identical, so the practice is spreading — this is the module where it matters
 most. Not investigated further: `ct/vice.ts` is G's and the mechanism is
 `ct/props.ts`'s.
+
+---
+
+## `setNight()`, and what auditing my own scripts found
+
+Having told the block not to jump, I checked my own. Two still did:
+`windowlights.mjs` (21:00 and 03:00) and `alley.mjs` (23:00 and 01:00) — **so
+every night photograph I have taken of the alley, including the one that found
+the glowing graffiti, was of a jumped night.**
+
+`lib/clock.mjs` now exports `setNight(page, h, m)`: via 20:00, settle, then the
+target. A new export, nothing existing changed. Adopted in `windowlights`,
+`alley` and `midnight`, which was hand-rolling the two-step.
+
+**Both findings survive re-measurement, which is worth stating as plainly as the
+correction would have been:**
+
+```
+windowlights 21:00   jumped 2936 warm px    stepped 2936     identical
+alley tags   23:00   jumped 0.115 / walls 0.0621  ratio 1.85x
+                     stepped 0.115 / walls 0.0605  ratio 1.90x
+```
+
+The warm-pixel crop is dominated by sheet opacity, which the hour drives
+directly rather than through the grading path, so it was never exposed. And the
+graffiti defect — tags at 1.0 against walls at 0.062 — was 16x in either path.
+
+So the audit changed no result. It was still worth doing: I could not have known
+that without measuring, and the alternative was leaving four published night
+figures resting on a method I had already written a note against.
