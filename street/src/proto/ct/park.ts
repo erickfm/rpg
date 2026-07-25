@@ -27,7 +27,19 @@ export interface Site { minX: number; maxX: number; minZ: number; maxZ: number; 
 // (GOTCHAS §2). Nothing in here may draw from it.
 const clcg = (s: number) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
 
-const PATH = '#7d7565', PATH_D = '#6c6455', PATH_L = '#8d8574';
+// A PARK PATH IS NOT A ROAD, and this one was.
+//
+// The user, on a review frame: *"THE PATHS READ AS ROAD. They are the same dark
+// grey as the carriageway, so the park looks like it has tarmac streets through
+// it... This one change will do more than anything else on the list."*
+//
+// They were right and the numbers say why. The old buff was #7d7565, which sits
+// between the carriageway's #46413a and the walk's #84817a and shares their
+// grey cast, so in rain or at dusk — which is when the review frame was taken —
+// it collapses onto the road. Hoggin is gravel rolled into clay: it is WARM and
+// it is LIGHT, and those are the two axes that separate it from asphalt under
+// every light in the day.
+const PATH = '#9c8b66', PATH_D = '#8a7a58', PATH_L = '#b3a37c';
 const DIRT = '#6b5d47', DIRT_D = '#5e5240';
 
 // Takes the build context the whole world is given, plus the site extents
@@ -125,12 +137,32 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         if (r() < 0.5) g.fillRect(0, y, d, 1 + Math.floor(r() * 3));
         else g.fillRect(PW - d, y, d, 1 + Math.floor(r() * 3));
       }
-      if (kind === 'path') {                        // a patch of asphalt, once
-        g.fillStyle = '#4c4a48';
+      if (kind === 'path') {
+        // A REPAIR, NOT A HOLE. The user, on the same frame: *"black rectangles
+        // sitting on the path mid-right that read as holes or missing
+        // texture."* That is this patch. It was #4c4a48 — near-black against
+        // the old path and pitch-black against the new buff — with a hard
+        // 2 px shadow along its top edge, which is exactly how a missing
+        // texture looks.
+        //
+        // I had this in my own quality report and waved it through: "reads as a
+        // tar repair, which is what it is meant to be. Cosmetic and arguably
+        // correct." It is not correct, and the user found it before I did. A
+        // real cold-patch repair is BROWNER and only a little darker than what
+        // it is patching, and it has a ragged edge because it is shovelled in.
         const ax = Math.round(PW * 0.2), ay = Math.round(PH * 0.42);
-        g.fillRect(ax, ay, Math.round(PW * 0.55), Math.round(PH * 0.06));
-        g.fillStyle = 'rgba(0,0,0,0.25)';
-        g.fillRect(ax, ay, Math.round(PW * 0.55), 2);
+        const aw = Math.round(PW * 0.55), ah = Math.max(2, Math.round(PH * 0.06));
+        g.fillStyle = '#6e6047';
+        g.fillRect(ax, ay, aw, ah);
+        g.fillStyle = '#7a6c52';                     // the coarse aggregate in it
+        for (let i = 0; i < aw * ah * 0.3; i++) {
+          g.fillRect(ax + Math.floor(r() * aw), ay + Math.floor(r() * ah), 1, 1);
+        }
+        for (let x = ax; x < ax + aw; x++) {         // shovelled, so the edge is ragged
+          g.fillStyle = PATH;
+          if (r() < 0.45) g.fillRect(x, ay, 1, 1);
+          if (r() < 0.45) g.fillRect(x, ay + ah - 1, 1, 1);
+        }
       }
       dither(g, PW, PH, Math.round(wM * dM * 8));
     });
@@ -1279,6 +1311,64 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   for (let z = lz0 + 3.0; z < lz1 - 3.0; z += 7.2 + tsd() * 2.0) {       // framing the field
     if (Math.abs(z - gateMid) < 4.5) continue;                           // the entry stays open
     tree(lx1 + 3.4, z, 0xC00 + Math.round(z * 3));
+  }
+
+  // ── THE SHRUB LAYER ──────────────────────────────────────────────────────
+  //
+  // The user, on a review frame: *"SHRUBS ON THE EDGES... the boundary is trees
+  // standing in front of bare brick with nothing at their feet. Real park edges
+  // have a shrub layer under the trees — it is what hides the base of a wall and
+  // makes a boundary read as planting rather than as a fence of trunks. Low
+  // massed shrubs along the walls, varied in height, denser where the wall is
+  // blankest."*
+  //
+  // Exactly right, and the back wall already had a privet hedge for the same
+  // reason — it was the two FLANKS that were bare, which is where the review
+  // frame was looking. Three rules out of that sentence:
+  //
+  //   LOW AND MASSED, not a row of identical bushes. Each run is 2-5 m long and
+  //     built of two or three boxes of different heights and depths, so the top
+  //     line is broken and the face is not flat.
+  //   DENSER WHERE THE WALL IS BLANKEST. Density is driven by distance to the
+  //     nearest tree: in the gaps between trunks the runs are longer, taller and
+  //     closer together, and where a tree already breaks the wall they thin out.
+  //     That is what "denser where the wall is blankest" asks for, and it is a
+  //     rule rather than a hand-placed guess.
+  //   AND THEY LEAVE THEIR FEET ALONE. C's weed tuft is coming and the desk has
+  //     asked that the shrub layer and the tufts work together, so the runs are
+  //     held 0.15 m off the wall and are not sealed to the ground — there is a
+  //     line at the base for weeds to sit in rather than a skirting board.
+  const flankTreeX: number[] = [];
+  for (let x = site.minX + 5.5; x < lx1 - 1.5; x += 5.8 + tsd() * 1.6) flankTreeX.push(x);
+  const shrubRun = (cx: number, cz: number, len: number, h: number, depth: number,
+    alongX: boolean) => {
+    const w = alongX ? len : depth, d = alongX ? depth : len;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), shrubM);
+    m.position.set(cx, KERB_H + h / 2, cz);
+    scene.add(m);
+    solid({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
+  };
+  const sb = clcg(0x7ac41f);
+  for (const [wallZ, inward] of [[site.minZ, 1], [site.maxZ, -1]] as [number, number][]) {
+    let x = site.minX + 1.0;
+    while (x < lx1 - 0.5) {
+      // how blank is the wall here? distance to the nearest tree along this flank
+      const gap = Math.min(...flankTreeX.map((tx) => Math.abs(tx - x)), 99);
+      const blank = Math.min(1, gap / 3.2);              // 0 under a tree, 1 in the open
+      const len = 2.0 + blank * 3.0 + sb() * 1.2;
+      const h = 0.55 + blank * 0.55 + sb() * 0.35;       // 0.55-1.45 m, taller in the open
+      const depth = 0.7 + blank * 0.5 + sb() * 0.3;
+      const cz = wallZ + inward * (0.15 + depth / 2);    // 0.15 clear of the brick
+      shrubRun(x + len / 2, cz, len, h, depth, true);
+      // a second, lower mass in front of about half of them, so the layer has a
+      // front edge that is not a straight line
+      if (sb() < 0.55) {
+        const h2 = h * (0.45 + sb() * 0.25), d2 = depth * 0.6;
+        shrubRun(x + len * (0.25 + sb() * 0.4), cz + inward * (depth / 2 + d2 / 2 - 0.1),
+          len * (0.4 + sb() * 0.35), h2, d2, true);
+      }
+      x += len + (0.3 + (1 - blank) * 2.2 + sb() * 0.8);  // gaps open up under the trees
+    }
   }
 
   // ── signs of use ─────────────────────────────────────────────────────────
