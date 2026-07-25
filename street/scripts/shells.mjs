@@ -45,6 +45,21 @@ await page.waitForTimeout(900);
 const shells = await page.evaluate(() => {
   const s = window.__ct.scene();
   const out = [];
+  // Reduce a texture to a hash of what it LOOKS like: 24x24 of its own pixels.
+  // Not its uuid — see the note on the uniformity assertion below.
+  const cv = document.createElement('canvas');
+  cv.width = 24; cv.height = 24;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  const pixelHash = (tex) => {
+    try {
+      g.clearRect(0, 0, 24, 24);
+      g.drawImage(tex.image, 0, 0, 24, 24);
+      const d = g.getImageData(0, 0, 24, 24).data;
+      let h = 0x811c9dc5;
+      for (let i = 0; i < d.length; i++) h = Math.imul(h ^ d[i], 0x01000193) >>> 0;
+      return 'px' + h.toString(16);
+    } catch (e) { return 'unreadable:' + tex.uuid; }
+  };
   s.traverse((o) => {
     if (!o.isMesh || !o.userData.facing) return;
     o.updateWorldMatrix(true, false);
@@ -63,7 +78,8 @@ const shells = await page.evaluate(() => {
       facing: o.userData.facing,
       at: [+at.x.toFixed(1), +at.z.toFixed(1)],
       flanksUntextured: flanks.filter((m) => !m.map).length,
-      flankMaps: flanks.filter((m) => m.map).map((m) => m.map.uuid),
+      // The PIXELS, not the object identity. See the note below.
+      flankMaps: flanks.filter((m) => m.map).map((m) => pixelHash(m.map)),
     });
   });
   return out;
@@ -97,6 +113,37 @@ say(distinct >= 4, 'they are not all the same building',
 //
 // Both halves of that are structural and neither is a judgement about how the
 // brick looks: a return had no map, and every return had the SAME no-map.
+//
+// THE UNIFORMITY ASSERTION COUNTS PIXELS, AND USED TO COUNT UUIDs. A set of
+// `map.uuid` counts ALLOCATIONS, not appearances, and `partyWallTex` builds a
+// fresh canvas on every call — so 36 returns make 36 objects whatever they
+// look like. The complaint was about how they LOOK. It now hashes 24x24 of
+// each texture's own pixels.
+//
+// Demonstrated, not assumed. Mutate `flankTex` to paint one texture and hand
+// out `.clone()` of it — every return the same image, each with its own uuid,
+// which is the user's "every flank is the same brown" exactly:
+//
+//     uuid instrument    19 distinct across 36 faces   PASS  <- blind
+//     pixel hash          3 distinct across 36 faces   FAIL
+//
+// (The 3 are other painters — the bank return and the open sites' exposed
+// party walls — which is why the threshold is not 1.)
+//
+// TWO MUTANTS BEFORE THAT ONE WERE INVALID, and both looked like a passing
+// guard. Replacing `flankTex`'s body with a constant call does NOT make the
+// returns identical: `partyWallTex` varies per call beyond its `salt`, so that
+// world genuinely has 19 different-looking returns and BOTH instruments are
+// right to pass it. I read its green as proof of a hole, which it was not —
+// the hole is real but only the clone mutant shows it. I had also grepped the
+// run down to PASS/FAIL lines and thrown away reportWorld's build banner,
+// which is the stale-bundle trap in GOTCHAS 26, in a check I wrote.
+//
+// The general point is bf820319's: a selftest that inverts an assertion proves
+// the script reads the world; only a mutation of the SOURCE proves the guard
+// would catch the regression. And a mutant that does not actually reintroduce
+// the defect proves nothing in either direction — check the mutant is the bug
+// before you believe what the guard says about it.
 const untextured = shells.reduce((n, s) => n + s.flanksUntextured, 0);
 const flankMaps = new Set(shells.flatMap((s) => s.flankMaps));
 say(untextured === 0, 'no return is a flat colour',
