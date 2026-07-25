@@ -651,21 +651,14 @@ their own `ctx.onFrame`. All four use the wrapper now (`9748be19`).
 
 ## Item 4 — casino ceiling — RAISED 2.50 → 2.90 (`73aeb2a4`)
 
-**And the audit's own tool still reports the old value.** `scripts/rooms.mjs`
-prints `ceiling 2.5` for slab 2 on a freshly restarted dev server, while the
-geometry on that same server measures:
-
-```
-kit ceiling plane   y = 2.90
-mirror panel plane  y = 2.88
-wall boxes top out  y = 2.90
-```
-
-So slab 2 is 2.90 m and `rooms.mjs` disagrees. It takes the highest flat
-horizontal (`h < 0.25 && w > 2 && d > 2`), which both of those planes satisfy, so
-either the filter is not matching them or the slab window is picking a different
-room. **Whoever owns `rooms.mjs` should check it before the next triage pass**,
-or item 4 will keep coming back against a room that has already been fixed.
+**Resolved.** For a while `scripts/rooms.mjs` kept reporting `ceiling 2.5` for
+slab 2 while the geometry on the same server measured the kit's ceiling plane at
+2.90, the mirror at 2.88 and the wall boxes topping out at 2.90 — including
+after a full dev-server restart, which is why I flagged it rather than assumed
+my own change had not taken. It now reports **2.9** and agrees with the
+geometry, so nothing is outstanding here and item 4 should not re-raise. Leaving
+the episode recorded because the lesson stands: when a check and the world
+disagree, measure the world directly before believing either.
 
 Also worth knowing for anyone raising a room's height: six fittings in the
 casino were typed as absolute heights and would have been stranded 0.4 m low —
