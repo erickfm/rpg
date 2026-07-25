@@ -19,7 +19,11 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 
-const SUBJ = [
+// SELF-LOCATING as of notes/AUDIT-INSTRUMENTS.md: the old SUBJ table hardcoded
+// citizen positions, and citizens WALK -- those coordinates were true for one
+// frame of one session. Figures are now found by the atlas signature at run
+// time, the same way scripts/people.mjs finds them.
+const SUBJ_RETIRED = [
   ['street  (6, -12.76)',    6,    -12.76, false],
   ['street  (-6, -28.3)',   -6,    -28.3,  false],
   ['interior 442 (bank?)',  442.35, 1.6,   true],
@@ -27,6 +31,20 @@ const SUBJ = [
   ['interior 678',          678.6, -2.55,  true],
   ['interior 1002',        1002.2, -3.3,   true],
 ];
+const SUBJ = await p.evaluate(() => {
+  const s = window.__ct.scene(); s.updateMatrixWorld(true);
+  const out = [];
+  s.traverse(o => {
+    if (!o.isMesh || !o.material || !o.material.map || !o.material.map.image) return;
+    if (o.material.map.image.width !== 160) return;      // the citizen atlas
+    const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox(); if(!g.boundingBox) return;
+    const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    const x=+((bb.min.x+bb.max.x)/2).toFixed(2), z=+((bb.min.z+bb.max.z)/2).toFixed(2);
+    out.push([`${bb.min.x > 400 ? 'interior' : 'street  '} (${x}, ${z})`, x, z, bb.min.x > 400]);
+  });
+  return out;
+});
+console.log(`${SUBJ.length} figures found by atlas signature (no coordinate typed in)`);
 const res = await p.evaluate(async (SUBJ) => {
   const s = window.__ct.scene();
   const find = (x, z) => {

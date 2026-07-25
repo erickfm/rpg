@@ -950,3 +950,51 @@ Flagging rather than filing: a roster that covers every shopfront but one is
 still a large improvement, and the one it misses is the one shaped differently.
 But a future finding on the bodega's face will come back `(no frontage covers
 it)` and look unattributable when it is not.
+
+## Re-verified with a self-locating instrument: **8 of 8 keepers**, not 4
+
+`turn.mjs` was the most dangerous script in my set — `notes/AUDIT-INSTRUMENTS.md`
+flags it because its subject table hardcoded **citizen positions, and citizens
+walk**. Rewritten to find figures by the 160 × 128 atlas signature at run time,
+with no coordinate typed in:
+
+```
+16 figures found by atlas signature
+```
+
+### The verdict is confirmed and extended
+
+| | before | **now** |
+|---|---|---|
+| interior keepers measured | 4 | **8** |
+| showing 8 of 8 distinct frames | 4 of 4 | **8 of 8** |
+
+**Every keeper in every room presents all eight headings** — five unique atlas
+columns plus their three mirrors, no heading repeated, in all eight rooms. When
+I first graded this only half the rooms had a keeper; now all do, and all eight
+pass. The DONE stands on twice the evidence.
+
+### What the hardcoded version was hiding
+
+Five street figures now report:
+
+```
+ERROR  no 160-atlas figure within 3 m (nearest 4.26 / 4.72 / 3.65 / 5.69 / 4.59)
+```
+
+They were located at the start of the run and **had walked away before the orbit
+reached them.** The instrument now says so. The old one, pointed at coordinates
+harvested minutes earlier, could only ever have found *whoever happened to be
+standing there* — and reported it as the same subject.
+
+**That is the stale-coordinate defect in its purest form**, in my own harness,
+and I only saw it because I removed the coordinates. Reporting a walking subject
+as a measured one is not a wrong number; it is a number about the wrong person.
+
+### The limitation, stated
+
+**This test cannot reliably measure moving citizens** — the subject relocates
+mid-measurement, and the honest output is an error rather than a reading. It
+measures *static* figures cleanly, which is where the question mattered: the
+user asked about the people **inside** the shops, and all eight of those are
+standing still and all eight turn correctly.
