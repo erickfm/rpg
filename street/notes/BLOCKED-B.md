@@ -583,6 +583,31 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## CLOSED: the casino runner darkens now, at the number the clamp predicted
+
+The loop from `5a24c796` closes. It wired the entrance runner to `registerWet`,
+watched it come out a pale grey-blue mat **lighter** than the wet pavement, and
+reverted — a defect in my wet-look formula, not their wiring. I clamped it
+(`e24c959a`) and computed what the runner would then do. `cbc1bfc34` has since
+registered it for real:
+
+```
+runner at (51.3, -96.9)   dry 0.0691 -> rain 0.0429     -38%
+```
+
+**Predicted 0.0428 before it was ever registered; measured 0.0429.** The clamp
+was right about the case that motivated it, which is the only way to know a
+formula fix landed rather than merely compiled.
+
+*And my first probe for it was wrong.* I selected "a dark red material near the
+casino" and got 0.592 — far too bright for `#7a2028`, so it was some sign or
+awning. Third time this session a loose selector has nearly produced a false
+finding, and the third time the tell was a value that made no sense for the
+thing I claimed to be measuring. Keyed to `userData.wet` instead, which is
+exactly the registration under test.
+
+---
+
 ## LOOKED at a wet night and found litter floating on black ground
 
 Every audit above is a measurement. `5a24c796` fixed my wet-look by *looking* at
