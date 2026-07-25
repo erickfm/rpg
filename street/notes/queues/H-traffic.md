@@ -55,6 +55,23 @@ world stops.
       wheel that reads as a wheel beats a well-modelled one that reads as a
       black bar.
 
+      **Second shot, and it shows the mechanism** — `shots/user-truckstripe.png`,
+      the user: *"what is this black stripe on the back of the pick up truck"*.
+      The truck flank has a STACK of long black horizontal bars running most
+      of the body length, plus a stray vertical black bar near the tailgate.
+
+      That tells you exactly what is wrong with the stepping: **each step is
+      running the full length of the panel instead of the width of the
+      wheel.** A stepped arch is a staircase whose treads get shorter as they
+      rise, all of them within roughly the wheel's diameter — the whole shape
+      should be about as wide as the tyre and no wider. What is drawn is
+      full-width bands stacked vertically, which is why it reads as stripes
+      painted down the side of the truck rather than as an opening.
+
+      So the bug is likely one term: a step's extent is being taken from the
+      panel width rather than from the arch radius. Check that before
+      redrawing anything.
+
       Judge from standing at the kerb beside a parked car, which is how the
       user sees them — not from a three-quarter hero angle.
 
