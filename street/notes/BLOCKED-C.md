@@ -231,3 +231,48 @@ the argument for the opt-out better than any of my numbers.
 `scripts/mods-dim.mjs` stays unregistered until this lands: it is red on this
 finding, and reddening the shared suite over something I cannot fix would hand
 the block my problem.
+
+
+---
+
+## My two citizens do not dim, and 14 others do
+
+Measured, dry evening, stepped through, 8-angle atlas sprites only, each
+compared against its own daylight value:
+
+```
+  (unstamped)  n=14   mean drop 40.0%     the world's citizens
+  lot          n= 1   mean drop  0.0%     the salesman
+  walkup       n= 1   mean drop  0.0%     the hermit
+```
+
+People elsewhere darken with the evening. Both of mine stand at full daylight
+brightness in a lot measured at 3% of its noon value.
+
+**Why it is not fixable in my files.** A material grades because something
+registers it, and `props.lit` is the registry. `crosstown.ts` hands `lit` to
+some modules explicitly — `props.lit(car)` at :307, `lit: props.lit` at :324
+and :337, and into `buildSideStreet` at :386 — and does not hand it to
+`ct/lot.ts` or `ct/apartment.ts`. My build context has `scene`, `flat`, `wet`,
+`KERB_H`, `obstacle`, `onFrame`, `seat`. No `lit`.
+
+`citizenSprite` does not register either, so every caller inherits the same
+gap and the two callers who are not wired for `lit` inherit it invisibly.
+
+**The ask, and I think the second is the better one:**
+
+1. pass `lit` into these two modules' contexts, the way it is passed to the
+   others; or
+2. **have `citizenSprite` register the sprite it returns.** Every caller wants
+   the same thing — a person who dims like the other people — and the
+   primitive already knows it made a person. `ctx.seat()` and `ctx.spot()` set
+   the precedent: the kit does the registering, the caller states intent. It
+   would fix both of mine and anything built with it later, without four
+   builders each remembering a line.
+
+Not mine to choose between. `ct/citizens.ts` is H's and `crosstown.ts` is the
+entry point.
+
+**Not hand-graded here**, for the same reason as the banners: a private
+constant beside the world's own grader is the decal mistake, and it becomes a
+two-writer bug the moment the real registration lands.

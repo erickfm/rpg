@@ -93,6 +93,7 @@ const read = async (h, steps) => await page.evaluate(async ([hh, st, mods]) => {
       out.push({ uuid: m.uuid, mod,
         v: (m.color.r + m.color.g + m.color.b) / 3,
         selfLit: !!m.userData.selfLit, cLight: !!m.userData.cLight, wet: !!m.userData.wet,
+        known: m.userData.cKnownUngraded ?? null,
         at: `${e[12].toFixed(1)},${e[13].toFixed(1)},${e[14].toFixed(1)}`,
         size: g ? `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)}` : '?' });
     }
@@ -145,8 +146,14 @@ if (!rows.length) {
 // against the pre-fix bunting it reported "0 hold and do not" while 76 flags
 // sat at full daylight. `cLight` is set by hand, in my module, on the two
 // materials that really are lights.
-const stuck = rows.filter((r) => r.drop < MOVED && !r.cLight);
+const stuck = rows.filter((r) => r.drop < MOVED && !r.cLight && !r.known);
 const litStuck = rows.filter((r) => r.drop < MOVED && r.cLight);
+// KNOWN AND BLOCKED, carrying the name of what blocks them. Excusing these is
+// what lets this check run at all: it was red on the banners alone, so it sat
+// unregistered and guarded NOTHING — including the bunting-shaped regression it
+// exists to catch. An exemption that names its blocker expires when the blocker
+// does; one that does not becomes permanent by silence.
+const known = rows.filter((r) => r.drop < MOVED && r.known);
 console.log(`\n  ${rows.length} materials across ${MODS.join(', ')}, ${hours.day % 24}:30 dry -> ${hours.night % 24}:30 dry`);
 console.log(`  ${rows.length - stuck.length - litStuck.length} dim, ${litStuck.length} hold and say so (selfLit), ${stuck.length} hold and do not`);
 if (litStuck.length) {
