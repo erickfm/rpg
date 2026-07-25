@@ -131,6 +131,48 @@ for (const bn of site.banners) {
   if (!backed) FAIL.push(`a banner at z ${bn.z.toFixed(1)}, y ${bn.y.toFixed(2)} has no fence behind it`);
 }
 
+// 5 — EVERY CAR IS NOSE-OUT TOWARD THE AISLE, whichever side it stands on.
+//
+// The user: *"a lot displays stock NOSE-OUT toward the aisle: that is how a
+// customer reads the cars walking in, and how they drive out"*, and the cause
+// when it is wrong: *"a row on the far side of an aisle is not a COPY of the
+// near row, it is a MIRROR ... code that copies rather than reflects will
+// always get the second one wrong."*
+//
+// The source now derives each heading from the car's own side of the aisle, so
+// this cannot recur by construction. This is here because "cannot recur by
+// construction" is a claim, and the ask was explicitly that *a row added later
+// cannot come out backwards* — which is a property of the built world, so the
+// built world is where it is checked.
+//
+// Convention-free on purpose: the heading is read as the group's local -z
+// axis out of its world matrix, not recomputed from a yaw. Recomputing from a
+// yaw is what produced the bug — ctx.seat's yaw and three.js's rotation.y
+// disagree in x, and the chairs beside the office were wrong for exactly that
+// reason at the same time as the rows.
+const cars = await p.evaluate(() => {
+  const s = window.__ct.scene(); s.updateMatrixWorld(true); const out = [];
+  s.traverse((o) => {
+    if (!o.isGroup) return;
+    let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
+    if (mod !== 'lot') return;
+    let n = 0; o.traverse((c) => { if (c.isMesh) n++; });
+    if (n < 8) return;                                  // a car, not a chair
+    const e = o.matrixWorld.elements;
+    out.push({ x: +e[12].toFixed(2), z: +e[14].toFixed(2), hz: +(-e[10]).toFixed(3) });
+  });
+  return out;
+});
+if (cars.length < 4) FAIL.push(`only ${cars.length} cars found in the lot — expected the stock`);
+else {
+  const zs = cars.map((c) => c.z);
+  const zMid = (Math.min(...zs) + Math.max(...zs)) / 2;
+  const tail = cars.filter((c) => (c.z > zMid ? c.hz > -0.2 : c.hz < 0.2));
+  console.log(`  stock: ${cars.length} cars, aisle centre z ${zMid.toFixed(2)}, ${cars.length - tail.length} nose-out`);
+  for (const c of tail.slice(0, 6))
+    FAIL.push(`a car at x ${c.x} z ${c.z} presents its TAIL to the aisle (nose dz ${c.hz})`);
+}
+
 await b.close();
 if (FAIL.length) {
   console.error(`\nFAILED (${FAIL.length}):`);

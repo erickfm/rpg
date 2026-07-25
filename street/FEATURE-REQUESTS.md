@@ -71,6 +71,40 @@ published to the playable artifact.
 - **"i want the people inside the buildings to be as detailed and quake-view like as the pedestrians on the street / make the jump a tiny bit higher"** → **F**
 - **"pickup looks great but the wheels need to not clip through, maybe we need to have some inlaid wheel things pickups have / on the car idk if the doors make sense"** → **H**
 - **"park should be much deeper, like 4-5x deeper. and make it nice, a nice park with trees and a litle field maybe even a play area but not necessary maybe just a field with a walking route around the field?"** → **E**
+
+### 2026-07-25 — the car lot faces the wrong way, twice (→ builder C, `ct/lot.ts`)
+
+> *"shots/user-lotfacing.png - the LEFT row presents tailgates and rear lights
+> to the drive aisle while the RIGHT row presents noses. A lot displays stock
+> NOSE-OUT toward the aisle: that is how a customer reads the cars walking in,
+> and how they drive out. Both rows present fronts. THE LIKELY CAUSE, and this
+> project has now hit it three times in different clothes: a row on the far
+> side of an aisle is not a COPY of the near row, it is a MIRROR, so its
+> heading must rotate 180 degrees. If both rows come from one loop with a
+> shared yaw and only the x offset flipped, the far row is backwards BY
+> CONSTRUCTION. That is exactly the defect that made the interiors disagree
+> with their facades - handedness is not preserved when you mirror a layout,
+> and code that copies rather than reflects will always get the second one
+> wrong. So fix it at the SOURCE: derive each car's heading from which side of
+> the aisle it is on, not by adding 180 to one row as a constant, so a row
+> added later cannot come out backwards. The rest of the lot reads well - WE
+> FINANCE ANYONE, the CALL 555-0199 banner, the office, the TODAY ONLY board,
+> the cone, the bunting and the salesman all land. This is one rotation."*
+
+> *"Second item, and do it IN THE SAME COMMIT as the car-row rotation - it is
+> the same fault twice in your file. shots/user-lotchairs.png: the blue and
+> orange chairs outside the office are turned so a person sitting in them would
+> face the BUILDING. Chairs outside an office face OUT - at the lot, at the
+> cars, at the street. Nobody waiting to hear about their credit sits facing a
+> wall a metre away. While you are there: they are dead straight and perfectly
+> parallel, which reads as placed rather than used - two plastic chairs outside
+> a portacabin sit at slightly different angles with one pushed back further.
+> Vary them. And check both are registered with ctx.seat(): a chair that is
+> visibly a chair and cannot be sat in is worse than no chair."*
+
+Both **routed to builder C** — `ct/lot.ts` is C's. Landed together in one
+commit, as asked.
+
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**

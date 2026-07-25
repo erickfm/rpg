@@ -1261,15 +1261,46 @@ function buildLot(o: {
     };
     // Bay list, straight off THE PLAN: every place a car stands, both flanks,
     // street end first so the near bays fill before the far ones.
+    /**
+     * A ROW ACROSS THE AISLE IS A MIRROR, NOT A COPY.
+     *
+     * The user, on the third time this project has hit this in different
+     * clothes: *"a row on the far side of an aisle is not a COPY of the near
+     * row, it is a MIRROR, so its heading must rotate 180 degrees. If both
+     * rows come from one loop with a shared yaw and only the x offset flipped,
+     * the far row is backwards BY CONSTRUCTION."*
+     *
+     * That is what this was. The south row was written `yaw: -HERR`, which
+     * negates the herringbone RAKE and never turns the car around, so the far
+     * row presented tailgates to the aisle while the near row presented noses.
+     * A lot displays stock nose-out: it is how a customer reads the cars
+     * walking in and how the car drives out.
+     *
+     * Reflecting a heading in the plane z = zMid maps a direction (dx, dz) to
+     * (dx, -dz). With yaw 0 facing -z, a heading θ has direction
+     * (sin θ, -cos θ), and its reflection is (sin θ, cos θ) — which is the
+     * direction of **π - θ**. So the mirror of a yaw is `π - yaw`, and
+     * `-yaw` is the same thing only when θ is 0 or π, which is exactly why
+     * the rake made it wrong and a straight-on row would have hidden it.
+     *
+     * Derived from the car's own z rather than applied as a constant to one
+     * row, so a row added later cannot come out backwards: whatever side of
+     * the aisle it is given, its heading follows.
+     */
+    const mirrorYaw = (yaw: number) => Math.PI - yaw;
+    /** the heading for a bay, from which side of the aisle it stands on */
+    const bayYaw = (z: number, nearYaw: number) => (z > zMid ? nearYaw : mirrorYaw(nearYaw));
+
     const BAY: { x: number; z: number; yaw: number }[] = [];
     for (let i = 0; i < BAYS; i++) {
-      BAY.push({ x: bayX(i), z: NORTH_Z, yaw: HERR });
-      BAY.push({ x: bayX(i) + BAY_PITCH / 2, z: SOUTH_Z, yaw: -HERR });
+      BAY.push({ x: bayX(i), z: NORTH_Z, yaw: bayYaw(NORTH_Z, HERR) });
+      BAY.push({ x: bayX(i) + BAY_PITCH / 2, z: SOUTH_Z, yaw: bayYaw(SOUTH_Z, HERR) });
     }
     // and the two back corners, either side of the office, turned to face
     // down the aisle — the cars you only see once you are all the way in.
     for (const sgn of [1, -1]) for (let k = 0; k < 2; k++) {
-      BAY.push({ x: OFF_X - 0.4 - k * 2.8, z: zMid + sgn * (OFF_W / 2 + 2.4), yaw: sgn > 0 ? 1.15 : -1.15 });
+      const bz = zMid + sgn * (OFF_W / 2 + 2.4);
+      BAY.push({ x: OFF_X - 0.4 - k * 2.8, z: bz, yaw: bayYaw(bz, 1.15) });
     }
 
     // ── the three that are not just parked ───────────────────────────────
@@ -1563,19 +1594,55 @@ function buildLot(o: {
     // open asphalt: the first placement put them inside a solid box, the seat
     // registered, the prompt appeared, and you could never walk to it, which
     // is GOTCHAS §8 exactly. scripts/seats-walk.mjs is what catches that.
+    /**
+     * THE MODEL'S SPIN IS THE NEGATIVE OF THE SEAT'S YAW, and this file said
+     * the opposite for as long as the chairs have existed.
+     *
+     * The user: *"the blue and orange chairs are turned so a person sitting in
+     * them would face the BUILDING. Chairs outside an office face OUT."* They
+     * were, and it is the same fault as the car rows one screen up — a
+     * handedness that is not preserved, written as one number used twice.
+     *
+     * The two conventions genuinely differ:
+     *
+     *   ctx.seat yaw ψ   the camera faces ( sin ψ, -cos ψ)      F's kit
+     *   rotation.y  θ    local -z lands at (-sin θ, -cos θ)     three.js
+     *
+     * Same number, opposite x. So passing `-π/2` to both — which the old
+     * comment here claimed made them agree — pointed the SEATED VIEW west out
+     * at the stock (correct) and the CHAIR east into the wall (not). Measured
+     * both ways rather than reasoned: the matrix says the model faced east,
+     * and sitting down and reading `__ct.yaw()` says the camera faces west.
+     *
+     * Equating the two gives θ = -ψ, so the seat pose stays the source of
+     * truth and the model is derived from it. One number, one direction, and
+     * a third chair cannot be added facing the wrong way.
+     */
+    const chairSpin = (seatYaw: number) => -seatYaw;
+    // Two plastic chairs outside a portacabin are not a matched pair on a
+    // showroom floor. The user: *"they are dead straight and perfectly
+    // parallel, which reads as placed rather than used — two plastic chairs
+    // sit at slightly different angles with one pushed back further."*
+    // So: both roughly facing out at the stock, one turned in toward the other
+    // as if two people had been talking, and the orange one shoved back off
+    // the wall and a little further down.
     const chX = cx - CD / 2 - 0.55;
-    chair(chX, cz + 1.15, -Math.PI / 2, 0x2f5f9c);
-    chair(chX - 0.10, cz + 1.95, -Math.PI / 2 - 0.30, 0xc4622a);
+    const SEAT_A = -Math.PI / 2 + 0.16;          // blue, nearest the door
+    const SEAT_B = -Math.PI / 2 - 0.34;          // orange, pushed back, turned in
+    const chAx = chX, chAz = cz + 1.15;
+    const chBx = chX - 0.31, chBz = cz + 2.02;
+    chair(chAx, chAz, chairSpin(SEAT_A), 0x2f5f9c);
+    chair(chBx, chBz, chairSpin(SEAT_B), 0xc4622a);
 
     // SITTABLE. F's ctx.seat does the sitting, the standing and the prompt —
     // all this owes it is where the pan is and which way you end up facing,
     // which for a chair against the office wall is OUT at the stock. The
     // approach is a stride in front, because the trigger has to be reachable
     // from the asphalt and not from inside the cabin.
-    o.seat?.({ x: chX, z: cz + 1.15, yaw: -Math.PI / 2, h: 0.46,
-      approach: { x: chX - 0.85, z: cz + 1.15 } });
-    o.seat?.({ x: chX - 0.10, z: cz + 1.95, yaw: -Math.PI / 2 - 0.30, h: 0.46,
-      approach: { x: chX - 0.95, z: cz + 1.95 } });
+    o.seat?.({ x: chAx, z: chAz, yaw: SEAT_A, h: 0.46,
+      approach: { x: chAx - 0.85, z: chAz } });
+    o.seat?.({ x: chBx, z: chBz, yaw: SEAT_B, h: 0.46,
+      approach: { x: chBx - 0.85, z: chBz } });
     // and the three-high tyre stack, which is 0.56 of rubber and is exactly
     // what gets sat on when both chairs are taken. The five-high and the
     // four-high are too tall to be furniture, so they stay scenery.
