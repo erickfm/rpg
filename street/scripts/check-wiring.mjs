@@ -1,0 +1,139 @@
+// Fail the build when a module is written but never constructed.
+//
+// This has shipped FIVE times: int-casino, int-hotel, int-tax, park and lot
+// were each finished, committed, and never put in the world. The shape is
+// always the same and it is nobody's carelessness — a builder owns
+// `ct/<thing>.ts` and does good work in it, but the one `buildThing(ctx)` line
+// that constructs it lives in `crosstown.ts`, which is desk-owned. So the
+// builder cannot wire its own module, the desk does not know it is waiting,
+// and nothing anywhere fails. The user goes looking for the thing they asked
+// for and finds nothing there. Twice, now.
+//
+// Nothing catches this today: it typechecks, it builds, the sweep is clean and
+// the fingerprint is stable, because an unreferenced module is simply absent.
+// The only detector was somebody walking to the right corner of the world.
+//
+// So: every `ct/*.ts` that exports a `build*` function must have that symbol
+// imported AND called somewhere under `src/proto/`. If it is deliberately not
+// wired, it goes in ALLOWED below with a reason — opting out should be a
+// visible decision, not an accident.
+//
+// Wired into `npm run build`, ahead of tsc. The merge train builds after every
+// merge, so a failure lands on the builder that caused it.
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, dirname, posix } from 'node:path';
+
+const CT = 'src/proto/ct';
+const ROOT = 'src/proto';
+
+/**
+ * Modules that export a build* function and are deliberately NOT constructed.
+ * Every entry needs a reason. An empty allow-list is the healthy state.
+ */
+const ALLOWED = {
+  // 'ct/example.ts': 'why this one is intentionally not in the world',
+
+  // The two live instances. Builder F is wiring both as I write this, so
+  // gating on them today would break every builder's build for work that is
+  // already in hand. They are listed rather than ignored: the reason prints on
+  // EVERY build, so it nags until F's wiring lands and these two lines are
+  // deleted. Deleting them is the last step of that item, not a follow-up.
+  'ct/park.ts': 'builder F is wiring it now — DELETE THIS LINE when that lands',
+  'ct/lot.ts': 'builder F is wiring it now — DELETE THIS LINE when that lands',
+};
+
+// ── collect every exported build* symbol, and every file under src/proto ────
+const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+  e.isDirectory() ? walk(join(dir, e.name)) : e.name.endsWith('.ts') ? [join(dir, e.name)] : []);
+
+const files = walk(ROOT);
+const sources = new Map(files.map((f) => [f, readFileSync(f, 'utf8')]));
+
+const decl = /^export\s+(?:async\s+)?(?:function|const)\s+(build[A-Z]\w*)/gm;
+const exported = [];
+for (const f of readdirSync(CT).filter((n) => n.endsWith('.ts'))) {
+  const path = join(CT, f);
+  const src = sources.get(path) ?? readFileSync(path, 'utf8');
+  for (const m of src.matchAll(decl)) exported.push({ path, rel: `ct/${f}`, sym: m[1] });
+}
+
+// ── modules constructed through `import.meta.glob` ──────────────────────────
+//
+// ct/interior.ts discovers every ./int-*.ts with a Vite eager glob and calls
+// whatever build…() each one exports. Those rooms ARE in the world, and a
+// naming-only check calls all seven of them orphans — which would fail the
+// build on working code, and a check that cries wolf gets deleted. So resolve
+// globs to the files they actually match.
+const globbed = new Map();                          // file -> the file that globs it
+for (const [f, src] of sources) {
+  // [^(]* rather than [^>]* on the type argument: the real call is
+  // import.meta.glob<Record<string, unknown>>('./int-*.ts', …) and a
+  // first-> match stops inside Record<…>, which silently found no globs at all.
+  for (const g of src.matchAll(/import\.meta\.glob\s*(?:<[^(]*>)?\s*\(\s*['"]([^'"]+)['"]/g)) {
+    const pat = g[1];
+    // only a glob that INVOKES what it finds constructs anything; one that
+    // merely collects modules is a registry, not a construction site
+    if (!/\)\s*\(\s*\w+\s*\)|\]\s*as[^)]*\)\s*\(/.test(src)) continue;
+    const base = posix.normalize(posix.join(dirname(f).split(/[\\/]/).join('/'), dirname(pat)));
+    const rx = new RegExp('^' + pat.split('/').pop().replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*') + '$');
+    for (const cand of files) {
+      const cd = dirname(cand).split(/[\\/]/).join('/');
+      if (cd === base && rx.test(cand.split(/[\\/]/).pop())) globbed.set(cand, f);
+    }
+  }
+}
+
+// ── is it imported and called from somewhere that is not itself? ────────────
+const orphans = [], wired = [];
+for (const { path, rel, sym } of exported) {
+  if (ALLOWED[rel]) continue;
+  if (globbed.has(path)) { wired.push(`${rel} ${sym}() via import.meta.glob in ${globbed.get(path)}`); continue; }
+  let importedBy = null, calledBy = null;
+  for (const [f, src] of sources) {
+    if (f === path) continue;                       // a module calling itself proves nothing
+    // the symbol named in an import list from a relative module
+    if (!importedBy && new RegExp(`import\\s*{[^}]*\\b${sym}\\b[^}]*}\\s*from\\s*['"]\\.`, 's').test(src)) importedBy = f;
+    // ...and actually invoked, not merely re-exported
+    if (!calledBy && new RegExp(`\\b${sym}\\s*\\(`).test(src)) calledBy = f;
+    if (importedBy && calledBy) break;
+  }
+  if (!importedBy || !calledBy) orphans.push({ rel, sym, importedBy, calledBy });
+  else wired.push(`${rel} ${sym}() from ${calledBy}`);
+}
+
+if (process.argv.includes('-v')) for (const w of wired) console.log('  wired  ' + w);
+// Print every allow-list entry every time. A silent allow-list is how a
+// deliberate exception rots into a forgotten one, which is the failure this
+// script exists to stop — one level up.
+for (const [mod, why] of Object.entries(ALLOWED)) {
+  console.log(`wiring: ${mod} NOT constructed, allow-listed — ${why}`);
+}
+if (!orphans.length) {
+  console.log(`wiring: ${exported.length} build* exports, all constructed`
+    + (Object.keys(ALLOWED).length ? ` (${Object.keys(ALLOWED).length} allow-listed)` : ''));
+  process.exit(0);
+}
+
+console.error('\nWIRING CHECK FAILED — module written but never constructed\n');
+for (const o of orphans) {
+  const why = !o.importedBy ? 'never imported anywhere under src/proto/'
+    : 'imported, but never called';
+  console.error(`  ${o.rel}  exports ${o.sym}()  —  ${why}`);
+}
+console.error(`
+This is finished work that is not in the world. It typechecks, it builds and
+the sweep is clean, because an unreferenced module is simply absent — which is
+why this has shipped five times without anyone noticing.
+
+Fix it one of two ways:
+
+  1. Construct it. The call goes wherever that kind of thing is built —
+     usually one line in src/proto/crosstown.ts. If you do not own that file,
+     say so in street/notes/BLOCKED-<you>.md and the desk will wire it; do not
+     leave it and move on, which is how the five got here.
+
+  2. If it is genuinely not meant to be in the world yet, add it to ALLOWED in
+     scripts/check-wiring.mjs WITH A REASON. Opting out is fine. Opting out
+     silently is what this check exists to stop.
+`);
+process.exit(1);

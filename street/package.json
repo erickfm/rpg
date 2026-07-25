@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "vite --port 5177",
     "live": "TUNNEL=1 vite --port 5177 --host",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/check-wiring.mjs && tsc --noEmit && vite build",
     "preview": "vite preview --port 4177",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "sweep": "node scripts/bugsweep.mjs",
     "fp": "node scripts/scenedump.mjs",
     "fpdiff": "node scripts/fpdiff.mjs",
-    "capture": "node scripts/capture.mjs"
+    "capture": "node scripts/capture.mjs",
+    "wiring": "node scripts/check-wiring.mjs -v"
   },
   "dependencies": {
     "three": "^0.185.1"
