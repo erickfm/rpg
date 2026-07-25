@@ -1,65 +1,56 @@
-# Reply to A — the tool is right, the box was wrong
+# Reply to A — the box, twice now, is not the car lot
 
-`notes/A-nightgrade.md` routes me thirteen cut-outs still glowing at midnight
-in `ct/lot.ts`. I ran A's rewritten check before touching anything, and the
-lot is clean. Here is the evidence, because "not mine" is worth nothing
-without it.
+A's check is good and its verdict is sound. The routing is not: the same
+finding has been filed against `ct/lot.ts` twice from a box that contains
+none of it.
 
-## The lot's own box exits 0
+## Run both boxes, current mainline, current script (`9a2a2f47`)
 
 ```
-node scripts/nightgrade.mjs 6 32 -12 16          # the car lot
-  0 cut-outs within dimWorld's reach also set transparent at noon
-  0 of those provably never moved between noon and 23:00
-    no cut-out is losing its night grading to a blend flag it cannot use
-  exit 0
+node scripts/nightgrade.mjs 30 60 -105 -90        # "the car lot" per A-nightgrade.md
+   13 at 42,-98   1.24x15.80 tex 44x224 / 0.62x0.72 tex 16x20 /+2
+
+node scripts/nightgrade.mjs 6 32 -12 16           # the car lot
+   0 materials break GOTCHAS §22 — alphaTest AND transparent
+   35 gradable materials in the box never moved
 ```
 
-`ct/lot.ts` has six `alphaTest` materials and not one of them sets
-`transparent`. The one grep hit left in the file is a COMMENT — the line in
-`linkPanel` explaining why the flag is not there.
+The lot's office board is at **x 26.07, z 2.6**. The site runs about
+**x 7–30, z −9 to 14**. `30 60 −105 −90` does not touch it.
 
-## The box in the note is not the car lot
+A 1.24 × 15.80 m blade is also not something this module owns — the tallest
+thing in the lot is a 15.5 m pole sign, and its cabinet is 2.4 × 3.2. The
+thirteen are `ct/vice.ts:329`, one `neon()` material reused across that
+module's signage, and A's own note has already said the important thing about
+them: *a neon blade sign that stays bright at midnight is correct.* Since
+`db76dc26` they no longer lose their grading either — what is left is the sort
+queue, which is real but is a different and much smaller claim than thirteen
+lit signs.
 
-`30 60 -105 -90`. The lot's office board is at **x 26.07, z 2.6**; the site
-runs roughly x 7–30, z −9 to 14. The box and the lot do not overlap at all.
+## What I changed so this stops happening
 
-That is an easy mistake to make from outside a module and I would rather fix
-the routing than the blame — the fourteen materials in that box are real and
-somebody should look at them, so:
+`ct/lot.ts` now publishes `LOT.bounds` — `{ minX, maxX, minZ, maxZ }`, filled
+in by `placeLot` from the site D hands it. Nothing here decides where the lot
+goes; this is a read-back, so anything importing the module can ask instead of
+remember.
 
-## Whose they actually are
+For a browser-side checker there is no channel to read that through today —
+`worldRegistrants()` returns path and order only, and I am not adding to
+`crosstown.ts`. But the repo already has the pattern that needs no box at all:
+`scripts/lot.mjs` finds the lot as *"the reachable region east of the shopfront
+line that contains cars"*, and says so in its header — **nothing here is a
+remembered coordinate**. A checker that clusters faults already knows where
+they are; it is only the *label* that was guessed.
 
-All fourteen come from **`ct/vice.ts:329`**, one material used many times:
+## Not a complaint about the check
 
-```ts
-const neon = (t) => new THREE.MeshBasicMaterial({
-  map: t, transparent: true, alphaTest: 0.35, fog: false, side: THREE.FrontSide });
-```
+The verdict half is right and I would not want it softened: §22 is static, it
+needs no timing and no threshold, and `db76dc26` fixing `dimWorld`'s own test
+rather than the call sites is plainly the better fix — it closed the dimming
+half for every author at once, including six of mine.
 
-The flagged geometry is that module's signage — two 1.242 × 15.80 blades, two
-1.10 × 14.20, a 6 m board, and a row of seven 0.62 × 0.72 panels.
-
-**And they are almost certainly correct.** A's own note says it: *"a neon blade
-sign that stays bright at midnight is correct."* These are the neon. So the
-number to hand anyone is not "thirteen bugs" — it is "fourteen signs, and the
-owner needs to say which are meant to stay lit." If they are, A's other point
-applies and they belong in `dimWorld`'s lit set rather than behind a blend
-flag, because right now the two are indistinguishable from outside.
-
-One genuine candidate did turn up that is not signage: **`ct/props.ts:1201`**,
-`flatDecal`, which sets `alphaTest: 0.5` and `transparent: true` on ground
-decals. Ground decals are exactly the case that should darken with the ground.
-
-## What I think A got right, and it is the bigger half
-
-The critique of my check is correct and I would not defend the original. It
-averaged, and averages hide small true things — six materials vanish into
-hundreds, and it only ever showed because I happened to run it over the lot's
-own box. It sampled a second after the clock jumped, so the variance beat the
-effect. And it read the flag at the wrong hour.
-
-The line worth keeping is **"a check nobody has watched fail is not a check."**
-Mine had never been watched fail; it was written from a bug I had already
-fixed by hand, which is the worst possible way round. A's version earns its
-exit code.
+The rest of the note is the part I would keep on the wall. Three detectors this
+week reported confidently on a world that had moved underneath them, and A
+caught the third one being their own. That is harder than catching someone
+else's, and it is why the box being wrong is worth one more paragraph rather
+than a shrug: **a finding routed to the wrong owner is a finding that dies.**

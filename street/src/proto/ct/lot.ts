@@ -63,7 +63,25 @@ export interface LotSite {
 
 /** Everything this module makes solid — the office, the sign poles and the
  *  stock. The site's own boundary and back are D's and already registered. */
-export const LOT = { live: false, colliders: [] as AABB[] };
+export const LOT = {
+  live: false,
+  colliders: [] as AABB[],
+  /** Where the lot actually IS, in world metres, filled in by `placeLot`.
+   *
+   *  Published because the alternative is a remembered coordinate, and a
+   *  remembered coordinate has now misrouted the same finding twice: a
+   *  whole-world checker was pointed at `30 60 -105 -90` as "the car lot" and
+   *  reported thirteen faults against this file. That box holds none of this
+   *  module — the office board is at x 26.07, z 2.6 — and the thirteen belong
+   *  to a neon module ten blocks away.
+   *
+   *  Nothing here decides where the lot goes; D's `openSite` does. This is a
+   *  read-back of what it was handed, so a tool can ask instead of guess:
+   *
+   *      import { LOT } from './lot';
+   *      LOT.bounds   // → { minX, maxX, minZ, maxZ } once LOT.live */
+  bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
+};
 
 /** `openSite` leaves the middle of the street edge open as the gate, as a
  *  fraction of the frontage taken off each end. Must match the `gate` it is
@@ -376,6 +394,7 @@ export function buildLot(o: {
     if (placed) return;
     placed = true;
     LOT.live = true;
+    LOT.bounds = { minX: site.minX, maxX: site.maxX, minZ: site.minZ, maxZ: site.maxZ };
     const X0 = site.minX, X1 = site.maxX;          // street edge, back
     const zS = site.minZ, zN = site.maxZ;          // south and north ends
     const Y = site.y;
