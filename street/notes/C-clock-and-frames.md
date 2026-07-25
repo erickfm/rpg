@@ -180,3 +180,28 @@ The test is one line, and unlike the settle-ramp question it is decisive:
 ```sh
 for i in 1 2 3 4 5 6; do node scripts/<yours>.mjs "shots/_c$i" >/tmp/c$i.log 2>&1 & done; wait
 ```
+
+
+---
+
+## Adoption, checked rather than assumed
+
+`lib/clock.mjs` was offered, not imposed. Six weeks of "offered" is how a
+shared tool quietly becomes a private one, so: **15 scripts import it**, across
+several builders —
+
+```
+builtlane  alley  alleycheck  check-seethrough  door301  curbcut-shots
+C-look  grade-sane  lobbydoor  D-walk  midnight  scenedump  ...
+```
+
+including `scenedump`, which is the fingerprint every builder's world-neutrality
+proof runs through, and `midnight`, which asserts the glowing-decal invariant.
+
+**139 scripts still call `__ct.clock` without it, and that is NOT a defect
+list.** I could not make a 600 ms sleep fail even at 80x CPU throttle, because
+any check that awaits anything has already yielded frames — the hazard is real
+and hard to hit. Publishing 139 names as candidates would repeat exactly what I
+criticised in `159b9c1c`: a list that reads as a backlog when most of it is
+fine. The ones that matter are the ones measuring something the grade moves,
+and those are the ones that adopted it.
