@@ -123,7 +123,14 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
-- **"this guy is floating"** → **C**
+- **"this guy is floating"** / **"your car lot salesman's feet end above the asphalt with a visible gap ... DIAGNOSE WHOSE IT IS ... if STREET pedestrians float too, then it is the sprite anchor itself"** → **C to diagnose, H to fix**
+  → **C. DIAGNOSED, NOT MINE.** It is the atlas, and it is world-wide. Every
+  citizen — the salesman and all six street pedestrians — is placed on the
+  ground to **0.000 m**, so no call site is passing a wrong y. Every citizen
+  also floats **0.108–0.129 m**, because the atlas frame has **4 empty pixel
+  rows below the feet** out of 64 and `citizenSprite` translates the origin to
+  the frame's bottom edge rather than to the feet. The spread is only each
+  figure's height scale. Numbers and method in `notes/C-salesman-float.md`.
 - **"verify the eight LANDED rows"** → **AUDIT**
 - **"casino interior is nice but i want more. bigger and more expansive / the interior door doesnt match the exterior doorway"** → **G**
 - **"the interior door doesnt match the exterior doorway"** → **F**
