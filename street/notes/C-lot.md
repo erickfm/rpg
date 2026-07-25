@@ -295,8 +295,10 @@ carries. The note documents the encoding exactly; I had read the table and not
 the paragraph under it.
 
 **Checked against the floating-litter sweep, and the lot is clean.** `0d9146049`
-shot a wet midnight and found litter reading 61x the ground it lies on — the
-same shape as my own decals reading 94x the tarmac. Worth checking my area
+shot a wet midnight and found litter far brighter than the ground it lies on —
+the same shape as my own decals, whose multiple I have since withdrawn (see
+above: cross-material tint comparisons are not brightness; the sound form is
+that they were dimming 27% where the ground dimmed 99%). Worth checking my area
 rather than assuming the decal fix covered it, since the lot has a cone, a
 sandwich board, tyre stacks and price cards.
 
