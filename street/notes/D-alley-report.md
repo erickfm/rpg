@@ -1,5 +1,93 @@
 # Builder D — report
 
+Rebase, take the top unchecked item, commit, re-read, take the next. I don't
+edit the queue.
+
+---
+
+# LATEST — used car lot landed; queue now blocked on other builders
+
+`a9133e25` · build clean · sweep no new page errors · `health.mjs` WORLD OK ·
+collision proofs all pass · `ownership.sh D` flags only `crosstown.ts`, which
+is the sanctioned collision/floor mandate.
+
+## CAFE + HARDWARE → used car lot (site half)
+
+**FOR BUILDER C:**
+
+    z  -9 … 14.2   (23.2 m)     x  7 … 15   (8 m deep, street to back)
+    ground at KERB_H            street edge at x = FACE = 7
+    middle 40% of the frontage left open as the way in
+
+Deeper than the park's 7 m because a lot holds cars, surfaced in broken asphalt
+rather than grass. Fence, office, signage and stock are C's in `ct/lot.ts`.
+Run before No. 227 still totals 49.2 (load-bearing for `ct/apartment.ts`).
+
+**The park's builder is now shared rather than copied.** `openSite(side, z, w,
+opts)` does the ground, both exposed party walls, the rear elevation, the
+street boundary and the collision for both sites, with every x written through
+`side`. The second site would otherwise have been sixty near-identical lines
+with the signs flipped.
+
+Both flagged risks answered:
+- **party walls** — finished brick with a coping, courses phased off world Y by
+  `masonry()` so they run level with the street elevation either side.
+- **sightline** — fine, and checked by standing in it. The gaps are on opposite
+  sides at opposite ends (lot z −9…14.2 east, park z −98…−68 west), 60 m+
+  apart with the street wall between and `FOG_FAR` at 60. From inside the lot
+  looking south you see its own party wall and A-1 TAX, never the park. Neither
+  gap reads as a hole because each is closed at the back by a full-height rear
+  elevation, so the skyline stays continuous.
+
+Walked in from the pavement to x = 14.53, floor holding at KERB_H.
+
+---
+
+## Every remaining item needs YOU, not me
+
+| item | status |
+|---|---|
+| bodega corner bay | **blocked on A** |
+| signs (a) + (b) | **not mine any more — G's** |
+| window lights | **contended with A's live mandate** |
+| shop resizing | **already done** — verify and retire |
+| `[E]` spots migration | **half needs a `ctx` change, which is a desk operation** |
+
+**Bodega bay — blocked on A.** A landed the depth work (`5cbb162`, `bed0b69`)
+but its vocabulary is still module-private: `HI`, `reveal`, `proud`, `glazed`,
+`mullions` in `tex-world.ts`. Following A needs those five exported (no
+signature changes); the alternative is copying them into `ct/street.ts`, which
+is the second vocabulary the brief forbids. Re-checked this run — still private.
+
+**Signs — G's now.** The queue says to tell you if the marquee moved with the
+casino, and it did: `ct/vice.ts` builds GOLDEN ACES and HOTEL ORPHEUS, and
+`ct/street.ts:503` records that it no longer does. My structural fix landed
+before the split and has been superseded by it. Hand (a) and (b) to G.
+
+**Window lights.** `facadeTex` was handed to me but lives in `tex-world.ts`,
+and A has been in the lit-window code this run (`a3b803c`). Sequence after A.
+
+**Shop resizing — already in the tree.** `SHOP_BAND_H = 4.2`, residential still
+`ENTRANCE.BAND_H = 3.2`, band at 2× masonry density. Safe to retire.
+
+**`[E]` spots — half of it is a desk operation.** Four spots remain in
+`SPOTS.push`, all bodega. Two (enter, exit) need only `ctx.player` and I can
+move them today. The other two (buy cereal, buy soda) need `purse` and
+`hud.refreshWallet()`, and **`ctx` exposes neither** — adding them changes the
+`CtxBuild` interface, which OWNERSHIP.md says must be changed with all callers
+in one commit by the desk. I did not want to move half and leave the entry
+point in an in-between state that still has a `SPOTS.push` block in it. Tell me
+which you want: add `purse`/`hud` to `ctx` and I move all four, or I move the
+two door spots now and the shop counter stays.
+
+Also worth noting: **`ct/bodega.ts` is not in `OWNERSHIP.md`.** The queue
+assigns me its spots, so it is fine for this item, but the table should say who
+owns it.
+
+---
+
+# Builder D — report
+
 Working from `notes/queues/D-alley.md`: rebase, take the top unchecked item,
 commit, re-read, take the next. I don't edit the queue.
 
