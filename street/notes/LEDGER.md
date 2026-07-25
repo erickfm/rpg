@@ -71,7 +71,7 @@ user anything is finished.
 | OPEN | C | the garlands are disconnected | |
 | OPEN | D | the atm is still not right | |
 | OPEN | E | make the library interior larger and more ambitious. more halls and st | |
-| OPEN | F | make sure the people in the buildings are in the right orientation. (b | |
+| OPEN | F | make sure the people in the buildings are in the right orientation. (b | MEASURED by H, whose atlas it is — all ten keepers, decoded from EACH ROOM'S OWN customer spot (just inside its street door), because sector is relative to the viewer and "facing away" only means anything from where a customer can stand. Scale is 0 = looking at you, 4 = dead away. **bodega 4** — the only one actually facing away. **library 2** — profile, attending to something else. casino/hotel/thrift 1 — three-quarter, fine. **burger 0, church 0, diner 0, pawn 0, tax 0** — facing the customer. So THE BURGER KEEPER NAMED IN THE REPORT IS ALREADY CORRECT: he stands at the back wall z -3.7 facing the door at z +3.7 and the seats between. Fixing him would break him. The keeper matching the user's description is the bodega's, which authors facing -PI/2. The sprites themselves are sound — every keeper's sector changes with the bearing (s0/s2/s4/s6 around a circle), so this is authored facing, not the atlas. Decode table in notes/H-atlas-facing.md |
 | OPEN | E | what is the shadow geometry here? did you end up answering what that w | |
 | OPEN | F | why are these decorations simply floating in the air in the diner? / t | |
 | OPEN | E | park bench looks bad and clips the drinking fountain | |
