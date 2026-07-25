@@ -274,8 +274,71 @@ const nite = await sample();
 const dulled = day.dull.filter((v, i) => nite.dull[i] !== undefined && nite.dull[i] !== v).length;
 check('the brick and stone around them DO go dark after dark',
   dulled > 0, `${dulled}/${day.dull.length} opaque materials changed`);
-check('the lit parts are not dimmed by the night sweep',
-  day.lit.length > 0, `${day.lit.length} transparent (lit) materials found on the two frontages`);
+// This check was named "the lit parts are not dimmed by the night sweep" and
+// asserted `day.lit.length > 0` — a PRESENCE COUNT that never compared the two
+// samples. The name claimed the thing the assertion did not test. Renamed to what
+// it does, and the claim it was pretending to make is now tested below, where it
+// can be made properly.
+//
+// A blanket "no transparent material dims" would be wrong here, not just weak:
+// the chase ticks on (n, t) and its phase materials are a different colour every
+// frame by design, so day-vs-night on those compares animation phase. The lit
+// elements that ARE monotone in the night factor are the ground sheets, so that
+// is what gets asserted.
+check('there are lit (transparent) materials on the two frontages at all',
+  day.lit.length > 0, `${day.lit.length} transparent (lit) materials found`);
+
+// ── 5. the pavement in front of them is actually coloured at night ──────
+//
+// The queue asked for this in as many words — "at night they should spill onto
+// the street … so the pavement in front of them is coloured" — and nothing
+// checked it. It is the headline of the whole item: these two are the only
+// buildings in the world that are light SOURCES, and the evidence for that claim
+// is light landing on ground they do not own.
+//
+// The mechanism is a per-frame tick reading the night factor off the scene
+// background, so it can fail silently and completely — the sheets would just sit
+// at their daylight opacity and the street would stay grey. Nothing about the
+// geometry would look wrong, which is why a fingerprint cannot see it either.
+// STAND WHERE YOU CAN SEE THEM FIRST. The night factor is computed in a
+// `driverHost.onBeforeRender` hanging off the casino marquee (ct/vice.ts:1047),
+// so it only runs on frames where that mesh is actually RENDERED. The checks
+// above leave the player inside the hotel at x 756, where the facade is far
+// outside the frustum — every tick freezes at its initial daylight value.
+//
+// Written without this, the check FAILED reporting noon and 23:00 opacities
+// identical to three decimals, which reads exactly like "the spill is dead" and
+// would have been filed as a defect in the user's headline item. The world was
+// fine; the camera was 700 m away and pointed at a wall. A per-frame value can
+// only be sampled from a viewpoint that causes the frame.
+const sheets = (h, m) => p.evaluate(async ([h, m]) => {
+  window.__ct.warp(45, -103, Math.PI, 0, 0);        // in the road, facing the pair
+  window.__ct.clock(h, m);
+  await new Promise((r) => setTimeout(r, 800));
+  const out = [];
+  const s = window.__ct.scene(); s.updateMatrixWorld(true);
+  s.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    let mod = null;
+    for (let q = o; q; q = q.parent) if (q.userData && q.userData.mod) { mod = q.userData.mod; break; }
+    if (mod !== 'vice') return;
+    const mt = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (!mt || !mt.transparent) return;
+    const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
+    const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    if (bb.max.y - bb.min.y > 0.2 || bb.min.y > 0.9) return;        // flat, and on the ground
+    out.push({ x: +((bb.min.x + bb.max.x) / 2).toFixed(2), op: +mt.opacity.toFixed(3) });
+  });
+  return out.sort((a, c) => a.x - c.x);
+}, [h, m]);
+const sDay = await sheets(13, 0), sNite = await sheets(23, 0);
+check('the two buildings put light on the pavement, and only after dark',
+  sDay.length >= 4 && sDay.length === sNite.length
+    && sDay.every((d, i) => sNite[i].op >= d.op * 2)
+    && Math.min(...sNite.map((q) => q.op)) >= 0.25,
+  sDay.length
+    ? `${sDay.length} ground sheets; noon ${sDay.map((q) => q.op).join('/')} → 23:00 ${sNite.map((q) => q.op).join('/')}`
+    : 'NO ground-level lit sheets found in front of either building');
 
 console.log('');
 for (const [ok, n, d] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${n}\n        ${d}`);
