@@ -237,7 +237,11 @@ export function buildDiner(ctx: CtxBuild): void {
       // …and you can sit on it, facing your companion across the table
       ctx.seat({
         x: room.wx(bx + sx * (TABLE_W / 2 + BENCH_W / 2)),
-        z: room.wz(BZ - BENCH_L / 2 + 0.45),        // the aisle end, where you get in
+        // Hard against the aisle end, and the margin is thin: the bank's
+        // collider pads out to 1.38 and a seat at +0.45 sits 0.87 from it
+        // against a 0.85 trigger — two centimetres short, and the prompt
+        // never appears. +0.22 gives 0.64.
+        z: room.wz(BZ - BENCH_L / 2 + 0.22),
         yaw: sx < 0 ? Math.PI / 2 : -Math.PI / 2,   // across the table
         h: 0.45, r: 0.85, ok: room.inside, label: 'take a booth seat',
       });

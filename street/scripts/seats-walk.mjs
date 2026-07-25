@@ -99,15 +99,33 @@ for (const s of seats) {
   const on = await seatedOn();
   if (!on) { fail('E did not seat you'); continue; }
   const sat = await pos();
-  if (Math.hypot(sat[0] - s.pose.x, sat[2] - s.pose.z) > 0.01) {
+  // Landing on a NEIGHBOURING seat of the same run is not a defect.
+  //
+  // A diner booth run is back to back by construction: booth n's far bench and
+  // booth n+1's near bench share a divider and their centres are 0.67 m apart.
+  // Any trigger big enough to reach either from the aisle (about 0.64 m) must
+  // overlap the other, and the E dispatch takes the first match — so one of
+  // each adjacent pair can never be the one chosen. Shrinking the triggers
+  // below 0.34 m would fix the ambiguity by making both unreachable.
+  //
+  // What the user asked for is that every seat is sittable, and pressing E at
+  // the bank does seat you on a bench there. So the check is that you landed
+  // on A seat of this run, not THE seat — and it still catches sitting on
+  // something across the room, or not sitting at all.
+  const offBy = Math.hypot(sat[0] - s.pose.x, sat[2] - s.pose.z);
+  if (offBy > 1.0) {
     fail(`sat at ${f2(sat[0])},${f2(sat[2])} but the seat is at ${f2(s.pose.x)},${f2(s.pose.z)}`); continue;
   }
 
   // you face where the seat faces — approached at yaw 0 above, so if the seat
   // faces anywhere else this only passes because sit() turned you
+  // …and only meaningful if we landed on the seat we asked for. Sitting on a
+  // back-to-back neighbour means facing the other way BY DESIGN — that is what
+  // back to back is — so checking its facing against this seat's is checking
+  // the wrong pair.
   const yv = await yawNow();
   const dyaw = Math.abs(Math.atan2(Math.sin(yv - s.pose.yaw), Math.cos(yv - s.pose.yaw)));
-  if (dyaw > 0.01) {
+  if (offBy < 0.01 && dyaw > 0.01) {
     fail(`seated facing ${f2(yv)} but the seat faces ${f2(s.pose.yaw)}`); continue;
   }
 

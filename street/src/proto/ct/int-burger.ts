@@ -242,12 +242,16 @@ export function buildBurger(ctx: CtxBuild): void {
   const pitch = cols > 1 ? (SX1 - SX0) / (cols - 1) : 0;
   const UNITS: [number, number][] = [];
   for (let c = 0; c < cols; c++) {
-    // 2.7 and -0.6, which is 3.3 m apart against a 1.72 m unit — the player
-    // pads that to 2.44, so this leaves 0.86 m to walk between the rows and
-    // 0.44 m clear of the counter behind. At 2.35 / -0.15 the rows were 2.5
-    // apart and the gap closed to 6 cm: every stool between them became
-    // unreachable, and the seat suite went from 33/33 to 3/43.
-    UNITS.push([SX0 + c * pitch, 2.7]);
+    // 2.3 and -0.6. Three constraints meet here and all three have bitten:
+    //   · the rows must clear EACH OTHER — at 2.35/-0.15 they were 2.5 m
+    //     apart against a 2.44 m padded footprint, 6 cm of gap, and every
+    //     stool between them was unreachable
+    //   · the front row must leave standing room against the WINDOW WALL —
+    //     at 2.7 its window-side stools had none, and those failed instead
+    //   · and the back row must clear the counter behind it
+    // 2.3 leaves 0.6 m from the front stools to standable floor (inside their
+    // 0.66 m trigger), 0.46 m between the rows, and 0.44 m off the counter.
+    UNITS.push([SX0 + c * pitch, 2.3]);
     if (c < cols - 1) UNITS.push([SX0 + (c + 0.5) * pitch, -0.6]);   // staggered second row
   }
   for (const [ux, uz] of UNITS) {
