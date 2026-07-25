@@ -6,6 +6,71 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"cat needs to be more to the right side of the alley"** → **D**
+- **"it was better before this is too much and ugly i was thinking something slanted inlaid"** → **D**
+- **"i want the atm to be inlaid into the building and more detailed"** → **D**
+- **"i like the thought, to make a drive entrance. however it looks graphically bugged"** → **B**
+- **"tree in the dirt looks janky, i think we need to make the dirt patch a lil bigger on the curb side"** → **B**
+- **"this looks bad with the lines on the ground, also move the cat to the right"** → **D**
+- **"also make me spawn in my room"** → **C**
+- **"make sure none of the cars in the lot are clipping into each other"** → **C**
+- **"park is nicer with tres but i was hoping to get some topographical changes. also a loop around the field in the middle would be good. also find some way to represent a grass field"** → **E**
+- **"inside of the thrift store leaves a lot to be desired as well"** → **F**
+- **"tax person looks like they are backwards"** → **G**
+- **"facade of the thrift store building is lazy and chopped off at points"** → **A**
+- **"cat is too much in the corner and the grate in the center is such a lazy design. make it match some of our other grate designs"** → **D**
+- **"the chairs are backwards"** → **C**
+- **"atm too high and doesnt work"** → **D**
+- **"cars facing wrong way on left side of car lot"** → **C**
+- **"wheel arches"** → **AUDIT**
+- **"make sure all requests have been accomplished to the quality i would expect"** → **AUDIT**
+- **"make the exteriors match the interiors"** → **F**
+- **"make sure all requests have been accomplished to the quality i would expect"** → **AUDIT**
+- **"i cant sit at the benches at the library"** → **F**
+- **"make sure all requests have been accomplished to the quality i would expect"** → **AUDIT**
+- **"the people inside these places are always flat"** → **H**
+- **"same with the casino tbh. iterior should match the exterior in vibe. also the text needs to not be backwards"** → **G**
+- **"i need the internals of the orpheus to match the exterior. the exterior is so fun and glammy the inside should match"** → **G**
+- **"also the bodega entrence is not where the facade door is. do not change the facade i love it just make the entrence where i press e actually aligned / bodega is also a bit small and sad"** → **F**
+- **"lets have the agents if they ever work on a citizen to be able to see the style necessary se some examples at the very least of the kinds of citizens we have"** → **H**
+- **"church i still cant walk into i cant walk up the stairs or go in, same as library"** → **F**
+- **"maybe the shittiest park ive ever seen please come at this with some more life and energy jesus"** → **E**
+- **"pawn shop interior is janky and odd. i immediately hit a counter. its like im behind the counter i dont get it"** → **G**
+- **"make the exteriors match the interiors"** → **A**
+- **"instead of doing what i asked which is change the exterior to match the interior you changed the interior to match the exterior. thats annoying"** → **F**
+- **"i like the feel and the vibe, i dont like the execution why is there just signs floating? also why can i not walk in. i would like lines of cars on the right and left as i enter with the actual office in the back of the lot"** → **C**
+- **"this looks bad because th efront of the bank doesnt match the side fix this"** → **D**
+- **"so it should not be cutting off the actual ad for tonys pizza also theres some strange graphical bug on the legs you see its like the same plane as the wood"** → **B**
+- **"i want to be able to close this door and also what is this poster on the wall?"** → **C**
+- **"i cant sit at the benches at the library"** → **E**
+- **"make the exteriors match the interiors"** → **F**
+- **"make the exteriors match the interiors"** → **A**
+- **"the entrence to the tax service is not aligned with the door of the facade"** → **F**
+- **"the glas here needs to be cropped to fit within the arch. like the windows above the doors i mean / the name is obscured"** → **E**
+- **"I WANT TO BE ABLE TO WALK UP THOSE STAIRS"** → **F**
+- **"make this look nicer, i dont think we need the bottom wood part. also the tonys pizza part i think needsa to have a bezel"** → **B**
+- **"these people are stuck"** → **H**
+- **"i like the triangles but it also just looks low effort do a high effort sleazy used car lot. make it make sense like how does one even enter, drive a car off the lot. do some research into what old sleazy used car lots looked like"** → **C**
+- **"also i think these are puddles and they look awful honestly / trash cannot be clipping through stuff like this"** → **B**
+- **"in general we should not encrouch the already cramped sidewalk"** → **AUDIT**
+- **"park border with sidewalk looks fucked up, we gotta fix this. in general we should not encrouch the already cramped sidewalk"** → **E**
+- **"this is a part of the bodega corner that needs to be fixed i flagged this to you a while ago but its still here"** → **A**
+- **"hm i think the tonys pizza sign should go on the back of the bench also i think the bench back should lean back a lil"** → **B**
+- **"what is this black stripe on the back of the pick up truck"** → **H**
+- **"what up with this car and its wheels? THEY LOOK SO WEIRD"** → **H**
+- **"deeper used car lot like make it square"** → **D**
+- **"can you just amke the new module incorporation automatic?"** → **F**
+- **"make written-but-never-wired impossible"** → **A**
+- **"what happened to the used auto lot?"** → **F**
+- **"maker gravity a tiny bit stronger"** → **F**
+- **"whats up with this kids face? its multi color?"** → **H**
+- **"right side of bank facade should match front, also all buildings need to be much deeper other wise it loks like a fake building"** → **D**
+- **"theres still a diner entrance by the bank. i think we have to make sure all press e to enter options are aligned with the doors on the facades"** → **F**
+- **"make street light a bit more broad in their emitted light (like a wider beam) and make the unilluminated stuff darker. it should feel scarier at night i want to be able to see stars sometimes"** → **B**
+- **"this red guy glitches back and forth as he walks sometimes idk why"** → **H**
+- **"i want the people inside the buildings to be as detailed and quake-view like as the pedestrians on the street / make the jump a tiny bit higher"** → **F**
+- **"pickup looks great but the wheels need to not clip through, maybe we need to have some inlaid wheel things pickups have / on the car idk if the doors make sense"** → **H**
+- **"park should be much deeper, like 4-5x deeper. and make it nice, a nice park with trees and a litle field maybe even a play area but not necessary maybe just a field with a walking route around the field?"** → **E**
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
