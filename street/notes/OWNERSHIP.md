@@ -11,6 +11,7 @@ Format below is parsed — `path = owner`. Keep it that way.
 src/proto/ct/street.ts      = D
 src/proto/ct/cat.ts         = D
 src/proto/ct/civic.ts       = E
+src/proto/ct/park.ts        = E   # the park's contents; street.ts owns the site
 src/proto/ct/vice.ts        = G   # casino + hotel exteriors, split out of street.ts
 src/proto/ct/tex-world.ts   = A   # shared painters, under active density work
 src/proto/ct/paint.ts       = A   # pixTex/dither: everything draws through it
