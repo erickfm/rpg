@@ -937,6 +937,107 @@ export function buildProps(ctx: CtxBuild): Props {
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
   obstacle({ minX: BX_BACK - 0.05, maxX: BX_SEAT1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
+  // ══════════════════ FLOOR-TRASH COMPARISON RIG ══════════════════════════
+  //
+  // Fourteen candidates laid out in a numbered line on the alley floor, for
+  // the user to pick from — the same way the six-cat rig settled the cat.
+  // Nothing here is solid and nothing here replaces the street litter; this
+  // is a chooser. Once the winners are picked they get placed properly and
+  // this whole block comes out.
+  //
+  // The complaint was not that the litter was too tidy, it was that you
+  // cannot tell what any of it IS. At the world's texel density a 0.35 m
+  // object is around a dozen pixels across, so a shape only reads if it is
+  // drawn for that size. Every candidate below therefore gets:
+  //   · a HARD DARK OUTLINE, so the silhouette survives against the ground
+  //   · ONE high-contrast identifying mark — the red band on a can, the white
+  //     of a newsprint fold — rather than faithful detail that turns to mush
+  //   · a CONTACT SHADOW, so it sits on the floor instead of floating over it
+  // The litter that was rejected twice failed on exactly those three.
+  //
+  // Uses no rnd() at all, so it cannot disturb the seeded stream (GOTCHAS §2).
+  const TRASH_X = -8.6, TRASH_Z0 = -37.7, TRASH_STEP = 0.44, TRASH_W = 0.36;
+  const tsheet = (draw: (g: CanvasRenderingContext2D) => void) => pixTex(24, 24, draw);
+  // shared vocabulary, so fourteen sketches still look like one hand
+  const shadow = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+    g.fillStyle = 'rgba(0,0,0,0.34)';
+    g.fillRect(x + 1, y + 2, w, h);
+  };
+  const body = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, fill: string) => {
+    g.fillStyle = '#141118'; g.fillRect(x - 1, y - 1, w + 2, h + 2);   // hard outline
+    g.fillStyle = fill; g.fillRect(x, y, w, h);
+  };
+  const TRASH: [string, (g: CanvasRenderingContext2D) => void][] = [
+    ['crushed can, side-on', (g) => { shadow(g, 4, 9, 16, 6);
+      body(g, 4, 9, 16, 6, '#b9bcc2');
+      g.fillStyle = '#8e9298'; g.fillRect(9, 9, 2, 6); g.fillRect(14, 9, 2, 6);   // crush ridges
+      g.fillStyle = '#c0392b'; g.fillRect(4, 11, 16, 2); }],                      // the band that says CAN
+    ['can stamped flat', (g) => { shadow(g, 3, 8, 18, 8);
+      body(g, 3, 8, 18, 8, '#c6c9cf');
+      g.fillStyle = '#8e9298'; g.fillRect(3, 11, 18, 1);
+      g.fillStyle = '#c0392b'; g.fillRect(7, 8, 4, 8); }],
+    ['cigarette pack', (g) => { shadow(g, 7, 8, 11, 8);
+      body(g, 7, 8, 11, 8, '#e6e2d8');
+      g.fillStyle = '#b8322c'; g.fillRect(7, 8, 11, 3);
+      g.fillStyle = '#9a968c'; g.fillRect(7, 12, 11, 1); }],
+    ['folded newspaper', (g) => { shadow(g, 3, 7, 18, 10);
+      body(g, 3, 7, 18, 10, '#cfcabb');
+      g.fillStyle = '#8d8878'; g.fillRect(12, 7, 1, 10);                          // the fold
+      g.fillStyle = '#5d5a52'; for (let y = 9; y < 16; y += 2) g.fillRect(5, y, 6, 1); }],
+    ['soaked handbill', (g) => { shadow(g, 4, 8, 16, 8);
+      body(g, 4, 8, 16, 8, '#9a9384');
+      g.fillStyle = '#6f6a5e'; g.fillRect(4, 13, 16, 3);                          // sodden edge
+      g.fillStyle = '#d8d2c4'; g.fillRect(6, 9, 7, 2); }],
+    ['takeout container', (g) => { shadow(g, 5, 7, 14, 10);
+      body(g, 5, 7, 14, 10, '#e8e6de');
+      g.fillStyle = '#b5b2a6'; g.fillRect(5, 11, 14, 1);                          // lid seam
+      g.fillStyle = '#8c887c'; g.fillRect(5, 7, 14, 1); }],
+    ['coffee cup, on its side', (g) => { shadow(g, 4, 9, 16, 6);
+      body(g, 4, 9, 16, 6, '#ddd8cc');
+      g.fillStyle = '#8a8478'; g.fillRect(4, 9, 3, 6);                            // tapers to the base
+      g.fillStyle = '#3a2f28'; g.fillRect(17, 8, 3, 8); }],                       // dark lid
+    ['plastic bag', (g) => { shadow(g, 4, 7, 16, 10);
+      body(g, 4, 7, 16, 10, '#d5d8d6');
+      g.fillStyle = '#b0b4b2'; g.fillRect(7, 9, 4, 6); g.fillRect(14, 11, 3, 4);  // crumple
+      g.fillStyle = '#eef0ee'; g.fillRect(5, 8, 3, 2); }],
+    ['bottle cap', (g) => { shadow(g, 9, 10, 6, 5);
+      body(g, 9, 10, 6, 5, '#2f3a4a');
+      g.fillStyle = '#c9a12e'; g.fillRect(11, 11, 2, 3); }],
+    ['chip bag', (g) => { shadow(g, 3, 8, 18, 8);
+      body(g, 3, 8, 18, 8, '#3c4a63');
+      g.fillStyle = '#e0a92e'; g.fillRect(6, 9, 8, 4);                            // the loud block
+      g.fillStyle = '#7d8a52'; g.fillRect(15, 9, 4, 6); }],
+    ['broken bottle glass', (g) => { shadow(g, 5, 8, 14, 8);
+      g.fillStyle = '#141118';
+      for (const [x, y, w2, h2] of [[5, 9, 6, 5], [12, 8, 5, 4], [10, 14, 5, 3]] as number[][]) g.fillRect(x - 1, y - 1, w2 + 2, h2 + 2);
+      g.fillStyle = '#3f6b4a';
+      for (const [x, y, w2, h2] of [[5, 9, 6, 5], [12, 8, 5, 4], [10, 14, 5, 3]] as number[][]) g.fillRect(x, y, w2, h2);
+      g.fillStyle = '#bfe6c8'; g.fillRect(6, 10, 3, 1); g.fillRect(13, 9, 2, 1); }],
+    ['cigarette end', (g) => { shadow(g, 9, 11, 7, 3);
+      body(g, 9, 11, 7, 3, '#e4e0d4');
+      g.fillStyle = '#b8892e'; g.fillRect(13, 11, 3, 3);                          // the filter
+      g.fillStyle = '#4a423a'; g.fillRect(9, 11, 1, 3); }],
+    ['torn lottery slip', (g) => { shadow(g, 6, 9, 12, 6);
+      body(g, 6, 9, 12, 6, '#e2ddd0');
+      g.fillStyle = '#c0397a'; g.fillRect(6, 10, 12, 2);
+      g.fillStyle = '#8d8878'; g.fillRect(16, 9, 2, 6); }],                       // the torn end
+    ['crumpled receipt', (g) => { shadow(g, 6, 8, 12, 8);
+      body(g, 6, 8, 12, 8, '#f0ece0');
+      g.fillStyle = '#c2bcae'; g.fillRect(6, 11, 12, 1); g.fillRect(10, 8, 1, 8);
+      g.fillStyle = '#8d8878'; for (let y = 9; y < 15; y += 2) g.fillRect(12, y, 4, 1); }],
+  ];
+  const numTex = (n: number) => pixTex(16, 16, (g) => {
+    g.fillStyle = 'rgba(10,10,14,0.72)'; g.fillRect(1, 3, 14, 10);
+    g.fillStyle = '#f2ead0';
+    g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(String(n), 8, 8);
+  });
+  TRASH.forEach(([, draw], i) => {
+    const z = TRASH_Z0 - i * TRASH_STEP;
+    flatDecal(tsheet(draw), TRASH_W, TRASH_W, TRASH_X, z, 0, 0.012);
+    flatDecal(numTex(i + 1), 0.22, 0.22, TRASH_X - 0.46, z, 0, 0.012);
+  });
+
   return {
     setLampNight: (v) => {
       for (const g of nightLit) g.mat.opacity = g.base * v;
