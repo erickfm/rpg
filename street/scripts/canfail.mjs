@@ -126,6 +126,16 @@ const CASES = [
     'const RAIN_N = 6;',
     'rain.mjs', [], 'a storm with six drops in it'],
 
+  // Reinstates the exact bug the user reported — "make wetness last a lil after
+  // it stops raining" — by drying the street 200x faster, so the ground follows
+  // the rain instead of remembering it. The request had an implementation
+  // (props.ts:1103) and no check, which is one refactor from being withdrawn
+  // with nobody seeing it go.
+  ['rain-memory', PROPS,
+    'const dryFor = 48 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
+    'const dryFor = 0.24 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
+    'rain.mjs', [], 'the street forgetting the weather the moment rain stops'],
+
   // First aim of this one was PIT_CLEAR against trash.mjs, and trash.mjs slept
   // — correctly. It guards the litter SET (count, burial, repeated rotations);
   // the tree pits are footprint.mjs's, below. The mutation was sound and

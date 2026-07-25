@@ -110,7 +110,77 @@ const c15 = Math.abs(results[15].rainLum - results[15].skyLum) * results[15].rai
 console.log(`  per-drop contrast: ${c15.toFixed(1)} levels by day, ${c5.toFixed(1)} at night`);
 console.log(`  — both high, so visibility is not a contrast problem. Judge it from shots/rn-*.png.`);
 
+// ── DOES THE WETNESS OUTLAST THE RAIN? ───────────────────────────────────
+//
+// The user asked for this in as many words — "make wetness last a lil after it
+// stops raining" — and ct/props.ts:1103 does it: wetness rises on dt * 0.55
+// and falls over a dryFor of 48 s or more, so the street remembers the weather.
+// Nothing asserted it. A request with an implementation and no check is one
+// refactor away from being quietly withdrawn, and nobody would see it go.
+//
+// Measured on the ROAD's own colour, which is what the player sees, rather than
+// on an internal counter. dryFor runs on real seconds and the clock jump does
+// not touch it, so stepping to a dry hour leaves the road still dark and it
+// lightens from there.
+// MEASURED ON THE STANDING WATER, as a MEAN and not a maximum. Two probes
+// before this one were wrong and both looked plausible:
+//
+//   road luminance   read 0.1640 while raining AND 1.2 s after, and read the
+//                    same under a mutation that dried the street 200x faster.
+//                    It was tracking a sheet that never moves with wetness.
+//   max opacity      saturates: the pools cap at 0.900, so every state after
+//                    the first few seconds reads identically.
+//
+// Dumping the sheets showed what both missed, and it is the feature working:
+// THE POOLS KEEP FILLING AFTER THE RAIN STOPS. props.ts:1159 lags puddleLevel
+// behind wetness deliberately — "wetness is already ebbing, the pools are still
+// filling" — so the honest signal is the mean depth across all nine.
+//
+//   soaked   0.378 … 0.682     while it rains
+//   +1.2 s   0.486 … 0.835     rain off, still rising
+//   +13 s    all nine at cap
+//
+// That is what "make wetness last a lil after it stops raining" asked for, and
+// it separates cleanly from a street that forgets: with wetness tied to the
+// rain, the pools drain the moment it stops instead of cresting.
+const wetSignal = () => page.evaluate(() => {
+  const ops = [];
+  window.__ct.scene().traverse((o) => {
+    const im = o.material?.map?.image; if (!o.isMesh || !im) return;
+    if (im.width === 48 && im.height === 32 && o.material.transparent)
+      ops.push(o.material.opacity);
+  });
+  return ops.length ? +(ops.reduce((a, b) => a + b, 0) / ops.length).toFixed(4) : null;
+});
+const rainyH = (h) => (((h % 24) + 24) % 24) === 14 ||
+  ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
+// BOTH HOURS MUST BE DAYLIGHT. The first attempt took the first rainy and first
+// dry hour of a 48 h sweep and got midnight, where the night grade has already
+// crushed everything and the weather cannot be read off it.
+const day = (h) => (h % 24) >= 11 && (h % 24) <= 16;
+let wetH = -1, dryH = -1;
+for (let h = 0; h < 48; h++) {
+  if (wetH < 0 && rainyH(h) && day(h)) wetH = h;
+  if (dryH < 0 && !rainyH(h) && day(h)) dryH = h;
+}
+
+await page.evaluate((h) => window.__ct.clock(h % 24, 0), wetH);
+await page.waitForTimeout(9000);
+const soaked = await wetSignal();
+await page.evaluate((h) => window.__ct.clock(h % 24, 0), dryH);
+await page.waitForTimeout(1200);
+const justAfter = await wetSignal();
+await page.waitForTimeout(12000);
+const later = await wetSignal();
+
+const remembers = justAfter >= soaked * 0.95;   // rain off and the water has not gone
+const crests = later >= justAfter;              // it deepens after, as authored
+console.log(`\n  mean standing water  raining ${soaked.toFixed(4)}` +
+  `  1.2 s after it stops ${justAfter.toFixed(4)}  +13 s ${later.toFixed(4)}`);
+console.log(`  ${remembers ? 'OK  ' : 'FAIL'} the street stays wet after the rain stops`);
+console.log(`  ${crests ? 'OK  ' : 'FAIL'} and the pools go on filling, as authored`);
+
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!both || !water) process.exit(1);
+if (!both || !water || !remembers || !crests) process.exit(1);
 console.log('\nno page errors');

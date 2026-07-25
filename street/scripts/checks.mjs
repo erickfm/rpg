@@ -60,7 +60,7 @@ const CHECKS = [
   ['kerbcut',          'can a car get off the lot across the kerb?',       'kerbcut'],
   ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],
   ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
-  ['rain',             'does it actually rain, and hard enough to see?',   'rain'],
+  ['rain',             'does it rain, and does the street stay wet after?', ['rain', 'rain-memory']],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat
