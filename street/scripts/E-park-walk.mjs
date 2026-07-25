@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 600 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4188/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await page.evaluate(() => window.__ct.clock(13, 20));

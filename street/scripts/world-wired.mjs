@@ -73,6 +73,7 @@ const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 p.on('console', (m) => { if (/\[interior\]/.test(m.text())) errs.push(m.text()); });
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.rooms !== undefined, { timeout: 15000 });
 const built = await p.evaluate(() => window.__ct.rooms());

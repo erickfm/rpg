@@ -12,6 +12,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await page.waitForTimeout(600);

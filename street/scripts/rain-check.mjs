@@ -11,6 +11,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 try {
   await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 20000 });

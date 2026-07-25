@@ -26,6 +26,7 @@ const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 // Port: 4184 is ANOTHER WORKTREE (/home/erick/projects/rpg-audit). Left as the
 // default so this keeps behaving as before, but SHOT_URL now wins, because a
 // lane number measured in a checkout that is not yours is not about your work.
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));

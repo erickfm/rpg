@@ -34,6 +34,7 @@ import { chromium } from 'playwright';
 const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
 const p = await b.newPage();
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4190/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4190/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 const A = process.argv.slice(2).map(Number);

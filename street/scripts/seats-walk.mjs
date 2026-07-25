@@ -28,6 +28,7 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 15000 });
 await p.waitForTimeout(300);

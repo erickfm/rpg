@@ -114,6 +114,7 @@ const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 const kitWarns = [];
 p.on('console', (m) => { if (/\[interior:/.test(m.text())) kitWarns.push(m.text()); });
+console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4186/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4186/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(400);

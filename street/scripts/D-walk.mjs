@@ -35,6 +35,8 @@ console.log(`D-walk measuring ${URL}${process.env.SHOT_URL ? '' : '   (default â
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+// theirs: URL is already SHOT_URL-aware (line 33). Keep it and add the banner.
+console.error(`[measuring ${URL}]`);   // say WHICH world â€” 24163f69
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await page.evaluate(() => window.__ct.clock(13, 0));
