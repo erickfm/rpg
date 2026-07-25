@@ -1378,3 +1378,55 @@ gets written.
 
 **No new findings here.** This is instrument repair, and the 50 survivors are the
 same list A already has, minus the third that was never real.
+
+## Round 12c — the shared-extent test, written. And it corrects Round 12b.
+
+I said the clip was the fix and that it was more than three lines. It is about
+twenty, so here it is: `scripts/pairclip.mjs` samples each face's **surface** on
+a grid and measures to the other face's slab, both ways. The minimum is the real
+separation.
+
+```
+pairs by BOUNDING BOX adjacency:                 77
+   dropped — back to back (normals opposed):      5
+   dropped — SURFACES never come within 0.35 m:  19
+   real, touching, same-side junctions:          53
+
+bbox over-report: 77 → 53   (31% was noise)
+```
+
+### It is better than my cheap version in *both* directions
+
+| | plane-distance (12b) | **surface test (12c)** |
+|---|---|---|
+| dropped as noise | 22 | **19** |
+| kept as real | 50 | **53** |
+
+The cheap test dropped **three real junctions**. And the pair I singled out in
+12b as the leak that proved my patch incomplete —
+
+```
+(-17.8, 2.1, -29) vs (-6.9, 2.8, -37)    planeDist 8.0  ← my objection
+                                          surface gap 0.06 m  ← the truth
+```
+
+— **is a genuine junction.** Their surfaces come within 6 cm. My "8 m off the
+plane" was the distance from that band's *centre* to the other face's plane,
+which is a meaningless quantity for a 10 m band: the centre is nowhere near
+where the band actually meets anything.
+
+So Round 12b was right that the plane test is a heuristic and wrong about which
+way it fails on that example. **I used a real junction as my illustration of a
+false positive.** Corrected here, in the round that replaced the test.
+
+### What A should take
+
+- `opposed` (back to back) is exact and free — **5 pairs, always noise, three
+  lines.** Land it regardless.
+- The **plane-distance shortcut should not land**; it is both over- and
+  under-inclusive, and `pairclip.mjs`'s surface sampling costs about a second.
+- The honest count of declared-vs-undeclared junctions in this world is
+  **53, not 77**.
+
+Nothing here changes any finding about the world. It changes how much of the
+pair list is worth a builder's attention, which is the whole point of the list.
