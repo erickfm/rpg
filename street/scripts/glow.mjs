@@ -51,6 +51,15 @@ if (mode === 'probe' || mode === 'all') {
                    (Math.abs(g.width - 0.24) < 1e-6 && Math.abs(g.depth - 0.26) < 1e-6);
       if (head && Math.abs(g.height - 0.26) < 1e-6) heads.push(o);
       if (lens && Math.abs(g.height - 0.08) < 1e-6) lenses.push(o);
+      // PARK LANTERNS. A post-top lantern is a different shape from a street
+      // head — 0.30 cube body, 0.22 cube lens — so the street matchers above
+      // skip it entirely. Adding ten lamps to the world and having the lamp
+      // check quietly stay at eleven is the same failure this script already
+      // had once with the side street: partial coverage that reads as a pass.
+      if (Math.abs(g.width - 0.24) < 1e-6 && Math.abs(g.height - 0.06) < 1e-6 &&
+          Math.abs(g.depth - 0.24) < 1e-6) heads.push(o);          // lantern collar
+      if (Math.abs(g.width - 0.22) < 1e-6 && Math.abs(g.height - 0.24) < 1e-6 &&
+          Math.abs(g.depth - 0.22) < 1e-6) lenses.push(o);          // lantern glass
     });
     // pair a halo with the head/lens it actually belongs to — same pole, so
     // within half a metre in x/z. Anything unpaired is not a streetlamp (the
@@ -73,9 +82,10 @@ if (mode === 'probe' || mode === 'all') {
       };
     }).filter(Boolean);
   });
-  console.log(`\n${r.length} streetlamp halos`);
+  console.log(`\n${r.length} lamp halos (street heads and park lanterns)`);
   const bad = r.filter((h) => h.insideHead || Math.abs(h.dx) > 0.01 || Math.abs(h.dz) > 0.01);
-  if (r.length !== 11) { console.error(`\n  FAIL expected 11 streetlamps, paired ${r.length}`); process.exitCode = 1; }
+  // 11 street lamps (6 main + 2 corner + 3 side street) and 10 park lanterns
+  if (r.length !== 21) { console.error(`\n  FAIL expected 21 lamps, paired ${r.length}`); process.exitCode = 1; }
   const offLens = [...new Set(r.map((h) => h.offLens))];
   console.log(`  halo is directly over its head in x/z: ${r.every((h) => !h.dx && !h.dz) ? 'yes' : 'NO'}`);
   console.log(`  halo centre buried inside the opaque head box: ${r.some((h) => h.insideHead) ? 'YES — it will be eaten' : 'no'}`);

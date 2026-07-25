@@ -762,19 +762,36 @@ export function buildProps(ctx: CtxBuild): Props {
     base.position.set(x, y0 + 0.21, z); scene.add(base);
     const pole = new THREE.Mesh(new THREE.BoxGeometry(0.11, PARK_LAMP_H, 0.11), poleM);
     pole.position.set(x, y0 + PARK_LAMP_H / 2, z); scene.add(pole);
-    // the lantern: a tapered box with a cap, which is what a park lantern is
-    const lant = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.34, 0.30), poleHi);
-    lant.position.set(x, y0 + PARK_LAMP_H + 0.13, z); scene.add(lant);
-    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.07, 0.38), poleM);
-    cap.position.set(x, y0 + PARK_LAMP_H + 0.33, z); scene.add(cap);
-    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.20, 0.22), lensM);
-    lens.position.set(x, y0 + PARK_LAMP_H + 0.11, z); scene.add(lens);
+    // THE GLASS IS THE LANTERN. The first version had an opaque 0.30 body with
+    // the lens sealed inside it, which is wrong twice over: the glass — the
+    // only part that lights up — was invisible, and the halo's core sat inside
+    // an opaque box and got eaten. That is exactly the defect the street lamps
+    // were rebuilt for, shipped again an hour later on a new lamp, and my own
+    // scripts/glow.mjs caught it the moment it was taught what a park lantern
+    // looks like.
+    //
+    // A park lantern is a collar, a glazed box, and a cap over it. Nothing
+    // stands in front of the glass.
+    const collar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.24), poleHi);
+    collar.position.set(x, y0 + PARK_LAMP_H + 0.03, z); scene.add(collar);
+    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.22), lensM);
+    // TAGGED, not left to be recognised by its dimensions. scripts/park.mjs
+    // matched the glass by an exact 0.22 x 0.20 x 0.22 and went silently blind
+    // the moment those numbers changed — reporting ZERO park lamps in a park
+    // that has ten. That is the third time a check keyed to exact geometry has
+    // stopped seeing the thing it checks, so this one is keyed to a name.
+    lens.userData.parkLantern = true;
+    lens.position.set(x, y0 + PARK_LAMP_H + 0.20, z); scene.add(lens);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.07, 0.36), poleM);
+    cap.position.set(x, y0 + PARK_LAMP_H + 0.37, z); scene.add(cap);
     obstacle({ minX: x - 0.16, maxX: x + 0.16, minZ: z - 0.16, maxZ: z + 0.16 });
     // the halo, anchored on the lens exactly as the street's is
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5),
       new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0,
         depthWrite: false, blending: THREE.AdditiveBlending }));
-    halo.position.set(x, y0 + PARK_LAMP_H + 0.11, z);
+    // on the glass, which is now the thing that is actually lit and has
+    // nothing in front of it
+    halo.position.set(x, y0 + PARK_LAMP_H + 0.20, z);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
     // the pool on the ground. Smaller than the street's 5.6 m because the

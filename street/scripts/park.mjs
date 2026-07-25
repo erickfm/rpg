@@ -32,12 +32,14 @@ const r = await page.evaluate(() => {
     site = { minX: o.position.x - g.width / 2, maxX: o.position.x + g.width / 2,
              minZ: o.position.z - g.height / 2, maxZ: o.position.z + g.height / 2 };
   });
-  // park lanterns: the 0.22 cube lens, which no street lamp has
+  // Park lanterns, found BY TAG. This matched an exact 0.22 x 0.20 x 0.22 lens
+  // box and reported ZERO lamps the moment that geometry changed — in a park
+  // that had ten of them, with the change being a bug fix to those very lamps.
+  // props.ts sets userData.parkLantern, which cannot go stale when a box is
+  // resized.
   const lamps = [];
   sc.traverse((o) => {
-    const g = o.geometry?.parameters;
-    if (!o.isMesh || !g) return;
-    if (Math.abs(g.width - 0.22) < 1e-6 && Math.abs(g.height - 0.20) < 1e-6)
+    if (o.userData?.parkLantern)
       lamps.push([+o.position.x.toFixed(2), +o.position.z.toFixed(2), +o.position.y.toFixed(2)]);
   });
   // how bright is the park ground at 3am? sample the material of its floor
