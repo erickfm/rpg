@@ -156,6 +156,19 @@ if (mode === 'probe' || mode === 'all') {
       out[k] = { n: v.near.length, f: v.far.length, nearMed: med(v.near), farMed: med(v.far) };
     return out;
   });
+  // MOVERS ARE IN THIS SAMPLE ON PURPOSE. 83 of the ~254 materials it reads are
+  // alpha-tested billboards — citizens, trees, pigeons — and the population
+  // drifts between snapshots (near 51 -> 53, far 203 -> 202 over three seconds).
+  // Every other check of mine drops movers; this one must not, because the
+  // request is "light around the light posts to show up on the objects AND
+  // ENTITIES under the lights". A citizen standing under a lamp is the entity.
+  //
+  // The counts are snapshots; the verdict is not. Three consecutive runs give
+  // 13.7x and 18.7x to the digit, because a median over 150-odd samples does
+  // not care which pedestrian is where. Audited after 362ab354 asked the
+  // question of its own probes — checked rather than assumed, and the answer
+  // came out the other way from the rest of the shelf.
+  //
   // PER REGION, NOT POOLED. Widening the window to take in the side street and
   // then taking ONE median across both would have added samples and no
   // coverage: the main street has far more materials, so its median carries the

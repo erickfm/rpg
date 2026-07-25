@@ -87,6 +87,11 @@ best 1.12 m · median 0.77 m · worst 0.72 m · under 0.90 m in 14 of 20 samples
 never below 0.72 m — the capsule width — so never impassable
 ```
 
+**Not the retracted 0.77.** `3f7b2623` withdrew a *different* 0.77 — `03d90436`
+had attributed the street's tightest passage to a static post, and `213bda5d`
+showed it was a citizen walking the centre line. The figures above are
+`6168c410`'s, measured with movers deliberately included, and they stand.
+
 The lived median is 0.77 m, and at its worst the gap is exactly the player's own
 width. That is not an argument for widening anything: citizens on pavements are
 the point of having them, and edging past someone is what a busy street feels
