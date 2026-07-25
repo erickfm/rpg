@@ -6,6 +6,17 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
+- **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**
+- **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
+- **"especially more of this kind of thing in the park"** → **E**
+- **"big fan of these grass textures put em in more places and especially more of this kind of thing in the park"** → **C**
+- **"the paths and the graphics in the park need a big deep review"** → **AUDIT**
+- **"the park is a bit better but i think needs some shrubs on the edges. also the paths and the graphics in the park need a big deep review"** → **E**
+- **"what is this block that sticks out from the wheels of all vehicles. please fix"** → **H**
+- **"cup trash a bit too common and cups are too big"** → **B**
+- **"the inner clipping of the tires in the pickup was never fixed"** → **H**
+- **"put the cat like directly in front of where im looking in this screenshot as opposed to the inner corner"** → **D**
 - **"cat needs to be more to the right side of the alley"** → **D**
 - **"it was better before this is too much and ugly i was thinking something slanted inlaid"** → **D**
 - **"i want the atm to be inlaid into the building and more detailed"** → **D**
