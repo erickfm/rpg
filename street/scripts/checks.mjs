@@ -48,6 +48,7 @@ const CHECKS = [
   // actually leaves the purse. Its --selftest inverts three known truths and
   // requires all three to fail.
   ['D-walk',           'can you still walk the world, and does it answer?',  true],
+  ['windowlights',     'are the flats dark at noon and lit at nine?',        true],
   // ── the ground: kerb, litter, lamps, water ──────────────────────────────
   // Third field as a STRING (or a LIST of them) names cases in
   // scripts/canfail.mjs, which break the guarded thing in source, rebuild, and
