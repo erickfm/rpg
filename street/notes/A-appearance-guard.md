@@ -34,7 +34,44 @@ its first day.** Half a guard beats a wrong one, so the red half is documented i
 the file as unassertable rather than quietly loosened until it passed — which was
 the tempting fix and would have left a number nobody could justify.
 
-## The general shape, for whoever guards the rest
+## Second one landed: the tree crowns (`bfbd76c5`)
+
+Same shape, same reason it works. The user reported reading a building through a
+canopy; the cause was `treeSprite`'s ragged-edge pass biting notches from 0.94 of
+the radius **outward**, eating the crown interior.
+
+The sample box is **derived from the generator**, not guessed: the crown is an
+ellipse at `(W/2, 20+rand(5))` with radii `RX 23–30`, `RY 16–22`, so x within ±8
+of centre and y in 22..30 is inside any crown it can produce.
+
+```
+11 canopies, crown-interior holes: 0% ×11        fails above 2%
+```
+
+`--selftest` bites a 10×5 hole in one crown and it goes red. Foliage narrower
+than 40 px is excluded **by shape** — ivy is foliage but not a crown — so
+anything new is covered or excluded on its merits rather than by a name list.
+
+## The third candidate, and why I have not built it
+
+The **lit-window lattice**: the user's report was that lit windows formed diagonal
+stripes, because the choice was `((f*7 + c*3) % 5) === 0` — a linear congruence
+in floor and column, which is a lattice and not a scatter. Fixed with an
+avalanche hash.
+
+It has a signature, and a good one: for a lattice, every lit cell satisfies
+`(a·f + b·c) % n == k` for some small `a, b, n`. Testing a handful of those is a
+sharp, specific test for "this is a lattice again".
+
+**What stops it is that the window grid is not published.** The lit cells live
+inside a painted canvas, and recovering `(floor, column)` from pixels means
+re-deriving the layout the painter already knows. So it needs a publication —
+`userData.windowGrid` on the facade texture, say — *and* a consumer, which is
+more than a turn's work and more than I have context for now.
+
+Recorded with the design rather than half-built. The two that landed both took
+one turn each precisely because their signatures were already visible from
+outside.
 
 Appearance requests resist guarding for a specific reason: **the ask is a
 positive quality and the regression is a specific defect.** "Red and beige" is a
