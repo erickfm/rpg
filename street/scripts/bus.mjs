@@ -80,7 +80,16 @@ if (mode === 'walk' || mode === 'all') {
     await page.keyboard.up('w');
     const b = await page.evaluate(() => window.__ct.pos());
     const moved = Math.abs(axis === 'z' ? b[2] - a[2] : b[0] - a[0]);
-    const ok = moved > seconds * 2.4;
+    // 2.4 m/s assumed a clear run, and this walk is not clear: CITIZENS are
+    // solid until they give way, which takes up to 1.4 s each, so one
+    // pedestrian in the lane costs about 4 m of an 8 s hike and two cost 8.
+    // The threshold straddled that — the same unchanged world measured 15.8,
+    // 18.8, 22.2 and 25.4 m on four runs — so it was reporting the pedestrian
+    // traffic, not the lane. 1.9 m/s still separates passage from a block by a
+    // wide margin: when a tree genuinely severed this walk it managed 5.0 m.
+    // The real invariant is the narrowest-lane sweep below, which is
+    // deterministic.
+    const ok = moved > seconds * 1.9;
     console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m in ${seconds}s ` +
       `(${a[0].toFixed(1)},${a[2].toFixed(1)}) -> (${b[0].toFixed(1)},${b[2].toFixed(1)})`);
     return ok;

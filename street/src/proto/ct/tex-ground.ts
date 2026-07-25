@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
-import { ROAD_HALF, WALK } from './rng';
+import { ROAD_HALF, WALK, FACE } from './rng';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // THE GROUND — the sidewalk, the kerb, the gutter, and the corner.
@@ -52,6 +52,60 @@ const KPM = 64;        // px per metre on the kerb face and its arris — SQUARE
 const RAMP_H = 0.025;  // kerb reveal at the foot of the ramp (a ½ in lip — period-correct)
 const RAMP_W = 0.6;    // half-width of the ramp run (1.2 m clear, over the 36 in minimum)
 const RAMP_F = 0.9;    // flared side either side of the run
+
+// ── DRIVEWAY CURB CUT ─────────────────────────────────────────────────────
+//
+// Builder C's used car lot had no way in. The user: "how does one even enter,
+// drive a car off the lot". A lot fronting a kerb needs a CURB CUT — the kerb
+// drops to a low lip across the opening, flares back up to full reveal either
+// side, and the walk is carried over it on a ramped APRON so the pavement
+// still runs through. Without one you have a fence with cars behind it.
+//
+// Real construction, same sources as the rest of this file: commercial
+// driveway openings run 24–30 ft; the depressed kerb keeps a 1–1½ in lip at
+// the gutter rather than going dead flush, so the gutter still carries water
+// past the drive instead of running into it; and the flared wings are the same
+// 1:10-ish detail as the pedestrian ramp already here.
+//
+// THE NUMBERS ARE NOT MINE AND ARE NOT GUESSED. ct/street.ts puts the lot on
+// 23.2 m of the east kerb centred on z = 2.6, and ct/lot.ts runs its drive
+// aisle down that same centre at 6.8 m wide. So the opening IS the aisle:
+// same centre, same width, and a car that can use the aisle can use the cut.
+// If C moves the aisle, this is the one line to follow it.
+const DRIVE_H = 0.035;   // reveal left at the gutter across the opening
+const DRIVE_F = 0.9;     // flared wing either side, as the pedestrian ramp
+const DRIVES: { x: number; z: number; hw: number }[] = [
+  { x: ROAD_HALF, z: 2.6, hw: 3.4 },     // the car lot, east kerb
+];
+/** kerb reveal at a point on a STRAIGHT run — full height everywhere except
+ *  across a driveway, where it drops to a lip and flares back up */
+function driveReveal(x: number, z: number, KERB_H: number): number {
+  for (const d of DRIVES) {
+    if (Math.abs(x - d.x) > 1) continue;           // this kerb line only
+    const e = Math.abs(z - d.z);
+    if (e <= d.hw) return DRIVE_H;
+    if (e >= d.hw + DRIVE_F) continue;
+    return DRIVE_H + (KERB_H - DRIVE_H) * ((e - d.hw) / DRIVE_F);
+  }
+  return KERB_H;
+}
+/** is this point on the apron — the ramped slab that carries the walk over a
+ *  cut — and if so, how high is it? The walk stays level at the building line
+ *  and ramps down across its width to whatever the kerb is doing at that z. */
+function apronY(x: number, z: number, KERB_H: number): number | null {
+  const inner = ROAD_HALF + CH;
+  for (const d of DRIVES) {
+    if (Math.abs(z - d.z) > d.hw + DRIVE_F) continue;
+    const ax = Math.abs(x);
+    if (ax < inner || ax > FACE) continue;
+    if (Math.sign(x) !== Math.sign(d.x)) continue;
+    const rev = driveReveal(d.x, z, KERB_H);
+    if (rev >= KERB_H - 1e-6) return KERB_H;
+    const t = (FACE - ax) / (FACE - inner);        // 0 at the building, 1 at the kerb
+    return KERB_H + (rev - KERB_H) * t;
+  }
+  return null;
+}
 
 /** A texture for a strip thinner than ~0.3 m. Mipmaps are the crawl: a
  *  nearest-mipmap lookup across a face only a few screen pixels tall swaps
@@ -433,10 +487,17 @@ function buildPath(KERB_H: number): { pts: Sample[]; fillets: Fillet[] } {
     // it — but the red kerb paint is picked per segment, and a run emitted as
     // one 111 m quad can only be all-painted or none.
     const runL = Math.hypot(ex - cx, ez - cz);
-    const n = Math.max(1, Math.round(runL));
+    // 1 m is enough for the ribbons and for picking red paint per segment, but
+    // a driveway's flare is only 0.9 m long — at 1 m spacing the ramp down to
+    // the lip would be a single step. Subdivide finely on any run that passes
+    // one.
+    const nearDrive = DRIVES.some((d) => Math.abs(d.x - cx) < 1 &&
+      Math.min(cz, ez) - (d.hw + DRIVE_F + 1) < d.z && d.z < Math.max(cz, ez) + (d.hw + DRIVE_F + 1));
+    const n = Math.max(1, Math.round(runL / (nearDrive ? 0.2 : 1)));
     for (let k = 0; k <= n; k++) {
       const u = k / n;
-      pts.push({ x: cx + (ex - cx) * u, z: cz + (ez - cz) * u, nx, nz, s: s + runL * u, h: KERB_H });
+      const px = cx + (ex - cx) * u, pz = cz + (ez - cz) * u;
+      pts.push({ x: px, z: pz, nx, nz, s: s + runL * u, h: driveReveal(px, pz, KERB_H) });
     }
     s += runL;
     if (r <= 0) break;
@@ -533,6 +594,18 @@ export function buildGround(o: GroundOpts): Ground {
     }
     if (best >= 0) redZones.push([best - STOP_CLEAR, best + STOP_CLEAR]);
   }
+  // RULE 4 — the driveway. Same rule again, not a new one: red kerb means no
+  // parking, and a car left across a curb cut blocks the only way in or out of
+  // the lot. The zone is the opening plus its flares, which is exactly the
+  // stretch a parked car would foul.
+  for (const d of DRIVES) {
+    let best = -1, bestD = Infinity;
+    for (const p of pts) {
+      const dd = Math.hypot(p.x - d.x, p.z - d.z);
+      if (dd < bestD) { bestD = dd; best = p.s; }
+    }
+    if (best >= 0) redZones.push([best - d.hw - DRIVE_F, best + d.hw + DRIVE_F]);
+  }
   const isRed = (s: number) => redZones.some(([a, b]) => s >= a && s <= b);
 
   // ── the walks themselves: raised slabs, inset from the kerb line by the
@@ -547,7 +620,47 @@ export function buildGround(o: GroundOpts): Ground {
     scene.add(m);
   };
   slab(-7, -ROAD_HALF - CH, o.SIDE_Z1 - 2, 16.5);              // west walk, whole length
-  slab(ROAD_HALF + CH, 7, -94.5, 16.5);                        // east walk, cut at the corner return
+  // The east walk is BROKEN at the car lot's driveway, and the apron below
+  // fills the gap. It cannot simply be laid over the slab: the apron descends
+  // below KERB_H toward the kerb, so a flat slab at KERB_H would stand proud
+  // of it and you would see pavement floating over the ramp.
+  {
+    const d = DRIVES[0], g0 = d.z - d.hw - DRIVE_F, g1 = d.z + d.hw + DRIVE_F;
+    slab(ROAD_HALF + CH, 7, -94.5, g0);
+    slab(ROAD_HALF + CH, 7, g1, 16.5);
+    // ── the apron ──
+    // A grid rather than a quad, because the surface is not planar: it is
+    // level at the building line and level again outside the flares, and it
+    // dips to the kerb's own reveal in between. Sampled from the SAME
+    // apronY() the ground-height function uses, so what you see and what you
+    // walk on cannot drift apart.
+    const NX = 6, NZ = 40, inner = ROAD_HALF + CH;
+    const pos: number[] = [], uv: number[] = [];
+    const at = (i: number, k: number) => {
+      const x = inner + ((7 - inner) * i) / NX, z = g0 + ((g1 - g0) * k) / NZ;
+      return [x, apronY(x, z, KERB_H) ?? KERB_H, z] as const;
+    };
+    for (let i = 0; i < NX; i++) for (let k = 0; k < NZ; k++) {
+      const a0 = at(i, k), b0 = at(i + 1, k), c0 = at(i + 1, k + 1), d0 = at(i, k + 1);
+      for (const [vx, vy, vz] of [a0, b0, c0, a0, c0, d0]) {
+        pos.push(vx, vy, vz);
+        // walkTex encodes its world alignment in the texture's own repeat and
+        // offset and expects UV 0..1 ACROSS THE REGION — exactly what a box's
+        // top face gives it. World-derived UVs bypass that and get multiplied
+        // by the repeat on top, which samples the sheet anywhere at all. v runs
+        // from maxZ to minZ, which is the sense walkTex's offset assumes.
+        uv.push((vx - inner) / (7 - inner), (g1 - vz) / (g1 - g0));
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    scene.add(new THREE.Mesh(geo, wet(flat(walkTex(inner, 7, g0, g1)))));
+    // and the dark edge under it, so the apron does not float at the kerb
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(7 - inner, 0.14, g1 - g0), walkDarkM);
+    skirt.position.set((inner + 7) / 2, -0.07 + 0.002, (g0 + g1) / 2);
+    scene.add(skirt);
+  }
   slab(8.5, 57, o.SIDE_Z0 + CH, -96);                          // north side-street walk
   slab(-ROAD_HALF - CH, 55 + CH, o.SIDE_Z1 - 2, -108 - CH);    // south side-street walk
   slab(55 + CH, 57, o.SIDE_Z1 - 2, o.SIDE_Z0 + CH);            // east end of the side street
@@ -753,6 +866,11 @@ export function buildGround(o: GroundOpts): Ground {
 
   // ── ground height: the corners are curved and one of them ramps ─────────
   const gy = (x: number, z: number): number | null => {
+    // the driveway apron first — it overrides the flat walk it is cut into,
+    // and it is what makes the cut something you can actually walk and drive
+    // over rather than a picture of one
+    const ap = apronY(x, z, KERB_H);
+    if (ap !== null) return ap;
     for (const f of fillets) {
       const x0 = Math.min(f.vx, f.cx), x1 = Math.max(f.vx, f.cx);
       const z0 = Math.min(f.vz, f.cz), z1 = Math.max(f.vz, f.cz);
