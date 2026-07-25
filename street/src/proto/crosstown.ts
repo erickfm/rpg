@@ -22,7 +22,7 @@ import { nudgeClear } from './ct/gap';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
-import { COURT, courtGround } from './ct/civic';
+import { COURT, courtGround, civicSeats } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
@@ -355,6 +355,17 @@ export function makeCrosstown(): Proto {
   // finished and unreachable because this used to be a hand-maintained list.
   // Colliders come back through `interiorColliders()`, spread once below.
   buildWorld(ctx, BUILD.PROPS, 99);
+
+  // The library's benches. Registered AFTER the world is built, which is what
+  // civicSeats() asks for: the church is placed into a group street.ts turns
+  // afterwards, so a seat inside it is only in world coordinates once that
+  // transform exists.
+  //
+  // The user asked for every seat in the game to be sittable, and the
+  // courtyard was the one place it was not — the park's identical benches
+  // worked. E could not call ctx.seat() because buildCivic never receives a
+  // ctx; the next commit fixes that and this line goes away with the export.
+  for (const st of civicSeats()) ctx.seat(st);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //
