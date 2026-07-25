@@ -78,21 +78,32 @@ if (mode === 'walk' || mode === 'all') {
     await page.waitForTimeout(120);
     const a = await page.evaluate(() => window.__ct.pos());
     await page.keyboard.down('w');
-    await page.waitForTimeout(seconds * 1000);
+    await page.waitForTimeout((seconds - 1.5) * 1000);
+    const mid = await page.evaluate(() => window.__ct.pos());   // 1.5 s from the end
+    await page.waitForTimeout(1500);
     await page.keyboard.up('w');
     const b = await page.evaluate(() => window.__ct.pos());
     const moved = Math.abs(axis === 'z' ? b[2] - a[2] : b[0] - a[0]);
-    // 2.4 m/s assumed a clear run, and this walk is not clear: CITIZENS are
-    // solid until they give way, which takes up to 1.4 s each, so one
-    // pedestrian in the lane costs about 4 m of an 8 s hike and two cost 8.
-    // The threshold straddled that — the same unchanged world measured 15.8,
-    // 18.8, 22.2 and 25.4 m on four runs — so it was reporting the pedestrian
-    // traffic, not the lane. 1.9 m/s still separates passage from a block by a
-    // wide margin: when a tree genuinely severed this walk it managed 5.0 m.
-    // The real invariant is the narrowest-lane sweep below, which is
-    // deterministic.
-    const ok = moved > seconds * 1.9;
-    console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m in ${seconds}s ` +
+    const lastBit = Math.hypot(b[0] - mid[0], b[2] - mid[2]);
+    // TUNING THIS THRESHOLD TWICE WAS THE WRONG SHAPE OF FIX, and measuring it
+    // says so. CITIZENS are solid until they give way, up to 1.4 s each, so one
+    // pedestrian costs ~4 m of an 8 s hike and two cost 8. At 2.4 m/s it was
+    // reporting the traffic and not the lane; I dropped it to 1.9 and moved on.
+    //
+    // But 8 s x 1.9 puts the line at 15.2 m and the worst clear run on record
+    // is 15.8 — 0.6 m of margin, 4%. That is the same knife-edge park.mjs was
+    // sitting on when it flipped, and no threshold escapes it: the number being
+    // tested depends on who happens to be walking here.
+    //
+    // So ask bfd0b7ae's question instead. Still moving when the clock runs out
+    // means the lane is open and the distance was only a time budget; dead
+    // still means blocked. When a tree genuinely severed this walk it managed
+    // 5.0 m and stopped, which this catches and a distance line only caught by
+    // luck of placement. Distance is kept as an OR so a fast clear run passes
+    // outright.
+    const ok = moved > seconds * 1.9 || lastBit > 0.8;
+    console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m in ${seconds}s, ` +
+      `${lastBit.toFixed(2)} m in the last 1.5 s ` +
       `(${a[0].toFixed(1)},${a[2].toFixed(1)}) -> (${b[0].toFixed(1)},${b[2].toFixed(1)})`);
     return ok;
   };

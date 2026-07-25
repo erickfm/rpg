@@ -101,6 +101,16 @@ const CASES = [
     'obstacle({ minX: x - 2.4, maxX: x + 2.4, minZ: z - 2.4, maxZ: z + 2.4 });',
     'park.mjs', [], 'the park loop walled shut at every lantern'],
 
+  // The WALK half of bus.mjs. Widening the street-tree trunk collider to 1.2 m
+  // severs the east pavement at every tree, which is the fault that actually
+  // happened once — I moved the pits inboard and left 4 cm of lane. Added
+  // because I replaced that walk's criterion, and a criterion I loosened
+  // without a mutation behind it is one I have only assumed still works.
+  ['bus-walk', PROPS,
+    'obstacle({ minX: tx - 0.08, maxX: tx + 0.08, minZ: pz2 - 0.12, maxZ: pz2 + 0.12 });',
+    'obstacle({ minX: tx - 1.2, maxX: tx + 1.2, minZ: pz2 - 1.2, maxZ: pz2 + 1.2 });',
+    'bus.mjs', ['walk'], 'the east pavement severed at every street tree'],
+
   ['bus-bench', PROPS,
     'const LEG_TOP = SEAT_Y - 0.02, LEG_H = LEG_TOP - sidewalkY;',
     'const LEG_TOP = SEAT_Y + 0.025, LEG_H = LEG_TOP - sidewalkY;',

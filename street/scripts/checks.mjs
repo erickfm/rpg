@@ -58,7 +58,8 @@ const CHECKS = [
   ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],
   ['basin',            'is the catch basin real casting, sunk and proud?', 'basin'],
   ['kerbcut',          'can a car get off the lot across the kerb?',       'kerbcut'],
-  ['bus',              'is the bench framed, seated and sittable?',        'bus-bench', ['bench']],
+  ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],
+  ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
   ['rain',             'does it actually rain, and hard enough to see?',   'rain'],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
