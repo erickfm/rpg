@@ -14,6 +14,10 @@
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-frontage.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+// These MIRROR ct/rng.ts. A copy goes stale silently — move the building line
+// and this keeps scanning the old band, measuring a strip of road and calling
+// it a pavement. confirmBand() below proves them against the world before any
+// reading is used, the same guard door301 carries on its own copies.
 const ROAD_HALF = 5.0, FACE = 7.0, R = 0.36;
 const b = await chromium.launch();
 const p = await b.newPage();
@@ -25,14 +29,32 @@ await reportWorld(p, URL);
 // The lot's own frontage, asked for rather than remembered: its stamped meshes.
 const span = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
-  let z0 = 1e9, z1 = -1e9;
+  let z0 = 1e9, z1 = -1e9, x0 = 1e9;
   s.traverse((o) => {
     if (!o.isMesh || o.userData?.mod !== 'lot') return;
     const e = o.matrixWorld.elements;
-    z0 = Math.min(z0, e[14]); z1 = Math.max(z1, e[14]);
+    z0 = Math.min(z0, e[14]); z1 = Math.max(z1, e[14]); x0 = Math.min(x0, e[12]);
   });
-  return [z0, z1];
+  return [z0, z1, x0];
 });
+
+// Prove the mirrored constants still describe this world before any reading is
+// used. The lot is built AGAINST the building line — its fence sits at
+// FACE + 0.18 — so its westmost stamped mesh must be just east of FACE. If it
+// is not, FACE has moved and everything below measures the wrong strip of
+// ground while looking perfectly plausible. Same guard door301 carries over
+// its own copied constants.
+{
+  const off = span[2] - FACE;
+  if (off < -0.05 || off > 1.0) {
+    console.error(`\nTHE CONSTANTS IN THIS SCRIPT NO LONGER DESCRIBE THE WORLD.`);
+    console.error(`  FACE is ${FACE} here, so the lot's westmost mesh should sit just east of it.`);
+    console.error(`  It is at x ${span[2].toFixed(2)}, ${off.toFixed(2)} m away.`);
+    console.error(`  Re-read ROAD_HALF / WALK / FACE from ct/rng.ts.\n`);
+    process.exit(1);
+  }
+  console.log(`building line FACE ${FACE}; the lot starts ${off.toFixed(2)} m east of it — constants hold`);
+}
 
 const cols = await p.evaluate(() => window.__ct.colliders()
   .map((c) => [c.minX, c.maxX, c.minZ, c.maxZ]).filter((c) => c[0] < 500));
