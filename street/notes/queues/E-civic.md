@@ -92,22 +92,6 @@ then commit, then re-read this file before starting the next.
       thinner than ~0.3 m (`GOTCHAS.md` §4). Two failures then delete (§ the
       working rules) — if a detail misses twice, take it out and say so.
 
-- [ ] **The library wants a courtyard.** The user: *"make entire library
-      building a bit recessed so there like a courtyard public 3rd space area."*
-
-      Pull the whole library mass back from the facade line — it already stands
-      shorter than its neighbours on purpose, and setting it back extends that
-      idea. Fill the notch with a real public space, not an empty slab: paving
-      that is not the sidewalk texture, the existing steps rebuilt to suit, a
-      bench or two, a tree or a planter, a bin. It should read as somewhere
-      people sit at lunch.
-
-      Constraints: the 2 m walking lane past it is sacred (`GOTCHAS.md` §9) —
-      the courtyard must be walk-INTO-able, so leave the mouth of it clear and
-      keep every collider off the sidewalk lane. Paving must abut the sidewalk
-      exactly, never overlap it (§6). **Walk it** before you close this, both
-      along the street and into the courtyard and back out.
-
 ## Done
 
 _(nothing yet — you are new)_
