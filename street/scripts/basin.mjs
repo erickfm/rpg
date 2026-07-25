@@ -30,29 +30,43 @@ const shot = async (n, x, z, tx, tz, gy, p) => {
   await page.screenshot({ path: `shots/bs-${n}.png` });
 };
 
+// BOTH BASINS. This probed the east one only, at (4.7, -92.5), and graded the
+// catch basin DONE on it. There are two: ct/tex-ground.ts:876-877 builds
+// basin(ROAD_HALF, -92.5, 1) and basin(-ROAD_HALF, -105, -1), and `side` flips
+// the sign on every proud face — fx = kx - side * PROUD. A sign error would
+// appear on the west one and nowhere else, and nothing was looking at it.
+//
+// Same shape as be83f55a's wheel arches: a verdict I reported confidently,
+// which covered exactly the instance I had in front of me. Trying to widen a
+// check is a good way to find out how narrow the hand verdict was.
+const BASINS = [{ name: 'east', x: 4.7, z: -92.5, side: 1 },
+                { name: 'west', x: -4.7, z: -105, side: -1 }];
 if (mode === 'probe' || mode === 'all') {
-  const r = await page.evaluate(() => {
+ for (const B of BASINS) {
+  const r = await page.evaluate((B) => {
     const sc = window.__ct.scene();
     const near = [];
     sc.traverse((o) => {
       if (!o.isMesh) return;
-      if (Math.hypot(o.position.x - 4.7, o.position.z + 92.5) > 1.2) return;
+      if (Math.hypot(o.position.x - B.x, o.position.z - B.z) > 1.2) return;
       const g = o.geometry?.parameters ?? {};
       near.push({ y: +o.position.y.toFixed(4), h: g.height,
         top: g.height ? +(o.position.y + g.height / 2).toFixed(4) : null,
         kind: o.geometry?.type,
         part: o.userData.basinPart ?? null, side: o.userData.basinSide ?? null,
-        // road-most face: how far this solid reaches out of the kerb
-        outer: g.width ? +(o.position.x - Math.abs(g.width) / 2).toFixed(4) : null });
+        // road-most face, SIGNED by which kerb this is: on the west side the
+        // road is to the +x of the casting, so "reaches out of the kerb" is the
+        // other direction. Without this the west basin reads inside out.
+        outer: g.width ? +(B.side * (o.position.x - B.side * Math.abs(g.width) / 2)).toFixed(4) : null });
     });
     return near;
-  });
+  }, B);
   const boxes = r.filter((m) => m.kind === 'BoxGeometry');
   const tops = boxes.map((b) => b.top).filter((t) => t !== null);
   const frameTop = Math.max(...tops.filter((t) => t < 0.06));
   // the bars must sit BELOW the frame — that step is the whole read
   const barTops = tops.filter((t) => t < frameTop - 0.0005 && t > 0.01);
-  console.log(`\n  meshes at the east basin: ${r.length} (${boxes.length} solid)`);
+  console.log(`\n  ${B.name} basin: ${r.length} meshes (${boxes.length} solid)`);
   console.log(`  frame top      ${frameTop.toFixed(4)} m`);
   console.log(`  grate bar top  ${barTops.length ? Math.max(...barTops).toFixed(4) : 'none'} m`);
   const rebate = barTops.length ? frameTop - Math.max(...barTops) : 0;
@@ -81,7 +95,9 @@ if (mode === 'probe' || mode === 'all') {
   // 7 mm and not more. Both ends of the range are a real failure.
   const proudOK = proud !== null && proud > 0.002 && proud < 0.022;
   console.log(`  ${proudOK ? 'OK  ' : 'FAIL'} the surround stands PROUD of the throat, and not so far it hides it`);
-  if (boxes.length < 15 || rebate <= 0.005 || !proudOK) process.exit(1);
+  if (boxes.length < 15 || rebate <= 0.005 || !proudOK) process.exitCode = 1;
+ }
+ if (process.exitCode) process.exit(1);
 }
 
 // NOTE on the 4th argument: warp's `gy` is the GROUND height under the

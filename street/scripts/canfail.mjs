@@ -131,6 +131,16 @@ const CASES = [
     'const PROUD = -0.02;',
     'basin.mjs', [], 'the throat sunk below the casting instead of proud'],
 
+  // ONLY THE WEST BASIN. Flipping its `side` builds it mirrored into its own
+  // kerb, and the east one is untouched — so this fails if and only if the
+  // probe actually looks at both. It probed the east one alone until now, and
+  // graded the catch basin DONE on it; `side` flips the sign on every proud
+  // face, so a fault there could live on the west forever.
+  ['basin-west', GROUND,
+    'basin(-ROAD_HALF, -105, -1);   // west gutter, above the inside bend',
+    'basin(-ROAD_HALF, -105, 1);    // selftest: built inside out',
+    'basin.mjs', [], 'the west basin mirrored into its own kerb'],
+
   ['rain', PROPS,
     'const RAIN_N = 500;',
     'const RAIN_N = 6;',
