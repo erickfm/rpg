@@ -343,6 +343,31 @@ export function viewFor(rel: number): [number, boolean] {
   return viewAt(sectorAt(rel));
 }
 
+/** The citizen plane, with its origin AT THE PAINTED FEET.
+ *
+ *  Not at the frame's bottom edge, which is where `translate(0, 0.95, 0)` put
+ *  it and why every figure in the world floated. The atlas paints the shoe at
+ *  rows 57-59 of a 64-row frame, so FOUR rows below it are empty — and a plane
+ *  1.9 m tall over 64 rows makes that 4 * 1.9/64 = 0.119 m of transparent
+ *  padding standing between the feet and the ground.
+ *
+ *  It reads as a call-site bug and is not one: the gap is identical for every
+ *  figure whatever its y, because it is a property of the SPRITE. C measured it
+ *  world-wide — seven figures, call-site gap 0.000 for all of them, atlas
+ *  padding 0.108-0.129, and that spread is only each figure's height scale.
+ *
+ *  ONE FUNCTION, because there were two copies of these two lines — here and in
+ *  ct/crowd.ts — and two copies of a constant disagree eventually. Fixing them
+ *  separately would have left the street and the interiors 12 cm apart.
+ */
+export function citizenPlane(): THREE.PlaneGeometry {
+  const H = 1.9;
+  const PAD_ROWS = 4;                        // empty rows under the shoe, see above
+  const geo = new THREE.PlaneGeometry(0.95, H);
+  geo.translate(0, H / 2 - (PAD_ROWS / FH) * H, 0);
+  return geo;
+}
+
 // ── THE PRIMITIVE: one call, one person ────────────────────────────────────
 //
 // Every person indoors is currently a hand-painted single-view plane — the diner
@@ -391,8 +416,7 @@ export function citizenSprite(look: Look, o: {
 } = {}): CitizenSprite {
   const tex = citizenAtlas(look);
   tex.repeat.set(1 / 5, 1 / 2);
-  const geo = new THREE.PlaneGeometry(0.95, 1.9);
-  geo.translate(0, 0.95, 0);                 // origin at the feet
+  const geo = citizenPlane();
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
   }));

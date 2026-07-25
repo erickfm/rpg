@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { type Look, citizenAtlas, sectorAt, viewAt } from './citizens';
+import { type Look, citizenAtlas, citizenPlane, sectorAt, viewAt } from './citizens';
 import { ROAD_HALF, rnd } from './rng';
 import { buildNet, STRAY, type Activity, type Net } from './crowd-net';
 import { ORDER, type CtxBuild } from './ctx';
@@ -138,8 +138,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     tex.repeat.set(1 / 5, 1 / 2);
     // the geometry is translated so the origin is at the FEET, so scaling
     // height never lifts anyone off the pavement or sinks them into it
-    const geo = new THREE.PlaneGeometry(0.95, 1.9);
-    geo.translate(0, 0.95, 0);
+    const geo = citizenPlane();
     const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
     mesh.scale.set(p.ws, p.hs, 1);
     // home lanes sit in the clear strip between the kerb props and the wall
