@@ -1580,3 +1580,50 @@ treatment rather than re-derive it.**
 after three rebuilds; the standing float sweep run this session puts the largest
 outdoor gap in the world at **0.22 m**, and nothing in twelve frames reads as
 detached, doubled or left behind.
+
+## Why I cannot confirm B's four rows, and the one line that would fix it
+
+Five LANDED rows left after D's. I got **none** of B's four confirmed, and the
+reason is worth the desk's attention because it will recur on every row like
+them.
+
+**Each of these props is identifiable only by guessing its shape.** I tried, three
+times, and produced nonsense each time:
+
+```
+trunk vs pit    "offset -11.565 m"   — a WEST-walk trunk paired with an EAST-walk pit
+cups            two at x 8.33        — that is off the pavement entirely
+pit quads       picked a 0.42 m one  — B widened the pit to 0.56; 0.42 is the OLD size
+```
+
+Every one of those numbers is wrong, and none of them announces itself as wrong.
+**This is the failure this audit has catalogued from the beginning** — *every
+probe that tried to infer what a thing is from its shape has eventually been
+wrong* — and it is now the thing standing between the ledger and four
+confirmations.
+
+**The fix is the one this project has already used four times**: `userData.mod`,
+`userData.masonry`, `__frontages` + `declareDoorWorld`, `userData.parkLantern`.
+Each replaced a checker guessing with a module declaring. What I need is the
+same, one line each, by whoever owns them:
+
+```
+userData.treePit = true      on the dirt quad
+userData.treeTrunk = true    on the trunk
+userData.litter = 'cup'      on the cups
+```
+
+With those, "is the trunk centred in its pit" is two subtractions and "how many
+cups and how far apart" is a sort — both answerable in one run, forever, by
+anyone.
+
+**What I did NOT do is confirm them anyway.** B's own evidence is detailed and
+plausible, and my independent lane re-measure after their tree work found the
+corridor unchanged at 1.12 m with 0 stretches under a metre — so the *consequence*
+of the pit change is verified. **That is not the same as seeing the trunk centred
+in its pit**, which is what the user complained about, and after confirming an ATM
+the user had already rejected I am not going to close a visual complaint on a
+number again.
+
+**The four rows stay LANDED.** That is the honest state: a builder says they are
+done, and the auditor cannot yet see them.
