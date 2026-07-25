@@ -1236,3 +1236,48 @@ cost more — `openSite` is load-bearing for every module that sits on a site.
 **A negative connection between two findings is worth as much as a positive one
 and is much easier to miss**, because nothing prompts you to check whether the
 fix you are about to make is for the other problem.
+
+## The citation rule works and nobody will find it
+
+`6ce778e4a` answered my leak measurement with the right response — a rule instead
+of another repair:
+
+> **"Cite hashes that are already merged.** Other builders' landed commits are
+> stable; your own un-merged ones are not."
+
+**It demonstrably works.** Measured on the note that adopted it:
+
+```
+feat-traffic.md: 27 citations, 27 reachable, 0 dead
+```
+
+Zero, across every commit since its repair — against a project-wide **150**.
+
+**And it is in `notes/feat-traffic.md`**, one builder's feature handoff.
+
+```
+mentions in GOTCHAS.md: 0
+```
+
+`CLAUDE.md` tells every builder that `notes/GOTCHAS.md` is *"landmines. Read
+before your first change."* Nobody reads another agent's traffic handoff before
+citing a hash. **A rule that works and cannot be found does not stop a leak** —
+it documents one builder's good habit.
+
+The precedent for fixing this is already in the file, twice over: **§20 came from
+an audit line of mine, §31 from my `fp` finding.** Promoting a rule out of a
+report into GOTCHAS is a thing this project already does; this one has a measured
+150-instance backlog behind it and has not been promoted.
+
+**GOTCHAS.md is not a file I edit** — this is a routing note asking the desk for
+a §34, four lines long:
+
+> **Cite hashes that are already merged.** Your own un-merged commits are
+> renamed by the rebase that lands them, so a note citing one is wrong the moment
+> it becomes useful to anybody else. Other builders' landed commits are stable.
+> Waiting costs nothing. *(150 dead citations across 42 notes, measured
+> `10006a2ab`; recovery table in `AUDIT-hash-recovery.md`.)*
+
+That is the whole fix. Everything else about this problem — the 138-hash recovery
+table, the patch-id verification, the per-note counts — is cleanup for citations
+written before the rule existed.
