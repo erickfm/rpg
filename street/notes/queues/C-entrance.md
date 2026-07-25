@@ -13,6 +13,66 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The car lot must MAKE SENSE, and then be properly sleazy.** The user:
+      *"i like the triangles but it also just looks low effort do a high effort
+      sleazy used car lot. make it make sense like how does one even enter,
+      drive a car off the lot. do some research into what old sleazy used car
+      lots looked like"*. Ref: `shots/user-lot2.png`.
+
+      The bunting is approved. The problem is that the lot currently has no
+      LOGIC — and that is what reads as low effort, more than any missing
+      prop.
+
+      **Part one: how does a car get on and off?** This is the question the
+      user asked and it is the one that fixes the whole thing.
+      · a **curb cut** — a break in the kerb where it drops flush to the road,
+        with a flared apron. Without this, cars cannot physically leave, and
+        the eye knows it even if it cannot say why.
+      · the **sidewalk crosses the driveway**, so the paving changes there:
+        the walk ramps down over the cut and the scoring runs across it. A
+        dropped kerb with the pavement running unbroken over it is wrong.
+      · a **rolling chain-link gate** on the cut, standing open in the day,
+        with a chain and padlock hanging off it. At night it should be shut.
+      · a **drive aisle** behind the front row, so the cars in that row can
+        actually get out. Rows of cars packed with no aisle is the tell that
+        nobody thought about it.
+      · cars parked **nose-out, angled toward the street** — that is how a lot
+        displays stock, and it also means they can drive straight out.
+
+      **Part two: the sleaze, and it is specific.** A 1997 buy-here-pay-here
+      lot has a vocabulary. Take as much as the space carries:
+      · **Vinyl banners zip-tied to the chain-link**, sagging between ties:
+        BUY HERE PAY HERE · NO CREDIT? NO PROBLEM! · $99 DOWN · WE FINANCE ·
+        SE HABLA ESPAÑOL · TEST DRIVES WELCOME
+      · a **tall pole sign** at the kerb, taller than the building beside it,
+        with a name — HONEST ED'S, EZ AUTO SALES, AUTO WORLD — and a phone
+        number in digits far too big
+      · **the FTC Buyers Guide sticker**: a white-and-yellow rectangle taped
+        inside the side window of EVERY car. Legally required on used cars
+        since 1985, so its absence is what would look wrong to anyone who was
+        there. It is the single most authentic detail available here.
+      · windshield **soaped prices** and **starburst cards** — already queued,
+        still the centrepiece
+      · **balloons tied to radio antennas**, a couple deflated
+      · a **portacabin office** with a window AC unit, a satellite dish, a
+        desk light on, and vertical blinds
+      · **chain-link with privacy slats** on the back and side runs
+      · a **flagpole**, and a floodlight on a pole for after dark
+      · **oil stains** in the bays, weeds in the asphalt cracks, one bay empty
+        where a car sold
+      · one car **up on a jack** with a wheel off, one with the **hood open**
+      · a **tyre stack** and a couple of traffic cones
+
+      **Do the research the user asked for** rather than working only from
+      this list — period photographs of buy-here-pay-here lots will give you
+      details neither of us thought of, and the user explicitly asked for it.
+
+      Cars are builder H's: ask the desk for the variants (hood up, on a jack,
+      a wheel off) rather than building your own. Nothing may encroach the
+      sidewalk (`GOTCHAS.md` §9) — the auditor is sweeping the block for
+      exactly that right now, so keep the fence, banners and pole sign behind
+      the line.
+
 - [ ] **The car lot: deeper, and go all-in on the detail.** The user:
       *"car lot needs to be deeper. i like your initial aesthetic but i want
       it refined and a try hard version of it. get the typical car price signs
