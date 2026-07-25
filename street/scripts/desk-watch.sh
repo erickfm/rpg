@@ -31,8 +31,32 @@ while true; do
     echo "[$ts] SKIPPED:"
     echo "$out" | grep '✗'
   fi
-  # surface idle agents; the desk has to decide what they do next
-  idle=$("$MAIN/street/scripts/desk.sh" 2>/dev/null | grep -E 'is IDLE|is BLOCKED')
-  [ -n "$idle" ] && { echo "[$ts] NEEDS THE DESK:"; echo "$idle"; }
+  # Idle agents with queued work get nudged back onto their queue automatically.
+  #
+  # "Work your queue continuously" only survives the turn it is sent in: an
+  # agent finishes an item, ends its turn, and waits. Six of nine were found
+  # idle twice in one session with sixty items between them and last commits
+  # twenty minutes old, while the user was waiting on that exact work. A human
+  # deciding what each should do next is NOT required here — the queue file
+  # already says, and the desk wrote it.
+  #
+  # Only agents with a non-zero queue are nudged. An agent that is genuinely
+  # out of work is surfaced for the desk instead, because giving it something
+  # to do is a real decision.
+  status=$("$MAIN/street/scripts/desk.sh" 2>/dev/null)
+  echo "$status" | grep -E 'IDLE with [0-9]+ queued' | while read -r line; do
+    win=$(echo "$line" | grep -oE 'window [0-9]+' | grep -oE '[0-9]+')
+    who=$(echo "$line" | awk '{print $2}')
+    [ -z "$win" ] && continue
+    echo "[$ts] nudging $who (window $win) back onto its queue"
+    tmux send-keys -t "crosstown:$win" C-u; sleep 0.3
+    tmux send-keys -t "crosstown:$win" "Rebase on add-stick-and-city98, re-read your queue file, and take the next item. Work continuously — after each commit, rebase, re-read and take the next one. Only stop when your queue is empty or you are genuinely blocked, and if blocked write street/notes/BLOCKED-<you>.md and take the next item instead."
+    sleep 0.8
+    tmux send-keys -t "crosstown:$win" Enter
+    sleep 0.5
+  done
+  # things that still need a human decision
+  needs=$(echo "$status" | grep -E 'is BLOCKED|OUT OF WORK|STALLED|CONTEXT LIMIT|RAISED A BLOCKER')
+  [ -n "$needs" ] && { echo "[$ts] NEEDS THE DESK:"; echo "$needs"; }
   sleep "$INTERVAL"
 done

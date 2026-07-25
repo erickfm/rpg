@@ -46,6 +46,13 @@ pane_of() {
 # Match a truncation-safe prefix — narrow panes cut "esc to interrupt".
 busy()    { tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; }
 blocked() { tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null | grep -q 'Do you want to proceed'; }
+# An agent at its context limit is about to compact, and a compacted agent
+# loses the reasoning it built up on the current item. It is not stuck, so it
+# never trips the STALL check — but its next few commits are the least
+# reliable it will produce, and if it is mid-way through a big build that is
+# exactly when to notice. The queue file is the recovery: it holds the whole
+# brief, so a fresh agent reads it and continues.
+ctxfull() { tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null | grep -qE '(9[5-9]|100)% context used'; }
 
 # How long has this turn been running? The spinner prints its own elapsed
 # timer — "(1h 14m 12s · ↓ 92.5k tokens)" — which is exactly the number the
@@ -92,6 +99,8 @@ for wt in "$ROOT"/rpg-*; do
     "$ahead" "$dirty" "$qopen" "$last"
 
   [ "$state" = BLOCKED ] && ACTIONS+=("$short BLOCKED on a permission dialog — answer it (window $win)")
+  [ -n "$win" ] && ctxfull "$win" \
+    && ACTIONS+=("$short is at its CONTEXT LIMIT — its queue file holds the brief, so consider restarting it fresh rather than letting it compact mid-item (window $win)")
   [ "$state" = IDLE ] && [ "$qopen" != 0 ] && [ "$qopen" != '?' ] \
     && ACTIONS+=("$short IDLE with $qopen queued — dispatch it (window $win)")
   [ "$state" = IDLE ] && [ "$qopen" = 0 ] \
