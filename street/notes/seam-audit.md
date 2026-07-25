@@ -1796,3 +1796,44 @@ because `ct/doors.ts` and `ct/world.ts` glob `./*.ts` — and it imports
 That is the clearest exhibit for the glob problem I have found, and it is a
 better argument for the `door-util.ts` split than my ordering claim was —
 because it does not depend on predicting evaluation order at all.
+
+## Round 14e — three explanations for "why the casino", all disproved. It is not in the source.
+
+I have now tried three structural explanations for why `int-casino` is the room
+that loses its door, and measured all three:
+
+| hypothesis | test | result |
+|---|---|---|
+| **an extra cycle route** — the casino uniquely imports `./vice` | traced `vice → civic → tex-world → paint`, every branch | **no** — nothing reaches `doors`, `interior` or `world` |
+| **greater dependency depth** — a deeper module initialises last | computed transitive depth for all eight rooms | **no** — **all eight are depth 5**, by the identical chain `int-* → interior → doors → tex-world → paint` |
+| **alphabetical position in the glob** | mainline's `dacb8ae8` added probes sorting first *and* last | **no** — the loss did not move, twice |
+
+```
+int-bodega  5   int-burger  5   int-casino  5   int-diner   5
+int-hotel   5   int-pawn    5   int-tax     5   int-thrift  5
+```
+
+**The eight rooms are structurally indistinguishable.** Same imports (bar `vice`
+and `rng`, neither of which reaches a globber), same depth, same chain, same
+glob membership, same `DOOR` export. Nothing I can measure in the source
+explains why the casino and not the diner.
+
+> **The selection is not visible in the import graph.** Whatever picks the loser
+> lives in the bundler's chunking or module-initialisation order, not in
+> anything a builder wrote — which is exactly why no one can reason about it and
+> why it moved from one module to four without a cause anyone could name.
+
+### Which makes the structural fix stronger, not weaker
+
+My original argument for splitting `doorStandFor` into a leaf module leaned on
+*"room nine could move the loss"* — a prediction mainline tested and did not
+reproduce. **Drop that argument.** The better one is what is left after three
+disproofs:
+
+**Nobody can predict which room loses, and nothing in the source would tell them
+if it changed.** A defect whose victim is chosen by the bundler cannot be
+reasoned about, only removed — and removing it is one file move and eight import
+lines.
+
+I am recording the three dead ends so the next person does not spend the
+afternoon I just spent on them.
