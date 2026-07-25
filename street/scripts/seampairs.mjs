@@ -85,6 +85,14 @@ const out = await p.evaluate(() => {
     // A 5x3 grid, not just the corners. Two long walls meeting along the MIDDLE
     // of an edge share no corner, so a corner-only test misses exactly the
     // junction this tool exists to find.
+    // The face's world NORMAL, for the back-to-back test below.
+    const nrm = (() => {
+      const n0 = [ax[1]*ay[2]-ax[2]*ay[1], ax[2]*ay[0]-ax[0]*ay[2], ax[0]*ay[1]-ax[1]*ay[0]];
+      const o0 = o.localToWorld(V(0,0,0)), o1 = o.localToWorld(V(n0[0],n0[1],n0[2]));
+      const d = [o1.x-o0.x, o1.y-o0.y, o1.z-o0.z];
+      const L = Math.hypot(d[0],d[1],d[2]) || 1;
+      return [d[0]/L, d[1]/L, d[2]/L];
+    })();
     const pts = [];
     const GU = [-1,-0.5,0,0.5,1], GV = [-1,0,1];
     for (const su of GU) for (const sv of GV) {
@@ -97,7 +105,7 @@ const out = await p.evaluate(() => {
     faces.push({ u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
                  v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
                  declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null,
-                 pts,
+                 pts, nrm,
                  x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
                  at:[+((bb.min.x+bb.max.x)/2).toFixed(1),+((bb.min.y+bb.max.y)/2).toFixed(1),+((bb.min.z+bb.max.z)/2).toFixed(1)] });
     });
@@ -107,6 +115,14 @@ const out = await p.evaluate(() => {
   // reaches. The bbox version paired a band with anything inside its frontage-
   // wide box (7d4c345b).
   const near = (a,c) => {
+    // BACK TO BACK IS NOT A JUNCTION. a31a4cfb's pairclip.mjs drops pairs whose
+    // normals oppose, and it is right: the two faces of one wall are 0.18 m
+    // apart and face away from each other. Nobody can see them meet, because
+    // you cannot stand where both are visible.
+    if (a.nrm && c.nrm) {
+      const dot = a.nrm[0]*c.nrm[0] + a.nrm[1]*c.nrm[1] + a.nrm[2]*c.nrm[2];
+      if (dot < -0.9) return false;
+    }
     for (const p1 of a.pts) for (const p2 of c.pts) {
       const dx=p1[0]-p2[0], dy=p1[1]-p2[1], dz=p1[2]-p2[2];
       if (dx*dx+dy*dy+dz*dz < 0.36) return true;      // 0.6 m
