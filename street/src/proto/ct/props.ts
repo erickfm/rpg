@@ -118,8 +118,38 @@ export function buildProps(ctx: CtxBuild): Props {
   // an explicit exception rather than a tuned threshold, and it puts the first
   // storm 40 seconds from spawn.
   const OPENING_H = 14;
+  // WHY A MIXER AND NOT A MULTIPLY. `Math.imul(h, K) % 100` looks like a hash
+  // and is an arithmetic progression: consecutive hours step by K mod 100, so
+  // the rainy hours land on a lattice. cd37b59b did the arithmetic over 5000
+  // game days and found the consequence —
+  //
+  //   dry spells were ONLY EVER 1, 2, 3, 4, 7 or 8 hours, capped at 8
+  //   a midday with twelve dry hours behind it had never occurred, and could not
+  //
+  // A street that is never dry for more than eight hours never reads as dry,
+  // which quietly costs the contrast "make wetness last a lil after it stops
+  // raining" was asked for. The weather was periodic, not random.
+  //
+  // Murmur3's finalizer avalanches instead, and the spell lengths come out as
+  // independent hourly draws actually look:
+  //
+  //   dry   1h x5590  2h x4180  3h x3262 … 12h x223 … 23h x15
+  //   wet   1h x17052 2h x4282  3h x1019 … 7h x2
+  //   frequency 25.3% before, 25.1% after — the rate is unchanged
+  const mixHour = (h: number) => {
+    let x = h | 0;
+    x ^= x >>> 16; x = Math.imul(x, 0x85ebca6b);
+    x ^= x >>> 13; x = Math.imul(x, 0xc2b2ae35);
+    x ^= x >>> 16;
+    return x >>> 0;
+  };
   const rainAt = (h: number) =>
-    (((h % 24) + 24) % 24) === OPENING_H || ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
+    (((h % 24) + 24) % 24) === OPENING_H || (mixHour(h) % 100) < 30;
+  // PUBLISHED, so nothing has to mirror it. scripts/rain.mjs and
+  // scripts/wetness.mjs each carried a hand-copy with the comment "keep in step
+  // with rainAt() in ct/props.ts" — two copies of a formula that just turned out
+  // to be wrong, which is two places to forget.
+  scene.userData.rainAt = rainAt;
 
   // billboard sprites: trees, hydrant, pigeons
   function board(tex: THREE.Texture, w: number, h: number, x: number, z: number): THREE.Mesh {

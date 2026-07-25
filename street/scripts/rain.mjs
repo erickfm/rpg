@@ -58,7 +58,31 @@ const read = () => page.evaluate(() => {
 });
 
 const results = {};
-for (const h of [5, 15]) {
+// THE SCHEDULE, ASKED OF THE WORLD. This file used to hand-copy rainAt's
+// formula with a comment saying "keep in step with ct/props.ts" — and then that
+// formula turned out to be a lattice (cd37b59b) and was replaced. Two copies of
+// a wrong thing is two places to forget. props publishes the real function on
+// scene.userData now, so this reads the schedule instead of reproducing it.
+const SCHEDULE = await page.evaluate(() => {
+  const f = window.__ct.scene().userData.rainAt;
+  if (typeof f !== 'function') return null;
+  return Array.from({ length: 240 }, (_, h) => !!f(h));
+});
+if (!SCHEDULE) { console.error('\n  FAIL props did not publish scene.userData.rainAt — cannot pick hours'); process.exit(1); }
+const rainyFromWorld = (h) => SCHEDULE[((h % 240) + 240) % 240];
+
+// A RAINY NIGHT HOUR AND A RAINY DAY ONE, PICKED FROM THE SCHEDULE. These were
+// hard-coded 5 and 15, which rained under the old lattice and do not under the
+// corrected one — the same mirroring bug as the predicate, one level up: a
+// constant chosen because it happened to hold when it was written.
+const NIGHT_H = (() => { for (let h = 0; h < 240; h++) { const hh = h % 24;
+  if (SCHEDULE[h] && (hh >= 22 || hh <= 6)) return h; } return 5; })();
+const DAY_H = (() => { for (let h = 0; h < 240; h++) { const hh = h % 24;
+  if (SCHEDULE[h] && hh >= 11 && hh <= 16) return h; } return 15; })();
+const PAIR = [NIGHT_H, DAY_H];
+console.log(`  rainy hours from the world's own schedule: ${NIGHT_H % 24}:00 (night), ${DAY_H % 24}:00 (day)`);
+
+for (const h of PAIR) {
   console.log(`\n══ ${String(h).padStart(2, '0')}:00 ══`);
   await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
   await page.evaluate(() => window.__ct.warp(-1.0, -30, 0, 0, -0.05));
@@ -98,12 +122,12 @@ for (const h of [5, 15]) {
 }
 
 console.log('\n  ── verdict ──');
-const both = [5, 15].every((h) => results[h].rainVisible);
-console.log(`  ${both ? 'OK  ' : 'FAIL'} it rains at BOTH hours (05:00 ${results[5].rainVisible}, 15:00 ${results[15].rainVisible})`);
-const water = [5, 15].every((h) => results[h].shown > 0);
-console.log(`  ${water ? 'OK  ' : 'FAIL'} standing water forms at both (05:00 ${results[5].shown}, 15:00 ${results[15].shown})`);
-const c5 = Math.abs(results[5].rainLum - results[5].skyLum) * results[5].rainOpacity * 255;
-const c15 = Math.abs(results[15].rainLum - results[15].skyLum) * results[15].rainOpacity * 255;
+const both = PAIR.every((h) => results[h].rainVisible);
+console.log(`  ${both ? 'OK  ' : 'FAIL'} it rains at BOTH hours (${NIGHT_H%24}:00 ${results[NIGHT_H].rainVisible}, ${DAY_H%24}:00 ${results[DAY_H].rainVisible})`);
+const water = PAIR.every((h) => results[h].shown > 0);
+console.log(`  ${water ? 'OK  ' : 'FAIL'} standing water forms at both (${NIGHT_H%24}:00 ${results[NIGHT_H].shown}, ${DAY_H%24}:00 ${results[DAY_H].shown})`);
+const c5 = Math.abs(results[NIGHT_H].rainLum - results[NIGHT_H].skyLum) * results[NIGHT_H].rainOpacity * 255;
+const c15 = Math.abs(results[DAY_H].rainLum - results[DAY_H].skyLum) * results[DAY_H].rainOpacity * 255;
 // Per-drop contrast is high at BOTH hours, which is the useful negative
 // result: "you cannot see the rain by day" was never a contrast problem, and
 // it was never a count problem either. Look at shots/rn-5.png and rn-15.png.
@@ -152,8 +176,8 @@ const wetSignal = () => page.evaluate(() => {
   });
   return ops.length ? +(ops.reduce((a, b) => a + b, 0) / ops.length).toFixed(4) : null;
 });
-const rainyH = (h) => (((h % 24) + 24) % 24) === 14 ||
-  ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
+
+const rainyH = (h) => rainyFromWorld(h);  // asked, not mirrored — see below
 // BOTH HOURS MUST BE DAYLIGHT. The first attempt took the first rainy and first
 // dry hour of a 48 h sweep and got midnight, where the night grade has already
 // crushed everything and the weather cannot be read off it.

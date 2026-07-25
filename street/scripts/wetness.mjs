@@ -39,8 +39,19 @@ await page.waitForTimeout(500);
 // the first storm 40 s from spawn — so a script that picks "the first dry
 // hour" must know about it or it will pick a wet one. Keep in step with
 // rainAt() in ct/props.ts.
-const rainy = (h) => (((h % 24) + 24) % 24) === 14 ||
-  ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
+// THE SCHEDULE, ASKED OF THE WORLD. This file used to hand-copy rainAt's
+// formula with a comment saying "keep in step with ct/props.ts" — and then that
+// formula turned out to be a lattice (cd37b59b) and was replaced. Two copies of
+// a wrong thing is two places to forget. props publishes the real function on
+// scene.userData now, so this reads the schedule instead of reproducing it.
+const SCHEDULE = await page.evaluate(() => {
+  const f = window.__ct.scene().userData.rainAt;
+  if (typeof f !== 'function') return null;
+  return Array.from({ length: 240 }, (_, h) => !!f(h));
+});
+if (!SCHEDULE) { console.error('\n  FAIL props did not publish scene.userData.rainAt — cannot pick hours'); process.exit(1); }
+const rainyFromWorld = (h) => SCHEDULE[((h % 240) + 240) % 240];
+const rainy = (h) => rainyFromWorld(h);   // asked, not mirrored — see below
 let wetH = -1, dryH = -1;
 for (let h = 0; h < 48; h++) { if (wetH < 0 && rainy(h)) wetH = h; if (dryH < 0 && !rainy(h)) dryH = h; }
 
