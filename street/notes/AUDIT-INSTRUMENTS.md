@@ -1080,3 +1080,50 @@ The wider lesson for my own reports: `19` was a true number to a filtered
 question, published under a heading that read like the whole class. H had to find
 the fleet by hand because my list looked complete. **State the filter in the
 headline, or the count will be read as the population.**
+
+## Mutation-testing my own negative result — it passes, and the plant lands on the retraction
+
+`31865213` mutation-tested three checks and found two were not fine. That is the
+one validation this audit had never applied to itself, and it matters most for
+**negative** results — *"0 stretches under 1.00 m"*, *"0 lightened"*, *"no door
+ever blocked"*. A negative from a detector that cannot see the thing is
+indistinguishable from a negative from a clean world.
+
+Circularity was the first way I found a check could be vacuous. **Insensitivity
+is the second.** `scripts/mutate.mjs` tests it by planting a defect in the live
+scene and re-running the same arithmetic — nothing under `src/` touched, because
+the plant is just an extra entry in the array the probe reads, which is exactly
+what a real obstruction looks like to it.
+
+```
+210 static colliders
+
+  clean world                         0 tight · narrowest 1.12 m at east z -85.75
+  + 0.50×0.50 post mid-west-walk      5 tight · narrowest 0.77 m at west z -27.50
+  + 0.50×0.50 box out in the road     0 tight · narrowest 1.12 m at east z -85.75
+
+  detector SEES a mid-walk post:      YES
+  detector IGNORES a box in the road: YES
+
+  PASS — "0 stretches under 1.00 m" is a measurement, not a blind spot.
+```
+
+Both halves matter. A detector that flags everything is as useless as one that
+flags nothing, so the second plant is deliberately harmless — out in the road,
+off the walk — and is correctly ignored.
+
+### The plant lands exactly on the finding I retracted
+
+The 0.50 × 0.50 post produces **0.77 m at west z −27.50**. My retracted finding
+was **0.77 m at west z −28** — the same number in the same place. That closes the
+loop on `3f7b2623` with more precision than the retraction had:
+
+> What I measured then was real, and it was exactly the size and shape of a post.
+> It simply **was not furniture** — it was a citizen who had stopped. The
+> instrument was right, the inference was wrong, and this plant demonstrates the
+> instrument would have reported an actual post identically.
+
+So the corridor result now rests on three independent legs: the number itself,
+the long-window ghost check that showed dropping movers can only ever *widen* a
+passage, and a planted obstruction the detector catches at the exact figure that
+started the whole episode.
