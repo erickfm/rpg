@@ -68,6 +68,7 @@ printf -- '---------------------------------------------------------------------
 for wt in "$ROOT"/rpg-*; do
   [ -d "$wt" ] || continue
   name=$(basename "$wt"); short=${name#rpg-}
+  seen_reps=()
   case "$name" in rpg-live) continue;; esac
 
   br=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null) || continue
@@ -113,8 +114,23 @@ for wt in "$ROOT"/rpg-*; do
   fi
 
   if [ -n "$qf" ]; then
-    for rep in "$MAIN"/street/notes/*"$short"*.md; do
+    # Match reports two ways. By WORKTREE name catches the ones called after
+    # their topic (feat-traffic.md, audit-seams.md, D-alley-report.md); by the
+    # QUEUE FILE's leading token catches the ones called after the builder
+    # letter (A-shared.md -> A-toolchain.md, A-shopfronts.md).
+    #
+    # It used to be worktree-only, which meant this check silently did nothing
+    # for any builder whose reports are named by letter. Builder A was exactly
+    # that: its queue went stale for three sessions with a report newer than
+    # the queue the whole time, and this — the countermeasure the README says
+    # exists to catch precisely that — could not see it, because notes/*split2b*
+    # matches no file. A staleness detector that is itself silently inert is
+    # worse than none, because the desk reads a clean board and believes it.
+    qpfx=$(basename "$qf"); qpfx=${qpfx%%-*}
+    for rep in "$MAIN"/street/notes/*"$short"*.md "$MAIN"/street/notes/"$qpfx"-*.md; do
       [ -f "$rep" ] || continue
+      case " ${seen_reps[*]} " in *" $rep "*) continue;; esac
+      seen_reps+=("$rep")
       [ "$rep" -nt "$qf" ] && ACTIONS+=("$short: $(basename "$rep") is newer than its queue — read it, the queue may be stale")
     done
   fi
