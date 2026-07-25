@@ -231,13 +231,20 @@ was measured applying to this lot"*. The ratio says otherwise:
 
 ```
                  decal   tarmac   ratio
-  noon, dry     0.6933   1.0000   0.693      <- now
-  noon, RAIN    0.2117   0.2577   0.822
-  23:00, dry    0.0075   0.0084   0.887
-  23:00 RAIN    0.0070   0.0077   0.908
+  noon, dry     0.6933   1.0000   0.693
+  noon, RAIN    0.1552   0.1705   0.910
+  23:00, dry    0.0070   0.0077   0.910
+  23:00 RAIN    0.0070   0.0077   0.910
 
-  23:00 under my 0.47   0.727  vs  0.0084  =  87x the tarmac
+  23:00 under my 0.47   0.727  vs  0.0077  =  94x the tarmac
 ```
+
+**Re-measured at HEAD and these numbers are the corrected ones.** The table I
+first published was taken with a 5 s settle and before `e24c959a` clamped the
+wet look, and both were wrong in my favour: `baa675d7` measured that the wet
+look takes ~16 s to settle, not 5, so my rainy readings were caught mid-soak.
+The conclusion is unchanged and the band is tighter than I claimed — 0.910 in
+three of the four conditions rather than a 0.69-0.91 spread.
 
 An oil stain eighty-seven times brighter than the asphalt it is on. The whole
 argument for dimming them by hand was that an untouched decal *"gets BRIGHTER
