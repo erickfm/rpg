@@ -24,13 +24,29 @@ Each row is marked with **how much the check is worth** — see
 **[I]** independent (two sides, no common source), **[R]** measured against a
 stated rule, **[C]** circular (proves the pipeline, not the value).
 
+**[I] has been split, because it was too generous.** Having reproduced another
+agent's figure with the same jumped clock they used and called it confirmation
+(`75e6b5ce`), I re-graded my own markers against a stricter test: *two sides* is
+not *two methods*. Where one instrument measures both sides, a systematic error
+in that instrument hits both identically and they agree no matter what is true.
+
+- **[I]** — two sides **and** two methods. The strongest thing here.
+- **[Is]** — two sides, **one instrument**. Real, but a shared-method risk:
+  if the extraction is wrong, both sides are wrong the same way. Not a downgrade
+  to worthless; a downgrade to *"re-derive the extraction before betting on it"*.
+
+The distinction is not hypothetical. The `[Is]` row below is exactly the check
+that produced this audit's largest retraction — a BoxGeometry face-index error
+made 135 of 239 junctions "disagree" when the world was fine, because **both
+sides were read the same wrong way**.
+
 | area | final state |
 |---|---|
-| **Pattern #1 / masonry density** | **[R]** every texture declares 8/16/32 across 236 faces, nothing else. **[I]** `seampairs`: 735 real junctions, every like-for-like disagreement is the deliberate 2× band/wall. **[C]** the per-face canvas-vs-mesh check is circular — it proves the pairing, not that any `wM` is right |
+| **Pattern #1 / masonry density** | **[R]** every texture declares 8/16/32 across 236 faces, nothing else. **[Is]** `seampairs`: 735 real junctions, every like-for-like disagreement is the deliberate 2× band/wall. **[C]** the per-face canvas-vs-mesh check is circular — it proves the pairing, not that any `wM` is right |
 | **Sidewalk encroachment** | **[I][R]** **CLOSED.** Tightest walk **0.89 → 1.15 m**, sub-1.20 m stretches **15 → 3**. Colliders vs the capsule — no shared ancestor, and the thresholds are the stated rule |
 | **The user's ~45 requests** | **All graded.** Last NOT DONE (wheel arches) closed at `6333004c`. One blocked. **[I]** the behavioural results — 8 of 8 doors open and land in the named room, 57/57 seats, 9/9 way-outs. **[C]** the door *position* agreements prove plumbing only |
-| **Interiors as a set** | **[R]** wall thickness **0.18 m in all eight**. **[I]** ceiling spread 0.90 → 0.80 m and keepers **4 of 8 → 8 of 8**, both room-against-room |
-| **Floats** | **[I]** one real float at Round 3 (thrift price card) — **now gone**. Mesh against every other mesh |
+| **Interiors as a set** | **[R]** wall thickness **0.18 m in all eight**. **[Is]** ceiling spread 0.90 → 0.80 m and keepers **4 of 8 → 8 of 8**, both room-against-room |
+| **Floats** | **[Is]** one real float at Round 3 (thrift price card) — **now gone**. Mesh against every other mesh |
 | **Seams in new ground** | Side street + park far half swept at grazing angles. 8 shot, 3 read, nothing found |
 
 **Blocked (1):** the bench ad — a failed *search*, not a failed shot. No
@@ -100,8 +116,12 @@ first.**
 | *"the park is unlit / still a yard"* | **SUPERSEDED** — true when measured, fixed since | `request-audit.md` |
 | *"church steps NOT DONE"* | **WRONG** — I scanned the block it moved off | `request-audit.md` |
 | *"the 12 mirrored pennants"* | **TRUE but not worth routing** — the art is symmetric | `seam-audit.md` R8 |
+| *"vice responds to nothing (0 of 303)"* | **SUPERSEDED** — true at `e24c959a`, fixed one build later; 62 of 303 respond | `AUDIT-INSTRUMENTS.md` |
+| *"the wet look dies on street and survives on tex-ground"* | **WRONG attribution** — the split is registry vs registry, not module vs module | `AUDIT-INSTRUMENTS.md` |
+| *"registered surfaces respond at night at −83.5%, same as day"* | **WRONG** — jumped clock inflated the dry baseline 3.4×; stepped it is −46.8% night, −65.4% day | `AUDIT-INSTRUMENTS.md` |
+| *"a surface LIGHTENED by 280.9%"* | **WRONG** — a walking citizen; my sweep did not drop movers | `AUDIT-INSTRUMENTS.md` |
 
-**Ten corrections. Three were caught by mainline before me, six by me, one by
+**Fourteen corrections. Three were caught by mainline before me, ten by me, one by
 the desk.** The pattern in almost all of them is the same: a measurement I
 trusted because it was precise, describing something other than what I thought.
 
