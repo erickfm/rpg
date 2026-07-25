@@ -49,7 +49,16 @@ function doorPlan(kind: CarKind, half: number): DoorPlan {
  *  RELATIVE TO THIS FACE'S OWN CENTRE — the pickup's slab stops behind the cab,
  *  so its face is no longer centred on the vehicle and only the front arch
  *  belongs on it (the rear one is painted on the bed skin). */
-function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
+// `panelH` is the flank's real height in metres, ROCKER to BELT. It is a
+// PARAMETER because the arch's height is stated in metres and this canvas is a
+// fixed 20 rows tall, so the rows-per-metre it converts through is 20/panelH —
+// and that was written as the literal 40, which is only correct while the panel
+// is exactly 0.50 m. Raising the beltline is one of the three open options for
+// the wheel proportion (notes/BLOCKED-H.md); with the literal in place it would
+// have silently shrunk the arch relative to the tyre instead, which is the
+// same class of bug as the fixed 10-texel radius that made the arch 40% too
+// wide on a sedan and about right on a pickup from one line of code.
+function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, panelH: number,
   arches: number[] = [-wheelZ, wheelZ],
   /** shut lines in car-local metres, and this face's own z origin */
   plan?: DoorPlan, faceZ0 = -len / 2): THREE.Texture {
@@ -151,7 +160,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     const ARCH_HW = 0.38;                      // half-width, m: tyre + 4 cm
     const ARCH_H = 0.38;                       // height above the rocker, m
     const arx = Math.max(3, Math.round(ARCH_HW * (96 / len)));
-    const ary = Math.max(3, Math.round(ARCH_H * 40));
+    const ary = Math.max(3, Math.round(ARCH_H * (20 / panelH)));   // 20 rows over panelH metres
     // ── the well is NOT the same black as the tyre ───────────────────────
     //
     // It was #0a0b0e against a tyre of #101114 — indistinguishable. So the gap
@@ -524,7 +533,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
   const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
   const plan = doorPlan(kind, half);
-  const sideT = flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi,
+  const sideT = flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi, BELT - ROCKER,
     // only the front arch is on the cab body once the slab is short
     kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ],
     plan, slabZ - slabLen / 2));
