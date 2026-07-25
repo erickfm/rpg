@@ -58,3 +58,27 @@ verdict its owner should word. Offered here and in GOTCHAS 32.
 `checks.mjs:214` still string-matches the banner, which keeps working. It could
 now prefer the status and report a wrong-world run as INCONCLUSIVE instead of
 red. Runner-behaviour decision, not mine.
+
+
+## One gap found by it, and left open on purpose
+
+Exit 3 immediately earned itself: after a rebase moved HEAD mid-run, six of my
+nine checks reported 3 — *"I never measured anything"* — where an hour earlier
+that would have been six reds and an investigation.
+
+Two did not, and one of them should have. **`door301.mjs` imports `reportWorld`
+and never calls it.** The import makes it look done at a glance, which is how it
+survived every reading of that file including the several I gave it this week,
+and it means the check has always been willing to measure whichever build
+happened to be on the port — including another builder's tree. That is exactly
+what GOTCHAS 26 exists for: naming the world rather than proving it.
+
+(`lotwalk` was the other, and it is fine — it calls `reportWorld` and had simply
+run before the branch moved.)
+
+I added the call, watched it work — `exit 0` against a matching server and
+`exit 3` once HEAD moved past the served build — and the edit was then reverted
+outside this session. So it is **recorded rather than re-applied**: reverting
+someone else's deliberate change to make a point is worse than the gap. The
+finding stands and the one-line fix is `await reportWorld(page, URL);` after the
+`__ct` wait.
