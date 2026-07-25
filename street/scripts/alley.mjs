@@ -6,6 +6,29 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
+// SETTLE: 600 ms, and it is safe HERE because this pins a DAY hour. Measured,
+// after 159b9c1c listed this script as a settle-ramp candidate.
+//
+// The world boots at 13:20 (crosstown.ts:190, fixed — not the real clock), so
+// pinning 13:00 asks for the state it is already in and nothing has to travel.
+// The 108 shell materials read mean channel 2.027835 identically at 600, 1000,
+// 1500, 2000, 3000 and 4000 ms.
+//
+// Pin a NIGHT hour and the same 600 ms is a coin flip. Eight cold runs at
+// clock(23,0), sampled at exactly 600 ms:
+//
+//     DAY 2.0278 · night 0.0919 x7
+//
+// One run in eight read the completely UNGRADED world — not a mid-ramp shade,
+// the day value to four decimal places at a night hour, a 22x error. The
+// transition landed between 400-600 ms in one run and 600-1000 ms in another,
+// so 600 sits exactly on the edge. No intermediate value appeared at any of
+// 200/400/600/700/800/900/1000/1200 ms, so it is a step, or a lerp faster than
+// that sampling.
+//
+// The rule for the 90-script list is therefore the HOUR, not the wait: a script
+// pinning a day hour is unaffected at any settle; one pinning a night hour and
+// sampling under ~1000 ms is flaky rather than merely imprecise.
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.waitForTimeout(600);
 const shot = async (name, fn, wait = 350) => {
