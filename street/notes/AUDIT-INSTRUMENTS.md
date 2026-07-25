@@ -622,3 +622,49 @@ That is a contained caveat rather than a retraction, and it is the last thing th
 stopped-citizen error touches. The lesson underneath it is the one already at the
 top of this file, arriving from a new direction: **a quantity is not a
 measurement until you know what was in the frame when you took it.**
+
+## Is the 1.5 s mover window long enough? Validated, and the error has a direction
+
+G's `19e1e9f9` validated the two-snapshot idiom on their own walk and handed the
+same hole back to me: `lane3`, `lanewalk` and `corridor` all decide *"is this
+furniture"* by **motion**, so a citizen who stands still across the whole window
+is byte-identical in both frames and is kept as furniture. That is the exact
+failure behind `3f7b2623`. `scripts/ghosts.mjs` re-runs the corridor measurement
+under both windows across the **whole street**, not one band:
+
+```
+216 colliders · static by 1.5 s 210 · still static after a further 22s 210
+(20 long-window samples)
+
+GHOSTS — boxes the short window called static but which moved later: 0
+
+  short window (what corridor.mjs uses):  0 stretches under 1.00 m · narrowest 1.12 m at east z -85.75
+  long  window:                           0 stretches under 1.00 m · narrowest 1.12 m at east z -85.75
+```
+
+**Zero ghosts, and the corridor answer is identical under both windows.** As G
+says of their own run, that is a property of these movers at this HEAD rather
+than a guarantee about the idiom.
+
+### The durable part: ghosts only ever narrow
+
+The long-window static set is a **subset** of the short-window one — a ghost is
+a box the long window removes. Removing a collider can only make a passage
+**wider or equal**, never narrower. So:
+
+> **A ghost can only manufacture a falsely NARROW finding. It can never produce
+> a falsely clear one.**
+
+Every wide/clear verdict I published — the 1.15 m built lane, the 1.12 m
+narrowest crossing, *0 stretches under 1.00 m* — is therefore robust to this
+bug **by construction**, without needing the long window at all. The single
+finding the bug could have produced is a narrow one, and it did produce exactly
+one: the retracted 0.77 m "post". That is not a coincidence, it is the only
+shape the error can take.
+
+**Practical rule, and the cheap fix.** Run the long window before believing any
+*narrow* finding; skip it for clear ones. Better still is G's suggestion, which
+I second: have the collider list carry the `userData.mod` tag that `lot`,
+`walkup` and `vice` already use, so *"is this a mover"* becomes a **declaration**
+rather than an inference from two frames — and this whole class of error stops
+existing. That is `ct/props.ts`'s call, not mine.
