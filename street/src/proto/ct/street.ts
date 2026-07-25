@@ -1458,6 +1458,7 @@ export function buildStreet(o: {
     const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), new THREE.MeshBasicMaterial({ map: alleyFloorT }));
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
+    floorA.userData.alley = 'floor';
     scene.add(floorA);
     // bare-brick end wall (no shop, one grimy window). 7 m wide, and as tall
     // as the taller of the two buildings the alley is cut between.
@@ -1500,6 +1501,10 @@ export function buildStreet(o: {
       [new THREE.MeshBasicMaterial({ map: bareBrickT }), endWallM, endWallM, endWallM, endWallM, endWallM],
     );
     alleyEnd.position.set(-FACE - 6.9, END_H / 2, (AZ0 + AZ1) / 2);
+    // Stamped so a check can find these three without guessing from position.
+    // Guessing is what made scripts/shells.mjs read this very wall as a 1.2 m
+    // building; see notes/D-alley-report.md.
+    alleyEnd.userData.alley = 'end';
     solid({ minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 });
     scene.add(alleyEnd);
     // ── the alley's two flanks ────────────────────────────────────────────
@@ -1657,6 +1662,7 @@ export function buildStreet(o: {
       const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, wh), m);
       sideWall.position.set(-FACE - 3.5, wh / 2, az);
       sideWall.rotation.y = ry;
+      sideWall.userData.alley = 'flank';
       scene.add(sideWall);
     }
     // the dumpster: ribbed tub with fork pockets, stencil on the long faces
