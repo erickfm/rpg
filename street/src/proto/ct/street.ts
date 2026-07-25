@@ -209,6 +209,22 @@ export function buildStreet(o: {
         map: facadeLitTex(b.brick, b.floors, wM, { variant: sh.variant, pct: sh.pct }),
         transparent: true, opacity: 0, depthWrite: false,
       });
+      // THIS SHEET CARRIES ITS OWN LIGHT — do not grade it down after dark.
+      // It is already left alone, but for the wrong reason: props.ts's
+      // `isGlass` is `m.transparent && !(m.alphaTest > 0)`, and these are
+      // transparent, so the grader skips them as GLASS. They are not glass.
+      // That is incidental, not a decision: tighten `isGlass` to actually
+      // mean glass — entirely reasonable, it is B's file — and every lit
+      // window on the block starts dimming at night with nothing on record
+      // saying it must not.
+      //
+      // `userData.selfLit` is the convention for saying so (ct/paint.ts
+      // documents it; props.ts stamps it on the signage path). No behaviour
+      // changes today — measured, `graded` stays false either way. It makes
+      // the exclusion DECLARED, and it answers the question A's nightgrade
+      // asks of every ungraded material: 34 sheets that were never offered
+      // to the dimmer, and now they say why.
+      m.userData.selfLit = true;
       sh.list.push(m);
       const p = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), m);
       // WHICH SET OF ROOMS THIS SHEET IS. The user's complaint had two halves
