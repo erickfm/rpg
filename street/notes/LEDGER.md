@@ -45,9 +45,9 @@ user anything is finished.
 | OPEN | C | pole sign panel too small / skewed | |
 | OPEN | C | spawn + respawn in room 301 | C owes the desk a coordinate |
 | OPEN | C | export the weed tuft for B and E | B and E waiting |
-| OPEN | D | ATM inlaid, slanted, lower, a little more detail | ATTEMPT 3 |
-| OPEN | D | cat directly ahead from the alley mouth | FOURTH position note |
-| OPEN | D | alley floor: dark diagonal streaks | may share a cause with the park |
+| LANDED | D | ATM inlaid, slanted, lower, a little more detail | recess 0.15 m, opening larger on all 4 sides; normals MEASURED screen 8.1° / keypad 33.7° up; screen 1.37, keypad 1.10, base 0.90 above walk; shots/D-atm3-standing.png |
+| LANDED | D | cat directly ahead from the alley mouth | 5th position, placed by LOOKING not deriving: 2.35 m in, centred in the mouth view, 1.13 m clear of the grate; shots/D-cat-frommouth.png |
+| LANDED | D | alley floor: dark diagonal streaks | NOT shared with the park — they were mine, 16 radial strokes I added one commit earlier; replaced with a soft radial wash; shots/D-alley-floor.png |
 | OPEN | B | apron untextured, needs ramp, must abut | |
 | OPEN | B | tree pit: trunk off-centre toward the kerb | possible regression from the clearance fix |
 | OPEN | B | cups too common and too big | oversizing was the desk's instruction |
@@ -60,6 +60,8 @@ user anything is finished.
 | OPEN | A | diner blade illegible | check GOTCHAS §10 first |
 | OPEN | F | thrift interior too thin | thinnest room in the world |
 | OPEN | G | tax preparer faces backwards | GOTCHAS §23 |
+| OPEN | G | "the front of the bank doesnt match the side fix this" — flat brown flanks | RAISED TWICE. Measured at HEAD: 12 untextured 0x53382e faces on GOLDEN ACES + HOTEL ORPHEUS (vice.ts:371). Every other building on the block was fixed; these two were split into ct/vice.ts before that work and did not travel. Added by D, who is barred from the file |
+| OPEN | G | "all buildings need to be much deeper otherwise it looks like a fake building" | Measured at HEAD: both vice shells are still BoxGeometry(w, h, 3.4). Same split as the row above. Added by D |
 | OPEN | H | tyres clip into the bed cavity | wells need an inner wall |
 | OPEN | H | block protruding from wheels on all vehicles | |
 | OPEN | desk | PVBLIC vs PUBLIC on the library | user's call, awaiting answer |
