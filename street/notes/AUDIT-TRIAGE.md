@@ -297,3 +297,44 @@ then sets `exitCode = 1`, which reads as *the world is wrong*. **GOTCHAS 32
 exists for exactly this distinction**, and `ec7aae0d` gave the codebase exit 3
 for it. One line, and it belongs to the park's owner along with re-deriving the
 locator against a loop that no longer touches the boundary.
+
+## Keeper sectors for the four rooms the decode did not cover
+
+`64c13034b` decoded keeper facing exactly, using the atlas layout `1aa7a871`
+published — `mirror = repeat.x < 0`, `col = offset.x*5 − (mirror?1:0)`, and
+`[col,mirror] → sector` a bijection over eight sectors, so one reading from a
+known bearing pins the authored facing to ±22.5°. **It verified its own four
+rooms** — casino, hotel, tax, pawn. The other four belong to another agent and
+were not covered. Applying the same decode from a viewer due **+z** of each
+keeper:
+
+| room | col | mirror | sector | facing |
+|---|---|---|---|---|
+| bodega | 0 | no | **0** | at the viewer |
+| casino | 0 | no | **0** | at the viewer |
+| pawn | 0 | no | **0** | at the viewer |
+| burger | 4 | no | **4** | 180° away |
+| diner | 4 | no | **4** | 180° away |
+| thrift | 4 | no | **4** | 180° away |
+
+`hotel` and `tax` could not be reached from +z — a counter is in the way — but
+`64c13034b` reports both as sector 0. So across all eight: **five face +z, three
+face −z, and all three are in the four rooms that were never checked.**
+
+**Stable, and I checked that specifically**: three consecutive runs give the same
+six sectors. An earlier run reported `bodega` as sector 2; that was a first-load
+transient and did not recur. I am reporting the number only because it repeated.
+
+### What this does NOT establish, and why I am not calling it a defect
+
+**Which side a customer arrives from.** Facing −z is only wrong if the door is at
++z, and I could not read the interior door position from outside — the way-out
+spots are not in `spots()` until you are in the room. Without that, a 5–3 split
+is an **asymmetry, not a verdict**: three rooms may simply be laid out the other
+way round.
+
+So this goes to whoever owns bodega, burger, diner and thrift as a measurement to
+check against their own layouts, not as a bug report. The comparison is one line
+for them and impossible for me: they know where each counter faces, and
+`15f86d64` showed the same shape *was* real in two of the other four rooms —
+found by the user, not by a check.
