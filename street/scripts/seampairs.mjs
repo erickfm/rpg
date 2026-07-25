@@ -173,13 +173,21 @@ const mixed = out.pairs.filter(q => q.mixed && (q.rU > 1.15 || q.rV > 1.15));
 // photograph of mismatched brick would actually be.
 const onGridU = (f) => Math.abs(f.u - 8) < 0.5 || Math.abs(f.u - 16) < 0.5;
 const und = (q) => (q.a.d !== null ? q.c : q.a);
-const offGrid = mixed.filter((q) => !onGridU(und(q)));
 // Three columns, not one list. A pair is only ANSWERABLE when both faces have
 // said what they are; otherwise the tool is guessing, and guessing is what put
 // ivy on a brick list.
 const bothBrick = mixed.filter(q => q.kinds.every(k => k === 'brick'));
 const notBrick  = mixed.filter(q => q.kinds.some(k => k && k !== 'brick'));
 const unknown   = mixed.filter(q => q.kinds.some(k => !k) && !q.kinds.some(k => k && k !== 'brick'));
+// Over the UNJUDGEABLE ones only. This counted every `mixed` pair, which was
+// right when they were all candidates and became wrong the moment modules began
+// declaring: a face declared 'detail' is legitimately off the 8/16 grid — a
+// door handle is not brick and is not meant to be 8 px/m — so counting it as
+// "what a photograph of mismatched brick could be" overstates by 100.
+// Fourth time a summary line in this file has outlived the population it
+// described. They do not go stale by being wrong; they go stale by the world
+// answering the question underneath them.
+const offGrid = unknown.filter((q) => !onGridU(und(q)));
 console.log(`\nMASONRY touching a NON-MASONRY face, densities disagreeing: ${mixed.length}`);
 console.log(`   brick vs brick, a real seam question:  ${bothBrick.length}`);
 console.log(`   one side says it is not brick:         ${notBrick.length}`);
@@ -214,9 +222,9 @@ if (needed.size) {
     console.log(`      ${String(f.n).padStart(3)} pairs   ${f.u}x${f.v} px/m at (${f.at.join(',')})`);
   if (list.length > 12) console.log(`      …and ${list.length - 12} more`);
 }
-console.log(`   of those, the undeclared face is itself OFF the 8/16 grid: ${offGrid.length}` +
-  ` — those are the ones a photograph of mismatched brick could be`);
-console.log(`   the rest read 8 or 16 and are a provenance question, not a visual one`);
+console.log(`   of the unjudgeable, the undeclared face is OFF the 8/16 grid: ${offGrid.length}` +
+  ` — those could be a visible mismatch`);
+console.log(`   the rest read 8 or 16: a provenance question, not a visual one`);
 const seenM = new Set();
 // Show the UNJUDGEABLE ones. Showing all `mixed` led with pairs that are already
 // answered — a face declared 'detail' next to brick is not a question anyone
