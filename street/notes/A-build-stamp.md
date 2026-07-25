@@ -3,8 +3,8 @@
 Branch `feat/split-2b`. Three files: `vite.config.ts`, `src/vite-env.d.ts`,
 `src/proto/ct/hud.ts`. No signature changed, no caller touched.
 
-The corner of the frame now reads `5190769+ 18:38` — short sha, then the build
-time. A trailing `+` means the worktree was dirty when the bundle was served, so
+The corner of the frame now reads e.g. `69eff4b+ 18:40` — short sha, then the
+build time. A trailing `+` means the worktree was dirty when the bundle was served, so
 the sha alone will not reproduce what you are looking at.
 
 ## Why it is not a `define`
@@ -40,9 +40,10 @@ exists to prevent, so the hook moved to a dev middleware on document requests:
 one `git rev-parse` per page load, no way to miss a move.
 
 ```
-HEAD 4c667bb  → stamp "4c667bb+"
-   (commit a016178, then a notes-ONLY commit — server never restarted)
-HEAD <filled below> → stamp matches   ← correct
+HEAD a016178  → stamp "a016178+"
+   (commit 69eff4b — ONE file, notes/A-build-stamp.md, nothing vite watches,
+    so the dev server provably did not restart)
+HEAD 69eff4b  → stamp "69eff4b+"      ← correct
 ```
 
 In the live worktree `HEAD` is the throwaway `live` merge commit, which is
@@ -61,7 +62,7 @@ so it does not fade, move or hide.
 the existing `ct-prompt` block, following the same `getElementById`-then-create
 pattern. No change to the `Hud` interface; nothing restructured.
 
-## Also in this commit: `strictPort: true`
+## Also here: `strictPort: true`
 
 While verifying the stamp I spent several minutes testing against **the wrong
 world**, and the page looked entirely plausible.
