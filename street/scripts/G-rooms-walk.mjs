@@ -24,7 +24,7 @@ const KERB_H = 0.14, RADIUS = 0.36;
 // arrives instead.
 const ROOMS = [
   {
-    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0, H: 2.9,
+    id: 'casino', label: /GOLDEN ACES/,
     building: 'GOLDEN ACES', at: -3.2, hasWindow: false,
     // a z that is clear right across the room, for the ±x wall probes
     clearZ: 3.0,
@@ -40,7 +40,7 @@ const ROOMS = [
     ],
   },
   {
-    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0, H: 3.4,
+    id: 'hotel', label: /ORPHEUS/,
     building: 'HOTEL ORPHEUS', at: -3.4, hasWindow: true,
     clearZ: -3.9,
     frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
@@ -59,7 +59,7 @@ const ROOMS = [
     // = -15.5 + (-4.2 / 0.9077) = -20.13. Confirmed by scanning the walk for the
     // prompt: it runs -19.2 to -21.0, centre -20.10. Typing -15.25 here — which
     // is what this row said — is exactly what the descriptor exists to stop.
-    id: 'tax', label: /A-1 TAX/, W: 11.8, D: 8.5, H: 2.75,
+    id: 'tax', label: /A-1 TAX/,
     building: 'A-1 TAX', at: -4.2, hasWindow: true,
     clearZ: 2.5,
     frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
@@ -76,7 +76,7 @@ const ROOMS = [
   {
     // Likewise derived: roomWidthFor(15) = 13.8, door declared at local 0 so it
     // lands on the building centre, cz = -60.5. Scanned: -59.5 to -61.3.
-    id: 'pawn', label: /PAWN/, W: 13.8, D: 8.0, H: 2.8,
+    id: 'pawn', label: /PAWN/,
     building: 'PAWN', at: 0, hasWindow: true,
     // the customer floor — the whole front of the room now, not a corridor
     clearZ: 2.0,
@@ -154,8 +154,6 @@ const f2 = (n) => +n.toFixed(2);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 
 for (room of rooms) {
-  const hw = room.W / 2, hd = room.D / 2;
-  const LIMX = hw - RADIUS + 0.02, LIMZ = hd - RADIUS + 0.02;
 
   // ── the way in ───────────────────────────────────────────────────────
   //
@@ -180,6 +178,40 @@ for (room of rooms) {
   check('E puts you inside an interior slab (x ≥ 400)', inside[0] >= 400, `pos=${inside.slice(0, 3).map(f2)}`);
   if (inside[0] < 400) continue;                    // nothing below can mean anything
   const CX = 400 + Math.floor((inside[0] - 400) / 80) * 80 + 40;
+
+  // MEASURED from the room, not typed in the table above.
+  //
+  // These were literals, and the tax office already produced a false FAIL that
+  // way: I typed W = 11.8 while the room built 12.0, and the wall probe reported
+  // the player escaping through a wall that was exactly where it should be. Same
+  // fault as the door literals in d955a0fc — a number the world owns, copied
+  // into the check that verifies it.
+  //
+  // So the room is asked for its own extents on entry: the floor plane it is
+  // standing on gives width and depth, the highest flat horizontal gives the
+  // ceiling. The wall test then means "collision agrees with the geometry",
+  // which is the thing actually worth asserting.
+  const dims = await p.evaluate((cx) => {
+    let floor = null, ceilY = 0;
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+      const g = o.geometry.parameters;
+      if ((g.width ?? 0) < 2 || (g.height ?? 0) < 2) return;
+      if (Math.abs(Math.abs(o.rotation.x) - Math.PI / 2) > 0.01) return;   // horizontal
+      const wp = new o.position.constructor(); o.getWorldPosition(wp);
+      if (Math.abs(wp.x - cx) > 8 || Math.abs(wp.z) > 8) return;
+      if (wp.y < 0.4 && (!floor || g.width * g.height > floor.w * floor.d)) {
+        floor = { w: g.width, d: g.height };
+      }
+      if (wp.y > ceilY) ceilY = wp.y;
+    });
+    return floor ? { W: floor.w, D: floor.d, H: +ceilY.toFixed(2) } : null;
+  }, CX);
+  check('the room reports its own extents', dims !== null,
+    dims ? `W ${dims.W} × D ${dims.D}, ceiling ${dims.H}` : 'no floor plane found');
+  if (!dims) continue;
+  const hw = dims.W / 2, hd = dims.D / 2;
+  const LIMX = hw - RADIUS + 0.02, LIMZ = hd - RADIUS + 0.02;
 
   const beforeF = await pos();
   await hold('w', 260);
@@ -209,8 +241,8 @@ for (room of rooms) {
   // read the eye off the rig — the camera is not a child of the scene and
   // hunting it there always returns nothing
   const eye = (await pos())[1];
-  check(`the ${room.H} m ceiling clears the eye`, eye > 0.5 && eye < room.H - 0.3,
-    `eye y=${f2(eye)}, ceiling ${room.H}`);
+  check(`the ${dims.H} m ceiling clears the eye`, eye > 0.5 && eye < dims.H - 0.3,
+    `eye y=${f2(eye)}, ceiling ${dims.H}`);
 
   // ── the walls hold ───────────────────────────────────────────────────
   const probe = async (lx, lz, key, axis, limit, sign, note) => {
