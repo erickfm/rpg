@@ -49,6 +49,22 @@ None is blocked on risk. The glazing one is blocked only on ownership, and I
 have said so plainly in `BLOCKED-A.md` rather than leaving a disproven reason
 standing.
 
+## Since this note was first written
+
+- **`nightgrade` was blind to multi-material meshes** — `Array.isArray(m)`
+  returned early, so a box with six materials was skipped entirely. 456 → 599
+  materials now seen. The headline *"0 graded and did not move"* was
+  **re-measured** against the larger population rather than assumed to survive.
+- It now reports the 3 materials past 1.0 at 23:00 that `9c1b4e21` routed here —
+  reported, never failed on, because 1.08 clamps at render.
+- **`density` and `window-lattice` route their selftests to `canfail`**, so the
+  shared runner exercises a *source* mutation that survives a rebuild rather than
+  a scene mutation the frame loop could repair.
+- **`checks-registered`** guards the failure that has now happened twice by
+  accident: an edit to `checks.mjs` silently dropping an entry.
+
+Nine checks of mine, all green, all watched firing.
+
 ## What I would do next
 
 **The window grid publication has one consumer and could have two.**
