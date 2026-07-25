@@ -1,41 +1,131 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 
-// facades are ~8 px/m wide so brick size and window rhythm stay constant
-// no matter how wide the building is
-export function facadeTex(brick: string, floors: number, wMeters = 12): THREE.Texture {
-  const W = Math.max(64, Math.round(wMeters * 8)), H = 32 + floors * 28;
+// ═══════════════════════════════ MASONRY DENSITY ═══════════════════════════
+//
+// ONE density for every wall in the world, and the texels are SQUARE. This is
+// `ct/tex-ground.ts`'s pattern applied to the vertical surfaces: the painter is
+// told the surface's REAL EXTENT IN METRES and derives its canvas from that,
+// instead of each function inventing a canvas size and letting the stretch onto
+// the mesh decide what px/m it ended up at.
+//
+// What it was before (measured from source, not eyeballed — notes/A-density.md):
+//   facadeTex     8.00 px/m across  ·  10.94–11.17 up   (varies with FLOOR COUNT)
+//   shopfrontTex  8.00 px/m across  ·  12.38 up
+//   resGroundTex  8.00 px/m across  ·  10.00 up
+//   …and 10.67 across on any building under 8 m, because of a `Math.max(64, …)`
+//   clamp. Five different vertical densities, texels 1.38:1 anisotropic, and
+//   brick courses landing at 0.404 m / 0.448 m / 0.451 m / 0.457 m depending on
+//   which building you were standing in front of. That is the whole of seam
+//   pattern #1, and findings 3, 7, 12 and 13 are instances of it.
+//
+// Two rules make the bond continuous across a party wall:
+//
+//   1. ONE density. A painter may use an INTEGER MULTIPLE of it when it carries
+//      fine content (the shopfront has to render a shop's name), because an
+//      integer multiple keeps texels square AND keeps the course grid
+//      commensurate — a 0.5 m course is 4 px at 1× and 8 px at 2×, landing on
+//      exactly the same world lines either way.
+//   2. Courses are phased off WORLD Y, never off the mesh's own top edge. Two
+//      neighbours of different heights are otherwise out of phase even at
+//      identical density (seam pattern #2).
+//
+/** texels per metre for masonry, both axes. The world's documented density. */
+export const WALL_PPM = 8;
+/** one brick course in metres — 4 texels at 1×, so it survives mipmapping */
+const COURSE_M = 0.5;
+/** perp (vertical) joint pitch, and the stagger: half-lap every other course */
+const PERP_M = 1.125;
+/** storey pitch — the REAL one, the same 2.4 m `ct/street.ts` builds the box
+ *  from, so a painted window band sits on an actual floor instead of drifting
+ *  (it used to paint 2.53 m storeys onto 2.4 m ones) */
+export const FLOOR_M = 2.4;
+/** brick skirt between the shopfront band and the lowest window sill */
+const SKIRT_M = 2.4;
+/** the non-storey part of the upper wall: cornice + parapet + skirt. This and
+ *  FLOOR_M must stay EXACTLY in step with the box `ct/street.ts` builds
+ *  (`3.4 + floors * 2.4`) or the texture is drawn for a wall of the wrong
+ *  height and every metre-derived feature in it is scaled by the error. */
+const WALL_BASE_M = 3.4;
+export const wallHeight = (floors: number) => WALL_BASE_M + floors * FLOOR_M;
+/** default datum: the top of a shop's ground-floor band, which is where all
+ *  but one upper wall on the block starts. Pass the real one for the odd
+ *  building out (No. 227 sits on ENTRANCE.BAND_H) and its courses line up too. */
+const DEFAULT_BASE_Y = 4.2;
+
+/** lay horizontal course lines on the WORLD-Y grid across a canvas of `hM`
+ *  metres whose bottom edge sits at world `baseY`. Returns nothing; draws. */
+function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, baseY: number, ppm: number) {
+  const perp = Math.max(1, Math.round(PERP_M * ppm));
+  // first course line at or above baseY, walked up in world metres so the
+  // bond continues onto whatever is built next door
+  const k0 = Math.ceil(baseY / COURSE_M);
+  for (let k = k0; (k * COURSE_M - baseY) <= hM; k++) {
+    const yW = k * COURSE_M - baseY;              // metres up from the canvas bottom
+    const y = Math.round(H - yW * ppm);           // canvas y (0 = top)
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    g.fillRect(0, y, W, 1);
+    // perps sit between two course lines and half-lap on alternate courses
+    const yb = Math.round(H - (yW - COURSE_M) * ppm);
+    const off = (k % 2) ? 0 : Math.round(perp / 2);
+    for (let x = off; x < W; x += perp) g.fillRect(x, y, 1, yb - y);
+  }
+}
+
+/**
+ * The upper wall: brick, a window band per storey, a cornice at the roofline.
+ *
+ * `wMeters` × `hMeters` are the REAL dimensions of the face this paints, and
+ * every feature below is expressed in metres and converted once. `baseY` is the
+ * world height of the wall's bottom edge — the course datum.
+ */
+export function facadeTex(
+  brick: string, floors: number, wMeters = 12,
+  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y,
+): THREE.Texture {
+  const ppm = WALL_PPM;
+  const W = Math.round(wMeters * ppm), H = Math.round(hMeters * ppm);
+  const m = (v: number) => Math.round(v * ppm);          // metres → texels
+  const WIN_W = 1.5, WIN_H = 1.5, BAY_M = 2.75, SILL_M = 0.2, MARGIN_M = 1.0;
+  const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
   return pixTex(W, H, (g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-    for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+    courses(g, W, H, hMeters, baseY, ppm);
     g.fillStyle = '#8a7a62';
-    g.fillRect(0, 0, W, 6);
+    g.fillRect(0, 0, W, m(CORNICE_M));
     g.fillStyle = 'rgba(0,0,0,0.3)';
-    g.fillRect(0, 6, W, 2);
-    const cols = Math.max(2, Math.floor((W - 10) / 22));
+    g.fillRect(0, m(CORNICE_M), W, m(CORNICE_SHADE_M));
+    // window bays: as many as fit at BAY_M pitch inside a margin each end
+    const cols = Math.max(2, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
+    const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
+    const winW = m(WIN_W), winH = m(WIN_H);
     for (let f = 0; f < floors; f++) {
-      const y = 14 + f * 28;
+      // storey f counted from the BOTTOM, so a 4- and a 5-storey neighbour
+      // share every window band they both have (seam finding 7)
+      const sill = SKIRT_M + f * FLOOR_M;                 // metres above the wall's foot
+      const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
       for (let c = 0; c < cols; c++) {
-        const x = 8 + c * 22;
+        const x = m(MARGIN_M + slack + c * BAY_M);
         const lit = ((f * 7 + c * 3) % 5) === 0;
         g.fillStyle = '#1a1c22';
-        g.fillRect(x - 1, y - 1, 14, 18);
+        g.fillRect(x - 1, y - 1, winW + 2, winH + 2);
         g.fillStyle = lit ? '#c9a45e' : '#2e3a46';
-        g.fillRect(x, y, 12, 16);
-        if (!lit) { g.fillStyle = '#48586a'; g.fillRect(x + 7, y, 3, 16); }
-        else { g.fillStyle = '#8a6a3a'; g.fillRect(x, y + 10, 12, 6); }
+        g.fillRect(x, y, winW, winH);
+        if (!lit) { g.fillStyle = '#48586a'; g.fillRect(x + Math.round(winW / 2) - 1, y, Math.max(1, m(0.35)), winH); }
+        else { g.fillStyle = '#8a6a3a'; g.fillRect(x, y + winH - m(0.6), winW, m(0.6)); }
         g.fillStyle = '#9a8a72';
-        g.fillRect(x - 1, y + 17, 14, 2);
+        g.fillRect(x - 1, y + winH + 1, winW + 2, m(SILL_M));
       }
     }
+    // grime streaks and grain, both per SQUARE METRE — they used to be a flat
+    // count per canvas, so a 6 m shop got the same 500 specks as an 18 m block
     g.fillStyle = 'rgba(0,0,0,0.16)';
-    for (let k = 0; k < 5; k++) {
+    const streaks = Math.max(2, Math.round(wMeters * 0.42));
+    for (let k = 0; k < streaks; k++) {
       g.fillRect(Math.floor(Math.random() * W), 0, 2, Math.floor(H * Math.random()));
     }
-    dither(g, W, H, 500);
+    dither(g, W, H, Math.round(wMeters * hMeters * 3.2));
   });
 }
 
@@ -44,45 +134,57 @@ export function facadeTex(brick: string, floors: number, wMeters = 12): THREE.Te
  *  shared 3.2 m the glazing came out 1.92 m — shorter than a doorway, which
  *  is what made every shop on the block read undersized. */
 export const SHOP_BAND_H = 4.2;
-/** 52 texels over SHOP_BAND_H keeps the old ~0.08 m texel, so the shopfront
- *  stays exactly as coarse as the brick above it. The extra height is spent
- *  where it was missing: glass, and a stallriser. */
-const SHOP_BAND_PX = 52;
+
+/** The shopfront band runs at 2× masonry density: it is the only wall surface
+ *  that has to render TEXT, and a shop's name at 0.65 m of letter height is 5
+ *  texels at 1× — unreadable. An integer multiple keeps the texels square and
+ *  keeps the course grid commensurate, so the brick either side of the fascia
+ *  still lands on the same world lines as the wall above. */
+const SHOP_PPM = WALL_PPM * 2;
 
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
-  const W = Math.max(64, Math.round(wMeters * 8)), H = SHOP_BAND_PX;
+  const ppm = SHOP_PPM;
+  const W = Math.round(wMeters * ppm), H = Math.round(SHOP_BAND_H * ppm);
+  const m = (v: number) => Math.round(v * ppm);
+  // every dimension below is METRES of real shopfront, converted once
+  const FASCIA_Y = 0.16, FASCIA_H = 0.89, FASCIA_SHADE = 0.16, LETTER_H = 0.65;
+  const BAND_MAX = 12, BAND_INSET = 0.5;   // sign caps at 12 m of fascia
+  const FRAME_X = 0.63, FRAME_Y = 1.13, GLASS_X = 0.88, GLASS_Y = 1.29;
+  const GLASS_H = 2.59, TRANSOM_Y = 1.70, RISER_Y = 3.88, RISER_H = 0.32;
   return pixTex(W, H, (g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(0,0,0,0.2)';
-    for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-    // sign band caps at ~12 m so wide buildings don't wear a mile of awning
-    const bandW = Math.min(W - 8, 96), bandX = Math.round((W - bandW) / 2);
+    // the band's foot IS world y = 0, so its courses are the datum the wall
+    // above continues from — same 0.5 m spacing, same lines
+    courses(g, W, H, SHOP_BAND_H, 0, ppm);
+    const bandW = Math.min(W - m(2 * BAND_INSET), m(BAND_MAX)), bandX = Math.round((W - bandW) / 2);
     g.fillStyle = awning;
-    g.fillRect(bandX, 2, bandW, 11);                    // ~0.89 m of fascia
-    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bandX, 13, bandW, 2);
+    g.fillRect(bandX, m(FASCIA_Y), bandW, m(FASCIA_H));
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    g.fillRect(bandX, m(FASCIA_Y + FASCIA_H), bandW, m(FASCIA_SHADE));
     g.fillStyle = '#f2ead0';
-    g.font = 'bold 8px monospace';
+    g.font = `bold ${m(LETTER_H)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(name, W / 2, 8);
+    g.fillText(name, W / 2, m(FASCIA_Y + FASCIA_H / 2));
     g.fillStyle = '#141820';
-    g.fillRect(5, 14, W - 10, 38);                      // the shopfront frame
+    g.fillRect(m(FRAME_X), m(FRAME_Y), W - 2 * m(FRAME_X), H - m(FRAME_Y));   // frame
     g.fillStyle = '#3a3020';
-    g.fillRect(7, 16, W - 14, 32);                      // ~2.6 m of glazing
+    g.fillRect(m(GLASS_X), m(GLASS_Y), W - 2 * m(GLASS_X), m(GLASS_H));       // glazing
     g.fillStyle = '#c9a45e';
-    g.fillRect(10, 24, Math.round(W * 0.31), 18);       // lit from inside
+    g.fillRect(m(1.25), m(1.94), Math.round(W * 0.31), m(1.45));              // lit from inside
     g.fillStyle = '#5a6a7a';
-    g.fillRect(Math.round(W * 0.6), 16, 6, 32);
+    g.fillRect(Math.round(W * 0.6), m(GLASS_Y), m(0.75), m(GLASS_H));
     g.fillStyle = '#2a3440';
-    g.fillRect(Math.round(W * 0.48), 16, 3, 32);        // the shop door
+    g.fillRect(Math.round(W * 0.48), m(GLASS_Y), m(0.38), m(GLASS_H));        // the shop door
     g.fillStyle = 'rgba(0,0,0,0.3)';
-    g.fillRect(7, 21, W - 14, 1);                       // transom bar
+    g.fillRect(m(GLASS_X), m(TRANSOM_Y), W - 2 * m(GLASS_X), Math.max(1, m(0.08)));
     // the stallriser: the panelled bulkhead under the glass that every real
     // shopfront has and this one did not, so the glass ran into the pavement
-    g.fillStyle = '#4a4034'; g.fillRect(5, 48, W - 10, 4);
-    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(5, 48, W - 10, 1);
+    g.fillStyle = '#4a4034'; g.fillRect(m(FRAME_X), m(RISER_Y), W - 2 * m(FRAME_X), m(RISER_H));
+    g.fillStyle = 'rgba(255,255,255,0.12)';
+    g.fillRect(m(FRAME_X), m(RISER_Y), W - 2 * m(FRAME_X), Math.max(1, m(0.08)));
     g.fillStyle = 'rgba(0,0,0,0.3)';
-    for (let x = 11; x < W - 10; x += 12) g.fillRect(x, 49, 1, 3);
-    dither(g, W, H, 300);
+    for (let x = m(1.38); x < W - m(1.25); x += m(1.5)) g.fillRect(x, m(RISER_Y + 0.08), Math.max(1, m(0.12)), m(0.24));
+    dither(g, W, H, Math.round(wMeters * SHOP_BAND_H * 6));
   });
 }
 
@@ -311,8 +413,15 @@ export const ENTRANCE = {
 // Pass bayW = 0 for a residential ground floor with no street door — the
 // window rhythm then runs evenly across the whole width.
 export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W): THREE.Texture {
-  const W = Math.max(64, Math.round(wMeters * 8)), H = 32;
-  const ppmX = W / wMeters, ppmY = H / ENTRANCE.BAND_H;
+  // same 2× masonry density as the shopfront band it sits in line with — this
+  // face carries the doorcase's stone arrises and the window bars, which are
+  // one-texel features, so it earns the extra multiple the same way
+  const ppm = SHOP_PPM;
+  const W = Math.round(wMeters * ppm), H = Math.round(ENTRANCE.BAND_H * ppm);
+  const ppmX = ppm, ppmY = ppm;
+  const m = (v: number) => Math.round(v * ppm);        // metres → texels
+  /** metres DOWN from the top of the band → canvas y */
+  const ty = (v: number) => Math.round(v * ppm);
   // limestone that reads as STONE against brick, not as bare canvas: warm,
   // a shade darker than the kerb so it never goes near white, and the same
   // family as the window sills facadeTex uses on the floors above (#9a8a72)
@@ -334,24 +443,28 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
     return Array.from({ length: n }, (_, i) => Math.round(x0 + pier * (i + 1) + winW * i));
   };
   const wins = hasBay ? [...panel(0, bx0), ...panel(bx1, W)] : panel(0, W);
+  // window opening, in metres down from the band's top edge
+  const LINT_Y = 0.6, LINT_H = 0.2, REV_Y = 0.8, REV_H = 1.4;
+  const GLASS_Y = 0.9, GLASS_H = 1.2, SILL_Y = 2.2, SILL_H = 0.2;
+  const BAR_PITCH = 0.375;   // security bars, on a real pitch not a texel count
   return pixTex(W, H, (g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
-    g.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-    for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+    // this band's foot is world y = 0 too, so it shares the shopfront band's
+    // course lines along the block and the wall above continues them
+    courses(g, W, H, ENTRANCE.BAND_H, 0, ppm);
     for (const wx of wins) {
-      g.fillStyle = STONE; g.fillRect(wx - 1, 6, winW + 2, 2);          // lintel
-      g.fillStyle = STONE_HI; g.fillRect(wx - 1, 6, winW + 2, 1);
-      g.fillStyle = DARK; g.fillRect(wx, 8, winW, 14);                  // reveal
-      g.fillStyle = '#3a4450'; g.fillRect(wx + 1, 9, winW - 2, 12);     // glass
-      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(wx + 1, 9, 3, 12);
-      // bars every 3 texels, not 4: at a 12-texel window a 4-texel pitch only
-      // fits two, and two bars read as window mullions rather than security
+      g.fillStyle = STONE; g.fillRect(wx - 1, ty(LINT_Y), winW + 2, m(LINT_H));   // lintel
+      g.fillStyle = STONE_HI; g.fillRect(wx - 1, ty(LINT_Y), winW + 2, 1);
+      g.fillStyle = DARK; g.fillRect(wx, ty(REV_Y), winW, m(REV_H));              // reveal
+      g.fillStyle = '#3a4450'; g.fillRect(wx + 1, ty(GLASS_Y), winW - 2, m(GLASS_H)); // glass
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(wx + 1, ty(GLASS_Y), m(0.38), m(GLASS_H));
+      // bars on a 0.375 m pitch — a real security-bar spacing, and now it does
+      // not change with the canvas the way a fixed 3-texel step did
       g.fillStyle = '#1a1c22';
-      for (let bx = wx + 2; bx < wx + winW - 1; bx += 3) g.fillRect(bx, 9, 1, 12);
-      g.fillStyle = STONE; g.fillRect(wx - 1, 22, winW + 2, 2);         // sill
-      g.fillStyle = STONE_HI; g.fillRect(wx - 1, 22, winW + 2, 1);
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(wx - 1, 24, winW + 2, 1);
+      for (let bx = wx + m(0.25); bx < wx + winW - 1; bx += m(BAR_PITCH)) g.fillRect(bx, ty(GLASS_Y), Math.max(1, m(0.06)), m(GLASS_H));
+      g.fillStyle = STONE; g.fillRect(wx - 1, ty(SILL_Y), winW + 2, m(SILL_H));   // sill
+      g.fillStyle = STONE_HI; g.fillRect(wx - 1, ty(SILL_Y), winW + 2, 1);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(wx - 1, ty(SILL_Y + SILL_H), winW + 2, 1);
     }
     if (hasBay) {
       // The doorcase: a NARROW limestone frame hugging the door and transom,
@@ -365,7 +478,7 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
       g.fillStyle = STONE; g.fillRect(cx0, 0, cx1 - cx0, H);
       // jamb stones, stacked — coursed only inside the two narrow uprights
       g.fillStyle = STONE_LO;
-      for (let y = 5; y < H; y += 5) {
+      for (let y = m(COURSE_M); y < H; y += m(COURSE_M)) {   // stone courses on the brick's grid
         g.fillRect(cx0, y, ox0 - cx0, 1); g.fillRect(ox1, y, cx1 - ox1, 1);
       }
       g.fillStyle = STONE_HI;                                            // lit outer arris
@@ -378,7 +491,7 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
       g.fillStyle = 'rgba(0,0,0,0.30)';
       g.fillRect(cx0 - 1, 0, 1, H); g.fillRect(cx1, 0, 1, H);
     }
-    dither(g, W, H, 80);
+    dither(g, W, H, Math.round(wMeters * ENTRANCE.BAND_H * 6));
     // The doorway is punched AFTER the grain, and is the only thing that is.
     // dither() sprays white specks over the whole texture; inside the black
     // reveal around the door leaf one white texel is the brightest thing in
