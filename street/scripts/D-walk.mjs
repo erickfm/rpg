@@ -73,6 +73,37 @@ const walk = async (name, x, z, yaw, steps, test, fmt) => {
   return last;
 };
 
+// ── --selftest ─────────────────────────────────────────────────────────────
+//
+// Break it on purpose and require it to notice. d0fd37fb's standard: "a tool
+// nobody has watched fail" is worth about what "a tool nobody knows how to
+// run" is worth, and until now this was both.
+//
+// It asserts the OPPOSITE of three things known to be true, through the same
+// walk-and-assert path the real legs use, and demands all three FAIL. If any
+// of them "passes", the harness is not testing the world and every green run
+// above it was worthless.
+//
+// Exits the moment it has a verdict. 6a599df5 found nightgrade printing
+// SELFTEST PASSED and then falling through to the normal verdict, so a passing
+// selftest returned 1 — not repeating that.
+if (process.argv.includes('--selftest')) {
+  console.log('\nselftest — three assertions inverted, all must FAIL');
+  const before = fails;
+  await walk('you CAN walk into the east shops', 5.5, -30.0, Math.PI / 2, 8,
+    (p) => p[0] > 8.0, (p) => `stopped at x ${p[0]}`);
+  await walk('the churchyard wall does NOT hold', 5.5, -77.0, Math.PI / 2, 8,
+    (p) => p[0] > 9.0, (p) => `stopped at x ${p[0]}`);
+  await walk('the bodega chamfer can be crossed', 6.2, -97.2, Math.atan2(1.8, -2.2), 8,
+    (p) => p[0] + p[2] > -80, (p) => `x+z = ${(p[0] + p[2]).toFixed(2)}`);
+  const caught = fails - before;
+  console.log(caught === 3
+    ? '\nSELFTEST PASSED — 3 of 3 inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 3 inverted assertions were caught`);
+  await browser.close();
+  process.exit(caught === 3 ? 0 : 1);
+}
+
 console.log('\n1. the library courtyard');
 // z -19 is ON the south jamb of the mouth: probe there and the player scrapes
 // the corner and makes only 0.36 m. The mouth runs z -19.5 … -10.5 (probed),
