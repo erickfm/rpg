@@ -316,6 +316,33 @@ the two entries above are also delivered, they are simply filed under another
 builder's name. There is no user-visible work waiting in my area, which is worth
 the desk knowing when it decides what to do with the seat.
 
+## 8. `nightgrade`'s one red is my bulbs — needs one line in `props.ts` (B)
+
+**Full write-up and measurements: `notes/G-nightgrade-bulbs.md`.** Short version,
+because it was billed in `05694164a` as the suite's one genuine world fault:
+
+- It is **not** a degenerate mesh. `0.00x0.00` is the check printing missing
+  `width`/`height` params; the object is a `SphereGeometry(0.075, 6, 4)`.
+- It is my blade-sign chase bulbs, and **not dimming at night is what the brief
+  asks of them** — these two buildings are the only light sources in the world.
+- `nightgrade` is **flaky on it**: 1,0,1,0,1 over five runs of one build, because
+  it samples one instant per hour and the chase is somewhere different each time.
+  Second flaky check in that suite run, not the solid fault.
+
+**Blocked on:** `props.ts:420` computes `selfLit` from the material's texture
+only, so an untextured author-driven light has no way to declare itself. One
+line, B's call:
+
+```ts
+const selfLit = isSelfLit(m.map) || m.userData.selfLit === true;
+```
+
+It is a real behavioural fix, not check-silencing — it moves the bulbs to
+`FLOOR_SIGN`, sets `wetK: 0`, and drops them out of the lamp pools they currently
+join for nothing. If B takes it I set the flag in `vice.ts` in the same landing.
+The three ways I could have silenced this from inside my own file are listed in
+the note, with why each is a trick rather than a fix.
+
 ## 7. The casino and hotel facades are centred; their interior doorways are not
 
 **A decision, not a bug, and not mine to take alone** — it trades against the
