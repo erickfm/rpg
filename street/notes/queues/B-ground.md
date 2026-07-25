@@ -16,6 +16,44 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **REVERT the lamp glow and pool. They are worse than what they
+      replaced.** The user: *"street lights look so much worse than they did
+      before"*. Ref: `shots/user-lamppool-bad.png`.
+
+      This is the **watch precedent** and the desk is calling it explicitly.
+      When a redraw comes back worse, the rule on this project is: *"revert
+      back to the old one and slowly add the least risky thing. then we
+      iterate."* Do that here rather than tuning what is in the tree.
+
+      `git checkout 3a3013f^ -- src/proto/ct/props.ts` for the glow and pool
+      textures only — keep everything else in `3a3013f`, because the rest of
+      it is right and the user has not complained about it: light landing on
+      dark objects, walls catching lamp splash, and `FLOOR_LOW` coming down
+      were all asked for and all work.
+
+      **What went wrong, so the next attempt does not repeat it.** The desk's
+      brief said to make the glow *"a stepped/dithered glow in the house
+      style"*. That was read as literal dithering and it produced:
+      · a **checkerboard ring metres wide** around the ground pool — a 50%
+        checker at high contrast across a broad band, which reads as a
+        rendering artefact, not as light falling off
+      · **hard concentric bands** inside the pool, so it looks like a painted
+        target on the road rather than illumination
+      · a saturated orange disc that is far more intense than the light it
+        is supposed to imply
+      · a small round dithered disc at the lamp head that reads as an object
+
+      The house style is hard-edged texels, but hard-edged does not mean
+      high-contrast checkerboard. Dither in this world is a subtle break-up at
+      low amplitude — look at how `dither()` is used on the walls, which is a
+      handful of texels at low alpha, not a 50% checker across a wide band.
+
+      **Then, one change at a time.** Once the old version is back, the single
+      least risky improvement is to **anchor the head glow to the lamp head**
+      so it stops floating beside it — that was the user's original complaint
+      and it is a position fix, not a redraw. Ship that alone and let them
+      look at it before touching the falloff.
+
 - [ ] **The trash rig failed its own test. None of the 14 read.** The user,
       looking at the rig you built: *"for all the trash in the alley i cant
       tell what any of it is. these should be recognizable."*
