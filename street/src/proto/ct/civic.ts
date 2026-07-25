@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import type { Seat } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { FACE } from './rng';
 import { masonry } from './tex-world';
 
@@ -455,7 +455,12 @@ export function buildCivic(o: {
   const PAVE = '#8e887a', PAVE_D = '#7b7568', PAVE_L = '#9d9788';
   const pavingTex = (wM: number, dM: number) => {
     const W = Math.round(wM * 32), H = Math.round(dM * 32);
-    return pixTex(W, H, (g) => {
+    // Declared 'ground' — the last face any seam tool could not judge. 32 px/m is
+    // CORRECT here and always was: paving derives from real metres at its own
+    // density, as the comment above says, and is not masonry. The only thing
+    // missing was saying so, which is why it sat in an UNJUDGEABLE column
+    // rather than an answered one.
+    return declareSurface(pixTex(W, H, (g) => {
       const r = clcg(0x51d0a3);
       // the base coat IS the joint: every flag is inset a texel into it, so
       // the mortar line is what is left over rather than something drawn on
@@ -497,7 +502,7 @@ export function buildCivic(o: {
         for (let z = Math.round(cz); z < cz + 30; z++) { g.fillRect(x, z, 1, 1); x += r() < 0.4 ? 1 : 0; }
       }
       dither(g, W, H, 900);
-    });
+    }), 'ground');
   };
   // A bench slat is 0.13 m — one texel at this world's density, and GOTCHAS §4
   // is unambiguous about what happens if you put grain on a surface that
