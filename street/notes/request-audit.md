@@ -186,7 +186,7 @@ by being flat, transparent and on the road), then aim at what the scan returns.
 |---|---|---|
 | *"make rain cause some puddles"* — **the rain itself** | **DONE** | Drove the clock to the first raining hour using the world's own hash (`rainAt`, `ct/props.ts`). `shots/gr-rain-street.png`: rain streaks falling the full height of frame, road gone dark and wet, lamps lit with warm pools on the tarmac, lit windows. It reads as rain. |
 | *"make wetness last a lil after it stops raining"* | **NOT CHECKED** | needs two clock positions and a wait; not done |
-| *"the gutter should have the water in the gutter"* — **puddles visible** | **PARTIAL / unconfirmed** | The scan finds flat transparent decals on the road, so puddle geometry exists. The first raining hour by the hash is **05:00**, so the only frame I have of it is a night frame where I cannot separate a dark puddle from dark wet tarmac. Needs a *daytime* raining hour — pick the first `h` where `rainAt(h)` and `h % 24` is between 10 and 16. |
+| *"the gutter should have the water in the gutter"* — **puddles visible** | **ANOMALOUS — wants a builder, not another audit pass** | see below |
 | casino / hotel **blade signs from the east** | **STILL UNRESOLVED — four attempts** | see below |
 | bench ad framed / legs non-coplanar | **NOT CHECKED** | the bench scan matched interior seating and the lot's, and found nothing on the main street between x 4 and 7 — the bus bench has moved and my proportion filter did not catch it |
 | wheel arches | **NOT CHECKED** | the car scan returned bodies at x ≈ −10.7, inside the west block, not the parked cars on the street |
@@ -316,3 +316,44 @@ finding stands; what failed was my reading of my own audit trail.
 **The lesson is worth more than the finding:** before building a new instrument
 for a question, grep the existing reports for it. `notes/seam-audit.md` is 400
 lines and I wrote all of them.
+
+
+---
+
+# Puddles at a daytime raining hour — an anomaly I cannot resolve
+
+Took my own advice from the previous pass: found the first raining hour that
+falls in daylight using the world's own hash — **h = 15, clock 15:00** — warped
+to the street, and gave the sim **9 seconds** so the puddles could pool
+(`puddleLevel` eases at 0.22/s, so ~0.86 of full after 9 s, and opacity should
+be ≈ 0.72).
+
+**What I observed** (`shots/pd-street-day.png`):
+
+- **The ground is wet.** The road is markedly darker than on a dry day — the
+  wet-look tint on the ground materials is applied and reads correctly.
+- **No rain particles.** Not one streak in frame.
+- **No puddles.** And the programmatic check agrees: after 9 s, **0 flat
+  transparent decals with opacity above 0.02**.
+
+That last part contradicts my own earlier frame. At **05:00** — the first
+raining hour by the same hash — `shots/gr-rain-street.png` shows heavy visible
+streaks falling the full height of frame. Same hash, same code path, two
+raining hours, and only one of them has rain in it.
+
+**I am not calling this a bug.** Three things could produce it and I cannot
+separate them from outside:
+
+1. the rain genuinely is not running at h = 15 despite `rainAt(15)` being true;
+2. it is running and the particles are somewhere the camera is not — the drop
+   volume follows the player and I warped immediately before the shot;
+3. my "after" pass is wrong. It is: the same filter that found **57** decals on
+   the first sweep, many at opacity 1, found **zero** nine seconds later. Decals
+   at opacity 1 do not vanish. **One of my two measurements is broken and I do
+   not know which**, so neither number should be trusted on its own.
+
+The one solid observation is the screenshot: **at a daytime raining hour the
+street is wet and there is no rain and no standing water in it.** That is what a
+player would see, and it is enough to hand to whoever owns `ct/props.ts` — with
+the explicit warning that my instrumentation of it disagreed with itself and
+should be rebuilt rather than believed.
