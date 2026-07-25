@@ -268,6 +268,29 @@ this file was one frame from, since `Frame` exposes `night` but no wetness.
 
 Textures and structure IDENTICAL across the change; the tints move, on purpose.
 
+**Checked against the floating-litter sweep, and the lot is clean.** `0d9146049`
+shot a wet midnight and found litter reading 61x the ground it lies on — the
+same shape as my own decals reading 94x the tarmac. Worth checking my area
+rather than assuming the decal fix covered it, since the lot has a cone, a
+sandwich board, tyre stacks and price cards.
+
+At a rainy 23:00 with the 18 s soak allowed for, 32 materials in the lot read
+bright against a deck at 0.0065. They split:
+
+```
+  28  inside CAR groups   mean 0.1032   H's fleet — already routed, 67299640
+   4  loose props, mine    mean 0.1088   three frontage banners and one box
+```
+
+Mine are fine: every one is `graded`, and they fall 87-96% between noon and
+23:00. The banners are vertical vinyl on a fence, so they take the night grade
+but not the wet tint — which is correct, since rain does not pool on a hanging
+sign the way it does on tarmac. Nothing here is the litter defect.
+
+Recording a negative result rather than nothing, because the next person to run
+that sweep will see 32 bright materials inside the lot's box and the useful
+fact is that 28 of them are H's and already known.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
