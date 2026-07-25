@@ -502,31 +502,37 @@ for (room of rooms) {
   // The user found the tax preparer facing his back wall, and it was the fourth
   // handedness bug of the session — GOTCHAS §23 was written for the class. Two of
   // my four keepers were wrong and 109 checks noticed nothing, because none of
-  // them asked which way a person was pointed.
+  // them asked which way a person was pointed. Their brief named the test:
+  // **stand where a player stands and ask whether they are looking at you.**
   //
-  // Their brief named the test: **stand where a player stands and ask whether
-  // they are looking at you or away.** That is exactly what this does, and it is
-  // readable rather than a judgement call: `ct/citizens.ts:426` sets the atlas
-  // column in `map.offset.x`, `col / 5` with col 0 = front and col 4 = back
-  // (`viewAt`'s `[0,1,2,3,4,3,2,1]`). So the sprite tells you which way it is
-  // showing, and the player only has to stand in the right place.
+  // Facing cannot be read off a billboard's `rotation.y` — the plane turns to
+  // face the camera every frame. It is in the ATLAS FRAME, and `notes/H-atlas-
+  // facing.md` publishes the layout that makes the frame exact:
   //
-  //   offset 0.0  front        0.2  three-quarter      0.4  profile
-  //   offset 0.6  3/4 back     0.8 / 1.0  back
+  //   tex.repeat.x = mirror ? -1/5 : 1/5      ← the mirror flag, in the sign
+  //   tex.offset.x = mirror ? (col+1)/5 : col/5
+  //   cols = [0,1,2,3,4,3,2,1] over 8 sectors, mirror = sector > 4
   //
-  // A keeper serving someone directly should be front or three-quarter, so the
-  // bar is 0.25. Profile would mean they are attending to something else, which
-  // is a choice, not this bug — if a room ever wants that, this is the line to
-  // argue with rather than delete.
+  // `[col, mirror] → sector` is a BIJECTION: columns 1–3 each appear twice and
+  // the mirror flag separates them, 0 and 4 appear once and never mirrored. So a
+  // single reading from a known bearing pins the sector, and therefore the
+  // authored facing to ±22.5°. This used to threshold `offset.x` alone, which
+  // cannot tell col 4 (their back) from col 3 mirrored (three-quarter back) —
+  // the same number, two different answers.
+  //
+  // Sectors 0, 1 and 7 are front and three-quarter front: looking at you. 2 and 6
+  // are profile, 3 and 5 three-quarter back, 4 is square away. A keeper attending
+  // to something else on purpose is a choice rather than this bug, so profile is
+  // the line to argue with rather than delete.
   if (room.keeper) {
     const [kx, kz] = room.keeper;
     await warp(CX + kx, kz, 0, 0);
     await p.waitForTimeout(150);
-    // the sprite picks its column from where the CAMERA is, so it needs frames
+    // the sprite picks its frame from where the CAMERA is, so it needs frames
     // after the warp — reading immediately gets the view from the last position
     await hold('w', 60);
     await p.waitForTimeout(500);
-    const view = await p.evaluate(([cx, kx, kz]) => {
+    const v = await p.evaluate(([cx, kx, kz]) => {
       const s = window.__ct.scene(); s.updateMatrixWorld(true);
       let best = null;
       s.traverse((o) => {
@@ -538,15 +544,28 @@ for (room of rooms) {
         const wp = new o.position.constructor(); o.getWorldPosition(wp);
         if (Math.abs(wp.x - cx) > 9 || Math.abs(wp.z) > 9) return;
         const d = Math.hypot(wp.x - (cx + kx), wp.z - kz);
-        if (!best || d < best.d) best = { d: +d.toFixed(2), off: +m.map.offset.x.toFixed(3) };
+        if (!best || d < best.d) {
+          const mirror = m.map.repeat.x < 0;
+          const col = Math.round(m.map.offset.x * 5) - (mirror ? 1 : 0);
+          best = { d: +d.toFixed(2), col, mirror, x: wp.x - cx, z: wp.z };
+        }
       });
       return best;
     }, [CX, kx, kz]);
-    const NAMES = { 0: 'front', 0.2: 'three-quarter', 0.4: 'profile', 0.6: 'three-quarter back', 0.8: 'back', 1: 'back' };
-    check('the keeper is looking at you, not away',
-      view !== null && view.off <= 0.25,
-      view === null ? 'no citizen sprite found in this room'
-        : `atlas column ${view.off} — ${NAMES[view.off] ?? 'between views'}, ${view.d} m away`);
+    const SECTOR = { '0f': 0, '1f': 1, '2f': 2, '3f': 3, '4f': 4, '3t': 5, '2t': 6, '1t': 7 };
+    const WHAT = ['facing you', 'three-quarter on', 'in profile', 'three-quarter away',
+      'facing away', 'three-quarter away', 'in profile', 'three-quarter on'];
+    let detail = 'no citizen sprite found in this room', ok = false;
+    if (v) {
+      const sec = SECTOR[`${v.col}${v.mirror ? 't' : 'f'}`];
+      ok = sec === 0 || sec === 1 || sec === 7;
+      // recover what they were authored to face, per H-atlas-facing.md
+      const camAng = Math.atan2(kx - v.x, kz - v.z);
+      const facing = Math.atan2(Math.sin(camAng - sec * Math.PI / 4), Math.cos(camAng - sec * Math.PI / 4));
+      detail = `col ${v.col}${v.mirror ? ' mirrored' : ''} → sector ${sec}, ${WHAT[sec]}`
+        + ` — authored facing ${f2(facing)} rad ±0.39, from ${v.d} m`;
+    }
+    check('the keeper is looking at you, not away', ok, detail);
   }
 
   // ── the customer side has to be a room you can stand in ──────────────
