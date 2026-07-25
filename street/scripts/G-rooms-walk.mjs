@@ -192,6 +192,40 @@ const f2 = (n) => +n.toFixed(2);
 const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, detail]);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 
+// ── walking, measured by ARRIVAL rather than by the clock ───────────────
+//
+// `hold('w', ms)` measures the stopwatch, not the world. Mainline has just been
+// through this with its own probes (6907ea69: "side-walk's four hikes were
+// stopwatches too, and one run failed on a sound world"), and I fixed the same
+// fault in this file's doorway check — then left it in the lanes and the no-go
+// probes directly below it, which is the third time this session I have fixed
+// one instance of a pattern and walked past its twin.
+//
+// The two directions fail differently and the second is the dangerous one:
+//
+//   a LANE that under-travels reports a false FAIL — loud, and someone looks
+//   a NO-GO that under-travels reports a false PASS — it "proves" you cannot get
+//     behind the counter because the clock ran out, and nobody ever looks
+//
+// So both now walk until the player stops moving. A lane also stops as soon as it
+// has travelled far enough to prove its minimum, which keeps this no slower than
+// the fixed holds it replaces.
+const walkTill = async (axis, enough = Infinity, maxSteps = 14) => {
+  const a = await pos();
+  const along = (c) => (axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]));
+  let prev = a;
+  for (let i = 0; i < maxSteps; i++) {
+    await hold('w', 500);
+    const c = await pos();
+    const step = axis === 'x' ? Math.abs(c[0] - prev[0]) : Math.abs(c[2] - prev[2]);
+    prev = c;
+    if (step < 0.05) break;                 // stopped: something is holding
+    if (along(c) > enough) break;            // proved the minimum, no need to walk on
+  }
+  return along(prev);
+};
+
+
 // ── the one defect in these rooms this suite CANNOT walk to ─────────────
 //
 // A room that imports a runtime VALUE from ./doors joins an import cycle with the
@@ -414,14 +448,11 @@ for (room of rooms) {
     doorZ < hd + 0.4, `walked at the door until stopped, z=${f2(doorZ)} (front wall at ${hd})`);
 
   // ── the lanes ────────────────────────────────────────────────────────
-  for (const [name, lx, lz, key, ms, axis, want] of room.lanes) {
+  for (const [name, lx, lz, key, , axis, want] of room.lanes) {
     await warp(CX + lx, lz, YAW[key], 0);
     await p.waitForTimeout(150);
-    const a = await pos();
-    await hold('w', ms);
-    const c = await pos();
-    const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
-    check(name, d > want, `travelled ${f2(d)} m (want > ${want})`);
+    const d = await walkTill(axis, want);
+    check(name, d > want, `travelled ${f2(d)} m before stopping (want > ${want})`);
   }
 
   // ── where you must NOT be able to get ────────────────────────────────
@@ -430,14 +461,11 @@ for (room of rooms) {
   // point is that the far side of the counter is out of reach has to be checked
   // for the gap somebody could squeeze through, not just for the routes that
   // work. A lane test passing tells you nothing about this.
-  for (const [name, lx, lz, key, ms, axis, most] of room.noGo ?? []) {
+  for (const [name, lx, lz, key, , axis, most] of room.noGo ?? []) {
     await warp(CX + lx, lz, YAW[key], 0);
     await p.waitForTimeout(150);
-    const a = await pos();
-    await hold('w', ms);
-    const c = await pos();
-    const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
-    check(name, d < most, `got ${f2(d)} m in (must be < ${most})`);
+    const d = await walkTill(axis);          // no early exit: we want the MAXIMUM
+    check(name, d < most, `got ${f2(d)} m in before stopping (must be < ${most})`);
   }
 
   // ── the customer side has to be a room you can stand in ──────────────
