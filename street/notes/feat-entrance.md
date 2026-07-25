@@ -30,6 +30,33 @@ desk's migration kept `grime` and added `cut: 'long'` and `build: 1` on top.
 
 ---
 
+## The next item exists but is NOT in my queue, and should wait
+
+`notes/interior-audit.md` finding 5 (medium) names `ct/apartment.ts`. It is
+the reconciliation I flagged twice and it is now unblocked — `ct/interior.ts`
+and `ct/int-diner.ts` exist. It is **not** in `C-entrance.md`, so I have not
+taken it. Measured against my own source rather than quoting the audit:
+
+| | apartment | kit |
+|---|---|---|
+| structural wall | `WALL_T = 0.14` | `0.18` |
+| floor density | `repeat(w/1.8)` on 64 px → **35.6 px/m** | `repeat(round(W/1.6))` on 32 px → **18.6–20** |
+
+So the genuine mismatch is two numbers: **0.14 → 0.18** and a floor roughly
+**2 : 1** too fine. The audit's "eight different wall thicknesses" also counts
+the casing trim (0.028), the door leaves (0.045) and the stair core (0.12) —
+those are not walls and should stay different; a door leaf is not a partition.
+
+**It should not start yet.** Audit findings 1 and 2 are *high* against the kit
+itself: its floor and walls disagree 1.55 : 1 inside every room, and its floor
+density swings ±33 % with room size because `round(W/1.6)` rounds the intent
+away. Harmonising 301 to 18.6 today means redoing it when F fixes those, since
+fixing them necessarily changes the number I would match. **Order: F fixes kit
+findings 1 and 2, then C reconciles the apartment.**
+
+Also: finding 5 spans `ct/bodega.ts` and `ct/apartment.ts`, which are two
+different owners. It needs splitting before it can be queued to either.
+
 ## Three things the desk should know
 
 ### 1. The hermit is unshaven-less, and I did not fix it
