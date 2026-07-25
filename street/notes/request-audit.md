@@ -1717,3 +1717,48 @@ That is worth stating plainly because it sets the priority: **this is not a
 broken casino.** It is a broken *record* of the casino, and it should be fixed
 because the record is what the next check will trust — not because anything in
 the world is failing today.
+
+---
+
+# EVERY DOOR, END TO END: **8 of 8**
+
+The whole entry path for all eight shops — walk up, prompt fires, press E, land
+inside, and the room you land in is the one the sign named. Doors taken from the
+live registry, nothing typed in.
+
+```
+into the BODEGA          prompt yes  →  slab 0 (bodega)   MATCHES the sign
+into BURGER BARN         prompt yes  →  slab 1 (burger)   MATCHES the sign
+into GOLDEN ACES         prompt yes  →  slab 2 (casino)   MATCHES the sign
+into the DINER           prompt yes  →  slab 3 (diner)    MATCHES the sign
+into the HOTEL ORPHEUS   prompt yes  →  slab 4 (hotel)    MATCHES the sign
+into the PAWN SHOP       prompt yes  →  slab 5 (pawn)     MATCHES the sign
+into A-1 TAX SERVICE     prompt yes  →  slab 6 (tax)      MATCHES the sign
+into the THRIFT STORE    prompt yes  →  slab 7 (thrift)   MATCHES the sign
+
+8 of 8 doors: prompt fires, E works, and you land in the room the sign names
+```
+
+**No door in this world sends you to the wrong shop, and none fails to open.**
+
+That closes the loop on the audit's first functional finding. The earliest
+report in this file was the user's — *the player cannot enter the bodega* — and
+the bodega is now the first row of a clean sweep.
+
+It also puts the casino's missing declaration in its final place: **GOLDEN ACES
+passes every part of this test.** The record is wrong; the door is not.
+
+## Where the entry system stands, complete
+
+| layer | state |
+|---|---|
+| prompt fires on the pavement | **8 of 8** |
+| `[E]` opens it | **8 of 8** |
+| you arrive in the named room | **8 of 8** |
+| the way back out fires | **9 of 9** |
+| the door's declared position matches where the prompt fires | **8 of 8**, within 1.5 m (corners included) |
+| the door is collected into `declaredDoors()` | **7 of 8** — the casino, structural, invisible to players |
+
+Every layer of the entry system is verified except the one that no player can
+see, and that one has a traced cause, a measured blast radius, and a one-line
+guard proposed.
