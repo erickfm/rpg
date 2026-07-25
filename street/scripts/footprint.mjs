@@ -233,7 +233,13 @@ if (r.pits.length) {
   // newer instruction.
   console.log(`  ${lo > 0.10 ? 'OK  ' : 'FAIL'} every pit sits inboard with a real strip of walk at the kerb`);
   console.log(`  ${(hi - lo) < 0.002 ? 'OK  ' : 'FAIL'} that strip is the same at every pit`);
-  if (lo <= 0.2 || hi - lo >= 0.002) process.exitCode = 1;
+  // 0.10 HERE TOO. I lowered the printed verdict's bar to 0.10 for the user's
+  // "a lil bigger on the curb side" and left this line on 0.2, so the check
+  // printed every line OK and exited 1 — a verdict and its exit condition
+  // disagreeing about the same number. That is the kerbcut vacuous-OK the other
+  // way up: there the line lied and the exit was right, here the exit lies and
+  // the lines are right. Both are one edit touching one of a pair.
+  if (lo <= 0.10 || hi - lo >= 0.002) process.exitCode = 1;
 }
 // THE WATER GOES IN THE GUTTER, which was asked for in those words: "the puddle
 // doesnt make sense here. the gutter should have the water in the gutter". It

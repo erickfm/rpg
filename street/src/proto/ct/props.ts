@@ -2160,6 +2160,15 @@ export function buildProps(ctx: CtxBuild): Props {
       cup.position.set(0, 0.072, 0); g0.add(cup);
       const lid = lying(0.084, 0.084, 0.035, plain('#3a2f28'), plain('#2b241f'));
       lid.position.set(-0.145, 0.078, 0); g0.add(lid);                 // dark lid, unmistakable
+      // TRUE SCALE, at the desk's own correction. It had said "draw them
+      // oversized, the cat is not to scale either", which was right when nothing
+      // on the ground read at all, and it has overshot: drawn full size this cup
+      // measures 0.29 m end to end against a 1 m paving slab, and the user is
+      // looking at the joints as a ruler. A 16 oz coffee cup is about 0.15 m.
+      // 0.58 puts it there. Everything inside the group — the lid offset, the
+      // shadow, the seating height drop() measures off the geometry — scales
+      // with it, which is why this is one number and not five.
+      g0.scale.setScalar(0.58);
       return g0; }],
     ['takeout container', () => {
       const g0 = new THREE.Group();
@@ -2471,6 +2480,12 @@ export function buildProps(ctx: CtxBuild): Props {
       straw.position.set(-0.40, 0.058, 0.08);
       straw.rotation.set(0, 0.58, 0.26);
       g0.add(straw);
+      // Same correction as the coffee cup. This one was the worse of the two:
+      // 0.42 m of body and a 0.36 m straw, against a real large fountain drink
+      // at about 0.20 m. The straw is what carries it at distance, so it is
+      // scaled with the cup rather than left long — a life-size cup wearing an
+      // oversized straw would read as a mistake rather than as a cup.
+      g0.scale.setScalar(0.55);
       g0.rotation.y = -0.42; return g0; }],
     ['paint can', () => {
       const g0 = new THREE.Group();
@@ -2604,20 +2619,38 @@ export function buildProps(ctx: CtxBuild): Props {
   // asphalt. Turned along the kerb its half-extent is 12 cm and it fits in a
   // 45 cm pan with room to spare. Each yaw is offset a little from square so
   // they are not parallel copies.
-  drop('coffee cup', GUT_L, -21.6, -1.62);
-  drop('coffee cup', GUT_R + 0.04, -33.9, 1.49);
+  // CUPS ARE THE RAREST OF THE FIVE NOW, not the commonest. They were 5 of the
+  // 14 pieces on the ground and the user caught two of them in one frame — the
+  // gutter cup at z -33.9 and the bench cup at -35.30 are 1.4 m apart, which is
+  // exactly the pairing they described. One coffee cup and one fountain cup
+  // survive, 19 m apart and on opposite sides of the street; the rest of these
+  // slots become the types that were under-represented.
+  //
+  // The count is unchanged at 14 so the litter population stays where it was —
+  // scripts/footprint.mjs floors it, and thinning by deletion would have traded
+  // one complaint for another.
+  drop('folded newspaper', GUT_L, -21.6, -1.62);
+  // NOT a milk crate: this file's own note two blocks down says crates live in
+  // the alley round the dumpster, "not on a sidewalk", and I had put one in the
+  // street gutter reaching for a type that would not pair with anything. Moved
+  // to z -46 as well as retyped, which puts 19.5 m between it and the cardboard
+  // at -26.5 and 30 m to the one at -76.
+  drop('flattened cardboard', GUT_R + 0.04, -46.0, 1.49);
   drop('fountain cup', GUT_R + 0.02, -54.3, 1.92);
   drop('folded newspaper', GUT_L + 0.04, -68.4, 1.80);
   // the alley, round the dumpster — crates live here, not on a sidewalk
   drop('milk crate', -12.20, -39.60, 0.35, ALLEY_Y);
   drop('milk crate', -11.55, -40.35, -0.80, ALLEY_Y);
   drop('flattened cardboard', -10.60, -41.45, 0.90, ALLEY_Y);
-  drop('fountain cup', -9.40, -42.40, -1.06, ALLEY_Y);
+  drop('flattened cardboard', -9.40, -42.40, -1.06, ALLEY_Y);   // was the second fountain cup
   drop('folded newspaper', -12.60, -42.05, 0.40, ALLEY_Y);
   // blown up against the building line, clear of the tree pits (x ±5.0…5.8)
   drop('flattened cardboard', 6.58, -26.5, -0.35);
   drop('milk crate', -6.74, -58.2, 0.55);
-  drop('folded newspaper', 6.66, -76.0, 1.10);
+  // cardboard rather than a fourth newspaper: -68.4 is a newspaper 7.6 m up the
+  // street and the two would have paired the way the cups did, across the road
+  // rather than along it
+  drop('flattened cardboard', 6.66, -76.0, 1.10);
   // under the bus bench, which is the one place on this street people sit
   // between the legs, which stand at x 5.13 and 5.52 and z -35.78 and -34.22
   drop('coffee cup', 5.32, -35.30, 0.70);

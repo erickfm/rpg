@@ -118,6 +118,13 @@ published to the playable artifact.
 - **"cup trash a bit too common and cups are too big"** → **B**
 - **"the inner clipping of the tires in the pickup was never fixed"** → **H**
 - **"put the cat like directly in front of where im looking in this screenshot as opposed to the inner corner"** → **D**
+- **"two cups in one small frame, one under the bench and one in the gutter, and
+  both are nearly as long as a paving slab is wide"** → **B**. Two fixes: (1) cut
+  cup FREQUENCY hard so the two cups are the rarest of the five approved types,
+  and never two of a type within sight of each other; (2) SCALE them down to a
+  real 15-20 cm drink cup, judged against the paving joints, then check they
+  still read at standing height. The oversizing was the desk's earlier
+  instruction for legibility and has overshot.
 - **"cat needs to be more to the right side of the alley"** → **D**
 - **"it was better before this is too much and ugly i was thinking something slanted inlaid"** → **D**
 - **"i want the atm to be inlaid into the building and more detailed"** → **D**
