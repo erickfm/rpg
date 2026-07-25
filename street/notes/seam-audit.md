@@ -2337,3 +2337,70 @@ disagree. They say the same thing.
 That is what a non-circular confirmation looks like — and after three of my own
 checks turned out to compare a number against itself, it is worth pointing at
 one that does not.
+
+---
+
+# Round 20 — the casino's door is FIXED. The mechanism that lost it is not.
+
+Two worlds, censused side by side — `vite dev` on 4185 against the rollup bundle
+on 4184:
+
+```
+field         dev      preview   same?
+meshes         3396      3396     yes        spots      137   137   yes
+textured        993       993     yes        seats       57    57   yes
+masonry         112       112     yes        rooms        8     8   yes
+stamped        1921      1921     yes        colliders  310   310   yes
+frontages        16        16     yes
+
+doors dev     (8) A-1 TAX, BODEGA, BURGER BARN, DINER, GOLDEN ACES, HOTEL ORPHEUS, PAWN, THRIFT
+doors preview (8) A-1 TAX, BODEGA, BURGER BARN, DINER, GOLDEN ACES, HOTEL ORPHEUS, PAWN, THRIFT
+```
+
+**Every field identical, and GOLDEN ACES present in both.** `doors-declared`
+agrees: **"every declared door arrived."** The project's only red is green.
+
+That is also the first time anyone has checked whether the built world **is** the
+dev world beyond the doors. On nine independent counts, it is.
+
+## But the mechanism is untouched
+
+`globorder.mjs`, same build:
+
+```
+** civic-doors.ts   declared AFTER the glob that reads it
+** interior.ts      1,766 bytes too late
+** world.ts        11,108 bytes too late
+
+3 binding(s) read by a glob before they exist.
+```
+
+And the world still prints three warnings at collection time — the guard C asked
+for, doing its job.
+
+> **What changed is that `int-casino` is no longer among the late bindings.** The
+> other three still are. Nothing is lost only because **none of those three
+> declares a `DOOR`.**
+
+## Which is exactly the distinction worth having
+
+| | before | now |
+|---|---|---|
+| a room's door dropped | **yes** | **no** |
+| bindings read before they exist | 4 | **3** |
+| the hazard | live | **live** |
+
+`doors-declared` is green because it asks *"did every declared door arrive?"* —
+the right question for a user-facing defect. `globorder` is red because it asks
+*"is anything read before it exists?"* — the right question for the mechanism.
+**Both are correct and they disagree on purpose.**
+
+The remaining exposure is precise and small: **the moment any of
+`civic-doors.ts`, `interior.ts` or `world.ts` declares something a glob reads,
+it is dropped silently** — and the same is true of any module that drifts past
+the literal in a future build. The narrowing suggestion in Round 19 would remove
+all three from the glob outright; `{ eager: false }` would remove the class.
+
+**Nothing is broken today.** I am recording the gap between the symptom and the
+cause rather than routing it, because the symptom is genuinely fixed and the
+cause is a design decision that belongs to whoever owns the file.
