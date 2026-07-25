@@ -2,8 +2,15 @@
 
 **Owns:** `crosstown.ts`, `ct/props.ts`, `ct/cars.ts`, `ct/tex-ground.ts`,
 `ct/citizens.ts`
-**Desk writes this file. Do not edit it.** Take the top unchecked item under
-`## Now`, do it, commit, then re-read this file before starting the next.
+**Desk writes this file. Do not edit it.**
+
+For EACH item: **rebase on `add-stick-and-city98` FIRST**, then do the work,
+then commit, then re-read this file before starting the next.
+
+Rebasing per item is not optional. Builders drifted 85–91 commits behind
+mainline before landing today, and every hand-resolved conflict came from that
+staleness. Rebasing at the start of an item is nearly free; rebasing after an
+hour of work is where the conflicts live.
 
 ## Now
 
@@ -39,6 +46,14 @@
 - [ ] ~~Citizen variety~~ — **DONE BY ANOTHER BUILDER, do not redo.** Landed on
       mainline: build/skin/hair/garment/pace with stride tied to speed. Take
       mainline's `ct/citizens.ts` wholesale if yours conflicts.
+
+- [ ] **Move your `[E]` spots out of `crosstown.ts` and into your own module.**
+      The entry point no longer enumerates interactions — `CtxBuild` now has
+      `ctx.spot({...})` and `ctx.player` (`x()`, `z()`, `gy()`, `jumpTo()`).
+      Register the spots belonging to ct/props.ts and ct/cars.ts from inside it and delete them
+      from the `SPOTS.push(...)` block in `crosstown.ts`. This is the last thing
+      forcing you to edit the entry point. Verify by actually walking to each
+      door and pressing E — `scripts/doortest.mjs` is a starting point.
 
 ## Done
 

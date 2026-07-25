@@ -1,8 +1,15 @@
 # Queue — builder D  ·  worktree `../rpg-alley`  ·  port 4181
 
 **Owns:** `ct/street.ts`, `ct/cat.ts` placement
-**Desk writes this file. Do not edit it.** Take the top unchecked item under
-`## Now`, do it, commit, then re-read this file before starting the next.
+**Desk writes this file. Do not edit it.**
+
+For EACH item: **rebase on `add-stick-and-city98` FIRST**, then do the work,
+then commit, then re-read this file before starting the next.
+
+Rebasing per item is not optional. Builders drifted 85–91 commits behind
+mainline before landing today, and every hand-resolved conflict came from that
+staleness. Rebasing at the start of an item is nearly free; rebasing after an
+hour of work is where the conflicts live.
 
 > **This file is the monolith now.** Ten items queued here at one point while a
 > functional blocker sat third in line. `ct/street.ts` should be split
@@ -48,6 +55,14 @@
       `facadeTex` is handed to you for this. Ref: `shots/user-windowlights.png`
 - [ ] **Corporation** — the last unplaced roster entry. Blander and more modern
       than its neighbours; the contrast against the library is the point.
+
+- [ ] **Move your `[E]` spots out of `crosstown.ts` and into your own module.**
+      The entry point no longer enumerates interactions — `CtxBuild` now has
+      `ctx.spot({...})` and `ctx.player` (`x()`, `z()`, `gy()`, `jumpTo()`).
+      Register the spots belonging to ct/street.ts and ct/bodega.ts from inside it and delete them
+      from the `SPOTS.push(...)` block in `crosstown.ts`. This is the last thing
+      forcing you to edit the entry point. Verify by actually walking to each
+      door and pressing E — `scripts/doortest.mjs` is a starting point.
 
 ## Done
 

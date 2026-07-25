@@ -117,6 +117,13 @@ dominates anything small. So:
 **Collision rule:** a request that lands in a module a builder already owns does
 not start a second agent. It goes to that builder as a follow-up, or waits.
 
+### Rebase before every item, not at the end
+
+Builders drifted **85–91 commits behind mainline** before landing today, and
+every one of the three hand-resolved conflicts came from that staleness.
+Rebasing at the *start* of a queue item is nearly free. Rebasing after an hour
+of work is where conflicts live. It is now the first line of every queue file.
+
 ### The queue is a file, not a message
 
 Each builder has `street/notes/queues/<agent>.md`. **The desk writes; builders
@@ -517,10 +524,20 @@ there. Any builder adding anything must edit it.
 
 **The fix is a registration pattern, not a split.** Modules should return what
 they contribute — colliders, `[E]` spots, update hooks — and the entry point
-should *iterate a list* rather than enumerate call sites. `ctx.ts` already does
-half of this (`boards`, `wetMats`, `propColliders` are appended to by modules);
-extend it to interactions and per-frame hooks and the entry point stops being a
-shared editing surface.
+should *iterate a list* rather than enumerate call sites.
+
+**Interactions are done** (`e22dd99`): `CtxBuild` now carries `spot()` and
+`player`, so a module registers its own `[E]` spots and the entry point knows
+nothing about any of them. Adding a door touches exactly one file. Verified
+structurally identical, and walked, since fingerprints cannot see interactions.
+Migrating each module's existing spots out of `crosstown.ts` is queued to the
+builder that owns each module.
+
+**Per-frame update hooks are the remaining half.** `apt.updateHermit`,
+`props.updateRain`, `props.updatePigeons`, `apt.updateCaps` are still called by
+name from the sim loop. Same treatment: `ctx.onFrame(fn)`. Riskier than spots
+because ORDER matters — the rain tint must run before the billboard pass — so
+it needs an explicit ordering key rather than registration order.
 
 ### Splitting that IS still worth doing
 

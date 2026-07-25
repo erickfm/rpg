@@ -5,7 +5,8 @@ deliberate — if both sides edited these files they would conflict on every
 merge, which is the exact problem the queue exists to solve.
 
 - **Desk** appends tasks, reorders them, and moves finished ones to `## Done`.
-- **Builder** reads its file, takes the top unchecked item under `## Now`,
+- **Builder** REBASES ON MAINLINE FIRST, then reads its file, takes the top
+  unchecked item under `## Now`,
   does it, commits, then RE-READS the file (the desk may have reordered while
   it worked). It never edits the file.
 - **Completion** is reported in the builder's handoff note, not here.
