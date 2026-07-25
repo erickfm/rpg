@@ -6,6 +6,50 @@ Written for the desk to prioritise. **Fixed** items are already committed;
 
 ---
 
+## ANSWER: the two approved pieces are not rig candidates at all
+
+The desk asked me to identify the two pieces in `user-trash-good.png` and
+`user-trash-good2.png` from their positions, and asked whether they are the
+same object at two grime values — because if they were, per-instance variation
+would be carrying it and round three should vary the new candidates the same
+way.
+
+**They are neither.** Nothing from the rig has ever been placed in the world;
+the rig has only ever been in the alley. Both approved pieces are the
+pre-existing gutter litter, and both are **flat decals** drawn in
+`ct/tex-world.ts`:
+
+| shot | what it is | where it comes from |
+|---|---|---|
+| `user-trash-good` | tan-brown, darker marks, in the pan hard against the kerb | `scrapTex`, 0.26 × 0.22, from the 7-piece gutter loop |
+| `user-trash-good2` | pale cream, cleaner, by a car wheel | `paperTex`, 0.30–0.48 wide, from the 5-piece paper loop |
+
+So **there is no per-instance grime variation to generalise**. What variation
+exists is four hand-drawn `paperTex` variants and three `scrapTex` ones, picked
+by index. Round three does not inherit a mechanism from this.
+
+What it *does* inherit is more useful, and it agrees with the desk's own
+selection rule from the other direction: these two are small, hard-edged,
+high-contrast rectangles with **no outline**, seen from close and steeply. The
+piece the user rejected in the same sitting — `canTopTex` — is the same size
+and the same primitive, and the only real difference is that it rings itself
+with a solid `#16181c` border on all four sides. That border is deliberate
+(its own comment says it protects the silhouette at ~10 screen pixels) and it
+is exactly what killed it: at that size a full border stops reading as shading
+and reads as an outline, so it looks printed *on* the pavement rather than
+lying on it.
+
+**The rule I would carry forward: let the object's own dark side carry the
+silhouette, never a ring.** All four `canTopTex` placements are gone.
+
+And one thing this quietly overturns: flat decals are not dead. Round two
+concluded flat was the wrong primitive, and for the alley rig at 15–20° it is.
+But in the gutter, seen from close and much steeper, two flat decals are the
+only litter in this world the user has ever approved. The primitive was never
+the whole story — the viewing angle was.
+
+---
+
 ## Fixed this pass
 
 ### 1. The library doors are clear (`499df04`)
