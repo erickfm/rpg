@@ -15,6 +15,7 @@
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-vice-walk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 
 const KERB_H = 0.14, RADIUS = 0.36;   // the player capsule, for the geometric band
 const SCRIPT = 'G-vice-walk', EXTRA = '';
@@ -366,11 +367,15 @@ const sample = () => p.evaluate(() => {
   });
   return { lit, dull };
 });
-await p.evaluate(() => window.__ct.clock(13, 0));
-await p.waitForTimeout(700);
+// Frames, not milliseconds (GOTCHAS §30). Unlike the room night sweep, an
+// under-wait here fails SAFE — this asserts `dulled > 0`, so a night sample that
+// is still the day world reports zero changed and goes red. That is the right
+// direction and still the wrong behaviour: a false red under load is how a
+// suite teaches people to read past it, which is the same complaint I filed
+// against two other checks this session.
+await setClock(p, 13, 0);
 const day = await sample();
-await p.evaluate(() => window.__ct.clock(2, 0));
-await p.waitForTimeout(1100);
+await setClock(p, 2, 0);
 const nite = await sample();
 const dulled = day.dull.filter((v, i) => nite.dull[i] !== undefined && nite.dull[i] !== v).length;
 check('the brick and stone around them DO go dark after dark',
@@ -412,10 +417,13 @@ check('there are lit (transparent) materials on the two frontages at all',
 // would have been filed as a defect in the user's headline item. The world was
 // fine; the camera was 700 m away and pointed at a wall. A per-frame value can
 // only be sampled from a viewpoint that causes the frame.
-const sheets = (h, m) => p.evaluate(async ([h, m]) => {
-  window.__ct.warp(45, -103, Math.PI, 0, 0);        // in the road, facing the pair
-  window.__ct.clock(h, m);
-  await new Promise((r) => setTimeout(r, 800));
+// The warp stays FIRST and stays separate: the viewpoint has to be right before
+// the frames that carry the grade, which is the whole point of the paragraph
+// above. Then setClock waits on those frames instead of guessing 800 ms.
+const sheets = async (h, m) => {
+  await p.evaluate(() => window.__ct.warp(45, -103, Math.PI, 0, 0));  // in the road, facing the pair
+  await setClock(p, h, m);
+  return p.evaluate(async () => {
   const out = [];
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   s.traverse((o) => {
@@ -431,7 +439,8 @@ const sheets = (h, m) => p.evaluate(async ([h, m]) => {
     out.push({ x: +((bb.min.x + bb.max.x) / 2).toFixed(2), op: +mt.opacity.toFixed(3) });
   });
   return out.sort((a, c) => a.x - c.x);
-}, [h, m]);
+  });
+};
 const sDay = await sheets(13, 0), sNite = await sheets(23, 0);
 check('the two buildings put light on the pavement, and only after dark',
   sDay.length >= 4 && sDay.length === sNite.length
@@ -546,6 +555,14 @@ const chase = await p.evaluate(async () => {
   const s = window.__ct.scene();
   window.__ct.warp(45, -103, Math.PI, 0, 0);               // where the marquee renders
   window.__ct.clock(23, 0);
+  // DO NOT convert these to frame-waits. Everything else in this file that
+  // waited on a guess is now setClock (GOTCHAS §30), and these are deliberately
+  // not: the chase steps six sockets a second off `performance.now()`, so this
+  // is SAMPLING AN ANIMATION, not settling a grade. The irregular spacing is
+  // what stops the sample aliasing with the step rate and reporting a chase that
+  // runs as a chase that is frozen. Only the leading 700 is a settle, and this
+  // check asserts `moving.length >= 2` — a positive verdict that fails safe if
+  // it is short.
   for (const wait of [700, 180, 260, 330, 210, 290, 240]) {
     await new Promise((r) => setTimeout(r, wait));
     s.updateMatrixWorld(true);
