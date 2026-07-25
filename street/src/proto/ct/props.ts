@@ -172,8 +172,6 @@ export function buildProps(ctx: CtxBuild): Props {
   };
   let nightNow = 0;
   const ambient = (floor: number) => 1 - nightNow * (1 - floor);
-  // anything darker than this is glass, rubber or ironwork; it stays dark
-  const LIT_MIN_LUM = 0.22;
   const register = (root: THREE.Object3D, pool: boolean) => {
     root.traverse((o) => {
       const mm = (o as THREE.Mesh).material;
@@ -417,41 +415,33 @@ export function buildProps(ctx: CtxBuild): Props {
   //    by day; at dusk the lens warms up and an amber halo pools over the wet
   //    asphalt. Opacity is driven off the same night curve as the sky. ──────
   const nightLit: { mat: THREE.MeshBasicMaterial; base: number }[] = [];
-  // The halo was a smooth symmetric radial gradient — a soft ball of light
-  // orbiting the head, in a world where every other pixel is a hard texel. It
-  // read as a smudge rather than as light, the same note the ceiling lamps
-  // got. Now:
-  //   · STEPPED, not smooth — quantised into four bands so it belongs to the
-  //     same hand as everything else, with the faintest band dithered so the
-  //     steps read as glow rather than as rings
-  //   · ASYMMETRIC — a lamp throws DOWN. The centre sits high in the sheet and
-  //     the falloff below it is twice as long as above, so the glow hangs
-  //     under the head instead of ringing it
+  // REVERTED to the smooth radial sheets, deliberately. A stepped/dithered
+  // rewrite of both of these shipped and came back worse — "street lights look
+  // so much worse than they did before" (shots/user-lamppool-bad.png). It read
+  // as a rendering artefact: a 50% checkerboard ring metres wide around the
+  // ground pool, hard concentric bands inside it, and a saturated orange disc
+  // brighter than the light it was meant to imply.
+  //
+  // The lesson is about what dither MEANS here. This world is hard-edged
+  // texels, but the house dither — dither() on the walls — is a handful of
+  // texels at low alpha, break-up. A 50% checker at high contrast across a
+  // broad band is not that; at these radii (1.7 m and 3.4 m) each texel is
+  // 5-7 cm on screen and the pattern reads as pattern. Light is the one thing
+  // in this world with no hard edge in reality, and the smooth sheets were
+  // already doing that job. Do not re-quantise these without a small test.
   const lampGlowT = pixTex(32, 32, (g) => {
-    const cx = 16, cy = 11;
-    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-      const dx = (x - cx) / 15;
-      const dy = (y - cy) / (y < cy ? 8 : 19);
-      const d = Math.sqrt(dx * dx + dy * dy);
-      if (d >= 1) continue;
-      const band = Math.min(3, Math.floor((1 - d) * 4));
-      if (band === 0 && ((x + y) & 1)) continue;
-      g.fillStyle = `rgba(255,${198 - band * 5},${122 - band * 12},${[0.12, 0.30, 0.56, 0.88][band]})`;
-      g.fillRect(x, y, 1, 1);
-    }
+    const gr = g.createRadialGradient(16, 16, 1, 16, 16, 16);
+    gr.addColorStop(0, 'rgba(255,198,120,0.90)');
+    gr.addColorStop(0.5, 'rgba(255,178,96,0.30)');
+    gr.addColorStop(1, 'rgba(255,178,96,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
   });
-  // The pool on the ground is doing more work than the halo now that the road
-  // is genuinely dark — it is the thing that says a light is on. Stepped the
-  // same way, with a harder core.
   const lampPoolT = pixTex(48, 48, (g) => {
-    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
-      const d = Math.hypot((x - 24) / 23, (y - 24) / 23);
-      if (d >= 1) continue;
-      const band = Math.min(3, Math.floor((1 - d) * 4));
-      if (band === 0 && ((x + y) & 1)) continue;
-      g.fillStyle = `rgba(255,${192 - band * 4},${112 - band * 10},${[0.07, 0.19, 0.38, 0.66][band]})`;
-      g.fillRect(x, y, 1, 1);
-    }
+    const gr = g.createRadialGradient(24, 24, 2, 24, 24, 24);
+    gr.addColorStop(0, 'rgba(255,190,110,0.55)');
+    gr.addColorStop(0.55, 'rgba(255,180,100,0.15)');
+    gr.addColorStop(1, 'rgba(255,180,100,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 48, 48);
   });
   const poleM = new THREE.MeshBasicMaterial({ color: 0x24291f });   // dark cast iron
   const poleHi = new THREE.MeshBasicMaterial({ color: 0x323826 });
@@ -477,11 +467,21 @@ export function buildProps(ctx: CtxBuild): Props {
     obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7),
       new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    // The sheet's bright centre is no longer in the middle of the texture —
-    // it sits high (canvas y=11 of 32) so the glow hangs downward. Drop the
-    // plane by that offset, (0.656 - 0.5) * 1.7, so the bright part lands ON
-    // the head instead of floating beside it, which is what read as detached.
-    halo.position.set(headX, sidewalkY + LAMP_H - 0.43, z);
+    // THE one change on top of the revert: anchor the glow to the lens.
+    //
+    // The complaint was that the halo floats BESIDE the head, and it is not a
+    // drawing problem — it is depth. The halo is additive with depthWrite off
+    // but depth TEST on, and it was centred at LAMP_H - 0.22, which is inside
+    // the head box (centre -0.16, 0.26 tall, so it spans -0.29 … -0.03). The
+    // opaque head therefore ate the bright core and left only the fringe
+    // sticking out past its edges — a smudge to one side of a dark box, which
+    // is exactly what shots/user-lampglow.png shows.
+    //
+    // The lens is the thing that is actually lit, and it hangs BELOW the head
+    // (centre -0.31, spanning -0.35 … -0.27). Centre the halo there and the
+    // core sits on the glowing lens with nothing in front of it, so the light
+    // reads as coming out of the lamp. 9 cm, no redraw.
+    halo.position.set(headX, sidewalkY + LAMP_H - 0.31, z);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4),
