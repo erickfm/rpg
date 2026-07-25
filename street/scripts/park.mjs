@@ -127,6 +127,42 @@ walked = await leg('street leg, north to south', lx1, lz1 - 1.0, 0, 9, 'z', 16) 
 walked = await leg('back leg, north to south', lx0, lz1 - 1.0, 0, 9, 'z', 16) && walked;
 walked = await leg('back leg, south to north', lx0, lz0 + 1.0, Math.PI, 9, 'z', 16) && walked;
 
+// AND KEEP THEM OFF THE GATE ENTRY.
+//
+// E's park quality pass found "the gate lamp stands on the entry centreline"
+// and generously took it as theirs rather than mine. Measured: it is not one of
+// mine — my nearest lantern is 3.3 m from the centreline and no collider
+// crosses it at all. But the park has been re-cut twice, my lanterns are placed
+// by formula off ctx.site('park'), and a third re-cut could walk one straight
+// into the entry without anything noticing. So the check asserts it now.
+//
+// The entry is found rather than assumed: it is the narrow path quad that
+// reaches the street edge at site.maxX.
+const entry = await page.evaluate((maxX) => {
+  const sc = window.__ct.scene();
+  let best = null;
+  sc.traverse((o) => {
+    const g = o.geometry?.parameters;
+    if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
+    if (Math.abs(o.position.y - 0.1445) > 0.02) return;
+    if (!g.width || !g.height || g.width > 4 || g.height > 4) return;
+    if (Math.abs(o.position.x + g.width / 2 - maxX) > 0.35) return;   // touches the street edge
+    if (!best || g.height > best.d) best = { z: o.position.z, d: g.height, x: o.position.x };
+  });
+  return best;
+}, r.site.maxX);
+if (!entry) {
+  console.error('\n  FAIL could not find the gate entry path — this check cannot answer');
+  process.exitCode = 1;
+} else {
+  const clear = r.lamps.map(([x, z]) => +Math.abs(z - entry.z).toFixed(2));
+  const nearest = Math.min(...clear);
+  const ok = nearest > entry.d / 2 + 0.6;
+  console.log(`\n  gate entry at z ${entry.z.toFixed(2)}, ${entry.d.toFixed(2)} m wide`);
+  console.log(`  ${ok ? 'OK  ' : 'FAIL'} no lantern stands on the entry (nearest is ${nearest} m off its centreline)`);
+  if (!ok) process.exitCode = 1;
+}
+
 const shot = async (n, x, z, tx, tz, gy, p2) => {
   await page.evaluate(([x, z, tx, tz, gy, p2]) =>
     window.__ct.warp(x, z, Math.atan2(tx - x, -(tz - z)), gy, p2), [x, z, tx, tz, gy, p2]);
