@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"look at the park field what is this? / shelter is ugly and the seating is off center, quality is bad for the park overall"** → **E**
 - **"make the library interior larger and more ambitious / why is church locked"** → **G**
 - **"park bench looks awful and clips into fountain, also no shrubs like i asked earlier and the grass ask seems also to have been ignored"** → **E**
 - **"why are these decorations simply floating in the air in the diner? / thrift store should be larger, its a bit too crowded"** → **F**
