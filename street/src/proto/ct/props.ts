@@ -1366,21 +1366,43 @@ export function buildProps(ctx: CtxBuild): Props {
         }
       }
       g0.rotation.y = 0.24; return g0; }],
+    // Both cups ship, so they have to be told apart at a glance or they are
+    // one object drawn twice rather than two of five types. The coffee cup is
+    // NOT touched — it has passed twice and changing it to make room for this
+    // one would be spending approval I already have. The separation is pushed
+    // entirely into the fountain cup, on four axes at once:
+    //   length   0.42 against the coffee cup's 0.26 — nearly double, and the
+    //            single strongest cue at distance
+    //   taper    0.112 down to 0.060, a soda cup's real profile; the coffee
+    //            cup barely tapers at all
+    //   colour   a RED body with white waves against a cream body. At twenty
+    //            metres this is "the red one" and "the pale one"
+    //   parts    a white lid and a straw; the coffee cup has a dark lid and
+    //            nothing else
     ['fountain cup', () => {
       const g0 = new THREE.Group();
       const cupM = tsurf(24, 24, (g) => {
-        g.fillStyle = '#e6e2d6'; g.fillRect(0, 0, 24, 24);
-        g.fillStyle = '#c0392b'; g.fillRect(0, 4, 24, 8);               // loud printed band
-        g.fillStyle = '#e6c84a'; g.fillRect(0, 13, 24, 3);
-        g.fillStyle = '#a8a294'; g.fillRect(0, 21, 24, 3);
+        g.fillStyle = '#c0392b'; g.fillRect(0, 0, 24, 24);              // red field, not a band
+        g.fillStyle = '#f0ece0'; g.fillRect(0, 6, 24, 5);               // the white wave
+        g.fillStyle = '#f0ece0'; g.fillRect(0, 14, 24, 2);
+        g.fillStyle = '#e6c84a'; g.fillRect(0, 17, 24, 2);
+        g.fillStyle = '#9c2f24'; g.fillRect(0, 22, 24, 2);              // shaded toward the base
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 12, 24, 1);     // one wax crease
       });
-      const cup2 = lying(0.102, 0.074, 0.33, cupM, plain('#cfc9ba'));
-      cup2.position.y = 0.094; g0.add(cup2);
-      const lid2 = lying(0.110, 0.110, 0.034, plain('#d8d3c6'), plain('#c2bcae'));
-      lid2.position.set(-0.180, 0.100, 0); g0.add(lid2);
-      // the straw is the entire difference between this and candidate 1
-      const straw = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.017, 0.017), plain('#c0392b'));
-      straw.position.set(-0.34, 0.024, 0.07); straw.rotation.y = 0.60; g0.add(straw);
+      const cup2 = lying(0.112, 0.060, 0.42, cupM, plain('#a83226'));
+      cup2.position.y = 0.104; g0.add(cup2);
+      const lid2 = lying(0.120, 0.120, 0.036, plain('#e2ddd0'), plain('#cbc5b6'));
+      lid2.position.set(-0.228, 0.110, 0); g0.add(lid2);
+      // The straw lies OFF the ground at one end. Flat on the floor it was
+      // invisible at walking distance — a 2 cm stick on grey concrete is
+      // nothing — and the straw is the one part of this the coffee cup can
+      // never have, so it has to be in the silhouette rather than in the
+      // texture. Tilted up, it breaks the cup's outline against the sky-lit
+      // ground and reads from ten metres.
+      const straw = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.022, 0.022), plain('#e04a3d'));
+      straw.position.set(-0.40, 0.058, 0.08);
+      straw.rotation.set(0, 0.58, 0.26);
+      g0.add(straw);
       g0.rotation.y = -0.42; return g0; }],
     ['paint can', () => {
       const g0 = new THREE.Group();
@@ -1409,59 +1431,90 @@ export function buildProps(ctx: CtxBuild): Props {
   // already passed and they lead so every new candidate is judged against a
   // bar that has cleared, not against its neighbours. Anything in CATALOGUE
   // and not named here is drawn but unplaced — see the shelf note below.
-  const RIG = [
-    'coffee cup',            // 1  — passed round two, untouched
-    'folded newspaper',      // 2  — passed round two, plus the requested
-                             //      thinner/grimier fix
-    'pizza box',             // 3
-    'flattened cardboard',   // 4
-    'plastic bag',           // 5
-    '40oz in a bag',         // 6
-    'milk crate',            // 7
-    'broken umbrella',       // 8
-    'swollen phone book',    // 9
-    'bundled newspapers',    // 10
-    'fountain cup',          // 11
-    'paint can',             // 12
-  ];
-  // SHELVED, not deleted: crushed can, glass bottle, takeout container, chip
-  // bag, cigarette pack. They are still in CATALOGUE above. Two kinds of
-  // litter is thin, and reviving something already drawn is a one-line change
-  // to RIG — redrawing it from nothing is another whole round.
-  const numTex = (n: number) => pixTex(16, 16, (g) => {
-    g.fillStyle = 'rgba(10,10,14,0.72)'; g.fillRect(1, 3, 14, 10);
-    g.fillStyle = '#f2ead0';
-    g.font = 'bold 10px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(String(n), 8, 8);
-  });
-  // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
-  // and every texel of a soft shadow is below that, so the v2 shadows were
-  // being discarded outright and nothing was sitting on the floor.
+  // THE RIG IS DOWN. Round three's verdict: 2 folded newspaper, 4 flattened
+  // cardboard, 7 milk crate, 11 fountain cup, plus 1 the coffee cup, which
+  // passed in round two and was never retracted — "i like having both cups".
+  // Five types. The numbered line, the numerals and the two alley rows are
+  // gone; they are in git history if a fourth round ever needs them.
+  //
+  // NOT PLACED, still drawn, in CATALOGUE above: crushed can, glass bottle,
+  // takeout container, chip bag, cigarette pack, pizza box, plastic bag,
+  // 40oz in a bag, broken umbrella, swollen phone book, bundled newspapers,
+  // paint can. Reviving any of them is one line in DROPS.
+  //
+  // There is deliberately NO per-instance grime here. The theory was that
+  // grime variation is what carried the two gutter decals the user liked; it
+  // was not — those are hand-drawn variants picked by index, and the desk
+  // withdrew the guess. Building the mechanism now would be inventing it to
+  // fit a theory nobody holds. Rotation is the only thing that varies, and
+  // five distinct objects is the actual vocabulary.
   const shadeT = pixTex(16, 16, (g) => {
     g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 3, 12, 10);
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 2, 14, 12);
   });
-  const contact = (w: number, d: number, x: number, z: number, y: number) => {
+  // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
+  // and every texel of a soft shadow is below that, so shadows drawn through
+  // flatDecal were being discarded outright and nothing sat on the ground.
+  const contact = (w: number, d: number, x: number, z: number, y: number, rot: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
       new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
+    m.rotation.z = rot;
     m.position.set(x, y + 0.003, z);
     scene.add(m);
   };
-  // Two rows of six down the alley rather than one line of twelve: twelve at a
-  // spacing that keeps 0.6 m objects apart would run past the end wall. Both
-  // rows start at z −39.0, clear of the dumpster (which stops at −38.75), and
-  // the numeral sits on the street side of each so you read them walking in.
-  const TZ0 = -39.0, TSTEP = 0.72, ROW_X = [-8.5, -10.3];
-  RIG.forEach((name, i) => {
+  const FOOT: Record<string, [number, number]> = {
+    'coffee cup': [0.42, 0.30],
+    'folded newspaper': [0.54, 0.42],
+    'flattened cardboard': [0.82, 0.58],
+    'milk crate': [0.48, 0.48],
+    'fountain cup': [0.60, 0.34],
+  };
+  const ALLEY_Y = 0.006;                  // ct/street.ts lays the alley slab at 0.005
+  const drop = (name: string, x: number, z: number, yaw: number, y?: number) => {
     const make = CATALOGUE.find((c) => c[0] === name)?.[1];
     if (!make) return;
-    const x = ROW_X[Math.floor(i / 6)], z = TZ0 - (i % 6) * TSTEP;
-    const o = make(); o.position.set(x, 0.006, z); scene.add(o);   // alley floor sits at 0.005
-    lit(o);                                        // they take the lamplight like anything else
-    contact(0.62, 0.50, x, z, 0.006);
-    flatDecal(numTex(i + 1), 0.22, 0.22, x + 0.46, z, 0, 0.012);
-  });
+    const o = make();
+    // every candidate carries its own built-in skew; this turns the whole
+    // piece on top of it, so no two placements of one object are copies
+    o.rotation.y += yaw;
+    const gy = y ?? surfaceY(x);          // surfaceY knows the gutter's cross-slope
+    o.position.set(x, gy, z);
+    // tagged so scripts/trash.mjs can find MY litter and not every group in
+    // the scene — the side street and the car lot have their own props sitting
+    // at ground level and they are not mine to measure
+    o.userData.litter = name;
+    o.userData.groundY = gy;
+    scene.add(o);
+    lit(o);                               // they take the lamplight like anything else
+    const [fw, fd] = FOOT[name] ?? [0.5, 0.4];
+    contact(fw, fd, x, z, gy, yaw);
+  };
+  // Where rubbish actually ends up: against the kerb where the water leaves it,
+  // in the alley by the bins, blown up against the building line, and under the
+  // one bench on the block. Nothing is solid — you walk straight over litter —
+  // so the big pieces are kept off the walking line by placement rather than by
+  // a collider, which is the only way to add them without touching the 2 m lane.
+  // Hand-placed, no rnd(), so the seeded stream is untouched (GOTCHAS §2).
+  const GUT_L = -(ROAD_HALF - 0.14), GUT_R = ROAD_HALF - 0.14;
+  // the gutter line
+  drop('coffee cup', GUT_L, -21.6, 0.90);
+  drop('coffee cup', GUT_R + 0.04, -33.9, 1.70);
+  drop('fountain cup', GUT_R + 0.02, -54.3, -2.20);
+  drop('folded newspaper', GUT_L + 0.04, -68.4, 0.30);
+  // the alley, round the dumpster — crates live here, not on a sidewalk
+  drop('milk crate', -12.20, -39.60, 0.35, ALLEY_Y);
+  drop('milk crate', -11.55, -40.35, -0.80, ALLEY_Y);
+  drop('flattened cardboard', -10.60, -41.45, 0.90, ALLEY_Y);
+  drop('fountain cup', -9.40, -42.40, -1.20, ALLEY_Y);
+  drop('folded newspaper', -12.60, -42.05, 0.40, ALLEY_Y);
+  // blown up against the building line, clear of the tree pits (x ±5.0…5.8)
+  drop('flattened cardboard', 6.58, -26.5, -0.35);
+  drop('milk crate', -6.74, -58.2, 0.55);
+  drop('folded newspaper', 6.66, -76.0, 1.10);
+  // under the bus bench, which is the one place on this street people sit
+  drop('coffee cup', 5.42, -37.2, 0.70);
+  drop('folded newspaper', 5.52, -36.0, -0.50);
 
   return {
     setLampNight: (v) => {
