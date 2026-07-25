@@ -1533,3 +1533,26 @@ That is the third time this pattern has run in as many rounds: the geometry or
 the constants imply a defect, and the picture does not have one. Roofs, the park
 back wall, this. **The cheap check is the bounding box; the true one is the
 frame**, and only the second can tell "overlaps in y" from "visibly wrong".
+
+
+## Regression pass after a heavy upstream week, and the cat re-checked properly
+
+The park gained topography, the litter work landed, `isGlass` was split, `rainAt`
+was replaced, `nightFactor` was published. All of that is under my area. Re-ran
+everything at HEAD:
+
+```
+alleycheck  builtlane  shells  windowlights  midnight  D-walk     all green
+```
+
+and re-shot the alley in all four conditions.
+
+**The cat, re-checked from the right place.** I verified my move from the alley
+MOUTH. The user's criterion was *"findable from the street without being the
+first thing you see"* — so I shot it from the pavement, which is where a player
+meets it.
+
+It holds: from outside, the dumpster and the three tags are what you see, and
+the cat is a small dark shape beside the dumpster that resolves on a second look.
+Worth doing, because "beside the dumpster" could equally have produced a cat that
+fills the alley mouth, and from inside the alley I could not have told.
