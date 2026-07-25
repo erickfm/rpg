@@ -50,11 +50,28 @@ export function buildBodega(ctx: CtxBuild): void {
     // purpose — it is open at 2am and the light is half of why you go in.
     light: { kind: 'strip', tint: 0xe8f0e4, count: 3 },
     frontage: { name: 'BODEGA', w: 10, cz: -95, side: 1 },
-    // 1.5, which is D's number, not mine. D walked the canted face and found
-    // 1.3 still left the trigger hard to reach on a 45-degree bay — the
-    // approach runs diagonally and you clip the corner of the radius. Carried
-    // over from ct/bodega.ts before that file was retired.
-    door: { r: 1.5, at: DOOR.at, width: DOOR.width },
+    // 1.8. Each bump has been a measurement, not a guess, and each measured a
+    // different approach — which is the story of a door in a recessed 45°
+    // bay:
+    //
+    //   1.05 -> 1.3   the flat-frontage default only reached the bay
+    //                 diagonally; you clipped the corner of the radius
+    //   1.3  -> 1.5   walking AT the door from the side street you come to
+    //                 rest against the wing wall 1.38 m out, outside 1.3, so
+    //                 the prompt appeared mid-stride and was gone once you
+    //                 stopped
+    //   1.5  -> 1.8   request-audit's 2D patch sweep: the trigger is large and
+    //                 healthy, 2.4 x 2.4 m over 109 standable points, but its
+    //                 nearest edge is x 6.2 and THE PAVEMENT CENTRELINE IS
+    //                 x 5.9. "My line sweep missed it by 30 cm, and so does a
+    //                 player." Every other door on the block reaches the
+    //                 centreline; this was the only one that did not.
+    //
+    // The cause is geometric and does not go away: the centre sits deep in the
+    // recess, so the same radius that covers a flat frontage falls short here
+    // by exactly the depth of the bay. Nearest neighbouring spot is 5.4 m
+    // away, so there is no overlap to buy at this size.
+    door: { r: 1.8, at: DOOR.at, width: DOOR.width },
   });
 
   const { put, solid } = room;
