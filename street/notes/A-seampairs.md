@@ -65,6 +65,54 @@ Worth re-reading the shot against these numbers before the finding is closed or
 re-routed. I am not claiming the photo is nothing — I am claiming the 135 is not
 what explains it.
 
+## The live half now has candidates (`409d7433`)
+
+`f604c531` ruled out the 2× band/wall junction **by looking** — the transition
+happens behind the fascia on every character front, and the residential ground
+floors have no band at all. Good result, and it closes with:
+
+> the live half is the second one, and **I have no candidate for it in
+> `ct/street.ts`**
+
+There are candidates, and they are not in `ct/street.ts` — which is why looking
+there found none. **This tool could not surface them by construction:** it
+collected only *stamped* faces, so "declared masonry standing next to something
+`masonry()` never painted" was invisible to the one instrument aimed at seams.
+
+It collects wall-sized unstamped faces now:
+
+```
+DECLARED masonry touching UNDECLARED brick-like faces, disagreeing: 140
+
+ u 2.70×   UNDECLARED 5.92 px/m at (-14.1, 2.8, -97.9)   vs declared 16
+ u 2.66×   UNDECLARED 6.01 px/m at (-25.2, 2.7, -97.9)   vs declared 16
+ u 2.64×   UNDECLARED 6.05 px/m at (-26.9, 2.5, -68.1)   vs declared 16
+ u 2.64×   UNDECLARED 6.05 px/m at (-17.1, 3.0, -68.1)   vs declared 16
+```
+
+**Four faces at a consistent ~6 px/m** — brick scale, not detail scale —
+standing against declared masonry. Those are the ones worth photographing.
+
+**This is a candidate list, not a defect list, and I am not routing it as one.**
+The other entries (20 px/m, and 1.45 px/m out by the car lot) are almost
+certainly signage and decals, and this tool cannot tell those from brick. The
+9.41 px/m ashlar in `A-density-stamp.md` was exactly this kind of face and turned
+out to be a legitimate hand-painted surface. It needs eyes — and per
+`f604c531`'s own hard-won rule, eyes at **the same angle and distance**, which is
+the part that keeps fooling people at corners.
+
+## And a headline I broke myself in the same commit
+
+Collecting unstamped faces let them leak into the `declared-DIFFERENT` line,
+widening its ratio range to 1.18×–11.05× and making it claim something it could
+not support. Restricted to pairs where **both** declare, it reads 312 pairs at
+1.99×–2.04× again.
+
+That is the third time in this file a summary line has counted something it
+should not have, and the **second time it was mine**. The failure is not
+carelessness about arithmetic — it is that adding a new population to a tool
+silently changes every aggregate already in it.
+
 ## The pattern across three rounds
 
 | round | claim | actual |
