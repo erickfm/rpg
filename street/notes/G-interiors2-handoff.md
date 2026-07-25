@@ -279,6 +279,32 @@ computing the band, which is exactly the flaw `G-vice-walk`'s band check was
 rewritten to remove. A script that shouts about a sound pavement, that nobody
 runs and no tool can see, is a trap for whoever runs it next.
 
+### Every enumerated brief item, checked against what is built
+
+A class I had never verified: the queue items **list content**, and I had checked
+structure, collision, facing and lighting without once asking whether the objects
+named are there. Swept all four:
+
+| room | the brief asks for | built |
+|---|---|---|
+| hotel | tile floor, vinyl patch, reception desk, key rack, pigeonholes, dead palm, mismatched chairs, lift with a floor dial, rate card, **one lamp out** | all 11 |
+| casino | patterned carpet, **mirrored panels**, slot banks in rows, one felt table, a cage with a grille, **no clock**, no daylight | all 7 |
+| pawn | bars inside the window, guitars, brass, glass case with rings and watches, wall of tools, TV stack, everything tagged | all 8 |
+| tax | two desks with a client chair each, filing cabinets, fake plant, **a wall clock**, pinboard of IRS notices, strip lighting | all 6 |
+
+**Two of them are the same requirement pointing opposite ways**, and both hold: the
+tax office has a wall clock and the casino has none. The casino brief's whole idea
+is that you cannot tell the time in there.
+
+Two were measured rather than grepped, because a mention in source is not a built
+object: the hotel's **four ceiling fittings, one markedly darker** (`#e0cf9a` ×3,
+`#6e6a62` ×1) and its **three mismatched seat pads** — which is right, since "four
+matched lobby chairs" is what the room *used* to have.
+
+Only one is guarded by a check, and deliberately: **"one lamp out"**, because it is
+a single deliberate defect that a refactor erases in passing. The rest are objects
+whose absence would be obvious the moment anyone walked in.
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
