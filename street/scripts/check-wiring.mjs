@@ -93,10 +93,21 @@ for (const [f, src] of sources) {
   }
 }
 
+// ── modules constructed through ct/world.ts's registrant glob ───────────────
+//
+// The world moved to a registrant pattern: a module exports `register(ctx)`
+// (plus an optional ORDER) and ct/world.ts globs ./*.ts and calls it. So the
+// build* function is now invoked from inside its OWN module — which the
+// "a module calling itself proves nothing" rule below deliberately ignores,
+// and this script started reporting interiors, park and lot as orphans while
+// they were demonstrably in the world. Exporting `register` IS being wired.
+const REGISTER = /^export\s+(?:async\s+)?(?:function|const)\s+register\b/m;
+
 // ── is it imported and called from somewhere that is not itself? ────────────
 const orphans = [], wired = [];
 for (const { path, rel, sym } of exported) {
   if (ALLOWED[rel]) continue;
+  if (REGISTER.test(sources.get(path) ?? '')) { wired.push(`${rel} ${sym}() via register() in ct/world.ts`); continue; }
   if (globbed.has(path)) { wired.push(`${rel} ${sym}() via import.meta.glob in ${globbed.get(path)}`); continue; }
   let importedBy = null, calledBy = null;
   for (const [f, src] of sources) {
