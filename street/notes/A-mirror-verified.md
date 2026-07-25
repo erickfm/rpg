@@ -51,9 +51,16 @@ anywhere stores a "side".
 
 ## Still outstanding
 
-- **THRIFT** is the one declared room I have not looked at. The mechanism is
-  shared and the other two pass, so I expect it to — but GOTCHAS §20 exists
-  because expecting is not looking, and I am not going to claim it.
+- **THRIFT: attempted, not confirmed.** I got inside through its `[E]` spot,
+  but backing off 5 m to frame the front wall puts the camera inside a clothing
+  rack — the room is crammed by design, which is the whole character of it. The
+  wall is visible past the stock and reads the same way as the other two (window
+  left, opening to its right), but the frame is obstructed and that is not a
+  clean read. `shots/th-inside.png`. Someone should take it from a clear spot;
+  I am not claiming it on a blocked view.
+- **Two more rooms have declared since** — A-1 TAX (door now −20.13, was −12.36)
+  and PAWN (−60.50, was −54.34). Five declared in total, all resolving. Neither
+  of those two has had the visual check either.
 - **Every shop that has NOT declared** still takes its door from the painter's
   own layout. Those are self-consistent (facade and room use the same fallback)
   but they are not expressing any room's intent, because there is no room behind
