@@ -584,3 +584,31 @@ the whole block.
 
 This is my queue item 2, re-graded rather than re-verified: the sweep existed, the
 world changed underneath it, and the user's sentence is the thing being checked.
+
+## And again after "a lil bigger on the curb side" — the trade cost the walk nothing
+
+`e8947a925` widened the tree well **0.36 → 0.56 m** on the user's words —
+*"tree in the dirt looks janky, i think we need to make the dirt patch a lil
+bigger on the curb side"* — and spends the kerb strip from **0.218 down to
+0.117 m**. Its author also lowered `footprint.mjs`'s 0.20 m bar deliberately and
+said so, on the grounds that 0.20 was their number and not the user's. That is
+the right call and it is exactly the sort of change worth a second pair of eyes,
+because a threshold that moves to let a change through is how a guarantee
+quietly stops being one.
+
+Measured at that commit:
+
+```
+0 stretches under 1.00 m · narrowest 1.12 m at east z -85.75
+ghosts: 0 — identical under a 22 s window
+```
+
+**Identical to before the widening.** The well grew into the **kerb strip**,
+which is not the walking lane; the narrowest walk in the world is still the east
+side at z −85.75, and it is not a tree.
+
+> **The user got the wider dirt he asked for and it cost him nothing of the
+> pavement he complained about separately.** Those were two different requests
+> weeks apart, and the only way to say they do not fight is to measure the whole
+> block after the second one. That is what this queue item is for, and it is the
+> third time in two days the trees have moved under it.
