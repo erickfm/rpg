@@ -67,6 +67,33 @@ const ROOMS = [
       ['east of the desks, down to the plant', 4.0, 2.5, '-z', 2000, 'z', 4.0],
     ],
   },
+  {
+    id: 'pawn', label: /PAWN/, W: 11.0, D: 8.0, H: 2.8,
+    doorX: 7.0 - 0.45, doorZ: -59.06, at: -4.3, hasWindow: true,
+    // the customer strip — a 0.38 m band for the player's centre, on purpose
+    clearZ: 3.45,
+    // The front wall has to be probed from the entry pocket: the strip itself
+    // is only 0.19 m from the wall, which is less than the 0.3 m a probe must
+    // travel to have proved anything. x = -5.0 is west of the doorway and so
+    // is solid wall.
+    frontProbeX: -5.0, frontProbeZ: 2.7,
+    // and the BACK wall cannot be probed at all, because reaching it is
+    // exactly what this room is built to prevent. Asserted below instead.
+    skipBack: true,
+    doorApproach: [-4.3, 2.7],
+    landing: [['out across the street', -Math.PI / 2], ['south along the walk', 0], ['north along the walk', Math.PI]],
+    lanes: [
+      ['the customer strip, east', -4.6, 3.45, '+x', 2600, 'x', 7.0],
+      ['…and back west', 4.8, 3.45, '-x', 2600, 'x', 7.0],
+    ],
+    // The whole brief in three checks: everything worth having is on the far
+    // side of the counter and none of it is reachable.
+    noGo: [
+      ['you cannot get behind the counter at its west end', -3.4, 3.45, '-z', 1600, 'z', 1.0],
+      ['…nor at the east end', 5.0, 3.45, '-z', 1600, 'z', 1.0],
+      ['…nor round the west side, past the tool wall', -4.6, 3.0, '-z', 1600, 'z', 1.0],
+    ],
+  },
 ];
 
 const only = process.argv[2];
@@ -163,9 +190,9 @@ for (room of rooms) {
   };
   await probe(0, room.clearZ, '-x', 'x', LIMX, -1);
   await probe(0, room.clearZ, '+x', 'x', LIMX, 1);
-  await probe(room.frontProbeX, room.clearZ, '+z', 'z', LIMZ, 1,
+  await probe(room.frontProbeX, room.frontProbeZ ?? room.clearZ, '+z', 'z', LIMZ, 1,
     room.hasWindow ? 'the front wall under the window' : 'the WINDOWLESS front wall');
-  await probe(room.backProbeX, room.backProbeZ, '-z', 'z', LIMZ, -1);
+  if (!room.skipBack) await probe(room.backProbeX, room.backProbeZ, '-z', 'z', LIMZ, -1);
 
   // the doorway is the one gap in the collider line — the one place a room leaks
   await warp(CX + room.at, room.clearZ, Math.PI, 0);
@@ -184,6 +211,22 @@ for (room of rooms) {
     const c = await pos();
     const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
     check(name, d > want, `travelled ${f2(d)} m (want > ${want})`);
+  }
+
+  // ── where you must NOT be able to get ────────────────────────────────
+  //
+  // The inverse of a lane test, and the pawn shop needs it: a room whose whole
+  // point is that the far side of the counter is out of reach has to be checked
+  // for the gap somebody could squeeze through, not just for the routes that
+  // work. A lane test passing tells you nothing about this.
+  for (const [name, lx, lz, key, ms, axis, most] of room.noGo ?? []) {
+    await warp(CX + lx, lz, YAW[key], 0);
+    await p.waitForTimeout(150);
+    const a = await pos();
+    await hold('w', ms);
+    const c = await pos();
+    const d = axis === 'x' ? Math.abs(c[0] - a[0]) : Math.abs(c[2] - a[2]);
+    check(name, d < most, `got ${f2(d)} m in (must be < ${most})`);
   }
 
   // ── the way out, and NOT straight back in ────────────────────────────
