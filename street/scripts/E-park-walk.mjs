@@ -47,7 +47,7 @@ for (const [n, z] of [['north of the gate', -75.0], ['south of the gate', -92.0]
 // THE LOOP. Each leg is walked from its own corner to the next one, which is
 // what proves the circuit is clear — a single timed lap just tells you how
 // fast you were going. Legs: street x=-8.15, back x=-12.5, ends z=-96.3/-69.7.
-const LEG = { x0: -12.5, x1: -8.15, z0: -96.3, z1: -69.7 };
+const LEG = { x0: -12.5, x1: -8.60, z0: -96.3, z1: -69.7 };
 for (const [name, at, yaw, ms, ok, say] of [
   ['street leg, south to north', [LEG.x1, LEG.z0 + 0.8], Math.PI, 8400,
     (p) => p[2] > LEG.z1 - 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z1})`],
@@ -69,26 +69,44 @@ for (let x = -13.2; x <= -7.4; x += 0.6) for (let z = -96; z <= -70; z += 4) {
 const bad = s.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
 report('the park floor is walk level everywhere', bad.length === 0,
   bad.length ? `${bad.length}/${s.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${s.length} samples at gy 0.14`);
-// ── the 2 m walk past the park ───────────────────────────────────────────
+// ── the edge line ────────────────────────────────────────────────────────
 //
-// DIAGNOSTIC, not a check on this park: it reports where the pavement is
-// blocked rather than failing, because nothing here is inside the fence.
+// The user's standing rule: nothing the park owns may stand on the pavement.
+// This is that rule as a test — every collider inside the park's z-span is
+// checked against the line at x = -7.00. The only thing allowed across it is
+// ct/street.ts's boundary wall, which IS the boundary and carries the
+// railings (x -7.00…-6.64).
+const over = await page.evaluate(() => window.__ct.colliders()
+  // straddling the line, on the west side. ct/street.ts's boundary wall
+  // starts exactly ON the line (minX = -7.00) so it is excluded by <.
+  .filter((c) => c.minZ >= -98.5 && c.maxZ <= -67.5 && c.minX > -20 && c.minX < -7.0 && c.maxX > -7.0)
+  .map((c) => [+c.minX.toFixed(2), +c.maxX.toFixed(2), +c.minZ.toFixed(2), +c.maxZ.toFixed(2)]));
+report('nothing the park owns stands on the pavement', over.length === 0,
+  over.length ? `${over.length} over the line: ${JSON.stringify(over)}` : 'every park collider is west of x = -7.00');
+
+// ── the full frontage, walked ────────────────────────────────────────────
 //
-// D's park boundary blocks out to x = -6.28. B's street tree at z = -71.5
-// owns x -5.94…-5.78, which with the player's radius blocks -6.30…-5.42.
-// Those two leave nothing: the building-side lane stops dead at the tree, and
-// so does the kerb-side one, because the walk itself ends at about -5.36. The
-// only way south past this park is with one foot in the road — which is a §9
-// finding for the desk (B's tree, D's wall), not something the park can fix.
-for (const [name, x] of [['building-side', -6.2], ['kerb-side', -5.6], ['in the road', -5.1]]) {
-  await warp(x, -66.0, 0.0);
-  await page.waitForTimeout(150);
-  await page.keyboard.down('w'); await page.waitForTimeout(11000); await page.keyboard.up('w');
-  await page.waitForTimeout(60);
+// Not eyeballed: the capsule goes the whole 30 m in the building-side lane
+// and the position is read every step, so a squeeze shows up as a stall
+// rather than as something that looked fine in a screenshot.
+await warp(-6.2, -66.0, 0.0);
+await page.waitForTimeout(150);
+// a stall is only real if it survives a pause — citizens are solid and they
+// walk on (E-walk.mjs learned this the hard way)
+let stall = null, lastZ = -66.0, patience = 0;
+for (let i = 0; i < 40; i++) {
+  await page.keyboard.down('w'); await page.waitForTimeout(400); await page.keyboard.up('w');
+  await page.waitForTimeout(40);
   const p = await pos();
-  console.log(`NOTE  the ${name} lane past the park: z -66.00 -> ${f(p[2])} at x ${f(p[0])}` +
-    (p[2] > -96 ? '   <-- BLOCKED' : ''));
+  if (p[2] < -98.5) { lastZ = p[2]; break; }
+  if (Math.abs(p[2] - lastZ) < 0.05) {
+    if (++patience >= 3) { stall = p; break; }
+    await page.waitForTimeout(1300);
+  } else patience = 0;
+  lastZ = p[2];
 }
+report('the full 30 m frontage walks without a squeeze', !stall,
+  stall ? `stalled at z ${f(stall[2])}, x ${f(stall[0])}` : `walked z -66.00 -> ${f(lastZ)} in the building-side lane`);
 
 console.log(fails ? `\n${fails} FAILED` : '\nall walks passed');
 await b.close();

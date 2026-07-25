@@ -71,6 +71,25 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const REACH = -13.4;
   const backX = Math.max(site.minX + 0.6, REACH + 0.9);
 
+  // ── THE EDGE LINE ────────────────────────────────────────────────────────
+  //
+  // The user's standing rule: *"in general we should not encroach the already
+  // cramped sidewalk."* So the park has ONE line, and everything it owns is
+  // west of it. Bins, benches, piers, planting, paths — all of it. Only the
+  // railings and the gate opening touch the pavement, because those ARE the
+  // boundary.
+  //
+  // It was not obeyed and the user photographed the result: the bin stood
+  // 0.23 m out on the walk, the bench 0.36 m, the pier's cap 0.07 m. All
+  // three were placed off the path rather than off the line, which is the
+  // mistake — a rule you have to remember at every call site is a rule that
+  // gets forgotten at one of them. `inside()` is that rule as arithmetic:
+  // give it a half-width and it hands back the furthest east a thing may
+  // stand.
+  const KERB_W = 0.25;
+  const EDGE_X = site.maxX - KERB_W;              // grass starts here
+  const inside = (halfWidth: number) => EDGE_X - halfWidth - 0.05;
+
   // ── surfaces ─────────────────────────────────────────────────────────────
   //
   // Everything laid on the grass is a flat DECAL 6 mm above it, the way the
@@ -123,6 +142,40 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     return m;
   };
 
+  // ── the kerb ─────────────────────────────────────────────────────────────
+  //
+  // Grass ran straight into the pavement in a raw butt joint at a slightly
+  // different level, so it read as two surfaces that happened to meet — worst
+  // across the gate, where there is no boundary wall to hide it. A park has a
+  // NAMED edge: granite kerb, grass inside it, paving outside, standing a
+  // little proud of both so the join is a thing rather than an accident.
+  //
+  // It ABUTS and never overlaps (GOTCHAS §6): its east face stops 10 mm short
+  // of the walk's west face at x = -FACE rather than meeting it exactly,
+  // because two coincident vertical faces back to back are precisely what
+  // z-fights, and that ragged look in the screenshot may already have been
+  // it. The 10 mm is invisible at this world's texel density.
+  const kerbT = pixTex(Math.round(KERB_W * 32), 64, (g) => {
+    const r = clcg(0x9e31b2), KW = Math.round(KERB_W * 32);
+    g.fillStyle = '#8e8b83'; g.fillRect(0, 0, KW, 64);
+    for (let i = 0; i < 120; i++) {                 // granite, so speckle not grain
+      const k = r();
+      g.fillStyle = k > 0.7 ? '#9c998f' : k > 0.35 ? '#84817a' : '#77746d';
+      g.fillRect(Math.floor(r() * KW), Math.floor(r() * 64), 1, 1);
+    }
+    g.fillStyle = 'rgba(40,38,34,0.4)';             // a joint every 1 m
+    for (let y = 0; y < 64; y += 32) g.fillRect(0, y, KW, 1);
+    g.fillStyle = 'rgba(74,86,58,0.35)';            // moss on the grass side
+    for (let i = 0; i < 26; i++) g.fillRect(0, Math.floor(r() * 64), 1 + Math.floor(r() * 2), 1 + Math.floor(r() * 3));
+  });
+  kerbT.wrapS = kerbT.wrapT = THREE.RepeatWrapping;
+  kerbT.repeat.set(1, W / 2);
+  const KERB_TOP = 0.08;                            // how proud it stands
+  const kerb = new THREE.Mesh(new THREE.BoxGeometry(KERB_W - 0.01, KERB_H + KERB_TOP, W),
+    wet(flat(kerbT)));
+  kerb.position.set(EDGE_X + (KERB_W - 0.01) / 2 - 0.005, (KERB_H + KERB_TOP) / 2, (site.minZ + site.maxZ) / 2);
+  scene.add(kerb);
+
   // ── the field, and the loop around it ────────────────────────────────────
   //
   // The user's layout, and every part of it is doing something:
@@ -142,7 +195,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // the park is deepened the field grows and the loop grows with it — the
   // shape is right at 7 m and it is the same shape at 30 m.
   const PATH_W = 1.5;
-  const lx0 = backX, lx1 = site.maxX - 1.15;                 // the loop's legs
+  // The street leg stands far enough in that a bench and a bin fit BETWEEN it
+  // and the kerb, backs to the railings, facing the field. That strip is what
+  // the furniture was standing on the pavement for want of.
+  const lx0 = backX, lx1 = EDGE_X - 1.35;                    // the loop's legs
   const lz0 = site.minZ + 1.7, lz1 = site.maxZ - 1.7;
   lay(lx0 - PATH_W / 2, lx0 + PATH_W / 2, lz0, lz1, 'path');  // back leg
   lay(lx1 - PATH_W / 2, lx1 + PATH_W / 2, lz0, lz1, 'path');  // street leg
@@ -230,7 +286,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const railM = (lenM: number) => new THREE.MeshBasicMaterial({
     map: railTex(lenM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
   });
-  const RAIL_X = site.maxX - WALL_T / 2;
+  // ct/street.ts stands its boundary wall on the PAVEMENT side of the line
+  // (x -7.00…-6.64), so the railings belong at its centre — they were 0.18 m
+  // inside the park, floating clear of the wall they are supposed to top.
+  const RAIL_X = site.maxX + WALL_T / 2;
   for (const [rz0, rz1] of [[site.minZ + 0.3, gz0], [gz1, site.maxZ - 0.3]] as [number, number][]) {
     const len = rz1 - rz0;
     if (len <= 0.2) continue;
@@ -254,7 +313,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const pierM = flat(pierT);
   const capM = new THREE.MeshBasicMaterial({ color: 0x8a7a62 });
   for (const gz of [gz0, gz1]) {
-    const px = site.maxX - 0.28, dir = gz === gz0 ? -1 : 1;
+    const px = inside(0.35), dir = gz === gz0 ? -1 : 1;   // cap included
     const pier = new THREE.Mesh(new THREE.BoxGeometry(0.56, 1.62, 0.56), pierM);
     pier.position.set(px, KERB_H + 0.81, gz + dir * 0.28);
     scene.add(pier);
@@ -338,13 +397,13 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   };
   // one on the street leg looking back across the grass, one at each end of
   // the loop looking down the length of it
-  bench(lx1 + PATH_W / 2 + 0.42, gateMid + 4.6, -Math.PI / 2);
+  bench(inside(0.34), gateMid + 4.6, -Math.PI / 2);
   bench((lx0 + lx1) / 2 + 1.2, lz0 - 1.05, Math.PI);
   bench((lx0 + lx1) / 2 - 1.2, lz1 + 1.05, 0);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
-  const fx = lx1 - PATH_W / 2 - 0.45, fz = gateMid - 3.4;
+  const fx = lx1 - PATH_W / 2 - 0.45, fz = gateMid - 3.4;   // west of the loop, well inside
   const fPed = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.86, 0.34), concM);
   fPed.position.set(fx, KERB_H + 0.43, fz);
   scene.add(fPed);
@@ -360,7 +419,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   solid({ minX: fx - 0.3, maxX: fx + 0.3, minZ: fz - 0.28, maxZ: fz + 0.28 });
 
   // The bin, by the gate where the litter actually is
-  const binX = lx1 + PATH_W / 2 + 0.4, binZ = gateMid + 1.5;
+  const binX = inside(0.23), binZ = gateMid + 1.5;
   const binT = pixTex(8, 14, (g) => {
     g.fillStyle = '#333a2b'; g.fillRect(0, 0, 8, 14);
     g.fillStyle = '#4e5340';
