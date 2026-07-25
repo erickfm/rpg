@@ -24,7 +24,7 @@ const KERB_H = 0.14, RADIUS = 0.36;
 const ROOMS = [
   {
     id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0, H: 2.9,
-    doorX: 51.29, doorZ: -97.0, at: -3.2, hasWindow: false,
+    building: 'GOLDEN ACES', at: -3.2, hasWindow: false,
     // a z that is clear right across the room, for the ±x wall probes
     clearZ: 3.0,
     // an x clear of furniture, for the ±z wall probes
@@ -40,7 +40,7 @@ const ROOMS = [
   },
   {
     id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0, H: 3.4,
-    doorX: 39.51, doorZ: -97.0, at: -3.4, hasWindow: true,
+    building: 'HOTEL ORPHEUS', at: -3.4, hasWindow: true,
     clearZ: -3.9,
     frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
     doorApproach: [-3.4, 2.4],
@@ -59,7 +59,7 @@ const ROOMS = [
     // prompt: it runs -19.2 to -21.0, centre -20.10. Typing -15.25 here — which
     // is what this row said — is exactly what the descriptor exists to stop.
     id: 'tax', label: /A-1 TAX/, W: 11.8, D: 8.5, H: 2.75,
-    doorX: 7.0 - 0.45, doorZ: -20.13, at: -4.2, hasWindow: true,
+    building: 'A-1 TAX', at: -4.2, hasWindow: true,
     clearZ: 2.5,
     frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
     doorApproach: [-4.2, 2.4],
@@ -76,7 +76,7 @@ const ROOMS = [
     // Likewise derived: roomWidthFor(15) = 13.8, door declared at local 0 so it
     // lands on the building centre, cz = -60.5. Scanned: -59.5 to -61.3.
     id: 'pawn', label: /PAWN/, W: 13.8, D: 8.0, H: 2.8,
-    doorX: 7.0 - 0.45, doorZ: -60.5, at: 0, hasWindow: true,
+    building: 'PAWN', at: 0, hasWindow: true,
     // the customer floor — the whole front of the room now, not a corridor
     clearZ: 2.0,
     // an x on the front wall that is solid: the door is at -0.06 and the
@@ -126,6 +126,24 @@ const prompt = () => p.evaluate(() => {
 const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const press = async () => { await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e'); await p.waitForTimeout(260); };
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(120); };
+
+// ── ASK the world where each door is, never type it ─────────────────────
+//
+// These rows used to carry doorX/doorZ as literals. They passed anyway when the
+// casino and hotel spots drifted 0.25 m (095c7d63) — the 1.05 m trigger radius
+// absorbed it — which is the whole problem with a test that types the number it
+// is checking. `doorStandFor` is where a player is meant to stand, published by
+// the same declaration the room and the facade both read, so this cannot go
+// stale and cannot disagree with them.
+for (const r of ROOMS) {
+  const d = await p.evaluate(async (name) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    const s = dm.doorStandFor(name);
+    return s ? { x: s.x, z: s.z } : null;
+  }, r.building);
+  if (!d) { console.error(`no declaration for ${r.building} — cannot walk ${r.id}`); process.exit(2); }
+  r.doorX = d.x; r.doorZ = d.z;
+}
 
 const results = [];
 let room = null;

@@ -31,6 +31,25 @@ const prompt = () => p.evaluate(() => {
 });
 const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(110); };
+// ── ASK where the two doors are ─────────────────────────────────────────
+//
+// These were literals — 51.29 and 39.51 — and they passed even after the spots
+// drifted 0.25 m in 095c7d63, because the trigger radius is wider than the
+// error. A check that types the number it is verifying verifies nothing.
+// `doorStandFor` publishes where a player is meant to stand and the rooms and
+// the facade painter read the same declaration, so these three cannot disagree.
+const STAND = {};
+for (const nm of ['GOLDEN ACES', 'HOTEL ORPHEUS']) {
+  const d = await p.evaluate(async (name) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    const s = dm.doorStandFor(name), pt = dm.doorPointFor(name);
+    return s && pt ? { sx: s.x, sz: s.z, px: pt.x, pz: pt.z } : null;
+  }, nm);
+  if (!d) { console.error(`no declaration for ${nm}`); process.exit(2); }
+  STAND[nm] = d;
+}
+const ACES = STAND['GOLDEN ACES'], ORPH = STAND['HOTEL ORPHEUS'];
+
 const results = [];
 const check = (n, ok, d) => results.push([ok, n, d]);
 const f2 = (v) => +v.toFixed(2);
@@ -98,8 +117,8 @@ for (let z = -97.4; z <= -96.65; z += 0.1) {
     last = c[0];
     if (c[0] > 52) break;
   }
-  // past the casino door at 51.29, which is the whole point of the walk
-  const got = last > 51.0;
+  // past the casino door, which is the whole point of the walk
+  const got = last > ACES.px - 0.3;
   console.log(`  z=${z.toFixed(2)}  reached x=${f2(last)}${got ? '  clear' : ''}`);
   if (got) clear.push(z);
 }
@@ -167,7 +186,7 @@ check('the same band runs back west past both columns',
 // ── 2. you can stand UNDER the porte-cochère and under the marquee ───────
 // Both are overhead structures and neither should have put a collider in the
 // walking band. Standing under them means reaching the building line.
-for (const [nm, x] of [['the porte-cochère', 39.51], ['the marquee', 51.29]]) {
+for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', ACES.px]]) {
   let deepest = -99, moved = 0;
   for (let a = 0; a < 3 && deepest < -96.9; a++) {
     if (a) await p.waitForTimeout(1500);
@@ -185,8 +204,8 @@ for (const [nm, x] of [['the porte-cochère', 39.51], ['the marquee', 51.29]]) {
 
 // ── 3. the doors the facades were redrawn around still work ─────────────
 for (const [nm, x, re] of [
-  ['GOLDEN ACES', 51.29, /GOLDEN ACES/],
-  ['HOTEL ORPHEUS', 39.51, /ORPHEUS/],
+  ['GOLDEN ACES', ACES.px, /GOLDEN ACES/],
+  ['HOTEL ORPHEUS', ORPH.px, /ORPHEUS/],
 ]) {
   await warp(x, -97.8, Math.PI, KERB_H);
   await p.waitForTimeout(180);
