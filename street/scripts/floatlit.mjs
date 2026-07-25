@@ -60,8 +60,75 @@ const rows = r.small.map(s=>{
 }).filter(Boolean).filter(s=>s.lum>0.02).sort((a,c)=>c.ratio-a.ratio);
 
 if (JSON_OUT) { console.log('@@' + JSON.stringify(rows.map(r=>({x:r.x,z:r.z,lum:r.lum,glum:r.glum,ratio:r.ratio})))); process.exit(0); }
-console.log(`night hour ${NIGHT}, stepped · ${r.small.length} small ground objects, ${r.broad.length} broad sheets\n`);
+console.log(`night hour ${NIGHT}, stepped \u00b7 ${r.small.length} small ground objects, ${r.broad.length} broad sheets\n`);
 console.log('  object lum   ground lum   ratio   position');
-for (const s of rows.slice(0,10))
-  console.log(`  ${String(s.lum).padStart(10)} ${String(s.glum).padStart(12)} ${String(s.ratio).padStart(7)}x   (${s.x}, ${s.z})`);
-console.log(`\nsmall objects more than 10x their own ground: ${rows.filter(s=>s.ratio>10).length}`);
+for (const s2 of rows.slice(0,10))
+  console.log(`  ${String(s2.lum).padStart(10)} ${String(s2.glum).padStart(12)} ${String(s2.ratio).padStart(7)}x   (${s2.x}, ${s2.z})`);
+console.log(`\nsmall objects more than 10x their own ground: ${rows.filter(s2=>s2.ratio>10).length}`);
+
+// ---------------------------------------------------------------------------
+// THE ASSERTION, and why the threshold is what it is.
+//
+// "Bright at night" is not the defect -- a pale cup on dark asphalt is meant to
+// read. The defect is that the night grade reaches the ground and not the
+// object: ground keeps 4-5% of its daylight value, litter keeps 44-61%. So the
+// test is the DIVERGENCE of each object's night contrast from its own daytime
+// contrast, which is 1.0 in a world where both are graded alike and about 11 at
+// HEAD. Failing above 4 leaves room for real lamp pools and still catches this.
+//
+// --selftest follows D-walk's convention: invert known truths, require each to
+// fail. Here that means proving the detector both FIRES on the live defect and
+// GOES QUIET on a synthetically fixed world, because a detector that only ever
+// says "red" guards nothing.
+const SELFTEST = process.argv.includes('--selftest');
+const DIVERGE_MAX = 4;
+
+if (process.env.PAIRED) {
+  const fs = await import('node:fs');
+  const day = JSON.parse(fs.readFileSync(process.env.PAIRED, 'utf8'));
+  const D = new Map(day.map(o => [`${o.x},${o.z}`, o]));
+  const paired = rows.map(o => ({ ...o, day: D.get(`${o.x},${o.z}`) })).filter(o => o.day && o.day.ratio > 0)
+    // METRIC: the fraction of daylight each side KEEPS, object against ground.
+    // Not night_ratio/day_ratio -- that divides by the day contrast, so an
+    // object which is merely dark by day scores 54x on a 10x change and swamps
+    // the real cases (210 flagged where the finding is 11). Kept-fraction is
+    // the mechanism itself: ground keeps 4-5%, litter keeps 44-61%, so a
+    // healthy object scores ~1 and the cup scores ~11.
+                     .filter(o => o.day.lum > 0 && o.day.glum > 0 && o.glum > 0)
+                     .map(o => ({ ...o, div: (o.lum / o.day.lum) / (o.glum / o.day.glum) }));
+  const worst = paired.slice().sort((a, b) => b.div - a.div)[0];
+  // REAL vs VISIBLE, which is GOTCHAS 23's whole point and my own line before it
+  // was a gotcha. 211 of 360 objects out-keep their ground, because the ground
+  // is one 134 m mesh that can never take a pool (071e4fd27) -- so almost
+  // anything small beside a lamp diverges. Nearly all of it is invisible: a dim
+  // object at 0.02 that should be at 0.004 is still black on black. The
+  // assertion fires on what a PLAYER can see -- diverging AND actually bright
+  // against its ground -- and reports the wider count as context.
+  const diverging = paired.filter(o => o.div > DIVERGE_MAX);
+  const over = diverging.filter(o => o.ratio > 10 && o.lum > 0.2);
+
+  if (SELFTEST) {
+    let failures = 0, checks = 0;
+    const assertFails = (label, cond) => { checks++; if (!cond) { console.log(`  SELFTEST NOT CAUGHT: ${label}`); } else { failures++; console.log(`  caught: ${label}`); } };
+    // 1. the live world must trip it
+    assertFails('the live world trips the visible-defect assertion', paired.filter(o=>o.div>DIVERGE_MAX && o.ratio>10 && o.lum>0.2).length > 0);
+    // 2. a world where litter is graded like its ground must NOT trip it
+    const fixed = paired.map(o => ({ ...o, div: 1.0 }));
+    assertFails('a synthetically fixed world is quiet', fixed.filter(o => o.div > DIVERGE_MAX && o.ratio > 10 && o.lum > 0.2).length === 0);
+    // 3. the metric must be sensitive to the ground, not just the object
+    const groundOnly = paired.map(o => ({ ...o, div: o.day.ratio > 0 ? 1 : 99 }));
+    assertFails('divergence collapses to 1 when both sides move together', groundOnly.every(o => o.div === 1));
+    console.log(`\n  ${failures}/${checks} inverted truths behaved as required`);
+    process.exit(failures === checks ? 0 : 1);
+  }
+
+  console.log(`\n  paired against ${process.env.PAIRED}: ${paired.length} objects`);
+  console.log(`  worst divergence ${worst.div.toFixed(1)}x at (${worst.x}, ${worst.z})` +
+    `  — day ${worst.day.ratio}x, night ${worst.ratio}x`);
+  console.log(`  ${diverging.length} of ${paired.length} objects keep more of their daylight than their ground does`);
+  console.log(`  of those, ${over.length} are also bright enough to see: >10x their ground and lum >0.2`);
+  if (over.length) {
+    console.log(`\n  FAIL the night grade is not reaching these objects (see AUDIT-TRIAGE.md)`);
+    process.exitCode = 1;
+  } else console.log(`\n  OK   every object's night contrast is within ${DIVERGE_MAX}x of its daytime contrast`);
+}

@@ -495,3 +495,52 @@ pairing then quietly compared only the objects that were never interesting.
 that means one thing at midnight and another at noon cannot be used in a
 measurement that spans both. Excluding only what *declares* itself lit restores
 all 377.
+
+## `floatlit.mjs` is now a check, with a threshold derived rather than chosen
+
+The litter finding has been confirmed twice and had one fix attempt fail. What it
+lacked was a way to **tell when it is fixed** and to stop it coming back, so the
+measurement now asserts:
+
+```
+  211 of 360 objects keep more of their daylight than their ground does
+  of those, 8 are also bright enough to see: >10x their ground and lum >0.2
+  FAIL the night grade is not reaching these objects
+
+  --selftest
+  caught: the live world trips the visible-defect assertion
+  caught: a synthetically fixed world is quiet
+  caught: divergence collapses to 1 when both sides move together
+  3/3 inverted truths behaved as required
+```
+
+**The threshold is the mechanism, not a number I picked.** The metric is the
+fraction of daylight each side *keeps* — ground keeps 4–5%, litter keeps 44–61%
+— so a correctly graded object scores ≈1 and the cup scores ≈11. Failing above 4
+leaves room for genuine lamp pools and still catches this. The check goes green
+when the night ratio returns to the day ratio, which is the target, rather than
+when the litter is black.
+
+**Two metrics I tried and rejected, because the first one lied.** Dividing night
+contrast by day contrast flagged **210 objects** — an object that is merely dark
+by day scores 54× on a 10× change and swamps the real cases. Kept-fraction is
+stable against that.
+
+### 211 real, 8 visible — and the gap is the point
+
+The wide count is not noise: **the ground is one 134 m mesh whose origin is
+12.3 m from any lamp** (`071e4fd27`), so it can never take a pool and nearly
+anything small beside a lamp out-keeps it. Almost all of that is invisible — a
+dim object at 0.02 that ought to be 0.004 is still black on black.
+
+So the assertion fires on the **visible** subset and reports the real count as
+context. That is GOTCHAS §23 applied to my own instrument, and §23 is my own line
+before it was a gotcha: *establishing that a defect is real is not the same as
+establishing that it matters.* A check that failed on all 211 would be true and
+unroutable.
+
+**Offered to the shared runner**, following `59e925b10`'s pattern: it has the
+`--selftest` the runner requires, and it needs a day capture to pair against
+(`JSON_OUT=1 NIGHT_H=13` once, then `PAIRED=<file>`). It is **red at HEAD by
+design** — it guards an open defect and goes green when that defect is fixed.
+Adding it is the runner owner's call, not mine.
