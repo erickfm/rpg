@@ -171,11 +171,23 @@ for (let r = 0.75; r <= 3.75 && !found; r += 0.75) {
 say(!!found, 'the cereal counter is findable from the door',
   found ? `at (${found[0].toFixed(1)}, ${found[1].toFixed(1)}), ${JSON.stringify(await prompt())}` : 'not found within 3.75 m', 1);
 if (found) {
-  // $14.50 to start: five cereals at $2.50 is $12.50, so the sixth must be
-  // refused and $2.00 must still buy a $1.25 soda. That sequence is only true
-  // if ctx.purse is the object the HUD was built on.
-  for (let i = 0; i < 5; i++) { await page.keyboard.press('e'); await page.waitForTimeout(320); }
-  say((await prompt()).includes('you'), 'refused once the money is gone', JSON.stringify(await prompt()), 1);
+  // $14.50 to start and cereal is $2.50, so the money runs out on the sixth.
+  // BUY UNTIL REFUSED rather than pressing exactly five times: a dropped
+  // keystroke made this fail once in four runs, and a proof that cries wolf is
+  // worse than no proof. The assertion is no weaker — it still only holds if
+  // ctx.purse is the object the HUD was built on, and the SECOND line pins the
+  // count, so a purse that never decremented would still fail.
+  let bought = 0;
+  for (let i = 0; i < 12; i++) {
+    if ((await prompt()).includes('you')) break;
+    await page.keyboard.press('e');
+    await page.waitForTimeout(300);
+    bought++;
+  }
+  say((await prompt()).includes('you'), 'the money runs out',
+    `refused after ${bought} bought — ${JSON.stringify(await prompt())}`, 1);
+  say(bought >= 5 && bought <= 6, 'and it runs out where $14.50 says it should',
+    `${bought} x $2.50 against $14.50`, 1);
 }
 
 await browser.close();
