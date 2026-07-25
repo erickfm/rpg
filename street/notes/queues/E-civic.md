@@ -14,6 +14,39 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The park's edge is a mess and its furniture is in the walking lane.**
+      The user: *"park border with sidewalk looks fucked up, we gotta fix this.
+      in general we should not encroach the already cramped sidewalk"*. Ref:
+      `shots/user-parkedge.png`.
+
+      Two separate faults in that shot, and the second is the more important
+      one because it is a rule, not an instance.
+
+      **(a) The border has no edge treatment.** The grass runs straight into
+      the paving as a raw butt joint at a slightly different level, so the
+      boundary reads as two surfaces that happen to meet rather than as a
+      designed edge. Real parks have an edge you can name: a granite kerb, a
+      concrete band, a low plinth under the railings. Give it one — a hard
+      edge strip the full length of the frontage, with the grass sitting
+      inside it and the paving outside. It must ABUT the sidewalk exactly,
+      never overlap it (`GOTCHAS.md` §6) — an overlap here will z-fight, and
+      the ragged look in the shot may already be that.
+
+      **(b) The bin, the bench and the brick pier are standing ON the
+      sidewalk.** The bin in the foreground is squarely in the walking lane.
+      The user's words are the standing rule: *"in general we should not
+      encroach the already cramped sidewalk"*.
+
+      **Everything the park owns belongs INSIDE the park.** Bins, benches,
+      the noticeboard, piers, gate posts — all of it goes behind the edge
+      line. The only things allowed to touch the pavement are the railings
+      themselves and the gate opening. You now have 32 m of depth; there is
+      no reason for any of it to be out on the walk.
+
+      The 2 m lane is sacred (`GOTCHAS.md` §9) and the user checks it
+      constantly. **Walk the full length of the frontage** past the park with
+      the capsule and confirm you are never squeezed — do not eyeball it.
+
 - [ ] **The park is a BRICK WALL. Rebuild it 4–5× deeper as a real park.**
       The user: *"park should be much deeper, like 4-5x deeper. and make it
       nice, a nice park with trees and a litle field maybe even a play area

@@ -6,6 +6,36 @@ is a report only.
 
 ## Now
 
+- [ ] **Sweep the whole block for sidewalk encroachment.** The user, on the
+      park: *"in general we should not encroach the already cramped
+      sidewalk"*. That is a rule, and the park is unlikely to be the only
+      place breaking it — a lot of new furniture has landed today from five
+      different builders who cannot see each other's work.
+
+      This is your kind of job precisely: no single builder can measure the
+      whole lane, and the ones adding to it are each looking at their own
+      object.
+
+      **Measure, do not eyeball.** The player capsule is `RADIUS = 0.36`, so
+      0.72 m across, and `GOTCHAS.md` §9 says the 2 m lane is sacred. For
+      every collider that touches or overhangs the walk, report the clear
+      width remaining between it and the nearest neighbour or the kerb.
+
+      Cover at least: the park's bins, benches and piers; the car lot's fence,
+      bunting poles and sandwich board; the bodega crates; the bus bench and
+      its pole; tree pits; the payphone; the hydrant; lamp posts; A-boards;
+      and anything projecting from a shopfront now that the fascias and
+      stallrisers stand proud.
+
+      Report → `notes/lane-audit.md`, ranked by how little clearance is left,
+      with world coords and the owning file so the desk can route each one.
+      Flag anything under 1.0 m as a problem and anything under 0.8 m as
+      urgent — at 0.72 m the player physically cannot pass.
+
+      Then say whether this wants a permanent test rather than an audit: if a
+      script can assert the lane every build, that is worth more than finding
+      the instances once. Builder A owns `scripts/**` and would implement it.
+
 - [ ] **Walk every interior and audit it as a set.** Four agents are building
       ten rooms in parallel on a shared kit, which is exactly the condition
       your kind of audit exists for: each builder can only see their own room,
