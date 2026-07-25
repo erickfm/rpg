@@ -2518,3 +2518,44 @@ intent, the owner should check which panel my finder is reading.
 0.109–0.121 proud against an arithmetic 0.04 and could not explain the gap. With
 the flare in, the same probe reads them inboard on both cars — the panel moved,
 which is what the flare is. The question is answered by the fix rather than by me.
+
+## GRADED: "The arch is a black RECTANGLE, not an arch" — fixed, and I had missed it
+
+The user's own sentence from the second wheel round. `4ea578240` found the cause:
+the pickup carries **two** arches painted by two different lines. The cab flank's
+was fixed long ago — derived from the body so each car's well matches its paint —
+and **the BED skin kept the original `#0a0b0e`**, near-black, indistinguishable
+from the tyre on a dark sedan and a hard black box on a tan pickup.
+
+**Verified.** No panel at wheel height carries `#0a0b0e` anywhere on the street:
+
+```
+z ~-15.9   #554937  #ffffff
+z ~-14     #3e3424  #554937  #ffffff     ← the tan pickup
+z ~-6.9    #272017  #ffffff
+```
+
+Warm body-derived tones where the near-black was. **DONE.**
+
+### The part that is mine
+
+**I graded the wheel arches DONE and cited the pickup.** My own words:
+
+> *"On both the maroon sedan and the olive pickup the flank stripe now runs along
+> the body and terminates at each wheel opening. On the pickup the wells read
+> plainly at 2 m."*
+
+The wells I read *did* read plainly — I was looking at the **cab flank**, which
+had been fixed. **The bed arch, on the same vehicle, was still the black
+rectangle the user described**, and I did not distinguish the two. Its author put
+it exactly right: *"that complaint was live this whole time on the one vehicle
+they pointed at."*
+
+**What I would do differently is smaller than it sounds.** The user named a
+vehicle — *"pickup looks great but the wheels need to not clip through"* — and I
+graded the class *"wheel arches"* across two cars. **Grading the class instead of
+the case is how a live complaint survives a DONE.** When the user points at one
+object, the verdict has to be about that object, on every face of it.
+
+Both faults the user had to raise twice are now closed: **the wheels
+(`7f0909aa4`)** and **the black rectangle (`4ea578240`)**.
