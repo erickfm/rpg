@@ -131,12 +131,27 @@ if (mode === 'walk' || mode === 'all') {
     await page.evaluate((xx) => window.__ct.warp(xx, -24, 0, 0.14, 0), x);
     await page.waitForTimeout(120);
     await page.keyboard.down('w');
-    await page.waitForTimeout(9000);
+    await page.waitForTimeout(7500);
+    const mid = await page.evaluate(() => window.__ct.pos());
+    await page.waitForTimeout(1500);
     await page.keyboard.up('w');
-    const end = (await page.evaluate(() => window.__ct.pos()))[2];
+    const p2 = await page.evaluate(() => window.__ct.pos());
+    const end = p2[2], lastBit = Math.hypot(p2[0] - mid[0], p2[2] - mid[2]);
     // -45 is past the lamp at -37 and the whole stop; scraping the wall costs
-    // speed, so this is "got through", not "covered a target distance"
-    if (end < -45) lane = x;
+    // speed, so this is "got through", not "covered a target distance".
+    //
+    // AND "still moving" as an OR, for the same reason the two hikes above
+    // needed it. I argued in a44af5e6 that this sweep was safe from citizens
+    // because "everything at or inside 6.22 would have to block at once" — and
+    // then the shared runner caught it doing exactly that, reporting 6.28 on a
+    // world that gives 6.15 on a re-run. Five sequential 9 s walks down one
+    // stretch is forty seconds of exposure; one citizen standing kerb-side
+    // blocks every inboard position and lets the outermost past.
+    //
+    // I was wrong about the mechanism being unreachable, not about what it
+    // would look like. A walker still moving when the clock stops has an open
+    // lane whether or not it reached the line.
+    if (end < -45 || lastBit > 0.8) lane = x;
   }
   // WHY THIS SURVIVES CITIZENS while the hike above needed rewriting. I came
   // back to this expecting the same fragility: 21 m to cover in 9 s needs

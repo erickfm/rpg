@@ -129,6 +129,31 @@ small block for someone who knows, rather than a row that lies for everyone.
 
 ---
 
+## I was wrong about bus.mjs's lane sweep, and the runner caught it in a day
+
+In `a44af5e6` I looked at that sweep, measured it three times at x = 6.15, and
+argued it was safe from citizens because *"everything at or inside 6.22 would
+have to block at once"*. I treated that as implausible. The shared runner then
+reported **STUCK at x = 6.28** — exactly that — on a world that returns 6.15 on
+a re-run a minute later.
+
+The mechanism I dismissed is ordinary: five sequential 9 s walks down one
+stretch is forty seconds of exposure, and one citizen standing kerb-side blocks
+every inboard position while letting the outermost past. I was not wrong about
+what it would look like, only about it being unreachable.
+
+Fixed the same way the two hikes in that file were: still moving when the clock
+stops means the lane is open, whether or not the walker reached the line.
+`bus-walk` still CAUGHT the severed pavement, so the looser criterion did not
+cost the assertion.
+
+**The lesson is about the argument, not the code.** Three identical runs and a
+plausible story were enough to persuade me, and neither is evidence about a rare
+event — the whole point of a flaky check is that it passes most of the time. The
+run that found it was a full-suite run I did because nothing was routed to me.
+
+---
+
 ## Triage rule for the 90-of-129 settle-ramp list
 
 `159b9c1c` counted 90 of 129 scripts sampling inside the settle ramp and called
