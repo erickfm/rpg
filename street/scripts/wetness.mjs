@@ -142,26 +142,34 @@ if (mode === 'probe' || mode === 'all') {
     await page.waitForTimeout(9000);
     return page.evaluate(() => {
       const sc = window.__ct.scene();
-      let road = null, pud = null;
+      let road = null; const puds = [];
       sc.traverse((o) => {
         const im = o.material?.map?.image; if (!o.isMesh || !im) return;
         const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
         if (im.width === 64 && im.height === 64 && !o.material.transparent)
           road = road === null ? L : Math.min(road, L);       // asphalt is the darkest broad sheet
         if (im.width === 48 && im.height === 32 && o.material.transparent &&
-            o.material.blending === 1 && !pud && o.material.opacity > 0.1)
-          pud = { L, op: o.material.opacity };
+            o.material.blending === 1 && o.material.opacity > 0.1)
+          puds.push({ L, op: o.material.opacity });
       });
-      if (road === null || !pud) return null;
+      if (road === null || !puds.length) return null;
+      // ALL NINE, NOT THE FIRST ONE FOUND. This took `!pud` — it read whichever
+      // pool the traversal reached first and judged the whole contract on it.
+      // Nine pools carry different windows and different opacities, and the
+      // claim being made is that NONE of them inverts; the worst is the only
+      // one that can settle that. Same shape as basin.mjs probing one of two
+      // castings: a verdict about a family, measured on one member.
+      const comps = puds.map((q) => q.L * q.op + road * (1 - q.op));
       return { road: +road.toFixed(4),
-               composite: +(pud.L * pud.op + road * (1 - pud.op)).toFixed(4) };
+               composite: +Math.max(...comps).toFixed(4),      // the least dark = worst case
+               n: puds.length };
     });
   };
   const dayWet2 = [...Array(48).keys()].find((h) => rainy(h) && (h % 24) >= 11 && (h % 24) <= 16);
   const wetC = await contrastAt(dayWet2), dryC = await contrastAt(13);
   const levels = (c) => c ? ((c.road - c.composite) * 255).toFixed(1) : 'n/a';
   console.log(`\n  puddle against the road, in a storm at ${dayWet2 % 24}:00 — ` +
-    `road ${wetC?.road}, puddle ${wetC?.composite} => ${levels(wetC)} levels DARKER`);
+    `road ${wetC?.road}, worst of ${wetC?.n} pools ${wetC?.composite} => ${levels(wetC)} levels DARKER`);
   console.log(`  and on a dry afternoon — road ${dryC?.road}, puddle ${dryC?.composite} ` +
     `=> ${levels(dryC)} levels DARKER`);
   const neverInverts = wetC && dryC &&
