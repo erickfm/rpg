@@ -78,21 +78,28 @@ const runEast = async (z, from, to, tries = 3) => {
 // The reference is the main-street lamps, which leave 0.23 m for the player's
 // centre and are accepted. Anything at or above that is a lane; below it is a
 // pinch worth someone's attention.
+// Measured from x = 30, WEST of the hotel, not from 42. Starting at 42 only
+// covered the eastern porte-cochère column and the lamp beyond it; the western
+// column at 36.61 and the whole hotel approach were outside the probe. That was
+// a coverage gap I introduced when I replaced the two fixed lanes, and B has
+// since put lamps on this walk at x 20 and 45 (mainline d896c64f), so the run
+// now has four things on it and the band has to be the band past ALL of them.
 console.log('the north side-street walk — measuring the clear band eastward:');
 const BAND_MIN = 0.25;
 const clear = [];
 for (let z = -97.4; z <= -96.65; z += 0.1) {
-  await warp(42.0, z, EAST, KERB_H);
+  await warp(30.0, z, EAST, KERB_H);
   await p.waitForTimeout(140);
-  let last = 42.0;
-  for (let i = 0; i < 5; i++) {
+  let last = 30.0;
+  for (let i = 0; i < 12; i++) {
     await hold('w', 600);
     const c = await pos();
     if (c[0] - last < 0.12) break;
     last = c[0];
-    if (c[0] > 50) break;
+    if (c[0] > 52) break;
   }
-  const got = last > 49.0;
+  // past the casino door at 51.29, which is the whole point of the walk
+  const got = last > 51.0;
   console.log(`  z=${z.toFixed(2)}  reached x=${f2(last)}${got ? '  clear' : ''}`);
   if (got) clear.push(z);
 }
@@ -100,25 +107,25 @@ const band = clear.length ? (Math.max(...clear) - Math.min(...clear)) + 0.1 : 0;
 check('there is a clear band past the frontage furniture, wide enough to walk',
   band >= BAND_MIN,
   clear.length
-    ? `${f2(band)} m of centre band, z ${f2(Math.min(...clear))} … ${f2(Math.max(...clear))} `
-      + `(main-street lamps leave 0.23 m)`
-    : 'NO lane past the furniture reaches the casino at all');
+    ? `${f2(band)} m of centre band, z ${f2(Math.min(...clear))} … ${f2(Math.max(...clear))}, `
+      + `x 30 → past the casino door (main-street lamps leave 0.23 m)`
+    : 'NO lane runs the frontage from x 30 to the casino door');
 
-// and it has to reach the casino's own door, not merely past the columns
-check('that band reaches the casino door line at x = 51.29',
+// …and westward too, because a one-way frontage is still a broken one
+check('the same band runs back west past both columns',
   clear.length > 0 && (await (async () => {
-    await warp(42.0, clear[Math.floor(clear.length / 2)], EAST, KERB_H);
+    await warp(52.0, clear[Math.floor(clear.length / 2)], WEST, KERB_H);
     await p.waitForTimeout(140);
-    let last = 42.0;
-    for (let i = 0; i < 8; i++) {
+    let last = 52.0;
+    for (let i = 0; i < 12; i++) {
       await hold('w', 600);
       const c = await pos();
-      if (c[0] - last < 0.12) break;
+      if (last - c[0] < 0.12) break;
       last = c[0];
-      if (c[0] > 52) break;
+      if (c[0] < 30) break;
     }
     return last;
-  })()) > 51.0, 'walked the middle of the band to the door');
+  })()) < 33.0, 'walked the middle of the band back to the hotel end');
 
 // the outer lanes SHOULD stop at a column — that is what a column is
 {
