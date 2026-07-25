@@ -40,6 +40,7 @@ const CHECKS = [
   ['tree-crown',      'can you read a window through a tree again?',      true],
   ['window-lattice',  'are the lit windows a lattice again?',             true],
   ['shop-interior',   'is the shop glass a room, or a black hole?',       true],
+  ['checks-registered','is every self-testing script actually registered?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
