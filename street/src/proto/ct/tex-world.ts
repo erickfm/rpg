@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither } from './paint';
+import { pixTex, dither , declareSurface} from './paint';
 
 // ═══════════════════════════════ MASONRY DENSITY ═══════════════════════════
 //
@@ -1417,7 +1417,7 @@ export function asphaltTex(wMeters = 10, dMeters = 134): THREE.Texture {
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(Math.max(1, Math.round(wMeters / 3.4)), Math.max(1, Math.round(dMeters / 4.5)));
-  return t;
+  return declareSurface(t, 'ground');
 }
 
 // the sprite tree — a painted cutout that turns to face you, Quake-style.
@@ -1454,7 +1454,7 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
   const RX = 23 + Math.floor(r() * 7);          // 1.15–1.45 m: wide…
   const RY = 16 + Math.floor(r() * 6);          // …but shallow, so heads clear it
   const lobes = 5 + Math.floor(r() * 3);
-  return pixTex(TREE_W, H, (g) => {
+  return declareSurface(pixTex(TREE_W, H, (g) => {
     // trunk runs from inside the crown to the ground, so no gap ever shows
     const tTop = cy + RY - 4;
     g.fillStyle = '#4a3626'; g.fillRect(cx - 3, tTop, 6, H - tTop);
@@ -1563,13 +1563,13 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
       g.fillRect(Math.floor(cx + Math.cos(a) * rr * RX * 0.92),
                  Math.floor(cy + Math.sin(a) * rr * RY * 0.92), 2, 2);
     }
-  });
+  }), 'foliage');
 }
 
 // the pit replaces a 2×2 block of sidewalk slabs: concrete rim at slab
 // tone, joint shadows on the edges, soil inset — it FITS the grid
 export function treePitTex(): THREE.Texture {
-  return pixTex(38, 38, (g) => {
+  return declareSurface(pixTex(38, 38, (g) => {
     g.fillStyle = '#84817a'; g.fillRect(0, 0, 38, 38);
     g.fillStyle = 'rgba(0,0,0,0.25)';
     g.fillRect(0, 0, 38, 1); g.fillRect(0, 37, 38, 1);
@@ -1580,7 +1580,7 @@ export function treePitTex(): THREE.Texture {
       g.fillStyle = Math.random() < 0.5 ? '#4a3826' : '#30241a';
       g.fillRect(4 + Math.floor(Math.random() * 29), 5 + Math.floor(Math.random() * 28), 2, 1);
     }
-  });
+  }), 'ground');
 }
 
 // ── the entrance bay ──────────────────────────────────────────────────────
@@ -1730,7 +1730,7 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
 }
 
 export function hydrantSprite(): THREE.Texture {
-  return pixTex(32, 48, (g) => {
+  return declareSurface(pixTex(32, 48, (g) => {
     g.fillStyle = '#8a2c22';
     g.fillRect(12, 14, 8, 30);
     g.fillRect(8, 22, 16, 6);
@@ -1740,11 +1740,11 @@ export function hydrantSprite(): THREE.Texture {
     g.fillStyle = '#6a2018';
     g.fillRect(13, 44, 7, 2);
     dither(g, 32, 48, 60);
-  });
+  }), 'detail');
 }
 
 export function pigeonSprite(): THREE.Texture {
-  return pixTex(24, 24, (g) => {
+  return declareSurface(pixTex(24, 24, (g) => {
     g.fillStyle = '#6a6e78';
     g.beginPath(); g.arc(12, 15, 6, 0, Math.PI * 2); g.fill();
     g.fillStyle = '#4a4e58';
@@ -1753,11 +1753,11 @@ export function pigeonSprite(): THREE.Texture {
     g.fillRect(20, 10, 3, 1);
     g.fillStyle = '#3a3e46';
     g.fillRect(6, 13, 6, 4);
-  });
+  }), 'detail');
 }
 
 export function payphoneTex(): THREE.Texture {
-  return pixTex(32, 64, (g) => {
+  return declareSurface(pixTex(32, 64, (g) => {
     g.fillStyle = '#2c4a7a'; g.fillRect(0, 0, 32, 12);
     g.fillStyle = '#e8e4d8'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
     g.fillText('PHONE', 16, 9);
@@ -1765,7 +1765,7 @@ export function payphoneTex(): THREE.Texture {
     g.fillStyle = '#141820'; g.fillRect(6, 16, 20, 26);
     g.fillStyle = '#1c1e24'; g.fillRect(10, 46, 12, 14);
     dither(g, 32, 64, 60);
-  });
+  }), 'detail');
 }
 
 // ── street litter ──────────────────────────────────────────────────────────
@@ -1779,7 +1779,7 @@ export function payphoneTex(): THREE.Texture {
 export function canTopTex(v: number): THREE.Texture {
   const cols = ['#b8342a', '#2c6a8a', '#c9a02a', '#4a7a3a'];
   const c = cols[v % cols.length];
-  return pixTex(24, 14, (g) => {
+  return declareSurface(pixTex(24, 14, (g) => {
     // A can this size is only ~10 screen pixels, so the SILHOUETTE has to do
     // all the work: hard dark outline all round, label band centred with
     // equal aluminium ends, ribbing to say "cylinder". Without the outline it
@@ -1794,7 +1794,7 @@ export function canTopTex(v: number): THREE.Texture {
     g.fillRect(19, 3, 1, 8); g.fillRect(21, 3, 1, 8);
     g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(11, 3, 1, 8);    // crush crease
     g.fillStyle = 'rgba(0,0,0,0.40)'; g.fillRect(3, 12, 18, 1);   // contact shadow
-  });
+  }), 'detail');
 }
 
 // Paper trash: flyers, handbills, folded sheets — gone soft and grey in the
@@ -1803,7 +1803,7 @@ export function canTopTex(v: number): THREE.Texture {
 // Gutter paper is NOT newsprint-white. It has been rained on, walked on and
 // ground into the road; it sits only a little lighter than wet asphalt.
 export function paperTex(v: number): THREE.Texture {
-  return pixTex(22, 16, (g) => {
+  return declareSurface(pixTex(22, 16, (g) => {
     const k = v % 4;
     if (k === 0) {          // flyer, headline block + columns, half soaked
       g.fillStyle = '#8f8b7e'; g.fillRect(1, 1, 20, 14);
@@ -1827,16 +1827,16 @@ export function paperTex(v: number): THREE.Texture {
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(3, 13, 16, 1);
     }
     dither(g, 22, 16, 20);
-  });
+  }), 'detail');
 }
 
 // nondescript flattened scraps — wrappers, cup, cardboard
 export function scrapTex(v: number): THREE.Texture {
-  return pixTex(14, 12, (g) => {
+  return declareSurface(pixTex(14, 12, (g) => {
     const pal = [['#c9c2b2', '#a09884'], ['#8a6a4a', '#6a4f38'], ['#c0b0a0', '#93857a']][v % 3];
     g.fillStyle = pal[0]; g.fillRect(2, 3, 10, 7);
     g.fillStyle = pal[1]; g.fillRect(2, 8, 10, 2);
     g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(2, 10, 10, 1);
     dither(g, 14, 12, 14);
-  });
+  }), 'detail');
 }
