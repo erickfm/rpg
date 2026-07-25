@@ -418,6 +418,65 @@ check('the two faces of each blade carry the SAME texture, not a mirrored one',
   blades.pairs.length > 0 && blades.pairs.every((q) => q.sameSize && q.same === 1 && q.sameXf),
   blades.pairs.map((q) => `${q.h}m@x${q.x}: ${!q.sameXf ? 'MIRRORED BY TRANSFORM ' + q.xf : q.sameSize ? (q.same * 100).toFixed(1) + '% identical' : 'DIFFERENT SIZE'}`).join('; '));
 
+// ── 7. the chase RUNS, and some of it is broken on purpose ──────────────
+//
+// Two requirements from the item, neither of them checked until now:
+//
+//   "a marquee with chase lights round the edge that actually run — a sequence,
+//    not a static dotted border"
+//   "one dead bulb in the chase"
+//
+// The first is the one that would embarrass us. A static dotted border looks
+// entirely plausible in a screenshot and in a fingerprint, and the chase is
+// driven by the same per-frame tick as the spill, so it stops the same way and
+// leaves no trace. Nothing here has ever asserted that a bulb changes colour.
+//
+// The second is a detail a refactor erases silently: regenerate the bulb loop
+// without carrying the dead material across and the building just looks newer
+// than the brief asked for, with nothing to show for it.
+//
+// Sampled at IRREGULAR intervals on purpose. Even spacing can alias against the
+// chase period and report a running sequence as frozen — a sampling artefact
+// dressed as a defect, which is the mistake I made with the spill check when I
+// sampled from where the driver was not running.
+const chase = await p.evaluate(async () => {
+  const seen = new Map();                                  // material uuid -> Set of colours
+  const s = window.__ct.scene();
+  window.__ct.warp(45, -103, Math.PI, 0, 0);               // where the marquee renders
+  window.__ct.clock(23, 0);
+  for (const wait of [700, 180, 260, 330, 210, 290, 240]) {
+    await new Promise((r) => setTimeout(r, wait));
+    s.updateMatrixWorld(true);
+    s.traverse((o) => {
+      if (!o.isMesh || o.geometry?.type !== 'SphereGeometry') return;
+      let mod = null;
+      for (let q = o; q; q = q.parent) if (q.userData && q.userData.mod) { mod = q.userData.mod; break; }
+      if (mod !== 'vice') return;
+      if ((o.geometry.parameters.radius ?? 1) > 0.2) return;
+      const m = Array.isArray(o.material) ? o.material[0] : o.material;
+      if (!m || !m.color) return;
+      if (!seen.has(m.uuid)) seen.set(m.uuid, { cols: new Set(), n: 0, counted: false });
+      const rec = seen.get(m.uuid);
+      rec.cols.add(m.color.getHexString());
+      if (!rec.counted) rec.n++;
+    });
+    for (const rec of seen.values()) rec.counted = true;   // count bulbs once, not per sample
+  }
+  const lum = (h) => { const v = parseInt(h, 16); return (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255; };
+  const mats = [...seen.values()].map((r) => ({ n: r.n, cols: [...r.cols], varied: r.cols.size > 1, maxLum: Math.max(...[...r.cols].map(lum)) }));
+  return { mats, bulbs: mats.reduce((a, c) => a + c.n, 0) };
+});
+const moving = chase.mats.filter((m) => m.varied);
+const brightest = Math.max(...chase.mats.map((m) => m.maxLum));
+const deadMats = chase.mats.filter((m) => !m.varied && m.maxLum < brightest * 0.6);
+const deadBulbs = deadMats.reduce((a, c) => a + c.n, 0);
+check('the marquee chase actually RUNS a sequence, not a static dotted border',
+  moving.length >= 2 && brightest > 0.5,
+  `${chase.bulbs} bulbs; ${moving.length} of ${chase.mats.length} bulb materials changed colour across 7 samples, brightest ${brightest.toFixed(2)}`);
+check('…and some bulbs never light, because it is 1997 and past it',
+  deadBulbs >= 1 && deadBulbs < chase.bulbs * 0.1,
+  `${deadBulbs} permanently dark of ${chase.bulbs} (${(100 * deadBulbs / chase.bulbs).toFixed(1)}%) — the brief asked for "one dead bulb in the chase"`);
+
 console.log('');
 for (const [ok, n, d] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${n}\n        ${d}`);
 const bad = results.filter((r) => !r[0]).length;
