@@ -159,7 +159,7 @@ interface Vehicle {
 
 export interface Traffic {
   /** test affordance: every vehicle that is out, and what it is doing */
-  info: () => { x: number; z: number; yaw: number; spd: number; route: RouteName; s: number; lean: number; steer: number }[];
+  info: () => { x: number; z: number; yaw: number; spd: number; route: RouteName; s: number; lean: number; steer: number; held: number }[];
   /** test affordance: put the 42 on the block now (scripts/bus.mjs) */
   bus: (z: number, dir: 1 | -1) => void;
   busInfo: () => number[];
@@ -426,6 +426,12 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
     info: () => active.map((v) => ({
       x: v.obj.position.x, z: v.obj.position.z, yaw: v.obj.rotation.y, spd: v.spd,
       route: v.name, s: v.s, lean: v.obj.rotation.z, steer: v.steer,
+      // seconds this vehicle has been yielding to something in its way, reset
+      // the moment the way is clear. Published because a probe cannot otherwise
+      // tell "the geometry is wrong" from "the car was waiting for a
+      // pedestrian, correctly" — scripts/corner-traffic.mjs reported eight
+      // failures about a sound world for exactly that reason.
+      held: v.held,
     })),
     // the 42 is rare on purpose, so put it on the block now. `z` is a main
     // street coordinate, as it was when the sim was one axis: southbound is

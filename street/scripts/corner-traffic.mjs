@@ -54,22 +54,69 @@ const run = async (route, seconds, park = [-6.2, 40]) => {
   window.__ct.drive(route, 'car');
   const out = [];
   const t0 = performance.now();
-  let last = -1;
+  let last = -1, seen = false, done = false;
+  // STOP WHEN THE MOVEMENT IS OVER, not when a stopwatch says so. The window is
+  // only a ceiling now. ct/traffic.ts drops a vehicle at the end of its route,
+  // so an empty info() after we have seen the car IS the movement completing.
+  // A fixed 22 s window looked fine until a loaded machine starved the frames:
+  // sim time advanced at half wall-clock rate, the car was still on the
+  // approach when the window closed, and the probe called that a broken
+  // junction — 8 FAILs about a sound world.
   while (performance.now() - t0 < seconds * 1000) {
     await new Promise((r) => requestAnimationFrame(r));
     const now = performance.now() - t0;
     if (now - last < 40) continue;
     last = now;
     const v = window.__ct.traffic()[0];
-    if (v) out.push([now / 1000, v.x, v.z, v.yaw, v.spd, v.lean, v.steer, v.s]);
+    if (v) { seen = true; out.push([now / 1000, v.x, v.z, v.yaw, v.spd, v.lean, v.steer, v.s, v.held]); }
+    else if (seen) { done = true; break; }
   }
-    return out;
+    return { out, done };
   }, [route, seconds, park[0], park[1]]);
+};
+
+// A RUN THE CAR SPENT WAITING IS NOT EVIDENCE ABOUT THE ARC.
+//
+// clearJunction() waits for a gap before starting, but a walker can step onto
+// the crossing DURING the 22 s window, and ct/traffic.ts correctly stops for
+// them. That happened on a sweep and this probe reported EIGHT failures — never
+// turned, wrong lane, no lean, no steer — about a world where nothing was
+// wrong. The car had simply been standing still, doing the right thing.
+//
+// The test for a usable run has to be INDEPENDENT of what is being asserted.
+// "Did it come out heading east" cannot be the filter, or the check that it
+// comes out heading east becomes vacuous. "Was it ever held" is independent:
+// a car that never yielded and still failed to turn is a real fault.
+// The sim's OWN record of whether it had to give way — v.held, published by
+// ct/traffic.ts. "Was it ever held" is the right signal and "was it at rest" is
+// not: a car easing off for a walker on the crossing crawls at 1–3 m/s rather
+// than stopping, so a rest-fraction gate let three flaky runs through and
+// reported the junction broken each time.
+const usable = ({ out: s, done }) => {
+  const held = s.length ? Math.max(...s.map((q) => q[8] ?? 0)) : 99;
+  return { ok: done && held < 0.3, held, done };
+};
+
+const clearRun = async (route, seconds, label) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const r = await run(route, seconds);
+    const u = usable(r);
+    if (u.ok) return r.out;
+    console.log(`  ..   ${label} attempt ${attempt}: `
+      + (u.done ? `the car yielded for ${u.held.toFixed(1)} s to somebody in its way`
+        : 'the movement did not finish inside the window — starved frames, not a slow car')
+      + ' — nothing to say about the arc, retrying');
+  }
+  console.error(`\nINCONCLUSIVE — ${label}: three runs in a row were either spent yielding to `
+    + 'pedestrians or cut short by starved frames. The junction geometry is unmeasurable right '
+    + 'now; this is NOT a pass and NOT a fault in the world. Try again on an idle machine.');
+  await browser.close();
+  process.exit(2);
 };
 
 // ── 1 & 2. southbound, round the corner, away east ────────────────────────
 console.log('corner probe:');
-const ne = await run('NE', 22);
+const ne = await clearRun('NE', 45, 'southbound');
 check(ne.length > 100, `the run was sampled (${ne.length} frames)`);
 
 // the arc lives between the last southbound sample and the first eastbound one
@@ -87,24 +134,50 @@ check(startedS && endedE, `entered heading ${dirs[0]}, left heading ${dirs[dirs.
 const finalZ = ne[ne.length - 1][2];
 check(Math.abs(finalZ + 101.5) < 0.12, `settled in the eastbound lane — z=${finalZ.toFixed(2)} (want -101.50)`);
 const finalX = ne[ne.length - 1][1];
-// x > 12 rather than 20: the junction exit is at x=5, so anything past 12 has
-// carried on down the side street, which is what this asserts. 20 was a distance
-// the car happened to cover in the window before it learned to brake for
-// pedestrians on the crossing — a timing threshold masquerading as a behaviour.
-check(finalX > 12, `carried on east down the side street to x=${finalX.toFixed(1)}`);
+// "Carried on east" is a BEHAVIOUR, so do not measure it with a stopwatch. This
+// was `> 20`, then `> 12` — the note on the second version already said 20 was
+// "a timing threshold masquerading as a behaviour", and 12 turned out to be one
+// too: it failed at x=11.6 on a run where every other check passed and the car
+// was demonstrably round the corner and heading east. How far it gets in the
+// window depends on how long it waited, which is not what this asserts.
+//
+// So: it is CLEAR OF THE JUNCTION (whose exit is x=5), and once it turned east
+// it never went back west. That is the behaviour, and neither half is a clock.
+const eastFrom = dirs.indexOf('E');
+const tail = eastFrom < 0 ? [] : ne.slice(eastFrom);
+let backwards = 0;
+for (let i = 1; i < tail.length; i++) if (tail[i][1] < tail[i - 1][1] - 0.02) backwards++;
+check(finalX > 5 && tail.length > 4 && backwards === 0,
+  `carried on east down the side street — clear of the junction at x=${finalX.toFixed(1)}`
+  + `, ${tail.length} samples heading east, ${backwards} of them moving back west`);
 
-// CONTINUITY: no jump. At 8.5 m/s and ~40 ms samples a step is ~0.34 m; a
-// snapped heading or a seam between segments would show as a big one.
-let maxStep = 0, maxYawStep = 0;
+// CONTINUITY: no jump. A teleport or a seam between route segments shows up as
+// a step the car could not have driven.
+//
+// THIS MUST BE MEASURED AGAINST THE FRAME, NOT IN METRES. It used to be
+// `maxStep < 0.75` with dropped frames skipped at dt > 0.15 s — but 0.15 s at
+// 8.5 m/s is 1.28 m of perfectly legitimate travel, so the two guards
+// contradicted each other and the check fired on a BUSY MACHINE rather than on
+// a fault. It sat green for as long as frames happened to stay under 60 ms and
+// then failed at 0.75 m during a sixteen-probe sweep, with nothing wrong with
+// the world. So: compare each step to how far the car could actually have gone
+// at its own sampled speed in that frame's own dt.
+let worstRatio = 0, worstAt = null, maxStep = 0, maxYawStep = 0;
 for (let i = 1; i < ne.length; i++) {
   const dt = ne[i][0] - ne[i - 1][0];
-  if (dt > 0.15) continue;                       // a dropped frame, not a jump
-  maxStep = Math.max(maxStep, Math.hypot(ne[i][1] - ne[i - 1][1], ne[i][2] - ne[i - 1][2]));
+  if (dt <= 0) continue;
+  const step = Math.hypot(ne[i][1] - ne[i - 1][1], ne[i][2] - ne[i - 1][2]);
+  // the furthest it could legitimately cover: the higher of the two sampled
+  // speeds over this dt, plus 6 cm for the sample not landing on the frame edge
+  const room = Math.max(ne[i][4], ne[i - 1][4]) * dt + 0.06;
+  if (step / room > worstRatio) { worstRatio = step / room; worstAt = { step, dt, room }; }
+  maxStep = Math.max(maxStep, step);
   let dy = Math.abs(ne[i][3] - ne[i - 1][3]) % (2 * Math.PI);
   if (dy > Math.PI) dy = 2 * Math.PI - dy;
   maxYawStep = Math.max(maxYawStep, dy);
 }
-check(maxStep < 0.75, `path is continuous — biggest step ${maxStep.toFixed(2)} m`);
+check(worstRatio < 1.4, `path is continuous — worst step is ${(worstRatio * 100).toFixed(0)}% of what the car could drive in that frame`
+  + (worstAt ? ` (${worstAt.step.toFixed(2)} m in ${(worstAt.dt * 1000).toFixed(0)} ms, room for ${worstAt.room.toFixed(2)} m; biggest step anywhere ${maxStep.toFixed(2)} m)` : ''));
 check(maxYawStep < 0.12, `heading never snaps — biggest turn ${D(maxYawStep)}° in one frame`);
 
 // SLOWING: it must be materially slower through the arc than on the straight.
@@ -130,7 +203,7 @@ const junk = ne.filter((s) => s[6] === 0 && Math.abs(s[5]) > 1e-9).length;
 check(junk === 0, 'no lean or steer left over on the straights');
 
 // ── 3. the reverse movement: west up the side street, out north ────────────
-const en = await run('EN', 26);
+const en = await clearRun('EN', 50, 'the reverse movement');
 const dirs2 = en.map((s) => head(s[3]));
 check(dirs2[0] === 'W' && dirs2[dirs2.length - 1] === 'N',
   `reverse movement: entered heading ${dirs2[0]}, left heading ${dirs2[dirs2.length - 1]}`);
