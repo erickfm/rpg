@@ -721,3 +721,68 @@ The migration does **not** lift it. All eight rooms still declare their own
 not, `:553` now derives the position *from* `FW.doorWorld` — so comparing an
 interior door against the frontage's door still compares a number with itself.
 That row stays **[C]**.
+
+## Resolved: the two texture-hash measurements that "do not fit together"
+
+`2e7f51c0` posted a contradiction and honourably stopped short of a conclusion:
+`dither()` uses **unseeded** `Math.random()` (measured to differ across loads),
+yet `fp` reports all 954 textures byte-equal across two dev loads — while 612 of
+954 differ between dev and dist. It matters because CLAUDE.md rests the whole
+world-neutrality guarantee on *"textures and structure must match"*.
+
+**Both measurements are true and they do not conflict.** The override is not in
+`src/proto/`, which is where it was looked for — it is in the harness, injected
+from Node before the page loads:
+
+```js
+// scenedump.mjs:22-26
+await page.addInitScript(() => {
+  let s = 0x9e3779b9 >>> 0;
+  Math.random = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+});
+// "Test-harness only — the shipped world keeps its live grain."
+```
+
+So `dither()` really is unseeded in the world the user plays, **and** it is
+reproducible under `fp`. Confirmed: two dev dumps, `954 textures, 0 differ`,
+both hashing `951d46e3`.
+
+### And that also explains the third measurement
+
+The seed is **shared** with three.js, which spends four `Math.random` calls per
+object on `generateUUID` — so a texture's grain depends on *how many objects were
+created before it was painted*. `fpadd.mjs:21` says exactly this: *"creating ANY
+object repaints the grain of every texture made after it."* Dev and dist evaluate
+modules in different orders (native ESM vs the rollup bundle — the same ordering
+`globorder.mjs` reports), so the draw sequence diverges and everything painted
+after the divergence gets different noise.
+
+`fpadd`'s own repaint-vs-deletion test settles it — **612 lost, 612 gained**, and
+every lost texture has a same-dimension partner gained. Stripping the grain out
+and comparing what actually exists:
+
+```
+_structure  grain stripped:  1070 distinct kinds, 0 unmatched
+_textures   grain stripped:   253 distinct kinds, 0 unmatched
+_tints      grain stripped:   345 distinct kinds, 6 unmatched
+objects: identical (3489)   uniqueTextures: identical (954)
+```
+
+**Dev and dist build the identical world.** Same 3489 objects, same 954 textures,
+same dimensions, same geometry. The only genuine difference is 6 tints out of
+3489 — the living things, GOTCHAS §1's documented noise floor.
+
+### What this means for the guarantee
+
+The question was posed as a dilemma — *either the hash cannot see paint noise
+and the guarantee is weak, or the dev/dist difference is a real visual
+difference.* It is **neither horn**. The hash can see paint noise; the noise is
+merely pinned. The guarantee is **sound**.
+
+> **New rule, and it belongs in GOTCHAS.** `fp` hashes are comparable only
+> **within one build mode**. Run `fp before` on dev and `fp after` on a preview
+> and you will get ~2/3 of textures "changed" and every bit of it meaningless.
+> Dev-to-dev or dist-to-dist, never across.
+
+The tool was already right — `fpadd` size-matches repaints for precisely this
+reason. The gap was in interpretation, not instrumentation.
