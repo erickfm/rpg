@@ -417,7 +417,28 @@ for (room of rooms) {
     room.hasWindow ? 'the front wall under the window' : 'the WINDOWLESS front wall');
   if (!room.skipBack) await probe(room.backProbeX, room.backProbeZ, '-z', 'z', LIMZ, -1);
 
-  // the doorway is the one gap in the collider line — the one place a room leaks
+  // ── the doorway does not leak ────────────────────────────────────────
+  //
+  // This said "the doorway is the one gap in the collider line — the one place a
+  // room leaks", and MUTATION TESTING SHOWED THAT IS NOT WHAT IS THERE. Widening
+  // the casino's door from 1.15 m to 3.0 m — 2.6x — moved the stop not at all:
+  // z = 4.32 either way. A gap would have opened.
+  //
+  // What the kit actually builds, read off `__ct.colliders()` in room-local x:
+  //
+  //   -5.43 .. -3.77   z 4.50..4.68    wall, west of the door
+  //   -3.77 .. -2.63   z 4.68..4.86    THE DOORWAY, its own collider, 0.18 m proud
+  //   -2.63 ..  5.43   z 4.50..4.68    wall, east of the door
+  //
+  // The opening is CLOSED, by a box standing slightly forward of the wall line —
+  // 4.68 minus the 0.36 m body radius is 4.32, which is the number this check has
+  // been reporting all along without my knowing why.
+  //
+  // So the check is still worth having, but it guards something else than I said:
+  // that the kit keeps placing that doorway collider. If it ever stops, a player
+  // walks out of the room into nothing and this is what notices. Being wrong
+  // about the mechanism did not make the check wrong — it made the comment a
+  // false explanation, which is worse for the next reader than no comment.
   //
   // Walk until the player STOPS, not for a fixed time. This was `hold('w', 2600)`
   // and that is the defect this same file already fixed for the prompt walk 100
