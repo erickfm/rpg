@@ -20,16 +20,29 @@ keep showing it all day. That is worse than no stamp: it would confidently
 mislead the exact people it exists for.
 
 So the sha comes from a virtual module (`virtual:build-stamp`) whose `load()`
-shells out to git, and a `handleHotUpdate` hook that invalidates it whenever any
-file moves. Any change to the tree, the next page load re-runs git.
+shells out to git, invalidated on **every document request** so the next page
+load re-runs git.
 
-**Verified, not assumed.** With a dev server left running on :4190 and never
-restarted:
+**My first attempt at this was wrong, and testing it is the only reason I
+know.** I hooked `handleHotUpdate`, which fires when a *watched source file*
+changes. That looked right and reads plausibly. But HEAD can move without any
+watched file changing — a docs-only commit, an amend, a rebase that lands
+notes — and the stamp then keeps reporting the previous sha:
 
 ```
-HEAD 5190769  → stamp "5190769+ 18:38"
-   (commit — server untouched)
-HEAD <next>   → stamp "<next> …"      ← reloaded, no restart
+HEAD 5190769  → stamp "5190769+"
+   (commit 4c667bb — notes/ only, server untouched)
+HEAD 4c667bb  → stamp "5190769+"      ← WRONG, a commit behind
+```
+
+A stamp that is silently one commit behind is the precise failure this task
+exists to prevent, so the hook moved to a dev middleware on document requests:
+one `git rev-parse` per page load, no way to miss a move.
+
+```
+HEAD 4c667bb  → stamp "4c667bb+"
+   (commit <next> — notes/ only, server NOT restarted)
+HEAD <next>   → stamp "<next>+"       ← correct
 ```
 
 In the live worktree `HEAD` is the throwaway `live` merge commit, which is

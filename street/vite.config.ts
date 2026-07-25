@@ -34,12 +34,23 @@ function buildStamp(): Plugin {
         + `export const DIRTY = ${dirty};\n`
         + `export const AT = ${Date.now()};\n`;
     },
-    handleHotUpdate({ server }) {
-      // any file moved → the sha may have moved with it. Drop the cached
-      // stamp so the next page load re-runs git rather than replaying a
-      // stale literal.
-      const mod = server.moduleGraph.getModuleById(RESOLVED);
-      if (mod) server.moduleGraph.invalidateModule(mod);
+    configureServer(server) {
+      const stale = () => {
+        const mod = server.moduleGraph.getModuleById(RESOLVED);
+        if (mod) server.moduleGraph.invalidateModule(mod);
+      };
+      // Invalidate on every document request, NOT only on handleHotUpdate.
+      // Hooking file changes alone looked right and was not: HEAD can move
+      // without any watched file changing (a rebase that lands docs, an
+      // amend, a merge that touches only notes/), and the stamp then keeps
+      // reporting the previous sha. Measured — it reported a commit-old sha
+      // until something under src/ happened to change. Every page load is the
+      // cheap, honest trigger: one `git rev-parse` per reload.
+      server.middlewares.use((req, _res, next) => {
+        const url = (req.url ?? '').split('?')[0];
+        if (url === '/' || url.endsWith('.html')) stale();
+        next();
+      });
     },
   };
 }
