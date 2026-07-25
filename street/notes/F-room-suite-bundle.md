@@ -177,3 +177,43 @@ the build" is not a sentence to leave unexamined.
 
 Reproduce: `PINNED_MODE=preview ./scripts/slow-pinned.sh steps-walk` against
 `SHOT_URL=http://localhost:4185/ node scripts/steps-walk.mjs`.
+
+---
+
+## There is a THIRD suite, and it has never passed
+
+`8a7b44bcb` corrected a state report for counting one suite when there are two —
+`npm run checks` and E's `E-verify.mjs`. There is a third, and it is red:
+
+```
+$ npm run test
+> vitest run
+No test files found, exiting with code 1
+```
+
+`package.json` declares `"test": "vitest run"` and vitest is a real dependency,
+but nothing in the tree matches `**/*.{test,spec}.*`. So the most conventional
+command in any JavaScript project — the one a newcomer runs first, and the one
+CI would run by default — **has failed on every commit this project has ever
+had**, and nobody has noticed because nobody runs it.
+
+**Not proposing unit tests.** This world is verified by walking it, deliberately
+and correctly: a check that enters a room and presses `[E]` is worth more here
+than any number of assertions about a function, and CLAUDE.md says so. The
+problem is not the absence of vitest files, it is a declared entry point that
+cannot succeed.
+
+Two honest options, and both belong to whoever owns `package.json` rather than
+to me:
+
+1. **Delete the script.** It promises something this project does not do.
+2. **Point it at the real suite** — `"test": "node scripts/checks.mjs"` — so the
+   conventional command runs the unconventional suite.
+
+I lean to (2): the reason `npm run checks` keeps being found unregistered,
+unrun, or half-run is that nobody's fingers type it. `npm test` is the command
+people already have muscle memory for, and pointing it somewhere real costs one
+line.
+
+Recorded rather than done: `package.json` is shared and this changes what a
+command means for every builder.
