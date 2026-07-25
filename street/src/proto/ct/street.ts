@@ -52,6 +52,31 @@ export function buildStreet(o: {
   //   8    the depth BEHIND a facade. Shells are only 3.4 m deep; the extra
   //        stops you running round the back into the dead ground.
   const CUSH = WALK_PROJECTION;
+  // ── whose mesh is this ──────────────────────────────────────────────────
+  //
+  // `userData.mod` makes "whose face is this" a LOOKUP instead of geography.
+  // 501f5d74 measured what geography has cost: 726 of 3383 meshes stamped, all
+  // from two modules, so 79 % of every cross-agent attribution this week was
+  // inference — and inference misrouted thirteen faults onto ct/lot.ts, cost
+  // 9e1bce93 two rounds, and nearly misrouted a third time. I did two of those
+  // attributions myself, by hand, from coordinates (the lamp splash and pool).
+  //
+  // This module is a special case worth being careful about: `buildStreet`
+  // CALLS other agents' builders — E's library and church, G's casino and
+  // hotel, the cat rig — and they add straight to the same scene. Stamping
+  // everything added during this function would put my name on their
+  // geometry, which is precisely the false attribution the mechanism exists to
+  // stop. So each of those calls is bracketed and stamped with ITS OWN owner
+  // first, and `street` is applied last to whatever is still unclaimed.
+  //
+  // Never overwrites: first writer wins, so a module that stamps itself keeps
+  // its own answer.
+  const stampFrom = (mark: number, mod: string) => {
+    for (let i = mark; i < scene.children.length; i++) {
+      scene.children[i].traverse((n) => { if (!n.userData.mod) n.userData.mod = mod; });
+    }
+  };
+  const STREET_MARK = scene.children.length;
   const colliders: AABB[] = [];
   const solid = (b: AABB) => { colliders.push(b); return b; };
   // `kind` takes a building OUT of the shopfront system entirely — a civic
@@ -835,7 +860,8 @@ export function buildStreet(o: {
     if (b === 'alley') { zw = AZ1; continue; }
     if (b === 'park') { placePark(zw, 30); zw -= 30; continue; }
     if (b === 'bank') { placeBank(zw, 19.2); zw -= 19.2; continue; }
-    if (b.kind === 'library') placeLibrary(zw, b); else placeBld(-1, zw, b);
+    if (b.kind === 'library') { const m = scene.children.length; placeLibrary(zw, b); stampFrom(m, 'civic'); }
+    else placeBld(-1, zw, b);
     zw -= b.w;
   }
   // The church stands on the main block now, and `placeChurch` builds along +x
@@ -854,6 +880,7 @@ export function buildStreet(o: {
     buildCivic({ scene: g as unknown as THREE.Scene, flat, KERB_H }).placeChurch(0, 0, b);
     g.rotation.y = -Math.PI / 2;
     g.position.set(FACE + 1.7, 0, z - b.w);
+    g.traverse((n) => { if (!n.userData.mod) n.userData.mod = 'civic'; });
     scene.add(g);
     // NO blanket footprint here any more. This used to be
     //
@@ -935,17 +962,18 @@ export function buildStreet(o: {
   const vice = buildVice({ scene, flat, solid, KERB_H });
   for (const b of NORTH2) {
     sideSpans[b.nm] = [xn, xn + b.w];
-    if ((vice.VICE as readonly string[]).includes(b.nm)) vice.placeShell(xn, -94.3, b);
+    if ((vice.VICE as readonly string[]).includes(b.nm)) { const m = scene.children.length; vice.placeShell(xn, -94.3, b); stampFrom(m, 'vice'); }
     else placeBldZ(xn, -94.3, b, -1);
     xn += b.w;
   }
   // The signs at the far end of the side street are ct/vice.ts's too — the
   // casino's rooftop pylon and the hotel's blade. Invoked here, at the point in
   // the sequence they were built at before, for the paint-order reason above.
-  vice.placeSigns(sideSpans);
+  { const m = scene.children.length; vice.placeSigns(sideSpans); stampFrom(m, 'vice'); }
   let xs = -7;
   for (const b of SOUTH2) {
-    if (b.kind === 'church') placeChurch(xs, -111.7, b); else placeBldZ(xs, -111.7, b, 1);
+    if (b.kind === 'church') { const m = scene.children.length; placeChurch(xs, -111.7, b); stampFrom(m, 'civic'); }
+    else placeBldZ(xs, -111.7, b, 1);
     xs += b.w;
   }
   // ── the bodega turns the corner on a canted bay ─────────────────────────
@@ -1617,7 +1645,7 @@ export function buildStreet(o: {
     // on the ground, so they are gone rather than redrawn a fourth time —
     // the dumpster carries the alley on its own. Nothing referenced them:
     // the only alley colliders are the end wall and the dumpster.
-    buildCatRig({ scene, boards, AZ1 });
+    { const m = scene.children.length; buildCatRig({ scene, boards, AZ1 }); stampFrom(m, 'cat'); }
     // The leaning plywood sheet is gone too — a tan slab against brick reads
     // as a mystery door, not as junk. The wall behind it is full brick now,
     // so there is nothing to patch over.
@@ -1661,5 +1689,6 @@ export function buildStreet(o: {
     tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
+  stampFrom(STREET_MARK, 'street');
   return { colliders, park: PARK, lot: LOT, setWindows };
 }
