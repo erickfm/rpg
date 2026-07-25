@@ -222,6 +222,33 @@ That is a much narrower target and a much smaller alarm. It also means a player
 sitting down is fine; what is broken is something the harness does between
 seats, or something in the world that only obtains after 29 previous sits.
 
+### NARROWED AGAIN — a faithful minimal run over all 58 seats reproduces nothing
+
+The obvious next suspicion was cross-iteration state, so I replicated the loop:
+stand if seated, warp to the seat's approach, hold `[E]`, sample, hold w/s/a/d
+200 ms each, sample again — every seat, in order, one pass.
+
+```
+0 of 58 moved while seated
+```
+
+With the targeted result above (6/6 clean on seat 30, and a 1 s hold that moves
+0.00 m) that is three independent attempts to reproduce it against the world,
+all clean. **The world is not ejecting anybody.** What differs is everything
+`seats-walk` does that this replication does not: it reads the prompt, hunts for
+a standable approach point by warping around, checks camera height and yaw, and
+stands the player up with `[E]` at the end of each iteration.
+
+So the remaining suspect list is entirely inside my own harness, and the honest
+reading of the mainline symptom — 56/58, 57/58, 56/58, 58/58 — is a harness that
+occasionally measures across a state it created, not a world that occasionally
+throws you out of a chair.
+
+**That does not make it noise.** It makes it a check whose failures are
+unreadable, which is worse than a check that fails: the one time it reports a
+real ejection nobody will believe it. It still needs fixing, in `seats-walk`,
+and it is still mine.
+
 ### What is still unknown
 
 Movement is locked by the same early return, so neither the keys nor the
