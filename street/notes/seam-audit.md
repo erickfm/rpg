@@ -2225,3 +2225,69 @@ every structural difference I can measure and found none that predicts it.
 > complete answer, not a gap.** The fix does not depend on knowing which module
 > loses — `{ eager: false }` removes the whole class, and the guard
 > `doors-declared` catches it whichever room it lands on.
+
+---
+
+# Round 19 — the glob is wider than its only purpose, and narrowing it unblocks the held fix
+
+`72ec4790` reports a casino-door fix held up, and its own comparison table gives
+two candidates and why each is stuck:
+
+| candidate | status per that note |
+|---|---|
+| `{ eager: false }` | *"untested by anyone"* — turns `ensure()` async, ripples through callers |
+| `{ eager: true, import: 'DOOR' }` | **does not build** — `civic-doors.ts` fails `[MISSING_EXPORT] "DOOR" is not exported` |
+
+**The second is only stuck because the glob matches files it never uses.**
+
+## Two facts, both checked
+
+**1. `doors.ts` reads exactly one thing out of the glob.**
+
+```
+doors.ts:82   for (const path of Object.keys(MODS).sort())
+doors.ts:91     if (MODS[path] === undefined) { warn; continue; }
+doors.ts:97     const d = MODS[path]?.DOOR as DoorDecl | undefined;
+```
+
+`.DOOR` and nothing else. The glob's entire purpose is finding `DOOR` exports.
+
+**2. Only the eight rooms export one.**
+
+```
+files in ct/ exporting `export const DOOR`:
+   int-bodega int-burger int-casino int-diner int-hotel int-pawn int-tax int-thrift
+non-int files exporting DOOR:  none
+```
+
+`civic-doors.ts` does not declare a `DOOR` — consistent with `declaredDoors()`
+returning no library and no church.
+
+## So `'./*.ts'` → `'./int-*.ts'` is behaviour-preserving
+
+It collects **the same eight declarations**, because nothing else has one. And it
+does three things at once:
+
+- **`civic-doors.ts`, `interior.ts` and `world.ts` stop being matched at all** —
+  three of the four modules that resolve to an undefined namespace are only in
+  the glob because it is `./*.ts`
+- **`import: 'DOOR'` becomes viable**, since every matched module now exports it
+  — the exact `[MISSING_EXPORT]` that blocked that candidate disappears
+- it is a **one-character-class change**, testable in a single build
+
+## The risk, stated
+
+**A future module outside the `int-` prefix that declares a `DOOR` would stop
+being collected, silently.** That is a real regression risk and it is the reason
+to prefer `{ eager: false }` on principle. It is mitigated only if
+`doors-declared` compares the collected count against *modules exporting a
+`DOOR`* rather than a fixed number — **which I have not verified.**
+
+## Why I am putting this here rather than routing it
+
+I have no stake in who owns `ct/doors.ts`, and this needs no adjudication of
+that: it is two greps and a build. **Verification is already written** —
+`node scripts/globorder.mjs` must print *"every globbed binding is declared
+before the glob that reads it"* and exit 0, `npm run build` must pass, and
+`doors-declared` must go green. Any of those failing kills the suggestion in
+under a minute.
