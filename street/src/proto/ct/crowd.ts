@@ -73,6 +73,10 @@ export interface Crowd {
   atlases: () => string[];
   /** test affordance: who is on the block, how big and how fast */
   people: () => { sp: number; cad: number; hs: number; ws: number; footY: number }[];
+  /** where everybody is standing right now. Read by ct/traffic.ts, which will
+   *  not drive through a person — so this has to be live positions, not the
+   *  build-time cast. */
+  walkers: () => { x: number; z: number }[];
 }
 
 export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
@@ -175,5 +179,6 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       sp: c.sp, cad: c.cad, hs: c.mesh.scale.y, ws: c.mesh.scale.x,
       footY: c.mesh.position.y,
     })),
+    walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z })),
   };
 }

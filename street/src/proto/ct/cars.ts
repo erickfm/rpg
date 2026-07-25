@@ -287,12 +287,21 @@ export function makeBus(): THREE.Group {
   const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
+  const busFront: THREE.Mesh[] = [];
   for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
-    w.rotation.z = Math.PI / 2;
+    // YZX: the steer angle must turn the wheel about its own VERTICAL, after
+    // the cylinder has been laid on its side — with the default XYZ order the
+    // Y rotation would apply first and steer about the tilted axle instead.
+    // At steer 0 this is the same matrix as the plain rotation.z it replaces.
+    w.rotation.order = 'YZX';
+    w.rotation.set(0, 0, Math.PI / 2);
     w.position.set(wx, 0.44, wz);
     g.add(w);
+    if (wz === BUS_AXLE_F) busFront.push(w);
   }
+  g.userData.wheelbase = BUS_AXLE_R - BUS_AXLE_F;   // 5.5 m
+  g.userData.steer = (a: number) => { for (const w of busFront) w.rotation.y = a; };
   g.userData.halfLen = BUS_LEN / 2;   // the traffic collider is longer for this one
   g.userData.laneX = 1.35;            // hugs the centre line to clear parked cars
   g.userData.speed = 6.4;             // and it is slower than the cars
@@ -449,11 +458,18 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   const tireM = new THREE.MeshBasicMaterial({ color: 0x101114 });
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
+  const front: THREE.Mesh[] = [];
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
-    w.rotation.z = Math.PI / 2;
+    // see makeBus: YZX so steering turns the wheel about its own vertical.
+    // Front is -z (the whole model is built nose-first, see the file header).
+    w.rotation.order = 'YZX';
+    w.rotation.set(0, 0, Math.PI / 2);
     w.position.set(wx, 0.34, wz);
     g.add(w);
+    if (wz === -spec.wheelZ) front.push(w);
   }
+  g.userData.wheelbase = spec.wheelZ * 2;
+  g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
   return g;
 }

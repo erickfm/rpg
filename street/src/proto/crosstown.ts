@@ -11,14 +11,15 @@ import { FPRig, type AABB } from './fp';
 // the painted car fleet from the milestone. We grow it from here, together,
 // block by deliberate block.
 // ═══════════════════════════════════════════════════════════════════════════
-import { L, ROAD_HALF, WALK, FACE, PARK_X, DRIVE_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng';
+import { ROAD_HALF, WALK, FACE, PARK_X, FOG_NEAR, FOG_FAR, rnd } from './ct/rng';
 import { pixTex } from './ct/paint';
 import { asphaltTex } from './ct/tex-world';
 import { buildGround } from './ct/tex-ground';
-import { type CarKind, makeCar, makeBus } from './ct/cars';
+import { type CarKind, makeCar } from './ct/cars';
+import { buildTraffic } from './ct/traffic';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
-import { buildCrowd } from './ct/crowd';
+import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
@@ -189,35 +190,29 @@ export function makeCrosstown(): Proto {
     const cb = { minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] };
     carColliders.push(cb); citAvoid.push(cb);
   });
-  // traffic: one vehicle on the block at a time, entering from a foggy end,
-  // driving through, and leaving. Usually a plain car; the taxi is a rare
-  // sight and the 42 bus rarer still — roughly one pass in nine.
-  const plain = [makeCar('sedan', 2), makeCar('hatch', 4), makeCar('van', 5), makeCar('sedan', 3)];
-  const taxi = makeCar('sedan', 0, true);
-  const bus = makeBus();
-  const traffic = [...plain, taxi, bus];
-  traffic.forEach((c) => { c.visible = false; scene.add(c); props.lit(c); });
-  let cruiser = traffic[0];
-  let cruiseDir = -1;
-  let cruiseWait = 5; // gap between cars
-  // the 42 actually calls at the stop. Only SOUTHBOUND: the doors are on the
-  // bus's local +x, which is the east kerb only when it faces -z, and the
-  // stop is on the east walk. A northbound bus is serving the other side of
-  // the route and sails past — the pair stop across the street isn't built.
-  const STOP_FLAG_Z = -33.5;                       // the flag pole (ct/props.ts)
-  const BUS_STOP_Z = STOP_FLAG_Z - (bus.userData.doorZ as number); // centre when the door lines up
-  let cruiseSpd = 0;      // eased, so the bus brakes and pulls away smoothly
-  let busDwell = 0;       // seconds left standing at the stop
-  let busServed = false;  // this run has already called
-  const cruiserBox: AABB = { minX: 999, maxX: 999, minZ: 999, maxZ: 999 };
-  citAvoid.push(cruiserBox); // the moving car, too — its box follows it each frame
+  // ── the traffic, and the road network it drives ─────────────────────────
+  //
+  // The fleet, the junction at the corner and the driving all live in
+  // ct/traffic.ts. Built HERE, at this exact point in the sequence, because
+  // the car textures paint off the shared Math.random stream — moving the call
+  // re-grains every texture painted after it. `crowd` is assigned a few lines
+  // below and the accessor is only ever CALLED at runtime, so the lazy closure
+  // is safe (same pattern as `rig`).
+  let crowd!: Crowd;
+  const vehicleBoxes: AABB[] = [];   // one per vehicle in the pool, parked at 999 while idle
+  const traffic = buildTraffic(ctx, {
+    SIDE_Z0, SIDE_X1,
+    lit: props.lit,
+    vehicleBox: (b) => { vehicleBoxes.push(b); citAvoid.push(b); return b; },
+    peopleAt: () => crowd.walkers(),
+  });
 
   // ── the people on the block ─────────────────────────────────────────────
   //
   // The cast and the walking sim live in ct/crowd.ts. Built HERE, at this
   // exact point in the sequence, because the atlases paint off the shared
   // Math.random stream — moving the call re-grains every texture after it.
-  const crowd = buildCrowd(ctx, {
+  crowd = buildCrowd(ctx, {
     citAvoid,
     solid: (b) => { propColliders.push(b); },
     lit: props.lit,
@@ -270,7 +265,9 @@ export function makeCrosstown(): Proto {
     // the gap itself is reported to the desk in notes/feat-interiors.md.
     { minX: 260, maxX: 262, minZ: -112, maxZ: 20 },
     ...dinerColliders,
-    cruiserBox,
+    // the traffic pool replaces the single hand-placed cruiser: one box per
+    // vehicle, parked at x=999 while idle (see ct/traffic.ts)
+    ...vehicleBoxes,
   ];
   // Everything is built by now, so sweep the block into the night registry:
   // the buildings, the ground, the furniture. Anything already registered for
@@ -356,21 +353,16 @@ export function makeCrosstown(): Proto {
     },
     clock: (h: number, m = 0) => { totalMin = h * 60 + m; },
     // test affordance: the 42 is rare on purpose, so put it on the block now
-    bus: (z = -20, dir: 1 | -1 = -1) => {
-      cruiser = bus;
-      cruiseDir = dir;
-      const lx = (bus.userData.laneX ?? DRIVE_X) as number;
-      cruiser.position.set(dir === -1 ? lx : -lx, 0, z);
-      cruiser.rotation.y = dir === -1 ? 0 : Math.PI;
-      cruiser.visible = true;
-      cruiseWait = 0;
-      cruiseSpd = (bus.userData.speed ?? 8.5) as number;
-      busDwell = 0; busServed = false;
-      bus.userData.setDoors(false);
-    },
+    bus: (z = -20, dir: 1 | -1 = -1) => traffic.bus(z, dir),
     // …and read back what it's doing, so the stop can be verified as motion
     // rather than guessed at from a still
-    busInfo: () => [bus.position.x, bus.position.z, cruiseSpd, busDwell, busServed ? 1 : 0],
+    busInfo: () => traffic.busInfo(),
+    // test affordance: every vehicle that is out, and what it is doing —
+    // position, heading, speed, lean and steer (scripts/corner-traffic.mjs)
+    traffic: () => traffic.info(),
+    // test affordance: force a movement through the junction NOW, rather than
+    // waiting out a 18–42 s gap between passes
+    drive: (route: 'NE' | 'EN' = 'NE', which: 'car' | 'bus' | 'taxi' = 'car', s = 0) => traffic.spawn(route, which, s),
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast
@@ -446,69 +438,8 @@ export function makeCrosstown(): Proto {
       for (const b of boards) {
         b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
       }
-      // the crowd walks itself — ct/crowd.ts registers a LATE frame hook
-      // traffic: one car at a time drives through, entering from whichever
-      // end the player can't see into
-      // each vehicle carries its own lane offset, length and speed, so the
-      // bus can hug the centre line (it is too wide to share the cars' lane
-      // without brushing the parked ones) and roll slower than they do
-      const laneX = () => (cruiser.userData.laneX ?? DRIVE_X) as number;
-      if (cruiseWait > 0) {
-        cruiseWait -= dt;
-        if (cruiseWait <= 0) {
-          // mostly a plain car; the taxi about one pass in seven, the bus
-          // about one in nine
-          const roll = rnd();
-          cruiser = roll < 0.11 ? bus : roll < 0.26 ? taxi : plain[Math.floor(rnd() * plain.length)];
-          cruiseDir = pz < -L / 2 ? -1 : 1; // enter from the end farther from the player
-          cruiser.position.set(cruiseDir === -1 ? laneX() : -laneX(), 0, cruiseDir === -1 ? 8 : -L + 6);
-          cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
-          cruiser.visible = true;
-          cruiseSpd = (cruiser.userData.speed ?? 8.5) as number; // already rolling
-          busDwell = 0; busServed = false;
-          bus.userData.setDoors(false);
-        }
-      } else {
-        const base = (cruiser.userData.speed ?? 8.5) as number;
-        let want = base;
-        if (cruiser === bus && cruiseDir === -1) {
-          const dz = cruiser.position.z - BUS_STOP_Z;   // metres short of the stop
-          if (!busServed && dz < 16 && dz > -1) {
-            // brake in proportion to what's left, so it arrives at a standstill
-            want = Math.max(0, base * Math.min(1, dz / 11));
-            if (dz < 0.35) { busDwell = 4 + rnd() * 3; busServed = true; }
-          }
-          if (busDwell > 0) { busDwell -= dt; want = 0; }
-          bus.userData.setDoors(busDwell > 0);
-          // and it pulls in to the kerb to serve, then eases back out
-          const tx = (!busServed && dz < 20) || busDwell > 0 || (busServed && dz > -16) ? 3.55 : laneX();
-          cruiser.position.x += (tx - cruiser.position.x) * Math.min(1, dt * 1.2);
-        }
-        cruiseSpd += (want - cruiseSpd) * Math.min(1, dt * 1.7);
-        cruiser.position.z += cruiseDir * cruiseSpd * dt;
-        const endZ = cruiseDir === -1 ? -L + 6 : 8;
-        if (cruiseDir === -1 ? cruiser.position.z < endZ : cruiser.position.z > endZ) {
-          if (Math.abs(pz - endZ) > 25) {
-            cruiser.visible = false; // slips around the corner in the fog
-            cruiseWait = 18 + rnd() * 24;
-          } else {
-            // the player is watching this corner — turn around, don't vanish
-            cruiseDir = -cruiseDir;
-            cruiser.position.x = cruiseDir === -1 ? laneX() : -laneX();
-            cruiser.rotation.y = cruiseDir === -1 ? 0 : Math.PI;
-          }
-        }
-      }
-      // its collider follows (parked far away while nothing is out)
-      if (cruiser.visible) {
-        const hl = (cruiser.userData.halfLen ?? 2.5) as number;
-        cruiserBox.minX = cruiser.position.x - 1.15;
-        cruiserBox.maxX = cruiser.position.x + 1.15;
-        cruiserBox.minZ = cruiser.position.z - hl;
-        cruiserBox.maxZ = cruiser.position.z + hl;
-      } else {
-        cruiserBox.minX = cruiserBox.maxX = cruiserBox.minZ = cruiserBox.maxZ = 999;
-      }
+      // the crowd walks itself and the traffic drives itself — ct/crowd.ts and
+      // ct/traffic.ts each register a LATE frame hook
       // pigeons: peck, chase scattered cereal, spook when approached
       props.updatePigeons(dt, t, px, pz);
     },
