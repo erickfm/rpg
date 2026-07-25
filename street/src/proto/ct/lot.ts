@@ -395,6 +395,10 @@ export function buildLot(o: {
     placed = true;
     LOT.live = true;
     LOT.bounds = { minX: site.minX, maxX: site.maxX, minZ: site.minZ, maxZ: site.maxZ };
+    // Everything this module adds gets stamped, and the mark is taken here.
+    // All 51 scene.add calls in this file are inside placeLot and placeLot is
+    // synchronous, so children from `mark` to the end are exactly ours.
+    const mark = scene.children.length;
     const X0 = site.minX, X1 = site.maxX;          // street edge, back
     const zS = site.minZ, zN = site.maxZ;          // south and north ends
     const Y = site.y;
@@ -1557,6 +1561,26 @@ export function buildLot(o: {
     // above the wall needs no box of its own because the wall under it
     // already stops you. What this module makes solid is only what it put
     // there: the office, the two poles, and the stock.
+
+    // ── say what is ours ─────────────────────────────────────────────────
+    // `userData.mod = 'lot'` on every object this module put in the scene.
+    //
+    // Same move props.ts made with `userData.selfLit`, and for the same
+    // reason: from outside the scene graph you cannot tell whose a mesh is,
+    // so a whole-world checker has to be handed a BOX, and a box is a
+    // remembered coordinate. That has now misrouted the same finding three
+    // times — thirteen faults filed against this file from `30 60 -105 -90`,
+    // which holds none of it. They are a neon module's, ten blocks away.
+    //
+    // With this, a checker can select by author instead of by geography and
+    // the question "whose is this" stops being a guess:
+    //
+    //     o.traverse(n => { if (n.userData.mod === 'lot') … })
+    //
+    // Cheap and total — one field, set once at build, on everything.
+    for (let i = mark; i < scene.children.length; i++) {
+      scene.children[i].traverse((n) => { n.userData.mod = 'lot'; });
+    }
   };
 
   return { placeLot, colliders, LOT };

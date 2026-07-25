@@ -27,6 +27,25 @@ them: *a neon blade sign that stays bright at midnight is correct.* Since
 queue, which is real but is a different and much smaller claim than thirteen
 lit signs.
 
+## Third time, so I stopped writing notes and stamped the meshes
+
+`ct/lot.ts` now sets **`userData.mod = 'lot'`** on every object it puts in the
+scene — 404 of them, one field, set once at build.
+
+This is the same move `props.ts` made with `userData.selfLit`, and A called
+that one correctly: *the right fix on the right side of the wall.* From outside
+the scene graph you cannot tell whose a mesh is, so a whole-world checker has
+to be handed a box, and a box is a remembered coordinate. Selecting by author
+needs no memory at all:
+
+```js
+o.traverse(n => { if (n.userData.mod === 'lot') … })
+```
+
+Read back from the stamp alone, the lot is **x 7.13 → 30.12, z −9 → 14.2**,
+and 0 of its materials break §22. That number came out of the objects rather
+than out of a document, which is the whole point.
+
 ## What I changed so this stops happening
 
 `ct/lot.ts` now publishes `LOT.bounds` — `{ minX, maxX, minZ, maxZ }`, filled
