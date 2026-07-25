@@ -20,6 +20,27 @@ still shows them unchecked and `## Done` still reads *"nothing yet — you are n
 that is the desk's bookkeeping, and the map from each item to its commit is in
 **"Every item in `notes/queues/G-interiors2.md`, and where it landed"** below.
 
+**The user has the alignment fix.** Checked in the world he actually plays,
+`:5177`, not in mine: its build `811fe7f1c` contains `37a358e7c` (the centring
+commit), and walking it there gets 1.37 m into the casino and 4.00 m into the
+hotel from a standing entry. `:5177` is ~170 commits and 20 minutes behind
+mainline — E's church is the notable absence, and `live-integrate.sh` is the
+desk's — but my area is current in it.
+
+*Two things that run turned up.* **My own suites cannot measure `:5177`**: the
+which-world guard refuses it with "that server is not yours", which is correct by
+its rule — it compares the served build to my checkout — but the integration
+world is deliberately nobody's checkout, so the one world the user plays is the
+one my instruments will not look at. Measured it with a direct probe instead.
+
+And the casino's 1.37 m is **not** a regression from centring, though it looks
+like one. The slot bank at `bz 0.9` spans x [-4.85, 0.87] and ends at z 1.55, so
+a 0.36 m capsule stops at 1.91. The OLD door at local x -3.2 sat inside that same
+x range and had the same clearance. Stepping 0.9 m east clears it onto open
+floor, and boxing you into aisles is what the room is for. I came close to
+"fixing" it — the second time this session I nearly built over something that was
+already right (see the stallriser).
+
 **Verification, re-measured at `3237c395f` (2026-07-25), against a `vite preview`
 of `dist` built from that commit — not the dev server:** `G-rooms-walk` **114/114**,
 `G-vice-walk` **18/18**, `doors-declared` **10 of 10**, `mirror-walk` 5/5 rooms
