@@ -971,3 +971,53 @@ same as holding it in time"* — which is exactly what `globorder.mjs` reports
 about the eager-glob literals, where a binding emitted later in the bundle is
 `undefined` at construction. Two unrelated subsystems, one failure: **being
 present is not the same as being present yet.**
+
+## A blind spot in my own sweep, and a subsystem that has silently left the wet-look
+
+`e24c959a` found the wet lerp could **lighten** a surface darker than its `WET`
+target — dark asphalt **+398%**, the casino runner +70% — and clamped it. My
+sweep sorted into *"darkened > 20%"* and *"unmoved < 1%"*, so **anything that
+lightened fell between my two bands and was dropped without a word.** The script
+now reports that band explicitly. Measured at this HEAD: **0 lightened**, so the
+clamp holds and nothing had been hiding in the gap — but the instrument had been
+willing not to tell me, which is the part worth fixing.
+
+### The finding that came out of closing it: `vice` responds to nothing
+
+Adding a by-owner tally to the control turned up a change I had not gone looking
+for. Responding surfaces **317 → 256**, reproduced exactly on a second run:
+
+```
+responding surfaces by owner tag:
+    137 × street        47 × tex-ground     28 × lot
+     19 × (untagged PlaneGeometry)          10 × (untagged BoxGeometry)
+      9 × props          6 × civic
+
+vice: 303 outdoor materials, 0 responding
+```
+
+Two builds ago `vice` was the **top responder in the world at 87.9%**. A tag can
+move between builds, so that alone proves nothing — the check is by **position**:
+
+```
+what is at the old top-responder spots now:
+   (48.8, -97.7): 4 materials, best 0.0%  tag=vice
+   (49.9, -97.7): 2 materials, best 0.0%  tag=vice
+   (50.9, -97.7): 4 materials, best 0.0%  tag=vice
+```
+
+**Same coordinates, same tag, 87.9% → 0.0%.** Not a retag — those surfaces stopped
+responding to rain, and all 303 of vice's outdoor materials are now dry in a
+storm.
+
+**I am not calling it a regression, because it may be intended.** Three commits
+touch this: `2bab45b7` let vice join the wet-look, `a768f333` moved `registerWet`
+after finding it unreachable, and `5a24c796` deliberately **un**-registered the
+casino runner having looked at it. If that last revert came out broader than
+intended, this is a regression the size of a whole district; if vice was meant to
+come out entirely, it is done and this note is the confirmation. **That call
+belongs to vice's owner**, and it is one command to re-check either way.
+
+The reason this was invisible is worth keeping: the world got *greener* while a
+district silently stopped responding, because no check counts wet surfaces **per
+owner**. It does now.

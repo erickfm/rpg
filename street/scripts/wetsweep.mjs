@@ -90,6 +90,17 @@ const best = [...responded].sort((a, c) => c.drop - a.drop).slice(0, 3);
 console.log(`dry hour ${dryH}, wet hour ${wetH}   ·   ${out.length} outdoor materials joined\n`);
 console.log(`CONTROL — the surfaces that DID respond: ${responded.length}`);
 for (const r of best) console.log(`   ${pct(r.drop)}  ${r.mod || r.name}  at (${r.x}, ${r.z})`);
+
+// THE BAND THIS SCRIPT WAS BLIND TO. e24c959a found the wet lerp could LIGHTEN a
+// surface darker than its WET target — dark asphalt +398%, the casino runner
+// +70% — and it is now clamped so wet never lightens. My first version sorted
+// into "darkened > 20%" and "unmoved < 1%", so anything that LIGHTENED fell
+// between the two bands and was dropped without a word. Report it explicitly:
+// a blind spot you have named is a finding, a blind spot you have not is a lie.
+const lightened = out.filter((r) => r.drop < -0.01);
+console.log(`\nLIGHTENED by rain (should be none — e24c959a clamped it): ${lightened.length}`);
+for (const r of [...lightened].sort((a, c) => a.drop - c.drop).slice(0, 5))
+  console.log(`   ${pct(r.drop)}  ${r.mod || r.name}  ${r.dim}  at (${r.x}, ${r.y}, ${r.z})`);
 if (!responded.length) { console.error('\nInstrument saw no wet surface at all — do not trust anything below.'); process.exit(2); }
 
 // Anchor every dry candidate to ground that DID get wet beneath it. A decal on
@@ -118,3 +129,21 @@ if (!cand.length) console.log('   (none — the class is closed at this HEAD)');
 console.log('\nevery candidate, so an owner can find it:');
 for (const r of cand.sort((a, c) => (a.mod + a.z).localeCompare(c.mod + c.z)))
   console.log(`   ${(r.mod || r.name).padEnd(22)} ${r.dim.padEnd(14)} at (${r.x}, ${r.y}, ${r.z})`);
+
+// who responds, by owner tag — so a subsystem silently leaving the wet-look shows up
+const tally = new Map();
+for (const r of responded) { const k = r.mod || `(untagged) ${r.name}`; tally.set(k, (tally.get(k) ?? 0) + 1); }
+console.log('\nresponding surfaces by owner tag:');
+for (const [k, n] of [...tally.entries()].sort((a, c) => c[1] - a[1]))
+  console.log(`   ${String(n).padStart(4)} × ${k}`);
+const viceAll = out.filter((r) => r.mod === 'vice');
+console.log(`\nvice: ${viceAll.length} outdoor materials, ${viceAll.filter(r=>r.drop>0.2).length} responding`);
+
+// the three surfaces that led the control at build baa675d7, by POSITION not tag,
+// so retagging cannot be mistaken for deregistration
+console.log('\nwhat is at the old top-responder spots now:');
+for (const [X, Z] of [[48.8, -97.7], [49.9, -97.7], [50.9, -97.7]]) {
+  const hits = out.filter((r) => Math.abs(r.x - X) < 0.3 && Math.abs(r.z - Z) < 0.3);
+  const top = hits.sort((a, c) => c.drop - a.drop)[0];
+  console.log(`   (${X}, ${Z}): ${hits.length} materials, best ${top ? pct(top.drop) + '  tag=' + (top.mod || top.name) : 'none'}`);
+}
