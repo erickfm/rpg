@@ -8,7 +8,7 @@
 import { chromium } from 'playwright';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });
-await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await p.evaluate(() => window.__ct.clock(15, 0));
 await p.waitForTimeout(1000);

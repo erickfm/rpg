@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 780 } });
-await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(800);
