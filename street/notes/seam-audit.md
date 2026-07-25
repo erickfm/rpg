@@ -1738,3 +1738,61 @@ declaration count of 8. The line is wrong; the conclusion does not rest on it.)*
 the number of modules exporting a `DOOR`** — 8 today, 9 when the next room
 lands. It is one line, it fails loudly on the exact defect, and unlike a
 hand-written list of expected buildings it stays correct as rooms are added.
+
+## Round 14d — my "vice" hypothesis is wrong, and `civic-doors.ts` is the better exhibit
+
+Mainline tested my claim that *"room nine arriving can move the loss"* by adding
+inert probe modules sorting first and last (`dacb8ae8`). **The loss did not
+move, twice** — and they were explicit it is not a disproof, because an inert
+leaf is not a room. That is a fair test, honestly bounded, and it leaves my
+"unpredictable across builds" framing **unsupported rather than refuted**.
+
+So I asked the sharper question: all eight rooms import `./doors`, are globbed
+by it, and declare a DOOR. **Why the casino?**
+
+**Every room's local imports:**
+
+```
+int-bodega   ctx doors interior paint
+int-burger   ctx doors interior paint
+int-casino   ctx doors interior paint  vice     ← the only one
+int-diner    ctx doors interior paint
+int-hotel    ctx doors interior paint
+int-pawn     ctx doors interior paint  rng
+int-tax      ctx doors interior paint  rng
+int-thrift   ctx doors interior paint
+```
+
+**The casino is the only room importing `./vice`.** So I traced whether that
+gives it a second route into the cycle — and **it does not**:
+
+```
+vice      → civic, paint, tex-world
+civic     → ctx, paint, rng, tex-world
+tex-world → paint
+paint     → (nothing)
+```
+
+Every branch terminates without touching `doors`, `interior` or `world`.
+**Hypothesis disproved by tracing, not by argument.** What singles out the
+casino is still unexplained, and `vice` is not it.
+
+### What the trace did turn up
+
+```
+civic-doors → civic, ctx, interior          ← imports a globber
+who imports civic-doors?  →  nobody
+```
+
+**`civic-doors.ts` is imported by no file in the project.** It is reachable only
+because `ct/doors.ts` and `ct/world.ts` glob `./*.ts` — and it imports
+`./interior`, which globs `./int-*.ts`. So:
+
+> **A module that nothing imports is nevertheless inside an import cycle.** It
+> joined by being a file in a globbed directory, and it closes the loop by
+> importing a globber back. Nobody wrote that edge; nobody can see it in an
+> import statement; and deleting every reference to the file would not remove it.
+
+That is the clearest exhibit for the glob problem I have found, and it is a
+better argument for the `door-util.ts` split than my ordering claim was —
+because it does not depend on predicting evaluation order at all.
