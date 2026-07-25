@@ -1267,3 +1267,61 @@ from the person who drew the tree, not a ticket.
 
 New ground swept, 26 corners found, 8 shot at grazing angles, **8 read**,
 nothing to route. The last loose end I was carrying is closed.
+
+## Round 12 — the four ~6 px/m candidates, photographed and located
+
+A's extended `seampairs` collects unstamped faces now and surfaced four at a
+consistent ~6 px/m standing against declared-16 masonry, with the note *"those
+are the ones worth photographing."* That is my job, so:
+
+### What they are
+
+All four are the **park's boundary walls**, and their normals say so:
+
+| candidate | normal | facing |
+|---|---|---|
+| (−14.1, 2.8, −97.9) | 0, 0, **+1** | north, into the park |
+| (−25.2, 2.7, −97.9) | 0, 0, **+1** | north, into the park |
+| (−26.9, 2.5, −68.1) | 0, 0, **−1** | south, into the park |
+| (−17.1, 3.0, −68.1) | 0, 0, **−1** | south, into the park |
+
+`shots/cand-px6-a.png` at 4 m: a plain brick boundary wall with ivy climbing it
+and a tree in front. The coursing is **continuous across the whole frame** and
+the bricks are one size. Nothing in the frame disagrees with anything else in
+the frame.
+
+### The pairing does not survive checking
+
+I looked for the declared-16 partner each was reported against:
+
+```
+no declared-16 face within 4 m   ×4
+```
+
+Nothing within ±4 m in x, ±4 m in z, ±3 m in y of any of the four. The
+declared-16 faces are shopfront bands — **long thin meshes whose bounding boxes
+span an entire frontage** — so a bbox-adjacency test will pair one with
+something metres away from any part of its actual geometry.
+
+> **A bounding box is not the shape.** That is the same failure as my own box
+> face error two rounds ago, in a different tool: `parameters.width` is not the
+> width of every face of a box, and a bbox corner is not where a long band
+> actually is.
+
+### What I am and am not saying
+
+- **Not a defect I can demonstrate.** The four are unstamped, so `masonry()`'s
+  one-density rule does not govern them, and the specific junction reported does
+  not exist at the distance claimed.
+- **Not cleared either.** ~6 px/m *is* off the world's 8/16 grid, and a park wall
+  with visibly larger brick than the buildings behind it would be a real seam.
+  What settles that is a frame containing **both** — and `seam-0` and `seam-2`,
+  which look along these very walls with the block beyond, both read clean.
+- **The candidate list did its job.** It pointed at four faces, and four faces
+  turned out to be one thing — the park's boundary — which is a much easier
+  question for its owner than four scattered coordinates.
+
+Routing note for whoever owns `ct/park.ts`: the boundary walls are painted at
+~6 px/m and are not stamped. If they are meant to be masonry, stamping them
+brings them under the rule and the check; if they are meant to be a different
+material at a different scale, they are fine and should say so.
