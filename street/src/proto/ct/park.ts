@@ -260,10 +260,17 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     m.position.set((x0 + x1) / 2, KERB_H + LIFT * 0.75, (z0 + z1) / 2);
     scene.add(m);
   };
-  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.72);    // straight across
-  for (const s of [-1, 1]) {
-    const cz = s < 0 ? lz0 : lz1;
-    worn(lx0 + 0.9, cz + s * -0.9, lx0 + 2.6, cz + s * -2.4, 0.6);   // the cut corners
+  // A NETWORK, not a line. At 7 m one shortcut was the whole story; across a
+  // 26 m field one line reads as a scratch. These are the four crossings
+  // anybody actually makes — gate to each far corner, gate straight through,
+  // and the two corners of the loop nobody walks round.
+  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.72);       // straight across
+  worn(lx1 - 1.2, gateMid - 1.4, lx0 + 3.0, lz0 + 5.0, 0.66);     // to the south corner
+  worn(lx1 - 1.2, gateMid + 1.4, lx0 + 3.0, lz1 - 5.0, 0.66);     // and the north
+  for (const sgn of [-1, 1]) {
+    const cz = sgn < 0 ? lz0 : lz1;
+    worn(lx0 + 0.9, cz - sgn * 0.9, lx0 + 2.6, cz - sgn * 2.4, 0.6);
+    worn(lx1 - 0.9, cz - sgn * 0.9, lx1 - 2.6, cz - sgn * 2.4, 0.6);
   }
 
   // ── the fence ────────────────────────────────────────────────────────────
@@ -634,6 +641,79 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   capStone.position.set(memX, KERB_H + 4.12, memZ);
   scene.add(capStone);
   solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
+
+  // ── signs of use ─────────────────────────────────────────────────────────
+  //
+  // *"come at this with some more life and energy"* — and life in a park like
+  // this one is not ornament, it is EVIDENCE that people are here when you
+  // are not. A park with nothing dropped in it reads as a model of a park.
+  // All of it lies flat as a decal (GOTCHAS §3: a billboard would stand on
+  // end the moment you looked down) except the trolley, which is the joke.
+  const litterT = (seed: number, kind: 'paper' | 'can' | 'leaves') => pixTex(16, 16, (g) => {
+    const r = clcg(seed);
+    g.clearRect(0, 0, 16, 16);
+    if (kind === 'paper') {
+      g.fillStyle = '#cfc9b4';
+      for (let i = 0; i < 5; i++) g.fillRect(3 + Math.floor(r() * 8), 4 + Math.floor(r() * 8), 3 + Math.floor(r() * 3), 2);
+      g.fillStyle = 'rgba(120,112,92,0.55)'; g.fillRect(5, 8, 6, 1);
+    } else if (kind === 'can') {
+      g.fillStyle = '#9aa2a6'; g.fillRect(6, 6, 5, 3);
+      g.fillStyle = '#7a3e3c'; g.fillRect(6, 7, 5, 1);
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(6, 9, 5, 1);
+    } else {
+      for (let i = 0; i < 22; i++) {
+        const k = r();
+        g.fillStyle = k > 0.6 ? '#6a5a32' : k > 0.3 ? '#7b6a3c' : '#54492a';
+        g.fillRect(Math.floor(r() * 16), Math.floor(r() * 16), 1 + Math.floor(r() * 2), 1);
+      }
+    }
+  });
+  const drop = (x: number, z: number, sz: number, kind: 'paper' | 'can' | 'leaves', seed: number) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({
+      map: litterT(seed, kind), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    }));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = seed;
+    m.position.set(x, KERB_H + LIFT * 1.5, z);
+    scene.add(m);
+  };
+  const lr = clcg(0x7c1de3);
+  for (let i = 0; i < 14; i++) {                       // blown against the kerbs
+    const along = lr();
+    const z = site.minZ + 2 + along * (W - 4);
+    const x = lr() < 0.55 ? lx1 + PATH_W / 2 + 0.2 + lr() * 0.9 : lx1 - PATH_W / 2 - 0.3 - lr() * 3.5;
+    drop(x, z, 0.3 + lr() * 0.25, lr() < 0.45 ? 'paper' : 'can', 0x100 + i * 7);
+  }
+  for (let i = 0; i < 9; i++) {                        // leaf drift in the corners
+    const cx = lr() < 0.5 ? site.minX + 1.6 + lr() * 3 : lx1 - lr() * 3;
+    const cz = lr() < 0.5 ? site.minZ + 1.6 + lr() * 4 : site.maxZ - 1.6 - lr() * 4;
+    drop(cx, cz, 1.1 + lr() * 0.9, 'leaves', 0x200 + i * 11);
+  }
+
+  // A trolley from the supermarket that is not on this block, on its side in
+  // the grass. Nobody in the parks department is coming for it.
+  const trolleyM = new THREE.MeshBasicMaterial({ color: 0x9aa0a4 });
+  const meshT = pixTex(12, 10, (g) => {
+    g.clearRect(0, 0, 12, 10);
+    g.fillStyle = '#9aa0a4';
+    for (let x = 0; x < 12; x += 3) g.fillRect(x, 0, 1, 10);
+    for (let y = 0; y < 10; y += 3) g.fillRect(0, y, 12, 1);
+  });
+  const tx = lx0 + 3.4, tz = gateMid - 7.5;
+  for (const [dx, dz, ry] of [[0, 0, 0], [0.42, 0, 0], [0.21, 0.3, Math.PI / 2]] as [number, number, number][]) {
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.42), new THREE.MeshBasicMaterial({
+      map: meshT, alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    }));
+    side.position.set(tx + dx, KERB_H + 0.21, tz + dz);
+    side.rotation.y = ry;
+    scene.add(side);
+  }
+  for (const [wx2, wz2] of [[-0.2, -0.18], [0.55, -0.18]] as [number, number][]) {
+    const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.05), trolleyM);
+    wheel.position.set(tx + wx2, KERB_H + 0.33, tz + wz2);
+    scene.add(wheel);
+  }
+  solid({ minX: tx - 0.35, maxX: tx + 0.75, minZ: tz - 0.35, maxZ: tz + 0.5 });
 
   return { colliders };
 }
