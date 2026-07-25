@@ -1,110 +1,131 @@
 # Quality pass — the library, the church, the park
 
-Graded the way `AUDIT-TRIAGE.md` grades: by **whether a player can see it**,
-not by how cleanly I can measure it. Nothing here is fixed. Four of these are
-mine and I can take any of them the moment you route one.
+Graded the way `AUDIT-TRIAGE.md` grades: by **whether a player can see it**, not
+by how cleanly I can measure it.
 
-Method: walked all three areas at 13:20 and 22:30, plus `nightgrade.mjs` per
-area box, `E-verify.mjs` (all three walk), and a read of both files against the
-gotcha list. Shots in `shots/E-audit/`.
+This started as a look at three finished areas and turned into something else.
+The first pass found four things by looking. The second pass — after the park
+gained relief — found nine more, and **not one of them was visible in a
+screenshot**. They were found by asking the world questions: which mesh is on
+top, what is the floor here, do these two surfaces share a height. That is the
+finding behind all the other findings, and it is why three new checks exist.
 
-## Route these
+Method: `E-verify` (six areas now), `nightgrade` per area box, and a read of both
+files against the gotcha list. Shots in `shots/E-audit/`, `E-mound/`,
+`E-shelter/`, `E-park-night/`.
 
-| # | finding | can a player see it? | where | evidence |
-|---|---|---|---|---|
-| 1 | **The library courtyard and the churchyard have NO light source at all.** Not dim — unlit | **Yes, and it is the exact complaint the park got.** The courtyard has benches you sit on and steps you climb; at 22:30 you cannot see the doors you are standing in front of | lamps are `ct/props.ts` (B) | `shots/E-audit/i-night-court.png`, `j-night-churchyard.png`. `nightgrade` per box returns **no `additive` class** in either — courtyard `{opaque 0.029}`, churchyard `{opaque 0.029, alphaCut 0.07}` — against the park's, which has one |
-| 2 | ~~**The shelter's bench is not a seat.**~~ **FIXED** — `ctx.seat` registered, facing out of the open side, approach clear of the bench's own collider (§8). 58 seats now. The one destination at the far end of the park is the only bench in it you cannot sit on | **Yes.** Eleven benches on the loop take `[E]`; you walk 26 m to the thing the loop exists for and it does not | `ct/park.ts`, mine | `__ct.seats()` returns 11 bench seats, none inside the shelter |
-| 3 | **The gate lamp stands on the entry centreline**, 1 m inside the gate at x −7.9, z −83 | **Yes** — it is the first object in the gateway and you side-step it going in. It does not block: `E-park-walk` enters clean | `ct/props.ts` (B), **but the coordinate was mine** — I gave B that position without checking it against my own entry path | `shots/E-audit/c-kerb-lowangle.png` |
-| 4 | ~~**The shelter roof reads as a slab, not a pitched roof.**~~ **FIXED** — the wall plate became a perimeter instead of a solid box, and the slopes overhang it. Its two slopes are hidden under the 0.18 m beam drawn beneath them | **Probably** — it is 26 m from the gate and terminates the park's axis, so it is seen far more often than it is stood under | `ct/park.ts`, mine | `shots/E-audit/b-shelter-roof.png` |
+## Still open — route these
 
-## Record, do not route
-
-| finding | why not | where |
-|---|---|---|
-| **Both civic doors are closed forever** — you climb steps to a leaf 0.36 m away with no prompt | Real, and the most "unfinished" thing I own, but it is scope rather than a defect: it needs an interior, not a fix. `ct/interior.ts` already lists E as a consumer | `ct/civic.ts` |
-| **library ashlar at 9.41 px/m** | Already open as `AUDIT-TRIAGE` R7b. Cross-referenced here so it is not filed twice | `ct/civic.ts` |
-| **The path's asphalt patch lands at the park entry** | It is one patch in a per-surface texture and it happens to sit in the gateway. Reads as a tar repair, which is what it is meant to be. Cosmetic and arguably correct | `ct/park.ts` |
-| **Hoop rail has no collider** | Deliberate: a hoop is knee-high and you step over it, and a knee-high wall you cannot cross would be worse. Recorded so nobody "fixes" it | `ct/park.ts` |
-| **The church's painted steps sit behind the real flight** | Drawn twice, but the real flight and its landing occlude the painted ones at every angle you can stand at. Latent — it matters if the flight is ever moved | `ct/civic.ts` |
-
-## What I checked and found clean
-
-Worth recording so the next pass does not repeat it:
-
-- **§22 `alphaTest` + `transparent`** — zero in either file. `nightgrade` per box:
-  park `alphaCut` 1.000 → 0.302, churchyard → 0.07, courtyard clean.
-- **§3 billboards on the ground** — every decal is a fixed plane; no `board()`
-  call in either file.
-- **§10 double-sided mirrored art** — five `DoubleSide` planes, all of them
-  symmetric by construction (railings, ivy, leaves, litter, mesh). No lettering
-  goes through a double-sided plane anywhere in my files.
-- **§2 the seeded stream** — no `rnd()` draw in either file; both carry their
-  own LCG, so nothing I own can move a tree height or a pigeon.
-- **§9 the sacred lane** — `E-park-walk` audits every collider in the park's
-  z-span against x = −7.00 and drives the full 30 m frontage. Green.
-- **Wiring** — `npm run wiring` 24/24 constructed; `E-verify`'s own check says
-  every export of mine has a reader.
-
-## The one that is mine to answer for
+| # | finding | can a player see it? | where |
+|---|---|---|---|
+| 1 | **The library courtyard and the churchyard have NO light source at all.** Not dim — unlit. The courtyard has benches you sit on and steps you climb; at 22:30 you cannot see the doors you are standing in front of | **Yes, and it is the exact complaint the park got** | lamps are `ct/props.ts` (B) |
+| 3 | **The gate lamp stands on the park's entry centreline**, 1 m inside the gate at x −7.9, z −83. You side-step it going in | **Yes** | `ct/props.ts` (B), **but the coordinate was mine** |
+| 5 | **The park site's ground is a flat plane nobody may displace.** `openSite` in `ct/street.ts` floors each site with one opaque 32 × 30 m plane at `KERB_H`. A module that owns relief cannot cut below it, so my dish and corner fall had to be re-cut as hollows in a crown rather than real depressions | **Not any more** — but it caps how much topography the park can ever have | `ct/street.ts` (D), constrains `ct/park.ts` |
 
 Finding **3** is worth naming as a mistake rather than a defect. I handed B a
 table of lamp coordinates so the park would not be re-cut a third time, and one
 of them puts a lamp in the middle of my own gateway. I checked those positions
-against my colliders and never against the entry path I had drawn myself — the
-same class of error as the bench that landed in the gate, and I made it while
-being careful about exactly that.
+against my colliders and never against the entry path I had drawn myself.
 
-## Found by a later pass, and already fixed
+## Found and fixed since
 
-**The shelter's own textures broke §5 the morning they were added** — by me, in
-the act of citing the density mandate. A 16 px map with no `repeat` is one tile
-stretched over whatever face it lands on, so the density falls out of the
-member's size and differs for every one. Measured on what had shipped:
+All in `ct/park.ts` or `ct/civic.ts` unless noted. Ordered by what a player
+would have noticed.
 
-| member | before | after |
+| finding | what it looked like | how it was found |
 |---|---|---|
-| roof slope | 4.0 px/m across, 11.0 up | 8.0 / 8.0 |
-| front plate | 4.4 across, 114.3 up | 8.0 / 8.0 |
-| post | 100 across, 6.4 up | 8.0 / 8.0 |
-| ridge | 4.0 across, 47.1 up | 8.0 / 8.0 |
+| **The dish and the corner fall were drawn UNDER the park's own paving** | The two hollows were invisible and the floor picker still lowered you into them — you walked down into a dip that was not there | `E-coplanar`, then measured: at four points the site plane was on top and the grass 16–79 mm beneath |
+| **Every desire line ran the wrong diagonal** | The network fanned from the wrong corner of the gate. A mirrored fan still looks like a fan | reading the strip's own vertices after a drape check pointed at them |
+| **Both civic flights had never been tested** | Nothing — the world was correct. The harnesses reported "all walks passed" having SKIPPED both climbs for hours | the wired/unwired probe read a shared last-written value |
+| **The shelter's bench was not a seat** | You walk 26 m to the thing the loop exists for and it is scenery | `__ct.seats()` had no seat inside it |
+| **The shelter roof read as a slab** | Its two slopes bottomed out at exactly the height of the wall plate drawn beneath them, so no part of the pitch was ever visible | looking, at the one angle that shows it |
+| **The gate spur ran 0.75 m into the loop's street leg** | Two coplanar path surfaces fighting for depth, in the one place every visitor walks | `E-coplanar` |
+| **Two desire lines fought where they cross** | Flicker on the mound you notice and cannot place | `E-coplanar` |
+| **The mound bench floated 36 mm at one end** | A gap under a cast end, on 1-in-17 ground | `E-onslope` |
+| **Desire lines and the bald patch sank into the grass** | A worn path that fades out over a mound looks like a worn path that stops there | `E-drape` |
+| **The shelter's textures broke §5** | Grain that changes scale between two pieces of one shelter: 4.0 px/m across the roof, 114.3 up the front plate, against the world's 8 | computed from the member sizes |
 
-The world's masonry standard is 8 px/m. Fine detail plus a stretch is worse than
-no detail: it is grain that changes scale between two pieces of one shelter. A
-16 px tile over 2 m is exactly 8 px/m, so every repeat is just metres / 2.
+## The checks that came out of it
 
-## Since this was written
+Three new, all in `E-verify`, all written because the fault they catch is
+invisible in a screenshot:
 
-Findings **2** and **4** are done — both were mine, both were in `ct/park.ts`,
-and both turned out to be the same mistake: the shelter is the one piece of
-furniture in the park built by hand rather than through the `bench()` helper, so
-it missed the `ctx.seat` registration every other bench gets for free, and its
-roof was drawn under a slab of a wall plate that hid the pitch it already had.
+- **`E-drape.mjs`** — what is laid on the grass stays on top of it. A vertical
+  ray needs no Raycaster (the page publishes no `three`): point-in-triangle in
+  XZ plus one barycentric height.
+- **`E-onslope.mjs`** — what stands on the grass is not floating above it.
+- **`E-coplanar.mjs`** — no two *visible* surfaces share a height (§6). Names
+  which two meshes coincide, with sizes and positions.
 
-Findings **1** and **3** are B's file and stay routed.
+**Every one of them was wrong before it was right**, and that is the part worth
+recording:
 
-### One for the desk, about the harness rather than the world
+- `E-coplanar` first reported 83 points that were all correct geometry — two
+  rectangles sharing an edge, with the ray landing on the boundary line. A hit
+  now has to survive a 5 cm nudge, which an abutment cannot do.
+- It then reported the UNDERSIDES of stacked boxes. Only upward-facing
+  triangles can fight over a pixel you see.
+- `E-onslope` first compared terrain to terrain and reported the same 36 mm gap
+  *after* the bench had been fixed, because it was measuring the hill.
+- `E-drape` asserted the field must be the top surface, which fails wherever
+  anything legitimately stands on the grass — at one sample a bench 4 cm up.
+- `E-park-walk` asserted the dish was lower than `KERB_H`. A hollow is a hollow
+  relative to the ground around it.
 
-`seats-walk.mjs` came back **56/58** on that build, red on my two library
-courtyard benches — *"no prompt from the one standable point"*. It is not
-reproducible and I do not believe it:
+A check that fires on correct geometry teaches you to ignore it. Each of these
+was fixed rather than tuned to pass.
 
-- the same two seats passed the same harness **57/57** this morning, on code
-  that has not changed since;
-- walked the way a player meets them — stand 2.4 m out, hold W until the bench
-  stops you, press E — **both sit**, along with three park benches and the new
-  shelter seat. You stop 0.69–0.82 m from the seat, the prompt is up, and you
-  sit and stand clear;
-- probing the same point twice in two runs gave PROMPT once and null once,
-  which is what a timing artefact looks like and not what geometry looks like.
+## And the harnesses themselves
 
-The harness teleports to a point found by `standableNear` and reads the prompt
-140 ms later. My guess is that a teleport onto the approach point lands the
-capsule mid-settle, but it is a guess — what I can state is that the reds are
-not reproducible by walking, and that the seats work. Flagging rather than
-touching: `seats-walk.mjs` is not mine.
+The largest single finding of the pass. **Every floor reading in my four
+harnesses teleported the player and read `pos()[3]`** — that is `apt.gy()`, a
+last-written value that the citizens on the pavement also write, so the answer
+is whoever asked the picker last. It cost real diagnoses in both civic areas: a
+single stale read decided which HALF of a suite ran, so both flights went
+untested while the runs reported green. `window.__ct.groundAt(x, z)` asks the
+picker directly. A median of three does not help — it is not noise, it is a
+different question being answered.
 
-The park has also changed under this report since it was written — a re-cut loop,
-mowing stripes, and relief (see `E-park-relief.md`) — so the park half of it is
-worth re-running rather than trusted.
+Two more, same shape:
+
+- **`E-yard-walk`'s gate probe** was one un-retried walk deciding OPEN vs
+  SEALED, so one citizen in the gateway turned the climb into a SKIP and the
+  run still said everything passed.
+- **`E-verify` echoed only the lines it recognised**, so when every child exited
+  3 on the provenance guard it reported *"5 of 5 areas failed — do not land
+  this"* with no line of why, on a build where all five pass by hand.
+
+The lane legs now downgrade to a NOTE when nothing static is within 0.8 m: §9 is
+the check that most needs believing when it fires, and it went red twice today
+for a busy pavement. `E-walk --selftest` exercises that branch — and caught my
+first rig, which forced the walk 3 m past the library into the next building's
+footprint where a collider legitimately is.
+
+## Record, do not route
+
+| finding | why not |
+|---|---|
+| **Both civic doors are closed forever** — you climb steps to a leaf 0.36 m away with no prompt | Scope, not a defect: it needs an interior. `ct/interior.ts` already lists E as a consumer |
+| **library ashlar at 9.41 px/m** | Already open as `AUDIT-TRIAGE` R7b |
+| **The path's asphalt patch lands at the park entry** | Reads as a tar repair, which is what it is |
+| **Hoop rail has no collider** | Deliberate: a knee-high wall you cannot cross would be worse |
+| **The church's painted steps sit behind the real flight** | Occluded at every angle you can stand at. Latent if the flight moves |
+| **The corner fall reaches only paving level** | Consequence of finding 5, not a defect of its own |
+
+## Clean, and worth not re-checking
+
+- **§22 `alphaTest` + `transparent`** — zero in either file. `nightgrade`: park
+  `alphaCut` 1.000 → 0.302, opaque 0.128 → 0.024.
+- **§3 ground billboards** — none. **§10 mirrored art** — every `DoubleSide`
+  plane is symmetric by construction. **§2 the seeded stream** — no `rnd()` draw
+  in either file; the only two matches are comments explaining why not.
+- **§9 the sacred lane** — audited by collider and driven on foot, both ways.
+- **Wiring** — every export of mine has a reader.
+- **The `dimWorld` scare** — I measured a plain material getting *lighter* at
+  night and had a note written saying `dimWorld` replaces colour instead of
+  multiplying it, which would have made every flat-coloured material in the
+  world glow. It is wrong: `props.ts` stamps `userData.graded` on all of them
+  and the model is a multiply. What I measured was `POOL_GAIN 12` from a lamp
+  head 3.7 m away. Recorded so nobody re-opens it.
 
 _Builder E, 2026-07-25._
