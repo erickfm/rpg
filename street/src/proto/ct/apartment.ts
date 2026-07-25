@@ -599,7 +599,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // leaf already hit exactly this and came back with two knobs.
     const knobM = new THREE.MeshBasicMaterial({ color: 0xc9b45e });
     const knobDark = new THREE.MeshBasicMaterial({ color: 0x8f7d3c });
-    const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
+    // wallN is the centreline `casing` measures from. It puts its trim at
+    // wallN +- (WALL_T / 2 + T / 2), so it is picked to land a few mm PROUD of
+    // the leaf rather than behind it.
+    const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number,
+                       wallN: number) => {
       const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num, false)));
       d.position.set(wx, baseY + 1.05, wz);
       d.rotation.y = ry;
@@ -619,11 +623,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const ball = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), knobM);
       ball.position.set(wx + nx * 0.076, baseY + 1.02, wz + off);
       scene.add(ball);
+      // Report finding 2, the last of it: these six doors had their casing
+      // PAINTED INTO doorTexN, so beside 301's and 302's real architrave they
+      // read flat — consistent with each other, inconsistent with the two
+      // openings you actually walk through. The painted border stays (it is
+      // the leaf's own stile edge) and real trim goes outside it.
+      casing(wallN, wz - DOOR_W / 2 - 0.015, wz + DOOR_W / 2 + 0.015,
+        baseY, baseY + 2.1);
     };
     for (let f = 0; f < 4; f++) {
       if (f !== 2) {
-        doorPlane(`${f + 1}01`, AX(0.085), f * ST, AZI(3.5), Math.PI / 2);
-        doorPlane(`${f + 1}02`, AX(2.315), f * ST, AZI(3.5), -Math.PI / 2);
+        doorPlane(`${f + 1}01`, AX(0.085), f * ST, AZI(3.5), Math.PI / 2, AX(0.005));
+        doorPlane(`${f + 1}02`, AX(2.315), f * ST, AZI(3.5), -Math.PI / 2, AX(2.395));
       }
     }
     // ── 302, ajar ────────────────────────────────────────────────────────

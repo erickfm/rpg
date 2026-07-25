@@ -215,10 +215,12 @@ Worked top-down after the report was written. Fixed and landed:
 | 7 | the top landing's 0.50 m gap is a run of balusters at 0.08 clear | `balusters instead of half a metre of air` |
 | 8 | door knobs modelled as rose/stem/ball, radiator brackets and feet, the open drawer given sides, a bottom and a back | `three things you stand right next to` |
 
-Still open from the original list: **3** (wallpaper aliasing down the shaft),
-**5** (the half landings are lit past the turn rather than over it), and the
-flat doors' painted casing under **2** — which the report already called a
-bigger job and arguably fine.
+| 3 | the wallpaper's 1-texel pinstripe widened to 2 at half contrast, and the wall clones get linear-between-mips plus anisotropy — no more moire crawl up the shaft | `stop the wallpaper crawling` |
+| 5 | the landing lamp moved from 0.3 m past the landing's middle to over the TURN, where the rail wraps and you change direction | `light the turn` |
+| 2b | the six flat doors get real architrave, so they stop reading flat beside 301's and 302's | `flat doors get real trim` |
+
+**The whole list is closed.** What is left in the building is what the report
+recorded as right and said not to disturb.
 
 ## NEW, found while fixing 4 — and then WITHDRAWN
 
