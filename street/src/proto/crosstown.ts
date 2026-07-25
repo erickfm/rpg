@@ -686,9 +686,24 @@ export function makeCrosstown(): Proto {
       if (rmb && !rmbHeld) hud.toggleWallet();
       rmbHeld = rmb;
       // E: nearest live spot wins; with nothing near, E feeds the birds
+      //
+      // It said "nearest" and did FIRST-REGISTERED — the loop broke on the
+      // first spot in range, so with two triggers overlapping you got whichever
+      // module happened to build earlier, however far away it was. Three cases
+      // were live: standing exactly on the second of two diner booths offered
+      // the first, 0.67 m away, and the bus stop bench did the same at 0.9 m.
+      // You walk to a seat, press E, and sit down in the one next to it.
+      //
+      // Found by asking whether any two spot radii overlap at all (171 pairs
+      // do; all but three are a seat and its own "stand up", which are
+      // mutually exclusive through ok()). Kept as an assertion in
+      // scripts/seats-walk.mjs: stand ON a seat, and that is the seat offered.
       let active: Spot | null = null;
+      let best = Infinity;
       for (const s of SPOTS) {
-        if (s.ok() && Math.hypot(px - s.x, pz - s.z) < s.r) { active = s; break; }
+        if (!s.ok()) continue;
+        const d = Math.hypot(px - s.x, pz - s.z);
+        if (d < s.r && d < best) { active = s; best = d; }
       }
       hud.prompt(active ? `[E] ${active.label()}` : null);
       // E dispatch (edge-triggered)
