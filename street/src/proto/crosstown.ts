@@ -576,6 +576,15 @@ export function makeCrosstown(): Proto {
     // test affordance: force a movement through the junction NOW, rather than
     // waiting out a 18–42 s gap between passes
     drive: (route: 'NE' | 'EN' = 'NE', which: 'car' | 'bus' | 'taxi' = 'car', s = 0, add = false) => traffic.spawn(route, which, s, add),
+    // test affordance: stand one car of any kind and any CarState in front of
+    // the player, for scripts/carstate.mjs. Builds nothing at load time.
+    carVariant: (kind: CarKind = 'sedan', state: Record<string, unknown> = {}, x = 0, z = 0, ry = 0) => {
+      const c = makeCar(kind, 3, false, state as never);
+      c.position.set(x, 0, z); c.rotation.y = ry;
+      c.userData.probe = true;
+      scene.add(c);
+      return c;                    // the OBJECT: a count tells a probe nothing it can check
+    },
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast

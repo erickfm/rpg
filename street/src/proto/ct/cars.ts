@@ -464,7 +464,31 @@ export function makeBus(): THREE.Group {
   return g;
 }
 
-export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Group {
+/** Which corner. Front is -z (the model is built nose-first), and with forward
+ *  -z and up +y the LEFT side is -x — so 'fl' is (-x, -z). */
+export type Corner = 'fl' | 'fr' | 'rl' | 'rr';
+
+/** A car that is not just parked. Everything here is OFF by default and every
+ *  option is additive: with no options this function builds exactly the meshes
+ *  it always did, in the same order. That is deliberate rather than tidy —
+ *  three.js burns four `Math.random()` calls per object in `generateUUID`, so a
+ *  single extra mesh re-grains every unseeded texture painted after it and the
+ *  whole world's fingerprint moves (GOTCHAS §1). A lot full of jacked cars must
+ *  not be able to change the pigeons. */
+export interface CarState {
+  /** Bonnet up on its hinge, with a dark engine bay underneath. */
+  hood?: boolean;
+  /** Corners with no wheel fitted. */
+  wheelsOff?: Corner[];
+  /** That corner up on a jack: wheel off, and the body tilted onto the other
+   *  three. Implies `wheelsOff`. */
+  jack?: Corner;
+  /** Off the road for good: all four wheels off, body down on block stacks. */
+  blocks?: boolean;
+}
+
+export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: CarState = {}): THREE.Group {
+  let hoodPanel: THREE.Mesh | null = null;
   const body = taxi ? '#c9a12e' : CAR_COLORS[colorIdx % CAR_COLORS.length];
   const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
   const bodyM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body) });
@@ -517,7 +541,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   if (kind === 'sedan') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.9), hoodM(40));
     hood.position.set(0, 0.89, -(half + 0.95) / 2 + 0.02);
-    g.add(hood);
+    hoodPanel = hood; g.add(hood);
     const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8));
     trunk.position.set(0, 0.885, (half + 1.35) / 2);
     g.add(trunk);
@@ -525,13 +549,13 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   } else if (kind === 'hatch') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40));
     hood.position.set(0, 0.89, -(half + 0.8) / 2 + 0.02);
-    g.add(hood);
+    hoodPanel = hood; g.add(hood);
     // no trunk: the rear glass slopes all the way to the tail
     g.add(loftCabin(0.81, 0.72, 0.84, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
   } else if (kind === 'pickup') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40));
     hood.position.set(0, 0.89, -half + 0.85);
-    g.add(hood);
+    hoodPanel = hood; g.add(hood);
     // short cab, near-vertical rear window
     g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
     // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
@@ -661,7 +685,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     // tall box greenhouse, stub hood, near-vertical everything
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
     hood.position.set(0, 0.89, -half + 0.5);
-    g.add(hood);
+    hoodPanel = hood; g.add(hood);
     g.add(loftCabin(0.85, 0.8, 0.84, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
   }
 
@@ -688,7 +712,16 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   // proud. That sliver is also the only reason the wheel reads as a circle at
   // all, because the flank is opaque: moving it inboard to 0.72 stopped the
   // poking and buried the wheel, which was worse. See the arch note above.
+  // Which corners are bare. `jack` implies its own corner; `blocks` means all
+  // four. Empty for a normal car, so the loop below adds the same four meshes
+  // in the same order it always has.
+  const off = new Set<Corner>(state.wheelsOff ?? []);
+  if (state.jack) off.add(state.jack);
+  if (state.blocks) for (const c of ['fl', 'fr', 'rl', 'rr'] as Corner[]) off.add(c);
+
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
+    const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
+    if (off.has(corner)) continue;
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
     // see makeBus: YZX so steering turns the wheel about its own vertical.
     // Front is -z (the whole model is built nose-first, see the file header).
@@ -698,7 +731,98 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     g.add(w);
     if (wz === -spec.wheelZ) front.push(w);
   }
+  // The paint, published rather than left to be guessed at: scripts/carstate.mjs
+  // needs it to prove the engine bay is NOT body-coloured, and inferring it as
+  // "the commonest colour on the car" picks the tyre black off the four wheels.
+  g.userData.body = body;
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
+
+  // ── not-just-parked: hood up, on a jack, up on blocks ────────────────────
+  //
+  // Everything below is skipped entirely unless asked for. See CarState.
+  if (state.hood && hoodPanel) {
+    // Swing the panel about its REAR edge, which is where the hinge is on all
+    // four kinds — the hood is built butted up to the windscreen base, so
+    // rotating the nose end up moves it away from the glass, not into it.
+    const L = (hoodPanel.geometry as THREE.BoxGeometry).parameters.depth;
+    const py = hoodPanel.position.y, hinge = hoodPanel.position.z + L / 2;
+    hoodPanel.geometry.translate(0, 0, -L / 2);          // origin to the hinge
+    hoodPanel.position.set(hoodPanel.position.x, py, hinge);
+    hoodPanel.rotation.x = 0.95;                          // ~54°, nose end up
+
+    // A RAISED HOOD OVER BODY-COLOURED METAL IS THE TRUCK BED BUG AGAIN. The
+    // slab runs the full length under the bonnet with its top face at BELT, so
+    // opening the hood on its own just exposes more green — the same "surface
+    // nobody could see" that made two deep-bed requests fail. The bay has to
+    // be near-black for the opening to read as a hole, because an unlit world
+    // has no shadow of its own to darken it.
+    const bayM = new THREE.MeshBasicMaterial({ color: 0x14161a });
+    bayM.userData.noLight = true;                         // a lit engine bay reads as a brown tray
+    const z0 = hinge - L + 0.06, z1 = hinge - 0.06;
+    const bay = new THREE.Mesh(new THREE.BoxGeometry(1.58, 0.07, z1 - z0), bayM);
+    bay.position.set(0, BELT - 0.02, (z0 + z1) / 2);      // top 0.01 above the slab: a lip of body colour shows all round
+    g.add(bay);
+
+    // Coarse lumps only. This is a small area seen from above at a grazing
+    // angle — GOTCHAS §4 — so: three big shapes, no dither, no fine trim. The
+    // round air cleaner is what makes it read as an engine at three metres.
+    const engM = new THREE.MeshBasicMaterial({ color: 0x35383e });
+    const capM2 = new THREE.MeshBasicMaterial({ color: 0x1d1e22 });
+    engM.userData.noLight = true; capM2.userData.noLight = true;
+    const zc = (z0 + z1) / 2;
+    const block = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.17, Math.min(0.62, (z1 - z0) * 0.55)), engM);
+    block.position.set(0, BELT + 0.07, zc);
+    g.add(block);
+    const air = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.08, 10), capM2);
+    air.position.set(0, BELT + 0.19, zc);
+    g.add(air);
+    const batt = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.15, 0.32), new THREE.MeshBasicMaterial({ color: 0x2b2a1c }));
+    (batt.material as THREE.MeshBasicMaterial).userData.noLight = true;
+    batt.position.set(0.6, BELT + 0.06, z1 - 0.24);
+    g.add(batt);
+    g.userData.hoodOpen = true;
+  }
+
+  if (state.jack) {
+    // A car on a jack TILTS. Without that it reads as a car with a wheel
+    // missing parked next to a stand. The tilt has to apply to the whole body
+    // and not to `g`, whose rotation.y belongs to the caller — so the body
+    // moves into an inner group, which is also why this is opt-in only.
+    const sx = state.jack[1] === 'l' ? -1 : 1, sz = state.jack[0] === 'f' ? -1 : 1;
+    const body = new THREE.Group();
+    for (const c of [...g.children]) body.add(c);         // copy: add() mutates g.children
+    // 0.10 m of lift across a 1.64 m track and a wheelbase of spec.wheelZ*2.
+    body.rotation.z = -sx * 0.061;
+    body.rotation.x = sz * (0.10 / (spec.wheelZ * 2));
+    body.position.y = 0.03;
+    g.add(body);
+
+    const jm = new THREE.MeshBasicMaterial({ color: 0x24262a });
+    jm.userData.noLight = true;
+    const jx = sx * 0.74, jz = sz * (spec.wheelZ - 0.35);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.04, 0.24), jm);
+    base.position.set(jx, 0.02, jz);
+    g.add(base);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.30, 0.09), jm);
+    post.position.set(jx, 0.19, jz);
+    g.add(post);
+    g.userData.jack = state.jack;
+  }
+
+  if (state.blocks) {
+    // Sitting on stacks, not floating: three courses of 0.11 reach 0.33, and
+    // the rocker is at ROCKER = 0.34, so the top course touches the sill.
+    const bm = new THREE.MeshBasicMaterial({ color: 0x6e6862 });
+    for (const bx of [-0.74, 0.74]) for (const bz of [spec.wheelZ, -spec.wheelZ]) {
+      for (let i = 0; i < 3; i++) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.11, 0.24), bm);
+        b.position.set(bx, 0.055 + i * 0.11, bz);
+        g.add(b);
+      }
+    }
+    g.userData.onBlocks = true;
+  }
+
   return g;
 }
