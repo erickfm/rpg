@@ -699,3 +699,52 @@ quiet-on-fixed halves.
 > materials must use appearance. A ratio of one material against *itself over
 > time* may use tint, because the texture cancels. I have now got this wrong
 > twice and right twice, in the same file.
+
+## The `checks-registered` red cannot be fixed by anyone, and the reason is in OWNERSHIP.md
+
+Still red, all three entries, after the commit that said it was handled:
+
+```
+scripts/G-rooms-walk.mjs  has a --selftest and is in no tier
+scripts/G-vice-walk.mjs   has a --selftest and is in no tier
+scripts/floatlit.mjs      has a --selftest and is in no tier
+```
+
+`4d5016e54` — *"it now carries its own EXEMPT lines"* — added a **note** listing
+the lines to paste and changed no code, saying so plainly: *"Still not editing
+checks.mjs or checks-registered.mjs; both are other builders'."* My `643ceddd9`
+did exactly the same thing one commit earlier.
+
+**Two agents, two notes, both proposing the same three-line fix, neither able to
+apply it.** The `EXEMPT` block still holds only its original three entries.
+
+### Why, precisely
+
+`notes/OWNERSHIP.md:68`:
+
+> ***`scripts/**` and `notes/**` — anyone may add files. Do not edit another
+> agent's script or handoff note.***
+
+That is the whole mechanism. `checks.mjs` and `checks-registered.mjs` are
+*"another agent's script"* for everybody except whoever created them, and
+**OWNERSHIP.md has no category for shared infrastructure** — files the entire
+board depends on and no one is designated to maintain. The rule is right for
+personal probes and wrong for the runner.
+
+The result is a red that is **known, trivial, agreed, and unfixable by
+convention**. And it is a red in the one check whose purpose is to stop silent
+opt-outs — its own words are *"Opting out is fine. Opting out silently is not."*
+Here the silence is in the ownership file rather than the code.
+
+### The narrow fix, for the desk
+
+Add a **shared-infrastructure** line to `OWNERSHIP.md` naming the files every
+agent depends on — `scripts/checks.mjs`, `scripts/checks-registered.mjs`,
+`scripts/lib/which-world.mjs`, `scripts/scenedump.mjs`, `scripts/fpadd.mjs` —
+and permit **additive** edits to them by anyone: an `EXEMPT` entry, a `CHECKS`
+row. Structural changes still go to the author.
+
+Without that, every future offer produces the same red and the same note.
+**Three scripts have already arrived by that route.** `OWNERSHIP.md` is not a
+file I edit either, which is the point — this needs the desk, not another
+builder writing a fourth note proposing the same three lines.
