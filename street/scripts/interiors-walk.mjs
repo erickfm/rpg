@@ -24,6 +24,17 @@ const ROOMS = [
     id: 'bodega', label: /BODEGA/, D: 8.4, front: ['BODEGA', 10, -95, 1], chamfer: true,
   },
   {
+    // ST BRIGID'S. Reached from the TOP OF A FLIGHT, not from the pavement —
+    // the only room in the belt whose door is 0.55 m up its own steps, so the
+    // street-level approach legs the other eight use do not apply.
+    //
+    // `keeper: null` is the explicit opt-out, not an omission: a weekday
+    // afternoon church has nobody in it, and that emptiness is the room.
+    id: 'church', label: /BRIGID/, D: 16, W: 8.5,
+    keeper: null,
+    doorX: 8.85, doorZ: -79.5, at: 0, sideStreet: true,
+  },
+  {
     // `keeper` is where a PLAYER STANDS to be served — a stool-width out from the service counter.
     keeper: [-1.40, -1.00],
     id: 'diner', label: /DINER/, D: 7.0, front: ['DINER', 12, -49.5, -1],
