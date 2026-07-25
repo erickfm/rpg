@@ -17,6 +17,34 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Replace LAUNDRY with the DINER.** The user: *"replace laundry with
+      diner."*
+
+      There is already a DINER — first entry in WEST, w 9.2, before the alley
+      — so this cannot be read literally without putting two diners on one
+      block. The desk's reading, which you should follow unless it is
+      obviously wrong when you look: **swap their identities, not their
+      geometry.** The DINER name, colour and shopfront move into the LAUNDRY
+      slot; LAUNDRY moves into the old DINER slot.
+
+      Do it that way and the widths never move: the diner becomes the 12 m
+      slot after the alley and the laundry becomes the 9.2 m one before it.
+      **Both run totals stay exactly as they are** — WEST before the alley
+      still totals 51.2, WEST after it still totals 54.5. Swapping the entries
+      bodily instead would break both by 2.8 m and cost you a reconciliation
+      in each run for no benefit.
+
+      It is also the better result: a diner wants the wider frontage, and the
+      new slot puts it past the alley where there is currently nothing to eat.
+
+      **This must land together with a change in `ct/int-diner.ts`, which is
+      builder F's file — do not touch it.** The diner interior is anchored to
+      the street at `DZ = 9.6`, which is the OLD slot. When the roster moves,
+      that door hangs on a laundry. The desk has queued F to re-anchor it to
+      the new slot; the new diner runs z −43.5 → −55.5, centre **z ≈ −49.5**.
+      Tell the desk your exact final z-span when you commit so F anchors to
+      the real number rather than this estimate.
+
 - [ ] **Building collision does not follow building geometry. You have a
       one-time cross-file mandate from the desk for this.**
 

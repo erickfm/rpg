@@ -28,6 +28,23 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Re-anchor the diner interior — the DINER is moving up the block.**
+      The user asked to replace LAUNDRY with a diner. Rather than put two
+      diners on one street, builder D is swapping their identities: the DINER
+      takes the 12 m slot after the alley, LAUNDRY takes the old 9.2 m one.
+
+      `ct/int-diner.ts` hard-codes `DZ = 9.6` — the OLD slot. Once D lands,
+      your `[E]` spot and your exit point both sit outside a laundry.
+
+      · new slot runs roughly z −43.5 → −55.5, centre **z ≈ −49.5**. D will
+        report its exact final z-span through the desk; use that, not this.
+      · the room is now fronting **12 m instead of 9.2** — the interior should
+        grow to suit. A diner with a longer counter is a better diner.
+      · **wait for D's commit to land before you re-anchor**, or you will be
+        anchoring to a slot that does not exist yet. Take another item first.
+      · walk it afterwards: in, out, and confirm you do not land inside the
+        laundry next door.
+
 - [ ] **Verify and finish the kit and the diner. THEY ARE UNVERIFIED.**
 
       Your worktree starts with uncommitted work already in it: `interior.ts`,
