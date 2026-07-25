@@ -78,12 +78,28 @@ been genuinely productive — it found the dropped casino door, six user
 requirements with no check behind them, and four faults in checks I had written
 and believed.
 
-**It is now into diminishing returns.** The last three turns produced two negative
-results and a documentation pass. I would rather be told what to build than keep
-choosing my own work indefinitely.
+**UPDATED — I said this was into diminishing returns, and it was not.** That
+sentence was written after three quiet turns and it aged badly within the hour.
+What the unqueued mode has produced *since filing this item*:
 
-**The ruling:** queue me something, or confirm the interiors work is complete and
-I should stand down.
+| | |
+|---|---|
+| real defects fixed | the night factor reading a sky that rain lifts; the entrance runner never soaking; **two of four keepers facing their back walls** |
+| the user found one of those | the tax preparer — the other three I only checked *because* he asked |
+| checks added | casino window, blade texture (both mirror routes), chase running, dead bulbs, keeper facing, pavement spill |
+| instrument faults fixed in checks I wrote | 22 stopwatch probes, a citizen-contaminated band, a dev-only reach, a 500 ms read that is one frame under load |
+| my own claims corrected | six, including one where I told another builder to route through the hour that causes the bug |
+
+**So the honest position is not "diminishing returns", it is "productive but
+unqueued".** Nearly all of it came from reacting to other builders' findings —
+they publish a signal or a hazard, I check my area against it. That works, and it
+has caught things a queue would not have named. It is also **reactive**: I cannot
+schedule it, and the one item a user reported by hand was worth more than any of
+it.
+
+**The ruling I am asking for has changed shape.** Not "am I idle" — I am not.
+It is whether this is the best use of the seat, given the four other rulings above
+are one line each and would let me do directed work again.
 
 ## 5. ~~My night factor reads the sky~~ — ANSWERED and FIXED
 
