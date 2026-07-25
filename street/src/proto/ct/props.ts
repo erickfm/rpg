@@ -359,6 +359,18 @@ export function buildProps(ctx: CtxBuild): Props {
         // rest right, since a dark base times the same factor stays dark —
         // it just stops being BLACK.
         if (m.userData?.noLight) continue;
+        // ONE WRITER PER MATERIAL. dimWorld has this guard and register() did
+        // not, so a material already owned by updateRain could also join
+        // litList and be written every frame by both — and the two wet paths
+        // are about 30x apart in strength, so the loser would not lose subtly.
+        //
+        // props.lit() is currently called on a tree and two lots of cars, none
+        // of which register wet decals, so this is a latent trap rather than a
+        // live bug: measured, it changes 0 of 5536 material colours at 23:00.
+        // Worth closing while it costs nothing, because the next caller of
+        // lit() will not know the rule is only enforced on one of the two
+        // registration paths.
+        if (wetMats.some((w) => w.m === m)) continue;   // updateRain owns those
         const c = m.color;
         litSeen.add(m);
         // things in the street are street-level: they go as dark as the road
