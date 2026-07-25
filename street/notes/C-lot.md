@@ -291,6 +291,38 @@ Recording a negative result rather than nothing, because the next person to run
 that sweep will see 32 bright materials inside the lot's box and the useful
 fact is that 28 of them are H's and already known.
 
+**`lotwalk` moved to the SLOW tier, and how I found out it needed to.** I
+registered `lot-clearance` last round by copying a neighbouring line's shape
+without reading what the fields mean. They are
+`[name, question, selftest, extra, slow]` — so I had put it, and everything
+else of mine, in the fast tier by default rather than by decision. Timed at
+HEAD:
+
+```
+  lotwalk          36 s      <- walks 28 held-W samples
+  door301          15 s
+  every other one of mine   1-2 s
+```
+
+Every suite in `checks.mjs` that actually walks is already slow — `spots-walk`,
+`steps-walk`, `civic-doors-walk`, `seats-walk`, `interiors-walk`, `side-walk`,
+`crowd-walk`. `lotwalk` was the lone exception, and the file's own rule is that
+*"SLOW is a runtime tier, not an importance tier"*. Moved.
+
+What leaves the default run is the WALKED proof that a pedestrian can enter.
+What stays is `lot-layout`, `lot-kerb-seam` and `lot-clearance` — shape, gate
+against kerb cut, and nothing clipping — at 1-2 s each. The default run still
+fails if the lot is wrong; it stops paying 36 s to walk through the gate to
+find out.
+
+**And a trap worth naming, because it nearly gave me the wrong answer.** My
+first timing run showed 1-2 s for almost everything, including `lotwalk`. Those
+were **wrong-world aborts** — the merge train moved HEAD mid-run — and an abort
+is fast. Timing without reading the exit code makes a stale build look like a
+suite that got twenty times quicker. Exit 3 is what let me see it; before
+`ec7aae0d` those aborts would have been exit 1 and I would have read them as
+failures instead.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the

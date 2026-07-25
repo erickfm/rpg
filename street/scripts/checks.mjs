@@ -91,7 +91,19 @@ const CHECKS = [
   ['density',          'is every masonry face at the density it declares?', ['density']],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
-  ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
+  // SLOW TIER, moved 2026-07-25. lotwalk WALKS — 28 held-W samples — and costs
+  // 36 s measured, against 1-2 s for every other check I own. Every other
+  // suite in this file that actually walks is already slow: spots-walk,
+  // steps-walk, civic-doors-walk, seats-walk, interiors-walk, side-walk,
+  // crowd-walk. lotwalk was the lone exception, and this file's own rule is
+  // that "SLOW is a runtime tier, not an importance tier".
+  //
+  // What leaves the default run is the WALKED proof that a pedestrian can get
+  // into the lot. What stays is lot-layout, lot-kerb-seam and lot-clearance —
+  // the lot's shape, its gate lining up with the kerb cut, and nothing
+  // clipping — all 1-2 s. So the default run still fails if the lot is wrong;
+  // it just stops paying 36 s to walk through the gate every time.
+  ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true, [], true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
   // The user's own test, asked for on every building: stand inside, note which
