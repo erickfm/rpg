@@ -782,6 +782,86 @@ export function buildLot(o: {
       scene.add(b);
     }
 
+    // ── the back wall ────────────────────────────────────────────────────
+    // The queue said to check this once the layout changed, and the answer was
+    // no: with the office at the far end, the back wall is now the thing you
+    // look at for the entire 23 m walk down the aisle, and it was 13.8 m of
+    // blank brick. The office helps at the bottom of it and nothing helps
+    // above that.
+    //
+    // The wall is D's and I am not touching it. What goes ON it is mine, and
+    // what a wall like this really carries is two layers from two different
+    // decades, which is also what explains why an empty lot has a four-storey
+    // brick face at the back of it in the first place:
+    //
+    //   1. a GHOST SIGN from whoever was there before the demolition, painted
+    //      straight onto brick and eaten by fifty years of weather
+    //   2. the lot's OWN vinyl banner, strung across it last year
+    //
+    // Both hang 8 cm proud. GOTCHAS §6 — coplanar surfaces must abut, never
+    // overlap, and a painted sign 1 cm off a brick wall is a z-fight.
+    const BW_X = X1 - 0.08;
+
+    // THE GHOST SIGN. Letters are the easy half; the ERODING is what makes it
+    // fifty years old rather than badly printed. Paint fails from the top down
+    // and along the weather side, because that is where the rain runs, so the
+    // survival chance is a function of height and a deterministic hash — not
+    // uniform noise, which reads as dither rather than as decay.
+    const GW = 168, GH2 = 66;
+    const ghostT = pixTex(GW, GH2, (g) => {
+      g.clearRect(0, 0, GW, GH2);
+      const ink = (x: number, y: number, w: number, h: number) => {
+        for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) {
+          const t = yy / GH2;                             // 0 top, 1 bottom
+          const hash = ((xx * 73856093) ^ (yy * 19349663)) >>> 0;
+          const wear = 0.30 + 0.62 * t - 0.22 * (xx / GW);   // top and left go first
+          if ((hash % 100) / 100 > wear) continue;
+          g.fillStyle = (hash % 7) ? 'rgba(226,218,198,0.50)' : 'rgba(238,232,214,0.62)';
+          g.fillRect(xx, yy, 1, 1);
+        }
+      };
+      const line = (txt: string, y: number, px: number) => {
+        const w = (txt.length - 1) * 6 * px + 5 * px;
+        const x0 = Math.round((GW - w) / 2);
+        for (let i = 0; i < txt.length; i++) {
+          const rows = GLYPH[txt[i]] ?? GLYPH[' '];
+          for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
+            if (rows[r] & (1 << (4 - c))) ink(x0 + (i * 6 + c) * px, y + r * px, px, px);
+          }
+        }
+      };
+      ink(10, 3, GW - 20, 2);                             // the painted rule above
+      line('MERCER BROS', 9, 2);
+      line('DRY GOODS', 25, 2);
+      ink(30, 40, GW - 60, 1);
+      line('WHOLESALE AND RETAIL', 45, 1);
+      ink(10, 58, GW - 20, 2);                            // and below
+    });
+    const ghost = new THREE.Mesh(new THREE.PlaneGeometry(14.0, 5.5),
+      new THREE.MeshBasicMaterial({ map: ghostT, transparent: true, depthWrite: false }));
+    ghost.position.set(BW_X, Y + 9.2, zMid);
+    ghost.rotation.y = -Math.PI / 2;
+    scene.add(ghost);
+
+    // THE LOT'S OWN BANNER, above the office and below the ghost sign, in the
+    // same red the flag and the price cards use. Same sagging vinyl as the
+    // ones on the fence, at the scale the far end of the aisle needs.
+    // STACKED, both centred on the aisle. Side by side they ended up 0.18 m
+    // apart and read as one long strip with a colour change in the middle —
+    // two banners have to be separated by more than the eye needs to see a
+    // gap, and above a doorway the gap that reads is vertical.
+    for (const [words, bg, ink2, hy, hgt] of [
+      ['WE FINANCE ANYONE', '#c0392f', '#f2ead0', 4.85, 1.15],
+      ['CALL 555 0199', '#25406b', '#e0a81c', 3.55, 0.90],
+    ] as [string, string, string, number, number][]) {
+      const t2 = bannerT2(words, bg, ink2);
+      const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
+        new THREE.MeshBasicMaterial({ map: t2, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+      b2.position.set(BW_X, Y + hy, zMid);
+      b2.rotation.y = -Math.PI / 2;
+      scene.add(b2);
+    }
+
     // ── the stock ────────────────────────────────────────────────────────
     // H's fleet, angled at the street so you read the whole row at once —
     // which is the entire reason a lot parks its cars crooked. Each one gets
