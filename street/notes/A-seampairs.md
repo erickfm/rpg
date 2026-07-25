@@ -101,6 +101,39 @@ out to be a legitimate hand-painted surface. It needs eyes — and per
 `f604c531`'s own hard-won rule, eyes at **the same angle and distance**, which is
 the part that keeps fooling people at corners.
 
+### Eyes came back: all four were ivy (`f79d3fc1`)
+
+`1466eb13` — *"The four ~6 px/m candidates are ivy — f455f4af's list, with eyes
+on it"* — read every one and found **ivy on party walls**. Right answer, and the
+loop worked exactly as intended: the tool proposed, a person disposed, one pass.
+
+But it cost that pass, and the tool would have re-offered the same four every
+run. So the tool learned the rule rather than the exception:
+
+> **Masonry is never a cut-out.**
+
+A face with `alphaTest` is foliage, a fence, a sticker or a sign — you can see
+through it, so it is not the brick wall the seam question is about. Ivy is
+exactly that (`alphaTest 0.5, DoubleSide`), **and so is whatever of its kind gets
+built next year.** A list of things to ignore would have covered the ivy and
+missed its successor.
+
+```
+candidates: 140 -> 69, and the ivy is gone without being named
+```
+
+Then the remainder splits, and the two halves want different people:
+
+```
+of those, the undeclared face is itself OFF the 8/16 grid: 63
+the rest read 8 or 16 — a provenance question, not a visual one
+```
+
+An undeclared face measuring 8 px/m **looks exactly right** — it is simply
+painted outside `masonry()`, and nobody can photograph it. The off-grid 63 are
+what a picture of mismatched brick could actually be. That is where eyes go next,
+and per `f604c531`'s rule, at the same angle and distance.
+
 ## And a headline I broke myself in the same commit
 
 Collecting unstamped faces let them leak into the `declared-DIFFERENT` line,
