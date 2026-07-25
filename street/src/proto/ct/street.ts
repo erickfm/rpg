@@ -44,6 +44,115 @@ export function alleyFloorY(x: number, z: number): number {
 
 // Every building on the block, hand-authored end to end, plus the alley
 // cut into the west wall. Adds meshes + billboard sprites; owns no state.
+
+// ── SHARED SHELL VOCABULARY, hoisted to module scope and exported ──────────
+//
+// These were closures inside `buildStreet`. Nothing about them changed; they
+// moved so that `ct/vice.ts` can call them, because GOLDEN ACES and HOTEL
+// ORPHEUS still carry the two faults the user has raised twice — a flat
+// untextured brown on every return, and a 3.4 m deep box — and every other
+// building on the block was fixed by exactly these two functions.
+//
+// vice.ts is G's and I am not to edit it. What I can do is make the fix two
+// lines instead of a rewrite:
+//
+//     const dep = depthOf(b.nm);
+//     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, dep),
+//       shellMaterials(flat, 4, facade, dep, h, b.w, b.brick, gh, true, roofM));
+//
+// `depthOf` is a hash of the name, so a building keeps its depth across runs
+// and two neighbours do not come out the same. `shellMaterials` puts the facade
+// on the face you name and a real party wall — stepped scar, chimney breasts,
+// blocked windows, weather per metre — on every other, which is what a return
+// actually looks like and what `endM`'s flat colour never could.
+export const depthOf = (nm: string) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < nm.length; i++) h = Math.imul(h ^ nm.charCodeAt(i), 0x01000193) >>> 0;
+    return 14 + ((h >>> 9) % 6) * 1.9;               // 14 … 23.5 m
+  };
+
+  const partyWallTex = (
+    brick: string, wM: number, hM: number, baseY: number, cope: boolean, salt: number,
+  ) => {
+    const ms = masonry(wM, hM, baseY);
+    let hh = (0x811c9dc5 ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+    const mark = (n: number) => {
+      hh = Math.imul(hh ^ (hh >>> 15), 0x2c1b3c6d) >>> 0;
+      return (hh >>> 9) % Math.max(1, n);
+    };
+    return ms.paint((g) => {
+      g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
+      ms.courses(g);
+      const steps = 2 + mark(3);
+      const ridge = ms.m(hM * (0.50 + mark(4) * 0.06));
+      let x = 0;
+      for (let i = 0; i <= steps; i++) {
+        const x1 = Math.round(ms.W * ((i + 1) / (steps + 1)));
+        const top = ridge + ms.m((mark(5) - 2) * 0.55);
+        g.fillStyle = 'rgba(214,198,170,0.12)';
+        g.fillRect(x, top, x1 - x, ms.H - top);
+        g.fillStyle = 'rgba(0,0,0,0.12)';
+        g.fillRect(x, top, x1 - x, Math.max(1, ms.m(0.09)));
+        x = x1;
+      }
+      const breasts = 1 + mark(3);
+      for (let i = 0; i < breasts; i++) {
+        const bx = ms.m(1.5) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+        const bw = ms.m(0.9 + mark(3) * 0.3);
+        g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(bx, ridge, bw, ms.H - ridge);
+        g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(bx + bw, ridge, Math.max(1, ms.m(0.12)), ms.H - ridge);
+      }
+      const blocked = 1 + mark(4);
+      for (let i = 0; i < blocked; i++) {
+        const wx = ms.m(1.2) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+        const wy = ridge + ms.m(1.0) + mark(4) * ms.m(1.4);
+        const ww = ms.m(1.1), wh = ms.m(1.4);
+        if (wy + wh > ms.H - ms.m(0.5) || wx + ww > ms.W) continue;
+        g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
+        g.fillStyle = 'rgba(168,140,112,0.45)'; g.fillRect(wx, wy, ww, wh);
+        g.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let c = 0; c < 6; c++) g.fillRect(wx, wy + Math.round((c * wh) / 6), ww, 1);
+        g.fillStyle = '#9a8a72'; g.fillRect(wx - 1, wy + wh, ww + 2, Math.max(1, ms.m(0.14)));
+      }
+      // weather, PER METRE. It was a flat 14 per wall, so a 32 m park flank
+      // got the same fourteen streaks as a 6 m shop return.
+      g.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let i = 0; i < Math.max(6, Math.round(wM * 1.1)); i++) {
+        g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+      }
+      if (cope) {                                             // only where it IS the top
+        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
+      }
+      dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
+    });
+  };
+
+  const flankSalt = (brick: string, wM: number, hM: number) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < brick.length; i++) h = Math.imul(h ^ brick.charCodeAt(i), 0x01000193) >>> 0;
+    h = Math.imul(h ^ Math.round(wM * 8), 0x01000193) >>> 0;
+    return Math.imul(h ^ Math.round(hM * 8), 0x01000193) >>> 0 >>> 16;
+  };
+  const flankTex = (brick: string, wM: number, hM: number, baseY: number, cope: boolean) =>
+    partyWallTex(brick, wM, hM, baseY, cope, flankSalt(brick, wM, hM));
+
+  /** the six materials of a shell: its front where the front goes, and its own
+   *  masonry on every side and return. `fi` is the BoxGeometry face index the
+   *  facade belongs on (0 +x, 1 -x, 4 +z, 5 -z). */
+export const shellMaterials = (
+    flat: (t: THREE.Texture) => THREE.MeshBasicMaterial,
+    fi: number, facade: THREE.Material, dx: number, dy: number, dz: number,
+    brick: string, baseY: number, cope: boolean, roofM: THREE.Material,
+  ) => {
+    const xt = flat(flankTex(brick, dz, dy, baseY, cope));    // the +-x faces span z
+    const zt = flat(flankTex(brick, dx, dy, baseY, cope));    // the +-z faces span x
+    const m: THREE.Material[] = [xt, xt, roofM, roofM, zt, zt];
+    m[fi] = facade;
+    return m;
+  };
+
+
 export function buildStreet(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
@@ -67,6 +176,12 @@ export function buildStreet(o: {
   ground: CtxBuild['ground'];
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
+  /** the module-scope painter with this build's `flat` bound in — same six
+   *  materials as before, same call sites, so nothing in this file changed. */
+  const shellMats = (
+    fi: number, facade: THREE.Material, dx: number, dy: number, dz: number,
+    brick: string, baseY: number, cope: boolean, roofM: THREE.Material,
+  ) => shellMaterials(flat, fi, facade, dx, dy, dz, brick, baseY, cope, roofM);
   // ── collision, registered by the module that draws the building ─────────
   //
   // This used to be two rectangles hand-written in crosstown.ts spanning the
@@ -393,11 +508,6 @@ export function buildStreet(o: {
   // The two sites sit in z-gaps in those runs, so nothing overlaps — but if E
   // or C wants a site as deep as the block around it, the room is there and
   // this is the number to match.
-  const depthOf = (nm: string) => {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < nm.length; i++) h = Math.imul(h ^ nm.charCodeAt(i), 0x01000193) >>> 0;
-    return 14 + ((h >>> 9) % 6) * 1.9;               // 14 … 23.5 m
-  };
 
   // ── what you now see on top ─────────────────────────────────────────────
   //
@@ -493,83 +603,6 @@ export function buildStreet(o: {
   //
   // Everything is hashed off `salt`, so two flanks of one building do not
   // wear identical scars, and none of it touches rnd() (GOTCHAS §2).
-  const partyWallTex = (
-    brick: string, wM: number, hM: number, baseY: number, cope: boolean, salt: number,
-  ) => {
-    const ms = masonry(wM, hM, baseY);
-    let hh = (0x811c9dc5 ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
-    const mark = (n: number) => {
-      hh = Math.imul(hh ^ (hh >>> 15), 0x2c1b3c6d) >>> 0;
-      return (hh >>> 9) % Math.max(1, n);
-    };
-    return ms.paint((g) => {
-      g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
-      ms.courses(g);
-      const steps = 2 + mark(3);
-      const ridge = ms.m(hM * (0.50 + mark(4) * 0.06));
-      let x = 0;
-      for (let i = 0; i <= steps; i++) {
-        const x1 = Math.round(ms.W * ((i + 1) / (steps + 1)));
-        const top = ridge + ms.m((mark(5) - 2) * 0.55);
-        g.fillStyle = 'rgba(214,198,170,0.12)';
-        g.fillRect(x, top, x1 - x, ms.H - top);
-        g.fillStyle = 'rgba(0,0,0,0.12)';
-        g.fillRect(x, top, x1 - x, Math.max(1, ms.m(0.09)));
-        x = x1;
-      }
-      const breasts = 1 + mark(3);
-      for (let i = 0; i < breasts; i++) {
-        const bx = ms.m(1.5) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
-        const bw = ms.m(0.9 + mark(3) * 0.3);
-        g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(bx, ridge, bw, ms.H - ridge);
-        g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(bx + bw, ridge, Math.max(1, ms.m(0.12)), ms.H - ridge);
-      }
-      const blocked = 1 + mark(4);
-      for (let i = 0; i < blocked; i++) {
-        const wx = ms.m(1.2) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
-        const wy = ridge + ms.m(1.0) + mark(4) * ms.m(1.4);
-        const ww = ms.m(1.1), wh = ms.m(1.4);
-        if (wy + wh > ms.H - ms.m(0.5) || wx + ww > ms.W) continue;
-        g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
-        g.fillStyle = 'rgba(168,140,112,0.45)'; g.fillRect(wx, wy, ww, wh);
-        g.fillStyle = 'rgba(0,0,0,0.15)';
-        for (let c = 0; c < 6; c++) g.fillRect(wx, wy + Math.round((c * wh) / 6), ww, 1);
-        g.fillStyle = '#9a8a72'; g.fillRect(wx - 1, wy + wh, ww + 2, Math.max(1, ms.m(0.14)));
-      }
-      // weather, PER METRE. It was a flat 14 per wall, so a 32 m park flank
-      // got the same fourteen streaks as a 6 m shop return.
-      g.fillStyle = 'rgba(0,0,0,0.16)';
-      for (let i = 0; i < Math.max(6, Math.round(wM * 1.1)); i++) {
-        g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
-      }
-      if (cope) {                                             // only where it IS the top
-        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
-      }
-      dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
-    });
-  };
-  const flankSalt = (brick: string, wM: number, hM: number) => {
-    let h = 0x811c9dc5;
-    for (let i = 0; i < brick.length; i++) h = Math.imul(h ^ brick.charCodeAt(i), 0x01000193) >>> 0;
-    h = Math.imul(h ^ Math.round(wM * 8), 0x01000193) >>> 0;
-    return Math.imul(h ^ Math.round(hM * 8), 0x01000193) >>> 0 >>> 16;
-  };
-  const flankTex = (brick: string, wM: number, hM: number, baseY: number, cope: boolean) =>
-    partyWallTex(brick, wM, hM, baseY, cope, flankSalt(brick, wM, hM));
-  /** the six materials of a shell: its front where the front goes, and its own
-   *  masonry on every side and return. `fi` is the BoxGeometry face index the
-   *  facade belongs on (0 +x, 1 -x, 4 +z, 5 -z). */
-  const shellMats = (
-    fi: number, facade: THREE.Material, dx: number, dy: number, dz: number,
-    brick: string, baseY: number, cope: boolean, roofM: THREE.Material,
-  ) => {
-    const xt = flat(flankTex(brick, dz, dy, baseY, cope));    // the +-x faces span z
-    const zt = flat(flankTex(brick, dx, dy, baseY, cope));    // the +-z faces span x
-    const m: THREE.Material[] = [xt, xt, roofM, roofM, zt, zt];
-    m[fi] = facade;
-    return m;
-  };
 
   // ── open sites ──────────────────────────────────────────────────────────
   //
