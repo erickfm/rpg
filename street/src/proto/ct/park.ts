@@ -1468,12 +1468,32 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   //     line at the base for weeds to sit in rather than a skirting board.
   const flankTreeX: number[] = [];
   for (let x = site.minX + 5.5; x < lx1 - 1.5; x += 5.8 + tsd() * 1.6) flankTreeX.push(x);
+  // A SHRUB IS NOT A BOX. Each run was one slab with a flat top and square
+  // ends, which against faceted trees and stepped conifers read as a green
+  // crate — the same fault as the shelter roof in a different material. Real
+  // massed planting has a BROKEN TOP LINE, so each run is built from three or
+  // four blocks of different heights and depths, stepping along, with the ends
+  // dropping away. One collider for the whole run, because you should not be
+  // able to walk into the middle of a bush.
   const shrubRun = (cx: number, cz: number, len: number, h: number, depth: number,
     alongX: boolean) => {
+    const n = 3 + Math.floor(sb() * 2);
+    const seg = len / n;
+    for (let i = 0; i < n; i++) {
+      // taller in the middle of a run, lower at its ends — how a clump grows
+      const mid = 1 - Math.abs((i + 0.5) / n - 0.5) * 2;
+      const hi = h * (0.62 + mid * 0.30 + sb() * 0.16);
+      const di = depth * (0.78 + sb() * 0.3);
+      const off = (i + 0.5) * seg - len / 2;
+      const w = alongX ? seg * (0.9 + sb() * 0.25) : di;
+      const d = alongX ? di : seg * (0.9 + sb() * 0.25);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, hi, d), shrubM);
+      m.position.set(alongX ? cx + off : cx + (sb() - 0.5) * 0.12,
+        KERB_H + hi / 2,
+        alongX ? cz + (sb() - 0.5) * 0.12 : cz + off);
+      scene.add(m);
+    }
     const w = alongX ? len : depth, d = alongX ? depth : len;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), shrubM);
-    m.position.set(cx, KERB_H + h / 2, cz);
-    scene.add(m);
     solid({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - d / 2, maxZ: cz + d / 2 });
   };
   const sb = clcg(0x7ac41f);
