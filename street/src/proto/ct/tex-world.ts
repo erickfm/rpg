@@ -1006,25 +1006,37 @@ function bladeTex(wM: number, hM: number): THREE.Texture {
     // THE CUP, in whole texels off the plate's own size. Everything below is
     // a fraction of W or H rounded once, so the shape survives the plate being
     // resized instead of drifting into a smudge.
-    const px = (f: number) => Math.max(1, Math.round(W * f));
-    const py = (f: number) => Math.max(1, Math.round(H * f));
     const cx = Math.round(W / 2);
+    const cw = Math.max(5, Math.round(W * 0.47));        // body width
+    const bx0 = cx - Math.round(cw / 2);
+    const bodyY = Math.round(H * 0.36);
+    const bodyH = Math.max(4, Math.round(H * 0.20));
     g.fillStyle = INK;
-    // steam: two wisps, offset from each other so they read as rising and not
-    // as a pair of bars
-    g.fillRect(cx - px(0.17), py(0.13), px(0.07), py(0.10));
-    g.fillRect(cx + px(0.10), py(0.16), px(0.07), py(0.10));
-    // the cup: a body that tapers, so it is a cup and not a box
-    const bodyY = py(0.34), bodyH = py(0.22);
-    g.fillRect(cx - px(0.30), bodyY, px(0.60), bodyH);
-    g.fillRect(cx - px(0.23), bodyY + bodyH, px(0.46), py(0.05));
-    // the handle, on one side only — a handle on both is a trophy
-    const hx = cx + px(0.30), hy = bodyY + py(0.03);
-    g.fillRect(hx, hy, px(0.13), py(0.03));
-    g.fillRect(hx + px(0.09), hy, px(0.06), py(0.10));
-    g.fillRect(hx, hy + py(0.08), px(0.13), py(0.03));
-    // the saucer it stands on
-    g.fillRect(cx - px(0.40), bodyY + bodyH + py(0.06), px(0.80), py(0.05));
+    // steam: two wisps at different heights, so they rise rather than read as
+    // a pair of bars. They stop two rows short of the cup — the GAP is what
+    // makes them steam.
+    const sTop = Math.round(H * 0.14);
+    g.fillRect(cx - 3, sTop, 1, bodyY - sTop - 2);
+    g.fillRect(cx + 2, sTop + 1, 1, bodyY - sTop - 3);
+    // the body, and a row under it that is narrower: a cup tapers, a box does
+    // not, and one row is the whole difference at this size
+    g.fillRect(bx0, bodyY, cw, bodyH);
+    g.fillRect(bx0 + 1, bodyY + bodyH, cw - 2, 1);
+    // THE HANDLE, with one texel of plate between it and the body. Drawn hard
+    // against the body first and it merged into one blob — at fifteen pixels
+    // wide the silhouette is the whole signal, and a handle you cannot see a
+    // gap beside is not a handle.
+    const hgx = bx0 + cw + 1, hy = bodyY + 1;
+    g.fillRect(hgx, hy, 2, 1);
+    g.fillRect(hgx + 1, hy + 1, 1, bodyH - 4);
+    g.fillRect(hgx, hy + bodyH - 3, 2, 1);
+    // The saucer: wider than the body, which is the other half of reading as
+    // crockery — but NARROWER THAN THE BORDER BARS. At W*0.80 it came out 12
+    // texels against the border's 11 and read as a third horizontal stripe on a
+    // plate that already has two. Sized off the BODY instead, and tucked one
+    // row under it so it belongs to the cup rather than floating below it.
+    const sw = cw + 2;
+    g.fillRect(cx - Math.round(sw / 2), bodyY + bodyH + 1, sw, 2);
     // weather: it has hung outside for thirty years
     dither(g, W, H, Math.round(wM * hM * 5));
   });
