@@ -90,10 +90,24 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n } of ROOMS) {
   await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0),
     [stand.x, stand.z, Math.atan2(-n.x, n.z)]);
   await p.waitForTimeout(220);
-  await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e');
-  await p.waitForTimeout(380);
-  const inside = await pos();
-  if (inside[0] < 400) { fails.push(`${id}: could not get in to check`); continue; }
+  // Press E, and CHECK IT TOOK. A single press was landing sometimes and not
+  // others — BURGER BARN measured at x -6.3, still on the pavement, and was then
+  // reported as "could not locate the doorway inside" when the truth was that it
+  // had never gone in. Two tries, and a miss is reported as a miss.
+  let inside = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    await p.keyboard.down('e'); await p.waitForTimeout(110); await p.keyboard.up('e');
+    await p.waitForTimeout(450);
+    inside = await pos();
+    if (inside[0] >= 400) break;
+    await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0),
+      [stand.x, stand.z, Math.atan2(-n.x, n.z)]);
+    await p.waitForTimeout(250);
+  }
+  if (!inside || inside[0] < 400) {
+    unmeasured.push(`${id}: the [E] prompt did not take in two tries — never got inside`);
+    continue;
+  }
   // THE ROOM'S CENTRE, ASKED FOR. This was
   //   cx = 400 + floor((x - 400) / 80) * 80 + 40
   // which assumes interiors sit on an 80 m grid starting at 400. They do not
