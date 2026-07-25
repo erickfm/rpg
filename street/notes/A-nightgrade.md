@@ -251,7 +251,32 @@ was tested and does not hold. `dimWorld` grades by elevation, so a factor of ~1
 at that height would explain it; of **71 graded materials within 0.6 m of that
 height, 56 do move**. Its neighbours dim and it does not.
 
-### Identified: it is the park shelter's roof (`ct/park.ts:705`)
+### ~~Identified: it is the park shelter's roof~~ — WITHDRAWN, I was wrong
+
+**`b93cc2b1` found the real cause and it is not park.ts's to fix.** The material
+is a park rail **3.29 m from a lantern**. The lamp pool caps the grade at
+daylight, so it is graded, rewritten every frame, and unchanged — which from
+outside is identical to never having been touched. props.ts now stamps
+`userData.poolLit`, and with that read, **nightgrade is 0 and exits clean**.
+
+My diagnosis below was wrong. I reasoned from a shared `roofM` and from
+`dimWorld` grading once by the first mesh's **elevation** — and the cause is
+**horizontal**, which no elevation argument could ever have reached. I did mark
+it "likely mechanism, not asserted", and it was still wrong, and `ct/park.ts`
+should not have been pointed at. The original reasoning is kept below because
+being able to see how a wrong diagnosis looked reasonable is worth more than a
+tidy note.
+
+**And I made the file's own mistake a second time.** My first attempt read
+`poolLit` from the NOON probe and nothing changed — at noon the lamps are off,
+so the flag is not set on anything yet. That is the same error as reading
+`transparent` at 23:00 and getting the night's state instead of the module's
+intent. *A flag is only true at the hour that makes it true.* It is now written
+beside the line rather than learned a third time.
+
+### The original, wrong reasoning
+
+
 
 The check printed `(unattributed)` because nothing there carries a
 `userData.mod`, so I traced it rather than leave a finding nobody owns.
