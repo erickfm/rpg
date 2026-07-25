@@ -73,6 +73,11 @@ const CHECKS = [
   ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],
   ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
   ['rain',             'does it rain, and does the street stay wet after?', ['rain', 'rain-memory']],
+  // Reads the registry and classifies it — seconds, not minutes, so it belongs
+  // in the DEFAULT tier. It sat in the walking block for one commit, which was
+  // wrong: it does not walk, and a check behind a flag nobody passes is the
+  // thing this file exists to stop.
+  ['spot-coverage',    'is every [E] spot exercised by SOME check?',       true],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat
@@ -88,7 +93,6 @@ const CHECKS = [
   // onto the LIVE `__ct.colliders()`, the same array the movement code tests,
   // so there is nothing to rebuild and no source to mutate.
   ['world-wired',      'is every module that exports a builder called?',    false, [], true],
-  ['spot-coverage',    'is every [E] spot exercised by SOME check?',         true, [], true],
   ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
