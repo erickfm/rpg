@@ -530,6 +530,16 @@ published "every citation resolves" about notes that were broken for everyone
 else. And verify any remap by `git patch-id`, not by subject: mine were 19 of 19
 identical, but two commits can share a subject line.
 
+**That verification cannot be repeated, and the date is the point.** It was run
+while the orphaned commits still existed in this worktree's object store. Git
+has since started warning that there are too many unreachable loose objects and
+suggesting `git prune`; `0b1dd7bb9` puts it exactly — after a prune the mapping
+TABLE survives and the ability to check it does not. So "19 of 19 identical by
+patch-id" is a result with a shelf life: recorded here because it was true when
+taken and nobody will be able to re-derive it. If you need to trust the remaps
+and the objects are gone, the fallback is the subject lines plus the fact that
+each landed twin is the same author's next commit of the same work.
+
 **And both fp captures must come from the same KIND of server** (`GOTCHAS.md`
 §31, `bff2f6a0`). A dev capture against a preview capture reports ~612 of 954
 textures changed on a world nobody touched: `scenedump` seeds `Math.random` so
