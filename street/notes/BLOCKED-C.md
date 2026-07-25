@@ -216,6 +216,26 @@ declaring what a material IS rather than having it inferred from pixels.
 Printed signage and lit signage are identical in texels and differ only in
 whether anything is behind them, which a texture cannot show.
 
+**It is not just the banners — it is every printed sign in the lot.** I filed
+this as a banner problem and that was understated. Marking the four frontage
+banners and re-running left 56 materials still holding daylight, and every one
+of them is over `isSelfLit`'s threshold:
+
+```
+  0.17x0.22   price cards          hot 0.18
+  0.50x0.13   windshield stickers  hot 0.17
+  1.80x0.50   sandwich boards      hot 0.09
+  0.44x0.44   pole-sign starburst  hot 0.97
+  1.50x0.92   pole-sign panel      hot 0.11
+  6.04x1.15   back-wall banners    (same bannerT2 treatment)
+```
+
+One cause, not six: printed artwork in saturated ink reads to the heuristic
+exactly like neon. Marking them individually would be writing the same
+blocker's name fifty-six times, and the sign panel is arguably right to stay
+lit — a pole sign IS illuminated — which is a judgement per prop that the
+opt-out would let each of us make once.
+
 **It is visible, and I checked that before leaning on the number.**
 `shots/banner-night/01-pavement-south-run.png` — 21:30, dry, standing on the
 2 m pavement where a player actually walks. Both banners are at full daylight

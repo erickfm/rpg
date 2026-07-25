@@ -146,6 +146,32 @@ if (!rows.length) {
 // against the pre-fix bunting it reported "0 hold and do not" while 76 flags
 // sat at full daylight. `cLight` is set by hand, in my module, on the two
 // materials that really are lights.
+// ── POSITIVE CONTROL: did the night actually happen? ──────────────────────
+//
+// 27b18b6ea found a night sweep whose 500 ms sleep meant that under load the
+// "night" sample WAS the noon sample — and because "nothing dimmed" was that
+// check's expected answer, it reported success having never turned the lights
+// off. GOTCHAS 30, failing in the direction that hides the bug.
+//
+// This one fails the other way: if the clock never advanced, every material
+// looks stuck and it goes RED. Loud, but for the wrong reason — a reader would
+// be handed hundreds of false findings and no clue that the instrument, not the
+// world, was broken.
+//
+// So prove the night happened before judging anything by it. The deck is
+// wet-registered ground and falls ~95% between noon and a dry 21:30; if the
+// biggest drop anywhere is under 50%, no grading occurred and the honest answer
+// is exit 3, the check never ran, rather than a page of accusations.
+const best = rows.reduce((a, r) => Math.max(a, r.drop), 0);
+if (best < 0.50) {
+  console.error(`\nTHE NIGHT NEVER HAPPENED — the largest drop anywhere is ${(best * 100).toFixed(1)}%.`);
+  console.error(`  Something in the lot should fall ~95% between ${hours.day % 24}:30 and ${hours.night % 24}:30.`);
+  console.error(`  The clock did not advance, or the grade had not applied when this read.`);
+  console.error(`  Nothing follows about whether anything dims. GOTCHAS 32.\n`);
+  process.exit(3);
+}
+console.log(`  positive control: the largest drop is ${(best * 100).toFixed(1)}% — the night happened`);
+
 const stuck = rows.filter((r) => r.drop < MOVED && !r.cLight && !r.known);
 const litStuck = rows.filter((r) => r.drop < MOVED && r.cLight);
 // KNOWN AND BLOCKED, carrying the name of what blocks them. Excusing these is
