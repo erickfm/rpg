@@ -198,8 +198,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#7e7460'; g.fillRect(0, 0, 64, 64); // dim halls — one bare bulb's worth
       g.fillStyle = 'rgba(255,255,255,0.08)';
       for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 3, 64);
-      g.fillStyle = 'rgba(0,0,0,0.14)';
-      for (let x = 6; x < 64; x += 8) g.fillRect(x, 0, 1, 64);
+      // Report finding 3: this dark pinstripe was ONE texel in an eight-texel
+      // repeat, and the stairwell is the only place in the building with a
+      // long grazing sightline — so it is the only place the paper is asked to
+      // survive heavy minification, and it broke into a moire crawl looking up
+      // or down the shaft. GOTCHAS §4 ("a surface 1-2 texels cannot hold
+      // detail") applied to a wall seen edge-on rather than to a thin surface.
+      //
+      // Two texels at half the contrast is the same stripe to the eye at
+      // reading distance and twice the coverage at the far end, which is what
+      // survives a mip level. Widening it rather than deleting it keeps the
+      // paper looking like paper up close, where you spend most of your time.
+      g.fillStyle = 'rgba(0,0,0,0.075)';
+      for (let x = 6; x < 64; x += 8) g.fillRect(x, 0, 2, 64);
       dither(g, 64, 64, 90);
       g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, 64, 5);  // ceiling shadow each storey
       g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, 5, 64, 4);
@@ -257,6 +268,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
                       tex = wallpaperT, uOff = 0, vOff = 0) => {
       const t = tex.clone();
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      // The other half of finding 3. pixTex hands out NearestMipmapNearest,
+      // which picks ONE mip level per fragment with a hard jump between them
+      // and no anisotropy — down a stairwell that is a visible seam that
+      // crawls as you climb. Linear between levels removes the seam, and
+      // anisotropy is what actually fixes a grazing angle: it samples along
+      // the direction the surface is stretched instead of taking a square.
+      // magFilter is untouched, so it is still hard texels up close, which is
+      // the whole look. three.js clamps the 8 to whatever the device allows.
+      t.minFilter = THREE.NearestMipmapLinearFilter;
+      t.anisotropy = 8;
       t.repeat.set(w / 2.7, h / 2.7);
       t.offset.set(uOff / 2.7, vOff / 2.7);
       t.needsUpdate = true;

@@ -46,6 +46,10 @@ const SH = [
   ['23-landing-turn',201.2, -7.6, at(0.0,  -2.4), 0.10, 1.35],
   ['24-landing-up',  201.2, -6.4, at(0.0,  -3.6), 0.26, 1.35],
   ['25-landing-arriv',200.6, -9.9, at(0.6,   1.2), 0.14, 1.35],
+  // the long grazing sightline: up and down the shaft
+  ['26-shaft-up',   201.2, -8.0, at(0.0, -3.0),  0.86, 1.35],
+  ['27-shaft-down', 201.2, -8.0, at(0.0, -3.0), -0.80, 8.1],
+  ['28-hall-long',  201.2, -19.0, at(0.0, 12.0), 0.02, 0],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);
