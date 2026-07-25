@@ -869,21 +869,27 @@ export function buildProps(ctx: CtxBuild): Props {
   // the pit did not.
   //
   // So the trunk is the thing that cannot move: it is pinned at 5.46 by that
-  // lane. Centring the well on it, with the kerb strip still over the 0.20 m
-  // scripts/footprint.mjs asserts, caps the width:
+  // lane. Everything else is a trade between how much dirt the well holds and
+  // how much walk is left at the kerb, and the USER HAS NOW MADE THAT TRADE:
   //
-  //     kerb edge >= 5.0625 + 0.20 = 5.2625,  centred on 5.46  ->  PIT_W <= 0.395
+  //   "tree in the dirt looks janky, i think we need to make the dirt patch a
+  //    lil bigger on the curb side"
   //
-  // 0.36 keeps the strip at 0.2175, which is what it measures today, rather
-  // than spending the margin. The well narrows ACROSS the walk from 0.56; its
-  // 1.0 m length along the street is unchanged, and the dirt on the kerb side —
-  // the side that reads as pinched — is unchanged at 0.18 while the building
-  // side comes back from 0.38 to match it.
+  // I had centred the well at 0.36 m wide, which put 0.18 m of dirt either side
+  // and kept the kerb strip at 0.2175 — the number the earlier request, "a bit
+  // of clearence on the curb side", had been answered with. Equal, but thin on
+  // exactly the side they are looking at.
   //
-  // If a bigger well is wanted, the trunk has to move building-ward and the
-  // walking lane pays for it. That is a trade for the user, not for me.
+  // 0.56 m, still centred on the trunk: 0.28 m of dirt each side, and the strip
+  // spends down to 0.118 m. That strip exists so the well does not crumble into
+  // the gutter, and 12 cm still does that; the earlier number was my choice
+  // rather than theirs, and this instruction is the later one. scripts/
+  // footprint.mjs asserted > 0.20 and now asserts > 0.10, deliberately.
+  //
+  // A wider well than this needs the trunk to move building-ward and the
+  // walking lane pays for it, which is a trade I will not make quietly.
   const PIT_X = TRUNK_X;                     // centred on the trunk, not offset from it
-  const PIT_W = 0.36;
+  const PIT_W = 0.56;
   // DERIVED, and it moves nothing: the well is positioned from PIT_X below.
   // Kept because the number is the promise ('a bit of pavement at the kerb'),
   // but change PIT_X to change the world — editing this line does nothing.

@@ -224,7 +224,14 @@ if (r.pits.length) {
   const gaps = r.pits.map((p) => +(Math.min(Math.abs(p.minX), Math.abs(p.maxX)) - (5.0 + 0.0625)).toFixed(3));
   const lo = Math.min(...gaps), hi = Math.max(...gaps);
   console.log(`  walk between kerb chamfer and pit edge: ${lo} … ${hi} m`);
-  console.log(`  ${lo > 0.2 ? 'OK  ' : 'FAIL'} every pit sits inboard with a real strip of walk at the kerb`);
+  // 0.10, not 0.20, and the change is the user's rather than mine. They asked
+  // for "a bit of clearence on the curb side" and I answered it with 0.2175;
+  // they have since asked to "make the dirt patch a lil bigger on the curb
+  // side", which spends that strip down to 0.118. The strip is there so the
+  // well does not crumble into the gutter and 12 cm still does that. A bar set
+  // to defend my own earlier number would have failed the world for obeying the
+  // newer instruction.
+  console.log(`  ${lo > 0.10 ? 'OK  ' : 'FAIL'} every pit sits inboard with a real strip of walk at the kerb`);
   console.log(`  ${(hi - lo) < 0.002 ? 'OK  ' : 'FAIL'} that strip is the same at every pit`);
   if (lo <= 0.2 || hi - lo >= 0.002) process.exitCode = 1;
 }
