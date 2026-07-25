@@ -272,7 +272,9 @@ export function buildThrift(ctx: CtxBuild): void {
     ['ALL COATS', '$4', -2.0, 1.72, 1.1],
     ['SHIRTS', '2 FOR $3', -2.0, 1.72, -0.25],
     ['SKIRTS', 'DRESSES', -2.0, 1.72, -1.6],
-    ['AS SEEN', 'NO REFUND', TILL_CX, 1.42, TILL_Z + 0.33],
+    // propped ON the counter top (0.96 + the card's own half-height), not at
+    // a typed height above it — that is how it ended up hanging in mid-air
+    ['AS SEEN', 'NO REFUND', TILL_CX, 0.96 + 0.11, TILL_Z + 0.33],
   ];
   for (const [a, b, cx2, cy, cz2] of CARDS) room.sign(cardT(a, b), 0.44, 0.22, cx2, cy, cz2);
   // …and one taped up in the window, which you read from inside because there

@@ -226,7 +226,9 @@ export function buildBodega(ctx: CtxBuild): void {
     g.fillText(a, 24, 8);
     g.font = '7px monospace'; g.fillText(bl, 24, 16);
   });
-  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, -hw + 1.0, 1.62, -hd + 1.42);
+  // ON the coffee bench (top 0.92) plus the card's own half-height. Placed at
+  // a typed 1.62 it hung 0.575 m in the air above it.
+  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, -hw + 1.0, 0.92 + 0.125, -hd + 1.42);
   room.sign(cardT('NO', 'LOITERING'), 0.5, 0.25, CTR_X - 0.6, 1.72, CTR_Z);
   room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
 
