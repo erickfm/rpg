@@ -1,77 +1,79 @@
-// TRIGGER MARGIN AUDIT.
+// HOW FAR FROM THE WALK LINE DOES EACH DOOR'S TRIGGER START?
 //
-// crosstown.ts hand-writes the block's collision as blanket rectangles that
-// span the whole street (238-240), independent of what any module draws. The
-// player capsule is 0.36, so the west wall face at x = -6.7 stops you at
-// -6.34 and the east wall face at 6.7 stops you at 6.34.
+// I claimed the bodega is the only shop you must step toward. That rested on a
+// LINE sweep finding the other seven -- which shows they reach x = ±5.9, not
+// where their nearest edge is. Like-for-like means measuring every door the way
+// the bodega was measured: a patch, not a line.
 //
-// Every street-side [E] trigger sits somewhere in that band. What matters is
-// not whether the trigger CENTRE is reachable -- mostly it is not -- but how
-// much of the trigger radius is left over once the wall has eaten its share.
-// That leftover is the MARGIN, and it is what a later prop collider spends.
-// The bodega became un-enterable exactly this way: blanket wall, then crates.
-//
-//   MARGIN = r - (closest the player can actually get)
-//
-// Reported per trigger, walked from several directions with real key input.
+// Doors are found by walking first (no coordinate typed in), then each one's
+// own z span is swept across the full pavement depth.
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
-
-const TRIGGERS = [
-  { id: 'DINER (kit room)',        x: -6.55,  z: 9.6,    r: 1.05, gy: 0.14, from: [[-6.2, 15], [-6.2, 4], [-4.2, 9.6]] },
-  { id: 'No. 227 street door',     x: 6.55,   z: -44,    r: 1.05, gy: 0.14, from: [[6.2, -38], [6.2, -50], [4.2, -44]] },
-  { id: 'BODEGA corner store',     x: 8.7,    z: -96.85, r: 1.10, gy: 0.14, from: [[14, -97], [8.7, -99.5], [4, -99.5]] },
-  { id: 'THRIFT STORE (kit room)', x: -6.55,  z: -74.94, r: 1.05, gy: 0.14, from: [[-6.2, -69], [-6.2, -81], [-4.2, -74.94]] },
-  { id: 'BURGER BARN (kit room)',  x: -6.55,  z: -28.25, r: 1.05, gy: 0.14, from: [[-6.2, -22], [-6.2, -34], [-4.2, -28.25]] },
-  { id: 'GOLDEN ACES (kit room)',  x: 51.29,  z: -97.0,  r: 1.05, gy: 0.14, from: [[51.29, -101], [45, -97.4], [56, -97.4]] },
-  { id: 'HOTEL ORPHEUS (kit)',     x: 39.51,  z: -97.0,  r: 1.05, gy: 0.14, from: [[39.51, -101], [33, -97.4], [45, -97.4]] },
-  { id: 'A-1 TAX (kit room)',      x: 6.55,   z: -15.25, r: 1.05, gy: 0.14, from: [[6.2, -9], [6.2, -21], [4.2, -15.25]] },
-  { id: 'PAWN SHOP (kit room)',    x: 6.55,   z: -59.06, r: 1.05, gy: 0.14, from: [[6.2, -53], [6.2, -65], [4.2, -59.06]] },
-];
 const b = await chromium.launch();
-const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
+const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));
-await p.waitForTimeout(900);
-
-const out = await p.evaluate(async (TRIGGERS) => {
-  const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
-  const showing = () => {
-    const n = [...document.querySelectorAll('*')].find(e => e.children.length === 0 && /\[E\]/.test(e.textContent ?? ''));
-    if (!n) return null;
-    for (let e = n; e && e !== document.body; e = e.parentElement) {
-      const s = getComputedStyle(e);
-      if (s.display === 'none' || s.visibility === 'hidden') return null;
-    }
+await p.waitForTimeout(800);
+const out = await p.evaluate(async () => {
+  const read = () => {
+    const n=[...document.querySelectorAll('*')].find(e=>e.children.length===0&&/\[E\]/.test(e.textContent??''));
+    if(!n) return null;
+    for(let e=n;e&&e!==document.body;e=e.parentElement){const st=getComputedStyle(e);
+      if(st.display==='none'||st.visibility==='hidden') return null;}
     return n.textContent.trim();
   };
-  const res = [];
-  for (const T of TRIGGERS) {
-    let best = Infinity, bestAt = null, prompt = null;
-    for (const [fx, fz] of T.from) {
-      window.__ct.warp(fx, fz, look(fx, fz, T.x, T.z), T.gy, 0);
-      await new Promise(r => setTimeout(r, 130));
-      for (let i = 0; i < 170; i++) {
-        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
-        await new Promise(r => requestAnimationFrame(r));
-        const q = window.__ct.pos();
-        const d = Math.hypot(q[0] - T.x, q[2] - T.z);
-        if (d < best) { best = d; bestAt = [+q[0].toFixed(2), +q[2].toFixed(2)]; }
-        const s = showing(); if (s) prompt = s;
-      }
-      window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
+  const RAD=0.36, cols=window.__ct.colliders().filter(q=>q&&isFinite(q.minX)&&Math.abs(q.minX)<500);
+  const free=(x,z)=>!cols.some(q=>x>q.minX-RAD&&x<q.maxX+RAD&&z>q.minZ-RAD&&z<q.maxZ+RAD);
+  const probe = async (x,z) => {
+    if(!free(x,z)) return null;
+    window.__ct.warp(x,z,x>0?Math.PI/2:-Math.PI/2,0.14,0);
+    await new Promise(r=>requestAnimationFrame(r)); await new Promise(r=>requestAnimationFrame(r));
+    const q=window.__ct.pos();
+    if(Math.abs(q[0]-x)>0.05||Math.abs(q[2]-z)>0.05) return null;
+    return read();
+  };
+  // 1. find the doors by walking the two centrelines
+  const found = new Map();
+  for (const [lx, z0, z1] of [[-5.9, 10, -104], [5.9, 10, -100]]) {
+    for (let z=z0; z>=z1; z-=0.5) {
+      const s = await probe(lx, z);
+      if (!s) continue;
+      const r = found.get(s) ?? { x: lx, lo: z, hi: z };
+      r.lo=Math.min(r.lo,z); r.hi=Math.max(r.hi,z); found.set(s, r);
     }
-    res.push({ id: T.id, r: T.r, closest: +best.toFixed(2), closestAt: bestAt,
-               margin: +(T.r - best).toFixed(2), marginPct: Math.round((T.r - best) / T.r * 100),
-               centreReachable: best < 0.05, prompt });
+  }
+  // 2. plus the bodega, which the centreline cannot see -- find it off-line
+  for (let z=-92; z>=-100; z-=0.5) {
+    const s = await probe(7.4, z);
+    if (!s) continue;
+    const r = found.get(s) ?? { x: 7.4, lo: z, hi: z };
+    r.lo=Math.min(r.lo,z); r.hi=Math.max(r.hi,z); found.set(s, r);
+  }
+  // 3. for each, sweep the full pavement depth over its own z span
+  const res = [];
+  for (const [prompt, r] of found) {
+    const east = r.x > 0;
+    let nearest = null, pts = 0;
+    for (let step=0; step<=22; step++) {
+      const x = east ? 4.9 + step*0.2 : -4.9 - step*0.2;
+      for (let z=r.hi+1.5; z>=r.lo-1.5; z-=0.25) {
+        const s = await probe(x, z);
+        if (s !== prompt) continue;
+        pts++;
+        const d = Math.abs(x) - 5.9;
+        if (nearest === null || d < nearest) nearest = d;
+      }
+    }
+    res.push({ prompt, side: east?'east':'west', span:[+r.lo.toFixed(1),+r.hi.toFixed(1)], pts,
+      nearestOffWalk: nearest === null ? null : +nearest.toFixed(2) });
   }
   return res;
-}, TRIGGERS);
-
-writeFileSync('shots/trigger-report.json', JSON.stringify(out, null, 2));
-console.log('trigger'.padEnd(26), 'r'.padStart(5), 'closest'.padStart(8), 'MARGIN'.padStart(8), '  centre?  prompt');
-for (const t of out)
-  console.log(t.id.padEnd(26), String(t.r).padStart(5), String(t.closest).padStart(8),
-    `${t.margin} (${t.marginPct}%)`.padStart(12), t.centreReachable ? ' reachable' : ' BLOCKED  ', t.prompt ?? '(none)');
+});
+console.log('door                            side   trigger points   nearest edge relative to the walk line (x=±5.9)');
+for (const r of out.sort((a,c)=>(a.nearestOffWalk??9)-(c.nearestOffWalk??9)))
+  console.log(`${r.prompt.padEnd(31)} ${r.side.padEnd(6)} ${String(r.pts).padStart(5)}          ` +
+    (r.nearestOffWalk === null ? 'never fired' :
+     r.nearestOffWalk <= 0 ? `reaches the line (${r.nearestOffWalk} m)` : `**${r.nearestOffWalk} m BEYOND it**`));
+writeFileSync('shots/triggers.json', JSON.stringify(out,null,2));
 await b.close();

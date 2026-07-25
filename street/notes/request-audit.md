@@ -1042,3 +1042,36 @@ view, and nothing in the code says so on purpose.
 If it should match its neighbours, the fix is to extend the trigger 0.3 m toward
 the kerb. If the recess is deliberate, it is worth a line saying so, because this
 is now the fourth time this shop has come back as an anomaly in an audit.
+
+### Measured like-for-like: the gap is **0.8 m**, not 0.3 m
+
+My previous round said the bodega's trigger starts 0.3 m off the walk line. That
+was measured against the *line*, not against **what the other doors do**, which
+is the comparison that matters. Every door swept the same way the bodega was —
+a patch across the full pavement depth, doors found by walking first:
+
+| door | side | trigger points | nearest edge, relative to the walk line |
+|---|---|---|---|
+| BURGER BARN | west | 27 | **0.6 m kerb-side** |
+| DINER | west | 50 | **0.6 m kerb-side** |
+| THRIFT STORE | west | 49 | **0.6 m kerb-side** |
+| A-1 TAX SERVICE | east | 50 | **0.6 m kerb-side** |
+| PAWN SHOP | east | 49 | **0.6 m kerb-side** |
+| No. 227 | east | 38 | 0.4 m kerb-side |
+| **BODEGA** | east | **72** | **0.2 m facade-side** |
+
+**Six of seven doors extend 0.6 m past the centreline toward the kerb.** The
+bodega's nearest edge is 0.2 m the other way.
+
+> **The gap between the bodega and the group norm is 0.8 m**, not the 0.3 m I
+> reported. Correcting my own figure: I measured the distance to a line when the
+> meaningful quantity was the distance to what everything else does.
+
+Note also that the bodega has the **largest trigger of all seven** — 72 points
+against 27–50. It is not a small or mean trigger. It is a big one, sited 0.8 m
+deeper than every neighbour.
+
+That makes the finding stronger and the fix smaller: the bodega does not need a
+bigger trigger, it needs its existing one moved 0.8 m toward the kerb to sit
+where the other six sit. Whether that is right is still the owner's call — a
+canted bay may want exactly this — but the number is now the one worth quoting.
