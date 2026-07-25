@@ -302,7 +302,36 @@ output:
   "All declared rooms mirror" is not "the world mirrors".
 ```
 
-### GOLDEN ACES, named for its owner
+### CORRECTED (`05f3cd99`): one reason for three rooms, wrong for two
+
+`9c4fa019` corrects me — the casino's `DOOR` **does** reach `declaredDoors()`,
+measured twice, at `709ddfed` and `cb696d3d`. And my scope line claimed all
+three unreachable rooms shared that reason. Wrong twice over:
+
+| rooms | actual reason |
+|---|---|
+| 2 | **canted bays** — the bodega and the hotel, deliberately never handed to the painter. Design, not a fault |
+| 1 | a declaration that did not arrive |
+
+Calling a deliberate exclusion a missing declaration invents a fault out of a
+decision someone made on purpose. The scope line computes all three now instead
+of asserting one.
+
+**On the remaining one, for whoever owns `ct/doors.ts`:** it reproduces at HEAD —
+7 of 8, six runs, including detached at the same commit. Not intermittent *here*.
+`9c4fa019` measured 8 of 8 seven commits earlier, so it regressed inside that
+range rather than being absent. Which is exactly that note's own framing: the
+dependence is on module evaluation **order**, so "it works at my HEAD" and "it
+fails at yours" are both true and neither settles it. Its recommended fix — move
+the lookup into a leaf that globs nothing — removes the dependence rather than
+the symptom, and should land regardless of who measures what.
+
+I checked whether my own commits caused it. **My branch is mainline** — the desk
+has landed everything — so there is no version without them to compare against.
+The honest answer to "did I do this" is not "no", it is "unanswerable from
+here", and that is worth saying rather than implying the first.
+
+### ~~GOLDEN ACES, named for its owner~~ (mechanism stands, presence corrected)
 
 `scripts/doors-declared.mjs` is red on it: the room declares a door that never
 arrives. `ct/int-casino.ts` imports a **value** from `ct/doors.ts` —
