@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { citizenSprite } from './citizens';
 
 // HOTEL ORPHEUS, the lobby.
 //
@@ -12,7 +13,7 @@ import { buildRoom } from './interior';
 //   what is still grand          what has happened to it
 //   ─────────────────────────    ──────────────────────────────────────
 //   a real tile floor            a vinyl runner over the worn track
-//   a mahogany reception desk    nobody behind it
+//   a mahogany reception desk    one clerk on a dead shift behind it
 //   a full wall of pigeonholes   most of the keys still in them
 //   a proper lift with a dial    the dial stopped between floors
 //   a planted palm               dead, and nobody has moved it
@@ -108,7 +109,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // Down the west wall rather than facing the door, which is how a lobby of
   // this size was actually planned: you come in, the room opens to your right,
   // and the desk is the thing you walk ALONG. Deep counter, mahogany front,
-  // brass rail on top. Nobody behind it.
+  // brass rail on top.
   const DESK_X = -4.55, DESK_Z = -1.0, DESK_L = 4.4;
   const deskT = pixTex(24, 56, (g) => {
     g.fillStyle = '#4a2a20'; g.fillRect(0, 0, 24, 56);
@@ -133,6 +134,27 @@ export function buildHotel(ctx: CtxBuild): void {
     DESK_X + 0.1, 1.15, DESK_Z + 1.5);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.5),
     new THREE.MeshBasicMaterial({ color: 0xd8d0bc })), DESK_X + 0.05, 1.14, DESK_Z - 0.6);
+
+  // ── the clerk ─────────────────────────────────────────────────────────
+  //
+  // The user: *"the people inside these places are always flat and not like the
+  // people on the street"*. This lobby had nobody in it at all, which read as
+  // closed rather than as quiet — an empty desk under a full key rack says the
+  // hotel has shut, and the story here is that it is open and nearly nobody is
+  // staying.
+  //
+  // So: one clerk, in the 0.6 m staff strip between the desk and the west wall,
+  // facing across the counter into the room — `facing: PI/2` is atan2(vx, vz)
+  // toward +x. Shirt and tie, no jacket, because it is a long shift on a quiet
+  // night. `citizenSprite` gives him the same eight-angle turn every citizen
+  // outside has; see notes/CITIZEN-STYLE.md.
+  const clerk = citizenSprite(
+    { jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
+      accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 },
+    { facing: Math.PI / 2, h: 1.0, w: 0.98 },
+  );
+  put(clerk.mesh, DESK_X - 0.62, 0, DESK_Z + 0.35);   // origin at the FEET
+  ctx.onFrame(({ px, pz, dt }) => clerk.update(px, pz, dt));
 
   // ── the pigeonholes, on the wall behind the desk ──
   //
