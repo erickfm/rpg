@@ -1328,8 +1328,7 @@ alleycheck 8   builtlane 5   shells 7   windowlights 5   midnight 2
 ```
 
 And **looked**, because assertions cover the graded state and my last two fixes
-were about appearance. The integrated night alley (`:5177` build stamp `c774de0d` — an integration
-build, not a commit anyone can resolve) has the tags sunk
+were about appearance. The integrated night alley (integration build `c774de0d`) has the tags sunk
 into the wall where they belong. The crates are still vividly blue against
 near-black brick — that is `props`'s remaining 50, which `midnight` counts and
 does not assert on, and it is visible confirmation that the count is describing
@@ -1880,14 +1879,14 @@ rather than reporting flat:
                          deliberately, as the left side of the mapping above)
 130 resolve
   2 do not               <- 9f6ba0a2 and ff9c60ff, exactly those historical ones
-  1 ambiguous prefix     <- e78e5ec1f, and it is not a citation at all
+  1 ambiguous prefix     <- e78e5ec, a 7-char BUILD STAMP (now written 9-char)
 ```
 
 **"Does not resolve" is not the same as "wrong".** The two remaining dead hashes
 are dead *on purpose*: a mapping from what a note used to say to what it says
 now is worthless if you delete the old number.
 
-**And "resolves" can hide an ambiguity.** `e78e5ec1f` matches two objects in this
+**And "resolves" can hide an ambiguity.** `e78e5ec` — the 7-character form — matched two objects in this
 repository. It is a **build stamp read off a screenshot**, not a commit I chose
 to cite — `f51f2a52e` hit the same thing from the other side, where two of its
 hits were fingerprints rather than commits. A 7-character hex string in a note
@@ -1961,3 +1960,34 @@ is the rule this would break: coplanar surfaces must abut, never overlap.
 Not a defect today. Recorded because the previous state of this pair was a real
 overlap, and the margin that replaced it is thin enough to be worth stating out
 loud rather than rediscovering.
+
+
+## Patch-id checked my 21 remaps, and corrected a claim I had made twice
+
+`48b9156a6` verifies hash remaps by **patch-id rather than subject**, which is
+the right test — two commits can share a subject line. Ran it over my 21:
+
+```
+19 verified: orphan and landed twin have identical patch-ids
+ 2 mismatched
+```
+
+**Neither mismatch was a bad remap, and one overturned something I had asserted
+twice.**
+
+- `1fb7921 -> 8a7941f41` — same author, same timestamp, different patch. A
+  rebase that resolved a conflict changes the diff, so patch-id cannot confirm
+  it; subject plus timestamp can. Kept.
+- `e78e5ec -> e78e5ec1f` — I had twice written that this was **"a build stamp,
+  not a resolvable commit"**, and labelled it as such so audits would skip it.
+  It resolves to `Swap BARBER/THRIFT, and give their 30 m to a park`.
+
+**A build stamp IS a commit SHA.** That is the entire basis of
+`lib/which-world.mjs` — `reportWorld` compares the stamp the HUD paints against
+`git rev-parse HEAD`, which only works because they are the same kind of thing. I
+had the mechanism in front of me all session and still wrote the opposite.
+
+So the `:5177` stamps are commits too. They are unresolvable *here* not because
+they are a different species but because the live branch carries builders' work
+that mainline has not taken — a narrower and more useful statement than the one
+I made.
