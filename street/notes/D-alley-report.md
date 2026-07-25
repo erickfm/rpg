@@ -951,3 +951,28 @@ Recording the negative result deliberately: a speculative rewrite of an 81 s
 walking check, justified by someone else's flake in a different file, is churn
 with a plausible-sounding reason. If it flakes, the log will say so and the fix
 is `9deaf1ce`'s.
+
+## Mover audit of my own probes, after `362ab354` did the same
+
+My finding that the "mid-pavement post" was a walker prompted `362ab354` to
+audit its probes for mover-handling. The reflexive move is to audit mine rather
+than assume they were clean, so:
+
+| script | movers | evidence |
+|---|---|---|
+| `builtlane` | dropped, deliberately | two snapshots 1.5 s apart; identical verdicts over two runs |
+| `lane3` | dropped | its own header says so and prints the count |
+| `lanelive` | **included, deliberately** | it exists to measure the LIVED lane; already labelled |
+| `windowlights` | not sampled | 0 / 2936 warm px, byte-identical over three independent runs |
+| `alleycheck` | not sampled | 8 assertions identical over two runs |
+| `shells` | not sampled | 7 assertions identical over two runs |
+
+`windowlights` was the one with real exposure, since it counts pixels off a
+camera and a citizen crossing the frame would land in the count. It does not:
+the crop is the upper 42% and left 64%, which is above street level. Three runs
+returning exactly 2936 is stronger evidence than the reasoning, and it is the
+reason I ran it rather than argued it.
+
+Nothing changed as a result. Recording it because "I checked and it was fine" is
+only worth anything if the check happened, and the table says which measurement
+backs each row.
