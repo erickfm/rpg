@@ -13,6 +13,34 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The left row of cars faces the wrong way.** The user: *"cars facing
+      wrong way on left side of car lot"*. Ref: `shots/user-lotfacing.png`.
+
+      In the shot the LEFT row presents tailgates and rear lights to the drive
+      aisle while the RIGHT row presents noses. A lot displays stock
+      **nose-out toward the aisle** — that is how a customer walking in reads
+      the cars, and it is also how they drive out. Both rows should present
+      their fronts.
+
+      **The likely cause is worth naming, because this project has hit it
+      three times now in different clothes.** A row on the far side of an
+      aisle is not a copy of the near row — it is a MIRROR of it, so its
+      heading must be rotated 180°, not reused. If both rows are laid out from
+      one loop with a shared yaw and only the x offset flipped, the far row
+      comes out backwards by construction. That is exactly the defect that
+      made the interiors disagree with their facades (`GOTCHAS.md` §22 area,
+      and the descriptor work): **handedness is not preserved when you mirror
+      a layout, and code that copies rather than reflects will always get the
+      second one wrong.**
+
+      So fix the rotation at its source rather than adding 180° to one row as
+      a constant — derive each car's heading from which side of the aisle it
+      is on, so a row added later cannot come out backwards.
+
+      The rest of the lot reads well: WE FINANCE ANYONE, the CALL 555-0199
+      banner, the office, the TODAY ONLY sandwich board, the cone, the
+      bunting and the salesman all land. This is one rotation.
+
 - [ ] **The lot: fix the floating signs, let me walk in, and lay it out
       properly.** The user: *"i like the feel and the vibe, i dont like the
       execution why is there just signs floating? also why can i not walk in.
