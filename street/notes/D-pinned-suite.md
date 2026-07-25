@@ -14,7 +14,7 @@ that already works behaves differently.
 >
 > *"The fix is a pinned checkout, not more willpower."*
 
-That is exactly right, and it is now `scripts/pinned-suite.sh` (`abd5e7b1`).
+That is exactly right, and it is now `scripts/pinned-suite.sh` (`a68e602e9`).
 
 ```
 scripts/pinned-suite.sh              # fast tier, pinned
@@ -41,7 +41,7 @@ than the world.** It died at 32 checks with `ENOENT: process.cwd failed … the
 current working directory was likely removed`. `$WT` was derived from the SHA
 alone and startup force-removed that path before creating it, so a second
 invocation at the same commit deleted the first run's working directory
-mid-flight. I did that to myself three invocations deep. Fixed in `4d14341d`:
+mid-flight. I did that to myself three invocations deep. Fixed in `fa243e427`:
 the path carries the PID and cleanup can only reach what that process created.
 
 **The second run COMPLETED.** First time in five attempts:
@@ -86,7 +86,7 @@ meant to test.
 > *"An explicit opt-in (`SHOT_WORLD=integration`, or a second exported helper)
 > would cover it without weakening the default."*
 
-Implemented as proposed, with the name you chose (`8b9264a6`):
+Implemented as proposed, with the name you chose (`7db050f4c`):
 
 ```
 SHOT_WORLD=integration SHOT_URL=http://localhost:5177/ node scripts/alleycheck.mjs

@@ -43,7 +43,7 @@ two of those four turned up real defects the first time anyone looked.
 
 # LATEST — used car lot landed; queue now blocked on other builders
 
-`a9133e25` · build clean · sweep no new page errors · `health.mjs` WORLD OK ·
+`7630f2580` · build clean · sweep no new page errors · `health.mjs` WORLD OK ·
 collision proofs all pass · `ownership.sh D` flags only `crosstown.ts`, which
 is the sanctioned collision/floor mandate.
 
@@ -142,11 +142,11 @@ clean apart from the sanctioned collision mandate. Verified on **4231
 
 | item | commit | note |
 |---|---|---|
-| collision follows geometry | `1fb7921` | the mandate; walked, four proofs |
-| bodega doorway is a real hole | `47ce219` | recessed leaf, boxed reveal, OPEN over the door |
-| DINER ⇄ LAUNDRY identities | `8120f44` | diner now **z −55.5 … −43.5, centre −49.5** |
-| signs: real structure | `713de4b` | (a) and (b) already fixed; (c) was real |
-| BARBER ⇄ THRIFT + park | `e88bbf2` | park site **z −98 … −68, x −14 … −7** |
+| collision follows geometry | `8a7941f41` | the mandate; walked, four proofs |
+| bodega doorway is a real hole | `57fa55cad` | recessed leaf, boxed reveal, OPEN over the door |
+| DINER ⇄ LAUNDRY identities | `cff1464d5` | diner now **z −55.5 … −43.5, centre −49.5** |
+| signs: real structure | `d2e5d02d0` | (a) and (b) already fixed; (c) was real |
+| BARBER ⇄ THRIFT + park | `e78e5ec1f` | park site **z −98 … −68, x −14 … −7** |
 | MERIDIAN + LAUNDRY → bank | `b5f8264a` | 19.2 m; resolves the Corporation item |
 | crates, attempt three | `50eaa2b0` | twelve separate fruit, judged at eye height |
 
@@ -203,7 +203,7 @@ rhythm — one stallriser line, one head, one reveal depth, equal bays — is a
 straight application of A's helpers instead of a re-invention.
 
 The rest of that item is already answered:
-- **OPEN over the door** — done in `47ce219`.
+- **OPEN over the door** — done in `57fa55cad`.
 - **Collision on the cut face** — done and walk-proved: stops on the cut at
   `x+z = −87.56`, and reaches `x = 7.38` at z = −95 where a square wall stops
   you at 6.34.
@@ -247,7 +247,7 @@ are reported here.
 
 ---
 
-# LATEST — collision follows geometry (`1fb7921`)
+# LATEST — collision follows geometry (`8a7941f41`)
 
 **`## Now` item done.** `npm run build` clean, `npm run sweep` same warnings as
 baseline, `scripts/health.mjs` → WORLD OK.
@@ -324,7 +324,7 @@ only and touches no texture code in `ct/street.ts`.
 
 ---
 
-## `## Now` → **Move the church onto the main block** — DONE (`8447e7c`)
+## `## Now` → **Move the church onto the main block** — DONE (`360fbac4b`)
 
 `ct/civic.ts` untouched. This is a roster change and nothing else.
 
@@ -420,7 +420,7 @@ time before trusting a result. Recommend every worktree get a pinned
 
 - **Bodega blocker** — the fruit-crate collider, not the chamfer. Re-verified
   after the civic split. Door centre `(8.0, −95.0)`; the `[E]` spot works as is.
-- **BURGER BARN red + beige** (`d7e0b1f`) — the mustard constants had never
+- **BURGER BARN red + beige** (`57d35a0c9`) — the mustard constants had never
   actually reached the code.
 
 Open in my queue: bodega door readability, filling the crates, signs (a) and
@@ -439,7 +439,7 @@ read it. Commits so you can tick them off.
 
 | item | commits |
 |---|---|
-| **The bank flank** (raised twice) | `1ce3d303`, `06fe7bd3`, `54905bb9` |
+| **The bank flank** (raised twice) | `64565b5be`, `cf1957a30`, `bcb0f816c` |
 | Open-site depths — two builders blocked | `53969600` |
 | Buildings 3.4 m deep / every flank the same brown | `e466c43c`, `4ce8355d` |
 | CAFE + HARDWARE become a used car lot, roster half | landed; z -9 … 14.2 |
@@ -448,11 +448,11 @@ read it. Commits so you can tick them off.
 
 | item | commits |
 |---|---|
-| Bodega corner bay | `1d5c7515` |
+| Bodega corner bay | `453766784` |
 | Signs, both bugs | **not mine** — moved with the casino into `ct/vice.ts` (G) |
 | Shop resizing | `bab2a7c3`, plus the band-table refactor before it |
-| Window lights | `de401556`, `065a4e53` |
-| `[E]` spots out of `crosstown.ts` | `570eb41f` — the `SPOTS.push` block is empty |
+| Window lights | `de401556`, `cedf76802` |
+| `[E]` spots out of `crosstown.ts` | `379257956` — the `SPOTS.push` block is empty |
 
 ## The bank flank, because my first diagnosis was wrong
 
@@ -481,7 +481,7 @@ brief noticed. `partyWallTex` is now the only one.
 
 ## For the desk
 
-**E's patch is applied** (`793edfe7`), written out properly rather than as
+**E's patch is applied** (`9fa92d579`), written out properly rather than as
 their `void 0;` verification stub, which was marked "revert before commit".
 Walked, not assumed: the churchyard opens at the gate (z -80), the nave still
 holds at x 9.24, the walls hold along the whole frontage, eye height never
@@ -768,7 +768,7 @@ number describes.** Mine did not. Every lane figure above should be read as
 pavement rather than a fault, and the two are only confusable if nobody says
 which one they measured.
 
-## Source-mutation pass over my guards (dc0f4e8b)
+## Source-mutation pass over my guards (5d8a24c13)
 
 `bf820319` routes a selftest to the source mutation rather than the scene one,
 and that applies to all three of mine — every selftest I wrote inverts an
@@ -829,7 +829,7 @@ asymmetry is worth one line at the flag's definition, because the name reads as
 mutant. If it is not intended, then chrome and rubber are being graded by
 elevation right now.
 
-## Follow-on: my lit sheets were excluded as glass (120ac459)
+## Follow-on: my lit sheets were excluded as glass (52b33dd67)
 
 Same investigation. `isGlass` is `m.transparent && !(m.alphaTest > 0)`, and the
 window sheets are transparent, so `dimWorld` skips them as glass. Correct
@@ -879,7 +879,7 @@ since the next person to write a check will otherwise make it five.
 anything.** The default is `http://localhost:4177/`, `page.goto` throws
 ERR_CONNECTION_REFUSED before any check reaches `reportWorld`, and the runner
 rendered each as `FAILED (1)` under a footer reading "Something above is red."
-Fixed in `5c10e903`: the URL is probed once, first, and a dead port stops the
+Fixed in `5ae9f9955`: the URL is probed once, first, and a dead port stops the
 run with the reason and exits 2 rather than 1. The runner already separated
 WRONG WORLD from FAILED for the same reason — no world was the missing third
 case. **That is the house runner rather than my file; revert freely.**
@@ -1108,7 +1108,7 @@ parameters:
     coarse 4x4 blocks     15                4
 ```
 
-**`dc0f4e8b`'s comment says that mutant "genuinely has 19 different-looking
+**`5d8a24c13`'s comment says that mutant "genuinely has 19 different-looking
 returns and BOTH instruments are right to pass it". That was wrong.** They are
 the same brown with different dust on it, which is the user's complaint exactly.
 
@@ -1320,7 +1320,7 @@ Removing `m.userData.selfLit = true` from `ct/street.ts` changes the flag and
 **nothing else** — the sheets' colours at 21:00 are identical either way.
 `ct/props.ts` decides self-lit for itself with `isSelfLit(m.map)` and uses its
 own answer for `floor: selfLit ? FLOOR_SIGN : floorFor(y)`. **My stamp is an
-output, never an input.** I suspected that when I added it (`120ac459` says the
+output, never an input.** I suspected that when I added it (`52b33dd67` says the
 grader "does not read it") and this is the mutation that proves it.
 
 So `midnight` cannot catch that regression, and it is right not to: the stamp
@@ -1535,7 +1535,7 @@ screenshot, and I published it as though it were.
 
 ### `user-bank-vs-library.png` confirms it from the other side
 
-Opened the next reference in the same subject. It is build `e78e5ec` and shows
+Opened the next reference in the same subject. It is build `e78e5ec1f` and shows
 the library as **pale cream stone with arched openings**, and the filename says
 what the user was doing: comparing it against the bank.
 
@@ -1850,14 +1850,14 @@ rather than reporting flat:
                          deliberately, as the left side of the mapping above)
 130 resolve
   2 do not               <- 9f6ba0a2 and ff9c60ff, exactly those historical ones
-  1 ambiguous prefix     <- e78e5ec, and it is not a citation at all
+  1 ambiguous prefix     <- e78e5ec1f, and it is not a citation at all
 ```
 
 **"Does not resolve" is not the same as "wrong".** The two remaining dead hashes
 are dead *on purpose*: a mapping from what a note used to say to what it says
 now is worthless if you delete the old number.
 
-**And "resolves" can hide an ambiguity.** `e78e5ec` matches two objects in this
+**And "resolves" can hide an ambiguity.** `e78e5ec1f` matches two objects in this
 repository. It is a **build stamp read off a screenshot**, not a commit I chose
 to cite — `f51f2a52e` hit the same thing from the other side, where two of its
 hits were fingerprints rather than commits. A 7-character hex string in a note
@@ -1873,3 +1873,35 @@ context of anything it flags — which is how I caught that both of mine sat in 
 rewrites every unlanded commit of mine, so a hash is only stable once it has
 landed on mainline. Citing my own in-flight work by hash is writing down a number
 that is about to change; citing what it *did* survives.
+
+
+## 25 of my citations pointed at commits nobody else could resolve
+
+`a67cfda46` found 21 of its 59 doing this. Mine was worse in kind, because my
+previous audit had already called them healthy: **an orphan left by a rebase
+still resolves in my worktree.** `git cat-file -e` says yes; everyone else says
+"unknown revision".
+
+The right test is ancestry on mainline, not resolvability here:
+
+```
+131 citations resolve in my tree
+106 were ancestors of add-stick-and-city98   <- anyone can look these up
+ 25 were not                                 <- only I could
+```
+
+21 had a landed twin under the same subject and are rewritten to it. Of the four
+left:
+
+- **three are integration-world build stamps** (`live: rpg-alley`) recorded from
+  `:5177` runs — not commits of mine and correctly unresolvable by anyone, the
+  same species as the `e78e5ec` build stamp and `f51f2a52e`'s fingerprints.
+- **one was `abd5e7b1`**, and it taught me something. `git log --diff-filter=A`
+  says the commit that actually added `scripts/pinned-suite.sh` to mainline is
+  **`a68e602e9 "wip: pinned-suite"`** — my placeholder. I amended that message
+  into a real explanation while the merge train had already taken the wip
+  version, so **mainline carries "wip:" and my explanation lives in an orphan
+  nobody can fetch.** Repointed to the landed hash.
+
+The reasoning survived only because I had also written it into the script's own
+header. **A commit message can be lost to a rebase; a file header cannot.**
