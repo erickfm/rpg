@@ -277,20 +277,20 @@ export function buildDiner(ctx: CtxBuild): void {
   put(menu, 0, 2.45, -hd + 0.06);
 
   // ── the waitress, behind the counter ──
-  const wT = pixTex(40, 64, (g) => {
-    g.fillStyle = '#4a7a6a'; g.fillRect(9, 24, 22, 26);            // uniform dress
-    g.fillStyle = '#d8d4c8'; g.fillRect(12, 30, 16, 20);           // apron
-    g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(12, 30, 16, 2);
-    g.fillStyle = '#3a5a50'; g.fillRect(11, 50, 8, 12); g.fillRect(21, 50, 8, 12);
-    g.fillStyle = '#c9946a'; g.fillRect(4, 26, 5, 14); g.fillRect(31, 26, 5, 14);
-    g.fillStyle = '#b8845a'; g.fillRect(14, 9, 12, 14);            // head
-    g.fillStyle = '#5a3a22'; g.fillRect(13, 6, 14, 6);             // hair up
-    g.fillStyle = '#241a12'; g.fillRect(16, 15, 2, 2); g.fillRect(22, 15, 2, 2);
-    g.fillStyle = '#8a3a3a'; g.fillRect(18, 19, 4, 1);
-    dither(g, 40, 64, 20);
-  });
-  const waitress = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 1.9),
-    new THREE.MeshBasicMaterial({ map: wT, alphaTest: 0.5, side: THREE.DoubleSide }));
-  put(waitress, -1.4, 0.95, CZ - 0.55);
+  //
+  // From the citizen atlas, like everyone on the street. She used to be one
+  // hand-painted front view on a plane, and because this is the REFERENCE
+  // interior every room built after her copied that — so "the people inside
+  // these places are always flat and not like the people on the street" is a
+  // complaint that starts here. She turns through eight painted views now.
+  //
+  // Green uniform dress with a pale apron over it, hair up: the same person,
+  // described to the atlas instead of drawn by hand. `ct/citizens.ts` is H's
+  // and has no apron option yet, so the apron is the accent colour — close
+  // enough that she reads right, and worth asking H for properly.
+  room.person({
+    jacket: '#4a7a6a', pants: '#3a5a50', skin: '#b8845a', hair: '#5a3a22',
+    fit: 'dress', accent: '#d8d4c8', cut: 'tied', build: -1,
+  }, -1.4, CZ - 0.55, { facing: Math.PI, h: 0.97, w: 0.95 });
 
 }

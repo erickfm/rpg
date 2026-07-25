@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import { BUILD, type CtxBuild } from './ctx';
+import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { frontageOf } from './tex-world';
 import { doorWorldFor, roomWidthFor } from './doors';
+import { citizenSprite, type Look } from './citizens';
 import { FACE } from './rng';
 
 // ── the interior kit ──────────────────────────────────────────────────────
@@ -280,6 +281,31 @@ export interface Room {
    *  a fitting laid out against a remembered position ends up in front of it.
    *  The diner's booth bank did exactly that. */
   doorAt: number;
+  /**
+   * A PERSON, drawn from the 8-angle citizen atlas like everyone on the street.
+   *
+   * The user: *"the people inside these places are always flat and not like
+   * the people on the street."* They were right and it was my fault — the
+   * diner's waitress was one hand-painted front view on a plane, and because
+   * she was the reference interior every room after her copied the mistake.
+   * A street citizen turns through eight painted views; she turned through
+   * one, so she was cardboard from every angle but dead ahead.
+   *
+   * This wraps H's `citizenSprite` and does the two things a room would
+   * otherwise get wrong: it places the mesh in WORLD coordinates (a local
+   * position gets the figure dimmed by the night sweep — see `group`), and it
+   * registers the per-frame `update` the sprite needs to choose its sector.
+   * Without that hook the sprite never turns and you are back where you
+   * started, with better art.
+   *
+   * Stationary people hold the IDLE frame: `setWalking(false)` is the default,
+   * which is row 0 of the atlas, not a walk cycle frozen mid-stride.
+   */
+  person: (look: Look, lx: number, lz: number, o?: {
+    /** which way they face, atan2(vx, vz); 0 = +z. Point them at their work. */
+    facing?: number;
+    h?: number; w?: number;
+  }) => void;
   /** true while the player is standing in THIS room */
   inside: () => boolean;
   /**
@@ -837,6 +863,14 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   return {
     cx, cz, W, D, H, wx, wz, group, colliders, doorAt: dAt,
     put: (m, lx, y, lz) => place(m, lx, y, lz),
+    person: (look, lx, lz, o = {}) => {
+      const s = citizenSprite(look, { facing: o.facing ?? 0, h: o.h, w: o.w });
+      place(s.mesh, lx, 0, lz);
+      // the sprite picks its painted view from where YOU are, so it needs the
+      // frame. LATE, after the world has moved: it is reacting to the finished
+      // position, the same as the billboard pass.
+      ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
+    },
     sign: (map, w, h, lx, y, lz, rotY = 0) => {
       for (const flip of [0, Math.PI]) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
