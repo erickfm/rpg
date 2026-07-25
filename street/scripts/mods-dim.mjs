@@ -170,6 +170,21 @@ if (best < 0.50) {
   console.error(`  Nothing follows about whether anything dims. GOTCHAS 32.\n`);
   process.exit(3);
 }
+// WATCHED FIRING, because bd85cd1f3's first positive control was wrong and
+// only caught itself: it compared a MEDIAN over all sheets against a threshold
+// calibrated from one specific PAIR. Two different quantities, and the error
+// was committed inside the control written to catch a different error.
+//
+// Mine is the same shape as their corrected one — best-darkening thing must
+// drop at least half — so it needed the same proof rather than the same
+// assumption. Mutated the night read to happen at the DAY hour, so the clock
+// never advances:
+//
+//   THE NIGHT NEVER HAPPENED — the largest drop anywhere is 0.0%     exit 3
+//
+// and on a good run 99.1% against the 50% floor, with the guarded finding
+// unchanged at 56 either way, which says the control does not distort what it
+// guards.
 console.log(`  positive control: the largest drop is ${(best * 100).toFixed(1)}% — the night happened`);
 
 const stuck = rows.filter((r) => r.drop < MOVED && !r.cLight && !r.known);
