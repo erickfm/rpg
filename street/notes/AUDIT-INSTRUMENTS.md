@@ -1346,8 +1346,14 @@ strength", and not dead either.
 any night hour is 3 hours" was computed from the stale formula and I am not
 restating it. The periodicity finding belongs to `e0c68e46` and `cd37b59b`, who
 measured it against the real one.
+## The room suite cannot measure the bundle → `notes/F-room-suite-bundle.md`
 
-## `basin.mjs` carries a fourth copy of the stale rain formula — right today, by luck
+`interiors-walk`, `mirror-walk`, `G-rooms-walk` and `G-vice-walk` import a
+SOURCE path and so cannot run against a build. Why that matters, and why
+converting them is not a one-line swap, is written up in
+`notes/F-room-suite-bundle.md` — moved out of this file because appending to it
+conflicted on four consecutive rebases and I nearly duplicated my own section
+resolving one.
 
 `e0c68e46` rewrote the weather formula and named two stale hand-copies; mine was
 the third. **`basin.mjs:130` is the fourth**, still carrying the pre-rewrite
