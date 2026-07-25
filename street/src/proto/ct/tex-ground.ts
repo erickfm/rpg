@@ -293,6 +293,67 @@ export function apronTex(minX: number, maxX: number, minZ: number, maxZ: number)
   return declareSurface(t, 'ground');
 }
 
+/** CIVIC FLAGSTONE, for the library forecourt and the churchyard.
+ *
+ *  The user asked what the "large translucent quadrilateral patches" on the
+ *  library forecourt are. Measured: 26 ground meshes there, ALL registered with
+ *  the night grading (so nothing has diverged from its neighbour, which was the
+ *  hypothesis) and ALL of them `map: none` — untextured flat colour at seven
+ *  tones. The two big ones are a 3.6 x 4.1 m landing and a 3.2 x 4.1 m flight,
+ *  each a box with a materials array, which is why one object shows several
+ *  tones with hard straight edges between them.
+ *
+ *  A flat colour has no grain to attach to and no joints to give it scale, so it
+ *  reads as a tint laid OVER the paving rather than as paving. Same reason the
+ *  driveway apron read as untextured earlier today.
+ *
+ *  ct/civic.ts is not my file, so this exists to make the fix one line there
+ *  rather than a rewrite: same contract as walkTex and apronTex, canvas sized
+ *  from the slab's real metres at the world's 32 px/m.
+ *
+ *  Civic flags rather than sidewalk flags: 1.5 m units instead of 1 m, a cooler
+ *  and slightly darker grey than the walk's #84817a because this is granite
+ *  rather than poured concrete, and the joints run both ways on the flag grid.
+ *  notes/B-forecourt-patches.md is the explanation written for the user. */
+export function plazaTex(minX: number, maxX: number, minZ: number, maxZ: number): THREE.Texture {
+  const w = Math.max(8, Math.round((maxX - minX) * WPM));
+  const h = Math.max(8, Math.round((maxZ - minZ) * WPM));
+  const FLAG = Math.round(1.5 * WPM);                       // 1.5 m civic flags
+  const t = pixTex(w, h, (g) => {
+    g.fillStyle = '#7d7d79';                                // cooler and greyer than the walk
+    g.fillRect(0, 0, w, h);
+    // flag-to-flag tone variation, the same trick drawWalk uses so the two
+    // surfaces read as related stone rather than as unrelated materials
+    for (let sy = 0; sy < h; sy += FLAG) for (let sx = 0; sx < w; sx += FLAG) {
+      const v = Math.random();
+      g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.02 + v * 0.05})`
+                            : `rgba(255,255,255,${(v - 0.5) * 0.07})`;
+      g.fillRect(sx, sy, FLAG, FLAG);
+    }
+    // granite speckle — finer and sparser than the walk's concrete aggregate
+    for (let i = 0; i < w * h * 0.07; i++) {
+      const x = Math.random() * w, y = Math.random() * h, v = Math.random();
+      g.fillStyle = v < 0.5 ? `rgba(52,52,50,${0.06 + v * 0.20})`
+                            : `rgba(214,214,210,${(v - 0.5) * 0.26})`;
+      g.fillRect(x, y, 1, 1);
+    }
+    // weathering where water sits along the joints
+    for (let i = 0; i < 10; i++) {
+      const x = Math.random() * w, y = Math.random() * h, r = 4 + Math.random() * 16;
+      const b = g.createRadialGradient(x, y, 1, x, y, r);
+      b.addColorStop(0, `rgba(48,48,44,${0.05 + Math.random() * 0.08})`);
+      b.addColorStop(1, 'rgba(48,48,44,0)');
+      g.fillStyle = b; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // the flag joints, both ways, 2 px = 6 cm as everywhere else here
+    g.fillStyle = 'rgba(0,0,0,0.26)';
+    for (let k = 0; k <= h; k += FLAG) g.fillRect(0, k, w, 2);
+    for (let k = 0; k <= w; k += FLAG) g.fillRect(k, 0, 2, h);
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;            // 1:1, no repeat
+  return declareSurface(t, 'ground');
+}
+
 // ── the kerb face ─────────────────────────────────────────────────────────
 // 768 × 10 px = 12 m × 0.15 m, i.e. 64 px/m across and 67 px/m up: square
 // texels, so the grain never crowds. Read against walkTex's #84817a: the face

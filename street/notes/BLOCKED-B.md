@@ -1,3 +1,39 @@
+# ROUTED to ct/civic.ts's owner: the forecourt patches the user asked about
+
+Full explanation, written for the user, is in `notes/B-forecourt-patches.md`.
+The short version and the one-line fix:
+
+**It is not a wet/night registration split.** All 26 ground meshes in the
+forecourt are `graded: true` — every one registered, none diverged from its
+neighbour. That hypothesis was the desk's and it is worth correcting, because it
+is a real failure mode elsewhere and looking for it here would have found
+nothing.
+
+**They are untextured.** All 26 carry `map: none`, at seven flat tones from
+0.075 to 0.405. The two the user is actually looking at are a 3.6 x 4.1 m
+landing and a 3.2 x 4.1 m flight, each a box with a materials array — which is
+why one object produces several quads at different tones with hard edges, and
+why they overlap in plan (y 0.155 and 0.24, centres 0.2 m apart).
+
+**The fix is one line, and the texture now exists.** `plazaTex(minX, maxX, minZ,
+maxZ)` is exported from `ct/tex-ground.ts` beside `walkTex` and `apronTex`. Same
+contract: canvas sized from the slab's real metres at the world's 32 px/m, 1:1
+with no repeat. Civic flagstone — 1.5 m units, cooler grey than the sidewalk,
+granite speckle, joints both ways.
+
+    top face of the landing and the flight  ->  plazaTex(minX, maxX, minZ, maxZ)
+
+Index 2 of the materials array is the top face. The copings, posts and planters
+are small enough that flat colour is defensible; the two big slabs are not.
+
+**Scope, since the user asked how much else is like this.** Counting the TOP face
+of every ground surface over 1 m²: 123 across the world are untextured flat
+colour, about 454 m². `civic` has ZERO textured ground materials anywhere, so the
+churchyard has the same problem as the forecourt. `street` is 27, `lot` 12. Mine
+is one — the apron skirt, deliberately hidden under the apron at y 0.002.
+
+---
+
 # Integration verification of the 22 unlanded commits, and one look
 
 Four changes to the world's lighting and wet paths landed on my branch this
