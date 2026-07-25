@@ -124,6 +124,39 @@ because the banner is now echoed it said exactly why: the served build was
 bare `FAILED` lines on a build where every harness passes by hand, which sends
 you looking at the world instead of at the build you are serving.
 
+### The integration world can be probed but cannot be WALKED
+
+My work is landed, so "does it hold up in the world the user actually plays" is
+finally a question I can ask, and `which-world.mjs` supports it with
+`SHOT_WORLD=integration`. The answer splits cleanly in two, and the split is not
+documented anywhere.
+
+**Geometry and floors: identical to my tree.** `groundAt` at the church door
+0.55 and the library flight 0.42 in both. `E-drape` and `E-onslope` both fully
+green against `:5177`. Every floor probe in `E-park-walk` agreed to the
+millimetre — 66 level points, the mound at 0.51, the dish 50 mm deep, the
+transect 347 mm.
+
+**Anything that WALKS is worthless there.** `live-integrate.sh` rebuilds every
+15 s and that RELOADS THE PAGE, so a harness longer than about fifteen seconds
+has the ground taken out from under it:
+
+    page.evaluate: Execution context was destroyed,
+      most likely because of a navigation
+
+`E-walk` got eleven passes and then died on exactly that. `E-yard-walk` reported
+the church flight failing at *x −1.40, gy 0.00* — the middle of the road, 10 m
+west of the church — and `E-park-walk` walked to *z 9.00*, a hundred metres out
+of the park. Neither is a fault in the world: the page reloaded, the player went
+back to spawn, and the walk carried on from there. I went looking for a church
+that had moved before spotting it.
+
+The banner in `which-world.mjs` warns about "one page error: Vite's HMR socket".
+That undersells it — the socket dropping is cosmetic, the navigation is not, and
+a builder reading only the banner will trust a walk result they should throw
+away. Worth a stronger warning there, and it is shared code so I have not
+touched it.
+
 ## Record, do not route
 
 | finding | why not |
