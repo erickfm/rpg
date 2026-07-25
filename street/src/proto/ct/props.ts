@@ -582,23 +582,42 @@ export function buildProps(ctx: CtxBuild): Props {
   const lensM = new THREE.MeshBasicMaterial({ color: 0x3a3324 });   // shared: dark glass by day, warms at night
   const lensDay = new THREE.Color(0x3a3324), lensLit = new THREE.Color(0xffcc82);
   const LAMP_H = 5.0;
-  const makeLamp = (s: number, z: number) => {
-    const bx = s * (ROAD_HALF + 0.55);          // just inside the kerb
+  // A lamp anywhere, pointing anywhere. This used to be hardwired to the main
+  // street — pole at s * (ROAD_HALF + 0.55), arm reaching along -x — which is
+  // why builder H could not put lamps on the side street and said so in
+  // ct/sidestreet.ts: the bishop-crook geometry is inline here and the
+  // lamplight registry `lampHeads` is private to this module, so "a lamp built
+  // out there would be a dark post that lights nothing, worse than no lamp".
+  //
+  // (bx, bz) is the foot of the pole and (dx, dz) is the unit direction the
+  // crook reaches — toward the roadway. The main street passes (-s, 0) and the
+  // side street passes (0, ±1), and nothing else about a lamp changes.
+  const makeLampAt = (bx: number, bz: number, dx: number, dz: number,
+                      splashSide: number | null) => {
     const reach = 1.25;                         // crook arm reaches over the road
-    const headX = bx - s * reach;
+    const headX = bx + dx * reach, headZ = bz + dz * reach;
+    const z = bz;                               // pole's own z, for the pole parts
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.28), poleHi);
     base.position.set(bx, sidewalkY + 0.25, z); scene.add(base);
     const pole = new THREE.Mesh(new THREE.BoxGeometry(0.14, LAMP_H, 0.14), poleM);
     pole.position.set(bx, sidewalkY + LAMP_H / 2, z); scene.add(pole);
     // clean L crook: vertical pole + one horizontal arm (no diagonal strut) +
     // a lamp head that hangs DOWN off the arm's far end
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(reach, 0.12, 0.12), poleM);
-    arm.position.set(bx - s * reach / 2, sidewalkY + LAMP_H - 0.05, z); scene.add(arm);
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.32), poleHi);
-    head.position.set(headX, sidewalkY + LAMP_H - 0.16, z); scene.add(head);
-    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.24), lensM);
-    lens.position.set(headX, sidewalkY + LAMP_H - 0.31, z); scene.add(lens);
-    obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
+    // the arm runs along the reach, so its long axis swaps with the direction
+    const arm = new THREE.Mesh(
+      dx !== 0 ? new THREE.BoxGeometry(reach, 0.12, 0.12)
+               : new THREE.BoxGeometry(0.12, 0.12, reach), poleM);
+    arm.position.set(bx + dx * reach / 2, sidewalkY + LAMP_H - 0.05, bz + dz * reach / 2);
+    scene.add(arm);
+    const head = new THREE.Mesh(
+      dx !== 0 ? new THREE.BoxGeometry(0.34, 0.26, 0.32)
+               : new THREE.BoxGeometry(0.32, 0.26, 0.34), poleHi);
+    head.position.set(headX, sidewalkY + LAMP_H - 0.16, headZ); scene.add(head);
+    const lens = new THREE.Mesh(
+      dx !== 0 ? new THREE.BoxGeometry(0.26, 0.08, 0.24)
+               : new THREE.BoxGeometry(0.24, 0.08, 0.26), lensM);
+    lens.position.set(headX, sidewalkY + LAMP_H - 0.31, headZ); scene.add(lens);
+    obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: bz - 0.2, maxZ: bz + 0.2 });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7),
       new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
     // THE one change on top of the revert: anchor the glow to the lens.
@@ -615,7 +634,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // (centre -0.31, spanning -0.35 … -0.27). Centre the halo there and the
     // core sits on the glowing lens with nothing in front of it, so the light
     // reads as coming out of the lamp. 9 cm, no redraw.
-    halo.position.set(headX, sidewalkY + LAMP_H - 0.31, z);
+    halo.position.set(headX, sidewalkY + LAMP_H - 0.31, headZ);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
     // The wash on the road widens with the reach, or the litter and the people
@@ -625,23 +644,61 @@ export function buildProps(ctx: CtxBuild): Props {
     // because a wider bright area adds up to more light even at equal peak.
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6),
       new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, z); scene.add(pool);
-    lampHeads.push({ x: headX, z });
+    pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, headZ); scene.add(pool);
+    lampHeads.push({ x: headX, z: headZ });
     // light spilling up the wall behind the lamp, on the same night curve as
     // the halo — otherwise the brick beside a lamp is as black as the brick
     // mid-block, which is what makes the street read as unlit
-    const splash = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 5.0),
-      new THREE.MeshBasicMaterial({ map: wallSplashT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    splash.position.set(s * (FACE - 0.06), sidewalkY + 2.7, z);
-    splash.rotation.y = -s * Math.PI / 2;   // face the street, not the brick
-    scene.add(splash);
-    nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
+    // Light up the wall behind the lamp — otherwise the brick beside a lamp is
+    // as black as the brick mid-block, which is what makes a street read as
+    // unlit. Only where a facade is actually KNOWN to be: the main street's
+    // building line is at |x| = FACE, and the side street's is not mine to
+    // guess at. A splash sheet standing where there is no wall is a bright
+    // rectangle hanging in the air, which is worse than no splash.
+    if (splashSide !== null) {
+      const splash = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 5.0),
+        new THREE.MeshBasicMaterial({ map: wallSplashT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+      splash.position.set(splashSide * (FACE - 0.06), sidewalkY + 2.7, z);
+      splash.rotation.y = -splashSide * Math.PI / 2;   // face the street, not the brick
+      scene.add(splash);
+      nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
+    }
     nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
   };
+  const makeLamp = (s: number, z: number) =>
+    makeLampAt(s * (ROAD_HALF + 0.55), z, -s, 0, s);
   // staggered down the block, kept clear of the tree pits (every 14 m at −2,−16…)
   [[-1, -9], [1, -23], [-1, -37], [1, -51], [-1, -65], [1, -79]].forEach(([s, z]) => makeLamp(s, z));
   // two more lighting the corner turn
   makeLamp(-1, -93);
+
+  // ── the side street, which had no lamps at all after dark ───────────────
+  //
+  // Builder H was blocked on this and said exactly why in ct/sidestreet.ts:
+  // the crook geometry was inline here and `lampHeads` is private, so a lamp
+  // built from that module "would be a dark post that lights nothing — worse
+  // than no lamp". makeLampAt above is the factory that unblocks it, and these
+  // are the lamps; H's file needs no edit and neither does crosstown.ts.
+  //
+  // DENSITY FALLS OFF, matching what H did with the trees and the parked cars:
+  // gaps grow eastward, 14 then 16, rather than the main street's even 14. The
+  // one thing NOT thinned to nothing is the last stretch — H leaves 42…55
+  // deliberately bare of trees and cars, but a street that goes pitch dark
+  // before the fog does is the problem being fixed, not the effect wanted, so
+  // the last lamp sits at 50.
+  //
+  // Placed to interleave with H's trees rather than beside them: those are at
+  // x 13 and 31 on the north walk and 21 and 43 on the south, so these sit at
+  // 20 north, 34 south, 50 north and no lamp is within 7 m of a tree on its
+  // own side. The walk past each is the same 0.5 m the main street gets,
+  // because the offsets are the same offsets.
+  const SIDE_Z0 = -98, SIDE_Z1 = -108;   // as declared in crosstown.ts
+  for (const [lx, side] of [[20, 1], [34, -1], [50, 1]] as [number, 1 | -1][]) {
+    // side +1 is the NORTH kerb at SIDE_Z0, and the pole stands 0.55 m out on
+    // the walk with the crook reaching south over the road; -1 mirrors it.
+    const bz = side > 0 ? SIDE_Z0 + 0.55 : SIDE_Z1 - 0.55;
+    makeLampAt(lx, bz, 0, side > 0 ? -1 : 1, null);
+  }
   makeLamp(1, -93);
 
   // hydrant on the right sidewalk — hard against the kerb like the trees, with
