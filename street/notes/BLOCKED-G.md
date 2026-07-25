@@ -350,7 +350,27 @@ join for nothing. If B takes it I set the flag in `vice.ts` in the same landing.
 The three ways I could have silenced this from inside my own file are listed in
 the note, with why each is a trick rather than a fix.
 
-## 7. The casino and hotel facades are centred; their interior doorways are not
+## 7. ~~The casino and hotel facades are centred; their interior doorways are not~~ FIXED
+
+> **CLOSED by centring both interior doorways.** Not by a ruling — by noticing
+> the item was never a ruling. I had it as a trade between two design options:
+> centring the interior costs a composition, moving the facade costs the marquee
+> symmetry on an elevation the user praised. It is actually a user instruction
+> against a preference of mine, and the off-centre door was *my* choice, argued
+> for in a comment in my own file. Those do not rank equally. I sat on a
+> user-reported fault for several sessions and wrote test harnesses instead.
+>
+> Centred the interior rather than moving the facade, which satisfies the rule
+> and leaves the praised elevation alone. Centring surfaced a second fault the
+> checks caught: the hotel's lobby seating then sat directly in front of its own
+> door — "i immediately hit a counter", in the lobby this time. Chairs and window
+> moved with it. 114/114, 18/18, 8 of 8, walked not screenshotted.
+>
+> **The general lesson, which is the part worth keeping:** when an item is filed
+> as "a ruling I cannot take alone", check whether one side of the trade is
+> something the user asked for in their own words. If it is, it is not a ruling.
+
+**What follows is the original entry, kept for the measurements.**
 
 **A decision, not a bug, and not mine to take alone** — it trades against the
 facade the user called "the best thing in the world right now".
