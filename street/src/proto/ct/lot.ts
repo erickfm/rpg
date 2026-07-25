@@ -158,10 +158,19 @@ export function buildLot(o: {
     // Galvanised wire in daylight, not white. At full brightness the mesh
     // was the lightest thing in frame and read as a screen over the block
     // rather than as something you see through.
+    // TWO texels of wire, not one. A one-texel diagonal at 0.3 m per tile is
+    // sub-pixel from the pavement, alphaTest drops it, and the fence simply
+    // is not there from across the street — which is exactly what the user
+    // saw: banners hanging in mid-air over a lot with no fence. Doubling the
+    // wire doubles the covered fraction so enough of it survives the test to
+    // read as a screen at distance, and up close it is still a wire diamond
+    // and not a grey haze.
     g.fillStyle = '#7c848d';
     for (let i = 0; i < 24; i++) for (const off of [0, 8, 16]) {
-      g.fillRect((i + off) % 24, i, 1, 1);
-      g.fillRect((((off - i) % 24) + 24) % 24, i, 1, 1);
+      for (const w of [0, 1]) {
+        g.fillRect(((i + off + w) % 24), i, 1, 1);
+        g.fillRect((((off - i + w) % 24) + 24) % 24, i, 1, 1);
+      }
     }
   });
   linkT.wrapS = linkT.wrapT = THREE.RepeatWrapping;
@@ -293,6 +302,37 @@ export function buildLot(o: {
     const Y = site.y;
     const span = zN - zS;
 
+    // ── THE PLAN ─────────────────────────────────────────────────────────
+    // The user described this layout, so it is theirs and not an invention: a
+    // drive aisle straight in from the street running to the BACK, stock
+    // flanking it left and right, and the office across the far end.
+    //
+    // It is one decision and it fixes one problem. What makes 23.2 m of depth
+    // READ is that you look ALONG something. The old plan was rows parallel to
+    // the street, so the depth was hidden BEHIND the first row and invisible
+    // from the pavement — from outside the fence it was a wall of cars with a
+    // flat lot somewhere behind it. An aisle turns the same metres into a
+    // recession you can see the whole length of from the kerb.
+    //
+    // And it gives the office a job. At the front corner it was a hut you
+    // walked past. At the far end facing back down the aisle it is what you
+    // drive TOWARD, it watches the whole lot, and the depth has a reason.
+    const zMid = (zS + zN) / 2;
+    const AISLE_HW = 3.4;                 // 6.8 m: two cars can pass
+    const BAY_PITCH = 2.7;                // along the aisle, per bay
+    const OFF_D = 3.0, OFF_W = 4.6, OFF_H = 2.7;
+    const OFF_X = X1 - OFF_D / 2 - 1.1;   // across the back, off the rear fence
+    const BAY_X0 = X0 + 2.4;              // first bay, back from the street line
+    const BAY_X1 = OFF_X - OFF_D / 2 - 1.6;
+    const BAYS = Math.max(1, Math.floor((BAY_X1 - BAY_X0) / BAY_PITCH));
+    const bayX = (i: number) => BAY_X0 + i * BAY_PITCH;
+    // Herringbone. Bays square to the aisle need a three-point turn to get
+    // out; angled ones you nose straight out and drive away, which is why any
+    // lot with an aisle parks like this. Nose-out toward the aisle, so the
+    // windshield — and the price written on it — faces whoever walks down it.
+    const HERR = 0.55;
+    const NORTH_Z = zMid + AISLE_HW + 2.6, SOUTH_Z = zMid - AISLE_HW - 2.6;
+
     // ── the two things the site does not have ────────────────────────────
     // Oil, and faded bays. The site's ground is a clean surface because it
     // serves the park too; what makes it a LOT is twenty years of cars
@@ -309,48 +349,86 @@ export function buildLot(o: {
     });
     const oilM = new THREE.MeshBasicMaterial({ map: oilT, transparent: true, depthWrite: false });
     const bayM = new THREE.MeshBasicMaterial({ color: 0xb8b09a, transparent: true, opacity: 0.26 });
-    for (let i = 0; i < 8; i++) {
-      const bz = zN - 3.6 - i * 2.6;
-      if (bz < zS + 1.6) break;
-      const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 4.2), bayM);
-      bay.rotation.x = -Math.PI / 2;
-      bay.rotation.z = Math.PI / 2 - 0.5;           // the angle the stock parks at
-      bay.position.set(X0 + 3.0, Y + 0.006, bz);
-      scene.add(bay);
-      if (i % 2 === 0) {
-        const oil = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), oilM);
-        oil.rotation.x = -Math.PI / 2;
-        oil.position.set(X0 + 3.0, Y + 0.004, bz - 0.5);
-        scene.add(oil);
+    // A bay line and an oil stain at every place a car stands, both sides of
+    // the aisle. Drawn from the SAME plan the stock is placed from, so a bay
+    // can never end up somewhere no car ever parks — which is what happened
+    // when the two were written out separately.
+    for (const [side, bz] of [[1, NORTH_Z], [-1, SOUTH_Z]] as [number, number][]) {
+      for (let i = 0; i <= BAYS; i++) {
+        const bx = bayX(i) - BAY_PITCH / 2 + (side < 0 ? BAY_PITCH / 2 : 0);
+        const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 5.0), bayM);
+        bay.rotation.x = -Math.PI / 2;
+        bay.rotation.z = side > 0 ? HERR : -HERR;
+        bay.position.set(bx, Y + 0.006, bz);
+        scene.add(bay);
+        if (i < BAYS && (i * 3 + (side > 0 ? 0 : 1)) % 4 !== 2) {
+          const oil = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), oilM);
+          oil.rotation.x = -Math.PI / 2;
+          oil.position.set(bx + BAY_PITCH / 2, Y + 0.004, bz - side * 0.5);
+          scene.add(oil);
+        }
       }
     }
 
-    // ── chain-link, ON the site's low wall ───────────────────────────────
-    // A concrete kerb-wall with mesh above it is how a lot really closes its
-    // frontage, so this adds only the half the site does not have. It stops
-    // where the site's wall stops, which leaves the gate open by
-    // construction rather than by a number kept in two places.
-    const MESH_TOP = 1.75;
+    // ── the frontage fence ───────────────────────────────────────────────
+    // The user: *"the banners float because there is nothing behind them …
+    // build the FENCE first, then hang banners on it"*. They were right, and
+    // the reason is worth writing down: a chain-link fence at 15 m is not read
+    // from its mesh. The mesh is sub-pixel at that range whatever you do to
+    // it. It is read from its FRAMEWORK — posts, top rail, bottom rail, the
+    // barbed arms against the sky — and this had a top rail and posts every
+    // 2.6 m and nothing else, so there was nothing left to see.
+    //
+    // So the framework comes first and the mesh fills it in, which is also the
+    // order it is built in reality. It rides on the site's own low wall, and
+    // it stops where that wall stops, so the mouth stays open by construction
+    // rather than by a number kept in two places.
+    const MESH_TOP = 2.05;
     const wallTop = Y + 0.62;
+    const POST_PITCH = 2.4;
     const runs: [number, number][] = [
       [zS + 0.3, zS + span * SITE_GATE],
       [zN - span * SITE_GATE, zN - 0.3],
     ];
+    const FENCE_X = X0 + 0.18;
     for (const [rz0, rz1] of runs) {
       const len = rz1 - rz0, h = MESH_TOP - wallTop;
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, h), linkPanel(len, h));
-      mesh.position.set(X0 + 0.18, wallTop + h / 2, (rz0 + rz1) / 2);
+      mesh.position.set(FENCE_X, wallTop + h / 2, (rz0 + rz1) / 2);
       mesh.rotation.y = Math.PI / 2;
       scene.add(mesh);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, len), postM);
-      rail.position.set(X0 + 0.18, MESH_TOP, (rz0 + rz1) / 2);
-      scene.add(rail);
-      const n = Math.max(1, Math.round(len / 2.6));
+      // top rail and bottom rail. The bottom one is the tension rail sitting
+      // on the wall, and it is what stops the fence reading as mesh floating
+      // above a kerb.
+      for (const [ry, t] of [[MESH_TOP, 0.07], [wallTop + 0.04, 0.05]] as [number, number][]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(t, t, len), postM);
+        rail.position.set(FENCE_X, ry, (rz0 + rz1) / 2);
+        scene.add(rail);
+      }
+      const n = Math.max(1, Math.round(len / POST_PITCH));
       for (let i = 0; i <= n; i++) {
         const pz = rz0 + len * (i / n);
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, MESH_TOP - Y, 0.07), postM);
-        post.position.set(X0 + 0.18, Y + (MESH_TOP - Y) / 2, pz);
+        // terminal posts are fatter than line posts, which is true and is also
+        // what puts a visible full stop at each side of the opening
+        const term = i === 0 || i === n;
+        const w = term ? 0.12 : 0.085;
+        const post = new THREE.Mesh(new THREE.BoxGeometry(w, MESH_TOP - Y + 0.08, w), postM);
+        post.position.set(FENCE_X, Y + (MESH_TOP - Y + 0.08) / 2, pz);
         scene.add(post);
+        // BARBED ARMS, leaning INTO the lot. Three strands on a raked arm is
+        // the most legible thing on the whole fence from across the street —
+        // it is a hard silhouette against sky where the mesh is nothing — and
+        // it is what a lot with stock on it actually has. Inward, not out:
+        // nothing this module builds may lean over the walk.
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.05), postM);
+        arm.position.set(FENCE_X + 0.10, MESH_TOP + 0.18, pz);
+        arm.rotation.z = -0.52;
+        scene.add(arm);
+      }
+      for (let k = 0; k < 3; k++) {
+        const wire = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, len), postM);
+        wire.position.set(FENCE_X + 0.06 + k * 0.07, MESH_TOP + 0.10 + k * 0.13, (rz0 + rz1) / 2);
+        scene.add(wire);
       }
     }
 
@@ -365,7 +443,12 @@ export function buildLot(o: {
     {
       const GH = 1.9, GL = 5.6;                       // leaf height and length
       const gx = X0 + 0.44;                           // inboard of the fence line
-      const gc = gz0 + 1.4;                           // parked open, north of the mouth
+      // Parked open means parked CLEAR. At gz0 + 1.4 the leaf's south end sat
+      // 1.4 m inside its own opening and its collider ate that much of the
+      // gap — a gate that blocks the gateway it is holding open. Half a leaf
+      // plus a little puts the whole thing north of the mouth, which is where
+      // a cantilever actually sits when it is rolled back.
+      const gc = gz0 + GL / 2 + 0.3;
       const frameM = postM;
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(GL, GH - 0.16), linkPanel(GL, GH - 0.16));
       mesh.position.set(gx, Y + 0.08 + (GH - 0.16) / 2, gc);
@@ -424,7 +507,6 @@ export function buildLot(o: {
     // up". Each swag is four short segments following a parabola, because the
     // SAG is the whole read: strung level it is a painted stripe, and only the
     // dip between poles says plastic on a string.
-    const FX = X0 + 0.18;
     const PEN_M = 1.6;                               // one tile of four flags
     const POLE_H = 3.1, SAG = 0.62;
     const buntSeg = (za: number, ya: number, zb: number, yb: number) => {
@@ -435,20 +517,20 @@ export function buildLot(o: {
       t.needsUpdate = true;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.62),
         new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
-      m.position.set(FX, (ya + yb) / 2, (za + zb) / 2);
+      m.position.set(FENCE_X, (ya + yb) / 2, (za + zb) / 2);
       m.rotation.y = Math.PI / 2;
       m.rotation.z = Math.atan2(yb - ya, zb - za);
       scene.add(m);
     };
-    const BAYS = 3, SEGS = 4;
-    for (let i = 0; i <= BAYS; i++) {
-      const pz = zN - (span / BAYS) * i;
+    const SWAGS = 3, SEGS = 4;
+    for (let i = 0; i <= SWAGS; i++) {
+      const pz = zN - (span / SWAGS) * i;
       const bp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, POLE_H, 6), postM);
-      bp.position.set(FX, Y + POLE_H / 2, pz);
+      bp.position.set(FENCE_X, Y + POLE_H / 2, pz);
       scene.add(bp);
     }
-    for (let i = 0; i < BAYS; i++) {
-      const a = zN - (span / BAYS) * i, b = zN - (span / BAYS) * (i + 1);
+    for (let i = 0; i < SWAGS; i++) {
+      const a = zN - (span / SWAGS) * i, b = zN - (span / SWAGS) * (i + 1);
       const yAt = (u: number) => Y + POLE_H - SAG * 4 * u * (1 - u);
       for (let sg = 0; sg < SEGS; sg++) {
         const u0 = sg / SEGS, u1 = (sg + 1) / SEGS;
@@ -457,14 +539,18 @@ export function buildLot(o: {
     }
 
     // ── the office ───────────────────────────────────────────────────────
-    // A portable cabin set back at the north end, turned to face the gate so
-    // whoever is inside watches you come in.
-    const CW = 4.6, CD = 3.0, CH = 2.7;
-    const cx = X0 + Math.min(5.6, (X1 - X0) * 0.30), cz = zN - 3.4;
+    // ACROSS THE BACK, square on the aisle, so it faces you the whole way in
+    // and whoever is inside watches the entire lot through one window. At the
+    // front corner it was a hut you walked past on your way to the cars.
+    const CW = OFF_W, CD = OFF_D, CH = OFF_H;
+    const cx = OFF_X, cz = zMid;
     const cabM = flat(cabinT), cabWinM = flat(cabinWinT);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x5a5f66 });
+    // Face 0 is +x and face 1 is -x. The window used to be on 0, which put it
+    // on the BACK of the cabin looking at a brick flank, while the door, the
+    // step and the name board were all on the front. Everything is on -x now.
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(CD, CH, CW),
-      [cabWinM, cabM, roofM, roofM, cabM, cabM]);
+      [cabM, cabWinM, roofM, roofM, cabM, cabM]);
     cabin.position.set(cx, Y + CH / 2, cz);
     scene.add(cabin);
     solid({ minX: cx - CD / 2, maxX: cx + CD / 2, minZ: cz - CW / 2, maxZ: cz + CW / 2 });
@@ -498,7 +584,12 @@ export function buildLot(o: {
     // It stands INSIDE the fence. A real one would be out over the pavement,
     // but nothing may encroach the walk, so it goes just east of the line and
     // gets its height instead.
-    const px = X0 + 0.85, pz = zN - span * SITE_GATE - 1.4;
+    // BESIDE the opening, not in it. It stood 1.4 m inside the mouth, which
+    // put a 0.48 m concrete pole squarely in the lane a car has to drive down
+    // — the walk test stopped dead on it. North of the mouth's edge it is
+    // still the first thing you see from the kerb and nothing has to drive
+    // round it.
+    const px = X0 + 0.90, pz = zN - span * SITE_GATE + 0.95;
     const POLE_H2 = 15.5;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, POLE_H2, 8), postM);
     pole.position.set(px, Y + POLE_H2 / 2, pz);
@@ -580,7 +671,11 @@ export function buildLot(o: {
       const w = words.length * 0.17 + 0.5;
       const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
         new THREE.MeshBasicMaterial({ map: t2, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
-      b.position.set(X0 + 0.10, Y + 1.34, zN - span * at);
+      // On the street face of the mesh with its top edge just under the top
+      // rail, which is where a grommeted banner is cable-tied. Hung at a
+      // height picked by eye before, which is how it ended up floating clear
+      // of a fence it was supposed to be attached to.
+      b.position.set(FENCE_X - 0.05, MESH_TOP - 0.06 - 0.31, zN - span * at);
       b.rotation.y = -Math.PI / 2;
       scene.add(b);
     }
@@ -780,68 +875,60 @@ export function buildLot(o: {
       m.rotation.z = rz;
       g0.add(m);
     };
-    const ANGLE = Math.PI / 2 - 0.5;
-    // ROWS ARE DERIVED FROM THE DEPTH, not hardcoded. The site went from 8 m
-    // to 24 and the whole point of the depth is rows RECEDING — you should see
-    // cars behind cars, and the back of the lot should be a different place
-    // from the street edge. At 5.5 m per row a car angled at 45 degrees plus
-    // its aisle fits, and the count falls out of whatever depth D sets.
-    const DEPTH = X1 - X0;
-    const ROW_PITCH = 5.5;
-    // A DRIVE AISLE behind the front row. Rows packed at an even pitch is the
-    // tell that nobody thought about it: the front row is the one that faces
-    // the street and it is also the one that has to be able to LEAVE, so it
-    // gets 6.8 m of clear asphalt behind it to back into and turn. Everything
-    // else is on the normal pitch. The aisle lines up with the mouth, so a
-    // car reverses out of the front row, turns into the aisle, and drives out
-    // through the gate — which is the question the user asked.
-    const AISLE = 6.8;
-    const ROWS = Math.max(1, Math.min(4, 1 + Math.floor((DEPTH - 2.8 - AISLE) / ROW_PITCH)));
-    const rowX = (r: number) => X0 + 2.8 + (r === 0 ? 0 : AISLE + (r - 1) * ROW_PITCH);
-    const PER_ROW = Math.max(2, Math.floor((span - 4.0) / 3.4));
+    // Bay list, straight off THE PLAN: every place a car stands, both flanks,
+    // street end first so the near bays fill before the far ones.
+    const BAY: { x: number; z: number; yaw: number }[] = [];
+    for (let i = 0; i < BAYS; i++) {
+      BAY.push({ x: bayX(i), z: NORTH_Z, yaw: HERR });
+      BAY.push({ x: bayX(i) + BAY_PITCH / 2, z: SOUTH_Z, yaw: -HERR });
+    }
+    // and the two back corners, either side of the office, turned to face
+    // down the aisle — the cars you only see once you are all the way in.
+    for (const sgn of [1, -1]) for (let k = 0; k < 2; k++) {
+      BAY.push({ x: OFF_X - 0.4 - k * 2.8, z: zMid + sgn * (OFF_W / 2 + 2.4), yaw: sgn > 0 ? 1.15 : -1.15 });
+    }
+
     let n = 0;
-    for (let r = 0; r < ROWS && n < STOCK.length; r++) {
-      const x = rowX(r);
-      // every other row is nudged half a bay down the frontage, so you look
-      // BETWEEN the cars in front rather than at their backs
-      const stagger = (r % 2) * 1.7;
-      for (let k = 0; k < PER_ROW && n < STOCK.length; k++) {
-        const z = zN - 3.6 - stagger - k * 3.4;
-        if (z < zS + 2.2) break;
-        // one gap in the front row, where a car sold this morning. The bay
-        // lines and the oil are still there; the car is not.
-        if (r === 0 && k === 2) continue;
-        const it = STOCK[n];
-        n++;
-        const g0 = new THREE.Group();
-        g0.add(makeCar(it.kind, it.col));
-        buyersGuide(g0);                                  // every car, by law
-        if (n % 3 === 1) balloon(g0, n, n === 4 || n === 13);
-        switch (it.treat) {
-          case 'soap':
-            onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
-            break;
-          case 'burst':
-            onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
-            if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
-            break;
-          case 'card':
-            onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
-            if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
-            break;
-          case 'slip':
-            onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
-            break;
-          case 'sold':
-            onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
-            break;
-          case 'bare': break;
-        }
-        g0.position.set(x, Y, z);
-        g0.rotation.y = ANGLE;
-        scene.add(g0);
-        solid({ minX: x - 1.3, maxX: x + 1.3, minZ: z - 1.5, maxZ: z + 1.5 });
+    for (let b = 0; b < BAY.length && n < STOCK.length; b++) {
+      // one empty bay in the near half, where a car sold this morning. The
+      // bay line and the oil stain are still there; the car is not.
+      if (b === 3) continue;
+      const { x, z, yaw } = BAY[b];
+      const it = STOCK[n];
+      n++;
+      const g0 = new THREE.Group();
+      g0.add(makeCar(it.kind, it.col));
+      buyersGuide(g0);                                  // every car, by law
+      if (n % 3 === 1) balloon(g0, n, n === 4 || n === 13);
+      switch (it.treat) {
+        case 'soap':
+          onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
+          break;
+        case 'burst':
+          onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
+          break;
+        case 'card':
+          onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
+          break;
+        case 'slip':
+          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
+          break;
+        case 'sold':
+          onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
+          break;
+        case 'bare': break;
       }
+      g0.position.set(x, Y, z);
+      g0.rotation.y = yaw;
+      scene.add(g0);
+      // The box has to stay OUT of the aisle or the aisle is not an aisle.
+      // A 1.8 x 4.6 car at 0.55 rad has a 3.9 x 4.9 bounding box, which from
+      // NORTH_Z would reach 0.5 m past the aisle edge, so this is deliberately
+      // tighter than the true footprint: you can brush a wing, and in exchange
+      // the 6.8 m you can see down stays 6.8 m you can walk down.
+      solid({ minX: x - 1.4, maxX: x + 1.4, minZ: z - 2.0, maxZ: z + 2.0 });
     }
 
     // ── the things that make it look TRIED ───────────────────────────────
@@ -873,7 +960,10 @@ export function buildLot(o: {
       dither(g, BW, BH, 30);
     });
     const boardEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
-    const sandZ = zN - span * SITE_GATE - 2.4;
+    // Dragged out to the SOUTH side of the opening. In the middle of it, it
+    // was the second thing blocking the lane; a board is put where it is seen
+    // from the pavement and where nobody has to steer around it.
+    const sandZ = zS + span * SITE_GATE + 0.45;
     for (const lean of [0.18, -0.18]) {
       // the box is 0.04 thick in X, so its LARGE faces are +-x — indices 0
       // and 1. Put the lettering on 4/5 and it lands on two 4 cm edges and
@@ -940,24 +1030,24 @@ export function buildLot(o: {
       g0.position.set(chx, Y, chz); g0.rotation.y = spin;
       scene.add(g0);
     };
-    // Against the cabin's SOUTH wall, not its west one. West is where the door
-    // and the step are, and it is also solid ground for 2.6 m out — the first
-    // placement put both chairs and both approach points inside that box,
-    // which is GOTCHAS §8 exactly: the seat registers, the prompt appears, and
-    // you can never walk to it. South is open asphalt looking down the rows.
-    const chZ = cz - CW / 2 - 0.42;
-    chair(cx - 0.60, chZ, 0, 0x2f5f9c);
-    chair(cx + 0.55, chZ - 0.12, -0.30, 0xc4622a);
+    // Beside the office door, against its front wall, facing back down the
+    // aisle — which is now the view. Both chair and approach have to sit on
+    // open asphalt: the first placement put them inside a solid box, the seat
+    // registered, the prompt appeared, and you could never walk to it, which
+    // is GOTCHAS §8 exactly. scripts/seatcheck.mjs is what catches that.
+    const chX = cx - CD / 2 - 0.55;
+    chair(chX, cz + 1.15, -Math.PI / 2, 0x2f5f9c);
+    chair(chX - 0.10, cz + 1.95, -Math.PI / 2 - 0.30, 0xc4622a);
 
     // SITTABLE. F's ctx.seat does the sitting, the standing and the prompt —
     // all this owes it is where the pan is and which way you end up facing,
     // which for a chair against the office wall is OUT at the stock. The
     // approach is a stride in front, because the trigger has to be reachable
     // from the asphalt and not from inside the cabin.
-    o.seat?.({ x: cx - 0.60, z: chZ, yaw: 0, h: 0.46,
-      approach: { x: cx - 0.60, z: chZ - 0.78 } });
-    o.seat?.({ x: cx + 0.55, z: chZ - 0.12, yaw: -0.30, h: 0.46,
-      approach: { x: cx + 0.62, z: chZ - 0.90 } });
+    o.seat?.({ x: chX, z: cz + 1.15, yaw: -Math.PI / 2, h: 0.46,
+      approach: { x: chX - 0.85, z: cz + 1.15 } });
+    o.seat?.({ x: chX - 0.10, z: cz + 1.95, yaw: -Math.PI / 2 - 0.30, h: 0.46,
+      approach: { x: chX - 0.95, z: cz + 1.95 } });
     // and the three-high tyre stack, which is 0.56 of rubber and is exactly
     // what gets sat on when both chairs are taken. The five-high and the
     // four-high are too tall to be furniture, so they stay scenery.
