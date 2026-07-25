@@ -29,6 +29,22 @@ const CHECKS = [
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
+  // ── the ground: kerb, litter, lamps, water ──────────────────────────────
+  // Third field as a STRING names a case in scripts/canfail.mjs, which breaks
+  // the guarded thing in source, rebuilds, and requires the check to go red.
+  // Fourth field is any arguments the check itself needs.
+  //
+  // These ten were the case this file's preamble describes: real checks with no
+  // npm entry, runnable only by whoever had read the note that introduced them.
+  ['footprint',        'does anything on the pavement clip the kerb?',     'footprint'],
+  ['trash',            'is the litter set placed, seated and varied?',     'trash',    ['probe']],
+  ['glow',             'is every lamp glow anchored to its own head?',     'glow',     ['probe']],
+  ['park',             'is the park lit, or black at night?',              'park'],
+  ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],
+  ['basin',            'is the catch basin real casting, sunk and proud?', 'basin'],
+  ['kerbcut',          'can a car get off the lot across the kerb?',       'kerbcut'],
+  ['bus',              'is the bench framed, seated and sittable?',        'bus-bench', ['bench']],
+  ['rain',             'does it actually rain, and hard enough to see?',   'rain'],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
@@ -44,15 +60,28 @@ const CHECKS = [
 // saying which one is stuck is the whole point.
 const PER_CHECK_MS = 180_000;
 const rows = [];
-for (const [name, question, hasSelftest] of CHECKS) {
-  if (SELFTEST && !hasSelftest) { rows.push([name, 'no selftest', '—']); continue; }
-  const args = [`scripts/${name}.mjs`, ...(SELFTEST ? ['--selftest'] : [])];
+for (const [name, question, selftest, extra = []] of CHECKS) {
+  if (SELFTEST && !selftest) { rows.push([name, 'no selftest', '—']); continue; }
   process.stderr.write(`  … ${name}\n`);
   const t0 = Date.now();
+  // A string names a case in scripts/canfail.mjs: the mutation lives there,
+  // in source, rather than as a --selftest flag inside the check itself.
+  if (SELFTEST && typeof selftest === 'string') {
+    const rc = spawnSync('node', ['scripts/canfail.mjs', selftest],
+      { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS });
+    const csecs = ((Date.now() - t0) / 1000).toFixed(0);
+    if (rc.error?.code === 'ETIMEDOUT' || rc.signal === 'SIGTERM') {
+      rows.push([name, question, `TIMED OUT after ${csecs}s`, csecs]); process.exitCode = 1; continue;
+    }
+    rows.push([name, question, rc.status === 0 ? 'ok' : `FAILED (${rc.status})`, csecs]);
+    if (rc.status !== 0) { process.exitCode = 1; console.log(`${rc.stdout ?? ''}${rc.stderr ?? ''}`.trimEnd() + '\n'); }
+    continue;
+  }
+  const args = [`scripts/${name}.mjs`, ...extra, ...(SELFTEST ? ['--selftest'] : [])];
   const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS });
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGTERM') {
-    rows.push([name, question, `TIMED OUT after ${secs}s`]);
+    rows.push([name, question, `TIMED OUT after ${secs}s`, secs]);
     process.exitCode = 1;
     continue;
   }
