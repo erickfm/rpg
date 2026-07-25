@@ -1316,8 +1316,20 @@ export const taxFront = (brick: string, wM: number) => {
       g.fillRect(gx, by0 + m(0.1), m(0.09), m(0.09));
       g.fillRect(gx, by0 + bh - m(0.2), m(0.09), m(0.09));
     }
-    g.fillStyle = NAVY; g.font = `bold ${m(0.5)}px monospace`;
+    // Screen-printed on cloth, so the letters sit ON the banner rather than IN
+    // it: a soft light bleed above and the ink below. The brief's words were
+    // "applied letters with a shadow — not text stamped on a band", and this
+    // was the one sign of the four that was flat text with nothing under it.
+    // Bleed rather than a hard drop shadow, because this is a cloth banner and
+    // not the diner's steel or the burger barn's plexi — the same reason its
+    // stallriser gets grooves and the diner's gets flutes.
+    g.font = `bold ${m(0.5)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(255,255,255,0.45)';
+    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2 - 1);
+    g.fillStyle = 'rgba(20,26,44,0.35)';
+    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2 + 1);
+    g.fillStyle = NAVY;
     g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2);
     // the opening
     const B = BANDS.tax;
