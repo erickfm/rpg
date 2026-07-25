@@ -17,30 +17,39 @@ const ROOMS = [
   {
     id: 'diner', label: /DINER/, W: 8.6, D: 7.0,
     doorX: -(FACE - 0.45), doorZ: 9.6, at: -2.6,
-    // a start point that is genuinely clear of furniture, and the lane it sits on
-    lane: -0.35, laneHalf: 3.6,
-    backProbeX: 3.8, frontProbeX: -3.0,
   },
   {
     id: 'burger', label: /BURGER/, W: 11.0, D: 8.5,
     doorX: -(FACE - 0.45), doorZ: -28.25, at: -3.6,
-    lane: -1.6, laneHalf: 4.8,
-    backProbeX: -4.6, frontProbeX: -4.6,
   },
   {
     id: 'thrift', label: /THRIFT/, W: 8.0, D: 6.5,
     doorX: -(FACE - 0.45), doorZ: -74.94, at: -2.2,
-    // the clear cross-room lane runs in FRONT of the rails, between them and
-    // the window — the rails themselves are meant to be a squeeze
-    lane: 2.4, laneHalf: 3.3,
-    backProbeX: 0.6, frontProbeX: -3.2,
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
     aisles: [
-      ['between the front two rails', 0.45, 3.3],
-      ['between the back two rails', -0.9, 3.3],
-      ['down the open spine to the till', 1.8, null],
+      ['between the front two rails', 0.45],
+      ['between the back two rails', -0.9],
+      ['down the open spine to the till', 1.8],
     ],
+  },
+  // ── builder G's three, on the SIDE STREET (north side, facing −z) ──
+  //
+  // These sat finished and unreachable for a while: written, committed, and
+  // never called from crosstown.ts. Their doors are on the side street rather
+  // than the block, so the approaches run along x, not z.
+  {
+    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0,
+    doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
+  },
+  {
+    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0,
+    doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
+  },
+  {
+    id: 'tax', label: /A-1 TAX/, W: 12.0, D: 8.5,
+    // EAST side of the block, so the facade is at +7.0 and you approach from +x
+    doorX: FACE - 0.45, doorZ: -15.25, at: -4.2, east: true,
   },
 ];
 
@@ -81,11 +90,25 @@ for (room of rooms) {
   // This is the part the user actually hit: "cant go inside burger barn".
   // A trigger you can only reach from one angle is a trigger that does not
   // work (GOTCHAS §8 — the bodega's crates ate its door exactly this way).
-  const approaches = [
-    ['walking north up the walk', room.doorX + 0.3, room.doorZ + 3.0, 0],
-    ['walking south down the walk', room.doorX + 0.3, room.doorZ - 3.0, Math.PI],
-    ['straight at the door from the kerb', room.doorX + 1.7, room.doorZ, -Math.PI / 2],
-  ];
+  // Which way the pavement runs depends on which street the door is on. The
+  // block's walks run along z; the side street's run along x. Getting this
+  // wrong makes the approach tests walk into a wall and report the door
+  // broken, which is exactly the wrong answer to give about a working door.
+  const off = room.east ? -1.7 : 1.7;         // toward the road from the facade
+  const approaches = room.sideStreet
+    ? [
+      ['walking east along the walk', room.doorX - 3.0, room.doorZ - 0.3, Math.PI / 2],
+      ['walking west along the walk', room.doorX + 3.0, room.doorZ - 0.3, -Math.PI / 2],
+      // the side street's north-side shops face -z, so you come at them from
+      // the road side walking +z (yaw π), not -z
+      ['straight at the door from the kerb', room.doorX, room.doorZ - 1.7, Math.PI],
+    ]
+    : [
+      ['walking north up the walk', room.doorX + off * 0.18, room.doorZ + 3.0, 0],
+      ['walking south down the walk', room.doorX + off * 0.18, room.doorZ - 3.0, Math.PI],
+      ['straight at the door from the kerb', room.doorX + off, room.doorZ,
+        room.east ? Math.PI / 2 : -Math.PI / 2],
+    ];
   // Hold for 4 s, not the 1.5 s the walk actually takes. Citizens are SOLID
   // and one of them WILL be standing on this stretch of pavement sooner or
   // later — but `crowd.ts` turns a citizen non-solid once it has blocked you
@@ -95,7 +118,57 @@ for (room of rooms) {
   // The prompt is only up while you are within the trigger, and 4 s of walking
   // is 13 m — so this WATCHES for the prompt as it goes rather than reading it
   // at the end, which would just prove you had already walked past the door.
-  for (const [how, sx, sz, yaw] of approaches) {
+  // Nudge each start point to somewhere you could actually be standing. The
+  // street is not empty: a car parked outside the hotel put the "from the
+  // kerb" start inside a collider, the player could not take a step, and the
+  // test reported a working door as broken. Same lesson as the citizen on the
+  // burger barn's pavement — the harness must not assume the world is clear.
+  // It backs off ALONG the approach — straight backwards, away from the door —
+  // before it will consider stepping sideways, and it never steps sideways far.
+  // The first version searched a plain ring and shifted the hotel's start 1.2 m
+  // east to dodge the car, which walked the player up a line that never came
+  // within the door's 1.05 m trigger: a working door, reported broken, by a
+  // fix for the previous false alarm.
+  const standableAt = (x, z, yaw) => p.evaluate(([x, z, yaw, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (a, c) => !cols.some((k) =>
+      a > k.minX - R && a < k.maxX + R && c > k.minZ - R && c < k.maxZ + R);
+    if (free(x, z)) return { x, z };
+    const fx = Math.sin(yaw), fz = -Math.cos(yaw);          // the way we will walk
+    for (let back = 0.4; back <= 6; back += 0.4) {
+      for (const side of [0, 0.35, -0.35, 0.7, -0.7]) {     // stay near the door's line
+        const nx = x - fx * back - fz * side;
+        const nz = z - fz * back + fx * side;
+        if (free(nx, nz)) return { x: nx, z: nz };
+      }
+    }
+    return { x, z };
+  }, [x, z, yaw, RADIUS]);
+
+  // For the head-on approach, back up the door's own normal only as far as
+  // there is pavement to stand on. A car is parked right outside the hotel and
+  // the strip in front of it is barely a metre deep; starting on the far side
+  // of the car and walking at the door just walks into the car, which says
+  // nothing about the door. A player would step around onto the pavement, and
+  // so does this.
+  const backUpTheNormal = (dx, dz, yaw, want) => p.evaluate(([dx, dz, yaw, want, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (a, c) => !cols.some((k) =>
+      a > k.minX - R && a < k.maxX + R && c > k.minZ - R && c < k.maxZ + R);
+    const fx = Math.sin(yaw), fz = -Math.cos(yaw);
+    let last = null;
+    for (let d = 0.45; d <= want; d += 0.15) {
+      const x = dx - fx * d, z = dz - fz * d;
+      if (!free(x, z)) break;
+      last = { x, z };
+    }
+    return last;
+  }, [dx, dz, yaw, want, RADIUS]);
+
+  for (const [how, sx0, sz0, yaw] of approaches) {
+    const headOn = /from the kerb/.test(how);
+    const backed = headOn ? await backUpTheNormal(room.doorX, room.doorZ, yaw, 2.6) : null;
+    const { x: sx, z: sz } = backed ?? await standableAt(sx0, sz0, yaw);
     await warp(sx, sz, yaw, KERB_H);
     await p.waitForTimeout(160);
     await p.keyboard.down('w');
@@ -119,16 +192,25 @@ for (room of rooms) {
     const R = 0.36;
     return window.__ct.colliders()
       .filter((c) => x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R)
-      // the building's own facade wall is supposed to be there — the [E] spot
-      // stands 0.45 m off the wall face and the player reaches it from the walk
-      .filter((c) => !(c.minX < -14 || c.maxX > 200))
-      .map((c) => `x ${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)}`);
+      .map((c) => ({
+        w: +(c.maxX - c.minX).toFixed(2), d: +(c.maxZ - c.minZ).toFixed(2),
+        s: `x ${c.minX.toFixed(2)}..${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}..${c.maxZ.toFixed(2)}`,
+      }));
   }, [room.doorX, room.doorZ]);
-  // a citizen walking over it is not a defect; a prop parked on it is
-  const statics = onSpot.filter((s) => {
-    const m = s.match(/x (-?[\d.]+)\.\.(-?[\d.]+)/);
-    return !(m && +m[2] - +m[1] > 0.4 && +m[2] - +m[1] < 0.6);   // citizen boxes are ~0.5 wide
-  });
+  // What counts as "parked on the trigger" is a PROP. Two things are expected
+  // to be there and are not defects:
+  //   · the building's own facade wall — the [E] spot stands 0.45 m off the
+  //     wall face and you reach it from the pavement. Recognised by being
+  //     structural: metres long in both directions, not furniture.
+  //   · a citizen walking past, which is ~0.5 m square and gone a second later.
+  // The first version of this filter recognised the wall by hardcoding the
+  // WEST one's coordinates, so the east-side tax office reported its own
+  // building as a defect.
+  const statics = onSpot.filter((c) => {
+    const structural = c.w > 4 || c.d > 4;
+    const citizen = c.w > 0.4 && c.w < 0.6 && c.d > 0.4 && c.d < 0.6;
+    return !structural && !citizen;
+  }).map((c) => c.s);
   check('no static collider is parked on the [E] spot', statics.length === 0,
     statics.length ? statics.join(' | ') : `${onSpot.length} transient (citizen) overlaps, no props`);
 
@@ -174,57 +256,114 @@ for (room of rooms) {
     floorY !== null && Math.abs(floorY - gyIn) < 0.03,
     `floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${gyIn}`);
 
-  // ── 3. the walls hold ──
-  const probe = async (lx, lz, key, axis, limit, sign) => {
-    await warp(cx + lx, lz, YAW[key], 0);
-    await p.waitForTimeout(150);
-    const a0 = await pos();
-    await hold('w', 3000);
-    const a = await pos();
-    const moved = Math.hypot(a[0] - a0[0], a[2] - a0[2]);
-    const v = axis === 'x' ? a[0] - cx : a[2];
-    const escaped = sign > 0 ? v > limit : v < -limit;
-    check(`wall holds walking ${key}`, !escaped && moved > 0.3,
-      moved <= 0.3
-        ? `HARNESS: never left the start point — stuck in furniture at local ${f2(lx)},${f2(lz)}`
-        : `walked ${f2(moved)} m, stopped at local ${axis}=${f2(v)} (wall at ${sign > 0 ? '' : '-'}${f2(limit)})`);
-  };
-  await probe(0, room.lane, '-x', 'x', hw - RADIUS + 0.05, -1);
-  await probe(0, room.lane, '+x', 'x', hw - RADIUS + 0.05, 1);
-  await probe(room.backProbeX, room.lane, '-z', 'z', hd - RADIUS + 0.05, -1);
-  await probe(room.frontProbeX, room.lane, '+z', 'z', hd - RADIUS + 0.05, 1);
+  // ── 3. you cannot get out of the room, from ANYWHERE in it ──
+  //
+  // This replaces four hand-picked wall probes. Those needed a start point
+  // that was clear of furniture, which meant knowing the layout — fine for a
+  // room you wrote, useless for one you did not: pointed at builder G's
+  // casino they started inside a blackjack table and reported the walls
+  // broken. Six rooms by three authors and four more coming; the harness has
+  // to find its own footing.
+  //
+  // So: ask the collider list where you can legally stand, take a spread of
+  // those points, and run in all four directions from each. The invariant is
+  // simply that you are still inside the room afterwards, which is the thing
+  // the four probes were circling anyway.
+  const standables = await p.evaluate(([cx, hw, hd, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (x, z) => !cols.some((c) =>
+      x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
+    const out = [];
+    for (let z = -hd + R; z <= hd - R; z += 0.45) {
+      for (let x = -hw + R; x <= hw - R; x += 0.45) if (free(cx + x, z)) out.push([+x.toFixed(2), +z.toFixed(2)]);
+    }
+    return out;
+  }, [cx, hw, hd, RADIUS]);
+  check('there is standable floor in the room at all', standables.length >= 6,
+    `${standables.length} clear spots on a 0.45 m grid`);
 
-  // the doorway is the one gap in the collider line — the one place it leaks
-  await warp(cx + room.at, room.lane, Math.PI, 0);
-  await p.waitForTimeout(150);
-  await hold('w', 3000);
-  const doorRun = await pos();
-  check('you cannot walk out through the doorway onto dead ground',
-    doorRun[2] < hd + 0.4, `walking at the door reached z=${f2(doorRun[2])} (front wall at ${f2(hd)})`);
+  // a spread rather than all of them — six runs a room, evenly sampled
+  const spread = standables.filter((_, i) => i % Math.max(1, Math.floor(standables.length / 6)) === 0).slice(0, 6);
+  let escapes = 0, ranFrom = 0;
+  for (const [lx, lz] of spread) {
+    for (const key of ['-x', '+x', '-z', '+z']) {
+      await warp(cx + lx, lz, YAW[key], 0);
+      await p.waitForTimeout(90);
+      await hold('w', 1800);
+      const a = await pos();
+      const ex = Math.abs(a[0] - cx) > hw - RADIUS + 0.12;
+      const ez = Math.abs(a[2]) > hd - RADIUS + 0.12;
+      if (ex || ez) {
+        escapes++;
+        if (escapes <= 3) check(`walked OUT of the room going ${key}`, false,
+          `from local ${f2(lx)},${f2(lz)} ended at ${f2(a[0] - cx)},${f2(a[2])} — room is ${f2(hw)} x ${f2(hd)}`);
+      }
+    }
+    ranFrom++;
+  }
+  check('the room holds you in, from every direction, everywhere in it',
+    escapes === 0, `${ranFrom * 4} runs from ${ranFrom} spread points, ${escapes} escapes`);
+
+  // the doorway is the one deliberate gap in the collider line, so it gets
+  // walked at head-on as well
+  // nearest standable spot to the DOORWAY, not merely to its x — picking by x
+  // alone can start you at the back of the room behind a counter, walk you two
+  // metres into it, and report the door broken.
+  const nearDoor = (lx, lz) => Math.hypot(lx - room.at, lz - (hd - 1.3));
+  const doorLane = standables.reduce((best, c) =>
+    (best === null || nearDoor(c[0], c[1]) < nearDoor(best[0], best[1]) ? c : best), null);
+  if (doorLane) {
+    await warp(cx + room.at, doorLane[1], Math.PI, 0);
+    await p.waitForTimeout(150);
+    await hold('w', 3000);
+    const doorRun = await pos();
+    check('you cannot walk out through the doorway onto dead ground',
+      doorRun[2] < hd + 0.4, `walking at the door reached z=${f2(doorRun[2])} (front wall at ${f2(hd)})`);
+  }
 
   // ── 4. the room is walkable end to end ──
-  await warp(cx - room.laneHalf, room.lane, Math.PI / 2, 0);
-  await p.waitForTimeout(150);
-  const laneA = await pos();
-  await hold('w', 3200);
-  const laneB = await pos();
-  check('you can walk the room end to end', laneB[0] - laneA[0] > room.laneHalf * 1.6,
-    `travelled ${f2(laneB[0] - laneA[0])} m (want > ${f2(room.laneHalf * 1.6)})`);
-  await warp(cx + room.laneHalf, room.lane, -Math.PI / 2, 0);
-  await p.waitForTimeout(150);
-  const backA = await pos();
-  await hold('w', 3200);
-  const backB = await pos();
-  check('…and back the other way', backA[0] - backB[0] > room.laneHalf * 1.6,
-    `travelled ${f2(backA[0] - backB[0])} m`);
+  //
+  // The widest clear run in x that the room has, found rather than declared.
+  const lane = await p.evaluate(([cx, hw, hd, R]) => {
+    const cols = window.__ct.colliders();
+    const free = (x, z) => !cols.some((c) =>
+      x > c.minX - R && x < c.maxX + R && z > c.minZ - R && z < c.maxZ + R);
+    let best = { z: 0, x0: 0, run: 0 };
+    for (let z = -hd + R; z <= hd - R; z += 0.1) {
+      let start = null, run = 0;
+      for (let x = -hw + R; x <= hw - R; x += 0.1) {
+        if (free(cx + x, z)) {
+          if (start === null) { start = x; run = 0; }
+          run += 0.1;
+          if (run > best.run) best = { z: +z.toFixed(2), x0: +start.toFixed(2), run: +run.toFixed(2) };
+        } else { start = null; run = 0; }
+      }
+    }
+    return best;
+  }, [cx, hw, hd, RADIUS]);
+  check('the room has a clear run across most of its width',
+    lane.run > W * 0.55, `widest clear run is ${f2(lane.run)} m at local z=${f2(lane.z)} (room is ${f2(W)} wide)`);
+
+  for (const [what, from, yaw] of [
+    ['end to end', lane.x0, Math.PI / 2],
+    ['…and back the other way', lane.x0 + lane.run, -Math.PI / 2],
+  ]) {
+    await warp(cx + from, lane.z, yaw, 0);
+    await p.waitForTimeout(150);
+    const a0 = await pos();
+    await hold('w', 3200);
+    const a1 = await pos();
+    check(`you can walk the room ${what}`, Math.abs(a1[0] - a0[0]) > lane.run * 0.8,
+      `travelled ${f2(Math.abs(a1[0] - a0[0]))} m of a ${f2(lane.run)} m run`);
+  }
 
   // ── 4b. the tight aisles, for rooms whose whole brief is being crowded ──
   //
   // "End to end" is satisfied by one clear lane, which is not enough for a
   // room designed to be a squeeze: a shop you can only cross by one route is a
   // corridor. Each declared aisle is walked in full.
-  for (const [what, az, halfOrNull] of room.aisles ?? []) {
-    const half = halfOrNull ?? room.laneHalf;
+  for (const [what, az] of room.aisles ?? []) {
+    const half = hw - RADIUS;
     await warp(cx - half, az, Math.PI / 2, 0);
     await p.waitForTimeout(150);
     const a0 = await pos();
@@ -235,9 +374,10 @@ for (room of rooms) {
   }
 
   // ── 5. the way out, and NOT straight back in ──
-  await warp(cx + room.at, room.lane, Math.PI, 0);
+  // start from the standable spot nearest the door and walk at it
+  await warp(cx + room.at, doorLane ? doorLane[1] : lane.z, Math.PI, 0);
   await p.waitForTimeout(150);
-  await hold('w', 2000);
+  await hold('w', 2600);
   const dPrompt = await prompt();
   check('walking to the inside of the door raises the way-out prompt',
     /out to the street/.test(dPrompt ?? ''), `prompt=${JSON.stringify(dPrompt)}`);
@@ -254,11 +394,22 @@ for (room of rooms) {
   check('a second E on the landing does not suck you straight back in',
     (await pos())[0] < 100, `pos=${(await pos()).slice(0, 3).map(f2)}`);
 
-  for (const [what, yaw] of [['out to the road', Math.PI / 2], ['up the walk', 0], ['down the walk', Math.PI]]) {
+  // …and the same orientation question for the landing: on the block the walk
+  // runs along z and the road is across x; on the side street it is the other
+  // way round. Testing a side-street landing with block directions just walks
+  // it into the shopfront and calls the pavement boxed in.
+  const landingDirs = room.sideStreet
+    ? [['out to the road', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]
+    : [['out to the road', room.east ? -Math.PI / 2 : Math.PI / 2], ['up the walk', 0], ['down the walk', Math.PI]];
+  for (const [what, yaw] of landingDirs) {
     await warp(back[0], back[2], yaw, KERB_H);
     await p.waitForTimeout(120);
     const a = await pos();
-    await hold('w', 500);
+    // 2 s, not 0.5 s: a citizen standing on the landing is solid until it has
+    // been in your way for 1.4 s (crowd.ts), and a half-second nudge reports
+    // that as boxed-in pavement. This failed exactly that way on the tax
+    // office in a full run while passing on its own.
+    await hold('w', 2000);
     const c = await pos();
     check(`the landing is not boxed in — ${what}`,
       Math.hypot(c[0] - a[0], c[2] - a[2]) > 0.9,
