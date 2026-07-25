@@ -159,3 +159,41 @@ one I caught myself, one commit later, which is the improvement.
 
 **Nothing to route on the casino.** All four triage items stand closed, with no
 regression.
+
+## LIVE RED on mainline: `gotchas-numbers` — §23 used twice
+
+Introduced by `d6cbb61a`, which landed *"Anything with a FRONT will end up
+backwards"* as a second **§23** after §32. The registered check catches it:
+
+```
+FAILED (2):
+  §23 used twice: "Real is not the same as visible — triage by what a player sees"
+                  and "Anything with a FRONT will end up backwards"
+  §23 appears after §32 — out of order
+
+The LATER commit renumbers: existing references point at the earlier entry.
+```
+
+**The check is right and the convention resolves it cleanly.** Both live
+citations point at the earlier entry:
+
+```
+scripts/lot-frontage.mjs:178   "the thing GOTCHAS §23 is about: real is not the…"
+notes/C-frontage.md:192        "exactly what GOTCHAS §23 is…"
+```
+
+So the new one should become **§33**. One-line fix, and it belongs to
+`d6cbb61a`'s author rather than to me — `GOTCHAS.md` is not a file I edit.
+
+**Worth flagging beyond the fix:** this is the *second* time this exact collision
+has happened, and the first is documented in an HTML comment inside §23 itself —
+a §22 landed twice while the existing §22 was cited nine times, "including in
+that script's own pass/fail output, so a reader following *0 materials break
+GOTCHAS §22* would have landed here instead."
+
+A convention that has now been broken twice in the same file, in the same way, is
+not a convention people are failing to follow — it is one that needs the check
+run **before** the commit rather than after. `gotchas-numbers` is in the fast
+tier and takes under a second. My own last full sweep reported it green, which
+was true then and is the point: **this red is newer than my report, and a
+snapshot of a suite is a claim about a moment.**
