@@ -551,7 +551,7 @@ export function makeCrosstown(): Proto {
     traffic: () => traffic.info(),
     // test affordance: force a movement through the junction NOW, rather than
     // waiting out a 18–42 s gap between passes
-    drive: (route: 'NE' | 'EN' = 'NE', which: 'car' | 'bus' | 'taxi' = 'car', s = 0) => traffic.spawn(route, which, s),
+    drive: (route: 'NE' | 'EN' = 'NE', which: 'car' | 'bus' | 'taxi' = 'car', s = 0, add = false) => traffic.spawn(route, which, s, add),
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast

@@ -30,20 +30,34 @@ await page.evaluate(() => window.__ct.clock(13, 0));
 
 // Sample from many camera positions around the block, so every citizen is seen
 // from a full range of angles and both profile columns come up.
-const samples = await page.evaluate(async () => {
+// KEEP SAMPLING until there are enough profile views to judge, rather than
+// making one pass and hoping. A profile sample needs a citizen that is both in
+// the profile column from where the camera stands AND moving — and since the
+// crowd started stopping for errands, a single sweep of the block can come back
+// with only a handful. This check then failed with "0 of 6 cases point the toe
+// backwards", i.e. nothing wrong, not enough looked at, which is exactly the kind
+// of failure that teaches people to ignore a probe.
+const samples = await page.evaluate(async (want) => {
   const out = [];
   const spots = [];
   for (const z of [6, -10, -26, -42, -58, -74, -88]) { spots.push([-3.0, z], [3.0, z]); }
-  for (const [x, z] of spots) {
-    window.__ct.warp(x, z, 0, 0, 0);
-    // let a frame run so the crowd's LATE hook recomputes col/mirror from here
-    await new Promise((r) => requestAnimationFrame(r));
-    await new Promise((r) => requestAnimationFrame(r));
-    const w = window.__ct.walkers ? null : null;
-    for (const v of window.__ct.views()) out.push({ cam: [x, z], ...v });
+  const usable = () => out.filter((v) => v.col === 2 && v.moving).length;
+  const t0 = performance.now();
+  while (usable() < want && performance.now() - t0 < 25000) {
+    for (const [x, z] of spots) {
+      window.__ct.warp(x, z, 0, 0, 0);
+      // let a frame run so the crowd's LATE hook recomputes col/mirror from here
+      await new Promise((r) => requestAnimationFrame(r));
+      await new Promise((r) => requestAnimationFrame(r));
+      for (const v of window.__ct.views()) out.push({ cam: [x, z], ...v });
+      if (usable() >= want) break;
+    }
+    // let the crowd walk on before sweeping again, so the second pass is not the
+    // same six people in the same poses
+    await new Promise((r) => setTimeout(r, 900));
   }
   return out;
-});
+}, 8);
 
 // toe·travel for one case. >0 means the toe leads the direction of travel.
 // The crowd routes over a graph now, so travel is an arbitrary heading rather
@@ -84,10 +98,16 @@ console.log(`  ${profiles} profile cases (${unmirrored} unmirrored, ${mirrored} 
 for (const b of bad) {
   console.log(`  FAIL ${b.tag}: cam=${b.cam} dir=${b.dir} mirror=${b.mir} yaw=${b.yaw.toFixed(3)} toe·travel=${b.a}`);
 }
-const ok = profiles >= 8 && unmirrored > 0 && mirrored > 0 && fails === 0;
-console.log(ok
-  ? `  OK   every profile case points its toe the way it walks (both columns covered)`
-  : `  FAIL ${fails}/${profiles} cases point the toe backwards`);
+// Separate the two outcomes: a toe pointing the wrong way is a BUG, too few
+// samples is an inconclusive run. Reporting both as FAIL is what made this noisy.
+const enough = profiles >= 8 && unmirrored > 0 && mirrored > 0;
+const ok = enough && fails === 0;
+console.log(fails > 0
+  ? `  FAIL ${fails}/${profiles} cases point the toe backwards`
+  : enough
+    ? '  OK   every profile case points its toe the way it walks (both columns covered)'
+    : `  ??   INCONCLUSIVE — only ${profiles} profile cases in 25 s (${unmirrored} unmirrored, ` +
+      `${mirrored} mirrored); none of them wrong, but that is too few to certify`);
 if (errs.length) console.log(`\npage errors:\n${errs.slice(0, 3).join('\n')}`);
 await browser.close();
-process.exitCode = ok ? 0 : 1;
+process.exitCode = fails > 0 ? 1 : ok ? 0 : 2;   // 2 = inconclusive, not a failure

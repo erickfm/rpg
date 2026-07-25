@@ -145,7 +145,7 @@ await clearJunction();
 const both = await page.evaluate(async () => {
   window.__ct.warp(-6.2, 40, 0, 0.14, 0);
   window.__ct.drive('NE', 'car', 59);
-  window.__ct.drive('EN', 'taxi', 0);
+  window.__ct.drive('EN', 'taxi', 0, true);   // add, do not replace the first
   const out = [];
   const t0 = performance.now();
   let last = -1;

@@ -167,7 +167,7 @@ export interface Traffic {
    *  -time rule. `s` starts it that many metres along, which is how two
    *  movements are staged to reach the junction at the same moment — the two
    *  arms are different lengths, so spawning both at once does NOT do it. */
-  spawn: (route: RouteName, which?: 'car' | 'bus' | 'taxi', s?: number) => void;
+  spawn: (route: RouteName, which?: 'car' | 'bus' | 'taxi', s?: number, add?: boolean) => void;
 }
 
 // How hard a driver is willing to corner, and how hard to brake for it. 3 m/s²
@@ -432,7 +432,14 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       const v = active.find((a) => a.obj === bus);
       return [bus.position.x, bus.position.z, v?.spd ?? 0, v?.dwell ?? 0, v?.served ? 1 : 0];
     },
-    spawn: (route, which = 'car', s = 0) => {
+    // `add` false — the default — CLEARS whatever is already out, so a probe
+    // that spawns one vehicle then reads info()[0] is reading the vehicle it
+    // asked for. Without that, the ambient car is still on the block, spawn()
+    // has raised maxActive for the session, and index 0 is whichever of the two
+    // was created first: the corner probe's crossing test measured the wrong car
+    // and reported that traffic does not yield when it does.
+    spawn: (route, which = 'car', s = 0, add = false) => {
+      if (!add) for (const v of [...active]) clear(v);
       const c = which === 'bus' ? bus : which === 'taxi' ? taxi : plain[0];
       if (c.visible) return;
       maxActive = Math.max(maxActive, active.length + 1);
