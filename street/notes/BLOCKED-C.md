@@ -178,3 +178,44 @@ for the measurement, which is a general defect in the guard rather than a
 question about this one file.
 
 One line in the table settles it either way.
+
+---
+
+## The frontage banners cannot be made to dim from my side
+
+`scripts/mods-dim.mjs` measures a dry evening, per material, each against its
+own daylight value. In `ct/lot.ts`: 504 dim, 2 are declared lights, and **56
+hold full daylight brightness** — the frontage banners, `1.000 -> 1.000`, while
+the deck, cars, brick and bunting all fall 88-95%.
+
+`props.ts`'s `isSelfLit` calls a sheet lit above 8% bright-saturated texels and
+hands it `FLOOR_SIGN = 1.0`, which is *"a light source does not dim when the sun
+sets"*. The banner sheets run **13% to 81%** hot. The heuristic is right about
+what it can see: a banner in `#e0a81c` yellow and `#2f7a4a` green IS a bright
+saturated sheet. It is simply not a lit one.
+
+**Why this is blocked rather than mine to fix.**
+
+- The palette is the user's and approved in as many words — *"pole sign,
+  bunting, banner copy, palette, all of it lands"*. Repainting approved work to
+  slip under a threshold is the wrong way round. That is what separates this
+  from the bunting, where my own sun-bleach highlight pushed my own red one
+  point over the line and backing it off was a fix.
+- `props.ts` SETS `selfLit` and never reads it, so stamping it false from here
+  changes nothing.
+- `noLight` is the wrong direction: it means *do not grade me*, and these are
+  already ungraded. (`d09e55e7f` also found it takes effect only on the
+  `props.lit()` path, not the scene sweep — neither of my modules uses it.)
+- Hand-grading them in my own `onFrame` is available and I have not done it. It
+  is the mistake I already made with the decals — a private constant beside the
+  world's own grader — and it becomes a two-writer bug the moment the heuristic
+  is fixed.
+
+**The ask:** an opt-out an owner can set, the shape of `ctx.wet()` — a caller
+declaring what a material IS rather than having it inferred from pixels.
+Printed signage and lit signage are identical in texels and differ only in
+whether anything is behind them, which a texture cannot show.
+
+`scripts/mods-dim.mjs` stays unregistered until this lands: it is red on this
+finding, and reddening the shared suite over something I cannot fix would hand
+the block my problem.
