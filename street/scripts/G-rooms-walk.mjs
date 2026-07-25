@@ -68,30 +68,31 @@ const ROOMS = [
     ],
   },
   {
-    id: 'pawn', label: /PAWN/, W: 11.0, D: 8.0, H: 2.8,
-    doorX: 7.0 - 0.45, doorZ: -59.06, at: -4.3, hasWindow: true,
-    // the customer strip — a 0.38 m band for the player's centre, on purpose
-    clearZ: 3.45,
-    // The front wall has to be probed from the entry pocket: the strip itself
-    // is only 0.19 m from the wall, which is less than the 0.3 m a probe must
-    // travel to have proved anything. x = -5.0 is west of the doorway and so
-    // is solid wall.
-    frontProbeX: -5.0, frontProbeZ: 2.7,
-    // and the BACK wall cannot be probed at all, because reaching it is
-    // exactly what this room is built to prevent. Asserted below instead.
+    id: 'pawn', label: /PAWN/, W: 10.0, D: 8.0, H: 2.8,
+    doorX: 7.0 - 0.45, doorZ: -59.06, at: -0.06, hasWindow: true,
+    // the customer floor — the whole front of the room now, not a corridor
+    clearZ: 2.0,
+    // an x on the front wall that is solid: the door is at -0.06 and the
+    // window spans 0.8 to 4.4, so -3.0 is pier
+    frontProbeX: -3.0, frontProbeZ: 2.0,
+    // the back wall is behind the counter and reaching it is what the room
+    // prevents — asserted under noGo instead
     skipBack: true,
-    doorApproach: [-4.3, 2.7],
+    doorApproach: [-0.06, 2.0],
     landing: [['out across the street', -Math.PI / 2, false], ['south along the walk', 0, true], ['north along the walk', Math.PI, true]],
     lanes: [
-      ['the customer strip, east', -4.6, 3.45, '+x', 2600, 'x', 7.0],
-      ['…and back west', 4.8, 3.45, '-x', 2600, 'x', 7.0],
+      ['across the customer floor, east', -4.2, 2.0, '+x', 2600, 'x', 7.5],
+      ['…and back west', 4.2, 2.0, '-x', 2600, 'x', 7.5],
+      ['from the door down to the case', -0.06, 3.2, '-z', 2000, 'z', 4.0],
+      ['round the west side of the floor case', -4.3, 2.6, '-z', 2000, 'z', 4.0],
+      ['between the floor case and the counter', 0.9, 0.0, '-x', 1800, 'x', 3.5],
     ],
-    // The whole brief in three checks: everything worth having is on the far
-    // side of the counter and none of it is reachable.
+    // the whole point of the room: the stock is behind the counter and stays
+    // there, and the counter runs wall to wall so there is no way round it
     noGo: [
-      ['you cannot get behind the counter at its west end', -3.4, 3.45, '-z', 1600, 'z', 1.0],
-      ['…nor at the east end', 5.0, 3.45, '-z', 1600, 'z', 1.0],
-      ['…nor round the west side, past the tool wall', -4.6, 3.0, '-z', 1600, 'z', 1.0],
+      ['you cannot get behind the counter in the middle', -0.06, -1.4, '-z', 1600, 'z', 1.2],
+      ['…nor at the west end', -4.5, -1.4, '-z', 1600, 'z', 1.2],
+      ['…nor at the east end', 4.5, -1.4, '-z', 1600, 'z', 1.2],
     ],
   },
 ];
