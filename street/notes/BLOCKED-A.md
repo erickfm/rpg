@@ -53,22 +53,30 @@ declared rooms.** That is worth someone doing before this is called done, and it
 is a better job for whoever owns the room orientation, which is F.
 
 
-## The `[E]` spot may not be reading the register — pawnshop
+## CORRECTION, and one real gap: the pawnshop has no way in
 
-**What I need:** someone who owns `crosstown.ts`'s `[E]` spots to check them
-against `frontageWorld(name).doorWorld`.
-**From whom:** the desk.
+**I got the location wrong in the previous version of this note** and am
+fixing it rather than leaving the desk chasing the wrong file. The `[E]`
+spots are NOT in `crosstown.ts`. They are registered in `ct/interior.ts`
+(F's), and its own comment says they are *"derived from the SAME published
+door centre the painter draws with"*. So the third consumer of the frontage
+number is wired correctly by design — the mechanism is fine and I was wrong
+to suggest otherwise.
 
-The design is three consumers of one number: painter, room, `[E]` spot. I have
-verified the first two. The third I cannot: `[E]` spots are registered in
-`crosstown.ts`, which is desk-owned.
+The real observation stands, though, and it is narrower:
 
-Concretely: PAWN declares its door at world z **−60.50** (moved from the
-painter's own −54.34, so the declaration is landing). Standing at −60.50 against
-the facade and pressing E does **not** go in. Either the pawnshop has no `[E]`
-spot, or it has one that is still hand-placed at the old position.
+**PAWN declares its door at world z −60.50** — the declaration lands, the
+facade moved there from the painter's own −54.34. But standing against that
+facade and looking at it produces **no `[E]` prompt at all**, at 6.25, 6.1 or
+5.9 m out (the spot is documented as standing 0.75 m off the plane, and the
+trigger radius is 1.05, so all three should have caught it).
 
-If it is hand-placed, that is the same two-places-disagree bug one consumer
-over: the door is now where the room says, and the way in is where somebody
-typed. Worth checking all of them, not just the pawnshop — it is a one-line read
-of `frontageWorld(name).doorWorld` per spot.
+So the pawnshop has no way in. That is consistent with `BLOCKED-G.md`, which
+described `int-pawn` as finished but door-blocked. It is F's or G's to close,
+not the desk's, and not mine — I only note that of the five declared rooms it
+is the one you cannot reach, so its mirror cannot be checked by walking in.
+
+**What I verified instead:** three of five rooms mirror correctly (A-1 TAX,
+diner, burger barn), reached through their own `[E]` spots. THRIFT is
+reachable but its front wall cannot be framed from inside without the camera
+ending up in a clothing rack.
