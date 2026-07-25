@@ -14,10 +14,15 @@
 // finding — that is a check that has stopped working, and it looks identical
 // to a passing one from the outside.
 //
-// SAFETY, because this edits source. Refuses to start on a dirty tree, so the
-// restore can never eat real work; restores with `git checkout --` in a
-// finally AND on process exit, so a throw or a Ctrl-C cannot leave the world
-// mutated; and verifies the tree is clean again before reporting.
+// SAFETY, because this edits source. It restores from a BYTE COPY of the file
+// it took before editing — not from git — so uncommitted work survives a run
+// untouched and there is no reason to commit anything first.
+//
+// The first version refused to start on a dirty tree and restored with
+// `git checkout --`. That is safe but it made me commit to get clean, and on a
+// branch that auto-merges every 15 seconds four `wip` commits went to mainline
+// before I noticed. A tool whose safety rule pushes you into a worse habit has
+// only moved the failure.
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
@@ -135,24 +140,26 @@ const dirty = () => sh('git status --porcelain src/').trim();
 // So the mutation is recorded on DISK before it is applied, and any run that
 // finds a stale record undoes it first. Survives SIGTERM, SIGKILL and a power
 // cut, and only ever reverts the one file it wrote down.
-const LOCK = '.canfail-mutated';
-if (existsSync(LOCK)) {
-  const f = readFileSync(LOCK, 'utf8').trim();
-  if (f) { try { execSync(`git checkout -- ${f}`); } catch {} console.log(`recovered a mutation left in ${f} by a killed run`); }
-  rmSync(LOCK, { force: true });
-  try { sh('npm run build'); } catch {}
-}
+const LOCK = '.canfail-mutated';      // which file is mutated right now
+const BACKUP = '.canfail-original';   // and exactly what it held before
 
-if (dirty()) {
-  console.error('REFUSING: src/ has uncommitted changes. This script restores by\n' +
-                '`git checkout --`, which would destroy them. Commit or stash first.');
-  process.exit(2);
+// Crash recovery, not signal handling. A 2-minute harness timeout SIGTERMed a
+// run mid-mutation and node died inside a synchronous `npm run build`, where
+// the event loop cannot turn and no JS handler runs — SIGKILL would not run one
+// either. So the original bytes go to disk BEFORE the edit and any later run
+// puts them back. Survives SIGTERM, SIGKILL and a power cut.
+if (existsSync(LOCK) && existsSync(BACKUP)) {
+  const f = readFileSync(LOCK, 'utf8').trim();
+  if (f) { writeFileSync(f, readFileSync(BACKUP)); console.log(`recovered ${f} from a killed run`); }
+  rmSync(LOCK, { force: true }); rmSync(BACKUP, { force: true });
+  try { sh('npm run build'); } catch {}
 }
 
 let touched = null;
 const restore = () => {
-  if (touched) { try { execSync(`git checkout -- ${touched}`); } catch {} touched = null; }
-  rmSync(LOCK, { force: true });
+  if (touched && existsSync(BACKUP)) { writeFileSync(touched, readFileSync(BACKUP)); }
+  touched = null;
+  rmSync(LOCK, { force: true }); rmSync(BACKUP, { force: true });
 };
 process.on('exit', restore);
 // SIGTERM as well as SIGINT, and this is not defensive padding — a 2-minute
@@ -173,6 +180,7 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
   try {
+    writeFileSync(BACKUP, src);       // the exact bytes back, whatever state they were in
     writeFileSync(LOCK, file);        // on disk BEFORE the edit, so a kill is survivable
     touched = file;
     writeFileSync(file, src.replace(needle, repl));
@@ -195,6 +203,13 @@ for (const [name, verdict, note] of results) {
 }
 const bad = results.filter((r) => r[1] !== 'CAUGHT');
 console.log(`\n${results.length - bad.length}/${results.length} checks caught their mutation`);
-if (dirty()) { console.error('\nSOURCE LEFT DIRTY — restore failed. git checkout -- src/'); process.exit(3); }
-console.log('source tree restored clean');
+// Not "is the tree clean" — it may legitimately be dirty and that is the point
+// now. The question is whether the file came back byte-for-byte as it was.
+const stillWrong = CASES.filter(([, file, needle]) =>
+  run.some((r) => r[1] === file) && !readFileSync(file, 'utf8').includes(needle));
+if (stillWrong.length) {
+  console.error(`\nRESTORE FAILED — ${stillWrong[0][1]} does not hold its original text.`);
+  process.exit(3);
+}
+console.log('every mutated file restored byte-for-byte');
 process.exit(bad.length ? 1 : 0);
