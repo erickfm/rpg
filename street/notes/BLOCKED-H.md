@@ -100,6 +100,15 @@ instances were mine (they are not: no ancestor of any of them carries
 `userData.wheelbase`, and the §22 set is `street`, `vice`, `walkup`, `lot`,
 `props`).
 
+**The same mechanism has just been proven twice in this codebase, at scale.**
+`declareSurface` took the density check's UNJUDGEABLE population from **150 to
+0** (`fbf2d7f6`, `b0e63b36`), and `userData.selfLit` took 34 sheets out of
+nightgrade's unexplained pile (`52b33dd6`). Neither was a new check: both were
+the thing under test saying what it is, so an existing check could stop
+guessing. That is precisely this ask, applied to a different question — and it
+means the argument is no longer "this would probably work", it is "this worked
+150 times last week for the neighbouring problem".
+
 `userData.mod` exists but is absent on exactly the objects a finding lands on —
 every one of the nine reported `mod: '?'` on itself and its parent. A finding
 nobody owns is a finding nobody fixes, and both of these have now sat in a
