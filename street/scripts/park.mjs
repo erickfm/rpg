@@ -32,10 +32,16 @@ const r = await page.evaluate(() => {
   //
   // I tried to replace it with the world's own groundAt(x, z) — the affordance
   // two other builders adopted this week — and that was WRONG, loudly and
-  // usefully. groundAt at the park centre returns 0.403 against a lawn at
-  // 0.140: the picker is finding whatever stands at (-23, -83), not the grass.
-  // Comparing a plane's y to the floor under its own centre conflates "is this
-  // the ground" with "is anything standing on it".
+  // usefully. groundAt at the park centre returns 0.403 against a slab at
+  // 0.140. Sampled on a grid it moves smoothly — 0.347 / 0.363 / 0.403 / 0.413
+  // / 0.437 across four metres, down to 0.104 at the park edge — so the park
+  // GROUND IS A MOUND and the flat 32 x 30 plane is the base under it. Nothing
+  // is wrong; the two numbers are simply about different things, and a plane's
+  // y has no reason to equal the terrain height at its own centre.
+  //
+  // (I nearly routed that 0.26 m gap to the park's owner as a floating-floor
+  // bug. It is not one. Sampling a second point before writing the note is what
+  // stopped it.)
   //
   // Then the tight tolerance turned out to be doing real work. There are TWO
   // planes here that pass the size and x filters — 32 x 30 at y 0.140 and
