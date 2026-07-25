@@ -670,6 +670,9 @@ export function buildProps(ctx: CtxBuild): Props {
   const TRUNK_X = 5.46;                      // blocks to 5.54, as the lamps do
   const PIT_X = 5.56;                        // the well: 0.22 m strip, 0.10 m of dirt kerb-side of the trunk
   const PIT_W = 0.56;
+  // DERIVED, and it moves nothing: the well is positioned from PIT_X below.
+  // Kept because the number is the promise ('a bit of pavement at the kerb'),
+  // but change PIT_X to change the world — editing this line does nothing.
   const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);   // 0.28 m of walk at the kerb
   const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });

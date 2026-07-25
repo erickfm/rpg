@@ -19,7 +19,7 @@
 // finally AND on process exit, so a throw or a Ctrl-C cannot leave the world
 // mutated; and verifies the tree is clean again before reporting.
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const PROPS = 'src/proto/ct/props.ts';
 const GROUND = 'src/proto/ct/tex-ground.ts';
@@ -111,14 +111,37 @@ const CASES = [
     '    o.position.set(cx, gy - bb.min.y - 0.05, z);',
     'trash.mjs', ['probe'], 'every piece of litter sunk 5 cm into the pavement'],
 
+  // Aimed at PIT_CLEAR first and footprint.mjs slept — but the check was
+  // right and the MUTATION was inert: PIT_CLEAR is derived from PIT_X for the
+  // record and positions nothing, so zeroing it changes no geometry. A
+  // mutation that does not mutate proves nothing about the check that ignores
+  // it. PIT_X is the constant that actually moves the well.
   ['footprint-pits', PROPS,
-    "const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);",
-    "const PIT_CLEAR = 0.0 * (PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER));",
+    'const PIT_X = 5.56;',
+    'const PIT_X = 5.09;',
     'footprint.mjs', [], 'tree pits run flush into the kerb'],
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const dirty = () => sh('git status --porcelain src/').trim();
+
+// CRASH RECOVERY, not signal handling. The first version trusted process
+// handlers, and a 2-minute harness timeout SIGTERMed a run mid-mutation and
+// left the park lantern stamp deleted in my tree. Signals cannot save this:
+// the process spends most of its life blocked inside a synchronous
+// `npm run build`, where the event loop cannot turn and no JS handler runs —
+// and SIGKILL would not run one anyway.
+//
+// So the mutation is recorded on DISK before it is applied, and any run that
+// finds a stale record undoes it first. Survives SIGTERM, SIGKILL and a power
+// cut, and only ever reverts the one file it wrote down.
+const LOCK = '.canfail-mutated';
+if (existsSync(LOCK)) {
+  const f = readFileSync(LOCK, 'utf8').trim();
+  if (f) { try { execSync(`git checkout -- ${f}`); } catch {} console.log(`recovered a mutation left in ${f} by a killed run`); }
+  rmSync(LOCK, { force: true });
+  try { sh('npm run build'); } catch {}
+}
 
 if (dirty()) {
   console.error('REFUSING: src/ has uncommitted changes. This script restores by\n' +
@@ -127,9 +150,19 @@ if (dirty()) {
 }
 
 let touched = null;
-const restore = () => { if (touched) { try { execSync(`git checkout -- ${touched}`); } catch {} touched = null; } };
+const restore = () => {
+  if (touched) { try { execSync(`git checkout -- ${touched}`); } catch {} touched = null; }
+  rmSync(LOCK, { force: true });
+};
 process.on('exit', restore);
-process.on('SIGINT', () => { restore(); process.exit(130); });
+// SIGTERM as well as SIGINT, and this is not defensive padding — a 2-minute
+// harness timeout SIGTERMed a full run mid-mutation and node exited WITHOUT
+// firing the 'exit' handler, leaving the park lantern stamp deleted in my
+// working tree. The next run refused to start because of it, which is the
+// only reason it was noticed rather than committed.
+for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(sig, () => { restore(); process.exit(130); });
+}
 
 const only = process.argv.slice(2);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
@@ -140,6 +173,7 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
   const n = src.split(needle).length - 1;
   if (n !== 1) { results.push([name, 'NEEDLE', `matched ${n}x, not 1 — mutation not applied`]); continue; }
   try {
+    writeFileSync(LOCK, file);        // on disk BEFORE the edit, so a kill is survivable
     touched = file;
     writeFileSync(file, src.replace(needle, repl));
     try { sh('npm run build'); }
