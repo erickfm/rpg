@@ -805,3 +805,56 @@ it inverts the one I wrote earlier:
 Still **one candidate: 8 faces of civic ashlar at 9.41 px/m** on the library.
 Everything else off the grid that I have now looked at is foliage, ground decal,
 sidewalk, signage, or a rooftop structure that does not read as masonry.
+
+## Round 8 — the 12 mirrored faces are real, routed, and **invisible**. Close them.
+
+Still 12 at `2c061b97`, unchanged, all `lot`. Before this goes to a builder as
+work, the question I should have asked three rounds ago: **can a player see it?**
+
+`ct/lot.ts:263` draws each pennant:
+
+```js
+const inset = Math.floor((18 - row) * 0.42);
+const w = 14 - inset * 2;
+g.fillRect(x0 + 1 + inset, row, w, 1);
+```
+
+The inset is applied to **both** sides and the width shrinks by twice it. Every
+pennant is a **left-right symmetric triangle**. The four across the canvas run
+red, white, red, white — mirroring that sequence gives white, red, white, red,
+which on a repeating band is a half-cell phase shift, not a difference. The only
+asymmetric ink on the texture is `dither(g, 64, 20, 40)`, which is noise.
+
+**So the mirroring is undetectable.** `u · right < 0` is true, the faces really
+are flipped, and nothing about the rendered world differs because of it.
+
+### What I am recommending
+
+**Close it. Do not route it to C.** There is no player-visible defect here and a
+builder sent to fix it would spend their time confirming that.
+
+### Why I am not withdrawing the finding
+
+Two reasons it was still worth having:
+
+1. **It is latent, not absent.** These 12 faces are the only mirrored uprights
+   in the world. The day anything with lettering, a logo or a left-facing arrow
+   is drawn through the same path, it reads reversed — and it will be reported
+   as a new mystery rather than as this. Recording it as *known and harmless
+   here* is what makes that cheap next time.
+2. **The instrument is proven.** `handed.mjs` checked 207 upright mapped faces
+   and returned exactly the 12 that are genuinely flipped, with no false
+   positives — verified now against the source, not just against itself.
+
+### The lesson, which is about me
+
+I carried this finding for eight rounds. I measured it, defended it, got its
+attribution wrong, corrected that by eye, then corrected *that* by lookup — and
+**never once asked whether the thing it described was visible.** All of that
+work was on provenance, and the cheapest question was the one about consequence.
+
+> **Establishing that a defect is real is not the same as establishing that it
+> matters.** I did the first four times and the second never.
+
+Pattern #1 got this right — it was reported with what a player sees. This one
+did not, and it is the only finding in the audit I would now file differently.
