@@ -51,6 +51,11 @@ const probe = async (h) => {
           // graded at all" look identical from out here, and this script was
           // reporting the first as a bug — thirteen tickets for a neon sign.
           selfLit: !!m.userData?.selfLit,
+          // 6ced1c20, asked for in notes/A-nightgrade.md: props.ts stamps every
+          // material it actually writes a colour to, and marks the wet registry
+          // too. That is what makes "offered to the dimmer and did not move"
+          // decidable — before it, that sentence could not be said from here.
+          graded: !!m.userData?.graded, wet: !!m.userData?.wet,
           // cf966b3d: ct/lot.ts stamps `userData.mod` on everything it adds.
           // Identity, not geography — walk up, because the stamp is applied to
           // the top-level child and inherited by everything under it.
@@ -112,45 +117,46 @@ await b.close();
 // would never have had. That cost was always the other half of §22 and it was
 // not fixed by db76dc26.
 //
-// THE SYMPTOM IS STILL NOT A VERDICT, though it is closer than it was.
+// THE SYMPTOM IS A VERDICT NOW, and it took two stamps from the modules that
+// know the answers — neither of them mine, both asked for and both given.
 //
-// 8e473276 stamps `userData.selfLit` on sheets props.ts grades and deliberately
-// keeps bright, so "lit on purpose" is no longer a guess — excluding them takes
-// the car lot from 22 to 7. That commit was written because this script handed
-// its owner thirteen tickets for a neon sign.
+//   userData.selfLit (8e473276)  a sheet props.ts grades and deliberately keeps
+//                                bright. Written because this script handed its
+//                                owner thirteen tickets for a neon sign.
+//   userData.graded  (6ced1c20)  props.ts actually wrote a colour here. And
+//                                userData.wet for the ones updateRain owns.
 //
-// What is still invisible, and why this reports rather than fails:
-//   wetMats                — updateRain owns those and nothing marks them
-//   graded-but-unchanged   — indistinguishable from never-handed-to-dimWorld,
-//                            and most of the world is the latter
-// One line in props.ts would close the second — stamp `userData.graded` where
-// dimWorld actually writes a colour — and then this could fail honestly. That
-// is props.ts's call, not mine; noted in notes/A-nightgrade.md.
+// Before them, "was offered to the dimmer and did not move" was a sentence that
+// could not be said from outside: graded-but-unchanged and never-handed-to-the-
+// dimmer are the same picture from here, which is why the un-boxed number was
+// 417 and answered nothing. Now every clause is somebody's own mark and nothing
+// is inferred, so this fails without needing a box.
+//
+// It is 1. From 417 unknowns to one material, by asking instead of guessing.
 const SCOPED = A.length === 4;
 const pairs = Object.entries(day.each)
   .filter(([, d]) => d.cut && d.tr && d.reach)
   .map(([uuid, d]) => ({ uuid, ...d }));
-const stillCount = Object.entries(day.each).filter(([u, d]) => {
+// A GENUINE FAILURE, now that it can be stated: props.ts wrote a colour to this
+// material (`graded`), it is not one props.ts deliberately keeps bright
+// (`selfLit`), it is not a light, it is not black — and it still reads the same
+// at 23:00 as at noon. Nothing is inferred; every clause is somebody's own mark.
+// `wet` materials are excluded: they are graded by updateRain on its own curve.
+const dead = Object.entries(day.each).filter(([u, d]) => {
   const n = night.each[u];
-  return n && d.key !== 'additive' && !d.selfLit && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
-}).length;
-if (SCOPED) {
-  console.log(`\n${stillCount} gradable materials in the box never moved between noon and 23:00`);
-  console.log('  selfLit sheets are excluded — props.ts stamps those, so "kept bright on');
-  console.log('  purpose" is no longer a guess. Still reported and NOT failed on, because');
-  console.log('  two things stay invisible: wetMats, which updateRain owns, and the');
-  console.log('  difference between graded-but-unchanged and never-handed-to-dimWorld.');
-} else {
-  // World-wide this is 417 and it means nothing: most of the world is never
-  // handed to dimWorld in the first place, and from outside that is
-  // indistinguishable from being skipped by it. Only a box makes it a question
-  // someone can answer.
-  console.log('\nnever-moved count is only meaningful inside a box — give one to see it');
-}
+  return n && d.graded && !d.wet && !d.selfLit && d.key !== 'additive'
+    && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
+}).map(([uuid, d]) => ({ uuid, ...d }));
+const ungraded = Object.values(day.each).filter((d) => !d.graded && !d.selfLit).length;
+console.log(`\n${dead.length} materials were graded by dimWorld and did not move`);
+console.log(`  (${ungraded} others were never offered to it at all — interiors and`);
+console.log('   anything built outside its reach. That is not a fault, it is scope.)');
+for (const d of dead)
+  console.log(`   ${d.v.toFixed(3)} at ${d.x},${d.y},${d.z}  ${d.shape}`);
 console.log(`\n${pairs.length} materials break GOTCHAS §22 — alphaTest AND transparent`);
 if (!pairs.length) {
   console.log('  no cut-out is sitting in the transparent sort queue');
-  process.exit(0);
+  process.exit(dead.length ? 1 : 0);
 }
 const skipped = pairs;
 // Group by proximity and hand each cluster back as a command you can run.
@@ -210,11 +216,4 @@ the way ct/lot.ts does (cf966b3d) and this names you instead of leaving the next
 reader to guess by eye — which has misrouted this same finding three times.
 A stamp beats a box: it stays right when your things are scattered or sit inside
 someone else's.`);
-if (!SCOPED) {
-  console.log(`
-Informational: no box was given, so this is the whole world and some of these
-are deliberate. Re-run with your module's box to get a verdict:
-  node scripts/nightgrade.mjs x0 x1 z0 z1`);
-  process.exit(0);
-}
 process.exit(1);
