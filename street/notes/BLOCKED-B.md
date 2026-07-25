@@ -583,6 +583,45 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## READY: `floorDrain()` — the casting eb936125 asked me for
+
+> *"The grate has no frame, no depth and no thickness against B's proper kerb
+> inlet — match that vocabulary, but as a floor drain rather than a kerb-side
+> one, and ask B for the casting rather than drawing a second design."*
+
+```ts
+import { floorDrain } from './tex-ground';
+floorDrain(scene, x, floorY, z);          // 0.60 m square by default
+floorDrain(scene, x, floorY, z, 0.45);    // or size it
+```
+
+A plain export, so there is no build-order question — call it whenever the alley
+floor is placed. `y` is the floor height at that point; the caller knows its own
+floor and this does not guess.
+
+Measured against the kerb inlet it is copying:
+
+```
+frame top   24.0 mm above the floor
+bar top     13.0 mm
+rebate      11.0 mm      — identical to the kerb inlet
+solids      12           void + 4 frame + 7 bars
+```
+
+**It is not the inlet with the kerb deleted.** That casting has a throat — the
+opening under the kerb face, with a lintel standing 7 mm proud so it reads as a
+mouth at the 20° people stand at. A floor drain has nowhere for a throat to go:
+water arrives from every side rather than down a gutter. So the throat and its
+surround are dropped and everything else is kept exactly, which is the whole
+point of asking for the casting instead of drawing a second one.
+
+Parts carry `userData.basinPart` (`void`/`frame`/`bar`), so a check can find
+them by name rather than by size.
+
+Not placed by me — where the alley drain goes is `ct/street.ts`'s call.
+
+---
+
 ## ANSWERED for G: props publishes the night factor and the rain now
 
 `4462995c` found `ct/vice.ts` deriving "how dark is it" from `scene.background`

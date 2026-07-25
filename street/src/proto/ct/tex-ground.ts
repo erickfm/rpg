@@ -567,6 +567,57 @@ export interface Ground {
   gy: (x: number, z: number) => number | null;
 }
 
+/**
+ * A FLOOR drain, in the same cast vocabulary as the kerb inlet.
+ *
+ * eb936125 asked for this by name: the alley grate "has no frame, no depth and
+ * no thickness against B's proper kerb inlet — match that vocabulary, but as a
+ * floor drain rather than a kerb-side one, and ask B for the casting rather
+ * than drawing a second design." Two designs for one object is how a world
+ * stops looking hand-authored, so here is the one.
+ *
+ * What it is NOT is the kerb inlet with the kerb removed. That casting has a
+ * throat — the opening under the kerb face, with a lintel standing 7 mm proud
+ * so it reads as a mouth at the angle people stand. A floor drain has nowhere
+ * for a throat to go: water arrives from every side, not down a gutter. So the
+ * throat and its surround are dropped and the rest is kept exactly.
+ *
+ *   the void       a dark plate 1 mm under the slots, not a hole cut in the
+ *                  floor — at this rebate they are indistinguishable, and it
+ *                  costs no surgery on somebody else's mesh
+ *   the frame      flange on all four sides, top 28 mm above the floor
+ *   the grate      seven bars sunk 11 mm UNDER the frame top, which is the
+ *                  whole read: a flush grate looks painted on
+ *
+ * `y` is the floor height at (x, z) — the caller knows its own floor; this does
+ * not guess. Parts carry userData.basinPart so a check can find them by name
+ * rather than by size (park.mjs went blind once matching on exact dimensions).
+ */
+export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, size = 0.60): THREE.Object3D[] {
+  const OW = size, OL = size;
+  const FL = 0.075, FR_H = 0.028, BAR_H = 0.012;
+  const ironM = new THREE.MeshBasicMaterial({ map: castTex() });
+  const barM = new THREE.MeshBasicMaterial({ map: barTex() });
+  const voidM = new THREE.MeshBasicMaterial({ color: 0x08090b });
+  const made: THREE.Object3D[] = [];
+  const box = (w: number, h: number, d: number, bx: number, by: number, bz: number,
+               m: THREE.Material, part: string) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(bx, by, bz);
+    b.userData.basinPart = part;
+    scene.add(b); made.push(b);
+  };
+  box(OW, 0.02, OL, x, y - 0.009, z, voidM, 'void');
+  box(FL, FR_H, OL + FL * 2, x - (OW + FL) / 2, y + 0.010, z, ironM, 'frame');
+  box(FL, FR_H, OL + FL * 2, x + (OW + FL) / 2, y + 0.010, z, ironM, 'frame');
+  box(OW, FR_H, FL, x, y + 0.010, z - (OL + FL) / 2, ironM, 'frame');
+  box(OW, FR_H, FL, x, y + 0.010, z + (OL + FL) / 2, ironM, 'frame');
+  const NB = 7, pitch = OL / NB;
+  for (let i = 0; i < NB; i++)
+    box(OW, BAR_H, pitch * 0.55, x, y + 0.007, z - OL / 2 + pitch * (i + 0.5), barM, 'bar');
+  return made;
+}
+
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
   // THE WET REGISTRATION, REACHABLE BY ANYONE HOLDING `scene`, and published
