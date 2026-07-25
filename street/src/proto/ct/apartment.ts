@@ -822,7 +822,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // the half landings hang theirs off whatever is genuinely above them:
       // the underside of the next landing up, or — at the top of the shaft,
       // where there is no next landing — the building's top ceiling
-      if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + RISE - 0.14 : H, AZI((STAIR_Z1 + LAND_Z1) / 2 + 0.3), 0.52);
+      // Report finding 5: the half landings were the darkest place in the
+      // building, and it was purely WHERE the lamp is. It hung at
+      // (STAIR_Z1 + LAND_Z1) / 2 + 0.3 — a third of a metre PAST the middle of
+      // the landing, toward the far wall — so the turn itself, at STAIR_Z1
+      // where the core wall ends and the rail wraps and you actually change
+      // direction, was 1.6 m away and lit only by spill. You passed through a
+      // dark pocket to get to a lit corner of empty floor.
+      //
+      // Over the turn instead, and a wider halo because a landing is deeper
+      // than a hall bay and one bulb has to reach both ends of it. Headroom is
+      // not the problem and never was — 2.56 m over the landing, checked as
+      // numbers rather than from the picture.
+      if (f < 3) ceilingLamp(f < 2 ? (f + 1) * ST + RISE - 0.14 : H, AZI(STAIR_Z1 + 0.55), 0.62);
     }
     // ── the basement stair ───────────────────────────────────────────────
     // The east half of the shaft at lobby level was a flat navy box filling

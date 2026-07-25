@@ -42,6 +42,10 @@ const SH = [
   ['20-cellar-gate',201.8, -13.9, at(0.0,  2.3), -0.10, 0],
   ['21-cellar-lock',201.8, -12.4, at(0.0,  0.8), -0.06, 0],
   ['22-cellar-obliq',201.0,-13.2, at(0.8,  1.6), -0.08, 0],
+  // half landing 1 (y = RISE = 1.35): the turn is at AZI(10.6) = -9.4
+  ['23-landing-turn',201.2, -7.6, at(0.0,  -2.4), 0.10, 1.35],
+  ['24-landing-up',  201.2, -6.4, at(0.0,  -3.6), 0.26, 1.35],
+  ['25-landing-arriv',200.6, -9.9, at(0.6,   1.2), 0.14, 1.35],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);
