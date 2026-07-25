@@ -742,12 +742,36 @@ export function buildStreet(o: {
   // stand on, so a "1.35 m" screen was really 1.21 m off the pavement. The
   // request is explicit — "screen at 1.30-1.40 m, keypad lower" — and that is
   // measured from the floor under your feet, so it is measured from KERB_H.
+  // ATTEMPT TWO OVERSHOT AND THIS IS THE SUBTRACTION. The first niche was
+  // 1.10 x 2.10 m — plinth to above head height, with a FIRST FEDERAL plate
+  // taking the top half and the machine crammed into the bottom third. The
+  // user: *"it reads as a display case or a vending machine, not as an ATM in a
+  // wall. THE SIZE IS THE MAIN FAULT … A real wall ATM fascia is roughly
+  // 0.6-0.7 m wide and about 1.0 m tall, set at working height — it is a modest
+  // object. Yours is maybe three times that."* It was: 2.3 m² against 0.7 m².
+  //
+  // So: 0.68 x 1.05, the screen and keypad ARE the object, the name is a strip
+  // above the screen rather than a plate, the heavy bronze surround is gone and
+  // the recess is SHALLOW — 9 cm, not 15.
   const ATM_U = 0.36;                       // across the frontage; band u runs -z
-  const ATM_W = 1.10;                       // opening width
-  const ATM_SILL = KERB_H + 0.30, ATM_TOP = KERB_H + 2.40;
-  const ATM_R = 0.15;                       // recess depth, within the 12-18 cm asked for
-  const ATM_SCREEN_Y = KERB_H + 1.35;       // you look slightly DOWN at it from 1.74 m
-  const ATM_KEYS_Y = KERB_H + 1.00;
+  const ATM_W = 0.68;                       // fascia width — a modest object
+  const ATM_SILL = KERB_H + 0.55, ATM_TOP = KERB_H + 1.60;   // 1.05 m at working height
+  const ATM_R = 0.09;                       // a SHALLOW recess, per "not a deep box"
+  const ATM_SCREEN_Y = KERB_H + 1.36;       // you look slightly DOWN at it from 1.74 m
+  const ATM_KEYS_Y = KERB_H + 1.12;
+  // THE RAKE, which is the idea the user actually wanted — "something slanted
+  // inlaid". A real fascia is angled: the keypad tilted toward horizontal so you
+  // type on it looking down, the screen tilted up toward your eyeline. Both
+  // normals therefore point OUT AND UP, which means each panel's upper edge sits
+  // DEEPER in the recess than its lower edge — a lectern, not a picture.
+  //
+  // The keypad rakes harder than the screen (24° against 9° off the wall)
+  // because it is a thing you touch looking down and the screen is a thing you
+  // read. That single angle is what makes it read as a machine you use rather
+  // than a picture on a wall.
+  const ATM_SCREEN_TOP = KERB_H + 1.58, ATM_SCREEN_BOT = KERB_H + 1.20;
+  const ATM_KEYS_TOP = KERB_H + 1.20, ATM_KEYS_BOT = KERB_H + 1.04;
+  const D_DEEP = 0.085, D_SHALLOW = 0.025, D_KEYS_BOT = 0.02;
   const bankBand = (wM: number) => {
     const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
     const { W, H, ppm } = surf;
@@ -817,177 +841,156 @@ export function buildStreet(o: {
       g.clearRect(ax - m(ATM_W / 2), m(SHOP_BAND_H - ATM_TOP), m(ATM_W), m(ATM_TOP - ATM_SILL));
     });
   };
-  /** The machine face — everything that is drawing rather than depth.
+  /** The machine face, raked. Three panels, and the tilt is the whole point.
    *
-   *  A 1997 cash machine has a very specific vocabulary and the user listed it:
-   *  hood, CRT behind its own bezel, rubber keypad in a 3x4 grid with function
-   *  keys down the screen edge, card slot with a lit arrow for the stripe, cash
-   *  slot with a shutter, separate receipt and deposit slots, a bank plate, and
-   *  the network decals — CIRRUS, PLUS, STAR, HONOR — which are the period tell.
+   *  Everything here is SMALLER than attempt two. The screen and keypad are the
+   *  object; the name is a strip above the screen, not a plate; there is no
+   *  bronze cabinet. 128 px/m, which a 0.68 m fascia can carry because you stand
+   *  600 mm from it.
    *
-   *  96 px/m, which is 8x the wall's density. That is deliberate and it is what
-   *  the recess buys: this face is 1.1 m wide and you stand 700 mm from it, so
-   *  it carries detail the facade never could at 12 px/m. A card slot painted on
-   *  the wall texture would be four pixels.
+   *  `which` picks the panel: the raked screen, the raked keypad shelf, or the
+   *  small vertical apron under them that takes the cash slot and the decals.
    */
-  const atmFaceTex = (wM: number, hM: number) => {
-    const PXM = 96;
-    const W = Math.round(wM * PXM), H = Math.round(hM * PXM);
+  const atmPanelTex = (which: 'screen' | 'keys' | 'apron', wM: number, hM: number) => {
+    const PXM = 128;
+    const W = Math.max(2, Math.round(wM * PXM)), H = Math.max(2, Math.round(hM * PXM));
     const px = (v: number) => Math.max(1, Math.round(v * PXM));
-    // world height -> canvas y, so every number below is a height off the walk
-    const fy = (Y: number) => Math.round((ATM_TOP - Y) * PXM);
     return declareSurface(pixTex(W, H, (g) => {
-      // cool grey precast body, bronze trim, granite plinth — the bank's own
-      // palette. The user: "It must not read like the library beside it", and
-      // the library is warm tan; nothing warm goes on this.
+      // cool grey precast machine, no warm tones anywhere: the user asked that
+      // it not read like the library, and the library is warm tan.
       g.fillStyle = '#8d949b'; g.fillRect(0, 0, W, H);
-      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, px(0.04), H);
-      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(W - px(0.04), 0, px(0.04), H);
-      // granite plinth the machine stands on
-      g.fillStyle = BANK_GRANITE; g.fillRect(0, fy(KERB_H + 0.46), W, H - fy(KERB_H + 0.46));
-      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, fy(KERB_H + 0.46), W, px(0.02));
-      // bank plate, bronze, applied with a shadow under it
-      g.fillStyle = BANK_BRONZE; g.fillRect(px(0.12), fy(KERB_H + 2.20), W - px(0.24), px(0.20));
-      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(px(0.12), fy(KERB_H + 2.00), W - px(0.24), px(0.02));
-      g.font = `bold ${px(0.11)}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillStyle = '#2b2418'; g.fillText('FIRST FEDERAL', W / 2, fy(KERB_H + 2.10));
-      // the screen: a dark recessed bezel with a small green CRT set back in it
-      const sw = px(0.52), sh = px(0.34);
-      g.fillStyle = '#1c2026';
-      g.fillRect(W / 2 - sw / 2 - px(0.06), fy(ATM_SCREEN_Y + 0.21), sw + px(0.12), sh + px(0.12));
-      g.fillStyle = '#0d1418';
-      g.fillRect(W / 2 - sw / 2, fy(ATM_SCREEN_Y + 0.17), sw, sh);
-      g.fillStyle = '#3f6a4a';                                   // phosphor green
-      g.fillRect(W / 2 - sw / 2 + px(0.02), fy(ATM_SCREEN_Y + 0.15), sw - px(0.04), sh - px(0.04));
-      g.fillStyle = 'rgba(180,255,190,0.30)';                    // two lines of type
-      g.fillRect(W / 2 - sw / 2 + px(0.06), fy(ATM_SCREEN_Y + 0.09), px(0.30), px(0.022));
-      g.fillRect(W / 2 - sw / 2 + px(0.06), fy(ATM_SCREEN_Y + 0.03), px(0.22), px(0.022));
-      g.fillStyle = 'rgba(255,255,255,0.07)';                    // the curve of the glass
-      g.fillRect(W / 2 - sw / 2 + px(0.02), fy(ATM_SCREEN_Y + 0.15), px(0.10), sh - px(0.04));
-      // SCRATCHED SCREEN SURROUND — wear at a touch point, as asked
-      g.strokeStyle = 'rgba(255,255,255,0.14)'; g.lineWidth = 1;
-      for (let i = 0; i < 7; i++) {
-        const yy = fy(ATM_SCREEN_Y + 0.20) + i * px(0.05);
-        g.beginPath(); g.moveTo(W / 2 - sw / 2 - px(0.05), yy); g.lineTo(W / 2 - sw / 2 - px(0.01), yy + px(0.01)); g.stroke();
-      }
-      // function keys down BOTH screen edges, four a side, in their own wells
-      for (const side of [-1, 1]) {
-        for (let k = 0; k < 4; k++) {
-          const bx = W / 2 + side * (sw / 2 + px(0.14)) - px(0.045);
-          const by = fy(ATM_SCREEN_Y + 0.13 - k * 0.075);
-          g.fillStyle = '#5d646b'; g.fillRect(bx - px(0.01), by - px(0.01), px(0.11), px(0.05));
-          g.fillStyle = '#c3c8cc'; g.fillRect(bx, by, px(0.09), px(0.03));
+      if (which === 'screen') {
+        // the name as a THIN STRIP immediately above the screen, not a plate.
+        // The bank's name is already on the building in half-metre letters.
+        g.fillStyle = '#6d747b'; g.fillRect(px(0.05), px(0.02), W - px(0.10), px(0.05));
+        g.font = `bold ${px(0.035)}px monospace`;
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillStyle = '#d7dbdf'; g.fillText('FIRST FEDERAL', W / 2, px(0.045));
+        // the CRT, set back behind its bezel — the biggest thing on the machine
+        const sx = px(0.09), sy = px(0.10), sw = W - px(0.18), sh = H - px(0.15);
+        g.fillStyle = '#1c2026'; g.fillRect(sx, sy, sw, sh);
+        g.fillStyle = '#0d1418'; g.fillRect(sx + px(0.015), sy + px(0.015), sw - px(0.03), sh - px(0.03));
+        g.fillStyle = '#3f6a4a';
+        g.fillRect(sx + px(0.03), sy + px(0.03), sw - px(0.06), sh - px(0.06));
+        g.fillStyle = 'rgba(180,255,190,0.32)';
+        g.fillRect(sx + px(0.06), sy + px(0.07), px(0.22), px(0.018));
+        g.fillRect(sx + px(0.06), sy + px(0.12), px(0.15), px(0.018));
+        g.fillStyle = 'rgba(255,255,255,0.07)';
+        g.fillRect(sx + px(0.03), sy + px(0.03), px(0.07), sh - px(0.06));
+        // scratched surround — wear at a touch point
+        g.strokeStyle = 'rgba(255,255,255,0.13)'; g.lineWidth = 1;
+        for (let i = 0; i < 6; i++) {
+          const yy = sy + px(0.02) + i * px(0.035);
+          g.beginPath(); g.moveTo(sx - px(0.03), yy); g.lineTo(sx - px(0.005), yy + px(0.008)); g.stroke();
         }
+        // three function keys a side, small, in their wells
+        for (const side of [0, 1]) {
+          for (let k = 0; k < 3; k++) {
+            const bx = side ? W - px(0.075) : px(0.02);
+            const by = sy + px(0.04) + k * px(0.09);
+            g.fillStyle = '#5d646b'; g.fillRect(bx, by, px(0.055), px(0.04));
+            g.fillStyle = '#c3c8cc'; g.fillRect(bx + px(0.005), by + px(0.005), px(0.045), px(0.03));
+          }
+        }
+      } else if (which === 'keys') {
+        // THE KEYPAD SHELF. Raked toward horizontal, so this face is seen from
+        // above and the keys read as keys rather than as a grid painted on.
+        g.fillStyle = '#454b52'; g.fillRect(0, 0, W, H);
+        const kw = px(0.075), kh = px(0.030), gap = px(0.016);
+        const k0x = W / 2 - (3 * kw + 2 * gap) / 2, k0y = px(0.018);
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+          const x = k0x + c * (kw + gap), y = k0y + r * (kh + gap);
+          const worn = c === 1;                       // the column thumbs land on
+          g.fillStyle = worn ? '#c6cbcf' : '#a8aeb4';
+          g.fillRect(x, y, kw, kh);
+          g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(x, y + kh - px(0.007), kw, px(0.007));
+          g.fillStyle = 'rgba(255,255,255,0.24)'; g.fillRect(x, y, kw, px(0.005));
+        }
+        // card slot down the right of the shelf, with its lit arrow
+        g.fillStyle = '#2b3036'; g.fillRect(W - px(0.11), px(0.02), px(0.075), H - px(0.04));
+        g.fillStyle = '#0a0c0e'; g.fillRect(W - px(0.10), px(0.035), px(0.055), H - px(0.07));
+        g.fillStyle = '#63c27a'; g.fillRect(W - px(0.095), px(0.05), px(0.045), px(0.012));
+      } else {
+        // the apron: cash slot, receipt, and the period tell
+        g.fillStyle = '#2b3036'; g.fillRect(px(0.06), px(0.05), W - px(0.12), px(0.075));
+        g.fillStyle = '#14181c'; g.fillRect(px(0.08), px(0.062), W - px(0.16), px(0.042));
+        g.fillStyle = '#7e858c'; g.fillRect(px(0.08), px(0.062), W - px(0.16), px(0.014)); // shutter
+        g.fillStyle = '#2b3036'; g.fillRect(px(0.06), px(0.17), px(0.24), px(0.04));
+        g.fillStyle = '#0a0c0e'; g.fillRect(px(0.075), px(0.181), px(0.21), px(0.018));
+        const nets: [string, string, string][] = [
+          ['CIRRUS', '#1c3f8c', '#dfe4ee'], ['PLUS', '#0d6b3f', '#e8f1ea'],
+          ['STAR', '#8c1c22', '#f0dfe0'], ['HONOR', '#243043', '#dfe3e8'],
+        ];
+        g.font = `bold ${px(0.026)}px monospace`;
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        nets.forEach(([nm, bg, fg], i) => {
+          const bw = px(0.145), bh = px(0.05);
+          const bx = px(0.035) + i * (bw + px(0.012));
+          g.fillStyle = bg; g.fillRect(bx, H - px(0.09), bw, bh);
+          g.fillStyle = fg; g.fillText(nm, bx + bw / 2, H - px(0.09) + bh / 2);
+        });
+        // a sticker half-peeled, small
+        g.fillStyle = '#d8d2c4'; g.fillRect(W - px(0.17), px(0.155), px(0.12), px(0.07));
+        g.fillStyle = '#b9b3a6';
+        g.beginPath();
+        g.moveTo(W - px(0.05), px(0.155));
+        g.lineTo(W - px(0.05), px(0.19));
+        g.lineTo(W - px(0.095), px(0.155));
+        g.closePath(); g.fill();
       }
-      // CARD SLOT with the lit arrow showing which way the stripe goes
-      const cslotY = KERB_H + 1.19;
-      g.fillStyle = '#2b3036'; g.fillRect(W / 2 + px(0.06), fy(cslotY), px(0.36), px(0.05));
-      g.fillStyle = '#0a0c0e'; g.fillRect(W / 2 + px(0.08), fy(cslotY) + px(0.012), px(0.32), px(0.022));
-      g.fillStyle = '#63c27a';                                   // the lit arrow
-      g.fillRect(W / 2 + px(0.10), fy(cslotY) - px(0.035), px(0.16), px(0.02));
-      for (let i = 0; i < 4; i++) {
-        g.fillRect(W / 2 + px(0.26) + i, fy(cslotY) - px(0.045) + i, 1, px(0.04) - 2 * i);
-      }
-      // the KEYPAD: 3 x 4 rubber keys, worn pale where thumbs land
-      const kw = px(0.075), kh = px(0.055), gap = px(0.022);
-      const k0x = W / 2 - (3 * kw + 2 * gap) / 2, k0y = fy(ATM_KEYS_Y + 0.10);
-      g.fillStyle = '#454b52';
-      g.fillRect(k0x - px(0.03), k0y - px(0.03), 3 * kw + 2 * gap + px(0.06), 4 * kh + 3 * gap + px(0.06));
-      for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
-        const x = k0x + c * (kw + gap), y = k0y + r * (kh + gap);
-        // WORN PALE at the touch points — the middle column takes the most use
-        const worn = c === 1 || (r === 3 && c === 1);
-        g.fillStyle = worn ? '#c6cbcf' : '#a8aeb4';
-        g.fillRect(x, y, kw, kh);
-        g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x, y + kh - px(0.012), kw, px(0.012));
-        g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(x, y, kw, px(0.008));
-      }
-      // CASH SLOT with its shutter, wide and low — the thing everyone looks at
-      g.fillStyle = '#2b3036'; g.fillRect(px(0.14), fy(KERB_H + 0.78), W - px(0.28), px(0.11));
-      g.fillStyle = '#14181c'; g.fillRect(px(0.17), fy(KERB_H + 0.76), W - px(0.34), px(0.06));
-      g.fillStyle = '#7e858c'; g.fillRect(px(0.17), fy(KERB_H + 0.76), W - px(0.34), px(0.022)); // shutter
-      g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(px(0.17), fy(KERB_H + 0.76), W - px(0.34), px(0.006));
-      // RECEIPT and DEPOSIT, separate slots as asked, left and right
-      g.fillStyle = '#2b3036'; g.fillRect(px(0.10), fy(KERB_H + 0.62), px(0.34), px(0.05));
-      g.fillStyle = '#0a0c0e'; g.fillRect(px(0.12), fy(KERB_H + 0.61), px(0.30), px(0.022));
-      g.fillStyle = '#2b3036'; g.fillRect(W - px(0.44), fy(KERB_H + 0.62), px(0.34), px(0.07));
-      g.fillStyle = '#0a0c0e'; g.fillRect(W - px(0.42), fy(KERB_H + 0.61), px(0.30), px(0.035));
-      g.font = `${px(0.045)}px monospace`; g.textAlign = 'left';
-      g.fillStyle = '#3b4149'; g.fillText('RECEIPT', px(0.10), fy(KERB_H + 0.665));
-      g.fillText('DEPOSIT', W - px(0.44), fy(KERB_H + 0.675));
-      // THE NETWORK DECALS — the period tell, in their little coloured boxes
-      const nets: [string, string, string][] = [
-        ['CIRRUS', '#1c3f8c', '#dfe4ee'], ['PLUS', '#0d6b3f', '#e8f1ea'],
-        ['STAR', '#8c1c22', '#f0dfe0'], ['HONOR', '#243043', '#dfe3e8'],
-      ];
-      g.font = `bold ${px(0.038)}px monospace`; g.textAlign = 'center';
-      nets.forEach(([nm, bg, fg], i) => {
-        const bw = px(0.24), bh = px(0.085);
-        const bx2 = px(0.06) + i * (bw + px(0.015));
-        g.fillStyle = bg; g.fillRect(bx2, fy(KERB_H + 0.50), bw, bh);
-        g.fillStyle = fg; g.fillText(nm, bx2 + bw / 2, fy(KERB_H + 0.50) + bh / 2);
-      });
-      // A STICKER HALF-PEELED, as asked — the corner lifted and paler under it
-      g.fillStyle = '#d8d2c4'; g.fillRect(W - px(0.30), fy(KERB_H + 1.62), px(0.20), px(0.13));
-      g.fillStyle = '#b9b3a6';
-      g.beginPath();
-      g.moveTo(W - px(0.10), fy(KERB_H + 1.62));
-      g.lineTo(W - px(0.10), fy(KERB_H + 1.62) + px(0.06));
-      g.lineTo(W - px(0.17), fy(KERB_H + 1.62));
-      g.closePath(); g.fill();
-      dither(g, W, H, Math.round(wM * hM * 60));
+      dither(g, W, H, Math.round(wM * hM * 40));
     }), 'sign');
   };
 
-  /** The niche: a hole in the wall with a machine set back in it.
+  /** The niche: a SHALLOW recess with a SLANTED face in it.
    *
-   *  The recess is most of the effect — the user's own word — because it is what
-   *  makes a wall machine part of the building rather than stuck to it. So the
-   *  reveal is real geometry on all four sides and the face sits ATM_R back from
-   *  the facade plane, seen through the hole `bankBand` cuts.
+   *  Attempt two built a deep box with a flat front and a bronze cabinet round
+   *  it. This is the elegant version the user asked for — 9 cm of recess, a thin
+   *  reveal, and the fascia raked so it reads as something you use.
    */
   const atmNiche = (zc: number) => {
-    const xF = -FACE;                          // the facade plane; -x goes into the wall
+    const xF = -FACE;                       // facade plane; -x goes into the wall
     const hM = ATM_TOP - ATM_SILL, yMid = (ATM_TOP + ATM_SILL) / 2;
-    const rev = new THREE.MeshBasicMaterial({ color: 0x6f767d });   // cool grey reveal
-    const revDark = new THREE.MeshBasicMaterial({ color: 0x4a5057 }); // its shaded side
+    const rev = new THREE.MeshBasicMaterial({ color: 0x767d84 });
+    const revDark = new THREE.MeshBasicMaterial({ color: 0x4f555c });
     const add = (w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       b.position.set(x, y, z);
       b.userData.atmPart = 'niche';
       scene.add(b);
-      return b;
     };
-    // the four reveals, each ATM_R deep, running back from the facade plane
-    const t = 0.03;
-    add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_TOP + t / 2, zc, revDark);   // head
-    add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_SILL - t / 2, zc, rev);      // sill
-    add(ATM_R, hM, t, xF - ATM_R / 2, yMid, zc + ATM_W / 2 + t / 2, rev);         // jamb
-    add(ATM_R, hM, t, xF - ATM_R / 2, yMid, zc - ATM_W / 2 - t / 2, revDark);     // jamb
-    // the machine face, set back, with a body behind it so the niche is sealed
-    const face = new THREE.Mesh(
-      new THREE.PlaneGeometry(ATM_W, hM),
-      new THREE.MeshBasicMaterial({ map: atmFaceTex(ATM_W, hM) }),
-    );
-    face.rotation.y = Math.PI / 2;             // face the street (+x)
-    face.position.set(xF - ATM_R, yMid, zc);
-    face.userData.atmPart = 'face';
-    scene.add(face);
-    add(0.10, hM, ATM_W, xF - ATM_R - 0.05, yMid, zc, revDark);   // the body behind it
-    // THE HOOD over the screen, projecting from the face and shading the CRT
-    // from daylight — inside the recess, so it never breaks the facade plane.
-    const hoodD = 0.11;
-    add(hoodD, 0.035, ATM_W - 0.06, xF - ATM_R + hoodD / 2, ATM_SCREEN_Y + 0.30, zc, rev);
-    add(0.012, 0.10, ATM_W - 0.06, xF - ATM_R + hoodD, ATM_SCREEN_Y + 0.245, zc, revDark);
-    // a bronze surround at the opening: the trim a bank actually puts round a
-    // hole cut in precast, and it stops the cut edge reading as a torn texture
-    const brz = new THREE.MeshBasicMaterial({ color: 0x7a6a44 });
-    const bw = 0.05;
-    add(0.02, bw, ATM_W + bw * 2, xF + 0.01, ATM_TOP + bw / 2, zc, brz);
-    add(0.02, bw, ATM_W + bw * 2, xF + 0.01, ATM_SILL - bw / 2, zc, brz);
-    add(0.02, hM + bw * 2, bw, xF + 0.01, yMid, zc + ATM_W / 2 + bw / 2, brz);
-    add(0.02, hM + bw * 2, bw, xF + 0.01, yMid, zc - ATM_W / 2 - bw / 2, brz);
+    // A THIN REVEAL, and nothing else at the opening. No bronze surround: the
+    // user asked for it gone and a 5 cm bronze frame round a 0.68 m machine was
+    // most of why it read as a cabinet.
+    const t = 0.02;
+    add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_TOP + t / 2, zc, revDark);
+    add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_SILL - t / 2, zc, rev);
+    add(ATM_R, hM, t, xF - ATM_R / 2, yMid, zc + ATM_W / 2 + t / 2, rev);
+    add(ATM_R, hM, t, xF - ATM_R / 2, yMid, zc - ATM_W / 2 - t / 2, revDark);
+    add(0.04, hM, ATM_W, xF - ATM_R - 0.02, yMid, zc, revDark);   // the back of the niche
+
+    /** hang a panel across the opening, raked: its TOP edge sits `dTop` behind
+     *  the facade and its BOTTOM edge `dBot`, so the normal points out and UP. */
+    const panel = (which: 'screen' | 'keys' | 'apron', yTop: number, yBot: number, dTop: number, dBot: number) => {
+      const rise = yTop - yBot, run = dTop - dBot;
+      const len = Math.hypot(rise, run);
+      const p = new THREE.Mesh(
+        new THREE.PlaneGeometry(ATM_W, len),
+        new THREE.MeshBasicMaterial({ map: atmPanelTex(which, ATM_W, len) }),
+      );
+      p.rotation.y = Math.PI / 2;              // face the street (+x)
+      // then tilt about the wall-parallel axis. Positive rotation.z after the
+      // yaw leans the top edge INTO the wall, which is the lectern angle.
+      p.rotation.z = -Math.atan2(run, rise);
+      p.position.set(xF - (dTop + dBot) / 2, (yTop + yBot) / 2, zc);
+      p.userData.atmPart = which;
+      scene.add(p);
+    };
+    panel('screen', ATM_SCREEN_TOP, ATM_SCREEN_BOT, D_DEEP, D_SHALLOW);
+    panel('keys', ATM_KEYS_TOP, ATM_KEYS_BOT, D_DEEP, D_KEYS_BOT);
+    panel('apron', ATM_KEYS_BOT, ATM_SILL, D_KEYS_BOT, D_KEYS_BOT);
   };
+
 
   const bankWall = (wM: number, hM: number, floors: number) => {
     const surf = masonry(wM, hM, SHOP_BAND_H);

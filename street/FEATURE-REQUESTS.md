@@ -11,6 +11,29 @@
   balance"*, then the balance from `purse.cash`, which is the same object the
   wallet reads.
 
+- **The ATM overshot — subtract, and rake it** (`shots/user-atm2.png`) — *"it
+  reads as a display case or a vending machine, not as an ATM in a wall. THE
+  SIZE IS THE MAIN FAULT … Yours is maybe three times that … THEN THE IDEA THEY
+  ACTUALLY WANT: 'something slanted inlaid'."*
+  → **D. DONE, attempt three.** Cut from 1.10 x 2.10 m to **0.68 x 1.05** — 2.3 m²
+  down to 0.7 m². Bronze cabinet gone, thin reveal only; FIRST FEDERAL shrunk to
+  a strip above the screen; recess shallower at **9 cm**. And RAKED: three
+  panels whose normals point out and up, screen at 9° off the wall and the
+  keypad shelf at 24°, so you read one and type on the other looking down.
+  `shots/D-atm2-oblique.png`.
+
+- **Cat, fourth position note — put it DIRECTLY AHEAD** (`shots/user-catplace.png`)
+  — *"centred in that view, out in the open alley floor a few metres in front of
+  the camera … reproduce that exact viewpoint … move the cat until it sits in
+  the CENTRE of the frame at a few metres, then screenshot from that same spot
+  and check."*
+  → **D. DONE, and by that method.** Five iterations, screenshots driving each.
+  Now at **2.35 m in, dead centre of the alley opening** from the pavement.
+  Two things only the pictures could show: centred at 3.6 m it silhouetted
+  against a milk crate sitting on the sight line and read as clutter, so it came
+  forward until it reads first. 1.13 m clear of the grate, crates 2.2 m at its
+  back, and the alley has no 2 m lane. `shots/D-cat-frommouth.png`.
+
 - **The ATM must be INLAID, not painted** — *"Right now the ATM is PAINTED INTO
   bankBand's texture — a flat rectangle on the facade plane — which is why it
   reads flat and why 'too high' and 'doesn't work' both landed on it … Build it

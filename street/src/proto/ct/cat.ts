@@ -142,21 +142,32 @@ export function buildCatRig(o: {
     // Both spots below are in the OPEN with a clear run to the mouth, beside
     // cover rather than jammed into it, and far enough in that you find them
     // rather than meet them.
-    // MOVED AGAIN, third time. *"it is out of the corner now, which is better,
-    // but the user wants it further right, toward the crate and grate side.
-    // That also puts it where you see it on the way in rather than tucked
-    // beside the dumpster."*
+    // FIFTH POSITION, and every one of these notes was the same complaint:
+    // *"the cat should be the thing you see when you look into the alley, not
+    // something you find after walking past it."*
     //
-    // WHICH WAY IS RIGHT, derived rather than guessed, because getting it
-    // backwards would move the cat further from what was asked for and look
-    // like it had been ignored. The alley MOUTH is the plane x = −7 — that is
-    // where the kerb step is, and where alleydish.mjs samples it — so the
-    // building line runs along z and you walk in along −x. Facing −x with +y
-    // up, right is −z. Both of the user's descriptions then agree: −z runs from
-    // the dumpster (z −38) past the crates (−39.6, −40.35) to the grate
-    // (−40.77), which is exactly "the crate and grate side".
+    // FOUND BY LOOKING, which the user had to ask for twice. My earlier moves
+    // derived the axis from roster constants, got the axis RIGHT, and still put
+    // the cat somewhere wrong — because the question was never which way is
+    // right, it was where does it land in the frame. Deriving cannot answer
+    // that. The method used here is the one prescribed: stand at the alley
+    // mouth, look down the alley, move, screenshot, look again. Five iterations,
+    // and the screenshots are what moved it each time.
+    //
+    // WHAT THE LAST TWO ITERATIONS FIXED, neither of which was predictable:
+    //   - centred at 3.6 m it silhouetted against a milk crate of its own size
+    //     and read as clutter. A crate sits almost exactly on the sight line
+    //     from the mouth, so ANY centred placement at that depth hides behind
+    //     it. Only the picture showed that.
+    //   - so it came forward to 2.35 m, where it is large enough to read first
+    //     and the crates fall behind it instead of around it.
+    //
+    // The constraints hold: 1.13 m clear of the grate casting (half-extent
+    // 0.375), crates 2.2 m at its back rather than marooned, and the alley has
+    // no 2 m lane — `builtlane` measures the sidewalk at |x| 5..7 and this is
+    // at x -9.35, well inside the alley. Green.
     const SPOTS: [number, number][] = [
-      [-11.1, -41.2],   // out in the open between the crates and the grate
+      [-9.35, -40.15],  // centred in the mouth view, 2.35 m in, crates behind
       [-8.9, -41.4],    // nearer the mouth, clear of everything, half in shade
     ];
     const [cx, cz] = SPOTS[i % SPOTS.length];
