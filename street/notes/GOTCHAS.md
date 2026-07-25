@@ -247,39 +247,49 @@ person this world has.
 
 A cut-out and a translucency are different things and three.js treats them
 differently. `alphaTest` **discards** the fragment — it never blends — so on a
-fence, a leaf, a pennant, a sticker, `transparent: true` buys you nothing and
-costs you two things:
+fence, a leaf, a pennant, a sticker, `transparent: true` buys you nothing.
 
-- it moves the mesh into the sorted transparent queue, where `DoubleSide`
-  geometry gets sorting artifacts it would never have had; and
-- **it puts the material on `dimWorld`'s skip list.** `ct/props.ts` grades the
-  world for night and deliberately leaves transparent materials alone, because
-  it owns glass and blending a graded colour through a pane is its business.
+What it costs you moved once already, so read both halves:
 
-So a prop that sets both stands at **full daylight brightness at midnight**
-while everything behind it goes dark. Six materials in `ct/lot.ts` did: the
-chain-link, the bunting, the banners, the FTC stickers and the weeds all glowed
-after dark. One flag deleted and they joined the world's own grading, on the
-same curve as everything else, with no special case anywhere.
+- **It moves the mesh into the sorted transparent queue**, where `DoubleSide`
+  geometry picks up sorting artifacts it would never have had — the far face
+  painting over the near one. This is still true and is now the whole of the
+  cost. `ct/vice.ts` documents the same bug making a HOTEL sign read backwards.
+- **It used to cost the material its night grading**, and that is how this was
+  found: `dimWorld` skipped anything with `transparent`, so a prop that set
+  both stood at full daylight brightness at midnight while the block behind it
+  went dark. Six materials in `ct/lot.ts` did — chain-link, bunting, banners,
+  FTC stickers, weeds.
 
-**This failure is silent by construction** — nobody screenshots their own props
-at 23:00. `scripts/nightgrade.mjs` is the check: it averages material colour by
-class over a world box at noon and at 23:00. Every class should FALL except
-`additive`, which is lights, and a light that dims at night is backwards.
+  **`db76dc26` fixed that at the source**, in `dimWorld`'s own test rather than
+  at the call sites: `isGlass = m.transparent && !(m.alphaTest > 0)`. That is
+  the better fix — it closed the fault for every author at once instead of
+  hunting them one at a time, and it halved the world-wide count on the day it
+  landed. So **the dimming half of this entry is history**. It is left here
+  because the rule survives its original reason, and because a landmine entry
+  that quietly stops being true is worse than one that was never written.
 
-    13:00   opaque 0.415   translucent 0.684   alphaCut 1.000   additive 0.683
-    23:00   opaque 0.221   translucent 0.497   alphaCut 0.374   additive 0.683
+**Genuinely translucent decals are a real exception and still need care.** An
+oil stain or a faded bay line has to blend to be a stain at all, so it
+correctly carries `transparent` with no `alphaTest`, and `dimWorld` correctly
+leaves it alone — but it is painted ON ground that darkens, so an untouched
+decal gets *brighter* relative to its surface as the sun goes down. A module
+carrying those should dim its own from its `onFrame`, matching the factor the
+world is measured applying rather than picking one. `ct/lot.ts` does.
 
-`alphaCut` pinned at 1.000 all night was the whole bug, in one line.
+**Check it with `scripts/nightgrade.mjs`, over YOUR OWN box.** The §22 test is
+static — no timing, no threshold — and it exits non-zero. Two warnings that
+cost real time to learn:
 
-**Genuinely translucent decals are the real exception.** An oil stain or a
-faded bay line has to blend to be a stain at all, so it legitimately carries
-`transparent` and `dimWorld` legitimately leaves it — but it is painted ON
-ground that darkens, so an untouched decal gets *brighter* relative to its
-surface as the sun goes down. A module carrying those should dim its own from
-its `onFrame`, and match the factor the world was measured applying rather
-than picking one.
+- **World-wide it is a tally, not a verdict.** Intent is invisible from
+  outside: `dimWorld` also skips `litSeen` and `wetMats`, and a neon blade or a
+  floodlit lot that stays bright at midnight is *correct*.
+- **Give it the right box.** The same thirteen faults were filed against
+  `ct/lot.ts` twice from a box holding none of it; they were another module's
+  neon, ten blocks away. A finding routed to the wrong owner is a finding that
+  dies. If your module can publish its own footprint — `ct/lot.ts` exports
+  `LOT.bounds` — do that instead of writing coordinates into a document.
 
-**And check before you file it.** I reported this twice as a bug in
-`ct/props.ts`. It was not: skipping transparent materials is correct, and the
-flag was mine both times.
+**And check before you file.** I reported this twice as a bug in `ct/props.ts`.
+It was not: skipping transparent materials was correct, and the flag was mine
+both times.
