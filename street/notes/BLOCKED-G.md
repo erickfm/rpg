@@ -156,6 +156,37 @@ proxy from the sky. That is `ct/props.ts`'s call. It is the same shape as H's
 `BLOCKED-H` §3 and C's `isGlass` split: **let the thing that knows say so, rather
 than have three modules each guess it from appearances.**
 
+## 6. Two user requests about my buildings are logged against builder E
+
+Checked `FEATURE-REQUESTS.md` — the source of truth in the user's own words —
+against what my queue actually contains, in case a request about these buildings
+never reached me. Two did not:
+
+| the user's words | routed to | actual state |
+|---|---|---|
+| *"i want more detail for both the hotel and golden aces casino facades"* | **E** | **satisfied — by me.** This is the exteriors overhaul, six commits, `ct/vice.ts` |
+| *"the sign up top is completely floating. make sure for stuff like this we pay more attention."* (GOLDEN ACES roof sign) | **E** | **satisfied. Measured, not assumed** |
+
+**The floating sign is fixed.** Casino roof top is y = 17.2; four legs rise from
+17.16 to 19.44; the pylon sits at 19.4 → 26.0, landing exactly on them. Nothing
+hangs. The 0.15 m spheres sitting 0.1 m proud of the roofline are bulbs on
+standoffs — the false-positive class `float-audit.md` already documented.
+
+*(First run of that probe said the sign was 6.6 m INSIDE the roof, because my
+"roof" was the tallest wide box and the pylon structure was being counted as its
+own support. Fixed by restricting the roof to the building mass. Reporting the
+number, not the first number.)*
+
+**Nothing to build. The risk is a collision, not a gap.** Those two entries route
+work in `ct/vice.ts` to another builder, and `vice.ts` did not exist when they
+were logged — the facades moved to me afterwards, and the rooftop pylon came with
+them (`vice.ts:1009`, *"kept, unchanged from the version street.ts carried"*).
+Every commit touching that file since is mine. **If E picks either up, they edit a
+file I own, on work already delivered.**
+
+**The ruling:** re-point both entries at G, or mark them done. `FEATURE-REQUESTS.md`
+is the desk's file.
+
 ---
 
 ## State, for whoever picks this up
