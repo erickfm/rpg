@@ -383,3 +383,54 @@ at 38.7 px/m and a 0.76 m card at 42.1. Small objects carry more texels per
 metre by construction, and neither is a surface anyone walks on.
 
 **If this is ever revisited, the number to compare against is 18.8, not 8.**
+
+---
+
+# QUEUE RECONCILIATION — all 20 items, against what actually landed
+
+The desk owns `notes/queues/F-interiors.md` so I have not edited it. This is
+the audit it needs to retire them. Every row verified against the running
+world, not against memory.
+
+| # | line | item | landed as | verified by |
+|---|---|---|---|---|
+| 1 | 31 | `civicSeats()` called from nowhere | `f532b6a`, then `c20ba4a` gave civic.ts `ctx` so the export is gone | both benches prompt |
+| 2 | 72 | bodega `[E]` not on its facade door | `3474e81` | 2/3 approaches, E enters |
+| 3 | 100 | bodega interior small and sad | `ba7a82a` — rebuilt on the kit, crammed | 24/24 |
+| 4 | 121 | church steps cannot be climbed | `53550b6` + `edc034d` — they climb; **stops 0.44 m short**, see BLOCKED-F | steps-walk |
+| 5 | 148 | diner seating: booths perpendicular, lining the window | `768c0b4` | 24/24, 13 seats |
+| 6 | 187 | flip the authority: interior declares | `7b5ded0` | mirror 3/3 |
+| 7 | 227 | interiors and exteriors agree on handedness | `4ef227e` | mirror-walk 3/3 |
+| 8 | 269 | tax service `[E]` not on its door | `4762f7e` | room/painter agree to 0.01 |
+| 9 | 296 | wire `courtGround` | `53550b6` | E's own E-walk 18/18 |
+| 10 | 329 | generalise the glob | `9f2b3d2` | 8 on disk, 8 in world |
+| 11 | 378 | park and car lot not in the world | `053db46` | walk into both |
+| 12 | 410 | diner prompt on the BANK, then sweep every spot | `58cc650` + `1921bc7` | 79 spots reachable |
+| 13 | 442 | interior people on the 8-angle atlas | `e931276`, `650fc90`, `a171f7a` | people-walk: none left |
+| 14 | 471 | jump higher, gravity stronger | `10c16a0` | jump-walk 7/7 |
+| 15 | 494 | stuck protection | `b54d3ec` | 177/177 traps release |
+| 16 | 539 | derive door and window from the facade | `635acc0`, direction flipped by `7b5ded0` | 8 doors publish |
+| 17 | 576 | three finished rooms not in the world | `27c5139` | casino/hotel/tax enterable |
+| 18 | 612 | every seat sittable — `ctx.seat()` | `b353954` | 56/57 |
+| 19 | 648 | re-anchor the diner | `58cc650` | 24/24 |
+| 20 | 667 | thrift store interior, 12.5 m | landed earlier; re-anchored `4ef227e` | 27/27 |
+
+**19 of 20 are complete.** #4 is partial and blocked: both flights climb, but
+the church stops 0.44 m short of its doors inside D's footprint box.
+
+Everything the auditor routed is also closed — triage #2 (thrift card,
+`9c06410`, re-measured this session at 0.02–0.04 m), #3 (keepers, G), #4
+(casino ceiling — it was my docstring, `8d14f83`). Triage #1 is `ct/props.ts`,
+B's.
+
+## What is actually left
+
+1. **The church flight, 0.44 m short** — D's footprint box. `BLOCKED-F.md` §2.
+2. **A 0.4 m post pinching the casino's pavement to 0.43 m** — H or D.
+   `BLOCKED-F.md` §1. Note this is tighter than the 0.90 m squeeze the
+   auditor's triage calls "the tightest in the world".
+3. **Casino and hotel room specs still hand-type their door** even though they
+   now declare it — same five-line conversion as the tax office. G's, or grant.
+4. **One burger stool** with no standable point in its trigger.
+5. **A decision, not a fix:** neither civic flight leads anywhere. My
+   recommendation is a locked-door response over two more rooms.
