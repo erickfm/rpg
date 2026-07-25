@@ -752,3 +752,56 @@ governs — and one face I could not see properly.
 
 That is a far smaller and more routable statement than the raw number, and it is
 why I refused to publish 65.7% as a conformance rate last round.
+
+## Round 7c — I fixed my camera, and it answered a question that had beaten me six times
+
+**The fix.** My candidate ring started at 4 m regardless of how far up the
+subject was, so a face 22.7 m in the air was shot from underneath at ~80° pitch.
+Distance now scales with the rise:
+
+```js
+const rise = Math.max(0, Y - eyeY);
+const minD = Math.max(4, rise / Math.tan(35°));   // keep the pitch under 35°
+```
+
+Both remaining candidates then resolved on the first try.
+
+**c3 — (51.0, 22.7, −94.3), 13.5 px/m.** Shot from 29.9 m at 35° and legible: a
+**rooftop bulkhead** — a plain slab-sided box above the parapet with a thin mast
+on top, flanked by brick parapets with stone copings. The flanking parapets show
+coursing clearly; **the box does not**. It reads as a painted rooftop structure
+rather than coursed masonry, so I do not think the rule governs it.
+
+*Caveat, stated because it matters:* at 30 m fine coursing would not resolve
+anyway. What I can say is that it does not read as brick where the parapet
+beside it plainly does — a comparison inside one frame, which is worth more than
+either judged alone.
+
+**c4 — (46.2, 13.5, −96.7), 35.4 px/m.** The **GOLDEN ACES and HOTEL ORPHEUS
+blade signs**, both legible, plus the 777 marquee and the ORPHEUS canopy.
+Signage. Not masonry, and 35 px/m on a 1.24 m-wide blade is how you get readable
+letters.
+
+### The dividend
+
+That frame is the shot **four earlier cameras failed to get** — every street-level
+attempt within ~8 m of the blades ends up under the GOLDEN ACES marquee canopy,
+which is why I gave up on cameras and answered the handedness question off the
+scene graph instead. The height-scaled ring solves it by standing back 17 m: at
+that distance the canopy no longer occludes and **both blades read in one
+frame**.
+
+I am not re-opening the blade question on it — Round 2 answered that
+structurally, and one direction is not both. But the lesson is worth keeping and
+it inverts the one I wrote earlier:
+
+> *"When a check fails twice the same way, change the instrument."* — still
+> right. But **twice I changed instrument when the camera merely needed to step
+> back.** Abandoning the camera cost me nothing that time because the scene-graph
+> answer was better. Here it would have cost me the answer entirely.
+
+### Pattern #1's open set is unchanged
+
+Still **one candidate: 8 faces of civic ashlar at 9.41 px/m** on the library.
+Everything else off the grid that I have now looked at is foliage, ground decal,
+sidewalk, signage, or a rooftop structure that does not read as masonry.

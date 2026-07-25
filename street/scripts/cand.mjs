@@ -4,9 +4,8 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const CAND = [
-  ['c1', -6.9, 2.8,  -9.0, '3.4x5 m, canvas 32x48, 9.41 px/m'],
-  ['c2',  5.7, 2.4,  -1.5, '3x4.5 m, canvas 60x90, 20 px/m'],
-  ['c3', 51.0, 22.7, -94.3, '6.8x6.2 m, canvas 92x74, 13.5 px/m'],
+  ['c3b', 51.0, 22.7, -94.3, '6.8x6.2 m, canvas 92x74, 13.5 px/m — 22.7 m up'],
+  ['c4',  46.2, 13.5, -96.7, '1.24x15.8 m, canvas 44x224, 35.4 px/m — blade?'],
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
@@ -34,21 +33,28 @@ for (const [tag, X, Y, Z, note] of CAND) {
     const blocked=(x,z)=>{const n=Math.ceil(Math.hypot(X-x,Z-z)/0.2);
       for(let i=1;i<n;i++){const t=i/n,px=x+(X-x)*t,pz=z+(Z-z)*t;
         if(cols.some(c=>!own.includes(c)&&px>c.minX&&px<c.maxX&&pz>c.minZ&&pz<c.maxZ))return true;}return false;};
+    // Distance must scale with how far UP the subject is, or the camera ends up
+    // underneath it shooting at 80 degrees -- which is what made c3 unreadable.
+    // Keep the pitch under ~35 degrees: dist >= rise / tan(35).
+    const eyeY = 0.14 + 1.6;
+    const rise = Math.max(0, Y - eyeY);
+    const minD = Math.max(4, rise / Math.tan(35 * Math.PI / 180));
+    const RING = [minD, minD*1.3, minD*1.7, minD*2.2, minD*3];
     let cam=null;
-    for(const dist of [4,5.5,7,9,11]) { for(let a=0;a<360;a+=7.5){
+    for(const dist of RING) { for(let a=0;a<360;a+=7.5){
       const rad=a*Math.PI/180, x=X+Math.sin(rad)*dist, z=Z+Math.cos(rad)*dist;
       if(!free(x,z)||blocked(x,z))continue; cam={x,z,dist}; break; } if(cam)break; }
     if(!cam) return {ok:false,why:'no standable point with line of sight',
       mod:modOf(best.o), dist:+bd.toFixed(2)};
-    const eye=0.14+1.6;
-    window.__ct.warp(cam.x, cam.z, Math.atan2(X-cam.x,-(Z-cam.z)), 0.14, Math.atan2(Y-eye, cam.dist));
+    window.__ct.warp(cam.x, cam.z, Math.atan2(X-cam.x,-(Z-cam.z)), 0.14, Math.atan2(Y-eyeY, cam.dist));
     return { ok:true, mod:modOf(best.o), dist:+bd.toFixed(2),
       canvas: m&&m.map&&m.map.image?[m.map.image.width,m.map.image.height]:null,
-      cam:[+cam.x.toFixed(2),+cam.z.toFixed(2),+cam.dist.toFixed(1)] };
+      cam:[+cam.x.toFixed(2),+cam.z.toFixed(2),+cam.dist.toFixed(1)],
+      pitch:+(Math.atan2(Y-eyeY,cam.dist)*180/Math.PI).toFixed(0) };
   }, [X,Y,Z]);
   if(!r.ok){ console.log(`${tag}  MISS: ${r.why}   owner ${r.mod ?? '(unattributed)'}`); continue; }
   await p.waitForTimeout(280);
   await p.screenshot({path:`shots/cand-${tag}.png`});
-  console.log(`${tag}  ${note}\n     owner: ${r.mod ?? '(unattributed)'}   canvas ${r.canvas}   shot from (${r.cam[0]}, ${r.cam[1]}) at ${r.cam[2]} m`);
+  console.log(`${tag}  ${note}\n     owner: ${r.mod ?? '(unattributed)'}   canvas ${r.canvas}   shot from (${r.cam[0]}, ${r.cam[1]}) at ${r.cam[2]} m, pitch ${r.pitch}°`);
 }
 await b.close();
