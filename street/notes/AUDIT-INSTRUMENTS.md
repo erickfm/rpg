@@ -1419,3 +1419,65 @@ function (`basin`, `wetness`, `rain`, `wetsweep`, `basincheck`). A sixth file,
 `basincheck.mjs`, carries the constant **deliberately** — it exists to diff the
 old formula against the world — and now says so in a comment, because an
 exemption nobody declared looks exactly like a defect.
+
+## Keeper facing is not in the transform — it is in the atlas frame
+
+`15f86d64` found **two of four keepers facing their back walls**, the tax
+preparer spotted *by the user*, and called it the fourth handedness bug of the
+session. That fix covers four rooms; there are eight. So: can facing be audited
+from outside at all?
+
+**Not from mesh rotation.** The interior figures are billboards. Warping the
+camera and re-reading:
+
+```
+ room x    yaw @cam A   yaw @cam B   moved?
+   442.4     -1.5541      1.5664   YES — billboard
+   517.7     -1.5463       1.543   YES — billboard
+   …all eight…
+```
+
+Every yaw followed the camera. **Any check that reads `rotation.y` on a person
+sprite is reading the camera position, not the authored facing.** I had a metric
+built on exactly that and it was about to report *"4 of 8 keepers face away from
+their room"* — a number that was measuring where I happened to be standing. The
+tell was all eight sharing a yaw to three decimals.
+
+**But facing IS observable.** The frame is picked from the angle between authored
+facing and the viewer, on a 160×128 atlas with 5 columns plus a mirror flag. So
+standing at the *same relative bearing* from every keeper makes them comparable:
+
+```
+  room       frame @ +x    frame @ -x    frame @ +z    frame @ -z
+  bodega     0.000         0.000         0.400         0.600M
+  burger     0.600M        0.400         0.800         0.000
+  casino     0.400         0.600M        0.000         0.800
+  diner      0.600M        0.400         0.800         0.000
+  hotel      0.000         0.800         0.600M        0.400
+  pawn       0.400         0.600M        0.000         0.800
+  tax        0.400         0.600M        0.000         0.800
+  thrift     0.600M        MOVED         0.800         0.000
+```
+
+Seven read cleanly, each with one mirrored view — the expected signature of a
+directional sprite. **`bodega` returns the same unmirrored frame from both ±x**,
+which every other keeper does not. I am flagging that as *unexplained*, not as a
+defect: mapping a frame column to an absolute direction needs the atlas layout,
+which the owner has and I do not.
+
+### The trap this turned up, which is the reusable part
+
+`thrift` first read **the same frame from opposite sides** — a clean anomaly, and
+it **reproduced exactly twice**. It was false. `warp` can be refused or slid by
+collision, and a refused warp leaves the camera where it was, so the frame you
+read is the *previous* bearing's, silently and reproducibly.
+
+> **A warp is a request, not a fact.** Read `pos()` back and confirm you arrived,
+> or every reading after a blocked warp is of somewhere else — and it will
+> reproduce, because it fails the same way every time.
+
+The `MOVED` marker above is that check firing. Reproducibility is not
+correctness: my false anomaly was perfectly repeatable, because the *mechanism*
+producing it was deterministic. That is the third probe artefact this session
+that nearly became a finding, and the first one a guard caught before I wrote it
+down rather than after.
