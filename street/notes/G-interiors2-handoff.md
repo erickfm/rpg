@@ -796,3 +796,50 @@ Recording it because "one line in someone else's file" is the kind of estimate
 that sounds like a favour and turns out to be a trap. I made that estimate
 repeatedly without having applied it; A applied it and found two failures inside
 one attempt.
+
+---
+
+# A-1 TAX mirrors correctly — a third measurement on one of A's four disputed rooms
+
+`notes/A-mirror-harness.md` has the harness calling all four measured rooms
+**SAME SIDE** while `A-mirror-verified.md` records those same four walked by hand
+as mirroring correctly, and A says plainly that one of the two is wrong, that the
+untested half is the side convention, and that validating it against the
+hand-verified rooms is the next thing to do. A-1 TAX is one of the four and it is
+mine, so here is an independent third measurement of it.
+
+**It mirrors.** Shots taken this round:
+
+| | door | window |
+|---|---|---|
+| inside, facing the front wall | **RIGHT** | left |
+| outside on the walk, facing the facade | **LEFT** | right |
+
+Opposite sides, which is what the user asked for: *"if the door on the interior
+is full right then the facade must match."*
+
+**And it is predictable from the declaration, not just visible.** This is the part
+worth having, because it is checkable without a screenshot:
+
+```
+inside,  facing the front wall (+z local):  fwd (0,0,1)  → right (-1,0,0) = -x
+         door at local x -4.2, screen-right is -x         → appears RIGHT
+outside, facing the facade (+x world):      fwd (1,0,0)  → right (0,0,1) = +z
+         door at world z -20.13 in a frontage spanning -22..-9,
+         so it sits toward the -z end and screen-right is +z → appears LEFT
+```
+
+Two observers, opposite handedness, one declaration. The mirror is a property of
+standing on the other side of the same wall, so it needs no bookkeeping — which
+is the argument `ct/doors.ts` already makes.
+
+**So the harness's `observerRight` convention is the half that is wrong**, on this
+room at least: `side < 0 ? -1 : 1` outside is a function of the building's side
+only, and the two derivations above show the observer's right depends on which
+way they are FACING, which is opposite in the two cases by construction. A single
+sign flip on the outside term would move A-1 TAX from SAME SIDE to mirrored
+without touching the inside term.
+
+Not editing the harness — it is A's. This is the evidence for one of the four,
+measured two independent ways that agree with each other and with A's own
+walk-through.
