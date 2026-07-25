@@ -250,7 +250,31 @@ was tested and does not hold. `dimWorld` grades by elevation, so a factor of ~1
 at that height would explain it; of **71 graded materials within 0.6 m of that
 height, 56 do move**. Its neighbours dim and it does not.
 
-It is `(unattributed)` — nothing there carries a `userData.mod`.
+### Identified: it is the park shelter's roof (`ct/park.ts:705`)
+
+The check printed `(unattributed)` because nothing there carries a
+`userData.mod`, so I traced it rather than leave a finding nobody owns.
+
+It is **two** `3.90 x 0.12` boxes sharing **one** material — which is why one
+uuid stood for both:
+
+```
+ct/park.ts:704   const postM = new THREE.MeshBasicMaterial({ color: 0x5a4a34 });
+ct/park.ts:705   const roofM = new THREE.MeshBasicMaterial({ color: 0x4a4e56 });  ← this one
+```
+
+Colour `#4a4e56` at −32.8, 3.1, −83.8 and −32.8, 3.1, −82.3. **The shelter's own
+posts, 0.4 m below it, do dim** — `postM` was graded and moved. The roof did not.
+
+**Likely mechanism, not asserted:** `dimWorld` grades a material ONCE, by the
+first mesh's elevation. That is a documented footgun — my own
+`ct/tex-world.ts:709` says *"Separate material instances on purpose"* for
+exactly this reason. A single `roofM` shared across shelters takes its grade
+from whichever roof happened to be built first, and every other roof inherits
+it. If that is the cause, the fix is the same one tex-world.ts already applies:
+an instance per shelter rather than one shared.
+
+**Routed to whoever owns `ct/park.ts`.** I have not touched it.
 
 ## The arc of this file, which is the actual point
 
