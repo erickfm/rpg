@@ -955,17 +955,57 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 4.99, chairM);
     box(0.40, 0.20, 0.26, -0.74, RY + 0.80, 4.94, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
     box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 4.78, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
-    // a poster on the north wall, taped up and going soft at one corner
-    const postT = pixTex(24, 32, (g) => {
-      g.fillStyle = '#20242e'; g.fillRect(0, 0, 24, 32);
-      g.fillStyle = '#c9563a'; g.fillRect(2, 2, 20, 18);
-      g.fillStyle = '#e8c86a';
-      g.beginPath(); g.arc(12, 11, 6, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#20242e'; g.fillRect(6, 9, 12, 2); g.fillRect(11, 5, 2, 12);
-      g.fillStyle = '#d8d0bc'; g.fillRect(3, 23, 18, 2); g.fillRect(5, 27, 14, 2);
-      dither(g, 24, 32, 30);
-    });
-    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
+    // ── the poster ───────────────────────────────────────────────────────
+    // The user: *"what is this poster on the wall?"* — which on this project
+    // has meant the same thing four times now: the object is drawn but it is
+    // not READABLE. What was there was an orange field, a yellow disc, a
+    // cross and two white bars, and it was not a picture of anything. The
+    // answer is not to redraw it better, it is to DECIDE what it is.
+    //
+    // It is a photocopied gig flyer, off a lamp post, on acid-green copy
+    // stock — the cheapest thing anyone pinned to a wall in 1997 and the one
+    // most likely to still be up in a rented room. That decision is what
+    // makes it drawable, because a flyer is a fixed set of parts: a masthead,
+    // ONE big shape, a bill of support acts in ragged lines, and a date bar.
+    //
+    // It is 0.52 m wide and you see it from across a 3 m room, so nothing on
+    // it can be read as words and nothing is asked to be. The shape carries
+    // it: a filled star at 22 of the 32 texels across, black on green, which
+    // is a silhouette that survives being four pixels tall on screen. The
+    // text is BARS — the eye reads ragged black lines under a shape as
+    // "small print" without ever trying to spell it, and a bar cannot be
+    // misread the way a half-drawn word can.
+    const postT = pixTex(32, 44, (g) => {
+      g.fillStyle = '#a9c93e'; g.fillRect(0, 0, 32, 44);          // copy stock
+      g.fillStyle = '#16161a'; g.fillRect(0, 0, 32, 8);           // masthead
+      g.fillStyle = '#a9c93e';                                     // knocked out of it
+      for (const [x, w] of [[3, 4], [9, 3], [14, 5], [21, 3], [26, 4]]) g.fillRect(x, 2, w, 4);
+      // the one strong shape
+      g.fillStyle = '#16161a';
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 4.6 : 11;
+        const px2 = 16 + Math.cos(a) * r, py2 = 22 + Math.sin(a) * r;
+        if (i === 0) g.moveTo(px2, py2); else g.lineTo(px2, py2);
+      }
+      g.closePath(); g.fill();
+      // the bill: ragged lines, shortening down the page
+      for (const [y, w] of [[35, 24], [38, 18], [41, 11]]) g.fillRect(Math.round((32 - w) / 2), y, w, 2);
+      g.fillStyle = '#16161a'; g.fillRect(0, 30, 32, 3);           // date bar
+      g.fillStyle = '#a9c93e';
+      for (const [x, w] of [[4, 5], [12, 3], [17, 6], [25, 3]]) g.fillRect(x, 31, w, 1);
+      // a toner streak, because it came off a machine that was running low
+      g.fillStyle = 'rgba(255,255,255,0.13)'; g.fillRect(0, 14, 32, 3);
+      // tape at the top corners, and the bottom-left corner gone soft and
+      // curled away — the paper back is lighter than its printed face
+      g.fillStyle = 'rgba(236,236,228,0.42)';
+      g.fillRect(1, 0, 7, 3); g.fillRect(24, 0, 7, 3);
+      g.fillStyle = '#20242e';
+      for (let i = 0; i < 6; i++) g.fillRect(0, 43 - i, 6 - i, 1);   // wall behind
+      g.fillStyle = '#cfd8a8';
+      for (let i = 0; i < 5; i++) g.fillRect(6 - i, 43 - i, 1, 1);   // the curl itself
+      dither(g, 32, 44, 22);
+    });    const poster = new THREE.Mesh(new THREE.PlaneGeometry(0.52, 0.70), texM(postT));
     poster.position.set(AX(-1.05), RY + 1.55, AZI(2.085));
     scene.add(poster);
     // lit by the same fixture as the landing outside the door
