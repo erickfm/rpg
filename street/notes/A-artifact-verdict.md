@@ -58,3 +58,30 @@ whoever opens one can see exactly which world they are in.
 
 **This is a recommendation, not a decision.** The URL and the publishing step are
 the desk's.
+
+## Repacked 2026-07-25, on purpose rather than on cadence
+
+Taking my own advice above: today's facade pass is the kind of milestone that
+earns a snapshot, because it changed something the user can see on **every
+building on the block** at once, and "the version before the facades moved" is a
+thing they might reasonably want to go back to.
+
+```
+dist/artifact.html — 847109 bytes, build f3b343ec3
+__ct initialised, 3307 meshes, mean luminance 99.7, opens standalone and draws
+```
+
+What is in it that was not in `cea5e99e`: the window run on every facade
+centred and a window restored on nine of nineteen fronts; the thrift store's
+display no longer cut by its own door, with a mannequin, transom, panelled
+stallriser and gapped hangers; the same door-chop fixed in the block default
+(~10 shops) and the burger barn.
+
+**Still not published by me** — the queue says hand it back, and that has not
+changed. It is sitting in `dist/`.
+
+One caveat the desk should know before publishing: this worktree is rebased
+from outside every minute or two (`notes/A-runner-stale-build.md`), so
+`f3b343ec3` will not be the tip by the time anyone reads this. That is fine for
+a snapshot — being behind mainline is a snapshot's *purpose* — and the build
+stamp in the corner says exactly which world it is.
