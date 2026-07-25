@@ -62,11 +62,11 @@ export function buildProps(ctx: CtxBuild): Props {
   }
   const rainGeo = new THREE.BufferGeometry();
   rainGeo.setAttribute('position', new THREE.Float32BufferAttribute(rainPos, 3));
-  const rainT = pixTex(8, 16, (g) => {
+  const rainT = declareSurface(pixTex(8, 16, (g) => {
     // one texel wide, not two — a 2 px streak reads as a thick dash at this
     // point size and the rain looked like falling grit rather than water
     g.fillStyle = 'rgba(214,222,232,0.75)'; g.fillRect(4, 1, 1, 14);
-  });
+  }), 'detail');
   const rainM = new THREE.PointsMaterial({ map: rainT, size: 0.36, transparent: true, opacity: 0, depthWrite: false });
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
@@ -559,7 +559,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // Splash-back: the bottom of a wall is wetter than the top, and no amount of
   // per-material tinting can say that because a facade is ONE mesh with one
   // colour. This is the gradient, as a thin sheet stood against the wall.
-  const splashT = pixTex(32, 32, (g) => {
+  const splashT = declareSurface(pixTex(32, 32, (g) => {
     for (let y = 0; y < 32; y++) {
       // opaque at the pavement, gone by roughly a metre up
       const a = Math.pow(1 - y / 31, 2.1) * 0.62;
@@ -575,19 +575,19 @@ export function buildProps(ctx: CtxBuild): Props {
         g.fillRect(x, y, w, 1);
       }
     }
-  });
+  }), 'detail');
   splashT.wrapS = splashT.wrapT = THREE.RepeatWrapping;
   const splashMats: THREE.MeshBasicMaterial[] = [];
 
   // light spilling onto the wall behind each lamp, so the brick beside a
   // lamp isn't as flat-black as the brick mid-block
-  const wallSplashT = pixTex(32, 48, (g) => {
+  const wallSplashT = declareSurface(pixTex(32, 48, (g) => {
     const gr = g.createRadialGradient(16, 17, 1, 16, 17, 26);
     gr.addColorStop(0, 'rgba(255,192,116,0.55)');
     gr.addColorStop(0.45, 'rgba(255,176,96,0.20)');
     gr.addColorStop(1, 'rgba(255,176,96,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 48);
-  });
+  }), 'detail');
 
   // street trees — the sprite cutouts are back (they belong here): fixed
   // crown texels, trunk-only variation, planted in dirt pits, and only the
@@ -732,20 +732,20 @@ export function buildProps(ctx: CtxBuild): Props {
   // 5-7 cm on screen and the pattern reads as pattern. Light is the one thing
   // in this world with no hard edge in reality, and the smooth sheets were
   // already doing that job. Do not re-quantise these without a small test.
-  const lampGlowT = pixTex(32, 32, (g) => {
+  const lampGlowT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 16);
     gr.addColorStop(0, 'rgba(255,198,120,0.90)');
     gr.addColorStop(0.5, 'rgba(255,178,96,0.30)');
     gr.addColorStop(1, 'rgba(255,178,96,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
-  const lampPoolT = pixTex(48, 48, (g) => {
+  }), 'detail');
+  const lampPoolT = declareSurface(pixTex(48, 48, (g) => {
     const gr = g.createRadialGradient(24, 24, 2, 24, 24, 24);
     gr.addColorStop(0, 'rgba(255,190,110,0.55)');
     gr.addColorStop(0.55, 'rgba(255,180,100,0.15)');
     gr.addColorStop(1, 'rgba(255,180,100,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 48, 48);
-  });
+  }), 'detail');
   const poleM = new THREE.MeshBasicMaterial({ color: 0x24291f });   // dark cast iron
   const poleHi = new THREE.MeshBasicMaterial({ color: 0x323826 });
   const lensM = new THREE.MeshBasicMaterial({ color: 0x3a3324 });   // shared: dark glass by day, warms at night
@@ -1041,10 +1041,10 @@ export function buildProps(ctx: CtxBuild): Props {
     pigeons.push({ m: b, x, z, y: 0, vx: 0, vy: 0, vz: 0, state: 'peck', bold: rnd() < 0.18, t: 0, ph: i * 2.4 });
   }
   // scattered cereal draws them in and holds them there
-  const crumbT = pixTex(32, 32, (g) => {
+  const crumbT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#d9c9a0';
     for (let i = 0; i < 42; i++) g.fillRect(Math.floor(Math.random() * 30), Math.floor(Math.random() * 30), 2, 2);
-  });
+  }), 'detail');
   const crumbMat = new THREE.MeshBasicMaterial({ map: crumbT, alphaTest: 0.5, side: THREE.DoubleSide });
   let crumbs: { x: number; z: number; y: number; t: number; m: THREE.Mesh } | null = null;
 
@@ -1539,14 +1539,14 @@ export function buildProps(ctx: CtxBuild): Props {
   obstacle({ minX: ROAD_HALF + 0.23, maxX: ROAD_HALF + 0.41, minZ: STOP_Z - 0.09, maxZ: STOP_Z + 0.09 });
 
   // the bench: slat seat, slat back, cast ends, ad panel to the road
-  const slatT = pixTex(48, 12, (g) => {
+  const slatT = declareSurface(pixTex(48, 12, (g) => {
     g.fillStyle = '#6a5a42'; g.fillRect(0, 0, 48, 12);
     g.fillStyle = 'rgba(0,0,0,0.32)';
     for (let y = 3; y < 12; y += 4) g.fillRect(0, y, 48, 1);   // slat gaps
     g.fillStyle = 'rgba(255,255,255,0.12)';
     for (let y = 0; y < 12; y += 4) g.fillRect(0, y, 48, 1);
     dither(g, 48, 12, 40);
-  });
+  }), 'detail');
   // Laid out for the PLATE it now sits on, not for the whole backrest. The copy
   // is unchanged — it was approved — but every element is inset so nothing runs
   // to an edge: the red band stops 5 px short on both sides and starts 3 px
@@ -1720,13 +1720,13 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(leg);
   }
   // a proper contact shadow on the flags, so it sits ON the pavement
-  const benchShadowT = pixTex(24, 48, (g) => {
+  const benchShadowT = declareSurface(pixTex(24, 48, (g) => {
     const gr = g.createLinearGradient(0, 0, 24, 0);
     gr.addColorStop(0, 'rgba(20,18,15,0.34)');
     gr.addColorStop(0.7, 'rgba(20,18,15,0.16)');
     gr.addColorStop(1, 'rgba(20,18,15,0)');
     g.fillStyle = gr; g.fillRect(0, 2, 24, 44);
-  });
+  }), 'detail');
   const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.66, BENCH_L + 0.12),
     new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false }));
   bshadow.rotation.x = -Math.PI / 2;
@@ -2202,10 +2202,10 @@ export function buildProps(ctx: CtxBuild): Props {
   // withdrew the guess. Building the mechanism now would be inventing it to
   // fit a theory nobody holds. Rotation is the only thing that varies, and
   // five distinct objects is the actual vocabulary.
-  const shadeT = pixTex(16, 16, (g) => {
+  const shadeT = declareSurface(pixTex(16, 16, (g) => {
     g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 3, 12, 10);
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 2, 14, 12);
-  });
+  }), 'detail');
   // The contact shadow needs its OWN material: flatDecal sets alphaTest 0.5,
   // and every texel of a soft shadow is below that, so shadows drawn through
   // flatDecal were being discarded outright and nothing sat on the ground.
