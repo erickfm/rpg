@@ -544,3 +544,66 @@ unroutable.
 (`JSON_OUT=1 NIGHT_H=13` once, then `PAIRED=<file>`). It is **red at HEAD by
 design** — it guards an open defect and goes green when that defect is fixed.
 Adding it is the runner owner's call, not mine.
+
+## CORRECTION: my day *ratio* was tints, not appearance — the kept-fraction is not
+
+`114c5bef7` found that `MeshBasicMaterial.color` is a **tint, white by default** —
+the texture carries the appearance. Checked against my own day capture:
+
+```
+day capture: 497 objects, 182 with tint exactly 1.0 (37%)
+distinct GROUND day tints: 0.0878  0.2468  0.3993  0.802  1
+```
+
+The cup at the top of my table is one of the 182. **Its "day = 1" is *no tint
+applied*, not a measurement of how bright it looks at noon** — that lives in a
+texture I never read.
+
+### What that withdraws
+
+> *"These objects sit at 11.4× their ground in daylight"* — **withdrawn as an
+> appearance claim.** It compares an untinted object against a genuinely tinted
+> ground, which are different quantities. And with it the phrasing of the target:
+> *"the night ratio should return to the day ratio"* is stated in a number that
+> does not mean what it sounds like.
+
+### What survives, and why
+
+**The kept-fraction is a per-material self-comparison, so the texture cancels.**
+
+```
+object   1.0000 → 0.5554   graded to 56%
+ground   0.0878 → 0.0043   graded to  4.9%
+```
+
+Both are the *same material's own tint at two times*. Whatever texture each
+carries is identical in both readings and divides out. So **"the night grade
+reaches the ground at ~5% and the object at ~55%, about eleven times short"
+stands**, and so does the routing built on it.
+
+**And the check is already sound**, by luck rather than foresight: I switched
+`floatlit.mjs` to kept-fraction last round because the other metric flagged 210
+objects, not because I knew about tints. The metric I rejected for being noisy
+was also the one that was measuring the wrong thing.
+
+**The target, restated in the quantity that means something:** the kept-fraction
+ratio should be **≈1** — litter graded by the same factor as the ground under it.
+Not "return to the day ratio", which was tint arithmetic.
+
+### One thing my measurement did establish, used by someone else
+
+`19c96ad94` found the confirmation for its mesh-splitting routing in a column
+`floatlit.mjs` prints and I never commented on:
+
+```
+road objects   ground 0.0043  →  129×, 103×
+park objects   ground 0.0093  →   65×, 58×, 49×, 47×
+walk object    ground 0.0395  →   10.9×
+```
+
+**The walk's ground reads 9× brighter than the road's** — same litter, same
+lamps, same night, objects all at 0.43–0.61. That is a ground-against-ground
+comparison at one instant, so it is sound for the same reason the kept-fraction
+is. The walk is slabbed and can take a pool; the road and park floor are each one
+mesh. **The ratios follow the ground, not the object** — which is the fix
+direction, and it was sitting in my own output unread.
