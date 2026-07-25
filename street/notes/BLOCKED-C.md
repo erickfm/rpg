@@ -133,3 +133,29 @@ immediately: this, and G's hotel.
 2. **How long a sleep is.** "Until morning" (snap to 07:00) reads better than
    a fixed eight hours, because it makes the verb mean something at any hour.
    I would default to that unless told otherwise.
+
+
+---
+
+## A second kit gap, same file, same shape as the clock
+
+**`Frame` carries `night` and no `wetness`.** `ctx.ts:117` gives a per-frame
+hook `dt, t, px, pz, gy, hourAbs, hourF, night`. Wetness is a closure local in
+`props.ts` and is not among them.
+
+The cost is not hypothetical, and it is not only mine:
+
+- My lot's decals could not react to rain in their own loop, so they went to
+  `ctx.wet()` — which was the better home anyway, but the choice was forced
+  rather than made.
+- Every builder measuring rain this week has had to infer a hidden state from
+  material colour. That inference produced a wrong published answer three
+  times: my own withdrawn "wet does nothing at night", my failed dry-down
+  measurement, and two in `adc7d208`.
+
+`wet: number` on `Frame`, alongside `night`, turns all of that into reading a
+number. It would also make `props.ts`'s own drying model — *"wet fast, dry
+slow, longer after a long storm and longer again at night"* — testable from
+outside for the first time; today nothing can assert it.
+
+Not a patch: `ct/ctx.ts` and `ct/props.ts` are not mine.

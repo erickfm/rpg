@@ -1,4 +1,35 @@
-# The weather is periodic: it never stays dry longer than 8 hours
+# ~~The weather is periodic~~ FIXED in e0c68e46 — and verified here
+
+**Status: the defect below is gone.** `e0c68e46` replaced `rainAt`'s
+`Math.imul(h, K) % 100` — an arithmetic progression wearing a hash's clothes —
+and published the function on `scene.userData.rainAt` so no script has to keep a
+hand-copy of it. Verified at HEAD by calling the world's own function rather
+than re-implementing it, which is the mistake the publishing was meant to end:
+
+```
+                                      before        after
+  rain frequency                       22.0%        32.7%
+  dry-spell lengths        ONLY 3, 4 or 8 h        1..21 and 23 — every length
+  longest dry spell in 5000 days           8 h        23 h
+  wet-spell lengths                  1 or 2 h        1..11 h
+  middays with 12 dry hours behind   0 of 3999     55 of 4999
+```
+
+The lattice is gone and the counts are consistent with a real hash: at 32.7%
+rain, independence predicts about 0.5% of middays to have twelve dry hours
+behind them, and 55 of 4999 is 1.1% — the same order, where before it was
+structurally impossible.
+
+**One consequence worth stating rather than burying:** the street is now wet a
+third of the time instead of a fifth. That cuts slightly against the request
+this was fixed for — *"make wetness last a lil after it stops raining"* wants
+dry pavement to contrast against. The 8 → 23 hour ceiling is what actually
+delivers that contrast, and it more than pays for the higher rate, but the rate
+did move and it moved the wrong way.
+
+The original finding is kept below, because it is why the fix happened.
+
+---
 
 Builder C. Arithmetic on `rainAt`, no browser needed — anyone can re-run it.
 
