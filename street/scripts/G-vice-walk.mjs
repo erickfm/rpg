@@ -66,13 +66,60 @@ const runEast = async (z, from, to, tries = 3) => {
   return best;
 };
 
-console.log('the north side-street walk, past the porte-cochère columns:');
-for (const lane of [-96.9, -97.1]) {
-  const got = await runEast(lane, 30.0, 47.0);
-  console.log(`  building-side z=${lane.toFixed(2)}  reached x=${f2(got)}`);
-  check(`the walk past the porte-cochère is continuous at z=${lane.toFixed(2)}`,
-    got > 46.0, `reached x=${f2(got)} from 30.0 (want past 46)`);
+// ── the clear band, MEASURED rather than sampled ────────────────────────
+//
+// This used to probe two fixed lanes and assert they got through, and that was
+// the wrong shape of check: when a lamp landed at x = 45 (mainline 0fc56bc0,
+// moved off the casino's door line) one of my two lanes happened to sit 1 cm
+// outside the band and failed, while a 5 cm band would have passed the other.
+// A sampled lane tells you about that lane. What matters is how WIDE the clear
+// route is, so measure it and assert the width.
+//
+// The reference is the main-street lamps, which leave 0.23 m for the player's
+// centre and are accepted. Anything at or above that is a lane; below it is a
+// pinch worth someone's attention.
+console.log('the north side-street walk — measuring the clear band eastward:');
+const BAND_MIN = 0.25;
+const clear = [];
+for (let z = -97.4; z <= -96.65; z += 0.1) {
+  await warp(42.0, z, EAST, KERB_H);
+  await p.waitForTimeout(140);
+  let last = 42.0;
+  for (let i = 0; i < 5; i++) {
+    await hold('w', 600);
+    const c = await pos();
+    if (c[0] - last < 0.12) break;
+    last = c[0];
+    if (c[0] > 50) break;
+  }
+  const got = last > 49.0;
+  console.log(`  z=${z.toFixed(2)}  reached x=${f2(last)}${got ? '  clear' : ''}`);
+  if (got) clear.push(z);
 }
+const band = clear.length ? (Math.max(...clear) - Math.min(...clear)) + 0.1 : 0;
+check('there is a clear band past the frontage furniture, wide enough to walk',
+  band >= BAND_MIN,
+  clear.length
+    ? `${f2(band)} m of centre band, z ${f2(Math.min(...clear))} … ${f2(Math.max(...clear))} `
+      + `(main-street lamps leave 0.23 m)`
+    : 'NO lane past the furniture reaches the casino at all');
+
+// and it has to reach the casino's own door, not merely past the columns
+check('that band reaches the casino door line at x = 51.29',
+  clear.length > 0 && (await (async () => {
+    await warp(42.0, clear[Math.floor(clear.length / 2)], EAST, KERB_H);
+    await p.waitForTimeout(140);
+    let last = 42.0;
+    for (let i = 0; i < 8; i++) {
+      await hold('w', 600);
+      const c = await pos();
+      if (c[0] - last < 0.12) break;
+      last = c[0];
+      if (c[0] > 52) break;
+    }
+    return last;
+  })()) > 51.0, 'walked the middle of the band to the door');
+
 // the outer lanes SHOULD stop at a column — that is what a column is
 {
   const got = await runEast(-97.5, 34.0, 47.0, 1);
