@@ -527,6 +527,21 @@ export interface FrontageWorld extends Placement {
   /** the glazed span in world coordinates, lo <= hi whatever uDir is */
   glazingLoWorld: number;
   glazingHiWorld: number;
+  /**
+   * Did a ROOM tell us where its door is, or did the painter fall back to its
+   * own layout?
+   *
+   * The fallback is correct behaviour — most shopfronts have no room behind
+   * them and nothing to ask. It is also SILENT, and that is the problem: when a
+   * room exists but its declaration never arrives, the facade gets a door
+   * wherever the painter would have put it while the room has one somewhere
+   * else, which is the user's original complaint. GOLDEN ACES is in exactly
+   * that state today — ct/int-casino.ts is in an import cycle with ct/doors.ts,
+   * so its DOOR is skipped (scripts/doors-declared.mjs).
+   *
+   * Nothing could see the difference from outside. Now it can.
+   */
+  doorDeclared: boolean;
   stallriserH: number;
   fasciaH: number;
   fasciaBottomM: number;
@@ -593,6 +608,7 @@ export function registerFrontage(name: string, wMeters: number, p: Placement): F
     ...p,
     frontageM: wMeters,
     doorWorld: along === null ? toWorld(p, L.doorCentreM) : toWorld(p, along),
+    doorDeclared: along !== null,
     doorWidthM: L.doorWidthM,
     glazingLoWorld: Math.min(a, b),
     glazingHiWorld: Math.max(a, b),
