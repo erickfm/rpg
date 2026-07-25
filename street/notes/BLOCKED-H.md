@@ -87,6 +87,14 @@ luminance of **0.5355 at dry hour 12 and 0.5355 at rainy hour 14** — identical
 to four decimals. The road darkens around it and the car stays matte. Nothing
 of mine calls `ctx.wet`, so no vehicle is in `wetMats`.
 
+**Independently confirmed** by `3750fa61`, which re-ran the owner sweep without
+the filter that had been hiding it: the fleet appears as **two untagged rows** —
+*"33 BufferGeometry materials at median y 0.00 is exactly H's sedan count,
+arrived at independently"*, and `0/144` cylinders, which are the wheels. So the
+FACT is settled from both sides and needs no more measuring. Only the decision
+is open. (It also lands on the ownership-stamp ask below: the fleet was findable
+only as "untagged", by counting.)
+
 **Why this is a ruling and not a task.** `props.ts` states the trap itself:
 registering a material hands its COLOUR to `updateRain` every frame, and there
 must be ONE WRITER PER MATERIAL. My fleet's materials are already written by the
