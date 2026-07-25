@@ -340,6 +340,84 @@ check('the two buildings put light on the pavement, and only after dark',
     ? `${sDay.length} ground sheets; noon ${sDay.map((q) => q.op).join('/')} → 23:00 ${sNite.map((q) => q.op).join('/')}`
     : 'NO ground-level lit sheets found in front of either building');
 
+// ── 6. the blades still read forwards, from both ends ───────────────────
+//
+// This is the bug the user reported personally and GOTCHAS §10 says has shipped
+// twice. It cannot be checked from a screenshot and it cannot be checked by
+// walking, so it is checked as an invariant on the construction.
+//
+// THE INVARIANT IS THE OPPOSITE OF WHAT MY QUEUE ITEM PRESCRIBED, and that is
+// the whole reason this check is worth having. The item said: "two single-sided
+// planes back to back, a hair apart, with the texture flipped horizontally on
+// the rear one." The last clause is wrong. Rotating a plane to ry = +π/2 instead
+// of -π/2 ALREADY reverses where its u axis points in the world: at -π/2 the u
+// axis runs along +z, at +π/2 along -z, and each is the screen-right of a viewer
+// standing on that side. So the same texture reads correctly from both ends, and
+// flipping the rear one applies a second mirror that cancels the first. That is
+// exactly the bug I shipped and then fixed by REMOVING a flip.
+//
+// So: back-to-back sign faces must carry the IDENTICAL texture, and anybody
+// following the written instruction will fail this and be told why.
+const blades = await p.evaluate(() => {
+  const s = window.__ct.scene(); s.updateMatrixWorld(true);
+  const cands = [];
+  s.traverse((o) => {
+    if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+    let mod = null;
+    for (let q = o; q; q = q.parent) if (q.userData && q.userData.mod) { mod = q.userData.mod; break; }
+    if (mod !== 'vice') return;
+    const m = Array.isArray(o.material) ? o.material[0] : o.material;
+    if (!m || !m.map || !m.map.image) return;
+    if (Math.abs(Math.abs(o.rotation.y) - Math.PI / 2) > 0.02) return;   // faces along the street
+    if (m.blending === 2) return;              // additive glow sheets carry no lettering
+    const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
+    const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    cands.push({ m, x: (bb.min.x + bb.max.x) / 2, h: bb.max.y - bb.min.y, ry: o.rotation.y });
+  });
+  const read = (img) => {
+    const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+    const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+    return g.getImageData(0, 0, img.width, img.height).data;
+  };
+  const pairs = [], used = new Set();
+  for (let i = 0; i < cands.length; i++) {
+    if (used.has(i)) continue;
+    for (let j = i + 1; j < cands.length; j++) {
+      if (used.has(j)) continue;
+      const a = cands[i], c = cands[j];
+      if (Math.abs(a.x - c.x) > 0.6 || Math.sign(a.ry) === Math.sign(c.ry) || Math.abs(a.h - c.h) > 0.1) continue;
+      used.add(i); used.add(j);
+      const ia = a.m.map.image, ic = c.m.map.image;
+      // A texture can be mirrored two ways and the pixel compare below only sees
+      // one of them. `repeat.x = -1` with `offset.x = 1` flips the SAMPLING and
+      // leaves the canvas untouched, so it would sail through a pixel-identical
+      // check. Compare the sampling transform as well or this guards half the bug.
+      const xf = (t) => [t.repeat.x, t.repeat.y, t.offset.x, t.offset.y, t.rotation, t.center.x, t.center.y].join(',');
+      const rec = { x: +a.x.toFixed(2), h: +a.h.toFixed(2),
+        sameSize: ia.width === ic.width && ia.height === ic.height,
+        sameXf: xf(a.m.map) === xf(c.m.map), xf: xf(a.m.map), same: null };
+      if (rec.sameSize) {
+        const A = read(ia), C = read(ic);
+        let same = 0, n = 0;
+        for (let y = 0; y < ia.height; y++) for (let x = 0; x < ia.width; x++) {
+          const q = (y * ia.width + x) * 4; n++;
+          if (A[q] === C[q] && A[q + 1] === C[q + 1] && A[q + 2] === C[q + 2]) same++;
+        }
+        rec.same = +(same / n).toFixed(4);
+      }
+      pairs.push(rec);
+      break;
+    }
+  }
+  return { pairs, orphans: cands.filter((_, i) => !used.has(i)).map((q) => `${q.h.toFixed(1)}m at x${q.x.toFixed(1)}`) };
+});
+check('every street-facing sign is a back-to-back PAIR, none left single',
+  blades.pairs.length >= 3 && blades.orphans.length === 0,
+  `${blades.pairs.length} pairs; unpaired: ${blades.orphans.length ? blades.orphans.join(', ') : 'none'}`);
+check('the two faces of each blade carry the SAME texture, not a mirrored one',
+  blades.pairs.length > 0 && blades.pairs.every((q) => q.sameSize && q.same === 1 && q.sameXf),
+  blades.pairs.map((q) => `${q.h}m@x${q.x}: ${!q.sameXf ? 'MIRRORED BY TRANSFORM ' + q.xf : q.sameSize ? (q.same * 100).toFixed(1) + '% identical' : 'DIFFERENT SIZE'}`).join('; '));
+
 console.log('');
 for (const [ok, n, d] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${n}\n        ${d}`);
 const bad = results.filter((r) => !r[0]).length;
