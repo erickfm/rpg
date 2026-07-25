@@ -278,13 +278,41 @@ neon scan found them as 0.22 × 12.85 × 0 planes at (51.23, 10.77, −96.07) an
 (48.33 / 54.12 / 34.85, …): upright, vertical, well above 1.2 m. They pass every
 filter except having a `map`.
 
-That is itself close to an answer. **A face with no texture has no UV to mirror**
-— if those blades carry their lettering as geometry or vertex colour rather than
-as a painted canvas, the handedness question as posed does not apply to them,
-and whatever reads backwards from one side is a *double-sided geometry* problem
-rather than a texture one. I have not confirmed that the letters are geometry;
-it is the one step left, and it is a five-line read of those meshes' materials.
+**That inference was wrong, and reading the materials disproved it.** All 228
+fog-disabled faces on the side street are `PlaneGeometry`, **all carry a map**,
+and **all are `side: 0` — FrontSide, not DoubleSide**:
 
-So after five attempts the blade question is **narrowed rather than closed**, and
-narrowed usefully: it is no longer "is the texture mirrored" but "are these
-signs textured at all, and if not, is the geometry double-sided".
+| size | map | side | at |
+|---|---|---|---|
+| 0.22 × 12.85 × 0 | yes | FrontSide | (48.33 / **51.23** / 54.12, 10.77, −96.07) |
+| 0 × 14.2 × 1.1 | yes | FrontSide | (**44.20** and **44.50**, 12.10, −96.95) |
+| 0 × 15.8 × 1.24 | yes | FrontSide | (**46.22** and **46.58**, 13.50, −96.67) |
+| 0 × 6.2 × 6.8 | yes | FrontSide | (**50.97** and **51.48**, 22.70, −94.30) |
+
+They come in **pairs at mirrored offsets about a common centre** — 44.20/44.50,
+46.22/46.58, 50.97/51.48 — which is exactly the shape `twoSided()` builds: two
+FrontSide planes back to back so each is only ever seen from its own side.
+
+## And that means the answer was already in my own notes
+
+`notes/seam-audit.md` Round 2, finding **R1**, settled this weeks of work ago:
+
+> *`twoSided` builds two planes at `rotation.y = ±π/2` and calls
+> `pixTex(tw, th, draw)` with the **identical** `draw` for both, so the two faces
+> are mirror images in world space.*
+
+That was demonstrated then with matched opposite-side photographs, and the
+helper's own comment claims a fix ("the back face gets a texture that was
+painted mirrored") that the code does not implement. **Each of these pairs
+carries identical artwork on two opposed faces, so one face of every pair is
+mirrored.** The pair structure I have just measured is the same helper, still
+building signs the same way.
+
+So the blade question is **closed, and it was closed before I started**. I spent
+five attempts photographing a question my own earlier report had already
+answered, and then a sixth building an instrument to answer it again. The
+finding stands; what failed was my reading of my own audit trail.
+
+**The lesson is worth more than the finding:** before building a new instrument
+for a question, grep the existing reports for it. `notes/seam-audit.md` is 400
+lines and I wrote all of them.
