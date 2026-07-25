@@ -165,7 +165,7 @@ export function makeCrosstown(): Proto {
   const hud = makeHud(purse);
 
   // ── the bodega interior — one bright little room off the corner ─────────
-  const bodegaColliders = buildBodega(scene);
+  const bodegaColliders = buildBodega(ctx);
 
   // ── the block's furniture, and the weather over it ─────────────────────
   const props = buildProps(ctx);
@@ -423,21 +423,9 @@ export function makeCrosstown(): Proto {
   // The walk-up's two spots used to live here. ct/apartment.ts registers them
   // itself now, via ctx.spot — the entry point does not enumerate them.
   SPOTS.push(
-    {
-      x: 8.7, z: -96.85, r: 1.1,
-      ok: () => rig.pos.x < 100,
-      label: () => 'into the BODEGA',
-      act: () => jumpTo(241.3, -17, Math.PI / 2, 0),
-    },
-    {
-      x: 240.5, z: -17, r: 1.0,
-      ok: () => rig.pos.x > 230,
-      label: () => 'out to the street',
-      // step out onto the north side-street walk, facing OUT across the street —
-      // clear of the corner wall + fruit crates, and well outside the re-enter
-      // trigger radius so you can't get sucked straight back in (the old bug)
-      act: () => jumpTo(11, -97.3, 0, KERB_H),
-    },
+    // the bodega's two door spots now register themselves from ct/bodega.ts.
+    // What is left here is the shop counter, which needs `purse` and `hud` —
+    // neither of which ctx carries. See notes/BLOCKED-D.md.
     {
       x: 242.2, z: -17.5, r: 1.0,
       ok: () => rig.pos.x > 230,

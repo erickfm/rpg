@@ -1,10 +1,35 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 
 // The bodega interior — one bright little room off the corner. Self-contained:
 // it only adds meshes to the scene and hands back its wall colliders.
-export function buildBodega(scene: THREE.Scene): AABB[] {
+export function buildBodega(ctx: CtxBuild): AABB[] {
+  const { scene, player } = ctx;
+  // The two door spots live HERE now, with the door they belong to, instead of
+  // being hand-written into the entry point's SPOTS array. Same move C, F and H
+  // already made — the shop that owns a door owns its [E].
+  //
+  // NOT moved: the cereal and soda counters. They need `purse` and
+  // `hud.refreshWallet()`, and `ctx` carries neither; adding them changes the
+  // CtxBuild interface, which is a desk operation across every caller. They are
+  // still in crosstown.ts and flagged in notes/BLOCKED-D.md.
+  ctx.spot({
+    x: 8.7, z: -96.85, r: 1.1,
+    ok: () => player.x() < 100,
+    label: () => 'into the BODEGA',
+    act: () => player.jumpTo(241.3, -17, Math.PI / 2, 0),
+  });
+  ctx.spot({
+    x: 240.5, z: -17, r: 1.0,
+    ok: () => player.x() > 230,
+    label: () => 'out to the street',
+    // step out onto the north side-street walk, facing OUT across the street —
+    // clear of the corner wall and the fruit crates, and well outside the
+    // re-enter trigger radius so you cannot be sucked straight back in
+    act: () => player.jumpTo(11, -97.3, 0, ctx.KERB_H),
+  });
   const bodegaColliders: AABB[] = [];
   {
     const texM2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
