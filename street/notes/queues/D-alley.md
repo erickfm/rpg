@@ -112,10 +112,40 @@ hour of work is where the conflicts live.
 
 ## Next
 
-- [ ] **Bodega door is not readable as a door.** Every panel in the chamfer bay
-      is identical blue glass, and the OPEN neon sits over a WINDOW. Give the
-      door its own frame, handle, kick plate, set the plane back slightly, and
-      move OPEN over it.
+- [ ] **The bodega corner bay is a mess, and it is more than the door.** The
+      user, standing right in it: *"strange corner for bodega, also collision
+      is odd in this same corner"*. Ref: `shots/user-bodegacorner.png`
+
+      This supersedes the older "the door is not readable" note — that was
+      part of it, but the close-up shows the whole bay is wrong:
+
+      · **The panels do not line up.** Blue glass, a brown pier, a beige panel
+        and the door leaf all sit at different depths and different widths,
+        with no shared stallriser line, no shared head, no consistent reveal.
+        A shopfront bay is a RHYTHM — equal bays, one sill height, one fascia
+        — and this reads as several unrelated fronts jammed together.
+      · **The kick plates are at three different heights.** Look along the
+        bottom of the shot: the dark strips step up and down across the bay.
+        One stallriser height across the whole frontage, full stop.
+      · **The OPEN neon still sits over glass rather than over the door**,
+        which was the original complaint and is still true.
+      · **The sidewalk scoring runs under the building.** The paving joints
+        continue straight into the facade instead of stopping at it. That is
+        the walk plane extending beneath the shell and showing through where
+        the chamfer cuts back. It may be builder B's `ct/tex-ground.ts` rather
+        than yours — check, and if it is, hand it to the desk rather than
+        reaching into B's file.
+      · **Collision confirmed odd here** — which is your live collision
+        mandate. This screenshot is the user hitting exactly the square
+        collider on the cut face that the mandate exists to fix, so treat it
+        as evidence for that item rather than a separate bug.
+
+      Builder A has a live mandate on the shopfront painters (`tex-world.ts`)
+      to give shopfronts real depth — set-back glass, projecting stallriser
+      and fascia, transoms, something in the window. **The bodega bay should
+      follow whatever A lands rather than inventing its own vocabulary a
+      second time.** Coordinate through the desk on timing; if A has not
+      landed when you get here, tell me and I will sequence it.
 - [ ] **Crates are empty.** They read as open boxes with a painted stripe. A
       produce crate outside a bodega is FULL — fruit heaped above the rim, so
       you see produce first and crate second. Shadow between the slats. Sit them
