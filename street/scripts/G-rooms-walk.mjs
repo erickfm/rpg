@@ -875,6 +875,22 @@ for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  
 const bad = results.filter((r) => !r[0]).length;
 console.log(`\n${results.length - bad}/${results.length} passed`);
 
+// EXIT 3, NOT 1, WHEN A GUARD FIRED ON AN EMPTY SET (GOTCHAS §32).
+//
+// 4d549f501 swept all 56 registered checks for this class and reached the
+// convention; my two were registered after that sweep and were never in it. The
+// reason 3 is right is in the guards' own wording: each of them cannot tell
+// whether the world failed to build the thing or the read stopped finding it,
+// so it must not claim the guarded thing is broken. 1 says "the room dims after
+// dark" or "a room imports ./doors at runtime". Neither is established — what is
+// established is that this check did not run.
+const vacuous = results.filter((r) => !r[0] && /NOTHING TO CHECK/.test(String(r[2])));
+if (vacuous.length) {
+  console.log(`\n${vacuous.length} check(s) had NOTHING TO CHECK — exiting 3 (GOTCHAS §32:`
+    + ' the check never ran), not 1. Nothing below follows about the world:');
+  for (const v of vacuous) console.log(`  ${v[1]}\n        ${v[2]}`);
+}
+
 if (SELFTEST) {
   // every inverted truth must have come back red; a green one means that check
   // cannot fail and is decoration
@@ -894,4 +910,6 @@ if (SELFTEST) {
 }
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();
-process.exit(bad ? 1 : 0);
+// A vacuous guard outranks an ordinary failure: if the suite did not get to look
+// at the room, the other verdicts about that room are not worth acting on either.
+process.exit(vacuous.length ? 3 : bad ? 1 : 0);
