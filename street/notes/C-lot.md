@@ -1,97 +1,84 @@
 # The used car lot — builder C
 
-`ct/lot.ts`, mine. Built, verified, committed (`0ebec56a`). **Not wired in.**
+`ct/lot.ts`, mine. Built, wired, walked, landed. This note replaces the one
+written when it was still an unwired module.
 
 ---
 
-## Status: done except the one thing I was told to wait for
+## What it is now
 
-The module is complete and shot from 21 angles (`scripts/lot.mjs`,
-`shots/lot/`). What is missing is the roster: `placeLot(zN, zS)` takes the
-frontage, and D's span has not come through yet, so nothing calls it.
+A 23.2 m site on the east side, laid out to the plan the user gave:
 
-I verified it by wiring it **locally** at the span CAFE + HARDWARE occupy
-today — z 14.2 → −9.0, which is exactly the 23.2 m the brief quotes — taking
-the shots, and then reverting. `street.ts` and `crosstown.ts` are untouched
-and `ownership.sh` is clean.
+- a **drive aisle** straight in from the street to the back
+- **stock herringboned either side of it**, nose-out, receding
+- **the office across the far end**, facing back down the aisle
 
-## To wire it, the caller needs three things
+That layout is the whole thing. 23.2 m of depth only READS if you look ALONG
+something — rows parallel to the street hid the depth behind the first row,
+where the pavement could never see it, and the lot looked flat from the one
+place everybody stands. It also gives the office a job: at the front corner it
+was a hut you walked past, and at the far end it is what you drive toward.
 
-```ts
-import { buildLot, LOT } from './lot';
-buildLot({ scene, flat, wet, KERB_H, obstacle, onFrame }).placeLot(zN, zS);
-```
+## Verified, and how
 
-1. **It cannot be built from `ct/street.ts` as it stands.** `buildStreet` is
-   not passed `onFrame`, and the lot needs it for the floodlight. Either
-   street.ts gains `onFrame`, or the lot is built from `crosstown.ts`, which
-   already has the full `CtxBuild`. The second is how I tested it.
-2. **The block-long east collider has to be notched for the gate.**
-   `crosstown.ts` hand-writes the east side as one box (`x FACE-0.3 → FACE+8`,
-   z −96 → 20). That runs straight across the lot's mouth, so **the lot is
-   not enterable until it is notched** — the same thing the library courtyard
-   needed. `LOT.gate0` / `LOT.gate1` publish the mouth in z so the notch can be
-   read off one import instead of copied by hand, exactly as `COURT` does.
-   This is the same blanket-collider problem already routed to D as `bcd2c82`.
-3. **Register the lot with the night dimmer** (`props.ts`'s `dimWorld`), or
-   its opaque surfaces will not darken after dark like the rest of the block.
+Three scripts, all in `scripts/`, all reusable by anyone:
 
-## Three things for other builders
+| | |
+|---|---|
+| `lot.mjs` | 32 shots including three after dark |
+| `lotwalk.mjs` | holds W eastward off the pavement at 15 values of z and reports how far the rig gets |
+| `seatcheck.mjs` | every seat in the world: is the approach point inside a collider, and does E actually seat you |
 
-**Builder H — cars.** The stock is `makeCar()` unmodified, seven of them, and
-nothing in `ct/lot.ts` builds a vehicle. Two variants would earn their keep
-here and are yours to make, not mine:
-- **a car up on blocks**, wheels off — the one that is not for sale
-- **one with the hood open** — a lot always has one being looked at
+**Access.** The opening is clear from z −0.5 to 6.0 — six and a half metres —
+and the fence stops you at every other z tested. That check is not optional
+and it is not doable from a screenshot: three of my own props were standing in
+the driveway and only walking it found them. The best one was the rolling
+gate, parked "open" with its leaf and its collider 1.4 m into the gap it was
+holding open.
 
-**Builder B — the night registry skips transparent materials.**
-`props.ts:181` excludes any material with `transparent: true` from the dimmer.
-That is correct for glass, but it also means every alpha-tested prop stays at
-full daylight brightness after dark. In this lot the **chain-link fence and
-the bunting glow at night** while the buildings behind them go dark — visible
-in `shots/lot/21-night-pool.png`. It will hit any future alpha-cut prop, not
-just mine, so it is worth a rule rather than a workaround.
+**Seats.** Two chairs by the office door and the three-high tyre stack, all
+through F's `ctx.seat()`, all confirmed reachable and sittable.
 
-**Builder D — two blank flanks.** Taking CAFE and HARDWARE off the roster
-exposes the end walls of whatever is left either side, and those ends are flat
-`endM` colour, not brick. A lot is exactly where you would see them. I did not
-build party walls because their height depends on the neighbours the roster
-ends up with, which is yours.
+**The walk is untouched.** Nothing this module builds is west of `x = FACE`.
+The barbed arms on the fence lean INTO the lot for that reason.
 
-## Two things in the brief that do not exist yet
-
-- **`ctx.seat()`** — the brief says F has landed it "with 29 seats already
-  using it". It is not in `ct/ctx.ts` and nothing in the tree calls it. Nothing
-  here needs a seat, so it did not block me, but the brief is ahead of the code.
-- **`ct/park.ts`** — E has not landed it. The contrast with the park is
-  therefore *designed*, not measured. The axes I built against are written at
-  the top of `ct/lot.ts` so they can be checked once the park exists.
-
-## What looking at it changed
-
-Five things survived being reasoned about and died on contact with a
-screenshot. Recorded because each one is a rule, not a one-off:
+## Things worth keeping, because each is a rule and not a one-off
 
 | what I built | what it looked like | what it is now |
 |---|---|---|
-| 2 m chain-link along the street | every car buried behind a grey haze | 1.15 m at the street, 2.0 m on the sides and back — the frontage exists to SHOW the stock |
-| stock angled at −0.52 | nose-*into* the lot; every windshield, and so every price card, faced away from the pavement | nose-out at `π/2 − 0.5` |
-| pennants drawn point-down in canvas | hung point-*up*, sitting ON the string like bunting on a shelf | flipped, verified by eye rather than by arguing about `flipY` |
-| office board 80 px wide | "CROSSTO" — 9 characters at 2 px per texel is 108 px | both the board and the price cards size their canvas from the string |
-| a floodlight | a pole with a box on it | a stepped halo at the lens and a pool on the asphalt, faded in with `f.night` |
+| chain-link on the frontage | **nothing at all from the pavement** — banners hanging in mid-air over a lot with no fence | a fence is not read from its mesh at 15 m, it is read from its FRAMEWORK: rails, line posts, fat terminal posts either side of the opening, barbed arms against the sky. Framework first, mesh second — the order it is built in reality |
+| a one-texel wire at 0.3 m per tile | sub-pixel, so alphaTest dropped it entirely | two texels of wire, so enough survives the test to read as a screen |
+| `GLYPH` without G H J P Q V X | "BUY HERE PAY HERE" shipped as **"BUY ERE AY ERE"** for several commits | full alphabet, and a missing glyph now draws a solid block — still wrong, but impossible to miss in the first screenshot. A silent blank is indistinguishable from wide kerning |
+| the FTC Buyers Guide at fixed coordinates | hanging in mid-air off the rear quarter of a sedan, where there is no glass | it FINDS the lofted cabin in the car H hands back and reads the window off its own bounding box, so it survives H changing the fleet |
+| a flag as three panels in a row | three panels each got the whole texture, so the flag flew with **three stars** | one segmented plane with a ripple in its vertices. A tiled texture is not a bent one |
+| chairs west of the office | both chair and both approach points inside a solid box: seat registers, prompt appears, you can never walk to it | GOTCHAS §8. `seatcheck.mjs` exists because of this |
+| a chair with its back on +x | the seat pose said yaw 0, which is −z, so it sat you square across the arms of your own chair | a model and its seat pose have to agree on which way is front |
+| the office name board at 2.05 | lay across the top quarter of the window | both take their height from the same texture now |
+| 32 × 24 texels on a 4.6 m office wall | seven per metre — cannot hold a blind slat, let alone a room behind one | 64 × 40, which is what unlocked the blinds, the desk lamp and the room behind them |
 
-The bunting got the most care on purpose: it is the one thing that says "lot"
-rather than "car park" from the far end of the block. It hangs from its own
-poles, and each swag is four segments on a parabola — strung level it reads as
-a painted stripe, and only the sag says plastic on a string.
+## Open, and not mine
 
-## Verification
+**Builder B — the curb cut.** `notes/BLOCKED-C.md` has the ask and the exact
+span. The kerb face still stands across the mouth; a car can reach the opening
+and cannot drop off the kerb. This is the last piece of "how does a car get on
+and off" and it is the only part I could not build.
 
-`npm run build` clean · `ownership.sh` clean · 21 shots in `shots/lot/`,
-including two after dark. The 2 m walk past the frontage is intact: the fence
-collider's half-thickness is 0.10 against a fence line at `FACE + 0.12`, so the
-whole box sits east of the building line.
+**Builder B — the night dimmer skips transparent materials.** `props.ts`
+excludes any material with `transparent: true`, which is right for glass and
+wrong for every alpha-cut prop. In this lot the soaped windshield prices and
+the starburst cards glow white at midnight. It will hit any future alpha-cut
+prop, so it wants a rule rather than a workaround.
 
-**Not yet verified: that you can walk into it.** You cannot, today — the
-blanket collider is across the gate. That check has to happen after the notch,
-and it is the first thing to do once this is wired.
+**Builder H — three car variants.** Hood up, on a jack with a wheel off, on
+blocks. The stock is `makeCar()` unmodified; I have added no vehicle. A flag to
+omit one or all wheels would give me two of the three by itself.
+
+**Builder D — the back wall.** With the office against it and cars in front it
+is much less of a problem than it was, but from the aisle it is still a tall
+blank brick face and it is the thing you look at all the way in. Worth a
+painted wall ad or a parapet if it is cheap; it is your surface, not mine.
+
+**Not built, and why.** Privacy slats were on the brief for "the back and side
+runs". There are no back or side runs — the site's rear and flanks are D's
+brick, and the only chain-link here is the frontage, which exists to show the
+stock. If a flank is ever fenced instead of walled, the slats belong there.

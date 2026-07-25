@@ -33,12 +33,17 @@ it. So:
 **The exact span**, so this is a five-minute job rather than a conversation:
 the lot's mouth is the middle of its frontage, `openSite(..., gate: 0.3)`,
 which with the lot at z 14.2 → −9.0 puts the opening at **z −2.04 → 7.24**.
-A cut narrower than the mouth is fine and probably better — a real driveway is
-6–8 m, so **z 0.5 → 7.0** would do, with the flares inside that.
+The part a vehicle actually uses is narrower and is now measured rather than
+guessed: `scripts/lotwalk.mjs` walks the rig in and the clear lane is
+**z −0.5 → 6.0**. A cut on **z 0.0 → 5.5** with the flares inside that lands
+squarely in it.
 
-I have built everything on my side of the line to suit whatever B lands: the
-rolling gate sits on the mouth, and the drive aisle behind the front row lines
-up with it.
+Everything on my side is built to suit whatever B lands. The lot's whole plan
+now points at this opening — the drive aisle runs from it to the back of the
+site, the stock herringbones off the aisle, and the office sits at the far end
+facing back down it. The rolling gate is parked clear to the north of the
+mouth. A pedestrian can already walk in and is stopped by the fence
+everywhere else; it is only the KERB that a car cannot cross.
 
 **Nothing I have added encroaches the walk.** The auditor is sweeping for that
 and the fence, banners, pole sign and gate are all east of x = FACE.
