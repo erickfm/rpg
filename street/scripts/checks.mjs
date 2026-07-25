@@ -57,7 +57,7 @@ const CHECKS = [
   // leave at it. One case would have left the other silently unproven, which is
   // the failure this column exists to make visible.
   ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water']],
-  ['trash',            'is the litter set placed, seated and varied?',     'trash',    ['probe']],
+  ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool'], ['probe']],
   ['park',             'is the park lit, or black at night?',              ['park', 'park-walk']],
   ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],

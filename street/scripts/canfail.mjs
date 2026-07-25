@@ -151,6 +151,26 @@ const CASES = [
   // the tree pits are footprint.mjs's, below. The mutation was sound and
   // pointed at the wrong tool, which is its own kind of check that proves
   // nothing.
+  // Puts something on the street that the user never approved. First aim was to
+  // DELETE a drop and require the missing-type check to fire, and trash.mjs
+  // slept — correctly: every one of the five has at least two placements, so
+  // removing one line removes an instance and not a type. Fourth mutation this
+  // session I have aimed wrong, and the fourth time the check was right.
+  //
+  // Renaming a CALL was no better: drop() looks the name up in the catalogue, so
+  // an unknown one places nothing at all and the count merely falls by one.
+  // Two wrong aims at the same target, both of which the check was right to
+  // sleep through.
+  //
+  // The catalogue KEY is the single point that removes a whole type: rename it
+  // and all three 'milk crate' calls find nothing. Count goes 14 -> 11, which
+  // also proves the count verdict now reaches the exit code — before this it
+  // printed FAIL and returned 0.
+  ['trash-set', PROPS,
+    "    ['milk crate', () => {",
+    "    ['crate withdrawn by selftest', () => {",
+    'trash.mjs', ['probe'], 'a whole approved litter type gone from the street'],
+
   ['trash', PROPS,
     '    o.position.set(cx, gy - bb.min.y, z);',
     '    o.position.set(cx, gy - bb.min.y - 0.05, z);',

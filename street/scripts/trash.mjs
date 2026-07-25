@@ -75,10 +75,43 @@ if (mode === 'probe' || mode === 'all') {
     `${Math.min(...r.map((d) => d.clear)).toFixed(1)} … ${Math.max(...r.map((d) => d.clear)).toFixed(1)} mm`);
   console.log(`  distinct yaws: ${yaws.size} of ${r.length}`);
   if (buried.length) console.log(`  BURIED: ${JSON.stringify(buried)}`);
-  console.log(`\n  ${r.length >= 12 && r.length <= 20 ? 'OK  ' : 'FAIL'} the approved set is placed, and not overdone (${r.length})`);
+  // THE FIVE THE USER PICKED, BY NAME. byKind was computed and printed and
+  // never asked a question — so the whole fountain-cup family could vanish and
+  // this would report a happy fourteen. The set is not a style choice: it is
+  // three rig rounds of the user choosing these and rejecting others.
+  const APPROVED = ['coffee cup', 'flattened cardboard', 'folded newspaper',
+                    'fountain cup', 'milk crate'];
+  const missing = APPROVED.filter((k) => !byKind[k]);
+  const extra = Object.keys(byKind).filter((k) => !APPROVED.includes(k));
+
+  // AND THE ONE THAT WAS REJECTED STAYS REJECTED. "i dont like the trash that
+  // looks like this please get rid of all of them" — the banded rectangle,
+  // canTopTex, a 24 x 14 canvas. Every placement was removed; the texture is
+  // still exported from ct/tex-world.ts and nothing stops it coming back. A
+  // rejection with no check is a decision waiting to be quietly undone, and
+  // this one cost the user three rounds to make.
+  const rejected = await page.evaluate(() => {
+    let n = 0;
+    window.__ct.scene().traverse((o) => {
+      const im = o.material?.map?.image; if (!o.isMesh || !im) return;
+      if (im.width === 24 && im.height === 14) n++;
+    });
+    return n;
+  });
+
+  const countOK = r.length >= 12 && r.length <= 20;
+  console.log(`\n  ${countOK ? 'OK  ' : 'FAIL'} the approved set is placed, and not overdone (${r.length})`);
   console.log(`  ${!buried.length ? 'OK  ' : 'FAIL'} nothing is under the surface it lies on`);
   console.log(`  ${yaws.size === r.length ? 'OK  ' : 'FAIL'} no two placements of one object share a rotation`);
-  if (buried.length || yaws.size !== r.length) process.exit(1);
+  console.log(`  ${!missing.length ? 'OK  ' : 'FAIL'} all five approved types are on the street` +
+    `${missing.length ? ` — MISSING ${missing.join(', ')}` : ''}`);
+  console.log(`  ${!extra.length ? 'OK  ' : 'FAIL'} nothing unapproved has crept in` +
+    `${extra.length ? ` — ${extra.join(', ')}` : ''}`);
+  console.log(`  ${!rejected ? 'OK  ' : 'FAIL'} the rejected banded rectangle is still gone (${rejected})`);
+  // The count verdict printed FAIL and did not reach this line before — it was
+  // the only one of the three that could go red without failing the run.
+  if (buried.length || yaws.size !== r.length || !countOK ||
+      missing.length || extra.length || rejected) process.exit(1);
 }
 
 if (mode === 'cups' || mode === 'all') {
