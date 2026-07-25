@@ -577,7 +577,13 @@ export function registerFrontage(name: string, wMeters: number, p: Placement): F
   // test affordance, same spirit as crosstown.ts's `scene: () => scene`: this
   // is the shared contract three consumers depend on, so it has to be readable
   // from outside to be checkable at all.
-  (globalThis as Record<string, unknown>).__frontages = [...FRONTAGES.values()];
+  // Published WITH the name. The array was the values alone, so a tool could
+  // see that seven frontages disagreed about handedness and could not say which
+  // seven — and an unnamed finding is one nobody picks up. The map is keyed by
+  // name; carrying it costs nothing and it is the only thing here a reader
+  // cannot derive.
+  (globalThis as Record<string, unknown>).__frontages =
+    [...FRONTAGES.entries()].map(([name, f]) => ({ name, ...f }));
   return f;
 }
 
