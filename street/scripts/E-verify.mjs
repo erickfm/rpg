@@ -120,7 +120,14 @@ for (const a of run) {
   // echo only what matters: the failures, the notes, and the verdict
   for (const line of out.split('\n')) {
     if (/^(FAIL|NOTE|SKIP)/.test(line.trim())
-        || /walks passed|FAILED|sinking into it|is floating/.test(line)) {
+        // MEASURING THE WRONG WORLD must show. Without it this reported
+        // "5 of 5 areas failed — do not land this" with not one line of why,
+        // on a build where every harness passes when run by hand: the children
+        // had exited 3 on the provenance guard because I rebased after building,
+        // and the banner did not match anything here. A summary that says
+        // everything is broken and shows nothing is worse than no summary.
+        || /walks passed|FAILED|sinking into it|is floating/.test(line)
+        || /MEASURING THE WRONG WORLD|is serving build|this checkout is at|Fix:/.test(line)) {
       console.log(`   ${line.trim()}`);
     }
   }
