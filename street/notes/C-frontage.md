@@ -120,3 +120,38 @@ Two caveats, because this is exactly where I have been wrong before:
 - The genuine §9 question on this stretch is not the tree. It is the **0.36 m
   `openSite` boundary wall** above, which takes its share off the BUILDING line
   and runs the whole length of both sites rather than standing at one point.
+
+
+---
+
+# Floaters: the lot has none, and every hit is furniture that hangs
+
+`a23915b6` found two price cards resting on nothing — an object placed at a y
+somebody typed rather than at the top of what it sits on, right when written
+and wrong the moment the shelf moved. `scripts/floaters-walk.mjs` was
+interiors-only (`if (w.x < 400) return`).
+
+That check is not interior-specific. An exterior prop sits on ground that OTHER
+builders move — this lot's site has changed depth, changed boundary wall and
+had its kerb broken since those props were placed — which is if anything the
+likelier way a typed y goes stale. So the script now takes an optional box and
+defaults to exactly what it did before:
+
+```
+node scripts/floaters-walk.mjs 6 32 -12 16      # the car lot
+```
+
+**Thirteen hits, and all thirteen are supposed to hang.** I identified every
+class rather than eyeballing the list, because "they all look like signage" is
+the reasoning that has been wrong twice this week:
+
+| gap | what it is |
+|---|---|
+| 5.90, 5.81 | the floodlight head and its lens, 6 m up a pole |
+| 1.47, 1.33 | balloons on car antennas — the rod, the sphere, the string |
+| 1.26 × 8 | the barbed arms on the fence posts, at MESH_TOP + 0.18 |
+| 1.20 | the office AC unit's bracket, through the wall |
+
+Nothing in the lot is a prop that should be resting on something and is not.
+Recorded rather than left unsaid, because "I ran it and it was fine" is worth
+nothing without the list.
