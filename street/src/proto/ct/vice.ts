@@ -559,6 +559,63 @@ export function buildVice(o: {
         scene.add(face);
       }
 
+      // ── the blank wall the 1984 refit made ───────────────────────────
+      //
+      // GOLDEN ACES had four storeys of ordinary sash windows above its
+      // marquee, which is the single thing most at odds with what it is
+      // supposed to be. Casinos do not have windows — that is the whole point
+      // of a casino, and it is why ct/int-casino.ts has no daylight in it. A
+      // room with no clock behind a facade full of windows is two buildings.
+      //
+      // So the refit did what these refits did: boarded and skinned the
+      // elevation, and painted the house's name on the slab it made. The
+      // windows are still under there. You can see where they were — the paint
+      // sank a little into every reveal and the ghosts came back through, which
+      // is the detail that makes this read as a building that was CHANGED
+      // rather than as a building that was drawn flat.
+      {
+        const y0 = 4.35, y1 = 17.2;
+        const sk = masonry(casino[1] - casino[0], y1 - y0, y0, 1);
+        const { W, H } = sk;
+        const skin = sk.paint((g) => {
+          g.fillStyle = '#6e1a24'; g.fillRect(0, 0, W, H);
+          // the skin is panels, and they do not quite match
+          for (let x = 0; x < W; x += 11) {
+            g.fillStyle = (x / 11) % 3 === 1 ? '#741d27' : '#6a1822';
+            g.fillRect(x, 0, 10, H);
+          }
+          g.fillStyle = 'rgba(0,0,0,0.20)';
+          for (let x = 0; x < W; x += 11) g.fillRect(x + 10, 0, 1, H);
+          // the ghosts of the windows underneath, four storeys of them
+          for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 5; c++) {
+              const gx = Math.round(6 + c * ((W - 12) / 5)), gy = Math.round(7 + r * ((H - 12) / 4));
+              const gw = Math.round(W / 12), gh = Math.round(H / 11);
+              g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(gx, gy, gw, gh);
+              g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(gx, gy, gw, 1);
+              g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(gx, gy + gh - 1, gw, 1);
+            }
+          }
+          // and the name across it, big enough to read from the block
+          tubeText(g, 'GOLDEN', Math.round(W / 2), Math.round(H * 0.30), Math.round(H * 0.13), '#e8b93a', '#f7e6b0', '#3a1016');
+          tubeText(g, 'ACES', Math.round(W / 2), Math.round(H * 0.50), Math.round(H * 0.17), '#e8b93a', '#f7e6b0', '#3a1016');
+          // The house's mark under the name. This was a spade first and it came
+          // out looking like a bird — a suit symbol needs curves and there are
+          // not enough texels here to spend on them. Three sevens need none:
+          // they are letterforms, they survive any resolution, and nothing else
+          // in the world says SLOT MACHINE that fast. Drawn in the red tube
+          // rather than the gold so it reads as a separate sign bolted on
+          // afterwards, which is what it would have been.
+          tubeText(g, '777', Math.round(W / 2), Math.round(H * 0.72), Math.round(H * 0.13), '#ff4a3a', '#ffd8c0', '#3a1016');
+          grime(g, W, Math.round(H * 0.02), Math.round(H * 0.4), 90);
+          dither(g, W, H, 700);
+        });
+        const panel = new THREE.Mesh(new THREE.PlaneGeometry(casino[1] - casino[0], y1 - y0), flat(skin));
+        panel.rotation.y = Math.PI;                 // face the road
+        panel.position.set(cxm, (y0 + y1) / 2, FACE_Z0 - 0.03);
+        scene.add(panel);
+      }
+
       // ── the whole elevation, not just the shopfront ──────────────────
       //
       // This is what the user was actually looking at when they said "so low
