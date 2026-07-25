@@ -52,6 +52,21 @@ const ROOMS = [
       ['behind the chairs, along the window', 0, 3.85, '+x', 1600, 'x', 2.5],
     ],
   },
+  {
+    id: 'tax', label: /A-1 TAX/, W: 12.0, D: 8.5, H: 2.75,
+    doorX: 7.0 - 0.45, doorZ: -15.25, at: -4.2, hasWindow: true,
+    clearZ: 2.5,
+    frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
+    doorApproach: [-4.2, 2.4],
+    // the walk out is south along the EAST walk, so the landing probes differ
+    landing: [['out across the street', -Math.PI / 2], ['south along the walk', 0], ['north along the walk', Math.PI]],
+    lanes: [
+      ['between the two desks', -0.6, 2.5, '-z', 2000, 'z', 4.0],
+      ['the staff lane behind the desks', -4.5, -2.8, '+x', 2200, 'x', 6.0],
+      ['across the front of the office', -5.0, 2.5, '+x', 3400, 'x', 9.0],
+      ['east of the desks, down to the plant', 4.0, 2.5, '-z', 2000, 'z', 4.0],
+    ],
+  },
 ];
 
 const only = process.argv[2];
@@ -191,14 +206,23 @@ for (room of rooms) {
   check('a second E on the landing does not suck you straight back in',
     sucked[0] < 100, `pos=${sucked.slice(0, 3).map(f2)}`);
 
-  for (const [k, yaw] of [['out across the side street', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]) {
-    await warp(back[0], back[2], yaw, KERB_H);
-    await p.waitForTimeout(120);
-    const a = await pos();
-    await hold('w', 500);
-    const c = await pos();
-    check(`the landing is not boxed in — ${k}`, Math.hypot(c[0] - a[0], c[2] - a[2]) > 0.9,
-      `moved ${f2(Math.hypot(c[0] - a[0], c[2] - a[2]))} m`);
+  // Can you leave the landing in every direction? This is asking about static
+  // geometry — a landing boxed in by a wall or a prop is a shipped bug. But
+  // CITIZENS are obstacles too and they walk the same 2 m lane, so a passer-by
+  // standing on the spot fails this for a second and means nothing. Retried:
+  // a wall blocks every attempt, a pedestrian has moved on by the next one.
+  for (const [k, yaw] of room.landing ?? [['out across the side street', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]) {
+    let best = 0;
+    for (let attempt = 0; attempt < 3 && best <= 0.9; attempt++) {
+      if (attempt) await p.waitForTimeout(1600);        // let whoever it is walk on
+      await warp(back[0], back[2], yaw, KERB_H);
+      await p.waitForTimeout(120);
+      const a = await pos();
+      await hold('w', 500);
+      const c = await pos();
+      best = Math.max(best, Math.hypot(c[0] - a[0], c[2] - a[2]));
+    }
+    check(`the landing is not boxed in — ${k}`, best > 0.9, `moved ${f2(best)} m (best of 3)`);
   }
 
   // ── the room keeps its light after dark ──────────────────────────────
