@@ -50,18 +50,26 @@ const ROOMS = [
   // never called from crosstown.ts. Their doors are on the side street rather
   // than the block, so the approaches run along x, not z.
   {
+    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — across the felt from the dealer
+    keeper: [3.1, 1.6],
     id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0,
     doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
   },
   {
+    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the guest side of the reception desk
+    keeper: [-3.6, -0.65],
     id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0,
     doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
   },
   {
     // room width stays G's explicit 10.0; only the door derives
+    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the customer side of the counter
+    keeper: [1.6, -1.6],
     id: 'pawn', label: /PAWN/, D: 8.0, W: 10.0, front: ['PAWN', 15, -60.5, 1],
   },
   {
+    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the client chair
+    keeper: [-2.6, -0.75],
     id: 'tax', label: /A-1 TAX/, D: 8.5, front: ['A-1 TAX', 13, -15.5, 1],
   },
 ];
@@ -577,7 +585,15 @@ for (room of rooms) {
   //
   // `keeper` IS AUTHORED PER ROOM AND THAT IS DELIBERATE. It is where a PLAYER
   // STANDS TO BE SERVED, which room geometry does not contain — and I proved
-  // that by trying twice to derive it. "Between the keeper and the room centre"
+  // that by trying twice to derive it.
+  //
+  // ALL EIGHT ROOMS ARE COVERED, including G's four. I first wrote "G's four are
+  // covered by G's own harness" — and `scripts/checks-registered.mjs` says
+  // `G-rooms-walk.mjs` "has a --selftest and is in no tier of npm run checks",
+  // i.e. runs exactly never. So that sentence was false and G's keepers were
+  // guarded by nothing. Their four spots below are G's OWN, copied from their
+  // file rather than derived by me, because the whole lesson of the two failed
+  // attempts is that this coordinate belongs to whoever built the room. "Between the keeper and the room centre"
   // reported G's casino as `in profile` when G has verified it reads `facing
   // you`: the dealer stands across the felt. A room with no `keeper` here is
   // SKIPPED rather than guessed at; G's four are covered by G's own harness.
