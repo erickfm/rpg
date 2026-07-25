@@ -1,5 +1,46 @@
 # BLOCKED — builder C
 
+## 0. THE WORLD DOES NOT BOOT ON MAINLINE — someone owns ct/doors.ts
+
+**Read this first; it is not my file and it is down for everybody.**
+
+`publishDeclaredDoors()` throws during world build, so `__ct` never
+initialises. Every builder's shot script times out on `waitForFunction`, and
+`scripts/health.mjs` times out rather than printing WORLD OK. No visual
+verification is possible by anyone until it is fixed.
+
+**Cause**, confirmed by instrumenting the loop rather than by reading it:
+
+```
+[probe] undefined namespace: ./bodega.ts
+```
+
+`ensure()` walks `import.meta.glob('./*.ts', { eager: true })` and reads
+`.DOOR` off each namespace. `ct/bodega.ts` imports `./doors` back, so under an
+eager glob **its namespace entry is undefined**, and `MODS[path].DOOR` throws.
+The guard was `if (!d || typeof d.building !== 'string')` — that catches a
+missing DOOR, not a missing MODULE. The comment four lines above the loop
+already predicts this exact cycle; the guard just does not cover it.
+
+**What I have done, and it is deliberately the minimum** (`ceb7525f`): skip an
+undefined namespace with a `console.warn` instead of throwing. The world boots
+again and health.mjs is green. I did not touch the cycle.
+
+**What still needs doing, by whoever owns these two files:**
+
+1. **Break the cycle.** `ct/bodega.ts` importing `ct/doors.ts` while
+   `ct/doors.ts` eagerly globs every sibling is the actual defect. Either
+   bodega stops importing doors, or the glob stops being eager, or DOOR
+   declarations move to a leaf module nobody imports back.
+2. **Bodega's declared door is currently being DROPPED.** That is why the skip
+   warns rather than passing silently — the warn should stay noisy until the
+   cycle is gone, because a silently ignored door declaration is the same
+   class of bug as the silently blank glyph that shipped "BUY ERE AY ERE".
+3. **`world.ts` globs `./*.ts` eagerly too**, and `interior.ts` globs
+   `./int-*.ts`. Whatever rule comes out of this should be applied to all
+   three, not just to doors.ts.
+
+
 Two asks, both small for the person who can do them. Neither stalls me — I am
 shipping the rest of the lot meanwhile.
 
