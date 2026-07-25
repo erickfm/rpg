@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
   facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
+  proud, reveal, glazed, mullions, HI,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
 import { walkTex } from './tex-ground';
@@ -620,33 +621,53 @@ export function buildStreet(o: {
     const bayS = masonry(CFW, SHOP, 0, SHOP_MULT);
     const bm = bayS.m, bw = bayS.W, bh = bayS.H;
     const bayFrontT = bayS.paint((g) => {
+      // ONE RHYTHM across the whole bay, drawn with A's shopfront vocabulary
+      // (proud / reveal / glazed / mullions from ct/tex-world.ts) rather than
+      // a second one of my own. Every panel used to sit at its own depth and
+      // its own width, with three different kick-plate heights, so the bay
+      // read as several unrelated fronts jammed into a corner. Now there is
+      // one fascia line, one opening, one reveal depth, one cill and one
+      // stallriser running the full width — and the door is a hole in that
+      // single opening rather than a fourth panel competing with it.
+      const S = { m: bm, W: bw, H: bh };
       g.fillStyle = bod.brick; g.fillRect(0, 0, bw, bh);
       bayS.courses(g);
-      g.fillStyle = bod.col; g.fillRect(bm(0.08), bm(0.16), bw - bm(0.16), bm(0.89));   // sign band
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bm(0.08), bm(1.05), bw - bm(0.16), bm(0.16));
-      g.fillStyle = '#f2ead0'; g.font = `bold ${bm(0.65)}px monospace`;
+      // fascia: a signboard fixed to the brick, so it throws a shadow
+      const fy = bm(0.16), fh = bm(0.9);
+      proud(g, S, bm(0.12), fy, bw - bm(0.24), fh, bod.col);
+      g.font = `bold ${bm(0.6)}px monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(bod.nm, bw / 2, bm(0.61));
-      g.fillStyle = '#141820'; g.fillRect(bm(0.12), bm(1.13), bw - bm(0.24), bh - bm(1.13));  // frames
-      g.fillStyle = '#3a3020'; g.fillRect(bm(0.2), bm(1.29), bw - bm(0.4), bm(2.59));
-      g.fillStyle = '#5a6a7a'; g.fillRect(bm(0.24), bm(1.37), bm(0.73), bm(2.5));   // display glass, left
-      g.fillStyle = '#c9a45e'; g.fillRect(bm(0.28), bm(2.26), bm(0.57), bm(0.97));  // stacked cartons in it
-      g.fillStyle = '#5a6a7a'; g.fillRect(bw - bm(1.21), bm(1.37), bm(0.73), bm(2.5)); // display glass, right
-      g.fillStyle = '#4a7a3a'; g.fillRect(bw - bm(1.13), bm(2.42), bm(0.57), bm(0.81));
-      // THE DOORWAY IS A HOLE, not a painted panel. It used to be drawn on
-      // the same flat plane as the display glass in almost the same blue, so
-      // there was nothing to tell you which of the three panels you could walk
-      // through. Cut it out; the leaf, its reveal and its frame are real
-      // geometry hung behind this face, and the shadow in the reveal is what
-      // reads as a door from across the junction.
-      g.fillStyle = '#141820';
-      g.fillRect(bw / 2 - bm(0.75), bm(SHOP - 2.45), bm(1.5), bh - bm(SHOP - 2.45));  // surround
-      g.clearRect(bw / 2 - bm(0.65), bm(SHOP - 2.35), bm(1.3), bh - bm(SHOP - 2.35)); // the opening
-      g.fillStyle = '#4a4034'; g.fillRect(bm(0.2), bm(3.88), bm(0.89), bm(0.32));           // stallriser either side
-      g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), bm(0.32));
-      g.fillStyle = 'rgba(255,255,255,0.12)';
-      g.fillRect(bm(0.2), bm(3.88), bm(0.89), 1); g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), 1);
-      dither(g, bw, bh, Math.round(CFW * SHOP * 6));
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(bod.nm, bw / 2 + 1, fy + fh / 2 + 1);
+      g.fillStyle = '#f2ead0'; g.fillText(bod.nm, bw / 2, fy + fh / 2);
+      // ONE opening, set back from the brick, with ONE reveal round it
+      const ox = bm(0.4), oy = fy + fh + bm(0.26);
+      const ow = bw - bm(0.8), oh = bh - oy - bm(0.05);
+      g.fillStyle = '#211d18'; g.fillRect(ox, oy, ow, oh);
+      reveal(g, S, ox, oy, ow, oh);
+      const gx = ox + bm(0.22), gy = oy + bm(0.22);
+      const gw = ow - bm(0.44), gh = oh - bm(0.8);
+      glazed(g, S, gx, gy, gw, gh, '#38302a');
+      // the shop behind the glass — lit ceiling, a shelf run, dark floor
+      g.fillStyle = '#c9a45e'; g.fillRect(gx, gy, gw, bm(0.26));
+      g.fillStyle = 'rgba(201,164,94,0.22)'; g.fillRect(gx, gy + bm(0.26), gw, bm(0.5));
+      g.fillStyle = '#4a3f33'; g.fillRect(gx, gy + bm(1.35), gw, bm(0.12));
+      g.fillStyle = '#2b241e';
+      for (let x = gx + bm(0.35); x < gx + gw - bm(0.4); x += bm(0.7)) g.fillRect(x, gy + bm(1.05), bm(0.36), bm(0.3));
+      g.fillStyle = '#241e19'; g.fillRect(gx, gy + gh - bm(0.42), gw, bm(0.42));
+      g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(gx, gy + bm(0.98), gw, Math.max(1, bm(0.09)));
+      g.fillStyle = HI; g.fillRect(gx, gy + bm(1.07), gw, 1);
+      mullions(g, S, gx, gy, gw, gh, 4, '#3e372f');
+      // THE DOORWAY IS A HOLE in that same opening, on the same cill, so it
+      // shares the bay's rhythm instead of being a fourth panel. The leaf and
+      // its reveal are real geometry hung behind this face.
+      const dw = bm(1.3), dx = Math.round(bw / 2 - dw / 2);
+      g.fillStyle = '#141820'; g.fillRect(dx - bm(0.1), gy, dw + bm(0.2), oy + oh - gy);
+      g.clearRect(dx, gy, dw, oy + oh - gy);
+      // ONE stallriser, full width, broken only by the doorway
+      const ry = gy + gh, rh = bh - ry - bm(0.05);
+      proud(g, S, ox, ry, dx - bm(0.1) - ox, rh, '#4a4034');
+      proud(g, S, dx + dw + bm(0.1), ry, ox + ow - (dx + dw + bm(0.1)), rh, '#4a4034');
+      dither(g, bw, bh, Math.round(CFW * SHOP * 5));
     });
     const bayFront = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP),
       new THREE.MeshBasicMaterial({ map: bayFrontT, alphaTest: 0.5 }));
