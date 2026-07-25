@@ -505,7 +505,11 @@ function buildLot(o: {
     const BAY_PITCH = 2.7;                // along the aisle, per bay
     const OFF_D = 3.0, OFF_W = 4.6, OFF_H = 2.7;
     const OFF_X = X1 - OFF_D / 2 - 1.1;   // across the back, off the rear fence
-    const BAY_X0 = X0 + 3.0;              // first bay, back from the street line
+    // 3.25, not 3.0. H's fender flares widened the fleet — bodies run to 2.01 m
+    // now against 1.92 before — and the first bay's car came to within 1 cm of
+    // the frontage furniture on the merged world. My bays were tuned to the old
+    // width, which is what a shared fleet does to a lot that measured once.
+    const BAY_X0 = X0 + 3.25;              // first bay, back from the street line
     const BAY_X1 = OFF_X - OFF_D / 2 - 1.6;
     const BAYS = Math.max(1, Math.floor((BAY_X1 - BAY_X0) / BAY_PITCH));
     const bayX = (i: number) => BAY_X0 + i * BAY_PITCH;
