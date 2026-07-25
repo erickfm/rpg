@@ -59,6 +59,21 @@
  * @param capMs   hard cap. Generous — it exists to stop a hang, not to pace.
  * @returns {{frames:number, ms:number, capped:boolean}}
  */
+// JUMPING TO A NIGHT HOUR DOES NOT GIVE YOU THE NIGHT THE PLAYER SEES. This
+// function lands the clock correctly — that is measured and holds — but some of
+// the world's night state only arrives if the clock PASSES THROUGH the evening.
+// The wall-splash sheets on the building line are at opacity 0 when the clock is
+// set straight to 23:00 and at 0.286 when it goes via 20:00, and the whole frame
+// is reproducibly 7.4% darker stepped than jumped (spread within a group 0.02).
+//
+// A player never jumps, so this is a measuring artefact rather than a defect.
+// If you are measuring anything after dark, step:
+//
+//     await setClock(page, 20, 0); await page.waitForTimeout(1200);
+//     await setClock(page, 23, 0);
+//
+// notes/D-jumping-the-clock.md has the numbers. Comment added by D; the
+// function itself is untouched.
 export async function setClock(page, h, m = 0, capMs = 8000) {
   const r = await page.evaluate(([hh, mm, cap]) => new Promise((res) => {
     const t0 = performance.now();
