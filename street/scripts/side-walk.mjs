@@ -153,21 +153,39 @@ if (!drive.length) {
 // So: no collider may sit inside an [E] spot's radius out here. It asserts the
 // SPOT COUNT too, because a filter that finds nothing would otherwise pass.
 const doors = await page.evaluate(() => {
+  const RAD = 0.36;                                  // the player capsule
   const spots = window.__ct.spots()
     .filter((sp) => sp.x > 10 && sp.z > -112 && sp.z < -92)
     .map((sp) => ({ label: sp.label, x: sp.x, z: sp.z, r: sp.r }));
-  const boxes = window.__ct.colliders()
-    .filter((c) => c.minX > 10 && c.minZ > -112 && c.maxZ < -92);
-  return spots.map((sp) => ({
-    ...sp,
-    blocked: boxes.filter((c) => sp.x > c.minX - sp.r && sp.x < c.maxX + sp.r
-      && sp.z > c.minZ - sp.r && sp.z < c.maxZ + sp.r).length,
-  }));
+  // EVERY collider, not a windowed subset. The first version of this check
+  // filtered boxes to the same x/z window as the spots, which quietly excluded
+  // the casino and hotel footprints — it passed because it could not see them,
+  // not because they were clear.
+  const boxes = window.__ct.colliders();
+  const hits = (b, px, pz) => px > b.minX - RAD && px < b.maxX + RAD && pz > b.minZ - RAD && pz < b.maxZ + RAD;
+  // And the question is "can the player STAND within reach", not "is the spot
+  // inside a box" — a shopfront's spot is inside its own building's AABB by
+  // construction, and works fine, because you stand outside the wall. See
+  // scripts/gaps.mjs, which asserts the same invariant for the whole world.
+  return spots.map((sp) => {
+    let free = false;
+    const blockers = [];
+    for (let i = 0; i < 16 && !free; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      for (const f of [0.85, 0.55, 0]) {
+        const px = sp.x + Math.cos(a) * sp.r * f, pz = sp.z + Math.sin(a) * sp.r * f;
+        const b = boxes.find((bb) => hits(bb, px, pz));
+        if (!b) { free = true; break; }
+        blockers.push(b);
+      }
+    }
+    return { ...sp, blocked: free ? 0 : blockers.length };
+  });
 });
 check(doors.length >= 2, `found the side street's [E] spots to check (${doors.length}: ${doors.map((d) => d.label).join(', ')})`);
 for (const d of doors) {
   check(d.blocked === 0, `nothing parks on "${d.label}" at (${d.x.toFixed(2)}, ${d.z.toFixed(2)}) r=${d.r}`
-    + (d.blocked ? ` — ${d.blocked} collider(s) inside the trigger; the prompt silently never appears` : ''));
+    + (d.blocked ? ` — nowhere standable within r=${d.r}; the prompt silently never appears` : ''));
 }
 
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');

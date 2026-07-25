@@ -108,6 +108,92 @@ for (const t of carTraps) console.log(`  FAIL ${t.w.toFixed(2)} m at (${t.x}, ${
 console.log(carTraps.length === 0
   ? 'OK   no parked vehicle leaves a gap the player can enter but not leave'
   : `FAIL ${carTraps.length} parked vehicle gap(s) in the trap band`);
+// ── and the other way a parked car ruins a doorway ────────────────────────
+//
+// A trap-band corridor is not the only harm a badly drawn parking spot does.
+// GOTCHAS §8: a collider sitting on an [E] spot EATS the trigger — the prompt
+// never appears and the player never learns why. That is invisible to the gap
+// arithmetic above, because the car is not making a narrow corridor with
+// anything; it is simply standing on the doorbell.
+//
+// Same ownership line as the check above: I assert only VEHICLE-sized boxes,
+// because those are what ct/gap.ts and the parking draw constrain. A building
+// or a bin over a doorway is real and worth printing, but it belongs to the
+// module that put it there, so it is reported and not failed on.
+const doorbells = await page.evaluate(() => {
+  const RAD = 0.36;                                  // the player capsule
+  const spots = window.__ct.spots().map((sp) => ({ label: sp.label, x: sp.x, z: sp.z, r: sp.r }));
+  const boxes = window.__ct.colliders().map((c) => ({
+    minX: c.minX, maxX: c.maxX, minZ: c.minZ, maxZ: c.maxZ,
+    w: c.maxX - c.minX, d: c.maxZ - c.minZ,
+  }));
+  const hits = (b, px, pz) => px > b.minX - RAD && px < b.maxX + RAD && pz > b.minZ - RAD && pz < b.maxZ + RAD;
+
+  // "IS THE SPOT INSIDE A BOX" IS THE WRONG QUESTION, and asking it printed a
+  // screenful of things that are not faults: a shop's [E] spot sits ON its own
+  // building's face, so it is inside that building's AABB by construction, and
+  // an interior door spot is inside the room's own wall. Every one of those
+  // works fine, because the player stands just outside the wall and is still
+  // within the trigger radius.
+  //
+  // The trigger is eaten when there is NOWHERE within reach that the player can
+  // actually stand. So ask that instead: sample the disc around the spot and see
+  // whether any of it is free of every collider.
+  const out = [];
+  for (const sp of spots) {
+    let free = false;
+    const blockers = new Set();
+    for (let i = 0; i < 16 && !free; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      for (const f of [0.85, 0.55, 0]) {
+        const px = sp.x + Math.cos(a) * sp.r * f, pz = sp.z + Math.sin(a) * sp.r * f;
+        const b = boxes.find((bb) => hits(bb, px, pz));
+        if (!b) { free = true; break; }
+        blockers.add(b);
+      }
+    }
+    if (free) continue;
+    const list = [...blockers];
+    const veh = list.filter((b) => {
+      const lo = Math.min(b.w, b.d), hi = Math.max(b.w, b.d);
+      return lo > 1.8 && lo < 2.4 && hi > 3.5 && hi < 5.5;
+    });
+    out.push({ label: sp.label, x: +sp.x.toFixed(2), z: +sp.z.toFixed(2), r: sp.r,
+      boxes: list.length, vehicle: veh.length > 0,
+      size: (veh[0] ?? list[0]) ? `${(veh[0] ?? list[0]).w.toFixed(1)}x${(veh[0] ?? list[0]).d.toFixed(1)}` : '?' });
+  }
+  return { spots: spots.length, out };
+});
+
+// A FILTER THAT FINDS NOTHING MUST NOT PASS. The [E] census counts ~135 spots,
+// so a handful means the affordance changed shape and this check is measuring
+// air — which is worth an exit code of its own, not a green tick.
+if (doorbells.spots < 50) {
+  console.error(`\nINCONCLUSIVE — __ct.spots() returned only ${doorbells.spots} spots. ` +
+    'The [E] census counts about 135, so this is measuring air, not a clean world.');
+  await browser.close();
+  process.exit(2);
+}
+// Same ownership line as the corridor check above: assert only what the parking
+// draw constrains. A building or a bin over a doorway is real and printed, but
+// it belongs to the module that put it there.
+const eaten = doorbells.out.filter((d) => d.vehicle);
+const foreign = doorbells.out.filter((d) => !d.vehicle);
+console.log(`\n  ${doorbells.spots} [E] spots checked for somewhere to stand`);
+// ONE LINE, NOT SIXTY-TWO. Most of these are inside a collider ON PURPOSE and
+// I cannot tell which from outside: `ctx.seat()` registers a "stand up" spot
+// that only fires WHILE the player is sitting on the bench, so it is inside
+// that bench's box by design; an interior door spot sits in its own room's
+// wall. Printing each one as a finding would make this probe something people
+// learn to skip, which is worse than not having it. The count is enough for
+// whoever owns them to ask the question.
+if (foreign.length) console.log(`  ..   ${foreign.length} spot(s) have nowhere standable within reach and no vehicle involved`
+  + ' — seats ("stand up" fires while sitting) and interior doorways are expected here; not this probe\'s business');
+for (const d of eaten) console.log(`  FAIL "${d.label}" at (${d.x}, ${d.z}) is under a ${d.size} m VEHICLE — the prompt silently never appears`);
+console.log(eaten.length === 0
+  ? `OK   no parked vehicle stands on an [E] spot${foreign.length ? ` (${foreign.length} unreachable for other modules' reasons)` : ''}`
+  : `FAIL ${eaten.length} [E] spot(s) eaten by a parked vehicle`);
+
 if (errs.length) console.log(`\npage errors:\n${errs.slice(0, 3).join('\n')}`);
 await browser.close();
-process.exitCode = carTraps.length === 0 ? 0 : 1;
+process.exitCode = (carTraps.length === 0 && eaten.length === 0) ? 0 : 1;
