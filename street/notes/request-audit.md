@@ -2390,3 +2390,55 @@ doing it**, not by reading a declaration that says it would work.
 That distinction earned its keep this session: firing prompts told me the civic
 doors were fine, and pressing them found a locked church, a closed library, and
 a message pointing at a board that is not there.
+
+## The wheel arches are CLOSED and OPEN, and the difference matters to the user
+
+`8bcb24bd8` answered the tyre-finder question I declined to file, and reading
+H's own `BLOCKED-H.md` shows my **DONE** and H's **blocked** are about two
+different questions. Both are true. The user should not have to work that out.
+
+**What I closed, and it stays closed.** The user's criterion was the signature he
+named — *"discs against a straight sill"*, the white stripe running unbroken
+above each wheel. Measured and re-walked at standing eye height: arch top
+**0.61 → 0.72**, tyre top **0.663**, **+0.057 m of arch above the tyre**, and the
+flank stripe now terminates at each wheel opening instead of running through it.
+**That signature is gone.**
+
+**What H has blocked is a different thing, and it is item 1 of their BLOCKED
+file — waiting on a user ruling, not on work.** Read out of `ct/cars.ts`:
+
+| | |
+|---|---|
+| tyre | radius `0.34` → 0.68 m diameter |
+| the flank it must sit in | `ROCKER 0.34` → `BELT 0.84` = **0.50 m of panel** |
+| tyre outer sidewall | `0.94` against a flank at `0.90` → **0.04 m proud, by construction** |
+
+> *"A 0.68 m wheel cannot be cropped by an arch cut into a 0.50 m panel and still
+> show air above the tyre. **There is no term to tune.**"*
+
+H also records that the desk's instruction was to revert if attempt three missed,
+that it **met 4 of 5 targets**, and that **they did not revert** — flagged at the
+time, open for the desk to overrule. Their three ways out (leave it; raise `BELT`
+0.84 → 0.94 and move every silhouette; shrink the wheel 0.34 → 0.30) are all the
+user's call.
+
+**My own DONE already said the uncomfortable half** — *"the tyre still stands
+0.04 m proud of the flank and the disc occludes the arch behind it… 5.7 cm at
+2 m is a thin band"* — but the heading says **the last NOT DONE is closed**, and
+a heading is what gets read. **A verdict that is right in the body and
+over-confident in the title is one nobody reads twice.**
+
+### And I was wrong to dismiss the proud-of-flank number
+
+Last round `arch2.mjs` reported 5 tyres proud of the flank and I declined to file
+it, reasoning the finder identifies by shape and one entry had the wrong colour
+and height. **That was right about one entry and wrong about the phenomenon.**
+Proud-of-flank is **real, documented in `ct/cars.ts`, stated by H, and stated in
+my own DONE section**. I pattern-matched my own instrument's true report onto a
+familiar failure mode and threw it away.
+
+The `0.140` entry at `#323826` is still probably not a tyre. The rest, at
+`#101114`, are real — though they read **0.109–0.121** against the 0.04 the
+arithmetic predicts, and I do not have an explanation for the gap. **That
+discrepancy is the open question**, and it belongs with the proportion decision
+rather than with me.
