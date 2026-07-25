@@ -54,20 +54,65 @@ const r = await p.evaluate(() => {
         if (nz.includes(1)) { fh = sz[1]; fw = sz[nz.find(k=>k!==1)]; }
       }
       const rep = [m.map.repeat.x, m.map.repeat.y];
-      rows.push({ geo: g.type, mi: i, img: [iw, ih], face: [+fw.toFixed(2), +fh.toFixed(2)],
+      const dec = m.map.userData?.masonry ?? null;   // what masonry() declared
+      rows.push({ geo: g.type, mi: i, img: [iw, ih], face: [+fw.toFixed(2), +fh.toFixed(2)], dec,
         ppmX: +((iw * (rep[0]||1)) / fw).toFixed(2), ppmY: +((ih * (rep[1]||1)) / fh).toFixed(2),
         c: [(bb.min.x+bb.max.x)/2, (bb.min.y+bb.max.y)/2, (bb.min.z+bb.max.z)/2].map(v=>+v.toFixed(1)) });
     });
   });
   return rows;
 });
+// ── SELECT BY DECLARATION, NOT BY SHAPE ────────────────────────────────────
+//
+// The geometric net below — tall, on the street, big enough canvas — is what
+// AUDIT-TRIAGE.md calls out: foliage, ground decals and signage all fall into a
+// net meant for masonry, and no amount of shape-guessing separates them.
+// ct/tex-world.ts now stamps every texture masonry() paints, so the primary
+// answer asks instead of guesses.
+//
+// And it asks a better question. Grouping MEASURED px/m only ever finds
+// disagreement between this file's arithmetic and the painter's. The real
+// assertion of pattern #1 is that the face a texture lands on is the face it
+// was painted for — a canvas painted for 18 m stretched onto 12 m is a density
+// violation that no px/m grouping can name, because it just looks like another
+// group.
+const declared = r.filter(x => x.dec);
+const bad = [];
+for (const x of declared) {
+  const d = x.dec;
+  // the stamp records the metres masonry() was given; compare with the face it
+  // actually reached. 2 % tolerance absorbs the canvas rounding masonry() does
+  // (it rounds W and H to whole texels), nothing more.
+  const dw = Math.abs(x.face[0] - d.wMeters) / Math.max(d.wMeters, 1e-6);
+  const dh = Math.abs(x.face[1] - d.hMeters) / Math.max(d.hMeters, 1e-6);
+  if (dw > 0.02 || dh > 0.02) bad.push({ x, dw, dh });
+}
+const byPpm = {};
+for (const x of declared) (byPpm[x.dec.ppm] ??= []).push(x);
+console.log(`DECLARED masonry: ${declared.length} faces carry a masonry() stamp`);
+console.log(`  by declared ppm: ${Object.entries(byPpm).map(([k, v]) => `${k}:${v.length}`).join('  ')}`);
+if (!bad.length) {
+  console.log('  every one is mapped to the face it was painted for (within 2 %)');
+} else {
+  console.log(`  ${bad.length} PAINTED FOR ONE SIZE AND MAPPED TO ANOTHER:`);
+  for (const { x, dw, dh } of bad.slice(0, 10))
+    console.log(`   declared ${x.dec.wMeters}x${x.dec.hMeters} m at ${x.dec.ppm} px/m, mapped to ${x.face.join('x')} m` +
+                ` (${(dw * 100).toFixed(0)}% / ${(dh * 100).toFixed(0)}% off) at (${x.c.join(', ')})`);
+}
+// Anything wall-shaped that carries NO stamp is not a fault — most of the world
+// is not masonry — but it is the list to look at when a face seems to be missing
+// from the answer above, and it is now clearly separated from the answer.
+const undeclared = r.filter(x => !x.dec && x.face[1] > 3 && x.c[0] < 100 && x.img[0] > 20);
+console.log(`\nwall-shaped but undeclared: ${undeclared.length} (not a fault — the shape net, kept for reference)`);
+
 // walls only: tall exterior faces on the street, x within the block
 const walls = r.filter(x => x.face[1] > 3 && x.c[0] < 100 && x.img[0] > 20);
 const key = x => `${x.ppmX} x ${x.ppmY}`;
 const groups = {};
 for (const w of walls) (groups[key(w)] ??= []).push(w);
-console.log(`textured faces: ${r.length}   wall-sized exterior faces: ${walls.length}\n`);
-console.log('px/m groups (across x up):');
+console.log(`\ntextured faces: ${r.length}   wall-sized exterior faces: ${walls.length}`);
+console.log('px/m groups, MEASURED off the geometry (the old shape-based view):');
 for (const [k, v] of Object.entries(groups).sort((a,b)=>b[1].length-a[1].length))
   console.log(`  ${String(v.length).padStart(3)} x   ${k}    e.g. face ${v[0].face.join('x')} m, canvas ${v[0].img.join('x')} at (${v[0].c.join(', ')})`);
 await b.close();
+process.exitCode = bad.length ? 1 : 0;
