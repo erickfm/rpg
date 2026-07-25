@@ -120,7 +120,27 @@ Neither blocks me; both make other people's failures silent.
 2. **`scripts/fpdiff.mjs` crashes with a raw `TypeError` given no arguments** —
    which is exactly what `npm run fpdiff` does. It should ask for two
    fingerprints.
-3. **No builder can measure the world the user actually plays.**
+3. **The slow tier cannot be completed on a rebasing branch — four attempts,
+   same cause.** `3185527f` lost the six walking suites for the third time:
+   *"they are the tail of a twelve-minute run, the most exposed to any HEAD
+   movement, and I could not hold still that long."* I tried to be the one who
+   could hold still, since I had nothing to commit — and lost it the same way at
+   28 checks in, when `1e49295b` landed upstream mid-run and the preview
+   rebuilt underneath the remaining checks.
+
+   It is not a discipline problem. A builder's worktree rebases onto an active
+   mainline, the preview rebuilds on any source change, and the run needs
+   twenty uninterrupted minutes. Those three facts cannot all hold at once, and
+   my five registered walking suites sit even later in that tail than the six.
+
+   **The fix is a pinned checkout, not more willpower** — run the slow tier
+   from a detached HEAD or a dedicated worktree on its own port, so nothing
+   rebases under it. That is a desk-shaped change to how the suite is run, not
+   a check to write. Meanwhile my five have each been run individually and
+   timed on this build: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
+   crowd-net 93 s, corner-traffic 141 s, all green.
+
+4. **No builder can measure the world the user actually plays.**
    `reportWorld` throws on ANY sha mismatch, and the live integration world on
    :5177 is mainline plus every builder's in-flight work, so its stamp is never
    equal to any one checkout. The guard is right to refuse a build I did not
