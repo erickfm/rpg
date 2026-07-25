@@ -15,6 +15,26 @@ export interface Board { m: THREE.Mesh }
 /** A horizontal ground surface that darkens + cools as the rain comes in. */
 export interface WetSurface { m: THREE.MeshBasicMaterial; base: THREE.Color }
 
+/** An `[E]` interaction. Modules REGISTER these instead of the entry point
+ *  enumerating them — see the note at the bottom of this file. */
+export interface Spot {
+  x: number; z: number; r: number;
+  /** what the prompt says when you are in range */
+  label: () => string;
+  /** is this spot live right now (right floor, right side of a door…) */
+  ok: () => boolean;
+  act: () => void;
+}
+
+/** The few runtime facts a module needs in order to register an interaction
+ *  at BUILD time — where the player is, and how to move them. */
+export interface PlayerRef {
+  x: () => number;
+  z: () => number;
+  gy: () => number;
+  jumpTo: (x: number, z: number, yaw: number, gy: number) => void;
+}
+
 export interface CtxBuild {
   scene: THREE.Scene;
   /** unlit material off a painted texture — the whole world is MeshBasic */
@@ -28,4 +48,21 @@ export interface CtxBuild {
   /** prop base height on the raised walks (== KERB_H) */
   sidewalkY: number;
   KERB_H: number;
+  /** register an `[E]` interaction. The entry point iterates whatever has been
+   *  registered; it does not know what any of them are. */
+  spot: (s: Spot) => void;
+  /** where the player is and how to move them, for use inside a Spot's
+   *  ok()/act(). Safe to capture at build time — the accessors are live. */
+  player: PlayerRef;
 }
+
+// ── why `spot` and `player` exist ─────────────────────────────────────────
+// crosstown.ts is ~580 lines but was touched by 23 of the last 120 commits —
+// four times more than files twice its size — because it is the WIRING. Every
+// interactive object in the world had its [E] spot hand-written into one array
+// there, so a builder adding a door to its own module still had to edit the
+// entry point, which nobody owns and everybody collides in.
+//
+// Now a module registers its own interactions and the entry point just
+// iterates. Adding a door touches exactly one file: the one that owns the door.
+

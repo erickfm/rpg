@@ -19,7 +19,7 @@ import { type CarKind, makeCar, makeBus } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { type Look, citizenAtlas, viewFor } from './ct/citizens';
-import { type Board, type CtxBuild, type WetSurface } from './ct/ctx';
+import { type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
@@ -87,7 +87,25 @@ export function makeCrosstown(): Proto {
   const propColliders: AABB[] = [];
   const citAvoid: AABB[] = [];
   const obstacle = (b: AABB) => { propColliders.push(b); citAvoid.push(b); return b; };
-  const ctx: CtxBuild = { scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H };
+  // ── interaction registry ────────────────────────────────────────────────
+  // Modules register their own [E] spots; this file no longer enumerates them.
+  // `rig` and the teleport are created ~200 lines below, so the accessors are
+  // lazy closures — they are only ever CALLED at runtime, by which point both
+  // exist.
+  const SPOTS: Spot[] = [];
+  let rig!: FPRig;
+  let jumpToImpl!: (x: number, z: number, yaw: number, gy: number) => void;
+  const player: PlayerRef = {
+    x: () => rig.pos.x,
+    z: () => rig.pos.z,
+    gy: () => apt.gy(),
+    jumpTo: (x, z, yaw, gy) => jumpToImpl(x, z, yaw, gy),
+  };
+  const ctx: CtxBuild = {
+    scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
+    spot: (sp) => { SPOTS.push(sp); },
+    player,
+  };
   const apt = buildApartment(ctx);
 
   // ── the clock and the pockets, and the HUD that draws them ──────────────
@@ -286,7 +304,7 @@ export function makeCrosstown(): Proto {
   // most of the world and all of the reason it used to flatten after dark.
   props.dimWorld(scene);
 
-  const rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
+  rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
     bounds: { minX: -FACE - 6.4, maxX: 260, minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     groundY: (x, z) => {
@@ -307,13 +325,13 @@ export function makeCrosstown(): Proto {
 
   // debug/tour hook
   // E is one key for the whole world: doors, buying, feeding the birds
-  interface Spot { x: number; z: number; r: number; label: () => string; ok: () => boolean; act: () => void }
-  const jumpTo = (x: number, z: number, yaw: number, gy: number) => {
+  jumpToImpl = (x: number, z: number, yaw: number, gy: number) => {
     rig.pos.set(x, rig.pos.y, z);
     rig.yaw = yaw;
     apt.setGy(gy);
   };
-  const SPOTS: Spot[] = [
+  const jumpTo = jumpToImpl;
+  SPOTS.push(
     {
       x: FACE - 0.45, z: -44, r: 1.05,
       ok: () => rig.pos.x < 100 && apt.gy() < 1,
@@ -353,7 +371,7 @@ export function makeCrosstown(): Proto {
       label: () => purse.cash >= 1.25 ? 'buy soda — $1.25' : 'soda $1.25 — you’re short',
       act: () => { if (purse.cash >= 1.25) { purse.cash -= 1.25; purse.inv.SODA = (purse.inv.SODA ?? 0) + 1; hud.refreshWallet(); } },
     },
-  ];
+  );
 
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {
