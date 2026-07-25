@@ -1325,25 +1325,47 @@ export function buildStreet(o: {
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     scene.add(floorA);
-    // bare-brick end wall (no shop, one grimy window). 7 m x 12.8 m of wall —
-    // it used to be a fixed 80 x 150 canvas, i.e. 11.43 x 11.72 px/m.
-    const endS = masonry(7.0, 12.8, 0);
+    // bare-brick end wall (no shop, one grimy window). 7 m wide, and as tall
+    // as the taller of the two buildings the alley is cut between.
+    //
+    // It was a fixed 12.8 m, and its neighbours are 16–19 m, so standing in
+    // the alley and looking up you saw a WEDGE OF SKY over the back wall —
+    // between two five-storey shells that are supposed to be solid block
+    // (notes/seam-audit.md finding 16, "still live"). An alley is a slot, and
+    // a slot that shows sky at the closed end is a fence, not a building.
+    //
+    // Derived from the roster neighbours rather than typed, so it cannot fall
+    // behind again when a building's floor count changes — which is exactly
+    // how 12.8 stopped being right.
+    const alleyI = WEST.indexOf('alley');
+    const topOfB = (b: BldSpec) => bandOf(b) + 3.4 + b.floors * 2.4;
+    const END_H = Math.max(
+      topOfB(WEST[alleyI - 1] as BldSpec),
+      topOfB(WEST[alleyI + 1] as BldSpec),
+    );
+    const endS = masonry(7.0, END_H, 0);
     const bareBrickT = endS.paint((g) => {
       const EW = endS.W, EH = endS.H, em = endS.m;
       g.fillStyle = '#5a3a30'; g.fillRect(0, 0, EW, EH);
       endS.courses(g);
-      g.fillStyle = '#1a1c22'; g.fillRect(em(2.6), em(3.0), em(1.75), em(2.4));   // window reveal
-      g.fillStyle = '#3a4450'; g.fillRect(em(2.8), em(3.15), em(1.4), em(2.05));  // grimy glass
+      // The window is anchored to the GROUND, not to the top of the canvas.
+      // It used to be `em(3.0)` down from the top of a 12.8 m wall — 9.8 m up
+      // — and the moment the wall got its real height that put it 15 m up,
+      // sliding with the parapet instead of staying on its floor. Same numbers
+      // in the world as before, measured from the pavement.
+      const winTop = EH - em(9.8);
+      g.fillStyle = '#1a1c22'; g.fillRect(em(2.6), winTop, em(1.75), em(2.4));   // window reveal
+      g.fillStyle = '#3a4450'; g.fillRect(em(2.8), winTop + em(0.15), em(1.4), em(2.05));  // grimy glass
       g.fillStyle = 'rgba(0,0,0,0.3)';
       for (let k = 0; k < 4; k++) g.fillRect(Math.floor(Math.random() * (EW - em(0.25))), 0, em(0.25), Math.floor(EH * Math.random()));
-      dither(g, EW, EH, Math.round(7.0 * 12.8 * 7.8));
+      dither(g, EW, EH, Math.round(7.0 * END_H * 7.8));
     });
     const endWallM = new THREE.MeshBasicMaterial({ color: 0x3d2a24 });
     const alleyEnd = new THREE.Mesh(
-      new THREE.BoxGeometry(1.2, 12.8, 7),
+      new THREE.BoxGeometry(1.2, END_H, 7),
       [new THREE.MeshBasicMaterial({ map: bareBrickT }), endWallM, endWallM, endWallM, endWallM, endWallM],
     );
-    alleyEnd.position.set(-FACE - 6.9, 6.4, (AZ0 + AZ1) / 2);
+    alleyEnd.position.set(-FACE - 6.9, END_H / 2, (AZ0 + AZ1) / 2);
     solid({ minX: -FACE - 7.6, maxX: -FACE - 6.2, minZ: AZ1 - 0.5, maxZ: AZ0 + 0.5 });
     scene.add(alleyEnd);
     // ── the alley's two flanks ────────────────────────────────────────────
