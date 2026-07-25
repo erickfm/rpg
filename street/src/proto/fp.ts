@@ -26,6 +26,21 @@ export interface FPOpts {
 // old value, so a smaller radius can only make gaps easier, never trap you.
 const RADIUS = 0.36;   // was 0.42
 
+/** How far your eye sits above the seat pan. Standing eye is 1.62; on a
+ *  0.45 m bench this puts you at 1.17, on a 0.71 m stool at 1.43. */
+export const SIT_EYE = 0.72;
+
+/** Where a seat puts you. Modules describe seats through `ctx.seat()`; this is
+ *  what the rig is actually handed. */
+export interface SeatPose {
+  /** the seat itself — where your body goes */
+  x: number; z: number;
+  /** which way you face once you are on it */
+  yaw: number;
+  /** the seat pan's height above the floor it stands on */
+  h: number;
+}
+
 export class FPRig {
   yaw: number;
   pitch = 0;
@@ -43,6 +58,17 @@ export class FPRig {
   private jumpHeld = false; // holding the key doesn't re-jump; release first
   private crouchT = 0; // 0 standing, 1 crouched — eased so the camera dips smoothly
   private bobT = 0;
+  // ── sitting ──
+  //
+  // The seat you are on, and the spot you were standing on when you sat. Both
+  // live here because the rig is the only thing that owns where the body is —
+  // and because "stand up" has to be safe, which it is BY CONSTRUCTION: the
+  // place you get up into is the exact place you got up FROM, and you were
+  // demonstrably standing there a moment ago. That is why `standFrom` is a
+  // stored position rather than an offset from the seat, which would have to
+  // guess at a clear direction and would sooner or later guess into a table.
+  private seat: SeatPose | null = null;
+  private standFrom: { x: number; z: number } | null = null;
   private fwd = new THREE.Vector3();
   private right = new THREE.Vector3();
   private look = new THREE.Vector3();
@@ -64,6 +90,51 @@ export class FPRig {
     cam.position.copy(this.pos);
   }
 
+  /** are you sitting on something right now */
+  get seated(): boolean { return this.seat !== null; }
+  /** the seat you are on, so a caller can tell WHICH one to offer standing up */
+  get seatedOn(): SeatPose | null { return this.seat; }
+
+  /** Take a seat. Remembers where you were standing so `stand()` can undo it. */
+  sit(pose: SeatPose): void {
+    if (this.seat) return;
+    this.standFrom = { x: this.pos.x, z: this.pos.z };
+    this.seat = pose;
+    this.pos.x = pose.x; this.pos.z = pose.z;
+    this.yaw = pose.yaw;
+    // cancel anything mid-flight, or you land after standing up
+    this.airY = 0; this.vy = 0; this.jumpHeld = false;
+  }
+
+  /**
+   * Get up, back onto the spot you sat down from.
+   *
+   * The fallback below should never run — you were standing on `standFrom`
+   * when you sat, and nothing in this world moves a collider afterwards. It is
+   * here because "you got up inside the table" is the failure mode this
+   * mechanic will be judged on, and a seat registered with a bad approach by
+   * some future builder would otherwise strand the player with no way out.
+   */
+  stand(): void {
+    if (!this.seat) return;
+    const seat = this.seat;
+    let to = this.standFrom;
+    if (!to || this.blocked(to.x, to.z)) {
+      to = null;
+      // step out along the way the seat faces, then try around the clock
+      for (let ring = 0.7; ring <= 1.4 && !to; ring += 0.35) {
+        for (let i = 0; i < 12 && !to; i++) {
+          const a = seat.yaw + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * (Math.PI / 6);
+          const cx = seat.x + Math.sin(a) * ring, cz = seat.z - Math.cos(a) * ring;
+          if (!this.blocked(cx, cz)) to = { x: cx, z: cz };
+        }
+      }
+    }
+    if (to) { this.pos.x = to.x; this.pos.z = to.z; }
+    this.seat = null;
+    this.standFrom = null;
+  }
+
   private blocked(x: number, z: number): boolean {
     for (const c of this.colliders) {
       if (x > c.minX - RADIUS && x < c.maxX + RADIUS && z > c.minZ - RADIUS && z < c.maxZ + RADIUS) return true;
@@ -82,6 +153,27 @@ export class FPRig {
     if (input.keys.has('arrowright')) this.yaw += dt * 1.7;
     if (input.keys.has('arrowup')) this.pitch = Math.min(1.3, this.pitch + dt * 1.2);
     if (input.keys.has('arrowdown')) this.pitch = Math.max(-1.3, this.pitch - dt * 1.2);
+
+    // ── seated: you can look, and that is all ──
+    //
+    // Placed after the look block and before everything else, so turning your
+    // head still works while walking, jumping, crouching and the bob do not.
+    // Nothing below this point runs, which is the point: there is exactly one
+    // early return rather than a `seated` check threaded through the movement
+    // code, where one missed branch would let you shuffle off the stool.
+    if (this.seat) {
+      this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
+      const sgy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
+      const sy = sgy + this.seat.h + SIT_EYE;
+      this.cam.position.set(this.pos.x, sy, this.pos.z);
+      this.look.set(
+        Math.sin(this.yaw) * Math.cos(this.pitch),
+        Math.sin(this.pitch),
+        -Math.cos(this.yaw) * Math.cos(this.pitch),
+      );
+      this.cam.lookAt(this.cam.position.x + this.look.x, sy + this.look.y, this.cam.position.z + this.look.z);
+      return;
+    }
 
     this.fwd.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this.right.set(Math.cos(this.yaw), 0, Math.sin(this.yaw));

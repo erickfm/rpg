@@ -115,6 +115,12 @@ export function buildDiner(ctx: CtxBuild): void {
     const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.1, 10), stoolTopM);
     put(seat, sx, 0.71, CZ + 1.0);
     solid(sx, CZ + 1.0, 0.34, 0.34);
+    // …and you can sit on it. Facing −z, which is the counter: the whole
+    // point of a counter stool is that it aims you at the back bar.
+    ctx.seat({
+      x: room.wx(sx), z: room.wz(CZ + 1.0), yaw: 0, h: 0.71, r: 0.62,
+      ok: room.inside, label: 'sit at the counter',
+    });
   }
 
   // ── the back bar ──
@@ -177,6 +183,15 @@ export function buildDiner(ctx: CtxBuild): void {
     put(tbl, bx, 0.74, TZ);
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), chromeM);
     put(leg, bx, 0.36, TZ);
+    // One seat per booth, on the AISLE bench, facing the window across the
+    // table (yaw π = +z). Not two: the window-side bench sits behind its own
+    // table with the glass at its back, so there is nowhere to stand within
+    // reach of it — a booth is one place to sit, and registering a seat you
+    // can never get to would be a prompt that never appears.
+    ctx.seat({
+      x: room.wx(bx), z: room.wz(TZ - 0.6), yaw: Math.PI, h: 0.45, r: 0.9,
+      ok: room.inside, label: 'take the booth',
+    });
   }
   // ONE collider for the whole bank, not nine. The dividers between booths are
   // 0.25 m apart — narrower than the 0.72 m player — so boxing each bench

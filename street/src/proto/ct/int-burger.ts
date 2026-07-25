@@ -256,6 +256,16 @@ export function buildBurger(ctx: CtxBuild): void {
       put(post, ux + sx, 0.36, uz + sz);
       const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.07, 10), stoolT);
       put(seat, ux + sx, 0.61, uz + sz);
+      // Every one of the twenty is sittable, and every one faces its own
+      // table: the stool is on a swing arm bolted to that pedestal, so
+      // "which way does it point" is not a choice, it is the geometry.
+      // yaw from the rig's convention, fwd = (sin yaw, −cos yaw), pointing
+      // from the stool back at the unit centre.
+      ctx.seat({
+        x: room.wx(ux + sx), z: room.wz(uz + sz),
+        yaw: Math.atan2(-sx, sz), h: 0.61, r: 0.66,
+        ok: room.inside, label: 'sit down',
+      });
     }
     // one collider for the whole unit — the gaps between a stool and its own
     // table are nowhere near the 0.72 m the player needs, so boxing the parts

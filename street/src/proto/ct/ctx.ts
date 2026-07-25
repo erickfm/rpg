@@ -26,6 +26,47 @@ export interface Spot {
   act: () => void;
 }
 
+/**
+ * A seat you can actually sit on.
+ *
+ * The user: *"for every seat in the game i want to be able to sit down"*. There
+ * are seats all over this world — counter stools, booths, the bus bench, the
+ * casino, the hotel lobby, room 301 — and they belong to six different owners.
+ * So this is a REGISTRATION, exactly like `Spot`: a module describes its own
+ * furniture and the entry point never learns what any of it is. Making your
+ * chairs sittable does not require the desk, this file, or builder F.
+ *
+ * The minimum is four numbers:
+ *
+ *     ctx.seat({ x, z, yaw, h: 0.45 })
+ *
+ * `x, z` is the seat ITSELF — you are put there, and it is also the centre of
+ * the `[E]` trigger, so it must be within `r` of somewhere you can stand.
+ * A seat you cannot reach registers fine and can never be used; if the
+ * furniture's own collider keeps you further away than `r`, give it an
+ * `approach`.
+ */
+export interface Seat {
+  /** the seat itself, in WORLD coordinates (interiors: use `room.wx/wz`) */
+  x: number; z: number;
+  /** which way you face once seated. Same convention as the rig:
+   *  0 = −z, π/2 = +x, π = +z, −π/2 = −x. Point it at the table. */
+  yaw: number;
+  /** height of the seat pan above the floor: 0.45 a bench, 0.71 a stool */
+  h: number;
+  /** how close you must be to be offered it. Default 0.75 — big enough to
+   *  reach past a 0.36 m player radius, small enough that a row of stools
+   *  does not become one wide blur of overlapping triggers. */
+  r?: number;
+  /** where you STAND to be offered it, if that is not the seat itself — a
+   *  booth bench sits behind its own table and cannot be stood next to. */
+  approach?: { x: number; z: number };
+  /** is this seat live right now (right room, right floor) */
+  ok?: () => boolean;
+  /** prompt override. Defaults to 'sit down'. */
+  label?: string;
+}
+
 /** The few runtime facts a module needs in order to register an interaction
  *  at BUILD time — where the player is, and how to move them. */
 export interface PlayerRef {
@@ -80,6 +121,9 @@ export interface CtxBuild {
   /** register an `[E]` interaction. The entry point iterates whatever has been
    *  registered; it does not know what any of them are. */
   spot: (s: Spot) => void;
+  /** register a seat. Sitting, standing and the prompt are handled for you —
+   *  see `Seat`. Register one per seat you actually want offered. */
+  seat: (s: Seat) => void;
   /** register a per-frame hook. `order` decides when it runs — see ORDER.
    *  The billboard and citizen passes run after every registered hook. */
   onFrame: (fn: FrameHook, order?: number) => void;

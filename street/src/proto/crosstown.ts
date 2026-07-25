@@ -100,6 +100,12 @@ export function makeCrosstown(): Proto {
   // lazy closures — they are only ever CALLED at runtime, by which point both
   // exist.
   const SPOTS: Spot[] = [];
+  // every registered seat, for the test harness only — `scripts/seats-walk.mjs`
+  // sits on all of them. Six different owners will be registering furniture
+  // through ctx.seat(); none of them can verify it without being able to
+  // enumerate what got registered.
+  const SEATS: { pose: { x: number; z: number; yaw: number; h: number };
+    at: { x: number; z: number }; r: number; label: string }[] = [];
   let rig!: FPRig;
   let jumpToImpl!: (x: number, z: number, yaw: number, gy: number) => void;
   const player: PlayerRef = {
@@ -114,6 +120,35 @@ export function makeCrosstown(): Proto {
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
     spot: (sp) => { SPOTS.push(sp); },
+    // ── seats ───────────────────────────────────────────────────────────
+    //
+    // A seat is TWO ordinary spots: one to sit, one to stand. Building it out
+    // of the existing interaction registry rather than adding a parallel one
+    // means the E dispatch below does not change at all, and a seat behaves
+    // like every other prompt in the world for free.
+    //
+    // The pairing is what keeps it honest. `sit` is dead while you are seated
+    // — every seat's is, so no seat can be hopped to from another — and
+    // `stand` is live only for the seat you are actually on, which it knows
+    // by identity, not by position.
+    seat: (s) => {
+      const pose = { x: s.x, z: s.z, yaw: s.yaw, h: s.h };
+      const at = s.approach ?? { x: s.x, z: s.z };
+      SEATS.push({ pose, at, r: s.r ?? 0.75, label: s.label ?? 'sit down' });
+      SPOTS.push({
+        x: at.x, z: at.z, r: s.r ?? 0.75,
+        ok: () => !rig.seated && (s.ok ? s.ok() : true),
+        label: () => s.label ?? 'sit down',
+        act: () => rig.sit(pose),
+      });
+      SPOTS.push({
+        // centred on the SEAT, because that is where you are while on it
+        x: s.x, z: s.z, r: 0.5,
+        ok: () => rig.seatedOn === pose,
+        label: () => 'stand up',
+        act: () => rig.stand(),
+      });
+    },
     onFrame: (fn, order = ORDER.PROPS) => { HOOKS.push({ fn, order }); },
     player,
   };
@@ -365,6 +400,12 @@ export function makeCrosstown(): Proto {
   // debug/tour hook
   // E is one key for the whole world: doors, buying, feeding the birds
   jumpToImpl = (x: number, z: number, yaw: number, gy: number) => {
+    // Get up first. A door or a till within reach of a chair would otherwise
+    // teleport you across the world still sitting on furniture you left
+    // behind — and `stand()` would then try to put you back on a spot in the
+    // room you have just left. No seat is currently that close to a door;
+    // this is here so that the first one somebody registers is not a bug.
+    if (rig.seated) rig.stand();
     rig.pos.set(x, rig.pos.y, z);
     rig.yaw = yaw;
     apt.setGy(gy);
@@ -436,6 +477,10 @@ export function makeCrosstown(): Proto {
     // bodega was un-enterable — and it was previously only answerable by
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
+    seats: () => SEATS,
+    camY: () => cam.position.y,
+    yaw: () => rig.yaw,
+    seated: () => (rig.seated ? rig.seatedOn : null),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
   };
 
