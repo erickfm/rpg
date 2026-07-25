@@ -94,10 +94,28 @@ at the same hour, joined on world position.
 **The opacity change is the splash**, as expected: `props` and the unstamped
 sheets gain +2.98 and +2.55 of opacity between them, and nothing else moves.
 
-**The colour change is not, and it is much wider.** 305 materials are graded
-*differently* at the same hour depending on how the clock got there, across six
-modules including 94 of mine. That is `dimWorld`'s doing, not the splash's, and
-it is what actually produces the 7.4%.
+**The colour change is not, and it is much wider** — but the sentence I first
+wrote here, that it "is what actually produces the 7.4%", **is not established
+and I have withdrawn it.** Per-material, the difference is concentrated in one
+module and it is not one I measured the frame from:
+
+```
+                n     mean |dLum|   worst
+   vice        125      0.7038      0.7088   (0.0962 -> 0.805)
+   lot          28      0.0879      0.9550
+   props        26      0.0283
+   street       94      0.0122      -0.0332   <- mine, ~1% each
+   tex-ground   12      0.0220
+```
+
+**`vice` sits at x 33.8..56.7, z -99.7..-92.5.** The 7.4% was measured from
+(-1.2, -40) looking down the street, so the module carrying almost all of the
+colour difference **was not in that frame.** My own 94 differ by about 1% each,
+which is negligible.
+
+So: the frame difference is real and reproducible, the material differences are
+real, and **I have not shown that either explains the other.** Both stand as
+separate measurements until someone connects them.
 
 **A wrong turn worth recording**, because it nearly became "nothing differs": my
 first diff joined the two worlds on `o.uuid` and reported **0 differences in
@@ -107,3 +125,23 @@ that never joined. Re-keyed on world position, the 305 appeared. I only caught
 it because the zero contradicted a measurement I already had.
 
 Handed over rather than chased: the mechanism is in `ct/props.ts`.
+
+
+---
+
+## For G: the casino's lighting is off in a jumped night
+
+The single largest effect in the diff is `vice`, and it is not subtle:
+
+```
+125 materials, mean |change| 0.7038, worst 0.0962 -> 0.805
+```
+
+At the same hour, the casino's materials sit near **0.096 when the clock is
+jumped to 23:00 and near 0.805 when it steps through 20:00.** Anything measuring
+vice after dark with a jumped clock is measuring an unlit casino.
+
+`6e5599e9` already controlled `glow`'s pool ratio this way and found it
+identical, so the practice is spreading — this is the module where it matters
+most. Not investigated further: `ct/vice.ts` is G's and the mechanism is
+`ct/props.ts`'s.
