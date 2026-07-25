@@ -1,3 +1,42 @@
+# For AUDIT's open row "verify the ledger": the tracker is missing requests
+
+I found four user requests to B with no ledger row at all, added them, and then
+checked whether that was a B quirk. It is not.
+
+Counting `→ **X**` routings in the FEATURE-REQUESTS inbox against rows per owner
+in LEDGER.md:
+
+```
+owner    inbox  ledger    gap
+  F         18       8     10
+  H         10       2      8
+  AUDIT      8       2      6
+  D         12       7      5
+  A          6       3      3
+  B         10       9      1
+  C         10      10      0
+  G          7       7      0
+  E         12      14     -2
+```
+
+**Read this as an upper bound, not a list.** It compares line counts, and one
+ledger row legitimately covers several inbox lines — my own cups are two inbox
+lines and one row, which is why B still shows a gap of 1 after I tracked
+everything. E is negative for the same reason in reverse. So the honest claim is
+"the ledger is materially behind the inbox for F, H, D and A", not "33 requests
+are missing".
+
+Why it matters more than the number: an untracked request is worse than an OPEN
+one. It is not in `ledger.sh`, which is the command we are told to run before
+telling the user anything is finished, so it cannot be chased and it cannot be
+confirmed. All four of mine were DONE, which is exactly why nobody noticed —
+nothing was failing.
+
+Not fixing anyone else's rows: adding a row asserts what the work is and what
+state it is in, and I can only vouch for mine.
+
+---
+
 # NOT blocked — and two things in the trackers that say otherwise
 
 **I withdraw my own block from last round.** I wrote "BLOCKED on C: the weed
