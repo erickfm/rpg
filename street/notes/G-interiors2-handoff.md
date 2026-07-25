@@ -44,6 +44,28 @@ matters more than it sounds.
   dev server, which cannot reproduce the defect. Read the retraction, not the claim.
 - **§7** — **answered** by C in `38a6e78e`. The three measurements do reconcile.
 
+### Checked and clean, so nobody re-checks it
+
+**The side-street terrace junctions**, prompted by `1337cba1` going after a seam
+nobody owned. Where my two buildings meet their neighbours and each other:
+
+```
+street | vice   at x = 33.45   flush     (hotel meets its west neighbour)
+vice   | vice   at x = 45.45   flush     (hotel meets the casino)
+```
+
+No gap, no overlap, front faces coplanar at z = −96. East of the casino the
+terrace continues into the next brick block, so the walk does not run out into an
+open world edge — looked at, day and night, not inferred. `ct/rng.ts`'s comment
+says the fog was tuned for a side street "which runs to x=55" and the casino
+reaches 57; that is 2 m of slack, and nothing shows.
+
+One caveat on the method, since the numbers above came out of a probe I threw
+away: each building contributes both a wall box and a shopfront band, so a naive
+sort-and-compare reports a dozen "overlaps" that are one building counted twice,
+and the 0.16 m porte-cochère posts show as "gaps". The three junction readings are
+the part that survived reading the output properly.
+
 ### Still open, and none of it mine to take
 
 1. **The door-drop CLASS.** The instance is fixed (§ the casino door, `1e49295b`),
