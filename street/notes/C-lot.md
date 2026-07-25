@@ -303,6 +303,43 @@ passed when it was written. All eight, re-run at HEAD:
 | `people-walk` | is every figure from the 8-angle atlas | a hand-drawn figure added in source → `1.00x1.80 (ratio 1.80) @ x=23` |
 | `gotchas-numbers` | unique and ordered headings | `--selftest` duplicates a number → names both titles |
 
+**Re-run at HEAD after this week's rewrites, because the table above was
+written before them.** All six selftests still fire. The three that need a
+SOURCE mutation were done by hand, and two of them were not fine:
+
+| mutation | before | after |
+|---|---|---|
+| `CASE_W` 2.5 → 5.6, stone floods the bay | CAUGHT, names `CASE_W` | unchanged |
+| `FENCE_X` pushed 1.08 m into the walk | "red", but for the WRONG REASON | CAUGHT, names the intrusion |
+| a 1.00×1.80 hand-drawn figure, `alphaTest 0.3` | **SLEPT** | CAUGHT |
+
+**`lot-frontage` was stealing its own finding.** A fence in the pavement came
+back as *"THE CONSTANTS IN THIS SCRIPT NO LONGER DESCRIBE THE WORLD — re-read
+ROAD_HALF / WALK / FACE from ct/rng.ts"*, and exited before measuring the walk.
+Red, so I would have ticked it; a reader would have gone to `rng.ts`, found all
+three constants correct, and never learned a fence was in the pavement. The two
+directions are different faults and only one is about constants — east of the
+line means the frame of reference moved, west of it IS the defect.
+
+Letting it fall through to the collider analysis was my first fix and it was
+worse: the mutation then came back **green**, because this module registers no
+collider for its chain-link (the site wall under it already stops you), so a
+fence 1.08 m into the pavement changes no free-centre band at all. That is the
+lesson worth keeping: **GOTCHAS 9 is not "can you walk the 2 m", it is that the
+2 m is THERE.** A fence you walk straight through is not a preserved pavement.
+The band measurement and the mesh test answer different questions and neither
+implies the other.
+
+**`people-walk` was guarding the convention instead of the rule.** It required
+`alphaTest === 0.5` exactly — the value every existing figure happens to use,
+and the one thing a newly hand-drawn person has no obligation to type. The same
+cutout at 0.3 was invisible. Widening it to any cutout immediately turned up a
+false positive that had been hiding behind the narrow test: a 1.10×1.95 cutout
+in the walk-up, person-shaped to the centimetre, whose texture repeats 3.67×6.5
+— a grille. Dimensions were never going to separate those. Tiling does, and it
+is the same fact the atlas test already leans on: a figure wears its texture
+once; anything repeating across itself is a surface.
+
 Two have no `--selftest` and that is stated in each rather than left to be
 assumed: breaking `lot-frontage` or `people-walk` means changing SOURCE, not
 the live scene, so the flag cannot do it. Both were mutated by hand this

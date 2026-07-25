@@ -66,14 +66,60 @@ const span = await p.evaluate(() => {
 // its own copied constants.
 {
   const off = span[2] - FACE;
-  if (off < -0.05 || off > 1.0) {
+  // THE TWO SIDES OF THIS ARE NOT THE SAME FAULT, and treating them as one
+  // made this script STEAL ITS OWN FINDING.
+  //
+  // Found by mutation: pushing FENCE_X 1.08 m west — a fence standing in the
+  // sacred 2 m walk, the exact defect this file exists to catch — came back as
+  // "THE CONSTANTS IN THIS SCRIPT NO LONGER DESCRIBE THE WORLD ... Re-read
+  // ROAD_HALF / WALK / FACE from ct/rng.ts", and exited BEFORE measuring the
+  // walk at all. It was red, so I would have called it caught; a reader would
+  // have gone to rng.ts, found all three constants perfectly correct, and had
+  // no idea a fence was in the pavement.
+  //
+  //   off > 1.0   the lot is nowhere near the building line. Nothing this
+  //               module does moves it a metre east, so the frame of
+  //               reference is what changed. Constants. Abort — every
+  //               measurement below would be of the wrong strip of ground.
+  //
+  //   off < 0     something of MINE is west of the building line. That is not
+  //               a frame-of-reference problem, it IS the finding. Fall
+  //               through, and let the intrusion analysis name the mesh.
+  //
+  // If FACE really had moved west, this path still tells the truth — it will
+  // report the whole frontage intruding rather than one prop, which reads as
+  // the wrong shape of answer and sends you looking at the constants anyway.
+  if (off > 1.0) {
     console.error(`\nTHE CONSTANTS IN THIS SCRIPT NO LONGER DESCRIBE THE WORLD.`);
     console.error(`  FACE is ${FACE} here, so the lot's westmost mesh should sit just east of it.`);
-    console.error(`  It is at x ${span[2].toFixed(2)}, ${off.toFixed(2)} m away.`);
+    console.error(`  It is at x ${span[2].toFixed(2)}, ${off.toFixed(2)} m EAST — too far to be the frontage.`);
     console.error(`  Re-read ROAD_HALF / WALK / FACE from ct/rng.ts.\n`);
     process.exit(1);
   }
-  console.log(`building line FACE ${FACE}; the lot starts ${off.toFixed(2)} m east of it — constants hold`);
+  if (off < -0.05) {
+    // AN ASSERTION, not an abort, and not a note either. Letting this fall
+    // through to the collider analysis was my first fix and it was worse than
+    // the bug: the mutated fence then came back GREEN, because this module
+    // deliberately registers no collider for its chain-link — the site wall
+    // underneath already stops you — so a fence pushed 1.08 m into the
+    // pavement changes no free-centre band at all. The walk measurement is
+    // blind to anything without a box, by construction.
+    //
+    // Which is the whole reason this test has to exist beside it. GOTCHAS 9
+    // is not "can you walk the 2 m", it is that the 2 m is THERE: a fence you
+    // walk straight through is not a preserved pavement, it is a graphical
+    // error you can stand inside. The collider band answers "can I pass" and
+    // this answers "is anything of mine standing in it", and neither implies
+    // the other.
+    console.error(`\nA LOT MESH IS WEST OF THE BUILDING LINE.`);
+    console.error(`  x ${span[2].toFixed(2)} — ${Math.abs(off).toFixed(2)} m past FACE ${FACE}, which is the walk.`);
+    console.error(`  Nothing this module builds may sit west of the building line (GOTCHAS 9).`);
+    console.error(`  Note this is a MESH test: a prop with no collider takes no walkable`);
+    console.error(`  width and is still wrong, so the band measurement below cannot see it.\n`);
+    process.exitCode = 1;
+  } else {
+    console.log(`building line FACE ${FACE}; the lot starts ${off.toFixed(2)} m east of it — constants hold`);
+  }
 }
 
 const cols = await p.evaluate(() => window.__ct.colliders()

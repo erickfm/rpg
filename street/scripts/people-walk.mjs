@@ -58,7 +58,36 @@ const r = await p.evaluate(([BOX]) => {
     // squatter. The ratio is what separates them, and it is a heuristic — a
     // genuinely stout person or a very tall plant would need a human eye.
     const { width: pw, height: ph } = o.geometry.parameters;
-    if (o.geometry.type !== 'PlaneGeometry' || !mats.some((mm) => mm.alphaTest === 0.5)) return;
+    // ANY cutout, not `alphaTest === 0.5`.
+    //
+    // 0.5 is the convention every figure in the world happens to use, and
+    // matching it exactly meant this check could only see hand-drawn people
+    // who had followed the convention — which is the one thing a hand-drawn
+    // person has no obligation to do. Mutation-tested both ways: the same
+    // 1.00 x 1.80 cutout dropped into the lot came back
+    //
+    //   alphaTest 0.5   1 person-shaped hand-drawn cutouts remain   exit 1
+    //   alphaTest 0.3   no hand-drawn people anywhere               exit 0
+    //
+    // and 0.3 is not a strange thing to type. The check was guarding the
+    // convention rather than the rule.
+    //
+    // Widening costs nothing here: the shape filters below — PlaneGeometry,
+    // upright, 0.8-1.4 wide, 1.5-2.1 tall, ratio >= 1.55 — are what actually
+    // separate a person from a palm, and the clean world still reports zero
+    // suspects with this open to every cutout.
+    if (o.geometry.type !== 'PlaneGeometry' || !mats.some((mm) => mm.alphaTest > 0)) return;
+    // AND IT MUST NOT BE TILED. Widening the alphaTest test immediately
+    // produced a false positive that had been hidden behind it: a 1.10 x 1.95
+    // cutout in the walk-up, person-shaped to the centimetre, whose texture
+    // repeats 3.67 x 6.5 — a grille, not a man. Dimensions alone cannot tell
+    // those apart and were never going to.
+    //
+    // Tiling is what separates them, and it is the same fact the atlas test
+    // above already leans on: a FIGURE wears its texture once, whether that is
+    // one drawing or one cell of an atlas sheet. Anything repeating across
+    // itself is a surface.
+    if (mats.some((mm) => Math.abs(mm.map.repeat.x) > 1.01 || Math.abs(mm.map.repeat.y) > 1.01)) return;
     if (Math.abs(o.rotation.x) > 0.01) return;
     if (pw >= 0.8 && pw <= 1.4 && ph >= 1.5 && ph <= 2.1 && ph / pw >= 1.55)
       suspects.push(`${pw.toFixed(2)}x${ph.toFixed(2)} (ratio ${(ph / pw).toFixed(2)}) @ x=${w.x.toFixed(0)}`);
