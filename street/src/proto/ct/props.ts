@@ -5,6 +5,7 @@ import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTe
          paperTex, scrapTex } from './tex-world';
 import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
+import { weedTuft } from './weeds';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
 //
@@ -2655,6 +2656,61 @@ export function buildProps(ctx: CtxBuild): Props {
   // between the legs, which stand at x 5.13 and 5.52 and z -35.78 and -34.22
   drop('coffee cup', 5.32, -35.30, 0.70);
   drop('folded newspaper', 5.30, -34.80, -0.50);
+
+  // ── weeds in the kerb seam ──────────────────────────────────────────────
+  //
+  // C's tuft, placed by me. `ct/weeds.ts` says so itself: "a lot puts them where
+  // no car drives, a street puts them in the KERB SEAM, a park puts them at a
+  // path edge. This knows how a weed LOOKS, not where one grows." So the look is
+  // C's and the placement is a fact about my ground.
+  //
+  // The user's brief, quoted in E's park note: "absent from the middle of the
+  // path where feet keep it clear. That contrast between a worn clean centre and
+  // a weedy edge is the whole effect." On a street the worn clean centre is the
+  // road and the walk; the weedy edge is the seam where the gutter pan dies into
+  // the kerb face, which is where grit collects and nothing sweeps.
+  //
+  // NOT `rnd()`. GOTCHAS §2: ct/rng.ts is ONE seeded stream and tree heights and
+  // pigeon placement draw from it as they are constructed, so taking draws here
+  // would move every tree in the world. This uses its own hash of the loop
+  // index, which is deterministic, reproducible and touches nothing else.
+  const weedRnd = (i: number, salt: number) => {
+    let h = Math.imul((i * 2654435761) ^ (salt * 1013904223), 2246822519);
+    h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13;
+    return ((h >>> 0) % 10000) / 10000;
+  };
+  // z ranges to leave alone: the car lot's driveway apron, where the kerb is cut
+  // away and cars cross; and the two catch basins, whose castings own that seam.
+  const weedSkip = (side: number, z: number) =>
+    (side > 0 && Math.abs(z - 2.6) < 5.0)          // the drive and its flares
+    || (side > 0 && Math.abs(z + 92.5) < 0.9)      // east basin
+    || (side < 0 && Math.abs(z + 105) < 0.9)       // west basin
+    || [-21.6, -46.0, -54.3, -68.4].some((lz) => Math.abs(z - lz) < 0.7);   // gutter litter
+  {
+    let wi = 0;
+    for (let z = 4.0; z > -100.0; z -= 2.4) {
+      for (const side of [-1, 1] as const) {
+        wi++;
+        if (weedSkip(side, z)) continue;
+        // Two in three, so the line reads as sporadic rather than as a hedge.
+        if (weedRnd(wi, 7) > 0.66) continue;
+        // hard against the kerb face, on the ROAD side of it: the seam itself,
+        // never up on the 2 m walk
+        const jz = z + (weedRnd(wi, 11) - 0.5) * 1.2;
+        const x = side * (ROAD_HALF - 0.035 - weedRnd(wi, 13) * 0.05);
+        scene.add(weedTuft({
+          // gutterSurfaceY takes the distance OUT FROM THE KERB LINE, not a
+          // coordinate — the pan is cross-sloped, so a tuft 35 mm out sits
+          // higher than one 85 mm out and both sit on the concrete rather than
+          // in it.
+          x, z: jz, y: gutterSurfaceY(ROAD_HALF - Math.abs(x)),
+          tone: 'dark',                       // asphalt and the shaded kerb foot
+          scale: 0.55 + weedRnd(wi, 17) * 0.30,
+          seed: wi,
+        }));
+      }
+    }
+  }
 
   // ── stars, on clear nights only ─────────────────────────────────────────
   //
