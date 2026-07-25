@@ -16,6 +16,33 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Bench, third pass: drop the lower slats and put a bezel on the ad.**
+      The user: *"make this look nicer, i dont think we need the bottom wood
+      part. also the tonys pizza part i think needs to have a bezel"*. Ref:
+      `shots/user-bench4.png`.
+
+      The ad is on the backrest now and the back leans — both right, and the
+      bench reads far better for it. Two refinements:
+
+      · **Delete the lower slatted section under the seat.** It is doing
+        nothing structurally or visually, and it makes the bench read as a
+        heavy box rather than a seat on legs. A bus bench is a seat, a back
+        and legs — you should be able to see UNDER it, and the gap under a
+        bench is most of what makes it look light. Removing it also opens
+        sightlines along the pavement, which matters given how much the user
+        cares about the lane.
+      · **Give the ad panel a bezel.** It is a flat printed face flush with
+        the backrest, so it reads as paint rather than as a sign. A real bus
+        bench ad is a panel MOUNTED in a frame: a raised border on all four
+        sides, a little proud of the backrest, ideally in a different material
+        from the panel — dark metal or moulded plastic against the cream face.
+        Keep it thin; a heavy frame at this scale will eat the copy.
+
+      With the lower slats gone, check the leg geometry still reads as
+      supporting the seat, and re-sit on it — it is registered with F's
+      `ctx.seat()` and you have now changed the back angle and the mass under
+      the seat.
+
 - [ ] **The side street has no lamps — builder H is blocked on you.** H
       extended the trees, kerb and parked cars east along the side street as
       asked, but lamps are `ct/props.ts` and it correctly did not reach into
