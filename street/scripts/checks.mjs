@@ -165,6 +165,9 @@ const CHECKS = [
   // wrong: it does not walk, and a check behind a flag nobody passes is the
   // thing this file exists to stop.
   ['spot-coverage',    'is every [E] spot exercised by SOME check?',       true],
+  // Reports the hanging signs, FAILS on furniture-height floats — see the note
+  // at the foot of the script for why only half of it is a verdict.
+  ['floaters-walk',    'is anything resting on nothing at furniture height?', false],
   // RED ON ARRIVAL, and correctly so — it is reporting three real scripts.
   //
   // Eight scripts here dispatch on a mode word. Hand one a mode it does not

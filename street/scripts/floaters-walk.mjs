@@ -138,3 +138,23 @@ console.log(low.length
   : 'Nothing below 1.4 m has air under it — measured, not assumed.');
 if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
 await b.close();
+
+// A VERDICT ON THE HALF THAT HAS ONE.
+//
+// This printed its findings and exited 0 — always. `548a8807d` counts 25
+// scripts in that state; a script that asserts without an exit code cannot be
+// registered, so the runner never sees it and nothing it finds goes red.
+//
+// The cost was real and mine: five props in my own thrift sat floating for days
+// — a card hung over a free-standing bin, a dressed form hovering over its
+// plinth, two donation boxes — and I only found them because I happened to
+// uncap the list while testing something else. With an exit code they would
+// have gone red the run they landed.
+//
+// The report/verdict split is still right for the TOP list: a hanging sign is
+// supposed to have air under it and no script can tell intent from geometry.
+// But "a prop below 1.4 m with a gap under it" is not ambiguous — that is
+// furniture height, nothing hangs there on purpose, and it is exactly the class
+// the auditor ranked second on player visibility. So the low list is the
+// verdict and the rest stays a report.
+process.exit(low.length || errs.length ? 1 : 0);
