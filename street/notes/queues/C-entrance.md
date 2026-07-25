@@ -13,6 +13,42 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Let me close the 301 door, and the poster reads as nothing.** The
+      user: *"i want to be able to close this door and also what is this
+      poster on the wall?"* Ref: `shots/user-301door.png`.
+
+      **(a) A closable door.** 301's door stands permanently open, which is
+      why the room never feels like YOUR room — being able to shut it is most
+      of the difference between a room and a corridor you happen to be in.
+      Make it an `[E]` interaction: *close the door* / *open the door*, with
+      the leaf swinging between the two and the collider following it. Things
+      to get right:
+      · the leaf must not clip the jamb or the wall at either end of its
+        travel, and it must not close ON the player — check the swept volume
+      · while shut it should block the doorway, so a closed door is actually
+        closed
+      · sound is out of scope, but the state should persist while you are in
+        the room rather than resetting when you look away
+
+      Ship this for 301 first, on its own. **A shared door capability probably
+      belongs in the kit** the way `ctx.seat()` and `ctx.spot()` do — every
+      interior has doors and builder G's four rooms will want the same thing.
+      Say so in your handoff and the desk will queue it to F rather than
+      having four builders each write a door.
+
+      **(b) The poster is unidentifiable.** An orange field, a yellow disc, a
+      cross, two white bars. *"What is this"* is now the fourth time that
+      phrasing has been used on this project and it has meant the same thing
+      every time: the object is drawn but not READABLE.
+
+      Decide what it actually is and draw that. A 1997 bedroom wall wants
+      something specific — a band flyer, a movie poster, a team pennant, a
+      travel poster nobody has taken down, a flyer for a club night. Then draw
+      it to read at the size and distance it is seen from, which for a poster
+      on the far wall of a small room is quite small: one strong shape, one or
+      two colours, and legible-looking text blocks rather than actual words.
+      If it will not read, take it off the wall — two failures then delete.
+
 - [ ] **Register any seats in the car lot with `ctx.seat()`.** `ct/lot.ts`
       registers zero. The user has just reported not being able to sit on the
       library's benches, which had the same cause — the object was built
