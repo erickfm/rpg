@@ -82,6 +82,29 @@ The same fact now answers a question nobody was asking then: *is this the world 
 changed?* Facts published in one place get used somewhere else — which is the
 argument for `userData.mod`, `declareSurface` and `__frontages` too.
 
+## Finished (`340650f2`): 148 scripts, no plain banners left
+
+The 8 I left behind turned out to be six formatting differences and two real
+ones. The six write `,{waitUntil:` without the spaces my pattern required —
+a fact about my regex, not about them.
+
+The two that genuinely differ both wrap `waitForFunction` in try/catch **because
+their job is to detect a broken world**: `health.mjs` and `rain-check.mjs`. Both
+now call `reportWorld` after `goto` and *before* judging anything, which is the
+whole point — **a "WORLD BROKEN" verdict about somebody else's build is worse
+than no verdict**, and the stamp lives in the bundle, so it reads even when
+`__ct` never appears.
+
+**`health.mjs` had no default URL at all** — bare `process.env.SHOT_URL`, so
+running it without the variable called `goto(undefined)`. That script is the
+first thing anyone runs to ask "is the world alive", and until today, run
+plainly, it asked that of nothing.
+
+```
+scripts with a plain banner:  0
+scripts calling reportWorld:  148
+```
+
 ## What is still true, and I would rather say it than bury it
 
 The defaults still point elsewhere — 54 files at 4184, 47 at 4177, 11 at 4185.
