@@ -629,6 +629,36 @@ filter said `x > 10`, which is the side street AND every interior in the world.
 Third time attribution has nearly produced a false report from this desk; see
 the ownership-stamp ask in `notes/BLOCKED-H.md`.
 
+## Identifying a tyre: ask `userData.wheelbase`, do not match a cylinder
+
+`5987324c8` re-measured the wheel arches — tyre top y 0.663 car-local against an
+arch line of 0.72, **5.7 cm of arch above the tyre**, DONE stands — and left one
+thing deliberately unfiled: its finder reported 5 tyres proud of the flank and 8
+inboard, with the proud ones reading a different height AND colour, so it
+suspected they were not tyres. *"Every probe that tried to infer what a thing is
+from its shape has eventually been wrong."*
+
+It suspected right, and the fleet is mine to speak for. Every cylinder in the
+world at HEAD:
+
+```
+ 91  r 0.340  h 0.24  #101114   on a vehicle   <- the fleet's tyres
+  4  r 0.440  h 0.28  #101114   on a vehicle   <- the bus, bigger
+  3  r 0.340  h 0.16  #e0cf9a   NOT a vehicle
+  1  r 0.340  h 0.16  #6e6a62   NOT a vehicle
+```
+
+**Four objects sit at exactly tyre radius and are not tyres.** They are half the
+thickness and a different colour, but any finder matching on radius alone takes
+them. A real tyre is `r 0.340 × 0.24` in `#101114`, and the bus's are 0.440 —
+so even "radius plus colour" misses the bus.
+
+**The reliable test is ownership, and it is already published:** walk up the
+parents for `userData.wheelbase`, which `makeCar` and `makeBus` both set. That
+answers "is this a vehicle's wheel" without describing what a wheel looks like.
+`userData.body` is beside it if you want the paint, and `userData.tyre` gives the
+radius from the source rather than from a guess.
+
 ## Probes, and what each is for
 
 | | |
