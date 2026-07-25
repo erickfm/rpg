@@ -1013,3 +1013,67 @@ one atlas, one row convention, and nobody coordinated it. The kit carried it.
 Occupancy itself is not a defect — no brief asked for a keeper per room — but a
 set where half the shops are staffed and half are not is the kind of thing only
 a cross-room pass can see, and the desk should decide whether it wants parity.
+
+---
+
+## Round 17 — all EIGHT rooms, measured as one row (`cf0609d4`)
+
+`scripts/intcompare.mjs` hardcodes three rooms and there are eight; rather than
+update its coordinates I wrote `scripts/rooms.mjs`, which finds rooms by walking
+the interior belt (x ≥ 400, 80 m slabs) and asking each slab what is in it. No
+cameras, no remembered coordinates.
+
+Slab order is `buildAllInteriors`' sorted glob, so: bodega, burger, casino,
+diner, hotel, pawn, tax, thrift.
+
+| slab | room | meshes | ceiling | footprint | ceiling lum | wall thickness |
+|---|---|---|---|---|---|---|
+| 0 | bodega | 68 | **2.60** | 8.8 × 8.4 | 0.494 | **0.18** |
+| 1 | burger | 163 | **3.20** | 14.8 × 8.5 | 0.661 | **0.18** |
+| 2 | casino | 222 | **2.50** | 10.5 × 9.0 | **0.020** | **0.18** |
+| 3 | diner | 74 | **3.00** | 10.8 × 7.0 | 0.469 | **0.18** |
+| 4 | hotel | 80 | **3.40** | 11.0 × 9.0 | 0.340 | **0.18** |
+| 5 | pawn | 49 | **2.79** | 10.0 × 8.0 | 0.138 | **0.18** |
+| 6 | tax | 82 | **2.75** | 11.8 × 8.5 | 0.549 | **0.18** |
+| 7 | thrift | 92 | **2.74** | 11.3 × 6.5 | 0.514 | **0.18** |
+
+### What holds
+
+**Wall thickness is 0.18 m in all eight.** It was 0.18 across seven in Round 10
+and it is 0.18 across eight now — four builders, eight rooms, one number, no
+drift. That is the kit doing its job and it is the strongest structural result
+in this audit.
+
+### What I am NOT calling a defect
+
+Ceiling luminance spans **0.020 … 0.661, a 33 : 1 ratio**, which looks alarming
+next to the 5.6 : 1 I measured over seven rooms. Sorted, it is a **smooth
+monotonic ramp**: casino 0.02, pawn 0.14, hotel 0.34, diner 0.47, bodega 0.49,
+thrift 0.51, tax 0.55, burger 0.66. No cluster, no gap, and the order is
+*venue* order — the gambling room darkest, the fast-food counter brightest.
+
+I withdrew a lighting-level finding once already on exactly this shape, when
+three rooms looked like an outlier and seven turned out to be a deliberate
+graduation. Eight rooms say the same thing more strongly. **The 33 : 1 headline
+is the casino being a casino.**
+
+### The one real set-level disagreement, unchanged
+
+**Ceiling height spans 2.50 … 3.40 m — 0.90 m of spread, 1.36 ×.** Identical to
+what I reported over seven rooms, so eight rooms have not narrowed it. Rooms
+built from one kit differ by nearly a metre of headroom, and unlike the lighting
+the order is not a venue ramp: the casino (2.50) and the hotel (3.40) sit at the
+two extremes with no reason visible from inside either one.
+
+That remains the finding. It is not urgent and nothing is broken by it — but it
+is the thing that makes the ten read as ten rooms rather than one world, and it
+is exactly what no single builder can see.
+
+### A measurement I am withholding
+
+My floor-density figure (2.2–3.6 px/m) **is wrong and I am not reporting it as a
+comparison**: it divides canvas width by room metres and ignores `map.repeat`,
+so it under-reads by whatever the tiling factor is. My earlier 18.3–21.3 figures
+came from a method that accounted for it. Two numbers from two methods are not a
+trend, and I would rather say so than publish a regression that is an artefact
+of my own arithmetic.
