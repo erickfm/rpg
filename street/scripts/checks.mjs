@@ -168,6 +168,10 @@ const CHECKS = [
   // Reports the hanging signs, FAILS on furniture-height floats — see the note
   // at the foot of the script for why only half of it is a verdict.
   ['floaters-walk',    'is anything resting on nothing at furniture height?', false],
+  // 20 s, so default tier. Guards "make the jump a tiny bit higher AND gravity a
+  // tiny bit stronger" — a feel request, which is the kind most easily undone by
+  // an unrelated edit to fp.ts because nothing about it looks like a constant.
+  ['jump-walk',        'does the jump still clear what it was tuned to clear?', false],
   // RED ON ARRIVAL, and correctly so — it is reporting three real scripts.
   //
   // Eight scripts here dispatch on a mode word. Hand one a mode it does not
@@ -240,6 +244,11 @@ const CHECKS = [
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', true, [], true],
+  // 395 s — SLOW tier, and by a distance. It walks 177 trap positions, which is
+  // what the user's "im literally stuck here" request cost to guard properly.
+  // Asserted since it was written and registered nowhere until now, so those
+  // 177 escapes have been proving themselves to nobody.
+  ['unstick-walk',     'can the player still always get out of a trap?',      false, [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
