@@ -11,6 +11,18 @@ Nothing here is waiting on work. Each one is waiting on a ruling.
 
 ## 1. The wheel/body proportion — the arch cannot be finished without it
 
+**WHAT THE USER COMPLAINED OF IS FIXED. What is blocked is a different
+question, and `3b08019da` is right to separate them.** The signature he named —
+discs against a straight sill, the white flank stripe running unbroken above
+each wheel — is gone: arch top moved 0.61 → 0.72 against a tyre top of 0.663,
+**+5.7 cm of arch above the tyre**, and the stripe now terminates at each
+opening. Independently re-measured with an instrument that is not mine.
+
+So do not read this item as "the arch is broken". Read it as: **is a 5.7 cm
+crescent what you want, or do you want the proportion change that would let it
+be a real flare?** That is a taste question with a cost attached, and the cost
+is why it is here rather than done.
+
 **Status: attempt three shipped, met 4 of 5 targets, and I did not revert.** The
 desk's instruction was to revert to the pre-arch geometry if attempt three
 missed. I did not, and said so at the time with reasons; that decision is open
