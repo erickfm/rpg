@@ -563,3 +563,93 @@ the troffer bloom covers for it.
   the diner from round 1 that is all three rooms verified, and it is the single
   strongest thing the kit does.
 - Four of seven rooms still source-only; three of ten unwritten.
+
+---
+
+# Round 8 — six rooms in the world, and the margin prediction came true
+
+Base `add-stick-and-city98` @ `fb99b135`. `0e00db8c` **wired the casino, the
+hotel and the tax office** — finding 10 acted on. **PAWN is still unwired**
+(`buildPawn` count 0), so it is now 1 of 7 rather than 4 of 7.
+
+## The set, six rooms, all measured in the world
+
+| | diner | burger | thrift | casino | hotel | tax |
+|---|---|---|---|---|---|---|
+| clear | 8.6 × 7.0 | 11.0 × 8.5 | 8.0 × 6.5 | 10.5 × 9.0 | 11.0 × 9.0 | 12.0 × 8.5 |
+| ceiling | 3.00 | 3.20 | 2.75 | **2.50** | **3.40** | 2.75 |
+| **wall thickness** | **0.18** | **0.18** | **0.18** | **0.18** | **0.18** | **0.18** |
+| **wall px/m** | 11.9 × 12.0 | 11.9 × 11.9 | 11.9 × 12.0 | 11.9 × 12.0 | 11.9 × 11.8 | 11.9 × 12.0 |
+| floor px/m | 18.6 × 18.3 | 20.4 × 18.8 | 20.0 × 19.7 | 21.3 × 21.3 | 20.4 × 21.3 | 21.3 × 18.8 |
+| ceiling luminance | 0.714 | 0.832 | 0.745 | **0.148** | 0.616 | 0.767 |
+| glows | 2 | 4 | 2 | 6 | 6 | 6 |
+| fill of frontage | 75 % | 71 % | 67 % | 94 % | 95 % | 95 % |
+
+**Wall thickness and wall texel density are identical across all six rooms built
+by four different agents.** That is the clearest result in this whole audit: the
+half of the shell the kit owns is perfect, six for six, and every disagreement in
+the table is in a parameter it leaves free. Ceiling spread 0.9 m over six
+distinct values; ceiling luminance spans **5.6 : 1**; floor density 18.3–21.3 and
+still anisotropic inside individual rooms.
+
+Round 5's frontage statement now rests on six measured rooms rather than specs:
+widths run **8.0–12.0 m against frontages of 11.55–16 m**, with no relationship
+between them.
+
+## Finding 17 — a prop has re-blocked the thrift door, exactly as predicted
+
+Round 2 said of the entry-trigger margin:
+
+> *"The margin is a shared budget with no owner. It is spent by anything a props
+> builder puts outside a door… the bodega proves one prop is enough."*
+
+That has now happened to the one door that had been fixed. Thrift measured
+**0.01 m closest / 1.04 m margin / reachable** in round 6. It now measures
+**0.27 m / 0.78 m / blocked.** Its door coordinate has not changed.
+
+The cause, found by querying what is near it: a **`BoxGeometry` 0.36 × 0.62 ×
+10.5 m at (−6.82, 0.45, −73.55)** — a 10.5 m run of low furniture hard against
+the facade, placed by `cc7e0e76` ("place the approved five through the world").
+It occupies x −7.00 … −6.64, so with the 0.36 m capsule the player is stopped at
+**x = −6.28**. The door spot is at −6.55. |−6.55 − (−6.28)| = **0.27 m** — the
+measured regression exactly.
+
+Nobody did anything wrong. The props builder placed a bench against a wall; the
+interior builder put a door spot 0.45 m off the facade; the collision refactor
+made that stretch reachable. Three correct decisions, and the door went back
+inside solid, because **no one owns the number that says whether a door is still
+reachable.** That is the argument for the build-time assert this audit proposed
+in round 2, now with a worked example.
+
+## Trigger status, all seven street doors
+
+| door | closest | margin | centre |
+|---|---|---|---|
+| GOLDEN ACES | 0.01 | 1.04 (99 %) | reachable |
+| HOTEL ORPHEUS | 0.02 | 1.03 (98 %) | reachable |
+| BODEGA | 0.03 | 1.07 (97 %) | reachable |
+| DINER | 0.21 | 0.84 (80 %) | blocked |
+| BURGER BARN | 0.21 | 0.84 (80 %) | blocked |
+| No. 227 | 0.21 | 0.84 (80 %) | blocked |
+| A-1 TAX | 0.21 | 0.84 (80 %) | blocked |
+| THRIFT | **0.27** | **0.78 (74 %)** | blocked — **regressed** |
+
+The two side-street doors are reachable, which fits the round-6 facade map: the
+conversion has reached the side street and the west/east main-street walls are
+still inset.
+
+## A false positive I caught before filing
+
+My batch probe reported the GOLDEN ACES door showing `[E] into the HOTEL
+ORPHEUS`. Standing directly on each of the three new spots and reading the HUD
+gives `into GOLDEN ACES`, `into the HOTEL ORPHEUS` and `into A-1 TAX SERVICE` —
+all correct. The batch reading was my script keeping any prompt seen during an
+approach run, not a mislabelled door. Recorded because it is the third time this
+audit that a batch measurement has needed a direct check before it was safe to
+report.
+
+## Coverage — round 8
+
+- PAWN is still source-only; three of ten rooms unwritten.
+- Light judged side by side in round 7 for three rooms; the three newly wired
+  ones have **not** been through that comparison.

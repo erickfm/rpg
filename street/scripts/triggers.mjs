@@ -23,6 +23,9 @@ const TRIGGERS = [
   { id: 'BODEGA corner store',     x: 8.7,    z: -96.85, r: 1.10, gy: 0.14, from: [[14, -97], [8.7, -99.5], [4, -99.5]] },
   { id: 'THRIFT STORE (kit room)', x: -6.55,  z: -74.94, r: 1.05, gy: 0.14, from: [[-6.2, -69], [-6.2, -81], [-4.2, -74.94]] },
   { id: 'BURGER BARN (kit room)',  x: -6.55,  z: -28.25, r: 1.05, gy: 0.14, from: [[-6.2, -22], [-6.2, -34], [-4.2, -28.25]] },
+  { id: 'GOLDEN ACES (kit room)',  x: 51.29,  z: -97.0,  r: 1.05, gy: 0.14, from: [[51.29, -101], [45, -97.4], [56, -97.4]] },
+  { id: 'HOTEL ORPHEUS (kit)',     x: 39.51,  z: -97.0,  r: 1.05, gy: 0.14, from: [[39.51, -101], [33, -97.4], [45, -97.4]] },
+  { id: 'A-1 TAX (kit room)',      x: 6.55,   z: -15.25, r: 1.05, gy: 0.14, from: [[6.2, -9], [6.2, -21], [4.2, -15.25]] },
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });

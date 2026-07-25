@@ -11,6 +11,9 @@ const REGIONS = [
   { id: 'slab 1', x0: 480, x1: 560 },
   { id: 'slab 2', x0: 560, x1: 640 },
   { id: 'slab 3', x0: 640, x1: 720 },
+  { id: 'slab 4', x0: 720, x1: 800 },
+  { id: 'slab 5', x0: 800, x1: 880 },
+  { id: 'slab 6', x0: 880, x1: 960 },
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });

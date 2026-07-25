@@ -1,69 +1,54 @@
-## audit/seams — interiors round 7: exits all correct, light is not
+## audit/seams — interiors round 8: six rooms in the world; a prop re-blocked a fixed door
 
-Queue `## Now` (interiors, standing) at `bfbb0b7c`. No new rooms and no wiring
-change since round 6, so this round closes two gaps I had been carrying in my
-own coverage section rather than measuring.
+Queue `## Now` (interiors, standing) at `fb99b135`.
+Report: `notes/interior-audit.md`, Round 8.
 
-Touched:   notes/interior-audit.md (+Round 7), notes/audit-seams.md,
-           scripts/exits.mjs (new), scripts/intcompare.mjs (new)
+Touched:   notes/interior-audit.md (+Round 8), notes/audit-seams.md,
+           scripts/interiors.mjs (regions to 7 slabs), scripts/triggers.mjs
+           (+3 doors), scripts/newdoors.mjs (new)
            **nothing under street/src/**
-Base:      bfbb0b7c
+Base:      fb99b135
 
-### Exits — sound in all three rooms
+`0e00db8c` wired the casino, hotel and tax office — **finding 10 acted on**.
+**PAWN is still unwired** (`buildPawn` count 0): 1 of 7, down from 4 of 7.
 
-Stood on each way-out spot, pressed E, checked the landing:
+### The result that matters most
 
-| room | lands | on walk | to its own trigger | prompt on landing | can move |
-|---|---|---|---|---|---|
-| diner | (−6.10, 8.10) | yes | 1.57 m (r = 1.05) | none | 4/4 |
-| burger barn | (−6.10, −26.75) | yes | 1.57 m | none | 4/4 |
-| thrift | (−6.10, −73.44) | yes | 1.57 m | none | 4/4 |
+Six rooms, four agents, all measured in the world: **wall thickness is 0.18 and
+wall texel density is 11.9 × ~12.0 in every single one.** Six for six. Every
+disagreement in the set is in a parameter the kit leaves free — ceiling spread
+0.9 m over six distinct values, ceiling luminance spanning **5.6 : 1**, floor
+density 18.3–21.3 and still anisotropic within rooms. The kit's owned half is
+flawless and its free half is where all the drift lives. That has been this
+audit's claim since round 1 and it now has six independent data points.
 
-Identical and correct in every respect the kit set out to guarantee. **The exit
-half of the door contract is sound.** Previously only the diner had been walked.
+### Finding 17 — the round-2 prediction came true, with a worked example
 
-### Light — the number I had been reporting was the wrong number
+Round 2 said the entry-trigger margin is *"a shared budget with no owner, spent
+by anything a props builder puts outside a door."* It has now happened to the
+one door that had been fixed:
 
-Matched cameras in all three rooms (`shots/cmp-*-back.png`):
+- THRIFT was **0.01 m closest / 1.04 m margin / reachable** in round 6.
+- It is now **0.27 m / 0.78 m / blocked.** Door coordinate unchanged.
+- Cause: a `BoxGeometry` **0.36 × 0.62 × 10.5 m at (−6.82, 0.45, −73.55)** — a
+  10.5 m run of low furniture against the facade, placed by `cc7e0e76`. It
+  occupies x −7.00 … −6.64, so the 0.36 m capsule stops at **−6.28**; the door
+  spot is at −6.55; the difference is **0.27 m**, the regression exactly.
 
-| | fixture | glow | reads as |
-|---|---|---|---|
-| diner | one warm dome | soft radial pool | warm, low, cosy |
-| burger barn | four cool troffers | hard rectangular bloom, near-white | **very bright** |
-| thrift | two tubes | one faint pool, one **none at all** | **flat, dim** |
+Nobody did anything wrong — a bench against a wall, a door 0.45 m off the
+facade, a collision refactor that made the stretch reachable. Three correct
+decisions and the door went back inside solid, because **no one owns the number
+that says whether a door is still reachable.** That is the build-time assert
+this audit proposed in round 2, now with a case to point at.
 
-Colour temperature is defensible — warm diner, cool fast food, cool thrift is
-right for the venues. **Level is not**: walking diner → burger → thrift the
-exposure jumps hard both ways.
+### A false positive I caught before filing
 
-Worth flagging about my own method: the ceiling-luminance figures I reported for
-six rounds (0.714 / 0.832 / 0.745) **understated this badly.** They measure the
-ceiling *material*, not the additive glow on top of it, and the glow is what the
-eye reads. Judging it needed a matched camera, not a better statistic.
+My batch probe reported the GOLDEN ACES door showing `[E] into the HOTEL
+ORPHEUS`. Standing on each new spot and reading the HUD directly gives the right
+label on all three. The batch reading was my own script retaining a prompt seen
+mid-approach. Third time this audit a batch measurement has needed a direct
+check before it was safe to report — worth stating as a standing caution about
+my own instruments.
 
-New finding 15: the kit fixes lamp **count** from room depth and leaves
-**output** entirely free — backwards. Count is what a builder should choose;
-output is what has to agree across ten rooms.
-New finding 16: the thrift's two tubes glow differently from each other — one
-has a ceiling pool, one has none. Reads as a broken fixture, not a choice.
-
-### Jamb reveals — checked, sound
-
-Both openings show the jamb return on *both* sides, header over, leaf swung
-clear, each in its own trim colour. With the diner from round 1 that is all
-three rooms verified. The kit's claim — *"there is no way to get a paper wall
-out of this kit"* — holds, and it is the single strongest thing it does.
-
-### Queue state — blocked, not finished
-
-Neither item has available work:
-
-- `## Now` (interiors, standing): no new room and no wiring change since round 6.
-  Every gap I was carrying in my own coverage section is now closed — exits
-  walked, light judged, jambs checked. Next useful pass needs a builder to land
-  a room, or the desk to wire the four dark ones.
-- `## Next` (pattern #1): done and re-verified clean twice; no change to the
-  three masonry files since.
-
-Left:      Four of seven rooms source-only until wired; three of ten unwritten.
-           Sign mirroring (seam R1) still unverified since the signs were moved.
+Left:      PAWN source-only; three of ten rooms unwritten. The three newly wired
+           rooms have not been through the round-7 side-by-side light comparison.
