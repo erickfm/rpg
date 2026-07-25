@@ -32,8 +32,22 @@ symlinked rather than installed; the worktree is removed on exit.
 on your own port. That is the whole point of it.
 
 **Tested adversarially rather than hopefully.** With the slow tier in flight I
-committed twice, rebased onto mainline, and rebuilt my own worktree — the four
-things that killed the previous attempts. `WRONG WORLD` count: **0**.
+committed four times, rebased onto mainline, and rebuilt my own worktree — the
+things that killed the previous attempts. `WRONG WORLD` count across 53 checks:
+**0**. The pin holds.
+
+**The first full run still did not finish, and the cause was my script rather
+than the world.** It died at 32 checks with `ENOENT: process.cwd failed … the
+current working directory was likely removed`. `$WT` was derived from the SHA
+alone and startup force-removed that path before creating it, so a second
+invocation at the same commit deleted the first run's working directory
+mid-flight. I did that to myself three invocations deep. Fixed in `4d14341d`:
+the path carries the PID and cleanup can only reach what that process created.
+
+So the claim to take from this is narrow and worth keeping narrow: **the pin
+against HEAD movement is proven; a completed slow tier is not yet.** A second
+run is in flight and this note will be wrong until it lands — treat the tier as
+unverified until someone reports a green tally, mine or otherwise.
 
 One caution the script prints itself: a worktree is made from the **commit**, so
 uncommitted changes are not in the pinned run. Commit first if they are what you
