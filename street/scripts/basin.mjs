@@ -123,15 +123,27 @@ if (mode === 'shots' || mode === 'all') {
 
 if (mode === 'wet' || mode === 'all') {
   // The world's rain predicate, duplicated here because scripts cannot import
-  // from the TS module. It has an EXCEPTION now — 14:00 always rains, to put
-  // the first storm 40 s from spawn — so a script that picks "the first dry
-  // hour" must know about it or it will pick a wet one. Keep in step with
-  // rainAt() in ct/props.ts.
-  const rainy = (h) => (((h % 24) + 24) % 24) === 14 ||
-    ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
-  let wetH = 0; for (let h = 0; h < 48; h++) if (rainy(h)) { wetH = h; break; }
+  // ASK THE WORLD FOR ITS OWN SCHEDULE. This carried a hand-copy of rainAt under
+  // a comment claiming "scripts cannot import from the TS module" — true when it
+  // was written, false since props began publishing the function. 04013742
+  // found it: the FOURTH stale copy of a formula that was rewritten in
+  // e0c68e46, disagreeing with the world on 16 of 48 hours and passing only
+  // because hour 0 happens to be rainy under both.
+  //
+  // A predicate that is wrong on a third of the schedule and right on the hour
+  // you happen to pick is not a predicate, it is a coincidence with a comment.
+  const SCHEDULE = await page.evaluate(() => {
+    const f = window.__ct.scene().userData.rainAt;
+    return typeof f === 'function' ? Array.from({ length: 48 }, (_, h) => !!f(h)) : null;
+  });
+  if (!SCHEDULE) { console.error('\n  FAIL props did not publish scene.userData.rainAt'); process.exit(1); }
+  let wetH = 0; for (let h = 0; h < 48; h++) if (SCHEDULE[h]) { wetH = h; break; }
   await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
-  await page.waitForTimeout(7000);
+  // 16 s, not 7. 013fd008 measured the wet look settling over ~16 s — the road
+  // goes 1.000 -> 0.597 -> 0.329 -> 0.224 -> 0.186 -> 0.172 -> 0.167 -> 0.165 at
+  // two-second intervals — so a shot at 7 s is of a street still darkening. The
+  // whole point of these two frames is what wet looks like.
+  await page.waitForTimeout(16000);
   await shot('wet-over', 5.9, -91.4, 4.7, -92.6, 1.62, -0.62);
   await shot('wet-gutter', 4.4, -87.6, 4.7, -93.2, 1.20, -0.26);
   console.log('shots -> shots/bs-*.png');
