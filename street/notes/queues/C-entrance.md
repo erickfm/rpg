@@ -13,6 +13,25 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The office chairs face the wall.** The user: *"the chairs are
+      backwards"*. Ref: `shots/user-lotchairs.png` — the blue and orange
+      chairs outside the CROSSTOWN AUTO SALES office are turned so a person
+      sitting in them would face the building.
+
+      **Do this with the car-row rotation, in one commit** — it is the same
+      fault twice in the same file. Chairs outside an office face OUT: at the
+      lot, at the cars, at the street. Nobody waiting to hear about their
+      credit sits facing a wall a metre away.
+
+      While you are there, they are also both dead straight and perfectly
+      parallel, which reads as placed rather than used. Two plastic chairs
+      outside a portacabin would be at slightly different angles, one pushed
+      back further than the other. Vary them.
+
+      And check they are registered with `ctx.seat()` — if the user tries to
+      sit in a chair that is visibly a chair and cannot, that is worse than
+      not having it.
+
 - [ ] **The left row of cars faces the wrong way.** The user: *"cars facing
       wrong way on left side of car lot"*. Ref: `shots/user-lotfacing.png`.
 

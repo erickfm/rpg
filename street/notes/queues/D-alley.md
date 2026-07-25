@@ -17,6 +17,29 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The bank ATM is too high and does nothing.** The user: *"atm too high
+      and doesnt work"*. Ref: `shots/user-atm.png`.
+
+      **Height first.** The screen sits at roughly chest-to-eye height in the
+      shot; a real ATM's screen is around 1.30–1.40 m and its keypad lower
+      still, because it has to work for someone in a wheelchair and for
+      someone tall without stooping. Bring the whole unit down and check it
+      against the player's eye height of 1.74 m — you should be looking
+      slightly DOWN at the screen, not up at it.
+
+      **Then make it do something.** "Doesn't work" is the user asking for an
+      interaction, and you can register one yourself now — `ctx.spot({...})`
+      is in the build context and you no longer need the entry point. It does
+      not need to be a banking system: an `[E]` that reads the card, shows a
+      balance from the purse the HUD already tracks, and dispenses nothing is
+      enough. The world already has `purse.cash`, so a balance is real data
+      rather than a prop.
+
+      If you would rather it stayed scenery, say so and make it read as
+      out of order — a taped OUT OF SERVICE sign is a legitimate answer and
+      period-correct. What is not an answer is a machine that looks usable and
+      ignores you.
+
 - [ ] **THE BANK FLANK — the user has now raised this twice. Do it first.**
       *"this looks bad because the front of the bank doesnt match the side fix
       this"*. Ref: `shots/user-bankflank2.png` (and the earlier
