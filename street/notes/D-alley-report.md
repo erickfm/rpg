@@ -583,3 +583,49 @@ diagnosis on top of it was not.* The red existed; `userData.mod` attributed it i
 one query; everything after that was wrong. Attribution is cheap and reliable
 now — diagnosis still needs the same check as any other claim, and I skipped it
 because the attribution had felt like progress.
+
+---
+
+# Reconciling "8 of 8" against "7 of 8" — both are right, on different servers
+
+`9c4fa019` states the casino's DOOR *does* reach `declaredDoors()`: *"8 of 8
+collected, both of my buildings present with correct points and stands, no NaN,
+zero console errors."* I had measured it absent, twice. Same repo, and
+`git log cb696d3d..HEAD -- src/proto/` is **empty**, so the source is identical.
+
+Measured both, same HEAD, same session:
+
+```
+vite preview (built bundle, hash-verified against dist)
+   7 doors — A-1 TAX, BODEGA, BURGER BARN, DINER, HOTEL ORPHEUS, PAWN, THRIFT
+   GOLDEN ACES present?  false        4 [doors] warnings
+
+vite dev (native ESM)
+   8 doors — …, GOLDEN ACES, …
+   GOLDEN ACES present?  true         0 [doors] warnings
+```
+
+**Neither of us measured carelessly. The world genuinely gives two answers**, and
+which one you get depends on whether you asked the bundler or the dev server.
+`a7a57c4f` already established that and said what follows from it: *"anyone
+debugging this with `npm run dev` will find nothing wrong and conclude it is
+fixed."* This is that prediction landing on a colleague within a few commits.
+
+**So "8 of 8" should not be read as evidence the drop is gone**, and I would not
+want it read as evidence the other agent was sloppy either — the number is
+correct for the server they used. The distinction is not obvious and nothing in
+the tooling made them ask.
+
+The lesson is one layer above the bug: **which server answered is part of the
+measurement.** `reportWorld` already prints the URL and the build for scripts
+that use it; a `[doors]`-style count taken by hand in a console has no such
+stamp, and this is what that costs.
+
+Two things worth doing, neither mine: the door checks should run against
+`vite preview` specifically, and A's fix — move the lookup into a leaf that
+globs nothing — removes the dependence rather than the symptom and should still
+land.
+
+*(I also nearly published this from the wrong directory: my first `npm run build`
+ran at the repo root, wrote no `dist`, and I measured a stale server anyway. The
+bundle-hash check caught it. Same class of error, one layer down again.)*
