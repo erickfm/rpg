@@ -1,54 +1,46 @@
-## audit/seams — interiors round 8: six rooms in the world; a prop re-blocked a fixed door
+## audit/seams — pattern #1 clean; the same defect has moved into lighting and signage
 
-Queue `## Now` (interiors, standing) at `fb99b135`.
-Report: `notes/interior-audit.md`, Round 8.
+Two queue items worked, one commit each, per the one-outcome rule.
+Base `a4c64a82`.
 
-Touched:   notes/interior-audit.md (+Round 8), notes/audit-seams.md,
-           scripts/interiors.mjs (regions to 7 slabs), scripts/triggers.mjs
-           (+3 doors), scripts/newdoors.mjs (new)
+Touched:   notes/interior-audit.md (+Round 9), notes/seam-audit.md
+           (+regression check), notes/audit-seams.md
            **nothing under street/src/**
-Base:      fb99b135
 
-`0e00db8c` wired the casino, hotel and tax office — **finding 10 acted on**.
-**PAWN is still unwired** (`buildPawn` count 0): 1 of 7, down from 4 of 7.
+### `## Now` — interiors round 9 (committed separately, `3e0449b8`)
 
-### The result that matters most
+`5e1d58cd` moved the bodega's two door spots off hand-written `SPOTS` entries in
+`crosstown.ts` onto the kit's `ctx.spot` — the last hand-wired entry point gone.
+Re-ran the trigger harness: **behaviour-neutral.** Bodega measures 0.03 m closest
+/ 1.07 m margin / reachable with the correct prompt, identical to round 8.
+Verified rather than assumed, because the failure mode if it had gone wrong is
+the one this audit has met twice.
 
-Six rooms, four agents, all measured in the world: **wall thickness is 0.18 and
-wall texel density is 11.9 × ~12.0 in every single one.** Six for six. Every
-disagreement in the set is in a parameter the kit leaves free — ceiling spread
-0.9 m over six distinct values, ceiling luminance spanning **5.6 : 1**, floor
-density 18.3–21.3 and still anisotropic within rooms. The kit's owned half is
-flawless and its free half is where all the drift lives. That has been this
-audit's claim since round 1 and it now has six independent data points.
+All other triggers unchanged, including THRIFT still at 0.27 / 0.78 / blocked
+(finding 17 — the 10.5 m prop against the facade is still there). **Pawn is
+still unwired.**
 
-### Finding 17 — the round-2 prediction came true, with a worked example
+### `## Next` — pattern #1: clean for the third consecutive check
 
-Round 2 said the entry-trigger margin is *"a shared budget with no owner, spent
-by anything a props builder puts outside a door."* It has now happened to the
-one door that had been fixed:
+`a4c64a82` and `03cdac1a` touched the masonry files. **Every masonry face is
+still 8 × 8 or 16 × 16.** That is the item's test and it passes.
 
-- THRIFT was **0.01 m closest / 1.04 m margin / reachable** in round 6.
-- It is now **0.27 m / 0.78 m / blocked.** Door coordinate unchanged.
-- Cause: a `BoxGeometry` **0.36 × 0.62 × 10.5 m at (−6.82, 0.45, −73.55)** — a
-  10.5 m run of low furniture against the facade, placed by `cc7e0e76`. It
-  occupies x −7.00 … −6.64, so the 0.36 m capsule stops at **−6.28**; the door
-  spot is at −6.55; the difference is **0.27 m**, the regression exactly.
+**The non-masonry anisotropy I flagged last round has gone from one face to
+seven**, all from the lighting-and-signage work:
 
-Nobody did anything wrong — a bench against a wall, a door 0.45 m off the
-facade, a collision refactor that made the stretch reachable. Three correct
-decisions and the door went back inside solid, because **no one owns the number
-that says whether a door is still reachable.** That is the build-time assert
-this audit proposed in round 2, now with a case to point at.
+- **HOTEL blade: 44.0 × 17.1 px/m — 2.57 : 1.** It carries the word HOTEL, so
+  its glyphs render 2.6× condensed. Low severity, but a legibility decision made
+  by arithmetic accident on a sign I have now audited three times.
+- **Two tall frontage strips at 35.4 × 14.2 (2.50 : 1).**
+- **Four light pools at 2.56–9.41 px/m, 1.8–2.1 : 1.** Anisotropy in a soft
+  gradient may well be deliberate — a pool cast along a wall *is* elliptical —
+  so this one is a question for whoever owns them, not a defect I can call.
 
-### A false positive I caught before filing
+The pattern is unchanged: **a canvas whose size does not follow from the
+surface's real metres.** Masonry is immune by construction now; signage and
+lighting have inherited it wholesale. Worth a decision before there are twenty —
+the fix has a known shape and `masonry()` already exists to model it.
 
-My batch probe reported the GOLDEN ACES door showing `[E] into the HOTEL
-ORPHEUS`. Standing on each new spot and reading the HUD directly gives the right
-label on all three. The batch reading was my own script retaining a prompt seen
-mid-approach. Third time this audit a batch measurement has needed a direct
-check before it was safe to report — worth stating as a standing caution about
-my own instruments.
-
-Left:      PAWN source-only; three of ten rooms unwritten. The three newly wired
+Left:      Pawn unwired; three of ten rooms unwritten. The three newly wired
            rooms have not been through the round-7 side-by-side light comparison.
+           Sign mirroring still unverified since the signs were moved.

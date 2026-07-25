@@ -442,3 +442,42 @@ something to stand on, and the canvas did not follow — so texels that used to 
 near-square are now 1.13 : 1. Signage never went through `masonry()` and arguably
 should not, but it is the same failure in a subsystem the pattern does not
 cover: **a canvas that does not move when its surface does.**
+
+### Regression check at `a4c64a82`
+
+Two commits touched the masonry files since the last check: `a4c64a82` (export
+the shopfront depth vocabulary) and `03cdac1a` ("GOLDEN ACES and HOTEL ORPHEUS:
+the only two light sources in the world").
+
+**Pattern #1 passes. Every masonry face is still 8 × 8 or 16 × 16.** That is the
+queue item's test and it is clean for the third consecutive check.
+
+**But the non-masonry anisotropy noted last round has gone from one face to
+seven**, all of them from the lighting-and-signage work:
+
+| face | px/m | aspect | what |
+|---|---|---|---|
+| 0.50 × 6.90 m, canvas 22 × 118 | **44.0 × 17.1** | **2.57 : 1** | the HOTEL blade |
+| 1.24 × 15.8 m, canvas 44 × 224 (×2) | **35.4 × 14.2** | **2.50 : 1** | tall frontage strips |
+| 6.80 × 6.20 m, canvas 92 × 74 (×2) | 13.5 × 11.9 | 1.13 : 1 | GOLDEN ACES pylon |
+| 8.50 × 4.0 m, canvas 32 × 32 | 3.76 × 8.00 | 2.13 : 1 | light pool |
+| 12.5 × 6.8 m, canvas 32 × 32 | **2.56 × 4.71** | 1.84 : 1 | light pool |
+| 9.50 × 4.6 m, canvas 32 × 32 | 3.37 × 6.96 | 2.06 : 1 | light pool |
+| 12.5 × 6.6 m, canvas 32 × 32 | **2.56 × 4.85** | 1.89 : 1 | light pool |
+
+Two different things here, and they deserve different answers:
+
+- **The light pools** are soft radial gradients stretched over large ground
+  areas at 2.6–9.4 px/m. Anisotropy in a gradient is plausibly deliberate — a
+  pool cast along a wall *is* elliptical — so this is a question for whoever
+  owns them, not a defect I can call.
+- **The blade is a sign carrying the word HOTEL at 44 × 17.1 px/m.** Its glyphs
+  are drawn 2.6× denser across than up, so they render condensed. Low severity —
+  earlier shots read fine — but it is a legibility decision being made by an
+  arithmetic accident, on a sign this audit has now been round three times.
+
+The pattern remains: **a canvas whose size does not follow from the surface's
+real metres.** Masonry is now immune to it by construction; signage and lighting
+have inherited it wholesale, and there are seven faces where there was one.
+Worth a decision before there are twenty — the fix has a known shape and the
+helper already exists.
