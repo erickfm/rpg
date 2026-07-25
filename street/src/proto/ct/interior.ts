@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
-import { frontageOf } from './tex-world';
+import { frontageOf, frontageWorld, alongU } from './tex-world';
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor } from './doors';
 import { citizenSprite, type Look } from './citizens';
 import { FACE } from './rng';
@@ -368,6 +368,12 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // to disagree they now cannot, because there is only one of them.
   const fr = spec.frontage;
   const F = fr ? frontageOf(fr.name, fr.w) : null;
+  // The frontage in WORLD coordinates. `alongU` converts one back to metres
+  // along the painter's u — and it is the only place handedness is applied.
+  // Converting with `fr.side` instead applies the mirror TWICE: measured, that
+  // replaces the diner's window with a solid 4.03 x 2.60 panel, because side
+  // and uDir disagree on 7 of the 16 frontages.
+  const FW = fr ? frontageWorld(fr.name) : null;
   // ── the door's position, as ONE world number ──────────────────────────
   //
   // The user, standing in the tax office: the door is on the RIGHT of the
@@ -552,12 +558,12 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // Where the door sits along the room's front wall, and how wide it is —
   // from the facade when we know the building.
   //
-  // `doorOffsetM` is signed metres from the frontage centre, the same
-  // convention `at:` already used, so it drops straight in. It is SCALED by
-  // room width over frontage width: the room is a little narrower than the
-  // building (wall thickness), and the user's ask was that the door be in the
-  // corresponding PLACE — "if the door on the interior is full right then the
-  // facade must match" — which is a proportion, not an absolute offset.
+  // `FW.doorWorld` is a WORLD coordinate; `alongU` turns it into metres along
+  // the painter's u, and `localOf` scales that by room width over frontage
+  // width — the room is a little narrower than the building (wall thickness),
+  // and the user's ask was that the door be in the corresponding PLACE — "if
+  // the door on the interior is full right then the facade must match" — which
+  // is a proportion, not an absolute offset.
   // World z → the room's local x, MIRRORED.
   //
   // Inside, you stand with the front wall behind you and the room in front, so
@@ -567,17 +573,21 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // the whole point of this line. Scaled by room width over frontage so a door
   // three-quarters along a shopfront is three-quarters along the room —
   // "if the door on the interior is full right then the facade must match".
-  const dAt = spec.door.at ?? (F ? localOf(F.doorCentreM) : 0);
+  // No FW means no registered frontage — nothing to follow, so centre it. The
+// old fallback read the painter's own local guess, which is the authority this
+// whole descriptor exists to remove.
+const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   const dW = spec.door.width ?? F?.doorWidthM ?? 1.1;
   const DOOR_H = 2.15;
   // The glazing, likewise: the painter's glazed span, scaled into the room and
   // then trimmed back off the door so the two openings cannot collide — which
   // the front-wall builder would otherwise drop on the floor with a warning.
-  const glaze = F ? (() => {
+  const glaze = FW ? (() => {
     // through the same conversion as the door, mirror included, or the glass
     // ends up on the opposite side of the room from the window you were just
     // looking through
-    const e0 = localOf(F.glazingStartM), e1 = localOf(F.glazingEndM);
+    const e0 = localOf(alongU(FW, FW.glazingLoWorld));
+    const e1 = localOf(alongU(FW, FW.glazingHiWorld));
     let a = Math.min(e0, e1), b = Math.max(e0, e1);
     const dl = dAt - dW / 2 - 0.12, dr = dAt + dW / 2 + 0.12;
     // keep whichever side of the door is the bigger run of glass

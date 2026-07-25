@@ -357,22 +357,7 @@ export interface Placement {
 export interface Frontage {
   /** full width of the shopfront, metres */
   frontageM: number;
-  /** @deprecated use `frontageWorld(name).doorWorld`, converted with
-   *  `alongU(f, world)` — NOT with the building's `side`. Those disagree on the
-   *  DINER, and converting with `side` applies the mirror twice: measured, it
-   *  replaces that room's window with a solid panel. See A-glazing-handoff.md. */
-  doorCentreM: number;
-  /** @deprecated as `doorCentreM` — `frontageWorld().doorWorld` via `alongU` */
-  doorOffsetM: number;
   doorWidthM: number;
-  /** @deprecated use `frontageWorld(name).glazingLo/HiWorld`, converted with
-   *  `alongU(f, world)`. Rolling the conversion by hand is what applied the
-   *  mirror twice — the helper exists so the handedness lives in one place. */
-  glazingStartM: number;
-  /** @deprecated use `frontageWorld(name).glazingLo/HiWorld`, converted with
-   *  `alongU(f, world)`. Rolling the conversion by hand is what applied the
-   *  mirror twice — the helper exists so the handedness lives in one place. */
-  glazingEndM: number;
   /** stallriser height above the pavement, metres */
   stallriserH: number;
   /** fascia band height, metres */
@@ -383,6 +368,24 @@ export interface Frontage {
    *  is the window sill height — the `sill:` the int-*.ts rooms hand-type. */
   glazingBottomM: number;
   glazingTopM: number;
+}
+
+/**
+ * What `layoutOf` works in: the painter's own local metres along the frontage.
+ *
+ * These four used to be ON `Frontage`, marked `@deprecated`, and read by
+ * `ct/interior.ts` — which is how the same fact came to be authored twice and
+ * how the mirror ended up applied twice on the DINER. They are internal now:
+ * the painter needs local metres to lay a canvas out, and nothing outside this
+ * file has any business with them. Outside, a position is a WORLD coordinate
+ * (`frontageWorld`) converted with `alongU`, and there is no second way to do
+ * it.
+ */
+interface Layout extends Frontage {
+  doorCentreM: number;
+  doorOffsetM: number;
+  glazingStartM: number;
+  glazingEndM: number;
 }
 
 /** the per-character band geometry, in metres. One row per painter below.
@@ -450,7 +453,7 @@ function doorFrac(name: string): number {
 /** THE published geometry of a shopfront. Painters draw from it; rooms read it. */
 /** the painter's OWN layout, before any room has spoken. Private: the only
  *  caller that wants it is registerFrontage(), building the fallback. */
-function layoutOf(name: string, wMeters: number): Frontage {
+function layoutOf(name: string, wMeters: number): Layout {
   const k = characterOf(name);
   const B = BANDS[k];
   const ow = wMeters - 2 * B.ox;                       // the opening cut in the brick
@@ -526,7 +529,7 @@ function layoutOf(name: string, wMeters: number): Frontage {
  * resolve a world coordinate against and it returns the plain layout, which is
  * what registerFrontage() wants anyway.
  */
-export function frontageOf(name: string, wMeters: number): Frontage {
+export function frontageOf(name: string, wMeters: number): Layout {
   const L = layoutOf(name, wMeters);
   const along = declaredAlongU(name, wMeters);
   if (along === null) return L;
