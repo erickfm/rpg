@@ -583,6 +583,46 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## The park loop was re-cut and my check half-noticed
+
+`1da5e891` brought the park's loop in off the boundary and turned its corners.
+Two things in `park.mjs` were keyed to the old shape, and only one of them said so.
+
+**The gate detector went blind, loudly — FIXED.** It looked for a path slab
+*touching* the street edge (`|x + w/2 − maxX| ≤ 0.35`). The loop no longer
+touches it, so the detector found nothing and printed `FAIL could not find the
+gate entry path — this check cannot answer`. That is the refusal working: it
+declined to pass rather than quietly skipping the assertion. Now it derives the
+entry as the path piece reaching furthest toward the street, which survives the
+park being re-cut — as it has been three times.
+
+```
+gate entry at z -96.90, 1.50 m wide
+OK  no lantern stands on the entry (nearest is 1.55 m off its centreline)
+```
+
+**The walk legs went blind quietly — OPEN.** Both back legs now stop dead:
+
+```
+back leg, north to south: 12.3 m along, 0.00 m in the last 1.5 s
+back leg, south to north: 10.9 m along, 0.00 m in the last 1.5 s
+```
+
+Identical on every run, so it is static geometry and not a citizen. The legs
+walk straight lines at `lx0`/`lx1`; a loop with turned corners cannot be walked
+in a straight line, so the walker leaves the path and stops against the
+boundary. **They still pass**, because 12.3 m clears the 8 m distance bar — a
+check reporting success for a walk that no longer follows the thing it is named
+after.
+
+The fix is to derive the legs from the path geometry the way the entry now is,
+rather than from two remembered x values. That is a real change to how the walk
+is built and I am not starting it on a thin budget — better filed accurately
+than half-done. `park-walk` still catches its mutation, so the legs are still
+detecting a walled loop; they are testing a shorter walk than they used to.
+
+---
+
 ## Cleared the live red on mainline: §23 was used twice
 
 `19289805` filed it and it was still failing:

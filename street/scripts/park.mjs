@@ -189,8 +189,18 @@ const entry = await page.evaluate((maxX) => {
     if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
     if (Math.abs(o.position.y - 0.1445) > 0.02) return;
     if (!g.width || !g.height || g.width > 4 || g.height > 4) return;
-    if (Math.abs(o.position.x + g.width / 2 - maxX) > 0.35) return;   // touches the street edge
-    if (!best || g.height > best.d) best = { z: o.position.z, d: g.height, x: o.position.x };
+    // THE MOST STREET-WARD PATH SLAB, not "one touching the street edge".
+    // 1da5e891 brought the loop in off the boundary and turned its corners, so
+    // the entry stopped touching maxX and this went blind — it refused to
+    // answer rather than passing, which is the only reason the change was
+    // visible at all, but a detector keyed to a boundary the design has moved
+    // away from is a remembered coordinate wearing a filter.
+    //
+    // Derive it: whichever path piece reaches furthest toward the street IS the
+    // way in, wherever the loop sits. That survives the park being re-cut,
+    // which it has been three times.
+    const reach = o.position.x + g.width / 2;
+    if (!best || reach > best.reach) best = { z: o.position.z, d: g.height, x: o.position.x, reach };
   });
   return best;
 }, r.site.maxX);
