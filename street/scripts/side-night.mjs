@@ -44,9 +44,21 @@ console.log(`side-street cars   day ${avg(day.cars)}  night ${avg(night.cars)}  
 // able to take amber inside a lamp pool (props.lit). Dimming is what this proves;
 // whether any individual one sits in a pool depends on where B's lamps ended up
 // relative to where my trees are, which is a spacing question for the desk.
+// THIS PRINTED "FAIL" AND EXITED 0. Every line below decided a verdict and told
+// nobody who reads status codes — not the runner, not a caller, not me scanning
+// a sweep. 548a8807d counted 25 scripts that assert without being registered;
+// this one was worse than unregistered, because registering it would have made
+// the suite green on a red world. It is the same fault I filed against another
+// builder's parking.mjs early on, in my own file the whole time.
+//
+// An empty population still FAILS here rather than passing: avg of nothing is
+// null and dim() requires two numbers, so GOTCHAS 34 falls the safe way round.
+let fails = 0;
 const dim = (d, n) => d !== null && n !== null && n < d * 0.5;
-console.log(`\n  ${dim(avg(day.trees), avg(night.trees)) ? 'OK  ' : 'FAIL'} trees dim after dark`);
-console.log(`  ${dim(avg(day.cars), avg(night.cars)) ? 'OK  ' : 'FAIL'} parked cars dim after dark`);
+const check = (ok, msg) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
+console.log('');
+check(dim(avg(day.trees), avg(night.trees)), 'trees dim after dark');
+check(dim(avg(day.cars), avg(night.cars)), 'parked cars dim after dark');
 console.log(`  brightest single car at night: ${night.cars.length ? Math.max(...night.cars).toFixed(3) : 'n/a'} ` +
   '(well above the average means at least one IS standing in a pool)');
 await p.evaluate(() => window.__ct.warp(20, -101, Math.PI / 2, 0, -0.05));
@@ -54,3 +66,5 @@ await p.waitForTimeout(500);
 await p.screenshot({ path: 'shots/side-night.png' });
 console.log('shot -> shots/side-night.png');
 await b.close();
+if (fails) console.error(`\n${fails} CHECK(S) FAILED — the side street does not go dark`);
+process.exitCode = fails ? 1 : 0;

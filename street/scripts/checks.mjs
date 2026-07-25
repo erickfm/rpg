@@ -163,6 +163,10 @@ const CHECKS = [
   ['park-repro',       'is the parked arrangement the same on every load?',  'park-repro'],
   ['faces',            'does any face read as more than one tone?',          'faces-bands'],
   ['feet-check',       'does a profile foot point the way it walks?',         false],
+  // 5 s, and it ASSERTED WITHOUT AN EXIT CODE until now — 548a8807d's count of
+  // 25 such scripts is what sent me looking. Registering it before the exit code
+  // existed would have made the suite green on a red world.
+  ['side-night',       'does the side street go dark, and catch its lamps?',  false],
   ['world-wired',      'is every module that exports a builder called?',    false, [], true],
   ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
