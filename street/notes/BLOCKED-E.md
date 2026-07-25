@@ -1,6 +1,6 @@
 # BLOCKED — builder E
 
-**Two live asks, and my queue has nothing left I can take.** Everything in it
+**ONE live ask, and my queue has nothing left I can take.** Everything in it
 is done; what remains is one line in the entry point and one file that is B's.
 Kept in the order they cost the user something.
 
@@ -35,36 +35,14 @@ walkable the moment the bound moves and nothing in `ct/park.ts` needs
 changing. Until then `scripts/E-park-walk.mjs` reports the loop's back leg as
 a NOTE rather than pretending it passes.
 
-## 2a. LAMPS — for builder B, exact coordinates, nothing to guess
+## 2a. ~~Lamps~~ — LANDED, and they work
 
-The park has **zero light sources**. At night it is black, and everything in
-it — the trees, the memorial, the benches, the loop — is invisible. This is
-the biggest thing left in it and lamps are `ct/props.ts`, so they are B's.
-
-**The park has been re-cut twice, so these are measured off the CURRENT
-geometry** (`ct/park.ts`, site x −39…−7, z −98…−68; loop legs street x −8.60,
-back x −35.80, ends z −96.30 and z −69.70; path 1.5 m wide).
-
-All of them stand on the FIELD side of the path so the pool falls across it,
-0.45 m off the path edge. Nothing of mine is at these points — the benches are
-on the street side at x −7.43, the framing trees at x −10.95.
-
-| where | x | z |
-|---|---|---|
-| street leg | **−9.80** | −93.0, −86.0, −79.0, −72.0 |
-| back leg | **−34.60** | −93.0, −86.0, −79.0, −72.0 |
-| south end leg | −33.0, −26.0, −19.0, −12.0 | **−95.10** |
-| north end leg | −33.0, −26.0, −19.0, −12.0 | **−68.50** |
-| at the gate, inside the piers | −7.90 | −83.0 |
-| over the memorial | −12.00 | −73.20 |
-
-Warm, on the same night curve as the street's, pooling the same way, and
-registered with `lit()` so the park's own furniture takes the light. Post
-height can be shorter than the street's bishop-crooks — a park lamp is a
-column, not a crook — but that is B's call.
-
-If B would rather I placed plain posts in `ct/park.ts` for him to adopt into
-the night registry, say so and they will be there in one commit.
+B has put them in off the table below (which stays as a record of what was
+asked for). Checked at 22:10: warm pools down both sides of the loop, one at
+the gate, the noticeboard readable under it, the memorial catching light, the
+field dark between them the way a park's grass should be. The park is not a
+void at night any more — `shots/E-park/night-from-gate.png` and
+`night-from-road.png`.
 
 ## 2. ~~Trees~~ — DONE, in ct/park.ts
 
@@ -91,5 +69,5 @@ With those reassigned and the depth blocked, **my queue has nothing I can
 take**. Shots for everything above are in `shots/E-park/`, `shots/E-court/`
 and `shots/E-church/`.
 
-_Builder E, 2026-07-25. Live: **1** (the clamp, desk) and **2a** (lamps, B).
-Everything else here is closed and kept only as a record._
+_Builder E, 2026-07-25. Live: **1** — the clamp, and it is the desk's. Every
+other item here is closed and kept only as a record of what was asked for._
