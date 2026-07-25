@@ -1755,14 +1755,24 @@ export function buildStreet(o: {
       }), 'sign');
     };
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
-      // alphaTest, and it is not a rendering preference — it is what stops the
-      // tags GLOWING AT MIDNIGHT. props.ts grades the world down after dark and
-      // skips anything it thinks is glass: `isGlass = m.transparent &&
-      // !(m.alphaTest > 0)`. A transparent decal with no alphaTest is glass by
-      // that test, so these three were never offered to the dimmer at all —
-      // measured, `userData.graded` false and colour still 1.0 at 23:00, while
-      // the brick behind them went to 0.09. Spray paint reading brighter than
-      // the wall it is on.
+      // alphaTest. It WAS what stopped these tags glowing at midnight, and it is
+      // not any more — `34a3ed95` fixed the cause properly, upstream.
+      //
+      // The history, because the comment used to claim more than it should. The
+      // tags rendered at colour 1.0 at 23:00 while the brick behind them sat at
+      // 0.062: props.ts skipped anything `isGlass = m.transparent &&
+      // !(m.alphaTest > 0)` called glass, and a transparent decal with no
+      // alphaTest is glass by that test. Setting alphaTest took them out of it.
+      //
+      // B then classified all 67 of their own and found the predicate was
+      // carrying three meanings — additive light (bright at midnight is what it
+      // is FOR), self-lit signage, and ordinary decals — and split it. Measured
+      // at HEAD: remove this alphaTest and the tags are STILL graded, still
+      // 0.115 at 23:00. My fix is now redundant as a fix.
+      //
+      // Kept because it is still right for this art: `placaTex` is fillRect on
+      // a transparent ground, every texel fully opaque or fully clear, so a
+      // cutout is what it should have been regardless of grading.
       //
       // Safe here because the art is hard-edged: `placaTex` is fillRect on a
       // transparent ground, so every texel is fully opaque or fully clear and a

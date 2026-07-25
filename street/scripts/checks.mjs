@@ -90,6 +90,7 @@ const CHECKS = [
   ['shells',           'is a building a building, or a stage flat?',         true],
   ['alleycheck',       'is the alley a room, or a gap between two boxes?',   true],
   ['builtlane',        'is the 2 m walk still 2 m of nothing?',              true],
+  ['midnight',         'is anything bright at midnight without saying why?',  true],
   // ── the ground: kerb, litter, lamps, water ──────────────────────────────
   // Third field as a STRING (or a LIST of them) names cases in
   // scripts/canfail.mjs, which break the guarded thing in source, rebuild, and
