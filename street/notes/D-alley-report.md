@@ -832,3 +832,34 @@ found ~10 more scripts with a material walk and no array handling; several are
 legitimately single-material by construction, so the list needs an owner's eye
 rather than a blanket edit. **Desk: worth one line in GOTCHAS pointing at it**,
 since the next person to write a check will otherwise make it five.
+
+## Running the house suite: two things that cost me time
+
+**`npm run checks` with no server produced ~20 reds and none of them meant
+anything.** The default is `http://localhost:4177/`, `page.goto` throws
+ERR_CONNECTION_REFUSED before any check reaches `reportWorld`, and the runner
+rendered each as `FAILED (1)` under a footer reading "Something above is red."
+Fixed in `5c10e903`: the URL is probed once, first, and a dead port stops the
+run with the reason and exits 2 rather than 1. The runner already separated
+WRONG WORLD from FAILED for the same reason — no world was the missing third
+case. **That is the house runner rather than my file; revert freely.**
+
+**Do not commit while the suite is running.** I committed mid-run and every
+check after that point reported WRONG WORLD — correctly, because HEAD had moved
+out from under the build they were measuring. Twelve reds, all mine, none of
+them defects. The guard did exactly its job; I was the one moving the target.
+
+Real state after both: **one red in the project, `doors-declared`, and it is not
+mine** — see BLOCKED-D.md, where it changes the wording of my own
+recommendation. My three checks are green.
+
+## Settle time: checked, and my readings do not need it
+
+`cd91d251` raised scenedump to a 2 s settle because the grade lerps after a
+clock jump and its hash reads material colour. `windowlights.mjs` reads colour
+too, so I sampled the ramp rather than assuming either way: warm-pixel counts at
+13:00 / 21:00 / 03:00 are identical at 700, 1300, 2000 and 3000 ms, and the
+sheet opacities are exact at every sample. `setWindows` assigns opacity straight
+from the hour with no interpolation, and the crop is dominated by the sheets
+rather than the graded facade. Recorded in the file so the next person does not
+re-derive it.

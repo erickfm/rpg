@@ -63,6 +63,22 @@ await page.waitForTimeout(900);
 
 // One camera, mid-block, looking down the street so both elevations are in
 // frame. Never moves — the only variable is the hour.
+//
+// SETTLE TIME: 700 ms, and that is enough HERE — checked, not assumed.
+// 2bdebbcf measured that the grade LERPS after a clock jump (at 23:00 an
+// out-of-range count reads 0 at 500 ms and 9 from 1000 ms on) and cd91d251
+// raised scenedump to 2 s because its hash reads material COLOUR, which is
+// what is still moving. This file reads colour too, so I sampled the ramp:
+//
+//     13:00  warm 0     at 700 / 1300 / 2000 / 3000 ms
+//     21:00  warm 2936  at 700 / 1300 / 2000 / 3000 ms
+//     03:00  warm 2476  at 700 / 1300 / 2000 / 3000 ms
+//
+// Flat. `setWindows` assigns sheet opacity straight from the hour with no
+// interpolation, and the warm crop is dominated by the sheets rather than by
+// the graded facade behind them. A check that read facade colour would need
+// the 2 s; this one does not, and now says why rather than leaving the next
+// person to re-derive it.
 const warmAt = async (hour) => {
   await page.evaluate((h) => window.__ct.clock(h, 0), hour);
   await page.evaluate(() => window.__ct.warp(-1.2, -40, Math.PI, 0, 0.30));
