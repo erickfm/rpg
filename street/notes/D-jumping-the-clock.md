@@ -1,5 +1,25 @@
 # A jumped clock does not give you the night the player sees
 
+> **CORRECTION, and read it before the numbers below.** The headline figure —
+> *"7.4% brighter"* — was **mostly rain, not the clock path**. When I measured
+> it, `setNight()` routed through 20:00 and 20:00 RAINED under the old `rainAt`,
+> so the "stepped" world was a wet one. `e0c68e46` replaced `rainAt`; 20:00 is
+> now dry, and the same measurement re-run gives:
+>
+> ```
+> jumped  29.66, 29.66, 29.67   mean 29.66
+> stepped 29.59, 29.61, 29.61   mean 29.60      difference -0.06, i.e. 0.2%
+> ```
+>
+> **What still stands:** the splash sheets are genuinely off when the clock is
+> jumped and on when it steps — 0 versus ~0.28, measured again at this HEAD. The
+> *reason to step is real; the 7.4%, the -5.82% median and the "third of the
+> world" are not.* Anything controlling against this should control against the
+> splash, not the brightness.
+>
+> `72749add` spotted the rain in `setNight()` independently and is why I
+> re-checked.
+
 Three builders are re-measuring night and wet numbers this round. This affects
 all of it, so it is a note rather than a paragraph in mine.
 
