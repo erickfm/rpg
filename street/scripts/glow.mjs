@@ -218,6 +218,54 @@ if (mode === 'probe' || mode === 'all') {
     if (!ok) process.exitCode = 1;
   }
   console.log(`       ${pool.lamps} lamps carry a lens or lantern stamp`);
+
+  // AND NOTHING IS DRAWN ON TOP OF THE LIGHT. The ratio above says the tint
+  // reaches the ground; it says nothing about whether you can SEE it. The pool
+  // decal is additive with depthWrite off, but it still depth-TESTS and opaque
+  // geometry draws first, so anything lying within a few centimetres above it
+  // stops the lamplight where they cross — present, carrying opacity, invisible.
+  //
+  // This is not hypothetical: it had happened in the park, where ct/park.ts
+  // separates its coplanar ground detail on a 0.006 LIFT unit and my decal sat
+  // inside that stack. Three of ten pools were partly covered, worst 18.6% of
+  // its area, with every existing verdict green throughout. park.mjs guards it
+  // there now; this is the same guarantee for the street, which is currently
+  // clean and has no reason to stay that way by luck.
+  //
+  // 0.10 m band, because only NEAR-ground geometry is a layering fault — a
+  // bollard or a bench standing in a pool of light is the world working.
+  // Measured today: worst street pool 0.2%, one 0.11 m2 bite out of a 31 m2
+  // pool, from my own basin casting standing legitimately proud of the road.
+  const cover = await page.evaluate(() => {
+    const sc = window.__ct.scene(); const pools = [], solids = [];
+    sc.traverse((o) => {
+      if (!o.isMesh) return;
+      const w = o.getWorldPosition(new (o.position.constructor)());
+      if (w.x < -9 || w.x > 9 || w.z > 4 || w.z < -96 || w.y > 1.0) return;
+      const g = o.geometry?.parameters; if (!g) return;
+      if (o.material?.blending === 2 && (g.width ?? 0) > 3)
+        pools.push({ x: w.x, z: w.z, y: w.y, w: g.width });
+      else if ((o.material?.opacity ?? 1) > 0.999 && !o.material?.transparent && (g.width ?? 0) >= 0.5)
+        solids.push({ x: w.x, z: w.z, y: w.y, w: g.width, h: g.height ?? g.width });
+    });
+    return pools.map((p) => {
+      const area = p.w * p.w; let covered = 0;
+      for (const q of solids) {
+        if (q.y <= p.y + 1e-6 || q.y - p.y > 0.10) continue;
+        const ox = Math.min(p.x + p.w / 2, q.x + q.w / 2) - Math.max(p.x - p.w / 2, q.x - q.w / 2);
+        const oz = Math.min(p.z + p.w / 2, q.z + q.h / 2) - Math.max(p.z - p.w / 2, q.z - q.h / 2);
+        if (ox > 0 && oz > 0) covered += ox * oz;
+      }
+      return { at: `${p.x.toFixed(1)},${p.z.toFixed(1)}`, pct: area ? +(100 * covered / area).toFixed(1) : 0 };
+    });
+  });
+  const worst = cover.length ? Math.max(...cover.map((c) => c.pct)) : 0;
+  const okCover = cover.length > 0 && worst <= 5;
+  console.log(`  ${okCover ? 'OK  ' : 'FAIL'} nothing is drawn on top of the street lamplight ` +
+    `(worst pool ${worst}% covered, of ${cover.length} pools)`);
+  for (const c of cover.filter((c) => c.pct > 5)) console.log(`      ${c.at}: ${c.pct}% under near-ground geometry`);
+  if (!okCover) process.exitCode = 1;
+
   if (bad.length) process.exit(1);
 }
 

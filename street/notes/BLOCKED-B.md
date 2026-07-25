@@ -1,3 +1,22 @@
+# For the desk: the merge train would take four branches right now
+
+Not a blocker for me, and I have not run it — `./scripts/land.sh --dry` says:
+
+```
+LANDED:   rpg-entrance (27)  rpg-ground (16)  rpg-interiors (45)  rpg-split2b (6)
+SKIPPED:  rpg-alley [uncommitted work — ask it to commit]
+```
+
+94 commits across four builders would land clean, and `rpg-alley` is held only
+by an uncommitted tree. My own 16 are green — `tsc --noEmit && vite build`
+exits 0 — so nothing is being dropped for breakage; the train simply has not
+run in about two hours while mainline has been committing every few minutes.
+
+I checked this because my own work had stopped landing and I wanted to know
+whether I was the cause before taking anything new. I am not.
+
+---
+
 # Two operational notes from this round
 
 ## `truck.mjs` got the guard anyway, and that is fine

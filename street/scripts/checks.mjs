@@ -151,7 +151,7 @@ const CHECKS = [
   // the failure this column exists to make visible.
   ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water', 'footprint-blind']],
   ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
-  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind'], ['probe']],
+  ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind', 'glow-buried'], ['probe']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk', 'park-buried']],
   ['wetness',          'are puddles darker than the road they sit in?',    ['wetness', 'wet-blind'],  ['probe']],
   ['basin',            'are BOTH catch basins real casting, sunk and proud?', ['basin', 'basin-west']],

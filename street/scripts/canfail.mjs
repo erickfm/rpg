@@ -194,6 +194,16 @@ const CASES = [
   // and every existing park verdict still passes — the light is simply drawn
   // under the ground detail where they cross. Three of ten pools, worst 18.6%
   // of its area, which is what this looked like when I found it.
+  // The street twin of park-buried. Drops the 5.6 m street pool a centimetre
+  // BELOW the road it lies on, so the roadway itself covers it: the lamps still
+  // glow, the near/far tint ratio is unchanged because that is a property of the
+  // material and not of what is drawn over it, and the light is simply not
+  // there. Every other verdict in glow.mjs stays green.
+  ['glow-buried', PROPS,
+    'pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, headZ); scene.add(pool);',
+    'pool.rotation.x = -Math.PI / 2; pool.position.set(headX, -0.01, headZ); scene.add(pool);',
+    'glow.mjs', ['probe'], 'the street lamplight drawn UNDER the road it falls on'],
+
   ['park-buried', PROPS,
     'pool.position.set(x, y0 + 0.05, z); scene.add(pool);',
     'pool.position.set(x, y0 + 0.02, z); scene.add(pool);',
