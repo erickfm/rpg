@@ -37,7 +37,7 @@ export interface Props {
 }
 
 export function buildProps(ctx: CtxBuild): Props {
-  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
+  const { scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
   // The wet registration is published from ct/tex-ground.ts, not here. This
   // module builds at crosstown.ts:210 and buildStreet — which places vice — at
   // :103, so anything set here arrives too late for a build-time caller. That
@@ -794,6 +794,16 @@ export function buildProps(ctx: CtxBuild): Props {
     gr.addColorStop(1, 'rgba(255,178,96,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
   }), 'detail');
+  // NOT WET, AND THIS IS THE JUDGEMENT baa675d7 ASKED FOR. Its sweep lists ten
+  // of my decals as "transparent, unmoved, lying on ground that got wet" — four
+  // 5.60 street pools and six 4.40 park pools. They are additive LIGHT, not
+  // material: a pool is the lamp's beam on the road, and rain does not wet a
+  // beam. Registering them would hand their colour to updateRain, which would
+  // then fight nightLit for it — one writer per material, lost twice over.
+  //
+  // The other nine on that list ARE ground and are registered: the grime stains
+  // and every litter contact shadow. Saying so here so the class does not get
+  // re-filed the next time somebody sweeps it.
   const lampPoolT = declareSurface(pixTex(48, 48, (g) => {
     const gr = g.createRadialGradient(24, 24, 2, 24, 24, 24);
     gr.addColorStop(0, 'rgba(255,190,110,0.55)');
@@ -1546,8 +1556,12 @@ export function buildProps(ctx: CtxBuild): Props {
     }
   }), 'ground');
   const stain = (x: number, z: number, len: number) => {
+    // WET. baa675d7 enumerated every transparent decal lying on ground that got
+    // wet and found 19 of mine. This one is the clearest yes: it is grime on the
+    // concrete that FOLLOWS the water — a dry stain beside a road at -83% is the
+    // defect that commit was written about.
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, len),
-      new THREE.MeshBasicMaterial({ map: stainT, transparent: true, depthWrite: false }));
+      wet(new THREE.MeshBasicMaterial({ map: stainT, transparent: true, depthWrite: false })));
     m.rotation.x = -Math.PI / 2;
     // a grime decal is ON the concrete, unlike water, so it takes the highest
     // ground under its footprint — under the pan's high side it is invisible
@@ -1806,7 +1820,7 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillStyle = gr; g.fillRect(0, 2, 24, 44);
   }), 'detail');
   const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.66, BENCH_L + 0.12),
-    new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false }));
+    wet(new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false })));
   bshadow.rotation.x = -Math.PI / 2;
   bshadow.position.set(BX_FRONT + 0.35, sidewalkY + 0.004, BENCH_Z);   // stays off the kerb
   scene.add(bshadow);
@@ -2319,9 +2333,12 @@ export function buildProps(ctx: CtxBuild): Props {
     // turned 86 degrees has corners that stick out past the world box of the
     // thin cylinder it covers, so a shadow can cross the kerb the object
     // clears. Measure the assembled piece and the question does not arise.
+    // WET too. A contact shadow is part of the ground it is printed on, so it
+    // has to take the ground's weather or it stays a noon-dark smudge on a road
+    // that has gone to 17% — which reads as a hole rather than a shadow.
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(
       (bbL.max.x - bbL.min.x) * 0.92, (bbL.max.z - bbL.min.z) * 0.92),
-      new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false }));
+      wet(new THREE.MeshBasicMaterial({ map: shadeT, transparent: true, depthWrite: false })));
     sh.rotation.x = -Math.PI / 2;
     sh.position.set((bbL.max.x + bbL.min.x) / 2, bbL.min.y + 0.003,
                     (bbL.max.z + bbL.min.z) / 2);
