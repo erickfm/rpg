@@ -53,32 +53,35 @@ sides were read the same wrong way**.
 ad-panel geometry exists anywhere by shape. Located as *the stop in front of
 LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
-## Project state at handoff: the one red is green
+## Project state at handoff
+
+**Rewritten. The version that stood here was badly stale** — it reported *"28
+green, 1 red"* on a suite that now registers **56** checks, and said `seats-walk`
+passes, which my own later measurement contradicts. A reader lands on this
+section first, so it is the last thing that should lag.
+
+Measured across the full suite, both tiers, and every red diagnosed:
 
 | | |
 |---|---|
-| full fast tier, last complete run | **28 green, 1 red** (`doors-declared`) |
-| `doors-declared`, run directly today | **"every declared door arrived"** — green |
-| `globorder.mjs` | **3 bindings still read before they exist** — the mechanism is live, nothing declares through it |
-| dev world vs bundled world | **identical on 9 counts**, doors 8/8 in both |
+| green | **52** |
+| **flaky** | **2** — `seats-walk` (56/58, 57/58, 56/58, **58/58** on one build) and `nightgrade` (0, 0, 1, 2 on one build). Neither describes a broken world; both sample one instant against citizens and phasing lights |
+| known and explained | **2** — `checks-registered` (three offered scripts, a three-line fix **nobody is permitted to apply**) and `interiors-walk` (imports raw `.ts`; the suite drives a preview. **195/195** against a dev server) |
+| correct red, catching real defects | **1** — `no-silent-pass`, which caught three scripts exiting 0 on an unknown mode word |
+| **describing something wrong with the world** | **0** |
 
-**So the suite is green as far as I have measured it** — 28 confirmed in the
-last complete run, and the twenty-ninth confirmed directly. I could not re-run
-the whole tier in one window to see all 29 green together; it now exceeds the
-time I can hold a single command open. **That is an inference from two direct
-measurements, not a run I completed**, and it is worth saying which.
+**Two of my own earlier green claims do not survive**, and both are in
+`AUDIT-TRIAGE.md`:
 
-The six `--slow` walking suites: `spots-walk`, `seats-walk`, `world-wired`,
-`steps-walk` and `civic-doors-walk` I have run individually and all pass.
-`interiors-walk`, which failed six times on setup and which I abandoned, has now
-run to completion on the seventh: **195/195 across all eight rooms** — the exact
-figure its owner claims at `feat-interiors.md:317`. It is an instrument I do not
-own, run by me, reproducing the owner's number, and it independently covers the
-entry/exit round trip I had verified by hand: the way-out prompt, landing on the
-raised walk at `gy=0.14` rather than in the road, not standing in the re-entry
-trigger afterwards, a second `E` not sucking you back in, the landing open in
-all three directions, and the interior keeping its own light after dark
-(0/155 materials dimmed by the night sweep). **Marked [I] — independent.**
+- `seats-walk` is **flaky, not passing**. Two benches at x −8.65 have exactly one
+  standable approach point, so one pedestrian decides the verdict.
+- `spots-walk` **can pass having checked nothing** — it prints its subject count
+  and never asserts it. One of four registered checks I found in that state.
+
+The open findings, all routed and none of them mine to fix: the **floating
+litter** (18 visible, quantified against a target, guard offered), three
+**empty-set guards**, the `checks-registered` **ownership gap**, and the bench ad
+in `BLOCKED-AUDIT-seams.md`.
 
 ## Every result in this report was measured on an **empty street** — and holds on a busy one
 
