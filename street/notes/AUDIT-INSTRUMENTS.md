@@ -493,3 +493,23 @@ Three times I did not, and each time the number was precise, reproducible, and
 about nothing. Precision is the tell: `0.00 m`, `0 of 236`, `5 of 5` — real
 independent measurements are almost never that clean, and the cleanliness should
 have been the warning rather than the reassurance.
+
+## The slow check tier: I could not run it, twice
+
+`npm run checks -- --slow` adds six walking suites (`world-wired`, `spots-walk`,
+`steps-walk`, `civic-doors-walk`, `seats-walk`, `interiors-walk`). **Both my
+attempts were invalidated by `which-world`:**
+
+1. the first because **I kept committing while it ran** — HEAD moved under it,
+   correctly invalidating every check
+2. the second on a deliberately pinned world (rebased, rebuilt, HEAD untouched
+   for the whole run) — **and it still reported `WRONG WORLD`.** I have not
+   isolated why
+
+**So my "28 green, one red" covers the FAST tier only.** The six walking suites
+are unrun by me and I am not claiming anything about them. `spots-walk` and
+`seats-walk` I have run individually and they pass; the other four I have not.
+
+The first failure is worth recording as a rule: **a long check run and
+concurrent commits do not mix.** The guard is doing exactly its job, and the
+cost of ignoring that is a twelve-minute run producing nothing.

@@ -2111,3 +2111,65 @@ That is the fourth time a claim of mine has rested on a distinction I had not
 looked for — after the box faces, the axis conventions, and the coordinate
 frames. The pattern is identical: **the source says one thing and the artefact
 says another, and I read the source.**
+
+## Round 17 — my proposed fix does not work, and the code says what does
+
+I have recommended *"move `doorStandFor` into a leaf module"* three times, each
+time refining the size of the change. **It cannot be moved at all.**
+
+```ts
+export function doorPointFor(building: string) {
+  ensure();                     // ← populates from the GLOB
+  const d = DECLS.get(building); // ← the glob-collected registry
+  ...
+}
+export function doorStandFor(building, standoff = 0.75) {
+  const d = doorPointFor(building);   // ← so this needs the registry too
+  ...
+}
+```
+
+`doorStandFor` is not a pure helper. It reads the registry that the glob fills.
+**Moving it to a leaf would move the glob with it.** Of the four helpers
+`interior.ts` imports, only `roomWidthFor` is pure — `return Math.max(4,
+frontageM - 1.2)`. The other three all call `ensure()`.
+
+### The full cycle, finally correct
+
+```
+doors.ts  ──glob (eager)──▶  interior.ts, int-casino.ts, int-hotel.ts
+interior.ts   ──doorWorldFor, doorStandFor, doorPointFor, roomWidthFor──▶  doors.ts
+int-casino    ──doorStandFor──▶  doors.ts
+int-hotel     ──doorStandFor──▶  doors.ts
+```
+
+**`interior.ts` is the backbone, not the rooms.** Four value imports against the
+rooms' one. Everything I wrote about the eight rooms being the cycle was
+measuring the weakest edges and missing the strongest.
+
+*(The six type-only rooms and `crosstown.ts` are not in it: types are erased, and
+`crosstown.ts` sits outside the globbed directory.)*
+
+### What the code itself points at
+
+`doors.ts:68` — **"Collected LAZILY, not at module init."** That is the stated
+intent, and `ensure()` implements it. But `doors.ts:75` is:
+
+```ts
+const MODS = import.meta.glob<...>('./*.ts', { eager: true });
+```
+
+**The collection is lazy and the glob is eager.** `ensure()` defers *reading*
+the namespaces; `{ eager: true }` still materialises the object referencing them
+at module-init time, which is where a not-yet-bound module becomes `undefined`.
+
+> **`{ eager: false }` gives importer functions instead of namespaces, and
+> `ensure()` is already the place that would call them.** Nothing would be
+> referenced before it is bound, and emission order would stop mattering — for
+> this glob and for any future one.
+
+I have not implemented or tested this — I do not touch `src/`, and the change
+turns `ensure()` async or requires the importers to be resolved before first
+use, which is a real design question. But it is the fix the file's own comment
+was already reaching for, and it is a much better answer than the leaf module I
+proposed three times.
