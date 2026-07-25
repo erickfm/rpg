@@ -8,7 +8,22 @@ Their test — stand inside, note which side the door is on, walk out, turn roun
 confirm it swapped — **has now been run and it passes.** I had left it
 unfinished last turn and said so; this closes it.
 
-## Two of the three rooms F has declared
+## A-1 TAX — the building the complaint was actually about
+
+`shots/tx-inside.png`, `shots/tx-outside.png`
+
+| | window run | door |
+|---|---|---|
+| **inside**, facing the front wall | left | **right** |
+| **outside**, facing the facade | right | **left** |
+
+Word for word against the ask: *"the interior of the tax service is on the right
+side of the interior so i would expect the exterior to match. so it should be on
+the left side of the building exterior representing this interior."*
+
+Inside right → outside left. **That is the original complaint, closed.**
+
+## Two more of the rooms F has declared
 
 **The diner** — `shots/mm-inside-wall.png`, `shots/mm-outside.png`
 
@@ -58,9 +73,9 @@ anywhere stores a "side".
   left, opening to its right), but the frame is obstructed and that is not a
   clean read. `shots/th-inside.png`. Someone should take it from a clear spot;
   I am not claiming it on a blocked view.
-- **Two more rooms have declared since** — A-1 TAX (door now −20.13, was −12.36)
-  and PAWN (−60.50, was −54.34). Five declared in total, all resolving. Neither
-  of those two has had the visual check either.
+- **PAWN** (declared, door −60.50) has not had the visual check. Five rooms
+  declare; three now verified (tax, diner, burger barn), THRIFT obstructed,
+  PAWN unlooked-at.
 - **Every shop that has NOT declared** still takes its door from the painter's
   own layout. Those are self-consistent (facade and room use the same fallback)
   but they are not expressing any room's intent, because there is no room behind
