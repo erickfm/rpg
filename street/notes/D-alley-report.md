@@ -767,3 +767,38 @@ I also grepped one mutant run down to PASS/FAIL lines and discarded
 `reportWorld`'s build banner — GOTCHAS 26, in a check I wrote myself.
 
 Check the mutant is the bug before believing what the guard says about it.
+
+## For B: `userData.noLight` does not opt a material out of `dimWorld`
+
+Found while mutation-testing my own grading assertion, so it is a side effect
+rather than an audit — B's file, B's call, nothing of mine depends on it.
+
+`ct/props.ts` has two collectors. `register()` (the lamp-pool path, `lit()`)
+checks `if (m.userData?.noLight) continue;`. `dimWorld()` — the one that grades
+the whole block down after dark — never looks at `noLight`. It skips only
+`isGlass`, `wetMats` and `litSeen`.
+
+Measured: with `noLight` set on the shell flank materials, **26 came back
+carrying `noLight` and `graded` together**.
+
+This may well be intended — the comment in `register` says `noLight` is for
+"genuinely non-diffuse surfaces … chrome and rubber", and chrome losing the
+ambient at night is right even if a lamp should not pool on it. If so the
+asymmetry is worth one line at the flag's definition, because the name reads as
+"do not touch my colour" and I assumed exactly that when I reached for it as a
+mutant. If it is not intended, then chrome and rubber are being graded by
+elevation right now.
+
+## Follow-on: my lit sheets were excluded as glass (120ac459)
+
+Same investigation. `isGlass` is `m.transparent && !(m.alphaTest > 0)`, and the
+window sheets are transparent, so `dimWorld` skips them as glass. Correct
+outcome, wrong reason — they are self-lit, not glazing. They now stamp
+`userData.selfLit`, which is the documented convention (`ct/paint.ts`) and what
+props.ts's own signage path sets. Measured no-op: `graded` stays false, 21:00
+warm pixels identical at 2936.
+
+Worth B knowing because it means **`isGlass` is currently load-bearing for
+things that are not glass.** Tightening it to actually mean glazing is a
+reasonable change to want, and on the day it happens the lit windows would have
+started dimming at night with nothing recording that they must not.
