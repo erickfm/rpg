@@ -378,6 +378,7 @@ for (room of rooms) {
   // read as a success. Asserting both directions is what makes it evidence.
   const panes = await p.evaluate(([cx, hdv]) => {
     const out = [];
+    let all = 0;                 // every mesh in the band, so "none glazed" can mean something
     const s = window.__ct.scene(); s.updateMatrixWorld(true);
     s.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
@@ -387,15 +388,22 @@ for (room of rooms) {
       if (Math.abs((bb.min.x + bb.max.x) / 2 - cx) > 9) return;
       if ((bb.min.z + bb.max.z) / 2 < hdv - 0.45) return;          // the front wall plane
       if (bb.max.y < 0.45 || bb.min.y > 3.2) return;               // the eye-height band
+      all++;
       const ms = Array.isArray(o.material) ? o.material : [o.material];
       if (!ms.some((m) => m && m.transparent)) return;
       out.push(+(bb.max.x - bb.min.x).toFixed(2) + '×' + +(bb.max.y - bb.min.y).toFixed(2));
     });
-    return out;
+    return { glazed: out, all };
   }, [CX, hd]);
+  // "No window" is satisfied by finding NOTHING, so it passes just as happily if
+  // the traverse missed the room entirely — wrong CX, wrong band, a changed wall
+  // depth. So the band has to prove it found a wall before its emptiness means
+  // anything: `panes.all` counts every mesh in the plane, glazed or not.
   check(room.hasWindow ? 'the front wall is glazed, as this room asked' : 'the front wall has NO window, as this room asked',
-    room.hasWindow ? panes.length >= 1 : panes.length === 0,
-    `${panes.length} glazed pane(s) in the front wall${panes.length ? ': ' + panes.join(', ') : ''}`);
+    panes.all >= 3 && (room.hasWindow ? panes.glazed.length >= 1 : panes.glazed.length === 0),
+    panes.all < 3 ? `HARNESS: only ${panes.all} meshes in the front-wall band — the probe did not find the wall`
+      : `${panes.glazed.length} glazed pane(s) of ${panes.all} meshes in the front wall`
+        + (panes.glazed.length ? ': ' + panes.glazed.join(', ') : ''));
 
   const beforeF = await pos();
   await hold('w', 260);
@@ -516,8 +524,23 @@ for (room of rooms) {
   for (const [name, lx, lz, key, , axis, most] of room.noGo ?? []) {
     await warp(CX + lx, lz, YAW[key], 0);
     await p.waitForTimeout(150);
+    // DID THE PROBE START SOMEWHERE A PLAYER COULD STAND? A no-go check passes by
+    // NOT moving, so one that begins wedged inside furniture reports 0 m and reads
+    // as a pass having tested nothing — `32d9d6521`'s class, in the direction that
+    // hides it. The wall probes carry F's "never left the start point" guard
+    // because they can tell stuck from held; these cannot, since stuck and held
+    // look identical from the outside.
+    //
+    // Comparing the landing against the requested spot does NOT catch it, which I
+    // found by trying: `__ct.warp` does no collision resolution, so a probe warped
+    // into a counter lands exactly where it asked and reports zero offset while
+    // standing inside the box. So ask the colliders instead.
+    const inside = await p.evaluate(([x, z]) => window.__ct.colliders().some((c) =>
+      x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ), [CX + lx, lz]);
     const d = await walkTill(axis);          // no early exit: we want the MAXIMUM
-    check(name, d < most, `got ${f2(d)} m in before stopping (must be < ${most})`);
+    check(name, !inside && d < most,
+      inside ? `HARNESS: local (${lx}, ${lz}) is INSIDE a collider — a probe that starts wedged cannot test a gap`
+        : `got ${f2(d)} m in before stopping (must be < ${most})`);
   }
 
   // ── the keeper is looking AT you, not away ───────────────────────────
