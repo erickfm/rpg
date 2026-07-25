@@ -28,9 +28,7 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-const WORLD = process.env.SHOT_URL ?? 'http://localhost:4177/';
-await page.goto(WORLD, { waitUntil: 'networkidle' });
-await reportWorld(page, WORLD);
+await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
