@@ -13,12 +13,44 @@
 // This is one command instead of six remembered ones.
 //
 // Every check here reads SHOT_URL and calls reportWorld, so each one refuses if
-// the server is not serving this checkout's build.
+// the server is serving the WRONG build — and the runner prints that as WRONG
+// WORLD rather than as a failure, because they are not the same news.
+//
+// NO server is a third case and it used to print as the second. `page.goto`
+// throws ERR_CONNECTION_REFUSED before any check reaches reportWorld, so a
+// plain `npm run checks` with nothing on the port produced ~30 stack traces,
+// ~30 `FAILED (1)` rows, and a footer reading "Something above is red" — which
+// was true, and told you nothing. Measured: that is what the default port does
+// on a machine where the preview is not up, which is every fresh checkout.
+//
+// So the URL is probed ONCE, first, and a dead port stops the run in a second
+// instead of failing thirty checks slowly. Nothing about a check's verdict
+// changes; this only alters what you are told when there was nothing to
+// measure. "Could not measure" and "measured, and it is wrong" are different
+// sentences and the second one is the expensive one to get wrong.
 import { spawnSync } from 'node:child_process';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+
+// Is anything actually there? One request, before thirty browsers start.
+{
+  let live = false, why = '';
+  try {
+    const r = await fetch(URL, { signal: AbortSignal.timeout(4000) });
+    live = r.ok;
+    if (!r.ok) why = `HTTP ${r.status}`;
+  } catch (e) { why = String(e.cause?.code ?? e.name ?? e.message); }
+  if (!live) {
+    console.error(`\nNOTHING IS SERVING ${URL}  (${why})\n`);
+    console.error('  Every check below would have reported FAILED, and none of them');
+    console.error('  would have measured anything. That is not the same as red.\n');
+    console.error('  Start one:   npm run preview -- --port <yours>');
+    console.error('  Or point at an existing one:   SHOT_URL=http://localhost:PORT/ npm run checks\n');
+    process.exit(2);
+  }
+}
 
 // what each one answers, in the order a reader would want it
 const CHECKS = [
