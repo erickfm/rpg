@@ -481,6 +481,37 @@ attempt at out-thinking a pedestrian.
 
 ---
 
+## CORRECTED: I published `registerWet` from a module that builds too late
+
+`f21111e5` said the publication does not close the runner, and it was right —
+for a worse reason than the one it gave. It read `scene.userData.wetness` (the
+value) and concluded it would have to copy the wet-look curve by hand, which it
+correctly refused to do. But I had also published `registerWet`, the real
+`ctx.wet`, precisely so nobody has to copy anything.
+
+**It was unreachable.** `buildProps` runs at `crosstown.ts:210`; `buildStreet`,
+which places vice, runs at `:103`. Anything props sets on `scene.userData`
+arrives a hundred lines after a build-time caller needs it. **Holding `scene` is
+not the same as holding it in time**, and I checked the call order only after
+someone told me the answer did not work.
+
+Moved to `ct/tex-ground.ts`, which builds at `:66` — before `buildStreet` and
+before `buildProps`. Exercised, not just present:
+
+```
+published=yes   returns-same-material=true   wetStamp=true
+```
+
+So `scene.userData.registerWet(mat)` is `ctx.wet` itself: one registry, one
+implementation of the curve, nothing duplicated into `vice.ts`. The two lines
+`f21111e5` describes — `wet` into `buildVice`'s signature and its call site —
+are still the tidier home if the desk wants a conflict in `street.ts` for it;
+this needs no signature change from anyone.
+
+One writer per material still applies and is stated at the export.
+
+---
+
 ## ANSWERED for G, part two: the wet registration is reachable now too
 
 `08ad3f0b` swept its own ground after my centre-lines finding and turned up the

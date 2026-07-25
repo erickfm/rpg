@@ -37,22 +37,12 @@ export interface Props {
 }
 
 export function buildProps(ctx: CtxBuild): Props {
-  const { scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
-  // AND THE WET REGISTRATION, reachable by anyone holding `scene`. 08ad3f0b:
-  // ct/vice.ts cannot join the wet-look "not by decision but because the
-  // constructor takes four arguments" — it gets { scene, flat, solid, KERB_H },
-  // so its brass-threshold runner cannot get wet, and the same shape left the
-  // road centre lines bone dry on an 83%-darkened road (b209275c).
-  //
-  // This is `ctx.wet` itself, re-exported rather than reimplemented, so there is
-  // exactly one registry and one implementation of joining it.
-  //
-  // ONE WRITER PER MATERIAL, and this is the trap to state plainly: registering
-  // a material here hands its COLOUR to updateRain every frame. A module that
-  // registers and then keeps tinting the same material will fight it, and the
-  // loser is whichever runs later in ORDER. Register the ones you do not paint
-  // yourself.
-  scene.userData.registerWet = wet;
+  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
+  // The wet registration is published from ct/tex-ground.ts, not here. This
+  // module builds at crosstown.ts:210 and buildStreet — which places vice — at
+  // :103, so anything set here arrives too late for a build-time caller. That
+  // is the flaw in my first answer to 08ad3f0b, found by checking the call
+  // order instead of assuming `scene` meant "available".
   // Everything this module adds gets userData.mod = 'props' at the end of
   // build (ct/lot.ts:1633's idiom). Measured before doing it: 726 of 3383
   // meshes in the world carried this stamp, all of them from two modules,

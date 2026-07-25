@@ -569,6 +569,23 @@ export interface Ground {
 
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
+  // THE WET REGISTRATION, REACHABLE BY ANYONE HOLDING `scene`, and published
+  // from HERE because of when this module builds.
+  //
+  // 08ad3f0b: ct/vice.ts cannot join the wet-look "not by decision but because
+  // the constructor takes four arguments" — { scene, flat, solid, KERB_H }. Its
+  // brass-threshold runner stays dry, and the same shape left the road centre
+  // lines bone white on an 83%-darkened road (b209275c).
+  //
+  // I first published this from ct/props.ts and it was useless: buildProps runs
+  // at crosstown.ts:210 and buildStreet, which places vice, at :103, so it did
+  // not exist when a build-time caller needed it. buildGround runs at :66,
+  // before both. Holding `scene` is not the same as holding it in time.
+  //
+  // `ctx.wet` itself, re-exported — one registry, one way in, no second copy of
+  // the curve. ONE WRITER PER MATERIAL: registering hands the COLOUR to
+  // updateRain every frame, so register what you do not paint yourself.
+  scene.userData.registerWet = wet;
   const mark = scene.children.length;   // see ct/props.ts — stamped at the end
   const { pts, fillets } = buildPath(KERB_H);
 
