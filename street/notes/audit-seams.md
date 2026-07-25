@@ -1,80 +1,78 @@
-## audit/seams — lane audit: nothing impassable, and the baseline is the finding
+# audit/seams — final handoff
 
-Queue `## Now` (new top item). Base `a7d228d5`.
-Report: `notes/lane-audit.md`. Instrument: `scripts/lane3.mjs`.
+Base `98e6693b`. Read-only throughout: **nothing under `street/src/` was touched
+in any commit on this branch.** Verify with
+`git diff --name-only $(git merge-base add-stick-and-city98 HEAD)..HEAD -- src/`
+→ empty.
 
-Touched:   notes/lane-audit.md (new), notes/audit-seams.md, scripts/lane3.mjs
-           **nothing under street/src/**
+## Touched
 
-### Result
+Reports — `notes/seam-audit.md`, `request-audit.md`, `lane-audit.md`,
+`interior-audit.md`, `float-audit.md`, `AUDIT-TRIAGE.md`,
+`BLOCKED-AUDIT-seams.md`.
+Instruments — `scripts/`: `lane3.mjs`, `handed.mjs`, `doorsweep.mjs`, `turn.mjs`,
+`reach.mjs`, `rooms.mjs`, `masonry.mjs`, `seampairs.mjs`, `aim.mjs`, `steps.mjs`,
+`stand.mjs`, `church.mjs`, `whose.mjs`, `route.mjs`, `boxcheck.mjs`, `seamnew.mjs`.
 
-Measured against `__ct.colliders()` — the array `fp.ts` actually tests — so a gap
-under 0.72 m means the player is physically stopped. **Nothing on the block is
-impassable and nothing is urgent.** Tightest point anywhere: **0.89 m**.
+## Where everything landed
 
-**The finding that matters is the baseline, not the instances:**
+**Route: nothing.** Every finding I hold is closed, parked with a reason, or
+blocked.
 
-> **The clear lane is 1.70 m, not 2.00 m, before anyone puts anything on it.**
-> Every building's collider is registered at `FACE − 0.3` — 0.30 m inside its own
-> facade. 15 % of the sacred 2 m is consumed by collision corresponding to no
-> geometry, everywhere, permanently.
+| area | final state |
+|---|---|
+| **Pattern #1 / masonry density** | **CLEAN**, by declaration and by measurement. 109 stamped faces, 0 matching neither dimension, like-for-like junction disagreements **0** |
+| **Sidewalk encroachment** | **CLOSED.** Tightest walk in the world **0.89 → 1.15 m**; sub-1.20 m stretches **15 → 3** |
+| **The user's ~45 requests** | **All graded.** Last NOT DONE (wheel arches) closed at `6333004c`. One blocked |
+| **Interiors as a set** | Wall thickness **0.18 m in all eight**. Ceiling spread 0.90 → 0.80 m. Keepers **4 of 8 → 8 of 8** |
+| **Floats** | One real float in the world at Round 3 (thrift price card) — **now gone** |
+| **Seams in new ground** | Side street + park far half swept at grazing angles. 8 shot, 3 read, nothing found |
 
-That is the **same 0.30 m inset** behind interior finding 18 (six of nine door
-triggers inside solid). **One fix closes both**, and it is worth more than every
-instance below combined — give it back and every figure gains 0.30 m.
+**Blocked (1):** the bench ad — a failed *search*, not a failed shot. No
+ad-panel geometry exists anywhere by shape. Located as *the stop in front of
+LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
-| clear | walk | at | pinched between | owner |
-|---|---|---|---|---|
-| **0.89** | west | z −92.9 | park wall/hedge ∣ lamp post | E + B |
-| **0.90** | west | z −71.4 | park wall/hedge ∣ tree trunk | E + B |
-| 0.95 ×6 | both | every lamp | building wall ∣ lamp post | B |
-| 0.96 ×4 | both | every tree | building wall ∣ tree trunk | B |
-| **1.01 over 1.8 m** | east | z −34.1 | **car-lot A-board** ∣ wall | `ct/lot.ts` |
-| 1.11 | east | z −5.9 | shopfront projection ∣ wall | D |
+## Risk — read this part
 
-Rows 3–4 are the block's **normal** condition, not encroachment. Rows 1–2 are the
-park, only 0.06 m worse than normal. **Row 5 is the one new object genuinely
-making things worse** — the A-board sits hard against the kerb and holds the lane
-at 1.01 m for 1.8 m, the longest sustained pinch on the block.
+**I published two wrong findings on this branch.** Both are retracted in place,
+with the measurements that killed them:
 
-**The park's bin — the object in the user's report — is not the constraint.** It
-has a collider and 0.26 m of it is on the walk, but it stands where the park has
-railings rather than wall, so it leaves **1.74 m**: wider than a normal stretch
-of building. It looks like it is in the lane and measurably is not.
+1. **"42 of 109 masonry faces disagree with their stamp"** and **"135 of 239
+   junctions disagree"** — a `BoxGeometry` has four side faces and I measured
+   every one against `parameters.width`. Mainline diagnosed it (`7fe644b9`)
+   *before* my retraction landed. My own first repair was **circular** — it
+   picked whichever dimension matched the declaration, so it could never report
+   a mismatch; mainline's material-index version replaced it.
+2. **"raising the casino ceiling stranded three fittings"** — they are hung off
+   `room.H` deliberately, and the source says so at `int-casino.ts:361`. I had
+   documented that exact false-positive class one round earlier.
 
-### Permanent test: yes, and it is cheap
+Both were caught by **reading the source**, not by measuring harder. Anything on
+this branch resting on a measurement without a source check should be treated as
+provisional.
 
-The lane is a **global invariant violated by local edits** — five builders added
-furniture today and none can see the others' work. An audit tells you about the
-day it ran; this needs a test.
+## The through-line, if only one thing is kept
 
-For **A** (`scripts/**`):
-- **No new export needed** — `__ct.colliders()` is already exposed at
-  `crosstown.ts:508`. That is what makes it a two-second check.
-- Assert **min static gap ≥ 0.80 m**, warn under 1.00 m. Today passes at 0.89.
-- **Also assert the baseline** (kerb-to-wall, currently 1.70 m) — that catches a
-  regression in the inset itself, which no per-object check would see.
-- **Sample the collider list twice and drop movers.** Citizens carry a ±0.25 m
-  box and walk the lane; my first run produced **six spurious URGENT hits** that
-  evaporated on a second sample.
-- Lift `scripts/lane3.mjs`; ~2 s, no screenshots.
+Every instrument I built that tried to infer **what a thing is** from its shape
+has eventually been wrong — the geometric masonry filter, the door-leaf filter
+that returned citizens, the float detector that returned lamp bulbs, the box
+face. Every one was fixed by the world **declaring** something instead:
+`userData.mod`, `userData.masonry`, `__frontages`, `declareDoorWorld`.
 
-Desk judgement call: at the current inset, six lamps and four trees sit
-permanently at 0.95 m, so a ≥ 1.00 m assert fails on landing against furniture
-nobody wants moved. Either assert 0.80 now and tighten later, **or fix the inset
-first and assert 1.00 immediately — I would do the latter.**
+> **An auditor outside the code can measure what a thing looks like. It cannot
+> reliably infer what a thing is.** The declarations added this session are worth
+> more than everything I found with them.
 
-### Two false-positive classes, recorded because they will bite the test too
+Two secondary rules that earned their place:
 
-1. **Moving colliders.** Six of 164 are citizens and traffic. Sampled once, a
-   pedestrian near the kerb reads as a 0.75 m URGENT pinch.
-2. **Walk-based probing does not work here.** My first instrument walked the
-   player across the lane; warping to the building face puts them *inside* the
-   wall, so face-outward numbers are meaningless. Calibrating on empty pavement
-   is what exposed it — the numbers looked plausible (a recurring "0.41 m") and
-   were an artifact. Deleted rather than shipped.
+- *An unread screenshot is not an observation* — now `GOTCHAS.md` §20 — **and a
+  read screenshot is not an observation of what you aimed at.** Five of six of
+  my early frames were pointed at nothing.
+- *Establishing that a defect is real is not the same as establishing that it
+  matters.* I carried the 12 mirrored pennants for eight rounds before asking
+  whether they were visible. They are not: the art is a symmetric triangle.
 
-Left:      Colliders only — overhangs without colliders (bunting, fascias,
-           stallrisers, sign boards) cannot narrow the lane but can look like
-           they do, and the user's complaint was partly visual. Separate job.
-           Sampled every 0.10 m along the run.
+## Left
+
+Nothing assigned. Queue `## Now` items are all worked; `## Next` (pattern #1) is
+closed clean. One blocked item above.
