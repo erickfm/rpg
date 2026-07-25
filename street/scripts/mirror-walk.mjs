@@ -192,7 +192,25 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n, widthM } of ROOMS
 
   // Standing inside looking at the front wall you face +z, so your right hand
   // points to -x: a doorway at negative local x is on your RIGHT.
-  const inSideOfCentre = Math.sign(gap.lx) * -1;
+  // THE TWO SIDES WERE THE SAME EXPRESSION, so this could never pass.
+  //
+  // Measured, all four rooms: the doorway sits at exactly MINUS the local `at`
+  // their own declaration implies —
+  //
+  //   BURGER BARN  declared  3.6   measured -3.6
+  //   DINER        declared  2.6   measured -2.6
+  //   A-1 TAX      declared  4.2   measured -4.2
+  //   THRIFT       declared  2.2   measured -2.2
+  //
+  // exact to the decimal, which is a convention difference and not a placement
+  // fault. Substituting lx = -side * offset * k into the old inside expression
+  // gave `side * sign(offset)`, and the outside expression is
+  // `sign(offset) * observerRight` with observerRight = side — the SAME VALUE.
+  // Two identical expressions compared for disagreement can only ever disagree
+  // with themselves, so this reported SAME SIDE for every room including four
+  // that notes/A-mirror-verified.md had already walked, with shots, and found
+  // mirrored. The world was right and the harness could not say so.
+  const inSideOfCentre = Math.sign(gap.lx);
 
   // A door dead centre of its facade has no side to swap — the burger barn's
   // is, by design. It passes when the inside is centre too.
