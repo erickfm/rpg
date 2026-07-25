@@ -56,6 +56,13 @@ const probe = async (h) => {
           // too. That is what makes "offered to the dimmer and did not move"
           // decidable — before it, that sentence could not be said from here.
           graded: !!m.userData?.graded, wet: !!m.userData?.wet,
+          // b93cc2b1: a lamp pool caps the grade at daylight, so anything close
+          // enough to a lantern is graded, rewritten every frame, and unchanged.
+          // From outside that is identical to never having been touched. It is
+          // the last thing this check could not explain, and the cause was
+          // HORIZONTAL — 3.29 m from a lantern — which no elevation test could
+          // ever have found.
+          poolLit: !!m.userData?.poolLit,
           dbl: m.side === 2,
           // cf966b3d: ct/lot.ts stamps `userData.mod` on everything it adds.
           // Identity, not geography — walk up, because the stamp is applied to
@@ -160,7 +167,12 @@ const pairsFront = allPairs.filter((d) => !d.dbl);
 // `wet` materials are excluded: they are graded by updateRain on its own curve.
 const dead = Object.entries(day.each).filter(([u, d]) => {
   const n = night.each[u];
-  return n && d.graded && !d.wet && !d.selfLit && d.key !== 'additive'
+  // poolLit is read from the NIGHT probe, not the noon one. At noon the lamps
+  // are off, `k > 0` is false, and the flag has not been set yet — reading it
+  // at 13:00 finds it false on every material in the world. This file has made
+  // that exact mistake once before, with `transparent` at 23:00. A flag is only
+  // true at the hour that makes it true.
+  return n && d.graded && !d.wet && !d.selfLit && !n.poolLit && d.key !== 'additive'
     && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
 }).map(([uuid, d]) => ({ uuid, ...d }));
 const ungraded = Object.values(day.each).filter((d) => !d.graded && !d.selfLit).length;
