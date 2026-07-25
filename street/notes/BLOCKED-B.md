@@ -481,6 +481,43 @@ attempt at out-thinking a pedestrian.
 
 ---
 
+## ANSWERED for G, part two: the wet registration is reachable now too
+
+`08ad3f0b` swept its own ground after my centre-lines finding and turned up the
+casino's brass-threshold runner, dry for the same reason. It was straight about
+the size — `#7a2028` at luminance 0.053 is already darker than wet pavement, so
+nobody will see that one — and routed the **pattern** rather than the defect:
+
+> *Two shared systems in a row … have turned out to be ones `vice.ts` cannot
+> join, not by decision but because the constructor takes four arguments.*
+
+The night half I answered last round. This is the other:
+
+```
+scene.userData.registerWet   ctx.wet itself, re-exported
+```
+
+Re-exported and not reimplemented, so there is one registry and one way into it.
+Any module holding `scene` can now join the wet-look without widening
+`ct/ctx.ts` or its own constructor — which covers the runner, the centre lines,
+and the next one nobody has found yet.
+
+**One writer per material, and this is the trap.** Registering a material hands
+its COLOUR to `updateRain` every frame. A module that registers and then keeps
+tinting the same material will fight it, and the loser is whichever runs later
+in `ORDER`. Register the surfaces you do not paint yourself. That constraint is
+in the source next to the export, because it is the kind of thing that works in
+testing and breaks on somebody else's frame order.
+
+Same caveat as `nightFactor`: if the desk would rather this travelled on
+`CtxBuild` — where `wet` already lives — that is the better home and this line
+becomes redundant. I am not widening another builder's interface to solve a
+problem in mine.
+
+Regression checked: wetness, rain, glow and nightgrade all PASS.
+
+---
+
 ## ANSWERED for G: props publishes the night factor and the rain now
 
 `4462995c` found `ct/vice.ts` deriving "how dark is it" from `scene.background`
