@@ -1494,6 +1494,39 @@ future reader comparing `user-bankflank.png` against HEAD will see pale-meets-
 brown in both and conclude nothing changed. What changed is whose brown it is.
 
 
+### RETRACTED: "the brown is the library" was my eyeball against someone's raycast
+
+`ct/street.ts` says, at the north cap:
+
+> *"THIS is the object in `shots/user-bankflank.png`, not the bank. It used to be
+> a 30 m box at z 13.5…19.5 while the bank runs to z 14.2, so the two shells
+> INTERPENETRATED by 0.7 m … Raycasting from that screenshot's camera hits this
+> box on every ray; the bank's own returns are behind it."*
+
+**That is a raycast from the user's own camera. Mine was a look at a
+screenshot.** Theirs wins, and the geometry backs it:
+
+```
+street  x -22.9..-7.0   z  -5.0..14.2   the bank
+civic   x -13.6..-10.2  z -10.5..-5.0   the library, SOUTH of it and set back to x -10.2
+street  x  -7.0..7.0    z  14.2..20.2   the north cap
+```
+
+The library is south of the bank **and 3 m behind the building line**, so it is
+not what meets the bank's front at an arris. The cap is north, spans the whole
+street, and used to stand *through* the bank's precast by 0.7 m — which is
+exactly the "different building meeting it at a razor arris" the user
+photographed.
+
+**So the defect in `user-bankflank.png` was the cap interpenetrating the bank,
+and it is fixed** — the cap abuts now and is only as wide as the gap it closes.
+My re-shot two rounds ago found brown beside pale and I named the wrong object;
+what I saw from those cameras was a different building on a different side.
+
+The paragraph below still stands on its own terms — the bank and the library
+*are* deliberately different materials — but it is not the explanation of that
+screenshot, and I published it as though it were.
+
 ### `user-bank-vs-library.png` confirms it from the other side
 
 Opened the next reference in the same subject. It is build `e78e5ec` and shows
