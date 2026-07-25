@@ -14,6 +14,50 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Inlay the church, give it steps, and a small courtyard.** The user:
+      *"inlay the church and give it some stairs similar to the library but
+      keep the design of the church. the church facade is good i just want it
+      to have depth and a lil courtyard"*.
+
+      **The facade itself is approved — do not redesign it.** The stone, the
+      gable, the rose window, the lancets, the arched entrance in its recessed
+      orders: all of that stays exactly as it is. This is entirely about
+      setting the mass BACK and building the ground in front of it. Resist the
+      urge to improve the elevation while you are in there; the user has told
+      you it is good, and a redesign is how an approved thing gets lost.
+
+      What to build, and the library is the model because the user is asking
+      for it by name:
+      · pull the whole nave back off the facade line so the front has real
+        depth rather than sitting flush with the shopfronts
+      · **steps up to the doors** — a church front should be raised. Same
+        mechanic as the library steps in your other item; build them once and
+        use them twice rather than inventing a second approach.
+      · a **small forecourt** in the notch — but a churchyard, not the
+        library's civic plaza. They should not read as the same place. A
+        church forecourt is paving or flags rather than municipal concrete,
+        a low wall or railing with a gate on the street line, maybe a
+        noticeboard (there is already one by the door), a bit of planting
+        against the wall. Quieter and more enclosed than the library's.
+
+      **Two dependencies, both real:**
+
+      1. **Builder D is moving the church right now**, off the side street and
+         onto the main block over the old DELI + RECORDS slots on the EAST
+         side. Do not start against its current position — you would build the
+         recess into the wrong wall. Wait for D's commit and its reported
+         z-span, which comes to you through the desk. Note the church will now
+         be on the EAST side, so the recess is mirrored from the library's.
+      2. **D's collision mandate must land** or the courtyard is sealed the
+         same way the library's was — `crosstown.ts` hand-writes blanket wall
+         rectangles that override what modules register. Check before
+         concluding your entrance does not work.
+
+      Constraints as before: the 2 m walking lane past it stays clear
+      (`GOTCHAS.md` §9), paving must ABUT the sidewalk and never overlap it
+      (§6), and floor height comes from a picker rather than colliders (§7) —
+      **walk up the steps and back down** before you close this.
+
 - [ ] **Build the park.** New file, `ct/park.ts`, yours — same relationship to
       `ct/street.ts` that `ct/civic.ts` already has. The user:
       *"swap barber for thrift, then grocery and barber turn those into a
