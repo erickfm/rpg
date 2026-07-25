@@ -255,7 +255,44 @@ THRIFT       outside RIGHT | inside LEFT   SWAPPED ✓
 room, not just the tax office"* — with something re-runnable, rather than four
 screenshots and my word.
 
-### PAWN, the one left
+## 5 OF 5 (`309d84d9`) — and PAWN was never wrong
+
+```
+BURGER BARN  outside RIGHT  | inside LEFT    SWAPPED ✓
+DINER        outside RIGHT  | inside LEFT    SWAPPED ✓
+PAWN         outside centre | inside centre  SWAPPED ✓
+A-1 TAX      outside RIGHT  | inside LEFT    SWAPPED ✓
+THRIFT       outside RIGHT  | inside LEFT    SWAPPED ✓
+```
+
+**The queue item's verification clause is satisfied** — every declared room,
+re-runnable, not four screenshots and my word.
+
+Finding PAWN's front wall took two wrong rules, and they were **the same wrong
+rule twice**:
+
+| rule | why it failed |
+|---|---|
+| "the widest collider" | PAWN's room is 13.8 m; its front wall is pieces narrower than half that, so all were discarded and the search fell back to the **back** wall at z −2.52 |
+| "the plane holding the most wall" | the back wall is one unbroken piece; the front is two pieces summing to slightly less. Regressed all five rooms to zero — tried, seen, reverted inside the turn |
+
+**That is where the withdrawn PAWN finding came from.** "Its door is 6.23 m off
+the centre it declared" was the back wall being measured. Withdrawing it last
+turn on the grounds that it was unconfirmed was right, and now it is settled:
+PAWN's door is dead centre inside *and* out.
+
+What works is the thing being looked for: **the front wall is the plane with a
+door standing on it.** The leaf sits proud, `minZ` on the wall's `maxZ`, and only
+the front wall has one. **No width filter anywhere** — a width filter is what hid
+the doorway three separate times.
+
+### One more bug found in passing
+
+`__ct.pos()` is `[x, y, z, gy]`, and this passed `inside[1]` — **eye height** —
+as the player's z to the collider filter. It had been asking "within 12 m of
+z = 1.6" for every room. Latent only because every room sits near z = 0.
+
+### ~~PAWN, the one left~~ (closed above)
 
 Still unmeasured. Its front wall reads at z −2.52, which is its **back** wall:
 the room has no front-wall colliders where the other four have them. A real
