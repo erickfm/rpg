@@ -1139,3 +1139,60 @@ opposite. Nothing catches that, because a docstring is not a constraint.
 This closes the ceiling-height finding as far as an auditor can take it: the
 measurement is confirmed over eight rooms, the cause is identified in the kit
 rather than in any builder, and the decision it needs is a human one.
+
+---
+
+## Round 19 — door side inside vs out, all eight rooms, without walking
+
+`mirror-walk.mjs` checks the user's rule — *"the door is on the RIGHT of the
+interior, so from outside it must be on the LEFT of the facade"* — by walking.
+Mainline reports it was **dev-only and knew three of eight rooms**, and that
+**PAWN reads wrong**.
+
+I asked the same question from published data instead: `__ct.spots()` for the
+interior doorway (each room's *"out to the street"* sits in it) and
+`globalThis.__frontages` for the facade door. That covers **eight of eight** and
+needs no camera.
+
+| room | inside offset | outside offset | verdict |
+|---|---|---|---|
+| burger | −3.60 | **+3.89** | OPPOSITE — correct |
+| diner | −2.60 | **+2.89** | OPPOSITE — correct |
+| thrift | −2.20 | **+2.43** | OPPOSITE — correct |
+| **tax** | **−4.20** | **−4.63** | **SAME SIDE** |
+| bodega | 0 | −0.60 | centred — undecidable |
+| pawn | 0 | 0 | centred — undecidable |
+| casino, hotel | −3.20, −3.40 | — | no frontage matched |
+
+## Three caveats, and they matter more than the table
+
+**1. My axis mapping is an assumption I have not validated.** The interior's
+width runs along **x**; the frontage's runs along **z**. That the two correspond
+with a fixed handedness is something I assumed rather than derived. Three rooms
+coming out OPPOSITE is *weak* evidence it holds — it is also what you would see
+if the mapping were inverted and those three were wrong.
+
+**2. I disagree with mainline about which room.** It says **PAWN**; my method
+says pawn is **centred on both sides** — undecidable — and flags **A-1 TAX**.
+Notably the user's original complaint in `mirror-walk`'s own header is *about
+the tax office*. So either TAX was never fixed, or it was and my mapping is
+inverted, and I cannot tell which from here.
+
+**`mirror-walk` walks it and is the authority.** Mine is a second opinion with
+an unvalidated assumption, and where they conflict, believe the one that walks.
+
+**3. My own check had a sign bug**, caught before publishing: `Math.sign(0) ===
+-Math.sign(0)` is `true`, so a door centred on both sides was reported as
+*"OPPOSITE — correct"*. That is how pawn first came out clean. Centredness is
+now tested first.
+
+## What is worth taking regardless
+
+- **Coverage: 3 of 8 → 8 of 8.** Whatever the verdicts, every room can now be
+  asked this question in about twenty seconds.
+- **Two rooms have no frontage entry my name map could match** (casino, hotel).
+  Combined with the bodega's known absence, the frontage roster does not cover
+  every building a cross-check wants — worth knowing before anyone builds on it.
+- **Two rooms have doors centred on both sides**, which makes the rule vacuous
+  for them. A check that cannot fail on 2 of 8 rooms should say so rather than
+  pass them.
