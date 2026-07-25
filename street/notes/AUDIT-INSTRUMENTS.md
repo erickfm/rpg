@@ -586,3 +586,39 @@ and it now covers a user request that had none.
 > **23 green, one real red, and the one red is the defect with a complete
 > write-up already attached.** The rest is my own commit, and the six suites at
 > the tail remain unrun by me.
+
+## Which of my probes filter out moving colliders — and what that qualifies
+
+After mistaking a stopped citizen for a post, I audited my own scripts for
+mover-handling. **Two detectors in a row got it wrong** before I read the files:
+the first matched `waitForTimeout(1500)` anywhere and reported everything safe;
+the second missed `lane3.mjs`'s idiom and reported it unsafe when it is not.
+`lane3.mjs:12` — *"the list is sampled TWICE, a second apart, and anything whose
+bounds moved is dropped"*.
+
+| | scripts |
+|---|---|
+| **drop movers** (two snapshots compared) | `lane3`, `lanewalk`, `corridor` |
+| **include movers deliberately** — that is the question they ask | `lanelive`, `reachlive`, `doorslive` |
+| **single snapshot, unfiltered** | `tightest` (retracted), `stand`, `aim`, `lot`, `triggers`, `bodega`, `counters`, `wayouts`, `seamnew`, `cand`, `reach` |
+
+### What the third row qualifies — and what it does not
+
+**No verdict changes.** Every door fired and opened when pressed, every seat sat,
+every way-out returned you to its own frontage, and `doorslive` — which
+*includes* movers on purpose — found **no door ever fully blocked** across eight
+samples.
+
+**But the counts are snapshots, not properties.** When I wrote *"the BODEGA
+trigger has 109 standable points"* or *"A-1 TAX's nearest edge is 0.6 m
+kerb-side"*, those were single frames with whoever happened to be standing there
+baked in. `doorslive` proves the size of that effect: **A-1 TAX varies 25 → 73
+standable points** depending on who is nearby — a factor of three.
+
+> **Read every standable-point count in my reports as "at that instant", not
+> "always".** The rank order and the verdicts hold; the integers do not.
+
+That is a contained caveat rather than a retraction, and it is the last thing the
+stopped-citizen error touches. The lesson underneath it is the one already at the
+top of this file, arriving from a new direction: **a quantity is not a
+measurement until you know what was in the frame when you took it.**
