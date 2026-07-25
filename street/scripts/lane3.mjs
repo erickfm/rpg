@@ -23,7 +23,10 @@ const WALKS = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+// Port: 4184 is ANOTHER WORKTREE (/home/erick/projects/rpg-audit). Left as the
+// default so this keeps behaving as before, but SHOT_URL now wins, because a
+// lane number measured in a checkout that is not yours is not about your work.
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
