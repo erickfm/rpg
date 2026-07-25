@@ -1791,3 +1791,24 @@ boolean `--selftest`. They are covered anyway: I added the unknown-argument
 guard independently this session, so a mistyped flag exits 2. Worth knowing that
 the coverage is coincidental rather than earned — a mode-dispatching script of
 mine would not be watched by that check today either.
+
+
+## The request log read the other way: every alley item traced to its latest word
+
+`533859821` and `4b1bc6404` audit the request log **backwards** — from what was
+asked to what is built. Doing that for my area turned up two entries that look
+like unbuilt requests and are not:
+
+| entry | what the world has | why |
+|---|---|---|
+| *"Sad alley cat in a cardboard box — by the south alley wall, one flap open"* | no box, cat beside the dumpster | **superseded**: *"a ~10 px grey blob … sunk in a cardboard box — it reads as a mouse. **Drop the cardboard box entirely***" |
+| *"Alley plywood now leans back against the wall"* | no plywood | **superseded**: *"Delete the alley plywood and the trash bags … it reads as a mysterious door, not as junk"* |
+
+Both absences are the request being honoured, and both would read as missing work
+to anyone who found the first entry and stopped. The tags are all six present,
+`alleycheck` guards the sky gap, and the cat's placement is this session's move.
+
+**The trap in reading a request log forwards** is that it is chronological, so
+the earliest statement of a thing is the one you find first and the retraction is
+further down. Reading it backwards — latest word per subject — is what
+`533859821` did, and it is the only order that gives the current answer.
