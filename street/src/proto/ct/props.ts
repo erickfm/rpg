@@ -157,7 +157,29 @@ export function buildProps(ctx: CtxBuild): Props {
   // every author; fixing the TEST fixes all of them at once, and it is right on
   // its own terms rather than as a workaround. A mis-flagged cut-out now joins
   // the world's grading; genuine glass still does not.
-  const isGlass = (m: THREE.MeshBasicMaterial) => m.transparent && !(m.alphaTest > 0);
+  // WAS `m.transparent && !(m.alphaTest > 0)`, and e91df374 is right that it
+  // carried three meanings at once:
+  //
+  //   1. ADDITIVE LIGHT — halos, pools, the wall splash. Driven by nightLit on
+  //      their own curve; grading them would fight that. 50 of my 67.
+  //   2. GENUINE non-diffuse surfaces — glass, chrome, rubber. Those carry
+  //      `noLight`, the house convention, honoured on the line below.
+  //   3. ORDINARY TRANSPARENT DECALS — contact shadows, grime stains. Diffuse
+  //      surfaces that happen to blend, and they were being excluded with the
+  //      other two.
+  //
+  // Measured what (3) cost: every litter piece has a transparent sub-material
+  // and it did not dim.
+  //
+  //   milk crate opaque parts   noon 1.000 -> night 0.045
+  //   milk crate transparent    noon 1.000 -> night 1.000
+  //
+  // That is the crate photographed glowing. A contact shadow held at full
+  // daylight over ground at 0.045 is a black hole under the object at midnight.
+  //
+  // Only ADDITIVE is excluded here now; `noLight` at :280 still covers real
+  // glass, so nothing that was deliberately exempt loses its exemption.
+  const isGlass = (m: THREE.MeshBasicMaterial) => m.blending === THREE.AdditiveBlending;
   // How far a lamp reaches, and how it gets there. A sodium head 5 m up on a
   // 1.25 m crook lights a STRETCH of pavement — you walk out of one pool and
   // into the next — and the old 4 m radius with a straight linear falloff made
