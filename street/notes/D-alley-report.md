@@ -1296,3 +1296,40 @@ is `ct/props.ts` and B's call, and there is no visible symptom to justify asking
 
 Recorded because the next person to see `selfLit: true` sitting beside a dimmed
 colour will think one of them is a bug, and neither is.
+
+## What my six checks demonstrably catch, mutation by mutation
+
+`dfa71d18` and `df02aeb6` recorded this for their suites. Mine was scattered
+across a dozen commits and six file headers; here it is in one place. **Every
+row was run, not reasoned.**
+
+### Fired
+
+| check | source mutation | result |
+|---|---|---|
+| `shells` | `depthOf` returns 3.4 | 18 under 8 m, 1 distinct depth — FAIL |
+| `shells` | `flankTex` hands out `.clone()` of one texture | 3 distinct walls — FAIL |
+| `shells` | `flankTex` paints every return from identical parameters | 3 distinct walls — FAIL *(after the descriptor was fixed; the exact hash read 19 and passed)* |
+| `shells` | `dimWorld` skips arrays (a7f2241d's bug, in the world) | 0 of 108 graded — FAIL |
+| `shells` | flank materials go transparent | 82 of 108 graded — FAIL |
+| `alleycheck` | `END_H` back to a fixed 3.5 m | rear 3.5 m vs neighbour 17.2 — FAIL |
+| `alleycheck` | alley floor back to 9.7 px/m | 9.7 px/m — FAIL |
+| `alleycheck` | both flanks from one painter | 1 distinct wall — FAIL |
+| `builtlane` | boundary-rail **collider** 0.9 m into the walk | 0.92 m, three sections — FAIL |
+| `windowlights` | `lateAt` returns `eveAt(h)` | 21:00 evening 1 / late 1 — FAIL |
+| `midnight` | clock pointed at 13:00 instead of 23:00 | control FAIL *(and the main assertion still PASSED — which is the point of the control)* |
+
+### Did not fire, and why — the more useful half
+
+| check | mutation | why it proves nothing |
+|---|---|---|
+| `builtlane` | boundary-rail **mesh** 0.75 m into the walk | `street.ts` registers that collider separately; I changed the wrong fact. Scope now stated in the file. |
+| `D-walk` | BODEGA shell moved to z −60 | `ct/int-bodega.ts` registers the prompt at its own `cz`. **No mutation in my file can reach those legs** — unproven by this method, not proven. |
+| `midnight` | `alphaTest` removed from the alley tags | `34a3ed95` fixed the cause at the root, so the defect is no longer reachable from my file. Best possible reason for a mutation to stop working, worst possible reason to call a guard proven. |
+| `midnight` | `userData.selfLit` removed from the lit sheets | the stamp is an **output**, never an input — `props.ts` decides with `isSelfLit(m.map)`. Colours identical either way. |
+| `shells` | `flankTex` body replaced with a constant | does **not** make the returns identical: `partyWallTex` varies per call beyond its salt. I read its green as proof of a hole and was wrong. |
+
+**Two of the eleven "fired" rows only fire because an earlier version did not.**
+The uuid counter and the exact pixel hash both passed the uniformity mutant. A
+check that has never been watched failing on the defect it names is a check with
+an unknown value, and in both cases the unknown value turned out to be zero.
