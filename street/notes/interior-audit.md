@@ -899,3 +899,54 @@ both are needed — its prompt fires over a 1.75 m span, and the prop from findi
 - The sweep covers the two main-street walks and both side-street walks. It does
   not cover the alley, the park or the car lot; if a door is ever put there,
   the line list needs a row.
+
+---
+
+# Round 14 — the doors are unchanged; the facade reach has regressed
+
+Base `add-stick-and-city98` @ `7148e296`. Two commits touched my files:
+`7148e296` ("Constrain the parked draw so it cannot leave a gap you get stuck
+in" — `crosstown.ts`, a new `ct/gap.ts`, `ct/sidestreet.ts`) and `5403232a`
+(shopfront painters read the band table).
+
+## Doors: no regression
+
+`scripts/doorsweep.mjs` re-run — **nine doors, identical spans, byte for byte**
+with round 13. The parked-draw and gap work did not disturb any `[E]` trigger.
+Worth checking rather than assuming: the commit touches `crosstown.ts` colliders
+and adds a new module that constrains where things may be drawn, which is
+exactly the shape of change that has broken a door here before.
+
+## Finding 18 — the facade reach has regressed
+
+`scripts/facade.mjs` walks into each wall every 4 m and records where the player
+is stopped. It contains no door coordinate, so it is immune to the staleness
+that caught round 13.
+
+| | round 6 | **now** |
+|---|---|---|
+| west wall, z ≥ −68 | −6.29 … −6.34 | −6.24 … −6.34 |
+| **west wall, z ≤ −72** | **−6.64** | **−6.24 … −6.27** |
+| east wall | 6.28 … 6.34 | 6.22 … 6.34 |
+
+**The −6.64 stretch is gone.** It does not appear once in the sweep: the west
+tally is now −6.24 ×3, −6.25, −6.26, −6.27, −6.29, −6.30, −6.31 ×7, −6.32 ×4,
+−6.34 ×2, and nothing closer.
+
+That stretch was the evidence, in round 6, that D's "collision follows geometry"
+had begun reaching the main street — and it was why the thrift store was for one
+round the only main-street door whose trigger centre a player could stand on.
+**Every main-street door is now inset again**, and by slightly more than before.
+
+I cannot tell from here which commit did it — `7148e296` is the obvious
+candidate given it rewrites how the parked draw and the side street register
+space, but the regression could equally have come in with the park or the car
+lot changing what stands where. **Wants D**, and the acceptance test is
+unchanged from round 6: **the limit should read ±6.64 wherever a facade stands.**
+
+## Coverage — round 14
+
+- Three of ten rooms unwritten.
+- The sweep samples every 4 m, so a short converted stretch between samples
+  would be missed. The absence of −6.64 across 25 samples is strong but not
+  exhaustive.
