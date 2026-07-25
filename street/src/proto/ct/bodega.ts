@@ -46,7 +46,15 @@ export function buildBodega(ctx: CtxBuild): AABB[] {
     // door, which on a canted bay means tucked into the corner nook, and a
     // 1.05 radius there is only reachable on the diagonal. Wider trigger,
     // right centre — rather than the old spot's right reach, wrong centre.
-    x: bodegaDoor.x, z: bodegaDoor.z, r: 1.3,
+    //
+    // 1.5, not 1.3, and the extra 0.2 is measured rather than guessed. Walk
+    // straight at this door from the side street and you do not come to rest
+    // ON the spot — you stop against the wing wall behind it, 1.38 m from the
+    // door. At 1.3 the prompt shows while you are still moving and is gone by
+    // the time you stop, so the door reads as broken unless you press E
+    // mid-stride. Standing on the spot always worked, which is exactly why
+    // looking at it never found this; scripts/D-walk.mjs walks it.
+    x: bodegaDoor.x, z: bodegaDoor.z, r: 1.5,
     ok: () => player.x() < 100,
     label: () => 'into the BODEGA',
     act: () => player.jumpTo(241.3, -17, Math.PI / 2, 0),
