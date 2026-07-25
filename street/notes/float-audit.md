@@ -142,3 +142,52 @@ covers interiors too — it walks the whole scene graph, slabs included.
   pass. It needs the matched opposite-side pair that settled it originally, and
   a steep-angle shot is not enough to judge. Unknown, not clean.
 - Moving objects sampled at one instant, as before.
+
+---
+
+# Round 3 — one real float in the world, and it is still mine (`b93cc2b1`)
+
+The headline looks like a collapse: **199 floating components of 3,329 meshes**,
+against 3 of 1,098 in Round 2. It is not. Sorted by how far each component sits
+from anything anchored:
+
+| gap to nearest anchored mesh | components | what they are |
+|---|---|---|
+| **≥ 0.25 m** | **1** | the thrift store's price card — **my Round 2 finding, unchanged** |
+| < 0.25 m | 187 | of which **158 are small spheres** |
+
+The 158 spheres are **decorative bulbs on standoffs** — 0.15 m globes in rows at
+0.5 m spacing along a building face at y 19.76, and 0.09 m globes at 0.3 m
+spacing inside the casino, each sitting **0.05–0.13 m** off its mounting
+surface. Their materials vary within a run (`#6a5a3a`, `#4a453e`, `#fff2c0`):
+dark, dark, lit — a bulb run with some on and some off. A bulb on a bracket is
+not a floating object, and my detector has no way to know that.
+
+## The one that is real
+
+```
+#197   gap 0.325 m   Plane   max-dim 0.44 m   at (1002.2, 1.42, -2.42)
+```
+
+**0.325 m — the same number, to three decimals, that I reported in Round 2**, and
+x = 1002 is interior slab 7, which is the **thrift store**. The two-sided price
+card is still hanging a third of a metre above its shelf. Nothing has touched it
+and nothing else in the world has joined it.
+
+Routable as `ct/int-thrift.ts`.
+
+## What this says about the instrument — and how it differs from `density.mjs`
+
+Both of my sweep tools have now had their nets swamped by a legitimate new class
+of object. The difference matters:
+
+- `density.mjs` **cannot** separate masonry from foliage by any threshold, so
+  pattern #1 is genuinely unverifiable until modules declare what a face is.
+- `floats.mjs` **can**: one filter on gap size cleanly splits 1 defect from 158
+  bulbs, and the split is not a judgement call — 0.325 m against a maximum of
+  0.128 m among the rest is a factor of 2.5 with nothing in between.
+
+So this instrument survives, with a documented threshold, and the finding it
+produces is a single routable item rather than a number that needs an essay.
+**A tool whose false positives are separable by a rule is repairable; one whose
+false positives require knowing what an object *is* needs the world's help.**
