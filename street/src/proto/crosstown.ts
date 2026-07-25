@@ -471,7 +471,11 @@ export function makeCrosstown(): Proto {
     // is constructed by now, so this is the real east edge, not a reservation
     bounds: { minX: -FACE - 6.4, maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
-    groundY: (x, z) => {
+    groundY: (x, z) => groundPick(x, z),
+  });
+
+  function groundPick(x: number, z: number): number {
+    {
       // the interior belt owns its own floors — each room answers for its
       // slab, so a builder can put a step or a mezzanine in a shop without
       // this file knowing anything about it
@@ -507,8 +511,8 @@ export function makeCrosstown(): Proto {
       const cg = courtGround(x, z);
       if (cg !== null) return apt.setGy(cg);
       return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
-    },
-  });
+    }
+  }
 
   // debug/tour hook
   // E is one key for the whole world: doors, buying, feeding the birds
@@ -582,6 +586,8 @@ export function makeCrosstown(): Proto {
     seats: () => SEATS,
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
+    // test affordance: read the floor picker directly, without moving anybody
+    groundAt: (x: number, z: number) => groundPick(x, z),
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)

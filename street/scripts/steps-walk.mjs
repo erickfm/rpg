@@ -30,7 +30,7 @@ const FLIGHTS = [
   { nm: 'library', z: -13.5, fromX: -6.0, toX: -11.5, yawUp: -Math.PI / 2 },
   // ST BRIGID moved onto the main block: east side, z -68…-86, its forecourt
   // reached from the pavement walking +x. Same flight, same picker.
-  { nm: 'church', z: -79.0, fromX: 6.0, toX: 10.5, yawUp: Math.PI / 2 },
+  { nm: 'church', z: -79.5, fromX: 6.5, toX: 9.4, yawUp: Math.PI / 2 },
 ];
 for (const f of FLIGHTS) {
   const bottom = await gyAt(f.fromX, f.z);
