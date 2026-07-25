@@ -2063,3 +2063,51 @@ reports clean.
 That is the useful shape: **when a per-item check is circular, a between-items
 check can still be sound.** The lane audit and `seampairs` are both that; the
 door check and the per-face density check are not.
+
+## Round 16 — the fix is **two import lines**, not eight. And it narrows the suspects to two.
+
+I proposed moving `doorStandFor` to a leaf module and said it was *"one file
+move and eight import lines."* **Checked what the rooms actually import:**
+
+```
+int-bodega   import { type DoorDecl } from './doors';
+int-burger   import { type DoorDecl } from './doors';
+int-diner    import { type DoorDecl } from './doors';
+int-pawn     import { type DoorDecl } from './doors';
+int-tax      import { type DoorDecl } from './doors';
+int-thrift   import { type DoorDecl } from './doors';
+
+int-casino   import { doorStandFor, type DoorDecl } from './doors';
+int-hotel    import { doorStandFor, type DoorDecl } from './doors';
+```
+
+**Six of eight import only a TYPE.** `import { type DoorDecl }` is erased at
+compile time — those six have **no runtime edge to `doors.ts` at all.** Only
+**two** import a value, and they are the **two chamfered corners**, which need
+`doorStandFor` to place a stand point around a 45° door.
+
+### What that changes
+
+**The fix is smaller.** Move `doorStandFor` to a leaf and edit **two** files, not
+eight. Six rooms need no change whatsoever.
+
+**And the suspect list drops from eight to two.** My Round 14 blast-radius
+claim — *"all eight rooms are in the cycle"* — was wrong: six of them are joined
+to `doors.ts` only by a type, which does not exist at runtime and cannot create
+an initialisation edge. **The only rooms with a real dependency on `doors.ts`
+are `int-casino` and `int-hotel`, and the casino is the one that loses its
+door.**
+
+The hotel has the same edge and keeps its door, so the edge is **necessary but
+not sufficient** — consistent with everything else I found, where the final
+selection is decided by emission position. But it explains why *this* room and
+not the diner: the diner was never a candidate.
+
+> **I measured the cycle by counting import statements and never checked which
+> ones survive compilation.** Six of the eight edges I built a blast-radius
+> argument on do not exist in the bundle at all.
+
+That is the fourth time a claim of mine has rested on a distinction I had not
+looked for — after the box faces, the axis conventions, and the coordinate
+frames. The pattern is identical: **the source says one thing and the artefact
+says another, and I read the source.**
