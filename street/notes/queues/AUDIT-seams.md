@@ -6,42 +6,46 @@ is a report only.
 
 ## Now
 
-- [ ] **Sweep the world for objects that touch nothing.** New standing brief,
-      from the user: *"the sign up top is completely floating. make sure for
-      stuff like this we pay more attention."* Ref: `shots/user-floatsign.png`
+- [ ] **Walk every interior and audit it as a set.** Four agents are building
+      ten rooms in parallel on a shared kit, which is exactly the condition
+      your kind of audit exists for: each builder can only see their own room,
+      and the failure will be that the ten do not agree with each other.
 
-      The GOLDEN ACES roof sign hangs on a stub mast that ends in clear air
-      above the roofline. It is already assigned to builder E. Your job is to
-      find the OTHER ones before the user does — this is exactly the class of
-      bug an auditor beats a playtester to.
+      The diner is the reference (`ct/int-diner.ts`). As rooms land, walk each
+      one and check it against the others, not against its own brief:
+      ceiling heights, doorway widths, wall thickness and jamb reveals, floor
+      texel density, light level and colour temperature, how you get back out
+      to the street and where you land when you do.
 
-      Method: walk the scene graph via `__ct.scene` and, for every mesh that is
-      not ground, ask what carries it. Anything whose lowest point sits above
-      the surface below it with no leg, bracket, mast, wall contact or wire is
-      a hit. Then confirm each candidate from a camera angle where the sky is
-      behind it — a floating object is invisible against a wall and obvious
-      against sky, which is why this one survived so long.
+      Then the things a builder cannot see from inside their own room: does
+      the interior's window agree with where the building actually stands on
+      the street? Does the room's size make sense against the shopfront's
+      frontage? Is any room enterable from a spot that a collider swallows
+      (`GOTCHAS.md` §8 — that has already happened once)?
 
-      Cover at least: signs and blades, awnings, lamps and lamp heads, wires,
-      AC units, fire escapes, aerials, the church cross, the notice board,
-      hanging shop signage, anything on a roof.
+      Report → `notes/interior-audit.md`, same shape as your others:
+      severity-ranked instances, then a patterns section naming root causes.
 
-      Report → `street/notes/float-audit.md`. Severity-ranked table (object,
-      file, world coords, the camera that shows it, screenshot), and as before
-      a **patterns** section naming root causes rather than instances. If the
-      real cause is "authored at a y constant instead of derived from the
-      thing below it", say that once and list the instances under it.
 
 ## Next
 
-- [ ] **Re-verify the seam audit's pattern #1 after the desk's density fix.**
-      `notes/seam-audit.md` §patterns names texture density computed per-mesh
-      in isolation as the root cause behind most of the seam instances. The
-      desk is fixing that centrally. When it lands, re-walk the instances you
-      logged and report which ones actually closed — a pattern fix that only
-      closes half its instances means the pattern was mis-stated.
+- [ ] **Re-verify pattern #1 AGAIN once builder A's cross-file fix lands.**
+      Your restatement was accepted and A has a one-time mandate across
+      `tex-world.ts`, `ct/street.ts` and `ct/civic.ts`. The five instances that
+      stayed open — 2, 12, 9, 19, 1 — plus the new civic ashlar one are the
+      test. Measure, do not eyeball.
 
 ## Done
+
+- [x] Full seam and texture-continuity sweep → `notes/seam-audit.md`.
+      Independently predicted the bodega entry blocker — *"colliders are
+      authored against object bounds, not affordances"* — which D confirmed.
+- [x] Float sweep → `notes/float-audit.md`. Found a second floating sign and
+      established the known one is worse than reported.
+- [x] Re-verify pattern #1 (`c15e136`). 4 of 10 closed, MEASURED via a new
+      `scripts/density.mjs` across all 103 exterior wall faces. Restated the
+      pattern correctly; the desk accepted the restatement and granted A a
+      cross-file mandate on the back of it.
 
 - [x] Full seam and texture-continuity sweep → `notes/seam-audit.md` (273
       lines, severity-ranked, patterns section). Independently predicted the

@@ -12,7 +12,60 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
-- [ ] **Texture density is computed per-mesh in isolation.** This is pattern #1
+- [ ] **Finish pattern #1 across the files it does not reach. You have a
+      one-time cross-file mandate for this, granted by the desk.**
+
+      Your density fix closed **4 of 10** logged instances — the auditor
+      re-verified by measurement, not by eye (`notes/audit-seams.md`, Round 3;
+      `scripts/density.mjs` reports px/m per mapped face across all 103
+      exterior wall faces). All upper walls now measure 8.00 × 8.00 and shop
+      bands an exact 2×. That part is right.
+
+      The problem is that the pattern was written as if `tex-world.ts` were the
+      only place masonry is painted, and it is not. `bodegaBrick` and the alley
+      flanks in `ct/street.ts`, `bayFrontT` on the canted bay, and the ashlar in
+      `ct/civic.ts` all still compute their own density and none imports
+      `WALL_PPM`.
+
+      **The misses are now more conspicuous than before your fix**, because
+      their neighbours were tidied and they were not. The bodega canted bay —
+      the corner the user originally complained about — measures 11.5 × 11.7
+      against neighbours at a clean 8 × 8, so that seam reads *worse* today.
+      That is not a criticism of your change; it is what a per-file fix to a
+      cross-file pattern does, and it should be finished rather than left.
+
+      The auditor's restatement, which the desk accepts:
+
+      > Every surface that paints masonry must derive its canvas from the
+      > surface's real metres at the world's one density. The defect is not
+      > that a painter computes density badly; it is that any painter computes
+      > it at all.
+
+      So: one exported helper taking `(widthM, heightM, baseY)` and returning
+      the canvas, and every masonry painter goes through it.
+
+      **The mandate, precisely.** This needs `tex-world.ts` (yours),
+      `ct/street.ts` (D's) and `ct/civic.ts` (E's) to change together in ONE
+      commit — a signature change with all callers, which `OWNERSHIP.md` calls
+      a desk operation. The desk is granting it to you because you have the
+      context and three builders coordinating would be worse. Conditions:
+      · **one commit**, all three files, nothing else in it
+      · touch ONLY the density/canvas derivation in D's and E's files. Not
+        their geometry, not their placement, not anything else
+      · **rebase immediately before you start** — D is mid-way through moving
+        the church, E is mid-way through the library courtyard, and both are
+        in the files you are about to touch
+      · if you cannot do it without changing something else, STOP and tell the
+        desk rather than widening the diff
+      · new instance to include: `ct/civic.ts` paints library and church ashlar
+        at 8.00 × 11.75 px/m — 1.47:1 anisotropic, not commensurate with the
+        brick it abuts at every civic-to-shop party wall
+
+      Verify by measurement the way the auditor did, not by eye. The auditor
+      will re-verify independently afterwards.
+
+- [ ] ~~**Texture density is computed per-mesh in isolation.**~~ — the
+      `tex-world.ts` half is DONE (`be962ea`); see the item above for the rest. This is pattern #1
       of `notes/seam-audit.md` — the single root cause behind most of the
       seam instances logged there, and the reason no two neighbouring surfaces
       agree on px/m.
