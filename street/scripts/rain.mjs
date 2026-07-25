@@ -213,7 +213,13 @@ for (let h = 0; h < 48; h++) {
 // 48 s and up by design. A reload is the cheap deterministic dry world.
 await page.reload({ waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await page.evaluate((h) => window.__ct.clock(h % 24, 0), wetH);
+// THE ABSOLUTE HOUR, NOT h % 24. crosstown.ts:567 is `clock: (h, m) => { totalMin
+// = h * 60 + m }` and hourAbs is `Math.floor(totalMin / 60)` — so the hour you
+// pass IS the absolute hour, and rainAt keys on it. Passing `h % 24` after
+// searching the schedule for an absolute h silently tests a DIFFERENT hour: pick
+// 95 as rainy and you set hour 23, whose weather is whatever it happens to be.
+// The time of day still wraps correctly, so nothing looks wrong.
+await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
 const SOAK_TO = 0.25, SOAK_CAP = 25000;
 const t0 = Date.now();
 let soaked = await wetSignal();
@@ -225,7 +231,7 @@ if (soaked < SOAK_TO) {
   console.error(`\n  FAIL the pools never reached ${SOAK_TO} in ${SOAK_CAP} ms (got ${soaked})`);
   process.exitCode = 1;
 }
-await page.evaluate((h) => window.__ct.clock(h % 24, 0), dryH);
+await page.evaluate((h) => window.__ct.clock(h, 0), dryH);   // absolute, as above
 await page.waitForTimeout(1200);
 const justAfter = await wetSignal();
 await page.waitForTimeout(12000);

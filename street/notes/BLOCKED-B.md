@@ -622,6 +622,40 @@ PASS; grade-nan and rain-memory still CAUGHT.
 
 ---
 
+## `h % 24` silently tests a different hour — and my −83.5% was affected
+
+`fc18e7f5` corrected a −83.5% wet-night figure to −46.8% once stepped, naming a
+path-dependent dry-night baseline: jumped 0.04500, stepped 0.01335. **0.04500 is
+the number I published in the two-paths diagnosis below and divided by.** So my
+"night at exactly the daytime strength" is overstated; theirs is the better
+measurement and my section is corrected by it.
+
+Chasing why, I found something narrower that affects any script picking a
+weather hour:
+
+```
+crosstown.ts:567   clock: (h, m) => { totalMin = h * 60 + m }
+crosstown.ts:681   hourAbs: Math.floor(totalMin / 60)
+```
+
+**The hour you pass IS the absolute hour**, and `rainAt` keys on it. So a script
+that searches the schedule for a rainy absolute hour — 95, say — and then calls
+`clock(95 % 24)` sets hour 23 and tests whatever *its* weather happens to be.
+The time of day still wraps correctly, so nothing looks wrong. `rain.mjs` did
+exactly this in two places; fixed to pass the absolute hour.
+
+**My own re-measurement was wrong the same way**, which is how I found it: I
+validated a 13-hour dry spell on absolute hours and then stepped through
+`h % 24`, so the walk went through a completely different weather sequence than
+the one I had checked. Two of my measurements disagreeing, again, and again the
+probe was at fault rather than the world.
+
+I could not settle whether my weather fix removes the path-dependence
+`fc18e7f5` found — the instrument I built to test it had this bug — and I would
+rather say that than publish a third number. What is fixed is the truncation.
+
+---
+
 ## DIAGNOSED for c68f09f5: the wet look does not die at night, it is TWO paths
 
 `c68f09f5` routed this to props.ts: *"the wet look survives the night grade on
