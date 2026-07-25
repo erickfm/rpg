@@ -599,12 +599,22 @@ coffee cup     (5.3,-35.3)  brightest 0.045  nearest lamp 9.6 m
 darkest broad ground sheet: 0.008
 ```
 
-**61× brighter than the ground it lies on.** Litter inside `LAMP_R` takes the
-pool; the walk sheet under it does not, because the pool is applied **per
-material** and a large shared slab takes one value from its own origin. Same
-mechanism I documented for the park floor — *"one mesh cannot show a pool under
-one of its lamps"* — except on the main street it lights the objects and skips
-the ground, which is the visible half.
+**61× brighter than the ground it lies on**, and the mechanism is sharper than
+"per-material tinting", which is what I first wrote. Measured at the cup:
+
+```
+no pool decal covers the cup      the cup is 3.4 m from the lamp
+road slab origin (0.0, 0.0)       one 10 x 134 plane, material lum 0.007
+```
+
+**The two halves of the lamp disagree by 2.5×.** The material gain reaches
+`LAMP_R = 7.0 m`; the visible ground pool is a 5.6 m decal — a 2.8 m radius. An
+object anywhere between those radii is lit *as if standing under the lamp* with
+no light on the ground beneath it. The cup at 3.4 m is exactly there.
+
+The road's own material cannot help: it is a single 10 × 134 plane with its
+origin at (0, 0), so it takes one pool value from a point 54 m from the cup —
+the park-floor mechanism again, on the biggest mesh in the world.
 
 **Not a bug in the feature.** "Light around the light posts to show up on the
 objects and entities under the lights" is what was asked for and what `glow-pool`
