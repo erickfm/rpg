@@ -1537,3 +1537,48 @@ note, the bodega narrative — silently skipped every `axis: 'x'` entry.
 
 > **A field named `axis` exists because the answer differs by axis.** I read the
 > field, stored it, printed it, and never branched on it.
+
+## Walked vs authored, all four pavements, both axis conventions
+
+Redone with the axis honoured. 42 prompt samples, **10 distinct doors** across
+the west walk, east walk and both side-street pavements:
+
+| prompt | walked centre | authored door | diff |
+|---|---|---|---|
+| BURGER BARN | −25.25 | −25.11 | **−0.14** |
+| DINER | −46.75 | −46.61 | **−0.14** |
+| THRIFT STORE | −59.25 | −59.32 | **+0.07** |
+| A-1 TAX SERVICE | −20.25 | −20.13 | **−0.12** |
+| PAWN SHOP | −60.50 | −60.50 | **0.00** |
+
+**Five of five comparable doors agree within 0.14 m.** Two independent sources —
+where the prompt fires when you walk, and where the door was authored — and the
+worst disagreement is 14 cm on a 1.15 m doorway.
+
+### The bodega row is my axis mistake again, not a defect
+
+My script printed `BODEGA  walked −95.25  authored 12.82  diff −108.07`. That is
+**a z compared against an x**, which is precisely the error I documented one
+commit ago and then made again inside the script written to fix it.
+
+The bodega is a **chamfered corner**. `__ct.doors()` gives its point as
+`(8, −95)` with `chamfer: true` and a normal of `(−0.707, −0.707)` — a 45° door
+on the corner between the east walk and the side street. Its `[E]` fires from
+the east walk; its frontage is authored along the side street. **Both are
+correct descriptions of the same corner**, and no single-axis comparison can
+relate them.
+
+**Excluded, not failed.** A corner building needs a corner-aware check and I do
+not have one.
+
+### Four doors have no roster entry at all
+
+`[E] sit at the stop` and `[E] enter No. 227` — street furniture and a
+residential entrance, so reasonably absent. But **`[E] into the HOTEL ORPHEUS`
+and `[E] into GOLDEN ACES`** both fire, both have interiors, and **neither is in
+`__frontages`**. That is the coverage gap from the previous round, now confirmed
+from the walking side as well as by name.
+
+> Ten doors in the world. **Five verified against their authored position to
+> within 14 cm, one is a corner the check cannot express, and four are not in
+> the roster** — two of them major buildings.
