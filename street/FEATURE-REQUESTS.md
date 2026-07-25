@@ -367,12 +367,33 @@ commit, as asked.
   The user's verdict on this elevation was *"that exterior is the best thing in
   the world right now"*.
 
-- **"i need the facades to line up with the interior. so if the door on the
-  interior is full right then the facade must match"** ✅ Verified the user's
-  own way — stand inside, note the side, walk out, turn round: all 5 declared
-  rooms mirror, the tax office included. The 3 unchecked are canted bays, and
-  the bodega is exempt by the user's own later words, *"do not change the
-  facade i love it just make the entrance where i press e actually aligned."*
+- **"make the exteriors match the interiors"** / **"i need the facades to line
+  up with the interior. so if the door on the interior is full right then the
+  facade must match"** ✅ — **this is the most re-reported request in this file
+  (four times, across A and F), so it is measured two different ways here.**
+
+  The user's own test — stand inside, note the side, walk out, turn round:
+  all 5 declared rooms mirror, the tax office included.
+
+  And the way they actually phrase it elsewhere — *"the entrence to the tax
+  service is not aligned with the door of the facade"*, *"all press e to enter
+  options are aligned with the doors on the facades"* — is about the **[E] spot
+  versus the painted door**, which is a different quantity and was not covered
+  by the first test. Measured, in world metres:
+
+  ```
+  BURGER BARN  painted -25.11   [E] -25.11
+  DINER        painted -46.61   [E] -46.61
+  THRIFT       painted -59.32   [E] -59.32
+  A-1 TAX      painted -20.13   [E] -20.13
+  PAWN         painted -60.50   [E] -60.50
+  ```
+
+  Exact on every shop you can walk into. Shops with no interior have no [E]
+  spot, which is correct — you cannot enter a records shop. The bodega is the
+  documented chamfer case and is exempt by the user's own later words: *"do not
+  change the facade i love it just make the entrance where i press e actually
+  aligned."*
 
 - **"this is a part of the bodega corner that needs to be fixed i flagged this
   to you a while ago but its still here"** (pavement through the shopfronts) ✅
