@@ -54,7 +54,15 @@ measurements, not a run I completed**, and it is worth saying which.
 
 The six `--slow` walking suites: `spots-walk`, `seats-walk`, `world-wired`,
 `steps-walk` and `civic-doors-walk` I have run individually and all pass.
-`interiors-walk` I have never completed.
+`interiors-walk`, which failed six times on setup and which I abandoned, has now
+run to completion on the seventh: **195/195 across all eight rooms** — the exact
+figure its owner claims at `feat-interiors.md:317`. It is an instrument I do not
+own, run by me, reproducing the owner's number, and it independently covers the
+entry/exit round trip I had verified by hand: the way-out prompt, landing on the
+raised walk at `gy=0.14` rather than in the road, not standing in the re-entry
+trigger afterwards, a second `E` not sucking you back in, the landing open in
+all three directions, and the interior keeping its own light after dark
+(0/155 materials dimmed by the night sweep). **Marked [I] — independent.**
 
 ## Every result in this report was measured on an **empty street** — and holds on a busy one
 
