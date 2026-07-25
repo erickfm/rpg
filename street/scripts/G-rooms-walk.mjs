@@ -53,8 +53,13 @@ const ROOMS = [
     ],
   },
   {
-    id: 'tax', label: /A-1 TAX/, W: 12.0, D: 8.5, H: 2.75,
-    doorX: 7.0 - 0.45, doorZ: -15.25, at: -4.2, hasWindow: true,
+    // Both DERIVED now that the room reads the frontage descriptor, not chosen:
+    // W is roomWidthFor(13) = 11.8, and doorZ is doorWorldFor = cz + side*(at/k)
+    // = -15.5 + (-4.2 / 0.9077) = -20.13. Confirmed by scanning the walk for the
+    // prompt: it runs -19.2 to -21.0, centre -20.10. Typing -15.25 here — which
+    // is what this row said — is exactly what the descriptor exists to stop.
+    id: 'tax', label: /A-1 TAX/, W: 11.8, D: 8.5, H: 2.75,
+    doorX: 7.0 - 0.45, doorZ: -20.13, at: -4.2, hasWindow: true,
     clearZ: 2.5,
     frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
     doorApproach: [-4.2, 2.4],
@@ -68,8 +73,10 @@ const ROOMS = [
     ],
   },
   {
-    id: 'pawn', label: /PAWN/, W: 10.0, D: 8.0, H: 2.8,
-    doorX: 7.0 - 0.45, doorZ: -59.06, at: -0.06, hasWindow: true,
+    // Likewise derived: roomWidthFor(15) = 13.8, door declared at local 0 so it
+    // lands on the building centre, cz = -60.5. Scanned: -59.5 to -61.3.
+    id: 'pawn', label: /PAWN/, W: 13.8, D: 8.0, H: 2.8,
+    doorX: 7.0 - 0.45, doorZ: -60.5, at: 0, hasWindow: true,
     // the customer floor — the whole front of the room now, not a corridor
     clearZ: 2.0,
     // an x on the front wall that is solid: the door is at -0.06 and the
