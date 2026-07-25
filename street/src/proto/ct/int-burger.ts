@@ -338,9 +338,24 @@ export function buildBurger(ctx: CtxBuild): void {
   // mistake. Red polo and a visor rather than the diner's dress and apron:
   // the two rooms should employ visibly different decades of person, and that
   // difference survives the move to the atlas because it is in the colours.
+  // FACING DERIVED FROM THE COUNTER, not typed.
+  //
+  // This read `facing: Math.PI`, which is -z — the BACK WALL. `ct/citizens.ts`
+  // documents the convention as `atan2(vx, vz)` with `0 = facing +z`, and in
+  // every one of these rooms the counter sits near the back and the customer
+  // floor is on the +z side of it, so the keeper was turned away from the shop.
+  //
+  // Builder G hit exactly this in `int-pawn.ts` — "two of my four keepers faced
+  // their back walls" (15f86d64) — and the literal they name as the bug is the
+  // one that was in all four of mine. I nearly cleared my rooms on `turn.mjs`
+  // showing "8 distinct frames over 8 headings": that proves the ATLAS picks an
+  // angle, not that the angle is right. A figure facing a wall still turns.
+  //
+  // Derived from the counter so it cannot drift if the counter moves.
+  const KEEP_AT = CZ - 0.72;   // behind the counter
   room.person({
     jacket: '#c8302a', pants: '#4a4a52', skin: '#a87a52', hair: '#2a2622',
     fit: 'cap', accent: '#e6dcc6', cut: 'crop', build: 0,
-  }, CCX - 1.8, CZ - 0.72, { facing: Math.PI, h: 1.0, w: 0.95 });
+  }, CCX - 1.8, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 1.0, w: 0.95 });
 
 }

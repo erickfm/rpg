@@ -297,10 +297,25 @@ export function buildBodega(ctx: CtxBuild): void {
   // — this room predates the kit and predates `ctx.seat`, and it predated the
   // atlas helper too. Standing behind the counter where he can see the door
   // and the lottery at the same time.
+  // FACING DERIVED FROM THE COUNTER, not typed.
+  //
+  // This read `facing: Math.PI`, which is -z — the BACK WALL. `ct/citizens.ts`
+  // documents the convention as `atan2(vx, vz)` with `0 = facing +z`, and in
+  // every one of these rooms the counter sits near the back and the customer
+  // floor is on the +z side of it, so the keeper was turned away from the shop.
+  //
+  // Builder G hit exactly this in `int-pawn.ts` — "two of my four keepers faced
+  // their back walls" (15f86d64) — and the literal they name as the bug is the
+  // one that was in all four of mine. I nearly cleared my rooms on `turn.mjs`
+  // showing "8 distinct frames over 8 headings": that proves the ATLAS picks an
+  // angle, not that the angle is right. A figure facing a wall still turns.
+  //
+  // Derived from the counter so it cannot drift if the counter moves.
+  const KEEP_AT = CTR_X - 0.55;   // behind the counter
   room.person({
     jacket: '#4a5a6a', pants: '#3a3a42', skin: '#a0703e', hair: '#2a2622',
     fit: 'plain', accent: '#d8d4c8', cut: 'short', build: 1,
-  }, CTR_X - 0.55, CTR_Z, { facing: -Math.PI / 2, h: 1.0, w: 0.98 });
+  }, KEEP_AT, CTR_Z, { facing: Math.atan2(CTR_X - KEEP_AT, 0), h: 1.0, w: 0.98 });
 
   // ── the two things you can buy ──
   //

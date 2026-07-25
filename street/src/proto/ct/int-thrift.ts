@@ -473,8 +473,23 @@ export function buildThrift(ctx: CtxBuild): void {
   //
   // Brown cardigan over grey, grey hair: she is not selling to you, she is
   // minding the shop, and the atlas carries that in the palette.
+  // FACING DERIVED FROM THE COUNTER, not typed.
+  //
+  // This read `facing: Math.PI`, which is -z — the BACK WALL. `ct/citizens.ts`
+  // documents the convention as `atan2(vx, vz)` with `0 = facing +z`, and in
+  // every one of these rooms the counter sits near the back and the customer
+  // floor is on the +z side of it, so the keeper was turned away from the shop.
+  //
+  // Builder G hit exactly this in `int-pawn.ts` — "two of my four keepers faced
+  // their back walls" (15f86d64) — and the literal they name as the bug is the
+  // one that was in all four of mine. I nearly cleared my rooms on `turn.mjs`
+  // showing "8 distinct frames over 8 headings": that proves the ATLAS picks an
+  // angle, not that the angle is right. A figure facing a wall still turns.
+  //
+  // Derived from the counter so it cannot drift if the counter moves.
+  const KEEP_AT = TILL_Z - 0.55;   // behind the counter
   room.person({
     jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
     fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,
-  }, TILL_CX, TILL_Z - 0.55, { facing: Math.PI, h: 0.95, w: 0.94 });
+  }, TILL_CX, KEEP_AT, { facing: Math.atan2(0, TILL_Z - KEEP_AT), h: 0.95, w: 0.94 });
 }
