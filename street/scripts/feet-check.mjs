@@ -49,7 +49,27 @@ const samples = await page.evaluate(async (want) => {
       // let a frame run so the crowd's LATE hook recomputes col/mirror from here
       await new Promise((r) => requestAnimationFrame(r));
       await new Promise((r) => requestAnimationFrame(r));
-      for (const v of window.__ct.views()) out.push({ cam: [x, z], ...v });
+      const a = window.__ct.views();
+      // ── only judge a walker whose heading is STEADY ────────────────────
+      //
+      // The sprite's view has hysteresis: it holds the current sector until the
+      // heading is clearly past the boundary, which is what stops it flickering
+      // when the angle sits on one. The cost is that MID-TURN the painted view
+      // legitimately lags the new direction of travel — so a citizen rounding a
+      // corner really is, for a few frames, pointing its toe the way it was just
+      // going. Judging those samples flagged correct behaviour as a fault, about
+      // one run in three.
+      //
+      // So take a second reading and keep only the walkers whose travel
+      // direction has barely changed between the two.
+      await new Promise((r) => setTimeout(r, 180));
+      const b = window.__ct.views();
+      for (let i = 0; i < a.length; i++) {
+        const ma = Math.hypot(a[i].vx, a[i].vz), mb = Math.hypot(b[i].vx, b[i].vz);
+        if (ma < 1e-4 || mb < 1e-4) continue;
+        const steady = (a[i].vx * b[i].vx + a[i].vz * b[i].vz) / (ma * mb) > 0.985;
+        if (steady) out.push({ cam: [x, z], ...b[i] });
+      }
       if (usable() >= want) break;
     }
     // let the crowd walk on before sweeping again, so the second pass is not the
