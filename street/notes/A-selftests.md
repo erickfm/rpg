@@ -54,10 +54,24 @@ touched, and the normal runs stay green.
 | `density.mjs` | yes | **yes** — `--selftest` |
 | `nightgrade.mjs` | yes | **yes** — `--selftest` |
 | `check-wiring.mjs` | yes | no — but it fired for real on 5 unbuilt modules |
-| `seampairs.mjs` | prints only, no exit code | n/a |
+| `seampairs.mjs` | **yes** — like-for-like and brick-vs-brick disagreement | **yes** — `--selftest` (`57aa9a6c`) |
 | `fpdiff.mjs` | prints only | **yes** — classifier proven both ways on a mutated fingerprint |
 | `scenedump.mjs` | measurement, not a check | n/a |
 
-The two honest gaps are `check-wiring`, which has never been mutated but has
-caught real faults, and `seampairs`, which cannot fail because it has no exit
-code — worth giving it one now that its like-for-like count is a meaningful 0.
+**`seampairs` closed (`57aa9a6c`).** I wrote the line above a week ago, then
+spent that week fixing three reporting bugs in that very script while leaving it
+unable to report anything as wrong. A tool that always exits 0 is a tool nobody
+has to read.
+
+It fails on the two conditions that are actually defects — like-for-like
+disagreement, and a face declaring `'brick'` disagreeing with the masonry beside
+it. Everything else stays context: 63 unjudgeable pairs failing a build would
+teach people to pass `--force`, and a missing declaration is not a fault.
+
+`--selftest` doubles one stamped texture's `repeat.x`. Measured density is
+`(canvas width × repeat) / face width` and the stamp is untouched, so that face
+still **declares** 8 px/m while **drawing** 16 — the exact defect. One mutated
+face produces 7 disagreeing junctions, because it meets seven neighbours.
+
+**The one honest gap left is `check-wiring`**, which has never been mutated,
+though it fired for real on five unbuilt modules.
