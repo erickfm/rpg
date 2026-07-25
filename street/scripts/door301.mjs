@@ -28,6 +28,10 @@ const PIV = [AX(-0.09), Z0 + 0.02];
 const SPOT = [PIV[0] - 0.55, PIV[1] + 1.45];
 const at = (dx, dz) => Math.atan2(dx, -dz);
 
+// --selftest: jam a collider across the doorway in the LIVE list, so the
+// doorway reads blocked while the door is open. Pushed onto __ct.colliders(),
+// the same array the movement code tests.
+const SELFTEST = process.argv.includes('--selftest');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
@@ -70,6 +74,11 @@ const confirmPivot = async () => {
   console.log(`301's leaf found ${near.d.toFixed(2)} m from the computed pivot — constants still hold`);
 };
 await confirmPivot();
+if (SELFTEST) {
+  await page.evaluate(([z0, z1]) => window.__ct.colliders()
+    .push({ minX: 199.84, maxX: 200.06, minZ: z0, maxZ: z1 }), [Z0, Z1]);
+  console.log('selftest: jammed the doorway shut — this MUST now go red');
+}
 
 const warp = (x, z, yaw, pitch = 0) =>
   page.evaluate(([a, b, c, d, e]) => window.__ct.warp(a, b, c, d, e), [x, z, yaw, FLOOR, pitch]);
@@ -95,18 +104,29 @@ const prompt = () => page.evaluate(() => {
 const shot = (n) => page.screenshot({ path: `${outDir}/${n}.png` });
 const press = async () => { await page.keyboard.press('e'); await page.waitForTimeout(950); };
 
+// ── assertions, because printing "must be true" is not checking it ────────
+// This script used to print its five results with `<- must be true` beside
+// them and exit 0 whatever they said. That made the READER the assertion: all
+// five behaviours could break and it stayed green. Same fault as lotwalk's,
+// and in the file that tests the most.
+const FAIL = [];
+const expect = (label, got, want) => {
+  const ok = got === want;
+  console.log(`  ${ok ? 'ok  ' : 'FAIL'}  ${label}: ${got}${ok ? '' : `  (expected ${want})`}`);
+  if (!ok) FAIL.push(`${label}: got ${got}, expected ${want}`);
+};
 const log = [];
 const say = (s) => { log.push(s); console.log(s); };
 
 // ── 1. stand at the spot, door open ────────────────────────────────────────
 await warp(SPOT[0], SPOT[1], at(PIV[0] - SPOT[0], PIV[1] - SPOT[1]), 0.02);
 await page.waitForTimeout(500);
-say(`open at rest         blocked=${await shut()}  prompt=${JSON.stringify(await prompt())}`);
+expect('open at rest, doorway clear', await shut(), false);
 await shot('01-open');
 
 // ── 2. shut it ─────────────────────────────────────────────────────────────
 await press();
-say(`after E              blocked=${await shut()}  prompt=${JSON.stringify(await prompt())}`);
+expect('after E, doorway blocked', await shut(), true);
 await shot('02-shut');
 
 // close-ups of both jambs, to see whether the leaf clips either end
@@ -121,7 +141,7 @@ await shot('05-shut-square');
 await warp(SPOT[0], SPOT[1], at(PIV[0] - SPOT[0], PIV[1] - SPOT[1]), 0.02);
 await page.waitForTimeout(400);
 await press();
-say(`re-opened            blocked=${await shut()}  prompt=${JSON.stringify(await prompt())}`);
+expect('re-opened, doorway clear', await shut(), false);
 await shot('06-open-again');
 await warp(AX(-1.9), AZI(3.5), at(1.8, 0), 0.0); await page.waitForTimeout(350);
 await shot('07-open-square');
@@ -140,17 +160,17 @@ say(`  test point is ${Math.hypot(IN[0] - SPOT[0], IN[1] - SPOT[1]).toFixed(2)} 
   + ` and ${Math.hypot(IN[0] - PIV[0], IN[1] - PIV[1]).toFixed(2)} m from the pivot (leaf 0.91)`);
 await warp(IN[0], IN[1], at(PIV[0] - IN[0], PIV[1] - IN[1]), 0.0);
 await page.waitForTimeout(400);
-say(`in the swing         prompt=${JSON.stringify(await prompt())}`);
+expect('standing in the swing, prompt refuses', await prompt(), '[E] step clear of the door');
 await shot('08-in-the-swing');
 await press();
-say(`  after E            blocked=${await shut()}   <- must stay false`);
+expect('E from inside the swing does nothing', await shut(), false);
 
 // back at the spot: outside the arc, must work
 await warp(SPOT[0], SPOT[1], at(PIV[0] - SPOT[0], PIV[1] - SPOT[1]), 0.02);
 await page.waitForTimeout(400);
-say(`a pace back          prompt=${JSON.stringify(await prompt())}`);
+expect('a pace back, prompt offers close', await prompt(), '[E] close the door');
 await press();
-say(`  after E            blocked=${await shut()}   <- must be true`);
+expect('E from a pace back shuts it', await shut(), true);
 await shot('09-shut-from-back');
 
 // ── 5. the poster ──────────────────────────────────────────────────────────
@@ -163,4 +183,12 @@ await shot('11-poster-close');
 
 await browser.close();
 console.log(`door301 -> ${outDir}`);
-if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
+if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); FAIL.push('page errors'); }
+if (FAIL.length) {
+  console.error(`\nFAILED (${FAIL.length}):`);
+  for (const f of FAIL) console.error(`  ${f}`);
+  if (SELFTEST) { console.log('SELFTEST PASSED — the jammed door was caught'); process.exit(0); }
+  process.exit(1);
+}
+if (SELFTEST) { console.error('\nSELFTEST FAILED — the doorway was blocked and this did not notice.'); process.exit(2); }
+console.log('all seven behaviours hold: opens, shuts, blocks, refuses to shut on you.');

@@ -26,6 +26,9 @@ const CHECKS = [
   ['density',          'is every masonry face at the density it declares?', true],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
+  ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
+  ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
+  ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
 ];
 
 const rows = [];
