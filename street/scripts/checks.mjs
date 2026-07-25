@@ -35,6 +35,7 @@ const CHECKS = [
   // side the door is on, walk out, turn round, confirm it swapped. It was
   // dev-server-only and knew three rooms; it checks all five declared ones now.
   ['mirror-walk',    "does each room's door swap sides when you walk out?", false],
+  ['frontage-honours', 'did the facade paint the door the room declared?', true],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   // Slowest entry here by some way — it WALKS, so it costs what walking costs.
