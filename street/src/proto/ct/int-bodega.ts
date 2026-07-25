@@ -44,7 +44,18 @@ export function buildBodega(ctx: CtxBuild): void {
     // Bigger than the 8 x 8 box it was, and LOWER — 2.6 m, the lowest ceiling
     // in the world. The cramped feeling is height as much as floor area: a
     // corner shop with a generous ceiling reads as a minimart.
-    d: 8.4, h: 2.6,
+    // 11.0 DEEP, up from 8.4, and the ceiling stays at 2.6.
+    //
+    // The desk owning the same overshoot it owned on the thrift: *"I told you
+    // to make the bodega CRAMMED — narrow aisles, stock to the ceiling. It has
+    // overshot the same way. Grow the room; keep every fixture. Crowded is
+    // right for a bodega, unwalkable is not."*
+    //
+    // Every fixture stays; the floor grows under them. 8.8 x 11.0 is 97 m2
+    // against 74. The HEIGHT is deliberately untouched — 2.6 is low on purpose
+    // and low ceiling is half of what makes a corner shop feel like one. It is
+    // floor the player was short of, not headroom.
+    d: 11.0, h: 2.6,
     palette: { floor: 0xa89e88, wall: 0xc4c8b4, ceil: 0xbcbcae, trim: 0x5a4a34 },
     // Fluorescent battens, and all three work. A bodega is over-lit on
     // purpose — it is open at 2am and the light is half of why you go in.

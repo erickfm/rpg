@@ -21,7 +21,7 @@ const ROOMS = [
     // the harness reads it from ct/doors.ts like everything else
     // `keeper` is where a PLAYER STANDS to be served — the customer side of the corner counter.
     keeper: [3.90, 1.60],
-    id: 'bodega', label: /BODEGA/, D: 8.4, front: ['BODEGA', 10, -95, 1], chamfer: true,
+    id: 'bodega', label: /BODEGA/, D: 11.0, front: ['BODEGA', 10, -95, 1], chamfer: true,
   },
   {
     // ST BRIGID'S. Reached from the TOP OF A FLIGHT, not from the pavement —
