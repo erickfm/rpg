@@ -21,6 +21,7 @@
 //     node scripts/people-walk.mjs 6 32 -12 16   # just the car lot
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats, blindSpot } from './lib/materials.mjs';
 const ARG = process.argv.slice(2).map(Number);
 const BOX = ARG.length === 4 ? ARG : null;
 const b = await chromium.launch();
@@ -29,20 +30,20 @@ const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
+await installMats(p);
+await blindSpot(p);
 
 const r = await p.evaluate(([BOX]) => {
   const V = window.__ct.scene().position.constructor;
   const atlas = [], suspects = [];
   window.__ct.scene().traverse((o) => {
-    // EVERY material on the mesh, not just a lone one. This opened with
-    // `Array.isArray(o.material) ? null : o.material`, which drops a
-    // multi-material mesh entirely — and a7f2241d, bb23c8b3 and 8ceded66 have
-    // just found the identical blind spot in nightgrade, glow's pool sampler
-    // and an hours sweep, the last of which reported it was seeing 51% of the
-    // world. A figure painted on one face of a box was invisible here, which
-    // is precisely the sort of thing this check exists to catch.
+    // `__mats` is the shared walk from scripts/lib/materials.mjs (4008d7c3).
+    // I had my own copy of it here after b39e97c6, which is one of the four
+    // hand-retyped copies that lib exists to replace — the traversal runs
+    // inside page.evaluate, so there was never anything to import until
+    // someone installed one. Converging rather than keeping a fifth.
     if (!o.isMesh || !o.geometry?.parameters) return;
-    const mats = (Array.isArray(o.material) ? o.material : [o.material]).filter((mm) => mm?.map);
+    const mats = window.__mats(o).filter((mm) => mm?.map);
     if (!mats.length) return;
     const w = new V(); o.getWorldPosition(w);
     if (BOX && (w.x < BOX[0] || w.x > BOX[1] || w.z < BOX[2] || w.z > BOX[3])) return;

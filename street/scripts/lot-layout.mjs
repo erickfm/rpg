@@ -23,6 +23,7 @@
 //        --selftest    move the office to the front, require this to go red
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats, blindSpot } from './lib/materials.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -31,6 +32,8 @@ const p = await b.newPage({ viewport: { width: 900, height: 600 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
+await installMats(p);
+await blindSpot(p);
 
 // Where the lot is, its office, its banners and its fence — asked, not
 // remembered.
@@ -49,16 +52,12 @@ const site = await p.evaluate(() => {
     const g = o.geometry?.parameters;
     if (g && Math.abs(g.width - 3.0) < 0.01 && Math.abs(g.height - 2.7) < 0.01
           && Math.abs(g.depth - 4.6) < 0.01) office = [e[12], e[14]];
-    // EVERY material, not `o.material.map`. a7f2241d found nightgrade skipping
-    // multi-material meshes entirely, which is the same blind spot that hid the
-    // entrance band from me twice: on a box, `o.material` is an ARRAY and
-    // `.map` is undefined. Banners and fence panels are single-material planes
-    // today, so this changes no number — but a banner that ever became part of
-    // a multi-material mesh would silently not be counted, and an uncounted
-    // banner is an unchecked one. A false negative in the check that exists to
-    // catch floating signs is the worst possible failure for it.
-    const ims = (Array.isArray(o.material) ? o.material : [o.material])
-      .map((mm) => mm?.map?.image).filter(Boolean);
+    // `__mats` is the shared walk from scripts/lib/materials.mjs (4008d7c3),
+    // replacing the copy I wrote here. The blind spot it closes matters most in
+    // THIS check: lot-layout exists to catch floating signs, so a banner that
+    // went uncounted would be an unchecked one and the check would go green
+    // with the exact defect it was written for sitting in frame.
+    const ims = window.__mats(o).map((mm) => mm?.map?.image).filter(Boolean);
     for (const im of ims) {
       if (g && g.height && Math.abs(g.height - 0.62) < 0.001 && im.height === 30)
         banners.push({ x: e[12], y: e[13], z: e[14], w: g.width });

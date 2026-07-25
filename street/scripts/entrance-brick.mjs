@@ -18,6 +18,7 @@
 //        --selftest   count the doorcase as stone-wide, require this to fail
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats, blindSpot } from './lib/materials.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -26,6 +27,7 @@ const p = await b.newPage();
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
+await installMats(p);
 
 const r = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
@@ -35,8 +37,9 @@ const r = await p.evaluate(() => {
   let best = null;
   s.traverse((n) => {
     if (!n.isMesh || !n.geometry) return;
-    const ms = Array.isArray(n.material) ? n.material : [n.material];
-    const maps = ms.filter((m) => m?.map?.image).map((m) => m.map);
+    // the shared walk (4008d7c3): this check found the band only because I
+    // handled the array case by hand, and the band IS a six-material box
+    const maps = window.__mats(n).filter((m) => m?.map?.image).map((m) => m.map);
     if (!maps.length) return;
     n.geometry.computeBoundingBox();
     const g = n.geometry.boundingBox; if (!g) return;
