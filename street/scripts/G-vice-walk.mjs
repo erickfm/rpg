@@ -116,16 +116,19 @@ console.log('the north side-street walk — measuring the clear band eastward:')
 const BAND_MIN = 0.25;
 const clear = [];
 for (let z = FACADE_Z - 1.4; z <= FACADE_Z - 0.65; z += 0.1) {
-  await warp(30.0, z, EAST, KERB_H);
-  await p.waitForTimeout(140);
-  let last = 30.0;
-  for (let i = 0; i < 12; i++) {
-    await hold('w', 600);
-    const c = await pos();
-    if (c[0] - last < 0.12) break;
-    last = c[0];
-    if (c[0] > 52) break;
-  }
+  // Through runEast, which retries, rather than the single inline walk this used
+  // to do. Same citizen problem as the column check below and the same fix: a
+  // pedestrian standing in one lane makes that lane read as blocked, and if it is
+  // an EDGE lane the measured band narrows by 0.1 m. The observed band is 0.4 m
+  // against a 0.25 m floor, so two unlucky lanes fail a frontage that is fine —
+  // and I have watched this check come back 15/18 and then 16/18 on an unchanged
+  // world, which is the signature.
+  //
+  // Two tries, not the default three: most lanes here are SUPPOSED to be blocked
+  // (they are outside the band, against the wall or the kerb), and runEast retries
+  // whenever it has not reached `to`, so every legitimately blocked lane pays the
+  // full retry cost. Two is the flake fix; three would mostly buy re-walking walls.
+  const last = await runEast(z, 30.0, 52, 2);
   // past the casino door, which is the whole point of the walk
   const got = last > ACES.px - 0.3;
   console.log(`  z=${z.toFixed(2)}  reached x=${f2(last)}${got ? '  clear' : ''}`);
