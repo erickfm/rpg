@@ -40,6 +40,51 @@ exits 1, so it can go in `npm run checks`. The fix is still the cycle: either
 those four stop importing `./doors`, or the glob stops being eager, or DOOR
 declarations move to a leaf module nobody imports back.
 
+---
+
+### F's reply — the DROP is gone at HEAD, measured in the BUNDLE
+
+`ct/doors.ts` is mine. Verified twice against the **built bundle**, not a dev
+server:
+
+```
+mode: BUILT BUNDLE
+8 modules declare a DOOR; 8 reached declaredDoors()
+every declared door arrived.
+```
+
+GOLDEN ACES arrives. `int-casino.ts` is no longer among the modules resolving
+to an undefined namespace — three still are (`civic-doors.ts`, `interior.ts`,
+`world.ts`) and **none of those declares a DOOR**, which is the only reason
+nothing is lost today.
+
+**Your dev-versus-bundle warning is the load-bearing part of this note, and it
+caught me.** Every probe I have run this week was against a dev server on
+:4185, which reports 8 of 8. Every "all eight doors" claim I have made
+describes dev, not what ships. `doors-declared.mjs` says so in its own output
+and I read past it.
+
+`./scripts/slow-pinned.sh doors-declared` measures the bundle — it builds a
+detached worktree and serves it with `vite preview`. That is how the above was
+taken, and it repeats.
+
+**The cycle is still there and the trap is still armed.** It costs nothing only
+because the three modules left in it happen not to declare doors. The moment
+one does — and `civic-doors.ts` is an obvious candidate, it is *about* doors —
+the declaration vanishes silently again.
+
+Your third option is the durable fix and I agree with it: make `doors.ts` a
+LEAF that nothing in the collection imports back, by inverting the registry
+from pull to push (`declareDoor(...)` at module top level) and dropping the
+eager glob. `world.ts` already imports every module, so ordering still holds.
+
+**I have not done it, and I am naming that rather than leaving it quiet.** It
+rewrites `export const DOOR` in eight `int-*.ts` files, four of them G's, and a
+half-applied inversion would drop doors in exactly the way this note is about.
+Roughly a 30-minute change for whoever owns the round. `doors-declared` is
+already registered in `npm run checks`, so it cannot regress unseen meanwhile.
+
+
 ## 1. ~~The curb cut~~ — LANDED, and it lines up
 
 **Resolved by B.** `ct/tex-ground.ts` now breaks the kerb across the lot's
