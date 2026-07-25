@@ -37,7 +37,7 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const CASES = [
   // A's, added by A. The scene-mutation selftests on the appearance guards are
   // safe today only because nothing rewrites a texture per frame — and "safe
-  // today" is a fact about today's code, which is the argument b05dc7c5 made for
+  // today" is a fact about today's code, which is the argument bf8203196 made for
   // routing density here. This one restores the ORIGINAL BUG in source: the
   // linear congruence the user saw as diagonal stripes.
   ['window-lattice', TEXW,

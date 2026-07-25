@@ -357,7 +357,7 @@ the whole story — the viewing angle was.
 
 ## Fixed this pass
 
-### 1. The library doors are clear (`499df04`)
+### 1. The library doors are clear (`9a8607d1c`)
 
 Builder E is recessing the library into a courtyard. `ct/street.ts` stands it
 at `zw = -5.0`, `w = 16` (so z −5 … −21) and `ct/civic.ts` centres a 5 m
@@ -390,7 +390,7 @@ dead at z ≈ −10. It is now 0.3 m deep — a wall phone on a backboard, not a
 booth — and the lane **runs 24.9 m straight through**. The face you look at is
 unchanged: 0.9 m wide, 2.3 m tall.
 
-### 2. Decals were buried under the gutter pan (`42bc42b`)
+### 2. Decals were buried under the gutter pan (`8a50f971a`)
 
 The user's *"trash … under the gutter somehow"* was right, and the real damage
 was worse than the report. Measured against the pan surface:
