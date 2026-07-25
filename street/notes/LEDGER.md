@@ -74,3 +74,4 @@ user anything is finished.
 | OPEN | D | the atm is still not right | |
 | OPEN | E | make the library interior larger and more ambitious. more halls and st | |
 | OPEN | F | make sure the people in the buildings are in the right orientation. (b | |
+| OPEN | E | what is the shadow geometry here? did you end up answering what that w | |
