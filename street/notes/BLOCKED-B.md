@@ -601,7 +601,7 @@ gate entry at z -96.90, 1.50 m wide
 OK  no lantern stands on the entry (nearest is 1.55 m off its centreline)
 ```
 
-**The walk legs went blind quietly — OPEN.** Both back legs now stop dead:
+**The walk legs went blind quietly — NOW FIXED, see below.** Both back legs stopped dead:
 
 ```
 back leg, north to south: 12.3 m along, 0.00 m in the last 1.5 s
@@ -615,11 +615,24 @@ boundary. **They still pass**, because 12.3 m clears the 8 m distance bar — a
 check reporting success for a walk that no longer follows the thing it is named
 after.
 
-The fix is to derive the legs from the path geometry the way the entry now is,
-rather than from two remembered x values. That is a real change to how the walk
-is built and I am not starting it on a thin budget — better filed accurately
-than half-done. `park-walk` still catches its mutation, so the legs are still
-detecting a walled loop; they are testing a shorter walk than they used to.
+Fixed the round after filing it. The loop publishes its own shape — its long
+straights are 1.5 m wide path slabs — so the legs are derived from it, and so is
+the hold: 80% of the straight's length at the rig's ~2.9 m/s, which covers the
+run without piling into the corner at the end.
+
+```
+loop straights found: 12.8 m at x -32.5, 12.8 m at x -13.25
+OK  x -32.5  leg, south to north: 11.0 m along, 4.71 m in the last 1.5 s
+OK  x -32.5  leg, north to south:  9.2 m along, 2.67 m in the last 1.5 s
+OK  x -13.25 leg, south to north: 10.6 m along, 5.03 m in the last 1.5 s
+OK  x -13.25 leg, north to south: 10.7 m along, 4.99 m in the last 1.5 s
+```
+
+Nine to eleven metres of a 12.8 m straight, still moving at the end of every
+one. No dead stops, and both straights found by measurement rather than
+remembered. `park`, `park-partial` and `park-walk` all still CAUGHT.
+
+If the park is re-cut a fourth time the legs move with it.
 
 ---
 

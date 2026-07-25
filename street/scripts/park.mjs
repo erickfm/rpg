@@ -165,10 +165,45 @@ const leg = async (label, x, z, yaw, secs, axis, want) => {
 };
 console.log('\n  walking the loop past the lanterns:');
 let walked = true;
-walked = await leg('street leg, south to north', lx1, lz0 + 1.0, Math.PI, 6, 'z', 8) && walked;
-walked = await leg('street leg, north to south', lx1, lz1 - 1.0, 0, 6, 'z', 8) && walked;
-walked = await leg('back leg, north to south', lx0, lz1 - 1.0, 0, 6, 'z', 8) && walked;
-walked = await leg('back leg, south to north', lx0, lz0 + 1.0, Math.PI, 6, 'z', 8) && walked;
+// THE LEGS COME OFF THE PATH NOW, not off two remembered x values.
+//
+// 1da5e891 re-cut the loop — brought in off the boundary, corners turned — and
+// these walked straight lines at lx0/lx1 for a fixed 6 s. A loop with corners
+// cannot be walked straight, so the walker left the path and stopped against
+// the boundary at 12.3 m and 10.9 m, identically on every run. They still
+// PASSED, because 12.3 clears an 8 m bar: a check reporting success for a walk
+// that no longer followed the thing it is named after.
+//
+// The loop publishes its own shape. Its long straights are 1.5 m wide path
+// slabs, and the hold is derived from the one being walked rather than chosen:
+// 80% of its length at the rig's ~2.9 m/s, so the walker covers the straight
+// and does not run into the corner at the end of it. A re-cut moves the legs
+// with it — and this park has now been re-cut three times.
+const straights = await page.evaluate(() => {
+  const out = [];
+  window.__ct.scene().traverse((o) => {
+    const g = o.geometry?.parameters;
+    if (!o.isMesh || !g || o.geometry.type !== 'PlaneGeometry') return;
+    if (o.position.x > -8 || o.position.x < -42) return;
+    if (Math.abs(o.position.y - 0.146) > 0.006) return;
+    if (Math.abs(g.width - 1.5) > 0.01 || g.height < 8) return;   // a long run, not a corner
+    out.push({ x: +o.position.x.toFixed(2), z: +o.position.z.toFixed(2), len: +g.height.toFixed(2) });
+  });
+  return out.sort((a, b) => a.x - b.x);
+});
+console.log(`  loop straights found: ${straights.map((s) => `${s.len} m at x ${s.x}`).join(', ') || 'NONE'}`);
+if (straights.length < 2) {
+  console.log('  FAIL fewer than two long straights — the loop is not walkable as legs');
+  walked = false;
+} else {
+  for (const st of straights) {
+    const secs = Math.max(3, Math.min(9, (st.len * 0.8) / 2.9));
+    const want = st.len * 0.55;
+    const half = st.len / 2 - 0.6;
+    walked = await leg(`x ${st.x} leg, south to north`, st.x, st.z - half, Math.PI, secs, 'z', want) && walked;
+    walked = await leg(`x ${st.x} leg, north to south`, st.x, st.z + half, 0, secs, 'z', want) && walked;
+  }
+}
 
 // AND KEEP THEM OFF THE GATE ENTRY.
 //
