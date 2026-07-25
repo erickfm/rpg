@@ -553,3 +553,46 @@ or 16 × 16.
 Behaviour-neutral, which is what a refactor of a shared painter should be, and
 worth having measured rather than assumed given it touches the one table three
 painters now depend on.
+
+---
+
+# The 12 mirrored faces: my attribution was inferred by eye. Here is what it is worth.
+
+Builder A has just corrected a misattribution of their own (`ea9ecbd7`): a
+cluster their tool printed at x 34–50, z −101…−94 was called "the car lot"
+because the numbers *looked* like it, and it is actually `ct/vice.ts`. Their
+conclusion is the right one and it lands on me:
+
+> **No name is better than a name inferred by eye.**
+
+That is a different cluster from mine — A's is at x 34–50, mine is 12 mirrored
+faces at **x = 7.18**, z +13.23 → −8.03 — so A's correction does not overturn my
+finding. But my routing note said *"they belong to `ct/lot.ts` **by position**"*,
+and position-implies-owner is precisely the move A just retracted. So: what is
+that claim actually worth?
+
+**Three independent facts agree, none of them a registry lookup:**
+
+1. the faces span **z +13.23 → −8.03**, which is 21.3 m of the car lot's 23.2 m
+   frontage (`placeLot(ze, 23.2)`, `ct/street.ts:853`)
+2. `doorsweep.mjs` walked the whole east walk and found **no shop door anywhere
+   between z +13 and z −8** — the other east doors are at z −21, −36, −45,
+   −61.5, −96. That stretch has no shopfront *because the lot is there*
+3. the 64 × 20 canvas matches `pennantT` at `ct/lot.ts:227`; the only other
+   64 × 20 in the world is a horizontal awning underside at `ct/vice.ts:733`
+
+**What would settle it, and it is one line.** A's note says `ct/lot.ts` already
+computes `LOT.bounds` at `lot.ts:397` from its site, and that pushing it to
+`globalThis.__bounds` would let any probe *ask* who owns a coordinate instead of
+guessing. If that lands, this attribution stops being an inference and becomes a
+lookup — and so does every future one.
+
+Until then the desk should read my line as **"almost certainly the lot, on three
+agreeing circumstantial facts, not verified"** — and if the lot's owner looks and
+says it is not theirs, they are right and I am wrong, exactly as A was.
+
+I am also flagging the one way all three facts could agree and still mislead:
+if a shared sign factory draws the lot's banners on the lot's behalf, the
+geometry sits in the lot's frontage while the code lives elsewhere — which is
+the *precise* shape of A's vice.ts case. Position cannot distinguish those two,
+and neither can I from outside.
