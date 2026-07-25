@@ -87,6 +87,20 @@ luminance of **0.5355 at dry hour 12 and 0.5355 at rainy hour 14** — identical
 to four decimals. The road darkens around it and the car stays matte. Nothing
 of mine calls `ctx.wet`, so no vehicle is in `wetMats`.
 
+**And it is not an artefact of how I measured it.** `3d71b035` established that
+a JUMPED clock reads 7.4% brighter than the night a player reaches by stepping,
+and I had jumped 12 → 14. So I ran the control I should have run first: the same
+jump, measuring a registered surface alongside the car.
+
+```
+            car (33 materials)      ground (167 materials)
+dry  h12          0.5355                   0.9004
+rain h14          0.5355                   0.7242      <- 19.6% darker, visibly wet
+```
+
+The jump delivers wetness to everything that is registered. The fleet not
+moving is a fact about the fleet.
+
 **Independently confirmed** by `3750fa61`, which re-ran the owner sweep without
 the filter that had been hiding it: the fleet appears as **two untagged rows** —
 *"33 BufferGeometry materials at median y 0.00 is exactly H's sedan count,
