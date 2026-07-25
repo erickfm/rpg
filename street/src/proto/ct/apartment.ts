@@ -965,7 +965,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     linkT.repeat.set((CW - 0.1) / 0.3, 1.95 / 0.3);
     const GZ = CZ0 + 0.03;
     const gate = new THREE.Mesh(new THREE.PlaneGeometry(CW - 0.1, 1.95), new THREE.MeshBasicMaterial({
-      map: linkT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide,
+      // alphaTest, and NOT `transparent`. Same one-flag bug that had every
+      // alpha-cut prop in the car lot standing at full daylight brightness at
+      // midnight: a cut-out discards its fragment and never blends, so
+      // `transparent` buys nothing, costs a place in the sorted transparent
+      // queue, and puts the material on props.ts's dimWorld skip list.
+      //
+      // No visible change HERE today, and that is worth being straight about:
+      // dimWorld returns early for anything past x = 100, so the lobby keeps
+      // its own light and this gate was never going to glow. It is fixed
+      // because it is the same latent trap, because DoubleSide in the sorted
+      // queue is a sorting artifact waiting to happen, and because the day the
+      // interiors do get graded is not the day anyone will think to look here.
+      map: linkT, alphaTest: 0.4, side: THREE.DoubleSide,
     }));
     gate.position.set(CXM, 0.99, GZ);
     scene.add(gate);
