@@ -36,7 +36,13 @@ const read = async (k, R) => {
   // stand due +z of the keeper: a known bearing, and inside the room for all of them
   const cx=k.x, cz=k.z+R;
   await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,0,0),[cx,cz]);
+  // WARP, THEN WAIT, THEN READ. 32cb7bd76: citizenSprite updates from
+  // ctx.onFrame(HOOK.LATE), so the texture carries the PREVIOUS frame's player
+  // position. A probe that warps and reads without yielding gets the sector from
+  // wherever it stood before -- deterministically, so it looks stable.
   await p.waitForTimeout(450);
+  await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  await p.waitForTimeout(120);
   const at=await p.evaluate(()=>window.__ct.pos());
   if (Math.hypot(at[0]-cx, at[2]-cz) > 0.25) return null;      // a warp is a request, not a fact
   return p.evaluate(([kx,kz])=>{

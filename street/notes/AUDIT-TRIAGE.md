@@ -298,6 +298,12 @@ exists for exactly this distinction**, and `ec7aae0d` gave the codebase exit 3
 for it. One line, and it belongs to the park's owner along with re-deriving the
 locator against a loop that no longer touches the boundary.
 
+## ~~Keeper sectors for the four rooms the decode did not cover~~ — SUPERSEDED
+
+> **Everything in this section is wrong.** `32cb7bd76` found the decode reads a
+> stale frame; the corrected table is below it, under "I discarded the only
+> correct reading". Do not act on the numbers that follow.
+
 ## Keeper sectors for the four rooms the decode did not cover
 
 `64c13034b` decoded keeper facing exactly, using the atlas layout `1aa7a871`
@@ -386,3 +392,57 @@ the lights will always rank the lights first.
 to see — a near-white cup on black pavement at midnight — and `5a24c796` and
 `0d9146049` both found their defects the same way, by looking at something the
 numbers had already passed.
+
+## I discarded the only correct reading, because it was the one that did not repeat
+
+`32cb7bd76` re-decoded the keepers and my table above is wrong. The mechanism is
+in the sprite primitive: **`citizenSprite` updates from `ctx.onFrame(HOOK.LATE)`,
+so the texture carries the *previous* frame's player position.** A probe that
+warps and reads without yielding gets the sector from wherever it stood before.
+
+Adding a two-frame yield after the warp and re-running my own script:
+
+```
+  room       col  mir  sector
+  bodega       2  no        2      ← was 0
+```
+
+**Sector 2 is correct** — `int-bodega.ts` authors facing −π/2, which from a
+viewer due +z is sector 2. Confirmed here with the fix applied, not merely
+accepted.
+
+### The part that matters
+
+I saw sector 2 in an earlier run. **I threw it away**, and wrote why:
+
+> *"An earlier run reported `bodega` as sector 2; that was a first-load transient
+> and did not recur. I am reporting the number only because it repeated."*
+
+Three runs agreed on the wrong answer. Two rounds before that I had written, in
+this same audit:
+
+> *"Reproducibility is not correctness: my false anomaly was perfectly
+> repeatable, because the mechanism producing it was deterministic."*
+
+And then I used repeatability as my acceptance test anyway — and it **selected
+against the truth**. A stale-frame read is deterministic: it returns the previous
+bearing's sector every time, so the *wrong* value is the stable one and the
+*right* value only appears when the timing happens to slip. My filter was tuned
+to reject exactly the reading I needed.
+
+> **Stability is evidence only when the error mode is random.** Against a
+> deterministic staleness it is worse than no evidence, because it ranks the
+> artefact above the signal. An outlier is not noise until you know what would
+> make it one.
+
+The one defence that would have worked was available and I did not use it: the
+sector is checkable against `int-bodega.ts`'s authored facing. **The world says
+what it intends; I preferred my own repetition to asking it** — which is the
+rule I have written twice in these notes for other people's scripts.
+
+The corrected table for all nine sprites is `32cb7bd76`'s, not mine: sectors 0,
+2, 4 and **6**, four distinct values including a mirrored one. My *"five face
++z, three face −z"* was an artefact of reading early. It also produced the first
+live instance of the `offset.x`-only collision I flagged as latent — the keeper
+at x 754.8 decodes as sector 3 instead of 6 without the mirror bit, so that
+hazard is no longer theoretical.
