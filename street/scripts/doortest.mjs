@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
-console.error(`[measuring ${process.env.SHOT_URL}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 const at = async () => p.evaluate(() => window.__ct.pos());
 const press = async () => { await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e'); await p.waitForTimeout(500); };
 // stand at the walk-up door, press E, expect to be teleported inside (x > 100)

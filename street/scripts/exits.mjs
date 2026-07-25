@@ -4,6 +4,7 @@
 // check where you actually end up — is it on the walk, is it clear of the way-in
 // trigger, and can you move once you are there.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 // slab centres: diner 440, burger 520, thrift 600.  hd = d/2
 const ROOMS = [
   { id: 'DINER',       cx: 440, d: 7.0, at: -2.6, inX: -6.55, inZ: 9.6,     inR: 1.05 },
@@ -12,9 +13,9 @@ const ROOMS = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 const out = await p.evaluate(async (ROOMS) => {

@@ -7,6 +7,7 @@
 // Slabs are assigned by sorted filename since 0b6d6630:
 //   burger 0 · casino 1 · diner 2 · hotel 3 · pawn 4 · tax 5 · thrift 6
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const R = [
   { id: '0-burger', cx: 440, hd: 4.25 },
   { id: '1-casino', cx: 520, hd: 4.5  },
@@ -18,9 +19,9 @@ const R = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 620 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 const stats = [];

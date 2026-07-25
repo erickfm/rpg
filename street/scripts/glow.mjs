@@ -9,6 +9,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/glow.mjs [shots|probe|all]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const mode = process.argv[2] ?? 'all';
 const browser = await chromium.launch();
@@ -16,9 +17,9 @@ const page = await browser.newPage({ viewport: { width: 880, height: 750 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
 await page.evaluate(() => window.__ct.clock(2, 30));      // deep night
 await page.waitForTimeout(1200);

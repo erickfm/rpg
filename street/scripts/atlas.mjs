@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(500);
 const urls = await page.evaluate(() => window.__ct.atlases());
 await page.setContent(`<body style="margin:0;background:#556;display:flex;flex-wrap:wrap;gap:10px;padding:10px">` +

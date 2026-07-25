@@ -2,6 +2,7 @@
 // owns it, then LOOK at it -- a face is masonry or it is not, and that is
 // visible. Camera is standable + has line of sight + verified to have landed.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const CAND = [
   ['px6-a', -14.1, 2.8, -97.9, 'UNDECLARED 5.92 px/m vs declared 16 alongside'],
@@ -11,9 +12,9 @@ const CAND = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 for (const [tag, X, Y, Z, note] of CAND) {

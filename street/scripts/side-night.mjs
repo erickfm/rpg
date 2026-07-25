@@ -2,11 +2,12 @@
 // there were registered with props.lit before any lamp existed on that street, so
 // this is the check that the prediction held.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-console.error(`[measuring ${process.env.SHOT_URL}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 const sample = async (h, m) => {
   await p.evaluate(([h, m]) => window.__ct.clock(h, m), [h, m]);

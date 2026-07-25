@@ -14,13 +14,14 @@
 // It cannot know intent: a hanging sign is SUPPOSED to have air under it. So
 // it reports rather than fails, sorted worst first, and the reading is yours.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 
 // A BOX may be given to point it somewhere else: `x0 x1 z0 z1`. The default
 // stays interiors-only (x >= 400) so the reading above is unchanged, but the

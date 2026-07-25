@@ -3,6 +3,7 @@
 // measured one at a time. Same relative station in each room: 1.5 m in from the
 // front wall, on the room centreline, looking at the back wall, same pitch.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const R = [
   { id: 'diner',  cx: 440, hd: 3.5,  at: -2.6 },
   { id: 'burger', cx: 520, hd: 4.25, at: -3.6 },
@@ -10,9 +11,9 @@ const R = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(800);
 for (const r of R) {

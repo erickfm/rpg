@@ -1,9 +1,10 @@
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4279/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4279/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4279/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13,0)); await p.waitForTimeout(900);
 await p.mouse.click(400, 250);
 const hike = async (label, x, z, yaw, secs) => {

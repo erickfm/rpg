@@ -14,6 +14,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-rooms-walk.mjs [id]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const KERB_H = 0.14, RADIUS = 0.36;
 
@@ -114,9 +115,9 @@ const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 const kitWarns = [];
 p.on('console', (m) => { if (/\[interior:/.test(m.text())) kitWarns.push(m.text()); });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4186/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4186/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4186/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 
 const pos = () => p.evaluate(() => window.__ct.pos());

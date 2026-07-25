@@ -7,12 +7,13 @@
 // "does the jump still put you back where you started" everywhere the ground
 // changes height.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 const pos = () => p.evaluate(() => window.__ct.pos());
 const camY = () => p.evaluate(() => window.__ct.camY());
 const warp = (x, z, gy) => p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, 0, gy, 0), [x, z, gy]);

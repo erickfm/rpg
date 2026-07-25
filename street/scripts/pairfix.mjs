@@ -12,12 +12,13 @@
 // Reports how many pairs survive each, so the shared instrument's signal can be
 // separated from its noise.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(1200);
 const out = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);

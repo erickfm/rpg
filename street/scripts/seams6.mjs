@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const look = (x, z, tx, tz) => Math.atan2(tx - x, -(tz - z));
 const S = [
   ['W-marquee-east-reach', 55.5, -100.5, look(55.5,-100.5, 51.2,-95.0), 0, 0.85],
@@ -8,9 +9,9 @@ const S = [
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4182/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4182/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4182/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(700);
 for (const [l,x,z,yaw,gy,pitch] of S) {

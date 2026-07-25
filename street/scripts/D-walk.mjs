@@ -18,6 +18,7 @@
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-walk.mjs
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 // SAY WHICH WORLD THIS MEASURED, every run, before anything else.
 //
@@ -36,9 +37,9 @@ console.log(`D-walk measuring ${URL}${process.env.SHOT_URL ? '' : '   (default â
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 // theirs: URL is already SHOT_URL-aware (line 33). Keep it and add the banner.
-console.error(`[measuring ${URL}]`);   // say WHICH world â€” 24163f69
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(page, URL);   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.mouse.click(640, 360);
 await page.waitForTimeout(600);

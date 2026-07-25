@@ -10,12 +10,13 @@
 // (five views, walk and idle rows), so repeat.x is +/-0.2. A hand-drawn cutout
 // is a person-shaped alphaTest plane with an untiled map.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 
 const r = await p.evaluate(() => {
   const V = window.__ct.scene().position.constructor;

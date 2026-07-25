@@ -10,12 +10,13 @@
 // GUTTER hold water longer than the road crown (props.ts uses the sheet's own
 // texture height to tell them apart).
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4184/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.warp(0, -40, 0, 0.14, 0));
 await p.waitForTimeout(400);
 

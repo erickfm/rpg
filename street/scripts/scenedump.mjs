@@ -8,6 +8,7 @@
 //
 // Usage: node scripts/scenedump.mjs <label>   -> shots/<label>.json
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
 const label = process.argv[2];
@@ -24,9 +25,9 @@ await page.addInitScript(() => {
 });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 10000 });
+await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 // PIN THE CLOCK BEFORE DUMPING, or `structure` is not a fingerprint.
 //
 // Nothing here stopped the world's own time, so a material whose colour depends

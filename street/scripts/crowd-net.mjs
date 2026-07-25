@@ -13,14 +13,15 @@
 //
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/crowd-net.mjs [seconds]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const SECONDS = Number(process.argv[2] ?? 90);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4177/'}]`);   // say WHICH world — 24163f69
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(400);
 await page.evaluate(() => window.__ct.clock(13, 0));
 // stand well out of the way: the player is solid to them, and a player parked

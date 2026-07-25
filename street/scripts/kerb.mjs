@@ -2,12 +2,13 @@
 // a parked car, eye level, no pitch tricks.
 // Usage: SHOT_URL=... node scripts/kerb.mjs [tag]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 const tag = process.argv[2] ?? 'now';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-console.error(`[measuring ${process.env.SHOT_URL}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
 await p.evaluate(() => window.__ct.clock(13, 0));
 const cars = await p.evaluate(() => {

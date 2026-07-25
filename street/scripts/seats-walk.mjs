@@ -21,6 +21,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/seats-walk.mjs
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const RADIUS = 0.36, SIT_EYE = 0.72, STAND_EYE = 1.62;
 
@@ -28,9 +29,9 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
-console.error(`[measuring ${process.env.SHOT_URL ?? 'http://localhost:4185/'}]`);   // say WHICH world — 24163f69
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 15000 });
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(300);
 
 const pos = () => p.evaluate(() => window.__ct.pos());
