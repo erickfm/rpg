@@ -246,3 +246,51 @@ or skip the shop.
 This is not a new blocker and it does not change the three options. It is the
 same item, arriving at the moment it is cheapest to fix — before a second
 consumer is written against the gap rather than after.
+
+---
+
+## The authority I am recommending is itself lossy in the bundle
+
+Ran the house suite. One real red in the project, `doors-declared`, and it lands
+on this item:
+
+```
+mode: BUILT BUNDLE
+8 modules declare a DOOR; 7 reached declaredDoors()
+
+DECLARED BUT NEVER COLLECTED:
+  GOLDEN ACES      src/proto/ct/int-casino.ts
+```
+
+My preference above is **option 3 — document that `declaredDoors()` is the
+authority for cut faces**. That recommendation was made against a function I had
+only ever exercised for the BODEGA. In the built bundle it silently drops a
+building.
+
+**It does not change the recommendation, and I checked rather than assumed: the
+BODEGA is among the 7 that arrive.** Option 3 works for the case this blocker is
+about, today, in the artefact.
+
+**It does change what the sentence has to say.** "`declaredDoors()` is the
+authority for cut faces" would be handed to F as a guarantee, and it is not one
+yet — a room in an import cycle with `doors.ts` can declare a door that never
+reaches the collector, with no error and no gap in the count unless you go
+looking for the total. If option 3 is chosen, the wording needs the caveat:
+
+> `declaredDoors()` is the authority for cut faces. It is collected through an
+> eager glob and a module in an import cycle with `doors.ts` can be missed in
+> the built bundle — `scripts/doors-declared.mjs` is the check that says so.
+> Compare the declared count with the collected count before trusting a miss.
+
+**The underlying defect is diagnosed and is not mine.** `seam-audit.md` Round 16
+has it exactly: six of the eight rooms import only `type DoorDecl`, which is
+erased, so they have no runtime edge at all; only `int-casino` and `int-hotel`
+import the value `doorStandFor`, and they are the two chamfered corners. The fix
+is to move `doorStandFor` into a leaf module that globs nothing, then change two
+import lines. **Three files, one of them new.**
+
+`ct/doors.ts` still has no owner in `OWNERSHIP.md` — I flagged that some rounds
+back and it is now blocking a real red rather than a hypothetical one.
+`int-casino.ts` and `int-hotel.ts` are not mine. **Desk: this needs an owner,
+and the diagnosis is already complete enough that whoever takes it is doing
+twenty minutes of typing rather than an investigation.**
