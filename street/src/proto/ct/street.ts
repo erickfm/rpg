@@ -219,6 +219,17 @@ export function buildStreet(o: {
     scene.add(wall);
     litSheets(b, b.w, h, side * FACE, h / 2 + gh, cz,
       side < 0 ? Math.PI / 2 : -Math.PI / 2, -side, 0);
+    // MOVED ABOVE THE PAINTER, and it has to stay there. shopfrontRelief
+    // registers where this frontage is in the world, and the painter needs
+    // that registration to resolve the door position the ROOM declared —
+    // paint first and it has nothing to resolve against, so the facade
+    // quietly falls back to its own guess. Also adds the projecting mouldings;
+    // nothing there projects past the 0.30 m solid() already reserves, so it
+    // adds no collision. The walk-up (b.res) has a doorcase, not a shopfront.
+    if (!b.res) shopfrontRelief({
+      scene, name: b.nm, wMeters: b.w, trim: b.col,
+      x: side * FACE, z: cz, rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
+    });
     const shopM = flat(
       b.res ? resGroundTex(b.brick, b.w)
         : b.front === 'burger' ? burgerFront(b.brick, b.w)
@@ -229,14 +240,6 @@ export function buildStreet(o: {
     const shop = new THREE.Mesh(new THREE.BoxGeometry(dep, gh, b.w), shopMats);
     shop.position.set(cx, gh / 2, cz);
     scene.add(shop);
-    // the shopfront's projecting mouldings — fascia cornice and bed-mould,
-    // glazing jambs and head, stallriser cill and plinth. Nothing projects
-    // past 0.30 m, which solid() below already reserves, so this adds no
-    // collision. The walk-up (b.res) has a doorcase, not a shopfront.
-    if (!b.res) shopfrontRelief({
-      scene, name: b.nm, wMeters: b.w, trim: b.col,
-      x: side * FACE, z: cz, rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
-    });
     roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
     // collision follows the real footprint, not a fixed 8 m guess
     solid(side < 0
@@ -756,15 +759,16 @@ export function buildStreet(o: {
     scene.add(wall);
     litSheets(b, b.w, h, cx, h / 2 + gh, front,
       facing > 0 ? 0 : Math.PI, 0, facing);
+    // registered before the painter runs — see placeBld
+    shopfrontRelief({
+      scene, name: b.nm, wMeters: b.w, trim: b.col,
+      x: cx, z: front, rotY: facing > 0 ? 0 : Math.PI,
+    });
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, dep, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, dep), shopMats);
     shop.position.set(cx, gh / 2, czd);
     scene.add(shop);
-    shopfrontRelief({
-      scene, name: b.nm, wMeters: b.w, trim: b.col,
-      x: cx, z: front, rotY: facing > 0 ? 0 : Math.PI,
-    });
     roofKit(cx, czd, b.w, dep, gh + h, b.nm);
     solid(facing > 0
       ? { minX: x0, maxX: x0 + b.w, minZ: front - dep, maxZ: front + 0.3 }

@@ -465,12 +465,49 @@ export interface FrontageWorld extends Placement {
   glazingTopM: number;
 }
 
-// Populated as the street builds — shopfrontRelief already runs once per
-// shopfront and already receives the placement — and read afterwards by the
-// rooms and the [E] spots. A register rather than a second computation, on
-// purpose: the moment two places work out where a door is they are free to
-// disagree, which is the whole bug.
+// ── WHO DECIDES WHERE THE DOOR IS ──────────────────────────────────────────
+//
+// The ROOM does. Not this file.
+//
+// This was the wrong way round first time and it produced the thing the user
+// objected to: the facade was made the authority, so the tax office's ROOM got
+// swapped to match the painting. What they asked for, twice, was "make the
+// exteriors match the interiors".
+//
+// It is also right on the merits, which is worth writing down so nobody flips
+// it back. A room is hand-built furniture — a counter, a desk, a walking route
+// — all of which depend on where the door is. A facade door is one x position
+// in a texture. When two things must agree, move the cheap one.
+//
+// So: `ct/int-*.ts` calls declareDoorWorld() at MODULE scope. interior.ts glob-
+// imports the rooms eagerly and crosstown.ts imports interior.ts, so every
+// declaration is in before buildStreet runs and the painter can read it while
+// it paints. The register below holds the placement; the map above it holds
+// what the rooms said.
+const DECLARED = new Map<string, number>();
+
+/**
+ * A room states where ITS door is, in WORLD coordinates on the frontage's
+ * axis — world z for a main-block shop, world x for a side-street one.
+ *
+ * Call it at module scope. The facade will be painted with its door here, and
+ * the [E] spot put here, whatever either of them would have chosen alone.
+ */
+export function declareDoorWorld(name: string, doorWorld: number): void {
+  DECLARED.set(name, doorWorld);
+}
+
 const FRONTAGES = new Map<string, FrontageWorld>();
+
+/** the door the ROOM asked for, as canvas metres from u = 0, or null if the
+ *  room has not spoken (or the frontage is not placed yet). Clamped onto the
+ *  frontage so a bad number cannot paint a door into the neighbour. */
+function declaredAlongU(name: string, wMeters: number): number | null {
+  const d = DECLARED.get(name); const p = FRONTAGES.get(name);
+  if (d === undefined || !p) return null;
+  const along = p.uDir > 0 ? d - p.loWorld : p.hiWorld - d;
+  return Math.min(Math.max(along, 0.9), wMeters - 0.9);
+}
 
 /** canvas metres from u = 0 → a world coordinate on the frontage axis */
 const toWorld = (p: Placement, alongU: number) =>
@@ -479,10 +516,14 @@ const toWorld = (p: Placement, alongU: number) =>
 export function registerFrontage(name: string, wMeters: number, p: Placement): FrontageWorld {
   const L = frontageOf(name, wMeters);
   const a = toWorld(p, L.glazingStartM), b = toWorld(p, L.glazingEndM);
+  // the room's number wins; the painter's own layout is only the fallback for
+  // a shop that has no room behind it
+  FRONTAGES.set(name, { ...p, frontageM: wMeters } as FrontageWorld);   // so declaredAlongU can resolve
+  const along = declaredAlongU(name, wMeters);
   const f: FrontageWorld = {
     ...p,
     frontageM: wMeters,
-    doorWorld: toWorld(p, L.doorCentreM),
+    doorWorld: along === null ? toWorld(p, L.doorCentreM) : toWorld(p, along),
     doorWidthM: L.doorWidthM,
     glazingLoWorld: Math.min(a, b),
     glazingHiWorld: Math.max(a, b),
@@ -500,10 +541,17 @@ export function registerFrontage(name: string, wMeters: number, p: Placement): F
   return f;
 }
 
-/** THE shared answer to "where is this shop's door?". Null before the street
- *  has built — every consumer runs after it, so null means a name typo. */
+/** THE shared answer to "where is this shop's door?" — the room's number when
+ *  a room has given one. Null before the street has built. */
 export function frontageWorld(name: string): FrontageWorld | null {
-  return FRONTAGES.get(name) ?? null;
+  const f = FRONTAGES.get(name);
+  return f && f.doorWorld !== undefined ? f : null;
+}
+
+/** the door's canvas position for a painter: what the ROOM said, else the
+ *  painter's own layout. This is the single line that flips the authority. */
+export function doorAlongU(name: string, wMeters: number, fallbackM: number): number {
+  return declaredAlongU(name, wMeters) ?? fallbackM;
 }
 
 /** world coordinate on the frontage axis → 0..1 across the canvas. The mirror,
@@ -747,7 +795,10 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
     g.fillStyle = HI; g.fillRect(gx, gy + m(1.07), gw, 1);
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wMeters / 3.4)), '#3e372f');
     // the door, somewhere along the front rather than always dead centre
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU(name, wMeters, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = '#3e372f'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#38302a');
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.83));      // its panel
@@ -908,7 +959,10 @@ export const burgerFront = (brick: string, wM: number) => {
     for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.2)), PLASTIC);
     // the door, in its own reveal, with a push bar
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU('BURGER BARN', wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = '#3a3630'; g.fillRect(dx, gy, dw, gh);
     glazed(g, surf, dx + m(0.1), gy + m(0.12), dw - m(0.2), gh - m(0.24), '#cbbfa6');
     g.fillStyle = PLASTIC; g.fillRect(dx + m(0.15), gy + m(1.15), dw - m(0.3), m(0.1));  // push bar
@@ -1005,7 +1059,10 @@ export const pawnFront = (brick: string, wM: number) => {
       g.fillStyle = STEEL; g.fillRect(gx, yy, gw, Math.max(1, m(0.08)));
     }
     // door, barred to match, with a heavy kick plate
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU('PAWN', wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = '#332c24'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.9));
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.06));
@@ -1084,7 +1141,10 @@ export const taxFront = (brick: string, wM: number) => {
       g.fillStyle = '#8a2c22'; g.fillText(n, nx + m(0.55), ny + m(0.28));
     });
     // aluminium door, its own reveal, kick plate scuffed
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU('A-1 TAX', wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
     g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
     glazed(g, surf, dx, gy + m(0.15), dw, gh - m(0.9), '#3a4038');
@@ -1165,7 +1225,10 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
     for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.06));
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.6)), STEEL_D);
     // door, half-glazed, with a chrome push plate
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(1.0), '#3a2f26');
     g.fillStyle = STEEL; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.85));
@@ -1255,7 +1318,10 @@ export const thriftFront = (brick: string, nm: string, awning: string, wM: numbe
     g.lineTo(gx + gw * 0.64, gy + m(1.9));
     g.stroke();
     // door and a grubby stallriser
-    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
+    // where the ROOM says its door is, falling back to this painter's own
+    // layout only if no room has spoken for this frontage
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = '#4a4038'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#332b24');
     g.fillStyle = '#5a4e42'; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.8));
