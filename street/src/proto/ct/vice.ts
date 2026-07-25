@@ -82,8 +82,21 @@ export const VICE_DOOR_X: Record<string, number> = {
  * the box's -z face and that face's u runs from HIGH x to low x, so texel 0 is
  * the EAST end of the building — hence `x1 - doorX` and not `doorX - x0`.
  */
-const doorUOf = (b: BldSpec, x0: number) =>
-  (x0 + b.w - VICE_DOOR_X[b.nm]) / b.w;
+const doorUOf = (b: BldSpec, x0: number) => {
+  const doorX = VICE_DOOR_X[b.nm];
+  // Loud on a missing key, because the silent version is genuinely nasty: an
+  // unmapped name gives `undefined`, so `doorU` is NaN, `Math.round(NaN * W)` is
+  // NaN, and every `fillRect` for the entrance draws NOTHING. You would get a
+  // facade with no door painted on it, no error anywhere, and an [E] prompt
+  // coming off blank panelling.
+  //
+  // It cannot fire today — `VICE` holds exactly the two names this map has — so
+  // this is for whoever adds a third. `placeShell` dispatches with
+  // `nm === 'GOLDEN ACES' ? acesBand : orpheusBand`, so a new building falls to
+  // the hotel painter by default and would hit exactly this.
+  if (doorX === undefined) throw new Error(`ct/vice.ts: no VICE_DOOR_X for "${b.nm}" — add its door x beside the other two`);
+  return (x0 + b.w - doorX) / b.w;
+};
 
 /**
  * Neon drawn as a TUBE, not a stripe: three passes over one letterform — the
