@@ -43,20 +43,28 @@ if [ -n "$(git status --porcelain -- . 2>/dev/null)" ]; then
   echo
 fi
 
-WT="${TMPDIR:-/tmp}/ct-pinned-$SHORT"
+# The path carries the PID, NOT just the SHA. It used to be `ct-pinned-$SHORT`
+# and that cost a twenty-minute run: two invocations at the same commit resolve
+# to the same directory, and this script's startup used to `worktree remove
+# --force` that path before creating it. So a second run silently deleted the
+# first run's working directory out from under it, and every remaining check
+# died with `ENOENT: process.cwd failed ... the current working directory was
+# likely removed`. I did it to myself three invocations deep while the slow tier
+# was in flight. A run must not be able to destroy another run's world — that is
+# the entire point of this script.
+WT="${TMPDIR:-/tmp}/ct-pinned-$SHORT-$$"
 PORT="${PINNED_PORT:-4310}"
 while lsof -i ":$PORT" >/dev/null 2>&1; do PORT=$((PORT + 1)); done
 
 cleanup() {
   [ -n "${PREVIEW_PID:-}" ] && kill "$PREVIEW_PID" 2>/dev/null || true
-  # The worktree is disposable — it is a checkout of a commit that is already
-  # in the object store, so removing it loses nothing.
+  # Only ever the worktree THIS process created — the path has our PID in it,
+  # so there is nothing else it can reach.
   git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null || true
 }
 trap cleanup EXIT
 
 echo "pinning $SHORT into $WT"
-git -C "$ROOT" worktree remove --force "$WT" 2>/dev/null || true
 git -C "$ROOT" worktree add --detach -q "$WT" "$SHA"
 
 # node_modules is 200 MB of the same bytes; symlink rather than install. The
