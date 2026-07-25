@@ -109,6 +109,14 @@ FACT is settled from both sides and needs no more measuring. Only the decision
 is open. (It also lands on the ownership-stamp ask below: the fleet was findable
 only as "untagged", by counting.)
 
+**And it matters more than "sometimes it rains" suggests.** `cd37b59b` did the
+arithmetic on `rainAt` over 5000 game days: rain is 22% of hours, but the
+ARRANGEMENT is not random — **dry spells are only ever 3, 4 or 8 hours** and wet
+spells only ever 1 or 2. There is no such thing as a long dry stretch in this
+world. So a fleet that is permanently matte is not an edge case seen in the odd
+shower; it is wrong for a fifth of every day, on a street that is never dry for
+more than eight hours, with the road visibly darkening around it each time.
+
 **Why this is a ruling and not a task.** `props.ts` states the trap itself:
 registering a material hands its COLOUR to `updateRain` every frame, and there
 must be ONE WRITER PER MATERIAL. My fleet's materials are already written by the
