@@ -26,6 +26,8 @@ const KERB_H = 0.14, RADIUS = 0.36;
 const ROOMS = [
   {
     id: 'casino', label: /GOLDEN ACES/,
+    keeper: [3.1, 1.6],      // across the felt from the dealer
+
     building: 'GOLDEN ACES', at: -3.2, hasWindow: false,
     // a z that is clear right across the room, for the ±x wall probes
     clearZ: 3.0,
@@ -42,6 +44,8 @@ const ROOMS = [
   },
   {
     id: 'hotel', label: /ORPHEUS/,
+    keeper: [-3.6, -0.65],   // the guest side of the reception desk
+
     building: 'HOTEL ORPHEUS', at: -3.4, hasWindow: true,
     clearZ: -3.9,
     frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
@@ -61,6 +65,8 @@ const ROOMS = [
     // prompt: it runs -19.2 to -21.0, centre -20.10. Typing -15.25 here — which
     // is what this row said — is exactly what the descriptor exists to stop.
     id: 'tax', label: /A-1 TAX/,
+    keeper: [-2.6, -0.75],   // the client chair
+
     building: 'A-1 TAX', at: -4.2, hasWindow: true,
     clearZ: 2.5,
     frontProbeX: -1.6, backProbeX: 4.0, backProbeZ: 0,
@@ -78,6 +84,8 @@ const ROOMS = [
     // Likewise derived: roomWidthFor(15) = 13.8, door declared at local 0 so it
     // lands on the building centre, cz = -60.5. Scanned: -59.5 to -61.3.
     id: 'pawn', label: /PAWN/,
+    keeper: [1.6, -1.6],     // the customer side of the counter
+
     building: 'PAWN', at: 0, hasWindow: true,
     // the customer floor — the whole front of the room now, not a corridor
     clearZ: 2.0,
@@ -487,6 +495,58 @@ for (room of rooms) {
     await p.waitForTimeout(150);
     const d = await walkTill(axis);          // no early exit: we want the MAXIMUM
     check(name, d < most, `got ${f2(d)} m in before stopping (must be < ${most})`);
+  }
+
+  // ── the keeper is looking AT you, not away ───────────────────────────
+  //
+  // The user found the tax preparer facing his back wall, and it was the fourth
+  // handedness bug of the session — GOTCHAS §23 was written for the class. Two of
+  // my four keepers were wrong and 109 checks noticed nothing, because none of
+  // them asked which way a person was pointed.
+  //
+  // Their brief named the test: **stand where a player stands and ask whether
+  // they are looking at you or away.** That is exactly what this does, and it is
+  // readable rather than a judgement call: `ct/citizens.ts:426` sets the atlas
+  // column in `map.offset.x`, `col / 5` with col 0 = front and col 4 = back
+  // (`viewAt`'s `[0,1,2,3,4,3,2,1]`). So the sprite tells you which way it is
+  // showing, and the player only has to stand in the right place.
+  //
+  //   offset 0.0  front        0.2  three-quarter      0.4  profile
+  //   offset 0.6  3/4 back     0.8 / 1.0  back
+  //
+  // A keeper serving someone directly should be front or three-quarter, so the
+  // bar is 0.25. Profile would mean they are attending to something else, which
+  // is a choice, not this bug — if a room ever wants that, this is the line to
+  // argue with rather than delete.
+  if (room.keeper) {
+    const [kx, kz] = room.keeper;
+    await warp(CX + kx, kz, 0, 0);
+    await p.waitForTimeout(150);
+    // the sprite picks its column from where the CAMERA is, so it needs frames
+    // after the warp — reading immediately gets the view from the last position
+    await hold('w', 60);
+    await p.waitForTimeout(500);
+    const view = await p.evaluate(([cx, kx, kz]) => {
+      const s = window.__ct.scene(); s.updateMatrixWorld(true);
+      let best = null;
+      s.traverse((o) => {
+        if (!o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+        const g = o.geometry.parameters;
+        if (!(g.height > 1.4 && g.height < 2.2 && g.width > 0.5 && g.width < 1.6)) return;
+        const m = Array.isArray(o.material) ? o.material[0] : o.material;
+        if (!m || !m.map) return;
+        const wp = new o.position.constructor(); o.getWorldPosition(wp);
+        if (Math.abs(wp.x - cx) > 9 || Math.abs(wp.z) > 9) return;
+        const d = Math.hypot(wp.x - (cx + kx), wp.z - kz);
+        if (!best || d < best.d) best = { d: +d.toFixed(2), off: +m.map.offset.x.toFixed(3) };
+      });
+      return best;
+    }, [CX, kx, kz]);
+    const NAMES = { 0: 'front', 0.2: 'three-quarter', 0.4: 'profile', 0.6: 'three-quarter back', 0.8: 'back', 1: 'back' };
+    check('the keeper is looking at you, not away',
+      view !== null && view.off <= 0.25,
+      view === null ? 'no citizen sprite found in this room'
+        : `atlas column ${view.off} — ${NAMES[view.off] ?? 'between views'}, ${view.d} m away`);
   }
 
   // ── the customer side has to be a room you can stand in ──────────────
