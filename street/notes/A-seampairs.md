@@ -1,0 +1,81 @@
+# Builder A — the seam finding is a box face index, twice
+
+Landed in **`b69f3dd6`**, `scripts/seampairs.mjs`. Companion to `3f3c3ddb`,
+which fixed the identical read in `scripts/masonry.mjs`.
+
+## What was escalated
+
+`AUDIT-TRIAGE.md` row 0, graded **player-visible**, routed at **`masonry()` in
+`tex-world.ts` + callers** — my file:
+
+> **135 of 239 like-for-like masonry junctions disagree by >15%**, density
+> spanning 3.43–46.67 px/m. Every one passes the 8/16 grid check.
+
+## The cause, same as an hour ago
+
+`seampairs.mjs:28` reads `o.material[0]`; `:34` measures `parameters.width`. On
+a `BoxGeometry`, material 0 is the **+x face — depth × height**. This is exactly
+the read I fixed in `masonry.mjs` in `3f3c3ddb`, where it manufactured 42
+disagreements and I showed declared width == box **depth** on 42 of 42 and ==
+box **width** on 0 of 42.
+
+The tell was there before I opened the file: **4.09 px/m appears verbatim in
+Round 10's table**, as one of the 42 already proven to be a misread. A number
+that survives its own refutation into the next round is worth checking first.
+
+## After the fix, and the split that mattered more
+
+```
+236 masonry faces · 1540 touching pairs
+
+LIKE-FOR-LIKE (both faces declare the same density): 1228 pairs
+   disagreeing by more than 15%:  0
+
+declared-DIFFERENT among the disagreements: 312 — ratios 1.99× to 2.04×
+```
+
+The index fix alone was not enough. **The script never computed "like-for-like"
+at all** — that split lives only in the note's prose, while the code printed a
+single undifferentiated count. So a shopfront band declaring 16 meeting the wall
+declaring 8 was counted as a disagreement, when that junction *is* the design:
+`SHOP_MULT` is 2, and every one of the 312 lands between 1.99× and 2.04×.
+
+Counting the intended junction makes the number say the opposite of what it
+means — and the number is what gets escalated into a triage table. The script
+computes the split now, so it cannot drift from its own headline again.
+
+**The 13.6× range is gone with the misread. Like-for-like horizontal density is
+one density, across all 1228 junctions.**
+
+## What I cannot close from here, and am not pretending to
+
+The triage grades this **"Yes — photographed. Two walls meeting at a corner with
+different brick widths, legible in one glance."**
+
+**A clean measurement does not make a photograph wrong.** If that shot shows a
+real seam, it is one of:
+
+- the **2× band/wall junction** — intended, but "intended" and "looks wrong" are
+  different claims, and only the second one matters to a player;
+- something **`masonry()` did not paint**, which this tool cannot see at all —
+  the 9.41 px/m ashlar in `A-density-stamp.md` is exactly that kind of surface;
+- two faces that **do not touch by bounding box** and so never became a pair.
+
+Worth re-reading the shot against these numbers before the finding is closed or
+re-routed. I am not claiming the photo is nothing — I am claiming the 135 is not
+what explains it.
+
+## The pattern across three rounds
+
+| round | claim | actual |
+|---|---|---|
+| 10 | 42 of 109 faces off-density | box face index (`3f3c3ddb`) |
+| 11 | 135 of 239 junctions disagree | same index, plus band-vs-wall counted as a fault |
+
+Both tools were written to check my stamp and both inherited one read. That is
+not a knock on the auditor — the seam question is the right question, and nobody
+had asked it. It is an argument for the fix I would make next: **the face-index
+logic exists in three scripts now and has been wrong in two of them.** It should
+be one shared helper that every masonry tool imports, so getting it right once
+is getting it right everywhere. `scripts/` is mine; I will do that if the desk
+wants it, rather than fixing the same six lines a third time.
