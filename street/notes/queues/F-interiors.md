@@ -28,6 +28,32 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **`civicSeats()` is exported and called from NOWHERE — the library
+      courtyard benches still cannot be sat on.** The auditor verified this
+      end to end: `[E] sit` fires at two park benches and five points in the
+      car lot, and **nowhere along the library frontage**. Builder E wrote the
+      export and left this comment in `ct/civic.ts:65`:
+
+      > *"The library's benches were built before `ctx.seat` existed and never
+      > went back for it, so the courtyard had furniture you could not sit on
+      > while the park's identical benches worked."*
+
+      The auditor's judgement, which the desk agrees with: *this is the one on
+      the list most likely to annoy — the user asked for EVERY seat, and the
+      exception is the building they asked to be recessed into a courtyard.*
+
+      Call it. One line, its own commit, then walk the courtyard and press E.
+
+      **Then fix why it happened**, because this is the ninth time: `civic.ts`
+      does not receive `ctx` at all — `buildCivic` takes only
+      `{ scene, flat, KERB_H }`. So E physically could not call `ctx.seat()`
+      and had to export a list for someone else to consume. Every other module
+      gets the full context and registers its own spots, hooks and seats.
+      **Give `civic.ts` the context** like everyone else, and the export can go
+      away. That is the same defect as the construction call and the floor
+      picker, in a third place, and it should be folded into the same
+      registration contract.
+
 > **DESK PRIORITY ORDER — you have 19 items and are the bottleneck for four
 > things the user has raised more than once. Work these in order, commit each
 > separately:**

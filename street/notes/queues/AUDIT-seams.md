@@ -6,6 +6,35 @@ is a report only.
 
 ## Now
 
+- [ ] **Fix the probe harness, then grade all 45.** Your own report says it
+      best and the desk agrees with every word of it: seven of twelve checks
+      were run from the wrong place because the walk tests shared state, and
+      you refused to grade on a measurement you knew was wrong. **That was the
+      right call** — a confident wrong verdict would have sent three builders
+      chasing nothing, and this project has already lost hours to exactly that.
+
+      Do the three things you listed, in your order:
+      1. each check re-warps AND verifies it landed where it meant to before
+         pressing a key
+      2. **aim from the source, not from memory** — you named this yourself as
+         the defect you have now reported four times, once in your own
+         harness. `scripts/doorsweep.mjs` finds things by walking and has
+         never been wrong; make the others work that way.
+      3. then grade all 45 in the user's priority order.
+
+      Two results the desk needs most, because they are the ones nobody can
+      confirm from code alone:
+      · **the library steps** — you got INCONCLUSIVE leaning NOT DONE, with
+        the player stopping dead at the facade line at z = −13 and no rise.
+        `a25df0c1` landed. Re-test properly aimed; if the steps are somewhere
+        other than where you walked, say where.
+      · **the park** — lit and alive, or still the yard the user called the
+        shittiest they had ever seen.
+
+      You also have unread screenshots (`shots/pl-P5…P15`). Your line *"an
+      unread screenshot is not an observation"* is exactly right and is going
+      into `GOTCHAS.md`.
+
 - [ ] **Sweep the whole block for sidewalk encroachment.** The user, on the
       park: *"in general we should not encroach the already cramped
       sidewalk"*. That is a rule, and the park is unlikely to be the only
