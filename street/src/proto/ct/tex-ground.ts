@@ -569,6 +569,7 @@ export interface Ground {
 
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
+  const mark = scene.children.length;   // see ct/props.ts — stamped at the end
   const { pts, fillets } = buildPath(KERB_H);
 
   // ── apply the red-kerb rules to this particular block ──────────────────
@@ -903,5 +904,9 @@ export function buildGround(o: GroundOpts): Ground {
     }
     return null;
   };
+  for (let i = mark; i < scene.children.length; i++) {
+    scene.children[i].traverse((n) => { n.userData.mod = 'tex-ground'; });
+  }
+
   return { gy };
 }

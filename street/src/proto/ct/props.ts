@@ -38,6 +38,13 @@ export interface Props {
 
 export function buildProps(ctx: CtxBuild): Props {
   const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
+  // Everything this module adds gets userData.mod = 'props' at the end of
+  // build (ct/lot.ts:1633's idiom). Measured before doing it: 726 of 3383
+  // meshes in the world carried this stamp, all of them from two modules,
+  // so 79% of any "whose face is this" question was still inference — which
+  // is what put 9e1bce93 two rounds behind on faces that turned out to be
+  // mine, and what GOTCHAS 25 records nearly misrouting a third time.
+  const mark = scene.children.length;
   const WET = new THREE.Color(0x5a626e);
   // ── weather: some hours it rains ────────────────────────────────────────
   // A builder looking at a daytime storm reported "no rain particles in frame",
@@ -2354,6 +2361,10 @@ export function buildProps(ctx: CtxBuild): Props {
   starDome.visible = false;
   scene.add(starDome);
 
+  for (let i = mark; i < scene.children.length; i++) {
+    scene.children[i].traverse((n) => { n.userData.mod = 'props'; });
+  }
+
   return {
     setLampNight: (v) => {
       // Stars are gated on the WEATHER, not faded by it. Rain means cloud, and
@@ -2375,6 +2386,7 @@ export function buildProps(ctx: CtxBuild): Props {
       m.rotation.x = -Math.PI / 2;
       m.rotation.z = rnd() * Math.PI;
       m.position.set(x, y + 0.012, z);
+      m.userData.mod = 'props';   // added at runtime, past the build-time sweep
       scene.add(m);
       if (crumbs) scene.remove(crumbs.m);
       crumbs = { x, z, y, t: 35, m };
