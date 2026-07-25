@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
-import { doorStandFor, type DoorDecl } from './doors';
+import { type DoorDecl } from './doors';
 import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
@@ -32,6 +32,25 @@ import { VICE_DOOR_X } from './vice';
 // lives — derived and walked in notes/G-interiors2-prep.md, not eyeballed.
 // This said "u = 0.4948 of a 96-texel shopfront"; the band is 192 texels and
 // the u is 0.495, so both figures were wrong. See the casino's note.
+/**
+ * The [E] spot, derived from THIS FILE's own `face` rather than looked up.
+ *
+ * It is the same arithmetic `doors.ts`'s `doorStandFor` does — point plus
+ * outward normal times the standoff — but computed here, so this module does not
+ * import a VALUE from `./doors`. That import is what put this file in a runtime
+ * cycle with the door registry, and a module in that cycle resolves to an
+ * undefined namespace in the Rollup bundle, so its `DOOR` was collected in dev
+ * and silently dropped in `dist`. Type-only imports are erased and cost nothing,
+ * which is why the other six rooms were never affected.
+ *
+ * The standoff default is duplicated from `doors.ts` and that is the price. It is
+ * guarded rather than hoped over: `scripts/G-rooms-walk.mjs` asks the world for
+ * `doorStandFor` and walks to it, so if these two ever disagree the walk stops
+ * raising the prompt and says so.
+ */
+const standOf = (d: DoorDecl, standoff = 0.75) =>
+  ({ x: d.face!.x + d.face!.nx * standoff, z: d.face!.z + d.face!.nz * standoff });
+
 /**
  * WHERE THIS ROOM'S DOOR IS, declared as a world POINT and an outward NORMAL.
  *
@@ -72,7 +91,12 @@ export function buildHotel(ctx: CtxBuild): void {
       // published door puts you at -96.75, 0.25 m apart. Small, and exactly
       // the class that grows — scripts/spots-walk.mjs now compares the two and
       // is how the gap was found.
-      ...(doorStandFor('HOTEL ORPHEUS') ?? { x: DOOR_X, z: WALK_Z }), r: 1.05,
+      //
+      // Derived by `standOf` rather than fetched with `doorStandFor`. Same
+      // number; the difference is that asking the registry for it is a runtime
+      // import, and that import is what dropped this building's door from the
+      // built bundle. See `standOf` above.
+      ...standOf(DOOR), r: 1.05,
       at: -3.4, width: 1.15,
       // Along the walk, east, for the same reason as the casino: the north
       // side-street walk is a 2 m band and the building collider eats down to
