@@ -117,13 +117,24 @@ FACT is settled from both sides and needs no more measuring. Only the decision
 is open. (It also lands on the ownership-stamp ask below: the fleet was findable
 only as "untagged", by counting.)
 
-**And it matters more than "sometimes it rains" suggests.** `cd37b59b` did the
-arithmetic on `rainAt` over 5000 game days: rain is 22% of hours, but the
-ARRANGEMENT is not random — **dry spells are only ever 3, 4 or 8 hours** and wet
-spells only ever 1 or 2. There is no such thing as a long dry stretch in this
-world. So a fleet that is permanently matte is not an edge case seen in the odd
-shower; it is wrong for a fifth of every day, on a street that is never dry for
-more than eight hours, with the road visibly darkening around it each time.
+**And it matters more than "sometimes it rains" suggests — more so since
+`e0c68e46`.** That commit replaced `rainAt`: the old one was an arithmetic
+progression wearing a hash's clothes, which capped dry spells at 8 hours and
+made 22% of hours wet. Re-measured against the NEW function, asked of the world
+rather than re-derived — `props.ts` publishes it as `scene.userData.rainAt` now,
+precisely so nobody keeps a hand-copy — over 5000 game days:
+
+```
+rain share            32.7% of hours        (was 22%)
+dry spells            1 h ×8722 … 23 h ×2   (was: only ever 3, 4 or 8, capped at 8)
+wet spells            1 h ×17858 … 11 h ×1
+```
+
+So the earlier "never dry more than eight hours" no longer holds — the lattice
+was the bug and it is fixed — but the conclusion moves the RIGHT way: it now
+rains a third of the time, in stretches up to eleven hours. A permanently matte
+fleet is wrong for a third of every day, with the road darkening 30.7% around it
+each time.
 
 **Why this is a ruling and not a task.** `props.ts` states the trap itself:
 registering a material hands its COLOUR to `updateRain` every frame, and there
