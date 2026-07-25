@@ -945,42 +945,86 @@ export function shopfrontRelief(o: {
     put(0.09, 0.34, 0.09, bx, FOOT + TALL + 0.05 - 0.21, armM);   // the drop at the wall
     const blade = new THREE.Mesh(
       new THREE.BoxGeometry(0.08, TALL, PROJ),
-      new THREE.MeshBasicMaterial({ map: bladeTex('EAT', PROJ, TALL) }));
+      new THREE.MeshBasicMaterial({ map: bladeTex(PROJ, TALL) }));
     blade.position.set(bx, FOOT + TALL / 2, PROJ / 2);
     g.add(blade);
   }
 }
 
 /**
- * The face of a projecting blade sign: enamel plate, word stacked down it.
+ * The face of a projecting blade sign: enamel plate, a COFFEE CUP on it.
  *
- * Painted at the SAME density as everything else (`masonry` at SHOP_MULT), so
- * the letters here are the same size as the letters on the fascia beside it.
- * A blade painted on its own scale is the pattern-#1 fault in miniature.
+ * IT SAID "EAT" AND IT COULD NOT BE READ. The user: it "reads as a T and some
+ * loose strokes and the user cannot tell what it is". They gave two candidates
+ * and the arithmetic settles which:
  *
- * The word runs DOWN, one letter per row, because that is what a blade does
- * and because a 0.95 m wide face is 15 texels — a horizontal word would be
- * three texels a letter and unreadable. Stacked, each letter gets a row of
- * about eight, which is the same letter height the fascia uses.
+ *   plate canvas   masonry(0.95, 1.55) at 16 px/m  ->  15 x 25 TEXELS
+ *   border         2 rows top and bottom            ->  ~19 rows for 3 letters
+ *   font           m(0.5) = 8 px, centres at 7/12/17 -> 5 px apart, 8 px tall
+ *
+ * Every letter overlapped its neighbours by about three pixels. Shrinking the
+ * font to fit gives roughly three pixels of ink per glyph, which is mush — so
+ * three stacked letters DO NOT FIT on this plate at any size, and saying so is
+ * the honest answer rather than tuning the leading and hoping.
+ *
+ * NOT the other candidate, and I checked that one first because it is the
+ * documented landmine (GOTCHAS 10, and it shipped mirrored on the casino and
+ * the hotel). This blade is a BoxGeometry, not a DoubleSide plane: a box gives
+ * every face its own correctly-oriented UVs, so it reads the same walking north
+ * and walking south. Verified by walking past it in both directions and reading
+ * it from each side, not by reasoning about the geometry — which is exactly the
+ * mistake I made twice this session.
+ *
+ * So: a symbol, as the user proposed. A cup reads at any density where three
+ * stacked letters do not, the fascia beside it already says DINER so the blade
+ * does not have to carry the name, and a coffee cup on a blade IS the 1997
+ * diner vocabulary. Laid out in whole texels off W and H — at fifteen pixels
+ * wide, a fraction of a texel is the difference between a cup and a smudge.
  */
-function bladeTex(word: string, wM: number, hM: number): THREE.Texture {
+function bladeTex(wM: number, hM: number): THREE.Texture {
   const surf = masonry(wM, hM, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
-  const PLATE = '#e8e0cc', INK = '#b8302a', EDGE = '#8a7f6a';
+  // PLATE was #e8e0cc and the sign would not go dark. props.ts decides what
+  // carries its own light by LOOKING at the sheet — bright AND chromatic,
+  // `mx > 199 && mx - mn > 26` over 8% of texels — because a lit window and
+  // dark brick are both colour-white and keep everything in the texture. That
+  // cream is 232 max with a chroma of 28: it cleared the neon test by two
+  // points, so an enamel plate was graded as a light source and stayed the
+  // brightest thing on a night street.
+  //
+  // The heuristic is right and my colour was wrong for what I meant. This one
+  // is chroma 25 — the same cream to look at, and honestly not a light. The
+  // user asked for "the unilluminated stuff darker… it should feel scarier at
+  // night", and a sign that ignores the sunset is the opposite of that.
+  const PLATE = '#ddd6c4', INK = '#b8302a', EDGE = '#8a7f6a';
   return surf.paint((g) => {
     g.fillStyle = EDGE; g.fillRect(0, 0, W, H);
     g.fillStyle = PLATE; g.fillRect(m(0.06), m(0.06), W - m(0.12), H - m(0.12));
     g.fillStyle = INK;                                     // the enamel border
     g.fillRect(m(0.14), m(0.14), W - m(0.28), Math.max(1, m(0.07)));
     g.fillRect(m(0.14), H - m(0.14) - m(0.07), W - m(0.28), Math.max(1, m(0.07)));
-    g.font = `bold ${m(0.5)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    const n = word.length, top = m(0.34), run = H - m(0.68);
-    for (let i = 0; i < n; i++) {
-      const cy = top + Math.round((run * (i + 0.5)) / n);
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillText(word[i], W / 2 + 1, cy + 1);
-      g.fillStyle = INK; g.fillText(word[i], W / 2, cy);
-    }
+    // THE CUP, in whole texels off the plate's own size. Everything below is
+    // a fraction of W or H rounded once, so the shape survives the plate being
+    // resized instead of drifting into a smudge.
+    const px = (f: number) => Math.max(1, Math.round(W * f));
+    const py = (f: number) => Math.max(1, Math.round(H * f));
+    const cx = Math.round(W / 2);
+    g.fillStyle = INK;
+    // steam: two wisps, offset from each other so they read as rising and not
+    // as a pair of bars
+    g.fillRect(cx - px(0.17), py(0.13), px(0.07), py(0.10));
+    g.fillRect(cx + px(0.10), py(0.16), px(0.07), py(0.10));
+    // the cup: a body that tapers, so it is a cup and not a box
+    const bodyY = py(0.34), bodyH = py(0.22);
+    g.fillRect(cx - px(0.30), bodyY, px(0.60), bodyH);
+    g.fillRect(cx - px(0.23), bodyY + bodyH, px(0.46), py(0.05));
+    // the handle, on one side only — a handle on both is a trophy
+    const hx = cx + px(0.30), hy = bodyY + py(0.03);
+    g.fillRect(hx, hy, px(0.13), py(0.03));
+    g.fillRect(hx + px(0.09), hy, px(0.06), py(0.10));
+    g.fillRect(hx, hy + py(0.08), px(0.13), py(0.03));
+    // the saucer it stands on
+    g.fillRect(cx - px(0.40), bodyY + bodyH + py(0.06), px(0.80), py(0.05));
     // weather: it has hung outside for thirty years
     dither(g, W, H, Math.round(wM * hM * 5));
   });
