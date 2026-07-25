@@ -1,41 +1,44 @@
-## audit/seams — the diner prompt stood outside a bank; my harness had the same stale number
+## audit/seams — finding 1 is closed; pattern #1 holds at 2.5× the wall area
 
-Queue `## Now` (interiors, standing). Base `34a9563e`.
-Report: `notes/interior-audit.md`, Round 13.
+Two commits this pass, one outcome each. Base `34a9563e`.
 
-Touched:   notes/interior-audit.md (+Round 13), notes/audit-seams.md,
-           scripts/doorsweep.mjs (new), removed notes/BLOCKED-AUDIT-seams.md
+Touched:   notes/interior-audit.md (+Round 13), notes/seam-audit.md (+Round 5),
+           notes/audit-seams.md, scripts/doorsweep.mjs, scripts/flanks.mjs
+           removed notes/BLOCKED-AUDIT-seams.md
            **nothing under street/src/**
 
-**Unblocked** — the blocker file is deleted; the park, the car lot and D's
-exports landed and both my items have input again.
+### `## Now` (`46d8db52`) — the diner prompt stood outside a bank
 
-### What `4fe23d0f` fixed, and what it taught me about my own tooling
+`4fe23d0f` fixed it: D swapped DINER's identity with LAUNDRY's, `int-diner.ts`
+still held `DZ = 9.6`, and pressing E outside the bank took you to a diner
+nowhere near the building you were at. **My own trigger harness held the same
+stale number**, so I replaced it with `scripts/doorsweep.mjs`, which walks the
+pavement and records which prompt shows — **no door coordinate anywhere in it.**
 
-The diner's `[E]` prompt had been **standing outside a bank**. D swapped DINER's
-identity with LAUNDRY's; `int-diner.ts` still held `DZ = 9.6`; pressing E outside
-the bank teleported you to a diner nowhere near the building you were at.
+Nine doors found for nine rooms, none unknown, none missing, and the diner now
+fires at −50.25 … −48.50, in front of the diner.
 
-That is the defect class this audit has reported three times — a hand-copied
-coordinate going stale when the thing it describes moves. **My own trigger
-harness held the same stale 9.6.** Reporting a pattern while my instrument
-embodies it is not a good look, so I replaced it.
+### `## Next` (this commit) — finding 1 CLOSED, and pattern #1 is unreachable now
 
-### `scripts/doorsweep.mjs` — doors found by walking, not by reading
+**Finding 1 — the last open instance from the original sweep — is closed.**
+`e466c43c` added `flankTex()`: a blind party wall painted from the same brick as
+the front, same density, same world-Y datum. Flat-colour `endM` sites went
+**5 → 1**; flank and return faces measure **7.94–8.02 × 8.00–8.10 px/m**.
 
-Warps along the pavement in 0.25 m steps and records which prompt shows. **No
-door coordinate appears in it**, so it cannot go stale, and it finds doors I have
-never heard of.
+Its reasoning is better than mine and worth keeping: *a blind party wall IS
+correct — a flank does not want the front's windows or sign. What it must not be
+is a different **material**.* I logged this as "untextured" for eleven rounds;
+the defect was never the missing windows, it was the missing brick.
 
-Result: **nine doors, nine rooms, and the diner now fires in front of the
-diner** — span −50.25 … −48.50, centred on −49.4 against its −55.5 … −43.5 slot.
-Nothing missing, nothing unknown. Spans are 1.50–2.00 m, consistent with a
-1.05 m trigger a quarter-metre off the walking line.
+**Pattern #1 holds at 275 wall faces, up from 107.** `4ce8355d` gave every
+building real depth, so flanks, returns and roof edges are painted surfaces now.
+Every one is on the grid. **A 2.5× increase in painted wall area produced zero
+new instances** — the pattern did not just get fixed, it stopped being reachable.
 
-**What it deliberately does not measure:** it warps, so it reports where a prompt
-*would* fire, not where the player can *stand*. Reachability is the round-11
-question and both are needed — the thrift store fires over a 1.75 m span while
-the finding-17 prop still holds the player 0.27 m off its centre.
+### Still open and unassigned
 
-Left:      Three of ten rooms unwritten. The sweep covers both main-street walks
-           and both side-street walks, not the alley, park or car lot.
+- **Pattern #5** — roads (19.20 × 14.33, 18.58 × 12.80) and the alley floor
+  (9.70 × 9.85) still carry ad-hoc repeats. Nobody owns it.
+- **The lighting/signage anisotropy set has grown again — six light pools now**,
+  2.56–9.41 px/m at up to 2.1 : 1. The newest is 32 × 32 px over 9.5 × 11.5 m at
+  (10.2, 0.2, −4.4): **3.37 × 2.78 px/m, the coarsest surface in the world.**

@@ -481,3 +481,62 @@ real metres.** Masonry is now immune to it by construction; signage and lighting
 have inherited it wholesale, and there are seven faces where there was one.
 Worth a decision before there are twenty — the fix has a known shape and the
 helper already exists.
+
+---
+
+# Round 5 — finding 1 closed; pattern #1 holds at 2.5× the surface area
+
+Base `add-stick-and-city98` @ `34a9563e`. Four commits touched the masonry files:
+`4ce8355d` (buildings get real depth and roofs), `e466c43c` ("A return is made
+of what the building is made of"), `de401556` and `cedf7680` (window-light hours).
+
+## Finding 1 — CLOSED
+
+The last open instance from the original seam sweep. `endM` was one flat brown,
+`0x53382e`, on the side, end and return of every building on the block whatever
+its front was made of — visible above every height change, and framing the
+library on both shoulders.
+
+`e466c43c` introduced `flankTex(brick, w, h, baseY, cope)`: a blind party wall
+painted from the **same brick as the front**, at the same masonry density,
+phased off the same world-Y datum. Measured:
+
+- **Flat-colour `endM` sites in `ct/street.ts`: 5 → 1.**
+- Flank and return faces now measure **7.94–8.02 × 8.00–8.10 px/m** — on the
+  world grid with everything else.
+- `shots/fl-F2-east-join2.png`: the exposed flank beside the used car lot is
+  brick, coursed and coped, where it was a brown slab.
+
+The reasoning in the commit is worth preserving because it is the right
+distinction and this audit did not make it: *a blind party wall IS correct — a
+flank does not want the front's windows, glazing or sign. What it must not be is
+a different **material**.* I logged this as "untextured" for eleven rounds; the
+defect was never the absence of windows, it was the absence of brick.
+
+**Every instance in the original seam audit's pattern #1 list is now closed.**
+
+## Pattern #1 holds at 275 faces
+
+`4ce8355d` gave every building real depth, which took the world from **107
+wall-sized exterior faces to 275** — the flanks, returns and roof edges that
+were previously flat colour are now painted surfaces. All of them are on the
+grid:
+
+| group | faces |
+|---|---|
+| ≈ 8 × 8 (1×) | 43, 36, 30, 13, 8, 6, 6, 5, 4, 4, 4, 4, 2 … |
+| ≈ 16 × 16 (2×, shop bands) | 17 |
+
+Nothing masonry sits outside 8 × 8 or 16 × 16 within canvas rounding. **A 2.5×
+increase in painted wall area produced zero new instances.** That is the
+strongest evidence the helper has given: the pattern did not merely get fixed,
+it stopped being reachable.
+
+## Still outside the grid — unchanged, and not masonry
+
+Roads (19.20 × 14.33, 18.58 × 12.80) and the alley floor (9.70 × 9.85) —
+**pattern #5**, still unassigned. Plus the lighting-and-signage set, which has
+grown again: **six light pools now** at 2.56–9.41 px/m and 1.2–2.1 : 1
+anisotropic, and the three sign faces. The newest pool is 32 × 32 px over
+9.5 × 11.5 m at (10.2, 0.2, −4.4) — **3.37 × 2.78 px/m**, the coarsest surface
+in the world by a wide margin.
