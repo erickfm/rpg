@@ -117,8 +117,31 @@ const ROOMS = [
   },
 ];
 
-const only = process.argv[2];
-const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
+// ── --selftest: prove this suite can still fail ─────────────────────────
+//
+// `scripts/checks.mjs` runs the walking suites with `--selftest` and expects
+// them to invert known truths and require every one to fail — D-walk's
+// convention. Without one this file cannot be added to the shared runner, which
+// is why 113 checks guarding the user's own requirements have never been in it.
+//
+// Three inversions, all in the HARNESS rather than in `src/`: no source is
+// touched, so this needs no lock and cannot leave a mutated tree behind if it
+// dies. Each targets a check that has caught a real defect this session.
+const SELFTEST = process.argv.includes('--selftest');
+const only = process.argv.find((a) => !a.startsWith('--') && a !== process.argv[0] && a !== process.argv[1]);
+let rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
+const INVERTED = [
+  'pawn: the customer side is 9 m deep or better, not a corridor',
+  'pawn: you cannot get behind the counter in the middle',
+  'pawn: the keeper is looking at you, not away',
+];
+if (SELFTEST) {
+  const r = ROOMS.find((q) => q.id === 'pawn');
+  rooms = [r];
+  r.minDepth = [9.0, r.minDepth[1]];        // no room in this world is 9 m deep
+  r.noGo = [[r.noGo[0][0], -0.06, -1.4, '+z', 1600, 'z', 1.2]];  // aimed at open floor
+  r.keeper = [r.keeper[0], -4.6];           // stand BEHIND him: he must read as away
+}
 if (!rooms.length) { console.error(`no such room: ${only}`); process.exit(2); }
 
 const b = await chromium.launch();
@@ -708,6 +731,24 @@ console.log('');
 for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${name}\n        ${detail}`);
 const bad = results.filter((r) => !r[0]).length;
 console.log(`\n${results.length - bad}/${results.length} passed`);
+
+if (SELFTEST) {
+  // every inverted truth must have come back red; a green one means that check
+  // cannot fail and is decoration
+  const missed = INVERTED.filter((n) => {
+    const row = results.find((r) => r[1] === n);
+    return !row || row[0];
+  });
+  console.log('\nSELFTEST — three inverted truths, all must fail:');
+  for (const n of INVERTED) {
+    const row = results.find((r) => r[1] === n);
+    console.log(`  ${!row ? 'MISSING ' : row[0] ? 'STILL OK' : 'failed  '}  ${n}`);
+  }
+  console.log(missed.length ? `\n${missed.length} of ${INVERTED.length} did NOT fail — this suite has a check that cannot fail`
+    : `\nall ${INVERTED.length} failed as they must`);
+  await b.close();
+  process.exit(missed.length ? 1 : 0);
+}
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 5).join('\n  '));
 await b.close();
 process.exit(bad ? 1 : 0);

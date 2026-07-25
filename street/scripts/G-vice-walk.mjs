@@ -65,6 +65,17 @@ const ACES = STAND['GOLDEN ACES'], ORPH = STAND['HOTEL ORPHEUS'];
 // them; the same fault as the door literals in d955a0fc.
 const FACADE_Z = ACES.pz;
 
+// ── --selftest: prove this suite can still fail ─────────────────────────
+//
+// checks.mjs's convention for a walking suite (D-walk's): invert known truths
+// and require every one to fail. Two inversions here, both in the harness rather
+// than in src/, so nothing has to be mutated or restored.
+//
+// The band bar goes to 3 m — wider than the whole 2 m pavement, so no frontage
+// can satisfy it — and the blade comparison is asked to find MIRRORED faces where
+// the world has identical ones. Both target checks that caught real defects: the
+// band flagged a blocked walk, and the blade check fails either way of mirroring.
+const SELFTEST = process.argv.includes('--selftest');
 const results = [];
 const check = (n, ok, d) => results.push([ok, n, d]);
 const f2 = (v) => +v.toFixed(2);
@@ -140,7 +151,7 @@ const runWest = async (z, from, to, tries = 3) => {
 // since put lamps on this walk at x 20 and 45 (mainline d896c64f), so the run
 // now has four things on it and the band has to be the band past ALL of them.
 console.log('the north side-street walk — measuring the clear band eastward:');
-const BAND_MIN = 0.25;
+const BAND_MIN = SELFTEST ? 3.0 : 0.25;   // 3 m is wider than the pavement
 
 // MEASURED OFF THE STATIC COLLIDERS, not by walking each lane.
 //
@@ -484,7 +495,8 @@ check('every street-facing sign is a back-to-back PAIR, none left single',
   blades.pairs.length >= 3 && blades.orphans.length === 0,
   `${blades.pairs.length} pairs; unpaired: ${blades.orphans.length ? blades.orphans.join(', ') : 'none'}`);
 check('the two faces of each blade carry the SAME texture, not a mirrored one',
-  blades.pairs.length > 0 && blades.pairs.every((q) => q.sameSize && q.same === 1 && q.sameXf),
+  blades.pairs.length > 0 && blades.pairs.every((q) => q.sameSize && q.sameXf
+    && (SELFTEST ? q.same !== 1 : q.same === 1)),
   blades.pairs.map((q) => `${q.h}m@x${q.x}: ${!q.sameXf ? 'MIRRORED BY TRANSFORM ' + q.xf : q.sameSize ? (q.same * 100).toFixed(1) + '% identical' : 'DIFFERENT SIZE'}`).join('; '));
 
 // ── 7. the chase RUNS, and some of it is broken on purpose ──────────────
@@ -550,6 +562,21 @@ console.log('');
 for (const [ok, n, d] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${n}\n        ${d}`);
 const bad = results.filter((r) => !r[0]).length;
 console.log(`\n${results.length - bad}/${results.length} passed`);
+
+if (SELFTEST) {
+  const INVERTED = ['there is a clear band past the frontage furniture, wide enough to walk',
+    'the two faces of each blade carry the SAME texture, not a mirrored one'];
+  const missed = INVERTED.filter((n) => { const r = results.find((q) => q[1] === n); return !r || r[0]; });
+  console.log('\nSELFTEST — two inverted truths, both must fail:');
+  for (const n of INVERTED) {
+    const r = results.find((q) => q[1] === n);
+    console.log(`  ${!r ? 'MISSING ' : r[0] ? 'STILL OK' : 'failed  '}  ${n}`);
+  }
+  console.log(missed.length ? `\n${missed.length} did NOT fail — a check here cannot fail`
+    : '\nboth failed as they must');
+  await b.close();
+  process.exit(missed.length ? 1 : 0);
+}
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 4).join('\n  '));
 await b.close();
 process.exit(bad ? 1 : 0);
