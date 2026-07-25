@@ -20,10 +20,23 @@ still shows them unchecked and `## Done` still reads *"nothing yet — you are n
 that is the desk's bookkeeping, and the map from each item to its commit is in
 **"Every item in `notes/queues/G-interiors2.md`, and where it landed"** below.
 
-**Verification, at current mainline:** `G-rooms-walk` 109/109, `G-vice-walk` 18/18,
-`doors-declared` 8 of 8 in the built bundle, ownership clean. Both suites run
-against a `vite preview` of `dist` as well as the dev server — see §5 for why that
-matters more than it sounds.
+**Verification, re-measured at `fe1c57e0e` (2026-07-25), against a `vite preview`
+of `dist` built from that commit — not the dev server:** `G-rooms-walk` **114/114**,
+`G-vice-walk` **18/18**, `doors-declared` **8 of 8**, ownership clean. See §5 for
+why the built bundle matters more than it sounds — it is how the GOLDEN ACES door
+went missing while dev stayed green.
+
+Both suites are now **registered in `scripts/checks.mjs`**, SLOW tier, so
+`npm run checks -- --slow` runs all 132. They are no longer "runnable only by
+whoever read this note".
+
+*Two cautions about that number.* It was 109/109 here for several sessions after
+the suite had grown to 114 — a state line is stale the moment it is written, so
+trust the hash beside it and re-run rather than quoting it. And getting it needed
+**my own** preview port: 4187 was another builder's, serving a different commit,
+and `doors-declared` refused it with "MEASURING THE WRONG WORLD" rather than
+handing me their numbers as mine (GOTCHAS §26). Mine is 4196; the dev server is
+4186.
 
 ### My other notes
 
