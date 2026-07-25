@@ -59,21 +59,35 @@
  * @param capMs   hard cap. Generous — it exists to stop a hang, not to pace.
  * @returns {{frames:number, ms:number, capped:boolean}}
  */
-// JUMPING TO A NIGHT HOUR DOES NOT GIVE YOU THE NIGHT THE PLAYER SEES. This
-// function lands the clock correctly — that is measured and holds — but some of
-// the world's night state only arrives if the clock PASSES THROUGH the evening.
-// The wall-splash sheets on the building line are at opacity 0 when the clock is
-// set straight to 23:00 and at 0.286 when it goes via 20:00, and the whole frame
-// is reproducibly 7.4% darker stepped than jumped (spread within a group 0.02).
+// A JUMP IS FINE. This lands the clock correctly and there is no night state
+// that only arms by passing through the evening — re-measured at HEAD, every
+// transparent material in the world, jumped to 23:00 versus stepped via 20:00:
 //
-// A player never jumps, so this is a measuring artefact rather than a defect.
-// If you are measuring anything after dark, step:
+//     381 compared        0 differ
 //
-//     await setClock(page, 20, 0); await page.waitForTimeout(1200);
-//     await setClock(page, 23, 0);
+// with the control that makes that zero mean something: day versus jumped 23:00
+// differs in 296 of the same 381, props's 50 splash sheets among them. The probe
+// can see these materials change; they just do not care how the clock got here.
 //
-// notes/D-jumping-the-clock.md has the numbers. Comment added by D; the
-// function itself is untouched.
+// THIS COMMENT USED TO SAY THE OPPOSITE, and it was wrong twice over. It told
+// you the splash sheets read 0 jumped and 0.286 stepped, and that the frame was
+// "reproducibly 7.4% darker stepped than jumped". Both were RAIN. The splash
+// follows the wet look rather than the hour, so stepping only changed anything
+// when the intermediate hour happened to be wet — 20:00 was, under that day's
+// rainAt; `e0c68e46` replaced it, 20:00 went dry, and the same measurement gave
+// 0.2%. The 7.4% is WITHDRAWN in full (`9241a2f06`), and setNight below has
+// carried the corrected version for some time. This one did not, which is the
+// worse half: the correction lived under the helper nobody calls directly while
+// the retracted claim stayed on the function everybody does.
+//
+// So do not step to "arm" anything. What IS worth having is the inverse, and
+// setNight does it for you: a clock landing on a night hour may have passed
+// through a WET one, and then your night measurement is a wet night. Use
+// setNight for anything measured or photographed after dark and it picks an
+// evening hour the world says is dry.
+//
+// notes/D-jumping-the-clock.md has the full retraction and the numbers. Comment
+// by D; the function itself is untouched.
 export async function setClock(page, h, m = 0, capMs = 8000) {
   const r = await page.evaluate(([hh, mm, cap]) => new Promise((res) => {
     const t0 = performance.now();

@@ -76,21 +76,21 @@ page.on('pageerror', (e) => {
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
-// STEP THROUGH THE EVENING, do not jump. Measured: the wall-splash sheets on the
-// building line are at opacity 0 if the clock is set straight to 23:00 — and at
-// 0.286 if it passes through 20:00 first. 18:00 is not enough; 20:00 is.
+// setNight, NOT setClock — but not for the reason this comment used to give.
 //
-//     jump 13 -> 23        0
-//     step 13 -> 18 -> 23  0
-//     step 13 -> 20 -> 23  0.286
-//     jump 13 -> 3         0
+// It used to say the evening had to be stepped through to arm the wall-splash
+// sheets: 0 jumped, 0.286 via 20:00. That was RAIN, not the clock path. The
+// splash follows the wet look rather than the hour, so stepping mattered only
+// when the intermediate hour happened to be wet. Re-measured at HEAD across
+// every transparent material in the world: jumped 23:00 versus stepped via
+// 20:00 is 0 differences of 381, against a control of 296 differences for day
+// versus night. There is nothing to arm.
 //
-// A player never jumps — the clock runs at one game minute per real second, so
-// in play the evening always happens. Only a CHECK can skip it, and one that
-// does is measuring a night the player never sees. That cost me a wrong claim
-// once already: I reported those nine sheets as "opacity 0, invisible, their
-// colour cannot matter" and dropped them from a count, when they are invisible
-// only because of how I set the clock.
+// The real reason to use setNight is the inverse: an hour reached by any route
+// may have passed through a wet one, and a wet night is not the night this
+// check means to judge. setNight picks a DRY evening hour, so "bright at
+// midnight" is not quietly measuring rain-splash. The withdrawal is in full at
+// notes/D-jumping-the-clock.md and in lib/clock.mjs's own comment.
 await setNight(page, 23, 0);
 
 const found = await page.evaluate(() => {
