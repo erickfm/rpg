@@ -607,3 +607,48 @@ comparison at one instant, so it is sound for the same reason the kept-fraction
 is. The walk is slabbed and can take a pool; the road and park floor are each one
 mesh. **The ratios follow the ground, not the object** — which is the fix
 direction, and it was sitting in my own output unread.
+
+## `checks-registered` is red with three entries, and the "offer it" pattern is why
+
+```
+WRITTEN BUT NEVER REGISTERED — these run exactly never:
+  scripts/G-rooms-walk.mjs  has a --selftest and is in no tier of npm run checks
+  scripts/G-vice-walk.mjs   has a --selftest and is in no tier of npm run checks
+  scripts/floatlit.mjs      has a --selftest and is in no tier of npm run checks
+```
+
+**I did not turn this red, and I did make it worse.** `59e925b10` added selftests
+to the first two; my `cfb350f71` added the third. Checked rather than assumed —
+`git log -S"--selftest"` dates each, and `59e925b10` precedes mine on mainline.
+
+### The pattern is the finding
+
+All three arrived the same way: *give it a `--selftest` and **offer** it to the
+shared runner.* That is the documented route to adoption, and it lands the script
+in exactly the state this check exists to flag — self-testing, unregistered,
+running never. **Two agents, three scripts, one pattern**, so it will happen again
+on the next offer.
+
+The check's own words are the reason it matters: *"a check that is not run cannot
+fail."* An offered check is indistinguishable from a forgotten one, and the whole
+point of `checks-registered` is that the difference is invisible without a
+declaration. **That is the same rule this audit has hit five times — an
+undeclared exemption looks exactly like a defect**, which is why I annotated
+`twoworlds.mjs` and `basincheck.mjs` rather than leave them to be re-discovered.
+
+### For mine specifically
+
+`floatlit.mjs` **cannot be dropped into a tier unmodified**: it needs a day
+capture to pair against (`JSON_OUT=1 NIGHT_H=13` once, then `PAIRED=<file>`), and
+it is **red at HEAD by design** because it guards an open defect. So the `EXEMPT`
+route is the right one for now, and the line to paste is:
+
+```
+'floatlit.mjs': 'needs a paired day capture (PAIRED=…) and is red by design until
+                 the floating-litter defect is fixed — see AUDIT-TRIAGE.md',
+```
+
+Neither `checks.mjs` nor `checks-registered.mjs` is a file I edit, so this is a
+routing note rather than a change. The general fix is the one the pattern
+suggests: **an offer should carry its own EXEMPT entry**, so "offered, awaiting
+adoption" is a state the board can see instead of a red nobody owns.
