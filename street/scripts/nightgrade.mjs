@@ -42,7 +42,16 @@ const A = process.argv.slice(2).map(Number);
 const BOX = A.length === 4 ? A : [-1e9, 1e9, -1e9, 1e9];
 const probe = async (h) => {
   await p.evaluate(([hh]) => window.__ct.clock(hh, 0), [h]);
-  await p.waitForTimeout(1000);
+  // 2 s, not 1 s. 2bdebbcf measured that the night grade LERPS after a clock
+  // jump rather than snapping: at 23:00 the out-of-range count is 0 at 500 ms
+  // and 9 from 1000 ms on. A probe sampling inside the ramp reads a world that
+  // is settling, and reads it as clean — "wrong in the reassuring direction",
+  // which is the failure mode this file has been bitten by twice.
+  //
+  // 1000 ms was ON the threshold it measured. Sitting exactly on a cliff edge
+  // is not a margin, and the cost of two seconds is nothing next to a green run
+  // that means nothing.
+  await p.waitForTimeout(2000);
   return p.evaluate(([BOX]) => {
     const s = window.__ct.scene(); s.updateMatrixWorld(true);
     const out = {}, each = {};
