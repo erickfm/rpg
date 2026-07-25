@@ -17,6 +17,55 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Building collision does not follow building geometry. You have a
+      one-time cross-file mandate from the desk for this.**
+
+      The user, having just seen E's library courtyard land: *"collision for
+      all the buildings needs to be updated. make sure for example the corner
+      cutaway and the recess in the library are current to the actual geometry
+      of the buildings"*.
+
+      **The cause is structural, not a bad number.** `crosstown.ts` hand-writes
+      the block's collision as two blanket walls:
+
+      ```
+      { minX: FACE - 0.3,  maxX: FACE + 8,    minZ: -96,  maxZ: 20 }   // right
+      { minX: -FACE - 8,   maxX: -FACE + 0.3, minZ: -112, maxZ: AZ1 }  // left
+      ```
+
+      Two rectangles spanning the entire block, authored in the entry point and
+      completely independent of what any building actually looks like. So every
+      building is a flat wall to the player no matter what was drawn:
+      · the **library recess** — E built the courtyard and registers real
+        colliders for it in `ct/civic.ts`, but the blanket wall still runs
+        straight across its mouth, so you cannot walk in
+      · the **bodega corner cutaway** — the canted bay is drawn but the
+        collision is square, so you clip the cut face
+      · every projecting doorcase, stoop and stallriser on the block
+
+      This is the same failure the `[E]` spots and the frame hooks already
+      outgrew, and the fix is the same registration pattern: **the module that
+      draws a building registers that building's footprint.** `ctx` already
+      carries `obstacle()`; `ct/civic.ts` already uses `solid()` correctly and
+      is the model. Delete the blanket walls from `crosstown.ts` and have
+      `ct/street.ts` register a real footprint per building as it places it —
+      following the chamfer at the corner, and leaving the alley mouth and
+      every doorway clear.
+
+      **The mandate, precisely:** `ct/street.ts` (yours) and `crosstown.ts`
+      (desk's) in ONE commit, collision only. Do not touch `ct/civic.ts` — E
+      already registers its own and it is correct; your job is to stop
+      overriding it. Rebase immediately before you start; A has a live
+      cross-file mandate in `ct/street.ts` for masonry density, so if you find
+      A's change in your way, tell the desk rather than working around it.
+
+      **Walk it, do not eyeball it** (`GOTCHAS.md` §1). The 2 m sidewalk lane
+      is sacred (§9) and a collider that swallows a doorway trigger closes the
+      shop (§8) — that has already happened once here. Prove: you can walk
+      into the library courtyard and back out, you can follow the bodega
+      chamfer round the corner without clipping, every `[E]` door still
+      prompts, and you cannot get inside any building's footprint.
+
 - [ ] **Move the church onto the main block, where RECORDS and DELI are.**
       Promoted to `## Now` — your previous Now (the bodega blocker) is done and
       re-verified, and so is BURGER BARN. Full brief below under `## Next`;
