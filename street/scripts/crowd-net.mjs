@@ -14,6 +14,18 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/crowd-net.mjs [seconds]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+// GOTCHAS 34, THE OTHER WAY UP. That rule is about an argument that makes a
+// check run NOTHING and exit 0. This one made it run with NaN and exit 1: the
+// window below is `Number(process.argv[2] ?? 90)`, and any non-numeric
+// argument — `--slow`, a flag form half this suite takes — makes every
+// measurement NaN and reports three failures about a world that is fine. A
+// false red costs as much trust as a false green. Refuse instead.
+if (process.argv[2] !== undefined && !Number.isFinite(Number(process.argv[2]))) {
+  console.error(`INCONCLUSIVE — "${process.argv[2]}" is not a number of seconds. ` +
+    'This check takes one optional numeric argument; anything else would run every ' +
+    'measurement against NaN and report failures about a sound world.');
+  process.exit(2);
+}
 const SECONDS = Number(process.argv[2] ?? 90);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
