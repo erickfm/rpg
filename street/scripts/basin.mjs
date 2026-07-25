@@ -40,7 +40,10 @@ if (mode === 'probe' || mode === 'all') {
       const g = o.geometry?.parameters ?? {};
       near.push({ y: +o.position.y.toFixed(4), h: g.height,
         top: g.height ? +(o.position.y + g.height / 2).toFixed(4) : null,
-        kind: o.geometry?.type });
+        kind: o.geometry?.type,
+        part: o.userData.basinPart ?? null, side: o.userData.basinSide ?? null,
+        // road-most face: how far this solid reaches out of the kerb
+        outer: g.width ? +(o.position.x - Math.abs(g.width) / 2).toFixed(4) : null });
     });
     return near;
   });
@@ -56,7 +59,29 @@ if (mode === 'probe' || mode === 'all') {
   console.log(`  rebate         ${(rebate * 1000).toFixed(1)} mm`);
   console.log(`\n  ${boxes.length >= 15 ? 'OK  ' : 'FAIL'} the casting is geometry, not a decal (${boxes.length} solids)`);
   console.log(`  ${rebate > 0.005 ? 'OK  ' : 'FAIL'} the grate is SUNK into the frame, not flush with it`);
-  if (boxes.length < 15 || rebate <= 0.005) process.exit(1);
+
+  // THE THROAT WAS ONLY EVER PHOTOGRAPHED. canfail.mjs broke PROUD to -0.02 —
+  // the surround buried behind the kerb face instead of standing out of it —
+  // and this script passed, because it took two pictures of the throat and
+  // measured none of it. That is the house rule failing inside my own check:
+  // screenshots are for LOOKING, never for PROVING.
+  //
+  // The surround must reach FURTHER out of the kerb than the opening it
+  // frames, which is what casts the shadow line that makes a drain read as a
+  // drain. Signed, so a buried frame goes negative rather than merely small.
+  const frame = r.filter((m) => m.part === 'frame' && m.outer !== null);
+  const mouth = r.filter((m) => m.part === 'throat' && m.outer !== null);
+  let proud = null;
+  if (frame.length && mouth.length) {
+    proud = Math.min(...mouth.map((m) => m.outer)) - Math.min(...frame.map((m) => m.outer));
+    console.log(`  throat proud   ${(proud * 1000).toFixed(1)} mm  (${frame.length} frame solids)`);
+  }
+  // Upper bound is not decoration: a lintel 22 mm proud hid the whole 66 mm
+  // opening at the 20 degrees people actually stand at, which is why PROUD is
+  // 7 mm and not more. Both ends of the range are a real failure.
+  const proudOK = proud !== null && proud > 0.002 && proud < 0.022;
+  console.log(`  ${proudOK ? 'OK  ' : 'FAIL'} the surround stands PROUD of the throat, and not so far it hides it`);
+  if (boxes.length < 15 || rebate <= 0.005 || !proudOK) process.exit(1);
 }
 
 // NOTE on the 4th argument: warp's `gy` is the GROUND height under the

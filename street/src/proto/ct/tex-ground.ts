@@ -819,9 +819,14 @@ export function buildGround(o: GroundOpts): Ground {
     const PY = gutterSurfaceY(0.30);              // the pan is cross-sloped; this is its height here
     const OW = 0.56, OL = 0.86;                   // clear opening: 2 ft x 3 ft
     const FL = 0.075, FR_H = 0.028, BAR_H = 0.012;
-    const box = (w: number, h: number, d: number, x: number, y: number, cz: number, m: THREE.Material) => {
+    const box = (w: number, h: number, d: number, x: number, y: number, cz: number, m: THREE.Material,
+                 part?: string) => {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
       b.position.set(x, y, cz);
+      // `part` lets scripts/basin.mjs find the surround by NAME. park.mjs went
+      // blind once matching a lantern by its exact box size, which I then
+      // changed; a stamp cannot drift out from under a check that way.
+      if (part) b.userData.basinPart = part;
       scene.add(b);
     };
     // The pan is a continuous surface and there is no hole cut in it, so the
@@ -859,11 +864,13 @@ export function buildGround(o: GroundOpts): Ground {
     const throat = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.070, TL - 0.05),
       new THREE.MeshBasicMaterial({ map: throatTex() }));
     throat.position.set(kx - side * 0.002, 0.059, z);
+    throat.userData.basinPart = 'throat';
+    throat.userData.basinSide = side;
     scene.add(throat);
-    box(PROUD, 0.020, TL, fx, 0.104, z, ironM);                          // lintel
-    box(PROUD, 0.014, TL, fx, 0.017, z, ironM);                          // sill
+    box(PROUD, 0.020, TL, fx, 0.104, z, ironM, 'frame');                 // lintel
+    box(PROUD, 0.014, TL, fx, 0.017, z, ironM, 'frame');                 // sill
     for (const s2 of [-1, 1]) {                                          // cheeks either end
-      box(PROUD, 0.090, 0.045, fx, 0.059, z + s2 * (TL / 2 - 0.0225), ironM);
+      box(PROUD, 0.090, 0.045, fx, 0.059, z + s2 * (TL / 2 - 0.0225), ironM, 'frame');
     }
   };
   basin(ROAD_HALF, -92.5, 1);    // east gutter, just up-grade of the corner return
