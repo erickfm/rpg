@@ -118,3 +118,33 @@ seats-walk.mjs  56/57 -> 55/57,  "UNREACHABLE — no standable point
 Same catch, and theirs names the reason. Deleted rather than left beside it,
 by GOTCHAS §24's second half: two scripts on one subject is how the wrong one
 gets run, and the weaker one giving a green is worse than no script.
+
+
+---
+
+# My guards, and what each was watched doing
+
+`ba497dd7` sets the right bar: a guard watched FIRING at HEAD, not one that
+passed when it was written. All eight, re-run at HEAD:
+
+| check | asks | watched failing on |
+|---|---|---|
+| `lotwalk` | can a pedestrian enter the lot, and only there | `--selftest` walls the frontage in the live collider list → "no opening at all" |
+| `lot-frontage` | does the lot take any of the 2 m walk | a prop pushed 0.70 m into the walk → named it; and a drifted `FACE` → "the constants no longer describe the world" |
+| `lot-layout` | aisle in, cars either side, office at the back | `--selftest` moves the office to the front → "4% back, wanted 66%+" |
+| `door301` | opens, shuts, blocks, refuses to shut on you | `--selftest` jams the doorway → 3 of 7 behaviours fail |
+| `doors-declared` | does every declared DOOR arrive | `--selftest` drops one → names the building |
+| `entrance-brick` | does the brick run through the entrance bay | `CASE_W` widened to the whole bay in source → 94% stone, red |
+| `people-walk` | is every figure from the 8-angle atlas | a hand-drawn figure added in source → `1.00x1.80 (ratio 1.80) @ x=23` |
+| `gotchas-numbers` | unique and ordered headings | `--selftest` duplicates a number → names both titles |
+
+Two have no `--selftest` and that is stated in each rather than left to be
+assumed: breaking `lot-frontage` or `people-walk` means changing SOURCE, not
+the live scene, so the flag cannot do it. Both were mutated by hand this
+session and both went red.
+
+**What none of them cover**, so nobody quotes them for more than they are:
+every lane figure here is of the BUILT lane on an empty street — citizens are
+not colliders (310 boxes, unchanged over ten seconds with six people about).
+The lived-lane question is `b0398ead`'s flood fill with movers included, which
+finds "car lot mid" reachable in all four samples.
