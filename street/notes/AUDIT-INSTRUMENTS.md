@@ -1753,3 +1753,40 @@ and does not assert**, and the arch clause no longer votes in the exit code.
 > **Giving a script an exit code is not a formality — it promotes every latent
 > comparison in it to a verdict.** Two of mine had been printing a wrong answer
 > for rounds, harmlessly, because nothing was listening.
+
+## `globorder` is registrable now, and its selftest drives the real logic
+
+My triage named three of the 25 invisible scripts as genuine checks that should be
+registered. One, `globorder`, is mine — so it was mine to make registrable rather
+than to recommend. The runner requires a `--selftest`; it had none.
+
+**The selftest drives `analyse()` itself, not a copy of it.** That required
+factoring the detection out of the file-reading, and it is the whole point: a
+selftest that re-implements what it tests proves only that two copies agree,
+which is the circularity this audit was written to catch. Three synthetic bundles
+with known answers:
+
+```
+caught: a binding declared after its glob is detected
+caught: the same bundle with bindings declared first is clean
+caught: a bundle with no glob literal yields no groups (the exit-3 path)
+
+3/3 inverted truths behaved as required        selftest exit 0
+```
+
+The third is the one that matters most — it exercises the **exit-3 path**, the
+guard I added after finding this script could report zero findings and exit 0 on
+a bundle whose shape had changed. That guard now has a test.
+
+**And the refactor did not change the answer**: the real run still reports the
+same **3 bindings read by a glob before they exist**, exit 1 — the same figure as
+before the change, which is what says the factoring was faithful rather than
+merely green.
+
+So the entry is ordinary: name, question, `true` for the selftest column. Like
+`floatlit`, it is **red at HEAD by design** — those 3 late bindings are real, the
+mechanism is live, and nothing currently declares through it.
+
+> Two of the three checks my triage said should be registered were other
+> people's. **The one that was mine took twenty minutes and needed no
+> permission**, which is the argument for doing your own first.
