@@ -434,21 +434,25 @@ for (room of rooms) {
   // ── the floor ────────────────────────────────────────────────────────
   const gyIn = (await pos())[3];
   check('floor height inside is 0 (not sunk, not floating)', Math.abs(gyIn) < 0.001, `gy=${gyIn}`);
-  const floorY = await p.evaluate((cx) => {
-    let best = null;
-    window.__ct.scene().traverse((o) => {
-      if (!o.isMesh || !o.geometry?.parameters) return;
-      const wp = new o.position.constructor();
-      o.getWorldPosition(wp);
-      if (Math.abs(wp.x - cx) > 0.2 || Math.abs(wp.z) > 0.2) return;
-      if (Math.abs(o.rotation.x + Math.PI / 2) > 0.01) return;   // faces up
-      if (best === null || wp.y < best) best = wp.y;
-    });
-    return best;
-  }, CX);
-  check('the floor mesh is where the rig thinks the floor is',
-    floorY !== null && Math.abs(floorY - gyIn) < 0.03,
-    `floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${gyIn}`);
+  // ASK THE WORLD WHERE THE FLOOR IS, do not hunt for it. This used to pick "the
+  // lowest upward-facing plane within 0.2 m of the room centre" — my own
+  // heuristic, and a fragile one: the casino lays a carpet decal at y = 0.012 over
+  // the kit's floor, so the check was one authored decal away from measuring the
+  // wrong surface, and a room that put a mat UNDER the floor line would have
+  // broken it silently.
+  //
+  // `a9d88ecf5` published `window.__ct.groundAt(x, z)`, which runs the same pick
+  // the rig itself uses. Comparing the rig's `gy` against that asks the real
+  // question — does the player stand where the ground says — instead of against a
+  // mesh I went looking for. Measured across all four rooms before the swap: rig
+  // gy 0 and groundAt 0 in every one, so this changes no verdict today, only what
+  // the verdict rests on.
+  const ground = await p.evaluate(([x, z]) => (typeof window.__ct.groundAt === 'function'
+    ? window.__ct.groundAt(x, z) : null), [(await pos())[0], (await pos())[2]]);
+  check('the rig stands where the ground says it should',
+    ground !== null && Math.abs(ground - gyIn) < 0.03,
+    ground === null ? 'HARNESS: __ct.groundAt is not published on this build'
+      : `groundAt=${f2(ground)}, rig gy=${gyIn}`);
 
   // read the eye off the rig — the camera is not a child of the scene and
   // hunting it there always returns nothing
