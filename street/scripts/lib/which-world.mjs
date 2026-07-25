@@ -22,6 +22,19 @@ const localHead = () => {
   catch { return null; }
 };
 
+/** Is this SHA an ANCESTOR of my HEAD — i.e. is the served build simply behind
+ *  where I am now?
+ *
+ *  "Is it a commit in this repository" does NOT work and is worth saying so:
+ *  worktrees share one object store, so another builder's preview serves a SHA
+ *  that is perfectly well known here. Ancestry is the question that actually
+ *  separates the two: my own stale dist is behind me, a sibling worktree is
+ *  off to one side. */
+const isBehindMe = (sha) => {
+  try { execSync(`git merge-base --is-ancestor ${sha} HEAD`, { stdio: 'ignore' }); return true; }
+  catch { return false; }
+};
+
 /** Read the served build's stamp out of the HUD. */
 export async function servedBuild(page) {
   return page.evaluate(() => {
@@ -46,11 +59,25 @@ export async function reportWorld(page, url) {
   if (!served) { console.log(`measuring ${url}  (no build stamp found — cannot verify)`); return null; }
   const tag = `${served.sha}${served.dirty ? '+' : ''}`;
   if (head && !served.sha.startsWith(head) && !head.startsWith(served.sha)) {
+    // Two different faults wear the same mismatch and want different actions.
+    // A worktree under continuous rebase hits the first one often — HEAD moves
+    // between `npm run build` and the check after it — and being told to
+    // "start your own preview" when the preview is already yours sends you
+    // looking in the wrong place.
+    const mine = isBehindMe(served.sha);
     console.error(`\nMEASURING THE WRONG WORLD.`);
     console.error(`  ${url} is serving build ${tag}`);
     console.error(`  this checkout is at      ${head}`);
-    console.error(`  Start your own preview, or set SHOT_URL to it. Numbers from`);
-    console.error(`  another builder's tree are not evidence about yours.\n`);
+    if (mine) {
+      console.error(`\n  ${served.sha} is an ANCESTOR of HEAD, so this is your own preview`);
+      console.error(`  serving a stale dist — HEAD moved after you built it.`);
+      console.error(`  Fix: npm run build, restart the preview, re-run.\n`);
+    } else {
+      console.error(`\n  ${served.sha} is NOT an ancestor of HEAD — it is off to one side,`);
+      console.error(`  so that server is another worktree. Numbers from somebody`);
+      console.error(`  else's tree are not evidence about yours.`);
+      console.error(`  Fix: start your own preview, or set SHOT_URL to it.\n`);
+    }
     throw new Error(`wrong world: served ${tag}, local ${head}`);
   }
   console.log(`measuring ${url}  build ${tag}${served.dirty ? ' (uncommitted changes, as expected)' : ''}`);
