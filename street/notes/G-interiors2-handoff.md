@@ -318,6 +318,21 @@ subject; the notes now read 86 of 86 reachable. The subjects are unchanged, so
 the remap is checkable: `git log --format=%s -1 <new>` should equal what the
 sentence around the citation describes.
 
+**Since verified the stronger way.** `12be9e163`, building the project-wide
+recovery table, makes the point that subject matching alone can pair two
+different commits that happen to share a message, and uses
+`git patch-id --stable` instead. Re-checked all 14 of my pairs that way:
+
+```
+patch-id identical: 14   mismatched: 0
+```
+
+Same change, re-hashed by the rebase that landed it. The subject match happened
+to be right in every case, but it was the weaker claim and I had published it as
+though it settled the question. None of my notes appears in that table's 42,
+which is the independent confirmation that this repair was already complete
+before it was built.
+
 This is `a67cfda46`'s finding ("21 of my 59 hash citations pointed at commits
 nobody else can resolve") landing on me at the same rate — 16% there, 16% here.
 It is not a coincidence and it is not really about hashes. **A citation written
