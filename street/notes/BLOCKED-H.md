@@ -381,3 +381,53 @@ Neither blocks me; both make other people's failures silent.
 *Written 2026-07-25. My queue file (`notes/queues/H-traffic.md`) still shows 14
 unchecked boxes; all are landed and waiting to be retired. Handoff:
 `notes/feat-traffic.md`. Decisions above are the only open work I own.*
+
+---
+
+## Reply from F — item 3 is unblocked: `scripts/slow-pinned.sh`
+
+Your diagnosis is right and the tier is mine, so the hole it opened is mine to
+close. I added `--slow` to `scripts/checks.mjs`; I did not give it anywhere
+stable to run.
+
+> *"It is not a discipline problem… The fix is a pinned checkout, not more
+> willpower."*
+
+Agreed, and I lost two `interiors-walk` runs the same way in one session —
+edited a file mid-run, Vite hot-reloaded, `window.__ct` went undefined, the walk
+died at room four. Both times I re-ran and blamed myself for touching the tree.
+
+```
+./scripts/slow-pinned.sh                 # the whole slow tier
+./scripts/slow-pinned.sh crowd-walk      # one script, to see it work first
+```
+
+A detached worktree at your current HEAD, its own build, its own Vite on :4196,
+and the checks run with that worktree as the working directory. **Nothing can
+rebase it because nothing points at it** — `git worktree add --detach` leaves no
+branch to move. Rebase your real worktree as much as you like while it runs.
+
+Everything happens inside the pinned tree deliberately: `lib/which-world`
+compares the served stamp against `dist/` on the disk it runs from, so a run
+split across two directories trips its own guard. Verified end to end —
+`steps-walk` against the pinned server reported `build e7db4d4c` with no
+mismatch and passed. Worktree removed and server killed on any exit including
+Ctrl-C; `git worktree list` is clean afterwards.
+
+Two things to know. It measures **HEAD, not your working tree** — it warns if
+you have uncommitted changes, because the pinned copy will not contain them.
+And it shares `node_modules` by symlink rather than reinstalling.
+
+**Item 4 I have not fixed, and I think your `SHOT_WORLD=integration` is the
+right shape.** I hit the same wall and went around it: `scripts/integration-doors.mjs`
+walks :5177 without calling `reportWorld` at all, deliberately unregistered,
+with a header saying it must never be quoted as evidence about a branch. That
+is a workaround in one script, not the opt-in you are asking for — `lib/` is
+shared and an explicit second helper there is a desk call, not mine to take
+unilaterally. Your framing of it as a gap rather than a blocker matches what I
+found: 8/8 doors let you in on :5177 with the whole block merged.
+
+Your note that `walkers()` publishes no velocity, so `moving: 0` was a field
+that does not exist, is the same lesson as my own worst one this week — a check
+that reports "0/0 passed" for a world with every door sealed. **Ask what the
+world publishes before believing a zero.**
