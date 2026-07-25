@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -63,14 +63,14 @@ export function buildBodega(ctx: CtxBuild): void {
   const woodM = new THREE.MeshBasicMaterial({ color: 0x6a5442 });
 
   // ── the floor: scuffed vinyl tile, not a checker ──
-  const vinylT = pixTex(32, 32, (g) => {
+  const vinylT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#9a9080'; g.fillRect(0, 0, 32, 32);
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
       g.fillStyle = (x + y) % 2 ? '#a89e88' : '#948a78';
       g.fillRect(x * 16, y * 16, 15, 15);
     }
     dither(g, 32, 32, 70);
-  });
+  }), 'ground');
   vinylT.wrapS = vinylT.wrapT = THREE.RepeatWrapping;
   vinylT.repeat.set(Math.round(room.W / 1.2), Math.round(room.D / 1.2));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(vinylT));
@@ -82,7 +82,7 @@ export function buildBodega(ctx: CtxBuild): void {
   // Stock to the ceiling, in runs down the room with aisles between them.
   // 0.95 m of clear aisle: the player is 0.72 across, so you fit and not much
   // else does, which is the whole point. Wider and it is a supermarket.
-  const stockT = pixTex(64, 48, (g) => {
+  const stockT = declareSurface(pixTex(64, 48, (g) => {
     g.fillStyle = '#7a7263'; g.fillRect(0, 0, 64, 48);
     const cols = ['#b8342a', '#d8b84a', '#3a6a8a', '#4a7a52', '#c86a2a', '#8a4a7a',
       '#d8d0c0', '#6a5a3a', '#2a8a7a', '#b85a5a'];
@@ -100,7 +100,7 @@ export function buildBodega(ctx: CtxBuild): void {
       }
     }
     dither(g, 64, 48, 60);
-  });
+  }), 'detail');
   const GOND_L = room.D - 3.2;            // leaves the front and back clear
   const GOND_Z = -0.35;
   const AISLE = 0.95;
@@ -122,7 +122,7 @@ export function buildBodega(ctx: CtxBuild): void {
   }
 
   // ── the cooler, the whole back wall ──
-  const coolerT = pixTex(96, 48, (g) => {
+  const coolerT = declareSurface(pixTex(96, 48, (g) => {
     g.fillStyle = '#2a3a42'; g.fillRect(0, 0, 96, 48);
     g.fillStyle = '#5a7a86'; g.fillRect(2, 2, 92, 44);            // lit glass
     const cols = ['#b8342a', '#e0d84a', '#3a6a8a', '#4a7a52', '#d8d0c0'];
@@ -137,7 +137,7 @@ export function buildBodega(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(2, 2, 92, 3);
     for (const dx of [24, 48, 72]) { g.fillStyle = '#1e2a30'; g.fillRect(dx, 2, 2, 44); }
     dither(g, 96, 48, 30);
-  });
+  }), 'detail');
   const cooler = new THREE.Mesh(new THREE.PlaneGeometry(room.W - 1.2, 2.05), ctx.flat(coolerT));
   put(cooler, 0, 1.05, -hd + 0.06);
   solid(0, -hd + 0.3, room.W - 1.2, 0.6);
@@ -147,11 +147,11 @@ export function buildBodega(ctx: CtxBuild): void {
   // The lottery and the cigarettes are the one part of the shop the customer
   // cannot reach, which is exactly why they are the part worth drawing.
   const CTR_X = hw - 1.5, CTR_Z = hd - 2.6;
-  const ctrTopT = pixTex(64, 16, (g) => {
+  const ctrTopT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#b0a692'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.22)';
     for (let i = 0; i < 70; i++) g.fillRect(Math.floor(Math.random() * 64), Math.floor(Math.random() * 16), 1, 1);
-  });
+  }), 'detail');
   const counterBody = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.02, 2.6), woodM);
   put(counterBody, CTR_X, 0.51, CTR_Z);
   const ctrTop = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.06, 2.68), ctx.flat(ctrTopT));
@@ -186,7 +186,7 @@ export function buildBodega(ctx: CtxBuild): void {
   put(reg, CTR_X, 1.22, CTR_Z + 0.7);
 
   // ── the deli case and the coffee station ──
-  const deliT = pixTex(64, 24, (g) => {
+  const deliT = declareSurface(pixTex(64, 24, (g) => {
     g.fillStyle = 'rgba(200,220,226,0.32)'; g.fillRect(0, 0, 64, 24);
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 64, 2); g.fillRect(0, 22, 64, 2);
     const meats = ['#b8645a', '#d8a08a', '#8a4a3a', '#e0d0a0', '#c88a6a'];
@@ -195,7 +195,7 @@ export function buildBodega(ctx: CtxBuild): void {
       g.fillRect(2 + i * 7, 12, 5, 8);
       g.fillStyle = '#e8e4d8'; g.fillRect(2 + i * 7, 5, 5, 5);
     }
-  });
+  }), 'detail');
   const deli = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.1, 0.72), woodM);
   put(deli, -hw + 1.6, 0.55, hd - 1.5);
   const deliGlass = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.6),
@@ -218,14 +218,14 @@ export function buildBodega(ctx: CtxBuild): void {
   solid(-hw + 1.0, -hd + 1.4, 1.4, 0.55);
 
   // ── the handwritten signs ──
-  const cardT = (a: string, bl: string) => pixTex(48, 24, (g) => {
+  const cardT = (a: string, bl: string) => declareSurface(pixTex(48, 24, (g) => {
     g.fillStyle = '#e4dcc4'; g.fillRect(0, 0, 48, 24);
     g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, 21, 48, 3);
     g.fillStyle = '#2a3a6a'; g.font = 'bold 7px monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(a, 24, 8);
     g.font = '7px monospace'; g.fillText(bl, 24, 16);
-  });
+  }), 'sign');
   // ON the coffee bench (top 0.92) plus the card's own half-height. Placed at
   // a typed 1.62 it hung 0.575 m in the air above it.
   room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, -hw + 1.0, 0.92 + 0.125, -hd + 1.42);
@@ -245,14 +245,14 @@ export function buildBodega(ctx: CtxBuild): void {
   // above as a curled shape rather than side-on, because a cat lying down is
   // the one animal shape you read from the top (GOTCHAS §3 is about ground
   // litter, and the same logic applies to anything resting on a surface).
-  const catT = pixTex(24, 16, (g) => {
+  const catT = declareSurface(pixTex(24, 16, (g) => {
     g.clearRect(0, 0, 24, 16);
     g.fillStyle = '#6a6258';
     g.fillRect(5, 4, 13, 8); g.fillRect(4, 6, 2, 4); g.fillRect(17, 5, 4, 6);
     g.fillStyle = '#5a5248'; g.fillRect(18, 10, 5, 2);            // the tail, curled round
     g.fillStyle = '#7a7268'; g.fillRect(7, 5, 9, 3);
     g.fillStyle = '#3a3630'; g.fillRect(19, 5, 1, 2); g.fillRect(21, 5, 1, 2);  // ears
-  });
+  }), 'detail');
   const cat = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.42),
     new THREE.MeshBasicMaterial({ map: catT, transparent: true, side: THREE.DoubleSide }));
   cat.rotation.x = -Math.PI / 2;

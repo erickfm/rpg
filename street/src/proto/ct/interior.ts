@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf } from './tex-world';
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor } from './doors';
 import { citizenSprite, type Look } from './citizens';
@@ -423,7 +423,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const colliders: AABB[] = [];
 
   // ── floor ──
-  const linoT = pixTex(32, 32, (g) => {
+  const linoT = declareSurface(pixTex(32, 32, (g) => {
     const c = new THREE.Color(FLOOR);
     const hex = (m: number) => '#' + c.clone().multiplyScalar(m).getHexString();
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
@@ -431,7 +431,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
       g.fillRect(x * 16, y * 16, 16, 16);
     }
     dither(g, 32, 32, 50);
-  });
+  }), 'ground');
   linoT.wrapS = linoT.wrapT = THREE.RepeatWrapping;
   // texel density from the room's REAL METRES, so a big room does not get a
   // stretched floor and a small one a busy postage stamp (GOTCHAS §5)
@@ -464,7 +464,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const scuffPx = Math.max(2, Math.round(0.5 * PXM));
   const wain = spec.wainscot;
   const wainPx = wain ? Math.round((wain.h ?? 1.1) * PXM) : 0;
-  const plasterT = pixTex(32, wallPx, (g) => {
+  const plasterT = declareSurface(pixTex(32, wallPx, (g) => {
     const c = new THREE.Color(WALL);
     g.fillStyle = '#' + c.getHexString(); g.fillRect(0, 0, 32, wallPx);
     g.fillStyle = 'rgba(0,0,0,0.15)';
@@ -504,7 +504,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
       g.fillStyle = '#' + new THREE.Color(TRIM).getHexString();
       g.fillRect(0, y0 - 1, 32, 2);
     }
-  });
+  }), 'detail');
   const wallMat = (len: number) => {
     const t = plasterT.clone();
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -696,7 +696,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const rgb = `${Math.round(tint.r * 255)},${Math.round(tint.g * 255)},${Math.round(tint.b * 255)}`;
   // A halo quantised onto the texel grid: four hard steps, no interpolation.
   // Same job as a gradient, drawn the way everything else in this world is.
-  const haloT = pixTex(16, 16, (g) => {
+  const haloT = declareSurface(pixTex(16, 16, (g) => {
     for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
       const d = Math.hypot(x - 7.5, y - 7.5) / 8;
       const step = Math.max(0, Math.ceil((1 - d) * 4) / 4);   // 0, .25, .5, .75, 1
@@ -708,7 +708,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
       g.fillStyle = `rgba(${rgb},${(step * 0.16).toFixed(3)})`;
       g.fillRect(x, y, 1, 1);
     }
-  });
+  }), 'detail');
   haloT.minFilter = haloT.magFilter = THREE.NearestFilter;
   const haloM = new THREE.MeshBasicMaterial({
     map: haloT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -870,12 +870,12 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // back THROUGH the jamb, which is what the previous version did. Hinged on
   // the outer face and swung outward, it cannot reach the wall at all, and it
   // reads from inside as a propped shop door rather than as a hole.
-  const leafT = pixTex(32, 64, (g) => {
+  const leafT = declareSurface(pixTex(32, 64, (g) => {
     g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 32, 64);
     g.fillStyle = '#8a97a2'; g.fillRect(4, 4, 24, 40);
     g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(4, 24, 24, 2);
     g.fillStyle = '#c9b45e'; g.fillRect(25, 34, 3, 3);
-  });
+  }), 'detail');
   // The hinge is done by arithmetic rather than by a pivot Group, for the same
   // reason everything else here is: a child of a nested group carries a LOCAL
   // position, `dimWorld` reads that local position, and the leaf alone would

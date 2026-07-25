@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -66,13 +66,13 @@ export function buildDiner(ctx: CtxBuild): void {
   // Laid over the kit's plain lino rather than replacing it: the kit sizes its
   // texture off the room's real metres and this has to agree with that, or the
   // tiles stop being square (GOTCHAS §5).
-  const checkT = pixTex(32, 32, (g) => {
+  const checkT = declareSurface(pixTex(32, 32, (g) => {
     for (let y = 0; y < 2; y++) for (let x = 0; x < 2; x++) {
       g.fillStyle = (x + y) % 2 ? '#2e2c2a' : '#cec6b4';
       g.fillRect(x * 16, y * 16, 16, 16);
     }
     dither(g, 32, 32, 24);
-  });
+  }), 'ground');
   checkT.wrapS = checkT.wrapT = THREE.RepeatWrapping;
   checkT.repeat.set(Math.round(room.W / 1.2), Math.round(room.D / 1.2));
   const chk = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(checkT));
@@ -85,12 +85,12 @@ export function buildDiner(ctx: CtxBuild): void {
   // knees under. The overhang is the difference between a counter and a wall
   // with a shelf on it.
   const CZ = -hd + 1.5, CL = 7.8;
-  const formicaT = pixTex(64, 16, (g) => {
+  const formicaT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#c8bfa4'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.25)';
     for (let i = 0; i < 90; i++) g.fillRect(Math.floor(Math.random() * 64), Math.floor(Math.random() * 16), 1, 1);
     g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(0, 0, 64, 2);
-  });
+  }), 'detail');
   // The speckle is the same boiled-wheat formica on the counter and on the
   // tables, so it has to be the same SIZE on both. Left unrepeated it was one
   // tile stretched over whatever it landed on: 10 px/m across a 6.4 m counter
@@ -104,13 +104,13 @@ export function buildDiner(ctx: CtxBuild): void {
     t.needsUpdate = true;
     return ctx.flat(t);
   };
-  const sideT = pixTex(64, 32, (g) => {
+  const sideT = declareSurface(pixTex(64, 32, (g) => {
     g.fillStyle = '#9a2f2c'; g.fillRect(0, 0, 64, 32);           // red vinyl skirt
     g.fillStyle = 'rgba(0,0,0,0.22)';
     for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 1, 32);      // ribbed panels
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 28, 64, 4);            // chrome kick rail
     dither(g, 64, 32, 30);
-  });
+  }), 'detail');
   const chromeM = new THREE.MeshBasicMaterial({ color: 0xcfc7b6 });
   const topM = formicaFor(CL, 0.62), skirtM = ctx.flat(sideT);
   const counter = new THREE.Mesh(new THREE.BoxGeometry(CL, 1.02, 0.62),
@@ -146,7 +146,7 @@ export function buildDiner(ctx: CtxBuild): void {
   // Everything the customer never touches, stacked against the back wall: pie
   // case, urns, the pass to the kitchen. It is what you look AT while you eat,
   // so it carries most of the room's detail.
-  const backT = pixTex(96, 40, (g) => {
+  const backT = declareSurface(pixTex(96, 40, (g) => {
     g.fillStyle = '#8f8a7c'; g.fillRect(0, 0, 96, 40);
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 16, 96, 3);            // shelf
     g.fillStyle = '#2a2c30';                                       // coffee urns
@@ -160,13 +160,13 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = 'rgba(0,0,0,0.25)';
     for (let x = 0; x < 96; x += 16) g.fillRect(x, 19, 1, 21);
     dither(g, 96, 40, 40);
-  });
+  }), 'detail');
   const back = new THREE.Mesh(new THREE.PlaneGeometry(CL, 2.2), ctx.flat(backT));
   put(back, 0, 1.35, -hd + 0.05);
 
   // pie case on the counter — the one thing at eye level, so it gets to be
   // the brightest object in the room
-  const pieT = pixTex(24, 24, (g) => {
+  const pieT = declareSurface(pixTex(24, 24, (g) => {
     g.fillStyle = 'rgba(190,215,225,0.35)'; g.fillRect(0, 0, 24, 24);
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 24, 2); g.fillRect(0, 22, 24, 2);
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 11, 24, 2);
@@ -174,7 +174,7 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = '#8a3a4a'; g.fillRect(13, 5, 8, 6);
     g.fillStyle = '#d8c8a0'; g.fillRect(3, 16, 8, 5);
     g.fillStyle = '#6a4a2a'; g.fillRect(13, 16, 8, 5);
-  });
+  }), 'detail');
   const pie = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.5),
     new THREE.MeshBasicMaterial({ map: pieT, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
   put(pie, CL / 2 - 0.7, 1.3, CZ);
@@ -222,10 +222,10 @@ export function buildDiner(ctx: CtxBuild): void {
   const nBooths = Math.max(1, Math.floor((span - BACK_T) / PITCH));
   const BXS = Array.from({ length: nBooths }, (_, i) => runStart + away * (HALF + BACK_T / 2 + i * PITCH));
 
-  const napkinT = pixTex(8, 8, (g) => {
+  const napkinT = declareSurface(pixTex(8, 8, (g) => {
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 8, 8);
     g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, 8, 2);
-  });
+  }), 'detail');
   for (const bx of BXS) {
     for (const sx of [-1, 1]) {
       const bench = new THREE.Mesh(new THREE.BoxGeometry(BENCH_W, 0.45, BENCH_L), vinylM);
@@ -285,7 +285,7 @@ export function buildDiner(ctx: CtxBuild): void {
   const wallSide = -away;
   const WX = wallSide * (hw - 0.36);
 
-  const jukeT = pixTex(32, 48, (g) => {
+  const jukeT = declareSurface(pixTex(32, 48, (g) => {
     g.fillStyle = '#6a2a2a'; g.fillRect(0, 0, 32, 48);              // the case
     g.fillStyle = '#3a1a1a'; g.fillRect(0, 40, 32, 8);              // plinth
     // the lit dome: an arc of colour over the mechanism, which is the whole
@@ -300,13 +300,13 @@ export function buildDiner(ctx: CtxBuild): void {
     for (let y = 32; y < 38; y += 2) g.fillRect(6, y, 20, 1);
     g.fillStyle = '#c9a83a'; g.fillRect(26, 31, 3, 7);              // the coin slot
     dither(g, 32, 48, 30);
-  });
+  }), 'detail');
   const juke = new THREE.Mesh(new THREE.BoxGeometry(0.92, 1.5, 0.56),
     [ctx.flat(jukeT), ctx.flat(jukeT), chromeM, chromeM, ctx.flat(jukeT), ctx.flat(jukeT)]);
   put(juke, WX, 0.75, 1.1);
   solid(WX, 1.1, 0.92, 0.56);
 
-  const cigT = pixTex(24, 44, (g) => {
+  const cigT = declareSurface(pixTex(24, 44, (g) => {
     g.fillStyle = '#3a4a44'; g.fillRect(0, 0, 24, 44);
     g.fillStyle = '#2a3a34'; g.fillRect(0, 38, 24, 6);
     g.fillStyle = '#d8d0c0'; g.fillRect(3, 3, 18, 5);
@@ -321,7 +321,7 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = '#8a8278';
     for (let i = 0; i < 3; i++) g.fillRect(4 + i * 6, 36, 3, 2);
     dither(g, 24, 44, 20);
-  });
+  }), 'detail');
   const cig = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.35, 0.4),
     [ctx.flat(cigT), ctx.flat(cigT), chromeM, chromeM, ctx.flat(cigT), ctx.flat(cigT)]);
   put(cig, WX + wallSide * -0.02, 0.675, -0.55);
@@ -329,22 +329,22 @@ export function buildDiner(ctx: CtxBuild): void {
 
   // and above them, the things that accumulate on a diner wall: a clock, and
   // two framed photographs of the place nobody has taken down
-  const clockT = pixTex(20, 20, (g) => {
+  const clockT = declareSurface(pixTex(20, 20, (g) => {
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 20, 20);
     g.fillStyle = '#e8e4d8'; g.fillRect(2, 2, 16, 16);
     g.fillStyle = '#2a2622'; g.fillRect(9, 5, 1, 5); g.fillRect(10, 9, 4, 1);
     for (const [x, y] of [[9, 2], [9, 17], [2, 9], [17, 9]]) { g.fillStyle = '#2a2622'; g.fillRect(x, y, 2, 1); }
-  });
+  }), 'detail');
   const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), ctx.flat(clockT));
   clock.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
   put(clock, WX - wallSide * 0.3, 2.15, 0.3);
 
-  const photoT = (warm: boolean) => pixTex(20, 16, (g) => {
+  const photoT = (warm: boolean) => declareSurface(pixTex(20, 16, (g) => {
     g.fillStyle = '#5a4632'; g.fillRect(0, 0, 20, 16);
     g.fillStyle = warm ? '#b8a488' : '#9aa49a'; g.fillRect(2, 2, 16, 12);
     g.fillStyle = warm ? '#8a7458' : '#6a746a'; g.fillRect(3, 8, 14, 5);
     g.fillStyle = warm ? '#d8c8a8' : '#c0c8c0'; g.fillRect(5, 4, 4, 4); g.fillRect(11, 5, 3, 3);
-  });
+  }), 'sign');
   for (const [pz, warm] of [[-1.7, true], [2.1, false]] as [number, boolean][]) {
     const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.29), ctx.flat(photoT(warm)));
     ph.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
@@ -352,7 +352,7 @@ export function buildDiner(ctx: CtxBuild): void {
   }
 
   // ── the menu board, over the pass ──
-  const menuT = pixTex(96, 32, (g) => {
+  const menuT = declareSurface(pixTex(96, 32, (g) => {
     g.fillStyle = '#22262a'; g.fillRect(0, 0, 96, 32);
     g.fillStyle = '#d8d0b8'; g.font = 'bold 7px monospace'; g.textAlign = 'left';
     const rows: [string, string][] = [
@@ -360,7 +360,7 @@ export function buildDiner(ctx: CtxBuild): void {
       ['COFFEE', '.65'], ['PIE  SLICE', '1.40'],
     ];
     rows.forEach(([a, b], i) => { g.fillText(a, 4, 8 + i * 7); g.textAlign = 'right'; g.fillText(b, 92, 8 + i * 7); g.textAlign = 'left'; });
-  });
+  }), 'sign');
   const menu = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.0), ctx.flat(menuT));
   put(menu, 0, 2.45, -hd + 0.06);
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -86,7 +86,7 @@ export function buildThrift(ctx: CtxBuild): void {
   // Rows sit 1.35 m apart with a 0.44 m garment block, so the clear aisle is
   // 0.91 m and the player's 0.72 m leaves ~0.19 m. Tight on purpose. Anything
   // wider and the room reads as a boutique; anything narrower and it is a wall.
-  const garmentT = pixTex(64, 32, (g) => {
+  const garmentT = declareSurface(pixTex(64, 32, (g) => {
     // a jumbled run of coats and shirts, muted and mismatched — thrift stock
     // is everything nobody wanted, so no two neighbours agree
     const cols = ['#6a4a3a', '#4a5a6a', '#7a6a4a', '#5a4a5a', '#3a4a3a', '#8a7a5a',
@@ -104,7 +104,7 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, 64, 3);   // shoulders in shadow
     dither(g, 64, 32, 90);
-  });
+  }), 'detail');
   const RAIL_X0 = -3.7, RAIL_X1 = -0.3;
   const RAIL_L = RAIL_X1 - RAIL_X0, RAIL_CX = (RAIL_X0 + RAIL_X1) / 2;
   const ROWS = [1.1, -0.25, -1.6];
@@ -131,7 +131,7 @@ export function buildThrift(ctx: CtxBuild): void {
   // Six shelves of them, paired and facing out, because a shoe wall is the one
   // fixture in a thrift store that is actually ORDERED — everything else is a
   // heap, and the contrast is what makes the heap read as a heap.
-  const shoeT = pixTex(64, 16, (g) => {
+  const shoeT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#6a6258'; g.fillRect(0, 0, 64, 16);
     const cols = ['#3a2c22', '#5a4a3a', '#2a2a30', '#7a6a52', '#4a3a4a', '#8a7a62'];
     for (let i = 0; i < 11; i++) {
@@ -144,7 +144,7 @@ export function buildThrift(ctx: CtxBuild): void {
       g.fillRect(x, 6, 5, 1);
     }
     dither(g, 64, 16, 30);
-  });
+  }), 'detail');
   const SHOE_Z0 = -2.2, SHOE_Z1 = 1.4;
   const SHOE_L = SHOE_Z1 - SHOE_Z0, SHOE_CZ = (SHOE_Z0 + SHOE_Z1) / 2;
   const st = shoeT.clone();
@@ -168,7 +168,7 @@ export function buildThrift(ctx: CtxBuild): void {
   // ── the crockery shelf, along the back wall to the left ──
   //
   // Chipped, mismatched, stacked two deep. Nobody is buying it.
-  const crockT = pixTex(96, 24, (g) => {
+  const crockT = declareSurface(pixTex(96, 24, (g) => {
     g.fillStyle = '#8a8274'; g.fillRect(0, 0, 96, 24);
     const cols = ['#d8d0c0', '#c8bca8', '#e0d8c8', '#b8ac98', '#d0c4b0'];
     for (let i = 0; i < 14; i++) {
@@ -181,7 +181,7 @@ export function buildThrift(ctx: CtxBuild): void {
       if (i % 3 === 0) { g.fillStyle = '#8a8274'; g.fillRect(x + 3, 22 - h, 2, 2); }  // the chip
     }
     dither(g, 96, 24, 40);
-  });
+  }), 'detail');
   const CR_X0 = -3.8, CR_X1 = -0.4;
   const CR_L = CR_X1 - CR_X0, CR_CX = (CR_X0 + CR_X1) / 2;
   for (let i = 0; i < 3; i++) {
@@ -203,7 +203,7 @@ export function buildThrift(ctx: CtxBuild): void {
   // jewellery is behind glass at the counter where it can be watched, and that
   // single difference says more about the place than a sign would.
   const TILL_CX = 2.2, TILL_Z = -hd + 0.5;
-  const caseT = pixTex(64, 24, (g) => {
+  const caseT = declareSurface(pixTex(64, 24, (g) => {
     g.fillStyle = 'rgba(196,214,220,0.30)'; g.fillRect(0, 0, 64, 24);
     g.fillStyle = '#6a6258'; g.fillRect(0, 11, 64, 2);            // the middle shelf
     const jewel = ['#c9b45e', '#d8d0c0', '#8a6a3a', '#b8a24e', '#9aa8b8'];
@@ -215,7 +215,7 @@ export function buildThrift(ctx: CtxBuild): void {
       g.fillRect(x, i % 2 ? 4 : 15, 2, 1);
     }
     g.fillStyle = '#8a8274'; g.fillRect(0, 0, 64, 2); g.fillRect(0, 22, 64, 2);
-  });
+  }), 'detail');
   const glassM = new THREE.MeshBasicMaterial({
     map: caseT, transparent: true, opacity: 0.92, side: THREE.DoubleSide });
   const tillBody = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.94, 0.6), woodM);
@@ -231,7 +231,7 @@ export function buildThrift(ctx: CtxBuild): void {
 
   // a bin of loose paperbacks, jammed in beside the till because there was
   // nowhere else — the shop has run out of room for its own stock
-  const bookT = pixTex(32, 16, (g) => {
+  const bookT = declareSurface(pixTex(32, 16, (g) => {
     g.fillStyle = '#5a4a3a'; g.fillRect(0, 0, 32, 16);
     const cols = ['#8a3a3a', '#3a5a6a', '#7a6a3a', '#5a3a5a', '#4a6a4a'];
     for (let i = 0; i < 16; i++) {
@@ -239,7 +239,7 @@ export function buildThrift(ctx: CtxBuild): void {
       g.fillRect(i * 2, 2 + ((i * 5) % 4), 2, 12);
     }
     dither(g, 32, 16, 16);
-  });
+  }), 'detail');
   const bin = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.55, 0.6), woodM);
   put(bin, TILL_CX - 2.0, 0.275, TILL_Z + 0.05);
   const books = new THREE.Mesh(new THREE.PlaneGeometry(0.76, 0.5), ctx.flat(bookT));
@@ -253,7 +253,7 @@ export function buildThrift(ctx: CtxBuild): void {
   // designed this shop, somebody just kept adding notices to it. Drawn at 7 px
   // on the texel grid — the door-plate complaint on file was lettering drawn
   // at a size that did not land on the grid and aliased into mush.
-  const cardT = (text: string, sub: string) => pixTex(48, 24, (g) => {
+  const cardT = (text: string, sub: string) => declareSurface(pixTex(48, 24, (g) => {
     g.fillStyle = '#e2dcc6'; g.fillRect(0, 0, 48, 24);
     g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(0, 21, 48, 3);
     g.fillStyle = '#2a3a6a'; g.font = 'bold 7px monospace';
@@ -261,7 +261,7 @@ export function buildThrift(ctx: CtxBuild): void {
     g.fillText(text, 24, 8);
     g.font = '7px monospace';
     g.fillText(sub, 24, 16);
-  });
+  }), 'sign');
   // Hung through `room.sign`, which builds each one as two back-to-back
   // single-sided planes. A rail card is read from BOTH aisles, and a single
   // DoubleSide plane is mirrored from behind (GOTCHAS §10) — the first pass

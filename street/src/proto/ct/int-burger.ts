@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -76,7 +76,7 @@ export function buildBurger(ctx: CtxBuild): void {
   // different colours — would collapse the contrast the whole room is for.
   // This is the small hard reddish quarry tile every fast-food place had,
   // laid tight, and it reads as easy-to-mop rather than as decoration.
-  const tileT = pixTex(32, 32, (g) => {
+  const tileT = declareSurface(pixTex(32, 32, (g) => {
     g.fillStyle = '#8a7a6a'; g.fillRect(0, 0, 32, 32);            // grout bed
     for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
       const warm = (x * 5 + y * 3) % 4;
@@ -84,7 +84,7 @@ export function buildBurger(ctx: CtxBuild): void {
       g.fillRect(x * 8, y * 8, 7, 7);
     }
     dither(g, 32, 32, 40);
-  });
+  }), 'ground');
   tileT.wrapS = tileT.wrapT = THREE.RepeatWrapping;
   tileT.repeat.set(Math.round(room.W / 1.6), Math.round(room.D / 1.6));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(tileT));
@@ -104,19 +104,19 @@ export function buildBurger(ctx: CtxBuild): void {
   // tile at each end. Furniture that does not follow its room is how a room
   // grows into a waiting hall.
   const CZ = -hd + 1.25, CL = room.W * 0.68, CCX = -room.W * 0.036;
-  const counterFaceT = pixTex(96, 24, (g) => {
+  const counterFaceT = declareSurface(pixTex(96, 24, (g) => {
     g.fillStyle = '#c8302a'; g.fillRect(0, 0, 96, 24);
     g.fillStyle = 'rgba(0,0,0,0.18)';
     for (let x = 0; x < 96; x += 12) g.fillRect(x, 0, 1, 24);     // moulded panel joints
     g.fillStyle = '#e6dcc6'; g.fillRect(0, 0, 96, 2);             // beige capping
     g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 21, 96, 3);   // kick shadow
     dither(g, 96, 24, 40);
-  });
-  const counterTopT = pixTex(64, 16, (g) => {
+  }), 'detail');
+  const counterTopT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#d8d0be'; g.fillRect(0, 0, 64, 16);            // laminate
     g.fillStyle = 'rgba(120,100,80,0.2)';
     for (let i = 0; i < 60; i++) g.fillRect(Math.floor(Math.random() * 64), Math.floor(Math.random() * 16), 1, 1);
-  });
+  }), 'detail');
   const cTopT = counterTopT.clone();
   cTopT.wrapS = cTopT.wrapT = THREE.RepeatWrapping;
   cTopT.repeat.set(CL / 5.0, 0.75 / 1.25);                        // metres, not tiles
@@ -146,7 +146,7 @@ export function buildBurger(ctx: CtxBuild): void {
   // Painted, like the diner's back bar, because it is the thing you look at
   // while you queue. But where the diner's back bar is domestic — pie case,
   // urns, cupboards — this is a production line, and it should read as one.
-  const crewT = pixTex(128, 48, (g) => {
+  const crewT = declareSurface(pixTex(128, 48, (g) => {
     g.fillStyle = '#b0aca4'; g.fillRect(0, 0, 128, 48);           // stainless
     g.fillStyle = 'rgba(255,255,255,0.16)';
     for (let x = 0; x < 128; x += 4) g.fillRect(x, 0, 1, 48);     // brushed grain
@@ -167,7 +167,7 @@ export function buildBurger(ctx: CtxBuild): void {
     for (let x = 0; x < 128; x += 16) g.fillRect(x, 24, 1, 24);
     g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 24, 128, 1);
     dither(g, 128, 48, 60);
-  });
+  }), 'detail');
   const crew = new THREE.Mesh(new THREE.PlaneGeometry(CL + 1.4, 2.4), ctx.flat(crewT));
   put(crew, CCX, 1.35, -hd + 0.05);
 
@@ -296,7 +296,7 @@ export function buildBurger(ctx: CtxBuild): void {
   }
 
   // ── the bin, beside the door, with the swing flap ──
-  const binT = pixTex(24, 32, (g) => {
+  const binT = declareSurface(pixTex(24, 32, (g) => {
     g.fillStyle = '#8a4a3a'; g.fillRect(0, 0, 24, 32);            // moulded brown body
     g.fillStyle = 'rgba(0,0,0,0.2)';
     for (let y = 4; y < 32; y += 6) g.fillRect(0, y, 24, 1);
@@ -305,7 +305,7 @@ export function buildBurger(ctx: CtxBuild): void {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('THANK', 12, 13);
     dither(g, 24, 32, 24);
-  });
+  }), 'sign');
   const bin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.0, 0.5), ctx.flat(binT));
   // -5.6, not -1.9. At -1.9 the bin stood between the front row's window-side
   // stool and the wall, and its padded box met the unit's with no gap at all —
