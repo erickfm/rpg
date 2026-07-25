@@ -1442,3 +1442,43 @@ its ground.
 > to stop needing it.** The exemption would have been granted and the check would
 > still not have run — an exemption is permission to stay outside the suite, and
 > what I actually wanted was to be in it.
+
+## The wheel-arch DONE still stands, and I am not converting a shaky number into doubt
+
+Withdrawing `looks.mjs`'s arch clause last round could read as reopening the
+**wheel arches** — the last item the user asked me to grade, with *"if it still
+misses, say so plainly."* It does not. Re-measured with `arch2.mjs`, which is
+self-locating and was the instrument the verdict actually rested on:
+
+```
+tyre top y 0.663 (car-local) · arch line 0.72 · 5.7 cm of arch above the tyre
+```
+
+**Unchanged.** `looks.mjs` was comparing a *world-space* maximum to that
+car-local line; `arch2.mjs` never did. The DONE stands, and it stands on having
+walked the fleet at standing eye height, which is the right evidence for a
+question about what something looks like.
+
+### The number I am declining to report
+
+`arch2.mjs` also classifies each tyre as proud of or inboard of the flank — **5
+proud, 8 inboard** — and a tyre standing proud is exactly what H diagnosed as
+occluding the arch behind it. That looks like a finding and I am not filing it:
+
+```
+tyre z -51  top y 0.64   #323826   PROUD of flank by 0.140
+tyre z -47  top y 0.663  #101114   inboard of flank
+```
+
+Every real tyre reads **0.663** and **`#101114`**. The proud entry reads **0.64**
+and **`#323826`** — a different height *and* a different colour. **My finder
+identifies tyres by shape**, and my own instruments note says it plainly: *every
+probe that tried to infer what a thing is from its shape has eventually been
+wrong.* The most likely reading is that it caught something that is not a tyre.
+
+So the proud/inboard split is **data I do not trust enough to route**, and
+converting it into "the arches have regressed" would be the third time this
+audit turned a misidentified object into a verdict about the fleet.
+
+> A number that contradicts a verdict deserves a look before it deserves a
+> retraction. This one has the wrong colour.
