@@ -63,25 +63,27 @@ export interface LotSite {
 
 /** Everything this module makes solid — the office, the sign poles and the
  *  stock. The site's own boundary and back are D's and already registered. */
-export const LOT = {
-  live: false,
-  colliders: [] as AABB[],
-  /** Where the lot actually IS, in world metres, filled in by `placeLot`.
-   *
-   *  Published because the alternative is a remembered coordinate, and a
-   *  remembered coordinate has now misrouted the same finding twice: a
-   *  whole-world checker was pointed at `30 60 -105 -90` as "the car lot" and
-   *  reported thirteen faults against this file. That box holds none of this
-   *  module — the office board is at x 26.07, z 2.6 — and the thirteen belong
-   *  to a neon module ten blocks away.
-   *
-   *  Nothing here decides where the lot goes; D's `openSite` does. This is a
-   *  read-back of what it was handed, so a tool can ask instead of guess:
-   *
-   *      import { LOT } from './lot';
-   *      LOT.bounds   // → { minX, maxX, minZ, maxZ } once LOT.live */
-  bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
-};
+// NOTHING IS PUBLISHED HERE ANY MORE, and that is the point.
+//
+// There used to be an `export const LOT` carrying `live`, `colliders` and
+// `bounds`. It was designed when the lot was an unwired module and
+// crosstown.ts was expected to notch its blanket collider using a gate span
+// read off this object. That wiring never happened — `openSite` and
+// `register(ctx)` replaced it — and the export was never deleted.
+//
+// E's verify sweep asks a question worth stealing: does everything a module
+// publishes have a READER? These had none. Nothing in the tree imports this
+// file at all; the world finds it through world.ts's glob and calls
+// `register`. `LOT.colliders` was never read because colliders reach the world
+// through `ctx.obstacle`; `LOT.live` was written and never asked; and
+// `LOT.bounds`, which I added two rounds ago to stop attribution being a
+// guess, was obsolete within a day — `userData.mod` does the same job from the
+// scene graph, three scripts read it, and A's note concluded the stamp beats a
+// bounds registry.
+//
+// Unread published state is worse than none: the next reader will find it,
+// believe it, and it is only correct if `placeLot` happened to have run.
+
 
 /** `openSite` leaves the middle of the street edge open as the gate, as a
  *  fraction of the frontage taken off each end. Must match the `gate` it is
@@ -115,7 +117,10 @@ export function register(ctx: CtxBuild) {
   lot.placeLot(site);
 }
 
-export function buildLot(o: {
+/** Not exported: `register` above is the only entry point, which is the
+ *  contract world.ts states. Exporting it published a second way in that
+ *  nothing used. */
+function buildLot(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
   /** register a ground material for the rain's wet-look tint, if the caller
@@ -153,7 +158,7 @@ export function buildLot(o: {
     decals.push({ m, base: m.color.clone() });
     return m;
   };
-  const colliders: AABB[] = LOT.colliders;
+  const colliders: AABB[] = [];
   const solid = (b: AABB) => { colliders.push(b); o.obstacle?.(b); return b; };
   const wet = o.wet ?? ((m: THREE.MeshBasicMaterial) => m);
 
@@ -393,8 +398,6 @@ export function buildLot(o: {
   const placeLot = (site: LotSite) => {
     if (placed) return;
     placed = true;
-    LOT.live = true;
-    LOT.bounds = { minX: site.minX, maxX: site.maxX, minZ: site.minZ, maxZ: site.maxZ };
     // Everything this module adds gets stamped, and the mark is taken here.
     // All 51 scene.add calls in this file are inside placeLot and placeLot is
     // synchronous, so children from `mark` to the end are exactly ours.
@@ -1616,5 +1619,5 @@ export function buildLot(o: {
     }
   };
 
-  return { placeLot, colliders, LOT };
+  return { placeLot, colliders };
 }

@@ -49,12 +49,8 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
 }
 
 export interface Apartment {
-  /** local → world helpers; the door spots outside are placed with these */
-  AX: (lx: number) => number;
-  AZI: (lz: number) => number;
-  /** storey height */
-  ST: number;
-  /** hall/stair/room walls, plus the floor-aware caps updated by updateCaps */
+  /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
+   *  this module's own per-frame hook */
   colliders: AABB[];
   /** the floor picker: world x/z → ground height, with hysteresis */
   ground: (wx: number, wz: number) => number;
@@ -62,16 +58,25 @@ export interface Apartment {
   gy: () => number;
   /** set it and hand it back, so callers can `return setGy(…)` */
   setGy: (v: number) => number;
-  /** per-frame: stair guards that follow the floor you're standing on */
-  updateCaps: (px: number) => void;
-  /** per-frame: he keeps his own hours — mostly afternoons. Takes the
-   *  player's position now as well, because the sprite turns itself to face
-   *  you rather than reading its own yaw back a frame after the billboard
-   *  pass has set it. */
-  updateHermit: (hAbs: number, px: number, pz: number, dt: number) => void;
   /** debug hook: force him in (true) / out (false) / back on schedule (null) */
   forceHermit: (v: boolean | null) => void;
 }
+
+// WHAT CAME OFF THIS INTERFACE, and why it is worth a note rather than a
+// silent deletion. It also published `AX`, `AZI`, `ST`, `updateCaps` and
+// `updateHermit`. Counting readers across the tree: none of the five had one.
+//
+// `AX`/`AZI`/`ST` are this building's own local-to-world helpers and never
+// meant anything outside it. `updateCaps` and `updateHermit` genuinely were
+// called from the entry point once — they moved into this module's own
+// `ctx.onFrame` when [E] spots did, and the interface kept advertising them
+// afterwards.
+//
+// E's verify sweep asks whether everything a module publishes has a reader,
+// which is a good question to steal: an unread export is a promise nobody
+// checks. `updateHermit` had drifted to a four-argument signature by then, so
+// anything that HAD called it would have broken — the interface was describing
+// a building that no longer existed.
 
 export function buildApartment(ctx: CtxBuild): Apartment {
   const { scene, boards, sidewalkY } = ctx;
@@ -1694,13 +1699,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   }
 
   return {
-    AX, AZI, ST,
     colliders: sevColliders,
     ground: aptGround,
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
-    updateCaps,
-    updateHermit: updateHermitAt,
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
   };
 }
