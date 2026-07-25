@@ -555,7 +555,11 @@ the troffer bloom covers for it.
 
 ## Coverage — round 7
 
-- **Jamb reveals not re-shot.** Wall thickness measures 0.18 m in all three
-  rooms, which is what produces the reveal, and I verified it visually in the
-  diner in round 1 — but I have not looked at the burger or thrift jambs.
+- **Jamb reveals: checked, sound.** `shots/cmp-burger-reveal.png` and
+  `shots/cmp-thrift-reveal.png` — both openings show the jamb return on *both*
+  sides, the header over, and the leaf swung clear, each in its own trim colour
+  (burger red, thrift brown). The 0.18 m wall is doing exactly what the kit
+  claims for it: *"there is no way to get a paper wall out of this kit."* With
+  the diner from round 1 that is all three rooms verified, and it is the single
+  strongest thing the kit does.
 - Four of seven rooms still source-only; three of ten unwritten.

@@ -47,6 +47,23 @@ output is what has to agree across ten rooms.
 New finding 16: the thrift's two tubes glow differently from each other — one
 has a ceiling pool, one has none. Reads as a broken fixture, not a choice.
 
-Left:      Jamb reveals not re-shot in burger/thrift (thickness measures 0.18 in
-           both, and the reveal was verified in the diner in round 1). Four of
-           seven rooms source-only; three of ten unwritten.
+### Jamb reveals — checked, sound
+
+Both openings show the jamb return on *both* sides, header over, leaf swung
+clear, each in its own trim colour. With the diner from round 1 that is all
+three rooms verified. The kit's claim — *"there is no way to get a paper wall
+out of this kit"* — holds, and it is the single strongest thing it does.
+
+### Queue state — blocked, not finished
+
+Neither item has available work:
+
+- `## Now` (interiors, standing): no new room and no wiring change since round 6.
+  Every gap I was carrying in my own coverage section is now closed — exits
+  walked, light judged, jambs checked. Next useful pass needs a builder to land
+  a room, or the desk to wire the four dark ones.
+- `## Next` (pattern #1): done and re-verified clean twice; no change to the
+  three masonry files since.
+
+Left:      Four of seven rooms source-only until wired; three of ten unwritten.
+           Sign mirroring (seam R1) still unverified since the signs were moved.
