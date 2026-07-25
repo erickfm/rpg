@@ -199,8 +199,25 @@ if (unmeasured.length) {
   for (const u of unmeasured) console.log(`  ?  ${u}`);
   console.log('  The doorway scan inside is still the weak half of this script.');
 }
-console.log(fails.length ? `${fails.length} of ${ROOMS.length - unmeasured.length} measured rooms do not mirror`
-  : `all ${ROOMS.length} rooms mirror: the door swaps sides when you walk through it`);
+// NOTHING MEASURED IS NOT SUCCESS.
+//
+// This read `fails.length ? "N do not mirror" : "all N rooms mirror"`, so a run
+// that measured NOTHING printed "all 5 rooms mirror" — a green verdict from zero
+// evidence. I saw it do exactly that while trying a new scan, and it is the
+// worst failure available to a verification harness: the user asked for this to
+// be checked on every building, and a check that cannot see is indistinguishable
+// from one that has looked.
+const measured = ROOMS.length - unmeasured.length;
+if (!measured) {
+  console.log(`NOTHING MEASURED — ${ROOMS.length} rooms, 0 checked. This is not a pass.`);
+} else if (fails.length) {
+  console.log(`${fails.length} of ${measured} measured rooms do not mirror`);
+} else {
+  console.log(`all ${measured} MEASURED rooms mirror: the door swaps sides when you walk through it`
+    + (unmeasured.length ? `  (${unmeasured.length} unmeasured — NOT verified)` : ''));
+}
 if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
 await b.close();
-process.exit(fails.length || errs.length ? 1 : 0);
+// unmeasured is not a failure of the world, but a run that measured nothing is a
+// failure of the harness, and it must not exit 0 pretending otherwise.
+process.exit(fails.length || errs.length || (ROOMS.length && !measured) ? 1 : 0);
