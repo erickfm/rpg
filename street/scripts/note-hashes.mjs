@@ -87,13 +87,35 @@ if (!checked) {
   process.exit(3);
 }
 
+// The recovery table, if it is there. 12be9e163 built the dead->live mapping
+// while the orphaned objects still existed, verified with `git patch-id
+// --stable`. Reading it here turns this check from "something is broken" into
+// "change this to that", which is the difference between a red anyone can act
+// on and a red that needs its author.
+//
+// Optional on purpose: the table is another builder's file and may be renamed,
+// finished or deleted. Its absence costs the suggestion, not the check.
+const RECOVERY = 'notes/AUDIT-hash-recovery.md';
+const recover = new Map();
+try {
+  for (const line of readFileSync(RECOVERY, 'utf8').split('\n')) {
+    const m = line.match(/^\|\s*`([0-9a-f]{7,40})`\s*\|\s*`([0-9a-f]{7,40})`\s*\|/);
+    if (m) recover.set(m[1], m[2]);
+  }
+} catch { /* no table; suggestions are simply absent */ }
+
 let n = 0;
 for (const [f, list] of [...dead].sort((a, b) => b[1].length - a[1].length)) {
   console.log(`\n  ${f} — ${list.length} unreachable from ${MAIN}:`);
-  for (const [h, subj] of list.slice(0, 6)) console.log(`     ${h}  ${subj.slice(0, 62)}`);
+  for (const [h, subj] of list.slice(0, 6)) {
+    const live = recover.get(h) ?? [...recover].find(([k]) => h.startsWith(k) || k.startsWith(h))?.[1];
+    console.log(`     ${h}  ${subj.slice(0, 52)}`
+      + (live ? `\n        -> mainline holds it as ${live}` : ''));
+  }
   if (list.length > 6) console.log(`     ...and ${list.length - 6} more`);
   n += list.length;
 }
+if (recover.size) console.log(`\n  (${recover.size} repointings available in ${RECOVERY})`);
 
 if (n) {
   if (SELFTEST) { console.log('SELFTEST PASSED — the unreachable citation was caught'); process.exit(0); }
