@@ -443,7 +443,7 @@ export function makeBus(): THREE.Group {
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   const busFront: THREE.Mesh[] = [];
-  for (const wx of [-BUS_HW + 0.15, BUS_HW - 0.15]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
+  for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
     // YZX: the steer angle must turn the wheel about its own VERTICAL, after
     // the cylinder has been laid on its side — with the default XYZ order the
@@ -782,7 +782,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   if (state.jack) off.add(state.jack);
   if (state.blocks) for (const c of ['fl', 'fr', 'rl', 'rr'] as Corner[]) off.add(c);
 
-  for (const wx of [-0.77, 0.77]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
+  for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
     if (off.has(corner)) continue;
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
