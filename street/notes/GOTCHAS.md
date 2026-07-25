@@ -225,3 +225,20 @@ Two rules follow:
   a stale diner z in a trigger harness, a hand-typed room offset, a hand-typed
   `DZ`. `scripts/doorsweep.mjs` finds things by walking and has never been
   wrong. Copy it.
+
+## 21. If you need a person, CALL THE ATLAS
+
+`ct/citizens.ts` draws people properly — 8 angles, build, skin, hair, garment,
+pace, grime — and `citizenSprite(look, {facing, h, w})` returns a ready-to-add
+billboarding mesh. **Never hand-draw a figure on a plane.**
+
+Five agents did exactly that before this was written down, because nothing told
+them the atlas existed: the diner waitress first, and then the bodega keeper,
+the casino, the hotel and the tax office each copied her because she was the
+nearest example. The user noticed immediately — *"the people inside these
+places are always flat and not like the people on the street"* — and it was
+one missing document, not five bad decisions.
+
+Read `notes/CITIZEN-STYLE.md` first. It has the options, the rules that are
+easy to get wrong, and a rendered contact sheet so you can SEE the kinds of
+person this world has.

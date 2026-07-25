@@ -11,6 +11,7 @@ project. This page gets you productive; everything else is linked from it.
 | **notes/GOTCHAS.md** | 120 lines | landmines. read before your first change |
 | **notes/OWNERSHIP.md** | 53 lines | which files are yours |
 | **notes/queues/\<you\>.md** | short | your actual tasks |
+| **notes/CITIZEN-STYLE.md** | read before drawing ANY person | the 8-angle atlas, with examples |
 
 Two more exist as **reference**, not reading: `PARALLEL-WORKFLOW.md` (the
 multi-agent process, look things up in it) and `FEATURE-REQUESTS.md` (every
