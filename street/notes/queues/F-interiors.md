@@ -28,6 +28,55 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Generalise your glob so ANY new world module is in the world by
+      existing.** The user: *"can you just make the new module incorporation
+      automatic?"* — and they are right, this beats a check that fails.
+
+      **You already built it.** `ct/interior.ts` does
+      `import.meta.glob('./int-*.ts', { eager: true })` and `buildAllInteriors`
+      walks the result. That is exactly the mechanism; it just only covers
+      `int-*`. `park.ts` and `lot.ts` are outside the glob, which is why both
+      were finished and invisible.
+
+      **The obstacle is signatures, and solving it fixes a second bug.**
+      Auto-calling needs a uniform contract, and today it cannot exist:
+      `buildPark(ctx, site, gate)` and `buildLot(o)` need to be told WHERE
+      they stand, and that number currently reaches them by the desk relaying
+      it from D by hand. That relay has already failed twice — the diner's
+      `[E]` prompt ended up on the bank because the desk never passed on a
+      z-span, and the car lot sat waiting on one.
+
+      So make the site part of the contract:
+      · **D's roster registers named sites** as it lays the block out —
+        `ctx.site('park', { z0, z1, side })`, `ctx.site('lot', ...)`, and the
+        same for every building slot
+      · **a world module asks for its own site**: `ctx.site('park')` returns
+        it, or null if the roster does not have one, in which case the module
+        builds nothing and says so
+      · then every module can share one signature — `register(ctx)` — and the
+        glob can call them all without knowing anything about them
+
+      Now a builder adds `ct/foo.ts`, exports the standard entry point, and it
+      is in the world. No desk step, no relayed numbers, nothing to forget.
+
+      **Two things to be careful of:**
+      · **build order is load-bearing.** One seeded `rnd()` stream feeds tree
+        heights and pigeon placement at construction, so a change in call
+        order moves every tree in the world (`GOTCHAS.md` §2). Do NOT rely on
+        filesystem or glob order — give modules an explicit order value the
+        way `ctx.onFrame` already does with `ORDER`, and sort by it.
+      · **verify world-neutral**: `npm run fp` before, glob after,
+        `npm run fpdiff`. Textures and structure must come back identical;
+        4–6 pigeons drifting is the noise floor. If trees move, your ordering
+        is wrong.
+
+      Land the three-line park/lot wiring FIRST if you have not already — the
+      user is waiting to walk into both — then do this as its own commit.
+
+      Builder A has been stood down from the build-time check; this replaces
+      it. Tell the desk when the contract lands so D can start registering
+      sites.
+
 - [ ] **THE PARK AND THE CAR LOT ARE NOT IN THE WORLD. Three lines. Do this
       first, commit it alone, then continue.**
 

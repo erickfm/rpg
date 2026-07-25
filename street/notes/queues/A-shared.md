@@ -12,33 +12,13 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
-- [ ] **Make "written but never wired" impossible. It has now shipped five
-      times.** You own `scripts/**`, so this is yours.
-
-      Five complete modules have been committed and never constructed:
-      `int-casino`, `int-hotel`, `int-tax`, and now `park` and `lot`. Each was
-      finished work by a builder who then had no way to put it in the world,
-      because the single `buildX(ctx)` line that constructs it lives in
-      `crosstown.ts`, which is desk-owned. The user has twice gone looking for
-      something they asked for and found nothing there.
-
-      **Add a check that fails the build.** Something like: for every
-      `src/proto/ct/*.ts` that exports a function matching `build*`, assert
-      that the symbol is imported and called somewhere under `src/proto/`. Any
-      module deliberately not wired must be explicitly allow-listed with a
-      comment saying why, so opting out is a visible decision rather than an
-      accident.
-
-      Wire it into `npm run build` so it gates the same way `tsc` does — the
-      merge train typechecks after every merge, so a failing check will
-      attribute the miss to the builder that caused it, which is exactly the
-      behaviour we want.
-
-      This is a small script and it prevents an entire class of invisible
-      failure. Do it before the facade work.
-
-      Builder F is separately wiring the two live instances right now; you are
-      stopping the sixth.
+- [ ] ~~**Make "written but never wired" impossible**~~ — **STOOD DOWN.**
+      The user asked for automatic incorporation rather than a check that
+      fails, which is the better answer, and builder F already has the
+      mechanism: `ct/interior.ts` glob-imports `int-*.ts` and F is
+      generalising it to all world modules. A check that a contract is
+      followed is worth far less than a contract that cannot be skipped.
+      **Go back to the facade work** — that is what the user is looking at.
 
 - [ ] **Export where the door and window ARE. The interiors are guessing.**
       The user: *"i need the facades to line up with the interior. so if the
