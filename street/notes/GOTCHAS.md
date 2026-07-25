@@ -931,3 +931,18 @@ Two rules: anything the desk writes to a tracked file gets committed in the
 same breath, and if `land.sh` reports `merge failed` for more than one builder
 at once, **check mainline's own tree first** — a single shared cause is far
 likelier than several builders conflicting simultaneously.
+
+## 26. A stopped integrator means a STALE world — refresh it after every batch
+
+Turning the integration loop off during a playtest is right (§24). Forgetting
+to refresh it is not. The world sat **47 minutes and 226 commits behind** while
+the user playtested it and reported faults that had already been fixed — the
+bunting, among others, was rebuilt and they were still looking at the old one.
+
+The desk's job when the loop is off:
+
+- run `scripts/pull-latest.sh` **after every batch of fixes lands**, and tell
+  the user to reload — they cannot know the world moved
+- when a user reports something as still broken, **check the live world's age
+  before routing it**. `git -C ../rpg-live log -1 --format=%cr` takes a second
+  and prevents a builder being sent to fix what it already fixed.
