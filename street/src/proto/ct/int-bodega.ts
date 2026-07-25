@@ -64,6 +64,17 @@ export function buildBodega(ctx: CtxBuild): void {
     // player walks up to. `front-right` is that same corner in room-local
     // terms, and 2.0 of cut along each wall reproduces its length: hypot(2,2)
     // = 2.83, the face's own measurement rather than a number that looks right.
+    // The kit CAN put the door in the cut — `door: true` on this line, and the
+    // diagonal builds as two segments with the opening between them. It is not
+    // switched on here yet, and the reason is not the geometry: with it set the
+    // room drops 25/25 -> 20/25 because five checks locate "the inside of the
+    // door" from the FRONT WALL, and the door is no longer in that wall.
+    //
+    // So the door-in-cut needs interiors-walk to take the doorway from the room
+    // rather than assume the front wall — the same "ask, do not remember" the
+    // room dimensions already went through. Shape now, door when the harness
+    // can follow it, because a room that walks red is a room nobody can verify
+    // the next change against.
     chamfer: { corner: 'front-right', cut: 2.0 },
     palette: { floor: 0xa89e88, wall: 0xc4c8b4, ceil: 0xbcbcae, trim: 0x5a4a34 },
     // Fluorescent battens, and all three work. A bodega is over-lit on

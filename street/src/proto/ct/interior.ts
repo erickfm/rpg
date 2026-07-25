@@ -178,7 +178,17 @@ export interface RoomSpec {
    * room that looks square and behaves chamfered is a worse bug than the one
    * being fixed.
    */
-  chamfer?: { corner: 'front-left' | 'front-right' | 'back-left' | 'back-right'; cut: number };
+  chamfer?: {
+    corner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
+    cut: number;
+    /** put the DOOR in the cut face rather than in the front wall. This is the
+     *  half of the user's ask that "the room is the right shape" does not
+     *  cover: the bodega's door is literally on the canted bay outside, so
+     *  inside it has to be in the same face. The diagonal is then built as two
+     *  segments with a gap, and the colliders skip it — no diagonal `addHole`
+     *  needed, because the opening is an absence rather than a cut. */
+    door?: boolean;
+  };
   /** the roster name of the building this room is inside, matching its
    *  `DoorDecl.building`. Only needed for a room that declares its door by
    *  `face` and therefore has no `frontage` to be named by — the side-street
@@ -675,7 +685,8 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   };
   // the door goes in first: a room with no window is a room, a room with no
   // door is a bug, so the door is the one that wins a clash
-  addHole('the door', dAt - dW / 2, dAt + dW / 2, 0, DOOR_H);
+  const doorInCut = !!spec.chamfer?.door;
+  if (!doorInCut) addHole('the door', dAt - dW / 2, dAt + dW / 2, 0, DOOR_H);
   if (win && wW > 0) addHole('the window', wAt - wW / 2, wAt + wW / 2, wSill, wSill + wH);
   const hasWindow = holes.length > 1;
   holes.sort((a, b) => a[0] - b[0]);
@@ -694,8 +705,7 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     const m = new THREE.Mesh(new THREE.BoxGeometry(0.06, y1, T), trimM);
     place(m, lx, y1 / 2, hd + T / 2);
   };
-  jamb(dAt - dW / 2, DOOR_H);
-  jamb(dAt + dW / 2, DOOR_H);
+  if (!doorInCut) { jamb(dAt - dW / 2, DOOR_H); jamb(dAt + dW / 2, DOOR_H); }
 
   if (hasWindow) {
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(wW, wH),
@@ -752,16 +762,33 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     const bx = sx * (hw - cut), bz = sz * hd;
     const mx = (ax + bx) / 2, mz = (az + bz) / 2;
     const len = Math.hypot(bx - ax, bz - az);
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(len, H, T),
-      [wallMat(len), wallMat(len), trimM, trimM, wallMat(len), wallMat(len)]);
-    panel.rotation.y = Math.atan2(bx - ax, bz - az) - Math.PI / 2;
-    place(panel, mx, H / 2, mz);
+    const rotY = Math.atan2(bx - ax, bz - az) - Math.PI / 2;
+    // the door's span along the cut, as fractions of its length
+    const gap = spec.chamfer.door ? dW / len : 0;
+    const g0 = 0.5 - gap / 2, g1 = 0.5 + gap / 2;
+    const seg = (t0: number, t1: number, y0: number, y1: number) => {
+      const L = (t1 - t0) * len;
+      if (L <= 0.001 || y1 - y0 <= 0.001) return;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(L, y1 - y0, T),
+        [wallMat(L), wallMat(L), trimM, trimM, wallMat(L), wallMat(L)]);
+      m.rotation.y = rotY;
+      place(m, ax + (bx - ax) * (t0 + t1) / 2, (y0 + y1) / 2,
+            az + (bz - az) * (t0 + t1) / 2);
+    };
+    if (gap > 0) {
+      seg(0, g0, 0, H);                 // cut face, one side of the door
+      seg(g1, 1, 0, H);                 // …and the other
+      seg(g0, g1, DOOR_H, H);           // the header over the opening
+    } else {
+      seg(0, 1, 0, H);
+    }
     // …and a stepped run of AABBs along it, because one box cannot be a 45°
     // face. Steps of ~0.35 m with the capsule at 0.36 leave nothing to slip
     // through, and the last one overlaps each wall it meets.
     const steps = Math.max(2, Math.ceil(len / 0.35));
     for (let i = 0; i < steps; i++) {
       const t0 = i / steps, t1 = (i + 1) / steps;
+      if (gap > 0 && t1 > g0 && t0 < g1) continue;   // leave the doorway open
       const x0 = ax + (bx - ax) * t0, z0 = az + (bz - az) * t0;
       const x1 = ax + (bx - ax) * t1, z1 = az + (bz - az) * t1;
       wall(Math.min(x0, x1) - T / 2, Math.max(x0, x1) + T / 2,
@@ -940,8 +967,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   // puts you inside the swing of the door leaf and a step from walking back
   // out by accident. Land a stride clear of it, still close enough that the
   // way-out prompt is already up, so you always know how to leave.
-  const spotX = wx(dAt), spotZ = wz(hd - 0.55);
-  const arriveZ = wz(hd - 1.15);
+  // On a chamfered room the way OUT is on the cut face, not on the front wall —
+  // otherwise the door you walk through and the door you leave by are in
+  // different walls, which is the original complaint wearing a new hat.
+  const CH = spec.chamfer?.door ? spec.chamfer : null;
+  const chSx = CH ? (CH.corner.endsWith('right') ? 1 : -1) : 1;
+  const chSz = CH ? (CH.corner.startsWith('front') ? 1 : -1) : 1;
+  const chMx = CH ? chSx * (hw - CH.cut / 2) : 0;
+  const chMz = CH ? chSz * (hd - CH.cut / 2) : 0;
+  const inset = 0.8 / Math.SQRT2;
+  const spotX = CH ? wx(chMx - chSx * inset) : wx(dAt);
+  const spotZ = CH ? wz(chMz - chSz * inset) : wz(hd - 0.55);
+  const arriveZ = CH ? wz(chMz - chSz * inset * 1.6) : wz(hd - 1.15);
   ctx.spot({
     x: spotOnStreet.x, z: spotOnStreet.z, r: doorR,
     ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100),
