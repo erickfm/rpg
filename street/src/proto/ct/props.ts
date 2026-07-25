@@ -137,6 +137,20 @@ export function buildProps(ctx: CtxBuild): Props {
   interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
+  // WHAT COUNTS AS GLASS. The night grading skips translucent materials on
+  // purpose — blending a graded colour through a pane is the pane's business,
+  // not the grader's. But `transparent` alone is the wrong test, because a
+  // material that also sets `alphaTest` is not translucent at all: alphaTest
+  // DISCARDS the fragment, so it never blends and grading it is safe.
+  //
+  // GOTCHAS §22 names the failure and ct/lot.ts was fixed for it, but the flag
+  // pair is set in a lot of places — measured, 101 materials across the street,
+  // the car lot and the park were standing at 100% of daylight brightness at
+  // 23:00 while the road under them sat at 4.5%. Fixing each one means finding
+  // every author; fixing the TEST fixes all of them at once, and it is right on
+  // its own terms rather than as a workaround. A mis-flagged cut-out now joins
+  // the world's grading; genuine glass still does not.
+  const isGlass = (m: THREE.MeshBasicMaterial) => m.transparent && !(m.alphaTest > 0);
   // How far a lamp reaches, and how it gets there. A sodium head 5 m up on a
   // 1.25 m crook lights a STRETCH of pavement — you walk out of one pool and
   // into the next — and the old 4 m radius with a straight linear falloff made
@@ -247,7 +261,7 @@ export function buildProps(ctx: CtxBuild): Props {
       const mm = (o as THREE.Mesh).material;
       if (!mm) return;
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
-        if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
+        if (!m || !m.color || isGlass(m) || litSeen.has(m)) continue;
         // Excluded ONLY for genuinely non-diffuse surfaces — glass, chrome
         // and rubber, flagged in ct/cars.ts. There used to be a luminance
         // floor here too, and it is why a person in a dark coat walked under
@@ -318,7 +332,7 @@ export function buildProps(ctx: CtxBuild): Props {
       const mm = (o as THREE.Mesh).material;
       if (!mm) return;
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
-        if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
+        if (!m || !m.color || isGlass(m) || litSeen.has(m)) continue;
         if (wetMats.some((w) => w.m === m)) continue; // updateRain owns those
         litSeen.add(m);
         // world geometry is graded by its own elevation — the shopfront box
@@ -1197,8 +1211,14 @@ export function buildProps(ctx: CtxBuild): Props {
     return hi;
   };
   const flatDecal = (tex: THREE.Texture, w: number, d: number, x: number, z: number, rot: number, y: number) => {
+    // alphaTest ONLY — no `transparent`. GOTCHAS §22, and it was my own file as
+    // well as ct/lot.ts's. A cut-out DISCARDS its fragment and never blends, so
+    // the flag buys nothing, and it puts the material on dimWorld's skip list —
+    // which exists for glass. Every piece of gutter litter therefore stood at
+    // 93% of daylight brightness at 23:00 while the road it sat on was at 4.5%.
+    // Silent by construction: nobody screenshots litter at midnight.
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
-      new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: true }));
+      new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = rot;
     m.position.set(x, y + 0.004, z);
