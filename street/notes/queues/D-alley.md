@@ -17,6 +17,55 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Buildings are 3.4 m deep and every flank is the same brown. Both show
+      now.** The user: *"right side of bank facade should match front, also all
+      buildings need to be much deeper otherwise it looks like a fake
+      building"*. Ref: `shots/user-bankflank.png`.
+
+      Two one-line causes, and the user found both from one camera position:
+
+      **(a) `endM` is a single flat brown for every building on the block.**
+      `const endM = new THREE.MeshBasicMaterial({ color: 0x53382e })` is used
+      for the sides, ends and returns of EVERY building regardless of what its
+      front is made of. The bank's front is pale precast panel and its return
+      is brown brick, which is why it reads as a stage flat with something
+      else propped behind it.
+
+      A return should be made of what the building is made of. It does not
+      need the front's *detail* — a blind party wall with no windows is
+      correct and real — but it must be the same **material and palette**.
+      Derive the flank from the same spec the front is painted from rather
+      than from a shared constant. If you need a flank painter, builder A owns
+      `ct/tex-world.ts` now; ask through the desk for the export rather than
+      building a second one.
+
+      This is the same family as the two patterns already fixed today: one
+      masonry density for the world, one authoring of the door position. The
+      shape of the defect is always *the same fact decided twice, or decided
+      once and applied where it does not belong.*
+
+      **(b) Every building is a 3.4 m deep box.** That is the real "fake
+      building" complaint. 3.4 m is a corridor, not a building — a real
+      commercial block is 15–30 m deep. It did not matter while the street was
+      an unbroken wall on both sides and you never saw a return. It matters
+      now because the block has been opened up: the park, the car lot, the
+      alley and the church all expose flanks and rooflines.
+
+      Give them real depth. Things to think about as you do:
+      · **rooflines become visible from the street** once buildings are deep —
+        that is a gain, not a cost, but it means the roof needs to be worth
+        seeing rather than a flat slab
+      · **collision must follow**, and you just built the per-module footprint
+        registration for exactly this. Deeper buildings must not eat the alley,
+        the park, the car lot or the courtyards.
+      · **the ground behind the facades** is currently dead space the player
+        has never seen. Deepening the buildings CONSUMES it, which is good —
+        it is the same problem as the park and the lot needing somewhere to
+        extend into. Coordinate with builders E and C through the desk so the
+        three of you are not all claiming the same metres.
+      · depth can vary per building; they do not all need the same. A block
+        where every mass is identical depth is its own kind of fake.
+
 - [ ] **CAFE and HARDWARE become a used car lot — roster half only.**
       They are the first two entries in EAST and already adjacent (11.2 + 12
       = **23.2 m**), so no swap is needed. Take both out and hand the frontage
