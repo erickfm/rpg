@@ -544,9 +544,15 @@ it. **Streaming each result as it completes would fix most of it** — a run tha
 prints `✓ spots-walk` at minute three is useful even if minute twelve never
 arrives.
 
-*(`spots-walk` and `seats-walk` I have run individually, and both pass. The
-other four — `world-wired`, `steps-walk`, `civic-doors-walk`, `interiors-walk` —
-remain unrun by me.)*
+*(`spots-walk` and `seats-walk` I have run individually, and both pass.
+`world-wired`, `steps-walk` and `civic-doors-walk` I have since run directly and
+all three pass. **`interiors-walk` has now failed five times, each for a
+different reason** — wrong port, preview instead of dev, HEAD moving mid-run, a
+`cd` that was already applied, and another builder's dev server on 4185 — and on
+the sixth attempt, on my own dev server with everything correct, it ran past the
+point where holding a commit cost more than the result was worth. **I stopped
+it deliberately rather than let it block work in hand.** It is the one check in
+the project I have never seen complete.)*
 
 **So my "28 green, one red" covers the FAST tier only.** The six walking suites
 are unrun by me and I am not claiming anything about them. `spots-walk` and

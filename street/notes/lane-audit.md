@@ -407,3 +407,100 @@ that it cannot happen.
 
 This closes the lane thread. Built: 0.89 → 1.15 m, two independent methods.
 Lived: median 0.77 m, floor 0.72 m, never disconnecting.
+
+## Round 8 — reconciling my 0.72 m against mainline's 1.24 m
+
+`81603988` reports *"0 of 1196 sealed, tightest real gap 1.24 m"*. I reported the
+lived lane's worst clear width as **0.72 m**. Same street, same question in
+outline, numbers a metre apart — so one of us is measuring something else.
+
+**First suspect: my band.** I scanned x 4.6…7.4, which is 2.8 m and reaches
+below the kerb (5.0) and past the facade collider (6.7). Re-run with the band
+clipped to the actual pavement:
+
+```
+band                    worst   median    best     (clear width, 10 samples)
+mine (4.6…7.4)           0.77     0.77     0.77
+pavement (5.0…6.7)       0.72     0.72     1.12
+```
+
+**Not the band.** Both give ~0.72–0.77 m. My figure is robust to that choice and
+the disagreement is real.
+
+### We are measuring different things, and both are right
+
+`81603988`'s question is *"can a **stopped citizen** seal the lane?"* — its
+tightest figure is the tightest gap **around a citizen**. Mine is *"what is the
+narrowest passage **anywhere** on the walk?"*, which includes every static thing
+on it: bins, benches, lamp posts, the hydrant, A-boards, tree pits.
+
+My own Round 3–4 found static pinches at 1.15 m from lamp posts alone. Put a bin
+or a bench near one and a single station drops well below that without a citizen
+being involved at all.
+
+> **1.24 m is the tightest a citizen makes it. 0.72 m is the tightest the street
+> is.** Neither refutes the other, and the second is the one a player walks
+> through.
+
+**Their conclusion stands and so does mine**: no citizen seals the lane — I
+found the same, 0 of 20 samples impassable and 0 of 4 flood-fills losing a
+destination — and separately, the narrowest passage in the world is 0.72 m,
+which is exactly the player's width.
+
+I am recording the reconciliation rather than arguing it, because the two
+figures answer two questions and the only mistake available here is quoting one
+as though it answered the other.
+
+## Round 9 — located: **0.77 m on the west walk at z −28, and it is static**
+
+I reported a worst clear width and never said where, which made it unroutable.
+Located, and reproducible across samples 1.5 s apart:
+
+```
+west walk  z -28.0   clear 0.77 m
+west walk  z -28.5   clear 0.77 m
+east walk  z -12.0   clear 0.87 m
+```
+
+**What bounds it** — the colliders within 0.8 m of that station:
+
+```
+21.72 × 16    x -28.6 … -6.88    the building; its facade is at -6.88
+ 0.50 × 0.50  x  -6.25 … -5.75   a post, standing mid-pavement
+ 2.10 × 5.20  x  -4.97 … -2.87   a parked car, in the road
+```
+
+Facade at −6.88, kerb at −5.00, and **a 0.5 m post sitting between them at
+−6.25 … −5.75**. That leaves 0.63 m on the inboard side — **impassable for a
+0.72 m player** — and **0.75 m outboard**, which passes with **3 cm to spare**.
+
+**No citizen involved.** Both samples identical, and the bounding objects are a
+building and a post.
+
+### Which means `lane3.mjs` has a blind spot, and it is mine
+
+`lane3` reports the world clears **1.15 m**. This station is **0.77 m**. Both
+instruments are correct about their own question:
+
+| | measures |
+|---|---|
+| `lane3.mjs` | the gap between **neighbouring collider faces along the run** |
+| the corridor scan | the widest free passage **across** the walk at each station |
+
+A post standing in the middle of the pavement barely changes any along-run gap —
+its neighbours up and down the street are metres away — but it halves the
+corridor you actually walk through. **`lane3` cannot see a mid-walk obstruction,
+by construction.**
+
+> **My most-quoted lane figure understates the tightest real passage by 38 cm**,
+> and it does so systematically rather than by accident.
+
+That does not retract the encroachment work: 0.89 → 1.15 m is a true statement
+about the gaps `lane3` measures, and the two constants that produced it were
+real. But *"the world clears 1.15 m"* should read *"the world's along-run gaps
+clear 1.15 m"*, and the narrowest passage a player crosses is **0.77 m at
+(−6.0, −28)**.
+
+**Routable**: a 0.5 × 0.5 post at roughly (−6.0, −28.2) leaves 3 cm beside the
+kerb and nothing at all on the shop side. Whoever owns it may well want it there
+— but it is the tightest point in the world and nothing was measuring it.
