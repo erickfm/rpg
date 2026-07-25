@@ -521,9 +521,9 @@ the audits, which is where the routing actually happened.
 
 | what | commit |
 |---|---|
-| **0.18 m of sidewalk given back.** The lane audit's headline: every building's collider sat 0.3 m inside its facade, so the "sacred 2 m" was 1.70 m everywhere. Measured the relief — deepest thing at walking height is the jamb at 0.12 — and published `WALK_PROJECTION`. Eight stretches moved problem → tight. | `9f6ba0a2` |
+| **0.18 m of sidewalk given back.** The lane audit's headline: every building's collider sat 0.3 m inside its facade, so the "sacred 2 m" was 1.70 m everywhere. Measured the relief — deepest thing at walking height is the jamb at 0.12 — and published `WALK_PROJECTION`. Eight stretches moved problem → tight. | `833d4296f` |
 | **The site boundary moved off the walk.** `openSite`'s rail straddled the street line, putting its whole 0.36 m in the pavement on BOTH sites. Routed by C with a measurement. Block-wide: 15 stretches under 1.20 m → **six, none graded problem**. | `5be75c19` |
-| **The alley stopped showing sky over its own back wall.** End-wall height derived from the taller neighbour instead of a literal 12.8 that stopped being true. | `ff9c60ff` |
+| **The alley stopped showing sky over its own back wall.** End-wall height derived from the taller neighbour instead of a literal 12.8 that stopped being true. | `1484a2f7e` |
 | **The alley floor painted per metre** — 9.7 px/m against a 32 px/m walk → 24, grain per m², stains in metres, a real drain. | `226a28b9` |
 | **The alley flanks went single-sided** once party-wall marks made their paint handed. | `98c320f2` |
 | **D-walk.mjs landed in the repo** with retries, and found the bodega door trigger was unreachable on foot (you stop 1.38 m out, outside r=1.1). | `05ca03b8` |
@@ -1812,3 +1812,35 @@ to anyone who found the first entry and stopped. The tags are all six present,
 the earliest statement of a thing is the one you find first and the retraction is
 further down. Reading it backwards — latest word per subject — is what
 `533859821` did, and it is the only order that gives the current answer.
+
+
+## Every commit hash my notes cite, checked
+
+`37552a653` and `f51f2a52e` audited the hashes their notes cite. Mine had a
+reason to be worse: **this branch has been rebased 39 times this session**, and a
+rebase rewrites my own commits, so any hash I wrote down for my own work is a
+hash that no longer exists.
+
+```
+128 hex strings cited across my notes
+126 resolve as commits
+  2 did not
+```
+
+Both were mine, both in a "what | commit" table where they can only be
+citations, and both found again by searching for what the commit did rather than
+what it was called:
+
+```
+9f6ba0a2  ->  833d4296f  Give back the 0.18 m of sidewalk that no geometry was standing on
+ff9c60ff  ->  1484a2f7e  The alley stops showing sky over its own back wall
+```
+
+`git log -S "WALK_PROJECTION"` found the first — searching for the **change**
+rather than the message, which works when you remember what a commit did and not
+what you called it.
+
+**Two in 128 is a low rate and the mechanism guarantees more.** Every rebase
+rewrites every unlanded commit of mine, so a hash is only stable once it has
+landed on mainline. Citing my own in-flight work by hash is writing down a number
+that is about to change; citing what it *did* survives.
