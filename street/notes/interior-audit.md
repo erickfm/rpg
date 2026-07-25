@@ -329,3 +329,77 @@ the room modules export rather than from hand-written calls.
 - Six of ten rooms unwritten.
 - The hotel's commit message mentions "the fall it is still standing in" — I did
   not investigate; it is not in the world to walk.
+
+---
+
+# Round 5 — five rooms written, three in the world; the frontage gap is real after all
+
+Base `add-stick-and-city98` @ `378b3c4`. F's **thrift store** landed and **is
+wired**. The casino and hotel are still not.
+
+| axis | **diner** | **burger barn** | **thrift** | casino* | hotel* |
+|---|---|---|---|---|---|
+| in the world? | yes | yes | yes | **no** | **no** |
+| clear size | 8.6 × 7.0 | 11.0 × 8.5 | 8.0 × 6.5 | 10.5 × 9.0 | 11.0 × 9.0 |
+| ceiling | 3.00 | 3.20 | 2.75 | 2.50 | 3.40 |
+| wall thickness | 0.18 | 0.18 | 0.18 | — | — |
+| wall px/m | 11.9 × 12.0 | 11.9 × 11.9 | 11.9 × 12.0 | — | — |
+| floor px/m | 18.6 × 18.3 | 20.4 × 18.8 | 20.0 × 19.7 | — | — |
+| ceiling luminance | 0.714 | 0.832 | 0.745 | 0.169 | — |
+| glows | 2 | 4 | 2 | — | — |
+
+\* spec only — not in the world, so unmeasured.
+
+## Finding 12, restated: room width is uncorrelated with frontage
+
+Round 3 called the burger barn a broken rule; round 4 called it a single
+outlier. Both were wrong, and so was my first draft of this round — I wrote that
+the gap correlated with frontage width, then checked the roster and found DINER
+is **12 m** now, not the 9.2 m I measured in round 1. The block has been re-cast
+since. Recomputed against the current roster:
+
+| room | clear + walls | shopfront frontage | fill |
+|---|---|---|---|
+| diner | 8.96 m | 12 m | **75 %** |
+| burger barn | 11.36 m | 16 m | **71 %** |
+| thrift | 8.36 m | 14 m | **60 %** |
+| hotel* | 11.36 m | 12 m | 95 % |
+| casino* | 10.86 m | 11.55 m | 94 % |
+
+There is no correlation. A 12 m frontage got both 8.6 m (diner) and 11.0 m
+(hotel); the widest frontage on the block, 16 m, got 11.0 m; the 14 m got the
+narrowest room of the five. What the numbers actually show is simpler:
+
+> **Every room is between 8.0 and 11.0 m wide, whatever it stands behind.** Five
+> independent builders converged on the same range without reference to the
+> building — which is what a free parameter with no reference value looks like.
+
+The three rooms that "fill their frontage" do so because their frontage happens
+to be near 11 m, not because anyone matched them. So the fill percentage is the
+wrong statistic; the finding is that **`w` is chosen by feel and nothing connects
+it to the shopfront the player just walked through.**
+
+The fix is a kit concern, not a per-room one: `RoomSpec` should take the frontage
+and derive `w`, or warn when `w + 2T` falls short of it. `ct/street.ts` already
+knows every building's roster width, and — as the stale 9.2 → 12 m above shows —
+that width moves, so any hand-copied number goes stale silently.
+
+## Findings
+
+| # | sev | instance | what's wrong |
+|---|-----|----------|--------------|
+| 10 | **high** *(unchanged)* | casino and hotel still unwired | `buildCasino` and `buildHotel` still never called; slab 3 measures empty. Two of five finished rooms unreachable, unchanged since round 4. |
+| 12 | **medium** *(restated)* | rooms do not grow to their frontage | see above — correlates with frontage width, not with builder |
+| 13 | medium | trigger debt now on four of five street doors | thrift measures **0.21 m closest / 0.84 m margin / centre blocked**, identical to the diner and burger barn. Every kit-convention door inherits it. |
+| 11 | **high** *(unchanged)* | ceiling spread 0.9 m | thrift at 2.75 sits inside the existing range; casino 2.50 → hotel 3.40 still bounds it |
+
+**What is holding.** Wall thickness 0.18 and wall texel density 11.9 × 12.0 are
+now identical across three independently built rooms. That is the kit's owned
+half working exactly as intended, and it is the strongest evidence yet that the
+split between "what the kit enforces" and "what it leaves free" is the whole
+story of this audit.
+
+## Coverage — round 5
+
+- Casino and hotel remain source-only; six of ten rooms unwritten.
+- Floor density still varies (18.6–20.4) and is still anisotropic within rooms.
