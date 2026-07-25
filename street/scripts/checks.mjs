@@ -25,7 +25,7 @@ const CHECKS = [
   ['check-wiring',     'is every module that was written actually built?', true],
   ['health',           'does the world initialise at all?',                false],
   ['check-seethrough', 'can you see the pavement through a shopfront?',    true],
-  ['density',          'is every masonry face at the density it declares?', true],
+  ['density',          'is every masonry face at the density it declares?', ['density']],
   ['nightgrade',       'does everything the dimmer touched actually dim?',  true],
   ['seampairs',        'do two faces that should draw the same brick?',     true],
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
