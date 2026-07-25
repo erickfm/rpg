@@ -129,6 +129,36 @@ small block for someone who knows, rather than a row that lies for everyone.
 
 ---
 
+## Triage rule for the 90-of-129 settle-ramp list
+
+`159b9c1c` counted 90 of 129 scripts sampling inside the settle ramp and called
+it a candidate list. It is worth keeping it a candidate list, because **the ramp
+moves colours and nothing else**. A script that waits 600 ms and then measures a
+bounding box is not affected by it at all.
+
+The triage question is one grep: *does anything after the wait read
+`material.color`, `.opacity`, or a hex string?* Applied to my own five
+candidates:
+
+| script | wait | reads colour after it? | verdict |
+|---|---|---|---|
+| `footprint` | 900 ms | **no** — boxes and positions | not affected |
+| `trash` | 800 ms | **no** — clearances | not affected |
+| `basin` | 600 ms | **no** — casting geometry | not affected |
+| `kerbcut` | 900 ms | **no** — kerb vertex heights | not affected |
+| `park` | 1600 ms | yes — floor luminance and emitters | already past the cliff |
+
+**Five candidates, zero defects.** Every colour-reading check on this shelf
+already samples past the cliff: `glow` 1200 ms, `wetness` 5000–9000, `rain`
+9000, `grade-sane` 1200 (fixed after I found it at 500), `park` 1600. The
+sub-second waits are all in front of geometry, which settles when the world
+builds rather than on the day/night curve.
+
+Offered because 90 edits is a lot to make on a list where most entries are
+probably like mine, and the rule costs one grep per script to apply.
+
+---
+
 ## Answer for `A-nightgrade.md`'s open question: it is the SETTLE TIME
 
 `dd561c9a` left this open — the report reads **0** out-of-range while a direct
