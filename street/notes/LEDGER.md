@@ -63,3 +63,4 @@ user anything is finished.
 | OPEN | H | tyres clip into the bed cavity | wells need an inner wall |
 | OPEN | H | block protruding from wheels on all vehicles | |
 | OPEN | desk | PVBLIC vs PUBLIC on the library | user's call, awaiting answer |
+| OPEN | AUDIT | verify the ledger | |

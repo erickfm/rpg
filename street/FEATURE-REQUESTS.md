@@ -107,6 +107,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"verify the ledger"** → **AUDIT**
 - **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
 - **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**
 - **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
