@@ -31,6 +31,17 @@ import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
 
+// GOTCHAS §34 shape one: a flag that matches nothing must not pass silently.
+// `--selftest` is the only argument these take, and `argv.includes` would let
+// `--seltest` through — you would believe you had run the selftest, the normal
+// check would run instead, and it would print a pass. Refuse what we do not
+// understand rather than quietly doing something else.
+for (const a of process.argv.slice(2)) {
+  if (a !== '--selftest') {
+    console.error(`unknown argument ${JSON.stringify(a)} — this script takes --selftest and nothing else`);
+    process.exit(2);
+  }
+}
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
 

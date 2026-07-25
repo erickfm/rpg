@@ -118,6 +118,15 @@ const walk = async (name, x, z, yaw, steps, test, fmt) => {
   return last;
 };
 
+// GOTCHAS §34 shape one: refuse a flag we do not understand rather than run the
+// normal walk and print a pass while you believe you ran the selftest.
+for (const a of process.argv.slice(2)) {
+  if (a !== '--selftest') {
+    console.error(`unknown argument ${JSON.stringify(a)} — this script takes --selftest and nothing else`);
+    process.exit(2);
+  }
+}
+
 // ── --selftest ─────────────────────────────────────────────────────────────
 //
 // Break it on purpose and require it to notice. d0fd37fb's standard: "a tool
