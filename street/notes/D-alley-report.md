@@ -12,11 +12,17 @@ the directory — `f214cf76` and `fef145bb` hit the same thing. Index first.
 
 | note | what it is | status |
 |---|---|---|
-| **`BLOCKED-D.md`** | the BODEGA frontage names the wing, not the door | **LIVE — the only thing blocking me**, needs a desk ruling |
+| **`BLOCKED-D.md`** | the BODEGA frontage names the wing, not the door; **plus the grate question** | **LIVE — needs a desk ruling** |
+| **`D-alley-grate.md`** | why I have not drawn a grate: the casting is B's, and the dish needs a ground registration | **LIVE — the detail behind the ask** |
+| **`D-endM-survives.md`** | the flat brown the user complained about is still on GOLDEN ACES and HOTEL ORPHEUS | **for G — verified visible, not touched** |
+| **`D-sign-audit.md`** | 0 of 71 signs upside-down; **`vice` is invisible to every sign audit** | **for G — the marquee is theirs** |
+| `D-bodega-corner.md` | four reported defects: two already fixed, one my misreading, one routed | for B — the corner paving pattern |
+| `D-shop-resize.md` | four of five targets met exactly; the fifth is arithmetically incompatible | answered, needs a ruling if glazing matters |
+| `D-integration-optin-exists.md` | `SHOT_WORLD=integration` already landed | H closed their item on it |
+| `D-jumping-the-clock.md` | stepping the evening; **headline magnitude withdrawn — it was rain** | corrected at the top |
+| `D-bright-at-midnight.md` | the bright-at-night sweep; **two corrections — jumped clock, and tint vs appearance** | answered by G, B and C |
 | `D-pinned-suite.md` | `scripts/pinned-suite.sh`, a checkout that cannot move under a run | live tool; answers BLOCKED-H §3 and §4 |
-| `D-integration-optin-exists.md` | `SHOT_WORLD=integration` already landed | **for H** — evidence their open item can close |
-| `D-bright-at-midnight.md` | 158 materials bright at 23:00 with no record why | routed and answered; see the postscript below on 50 that are correct but undeclared |
-| `D-graffiti-glowed.md` | the alley tags rendered 16x brighter than their wall | fixed (`4955621e`); cause fixed at root by `34a3ed95` |
+| `D-graffiti-glowed.md` | the alley tags rendered brighter than their wall | fixed; **figure corrected from 16x to 6-47x** |
 | `D-the-post-is-a-person.md` | the "mid-pavement post" is a walker | settled; `3f7b2623` retracted |
 | `D-pgrep-is-not-yours.md` | `pgrep -f` matches other builders' processes | rule, not a patch; four waiters were blocked 3h+ |
 
