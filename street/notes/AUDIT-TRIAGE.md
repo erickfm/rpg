@@ -347,6 +347,9 @@ found by the user, not by a check.
 
 ## CONFIRMED, and larger than reported: the litter floats at night — 11 objects, up to 129×
 
+> **Numbers below are TINTS, superseded.** See *"The floating litter — current state"* at the end of this file. The finding holds; the counts do not.
+
+
 `0d9146049` found this by **looking** at a wet midnight rather than by measuring,
 after its own numbers had said the area was fine: litter inside `LAMP_R` takes
 the lamp pool while the large shared walk slab cannot, because the pool is
@@ -449,6 +452,9 @@ hazard is no longer theoretical.
 
 ## The floating litter, quantified against a target: the night grade reaches the ground and not the object
 
+> **Numbers below are TINTS, and the "day ratio" target here is withdrawn.** See *"The floating litter — current state"*. The kept-fraction reasoning survives; the day-ratio framing does not.
+
+
 `ad9ba9255` tried widening the ground pool 5.6 → 11.2 m, looked at the picture,
 and reverted — correctly, and with the right reason: **the pool decal is
 additive**, so at 3.4 m it adds perhaps 0.05 to a ground sitting at 0.008 while
@@ -497,6 +503,9 @@ measurement that spans both. Excluding only what *declares* itself lit restores
 all 377.
 
 ## `floatlit.mjs` is now a check, with a threshold derived rather than chosen
+
+> **Counts below are TINT-based and superseded** (8 visible → 18). The threshold logic and the selftest are unchanged and correct.
+
 
 The litter finding has been confirmed twice and had one fix attempt fail. What it
 lacked was a way to **tell when it is fixed** and to stop it coming back, so the
@@ -748,3 +757,38 @@ Without that, every future offer produces the same red and the same note.
 **Three scripts have already arrived by that route.** `OWNERSHIP.md` is not a
 file I edit either, which is the point — this needs the desk, not another
 builder writing a fourth note proposing the same three lines.
+
+# The floating litter — current state, and the only numbers to quote
+
+This finding has been measured four times and revised three. **Three earlier
+sections of this file carry superseded counts** and now say so at the top. This
+is the one to read.
+
+**Measured at HEAD, appearance-based (`texMean × tint`), clock stepped, movers
+dropped, self-lit excluded:**
+
+```
+  229 of 322 paired objects keep more of their daylight than their ground does
+  of those, 18 are also bright enough to see: >10x their ground and lum >0.2
+  worst divergence 32.7x at (-14.93, -83.38) — day 1.8x, night 59.5x
+  FAIL
+```
+
+| | |
+|---|---|
+| **the defect** | the night grade takes ground to **4–5%** of daylight and litter to **44–61%** — the object is *under-darkened*, not over-lit |
+| **how many** | **18 visible**, 229 real. The gap is real: the ground is one 134 m mesh that can never take a lamp pool, so nearly anything small beside a lamp out-keeps it, mostly invisibly |
+| **the target** | the **kept-fraction ratio ≈ 1** — litter graded by the same factor as the ground under it. *Not* "return to the day ratio", which was tint arithmetic and is withdrawn |
+| **status** | **open and unchanged.** One fix attempt (`ad9ba9255`, widening the pool) failed for a reason that rules the approach out: the pool is additive and adds ~0.05 to a ground at 0.008 |
+| **guard** | `floatlit.mjs`, `--selftest` 3/3, red by design until fixed. Unregistered — see the `checks-registered` deadlock |
+
+**Which numbers are safe to quote from the superseded sections:** the *mechanism*
+(ground keeps 4–5%, litter 44–61%) is sound in all of them, because it is a
+same-material ratio across two times and the texture cancels. Every **count** and
+every **object-vs-ground ratio** in them is tint-based and understates the
+defect — 8 visible became 18, and 129× became 286×, once appearance was measured
+properly.
+
+> Measuring it correctly made it **worse each time**. That is worth saying
+> plainly to whoever picks up the fix: the three earlier numbers were not
+> conservative estimates, they were wrong in a consistent direction.
