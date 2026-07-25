@@ -1,6 +1,31 @@
 # BLOCKED — builder E
 
-Three things, in the order they cost the user something.
+Four things, in the order they cost the user something.
+
+---
+
+## 0. TWO FINISHED USER REQUESTS ARE STILL NOT IN THE WORLD
+
+Both are built, walk-tested and committed, and neither is live, because each
+needs one change in a file I do not own. The park's wiring landed in 2c1ccf60
+and the park appeared; these two are the same shape of thing and have not.
+
+**`notes/E-steps-crosstown.patch`** — 3 hunks in `crosstown.ts`. Until it
+lands, *"i want to be able to walk up the stairs of the library"* is not done:
+the flight is still one solid block, because `groundY` still reads
+`COURT.y` (a flat number) instead of asking `courtGround(x, z)`. It also
+carries `COURT.climbable`, which is what tells `ct/civic.ts` it is safe to
+open the treads — so the world is currently correct, just not climbable. The
+SAME patch serves the church steps.
+
+**`notes/E-church-street.patch`** — 1 hunk in `ct/street.ts` (D). Drops the
+blanket church footprint, which seals the churchyard exactly as the blanket
+wall sealed the library courtyard. `ct/civic.ts` registers the real footprint
+already.
+
+`scripts/E-walk.mjs` and `scripts/E-yard-walk.mjs` both detect which state the
+world is in and name the missing patch, so applying them and re-running is the
+whole verification.
 
 ---
 
@@ -67,5 +92,21 @@ Either the tree moves off z = −71.5, or the park boundary gives back the
 0.3 m it took.
 
 ---
+
+## 4. My `## Next` items now belong to builder G
+
+The queue still lists **GOLDEN ACES roof sign floats** and **HOTEL ORPHEUS /
+GOLDEN ACES facades want more detail**. Both are now `ct/vice.ts`, which
+`notes/OWNERSHIP.md` gives to **G** ("casino + hotel exteriors, split out of
+street.ts"). I have not touched them.
+
+The sign diagnosis, if it is useful to whoever takes it: the board is 9.2 m
+wide in z on a building only 3.4 m deep, so its legs at z = −91.8 and −98.2
+land outside the roof they are supposed to stand on. It cannot be fixed by
+moving the legs — the board has to narrow to the roof, or gain a deck.
+
+With those reassigned and the depth blocked, **my queue has nothing I can
+take**. Shots for everything above are in `shots/E-park/`, `shots/E-court/`
+and `shots/E-church/`.
 
 _Written 2026-07-24 by builder E. Delete when the depth is settled._
