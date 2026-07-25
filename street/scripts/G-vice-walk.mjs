@@ -156,8 +156,22 @@ check('the same band runs back west past both columns',
   })()) < 33.0, 'walked the middle of the band back to the hotel end');
 
 // the outer lanes SHOULD stop at a column — that is what a column is
+//
+// `tries` was 1 here and that was a mistake that took a while to show itself:
+// this check FAILED once reporting x = 34.00, its own start point, and probing
+// the lane by hand immediately afterwards reached 36.06 — the column, exactly
+// where it belongs. Nothing was wrong with the world; a citizen was standing in
+// the lane for that one run.
+//
+// runEast takes the MAX over its tries, so for a check of the form "you get this
+// far and no further" a retry can only ever correct a wanderer blocking the
+// start. There was never a reason to disable it, and disabling it turned a
+// citizen into a facade defect. The default 3 is right.
+//
+// The upper bound is what makes this check mean something, so it stays: if the
+// column vanished the walker would sail past 36.6 and this fails.
 {
-  const got = await runEast(-97.5, 34.0, 47.0, 1);
+  const got = await runEast(-97.5, 34.0, 47.0);
   check('the outer lane does stop at the first column, as a column should',
     got > 35.8 && got < 36.6, `stopped at x=${f2(got)} (column pad starts at 36.10)`);
 }
