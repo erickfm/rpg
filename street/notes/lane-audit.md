@@ -274,3 +274,48 @@ have to ratchet at the world's then-worst 0.89 m. After this fix the world
 clears **0.90 m**, and after the sign post moves it would clear **1.09 m** —
 so the guard can assert **≥ 1.00 m** with real margin rather than pinning
 today's worst case as tomorrow's floor. Builder A owns `scripts/**`.
+
+---
+
+# Round 5 — the lane result confirmed by a second, independent method
+
+`lane3.mjs` measures the gap between collider faces. `lanewalk.mjs` asks a
+different question by a different route: **flood the pavement at the player's own
+radius and measure the narrowest continuous corridor.** Nothing in one derives
+from the other.
+
+```
+(static colliders only; movers dropped by double-sampling)
+
+west walk   centre corridor 0.60 m  ->  clear width 1.32 m   at z -36.5
+east walk   centre corridor 0.40 m  ->  clear width 1.12 m   at z -92.5
+
+lane3.mjs (collider-gap method): the world clears 1.15 m
+```
+
+**1.12 against 1.15 — a 3 cm difference, which is under one sampling step at my
+5 cm resolution.** The lane result now rests on two independent measurements
+rather than one, and it is the claim I have most often quoted.
+
+## And the first run found something real
+
+Before dropping the movers, the same sweep reported a **0.05 m** centre corridor
+on the west walk at z −27.75. That is not an error — it is **a citizen standing
+on the pavement**.
+
+| | centre corridor | clear width |
+|---|---|---|
+| the built lane, tightest | 0.40 m | **1.15 m** |
+| the same pavement with a pedestrian on it | **0.05 m** | **0.77 m** |
+
+The player capsule is 0.72 m across, so **0.77 m still passes — by 5 cm.**
+
+> **Squeezing past a standing citizen on the narrowest stretch leaves five
+> centimetres.** It is passable, it is transient because people walk on, and it
+> is not a defect in the lane. But it is the tightest the world ever gets in
+> practice, and it is a full 38 cm tighter than any static measurement reports.
+
+I am recording it rather than routing it: nothing is blocked, and a pavement
+where you have to edge past someone is a street, not a bug. The number is worth
+having because **every lane figure in this report is a built-lane figure**, and
+this is the first measurement of what a player actually walks through.
