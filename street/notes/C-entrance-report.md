@@ -251,3 +251,64 @@ evidence, not a failure. Building the wrong fix disproved the diagnosis
 faster than staring at the frame would have, and the cost was one commit's
 worth of work that got reverted in the same session rather than a wrong
 explanation left in the report for someone else to inherit.
+
+---
+
+## RE-WALK, 2026-07-25 — after the spawn moved into 301
+
+The whole list above was closed, so this is a fresh pass over a building that
+now matters more than it did when the report was written: **the player spawns
+in 301**. This is everybody's first thirty seconds and the walk down is the
+first thing they do. Seventeen viewpoints, floor 3 to lobby, clock 14:30,
+shots in `shots/walkup/01..19`.
+
+**No console errors anywhere in the building.** The floor picker agrees with
+the storey asked for at every landing and every room; three viewpoints reported
+a disagreement and all three are mid-flight on the ramp, which is the picker
+being right.
+
+**Finding 1 confirmed closed by looking, not by the table.** From inside the
+lobby it is now the same double green door under the same glazed transom, and
+the gold reads `Γ55` through the glass — which is `227` mirrored, exactly as
+intended: under a horizontal flip the 5x5 glyph for `2` becomes the glyph for
+`5` and `7` becomes `Γ`. `18-transom-inside.png`.
+
+### NEW — the north wall of 301 is bare, floor to ceiling
+
+`03-301-north.png`. The only finding of this pass, and the spawn is what
+promotes it from a detail to the first thing worth fixing in the building.
+
+You wake facing the window. Three of the four things you can turn to pay off —
+the window and the street three storeys below, the poster and the TV on the
+south wall, your own door with the 301 plate swung into the room — and the
+fourth is a wall with nothing on it at all, from skirting to ceiling. In a room
+this small that is a quarter of what you see in the first five seconds.
+
+It does not want much: a calendar, a mirror, a chest of drawers, something
+stacked against the skirting. Whoever takes it should look at it FROM THE
+SPAWN rather than from the middle of the room, because that is the only angle
+the player is guaranteed to see it from.
+
+### Two things I chased and had to drop, so nobody re-chases them
+
+- **The hall walls appear to carry hard-edged diagonal light wedges**
+  (`11-shaft-down.png`). They are not lighting. It is the wallpaper's own
+  vertical stripe under perspective — the glow is a small faint halo that never
+  reaches the walls (`apartment.ts:873-893`). Worth knowing because this is the
+  shape of the *"whats going on with the shadow geometry here"* complaint the
+  user has now raised twice on other builders' work, and a striped wallpaper on
+  a receding wall will keep inviting it.
+- **The handrail looks unsupported.** It is not — it rides the core wall's
+  faces at WX/EX with the wall 0.04 m behind it, and the report above already
+  records it as right and not to be disturbed. It has no visible brackets, which
+  is the same sentence as the radiator's brackets in finding 8, but that was
+  closed and the rail was deliberately left alone. Leaving it.
+
+### Still not covered, second time of asking
+
+The street-side stoop — finding 6. The entrance bay is on the facade in the
+street world, not in the interior belt, so reaching it needs the door teleport
+rather than a warp; two attempts put the camera inside the shaft wall. It is
+the part a player sees BEFORE the lobby and it is still unexamined by me. The
+blanket collider is D's, per the desk's routing, but the visual pass on the
+stoop itself is nobody's yet.
