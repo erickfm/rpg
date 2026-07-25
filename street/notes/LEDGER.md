@@ -71,3 +71,4 @@ user anything is finished.
 | OPEN | desk | PVBLIC vs PUBLIC on the library | user's call, awaiting answer |
 | OPEN | AUDIT | verify the ledger | |
 | OPEN | C | big sign should be simpler | |
+| OPEN | C | the garlands are disconnected | |
