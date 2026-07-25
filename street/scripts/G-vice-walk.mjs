@@ -379,7 +379,10 @@ await setClock(p, 2, 0);
 const nite = await sample();
 const dulled = day.dull.filter((v, i) => nite.dull[i] !== undefined && nite.dull[i] !== v).length;
 check('the brick and stone around them DO go dark after dark',
-  dulled > 0, `${dulled}/${day.dull.length} opaque materials changed`);
+  day.dull.length > 0 && dulled > 0,
+  day.dull.length
+    ? `${dulled}/${day.dull.length} opaque materials changed`
+    : 'NOTHING TO CHECK: no opaque vice materials were sampled at all');
 // This check was named "the lit parts are not dimmed by the night sweep" and
 // asserted `day.lit.length > 0` — a PRESENCE COUNT that never compared the two
 // samples. The name claimed the thing the assertion did not test. Renamed to what
@@ -392,7 +395,10 @@ check('the brick and stone around them DO go dark after dark',
 // elements that ARE monotone in the night factor are the ground sheets, so that
 // is what gets asserted.
 check('there are lit (transparent) materials on the two frontages at all',
-  day.lit.length > 0, `${day.lit.length} transparent (lit) materials found`);
+  day.dull.length > 0 && day.lit.length > 0,
+  day.dull.length
+    ? `${day.lit.length} transparent (lit) materials found`
+    : 'NOTHING TO CHECK: the sampler returned no vice materials of any kind, lit or dull');
 
 // ── 5. the pavement in front of them is actually coloured at night ──────
 //
@@ -448,7 +454,7 @@ check('the two buildings put light on the pavement, and only after dark',
     && Math.min(...sNite.map((q) => q.op)) >= 0.25,
   sDay.length
     ? `${sDay.length} ground sheets; noon ${sDay.map((q) => q.op).join('/')} → 23:00 ${sNite.map((q) => q.op).join('/')}`
-    : 'NO ground-level lit sheets found in front of either building');
+    : 'NOTHING TO CHECK: no ground-level lit sheets found in front of either building');
 
 // ── 6. the blades still read forwards, from both ends ───────────────────
 //
@@ -522,12 +528,17 @@ const blades = await p.evaluate(() => {
   return { pairs, orphans: cands.filter((_, i) => !used.has(i)).map((q) => `${q.h.toFixed(1)}m at x${q.x.toFixed(1)}`) };
 });
 check('every street-facing sign is a back-to-back PAIR, none left single',
-  blades.pairs.length >= 3 && blades.orphans.length === 0,
-  `${blades.pairs.length} pairs; unpaired: ${blades.orphans.length ? blades.orphans.join(', ') : 'none'}`);
+  blades.pairs.length + blades.orphans.length > 0
+    && blades.pairs.length >= 3 && blades.orphans.length === 0,
+  blades.pairs.length + blades.orphans.length
+    ? `${blades.pairs.length} pairs; unpaired: ${blades.orphans.length ? blades.orphans.join(', ') : 'none'}`
+    : 'NOTHING TO CHECK: no street-facing sign faces found at all');
 check('the two faces of each blade carry the SAME texture, not a mirrored one',
   blades.pairs.length > 0 && blades.pairs.every((q) => q.sameSize && q.sameXf
     && (SELFTEST ? q.same !== 1 : q.same === 1)),
-  blades.pairs.map((q) => `${q.h}m@x${q.x}: ${!q.sameXf ? 'MIRRORED BY TRANSFORM ' + q.xf : q.sameSize ? (q.same * 100).toFixed(1) + '% identical' : 'DIFFERENT SIZE'}`).join('; '));
+  blades.pairs.length
+    ? blades.pairs.map((q) => `${q.h}m@x${q.x}: ${!q.sameXf ? 'MIRRORED BY TRANSFORM ' + q.xf : q.sameSize ? (q.same * 100).toFixed(1) + '% identical' : 'DIFFERENT SIZE'}`).join('; ')
+    : 'NOTHING TO CHECK: no blade pairs found to compare');
 
 // ── 7. the chase RUNS, and some of it is broken on purpose ──────────────
 //
@@ -590,11 +601,15 @@ const brightest = Math.max(...chase.mats.map((m) => m.maxLum));
 const deadMats = chase.mats.filter((m) => !m.varied && m.maxLum < brightest * 0.6);
 const deadBulbs = deadMats.reduce((a, c) => a + c.n, 0);
 check('the marquee chase actually RUNS a sequence, not a static dotted border',
-  moving.length >= 2 && brightest > 0.5,
-  `${chase.bulbs} bulbs; ${moving.length} of ${chase.mats.length} bulb materials changed colour across 7 samples, brightest ${brightest.toFixed(2)}`);
+  chase.mats.length > 0 && moving.length >= 2 && brightest > 0.5,
+  chase.mats.length
+    ? `${chase.bulbs} bulbs; ${moving.length} of ${chase.mats.length} bulb materials changed colour across 7 samples, brightest ${brightest.toFixed(2)}`
+    : 'NOTHING TO CHECK: no bulb materials found in the vice quarter');
 check('…and some bulbs never light, because it is 1997 and past it',
-  deadBulbs >= 1 && deadBulbs < chase.bulbs * 0.1,
-  `${deadBulbs} permanently dark of ${chase.bulbs} (${(100 * deadBulbs / chase.bulbs).toFixed(1)}%) — the brief asked for "one dead bulb in the chase"`);
+  chase.bulbs > 0 && deadBulbs >= 1 && deadBulbs < chase.bulbs * 0.1,
+  chase.bulbs
+    ? `${deadBulbs} permanently dark of ${chase.bulbs} (${(100 * deadBulbs / chase.bulbs).toFixed(1)}%) — the brief asked for "one dead bulb in the chase"`
+    : 'NOTHING TO CHECK: no bulbs found, so none can be dark');
 
 console.log('');
 for (const [ok, n, d] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${n}\n        ${d}`);
@@ -616,5 +631,17 @@ if (SELFTEST) {
   process.exit(missed.length ? 1 : 0);
 }
 if (errs.length) console.log('\npage errors:\n  ' + errs.slice(0, 4).join('\n  '));
+// EXIT 3, NOT 1, WHEN A GUARD FIRED ON AN EMPTY SET (GOTCHAS §32) — the same
+// convention 4d549f501 reached and c4946abb3 applied. Seven assertions here have
+// a subject set that can be empty, and every one of them used to fail as 1 when
+// it was: "the brick does not go dark" when nothing was sampled, "no blade pairs
+// are identical" when no blades were found. 1 claims the world is broken. All
+// that is established is that this check did not run, and that is 3.
+const vacuous = results.filter((r) => !r[0] && /NOTHING TO CHECK/.test(String(r[2])));
+if (vacuous.length) {
+  console.log(`\n${vacuous.length} check(s) had NOTHING TO CHECK — exiting 3 (GOTCHAS §32:`
+    + ' the check never ran), not 1. Nothing below follows about the world:');
+  for (const v of vacuous) console.log(`  ${v[1]}\n        ${v[2]}`);
+}
 await b.close();
-process.exit(bad ? 1 : 0);
+process.exit(vacuous.length ? 3 : bad ? 1 : 0);
