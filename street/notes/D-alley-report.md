@@ -1439,3 +1439,32 @@ where I read a call site, assumed `wallTex` meant plain brick, and "fixed"
 something that was already right. Reading the definition told me the roofs really
 are flat; **looking** told me it does not matter. Both steps were needed and
 neither substitutes for the other.
+
+
+## The 37 user shots, and the two alley ones nobody had opened
+
+Finding `user-bodega-corner.png` — after twice recording that I could not compare
+against what the user saw — showed me `shots/` holds **37 `user-*` reference
+images**, fifteen of them in my area. I had been working from four.
+
+Opened the two alley ones:
+
+**`user-alley-junk.png`** is the floating-litter evidence: the blue crates and
+the cardboard reading vivid against near-black ground. Already B's, already being
+worked (`0d9146049`, `cc45d7427`).
+
+**`user-alley-panel.png`** shows the REZO wall close up, with two small **red
+slivers at the wall's left edge**, top and bottom. Still live at HEAD — I shot
+the same framing to check.
+
+Identified: `mod=street`, `rgb(106,5,4)` at `(-6.90, 4.16, -29.00)`. It is a shop
+awning on the building north of the alley, projecting 0.1 m past the facade line,
+seen past the edge of the alley's north flank. **Geometrically that is correct**
+— from the alley mouth you should see the next shop's awning — so unless the user
+says otherwise this is not a defect, and I am not changing it.
+
+**A probe of mine failed first, in a way worth recording.** I filtered candidate
+meshes on their world POSITION and found nothing but a ground prop. A shell 14-23
+m deep centred at x -15 has its face at x -7, so filtering on centres missed every
+building on the block. Re-run against bounding boxes, the awning appeared at once.
+Position is not extent, and for deep geometry the difference is the whole object.
