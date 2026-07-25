@@ -164,3 +164,172 @@ in `notes/G-interiors2-prep.md`. Not started.
 on D**: `pawnFront` in `street.ts` paints no door at all — board, barred window,
 stallriser, and no door rect anywhere — so there is no world position for its
 `[E]` spot to sit on. Raised in my prep note; still true as of `ea641af`.
+
+---
+
+# RUN 2 — HOTEL ORPHEUS lobby (commit `764547c`)
+
+## `## Now` → **HOTEL ORPHEUS lobby** — DONE
+
+The brief is a gap, not a room: it WAS grand and it is not any more. So every
+object is one of two kinds and the lobby is the argument between them.
+
+| what is still grand | what has happened to it |
+|---|---|
+| a real tile floor | a vinyl runner over the track people walk |
+| a mahogany reception desk | nobody behind it |
+| a full wall of pigeonholes | most of the keys still on their hooks |
+| a proper lift with a floor dial | the dial stopped between floors |
+| a planted palm | dead, and nobody has moved it |
+| four matched lobby chairs | three that do not match |
+| four ceiling fittings | one of them out |
+
+**The rule that made it work: shabbiness drawn as REPLACEMENT, not as dirt.**
+The vinyl is a different material from the tile, the chairs are different
+shapes, and the dead lamp is a different *colour* from the lit ones rather than
+an unlit copy of one — an unlit copy of a lit thing reads as a rendering
+mistake, a cold grey shade among three warm ones reads as a dead bulb. A grand
+room with grime on it is just a dirty grand room.
+
+3.4 m ceiling, the tallest in the belt, and deliberately: the casino two doors
+down is 2.5 m and presses on you. This one has to have somewhere to fall from.
+
+Adopted F's new kit contract in the same commit — builders return `void` and the
+kit collects colliders into `interiorColliders()`. That is F having done a
+lighter version of the thing I asked for in my prep note, and it means wiring a
+room is now one line rather than three edits.
+
+# RUN 3 — A-1 TAX SERVICE (commit `c63b2e4`)
+
+## `## Next` → **A-1 TAX SERVICE** — DONE, taken out of order
+
+Taken ahead of the pawn shop above it because the pawn shop was blocked on D at
+the time (see below). The brief is a dare — the dullest room on the list, done
+with as much care as the casino, because that contrast is the joke — so the
+discipline is the casino's inverted. Every colour is a landlord colour. The
+furniture is one system bought at once and never added to. Everything is square
+to the walls; the only thing off-axis is the paper on the pinboard, and only
+because paper will not stay square. The one ornament is plastic and it is dusty.
+
+The joke needs the care to be real, so the details are the ones you would
+actually find: label holders on every drawer, wire in/out trays stacked two
+deep, the modesty panel that is the whole reason a client desk looks like that,
+and one ceiling tile pushed up out of its grid and never pushed back — the only
+sign a person has been in the room, and it was somebody looking for a stopcock.
+
+The casino has no clock on purpose; this room has one on purpose, hung dead
+centre over the cabinets where everybody waiting can watch it.
+
+**Two harness lies caught here, both worth knowing about:**
+
+- A lane test was failing on its own stopwatch, not on geometry. 8.58 m walked
+  against a 9 m expectation is `2600 ms × 3.3 m/s`, not a wall.
+- The "landing is not boxed in" check was failing on a **pedestrian**. Citizens
+  are obstacles and they walk the same 2 m lane, so a passer-by parked on the
+  landing fails a check that exists to catch static geometry. Scanning the spot
+  from a fresh load showed it clear in every direction. It retries now: a wall
+  blocks all three attempts, a pedestrian has moved on by the next one.
+
+# RUN 4 — PAWN SHOP (commit `75f9350`)
+
+## `## Next` → **PAWN SHOP** — DONE, with one number still an assumption
+
+The plan came out of the brief's own sentence — *"a pawn shop is built to keep
+you at arm's length, and the geometry can say that"*. A 1.25 m counter at chest
+height runs the whole room and dies into the east wall, so there is no way round
+it; the customer gets a 1.1 m strip and that is the entire floor. The tools, the
+TV stack, the guitars and the brass are all visible and none is reachable, which
+is the difference between a pawn shop and a junk shop. Bars inside the window as
+well as outside, so the daylight is in strips before it reaches you.
+
+**The door needs its own pocket, and that is structural.** The kit lands you at
+`(door.at, hd - 1.15)`, so a counter spanning the door's x would have to sit
+1.51 m back to keep the landing clear — and 1.51 m of customer floor is not a
+pawn shop, it is a shop. Putting the door beside the counter lets the counter
+come forward and the brief survives. Worth knowing for any other room that
+wants furniture near its door.
+
+**The walk script needed the inverse of a lane test.** A room whose point is
+that the far side of the counter is out of reach has to be checked for the gap
+somebody could squeeze through — no number of passing lane tests says anything
+about that. Three `noGo` probes assert you cannot get behind the counter at
+either end or round the tool wall, and the back wall is skipped explicitly
+rather than silently passed, because reaching it is what the room prevents.
+
+Also fixed a crash of my own making: `Object.assign` onto `mesh.rotation`
+replaces the `Euler` three.js hooks for quaternion updates, and the world
+stopped initialising. `health.mjs` caught it before the walk did — which is the
+argument for running it first rather than last.
+
+---
+
+## Verification, all four rooms
+
+`scripts/G-rooms-walk.mjs` — table-driven over casino, hotel, tax and pawn, the
+same move F made with `interiors-walk.mjs`. It reads each room's slab back from
+where the player actually lands rather than hard-coding it, because the slab
+depends on build order and that changes every time another builder lands a room.
+
+- **99/99** over my four rooms.
+- **F's `interiors-walk.mjs`: 78/78** with my four present, so nothing of F's
+  broke.
+- `node scripts/health.mjs` OK · `npm run build` clean · `ownership.sh G` clean.
+- `fpadd`: **STREET UNMOVED**, **0 textures deleted outright**. It does report
+  43 interior textures repainted — that is the grain reshuffle F documented
+  between interiors, and it is an artefact of where my LOCAL test wiring went
+  (my calls landed before `buildThrift`). Confirmed against the harness's own
+  noise floor: two captures of an identical state differ in 0 textures and 0
+  structure, so the harness is deterministic and the reshuffle is real but
+  benign. **Appending the calls after F's avoids it entirely.**
+
+---
+
+## BLOCKED ON TWO OTHER PEOPLE, and neither is mine to fix
+
+**1. F — four rooms are unreferenced until `crosstown.ts` calls them.** One line
+each now, thanks to F's own change. Append them AFTER `buildThrift(ctx);` so the
+fingerprint stays clean:
+
+```diff
+ import { buildThrift } from './ct/int-thrift';
++import { buildCasino } from './ct/int-casino';
++import { buildHotel } from './ct/int-hotel';
++import { buildTax } from './ct/int-tax';
++import { buildPawn } from './ct/int-pawn';
+@@
+   buildThrift(ctx);
++  buildCasino(ctx);
++  buildHotel(ctx);
++  buildTax(ctx);
++  buildPawn(ctx);
+```
+
+With those in, `SHOT_URL=http://localhost:4186/ node scripts/G-rooms-walk.mjs`
+is 99/99. Without them all four files compile, are unreferenced, and four doors
+on the street do nothing. I wire it locally to run the tests and revert before
+committing every time — my queue says never to edit that file and F is working
+in the same block, which is the conflict `OWNERSHIP.md` exists to prevent.
+
+**2. D — `pawnFront` still paints no door.** Raised in my prep note before the
+casino and still true. `burgerFront` paints one at `W*0.44`, `taxFront` at
+`W*0.5`, `shopfrontTex` at `W*0.48`; `pawnFront` has no door rect at all, just a
+board, a barred window and a stallriser. The room is built and walkable with its
+`[E]` spot at the convention position (`z = -59.06`, within 6 cm of the building
+centre), so this blocks nothing now — but until a door is painted there, the
+player presses E at blank barred glazing. `DOOR_Z` in `ct/int-pawn.ts` is the one
+line to change once it exists.
+
+## A standing request for the kit, now that it has bitten twice
+
+Still no way to recolour, move or suppress the kit's own ceiling glow, and two
+of my four rooms are about their light: the casino wanted warm and dim and
+nothing like civic daylight, and the tax office wants cool fluorescent strips —
+the kit's warm incandescent blobs read as a different fixture among mine. Both
+rooms ship fine because the palette does the heavy lifting and each room owns
+its own lamps, so this is not blocking. But `light?: {...} | false` on `RoomSpec`
+would let a room say what it is lit by. F's file, F's call.
+
+## Queue state
+
+All four room briefs in my queue are built, walked and committed. Nothing is
+left under `## Now` or `## Next` that I can start.
