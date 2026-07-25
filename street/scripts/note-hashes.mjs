@@ -69,9 +69,30 @@ for (const f of files) {
   // they matched on my first pass and reported four false deaths.
   const seen = new Set((text.match(/\b[0-9a-f]{7,40}\b/g) ?? []).filter((h) => /[a-f]/.test(h)));
   if (SELFTEST && f === files[0]) { seen.add(git(['rev-parse', 'HEAD']).out); }
+  // A note may cite a dead hash ON PURPOSE — the recovery table does it in
+  // every row, and so does any note explaining that X was rebased into Y. That
+  // is not a broken citation, it is a repointing, and the thing that makes it
+  // safe is naming the live commit beside it. So: a dead hash is excused when
+  // its own line also carries a hash that IS on mainline.
+  //
+  // Found by my own check going red on my own census the moment I wrote it,
+  // which is the right way round — a rule that cannot express "this hash is
+  // dead and here is its replacement" would push people to delete the history
+  // rather than record it.
+  const lines = text.split('\n');
+  const excused = new Set();
+  for (const line of lines) {
+    const hs = (line.match(/\b[0-9a-f]{7,40}\b/g) ?? []).filter((h) => /[a-f]/.test(h));
+    if (hs.length < 2) continue;
+    const live = hs.filter((h) => git(['cat-file', '-e', `${h}^{commit}`]).ok
+      && git(['merge-base', '--is-ancestor', h, MAIN]).ok);
+    if (live.length) for (const h of hs) if (!live.includes(h)) excused.add(h);
+  }
+
   for (const h of seen) {
     if (!git(['cat-file', '-e', `${h}^{commit}`]).ok) continue;   // not a commit at all
     checked++;
+    if (excused.has(h)) continue;                 // cited beside its replacement
     if (!git(['merge-base', '--is-ancestor', h, MAIN]).ok) {
       const subj = git(['log', '-1', '--format=%s', h]).out || '(unknown)';
       if (!dead.has(f)) dead.set(f, []);
