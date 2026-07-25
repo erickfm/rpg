@@ -868,20 +868,46 @@ function buildLot(o: {
     pole.position.set(px, Y + POLE_H2 / 2, pz);
     scene.add(pole);
     solid({ minX: px - 0.24, maxX: px + 0.24, minZ: pz - 0.24, maxZ: pz + 0.24 });
-    const signT = surfTex('sign', 72, 96, (g) => {
-      g.fillStyle = '#c0392f'; g.fillRect(0, 0, 72, 96);
-      g.fillStyle = '#f2ead0'; g.fillRect(3, 3, 66, 90);
-      g.fillStyle = '#c0392f'; g.fillRect(6, 6, 60, 30);
-      stamp(g, 'CROSSTOWN', 3, 10, 1, '#f2ead0');
-      stamp(g, 'AUTO SALES', 3, 20, 1, '#e0a81c');
-      g.fillStyle = '#25406b'; g.fillRect(6, 40, 60, 14);
-      stamp(g, 'USED CARS', 9, 44, 1, '#f2ead0');
-      // the number, deliberately too big for the cabinet — the one thing on
-      // the sign anybody was ever meant to act on
-      g.fillStyle = '#2a2118'; g.fillRect(6, 58, 60, 32);
-      stamp(g, '555', 12, 62, 3, '#e0a81c');
-      stamp(g, '0199', 8, 76, 3, '#e0a81c');
-      dither(g, 72, 96, 50);
+    // ONE MESSAGE. The user: *"it is carrying FOUR messages stacked ... the
+    // phone digits are the worst of it — they take the biggest band on the sign
+    // and are illegible at any distance, which is the opposite of what a pole
+    // sign is for. SIMPLIFY TO ONE MESSAGE ... CROSSTOWN AUTO, big, legible,
+    // and stop."*
+    //
+    // What was on it: the name at 0.31 m, USED CARS at 0.31 m, and 555-0199 at
+    // 0.92 m in the largest band on the cabinet. The one element sized like it
+    // mattered was the one nobody can read at speed, and it crowded the name
+    // down to a sixth of the panel. The number is gone entirely — it is on the
+    // fence banner (CALL 555 0199, below), which is where someone standing at
+    // the lot can actually read it.
+    //
+    // Sizes, since "big" has to mean a number: at 176 px across a 6.0 m panel
+    // the canvas is 29.3 px/m, so CROSSTOWN at px=3 is 0.51 m tall and AUTO at
+    // px=7 is 1.19 m — against 0.31 m for both before. Rule of thumb is ~25 mm
+    // of letter per 3 m of viewing distance; the far kerb is ~18 m away and
+    // wants 0.15 m, so the name clears it by better than 3x.
+    //
+    // THE CABINET WENT LANDSCAPE, and that is what buys the size rather than
+    // any change of pole. A 9-letter word on a portrait panel can only be small
+    // — 'CROSSTOWN' is 53 glyph units wide against 5 tall, so the panel's
+    // proportions were setting the type size, not the designer. 6.0 x 4.5 is
+    // 27 sq m against 26, i.e. the same cabinet rearranged, with the long axis
+    // pointing the way the words run.
+    const SIGN_PX_W = 176, SIGN_PX_H = 132;
+    const signT = surfTex('sign', SIGN_PX_W, SIGN_PX_H, (g) => {
+      g.fillStyle = '#b53528'; g.fillRect(0, 0, SIGN_PX_W, SIGN_PX_H);
+      g.fillStyle = '#f2ead0'; g.fillRect(6, 6, 164, 120);
+      // dark red on cream. It used to be cream on red inside a red panel,
+      // which is why the name reads as a texture rather than as words in
+      // shots/user-polesign2.png — the two are 0.10 apart in luminance.
+      stamp(g, 'CROSSTOWN', 8, 15, 3, '#b53528');
+      stamp(g, 'AUTO', 7, 40, 7, '#b53528');
+      // the strapline, folded into the name as the user allowed rather than
+      // standing as a message of its own: a third the height of AUTO, in the
+      // bottom band, read only once you are close enough to care.
+      g.fillStyle = '#25406b'; g.fillRect(6, 92, 164, 34);
+      stamp(g, 'USED CARS', 35, 104, 2, '#f2ead0');
+      dither(g, SIGN_PX_W, SIGN_PX_H, 50);
     });
     // THE CABINET IS THE SIGN; the mast is just what holds it up.
     //
@@ -893,9 +919,9 @@ function buildLot(o: {
     // It was 2.4 x 3.2 on a 15.5 m pole — the cabinet was a fifth of the
     // height and the other four fifths were bare tube. A real pole sign is the
     // opposite: the cabinet is the thing you see from four blocks away and the
-    // mast is barely noticed. 4.4 x 5.9 keeps the artwork's 3:4 and takes 38%
-    // of the mast, hung so its top sits just under the pole cap.
-    const SIGN_W = 4.4, SIGN_H = 5.9;
+    // mast is barely noticed. It now matches the artwork's 4:3 and hangs so its
+    // top sits just under the pole cap.
+    const SIGN_W = 6.0, SIGN_H = SIGN_W * (SIGN_PX_H / SIGN_PX_W);
     const signY = Y + POLE_H2 - SIGN_H / 2 - 0.25;
     // TWO SINGLE-SIDED PLANES, BACK TO BACK — GOTCHAS 10, and 35 for the part
     // that catches people. `flat()` is FrontSide, so this was ONE plane: solid
@@ -917,19 +943,45 @@ function buildLot(o: {
       face.rotation.y = ry;
       scene.add(face);
     }
-    // a small arrow cabinet under it, pointing at the mouth
-    const arrowT = surfTex('sign', 40, 16, (g) => {
+    // ── the arrow: it stays, because it does point at the entrance ──────────
+    //
+    // The user: *"the arrow can stay if it points at the entrance; if it points
+    // nowhere, drop that too."* So this had to be established rather than
+    // assumed, and one of the two faces was lying.
+    //
+    // The mouth is `zN - span * SITE_GATE` and the mast stands 0.95 m NORTH of
+    // it, so the entrance is in world -z from the sign. A plane at
+    // rotation.y = -pi/2 sends its texture +x to world +z, so an apex drawn at
+    // texture-left points -z — at the mouth. Correct, and that is the street
+    // face.
+    //
+    // The rear face is at +pi/2, which sends texture +x to world -z. The same
+    // texture therefore puts the apex at world +z: from inside the lot the
+    // arrow pointed at the back fence.
+    //
+    // THIS IS THE EXCEPTION TO GOTCHAS 35, and it is worth being precise about
+    // why, because the rule is right and I have already broken it twice by
+    // ignoring it. 35 says back-to-back planes share one texture: the rotation
+    // mirrors the artwork, and a viewer on the far side needs that mirror to
+    // read the text left-to-right. The rule is about artwork whose meaning is
+    // FACE-RELATIVE. An arrow's meaning is a WORLD direction — both faces must
+    // point the same real way — so here the mirror is the bug and not the fix.
+    // Text on the cabinet above still obeys 35 unchanged.
+    const arrowT = (apexLeft: boolean) => surfTex('sign', 40, 16, (g) => {
       g.fillStyle = '#e0a81c'; g.fillRect(0, 0, 40, 16);
       g.fillStyle = '#2a2118'; g.fillRect(0, 0, 40, 2); g.fillRect(0, 14, 40, 2);
-      for (let i2 = 0; i2 < 7; i2++) g.fillRect(6 + i2 * 2, 8 - i2, 2, 1 + i2 * 2);
+      for (let i2 = 0; i2 < 7; i2++) {
+        const w = 2, h = 1 + i2 * 2, y = 8 - i2;
+        g.fillRect(apexLeft ? 6 + i2 * 2 : 32 - i2 * 2, y, w, h);
+      }
       dither(g, 40, 16, 16);
     });
     // Scaled with the cabinet and dropped clear of its new bottom edge, and
     // double-faced by the same rule — an arrow readable from one side only is
     // the same fault one storey down.
-    const ARR_W = 2.2, ARR_H = 0.88;
+    const ARR_W = 2.6, ARR_H = 1.04;
     for (const ry of [-Math.PI / 2, Math.PI / 2]) {
-      const arrow = new THREE.Mesh(new THREE.PlaneGeometry(ARR_W, ARR_H), flat(arrowT));
+      const arrow = new THREE.Mesh(new THREE.PlaneGeometry(ARR_W, ARR_H), flat(arrowT(ry < 0)));
       arrow.position.set(px + (ry < 0 ? -0.19 : 0.19), signY - SIGN_H / 2 - 0.9, pz);
       arrow.rotation.y = ry;
       scene.add(arrow);
