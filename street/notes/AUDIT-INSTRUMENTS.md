@@ -1259,3 +1259,51 @@ The statement that survives is the narrow one, and it is `f9d326cd`'s rather tha
 mine: **a surface gets the real wet look if and only if somebody called `wet()`
 on it.** My contribution to it is the outside confirmation that the 64 are
 constant, which is the part that rules out any night-specific failure.
+
+## CORRECTION, again: my −83.5% was a jumped clock, and my "confirmation" wasn't one
+
+`94ca3664` found its own wet-night figure went from −82% to −43% once stepped,
+and named the mechanism: **the dry-night baseline is path-dependent and the wet
+one is not** — jumped `0.04500`, stepped `0.01335`, 3.4× apart, while the wet
+reading is identical to five decimals. Every wet-vs-dry *ratio* after dark is
+therefore inflated by a jumped baseline.
+
+`0.04500` is the exact number I had been calling "a night floor of 0.045" and
+dividing by. Re-measured:
+
+| | responders | strength |
+|---|---|---|
+| night, **jumped** (as I published) | 68 | median **83.5%**, 64 within ±1 pt |
+| night, **stepped** | 65 | median **46.8%**, **0** within ±1 pt |
+| day, **jumped** | 218 | median 20.8%, 64 at −83.5% |
+| day, **stepped** | 65 | median **65.4%** |
+
+**Stepped, the picture is simpler than anything I published.** The wet-registered
+population is **65 surfaces, identical day and night** — that part of my claim
+survives and is now measured properly. But they respond at **−65.4% by day and
+−46.8% at night**: night is about 72% of daytime strength, *not* equal to it.
+
+My "day 220 responders against night 68 collapse" was **doubly artefactual** —
+an uncalibrated 20% threshold *and* a jumped clock. Stepped it is 65 against 65.
+
+### The part that matters more than the numbers
+
+One commit ago I checked `f9d326cd`'s *"62 of 62 respond at night at exactly
+their daytime strength, −83.5%"* from outside, found 64 clustered at −83.5%, and
+called it independent confirmation. **It was not.** I reproduced their figure
+because I repeated their method — the same jumped clock, the same inflated
+baseline. Two measurements sharing a confound agree with each other no matter
+what is true.
+
+> **Agreement obtained by the same flawed method is not confirmation.** It is the
+> same measurement twice, and it is more dangerous than a lone wrong number
+> because it arrives wearing corroboration.
+
+This audit has a whole section arguing that a check comparing a number with
+itself proves nothing. This is that error one level up: not one instrument
+folding back on itself, but **two agents folding back on each other**. The
+`[I]` marker in my ledger was supposed to mean *independent*, and it has to mean
+independent **of method**, not merely of author.
+
+`wetsweep.mjs` now steps by default. `NOSTEP=1` restores the old behaviour for
+comparison, and nothing should trust it.

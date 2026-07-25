@@ -44,7 +44,13 @@ const SETTLE_MS = 18000;
 // because some grading is path-dependent. My night figures were taken with a
 // 72-hour jump, so STEP=1 walks the clock an hour at a time to the target
 // instead, and the two can be compared.
-const STEP = process.env.STEP === '1';
+// STEPPED BY DEFAULT. 94ca3664 measured the dry-night baseline as 3.4x too
+// bright when jumped (0.04500 vs 0.01335) while the wet reading is identical to
+// five decimals, so every wet-vs-dry RATIO after dark is inflated by a jumped
+// baseline. Measured here, it inflates the day too: 218 responders jumped
+// against 65 stepped, and -83.5% against -65.4%. NOSTEP=1 restores the old
+// behaviour for comparison; nothing should trust it.
+const STEP = process.env.NOSTEP !== '1';
 const sample = async (h) => {
   if (STEP) {
     const from = h - 12;                       // walk the last 12 hours in
