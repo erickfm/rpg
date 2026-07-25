@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"big sign should be simpler"** → **C**
 - **"verify the ledger"** → **AUDIT**
 - **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
   → **A. FIXED.** It said EAT stacked down the plate and could not be read.

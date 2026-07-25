@@ -70,3 +70,4 @@ user anything is finished.
 | OPEN | H | block protruding from wheels on all vehicles | CAUSE FOUND, fix is a DECISION not work. It is my own fender flare, added in 7f0909aa4 for "the wheels need to not clip through". Proven by removal, not argued: orbited at standing height, measured that no mesh on any kind dips below the tyre's contact line or passes the flare's outer face, then took the flare out and the block vanished — shots/orb-250.png vs shots/orbNF-250.png. A panel proud of the body is what stops the tyre being outermost AND what reads as a block at 3/4. Three ways out in BLOCKED-H item 1: keep it, revert it (one line), or alpha-cut the flank so the wheel sits inboard and is still seen. Fourth pass on these wheels — desk asked me to bring it back rather than iterate |
 | OPEN | desk | PVBLIC vs PUBLIC on the library | user's call, awaiting answer |
 | OPEN | AUDIT | verify the ledger | |
+| OPEN | C | big sign should be simpler | |
