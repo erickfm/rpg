@@ -198,6 +198,18 @@ commit, as asked.
   overlap the sidewalk paving (GOTCHAS 6). Plus: check whether the fence base
   along its right edge is sitting at the old walk height instead of following
   the ramp down.
+- **"the thrift interior is measurably the thinnest room in the world… rails of
+  clothing packed so tight the garments compress, doubled up where there is no
+  room; a wall of shoes; chipped crockery; a rail of coats too heavy for it,
+  sagging; a bin of loose belts; a glass case at the till; handwritten card
+  signs; a mannequin at a wrong angle; boxes not yet sorted; fluorescent tubes
+  with one out. The floor should be hard to cross in a straight line."** →
+  **builder F** ✅ density pass landed: 297 → 476 lines, the bodega used as the
+  reference rather than the diner. Walks 27/27 with the spine to the till still
+  open.
+- **"the thrift EXTERIOR is lazy and chopped off"** → **builder A**. F has built
+  the window display the glass looks into — a dressed form and the better stock
+  on a plinth at the front wall, deliberately the one tidy corner in the room.
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
   — **B: both halves landed and measured.** Clearance on the kerb side is
   0.218 m of walk between the kerb chamfer and the pit edge, the same at all

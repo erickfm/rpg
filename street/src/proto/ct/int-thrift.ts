@@ -281,6 +281,189 @@ export function buildThrift(ctx: CtxBuild): void {
   // is no outside: interiors are not behind their facades.
   room.sign(cardT('OPEN', 'CASH ONLY'), 0.6, 0.3, 1.2, 1.45, hd - 0.06);
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // THE DENSITY PASS
+  //
+  // The desk, measuring rather than eyeballing: this was the THINNEST room in
+  // the world — 21 placed objects against the casino's 552 lines' worth — and
+  // the original brief was *"too much stuff in too little room; density is the
+  // whole effect, a thrift store with clear floor space reads as a boutique."*
+  // It read as a boutique.
+  //
+  // The reference is the BODEGA, not the diner. A diner is laid out — booths in
+  // a run, stools in a line, and the order is the point. A thrift store is
+  // ACCRETED: every fixture arrived separately, none of them match, and each
+  // one was put wherever there was still floor. The bodega passed on exactly
+  // that quality, so this copies its method: fixtures at angles to each other,
+  // stock overflowing its own container, and nothing lining up with anything.
+  //
+  // The one rule that does not bend is that you can still WALK it.
+  // `scripts/interiors-walk.mjs` asserts a clear run across most of the room's
+  // width, and it is right to — "hard to cross in a straight line" means the
+  // straight line is blocked, not that the room is. Everything below is placed
+  // so the path bends; nothing below closes it.
+  // ═══════════════════════════════════════════════════════════════════════
+
+  // ── the rails are doubled where there is no room ──
+  //
+  // A packed rail does not get a fourth rail when more stock arrives; it gets a
+  // SECOND TIER under the first, because the bar is already there and the floor
+  // is not. Short garments below, long above, and the two blocks touching is
+  // the whole tell — there is no gap because a gap would be wasted.
+  const dblT = declareSurface(pixTex(24, 20, (g) => {
+    const cols = ['#6a5a4a', '#4a5a62', '#7a6a52', '#5a4a52', '#3a4a3a'];
+    for (let i = 0; i < 24; i++) {
+      g.fillStyle = cols[i % cols.length];
+      g.fillRect(i, 0, 1, 12 + ((i * 7) % 8));
+    }
+    dither(g, 24, 20, 90);
+  }), 'detail');
+  for (const rz of ROWS) {
+    const lower = new THREE.Mesh(new THREE.BoxGeometry(RAIL_L - 0.5, 0.52, 0.4),
+      ctx.flat(dblT));
+    put(lower, RAIL_CX + 0.12, 0.62, rz);
+  }
+
+  // ── the coat rail, sagging under what is on it ──
+  //
+  // Wool coats are the heaviest thing a thrift store hangs, and the rail that
+  // takes them is never rated for it. The BOW is the detail: a straight bar
+  // says the shop is coping. Three segments stepping down and back up reads as
+  // a curve at this scale and costs three boxes, which is the same trick the
+  // kerb profile uses.
+  const COAT_X = 3.4, COAT_Z0 = -2.3, COAT_Z1 = 0.9;
+  const COAT_L = COAT_Z1 - COAT_Z0, COAT_CZ = (COAT_Z0 + COAT_Z1) / 2;
+  const coatT = declareSurface(pixTex(20, 28, (g) => {
+    const cols = ['#3a3a42', '#4a4238', '#2f3a3a', '#52463a', '#38323a'];
+    for (let i = 0; i < 20; i++) {
+      g.fillStyle = cols[i % cols.length];
+      g.fillRect(i, 0, 1, 20 + ((i * 5) % 8));
+    }
+    dither(g, 20, 28, 110);
+  }), 'detail');
+  for (const [seg, drop] of [[-1, 0], [0, 0.07], [1, 0]] as [number, number][]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, COAT_L / 3),
+      new THREE.MeshBasicMaterial({ color: 0x9a9690 }));
+    put(bar, COAT_X, 1.78 - drop, COAT_CZ + seg * (COAT_L / 3));
+    const coats = new THREE.Mesh(new THREE.BoxGeometry(0.46, 1.02, COAT_L / 3 - 0.04),
+      ctx.flat(coatT));
+    put(coats, COAT_X, 1.22 - drop, COAT_CZ + seg * (COAT_L / 3));
+  }
+  for (const end of [COAT_Z0, COAT_Z1]) {
+    const up = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.8, 0.05),
+      new THREE.MeshBasicMaterial({ color: 0x9a9690 }));
+    put(up, COAT_X, 0.9, end);
+  }
+  solid(COAT_X, COAT_CZ, 0.5, COAT_L);
+
+  // ── the bin of loose belts ──
+  //
+  // Not folded, not paired, not priced individually — tipped in and left. A
+  // heap of straps reads as a heap because the buckles catch the light at every
+  // angle and the leather does not, so it is drawn as scattered bright ticks on
+  // a dark mass rather than as belts.
+  const beltT = declareSurface(pixTex(28, 18, (g) => {
+    g.fillStyle = '#3a2f28'; g.fillRect(0, 0, 28, 18);
+    for (let i = 0; i < 26; i++) {
+      g.fillStyle = ['#5a4a3a', '#2f2620', '#6a5442'][i % 3];
+      g.fillRect((i * 5) % 28, (i * 7) % 18, 4, 2);
+    }
+    for (let i = 0; i < 7; i++) {
+      g.fillStyle = '#b8ae96';                       // buckles
+      g.fillRect((i * 9 + 3) % 28, (i * 5 + 2) % 18, 2, 2);
+    }
+  }), 'detail');
+  const beltBin = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.42, 0.62), woodM);
+  // z 2.55, not 2.0: the spine aisle the harness walks runs along local z = 1.8,
+  // and at 2.0 this bin's 0.62 m depth plus the 0.36 m capsule sat right across
+  // it. Dense is the brief; blocking the one route to the till is not.
+  put(beltBin, 0.7, 0.21, 2.55);
+  const belts = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.58), ctx.flat(beltT));
+  belts.rotation.x = -Math.PI / 2;
+  put(belts, 0.7, 0.44, 2.55);
+  solid(0.7, 2.55, 0.82, 0.62);
+
+  // ── the mannequin, at the wrong angle ──
+  //
+  // Nobody turned it back. It faces into the rail rather than at the door,
+  // which is the single most thrift-store thing in the room: a boutique's
+  // mannequin is aimed at you, and this one is aimed at nothing because the
+  // person who moved it was carrying something else at the time.
+  // likewise clear of the z = 1.8 spine once the capsule is allowed for
+  const MAN_X = -0.4, MAN_Z = 2.68;
+  const formM = new THREE.MeshBasicMaterial({ color: 0xc8bda8 });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.62, 0.22), formM);
+  torso.rotation.y = 0.9;                            // the wrong angle
+  put(torso, MAN_X, 1.28, MAN_Z);
+  const stem = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.05), formM);
+  put(stem, MAN_X, 0.66, MAN_Z);
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.34), formM);
+  put(base, MAN_X, 0.37, MAN_Z);
+  const dress = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.5, 0.26),
+    ctx.flat(declareSurface(pixTex(16, 20, (g) => {
+      g.fillStyle = '#8a5a62'; g.fillRect(0, 0, 16, 20);
+      for (let i = 0; i < 16; i += 3) { g.fillStyle = '#a06a72'; g.fillRect(i, 0, 1, 20); }
+      dither(g, 16, 20, 60);
+    }), 'detail')));
+  dress.rotation.y = 0.9;
+  put(dress, MAN_X, 1.22, MAN_Z);
+  solid(MAN_X, MAN_Z, 0.4, 0.4);
+
+  // ── boxes behind the counter, not sorted yet ──
+  //
+  // The back of a thrift store is where the donations land and wait. Stacked
+  // three high and not squared to each other, because they were put down, not
+  // placed. They sit BEHIND the till, so they are scenery you look past the
+  // keeper at rather than anything you walk into.
+  const boxM = new THREE.MeshBasicMaterial({ color: 0xa08a68 });
+  const BOXES: [number, number, number, number][] = [
+    [-0.3, 0.26, -0.18, 0.5], [-0.22, 0.76, -0.12, 0.2],
+    [0.55, 0.24, 0.1, -0.35], [0.62, 0.7, 0.06, 0.15],
+    [1.35, 0.28, -0.05, 0.6],
+  ];
+  for (const [dx, y, dz, rot] of BOXES) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.4), boxM);
+    b.rotation.y = rot;
+    put(b, TILL_CX + dx, y, TILL_Z - 0.95 + dz);
+  }
+
+  // ── the window display, which is what A's glass looks into ──
+  //
+  // The desk: the thrift EXTERIOR is being rebuilt by A, and *"the window
+  // display you build inside should be what is visible through the glass."* So
+  // this is aimed OUT — a dressed form and a shelf of the better stock, set
+  // right at the front wall where the glazing is, on the assumption that
+  // somebody outside is looking in at it.
+  //
+  // Deliberately the ONE tidy corner in the room. A thrift store dresses its
+  // window because that is the only part the street sees; everything two metres
+  // behind it is a heap. The contrast is the joke, and it only works if the
+  // window is genuinely neat.
+  const WIN_X = -3.0, WIN_Z = hd - 0.55;
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.42, 0.5), woodM);
+  put(plinth, WIN_X, 0.21, WIN_Z);
+  solid(WIN_X, WIN_Z, 1.5, 0.5);
+  const wTorso = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.56, 0.2), formM);
+  wTorso.rotation.y = Math.PI;                        // facing the street
+  put(wTorso, WIN_X - 0.35, 0.92, WIN_Z);
+  const wCoat = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 0.24), ctx.flat(coatT));
+  wCoat.rotation.y = Math.PI;
+  put(wCoat, WIN_X - 0.35, 0.9, WIN_Z);
+  for (let i = 0; i < 3; i++) {
+    const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18),
+      new THREE.MeshBasicMaterial({ color: [0xb8a24e, 0x8a9aa8, 0xa06a72][i] }));
+    put(g2, WIN_X + 0.15 + i * 0.28, 0.53, WIN_Z);
+  }
+
+  // ── more card signs, because one notice is never the last notice ──
+  const MORE: [string, string, number, number, number][] = [
+    ['ALL SALES', 'FINAL', TILL_CX - 1.5, 1.62, TILL_Z + 0.1],
+    ['COATS', 'HEAVY $6', COAT_X - 0.32, 1.92, COAT_CZ],
+    ['BELTS', '$1 EACH', 0.7, 0.72, 2.55],
+    ['SHOES', 'AS FOUND', hw - 0.42, 1.86, SHOE_CZ],
+  ];
+  for (const [a, b, cx2, cy, cz2] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2);
+
   // ── the proprietor, behind the till ──
   //
   // From the citizen atlas. She was a hand-painted plane — the third copy of
