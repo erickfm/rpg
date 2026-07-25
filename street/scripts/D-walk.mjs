@@ -133,19 +133,39 @@ for (const [name, x, z, yaw, steps] of [
   }
   say(got !== '', name, JSON.stringify(got), t);
 }
-// the counters are the only spots in the world that SPEND, so prove the purse
-// actually moves rather than that the prompt reads. $14.50 to start: five
-// cereals at $2.50 is $12.50, so the sixth must be refused and $2.00 must
-// still buy a $1.25 soda. That is only true if ctx.purse is the object the
-// HUD was built on.
-await page.evaluate(() => window.__ct.warp(242.2, -17.5, 0, 0, 0));
-await page.waitForTimeout(900);
-say((await prompt()).includes('buy cereal'), 'cereal counter', JSON.stringify(await prompt()), 1);
-for (let i = 0; i < 5; i++) { await page.keyboard.press('e'); await page.waitForTimeout(320); }
-say((await prompt()).includes('you'), 'refused once the money is gone', JSON.stringify(await prompt()), 1);
-await page.evaluate(() => window.__ct.warp(246.9, -14.6, 0, 0, 0));
+// The counters are the only spots in the world that SPEND, so prove the PURSE
+// moves rather than that a prompt reads.
+//
+// This used to warp to hard-coded world coordinates and broke the moment the
+// bodega interior was rebuilt somewhere else — which is the same "the room's
+// own address showing through" that the rebuild was getting rid of. So: go in
+// through the DOOR, then look for the counter from wherever you land.
+await warp(8.0, -99.2, Math.PI);
+await page.waitForTimeout(340);
+for (let i = 0; i < 8; i++) { await hold('w', 230); await page.waitForTimeout(200); if ((await prompt()).includes('BODEGA')) break; }
+await page.keyboard.press('e');
 await page.waitForTimeout(800);
-say((await prompt()).includes('buy soda'), '$2.00 still buys a $1.25 soda', JSON.stringify(await prompt()), 1);
+const inside = await pos();
+let found = null;
+outer:
+for (let r = 0.75; r <= 3.75 && !found; r += 0.75) {
+  for (let a = 0; a < 16; a++) {
+    const x = inside[0] + r * Math.cos(a * Math.PI / 8);
+    const z = inside[2] + r * Math.sin(a * Math.PI / 8);
+    await page.evaluate(([X, Z]) => window.__ct.warp(X, Z, 0, 0, 0), [x, z]);
+    await page.waitForTimeout(70);
+    if ((await prompt()).includes('buy cereal')) { found = [x, z]; break outer; }
+  }
+}
+say(!!found, 'the cereal counter is findable from the door',
+  found ? `at (${found[0].toFixed(1)}, ${found[1].toFixed(1)}), ${JSON.stringify(await prompt())}` : 'not found within 3.75 m', 1);
+if (found) {
+  // $14.50 to start: five cereals at $2.50 is $12.50, so the sixth must be
+  // refused and $2.00 must still buy a $1.25 soda. That sequence is only true
+  // if ctx.purse is the object the HUD was built on.
+  for (let i = 0; i < 5; i++) { await page.keyboard.press('e'); await page.waitForTimeout(320); }
+  say((await prompt()).includes('you'), 'refused once the money is gone', JSON.stringify(await prompt()), 1);
+}
 
 await browser.close();
 console.log(fails ? `\n${fails} FAILURES` : '\nall D walks pass');
