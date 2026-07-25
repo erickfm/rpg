@@ -786,3 +786,48 @@ merely pinned. The guarantee is **sound**.
 
 The tool was already right — `fpadd` size-matches repaints for precisely this
 reason. The gap was in interpretation, not instrumentation.
+
+## Current project state, measured at HEAD `506bd4d2`
+
+The standing question the user's decision rests on. Full suite, both tiers,
+against a preview of this HEAD:
+
+```
+fast tier   23 of 23 green
+slow tier   53 green, 1 red
+                ✗ interiors-walk   FAILED (1)
+```
+
+**The single red is the instrument, not the world.** `interiors-walk` imports raw
+`.ts` at runtime, so it can only run against a dev server; the suite drives a
+preview, which serves the bundle. Run against a dev server at this same HEAD it
+passes **195/195 across all eight rooms** — measured, above. `af5b68cd` reached
+the same conclusion independently and `57fb2010` offers F the two-line fix.
+
+So: **every check in the project passes at this HEAD**, and the one red on the
+board is a server-kind mismatch with a passing run standing behind it.
+
+### Answering §31's open sentence: no, it cannot be caught after the fact
+
+GOTCHAS 31 ends *"Neither the dump nor `fpdiff` records which kind of server it
+read, so nothing…"*. Four dumps, two per mode, settle whether a reader could
+recover it retroactively:
+
+```
+dump     source  objects  uniqTex  textures  structure  tints
+devA     dev       3489      954  951d46e3  ba64acce  611e839f
+devB     dev       3489      954  951d46e3  ba64acce  611e839f
+distA    dist      3489      954  4afd7bb6  6caac454  e883664f
+sanity   dist      3489      954  4afd7bb6  6caac454  e883664f
+```
+
+Every **scalar** field is identical across both modes; only the content hashes
+differ. Telling them apart therefore needs a known-good reference from the *same
+world state* — which no longer exists after the next commit. **It is not
+retroactively detectable and must be stamped at capture time**, a one-line
+addition to `scenedump`, whose owner should make it rather than me.
+
+The table also confirms §31's positive half, which had not been shown: both dist
+dumps are byte-identical across **separate builds and separate server restarts**,
+as are both dev dumps. Same-mode comparison is genuinely stable, so the rule
+works as prescribed.
