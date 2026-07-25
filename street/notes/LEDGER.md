@@ -73,3 +73,4 @@ user anything is finished.
 | OPEN | C | the garlands are disconnected | |
 | OPEN | D | the atm is still not right | |
 | OPEN | E | make the library interior larger and more ambitious. more halls and st | |
+| OPEN | F | make sure the people in the buildings are in the right orientation. (b | |

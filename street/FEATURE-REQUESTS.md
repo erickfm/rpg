@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"make sure the people in the buildings are in the right orientation. (burger barn guy is facing away from you always)"** → **F**
 - **"make the library interior larger and more ambitious. more halls and stair ways"** → **E**
 - **"the atm is still not right"** → **D**
 - **"the garlands are disconnected"** → **C**
