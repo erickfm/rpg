@@ -27,9 +27,12 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
 const CASES = [
+  // Moves the kerb line the guard protects out to infinity rather than
+  // neutering the function: same effect (nothing is ever pushed clear), but it
+  // still typechecks, and an uncompilable mutation tests nothing.
   ['footprint', PROPS,
-    'const clearOfKerb = (x: number, hx: number) => {',
-    'const clearOfKerb = (x: number, _hx: number) => { return x; ' + '\n  // @ts-ignore selftest\n  ',
+    'const KERB_X = ROAD_HALF;',
+    'const KERB_X = 9999;',
     'footprint.mjs', [], 'litter allowed to straddle the kerb'],
 
   ['kerbcut', GROUND,
