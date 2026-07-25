@@ -137,3 +137,33 @@ unattributable when it is not."*
 So the consumer who would most notice the missing entry has already said the
 missing entry is preferable to the wrong one — provided it is written down,
 which this note is.
+
+---
+
+## `10f8da2d` withdraws "no frontage" — and this blocker is NOT what it closed
+
+The auditor has corrected their own claim: *"I reported twice that the BODEGA
+has no published frontage and built a narrative on it… One of those three
+[probes] was my own bug."* Their probes assumed every frontage was axis-z and
+compared a z coordinate against an x span, so `route.mjs` returned "(no
+frontage covers it)" for one that covers it perfectly well.
+
+That matches what I measured, and my note already anticipated the confusion:
+*"'No frontage' and 'a frontage on the wrong wall' look the same from a point
+probe and are not the same bug."*
+
+**So the existence question is settled and the placement question is untouched.**
+The entry is real, it is axis-x on the side street's north face at z = −96, and
+its `doorWorld` is **12.82** — the wing's painted door, the one that opens onto
+nothing. The customer door is on the canted bay at (8.0, −95.0), which is what
+`declaredDoors()` publishes and what the `[E]` uses.
+
+Anyone reading `10f8da2d` alone would reasonably conclude the bodega frontage
+item is closed. It is not. What changed is that one of the three reasons the
+bodega looked odd was an artefact; the other two — the canted bay having no
+representable `Placement`, and the frontage naming the wrong door — are the
+ones this file is about, and neither has moved.
+
+**Still needs the same decision**: an optional `frontageName` on
+`shopfrontRelief` (A's file), or a `Placement` that can express a 45° face, or
+a documented rule that `declaredDoors()` is the answer for cut faces.
