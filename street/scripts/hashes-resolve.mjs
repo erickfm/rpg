@@ -58,6 +58,7 @@
 // project-wide mapping built while they were still readable; consult it for
 // REPAIR. This script is for not adding new ones.
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 
 const MAINLINE = process.env.MAINLINE ?? 'add-stick-and-city98';
 // stderr swallowed: the misses are the NORMAL case here — most hash-shaped
@@ -105,7 +106,15 @@ const files = [
   // also being argued from in real notes, which is why it was built. So the
   // number stands at ~151 genuine dead citations and the exemption is for
   // correctness rather than to flatter the total.
-  .filter((f) => !f.endsWith('AUDIT-hash-recovery.md'));
+  .filter((f) => {
+    if (f.endsWith('AUDIT-hash-recovery.md')) return false;
+    // A file may DECLARE itself a mapping table. Dead hashes are the content of
+    // such a file, not a citation in it, and hardcoding names does not scale
+    // past the first one — my own verification note became the second within an
+    // hour of the first being exempted.
+    try { return !readFileSync(f, 'utf8').includes('hashes-resolve: mapping table'); }
+    catch { return true; }
+  });
 
 if (only.length && !files.length) {
   console.error(`\n  nothing matches ${only.join(' ')} — check the filter.\n`);
@@ -197,8 +206,29 @@ for (const [h, where] of stranded) {
         const a = idOf(h), b = idOf(twin);
         same = a && b ? a === b : null;
       } catch { same = null; }
+      // A MISMATCH IS NOT A REFUTATION, and this used to say it was — "same
+      // subject, different change; do NOT paste this". Measured against the
+      // project's whole recovery table: of 141 mappings, 9 have a differing
+      // patch-id and all 9 are correct. A rebase rewrites the patch when it
+      // resolves a conflict, drops a file that no longer exists, or simply
+      // shifts the context lines patch-id --stable hashes. Read as a rejection
+      // test it throws out sound mappings, which is §36's own error pointing
+      // the other way. notes/B-recovery-table-verified.md has the table.
+      //
+      // What decides is whether the subject is UNIQUE on mainline, so say that
+      // instead of issuing a warning the evidence does not support.
+      let cand = null;
+      if (same === false) {
+        try {
+          cand = git('log', '--format=%s', MAINLINE).split('\n')
+            .filter((x) => x === subj).length;
+        } catch { cand = null; }
+      }
       const mark = same === true ? 'patch-id matches'
-        : same === false ? 'PATCH-ID DIFFERS — same subject, different change; do NOT paste this'
+        : same === false
+          ? (cand === 1
+            ? 'patch-id differs, but only one commit on mainline carries this subject — the rebase rewrote the patch'
+            : `patch-id differs AND ${cand ?? '?'} commits share this subject — check before pasting`)
         : 'patch-id not checkable here';
       console.log(`      landed as ${twin} — ${mark}`);
     }
