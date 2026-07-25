@@ -79,6 +79,40 @@ bench and the lamps in the roadway.
 
 ---
 
+## For whoever owns `turn.mjs` — registering it would add a check that cannot fail
+
+`e90c6736` swept every user request for a guard and named the cheapest fix:
+register `turn.mjs`, since it is structural, needs no human eye, and would guard
+"do the interior people turn through 8 angles" — a direct request currently
+protected by nothing. It declined to do it because `scripts/**` is not its.
+
+**There is a precondition, and it is the thing this project keeps being bitten
+by.** `turn.mjs` has no verdict. It classifies each figure and prints it:
+
+```
+interior (754.83, -0.65) TURNS   8 distinct frames over 8 headings
+interior (841.6, -3.52)  TURNS   8 distinct frames over 8 headings
+...
+exit=0
+```
+
+There is no aggregate line and no exit code. **If every figure came back FLAT it
+would still exit 0.** Registered as-is it becomes a green row that means
+nothing — the same failure as `trash.mjs`'s count verdict, which printed FAIL
+and returned 0 for weeks, and the two scripts that went missing under GOTCHAS 24.
+
+The criterion is not a judgement call; the script states it in its own header:
+*"Eight angles means the offset (or the mirror sign) changes as you go round. A
+flat card that merely billboards will swing its yaw to face you and never change
+frame."* So the verdict is "no sampled figure is FLAT", plus a floor on how many
+were sampled, so an empty sweep cannot pass either.
+
+**Not writing it.** Which figures are in scope is the author's call, and that is
+the half I would be guessing at. Reported with the measurement so it is one
+small block for someone who knows, rather than a row that lies for everyone.
+
+---
+
 ## Still needing routing, not self-assignment
 
 1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
