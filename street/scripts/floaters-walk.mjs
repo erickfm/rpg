@@ -74,7 +74,23 @@ const found = await p.evaluate(([BOX]) => {
   });
   const out = [];
   for (const pr of props) {
-    let best = null;
+    // THE FLOOR IS PUBLISHED — ask it, do not hunt for it.
+    //
+    // Every surface below is found by scanning meshes, which is right for a
+    // shelf or a counter and wrong for the floor: the floor is what
+    // `__ct.groundAt` exists to answer, and it is the same pick the rig itself
+    // uses. Hunting for it instead means depending on which mesh happens to be
+    // under the prop — the casino lays a carpet decal 12 mm over the kit floor,
+    // so "the lowest plane" and "the floor" are already two different answers
+    // in one room (cc2d8bb56 hit exactly this in a floor check).
+    //
+    // This script has produced two false positives already, both from the
+    // surface set being incomplete: a cylinder was not a surface, so a stool
+    // read as floating; and a prop sunk 25 mm into its support read as
+    // floating too. Seeding with the ground removes the whole class for
+    // anything resting on the floor, which is most of what it looks at.
+    const g = window.__ct.groundAt(pr.x, pr.z);
+    let best = (typeof g === 'number' && g <= pr.y - pr.half + 0.06) ? g : null;
     for (const s of surfaces) {
       if (Math.abs(s.x - pr.x) > s.hw + pr.w / 2) continue;
       if (Math.abs(s.z - pr.z) > s.hd + pr.d / 2 + 0.05) continue;
@@ -92,15 +108,33 @@ const found = await p.evaluate(([BOX]) => {
     const gap = (pr.y - pr.half) - best;
     if (gap > 0.06) out.push({ gap: +gap.toFixed(3), at: [+pr.x.toFixed(2), +pr.y.toFixed(2), +pr.z.toFixed(2)], kind: pr.kind });
   }
-  return out.sort((a, b) => b.gap - a.gap).slice(0, 15);
+  // TWO lists, and the second is why. The report is capped at 15 so it stays
+  // readable, sorted by gap — which means the entries most worth seeing are the
+  // ones most likely to be cut. Wall signs legitimately hang 2 m up, so fifteen
+  // of them outrank a prop floating 0.2 m at knee height and it never appears.
+  // A cap that silently drops the interesting half is the same defect as a
+  // check that reports nothing: caught when a deliberately floated bin did not
+  // show up in the list I was testing against.
+  const sorted = out.sort((a, b) => b.gap - a.gap);
+  return { top: sorted.slice(0, 15), low: sorted.filter((f) => f.at[1] < 1.4) };
 }, [BOX]);
 
-console.log(found.length ? 'props with air under them, worst first:' : 'nothing floating');
-for (const f of found) console.log(`  ${f.gap.toFixed(3)} m  ${f.kind} @ ${f.at.join(', ')}`);
+console.log(found.top.length ? 'props with air under them, worst first:' : 'nothing floating');
+for (const f of found.top) console.log(`  ${f.gap.toFixed(3)} m  ${f.kind} @ ${f.at.join(', ')}`);
 console.log('\nA hanging sign is SUPPOSED to have air under it, so this reports and does not');
 console.log('fail. What it is for is the prop that was meant to be RESTING on something.');
 console.log('KNOWN LIMITATION: the list is dominated by upright wall planes — signs, cards,');
 console.log('photos — which hang by design. Read from the BOTTOM up: furniture-height');
-console.log('entries are the ones worth looking at. Nothing under 1.4 m is floating today.');
+console.log('entries are the ones worth looking at.');
+// COMPUTED, not asserted. This line used to read "Nothing under 1.4 m is
+// floating today" and was printed unconditionally — true when written, and it
+// would have gone on saying so with a prop hanging at knee height underneath
+// it. A sentence a script prints about the world is a claim like any other and
+// has to be measured; this file's whole subject is props at the wrong height.
+const low = found.low;
+console.log(low.length
+  ? `${low.length} of these sit BELOW 1.4 m, which is furniture height, not signage —`
+    + ' those are the ones to look at:\n' + low.map((f) => `  ${f.gap.toFixed(3)} m  ${f.kind} @ ${f.at.join(', ')}`).join('\n')
+  : 'Nothing below 1.4 m has air under it — measured, not assumed.');
 if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
 await b.close();

@@ -417,9 +417,12 @@ export function buildThrift(ctx: CtxBuild): void {
   // keeper at rather than anything you walk into.
   const boxM = new THREE.MeshBasicMaterial({ color: 0xa08a68 });
   const BOXES: [number, number, number, number][] = [
-    [-0.3, 0.26, -0.18, 0.5], [-0.22, 0.76, -0.12, 0.2],
-    [0.55, 0.24, 0.1, -0.35], [0.62, 0.7, 0.06, 0.15],
-    [1.35, 0.28, -0.05, 0.6],
+    // 0.44 m tall, so tier one centres at 0.22 and tier two at 0.66. These were
+    // eyeballed at 0.24…0.28 and 0.70…0.76, which left every one of them a few
+    // centimetres off its own floor or the box below it.
+    [-0.3, 0.22, -0.18, 0.5], [-0.22, 0.66, -0.12, 0.2],
+    [0.55, 0.22, 0.1, -0.35], [0.62, 0.66, 0.06, 0.15],
+    [1.35, 0.22, -0.05, 0.6],
   ];
   for (const [dx, y, dz, rot] of BOXES) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.4), boxM);
@@ -445,10 +448,10 @@ export function buildThrift(ctx: CtxBuild): void {
   solid(WIN_X, WIN_Z, 1.5, 0.5);
   const wTorso = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.56, 0.2), formM);
   wTorso.rotation.y = Math.PI;                        // facing the street
-  put(wTorso, WIN_X - 0.35, 0.92, WIN_Z);
+  put(wTorso, WIN_X - 0.35, 0.42 + 0.28, WIN_Z);   // plinth top + half the torso
   const wCoat = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, 0.24), ctx.flat(coatT));
   wCoat.rotation.y = Math.PI;
-  put(wCoat, WIN_X - 0.35, 0.9, WIN_Z);
+  put(wCoat, WIN_X - 0.35, 0.42 + 0.31, WIN_Z);    // …and half the coat
   for (let i = 0; i < 3; i++) {
     const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18),
       new THREE.MeshBasicMaterial({ color: [0xb8a24e, 0x8a9aa8, 0xa06a72][i] }));
@@ -459,7 +462,9 @@ export function buildThrift(ctx: CtxBuild): void {
   const MORE: [string, string, number, number, number][] = [
     ['ALL SALES', 'FINAL', TILL_CX - 1.5, 1.62, TILL_Z + 0.1],
     ['COATS', 'HEAVY $6', COAT_X - 0.32, 1.92, COAT_CZ],
-    ['BELTS', '$1 EACH', 0.7, 0.72, 2.55],
+    // propped ON the bin rim (0.42 top + the card's own half-height), not at a
+    // typed height above a bin that has no wall behind it to tape it to
+    ['BELTS', '$1 EACH', 0.7, 0.42 + 0.10, 2.55],
     ['SHOES', 'AS FOUND', hw - 0.42, 1.86, SHOE_CZ],
   ];
   for (const [a, b, cx2, cy, cz2] of MORE) room.sign(cardT(a, b), 0.4, 0.2, cx2, cy, cz2);
