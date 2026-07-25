@@ -110,6 +110,16 @@ the ABSOLUTE hour and `rainAt` keys on it, so a script that finds a rainy hour
 builder two measurements. Mine passed absolute hours under 24 throughout, so the
 wrap never applied.
 
+**These are TINTS, and each column is only comparable with itself.**
+`material.color` is a multiplier over the texture, white by default, so reading
+one material's colour against another's compares tints and not appearance — the
+fault several checks were swept for in this round. It does not weaken anything
+here, because the claim is about CHANGE: the ground's tint moves when it rains
+and the fleet's does not, and the wet system works by writing exactly these
+tints, so an unmoved tint means an untouched material. Do not read the car
+column against the ground column as "the car is darker than the road"; that
+comparison is not in evidence and is not the point.
+
 **My own first figure was a lower bound wearing the clothes of a measurement.**
 `b3e1e5c3` caught the same trap in its own numbers — `wSurf = wetness^1.7`, so a
 sample taken before wetness reaches 1.0 reports roughly half the effect. Mine
