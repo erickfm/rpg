@@ -9,7 +9,7 @@ door numbers used below were derived and walked there.
 
 ---
 
-# RUN 1 — THE CASINO, GOLDEN ACES (commit `TBD`)
+# RUN 1 — THE CASINO, GOLDEN ACES (commit `2ae3040`)
 
 ## `## Now` → **THE CASINO — GOLDEN ACES** — DONE, but **it needs three lines
 from F before anyone can walk into it.** See "For F" below. Everything else is
