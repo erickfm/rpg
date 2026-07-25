@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
   facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
-  proud, reveal, glazed, mullions, HI,
+  proud, reveal, glazed, mullions, HI, shopfrontRelief,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
 import { walkTex } from './tex-ground';
@@ -229,6 +229,14 @@ export function buildStreet(o: {
     const shop = new THREE.Mesh(new THREE.BoxGeometry(dep, gh, b.w), shopMats);
     shop.position.set(cx, gh / 2, cz);
     scene.add(shop);
+    // the shopfront's projecting mouldings — fascia cornice and bed-mould,
+    // glazing jambs and head, stallriser cill and plinth. Nothing projects
+    // past 0.30 m, which solid() below already reserves, so this adds no
+    // collision. The walk-up (b.res) has a doorcase, not a shopfront.
+    if (!b.res) shopfrontRelief({
+      scene, name: b.nm, wMeters: b.w, trim: b.col,
+      x: side * FACE, z: cz, rotY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
+    });
     roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
     // collision follows the real footprint, not a fixed 8 m guess
     solid(side < 0
@@ -694,6 +702,10 @@ export function buildStreet(o: {
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, dep), shopMats);
     shop.position.set(cx, gh / 2, czd);
     scene.add(shop);
+    shopfrontRelief({
+      scene, name: b.nm, wMeters: b.w, trim: b.col,
+      x: cx, z: front, rotY: facing > 0 ? 0 : Math.PI,
+    });
     roofKit(cx, czd, b.w, dep, gh + h, b.nm);
     solid(facing > 0
       ? { minX: x0, maxX: x0 + b.w, minZ: front - dep, maxZ: front + 0.3 }

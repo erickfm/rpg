@@ -289,6 +289,12 @@ export interface Frontage {
   stallriserH: number;
   /** fascia band height, metres */
   fasciaH: number;
+  /** underside of the fascia, metres above the pavement */
+  fasciaBottomM: number;
+  /** the glazing's vertical extent, metres above the pavement. glazingBottomM
+   *  is the window sill height — the `sill:` the int-*.ts rooms hand-type. */
+  glazingBottomM: number;
+  glazingTopM: number;
 }
 
 /** the per-character band geometry, in metres. One row per painter below.
@@ -392,7 +398,92 @@ export function frontageOf(name: string, wMeters: number): Frontage {
     glazingEndM,
     stallriserH,
     fasciaH: B.fh,
+    fasciaBottomM: SHOP_BAND_H - B.fy - B.fh,
+    glazingBottomM: stallriserH + 0.05,
+    glazingTopM: SHOP_BAND_H - oy - B.gi,
   };
+}
+
+/**
+ * THE SHOPFRONT IN THREE DIMENSIONS — the part shading cannot do.
+ *
+ * `reveal()`/`proud()` make a painted plane read as built, and at 16 px/m that
+ * is the right answer for a 50 mm lip. But a fascia genuinely stands off the
+ * wall by 150–200 mm, and no amount of shading gives you the thing you see
+ * when you walk PAST a shop rather than stand square to it: the sign edge
+ * catching light down the street, the stallriser stepping out at your shin,
+ * the glass sitting back behind its jambs. That is silhouette, and silhouette
+ * needs geometry.
+ *
+ * These are MOULDINGS, not slabs, and deliberately so: a solid projecting
+ * fascia box would cover the painted sign, and a solid stallriser would cover
+ * its panels. A real shopfront frames its fascia with a cornice above and a
+ * bed-mould below, and its glass with jambs and a cill. Framing gives the
+ * depth without hiding the art the painter just put there.
+ *
+ * Everything derives from `frontageOf()`, so the relief lands exactly on the
+ * painted features rather than beside them — the same single-authoring the
+ * descriptor exists for.
+ *
+ * DEPTH BUDGET: nothing here projects more than 0.30 m, because
+ * `ct/street.ts` already reserves that — its footprint colliders start at
+ * `FACE - 0.3`. So this adds no collision and needs no collider change.
+ * If a future piece wants to project further, that is a conversation with
+ * whoever owns the collision, not a bigger number here.
+ */
+export function shopfrontRelief(o: {
+  scene: THREE.Scene;
+  name: string;
+  wMeters: number;
+  /** the shop's fascia colour, so the cornice belongs to its sign */
+  trim: string;
+  /** centre of the frontage, ON the facade plane */
+  x: number; z: number;
+  /** the same rotation litSheets is handed: local +x runs along the frontage,
+   *  local +z points out at the street */
+  rotY: number;
+}): void {
+  const F = frontageOf(o.name, o.wMeters);
+  const g = new THREE.Group();
+  g.position.set(o.x, 0, o.z);
+  g.rotation.y = o.rotY;
+  o.scene.add(g);
+
+  const CORNICE = 0.20, BED = 0.13, JAMB = 0.12, CILL = 0.11, PLINTH = 0.09;
+  const half = o.wMeters / 2;
+  const along = (mFromLeft: number) => mFromLeft - half;   // frontage metres → local x
+  // Separate material instances on purpose: ct/props.ts's dimWorld() grades a
+  // material ONCE, by the elevation of the first mesh it sees wearing it. Share
+  // one between the cornice and the plinth and the whole set gets graded as if
+  // it lived at whichever height came first.
+  const tint = new THREE.Color(o.trim || '#4a4034');
+  const mat = (c: THREE.Color | number) => new THREE.MeshBasicMaterial({ color: c });
+  const put = (w: number, h: number, d: number, x: number, y: number, m: THREE.Material) => {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    box.position.set(x, y, d / 2);          // sits ON the plane, projecting out
+    g.add(box);
+    return box;
+  };
+
+  // ── the fascia, framed rather than covered ────────────────────────────────
+  const fTop = F.fasciaBottomM + F.fasciaH;
+  put(o.wMeters, 0.10, CORNICE, 0, fTop + 0.05, mat(tint.clone().multiplyScalar(0.72)));
+  put(o.wMeters, 0.07, BED, 0, F.fasciaBottomM - 0.035, mat(tint.clone().multiplyScalar(0.55)));
+
+  // ── the glass reveal: jambs each side and a head over, so the glazing
+  //    reads as set back behind a frame rather than flush with the brick ─────
+  const dark = 0x332e28;
+  const gL = along(F.glazingStartM), gR = along(F.glazingEndM);
+  const gH = F.glazingTopM - F.glazingBottomM;
+  const gMid = (F.glazingBottomM + F.glazingTopM) / 2;
+  put(0.14, gH + 0.12, JAMB, gL - 0.07, gMid, mat(dark));
+  put(0.14, gH + 0.12, JAMB, gR + 0.07, gMid, mat(dark));
+  put(gR - gL + 0.28, 0.13, JAMB, (gL + gR) / 2, F.glazingTopM + 0.06, mat(dark));
+
+  // ── the stallriser: a cill where it meets the glass, a plinth at the
+  //    pavement. The step you catch with your shin. ──────────────────────────
+  put(o.wMeters, 0.09, CILL, 0, F.stallriserH + 0.02, mat(tint.clone().multiplyScalar(0.45)));
+  put(o.wMeters, 0.12, PLINTH, 0, 0.06, mat(0x2a2620));
 }
 
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
