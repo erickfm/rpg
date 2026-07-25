@@ -49,13 +49,22 @@ const site = await p.evaluate(() => {
     const g = o.geometry?.parameters;
     if (g && Math.abs(g.width - 3.0) < 0.01 && Math.abs(g.height - 2.7) < 0.01
           && Math.abs(g.depth - 4.6) < 0.01) office = [e[12], e[14]];
-    // banners: alpha-cut planes 0.62 m tall carrying a wide, short canvas
-    const im = o.material?.map?.image;
-    if (g && g.height && Math.abs(g.height - 0.62) < 0.001 && im && im.height === 30)
-      banners.push({ x: e[12], y: e[13], z: e[14], w: g.width });
-    // the chain-link panels: a 24x24 wire tile, and only the fence uses it
-    if (im && im.width === 24 && im.height === 24 && g && g.width)
-      fence.push({ x: e[12], y: e[13], z: e[14], w: g.width, h: g.height });
+    // EVERY material, not `o.material.map`. a7f2241d found nightgrade skipping
+    // multi-material meshes entirely, which is the same blind spot that hid the
+    // entrance band from me twice: on a box, `o.material` is an ARRAY and
+    // `.map` is undefined. Banners and fence panels are single-material planes
+    // today, so this changes no number — but a banner that ever became part of
+    // a multi-material mesh would silently not be counted, and an uncounted
+    // banner is an unchecked one. A false negative in the check that exists to
+    // catch floating signs is the worst possible failure for it.
+    const ims = (Array.isArray(o.material) ? o.material : [o.material])
+      .map((mm) => mm?.map?.image).filter(Boolean);
+    for (const im of ims) {
+      if (g && g.height && Math.abs(g.height - 0.62) < 0.001 && im.height === 30)
+        banners.push({ x: e[12], y: e[13], z: e[14], w: g.width });
+      if (im.width === 24 && im.height === 24 && g && g.width)
+        fence.push({ x: e[12], y: e[13], z: e[14], w: g.width, h: g.height });
+    }
   });
   return x0 > x1 ? null : { x0, x1, z0, z1, office, banners, fence };
 });
