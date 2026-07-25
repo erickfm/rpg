@@ -3,7 +3,13 @@
 Two things, both needing somebody other than me. Neither is urgent enough to
 stall the project; both are small for the person who can do them.
 
-## 1. The facade brief is 80 % delivered and the last fifth needs D's file
+## 1. THE CRITICAL PATH — the last fifth of the facade brief needs D's file
+
+**The desk has just redirected me here** ("go back to the facade work — that is
+what the user is looking at"), and this is the only facade work left. Everything
+in `tex-world.ts` is done and verified day and night; what remains cannot be
+done from my file at all. So this decision is now the thing standing between the
+user and the rest of what they asked for.
 
 **What I need:** a bounded mandate for `ct/street.ts`, or a decision that the
 current state is enough.
@@ -26,9 +32,13 @@ All three are meshes, and shopfront meshes are built in `placeBld` /
 `placeBldZ` in `ct/street.ts`, which is D's. I can supply the builder from
 `ct/tex-world.ts`; the change in D's file is one call per placement function.
 
-**Worth asking the user before spending it.** The shading may already be what
-they wanted — the complaint was "flat painted plane", and it no longer reads
-flat. If they still want real projection, this is the shape of it.
+**Worth asking the user before spending it.** The complaint was "flat painted
+plane", and it no longer reads flat: `shots/ff-diner.png` and `shots/ff-night.png`
+are the current state, day and night. If that is what they meant, this item is
+DONE and should be closed rather than left open. If they meant literal
+projection, the three above are the shape of it and it needs the mandate.
+
+I cannot answer that one myself, which is why it is here rather than in a note.
 
 ## 2. `ensureAlive` should be adopted by the shooting scripts
 
