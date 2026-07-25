@@ -30,7 +30,7 @@
  * @param argv   defaults to process.argv.slice(2)
  * @returns  { rest: string[], <flag-without-dashes>: boolean }
  */
-export function flags(known, argv = process.argv.slice(2)) {
+export function flags(known, argv = process.argv.slice(2), opts = {}) {
   const out = { rest: [] };
   for (const k of known) out[k.replace(/^-+/, '')] = false;
   const bad = [];
@@ -39,9 +39,22 @@ export function flags(known, argv = process.argv.slice(2)) {
     if (known.includes(a)) { out[a.replace(/^-+/, '')] = true; continue; }
     bad.push(a);
   }
+  // POSITIONAL MODES, when the caller declares them. 05694164a found
+  // no-silent-pass red on three scripts that dispatch on argv[2] — `lamplight`,
+  // `parking`, `truck` — where an unrecognised MODE matches no branch, falls off
+  // the end and exits 0 having run nothing. That is the same failure as an
+  // unknown flag and it needs the same answer, but a whitelist of flags cannot
+  // see it: `walk` and `--walk` are different shapes of the same typo.
+  //
+  // Only checked when `opts.modes` is given, so scripts whose positionals are
+  // paths — an [outdir], a numeric box — are untouched.
+  if (opts.modes) {
+    for (const a of out.rest) if (!opts.modes.includes(a)) bad.push(a);
+  }
   if (bad.length) {
     console.error(`\nUNRECOGNISED ${bad.length > 1 ? 'FLAGS' : 'FLAG'}: ${bad.join(', ')}`);
-    console.error(`  This script accepts: ${known.join(', ') || '(no flags)'}`);
+    console.error(`  This script accepts: ${known.join(', ') || '(no flags)'}`
+      + (opts.modes ? `  ·  modes: ${opts.modes.join(', ')}` : ''));
     console.error(`  Ignoring it would run the ordinary check and exit 0, which is`);
     console.error(`  what a selftest that CAUGHT its mutation also does — so a typo`);
     console.error(`  would read as a proven guard. Exiting 2 instead.\n`);
