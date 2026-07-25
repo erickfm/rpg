@@ -30,6 +30,7 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
+import { setClock } from './lib/clock.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const browser = await chromium.launch();
@@ -45,25 +46,21 @@ await installMats(page);
 
 const bad = [];
 let materials = 0;
-// ONE SETTLE AFTER LOAD, then a frame each. I got the mechanism wrong when I
-// found this and 2558b1ba corrected it: THE GRADE DOES NOT LERP. Measured both
-// ways to check the correction rather than take it —
+// WAIT ON THE FRAME, not on a number I picked. I found this delay and named the
+// mechanism wrong — "settle ramp" — and 2558b1ba corrected it: the grade does
+// not lerp, it costs one rendered frame, and a too-early read returns the
+// PREVIOUS time of day in full rather than a half-applied one. Measured both
+// ways before accepting the correction:
 //
 //   23:00 on a FRESH page                 100:0  200:0  400:0  800:9  1600:9
 //   23:00 from an already-running world   100:9  200:9  400:9  800:9  1600:9
 //
-// — so the delay is first-frame initialisation, not a curve. A too-early read
-// does not see a half-applied grade; it sees the PREVIOUS time of day in full,
-// which is worse, because that is a plausible number rather than an obvious one.
-//
-// The correction costs as well as corrects: 1200 ms on all twenty-four hours was
-// 28 s of sleeping to solve a problem that exists only at the first one.
-await page.evaluate(() => window.__ct.clock(12, 0));
-await page.waitForTimeout(1500);        // the ONE that matters: first rendered frame
-
+// My repair was 250 ms per hour, which is still a guess — a slower machine or a
+// throttled tab moves the number and nothing says so. lib/clock.mjs waits on
+// two rendered frames and reports if its cap wins instead of degrading quietly.
 for (let h = 0; h < 24; h++) {
-  await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
-  await page.waitForTimeout(250);
+  const t = await setClock(page, h, 0);
+  if (t.capped) { console.log(`  ${h}:00 — setClock hit its cap; this hour is not trustworthy`); process.exitCode = 1; }
   const r = await page.evaluate(() => {
     const out = { n: 0, faults: [] };
     window.__ct.scene().traverse((o) => {
