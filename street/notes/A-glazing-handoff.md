@@ -18,7 +18,52 @@ But `glaze` is computed at **`interior.ts:549`** from
 consumer of a deprecated API, and deleting them stops being a five-minute
 change.** That is the only time-sensitive thing in this note.
 
-## The patch, so it costs F nothing
+## THE PATCH I GAVE YOU WAS WRONG. Here is the measured one.
+
+**Corrected after actually applying and measuring it.** What is below this
+section was written from reasoning and it does not survive contact:
+
+1. **It does not compile.** `F` is `frontageOf(...)`, typed `Frontage` — the
+   deprecated local shape. `F.doorWorld` and `F.glazingLoWorld` do not exist on
+   it. Anyone applying my "two lines" hit three `TS2339`s immediately.
+2. **Made to compile the obvious way, it breaks the diner.** Adding a
+   `localOfWorld` that mirrors with `fr.side`, as I specified, changes exactly
+   one room out of eight — and it replaces the diner's window (head, transom,
+   apron and sill) with **one solid 4.03 × 2.60 wall panel**. The window is gone.
+
+The cause is the thing this whole file is about: `fr.side` and `uDir` disagree
+for the diner, so a world coordinate produced with `uDir` and consumed with
+`fr.side` gets the mirror applied **twice**.
+
+### The patch that is actually a no-op
+
+Convert world → `alongU` with the frontage's **own** `uDir`, then reuse the
+existing `localOf`, which already works:
+
+```ts
+import { frontageOf, frontageWorld } from './tex-world';
+const FW = fr ? frontageWorld(fr.name) : null;
+
+const alongUOf = (world: number) => FW
+  ? (FW.uDir > 0 ? world - FW.loWorld : FW.hiWorld - world) : 0;
+
+// :553
+const dAt = spec.door.at ?? (FW ? localOf(alongUOf(FW.doorWorld))
+                                : F ? localOf(F.doorCentreM) : 0);
+// :563
+const e0 = FW ? localOf(alongUOf(FW.glazingLoWorld)) : localOf(F.glazingStartM);
+const e1 = FW ? localOf(alongUOf(FW.glazingHiWorld)) : localOf(F.glazingEndM);
+```
+
+**Measured, not asserted: 0 of 226 room meshes change**, across all eight rooms,
+diner included. `tsc` clean. I applied it, rebuilt, dumped every interior mesh
+before and after, and diffed.
+
+I have reverted it — it is still your file and I have no mandate. But the reason
+I kept giving for not applying it ("it would break F's build") is now disproven,
+so the only thing left is ownership. **Say the word and it lands in a minute.**
+
+## ~~The patch, so it costs F nothing~~ (superseded — see above)
 
 `localOf` converts frontage-local metres → world → room-local. Feeding it world
 coordinates means dropping the first step:
