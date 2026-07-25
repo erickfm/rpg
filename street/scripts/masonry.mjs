@@ -19,7 +19,7 @@ import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
-await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
 const out = await p.evaluate(() => {
@@ -28,7 +28,18 @@ const out = await p.evaluate(() => {
   s.traverse(o => {
     if (!o.isMesh || !o.geometry) return; meshes++;
     for (let q=o;q;q=q.parent) if (q.visible===false) return;
-    const m = Array.isArray(o.material)?o.material[0]:o.material;
+    // EVERY material, with its index — and the index is the whole story on a
+    // box. This read `o.material[0]` and then measured `parameters.width`, but
+    // material 0 is the +x face, whose dimensions are DEPTH x height. Height is
+    // height on both side faces, which is exactly why the disagreement it found
+    // was "vertical always right, horizontal always wrong" on all 42.
+    //
+    // Measured, all 42: declared width == the box's DEPTH, 42 of 42; declared
+    // width == the box's WIDTH, 0 of 42. e.g. painted for 19.2 m on a box
+    // 15.9 wide and 19.2 deep. The faces are correct and the reader was not.
+    // scripts/density.mjs already indexes faces this way and says why.
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m, mi) => {
     if (!m || !m.map) return; mapped++;
     const ms = m.map.userData && m.map.userData.masonry;
     if (!ms) return; stamped++;
@@ -39,7 +50,12 @@ const out = await p.evaluate(() => {
     const pr = o.geometry.parameters || {};
     let fw = null, fh = null;
     if (o.geometry.type === 'PlaneGeometry') { fw = (pr.width??0)*S[0]; fh = (pr.height??0)*S[1]; }
-    else if (o.geometry.type === 'BoxGeometry') { fw = (pr.width??0)*S[0]; fh = (pr.height??0)*S[1]; }
+    else if (o.geometry.type === 'BoxGeometry') {
+      // BoxGeometry material order is [+x, -x, +y, -y, +z, -z]
+      if (mi === 0 || mi === 1)      { fw = (pr.depth??0)*S[2];  fh = (pr.height??0)*S[1]; }
+      else if (mi === 4 || mi === 5) { fw = (pr.width??0)*S[0];  fh = (pr.height??0)*S[1]; }
+      else                           { fw = (pr.width??0)*S[0];  fh = (pr.depth??0)*S[2];  }
+    }
     const img = m.map.image;
     // map.repeat is the trap: a canvas painted for one width and TILED onto a
     // wider face has the right density and the wrong naive arithmetic. I made
@@ -55,7 +71,8 @@ const out = await p.evaluate(() => {
       faceM: fw?[+fw.toFixed(2), +fh.toFixed(2)]:null, measured, naive,
       repeat: [+rep[0].toFixed(3), +rep[1].toFixed(3)],
       at: [+((bb.min.x+bb.max.x)/2).toFixed(1), +((bb.min.y+bb.max.y)/2).toFixed(1), +((bb.min.z+bb.max.z)/2).toFixed(1)],
-      type: o.geometry.type });
+      type: o.geometry.type, mi });
+    });
   });
   return { meshes, mapped, stamped, rows };
 });
