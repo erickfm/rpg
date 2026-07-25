@@ -28,6 +28,33 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **The CHURCH steps still cannot be climbed — `courtGround` covers the
+      library only.** The user: *"church i still cant walk into i cant walk up
+      the stairs or go in, same as library."*
+
+      You wired `courtGround` and `COURT.climbable = true`, and that is in the
+      entry point now — good. But `COURT` is a single site describing the
+      LIBRARY courtyard. The church has its own inlaid forecourt and its own
+      flight, built by E under `YARD_X0/YARD_X1` in `ct/civic.ts`, and nothing
+      answers for its floor. So the church steps are in exactly the state the
+      library's were an hour ago.
+
+      **The user also cannot go IN to either.** Climbing the steps is half of
+      it; there is no `[E]` at the top of either flight. Neither building has
+      an interior — the library one is queued to E and the church has none —
+      so at minimum the doors should say something rather than being scenery.
+      Decide with the desk: a prompt that opens a real room, or a locked-door
+      response. **Do not leave a flight of steps that leads to nothing.**
+
+      **And this is the eighth instance of the same class.** A per-site floor
+      registration is the fix, not a second hard-coded site: a module that
+      owns floor height over a region should register that region and its
+      picker, the way it registers a spot or a frame hook, and the entry point
+      should dispatch over the registry. Fold it into the automatic
+      incorporation contract you are already building — then the church, the
+      park, the car lot and anything else with a level change all work by
+      existing.
+
 - [ ] **Diner seating: bar stools or perpendicular window booths, nothing
       else.** The user: *"in the diner for all the seating i either want bar
       seating like what we have or booths but the booths should be

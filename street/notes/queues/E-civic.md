@@ -14,6 +14,52 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The park is a dark empty yard. It needs LIFE, and it needs LIGHT.**
+      The user: *"maybe the shittiest park ive ever seen please come at this
+      with some more life and energy jesus."* Ref: `shots/user-parkbad.png`.
+
+      Look at that screenshot honestly: a black rectangle enclosed by blank
+      brick on three sides, one bench and one bin at the far left edge, a
+      strip of hedge at the back. It reads as a prison yard. The user is not
+      being harsh.
+
+      **The root cause is that the content did not scale with the depth.**
+      The park went from ~7 m to 32 m deep because they asked for it — that is
+      roughly a five-fold increase in area — and the same handful of objects
+      is now scattered through a space five times the size. Density that read
+      as "sparse municipal" at 7 m reads as "empty lot" at 32 m. Everything
+      below follows from fixing that.
+
+      **1. LIGHT IT. This is the single biggest problem.** There is not one
+      lamp in the park, so at night it is a void — and the night pass has made
+      the world genuinely dark, which is right for the street and fatal here.
+      Park lamps: a run of them along the loop path, warm, spaced so the path
+      is legible end to end, and registered with the night system so they pool
+      the way the street's do. A lit path through a dark park is one of the
+      best images this world could have. Lamps are `ct/props.ts` — ask the
+      desk and builder B will add them; do not reach into that file.
+
+      **2. Screen the walls.** Three blank brick flanks enclosing a park is
+      what makes it read as a yard. Trees along the boundary, planted close
+      enough to break the wall up, are what a real park does — plus ivy or
+      climbers on the brick, and railings rather than solid wall where the
+      park meets anything it can.
+
+      **3. Fill it, at the new scale.** A 32 m deep park wants: a proper run
+      of trees, not a token few; the field actually reading as mown grass with
+      worn desire lines; the loop path continuous and edged; several benches
+      along it rather than one; bins; a drinking fountain; a noticeboard at
+      the gate. The user has twice mentioned wanting a field with a walking
+      route round it — make that legible from the gate.
+
+      **4. Give it something to look at.** Every good small park has one
+      thing: a fountain, a memorial, a bandstand, a statue nobody remembers,
+      a chess table, a play area. Pick ONE and put it where the loop path
+      turns, so there is a reason to walk round.
+
+      Keep the tone — municipal, a little neglected, the library's hand. That
+      was never the problem. The problem is that there is nothing there.
+
 - [ ] **The library courtyard benches are not sittable.** The user: *"i cant
       sit at the benches at the library"*.
 
