@@ -124,8 +124,55 @@ if (SELFTEST) {
   console.log(`selftest: claimed ${hit} ungraded material as graded — this MUST now go red`);
 }
 const day = await probe(13), night = await probe(23);
+// A SECOND READ AT THE SAME HOUR, and it is not paranoia — it is the fix for
+// this script crying wolf.
+//
+// Under `npm run checks` this went red on one material and green on four runs
+// of its own, which is the worst way for a check to behave: it trains everyone
+// to shrug at red. The material was out at the casino end, and the cause is the
+// one that already broke my structure fingerprint (notes/A-fingerprint.md):
+// the casino/hotel chase recolours shared phase materials off FRAME time, not
+// the world clock. Grade such a material and the chase overwrites it a frame
+// later, so "the colour at 23:00" is really "the colour at whichever frame the
+// probe landed on" — and now and then that coincides with the noon read to
+// within the threshold, and a perfectly graded material reports as dead.
+//
+// A list of materials to ignore would go stale the moment anyone animates
+// something else. So it ASKS instead: hold the clock still and watch across
+// FRAMES. Anything whose colour moves while the clock does not is being driven
+// by something other than the grade, and noon-vs-night cannot say anything
+// about it.
+//
+// ACROSS MANY FRAMES, not two reads. I wrote the two-read version first and
+// measured it: it caught the chase on one run in six, because it only fires
+// when the two samples happen to differ — and the case it has to cover is
+// precisely the one where samples coincide. A fix whose reliability has the
+// same shape as the bug is not a fix. Ninety frames is about a second and a
+// half, which is longer than any chase period in this world.
+const animated = new Set(await p.evaluate(async () => {
+  const read = () => {
+    const m = new Map();
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh) return;
+      for (const mm of (Array.isArray(o.material) ? o.material : [o.material]))
+        if (mm?.color) m.set(mm.uuid, (mm.color.r + mm.color.g + mm.color.b) / 3);
+    });
+    return m;
+  };
+  const first = read(), moved = new Set();
+  for (let i = 0; i < 90; i++) {
+    await new Promise((res) => requestAnimationFrame(() => res()));
+    for (const [u, v] of read()) if (Math.abs(v - (first.get(u) ?? v)) >= 1e-4) moved.add(u);
+  }
+  return [...moved];
+}));
 console.log('13:00 ', JSON.stringify(day.avg));
 console.log('23:00 ', JSON.stringify(night.avg));
+if (animated.size) {
+  console.log(`  ${animated.size} material(s) change colour ACROSS FRAMES with the clock held`);
+  console.log('  at 23:00 — driven by something other than the grade (the casino/hotel');
+  console.log('  chase). Not judged below; noon-vs-night cannot say anything about them.');
+}
 
 // ── the actual test ───────────────────────────────────────────────────────
 //
@@ -218,7 +265,7 @@ const dead = Object.entries(day.each).filter(([u, d]) => {
   // that exact mistake once before, with `transparent` at 23:00. A flag is only
   // true at the hour that makes it true.
   return n && d.graded && !d.wet && !d.selfLit && !n.poolLit && d.key !== 'additive'
-    && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
+    && !animated.has(u) && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
 }).map(([uuid, d]) => ({ uuid, ...d }));
 const ungraded = Object.values(day.each).filter((d) => !d.graded && !d.selfLit).length;
 if (SELFTEST) {

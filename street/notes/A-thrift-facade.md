@@ -175,10 +175,23 @@ same value at both samples reads as "graded and did not move". The
 `translucent` figure bears it out — 0.401 in the red run, 0.253 and 0.521 in
 green ones, on identical code.
 
-**I am not fixing it inside a thrift-store commit**, and I am not calling the
-suite fully green either. It is my script, it cries wolf, and it belongs on my
-queue as its own item: `nightgrade` should exclude materials the chase owns, or
-sample them at a pinned frame, the way `scenedump` had to.
+I did not fix it inside the thrift-store commit, and I did not call the suite
+fully green either. **Fixed in the commit after**, since it is my script and a
+check that goes red at random is worse than no check — it teaches everyone to
+shrug at red.
+
+`nightgrade` now holds the clock at 23:00 and watches colours **across ninety
+frames**. Anything that moves while the clock does not is driven by something
+other than the grade, and noon-vs-night cannot say anything about it, so it is
+excluded and reported rather than judged.
+
+**The first version I wrote was two reads at the same hour, and I measured it
+before believing it: it caught the chase on one run in six.** It only fires
+when the two samples happen to differ — and the case it exists to cover is
+exactly the one where samples coincide. A fix whose reliability has the same
+shape as the bug is not a fix. Across frames it is 8 runs out of 8, and it
+finds **three** materials, which is the same three `A-fingerprint.md` arrived at
+independently by a different route.
 
 ## For the desk
 
