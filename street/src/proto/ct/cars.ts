@@ -618,7 +618,15 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       // same fix as the cab flank's: radius in METRES, converted with this
       // face's own px/m, so the bed's arch matches the cab's instead of being
       // whatever 10 texels happens to mean on a 1.8 m panel
-      g2.fillStyle = '#0a0b0e';
+      // THE WELL IS NOT BLACK — it is shadowed body metal, the same rule and the
+      // same multiplier the cab flank uses. This was '#0a0b0e' and the cab was
+      // fixed to `body * 0.34` without it, so a pickup carried TWO different
+      // arches: a shadowed one on the cab and a near-black one on the bed. On a
+      // dark car nobody sees the difference; on the tan pickup — the vehicle the
+      // user was pointing at — the bed arch reads as a hard black rectangle
+      // stamped on the side, which is their words for it exactly: "The arch is
+      // a black RECTANGLE, not an arch."
+      g2.fillStyle = `#${new THREE.Color(body).multiplyScalar(0.34).getHexString()}`;   // bodyC is declared BELOW this painter
       const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
       g2.beginPath();
       // same two metres as the cab flank's, in this face's own density
