@@ -1031,3 +1031,67 @@ Every density pass I ran asked *"is this face on the grid?"*. Not one asked
 complaint, and the only question a **seam** audit was ever about. The grid was a
 proxy for agreement, and a proxy is what let a 2.4× mismatch sit inside a
 world where every face is individually declared correct.
+
+---
+
+# Round 11 — the right question, asked at last: **135 of 239 touching pairs disagree**
+
+`scripts/seampairs.mjs` compares each masonry face against the faces it
+**touches**, instead of against the grid. That is the question the brief was
+always about — *a junction where two textures do not line up* — and it is the
+one question no tool in this project has ever asked, mine included.
+
+```
+109 masonry faces · 293 touching pairs
+   239 pairs declare the SAME density   ← like-for-like, no design intent to explain a gap
+    54 pairs declare different          ← wall against shopfront band: deliberate, excluded
+
+LIKE-FOR-LIKE PAIRS DISAGREEING BY MORE THAN 15%:   135 of 239   (56%)
+of those, pairs where BOTH faces pass the 8/16 grid check:   ALL of them
+```
+
+**Horizontal density across masonry faces runs 3.43 to 46.67 px/m** — a **13.6×
+range** in a world whose rule is one density.
+
+Worst offenders, both faces declared 8 px/m:
+
+| ratio | measured | where |
+|---|---|---|
+| **11.41×** | 4.09 vs **46.67** | (−18.8, 10.7, −49.5) / (−13.9, 8.6, −40.3) |
+| 7.87× | 5.93 vs 46.67 | (−17.8, 10.7, −29) / (−13.9, 8.6, −40.3) |
+| 5.83× | 46.67 vs 8 | (−13.9, 8.6, −40.3) / (−10.5, 8.6, −37) |
+| 4.02× | 7.97 vs 32 | (51.2, 10.8, −96) / (60, 6.8, −103) |
+| 3.29× | 26.12 vs 7.93 | (13.4, 9.5, −86.2) / (13.4, 9.5, −96) |
+
+## Why every previous tool was blind to this, including mine
+
+**Both faces of all 135 disagreeing pairs pass the 8/16 grid check.** Not some —
+all. The grid test asks each face a question it can answer correctly while the
+pair is wrong, so no amount of running it harder would ever have found these.
+
+I ran that test in Rounds 3, 4, 5, 6 and 7 and reported pattern #1 as closed on
+the strength of it. It was the wrong test, run carefully.
+
+## Two distinct causes, and they need different fixes
+
+1. **Canvas painted for one width, mapped to another** (Round 10) — 42 faces
+   where the stamp's `wMeters` and the face's real width differ. Heights always
+   match; only the horizontal is wrong.
+2. **Faces that touch and were never compared** — the 46.67 px/m face at
+   (−13.9, 8.6, −40.3) is 5.8× its own declaration and sits against three
+   neighbours at 4.09, 5.93 and 8. Nothing in the pipeline looks at a junction.
+
+The stamp (`ddd36f8a`) is what made both findable. It is the right foundation
+and this is what it exposes.
+
+## The restatement, final form
+
+> **Pattern #1 was never about density. It was about agreement.** "One density"
+> is a way of getting agreement for free — if every face is 8, every junction
+> matches. But the rule was enforced per face and the goal was per junction, and
+> those come apart the moment a canvas is sized from anything other than the
+> face it lands on. 39% of faces break their own declaration; **56% of
+> like-for-like junctions do not match.**
+
+`scripts/seampairs.mjs` is the check, it runs in about twenty seconds, and it is
+the one I would put in the build if only one could go there.

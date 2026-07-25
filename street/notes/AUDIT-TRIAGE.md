@@ -17,6 +17,7 @@ by measurement confidence, which is a different thing.
 
 | # | finding | can a player see it? | where | evidence |
 |---|---|---|---|---|
+| **0** | **135 of 239 like-for-like masonry junctions disagree by >15%**, density spanning 3.43–46.67 px/m. Every one passes the 8/16 grid check | **Yes — photographed. Two walls meeting at a corner with different brick widths, legible in one glance** | `masonry()` in `tex-world.ts` + callers | `seam-audit.md` R10, R10b, R11 |
 | 1 | **sign/meter post leaves 0.90 m** of walk at z −71.4, west | **Yes — it is felt, not seen.** 0.90 m against a 0.72 m capsule is the tightest squeeze in the world | `ct/props.ts` | `lane-audit.md` R4 |
 | 2 | **thrift price card floats 0.325 m** above its shelf | **Yes**, standing at the shelf. It is a 0.44 m card hanging in air in a room you walk into | `ct/int-thrift.ts` | `float-audit.md` R3 |
 | 3 | **four of eight rooms have no keeper** | **Yes** — half the shops you enter are staffed and half are empty, and the difference is obvious once you have seen both | G's four rooms | `interior-audit.md` R16 |
