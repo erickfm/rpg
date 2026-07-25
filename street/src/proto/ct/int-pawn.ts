@@ -71,12 +71,22 @@ export function buildPawn(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'pawn',
     label: 'into the PAWN SHOP',
-    w: 10.0, d: 8.0, h: 2.8,
+    d: 8.0, h: 2.8,
     palette: { floor: 0x6a6058, wall: 0x7a6f5e, ceil: 0x6e675c, trim: 0x3a2c22 },
-    // The room's width stays G's explicit 10.0 rather than the kit's
-    // frontage rule: this room's furniture is laid out against it, and a room
-    // that silently grows to 13.8 strands its own fittings in the middle of
-    // the floor. Only the DOOR derives.
+    // The width DERIVES from the frontage now — roomWidthFor(15) = 13.8.
+    //
+    // It was pinned at an explicit 10.0 with the reason "a room that silently
+    // grows to 13.8 strands its own fittings in the middle of the floor". That
+    // was a fair worry and it does not hold: every fitting in here is placed
+    // against `hw` or `room.doorAt`, not against a remembered number, so they
+    // all tracked the walls. Tried it and looked — counter spans the full run,
+    // the tools/guitars/brass spread across the longer back wall, the island
+    // and the shelving unit stay against their own walls. Nothing stranded.
+    //
+    // And the pinned version had a cost the note did not mention: a 10 m room
+    // behind a 15 m shopfront is the false front the kit's own comment objects
+    // to, and it is the likeliest reason A's mirror harness read this room's
+    // door as 6.23 m off centre when it measures dead centre.
     frontage: { name: 'PAWN', w: 15, cz: -60.5, side: 1 },
     door: { r: 1.05, at: DOOR.at, width: DOOR.width },
     // The glazing sits east of the door. One window rather than a pair either
