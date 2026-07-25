@@ -648,3 +648,43 @@ land.
 *(I also nearly published this from the wrong directory: my first `npm run build`
 ran at the repo root, wrote no `dist`, and I measured a stale server anyway. The
 bundle-hash check caught it. Same class of error, one layer down again.)*
+
+---
+
+# A guard I tried and did not ship: "no building is a 3.4 m box"
+
+After the window-lights guard I went for the other unguarded complaint in my
+area — *every building is a 3.4 m deep box* — because it should be a clean
+scene query rather than a pixel count. It is not, and the reason is worth
+recording so nobody repeats the attempt.
+
+**Depth is the dimension perpendicular to the facade, and nothing in the scene
+says which way a shell faces.** A `BoxGeometry` gives `width`/`depth` in world
+axes; which of those is "depth" depends on whether the shell fronts the main
+street or a cross street. Inferring it from position gets you this:
+
+```
+main-street depths, by my heuristic:
+  1.2, 3.4, 6, 6.05, 11, 15.9, 15.9, 17.8, 19.7, 21.6, 21.6, 23.5, 23.5
+```
+
+The tail is right — `depthOf` returns 14 … 23.5 and seven shells land there.
+The head is the heuristic failing: 1.2 is the alley's END WALL (a wall, not a
+shell), and 3.4 / 6 / 6.05 are the bodega's corner block and wing, which front
+the side street and were misclassified as main-street by a rule about `|x|`.
+
+A guard built on that rule would either fail on objects that are correct, or —
+after I "fixed" the rule until it went green — pass vacuously. I stopped there,
+because that is precisely what I committed against one commit earlier: *tuning a
+threshold until it agrees produces a check that measures the tuning.*
+
+**What it would need.** `ct/street.ts` knows each shell's orientation at the
+moment it places it; the scene does not. The same shape as the frontage problem
+in `BLOCKED-D` — `Placement` cannot express a 45° face, and a `BoxGeometry`
+cannot express which face is the front. If a shell published its facing (a
+`userData.facing`, alongside the `userData.mod` stamp it already carries), this
+guard becomes three lines and cannot be fooled.
+
+That is a change to my own file and I would make it — but it is only worth
+making with a consumer, and the consumer is the guard. Recording it as the next
+concrete thing to do here rather than half-building both.
