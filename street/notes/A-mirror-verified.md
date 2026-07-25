@@ -66,16 +66,18 @@ anywhere stores a "side".
 
 ## Still outstanding
 
-- **THRIFT: attempted, not confirmed.** I got inside through its `[E]` spot,
-  but backing off 5 m to frame the front wall puts the camera inside a clothing
-  rack — the room is crammed by design, which is the whole character of it. The
-  wall is visible past the stock and reads the same way as the other two (window
-  left, opening to its right), but the frame is obstructed and that is not a
-  clean read. `shots/th-inside.png`. Someone should take it from a clear spot;
-  I am not claiming it on a blocked view.
-- **PAWN** (declared, door −60.50) has not had the visual check. Five rooms
-  declare; three now verified (tax, diner, burger barn), THRIFT obstructed,
-  PAWN unlooked-at.
+- **THRIFT: now CONFIRMED.** The earlier attempt failed because backing off
+  5 m puts the camera inside a clothing rack — the room is crammed by design.
+  Taken instead from a lateral offset 2.5 m back: window left, **door right**
+  inside; **door left**, window right outside. Mirrored.
+  `shots/th2-1.png`, `shots/th2-outside.png`.
+- **PAWN cannot be checked by walking in — it has no way in.** It declares at
+  z −60.50 and the facade moved there, but there is no `[E]` prompt at that
+  facade at 6.25, 6.1 or 5.9 m out. Consistent with `BLOCKED-G` calling
+  `int-pawn` finished but door-blocked. F's or G's; recorded in `BLOCKED-A.md`.
+
+**Four of the five declared rooms are verified mirrored: A-1 TAX, the diner,
+Burger Barn and THRIFT.** The fifth is unreachable, not wrong.
 - **Every shop that has NOT declared** still takes its door from the painter's
   own layout. Those are self-consistent (facade and room use the same fallback)
   but they are not expressing any room's intent, because there is no room behind
