@@ -440,6 +440,28 @@ half the time is a check people learn to skip, which is worse than not having it
 | `side-walk.mjs` | both side-street walks, the bodega door, parked-car clearance |
 | `gaps.mjs [--all]` | corridors in the trap band; asserts on parked vehicles only |
 | `truck.mjs [shots\|fleet]` · `kerb.mjs` · `cartex.mjs` | the fleet by eye, and its painted textures |
+
+**If you are judging the fleet's wheels or arches, use `kerb.mjs`.** The desk's
+screenshot audit (`0e10244c`) found that `pl-P12`, the shot the wheel arches were
+judged on, is *"a car roof at point-blank — no arch visible"*. An arch is 3 texels
+tall on a 0.5 m panel: from above or from a metre away it is not in frame at all.
+
+```bash
+SHOT_URL=http://localhost:4187/ node scripts/kerb.mjs <tag>   # side-on, eye level, from the kerb
+SHOT_URL=http://localhost:4187/ node scripts/cartex.mjs       # the painted texture itself
+```
+
+`kerb.mjs` stands where the user said to judge from — at the kerb beside a parked
+car, eye level, square to the flank — and does all three parked cars. `cartex.mjs`
+is the one that actually settled the arch after two failed attempts: it dumps the
+flank texture upscaled, which is where the ziggurat of stacked treads was finally
+visible. **A render can hide a paint fault that the texture makes obvious.**
+
+Current state, judged from `kerb.mjs`: both wheels read as circles with hubcaps,
+most of the tyre showing, and a dark arch hugging the top of each. It is a modest
+crescent rather than a pronounced flare, and that is the geometric limit written up
+under *For the desk* — the tyre is 0.68 m against a 0.50 m panel, so there is no
+room for more without changing the fleet's proportions.
 | `citizen-sheet.mjs` | regenerates CITIZEN-STYLE.md's contact sheet |
 
 ## For the desk
