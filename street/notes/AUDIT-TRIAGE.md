@@ -247,3 +247,53 @@ attributed it to the wrong object.**
 This complements `seats-walk`, which proves every seat *seats you*. It does not
 prove the rest of §23's class — the cars and the decorative chairs are not
 registered seats and are not covered here.
+
+## Fast tier at `cc46ed50`: 44 green, 1 red — and the red is a stale assumption
+
+The tier now runs past twenty minutes and had to go detached to finish at all,
+which is worth noting on its own: **it no longer fits in one window.**
+
+```
+44 green, 1 red
+  ✗ park   FAILED (1)   "could not find the gate entry path — this check cannot answer"
+```
+
+**Everything `park` could measure passed** — 10 lanterns lit at 3 am, every one
+carrying light, every one 0.95 m clear of the loop, and all four legs of the
+circuit walked in both directions with 0.00 m drift. The single failure is its
+locator.
+
+### Why it cannot find the entry
+
+`park.mjs:183` finds the entry rather than assuming it: *the narrow path quad at
+`y = 0.1445 ± 0.02` whose `+x` edge reaches the street edge at `site.maxX`.* The
+park site is **x −39 … −7**, so it wants a path quad touching x = −7. Nothing
+does:
+
+```
+  x   -6.97  y  0.715   3.4×1.15    +x edge  -5.27   [y excludes it]
+  x   -8.27  y  0.74    1.2×1.15    +x edge  -7.67   [y excludes it]
+  x  -11.72  y  0.149   0.31×0.31   +x edge -11.57
+  x  -11.85  y  0.149   0.36×0.36   +x edge -11.67
+```
+
+The things that reach the edge sit at **y 0.715–3.74** — fence and gate uprights,
+not ground. The things at path height stop at **x ≈ −11.6, four and a half
+metres short.**
+
+**Because the loop was moved on purpose.** `1da5e891` is titled *"The park's loop
+reads as a circuit: **brought in off the boundary**, corners turned."* The check
+asserts the entry touches the boundary; the design decided it should not.
+
+The check's own comment predicted the wrong half of this: *"the park has been
+re-cut twice … a third re-cut could walk one straight into the entry without
+anything noticing."* The third re-cut came, and rather than putting a lantern in
+the entry it **removed the edge the locator keys on**.
+
+### It should exit 3, not 1
+
+The message already says the right thing — *"this check cannot answer"* — and
+then sets `exitCode = 1`, which reads as *the world is wrong*. **GOTCHAS 32
+exists for exactly this distinction**, and `ec7aae0d` gave the codebase exit 3
+for it. One line, and it belongs to the park's owner along with re-deriving the
+locator against a loop that no longer touches the boundary.
