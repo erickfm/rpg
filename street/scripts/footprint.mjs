@@ -152,8 +152,18 @@ const r = await page.evaluate(() => {
     const img = o.material?.map?.image;
     // the tree pits: 0.6 x 1.0 planes on the walk
     const gp = o.geometry?.parameters;
-    if (gp && Math.abs(gp.height - 1.0) < 1e-6 && gp.width < 0.95 && o.position.y < 0.3
-        && Math.abs(o.position.x) > 4.5 && Math.abs(o.position.x) < 7) check(o, 'tree pit', out.pits);
+    // BY THE STAMP, not by its dimensions. props.ts sets
+    // userData.groundProp = 'tree pit' on exactly these meshes and has done all
+    // along; this matched a 1.0 m plane instead, so the moment the well changed
+    // length the check stopped seeing any pits at all. That is footprint-blind
+    // — the case I added after watching this file report every clearance verdict
+    // green with ZERO pits found — and I walked straight into it again by
+    // lengthening the well to 1.4 m. The population floor caught it, which is
+    // the only reason this is a comment rather than a silent pass.
+    //
+    // The stamp cannot go stale when a dimension moves. glow.mjs learned the
+    // same lesson against an exact lens box and reads userData.parkLantern now.
+    if (o.userData?.groundProp === 'tree pit') check(o, 'tree pit', out.pits);
     // puddle / track sheets
     if (img && ((img.width === 48 && img.height === 32) || (img.width === 16 && img.height === 64))
         && o.material.transparent && o.position.y < 0.3) check(o, 'water', out.water);

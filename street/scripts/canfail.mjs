@@ -320,9 +320,17 @@ const CASES = [
   // empty set. footprint-pits cannot catch this because it moves PIT_X, leaving
   // the pits matching the predicate — a mutation that keeps the population
   // intact proves nothing about whether the population is checked.
+  //
+  // THE NEEDLE MOVED WITH THE FIX. This used to widen the pit plane from 1.0 to
+  // 1.04, because footprint.mjs identified a pit by that exact dimension. It
+  // reads the userData.groundProp stamp now — which is what stopped the check
+  // going blind when the well was lengthened to 1.4 m — so blinding it means
+  // breaking the STAMP, not the geometry. Same defect, same verdict, one layer
+  // more honest: the pits are still there, still the right size, and the check
+  // cannot see them.
   ['footprint-blind', PROPS,
-    'const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);',
-    'const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.04);',
+    "pit.userData.groundProp = 'tree pit';",
+    "pit.userData.groundProp = 'tree pit renamed by selftest';",
     'footprint.mjs', [], 'the tree pits still there but invisible to the check that guards them'],
 
   // Aimed at PIT_CLEAR first and footprint.mjs slept — but the check was
@@ -344,8 +352,11 @@ const CASES = [
     'const PAN_X = ROAD_HALF - 1.60;           // selftest: out in the lane',
     'footprint.mjs', [], 'the pools scattered out into the travel lane'],
 
+  // Needle updated with the fix: PIT_X is derived from TRUNK_X now rather than
+  // written as a literal, because the well is centred on the trunk. 5.09 still
+  // shoves it flush into the kerb, which is the state this case exists to catch.
   ['footprint-pits', PROPS,
-    'const PIT_X = 5.56;',
+    'const PIT_X = TRUNK_X;',
     'const PIT_X = 5.09;',
     'footprint.mjs', [], 'tree pits run flush into the kerb'],
   // ── H's four. Every mutation here is one I performed by hand and watched go

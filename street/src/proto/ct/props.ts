@@ -871,7 +871,19 @@ export function buildProps(ctx: CtxBuild): Props {
   // Kept because the number is the promise ('a bit of pavement at the kerb'),
   // but change PIT_X to change the world — editing this line does nothing.
   const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);   // 0.28 m of walk at the kerb
-  const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);
+  // LENGTH ALONG THE STREET IS FREE, and it is where the dirt comes back.
+  //
+  // Centring the well on the trunk capped its width at 0.36 m — the walk is
+  // only 1.94 m wide and the kerb strip has to stay over 0.20 m. Looked at from
+  // above that reads as a narrow slot rather than a tree well, which is the
+  // "tight" half of what the user was seeing.
+  //
+  // Nothing constrains the OTHER axis. The trees are 14 m apart and the pit runs
+  // along the street, not across it, so lengthening costs no walk, no kerb
+  // clearance and no lane. 1.4 m brings the dirt back to 0.50 m2 against the
+  // 0.56 m2 the off-centre 0.56 x 1.0 well had, and it reads as a well again.
+  const PIT_L = 1.4;
+  const pitGeo = new THREE.PlaneGeometry(PIT_W, PIT_L);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   // Hand-tuned height exceptions. This is a hand-authored block, so a tree
   // that reads wrong in its particular spot gets trimmed by index rather than
