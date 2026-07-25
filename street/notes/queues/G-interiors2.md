@@ -31,6 +31,50 @@ style for interiors; copy its shape.
 
 ## Now
 
+- [ ] **The vertical blade signs read BACKWARDS — this is `GOTCHAS.md` §10.**
+      The user: *"the text needs to not be backwards. please fix."* Ref:
+      `shots/user-blademirror.png`.
+
+      First: **that exterior is the best thing in the world right now.** The
+      777, LOWEST SLOTS, the bulb-letter ORPHEUS, the neon against a dark
+      street — it delivers exactly what was asked for. This is one bug on top
+      of very good work.
+
+      Both vertical blades — GOLDEN ACES and ORPHEUS — are mirrored. The cause
+      is documented and has shipped once before on this project:
+
+      > **§10. Double-sided planes render MIRRORED from behind.** Signs are
+      > planes with `side: DoubleSide`. Viewed from the back face the texture
+      > is mirrored — and symmetrical letters hide it completely. A `HOTEL`
+      > blade sign shipped mirrored because only the E and L gave it away.
+
+      A vertical blade projects from the wall and is meant to be read from
+      BOTH directions along the street, so `DoubleSide` is the natural choice
+      and the trap. Fix it properly: **two single-sided planes back to back**,
+      a hair apart, with the texture flipped horizontally on the rear one. Do
+      not just flip the whole sign — that fixes this camera and breaks the
+      other approach, which is how it survived last time.
+
+      Then check **every** sign you built out here from both directions, and
+      test with asymmetric text specifically — GOLDEN ACES and ORPHEUS both
+      have plenty of asymmetric letters, so if any still reads wrong you will
+      see it immediately.
+
+- [ ] **The casino interior must match that exterior's vibe.** The user:
+      *"same with the casino tbh. interior should match the exterior in
+      vibe."* — the same note they just gave for the Orpheus lobby.
+
+      Your GOLDEN ACES facade is loud, red-and-gold, bulb-lit and confident.
+      The interior brief I gave you asked for *"low ceiling, warm dim light,
+      patterned carpet doing too much"* — which is right for a casino floor,
+      but it must feel like it belongs to THAT building. Carry the exterior's
+      palette and its energy inside: the red and gold, the bulb-lit trim, the
+      777 motif, the same signage hand on the cage and the slot banks. A
+      player walking in from that facade should recognise the place.
+
+      Keep the casino's own rules — no daylight, no clock, no windows. Dim is
+      correct; drab is not. Dim and GLITTERING is the target.
+
 - [ ] **The pawn shop is unreadable from inside. Partly my brief's fault.**
       The user: *"pawn shop interior is janky and odd. i immediately hit a
       counter. it's like i'm behind the counter i don't get it."* Ref:
