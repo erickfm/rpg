@@ -302,6 +302,80 @@ export function buildPawn(ctx: CtxBuild): void {
   cab.rotation.y = Math.PI / 2;                                    // faces +x, into the room
   put(cab, -hw + 0.06, 1.5, -0.6);
 
+  // ── the east wall: shelved stereo, and the sign that pays for the shop ──
+  //
+  // Found by looking, the same way builder F found the diner's bare wall. The
+  // counter runs along the back and the case sits in the middle of the floor,
+  // which left this whole wall — the one on your right as you come in — as
+  // plaster. A pawn shop is defined by having something on every surface; an
+  // empty wall in one reads as a room that was not finished.
+  //
+  // Shelved stereo separates, because the brief asks for stereo stacks and the
+  // TV stack behind the counter is the only place they were. These are on the
+  // CUSTOMER side, which is right: the big electronics are what a shop like
+  // this puts where you can see the model numbers, and they are too heavy to
+  // walk off with.
+  const shelfT = pixTex(72, 48, (g) => {
+    g.fillStyle = '#3a3630'; g.fillRect(0, 0, 72, 48);
+    g.fillStyle = '#4a453c'; g.fillRect(1, 1, 70, 46);
+    // four shelves of separates — amps, decks, tuners, a pair of speakers
+    for (let r = 0; r < 4; r++) {
+      const y = 3 + r * 11;
+      g.fillStyle = '#2a2620'; g.fillRect(2, y + 9, 68, 2);            // the shelf edge
+      const kit: [number, number, string][] = r === 3
+        ? [[4, 26, '#2e2a26'], [42, 26, '#2e2a26']]                     // speakers, bottom
+        : [[4, 20, '#3a3a40'], [26, 18, '#33333a'], [46, 22, '#3a3a40']];
+      for (const [x, w, col] of kit) {
+        g.fillStyle = col; g.fillRect(x, y, w, 9);
+        g.fillStyle = '#8a8478'; g.fillRect(x + 1, y + 1, w - 2, 1);    // the fascia line
+        g.fillStyle = '#c9a45e'; g.fillRect(x + 2, y + 5, 3, 2);        // a dial
+        g.fillStyle = '#6a8a6a'; g.fillRect(x + w - 6, y + 4, 4, 2);    // a lit meter
+        tag(g, x + Math.round(w / 2) - 2, y + 9);
+      }
+    }
+    dither(g, 72, 48, 44);
+  });
+  const SH_W = 3.6, SH_H = 2.0, SH_X = hw - 0.22;
+  const carcM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
+  // Index 1 is the -x face, which is the one looking into the room. Index 0 is
+  // +x and points into the wall — the same slip that hid the marquee's copy
+  // against the brick outside. On a box, work out which face the player is on
+  // before choosing the slot.
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.42, SH_H, SH_W),
+    [carcM, ctx.flat(shelfT), carcM, carcM, carcM, carcM]);
+  shelf.position.set(0, 0, 0);
+  put(shelf, SH_X, SH_H / 2, -0.4);
+  solid(SH_X, -0.4, 0.42, SH_W);
+
+  // WE BUY GOLD, over it. The one sign a pawn shop always has, and the only
+  // thing in this room that is addressed to the street rather than to you.
+  const goldT = pixTex(64, 18, (g) => {
+    g.fillStyle = '#2a2018'; g.fillRect(0, 0, 64, 18);
+    g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 64, 1); g.fillRect(0, 17, 64, 1);
+    g.fillStyle = '#e8c25a'; g.font = 'bold 9px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('WE BUY GOLD', 32, 9);
+  });
+  const goldSign = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.54), ctx.flat(goldT));
+  goldSign.rotation.y = -Math.PI / 2;                 // faces -x, into the room
+  put(goldSign, hw - 0.06, 2.32, -0.4);
+
+  // and two horns hung high where nothing can reach them
+  const hornT = pixTex(40, 24, (g) => {
+    g.clearRect(0, 0, 40, 24);
+    g.fillStyle = '#b08a3a';
+    g.fillRect(3, 4, 22, 3); g.fillRect(23, 2, 5, 7);
+    g.fillStyle = '#c9a45e'; for (const x of [7, 12, 17]) g.fillRect(x, 7, 3, 3);
+    tag(g, 9, 11);
+    g.fillStyle = '#a8823a';
+    g.fillRect(3, 16, 24, 3); g.fillRect(26, 14, 5, 7);
+    tag(g, 12, 19);
+  });
+  const horns = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.9),
+    new THREE.MeshBasicMaterial({ map: hornT, alphaTest: 0.5 }));
+  horns.rotation.y = -Math.PI / 2;
+  put(horns, hw - 0.06, 2.3, 2.1);
+
   // ── bars on the INSIDE of the window as well as the outside ──
   //
   // The brief asks for them and they are the detail that decides how the room
