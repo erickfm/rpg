@@ -16,6 +16,54 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Puddles: STOP and simplify. This is the fourth attempt.** The user:
+      *"also i think these are puddles and they look awful honestly"*. Ref:
+      `shots/user-puddlebad.png`.
+
+      What is on screen is a long dark band running down the MIDDLE of the
+      sidewalk with pale grey dashes scattered inside it. It reads as a
+      texture fault or a smear — not as water.
+
+      Two things went wrong and the second is the desk's fault:
+      · the desk said *"a ribbon along the kerb line"* meaning **in the gutter
+        pan**, and it has been applied to the **sidewalk**. Water does not
+        pool down the centre of a pavement; it runs to the low point, which is
+        the pan you built.
+      · the pale dashes inside the dark band are presumably highlights, and at
+        this density they read as debris or as z-fighting rather than as
+        specular. Whatever they are, they are not helping.
+
+      **The history matters now.** Puddles have been: buried under the pan
+      (fixed), invisible from contrast inversion (diagnosed, well), moved to
+      the gutter, and now this. That is four passes on one feature and the
+      user has never once liked what they saw.
+
+      **So the desk's decision: take one more pass, and make it the SIMPLEST
+      possible version.** No ribbons, no highlight dashes, no sidewalk water.
+      Just a few discrete dark patches sitting in the gutter pan where water
+      actually collects, darker than the wet road around them, no speckle.
+      If that still misses, **remove standing puddles entirely** and keep only
+      the wet sheen on the road surface, which the user has never complained
+      about — and say so in your handoff. A feature that has missed five times
+      is costing more than it is worth.
+
+- [ ] **The milk crate is clipping into the shopfront.** The user: *"trash
+      cannot be clipping through stuff like this"*. Ref:
+      `shots/user-crateclip.png` — it is half inside the brown band at the
+      base of the shopfront.
+
+      Your footprint fix tested against the GROUND surfaces (road, gutter pan,
+      walk). It does not test against **buildings**. So an object placed near
+      a facade resolves its height correctly and then intersects the wall,
+      the stallriser or the fascia standing proud of it — and builder A has
+      just made those project further, so there is more to hit than there was.
+
+      Placement needs to respect solids as well as surfaces: before placing,
+      check the object's footprint against the collider set and push it clear.
+      The colliders are already registered per-footprint by D, so the data is
+      there. Same test everywhere you place: litter, tree pits, the bench,
+      anything that sits on the ground near a wall.
+
 - [ ] **Move TONY'S PIZZA onto the bench BACK, and recline the back a little.**
       The user: *"i think the tonys pizza sign should go on the back of the
       bench also i think the bench back should lean back a lil"*. Ref:
