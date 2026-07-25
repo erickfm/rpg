@@ -99,6 +99,15 @@ const found = await p.evaluate((inject) => {
   return { total: spots.length, by, orphans, apt: a0 <= a1 ? [+a0.toFixed(1), +a1.toFixed(1)] : null };
 }, SELFTEST);
 
+// GOTCHAS 34, and this one would have been the most misleading of the three:
+// with an empty registry it prints "every registered [E] spot is exercised by a
+// named check", which is TRUE and useless — a coverage report is exactly the
+// kind of check that reads as reassurance when it has counted nothing.
+if (!found.total) {
+  console.log('NO [E] SPOTS REGISTERED AT ALL — refusing to report full coverage of');
+  console.log('an empty registry. That sentence would be true and would mean nothing.');
+  await b.close(); process.exit(1);
+}
 console.log(`\n${found.total} [E] spots registered; which check exercises each:`);
 for (const [name, n] of Object.entries(found.by)) console.log(`  ${String(n).padStart(4)}  ${name}`);
 if (found.apt) console.log(`  (apartment found at x ${found.apt[0]}…${found.apt[1]} by userData.mod)`);

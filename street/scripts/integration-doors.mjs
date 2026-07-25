@@ -82,6 +82,17 @@ const pos = () => p.evaluate(() => window.__ct.pos());
 const out = [];
 const doors = await p.evaluate(() => window.__ct.doors()
   .filter((d) => d.stand).map((d) => ({ b: d.building, x: d.stand.x, z: d.stand.z })));
+// GOTCHAS 34: an empty subject list is NOT a pass. This iterates a list the
+// WORLD supplies, so a world that registers none of them would sail through
+// reporting success over zero assertions — the more broken the world, the
+// quieter this gets. 36d7bdd07 found two more of these upstream; my keeper
+// check had the same shape.
+if (!doors.length) {
+  console.log('NO DECLARED DOORS WITH A STAND POINT. That is a failure, not a pass —');
+  console.log('every room in the belt is reached through one, so zero means the');
+  console.log('registry did not publish, and "0/0 doors let you in" would be a lie.');
+  await b.close(); process.exit(1);
+}
 for (const d of doors) {
   // groundAt, not 0.14: the bodega's door is on a chamfered corner and the
   // side-street walks are laid separately, so "the pavement is 0.14" is a

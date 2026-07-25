@@ -70,6 +70,16 @@ await p.waitForTimeout(300);
 const SELFTEST = flags(['--selftest']).selftest;
 
 const spots = await p.evaluate(() => window.__ct.spots());
+// GOTCHAS 34: an empty subject list is NOT a pass. This iterates a list the
+// WORLD supplies, so a world that registers none of them would sail through
+// reporting success over zero assertions — the more broken the world, the
+// quieter this gets. 36d7bdd07 found two more of these upstream; my keeper
+// check had the same shape.
+if (!spots.length) {
+  console.log('NO [E] SPOTS REGISTERED AT ALL. That is a failure, not a pass — this');
+  console.log('check has nothing to walk and the world has nothing to interact with.');
+  await b.close(); process.exit(1);
+}
 const doors = await p.evaluate(() => window.__ct.doors());
 console.log(`${spots.length} [E] spots registered\n`);
 
