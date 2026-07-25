@@ -132,10 +132,37 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     //
     // Now the radius is stated in metres and converted per axis, so it is the
     // same arch on every vehicle and it hugs the tyre it belongs to.
-    const ARCH_R = 0.36;                       // tyre radius 0.34, plus air
-    const arx = Math.max(3, Math.round(ARCH_R * (96 / len)));
-    const ary = Math.max(3, Math.round(0.27 * 40));   // 40 rows per metre up
-    g.fillStyle = '#0a0b0e';
+    // Both dimensions in METRES, and the HEIGHT is the one that was wrong.
+    //
+    // The width was fixed last time: 0.38 m half-width against a 0.34 m tyre
+    // hugs the wheel, and no longer takes its extent from the panel. But the
+    // height was 0.27 m, so the arch topped out at y = 0.34 + 0.27 = 0.61 while
+    // THE TYRE'S TOP IS AT 0.68. The tyre poked out above the arch — and since it
+    // stands 0.04 m proud of the flank, the disc then covered the arch behind it.
+    // What was left to see was a disc on a flat panel above a straight rocker
+    // line: "discs against a straight sill", which is the report.
+    //
+    // 0.38 m of height clears the tyre's top by 4 cm, so a dark rim of arch shows
+    // above and around the wheel — the air between the tyre and the arch line.
+    // In world terms that is an arch 0.76 m across and 0.38 m tall for a 0.68 m
+    // tyre: wide and shallow, which is what a wheel arch is. It looks tall in
+    // TEXELS only because they are not square here — 21 across the panel per
+    // metre against 40 up it.
+    const ARCH_HW = 0.38;                      // half-width, m: tyre + 4 cm
+    const ARCH_H = 0.38;                       // height above the rocker, m
+    const arx = Math.max(3, Math.round(ARCH_HW * (96 / len)));
+    const ary = Math.max(3, Math.round(ARCH_H * 40));
+    // ── the well is NOT the same black as the tyre ───────────────────────
+    //
+    // It was #0a0b0e against a tyre of #101114 — indistinguishable. So the gap
+    // above the wheel, which is the whole point of clearing the tyre's top, read
+    // as one dark mass with a hubcap in it: a DISC, not a wheel in an arch.
+    //
+    // A wheel well in daylight is shadowed body metal, not a hole: dark, but
+    // lighter than a tyre and still carrying the car's own colour. Derived from
+    // the body so every car's well matches its paint.
+    const well = new THREE.Color(body).multiplyScalar(0.34);
+    g.fillStyle = `#${well.getHexString()}`;
     for (const wz of arches) {
       const ax = Math.round(((wz + len / 2) / len) * 96);
       g.beginPath(); g.ellipse(ax, 20, arx, ary, 0, Math.PI, 0); g.fill();
@@ -552,7 +579,8 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       g2.fillStyle = '#0a0b0e';
       const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
       g2.beginPath();
-      g2.ellipse(ax, skinH, Math.max(3, Math.round(0.36 * PPM_X)), Math.max(3, Math.round(0.27 * PPM_Y)), 0, Math.PI, 0);
+      // same two metres as the cab flank's, in this face's own density
+      g2.ellipse(ax, skinH, Math.max(3, Math.round(0.38 * PPM_X)), Math.max(3, Math.round(0.38 * PPM_Y)), 0, Math.PI, 0);
       g2.fill();
     });
     bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
