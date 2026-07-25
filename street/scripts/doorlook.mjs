@@ -34,7 +34,7 @@ const shots = await p.evaluate(async () => {
 const F = Object.fromEntries(shots.floors.map(f=>[f.slab,f]));
 const W = Object.fromEntries(shots.ways.map(w=>[w.slab,w]));
 // slab 3 = diner, slab 6 = tax
-for (const [slab, tag] of [[3,'diner'],[6,'tax']]) {
+for (const [slab, tag] of [[5,'pawn'],[0,'bodega']]) {
   const f = F[slab], w = W[slab];
   if (!f || !w) { console.log(`${tag}: missing floor or way-out`); continue; }
   const cx = (f.x0+f.x1)/2;
@@ -50,7 +50,7 @@ for (const [slab, tag] of [[3,'diner'],[6,'tax']]) {
 // …and the street side: stand mid-frontage, back from the facade, facing it.
 const fronts = await p.evaluate(() => (globalThis.__frontages||[]).map(f=>({
   name:f.name, axis:f.axis, lo:f.loWorld, hi:f.hiWorld, face:f.facePos, door:f.doorWorld })));
-for (const [name, tag] of [['DINER','diner'],['A-1 TAX','tax']]) {
+for (const [name, tag] of [['PAWN','pawn'],['BODEGA','bodega']]) {
   const f = fronts.find(q => q.name === name);
   if (!f) { console.log(`${tag} OUTSIDE: no frontage named ${name}`); continue; }
   const c = (f.lo + f.hi) / 2;

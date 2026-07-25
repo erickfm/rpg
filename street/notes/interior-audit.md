@@ -1243,3 +1243,51 @@ measured from a band's centre, and now `facePos`.
 I am not fixing the script to add the flip and re-publishing verdicts. Mainline
 has a walking harness for this and it is the authority; a second method that has
 already been wrong once should earn its way back before it contradicts anyone.
+
+## Round 19c — PAWN's door is centred on BOTH sides. The rule cannot apply to it.
+
+Mainline reports *"PAWN reads wrong"* from `mirror-walk`. With the method now
+validated by looking, I shot PAWN both ways:
+
+| | what the frame shows |
+|---|---|
+| **inside**, facing the front wall | barred window to the left, **door just right of dead centre** |
+| **outside**, facing the facade | `PAWN · LOANS · GOLD` fascia, barred display windows either side, **door dead centre** |
+
+And the published numbers agree: interior way-out at x 840.00 against a room
+spanning 833.1 … 846.9 — **centre exactly**. Facade door at z −60.50 against a
+frontage centre of −60.50 — **centre exactly**.
+
+> **PAWN's door is centred on both sides.** The rule *"the door must be on
+> opposite sides inside and out"* has nothing to bite on: there is no side. A
+> player cannot see a violation because there is no offset to be wrong about.
+
+### A hypothesis for `mirror-walk`'s owner, offered not asserted
+
+I hit exactly this in my own version of the check one round ago:
+
+```js
+Math.sign(0) === -Math.sign(0)   // true
+```
+
+A centred door makes both offsets zero, and **any comparison of their signs
+returns whatever the operator does with ±0** — "correct" in my formulation,
+and plausibly "wrong" in one written the other way round. My fix was to test
+centredness *first* and report `undecidable`.
+
+If `mirror-walk` compares signs without a centred case, **PAWN is exactly the
+room that would trip it**, and it is the only room in the eight besides the
+bodega whose door is centred. That is a specific, cheap thing to check.
+
+**I am not claiming `mirror-walk` is wrong.** It walks, it is the authority, and
+it may be measuring something my two frames do not capture. But *"the one room
+it flags is the one room where the quantity being compared is zero"* is worth
+five minutes before anyone moves a door.
+
+### Where this leaves the set
+
+Of eight rooms: **diner and A-1 TAX visually confirmed correct**, three more
+(burger, thrift, and diner again) correct by data, **pawn and bodega centred on
+both sides so the rule is vacuous**, and casino and hotel unmatched by my
+frontage lookup. No room in the eight shows a door on the same visible side from
+both directions.
