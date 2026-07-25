@@ -51,7 +51,7 @@ const CHECKS = [
   // line litter must not straddle, and the strip of walk the tree pits must
   // leave at it. One case would have left the other silently unproven, which is
   // the failure this column exists to make visible.
-  ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits']],
+  ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits', 'footprint-water']],
   ['trash',            'is the litter set placed, seated and varied?',     'trash',    ['probe']],
   ['glow',             'is every lamp glow anchored to its own head?',     'glow',     ['probe']],
   ['park',             'is the park lit, or black at night?',              ['park', 'park-walk']],

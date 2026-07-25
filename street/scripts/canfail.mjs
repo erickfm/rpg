@@ -151,6 +151,20 @@ const CASES = [
   // record and positions nothing, so zeroing it changes no geometry. A
   // mutation that does not mutate proves nothing about the check that ignores
   // it. PIT_X is the constant that actually moves the well.
+  // Puts the water back where the user complained it was: "the puddle doesnt
+  // make sense here. the gutter should have the water in the gutter". Moving
+  // GUT 1.6 m off the kerb scatters the pools into the travel lane. The request
+  // was built and then never asserted — footprint.mjs COUNTED the sheets and
+  // asked nothing of them — so a pool in mid-road read as nine happy puddles.
+  // Aimed at GUT first and footprint.mjs slept — correctly. GUT places the
+  // LITTER decals; the pools are PAN_X, "centred in the pan". Third mutation
+  // this session I have pointed at the wrong constant, and each time the check
+  // was right and my aim was wrong, which is its own argument for running them.
+  ['footprint-water', PROPS,
+    'const PAN_X = ROAD_HALF - 0.22;           // centred in the pan',
+    'const PAN_X = ROAD_HALF - 1.60;           // selftest: out in the lane',
+    'footprint.mjs', [], 'the pools scattered out into the travel lane'],
+
   ['footprint-pits', PROPS,
     'const PIT_X = 5.56;',
     'const PIT_X = 5.09;',

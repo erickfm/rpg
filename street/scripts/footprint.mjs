@@ -172,6 +172,28 @@ if (r.pits.length) {
   console.log(`  ${(hi - lo) < 0.002 ? 'OK  ' : 'FAIL'} that strip is the same at every pit`);
   if (lo <= 0.2 || hi - lo >= 0.002) process.exitCode = 1;
 }
+// THE WATER GOES IN THE GUTTER, which was asked for in those words: "the puddle
+// doesnt make sense here. the gutter should have the water in the gutter". It
+// was built — ct/props.ts places pools at ROAD_HALF - 0.10 back to -0.32, inside
+// a 0.45 m pan — and then nothing asserted it. The sheets were COUNTED on the
+// line above and never questioned, so a pool out in the travel lane, or out on
+// the walk, would have read as nine happy water sheets.
+//
+// The kerb-straddle test below does not cover this. A pool sitting entirely in
+// the middle of the road straddles nothing.
+// RH and GW are declared inside the page closure above, so they are restated
+// here rather than reached for — the pits block does the same with 5.0625.
+const RH_N = 5.0, GW_N = 0.45;
+if (r.water.length) {
+  const pan = r.water.map((w) => +(RH_N - Math.abs(w.x)).toFixed(3));   // 0 at the kerb, + into the road
+  const worst = Math.max(...pan);
+  const onWalk = r.water.filter((w) => Math.abs(w.x) > RH_N).length;
+  console.log(`\n  standing water: ${r.water.length} sheets, ${Math.min(...pan)} … ${worst} m in from the kerb line`);
+  console.log(`  ${worst <= GW_N ? 'OK  ' : 'FAIL'} every pool sits in the ${GW_N} m gutter pan, not out in the lane`);
+  console.log(`  ${!onWalk ? 'OK  ' : 'FAIL'} none of it is up on the pavement (${onWalk})`);
+  if (worst > GW_N || onWalk) process.exitCode = 1;
+}
+
 console.log(`\n  ${!r.crossers.length ? 'OK  ' : 'FAIL'} nothing straddles the kerb line (${r.crossers.length})`);
 for (const c of r.crossers.slice(0, 8)) console.log(`      ${c.label} at z ${c.z}: x ${c.minX} … ${c.maxX} crosses ${c.line}`);
 console.log(`  ${!r.sunk.length ? 'OK  ' : 'FAIL'} nothing sits below the ground under it (${r.sunk.length})`);
