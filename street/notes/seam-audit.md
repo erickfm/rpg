@@ -2004,3 +2004,62 @@ Started from *"the casino's door is declared and never arrives."* Now:
 - **player impact** — none; all 8 doors open and land in the right room
 
 I have not touched `src/`. Everything above is measurement and reading.
+
+---
+
+# Round 15 — the same circularity is in my masonry check. Here is the split.
+
+`ct/street.ts:551`:
+
+```js
+new THREE.Mesh(
+  new THREE.PlaneGeometry(o.depth, fh),          // the face's metres
+  flat(wallTex(o.depth, fh, o.flank, …))         // the canvas, sized from the same two
+);
+```
+
+**The canvas and the geometry are sized from the same pair of variables in the
+same expression.** So my repeated result —
+
+> *"236 stamps checkable against geometry, 0 disagree"*
+
+— is comparing two things with a common ancestor, exactly like the door check.
+
+## What the masonry check actually proves, split honestly
+
+| the claim | independent? | what it really means |
+|---|---|---|
+| **declared densities are 8, 16 or 32** (196 / 39 / 1) | **YES** | measured against a **rule**, not against another derived number. This is a real check and it passes |
+| **0 stamps disagree with their face** | **no** | both sides descend from the same `(wM, hM)` at one call site |
+
+The second still has *some* power: it would catch a **cached or reused texture
+handed to a differently-sized mesh** — a texture made for one face landing on
+another. That is a real failure mode, and it is precisely the one I thought I
+had found and retracted. Zero of 236 says nobody does that.
+
+**But it cannot detect a wrong `wM`.** If a builder passes a width that is not
+the building's width, the canvas and the mesh agree perfectly and my check
+reports clean.
+
+## So what is pattern #1's status, honestly?
+
+- **The rule is enforced**: every masonry texture declares 8, 16 or 32 px/m, and
+  nothing declares anything else. That is checked against the rule itself and it
+  holds across 236 faces.
+- **Junction agreement is verified** by `seampairs`: 735 real junctions, and
+  every like-for-like disagreement is the deliberate 2× band/wall pair. **That
+  check is independent** — two different faces, two different call sites, no
+  shared ancestor.
+- **Whether any individual `wM` matches the building it is on is unverified**,
+  and I have no way to verify it. It would need the building's width from a
+  source that did not feed the texture.
+
+> Pattern #1 is **clean where it is checkable, and the uncheckable part is
+> smaller than it sounds** — because the junction test does not care whether
+> `wM` is right, only whether neighbours agree. Two faces sized from two
+> different wrong widths would still disagree at the seam, and `seampairs`
+> would see it.
+
+That is the useful shape: **when a per-item check is circular, a between-items
+check can still be sound.** The lane audit and `seampairs` are both that; the
+door check and the per-face density check are not.
