@@ -28,17 +28,19 @@ const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
 // `apt.gy()` is a last-written value with more than one writer, so a single
-// read can catch somebody else's frame — it shows up as an occasional 0 in a
-// field of 0.14. Sample it three times and take the mode-ish max; the floor
-// under a given point does not change between frames.
+// read can catch somebody else's frame. Sample three times and take the
+// MEDIAN — the floor under a point does not change between frames, so the
+// odd one out is always the lie. Max was tried first and is wrong in one
+// direction: it beats a phantom 0 in a field of 0.14, and then lets a stale
+// 0.55 off the step you sampled a moment ago win on the flags beside it.
 const gyAt = async (x, z) => {
-  let best = -1;
+  const reads = [];
   for (let i = 0; i < 3; i++) {
     await warp(x, z, 0);
     await page.waitForTimeout(40);
-    best = Math.max(best, (await pos())[3]);
+    reads.push((await pos())[3]);
   }
-  return best;
+  return reads.sort((a, b) => a - b)[1];
 };
 let fails = 0;
 const report = (name, ok, detail, tries) => {
