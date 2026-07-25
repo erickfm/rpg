@@ -29,6 +29,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/shells.mjs [--selftest]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { installMats } from './lib/materials.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
@@ -40,6 +41,7 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
+await installMats(page);
 await page.waitForTimeout(900);
 
 const shells = await page.evaluate(() => {
@@ -71,7 +73,10 @@ const shells = await page.evaluate(() => {
     // BoxGeometry face order is [+x,-x,+y,-y,+z,-z]. A shell facing 'x' has its
     // facade on ±x, so its FLANKS — the returns the complaint was about — are
     // the ±z faces, and vice versa.
-    const ms = Array.isArray(o.material) ? o.material : [o.material];
+    // window.__mats, not `Array.isArray(o.material) ? ... : [...]` written out
+    // again — this exact line is the one four checks got wrong this week, and
+    // it is measurably 51% of the world. See scripts/lib/materials.mjs.
+    const ms = window.__mats(o);
     const flanks = (o.userData.facing === 'x' ? [4, 5] : [0, 1]).map((i) => ms[i]).filter(Boolean);
     out.push({
       depth: +(o.userData.facing === 'x' ? bb.max.x - bb.min.x : bb.max.z - bb.min.z).toFixed(2),
