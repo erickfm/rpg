@@ -29,6 +29,13 @@ const CHECKS = [
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
+  // Slowest entry here by some way — it WALKS, so it costs what walking costs.
+  // Kept because the things it covers cannot be asked any other way: whether a
+  // wall stops you, whether a door prompts when you arrive rather than mid
+  // stride, whether the church steps rise under your feet, whether the money
+  // actually leaves the purse. Its --selftest inverts three known truths and
+  // requires all three to fail.
+  ['D-walk',           'can you still walk the world, and does it answer?',  true],
   // ── the ground: kerb, litter, lamps, water ──────────────────────────────
   // Third field as a STRING (or a LIST of them) names cases in
   // scripts/canfail.mjs, which break the guarded thing in source, rebuild, and
