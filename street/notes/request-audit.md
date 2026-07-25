@@ -1281,3 +1281,56 @@ I am noting it rather than filing it, because the alternative explanation — th
 the declared radius overstates the live region — would need a builder to
 distinguish, and nothing about it costs a player anything: every one of these
 fires from most of the room-side of its own doorway.
+
+---
+
+# ⚠ REGRESSION at HEAD: one bench can no longer be sat on. **56/57.**
+
+Final regression pass over the sound instruments. Everything holds except one:
+
+| check | result |
+|---|---|
+| masonry stamps vs geometry | **236 checked, 0 disagree** ✓ |
+| lane | **3 stretches under 1.20 m**, tightest 1.15 ✓ |
+| `[E]` registry | **137 spots, 82 live, all reachable and where they claim** ✓ |
+| **seats** | **56 / 57** ✗ |
+
+```
+FAIL  seat 1/57 "sit on the bench" @ -8.65,-20.38
+      no "sit on the bench" prompt from the one standable point (-8.6,-19.43); got null
+```
+
+**The bench at (−8.65, −20.38) has exactly one standable point inside its whole
+disc, and the prompt does not fire there.** Every other seat in the world passes.
+
+That coordinate is the library-courtyard bench — the same flat slab my Round 2
+`aim.mjs` sweep picked up and misread as a possible ad panel. It is a seat, it is
+registered, and right now you cannot sit on it.
+
+### Why this is worth routing immediately
+
+The user's words were *"for every seat in the game i want to be able to sit
+down"*. This is the one seat in 57 that fails, and the failure mode — **one**
+standable point, prompt null — reads like something has been placed into the
+bench's approach since it was last checked.
+
+### Honest caveat on the word "regression"
+
+Earlier this session I recorded **57/57**. I now believe that run went against
+port **4185**, a stale dev server I had left up, because `scripts/lib/which-world.mjs`
+refused today's run with:
+
+```
+wrong world: served 1746b2f0+, local 6d151c74
+```
+
+So I cannot prove 57/57 → 56/57 is a change in the world rather than a change in
+which world I was measuring. **What I can prove is that at HEAD, on a build made
+from this checkout, one seat of 57 fails.** That is the claim I am making.
+
+### And a note of thanks to whoever wrote that guard
+
+`which-world.mjs` caught me measuring a stale build — the exact failure I have
+documented five times in other forms this session and fallen into twice. It
+refused to run rather than return a confident wrong number. **That guard is worth
+more than anything in this report.**
