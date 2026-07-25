@@ -154,7 +154,43 @@ run that found it was a full-suite run I did because nothing was routed to me.
 
 ---
 
-## Triage rule for the 90-of-129 settle-ramp list
+## RETRACTED: there is no settle ramp. I named the mechanism wrong.
+
+`2558b1ba` says the grade does not lerp, and it is right. I checked rather than
+took it:
+
+```
+23:00 on a FRESH page                 100:0  200:0  400:0  800:9  1600:9
+23:00 from an already-running world   100:9  200:9  400:9  800:9  1600:9
+```
+
+**The delay exists only on a freshly loaded page.** Once the world is running, a
+clock change lands within 100 ms. What I measured in `2bdebbcf` was first-frame
+initialisation — my probe set the clock immediately after `waitForFunction`, and
+I read the *page's opening state* rather than a half-applied night.
+
+Three things follow, and the second is the one I got most wrong:
+
+1. **"Settle ramp" is a misnomer.** There is no curve to sit on and no cliff to
+   be past. The word came from me and it sent people looking for a shape that
+   does not exist.
+2. **A too-early read returns the PREVIOUS time of day in full**, not a partial
+   grade. That is worse than I described: a plausible wrong number rather than
+   an obviously wrong one.
+3. **The remedy is one wait, not ninety.** `grade-sane.mjs` had 1200 ms on all
+   twenty-four hours — 28 s of sleeping for a problem that exists at the first
+   one. One settle after load plus a frame each: **41 s → 18 s**, same verdict,
+   `grade-nan` still CAUGHT.
+
+The "90 of 129" list built on my framing needs re-reading with this: a script
+that sets the clock once, right after load, is genuinely exposed. One that sets
+it repeatedly on a running world is not, whatever its sleep length. That is a
+narrower set than the number implies, and narrowing it is my job because the
+number is mine.
+
+---
+
+## Triage rule for the 90-of-129 settle-ramp list — still valid, wrong name
 
 `159b9c1c` counted 90 of 129 scripts sampling inside the settle ramp and called
 it a candidate list. It is worth keeping it a candidate list, because **the ramp

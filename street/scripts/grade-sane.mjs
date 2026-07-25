@@ -45,17 +45,25 @@ await installMats(page);
 
 const bad = [];
 let materials = 0;
-// 1200 ms, AND THE NUMBER IS load-BEARING. The grade lerps toward its target
-// after a clock jump instead of snapping, so what you measure depends on when
-// you look. Counting materials over 1.0 at 23:00:
+// ONE SETTLE AFTER LOAD, then a frame each. I got the mechanism wrong when I
+// found this and 2558b1ba corrected it: THE GRADE DOES NOT LERP. Measured both
+// ways to check the correction rather than take it —
 //
-//   200ms 0 · 300ms 0 · 500ms 0 · 1000ms 9 · 2000ms 9 · 4000ms 9 · 8000ms 9
+//   23:00 on a FRESH page                 100:0  200:0  400:0  800:9  1600:9
+//   23:00 from an already-running world   100:9  200:9  400:9  800:9  1600:9
 //
-// A probe that samples at 500 ms sees a settled world that is not settled, and
-// reads zero. This script waited 500 ms.
+// — so the delay is first-frame initialisation, not a curve. A too-early read
+// does not see a half-applied grade; it sees the PREVIOUS time of day in full,
+// which is worse, because that is a plausible number rather than an obvious one.
+//
+// The correction costs as well as corrects: 1200 ms on all twenty-four hours was
+// 28 s of sleeping to solve a problem that exists only at the first one.
+await page.evaluate(() => window.__ct.clock(12, 0));
+await page.waitForTimeout(1500);        // the ONE that matters: first rendered frame
+
 for (let h = 0; h < 24; h++) {
   await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
-  await page.waitForTimeout(1200);
+  await page.waitForTimeout(250);
   const r = await page.evaluate(() => {
     const out = { n: 0, faults: [] };
     window.__ct.scene().traverse((o) => {
