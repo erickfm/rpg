@@ -72,26 +72,29 @@ everything of mine is at x ≥ 7.18 and the apron ends at x = 7.
 That closes "how does a car get on and off", which was the oldest open thing
 on this lot.
 
-## 2. Three car variants — H's file
+## 2. ~~Three car variants~~ — LANDED, and all three are in
 
-**What I need:** cars with the hood up, on a jack with a wheel off, and
-optionally up on blocks.
-**From whom:** builder H (`ct/cars.ts`), through the desk.
+**Resolved by H.** `ct/cars.ts` exports `CarState`: `hood`, `wheelsOff`,
+`jack: Corner` and `blocks`. Every option is additive and a car built with no
+state is byte-identical to before, which H did deliberately — three.js burns
+four `Math.random()` calls per object in `generateUUID`, so one extra mesh
+re-grains every unseeded texture painted after it and the whole world's
+fingerprint moves (GOTCHAS §1). A lot full of jacked cars must not be able to
+change the pigeons.
 
-The brief asks for "one car up on a jack with a wheel off, one with the hood
-open". Cars are H's and I have added none — the lot's sixteen are `makeCar()`
-unmodified. In order of value:
+All three are placed, each where its reason is:
 
-1. **Hood up.** The single thing that makes a lot read as *working* rather
-   than as sixteen parked cars. Ideally a dark engine bay so it reads at
-   distance.
-2. **On a jack, one wheel off.** Pairs with the tyre stacks already in the
-   lot, and gives the back row a reason to exist.
-3. **Up on blocks** — the one that is not for sale.
+| variant | bay | why there |
+|---|---|---|
+| `hood: true` | bay 1, south flank, first slot | you pass it on the way in; a lot always has one being looked at, and that is what makes the place read as WORKING rather than as thirteen parked cars |
+| `jack: 'rl'` | back, north corner | beside the tyre stacks, which have stood there since the first pass with nothing to explain them |
+| `blocks: true` | the furthest bay from the street | not stock — a donor |
 
-**An option needing no new geometry:** a flag on `makeCar` to omit one or all
-wheels. That gives me both the jack car and the blocks car by itself, and I
-stack the tyres beside them — I already build tyre stacks.
+Verified: `userData.jack` and `userData.onBlocks` read back at (24.4, 7.3) and
+(24.4, −2.1), the hood-up car photographed at `shots/variants/02-hood-close.png`
+with its bonnet on the hinge and the dark bay under it, and all nine checks in
+`npm run checks` still green — including `density` and `seampairs`, so the
+fingerprint warning did not bite.
 
 ## 3. "Sleep in your room" needs a way to advance the clock — nobody has one
 

@@ -19,7 +19,7 @@ const surfTex = (kind: SurfaceKind, w: number, h: number,
                  draw: (g: CanvasRenderingContext2D) => void) =>
   declareSurface(pixTex(w, h, draw), kind);
 import { FACE } from './rng';
-import { makeCar, type CarKind } from './cars';
+import { makeCar, type CarKind, type CarState } from './cars';
 import { citizenSprite } from './citizens';
 
 // ── THE USED CAR LOT ──────────────────────────────────────────────────────
@@ -1099,6 +1099,7 @@ function buildLot(o: {
       { kind: 'van', col: 2, treat: 'bare' },
       { kind: 'sedan', col: 4, price: '$2795', treat: 'card', slog: 'RUNS GREAT' },
     ];
+
     // THE FTC BUYERS GUIDE. Required in the side window of every used car
     // offered for sale in the United States since 1985, which makes its
     // ABSENCE the thing that looks wrong to anyone who was ever on a lot —
@@ -1206,6 +1207,31 @@ function buildLot(o: {
       BAY.push({ x: OFF_X - 0.4 - k * 2.8, z: zMid + sgn * (OFF_W / 2 + 2.4), yaw: sgn > 0 ? 1.15 : -1.15 });
     }
 
+    // ── the three that are not just parked ───────────────────────────────
+    // H landed `CarState`, which is what BLOCKED-C item 2 has been waiting on,
+    // and the brief asked for exactly these: *one car up on a jack with a
+    // wheel off, one with the hood open*, and *a car up on blocks — the one
+    // that is not for sale.*
+    //
+    // Keyed by BAY, not by position in STOCK. STOCK has sixteen entries and
+    // the plan yields thirteen bays, so anything written into the last three
+    // rows of that table is never placed — I did exactly that first, and the
+    // three variants simply did not appear. A bay always exists; a stock row
+    // past the end of the bays does not.
+    //
+    // Each one goes where its reason is. Bay 1 is the south flank's first
+    // slot, the one you pass on the way in — a lot always has a car being
+    // looked at, and that is what makes the place read as WORKING rather than
+    // as thirteen parked cars. The jacked one is at the back beside the tyre
+    // stacks, which have stood there since the first pass with nothing to
+    // explain them. The one on blocks is the furthest bay from the street:
+    // not stock, a donor.
+    const NOT_PARKED = new Map<number, CarState>([
+      [1, { hood: true }],
+      [BAY.length - 3, { jack: 'rl' }],
+      [BAY.length - 1, { blocks: true }],
+    ]);
+
     let n = 0;
     for (let b = 0; b < BAY.length && n < STOCK.length; b++) {
       // one empty bay in the near half, where a car sold this morning. The
@@ -1215,7 +1241,7 @@ function buildLot(o: {
       const it = STOCK[n];
       n++;
       const g0 = new THREE.Group();
-      g0.add(makeCar(it.kind, it.col));
+      g0.add(makeCar(it.kind, it.col, false, NOT_PARKED.get(b)));
       buyersGuide(g0);                                  // every car, by law
       if (n % 3 === 1) balloon(g0, n, n === 4 || n === 13);
       switch (it.treat) {
