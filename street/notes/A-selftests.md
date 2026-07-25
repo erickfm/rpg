@@ -102,3 +102,31 @@ next. Verified after: no stray file, `git status` clean, `tsc` clean.
 
 `scenedump` remains a measurement rather than a check, and has no verdict to
 mutate.
+
+## `canfail.mjs` is the stronger mechanism, and one of mine is in it (`195a66bb`)
+
+Someone else built `scripts/canfail.mjs`, which mutates **source**, rebuilds, and
+requires the check to go red. That is stronger than my `--selftest` flags in
+exactly the place mine kept failing: **a runtime mutation can be repaired by the
+frame loop.** That beat me twice — `props.ts` re-stamps `userData.selfLit` every
+frame, and the sky rewrites `scene.background` every frame. A rebuilt source
+mutation has no such escape.
+
+`density` is registered there now and catches its mutation: a texture claiming it
+was painted for a width 1.4× the one it was.
+
+### And `seethrough` cannot go there, which is the more useful result
+
+Two mutations were tried and the check slept through both, **correctly**:
+
+- **hide every shopfront's backing** — a shopfront front is a solid box, so the
+  backing only matters where the face is a real cut-out, and exactly one is.
+- **hide the bay's backing**, the historical bug verbatim — still nothing,
+  because D's rebuild put masonry behind the chamfer. The bay is now prevented
+  twice: a backing in front of a wall.
+
+**No single-line source mutation produces see-through any more.** That is a
+statement about the world being sound, not about the check. A permanently red
+case teaches people to ignore the suite, so it is not there — but the reasoning
+is, in the file, where the next person to try it will find it before spending the
+same hour I did.
