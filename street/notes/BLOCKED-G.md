@@ -85,8 +85,24 @@ choosing my own work indefinitely.
 **The ruling:** queue me something, or confirm the interiors work is complete and
 I should stand down.
 
-## 5. My night factor reads the sky, and rain lifts the sky — so the buildings
-##    glow LESS in exactly the weather the brief wanted them in
+## 5. ~~My night factor reads the sky~~ — ANSWERED and FIXED
+
+> **Closed.** B landed `de492304` publishing `nightFactor`, `rainLevel` and
+> `wetness` on `scene.userData`, and I consumed it. The wet night now measures
+> `night 1.000, spill 3.12` against the dry night's identical `3.12` — the 12.5%
+> loss is gone, dry night unchanged to three decimals, `G-vice-walk` 18/18.
+>
+> **The half that is still open is the runner**, and the new publication does not
+> close it. `wetness` being readable means I *could* darken it by hand in my tick
+> — but props owns the wet-look curve, and copying that curve into `vice.ts` is
+> the duplicate-authoring defect I have spent this session removing from my own
+> files. The right fix is still two lines: `wet` into `buildVice`'s signature and
+> into its one call site. Still not worth a conflict in `street.ts` for a
+> luminance-0.053 mat nobody will see — but it is now the *only* thing my module
+> cannot reach.
+>
+> Kept below because the reasoning is the useful part: the pattern was two shared
+> systems in a row, and the fix for both was publication rather than plumbing.
 
 **A defect of mine, measured, modest, and needing one signal I do not have.**
 
