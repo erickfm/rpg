@@ -88,3 +88,49 @@ So the risk was real and the mechanism was not what I said. **Seeded is not the
 same as fixed**, and "it has not moved yet" is not evidence that it will not.
 
 Both scripts now locate their own subjects, so neither depends on the answer.
+
+## `doorshot.mjs` made self-locating — and I broke it first by dropping one line
+
+Rewritten to do its own prompt sweep instead of pasting spans from a `doorsweep`
+run. **The first attempt was badly wrong**, and instructively so:
+
+```
+381 sample points fired a prompt; 8 distinct doors
+   [E] into the THRIFT STORE   west walk   span -104 … -58.5     ← 45 m
+   [E] into the THRIFT STORE   east walk   span  -19 … 10        ← on the WRONG WALK
+```
+
+The prompt element **stays in the DOM and is hidden by CSS**. Reading its text
+without checking visibility returns the *last* prompt that fired, so every
+sample after a real trigger inherits it. `doorsweep.mjs` walks the parent chain
+testing `display` and `visibility` — I reimplemented the sweep and dropped
+exactly the line that makes it correct.
+
+> **The instrument that "has never been wrong" is never wrong for a reason.**
+> Copying what it does is not the same as copying the three lines you did not
+> notice it needed.
+
+Fixed, it agrees with `doorsweep` to within a sample step:
+
+| door | this run | `doorsweep` |
+|---|---|---|
+| DINER | −47.5 … −46 | −47.50 … −45.75 |
+| THRIFT | −60 … −58.5 | −60.25 … −58.50 |
+| A-1 TAX | −21 … −19.5 | −21.00 … −19.25 |
+| No. 227 | −44.5 … −43.5 | −45.00 … −43.00 |
+| PAWN | −61 … −59.5 | −61.50 … −59.50 |
+
+**28 sample points, 7 doors.** Two centres reported `MISS — not standable`
+(BURGER BARN, the bus stop) rather than shot from somewhere convenient.
+
+### One real observation from it
+
+**The BODEGA's prompt does not fire anywhere on the x = ±5.9 walk line.**
+`doorsweep` finds it at z −96.00 … −94.75; sweeping that same z range at x = 5.9
+produced nothing. Its trigger sits off the line every other door sits on.
+
+That is consistent with two things I already found independently: the bodega is
+the one shopfront with a **canted bay**, and the one with **no entry in
+`__frontages`**. Three separate probes have now singled out the same shop for
+being built differently. Not a defect — but if anything ever goes wrong with the
+bodega, that is why no generic sweep will see it.
