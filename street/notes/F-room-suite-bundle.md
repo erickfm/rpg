@@ -115,3 +115,41 @@ bodega 1.57 rad. The check ships, discriminates (`facing: Math.PI` put back
 reads `sector 4, facing away — authored facing -3.14 rad`), and rooms with no
 authored spot are SKIPPED, so G's four stay covered by G's own harness rather
 than being accused by mine.
+
+---
+
+## A dev/bundle ground discrepancy at the library kerb — observed, not diagnosed
+
+`716b21d13` made the point that "the pavement is 0.14" is a remembered constant
+standing in for a published one, so I stopped hard-coding it in `steps-walk` and
+`integration-doors`. Doing that turned up something I had seen once and not
+chased.
+
+`steps-walk` reads the settled height at the foot of each flight. Same commit,
+two servers:
+
+```
+                        DEV (:4185)        BUILT BUNDLE (pinned preview)
+library, at the kerb    0.14               0.00
+church,  at the kerb    0.14               0.14
+```
+
+The climb is unaffected in both — `gy 0.14 → 0.99`, up and back down, and
+`the steps climb and descend, and nothing sinks` passes either way. So this is
+not a broken flight; it is the floor under the library's kerb answering
+differently in the artefact from the dev server, at one of the two flights.
+
+**Not diagnosed, and deliberately not guessed at.** The one mechanism this
+project has already proved does exactly this is module init order differing in
+a bundle — that is how GOLDEN ACES's door was dropped in the artefact while dev
+showed all eight. The library forecourt's floor comes from `courtGround` in
+`ct/civic.ts`, which is **E's**, through the ground registry.
+
+Worth someone's time because the artefact is what ships and the discrepancy is
+in the direction that matters: the bundle reads LOWER. A player who cannot be
+put at 0.14 there would be standing in the pavement rather than on it. I have no
+evidence that happens — the walk works — but "the floor answers differently in
+the build" is not a sentence to leave unexamined.
+
+Reproduce: `PINNED_MODE=preview ./scripts/slow-pinned.sh steps-walk` against
+`SHOT_URL=http://localhost:4185/ node scripts/steps-walk.mjs`.

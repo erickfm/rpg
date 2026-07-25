@@ -83,7 +83,11 @@ const out = [];
 const doors = await p.evaluate(() => window.__ct.doors()
   .filter((d) => d.stand).map((d) => ({ b: d.building, x: d.stand.x, z: d.stand.z })));
 for (const d of doors) {
-  await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0.14, 0), [d.x, d.z]);
+  // groundAt, not 0.14: the bodega's door is on a chamfered corner and the
+  // side-street walks are laid separately, so "the pavement is 0.14" is a
+  // remembered constant standing in for a published one.
+  await p.evaluate(([x, z]) =>
+    window.__ct.warp(x, z, 0, window.__ct.groundAt(x, z) ?? 0.14, 0), [d.x, d.z]);
   await p.waitForTimeout(250);
   const before = (await pos())[0];
   // press E the way a player does: held across frames

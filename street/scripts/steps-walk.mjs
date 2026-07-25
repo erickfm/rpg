@@ -70,7 +70,13 @@ for (const f of FLIGHTS) {
   if (top - bottom < 0.3) { fails.push(`${f.nm}: the picker gives no rise — the flight is flat`); continue; }
 
   // CLIMB it, on foot
-  await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [f.fromX, f.z, f.yawUp]);
+  // ASK where the foot of the flight is; do not remember 0.14. This script's
+  // whole subject is ground that VARIES, so hard-coding the height it starts
+  // from is the one number it least ought to assume — and a pinned run of this
+  // file has already printed "paving 0.00 at the kerb" where I expected 0.14.
+  // 716b21d13 made the same fix elsewhere: groundAt is the pick the rig uses.
+  await p.evaluate(([x, z, yaw]) =>
+    window.__ct.warp(x, z, yaw, window.__ct.groundAt(x, z) ?? 0.14, 0), [f.fromX, f.z, f.yawUp]);
   await p.waitForTimeout(250);
   const a = await pos();
   await hold('w', 3000);
