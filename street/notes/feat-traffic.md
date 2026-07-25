@@ -459,6 +459,43 @@ distinguish a real failure (exit 1) from an inconclusive run (exit 2), and wait
 for coverage rather than judging on whatever one sweep found. A check that fails
 half the time is a check people learn to skip, which is worse than not having it.
 
+## A third pattern: the stopwatch. Swept, and here is where it was
+
+Found three times before I stopped waiting to be bitten and audited all sixteen.
+**A distance covered in a fixed time is not a behaviour**, and every instance
+failed on a sound world before it ever caught a defect:
+
+| where | was | failed at | why it is not a clock |
+|---|---|---|---|
+| `corner-traffic` continuity | `maxStep < 0.75` m | 0.75 m under load | 0.15 s at 8.5 m/s is 1.28 m of legal travel |
+| `corner-traffic` "carried on east" | `finalX > 20`, then `> 12` | 11.6 m | how far it gets depends how long it yielded |
+| `corner-traffic` window | fixed 22 s | 245 frames not 417 | starved frames advance sim time at half rate |
+| `crowd-walk` west lane | `> 14`, then `> 9` m in 6 s | 8.6 m | two clean runs cover 20.8 and 15.2 m |
+| `side-walk` × 4 hikes | `> 26` m in 11 s | two of four | six samples span 28.4–36.4 m |
+
+The replacement is the same each time: **sample while the input is held and
+assert the longest STALL.** Being held for a beat is the give-way working;
+being held for four seconds is the lane blocked — and that is true whatever the
+total distance. Keep a distance floor if you like, but set it to separate
+"moving" from "went nowhere" (12 m, not 26), not to encode a typical run.
+
+**Where it does NOT apply, checked rather than assumed:**
+
+- `crowd-net`'s `maxTravel.every(d => d > 8)` is the same shape but observed
+  minimum is 31.8 m — four times the line — and it is backed by
+  `stillWorst < 30`, which is the stall version of the same question. Left.
+- `jitter` counts defects, not distance: 0 reversals over three runs against
+  thresholds of 12 and 2. Left.
+- `feet-check`, `faces`, `gaps`, `park-repro`, `carstate`, `cartex`, `kerb`,
+  `truck`, `citizen-sheet`, `side-night` have no time term at all.
+
+One result from the sweep is worth keeping on its own: **the crowd never seals a
+lane; a car does.** I could not make `crowd-walk`'s stall check fire with
+citizens alone — not with 40–60 s errand dwells, not with the give-way disabled,
+not with a 1.30 m body radius — but parking a car across the north walk gives a
+7.5 s stall immediately. That is why the citizen guard measures the GAP beside a
+stopped body and the hike guard measures the player's progress.
+
 ## A second pattern, and it is worse than the first one
 
 The pattern above is about probes failing for lack of samples. This one is
