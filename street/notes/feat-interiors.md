@@ -434,3 +434,123 @@ B's.
 4. **One burger stool** with no standable point in its trigger.
 5. **A decision, not a fix:** neither civic flight leads anywhere. My
    recommendation is a locked-door response over two more rooms.
+
+---
+
+# RUN N — the queue is empty; four commits, and two of them are corrections of mine
+
+`095c7d63` `0ecfd662` `bf9bcf58` `55b59c25`. Nothing left in
+`queues/F-interiors.md` that is not blocked on another owner.
+
+## 1. The spot sweep asks instead of guessing (`095c7d63`)
+
+`spots-walk.mjs` tested "orphaned" as *is there anything solid within 3 m*. I
+had already proved that useless on myself — moving the thrift's declaration
+onto the park frontage did not fire it, because the building line is continuous
+so a spot sliding along it still has masonry nearby.
+
+Doors declare now, so it asks: a spot whose label names a declared building must
+stand on that building's **published** door. Exact, and it cannot go stale
+because both sides come from the same declaration.
+
+**It found a real drift on its first run.** GOLDEN ACES and HOTEL ORPHEUS
+declared their doors but their room specs still hand-typed `[E]` at
+`WALK_Z = -97.0`, while the published stand point is `-96.75`. 0.25 m. That is
+the exact risk I had named in the previous commit and left as a future problem;
+the probe turned it from a worry into a measurement in one run. Both derive
+from the declaration now — **8 of 8 rooms sit exactly on their published door.**
+
+## 2. Both civic flights lead somewhere (`0ecfd662`)
+
+The user: *"Do NOT leave a flight of steps that leads to nothing."* I had this
+in `BLOCKED-F.md` as "needing a decision, not a fix" with my recommendation
+already attached — wrong twice, since it was not blocked on anyone and the
+user had already decided it in that sentence.
+
+`ct/int-civic.ts`. Not new rooms: **the kit's degenerate case.** The kit owns
+door → room, so a door with no room is still the kit's to answer for, and the
+answer is a locked door.
+
+**Nothing about where the doors are is typed.** A flight of steps is already a
+declaration — a raised patch of ground somebody built to be climbed — so the
+module scans the ground picker, clusters the patches, and takes the far edge of
+each landing from the street as the doorway. A third civic flight needs no
+edit. `claimed()` yields the door the moment a real room registers for that
+building, so **E's library interior takes it over without E knowing this file
+exists** — the nine-times-repeated "last line lives in someone else's file",
+pointed the other way.
+
+`scripts/civic-doors-walk.mjs` climbs both and checks four things: silent from
+the pavement below, present at the top, answers `[E]`, lapses. It caught the
+door announcing itself locked before anyone touched it (`tried = 0` reads as
+"pressed just now" in a page's first seconds), and caught itself:
+`keyboard.press()` is down+up inside one frame and `[E]` is edge-triggered off
+a once-per-frame key sample, so the press is never seen. It passed at the
+church and failed at the library on nothing but timing.
+
+## 3. `fp` reports a difference that is not there (`bf9bcf58`, `notes/F-fingerprint-phase.md`)
+
+Proving item 2 moved nothing: textures identical, objects identical,
+`structure` **different and reproducibly so** — from a module that creates no
+three.js objects at all.
+
+It is the casino/hotel chase: three shared phase materials recoloured every
+frame, and `structure` hashes material colour. `scenedump.mjs` already names
+these exact three spheres and pins the clock to fix them — but the chase runs
+off frame time, not the world clock. Pinning the hour bought **stability, not
+correctness**; it looks pinned only because startup timing is consistent. My
+87 000 build-time ground queries shifted it by delaying the first frame.
+
+Reported rather than fixed: `ct/vice.ts` and the shared harness are other
+owners'. One line (`userData.animated`) plus `matSig` omitting colour when it
+sees it — the project's standard "the module that knows says so".
+
+## 4. `[E]` takes the NEAREST spot (`55b59c25`) — and my harness had excused it
+
+`crosstown.ts` said *"nearest live spot wins"* and broke on the **first** spot
+in range, so overlapping triggers went to whichever module built earlier.
+Three live cases, all seats: standing exactly on the second of two diner
+booths offered the first 0.67 m away, twice, and the bus stop bench at 0.9 m.
+You walk to a seat and sit in the one beside it.
+
+**`seats-walk.mjs` had already found this and explained it away — in my words:**
+*"the E dispatch takes the first match — so one of each adjacent pair can never
+be the one chosen… Shrinking the triggers below 0.34 m would fix the ambiguity
+by making both unreachable."* I called the geometry unfixable, weakened the
+assertion from THE seat to A seat, wrote a paragraph justifying it, and moved
+on. It was three lines. All three seats passed the weakened check while seating
+the player somewhere they had not chosen.
+
+Found by asking a question I had never asked: do any two spot radii overlap?
+171 pairs do — all but three are a seat and its own "stand up", mutually
+exclusive through `ok()`, which is why it survived. Overlaps are fine once the
+nearest answers, so nothing shrank; the assertion is back to THE seat at 0.5 m
+and 57/57 pass it.
+
+**`crosstown.ts` is desk-owned and this is outside my interior-belt carve-out.**
+I made the call because the code contradicted its own stated contract and the
+mechanic it breaks is the seat capability I own. Flagging it rather than
+burying it.
+
+## The through-line for the desk
+
+Two of these four were **checks of mine that had already seen the bug and
+talked themselves out of it.** `notes/F-fingerprint-phase.md` warns that a
+proof reporting a difference which is not there teaches people to wave real
+ones away; items 1 and 4 are that same failure from the other end — a check
+taught to accept a real difference stops being a check. Worth a GOTCHAS line if
+the desk agrees.
+
+## Still open, none of it mine
+
+1. **The post at (50.0, −97.65)** pinches the side-street walk outside the
+   casino to 0.43 m. H or D. `BLOCKED-F.md`.
+2. **The church flight** stops 0.44 m short of its doors inside
+   `placeChurchEast`'s footprint box in `ct/street.ts` (D's). Its locked-door
+   prompt is reachable today from where the flight ends, so this now costs the
+   player the last stride rather than the response.
+3. **`ct/vice.ts` + `scenedump.mjs`** — the chase phase leak above.
+4. G's casino/hotel: 50 of 95 textures still undeclared.
+
+Suites at handoff: **195/195 rooms, 57/57 seats, 82 spots, 8/8 doors on their
+declaration, both civic flights, 177/177 unstick traps, health OK, build clean.**
