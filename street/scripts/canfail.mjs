@@ -29,6 +29,8 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 const PROPS = 'src/proto/ct/props.ts';
 const GROUND = 'src/proto/ct/tex-ground.ts';
 const TEXW = 'src/proto/ct/tex-world.ts';   // A's
+const CARS = 'src/proto/ct/cars.ts';        // H's
+const TOWN = 'src/proto/crosstown.ts';      // desk's, but the parking draw lives in it
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
@@ -250,6 +252,45 @@ const CASES = [
     'const PIT_X = 5.56;',
     'const PIT_X = 5.09;',
     'footprint.mjs', [], 'tree pits run flush into the kerb'],
+  // ── H's four. Every mutation here is one I performed by hand and watched go
+  // red this session; encoding them makes it repeatable rather than a claim in
+  // a commit message.
+  //
+  // NO gaps CASE, and the reason is the useful part: putting a vehicle on an
+  // [E] spot takes TWO coordinates, because the parking draw sets x from
+  // PARK_SNUG and z from the seeded stream, and a door sits on the pavement at
+  // neither. My first hand attempt moved only z and the check correctly stayed
+  // green — the car was 2.6 m away on the carriageway. A single find/replace
+  // cannot express it, and a case that does not actually break the thing tests
+  // nothing. gaps.mjs is registered with no selftest rather than a fake one.
+  ['carstate-bay', CARS,
+    'const bayM = new THREE.MeshBasicMaterial({ color: 0x14161a });',
+    'const bayM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body) });',
+    'carstate.mjs', [], 'an open hood over body-coloured metal — the truck-bed bug'],
+
+  // The hood is a lid RESTING on the beltline. Drop it 0.1 m and it is buried
+  // inside the slab, which is exactly what the literal 0.89 would have caused
+  // the moment BELT moved.
+  ['carstate-hood', CARS,
+    // The sedan's, specifically: the same call appears once per kind, and
+    // canfail requires a needle that matches exactly one place.
+    'hood.position.set(0, BELT + 0.05, -(half + 0.95) / 2 + 0.02);',
+    'hood.position.set(0, BELT - 0.05, -(half + 0.95) / 2 + 0.02);',
+    'carstate.mjs', [], "the hood buried inside the slab it should rest on"],
+
+  // Parking off the UNSEEDED stream. The world still looks right; every
+  // fingerprint downstream of it quietly stops being evidence.
+  ['park-repro', TOWN,
+    'const zDrawn = z0 + (rnd() - 0.5) * 2.4;',
+    'const zDrawn = z0 + (Math.random() - 0.5) * 2.4;',
+    'park-repro.mjs', [], 'parking that re-rolls on every load'],
+
+  // The three-band face, restored. 10 texels of head cannot carry 3 texels of
+  // shading either side without reading as skin discolouration.
+  ['faces-bands', 'src/proto/ct/citizens.ts',
+    "g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(cx - 5, oy + 8, 1, 12);",
+    "g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 8, 3, 12);",
+    'faces.mjs', [], 'a face banded into three tones'],
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

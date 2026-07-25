@@ -97,12 +97,35 @@ const CHECKS = [
   // Their selftests are the boolean kind — the mutation is a collider pushed
   // onto the LIVE `__ct.colliders()`, the same array the movement code tests,
   // so there is nothing to rebuild and no source to mutate.
+  // ── the fleet and the crowd (H) ─────────────────────────────────────────
+  //
+  // Sixteen probes existed here and NONE had an entry, which is the exact fault
+  // this file's preamble describes: runnable only by whoever read the note that
+  // introduced them. Measured runtimes decide the tier below — nothing is
+  // guessed. The four with a case name have that mutation in canfail.mjs; the
+  // rest say `false` rather than carry a selftest that does not exist.
+  ['carstate',         'do hood-up, jacked and blocked cars still build right?', ['carstate-bay', 'carstate-hood']],
+  ['gaps',             'can a parked car trap the player, or eat an [E]?',   false],
+  ['park-repro',       'is the parked arrangement the same on every load?',  'park-repro'],
+  ['faces',            'does any face read as more than one tone?',          'faces-bands'],
+  ['feet-check',       'does a profile foot point the way it walks?',         false],
   ['world-wired',      'is every module that exports a builder called?',    false, [], true],
   ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', false, [], true],
+  // H's walking and watching suites. These drive or watch in real time, so they
+  // belong in the SLOW tier for the reason stated above — a runtime tier, not an
+  // importance tier. Measured: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
+  // crowd-net 93 s, corner-traffic 141 s and up to ~7 min when it has to retry
+  // (it discards any run the car spent yielding, because a held run says
+  // nothing about the arc).
+  ['corner-traffic',   'do cars actually turn the corner, and yield?',       false, [], true],
+  ['crowd-net',        'do people route the block, cross only at crossings?', false, [], true],
+  ['side-walk',        'are both side-street walks clear, doors reachable?',  false, [], true],
+  ['jitter',           'does a walker flip-flop when it passes somebody?',    false, [], true],
+  ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', false, [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

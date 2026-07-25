@@ -136,8 +136,21 @@ const m = await page.evaluate(() => {
     const inBay = rz ? p.parts.filter((q) => Math.abs(q.rx) < 0.5
       && (q.b.x0 + q.b.x1) / 2 > -0.8 && (q.b.x0 + q.b.x1) / 2 < 0.8
       && (q.b.z0 + q.b.z1) / 2 > rz.z0 - 0.1 && (q.b.z0 + q.b.z1) / 2 < rz.z1 + 0.1
-      && q.b.y1 > BELT - 0.05 && q.b.y1 < HOOD_TOP + 0.35) : [];
+      && q.b.y1 > BELT - 0.05 && q.b.y1 < HOOD_TOP + 0.35
+      // THE CAVITY'S CONTENTS, NOT THE BODY IT IS CUT INTO. The slab's own top
+      // face sits at exactly BELT inside this footprint, and it is body-coloured
+      // ON PURPOSE — that is the lip of paint showing round the bay, which is
+      // what makes the dark read as a hole. Broadening the colour test from
+      // "the top surface" to "every surface" pulled the slab in and failed the
+      // whole fleet. Anything a metre and a half long is the body, not a part.
+      && (q.b.z1 - q.b.z0) < 1.5 && (q.b.x1 - q.b.x0) < 1.7) : [];
     const top = inBay.length ? inBay.reduce((a, q) => (q.b.y1 > a.b.y1 ? q : a)) : null;
+    // EVERY surface in the cavity, not just the highest. Checking only the top
+    // one let a body-coloured bay FLOOR pass whenever the dark air cleaner sat
+    // above it — and the floor is the surface that makes the opening read as a
+    // hole rather than a lid. Found by encoding the mutation as a canfail case:
+    // my hand-watch had recoloured three materials at once, which hid it.
+    const lightest = inBay.length ? inBay.reduce((a, q) => ((q.l ?? 0) > (a.l ?? 0) ? q : a)) : null;
     R.hood[k] = {
       added: p.n - plain.n,
       raisedN: raised.length,
@@ -145,6 +158,9 @@ const m = await page.evaluate(() => {
       bayTop: top ? +top.b.y1.toFixed(3) : null,
       bayLum: top ? +top.l.toFixed(3) : null,
       bayHex: top ? top.hx : null,
+      worstHex: lightest ? lightest.hx : null,
+      worstLum: lightest ? +lightest.l.toFixed(3) : null,
+      inBay: inBay.length,
       round: inBay.some((q) => q.geo === 'CylinderGeometry'),
       below0: p.parts.some((q) => q.b.y0 < -0.01),
     };
@@ -221,14 +237,14 @@ for (const [k, v] of Object.entries(m.hood)) {
   if (v.added < 4) fails.push(`hood ${k}: only ${v.added} meshes added — a raised hood with no engine bay under it is the truck-bed bug again`);
   if (v.bayTop === null) fails.push(`hood ${k}: nothing measurable inside the bay footprint`);
   else if (v.bayLum === null) notes.push(`  ??   hood ${k}: bay top surface has no flat colour to read`);
-  else if (v.bayHex === m.bodyHex) fails.push(`hood ${k}: the top surface in the bay is #${v.bayHex}, which IS the body colour — that is the truck-bed bug, a raised lid over painted metal`);
-  else if (v.bayLum > 0.24) fails.push(`hood ${k}: the top surface in the bay has sRGB luminance ${v.bayLum} — too light to read as a cavity. An unlit world has no shadow to darken it for you`);
+  else if (v.worstHex === m.bodyHex) fails.push(`hood ${k}: a surface in the bay is #${v.worstHex}, which IS the body colour — that is the truck-bed bug, a raised lid over painted metal`);
+  else if (v.worstLum > 0.24) fails.push(`hood ${k}: the lightest of ${v.inBay} surface(s) in the bay has sRGB luminance ${v.worstLum} — too light to read as a cavity. An unlit world has no shadow to darken it for you`);
   if (v.bayTop !== null && v.bayTop < BELT - 0.03) fails.push(`hood ${k}: bay top ${v.bayTop} is below the slab top ${BELT} — buried where nobody can see it, exactly like the bed floor was`);
   if (!v.round) fails.push(`hood ${k}: no round shape in the bay; the air cleaner is what makes it read as an engine`);
   if (v.apex !== null && v.apex < 1.3) fails.push(`hood ${k}: raised panel only reaches ${v.apex} m — that is ajar, not open`);
   if (v.below0) fails.push(`hood ${k}: geometry below the ground plane`);
 }
-notes.push(`  OK   hood up on all four kinds — bay top dark and not body #${m.bodyHex} (lum ${Object.values(m.hood).map((v) => v.bayLum).join(', ')}), apex ${Object.values(m.hood).map((v) => v.apex).join(', ')} m, air cleaner present`);
+notes.push(`  OK   hood up on all four kinds — every surface in the bay dark and none body #${m.bodyHex} (worst lum ${Object.values(m.hood).map((v) => v.worstLum).join(', ')}), apex ${Object.values(m.hood).map((v) => v.apex).join(', ')} m, air cleaner present`);
 
 // 3. jack
 for (const [c, v] of Object.entries(m.jack)) {
