@@ -27,6 +27,41 @@ dry pavement to contrast against. The 8 → 23 hour ceiling is what actually
 delivers that contrast, and it more than pays for the higher rate, but the rate
 did move and it moved the wrong way.
 
+## But one hour still rains EVERY day, and it caps the evening
+
+Verified from the world's own `rainAt`, 6000 days: **`OPENING_H = 14` rains
+every single day without exception** (`props.ts:147` short-circuits on it). The
+lattice is gone; this is not part of it, it is the other clause.
+
+The consequence is a clean sawtooth. The longest dry run that can EVER precede
+each hour of day:
+
+```
+  13:00  22 h   <- the driest the world can ever be
+  14:00   0 h   <- forced rain, every day, resets it
+  15:00   0 h
+  16:00   1 h
+  17:00   2 h        ... one hour gained per hour ...
+  23:00   8 h   <- an evening can never be drier than this
+   0:00   9 h
+```
+
+So **my original headline survives the fix, but only after dark and for a
+different reason.** "Never dry for more than 8 hours at 23:00" was a property
+of the arithmetic progression; it is now a property of the daily 14:00 shower.
+And 15:00-17:00 can never show a dry street at all.
+
+That is worth someone's judgement, not mine to change: a forced daily shower is
+a perfectly reasonable thing to want, and `OPENING_H` is presumably reused here
+because a wet opening is atmospheric. But the request driving this work —
+*"make wetness last a lil after it stops raining"* — is asking for a contrast
+that the evening structurally cannot show, and the wet-night brief in
+`adc7d208` is measuring a night that can never have a dry counterpart more than
+8 hours old.
+
+If the daily shower is wanted, moving `OPENING_H` earlier buys the evening its
+dry counterpart back; the sawtooth just rotates.
+
 The original finding is kept below, because it is why the fix happened.
 
 ---
