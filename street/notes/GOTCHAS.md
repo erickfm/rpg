@@ -293,3 +293,22 @@ cost real time to learn:
 **And check before you file.** I reported this twice as a bug in `ct/props.ts`.
 It was not: skipping transparent materials was correct, and the flag was mine
 both times.
+
+## 22. Real is not the same as visible — triage by what a player sees
+
+The auditor's own line, after 3,400 lines of reports across five audits:
+
+> **Establishing that a defect is real is not the same as establishing that it
+> matters.**
+
+It found this out by nearly routing a builder to fix twelve mirrored pennant
+faces that turn out to be symmetric triangles — genuinely flipped, provably
+invisible. The severity tables in the individual reports rank by MEASUREMENT
+CONFIDENCE, which is a different axis entirely, and the desk had been routing
+from them.
+
+`notes/AUDIT-TRIAGE.md` is now the file the desk routes from: every open
+finding graded by whether a player can see it, with an explicit **record, do
+not route** section for defects that are real and invisible. A latent bug that
+is written down costs nothing; a builder-hour spent on one costs a user-visible
+fix somewhere else.
