@@ -15,6 +15,11 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const outDir = process.argv[2] ?? 'shots/door301';
 mkdirSync(outDir, { recursive: true });
 
+// These MIRROR ct/apartment.ts. That is a copy, and a copy goes stale silently:
+// change DOOR_GAP or move the building and this script keeps running, testing
+// coordinates where nothing is, reporting "not blocked" for a doorway it is
+// not looking at. Every assertion below would still pass. So the constants are
+// checked against the world before any of them are used — see confirmPivot().
 const APT_X = 200, APT_Z = -20, ST = 2.7, GAP = 0.95;
 const AX = (l) => APT_X + l, AZI = (l) => APT_Z + l;
 const FLOOR = 2 * ST;
@@ -33,6 +38,38 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.mouse.click(640, 360);                     // take pointer lock so keys land
 await page.waitForTimeout(600);
+
+/** Prove the mirrored constants still describe this world: 301's leaf is a
+ *  0.045-thick box hung at the pivot, so if it is not within a few cm of where
+ *  the arithmetic says, the arithmetic is stale and every result after this is
+ *  about empty air. */
+const confirmPivot = async () => {
+  const near = await page.evaluate(([px, pz, fy]) => {
+    const s = window.__ct.scene(); s.updateMatrixWorld(true); let best = null;
+    s.traverse((o) => {
+      if (!o.isMesh) return;
+      let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
+      if (mod !== 'walkup') return;
+      const g = o.geometry?.parameters; if (!g || Math.abs((g.depth ?? 0) - 0.045) > 0.005) return;
+      const e = o.matrixWorld.elements;
+      if (Math.abs(e[13] - (fy + 1.05)) > 0.3) return;
+      const d = Math.hypot(e[12] - px, e[14] - pz);
+      if (!best || d < best.d) best = { d, at: [+e[12].toFixed(2), +e[13].toFixed(2), +e[14].toFixed(2)] };
+    });
+    return best;
+  }, [PIV[0], PIV[1], FLOOR]);
+  if (!near || near.d > 0.25) {
+    console.error(`\nTHE CONSTANTS IN THIS SCRIPT NO LONGER DESCRIBE THE WORLD.`);
+    console.error(`  expected 301's leaf near (${PIV[0].toFixed(2)}, ${PIV[1].toFixed(2)})`);
+    console.error(near ? `  nearest leaf-shaped mesh is ${near.d.toFixed(2)} m away at ${near.at.join(', ')}`
+                       : `  no leaf-shaped mesh stamped 'walkup' on that floor at all`);
+    console.error(`  Re-read APT_X / ST / DOOR_GAP from ct/apartment.ts.\n`);
+    await browser.close();
+    process.exit(1);
+  }
+  console.log(`301's leaf found ${near.d.toFixed(2)} m from the computed pivot — constants still hold`);
+};
+await confirmPivot();
 
 const warp = (x, z, yaw, pitch = 0) =>
   page.evaluate(([a, b, c, d, e]) => window.__ct.warp(a, b, c, d, e), [x, z, yaw, FLOOR, pitch]);
