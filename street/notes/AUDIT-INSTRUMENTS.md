@@ -387,3 +387,45 @@ because I kept testing what the tool **computes**. The answer was in how it
 which no in-page reproduction can show you.
 
 **A faithful copy of the logic is not a faithful copy of the run.**
+
+### Does the same lag affect MY scans? No — checked, not assumed.
+
+The `seats-walk` diagnosis is a warning to every probe that warps and reads. My
+step-finding scans (`steps.mjs`, `church2.mjs`, `regrade2.mjs`) read
+`pos()[3]` just **two animation frames** after each warp, which is far tighter
+than the 140 ms that failed. So I tested mine rather than assuming they were
+fine.
+
+**First exposure — the page-load boundary: not applicable.** All nine of my
+warping scripts wait **800–900 ms** after load before their first warp, well
+past the ~300 ms the ground picker needs.
+
+**Second exposure — height transitions mid-scan:** a 2-rAF read against a
+generously settled 350 ms read, warmed first, across the sharpest transitions in
+the world:
+
+```
+(  -6,   -9)  2 rAF: 0.14    350 ms: 0.14    agree
+(-10.5, -13)  2 rAF: 0.99    350 ms: 0.99    agree     ← top of the library flight
+(-10.5, -12)  2 rAF: 0.99    350 ms: 0.99    agree
+(-10.5, -14)  2 rAF: 0.99    350 ms: 0.99    agree
+(  -6,   -9)  2 rAF: 0.14    350 ms: 0.14    agree     ← straight back down
+(   9, -79.5) 2 rAF: 0.51    350 ms: 0.51    agree     ← church flight
+( 8.75,-80.5) 2 rAF: 0.409   350 ms: 0.409   agree
+(  -6,  -40)  2 rAF: 0.14    350 ms: 0.14    agree
+
+0 of 8 disagree
+```
+
+**Once warm, two frames is enough**, even stepping 0.85 m of height in one warp.
+The lag is specific to the first warp after page load and does not generalise.
+
+**So every gy figure I published stands** — and two of them are re-confirmed here
+by a script that shares no code with the ones that found them:
+
+- the **library flight tops out at 0.99** (found: gy 0.42 → 0.99)
+- the **church flight reaches 0.51** (found: gy 0.31 → 0.51)
+
+That is the useful shape for this kind of scare: a defect found in someone
+else's tool is a hypothesis about yours, and the cost of checking was one script
+and four minutes.
