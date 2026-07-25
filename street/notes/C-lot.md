@@ -354,6 +354,46 @@ suite that got twenty times quicker. Exit 3 is what let me see it; before
 `ec7aae0d` those aborts would have been exit 1 and I would have read them as
 failures instead.
 
+**The bunting never dimmed, and the lot after dark is why I found it.** I had
+never looked at the lot at night — every screenshot of the bunting I have ever
+taken was in daylight — and the first one shows a string of plastic pennants as
+the brightest thing in a yard gone black.
+
+Measured at a dry 21:30, stepped through the evening:
+
+```
+  deck and decals    -95.5%
+  everything else    -94.2%
+  the bunting         -1.3%      <- not graded at all
+  lights (selfLit)     0.0%      <- correct, they are lights
+```
+
+**props.ts had classified plastic flags as a light source, and it was right to.**
+`isSelfLit` calls a sheet lit when more than 8% of its opaque texels are bright
+AND saturated — `max > 199`, `max - min > 26` — which is a good neon detector.
+The pennant sheet came in at **13.3%, 83 of 624 texels, every one the same
+colour: 202,88,80**.
+
+That is this red *after its own highlight*. The base is `#c0392f` = 192, safely
+under; the "bleached up by the string" band paints white over it at 0.16 alpha,
+and `192*0.84 + 255*0.16 = 202` — one point past the line.
+
+Fixed in my texture rather than by asking props to special-case me: the base red
+is `#b53528` now, which puts the bleached peak at **193, six clear of the
+threshold instead of one**. Same red family, invisible on the flag, and the
+highlight survives — it was the thing actually wanted.
+
+```
+  hot texels  13.3%  ->  0.0%
+  bunting     -1.3%  ->  -88.5%     (the rest -94.3%; bunting hangs at 3 m and
+                                     dimWorld grades by elevation)
+```
+
+**No check of mine covers "does this dim."** `midnight.mjs` asserts that
+invariant for `mod === 'street'` and only prints the rest, which is the scoping
+I recorded as an open gap two weeks ago and did not close. This is what that gap
+costs.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the

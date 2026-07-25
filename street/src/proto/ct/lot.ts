@@ -312,7 +312,26 @@ function buildLot(o: {
     // and the starbursts, all of which are already loud; red-and-white is the
     // classic and it reads as one object from the far end of the block
     // instead of as confetti.
-    const cols = ['#c0392f', '#dcd7c8', '#c0392f', '#dcd7c8'];
+    // #b53528, not #c0392f, and the reason is arithmetic rather than taste.
+    //
+    // props.ts's isSelfLit calls a sheet a LIGHT SOURCE when more than 8% of
+    // its opaque texels are bright-and-saturated (max > 199, max - min > 26),
+    // and holds those at full brightness after dark — correctly, for neon.
+    // The bunting was tripping it: 83 of 624 texels, 13.3%, all one colour,
+    // 202,88,80. That is this red AFTER the sun-bleach band below paints white
+    // over it at 0.16 alpha — 192*0.84 + 255*0.16 = 202, one point over the
+    // line the detector draws.
+    //
+    // So a string of plastic pennants was the brightest thing in the lot at
+    // 21:30, dimming 1.3% while the cars, the deck and the brick went down
+    // 94-95%. Found by looking at the lot after dark, which I had never done;
+    // no check of mine covers "does this dim", and every screenshot I had ever
+    // taken of the bunting was in daylight.
+    //
+    // Darkening the base 11 points puts the bleached peak at 193 — six clear
+    // of the threshold rather than one — and keeps the highlight, which is the
+    // thing actually wanted. Same red family; invisible against the flag.
+    const cols = ['#b53528', '#dcd7c8', '#b53528', '#dcd7c8'];
     // The line goes at the BOTTOM of the canvas and the flags taper UPWARD
     // from it, which comes out as line-on-top and points hanging DOWN once
     // the texture is on the plane. Drawn the intuitive way round it rendered
