@@ -385,9 +385,39 @@ count came back 0 while a probe that walks all materials finds 3.
 the answer is 3.** A number that is wrong in the reassuring direction is the
 worst thing this file could print.
 
-**What it needs, for whoever picks it up or for me with more room:** walk the
-material array like `density` and `seampairs` already do, then re-measure the
-whole check — the population changes, so "0 materials were graded and did not
-move" has to be re-established, not assumed to survive. That is a re-verification
-of the headline, not a tweak, which is why I am not doing it at the end of a
-session.
+**Fixed in `0c4f7570`.** The collector walks the material array now.
+
+```
+materials never offered to the dimmer   456 -> 599     (+143 previously unseen)
+graded and did not move                 0, unchanged
+GOTCHAS 22 flag pairs                   13 -> 14
+--selftest                              still catches its unexcused material
+```
+
+**The headline was re-established, not assumed.** Widening a check's population
+can turn a clean result into a false one, so *"0 graded materials did not move"*
+was re-measured against the larger set rather than inherited from the smaller.
+It held.
+
+### Still open: the out-of-range count reads 0 against a measured 3
+
+With the collector fixed, the report that started all this **still reads 0**
+while a direct probe finds 3 at 23:00 (worst 1.149) and 74 at 19:00. I do not
+know why, and I did not ship it.
+
+**Twice now I have nearly published a count that was wrong in the reassuring
+direction on this exact question.** A third would be careless rather than
+unlucky, so the next person — or I, with room — should start from the probe that
+works:
+
+```js
+s.traverse(o => { for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+  if (!m?.color) continue;
+  if (Math.max(m.color.r, m.color.g, m.color.b) > 1.001) …
+}});
+```
+
+That finds them. The same expression inside `nightgrade`'s probe does not, which
+means the difference is in the probe's surroundings — the BOX filter, the
+`each[m.uuid]` first-write, or the hour the flags are read at — and **not** in
+the test itself.
