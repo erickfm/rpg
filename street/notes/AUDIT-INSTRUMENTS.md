@@ -502,9 +502,26 @@ attempts were invalidated by `which-world`:**
 
 1. the first because **I kept committing while it ran** — HEAD moved under it,
    correctly invalidating every check
-2. the second on a deliberately pinned world (rebased, rebuilt, HEAD untouched
-   for the whole run) — **and it still reported `WRONG WORLD`.** I have not
-   isolated why
+2. the second on a deliberately pinned world — **and it still reported
+   `WRONG WORLD`**
+
+**Diagnosed as far as it is worth taking.** The server was serving exactly the
+build I made — `curl` returns `index-DQzpRTqf.js`, which is the newest file in
+`dist/` — so it is not staleness. `which-world` compares **the SHA baked in at
+build time** against **`git rev-parse HEAD` read fresh by each child check**.
+
+That makes long runs structurally fragile in my setup: **I rebase onto mainline
+at the start of every turn**, and a twelve-minute suite spans several turns. Any
+rebase during the run moves HEAD out from under a build that cannot move with
+it, and every remaining check fails `WRONG WORLD` — correctly.
+
+> **A long check run needs a frozen HEAD, and "rebase every turn" is the
+> opposite of a frozen HEAD.** The two are incompatible, and the guard is right
+> to refuse rather than measure a world that no longer matches the checkout.
+
+Anyone running `--slow` here should rebase, build, and then **not touch git
+until it finishes** — which is a real constraint worth knowing before spending
+twelve minutes twice, as I did.
 
 **So my "28 green, one red" covers the FAST tier only.** The six walking suites
 are unrun by me and I am not claiming anything about them. `spots-walk` and
