@@ -51,6 +51,10 @@ const probe = async (h) => {
           // graded at all" look identical from out here, and this script was
           // reporting the first as a bug — thirteen tickets for a neon sign.
           selfLit: !!m.userData?.selfLit,
+          // cf966b3d: ct/lot.ts stamps `userData.mod` on everything it adds.
+          // Identity, not geography — walk up, because the stamp is applied to
+          // the top-level child and inherited by everything under it.
+          mod: (() => { for (let n = o; n; n = n.parent) if (n.userData?.mod) return n.userData.mod; return null; })(),
           // what the thing IS, so its builder recognises it without a gazetteer
           shape: `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)} tex ${im?.width ?? '?'}x${im?.height ?? '?'}`,
           x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
@@ -166,8 +170,16 @@ const skipped = pairs;
 // that does not is printed as coordinates and explicitly NOT attributed.
 // ct/lot.ts publishes `LOT.bounds` (0bd7a0c1); the registry below is the same
 // idea reachable from a script, and it is empty until modules opt in.
-const owner = (x, z) => (BOUNDS.find((b) =>
-  x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ)?.name) ?? null;
+// Ask the objects first. `userData.mod` is an author's own mark, so it is right
+// even when a module's things are scattered or interleaved with someone else's
+// — which a box can never be. Fall back to a published box, and if neither
+// exists, say nothing rather than infer a name by eye.
+const owner = (c) => {
+  const mods = [...new Set(c.list.map((m) => m.mod).filter(Boolean))];
+  if (mods.length) return mods.join('+');
+  const b = BOUNDS.find((b) => c.cx >= b.minX && c.cx <= b.maxX && c.cz >= b.minZ && c.cz <= b.maxZ);
+  return b ? `${b.name} (by box)` : null;
+};
 const cl = [];
 for (const m of skipped) {
   const near = cl.find((c) => Math.abs(c.cx - m.x) < 14 && Math.abs(c.cz - m.z) < 14);
@@ -181,7 +193,7 @@ for (const c of cl) {
   const pad = 3, box = [Math.min(...xs) - pad, Math.max(...xs) + pad,
                         Math.min(...zs) - pad, Math.max(...zs) + pad].map((n) => n.toFixed(0));
   const kinds = [...new Set(c.list.map((m) => m.shape))];
-  const who = owner(c.cx, c.cz);
+  const who = owner(c);
   console.log(`  ${String(c.list.length).padStart(3)} at ${c.cx.toFixed(0)},${c.cz.toFixed(0)}  ${who ? who : '(unattributed)'}  ${kinds.slice(0, 2).join(' / ')}${kinds.length > 2 ? ` /+${kinds.length - 2}` : ''}`);
   console.log(`      node scripts/nightgrade.mjs ${box.join(' ')}`);
 }
@@ -192,11 +204,12 @@ it still moves them into the sorted transparent queue, where DoubleSide geometry
 picks up sorting artifacts it would never have had. Delete the flag; keep the
 alphaTest.
 
-A cluster marked (unattributed) is a LOCATION, not an owner. No module claimed
-that ground. Publish your box the way ct/lot.ts publishes LOT.bounds and push it
-to globalThis.__bounds as { name, minX, maxX, minZ, maxZ }, and this names you
-instead of leaving the next reader to guess by eye — which has now misrouted
-this same finding twice.`);
+A cluster marked (unattributed) is a LOCATION, not an owner. Nothing in it
+carries an author's mark. Stamp \`userData.mod = '<your module>'\` on what you add
+the way ct/lot.ts does (cf966b3d) and this names you instead of leaving the next
+reader to guess by eye — which has misrouted this same finding three times.
+A stamp beats a box: it stays right when your things are scattered or sit inside
+someone else's.`);
 if (!SCOPED) {
   console.log(`
 Informational: no box was given, so this is the whole world and some of these
