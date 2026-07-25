@@ -1492,3 +1492,23 @@ party wall.
 **Worth recording because the two are indistinguishable from a photograph.** A
 future reader comparing `user-bankflank.png` against HEAD will see pale-meets-
 brown in both and conclude nothing changed. What changed is whose brown it is.
+
+
+### `user-bank-vs-library.png` confirms it from the other side
+
+Opened the next reference in the same subject. It is build `e78e5ec` and shows
+the library as **pale cream stone with arched openings**, and the filename says
+what the user was doing: comparing it against the bank.
+
+That is the complaint my own code comment answers — *"it stands beside the
+LIBRARY … and must not read as the same institution"* — and it is why the bank
+became cool grey precast, dead flat and square-headed while the library kept
+warm worn ashlar and arches.
+
+So the two references bracket the same fix from opposite sides:
+
+- `user-bank-vs-library.png` — they read as **too alike**
+- `user-bankflank.png` — one building read as **two**
+
+Both are answered at HEAD, and the pale-meets-brown still visible in the second
+frame is the boundary between them, which is the point rather than the bug.
