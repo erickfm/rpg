@@ -79,8 +79,8 @@ fail loudly.
 
 ```
 npm run fp before / after
-textures   282 vs 282 — IDENTICAL   (88364e99)
-structure  591 vs 591 — IDENTICAL   (5d8fc4fa)
+textures   282 vs 282 — IDENTICAL   (hash 88364e99)   <- fingerprint values,
+structure  591 vs 591 — IDENTICAL   (hash 5d8fc4fa)      NOT commit sha1s
 places     591 vs 591 — 7 differ
 ```
 
