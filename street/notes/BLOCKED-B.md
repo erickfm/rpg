@@ -1,3 +1,39 @@
+# Integration verification of the 22 unlanded commits, and one look
+
+Four changes to the world's lighting and wet paths landed on my branch this
+session — the noLight semantic, the pool sample point, the interior guard, and
+the wet/lit collision. Each was measured on its own. This is them together.
+
+**`npm run sweep`, 48 shots including a rainy hour: no console errors.** Only
+the standing warnings — the THREE.Clock deprecation, the `doors` import cycle
+recorded in BLOCKED-C §0, Canvas2D readback hints and WebGL driver messages.
+Nothing new, and nothing from the modules I touched.
+
+**Then I looked, because I had never looked.** Screenshots are for LOOKING and
+this is what they are for: night on the east pavement, night in the park, and
+the street in rain. Lamps pool on the brick behind them, the park lanterns read
+as lights rather than as bright dots, rain streaks and the lifted rain sky are
+both there, and nothing is blown out, black-holed or missing.
+
+**The one thing the look raised, and the measurement that closed it.** The
+pavement reads close to daylight grey at night while the road goes properly
+dark, which looks like the walk failing to dim. It is not. Sampled away from any
+lamp (>9 m):
+
+```
+day    walk tint 1.000   road tint 1.000
+night  walk tint 0.045   road tint 0.045
+```
+
+Identical, and a 22x dim. The difference on screen is the concrete texture being
+lighter than the asphalt one — mean 0.4162 against 0.2401 — which is the
+appearance = texture x tint standard, the same one I had to withdraw a
+confirmation over earlier this session for comparing tints across two different
+textures. It caught me a second time as an impression rather than a claim, which
+is the cheap way to be caught.
+
+---
+
 # Correction: the wet/lit collision was caused by my own file, not by cars
 
 Last commit said the two-writer collision was possible but that "props.lit() is
