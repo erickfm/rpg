@@ -7,6 +7,7 @@ import {
 import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
 import { buildCivic, type BldSpec } from './civic';
+import { buildVice } from './vice';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
 import { type AABB } from '../fp';
 
@@ -491,129 +492,24 @@ export function buildStreet(o: {
   placeBldZ(FACE + 3.4, -94.3, { nm: 'BODEGA', col: '#b8342a', w: BODEGA_WING, brick: '#6b4034', floors: 3 }, -1);
   let xn = FACE + 3.4 + BODEGA_WING;
   const sideSpans: Record<string, [number, number]> = {};
-  for (const b of NORTH2) { sideSpans[b.nm] = [xn, xn + b.w]; placeBldZ(xn, -94.3, b, -1); xn += b.w; }
-  // ── the far end of the side street ──────────────────────────────────────
-  //
-  // The casino and the hotel are 40 m away, which is most of the way to
-  // FOG_FAR — from this block they are a glow, not a place, and that is
-  // exactly what was asked for. Two things make that work:
-  //
-  //  · the signs stand ABOVE the roofline, where nothing occludes them;
-  //  · the lit parts are `fog: false`. Everything else in the world dissolves
-  //    into the haze on the fog curve, so neon that refuses to is read as
-  //    neon — it is the only thing out there still burning at that distance.
-  //    The boards they are mounted on DO take fog, so the sign hangs in the
-  //    murk instead of looking pasted on top of it.
-  {
-    // NOT `transparent: true`. With alphaTest the cutout is resolved in the
-    // OPAQUE pass, where the depth buffer decides what you see. Marking it
-    // transparent as well pushes both faces of a double-sided sign into the
-    // sorted pass, where the far face can paint over the near one — which is
-    // what made HOTEL read backwards from the west: you were seeing the far
-    // plane's reverse. FrontSide then guarantees each face is only ever seen
-    // from its own side, so this cannot come back.
-    const neonM = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.4, fog: false, side: THREE.FrontSide });
-    // A double-sided sign is TWO planes back to back, and the two faces are
-    // mirror images of each other in world space. Hang the same texture on
-    // both and one of them comes out reversed — which only shows up on
-    // asymmetric letters, so HOTEL gave itself away on the E and the L while
-    // the H, O and T looked fine. `scale.x = -1` flips that face's UVs back.
-    // Any sign added here needs the same treatment; check it on a letter
-    // with a handedness, never on one that reads the same both ways.
-    // The fix is applied to the ARTWORK, not to the transform: the back face
-    // gets a texture that was painted mirrored, so the two faces carry
-    // genuinely different images the way a real double-sided sign does.
-    // (Mirroring the mesh instead — scale.x = -1 — does not survive here.)
-    const twoSided = (
-      tw: number, th: number, draw: (g: CanvasRenderingContext2D) => void,
-      w: number, h: number, x: number, y: number, z: number, gap: number,
-    ) => {
-      for (const s of [-1, 1]) {
-        const t = pixTex(tw, th, draw);   // both faces carry the same artwork…
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), neonM(t));
-        m.position.set(x + s * gap, y, z);
-        m.rotation.y = s * Math.PI / 2;
-        scene.add(m);
-      }
-    };
-    const boardM = new THREE.MeshBasicMaterial({ color: 0x24222a, side: THREE.DoubleSide });
-    const casino = sideSpans['GOLDEN ACES'], hotel = sideSpans['HOTEL ORPHEUS'];
-    if (casino) {
-      // A ROOFTOP PYLON, not a fascia sign. Anything mounted at the casino's
-      // own roofline (16.2 m) is hidden behind the hotel next door, which is
-      // 18.6 — and from this block you only ever see the far end down the
-      // length of the street, so an occluded sign is no sign. This one stands
-      // clear of every roof on the side street and is the first thing you
-      // pick out of the haze.
-      // It faces ALONG the street, not across it. A sign hung parallel to its
-      // own facade is edge-on to everyone approaching down the street, which
-      // is the only way this one is ever seen — from the far end of it.
-      // ── and it STANDS ON SOMETHING ────────────────────────────────────
-      //
-      // The legs used to sit at z = -95 ± 3.2, which is -98.2 and -91.8: one
-      // of them hung in the air over the roadway and the other was buried
-      // behind the parapet. The building is only 3.4 m deep (z -96 … -92.6),
-      // so anything holding this up has to stand inside that. A rooftop sign
-      // with no visible steelwork reads as a decal pasted on the sky.
-      const cxm = (casino[0] + casino[1]) / 2, top = SHOP_BAND_H + 3.4 + 4 * 2.4;
-      const ROOF = top, BOT = ROOF + 2.2;              // sign sits 2.2 m clear
-      const steelM = new THREE.MeshBasicMaterial({ color: 0x35323a });
-      for (const s of [-1, 1]) {
-        const upright = new THREE.Mesh(new THREE.BoxGeometry(0.2, BOT - ROOF, 0.2), steelM);
-        upright.position.set(cxm, (ROOF + BOT) / 2, -94.3 + s * 1.2);
-        scene.add(upright);
-        // a raking brace back to the parapet, which is what actually stops a
-        // sign this size pivoting in the wind
-        const brace = new THREE.Mesh(new THREE.BoxGeometry(0.13, 2.78, 0.13), steelM);
-        brace.position.set(cxm, ROOF + 1.1, -94.3 + s * 1.75);
-        brace.rotation.x = -s * 0.657;
-        scene.add(brace);
-      }
-      const tie = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 2.8), steelM);
-      tie.position.set(cxm, BOT - 0.2, -94.3);
-      scene.add(tie);
-      // the board itself, centred over the building rather than over the kerb
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2), boardM);
-      frame.position.set(cxm, BOT + 3.3, -94.3);
-      scene.add(frame);
-      twoSided(92, 74, (g) => {
-        g.fillStyle = '#e8c25a'; g.font = 'bold 15px monospace';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('GOLDEN', 46, 26); g.fillText('ACES', 46, 45);
-        g.fillStyle = '#e8574a';
-        g.font = 'bold 9px monospace'; g.fillText('OPEN ALL NITE', 46, 62);
-        g.fillStyle = '#f2d98a';                       // chaser bulbs round the edge
-        for (let x = 3; x < 92; x += 8) { g.fillRect(x, 2, 4, 3); g.fillRect(x, 69, 4, 3); }
-        for (let y = 6; y < 70; y += 8) { g.fillRect(2, y, 3, 4); g.fillRect(87, y, 3, 4); }
-      }, 6.8, 6.2, cxm, BOT + 3.3, -94.3, 0.26);
-    }
-    if (hotel) {
-      // a blade sign hung off the building at first-floor level, read end-on
-      // down the length of the side street — the way a hotel sign hangs
-      const hx = hotel[1] - 1.1;
-      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.22, 6.6, 0.5), boardM);
-      mast.position.set(hx, 7.4, -96.72);
-      scene.add(mast);
-      // Bracketed back to the wall. A blade sign is cantilevered off a
-      // building — without the arms and the raking stays it floats beside it.
-      const steelB = new THREE.MeshBasicMaterial({ color: 0x35323a });
-      for (const y of [9.9, 5.4]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.78), steelB);
-        arm.position.set(hx, y, -96.37);
-        scene.add(arm);
-        const stay = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.1, 0.07), steelB);
-        stay.position.set(hx, y + 0.43, -96.37);
-        stay.rotation.x = 0.69;                        // wall high, mast low
-        scene.add(stay);
-      }
-      twoSided(16, 80, (g) => {
-        g.fillStyle = '#7ad4e8'; g.font = 'bold 11px monospace';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        'HOTEL'.split('').forEach((ch, i) => g.fillText(ch, 8, 11 + i * 13));
-        g.fillStyle = '#e85a8a'; g.fillRect(2, 74, 12, 3);
-      }, 1.5, 6.2, hx, 7.4, -96.72, 0.13);
-    }
+  // GOLDEN ACES and HOTEL ORPHEUS are built by ct/vice.ts — they are not
+  // shopfronts and are not made of shopfront parts (same argument that took the
+  // library and the church into ct/civic.ts). street.ts still owns where they
+  // stand: the roster above and this cursor. Called from INSIDE the loop rather
+  // than afterwards so the paint order is unchanged — the fingerprint harness
+  // seeds Math.random, so moving a texture's creation shifts the grain of every
+  // texture painted after it.
+  const vice = buildVice({ scene, flat, solid });
+  for (const b of NORTH2) {
+    sideSpans[b.nm] = [xn, xn + b.w];
+    if ((vice.VICE as readonly string[]).includes(b.nm)) vice.placeShell(xn, -94.3, b);
+    else placeBldZ(xn, -94.3, b, -1);
+    xn += b.w;
   }
+  // The signs at the far end of the side street are ct/vice.ts's too — the
+  // casino's rooftop pylon and the hotel's blade. Invoked here, at the point in
+  // the sequence they were built at before, for the paint-order reason above.
+  vice.placeSigns(sideSpans);
   let xs = -7;
   for (const b of SOUTH2) {
     if (b.kind === 'church') placeChurch(xs, -111.7, b); else placeBldZ(xs, -111.7, b, 1);
