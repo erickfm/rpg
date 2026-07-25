@@ -39,35 +39,47 @@ player.
 
 ---
 
-## 2. The church flight stops 0.44 m short of its doors
+## 2. The church flight — MY MEASUREMENT DOES NOT SUPPORT MY CLAIM
 
-Both civic flights climb — this was diagnosed wrong by me once and corrected in
-`edc034d`. Measured now:
+**Re-measured 2026-07-25 and I am withdrawing the number, not renewing it.**
 
-```
-library: 5.60 m up, gy 0.14 -> 0.99, and back down     (reaches the doors)
-church:  2.74 m up, gy 0.14 -> 0.55, and back down     (stops short)
-```
-
-Of 114 raised cells in the church forecourt, 54 are not standable: the upper
-flight and the landing at the doors sit inside `placeChurchEast`'s footprint
-box in `ct/street.ts`:
+I filed this as "the flight stops 0.44 m short of its doors", blaming
+`placeChurchEast`'s footprint box in `ct/street.ts` for eating the upper
+landing. Re-running the same sweep over BOTH civic forecourts on a 0.25 m grid:
 
 ```
-x 6.70..15.00   z -86.00..-68.00
-solid({ minX: FACE - 0.3, maxX: FACE + 8, minZ: z - b.w, maxZ: z });
+church    114 raised cells,  60 standable,  stand out to x  9.00, ground ends  9.50   -> 0.50 m
+library   238 raised cells, 156 standable,  stand out to x 11.50, ground ends 12.00   -> 0.50 m
 ```
 
-You climb most of it and stop short of the doors, rather than being unable to
-start. The box wants shaping around the setback the way the library's recess is
-cut out of the west wall run. E's `placeChurch` already knows the extents
-(`YARD_X0`/`YARD_X1`, `zFront`, `zStreet` — the numbers its own `floorLocal`
-patch uses), so the clean version is E publishing them the way `COURT` is and D
-subtracting them.
+**The library shows the identical 0.50 m**, and the library is the flight I
+verified reaching its doors — it climbs 0.14 -> 0.99 and back down, and its
+locked-door prompt at the top is reachable and answers.
 
-`ct/street.ts` is D's and the box is deliberate — its comment records that a
-missing one let you walk through the nave. **Test is written and will pass the
-moment it lands:** `scripts/steps-walk.mjs` covers both flights.
+0.50 m is what the 0.36 m capsule costs you against a wall face. You cannot
+stand inside a wall, so the last half-metre of any raised ground that runs up
+to a building is unstandable on both flights, working or not. It does not
+distinguish the two, so it is not evidence of anything.
+
+**What that means for the claim.** I have now been wrong about this forecourt
+twice in the same way — once probing a single point and declaring the whole
+thing unreachable (corrected in `edc034d`), and now with a figure that the
+control case reproduces exactly. The honest position is that I do not have a
+measurement showing the church is defective.
+
+What is still TRUE and unexplained is the proportion: the church has 47% of its
+raised cells unstandable against the library's 34%, and the church tops out at
+gy 0.55 where the library reaches 0.99. Either of those could be the two
+flights simply being different flights. Neither is a defect I can demonstrate.
+
+**So nobody should act on this.** D should not go cutting a hole in a
+deliberate footprint box — its comment records that a missing one let you walk
+through the nave — on the strength of a number its control case also produces.
+If the church forecourt is wrong, it needs diagnosing again from scratch, by
+someone who can say what the intended top of that flight IS.
+
+The locked-door prompt at the top answers today, from where the flight ends,
+so a player is not standing in front of a silent building either way.
 
 ---
 
