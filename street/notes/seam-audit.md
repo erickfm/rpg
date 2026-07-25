@@ -988,3 +988,46 @@ is the other half:
 The stamp makes this **checkable**, which is a large step forward and is why
 this finding exists at all. `scripts/masonry.mjs` is that check and it takes
 about twenty seconds.
+
+## Round 10b — and here is what it looks like
+
+I asserted the 2.4× brick-width spread was visible. My own triage rule says
+prove that rather than assume it, so I shot it: the **4.09 px/m** elevation at
+(−18.8, 10.7, −49.5), from 12.8 m at 35° with the height-scaled camera.
+
+`shots/cand-brick-409.png` does not merely show it. It shows **two elevations
+meeting at a vertical corner with different brick widths on either side** —
+
+- **left face:** long, wide, flat bricks
+- **right face:** visibly narrower bricks
+- **course heights on both: the same**
+
+The mismatch is not a subtle thing you find by comparing two buildings at
+opposite ends of the street. **It is legible in one frame, at one corner, in a
+single glance** — the two walls meet and the bond does not carry across.
+
+That is a seam in the original sense of my brief: *a junction where two textures
+do not line up*. It has been in the world the whole time, and every sweep I ran
+missed it because I was measuring faces one at a time against a grid instead of
+against **each other**.
+
+### What this changes about the finding's priority
+
+In `AUDIT-TRIAGE.md` I ranked everything by whether a player can see it. This
+goes to the top of the route list, above all four current entries:
+
+| | |
+|---|---|
+| **visible?** | Yes — at a corner, in one glance, without looking for it |
+| **how many** | 42 of 109 masonry faces, 39% |
+| **how wrong** | horizontal density 0.43× to 5.83× of declared |
+| **checkable?** | Yes, `scripts/masonry.mjs`, ~20 seconds |
+| **owner** | `masonry()` in `tex-world.ts` and its callers |
+
+### The measurement I should have made months of rounds ago
+
+Every density pass I ran asked *"is this face on the grid?"*. Not one asked
+*"does this face agree with the face it touches?"* — which is the actual
+complaint, and the only question a **seam** audit was ever about. The grid was a
+proxy for agreement, and a proxy is what let a 2.4× mismatch sit inside a
+world where every face is individually declared correct.

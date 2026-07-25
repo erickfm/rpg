@@ -4,8 +4,9 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 const CAND = [
-  ['c3b', 51.0, 22.7, -94.3, '6.8x6.2 m, canvas 92x74, 13.5 px/m — 22.7 m up'],
-  ['c4',  46.2, 13.5, -96.7, '1.24x15.8 m, canvas 44x224, 35.4 px/m — blade?'],
+  ['brick-409', -18.8, 10.7, -49.5, 'declared 8, MEASURED 4.09 px/m — painted for 12 m, on a 23.5 m face'],
+  ['brick-969', -14.9, 10.7,   4.6, 'declared 8, MEASURED 9.69 px/m — painted for 19.2 m, on a 15.9 m face'],
+  ['brick-593', -17.8, 10.7, -29.0, 'declared 8, MEASURED 5.93 px/m — painted for 16 m, on a 21.6 m face'],
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
