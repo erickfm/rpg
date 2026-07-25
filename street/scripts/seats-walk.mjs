@@ -164,8 +164,32 @@ for (const s of seats) {
   // movement is locked: hold every direction and go nowhere
   for (const k of ['w', 's', 'a', 'd']) await hold(k, 200);
   const still = await pos();
-  if (Math.hypot(still[0] - sat[0], still[2] - sat[2]) > 0.001) {
-    fail(`walked off the seat: moved ${f2(Math.hypot(still[0] - sat[0], still[2] - sat[2]))} m while seated`); continue;
+  const drift = Math.hypot(still[0] - sat[0], still[2] - sat[2]);
+  if (drift > 0.001) {
+    // SAY WHERE THEY WENT. This used to report the distance and nothing else,
+    // and a bare "moved 523.44 m while seated" is unreadable: it cannot be told
+    // apart from a 2 mm jitter except by size, and it named neither the
+    // destination nor whether the player was still seated when it happened.
+    //
+    // That mattered. The same failure is on record upstream as "seats-walk is
+    // FLAKY, not broken" — and a 523 m displacement is not flakiness, it is a
+    // teleport, which nobody could see from the message. Three separate
+    // attempts to reproduce it against the world came back clean (6/6 on the
+    // seat itself, 58/58 over a faithful minimal loop, and a 1 s hold that
+    // moves nothing), so what this has to capture is the state at the moment
+    // it fires, because that is the only place the cause is still visible.
+    const stillOn = await seatedOn();
+    const where = await p.evaluate(([x, z]) => {
+      const near = window.__ct.spots()
+        .filter((sp) => sp.ok && Math.hypot(x - sp.x, z - sp.z) < sp.r)
+        .map((sp) => sp.label);
+      const rm = window.__ct.roomDims().find((r) => Math.abs(x - r.cx) < r.w / 2 + 2);
+      return { room: rm ? rm.id : 'the street', live: near };
+    }, [still[0], still[2]]);
+    fail(`moved ${f2(drift)} m while seated — from ${f2(sat[0])},${f2(sat[2])}`
+      + ` to ${f2(still[0])},${f2(still[2])} (${where.room}), still seated: ${!!stillOn}`
+      + `, live [E] there: ${where.live.length ? where.live.join(' / ') : 'none'}`);
+    continue;
   }
 
   // seated eye height, read off the camera the world actually renders with.
