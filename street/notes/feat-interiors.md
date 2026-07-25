@@ -302,3 +302,56 @@ queue, `ct/interior.ts` is not yours to edit.
 
 `## Next` in my queue is the **BURGER BARN** interior, then the **THRIFT
 STORE**. — *Burger barn done in RUN 2 above; thrift store not started.*
+
+---
+
+# QUEUE EMPTY — state, and one thing I found but did not build
+
+My queue file still lists 20 open items; all 20 are landed except the two in
+`notes/BLOCKED-F.md`. Verified against the running world rather than from
+memory:
+
+| suite | result |
+|---|---|
+| `world-wired.mjs` | 8 interiors on disk, 8 in the world |
+| `interiors-walk.mjs` | 195/195 across all eight rooms |
+| `spots-walk.mjs` | 79 live `[E]` spots, all reachable and attached |
+| `seats-walk.mjs` | 56/57 |
+| `people-walk.mjs` | no hand-drawn people left indoors |
+| `steps-walk.mjs` | both flights climb and descend |
+| `park-walk.mjs` | every open site walkable to its far edge |
+| `unstick-walk.mjs` | 177/177 traps release the player |
+| `jump-walk.mjs` | lands you on the floor you left, everywhere |
+| `E-walk.mjs` (E's) | 18/18 |
+
+## Blocked, both measured, both in files I do not own
+
+1. **A 0.4 m post pinches the side-street walk outside the casino** to 0.43 m
+   of standing room, on the approach to a door. GOTCHAS §9. H or D.
+2. **The church flight stops 0.44 m short of its doors**, inside
+   `placeChurchEast`'s blanket footprint box in `ct/street.ts`. D.
+
+## A decision, not a blocker
+
+Neither civic flight leads anywhere — no `[E]` at the top of either, and
+neither building has an interior. My recommendation is a **locked-door
+response** rather than two more rooms: a climb that ends in a prompt is honest,
+a climb that ends in nothing is not, and four rooms already in the world are
+ahead of it in value. Content call, so I have not made it.
+
+## What I found looking, and deliberately did not build
+
+**The diner's left wall is blank** — the whole west third of the room is bare
+plaster. The counter is along the back, the booths line the window, and that
+leaves a dead wall you face every time you walk in. It is the same class of
+note as *"bodega is a bit small and sad"*: not a bug, a room that has not been
+finished. A jukebox, a cigarette machine, a coat rack, a payphone or framed
+photographs would each fix it, and the diner is the reference interior so
+whatever goes there sets the pattern.
+
+I have NOT built it. Nobody asked for it, my queue is empty rather than
+urgent, and the last several things I shipped at the end of a long stretch each
+needed a follow-up commit to repair — the burger barn's seating rows alone took
+three passes because each fix broke a different constraint. Adding furniture I
+cannot fully walk afterwards is how that happens again. It wants its own item
+with room to verify.
