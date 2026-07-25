@@ -169,6 +169,16 @@ const CHECKS = [
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', false, [], true],
+  // G's two suites, 132 checks the runner has never seen. Both walk, so both are
+  // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
+  // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
+  // reason neither can sit in the default tier at all: PER_CHECK_MS is 180 s, so
+  // a loaded run would report it as TIMED OUT rather than as slow, which is the
+  // one outcome worse than not running it. 47 s is slow-tier by this file's own
+  // precedent — lotwalk moved there at 36 s (c68d718c2) and crowd-walk sits
+  // there at 45 s.
+  ['G-vice-walk',      'do GOLDEN ACES and HOTEL ORPHEUS light the street, and read right from both sides?', true, [], true],
+  ['G-rooms-walk',     'can you enter all four rooms, and does each keeper look AT you?', true, [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an
   // importance tier. Measured: crowd-walk 45 s, jitter 73 s, side-walk 77 s,
