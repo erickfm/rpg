@@ -44,10 +44,33 @@ invocation at the same commit deleted the first run's working directory
 mid-flight. I did that to myself three invocations deep. Fixed in `4d14341d`:
 the path carries the PID and cleanup can only reach what that process created.
 
-So the claim to take from this is narrow and worth keeping narrow: **the pin
-against HEAD movement is proven; a completed slow tier is not yet.** A second
-run is in flight and this note will be wrong until it lands — treat the tier as
-unverified until someone reports a green tally, mine or otherwise.
+**The second run COMPLETED.** First time in five attempts:
+
+```
+48 green - 5 red - 0 WRONG WORLD - 0 worktree lost
+```
+
+**Nine of the eleven walking suites are green**, including the ones latest in the
+tail: `corner-traffic` (212 s), `crowd-net` (92 s), `side-walk` (78 s), `jitter`
+(72 s), `crowd-walk` (42 s), `steps-walk`, `civic-doors-walk`, `spots-walk`,
+`world-wired`.
+
+**`interiors-walk` ran to a verdict.** `03d90436` calls it *"the one check in the
+project I have never seen complete"*. It has now completed. It FAILED, which is
+a result rather than a timeout, and it is somebody's to read.
+
+### One of the five reds is my harness, not the world
+
+`seampairs` died on `ENOENT: shots/seampairs.json`. A fresh worktree contains
+only TRACKED files, and `shots/` is gitignored, so it does not exist in a pinned
+checkout. Fixed — the script now creates it. **Discount `seampairs` in that
+tally and re-run it**, and hold the same suspicion for any check writing to a
+gitignored path.
+
+The others look like real verdicts: `wetness` fails on *"the rain actually
+stopped"*, which is an assertion rather than a missing file. `park`,
+`seats-walk` and `interiors-walk` I have not read — not mine, and the log is on
+disk.
 
 One caution the script prints itself: a worktree is made from the **commit**, so
 uncommitted changes are not in the pinned run. Commit first if they are what you

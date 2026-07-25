@@ -72,6 +72,15 @@ git -C "$ROOT" worktree add --detach -q "$WT" "$SHA"
 ln -s "$SRC/node_modules" "$WT/street/node_modules"
 
 cd "$WT/street"
+
+# A fresh worktree has only TRACKED files, and several checks write to
+# `shots/`, which is gitignored and therefore absent. The first completed slow
+# tier lost seampairs to `ENOENT: shots/seampairs.json` -- a red that says
+# nothing about the world. Any gitignored working directory a check expects has
+# to be made here, because a pinned checkout is by definition not the working
+# tree you have been running in.
+mkdir -p shots
+
 echo "building the pinned checkout"
 npm run build >/dev/null 2>&1 || { echo "PINNED BUILD FAILED — the commit does not build"; exit 1; }
 
