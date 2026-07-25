@@ -863,3 +863,44 @@ sheet opacities are exact at every sample. `setWindows` assigns opacity straight
 from the hour with no interpolation, and the crop is dominated by the sheets
 rather than the graded facade. Recorded in the file so the next person does not
 re-derive it.
+
+## The settle-ramp list narrows from 90 to "whichever pin a night hour"
+
+`159b9c1c` counted 90 of 129 scripts waiting under 1000 ms after setting the
+clock and said plainly it was a candidate list rather than a finding. `D-walk`
+and `alley` are on it at 600 ms. **Both clear, and the measurement generalises.**
+
+The world boots at **13:20, fixed** (`crosstown.ts:190` — not the real clock).
+So a script pinning a DAY hour is asking for the state it is already in:
+
+```
+clock(13,0), 108 shell materials, mean channel
+  600ms 2.027835 · 1000 2.027835 · 1500 2.027835 · 2000 2.027835 · 3000 · 4000
+```
+
+Pin a NIGHT hour and the same 600 ms is a **coin flip**. Eight cold runs at
+`clock(23,0)`, sampled at exactly 600 ms:
+
+```
+DAY 2.0278 · night 0.0919 · night · night · night · night · night · night
+```
+
+One in eight read the **completely ungraded** world — the day value to four
+decimals at a night hour, 22× out. This is not a mid-ramp shade you could
+squint past; it is the wrong world. The transition landed between 400–600 ms in
+one run and 600–1000 ms in another, so **600 sits exactly on the edge**, which
+is the worst place to sample. No intermediate value appeared at any of
+200/400/600/700/800/900/1000/1200 ms, so it is a step, or a lerp faster than
+that sampling.
+
+**The discriminator, for anyone working the list:** it is the HOUR, not the
+wait. Day-hour scripts are unaffected at any settle. Night-hour scripts under
+~1000 ms are **flaky, not imprecise** — they will pass repeatedly and then read
+a completely different world, which is much worse than being consistently a
+little off.
+
+One caution on my own method: a global tint hash cannot answer this. I tried
+that first and it flipped between three values non-monotonically at 600 / 1000 /
+1500 / 2000 / 3000 / 4000 ms, because something animates forever — the casino
+chase, which is what `cd91d251` already concluded. I had to isolate 108
+materials I know are static before the signal was readable.
