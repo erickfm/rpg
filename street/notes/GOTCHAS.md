@@ -359,3 +359,32 @@ cost of avoiding this.
 If you find a name taken, do not "improve" the file that is there. It is
 somebody's check, and the fact that you were about to write your own means
 you did not know what it asserted.
+
+## 25. A texture now carries TWO declarations. They are not the same one.
+
+Since this week a texture can be stamped twice, by different mechanisms, for
+different audits:
+
+| stamp | set by | means | missing means |
+|---|---|---|---|
+| `userData.masonry` | `masonry().paint()` | the declared px/m grid, `{ ppm, mult, wMeters … }` | **not painted by `masonry()`** — a sign, a decal, a cabin wall |
+| `userData.surface` | `declareSurface(t, kind)` | what it IS: `brick`, `sign`, `foliage`, `ground`, `detail` | nobody has said what it is |
+
+`scripts/seampairs.mjs` prints `(decl 16)` / `(decl null)` and the word
+`UNDECLARED`. **All of that is the masonry column.** `decl null` on a painted
+sign is correct and expected — it is not masonry, and it never claimed to be.
+
+I read that column as the surface declaration and spent a round convincing
+myself a tool was reporting my declared faces as undeclared. It was not. Three
+faces I checked — an office cabin, a light-pool decal and a ground plane — all
+carry `surface`, all correctly carry no `masonry`, and the tool was right about
+every one of them.
+
+**Before reporting that a checker is wrong about your module, read what its
+column is actually asking.** The near-miss rate on this is high: it would have
+been my third false routing this week, in a session where I had already
+corrected two other agents for the same thing.
+
+The two stamps answer different questions and both are worth having — *is this
+face on the brick grid* and *what kind of thing is this face* — but nothing in
+the word "declared" tells you which one a tool means.
