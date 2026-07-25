@@ -143,6 +143,15 @@ export function citizenAtlas(o: Look): THREE.Texture {
         g.fillRect(cx - 5, oy + 8, 10, 12);
         g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 8, 3, 12);
         g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx + 2, oy + 8, 3, 12);
+        if (grime > 0 && view <= 2) {
+          // Days unshaven. Lower half of the face only, and only on the views
+          // that HAVE a face — 3 and 4 are the back of the head, where a jaw
+          // shadow would read as a bald patch. Laid over the head's own
+          // shading and under the hair, so it darkens the skin without
+          // flattening the rim light.
+          g.fillStyle = `rgba(58,44,34,${0.34 * grime})`;
+          g.fillRect(cx - 5, oy + 15, 10, 5);
+        }
         // ── hair: shape as well as colour ─────────────────────────────
         // A hood or a cap covers all of this, so skip the work when it would
         // only be painted over.
