@@ -988,3 +988,28 @@ Clean.
   any other non-interior module** came through the same change — they are not in
   my queue items, and `scripts/floats.mjs` / `scripts/density.mjs` would be the
   instruments if the desk wants that checked.
+
+---
+
+## Round 16 — occupancy across the set, measured at `a8636631`
+
+From the same orbit measurement that settled the 8-angle question
+(`scripts/turn.mjs`, written up in `notes/request-audit.md`):
+
+- **8 interior slabs are built** — figures at x ≈ 440, 516, 597, 677, 756, 840,
+  916, 998, on the 80 m slab addressing from x = 400.
+- **4 of the 8 contain a person** (x = 442, 517, 678, 1002). Four rooms have
+  nobody in them.
+
+Every keeper that exists uses the shared 160 × 128 atlas correctly and presents
+all 8 headings — **5 unique columns plus mirroring, no heading repeated.** They
+also all sit on row 0.5, the standing row, while street citizens use both rows
+for the walk cycle.
+
+That is worth stating plainly because it is the **first thing in sixteen rounds
+where the rooms agreed with each other for free**: four builders, four rooms,
+one atlas, one row convention, and nobody coordinated it. The kit carried it.
+
+Occupancy itself is not a defect — no brief asked for a keeper per room — but a
+set where half the shops are staffed and half are not is the kind of thing only
+a cross-room pass can see, and the desk should decide whether it wants parity.

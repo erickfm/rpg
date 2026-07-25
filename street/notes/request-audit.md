@@ -580,3 +580,56 @@ the bodega/diner/tax service, and wetness after rain. The citizen signature I
 had been using (a 320-wide sprite sheet) now matches **nothing** — `c16457c8`
 changed the crowd — so the interior-people check needs a new signature before it
 can run at all.
+
+---
+
+# INTERIOR PEOPLE TURN THROUGH 8 ANGLES — **DONE.** Measured, not photographed.
+
+The check that had been un-runnable since `c16457c8` (my citizen signature, a
+320-wide sprite sheet, now matches **nothing** in the world). Rather than guess a
+new constant I enumerated every figure-sized mapped mesh and let the world say
+what a citizen is now:
+
+> **a 160 × 128 atlas with `repeat [0.2, 0.5]`** — 5 columns × 2 rows = 10 cells
+> — and `repeat.x` goes **negative** on some figures, i.e. the frame mirrored.
+
+Five unique views plus mirroring is eight headings. That is the scheme the user
+asked for, so the only question left is whether a given figure *uses* it.
+
+`scripts/turn.mjs` answers that without a camera: orbit the player around a
+figure at 45° steps and record the material's map offset, the mirror sign, and
+the mesh's own yaw at each heading.
+
+| figure | distinct frames over 8 headings | verdict |
+|---|---|---|
+| interior x = 442 | **8 of 8** | turns |
+| interior x = 517 | **8 of 8** | turns |
+| interior x = 678 | **8 of 8** | turns |
+| interior x = 1002 | **8 of 8** | turns |
+| street (6, −12.76) | 7 of 8 | turns |
+| street (−6, −28.3) | 7 of 8 | turns |
+
+The interior four are exact: columns 0, 0.2, 0.4, 0.6, 0.8 on row 0.5, with the
+mirrored variants filling the other side — **all five unique views and all three
+mirrors, no heading repeated.** They are not flat cards. The question is closed.
+
+The street pair reads 7 rather than 8 only because they are *walking*: they use
+both atlas rows (0 and 0.5) as the gait cycles, so a heading can be sampled on
+the same frame twice. Their own yaw takes 7 distinct values across the orbit,
+which a billboard could also do — but the frame changes are what settles it, and
+they change.
+
+**A note on the difference:** interior figures use row 0.5 only, street figures
+use both rows. Standing keepers versus walking citizens, out of one atlas. That
+is the kit being used correctly by different builders, and it is the first thing
+in this audit where independent rooms agreed with each other for free.
+
+## Falls out of the same measurement: only half the rooms have anyone in them
+
+Eight interior slabs are built (figures at x ≈ 440, 516, 597, 677, 756, 840,
+916, 998 — the 80 m slab addressing from x = 400). **Four carry a keeper**
+(x = 442, 517, 678, 1002). The other four rooms are empty of people.
+
+Not a defect — nobody asked for a keeper in every room — but it is the kind of
+set-level inconsistency the interiors audit exists to catch, and it is now
+measured rather than guessed. Logged to `notes/interior-audit.md`.
