@@ -203,7 +203,26 @@ deliberately puts you inside your own chair, and shoving you off it would be the
 cure killing the patient."* So `unstick` does not run while seated and cannot be
 the cause.
 
-### What is actually unknown
+### NARROWED — the seat is sound in isolation; it needs the full run
+
+Went back and tested the thing itself rather than reasoning about it further:
+
+```
+hold 'w' for 1 s while seated          moved 0.00 m, seated=true throughout
+the harness's exact w/s/a/d sequence   6 runs, moved 0.00 m every time
+```
+
+Both on seat 30 at (522.11, −1.22), the one that failed. **So "a seated player
+is thrown out of the room" is not supported** — sitting still does not eject
+you, and my previous commit said it did. What actually fails is that seat
+*during a 58-seat run*, which means the cause is cross-iteration state, not the
+seat and not the key-holding.
+
+That is a much narrower target and a much smaller alarm. It also means a player
+sitting down is fine; what is broken is something the harness does between
+seats, or something in the world that only obtains after 29 previous sits.
+
+### What is still unknown
 
 Movement is locked by the same early return, so neither the keys nor the
 depenetrator should be able to move a seated player at all. Something else
