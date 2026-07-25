@@ -603,19 +603,17 @@ export function buildStreet(o: {
     }
     // the back of the site, so the gap opens onto a city and not onto fog.
     //
-    // PARTY WALL, not a plain one. The queue item is explicit that at 32 m
-    // "the park's back wall is a long way from the street and needs to be worth
-    // looking at, not a flat slab" — and it was `wallTex`, which is flat brick
-    // with nothing in it. What this wall actually IS, in the fiction, is the
-    // back of the buildings on the next street: exactly the exposed party wall
-    // `partyWallTex` was written for during the bank-flank work, with its
-    // stepped scar, chimney breasts, blocked-up windows and per-metre streaks.
+    // It is a PARTY WALL already — `wallTex` above is a two-line wrapper around
+    // `partyWallTex`, so this carries the stepped scar, chimney breasts,
+    // blocked-up windows and per-metre streaks, and has since the two painters
+    // were merged into one. Salt 11 keeps it distinct from the flanks at 3 and
+    // 7. The queue item's warning that "at 32 m the park's back wall ... needs
+    // to be worth looking at, not a flat slab" is already answered here.
     //
-    // Salted apart from the flanks on purpose. The same painter draws the
-    // site's two side walls, and a back wall that came out identical to the
-    // wall at right angles to it would read as wallpaper.
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, fh),
-      flat(partyWallTex(o.back, w, fh, 0, true, flankSalt(o.back, w, fh) ^ 0x5eed)));
+    // I briefly replaced this line with a direct partyWallTex call and a
+    // derived salt, on the belief that `wallTex` was plain brick. It is not,
+    // and the change was a no-op dressed as a fix. Reverted.
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, fh), flat(wallTex(w, fh, o.back, 11)));
     back.position.set(XF - side * 0.01, fh / 2, (z0 + z1) / 2);
     back.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
     scene.add(back);
