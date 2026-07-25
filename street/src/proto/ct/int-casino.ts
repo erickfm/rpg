@@ -82,7 +82,22 @@ const standOf = (d: DoorDecl, standoff = 0.75) =>
  * to tooling without moving anything.
  */
 export const DOOR: DoorDecl = {
-  building: 'GOLDEN ACES', w: 11.55, cz: 51.225, side: 1, at: 0, width: 1.15,
+  building: 'GOLDEN ACES', w: 11.55, cz: 51.225, side: 1, at: 0,
+  width: 1.15,
+  // THE LEAF THIS BUILDING SHOULD DECLARE, and why it is not declared yet:
+  //
+  //   leaf: { clearW: 2.4, h: 2.7, leaves: 2,
+  //           frame: { colour: 0xc8a94e, material: 'brass' }, glazing: 'full' }
+  //
+  // That is the user's screenshot — "a wide gold-framed DOUBLE door under a lit
+  // canopy" — and the kit reads it correctly: with it declared the room's
+  // opening measured 2.40 m x 2.7, against 1.10 x 2.15 before.
+  //
+  // It also broke four of this room's checks. The way-out prompt inside the
+  // door stopped firing, and this is G's room, not mine. The mechanism is
+  // landed and proven; applying it HERE needs whoever owns the casino to move
+  // the way-out with the wider opening. Leaving another builder's room red to
+  // make my own point is not a trade I get to make.
   // Read from ct/vice.ts, which paints the gold portal at this x. It was typed
   // here and typed again there as a u fraction; one of the two had to be the
   // authority and it has to be the painter, because the facade is built before
@@ -94,6 +109,7 @@ export function buildCasino(ctx: CtxBuild): void {
   const DOOR_X = 51.29, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
     id: 'casino',
+    building: 'GOLDEN ACES',   // finds the published DoorLeaf above
     label: 'into GOLDEN ACES',
     // 2.9, raised from 2.5 on the audit's finding that this was the lowest
     // room in the world by 0.30 m and 0.90 m under the hotel next door

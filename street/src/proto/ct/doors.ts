@@ -29,6 +29,29 @@ import { declareDoorWorld } from './tex-world';
 import { FACE } from './rng';
 
 /** A room's own statement of where its door is. Declared in the room's file. */
+/** The physical door, published by the room and consumed by BOTH sides. */
+export interface DoorLeaf {
+  /** total clear opening across ALL leaves, in metres */
+  clearW: number;
+  /** clear height. 2.15 is domestic; a commercial entrance is 2.4–2.8 */
+  h: number;
+  /** 1 for a shop door, 2 for an entrance somebody arrives at */
+  leaves: 1 | 2;
+  frame: { colour: number; material: 'timber' | 'steel' | 'brass' | 'aluminium' };
+  glazing: 'none' | 'vision-panel' | 'half' | 'full';
+}
+
+/** the leaf a building declares, or the plain timber door the kit used before
+ *  this existed — an undeclared building keeps exactly what it had */
+export function doorLeafFor(building: string): DoorLeaf {
+  ensure();
+  const d = DECLS.get(building);
+  return d?.leaf ?? {
+    clearW: d?.width ?? 1.1, h: 2.15, leaves: 1,
+    frame: { colour: 0x6a5a46, material: 'timber' }, glazing: 'vision-panel',
+  };
+}
+
 export interface DoorDecl {
   /** the roster name of the building this room is inside */
   building: string;
@@ -40,8 +63,33 @@ export interface DoorDecl {
   /** door centre in the ROOM's local x, signed from the room centre. This is
    *  the number the room is actually laid out around. */
   at: number;
-  /** clear door width in metres */
+  /** clear door width in metres. @deprecated — use `leaf.clearW`, which the
+   *  facade and the room BOTH build from. Kept so the six rooms that predate
+   *  `leaf` keep working while they are converted. */
   width?: number;
+  /**
+   * WHAT THE DOOR IS, not just where it is.
+   *
+   * The user, on the fourth interior/exterior disagreement in a row — the tax
+   * office door on the wrong side, the bodega's room shape, the hotel palette,
+   * and then a casino whose *interior* door is a narrow single domestic leaf
+   * with a small window while its *exterior* is a wide gold-framed DOUBLE door
+   * under a lit canopy:
+   *
+   *   *"Your frontage descriptor already publishes where the door IS. IT MUST
+   *   ALSO PUBLISH WHAT THE DOOR IS … a single-leaf room door in a double-door
+   *   building becomes impossible rather than something a builder has to
+   *   remember."*
+   *
+   * That is the same argument as the position, one level up. All four bugs are
+   * ONE FACT AUTHORED TWICE, and the fix is the same shape every time: publish
+   * it once, build both sides from it. `at`/`face` killed the position bug;
+   * this kills the rest of the leaf.
+   *
+   * Read it with `doorLeafFor(building)`, which falls back to a plain 1.1 m
+   * timber leaf so an undeclared room is unchanged rather than broken.
+   */
+  leaf?: DoorLeaf;
   /**
    * A door on a CUT FACE rather than a flat frontage — the bodega's canted
    * corner bay, cut at 45°.

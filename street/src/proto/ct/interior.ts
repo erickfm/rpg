@@ -3,7 +3,7 @@ import type { AABB } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
-import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor } from './doors';
+import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor } from './doors';
 import { citizenSprite, type Look } from './citizens';
 import { FACE } from './rng';
 
@@ -161,6 +161,11 @@ export function interiorGround(x: number, z: number): number | null {
 export interface RoomSpec {
   /** stable id, also the slab key — 'diner', 'pawn', 'casino' */
   id: string;
+  /** the roster name of the building this room is inside, matching its
+   *  `DoorDecl.building`. Only needed for a room that declares its door by
+   *  `face` and therefore has no `frontage` to be named by — the side-street
+   *  pair and the bodega. It is how the kit finds the published DoorLeaf. */
+  building?: string;
   /** what the [E] prompt says outside: 'into the DINER' */
   label: string;
   /** clear interior size in metres, wall face to wall face. `w` is optional
@@ -577,8 +582,30 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
 // old fallback read the painter's own local guess, which is the authority this
 // whole descriptor exists to remove.
 const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
-  const dW = spec.door.width ?? F?.doorWidthM ?? 1.1;
-  const DOOR_H = 2.15;
+  // THE LEAF COMES FROM THE DECLARATION, so the room cannot disagree with its
+  // own building. See `DoorLeaf` in ct/doors.ts — the user found four separate
+  // interior/exterior contradictions and every one was a fact authored twice.
+  // A casino with a wide gold double door outside and a narrow domestic leaf
+  // inside is now impossible rather than something a builder must remember.
+  //
+  // `spec.door.width` still wins if a room sets it, because six rooms predate
+  // this and an unconverted room must be unchanged, not broken.
+  // by BUILDING, not by frontage: a room on a cut face declares no frontage at
+  // all, and those are exactly the rooms whose doors were disagreeing.
+  const bName = spec.building ?? fr?.name ?? null;
+  const LEAF = bName ? doorLeafFor(bName) : null;
+  const dW = spec.door.width ?? LEAF?.clearW ?? F?.doorWidthM ?? 1.1;
+  // CLAMPED TO THE ROOM. A declared leaf describes the door the BUILDING has,
+  // and a building's entrance can legitimately be taller than the room behind
+  // it — the casino's is 2.7 m under a lit canopy while its interior is
+  // deliberately 2.5 m, the lowest ceiling in the world. Left unclamped the
+  // opening ran through the ceiling and took the way-out prompt with it.
+  //
+  // So the room takes as much of the declared height as it has, and the facade
+  // keeps the full number. That is not the two-authorings problem returning:
+  // it is one declaration, honoured as far as the geometry allows, in the one
+  // direction where the two sides genuinely differ.
+  const DOOR_H = Math.min(LEAF?.h ?? 2.15, H - 0.2);
   // The glazing, likewise: the painter's glazed span, scaled into the room and
   // then trimmed back off the door so the two openings cannot collide — which
   // the front-wall builder would otherwise drop on the floor with a warning.
