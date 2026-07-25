@@ -1325,3 +1325,56 @@ Routing note for whoever owns `ct/park.ts`: the boundary walls are painted at
 ~6 px/m and are not stamped. If they are meant to be masonry, stamping them
 brings them under the rule and the check; if they are meant to be a different
 material at a different scale, they are fine and should say so.
+
+## Round 12b — how much of the pair list is a bounding-box artefact: **about a third**
+
+For builder A, who owns `seampairs`. Two cheap tests, using only what the mesh
+already carries, applied to the declared-vs-undeclared pairs:
+
+```
+151 wall-ish textured faces
+declared-vs-undeclared pairs by BOUNDING BOX adjacency:   77
+   dropped — normals opposed, back to back, never seen together:   5
+   dropped — coplanar test fails, >1.0 m off each other's plane:  22
+   SURVIVING as real, visible junctions:                          50
+```
+
+**27 of 77 — 35% — are noise**, and both filters are three lines:
+
+1. **Facing.** `dot(a.normal, c.normal) < −0.5` → the two faces are back to back.
+   They can share a wall and never be seen together, so they cannot form a seam.
+2. **Plane distance.** For two parallel faces, the other face's centre must lie
+   within ~1 m of *this* face's plane. A bbox corner touching says nothing about
+   where a long band's geometry actually is.
+
+### My patch does not finish the job, and here is where it leaks
+
+The perpendicular branch still admits artefacts. This pair survives:
+
+```
+(-17.8, 2.1, -29) vs (-6.9, 2.8, -37)   dot 0   planeDist 8.0   bbox gap 0.06
+```
+
+`dot 0` means perpendicular, and perpendicular faces genuinely meet at corners —
+so I let it through. But **8 m of plane distance with a 0.06 m bbox gap** is the
+long-band signature again: the band at x −17.8 runs to x −7, so its bbox reaches
+a face it never approaches.
+
+**So 50 is an upper bound, not a clean list.** I am not going to pretend
+otherwise — I have twice this session presented a number as a finding when it was
+an artefact of my own arithmetic.
+
+### The fix that would actually close it
+
+Compare the two faces over their **shared extent**, not their bboxes: clip each
+face to the overlapping interval along the axis they share, and test the distance
+between those clipped regions. A long band clipped to the 0.3 m where it meets a
+perpendicular wall is either at that wall or it is not, and no bbox corner can
+fake it.
+
+That is more than three lines, which is why I am reporting the cheap 35% first —
+`opposed` and `planeDist` are worth landing on their own even if the clip never
+gets written.
+
+**No new findings here.** This is instrument repair, and the 50 survivors are the
+same list A already has, minus the third that was never real.
