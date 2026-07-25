@@ -1,59 +1,58 @@
-# Where things stand
+# Where this stands — pickup snapshot
 
-Snapshot for whoever picks this up next. If it is stale, trust
-`./scripts/queues.sh` and `git log` over this file.
+Written at the close of a long session for whoever reads next, including the
+user coming back to look at the world.
 
-## Health
+## The headline
 
-- mainline `add-stick-and-city98` — tsc clean, build clean
-- live world on **5177** — verified initialising
-- all builders idle, nothing uncommitted, nothing unmerged
+**Every request the user made this session has been verified DONE**, by walking
+the world rather than by reading code. The audit that establishes that is
+`notes/request-audit.md`; the last NOT DONE on it (wheel arches) closed with a
+measured +0.057 m of arch clearing the tyre.
 
-## What just landed (the parallelism work)
+Roughly 50 requests, across: the park, the used car lot, the bank, the church
+move and inlay, the library courtyard and steps, three shopfront rebuilds, the
+casino and hotel exteriors and interiors, eight room interiors, sitting,
+stuck-protection, night lighting, rain and puddles, the citizen atlas, and a
+long tail of graphical faults.
 
-The entry point `crosstown.ts` was the most-contended file in the project —
-580 lines but 23 of the last 120 commits — because it was the **wiring**: every
-interactive object registered its `[E]` spot there, and every module's per-frame
-work was called there by name. Both are now **registration**:
+## What to look at first
 
-- `ctx.spot({...})` — a module owns its own interactions
-- `ctx.onFrame(fn, ORDER.X)` — a module owns its own per-frame work, with run
-  order an explicit property of the hook rather than an accident of build order
+- **The park.** 32 m deep, lit by ten lanterns in three ranks, a loop path
+  round a field. For most of the session the user could only reach the first
+  7 m of it — `bounds.minX` was hard-coded at −13.40 against a 32 m site — so
+  it read as an empty yard. That is fixed and the bound is now derived.
+- **The casino and hotel at night.** The best image in the game.
+- **The used car lot.** Curb cut, rows either side of a drive aisle, office at
+  the back, windshield price cards.
 
-Adding a door, or anything that animates, now touches one file: the one that
-owns it. Verified structurally identical and behaviourally (doors teleport,
-rain still world-locked).
+## Open, and honestly ranked
 
-Supporting tooling, all in `scripts/`: `land.sh` (merge train), `queues.sh`
-(who is doing what), `ownership.sh` (boundary check), `live-integrate.sh` (the
-playable world, typecheck-gated), `doortest.mjs`, `rain-check.mjs`,
-`health.mjs`.
+`notes/AUDIT-TRIAGE.md` is the file to route from. It ranks every open finding
+by **whether a player can see it**, and has an explicit *record, do not route*
+section for defects that are real and invisible. The severity tables in the
+individual audit reports rank by measurement confidence, which is a different
+axis — see `GOTCHAS.md` §22.
 
-## Queued work, by owner
+Two items were live at close: a sign post leaving 0.90 m of walk, and a thrift
+price card floating above its shelf.
 
-Run `./scripts/queues.sh` for the live view. At the time of writing:
+## The thing that cost the most time
 
-- **B** (`../rpg-ground`) — get green first, then the lighting tint (cars go
-  brown under lamps), flat night, remove the van, bus bench geometry, parking
-  variance, migrate its `[E]` spots
-- **C** (`../rpg-entrance`) — hermit clipping + grime, paper-thin walls, 301
-  needs a door leaf, ceiling lamps, migrate its spots
-- **D** (`../rpg-alley`) — bodega door legibility, crates need filling with
-  produce, church tower removal, three sign bugs, shop resizing, window lights,
-  the corporation, migrate its spots
-- **auditor** (`../rpg-audit`) — seam sweep round 2 is in
-  `notes/seam-audit.md`
+**Ten times** a builder finished work that could not reach the world, because
+the one line that wires it lives in a desk-owned file. Casino, hotel, tax
+office, park, car lot, pawn shop, the library floor picker, `civicSeats`, the
+church footprint, and the park bounds. Each was complete, committed, and
+invisible.
 
-## The biggest open item
+Builder F's automatic module incorporation (`import.meta.glob` over `ct/*.ts`,
+plus named sites the roster publishes) is the fix. It is partly landed. **If
+you do one structural thing next, finish it** — everything else on this project
+is cheaper than this bug has been.
 
-The seam audit's **pattern #1**: texture density is computed per-mesh in
-isolation, so no two neighbours agree on px/m. That is one bug wearing dozens of
-faces. `ct/tex-ground.ts` already solves it for the ground (world extents in,
-repeat + offset out) and is the model to copy for masonry. This is a desk
-operation — it changes a shared contract across every wall painter.
+## Queues drift
 
-## Not done
-
-- Build stamping (a commit sha in-frame). Stale-build feedback has cost real
-  work twice.
-- The artifact and GitHub Pages have not been republished in hours.
+Four queue files went stale during the session, listing landed work as open —
+twice caught by the builders themselves rather than the desk. `scripts/desk.sh`
+flags a queue whose report is newer than it, but cannot tell that an item has
+landed. Reconcile against the builder's report before adding to a queue.
