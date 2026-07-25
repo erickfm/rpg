@@ -117,7 +117,7 @@ const out = await p.evaluate(() => {
     const a=faces[i], c=faces[j];
     const rU = Math.max(a.u,c.u)/Math.min(a.u,c.u);
     const rV = Math.max(a.v,c.v)/Math.min(a.v,c.v);
-    pairs.push({ rU:+rU.toFixed(2), rV:+rV.toFixed(2), a:{u:a.u,v:a.v,d:a.declared,at:a.at}, c:{u:c.u,v:c.v,d:c.declared,at:c.at},
+    pairs.push({ rU:+rU.toFixed(2), rV:+rV.toFixed(2), a:{u:a.u,v:a.v,d:a.declared,at:a.at,kind:a.kind}, c:{u:c.u,v:c.v,d:c.declared,at:c.at,kind:c.kind},
       mixed: a.stamped !== c.stamped,
       kinds: [a.kind, c.kind],
       bothOnGrid: [a.declared,c.declared].every(d=>d!==null&&(Math.abs(d-8)<0.01||Math.abs(d-16)<0.01)) });
@@ -155,7 +155,7 @@ const offGrid = mixed.filter((q) => !onGridU(und(q)));
 const bothBrick = mixed.filter(q => q.kinds.every(k => k === 'brick'));
 const notBrick  = mixed.filter(q => q.kinds.some(k => k && k !== 'brick'));
 const unknown   = mixed.filter(q => q.kinds.some(k => !k) && !q.kinds.some(k => k && k !== 'brick'));
-console.log(`\nDECLARED masonry touching UNDECLARED brick-like faces, densities disagreeing: ${mixed.length}`);
+console.log(`\nMASONRY touching a NON-MASONRY face, densities disagreeing: ${mixed.length}`);
 console.log(`   brick vs brick, a real seam question:  ${bothBrick.length}`);
 console.log(`   one side says it is not brick:         ${notBrick.length}`);
 console.log(`   UNJUDGEABLE — nobody has said what the other face is: ${unknown.length}`);
@@ -169,6 +169,12 @@ console.log(`   one line at the texture fixes that: declareSurface(tex, 'brick'|
 //
 // Distinct undeclared faces, largest first — the same scoping 21292ebb did by
 // hand to turn 150 pairs into 49 faces into 3 groups, done by the tool.
+// The endpoints carry `kind` now. They did not, so `f.kind` below was always
+// undefined and EVERY face in an unknown pair was listed as needing a
+// declaration — including ones that already had one. 62fdb232 caught it by
+// querying the meshes at a coordinate this printed and finding the face there
+// declares 'ground'. The bucket counts were right; this list was not, and it is
+// the list people were meant to act on.
 const needed = new Map();
 for (const q of unknown) for (const f of [q.a, q.c]) {
   if (f.kind) continue;
@@ -187,12 +193,21 @@ console.log(`   of those, the undeclared face is itself OFF the 8/16 grid: ${off
   ` — those are the ones a photograph of mismatched brick could be`);
 console.log(`   the rest read 8 or 16 and are a provenance question, not a visual one`);
 const seenM = new Set();
-for (const q of mixed.sort((a,c)=>(c.rU)-(a.rU))) {
+// Show the UNJUDGEABLE ones. Showing all `mixed` led with pairs that are already
+// answered — a face declared 'detail' next to brick is not a question anyone
+// needs to look at, and putting it at the top of the list buries the ones that
+// are.
+for (const q of (unknown.length ? unknown : mixed).sort((a,c)=>(c.rU)-(a.rU))) {
   const st = q.a.d !== null ? q.a : q.c, un = q.a.d !== null ? q.c : q.a;
   const k = `${un.at.join(',')}`; if (seenM.has(k)) continue; seenM.add(k);
   if (seenM.size > 8) break;
-  console.log(`   u ${String(q.rU).padStart(5)}×   UNDECLARED ${un.u}×${un.v} px/m at (${un.at.join(',')})` +
-              `   touching declared ${st.d} px/m at (${st.at.join(',')})`);
+  // Say what the face IS, not merely that it has no masonry stamp. This printed
+  // the word UNDECLARED for any face masonry() did not paint — including faces
+  // that DO declare, as 'ground' or 'sign'. 62fdb232 read that as the tool
+  // failing to see its declaration, which is exactly what the word says.
+  const kindOf = (f) => f.kind ? `declared '${f.kind}'` : 'UNDECLARED';
+  console.log(`   u ${String(q.rU).padStart(5)}×   ${kindOf(un)} ${un.u}×${un.v} px/m at (${un.at.join(',')})` +
+              `   touching masonry ${st.d} px/m at (${st.at.join(',')})`);
 }
 const like = out.pairs.filter(q => q.a.d !== null && q.c.d !== null && Math.abs(q.a.d - q.c.d) < 0.01);
 const likeBad = like.filter(q => q.rU > 1.15 || q.rV > 1.15);
