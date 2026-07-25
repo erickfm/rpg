@@ -1815,3 +1815,48 @@ again, in its purest form:
 The check I should have run is the one A's new flag now makes possible: compare
 the **guessed** door positions against something independent. I cannot, because
 those eleven have no prompt. Someone who can paint-sample the facade could.
+
+## The eleven guessed doors cannot be verified — by me or by any artefact in the world
+
+I said someone who could paint-sample the facade should check the eleven guessed
+door positions, then realised I can look at facades, so I tried.
+
+**LIQUOR** (axis z, 13 m, door offset +3.43 m from centre) shot cleanly: crimson
+fascia, glazing, and a dark door with a push-bar **right of centre, at almost
+exactly the offset the roster states** — predicted ~671 px into the frame,
+observed ~670.
+
+And that is when the point landed:
+
+> **The painter draws the door at the roster's position.** So the painted door
+> agreeing with the roster is not evidence of anything — it is the same number
+> twice, exactly like my "5 of 5 declared doors agree" was the same number twice.
+> **I built a second circular check while writing up the first one.**
+
+For the five **declared** frontages there is a genuine independent source: the
+`[E]` trigger, registered separately by the module. That is why the walked-vs-
+authored check meant something there. For the eleven **guessed** ones there is
+no such source — no prompt, no interior, no second declaration. Every observable
+artefact is downstream of the guess.
+
+**So: the eleven guessed door positions are unverifiable, full stop.** Not
+"unverified by my tools" — there is nothing in the world to check them against.
+The most that can be said, and it is worth something, is that the results look
+sane: LIQUOR's door sits in its glazing band, framed, with a push-bar, where a
+door belongs.
+
+*(My axis-`x` camera placement is also wrong — the frame I aimed at RECORDS
+shows the BODEGA corner instead. Two of six camera points were rejected as
+unstandable and one was mis-aimed, so this survey covered 3 of 11 even before
+the circularity made it moot. Recorded rather than quietly dropped.)*
+
+### What would actually settle it
+
+Nothing available today. A door's position would need a second, independent
+expression — the frontage says one thing, the *interior's* front wall says
+another, and they must agree. That is exactly what `mirror-walk` does for the
+eight rooms that have interiors, and **the eleven do not have interiors.** They
+are shopfronts painted on a wall.
+
+Which makes this a non-problem dressed as one: **a guessed door on a building
+you can never enter has nothing to be wrong against.**
