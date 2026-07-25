@@ -22,7 +22,7 @@ import { nudgeClear } from './ct/gap';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
-import { COURT } from './ct/civic';
+import { COURT, courtGround } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
@@ -86,6 +86,16 @@ export function makeCrosstown(): Proto {
   // the alley; nothing on the street is filler.
   const AZ0 = -37, AZ1 = -43.5; // the alley gap in the left wall
   const boards: Board[] = [];
+  // The library and churchyard steps are CLIMBABLE, and this is the line that
+  // says so. ct/civic.ts leaves the flight SOLID until the entry point asks
+  // `courtGround` for the floor — E's call, and the right one: open treads
+  // with nothing answering for their height is walking through stone at
+  // pavement level, which is worse than what it replaces.
+  //
+  // It must be set BEFORE buildStreet, which is what places the library and
+  // reads this as it draws. Setting it after gets you a picker that reports a
+  // 0.99 m landing and a flight you still cannot climb.
+  COURT.climbable = true;
   const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
   // solid props the citizens must steer AROUND (never walk/phase through) —
   // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
@@ -435,8 +445,12 @@ export function makeCrosstown(): Proto {
       // the floor drops away. ct/civic.ts publishes its extents and its paving
       // level for exactly this, so the notch and the floor come off ONE import
       // instead of being restated here.
-      if (COURT.live && x >= COURT.minX && x <= COURT.maxX
-        && z >= COURT.minZ && z <= COURT.maxZ) return apt.setGy(COURT.y);
+      // ct/civic.ts owns every civic floor — the forecourt, the churchyard
+      // and BOTH flights of steps — and answers null for anything else. Asked
+      // before the flat-paving fallback below, or the steps would be flattened
+      // to the courtyard level they stand on.
+      const cg = courtGround(x, z);
+      if (cg !== null) return apt.setGy(cg);
       return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
     },
   });

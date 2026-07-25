@@ -1,0 +1,71 @@
+// Walk UP the civic steps and back DOWN.
+//
+// GOTCHAS §7: floor height comes from a picker, never from colliders, and the
+// picker has hysteresis. E's note on COURT.climbable says the drawn steps ride
+// within half a riser of the flight's gradient, so a wrong dispatch order in
+// the picker either sinks you into the stone or stops you climbing — and both
+// look like "the steps do not work".
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 800, height: 500 } });
+const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
+await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+const pos = () => p.evaluate(() => window.__ct.pos());
+const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(80); };
+
+// The library forecourt is paved at 0.14 with a flight rising west to a 0.99
+// landing at the doors; the churchyard has its own. Probed through the RIG,
+// not by importing ct/civic.ts — a dynamic import in the page gets a second
+// module instance with COURT still at its defaults, which reads as "there are
+// no steps" and is a very convincing lie.
+const gyAt = async (x, z) => {
+  await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [x, z]);
+  await p.waitForTimeout(25);
+  return (await pos())[3];
+};
+
+const fails = [];
+const FLIGHTS = [
+  { nm: 'library', z: -13.5, fromX: -6.0, toX: -11.5, yawUp: -Math.PI / 2 },
+];
+for (const f of FLIGHTS) {
+  const bottom = await gyAt(f.fromX, f.z);
+  const top = await gyAt(f.toX, f.z);
+  console.log(`${f.nm}: paving ${bottom.toFixed(2)} at the kerb, ${top.toFixed(2)} at the doors`);
+  if (top - bottom < 0.3) { fails.push(`${f.nm}: the picker gives no rise — the flight is flat`); continue; }
+
+  // CLIMB it, on foot
+  await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [f.fromX, f.z, f.yawUp]);
+  await p.waitForTimeout(250);
+  const a = await pos();
+  await hold('w', 3000);
+  const up = await pos();
+  console.log(`${f.nm}: walked ${Math.abs(up[0] - a[0]).toFixed(2)} m up, gy ${a[3].toFixed(2)} -> ${up[3].toFixed(2)}`);
+  if (up[3] - a[3] < 0.3) fails.push(`${f.nm}: walking at the steps gained only ${(up[3] - a[3]).toFixed(2)} m — you cannot climb them`);
+  if (Math.abs(up[0] - a[0]) < 2.0) fails.push(`${f.nm}: only got ${Math.abs(up[0] - a[0]).toFixed(2)} m up the flight before stopping`);
+
+  // and back DOWN, to the level you started on — the hysteresis test
+  await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0), [up[0], up[2], f.yawUp + Math.PI]);
+  await p.waitForTimeout(200);
+  // just far enough to reach the bottom of the flight. Walking 3 s carries you
+  // across the pavement and into the ROAD, where gy is legitimately 0 — which
+  // reads as "you came down to the wrong level" and is the test overshooting.
+  await hold('w', 1900);
+  const dn = await pos();
+  console.log(`${f.nm}: walked back down, gy ${up[3].toFixed(2)} -> ${dn[3].toFixed(2)}`);
+  if (Math.abs(dn[3] - a[3]) > 0.06) fails.push(`${f.nm}: came down to ${dn[3].toFixed(2)}, not the ${a[3].toFixed(2)} you left`);
+
+  // …and you are not sunk INTO the stone anywhere on the way up
+  for (let t = 0; t <= 1; t += 0.2) {
+    const x = f.fromX + (f.toX - f.fromX) * t;
+    const g = await gyAt(x, f.z);
+    if (g < bottom - 0.01) fails.push(`${f.nm}: the floor drops to ${g.toFixed(2)} at x=${x.toFixed(1)}, below the paving`);
+  }
+}
+console.log('');
+for (const x of fails) console.log(`  FAIL  ${x}`);
+console.log(fails.length ? `${fails.length} problem(s)` : 'the steps climb and descend, and nothing sinks');
+if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
+await b.close();
+process.exit(fails.length || errs.length ? 1 : 0);
