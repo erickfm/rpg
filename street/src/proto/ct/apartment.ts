@@ -551,11 +551,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = '#6e6e74'; for (let i = 0; i < 5; i++) g.fillRect(11 + i * 2, 23, 1, 1);
       dither(g, 32, 64, 40);
     });
+    // Report finding 8: the knob was a single flat square of #c9b45e painted
+    // into the texture. At the distance you stand to read the number plate the
+    // plate is crisp and the knob is a yellow blob — the one thing on the door
+    // that never got the texel treatment the numerals got.
+    //
+    // It is modelled now, so `doorTexN` must stop painting one as well: 301's
+    // leaf already hit exactly this and came back with two knobs.
+    const knobM = new THREE.MeshBasicMaterial({ color: 0xc9b45e });
+    const knobDark = new THREE.MeshBasicMaterial({ color: 0x8f7d3c });
     const doorPlane = (num: string, wx: number, baseY: number, wz: number, ry: number) => {
-      const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num)));
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(doorTexN(num, false)));
       d.position.set(wx, baseY + 1.05, wz);
       d.rotation.y = ry;
       scene.add(d);
+      // A knob is a rose, a stem and a ball. The rose is what actually reads
+      // at hall distance — a knob with no backplate looks stuck on.
+      const nx = Math.sin(ry) < 0 ? -1 : 1;          // which way the door faces
+      const off = (num.endsWith('01') ? -1 : 1) * (DOOR_W / 2 - 0.13);
+      const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.012, 8), knobDark);
+      rose.rotation.z = Math.PI / 2;
+      rose.position.set(wx + nx * 0.012, baseY + 1.02, wz + off);
+      scene.add(rose);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.055, 6), knobM);
+      stem.rotation.z = Math.PI / 2;
+      stem.position.set(wx + nx * 0.040, baseY + 1.02, wz + off);
+      scene.add(stem);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), knobM);
+      ball.position.set(wx + nx * 0.076, baseY + 1.02, wz + off);
+      scene.add(ball);
     };
     for (let f = 0; f < 4; f++) {
       if (f !== 2) {
@@ -1119,6 +1143,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const radM = flatOf2(radT), radEnd = new THREE.MeshBasicMaterial({ color: 0x8f897c });
     box(0.16, 0.58, 1.0, -3.02, RY + 0.32, 3.75, [radM, radM, radEnd, radEnd, radEnd, radEnd]);
     box(0.05, 0.05, 0.05, -3.02, RY + 0.06, 3.28, new THREE.MeshBasicMaterial({ color: 0x6a6258 })); // the valve
+    // Report finding 8: it stood 0.03 off the wall, which is right, and
+    // NOTHING held it there. Two wall brackets and two feet — cast iron is
+    // heavy enough that the absence of them is what the eye notices.
+    const ironM = new THREE.MeshBasicMaterial({ color: 0x7d776b });
+    for (const bz of [3.42, 4.08]) {
+      box(0.09, 0.05, 0.05, -3.085, RY + 0.50, bz, ironM);       // bracket into the wall
+      box(0.07, 0.09, 0.07, -3.02, RY + 0.035, bz, ironM);       // and a foot under it
+    }
+    // the pipe up out of the floor to the valve
+    box(0.035, 0.30, 0.035, -3.02, RY + 0.15, 3.28, new THREE.MeshBasicMaterial({ color: 0x6a6258 }));
     // the bed: a good frame under a mattress that was never bought for it —
     // 6 cm narrower and shoved to one end, so it overhangs at the foot
     const frameM = new THREE.MeshBasicMaterial({ color: 0x4a3626 });
@@ -1155,9 +1189,20 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const dresserSideM = new THREE.MeshBasicMaterial({ color: 0x412f21 });
     box(0.70, 0.82, 0.50, -2.65, RY + 0.41, 2.37,
       [dresserSideM, dresserSideM, dresserSideM, dresserSideM, flatOf2(dresserT), dresserSideM]);
-    // the drawer that never shuts — proud of the FRONT, into the room
-    box(0.62, 0.20, 0.17, -2.65, RY + 0.44, 2.70, dresserSideM);
-    box(0.54, 0.13, 0.14, -2.65, RY + 0.46, 2.76, new THREE.MeshBasicMaterial({ color: 0x8a8272 }));
+    // The drawer that never shuts — proud of the FRONT, into the room.
+    // Report finding 8: it was a front and a solid lump, so from an oblique
+    // angle you looked into a block of wood rather than into a drawer. It is
+    // a real open box now: two sides, a bottom, a back, and the shirt that is
+    // stopping it closing sitting IN it rather than being it.
+    const drawIn = new THREE.MeshBasicMaterial({ color: 0x6b523a });
+    const DZ0 = 2.62, DZ1 = 2.79;                    // how far it stands out
+    box(0.62, 0.035, DZ1 - DZ0, -2.65, RY + 0.355, (DZ0 + DZ1) / 2, drawIn);   // bottom
+    for (const sx of [-0.29, 0.29]) {
+      box(0.035, 0.17, DZ1 - DZ0, -2.65 + sx, RY + 0.44, (DZ0 + DZ1) / 2, drawIn);
+    }
+    box(0.62, 0.17, 0.03, -2.65, RY + 0.44, DZ0, drawIn);                       // back
+    box(0.62, 0.20, 0.035, -2.65, RY + 0.44, DZ1, dresserSideM);                // the front
+    box(0.50, 0.10, 0.11, -2.65, RY + 0.42, 2.72, new THREE.MeshBasicMaterial({ color: 0x8a8272 }));
     // an ashtray on top, full
     box(0.17, 0.04, 0.17, -2.52, RY + 0.84, 2.40, new THREE.MeshBasicMaterial({ color: 0x6a6a70 }));
     for (const [bx, bz, r] of [[-2.55, 2.37, 0.3], [-2.49, 2.42, -0.5], [-2.52, 2.44, 1.1]] as [number, number, number][]) {
