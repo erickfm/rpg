@@ -79,9 +79,12 @@ export function buildStreet(o: {
     { nm: 'THRIFT', col: '#7a5a2c', w: 12.5, brick: '#5c4436', floors: 4 },
     'park',   // the old BARBER 14 + GROCERY 16, given over — see placePark
   ];
-  const EAST: BldSpec[] = [
-    { nm: 'CAFE', col: '#6a3a22', w: 11.2, brick: '#5c4436', floors: 4 },
-    { nm: 'HARDWARE', col: '#5a5a2c', w: 12, brick: '#6b4034', floors: 3 },
+  const EAST: (BldSpec | 'lot')[] = [
+    // CAFE 11.2 + HARDWARE 12 given over to a used car lot. Already adjacent,
+    // so no swap — and the run before No. 227 still totals 49.2, which is
+    // load-bearing: the walk-up's door and interior sit at a fixed z in
+    // ct/apartment.ts.
+    'lot',
     { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
     { nm: 'LIQUOR', col: '#8a2c42', w: 13, brick: '#835444', floors: 4 },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
@@ -168,99 +171,103 @@ export function buildStreet(o: {
   // this file. street.ts still owns WHERE they stand; civic.ts owns what
   // they look like.
   const { placeLibrary, placeChurch } = buildCivic({ scene, flat, KERB_H });
-  // ── the park ────────────────────────────────────────────────────────────
+  // ── open sites ──────────────────────────────────────────────────────────
   //
-  // 30 m of the west side given over, where BARBER and GROCERY stood. This is
-  // the SITE only: the ground, what encloses it, and the fact that you can
-  // walk into it. What stands IN it — trees, benches, paths — is builder E's,
-  // in ct/park.ts, the same split the library and the church already use.
+  // A hole in the street wall — the park, and now the used car lot. They are
+  // the same object: a piece of frontage given up, with ground you can walk
+  // on, the neighbours' newly exposed party walls finished off, and a rear
+  // elevation so the gap opens onto a city instead of onto fog. What goes IN
+  // them is somebody else's file (the park is E's ct/park.ts, the lot is C's
+  // ct/lot.ts) exactly the way the library and the church are.
   //
-  // Three things the brief flagged, all of them here rather than in E's file
-  // because they are properties of the hole in the street wall, not of the
-  // park:
-  //   · the neighbours now have EXPOSED PARTY WALLS. A blank brick flank
-  //     facing a park is right, but it has to be a finished flank and not the
-  //     raw end of a shell, which is what `endM` gives you.
-  //   · the SKYLINE opens. A 30 m gap in a continuous wall shows whatever is
-  //     behind it, and behind it was nothing — so the site is closed at the
-  //     back by a real rear elevation.
-  //   · COLLISION. The park has to be walk-INTO-able, which is only true
-  //     because footprints are registered per building now: no building, no
-  //     collider, and the mouth is open by construction.
-  const PARK = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
-  const placePark = (z: number, w: number) => {
-    const DEPTH = 7.0;                       // deeper than a shell, so it reads as a place
-    const XF = -FACE - DEPTH, XB = -FACE;
+  // One builder, not two, because the second site would otherwise be the same
+  // sixty lines with the signs flipped — and the mistakes worth making once
+  // are the ones already commented here.
+  //
+  // `side` is -1 for the west run and +1 for the east, and every x below is
+  // written through it so neither case is a special case.
+  interface Site { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+  const openSite = (
+    side: -1 | 1, z: number, w: number,
+    o: { depth: number; ground: string; grain: string; back: string; flank: string; gate: number },
+  ): Site => {
+    const XB = side * FACE, XF = XB + side * o.depth;       // street edge, back
     const z0 = z - w, z1 = z;
-    PARK.minX = XF; PARK.maxX = XB; PARK.minZ = z0; PARK.maxZ = z1;
-    // the ground. A PLANE at exactly KERB_H that ABUTS the walk at x = -FACE
-    // rather than overlapping it — two coplanar tops z-fight (GOTCHAS §6).
+    const lo = Math.min(XF, XB), hi = Math.max(XF, XB);
+    // the ground. A PLANE at exactly KERB_H that ABUTS the walk rather than
+    // overlapping it — two coplanar tops z-fight (GOTCHAS §6).
     const groundT = pixTex(64, 64, (g) => {
-      g.fillStyle = '#6a6f58'; g.fillRect(0, 0, 64, 64);            // worn grass
-      g.fillStyle = '#5c6249';
+      g.fillStyle = o.ground; g.fillRect(0, 0, 64, 64);
+      g.fillStyle = o.grain;
       for (let i = 0; i < 90; i++) g.fillRect((i * 23) % 64, (i * 41) % 64, 2, 1);
-      g.fillStyle = '#7a7f66';
       for (let i = 0; i < 60; i++) g.fillRect((i * 17) % 64, (i * 29) % 64, 1, 1);
       dither(g, 64, 64, 260);
     });
     groundT.wrapS = groundT.wrapT = THREE.RepeatWrapping;
-    groundT.repeat.set(DEPTH / 2, w / 2);
-    const grass = new THREE.Mesh(new THREE.PlaneGeometry(DEPTH, w), wet(flat(groundT)));
-    grass.rotation.x = -Math.PI / 2;
-    grass.position.set((XF + XB) / 2, KERB_H, (z0 + z1) / 2);
-    scene.add(grass);
-    // the two party walls the park has just exposed, given a finished face.
+    groundT.repeat.set(o.depth / 2, w / 2);
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, w), wet(flat(groundT)));
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set((XF + XB) / 2, KERB_H, (z0 + z1) / 2);
+    scene.add(floor);
+    // the two party walls the site has just exposed, given a finished face.
     // masonry() phases its courses off world Y, so they run level with the
-    // brick on the street elevation either side instead of starting again.
-    const flank = (zAt: number, facing: 1 | -1, brick: string, h: number) => {
-      const ms = masonry(DEPTH, h, 0);
-      const t = ms.paint((g) => {
+    // brick on the street elevation either side instead of starting again —
+    // which is the difference between a party wall and the raw end of a shell.
+    const wallTex = (wM: number, hM: number, brick: string, streaks: number) => {
+      const ms = masonry(wM, hM, 0);
+      return ms.paint((g) => {
         g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
         ms.courses(g);
-        g.fillStyle = 'rgba(0,0,0,0.16)';                            // soot down the joints
-        for (let i = 0; i < 14; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
-        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));  // coping along the top
+        g.fillStyle = 'rgba(0,0,0,0.16)';
+        for (let i = 0; i < streaks; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));       // coping
         g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
-        dither(g, ms.W, ms.H, Math.round(DEPTH * h * 5));
+        dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
       });
-      const p = new THREE.Mesh(new THREE.PlaneGeometry(DEPTH, h), flat(t));
-      p.position.set((XF + XB) / 2, h / 2, zAt);
-      p.rotation.y = facing > 0 ? 0 : Math.PI;
-      scene.add(p);
     };
-    flank(z1 - 0.01, -1, '#835444', wallHeight(4));   // THRIFT's south flank
-    flank(z0 + 0.01, 1, '#835444', wallHeight(4));    // RADIO's north flank
-    // the back of the site: a rear elevation so the gap opens onto a city and
-    // not onto fog. Blank brick — it is the back of whatever faces the next
-    // street over, and it has never had a window on this side.
-    {
-      const h = wallHeight(4);
-      const ms = masonry(w, h, 0);
-      const t = ms.paint((g) => {
-        g.fillStyle = '#6b4034'; g.fillRect(0, 0, ms.W, ms.H);
-        ms.courses(g);
-        g.fillStyle = 'rgba(0,0,0,0.14)';
-        for (let i = 0; i < 22; i++) g.fillRect((i * 53) % ms.W, 0, 3, Math.round(ms.H * ((i % 7) / 8)));
-        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.55));
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.55), ms.W, ms.m(0.16));
-        dither(g, ms.W, ms.H, Math.round(w * h * 5));
-      });
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), flat(t));
-      back.position.set(XF + 0.01, h / 2, (z0 + z1) / 2);
-      back.rotation.y = Math.PI / 2;
-      scene.add(back);
-      solid({ minX: XF - 8, maxX: XF, minZ: z0, maxZ: z1 });
+    const fh = wallHeight(4);
+    for (const [zAt, ry] of [[z1 - 0.01, Math.PI], [z0 + 0.01, 0]] as [number, number][]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, fh), flat(wallTex(o.depth, fh, o.flank, 14)));
+      p.position.set((XF + XB) / 2, fh / 2, zAt);
+      p.rotation.y = ry;
+      scene.add(p);
     }
-    // a low boundary wall along the street line with the entrance left open,
-    // so the park has an edge rather than bleeding into the pavement
+    // the back of the site, so the gap opens onto a city and not onto fog
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, fh), flat(wallTex(w, fh, o.back, 22)));
+    back.position.set(XF - side * 0.01, fh / 2, (z0 + z1) / 2);
+    back.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+    scene.add(back);
+    solid(side < 0
+      ? { minX: XF - 8, maxX: XF, minZ: z0, maxZ: z1 }
+      : { minX: XF, maxX: XF + 8, minZ: z0, maxZ: z1 });
+    // a low boundary along the street line with the middle left open, so the
+    // site has an edge rather than bleeding into the pavement
     const railM = new THREE.MeshBasicMaterial({ color: 0x6d6455 });
-    for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * 0.36], [z1 - w * 0.36, z1 - 0.3]] as [number, number][]) {
-      const len = rz1 - rz0;
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, len), railM);
-      wall.position.set(XB - 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
+    for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * o.gate], [z1 - w * o.gate, z1 - 0.3]] as [number, number][]) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, rz1 - rz0), railM);
+      wall.position.set(XB - side * 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
       scene.add(wall);
-      solid({ minX: XB - 0.36, maxX: XB, minZ: rz0, maxZ: rz1 });
+      solid({ minX: Math.min(XB, XB - side * 0.36), maxX: Math.max(XB, XB - side * 0.36), minZ: rz0, maxZ: rz1 });
     }
+    return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H };
+  };
+  // 30 m of the west side, where BARBER and GROCERY stood. Contents: E, in
+  // ct/park.ts.
+  let PARK: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
+  const placePark = (z: number, w: number) => {
+    PARK = openSite(-1, z, w, {
+      depth: 7.0, ground: '#6a6f58', grain: '#5c6249', back: '#6b4034', flank: '#835444', gate: 0.36,
+    });
+  };
+  // 23.2 m of the east side, where CAFE and HARDWARE stood. Contents — the
+  // surfacing, the fence, the office, the signage and the stock — are C's, in
+  // ct/lot.ts. A car lot is deeper than a park because it has to hold cars,
+  // and its ground is broken asphalt rather than grass.
+  let LOT: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
+  const placeLot = (z: number, w: number) => {
+    LOT = openSite(1, z, w, {
+      depth: 8.0, ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
+    });
   };
   // ── the bank ────────────────────────────────────────────────────────────
   //
@@ -454,6 +461,7 @@ export function buildStreet(o: {
   let ze = 14.2;
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
   for (const b of EAST) {
+    if (b === 'lot') { placeLot(ze, 23.2); ze -= 23.2; continue; }
     if (b.nm === 'BODEGA') { bodegaZ0 = ze; ze -= b.w; continue; }
     if (b.kind === 'church') placeChurchEast(ze, b); else placeBld(1, ze, b);
     ze -= b.w;
@@ -536,7 +544,7 @@ export function buildStreet(o: {
   //                 ╲ canted bay, A→B
   //               BX0 = FACE
   {
-    const bod = EAST[EAST.length - 1];               // BODEGA — last on the roster
+    const bod = EAST[EAST.length - 1] as BldSpec;     // BODEGA — last on the roster
     const BX0 = FACE, BX1 = FACE + 3.4;
     const BZ0 = bodegaZ0, BZ1 = bodegaZ0 - bod.w;    // -86 … -96
     // Cut back exactly one sidewalk width along each face. That is not an
@@ -1118,5 +1126,5 @@ export function buildStreet(o: {
     tag(placaTex('KOBRA', '#16161a'), 1.55, 0.82, -FACE - 6.27, 1.7, AZ0 - 2.3, Math.PI / 2);
   }
 
-  return { colliders, park: PARK };
+  return { colliders, park: PARK, lot: LOT };
 }
