@@ -109,8 +109,15 @@ if (!BOX && r.atlas === 0) {
   console.error('\nNO ATLAS FIGURES ANYWHERE — this check saw nothing and cannot');
   console.error('  vouch for anything. Either the world failed to build its people or');
   console.error('  the traversal stopped finding them. Not a pass.');
+//
+// EXIT 3, not 1. GOTCHAS 32 — which I wrote — reserves 3 for "the check never
+// ran, and nothing follows about the world". An empty subject set is exactly
+// that: this cannot tell a world that failed to build the thing from a read
+// that stopped finding it, so it must not claim the guarded thing is broken.
+// 4d549f501 reached the same convention independently while enumerating the
+// class; I had used 1 in all four, against my own entry.
   await b.close();
-  process.exit(1);
+  process.exit(3);
 }
 console.log(r.suspects.length
   ? `${r.suspects.length} person-shaped hand-drawn cutouts remain:\n  ` + r.suspects.join('\n  ')

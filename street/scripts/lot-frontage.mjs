@@ -192,7 +192,14 @@ const bad = mine.filter((r) => r[1] < CLEAR - 0.05);
 if (!mine.length) {
   console.error('\nNO SAMPLES TAKEN ALONG THE FRONTAGE — the walk was never measured.');
   console.error(`  span z ${span[0].toFixed(1)} … ${span[1].toFixed(1)} produced no sample points.`);
-  process.exit(1);
+//
+// EXIT 3, not 1. GOTCHAS 32 — which I wrote — reserves 3 for "the check never
+// ran, and nothing follows about the world". An empty subject set is exactly
+// that: this cannot tell a world that failed to build the thing from a read
+// that stopped finding it, so it must not claim the guarded thing is broken.
+// 4d549f501 reached the same convention independently while enumerating the
+// class; I had used 1 in all four, against my own entry.
+  process.exit(3);
 }
 const worst = mine.reduce((a, r) => (r[1] < a[1] ? r : a), mine[0]);
 console.log(`         narrowest ${worst[1].toFixed(2)} m at z ${worst[0]}`);

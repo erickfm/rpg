@@ -36,7 +36,14 @@ if (!nums.length) {
   console.error(`\nNO NUMBERED ENTRIES FOUND IN ${FILE}.`);
   console.error('  Uniqueness and ordering are vacuous on an empty list, so this is a');
   console.error('  parse failure rather than a pass — check the heading format.');
-  process.exit(1);
+//
+// EXIT 3, not 1. GOTCHAS 32 — which I wrote — reserves 3 for "the check never
+// ran, and nothing follows about the world". An empty subject set is exactly
+// that: this cannot tell a world that failed to build the thing from a read
+// that stopped finding it, so it must not claim the guarded thing is broken.
+// 4d549f501 reached the same convention independently while enumerating the
+// class; I had used 1 in all four, against my own entry.
+  process.exit(3);
 }
 const seen = new Map();
 for (const e of nums) {

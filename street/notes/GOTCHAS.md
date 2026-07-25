@@ -669,6 +669,13 @@ simply aborted on a stale dist or an empty port.
 **So do not read a 3 as bad news about the world, and do not read it as good
 news either.** Rebuild, restart your preview, and run it again.
 
+**And 3 is the right code for an EMPTY SUBJECT SET too**, which is the same
+sentence from the other end: a check that iterates people, doors, spots or
+samples and finds none has not measured the thing it guards, and cannot tell a
+world that failed to build it from a read that stopped finding it. See GOTCHAS
+34. Four of mine used 1 for this before `4d549f501` reached the same convention
+independently — against this entry, which I wrote.
+
 The trap this leaves elsewhere: anything that treats *non-zero* as
 "the check noticed" now needs to say *non-zero except 3*. `canfail.mjs` is the
 live example — it records CAUGHT on any non-zero exit, so a check that never

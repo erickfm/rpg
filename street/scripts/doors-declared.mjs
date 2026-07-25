@@ -85,7 +85,14 @@ if (!declaring.length) {
   console.error('\nNO `export const DOOR` FOUND IN SOURCE AT ALL.');
   console.error(`  Scanned ${DIR}/ and matched nothing, so there is nothing to compare`);
   console.error('  against declaredDoors() and this check can vouch for nothing.');
-  process.exit(1);
+//
+// EXIT 3, not 1. GOTCHAS 32 — which I wrote — reserves 3 for "the check never
+// ran, and nothing follows about the world". An empty subject set is exactly
+// that: this cannot tell a world that failed to build the thing from a read
+// that stopped finding it, so it must not claim the guarded thing is broken.
+// 4d549f501 reached the same convention independently while enumerating the
+// class; I had used 1 in all four, against my own entry.
+  process.exit(3);
 }
 const missing = declaring.filter((d) => !arrived.includes(d.building));
 for (const w of warns) console.log(`  ${w.replace(/\s+/g, ' ').slice(0, 110)}…`);
