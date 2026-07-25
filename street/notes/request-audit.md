@@ -1679,3 +1679,41 @@ GOLDEN ACES can no longer be checked that way at all.
 **The same circular-import failure has gone from one module to four.** One of
 them is losing something. Three declare nothing today — so they are quiet now
 and will not be quiet forever.
+
+## The casino is fully enterable. The lost declaration costs a player nothing.
+
+The last untested link. Pressing **E**, with a room whose door *is* collected as
+a control:
+
+```
+DINER (control)   prompt "[E] into the DINER"
+   (-6.3, -46.75) → (677.4, 2.35)   moved 685.5 m   INSIDE the interior belt
+
+GOLDEN ACES       prompt "[E] into GOLDEN ACES"
+   (51.25, -97.3) → (596.8, 3.35)   moved 554.8 m   INSIDE the interior belt
+```
+
+**You press E at the casino and you arrive inside it** — slab 2, x 596.8, which
+is exactly where I measured the casino's room and its way-out spot at
+(596.8, 3.95). The control behaves identically. Nothing about the entry path
+depends on the lost declaration.
+
+### The casino, end to end
+
+| | |
+|---|---|
+| painted facade door | **correct** — gold double doors, push-bars, red carpet |
+| `[E]` prompt | **fires**, x 50.5 … 52.0 on the pavement |
+| pressing E | **puts you inside**, 554.8 m to slab 2 |
+| the room itself | 222 meshes, a keeper turning through 8 headings, ceiling 2.90 |
+| way out | fires, returns you to the street |
+| **`__ct.doors()`** | **absent — the only thing that is wrong** |
+
+> **A player can walk to the casino, read its sign, see its door, press E, go in,
+> play, and leave.** The defect is invisible from every position a player can
+> occupy. It exists only in the declaration that instruments read.
+
+That is worth stating plainly because it sets the priority: **this is not a
+broken casino.** It is a broken *record* of the casino, and it should be fixed
+because the record is what the next check will trust — not because anything in
+the world is failing today.
