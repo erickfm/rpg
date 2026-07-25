@@ -143,11 +143,35 @@ export function buildVice(o: {
     const f = renderer.info.render.frame;
     if (f === lastFrame) return;
     lastFrame = f;
-    const bg = sc.background as THREE.Color | null;
-    // luminance → night, calibrated off the real sky curve: 0.30 at noon,
-    // 0.24 at 18:00, 0.06 at 20:00, 0.011 by 22:00
-    const lum = bg ? 0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b : 0;
-    const night = Math.max(0, Math.min(1, (0.20 - lum) / 0.16));
+    // ASK, do not infer. `props.ts` publishes what it already computes on
+    // `scene.userData` (`de492304`), so this reads the number instead of
+    // guessing it from the sky.
+    //
+    // The guess was wrong in exactly the weather the brief cares about. It read
+    // `scene.background` luminance, and props lerps the sky toward RAIN_SKY when
+    // it rains — so a downpour LIFTED the value and the night factor fell 1.000
+    // → 0.865, putting 12.5% LESS glow on wet asphalt. Backwards, against a brief
+    // whose governing sentence is "throwing colour onto wet asphalt".
+    //
+    //   23:00 dry night   background 0.0053   published night 1.000
+    //   00:00 WET night   background 0.0476   published night 1.000   ← 9x lift,
+    //                                                                   no move
+    //
+    // The fallback is the old sky read, kept deliberately: these two buildings
+    // are the only light sources in the world, and if the publisher ever goes
+    // away they should degrade to a slightly wrong glow rather than to no glow
+    // at all. It is not dead code, it is the failure mode I want.
+    const pub = (sc.userData as { nightFactor?: number } | undefined)?.nightFactor;
+    let night: number;
+    if (typeof pub === 'number') {
+      night = Math.max(0, Math.min(1, pub));
+    } else {
+      const bg = sc.background as THREE.Color | null;
+      // luminance → night, calibrated off the real sky curve: 0.30 at noon,
+      // 0.24 at 18:00, 0.06 at 20:00, 0.011 by 22:00
+      const lum = bg ? 0.2126 * bg.r + 0.7152 * bg.g + 0.0722 * bg.b : 0;
+      night = Math.max(0, Math.min(1, (0.20 - lum) / 0.16));
+    }
     const t = performance.now() / 1000;
     for (const fn of ticks) fn(night, t);
   };
