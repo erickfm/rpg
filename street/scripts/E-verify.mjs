@@ -22,6 +22,7 @@
 // desk wants it to. It is slow — three browsers, a lot of walking — so it is
 // a command you run before landing a change on this block, not on every save.
 import { spawn } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const AREAS = [
   { name: 'courtyard', script: 'scripts/E-walk.mjs',
@@ -31,6 +32,63 @@ const AREAS = [
   { name: 'park', script: 'scripts/E-park-walk.mjs',
     what: 'the park: the loop, the frontage, the edge line' },
 ];
+
+// ── is what my modules PUBLISH actually read? ────────────────────────────
+//
+// `npm run wiring` answers "is the module constructed?", which is a different
+// question and does not catch what cost this block the most time. Four times
+// a module of mine was built, constructed, and still invisible because a
+// SECOND thing it published had no reader in the entry point:
+//
+//   courtGround   exported, never called   -> the library steps did not climb
+//   COURT.colliders  exported, never spread -> the courtyard was sealed
+//   civicSeats()  exported, never called   -> the benches were not sittable
+//   buildPark     written, never imported  -> the whole park was not in the world
+//
+// Every one of those typechecks, constructs, and looks right in a screenshot.
+//
+// The rule is "referenced somewhere other than its own declaration" — NOT
+// "referenced outside its own file", which is what I wrote first. It fired
+// immediately on `civicSeats`, I checked the world before believing it, and
+// the world had eleven bench seats registered: under the register() pattern a
+// module wires ITSELF, so its own `register(ctx)` is a perfectly good reader.
+// A check that cries wolf gets deleted rather than fixed, and this one nearly
+// earned it on its first run.
+const MINE = ['ct/civic.ts', 'ct/park.ts'];
+const SRC = 'src/proto';
+const sources = [];
+const walk = (dir) => {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.isDirectory()) walk(`${dir}/${e.name}`);
+    else if (e.name.endsWith('.ts')) sources.push(`${dir}/${e.name}`);
+  }
+};
+walk(SRC);
+const orphans = [];
+for (const f of MINE) {
+  const text = readFileSync(`${SRC}/${f}`, 'utf8');
+  const names = [...text.matchAll(/^export\s+(?:const|function|let)\s+(\w+)/gm)].map((m) => m[1]);
+  for (const n of names) {
+    let uses = 0;
+    for (const s of sources) {
+      const body = readFileSync(s, 'utf8');
+      for (const m of body.matchAll(new RegExp(`\\b${n}\\b`, 'g'))) {
+        // the declaration itself does not count as a use of the thing declared
+        const line = body.slice(body.lastIndexOf('\n', m.index) + 1, body.indexOf('\n', m.index));
+        if (s.endsWith(f) && /^export\s+(const|function|let)\s/.test(line)) continue;
+        uses++;
+      }
+    }
+    if (!uses) orphans.push(`${f} exports ${n}, and nothing anywhere uses it`);
+  }
+}
+if (orphans.length) {
+  console.log('── published but unread');
+  for (const o of orphans) console.log(`   FAIL ${o}`);
+  console.log('   ^ built, constructed, and invisible — the failure tsc and `wiring` both pass\n');
+} else {
+  console.log('── published but unread: none, every export of mine has a reader\n');
+}
 
 const pick = process.argv[2];
 const run = AREAS.filter((a) => !pick || a.name === pick);
@@ -64,4 +122,5 @@ for (const a of run) {
 console.log(failed
   ? `${failed} of ${run.length} areas failed — do not land this`
   : `all ${run.length} areas walk`);
-process.exit(failed ? 1 : 0);
+if (orphans.length) console.log(`${orphans.length} export(s) published with no reader`);
+process.exit(failed || orphans.length ? 1 : 0);
