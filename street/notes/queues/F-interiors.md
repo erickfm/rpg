@@ -28,6 +28,48 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Interiors and exteriors must agree on HANDEDNESS, not just position.**
+      The user, standing inside the tax office: *"the interior of the tax
+      service is on the right side of the interior so i would expect the
+      exterior to match. so it should be on the left side of the building
+      exterior representing this interior. this should be done for all
+      buildings. make the exteriors match the interiors."* Ref:
+      `shots/user-taxmirror.png`.
+
+      This is the strongest argument yet for the frontage descriptor, and it
+      also tells you how to DESIGN it — so read it before you write the API.
+
+      **The observation is exactly right.** Standing inside looking at the
+      front wall, the door is on the right and the window on the left. Step
+      outside and turn round, and that must MIRROR: door on the left of the
+      facade, window on the right. A room and its facade are the two faces of
+      one wall, so their handedness is opposite by construction — and nothing
+      in the current code knows that, because each side authors its own
+      offset in its own local space.
+
+      **So do not express the descriptor in local offsets or in "left" and
+      "right".** Those are the terms that make mirroring a thing you can get
+      wrong, and they will be got wrong. Express every position in **world
+      coordinates** — for a main-block shop, the door's world z; for a
+      side-street shop, its world x — measured on the same axis the roster
+      lays buildings out on.
+
+      Then:
+      · the facade painter converts world position → its texel column
+      · the room converts world position → its own local coordinate, applying
+        whatever mirror its orientation implies
+      · the `[E]` spot uses the world position directly, unconverted
+
+      Three consumers, one number, and the mirror happens once in each
+      consumer rather than being carried around as an assumption. A room that
+      is later flipped to face the other way keeps working, which no amount of
+      "left/right" bookkeeping gives you.
+
+      **Verify it the way the user did**: stand inside, note which side the
+      door is on, walk out, turn round, and confirm it swapped. Do that for
+      every room, not just the tax office — the user asked for all buildings.
+
+
 - [ ] **The tax service `[E]` spot is not on its door.** The user: *"the
       entrance to the tax service is not aligned with the door of the
       facade"*.
