@@ -39,11 +39,43 @@ export interface BldSpec {
  *  `colliders` is everything solid inside the courtyard. */
 export const COURT = {
   live: false,
+  /** Set by the ENTRY POINT, before the world builds, to say that it asks
+   *  `courtGround` for the floor. Until it does, the flight is left SOLID.
+   *
+   *  A landing shim, and it should be deleted the moment the entry point is
+   *  wired: the steps and the picker have to arrive together, and this file
+   *  can be in the live world (which rebuilds every 15 s from every
+   *  worktree) minutes before a one-line change to a file I do not own. Open
+   *  treads with nothing answering for their height is not "not climbable
+   *  yet" — it is walking through stone at pavement level, which is worse
+   *  than what it replaces. So the geometry only opens when the floor is
+   *  there to catch you. */
+  climbable: false,
   minX: 0, maxX: 0, minZ: 0, maxZ: 0,
-  /** the paving level — what groundY should answer inside the extents */
+  /** the flat paving level. `courtGround` is the truth; this is what the
+   *  entry point read before the steps became climbable, and it is still
+   *  correct for every part of the courtyard that is not the flight. */
   y: 0,
   colliders: [] as AABB[],
 };
+
+/** The courtyard floor at (x, z), or null if that is not the courtyard —
+ *  same shape as the interior belt's `interiorGround`, so the entry point
+ *  asks one question and this module owns the answer.
+ *
+ *  It exists because you can WALK UP THE STEPS now. GOTCHAS §7: floor height
+ *  in this world comes from a picker, never from colliders, so a flight that
+ *  is drawn but not answered for here is a flight you cannot climb — which is
+ *  exactly what the user found. `ct/apartment.ts` is the model and its rule is
+ *  the one that matters: **the picker does not know about treads.** It walks
+ *  you up a smooth ramp at the flight's own gradient, and the drawn steps ride
+ *  either side of it by at most half a riser. Answer with the tread tops
+ *  instead and you get a 0.17 m jolt five times on the way up.
+ *
+ *  No hysteresis, unlike the walk-up: nothing is stacked over anything here,
+ *  so the floor is single-valued in x and there is no "which storey" to
+ *  resolve. */
+export let courtGround: (x: number, z: number) => number | null = () => null;
 
 export function buildCivic(o: {
   scene: THREE.Scene;
@@ -416,9 +448,39 @@ export function buildCivic(o: {
       ckIn.position.set(XF - BAY_D / 2, (TOP + 0.5) / 2, cz + s * (BAY_W / 2 - 0.21));
       scene.add(ckIn);
     }
-    // the flight and its cheeks are one solid block in the middle of the
-    // courtyard; you walk round it, not up it
-    solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
+    // ── climbing it ───────────────────────────────────────────────────────
+    //
+    // The flight used to be ONE SOLID BLOCK: you walked round it, not up it,
+    // and the user went looking for the way up. Now the treads are open and
+    // the only solids are the two cheek walls beside them — a stair in this
+    // world is a floor-picker answer, never a collider (GOTCHAS §7).
+    const CHEEK = BAY_W / 2 - 0.21;                   // cheek wall centre line
+    if (COURT.climbable) {
+      for (const s of [-1, 1]) {
+        solid({
+          minX: XF - BAY_D, maxX: XBOT,
+          minZ: cz + s * CHEEK - 0.21, maxZ: cz + s * CHEEK + 0.21,
+        });
+      }
+      // …and the doors you climb TO stop you, 0.36 m short of the leaf
+      solid({ minX: XF - BAY_D - 8, maxX: XF - BAY_D, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
+    } else {
+      // the entry point is not asking `courtGround` yet — see COURT.climbable
+      solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
+    }
+    // The ramp the picker walks you up. It is the flight's own gradient, so
+    // the drawn treads ride within half a riser of it the whole way — the
+    // walk-up's rule, and the reason the climb feels smooth instead of
+    // jolting 0.17 m five times. Answers null outside the courtyard, so the
+    // entry point can ask one question and get the whole floor.
+    const FLIGHT_HALF = (BAY_W - 0.9) / 2;            // the open width, cheek to cheek
+    courtGround = (x, z) => {
+      if (x < XF - BAY_D || x > -FACE || z < CZ0 || z > CZ1) return null;
+      if (Math.abs(z - cz) > FLIGHT_HALF) return x >= XF ? KERB_H : null;
+      if (x <= XF) return TOP;                        // the landing, in the recess
+      if (x >= XBOT) return KERB_H;                   // the paving, in front of it
+      return KERB_H + ((XBOT - x) / (N * TREAD)) * (N * RISE);
+    };
 
     // ── the two party walls the setback exposes ───────────────────────────
     //
@@ -565,9 +627,23 @@ export function buildCivic(o: {
     bin.position.set(binX, KERB_H + 0.39, binZ);
     scene.add(bin);
     solid({ minX: binX - 0.25, maxX: binX + 0.25, minZ: binZ - 0.25, maxZ: binZ + 0.25 });
-    // the recessed facade itself — the wall you stop at, 0.3 m proud of the
-    // stone the same way the street wall is proud of its shopfronts
-    solid({ minX: XF - 8, maxX: XF + 0.3, minZ: CZ0, maxZ: CZ1 });
+    // The recessed facade — the wall you stop at, 0.3 m proud of the stone the
+    // same way the street wall is proud of its shopfronts. NOTCHED at the
+    // entrance bay, because the flight climbs INTO that notch: sealed across
+    // the full frontage it stopped you at x = -9.54, two steps up, against
+    // nothing you could see. The gap is exactly the bay, so the reveals
+    // either side of it are still solid and abut the notch edge to edge.
+    if (COURT.climbable) {
+      for (const s of [-1, 1]) {
+        const zIn = cz + s * (BAY_W / 2);
+        solid({
+          minX: XF - 8, maxX: XF + 0.3,
+          minZ: s < 0 ? CZ0 : zIn, maxZ: s < 0 ? zIn : CZ1,
+        });
+      }
+    } else {
+      solid({ minX: XF - 8, maxX: XF + 0.3, minZ: CZ0, maxZ: CZ1 });
+    }
     // The profile — doorcase, entablature, cornice, coping. It projects from
     // the RECESSED face now, into the courtyard rather than over the
     // pavement, and stays inside the 0.3 m the facade collider reserves.

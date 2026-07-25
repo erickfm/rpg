@@ -32,6 +32,10 @@ const SHOTS = [
   ['from-steps-out', -9.4, -13.0, Math.PI / 2, 0.99, -0.06],
   ['walk-lane', -6.2, -6.0, 0.0, 0.14, -0.02],
   ['paving', -8.4, -13.0, -Math.PI * 0.4, 0.14, -0.44],
+  ['climb-foot', -8.2, -13.0, -Math.PI / 2, 0.19, -0.22],
+  ['climb-mid', -9.3, -13.0, -Math.PI / 2, 0.63, -0.16],
+  ['climb-top', -10.6, -13.0, -Math.PI / 2, 0.99, 0.04],
+  ['climb-back', -10.9, -13.0, Math.PI / 2, 0.99, -0.14],
   ['night', -6.4, -13.0, -Math.PI / 2, 0.14, 0.02],
 ];
 for (const [name, x, z, yaw, gy, pitch] of SHOTS) {

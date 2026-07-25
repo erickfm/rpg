@@ -1,0 +1,34 @@
+diff --git a/street/src/proto/crosstown.ts b/street/src/proto/crosstown.ts
+index 07ea22e..a4d0e22 100644
+--- a/street/src/proto/crosstown.ts
++++ b/street/src/proto/crosstown.ts
+@@ -20,7 +20,7 @@ import { buildTraffic } from './ct/traffic';
+ import { buildSideStreet } from './ct/sidestreet';
+ import { buildBodega } from './ct/bodega';
+ import { buildStreet } from './ct/street';
+-import { COURT } from './ct/civic';
++import { COURT, courtGround } from './ct/civic';
+ import { buildCrowd, type Crowd } from './ct/crowd';
+ import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
+ import { buildApartment } from './ct/apartment';
+@@ -85,6 +85,9 @@ export function makeCrosstown(): Proto {
+   // West carries the walk-up (No. 227, res facade, entrance at z=-31) and
+   // the alley; nothing on the street is filler.
+   const AZ0 = -37, AZ1 = -43.5; // the alley gap in the left wall
++  // This file answers for the library forecourt's floor (see groundY below),
++  // so ct/civic.ts may leave its steps open for you to climb.
++  COURT.climbable = true;
+   const boards: Board[] = [];
+   const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
+   // solid props the citizens must steer AROUND (never walk/phase through) —
+@@ -332,8 +335,8 @@ export function makeCrosstown(): Proto {
+       // the floor drops away. ct/civic.ts publishes its extents and its paving
+       // level for exactly this, so the notch and the floor come off ONE import
+       // instead of being restated here.
+-      if (COURT.live && x >= COURT.minX && x <= COURT.maxX
+-        && z >= COURT.minZ && z <= COURT.maxZ) return apt.setGy(COURT.y);
++      const cg = courtGround(x, z);
++      if (cg !== null) return apt.setGy(cg);
+       return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
+     },
+   });

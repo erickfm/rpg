@@ -6,7 +6,8 @@
 //   2. street -> into the courtyard -> back out
 //   3. round the steps to each bench
 //   4. nothing lets you through the facade, the party walls or the steps
-//   5. the floor is walk level everywhere inside, and nowhere behind
+//   5. the floor is walk level off the flight, and the flight is a ramp
+//   6. you can WALK UP the steps to the doors, and back down
 //
 // CITIZENS ARE SOLID, and they are seeded — so one standing in the courtyard
 // mouth reproduces on every run at the same instant and reads exactly like a
@@ -48,6 +49,14 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
   return last;
 };
 
+// Is the entry point asking ct/civic.ts for the courtyard floor? The steps
+// only open when it is (see COURT.climbable), so probe the landing: 0.99 means
+// wired, 0.14 means the flight is still one solid block.
+await warp(-11.0, -13.0, 0);
+await page.waitForTimeout(60);
+const CLIMBABLE = (await pos())[3] > 0.5;
+console.log(`the steps are ${CLIMBABLE ? 'WIRED — climb tests run' : 'NOT wired — climb tests skipped'}\n`);
+
 // 1 ── the sacred lane along the frontage, in the BUILDING-side lane. The
 // streetlamp at z=-9 owns x -5.75…-5.35 and blocks out to x=-6.11, so x=-6.25
 // is the lane that has to stay open the whole length of the library.
@@ -74,8 +83,17 @@ const inCourt = await walk('street -> into the courtyard on the axis', {
   ok: (p) => p[0] < -7.6,
   say: (p) => `x -5.40 -> ${f(p[0])} (mouth at -7.0)`,
 });
-report('the steps stop you, you do not walk through them',
-  inCourt[0] > -8.9, `stopped at x ${f(inCourt[0])}, bottom nosing at -8.40`, 1);
+// walking the axis used to END at the steps — they were one solid block. It
+// now carries you straight onto them, which is the whole point of the item.
+if (CLIMBABLE) {
+  report('the axis carries you onto the flight, not into a wall',
+    inCourt[0] < -8.4 && inCourt[3] > 0.14,
+    `reached x ${f(inCourt[0])} at gy ${inCourt[3].toFixed(2)} (bottom nosing -8.40)`, 1);
+} else {
+  report('the flight is solid, as it is until the picker is wired',
+    inCourt[0] > -8.9 && Math.abs(inCourt[3] - 0.14) < 0.01,
+    `stopped at x ${f(inCourt[0])}, bottom nosing at -8.40`, 1);
+}
 await page.keyboard.down('s'); await page.waitForTimeout(1400); await page.keyboard.up('s');
 await page.waitForTimeout(60);
 const out = await pos();
@@ -115,8 +133,9 @@ await walk('the south party wall holds', {
   say: (p) => `stopped at z ${f(p[2])}, party line at -21.00`,
 });
 
-// 5 ── the floor never drops: sample the height across the whole courtyard.
-// pos()[3] is the ground the RIG resolved, so each sample needs a frame.
+// 5 ── the floor. Flat at walk level everywhere EXCEPT the flight, which is
+// a ramp from the paving up to the threshold 0.85 m above it.
+const CZ = -13.0, FLIGHT_HALF = 2.05, XBOT = -8.4, XF = -10.2, TOP = 0.99;
 const samples = [];
 for (let x = -10.0; x <= -7.0; x += 0.4) {
   for (let z = -20.4; z <= -5.6; z += 2.0) {
@@ -125,15 +144,67 @@ for (let x = -10.0; x <= -7.0; x += 0.4) {
     samples.push([x, z, (await pos())[3]]);
   }
 }
-const bad = samples.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
-report('the courtyard floor is walk level everywhere', bad.length === 0,
-  bad.length ? `${bad.length}/${samples.length} off: ${JSON.stringify(bad.slice(0, 4))}`
-    : `${samples.length} samples all at gy 0.14`, 1);
+const flat = samples.filter(([, z]) => Math.abs(z - CZ) > FLIGHT_HALF);
+const bad = flat.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
+report('the courtyard floor is walk level off the flight', bad.length === 0,
+  bad.length ? `${bad.length}/${flat.length} off: ${JSON.stringify(bad.slice(0, 4))}`
+    : `${flat.length} samples all at gy 0.14`, 1);
 
 await warp(-11.0, -13.0, 0);
 await page.waitForTimeout(34);
 const inside = (await pos())[3];
-report('the paved floor stops at the facade', Math.abs(inside) < 0.001, `gy behind the facade = ${inside}`, 1);
+report(CLIMBABLE ? 'the floor carries on up to the doors' : 'the floor stops at the facade',
+  Math.abs(inside - (CLIMBABLE ? TOP : 0)) < 0.001,
+  `gy on the landing = ${inside}${CLIMBABLE ? ` (threshold ${TOP})` : ' (flight still solid)'}`, 1);
+
+
+// 6 ── THE CLIMB. Skipped unless the entry point is wired: ct/civic.ts keeps
+// the flight solid until then on purpose (COURT.climbable), so these would be
+// testing a state that does not exist rather than a bug.
+if (!CLIMBABLE) {
+  console.log('\nSKIP  the climb — the entry point is not asking courtGround yet.');
+  console.log('      apply notes/E-steps-crosstown.patch and re-run.');
+  console.log(fails ? `\n${fails} FAILED` : '\nall walks passed (climb skipped)');
+  await browser.close();
+  process.exit(fails ? 1 : 0);
+}
+
+// 6 ── THE CLIMB. The whole point of the item: the steps are drawn, so they
+// have to be walkable. Height comes from the picker (GOTCHAS §7), so this
+// walks the flight and watches the ground rise, then walks back down.
+const profile = [];
+for (let x = -7.6; x >= -11.4; x -= 0.2) {
+  await warp(x, CZ, 0);
+  await page.waitForTimeout(34);
+  profile.push([+x.toFixed(1), (await pos())[3]]);
+}
+const atPaving = profile.find(([x]) => x === -7.8)[1];
+const atLanding = profile.find(([x]) => x === -11.0)[1];
+const monotone = profile.every(([, gy], i) => i === 0 || gy >= profile[i - 1][1] - 0.0001);
+report('the flight rises from the paving to the threshold',
+  Math.abs(atPaving - 0.14) < 0.01 && Math.abs(atLanding - TOP) < 0.01,
+  `gy ${atPaving.toFixed(2)} at the foot -> ${atLanding.toFixed(2)} on the landing`, 1);
+report('…and it never dips on the way up', monotone,
+  monotone ? `${profile.length} samples, all non-decreasing` : JSON.stringify(profile), 1);
+
+// and actually WALK it, rather than sampling it
+const climbed = await walk('walk UP the steps to the doors', {
+  at: [-7.6, CZ], yaw: -Math.PI / 2, ms: 1800,
+  ok: (p) => p[0] < -11.3 && p[3] > TOP - 0.02,
+  say: (p) => `x -7.60 -> ${f(p[0])}, standing at gy ${p[3].toFixed(2)}`,
+});
+await page.keyboard.down('s'); await page.waitForTimeout(1800); await page.keyboard.up('s');
+await page.waitForTimeout(60);
+const down = await pos();
+report('…and back down into the courtyard', down[0] > -8.2 && Math.abs(down[3] - 0.14) < 0.01,
+  `x ${f(climbed[0])} -> ${f(down[0])}, gy ${down[3].toFixed(2)}`, 1);
+
+// the cheek walls still hold you on the flight
+await walk('the cheek walls hold you on the steps', {
+  at: [-9.3, CZ], yaw: Math.PI, ms: 1200,
+  ok: (p) => p[2] < CZ + 2.1,
+  say: (p) => `pushed north to z ${f(p[2])}, cheek inner face at ${(CZ + 2.08).toFixed(2)}`,
+});
 
 console.log(fails ? `\n${fails} FAILED` : '\nall walks passed');
 await browser.close();
