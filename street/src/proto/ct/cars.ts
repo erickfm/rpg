@@ -443,6 +443,20 @@ export function makeBus(): THREE.Group {
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   const busFront: THREE.Mesh[] = [];
+  // THE BUS CLIPS WORSE THAN THE CARS DID. The user asked for the wheels not to
+  // clip through and said "do it for the whole fleet, not just the truck" —
+  // and the fleet includes the 42, which is the biggest thing on the block. Its
+  // tyres sit at x 1.04 with a half-thickness of 0.14, so their outer face is
+  // 1.18 against a flank at 1.10: 0.08 m proud, double the cars'. Same fix as
+  // makeCar's, sized to this body: a fender panel standing clear of the tyre so
+  // the tyre stops being the outermost thing.
+  const busFlareM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body).multiplyScalar(0.82) });
+  for (const wx of [-1, 1]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
+    const flare = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.34, 1.10), busFlareM);
+    flare.position.set(wx * 1.20, 0.90, wz);     // outer face 1.26, clear of the tyre at 1.18
+    g.add(flare);
+  }
+
   for (const wx of [-BUS_HW + 0.06, BUS_HW - 0.06]) for (const wz of [BUS_AXLE_F, BUS_AXLE_R]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.28, 10), [tireM, capM, capM]);
     // YZX: the steer angle must turn the wheel about its own VERTICAL, after
