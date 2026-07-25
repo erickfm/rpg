@@ -611,11 +611,22 @@ for (room of rooms) {
   // STANDS TO BE SERVED, which room geometry does not contain — and I proved
   // that by trying twice to derive it.
   //
-  // ALL EIGHT ROOMS ARE COVERED, including G's four. I first wrote "G's four are
-  // covered by G's own harness" — and `scripts/checks-registered.mjs` says
-  // `G-rooms-walk.mjs` "has a --selftest and is in no tier of npm run checks",
-  // i.e. runs exactly never. So that sentence was false and G's keepers were
-  // guarded by nothing. Their four spots below are G's OWN, copied from their
+  // ALL EIGHT ROOMS ARE COVERED, including G's four, and the REASON has changed
+  // twice — so here is where it stands rather than what I first believed.
+  //
+  // I wrote "G's four are covered by G's own harness". That was false at the
+  // time: checks-registered reported `G-rooms-walk.mjs` in no tier of
+  // `npm run checks`, i.e. running exactly never, so I took their four spots
+  // and covered them here. `c7a9a09af` has since REGISTERED it, so the original
+  // sentence is true now and my reason for duplicating is gone.
+  //
+  // Keeping the coverage anyway, for a different and smaller reason: these
+  // rooms are already being entered and walked by this file, so the marginal
+  // cost is four sprite reads, and the two harnesses agreeing is independent
+  // reproduction rather than one author checking their own arithmetic. When
+  // they disagreed it was mine that was wrong — my derived viewpoint called G's
+  // casino "in profile" — and finding that out cost one run instead of a bug
+  // report. Their four spots below are G's OWN, copied from their
   // file rather than derived by me, because the whole lesson of the two failed
   // attempts is that this coordinate belongs to whoever built the room. "Between the keeper and the room centre"
   // reported G's casino as `in profile` when G has verified it reads `facing
