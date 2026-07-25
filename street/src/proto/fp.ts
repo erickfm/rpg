@@ -69,6 +69,10 @@ export class FPRig {
   // guess at a clear direction and would sooner or later guess into a table.
   private seat: SeatPose | null = null;
   private standFrom: { x: number; z: number } | null = null;
+  // the last place we were standing legally, and the backstop for a wedge the
+  // axis pushes cannot solve. Seeded to spawn, which is always clear.
+  private lastGood = { x: 0, z: 0 };
+  private stuckT = 0;   // seconds spent illegal and not making progress
   private fwd = new THREE.Vector3();
   private right = new THREE.Vector3();
   private look = new THREE.Vector3();
@@ -87,6 +91,7 @@ export class FPRig {
     this.colliders = o.colliders ?? [];
     this.groundY = o.groundY;
     this.pos = new THREE.Vector3(spawn.x, this.height, spawn.z);
+    this.lastGood = { x: spawn.x, z: spawn.z };
     cam.position.copy(this.pos);
   }
 
@@ -142,6 +147,101 @@ export class FPRig {
     return false;
   }
 
+  // ── getting unstuck ───────────────────────────────────────────────────────
+  //
+  // `blocked()` is a pure boolean reject: it refuses a move into a collider.
+  // That is correct and it is not enough. It only ever asks about the position
+  // you are trying to reach, never the one you are in — so the moment you end
+  // up INSIDE something, every direction is refused too and you are stuck for
+  // good. The user: *"im literally stuck here"*, wedged between two parked
+  // cars, with no input that could help.
+  //
+  // There are several ways in and they are not all preventable: a gap that
+  // is passable one axis at a time but not diagonally, a collider that moves
+  // or is added under you, a teleport onto furniture. So rather than chase
+  // the causes, the rig gains a way to express "you are somewhere illegal,
+  // leave" — and then normal movement resumes on its own, because the reject
+  // test starts passing again.
+
+  /** How far, and which way, to push a point out of one box. Smallest of the
+   *  four axis escapes, which for an AABB is the minimum translation. */
+  private escapeFrom(c: AABB, x: number, z: number): { dx: number; dz: number; d: number } | null {
+    const left = x - (c.minX - RADIUS);     // push -x by this
+    const right = (c.maxX + RADIUS) - x;    // push +x
+    const back = z - (c.minZ - RADIUS);     // push -z
+    const front = (c.maxZ + RADIUS) - z;    // push +z
+    if (left <= 0 || right <= 0 || back <= 0 || front <= 0) return null;   // not inside
+    const d = Math.min(left, right, back, front);
+    if (d === left) return { dx: -left, dz: 0, d };
+    if (d === right) return { dx: right, dz: 0, d };
+    if (d === back) return { dx: 0, dz: -back, d };
+    return { dx: 0, dz: front, d };
+  }
+
+  /**
+   * If the CURRENT position is inside anything, walk it back out.
+   *
+   * Bounded on purpose, three ways. It moves at `UNSTICK_SPEED` rather than
+   * teleporting, so a player resting legally against a wall is never shoved
+   * and a real overlap resolves over a few frames instead of one lurch. It
+   * runs a fixed number of passes, so overlapping boxes cannot loop forever.
+   * And if it still cannot find air, it falls back to the last place the
+   * player stood legally — being moved a metre is bad, being stuck is worse.
+   */
+  private unstick(dt: number): void {
+    const UNSTICK_SPEED = 3.0;              // m/s, comparable to walking
+    const PASSES = 4;                       // ample for a corner of two boxes
+    const PATIENCE = 0.45;                  // s of getting nowhere before we give up and jump
+
+    let x = this.pos.x, z = this.pos.z;
+    let pushX = 0, pushZ = 0;
+    for (let pass = 0; pass < PASSES; pass++) {
+      // SUM the escapes from everything we are inside, rather than resolving
+      // the deepest one. A corner of two boxes then gives a diagonal push,
+      // which is right — and a symmetric wedge gives very nearly zero, which
+      // is also right: there IS no way out sideways, and pretending otherwise
+      // just oscillates. Fourteen traps did exactly that, pushed left into the
+      // right-hand box and right into the left-hand one, for ever.
+      let sx = 0, sz = 0, any = false;
+      for (const c of this.colliders) {
+        const e = this.escapeFrom(c, x, z);
+        if (e) { sx += e.dx; sz += e.dz; any = true; }
+      }
+      if (!any) break;
+      if (Math.abs(sx) < 1e-6 && Math.abs(sz) < 1e-6) break;   // wedged: the timer below owns it
+      x += sx; z += sz;
+      pushX += sx; pushZ += sz;
+    }
+
+    const needed = this.blocked(this.pos.x, this.pos.z);
+    if (!needed) {
+      // legal: remember it, and forget any accumulated frustration
+      this.lastGood.x = this.pos.x; this.lastGood.z = this.pos.z;
+      this.stuckT = 0;
+      return;
+    }
+
+    this.stuckT += dt;
+    const len = Math.hypot(pushX, pushZ);
+    if (len > 1e-6) {
+      // ease out rather than snap, and never further than the overlap itself,
+      // so a player resting legally against a wall is never shoved
+      const step = Math.min(len, UNSTICK_SPEED * dt);
+      this.pos.x += (pushX / len) * step;
+      this.pos.z += (pushZ / len) * step;
+    }
+
+    // Getting nowhere for PATIENCE seconds — a symmetric wedge, or a push that
+    // keeps cancelling. Go back to the last place we know was legal. Being
+    // moved a couple of metres is a bad outcome; being stuck for ever is the
+    // one the user actually hit.
+    if (this.stuckT > PATIENCE && !this.blocked(this.lastGood.x, this.lastGood.z)) {
+      this.pos.x = this.lastGood.x;
+      this.pos.z = this.lastGood.z;
+      this.stuckT = 0;
+    }
+  }
+
   update(dt: number, input: Input) {
     // mouse deltas accumulate only while pointer-locked OR dragging — apply either way.
     // convention: fwd = (sin yaw, 0, -cos yaw), so mouse-right = yaw INCREASES.
@@ -174,6 +274,12 @@ export class FPRig {
       this.cam.lookAt(this.cam.position.x + this.look.x, sy + this.look.y, this.cam.position.z + this.look.z);
       return;
     }
+
+    // Before anything else: if we are inside something, get out. Runs ahead
+    // of movement so the step that follows starts from a legal position, and
+    // after the seated return above — a seat deliberately puts you inside your
+    // own chair, and shoving you off it would be the cure killing the patient.
+    this.unstick(dt);
 
     this.fwd.set(Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     this.right.set(Math.cos(this.yaw), 0, Math.sin(this.yaw));
