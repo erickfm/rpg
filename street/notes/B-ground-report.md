@@ -6,6 +6,69 @@ Written for the desk to prioritise. **Fixed** items are already committed;
 
 ---
 
+## Reconciliation, 2026-07-25 — asked for by the desk
+
+Run programmatically, not from memory: every unchecked item in
+`notes/queues/B-ground.md` matched to a mainline commit.
+
+```
+queue: 16 unchecked items, md5 b5f65064, mtime 2026-07-24 23:30
+```
+
+| queue item | commit | | queue item | commit |
+|---|---|---|---|---|
+| Bench pass four | `c889ed23` | | catch basin is a casting | `ec6caf02` |
+| Bench pass three | `f5eddde1` | | bench faces the road | `114675e6` |
+| Side-street lamps | `d896c64f` | | Puddles reflect | `652138e3` |
+| Puddles pass five | `8388d3cc` | | Remove the litter-can | `adf22ce4` |
+| Litter clears buildings | `5653e066` | | Night five ×3 | `c7c1c50f` `8977226f` `5316df71` |
+| Ad to the backrest | `3e223236` | | Footprint rule | `7d32dae2` |
+| Ship the approved five | `cc7e0e76` | | `[E]` spots | VOID, desk-confirmed |
+
+**Nothing missing.** The file has not changed since 24 July 23:30 while all
+sixteen landed.
+
+### Off-queue, also closed
+
+- **Curb cut** for the car lot (`453890d8`) — C verified and closed it.
+- **Park lamps** (`3a1f46a6`) — E was blocked on them.
+- **Triage #1**, the 0.90 m squeeze — closed, and independently verified by the
+  auditor: *tightest walk 0.89 → 1.15 m, sub-1.20 m stretches 15 → 3*. Re-walked
+  again today at the desk's request: free span 1.46 m at z −71.4, walks 19.9 m
+  north and 17.6 m south.
+- **The bench-ad audit blocker** — answered; the panel exists and is stamped.
+
+---
+
+## TWO OF MY CHECKS HAD SILENTLY LEFT THE TREE
+
+Found by taking A's line seriously — *"a check nobody has watched fail is not a
+check"* — and breaking each guarded thing on purpose.
+
+| I broke | the check |
+|---|---|
+| `clearOfKerb` disabled | `footprint` FAIL, 4 straddles |
+| halo back inside the head box | `glow` FAIL |
+| a lantern moved onto the path | `park` FAIL twice — position *and* the walk |
+| legs made coplanar | `bus bench` FAIL |
+| two placements sharing a yaw | `trash` FAIL |
+| litter seated on its declared y | `footprint` FAIL, 8 sunk |
+| **the curb cut removed entirely** | **nothing** |
+| **puddle made lighter than the road** | **nothing** |
+
+The last two were not passing — they were **gone**. `scripts/curbcut.mjs` and
+`scripts/wet.mjs` had each been replaced by another builder's script on the same
+subject under the same name, and on rebase mine lost. Recovered as
+`kerbcut.mjs` and `wetness.mjs`; both then failed correctly against the same
+mutations.
+
+**Two collisions in one session is a missing convention, not two careless
+agents.** `wet`, `rain` and `curbcut` are *subjects*, and more than one agent
+will name a script after the subject it is investigating. Worth a rule:
+investigations and assertion-suites need distinguishable names.
+
+---
+
 ## Queue status — everything queued is on mainline
 
 `## Now` and `## Next` are both fully landed. The queue has now gone stale three
