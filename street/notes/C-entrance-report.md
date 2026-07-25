@@ -319,11 +319,29 @@ the number to copy.
   is the same sentence as the radiator's brackets in finding 8, but that was
   closed and the rail was deliberately left alone. Leaving it.
 
-### Still not covered, second time of asking
+### The stoop — finding 6 is CLOSED, and the visual pass is done
 
-The street-side stoop — finding 6. The entrance bay is on the facade in the
-street world, not in the interior belt, so reaching it needs the door teleport
-rather than a warp; two attempts put the camera inside the shaft wall. It is
-the part a player sees BEFORE the lobby and it is still unexamined by me. The
-blanket collider is D's, per the desk's routing, but the visual pass on the
-stoop itself is nobody's yet.
+Third time of asking, and this time I found it. The reason two attempts landed
+inside the shaft wall is that **the walk-up's street entrance is not a declared
+door** — it is not in `__ct.doors()`, so there was nothing to look it up from.
+It is hung at `x = FACE - 0.02` and `DOOR_Z = -44`, in `apartment.ts`, and you
+have to read that out of the source.
+
+**You can now walk to it.** Finding 6 said you could not reach the stoop at
+all; D's blanket collider has since gone. Walked it: from x 4.00 on the walk,
+holding forward gets to **x 6.47**, and the stoop's tread runs from 6.43 to the
+face at 6.98 — so you end up standing ON the step, which is the whole point of
+a stoop. Nothing stops you short of it any more.
+
+**The visual pass finds nothing wrong.** `22-stoop-far`, `23-stoop-near`,
+`24-stoop-down`. The gold 227 on dark glass, the green double leaves with their
+brass handles, the stone doorcase, the buzzer panel on the right jamb with bare
+brick opposite, and one worn step wider than the opening sitting proud of the
+pavement with the sidewalk scoring running past it. It is the best-finished
+thing in the building and it wants nothing.
+
+One thing I nearly filed and should not have: a large faceted lavender mass
+appears to clip into the doorcase and the stoop in `23-stoop-near`. It is a
+PEDESTRIAN — a 0.95 x 1.9 citizen sprite standing at x 6.0, which is on the
+walk and 0.43 m clear of the stoop. At 2.4 m a 1.9 m figure simply covers a lot
+of frame. Nothing is clipping.
