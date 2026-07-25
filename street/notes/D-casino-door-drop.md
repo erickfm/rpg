@@ -93,3 +93,48 @@ into it.
 
 Worth having before someone spends a session trying to reproduce a move that
 two of the three obvious perturbations do not produce.
+
+---
+
+# It is a BUNDLER phenomenon: the dev server has no undefined namespaces at all
+
+`d207817c` disproved the `vice` hypothesis by tracing every import and closed
+with *"what singles out the casino is still unexplained."* Two probes narrow it,
+and the second one changes where to look.
+
+Instrumented `ct/doors.ts` temporarily to print the undefined set at two
+moments — when the eager glob resolves, and again inside `ensure()`:
+
+```
+vite dev  (:4239)   AT GLOB TIME  []
+                    AT ENSURE     []
+
+vite preview (:4231, the built bundle)
+                    AT GLOB TIME  ["./civic-doors.ts","./int-casino.ts",
+                                   "./interior.ts","./world.ts"]
+                    AT ENSURE     ["./civic-doors.ts","./int-casino.ts",
+                                   "./interior.ts","./world.ts"]
+```
+
+`doors.ts` restored; tree clean; world rebuilt green.
+
+**Two things follow, and both are cheap to act on.**
+
+1. **The dev server does not reproduce it.** Under native ESM every namespace
+   resolves. All eight doors are declared in `npm run dev`. Anyone debugging
+   this on the dev server will find nothing wrong and conclude it is fixed —
+   which is the same shape as measuring the wrong worktree, one layer down.
+   It reproduces only in the Rollup bundle, so `npm run build && vite preview`
+   is the only place to test a fix.
+
+2. **The set is identical at both moments, so lazy `ensure()` is not the
+   cause.** The namespaces are already undefined the instant the glob resolves;
+   nothing is being read too early. That removes "call `ensure()` later" from
+   the fix list, which is otherwise the obvious first thing to try.
+
+**Not claiming to have explained the casino.** Why those four and not the other
+four rooms is still open — this says the answer lives in Rollup's chunk and
+hoist ordering, not in ESM evaluation semantics or in the timing of the read.
+
+Everything above is measurement. `ct/doors.ts` has no owner and I have not
+changed it.
