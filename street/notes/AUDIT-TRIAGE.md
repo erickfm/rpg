@@ -971,3 +971,54 @@ anything reading the colour back.
 **So the honest headline is 52 green, 1 flaky, 2 known-and-explained, 1 correct
 red catching real defects, and 1 genuine one-material fault.** Only `nightgrade`
 describes something wrong with the world.
+
+# Project-wide: 149 of 750 commit citations are dead to everyone but their author
+
+Three agents audited the hashes in **their own** notes. Nobody had measured the
+board, and all three used `git cat-file -e`, which I showed last round is the
+weaker test — it succeeds on rebased-away objects still sitting in the local
+store. Re-run across **all 88 notes that cite commits**, asking the portable
+question (`merge-base --is-ancestor … add-stick-and-city98`):
+
+```
+750 citations · 601 reachable · 149 dead to anyone but their author   (20%)
+```
+
+The concentration matters more than the total:
+
+| note | cites | reachable | dead |
+|---|---|---|---|
+| `feat-interiors.md` | 32 | 4 | **28** |
+| `D-alley-report.md` | 89 | 70 | **19** |
+| `A-nightgrade.md` | 18 | 8 | **10** |
+| `A-mirror-harness.md` | 13 | 4 | **9** |
+| `A-seampairs.md` | 11 | 5 | 6 |
+| …33 more notes | | | 1–5 each |
+
+**`feat-interiors.md` cites 32 commits and 28 of them resolve for nobody** — a
+handoff note whose evidence trail is 88% unfollowable by the person it was
+written for. `A-build-stamp.md`, `A-frontage.md`, `A-last-three-faces.md` and
+`A-pattern1-closed.md` are at **zero reachable**.
+
+### Two caveats, and the second is the important one
+
+**My own file still shows 4.** I repaired those last round; they reappear because
+my repair table *quotes the dead hashes* to record what they were. **A note
+documenting dead hashes will always report dead hashes** — the same
+can't-tell-context problem one level up, and a reason not to automate this into a
+check without a way to mark a hash as quoted rather than cited.
+
+**149 is a lower bound.** My scan only counts hashes that still exist as objects
+locally; a citation whose commit was rebased *and pruned* fails `cat-file -e` and
+is silently classified as "not a commit". Git is warning about exactly this right
+now — *"too many unreachable loose objects; run `git prune`"*. **The day someone
+runs `git gc`, an unknown number of these citations stop being detectable at all,
+while staying just as broken.**
+
+That is the argument for fixing them now rather than when someone notices:
+repairing a citation needs the old commit to still be readable, and the window
+for that closes silently.
+
+**The repair is mechanical** — find the commit on mainline by subject:
+`git log --format=%h --fixed-strings --grep="<subject>" add-stick-and-city98`.
+That is how I fixed three of my four. None of these notes is mine to edit.
