@@ -5,6 +5,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
 import { makeCar, type CarKind } from './cars';
+import { citizenSprite } from './citizens';
 
 // ── THE USED CAR LOT ──────────────────────────────────────────────────────
 //
@@ -90,7 +91,7 @@ export function register(ctx: CtxBuild) {
   if (!site) { console.warn('[lot] the block has no site named "lot" — nothing built'); return; }
   const lot = buildLot({
     scene: ctx.scene, flat: ctx.flat, wet: ctx.wet, KERB_H: ctx.KERB_H, obstacle: ctx.obstacle,
-    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night }), order),
+    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night, px: f.px, pz: f.pz, dt: f.dt }), order),
     seat: ctx.seat,
   });
   lot.placeLot(site);
@@ -108,7 +109,7 @@ export function buildLot(o: {
   /** per-frame hook, if the caller has one. Only used to bring the floodlight
    *  up after dark — a lot lights itself at night because that is when it is
    *  trying hardest, and without this the pole was a prop that did nothing. */
-  onFrame?: (fn: (f: { night: number }) => void, order?: number) => void;
+  onFrame?: (fn: (f: { night: number; px: number; pz: number; dt: number }) => void, order?: number) => void;
   /** register a sittable seat, if the caller has F's registry at this point.
    *  Threaded in like `obstacle` and `onFrame` rather than imported, so this
    *  module still builds standalone for the shot scripts. */
@@ -676,6 +677,34 @@ export function buildLot(o: {
       lnb.position.set(dx - 0.29, Y + CH + 0.80, dz - 0.18);
       scene.add(lnb);
     }
+
+    // ── the salesman ─────────────────────────────────────────────────────
+    // The office comment has always said "whoever is inside watches you come
+    // in". Nobody was inside. He is out on the apron by the step instead,
+    // turned down the aisle, which is better — you see him the moment you are
+    // through the gate and he has seen you first.
+    //
+    // ONE CALL to H's citizenSprite, per notes/CITIZEN-STYLE.md: he gets the
+    // same 5-view atlas and 8-angle turn every citizen on the street gets. The
+    // note exists because four people in this world are cardboard from being
+    // hand-drawn as single-view planes, and a lot salesman on a billboard
+    // quad would have been the fifth.
+    //
+    // 1997, and dressed by the same person who chose the bunting: a loud
+    // jacket over cheap slacks, broad build, and the stride wound right down
+    // because he is not going anywhere — he is standing at his door.
+    const salesman = citizenSprite(
+      // `coat`, not `dress` — `dress` is a dress, and the first cut put the
+      // lot's salesman in one. The Look fields are not adjectives, they name
+      // actual garments the atlas paints; read shots/citizen-range.png before
+      // picking one rather than guessing from the word.
+      { jacket: '#8c4a2c', pants: '#3c4048', skin: '#d8a878', hair: '#3a2e26',
+        fit: 'coat', cut: 'short', build: 1, stride: 1 },
+      { facing: -Math.PI / 2, h: 1.02, w: 1.04 },
+    );
+    salesman.mesh.position.set(cx - CD / 2 - 1.25, Y, cz - 1.05);
+    scene.add(salesman.mesh);
+    o.onFrame?.((f) => salesman.update(f.px, f.pz, f.dt));
 
     // ── the pole sign ────────────────────────────────────────────────────
     // Taller than the building next to it, which is the point: a lot has no

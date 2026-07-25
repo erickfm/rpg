@@ -59,6 +59,9 @@ const SHOTS = [
   ['46-back-wall',      9.0,  2.6, at(20.0, 0.0),   0.24],
   ['47-back-wall-mid', 17.0,  2.6, at(12.0, 0.0),   0.30],
   ['48-ghost-close',   24.0,  2.6, at(6.0,  0.0),   0.42],
+  ['49-salesman',      23.0,  2.0, at(3.0, -0.4),  -0.02],
+  ['50-salesman-side', 25.4, -1.2, at(0.4,  1.6),  -0.02],
+  ['51-salesman-far',  10.0,  2.6, at(16.0, -1.0),  0.02],
 ];
 
 for (const [name, x, z, yaw, pitch] of SHOTS) {
