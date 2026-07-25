@@ -37,6 +37,25 @@ stated rule, **[C]** circular (proves the pipeline, not the value).
 ad-panel geometry exists anywhere by shape. Located as *the stop in front of
 LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
+## Project state at handoff: the one red is green
+
+| | |
+|---|---|
+| full fast tier, last complete run | **28 green, 1 red** (`doors-declared`) |
+| `doors-declared`, run directly today | **"every declared door arrived"** — green |
+| `globorder.mjs` | **3 bindings still read before they exist** — the mechanism is live, nothing declares through it |
+| dev world vs bundled world | **identical on 9 counts**, doors 8/8 in both |
+
+**So the suite is green as far as I have measured it** — 28 confirmed in the
+last complete run, and the twenty-ninth confirmed directly. I could not re-run
+the whole tier in one window to see all 29 green together; it now exceeds the
+time I can hold a single command open. **That is an inference from two direct
+measurements, not a run I completed**, and it is worth saying which.
+
+The six `--slow` walking suites: `spots-walk`, `seats-walk`, `world-wired`,
+`steps-walk` and `civic-doors-walk` I have run individually and all pass.
+`interiors-walk` I have never completed.
+
 ## Every result in this report was measured on an **empty street** — and holds on a busy one
 
 Every check in the suite, mine included, runs static or drops the moving
