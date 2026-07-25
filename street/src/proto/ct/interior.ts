@@ -3,7 +3,7 @@ import type { AABB } from '../fp';
 import { BUILD, ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { frontageOf } from './tex-world';
-import { doorWorldFor, roomWidthFor } from './doors';
+import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor } from './doors';
 import { citizenSprite, type Look } from './citizens';
 import { FACE } from './rng';
 
@@ -787,15 +787,35 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // Along the street: a west facade is the +x face of its box, where three.js
   // runs u along -z, so u = 0 is the HIGH-z edge. An east facade is the -x
   // face and runs the other way. That sign is the whole conversion.
-  const spotOnStreet = doorWorld !== null && fr
-    ? { x: fr.side * (FACE - 0.75), z: doorWorld }
-    : { x: spec.door.x ?? 0, z: spec.door.z ?? 0 };
+  // `doorStandFor` handles a CUT FACE as well as a flat frontage — the bodega's
+  // door is on a canted bay and "0.75 m out from the facade plane" has no
+  // meaning there. For a flat frontage it returns exactly what the line below
+  // it used to compute.
+  const stand = fr ? doorStandFor(fr.name) : null;
+  const spotOnStreet = stand
+    ? stand
+    : doorWorld !== null && fr
+      ? { x: fr.side * (FACE - 0.75), z: doorWorld }
+      : { x: spec.door.x ?? 0, z: spec.door.z ?? 0 };
   // and stepping out: 1.5 m along the walk, which clears the trigger by more
   // than the 0.35 m margin the kit warns below
+  const dp = fr ? doorPointFor(fr.name) : null;
   const outAt = spec.door.outX !== undefined && spec.door.outZ !== undefined
     ? { x: spec.door.outX, z: spec.door.outZ, yaw: spec.door.outYaw ?? 0, gy: spec.door.outGy ?? 0 }
-    : { x: (fr ? fr.side : -1) * (FACE - 1.2), z: spotOnStreet.z + 1.5,
-      yaw: (fr ? fr.side : -1) < 0 ? Math.PI / 2 : -Math.PI / 2, gy: ctx.KERB_H };
+    : dp && dp.nz !== 0
+      // A CUT FACE: step out along its normal, into the open corner. Sending
+      // you "along the walk" the way a flat frontage does has no meaning on a
+      // chamfer — it walks you into the shopfront next door, which is what the
+      // bodega's landing did.
+      ? {
+        // 2.6, not 2.3: the kit warns below when the landing sits inside the
+        // way-in trigger, and a chamfer trigger is 1.3 m so it needs 1.65 m
+        // clear of the DOOR — which is 0.75 m in from where you stand.
+        x: dp.x + dp.nx * 2.6, z: dp.z + dp.nz * 2.6,
+        yaw: Math.atan2(dp.nx, dp.nz), gy: ctx.KERB_H,
+      }
+      : { x: (fr ? fr.side : -1) * (FACE - 1.2), z: spotOnStreet.z + 1.5,
+        yaw: (fr ? fr.side : -1) < 0 ? Math.PI / 2 : -Math.PI / 2, gy: ctx.KERB_H };
   // where the way-out trigger sits, and — separately — where you actually land
   // when you come in. They are not the same point: landing ON the threshold
   // puts you inside the swing of the door leaf and a step from walking back

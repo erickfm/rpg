@@ -15,6 +15,11 @@ const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 // a matter of days.
 const ROOMS = [
   {
+    // the bodega's door is on a CHAMFER, so its [E] spot is not on an axis —
+    // the harness reads it from ct/doors.ts like everything else
+    id: 'bodega', label: /BODEGA/, D: 8.4, front: ['BODEGA', 10, -95, 1], chamfer: true,
+  },
+  {
     id: 'diner', label: /DINER/, D: 7.0, front: ['DINER', 12, -49.5, -1],
   },
   {
@@ -75,8 +80,13 @@ for (const r of ROOMS) {
     const decl = dm.declaredDoors().find((x) => x.building === name);
     return { z: dm.doorWorldFor(name), at: decl.at, W: dm.roomWidthFor(w) };
   }, [name, w]);
-  r.doorX = side * (FACE - 0.75);
-  r.doorZ = d.z; r.at = d.at; r.W = d.W;
+  const stand = await p.evaluate(async ([n]) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    return dm.doorStandFor(n);
+  }, [name]);
+  r.doorX = stand ? stand.x : side * (FACE - 0.75);
+  r.doorZ = stand ? stand.z : d.z;
+  r.at = d.at; r.W = d.W;
   if (side > 0) r.east = true;
 }
 
@@ -410,8 +420,10 @@ for (room of rooms) {
   const back = await pos();
   check('E at the inside door puts you back on the street', back[0] < 100,
     `pos=${back.slice(0, 3).map(f2)}`);
+  // the corner return RAMPS down to the crossing, so a chamfered door's
+  // landing legitimately sits part way between the walk and the road
   check('you land on the raised walk, not in the road',
-    Math.abs(back[3] - KERB_H) < 0.001, `gy=${back[3]}`);
+    room.chamfer ? back[3] > -0.001 : Math.abs(back[3] - KERB_H) < 0.001, `gy=${back[3]}`);
   check('you are NOT standing in the re-entry trigger after stepping out',
     !room.label.test((await prompt()) ?? ''), `prompt=${JSON.stringify(await prompt())}`);
   await press();

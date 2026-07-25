@@ -19,7 +19,6 @@ import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
-import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT, courtGround, civicSeats } from './ct/civic';
@@ -187,8 +186,6 @@ export function makeCrosstown(): Proto {
   let rmbHeld = false;
   let feedHeld = false;
 
-  // ── the bodega interior — one bright little room off the corner ─────────
-  const bodegaColliders = buildBodega(ctx);
 
   // ── the block's furniture, and the weather over it ─────────────────────
   // ── everything the block cleared ground for ─────────────────────────────
@@ -409,7 +406,6 @@ export function makeCrosstown(): Proto {
     ...propColliders,
     ...carColliders,
     ...apt.colliders,
-    ...bodegaColliders,
     // The east edge of the OLD world, which used to be the `maxX: 260` bound.
     //
     // Moving that bound out to the interior belt quietly un-hid a hole: the
@@ -491,7 +487,6 @@ export function makeCrosstown(): Proto {
       // this file knowing anything about it
       const ig = interiorGround(x, z);
       if (ig !== null) return apt.setGy(ig);
-      if (x > 230) return apt.setGy(0);  // bodega interior, flat
       if (x > 100) return apt.ground(x, z);
       // the kerb returns are curved and the corner one ramps — the ground
       // module owns those patches and answers null everywhere else
