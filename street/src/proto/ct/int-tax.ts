@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { citizenSprite } from './citizens';
 import { FACE } from './rng';
 
 // A-1 TAX SERVICE, inside.
@@ -220,6 +221,31 @@ export function buildTax(ctx: CtxBuild): void {
   };
   desk(-2.6, true);
   desk(1.4, false);
+
+  // ── the preparer, at the desk that has the lamp ───────────────────────
+  //
+  // The user: *"the people inside these places are always flat and not like the
+  // people on the street"*. One person, at one of the two desks — the one with
+  // the lamp on it, because that is the desk that is being used and the other
+  // one is the reason this office has two.
+  //
+  // He sits on the far side facing the client chair, `facing: PI` — atan2(vx,
+  // vz) toward +z, which is out toward the door. Deliberately the dullest Look
+  // in the world: grey-blue shirt, grey trousers, nothing accented. This room's
+  // whole joke is that it is drab on purpose and made with care, and a
+  // flamboyant preparer would break it.
+  //
+  // Standing rather than seated: the atlas paints people upright and a sitting
+  // pose is not one of its five views, so he is on his feet beside the chair —
+  // a preparer who has got up to file something. Faking a sit by sinking the
+  // sprite into the floor would cut his legs off at the shin.
+  const preparer = citizenSprite(
+    { jacket: '#5a6470', pants: '#4a4a44', skin: '#e6bb92', hair: '#4a4038',
+      fit: 'plain', cut: 'short', build: 0, stride: 2 },
+    { facing: Math.PI, h: 0.99, w: 0.98 },
+  );
+  put(preparer.mesh, -2.6, 0, -2.45);                // origin at the FEET
+  ctx.onFrame(({ px, pz, dt }) => preparer.update(px, pz, dt));
 
   // ── the pinboard ──
   //
