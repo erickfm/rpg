@@ -174,9 +174,33 @@ for (let h = 0; h < 48; h++) {
 //
 // Six seconds leaves the mean around 0.23 with room above it, so filling and
 // draining are different numbers rather than the same ceiling.
+// SOAK TO A LEVEL, NOT FOR A TIME. Six seconds put the mean around 0.23 at
+// idle — comfortably unsaturated — and under four concurrent browsers the same
+// six seconds returned 0.9000, the cap, at every sample point. That is the
+// saturated regime this check cannot discriminate in: it is exactly how
+// rain-memory came to SLEEP (0fdf2ecd), reappearing under load rather than over
+// time. GOTCHAS 30, on my own fix from one commit ago.
+//
+// So poll for the depth instead of counting seconds. Anything the render loop
+// drives has to be waited ON, not waited OUT.
+// START DRY. The rain-visibility block above samples two rainy hours, which
+// leaves the pools at their cap — so the soak loop below exited on its first
+// read with 0.9000 and measured nothing. Draining is no good either: dryFor is
+// 48 s and up by design. A reload is the cheap deterministic dry world.
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await page.evaluate((h) => window.__ct.clock(h % 24, 0), wetH);
-await page.waitForTimeout(6000);
-const soaked = await wetSignal();
+const SOAK_TO = 0.25, SOAK_CAP = 25000;
+const t0 = Date.now();
+let soaked = await wetSignal();
+while (soaked < SOAK_TO && Date.now() - t0 < SOAK_CAP) {
+  await page.waitForTimeout(250);
+  soaked = await wetSignal();
+}
+if (soaked < SOAK_TO) {
+  console.error(`\n  FAIL the pools never reached ${SOAK_TO} in ${SOAK_CAP} ms (got ${soaked})`);
+  process.exitCode = 1;
+}
 await page.evaluate((h) => window.__ct.clock(h % 24, 0), dryH);
 await page.waitForTimeout(1200);
 const justAfter = await wetSignal();
@@ -184,7 +208,18 @@ await page.waitForTimeout(12000);
 const later = await wetSignal();
 
 const remembers = justAfter >= soaked * 0.95;   // rain off and the water has not gone
-const crests = later >= justAfter;              // it deepens after, as authored
+// CRESTS NEAR FULL, not merely "deeper than before". Both worlds keep filling
+// for the thirteen seconds after the rain stops — puddleLevel lags wetness with
+// an ~11 s constant, so a street that forgot the weather instantly STILL rises
+// for a while from a low start. Measured:
+//
+//   remembers   0.2703 -> 0.4408 -> 0.9000    fills to the cap
+//   forgets     0.2654 -> 0.4174 -> 0.5627    stalls half way
+//
+// Direction is identical in both and cannot separate them; the DEPTH REACHED
+// can. That is what "make wetness last a lil after it stops raining" buys — the
+// pools go on filling to full off water that fell before the rain stopped.
+const crests = later >= 0.75;
 console.log(`\n  mean standing water  raining ${soaked.toFixed(4)}` +
   `  1.2 s after it stops ${justAfter.toFixed(4)}  +13 s ${later.toFixed(4)}`);
 console.log(`  ${remembers ? 'OK  ' : 'FAIL'} the street stays wet after the rain stops`);
