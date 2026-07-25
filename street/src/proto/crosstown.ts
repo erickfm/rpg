@@ -28,7 +28,7 @@ import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds } from './ct/interior';
-import { publishDeclaredDoors } from './ct/doors';
+import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -607,6 +607,17 @@ export function makeCrosstown(): Proto {
     // scripts/spots-walk.mjs can check the whole set rather than the ones
     // somebody remembered. Labels are evaluated, which is why they come back
     // as strings and not thunks.
+    // Every declared door as tooling sees it: world point, outward normal, and
+    // the spot you stand on. `__frontages` is A's and covers flat shopfronts
+    // only, so the BODEGA — whose door is on a canted bay and is deliberately
+    // never handed to the painter — was invisible to anything auditing doors.
+    // Recorded as "tooling only, costs a player nothing", which is true and is
+    // also how the bodega's own misalignment went unnoticed for so long.
+    doors: () => declaredDoors().map((d) => ({
+      building: d.building, chamfer: !!d.face,
+      point: doorPointFor(d.building), stand: doorStandFor(d.building),
+      widthM: d.width ?? null,
+    })),
     spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
     seats: () => SEATS,
     camY: () => cam.position.y,

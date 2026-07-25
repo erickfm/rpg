@@ -77,3 +77,34 @@ Neither flight leads anywhere: no `[E]` at the top of either, and neither
 building has an interior. My recommendation is a locked-door response rather
 than two more rooms — a climb that ends in a prompt is honest, a climb that
 ends in nothing is not. That is a content call and I have not made it.
+
+---
+
+## 3. The descriptor cannot describe a SIDE-STREET frontage
+
+`__ct.doors()` now publishes every declared door — point, outward normal and
+stand point — including the bodega's chamfer, which closes the audit's
+"BODEGA has no published frontage".
+
+Six of the eight rooms declare. **GOLDEN ACES and HOTEL ORPHEUS do not**, and
+it is not an oversight of G's: `DoorDecl` models a main-block building. It
+carries `cz` and `side: -1 | 1`, and `doorWorldFor` computes
+`cz + side * (at / k)` along **z**, with the outward normal along **x**. Both
+of those buildings front the SIDE STREET, where the roster lays them out along
+x and the facade faces −z. There is no way to say that in the current shape.
+
+This is the same gap the chamfer had, one axis further out. The fix is the same
+move that fixed the chamfer: stop treating "along z with a normal on x" as the
+primitive. `doorPointFor` already returns a point plus a normal and derives the
+flat case — so the DECLARATION should too, carrying an axis (or simply a world
+point and a normal, with the roster-relative form as sugar).
+
+I have not done it because it changes the shape of a type six rooms and A's
+painter now depend on, and doing that at the end of a long stretch is how the
+last several regressions in this file happened. It wants its own item.
+
+**Consequence meanwhile:** the casino's and hotel's `[E]` spots are hand-typed
+and outside the descriptor, so nothing guarantees they track their painted
+doors. G derived both by hand and walked them, and `spots-walk.mjs` confirms
+both are reachable — but they are exactly the arrangement that went stale three
+times on the main block.
