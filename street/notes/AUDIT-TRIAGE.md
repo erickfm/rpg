@@ -1482,3 +1482,50 @@ audit turned a misidentified object into a verdict about the fleet.
 
 > A number that contradicts a verdict deserves a look before it deserves a
 > retraction. This one has the wrong colour.
+
+## `park.mjs` samples 5 of the park's 27 ground sheets, because the topography moved the rest
+
+`46b330d35` found `makeParkLamp`'s hard-coded `const y0 = KERB_H` — *"true when
+written"* — after the field was crowned 0.10 m with a mound reaching 0.37, and
+measured that all ten lamps still stand at 0.140. A negative result, and it
+mentions in passing that **`scripts/park.mjs` matched the lantern glass by exact
+dimensions and went silently blind** when they changed.
+
+That check is registered, and I have cited its green. **Two things, and only one
+is fixed.**
+
+**The lanterns are fine.** `park.mjs:44` finds them by `o.userData.parkLantern`
+now, with a comment saying the tag *"cannot go stale when a box is"* resized. Ten
+found, all emitting, exit 0. Structurally it cannot go blind that way again.
+
+**The floor sampler was not fixed, and has the same fault as the lamps.** Lines
+32 and 52 both read:
+
+```js
+if (Math.abs(o.position.y - 0.14) > 1e-6 || o.position.x > -8) return;
+```
+
+An exact height, with a 1e-6 tolerance, against ground that has since been
+crowned and mounded. Measured:
+
+```
+park ground sheets (y < 1):  27
+   y 0.160  10        y 0.146   5        y 0.143  1
+   y 0.140   5  <- all park.mjs samples  y 0.148  4        y 0.230  1
+```
+
+**Five of twenty-seven.** The floor-luminance figure it reports — *"20 sheets
+lit"* — is drawn from under a fifth of the park's ground, and the raised parts
+are exactly the ones the re-cut created. The check would pass with the crowned
+field entirely unlit.
+
+This is the same fault `46b330d35` went looking for in the lamps and found
+absent: **a constant that was true when written, against ground somebody else
+moved.** It found it two lines away from where it looked.
+
+**Not urgent and not invisible**: the lanterns genuinely light, `E-park-walk`
+walks the loop, and I have no evidence the crowned field is dark. What is
+established is that **this check could not tell me**, and it is in the area I
+graded *"THE PARK IS LIT"*. The fix is the one the same commit already used for
+the lamps — find the floor by tag or by `groundAt`, not by equality with 0.14.
+`scripts/park.mjs` is not a file I edit.
