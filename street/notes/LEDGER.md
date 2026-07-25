@@ -49,7 +49,6 @@ user anything is finished.
 | REJECTED | D | ATM inlaid, slanted, lower, more detail | ATTEMPT 3 REJECTED by the user. D self-confirmed it ("looked at attempt three, and it holds") — a builder may not confirm its own work, and the user disagrees. Do not start a 4th blind attempt. |
 | CONFIRMED | D | cat directly ahead from the alley mouth | WALKED AND SEEN, `shots/d-mouth.png`. Stood at the alley mouth (−6.2, −40.1) looking in: the cat is **dead centre of frame**, beside the drain grate, eyes catching the light. Mesh at (−9.35, −40.15). — auditor |
 | CONFIRMED | D | alley floor: dark diagonal streaks | WALKED AND SEEN, `shots/d-floor.png`, `d-mouth.png`. The starburst is gone: the floor now darkens **smoothly and edgelessly toward the drain** with no linear strokes at any angle, which is what `58f6a1d28` replaced it with. Grate reads as a real casting. — auditor |
-| REJECTED | D | ATM inlaid, slanted, lower, more detail | ATTEMPT 3 REJECTED by the user. D self-confirmed it ("looked at attempt three, and it holds") — a builder may not confirm its own work, and the user disagrees. Do not start a 4th blind attempt. |
 | LANDED | D | cat directly ahead from the alley mouth | 5th position, placed by LOOKING not deriving: 2.35 m in, centred in the mouth view, 1.13 m clear of the grate; shots/D-cat-frommouth.png |
 | LANDED | D | alley floor: dark diagonal streaks | NOT shared with the park — they were mine, 16 radial strokes I added one commit earlier; replaced with a soft radial wash; shots/D-alley-floor.png |
 | LANDED | B | apron untextured, needs ramp, must abut | the grey plane was not the apron: its top face was wound to a -y normal, culled, so you saw the dark skirt (605d56) beneath it. Winding fixed; apronTex added, sized from real metres at 32 px/m, joints across the direction of travel. Ramp already correct (0.042 at the kerb to 0.137 at the building line) and already abutting (seam within 0.003 m) — both measured, not assumed. Rail not floating: base 0.140 on ground 0.140 |
@@ -73,3 +72,4 @@ user anything is finished.
 | OPEN | C | big sign should be simpler | |
 | OPEN | C | the garlands are disconnected | |
 | OPEN | D | the atm is still not right | |
+| OPEN | E | make the library interior larger and more ambitious. more halls and st | |
