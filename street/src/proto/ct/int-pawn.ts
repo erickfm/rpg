@@ -85,8 +85,14 @@ export function buildPawn(ctx: CtxBuild): void {
     //
     // And the pinned version had a cost the note did not mention: a 10 m room
     // behind a 15 m shopfront is the false front the kit's own comment objects
-    // to, and it is the likeliest reason A's mirror harness read this room's
-    // door as 6.23 m off centre when it measures dead centre.
+    // to.
+    //
+    // I also offered this as the likely cause of A's mirror harness reading this
+    // room's door 6.23 m off centre. That was wrong and the claim is withdrawn:
+    // A traced it to their scan measuring the BACK wall, not the doorway, and
+    // retracted the finding. The width change stands on the two reasons above —
+    // it does not fix anything, it just stops the room being smaller than the
+    // shopfront it sits behind.
     frontage: { name: 'PAWN', w: 15, cz: -60.5, side: 1 },
     door: { r: 1.05, at: DOOR.at, width: DOOR.width },
     // The glazing sits east of the door. One window rather than a pair either
