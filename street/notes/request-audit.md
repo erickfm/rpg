@@ -727,3 +727,43 @@ lot's 23.2 m frontage.** They belong to `ct/lot.ts` by position. The 64 × 20
 canvas matches `pennantT` at `ct/lot.ts:227`; the only other 64 × 20 in the world
 is an awning underside in `ct/vice.ts:733`, which is horizontal, not a 2 m
 upright. Position is the strong evidence and the texture size agrees with it.
+
+## FACADE DOORS — **DONE** for all three the user named.
+
+`doorsweep.mjs` finds doors by walking and carries no coordinates: **83 sample
+points fired a prompt, 10 distinct doors**. Standing at the exact centre of each
+prompt span and facing the facade:
+
+| prompt | what fills the frame | verdict |
+|---|---|---|
+| **BODEGA** (east, z −95.4) | the glazed bodega door with its **OPEN** sign, red-and-white awning over it, produce crates on the pavement | **on the door** |
+| **A-1 TAX SERVICE** (east, z −20.1) | the grey door slab dead centre with its **yellow push-bar**, venetian blinds either side — and the prompt itself in frame | **on the door** |
+| **DINER** (west, z −46.6) | a **double door**, two dark leaves with pale push-plates and a centre mullion, interior booths visible through the glass right of it | **on the door** |
+
+Ten doors, and the three the user asked about are each centred on their own
+facade opening. `[E] into No. 227` is exact to **0.00 m** against its leaf; the
+bodega is 0.45 m, which at a 1.25 m prompt span means the whole span is on the
+doorway.
+
+## Two ways this measurement went wrong first, both worth recording
+
+**1. My door detector found people.** A door leaf and a citizen are the same
+shape — on the ground, about 1.9 m tall, about 0.9 m wide — so the first run
+reported THRIFT STORE 1.34 m and BURGER BARN 3.25 m **OFF THE DOOR**. Both
+"doors" were at **x = −6.00**, the centre of the walk, which is where citizens
+stand and where no facade is. They were the citizens at (−6, −60.59) and
+(−6, −28.3) that I had already catalogued in my own people census two rounds
+ago. Excluding the 160 × 128 atlas and the walk centreline removed all of it.
+
+Had I published that run, two builders would have been sent to move doors that
+are not misplaced, on evidence that was a pedestrian standing in the street.
+
+**2. Leaf geometry cannot answer this question anyway.** After the fix, only
+**2 of 7** prompts have a separate door-leaf mesh within 4 m. The A-1 TAX door
+is plainly there in the photograph — grey slab, yellow push-bar — and my
+detector cannot see it, because most doors here are built into the shopfront
+rather than as a standing leaf. A "NO LEAF FOUND" means my filter missed it, and
+saying otherwise would have been a third wrong answer.
+
+The player's test — stand where the prompt fires and look — is the one that
+works, and it is also the one the user actually asked for.
