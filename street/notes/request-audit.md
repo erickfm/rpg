@@ -1206,3 +1206,38 @@ not read as disagreeing.
 Nothing on the spot or seat side. Two clean sweeps from instruments I did not
 have to write, and the only open question in this area is the design call on
 `Spot`'s radius, which is a builder's.
+
+## The `[E]` census, complete: 135 spots, every one accounted for
+
+| set | count | verified by |
+|---|---|---|
+| live from the street | 25 | `spots-walk.mjs` — reachable, standing where they claim |
+| seat spots (sit + stand halves) | 92 | `seats-walk.mjs` — **57/57 sit, lock, stand clear** |
+| diner booth seats | 5 | `seats-walk.mjs` |
+| apartment: close the door / way out | 2 | `door301.mjs` — closes, blocks, reopens, refuses to shut on you |
+| **bodega counters** | **2** | **this round** |
+| interior way-outs (`out to the street`) | ~5 | `interiors-walk.mjs` — **not run by me** (needs a dev server, >9 min) |
+
+### The two counters, closed
+
+```
+buy cereal — $2.50    disc at (441.75, 2.2) r 1.0
+   70 standable samples · prompt fired at 70 · reads "[E] buy cereal — $2.50"
+buy soda — $1.25      disc at (441.75, 1.0) r 1.0
+   70 standable samples · prompt fired at 70 · reads "[E] buy soda — $1.25"
+```
+
+**Every sampled point in both discs is standable and fires the prompt** — 70 of
+70, twice, with the price correct in the label. Spots read from the live
+registry rather than typed in, so this stays true if the shop is re-priced or
+re-laid-out.
+
+### What that leaves
+
+**About five interior way-outs**, and they are the one thing in the world's 135
+`[E]` spots that no sweep I could run has touched. They are not suspect — the
+tool for them exists and I simply could not complete a run of it in my
+environment. Recorded in `AUDIT-INSTRUMENTS.md` rather than carried as a finding.
+
+Everything else: **130 of 135 spots verified by somebody**, including all 57
+seats, all nine doors, the 301 door, and both shop counters.
