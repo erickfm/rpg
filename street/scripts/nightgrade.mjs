@@ -6,14 +6,15 @@
 // prop that sets that flag when it only needed `alphaTest` stands at full
 // daylight brightness at midnight while everything behind it goes dark.
 //
-// So this averages material colour by CLASS, at noon and at 23:00, over a
-// world-space box. What you want to see is every class falling except
-// `additive` — those are lights, and a light that dims at night is backwards.
+// Class averages at noon and 23:00 are the headline. Treat them as a headline
+// and nothing more: identical source, two runs, alphaCut at 23:00 read 0.891
+// and then 0.670, because the grade is sampled a second after the clock jumps
+// while the world is still moving. The variance is larger than most effects.
 //
-// The car lot read like this before the fix and after it:
-//   13:00  opaque 0.415  translucent 0.684  alphaCut 1.000  additive 0.683
-//   23:00  opaque 0.221  translucent 0.497  alphaCut 0.374  additive 0.683
-// alphaCut pinned at 1.000 all night was the bug, in one line.
+// db76dc26 fixed dimWorld's own test (`isGlass` excludes cut-outs), so the
+// original fault here is closed at the source. What is left is the OTHER half
+// of GOTCHAS §22 — the sorted transparent queue — which that commit did not
+// touch, and that is what this now fails on. See the block further down.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/nightgrade.mjs [x0 x1 z0 z1]
 import { chromium } from 'playwright';
@@ -83,37 +84,55 @@ console.log('23:00 ', JSON.stringify(night.avg));
 // flags are captured inside the NOON probe, alongside the colour.
 await b.close();
 
-// CAUSE AND SYMPTOM MUST AGREE. The flag pair is the cause; not moving between
-// noon and 23:00 is the symptom. Reporting either alone is how a detector earns
-// its reputation for crying wolf — a material may carry the pair and still be
-// graded by something else, or sit still for reasons of its own.
-const bad = Object.entries(day.each)
+// WHAT THIS TESTS, AFTER db76dc26 MOVED THE GROUND UNDER IT
+//
+// It used to test cause AND symptom together: carries `alphaTest` with
+// `transparent`, and provably does not dim. That was right while `dimWorld`
+// skipped on `transparent` alone. It no longer does — `isGlass` now excludes
+// cut-outs, so the flag pair costs a material NOTHING at night and the two
+// halves have come apart. Measured after that landed: world-wide non-dimmers
+// fell 26 -> 13, and `alphaCut` at 23:00 fell 0.670 -> 0.377.
+//
+// Keeping the old wording would have this file explaining a cost that no longer
+// exists, which is the exact fault it was written to catch elsewhere. So:
+//
+// THE VERDICT is GOTCHAS §22 — the flag pair — on its own. It is a static
+// property, no timing and no threshold, and the rule still stands: a cut-out
+// put in the sorted transparent queue gets DoubleSide sorting artifacts it
+// would never have had. That cost was always the other half of §22 and it was
+// not fixed by db76dc26.
+//
+// THE SYMPTOM IS NO LONGER A VERDICT, and this is the honest part. "Never moved
+// between noon and 23:00" cannot tell deliberate from broken: `dimWorld` also
+// skips `litSeen` and `wetMats`, neither visible from the scene graph, and it
+// grades by elevation, so a high material can legitimately barely move. A
+// floodlit car lot that stays bright at midnight is correct. It is reported
+// with its numbers and it is not failed on.
+const SCOPED = A.length === 4;
+const pairs = Object.entries(day.each)
   .filter(([, d]) => d.cut && d.tr && d.reach)
   .map(([uuid, d]) => ({ uuid, ...d }));
-const skipped = bad.filter((m) => {
-  const d = day.each[m.uuid], n = night.each[m.uuid];
-  return d && n && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
-});
-const SCOPED = A.length === 4;
-console.log(`\n${bad.length} cut-outs within dimWorld's reach also set transparent at noon`);
-console.log(`${skipped.length} of those provably never moved between noon and 23:00`);
-if (!skipped.length) {
-  console.log('  no cut-out is losing its night grading to a blend flag it cannot use');
+const stillCount = Object.entries(day.each).filter(([u, d]) => {
+  const n = night.each[u];
+  return n && d.key !== 'additive' && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
+}).length;
+if (SCOPED) {
+  console.log(`\n${stillCount} gradable materials in the box never moved between noon and 23:00`);
+  console.log('  (reported, not failed on — litSeen, wetMats and elevation grading are');
+  console.log('   all invisible from out here, and a floodlit lot is meant to stay bright)');
+} else {
+  // World-wide this is 417 and it means nothing: most of the world is never
+  // handed to dimWorld in the first place, and from outside that is
+  // indistinguishable from being skipped by it. Only a box makes it a question
+  // someone can answer.
+  console.log('\nnever-moved count is only meaningful inside a box — give one to see it');
+}
+console.log(`\n${pairs.length} materials break GOTCHAS §22 — alphaTest AND transparent`);
+if (!pairs.length) {
+  console.log('  no cut-out is sitting in the transparent sort queue');
   process.exit(0);
 }
-// WHY THIS ONLY FAILS WHEN GIVEN A BOX.
-//
-// Run over the whole world this finds 84, and it must not call them 84 bugs.
-// dimWorld also skips `litSeen` and `wetMats`, neither of which is visible from
-// the scene graph — and a neon blade sign that stays bright at midnight is
-// CORRECT. Intent cannot be read from outside, so world-wide this is a tally,
-// not a verdict.
-//
-// Give it your module's box and it becomes a verdict, because then someone who
-// knows the intent is asking. That is how it was used to find the car lot, and
-// it is the usage that would have caught that bug without a human reading four
-// floats and knowing what they should have been.
-
+const skipped = pairs;
 // Group by proximity and hand each cluster back as a command you can run.
 //
 // The alternative was a table of named regions — "the car lot is 30..60" — and
@@ -136,11 +155,11 @@ for (const c of cl) {
   console.log(`      node scripts/nightgrade.mjs ${box.join(' ')}`);
 }
 console.log(`
-Each of these stands at full daylight brightness at midnight while everything
-behind it goes dark. A cut-out discards its fragment and never blends, so
-\`transparent: true\` buys it nothing and costs it its night grading. Delete the
-flag; keep the alphaTest — unless it is meant to stay lit, in which case it
-belongs in dimWorld's lit set rather than hidden behind a blend flag.`);
+A cut-out discards its fragment and never blends, so \`transparent: true\` buys
+these nothing. Since db76dc26 it no longer costs them their night grading, but
+it still moves them into the sorted transparent queue, where DoubleSide geometry
+picks up sorting artifacts it would never have had. Delete the flag; keep the
+alphaTest.`);
 if (!SCOPED) {
   console.log(`
 Informational: no box was given, so this is the whole world and some of these
