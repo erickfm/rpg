@@ -216,6 +216,43 @@ for (room of rooms) {
   const hw = dims.W / 2, hd = dims.D / 2;
   const LIMX = hw - RADIUS + 0.02, LIMZ = hd - RADIUS + 0.02;
 
+  // ── the window, or the deliberate absence of one ─────────────────────
+  //
+  // The casino's queue item called this "the first real test of the kit": the kit
+  // gives a room a window in the front wall by default and this one must not have
+  // one, because a casino does not let you see the floor from the street.
+  //
+  // Nothing tested it. The `+z` wall probe below is the closest thing and it
+  // cannot see this at all — it asserts the wall STOPS you, and a pane of glass
+  // stops you exactly as well as brick. The room would have gained a window and
+  // every check here would still have passed.
+  //
+  // So this counts glazing in the front-wall plane, and it is a CROSS-ROOM claim
+  // rather than one room's: the casino must have none and the other three must
+  // each have some. One number alone would be much weaker — if glazing broke
+  // everywhere, "the casino has no window" would pass for the wrong reason and
+  // read as a success. Asserting both directions is what makes it evidence.
+  const panes = await p.evaluate(([cx, hdv]) => {
+    const out = [];
+    const s = window.__ct.scene(); s.updateMatrixWorld(true);
+    s.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      for (let q = o; q; q = q.parent) if (q.visible === false) return;
+      const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
+      const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+      if (Math.abs((bb.min.x + bb.max.x) / 2 - cx) > 9) return;
+      if ((bb.min.z + bb.max.z) / 2 < hdv - 0.45) return;          // the front wall plane
+      if (bb.max.y < 0.45 || bb.min.y > 3.2) return;               // the eye-height band
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      if (!ms.some((m) => m && m.transparent)) return;
+      out.push(+(bb.max.x - bb.min.x).toFixed(2) + '×' + +(bb.max.y - bb.min.y).toFixed(2));
+    });
+    return out;
+  }, [CX, hd]);
+  check(room.hasWindow ? 'the front wall is glazed, as this room asked' : 'the front wall has NO window, as this room asked',
+    room.hasWindow ? panes.length >= 1 : panes.length === 0,
+    `${panes.length} glazed pane(s) in the front wall${panes.length ? ': ' + panes.join(', ') : ''}`);
+
   const beforeF = await pos();
   await hold('w', 260);
   const afterF = await pos();
