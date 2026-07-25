@@ -150,7 +150,11 @@ export function buildLot(o: {
   // than as a painted band.
   const pennantT = pixTex(64, 20, (g) => {
     g.clearRect(0, 0, 64, 20);
-    const cols = ['#c0392f', '#dcd7c8', '#d8a72e', '#2f5f9c'];
+    // TWO colours, not four. Four competed with the banners, the pole sign
+    // and the starbursts, all of which are already loud; red-and-white is the
+    // classic and it reads as one object from the far end of the block
+    // instead of as confetti.
+    const cols = ['#c0392f', '#dcd7c8', '#c0392f', '#dcd7c8'];
     // The line goes at the BOTTOM of the canvas and the flags taper UPWARD
     // from it, which comes out as line-on-top and points hanging DOWN once
     // the texture is on the plane. Drawn the intuitive way round it rendered
@@ -547,6 +551,87 @@ export function buildLot(o: {
       g0.rotation.y = ANGLE;
       scene.add(g0);
       solid({ minX: x - 1.3, maxX: x + 1.3, minZ: z - 1.5, maxZ: z + 1.5 });
+    }
+
+    // ── the things that make it look TRIED ───────────────────────────────
+    // A tidy lot reads as a car park. What says business is the clutter round
+    // the edges: a board dragged out to the gate every morning, tyres nobody
+    // has taken to the tip, a hose left coiled by the office door, and oil
+    // where cars have stood for years.
+
+    // the sandwich board, at the mouth where it would be dragged out
+    const boardFaceT = pixTex(52, 40, (g) => {
+      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, 52, 40);
+      g.fillStyle = '#2a2118'; g.fillRect(0, 0, 52, 2); g.fillRect(0, 38, 52, 2);
+      stamp(g, 'TODAY', 5, 6, 2, '#c0392f');
+      stamp(g, 'ONLY', 9, 18, 2, '#c0392f');
+      stamp(g, 'NO CREDIT', 3, 30, 1, '#25406b');
+      dither(g, 52, 40, 30);
+    });
+    const boardEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
+    const sandZ = zN - span * SITE_GATE - 2.4;
+    for (const lean of [0.18, -0.18]) {
+      // the box is 0.04 thick in X, so its LARGE faces are +-x — indices 0
+      // and 1. Put the lettering on 4/5 and it lands on two 4 cm edges and
+      // the board comes back blank, which is exactly what happened.
+      const leaf2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.86, 0.62),
+        [flat(boardFaceT), flat(boardFaceT), boardEdgeM, boardEdgeM, boardEdgeM, boardEdgeM]);
+      leaf2.position.set(X0 + 1.5 + lean * 0.5, Y + 0.44, sandZ);
+      leaf2.rotation.z = lean;
+      scene.add(leaf2);
+    }
+    solid({ minX: X0 + 1.2, maxX: X0 + 1.8, minZ: sandZ - 0.4, maxZ: sandZ + 0.4 });
+
+    // tyre stacks. Rubber is not black — it is a very dark warm grey, and a
+    // stack reads by the gaps between the treads, so each one is its own ring
+    // with a sliver of shadow under it.
+    // A TORUS, not a cylinder. The hole is the entire read — stacked cylinders
+    // came back as black oil drums, because a tyre seen from above is a ring
+    // and a drum is a disc. Low segments so it stays faceted like the rest of
+    // the geometry, and not black: rubber in daylight is a dark warm grey.
+    const tyreM = new THREE.MeshBasicMaterial({ color: 0x333335 });
+    const tyreGeo = new THREE.TorusGeometry(0.23, 0.10, 5, 12);
+    const tyreStack = (tx: number, tz: number, n: number, spin: number) => {
+      for (let i = 0; i < n; i++) {
+        const t = new THREE.Mesh(tyreGeo, tyreM);
+        t.rotation.x = Math.PI / 2;                       // lying flat
+        t.rotation.z = spin + i * 0.5;                    // never stacked square
+        t.position.set(tx + (i % 2 ? 0.03 : -0.02), Y + 0.10 + i * 0.185, tz + (i % 3 ? -0.02 : 0.03));
+        scene.add(t);
+      }
+      solid({ minX: tx - 0.36, maxX: tx + 0.36, minZ: tz - 0.36, maxZ: tz + 0.36 });
+    };
+    tyreStack(X1 - 1.0, zN - 2.2, 4, 0.3);
+    tyreStack(X1 - 1.7, zN - 2.6, 3, 1.1);
+    tyreStack(X1 - 0.9, zS + 3.4, 5, 0.7);
+
+    // a hose, coiled where it was dropped by the office door
+    const hoseM = new THREE.MeshBasicMaterial({ color: 0x2f5a3a });
+    for (let i = 0; i < 3; i++) {
+      const r = 0.34 - i * 0.07;
+      const coil = new THREE.Mesh(new THREE.TorusGeometry(r, 0.035, 4, 14), hoseM);
+      coil.rotation.x = Math.PI / 2;
+      coil.position.set(cx - CD / 2 - 0.75, Y + 0.035 + i * 0.055, cz + 1.5 + i * 0.03);
+      scene.add(coil);
+    }
+    // and a bucket beside it, because somebody washes these
+    const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.13, 0.28, 10),
+      new THREE.MeshBasicMaterial({ color: 0x9a5a2c }));
+    bucket.position.set(cx - CD / 2 - 1.15, Y + 0.14, cz + 1.9);
+    scene.add(bucket);
+
+    // more oil, in the places cars stand rather than on a grid — by the gate
+    // where they idle, and at the back where the ones that do not run sit
+    for (const [ox, oz, sc] of [
+      [X0 + 1.9, zN - span * SITE_GATE + 1.4, 1.5],
+      [X0 + 5.2, zS + 3.0, 1.9],
+      [X1 - 2.6, zN - 4.4, 1.2],
+    ] as [number, number, number][]) {
+      const oil = new THREE.Mesh(new THREE.PlaneGeometry(1.3 * sc, 0.95 * sc), oilM);
+      oil.rotation.x = -Math.PI / 2;
+      oil.rotation.z = ox * 1.7;
+      oil.position.set(ox, Y + 0.004, oz);
+      scene.add(oil);
     }
 
     // ── the floodlight ───────────────────────────────────────────────────
