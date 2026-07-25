@@ -399,25 +399,31 @@ can turn a clean result into a false one, so *"0 graded materials did not move"*
 was re-measured against the larger set rather than inherited from the smaller.
 It held.
 
-### Still open: the out-of-range count reads 0 against a measured 3
+### ~~Still open: reads 0 against a measured 3~~ — there was no mystery
 
-With the collector fixed, the report that started all this **still reads 0**
-while a direct probe finds 3 at 23:00 (worst 1.149) and 74 at 19:00. I do not
-know why, and I did not ship it.
+**It was my own failed edit, and I published it as a finding about the world.**
 
-**Twice now I have nearly published a count that was wrong in the reassuring
-direction on this exact question.** A third would be careless rather than
-unlucky, so the next person — or I, with room — should start from the probe that
-works:
+The `python` replace meant to insert the report anchored on a string —
+`"cut-outs within dimWorld's reach"` — that **does not exist in this file**. The
+insertion silently did nothing. The `over:` field went in, no report line ever
+printed, and I read that silence as "the count is 0", then wrote a note narrowing
+the cause to the BOX filter, the `each[m.uuid]` first-write, or the hour the flags
+are read at.
 
-```js
-s.traverse(o => { for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
-  if (!m?.color) continue;
-  if (Math.max(m.color.r, m.color.g, m.color.b) > 1.001) …
-}});
+None of those. The line was never there.
+
+Anchored on the real text, it reports exactly what the direct probe reports:
+
+```
+3 material(s) are past 1.0 at 23:00 — the grade multiplied past white.
+  Invisible (it clamps). Not invisible to anything that reads a colour back.
 ```
 
-That finds them. The same expression inside `nightgrade`'s probe does not, which
-means the difference is in the probe's surroundings — the BOX filter, the
-`each[m.uuid]` first-write, or the hour the flags are read at — and **not** in
-the test itself.
+Reported, never failed on: 1.08 clamps at render and the pixel is identical to
+1.0, so failing would be crying wolf; saying nothing leaves it for the next
+person who reads a colour back, and this check is one of those.
+
+**What I should have done:** confirm the edit landed before measuring its output.
+I verified the *world* three ways — order of hours, a direct probe, the collector
+fix — without once verifying that the code I was measuring existed. Two turns on
+a discrepancy one `grep` would have closed.

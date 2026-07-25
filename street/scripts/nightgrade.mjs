@@ -92,6 +92,7 @@ const probe = async (h) => {
           mod: (() => { for (let n = o; n; n = n.parent) if (n.userData?.mod) return n.userData.mod; return null; })(),
           // what the thing IS, so its builder recognises it without a gazetteer
           shape: `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)} tex ${im?.width ?? '?'}x${im?.height ?? '?'}`,
+          over: Math.max(m.color.r, m.color.g, m.color.b) > 1.001,
           x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
       }
       }
@@ -221,6 +222,16 @@ if (SELFTEST) {
   // return 1, which npm run checks --selftest correctly showed as a failure.
   if (dead.length) { console.log(`SELFTEST PASSED — the unexcused material was caught (${dead.length})`); process.exit(0); }
   else { console.error('SELFTEST FAILED — an exemption was removed and this did not notice.'); await b.close?.(); process.exit(2); }
+}
+// Colours past 1.0, reported and never failed on. 1.08 clamps at render and the
+// pixel is identical to 1.0, so calling it a defect would be crying wolf —
+// saying nothing leaves the next person who READS a colour back to inherit it,
+// and this check is one of those things. 9c1b4e21 found them sweeping all 24
+// hours and routed the persistent ones here.
+const overNight = Object.values(night.each).filter((d) => d.over).length;
+if (overNight) {
+  console.log(`\n${overNight} material(s) are past 1.0 at 23:00 — the grade multiplied past white.`);
+  console.log('  Invisible (it clamps). Not invisible to anything that reads a colour back.');
 }
 console.log(`\n${dead.length} materials were graded by dimWorld and did not move`);
 console.log(`  (${ungraded} others were never offered to it at all — interiors and`);
