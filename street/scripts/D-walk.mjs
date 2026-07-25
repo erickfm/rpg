@@ -20,23 +20,22 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-// SAY WHICH WORLD THIS MEASURED, every run, before anything else.
+// WHICH WORLD THIS MEASURED — `reportWorld` prints it, below.
 //
-// 24163f69 found 60 scripts hard-coded to localhost:4184 — the auditor's
-// worktree — and 55 of them with no SHOT_URL escape at all, so anyone running
-// one was measuring somebody else's checkout and reading it as their own work.
-// This file was never in that set; it has always honoured SHOT_URL. But its
-// DEFAULT is 4231, which is my port and nobody else's, and a default that
-// happens to answer is exactly how that failure stays invisible.
+// I added a hand-rolled banner here in 312d2310, after 24163f69 found 60
+// scripts hard-coded to the auditor's port with no SHOT_URL escape. Mine was
+// never in that set, but its DEFAULT is 4231 — my port and nobody else's — and
+// a default that happens to answer is how that failure stays invisible.
 //
-// So it prints the target. A wrong number in a passing run is only dangerous
-// while it is unstated.
+// `reportWorld` (435e5834) supersedes it and does strictly more: it proves the
+// BUILD, not just the URL, so a live server on the right port serving a stale
+// bundle is caught too. That was the other half of the same failure and my
+// banner could not see it. Two lines saying nearly the same thing is how the
+// weaker one gets trusted, so the weaker one goes.
 const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
-console.log(`D-walk measuring ${URL}${process.env.SHOT_URL ? '' : '   (default — builder D\'s port. Set SHOT_URL to measure your own build.)'}`);
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-// theirs: URL is already SHOT_URL-aware (line 33). Keep it and add the banner.
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);   // GOTCHAS 26: prove it, do not just name it
