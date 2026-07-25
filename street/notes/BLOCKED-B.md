@@ -155,7 +155,35 @@ eight seconds, and no single sample there is a fact about the hour.
 My own `grade-sane.mjs` waited 500 ms and is now at 1200 ms with the numbers
 written in.
 
-**The 9-vs-3 difference is not a counting artefact.** `a343e792` closed their
+### RESOLVED: 9 and 3 are both right, about different things
+
+`nightgrade` keys its collector by **material UUID** (`each[m.uuid]`, `:78`).
+Direct probes — mine, and H's in `de551fc7` — count **mesh instances**. Measured
+at 23:00:
+
+```
+9 mesh-material pairs · 3 distinct materials
+  -38.7,-93.8  -38.7,-85.3  -38.7,-78.4  -38.7,-72.8  -38.7,-69.4
+  -8.8,-97.4   -8.8,-68.6            all uuid 435cf9   ← seven meshes, ONE material
+  -7.6,-85.6                             uuid 02db0d
+  -12.8,-73.9                            uuid 2f9303
+```
+
+Seven of the nine share a single material instance, so a per-UUID map holds one
+entry for all of them. **Neither count was wrong**; nightgrade answers "how many
+materials the grade pushed past white" and the probes answer "how many meshes
+show it". Both are worth knowing and they are not the same question — three
+things to fix, seven places a viewer might see it.
+
+It was not the settle time, which was my first guess and which `f0c13812` has
+since fixed for its own reasons; the count is 3 before and after that change.
+
+Worth passing to H specifically: `de551fc7` wrote two throwaway scene walks to
+prove none of the nine were theirs. The three distinct materials are the unit of
+ownership, and none carries a `mod` stamp — so that answer still has to come from
+ancestry, and the no-owner gap that note filed is the real blocker here.
+
+**The original 9-vs-3 difference is not a counting artefact in the population.** `a343e792` closed their
 half (a stale build), and I checked mine three ways at 23:00 with a 2.5 s settle:
 
 ```
