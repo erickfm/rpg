@@ -73,6 +73,16 @@ for (const s of seats) {
   const tag = `seat ${idx}/${seats.length} "${s.label}" @ ${f2(s.pose.x)},${f2(s.pose.z)}`;
   const fail = (why) => { results.push([false, tag, why]); };
 
+  // Force a clean start. Every seat's `sit` is dead while you are seated, so
+  // one seat failing to release you turns every later seat into "no prompt"
+  // and the run reports 3/43 for a single fault. A bus pulling into the stop
+  // did exactly that: it blocked the pavement the bench seat stood up onto.
+  if (await seatedOn()) {
+    await p.evaluate(() => window.__ct.stand && window.__ct.stand());
+    await p.waitForTimeout(80);
+    if (await seatedOn()) { fail('the PREVIOUS seat would not release the player'); continue; }
+  }
+
   const stand = await standableNear(s.at, s.r);
   if (!stand) { fail(`UNREACHABLE — no standable point within its ${s.r} m trigger`); continue; }
 

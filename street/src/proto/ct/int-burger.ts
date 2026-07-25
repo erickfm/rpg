@@ -228,8 +228,13 @@ export function buildBurger(ctx: CtxBuild): void {
   const pitch = cols > 1 ? (SX1 - SX0) / (cols - 1) : 0;
   const UNITS: [number, number][] = [];
   for (let c = 0; c < cols; c++) {
-    UNITS.push([SX0 + c * pitch, 2.35]);
-    if (c < cols - 1) UNITS.push([SX0 + (c + 0.5) * pitch, -0.15]);   // staggered second row
+    // 2.7 and -0.6, which is 3.3 m apart against a 1.72 m unit — the player
+    // pads that to 2.44, so this leaves 0.86 m to walk between the rows and
+    // 0.44 m clear of the counter behind. At 2.35 / -0.15 the rows were 2.5
+    // apart and the gap closed to 6 cm: every stool between them became
+    // unreachable, and the seat suite went from 33/33 to 3/43.
+    UNITS.push([SX0 + c * pitch, 2.7]);
+    if (c < cols - 1) UNITS.push([SX0 + (c + 0.5) * pitch, -0.6]);   // staggered second row
   }
   for (const [ux, uz] of UNITS) {
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.16, 0.72, 8), postM);

@@ -175,7 +175,14 @@ export function buildDiner(ctx: CtxBuild): void {
   const vinylM = new THREE.MeshBasicMaterial({ color: 0x7a2a28 });
   const BW = 1.35;                 // bench width — one booth
   const TZ = hd - 1.35;            // table centres, a stride off the window
-  const BXS = [0.5, 2.1, 3.7];     // three booths, sharing dividers, under the glass
+  // Three booths, sharing dividers, under the glass — and on the far side of
+  // the DOOR, wherever the facade has put it. Laid out against a remembered
+  // position they ended up standing across the doorway, because A's descriptor
+  // moved the diner's door 4.8 m along the shopfront and the furniture did not
+  // know. Nothing in this room may hard-code which end the door is at.
+  const away = room.doorAt > 0 ? -1 : 1;          // fill away from the door
+  const BW_PITCH = 1.6;
+  const BXS = [0, 1, 2].map((i) => away * (hw - 1.4 - i * BW_PITCH));
   for (const bx of BXS) {
     for (const dz of [-0.6, 0.6]) {
       const bench = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.45, 0.55), vinylM);

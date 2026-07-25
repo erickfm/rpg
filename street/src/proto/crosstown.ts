@@ -520,6 +520,7 @@ export function makeCrosstown(): Proto {
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
     seated: () => (rig.seated ? rig.seatedOn : null),
+    stand: () => rig.stand(),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
   };
 

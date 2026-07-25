@@ -274,6 +274,11 @@ export interface Room {
   solid: (lx: number, lz: number, w: number, d: number) => AABB;
   /** every collider this room has registered — hand these to the rig */
   colliders: AABB[];
+  /** Where the door is along the front wall, in LOCAL x — derived from the
+   *  facade. Furnish around it: the door moves when the shopfront changes, and
+   *  a fitting laid out against a remembered position ends up in front of it.
+   *  The diner's booth bank did exactly that. */
+  doorAt: number;
   /** true while the player is standing in THIS room */
   inside: () => boolean;
   /**
@@ -305,6 +310,42 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // to disagree they now cannot, because there is only one of them.
   const fr = spec.frontage;
   const F = fr ? frontageOf(fr.name, fr.w) : null;
+  // ── the door's position, as ONE world number ──────────────────────────
+  //
+  // The user, standing in the tax office: the door is on the RIGHT of the
+  // interior, so from outside it must be on the LEFT of the facade — and they
+  // want that for every building. They are right, and it is not a preference:
+  // a room and its facade are two faces of ONE WALL, so the handedness is
+  // opposite by construction.
+  //
+  // Nothing in the code knew that, because each side authored its own offset
+  // in its own local space and "left" meant something different in each. So
+  // the position is carried as a WORLD coordinate on the axis the roster lays
+  // buildings out on — z for a main-block shop — and each consumer converts
+  // once, applying its own mirror. One number, three consumers: the painter
+  // turns it into a texel column, the [E] spot uses it as it stands, and the
+  // room turns it into a local x with the flip that being inside implies.
+  //
+  // ONE conversion, used by the door and the glazing alike so they cannot
+  // drift apart. `alongFrontage` is metres from the facade's left edge as the
+  // painter's canvas sees it (u = 0).
+  //
+  //   worldOf  — u = 0 is the HIGH-z edge of a west building, because a west
+  //              facade is the +x face of its box and three.js runs u along
+  //              -z there; an east facade is the -x face and runs the other
+  //              way. That sign is the whole street conversion.
+  //   localOf  — and then the MIRROR. Outside you face the building; inside
+  //              you face the same wall from behind, so your right hand has
+  //              swapped sides. Multiplying the world offset by `side` is what
+  //              performs that swap: check it on the west side, where the
+  //              observer's right is -z outside and -x inside.
+  const worldOf = (alongFrontage: number) => fr
+    ? (fr.side < 0 ? fr.cz + fr.w / 2 - alongFrontage : fr.cz - fr.w / 2 + alongFrontage)
+    : 0;
+  const localOf = (alongFrontage: number) => fr && F
+    ? fr.side * (worldOf(alongFrontage) - fr.cz) * (W / F.frontageM)
+    : 0;
+  const doorWorld = F && fr ? worldOf(F.doorCentreM) : null;
   // The room is as wide as the building, less the wall thickness at each end.
   // Room width used to be a number each room picked: the burger barn had
   // 11.36 m of room behind 16 m of frontage — 71%, where the others were
@@ -454,16 +495,27 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // building (wall thickness), and the user's ask was that the door be in the
   // corresponding PLACE — "if the door on the interior is full right then the
   // facade must match" — which is a proportion, not an absolute offset.
-  const dAt = spec.door.at ?? (F ? F.doorOffsetM * (W / F.frontageM) : 0);
+  // World z → the room's local x, MIRRORED.
+  //
+  // Inside, you stand with the front wall behind you and the room in front, so
+  // the wall you are looking back at is the same wall reversed. `doorWorld` is
+  // metres along the street; `(doorWorld - cz)` is its signed offset from the
+  // building centre on that axis; the leading minus is the mirror, and it is
+  // the whole point of this line. Scaled by room width over frontage so a door
+  // three-quarters along a shopfront is three-quarters along the room —
+  // "if the door on the interior is full right then the facade must match".
+  const dAt = spec.door.at ?? (F ? localOf(F.doorCentreM) : 0);
   const dW = spec.door.width ?? F?.doorWidthM ?? 1.1;
   const DOOR_H = 2.15;
   // The glazing, likewise: the painter's glazed span, scaled into the room and
   // then trimmed back off the door so the two openings cannot collide — which
   // the front-wall builder would otherwise drop on the floor with a warning.
   const glaze = F ? (() => {
-    const k = W / F.frontageM;
-    const c = F.frontageM / 2;
-    let a = (F.glazingStartM - c) * k, b = (F.glazingEndM - c) * k;
+    // through the same conversion as the door, mirror included, or the glass
+    // ends up on the opposite side of the room from the window you were just
+    // looking through
+    const e0 = localOf(F.glazingStartM), e1 = localOf(F.glazingEndM);
+    let a = Math.min(e0, e1), b = Math.max(e0, e1);
     const dl = dAt - dW / 2 - 0.12, dr = dAt + dW / 2 + 0.12;
     // keep whichever side of the door is the bigger run of glass
     if (a < dl && b > dr) { if (dl - a >= b - dr) b = dl; else a = dr; }
@@ -703,11 +755,8 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // Along the street: a west facade is the +x face of its box, where three.js
   // runs u along -z, so u = 0 is the HIGH-z edge. An east facade is the -x
   // face and runs the other way. That sign is the whole conversion.
-  const spotOnStreet = F && fr
-    ? {
-      x: fr.side * (FACE - 0.75),
-      z: fr.side < 0 ? fr.cz + fr.w / 2 - F.doorCentreM : fr.cz - fr.w / 2 + F.doorCentreM,
-    }
+  const spotOnStreet = doorWorld !== null && fr
+    ? { x: fr.side * (FACE - 0.75), z: doorWorld }
     : { x: spec.door.x ?? 0, z: spec.door.z ?? 0 };
   // and stepping out: 1.5 m along the walk, which clears the trigger by more
   // than the 0.35 m margin the kit warns below
@@ -780,7 +829,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   SLABS.push({ id: spec.id, x0, x1, gy: () => 0 });
 
   return {
-    cx, cz, W, D, H, wx, wz, group, colliders,
+    cx, cz, W, D, H, wx, wz, group, colliders, doorAt: dAt,
     put: (m, lx, y, lz) => place(m, lx, y, lz),
     sign: (map, w, h, lx, y, lz, rotY = 0) => {
       for (const flip of [0, Math.PI]) {
