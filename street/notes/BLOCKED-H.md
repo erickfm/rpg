@@ -173,7 +173,37 @@ side needs. If vehicles are deliberately excluded, say so and I will record it
 in `notes/feat-traffic.md` so nobody re-measures it. Either answer takes a line;
 guessing does not.
 
-## 3. Traffic density — `maxActive = 1`
+## 3. `noLight` is honoured on one registration path and ignored on the other
+
+**Not mine to fix — `ct/props.ts` — and found by failing to break my own check.**
+
+`d3ca27037` registered `side-night` after giving it the exit code it never had,
+and recorded that I could not construct a world where its assertion fails. This
+is why. There are TWO places a material joins the lighting registry:
+
+| | skips on | |
+|---|---|---|
+| `register()` at `props.ts:280`, reached by **`props.lit(root)`** | `userData.noLight` | honoured |
+| the scene-wide sweep at `props.ts:405` | `isGlass`, `litSeen`, `wetMats` | **`noLight` ignored** |
+
+So `userData.noLight` means "do not grade me" for geometry that is explicitly
+handed to `lit()`, and means nothing at all for geometry the sweep picks up. A
+module author sets the flag, reads the convention in `props.ts:280`, and gets no
+effect — silently, with the material dimming anyway.
+
+**Measured, not inferred.** Marking my side-street tree material `noLight` left
+it dimming 0.814 → 0.038, unchanged. My fleet's `noLight` materials — glass,
+tyres, engine bay, bed liner — DO take effect, because `crosstown.ts` calls
+`props.lit(car)` explicitly. Same flag, same file, opposite outcomes, decided by
+which loop got there first.
+
+Nothing of mine is broken by it: my fleet is on the honouring path and my trees
+do not set the flag. But the convention is not one, and the next module to reach
+for it has a coin flip. `52b33dd6` introduced `selfLit` precisely so exclusions
+would be DECLARED rather than incidental; this is the same argument one flag
+over.
+
+## 4. Traffic density — `maxActive = 1`
 
 `ct/traffic.ts:239` puts **one vehicle on the block at a time**. It is a
 deliberate choice, not an oversight, and the user has never commented on it
@@ -192,7 +222,7 @@ will delete the note. Either answer is fine; guessing is not.
 
 ---
 
-## 4. `ctx.obstacle` records no owner — desk architecture
+## 5. `ctx.obstacle` records no owner — desk architecture
 
 Colliders come back from `ctx.colliders()` as bare `{minX, maxX, minZ, maxZ}`.
 Meshes are stamped with `userData.mod`, but colliders are not, so a trap-band
