@@ -88,7 +88,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.
-  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean }
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   const LAMP_R = 4.0;        // the pools read about this wide
@@ -111,9 +111,30 @@ export function buildProps(ctx: CtxBuild): Props {
   // left of the ambient at 3am, and POOL_GAIN is what a lamp hands back — so
   // a car under a lamp sits near daylight while the kerb 8 m away is at a
   // third of it. The dynamic range is the gap between those two numbers.
-  const NIGHT_FLOOR = 0.30, POOL_GAIN = 1.9;
+  // A single NIGHT_FLOOR of 0.30 left a third of daylight on every unlit
+  // surface, which is why the road read as daylight asphalt with a filter over
+  // it. It is now per-surface, because HEIGHT COSTS LIGHT — the lamps are 5 m
+  // up and throw down, so nothing above them has anything lighting it at all,
+  // while a shop window is its own light source and must not come down with
+  // the street.
+  //
+  //   GROUND  road, walk, cars, people — between lamps this is nearly black,
+  //           and you should lose the kerb line in it. POOL_GAIN buys it back
+  //           under a lamp, which is where the dynamic range now lives.
+  //   LOW     shopfronts, signs, lit windows at eye level. Deliberately left
+  //           where it was: these are the reward for the street going dark.
+  //   HIGH    upper floors and roofs. A 5th-floor window surround has nothing
+  //           on it.
+  const FLOOR_GROUND = 0.07, FLOOR_LOW = 0.30, FLOOR_HIGH = 0.06;
+  const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
+  const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
+  const floorFor = (y: number) => {
+    if (y <= 1.0) return FLOOR_GROUND;
+    const t = Math.min(1, Math.max(0, (y - LOW_Y) / (HIGH_Y - LOW_Y)));
+    return FLOOR_LOW + (FLOOR_HIGH - FLOOR_LOW) * t;
+  };
   let nightNow = 0;
-  const ambient = () => 1 - nightNow * (1 - NIGHT_FLOOR);
+  const ambient = (floor: number) => 1 - nightNow * (1 - floor);
   // anything darker than this is glass, rubber or ironwork; it stays dark
   const LIT_MIN_LUM = 0.22;
   const register = (root: THREE.Object3D, pool: boolean) => {
@@ -127,7 +148,9 @@ export function buildProps(ctx: CtxBuild): Props {
         const c = m.color;
         if (c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722 < LIT_MIN_LUM) continue;
         litSeen.add(m);
-        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool });
+        // things in the street are street-level: they go as dark as the road
+        // and the lamps buy them back
+        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool, floor: FLOOR_GROUND });
       }
     });
   };
@@ -145,7 +168,11 @@ export function buildProps(ctx: CtxBuild): Props {
         if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
         if (wetMats.some((w) => w.m === m)) continue; // updateRain owns those
         litSeen.add(m);
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false });
+        // world geometry is graded by its own elevation — the shopfront box
+        // and the facade box above it are separate meshes, which is what makes
+        // "dark upper floors, lit signage" expressible at all
+        const wy = new THREE.Vector3(); o.getWorldPosition(wy);
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false, floor: floorFor(wy.y) });
       }
     });
   };
@@ -154,9 +181,9 @@ export function buildProps(ctx: CtxBuild): Props {
     nightNow = night;
     if (night <= 0.001 && litLast <= 0.001) return;   // broad daylight: free
     litLast = night;
-    const amb = ambient();
     for (const e of litList) {
-      if (!e.pool) {   // world geometry: ambient only
+      const amb = ambient(e.floor);
+      if (!e.pool) {   // world geometry: ambient only, graded by height
         e.m.color.setRGB(e.base.r * amb, e.base.g * amb, e.base.b * amb);
         continue;
       }
@@ -351,8 +378,13 @@ export function buildProps(ctx: CtxBuild): Props {
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
     if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
-    // the ground darkens + cools as it wets down (roads and walks)
-    for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.95);
+    // The ground darkens + cools as it wets down (roads and walks) — AND
+    // loses the ambient after dark. updateRain is the single writer for these
+    // materials, so it has to compose both; when it only did the wet half,
+    // the road and the sidewalk kept full daylight brightness all night,
+    // which is exactly why they read as "daylight asphalt with a filter".
+    const amb = ambient(FLOOR_GROUND);
+    for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.95).multiplyScalar(amb);
     // water pools slower than it falls, and lingers after it stops
     puddleLevel += (rainLevel - puddleLevel) * Math.min(1, dt * 0.22);
     puddleM.opacity = 0.72 * Math.min(1, puddleLevel * 1.15);

@@ -89,9 +89,28 @@ if (mode === 'probe' || mode === 'all') {
       const d = Math.abs(o.position.z + 44);   // mid-block, between lamps
       if (d < wd) { wd = d; wall = o; }
     });
+    // Height costs light: sample the ROAD, a ground-level shopfront/sign, and
+    // an upper floor no lamp can reach. These are the three surfaces the user
+    // named, so they are the three the probe measures.
+    const V = new (Object.getPrototypeOf(scene.position).constructor)();
+    let road = null, low = null, high = null, highY = 0;
+    scene.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const g = o.geometry?.parameters, t = o.geometry?.type;
+      const y = o.getWorldPosition(V).y;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m?.color || m.transparent) continue;
+        if (t === 'PlaneGeometry' && g?.width === 10 && g?.height > 100) road ??= m;
+        if (!m.map) continue;
+        if (y > 1 && y < 3.2 && !low) low = m;                 // shopfront band / signage
+        if (y > 6 && y > highY) { high = m; highY = y; }        // upper floors
+      }
+    });
+    const rgb = (m) => m ? [m.color.r, m.color.g, m.color.b] : null;
     return {
       hatch: near(3.63, -49), sedan: near(3.93, -13),
       wall: wall ? [wall.material.color.r, wall.material.color.g, wall.material.color.b] : null,
+      road: rgb(road), low: rgb(low), high: rgb(high),
     };
   });
 
@@ -147,6 +166,18 @@ if (mode === 'probe' || mode === 'all') {
   const darkSafe = darkWarmed === 0;                              // may dim, never warm
   const controlFlat = ctlChroma < 0.01 && ctlUniform < 0.01;      // dims uniformly, no warmth
   const restored = JSON.stringify(back.hatch) === JSON.stringify(day.hatch);
+  // the three surfaces the follow-up called out by name
+  const frac = (k) => lum(night[k]) / Math.max(lum(day[k]), 1e-6);
+  console.log(`  road surface:      ${(frac('road') * 100).toFixed(1)}% of daylight at 3am`);
+  console.log(`  signage y<3.2:     ${(frac('low') * 100).toFixed(1)}%   (must stay lit)`);
+  console.log(`  upper floors:      ${(frac('high') * 100).toFixed(1)}%   (nothing reaches them)`);
+  const roadBlack = frac('road') < 0.10;
+  const signageKept = frac('low') > 0.20;
+  const heightCosts = frac('high') < frac('low') * 0.75;
+  console.log(`  ${roadBlack ? 'OK  ' : 'FAIL'} the road between lamps is nearly black`);
+  console.log(`  ${signageKept ? 'OK  ' : 'FAIL'} lit signage does NOT come down with the street`);
+  console.log(`  ${heightCosts ? 'OK  ' : 'FAIL'} height costs light — upper floors darker than the shopfront`);
+
   const worldDarkens = wallNight / wallDay < 0.45;
   const hasRange = range > 1.6;
   console.log(`  ${litUp ? 'OK  ' : 'FAIL'} the car in the pool warms up`);
