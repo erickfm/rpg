@@ -1,3 +1,10 @@
+// SPENT ONE-OFF — kept, not deleted, because scripts/grade-sane.mjs:5 names this
+// file and grade-sane is a REGISTERED check I do not own. Deleting this would
+// leave a live check citing a file that does not exist.
+//
+// Its subject is gone: the four verdicts it re-graded were published long ago and
+// the park bounds bug it was written around is fixed. Do not run it for a
+// verdict; the current grade is in notes/request-audit.md.
 // RE-GRADE. Four verdicts landed since I wrote them, and one of them (the park
 // as a yard) was measured while 25 m of the park were unreachable -- bounds.minX
 // was -13.40 against a 32 m park, so every reading I took was of the first seven

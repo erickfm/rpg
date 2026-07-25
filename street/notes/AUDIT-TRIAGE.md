@@ -1360,3 +1360,43 @@ a script was born under.
 `checks-registered.mjs` is not a file I edit — and per my earlier finding, **it
 is one of the files nobody is permitted to edit**, which is the same ownership
 gap still open.
+
+## Triage of the 25 invisible scripts, so the fix is a paste and not an investigation
+
+Last round I published *"3 orphans, 28 candidates"* and left the sorting to
+somebody else — which is a grep result handed over, the shape I criticised when
+`rain` reached my own report unread. Sorted, by what each script's own header
+says it does:
+
+| | count | disposition |
+|---|---|---|
+| **review sweeps — produce frames for a human, assert only that the shot happened** | 17 | `EXEMPT`: *"produces review frames, not assertions"* — `seams`, `seams2`, `verify`, `verify2`, `verify3`, `walkup`, `entrance`, `interior`, `lobbydoor`, `roster`, `closeups`, `curbcut-shots`, `cartex`, `citizen-sheet`, `shots`, `smoke`, `lamplight` |
+| **tools, not checks** | 3 | `EXEMPT`: `pack-artifact` (builds the artifact), `scenedump` (fingerprint dumper), `shotguard` (blank-frame guard *for* other scripts) |
+| **genuine checks that should be registered** | 3 | `globorder` (mine — glob emission order), `rain-check` (*"prove rain is world-locked, not camera-locked"*), `parking` (asserts about how cars are parked) |
+| **spent one-offs** | 2 | `regrade` (mine), `seams4` — see below |
+
+**`lamplight` and `parking` need a decision, not an exemption.** `no-silent-pass`
+caught both **passing vacuously on an unknown mode word**. They dispatch on a
+mode and have a shot mode, so whoever owns them should say which they are before
+either is exempted.
+
+**`seams4` is tied to a build that never existed for anyone else** — its header
+reads *"re-run against the RE-CAST block (live @ `9610e25`)"*, and `9610e25` is
+one of the six hashes in `AUDIT-hash-recovery.md` that resolve for nobody.
+
+### And a deletion I got wrong, caught before it landed
+
+`regrade.mjs` is mine and spent, so I deleted it — then found
+**`scripts/grade-sane.mjs:5` names it**, and `grade-sane` is a **registered
+check I do not own**. Deleting it would have left a live check citing a file that
+does not exist, which is precisely what `d4e2dc817` had just reported about its
+own deletion.
+
+**My reference check excluded the answer.** I grepped for references and piped
+through `grep -v regrade.mjs` — filtering out the filename I was looking for.
+Restored, and bannered instead, the same treatment as the four superseded scripts
+that notes quote.
+
+> **Check references before deleting, and check that your reference check can see
+> a reference.** I did the first and not the second, and the first is what made
+> me confident.
