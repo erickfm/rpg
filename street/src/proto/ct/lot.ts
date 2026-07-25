@@ -1501,6 +1501,39 @@ function buildLot(o: {
       scene.add(weedTuft({ x: wx, z: wz, y: Y, scale: 0.7 + ((h >>> 19) % 60) / 100, seed: i }));
     }
 
+    // MORE OF THEM, and in the places a weed actually takes hold. The user:
+    // *"big fan of these grass textures put em in more places and especially
+    // more of this kind of thing"*. The first pass only ran the four
+    // perimeter edges, which is where a weed starts but not where it ends up.
+    //
+    // What is added is SEAMS — the line where asphalt meets something that
+    // stops a mower and holds water. Around the office base, along the rear
+    // wall, and at the feet of the two poles. Still nowhere a car drives: the
+    // aisle band and the bays are untouched, which is the rule that keeps
+    // these reading as neglect rather than scatter.
+    const seam: [number, number][] = [];
+    // the office: along its two long sides and its back, a hand's width out
+    for (let k = 0; k < 7; k++) {
+      const t = k / 6;
+      seam.push([OFF_X - OFF_D / 2 - 0.22, zMid - OFF_W / 2 + t * OFF_W]);
+      seam.push([OFF_X + OFF_D / 2 + 0.22, zMid - OFF_W / 2 + t * OFF_W]);
+    }
+    // the rear wall seam, skipping the office's own footprint
+    for (let k = 0; k < 9; k++) {
+      const wz2 = zS + 0.9 + (k / 8) * (zN - zS - 1.8);
+      if (wz2 > zMid - OFF_W / 2 - 0.6 && wz2 < zMid + OFF_W / 2 + 0.6) continue;
+      seam.push([X1 - 0.45, wz2]);
+    }
+    for (let k = 0; k < seam.length; k++) {
+      const [sx, sz] = seam[k];
+      const h2 = ((k + 41) * 2654435761) >>> 0;
+      // jitter along the seam so the line is not a dotted rule
+      const jx = sx + (((h2 >>> 3) % 24) - 12) / 100;
+      const jz = sz + (((h2 >>> 9) % 40) - 20) / 100;
+      if (jz > zMid - AISLE_HW - 0.3 && jz < zMid + AISLE_HW + 0.3 && jx < OFF_X - OFF_D / 2 - 0.4) continue;
+      scene.add(weedTuft({ x: jx, z: jz, y: Y, scale: 0.6 + ((h2 >>> 15) % 70) / 100, seed: 100 + k }));
+    }
+
     // THE FLAGPOLE, at the front corner where a lot puts one, south of the
     // entrance so it does not crowd the pole sign at the other side. The flag
     // is the dealer's own — the same red and the same star as the price cards
