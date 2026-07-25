@@ -755,8 +755,32 @@ export function buildVice(o: {
       head.position.set(DOOR_X, 3.4, FACE_Z - 0.17);
       scene.add(head);
       // brass threshold, and the runner over it
-      const sill = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5),
-        new THREE.MeshBasicMaterial({ color: 0x7a2028 }));
+      //
+      // The one surface this module lays on the GROUND that is not an additive
+      // spill, so it is the one that should soak. It did not: dry and at 15:00 it
+      // measured luminance 0.053 either way while the pavement under it went -20%
+      // and the road -78% — the never-registered fault b209275c found in the road
+      // centre lines.
+      //
+      // Registered through `scene.userData.registerWet`, which is `ctx.wet`
+      // itself (`a768f333` moved it to ct/tex-ground.ts so it is published before
+      // buildStreet, and therefore before this). One registry, not a copy of its
+      // curve.
+      //
+      // I tried this once before and REVERTED it: the wet lerp pulls a colour
+      // toward WET, and anything darker than WET came out LIGHTER — this runner
+      // went +116% and read as a pale grey mat in front of the doors. `e24c959a`
+      // clamps per channel so wet can only darken. Safe now, and only now.
+      //
+      // Nothing in this file tints this material, which is the other condition on
+      // the export: registering hands its colour to updateRain every frame, so a
+      // module that also paints it would fight for it. Every other ground surface
+      // here is an additive spill driven by my own ticks and must NOT be given
+      // away.
+      const sillM = new THREE.MeshBasicMaterial({ color: 0x7a2028 });
+      (scene.userData as { registerWet?: (m: THREE.MeshBasicMaterial) => THREE.MeshBasicMaterial })
+        .registerWet?.(sillM);
+      const sill = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 1.5), sillM);
       sill.rotation.x = -Math.PI / 2;
       sill.position.set(DOOR_X, KERB_H + 0.012, FACE_Z - 0.9);
       scene.add(sill);
