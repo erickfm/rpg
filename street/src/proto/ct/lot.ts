@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Seat } from './ctx';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
@@ -90,6 +91,7 @@ export function register(ctx: CtxBuild) {
   const lot = buildLot({
     scene: ctx.scene, flat: ctx.flat, wet: ctx.wet, KERB_H: ctx.KERB_H, obstacle: ctx.obstacle,
     onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night }), order),
+    seat: ctx.seat,
   });
   lot.placeLot(site);
 }
@@ -107,6 +109,10 @@ export function buildLot(o: {
    *  up after dark — a lot lights itself at night because that is when it is
    *  trying hardest, and without this the pole was a prop that did nothing. */
   onFrame?: (fn: (f: { night: number }) => void, order?: number) => void;
+  /** register a sittable seat, if the caller has F's registry at this point.
+   *  Threaded in like `obstacle` and `onFrame` rather than imported, so this
+   *  module still builds standalone for the shot scripts. */
+  seat?: (s: Seat) => void;
 }) {
   const { scene, flat, KERB_H } = o;
   const colliders: AABB[] = LOT.colliders;
@@ -902,6 +908,61 @@ export function buildLot(o: {
     tyreStack(X1 - 1.0, zN - 2.2, 4, 0.3);
     tyreStack(X1 - 1.7, zN - 2.6, 3, 1.1);
     tyreStack(X1 - 0.9, zS + 3.4, 5, 0.7);
+
+    // ── somewhere to wait while they run your credit ─────────────────────
+    // The lot had nothing to sit on, which is not a period detail — waiting is
+    // the entire buy-here-pay-here experience. Two moulded plastic stacking
+    // chairs against the office wall, one blue and one orange, because nobody
+    // ever bought a matching pair; one square to the wall and one shoved round
+    // at an angle by whoever sat in it last. They face OUT at the stock, which
+    // is what you look at while you wait.
+    //
+    // They get NO collider on purpose. A chair you cannot walk into is a chair
+    // whose own box holds you further away than the seat's trigger radius —
+    // the mistake park.ts documents on its benches — and 4 kg of plastic is
+    // not something you brace against anyway.
+    const chair = (chx: number, chz: number, spin: number, col: number) => {
+      const m = new THREE.MeshBasicMaterial({ color: col });
+      const legM = new THREE.MeshBasicMaterial({ color: 0x8d8d92 });
+      const g0 = new THREE.Group();
+      const pan = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.46), m);
+      pan.position.y = 0.44; g0.add(pan);
+      // The back is on +z and the chair therefore faces -z, which is what
+      // yaw 0 means to ctx.seat. Built the other way round first — back on
+      // +x — and the seat sat you square across the arms of your own chair.
+      // A chair's model and its seat pose have to agree on which way is front.
+      const back = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.06), m);
+      back.position.set(0, 0.66, 0.20); back.rotation.x = 0.12; g0.add(back);
+      for (const lx of [-0.17, 0.17]) for (const lz of [-0.19, 0.19]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.44, 0.03), legM);
+        leg.position.set(lx, 0.22, lz); g0.add(leg);
+      }
+      g0.position.set(chx, Y, chz); g0.rotation.y = spin;
+      scene.add(g0);
+    };
+    // Against the cabin's SOUTH wall, not its west one. West is where the door
+    // and the step are, and it is also solid ground for 2.6 m out — the first
+    // placement put both chairs and both approach points inside that box,
+    // which is GOTCHAS §8 exactly: the seat registers, the prompt appears, and
+    // you can never walk to it. South is open asphalt looking down the rows.
+    const chZ = cz - CW / 2 - 0.42;
+    chair(cx - 0.60, chZ, 0, 0x2f5f9c);
+    chair(cx + 0.55, chZ - 0.12, -0.30, 0xc4622a);
+
+    // SITTABLE. F's ctx.seat does the sitting, the standing and the prompt —
+    // all this owes it is where the pan is and which way you end up facing,
+    // which for a chair against the office wall is OUT at the stock. The
+    // approach is a stride in front, because the trigger has to be reachable
+    // from the asphalt and not from inside the cabin.
+    o.seat?.({ x: cx - 0.60, z: chZ, yaw: 0, h: 0.46,
+      approach: { x: cx - 0.60, z: chZ - 0.78 } });
+    o.seat?.({ x: cx + 0.55, z: chZ - 0.12, yaw: -0.30, h: 0.46,
+      approach: { x: cx + 0.62, z: chZ - 0.90 } });
+    // and the three-high tyre stack, which is 0.56 of rubber and is exactly
+    // what gets sat on when both chairs are taken. The five-high and the
+    // four-high are too tall to be furniture, so they stay scenery.
+    o.seat?.({ x: X1 - 1.7, z: zN - 2.6, yaw: -Math.PI / 2, h: 0.58,
+      approach: { x: X1 - 2.6, z: zN - 2.6 }, label: 'sit on the tyres' });
 
     // a hose, coiled where it was dropped by the office door
     const hoseM = new THREE.MeshBasicMaterial({ color: 0x2f5a3a });

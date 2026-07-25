@@ -65,6 +65,9 @@ const SHOTS = [
   ['36-banner-sag',      6.4,  2.0, at(1.2,  2.6),    0.10],
   ['37-pole-full',      -6.0,  6.5, at(13.0, 0),      0.52],
   ['38-aisle-look',     14.0,  6.0, at(-6.0, 5.0),   -0.02],
+  ['39-chairs',         12.4,  5.4, at(0.2,  2.4),   -0.10],
+  ['40-chairs-close',   12.6,  6.6, at(0.0,  1.4),   -0.22],
+  ['41-tyre-seat',      27.2, 11.6, at(1.4,  0.0),   -0.16],
 ];
 
 for (const [name, x, z, yaw, pitch] of SHOTS) {
