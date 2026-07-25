@@ -80,6 +80,28 @@ gate and fog does most of the closing, so it may want to become something
 other than a blank party wall — the back of another block, or a row of trees.
 That is D's and B's, not mine.
 
+## 2a. LAMPS — the park has none, and at night it is a void
+
+`shots/user-parkbad.png` is the park at night in rain: a black rectangle
+inside brick. **There is not one lamp in it.** Everything else I have added is
+invisible after dark, so this is the single biggest thing left, and lamps are
+`ct/props.ts` — B's, and the night registry (`lit()`, the lamp-head list) is
+his too, so I have not reached in.
+
+What the park wants, and it is worth doing properly because a lit path through
+a dark park is one of the best images this world could have:
+
+- a run along the LOOP, not the frontage: on the field side of the path so the
+  pools fall across it. x ≈ **-9.6** (street leg) and **-34.8** (back leg),
+  z every ~9 m: **-93, -84, -75** on each, plus one at each end turn.
+- one at the **gate**, inside the piers, at x ≈ -7.9, z = -83.
+- and one over the **memorial** at (-12.8, -73.9), because that is the thing
+  the loop is for.
+
+Warm, on the same night curve as the street's, pooling the same way. If B
+would rather I placed plain posts in `ct/park.ts` and he adopted them into the
+registry, say so and I will.
+
 ## 2. Trees, which the item asks for and I must not build
 
 *"trees around the edge and along the path"* — `ct/props.ts` is builder B's,
@@ -89,8 +111,14 @@ The park needs two kinds:
 - **along the loop's street leg and its two ends**, framing the open middle —
   the item's own description. Positions: x ≈ −8.9 (inside the street leg) at
   z = −93, −87, −79, −73; and the corners.
-- **along the back**, which is the only thing that will really break up the
-  rear elevation until the park is deepened. x ≈ −13.6, every ~4 m.
+- **along the back**, x ≈ **-37.5**, every ~4 m — with the site now 32 m deep
+  the back wall is the far edge, and trees there are what stop it reading as
+  a yard wall.
+- **inside the loop's street leg**, x ≈ **-10.2**, every ~7 m, framing the
+  open middle the way the item describes.
+
+I have put ivy up all three walls in the meantime, which is the half of
+"screen the walls" that is mine, but ivy on brick is not a tree line.
 
 I have left those lines clear of my colliders and put a low hedge along the
 back in the meantime.

@@ -395,19 +395,42 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     }
     const [cw, cd] = box(0.34, 0.88);
     solid({ minX: bx - cw, maxX: bx + cw, minZ: bz - cd, maxZ: bz + cd });
-    ctx.seat({
-      x: bx, z: bz, yaw, h: 0.45,
-      approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
-      label: 'sit on the bench',
-    });
+    // …and it is a seat, if you can get to it. See the note on the run below.
+    if (bx > REACH + 0.6) {
+      ctx.seat({
+        x: bx, z: bz, yaw, h: 0.45,
+        approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
+        label: 'sit on the bench',
+      });
+    }
   };
-  // one on the street leg looking back across the grass, one at each end of
-  // the loop looking down the length of it
-  bench(inside(0.34), gateMid + 4.6, -Math.PI / 2);
-  // the two end benches sit at the STREET end of each end leg — the middle of
-  // a 25 m leg is well past the clamp, so a seat there could not be sat on
-  bench(Math.max(lx1 - 4.0, REACH + 0.8), lz0 - 1.05, Math.PI);
-  bench(Math.max(lx1 - 6.5, REACH + 0.8), lz1 + 1.05, 0);
+  // A RUN of benches, not a token few. The park went from 7 m deep to 32 —
+  // five times the area — and the furniture did not scale with it, which is
+  // the whole reason it read as a yard with a bench in it. They stand along
+  // the loop at roughly 9 m, close enough that there is always one in view
+  // and far enough that two are never in the same shot.
+  //
+  // Only the ones the player can actually REACH register a seat. The clamp at
+  // x = -13.4 has not moved with the depth, so a bench 20 m past it would
+  // register as a seat nobody can walk to — F's harness calls that
+  // UNREACHABLE and it is right to. They are placed anyway, because you see
+  // the whole park from the gate, and they become sittable the moment the
+  // bound moves. See notes/BLOCKED-E.md.
+  //
+  // The run is stepped off the gate rather than off the end of the park, and
+  // it SKIPS the entry: the first cut of this walked a bench straight into the
+  // gate opening at z = -83 and you could not get in. GOTCHAS §8 — anything
+  // near a way in has to treat the approach as reserved space.
+  const benchRun: [number, number, number][] = [];
+  const clearOfGate = (z: number) => Math.abs(z - gateMid) > 2.6;
+  for (let z = gateMid - 26.4; z <= lz1 - 4.5; z += 8.8) {
+    if (z < lz0 + 4.0 || !clearOfGate(z)) continue;
+    benchRun.push([lx1 + PATH_W / 2 + 0.42, z, -Math.PI / 2]);          // street leg
+    if (z > lz0 + 8 && z < lz1 - 8) benchRun.push([lx0 - PATH_W / 2 - 0.42, z, Math.PI / 2]);
+  }
+  benchRun.push([lx1 - 5.5, lz0 - 1.05, Math.PI]);                      // the two ends
+  benchRun.push([lx1 - 9.0, lz1 + 1.05, 0]);
+  for (const [bx, bz, yaw] of benchRun) bench(bx, bz, yaw);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
@@ -427,7 +450,6 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   solid({ minX: fx - 0.3, maxX: fx + 0.3, minZ: fz - 0.28, maxZ: fz + 0.28 });
 
   // The bin, by the gate where the litter actually is
-  const binX = inside(0.23), binZ = gateMid + 1.5;
   const binT = pixTex(8, 14, (g) => {
     g.fillStyle = '#333a2b'; g.fillRect(0, 0, 8, 14);
     g.fillStyle = '#4e5340';
@@ -435,11 +457,6 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     g.fillRect(0, 3, 8, 1); g.fillRect(0, 10, 8, 1);
     g.fillStyle = '#2b3226'; g.fillRect(0, 0, 8, 2); g.fillRect(0, 12, 8, 2);
   });
-  const bin = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.8, 0.46), flat(binT));
-  bin.position.set(binX, KERB_H + 0.4, binZ);
-  scene.add(bin);
-  solid({ minX: binX - 0.26, maxX: binX + 0.26, minZ: binZ - 0.26, maxZ: binZ + 0.26 });
-
   // ── planting ─────────────────────────────────────────────────────────────
   //
   // The rear elevation IS the view from the gate at this depth — 13 m of
@@ -484,6 +501,139 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     scene.add(sh);
     solid({ minX: lx1 - 0.2 - w / 2, maxX: lx1 - 0.2 + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
   }
+
+  // Bins where the benches are, because that is where the litter is.
+  for (const bz of [gateMid + 3.2, lz0 + 6.0, lz1 - 6.0, gateMid - 12.5]) {
+    const bx2 = inside(0.23);
+    const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.8, 0.46), flat(binT));
+    b2.position.set(bx2, KERB_H + 0.4, bz);
+    scene.add(b2);
+    solid({ minX: bx2 - 0.26, maxX: bx2 + 0.26, minZ: bz - 0.26, maxZ: bz + 0.26 });
+  }
+
+  // The noticeboard at the gate. Every municipal park has one and nothing on
+  // it is current: a byelaws plate nobody reads and the ghost of a poster.
+  const nbT = pixTex(28, 20, (g) => {
+    g.fillStyle = '#2e3a2c'; g.fillRect(0, 0, 28, 20);
+    g.fillStyle = '#cfc9b8'; g.fillRect(2, 2, 24, 15);
+    g.fillStyle = '#8d8878';
+    for (let y = 5; y < 15; y += 2) g.fillRect(4, y, 20, 1);
+    g.fillStyle = '#6a6456'; g.fillRect(4, 3, 20, 2);
+    g.fillStyle = 'rgba(120,110,80,0.5)'; g.fillRect(15, 7, 9, 8);
+  });
+  const nbX = inside(0.28), nbZ = gateMid - 2.6;
+  const nb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 1.0), flat(nbT));
+  nb.position.set(nbX, KERB_H + 1.28, nbZ);
+  scene.add(nb);
+  for (const d of [-0.4, 0.4]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.6, 0.09), ironM);
+    post.position.set(nbX, KERB_H + 0.8, nbZ + d);
+    scene.add(post);
+  }
+  solid({ minX: nbX - 0.3, maxX: nbX + 0.3, minZ: nbZ - 0.55, maxZ: nbZ + 0.55 });
+
+  // ── the loop, edged ──────────────────────────────────────────────────────
+  //
+  // A municipal path has an edging strip holding the grass off it, and
+  // without one the loop's edges dissolve into the field at any distance.
+  // Same granite as the frontage kerb, laid flat rather than proud.
+  const edgeM = new THREE.MeshBasicMaterial({ color: 0x8a8780 });
+  const edging = (x0: number, x1: number, z0: number, z1: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(x1 - x0), 0.07, Math.abs(z1 - z0)), edgeM);
+    m.position.set((x0 + x1) / 2, KERB_H + 0.035, (z0 + z1) / 2);
+    scene.add(m);
+  };
+  for (const lx of [lx0, lx1]) {
+    for (const d of [-1, 1]) edging(lx + d * PATH_W / 2 - 0.06, lx + d * PATH_W / 2 + 0.06, lz0, lz1);
+  }
+  for (const lz of [lz0, lz1]) {
+    for (const d of [-1, 1]) edging(lx0, lx1, lz + d * PATH_W / 2 - 0.06, lz + d * PATH_W / 2 + 0.06);
+  }
+
+  // ── ivy on the walls ─────────────────────────────────────────────────────
+  //
+  // Three blank brick flanks are what make it a yard, and the trees that
+  // would really break them up are ct/props.ts and builder B's. What this
+  // file CAN do is grow ivy up them: alpha-tested patches with a ragged top
+  // edge, at different heights, so the wall reads as an old boundary rather
+  // than as a new one. It does not fix the yard on its own — see
+  // notes/BLOCKED-E.md — but it is the half that is mine.
+  const ivyT = (seed: number, wM: number, hM: number) => {
+    const IW = Math.max(16, Math.round(wM * 6)), IH = Math.max(16, Math.round(hM * 6));
+    return pixTex(IW, IH, (g) => {
+      const r = clcg(seed);
+      g.clearRect(0, 0, IW, IH);
+      for (let x = 0; x < IW; x++) {
+        const top = Math.round(IH * (0.12 + 0.5 * Math.abs(Math.sin(x * 0.21 + seed))));
+        for (let y = top; y < IH; y++) {
+          if (y < top + 3 && r() < 0.45) continue;          // a ragged growing edge
+          const k = r();
+          g.fillStyle = k > 0.68 ? '#4a6238' : k > 0.34 ? '#3b5130' : '#2e4126';
+          g.fillRect(x, y, 1, 1);
+        }
+      }
+    });
+  };
+  const ivy = (x: number, z: number, wM: number, hM: number, ry: number, seed: number) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({
+      map: ivyT(seed, wM, hM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    }));
+    m.position.set(x, hM / 2, z);
+    m.rotation.y = ry;
+    scene.add(m);
+  };
+  const iv = clcg(0x5b1ea2);
+  for (let z = site.minZ + 2; z < site.maxZ - 2;) {          // the back wall
+    const w2 = 4 + iv() * 5;
+    ivy(site.minX + 0.06, z + w2 / 2, w2, 6.0 + iv() * 4.0, Math.PI / 2, 0x31 + Math.round(z));
+    z += w2 + 1 + iv() * 3;
+  }
+  for (const [zAt, ry] of [[site.minZ + 0.06, 0], [site.maxZ - 0.06, Math.PI]] as [number, number][]) {
+    for (let x = site.minX + 2; x < site.maxX - 4;) {        // and the two flanks
+      const w2 = 4 + iv() * 5;
+      ivy(x + w2 / 2, zAt, w2, 5.0 + iv() * 3.5, ry, 0x77 + Math.round(x));
+      x += w2 + 2 + iv() * 4;
+    }
+  }
+
+  // ── the one thing to look at ─────────────────────────────────────────────
+  //
+  // A park needs a reason to walk round it, and it goes where the loop turns
+  // so that the turn is the reason. A borough war memorial: two steps, a
+  // plinth with a plaque nobody has read in years, and a stone shaft. It is
+  // the most municipal object there is, it is the right period, and it gives
+  // the loop a destination that is not the gate you came in by.
+  const memX = lx1 - 4.2, memZ = lz1 - 4.2;
+  const stoneA = new THREE.MeshBasicMaterial({ color: 0x9a958a });
+  const stoneB = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+  for (const [i, w2] of [[0, 2.4], [1, 1.9]] as [number, number][]) {
+    const st = new THREE.Mesh(new THREE.BoxGeometry(w2, 0.18, w2), i % 2 ? stoneB : stoneA);
+    st.position.set(memX, KERB_H + 0.09 + i * 0.18, memZ);
+    scene.add(st);
+  }
+  const plinthT = pixTex(16, 20, (g) => {
+    const r = clcg(0x2f81aa);
+    g.fillStyle = '#928c80'; g.fillRect(0, 0, 16, 20);
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = r() > 0.5 ? '#9c968a' : '#857f74';
+      g.fillRect(Math.floor(r() * 16), Math.floor(r() * 20), 1, 1);
+    }
+    g.fillStyle = '#6e6a5e'; g.fillRect(3, 6, 10, 8);            // the plaque
+    g.fillStyle = 'rgba(210,204,188,0.35)';
+    for (let y = 8; y < 13; y += 2) g.fillRect(4, y, 8, 1);
+    g.fillStyle = 'rgba(46,38,30,0.25)';                          // and its weather
+    for (let i = 0; i < 10; i++) g.fillRect(Math.floor(r() * 16), 14, 1, Math.round(r() * 6));
+  });
+  const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.3, 1.15), flat(plinthT));
+  plinth.position.set(memX, KERB_H + 0.36 + 0.65, memZ);
+  scene.add(plinth);
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.5, 0.62), stoneA);
+  shaft.position.set(memX, KERB_H + 1.66 + 1.25, memZ);
+  scene.add(shaft);
+  const capStone = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), stoneB);
+  capStone.position.set(memX, KERB_H + 4.12, memZ);
+  scene.add(capStone);
+  solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
 
   return { colliders };
 }
