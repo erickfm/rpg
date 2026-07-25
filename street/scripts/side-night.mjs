@@ -3,15 +3,23 @@
 // this is the check that the prediction held.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
+// setClock WAITS TWO RENDERED FRAMES and warns if rAF does not deliver them
+// (2558b1ba measured that as what the grade actually costs). This used to be a
+// flat 700 ms, which is GOTCHAS 30: identical at 120/700/2000 ms on an idle
+// machine, and under load the "night" sample can be the noon one. 27b18b6ea hit
+// exactly that in the night sweep next door, where a short sleep made the check
+// PASS. Mine fails safe rather than passing — dim() needs night < day/2, so a
+// stale sample reads as "did not dim" — but failing on load is a red I would
+// have chased into the world instead of into the clock.
 const sample = async (h, m) => {
-  await p.evaluate(([h, m]) => window.__ct.clock(h, m), [h, m]);
-  await p.waitForTimeout(700);
+  await setClock(p, h, m);
   return p.evaluate(() => {
     // my side-street trees (3 m billboards) and parked cars (steer helper), east of the junction
     const out = { trees: [], cars: [] };
@@ -53,6 +61,19 @@ console.log(`side-street cars   day ${avg(day.cars)}  night ${avg(night.cars)}  
 //
 // An empty population still FAILS here rather than passing: avg of nothing is
 // null and dim() requires two numbers, so GOTCHAS 34 falls the safe way round.
+// POSITIVE CONTROL, the technique 27b18b6ea used: a floor on the sample size
+// does not prove the world went dark. Ask the published nightFactor, and if it
+// says the world is still lit then this run has NOTHING TO CHECK — which is a
+// different answer from "the trees failed to dim" and must not be reported as
+// one.
+const nightF = await p.evaluate(() => window.__ct.scene().userData.nightFactor ?? null);
+if (nightF === null || nightF < 0.5) {
+  console.error(`\nINCONCLUSIVE — the world did not go dark: nightFactor ${nightF}. ` +
+    'Nothing below would be measuring the night grade, so a verdict either way would be false.');
+  await b.close();
+  process.exit(2);
+}
+
 let fails = 0;
 const dim = (d, n) => d !== null && n !== null && n < d * 0.5;
 const check = (ok, msg) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
