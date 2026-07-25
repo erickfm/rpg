@@ -893,3 +893,67 @@ a matching world it reproduces the same 7 of 16, so the published result stands.
 worth carrying: `door301`'s whole problem was that it *looked* checked, and an
 undeclared exemption looks identical to a defect. This project's recurring lesson
 one more time — **make it declare, don't leave it to the reader's inference.**
+
+## The "never gets wet" class, enumerated: 19 flat decals still dry
+
+Two agents found the same defect independently and days apart — `b209275c`, the
+road's centre lines bone dry while the road darkened 83%; `21c42a66`, the lot's
+decals dry while their tarmac went −74%. Both had one root cause: **`dimWorld`
+skips transparent materials**, so anything transparent stays dry unless it hand
+registers with `ctx.wet()`. A class with a mechanical signature is worth
+enumerating once rather than discovering one instance at a time, so
+`scripts/wetsweep.mjs` samples every material's colour at a dry hour and a wet
+one and joins on material uuid.
+
+**Two things I got wrong first, both recorded in the script so the next person
+does not repeat them:**
+
+1. **The wet look takes ~16 s to settle**, not the 2.5 s I first allowed. Measured
+   on the road after `clock(14)`: `1.000 → 0.597 → 0.329 → 0.224 → 0.186 → 0.172
+   → 0.167 → 0.165` at two-second intervals. Sample early and everything reads
+   partly dry.
+2. **A median over all materials is meaningless.** Mine came out 0.0% and I
+   briefly read that as a broken instrument. Rain darkens **ground**, and ground
+   is a small minority of a world made mostly of building. The control has to be
+   a named wet surface, not an average.
+
+With a real control — **317 surfaces responded**, top `vice` at 87.9%, road at
+83.5%, both recent fixes visibly landed — and each candidate anchored to ground
+that actually got wet beside it:
+
+```
+TRANSPARENT, UNMOVED, AND LYING ON GROUND THAT GOT WET: 24
+```
+
+They split cleanly by height, and the split decides them:
+
+| | |
+|---|---|
+| **19 × `props`, y 0.01–0.16** — flat on the ground | **real candidates** |
+| 5 × untagged `PlaneGeometry`, **y 0.71**, all 1.15 m tall on the x = ±7 facade line | vertical shopfront panels; a wall is entitled not to look like wet tarmac |
+
+The 19, so an owner can find them without re-running anything:
+
+```
+0.34×2.80  at (-4.8, 0.02, -103.6)     0.34×3.10  at ( 4.8, 0.02, -91)
+5.60×5.60  at (-4.1, 0.02, -37)        5.60×5.60  at ( 4.1, 0.02, -51)
+5.60×5.60  at ( 4.1, 0.02, -93)        5.60×5.60  at (20,   0.02, -98.9)
+4.40×4.40  at (-22.2, 0.16, -70.7)     4.40×4.40  at ( -9.5, 0.16, -73)
+4.40×4.40  at (-34.8, 0.16, -73)       4.40×4.40  at ( -9.5, 0.16, -93)
+4.40×4.40  at (-34.8, 0.16, -93)       4.40×4.40  at (-22.2, 0.16, -95.3)
+0.42×0.42  at (-11.6, 0.01, -39.6)     0.42×0.42  at (-11,   0.01, -40.4)
+0.73×0.55  at (-10.6, 0.01, -41.5)     0.42×0.33  at (-12.6, 0.01, -42)
+0.75×0.37  at ( -9.4, 0.01, -42.6)     0.73×0.55  at (  6.5, 0.14, -26.5)
+0.42×0.33  at (  6.7, 0.14, -76.3)
+```
+
+The two long thin strips sit at **x ±4.8**, the kerb edge rather than the centre
+line `b209275c` already fixed — so they are a different set, not that fix failing
+to land. The four 5.60 squares lie on the road deck; the six 4.40 squares sit at
+kerb height through the park.
+
+**These are candidates, not verdicts.** I have not established that each is meant
+to darken — something under an awning, or self-lit, is entitled to stay dry, and
+that judgement belongs to whoever owns `ct/props.ts`. What the sweep establishes
+is that **nobody now has to go looking**: the class is 19 items long, they are all
+tagged `props`, and the list took one command.
