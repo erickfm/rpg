@@ -597,7 +597,22 @@ for (room of rooms) {
   // reported G's casino as `in profile` when G has verified it reads `facing
   // you`: the dealer stands across the felt. A room with no `keeper` here is
   // SKIPPED rather than guessed at; G's four are covered by G's own harness.
-  if (room.keeper) {
+  // GOTCHAS 34, shape two: a room that simply OMITS `keeper` used to be skipped
+  // in silence, so a ninth room would arrive unguarded and nothing would say
+  // so — a check passing because it found nothing to check, in code written one
+  // commit after I hit that exact bug elsewhere in this file ("0/0 passed" for
+  // a world with every door sealed).
+  //
+  // Absent is now a FAILURE. A room with nobody in it is a real possibility, so
+  // there is an explicit opt-out — `keeper: null` — which is recorded rather
+  // than skipped. The distinction that matters is between "declared unstaffed"
+  // and "nobody thought about it", and only one of those should be quiet.
+  if (room.keeper === undefined) {
+    check('declares where a customer stands (keeper: [x,z], or null if unstaffed)',
+      false, 'no `keeper` in the ROOMS entry — the facing check cannot run');
+  } else if (room.keeper === null) {
+    check('is declared unstaffed', true, 'keeper: null — no facing check, by declaration');
+  } else {
     const [kvx, kvz] = room.keeper;
     await warp(cx + kvx, kvz, 0, 0);
     await p.waitForTimeout(150);
