@@ -16,8 +16,10 @@
 // Usage: node scripts/gotchas-numbers.mjs
 //        --selftest   duplicate a number in memory, require this to fail
 import { readFileSync } from 'node:fs';
+import { flags } from './lib/args.mjs';
 
-const SELFTEST = process.argv.includes('--selftest');
+const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
+const SELFTEST = ARGS.selftest;
 const FILE = 'notes/GOTCHAS.md';
 const nums = [];
 for (const line of readFileSync(FILE, 'utf8').split('\n')) {

@@ -24,8 +24,10 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats, blindSpot } from './lib/materials.mjs';
+import { flags } from './lib/args.mjs';
 
-const SELFTEST = process.argv.includes('--selftest');
+const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
+const SELFTEST = ARGS.selftest;
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });

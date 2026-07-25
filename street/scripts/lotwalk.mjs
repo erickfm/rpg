@@ -23,11 +23,13 @@
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lotwalk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { flags } from './lib/args.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 // --selftest: wall the mouth shut in the LIVE collider list and require this
 // to go red. The mutation is a push onto __ct.colliders(), which is the same
 // array the movement code tests, so it is the real thing being broken.
-const SELFTEST = process.argv.includes('--selftest');
+const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
+const SELFTEST = ARGS.selftest;
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 p.on('pageerror', e => console.log('PAGEERR', e.message));

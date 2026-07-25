@@ -11,6 +11,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 import { mkdirSync } from 'node:fs';
+import { flags } from './lib/args.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 // argv[2] is NOT the output directory — argv is a mix of flags and paths, and
@@ -36,7 +37,8 @@ const at = (dx, dz) => Math.atan2(dx, -dz);
 // --selftest: jam a collider across the doorway in the LIVE list, so the
 // doorway reads blocked while the door is open. Pushed onto __ct.colliders(),
 // the same array the movement code tests.
-const SELFTEST = process.argv.includes('--selftest');
+const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
+const SELFTEST = ARGS.selftest;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];

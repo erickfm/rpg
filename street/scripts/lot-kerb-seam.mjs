@@ -34,9 +34,11 @@
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-kerb-seam.mjs [--selftest]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { flags } from './lib/args.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
-const SELFTEST = process.argv.includes('--selftest');
+const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently ignored
+const SELFTEST = ARGS.selftest;
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
