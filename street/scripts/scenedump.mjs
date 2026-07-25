@@ -68,8 +68,29 @@ const dump = await page.evaluate(() => {
     const one = (x) => {
       let t = 'none';
       if (x.map) { if (!seenTex.has(x.map.uuid)) seenTex.set(x.map.uuid, texHash(x.map)); t = seenTex.get(x.map.uuid); }
-      return `${x.type}:${x.color?.getHexString?.() ?? '-'}:${t}:${x.transparent ? 1 : 0}:${x.alphaTest ?? 0}`;
+      // NO COLOUR HERE. It moved to its own hash — see the note at `tints`.
+      return `${x.type}:${t}:${x.transparent ? 1 : 0}:${x.alphaTest ?? 0}`;
     };
+    return Array.isArray(m) ? m.map(one).join('|') : one(m);
+  };
+  // Colour, separately.
+  //
+  // 1746b2f0: `structure` put material colour in the hash, and the casino/hotel
+  // chase recolours three shared phase materials EVERY FRAME — so the hash
+  // encoded which frame the dump landed on. Pinning the clock (my earlier fix)
+  // bought stability and not correctness: the chase runs off frame time, not the
+  // world clock, and adding a module that creates NOTHING moved the hash by
+  // delaying the first frame.
+  //
+  // That is fatal for the one job this file has. CLAUDE.md tells builders to
+  // prove a change did not move the world with fp/fpdiff, and a proof that
+  // reacts to a module which builds nothing is not a proof.
+  //
+  // So the question is split. `structure` is now geometry and material IDENTITY
+  // — type, texture, blend flags — and is stable. `tints` is the colours, which
+  // are legitimately animated, and is reported without being the verdict.
+  const tintSig = (m) => {
+    const one = (x) => x?.color?.getHexString?.() ?? '-';
     return Array.isArray(m) ? m.map(one).join('|') : one(m);
   };
   const geomSig = (g) => {
@@ -78,20 +99,22 @@ const dump = await page.evaluate(() => {
     const n = g.attributes?.position?.count ?? 0;
     return `${g.type}(${p})#${n}`;
   };
-  const structure = [], places = [], textures = [];
+  const structure = [], places = [], textures = [], tints = [];
   scene.traverse((o) => {
     structure.push(`${o.type}|${geomSig(o.geometry)}|${matSig(o.material)}`);
     places.push(`${o.type}@${o.position.x.toFixed(2)},${o.position.y.toFixed(2)},${o.position.z.toFixed(2)}`);
+    tints.push(`${o.type}|${tintSig(o.material)}`);
   });
   for (const [, h] of seenTex) textures.push(h);
-  structure.sort(); places.sort(); textures.sort();
+  structure.sort(); places.sort(); textures.sort(); tints.sort();
   return {
     objects: structure.length,
     uniqueTextures: textures.length,
     textures: fnv(textures.join('\n')),
     structure: fnv(structure.join('\n')),
     places: fnv(places.join('\n')),
-    _textures: textures, _structure: structure, _places: places,
+    tints: fnv(tints.join('\n')),
+    _textures: textures, _structure: structure, _places: places, _tints: tints,
   };
 });
 await browser.close();
@@ -99,5 +122,5 @@ await browser.close();
 mkdirSync('shots', { recursive: true });
 writeFileSync(`shots/${label}.json`, JSON.stringify(dump, null, 1));
 console.log(`objects=${dump.objects} uniqueTextures=${dump.uniqueTextures}`);
-console.log(`textures=${dump.textures} structure=${dump.structure} places=${dump.places}`);
+console.log(`textures=${dump.textures} structure=${dump.structure} tints=${dump.tints} places=${dump.places}`);
 if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }

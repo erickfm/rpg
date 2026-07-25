@@ -23,7 +23,7 @@ const structureSame = (() => {
   const a = A._structure ?? [], b = B._structure ?? [];
   return a.length === b.length && [...a].sort().join('\n') === [...b].sort().join('\n');
 })();
-for (const key of ['textures', 'structure', 'places']) {
+for (const key of ['textures', 'structure', 'tints', 'places']) {
   const r = cmp(key);
   worst = Math.max(worst, r.onlyA.length);
   const tag = r.onlyA.length === 0 && r.onlyB.length === 0 ? 'IDENTICAL' : `${r.onlyA.length} differ`;
@@ -50,6 +50,11 @@ for (const key of ['textures', 'structure', 'places']) {
   if (r.onlyA.length) {
     const geom = (x) => String(x).split('|').slice(0, 2).join('|');
     const paired = r.onlyA.length === r.onlyB.length;
+    if (key === 'tints') {
+      console.log('   → colours only. The casino/hotel chase recolours three shared materials');
+      console.log('     every frame, so this hash encodes which frame the dump landed on.');
+      console.log('     Not a verdict — read `structure` for whether the world moved.');
+    }
     if (key === 'structure' && paired) {
       const ga = r.onlyA.map(geom).sort(), gb = r.onlyB.map(geom).sort();
       if (ga.join() === gb.join())
