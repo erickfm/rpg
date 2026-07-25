@@ -94,6 +94,27 @@ const runEast = async (z, from, to, tries = 3) => {
   return best;
 };
 
+/** runEast's mirror. Same retry, same reason — see the note on the westward
+ *  band check. Keeps the BEST (lowest x) reached across tries. */
+const runWest = async (z, from, to, tries = 3) => {
+  let best = from;
+  for (let a = 0; a < tries && best > to; a++) {
+    if (a) await p.waitForTimeout(1500);     // citizens are obstacles too
+    await warp(from, z, WEST, KERB_H);
+    await p.waitForTimeout(180);
+    let last = from;
+    for (let i = 0; i < 12; i++) {
+      await hold('w', 700);
+      const c = await pos();
+      if (last - c[0] < 0.15) break;
+      last = c[0];
+      if (c[0] < to) break;
+    }
+    best = Math.min(best, last);
+  }
+  return best;
+};
+
 // ── the clear band, MEASURED rather than sampled ────────────────────────
 //
 // This used to probe two fixed lanes and assert they got through, and that was
@@ -143,20 +164,19 @@ check('there is a clear band past the frontage furniture, wide enough to walk',
     : 'NO lane runs the frontage from x 30 to the casino door');
 
 // …and westward too, because a one-way frontage is still a broken one
+// Through runWest for the same reason the eastward sweep goes through runEast:
+// this was the other inline single walk, and I converted only half the pair in
+// edc0f7f4. It duly failed on the next run — a pedestrian in the lane, on an
+// unchanged world — which is what a half-applied fix earns.
+//
+// Its message was also useless: it read "walked the middle of the band back to
+// the hotel end" whether the walker reached the hotel or never moved, so the one
+// time it failed it said nothing about why. A check that cannot report its own
+// measurement cannot be diagnosed from a log.
+const backWest = clear.length ? await runWest(clear[Math.floor(clear.length / 2)], 52.0, 30.0) : 52.0;
 check('the same band runs back west past both columns',
-  clear.length > 0 && (await (async () => {
-    await warp(52.0, clear[Math.floor(clear.length / 2)], WEST, KERB_H);
-    await p.waitForTimeout(140);
-    let last = 52.0;
-    for (let i = 0; i < 12; i++) {
-      await hold('w', 600);
-      const c = await pos();
-      if (last - c[0] < 0.12) break;
-      last = c[0];
-      if (c[0] < 30) break;
-    }
-    return last;
-  })()) < 33.0, 'walked the middle of the band back to the hotel end');
+  clear.length > 0 && backWest < 33.0,
+  `walked the middle of the band from x 52 back to x=${f2(backWest)} (want < 33.0)`);
 
 // the outer lanes SHOULD stop at a column — that is what a column is
 //
