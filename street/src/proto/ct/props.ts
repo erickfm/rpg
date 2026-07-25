@@ -348,6 +348,13 @@ export function buildProps(ctx: CtxBuild): Props {
         const span = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z);
         const poolable = wy.y < 4.5 && Number.isFinite(span) && span < 6;
         const selfLit = isSelfLit(m.map);
+        // Say so on the material. A sheet held at FLOOR_SIGN is graded and
+        // deliberately kept bright, which from outside is indistinguishable
+        // from a sheet that was never graded at all — and scripts/nightgrade
+        // reports the second as a bug. It was handing owners thirteen tickets
+        // for a neon sign and eleven lit window panels doing exactly what the
+        // user asked for: "Lit windows and signs must NOT dim with it."
+        if (selfLit) m.userData.selfLit = true;
         litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable && !selfLit,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        wetK: selfLit ? 0 : wetKFor(wy.y) });
