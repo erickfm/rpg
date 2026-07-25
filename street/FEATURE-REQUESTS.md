@@ -125,6 +125,30 @@ published to the playable artifact.
 ## Inbox
 - **"verify the ledger"** → **AUDIT**
 - **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
+  → **A. FIXED.** It said EAT stacked down the plate and could not be read.
+  Checked GOTCHAS 10 first — a DoubleSide plane rendering mirrored from behind,
+  which shipped on the casino and hotel blades — and it is **not** that: this
+  blade is a `BoxGeometry`, which gives every face its own correctly-oriented
+  UVs. Ruled out by walking past and reading it from both directions.
+
+  It was arithmetic. The plate is `masonry(0.95, 1.55)` at 16 px/m = **15 × 25
+  texels**; the border takes two rows top and bottom, leaving ~19 for three
+  letters at an 8 px font whose centres land 5 px apart. Every letter overlapped
+  its neighbours by about three pixels, and shrinking to fit leaves three pixels
+  of ink per glyph. **Three stacked letters do not fit on that plate at any
+  size**, so it is a **coffee cup** now — a symbol reads where letters cannot,
+  and the fascia beside it already says DINER.
+
+  Two further silhouette fixes once it was a cup: one texel of plate between the
+  handle and the body (they had merged into a blob), and a saucer sized off the
+  body rather than the plate (at 12 texels it was wider than the 11-texel border
+  bars and read as a third stripe).
+
+  **And a defect the user had not reported, in the same sign:** it never went
+  dark. I had only judged it at 13:00. `props.ts` decides what carries its own
+  light by looking at the sheet — bright *and* chromatic — and my enamel cream
+  cleared that test by two points, so the plate was graded a light source and
+  stayed the brightest thing on a night street. Night luminance 152 → 55.
 - **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**
 - **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
 - **"especially more of this kind of thing in the park"** → **E**
