@@ -13,6 +13,35 @@ import { buildVice } from './vice';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
 import { type AABB } from '../fp';
 
+/** The alley paving is DISHED, so its height is a function rather than a number.
+ *
+ *  Published because `ct/props.ts` had `const ALLEY_Y = 0.006;` under the
+ *  comment *"ct/street.ts lays the alley slab at 0.005"* — true when written,
+ *  and I then laid the alley falling 6 cm into a drain. Measured after the dish
+ *  landed: 22 objects standing in the bowl at the old flat height, the worst of
+ *  them 57 mm in the air. That is `46b330d35`'s finding exactly ("B's park
+ *  lamps stand at a hard-coded KERB_H, and I moved the ground"), and this time
+ *  the ground I moved was under someone else's props.
+ *
+ *  A constant in another file cannot notice that. A function can, so the fact
+ *  lives with the module that owns the floor and everyone else asks.
+ *
+ *  `ctx.ground` is the registration for what the PLAYER walks and it already
+ *  carries this; it has no query side, and `Site` is a flat rect with a single
+ *  `y`, so neither existing channel can hand out a dished surface. Hence a
+ *  plain export.
+ *
+ *  Returns the height of the paving SURFACE at (x, z) — what something resting
+ *  on the ground should sit on. Outside the alley it is the flat slab, which is
+ *  what every caller got before this existed, so importing it can only change
+ *  an answer inside the bowl.
+ */
+let alleyDish: (x: number, z: number) => number = () => 0;
+export const ALLEY_SLAB_Y = 0.005;
+export function alleyFloorY(x: number, z: number): number {
+  return ALLEY_SLAB_Y + alleyDish(x, z);
+}
+
 // Every building on the block, hand-authored end to end, plus the alley
 // cut into the west wall. Adds meshes + billboard sprites; owns no state.
 export function buildStreet(o: {
@@ -1543,24 +1572,30 @@ export function buildStreet(o: {
       // of lit paving would show inside the frame and the drain would read as a
       // grille sitting on the ground rather than over a hole.
       const dx = Math.round(AFW * DRAIN_U), dy = Math.round(AFL * DRAIN_V);
-      // WATER FINDS IT — the user asked for "staining where water runs to it".
-      // Streaks that CONVERGE on the drain, rather than nine more blobs that
-      // happen to be near it: the alley falls toward this point now, so the
-      // dirt should say so. Drawn before the void square, which then cuts them
-      // off cleanly at the frame line.
-      g.save();
-      g.strokeStyle = 'rgba(0,0,0,0.14)';
-      g.lineCap = 'round';
-      for (let i = 0; i < 16; i++) {
-        const a = (i / 16) * Math.PI * 2 + nx() * 0.4;
-        const r0 = am(1.5 + nx() * 1.1);
-        g.lineWidth = Math.max(1, am(0.05 + nx() * 0.10));
-        g.beginPath();
-        g.moveTo(dx + Math.cos(a) * r0, dy + Math.sin(a) * r0);
-        g.quadraticCurveTo(dx + Math.cos(a) * r0 * 0.45, dy + Math.sin(a) * r0 * 0.45, dx, dy);
-        g.stroke();
-      }
-      g.restore();
+      // WATER FINDS IT — and my first attempt at saying so was wrong, reported
+      // within the hour: *"long thin dark diagonal streaks running across the
+      // paving … They read as smears or as a rendering artefact, not as
+      // anything."*
+      //
+      // That was 16 stroked lines converging on the drain from every side. The
+      // reasoning was "water runs downhill toward the gully, so draw it running"
+      // — but sixteen strokes radiating from one point is a STARBURST, and from
+      // standing height a starburst on the floor is a set of diagonals cutting
+      // across the whole alley. It described the flow rather than the mark the
+      // flow leaves, which is the mistake: a floor does not show you streamlines.
+      //
+      // What a yard gully actually leaves is DAMP — the paving stays wet longest
+      // where the water sits longest, so it darkens toward the drain smoothly
+      // and has no edges at all. A radial wash says that with nothing to
+      // mistake for a line. The user's own rule from the earlier note is the
+      // test it now passes: a stain "should follow where water runs or where
+      // something was dragged, not cut diagonally across the whole floor".
+      const wash = g.createRadialGradient(dx, dy, am(0.30), dx, dy, am(2.30));
+      wash.addColorStop(0, 'rgba(0,0,0,0.30)');
+      wash.addColorStop(0.45, 'rgba(0,0,0,0.15)');
+      wash.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = wash;
+      g.fillRect(0, 0, AFW, AFL);
       const dw = am(DRAIN_SIZE + 0.06);
       g.fillStyle = '#0a0b0d'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
     }), 'ground');
@@ -1604,6 +1639,12 @@ export function buildStreet(o: {
       if (t >= 1) return 0;
       return -DISH_D * (1 - t * t * (3 - 2 * t));
     };
+    // Publish it, so anything RESTING on this floor can ask instead of
+    // remembering a number. Assigned during the build, and the module-level
+    // default is flat — so a caller that somehow runs before this gets exactly
+    // the height it would have got before the dish existed, rather than a wrong
+    // one. See the export at the top of this file.
+    alleyDish = dishAt;
     const floorG = new THREE.PlaneGeometry(AF_W, AF_L, 22, 22);
     {
       // local +x is world +x, local +y is world −z, local +z is world +y —

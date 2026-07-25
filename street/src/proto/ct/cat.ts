@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { pixTex } from './paint';
+import { alleyFloorY, ALLEY_SLAB_Y } from './street';
 
 // ── the alley cat, and the rig for choosing her ────────────────────────────
 //
@@ -141,22 +142,42 @@ export function buildCatRig(o: {
     // Both spots below are in the OPEN with a clear run to the mouth, beside
     // cover rather than jammed into it, and far enough in that you find them
     // rather than meet them.
+    // MOVED AGAIN, third time. *"it is out of the corner now, which is better,
+    // but the user wants it further right, toward the crate and grate side.
+    // That also puts it where you see it on the way in rather than tucked
+    // beside the dumpster."*
+    //
+    // WHICH WAY IS RIGHT, derived rather than guessed, because getting it
+    // backwards would move the cat further from what was asked for and look
+    // like it had been ignored. The alley MOUTH is the plane x = −7 — that is
+    // where the kerb step is, and where alleydish.mjs samples it — so the
+    // building line runs along z and you walk in along −x. Facing −x with +y
+    // up, right is −z. Both of the user's descriptions then agree: −z runs from
+    // the dumpster (z −38) past the crates (−39.6, −40.35) to the grate
+    // (−40.77), which is exactly "the crate and grate side".
     const SPOTS: [number, number][] = [
-      [-10.4, -39.8],   // beside the dumpster, on its open side, facing out
+      [-11.1, -41.2],   // out in the open between the crates and the grate
       [-8.9, -41.4],    // nearer the mouth, clear of everything, half in shade
     ];
     const [cx, cz] = SPOTS[i % SPOTS.length];
+    // THE ALLEY FLOOR IS DISHED NOW, so this asks it rather than assuming 0.
+    // Both spots are inside the bowl that falls to the drain, and the nearer
+    // one was sitting 61 mm in the air the moment I laid the fall — a cat
+    // hovering 6 cm over the paving it is meant to be sitting on. Measured, not
+    // spotted: it is small, it is in shade, and from the mouth of the alley it
+    // reads as a cat.
+    const gy = alleyFloorY(cx, cz) - ALLEY_SLAB_Y;   // metres of fall at this spot
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(CW / CPM, CH / CPM),
       new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide }),
     );
     m.geometry.translate(0, CH / (CPM * 2), 0);  // stand it on its feet, not its middle
-    m.position.set(cx, 0.02, cz);
+    m.position.set(cx, 0.02 + gy, cz);
     boards.push({ m });
     scene.add(m);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.38), new THREE.MeshBasicMaterial({ map: catShadeT, alphaTest: 0.5 }));
     sh.rotation.x = -Math.PI / 2;
-    sh.position.set(cx, 0.012, cz);
+    sh.position.set(cx, 0.012 + gy, cz);
     scene.add(sh);
   });
 }

@@ -11,6 +11,29 @@
   balance"*, then the balance from `purse.cash`, which is the same object the
   wallet reads.
 
+- **Diagonal streaks on the alley floor** (`shots/user-alleylines.png`) — *"long
+  thin dark diagonal streaks running across the paving, on top of the soft dark
+  ovals. They read as smears or as a rendering artefact, not as anything … a
+  stain in an alley should follow where water runs or where something was
+  dragged, not cut diagonally across the whole floor."*
+  → **D. DONE, and they were mine — added one commit earlier.** Not a per-metre
+  painting regression and not B's: I painted 16 strokes converging on the drain
+  to say "water runs here". Sixteen strokes radiating from a point is a
+  STARBURST, and from standing height a starburst on the floor is diagonals
+  across the whole alley. It drew the flow rather than the mark the flow leaves.
+  Replaced with a soft radial wash — a gully leaves DAMP, which darkens toward
+  the drain and has no edges to mistake for lines. The soft ovals are untouched.
+
+- **Move the cat further right** (`shots/user-alleylines.png`) — *"it is out of
+  the corner now, which is better, but the user wants it further right, toward
+  the crate and grate side. That also puts it where you see it on the way in
+  rather than tucked beside the dumpster."*
+  → **D. DONE.** Third move. z −39.8 → −41.2, out in the open between the crates
+  and the grate. "Right" derived rather than guessed: the alley mouth is the
+  plane x = −7, so you walk in along −x and right is −z — which runs from the
+  dumpster past the crates to the grate, matching the second half of the
+  request. Shot in `shots/D-alley-walkin.png`.
+
 - **The alley cat is in the corner** (`shots/user-alleygrate.png`) — *"pressed
   into the angle where the two walls meet - the one place in the alley a cat
   would not sit: nothing to watch, no line of retreat, and barely visible from
