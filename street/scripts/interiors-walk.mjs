@@ -15,8 +15,8 @@ const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 // a matter of days.
 const ROOMS = [
   {
-    id: 'diner', label: /DINER/, W: 8.6, D: 7.0,
-    doorX: -(FACE - 0.45), doorZ: 9.6, at: -2.6,
+    id: 'diner', label: /DINER/, W: 10.4, D: 7.0,
+    doorX: -(FACE - 0.45), doorZ: -49.44, at: -2.6,
   },
   {
     id: 'burger', label: /BURGER/, W: 11.0, D: 8.5,

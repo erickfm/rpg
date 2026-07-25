@@ -18,14 +18,33 @@ import { FACE } from './rng';
 // touches. Get those four and it reads instantly; miss the counter and it is
 // just a room with tables.
 //
-// The diner stands on the west side of the block at z ≈ 9.6, first slot in
-// the WEST roster. Its door on the street is at x = -(FACE - 0.45).
+// WHERE IT IS, and this moved: the DINER used to be the first slot in the WEST
+// roster at z ≈ 9.6. Builder D swapped its identity with LAUNDRY's, so it now
+// takes the 12 m slot on the far side of the alley — z −55.5 … −43.5, centre
+// −49.5, per the note above the roster entry in ct/street.ts. The old slot is
+// a BANK now, and for a while this file still pointed at it: the "into the
+// DINER" prompt stood outside a bank, and pressing it took you to a diner that
+// was nowhere near.
+//
+// The door is DERIVED from the facade, not from that centre. DINER wears the
+// block's default shopfront, which paints its door at `round(W * 0.48)` on
+// W = round(12 × 8) = 96 texels → texels 46…48, centre 47.5, f = 0.49479. The
+// west facade is the +x face of a box and three.js runs u along −z there:
+//
+//     z = cz + w/2 − f·w = −49.5 + 6 − 0.49479 × 12 = −49.44
+//
+// A hand-typed constant cannot know its building moved. This one is at least
+// written down next to its derivation, which is the next best thing until the
+// frontage descriptors land.
 export function buildDiner(ctx: CtxBuild): void {
-  const DZ = 9.6;
+  const DZ = -49.44;
   const room = buildRoom(ctx, {
     id: 'diner',
     label: 'into the DINER',
-    w: 8.6, d: 7.0, h: 3.0,
+    // 12 m of frontage now instead of 9.2, so the room grew with it — a
+    // diner with a longer counter is a better diner, and the old 8.6 m
+    // interior behind a 12 m shopfront would read as a false front.
+    w: 10.4, d: 7.0, h: 3.0,
     palette: { floor: 0xb0a996, wall: 0xc4bca8, ceil: 0xbdb6a4, trim: 0x4a3a2a },
     door: {
       x: -(FACE - 0.45), z: DZ, r: 1.05,
@@ -38,7 +57,7 @@ export function buildDiner(ctx: CtxBuild): void {
       // -7.0 and the kerb edge at -5.0, well inside the 2 m lane (GOTCHAS §9).
       outX: -(FACE - 0.9), outZ: DZ - 1.5, outYaw: Math.PI / 2, outGy: ctx.KERB_H,
     },
-    window: { at: 1.6, w: 4.6, h: 1.55, sill: 0.9 },
+    window: { at: 1.9, w: 5.4, h: 1.55, sill: 0.9 },
   });
 
   const { put, solid } = room;
@@ -67,7 +86,7 @@ export function buildDiner(ctx: CtxBuild): void {
   // Runs along the back, 0.62 m deep with a 0.28 m overhang you can get your
   // knees under. The overhang is the difference between a counter and a wall
   // with a shelf on it.
-  const CZ = -hd + 1.5, CL = 6.4;
+  const CZ = -hd + 1.5, CL = 7.8;
   const formicaT = pixTex(64, 16, (g) => {
     g.fillStyle = '#c8bfa4'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.25)';
@@ -108,8 +127,9 @@ export function buildDiner(ctx: CtxBuild): void {
 
   // stools: bolted down, so a fixed pitch and no two at odd angles
   const stoolTopM = new THREE.MeshBasicMaterial({ color: 0x9a2f2c });
-  for (let i = 0; i < 6; i++) {
-    const sx = -CL / 2 + 0.55 + i * ((CL - 1.1) / 5);
+  const STOOLS = 7;   // one more than the old 9.2 m room could hold
+  for (let i = 0; i < STOOLS; i++) {
+    const sx = -CL / 2 + 0.55 + i * ((CL - 1.1) / (STOOLS - 1));
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.66, 6), chromeM);
     put(post, sx, 0.33, CZ + 1.0);
     const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.1, 10), stoolTopM);
@@ -171,7 +191,7 @@ export function buildDiner(ctx: CtxBuild): void {
   const vinylM = new THREE.MeshBasicMaterial({ color: 0x7a2a28 });
   const BW = 1.35;                 // bench width — one booth
   const TZ = hd - 1.35;            // table centres, a stride off the window
-  const BXS = [0.35, 1.95, 3.55];  // three booths, sharing dividers, under the glass
+  const BXS = [0.5, 2.1, 3.7];     // three booths, sharing dividers, under the glass
   for (const bx of BXS) {
     for (const dz of [-0.6, 0.6]) {
       const bench = new THREE.Mesh(new THREE.BoxGeometry(BW, 0.45, 0.55), vinylM);
