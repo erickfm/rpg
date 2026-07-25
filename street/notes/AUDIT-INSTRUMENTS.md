@@ -1,5 +1,12 @@
 # The audit's instruments — which ones you can trust cold
 
+> **Before anything else: know which frame your number is in.** Three of this
+> audit's wrong findings were the same mistake — comparing two quantities from
+> different coordinate spaces. `parameters.width` against the face actually
+> mapped; z-offsets across buildings facing opposite ways; **world-space tyre
+> tops against a car-local arch line**. Each was precise, reproducible, and
+> about two different things.
+
 Twenty-odd probes under `scripts/` came out of this audit. Some find their own
 subjects and can be re-run against any future world; some carry constants
 harvested from a run and **will go stale exactly the way every stale coordinate

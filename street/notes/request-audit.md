@@ -2062,3 +2062,52 @@ Until then the honest state of the request is: **DONE for the street fleet,
 plausible-but-unverified for the lot's stock**, and I have corrected my own
 report to say so rather than leaving a blanket DONE covering vehicles I never
 examined.
+
+### Resolved: the lot's cars are the same cars, standing 14 cm higher
+
+I raised a coverage gap — *"my wheel-arch DONE covered 2 vehicles of 94 tyres,
+and the lot's 44 are a different size class"*. **It dissolves. The gap was mine.**
+
+```
+crosstown.ts:304   car.position.set(x, 0, z)        ← the street fleet, y = 0
+lot.ts:422         const Y = site.y;                ← the lot's stock
+lot.ts:66          "own asphalt at KERB_H, which is exactly coplanar
+                    with the site's ground"
+crosstown.ts:520   "the park and the car lot are paved at KERB_H"
+```
+
+`KERB_H` is **0.14**. And:
+
+```
+lot tyre top    0.803
+street tyre top 0.663
+difference      0.140   ← exactly KERB_H
+```
+
+**The lot's cars are not a different size class.** They are the same `makeCar`
+output — `lot.ts:1265` calls it with no scale — standing on a lot paved 14 cm
+above the road. Every dimension is identical in car-local space, which is the
+space `ROCKER = 0.34` and `ARCH_H = 0.38` are written in.
+
+> So the arch clears the tyre by the same 5.7 cm on all 94 tyres, and the
+> **wheel-arch verdict covers the whole fleet after all.**
+
+### The error, which is the same one as all the others
+
+My check compared **world-space** tyre tops against a **car-local** arch line.
+That is the third coordinate-space mistake in this audit:
+
+| | the two spaces I mixed |
+|---|---|
+| the box faces | `parameters.width` vs the face actually mapped |
+| the door sides | z-offsets across buildings facing opposite ways |
+| **the wheel arches** | **world y vs car-local y** |
+
+Each time the numbers were precise, reproducible, and about two different
+things. **A quantity is not a measurement until you know which frame it is in** —
+and I have now learned that badly enough, three times, to write it at the top of
+`AUDIT-INSTRUMENTS.md`.
+
+The one thing that survives from this detour: **`looks.mjs` proves the BURGER
+BARN palette can be checked structurally**, which is a real, registerable guard
+for a user request that currently has none.
