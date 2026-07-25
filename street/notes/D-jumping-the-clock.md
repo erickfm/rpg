@@ -113,9 +113,24 @@ module and it is not one I measured the frame from:
 colour difference **was not in that frame.** My own 94 differ by about 1% each,
 which is negligible.
 
-So: the frame difference is real and reproducible, the material differences are
-real, and **I have not shown that either explains the other.** Both stand as
-separate measurements until someone connects them.
+**And then my own threshold turned out to be hiding the answer.** That diff kept
+anything differing by more than **0.01 absolute**. At night most materials sit
+near 0.045 luminance, so a 6% relative change is 0.0026 — under my own cutoff.
+Re-run relatively:
+
+```
+matched 3438 materials
+unchanged within 0.1%   2336
+changed                 1066     median relative change  -5.82%
+```
+
+**That is the 7.4%.** Not 305 outliers, but a broad ~6% darkening across a third
+of the world's materials, which an absolute threshold could not see because
+night numbers are small. The `vice` outliers are real and separate — large in
+absolute terms, off-frame from where I measured, and a different phenomenon.
+
+So the frame difference and the material differences do connect after all; I
+just could not see it through a filter I had chosen for a daytime-sized world.
 
 **A wrong turn worth recording**, because it nearly became "nothing differs": my
 first diff joined the two worlds on `o.uuid` and reported **0 differences in
