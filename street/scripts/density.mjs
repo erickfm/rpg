@@ -79,6 +79,7 @@ const r = await p.evaluate(() => {
       const rep = [m.map.repeat.x, m.map.repeat.y];
       const dec = m.map.userData?.masonry ?? null;   // what masonry() declared
       rows.push({ geo: g.type, mi: i, img: [iw, ih], face: [+fw.toFixed(2), +fh.toFixed(2)], dec,
+        repeat: [rep[0] || 1, rep[1] || 1],
         ppmX: +((iw * (rep[0]||1)) / fw).toFixed(2), ppmY: +((ih * (rep[1]||1)) / fh).toFixed(2),
         c: [(bb.min.x+bb.max.x)/2, (bb.min.y+bb.max.y)/2, (bb.min.z+bb.max.z)/2].map(v=>+v.toFixed(1)) });
     });
@@ -103,11 +104,22 @@ const declared = r.filter(x => x.dec);
 const bad = [];
 for (const x of declared) {
   const d = x.dec;
-  // the stamp records the metres masonry() was given; compare with the face it
-  // actually reached. 2 % tolerance absorbs the canvas rounding masonry() does
-  // (it rounds W and H to whole texels), nothing more.
-  const dw = Math.abs(x.face[0] - d.wMeters) / Math.max(d.wMeters, 1e-6);
-  const dh = Math.abs(x.face[1] - d.hMeters) / Math.max(d.hMeters, 1e-6);
+  // The stamp records the metres masonry() was given; compare with the face it
+  // actually reached — DIVIDED BY THE REPEAT. 2 % tolerance absorbs the canvas
+  // rounding masonry() does (it rounds W and H to whole texels), nothing more.
+  //
+  // The repeat is not optional and leaving it out is a false positive I shipped.
+  // ct/civic.ts's church tower is 5 m across the front and 3.7 m deep, so its
+  // side face reuses the 5 m canvas with `repeat.x = TOWER_D / TOWER_W` — the
+  // density comes out right and the CANVAS still covers 5 canvas-metres. This
+  // check compared 5 against 3.7, called it 26 % off, and failed the run on a
+  // face that is correct. scripts/masonry.mjs names map.repeat as "the trap" in
+  // its own comments; mine walked into it in a different arithmetic.
+  const rep = x.repeat ?? [1, 1];
+  const coveredW = x.face[0] / (Math.abs(rep[0]) || 1);
+  const coveredH = x.face[1] / (Math.abs(rep[1]) || 1);
+  const dw = Math.abs(coveredW - d.wMeters) / Math.max(d.wMeters, 1e-6);
+  const dh = Math.abs(coveredH - d.hMeters) / Math.max(d.hMeters, 1e-6);
   if (dw > 0.02 || dh > 0.02) bad.push({ x, dw, dh });
 }
 const byPpm = {};

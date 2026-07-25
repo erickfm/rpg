@@ -31,6 +31,10 @@ const CHECKS = [
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
+  // The user's own test, asked for on every building: stand inside, note which
+  // side the door is on, walk out, turn round, confirm it swapped. It was
+  // dev-server-only and knew three rooms; it checks all five declared ones now.
+  ['mirror-walk',    "does each room's door swap sides when you walk out?", false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   // Slowest entry here by some way — it WALKS, so it costs what walking costs.
   // Kept because the things it covers cannot be asked any other way: whether a
