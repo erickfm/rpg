@@ -869,31 +869,27 @@ export function buildStreet(o: {
       g.fillRect(0, 0, 3, 24); g.fillRect(25, 0, 3, 24);
       g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(3, 3, 22, 3);                    // inside shadow
     });
-    // A produce crate outside a bodega is FULL — the fruit is the first thing
-    // you see and the crate is what it happens to be sitting in. So the heap
-    // is a MOUND that stands proud of the rim, with loose fruit perched on it
-    // to break the silhouette, not a lid with circles drawn on it.
-    const heapTex = (c1: string, c2: string) => pixTex(32, 32, (g) => {
-      g.fillStyle = '#2a1c10'; g.fillRect(0, 0, 32, 32);
-      for (let i = 0; i < 44; i++) {
-        const x = 3 + (i % 7) * 4.4, y = 3 + Math.floor(i / 7) * 4.4;
-        g.fillStyle = (i % 3) ? c1 : c2;
-        g.beginPath(); g.arc(x, y, 2.5, 0, Math.PI * 2); g.fill();
-        g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(Math.round(x) - 1, Math.round(y) - 2, 1, 1);
-        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(Math.round(x), Math.round(y) + 2, 2, 1);
-      }
-    });
+    // A heap is read by seeing the INDIVIDUAL UNITS and the gaps between them.
+    // Attempt two was one smooth faceted dome per crate, roughly as wide as
+    // the crate, and it read as a single enormous tomato — a dome has neither
+    // units nor gaps. So: twelve separate fruit per crate, varied in size and
+    // shade, sitting in a shallow pile that overflows the rim, with one
+    // tumbled onto the rim and one on the pavement.
+    //
+    // Each fruit is a FLAT COLOUR, no map. The checkerboard that read as a
+    // texture artefact was the heap texture's circle grid wrapped over a
+    // sphere; there is no texture here to wrap.
     const crateM = flat(crateT);
-    for (const [cxx, czz, c1, c2] of [
+    for (const [cxx, czz, shades] of [
       // NOT in front of the canted bay. They used to stand at x 7.9 and 9.3,
       // straight across the door's approach, and their collider is what made
       // the bodega impossible to enter: you were stopped at x = 7.13 walking
       // east and x = 10.07 walking west, with the [E] spot stranded inside
       // the box between. Crates belong against the side-street frontage,
       // where they dress the shop without standing in its doorway.
-      [10.05, -96.28, '#d88a2a', '#c9762a'],
-      [10.95, -96.25, '#8a3a2e', '#a84a36'],
-    ] as [number, number, string, string][]) {
+      [10.05, -96.28, ['#d8892a', '#c2701f', '#e6a044', '#b0621c']],
+      [10.95, -96.25, ['#9a3a2c', '#842f24', '#b45140', '#6f2820']],
+    ] as [number, number, string[]][]) {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55),
         [crateM, crateM, flat(fruitTop()), crateM, crateM, crateM]);
       crate.position.set(cxx, sidewalkY + 0.2, czz);
@@ -901,19 +897,23 @@ export function buildStreet(o: {
       // across both is what swallowed the bodega's [E] spot (GOTCHAS §8).
       solid({ minX: cxx - 0.31, maxX: cxx + 0.31, minZ: czz - 0.28, maxZ: czz + 0.28 });
       scene.add(crate);
-      const heapM = flat(heapTex(c1, c2));
-      const mound = new THREE.Mesh(new THREE.SphereGeometry(0.29, 8, 4), heapM);
-      mound.scale.set(1, 0.52, 0.92);
-      mound.position.set(cxx, sidewalkY + 0.4, czz);   // equator on the rim
-      scene.add(mound);
-      for (const [ox, oy, oz] of [
-        [-0.13, 0.10, -0.08], [0.11, 0.12, 0.06], [0.02, 0.15, -0.13], [-0.06, 0.09, 0.12],
-      ] as [number, number, number][]) {
-        const fruit = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.09), heapM);
-        fruit.position.set(cxx + ox, sidewalkY + 0.4 + oy, czz + oz);
-        fruit.rotation.y = ox * 6;
-        scene.add(fruit);
+      const RIM = sidewalkY + 0.4;
+      const mats = shades.map((c) => new THREE.MeshBasicMaterial({ color: new THREE.Color(c) }));
+      const fruit = (fx: number, fy: number, fz: number, r: number, mi: number) => {
+        const f = new THREE.Mesh(new THREE.SphereGeometry(r, 6, 4), mats[mi % mats.length]);
+        f.position.set(fx, fy, fz);
+        f.rotation.set(fx * 3, fz * 5, 0);     // break the facets up between them
+        scene.add(f);
+      };
+      for (let i = 0; i < 12; i++) {
+        const u = ((i % 4) - 1.5) / 1.5, v = (Math.floor(i / 4) - 1) / 1;
+        const jx = (((i * 37) % 7) - 3) / 70, jz = (((i * 53) % 7) - 3) / 70;
+        const d = Math.hypot(u, v);
+        const r = 0.052 + ((i * 29) % 5) * 0.008;
+        fruit(cxx + u * 0.195 + jx, RIM + 0.03 + 0.055 * (1 - d * 0.5), czz + v * 0.155 + jz, r, i * 3 + Math.floor(i / 4));
       }
+      fruit(cxx + 0.255, RIM + 0.015, czz - 0.175, 0.055, 2);   // tumbled onto the rim
+      fruit(cxx - 0.375, sidewalkY + 0.052, czz + 0.285, 0.052, 1); // …and one on the pavement
     }
   }
   // south-west corner building closes the side street's west end
