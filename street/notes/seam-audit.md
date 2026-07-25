@@ -1179,3 +1179,45 @@ and I treated it as one because it fitted a defect I wanted to have found.
   box faces. `seampairs.mjs` is still worth having — *"does this face agree with
   the one it touches"* remains the right question, and it now answers **yes**.
 - `AUDIT-TRIAGE.md` entry #0 removed.
+
+## Postscript to the retraction — I was second, and my own fix was circular
+
+Two things I did not know when I wrote the retraction.
+
+**1. Mainline caught it before I did.** `7fe644b9` — *"The 42 are a box face
+index, not a density fault"* — and `fe310665`, `793721de` land the same
+diagnosis independently, ahead of my retraction. My bad finding was live for
+three commits and the system corrected it without needing me to. That is the
+multi-agent setup working exactly as intended, and it is a better outcome than
+my having been careful enough not to publish it.
+
+**2. My repair was circular; theirs is sound.** My corrected `seampairs.mjs`
+picked whichever box dimension *matched the declared density*:
+
+```js
+for (const w of cand) if (Math.abs(img.width/w - ms.ppm) < 0.6) { fw = w; break; }
+```
+
+That assumes the declaration is right in order to decide which face it is on —
+so it can **never report a mismatch**. It would return "like-for-like is zero"
+on a world where every wall was wrong. Mainline indexes the actual face from the
+material index instead:
+
+```js
+if (mi===0||mi===1)      { fw=(pr.depth??0)*S[2];  ... }   // ±x faces
+else if (mi===4||mi===5) { fw=(pr.width??0)*S[0];  ... }   // ±z faces
+```
+
+That measures the face the texture is genuinely on and can still disagree with
+the stamp. **I took their version; mine is deleted.**
+
+So the sequence was: I built a wrong instrument, drew a false conclusion from
+it, and then built a fix that could only ever confirm the answer I had just been
+handed. The correct check came from the module that knows its own geometry — the
+same conclusion as `userData.mod` and the masonry stamp, for the third time.
+
+> **An auditor outside the code can measure what a thing looks like. It cannot
+> reliably infer what a thing *is*.** Every instrument I own that tried to has
+> eventually been wrong: the geometric masonry filter, the door-leaf shape
+> filter that found citizens, the float detector that found lamp bulbs, and now
+> the box face. Every one was fixed by the world declaring something instead.
