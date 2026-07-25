@@ -179,3 +179,30 @@ fifty items queued between them.
 Brief builders to **work the queue continuously** until it is empty or they
 are genuinely blocked, and to say WHICH of those it is when they stop.
 `scripts/builder.sh` includes this in the brief it sends.
+
+## 18. "Busy" is not "progressing"
+
+An agent grinding on one turn for over an hour looks identical to a healthy one
+in any status view that only reports busy/idle. It happened: 74 minutes, 92k
+tokens, nothing committed, three rooms the user had asked for still out of the
+world — and the desk read the pane as fine.
+
+`scripts/desk.sh` now reads the spinner's own elapsed timer and flags any agent
+past 25 minutes on a single turn **with nothing committed**. An agent that is
+committing steadily is not stalled however long it has been going, which is why
+the check is `time AND no commits`, not time alone.
+
+When you see a STALL, interrupt and ask for the **smallest committable piece**.
+Do not ask what it is doing — ask it to ship something.
+
+## 19. Log the request before you dispatch it
+
+`CLAUDE.md` requires every user request to land in `FEATURE-REQUESTS.md`. In a
+fast stretch the desk routed roughly twenty asks straight into queue files and
+the master log simply stopped. Nothing was lost — every ask was in a queue or
+had landed — but the record could not be reconstructed without walking nine
+queue files and a hundred commit messages, and the user had to ask "you didn't
+lose any of them, did you?" to surface it.
+
+Use `scripts/route.sh <agent> "<user's words>" "<message>"`. It logs, dispatches
+and verifies in one command, so the log cannot be the step that gets skipped.

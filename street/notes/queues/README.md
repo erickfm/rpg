@@ -60,3 +60,43 @@ terminal. That meant no visibility into what was pending, no way to reorder, no
 survival across a context reset, and no accounting — one builder silently
 accumulated ten items while a high-value request sat behind low-value work for
 three separate asks.
+
+
+---
+
+## One committable outcome per item
+
+A queue item must name **one thing that can be committed on its own.** Not two,
+even when the second obviously follows from the first.
+
+This has a measured cost. The desk once wrote an item that said, in effect:
+*wire these three finished rooms into the world, AND close the structural hole
+that let them be forgotten.* The builder went for the structural half — the
+harder, more interesting one — and ground for **74 minutes without committing
+anything**, while three rooms the user had asked for stayed out of the world
+and the desk's status board reported the agent as healthily "busy".
+
+So:
+
+- **Smallest shippable thing first, as its own commit.** If the fix is three
+  lines and the proper solution is a refactor, the three lines ship first and
+  the refactor is the next item. The user gets the room; the codebase gets the
+  fix; neither waits for the other.
+- **If an item contains the word "and", look hard at it.** Usually it is two
+  items.
+- A builder that finds an item is really two should **say so and do the
+  smaller half first**, rather than picking the interesting one.
+
+## Raising a blocker
+
+If you cannot proceed — you need an export from a file you do not own, a
+decision only the desk can make, or another builder's work has to land first —
+**write `street/notes/BLOCKED-<you>.md`** saying exactly what you need and from
+whom, then take the next item in your queue.
+
+`scripts/desk.sh` surfaces that file as an ACTION. Do not rely on the desk
+reading your handoff note: a builder once sat blocked on a one-line export that
+another builder could have added in a minute, and the desk only discovered it
+by chance while reading a report for another reason.
+
+Delete the file yourself once you are unblocked.
