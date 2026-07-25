@@ -10,12 +10,24 @@
 > **What was wrong: everything I said about why.** I claimed `rainAt` fires on
 > hours 0, 1, 5, 6, 10, 11, 15 and 20, and that stepping through 20 was the cause.
 > I got those hours by **re-implementing `rainAt` in Python instead of asking the
-> running world.** Asked directly — stepping the clock and reading
-> `scene.userData.rainLevel` — the world says:
+> running world.** There is now no excuse for that at all: `props.ts:152` publishes
+> `scene.userData.rainAt`, added precisely because two scripts carried hand-copies
+> of the formula — *"two copies of a formula that just turned out to be wrong,
+> which is two places to forget."* Mine was a third.
+>
+> Asked of the published function:
 >
 > ```
-> rain rises at 0, 1, 10, 14, 16, 17, 21   (2, 11, 15, 18, 22 read low: decay tails)
+> scene.userData.rainAt → rains at 0, 1, 10, 14, 16, 17, 21   (7 of 24)
 > ```
+>
+> which matches an independent sweep of `rainLevel` hour by hour, and settles that
+> the low readings I saw at 2, 11, 15, 18 and 22 were decay tails rather than rain.
+>
+> **And the copy was doubly doomed:** `e0c68e46` REPLACED `rainAt` during this
+> session — *"the weather was periodic, not random"* — so my Python was a copy of
+> superseded source within hours of my writing it. A hand-copy is wrong the moment
+> the original moves, and this original moved the same afternoon.
 >
 > **20 is not a raining hour. 21 is.** So my "two ways out" had it exactly
 > backwards: routing through 19 and 21 to avoid rain steps *into* it. A path via
