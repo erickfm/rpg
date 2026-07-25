@@ -176,6 +176,31 @@ export function buildChurch(ctx: CtxBuild) {
   }), 'sign');
   room.sign(roseT, 2.4, 3.6, 0, 3.4, hd - 0.09);
 
+  // ── one person, four rows back, and she is the difference ──
+  //
+  // The room shipped with `keeper: null` and the reasoning was sound as far as
+  // it went: a weekday afternoon church is empty, and the emptiness is the
+  // effect. But the user has said twice that interiors here feel wrong for
+  // exactly the neighbouring reason — *"the people inside these places are
+  // always flat and not like the people on the street"*, and of the bodega,
+  // *"a bit small and sad"*. Empty and SAD are one bad decision apart.
+  //
+  // So: one woman, seated, four rows back on the left, facing the altar. Not a
+  // keeper — nobody is minding a church — which is why `keeper: null` in the
+  // harness stays correct: there is no counter and nobody to serve you. She is
+  // scenery with a pulse, and a single figure in a sixteen-metre nave reads as
+  // quiet, where nobody at all reads as unfinished.
+  //
+  // Head bowed is not something the atlas can do, so this does the readable
+  // version: seated height, dark coat, still. From the 8-angle atlas like every
+  // other figure in the world — the whole point of the user's complaint was
+  // that interior people were cardboard when the street's were not.
+  const PRAY_Z = -hd + 3.2 + 3 * 1.05;
+  room.person({
+    jacket: '#3a3640', pants: '#2e2b33', skin: '#c9a48a', hair: '#7a7068',
+    fit: 'coat', accent: '#5a5260', cut: 'short', build: 0,
+  }, -PEW_CX, PRAY_Z, { facing: 0, h: 0.62, w: 0.92 });
+
   // ── a rack of votive candles by the door, the one warm thing ──
   const rack = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.34),
     new THREE.MeshBasicMaterial({ color: 0x4a4038 }));
