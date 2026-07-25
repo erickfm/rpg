@@ -85,3 +85,25 @@ Burger Barn and THRIFT.** The fifth is unreachable, not wrong.
 - **The deprecated `Frontage` fields** are still live because `ct/interior.ts`
   reads them at lines 513 and 523. `BLOCKED-A.md` has it; they go the moment
   the desk says F is across.
+
+## Not mine: the auditor's 12 mirrored shopfront faces
+
+`notes/request-audit.md` re-checks 12 mirrored faces and notes they are *not*
+closed by the two door-side mirror fixes. That is correct and they are separate
+problems — mine was **which side of a facade the door is on**; theirs is
+**`DoubleSide` planes showing their reversed back face** (`GOTCHAS.md` §10).
+
+They are not in my files. Measured rather than assumed:
+
+- **`ct/tex-world.ts` uses `DoubleSide` zero times.** Every shopfront painter
+  and every piece of `shopfrontRelief` is `FrontSide`.
+- All three `DoubleSide` uses in the shopfront area are in `ct/street.ts` (D):
+  the bodega awning, a gap filler, and the alley flanks.
+- The auditor puts the faces at **x = 7.18**, which is 0.18 m *into* the east
+  buildings. `shopfrontRelief`'s mouldings project the other way — outward, so
+  x < 7 on the east side — and nothing of mine sits at that plane.
+
+So: `ct/street.ts`, D, as the audit itself suggests. The fix it recommends —
+give each face its own correctly-handed artwork, or make them `FrontSide` and
+place a second plane — is the same shape as the `twoSided()` problem already
+logged twice.
