@@ -633,3 +633,58 @@ Eight interior slabs are built (figures at x ≈ 440, 516, 597, 677, 756, 840,
 Not a defect — nobody asked for a keeper in every room — but it is the kind of
 set-level inconsistency the interiors audit exists to catch, and it is now
 measured rather than guessed. Logged to `notes/interior-audit.md`.
+
+---
+
+# ═══ CURRENT GRADE — re-walked at `a8636631`. This supersedes everything above. ═══
+
+Four verdicts I had marked NOT DONE have landed. One of them I got **wrong for
+my own reasons**, not because the world changed. All re-walked, not re-read.
+
+| # | request | grade | evidence |
+|---|---|---|---|
+| 1 | **park is lit** | **DONE** | **20 light sources** over the park's full bounds — ten lanterns at y 3.74, each with a ground pool, in three ranks at x −9.5, −22.2, −34.8 |
+| 2 | **park is not a yard** | **DONE** | **42.5 m of walkable depth** (x −7.5 … −50), **569 meshes, 88 over 2.5 m** |
+| 3 | **church steps** | **DONE** | walkable flight at **x 8.5 … 9.0, z −78 … −81, gy 0.31 → 0.51** |
+| 4 | **library courtyard seats** | **DONE** | `civicSeats()` is called at `crosstown.ts:375`; courtyard reachable on foot |
+| 5 | **library steps** | **DONE** | x −11.5 … −9.0, z −14.5 … −11.5, **gy 0.42 → 0.99**, reachable from spawn |
+| 6 | **interior people turn 8 ways** | **DONE** | 4 rooms, **8 of 8 distinct frames** each |
+| 7 | **a keeper in every room** | **PARTIAL** | 8 rooms built, **4 staffed** — F's four have `room.person`, G's four do not |
+| 8 | **wheel arches** | **NOT DONE** | two vehicles, wheels are discs against a straight sill. H is on it |
+| 9 | **burger barn red-and-beige** | **DONE** | red fascia, cream awning, tan stallriser, no yellow |
+
+## The church: I was wrong, and not because the world moved
+
+I graded the church steps NOT DONE on a scan of **12,260 free points** across
+x −45 … 63, z −90 … −138 that found **zero** ground above 0.20 m. That scan was
+real and its result was real. It was also of an **empty block**.
+
+`ct/street.ts:810` says it plainly: *"The church stands on the main block now."*
+It was moved, and `placeChurchEast` puts it on the east frontage. Every sweep I
+ran was of where the church **used to be**. E's report was right the whole time.
+
+Walking the east frontage instead: 459 free points, 14 raised, one cluster —
+**x 8.5 … 9.0, z −78 … −81, rising gy 0.31 → 0.51.** E reports 0.55 at the
+doors; my grid stops at 0.5 m and at the edge of free ground, so 0.51 is the
+last tread I could stand on, not the top. Same flight, same answer.
+
+This is the fourth time in this audit a stale location has produced a confident
+wrong answer, and the **first time it produced one against a builder**. The rule
+I wrote after the diner — *aim from the source, not from memory* — I applied to
+my cameras and never to my **scan boxes**. A search region is an aim.
+
+## The park: my "8 lanterns" was also a partial view
+
+`bounds.minX` was −13.40 against a 32 m park, so the reachable world stopped
+about seven metres in — and my light census used a bbox of x −21 … −7, which was
+that same near strip. Over the park's **full** bounds it is **20 light sources,
+569 meshes, 88 over 2.5 m**, in three ranks rather than one. Both my park numbers
+were right about what they measured and wrong about the park.
+
+## What is still genuinely unchecked
+
+The car lot interior and its office; the bench ad (a **failed search** — no
+ad-panel geometry exists anywhere by shape); the 301 door; facade-door alignment
+for the bodega, diner and tax service; and wetness persisting after rain. I am
+not grading any of them, and the reachability grid now exists to do the first
+one properly next.
