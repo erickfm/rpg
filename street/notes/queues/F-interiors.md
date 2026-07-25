@@ -45,59 +45,7 @@ something from it, they ask you and you add it — they do not edit it.
       · walk it afterwards: in, out, and confirm you do not land inside the
         laundry next door.
 
-- [ ] **Verify and finish the kit and the diner. THEY ARE UNVERIFIED.**
-
-      Your worktree starts with uncommitted work already in it: `interior.ts`,
-      `int-diner.ts`, and a small `crosstown.ts` change. The desk wrote them to
-      unblock you and they **typecheck but have never been run** — the
-      fingerprint harness was pointed at a stale server, so there is no
-      evidence the diner loads at all, let alone that you can walk into it.
-      Treat every line as suspect.
-
-      What must be true before you commit:
-      · the world still initialises (`node scripts/health.mjs`)
-      · you can stand outside the diner on the west walk at z ≈ 9.6, press E,
-        and end up inside it
-      · you can press E at the door inside and come back out onto the street —
-        and NOT get sucked straight back in (that bug has shipped once)
-      · you cannot walk through any wall, and you can walk the lane between
-        the counter stools and the booths without getting stuck
-      · the floor is at the right height and you are not sunk into it
-
-      Walk it. `GOTCHAS.md` §1 — a screenshot proves nothing here.
-
-      Known-suspect specifics, in the order I would check them:
-      1. `interiorGround` returns 0 for anything past x = 400 whether or not a
-         room is there. Harmless now, wrong later.
-      2. The front-wall hole-cutting loop assumes the door and window do not
-         overlap and that both are inside the wall. Nothing checks either.
-      3. The door leaf is a plane hung at a fixed angle. It may well clip the
-         jamb.
-      4. Interiors are excluded from the night sweep by `|x| > 100` in
-         `props.ts`. Confirm the rooms actually keep their light after dark.
-
 ## Next
-
-- [ ] **BURGER BARN interior. The user is already trying to get in** — *"cant
-      go inside burger barn"* — so this is the next thing they will check.
-
-      There is no way in at all today: no `[E]` spot and no interior. The kit
-      gives you both, but note the facade painter draws a door at
-      `W * 0.44` of the shopfront texture, and your `[E]` spot has to land on
-      the world position that corresponds to it — not near it. Work it out
-      from the building's z-span in the WEST roster rather than guessing, and
-      then walk up and press E to prove it. `GOTCHAS.md` §8: a collider that
-      overlaps the approach will silently eat the trigger, which is exactly
-      how the bodega became un-enterable.
-
-      Loudest building on the block, 16 m wide, west
-      side. Red-and-beige inside as well as out (the user rejected red/yellow).
-      Order counter with backlit menu boards, fryer station behind it, moulded
-      fixed tables and swivel stools, tray stack, bin with a swing flap, tile
-      to waist height then painted block above. A 1997 fast-food room is
-      brighter and harder than the diner — more plastic, less chrome, no
-      booths with dignity. That contrast with the diner is the point; do not
-      let them converge.
 
 - [ ] **THRIFT STORE interior.** 14 m wide, west side, north of BARBER.
       The opposite problem to the burger barn: it should feel like too much
@@ -125,4 +73,9 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Done
 
-_(nothing yet — you are new)_
+- [x] **The interior kit** (`ct/interior.ts`) verified and finished, and the
+      diner with it (`3b5acc0`, handoff `a68f35c`). The desk handed both over
+      unverified; F found and fixed the real faults rather than trusting them.
+- [x] **BURGER BARN: the way in, and the room behind it** (`343ad61`)
+- [x] Retired `diner-walk.mjs` in favour of `interiors-walk.mjs`, which covers
+      both rooms (`7a5722b`)
