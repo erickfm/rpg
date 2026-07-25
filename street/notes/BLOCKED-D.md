@@ -204,3 +204,45 @@ My preference has moved to **3 now, 2 whenever someone is next in that type**.
 1 buys least: it removes a guessed answer that is already labelled as a guess.
 
 Still the desk's call, and A's if it is 2.
+
+---
+
+## Timing: the contract is being handed to F, and it does not mention cut faces
+
+`cb696d3d` publishes `notes/A-frontage-signature.md` — the exact frontage export,
+extracted from source, *"for the desk to hand to F"*. It is a good document and
+it carries `doorDeclared` with its meaning spelled out.
+
+It mentions `declaredDoors`, `cut face`, `canted` and `bodega` **zero times**.
+
+That matters right now rather than eventually, because F is about to build
+against it. What a reader takes from that contract today:
+
+```
+__frontages is where a shop's door is.
+doorDeclared tells you whether a room said so or the painter guessed.
+```
+
+Both true. What is missing is the third case:
+
+```
+For a CUT FACE the room DID say — and its answer is not in this record at all.
+It is in declaredDoors() / doorStandFor(), because Placement cannot describe
+a 45° wall.
+```
+
+Without that, `doorDeclared: false` on BODEGA reads as *"no room declared this
+door"*. The room declared it precisely; the declaration simply cannot reach a
+frontage whose `axis` is `'x' | 'z'`. A consumer following the contract
+faithfully will conclude the bodega has no authored door and either use the
+painter's guess at x 12.82 — the wing's decorative door, 5 m from the real one —
+or skip the shop.
+
+**One sentence in that document would close it**, and it is A's document:
+
+> A shop whose door is on a cut face has no representable `Placement`, so its
+> door is not here. `declaredDoors()` is the authority for those.
+
+This is not a new blocker and it does not change the three options. It is the
+same item, arriving at the moment it is cheapest to fix — before a second
+consumer is written against the gap rather than after.
