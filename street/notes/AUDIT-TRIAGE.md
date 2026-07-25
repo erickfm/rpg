@@ -1529,3 +1529,54 @@ established is that **this check could not tell me**, and it is in the area I
 graded *"THE PARK IS LIT"*. The fix is the one the same commit already used for
 the lamps — find the floor by tag or by `groundAt`, not by equality with 0.14.
 `scripts/park.mjs` is not a file I edit.
+
+# PARK GRAPHICS REVIEW — walked the depth and the loop in daylight, night and rain
+
+Twelve frames at four viewpoints × three conditions, plus two in the alley.
+**Every frame read.** `shotguard` first reported **12 of 12 blank** — my own bug:
+`warp(x, z, yaw, GY, pitch)` takes the ground height fourth and I passed `0`,
+putting the camera under a park floor that sits at 0.14–0.51. A second run came
+back with the first four still blank — the world had not rendered yet at the
+first condition — so the script now warms up. **0 of 12 blank now.** Frames in
+`shots/pk-*.png`.
+
+## The streaks: one finding, and the fix already exists
+
+**The park's dark diagonal streaks are the desire lines** — dirt paths draped
+across the grass, hard-edged dark brown against bright green, crossing the whole
+field. Visible in `pk-day-mid.png` and confirmed by `d27855b74`, which describes
+them as dirt strips that cross and were fighting over depth.
+
+**They are NOT the same artefact as the alley's**, and D has already found and
+fixed theirs (`58f6a1d28`): *sixteen flow strokes converging on the drain* — a
+starburst that reads as diagonals from standing height. Different geometry,
+different material, different author.
+
+**They are the same MISTAKE, and D's fix transfers.** In D's words:
+
+> *"I drew the FLOW rather than the mark the flow leaves, and a floor does not
+> show you streamlines. What a yard gully actually leaves is DAMP: it darkens
+> smoothly and has no edges at all… a stain should follow where water runs, not
+> cut diagonally across the floor."*
+
+A worn path through grass is the same kind of thing: **thinning grass with no
+boundary**, not a brown band with a crisp edge. **So it is one finding —**
+*"draw the mark, not the concept"* — **and E should take D's radial-wash
+treatment rather than re-derive it.**
+
+## Graded by what a player can see
+
+| | finding | grade |
+|---|---|---|
+| **1** | **Desire lines read as hard-edged brown bands** cutting across the field, the single most visible thing in daylight from every viewpoint | **ROUTE — E**, with D's `58f6a1d28` as the pattern |
+| **2** | **A dark rectangle set into the paving** in front of the shelter (`pk-day-far.png`, centre) — reads as a flat black quad, not a casting | **ROUTE — E** (already in their three) |
+| **3** | **No shrub layer at the boundary**: the brick wall meets the grass with only a railing, so the park reads as a walled yard from every angle | **ROUTE — E** (already in their three) |
+| **4** | **Night is good.** Ten lanterns light, each with a visible ground pool; the field reads dark and the paths read lit. `pk-night-*.png` | **no action** |
+| **5** | **Rain is good.** Rain renders in the park, canopies and wall darken together, no dry patches | **no action** |
+| **6** | **The 32 m depth reads.** From the shelter the sightline runs field → street → church, unbroken. The depth complaint is answered | **no action** |
+| **7** | Mowing stripes are visible in daylight and invisible at night | **record only** — correct behaviour, not a fault |
+
+**No stale geometry or orphaned props found.** The brief flagged this as likely
+after three rebuilds; the standing float sweep run this session puts the largest
+outdoor gap in the world at **0.22 m**, and nothing in twelve frames reads as
+detached, doubled or left behind.
