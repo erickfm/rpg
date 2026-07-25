@@ -236,7 +236,7 @@ const CHECKS = [
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
-  ['interiors-walk',   'can you enter every room, and does each hold you in?', false, [], true],
+  ['interiors-walk',   'can you enter every room, and does each hold you in?', true, [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the

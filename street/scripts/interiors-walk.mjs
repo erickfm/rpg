@@ -62,8 +62,14 @@ const ROOMS = [
 // published frontage the kit and the painter use. Hand-typed door positions in
 // a test file go stale exactly the way they did in the rooms — three of them
 // did, and a test asserting a stale number is worse than no test.
-const only = process.argv[2];
+// The room filter is POSITIONAL, so it must skip flags. `process.argv[2]` took
+// `--selftest` as a room name, matched nothing, and the run walked zero rooms.
+const only = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
+if (only && !rooms.length) {
+  console.log(`no room called "${only}" — ids are: ${ROOMS.map((r) => r.id).join(', ')}`);
+  process.exit(1);
+}
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
@@ -125,6 +131,35 @@ const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 // size now (`__ct.roomDims()`), which is the same fix as the doors: one
 // authoring, asked for rather than copied.
 const DIMS = await p.evaluate(() => window.__ct.roomDims());
+
+// --selftest: wall every declared door shut from the STREET and require this
+// to go red.
+//
+// This is the largest check I own — 195 assertions across eight rooms — and it
+// was registered in scripts/checks.mjs with `false` in the selftest column,
+// which by GOTCHAS 27's own closing line makes that column a to-do list I had
+// not worked. The other five fire; this one had never been watched fail.
+//
+// The mutation is a collider pushed onto the LIVE __ct.colliders() over each
+// building's PUBLISHED door stand point, so it is the real array the movement
+// code tests and the real place a player walks to. Nothing else about the
+// world changes: the rooms are still built, still furnished, still lit. Only
+// the way in is gone — which is precisely the failure this script exists for,
+// the one that had five modules shipped and unreachable.
+if (process.argv.includes('--selftest')) {
+  const n = await p.evaluate(() => {
+    let k = 0;
+    for (const d of window.__ct.doors()) {
+      if (!d.stand) continue;
+      window.__ct.colliders().push({
+        minX: d.stand.x - 1.4, maxX: d.stand.x + 1.4,
+        minZ: d.stand.z - 1.4, maxZ: d.stand.z + 1.4 });
+      k++;
+    }
+    return k;
+  });
+  console.log(`selftest: walled ${n} declared doors shut — this MUST now go red\n`);
+}
 
 for (room of rooms) {
   const built = DIMS.find((d) => d.id === room.id);
@@ -543,6 +578,23 @@ console.log('');
 for (const [ok, name, detail] of results) console.log(`${ok ? ' ok ' : 'FAIL'}  ${name}\n        ${detail}`);
 const bad = results.filter((r) => !r[0]).length;
 console.log(`\n${results.length - bad}/${results.length} passed`);
+// AN EMPTY RUN IS NOT A PASS.
+//
+// This printed "0/0 passed" and exited 0 when it walked no rooms at all —
+// found while writing the selftest, whose flag the positional filter had
+// swallowed. The same green would have come back from a typo'd room name, and
+// from a world where every door had been sealed: the more completely broken
+// the world, the fewer assertions run, and at total failure the count reaches
+// zero and the check reports success.
+//
+// That is the worst shape a check can have, and it is the one this script was
+// written to catch in the WORLD — five modules shipped unreachable because
+// nothing asked. It should not have had it too.
+if (!results.length) {
+  console.log('NO CHECKS RAN AT ALL. That is a failure, not a pass — the harness');
+  console.log('never reached a room. Expected ' + rooms.length + ' room(s).');
+  process.exit(1);
+}
 if (errs.length) console.log('\npage errors / kit warnings:\n  ' + errs.slice(0, 8).join('\n  '));
 await b.close();
 process.exit(bad || errs.length ? 1 : 0);
