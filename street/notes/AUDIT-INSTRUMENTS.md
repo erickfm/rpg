@@ -668,3 +668,56 @@ I second: have the collider list carry the `userData.mod` tag that `lot`,
 `walkup` and `vice` already use, so *"is this a mover"* becomes a **declaration**
 rather than an inference from two frames — and this whole class of error stops
 existing. That is `ct/props.ts`'s call, not mine.
+
+## Why `interiors-walk` failed six times: it needs a DEV server, not a preview
+
+Worth writing down plainly, because it cost six attempts and I twice blamed the
+wrong thing (the port, then another builder's worktree). Against a preview server
+it dies with:
+
+```
+page.evaluate: TypeError: Failed to fetch dynamically imported module:
+  http://localhost:4184/src/proto/ct/doors.ts
+```
+
+**It dynamically imports raw `.ts` at runtime.** Only the dev server serves that;
+`vite preview` serves the built bundle and has no `/src/…` to give. So the rule
+is `npx vite --port <yours>`, never `vite preview`, for this suite. Both of my
+successful runs were dev; all six failures were preview or a port I did not own.
+
+## Re-verified after the world-coordinate migration — still 195/195
+
+`2de9134d` moved the interiors off the painter's local offsets and onto the world
+coordinates the descriptor publishes, and **deleted the fallbacks** — a change to
+door and glazing positioning, which is exactly what I had certified one commit
+earlier. Re-run at that HEAD: **195/195 across all eight rooms**, unchanged. The
+entry/exit round trip, the landing at `gy=0.14`, the re-entry trigger, the open
+landing in all three directions and the interior night lighting all still hold.
+
+### The handedness claim, checked from outside
+
+That commit's justification is *"side and uDir disagree on 7 of the 16
+frontages"* — the reason `alongU` must be the only place the mirror is applied.
+It is the load-bearing number in the patch, so `scripts/hand.mjs` checks it
+against the live `__frontages`:
+
+```
+sign(facePos)                      disagrees with uDir on 6 of 16
+sign(outward)   [the facade normal] disagrees with uDir on 7 of 16
+    BURGER BARN, DINER, THRIFT, A-1 TAX, LIQUOR, PAWN, RADIO
+```
+
+**7 of 16 confirmed exactly** — and the probe adds something the commit message
+does not say: the seven are precisely the **main-street (`axis:'z'`) frontages**,
+every one of them. So the double-mirror trap would have broken *every shop on the
+street proper* while leaving all nine side-street shops correct. That is the
+half-working shape that is hardest to catch by looking, which is a fair argument
+for the helper existing.
+
+### The circularity caveat is unchanged
+
+The migration does **not** lift it. All eight rooms still declare their own
+`door: {…}` (`int-diner.ts:58` still reads `at: DOOR.at`), and where a room does
+not, `:553` now derives the position *from* `FW.doorWorld` — so comparing an
+interior door against the frontage's door still compares a number with itself.
+That row stays **[C]**.
