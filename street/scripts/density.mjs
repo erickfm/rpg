@@ -17,9 +17,11 @@
 // one texture's declaration, so nothing on disk changes and the world is not
 // touched: a stamp claims it was painted for a width it was not.
 import { chromium } from 'playwright';
+import { FACE_LIB } from './lib/faces.mjs';
 const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
+await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
@@ -64,12 +66,8 @@ const r = await p.evaluate(() => {
       const iw = m.map.image.width, ih = m.map.image.height;
       if (!iw || !ih) return;
       let fw, fh;
-      if (g.type === 'BoxGeometry') {
-        if (i === 0 || i === 1) { fw = sz[2]; fh = sz[1]; }
-        else if (i === 4 || i === 5) { fw = sz[0]; fh = sz[1]; }
-        else { fw = sz[0]; fh = sz[2]; }
-      } else if (par.width !== undefined) {   // PlaneGeometry: local w x h, always
-        fw = sz[0]; fh = sz[1];
+      if (par.width !== undefined || g.type === 'BoxGeometry') {
+        ({ fw, fh } = window.__faceLib.dims(o, i));   // scripts/lib/faces.mjs
       } else {                                 // unparameterised: fall back to extents
         const nz = [0,1,2].filter(k => sz[k] > 1e-4);
         if (nz.length < 2) return;

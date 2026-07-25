@@ -27,9 +27,11 @@
 // 1a9e4661, because four copies of this logic existed and two were wrong) this
 // should use it instead of carrying a fifth.
 import { chromium } from 'playwright';
+import { FACE_LIB } from './lib/faces.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
+await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
@@ -59,14 +61,8 @@ const out = await p.evaluate(() => {
     const len = (a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
     const S = [len(0,1,2), len(4,5,6), len(8,9,10)];
     const pr = o.geometry.parameters || {};
-    let fw = null, fh = null;
-    if (o.geometry.type === 'PlaneGeometry') { fw = (pr.width??0)*S[0]; fh = (pr.height??0)*S[1]; }
-    else if (o.geometry.type === 'BoxGeometry') {
-      // BoxGeometry material order is [+x, -x, +y, -y, +z, -z]
-      if (mi === 0 || mi === 1)      { fw = (pr.depth??0)*S[2];  fh = (pr.height??0)*S[1]; }
-      else if (mi === 4 || mi === 5) { fw = (pr.width??0)*S[0];  fh = (pr.height??0)*S[1]; }
-      else                           { fw = (pr.width??0)*S[0];  fh = (pr.depth??0)*S[2];  }
-    }
+    // one implementation, scripts/lib/faces.mjs — it was wrong in two scripts
+    const { fw, fh } = window.__faceLib.dims(o, mi);
     const img = m.map.image;
     // map.repeat is the trap: a canvas painted for one width and TILED onto a
     // wider face has the right density and the wrong naive arithmetic. I made

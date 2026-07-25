@@ -13,9 +13,11 @@
 // paired, and the pair is judged on whether its two densities match — which is
 // what a player sees at the corner where they meet.
 import { chromium } from 'playwright';
+import { FACE_LIB } from './lib/faces.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
+await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts/lib/faces.mjs
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
@@ -45,12 +47,7 @@ const out = await p.evaluate(() => {
     const kind = (m.map.userData && m.map.userData.surface) || null;
     const e=o.matrixWorld.elements, len=(a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
     const S=[len(0,1,2),len(4,5,6),len(8,9,10)], pr=o.geometry.parameters||{};
-    let fw, fh;
-    if (o.geometry.type === 'BoxGeometry') {           // [+x,-x,+y,-y,+z,-z]
-      if (mi===0||mi===1)      { fw=(pr.depth??0)*S[2]; fh=(pr.height??0)*S[1]; }
-      else if (mi===4||mi===5) { fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1]; }
-      else                     { fw=(pr.width??0)*S[0]; fh=(pr.depth??0)*S[2];  }
-    } else { fw=(pr.width??0)*S[0]; fh=(pr.height??0)*S[1]; }
+    const { fw, fh } = window.__faceLib.dims(o, mi);   // scripts/lib/faces.mjs
     if (!(fw>0.05&&fh>0.05)) return;
     const img=m.map.image; if(!img) return;
     const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox();
@@ -77,15 +74,7 @@ const out = await p.evaluate(() => {
     // placed on the correct side of the box and spanning the correct two axes.
     const V = (x,y,z) => new (s.position.constructor)(x,y,z);
     const hw = fw/2, hh = fh/2;
-    let ctr, ax, ay;                      // local centre offset and in-plane axes
-    if (o.geometry.type === 'BoxGeometry') {
-      const W=(pr.width??0)/2, H=(pr.height??0)/2, D=(pr.depth??0)/2;
-      if (mi===0)      { ctr=[ W,0,0]; ax=[0,0,1]; ay=[0,1,0]; }
-      else if (mi===1) { ctr=[-W,0,0]; ax=[0,0,1]; ay=[0,1,0]; }
-      else if (mi===4) { ctr=[0,0, D]; ax=[1,0,0]; ay=[0,1,0]; }
-      else if (mi===5) { ctr=[0,0,-D]; ax=[1,0,0]; ay=[0,1,0]; }
-      else             { ctr=[0, mi===2?H:-H, 0]; ax=[1,0,0]; ay=[0,0,1]; }
-    } else { ctr=[0,0,0]; ax=[1,0,0]; ay=[0,1,0]; }
+    const { ctr, ax, ay } = window.__faceLib.frame(o, mi);   // scripts/lib/faces.mjs
     // A 5x3 grid, not just the corners. Two long walls meeting along the MIDDLE
     // of an edge share no corner, so a corner-only test misses exactly the
     // junction this tool exists to find.
