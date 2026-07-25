@@ -173,6 +173,20 @@ touch `crosstown.ts`.
 Both **routed to builder C** — `ct/lot.ts` is C's. Landed together in one
 commit, as asked.
 
+
+- **"the trunk sits hard against the kerb-side edge of its pit, most of the dirt
+  on the building side — it is not centred"** → **B**. Diagnosed: NOT a
+  regression from the kerb-clearance fix. `7d32dae25` (that fix) used one
+  constant for both — `tx = s * PIT_X`, concentric. `1a88b8c1b` later split them
+  to widen a 0.90 m walking squeeze to 1.10 m, moving the TREE kerb-ward to
+  `TRUNK_X = 5.46` and leaving the pit at `PIT_X = 5.56`. Dirt is 0.18 m
+  kerb-side against 0.38 m building-side.
+- **"the car lot apron is a large flat untextured grey plane"** → **B**. Three
+  parts: texture it at the world's density with its own cross-travel scoring;
+  make it RAMP from walk level to road level with flared wings; abut rather than
+  overlap the sidewalk paving (GOTCHAS 6). Plus: check whether the fence base
+  along its right edge is sitting at the old walk height instead of following
+  the ramp down.
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
   — **B: both halves landed and measured.** Clearance on the kerb side is
   0.218 m of walk between the kerb chamfer and the pit edge, the same at all

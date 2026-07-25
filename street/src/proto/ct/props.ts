@@ -842,8 +842,31 @@ export function buildProps(ctx: CtxBuild): Props {
   // an assertion of 0.20. The right answer was not to lower the assertion — it
   // encodes a user request — but to stop moving the two things together.
   const TRUNK_X = 5.46;                      // blocks to 5.54, as the lamps do
-  const PIT_X = 5.56;                        // the well: 0.22 m strip, 0.10 m of dirt kerb-side of the trunk
-  const PIT_W = 0.56;
+  // THE WELL IS CENTRED ON THE TRUNK. It was not: PIT_X 5.56 against TRUNK_X
+  // 5.46 put 0.18 m of dirt on the kerb side and 0.38 m on the building side,
+  // and the user read it correctly as the trunk shoved against the kerb edge.
+  //
+  // It was NOT the kerb-clearance fix that split them — 7d32dae25 used one
+  // constant for both. 1a88b8c1b did, moving the TREE kerb-ward to open a 0.90 m
+  // walking squeeze to 1.10 m and leaving the well where it was. The tree moved;
+  // the pit did not.
+  //
+  // So the trunk is the thing that cannot move: it is pinned at 5.46 by that
+  // lane. Centring the well on it, with the kerb strip still over the 0.20 m
+  // scripts/footprint.mjs asserts, caps the width:
+  //
+  //     kerb edge >= 5.0625 + 0.20 = 5.2625,  centred on 5.46  ->  PIT_W <= 0.395
+  //
+  // 0.36 keeps the strip at 0.2175, which is what it measures today, rather
+  // than spending the margin. The well narrows ACROSS the walk from 0.56; its
+  // 1.0 m length along the street is unchanged, and the dirt on the kerb side —
+  // the side that reads as pinched — is unchanged at 0.18 while the building
+  // side comes back from 0.38 to match it.
+  //
+  // If a bigger well is wanted, the trunk has to move building-ward and the
+  // walking lane pays for it. That is a trade for the user, not for me.
+  const PIT_X = TRUNK_X;                     // centred on the trunk, not offset from it
+  const PIT_W = 0.36;
   // DERIVED, and it moves nothing: the well is positioned from PIT_X below.
   // Kept because the number is the promise ('a bit of pavement at the kerb'),
   // but change PIT_X to change the world — editing this line does nothing.
