@@ -1583,3 +1583,29 @@ bank starts at -5, and the only things on that line are props.
 
 No defect, and no analogue of the road's problem here. Recorded because "the
 splash has gaps" looks alarming in a table and is the correct behaviour.
+
+
+## Tint audit of my six checks: one was wrong, and it is the one I fixed
+
+Having found that `material.color` is a tint rather than a brightness, I swept my
+own instruments rather than assume `midnight` was the only one.
+
+| check | what it reads | verdict |
+|---|---|---|
+| `shells` | `m.color` **only as an existence test**; distinctness from texture pixels | fine |
+| `alleycheck` | texture pixels, canvas size, bounding boxes | fine |
+| `builtlane` | colliders and geometry, no colour at all | fine |
+| `windowlights` | pixels off the **rendered frame** | fine, and the best of them — the frame already contains tint × texture × light |
+| `midnight` | tint alone | **was wrong; now tint × texture × opacity** |
+| `D-walk` | prompts and positions | fine |
+
+### The distinction that makes `midnight`'s control still correct
+
+`midnight` asserts a control on the alley flank's **tint** being under 0.2, and
+that is right even though tint is the wrong measure for brightness. The control
+asks *"has the grader run"*, and the tint is exactly what the grader changes.
+
+**Same field, two different questions.** Tint answers "was this graded"; only
+tint × texture × opacity answers "is this bright". Reading the first as the
+second is the error, and it is not a reason to stop reading tint where the
+question is grading.
