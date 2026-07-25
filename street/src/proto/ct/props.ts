@@ -364,12 +364,20 @@ export function buildProps(ctx: CtxBuild): Props {
         // litList and be written every frame by both — and the two wet paths
         // are about 30x apart in strength, so the loser would not lose subtly.
         //
-        // props.lit() is currently called on a tree and two lots of cars, none
-        // of which register wet decals, so this is a latent trap rather than a
-        // live bug: measured, it changes 0 of 5536 material colours at 23:00.
-        // Worth closing while it costs nothing, because the next caller of
-        // lit() will not know the rule is only enforced on one of the two
-        // registration paths.
+        // NOT a latent trap — a live one, and the callers are in THIS FILE.
+        // I first wrote that lit() is only called on "a tree and two lots of
+        // cars", having grepped the other modules for `.lit(`; props.ts calls it
+        // bare, five times — lit(tree), lit(hyd), lit(phone), lit(pole)/lit(flag)
+        // and lit(backGrp) — and those roots have my own ground decals in their
+        // subtrees. The bus bench is the clearest: lit(backGrp) reaches the
+        // bench's contact shadow, which updateRain already owns.
+        //
+        // Measured by toggling this line: 14 mesh/material pairs change hands,
+        // all of them `props` 16x16 PlaneGeometry decals at y 0.01-0.14 — grime
+        // stains, litter contact shadows, the bench shadow. Dry, nothing moves;
+        // in rain, 344 materials render darker, because the wet loop takes its
+        // roadLum reference from the darkest broad sheet it can see and those
+        // fourteen were hidden from it.
         if (wetMats.some((w) => w.m === m)) continue;   // updateRain owns those
         const c = m.color;
         litSeen.add(m);

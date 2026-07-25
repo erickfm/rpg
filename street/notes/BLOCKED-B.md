@@ -1,3 +1,35 @@
+# Correction: the wet/lit collision was caused by my own file, not by cars
+
+Last commit said the two-writer collision was possible but that "props.lit() is
+currently called on a tree and two lots of cars, so no ordinary material
+collides today; the fourteen are shared instances". **Both halves of that were
+wrong**, and I only found out by going back to check the second one.
+
+**They are not shared instances.** Of 59 wet-registered materials, exactly 3 are
+used on more than one mesh, and each of those stays inside a single module
+(`lot` x2, `tex-ground` x1). None spans a `lit()` root and a ground decal.
+
+**And lit() has five more callers, all in props.ts.** I had grepped the other
+modules for `.lit(` and found three. My own file calls it BARE — `lit(tree)`,
+`lit(hyd)`, `lit(phone)`, `lit(pole)` / `lit(flag)`, `lit(backGrp)` — and those
+roots carry my ground decals in their subtrees. `lit(backGrp)` reaches the bus
+bench's contact shadow, which `updateRain` already owns.
+
+Measured by toggling the guard: the 14 mesh/material pairs that change hands are
+all `props` 16x16 PlaneGeometry at y 0.01-0.14 — grime stains, litter contact
+shadows, the bench shadow. My own decals, reached by my own calls.
+
+**The fix was right; the story attached to it was not.** That matters because
+the story is what the next person acts on: "only cars call this, so it cannot
+happen" invites removing the guard, and the guard is load-bearing in rain.
+
+A grep that answers a narrower question than the one you asked reads exactly
+like a clean result — `.lit(` versus `lit(` is the whole difference, and it is
+the same shape as measuring a lamp fix with a stamp that only fires at full
+daylight, which is the other thing I got wrong this session.
+
+---
+
 # noLight: fixed, measured, and one thing it did NOT explain
 
 `d09e55e7f` reported that `userData.noLight` is honoured by `register()` and
