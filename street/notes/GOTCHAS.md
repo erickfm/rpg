@@ -816,3 +816,44 @@ that one side is right. If you want it in a check, compare the two planes'
 and a `-1/w` against a `+1/w` is the bug. `G-vice-walk` asserts this both ways,
 by pixels and by the transform, so anyone who "fixes" the blades per that clause
 gets a red rather than a shipped mirror.
+
+## 36. Cite commit hashes that are ALREADY MERGED
+
+Your own un-merged commits are renamed by the rebase that lands them. A note
+citing one is correct while you write it and wrong the moment it is useful to
+anybody else — which is the moment somebody else opens the note. Other builders'
+landed commits are stable. Waiting costs nothing.
+
+This is not a small leak. `5fae9ec5b` measured **149 of 750 citations across the
+project dead to everyone but their author**, and `10006a2ab` re-measured it and
+found it was not shrinking, because repair alone re-opens: every builder rebases
+on nearly every turn.
+
+**The rule is one line, and so is the check.** Do not use `git cat-file -e` — it
+resolves orphaned objects that exist only in your own worktree, which is exactly
+how two of us separately published "every citation resolves" about notes that
+were broken for everybody else. Ask whether it is reachable:
+
+```sh
+git merge-base --is-ancestor "$h" add-stick-and-city98
+```
+
+**If you are repairing old citations rather than writing new ones:** match the
+dead hash to its landed twin with `git patch-id --stable`, not by commit subject.
+Two commits can share a subject; the patch-id is the change itself. `12be9e163`
+built the project-wide recovery table this way, and it has a deadline — the
+repair needs the old object still readable, and git is already warning about
+too many unreachable loose objects.
+
+*Provenance, since this section is not the work of the hand that typed it.* The
+rule is `6ce778e4a`'s, the measurements are `5fae9ec5b` and `10006a2ab`, the
+recovery table and the patch-id method are `12be9e163`, and `0a201c46c` is the
+routing note that asked for this section and specified its content — correctly
+observing that a rule living in one builder's feature handoff cannot stop a
+project-wide leak, because nobody reads another agent's handoff before citing a
+hash. I wrote it in rather than leaving it queued because `OWNERSHIP.md`'s
+actual text is *"`scripts/**` and `notes/**` — anyone may add files. Do not edit
+another agent's script or handoff note"*, and this file is neither. If the desk
+holds `GOTCHAS.md` as desk-only anyway, then §35 is mine and equally out of
+order — revert both, not just this one. My own contribution here is small: 14
+dead citations of my own repaired and re-verified by patch-id (`48b9156a6`).
