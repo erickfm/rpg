@@ -583,6 +583,35 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## I could not confirm the split-the-mesh fix, and my instrument is why
+
+`19d0e9413` reframed the floating litter better than I had: the object is not
+over-lit, it is **under-darkened** — the night grade takes ground to 4–5% of its
+daylight value and litter to only 44–61%, about eleven times short. Its target is
+the *day* ratio, which is the right target.
+
+I tried to confirm my split-the-mesh routing against that: if slabbing is the
+fix, then where the ground is *already* slabbed the night ratio should stay near
+the day ratio. My pairing returned **day ratio = 1.0× for every object**, which
+is meaningless.
+
+**`MeshBasicMaterial.color` is a tint and it is white by default** — the texture
+carries the appearance. At noon every graded material's tint is white, so a day
+ratio computed from material colours is 1.0 by construction, everywhere. Their
+0.0881 daylight ground figure is a different quantity from the one I was reading.
+
+So the confirmation is **not made**, and I am not publishing the numbers it
+produced. What stands is the earlier, differently-measured result: ground meshes
+light only when their origin falls inside `LAMP_R`, the road's origin is 12.3 m
+from the nearest lamp, and the mildest floater in `e7cf57085`'s own ranking is
+the one on the slabbed walk. That is suggestive and it is not proof.
+
+Sixth probe of mine this session to produce a misleading number, and the tell was
+the same as the other five: a value that cannot be right for the thing I claimed
+to measure. **One in six is the rate I should assume**, not the exception.
+
+---
+
 ## A THIRD option for the floating litter, and it does not walk back the request
 
 Measured why some grounds light and others never do:
