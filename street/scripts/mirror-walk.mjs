@@ -124,7 +124,12 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n, widthM } of ROOMS
     if (!cols.length) return null;
     const lo = Math.min(...cols.map((c) => c.minX)), hi = Math.max(...cols.map((c) => c.maxX));
     return (lo + hi) / 2;
-  }, [inside[0], inside[1]]);
+    // `__ct.pos()` is [x, y, z, gy] — inside[1] is EYE HEIGHT, not z. This
+    // passed 1.6 as the player's z for every room, so the collider filter was
+    // asking "within 12 m of z = 1.6" regardless of where the room actually is.
+    // It happened to work for rooms centred near z = 0, which is all of them
+    // except the one that never measured.
+  }, [inside[0], inside[2]]);
   if (cx === null) { fails.push(`${id}: could not find the room around the player`); continue; }
 
   // THE DOORWAY IS THE ONE PLACE YOU CAN STAND AGAINST THE FRONT WALL.
@@ -135,15 +140,47 @@ for (const { name, w, cz, side, doorZ: declZ, roomW, stand, n, widthM } of ROOMS
   // reach the furthest +z", and both just found the scan's own bounds.
   // the room's front wall, found in the world rather than typed per room: the
   // furthest-out collider that spans most of the room's width
+  // THE FRONT WALL IS THE Z-PLANE THAT HOLDS THE MOST WALL.
+  //
+  // This took the furthest-out collider that spanned most of the room's width,
+  // and that filter is the same trap that hid the doorway twice: PAWN's room is
+  // 13.8 m, so a front wall built in pieces narrower than 6.9 m is discarded
+  // entirely and the search falls back to the BACK wall at z -2.52. It then
+  // reported PAWN's back wall as its front for three turns, and one withdrawn
+  // finding came out of that.
+  //
+  // Group the thin colliders by the z-plane they sit in, and take the plane
+  // holding the most metres of wall. Thin excludes the side walls, which span
+  // the room's whole depth; "most metres" beats "widest single piece" because a
+  // wall in two pieces is still a wall. The door leaf, being proud and alone in
+  // its own plane, cannot win.
   const hd = await p.evaluate(([cx, hw]) => {
-    const cols = window.__ct.colliders();
-    let best = -1e9;
-    for (const c of cols) {
-      if (c.maxX < cx - hw - 1 || c.minX > cx + hw + 1) continue;
-      if (c.maxX - c.minX < hw) continue;               // must span the room
-      if (c.maxZ > best) best = c.maxZ;
+    const near = window.__ct.colliders().filter((c) =>
+      c.maxX > cx - hw - 1 && c.minX < cx + hw + 1 && (c.maxZ - c.minZ) < 0.5);
+    const planes = new Map();
+    for (const c of near) {
+      const k = c.maxZ.toFixed(2);
+      planes.set(k, (planes.get(k) ?? 0) + (c.maxX - c.minX));
     }
-    return best > -1e8 ? best : null;
+    // THE FRONT WALL IS THE PLANE WITH A DOOR STANDING ON IT.
+    //
+    // "Most metres of wall" picks the BACK wall — it is one unbroken piece,
+    // and the front is two pieces that sum to slightly less. Tried and reverted.
+    //
+    // What actually distinguishes them is the thing being looked for: the door
+    // leaf sits proud, its minZ on the wall's maxZ. Only the front wall has one.
+    const all = window.__ct.colliders().filter((c) =>
+      c.maxX > cx - hw - 1 && c.minX < cx + hw + 1);
+    let best = null;
+    for (const [k, wsum] of planes) {
+      if (wsum < 1) continue;
+      const z = +k;
+      const hasDoor = all.some((c) => Math.abs(c.minZ - z) < 0.06
+        && (c.maxX - c.minX) > 0.5 && (c.maxX - c.minX) < 3);
+      if (!hasDoor) continue;
+      if (!best || wsum > best.w) best = { z, w: wsum };
+    }
+    return best ? best.z : null;
   }, [cx, roomW / 2]);
   if (hd === null) { fails.push(`${id}: could not find the front wall inside`); continue; }
   // THE DOORWAY IS A COLLIDER, AND IT STANDS PROUD OF THE WALL.
