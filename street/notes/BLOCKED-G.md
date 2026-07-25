@@ -92,7 +92,19 @@ I should stand down.
 > `night 1.000, spill 3.12` against the dry night's identical `3.12` — the 12.5%
 > loss is gone, dry night unchanged to three decimals, `G-vice-walk` 18/18.
 >
-> **The runner is CLOSED too, and the answer is that it must NOT be registered.**
+> **SUPERSEDED AGAIN — the runner IS registered now, and correctly.** What follows
+> was true for about an hour. B clamped the wet lerp per channel in `e24c959a`,
+> directly on the finding below, so a surface darker than `WET` can no longer be
+> pulled up toward it. I re-wired the runner in `fe4567d8`: `#7a2028 → #5d2028`,
+> **−34% by day and −35% at night**, the same strength the rest of the registry
+> shows, red channel dropping while green and blue hold. Checked by eye too —
+> still a red carpet, simply darker.
+>
+> Kept below because the sequence is the point: a fix that was wrong, a note
+> saying why, a clamp that made it right, and the same fix landing an hour later.
+>
+> **What follows called the runner CLOSED as "must NOT be registered". That is now
+> wrong.**
 > B then landed `2bab45b7`, re-exporting `ctx.wet` as
 > `scene.userData.registerWet`, so the reach problem is gone entirely. I wired it
 > — deferred to the first frame, because `crosstown.ts` builds street at :103 and
@@ -113,9 +125,8 @@ I should stand down.
 > this is a second one worth adding beside it: **and only surfaces brighter than
 > `WET`.** The centre lines qualify; a dark decal does not.
 >
-> The runner stays unregistered, deliberately, and now for a reason rather than
-> for lack of reach. Nobody will see it either way — I measured that before and it
-> has not changed.
+> ~~The runner stays unregistered, deliberately~~ — see the head of this item. It
+> is registered, and the reason it could not be has since been fixed.
 >
 > Kept below because the reasoning is the useful part: the pattern was two shared
 > systems in a row, and the fix for both was publication rather than plumbing.
