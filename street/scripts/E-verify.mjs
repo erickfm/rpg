@@ -37,6 +37,8 @@ const AREAS = [
   // burial at all but every desire line in the park running the wrong diagonal.
   { name: 'drape', script: 'scripts/E-drape.mjs',
     what: 'what is laid on the grass stays on top of it' },
+  { name: 'onslope', script: 'scripts/E-onslope.mjs',
+    what: 'what stands on the grass is not floating above it' },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
@@ -118,7 +120,7 @@ for (const a of run) {
   // echo only what matters: the failures, the notes, and the verdict
   for (const line of out.split('\n')) {
     if (/^(FAIL|NOTE|SKIP)/.test(line.trim())
-        || /walks passed|FAILED|sinking into it/.test(line)) {
+        || /walks passed|FAILED|sinking into it|is floating/.test(line)) {
       console.log(`   ${line.trim()}`);
     }
   }

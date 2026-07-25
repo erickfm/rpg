@@ -12,21 +12,25 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
-// `apt.gy()` is a last-written value with more than one writer, so a single
-// read can catch somebody else's frame. Sample three times and take the
-// MEDIAN — the floor under a point does not change between frames, so the
-// odd one out is always the lie. Max was tried first and is wrong in one
-// direction: it beats a phantom 0 in a field of 0.14, and then lets a stale
-// 0.55 off the step you sampled a moment ago win on the flags beside it.
-const gyAt = async (x, z) => {
-  const reads = [];
-  for (let i = 0; i < 3; i++) {
-    await warp(x, z, 0);
-    await page.waitForTimeout(40);
-    reads.push((await pos())[3]);
-  }
-  return reads.sort((a, b) => a - b)[1];
-};
+// THE FLOOR AT A POINT, asked directly. `window.__ct.groundAt(x, z)` runs the
+// world's own picker for an arbitrary point and returns the answer.
+//
+// What this replaces, and why it matters more than a tidy-up: every floor
+// reading in my harnesses used to TELEPORT THE PLAYER there and read
+// `pos()[3]`. That is `apt.gy()` — a last-written value with more than one
+// writer, and the citizens on the pavement write it too. So the reading you get
+// is whoever queried the picker last, which is usually not you.
+//
+// It cost a real diagnosis. `E-walk` decides which half of its checks to run by
+// probing the library landing: 0.99 means the flight is wired and climbs, 0.14
+// means it is still one solid block. The probe read 0.14 three times running on
+// a world where `groundAt` says 0.99, so the harness ran the un-wired half and
+// reported two reds for the world being CORRECT — and every green run before
+// that was green for having asserted a world that had not existed for hours.
+// A median of three does not save you from this: it is not noise, it is a
+// different question being answered.
+const gyAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
+
 let fails = 0;
 const report = (n, ok, d, t = 1) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}  ${d}${t > 1 ? `  [${t} tries]` : ''}`); };
 const walk = async (n, { at, yaw, ms, ok, say }) => {

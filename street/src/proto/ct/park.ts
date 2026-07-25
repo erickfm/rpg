@@ -660,7 +660,15 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     // so every bench on the loop is where it always was — and `ctx.seat` takes
     // `h` as a height ABOVE the floor, which the picker now answers with the
     // same relief, so the pose follows without being told.
-    const y0 = parkY(bx, bz);
+    //
+    // The LOWEST ground under its own footprint, not the ground under its
+    // centre. A 1.56 m bench on 1-in-17 measured a 36 mm gap under one cast
+    // end, which is most of the way to the thickness of a slat and reads as a
+    // bench floating off the hill. Taking the minimum beds the uphill end into
+    // the slope instead — buried is invisible, floating is not — and costs
+    // nothing anywhere else, because off the grass all three samples are equal.
+    const y0 = Math.min(parkY(bx, bz),
+      parkY(bx + lx * 0.78, bz + lz * 0.78), parkY(bx - lx * 0.78, bz - lz * 0.78));
     for (const d of [-0.78, 0.78]) {                  // the two cast ends
       const [ew, ed] = box(0.62, 0.1);
       const end = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.44, ed), ironM);

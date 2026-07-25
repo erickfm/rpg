@@ -85,9 +85,13 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
 // Is the entry point asking ct/civic.ts for the courtyard floor? The steps
 // only open when it is (see COURT.climbable), so probe the landing: 0.99 means
 // wired, 0.14 means the flight is still one solid block.
-await warp(-11.0, -13.0, 0);
-await page.waitForTimeout(60);
-const CLIMBABLE = (await pos())[3] > 0.5;
+//
+// Asked directly through `groundAt`, not by teleporting there and reading
+// `pos()[3]` — see the note in E-park-walk.mjs. This ONE reading picks which
+// SET of checks runs, and reading it off a shared last-written value put the
+// whole harness into asserting a world that has not existed for hours.
+const probeLanding = () => page.evaluate(() => window.__ct.groundAt(-11.0, -13.0));
+const CLIMBABLE = (await probeLanding()) > 0.5;
 console.log(`the steps are ${CLIMBABLE ? 'WIRED — climb tests run' : 'NOT wired — climb tests skipped'}\n`);
 
 // 1 ── the sacred lane along the frontage, in the BUILDING-side lane. The
@@ -181,9 +185,7 @@ report('the courtyard floor is walk level off the flight', bad.length === 0,
   bad.length ? `${bad.length}/${flat.length} off: ${JSON.stringify(bad.slice(0, 4))}`
     : `${flat.length} samples all at gy 0.14`, 1);
 
-await warp(-11.0, -13.0, 0);
-await page.waitForTimeout(34);
-const inside = (await pos())[3];
+const inside = await probeLanding();      // the same direct read
 report(CLIMBABLE ? 'the floor carries on up to the doors' : 'the floor stops at the facade',
   Math.abs(inside - (CLIMBABLE ? TOP : 0)) < 0.001,
   `gy on the landing = ${inside}${CLIMBABLE ? ` (threshold ${TOP})` : ' (flight still solid)'}`, 1);
