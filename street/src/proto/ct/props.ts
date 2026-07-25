@@ -149,7 +149,12 @@ export function buildProps(ctx: CtxBuild): Props {
   // property the night grading leans on.
   const WET_WALL = new THREE.Color(0.72, 0.80, 0.94);   // darker AND cooler
   const SPLASH_H = 1.15;        // how far up the pavement throws water
-  const FLOOR_GROUND = 0.07, FLOOR_LOW = 0.30, FLOOR_HIGH = 0.06;
+  // FLOOR_LOW was 0.30 and had quietly become the brightest thing left: with
+  // GROUND at 0.07 the eye-level band sat at FOUR TIMES the road, which is
+  // much of what still read as "not dark enough". Lit signage keeps its
+  // brightness because it is bright in the SHEET; the unlit masonry beside it
+  // has no business being four times the pavement.
+  const FLOOR_GROUND = 0.07, FLOOR_LOW = 0.19, FLOOR_HIGH = 0.05;
   const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor
   const LOW_Y = 3.0, HIGH_Y = 12.0;   // the elevation the light runs out over
   // splash-back is a ground-level phenomenon: full strength at the pavement,
@@ -175,10 +180,16 @@ export function buildProps(ctx: CtxBuild): Props {
       if (!mm) return;
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
         if (!m || !m.color || m.transparent || litSeen.has(m)) continue;
-        // explicitly excluded: dark glass and tyres (see ct/cars.ts)
+        // Excluded ONLY for genuinely non-diffuse surfaces — glass, chrome
+        // and rubber, flagged in ct/cars.ts. There used to be a luminance
+        // floor here too, and it is why a person in a dark coat walked under
+        // a lamp and got nothing: every dark garment, dark car body, railing
+        // and the dumpster fell under it and was skipped outright. Light
+        // falls on dark things as well; the multiply model already gets the
+        // rest right, since a dark base times the same factor stays dark —
+        // it just stops being BLACK.
         if (m.userData?.noLight) continue;
         const c = m.color;
-        if (c.r * 0.2126 + c.g * 0.7152 + c.b * 0.0722 < LIT_MIN_LUM) continue;
         litSeen.add(m);
         // things in the street are street-level: they go as dark as the road
         // and the lamps buy them back
@@ -204,7 +215,15 @@ export function buildProps(ctx: CtxBuild): Props {
         // and the facade box above it are separate meshes, which is what makes
         // "dark upper floors, lit signage" expressible at all
         const wy = new THREE.Vector3(); o.getWorldPosition(wy);
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: false,
+        // A lamp beside a wall should splash on it. Warming a 12 m facade off
+        // its CENTRE would be wrong — one number cannot describe a surface
+        // that long — so only geometry short enough for a centre point to
+        // mean anything joins the pools. Long facades keep the additive wall
+        // splash, which is per-lamp and correctly placed.
+        const bx = new THREE.Box3().setFromObject(o);
+        const span = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z);
+        const poolable = wy.y < 4.5 && Number.isFinite(span) && span < 6;
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable,
                        floor: floorFor(wy.y), wetK: wetKFor(wy.y) });
       }
     });
@@ -398,19 +417,41 @@ export function buildProps(ctx: CtxBuild): Props {
   //    by day; at dusk the lens warms up and an amber halo pools over the wet
   //    asphalt. Opacity is driven off the same night curve as the sky. ──────
   const nightLit: { mat: THREE.MeshBasicMaterial; base: number }[] = [];
+  // The halo was a smooth symmetric radial gradient — a soft ball of light
+  // orbiting the head, in a world where every other pixel is a hard texel. It
+  // read as a smudge rather than as light, the same note the ceiling lamps
+  // got. Now:
+  //   · STEPPED, not smooth — quantised into four bands so it belongs to the
+  //     same hand as everything else, with the faintest band dithered so the
+  //     steps read as glow rather than as rings
+  //   · ASYMMETRIC — a lamp throws DOWN. The centre sits high in the sheet and
+  //     the falloff below it is twice as long as above, so the glow hangs
+  //     under the head instead of ringing it
   const lampGlowT = pixTex(32, 32, (g) => {
-    const gr = g.createRadialGradient(16, 16, 1, 16, 16, 16);
-    gr.addColorStop(0, 'rgba(255,198,120,0.90)');
-    gr.addColorStop(0.5, 'rgba(255,178,96,0.30)');
-    gr.addColorStop(1, 'rgba(255,178,96,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+    const cx = 16, cy = 11;
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+      const dx = (x - cx) / 15;
+      const dy = (y - cy) / (y < cy ? 8 : 19);
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= 1) continue;
+      const band = Math.min(3, Math.floor((1 - d) * 4));
+      if (band === 0 && ((x + y) & 1)) continue;
+      g.fillStyle = `rgba(255,${198 - band * 5},${122 - band * 12},${[0.12, 0.30, 0.56, 0.88][band]})`;
+      g.fillRect(x, y, 1, 1);
+    }
   });
+  // The pool on the ground is doing more work than the halo now that the road
+  // is genuinely dark — it is the thing that says a light is on. Stepped the
+  // same way, with a harder core.
   const lampPoolT = pixTex(48, 48, (g) => {
-    const gr = g.createRadialGradient(24, 24, 2, 24, 24, 24);
-    gr.addColorStop(0, 'rgba(255,190,110,0.55)');
-    gr.addColorStop(0.55, 'rgba(255,180,100,0.15)');
-    gr.addColorStop(1, 'rgba(255,180,100,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 48, 48);
+    for (let y = 0; y < 48; y++) for (let x = 0; x < 48; x++) {
+      const d = Math.hypot((x - 24) / 23, (y - 24) / 23);
+      if (d >= 1) continue;
+      const band = Math.min(3, Math.floor((1 - d) * 4));
+      if (band === 0 && ((x + y) & 1)) continue;
+      g.fillStyle = `rgba(255,${192 - band * 4},${112 - band * 10},${[0.07, 0.19, 0.38, 0.66][band]})`;
+      g.fillRect(x, y, 1, 1);
+    }
   });
   const poleM = new THREE.MeshBasicMaterial({ color: 0x24291f });   // dark cast iron
   const poleHi = new THREE.MeshBasicMaterial({ color: 0x323826 });
@@ -436,7 +477,11 @@ export function buildProps(ctx: CtxBuild): Props {
     obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7),
       new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
-    halo.position.set(headX, sidewalkY + LAMP_H - 0.22, z);
+    // The sheet's bright centre is no longer in the middle of the texture —
+    // it sits high (canvas y=11 of 32) so the glow hangs downward. Drop the
+    // plane by that offset, (0.656 - 0.5) * 1.7, so the bright part lands ON
+    // the head instead of floating beside it, which is what read as detached.
+    halo.position.set(headX, sidewalkY + LAMP_H - 0.43, z);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
     const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4),
