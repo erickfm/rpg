@@ -70,6 +70,14 @@ export function buildProps(ctx: CtxBuild): Props {
                           // directions: it is still finding the low spots
                           // after the rain stops, so it peaks late
   const RAIN_SKY = new THREE.Color('#5a626e');
+  // The road's colour RIGHT NOW, tracked so a puddle can be defined relative
+  // to it instead of guessing at a dark that the wet tint will later overtake.
+  // Filled from the first broad wet sheet each frame; the fallback only ever
+  // applies on frame zero, before updateRain has run once.
+  const roadNow = new THREE.Color(0.24, 0.24, 0.25);
+  // composite = road x (1 - o + c*o). With the sheet's peak opacity 0.90 this
+  // puts a puddle centre at 0.55 x the road, whatever the road happens to be.
+  const PUDDLE_C = 0.444;
   // RAIN HAS TO BE FINDABLE. It was 6 hours in 24 and the first one a hundred
   // real seconds from spawn, and the user has now asked about rain four times
   // — a feature nobody can see is not a feature. Two changes, and only one of
@@ -716,6 +724,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // the road and the sidewalk kept full daylight brightness all night,
     // which is exactly why they read as "daylight asphalt with a filter".
     const amb = ambient(FLOOR_GROUND);
+    let roadLum = 1;      // reset each frame; the darkest broad sheet wins
     for (const w of wetMats) {
       // Not every surface gives the water up at the same rate. The road crown
       // sheds it first; the gutter is where it is all running TO, so that
@@ -723,10 +732,25 @@ export function buildProps(ctx: CtxBuild): Props {
       // — the kerb and gutter are long thin strips, everything else is a
       // broad surface — which keeps this local instead of needing a new field
       // on the shared WetSurface type.
-      const img = (w.m.map?.image as { height?: number } | undefined);
+      const img = (w.m.map?.image as { height?: number; width?: number } | undefined);
       const holdsWater = !!img?.height && img.height < 32;
       const wSurf = Math.pow(wetness, holdsWater ? 0.55 : 1.7);
       w.m.color.copy(w.base).lerp(WET, wSurf * 0.95).multiplyScalar(amb);
+      // The road, live. BOTH the road and the walk are broad 64x64 sheets and
+      // the wet registry carries no position, so "the last 64x64 one" picked
+      // whichever happened to come last — and when that was the pale concrete
+      // walk the puddles came out light grey. Take the DARKEST broad sheet
+      // instead: asphalt is darker than pavement at every hour and in every
+      // weather, so the test is a property rather than an ordering accident.
+      // Read AFTER the colour is written; a frame late is a frame of wrong
+      // contrast.
+      if (img?.width === 64 && img?.height === 64) {
+        const c = w.m.color;
+        if (0.299 * c.r + 0.587 * c.g + 0.114 * c.b < roadLum) {
+          roadLum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+          roadNow.copy(c);
+        }
+      }
     }
     // water pools slower than it falls, and lingers after it stops
     // the walls' splash-back rides the same ground state, so it lingers after
@@ -747,18 +771,13 @@ export function buildProps(ctx: CtxBuild): Props {
       const fill = Math.min(1, Math.max(0, (puddleLevel - q.lo) / (q.hi - q.lo)));
       q.m.opacity = q.max * fill;
       q.m.visible = fill > 0.02;             // bone dry means NO puddle at all
-      // the BODY is water, and water is dark. It comes down with the ambient
-      // so it never glows at 3am.
-      q.m.color.setScalar(amb);
-      // the REFLECTION is the sky, so it scales with the light instead — this
-      // is what stops the contrast inverting during a storm, when the road is
-      // crushed six times darker and a fixed dark sheet has nowhere left to
-      // go. Only lightly reduced while it is actually coming down: a broken
-      // surface reflects less, but the whole point is that it stays readable
-      // in the rain, which is the one condition it used to disappear in.
-      const refl = fill * amb * (1 - 0.25 * rainLevel);
-      q.sheen.visible = refl > 0.012;
-      if (q.sheen.visible) q.sheen.opacity = refl * 0.92;
+      // DARKER THAN THE ROAD, BY CONSTRUCTION. Not a fixed dark colour — the
+      // wet tint crushes the road six times darker in a storm and overtakes a
+      // fixed sheet, which is exactly how the contrast came to invert. The
+      // body is a FRACTION of whatever the road is right now, so the composite
+      // lands at 0.55 x road at every hour and in every weather, and there is
+      // no state in which it can end up lighter than the surface it sits on.
+      q.m.color.copy(roadNow).multiplyScalar(PUDDLE_C);
     }
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
@@ -958,157 +977,86 @@ export function buildProps(ctx: CtxBuild): Props {
   }
 
 
-  // ── puddles ─────────────────────────────────────────────────────────────
-  // The ground tinting alone reads as "damp"; standing water is what makes it
-  // read as RAIN. These sit in the gutter and in low spots on the road, fade
-  // in behind the rain curve (water takes a moment to pool, so they lag), and
-  // carry a pale sheen so they catch the sky rather than just being dark.
-  // Appended last: rnd() is a shared seeded stream and everything above draws
-  // from it.
+  // ── puddles, pass five: the simplest thing that can work ────────────────
+  //
+  // Four passes and the user has not once liked what they saw. Buried under
+  // the pan; contrast-inverted so they vanished in the rain; moved into the
+  // gutter as ribbons; and then a ribbon that landed down the MIDDLE of the
+  // pavement with pale dashes in it and read as a texture fault. So the desk
+  // called it: one more pass at the simplest possible version, and if this
+  // misses, standing water comes out entirely and only the road sheen stays.
+  //
+  // Everything clever is gone. No ribbons, no reflection layer, no glints, no
+  // water on the sidewalk. A few discrete dark patches in the gutter pan,
+  // which is the low point of the street and the only place on it water
+  // actually collects.
+  //
+  // WHAT WENT WRONG LAST TIME, both halves of it:
+  //   · "a ribbon along the kerb line" meant IN THE PAN. The awning drip
+  //     strips sat at x = ±5.75, which is the middle of a 1.94 m pavement —
+  //     water does not pool down the centre of a footway, it runs off it.
+  //   · the reflection's glints were single bright texels on a dark sheet, and
+  //     at the size and angle they are actually seen they read as grit or as
+  //     z-fighting rather than as specular. A correct idea can still be the
+  //     wrong drawing.
+  //
+  // DARKER THAN THE WET ROAD, BY CONSTRUCTION. This is the one clever thing
+  // kept, because it is what the whole contrast diagnosis was about and it
+  // costs nothing. Rather than a fixed dark colour that the wet tint can
+  // overtake — the road is crushed six times darker in a storm, which is how
+  // the sign inverted — the puddle body is tinted to a FRACTION of the road's
+  // CURRENT colour every frame. Composited over the road at opacity o with a
+  // body of road x c, the result is road x (1 - o + c*o); with o = 0.9 and
+  // c = 0.444 that is 0.55 x road, always, at any hour and any weather. It
+  // cannot invert because it is defined relative to the thing it must stay
+  // darker than.
   const puddleT = pixTex(48, 32, (g) => {
-    // Water on asphalt is DARKER than the dry road, not lighter. The first
-    // version had a big pale sheen and at night it read as a glowing blob
-    // sitting on the tarmac. Now: a dark body, a soft alpha edge so it does
-    // not look like a decal, and only a whisper of sky sheen.
-    const ring = (rx: number, ry: number, col: string) => {
-      g.fillStyle = col; g.beginPath(); g.ellipse(24, 16, rx, ry, 0, 0, Math.PI * 2); g.fill();
+    // quantised, not feathered: three alpha steps so the edge belongs to the
+    // same hand as the rest of the world, and no sheen of any kind
+    const ring = (rx: number, ry: number, a: number) => {
+      g.fillStyle = `rgba(255,255,255,${a})`;
+      g.beginPath(); g.ellipse(24, 16, rx, ry, 0, 0, Math.PI * 2); g.fill();
     };
-    ring(23, 14, 'rgba(20,24,32,0.30)');     // soft outer feather
-    ring(20, 12, 'rgba(17,21,28,0.55)');
-    ring(16, 9.5, 'rgba(14,18,24,0.72)');    // dark body
-    g.fillStyle = 'rgba(120,140,168,0.16)';  // faint sky glance, off-centre
-    g.beginPath(); g.ellipse(19, 12, 7, 3, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = 'rgba(150,168,196,0.13)';  // one thin catch-light streak
-    g.fillRect(14, 19, 11, 1);
+    ring(23, 14.5, 0.34);
+    ring(19, 11.5, 0.68);
+    ring(14, 8.0, 0.95);
   });
   // Each puddle is its OWN material, so they do not all fade in lockstep —
   // one shared opacity was why none of them read. lo/hi is the window of
   // standing water over which this one fills: a deep hollow starts collecting
   // almost at once and is the last thing left, while a shallow smear needs a
   // real storm and goes first.
-  // Water at a catch basin does not sit in a circle — it RUNS, down the pan
-  // and into the mouth, and it is narrow because the pan is narrow. The
-  // symmetric 2.5 m sheet that used to sit on the drain was the same defect as
-  // the lamp glow: a large soft gradient blob in a world of hard texels, and
-  // the user's read was "what is this it looks bad". So this sheet is stepped
-  // and directional — a one-texel wetted edge, quantised, widest at the mouth
-  // and thinning up-grade, with hard catch-light texels rather than a sheen.
-  const trackT = pixTex(16, 64, (g) => {
-    for (let y = 0; y < 64; y++) {
-      const t = 1 - y / 63;                                     // 1 at the mouth
-      const half = Math.max(1, Math.round(1.3 + t * 5.2 + (((y >> 2) % 3 === 1) ? 1 : 0)));
-      g.fillStyle = 'rgba(15,19,26,0.80)';
-      g.fillRect(8 - half + 1, y, half * 2 - 2, 1);
-      g.fillStyle = 'rgba(20,25,33,0.46)';                      // the wetted edge, one texel, hard
-      g.fillRect(8 - half, y, 1, 1); g.fillRect(8 + half - 1, y, 1, 1);
-    }
-    g.fillStyle = 'rgba(150,168,196,0.18)';
-    for (const [x, y] of [[7, 11], [8, 11], [9, 29], [6, 43], [8, 51]]) g.fillRect(x, y, 1, 1);
-  });
-  // ── the reflection, which is the actual fix for the contrast inversion ──
-  //
-  // The diagnosis that started this: while it is raining, updateRain crushes
-  // the road SIX TIMES toward slate, from 0.238 luminance to 0.0397. A fixed
-  // dark puddle sheet cannot go darker than the road it sits on, so the sign
-  // of the contrast INVERTS — measured at 0.0551 against the road's 0.0397,
-  // four levels out of 255, and on the wrong side. The puddle became a faint
-  // pale smear, which is a very quiet version of the glowing puddle that had
-  // already been shipped and rejected once.
-  //
-  // Standing water does not read by being dark. It reads by REFLECTING, and
-  // that is the property that fixes this rather than any amount of tuning: a
-  // reflection scales with the light falling on the scene, so it can never
-  // invert against the surface beside it. Bright against a dark wet road at
-  // midday, and gone at 3am when there is nothing above it to reflect — which
-  // is also exactly the note the first version got.
-  //
-  // It is a separate additive sheet rather than a brighter body, because the
-  // body must stay dark: water IS dark, and multiplying the whole sheet up
-  // would take the dark part with it.
-  //
-  // Hard texels only. A smooth highlight is the thing this world has now
-  // rejected twice, on the lamp halo and on the catch basin.
-  const glint = (g: CanvasRenderingContext2D, runs: [number, number, number][],
-                 dots: [number, number][]) => {
-    for (const [x, y, w] of runs) { g.fillStyle = 'rgba(174,196,226,0.52)'; g.fillRect(x, y, w, 1); }
-    for (const [x, y] of dots) { g.fillStyle = 'rgba(210,226,248,0.78)'; g.fillRect(x, y, 1, 1); }
-  };
-  const sheenDiscT = pixTex(48, 32, (g) => glint(g,
-    [[14, 11, 9], [19, 14, 7], [13, 18, 11], [22, 21, 6], [17, 24, 8]],
-    [[20, 9], [26, 13], [16, 20], [24, 25], [30, 17]]));
-  const sheenRunT = pixTex(16, 64, (g) => glint(g,
-    [[6, 8, 4], [7, 17, 3], [5, 26, 5], [8, 33, 3], [6, 41, 4], [7, 50, 3], [6, 57, 4]],
-    [[7, 12], [6, 21], [9, 30], [5, 37], [8, 46], [7, 54]]));
-  interface Puddle { m: THREE.MeshBasicMaterial; sheen: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
+  interface Puddle { m: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
   const puddles: Puddle[] = [];
-  // `run` makes it a directed track instead of a blob. Both rnd() draws happen
-  // either way, even when the shape is given, so the seeded stream does not
-  // move when a puddle changes shape (GOTCHAS §2).
-  const addPuddle = (x: number, z: number, w: number, lo: number, hi: number, max: number,
-                     run?: { len: number; tex: THREE.Texture }) => {
+  const addPuddle = (x: number, z: number, w: number, d: number,
+                     lo: number, hi: number, max: number) => {
     const m = new THREE.MeshBasicMaterial({
-      map: run ? run.tex : puddleT, transparent: true, opacity: 0, depthWrite: false });
+      map: puddleT, transparent: true, opacity: 0, depthWrite: false });
     m.visible = false;
-    const aspect = 0.42 + rnd() * 0.3, spin = rnd() * Math.PI;
-    const d = run ? run.len : w * aspect;
-    const rot = run ? 0 : spin;             // a run lies ALONG the gutter, so it is never spun
-    // Water gets the footprint rule too, but only half of it. It may not cross
-    // the KERB — a puddle that runs up over a 12 cm kerb from the pavement
-    // side is backwards, and half of it would be under the walk anyway. It
-    // deliberately does NOT get groundUnder: water fills a depression to a
-    // LEVEL, so a sheet sitting a few millimetres under the high rim of the
-    // cross-sloped pan is not a bug, it is what water does. Lifting it to the
-    // highest ground under its footprint would float it over the low side.
-    const cx = clearOfKerb(x, halfX(w, d, rot));
     const p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m);
     p.rotation.x = -Math.PI / 2;            // a ground DECAL, never a billboard
-    p.rotation.z = rot;
-    p.position.set(cx, surfaceY(cx) + 0.005, z);  // a film ON the surface, not through it
+    // No spin. A patch in a 45 cm pan that is longer than it is wide has one
+    // sensible orientation — along the gutter — and rotating it either sticks
+    // it out over the kerb or wastes the length.
+    p.position.set(x, surfaceY(x) + 0.005, z);
     scene.add(p);
-    // the reflection rides on top of the body, additive, same shape
-    const sheen = new THREE.MeshBasicMaterial({
-      map: run ? sheenRunT : sheenDiscT, transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.AdditiveBlending });
-    sheen.visible = false;
-    const sm = new THREE.Mesh(new THREE.PlaneGeometry(w, d), sheen);
-    sm.rotation.x = -Math.PI / 2;
-    sm.rotation.z = rot;
-    sm.position.set(cx, surfaceY(cx) + 0.0065, z);
-    scene.add(sm);
-    puddles.push({ m, sheen, lo, hi, max });
+    puddles.push({ m, lo, hi, max });
   };
-  // Where water actually goes, and it is not "anywhere". The pan is the low
-  // point of the whole street — I built it cross-sloped 0.018 down to 0.006 at
-  // the kerb — so water runs to the kerb line and stays there. It reads as a
-  // RIBBON along the kerb, not as discs scattered about.
-  //
-  // The old version was six discs 1.5 to 3.7 m ACROSS, centred in a 45 cm pan.
-  // Two things wrong with that at once: a disc that wide necessarily runs up
-  // over the kerb and out onto the crown, so most of each one was either
-  // buried under the walk or sitting on ground the water never reaches; and a
-  // disc is the wrong shape for a channel.
-  //
-  // This is also the honest answer to my own earlier finding — that every
-  // puddle sits in a 45 cm strip nobody walks in, so nobody sees them. The fix
-  // is a LONGER, continuous ribbon that you read from anywhere on the street,
-  // not scattering water onto the pavement where water does not go.
+  // The pan and nothing else. It cross-slopes 0.018 down to 0.006 at the kerb,
+  // so it is the low point I built, and it is where water goes. Patches are
+  // 0.34 m wide, which fits inside a 0.45 m pan with room at both edges, and
+  // 0.9 to 2.0 m long, which is a puddle rather than a channel.
   const PAN_X = ROAD_HALF - 0.22;           // centred in the pan
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
-    const zc = -6 - rnd() * (L - 18);
-    const len = 3.4 + rnd() * 3.6;          // 3.4-7 m runs, so they read as a channel
-    addPuddle(s2 * PAN_X, zc, 0.40, 0.04 + rnd() * 0.10, 0.42 + rnd() * 0.3,
-              0.62 + rnd() * 0.22, { len, tex: trackT });
+    addPuddle(s2 * PAN_X, -8 - rnd() * (L - 22), 0.34, 0.9 + rnd() * 1.1,
+              0.04 + rnd() * 0.12, 0.44 + rnd() * 0.28, 0.90);
   }
-  // The two catch basins (ct/tex-ground.ts puts them here) — the lowest points
-  // on the block, so these fill first and outlast everything. Laid ALONG the
-  // pan and running into the mouth, up-grade of each basin, not spread round
-  // it: the gutter is 45 cm wide and water in it is a ribbon, not a pool.
+  // the two catch basins are the lowest points on the block, so they fill
+  // first and outlast everything — the same patch, just wider windows
   const BASIN_Z = [-92.5, -105];
-  addPuddle(ROAD_HALF - 0.24, BASIN_Z[0] + 1.30, 0.40, 0.02, 0.30, 0.80,
-            { len: 2.6, tex: trackT });
-  addPuddle(-(ROAD_HALF - 0.24), BASIN_Z[1] + 1.15, 0.40, 0.02, 0.32, 0.78,
-            { len: 2.3, tex: trackT });
+  addPuddle(ROAD_HALF - 0.22, BASIN_Z[0] + 1.1, 0.36, 2.0, 0.02, 0.30, 0.90);
+  addPuddle(-(ROAD_HALF - 0.22), BASIN_Z[1] + 1.0, 0.36, 1.8, 0.02, 0.32, 0.90);
   // The permanent stain, dry or wet, and it FOLLOWS THE WATER: a narrow track
   // down the pan that darkens as it converges on the mouth. The version this
   // replaces sat symmetrically around the grate, which is the one thing water
@@ -1135,26 +1083,11 @@ export function buildProps(ctx: CtxBuild): Props {
   };
   stain(ROAD_HALF - 0.22, BASIN_Z[0] + 1.55, 3.1);
   stain(-(ROAD_HALF - 0.22), BASIN_Z[1] + 1.40, 2.8);
-  // low spots out on the road: these need a proper storm and dry first
-  for (let i = 0; i < 3; i++) {
-    const s2 = rnd() < 0.5 ? -1 : 1;
-    addPuddle(s2 * (1.2 + rnd() * 2.2), -10 - rnd() * (L - 26),
-              1.3 + rnd() * 1.5, 0.45 + rnd() * 0.22, 0.9, 0.44 + rnd() * 0.16);
-  }
-  // The only water on the WALK, and it has a reason: an awning sheds its whole
-  // roof along one line, so what collects under it is a strip following the
-  // awning's edge, not a pool. It was a 1.9 m disc centred 0.9 m off the kerb,
-  // which reached 5 cm PAST the kerb line — water spilling over a kerb from
-  // the pavement side, which is backwards. Now a 45 cm strip on the drip line
-  // at x = ±5.75, so its footprint stays between the chamfer and the building
-  // and never crosses the kerb edge.
-  const DRIP_X = ROAD_HALF + 0.75;
-  for (let i = 0; i < 2; i++) {
-    const s2 = rnd() < 0.5 ? -1 : 1;
-    addPuddle(s2 * DRIP_X, -14 - rnd() * (L - 34),
-              0.45, 0.16 + rnd() * 0.12, 0.6, 0.5 + rnd() * 0.14,
-              { len: 1.6 + rnd() * 1.1, tex: trackT });
-  }
+  // NO water on the road crown and NONE on the pavement. Both are gone
+  // deliberately rather than tuned: a puddle out on the crown is on ground the
+  // water is running OFF, and the two awning strips at x = ±5.75 were the
+  // thing the user pointed at — a dark band down the middle of a footway,
+  // which is not somewhere water stands. The gutter is the whole story.
 
   // ── the 42 stop: a flag on a pole, and a bench ──────────────────────────
   //
