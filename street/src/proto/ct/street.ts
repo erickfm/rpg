@@ -537,13 +537,30 @@ export function buildStreet(o: {
       ? { minX: XF - 8, maxX: XF, minZ: z0, maxZ: z1 }
       : { minX: XF, maxX: XF + 8, minZ: z0, maxZ: z1 });
     // a low boundary along the street line with the middle left open, so the
-    // site has an edge rather than bleeding into the pavement
+    // site has an edge rather than bleeding into the pavement.
+    //
+    // IT SITS INSIDE THE SITE, not on the pavement. It used to be centred at
+    // `XB - side * 0.18`, i.e. straddling the street line with half its
+    // thickness — the whole 0.36 m, once the collider rounded outward — lying
+    // in the walk, for the entire length of both runs on both sites.
+    //
+    // Builder C measured it rather than arguing it (notes/C-frontage.md,
+    // scripts/lot-frontage.mjs): the clear band past the lot read 1.30 m
+    // against a 1.54 m control on the same walk with no lot on it, and the
+    // script named this wall as the overlap, twice, reaching 0.36 m in. That
+    // is 18 % of the sacred 2 m (GOTCHAS §9) taken the whole way along, and
+    // the park shares this helper so it was paying it twice over.
+    //
+    // A boundary belongs on its own land. `XB + side * 0.18` puts the face
+    // flush with the street line and the body behind it, which is also what
+    // C's own module already does — "everything this module builds is at
+    // x >= 7.18".
     const railM = new THREE.MeshBasicMaterial({ color: 0x6d6455 });
     for (const [rz0, rz1] of [[z0 + 0.3, z0 + w * o.gate], [z1 - w * o.gate, z1 - 0.3]] as [number, number][]) {
       const wall = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.62, rz1 - rz0), railM);
-      wall.position.set(XB - side * 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
+      wall.position.set(XB + side * 0.18, KERB_H + 0.31, (rz0 + rz1) / 2);
       scene.add(wall);
-      solid({ minX: Math.min(XB, XB - side * 0.36), maxX: Math.max(XB, XB - side * 0.36), minZ: rz0, maxZ: rz1 });
+      solid({ minX: Math.min(XB, XB + side * 0.36), maxX: Math.max(XB, XB + side * 0.36), minZ: rz0, maxZ: rz1 });
     }
     return { minX: lo, maxX: hi, minZ: z0, maxZ: z1, y: KERB_H };
   };
