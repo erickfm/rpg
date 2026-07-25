@@ -583,7 +583,42 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
-## CONFIRMED by `floatlit.mjs`'s own numbers: the ground is the variable
+## WITHDRAWN: my confirmation compared two different textures, not two grades
+
+`99a6a5d0c` set the standard — **appearance is texture mean × tint** — after
+withdrawing a claim that compared a flat material's colour to a textured one's
+tint. I held my own confirmation to it and it does not survive.
+
+I had argued the walk's ground reads 9× brighter than the road's *because the
+walk is slabbed and can take a lamp pool*. Measured properly at the two
+positions in question:
+
+```
+road at the cup     texMean 0.2401  tint 0.0092  appearance 0.00222
+walk at its litter  texMean 0.4162  tint 0.0092  appearance 0.00385
+```
+
+**The tints are identical.** The grade is treating both grounds exactly the
+same, and the 1.7× appearance difference is concrete being lighter than asphalt
+— a texture fact, not a lighting one. Neither ground is pool-lit at these
+positions, so nothing there supports "slabbing lets the ground light up."
+
+What still stands, measured separately: huge ground meshes never light (`street
+area~HUGE`, 2 meshes, 0 lit, origin 12.3 m from the nearest lamp) while smaller
+ones near lamps do. That is a real property of per-material tinting. What I
+cannot show is that it *explains the floating litter* — I claimed that twice and
+the evidence for it has now failed twice, once through my probe and once through
+someone else's numbers I read too eagerly.
+
+**I am taking myself off this thread.** Three iterations, two withdrawals, and
+the last one was withdrawn by a standard another builder set while I was arguing
+from numbers that did not meet it. `floatlit.mjs` guards the defect, its owner
+measures it correctly, and the useful thing I can add is to stop adding
+half-confirmed mechanisms to a finding that already has a check on it.
+
+---
+
+## CONFIRMED by `floatlit.mjs`'s own numbers — WITHDRAWN, see above
 
 Last round I could not confirm the split-the-mesh routing because my probe read
 material tints. `cfb350f71`'s check answers it without me — the confirmation is
