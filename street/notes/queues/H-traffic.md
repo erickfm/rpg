@@ -44,6 +44,31 @@ world stops.
       Either that is a UV mapping fault on the box or the texture is not
       symmetrical; either way it reads as a mistake.
 
+- [ ] **The truck bed is too shallow and its floor is body-coloured.** The
+      user: *"truck bed needs to be a bit deeper and black in the bottom"*.
+      Ref: `shots/user-truckbed2.png`. Same vehicle as the two items around
+      it — do all three in one pass.
+
+      **This is the second time they have asked for a deeper bed.** The first
+      was *"truck geometry is much better, truck bed could be deeper though"*,
+      and the rebuild that followed gave it real walls but did not gain much
+      depth. In the shot the bed floor sits barely below the top rail, so it
+      reads as a shallow tray rather than something you could put a load in.
+      Take it to a real depth — a 1997 half-ton bed is around 0.45–0.5 m
+      inside, most of the way down to the wheel arches.
+
+      **And the floor must not be the body colour.** It is painted the same
+      green as the outside, which is what makes the bed look like a pressed
+      dish rather than a cavity. A bed floor is a dark ribbed liner or bare
+      shadowed metal — near-black, so the inside reads as a hole. That single
+      change does more for depth than the geometry does, because an unlit
+      world has no shadow of its own to darken it for you.
+
+      Ribs running front-to-back on the floor would sell it further, but
+      **keep them coarse** — they are a near-horizontal face seen at a
+      grazing angle, which is exactly the tailgate problem in the item above
+      (`GOTCHAS.md` §4). Wide ribs, no dither.
+
 - [ ] **Move the parked truck away from the alley mouth.** The user:
       *"move the truck a bit away from the alley"*. Ref:
       `shots/user-truckalley.png`. Small and quick — do it alongside the
