@@ -13,6 +13,51 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The lot: fix the floating signs, let me walk in, and lay it out
+      properly.** The user: *"i like the feel and the vibe, i dont like the
+      execution why is there just signs floating? also why can i not walk in.
+      i would like lines of cars on the right and left as i enter with the
+      actual office in the back of the lot"*. Ref: `shots/user-lot3.png`.
+
+      **The vibe is approved.** The pole sign, the bunting, the banner copy,
+      the palette — all of it lands. Everything below is execution.
+
+      **(a) The banners float because there is nothing behind them.** SE HABLA
+      ESPAÑOL, $99 DOWN, NO CREDIT NO PROBLEM and BUY HERE PAY HERE are
+      hanging in mid-air at head height with no fence behind them. The brief
+      said *zip-tied to the chain-link* and the chain-link is not there — so
+      build the fence first and hang the banners ON it. A banner is a limp
+      vinyl sheet cable-tied at its grommets: it needs the fence to exist, it
+      should sag slightly between ties, and its top edge should sit just below
+      the fence's top rail. Same for the bunting: string it between real
+      posts, not through the air.
+
+      **(b) I cannot walk in.** This is the curb cut and gate from the last
+      brief, and it is still the thing that makes the lot make sense. A
+      pedestrian must be able to enter, and a car must be able to leave.
+      Check the collision after — the fence should stop you everywhere EXCEPT
+      the opening, and the opening must be wide enough to pass comfortably
+      (the capsule is 0.72 m across; give it far more than that, it is a
+      vehicle entrance).
+
+      **(c) The layout, exactly as the user described it.** They have given
+      you the plan, so build that plan:
+      · a **drive aisle straight in from the street entrance**, running to the
+        back of the lot
+      · **rows of cars flanking it left and right**, nose-in or nose-out but
+        consistent, receding toward the back — this is what makes the 23.2 m
+        of depth read, and it is why the lot currently looks flat
+      · the **office at the BACK of the lot**, not at the front corner. That
+        is where it belongs: you drive in past the stock and the office
+        watches the whole lot. It also means the office is a destination,
+        which gives the depth a reason to exist.
+      · that back wall is currently a tall blank brick face — with the office
+        against it and cars in front, it stops being the problem it is now,
+        but check it still reads once the layout changes.
+
+      Cars remain builder H's: ask the desk for what you need rather than
+      building your own.
+
 - [ ] **Let me close the 301 door, and the poster reads as nothing.** The
       user: *"i want to be able to close this door and also what is this
       poster on the wall?"* Ref: `shots/user-301door.png`.
