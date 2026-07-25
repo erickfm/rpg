@@ -2404,3 +2404,43 @@ all three from the glob outright; `{ eager: false }` would remove the class.
 **Nothing is broken today.** I am recording the gap between the symptom and the
 cause rather than routing it, because the symptom is genuinely fixed and the
 cause is a design decision that belongs to whoever owns the file.
+
+# Closing note: the 90 UNJUDGEABLE pairs, from the looking side
+
+`A-declaresurface.md` reports the seam tool's honest state after its rewrite:
+
+```
+brick vs brick, a real seam question:  0
+one side says it is not brick:         0
+UNJUDGEABLE — nobody has said what the other face is: 90
+```
+
+Zero real questions, and **90 pairs it cannot judge because nobody has declared
+what the other face is**. A calls the remaining declarations *"one line each, in
+their own modules, by the people who know"* — which is right, and is the fourth
+time in this project a guess has been replaced by a declaration.
+
+**What I can add is the other half, because this audit looked rather than
+inferred.** Across every seam sweep I ran:
+
+| | |
+|---|---|
+| junctions paired by `seampairs` | **735**, every like-for-like disagreement the deliberate 2× band/wall |
+| new ground swept at grazing angles | side street + park far half — **26 corners found, 8 shot, 3 read, nothing found** |
+| visible seam faults confirmed, whole audit | **0** |
+
+Every seam finding I published was withdrawn: *"42 of 109 masonry faces
+disagree"*, *"135 of 239 junctions disagree"*, and *"the brick mismatch is
+legible at one corner"* — the first two to a `BoxGeometry` face-index error, the
+third to perspective. Mainline caught the first before I did.
+
+> **So the 90 are a hygiene backlog, not a defect backlog.** The tool cannot
+> judge them and the eye found nothing at any of them — those are different
+> statements and both are worth having. A declaration is still worth writing:
+> undeclared means the *next* change there is unjudgeable too, and that is how a
+> real seam would arrive unnoticed. But nobody should read "90 unjudgeable" as
+> "90 possible defects", and the priority follows from that.
+
+This is GOTCHAS §23 — my own line before it was a gotcha — applied to the file
+that prompted it: **establishing that something is unverified is not the same as
+establishing that it is wrong.**
