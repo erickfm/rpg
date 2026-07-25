@@ -111,8 +111,25 @@ const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, det
 const f2 = (n) => +n.toFixed(2);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 
+// ASK the world how big each room is, do not remember it.
+//
+// This table carried a `W` and `D` per room, and the pawn shop's read
+// "room width stays G's explicit 10.0". That explicit 10.0 was then removed
+// from the room (358d82cc) so it takes the kit's rule, roomWidthFor(15) = 13.8
+// — and this harness went on believing 10.0 and reported THREE ESCAPES from a
+// room that was holding the player in perfectly well. The players stopped dead
+// at local x -6.51, -6.53, -6.54: a wall at 6.9, exactly where 13.8 puts it.
+//
+// A containment check that invents its own idea of where the walls are will
+// eventually accuse a sound room, and it did. The kit publishes the RESOLVED
+// size now (`__ct.roomDims()`), which is the same fix as the doors: one
+// authoring, asked for rather than copied.
+const DIMS = await p.evaluate(() => window.__ct.roomDims());
+
 for (room of rooms) {
-  const { W, D } = room;
+  const built = DIMS.find((d) => d.id === room.id);
+  if (!built) { check('the room was actually built', false, 'no room of that id in __ct.roomDims()'); continue; }
+  const W = built.w, D = built.d;
   const hw = W / 2, hd = D / 2;
   let cx = 0;   // discovered on entry, below
 

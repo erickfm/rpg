@@ -27,7 +27,7 @@ import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, ty
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds } from './ct/interior';
+import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
 
 // ═══════════════════════════════ the world ════════════════════════════════
@@ -611,6 +611,8 @@ export function makeCrosstown(): Proto {
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
     rooms: () => interiorRoomIds(),
+    // resolved room geometry, so a harness never carries its own copy
+    roomDims: () => interiorRooms(),
     modules: () => worldRegistrants(),
     // test affordance, like colliders() and seats(): every registered [E], so
     // scripts/spots-walk.mjs can check the whole set rather than the ones

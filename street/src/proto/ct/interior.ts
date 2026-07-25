@@ -43,7 +43,19 @@ import { FACE } from './rng';
 // teleport landing you in the wrong shop.
 const SLAB_X0 = 400, SLAB_W = 80;
 
-interface Slab { id: string; x0: number; x1: number; gy: (x: number, z: number) => number | null }
+interface Slab {
+  id: string; x0: number; x1: number; gy: (x: number, z: number) => number | null;
+  /** the room's RESOLVED size and centre — not what the spec asked for.
+   *
+   *  `W` is `spec.w ?? roomWidthFor(frontage)`, so a room that leaves it to the
+   *  kit has no width anywhere in its own file. scripts/interiors-walk.mjs used
+   *  to hand-carry a copy per room; the pawn shop then dropped its explicit
+   *  `w: 10.0` and the harness went on believing it, reporting three escapes
+   *  from a room that was holding the player in perfectly well at 13.8 m. Two
+   *  authorings of one number, which is the same defect the door declarations
+   *  exist to kill. Published so a harness can ASK. */
+  w: number; d: number; cx: number; cz: number;
+}
 const SLABS: Slab[] = [];
 
 /**
@@ -82,6 +94,11 @@ export function interiorMaxX(): number {
 /** The id of every room that actually got built, in slab order. The wiring
  *  check reads this — see `scripts/interiors-wired.mjs`. */
 export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
+/** every built room's resolved geometry, for harnesses that would otherwise
+ *  keep their own copy of it going stale. See `Slab`. */
+export function interiorRooms(): { id: string; w: number; d: number; cx: number; cz: number }[] {
+  return SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz }));
+}
 
 /**
  * Build every interior there is.
@@ -892,7 +909,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
     hx + Math.cos(SWING) * leafW / 2, DOOR_H / 2,
     hz - Math.sin(SWING) * leafW / 2);
 
-  SLABS.push({ id: spec.id, x0, x1, gy: () => 0 });
+  SLABS.push({ id: spec.id, x0, x1, gy: () => 0, w: W, d: D, cx, cz });
 
   return {
     cx, cz, W, D, H, wx, wz, group, colliders, doorAt: dAt,
