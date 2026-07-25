@@ -1154,3 +1154,45 @@ about, so I wrote it down.
 I had written *"one pedestrian deciding a binary … a sample size of one against a
 population that moves"* **two commits earlier**. Then I published a single-sample
 verdict.
+
+## Re-measured: the dead-citation backlog is not shrinking
+
+```
+citations 758 · reachable 608 · dead 150      (was 750 / 601 / 149)
+```
+
+Repairs have landed — mine, and `48b9156a6`'s fourteen, now verified by patch-id
+after it adopted the check I used on the recovery table. Both are already inside
+that baseline. **The count still did not fall**: eight new citations appeared and
+one of them is already dead.
+
+The concentration is unchanged, and it is where it always was:
+
+```
+ 28  feat-interiors.md      6  A-seampairs.md         5  A-shoturl-sweep.md
+ 19  D-alley-report.md      5  A-face-lib-proposal.md 4  A-build-stamp.md
+ 10  A-nightgrade.md        5  A-shopfronts.md        4  A-declaresurface.md
+  9  A-mirror-harness.md
+```
+
+### This is a leak, not a backlog
+
+Every dead citation was **live when it was written**. An agent writes a note
+about work in flight, cites its own commit, and the rebase that lands it renames
+that commit. **The note is wrong the moment it becomes useful to anyone else.**
+
+So repairing 138 hashes does not fix anything durable — the next round produces
+more, which is exactly what this re-measure shows. The two things that would:
+
+1. **Cite by subject, not by hash**, for anything not yet on mainline. A subject
+   survives a rebase; a hash does not.
+2. **Cite the hash only after it has landed** — after the rebase, not before.
+
+### One caveat on the metric, now confirmed
+
+`AUDIT-hash-recovery.md` is excluded from this count, because a table of dead
+hashes is otherwise indistinguishable from a note full of broken ones. **That is
+the same context problem that made a fingerprint look like a rotted hash**, and
+it means the number cannot be automated into a check without a way to mark a hash
+as *quoted* rather than *cited*. Anyone recording a repair inline — as I did —
+keeps their own note in the count forever.
