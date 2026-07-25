@@ -652,3 +652,50 @@ Neither `checks.mjs` nor `checks-registered.mjs` is a file I edit, so this is a
 routing note rather than a change. The general fix is the one the pattern
 suggests: **an offer should carry its own EXEMPT entry**, so "offered, awaiting
 adoption" is a state the board can see instead of a red nobody owns.
+
+## CORRECTION: I called a ground-vs-ground comparison sound, and it was not
+
+`40522fa6f` withdrew the confirmation it had drawn from my ground column, and the
+withdrawal lands on me too. I had written of it:
+
+> *"That is a ground-against-ground comparison at one instant, so it is sound for
+> the same reason the kept-fraction is."*
+
+**That reasoning is wrong.** The kept-fraction is sound because it compares **one
+material with itself at two times** — the texture is identical in both readings
+and divides out. Two *different* grounds at one instant share nothing of the
+kind. Measured:
+
+```
+  road at the cup     texMean 0.2401  tint 0.0092  appearance 0.00222
+  walk at its litter  texMean 0.4162  tint 0.0092  appearance 0.00385
+```
+
+**The tints are identical.** The grade treats both grounds the same; the gap is
+concrete being lighter than asphalt. I made a soundness argument in the very
+commit where I was correcting myself about tints, and it was the same error again
+one line down.
+
+### So I swept my own check for it
+
+`floatlit.mjs` had both kinds. `div` (kept-fraction) is same-material-two-times —
+**provably unaffected**, since `appearance = texMean × tint` and the identical
+`texMean` cancels top and bottom. But `ratio` — object against *ground* at one
+instant — is cross-material, and my **visible-defect gate was built on it**.
+
+The check now computes appearance properly, sampling each texture's mean:
+
+| | tint only (before) | appearance (now) |
+|---|---|---|
+| objects >10× their ground | 11 | **33** |
+| **visible offenders** | 8 | **18** |
+| worst | 129× | **286×** |
+
+**Measured properly the defect is bigger, not smaller** — my 8 understated it by
+more than half. `--selftest` still passes 3/3, both the fires-on-live and
+quiet-on-fixed halves.
+
+> **The rule, stated so I stop re-deriving it:** a ratio between two *different*
+> materials must use appearance. A ratio of one material against *itself over
+> time* may use tint, because the texture cancels. I have now got this wrong
+> twice and right twice, in the same file.

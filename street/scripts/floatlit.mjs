@@ -24,7 +24,32 @@ for (let h = NIGHT-8; h <= NIGHT; h++) { await p.evaluate((x)=>window.__ct.clock
 await p.waitForTimeout(3000);
 
 const r = await p.evaluate((SATCUT) => {
-  const lum = m => 0.2126*m.color.r + 0.7152*m.color.g + 0.0722*m.color.b;
+  // APPEARANCE = TEXTURE MEAN x TINT. 114c5bef7/40522fa6f: material.color is a
+  // TINT, white by default, and the texture carries the look. A tint-only
+  // comparison between two DIFFERENT materials is not a comparison -- that is
+  // how a 9x "pooling" gap turned out to be concrete against asphalt at
+  // identical tints. (A same-material ratio across two times is still safe: the
+  // texture is the same in both readings and cancels. That is why the
+  // kept-fraction below survived and this ratio did not.)
+  const texCache = new Map();
+  const texMean = (m) => {
+    const t = m.map; if (!t || !t.image) return 1;
+    if (texCache.has(t.uuid)) return texCache.get(t.uuid);
+    let mean = 1;
+    try {
+      const N = 12, c = document.createElement('canvas'); c.width = c.height = N;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(t.image, 0, 0, N, N);
+      const d = g.getImageData(0, 0, N, N).data;
+      let acc = 0;
+      for (let i = 0; i < d.length; i += 4) acc += (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+      mean = acc / (d.length / 4);
+    } catch (e) { mean = 1; }
+    texCache.set(t.uuid, mean);
+    return mean;
+  };
+  const tint = m => 0.2126*m.color.r + 0.7152*m.color.g + 0.0722*m.color.b;
+  const lum = m => texMean(m) * tint(m);
   const small=[], broad=[];
   window.__ct.scene().traverse(o=>{
     if(!o.isMesh||!o.material||!o.geometry?.parameters) return;
