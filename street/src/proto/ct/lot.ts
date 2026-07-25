@@ -116,6 +116,25 @@ export function buildLot(o: {
   seat?: (s: Seat) => void;
 }) {
   const { scene, flat, KERB_H } = o;
+  // ── the decals the world's grader correctly will not touch ─────────────
+  // props.ts's dimWorld skips any material with `transparent: true`, and that
+  // is RIGHT: it owns glass, and blending a graded colour through a pane is
+  // its business, not a caller's. But an oil stain and a faded bay line are
+  // genuinely translucent — they have to blend to be stains at all — so they
+  // fall in the same gap, and they are painted ON asphalt that does darken.
+  // Measured at 23:00 the ground reaches 0.22 while an untouched decal sits at
+  // 0.68, which is an oil slick that gets BRIGHTER relative to the tarmac as
+  // the sun goes down.
+  //
+  // So this module dims its own. Only the handful that are genuinely
+  // translucent go in the list; everything alpha-cut is the world's job now,
+  // and the two additive glows must never be in here — they are lights, and
+  // dimming a light at night is backwards.
+  const decals: { m: THREE.MeshBasicMaterial; base: THREE.Color }[] = [];
+  const decal = <T extends THREE.MeshBasicMaterial>(m: T): T => {
+    decals.push({ m, base: m.color.clone() });
+    return m;
+  };
   const colliders: AABB[] = LOT.colliders;
   const solid = (b: AABB) => { colliders.push(b); o.obstacle?.(b); return b; };
   const wet = o.wet ?? ((m: THREE.MeshBasicMaterial) => m);
@@ -181,7 +200,21 @@ export function buildLot(o: {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(w / MESH_M, h / MESH_M);
     t.needsUpdate = true;
-    return new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    // alphaTest WITHOUT `transparent: true`, and that is the whole point.
+    //
+    // A cut-out does not need blending — the fragment is discarded, not mixed
+    // — so `transparent` buys nothing here and costs two things. It moves the
+    // mesh into the sorted transparent queue, and, the one that showed: it
+    // puts the material on props.ts's SKIP LIST. `dimWorld` deliberately
+    // leaves transparent materials alone, which is right for glass and wrong
+    // for a fence, so every alpha-cut prop in this lot was standing at full
+    // daylight brightness at midnight while the buildings behind it went dark.
+    //
+    // I reported that twice as a props.ts problem. It is not: the flag was
+    // mine and it was never needed. Dropping it lets the world's own grading
+    // pick these up, on the same curve as everything else, with no special
+    // case anywhere.
+    return new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.4, side: THREE.DoubleSide });
   };
   const postM = new THREE.MeshBasicMaterial({ color: 0x6e747b });
 
@@ -393,8 +426,8 @@ export function buildLot(o: {
       g.fillStyle = 'rgba(8,8,10,0.30)';
       for (let i = 0; i < 14; i++) g.fillRect(10 + (i * 5) % 13, 11 + (i * 7) % 11, 2, 2);
     });
-    const oilM = new THREE.MeshBasicMaterial({ map: oilT, transparent: true, depthWrite: false });
-    const bayM = new THREE.MeshBasicMaterial({ color: 0xb8b09a, transparent: true, opacity: 0.26 });
+    const oilM = decal(new THREE.MeshBasicMaterial({ map: oilT, transparent: true, depthWrite: false }));
+    const bayM = decal(new THREE.MeshBasicMaterial({ color: 0xb8b09a, transparent: true, opacity: 0.26 }));
     // A bay line and an oil stain at every place a car stands, both sides of
     // the aisle. Drawn from the SAME plan the stock is placed from, so a bay
     // can never end up somewhere no car ever parks — which is what happened
@@ -562,7 +595,7 @@ export function buildLot(o: {
       t.repeat.set(len / PEN_M, 1);
       t.needsUpdate = true;
       const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.62),
-        new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+        new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide }));
       m.position.set(FENCE_X, (ya + yb) / 2, (za + zb) / 2);
       m.rotation.y = Math.PI / 2;
       m.rotation.z = Math.atan2(yb - ya, zb - za);
@@ -645,7 +678,7 @@ export function buildLot(o: {
       scene.add(br);
     }
     // the rust streak it has run down the wall for years
-    const dripM = new THREE.MeshBasicMaterial({ color: 0x8a6a44, transparent: true, opacity: 0.30 });
+    const dripM = decal(new THREE.MeshBasicMaterial({ color: 0x8a6a44, transparent: true, opacity: 0.30 }));
     const drip = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 1.1), dripM);
     drip.position.set(cx - CD / 2 - 0.02, Y + 0.70, cz + 1.99);
     drip.rotation.y = -Math.PI / 2;
@@ -801,7 +834,7 @@ export function buildLot(o: {
       const t2 = bannerT2(words, bg, ink);
       const w = words.length * 0.17 + 0.5;
       const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
-        new THREE.MeshBasicMaterial({ map: t2, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+        new THREE.MeshBasicMaterial({ map: t2, alphaTest: 0.35, side: THREE.DoubleSide }));
       // On the street face of the mesh with its top edge just under the top
       // rail, which is where a grommeted banner is cable-tied. Hung at a
       // height picked by eye before, which is how it ended up floating clear
@@ -867,7 +900,7 @@ export function buildLot(o: {
       ink(10, 58, GW - 20, 2);                            // and below
     });
     const ghost = new THREE.Mesh(new THREE.PlaneGeometry(14.0, 5.5),
-      new THREE.MeshBasicMaterial({ map: ghostT, transparent: true, depthWrite: false }));
+      decal(new THREE.MeshBasicMaterial({ map: ghostT, transparent: true, depthWrite: false })));
     ghost.position.set(BW_X, Y + 9.2, zMid);
     ghost.rotation.y = -Math.PI / 2;
     scene.add(ghost);
@@ -885,7 +918,7 @@ export function buildLot(o: {
     ] as [string, string, string, number, number][]) {
       const t2 = bannerT2(words, bg, ink2);
       const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
-        new THREE.MeshBasicMaterial({ map: t2, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+        new THREE.MeshBasicMaterial({ map: t2, alphaTest: 0.35, side: THREE.DoubleSide }));
       b2.position.set(BW_X, Y + hy, zMid);
       b2.rotation.y = -Math.PI / 2;
       scene.add(b2);
@@ -1080,7 +1113,7 @@ export function buildLot(o: {
     const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
                      y: number, z: number, rz = 0) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-        new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+        new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide }));
       m.position.set(0, y, z);
       m.rotation.y = Math.PI;
       m.rotation.z = rz;
@@ -1164,7 +1197,7 @@ export function buildLot(o: {
         }
       }
     });
-    const weedM = new THREE.MeshBasicMaterial({ map: weedT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    const weedM = new THREE.MeshBasicMaterial({ map: weedT, alphaTest: 0.4, side: THREE.DoubleSide });
     const weed = (wx: number, wz: number, sc: number) => {
       // Two crossed quads, not one. A single plane vanishes edge-on, and a
       // tuft of grass that disappears when you walk past it is worse than no
@@ -1491,6 +1524,13 @@ export function buildLot(o: {
     o.onFrame?.((f) => {
       haloM.opacity = 0.95 * f.night;
       poolM.opacity = 0.62 * f.night;
+      // 0.47 is not invented: it is the factor the world's own grader was
+      // measured applying to this lot's opaque surfaces between 13:00 and
+      // 23:00 (0.415 to 0.221). Matching it means the decals sit at the same
+      // relative brightness on the asphalt after dark as they do at noon,
+      // which is the only thing a stain has to do.
+      const k = 1 - 0.47 * f.night;
+      for (const d of decals) d.m.color.copy(d.base).multiplyScalar(k);
     });
 
     // NOTHING here registers the perimeter. The site's low wall, its flanks
