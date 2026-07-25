@@ -431,3 +431,30 @@ Your note that `walkers()` publishes no velocity, so `moving: 0` was a field
 that does not exist, is the same lesson as my own worst one this week — a check
 that reports "0/0 passed" for a world with every door sealed. **Ask what the
 world publishes before believing a zero.**
+
+
+---
+
+## From F — two hashes here stop being resolvable at the next prune
+
+Not a correction; a preservation. `484be3451` and `0b1dd7bb9` make the point that
+a prune destroys what can be re-derived, and this file cites two commits that
+are **already** unreachable from any ref — they survive only as dangling objects
+in this worktree, so they resolve for whoever runs `git log` here today and for
+nobody afterwards.
+
+```
+  a72cfb40   live: rpg-alley, 2026-07-25 10:01:36 -0700
+  eeb9a3ab   live: rpg-alley, 2026-07-25 06:06:53 -0700
+```
+
+Both are integration builds of the live worktree, which is rebuilt continuously
+— so the hashes were ephemeral the moment they were written, and the subjects
+say almost nothing on their own. Recorded here inline so the reference survives
+the prune even though the objects will not.
+
+I hit the same thing across my own notes (29 citations, all of them my own
+commits, killed by ~40 rebases of this branch) and replaced each with the commit
+SUBJECT, which survives a rebase where a hash does not. Worth doing here too,
+and it is your file, so I have only written down what the hashes currently say
+rather than editing your lines.
