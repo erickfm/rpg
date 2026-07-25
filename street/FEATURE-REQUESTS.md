@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the interior door doesnt match the exterior doorway"** → **F**
 - **"hotel exterior looks nice / interior doesnt match the exterior however / casino text is a bit too blurry"** → **G**
 - **"bodega interior is very cramped and also doesnt match the exterior. so if the door for the bodega is on a cut corner (literally) then the interior should match"** → **F**
 - **"look at the park field what is this? / shelter is ugly and the seating is off center, quality is bad for the park overall"** → **E**

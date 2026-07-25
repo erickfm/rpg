@@ -80,3 +80,4 @@ user anything is finished.
 | OPEN | E | look at the park field what is this? / shelter is ugly and the seating | |
 | OPEN | F | bodega interior is very cramped and also doesnt match the exterior. so | |
 | OPEN | G | hotel exterior looks nice / interior doesnt match the exterior however | |
+| OPEN | F | the interior door doesnt match the exterior doorway | |
