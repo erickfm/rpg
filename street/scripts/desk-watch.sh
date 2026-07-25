@@ -55,6 +55,11 @@ while true; do
     tmux send-keys -t "crosstown:$win" Enter
     sleep 0.5
   done
+  # The ledger is the user-facing truth. Surfacing it here means the desk sees
+  # the CONFIRMED/LANDED/OPEN counts every cycle rather than discovering at the
+  # end of a session that a dozen things were finished and never checked.
+  "$MAIN/street/scripts/ledger.sh" --stats 2>/dev/null | sed "s/^/[$ts] ledger: /"
+
   # things that still need a human decision
   needs=$(echo "$status" | grep -E 'is BLOCKED|OUT OF WORK|STALLED|CONTEXT LIMIT|RAISED A BLOCKER')
   [ -n "$needs" ] && { echo "[$ts] NEEDS THE DESK:"; echo "$needs"; }
