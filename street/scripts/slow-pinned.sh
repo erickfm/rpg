@@ -38,12 +38,27 @@ ROOT="$PWD"
 # rather than hard-coding the name.
 PREFIX="$(git rev-parse --show-prefix)"
 SHA="$(git rev-parse --short HEAD)"
-PORT="${PINNED_PORT:-4196}"
+# Ask the server which port it got; do not guess one.
+#
+# Hard-setting a port broke on the second run (the first still held it). Then
+# stepping through ports with curl broke too, because a stale server can hold a
+# port without answering, so curl calls it free when it is not.
+PORT="${PINNED_PORT:-0}"
 PIN="$(mktemp -d "${TMPDIR:-/tmp}/ct-pinned-XXXXXX")"
 SRV=""
 
 cleanup() {
-  [ -n "$SRV" ] && kill "$SRV" 2>/dev/null || true
+  # Kill the CHILD first, then the wrapper: `npx` forks, so killing npx alone
+  # leaves the server holding its port for the next run — which is how the
+  # second invocation of this script died.
+  #
+  # NOT a process-group kill (`kill -- -$SRV`). That looks right and is a trap:
+  # `setsid` does not always fork, so `$!` can still be in THIS shell's group,
+  # and the negative-PID form then kills the script issuing it.
+  if [ -n "$SRV" ]; then
+    pkill -P "$SRV" 2>/dev/null || true
+    kill "$SRV" 2>/dev/null || true
+  fi
   cd "$ROOT"
   git worktree remove --force "$PIN" 2>/dev/null || rm -rf "$PIN"
 }
@@ -64,13 +79,32 @@ echo "building the pinned tree"
 npm run build >/dev/null
 
 echo "serving it on :$PORT"
-npx vite preview --port "$PORT" --strictPort >/dev/null 2>&1 &
+# Keep the server's output. The first version sent it to /dev/null and the
+# failure read "server never came up on :4196" with no cause — a runner that
+# cannot say why it failed is the same defect as a check that cannot fail.
+SRVLOG="$PIN/server.log"
+npx vite preview --port "$PORT" >"$SRVLOG" 2>&1 &
 SRV=$!
+for _ in $(seq 1 60); do
+  PORT="$(sed -nE 's#.*Local:.*http://[^:]+:([0-9]+)/.*#\1#p' "$SRVLOG" | head -1)"
+  [ -n "$PORT" ] && break
+  sleep 0.5
+done
+if [ -z "$PORT" ]; then
+  echo "the server never reported a port — its output was:"
+  sed 's/^/    /' "$SRVLOG"
+  exit 1
+fi
+echo "  it took :$PORT"
 for _ in $(seq 1 40); do
   curl -sf -o /dev/null "http://localhost:$PORT/" && break
   sleep 0.5
 done
-curl -sf -o /dev/null "http://localhost:$PORT/" || { echo "server never came up on :$PORT"; exit 1; }
+if ! curl -sf -o /dev/null "http://localhost:$PORT/"; then
+  echo "server never came up on :$PORT — its output was:"
+  sed 's/^/    /' "$SRVLOG" 2>/dev/null || echo "    (no output captured)"
+  exit 1
+fi
 
 export SHOT_URL="http://localhost:$PORT/"
 echo "running against a tree nothing can rebase"
