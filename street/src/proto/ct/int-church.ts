@@ -52,8 +52,20 @@ export function buildChurch(ctx: CtxBuild) {
     palette: { floor: 0x6e6a62, wall: 0xa8a294, ceil: 0xbdb8ab, trim: 0x8a8274 },
     door: {
       x: 8.85, z: -79.5, r: 1.2,
-      // step back out onto the landing, facing down the flight
-      outX: 8.6, outZ: -79.5, outYaw: -Math.PI / 2, outGy: 0.55,
+      // OUT ONTO THE FLIGHT, clear of the way IN.
+      //
+      // This first read `outX: 8.6` — 0.25 m from the door spot, which has a
+      // 1.2 m radius. So you stepped out of the church and were standing in the
+      // trigger that puts you back in it: the prompt still said "[E] into ST
+      // BRIGID'S" and pressing E again, which is the natural thing to do after
+      // arriving somewhere, sucked you straight back inside. Verified as a
+      // player, not inferred — walked out, read the prompt, pressed E, ended up
+      // back in the nave.
+      //
+      // 7.2 is 1.65 m from the door spot, so you land OUTSIDE it, on the flight,
+      // facing down the steps toward the street. The way back in is one step
+      // forward, which is what a door should cost.
+      outX: 7.2, outZ: -79.5, outYaw: -Math.PI / 2,
       at: 0, width: 1.4,
     },
     // ONE light source, and it is not a fitting. A church is lit by its
