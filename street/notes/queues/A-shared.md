@@ -12,6 +12,50 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **Export where the door and window ARE. The interiors are guessing.**
+      The user: *"i need the facades to line up with the interior. so if the
+      door on the interior is full right then the facade must match."*
+
+      This is your masonry-density pattern again, in a different guise, and
+      the auditor's restatement of that one applies word for word: *the defect
+      is not that something computes the position badly; it is that two things
+      compute it at all.*
+
+      Today the shopfront painter decides where the door goes — your own
+      comment says *"the door, somewhere along the front rather than always
+      dead centre"* — and then `ct/int-burger.ts` hand-types `at: -3.6` and
+      `window: { at: 1.7, w: 6.2 }`, and `ct/int-diner.ts` hand-types
+      `at: -2.6`. Nothing connects the two numbers. They are the same fact
+      authored twice, so of course they disagree, and the auditor has already
+      measured the consequences twice: *"room width is unconnected to
+      frontage"* and *"the diner and No. 227 entry triggers are inside a
+      wall"*.
+
+      **Your half: make the painter publish its geometry.** Export a frontage
+      descriptor per shop — something like
+
+          { frontageM, doorCentreM, doorWidthM, glazingStartM, glazingEndM,
+            stallriserH, fasciaH }
+
+      — all in METRES along the frontage, measured from the same origin the
+      building is placed at, and **derived from the exact numbers the painter
+      uses to draw**, not re-derived alongside them. If the painter computes
+      the door at `W * 0.44` of a texel canvas, the descriptor converts that
+      one value; it does not restate it.
+
+      Two constraints:
+      · the door position must be **deterministic per building** — if it is
+        currently arbitrary or drawn from an unseeded source, seed it off the
+        building name so it is stable across reloads and across the two
+        consumers.
+      · **do not change where any door currently is** in this commit. Publish
+        the existing positions first so F can align to them; moving doors is a
+        separate change and a separate commit.
+
+      Builder F consumes this next and is waiting on it. **Tell the desk the
+      exact shape of the export when you commit** so I can hand F the real
+      signature rather than a description.
+
 - [ ] **Two bugs in `ct/tex-world.ts`, both found and both small. Do these
       first — they are minutes, and the facade work below sits on top of them.**
 

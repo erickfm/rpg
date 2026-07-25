@@ -28,6 +28,43 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Derive every room's door and window from the facade, not by hand.**
+      The user: *"i need the facades to line up with the interior. so if the
+      door on the interior is full right then the facade must match."*
+
+      `ct/int-burger.ts` hand-types `at: -3.6` and `window: { at: 1.7 }`;
+      `ct/int-diner.ts` hand-types `at: -2.6`. The facade painter independently
+      decides where it draws the door. Two authorings of one fact, and the
+      auditor has measured the fallout twice — *"room width is unconnected to
+      frontage"*, *"entry triggers are inside a wall"*.
+
+      **Builder A is publishing a frontage descriptor** from `ct/tex-world.ts`
+      — frontage width, door centre, door width, glazing span, stallriser and
+      fascia heights, all in metres from the building's placement origin, all
+      derived from the numbers the painter actually draws with. **Wait for it;
+      the desk will hand you the real signature when A commits.** Do not start
+      by inventing your own.
+
+      Then:
+      · **`RoomSpec` takes the descriptor** instead of hand-authored
+        `door.at` / `window`. A room asks for its building by name and gets
+        its own frontage; the numbers stop being typed anywhere.
+      · **the `[E]` spot derives from the same descriptor**, which is the
+        other half of the user's complaint. The auditor measured every kit
+        door spot sitting **0.21 m inside collision**, prompting only because
+        the trigger radius is five times the intrusion. Deriving it from the
+        published door centre and the facade plane fixes that by construction.
+      · **room width should relate to frontage.** Burger barn measured
+        11.36 m of room against 16 m of frontage — 71%, against 94–97% for
+        the others. It does not have to be 100%, but it should be a rule the
+        kit applies rather than a number each room picks.
+      · walk in and out of **every** room afterwards and confirm the inside
+        door lines up with the outside one. This is the user's actual test.
+
+      One item, one commit: land the descriptor plumbing and the alignment.
+      Any door that turns out to be in the wrong PLACE is a separate item —
+      tell the desk rather than moving it here.
+
 - [ ] **DROP EVERYTHING: three finished rooms are not in the world.**
 
       `ct/int-casino.ts`, `ct/int-hotel.ts` and `ct/int-tax.ts` are written,
