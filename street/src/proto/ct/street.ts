@@ -546,20 +546,58 @@ export function buildStreet(o: {
       g.fillStyle = '#c9a45e'; g.fillRect(bm(0.28), bm(2.26), bm(0.57), bm(0.97));  // stacked cartons in it
       g.fillStyle = '#5a6a7a'; g.fillRect(bw - bm(1.21), bm(1.37), bm(0.73), bm(2.5)); // display glass, right
       g.fillStyle = '#4a7a3a'; g.fillRect(bw - bm(1.13), bm(2.42), bm(0.57), bm(0.81));
-      g.fillStyle = '#141820'; g.fillRect(bw / 2 - bm(0.65), bm(1.05), bm(1.29), bh - bm(1.05)); // the door
-      g.fillStyle = '#8a97a2'; g.fillRect(bw / 2 - bm(0.48), bm(1.21), bm(0.97), bm(2.18)); // daylight through it
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(bw / 2 - bm(0.48), bm(2.18), bm(0.97), 1);
-      g.fillStyle = '#3a2c22'; g.fillRect(bw / 2 - bm(0.48), bm(3.47), bm(0.97), bm(0.48)); // kick plate
-      g.fillStyle = '#c9b45e'; g.fillRect(bw / 2 + bm(0.24), bm(2.18), 1, bm(0.32));        // handle
+      // THE DOORWAY IS A HOLE, not a painted panel. It used to be drawn on
+      // the same flat plane as the display glass in almost the same blue, so
+      // there was nothing to tell you which of the three panels you could walk
+      // through. Cut it out; the leaf, its reveal and its frame are real
+      // geometry hung behind this face, and the shadow in the reveal is what
+      // reads as a door from across the junction.
+      g.fillStyle = '#141820';
+      g.fillRect(bw / 2 - bm(0.75), bm(SHOP - 2.45), bm(1.5), bh - bm(SHOP - 2.45));  // surround
+      g.clearRect(bw / 2 - bm(0.65), bm(SHOP - 2.35), bm(1.3), bh - bm(SHOP - 2.35)); // the opening
       g.fillStyle = '#4a4034'; g.fillRect(bm(0.2), bm(3.88), bm(0.89), bm(0.32));           // stallriser either side
       g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), bm(0.32));
       g.fillStyle = 'rgba(255,255,255,0.12)';
       g.fillRect(bm(0.2), bm(3.88), bm(0.89), 1); g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), 1);
       dither(g, bw, bh, Math.round(CFW * SHOP * 6));
     });
-    const bayFront = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP), flat(bayFrontT));
+    const bayFront = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP),
+      new THREE.MeshBasicMaterial({ map: bayFrontT, alphaTest: 0.5 }));
     bayFront.position.set(0, SHOP / 2, 0);
     bay.add(bayFront);
+    // ── the door itself ───────────────────────────────────────────────────
+    //
+    // Set BACK behind the shopfront line, with its reveal boxed in, so the
+    // opening has depth and throws a shadow. Everything here lives inside the
+    // 0.3 m cushion the corner's footprint already reserves, so none of it
+    // reaches the pavement (GOTCHAS §9).
+    const DW = 1.3, DH = 2.35, DREC = 0.12;
+    const doorT = pixTex(52, 94, (g) => {
+      g.fillStyle = '#2b2f36'; g.fillRect(0, 0, 52, 94);                 // stiles and rails
+      g.fillStyle = '#c9b184'; g.fillRect(5, 6, 42, 58);                 // warm light from inside
+      g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(7, 8, 14, 54);  // glare down one side
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(5, 34, 42, 2);        // glazing bar
+      g.fillStyle = '#8a5f3a'; g.fillRect(5, 40, 14, 12);                // shelf of stock behind it
+      g.fillStyle = '#7a8a5a'; g.fillRect(24, 44, 12, 8);
+      g.fillStyle = '#1d2026'; g.fillRect(0, 64, 52, 6);                 // lock rail
+      g.fillStyle = '#3a2c22'; g.fillRect(4, 76, 44, 14);                // kick plate
+      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(4, 76, 44, 1);
+      g.fillStyle = '#c9b45e'; g.fillRect(38, 44, 3, 22);                // push bar, vertical
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(41, 46, 1, 20);
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(24, 0, 2, 94);        // the meeting stile — two leaves
+    });
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(DW + 0.04, DH + 0.04), flat(doorT));
+    leaf.position.set(0, (DH + 0.04) / 2, -DREC);
+    bay.add(leaf);
+    const jambM = new THREE.MeshBasicMaterial({ color: 0x141820 });
+    for (const sx of [-1, 1]) {                                          // the reveal, boxed in
+      const jb = new THREE.Mesh(new THREE.BoxGeometry(0.07, DH, DREC), jambM);
+      jb.position.set(sx * (DW / 2 + 0.035), DH / 2, -DREC / 2);
+      bay.add(jb);
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.14, 0.07, DREC), jambM);
+    head.position.set(0, DH + 0.035, -DREC / 2);
+    bay.add(head);
     const awnT = pixTex(48, 12, (g) => {
       for (let x = 0; x < 48; x += 8) {
         g.fillStyle = (x / 8) % 2 ? bod.col : '#d8d0c0';
@@ -579,8 +617,10 @@ export function buildStreet(o: {
       g.fillStyle = '#e8574a'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
       g.fillText('OPEN', 12, 9);
     });
-    const open = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.35), flat(openT));
-    open.position.set(-0.82, 1.88, 0.04);   // in the left display glass, clear of the awning
+    const open = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.31), flat(openT));
+    // OVER THE DOOR, where a shop hangs it — it used to sit in the left
+    // display window, which told you the wrong panel was the way in
+    open.position.set(0, 1.98, -DREC + 0.04);
     bay.add(open);
     // roof cap over the wedge R1 and R2 leave open (wound for an up normal)
     const cap = new THREE.BufferGeometry();
