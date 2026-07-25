@@ -12,6 +12,43 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **You can see the pavement THROUGH the shopfronts.** The user: *"this is
+      a part of the bodega corner that needs to be fixed i flagged this to you
+      a while ago but its still here"*. Ref: `shots/user-bodegaglass.png`.
+
+      **The desk dropped this one** — it was raised with the bodega bay, D
+      fixed the bay, and this half was left as "find out whose it is" and
+      never closed. It is yours: it comes from the glazing, and you hold the
+      shopfront mandate right now.
+
+      **What is happening.** The sidewalk is one plane running from kerb to
+      facade, and it continues UNDER the buildings. That was invisible while
+      shopfront glass was an opaque dark rectangle. Now that you have given
+      the glass real depth and translucency, the walk plane shows straight
+      through it — in the shot the diagonal slab scoring runs into the doorway
+      and carries on inside the shop, so the bodega has a pavement for a
+      floor.
+
+      **The fix is a backing, not a transparency change.** Do not just make
+      the glass opaque again — that undoes the depth work and returns the
+      "glass is a black hole" complaint. Every glazed shopfront needs
+      something BEHIND it:
+      · an opaque interior plane set back behind the glass — dark, but not
+        black, so it reads as a room rather than a void
+      · ideally with the silhouette of a room on it: a back wall, a counter
+        edge, shelving, a hint of a lit ceiling. The queue already asks for
+        *"something IN the window"* and this is the same surface.
+      · it must cover the full glazed opening including the door light, which
+        is where it is most obvious in this shot
+
+      This applies to **every shopfront**, not just the bodega — the bodega is
+      simply where the chamfer makes it easiest to see. Walk the block and
+      check each one, including the ones on the side street.
+
+      Note builder F's interiors are real rooms in a different part of the
+      world that you teleport to, so this backing is NOT them — it is a
+      painted suggestion of an interior, which is all a shop window needs.
+
 - [ ] **GRANTED: bounded mandate for `ct/street.ts` to finish the shopfronts.**
       You asked and the answer is yes. The projecting fascia and stallriser are
       geometry, not texture, so they cannot be done from your file — and the
