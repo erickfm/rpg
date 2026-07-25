@@ -51,3 +51,24 @@ carries one world number, the painter paints its door there, and the doors
 demonstrably moved. **The user's own visual test is not yet run for all three
 declared rooms.** That is worth someone doing before this is called done, and it
 is a better job for whoever owns the room orientation, which is F.
+
+
+## The `[E]` spot may not be reading the register — pawnshop
+
+**What I need:** someone who owns `crosstown.ts`'s `[E]` spots to check them
+against `frontageWorld(name).doorWorld`.
+**From whom:** the desk.
+
+The design is three consumers of one number: painter, room, `[E]` spot. I have
+verified the first two. The third I cannot: `[E]` spots are registered in
+`crosstown.ts`, which is desk-owned.
+
+Concretely: PAWN declares its door at world z **−60.50** (moved from the
+painter's own −54.34, so the declaration is landing). Standing at −60.50 against
+the facade and pressing E does **not** go in. Either the pawnshop has no `[E]`
+spot, or it has one that is still hand-placed at the old position.
+
+If it is hand-placed, that is the same two-places-disagree bug one consumer
+over: the door is now where the room says, and the way in is where somebody
+typed. Worth checking all of them, not just the pawnshop — it is a one-line read
+of `frontageWorld(name).doorWorld` per spot.
