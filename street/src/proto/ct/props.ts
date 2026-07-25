@@ -254,11 +254,28 @@ export function buildProps(ctx: CtxBuild): Props {
   // at z=-30, in front of ARCADE (which spans z -35..-22), and drew tall
   // enough to crowd the sign.
   const TREE_TRIM: Record<number, number> = { 2: 0.85 };
+  // ── keep clear of the library doors ─────────────────────────────────────
+  //
+  // ct/street.ts stands the LIBRARY at zw = -5.0 with w = 16, so it runs
+  // z -5 … -21, and ct/civic.ts centres its entrance bay (BAY_W = 5.0) on the
+  // middle of that: the doors open onto z -15.5 … -10.5. Builder E is
+  // recessing that bay into a courtyard, which would have left a payphone and
+  // a street tree standing in the middle of it.
+  //
+  // Nothing of mine goes in this span, plus a stride either side so the
+  // approach reads as an approach. If E moves the library, this is the one
+  // number to change.
+  const LIB_DOOR_Z0 = -17.0, LIB_DOOR_Z1 = -9.0;
+  // Tree 1 fell at z = -15.5, dead on the south jamb. Shifted south onto the
+  // library's solid flank, where a tree in front of stonework is right rather
+  // than in the way. Kept on the half-metre so its pit still lands on the slab
+  // grid — see the walk sheet's phase in ct/tex-ground.ts.
+  const TREE_SHIFT: Record<number, number> = { 1: -4 };
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * (ROAD_HALF + 0.4);               // kerb-side; pit road-edge sits on the kerb
-    const pz2 = Math.round(z - 0.5) + 0.5;          // snapped to the 1 m slab grid
+    const pz2 = Math.round(z - 0.5) + 0.5 + (TREE_SHIFT[treeIdx] ?? 0); // snapped to the 1 m slab grid
     // rnd() is consumed for EVERY tree regardless, so trimming one does not
     // shift the seeded stream and change the others.
     const H = Math.round((90 + Math.floor(rnd() * 24)) * (TREE_TRIM[treeIdx] ?? 1));
@@ -368,12 +385,27 @@ export function buildProps(ctx: CtxBuild): Props {
   const crumbMat = new THREE.MeshBasicMaterial({ map: crumbT, alphaTest: 0.5, side: THREE.DoubleSide });
   let crumbs: { x: number; z: number; y: number; t: number; m: THREE.Mesh } | null = null;
 
-  // payphone against the left wall
-  const phone = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.3, 0.9), flat(payphoneTex()));
-  phone.position.set(-(FACE - 0.55), sidewalkY + 1.15, -11);
+  // ── the payphone ────────────────────────────────────────────────────────
+  //
+  // It stood at z = -11, which is inside the library's entrance bay — it was
+  // standing in the doorway. Moved north to the MERIDIAN frontage (z -5 … 5),
+  // which is the same stretch of walk so it stays where the player expects
+  // it, and MERIDIAN is exactly the bland modern slab that gets a payphone
+  // bolted to it. Clear of the lamp at z = -9 and of the doors.
+  //
+  // Also SLIMMED, from 0.9 m deep to 0.3. It is a wall-mounted phone on a
+  // backboard, not a booth, and the old depth ate half the two-metre walk:
+  // its collider reached x = -5.95, which with the rig's 0.36 m radius blocked
+  // everything out to -5.59 and closed the only through-lane on this side
+  // (the lamps already block from -6.11). At 0.3 m it sits entirely inside
+  // the wall's own collider shadow and costs the walk nothing. The face you
+  // actually look at is unchanged: 0.9 m wide, 2.3 m tall.
+  const PHONE_Z = -3.0;
+  const phone = new THREE.Mesh(new THREE.BoxGeometry(0.30, 2.3, 0.9), flat(payphoneTex()));
+  phone.position.set(-(FACE - 0.15), sidewalkY + 1.15, PHONE_Z);
   scene.add(phone);
   lit(phone);
-  obstacle({ minX: -(FACE - 0.05), maxX: -(FACE - 1.05), minZ: -11.55, maxZ: -10.45 });
+  obstacle({ minX: -FACE, maxX: -(FACE - 0.30), minZ: PHONE_Z - 0.55, maxZ: PHONE_Z + 0.55 });
 
   // weather: the rain comes and goes by the hour, and the ground
   // remembers it — every registered wet surface darkens as it comes in
