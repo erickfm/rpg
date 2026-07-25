@@ -793,7 +793,7 @@ The standing question the user's decision rests on. Full suite, both tiers,
 against a preview of this HEAD:
 
 ```
-fast tier   23 of 23 green
+fast tier   45 of 45 green
 slow tier   53 green, 1 red
                 ✗ interiors-walk   FAILED (1)
 ```
@@ -831,3 +831,26 @@ The table also confirms §31's positive half, which had not been shown: both dis
 dumps are byte-identical across **separate builds and separate server restarts**,
 as are both dev dumps. Same-mode comparison is genuinely stable, so the rule
 works as prescribed.
+
+### Re-confirmed six commits later, at HEAD `29ff72f4`
+
+Mainline moved six commits — including a real visual fix (`34a3ed95`, `isGlass`
+carrying three meanings) and the wrong-world exit-3 change. Fast tier re-run
+there: **45 green, 0 red**.
+
+**Correcting my own figure one commit above:** I first published *"fast tier 23
+of 23"*. That was counted off a truncated `tail`, not counted. The tier is **45
+checks**. All were green then and all are green now; the count was wrong, the
+verdict was not.
+
+One incidental confirmation of the fingerprint's discrimination: across those six
+commits `textures` stayed **`4afd7bb6`** while `structure` moved `6caac454` →
+`ae0b6301`. The `isGlass` fix changed material state, not painted pixels, and the
+two hashes separated exactly that way without being asked to.
+
+**A trap worth recording**, since it cost me two false WRONG WORLD sweeps: a
+`vite preview` left running keeps serving the **bundle it started with**, and
+because `--strictPort` makes the replacement exit rather than steal the port, a
+rebuild-and-restart silently leaves the stale world up. Both times every check
+went red at once. Free the port, *confirm it is free*, then start — and read the
+served SHA back before trusting a sweep.
