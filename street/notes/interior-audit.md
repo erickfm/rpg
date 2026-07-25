@@ -121,3 +121,87 @@ paper walls. Every axis this audit measures puts it outside the set.
   landings and room 301 were walked in the seam audit and have changed since.
 - Daylight only; interiors are excluded from the night sweep by design, but I
   did not verify that exclusion still holds for the kit's rooms.
+
+---
+
+# Round 2 — no new rooms; the entry triggers are living on borrowed margin
+
+Base `add-stick-and-city98` @ `bcd2c82`. **Still one kit room.** `int-diner.ts`
+is the only interior in the tree; F's burger barn and G's casino are assigned
+but not committed. The set comparison above is unchanged and stands.
+
+What did change is a desk finding routed to D in the same commit: *"crosstown.ts
+hand-writes the block's collision as two rectangles spanning the whole street,
+independent of what any module draws."* That is the third bullet of this queue
+item — "is any room enterable from a spot that a collider swallows" — so I
+measured it rather than waiting for the nine rooms.
+
+## Measured (`scripts/triggers.mjs`)
+
+The blanket walls are `crosstown.ts:238–240`. Their inner faces are at
+x = ±(FACE − 0.3) = ±6.7; the player capsule is 0.36, so the closest a player
+can ever get is **x = ±6.34**. Every street-side `[E]` trigger sits somewhere in
+that band. Walked from three directions each, with real key input:
+
+| trigger | r | closest reachable | **margin** | centre reachable? |
+|---|---|---|---|---|
+| DINER (kit room) | 1.05 | 0.21 | **0.84 m (80 %)** | **no — blocked** |
+| No. 227 street door | 1.05 | 0.21 | **0.84 m (80 %)** | **no — blocked** |
+| BODEGA corner store | 1.10 | 0.00 | 1.10 m (100 %) | yes |
+
+**The bodega finding from the seam audit is closed** — its trigger centre is now
+reachable with the full radius available. Recorded so it is not re-opened.
+
+## Finding 9 — two of three entry triggers have their centre inside a wall
+
+| # | sev | instance | file | what's wrong |
+|---|-----|----------|------|--------------|
+| 9 | medium | DINER and No. 227 street doors | `ct/interior.ts` (kit contract) + `crosstown.ts:238–240` | Both spots sit 0.45 m off the facade (`±(FACE − 0.45)` = ±6.55) while the blanket wall makes everything past ±6.34 unreachable. The trigger centre is **0.21 m inside solid collision** and the prompt fires only because the radius is five times the intrusion. Nothing is broken today; what is broken is that **nobody is accounting for the margin.** |
+
+Why this is the interiors item's problem rather than D's alone:
+
+- **The convention propagates.** The diner places its door at 0.45 m off the
+  facade; that is the reference the other nine will copy, so nine more triggers
+  will each start 0.21 m in debt.
+- **The margin is a shared budget with no owner.** It is spent by anything a
+  props builder puts outside a door — a bench, an A-board, a planter, a bin.
+  The bodega became un-enterable by exactly this route: blanket wall first, then
+  the fruit crates on top, and the 0.36 m capsule turned 0.84 m of slack into
+  −0.31. One prop was enough.
+- **The kit checks the mirror image of this and not this.** `buildRoom` already
+  warns when the way-out landing falls inside the way-in trigger
+  (`outGap < doorR + 0.35`) — the entry side gets no equivalent. The file that
+  owns the door contract validates one end of it.
+
+**Recommended, and it belongs in `ct/interior.ts` beside the check that is
+already there:** assert a minimum *reachable* margin at the entry spot, not just
+a minimum distance at the exit. The kit cannot see the collider list, but the
+desk can hand it one — and the check only has to run at build time, once per
+room, to stop nine doors shipping in debt.
+
+## Patterns — an addition
+
+The collision commit's own diagnosis is the fourth instance of the pattern this
+audit trail keeps finding, and it is worth naming as one thing:
+
+> **Values that describe what a module built are being authored somewhere else,
+> by hand, as literals.** Seam pattern #1: texture density per painter instead
+> of from the surface. Float pattern: a mounted object's position typed instead
+> of taken from its host. Now collision: the block's solid geometry hand-written
+> in `crosstown.ts` instead of registered by the module that drew it.
+
+Same failure, three subsystems, and each time the fix has been the same shape —
+the thing that knows the truth should be the thing that publishes it. The
+interior kit already works this way for colliders (`room.solid`) and for spots
+(`ctx.spot`), which is why interiors are the one subsystem where this class of
+bug has *not* appeared. It is the model, not the exception.
+
+## Coverage — round 2
+
+- **No new rooms**, so nothing new to compare. The instrument runs in one
+  command when F and G land.
+- I measured the three street-side triggers that exist. I did **not** enumerate
+  triggers from `SPOTS` directly — it is not exposed on `__ct` — so if a module
+  registers a spot I did not know about, I did not test it.
+- The margin figures are for the world as it stands **today**, with today's
+  props. They are a snapshot of a budget that other builders spend.
