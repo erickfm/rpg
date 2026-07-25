@@ -173,3 +173,49 @@ The car lot and the remaining visual checks want exactly what fixed the library:
 is the pattern — it took one run to locate steps that three hand-aimed cameras
 had missed, and its 1651 rejected warps are the reason its 624 readings can be
 trusted.
+
+---
+
+# Grading pass 2
+
+Method as before: find the thing by scanning the scene graph for what it *is*
+(neon = the only materials with `fog === false`; benches by proportion; puddles
+by being flat, transparent and on the road), then aim at what the scan returns.
+
+| ask | verdict | observed |
+|---|---|---|
+| *"make rain cause some puddles"* — **the rain itself** | **DONE** | Drove the clock to the first raining hour using the world's own hash (`rainAt`, `ct/props.ts`). `shots/gr-rain-street.png`: rain streaks falling the full height of frame, road gone dark and wet, lamps lit with warm pools on the tarmac, lit windows. It reads as rain. |
+| *"make wetness last a lil after it stops raining"* | **NOT CHECKED** | needs two clock positions and a wait; not done |
+| *"the gutter should have the water in the gutter"* — **puddles visible** | **PARTIAL / unconfirmed** | The scan finds flat transparent decals on the road, so puddle geometry exists. The first raining hour by the hash is **05:00**, so the only frame I have of it is a night frame where I cannot separate a dark puddle from dark wet tarmac. Needs a *daytime* raining hour — pick the first `h` where `rainAt(h)` and `h % 24` is between 10 and 16. |
+| casino / hotel **blade signs from the east** | **STILL UNRESOLVED — four attempts** | see below |
+| bench ad framed / legs non-coplanar | **NOT CHECKED** | the bench scan matched interior seating and the lot's, and found nothing on the main street between x 4 and 7 — the bus bench has moved and my proportion filter did not catch it |
+| wheel arches | **NOT CHECKED** | the car scan returned bodies at x ≈ −10.7, inside the west block, not the parked cars on the street |
+
+## The blade sign has now defeated four attempts, and here is why
+
+Attempts: two hand-aimed wide shots, one auto-detected close pair, and this pass
+a scan-and-aim at 5.5 m standoff. Every one is blocked the same way.
+
+**The GOLDEN ACES marquee canopy overhangs the pavement.** Any street-level
+camera within roughly 8 m of either blade is *underneath* it, and the frame fills
+with the canopy's underside and the shopfront — `shots/gr-blade0-fromW.png` and
+`gr-blade0-fromE.png` are both that. From further back the blade is small enough
+that the E and L cannot be called honestly, which is where attempts one and two
+ended.
+
+**Two ways to actually settle it, for whoever picks this up:**
+
+1. **From across the road.** Stand on the *south* side-street walk, z ≈ −109,
+   and look north at the blade from ~13 m. That clears the canopy entirely and
+   still gives enough pixels. No camera I have tried was on that side.
+2. **Do not photograph it at all.** The question is whether the two faces of a
+   two-sided sign carry mirrored UVs. That is readable from the scene graph —
+   find the pair of coincident planes, compare their world-space u direction
+   against each face's normal — and it gives a yes/no rather than a judgement
+   about pixel shapes at distance. Given this sign's history, that is the
+   approach I would take.
+
+This is the third finding this session where the honest answer was "my
+instrument cannot see this" rather than a verdict. The pattern is worth naming:
+**when a check fails twice the same way, stop re-aiming the camera and change
+the instrument.**
