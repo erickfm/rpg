@@ -194,7 +194,8 @@ empty until modules opt in. **No name is better than a name inferred by eye.**
 `ct/lot.ts` already publishes `LOT.bounds` for exactly this reason; pushing it
 to the registry is one line and the check will name it.
 
-**Routed to whoever owns `ct/vice.ts`, not C.**
+**Routed to whoever owns `ct/vice.ts`, not C.** — and then **DOWNGRADED**, see
+below: they are FrontSide, so nobody should be paged for them.
 
 ## `cf966b3d` beat my proposal, and the check now reads it (`b9c0e163`)
 
@@ -275,6 +276,33 @@ it. If that is the cause, the fix is the same one tex-world.ts already applies:
 an instance per shelter rather than one shared.
 
 **Routed to whoever owns `ct/park.ts`.** I have not touched it.
+
+## Retraction: vice.ts should not have been paged either (`d6eacfa5`)
+
+§22 has **two** costs, and I went on failing on both after one was fixed
+underneath me:
+
+| cost | state |
+|---|---|
+| the dimmer skip | **fixed at the source** by `db76dc26` (`isGlass`) |
+| the transparent queue | still live — but the harm §22 names is **DoubleSide** geometry picking up sorting artifacts |
+
+Measured: of the flag-pair materials inside `dimWorld`'s reach, **14 are
+FrontSide and zero are DoubleSide.** `ct/vice.ts:329` — which owns thirteen of
+them — is `side: THREE.FrontSide`. The build was failing and handing that module
+thirteen tickets for a harm that cannot occur in its case.
+
+That is the same mistake `8e473276` corrected me for once already: *"handing its
+owner thirteen tickets for a neon sign."* Thirteen again, same module, a
+different wrong reason.
+
+So the pair now fails only where the harm is real — DoubleSide, today zero. The
+FrontSide ones are listed as the rule violation they are, and the judgement is
+left with whoever knows why the flag is there. Still worth deleting; not worth
+paging anyone.
+
+The build still exits 1 — on the park shelter roof, the one finding that
+survives every exemption.
 
 ## The arc of this file, which is the actual point
 
