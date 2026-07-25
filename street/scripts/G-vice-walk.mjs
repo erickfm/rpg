@@ -16,7 +16,7 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
-const KERB_H = 0.14;
+const KERB_H = 0.14, RADIUS = 0.36;   // the player capsule, for the geometric band
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 960, height: 600 } });
 const errs = [];
@@ -141,27 +141,49 @@ const runWest = async (z, from, to, tries = 3) => {
 // now has four things on it and the band has to be the band past ALL of them.
 console.log('the north side-street walk — measuring the clear band eastward:');
 const BAND_MIN = 0.25;
+
+// MEASURED OFF THE STATIC COLLIDERS, not by walking each lane.
+//
+// This walked ten lanes and called a lane clear if the walker got past the door.
+// A pedestrian standing in one lane makes it read as blocked, and it failed three
+// times on worlds whose geometry was provably identical — dev clear at
+// z -97.0…-96.7, one dist run at -96.8…-96.7, another with no clear lane at all,
+// while the fingerprint showed placement matching to within pigeon drift. The
+// question this check asks is how wide the BUILT lane is; a citizen standing on
+// it is a different question and mainline already keeps the two apart
+// (7c13237f measures the built lane with movers dropped and reports the
+// pedestrian case as its own number).
+//
+// Movers are identified the way scripts/lane3.mjs does it: snapshot the collider
+// list twice, and keep only the boxes that are byte-identical in both. Anything
+// that moved between the snapshots is a citizen or a vehicle.
+//
+// The walking checks below are unchanged and still walk — geometry says the gap
+// exists, walking says a body can get through it, and I want both.
+const statics = await (async () => {
+  const snap = () => p.evaluate(() => window.__ct.colliders()
+    .filter((c) => c && isFinite(c.minX) && Math.abs(c.minX) < 500)
+    .map((c) => [+c.minX.toFixed(3), +c.maxX.toFixed(3), +c.minZ.toFixed(3), +c.maxZ.toFixed(3)]));
+  const a1 = await snap();
+  await p.waitForTimeout(1500);
+  const a2 = new Set((await snap()).map((c) => c.join('|')));
+  const stat = a1.filter((c) => a2.has(c.join('|')));
+  console.log(`  ${a1.length} colliders, ${stat.length} static (${a1.length - stat.length} moving — dropped)`);
+  return stat;
+})();
+
+// A lane at height z is clear if no static box blocks the corridor from x = 30 to
+// the casino door, inflated by the player's radius in both axes.
+const X0 = 30.0, X1 = ACES.px;
+const laneClear = (z) => !statics.some(([mnX, mxX, mnZ, mxZ]) =>
+  z > mnZ - RADIUS && z < mxZ + RADIUS && mxX + RADIUS > X0 && mnX - RADIUS < X1);
 const clear = [];
-for (let z = FACADE_Z - 1.4; z <= FACADE_Z - 0.65; z += 0.1) {
-  // Through runEast, which retries, rather than the single inline walk this used
-  // to do. Same citizen problem as the column check below and the same fix: a
-  // pedestrian standing in one lane makes that lane read as blocked, and if it is
-  // an EDGE lane the measured band narrows by 0.1 m. The observed band is 0.4 m
-  // against a 0.25 m floor, so two unlucky lanes fail a frontage that is fine —
-  // and I have watched this check come back 15/18 and then 16/18 on an unchanged
-  // world, which is the signature.
-  //
-  // Two tries, not the default three: most lanes here are SUPPOSED to be blocked
-  // (they are outside the band, against the wall or the kerb), and runEast retries
-  // whenever it has not reached `to`, so every legitimately blocked lane pays the
-  // full retry cost. Two is the flake fix; three would mostly buy re-walking walls.
-  const last = await runEast(z, 30.0, 52, 2);
-  // past the casino door, which is the whole point of the walk
-  const got = last > ACES.px - 0.3;
-  console.log(`  z=${z.toFixed(2)}  reached x=${f2(last)}${got ? '  clear' : ''}`);
-  if (got) clear.push(z);
+for (let z = FACADE_Z - 1.4; z <= FACADE_Z - 0.60; z += 0.02) {
+  if (laneClear(+z.toFixed(2))) clear.push(+z.toFixed(2));
 }
-const band = clear.length ? (Math.max(...clear) - Math.min(...clear)) + 0.1 : 0;
+for (const z of clear.length ? [Math.min(...clear), Math.max(...clear)] : [])
+  console.log(`  clear lane edge at z=${z.toFixed(2)}`);
+const band = clear.length ? (Math.max(...clear) - Math.min(...clear)) + 0.02 : 0;
 check('there is a clear band past the frontage furniture, wide enough to walk',
   band >= BAND_MIN,
   clear.length
