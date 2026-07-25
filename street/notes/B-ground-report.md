@@ -6,6 +6,66 @@ Written for the desk to prioritise. **Fixed** items are already committed;
 
 ---
 
+## Queue status, 2026-07-24 — `## Now` is empty and `## Next` is nearly so
+
+The queue's whole `## Now` section is on mainline. It went stale a second time
+in the same way the desk apologised for at the top of the file, so per the
+README rule (*"the builder's report is the authority on what is done"*) I have
+not redone any of it:
+
+| queue item | landed as |
+|---|---|
+| Night five — wider beams, darker darks, stars | three commits, one per piece |
+| Tree pits + puddles in the gutter | the footprint commit |
+| Litter clips into the kerb | the footprint commit |
+| Ship the approved trash set, take the rig down | `2be…`, 14 placements |
+
+From `## Next`: the catch basin, the bus bench and the puddle contrast fix have
+all landed too, and finding **C** (red kerb at the bus stop) went in with the
+bench. What is left:
+
+- **`[E]` spots** — nothing of mine is in `crosstown.ts`. The feed action
+  cannot move and is blocked on the same missing `ctx` accessors as D. See
+  `notes/BLOCKED-B.md`.
+- **Finding B, lamp spacing leaves the middle of the block dark** — I recommend
+  **closing this as superseded, not doing it.** It was written before night
+  five. The user has since asked for *"a wider beam… make the unilluminated
+  stuff darker… it should feel scarier"*, and the desk's read was explicitly
+  *"more contrast, not more light"*. Adding lamps to fill the mid-block gap
+  would undo the thing that just shipped. The gap is now deliberate: heads are
+  16.4 m apart and reach 7 m, so 2.4 m of genuine dark survives between pools,
+  by design.
+- **Finding D, parking never re-rolls** — the seed lives in `ct/rng.ts` and the
+  parking draw in `ct/cars.ts`, neither of which is mine. Desk's call and
+  someone else's file.
+
+## The five things a check caught that I had already called done
+
+Worth collecting, because the pattern is the same each time and it is the most
+useful thing in this report:
+
+1. **Nine litter pieces sunk into the pavement** after I had committed the
+   footprint fix — the hand-written base heights were wrong (a lying cylinder
+   wants its centre at exactly its radius; the cups were 6 and 8 mm under).
+   Found by `footprint.mjs`, which I wrote *after* the fix.
+2. **The east walk severed at every tree.** Moving the pits inboard moved the
+   trunk colliders with them and left 4 cm of lane. Found by `bus.mjs walk`.
+   I had not walked it, which is exactly what the project rule exists for.
+3. **`wet.mjs` was measuring the wrong sheets and passing anyway** — counting
+   reflections as puddles, blind to the gutter ribbons entirely, and testing
+   "still filling" on a maximum that pins at 1.0.
+4. **The contact shadows were never drawn** — `flatDecal` sets `alphaTest 0.5`
+   and every texel of a soft shadow is below it.
+5. **`trash.mjs` failed on a rule stricter than the one it named** — it
+   compared rotations globally, so a coffee cup and a fountain cup in different
+   places sharing a yaw counted as copies.
+
+Every one of these was invisible to a screenshot and every one was in something
+I had already reported as finished. **The check is the deliverable, not the
+fix.**
+
+---
+
 ## ANSWER: the two approved pieces are not rig candidates at all
 
 The desk asked me to identify the two pieces in `user-trash-good.png` and

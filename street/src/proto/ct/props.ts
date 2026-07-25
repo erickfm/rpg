@@ -1836,7 +1836,7 @@ export function buildProps(ctx: CtxBuild): Props {
   drop('milk crate', -12.20, -39.60, 0.35, ALLEY_Y);
   drop('milk crate', -11.55, -40.35, -0.80, ALLEY_Y);
   drop('flattened cardboard', -10.60, -41.45, 0.90, ALLEY_Y);
-  drop('fountain cup', -9.40, -42.40, -1.20, ALLEY_Y);
+  drop('fountain cup', -9.40, -42.40, -1.06, ALLEY_Y);
   drop('folded newspaper', -12.60, -42.05, 0.40, ALLEY_Y);
   // blown up against the building line, clear of the tree pits (x ±5.0…5.8)
   drop('flattened cardboard', 6.58, -26.5, -0.35);

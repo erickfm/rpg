@@ -59,7 +59,12 @@ if (mode === 'probe' || mode === 'all') {
   });
   const buried = r.filter((d) => d.clear < 0);
   const alley = r.filter((d) => d.inAlley);
-  const yaws = new Set(r.map((d) => d.yaw));
+  // Two placements "read as copies" only if they are the SAME OBJECT at the
+  // same angle. A coffee cup in the gutter and a fountain cup in the alley
+  // sharing a yaw is not a repeat of anything — the first version of this
+  // check compared all fourteen globally and failed on exactly that, which is
+  // a stricter rule than the one it claims to test.
+  const yaws = new Set(r.map((d) => `${d.kind}@${d.yaw}`));
   const byKind = {};
   for (const d of r) byKind[d.kind] = (byKind[d.kind] ?? 0) + 1;
   console.log(`\n  litter groups placed: ${r.length}  (${alley.length} in the alley)`);
@@ -70,7 +75,7 @@ if (mode === 'probe' || mode === 'all') {
   if (buried.length) console.log(`  BURIED: ${JSON.stringify(buried)}`);
   console.log(`\n  ${r.length >= 12 && r.length <= 20 ? 'OK  ' : 'FAIL'} the approved set is placed, and not overdone (${r.length})`);
   console.log(`  ${!buried.length ? 'OK  ' : 'FAIL'} nothing is under the surface it lies on`);
-  console.log(`  ${yaws.size === r.length ? 'OK  ' : 'FAIL'} no two placements share a rotation`);
+  console.log(`  ${yaws.size === r.length ? 'OK  ' : 'FAIL'} no two placements of one object share a rotation`);
   if (buried.length || yaws.size !== r.length) process.exit(1);
 }
 
