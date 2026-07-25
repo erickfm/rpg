@@ -46,6 +46,28 @@ hour of work is where the conflicts live.
       forcing you to edit the entry point. Verify by actually walking to each
       door and pressing E — `scripts/doortest.mjs` is a starting point.
 
+- [ ] **Furnish room 301 — "my room".** From the user's interiors list:
+      *"i want to build out the insides of the following: … my room …"*
+
+      You get this one because you own `ct/apartment.ts` and room 301 is
+      already in it — it is the one interior on the list that is NOT built on
+      the shared kit (`ct/interior.ts`, builder F's), because it is inside a
+      building you can already walk up into rather than a room you teleport to.
+      **Read the kit anyway** before you start, and read `ct/int-diner.ts`,
+      which is the reference interior. Match their conventions — wall
+      thickness, jamb reveals, ceiling height, light — so 301 does not read as
+      the one room built by somebody else.
+
+      It should be a specific person's room, not a hotel room: an unmade bed,
+      a mattress on a frame that does not match it, a dresser with the drawer
+      that never shuts, a portable TV on a milk crate, a radiator under the
+      window, a poster, a full ashtray, clothes on a chair. The window looks
+      out at the street you just walked in off — make sure it does, and that
+      what you see through it agrees with where the building stands.
+
+      You can already sleep here, so whatever you add must not block the bed
+      interaction or trap the player between furniture and a wall. Walk it.
+
 ## Done
 
 - [x] Entrance bay: brick continuous, nameplate removed, stoop dressed
