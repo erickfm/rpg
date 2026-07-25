@@ -83,7 +83,11 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Next
 
-- [ ] **THRIFT STORE interior.** 14 m wide, west side, north of BARBER.
+- [ ] **THRIFT STORE interior.** **12.5 m** wide now, not 14 — the user asked
+      to swap BARBER and THRIFT, so the thrift takes the narrower slot and
+      moves one position north. Builder D will report its exact z-span through
+      the desk; wait for it rather than anchoring to the old numbers. West
+      side, and its southern neighbour is now a PARK rather than a shop.
       The opposite problem to the burger barn: it should feel like too much
       stuff in too little room. Rails of clothing packed tight, a wall of
       shoes, a shelf of chipped crockery, a glass case at the till with the
