@@ -1,10 +1,29 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import type { CtxBuild } from './ctx';
+import { doorStandFor, type DoorDecl } from './doors';
 import { pixTex, dither } from './paint';
 
 // The bodega interior — one bright little room off the corner. Self-contained:
 // it only adds meshes to the scene and hands back its wall colliders.
+/**
+ * The bodega's door is on the CANTED BAY, cut at 45° across the corner — not
+ * on a flat frontage — so it is declared as a point and an outward normal.
+ *
+ * D reported the geometry when it fixed the door blocker: the cut face runs
+ * A (7, -94) to B (9, -96), so its midpoint and the drawn door centre is
+ * (8.0, -95.0) and its outward normal is (-1, -1)/root 2.
+ *
+ * The FACADE IS APPROVED and does not move — *"do not change the facade i love
+ * it just make the entrance where i press e actually aligned"* — so this feeds
+ * the [E] spot only. `ct/doors.ts` skips chamfered doors when it tells the
+ * painter where to draw, for exactly that reason.
+ */
+export const DOOR: DoorDecl = {
+  building: 'BODEGA', w: 10, cz: -95, side: 1, at: 0,
+  face: { x: 8.0, z: -95.0, nx: -Math.SQRT1_2, nz: -Math.SQRT1_2 },
+};
+
 export function buildBodega(ctx: CtxBuild): AABB[] {
   const { scene, player } = ctx;
   // The two door spots live HERE now, with the door they belong to, instead of
@@ -14,8 +33,20 @@ export function buildBodega(ctx: CtxBuild): AABB[] {
   // The counters moved too, now that ctx carries the purse. A spot that SELLS
   // something belongs with the counter it is sold over, not in the entry
   // point — these two were the last hand-written spots in the world.
+  // The [E] spot stands 0.75 m out along the cut face's normal — the first
+  // standable point there, measured against the collider list, and the same
+  // standoff every flat frontage uses.
+  //
+  // It was at (8.7, -96.85), which is 1.80 m from the drawn door: the user
+  // pressed E somewhere that was not the doorway they could see. Only the
+  // trigger moved.
+  const bodegaDoor = doorStandFor('BODEGA') ?? { x: 7.47, z: -95.53 };
   ctx.spot({
-    x: 8.7, z: -96.85, r: 1.1,
+    // 1.3 rather than the flat frontages' 1.05: the spot is correctly ON the
+    // door, which on a canted bay means tucked into the corner nook, and a
+    // 1.05 radius there is only reachable on the diagonal. Wider trigger,
+    // right centre — rather than the old spot's right reach, wrong centre.
+    x: bodegaDoor.x, z: bodegaDoor.z, r: 1.3,
     ok: () => player.x() < 100,
     label: () => 'into the BODEGA',
     act: () => player.jumpTo(241.3, -17, Math.PI / 2, 0),

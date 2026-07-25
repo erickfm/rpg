@@ -29,6 +29,7 @@ import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds } from './ct/interior';
+import { publishDeclaredDoors } from './ct/doors';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -96,6 +97,10 @@ export function makeCrosstown(): Proto {
   // reads this as it draws. Setting it after gets you a picker that reports a
   // 0.99 m landing and a flight you still cannot climb.
   COURT.climbable = true;
+  // Every room states where its door is before a single facade is painted —
+  // the rooms are built last, so they cannot speak for themselves in time.
+  // See ct/doors.ts.
+  publishDeclaredDoors();
   const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
   // solid props the citizens must steer AROUND (never walk/phase through) —
   // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
