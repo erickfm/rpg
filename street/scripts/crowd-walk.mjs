@@ -19,20 +19,29 @@ await page.evaluate(() => window.__ct.clock(13, 0));
 
 const pos = () => page.evaluate(() => window.__ct.pos());
 const hold = async (key, ms) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); await page.waitForTimeout(40); };
-// where the people are: pull their meshes straight out of the scene, since
-// __ct.people() reports build, not position.
-// x < 50 excludes the hermit — the apartment interior is parked out at x>100
-// and he is drawn to the same 0.95 x 1.9 convention as the street cast.
+// THE CROWD, from the crowd — not from a scan of the scene for person-shaped
+// planes. That scan was right when the cast was the only set of people in the
+// world; it is not any more. citizenSprite() has been adopted (ct/interior.ts and
+// ct/lot.ts both call it), so a seventh person standing in the car lot is other
+// modules using the atlas as intended, which is the whole point of exporting it.
+// Asserting "exactly six person-shaped planes" would make this probe fail every
+// time somebody does the right thing.
+//
+// __ct.walkers() is authoritative for the cast. The scene is still read for the
+// foot HEIGHT, matched back to those positions, because walkers() reports x/z.
 const walkers = () => page.evaluate(() => {
-  const out = [];
+  const cast = window.__ct.walkers();
+  const yAt = new Map();
   window.__ct.scene().traverse((o) => {
-    // a person: plane 0.95 x 1.9, feet-translated, double-sided, alphaTest
     const g = o.geometry?.parameters;
-    if (g && g.width === 0.95 && g.height === 1.9 && o.material?.alphaTest === 0.5 && o.position.x < 50) {
-      out.push({ x: +o.position.x.toFixed(3), z: +o.position.z.toFixed(3), y: +o.position.y.toFixed(3) });
+    if (g && g.width === 0.95 && g.height === 1.9 && o.material?.alphaTest === 0.5) {
+      yAt.set(`${o.position.x.toFixed(2)},${o.position.z.toFixed(2)}`, +o.position.y.toFixed(3));
     }
   });
-  return out.sort((a, b) => a.x - b.x || a.z - b.z);
+  return cast.map((c) => ({
+    x: +c.x.toFixed(3), z: +c.z.toFixed(3),
+    y: yAt.get(`${c.x.toFixed(2)},${c.z.toFixed(2)}`) ?? null,
+  })).sort((a, b) => a.x - b.x || a.z - b.z);
 });
 
 let fails = 0;
@@ -43,11 +52,12 @@ console.log('crowd probe:');
 const w0 = await walkers();
 await page.waitForTimeout(1500);
 const w1 = await walkers();
-check(w0.length === 6, `six people in the scene (found ${w0.length})`);
+check(w0.length === 6, `the crowd is six (found ${w0.length}) — other modules' people are not counted`);
 const moved = w0.filter((p, i) => Math.abs(p.z - (w1[i]?.z ?? p.z)) > 0.2).length;
 check(moved >= 4, `they are walking — ${moved}/6 moved >0.2 m in 1.5 s`);
-check(new Set(w0.map((p) => p.y.toFixed(3))).size === 1 && w0[0].y === 0.14,
-  `all feet planted on the kerb at y=${w0[0].y}`);
+const ys = w0.map((p) => p.y).filter((y) => y !== null);
+check(ys.length === w0.length && new Set(ys).size === 1 && ys[0] === 0.14,
+  `all ${ys.length} feet planted on the kerb at y=${ys[0]}`);
 
 // ── 2 & 3. the encounter: they halt a step short, then give up and pass ───
 //
@@ -92,7 +102,14 @@ await page.waitForTimeout(150);
 const d = await pos();
 await hold('w', 6000);
 const e = await pos();
-check(d[2] - e[2] > 14, `west walk still passable — ${(d[2] - e[2]).toFixed(1)} m south in 6 s (people, trees and all)`);
+// > 9 m, not > 14. The invariant is that the lane is PASSABLE and you are never
+// trapped — not that you cover a particular distance. Citizens stop for errands
+// now (a window, a doorway, the bench), and a stationary one is solid for the 1.4 s
+// before it gives way, so the same walk legitimately takes longer than it did when
+// they all ping-ponged without pausing. 9 m in 6 s is still a third of the block
+// and far beyond being stuck; anything near zero is the failure this catches.
+check(d[2] - e[2] > 9, `west walk still passable — ${(d[2] - e[2]).toFixed(1)} m south in 6 s ` +
+  '(people stopping in the lane and all)');
 
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
 console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nall crowd checks pass');
