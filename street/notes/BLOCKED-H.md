@@ -203,6 +203,22 @@ Neither blocks me; both make other people's failures silent.
    opt-in (`SHOT_WORLD=integration`, or a second exported helper) would cover
    it without weakening the default.
 
+   **It works only by coincidence, and `27764977` is the proof.** That commit
+   re-verified an area against :5177 and got exit 0 on five probes — while I
+   could not. Neither of us is wrong: `reportWorld` compares the served stamp to
+   YOUR `HEAD`, and the integration build equals mainline only while no builder
+   has in-flight work. Measured just now: :5177 serves `a72cfb40` while my HEAD
+   and mainline are both `444d17bb`, so it would refuse today. Whether you can
+   measure the world the user plays currently depends on whether anybody else
+   happens to be mid-change.
+
+   **And a caution for anyone who does get through** (`27764977` found this, it
+   is worth repeating here): probes that write to `shots/` will overwrite your
+   worktree's frames with the integration world's. Nothing is committed —
+   `shots/` is gitignored — but a frame you later compare against would be
+   somebody else's build. The `kerb.mjs` command in item 1 above names
+   `:4187` explicitly for that reason.
+
    I checked mine by hand instead, which is why this is a gap and not a
    blocker. In the :5177 build (`eeb9a3ab`): the three car variants all build
    without throwing (12 / 9 / 16 meshes), 24 cars are placed exactly as in my
