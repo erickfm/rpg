@@ -969,8 +969,43 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // beyond the back leg on the gate's axis: still the thing that terminates
   // the view from the gate, now standing in the band rather than the field
   const shX = lx0 - 3.4, shZ = gateMid;
-  const postM = new THREE.MeshBasicMaterial({ color: 0x5a4a34 });
-  const roofM = new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
+  // Textured rather than flat-coloured, under A's density mandate: this is a
+  // 4 m roof and a set of 2.5 m posts, the largest plain surfaces I own, and a
+  // 16 x 16 map of felt and sawn grain costs nothing.
+  //
+  // It is NOT here to fix the night. I thought it was: the shelter reads as
+  // the brightest thing in the park at 22:30, I sampled `material.color` at
+  // both clocks, saw a plain 0x4a4e56 come back 0x4f5050, and concluded that
+  // `dimWorld` was REPLACING the colour of untextured materials rather than
+  // multiplying it — which would have made every flat-coloured material in the
+  // world glow, and I had a note written for the desk saying so.
+  //
+  // It is wrong. `props.ts` stamps `userData.graded` on everything it takes,
+  // and every one of these materials carries it; the model keeps each
+  // material's own colour as `base` and multiplies. What is actually
+  // happening is `POOL_GAIN 12` from a lamp head 3.7 m away — the shelter
+  // stands between two of them — which saturates any surface that close,
+  // whatever its colour. The 0x4a4e56 → 0x4f5050 reading was the lamp, not a
+  // tint. Left here because a wrong reading of a real measurement is worth
+  // more written down than deleted.
+  const tim = clcg(0x51a7c3);
+  const postM = flat(pixTex(16, 16, (g) => {
+    g.fillStyle = '#5a4a34'; g.fillRect(0, 0, 16, 16);
+    for (let i = 0; i < 26; i++) {                        // sawn timber grain
+      g.fillStyle = tim() < 0.5 ? 'rgba(74,60,42,0.55)' : 'rgba(104,88,64,0.4)';
+      g.fillRect(0, Math.floor(tim() * 16), 16, 1);
+    }
+    dither(g, 16, 16, 26);
+  }));
+  const roofM = flat(pixTex(16, 16, (g) => {
+    g.fillStyle = '#4a4e56'; g.fillRect(0, 0, 16, 16);
+    for (let i = 0; i < 30; i++) {                        // felt, patched and worn
+      g.fillStyle = tim() < 0.45 ? 'rgba(58,62,70,0.6)' : 'rgba(88,92,100,0.35)';
+      g.fillRect(Math.floor(tim() * 16), Math.floor(tim() * 16),
+        1 + Math.floor(tim() * 3), 1 + Math.floor(tim() * 2));
+    }
+    dither(g, 16, 16, 30);
+  }));
   for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.5, 0.16), postM);
     post.position.set(shX + dx, KERB_H + 1.25, shZ + dz);
