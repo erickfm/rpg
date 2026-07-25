@@ -279,6 +279,24 @@ computing the band, which is exactly the flaw `G-vice-walk`'s band check was
 rewritten to remove. A script that shouts about a sound pavement, that nobody
 runs and no tool can see, is a trap for whoever runs it next.
 
+### The hash audit was right, and the method was fragile
+
+`37552a653` reported 78 of 78 cited commit hashes resolving, after fixing one
+transposition. That stands. But `f51f2a52e` ran the same audit and found **two of
+its hits were fingerprints, not commits** — and my regex, `[0-9a-f]{7,9}`, cannot
+tell the two apart either.
+
+The only reason mine did not throw the same false DEADs is **where I happened to
+put those numbers**: `fpdiff` output like `textures=951d46e3 structure=ba64acce`
+lives in my commit messages, and I grepped the notes. Checked rather than assumed
+— none of the five fingerprints I have quoted appears in any note, and none
+resolves as a commit.
+
+So: the result is sound, the method is not portable. Anyone reusing it on a note
+that quotes a fingerprint gets a DEAD line for a number that was never a commit,
+and the fix is to confirm each hit is a hash-shaped thing in a hash-shaped
+context, not to widen the pattern.
+
 ### Every enumerated brief item, checked against what is built
 
 A class I had never verified: the queue items **list content**, and I had checked
