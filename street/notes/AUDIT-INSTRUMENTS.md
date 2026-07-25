@@ -957,3 +957,17 @@ to darken — something under an awning, or self-lit, is entitled to stay dry, a
 that judgement belongs to whoever owns `ct/props.ts`. What the sweep establishes
 is that **nobody now has to go looking**: the class is 19 items long, they are all
 tagged `props`, and the list took one command.
+
+**Re-run after `a768f333`** — which found `registerWet` had been published from
+`buildProps` at `crosstown.ts:210` while its build-time callers run at `:103`,
+and moved it to `ct/tex-ground.ts` at `:66`. The sweep is **unchanged: 19 + 5,
+317 responding**. That is the expected result and worth stating rather than
+assuming: making the registry *reachable* does not register anybody. The 19 are
+still outstanding, and now nothing stands in the way of closing them.
+
+Worth noting the shape of that bug, because it is one this audit has met before
+from a different direction. `a768f333` puts it as *"holding `scene` is not the
+same as holding it in time"* — which is exactly what `globorder.mjs` reports
+about the eager-glob literals, where a binding emitted later in the bundle is
+`undefined` at construction. Two unrelated subsystems, one failure: **being
+present is not the same as being present yet.**
