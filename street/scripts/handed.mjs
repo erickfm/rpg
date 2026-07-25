@@ -23,18 +23,34 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 
-const rows = await p.evaluate(() => {
+const RES = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const out = [];
+  const skipped = { noMap: 0, tooLow: 0, notUpright: 0 };
+  const tilted = [];
+  const tfLocal = (o, v) => {
+    const me = o.matrixWorld.elements;
+    const x = me[0]*v.x + me[4]*v.y + me[8]*v.z;
+    const y = me[1]*v.x + me[5]*v.y + me[9]*v.z;
+    const z = me[2]*v.x + me[6]*v.y + me[10]*v.z;
+    const L = Math.hypot(x,y,z) || 1;
+    return { x: x/L, y: y/L, z: z/L };
+  };
   s.traverse(o => {
     if (!o.isMesh || !o.geometry || o.geometry.type !== 'PlaneGeometry') return;
     for (let q = o; q; q = q.parent) if (q.visible === false) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
-    if (!m || !m.map) return;
+    if (!m) return;
+    if (!m.map) { skipped.noMap++; return; }
     // only signage: something that carries artwork and stands above head height
     const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox();
     const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
-    if (bb.min.y < 1.8) return;
+    if (bb.min.y < 1.2) { skipped.tooLow++; return; }
+    // upright signs only: the world-up test is meaningless on a plane whose own
+    // up is not roughly world up, so report those separately instead of guessing
+    const up = tfLocal(o, { x: 0, y: 1, z: 0 });
+    if (Math.abs(up.y) < 0.7) { skipped.notUpright++; tilted.push([
+      +((bb.min.x+bb.max.x)/2).toFixed(2), +((bb.min.y+bb.max.y)/2).toFixed(2), +((bb.min.z+bb.max.z)/2).toFixed(2)]); return; }
     const e = new (o.matrixWorld.constructor)();
     const n = { x: 0, y: 0, z: 1 }, u = { x: 1, y: 0, z: 0 };
     const tf = (v) => {
@@ -60,9 +76,12 @@ const rows = await p.evaluate(() => {
       canvas: m.map.image ? [m.map.image.width, m.map.image.height] : null,
     });
   });
-  return out;
+  return { out, skipped, tilted };
 });
-writeFileSync('shots/handed.json', JSON.stringify(rows, null, 2));
+const rows = RES.out;
+writeFileSync('shots/handed.json', JSON.stringify(RES, null, 2));
+console.log('excluded:', JSON.stringify(RES.skipped));
+if (RES.tilted.length) console.log('not upright (world-up test invalid, reported not guessed):', RES.tilted.slice(0,8).map(t=>`(${t.join(',')})`).join(' '));
 const bad = rows.filter(r => r.mirrored);
 console.log(`${rows.length} mapped sign faces above 1.8 m; ${bad.length} MIRRORED\n`);
 console.log('u·right  mirrored  side  size            canvas      at');

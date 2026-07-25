@@ -259,9 +259,32 @@ that reason, not as a pass. **The vertical blades themselves are not in the
 179**, so this run still does not answer the original blade question; it answers
 a bigger one I was not looking for.
 
-## What is left of the blade question
+## Widened run — full accounting, and where the blades actually are
 
-Still open. The next attempt should either shoot from the **south side-street
-walk at z ≈ −109 looking north** (~13 m, clears the marquee canopy that blocked
-all four previous cameras), or extend `handed.mjs` to include planes below 1.8 m
-and horizontal ones with a proper per-face basis instead of a global up vector.
+Re-ran with the filter opened up and **every exclusion counted and reported
+rather than silently dropped**:
+
+| | count | |
+|---|---|---|
+| checked | **193** | upright, mapped, above 1.2 m |
+| **mirrored** | **12** | the same twelve at x = 7.18 — unchanged |
+| excluded: no texture map | **39** | nothing to mirror; see below |
+| excluded: below 1.2 m | 376 | ground clutter, not signage |
+| excluded: not upright | 55 | the world-up test is invalid on these, so they are **reported, not guessed** — including the two marquee canopies at (51.29, 3.71, −96.85) and (39.51, 4.31, −97.03) |
+
+**The vertical blades are not among the 193, and they are not among the 55
+tilted ones either — so they are in the 39 with no texture map.** The earlier
+neon scan found them as 0.22 × 12.85 × 0 planes at (51.23, 10.77, −96.07) and
+(48.33 / 54.12 / 34.85, …): upright, vertical, well above 1.2 m. They pass every
+filter except having a `map`.
+
+That is itself close to an answer. **A face with no texture has no UV to mirror**
+— if those blades carry their lettering as geometry or vertex colour rather than
+as a painted canvas, the handedness question as posed does not apply to them,
+and whatever reads backwards from one side is a *double-sided geometry* problem
+rather than a texture one. I have not confirmed that the letters are geometry;
+it is the one step left, and it is a five-line read of those meshes' materials.
+
+So after five attempts the blade question is **narrowed rather than closed**, and
+narrowed usefully: it is no longer "is the texture mirrored" but "are these
+signs textured at all, and if not, is the geometry double-sided".
