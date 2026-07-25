@@ -140,6 +140,32 @@ const low = await fieldAt([[-19.5, -80.2], [-20.1, -80.7], [-16.6, -88.7], [-17.
 // ITSELF never sinks below the site's own base plane at KERB_H, because that
 // plane is opaque, is drawn by ct/street.ts, and does not move.
 const KERB = 0.14;
+// …and PROVE THEY ARE HOLLOWS FIRST. These are four fixed coordinates. If the
+// dish or the corner fall is ever moved, they become ordinary grass, and "the
+// grass here is above the site plane" is then true everywhere and asserts
+// nothing — the same empty-set pass that left E-coplanar's churchyard box
+// pointed at bare road for four runs. So each point must measure lower than the
+// field 4 m away from it, or this check has stopped testing what it names.
+// A RING, not one direction. The first cut sampled the shoulder at +4 m in x
+// only, and on a crowned field that runs downhill into the rim fade — so the
+// "shoulder" came back LOWER than the hollow and all four points failed for
+// geometry rather than for anything being wrong. The same trap E-park-walk's
+// dish check fell into. Four compass points, averaged.
+const arms = [];
+for (const [dx, dz] of [[4.0, 0], [-4.0, 0], [0, 4.0], [0, -4.0]]) {
+  arms.push(await fieldAt(low.map((q) => [q.x + dx, q.z + dz])));
+}
+const shoulder = low.map((q, i) => {
+  const ys = arms.map((a) => a[i].fieldY).filter((y) => y !== null);
+  return { fieldY: ys.length ? ys.reduce((p2, c) => p2 + c, 0) / ys.length : null };
+});
+const notHollow = low.filter((q, i) => q.fieldY === null || shoulder[i].fieldY === null
+  || shoulder[i].fieldY - q.fieldY < 0.015);
+report('the four sample points are still in the hollows', notHollow.length === 0,
+  notHollow.length ? `${notHollow.length}/${low.length} are not lower than the ground beside them — the relief moved`
+    : `all four sit below their own shoulders (deepest ${
+      Math.max(...low.map((q, i) => shoulder[i].fieldY - q.fieldY)).toFixed(3)} m)`);
+
 const sunk = low.filter((q) => q.fieldY === null || q.fieldY < KERB - 0.0002);
 report('the grass in the hollows stays above the site plane', sunk.length === 0,
   sunk.length ? `${sunk.length}/${low.length} sink under the paving: ${JSON.stringify(sunk)}`

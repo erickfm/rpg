@@ -74,7 +74,11 @@ for (const it of items) {
   // the seat centre, so a tighter radius found only the slats and reported
   // 425 mm of daylight under a bench whose ends reach the ground exactly.
   const base = await baseNear(it.x, it.z, 1.45);
-  if (base === null) { console.log(`   ${it.what}: no mesh found, skipped`); continue; }
+  // A SKIP IS NOT A PASS. This used to print "no mesh found, skipped" and carry
+  // on, so if a bench or the mound's tree were ever moved out from under its
+  // hard-coded coordinate, the check would quietly stop testing it and still
+  // report green. Same empty-set fault that left E-coplanar scanning bare road.
+  if (base === null) { report(`${it.what} is where this check thinks it is`, false, 'no mesh within 1.45 m of it'); continue; }
   for (const sgn of [1, -1]) {
     const g = await gy(it.x + it.ax * it.halfLen * sgn, it.z + it.az * it.halfLen * sgn);
     const gap = base - g;                       // + floats, - is bedded in
