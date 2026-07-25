@@ -108,8 +108,20 @@ if (mode === 'probe' || mode === 'all') {
     });
     const REG = { main: { near: [], far: [] }, side: { near: [], far: [] } };
     S.traverse((o) => {
-      if (!o.isMesh || !o.material?.map) return;
-      if (!o.userData.graded && !o.material.userData?.graded) return;
+      if (!o.isMesh || !o.material) return;
+      // ONE MESH CAN CARRY SEVERAL MATERIALS, and this walked o.material.map as
+      // though it never did — so every multi-material mesh was invisible to it.
+      // a7f2241d found the same blind spot in nightgrade; 528 of this world's
+      // meshes are multi-material, and my own 24-hour probe had it too.
+      //
+      // Measured before fixing: the far population on the main street goes 48
+      // -> 152 and on the side street 8 -> 50, while the medians move 0.6184 ->
+      // 0.6103 and 0.045 -> 0.045. The verdict never changed; the sample was a
+      // third of what it claimed. A side-street 'far' of 8 was also uncomfortably
+      // close to this script's own floor of 4.
+      for (const mat of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (!mat.map) continue;
+      if (!o.userData.graded && !mat.userData?.graded) continue;
       const e = o.matrixWorld.elements, x = e[12], z = e[14];
       // MAIN STREET **AND SIDE STREET**. The side street was excluded for no
       // reason I can find and it pools hardest of the three: 1.0 against 0.0529
@@ -130,10 +142,11 @@ if (mode === 'probe' || mode === 'all') {
       // One mesh cannot show a pool under one of its lamps. The park's light
       // arrives as the additive decal, which is park.mjs's business, and it
       // asserts the lanterns are emitting there.
-      const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+      const c = mat.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
       const d = Math.min(...lamps.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
       const R = REG[main ? 'main' : 'side'];
       if (d < 3.0) R.near.push(L); else if (d > 9) R.far.push(L);
+      }
     });
     const med = (a) => (a.length ? a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)] : null);
     const out = { lamps: lamps.length };
