@@ -33,6 +33,16 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
 const CASES = [
+  // A's, added by A. The scene-mutation selftests on the appearance guards are
+  // safe today only because nothing rewrites a texture per frame — and "safe
+  // today" is a fact about today's code, which is the argument b05dc7c5 made for
+  // routing density here. This one restores the ORIGINAL BUG in source: the
+  // linear congruence the user saw as diagonal stripes.
+  ['window-lattice', TEXW,
+    'return ((h ^ (h >>> 16)) >>> 0) % 100 < pct;',
+    'return ((f * 7 + c * 3) % 5) === 0;   // the congruence the user reported',
+    'window-lattice.mjs', [], 'lit windows back on a diagonal lattice'],
+
   // ── A's two, added by A. Both mutate the thing the check exists to catch,
   // and both are in tex-world.ts, so a source mutation reaches them where a
   // runtime one might not — the failure mode that beat A's own selftests twice
