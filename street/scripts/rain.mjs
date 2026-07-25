@@ -164,8 +164,18 @@ for (let h = 0; h < 48; h++) {
   if (dryH < 0 && !rainyH(h) && day(h)) dryH = h;
 }
 
+// SOAK SHORT, BECAUSE THE SIGNAL SATURATES. The pools cap at 0.900 each, and
+// the mean climbs 0s:0 · 3s:0.028 · 6s:0.232 · 9s:0.507 · 14s:0.763 at 11:00.
+// Sample late enough and every reading is the ceiling, which is how this check
+// stopped being able to fail: canfail's rain-memory run read 0.9000 both while
+// raining and after, so "the pools go on filling" was satisfied by two numbers
+// that were merely both full. It had CAUGHT the same mutation before, on a run
+// that happened to catch them a hair off the cap — a 0.005 margin deciding it.
+//
+// Six seconds leaves the mean around 0.23 with room above it, so filling and
+// draining are different numbers rather than the same ceiling.
 await page.evaluate((h) => window.__ct.clock(h % 24, 0), wetH);
-await page.waitForTimeout(9000);
+await page.waitForTimeout(6000);
 const soaked = await wetSignal();
 await page.evaluate((h) => window.__ct.clock(h % 24, 0), dryH);
 await page.waitForTimeout(1200);
