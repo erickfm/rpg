@@ -36,6 +36,7 @@ const CHECKS = [
   // dev-server-only and knew three rooms; it checks all five declared ones now.
   ['mirror-walk',    "does each room's door swap sides when you walk out?", false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
+  ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   // Slowest entry here by some way — it WALKS, so it costs what walking costs.
   // Kept because the things it covers cannot be asked any other way: whether a
   // wall stops you, whether a door prompts when you arrive rather than mid
