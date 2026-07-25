@@ -902,3 +902,51 @@ implementation that does work**. Two contradictory blocks, the stale one first.
 The next person to read that file will believe the arch was abandoned. Worth
 deleting now that the argument it makes has been disproved by the code beneath
 it.
+
+---
+
+# The frontage roster confirms the door verdicts — two methods, same answer
+
+`tex-world.ts` now publishes `globalThis.__frontages` (`2bdcf1d8`). That gives a
+second, entirely independent source for where every shopfront door is: I walked
+the world and recorded where each `[E]` prompt fires; the roster states where the
+door was *authored*. They should agree, and nothing about my method feeds theirs.
+
+| door | prompt centre I **walked** | roster's authored door | difference |
+|---|---|---|---|
+| A-1 TAX SERVICE | −20.13 | **−20.1** | **0.03 m** |
+| DINER | −46.63 | **−46.6** | **0.03 m** |
+| PAWN SHOP | −60.50 | **−60.5** | **0.00 m** |
+| THRIFT STORE | −59.38 | **−59.3** | **0.08 m** |
+
+**All four inside 8 cm.** The DONE verdict on facade doors stands on two
+independent measurements now rather than one.
+
+It also retires a loose end. My leaf-geometry pass reported **"NO LEAF FOUND"**
+for PAWN and THRIFT and I said at the time that meant *my filter missed it*, not
+that anything was wrong. The roster confirms that reading exactly: both doors are
+authored precisely where their prompts fire. Nothing to route.
+
+## The bench ad is now routable — partially
+
+`BLOCKED-AUDIT-seams.md` says I cannot attribute the bus bench. The roster puts
+it: the bench at east walk z −36.25 … −33.75 sits in front of **LIQUOR**
+(face x = 7, 13 m frontage, door at z −25.1).
+
+That does not tell me who *built the bench* — street furniture is not a frontage
+— but it turns *"east walk, z −36.25 to −33.75"* into *"the stop in front of
+LIQUOR"*, which is a thing a person can be asked about. Updated in the BLOCKED
+note; the item stays blocked on whether an ad panel exists at all.
+
+## One gap in the roster itself
+
+**The BODEGA has no published frontage.** Probing (6, −95.4) — where
+`doorsweep.mjs` fires `[E] into the BODEGA` — returns nothing from
+`__frontages`, while every other shopfront I probed resolves. The bodega is the
+one with the canted bay, so it is plausibly built outside the frontage
+mechanism on purpose.
+
+Flagging rather than filing: a roster that covers every shopfront but one is
+still a large improvement, and the one it misses is the one shaped differently.
+But a future finding on the bodega's face will come back `(no frontage covers
+it)` and look unattributable when it is not.

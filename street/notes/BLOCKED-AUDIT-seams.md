@@ -5,8 +5,12 @@
 **What I need:** whoever owns the bus bench to confirm whether an advertising
 panel was ever built, and if so what shape it is.
 
-**Who from:** the desk knows the owner; the bench is on the east walk at
-z −36.25 … −33.75, where `doorsweep.mjs` reports `[E] sit at the stop`.
+**Who from:** the desk knows the owner. The bench is on the east walk at
+z −36.25 … −33.75, where `doorsweep.mjs` reports `[E] sit at the stop` — and
+since `2bdcf1d8` published `__frontages`, that location has a name: **the stop
+in front of LIQUOR** (face x = 7, 13 m frontage). Street furniture is not a
+frontage, so this still does not name who *built* the bench, but it is a place a
+person can be asked about rather than a pair of coordinates.
 
 **Why I cannot settle it.** The user asked two things — *"is the BENCH ad framed
 rather than clipped, and are its legs non-coplanar"*. Both need the panel. I
