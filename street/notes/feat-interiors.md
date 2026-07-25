@@ -6,6 +6,126 @@ completions are reported here.
 
 ---
 
+# RUN 2 — the BURGER BARN (commit `343ad61`)
+
+## `## Next` → **BURGER BARN interior** — DONE
+
+The user walked up to this building and could not get in. There was no `[E]`
+spot and no interior. Both exist now, and the door was the harder half.
+
+### The door is derived, not guessed
+
+The queue said the facade painter draws a door at `W * 0.44` and that the spot
+has to land on the world position that corresponds to it. Working it out:
+
+| step | value |
+|---|---|
+| `burgerFront` paints `fillRect(round(W * 0.44), 23, 4, 25)`, W = 16 × 8 | texels 56…59 |
+| centre texel | 58 → **f = 0.4531** |
+| west facade is the **+x** face of a box; three.js runs u along **-z** there | `z = cz + w/2 − f·w` |
+| BURGER BARN is WEST slot 4 — 9.2 + 10 + 16 precede it from z = 14.2 | spans z −21…−37, cz = −29 |
+| | **z = −28.25** |
+
+That is **3.75 m north of the building's middle**. Putting the spot at the
+middle — the obvious guess — would have put it in front of the glass.
+
+Proved two ways. Walking: the prompt comes up approaching from the north, from
+the south, and straight in from the kerb. Looking: standing on the spot facing
+the facade, the painted door strip is dead centre in frame
+(`shots/` capture during the run; screenshots are for looking, §1).
+
+### The room
+
+The diner and this are the two ends of the range the other eight interiors sit
+between, so every decision is the diner's opposite: tile to the waist and
+painted block above, quarry tile instead of a checkerboard, an order counter
+you stand at (1.15 m, no overhang, no knee room) instead of one you sit at, a
+crew wall of fryers and a warming chute instead of a domestic back bar, three
+**different** backlit menu boards, moulded pedestal tables with swivel stools
+bolted to the floor, and no soft seat anywhere. Cool fluorescent troffers
+against the diner's warm opal domes.
+
+The palette is read off `burgerFront` rather than re-picked — it says "Change
+them here, nowhere else" and the walls are `BB_INSIDE`, the colour the facade
+paints behind its glass. Walk in and the wall is the colour the street showed
+you. Red and beige; the user rejected red/yellow twice.
+
+The left third of the floor is deliberately empty — that is the queue, and
+furniture standing in it would be furniture nobody could reach at lunchtime.
+
+### Five things went into the KIT, not into this room
+
+Because eight more rooms are coming and they should inherit the fix:
+
+1. **A fixture, and a stepped glow.** The kit's ceiling light was a bare smooth
+   radial gradient — *exactly* what the user already rejected on the walk-up:
+   *"there is no fixture at all… it reads as a smudge rather than a light"*,
+   *"a smooth radial gradient in a world that is entirely hard-edged
+   nearest-filtered texels"*. It was queued to ship nine more times. Now
+   `light: { kind: 'dome' | 'troffer' }` hangs a real fitting and the halo is
+   quantised onto the texel grid.
+2. **`wainscot`** — a tiled dado painted into the plaster. Default tile 0.32 m,
+   deliberately larger than real wall tile: at ~12 px/m anything under 0.25 m
+   draws a one-texel tile beside a one-texel joint and reads as a dotted line.
+3. **Window mullions and a transom.** Six metres of unsupported glass is not a
+   shopfront, and as a single pane it was a flat slab taking a third of the room.
+4. **`interiorColliders()`** — rooms collect their own colliders, so the array
+   in `crosstown.ts` is spread once and never grows again. Adding a room is now
+   **one line** in the entry point.
+5. **The light housing is painted metal, not the room's trim.** Trim is right
+   for mullions and skirting; a light fitting is a bought object. Taking TRIM
+   gave the burger barn bright red ceiling troffers.
+
+### A correction to RUN 1
+
+I wrote that building interiors last made them *"provably additive"*. **Only
+the street half of that is true.** three.js spends four `Math.random` calls per
+object in `generateUUID`, and the fingerprint harness seeds `Math.random` — so
+creating *any* object reshuffles the grain of every texture painted after it,
+not just `dither()` calls. Interiors therefore repaint each other, and changing
+the kit repaints all of them.
+
+That is harmless (the shipped world's `Math.random` is unseeded and repaints
+every load anyway), and the property actually worth having still holds: nothing
+street-side is created after the belt, so **the street cannot be touched**. The
+comment in `crosstown.ts` now says this accurately, and `scripts/fpadd.mjs`
+reports it properly — it pairs vanished street positions against new ones
+within 0.3 m (a pigeon taking a step, not a prop moving) and matches lost
+textures by pixel size to tell a repaint from a deletion. Final run:
+**STREET UNMOVED, 0 textures deleted.**
+
+### Two hours lost to a pedestrian, and what came of it
+
+An approach test failed identically on three consecutive runs, which is what a
+static collider looks like. It was a **citizen** standing on the pavement — the
+timing was reproducible enough to mimic determinism. `crowd.ts` turns a citizen
+non-solid after it has blocked you for 1.4 s, so a player who keeps walking
+always gets through; my test gave up after 1.5 s. It now holds for 4 s and
+watches for the prompt *during* the walk rather than reading it at the end
+(4 s of walking is 13 m — it was blowing straight past the door).
+
+What resolved it was a new **`__ct.colliders()`** test affordance. "Is my `[E]`
+spot inside something solid?" is the most expensive question in this project —
+GOTCHAS §8, and the reason the bodega was un-enterable — and it was previously
+only answerable by bisecting the pavement with the player. The suite now asks
+it directly: *no static collider is parked on the spot*, with citizen-sized
+boxes excluded.
+
+**Desk: `__ct.colliders()` is a read-only debug accessor in the `__ct` block of
+`crosstown.ts`, outside my interior-belt carve-out.** It cannot affect world
+behaviour. Drop it if you would rather it did not live there.
+
+### Verification
+
+`scripts/interiors-walk.mjs` replaces `diner-walk.mjs` and covers **both**
+rooms — three approach directions each, the static-collider check, spawn
+facing, floor height, all four walls, the doorway leak, the room end to end
+both ways, the way out, the landing not being boxed in, and still lit at 2am.
+**48/48.** Plus health OK, 48-shot sweep with no console issues, `npm run
+build` clean, and the fingerprint above.
+
+---
+
 # RUN 1 — verify and finish the kit and the diner (commit `34167b1`)
 
 ## `## Now` → **Verify and finish the kit and the diner** — DONE
@@ -178,8 +298,7 @@ queue, `ct/interior.ts` is not yours to edit.
 
 ---
 
-## Next up
+## Next up (as of RUN 1)
 
-`## Next` in my queue is the **BURGER BARN** interior (the user is already
-trying to get in — *"cant go inside burger barn"*), then the **THRIFT STORE**.
-Not started.
+`## Next` in my queue is the **BURGER BARN** interior, then the **THRIFT
+STORE**. — *Burger barn done in RUN 2 above; thrift store not started.*
