@@ -108,17 +108,38 @@ await page.waitForTimeout(400);
 // x −12.5…−9.9, z −38.75…−37.55, and a sample inside it silently reads the
 // floor 30 cm away instead. Verified rather than assumed: if the player did not
 // land where it was sent, that vertex is not a fair sample and is skipped.
+// A FIXED WAIT AFTER A WARP IS A RACE, and this check lost it about one run in
+// four: `warp(x, z, yaw, gy, pitch)` FORCES setGy(gy), so passing 0 plants a
+// wrong floor height and then a 260 ms sleep hopes the picker overwrites it in
+// time. When it did not, the deepest vertex read 0.0 cm against a mesh at
+// −6.0 cm and the check reported 59.9 mm — which is indistinguishable from the
+// real defect it exists to catch, and I had to re-run twice to tell them apart.
+// A guard that cries wolf at the exact value of its own bug is worse than no
+// guard.
+//
+// So: plant a SENTINEL no floor can be, and wait for the picker to overwrite
+// it. When it changes we know the value came from groundPick this frame rather
+// than being the one we planted — proof rather than a hopeful interval. If it
+// never changes, that is reported instead of being silently believed.
+const GY_SENTINEL = -999;
 const stand = async (x, z) => {
-  await page.evaluate(([a, c]) => window.__ct.warp(a, c, 0, 0, 0), [x, z]);
-  await page.waitForTimeout(260);
+  await page.evaluate(([a, c, s]) => window.__ct.warp(a, c, 0, s, 0), [x, z, GY_SENTINEL]);
+  const fresh = await page
+    .waitForFunction((s) => window.__ct.pos()[3] !== s, GY_SENTINEL, { timeout: 4000, polling: 'raf' })
+    .then(() => true).catch(() => false);
   const p = await page.evaluate(() => window.__ct.pos());
-  return { gy: p[3], off: Math.hypot(p[0] - x, p[2] - z) };
+  return { gy: p[3], off: Math.hypot(p[0] - x, p[2] - z), fresh };
 };
 
 const rows = [];
 let worst = 0, sampled = 0, skipped = 0;
 for (const v of picks) {
-  const { gy, off } = await stand(v[0], v[2]);
+  const { gy, off, fresh } = await stand(v[0], v[2]);
+  if (!fresh) {
+    skipped++;
+    rows.push(`(${v[0].toFixed(2)}, ${v[2].toFixed(2)})  STALE — the picker never overwrote the sentinel; not measured`);
+    continue;
+  }
   if (off > 0.05) {
     skipped++;
     rows.push(`(${v[0].toFixed(2)}, ${v[2].toFixed(2)})  SKIPPED — a collider pushed the player ${(off * 100).toFixed(0)} cm off it`);
