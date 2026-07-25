@@ -1468,3 +1468,27 @@ meshes on their world POSITION and found nothing but a ground prop. A shell 14-2
 m deep centred at x -15 has its face at x -7, so filtering on centres missed every
 building on the block. Re-run against bounding boxes, the awning appeared at once.
 Position is not extent, and for deep geometry the difference is the whole object.
+
+## Re-shot the bank flank from the user's own framing
+
+`user-bankflank.png` is the complaint raised twice: pale precast front meeting
+brown brick at a sharp arris, reading as two buildings. Shot the same framing at
+HEAD rather than trusting that my `bankReturn` work closed it.
+
+**The pale/brown juxtaposition is still in that frame, and it is not the
+defect.** The brown in it is large ashlar blocks with a downpipe — the
+**LIBRARY**, the next building along, which `ct/street.ts` says in as many words
+must differ: *"It also stands beside the LIBRARY, the other stone building on
+this side, and must not read as the same institution. The library is warm worn
+ashlar with arched openings and forty years of soot; the bank is cool grey
+precast, dead flat, square-headed."*
+
+So two materials meeting at a vertical arris is correct **there** — it is a
+property line between two institutions, which is what a street is. The defect
+the user reported was the same building wearing two materials, and that is what
+`bankReturn` fixed by carrying the front round the first bay before it becomes a
+party wall.
+
+**Worth recording because the two are indistinguishable from a photograph.** A
+future reader comparing `user-bankflank.png` against HEAD will see pale-meets-
+brown in both and conclude nothing changed. What changed is whose brown it is.
