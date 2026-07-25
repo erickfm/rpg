@@ -160,6 +160,29 @@ console.log(`   brick vs brick, a real seam question:  ${bothBrick.length}`);
 console.log(`   one side says it is not brick:         ${notBrick.length}`);
 console.log(`   UNJUDGEABLE — nobody has said what the other face is: ${unknown.length}`);
 console.log(`   one line at the texture fixes that: declareSurface(tex, 'brick'|'sign'|…) in ct/paint.ts`);
+// NAME THE FACES, or "declare your textures" is guesswork.
+//
+// 8154f456 declared 53 textures and reported the count did not move. That is
+// correct behaviour and a useless experience: the count only moves when the
+// faces IN THESE PAIRS declare, and this printed a number without saying which
+// ones they are. So an owner had to declare everything and hope.
+//
+// Distinct undeclared faces, largest first — the same scoping 21292ebb did by
+// hand to turn 150 pairs into 49 faces into 3 groups, done by the tool.
+const needed = new Map();
+for (const q of unknown) for (const f of [q.a, q.c]) {
+  if (f.kind) continue;
+  const k = f.at.join(',');
+  if (!needed.has(k)) needed.set(k, { at: f.at, u: f.u, v: f.v, n: 0 });
+  needed.get(k).n++;
+}
+if (needed.size) {
+  const list = [...needed.values()].sort((a, b) => b.n - a.n);
+  console.log(`\n   ${list.length} distinct faces are what is actually missing:`);
+  for (const f of list.slice(0, 12))
+    console.log(`      ${String(f.n).padStart(3)} pairs   ${f.u}x${f.v} px/m at (${f.at.join(',')})`);
+  if (list.length > 12) console.log(`      …and ${list.length - 12} more`);
+}
 console.log(`   of those, the undeclared face is itself OFF the 8/16 grid: ${offGrid.length}` +
   ` — those are the ones a photograph of mismatched brick could be`);
 console.log(`   the rest read 8 or 16 and are a provenance question, not a visual one`);
