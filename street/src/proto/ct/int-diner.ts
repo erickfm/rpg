@@ -267,6 +267,90 @@ export function buildDiner(ctx: CtxBuild): void {
   const runHi = Math.max(BXS[0], BXS[BXS.length - 1]) + HALF + BACK_T / 2;
   solid((runLo + runHi) / 2, BZ, runHi - runLo, BENCH_L + BACK_T);
 
+  // ── the wall opposite the booths ──
+  //
+  // It was bare plaster. The counter runs along the back and the booths line
+  // the window, which leaves one whole wall you face every time you walk in
+  // with nothing on it — the same note as *"bodega is a bit small and sad"*:
+  // not a bug, a room that had not been finished.
+  //
+  // A jukebox and a cigarette machine, which is what was actually against that
+  // wall in 1997, and they earn their place twice: they are the two objects a
+  // diner has that a restaurant does not, and they stand where the eye lands
+  // coming through the door.
+  //
+  // Placed on the side AWAY from the booth run, wherever the door has pushed
+  // that — the same `away` the booths use, inverted. Nothing in this room may
+  // hard-code which end of the wall is free.
+  const wallSide = -away;
+  const WX = wallSide * (hw - 0.36);
+
+  const jukeT = pixTex(32, 48, (g) => {
+    g.fillStyle = '#6a2a2a'; g.fillRect(0, 0, 32, 48);              // the case
+    g.fillStyle = '#3a1a1a'; g.fillRect(0, 40, 32, 8);              // plinth
+    // the lit dome: an arc of colour over the mechanism, which is the whole
+    // silhouette of the thing
+    g.fillStyle = '#e0b84a'; g.fillRect(4, 3, 24, 12);
+    g.fillStyle = '#c85a3a'; g.fillRect(6, 5, 20, 3);
+    g.fillStyle = '#4a8ac8'; g.fillRect(6, 10, 20, 3);
+    g.fillStyle = '#2a2224'; g.fillRect(7, 17, 18, 12);             // the record deck
+    g.fillStyle = '#8a8278'; g.fillRect(10, 20, 12, 6);
+    g.fillStyle = '#d8d0b8'; g.fillRect(5, 31, 22, 7);              // the title strips
+    g.fillStyle = '#4a4238';
+    for (let y = 32; y < 38; y += 2) g.fillRect(6, y, 20, 1);
+    g.fillStyle = '#c9a83a'; g.fillRect(26, 31, 3, 7);              // the coin slot
+    dither(g, 32, 48, 30);
+  });
+  const juke = new THREE.Mesh(new THREE.BoxGeometry(0.92, 1.5, 0.56),
+    [ctx.flat(jukeT), ctx.flat(jukeT), chromeM, chromeM, ctx.flat(jukeT), ctx.flat(jukeT)]);
+  put(juke, WX, 0.75, 1.1);
+  solid(WX, 1.1, 0.92, 0.56);
+
+  const cigT = pixTex(24, 44, (g) => {
+    g.fillStyle = '#3a4a44'; g.fillRect(0, 0, 24, 44);
+    g.fillStyle = '#2a3a34'; g.fillRect(0, 38, 24, 6);
+    g.fillStyle = '#d8d0c0'; g.fillRect(3, 3, 18, 5);
+    g.fillStyle = '#3a4a44'; g.font = 'bold 5px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('CIGS', 12, 5);
+    // the pack fronts behind the glass, and the pull knobs under them
+    for (let r = 0; r < 4; r++) for (let i = 0; i < 3; i++) {
+      g.fillStyle = ['#c8302a', '#d8c84a', '#e8e0d0', '#2a6a4a'][(r + i) % 4];
+      g.fillRect(3 + i * 6, 11 + r * 6, 5, 5);
+    }
+    g.fillStyle = '#8a8278';
+    for (let i = 0; i < 3; i++) g.fillRect(4 + i * 6, 36, 3, 2);
+    dither(g, 24, 44, 20);
+  });
+  const cig = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.35, 0.4),
+    [ctx.flat(cigT), ctx.flat(cigT), chromeM, chromeM, ctx.flat(cigT), ctx.flat(cigT)]);
+  put(cig, WX + wallSide * -0.02, 0.675, -0.55);
+  solid(WX, -0.55, 0.62, 0.4);
+
+  // and above them, the things that accumulate on a diner wall: a clock, and
+  // two framed photographs of the place nobody has taken down
+  const clockT = pixTex(20, 20, (g) => {
+    g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 20, 20);
+    g.fillStyle = '#e8e4d8'; g.fillRect(2, 2, 16, 16);
+    g.fillStyle = '#2a2622'; g.fillRect(9, 5, 1, 5); g.fillRect(10, 9, 4, 1);
+    for (const [x, y] of [[9, 2], [9, 17], [2, 9], [17, 9]]) { g.fillStyle = '#2a2622'; g.fillRect(x, y, 2, 1); }
+  });
+  const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), ctx.flat(clockT));
+  clock.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+  put(clock, WX - wallSide * 0.3, 2.15, 0.3);
+
+  const photoT = (warm: boolean) => pixTex(20, 16, (g) => {
+    g.fillStyle = '#5a4632'; g.fillRect(0, 0, 20, 16);
+    g.fillStyle = warm ? '#b8a488' : '#9aa49a'; g.fillRect(2, 2, 16, 12);
+    g.fillStyle = warm ? '#8a7458' : '#6a746a'; g.fillRect(3, 8, 14, 5);
+    g.fillStyle = warm ? '#d8c8a8' : '#c0c8c0'; g.fillRect(5, 4, 4, 4); g.fillRect(11, 5, 3, 3);
+  });
+  for (const [pz, warm] of [[-1.7, true], [2.1, false]] as [number, boolean][]) {
+    const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.29), ctx.flat(photoT(warm)));
+    ph.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+    put(ph, WX - wallSide * 0.3, 1.95, pz);
+  }
+
   // ── the menu board, over the pass ──
   const menuT = pixTex(96, 32, (g) => {
     g.fillStyle = '#22262a'; g.fillRect(0, 0, 96, 32);
