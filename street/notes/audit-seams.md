@@ -70,6 +70,19 @@ Measured across the full suite, both tiers, and every red diagnosed:
 | correct red, catching real defects | **1** — `no-silent-pass`, which caught three scripts exiting 0 on an unknown mode word |
 | **describing something wrong with the world** | **0** |
 
+**Reproducing this is not routine, and that is a property of the repo rather
+than of the number.** `4c89bd1b7` measured why: a long aggregate takes about
+twenty minutes, the merge train rebases builders more often than that, so HEAD
+moves out from under `dist/` mid-run and every remaining check exits 3 on the
+provenance guard — *"an aggregate is something you get when you are lucky rather
+than a gate you can lean on."*
+
+I got this one by **waiting for mainline to go quiet** and saying so at the time.
+Anyone re-running it during active work will get a scatter of exit-3s that look
+like failures and are not. **Re-run the individual harness for any single claim
+here; only trust an aggregate you watched complete against one unchanging build**
+— read the served SHA back before believing the total.
+
 **Two of my own earlier green claims do not survive**, and both are in
 `AUDIT-TRIAGE.md`:
 
