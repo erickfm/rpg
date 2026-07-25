@@ -17,6 +17,39 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
+// --selftest: rig the crowded lane leg to fail WITH NOTHING STATIC UNDER IT,
+// and require the run to downgrade it to a NOTE rather than a red.
+//
+// Both halves are rigged, and the first attempt rigged only one. Forcing `ok`
+// to false makes the walk run its full 6.2 s instead of stopping at z -21.5, so
+// the player ends up 3 m further south — inside the next building's footprint,
+// where a static collider legitimately is. The downgrade correctly did NOT fire
+// and the selftest read BROKEN for the code being right. What this branch
+// decides is "no static blocker ⇒ it was traffic", so the collider query is
+// rigged empty too, and the test is of the DECISION rather than of the physics
+// that feeds it.
+//
+// The downgrade is the branch that decides whether §9 — the standing rule about
+// the sacred lane — is believed when it fires. A branch nobody has watched run
+// is one you argue with at the worst moment, and this one only executes when
+// the pavement happens to be busy, so it could sit wrong for weeks.
+//
+// Flags are REJECTED rather than ignored (GOTCHAS §34, shape one): a mistyped
+// --selftest that silently ran the ordinary suite would report a pass for a
+// selftest that never happened.
+const SCRIPT = 'E-walk';
+const KNOWN_FLAGS = ['--selftest'];
+for (const a of process.argv.slice(2)) {
+  if (KNOWN_FLAGS.includes(a)) continue;
+  console.error(`${SCRIPT}: unknown flag ${JSON.stringify(a)}`);
+  console.error(`  flags are: ${KNOWN_FLAGS.join(' ')}`);
+  console.error('  refusing to exit 0 having checked nothing.');
+  process.exit(2);
+}
+const SELFTEST = process.argv.includes('--selftest');
+if (SELFTEST) console.log('selftest: the south lane leg is rigged to fail; it MUST come back a NOTE\n');
+
+
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
@@ -45,14 +78,14 @@ const gyAt = async (x, z) => {
   }
   return reads.sort((a, b) => a - b)[1];
 };
-let fails = 0;
+let fails = 0, downgraded = 0;
 const report = (name, ok, detail, tries) => {
   if (!ok) fails++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  ${detail}${tries > 1 ? `  [${tries} tries]` : ''}`);
 };
 
 /** warp somewhere, hold a key, and test where you ended up — with retries */
-const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
+const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) => {
   let last, tries = 0;
   // 1.1 s was not enough: a citizen standing in a lane is seeded, so it stops
   // you in the same place on every retry unless the wait outlasts its walk.
@@ -69,10 +102,30 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
   // a real failure, say what is actually there — and if the answer is
   // nothing, it was a citizen and the retries were unlucky.
   if (!ok(last)) {
-    const near = await page.evaluate(([x, z]) => window.__ct.colliders()
+    const near = SELFTEST ? [] : await page.evaluate(([x, z]) => window.__ct.colliders()
       .filter((c) => x > c.minX - 0.8 && x < c.maxX + 0.8 && z > c.minZ - 0.8 && z < c.maxZ + 0.8)
       .map((c) => `x ${c.minX.toFixed(2)}…${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}…${c.maxZ.toFixed(2)}`),
       [last[0], last[2]]);
+    // A CITIZEN IS NOT A FAILURE OF THE WORLD, on the walks that say so.
+    //
+    // The lane legs drive 17 m along the busiest pavement on the block, and one
+    // went red in a full E-verify run today after five blocked attempts, then
+    // passed on the third try a minute later. Nothing static was there either
+    // time. This check is §9, the standing rule about the sacred lane, and it
+    // is the one that most needs to be believed when it does go red — a check
+    // that cries wolf on the lane is how the next real squeeze gets waved
+    // through.
+    //
+    // Opt-in per walk, not blanket: `crowded` marks the legs whose only
+    // plausible non-static blocker is traffic. Everywhere else, stopping short
+    // with nothing static nearby still fails, because there the cause might be
+    // a floor that drops away rather than somebody standing in the road.
+    if (crowded && !near.length) {
+      console.log(`NOTE  ${name}  ${say(last)}  [${tries + 1} tries]`);
+      console.log('      nothing static within 0.8 m — the pavement was busy, not blocked');
+      downgraded++;
+      return last;
+    }
     report(name, false, say(last), tries + 1);
     console.log(near.length ? `      what is there: ${near.join(' | ')}`
       : '      nothing static within 0.8 m — a citizen was standing in it');
@@ -103,14 +156,27 @@ console.log(`the steps are ${CLIMBABLE ? 'WIRED — climb tests run' : 'NOT wire
 // and slimmed it to 0.3 m deep, so the whole frontage is now clear — that is
 // what this leg checks, and it is the thing to re-run if the payphone or the
 // lamps ever move again.
+//
+// A FAILURE HERE IS ONLY REAL IF SOMETHING STATIC CAUSED IT. This is the most
+// important check in the file — §9, the lane the user made a standing rule —
+// and it is also the one most exposed to traffic, because it drives 17 m along
+// the busiest pavement on the block. It went red in a full E-verify run today
+// after five blocked attempts and passed on the third try a minute later: the
+// pavement was simply busy. A check that cries wolf on the sacred lane is how
+// the next real squeeze gets waved through.
+//
+// So on failure it asks the world whether any static collider actually reaches
+// into the lane, and downgrades to a NOTE if none does — the same distinction
+// E-yard-walk draws on the walk past the church. A collider IS a red; a
+// pedestrian is a note that says the pavement was busy.
 await walk('lane south, the whole library frontage', {
   at: [-6.25, -4.4], yaw: 0.0, ms: 6200,   // 17 m of frontage at 3.3 m/s
-  ok: (p) => p[2] < -21.5,
+  ok: (p) => (SELFTEST ? false : p[2] < -21.5), crowded: true,
   say: (p) => `z -4.40 -> ${f(p[2])}, x ${f(p[0])} (clear past the mouth)`,
 });
 await walk('lane north, the whole library frontage', {
   at: [-6.25, -22.0], yaw: Math.PI, ms: 6200,
-  ok: (p) => p[2] > -4.9,
+  ok: (p) => p[2] > -4.9, crowded: true,
   say: (p) => `z -22.00 -> ${f(p[2])}, x ${f(p[0])}`,
 });
 
@@ -239,6 +305,16 @@ await walk('the cheek walls hold you on the steps', {
   say: (p) => `pushed north to z ${f(p[2])}, cheek inner face at ${(CZ + 2.08).toFixed(2)}`,
 });
 
+if (SELFTEST) {
+  // The rigged leg must have come back as a NOTE and not as a red. Either other
+  // outcome is a broken selftest: a FAIL means the downgrade did not fire, and
+  // a clean pass means the rig did not take.
+  const ok = downgraded === 1 && fails === 0;
+  console.log(`\nselftest: ${downgraded} downgraded, ${fails} failed — ${ok ? 'PASS' : 'BROKEN'}`);
+  if (!ok) console.log('  a rigged crowded leg must produce exactly one NOTE and no FAIL');
+  await browser.close();
+  process.exit(ok ? 0 : 2);
+}
 console.log(fails ? `\n${fails} FAILED` : '\nall walks passed');
 await browser.close();
 process.exit(fails ? 1 : 0);

@@ -25,19 +25,16 @@ const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window
 const f = (n) => n.toFixed(2);
 // `apt.gy()` is a last-written value with more than one writer, so a single
 // read can catch somebody else's frame. Sample three times and take the
-// MEDIAN — the floor under a point does not change between frames, so the
-// odd one out is always the lie. Max was tried first and is wrong in one
-// direction: it beats a phantom 0 in a field of 0.14, and then lets a stale
-// 0.55 off the step you sampled a moment ago win on the flags beside it.
-const gyAt = async (x, z) => {
-  const reads = [];
-  for (let i = 0; i < 3; i++) {
-    await warp(x, z, 0);
-    await page.waitForTimeout(40);
-    reads.push((await pos())[3]);
-  }
-  return reads.sort((a, b) => a - b)[1];
-};
+// THE FLOOR AT A POINT, asked directly. This used to teleport the player there
+// and read pos()[3] — which is `apt.gy()`, a last-written value that the
+// citizens on the pavement also write, so the answer is whoever queried the
+// picker last and that is usually not you. A median of three does not help:
+// it is not noise, it is a different question being answered.
+//
+// `window.__ct.groundAt(x, z)` runs the world's own picker for an arbitrary
+// point. Same change as E-walk, E-park-walk and E-onslope, and made after the
+// same fault cost a real diagnosis in the library courtyard.
+const gyAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
 let fails = 0;
 const report = (name, ok, detail, tries = 1) => {
   if (!ok) fails++;
@@ -74,18 +71,26 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
 };
 
 const DOOR_Z = -79.5, SILL = 0.55, E = Math.PI / 2;
-await warp(9.2, DOOR_Z, 0);
-await page.waitForTimeout(60);
-const WIRED = (await pos())[3] > 0.3;
+const WIRED = (await gyAt(9.2, DOOR_Z)) > 0.3;
 // …and separately, can you get IN? ct/street.ts still registers a blanket
 // footprint over the whole church frontage, which seals the yard the way the
 // blanket wall sealed the library courtyard. The floor being wired and the
 // gate being open are two different landings.
-await warp(5.6, -80.0, Math.PI / 2);
-await page.waitForTimeout(150);
-await page.keyboard.down('w'); await page.waitForTimeout(1400); await page.keyboard.up('w');
-await page.waitForTimeout(60);
-const OPEN = (await pos())[0] > 7.4;
+//
+// RETRIED, because this is a walk and a citizen standing in the gateway reads
+// exactly like a sealed gate. Like WIRED above it does not fail a check, it
+// picks which half of them run — so one unlucky pedestrian silently turns the
+// whole climb into a SKIP, and the run still says "all walks passed". It
+// reported SEALED once today on a build where it had been open all morning.
+let OPEN = false;
+for (let t = 0; t < 3 && !OPEN; t++) {
+  if (t) await page.waitForTimeout(1200);
+  await warp(5.6, -80.0, Math.PI / 2);
+  await page.waitForTimeout(150);
+  await page.keyboard.down('w'); await page.waitForTimeout(1400); await page.keyboard.up('w');
+  await page.waitForTimeout(60);
+  OPEN = (await pos())[0] > 7.4;
+}
 console.log(`the churchyard floor is ${WIRED ? 'WIRED' : 'NOT wired'}; the gate is ${OPEN ? 'OPEN' : 'SEALED'}\n`);
 
 // 1 ── the 2 m walk past the church stays clear, both ways
