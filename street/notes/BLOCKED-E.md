@@ -1,40 +1,18 @@
 # BLOCKED — builder E
 
-Five things, in the order they cost the user something. **My queue has nothing
-left I can take**: every item in it is either done and waiting on one of the
-patches below, or owned by B, D, G or the desk.
+**Two live asks, and my queue has nothing left I can take.** Everything in it
+is done; what remains is one line in the entry point and one file that is B's.
+Kept in the order they cost the user something.
 
 ---
 
-## 0. THREE FINISHED USER REQUESTS ARE STILL NOT IN THE WORLD
+## 0. ~~Three finished requests were not in the world~~ — ALL LANDED
 
-Both are built, walk-tested and committed, and neither is live, because each
-needs one change in a file I do not own. The park's wiring landed in 2c1ccf60
-and the park appeared; these two are the same shape of thing and have not.
-
-**`notes/E-steps-crosstown.patch`** — 3 hunks in `crosstown.ts`. Until it
-lands, *"i want to be able to walk up the stairs of the library"* is not done:
-the flight is still one solid block, because `groundY` still reads
-`COURT.y` (a flat number) instead of asking `courtGround(x, z)`. It also
-carries `COURT.climbable`, which is what tells `ct/civic.ts` it is safe to
-open the treads — so the world is currently correct, just not climbable. The
-SAME patch serves the church steps.
-
-**`notes/E-church-street.patch`** — 1 hunk in `ct/street.ts` (D). Drops the
-blanket church footprint, which seals the churchyard exactly as the blanket
-wall sealed the library courtyard. `ct/civic.ts` registers the real footprint
-already.
-
-**`notes/E-seats-crosstown.patch`** — 1 line in `crosstown.ts`. Until it lands,
-*"i cant sit on the benches in the library courtyard"* is not done. The two
-benches are registered and tested; nothing calls `civicSeats()`.
-
-`scripts/E-walk.mjs` and `scripts/E-yard-walk.mjs` both detect which state the
-world is in and name the missing patch, so applying them and re-running is the
-whole verification. For the seats, F's `scripts/seats-walk.mjs` covers them
-the moment they are registered.
-
----
+`courtGround`, `civicSeats` and the church footprint are all in. The library
+steps climb, the courtyard benches sit, and the churchyard is open — verified
+by `scripts/E-walk.mjs`, `scripts/E-yard-walk.mjs` and F's `seats-walk.mjs`
+against mainline with nothing patched. Nothing owed. The three patch files in
+`notes/` can be deleted.
 
 ## 1. THE DEPTH LANDED WITHOUT THE CLAMP — 25 m of park is unreachable
 
@@ -97,14 +75,6 @@ front of a wall breaks it. There is a run along all three boundaries every
 turn — B still owns the STREET trees, the billboard cutouts; a park tree is
 walked under and seen from every side, so it could not be one of those.
 
-## 3. ~~The pavement past the park is impassable~~ — RESOLVED
-
-Left here deliberately for one revision so nobody re-files it. B's street tree
-at z = -71.5 used to close the walk against D's park boundary with no lane in
-between; walking south you stopped dead at z ≈ -71 in both lanes. It walks the
-full 30 m now — `scripts/E-park-walk.mjs` drives the capsule end to end and it
-gets from z = -66 to past -98. Nothing owed.
-
 ## 4. My `## Next` items now belong to builder G
 
 The queue still lists **GOLDEN ACES roof sign floats** and **HOTEL ORPHEUS /
@@ -121,5 +91,5 @@ With those reassigned and the depth blocked, **my queue has nothing I can
 take**. Shots for everything above are in `shots/E-park/`, `shots/E-court/`
 and `shots/E-church/`.
 
-_Builder E. Rewritten 2026-07-25 — items 0, 1, 2a and 2 are live asks; 3 is
-resolved and kept for one revision so it does not get re-filed._
+_Builder E, 2026-07-25. Live: **1** (the clamp, desk) and **2a** (lamps, B).
+Everything else here is closed and kept only as a record._
