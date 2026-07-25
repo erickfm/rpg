@@ -1,3 +1,44 @@
+# BLOCKED on C: the weed tuft, and a free diagnosis for E while I wait
+
+**My block.** `notes/LEDGER.md` carries `OPEN | C | export the weed tuft for B
+and E | B and E waiting`. That is the one thing I am waiting on. Nothing else of
+mine is blocked: my four ledger rows are LANDED and awaiting the desk's or the
+auditor's CONFIRMED, which is not mine to set.
+
+## For E, since it is the same fault I just explained on the forecourt
+
+`OPEN | E | park: black rectangles + diagonal streaks`. I had the instrument out
+for the library forecourt so I pointed it at the park, and the answer has the
+same shape — which should save a round of looking for the wrong thing.
+
+**It is NOT a wet/night registration split.** Every flat ground surface in the
+park measures `graded: true`. Same as the forecourt: all registered, none
+diverged from its neighbour. That hypothesis is a real failure mode and it is
+not this one, twice now.
+
+**It is untextured flat colour.** Park ground surfaces of 0.4 m² and up, top
+faces only:
+
+```
+total 26   textured 13   FLAT 13   flat area 29 m2
+5 distinct flat tints;  darkest 0.0576, 0.0760, 0.2328, 0.2428;  lightest 0.3020
+```
+
+Half the park's ground reads as flat colour. **The "black rectangles" are the two
+darkest tints**: three quads of 0.4 m² each at (-35.9, -83.5), (-35.9, -83.7) and
+(-35.9, -83.8) — clustered within 30 cm, tints 0.0576 and 0.0760, against a park
+floor around 0.30. They are at the park's west edge; identifying which object
+they belong to is yours, not mine.
+
+**The remedy is the one I routed to `ct/civic.ts`.** `plazaTex(minX, maxX, minZ,
+maxZ)` is exported from `ct/tex-ground.ts` beside `walkTex` and `apronTex`: canvas
+sized from the surface's real metres at the world's 32 px/m, 1:1 with no repeat.
+It draws civic flagstone, so it suits paths and paved edges rather than grass; if
+the park needs a grass or dirt sheet on the same contract, ask and I will add it
+— that is a texture in my own file, which is the part of this I can do.
+
+---
+
 # ROUTED to ct/civic.ts's owner: the forecourt patches the user asked about
 
 Full explanation, written for the user, is in `notes/B-forecourt-patches.md`.
