@@ -352,3 +352,42 @@ its input at the wrong hour. The bugs they were meant to catch were real and
 mostly still are. **A check nobody has watched fail is not a check** — and the
 cheapest way to watch one fail is to break the world on purpose and see whether
 it notices.
+
+## `nightgrade` skips multi-material meshes — found chasing someone else's finding
+
+`9c1b4e21` swept all 24 hours and found material colours multiplying past white
+on the dawn and dusk ramps, routing the persistent ones to me: *"The 9 that
+persist all night are not mine: unstamped, in the park's region, nightgrade's
+question."*
+
+I added an out-of-range count to `nightgrade` and it reported **0**. The
+materials are real — measured directly:
+
+```
+23:00   over 1.0: 3    worst 1.149
+03:00   over 1.0: 3    worst 1.149
+19:00   over 1.0: 74   worst 1.092
+07:00   over 1.0: 76   worst 1.080
+```
+
+**The difference is `nightgrade`'s own probe.** It collects with
+
+```js
+const m = o.material; if (!m || Array.isArray(m) || !m.color) return;
+```
+
+so every **multi-material mesh is skipped entirely** — and a box with six
+materials is exactly how the walls, bands and castings are built. That is a
+coverage gap in my check that has been there since I wrote it, and it is why my
+count came back 0 while a probe that walks all materials finds 3.
+
+**I reverted the addition rather than ship a line that reads 0 on a world where
+the answer is 3.** A number that is wrong in the reassuring direction is the
+worst thing this file could print.
+
+**What it needs, for whoever picks it up or for me with more room:** walk the
+material array like `density` and `seampairs` already do, then re-measure the
+whole check — the population changes, so "0 materials were graded and did not
+move" has to be re-established, not assumed to survive. That is a re-verification
+of the headline, not a tweak, which is why I am not doing it at the end of a
+session.
