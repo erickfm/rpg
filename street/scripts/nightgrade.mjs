@@ -46,6 +46,11 @@ const probe = async (h) => {
         const g = o.geometry?.parameters || {}, im = m.map?.image;
         each[m.uuid] = { key, v, cut: m.alphaTest > 0, tr: !!m.transparent,
           reach: Math.abs(o.position.x) <= 100,
+          // props.ts stamps this on a sheet it grades and deliberately keeps
+          // bright (8e473276). Without it, "kept lit on purpose" and "never
+          // graded at all" look identical from out here, and this script was
+          // reporting the first as a bug — thirteen tickets for a neon sign.
+          selfLit: !!m.userData?.selfLit,
           // what the thing IS, so its builder recognises it without a gazetteer
           shape: `${(g.width ?? 0).toFixed(2)}x${(g.height ?? 0).toFixed(2)} tex ${im?.width ?? '?'}x${im?.height ?? '?'}`,
           x: +x.toFixed(1), y: +y.toFixed(1), z: +z.toFixed(1) };
@@ -102,24 +107,34 @@ await b.close();
 // would never have had. That cost was always the other half of §22 and it was
 // not fixed by db76dc26.
 //
-// THE SYMPTOM IS NO LONGER A VERDICT, and this is the honest part. "Never moved
-// between noon and 23:00" cannot tell deliberate from broken: `dimWorld` also
-// skips `litSeen` and `wetMats`, neither visible from the scene graph, and it
-// grades by elevation, so a high material can legitimately barely move. A
-// floodlit car lot that stays bright at midnight is correct. It is reported
-// with its numbers and it is not failed on.
+// THE SYMPTOM IS STILL NOT A VERDICT, though it is closer than it was.
+//
+// 8e473276 stamps `userData.selfLit` on sheets props.ts grades and deliberately
+// keeps bright, so "lit on purpose" is no longer a guess — excluding them takes
+// the car lot from 22 to 7. That commit was written because this script handed
+// its owner thirteen tickets for a neon sign.
+//
+// What is still invisible, and why this reports rather than fails:
+//   wetMats                — updateRain owns those and nothing marks them
+//   graded-but-unchanged   — indistinguishable from never-handed-to-dimWorld,
+//                            and most of the world is the latter
+// One line in props.ts would close the second — stamp `userData.graded` where
+// dimWorld actually writes a colour — and then this could fail honestly. That
+// is props.ts's call, not mine; noted in notes/A-nightgrade.md.
 const SCOPED = A.length === 4;
 const pairs = Object.entries(day.each)
   .filter(([, d]) => d.cut && d.tr && d.reach)
   .map(([uuid, d]) => ({ uuid, ...d }));
 const stillCount = Object.entries(day.each).filter(([u, d]) => {
   const n = night.each[u];
-  return n && d.key !== 'additive' && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
+  return n && d.key !== 'additive' && !d.selfLit && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
 }).length;
 if (SCOPED) {
   console.log(`\n${stillCount} gradable materials in the box never moved between noon and 23:00`);
-  console.log('  (reported, not failed on — litSeen, wetMats and elevation grading are');
-  console.log('   all invisible from out here, and a floodlit lot is meant to stay bright)');
+  console.log('  selfLit sheets are excluded — props.ts stamps those, so "kept bright on');
+  console.log('  purpose" is no longer a guess. Still reported and NOT failed on, because');
+  console.log('  two things stay invisible: wetMats, which updateRain owns, and the');
+  console.log('  difference between graded-but-unchanged and never-handed-to-dimWorld.');
 } else {
   // World-wide this is 417 and it means nothing: most of the world is never
   // handed to dimWorld in the first place, and from outside that is
