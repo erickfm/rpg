@@ -347,8 +347,10 @@ are the DECLARATIONS, which are the authority; the probe is only how I noticed.
 | | |
 |---|---|
 | owned | `ct/int-casino.ts`, `ct/int-hotel.ts`, `ct/int-pawn.ts`, `ct/int-tax.ts`, `ct/vice.ts`, `scripts/G-*.mjs` |
-| `G-rooms-walk` | 109/109, dev and `dist` |
-| `G-vice-walk` | 18/18, dev and `dist` |
+| `G-rooms-walk` | **113/113**, dev and `dist`, `--selftest` fails all 3 inverted truths |
+| `G-vice-walk` | **18/18**, dev and `dist`, `--selftest` fails both |
 | `doors-declared` | 8 of 8 in the built bundle |
+| re-verified against `dist` | at `cc2d8bb56`, after the selftests, the flag guard, the keeper check and the `groundAt` swap — every one of those could have broken bundle-compatibility and none did |
+| registered in `npm run checks` | **no** — see `notes/G-offer-checks-entry.md`; `58cc18fa8` shows why nobody can currently fix that |
 | ownership | clean |
 | open findings against my area | none |
