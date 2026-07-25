@@ -163,9 +163,22 @@ Swept all 24 hours for material colours out of the 0..1 range:
 
 | hours | out of range | worst component | worst offender |
 |---|---|---|---|
-| 09–17 | **0** / 2868 | — | — |
-| night (20–06) | 9 / 2868 | 1.149 | unstamped box at (−7.6, −85.6) |
-| 07, 08, 18, 19 | **91–94** / 2868 | 1.015–1.092 | `tex-ground` at (4.4, −92.5) |
+| 09–17 | **0** / 5625 | — | — |
+| night (20–06) | 9 / 5625 | ≥1.149 | unstamped box at (−7.6, −85.6) |
+| 07, 08 | **158** / 5625 | ≥1.08 | `tex-ground` at (4.4, −92.5) |
+| 18, 19 | **161** / 5625 | ≥1.02 | `tex-ground` at (4.4, −92.5) |
+
+**Corrected after `a7f2241d`.** It found `nightgrade` skips multi-material
+meshes; the probe I published these from had the same blind spot. It walked
+`o.material.color` and never looked inside an array, so it saw **2868 of 5625
+materials — 51% of the world**. The ramp-hour counts nearly double once the
+other half is included: 91 → 158 at 07:00, 93 → 161 at 18:00. Night and full day
+are unchanged, because none of the multi-material meshes offends at those hours.
+
+The worst-component figures are marked ≥ because they were measured on that same
+51% subset and I have not re-taken them; they are lower bounds, not maxima.
+`scripts/grade-sane.mjs` handles arrays correctly, so the committed check never
+had this hole — only the exploratory probe and the note I wrote from it.
 
 **This is a measurement, not a defect, and I am not filing it as one.** A colour
 component of 1.08 clamps at render, so those materials are pixel-identical to
