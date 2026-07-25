@@ -50,7 +50,12 @@ export function buildStreet(o: {
   //     its interior live in ct/apartment.ts at a fixed z
   // Change a width and you must pay for it out of a neighbour in the same run.
   const WEST: (BldSpec | 'alley')[] = [
-    { nm: 'DINER', col: '#8a5a22', w: 9.2, brick: '#6b4034', floors: 4 },
+    // DINER and LAUNDRY swapped IDENTITIES, not slots — the widths stay where
+    // they are, so both run totals are untouched (51.2 before the alley, 54.5
+    // after). Moving the entries bodily would have cost 2.8 m of
+    // reconciliation in each run for nothing. The diner also wants the wider
+    // frontage, and the far side of the alley had nothing to eat on it.
+    { nm: 'LAUNDRY', col: '#2c4a7a', w: 9.2, brick: '#6b4034', floors: 4 },
     // blander and more modern than anything either side of it — the whole
     // point of standing it next to the library
     { nm: 'MERIDIAN', col: '#5a6a72', w: 10, brick: '#8a8378', floors: 5 },
@@ -59,7 +64,8 @@ export function buildStreet(o: {
     // up against the quietest — that contrast is doing a lot of work here
     { nm: 'BURGER BARN', col: '#c8302a', w: 16, brick: '#7a4a3a', floors: 4, front: 'burger' },
     'alley',
-    { nm: 'LAUNDRY', col: '#2c4a7a', w: 12, brick: '#6b4034', floors: 4 },
+    // z -55.5 … -43.5, centre -49.5 — ct/int-diner.ts anchors its door here
+    { nm: 'DINER', col: '#8a5a22', w: 12, brick: '#6b4034', floors: 4 },
     { nm: 'BARBER', col: '#8a2c22', w: 12.5, brick: '#5c4436', floors: 4 },
     { nm: 'THRIFT', col: '#7a5a2c', w: 14, brick: '#835444', floors: 4 },
     { nm: 'GROCERY', col: '#2e5a3c', w: 16, brick: '#7a4a3a', floors: 5 },
