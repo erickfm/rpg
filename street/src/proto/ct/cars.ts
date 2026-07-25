@@ -528,6 +528,14 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // Lowering the buried floor from 0.77 to 0.62 moved a surface nobody could
   // see. A bed floor has to sit BELOW the beltline, so the body cannot be solid
   // there; the bed is built as a real open tub below.
+  // 0.89 AND 0.84 WERE BELT IN DISGUISE. The hood slab's centre was typed as
+  // 0.89, meaning "the belt plus half of its own 0.1 thickness", and the
+  // greenhouse's base as 0.84, meaning "the belt" — in all four kinds. Raising
+  // the beltline is the fix I recommend for the wheel proportion
+  // (notes/BLOCKED-H.md); with those literals in place it would have left the
+  // hood BURIED 0.05 m inside the slab and the greenhouse floating clear of it,
+  // on every vehicle. Found by actually trying BELT = 0.94 and noticing the hood
+  // apex did not move, which is also the blind spot scripts/carstate.mjs had.
   const BED_Z0 = 0.55;                                  // bed front, behind the cab
   const ROCKER = 0.34, BELT = 0.84;                     // the slab's own extent
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
@@ -549,24 +557,25 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
 
   if (kind === 'sedan') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.9), hoodM(40));
-    hood.position.set(0, 0.89, -(half + 0.95) / 2 + 0.02);
+    hood.position.set(0, BELT + 0.05, -(half + 0.95) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
     const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8));
-    trunk.position.set(0, 0.885, (half + 1.35) / 2);
+    // 0.885 is BELT plus half the lid thickness, same disguise as the hood
+    trunk.position.set(0, BELT + 0.045, (half + 1.35) / 2);
     g.add(trunk);
-    g.add(loftCabin(0.81, 0.74, 0.84, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
+    g.add(loftCabin(0.81, 0.74, BELT, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
   } else if (kind === 'hatch') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40));
-    hood.position.set(0, 0.89, -(half + 0.8) / 2 + 0.02);
+    hood.position.set(0, BELT + 0.05, -(half + 0.8) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
     // no trunk: the rear glass slopes all the way to the tail
-    g.add(loftCabin(0.81, 0.72, 0.84, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
+    g.add(loftCabin(0.81, 0.72, BELT, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
   } else if (kind === 'pickup') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40));
-    hood.position.set(0, 0.89, -half + 0.85);
+    hood.position.set(0, BELT + 0.05, -half + 0.85);
     hoodPanel = hood; g.add(hood);
     // short cab, near-vertical rear window
-    g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
+    g.add(loftCabin(0.85, 0.74, BELT, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
     // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
     //
     // Rebuilt rather than nudged, because the bed has now been asked about
@@ -693,9 +702,9 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
-    hood.position.set(0, 0.89, -half + 0.5);
+    hood.position.set(0, BELT + 0.05, -half + 0.5);
     hoodPanel = hood; g.add(hood);
-    g.add(loftCabin(0.85, 0.8, 0.84, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
+    g.add(loftCabin(0.85, 0.8, BELT, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
   }
 
   if (taxi) {
@@ -744,6 +753,18 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // needs it to prove the engine bay is NOT body-coloured, and inferring it as
   // "the commonest colour on the car" picks the tyre black off the four wheels.
   g.userData.body = body;
+  // THE BODY'S OWN DIMENSIONS, for the same reason. carstate.mjs opened with
+  // `const ROCKER = 0.34, BELT = 0.84, HOOD_TOP = 0.94, TYRE_R = 0.34` — its own
+  // copy of four numbers that live here, in two places in that file, used in
+  // twelve assertions. Raising the beltline is the fix I recommend for the wheel
+  // proportion (notes/BLOCKED-H.md), and it would have left every one of those
+  // comparing against a stale sill: the probe guarding the change would have
+  // been the thing broken by it. dd5ecde4 hit exactly this and called it "my
+  // harness was carrying a stale width".
+  g.userData.rocker = ROCKER;
+  g.userData.belt = BELT;
+  g.userData.hoodTop = BELT + 0.10;      // the hood slab sits ON the belt, 0.1 thick
+  g.userData.tyre = 0.34;
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
 

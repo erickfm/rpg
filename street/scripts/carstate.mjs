@@ -26,7 +26,19 @@ await page.waitForFunction(() => window.__ct?.carVariant !== undefined, { timeou
 await reportWorld(page, URL);
 
 const m = await page.evaluate(() => {
-  const ROCKER = 0.34, BELT = 0.84, HOOD_TOP = 0.94, TYRE_R = 0.34;
+  // ASK THE CAR FOR ITS OWN DIMENSIONS. These were four literals copied out of
+  // ct/cars.ts, used in twelve assertions across two copies in this file. The
+  // beltline change recommended in notes/BLOCKED-H.md would have left them all
+  // comparing against a stale sill — the probe guarding the change broken BY the
+  // change. makeCar publishes them on userData now.
+  const dims = (() => {
+    const g = window.__ct.carVariant('sedan', {}, 0, 0, 0);
+    const d = { ROCKER: g.userData.rocker, BELT: g.userData.belt, HOOD_TOP: g.userData.hoodTop, TYRE_R: g.userData.tyre };
+    g.parent.remove(g);
+    return d;
+  })();
+  const { ROCKER, BELT, HOOD_TOP, TYRE_R } = dims;
+  if ([ROCKER, BELT, HOOD_TOP, TYRE_R].some((v) => typeof v !== 'number')) return { missingDims: dims };
 
   // World-space box of a mesh, by hand: the page has no THREE binding, so walk
   // the position attribute through matrixWorld.
@@ -95,12 +107,19 @@ const m = await page.evaluate(() => {
     return b ? String(b).replace('#', '').toLowerCase() : null;
   })();
 
-  const R = { bodyHex, kinds: {}, hood: {}, jack: {}, blocks: {} };
+  const R = { bodyHex, dims, kinds: {}, hood: {}, jack: {}, blocks: {} };
 
   // ── 1. the plain car, every kind: four wheels, nothing added ─────────────
   for (const k of ['sedan', 'hatch', 'pickup', 'van']) {
     const p = build(k, {});
-    R.kinds[k] = { n: p.n, wheels: wheels(p).length, tilt: p.tilt.length };
+    // THE HOOD MUST SIT ON THE BELT. This is the check that was missing: with
+    // the hood's y typed as 0.89 rather than derived, raising BELT to 0.94 left
+    // it buried 0.05 m inside the slab and every check here still passed,
+    // because nothing tied the panel to the sill it rests on.
+    const lid = p.parts.filter((q) => q.geo === 'BoxGeometry'
+      && Math.abs((q.b.y1 - q.b.y0) - 0.10) < 0.02 && q.b.x1 - q.b.x0 > 1.5);
+    R.kinds[k] = { n: p.n, wheels: wheels(p).length, tilt: p.tilt.length,
+      lidBase: lid.length ? +Math.min(...lid.map((q) => q.b.y0)).toFixed(3) : null };
   }
 
   // ── 2. hood up ───────────────────────────────────────────────────────────
@@ -174,13 +193,25 @@ const m = await page.evaluate(() => {
   return R;
 });
 
+// The world's numbers, not a second copy of them. If makeCar stops publishing
+// them this is INCONCLUSIVE, not a pass: every threshold below would otherwise
+// compare against `undefined` and quietly succeed.
+if (m.missingDims) {
+  console.error('INCONCLUSIVE — makeCar no longer publishes userData.rocker/belt/hoodTop/tyre: '
+    + JSON.stringify(m.missingDims) + '. Every dimension check below would compare against undefined.');
+  await browser.close();
+  process.exit(2);
+}
 const fails = [], notes = [];
-const ROCKER = 0.34, BELT = 0.84;
+const { ROCKER, BELT } = m.dims;
 
 // 1. plain cars must be untouched — this is the one that protects the world
 for (const [k, v] of Object.entries(m.kinds)) {
   if (v.wheels !== 4) fails.push(`plain ${k}: ${v.wheels} wheels, expected 4`);
   if (v.tilt !== 0) fails.push(`plain ${k}: has an inner group (${v.tilt}); a plain car must add NOTHING, or every texture painted after it re-grains (GOTCHAS §1)`);
+  if (v.lidBase === null) fails.push(`plain ${k}: no hood panel found to check against the beltline`);
+  else if (Math.abs(v.lidBase - BELT) > 0.02) fails.push(`plain ${k}: the hood's underside is at ${v.lidBase} but the beltline is ${BELT} — `
+    + (v.lidBase < BELT ? 'it is buried inside the slab' : 'it is floating above the sill it should rest on'));
 }
 notes.push(`  OK   plain cars unchanged — ${Object.entries(m.kinds).map(([k, v]) => `${k} ${v.n} meshes/4 wheels`).join(', ')}`);
 
