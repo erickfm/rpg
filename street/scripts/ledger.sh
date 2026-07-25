@@ -25,7 +25,8 @@ if [ "${1:-}" = "--stats" ]; then
 fi
 
 echo
-echo "LANDED but never checked — verify these, then mark CONFIRMED:"
+echo "LANDED but never checked — the DESK or the AUDITOR verifies these."
+echo "If you are a builder: do NOT mark your own work CONFIRMED."
 row LANDED | awk -F'|' '{printf "  %-3s %s\n", $3, $4}' | sed 's/  */ /g'
 
 echo
