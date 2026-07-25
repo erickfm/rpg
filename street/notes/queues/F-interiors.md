@@ -28,6 +28,42 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Every seat in the game should be sittable. Build the mechanic; you
+      have a bounded mandate for the shared files.** The user: *"for every
+      seat in the game i want to be able to sit down"*.
+
+      There are seats everywhere already and none of them do anything: the
+      diner's counter stools and booths, the bus bench, the casino, the hotel
+      lobby chairs, the tax office, room 301. This is a real gameplay verb
+      like sleeping in 301, not a decoration.
+
+      **Build it as a shared capability, the way `ctx.spot()` works** — that
+      is the pattern this project already uses for interactions, and it is why
+      ten interiors could be built in parallel without anyone touching the
+      entry point. Add `ctx.seat({ x, z, yaw, height, ... })` so any module
+      registers its own seats, then every other builder can make their own
+      furniture sittable without going through you or the desk.
+
+      What sitting should actually do: eye height drops to seated, movement
+      locks, you face the direction the seat faces, the `[E]` prompt becomes
+      "stand up", and standing returns you to exactly where you were. Getting
+      up must never leave you inside a table or a wall — that is the failure
+      mode, and it is the same class of bug as the exit-teleport that used to
+      suck you straight back into the bodega.
+
+      **The mandate:** `ct/ctx.ts` and `src/proto/fp.ts` are desk-owned — the
+      rig owns movement, collision and `RADIUS`, and touching it badly breaks
+      the whole world. You get them for this one commit because the mechanic
+      cannot be built anywhere else. Conditions: the sit state lives in the
+      rig, no other behaviour changes, and **walk-and-sit-and-stand every
+      seat you register** before you commit. Do not change `RADIUS`, speed or
+      collision.
+
+      Register the seats you own (diner, burger barn) as part of this. The
+      desk will queue the other owners — B for the bus bench, G for the casino
+      and hotel, C for 301 — once your API lands, so tell me what it looks
+      like in your handoff.
+
 - [ ] **Re-anchor the diner interior — the DINER is moving up the block.**
       The user asked to replace LAUNDRY with a diner. Rather than put two
       diners on one street, builder D is swapping their identities: the DINER

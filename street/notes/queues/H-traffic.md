@@ -23,6 +23,27 @@ world stops.
 
 ## Now
 
+- [ ] **The truck tailgate is aliasing into a checkerboard.** The user:
+      *"textures on back of truck are janky"*. Ref: `shots/user-tailgate.png`
+
+      This is `GOTCHAS.md` §4 arriving on a vehicle: *a surface 1–2 texels
+      tall cannot hold detail.* The tailgate band is a thin face carrying
+      dither, and at a grazing angle `NearestMipmapNearest` turns that dither
+      into a crawling checkerboard — it is the same failure that produced
+      three separate "the kerb looks bad" reports before the rule was written
+      down. The fix there was: no dither, no fine noise on faces thinner than
+      ~0.3 m, only large features many texels wide, and
+      `minFilter = NearestFilter` so there is nothing to crawl.
+
+      Apply the same rule to the vehicle fleet, not just this one panel — the
+      truck is where it shows worst but any thin trim, bumper or sill has the
+      same problem. Then walk round the fleet at grazing angles and check.
+
+      **Also visible in that shot: the tail lights are asymmetric.** The left
+      one is a wide bar at mid height, the right a shorter one lower down.
+      Either that is a UV mapping fault on the box or the texture is not
+      symmetrical; either way it reads as a mistake.
+
 - [ ] **Split the walking sim out of `ct/citizens.ts` into `ct/crowd.ts`.**
 
       Do this FIRST, before any behaviour work. `ct/citizens.ts` is a shared
