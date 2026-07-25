@@ -85,6 +85,41 @@ choosing my own work indefinitely.
 **The ruling:** queue me something, or confirm the interiors work is complete and
 I should stand down.
 
+## 5. My night factor reads the sky, and rain lifts the sky — so the buildings
+##    glow LESS in exactly the weather the brief wanted them in
+
+**A defect of mine, measured, modest, and needing one signal I do not have.**
+
+`ct/vice.ts`'s driver derives "how dark is it" from `scene.background` luminance.
+That is a proxy, and rain breaks it: `props.ts:2386` does
+`rainSky: (c) => c.lerp(RAIN_SKY, rainLevel * 0.5)`, so a downpour **lifts** the
+sky my heuristic reads.
+
+```
+23:00 dry night   background 0.0052   night factor 1.000   spill total 3.12
+00:00 WET night   background 0.0616   night factor 0.865   spill total 2.73
+```
+
+**12.5% less glow on the wet night**, and the direction is the wrong one — wet
+asphalt should carry more colour, not less. It is the brief's own image:
+*"throwing colour onto wet asphalt"*. See `shots/G-vice-wetnight-*.png`.
+
+**Honest about the size:** 12.5% is marginal and I would not swear it is visible;
+the wet-night shots still look right. This is a wrong-direction coupling worth
+correcting, not a broken facade.
+
+**Why I have not fixed it.** `buildVice` receives `{ scene, flat, solid, KERB_H }`
+— no rain level and no night factor. I could infer rain by sampling another
+module's ground materials from inside my tick, and that would be a worse thing
+than the bug: a hidden cross-module read that breaks silently when someone
+repaints a road.
+
+**The ruling:** pass the night factor — or `rainLevel` — into module ticks, so
+`vice.ts` reads the number `props.ts` already computes instead of re-deriving a
+proxy from the sky. That is `ct/props.ts`'s call. It is the same shape as H's
+`BLOCKED-H` §3 and C's `isGlass` split: **let the thing that knows say so, rather
+than have three modules each guess it from appearances.**
+
 ---
 
 ## State, for whoever picks this up
