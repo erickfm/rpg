@@ -82,3 +82,4 @@ user anything is finished.
 | OPEN | G | hotel exterior looks nice / interior doesnt match the exterior however | |
 | OPEN | F | the interior door doesnt match the exterior doorway | |
 | OPEN | G | casino interior is nice but i want more. bigger and more expansive / t | |
+| OPEN | AUDIT | verify the eight LANDED rows | |
