@@ -1512,3 +1512,24 @@ So the two references bracket the same fix from opposite sides:
 
 Both are answered at HEAD, and the pale-meets-brown still visible in the second
 frame is the boundary between them, which is the point rather than the bug.
+
+
+## E's park topography against my site ground: checked, no conflict
+
+`9890a47ee` gave the park a mound, a dish and ground falling to a corner. My
+`openSite` lays a **flat** ground plane for that site, so the two could fight.
+
+Bounding boxes said they might: E's new pieces span **y 0.057 .. 0.454** and my
+site plane sits at **y 0.140**, so parts of their contoured ground are below
+mine and my flat green would poke through.
+
+**Looked, and it does not.** Two views from inside the park, one at ground level
+across the contours: the ground reads continuous — mown stripes, a worn dirt
+patch, the path — with no flat edge slicing a mound and no z-fighting anywhere.
+E's contours sit above my plane where it matters, and the 0.057 minimum belongs
+to something with a low edge rather than to a surface that competes.
+
+That is the third time this pattern has run in as many rounds: the geometry or
+the constants imply a defect, and the picture does not have one. Roofs, the park
+back wall, this. **The cheap check is the bounding box; the true one is the
+frame**, and only the second can tell "overlaps in y" from "visibly wrong".
