@@ -486,7 +486,7 @@ function buildLot(o: {
     const BAY_PITCH = 2.7;                // along the aisle, per bay
     const OFF_D = 3.0, OFF_W = 4.6, OFF_H = 2.7;
     const OFF_X = X1 - OFF_D / 2 - 1.1;   // across the back, off the rear fence
-    const BAY_X0 = X0 + 2.4;              // first bay, back from the street line
+    const BAY_X0 = X0 + 3.0;              // first bay, back from the street line
     const BAY_X1 = OFF_X - OFF_D / 2 - 1.6;
     const BAYS = Math.max(1, Math.floor((BAY_X1 - BAY_X0) / BAY_PITCH));
     const bayX = (i: number) => BAY_X0 + i * BAY_PITCH;
@@ -1298,9 +1298,25 @@ function buildLot(o: {
     }
     // and the two back corners, either side of the office, turned to face
     // down the aisle — the cars you only see once you are all the way in.
-    for (const sgn of [1, -1]) for (let k = 0; k < 2; k++) {
+    // ONE per corner, not two. Measured: a 4.52 m body raked 1.15 rad off the
+    // aisle throws 4.52*sin + 1.88*cos = 4.90 m of itself along x, so two of
+    // them never fit the 2.8 m pitch they were written at — the north pair had
+    // been 0.7 m inside each other since the day they were placed, unnoticed
+    // because nothing measured it. Widening to 4.3 m only pushed them into the
+    // main rows instead (measured too: four fresh overlaps). At this rake the
+    // honest answer is one car, and the corner still does its job — it is the
+    // car you only see once you are all the way in.
+    for (const sgn of [1, -1]) for (let k = 0; k < 1; k++) {
       const bz = zMid + sgn * (OFF_W / 2 + 2.4);
-      BAY.push({ x: OFF_X - 0.4 - k * 2.8, z: bz, yaw: bayYaw(bz, 1.15) });
+      // 4.3 m apart, not 2.8. These two are raked hard — 1.15 rad off the
+      // aisle — so a 4.52 m body throws about 4.1 m of itself along x, and a
+      // 2.8 m pitch had them 0.7 m INSIDE each other. Measured, not guessed:
+      // scripts/lot-clearance.mjs, which the user asked for precisely because
+      // "you are about to rotate the left row 180 degrees, which changes which
+      // end of each car is where and can turn a clearance into an overlap."
+      // The north pair was already overlapping before the rotation; the south
+      // pair joined it. A rake this steep needs the pitch that goes with it.
+      BAY.push({ x: OFF_X - 0.95 - k * 4.3, z: bz, yaw: bayYaw(bz, 1.15) });
     }
 
     // ── the three that are not just parked ───────────────────────────────

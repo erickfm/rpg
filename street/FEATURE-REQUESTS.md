@@ -72,6 +72,49 @@ published to the playable artifact.
 - **"pickup looks great but the wheels need to not clip through, maybe we need to have some inlaid wheel things pickups have / on the car idk if the doors make sense"** → **H**
 - **"park should be much deeper, like 4-5x deeper. and make it nice, a nice park with trees and a litle field maybe even a play area but not necessary maybe just a field with a walking route around the field?"** → **E**
 
+### 2026-07-25 — no car may clip another (→ builder C, `ct/lot.ts`)
+
+> *"make sure none of the cars in the lot are clipping into each other. You are
+> laying stock in rows either side of a drive aisle, and the lot is packed -
+> that is exactly the condition where two bodies overlap. Check every pair: box
+> against box, at their real dimensions, not their centre spacing. Report the
+> minimum clearance you find. Two things that make this likelier than it looks:
+> the fleet is MIXED - a pickup, sedans and a van are not the same length or
+> width, so a spacing that works for two sedans will overlap a pickup and its
+> neighbour; and you are about to rotate the left row 180 degrees for the
+> facing fix, which changes which end of each car is where and can turn a
+> clearance into an overlap. Do the rotation FIRST, then measure. Real lots
+> park tight - 30 to 60 cm between cars is authentic and looks right - so the
+> target is not generous spacing, it is NO OVERLAP with a small honest gap.
+> Also check they do not clip the fence, the office, the pole sign, the cones
+> or the sandwich board. Builder H owns the car models and knows their true
+> extents; ask me if you need them rather than assuming from the mesh."*
+
+**Routed to builder C.** Rotation landed first, then measured:
+`scripts/lot-clearance.mjs`. Six overlaps found and fixed; closest pair now
+0.42 m.
+
+### 2026-07-25 — spawn in room 301, not on the street (→ builder C for the number, builder F to land it)
+
+> *"The user wants to SPAWN IN THEIR ROOM rather than on the street. The spawn
+> is crosstown.ts:460 - 'new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }' - which is
+> the entry point and builder F's to edit, so DO NOT change it yourself. What I
+> need from you is the number: the exact world position and yaw a player should
+> start at inside 301, and the ground height, delivered the way builder D
+> delivers roster spans. Pick it properly rather than the room's centre - waking
+> up should have a viewpoint. Standing beside the bed facing into the room, or
+> facing the window, so the first thing they see is the room and the street
+> beyond it rather than a wall. Confirm it by warping there and looking. Two
+> things to check while you are in there: the floor picker must resolve
+> correctly at spawn (GOTCHAS 7 - the walk-up has stacked storeys with
+> hysteresis, and starting on the wrong storey is worse than starting on the
+> street), and the player must not spawn inside the bed, the dresser or the door
+> leaf you just made closable. Give me the number and I will hand it to F."*
+
+**Routed to builder C for the measurement**, F to make the edit. C does not
+touch `crosstown.ts`.
+
+
 ### 2026-07-25 — the car lot faces the wrong way, twice (→ builder C, `ct/lot.ts`)
 
 > *"shots/user-lotfacing.png - the LEFT row presents tailgates and rear lights
