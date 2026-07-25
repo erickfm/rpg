@@ -7,6 +7,7 @@ import {
 } from './tex-world';
 import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
+import type { CtxBuild } from './ctx';
 import { buildCivic, type BldSpec } from './civic';
 import { buildVice } from './vice';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
@@ -22,6 +23,15 @@ export function buildStreet(o: {
   boards: { m: THREE.Mesh }[];
   AZ0: number; AZ1: number;
   SIDE_X1: number; SIDE_Z0: number; SIDE_Z1: number;
+  // Three fields that already exist on CtxBuild, passed through so this module
+  // can register its OWN [E] instead of one being hand-written in the entry
+  // point — which is what ctx.spot exists for (ctx.ts: "a module describes its
+  // own furniture and the entry point never learns what any of it is").
+  // Additive: crosstown.ts gains three names in one object literal and nothing
+  // it already passes changes. Flagged for the desk, as with the purse field.
+  spot: CtxBuild['spot'];
+  purse: CtxBuild['purse'];
+  refreshWallet: CtxBuild['refreshWallet'];
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
   // ── collision, registered by the module that draws the building ─────────
@@ -715,14 +725,29 @@ export function buildStreet(o: {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillText('FIRST FEDERAL', W / 2 + m(0.06), m(0.78) + m(0.06));
       g.fillStyle = '#c9ccd0'; g.fillText('FIRST FEDERAL', W / 2, m(0.78));
-      // the ATM, which is very 1997, with its own little hood
+      // the ATM, which is very 1997, with its own little hood.
+      //
+      // HEIGHTS ARE DECLARED ABOVE THE PAVEMENT, not down from the top of the
+      // band, because that is the dimension that was wrong and the one anybody
+      // checking it will have in mind. `up()` does the one conversion.
+      //
+      // It used to be drawn straight in canvas y and the screen ended up
+      // centred 2.25 m above the ground — half a metre over the player's
+      // 1.74 m eye height, so you looked UP at a cash machine. Reported:
+      // "the screen is at roughly chest-to-eye height; a real ATM screen is
+      // 1.30-1.40 m with the keypad lower, because it must work for someone in
+      // a wheelchair and for someone tall without stooping."
+      //
+      // Screen centre is now 1.35 m and the keypad centre 1.00 m, so a 1.74 m
+      // eye looks slightly DOWN at the screen and further down at the keys.
+      const up = (aboveGround: number) => m(SHOP_BAND_H - aboveGround);
       const ax = Math.round(W * 0.36);
-      g.fillStyle = BANK_GRANITE; g.fillRect(ax - m(0.5), m(1.5), m(1.0), m(1.5));
-      g.fillStyle = '#1c2026'; g.fillRect(ax - m(0.38), m(1.66), m(0.76), m(0.72));
-      g.fillStyle = '#3f6a4a'; g.fillRect(ax - m(0.3), m(1.74), m(0.6), m(0.42));   // green CRT
-      g.fillStyle = '#8a8e94'; g.fillRect(ax - m(0.3), m(2.48), m(0.6), m(0.16));   // keypad
-      g.fillStyle = BANK_LIGHT; g.fillRect(ax - m(0.58), m(1.38), m(1.16), m(0.14)); // hood
-      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(ax - m(0.58), m(1.52), m(1.16), m(0.1));
+      g.fillStyle = BANK_GRANITE; g.fillRect(ax - m(0.5), up(1.85), m(1.0), m(1.10));   // housing 0.75-1.85
+      g.fillStyle = '#1c2026'; g.fillRect(ax - m(0.38), up(1.70), m(0.76), m(0.65));    // bezel 1.05-1.70
+      g.fillStyle = '#3f6a4a'; g.fillRect(ax - m(0.3), up(1.52), m(0.6), m(0.34));      // green CRT 1.18-1.52
+      g.fillStyle = '#8a8e94'; g.fillRect(ax - m(0.3), up(1.08), m(0.6), m(0.16));      // keypad 0.92-1.08
+      g.fillStyle = BANK_LIGHT; g.fillRect(ax - m(0.58), up(1.99), m(1.16), m(0.14));   // hood
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(ax - m(0.58), up(1.85), m(1.16), m(0.1));
       // night depository, plaque, camera
       const nx = Math.round(W * 0.62);
       g.fillStyle = BANK_GRANITE; g.fillRect(nx - m(0.24), m(2.0), m(0.48), m(0.62));
@@ -762,6 +787,32 @@ export function buildStreet(o: {
   };
   const placeBank = (z: number, w: number) => {
     const cz = z - w / 2, floors = 4, h = wallHeight(floors);
+    // ── the ATM answers when you press E ──────────────────────────────────
+    //
+    // Reported: *"'doesn't work' is a request for an interaction … What is not
+    // an answer is a machine that looks usable and ignores you."* Agreed, so it
+    // does something rather than becoming a taped OUT OF ORDER sign — the unit
+    // is clean precast on a bank that looks like it was cleaned last year, and
+    // a broken machine would have to be dressed for it to read as deliberate.
+    //
+    // Real data, not a prop: the balance is `ctx.purse.cash`, the same number
+    // the wallet shows on right-click, so it cannot drift from it. Buy cereal
+    // in the bodega and the ATM says so.
+    //
+    // WHERE IT IS, derived rather than guessed. `bankBand` paints the ATM at
+    // u = 0.36 across the frontage, and the band's u runs -z (measured, not
+    // assumed: the depository at u 0.62 photographs at z 2.3). The frontage
+    // runs from `z` back to `z - w`, so u maps to `z - u * w`.
+    const atmZ = z - 0.36 * w;
+    let readAt = -1e9;
+    o.spot({
+      x: -FACE, z: atmZ, r: 1.25,
+      ok: () => true,
+      label: () => (performance.now() - readAt < 6000
+        ? `FIRST FEDERAL — balance $${o.purse.cash.toFixed(2)}`
+        : 'FIRST FEDERAL — check balance'),
+      act: () => { readAt = performance.now(); o.refreshWallet(); },
+    });
     const dep = depthOf('FIRST FEDERAL'), cx = -(FACE + dep / 2);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // THE REPORTED DEFECT. The bank's front is pale precast and its returns

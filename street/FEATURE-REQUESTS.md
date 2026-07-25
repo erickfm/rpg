@@ -1,3 +1,32 @@
+## Open — 2026-07-25, routed to D (this session)
+
+- **ATM too high, and it does nothing** (`shots/user-atm.png`) — *"the screen is
+  at roughly chest-to-eye height; a real ATM screen is 1.30-1.40 m with the
+  keypad lower, because it must work for someone in a wheelchair and for someone
+  tall without stooping … 'doesn't work' is a request for an interaction … What
+  is not an answer is a machine that looks usable and ignores you."*
+  → **D. DONE.** Screen centre was 2.25 m above the pavement against a 1.74 m
+  eye height; now 1.35 m with the keypad at 1.00 m, so you look slightly down at
+  it. Registered its own `[E]` with `ctx.spot()`: *"FIRST FEDERAL — check
+  balance"*, then the balance from `purse.cash`, which is the same object the
+  wallet reads.
+
+- **The alley cat is in the corner** (`shots/user-alleygrate.png`) — *"pressed
+  into the angle where the two walls meet - the one place in the alley a cat
+  would not sit: nothing to watch, no line of retreat, and barely visible from
+  the alley mouth."*
+  → **D. DONE.** Was a mechanical row at the rear wall on the south flank; now
+  beside the dumpster on its open side with a clear run to the mouth.
+
+- **The alley grate is four dark lines** (`shots/user-alleygrate.png`) — *"no
+  frame, no depth, no thickness … should be recognisably from the same world …
+  If the casting is B's asset, ask me and B exports it rather than you drawing a
+  second one - a second grate design is exactly how this project ended up with
+  two of everything."*
+  → **D, BLOCKED ON AN ANSWER.** The casting IS B's and is not exportable today:
+  `ct/tex-ground.ts` has `const basin = (kx, z, side) => …`, a local, not an
+  export. Asking rather than drawing. See `notes/D-alley-grate.md`.
+
 # CROSSTOWN '97 — feature requests
 
 Running log of every request from playtests. Claude works from this list

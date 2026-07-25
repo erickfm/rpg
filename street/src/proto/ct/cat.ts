@@ -129,7 +129,23 @@ export function buildCatRig(o: {
       const p: CatPx = (c, ...r) => { g.fillStyle = c; for (const q of r) g.fillRect(...q); };
       d.draw(p, g);
     });
-    const cx = -13.0 + i * 0.9, cz = AZ1 + 0.6;
+    // WHERE A CAT ACTUALLY SITS. These used to be laid out on a mechanical row,
+    // `-13.0 + i * 0.9` at `AZ1 + 0.6`, which put them against the rear wall AND
+    // against the south flank — the corner where the two walls meet. Reported:
+    // *"the one place in the alley a cat would not sit: nothing to watch, no
+    // line of retreat, and barely visible from the alley mouth."* The user has
+    // moved this cat once before, so the row was overdue.
+    //
+    // The alley is x -13.2 (rear wall) to -7 (mouth) and z -43.5..-37.0, with
+    // the dumpster along the north side at x -12.5..-9.9, z -38.75..-37.55.
+    // Both spots below are in the OPEN with a clear run to the mouth, beside
+    // cover rather than jammed into it, and far enough in that you find them
+    // rather than meet them.
+    const SPOTS: [number, number][] = [
+      [-10.4, -39.8],   // beside the dumpster, on its open side, facing out
+      [-8.9, -41.4],    // nearer the mouth, clear of everything, half in shade
+    ];
+    const [cx, cz] = SPOTS[i % SPOTS.length];
     const m = new THREE.Mesh(
       new THREE.PlaneGeometry(CW / CPM, CH / CPM),
       new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.5, side: THREE.DoubleSide }),

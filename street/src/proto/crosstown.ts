@@ -100,7 +100,19 @@ export function makeCrosstown(): Proto {
   // the rooms are built last, so they cannot speak for themselves in time.
   // See ct/doors.ts.
   publishDeclaredDoors();
-  const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 });
+  // ── pockets, HUD and the [E] register, hoisted ABOVE the builders ──────
+  //
+  // They used to sit just above `ctx`. ct/street.ts now registers the ATM's own
+  // [E] during its build, so the register has to exist before any builder runs.
+  // Moved, not changed — same declarations, same values, three lines earlier.
+  // (D, for the ATM interaction; flagged, as with the purse field itself.)
+  const SPOTS: Spot[] = [];
+  const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
+  const hud = makeHud(purse);
+
+  const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1,
+    // so ct/street.ts can register the ATM's own [E] — D, additive, flagged
+    spot: (sp) => { SPOTS.push(sp); }, purse, refreshWallet: () => hud.refreshWallet() });
   // solid props the citizens must steer AROUND (never walk/phase through) —
   // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
   // here because every module that builds appends to the same two lists.
@@ -112,7 +124,6 @@ export function makeCrosstown(): Proto {
   // `rig` and the teleport are created ~200 lines below, so the accessors are
   // lazy closures — they are only ever CALLED at runtime, by which point both
   // exist.
-  const SPOTS: Spot[] = [];
   // Modules that answer for a patch of floor. Asked in declared order, first
   // non-null wins — see ctx.ground. The entry point no longer names any of
   // them, which is what lets a builder ship a staircase that works.
@@ -139,10 +150,7 @@ export function makeCrosstown(): Proto {
   const HOOKS: { fn: FrameHook; order: number }[] = [];
   // ── the pockets, and the HUD that draws them ────────────────────────────
   //
-  // Declared HERE, above ctx, because ctx carries them now: a spot that sells
-  // something has to be able to live with the counter it is sold over.
-  const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
-  const hud = makeHud(purse);
+  // Declared above the BUILDERS now, not merely above ctx — see the hoist.
 
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
