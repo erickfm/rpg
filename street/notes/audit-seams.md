@@ -96,6 +96,34 @@ litter** (18 visible, quantified against a target, guard offered), three
 **empty-set guards**, the `checks-registered` **ownership gap**, and the bench ad
 in `BLOCKED-AUDIT-seams.md`.
 
+## Which world these results describe — and the half that cannot be checked in it
+
+Everything here was measured on **my own preview build**, never on `:5177`, the
+live integration world the user actually playtests. `bae53b2c5` establishes why
+that gap cannot be closed by trying harder:
+
+> *"**Anything that walks is worthless there.** `live-integrate.sh` rebuilds
+> every 15 s and that RELOADS THE PAGE, so a harness longer than about fifteen
+> seconds has the ground taken out from under it."*
+
+**My strongest claims are precisely the ones that walk** — 8 of 8 doors opened by
+pressing the key, 57 seats sat, 9 way-outs walked to their own frontage, the
+entry/exit round trip. Every one is a harness of minutes. **None of them can be
+run against the world the user plays**, and none of them was.
+
+**What makes the transfer credible is not my work but E's.** The same commit
+measured geometry and floors across both worlds and found them *identical* —
+`groundAt` at the church door 0.55 and the library flight 0.42 in both, 66 park
+floor points agreeing **to the millimetre**, the mound at 0.51, the dish 50 mm
+deep. Behaviour that rests on geometry and floors should therefore carry over.
+
+> **So: geometry in the played world is measured, and behaviour in it is
+> inferred.** The inference is well-supported and it is still an inference. If a
+> walking result here ever matters enough to bet on, the way to check it is to
+> serve the integration build **statically** — not to point a walk at `:5177`,
+> which will destroy its own execution context mid-run and report the collapse as
+> a failure of the world.
+
 ## Every result in this report was measured on an **empty street** — and holds on a busy one
 
 Every check in the suite, mine included, runs static or drops the moving
