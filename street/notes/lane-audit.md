@@ -364,3 +364,46 @@ feels like. It is an argument for **knowing which number you are quoting**:
 I am recording this rather than routing it. Nothing is blocked, no rule is
 broken, and the only thing that would change my mind is a sample below 0.72 m —
 which twenty attempts did not produce.
+
+## Round 7 — the world stays connected when it is populated
+
+The lane narrows to the capsule's own width when someone is standing on it, so
+the obvious follow-up: **can citizens cut the world in half?** Flood-fill from
+spawn with the movers **included**, four times:
+
+```
+reachable cells: 61996, 61996, 61990, 61999      (of ~62,000)
+
+destination            r1  r2  r3  r4
+park far corner         y   y   y   y
+library courtyard       y   y   y   y
+church yard             y   y   y   y
+car lot mid             y   y   y   y
+side street east        y   y   y   y
+east walk far           y   y   y   y
+west walk far           y   y   y   y
+```
+
+**Every destination reachable in every sample.** The reachable area varies by
+**9 cells out of ~62,000 — 0.015%** — as people move about.
+
+> **The pavement gets tight and never closes.** Worst observed clear width is
+> 0.72 m, exactly the player's width, and connectivity is untouched: there is
+> always a way round.
+
+That is the pair of numbers the built-lane figures could never give:
+
+| | built | lived |
+|---|---|---|
+| narrowest clear width | 1.15 m | **0.72 m** |
+| destinations reachable | all | **all** |
+| reachable area | — | **varies by 0.015%** |
+
+**Four samples is a modest number and I am not claiming more than it supports.**
+What it rules out is the interesting failure — a citizen parking themselves in a
+1.15 m gap and sealing the block — and four independent fills, none of which
+lost a single destination, is decent evidence that the geometry has enough slack
+that it cannot happen.
+
+This closes the lane thread. Built: 0.89 → 1.15 m, two independent methods.
+Lived: median 0.77 m, floor 0.72 m, never disconnecting.
