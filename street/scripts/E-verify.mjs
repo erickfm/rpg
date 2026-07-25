@@ -47,6 +47,8 @@ const AREAS = [
     what: 'the park still gets wet with the relief shading on it' },
   { name: 'lamps', script: 'scripts/E-lamps.mjs',
     what: "B's park lamps still stand on ground that is at KERB_H" },
+  { name: 'moundseat', script: 'scripts/E-seat-mound.mjs',
+    what: 'the one seat the relief moved still sits at the right height' },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
@@ -135,7 +137,7 @@ for (const a of run) {
         // and the banner did not match anything here. A summary that says
         // everything is broken and shows nothing is worse than no summary.
         || /walks passed|FAILED|sinking into it|is floating|same height/.test(line)
-        || /boundary holds|park gets wet|ground still agree/.test(line)
+        || /boundary holds|park gets wet|ground still agree|relief put it/.test(line)
         || /MEASURING THE WRONG WORLD|is serving build|this checkout is at|Fix:/.test(line)) {
       console.log(`   ${line.trim()}`);
     }
