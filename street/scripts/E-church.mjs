@@ -11,6 +11,7 @@
 //   local 11.20 (north lancet)-> z -74.80
 // Buttress centre lines land at z -85.54, -82.86, -76.14, -73.46.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
@@ -22,6 +23,8 @@ const page = await browser.newPage({ viewport: { width: 900, height: 760 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => window.__ct.clock(13, 20));
 await page.waitForTimeout(400);
 

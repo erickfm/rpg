@@ -14,7 +14,8 @@
     "fp": "node scripts/scenedump.mjs",
     "fpdiff": "node scripts/fpdiff.mjs",
     "capture": "node scripts/capture.mjs",
-    "wiring": "node scripts/check-wiring.mjs -v"
+    "wiring": "node scripts/check-wiring.mjs -v",
+    "checks": "node scripts/checks.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"

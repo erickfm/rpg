@@ -9,12 +9,15 @@
 // closest the capsule actually gets — then walk the length of the frontage to
 // prove the lane past it is clear (GOTCHAS §9, the 2 m lane is sacred).
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4186/';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+
+await reportWorld(p, URL);   // GOTCHAS 26
 
 const at = () => p.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy), [x, z, yaw, gy]);

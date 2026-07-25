@@ -3,6 +3,7 @@
 // Usage: npm run build && npx vite preview --port 4177 &  then
 //   node scripts/shots.mjs [outDir]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -15,6 +16,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__lab !== undefined, { timeout: 10000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 
 const protos = await page.evaluate(() => window.__lab.list());
 console.log(`capturing ${protos.length} worlds ->`, outDir);

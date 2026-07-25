@@ -16,6 +16,7 @@
 //   3. pressing E changes what it says — the door answers.
 //   4. the answer LAPSES, so the prompt is not stuck on the response forever.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 // Foot-of-the-steps and top-of-the-flight for each civic building, taken from
 // scripts/steps-walk.mjs, which is the script that owns these two flights.
@@ -32,6 +33,8 @@ const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26
 await p.waitForTimeout(400);
 
 const prompt = () => p.evaluate(() => {

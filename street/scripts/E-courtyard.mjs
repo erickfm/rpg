@@ -1,6 +1,7 @@
 // Builder E: look at the library courtyard from the angles that matter.
 // Shots are for LOOKING (GOTCHAS §1) — walking is proved by E-walk.mjs.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
@@ -12,6 +13,8 @@ const page = await browser.newPage({ viewport: { width: 1000, height: 700 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => window.__ct.clock(13, 20));
 await page.waitForTimeout(400);
 

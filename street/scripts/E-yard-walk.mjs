@@ -8,6 +8,7 @@
 //   world x 9.6  = the church facade, at the top of the steps
 //   world z -86 … -68 = the 18 m frontage; the doors are on z = -79.5
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
 const browser = await chromium.launch();
@@ -15,6 +16,8 @@ const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => window.__ct.clock(13, 20));
 
 const pos = () => page.evaluate(() => window.__ct.pos());

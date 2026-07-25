@@ -1,6 +1,7 @@
 // Crosstown small-world smoke: boot, spawn shot, walk the block, check the
 // dead end holds, look back up the street. Fails on any page error.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -13,6 +14,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.waitForTimeout(1400);
 await page.screenshot({ path: `${outDir}/sw-spawn.png` });
 

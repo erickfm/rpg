@@ -34,6 +34,7 @@
 // "the obvious version of this bug is not present", which is exactly the
 // question that has been asked three times.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { ensureAlive } from './shotguard.mjs';
 
 const KEEP = process.argv.includes('-v');
@@ -50,6 +51,8 @@ const errs = [];
 page.on('pageerror', (e) => errs.push(String(e.message)));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.waitForTimeout(800);
 

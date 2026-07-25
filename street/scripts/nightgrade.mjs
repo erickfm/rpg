@@ -210,7 +210,9 @@ const dead = Object.entries(day.each).filter(([u, d]) => {
 }).map(([uuid, d]) => ({ uuid, ...d }));
 const ungraded = Object.values(day.each).filter((d) => !d.graded && !d.selfLit).length;
 if (SELFTEST) {
-  if (dead.length) console.log(`SELFTEST PASSED — the unexcused material was caught (${dead.length})`);
+  // exit here: falling through to the normal verdict made a PASSING selftest
+  // return 1, which npm run checks --selftest correctly showed as a failure.
+  if (dead.length) { console.log(`SELFTEST PASSED — the unexcused material was caught (${dead.length})`); process.exit(0); }
   else { console.error('SELFTEST FAILED — an exemption was removed and this did not notice.'); await b.close?.(); process.exit(2); }
 }
 console.log(`\n${dead.length} materials were graded by dimWorld and did not move`);

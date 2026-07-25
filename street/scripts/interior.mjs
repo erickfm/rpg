@@ -10,6 +10,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/interior.mjs [outdir]
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
@@ -27,6 +28,8 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+
+await reportWorld(page, URL);   // GOTCHAS 26
 await page.evaluate(() => { window.__ct.clock(13, 0); window.__ct.hermit(true); });
 await page.waitForTimeout(700);
 
