@@ -256,6 +256,28 @@ await page.evaluate(() => window.__ct.warp(200 - 1.05, -20 + 2.75, 0.03, 5.4, 0.
 await page.waitForTimeout(350);
 await shot('11-poster-close');
 
+// ── 6. the SPAWN this room declares is still a place you can stand ────────
+// ct/apartment.ts exports SPAWN for crosstown.ts to start the rig on, and
+// publishes it at scene.userData.spawn. A declared coordinate that nothing
+// checks is the "quiet remembered coordinate" 4a7c2f60 and 4dae9afe spent this
+// week digging out of other people's scripts — and this one has the extra edge
+// that it is consumed by ANOTHER builder's file, so if it rots, it rots in F's
+// entry point rather than in mine.
+const spawn = await page.evaluate(() => {
+  const sp = window.__ct.scene().userData.spawn;
+  if (!sp) return null;
+  const R = 0.36;
+  const blocked = window.__ct.colliders()
+    .filter((c) => sp.x > c.minX - R && sp.x < c.maxX + R && sp.z > c.minZ - R && sp.z < c.maxZ + R).length;
+  return { ...sp, ground: +window.__ct.groundAt(sp.x, sp.z).toFixed(2), blocked };
+});
+if (!spawn) expect('the room publishes its spawn', false, true);
+else {
+  expect('the spawn sits on floor 3', Math.abs(spawn.ground - spawn.gy) < 0.05, true);
+  expect('nothing is standing on the spawn', spawn.blocked, 0);
+  say(`  spawn (${spawn.x.toFixed(2)}, ${spawn.z.toFixed(2)}) gy ${spawn.gy}, ground reads ${spawn.ground}`);
+}
+
 await browser.close();
 console.log(`door301 -> ${outDir}`);
 if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); FAIL.push('page errors'); }

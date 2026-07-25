@@ -97,10 +97,25 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
  * door leaf misses it with the door OPEN and with it SHUT, which is the case
  * the closable door added.
  *
- * Local, so it survives the building moving: x = APT_X - 1.4, z = APT_Z + 3.7,
- * floor 3 = 2 storeys up. Eye height lands at 7.02.
+ * DERIVED from the building's own constants, so it survives the walk-up
+ * moving: x = APT_X0 - 1.4, z = APT_Z0 + 3.7, floor 3 = 2 * ST0. Eye height
+ * lands at 7.02.
  */
-export const SPAWN = { x: 200 - 1.4, z: -20 + 3.7, yaw: -Math.PI / 2, gy: 2 * 2.7 };
+/** Where the walk-up stands, and its storey height. AT MODULE SCOPE because
+ *  `SPAWN` below has to be derived from them rather than repeat them — these
+ *  used to be locals inside `buildApartment`, which is why the first version of
+ *  SPAWN was written `200 - 1.4` and claimed in its own comment to be local. It
+ *  was a copy, and a copy of a coordinate is the exact defect 4a7c2f60 and
+ *  4dae9afe are sweeping the checks for this week. `buildApartment` binds its
+ *  own APT_X/APT_Z/ST to these, so the 57 uses inside it are unchanged. */
+export const APT_X0 = 200, APT_Z0 = -20, ST0 = 2.7;
+
+export const SPAWN = {
+  x: APT_X0 - 1.4,
+  z: APT_Z0 + 3.7,
+  yaw: -Math.PI / 2,
+  gy: 2 * ST0,
+};
 
 export interface Apartment {
   /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
@@ -139,7 +154,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // built; all 54 scene.add calls in this file are inside this function and it
   // is synchronous, so children from here to the end are exactly ours.
   const MARK = scene.children.length;
-  const APT_X = 200, APT_Z = -20, ST = 2.7;
+  // PUBLISHED, so a check can read the spawn without importing source.
+  // interiors-walk reaches into /src/proto/ct/doors.ts and therefore cannot run
+  // against the built bundle at all (af5b68cd); rainAt was published on
+  // scene.userData for exactly this reason (e0c68e46). Same move, same reason:
+  // scripts/door301.mjs asserts this number stays standable on floor 3, and it
+  // has to be able to see it from a preview.
+  scene.userData.spawn = SPAWN;
+  const APT_X = APT_X0, APT_Z = APT_Z0, ST = ST0;
   // ── the switchback ───────────────────────────────────────────────────────
   // 7 risers over a 2.2 m run per half storey: a 0.193 m rise on a 0.314 m
   // tread, which is 31.5°. A normal residential pitch (US code allows about

@@ -9,8 +9,30 @@ yaw  -1.5708     ( = -PI/2, facing west, straight out of the window )
 gy    5.40       ( = 2 * ST, floor 3 — the rig must START on this, not on 0 )
 ```
 
-Declared in `ct/apartment.ts` as `export const SPAWN` so it does not have to be
-retyped, and so it moves if the walk-up ever does:
+Declared in `ct/apartment.ts` as `export const SPAWN`, **derived** from the
+building's own constants so it moves if the walk-up ever does:
+
+```ts
+export const APT_X0 = 200, APT_Z0 = -20, ST0 = 2.7;
+export const SPAWN = { x: APT_X0 - 1.4, z: APT_Z0 + 3.7, yaw: -Math.PI / 2, gy: 2 * ST0 };
+```
+
+The first version of this wrote `200 - 1.4` and claimed in its own comment to
+be local. It was a copy — `APT_X`/`APT_Z`/`ST` were locals inside
+`buildApartment` — and a copied coordinate is precisely what `4a7c2f60` and
+`4dae9afe` spent this week digging out of other people's scripts. Hoisted to
+module scope and derived properly; `buildApartment` binds its own names to them
+so its 57 uses are untouched.
+
+It is also published at `scene.userData.spawn`, the way `rainAt` was, so a
+check can read it from a built preview without reaching into source — the thing
+that stops `interiors-walk` running against the bundle at all.
+
+**And it is now guarded.** `scripts/door301.mjs` asserts the published spawn
+still sits on floor 3 and still has nothing standing on it. Watched failing:
+moving the spawn into the bed puts 1 collider on it and the clause goes red.
+That matters more than usual here because the number is consumed by ANOTHER
+builder's file — if it rots, it rots in F's entry point rather than in mine.
 
 ```ts
 import { SPAWN } from './ct/apartment';
