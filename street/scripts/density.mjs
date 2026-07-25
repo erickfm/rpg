@@ -10,12 +10,35 @@
 // (ct/street.ts placeChurchEast rotates the group -90) as 10.81 / 5.92 / 30.59
 // when every face of it is 8.00. Both were chased as real defects before the
 // tool was suspected. Local dimensions have no such ambiguity.
+// --selftest: break one stamp on purpose and require this to go red.
+//
+// This reports 0 mismatches, and a check that reports 0 is indistinguishable
+// from a check that has stopped working. The mutation is applied at RUNTIME to
+// one texture's declaration, so nothing on disk changes and the world is not
+// touched: a stamp claims it was painted for a width it was not.
 import { chromium } from 'playwright';
+const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
+if (SELFTEST) {
+  const hit = await p.evaluate(() => {
+    let n = 0;
+    window.__ct.scene().traverse((o) => {
+      if (n || !o.isMesh) return;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        const d = m?.map?.userData?.masonry;
+        if (!d || n) continue;
+        d.wMeters = d.wMeters * 1.4;      // painted for one width, mapped to another
+        n++;
+      }
+    });
+    return n;
+  });
+  console.log(`selftest: corrupted ${hit} masonry declaration — this MUST now go red`);
+}
 const r = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const rows = [];
@@ -115,4 +138,9 @@ console.log('px/m groups, MEASURED off the geometry (the old shape-based view):'
 for (const [k, v] of Object.entries(groups).sort((a,b)=>b[1].length-a[1].length))
   console.log(`  ${String(v.length).padStart(3)} x   ${k}    e.g. face ${v[0].face.join('x')} m, canvas ${v[0].img.join('x')} at (${v[0].c.join(', ')})`);
 await b.close();
+if (SELFTEST) {
+  if (bad.length) { console.log(`\nSELFTEST PASSED — the corrupted stamp was caught (${bad.length})`); process.exit(0); }
+  console.error('\nSELFTEST FAILED — a stamp was made to disagree with its face and this did not notice.');
+  process.exit(2);
+}
 process.exitCode = bad.length ? 1 : 0;

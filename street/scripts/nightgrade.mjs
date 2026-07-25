@@ -17,7 +17,21 @@
 // touch, and that is what this now fails on. See the block further down.
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/nightgrade.mjs [x0 x1 z0 z1]
+// --selftest: take one material's exemption away and require this to go red.
+//
+// This reports 0, and 0 is what a check that has stopped working also reports.
+// The mutation is at RUNTIME. The obvious lever does NOT work and that is worth
+// recording: clearing a sheet's `selfLit` does nothing, because props.ts
+// re-stamps it in its per-frame pass and the flag is back before the probe
+// reads it. A mutation the world repairs is not a mutation.
+//
+// So it goes the other way, onto ground the dimmer never walks: take a material
+// dimWorld does NOT grade — one of the 456 it is never offered — and claim it
+// was graded. Nothing rewrites those, so the claim sticks, and it is then
+// exactly the shape this check exists to find: offered to the dimmer, not
+// excused by any stamp, and unchanged between noon and 23:00.
 import { chromium } from 'playwright';
+const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
 const p = await b.newPage();
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4190/', { waitUntil: 'networkidle' });
@@ -78,6 +92,23 @@ const probe = async (h) => {
   }, [BOX]);
 };
 
+if (SELFTEST) {
+  const hit = await p.evaluate(() => {
+    let n = 0;
+    window.__ct.scene().traverse((o) => {
+      if (n || !o.isMesh) return;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (n || !m?.color || m.userData?.graded || m.userData?.selfLit) continue;
+        if (m.blending === 2) continue;                        // not a light
+        if ((m.color.r + m.color.g + m.color.b) / 3 < 0.02) continue;   // not black
+        m.userData.graded = true;                              // a claim nothing will repair
+        n++;
+      }
+    });
+    return n;
+  });
+  console.log(`selftest: claimed ${hit} ungraded material as graded — this MUST now go red`);
+}
 const day = await probe(13), night = await probe(23);
 console.log('13:00 ', JSON.stringify(day.avg));
 console.log('23:00 ', JSON.stringify(night.avg));
@@ -176,6 +207,10 @@ const dead = Object.entries(day.each).filter(([u, d]) => {
     && d.v >= 0.02 && Math.abs(d.v - n.v) < 1e-4;
 }).map(([uuid, d]) => ({ uuid, ...d }));
 const ungraded = Object.values(day.each).filter((d) => !d.graded && !d.selfLit).length;
+if (SELFTEST) {
+  if (dead.length) console.log(`SELFTEST PASSED — the unexcused material was caught (${dead.length})`);
+  else { console.error('SELFTEST FAILED — an exemption was removed and this did not notice.'); await b.close?.(); process.exit(2); }
+}
 console.log(`\n${dead.length} materials were graded by dimWorld and did not move`);
 console.log(`  (${ungraded} others were never offered to it at all — interiors and`);
 console.log('   anything built outside its reach. That is not a fault, it is scope.)');
