@@ -878,10 +878,40 @@ function buildLot(o: {
       stamp(g, '0199', 8, 76, 3, '#e0a81c');
       dither(g, 72, 96, 50);
     });
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), flat(signT));
-    sign.position.set(px + 0.02, Y + POLE_H2 - 1.9, pz);
-    sign.rotation.y = -Math.PI / 2;
-    scene.add(sign);
+    // THE CABINET IS THE SIGN; the mast is just what holds it up.
+    //
+    // The user: *"the panel is tiny against an enormous pole and the two faces
+    // read as skewed rather than flat or back-to-back. A pole sign's panel has
+    // to be readable from the street, so make it much bigger relative to the
+    // mast."*
+    //
+    // It was 2.4 x 3.2 on a 15.5 m pole — the cabinet was a fifth of the
+    // height and the other four fifths were bare tube. A real pole sign is the
+    // opposite: the cabinet is the thing you see from four blocks away and the
+    // mast is barely noticed. 4.4 x 5.9 keeps the artwork's 3:4 and takes 38%
+    // of the mast, hung so its top sits just under the pole cap.
+    const SIGN_W = 4.4, SIGN_H = 5.9;
+    const signY = Y + POLE_H2 - SIGN_H / 2 - 0.25;
+    // TWO SINGLE-SIDED PLANES, BACK TO BACK — GOTCHAS 10, and 35 for the part
+    // that catches people. `flat()` is FrontSide, so this was ONE plane: solid
+    // from the street and invisible from the lot, which is what read as skewed
+    // when you caught it near edge-on.
+    //
+    // Same texture on both, NO horizontal flip. Rotating the rear plane to
+    // ry = +pi/2 already mirrors it; flipping the texture as well applies the
+    // mirror twice and un-does it. That is the exact clause GOTCHAS 35 was
+    // written about, and I had it in the banners two rounds ago.
+    for (const ry of [-Math.PI / 2, Math.PI / 2]) {
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), flat(signT));
+      // CLEAR OF THE MAST, on each face's own side. At +-0.03 the faces sat
+      // inside the pole's own radius (0.13 at the top, 0.17 at the foot) and
+      // the tube was drawn straight down the middle of the artwork — caught by
+      // looking at it, not by any check. ry = -pi/2 faces -x, which is the
+      // street, so that face belongs WEST of the mast and its twin east.
+      face.position.set(px + (ry < 0 ? -0.19 : 0.19), signY, pz);
+      face.rotation.y = ry;
+      scene.add(face);
+    }
     // a small arrow cabinet under it, pointing at the mouth
     const arrowT = surfTex('sign', 40, 16, (g) => {
       g.fillStyle = '#e0a81c'; g.fillRect(0, 0, 40, 16);
@@ -889,10 +919,16 @@ function buildLot(o: {
       for (let i2 = 0; i2 < 7; i2++) g.fillRect(6 + i2 * 2, 8 - i2, 2, 1 + i2 * 2);
       dither(g, 40, 16, 16);
     });
-    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.6), flat(arrowT));
-    arrow.position.set(px + 0.02, Y + POLE_H2 - 4.1, pz);
-    arrow.rotation.y = -Math.PI / 2;
-    scene.add(arrow);
+    // Scaled with the cabinet and dropped clear of its new bottom edge, and
+    // double-faced by the same rule — an arrow readable from one side only is
+    // the same fault one storey down.
+    const ARR_W = 2.2, ARR_H = 0.88;
+    for (const ry of [-Math.PI / 2, Math.PI / 2]) {
+      const arrow = new THREE.Mesh(new THREE.PlaneGeometry(ARR_W, ARR_H), flat(arrowT));
+      arrow.position.set(px + (ry < 0 ? -0.19 : 0.19), signY - SIGN_H / 2 - 0.9, pz);
+      arrow.rotation.y = ry;
+      scene.add(arrow);
+    }
 
     // ── vinyl banners, zip-tied to the chain-link ────────────────────────
     // Cheap vinyl does not hang flat. It is punched with grommets, zip-tied
