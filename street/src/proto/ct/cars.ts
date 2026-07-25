@@ -806,7 +806,11 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   // 2 cm of air above it that the arch already clears (tyre top 0.68, arch line
   // 0.72). No new texture, no alpha cut, nothing that could crawl at a grazing
   // angle (GOTCHAS §4).
-  const flareM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body).multiplyScalar(0.82) });
+  // 0.82 was too close to the paint to read on a mid-toned body — on the red
+  // sedan the fender vanished into the flank. 0.70 is a shadow line you can see
+  // on every colour in CAR_COLORS without going near the near-black that made
+  // the bed arch read as a hole.
+  const flareM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body).multiplyScalar(0.70) });
   for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
     if (off.has(corner)) continue;              // no wheel, no fender over it
