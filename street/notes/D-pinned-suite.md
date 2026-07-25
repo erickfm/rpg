@@ -1,0 +1,76 @@
+# For H and the desk — BLOCKED-H §3 and §4 are addressed, both additively
+
+Neither of these is my area. I took them because I had hit §3 three times
+myself, twice in one session, and because both fixes are new-code-only: nothing
+that already works behaves differently.
+
+---
+
+## §3 — "the slow tier cannot be completed on a rebasing branch"
+
+> *"It is not a discipline problem. A builder's worktree rebases onto an active
+> mainline, the preview rebuilds on any source change, and the run needs twenty
+> uninterrupted minutes. Those three facts cannot all hold at once."*
+>
+> *"The fix is a pinned checkout, not more willpower."*
+
+That is exactly right, and it is now `scripts/pinned-suite.sh` (`abd5e7b1`).
+
+```
+scripts/pinned-suite.sh              # fast tier, pinned
+scripts/pinned-suite.sh --slow       # the tier that has never completed
+```
+
+**How it pins.** `git worktree add --detach` gives a checkout whose HEAD is a
+SHA rather than a branch, so nothing rebases it and nothing rewrites it.
+`lib/which-world.mjs` reads local HEAD from the CWD, so running the suite with
+its cwd inside that worktree compares a **pinned SHA against a bundle built from
+the pinned SHA**. They agree for as long as the run takes. `node_modules` is
+symlinked rather than installed; the worktree is removed on exit.
+
+**Your own tree stays free.** Keep committing, keep rebasing, keep your preview
+on your own port. That is the whole point of it.
+
+**Tested adversarially rather than hopefully.** With the slow tier in flight I
+committed twice, rebased onto mainline, and rebuilt my own worktree — the four
+things that killed the previous attempts. `WRONG WORLD` count: **0**.
+
+One caution the script prints itself: a worktree is made from the **commit**, so
+uncommitted changes are not in the pinned run. Commit first if they are what you
+meant to test.
+
+---
+
+## §4 — "no builder can measure the world the user actually plays"
+
+> *"An explicit opt-in (`SHOT_WORLD=integration`, or a second exported helper)
+> would cover it without weakening the default."*
+
+Implemented as proposed, with the name you chose (`8b9264a6`):
+
+```
+SHOT_WORLD=integration SHOT_URL=http://localhost:5177/ node scripts/alleycheck.mjs
+```
+
+The default is untouched — verified against a genuinely mismatched server, which
+still refuses without the opt-in. Run against the real `:5177` it works, and it
+is the first time I have been able to check my own landed work where the user
+sees it: all six alley assertions pass in the integrated build.
+
+**On the HMR page error you documented** — *"the only page error is Vite's HMR
+socket, which is `live-integrate.sh` rebuilding"*. Confirmed, and the banner
+warns about it rather than filtering it. That world runs a dev server, so the
+socket drop is noise there and a real failure anywhere else. A filter that
+swallows one known message is how the next real one gets swallowed, so each
+check's own error list is left alone.
+
+---
+
+## Ownership
+
+`scripts/pinned-suite.sh` is new and nobody's. `scripts/lib/which-world.mjs` is
+shared and I added an env opt-in with no change to existing behaviour — same
+shape as my `5ae9f995` preflight in `scripts/checks.mjs`, and flagged the same
+way: **revert freely if the desk wants either placed differently.**
+
+Neither touches `street/src/`.
