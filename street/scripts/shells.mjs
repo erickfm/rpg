@@ -78,6 +78,8 @@ const shells = await page.evaluate(() => {
       facing: o.userData.facing,
       at: [+at.x.toFixed(1), +at.z.toFixed(1)],
       flanksUntextured: flanks.filter((m) => !m.map).length,
+      mats: ms.filter((m) => m && m.color).length,
+      graded: ms.filter((m) => m && m.color && m.userData && m.userData.graded).length,
       // The PIXELS, not the object identity. See the note below.
       flankMaps: flanks.filter((m) => m.map).map((m) => pixelHash(m.map)),
     });
@@ -150,6 +152,36 @@ say(untextured === 0, 'no return is a flat colour',
   untextured ? `${untextured} flank faces carry no texture` : `${shells.length * 2} flanks, all textured`);
 say(flankMaps.size >= 12, 'returns are not one shared material',
   `${flankMaps.size} distinct flank textures across ${shells.length * 2} faces`);
+// ── does the block go dark? ────────────────────────────────────────────────
+//
+// a7f2241d found `nightgrade`'s collector doing `if (Array.isArray(m)) return`,
+// so every multi-material mesh was invisible to it — and a six-material box is
+// exactly how these shells are built. That was a hole in a CHECK. This asserts
+// the same thing about the WORLD: props.ts:register must actually be offered
+// every face of every shell, or the buildings stop losing the light at night
+// while everything around them loses it.
+//
+// It reads `userData.graded`, which props.ts stamps precisely so that "was
+// handed to the dimmer and did not move" is decidable from outside.
+//
+// Watched failing on two mutants, both of which had to be checked for actually
+// being the bug first:
+//
+//   dimWorld skips arrays (a7f2241d's bug, in the world)   0 of 108   FAIL
+//   flank materials go transparent, so isGlass skips them  82 of 108  FAIL
+//
+// A third mutant — setting `userData.noLight` on the flanks — does NOT fire,
+// and that is a fact about props.ts rather than a hole here. `noLight` is
+// honoured by `register()`, the lamp-pool path for chrome and glass and rubber
+// out of ct/cars.ts. `dimWorld()`, which is what grades these shells, never
+// looks at it. 26 materials came back carrying `noLight` AND `graded`
+// together. Written up for B in notes/D-alley-report.md; nothing here depends
+// on it.
+const mats = shells.reduce((n, s) => n + s.mats, 0);
+const graded = shells.reduce((n, s) => n + s.graded, 0);
+say(mats > 0 && graded === mats, 'every shell face is offered to the dimmer',
+  `${graded} of ${mats} shell materials carry userData.graded`);
+
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {
@@ -162,12 +194,13 @@ if (SELFTEST) {
   say(distinct <= 1, 'every shell is the same depth (the bug)', `${distinct} distinct`);
   say(untextured > 10, 'the returns are flat colour (the bug)', `${untextured} untextured`);
   say(flankMaps.size <= 1, 'every return shares one material (the bug)', `${flankMaps.size} distinct`);
+  say(graded === 0, 'the block never darkens (the bug)', `${graded} of ${mats} graded`);
   const caught = fails - before;
-  console.log(caught === 4
-    ? '\nSELFTEST PASSED — all four inverted assertions were caught'
-    : `\nSELFTEST FAILED — only ${caught} of 4 caught`);
+  console.log(caught === 5
+    ? '\nSELFTEST PASSED — all five inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 5 caught`);
   await browser.close();
-  process.exit(caught === 4 ? 0 : 1);
+  process.exit(caught === 5 ? 0 : 1);
 }
 
 await browser.close();
