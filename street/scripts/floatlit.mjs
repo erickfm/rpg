@@ -11,6 +11,7 @@
 // BROAD SHEET UNDER IT rather than against a global average.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
 const NIGHT = Number(process.env.NIGHT_H ?? 23);
 const JSON_OUT = process.env.JSON_OUT === '1';
@@ -40,8 +41,14 @@ await reportWorld(p,URL);
 // still works and still overrides, for comparing against a capture from another
 // build.
 const sampleAt = async (H, SATCUT) => {
-  for (let h = H-8; h <= H; h++) { await p.evaluate((x)=>window.__ct.clock(x), h); await p.waitForTimeout(700); }
-  await p.waitForTimeout(3000);
+  // FRAMES, NOT A SLEEP. fe1c57e0e/f76d5fa84 finished the GOTCHAS 30 sweep by
+  // replacing fixed waits with lib/clock.mjs's setClock, which waits for the
+  // frames that actually carry the grade and reports if it capped. My 700 ms per
+  // hour was the same gamble, and the positive control below only DETECTS the
+  // failure -- this removes it.
+  let capped = 0;
+  for (let h = H-8; h <= H; h++) { const r = await setClock(p, h); if (r?.capped) capped++; }
+  if (capped) console.log(`  note: ${capped} clock step(s) hit the frame cap`);
   return p.evaluate((SATCUT) => {
   // APPEARANCE = TEXTURE MEAN x TINT. 114c5bef7/40522fa6f: material.color is a
   // TINT, white by default, and the texture carries the look. A tint-only

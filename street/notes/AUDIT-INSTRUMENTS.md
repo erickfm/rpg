@@ -1834,3 +1834,37 @@ caught: the control passes a world that did darken
 > **The guard needed testing more**, because it is the part that only ever runs
 > when something has already gone wrong — and it is the part nobody would notice
 > was broken.
+
+### Then removed the gamble instead of detecting it — `setClock`, and 4.35 s
+
+`fe1c57e0e` and `f76d5fa84` finished the GOTCHAS 30 sweep the better way:
+**stop timing the grade with a sleep at all.** `scripts/lib/clock.mjs` already
+exports `setClock(page, h)`, which waits for the frames that actually carry the
+grade and reports whether it hit its cap. My positive control only **detects**
+the failure; this **removes** it.
+
+Switched `floatlit` over — and used the shared helper rather than writing my own
+frame-wait, which is the rule that has corrected me repeatedly this session:
+**ask the project for the thing it already publishes.**
+
+```
+positive control: best ground darkening 95.2% over 37 paired sheets
+of those, 18 are also bright enough to see
+5/5 inverted truths behaved as required
+runtime 4.35 s
+```
+
+**18 visible, unchanged** — through a restructure, a positive control, a
+recalibration and now a wait-mechanism swap. That stability across four
+independent changes to the instrument is the strongest evidence I have that the
+number is a property of the world rather than of my method.
+
+**And it is now 4.35 s.** The fixed-sleep version spent ~17 s asleep by
+construction — 8 steps × 700 ms plus a 3 s settle, twice. That was the argument
+`86df27558` made about `E-coplanar`: a suite you complete by luck is one that
+cannot finish between rebases, and a check nobody can afford to run is one that
+does not run.
+
+> The control stays as a backstop. **Removing a gamble and keeping the detector
+> that catches it are not alternatives** — the wait can still cap on a loaded
+> machine, and `setClock` says so.
