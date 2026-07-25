@@ -160,6 +160,60 @@ const okLit = r.lit >= 8;
 // whatever lanterns the park has — the count follows E's site cut — every one
 // of them must be carrying light, not just enough of them to reach a total
 const okEach = r.perLamp.length > 0 && r.darkest >= 1;
+
+// IS ANYTHING DRAWN ON TOP OF THAT LIGHT? Emitting and being seen are different
+// claims, and this file only made the first one.
+//
+// The pool decal is additive with depthWrite off, but it still depth-TESTS, and
+// opaque geometry draws first — so anything lying above it simply stops the
+// lamplight where they cross, leaving a dark patch inside a lit pool. This is
+// the same class as the gutter decals that were buried under the pan (8a50f971a):
+// the material is present, carries opacity, and is invisible.
+//
+// It had happened here. ct/park.ts separates its coplanar ground detail on a
+// LIFT = 0.006 unit — field 0.5, paths 1.0, litter 1.5, bald ring 2.0, desire
+// lines 2.5 — and my pool sat at +0.02 off the base slab, INSIDE that stack.
+// Three of ten pools were partly covered by desire-line panels at y 0.176
+// against a decal at 0.160: 11.96 m2 of overlap, worst patch 3.61 m2 of a
+// 19.36 m2 pool. Raising the decal to +0.05 clears the stack by 14 mm.
+//
+// 5% is the bar. The residual today is a single 2.4 x 0.18 m strip at y 0.23
+// taking 0.38 m2 — 2.0% of one pool — which is a real object standing proud of
+// the ground rather than ground detail, and not worth floating the light higher
+// to chase. The state this catches is the one that just happened: a fifth of a
+// pool gone.
+const cover = await page.evaluate(() => {
+  const sc = window.__ct.scene(); const pools = [], solids = [];
+  sc.traverse((o) => {
+    if (!o.isMesh) return;
+    const w = o.getWorldPosition(new (o.position.constructor)());
+    if (w.x > -7 || w.x < -40 || w.z > -66 || w.z < -100 || w.y > 1.0) return;
+    const g = o.geometry?.parameters; if (!g) return;
+    if (o.material?.blending === 2) pools.push({ x: w.x, z: w.z, y: w.y, w: g.width ?? 0 });
+    else if ((o.material?.opacity ?? 1) > 0.999 && !o.material?.transparent && (g.width ?? 0) >= 0.5)
+      solids.push({ x: w.x, z: w.z, y: w.y, w: g.width, h: g.height ?? g.width });
+  });
+  return pools.map((p) => {
+    const area = p.w * p.w; let covered = 0;
+    for (const q of solids) {
+      // WITHIN A HAND'S BREADTH, or it is not a layering fault. First pass
+      // counted every opaque mesh under y 1.0, which called a bench seat at
+      // 0.57 "drawn on top of the lamplight" and reported 11.1% on two pools.
+      // A bench standing in a pool of light is the world working; a desire-line
+      // panel 16 mm above the decal is the bug. 0.10 m separates them.
+      if (q.y <= p.y + 1e-6 || q.y - p.y > 0.10) continue;
+      const ox = Math.min(p.x + p.w / 2, q.x + q.w / 2) - Math.max(p.x - p.w / 2, q.x - q.w / 2);
+      const oz = Math.min(p.z + p.w / 2, q.z + q.h / 2) - Math.max(p.z - p.w / 2, q.z - q.h / 2);
+      if (ox > 0 && oz > 0) covered += ox * oz;
+    }
+    return { at: `${p.x.toFixed(1)},${p.z.toFixed(1)}`, pct: area ? +(100 * covered / area).toFixed(1) : 0 };
+  });
+});
+const worstCover = cover.length ? Math.max(...cover.map((c) => c.pct)) : 0;
+const okCover = cover.length > 0 && worstCover <= 5;
+console.log(`  ${okCover ? 'OK  ' : 'FAIL'} nothing is drawn on top of the lamplight ` +
+  `(worst pool ${worstCover}% covered, of ${cover.length} pools)`);
+for (const c of cover.filter((c) => c.pct > 0)) console.log(`      ${c.at}: ${c.pct}% under near-ground geometry`);
 const okBeside = worst <= 1.3;             // beside it, not on it and not adrift
 const okClear = Math.min(...offs) >= 0.75; // off the 1.5 m path itself
 console.log(`\n  ${okCount ? 'OK  ' : 'FAIL'} the park HAS light sources (${r.lamps.length})`);
@@ -314,5 +368,5 @@ await shot('path-day', lx1, lz0 + 1.5, lx1, lz1, 0.14, -0.02);
 
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!okCount || !okLit || !okEach || !okBeside || !okClear || !walked) process.exit(1);
+if (!okCount || !okLit || !okEach || !okBeside || !okClear || !walked || !okCover) process.exit(1);
 console.log('\nno page errors');

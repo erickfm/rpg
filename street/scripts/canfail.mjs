@@ -188,6 +188,17 @@ const CASES = [
   // more sheets lit" against a world that lights 20, so this passed — six
   // lanterns could have gone black behind it. This is the park the auditor
   // found "NOT lit — ZERO light sources".
+  // BURIED LIGHT. Puts the park pool decal back at +0.02 off the base slab,
+  // which is inside ct/park.ts's LIFT stack (field 0.5, paths 1.0, litter 1.5,
+  // bald ring 2.0, desire lines 2.5, on a 0.006 unit). The lanterns still emit
+  // and every existing park verdict still passes — the light is simply drawn
+  // under the ground detail where they cross. Three of ten pools, worst 18.6%
+  // of its area, which is what this looked like when I found it.
+  ['park-buried', PROPS,
+    'pool.position.set(x, y0 + 0.05, z); scene.add(pool);',
+    'pool.position.set(x, y0 + 0.02, z); scene.add(pool);',
+    'park.mjs', [], 'the park lamplight drawn UNDER the ground detail it falls on'],
+
   ['park-partial', PROPS,
     '    for (const cz of [lz0 + 0.95, lz1 - 0.95]) {\n      makeParkLamp((lx0 + lx1) / 2, cz);\n    }',
     '    for (const cz of [] as number[]) {\n      makeParkLamp((lx0 + lx1) / 2, cz);\n    }',

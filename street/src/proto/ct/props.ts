@@ -1001,7 +1001,28 @@ export function buildProps(ctx: CtxBuild): Props {
       new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0,
         depthWrite: false, blending: THREE.AdditiveBlending }));
     pool.rotation.x = -Math.PI / 2;
-    pool.position.set(x, y0 + 0.02, z); scene.add(pool);
+    // ABOVE THE PARK'S WHOLE GROUND STACK, not 2 cm off the base slab.
+    //
+    // ct/park.ts separates its coplanar ground detail in y, on a LIFT = 0.006
+    // unit: field at 0.5, paths 1.0, litter 1.5, the bald ring 2.0, the desire
+    // lines 2.5 — so the detail tops out ~15 mm above the terrain, and the
+    // terrain is a mound rather than a flat slab. My pool sat at +0.02 off the
+    // base, which put it INSIDE that stack.
+    //
+    // Measured: three of the ten park pools were partly covered by opaque
+    // desire-line panels at y 0.176 against a decal at 0.160 — 11.96 m2 of
+    // overlap in total, worst single patch 3.61 m2 out of a 19.36 m2 pool. The
+    // pool is additive light with depthWrite off, but it still depth-TESTS, and
+    // opaque geometry draws first, so where they cross the lamplight simply
+    // stops. A dark patch inside a lit pool.
+    //
+    // A lamp's pool is light falling ON the ground, so it belongs above
+    // everything lying on the ground. +0.05 clears the top of the stack by
+    // 14 mm; there is no z-fighting to trade against because this never writes
+    // depth, and 5 cm of float is imperceptible on a light decal. Checked that
+    // nothing is lost the other way: at the old height no pool had any of its
+    // area under the terrain, so raising it only increases clearance.
+    pool.position.set(x, y0 + 0.05, z); scene.add(pool);
     nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
     lampHeads.push({ x, z });
   };
