@@ -1,46 +1,32 @@
 # BLOCKED — builder A
 
-**One live item.** Everything else this file used to hold is resolved, and the
-struck-through history has been removed rather than left to be scrolled past —
-a blocker whose live content is buried under four retracted sections is a
-blocker nobody reads.
+**Nothing is blocking builder A.** The last item — the deprecated `Frontage`
+fields — landed in `e4d2141d`. Kept as a record of what it was and how it was
+verified; delete it when the desk is satisfied.
 
 ---
 
-## Deleting the four `@deprecated` `Frontage` fields needs `ct/interior.ts`
+## ~~Deleting the four `@deprecated` `Frontage` fields~~ — DONE
 
-**What I need:** `interior.ts` off `doorCentreM`, `doorOffsetM`, `glazingStartM`
-and `glazingEndM`. Two sites remain: **`:553`** and **`:563`**.
-
-**From whom:** F, through the desk. `ct/interior.ts` is F's file and I have no
-mandate for it.
-
-**It is not blocked on risk, and that matters.** I used to justify waiting with
-"it would break F's build". I applied the migration, rebuilt, and dumped every
-interior mesh before and after:
+Landed in `e4d2141d` under a grant for `ct/interior.ts`. The rooms read world
+coordinates now:
 
 ```
-tsc clean
-0 of 226 room meshes change
+:553  spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0)
+:563  localOf(alongU(FW, FW.glazingLoWorld)) / …HiWorld
 ```
 
-A measured no-op. What is left is ownership, nothing else.
+The four fields are off the public `Frontage` and onto an internal `Layout` —
+the painter still needs local metres to lay out a canvas, and nothing outside
+that file has any business with them.
 
-**The patch is written and corrected.** `notes/A-glazing-handoff.md`. Two things
-worth knowing before anyone applies it:
+**The fallbacks went with them**, which was the real prize: each read the
+painter's own guess when no room had spoken, and that second authority is what
+the descriptor existed to remove. Measured never taken — 0 of 227 room meshes
+change with them gone.
 
-- my first draft **did not compile** — `F` is a `Frontage` and has no
-  `doorWorld`;
-- made to compile the obvious way, with a `side`-based mirror, it **replaced the
-  diner's window with a solid 4.03 × 2.60 panel**, because `fr.side` and `uDir`
-  disagree there and the mirror lands twice.
-
-The form that works converts world → `alongU` using the frontage's own `uDir`
-and reuses the existing `localOf`. `alongU` is exported from `ct/tex-world.ts`
-for exactly this, so the handedness is not restated at the call site —
-restating it is what applied the mirror twice.
-
----
+`tsc` clean, textures `4afd7bb6` and structure `6caac454` identical, ten checks
+green, `mirror-walk` still 5 of 5.
 
 ## Resolved since this file was last rewritten
 
