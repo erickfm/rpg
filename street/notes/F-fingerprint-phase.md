@@ -134,3 +134,38 @@ don't. If you are about to worry about one in `tints` or `places`, don't do
 that either — take a second reading of the same build first and see whether it
 moves on its own. That control costs one command and it is the only thing that
 separates the two cases.
+
+
+---
+
+## Re-tested after B's weather work — still unstable, and I nearly called it fixed on n=2
+
+B landed *"The weather was periodic, not random: rainAt was an arithmetic
+progression"* and *"setNight() leaves the street 3/4 wet"*, which is exactly the
+subsystem I had guessed was driving the `tints` flip. So I re-measured.
+
+**The first two runs agreed** — `tints=e883664f` twice — and I was one sentence
+from writing "B's determinism fix closed it". Two more runs:
+
+```
+run 1   tints=e883664f
+run 2   tints=e883664f
+run 3   tints=611e839f
+run 4   tints=611e839f
+```
+
+Still flipping between the same two values. **Two consecutive readings agreeing
+is not evidence of stability** when the quantity takes two values — a fair coin
+lands the same way twice half the time. I had used exactly that method to
+declare it unstable in the first place, and got the right answer by luck.
+
+**Minimum four readings before calling a fingerprint column stable**, and say
+how many you took. The control is cheap; the wrong conclusion is not.
+
+What did change: `structure` held at `56a48841` across all four, so the chase
+leak documented above is not firing at this commit — but by the rule I have just
+written, four readings is the floor for saying so and I am not claiming more
+than that.
+
+Standing advice unchanged: `textures` and `structure` are the evidence,
+`tints` and `places` are noise.
