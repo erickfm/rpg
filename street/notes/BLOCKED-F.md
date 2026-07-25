@@ -80,31 +80,16 @@ ends in nothing is not. That is a content call and I have not made it.
 
 ---
 
-## 3. The descriptor cannot describe a SIDE-STREET frontage
+## 3. RESOLVED — the descriptor could describe a side-street frontage all along
 
-`__ct.doors()` now publishes every declared door — point, outward normal and
-stand point — including the bodega's chamfer, which closes the audit's
-"BODEGA has no published frontage".
+I wrote this up as needing a type change: `DoorDecl` carries `cz` and
+`side`, computes along z, puts the normal on x, and GOLDEN ACES and HOTEL
+ORPHEUS front the side street laid out along x facing −z.
 
-Six of the eight rooms declare. **GOLDEN ACES and HOTEL ORPHEUS do not**, and
-it is not an oversight of G's: `DoorDecl` models a main-block building. It
-carries `cz` and `side: -1 | 1`, and `doorWorldFor` computes
-`cz + side * (at / k)` along **z**, with the outward normal along **x**. Both
-of those buildings front the SIDE STREET, where the roster lays them out along
-x and the facade faces −z. There is no way to say that in the current shape.
-
-This is the same gap the chamfer had, one axis further out. The fix is the same
-move that fixed the chamfer: stop treating "along z with a normal on x" as the
-primitive. `doorPointFor` already returns a point plus a normal and derives the
-flat case — so the DECLARATION should too, carrying an axis (or simply a world
-point and a normal, with the roster-relative form as sugar).
-
-I have not done it because it changes the shape of a type six rooms and A's
-painter now depend on, and doing that at the end of a long stretch is how the
-last several regressions in this file happened. It wants its own item.
-
-**Consequence meanwhile:** the casino's and hotel's `[E]` spots are hand-typed
-and outside the descriptor, so nothing guarantees they track their painted
-doors. G derived both by hand and walked them, and `spots-walk.mjs` confirms
-both are reachable — but they are exactly the arrangement that went stale three
-times on the main block.
+It needed reading my own type properly, not changing it. `face` — a world
+point plus an outward normal — was added for the bodega's canted bay, and it
+is not a chamfer special case: it is the GENERAL form, and the main block's
+`cz`/`side` is shorthand for the common one. `doorPointFor` already derives
+one from the other. Both side-street rooms now declare with `face`, using G's
+own already-walked door positions, so all eight rooms publish and nothing
+moved.

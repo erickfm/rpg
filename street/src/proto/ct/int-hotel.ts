@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { type DoorDecl } from './doors';
 
 // HOTEL ORPHEUS, the lobby.
 //
@@ -29,6 +30,27 @@ import { buildRoom } from './interior';
 // of the building. The door is painted at u = 0.4948 of a 96-texel shopfront,
 // which lands at world x = 39.51 — derived and walked in
 // notes/G-interiors2-prep.md, not eyeballed.
+/**
+ * WHERE THIS ROOM'S DOOR IS, declared as a world POINT and an outward NORMAL.
+ *
+ * This building fronts the SIDE STREET: the roster lays it out along x from
+ * 33.45 to 45.45 and its facade faces −z, so "signed metres from the frontage
+ * centre along z" — the form the main-block rooms use — cannot describe it.
+ *
+ * It does not need to. `face` was added for the bodega's canted bay and it is
+ * not a chamfer special case: a point plus a normal is the GENERAL form, and
+ * the main block's `cz`/`side` is the shorthand for the common one.
+ * `doorPointFor` already derives one from the other. I had this written up as
+ * needing a type change; it needed reading my own type properly.
+ *
+ * The point is G's, unchanged and already walked — declaring it publishes it
+ * to tooling without moving anything.
+ */
+export const DOOR: DoorDecl = {
+  building: 'HOTEL ORPHEUS', w: 12.0, cz: 39.45, side: 1, at: 0, width: 1.15,
+  face: { x: 39.51, z: -96.0, nx: 0, nz: -1 },
+};
+
 export function buildHotel(ctx: CtxBuild): void {
   const DOOR_X = 39.51, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
