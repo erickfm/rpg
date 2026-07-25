@@ -85,3 +85,37 @@ the room was built.
 Pitch. The `FPRig` line takes a yaw and no pitch, and the frame above is level.
 If waking should start with a slight downward tilt that is F's call and F's
 signature.
+
+
+## The seam is now guarded, before F lands it
+
+The number crosses two files with two owners: `ct/apartment.ts` declares it,
+`crosstown.ts` starts the rig. That is the shape that has bitten this project
+all week — `bus.mjs` remembering where the stop is, park's legs remembering two
+x values, and my own first `SPAWN`, which copied `APT_X` instead of deriving
+from it.
+
+So `door301.mjs` now asserts the RELATIONSHIP rather than either end. It reads
+where the rig actually starts, before warping anywhere, and requires it to be
+one of exactly two things:
+
+- **at `SPAWN`** — wired, and still matching
+- **outside the walk-up** — not wired yet, which is today
+
+Anything else means the entry point starts the player inside this building at a
+position the room did not declare: retyped rather than imported, or drifted
+after a move. Watched failing — a start 0.38 m off the declaration inside the
+building goes red and names it:
+
+```
+  the rig starts at (198.98, -16.30) — INSIDE the walk-up but NOT at the declared spawn
+  FAIL  the entry point agrees with this room, or is not in it
+```
+
+Today it reports `the rig starts at (-1.40, 9.00) — outside the walk-up, so not
+wired yet` and passes, which is the true state.
+
+**It evaluates now rather than waiting for F.** A guard that sleeps until
+someone else lands something is GOTCHAS 34's empty-set pass wearing a schedule
+— it would sit green through the whole window in which the mistake gets made,
+which is exactly the window it exists for.

@@ -44,6 +44,10 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+// WHERE THE RIG ACTUALLY STARTS, read before this script warps anywhere. This
+// is the entry point's spawn as the player meets it, and it is the only way to
+// see it from outside crosstown.ts without that file publishing anything.
+const START = await page.evaluate(() => { const q = window.__ct.pos(); return { x: q[0], z: q[2] }; });
 await setClock(page, 13, 0);                          // the frame that applies the grade
 // This click was commented "take pointer lock so keys land". Nothing in
 // src/proto requests pointer lock at all — keys are read from `input.keys`,
@@ -276,6 +280,34 @@ else {
   expect('the spawn sits on floor 3', Math.abs(spawn.ground - spawn.gy) < 0.05, true);
   expect('nothing is standing on the spawn', spawn.blocked, 0);
   say(`  spawn (${spawn.x.toFixed(2)}, ${spawn.z.toFixed(2)}) gy ${spawn.gy}, ground reads ${spawn.ground}`);
+
+  // ── THE SEAM: does the ENTRY POINT agree with this declaration? ──────────
+  //
+  // ct/apartment.ts declares SPAWN; crosstown.ts starts the rig. Those are two
+  // files with two owners, and the number crosses between them — which is the
+  // shape that has bitten this project all week (bus.mjs remembering the stop,
+  // park's legs remembering two x values, and my own first SPAWN, which copied
+  // APT_X instead of deriving from it).
+  //
+  // So assert the relationship rather than either end. Where the rig actually
+  // starts must be one of exactly two things:
+  //
+  //   · at SPAWN            — F has wired it, and it still matches
+  //   · outside the walk-up — F has not wired it yet, which is today
+  //
+  // Anything else means the entry point starts you INSIDE this building at a
+  // position this room did not declare: retyped, or drifted after a move. That
+  // is the failure this exists for, and it is the one nobody would see, because
+  // a spawn 40 cm into a wall still looks like a room.
+  //
+  // Evaluates today rather than waiting for F. A guard that sleeps until
+  // someone else lands something is the empty-set pass of GOTCHAS 34 wearing a
+  // schedule.
+  const inBuilding = START.x > 195 && START.x < 205 && START.z > -25 && START.z < -10;
+  const atSpawn = Math.hypot(START.x - spawn.x, START.z - spawn.z) < 0.05;
+  expect('the entry point agrees with this room, or is not in it', !inBuilding || atSpawn, true);
+  say(`  the rig starts at (${START.x.toFixed(2)}, ${START.z.toFixed(2)}) — `
+    + `${atSpawn ? 'AT the declared spawn' : inBuilding ? 'INSIDE the walk-up but NOT at the declared spawn' : 'outside the walk-up, so not wired yet'}`);
 }
 
 await browser.close();
