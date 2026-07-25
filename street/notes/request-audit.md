@@ -407,3 +407,50 @@ this class: give each face its own correctly-handed artwork, or make them
 `FrontSide` and place a second plane for the other side — which is what
 `twoSided()` already does for the neon, and what its comment claims it does with
 mirrored artwork but does not.
+
+---
+
+# THE PARK — re-checked at `e55a909f`. My headline finding is CLOSED.
+
+I reported the park as the audit's strongest negative: *"zero light sources of
+any kind… a black rectangle at night… a flat lawn, one bench, one bin, and three
+sides of blank 13 m brick. I would expect the 'shittiest yard' complaint again,
+in the same words."*
+
+Re-ran the same measurement. **It is wrong now, and comprehensively.**
+
+| | when I reported it | **now** |
+|---|---|---|
+| light sources inside the park | **0** | **8** |
+| meshes | 62 | **131** |
+| over 2.5 m tall | 4 | **32** |
+
+The eight are four lanterns, each a lit head at y = 3.74 with a 4.4 × 4.4 m
+ground pool under it, evenly spaced down the park at x = −9.55, z = −92.97,
+−86.33, −79.67, −73.03.
+
+`shots/pk-park-night-in.png`, standing inside at 22:30 — the same station and
+the same hour as the frame I called a black rectangle:
+
+- **four lanterns lit**, warm halos, light pooling on the path
+- **trees**, a lot of them — the jump from 4 tall meshes to 32 is the planting
+- **a monument on a plinth with an inscribed plaque**, centre of frame
+- **benches**, railings, a path that reads as a path
+- the street beyond legible over the railings — BODEGA, RECORDS, GARAGE
+
+The three blank brick elevations that were the whole complaint are now behind
+tree canopies and read as the back of a block rather than as a wall.
+
+**This is done.** Not partly — the ask was *lit and alive* and it is both. The
+only thing I flagged that I still cannot speak to is whether people walk through
+it, because my citizen detector was broken when I checked and I have not fixed
+it.
+
+## Worth recording about the audit, not the park
+
+This was the finding I stated most forcefully, with the most confidence, and in
+the user's own words. It was true when measured and false eleven commits later.
+**A negative finding has a shelf life**, and the stronger the language the more
+important it is to re-check before anyone quotes it. I would rather have caught
+this myself — as here — than have the desk route a builder to fix a park that
+had already been fixed.
