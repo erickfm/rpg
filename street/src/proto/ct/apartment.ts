@@ -892,10 +892,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // into exactly the grey mush the door numbers had.
     const linkT = pixTex(24, 24, (g) => {
       g.clearRect(0, 0, 24, 24);
-      g.fillStyle = '#aeb4bc';
+      // #aeb4bc at full alpha put the brightest thing in the lobby on a
+      // near-black hole, so the gate pulled the eye off the stairs and read
+      // as a white lattice rather than as galvanised wire in an unlit corner.
+      // Report finding 4. Dropped to a dim metal grey and given a shaded half
+      // so the diamonds have some depth instead of being a flat screen.
+      g.fillStyle = '#5c626b';
       for (let i = 0; i < 24; i++) for (const o of [0, 8, 16]) {
         g.fillRect((i + o) % 24, i, 1, 1);
+        g.fillStyle = '#464c55';
         g.fillRect((((o - i) % 24) + 24) % 24, i, 1, 1);
+        g.fillStyle = '#5c626b';
       }
     });
     linkT.wrapS = linkT.wrapT = THREE.RepeatWrapping;
@@ -917,13 +924,41 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     bar(0.07, 2.0, 0.07, CX0 + 0.04, 1.0);           // stiles
     bar(0.07, 2.0, 0.07, CX1 - 0.04, 1.0);
     bar(CW, 0.05, 0.05, CXM, 1.16);                  // mid rail
-    bar(0.16, 0.05, 0.05, CXM, 1.05);                // hasp across the meeting stile
-    const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.1, 0.035), new THREE.MeshBasicMaterial({ color: 0x8a7440 }));
-    lockBody.position.set(CXM, 0.95, GZ - 0.05);
-    scene.add(lockBody);
-    const shackle = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.06, 0.022), new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }));
-    shackle.position.set(CXM, 1.03, GZ - 0.05);
+    // WHICH SIDE OPENS. Report finding 4: there was nothing to say, so it read
+    // as a fixed panel rather than a gate. Two hinge plates on the east stile
+    // and a meeting stile down the middle settle it — a gate is a thing with a
+    // hinged edge and a shutting edge, and if you cannot see either it is a
+    // fence.
+    const hingeM = new THREE.MeshBasicMaterial({ color: 0x2f343a });
+    for (const hy of [0.42, 1.62]) {
+      const hp = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.10, 0.045), hingeM);
+      hp.position.set(CX1 - 0.06, hy, GZ);
+      scene.add(hp);
+      const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.13, 6), gateM);
+      pin.position.set(CX1 - 0.015, hy, GZ);
+      scene.add(pin);
+    }
+    bar(0.055, 1.9, 0.055, CXM + 0.03, 1.0);         // the shutting stile
+    // THE PADLOCK NOW HANGS ON SOMETHING. The hasp behind it was too thin to
+    // read, so the lock floated in the middle of the mesh with nothing holding
+    // it. A hasp is a strap on the gate leaf and a STAPLE on the frame, and
+    // the shackle goes through both — draw all three or the lock is jewellery.
+    const strap = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.055, 0.03),
+      new THREE.MeshBasicMaterial({ color: 0x6b7079 }));
+    strap.position.set(CXM - 0.06, 1.05, GZ - 0.028);
+    scene.add(strap);
+    const staple = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.075, 0.03),
+      new THREE.MeshBasicMaterial({ color: 0x7b8089 }));
+    staple.position.set(CXM + 0.045, 1.05, GZ - 0.028);
+    scene.add(staple);
+    const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.030, 0.010, 4, 10, Math.PI),
+      new THREE.MeshBasicMaterial({ color: 0x9aa0a8 }));
+    shackle.position.set(CXM + 0.045, 1.045, GZ - 0.055);
     scene.add(shackle);
+    const lockBody = new THREE.Mesh(new THREE.BoxGeometry(0.070, 0.095, 0.032),
+      new THREE.MeshBasicMaterial({ color: 0x8a7440 }));
+    lockBody.position.set(CXM + 0.045, 0.985, GZ - 0.055);
+    scene.add(lockBody);
     // lobby dressing: mailboxes and the front door
     const mailT = pixTex(48, 32, (g) => {
       g.fillStyle = '#2c2620'; g.fillRect(0, 0, 48, 32);
