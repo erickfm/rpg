@@ -173,8 +173,32 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // ── head ──────────────────────────────────────────────────────
         g.fillStyle = skin;
         g.fillRect(cx - 5, oy + 8, 10, 12);
-        g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 8, 3, 12);
-        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx + 2, oy + 8, 3, 12);
+        // ── the face gets a RIM, not bands ─────────────────────────────
+        //
+        // This used to be 3 texels of rgba(255,255,255,0.2) down the left and
+        // 3 of rgba(0,0,0,0.18) down the right — on a head 10 texels wide, so
+        // 3 lightened, 4 true skin, 3 darkened. A three-band face. At ten
+        // pixels those bands are wide enough to read as AREAS, and a face is
+        // the one surface where banding reads as skin discolouration rather
+        // than as light: people read faces far more finely than they read
+        // coats. On the torso the same idea works, and its own comment says
+        // why — "narrow 2 px rim lighting, not wide bands" on a body 14 wide.
+        // The head never got that treatment even though it is NARROWER.
+        //
+        // So: 1 texel each side and a third of the alpha. Enough to round the
+        // skull, not enough to be a colour. It is also the option that
+        // survives a hood best, which is the fit the report came from: a hood
+        // eats the outer texels of the head, so a 3-wide band left mostly
+        // tinted strips inside the opening with hardly any base tone between,
+        // while a 1-wide rim is either covered outright or reads as an edge.
+        //
+        // (The third option in the queue — scaling strength with head size —
+        // does not apply here: every head in the cast is the same 10 texels.
+        // hs scales the MESH, so a shorter person's head loses no more of its
+        // texels than a taller one's. The apparent difference is that a
+        // smaller sprite spreads the same banding over fewer screen pixels.)
+        g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(cx - 5, oy + 8, 1, 12);
+        g.fillStyle = 'rgba(0,0,0,0.07)'; g.fillRect(cx + 4, oy + 8, 1, 12);
         if (grime > 0 && view <= 2) {
           // Days unshaven. Lower half of the face only, and only on the views
           // that HAVE a face — 3 and 4 are the back of the head, where a jaw
@@ -241,9 +265,14 @@ export function citizenAtlas(o: Look): THREE.Texture {
           g.fillStyle = skin;
           g.fillRect(cx - 5, oy + 6, 10, 3);
           g.fillRect(cx - 4, oy + 5, 8, 1);
-          g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 6, 3, 3);
-          g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(cx + 2, oy + 6, 3, 3);
-          if (view <= 2) { g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(cx - 3, oy + 6, 4, 2); }
+          // the crown carries the SAME rim as the face below it — 1 texel, low
+          // alpha. It used to be the old 3-wide bands, which put the banding on
+          // the one head in the cast that has no hair to hide it.
+          g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(cx - 5, oy + 6, 1, 3);
+          g.fillStyle = 'rgba(0,0,0,0.07)'; g.fillRect(cx + 4, oy + 6, 1, 3);
+          // a soft sheen across the top of the skull, which is a HIGHLIGHT on a
+          // bald head rather than a side band, so it stays
+          if (view <= 2) { g.fillStyle = 'rgba(255,255,255,0.13)'; g.fillRect(cx - 3, oy + 6, 4, 1); }
           // a trace of hair still clinging round the back and sides
           g.fillStyle = hair;
           if (view === 4) g.fillRect(cx - 6, oy + 9, 12, 2);
