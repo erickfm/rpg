@@ -950,3 +950,41 @@ unchanged from round 6: **the limit should read ±6.64 wherever a facade stands.
 - The sweep samples every 4 m, so a short converted stretch between samples
   would be missed. The absence of −6.64 across 25 samples is strong but not
   exhaustive.
+
+---
+
+# Round 15 — self-registration generalised beyond interiors; nothing fell out
+
+Base `add-stick-and-city98` @ `825e4780`. `f30160dd` — "A module is in the world
+because it exists" — widens `ct/interior.ts`'s glob mechanism to **everything**,
+not just rooms. Its own summary:
+
+> *Five finished modules have shipped unreachable — the casino, the hotel, the
+> tax office, the park and the car lot. Every one was complete work by a builder
+> who could not put it in the world, because the line that constructs it lived
+> in desk-owned `crosstown.ts`.*
+
+That is finding 10 generalised. This audit reported it four times as the count
+climbed (1 of 4 → 2 of 4 → 4 of 7 → 1 of 7), argued in round 4 that the kit
+already knew every id it had handed a slab to, and recorded in round 10 that the
+interiors fix was **stronger than the assert I proposed** because it made the
+failure impossible rather than detectable. It is now the world's mechanism.
+
+## Verified: nothing fell out
+
+A change that replaces explicit construction calls with a glob is exactly the
+kind that can silently drop a module — which is the failure it exists to prevent,
+so it is worth checking rather than trusting.
+
+- **9 populated regions** — seven kit rooms plus the apartment and the bodega.
+- **9 doors, identical spans**, byte for byte with rounds 13 and 14.
+
+Clean.
+
+## Coverage — round 15
+
+- Three of ten rooms unwritten.
+- I verified the interiors survived. **I did not verify the park, the car lot or
+  any other non-interior module** came through the same change — they are not in
+  my queue items, and `scripts/floats.mjs` / `scripts/density.mjs` would be the
+  instruments if the desk wants that checked.
