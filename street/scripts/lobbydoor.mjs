@@ -24,6 +24,12 @@ const SH = [
   ['05-lobby-close',201.2, -19.3, at(0, -1.0), 0.14, 0],
   ['06-lobby-obliq',201.9, -18.9, at(-0.7, -0.9), 0.08, 0],
   ['07-lobby-back', 201.2, -16.0, at(0, -4.0), 0.06, 0],
+  ['08-mailboxes',  201.3, -18.7, at(1.0, 0),   0.02, 0],
+  ['09-mail-obliq', 201.1, -17.2, at(1.2, -1.5),0.02, 0],
+  // 301's window: room is west of the hall, floor 3 (gy 5.4)
+  ['10-301-window', 197.6, -16.25, at(-1.4, 0), 0.06, 5.4],
+  ['11-301-win-obl',197.9, -17.4, at(-1.7, 1.1),0.04, 5.4],
+  ['12-301-win-far',198.9, -16.25, at(-2.7, 0), 0.02, 5.4],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);

@@ -247,10 +247,18 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // exactly what you look at when you stand in a doorway.
     const WALL_T = 0.14;
     const jambM = new THREE.MeshBasicMaterial({ color: 0x8b8271 });
-    const wallMesh = (w: number, h: number, cx: number, cy: number, cz: number, ry: number, tex = wallpaperT) => {
+    // uOff/vOff are in METRES from the start and the base of the wall this
+    // piece belongs to. They exist because cutting an opening turns one wall
+    // into four, and each piece then samples the tile from ITS own corner —
+    // which puts the tile's baseboard band across the middle of the room. The
+    // tile is one 2.7 m storey; a piece has to be told where in that storey it
+    // sits or the paper does not line up across the hole.
+    const wallMesh = (w: number, h: number, cx: number, cy: number, cz: number, ry: number,
+                      tex = wallpaperT, uOff = 0, vOff = 0) => {
       const t = tex.clone();
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.repeat.set(w / 2.7, h / 2.7);
+      t.offset.set(uOff / 2.7, vOff / 2.7);
       t.needsUpdate = true;
       const face = new THREE.MeshBasicMaterial({ map: t });
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, WALL_T),
@@ -882,10 +890,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         g.fillStyle = '#5e5236'; g.fillRect(4 + c * 11, 6 + r * 9, 7, 1);
       }
     });
-    const mail = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.0), texM(mailT));
-    mail.position.set(AX(2.315), 1.4, AZI(1.3));
-    mail.rotation.y = -Math.PI / 2;
+    // A BOX, not a painted panel. Report finding 2 again: this was a
+    // zero-thickness plane on a wall that now has 0.14 m of thickness
+    // everywhere else, and you could see it was paper-thin from any angle off
+    // dead-on. A bank of mailboxes is the one thing in a walk-up lobby you
+    // stand right beside, so it is the worst place in the building to be flat.
+    //
+    // Face 1 is -x, which is the face turned into the hall. The doors go
+    // there and the carcass takes everything else.
+    const mailFrame = new THREE.MeshBasicMaterial({ color: 0x241f1a });
+    const mail = new THREE.Mesh(new THREE.BoxGeometry(0.10, 1.0, 1.5),
+      [mailFrame, texM(mailT), mailFrame, mailFrame, mailFrame, mailFrame]);
+    mail.position.set(AX(2.28), 1.4, AZI(1.3));
     scene.add(mail);
+    // the pressed lip over the top, which is what a bank of boxes has instead
+    // of a top edge, and a shelf under it for what will not go in a slot
+    const mailTrim = new THREE.MeshBasicMaterial({ color: 0x3a332a });
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.035, 1.58), mailTrim);
+    lip.position.set(AX(2.255), 1.92, AZI(1.3));
+    scene.add(lip);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.03, 1.58), mailTrim);
+    shelf.position.set(AX(2.24), 0.88, AZI(1.3));
+    scene.add(shelf);
     // ── the front door, from inside ──────────────────────────────────────
     // My own report, finding 1: *the front door disagrees with itself*. From
     // the street it is a DOUBLE door, dark green, under a glazed transom
@@ -958,7 +984,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       0, IN_DOOR_H + IN_BAR + IN_TRANSOM_H, false);
 
     // 301 — your place: wood floor, a bed, the window with the city in it
-    wallMesh(3.5, 2.55, AX(-3.2), 2 * ST + 1.275, AZI(3.75), Math.PI / 2, roomWallT);
+    // The west wall, in FOUR pieces with a hole in it for the window.
+    //
+    // It was one solid box, which is why the window had to be a plane stuck on
+    // the inside of it — and why the first attempt at giving that window a
+    // reveal simply hid the glass inside the wall. Same trap the lobby door
+    // fell into an hour earlier: a surface set back into a wall that has no
+    // opening does not read as recessed, it disappears. If you want a reveal
+    // you have to actually cut the hole.
+    //
+    // The collider is untouched and still spans the whole wall, so the hole is
+    // in the geometry only and you cannot walk through the window.
+    {
+      const WY = 2 * ST + 1.5, WH = 1.3, WZ = 3.75, WW = 1.3;
+      const y0 = 2 * ST, y1 = 2 * ST + 2.55;
+      const oy0 = WY - WH / 2, oy1 = WY + WH / 2;
+      const z0 = WZ - 1.75, z1 = WZ + 1.75;
+      const oz0 = WZ - WW / 2, oz1 = WZ + WW / 2;
+      wallMesh(3.5, oy0 - y0, AX(-3.2), (y0 + oy0) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, 0);
+      wallMesh(3.5, y1 - oy1, AX(-3.2), (oy1 + y1) / 2, AZI(WZ), Math.PI / 2, roomWallT, 0, oy1 - y0);
+      wallMesh(oz0 - z0, WH, AX(-3.2), WY, AZI((z0 + oz0) / 2), Math.PI / 2, roomWallT, 0, oy0 - y0);
+      wallMesh(z1 - oz1, WH, AX(-3.2), WY, AZI((oz1 + z1) / 2), Math.PI / 2, roomWallT, oz1 - z0, oy0 - y0);
+    }
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(2), 0, roomWallT);
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(5.5), Math.PI, roomWallT);
     floorMesh(2 * ST + 0.007, 3.2, 3.5, AX(-1.6), AZI(3.75), woodFloorT);
@@ -1011,10 +1058,52 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillRect(0, 0, 3, 40); g.fillRect(37, 0, 3, 40);          // frame
       g.fillRect(19, 3, 2, 34); g.fillRect(3, 19, 34, 2);         // glazing bars
     });
-    const win = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), texM(winT));
-    win.position.set(AX(-3.115), 2 * ST + 1.5, AZI(3.75));
+    // ── the window's reveal, sill and architrave ─────────────────────────
+    // Report finding 2: the one window in the building was a flat plane stuck
+    // on the inside of a 0.14 m wall. Every DOORWAY here shows its thickness
+    // — 301 and 302 got real reveals when the paper-thin walls were fixed —
+    // and the window did not, which reads worse now than it did before the
+    // doorways were done, because it is the only opening left that is a
+    // sticker.
+    //
+    // The glass goes back to the OUTER face and the wall is left in front of
+    // it. That is not a detail, it is the whole difference: a window you look
+    // at is a picture, and a window you look THROUGH has 11 cm of jamb
+    // between you and it, so the view shifts as you cross the room.
+    const WIN_W = 1.3, WIN_H = 1.3, WIN_Y = 2 * ST + 1.5, WIN_LZ = 3.75;
+    const WIN_LX = -3.2;                          // the wall's centreline
+    const GLASS_X = WIN_LX - 0.062;               // the wall's OUTER face
+    const REV_D = 0.11;                           // what is left in front of it
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, WIN_H), texM(winT));
+    win.position.set(AX(GLASS_X), WIN_Y, AZI(WIN_LZ));
     win.rotation.y = Math.PI / 2;
     scene.add(win);
+    // the four returns, in the wall's own paint but shaded: a reveal in the
+    // same flat colour as the wall face reads as a hole cut in card
+    const revM = new THREE.MeshBasicMaterial({ color: 0x8b8474 });
+    const revDark = new THREE.MeshBasicMaterial({ color: 0x776f61 });
+    const RX = GLASS_X + REV_D / 2;
+    box(REV_D, 0.02, WIN_W + 0.04, RX, WIN_Y + WIN_H / 2 + 0.01, WIN_LZ, revDark);   // head, in shadow
+    box(REV_D, 0.02, WIN_W + 0.04, RX, WIN_Y - WIN_H / 2 - 0.01, WIN_LZ, revM);      // the reveal's own sill
+    for (const sgn of [1, -1]) {
+      box(REV_D, WIN_H + 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 + 0.01),
+        sgn > 0 ? revM : revDark);                // one jamb catches the light
+    }
+    // the sill you can put things on, projecting past the architrave
+    const sillM = new THREE.MeshBasicMaterial({ color: 0xa8a091 });
+    box(0.22, 0.045, WIN_W + 0.22, WIN_LX + 0.09, WIN_Y - WIN_H / 2 - 0.035, WIN_LZ, sillM);
+    box(0.20, 0.03, WIN_W + 0.18, WIN_LX + 0.085, WIN_Y - WIN_H / 2 - 0.07, WIN_LZ,
+      new THREE.MeshBasicMaterial({ color: 0x8f887a }));                              // its apron
+    // architrave, room side only. `casing` puts trim on BOTH faces, which is
+    // right for a doorway you pass through and wrong for a window — the far
+    // face of this wall is the FACADE, and the street does not want a lobby
+    // architrave on it.
+    const trimW = new THREE.MeshBasicMaterial({ color: 0x6f5a44 });
+    const AT = WIN_LX + 0.085;
+    for (const sgn of [1, -1]) {
+      box(0.03, WIN_H + 0.14, 0.075, AT, WIN_Y + 0.02, WIN_LZ + sgn * (WIN_W / 2 + 0.055), trimW);
+    }
+    box(0.03, 0.075, WIN_W + 0.19, AT, WIN_Y + WIN_H / 2 + 0.075, WIN_LZ, trimW);
     // the radiator under it — cast-iron columns, painted over so many times
     // the fins have gone soft
     const radT = pixTex(24, 16, (g) => {
