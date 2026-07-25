@@ -2,10 +2,84 @@
 
 Working from `notes/queues/D-alley.md`: rebase on `add-stick-and-city98`, take
 the top unchecked item, commit, re-read. I don't edit the queue — completions
-are reported here. Earlier runs are in `notes/archive/`.
+are reported here.
 
-Base: `6976f13`. `scripts/ownership.sh D` clean. `npm run sweep` shows the same
-warnings as baseline, no new page errors. `scripts/health.mjs` → WORLD OK.
+---
+
+# LATEST — collision follows geometry (`1fb7921`)
+
+**`## Now` item done.** `npm run build` clean, `npm run sweep` same warnings as
+baseline, `scripts/health.mjs` → WORLD OK.
+
+`scripts/ownership.sh D` reports `crosstown.ts` out of bounds — **expected**,
+that is the one-time cross-file mandate. Both files in ONE commit, collision
+and floor only; the diff touches nothing else.
+
+## What was actually wrong
+
+Exactly as the brief called it: structural, not a bad number. Two rectangles in
+the entry point spanning the whole block, independent of anything drawn. But
+there was a second half nobody had spotted:
+
+> **`COURT.colliders` was published by `ct/civic.ts` and never consumed by
+> anything.** E's courtyard colliders were not in the world *at all* — not
+> overridden, absent. So even with the blanket notched you would have walked
+> through the benches, planters, piers and the library's own facade.
+
+And a third: **`groundY` stops answering at `FACE + 0.3`**. The courtyard paving
+reaches back to `XF = -FACE - 3.2`, so walking in dropped you off a 0.14 m
+ledge onto road level. `COURT` publishes `.y` for precisely this and that was
+not wired either. The courtyard needed all three to be walkable.
+
+## The fix
+
+`ct/street.ts` — a `solid()` registry handed back from `buildStreet`:
+- `placeBld` / `placeBldZ` each register the shell they just placed, bounded to
+  that building's own extent
+- **the bodega corner follows the cut**: a staircase of 0.25 m bands along
+  `x + z = BX0 + BZ1 + CHF`, each starting at the most permissive x in its band
+  so the stair never eats walkable ground — the 0.36 m player radius more than
+  covers the sliver of masonry that leaves unblocked
+- **the church registers its own.** It does not go through `placeBld`, and with
+  the blanket gone you walked straight through the nave — caught by the walk
+  test, not by looking
+- the alley end wall, dumpster and fruit crates move here too; they are
+  street.ts geometry and were in the entry point by habit
+- **the library registers nothing**, so civic's colliders are the only thing
+  there
+
+`crosstown.ts` — blankets deleted, `street.colliders` and `COURT.colliders`
+spread in, `groundY` answers `COURT.y` inside the courtyard.
+
+## Proofs — walked with real key input, not screenshots
+
+```
+1. library courtyard
+   walked IN: x -6 -> -9.53 (past the old blanket at -7.3)
+   floor held, eye y = 1.62 (no drop into a hole)
+   walked back OUT: x -9.53 -> -0.81
+2. bodega canted corner
+   stopped ON the cut: x+z = -87.52 (cut is -87)
+   follows the cut IN: reached x = 7.39 at z=-95, where a square wall stops
+   you at 6.34
+3. the doors
+   bodega "[E] into the BODEGA" · No. 227 "[E] enter No. 227"
+4. no walking into buildings
+   east shops, west shops, both side-street runs, and the church — all stop
+   on the facade line
+```
+
+Script: `scratchpad/collide.mjs`, re-runnable against any port.
+
+## Two things for the desk
+
+**The library has no `[E]` spot anywhere in the tree.** I went looking during
+proof 3: `ctx.spot` is called from `ct/apartment.ts` and `ct/interior.ts` only,
+and `ct/civic.ts` registers none. The library has never been enterable — not a
+regression from this change, but it is a door the user will try.
+
+**A's masonry-density work did not collide with mine** — my diff is collision
+only and touches no texture code in `ct/street.ts`.
 
 ---
 
