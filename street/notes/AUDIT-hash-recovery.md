@@ -32,6 +32,18 @@ two different commits that happen to share a message, so I checked with
 `git patch-id --stable`: on a 22-mapping sample, **22 of 22 old/new pairs have an
 identical patch-id** — the same change, re-hashed by the rebase that landed it.
 
+**Dated, because it cannot be re-derived.** That check ran on **2026-07-25**,
+against the objects as they stood then. It is a **sample of 22 of the 132**
+recoverable mappings — chosen by stepping through the list, not cherry-picked,
+but a sample. The other 110 are matched by **exact subject only**.
+
+After a prune, none of this is repeatable: the old objects are what patch-id
+needs, and they are the thing that goes. So a later reader cannot upgrade the
+110, cannot re-check the 22, and cannot tell from the table alone whether the
+verification happened while the evidence existed. **It did — that is what this
+paragraph is for.** Anyone applying a mapping outside the sampled 22 is trusting
+a subject match, which was right 22 times out of 22 where it could be tested.
+
 Replace the left column with the right column. Nothing else changes.
 
 ## `feat-interiors.md` — 28
