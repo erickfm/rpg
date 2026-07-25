@@ -67,14 +67,11 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // goes. The site is 32 m deep now; `crosstown.ts` still clamps the player
   // at x = -13.4, so 25 m of it cannot be walked into. See notes/BLOCKED-E.md.
   //
-  // The layout is laid out at the site's TRUE size anyway, and that is a
-  // deliberate call. Built to the clamp instead, the park was a 6 m strip of
-  // path in front of 25 m of bare grass inside 13 m walls — which is what the
-  // gate looked into, and it is worse than either a shallow park or a deep
-  // one. The invisible wall at -13.4 exists either way; this at least makes
-  // the space read as a park up to it and past it, and every metre becomes
-  // walkable the moment the bound moves. Nothing here needs changing then.
-  const REACH = -13.4;
+  // Laid out at the site's TRUE size throughout, which for a while meant the
+  // back half was visible and unreachable: `bounds.minX` clamped the player
+  // at -13.4 in a 32 m park. F has moved it to -40, so the whole thing walks
+  // now and the layout needed no changes for that — which was the point of
+  // measuring everything off `site` rather than off what you could reach.
   const backX = site.minX + 3.2;
 
   // ── THE EDGE LINE ────────────────────────────────────────────────────────
@@ -402,14 +399,15 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     }
     const [cw, cd] = box(0.34, 0.88);
     solid({ minX: bx - cw, maxX: bx + cw, minZ: bz - cd, maxZ: bz + cd });
-    // …and it is a seat, if you can get to it. See the note on the run below.
-    if (bx > REACH + 0.6) {
-      ctx.seat({
-        x: bx, z: bz, yaw, h: 0.45,
-        approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
-        label: 'sit on the bench',
-      });
-    }
+    // …and every one of them is a seat. They were gated on reachability while
+    // 25 m of the park was behind the clamp — a seat nobody can walk to is a
+    // seat F's harness rightly calls UNREACHABLE — and that gate is gone with
+    // the clamp. All of them now, near end and far.
+    ctx.seat({
+      x: bx, z: bz, yaw, h: 0.45,
+      approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
+      label: 'sit on the bench',
+    });
   };
   // A RUN of benches, not a token few. The park went from 7 m deep to 32 —
   // five times the area — and the furniture did not scale with it, which is
@@ -417,34 +415,30 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // the loop at roughly 9 m, close enough that there is always one in view
   // and far enough that two are never in the same shot.
   //
-  // Only the ones the player can actually REACH register a seat. The clamp at
-  // x = -13.4 has not moved with the depth, so a bench 20 m past it would
-  // register as a seat nobody can walk to — F's harness calls that
-  // UNREACHABLE and it is right to. They are placed anyway, because you see
-  // the whole park from the gate, and they become sittable the moment the
-  // bound moves. See notes/BLOCKED-E.md.
-  //
   // The run is stepped off the gate rather than off the end of the park, and
   // it SKIPS the entry: the first cut of this walked a bench straight into the
   // gate opening at z = -83 and you could not get in. GOTCHAS §8 — anything
   // near a way in has to treat the approach as reserved space.
   const benchRun: [number, number, number][] = [];
   const clearOfGate = (z: number) => Math.abs(z - gateMid) > 2.6;
-  for (let z = gateMid - 26.4; z <= lz1 - 4.5; z += 8.8) {
-    if (z < lz0 + 4.0 || !clearOfGate(z)) continue;
-    benchRun.push([lx1 + PATH_W / 2 + 0.42, z, -Math.PI / 2]);          // street leg
-    if (z > lz0 + 8 && z < lz1 - 8) benchRun.push([lx0 - PATH_W / 2 - 0.42, z, Math.PI / 2]);
+  const spaced = (from: number, to: number, step: number) => {
+    const out: number[] = [];
+    for (let v = from; v <= to + 0.01; v += step) out.push(v);
+    return out;
+  };
+  // The run was stepped from `gateMid - 26.4`, which is 11 m south of the
+  // park: the first two iterations fell outside it and were filtered away, so
+  // a 27 m leg got TWO benches and the back leg got none, because its push
+  // sat under the gate's `continue`. Counting the registered seats is what
+  // showed it — eight in a park with a 110 m circuit. Both legs are stepped
+  // over their own length now.
+  for (const z of spaced(lz0 + 4.0, lz1 - 4.0, 9.2)) {
+    if (clearOfGate(z)) benchRun.push([lx1 + PATH_W / 2 + 0.42, z, -Math.PI / 2]);
+    benchRun.push([lx0 - PATH_W / 2 - 0.42, z, Math.PI / 2]);
   }
-  // …and along both END legs, the whole way out, not just at the street end.
-  // The near half of this park was furnished where it could be WALKED and the
-  // far half only structured — trees, hedge, the loop itself — because 25 m of
-  // it is behind the clamp and nothing out there could be tested by walking to
-  // it. That is a reason for the gap, not a defence of it: it is visible from
-  // the gate today and walkable the moment `bounds.minX` moves, so it gets the
-  // same furniture as the near half at the same spacing.
-  for (let x = lx1 - 5.5; x > lx0 + 4.0; x -= 9.4) {
+  for (const x of spaced(lx0 + 4.5, lx1 - 4.5, 9.4)) {
     benchRun.push([x, lz0 - 1.05, Math.PI]);
-    benchRun.push([x - 3.5, lz1 + 1.05, 0]);
+    benchRun.push([x, lz1 + 1.05, 0]);
   }
   for (const [bx, bz, yaw] of benchRun) bench(bx, bz, yaw);
 
