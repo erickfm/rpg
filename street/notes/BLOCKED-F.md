@@ -249,6 +249,40 @@ unreadable, which is worse than a check that fails: the one time it reports a
 real ejection nobody will believe it. It still needs fixing, in `seats-walk`,
 and it is still mine.
 
+### BISECT — the stand-up press is exonerated too (fourth clean attempt)
+
+`seats-walk` does four things per seat that the minimal replication does not:
+reads the prompt, hunts for a standable approach by warping around, checks
+camera height and yaw, and **stands the player up with `[E]`**. The last was the
+strongest candidate — an `[E]` press near an interior's way-out is exactly the
+shape that would teleport somebody 523 m.
+
+Added it back to the minimal loop, every seat, in order:
+
+```
+0 of 58 moved while seated (with stand-up E)
+```
+
+So that is out. Four reproduction attempts against the world, all clean:
+
+| attempt | result |
+|---|---|
+| 1 s key-hold on the failing seat | 0.00 m, seated throughout |
+| the exact w/s/a/d sequence, 6 runs | 0.00 m every run |
+| faithful minimal loop, all 58 seats | 0 of 58 |
+| the same loop **plus the stand-up `[E]`** | 0 of 58 |
+
+**I am stopping the chase here, and that is a decision rather than a shrug.**
+Each attempt cost a turn and each excluded a real candidate, but the remaining
+suspects — the prompt read and the standable-point search — both run BEFORE the
+baseline sample is taken, so neither can move the player between the two
+readings that disagree. I do not have a hypothesis left that fits the evidence.
+
+What makes stopping defensible is that the failure now reports its own state:
+destination, room, seated flag, and every live `[E]` at the landing point. The
+next occurrence diagnoses itself. That is a better use of the next turn than a
+fifth attempt to summon an intermittent that has now declined four times.
+
 ### What is still unknown
 
 Movement is locked by the same early return, so neither the keys nor the
