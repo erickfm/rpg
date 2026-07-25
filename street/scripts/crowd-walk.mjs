@@ -20,7 +20,6 @@ await page.waitForTimeout(400);
 await page.evaluate(() => window.__ct.clock(13, 0));
 
 const pos = () => page.evaluate(() => window.__ct.pos());
-const hold = async (key, ms) => { await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key); await page.waitForTimeout(40); };
 // THE CROWD, from the crowd — not from a scan of the scene for person-shaped
 // planes. That scan was right when the cast was the only set of people in the
 // world; it is not any more. citizenSprite() has been adopted (ct/interior.ts and

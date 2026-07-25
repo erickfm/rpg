@@ -102,3 +102,31 @@ why establishing "not mine" took two throwaway scene walks — and why B and I
 carried different numbers for the same defect until `f5c7faac`. Same root cause
 as `ctx.obstacle` handing back bare boxes. One ask, in `notes/BLOCKED-H.md`:
 whatever creates a mesh, a collider or a material stamps who made it.
+
+
+---
+
+# And C's movement-key list (`C-clock-and-frames.md` §6)
+
+Same answer, same method: **checked, not assured.** `crowd-walk` is named there,
+and the flag was correct at the time it was taken.
+
+**It is clear now, and the reason is worth recording because the grep cannot see
+it.** That list finds `keyboard.down(...)` followed by a fixed `waitForTimeout`.
+In `crowd-walk` the only thing matching that shape was a `hold(key, ms)` HELPER
+whose last caller went away when I rewrote the west-lane check to sample while
+the key is held (`ccf98753`). It sat there as dead code and kept the script on
+the list. Deleted.
+
+The one remaining hold in that file is the sampled loop, and nothing concludes
+anything from its duration — the key is held for six seconds because that is how
+long you need to be exposed to the crowd, and the assertion is over the position
+samples taken during it. `side-walk`'s four hikes are the same shape after
+`eb48fb36`.
+
+**So a fixed hold is not the defect; concluding from the duration is.** A script
+that holds a key for eleven seconds and then asks "did the longest stall exceed
+2.5 s" is sound, and one that holds for eleven seconds and asks "did we cover
+26 m" is not, however short the hold. Both of mine were the second kind and are
+now the first — five instances, listed in `notes/feat-traffic.md` under the
+third pattern, with what each failed at on a sound world.
