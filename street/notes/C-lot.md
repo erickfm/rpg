@@ -135,6 +135,43 @@ runtime affordance: `window.__ct.doors()` returns 8 records carrying
 source is `decl.at`, so that is the one gap to close. Yours to decide — I have
 not touched the file.
 
+**The 12 mirrored faces are MINE, and they are fine.** `whose.mjs` attributed
+them to `ct/lot.ts` by position and said in its own header that the claim was
+circumstantial. The stamp settles it — `owner: lot` on all twelve — so here is
+the rest of the answer rather than leaving someone else's open question open.
+
+They are the **bunting**. `SWAGS = 3`, `SEGS = 4`, and the script finds exactly
+**12**, at `FENCE_X`, 1.93 m apart along the frontage. Each segment is a
+`PlaneGeometry` rotated `y = π/2` and then tilted `z = atan2(...)` to follow the
+parabola of the sag, and that combination reads as handedness-flipped to a test
+comparing a plane's up against its normal. Half of any hanging swag will.
+
+It is invisible and it cannot be otherwise: `pennantT` is a repeating pattern of
+symmetric red-and-white triangles with **no text of any kind** (grep for
+`fillText` in it returns 0), and the material is `side: DoubleSide`. There is no
+front to get backwards.
+
+Worth separating the two things, because a mirrored face IS worth finding: the
+test is a good one, and on anything carrying words it would have caught the
+real defect. On bunting it is telling you which way a flag hangs.
+
+**Stamp coverage, for `BLOCKED-H` §3.** H asks that whatever creates a mesh
+stamp who made it, so findings can be ROUTED instead of counted, and records
+having twice written throwaway scene walks to prove a finding was not theirs. I
+have written that walk twice too. The number, measured at HEAD:
+
+```
+1921 of 3396 meshes carry userData.mod  (57%)
+   449 street   392 lot   347 walkup   273 vice
+   268 props    135 civic   55 tex-ground   2 cat
+1475 cannot answer "whose is this" at all
+```
+
+So the ask is not abstract: **43% of the world is unattributable**, and that is
+the population every future misroute comes from. Not mine to fix — stamping at
+the creation points is H's ask of the desk — but the argument now has a figure
+under it, and `scripts/whose.mjs` already exists to re-measure it.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
