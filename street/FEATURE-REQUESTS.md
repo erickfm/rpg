@@ -207,7 +207,7 @@ commit, as asked.
   `footprint-pits`, `footprint-water`, `footprint-blind`). Left in the Inbox
   for the desk to move — flagging it here so it does not read as outstanding.
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
-- **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
+- **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F** ✅ `fp.ts` depenetration: sums an escape from everything overlapping, eases out at bounded speed, falls back to last-good after 0.45 s. 177/177 traps escaped (`scripts/unstick-walk.mjs`).
 
 ## Done — 2026-07-25, builder A (the facades)
 
@@ -246,6 +246,7 @@ commit, as asked.
   brief asked: bodega, main block and all six side-street shops show a lit
   ceiling, a stocked shelf and a dark floor behind the glass. No pavement
   through any of them.
+- **"i need the facades to line up with the interior. so if the door on the interior is full right then the facade must match"** → **A**
 
 ### 2026-07-24, session 3
 
@@ -266,8 +267,15 @@ commit, as asked.
   library. tax service. pawn shop. bodega. thrift store. my room. the casino.
   the hotel. ill let you divide all that up its pretty intense."** → split four
   ways behind a shared room kit (`ct/interior.ts`): **F** diner + burger barn +
-  thrift, **G** casino + hotel + pawn + tax, **E** library, **C** room 301.
-  The bodega interior already exists and waits on D's door blocker.
+  thrift ✅, **G** casino + hotel + pawn + tax, **E** library, **C** room 301.
+  The bodega ✅ was rebuilt on the kit once D's door blocker cleared.
+  **9 of the 10 are in the world.** Eight are in the interior belt — every one
+  entered, held-in and exited by `scripts/interiors-walk.mjs` (195/195), each
+  with a keeper on the 8-angle atlas — and room 301 is C's walkup, off the belt,
+  with its door guarded by `scripts/door301.mjs`. Every `[E]` that reaches any
+  of them is checked by `scripts/spot-coverage.mjs`.
+  **Outstanding: the library** (E), which has a climbable flight and a
+  locked-door response at the top until its interior lands.
 - **"i want the cars to turn the corner and for the details to extend out that
   way trees crub, cars, etc. i want the pedestrians to also go out that way and
   have more complicated paths"** → **builder H** (new — traffic and nav)
@@ -278,8 +286,7 @@ commit, as asked.
   flat-night item
 - **"library is exactly the same no copurt yard or anything i asked for"** →
   **builder E**, courtyard promoted to the top of its queue
-- **"cant go inside burger barn"** → **builder F** (no [E] spot and no interior
-  exist yet)
+- **"cant go inside burger barn"** → **builder F** ✅ room and `[E]` both exist; the spot derives from the door declaration, and `scripts/interiors-walk.mjs` walks in and out of it every run.
 - **"colors on burger barn arent right"** → **builder D** (still red + mustard;
   asked for red + white or red + beige, second time of asking)
 
