@@ -218,3 +218,44 @@ and the label was visible in my own output the whole time.
 
 That is the third time this session that the correct answer was already on my
 screen in a column I had not read properly.
+
+## `seats-walk`'s one false negative: four causes ruled out, not reproducible
+
+`seats-walk` fails seat 1/57 — *"no 'sit on the bench' prompt from the one
+standable point (−8.6, −19.43); got null"*. I retracted the finding because the
+bench demonstrably works. Chasing the cause so its owner does not repeat my
+four dead ends:
+
+| hypothesis | test | result |
+|---|---|---|
+| **`gy = 0`** — line 91 warps with ground 0, and the courtyard is raised | same point at gy 0, 0.14, 0.3, 0.42 | **disproved.** Prompt fires at all four; `pos()` reports gy 0.14 regardless, so the world snaps to real ground |
+| **the prompt reader** — `#ct-prompt` vs my text search | read `#ct-prompt` exactly as it does | **disproved.** Returns `[E] sit on the bench` |
+| **world not ready** — it is seat *1 of 57*, tested 300 ms after load | fresh page at 300 / 800 / 1500 / 3000 ms | **disproved.** 137 spots registered and the prompt fires at 300 ms |
+| **`__ct.stand` missing** — line 83 would be a silent no-op | `typeof window.__ct.stand` | **disproved.** It is a function |
+
+**The failure does not reproduce by any means I can construct.** The prompt fires
+from that point under every condition I tried, including the tool's own reader,
+its own timing and its own warp arguments.
+
+What is left, and I am not able to test it from outside: something in
+`seats-walk`'s accumulated state by the time it reaches that seat — its
+`standableNear` returning a point I am not reproducing, or a residue of the
+`press`/`hold` key sequence. **That is inside the tool and belongs to whoever
+owns it.**
+
+### Two affordances I did not know existed
+
+`__ct` also exposes **`groundAt`** and **`seated`**. `groundAt` would have saved
+me the entire gy hypothesis, and probably some of my earlier floor work. Full
+list, for anyone else writing a probe:
+
+```
+atlases bus busInfo camY clock colliders corridor doors drive gapRule groundAt
+hermit modules netRoute people person pos rooms scene seated seats spots stand
+traffic views walkers warp yaw
+```
+
+I built a ground-height probe by warping and reading `pos()[3]` when `groundAt`
+was sitting there the whole time — the same lesson as `spots-walk` and
+`seats-walk` already existing: **read the debug surface before writing against
+it.**
