@@ -357,3 +357,106 @@ Also still true and still not urgent: the kit's room lights cannot be recoloured
 or suppressed (bitten twice — casino wanted warm and dim, tax office wants cool
 fluorescent), and `ct/props.ts` was never needed for the vice night spill, so the
 coordination the desk offered with B is not required.
+
+---
+
+# RUN 5 — THE CASINO AND HOTEL EXTERIORS
+
+## `## Now` → **the exteriors** — DONE, in six commits
+
+The user: *"the front facade of the casino and the hotel are so low effort and
+boring. these building are meant to be some of the most insane."* They were
+right, and the reason was structural rather than lazy: both buildings were built
+by `street.ts`'s generic `placeBldZ`, so a casino and a hotel came out wearing a
+barber's clothes.
+
+**1 — the extraction** (`653e1923`). Pure move into `ct/vice.ts`, the same split
+that took the library and the church into `ct/civic.ts`. Called from inside the
+NORTH2 loop and the signs invoked at the point they used to run, because the
+paint layer draws with a seeded `Math.random` under the harness. `fpdiff`:
+**textures 422 vs 422 IDENTICAL, structure 1097 vs 1097 IDENTICAL**, two pigeons
+1 cm apart. Doing this as its own commit is what made the next five verifiable.
+
+**2 — the frontages** (`39ccb6ef`). Marquee, blade, porte-cochère, glass, spill.
+
+**3 — light in the air** (`0b59a132`). Judged from the corner 45 m away, which
+is the view the brief actually names, and it was the weakest of the lot.
+
+**4 — the whole elevation** (`2ba0f89e`). Both buildings were lit at the ground
+and dark above it, which is a lit shopfront, not a lit building.
+
+**5 — the blank wall** (`7fa68803`). The casino had four storeys of sash windows
+above its marquee, which contradicted its own windowless interior.
+
+**6 — the hotel's blade** (`3572584a`). Two blades side by side is the image.
+
+## The governing idea, and why it needed no help from anyone
+
+**These two are the only buildings in the world that are light SOURCES rather
+than lit surfaces.** Everything is unlit `MeshBasicMaterial`, so nothing emits.
+Three mechanisms already in the world do the work:
+
+1. `props.dimWorld` skips any material flagged `transparent`. Every bulb, tube
+   and spill here is transparent, so the street falls away around them at night
+   while they hold. They do not get brighter; everything else gets darker.
+2. `fog: false` on the lit parts only, so neon burns through 40 m of haze.
+3. The night curve is **read, not written** — `scene.background` carries the sky
+   and a `mesh.onBeforeRender` hook reads its luminance, guarded on the
+   renderer's frame counter so it runs once per frame. Calibrated off the real
+   curve (0.30 at noon, 0.011 after 22:00), measured rather than guessed.
+
+**So `ct/props.ts` was never touched and the coordination the desk offered with
+B was not needed.** Worth recording why `props.lit` is the wrong tool even
+though the brief suggested it: `lit()` registers an object to CATCH lamplight
+from the nearest lamp head. A casino does not catch light.
+
+## Things worth stealing
+
+- **The chase is shared between both buildings.** Bulbs are fixed sockets and
+  the chase is which of them are alight — a scrolling texture would carry the
+  dead bulb along with it, and a dead bulb is a fixed socket. Three phase
+  materials animate ~190 bulbs in three colour writes a frame. Both buildings
+  run the same sequence on purpose: in step they read as one lit block, out of
+  step as two separate mistakes.
+- **Tubes, not stripes**: three passes over one letterform — dark casing,
+  colour body, hot core. A stripe is one colour; a tube is all three at once.
+- **On this street, screen-right is DESCENDING x.** Three orientation bugs came
+  out of that. The street-facing box material is index 5 (−z), not 4, so the
+  marquee's copy and the porte-cochère fascia were hung against the brick. A
+  plane's normal is +z, which here points into the building. And turning the
+  applied letters to face the road made ORPHEUS read backwards — every glyph
+  correct, the word reversed.
+- **Additive glow must hang clear of the surface behind it.** The first light
+  pools sat 0.09 m under the marquee soffit and painted the soffit instead of
+  the room.
+
+## Two redraws, neither at the two-failures line
+
+The mirrored ceiling — sorry, the mirrored **panels on the casino's first
+version** — shipped pale and read as a frosted skylight with sun coming through,
+in the one room whose premise is no daylight. A mirror is as bright as what it
+reflects and this one reflects a dark red room. And the house's mark on the slab
+was a spade that came out looking like a bird: a suit symbol needs curves and
+there are not enough texels to spend on them. `777` needs none.
+
+## Verification
+
+`scripts/G-vice-walk.mjs` (new), **13/13**. The porte-cochère columns are the
+only new geometry touching the pavement and that pavement is the tightest in the
+world — a 2 m band with the building collider eating to −96.3. Measured: they
+leave a **0.68 m clear band**, three times what the street lamps already leave.
+The test asserts the honest thing rather than "every lane is open", because a
+column you can walk through is not a column: the lane is continuous past both,
+the outer lane *does* stop at a column, and you can step around it. It also
+checks the redrawn entrances still agree with the `[E]` spots at x 51.29 and
+39.51, which is the coupling that would silently strand both doors.
+
+Also: `health.mjs` OK · `npm run build` clean · 48-shot sweep with no console
+errors from my code · **95/95** across my four interiors · F's `interiors-walk`
+**147/147** with all of mine present.
+
+## Queue state
+
+All five items are built, walked and in mainline. Nothing under `## Now` or
+`## Next` is left that I can start. The only outstanding external thing is D's
+missing `pawnFront` door, which is cosmetic and recorded above.
