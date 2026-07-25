@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
 import { makeCar, type CarKind } from './cars';
@@ -66,6 +67,32 @@ export const LOT = { live: false, colliders: [] as AABB[] };
  *  fraction of the frontage taken off each end. Must match the `gate` it is
  *  called with, or the chain-link crosses the mouth. */
 const SITE_GATE = 0.3;
+
+// SITE + 1: the park is built before the lot, and that is not cosmetic. One
+// seeded rnd() stream feeds tree heights and pigeons, so swapping these two
+// repaints 71 textures (GOTCHAS §2). Alphabetical order would put the lot
+// first — this is the tiebreak being made explicit rather than accidental.
+export const ORDER = BUILD.SITE + 1;
+
+/**
+ * The world loader's entry point — see `ct/world.ts`. A NEW export beside
+ * `buildLot`, which is unchanged.
+ *
+ * It does BOTH halves. `buildLot` only prepares the module; `placeLot(site)`
+ * is what fills the site, and calling the first without the second leaves you
+ * walking into a blank brick wall — which is what the lot looked like on the
+ * first attempt at wiring it. Behind one entry point that mistake is not
+ * available to make.
+ */
+export function register(ctx: CtxBuild) {
+  const site = ctx.site('lot');
+  if (!site) { console.warn('[lot] the block has no site named "lot" — nothing built'); return; }
+  const lot = buildLot({
+    scene: ctx.scene, flat: ctx.flat, wet: ctx.wet, KERB_H: ctx.KERB_H, obstacle: ctx.obstacle,
+    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night }), order),
+  });
+  lot.placeLot(site);
+}
 
 export function buildLot(o: {
   scene: THREE.Scene;

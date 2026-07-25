@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import type { CtxBuild } from './ctx';
+import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
@@ -34,6 +34,23 @@ const DIRT = '#6b5d47', DIRT_D = '#5e5240';
 // ct/street.ts published. The entry point already holds both — it reads
 // `street.park` for the floor height — so wiring this is one line there and
 // nothing has to be threaded through street.ts.
+export const ORDER = BUILD.SITE;
+
+/**
+ * The world loader's entry point — see `ct/world.ts`. A NEW export beside
+ * `buildPark`, which is unchanged: it still takes its site explicitly, so any
+ * existing caller keeps working.
+ *
+ * The site comes from the roster by name now instead of being relayed by the
+ * desk. This module was finished and invisible for days waiting on exactly
+ * that relay.
+ */
+export function register(ctx: CtxBuild) {
+  const site = ctx.site('park');
+  if (!site) { console.warn('[park] the block has no site named "park" — nothing built'); return; }
+  buildPark(ctx, site);
+}
+
 export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const { scene, flat, wet, KERB_H, obstacle } = ctx;
   const colliders: AABB[] = [];

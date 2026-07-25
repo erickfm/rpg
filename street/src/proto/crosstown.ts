@@ -21,15 +21,14 @@ import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear } from './ct/gap';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
-import { buildPark } from './ct/park';
-import { buildLot } from './ct/lot';
+import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
-import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
+import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX, interiorColliders, buildAllInteriors, interiorRoomIds } from './ct/interior';
+import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds } from './ct/interior';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -100,6 +99,9 @@ export function makeCrosstown(): Proto {
   // lazy closures — they are only ever CALLED at runtime, by which point both
   // exist.
   const SPOTS: Spot[] = [];
+  // Named ground, published by whoever lays the block out and asked for by
+  // name by whoever builds on it. See ctx.ts `Site`.
+  const SITES = new Map<string, Site>();
   // every registered seat, for the test harness only — `scripts/seats-walk.mjs`
   // sits on all of them. Six different owners will be registering furniture
   // through ctx.seat(); none of them can verify it without being able to
@@ -120,6 +122,8 @@ export function makeCrosstown(): Proto {
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
     spot: (sp) => { SPOTS.push(sp); },
+    site: (name) => SITES.get(name) ?? null,
+    publishSite: (name, st) => { SITES.set(name, st); },
     // ── seats ───────────────────────────────────────────────────────────
     //
     // A seat is TWO ordinary spots: one to sit, one to stand. Building it out
@@ -165,24 +169,19 @@ export function makeCrosstown(): Proto {
   const bodegaColliders = buildBodega(ctx);
 
   // ── the block's furniture, and the weather over it ─────────────────────
-  // ── the park and the car lot ────────────────────────────────────────────
+  // ── everything the block cleared ground for ─────────────────────────────
   //
-  // `buildStreet` clears the two sites and publishes their extents; these two
-  // modules put something on them. Both were finished and neither was ever
-  // called, so the user went looking for the park and found a blank brick
-  // wall. They take the site from `street`, so nothing has to be threaded
-  // through street.ts.
-  // both register their own solids through ctx.obstacle, so there is nothing
-  // to spread here — the returned collider lists are for their own use
-  buildPark(ctx, street.park);
-  // buildLot only PREPARES the module; placeLot(site) is what fills the site.
-  // Calling the first without the second leaves you walking into a brick wall,
-  // which is what the site looked like before this.
-  const lot = buildLot({
-    scene, flat, wet, KERB_H, obstacle,
-    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night }), order),
-  });
-  lot.placeLot(street.lot);
+  // `buildStreet` opens the sites and publishes their extents; the modules
+  // that fill them ask for them by name. Until ct/street.ts publishes these
+  // itself, this file relays the two it already receives — the relay it
+  // replaces is the desk copying a z-span out of D's roster by hand, which
+  // failed twice.
+  ctx.publishSite('park', street.park);
+  ctx.publishSite('lot', street.lot);
+  // Modules are found by `ct/world.ts` and run in ORDER bands. This band sits
+  // exactly where buildPark/buildLot were called, so construction order — and
+  // therefore every tree height and pigeon in the world — is unchanged.
+  buildWorld(ctx, 0, BUILD.PROPS - 1);
 
   const props = buildProps(ctx);
 
@@ -338,7 +337,7 @@ export function makeCrosstown(): Proto {
   // the world — see the note on that function for the three rooms that sat
   // finished and unreachable because this used to be a hand-maintained list.
   // Colliders come back through `interiorColliders()`, spread once below.
-  buildAllInteriors(ctx);
+  buildWorld(ctx, BUILD.PROPS, 99);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //
@@ -508,6 +507,7 @@ export function makeCrosstown(): Proto {
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
     rooms: () => interiorRoomIds(),
+    modules: () => worldRegistrants(),
     seats: () => SEATS,
     camY: () => cam.position.y,
     yaw: () => rig.yaw,

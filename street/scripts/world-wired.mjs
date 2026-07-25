@@ -13,7 +13,13 @@
 // its filename — all three of which produce the same symptom: you cannot get
 // in, and nothing says why.
 //
-// Usage: SHOT_URL=http://localhost:4185/ node scripts/interiors-wired.mjs
+// It also checks the WIDER contract: any ct/*.ts that exports a build…()
+// function but no register() is a module the world loader cannot see, which
+// is the exact shape of all five failures. That is a migration nag, not a
+// hard failure — plenty of leaf modules export builders that are called by
+// their owner rather than by the loader — so it reports and does not exit 1.
+//
+// Usage: SHOT_URL=http://localhost:4185/ node scripts/world-wired.mjs
 import { chromium } from 'playwright';
 import { readdirSync, readFileSync } from 'node:fs';
 
@@ -28,6 +34,40 @@ const onDisk = files.map((f) => {
   return { file: f, id: f.replace(/^int-|\.ts$/g, ''), builders };
 });
 
+// ── the wider contract: is this builder called by ANYONE? ──
+//
+// The nag that matters is not "has no register()" — most modules export a
+// builder their own owner calls, and that is fine. It is "exports a builder
+// and NOBODY calls it", which is the exact shape of all five failures: the
+// casino, the hotel, the tax office, the park and the car lot were each a
+// complete module whose entry point appeared in no other file in the tree.
+//
+// So it greps the whole source tree, not just the entry point. A module that
+// is neither loader-registered nor called from anywhere is ORPHANED and this
+// fails, because there is no reading of that which is intentional.
+const allSrc = [];
+const walk = (d) => {
+  for (const e of readdirSync(d, { withFileTypes: true })) {
+    if (e.isDirectory()) walk(`${d}/${e.name}`);
+    else if (e.name.endsWith('.ts')) allSrc.push(`${d}/${e.name}`);
+  }
+};
+walk('src');
+const orphans = [];
+for (const f of readdirSync(DIR).filter((f) => /\.ts$/.test(f) && !/^int-/.test(f)).sort()) {
+  const src = readFileSync(`${DIR}/${f}`, 'utf8');
+  const builders = [...src.matchAll(/export function (build\w+)\s*\(/g)].map((m) => m[1]);
+  if (!builders.length) continue;
+  if (/export function register\s*\(/.test(src)) continue;          // the loader has it
+  const calledBy = [];
+  for (const other of allSrc) {
+    if (other.endsWith(`/${f}`)) continue;
+    const text = readFileSync(other, 'utf8');
+    if (builders.some((bn) => new RegExp(`\\b${bn}\\s*\\(`).test(text))) calledBy.push(other);
+  }
+  if (!calledBy.length) orphans.push(`${f} exports ${builders.join(', ')} and NOTHING in src/ calls it`);
+}
+
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 500 } });
 const errs = [];
@@ -36,9 +76,10 @@ p.on('console', (m) => { if (/\[interior\]/.test(m.text())) errs.push(m.text());
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.rooms !== undefined, { timeout: 15000 });
 const built = await p.evaluate(() => window.__ct.rooms());
+const loaded = await p.evaluate(() => window.__ct.modules());
 await b.close();
 
-const problems = [];
+const problems = [...orphans.map((o) => o)];
 for (const r of onDisk) {
   if (r.builders.length === 0) {
     problems.push(`${r.file} exports no build…() function, so nothing can construct it`);
@@ -59,7 +100,9 @@ for (const id of built) {
 }
 for (const e of errs) problems.push(`the world complained while building: ${e}`);
 
-console.log(`${files.length} interior files on disk: ${onDisk.map((r) => r.id).join(', ')}`);
+console.log(`${loaded.length} modules registered with the world loader: `
+  + loaded.map((r) => `${r.path.replace('./', '')}@${r.order}`).join(', '));
+console.log(`\n${files.length} interior files on disk: ${onDisk.map((r) => r.id).join(', ')}`);
 console.log(`${built.length} rooms registered in the world: ${built.join(', ')}`);
 if (problems.length) {
   console.log('');

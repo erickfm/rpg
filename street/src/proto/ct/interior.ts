@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
-import type { CtxBuild } from './ctx';
+import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 
 // ── the interior kit ──────────────────────────────────────────────────────
@@ -102,6 +102,15 @@ export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
  * in — a room that moves slab between builds is a room whose saved position
  * means nothing.
  */
+export const ORDER = BUILD.INTERIOR;
+
+/** The world loader's entry point for the whole interior belt — see
+ *  `ct/world.ts`. The belt keeps its OWN glob inside `buildAllInteriors`
+ *  because interiors carry a second convention the other modules do not:
+ *  `int-<id>.ts` must build the room whose `spec.id` is `<id>`, which
+ *  `scripts/interiors-wired.mjs` enforces. */
+export function register(ctx: CtxBuild): void { buildAllInteriors(ctx); }
+
 export function buildAllInteriors(ctx: CtxBuild): void {
   const mods = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
   for (const path of Object.keys(mods).sort()) {

@@ -67,6 +67,42 @@ export interface Seat {
   label?: string;
 }
 
+/**
+ * A patch of ground a module is allowed to build on: the park's 30 m, the car
+ * lot's 23.2 m, a building's frontage.
+ *
+ * `ct/street.ts` lays the block out and is the only thing that knows where
+ * anything ends up. Everything else asks. The alternative — the desk reading a
+ * z-span out of D's roster and relaying it to whoever needs it — has now
+ * failed twice: the diner's `[E]` prompt ended up outside a bank because the
+ * relay never happened, and the car lot sat finished and unplaced waiting on
+ * the same number.
+ */
+export interface Site { minX: number; maxX: number; minZ: number; maxZ: number; y: number }
+
+/**
+ * When a module builds, relative to the others.
+ *
+ * Explicit, and never filesystem or glob order, because build order is
+ * load-bearing: `ct/rng.ts` is ONE seeded stream and tree heights and pigeon
+ * placement draw from it as they are constructed, so re-ordering the calls
+ * moves every tree in the world (GOTCHAS §2). It is worse than that — three.js
+ * spends four `Math.random()` calls per object on `generateUUID`, so under the
+ * fingerprint harness merely CREATING something shifts the grain of every
+ * texture painted after it.
+ *
+ * Pick the band that describes what you are: the number itself is only a sort
+ * key, and ties break on filename.
+ */
+export const BUILD = {
+  /** open ground the street cleared for you: the park, the car lot */
+  SITE: 20,
+  /** furniture and fittings that stand on the block */
+  PROPS: 40,
+  /** the interior belt. LAST, always — see ct/interior.ts */
+  INTERIOR: 80,
+} as const;
+
 /** The few runtime facts a module needs in order to register an interaction
  *  at BUILD time — where the player is, and how to move them. */
 export interface PlayerRef {
@@ -124,6 +160,18 @@ export interface CtxBuild {
   /** register a seat. Sitting, standing and the prompt are handled for you —
    *  see `Seat`. Register one per seat you actually want offered. */
   seat: (s: Seat) => void;
+  /**
+   * Ask for the ground you were given, by name — `ctx.site('park')`.
+   *
+   * Returns null if the block's layout has no such site, and a module that
+   * gets null must build NOTHING and say so. That is the point: a module can
+   * no longer be built against a slot that has quietly moved or stopped
+   * existing, because it never held the number in the first place.
+   */
+  site: (name: string) => Site | null;
+  /** publish a site. `ct/street.ts` owns the block's layout and is the only
+   *  thing that should be calling this. */
+  publishSite: (name: string, s: Site) => void;
   /** register a per-frame hook. `order` decides when it runs — see ORDER.
    *  The billboard and citizen passes run after every registered hook. */
   onFrame: (fn: FrameHook, order?: number) => void;
