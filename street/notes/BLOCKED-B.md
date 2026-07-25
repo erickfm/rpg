@@ -20,9 +20,15 @@ so **every rebase leaves `dist/` stale**, and any measurement taken after it
 without rebuilding refuses:
 
 ```
-http://localhost:4279/ is serving build bd05fc3b0
-this checkout is at      e29b59420
+http://localhost:4279/ is serving build <pre-rebase sha>
+this checkout is at      <post-rebase sha>
 ```
+
+(The two shas are elided deliberately. They were my own, one rebase apart, and
+quoting them verbatim made this note trip `hashes-resolve` — a third category
+after fingerprints and repair mappings: **quoted tool output that happens to
+contain hashes**. The check cannot tell that from a citation and should not try;
+the shape of the message is the point here, not the values.)
 
 The refusal is right and I am glad it exists. What it says next is not quite:
 
@@ -66,7 +72,12 @@ Heaviest: `feat-interiors.md` 35, `D-alley-report.md` 23,
 `G-interiors2-handoff.md` 18, `A-build-stamp.md` 11, `A-nightgrade.md` 10.
 Mine were two, in `B-ground-report.md`, now fixed. The same two are also cited
 in `notes/queues/B-ground.md`, which is the desk's file and not mine to edit —
-**desk, those are `499df04` -> `9a8607d1c` and `42bc42b` -> `8a50f971a`.**
+**desk, both are in the project mapping** — `notes/AUDIT-hash-recovery.md`,
+keyed by the dead hash. Quoting them inline here is what made this note trip
+`hashes-resolve` itself, which is the correct behaviour: a repair instruction
+that inlines dead hashes is indistinguishable from a note that cites them.
+The table is the one place exempt from the check, because listing them is its
+whole purpose.
 
 **Do this before anyone runs `git prune`.** Those 164 resolve here only as
 unreachable loose objects, which is both why they are invisible to their authors

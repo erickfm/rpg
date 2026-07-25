@@ -36,11 +36,27 @@
 // rather than this check's business. What is left is exactly the defect: a real
 // commit, cited, that only exists in the citing author's object store.
 //
-// The blind spot is stated rather than hidden: this cannot see a citation whose
-// object has already been garbage-collected locally, and it is weakest in a
-// FRESH clone, where those objects are absent and every such hash reads as a
-// typo. It is strongest run where the work happened, which is where the notes
-// get written.
+// ── where this is blind, which is worth knowing before you trust a green ──
+//
+// It can only flag a citation whose object still exists in THIS store. That
+// means it is strongest in the worktree that wrote the note and blind in a
+// fresh clone — the exact place the damage shows up. On a fresh clone every
+// dead citation fails `cat-file`, gets skipped as "not a commit", and this
+// prints OK over a repo full of broken references.
+//
+// So a green from this check means "nothing I can still see is stranded", not
+// "every citation resolves for everyone". GOTCHAS 36 is blunter about the
+// underlying trap than I was: two builders separately published "every citation
+// resolves" from `git cat-file -e`, which happily resolves orphaned objects
+// that exist only locally. The verdict here is `merge-base --is-ancestor` for
+// exactly that reason; `cat-file` appears only to tell a commit from a
+// fingerprint, never to decide whether a citation is sound.
+//
+// It is also racing a deletion. These objects survive as unreachable loose
+// objects, and git is currently advising `git prune`, which removes every
+// unreachable object regardless of age. notes/AUDIT-hash-recovery.md is the
+// project-wide mapping built while they were still readable; consult it for
+// REPAIR. This script is for not adding new ones.
 import { execFileSync } from 'node:child_process';
 
 const MAINLINE = process.env.MAINLINE ?? 'add-stick-and-city98';
@@ -79,7 +95,17 @@ const files = [
   ...git('ls-files', '--others', '--exclude-standard', '*.ts', '*.mjs', '*.md', '*.sh', '*.json').split('\n'),
 ].filter(Boolean)
   .filter((f) => !f.includes('node_modules') && !f.endsWith('package-lock.json'))
-  .filter((f) => !only.length || only.some((o) => f.includes(o)));
+  .filter((f) => !only.length || only.some((o) => f.includes(o)))
+  // A RECOVERY TABLE IS NOT A CITATION. notes/AUDIT-hash-recovery.md exists to
+  // list dead hashes and their landed twins, so flagging it is like flagging a
+  // dictionary for containing the word it defines.
+  //
+  // I expected this to be most of the count and it is not: of 153 stranded
+  // hashes, exactly TWO are cited only there — the table maps hashes that are
+  // also being argued from in real notes, which is why it was built. So the
+  // number stands at ~151 genuine dead citations and the exemption is for
+  // correctness rather than to flatter the total.
+  .filter((f) => !f.endsWith('AUDIT-hash-recovery.md'));
 
 if (only.length && !files.length) {
   console.error(`\n  nothing matches ${only.join(' ')} — check the filter.\n`);
@@ -156,7 +182,26 @@ for (const [h, where] of stranded) {
       landed = git('log', '--format=%h %s', MAINLINE).split('\n')
         .find((l) => l.slice(l.indexOf(' ') + 1) === subj) ?? '';
     } catch { /* ignore */ }
-    if (landed) console.log(`      landed as ${landed.slice(0, landed.indexOf(' '))} — cite that instead`);
+    if (landed) {
+      const twin = landed.slice(0, landed.indexOf(' '));
+      // VERIFIED, NOT INFERRED — GOTCHAS 36 is explicit that the match is by
+      // `git patch-id --stable` and not by subject, because two commits can
+      // carry the same message and a wrong repair is worse than a dead hash:
+      // the citation then points confidently at the wrong change. The subject
+      // is only how the candidate is FOUND; the patch-id is whether it is right.
+      let same = null;
+      try {
+        const idOf = (ref) => execFileSync('sh',
+          ['-c', `git show ${ref} | git patch-id --stable`],
+          { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(' ')[0];
+        const a = idOf(h), b = idOf(twin);
+        same = a && b ? a === b : null;
+      } catch { same = null; }
+      const mark = same === true ? 'patch-id matches'
+        : same === false ? 'PATCH-ID DIFFERS — same subject, different change; do NOT paste this'
+        : 'patch-id not checkable here';
+      console.log(`      landed as ${twin} — ${mark}`);
+    }
   }
 }
 console.log('');
