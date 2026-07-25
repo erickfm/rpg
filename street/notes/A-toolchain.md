@@ -40,9 +40,22 @@ somebody is looking at.
 - fails loudly if the module-tag replacement no-ops, which it would do silently
   if `dist/index.html` ever changed shape
 
-**`street/dist/artifact.html` is rebuilt and verified** at `499892c7`: 702,788
-bytes, 1131 objects, zero failed requests from `file://`, no errors. Still
-unpublished — that is the desk's step.
+**`street/dist/artifact.html` is rebuilt and verified**: 1131 objects, zero
+failed requests from `file://`, no errors. Still unpublished — that is the
+desk's step.
+
+**It is still ephemeral, and that is now the only thing to remember.** `vite
+build` empties `dist/`, so any build after packing deletes the artifact again —
+I did it to myself once more during this session's closing checks. What changed
+is that regenerating it is one safe command that cannot produce a stale or
+unstamped file, so:
+
+```
+node scripts/pack-artifact.mjs     # <- run this immediately before publishing
+```
+
+Do not run it, then build, then publish. The stamp in the corner is how you
+check: it must match the sha you think you are shipping.
 
 ## 2. Every screenshot in this repo could be a white page
 
@@ -76,6 +89,7 @@ blank.
   are other agents' scripts so I have not touched them. Until then,
   `node scripts/shotguard.mjs shots/` after a sweep catches it at the door — it
   exits non-zero, so it chains.
-- **The artifact is waiting on you** at `499892c7`. Rebuilding it yourself is
-  now safe and one command; the stamp will just move to your sha.
+- **The artifact is waiting on you**, packed at `5803367e` (711,029 bytes).
+  Rebuilding it yourself is now safe and one command; the stamp just moves to
+  your sha.
 - **My queue is empty.** Six items, all verified landed.
