@@ -704,3 +704,61 @@ full slow tier: 54 checks green (interiors-walk 195/195, seats-walk 57/57)
    its doors answer with a locked-door response until the room lands.
 4. **`fp`'s two noise columns** — `tints` and `places`. `ct/vice.ts` +
    `scenedump.mjs`, written up in `F-fingerprint-phase.md`.
+
+---
+
+# FINAL STATE — queue empty, five builders unblocked, nothing landed
+
+Supersedes the "13 commits" handoff above. **19 commits ahead of
+`add-stick-and-city98`, 0 behind, mainline static.**
+
+## Every blocker other builders raised on my files is discharged
+
+| who | what they asked for | state |
+|---|---|---|
+| H | the slow tier could not survive a rebasing worktree | `slow-pinned.sh`; the full **54-check tier now completes**, a first |
+| A | `interior.ts` off the four deprecated `Frontage` fields | landed — upstream landed the same migration in parallel |
+| C · D · G | `doors.ts` cycle dropping GOLDEN ACES silently in the bundle | glob narrowed to `./int-*.ts`; **bundle 8/8, zero undefined namespaces** |
+| D · G · H | `ct/doors.ts` had no owner | claimed, with `world.ts`, `civic-doors.ts`, `int-bodega.ts` |
+
+Three separate builders asked for that ownership line. That is the measure of
+what a blank in `OWNERSHIP.md` costs: each of them had a complete diagnosis and
+none could act on it.
+
+## What guards my subsystem now
+
+Seven registered checks, every one with a selftest, **every one watched firing
+at HEAD rather than merely passing**:
+
+```
+spot-coverage · spots-walk · steps-walk · civic-doors-walk
+seats-walk · interiors-walk · world-wired · integration-doors
+```
+
+`integration-doors` is the only thing in the project that walks into a room in
+a **built bundle** — `interiors-walk` imports a source path no bundle serves,
+and AUDIT-INSTRUMENTS.md records why converting it is not a one-line swap
+(tried, 195/195 → 152/195, reverted).
+
+## The one thing that needs the desk
+
+**None of this has landed.** Two builders — G and C — have written up problems
+already fixed in a tree they cannot see, and spent real effort doing it. That is
+this project's own recurring failure, finished work that cannot reach the world,
+one level above where it usually bites.
+
+Verified landable, so the train has no reason to drop me: tsc and build clean,
+`WORLD OK`, every interior built and reachable, every `[E]` spot exercised by a
+named check, every declared door arriving in the bundle, full slow tier green.
+
+## Open, and none of it mine to take
+
+1. **20 stale rows in `queues/F-interiors.md`** — reconciled in `86fa8ce7`, each
+   with the commit that closed it. The desk writes that file.
+2. **Six unowned modules** — `crowd-net`, `traffic`, `sidestreet`, `lot`, `gap`,
+   `hud`. Named, deliberately not guessed at.
+3. **E's library interior** — the last of the user's ten. Its steps climb and its
+   doors answer with a locked-door response until the room lands.
+4. **`doors-declared` runs in the mode where its bug cannot happen** — the open
+   decision in `BLOCKED-F.md`.
+5. **`fp`'s two noise columns**, `tints` and `places` — `F-fingerprint-phase.md`.
