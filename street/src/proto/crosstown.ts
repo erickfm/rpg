@@ -19,7 +19,7 @@ import { type CarKind, makeCar, makeBus } from './ct/cars';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { type Look, citizenAtlas, viewFor } from './ct/citizens';
-import { type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef } from './ct/ctx';
+import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
@@ -101,9 +101,13 @@ export function makeCrosstown(): Proto {
     gy: () => apt.gy(),
     jumpTo: (x, z, yaw, gy) => jumpToImpl(x, z, yaw, gy),
   };
+  // per-frame hooks, sorted by declared order once the world is built — so
+  // moving a module's build call cannot silently change run order
+  const HOOKS: { fn: FrameHook; order: number }[] = [];
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
     spot: (sp) => { SPOTS.push(sp); },
+    onFrame: (fn, order = ORDER.PROPS) => { HOOKS.push({ fn, order }); },
     player,
   };
   const apt = buildApartment(ctx);
@@ -330,6 +334,8 @@ export function makeCrosstown(): Proto {
     rig.yaw = yaw;
     apt.setGy(gy);
   };
+  HOOKS.sort((a, b) => a.order - b.order);
+
   const jumpTo = jumpToImpl;
   SPOTS.push(
     {
@@ -437,8 +443,15 @@ export function makeCrosstown(): Proto {
       // toward black instead of toward the sky grey gives depth down the block
       // for free — the far end reads as unlit rather than as bright haze.
       scene.fog!.color.copy(skyCol).multiplyScalar(1 - 0.5 * lampNight);
-      // the hermit keeps his own hours — mostly afternoons
-      apt.updateHermit(Math.floor(totalMin / 60));
+      // ── registered per-frame hooks ────────────────────────────────────
+      // Modules register these; this loop does not know what any of them are.
+      // Sorted by declared ORDER at build time, so run order is a property of
+      // the hook, not of where the module happened to be constructed.
+      const frame: Frame = {
+        dt, t, px, pz, gy: apt.gy(),
+        hourAbs: Math.floor(totalMin / 60), hourF, night,
+      };
+      for (const h of HOOKS) h.fn(frame);
       // look down: your watch
       hud.watch(rig.pitch < -0.95, Math.floor(clockMin));
       // right-click: flip the wallet out / away
@@ -463,11 +476,7 @@ export function makeCrosstown(): Proto {
         }
       }
       feedHeld = feedDown;
-      // weather: the rain comes and goes by the hour
-      props.updateRain(dt, px, pz, Math.floor(totalMin / 60));
 
-      // floor-aware stair guards (2D colliders, so they follow the floor)
-      apt.updateCaps(px);
       // billboards face the player
       for (const b of boards) {
         b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);

@@ -4,7 +4,7 @@ import { pixTex, dither } from './paint';
 import { ENTRANCE } from './tex-world';
 import { citizenAtlas, viewFor } from './citizens';
 import { FACE } from './rng';
-import type { CtxBuild } from './ctx';
+import { ORDER, type CtxBuild } from './ctx';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -1014,6 +1014,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   };
 
   // floor-aware stair guards (2D colliders, so they follow the floor)
+  // Registered rather than called by name from the sim loop: the entry point
+  // no longer knows this module has per-frame work. WORLD order because the
+  // stair guards and the hermit's presence are state that later passes read.
+  ctx.onFrame((f) => { updateCaps(f.px); updateHermitAt(f.hourAbs); }, ORDER.WORLD);
+
   const updateCaps = (px: number) => {
     // the guard starts at the railing, not at the stairwell mouth: the first
     // NIB_D of the west half is the top landing now and you may stand on it
@@ -1024,6 +1029,25 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     setCap(aptDoorCap, Math.abs(lastGy - 2 * ST) > 0.4, AX(-0.15), AX(0.05), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
   };
 
+  const updateHermitAt = (hAbs: number) => {
+    hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+    // solid while he is standing there — he is out in the hall now, so
+    // without this you walk straight through him. Floor-gated like every
+    // other cap, because colliders here are 2D and the hall is stacked 4 deep.
+    setCap(hermitCap, hermit.visible && Math.abs(lastGy - 2 * ST) < 0.5,
+      AX(1.69), AX(2.21), AZI(3.24), AZI(3.76));
+    if (!hermit.visible) return;
+    // The billboard pass in the sim loop has already turned him to face the
+    // player, so his own yaw IS the angle to the camera — no need for the
+    // player's position here, which is why this still takes only the hour.
+    // (It runs a frame behind the billboard pass. On a man who does not
+    // move, one frame of lag is not a thing you can see.)
+    const [col, mirror] = viewFor(hermit.rotation.y - HERMIT_FACING);
+    hermitTex.repeat.x = mirror ? -1 / 5 : 1 / 5;
+    hermitTex.offset.x = mirror ? (col + 1) / 5 : col / 5;
+    hermitTex.offset.y = 0.5;            // standing still: feet together
+  };
+
   return {
     AX, AZI, ST,
     colliders: sevColliders,
@@ -1031,24 +1055,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     updateCaps,
-    updateHermit: (hAbs) => {
-      hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
-      // solid while he is standing there — he is out in the hall now, so
-      // without this you walk straight through him. Floor-gated like every
-      // other cap, because colliders here are 2D and the hall is stacked 4 deep.
-      setCap(hermitCap, hermit.visible && Math.abs(lastGy - 2 * ST) < 0.5,
-        AX(1.69), AX(2.21), AZI(3.24), AZI(3.76));
-      if (!hermit.visible) return;
-      // The billboard pass in the sim loop has already turned him to face the
-      // player, so his own yaw IS the angle to the camera — no need for the
-      // player's position here, which is why this still takes only the hour.
-      // (It runs a frame behind the billboard pass. On a man who does not
-      // move, one frame of lag is not a thing you can see.)
-      const [col, mirror] = viewFor(hermit.rotation.y - HERMIT_FACING);
-      hermitTex.repeat.x = mirror ? -1 / 5 : 1 / 5;
-      hermitTex.offset.x = mirror ? (col + 1) / 5 : col / 5;
-      hermitTex.offset.y = 0.5;            // standing still: feet together
-    },
+    updateHermit: updateHermitAt,
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
   };
 }

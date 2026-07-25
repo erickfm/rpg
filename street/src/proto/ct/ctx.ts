@@ -35,6 +35,35 @@ export interface PlayerRef {
   jumpTo: (x: number, z: number, yaw: number, gy: number) => void;
 }
 
+/** Everything a per-frame hook could need, assembled once by the sim loop. */
+export interface Frame {
+  dt: number;
+  /** wall time, for anything that animates on its own clock */
+  t: number;
+  px: number; pz: number;
+  /** the player's current ground height — which floor they are on */
+  gy: number;
+  /** absolute game hour, monotonic — what the weather hashes on */
+  hourAbs: number;
+  /** hour of day as a float, 0…24 — what the sky and lamps curve on */
+  hourF: number;
+  /** the night wash, 0…1 */
+  night: number;
+}
+export type FrameHook = (f: Frame) => void;
+
+/** Ordering for per-frame hooks. Registration order is NOT the run order —
+ *  it must not be, or moving a module's build call would silently change
+ *  behaviour. Hooks declare where they belong and are sorted once. */
+export const ORDER = {
+  /** world state that later passes read: weather, floors, occupancy */
+  WORLD: 10,
+  /** props reacting to that state */
+  PROPS: 20,
+  /** anything that must observe the finished frame */
+  LATE: 30,
+} as const;
+
 export interface CtxBuild {
   scene: THREE.Scene;
   /** unlit material off a painted texture — the whole world is MeshBasic */
@@ -51,6 +80,9 @@ export interface CtxBuild {
   /** register an `[E]` interaction. The entry point iterates whatever has been
    *  registered; it does not know what any of them are. */
   spot: (s: Spot) => void;
+  /** register a per-frame hook. `order` decides when it runs — see ORDER.
+   *  The billboard and citizen passes run after every registered hook. */
+  onFrame: (fn: FrameHook, order?: number) => void;
   /** where the player is and how to move them, for use inside a Spot's
    *  ok()/act(). Safe to capture at build time — the accessors are live. */
   player: PlayerRef;

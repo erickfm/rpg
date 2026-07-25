@@ -3,7 +3,7 @@ import { pixTex, dither } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          canTopTex, paperTex, scrapTex } from './tex-world';
-import type { CtxBuild } from './ctx';
+import { ORDER, type CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
 //
@@ -342,6 +342,11 @@ export function buildProps(ctx: CtxBuild): Props {
 
   // weather: the rain comes and goes by the hour, and the ground
   // remembers it — every registered wet surface darkens as it comes in
+  // Registered rather than called by name from the sim loop. PROPS order: it
+  // must run AFTER the world state hooks (it reads the hour) and BEFORE the
+  // billboard pass, because it tints the wet ground the billboards sit on.
+  ctx.onFrame((f) => updateRain(f.dt, f.px, f.pz, f.hourAbs), ORDER.PROPS);
+
   const updateRain = (dt: number, px: number, pz: number, hAbs: number) => {
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
