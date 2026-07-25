@@ -533,13 +533,32 @@ export function buildVice(o: {
         scene.add(stay);
       }
       // ACES down the blade in tube neon, over a chevron of bulbs pointing at
-      // the door. Both faces get their OWN painted texture so the back one is
-      // not a mirror of the front (GOTCHAS §10).
-      const bladeArt = (mirror: boolean) => pixTex(44, 224, (g) => {
+      // the door.
+      //
+      // ── GOTCHAS §10, and the way this one actually works ──────────────
+      //
+      // A blade is read from BOTH ends of the street, so it is two SINGLE-sided
+      // planes back to back — never one DoubleSide plane, which renders its far
+      // face mirrored and is how a HOTEL sign shipped backwards here once
+      // already.
+      //
+      // The part that is easy to get wrong, and that I got wrong: with the two
+      // planes at rotation.y = +PI/2 and -PI/2, the artwork must be IDENTICAL on
+      // both. It is tempting to paint the rear one mirrored — that is the
+      // standard fix — but the geometry has already supplied that flip here.
+      // A plane's u runs from local -x to +x; at +PI/2 that is world +z to -z
+      // and at -PI/2 it is -z to +z, and each viewer's screen-right runs the
+      // same way. The two mirrors cancel. Painting one face flipped as well
+      // un-cancels them, which is exactly what made the west face read
+      // backwards while the east face was fine.
+      //
+      // Verified from BOTH ends of the street on asymmetric letters — ACES,
+      // ORPHEUS, VACANCY, LOOSEST SLOTS. Symmetric text hides this completely,
+      // which is why the last one survived.
+      const bladeArt = () => pixTex(44, 224, (g) => {
         g.fillStyle = '#17141c'; g.fillRect(0, 0, 44, 224);
         g.fillStyle = GOLD_D; g.fillRect(0, 0, 44, 3); g.fillRect(0, 221, 44, 3);
         g.fillRect(0, 0, 3, 224); g.fillRect(41, 0, 3, 224);
-        if (mirror) { g.translate(44, 0); g.scale(-1, 1); }
         'ACES'.split('').forEach((ch, i) => tubeText(g, ch, 22, 32 + i * 33, 30, '#ff5a4a'));
         // the chevrons, running down toward the marquee
         for (let k = 0; k < 4; k++) {
@@ -553,7 +572,7 @@ export function buildVice(o: {
       });
       for (const s of [-1, 1]) {
         const face = new THREE.Mesh(new THREE.PlaneGeometry(blD * 0.92, BL_Y1 - BL_Y0),
-          neon(bladeArt(s < 0)));
+          neon(bladeArt()));
         face.position.set(BL_X + s * 0.18, (BL_Y0 + BL_Y1) / 2, blCz);
         face.rotation.y = s * Math.PI / 2;
         scene.add(face);
@@ -822,11 +841,10 @@ export function buildVice(o: {
         stay.rotation.x = 0.69;
         scene.add(stay);
       }
-      const hotelArt = (mirror: boolean) => pixTex(40, 250, (g) => {
+      const hotelArt = () => pixTex(40, 250, (g) => {
         g.fillStyle = '#17141c'; g.fillRect(0, 0, 40, 250);
         g.fillStyle = '#3a3630'; g.fillRect(0, 0, 40, 3); g.fillRect(0, 247, 40, 3);
         g.fillRect(0, 0, 3, 250); g.fillRect(37, 0, 3, 250);
-        if (mirror) { g.translate(40, 0); g.scale(-1, 1); }
         // HOTEL small at the head, ORPHEUS at full size under it — the way a
         // hotel blade is actually set, with the category over the name
         'HOTEL'.split('').forEach((ch, i) => tubeText(g, ch, 20, 16 + i * 15, 13, '#ff5a8a'));
@@ -834,22 +852,21 @@ export function buildVice(o: {
         'ORPHEUS'.split('').forEach((ch, i) => tubeText(g, ch, 20, 110 + i * 20, 26, '#5ad2ea'));
       });
       for (const s of [-1, 1]) {
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, HB_Y1 - HB_Y0), neon(hotelArt(s < 0)));
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, HB_Y1 - HB_Y0), neon(hotelArt()));
         face.position.set(hx + s * 0.15, HB_YC, -96.95);
         face.rotation.y = s * Math.PI / 2;
         scene.add(face);
       }
       // VACANCY, hung under the blade. Pink neon, and the NO has been dark for
       // long enough that the tube behind it has gone grey.
-      const vacT = (mirror: boolean) => pixTex(34, 20, (g) => {
+      const vacT = () => pixTex(34, 20, (g) => {
         g.fillStyle = '#17141c'; g.fillRect(0, 0, 34, 20);
-        if (mirror) { g.translate(34, 0); g.scale(-1, 1); }
         tubeText(g, 'NO', 9, 10, 11, '#4a4640', '#6a6660', '#241f22');
         tubeText(g, 'VACANCY', 22, 10, 8, '#ff6a9a');
       });
       const vacM: THREE.MeshBasicMaterial[] = [];
       for (const s of [-1, 1]) {
-        const mat = neon(vacT(s < 0));
+        const mat = neon(vacT());
         const v = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.56), mat);
         v.position.set(hx + s * 0.14, 4.5, -96.75);
         v.rotation.y = s * Math.PI / 2;
