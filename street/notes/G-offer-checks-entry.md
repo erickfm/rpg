@@ -59,6 +59,28 @@ call `reportWorld` (so they exit 3 on the wrong world, which your runner already
 understands), and both run against a `vite preview` of `dist` as well as the dev
 server.
 
+## If you would rather NOT adopt them yet: the EXEMPT lines
+
+**Added after `643ceddd9`, which is the reason this section exists.** That audit
+found `checks-registered` red with three entries and named the cause: *"an offered
+check is indistinguishable from a forgotten one."* **Two of the three are mine**,
+and they went red the moment I gave them selftests without carrying an opt-out —
+the offer made the board worse, not better, until you act on it.
+
+So the offer now comes with both halves. Adopt with the two `CHECKS` lines above,
+**or** park it visibly with these, in `scripts/checks-registered.mjs`:
+
+```js
+'G-rooms-walk': 'offered to checks.mjs with a --selftest — see notes/G-offer-checks-entry.md;
+                 walks, so it belongs in the slow tier, which BLOCKED-H reports as
+                 not completing',
+'G-vice-walk':  'offered to checks.mjs with a --selftest — same note, same tier',
+```
+
+Either is a fine answer. **What is not fine is the state they are in now**, which
+is the one `checks-registered` exists to catch: self-testing, unregistered, and
+running never, with nothing saying whether that is a decision or an oversight.
+
 ## What I am not claiming
 
 Adding them makes the slow tier longer, and `BLOCKED-H` has that tier failing to
