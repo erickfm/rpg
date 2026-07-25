@@ -30,6 +30,9 @@ import { interiorGround, interiorMaxX, interiorColliders } from './ct/interior';
 import { buildDiner } from './ct/int-diner';
 import { buildBurger } from './ct/int-burger';
 import { buildThrift } from './ct/int-thrift';
+import { buildCasino } from './ct/int-casino';
+import { buildHotel } from './ct/int-hotel';
+import { buildTax } from './ct/int-tax';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -301,6 +304,9 @@ export function makeCrosstown(): Proto {
   buildDiner(ctx);
   buildBurger(ctx);
   buildThrift(ctx);
+  buildCasino(ctx);
+  buildHotel(ctx);
+  buildTax(ctx);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //
