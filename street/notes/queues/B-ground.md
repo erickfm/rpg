@@ -16,6 +16,31 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Fix the puddle contrast inversion — the desk approves your
+      recommendation.** Your diagnosis (`bc20c70`) is the best piece of
+      debugging on this project so far: the puddles are present, filled,
+      correctly placed and drawn, and invisible because `updateRain` crushes
+      the road toward slate at 0.95 while the puddle is a FIXED dark sheet
+      that cannot go darker. The sign inverts and you get a pale smear — a
+      quiet version of the glowing puddle that was already rejected once.
+
+      Do what you proposed:
+      · a real **ambient-scaled reflection** rather than a fixed dark sheet.
+        Standing water reads by reflecting, which is exactly what the sheet
+        lacks, and a reflection scales with the light so it cannot invert.
+      · **put water where the player actually looks.** Every street puddle
+        currently sits in the 45 cm gutter strip. Nobody walks there. Low
+        spots on the sidewalk, the dip by the catch basin, under the awning
+        drip line, the alley.
+      · **hold off easing the wet tint**, as you recommended — the user just
+        approved the night pass and that trades directly against it. Correct
+        call; do not touch it.
+
+      One more thing you raised: rain is 6 of 24 hours and the first is 100 s
+      from spawn. The user has asked about rain and puddles four times and has
+      probably never stood in a storm. Raise the odds and bring the first one
+      much closer to spawn. This is a feature nobody can see.
+
 - [ ] **The user still cannot see puddles while it is raining.** *"still no
       puddles during rain?"* — asked AFTER your `8a50f97` landed, so treat the
       buried-decal fix as necessary but not sufficient.
