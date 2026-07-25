@@ -61,7 +61,19 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Next
 
-- [ ] **BURGER BARN interior.** Loudest building on the block, 16 m wide, west
+- [ ] **BURGER BARN interior. The user is already trying to get in** — *"cant
+      go inside burger barn"* — so this is the next thing they will check.
+
+      There is no way in at all today: no `[E]` spot and no interior. The kit
+      gives you both, but note the facade painter draws a door at
+      `W * 0.44` of the shopfront texture, and your `[E]` spot has to land on
+      the world position that corresponds to it — not near it. Work it out
+      from the building's z-span in the WEST roster rather than guessing, and
+      then walk up and press E to prove it. `GOTCHAS.md` §8: a collider that
+      overlaps the approach will silently eat the trigger, which is exactly
+      how the bodega became un-enterable.
+
+      Loudest building on the block, 16 m wide, west
       side. Red-and-beige inside as well as out (the user rejected red/yellow).
       Order counter with backlit menu boards, fryer station behind it, moulded
       fixed tables and swivel stools, tray stack, bin with a swing flap, tile

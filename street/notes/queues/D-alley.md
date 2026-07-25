@@ -26,6 +26,16 @@ hour of work is where the conflicts live.
 
 ## Next
 
+- [ ] **BURGER BARN colours — the user has now asked twice.** *"colors on
+      burger barn arent right"*, and before that *"instead of red and yellow
+      for burger barn lets do red ans white or red and beige"*. It is still
+      red and mustard. `burgerFront` in your file, around line 95:
+      · `#e8a02a` mustard accent stripe
+      · `#f2d24a` BURGER BARN lettering
+      · `#f2d24a` menu-board lines
+      Take them to white or beige against the red fascia. Keep the red — only
+      the yellow is wrong. Three constants; do it first, it is minutes.
+
 - [ ] **Bodega door is not readable as a door.** Every panel in the chamfer bay
       is identical blue glass, and the OPEN neon sits over a WINDOW. Give the
       door its own frame, handle, kick plate, set the plane back slightly, and

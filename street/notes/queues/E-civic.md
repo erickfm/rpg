@@ -14,6 +14,34 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The library courtyard — DO THIS FIRST.** Promoted above the buttresses:
+      the user went looking for it, found the library unchanged, and said so —
+      *"library is exactly the same no copurt yard or anything i asked for"*.
+      Ref: `shots/user-library-flush.png`
+
+      The original ask: *"make entire library building a bit recessed so there
+      like a courtyard public 3rd space area."*
+
+      Pull the whole library mass back from the facade line. It already stands
+      shorter than its neighbours on purpose — the block grew past it and left
+      it behind — and setting it back extends exactly that idea. Fill the notch
+      with a real public space, not an empty slab: paving that is not the
+      sidewalk texture, the existing steps rebuilt to suit the new depth, a
+      bench or two, a tree or planter, a bin. It should read as somewhere
+      people sit at lunch.
+
+      In the screenshot the payphone and a street tree stand directly in front
+      of the library doors, on the sidewalk. Once the mass moves back they are
+      in the middle of your courtyard. The payphone belongs to `ct/props.ts`
+      (builder B) — do not move it yourself; work out where it should go and
+      tell the desk.
+
+      Constraints: the 2 m walking lane past it is sacred (`GOTCHAS.md` §9), so
+      leave the mouth of the courtyard clear and keep every collider off the
+      sidewalk lane. Paving must ABUT the sidewalk exactly, never overlap it
+      (§6) — an overlap here will z-fight. **Walk it** before you close this:
+      along the street, into the courtyard, and back out.
+
 - [ ] **Church buttresses foul the lancet windows.** The user: *"pillars of the
       church seem not fully thought out. they block the windows i think?"*
       Ref: `shots/user-churchpillars.png`

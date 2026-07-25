@@ -36,6 +36,12 @@ published to the playable artifact.
   owns how the church looks, D owns where it stands)
 - **"needs to be darker at night"** → **builder B**, folded into its in-flight
   flat-night item
+- **"library is exactly the same no copurt yard or anything i asked for"** →
+  **builder E**, courtyard promoted to the top of its queue
+- **"cant go inside burger barn"** → **builder F** (no [E] spot and no interior
+  exist yet)
+- **"colors on burger barn arent right"** → **builder D** (still red + mustard;
+  asked for red + white or red + beige, second time of asking)
 
 ## In progress
 
