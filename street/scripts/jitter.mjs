@@ -42,7 +42,14 @@ const t = await page.evaluate(async (SECONDS) => {
   let samples = 0, closeSamples = 0, closeReversals = 0, minPair = 1e9;
   const t0 = performance.now();
   let last = -1;
-  while (performance.now() - t0 < SECONDS * 1000) {
+  // Keep going until a PAIR has actually come close, because that is the
+  // condition the report describes — two of them together in a tight lane. Since
+  // the crowd started routing over a graph and pausing for errands they meet less
+  // often, so a fixed window can end with nothing to judge. Up to twice the asked
+  // time, then give up and say so.
+  const deadline = () => performance.now() - t0 > SECONDS * 1000
+    && (closeSamples > 20 || performance.now() - t0 > SECONDS * 2000);
+  while (!deadline()) {
     await new Promise((r) => requestAnimationFrame(r));
     const now = performance.now() - t0;
     if (now - last < 50) continue;                // 20 Hz — fast enough to see a flip
@@ -81,7 +88,16 @@ const t = await page.evaluate(async (SECONDS) => {
 const per100 = (n) => (n / t.samples * 100).toFixed(1);
 console.log(`  ${t.samples} samples at 20 Hz; closest two ever got was ${t.minPair} m, ` +
   `${t.closeSamples} samples with a pair inside 1.6 m`);
-check(t.closeSamples > 20, `they did get close together (${t.closeSamples} crowded samples — the condition in the report)`);
+// Crowding is the PRECONDITION, not the thing under test: without it this run
+// has not exercised the bug, which is inconclusive rather than failed. The jitter
+// counts below are the actual assertions.
+if (t.closeSamples <= 20) {
+  console.log(`  ??   INCONCLUSIVE for the crowded case — only ${t.closeSamples} samples with a ` +
+    'pair inside 1.6 m; they route over the whole block now and meet less often. Re-run, or ' +
+    'raise the seconds argument.');
+} else {
+  check(true, `they did get close together (${t.closeSamples} crowded samples — the condition in the report)`);
+}
 const totalView = t.viewFlips.reduce((a, b) => a + b, 0);
 const totalRev = t.reversals.reduce((a, b) => a + b, 0);
 console.log(`  view changes per 100 samples: ${t.viewFlips.map((n) => per100(n)).join(', ')}`);
@@ -99,4 +115,4 @@ check(t.closeReversals <= 2, `and crowding does not cause it — ${t.closeRevers
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
 console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nno jitter');
 await browser.close();
-process.exitCode = fails ? 1 : 0;
+process.exitCode = fails ? 1 : t.closeSamples > 20 ? 0 : 2;   // 2 = inconclusive
