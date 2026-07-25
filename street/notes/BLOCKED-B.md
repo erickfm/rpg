@@ -74,8 +74,24 @@ Restated because the triage still lists lane work and this is the answer:
 
 The bench is at the kerb facing the road because that is what was asked for over
 four passes; the lamp stands `LAMP_OFF = 0.35` off the kerb on a 1.70 m walk.
-1.15 m against a 0.72 m capsule is comfortable. Going lower means putting the
-bench and the lamps in the roadway.
+Going lower means putting the bench and the lamps in the roadway.
+
+**Correcting my own wording, which I have repeated several times.** I have said
+"1.15 m against a 0.72 m capsule is comfortable" as though it settled the
+question. It does not. 1.15 m is the **built** lane — every lane figure in this
+project, mine included, drops the moving colliders, so they all describe a
+pavement with nobody on it. `6168c410` measured it as played, movers included:
+
+```
+best 1.12 m · median 0.77 m · worst 0.72 m · under 0.90 m in 14 of 20 samples
+never below 0.72 m — the capsule width — so never impassable
+```
+
+The lived median is 0.77 m, and at its worst the gap is exactly the player's own
+width. That is not an argument for widening anything: citizens on pavements are
+the point of having them, and edging past someone is what a busy street feels
+like. It is an argument for saying **which** lane a number describes. Mine
+described the empty one and I did not say so.
 
 ---
 

@@ -138,6 +138,18 @@ if (mode === 'walk' || mode === 'all') {
     // speed, so this is "got through", not "covered a target distance"
     if (end < -45) lane = x;
   }
+  // WHY THIS SURVIVES CITIZENS while the hike above needed rewriting. I came
+  // back to this expecting the same fragility: 21 m to cover in 9 s needs
+  // 2.33 m/s against ~2.9 m/s clear, a thinner margin than either leg walk I
+  // rewrote. Ran it three times and it returned x = 6.15 every time.
+  //
+  // The margin is in the SWEEP, not in the walk. Five lateral positions are
+  // tried and the narrowest one that gets through wins, so a pedestrian
+  // blocking a single attempt moves the number it prints without moving the
+  // verdict — everything at or inside 6.22 would have to be blocked at once.
+  // Worth writing down, because the printed x IS noisy under traffic and the
+  // next person to read one of these should not treat it as a measurement of
+  // the lane the way the verdict is.
   const laneOK = lane !== null && lane <= 6.22;
   console.log(`  ${laneOK ? 'OK  ' : 'STUCK'} east walk, narrowest clear lane: ` +
     `x = ${lane === null ? 'NONE' : lane.toFixed(2)} (lamp poles cap it at 6.11)`);
