@@ -509,3 +509,35 @@ Worth reading, because two of them are the same mistake:
 - **`ct/doors.ts` has no owner** in `OWNERSHIP.md`; C's items on it are open.
 - **`ct/int-bodega.ts` is not listed either**, and I was the de-facto owner of
   its predecessor.
+
+---
+
+# Since the last append — verified at HEAD, not remembered
+
+| what | commit |
+|---|---|
+| **The bodega's `[E]` reaches the pavement centreline.** request-audit's patch sweep found its nearest edge at x 6.2 against a centreline of 5.9 — the only door on the block that missed it. r 1.5 → 1.8; now fires over 1.5 m of centreline walk, edge at x 5.7, still 0.7 m clear of the kerb. | `5a92ab3a` |
+| **859 meshes stamped with `userData.mod`** — and the foreign builders I *call* (E's library and church, G's casino, the cat) stamped with THEIR names first, so the biggest module did not put mine on other people's geometry. | `95de74b3` |
+| **`npm run walk`, and a `--selftest`** that inverts three known truths and requires all three to fail. It was the only proof covering collision, the doors, the churchyard climb and the purse, and until then it was both unfindable and unwatched. | `15d09ed3` |
+| **Eleven surfaces declared** (`ground`/`sign`/`detail`), proven a no-op by fingerprint. | `081ed98a` |
+| **The lamp splash and pool identified** — ten of the eighteen then-remaining unjudgeable faces were one street lamp seen twice. | `9e1bce93`, `4906af20` |
+| Banner dropped in favour of `reportWorld`, which proves the build and not just the URL. | `f1ec7b40` |
+
+## State of my area at HEAD, measured this round
+
+```
+health          WORLD OK
+npm run walk    all D walks pass          (collision, doors, climb, purse)
+  --selftest    3 of 3 inverted assertions caught
+lane3           3 stretches under 1.20 m   (15 before my cushion + rail work)
+seampairs       brick vs brick: 0 · like-for-like disagreeing: 0
+```
+
+## Open, and the only thing I am waiting on
+
+`notes/BLOCKED-D.md` — `__frontages['BODEGA']` describes the side-street WING,
+not the canted bay where the door is. Latent (nothing reads it today) but it
+becomes live the moment anyone writes the shared door-disc arithmetic
+`7b100b65` proposes. **Not a one-liner**: `b.nm` drives the painted sign and the
+frontage registration from the same value, so the fix wants an optional
+`frontageName` on `shopfrontRelief` — A's file, A's API shape.
