@@ -140,6 +140,66 @@ export function buildHotel(ctx: CtxBuild): void {
 
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
+
+  // ── the way in, matched to the doorway you came through ───────────────
+  //
+  // The same fault the user caught on the casino, found by doing what they then
+  // asked -- "check your other five rooms' doors against their facades too".
+  // Outside this one is a wide entrance in a pale stone case with two dark
+  // glazed leaves and a brass post between them; inside was the kit's single
+  // narrow leaf with a small window.
+  //
+  // Temporary and by hand, exactly as in int-casino.ts: F is extending the
+  // frontage descriptor to publish door FORM, ct/interior.ts is F's, and this
+  // should be deleted the day that lands. Colours are ct/vice.ts's own entrance
+  // for this elevation -- #8a8478 and #9a9488 stone, #3a3428 leaf, the warm
+  // glaze over it -- rather than colours chosen to look similar.
+  const STONE = 0x8a8478, STONE_L = 0x9a9488;
+  const stoneM = new THREE.MeshBasicMaterial({ color: STONE });
+  const stoneLM = new THREE.MeshBasicMaterial({ color: STONE_L });
+  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+  {
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:hotel] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the lobby now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+  // the stone case: head, its lit top edge, and the two jambs
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.42, 0.20, 0.12), stoneM), dAt, DH + 0.08, hd - 0.07);
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.42, 0.04, 0.13), stoneLM), dAt, DH + 0.17, hd - 0.07);
+  for (const sx of [-1, 1]) {
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.19, DH + 0.20, 0.12), stoneM),
+      dAt + sx * (DW / 2 + 0.12), (DH + 0.20) / 2, hd - 0.07);
+  }
+  // two leaves, and the brass post between them that the facade also has
+  const hLeafT = declareSurface(pixTex(24, 56, (g) => {
+    g.fillStyle = '#141118'; g.fillRect(0, 0, 24, 56);
+    g.fillStyle = '#3a3428'; g.fillRect(2, 2, 20, 52);
+    g.fillStyle = 'rgba(232,200,138,0.30)'; g.fillRect(3, 3, 18, 44);
+    g.fillStyle = 'rgba(255,246,224,0.16)';
+    for (let i = 0; i < 9; i++) g.fillRect(4 + i, 4 + i * 2, 16 - i, 1);
+    g.fillStyle = '#2a251c'; g.fillRect(2, 46, 20, 8);            // the kick panel
+    g.fillStyle = '#9a7c3a'; g.fillRect(18, 22, 2, 12);           // brass pull
+    dither(g, 24, 56, 36);
+  }), 'detail');
+  const hLeafM = new THREE.MeshBasicMaterial({ map: hLeafT, side: THREE.DoubleSide });
+  const LW = DW / 2 - 0.04, OPEN = 0.50;
+  for (const sx of [-1, 1]) {
+    const hx = dAt + sx * DW / 2;
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06), hLeafM);
+    leaf.rotation.y = -sx * OPEN;
+    put(leaf, hx - sx * Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2,
+      hd - 0.13 - Math.sin(OPEN) * LW / 2);
+  }
+  put(new THREE.Mesh(new THREE.BoxGeometry(0.05, DH - 0.06, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0x9a7c3a })), dAt, (DH - 0.06) / 2, hd - 0.13);
   const BRASS = 0x9a7c3a, MAHOG = 0x4a2a20;
   const brassM = new THREE.MeshBasicMaterial({ color: BRASS });
   const mahogM = new THREE.MeshBasicMaterial({ color: MAHOG });

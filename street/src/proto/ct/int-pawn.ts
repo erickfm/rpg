@@ -103,6 +103,54 @@ export function buildPawn(ctx: CtxBuild): void {
 
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
+
+  // ── the way in, matched to the doorway you came through ───────────────
+  //
+  // Third of the doors the user's sweep turned up, and the mildest: outside,
+  // this shop's door is a SOLID dark panel with no glazing at all -- which is
+  // right, it is a pawn shop -- and inside the kit hangs a leaf with a window in
+  // it. A shop that bars its windows does not put a pane in its door.
+  //
+  // Temporary and by hand for the same reason as the casino and the hotel: F is
+  // extending the frontage descriptor to publish door FORM, ct/interior.ts is
+  // F's, and all three of these should be deleted the day that lands. Single
+  // leaf here, not double -- matching the facade is the point, and this facade
+  // has one.
+  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+  {
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:pawn] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the shop now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+  const pLeafT = declareSurface(pixTex(24, 56, (g) => {
+    g.fillStyle = '#2a1d16'; g.fillRect(0, 0, 24, 56);
+    g.fillStyle = '#3d2a1e'; g.fillRect(2, 2, 20, 52);            // solid, no pane
+    g.fillStyle = 'rgba(0,0,0,0.30)';                             // two sunk panels
+    g.fillRect(5, 6, 14, 18); g.fillRect(5, 30, 14, 18);
+    g.fillStyle = 'rgba(255,240,210,0.06)'; g.fillRect(5, 6, 14, 1); g.fillRect(5, 30, 14, 1);
+    // the one concession to glass: a small barred squint at head height, which
+    // is what a shop like this has instead of a window
+    g.fillStyle = '#1a1c1e'; g.fillRect(7, 9, 10, 7);
+    g.fillStyle = '#6a6258'; for (let x = 8; x < 17; x += 3) g.fillRect(x, 9, 1, 7);
+    g.fillStyle = '#8a7c50'; g.fillRect(18, 26, 2, 8);            // the handle
+    dither(g, 24, 56, 34);
+  }), 'detail');
+  {
+    const LW = DW * 0.95, OPEN = 0.80;
+    const hx = dAt - DW / 2;
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06),
+      new THREE.MeshBasicMaterial({ map: pLeafT, side: THREE.DoubleSide }));
+    leaf.rotation.y = -OPEN;
+    put(leaf, hx + Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2, hd - 0.10 - Math.sin(OPEN) * LW / 2);
+  }
   const DARKWOOD = 0x3a2c22, STEEL = 0x8a8880;
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const steelM = new THREE.MeshBasicMaterial({ color: STEEL });
