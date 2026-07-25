@@ -550,6 +550,13 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // corners cut, and one straight across the field from the gate — the line
   // everyone takes when they are crossing the park rather than using it, and
   // the one piece of evidence that the loop is a choice.
+  // Each line gets its OWN height in the stack. They cross each other — that is
+  // what a desire-line network does — and drawn at one lift the crossings are
+  // two coplanar dirt strips fighting for the same pixels. E-coplanar found the
+  // pair that meet on the mound at y 0.3034, which is the sort of flicker you
+  // see and cannot place. 0.4 × LIFT apart is 2.4 mm, invisible as a step and
+  // decisive to the depth buffer.
+  let wornN = 0;
   const worn = (x0: number, z0: number, x1: number, z1: number, w = 0.75) => {
     const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz);
     // A desire line goes OVER the mound — that is what a desire line does —
@@ -583,13 +590,14 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     geo.rotateY(Math.atan2(-dx, -dz));
     const wp = geo.attributes.position;
     for (let i = 0; i < wp.count; i++) {
-      wp.setY(i, relief(wp.getX(i) + cx, wp.getZ(i) + cz) + LIFT * 2.5);
+      wp.setY(i, relief(wp.getX(i) + cx, wp.getZ(i) + cz) + LIFT * (2.5 + wornN * 0.4));
     }
     wp.needsUpdate = true;
     geo.computeVertexNormals();
     const m = new THREE.Mesh(geo, wet(flat(surfaceTex(w, len, 'dirt'))));
     m.position.set(cx, KERB_H, cz);
     scene.add(m);
+    wornN++;
   };
   // A NETWORK, not a line. At 7 m one shortcut was the whole story; across a
   // 26 m field one line reads as a scratch. These are the four crossings
@@ -1305,7 +1313,9 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     }));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = seed;
-    m.position.set(x, parkY(x, z) + LIFT * 1.5, z);   // litter on the mound lies on it
+    // above the whole decal stack, not in the middle of it: the desire lines now
+    // reach LIFT × 5.3 and litter dropped at 1.5 sank into the ones it lay on
+    m.position.set(x, parkY(x, z) + LIFT * 6.0, z);
     scene.add(m);
   };
   const lr = clcg(0x7c1de3);

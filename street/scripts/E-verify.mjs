@@ -39,6 +39,8 @@ const AREAS = [
     what: 'what is laid on the grass stays on top of it' },
   { name: 'onslope', script: 'scripts/E-onslope.mjs',
     what: 'what stands on the grass is not floating above it' },
+  { name: 'coplanar', script: 'scripts/E-coplanar.mjs',
+    what: 'no two visible surfaces share a height (§6)' },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
@@ -126,7 +128,7 @@ for (const a of run) {
         // had exited 3 on the provenance guard because I rebased after building,
         // and the banner did not match anything here. A summary that says
         // everything is broken and shows nothing is worse than no summary.
-        || /walks passed|FAILED|sinking into it|is floating/.test(line)
+        || /walks passed|FAILED|sinking into it|is floating|same height/.test(line)
         || /MEASURING THE WRONG WORLD|is serving build|this checkout is at|Fix:/.test(line)) {
       console.log(`   ${line.trim()}`);
     }

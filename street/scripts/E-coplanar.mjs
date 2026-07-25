@@ -58,6 +58,16 @@ const scan = (x0, x1, z0, z1, step) => page.evaluate(([x0, x1, z0, z1, step]) =>
         const c = wp(g, o, idx ? idx.getX(t + 1) : t + 1);
         const d = wp(g, o, idx ? idx.getX(t + 2) : t + 2);
         if (Math.max(a.y, c.y, d.y) > 1.6 || Math.min(a.y, c.y, d.y) < -0.4) continue;
+        // UPWARD-FACING ONLY. Two surfaces can only fight over a pixel you can
+        // see, and the first version of this reported the UNDERSIDES of stacked
+        // boxes: the library's step and plinth boxes both bottom out at y = 0,
+        // and a kerb edging strip's underside sits exactly on the paving it
+        // stands on. All of them true, none of them visible, and each one a
+        // reason to stop believing the check.
+        const nx = (c.y - a.y) * (d.z - a.z) - (c.z - a.z) * (d.y - a.y);
+        const ny = (c.z - a.z) * (d.x - a.x) - (c.x - a.x) * (d.z - a.z);
+        const nz = (c.x - a.x) * (d.y - a.y) - (c.y - a.y) * (d.x - a.x);
+        if (ny <= 0 && Math.abs(ny) > 1e-9 * (Math.abs(nx) + Math.abs(nz) + 1)) continue;
         const det = (c.z - d.z) * (a.x - d.x) + (d.x - c.x) * (a.z - d.z);
         if (Math.abs(det) < 1e-9) continue;
         const l1 = ((c.z - d.z) * (x - d.x) + (d.x - c.x) * (z - d.z)) / det;
