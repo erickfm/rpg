@@ -45,7 +45,20 @@ await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // 
 // 13:00 rather than any hour: it is the same hour check-seethrough pins, so the
 // two tools describe the same world.
 await page.evaluate(() => window.__ct.clock?.(13, 0));
-await page.waitForTimeout(400);
+// 2 s, not 400 ms. 2bdebbcf measured that the grade LERPS after a clock jump
+// rather than snapping — at 23:00 the out-of-range count is 0 at 500 ms and 9
+// from 1000 ms. 400 ms is well inside that ramp, and `tints` hashes material
+// COLOUR, which is precisely what is still moving.
+//
+// MEASURED, AND IT DOES NOT FIX THE TINTS INSTABILITY. Three dumps at 400 ms and
+// three at 2 s both flip between the same two hashes, so the casino chase
+// accounts for that on its own, exactly as first diagnosed. I expected this to
+// be part of it and it is not.
+//
+// Kept anyway, on its own terms: a fingerprint taken while the world is still
+// settling is not a fingerprint of the world, and anything that later reads a
+// colour out of this dump would inherit a mid-ramp value.
+await page.waitForTimeout(2000);
 
 const dump = await page.evaluate(() => {
   const scene = window.__ct.scene();
