@@ -163,8 +163,13 @@ export function doorPointFor(building: string): { x: number; z: number; nx: numb
   }
   const z = doorWorldFor(building);
   if (z === null) return null;
-  // a flat frontage faces straight out across the street: -x on the west side
-  return { x: d.side * FACE, z, nx: d.side, nz: 0 };
+  // A flat frontage faces OUT ACROSS THE STREET, which is away from the
+  // building: +x on the west side (side -1), -x on the east (side +1). So the
+  // normal is MINUS side. Getting that backwards put every derived stand point
+  // 0.75 m inside its own shopfront instead of 0.75 m in front of it — and
+  // then 1.5 m from where the player can actually stand, which is just outside
+  // the wall collider.
+  return { x: d.side * FACE, z, nx: -d.side, nz: 0 };
 }
 
 /**

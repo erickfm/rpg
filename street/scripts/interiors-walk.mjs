@@ -49,6 +49,10 @@ const ROOMS = [
     doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
   },
   {
+    // room width stays G's explicit 10.0; only the door derives
+    id: 'pawn', label: /PAWN/, D: 8.0, W: 10.0, front: ['PAWN', 15, -60.5, 1],
+  },
+  {
     id: 'tax', label: /A-1 TAX/, D: 8.5, front: ['A-1 TAX', 13, -15.5, 1],
   },
 ];
@@ -86,7 +90,7 @@ for (const r of ROOMS) {
   }, [name]);
   r.doorX = stand ? stand.x : side * (FACE - 0.75);
   r.doorZ = stand ? stand.z : d.z;
-  r.at = d.at; r.W = d.W;
+  r.at = d.at; if (r.W === undefined) r.W = d.W;
   if (side > 0) r.east = true;
 }
 

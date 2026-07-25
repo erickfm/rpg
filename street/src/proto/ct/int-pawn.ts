@@ -63,25 +63,22 @@ export const DOOR: DoorDecl = {
 };
 
 export function buildPawn(ctx: CtxBuild): void {
-  const DOOR_Z = -59.06;
   const BLD_Z0 = -65.0, BLD_Z1 = -53.0;
   // Outside you face the facade and your right hand runs toward +z; inside you
   // face into the room and your right hand runs toward -x. The two are mirror
   // images because you turned round, so world +z maps to local +x.
-  const DOOR_AT = DOOR_Z - (BLD_Z0 + BLD_Z1) / 2;
 
   const room = buildRoom(ctx, {
     id: 'pawn',
     label: 'into the PAWN SHOP',
     w: 10.0, d: 8.0, h: 2.8,
     palette: { floor: 0x6a6058, wall: 0x7a6f5e, ceil: 0x6e675c, trim: 0x3a2c22 },
-    door: {
-      x: FACE - 0.45, z: DOOR_Z, r: 1.05,
-      at: DOOR_AT, width: 1.15,
-      // south along the east walk, same as the tax office. The nearest street
-      // furniture is the tree at z = -57.5 and the lamp at z = -51, both clear.
-      outX: FACE - 0.9, outZ: DOOR_Z - 1.5, outYaw: -Math.PI / 2, outGy: ctx.KERB_H,
-    },
+    // The room's width stays G's explicit 10.0 rather than the kit's
+    // frontage rule: this room's furniture is laid out against it, and a room
+    // that silently grows to 13.8 strands its own fittings in the middle of
+    // the floor. Only the DOOR derives.
+    frontage: { name: 'PAWN', w: 15, cz: -60.5, side: 1 },
+    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
     // The glazing sits east of the door. One window rather than a pair either
     // side, because the kit opens one — and a pawn shop with a single barred
     // window and a solid pier beside it is right anyway.
@@ -121,7 +118,8 @@ export function buildPawn(ctx: CtxBuild): void {
   const worn = new THREE.Mesh(new THREE.PlaneGeometry(4.6, 4.4),
     new THREE.MeshBasicMaterial({ color: 0x7c7268 }));
   worn.rotation.x = -Math.PI / 2;
-  put(worn, DOOR_AT + 0.3, 0.014, -0.4);
+  // the worn patch follows the DOOR, wherever the facade has put it
+  put(worn, room.doorAt + 0.3, 0.014, -0.4);
 
   // ── the counter: one run, straight across the back ──
   const CTR_ZC = -hd + 1.1, CTR_D = 0.75;
