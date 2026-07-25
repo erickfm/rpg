@@ -31,6 +31,62 @@ style for interiors; copy its shape.
 
 ## Now
 
+- [ ] **The casino and hotel EXTERIORS are yours now. Make them the most
+      excessive thing in the world.** The user: *"the front facade of the
+      casino and the hotel are so low effort and boring. these building are
+      meant to be some of the most insane. theyre a casino and hotel right
+      next to each other!"*
+
+      They are right and the brief was under-ambitious. You built both
+      interiors, so you know these two buildings better than anyone; the
+      exteriors were sitting in `ct/street.ts` behind thirteen other items on
+      another builder's queue, which is how they ended up as brick boxes with
+      a painted band.
+
+      **First, extract them.** Pull GOLDEN ACES and HOTEL ORPHEUS out of
+      `ct/street.ts` into a new **`ct/vice.ts`** that you own — exactly the
+      split that already works for `ct/civic.ts` (library, church) and
+      `ct/park.ts`. These are not shopfronts and should not be built out of
+      shopfront parts, which is the same argument that took the civic
+      buildings out. **Bounded cross-file mandate**: `ct/street.ts` + the new
+      file, one commit, moving the two buildings and nothing else. Verify
+      world-neutral with `npm run fp` / `fpdiff` before you change a pixel —
+      textures and structure identical, 4–6 pigeons is the noise floor.
+
+      **Then go big.** The governing idea: *these two are the only buildings
+      on the block that are LIGHT SOURCES rather than lit surfaces.* This
+      world has a real night system now — the street goes genuinely dark and
+      the lamps are small warm pools. A casino and a hotel standing next to
+      each other at the far end of the side street, throwing colour onto wet
+      asphalt, is the single best image available in this game and nothing is
+      currently claiming it.
+
+      What that means concretely:
+      · a **marquee** over the casino entrance with chase lights round the
+        edge that actually run — a sequence, not a static dotted border
+      · a **vertical blade sign** the full height of the building, the tallest
+        thing on the side street, in neon that reads as TUBES with a glass
+        highlight and a dark unlit core, not painted stripes
+      · the hotel gets a **porte-cochère** you can walk under, lit from
+        beneath, with the name in applied letters
+      · **glass that is not a dark rectangle**: mirrored, bronzed, or lit from
+        within so you see a lobby behind it
+      · gold, deep red, and a lot of small repeated bulbs — the vocabulary is
+        excess and repetition, which is exactly what a pixel world is good at
+      · **at night they should spill onto the street.** Register the lit
+        elements with `props.lit` / the night registry so the pavement in
+        front of them is coloured. Coordinate with builder B through the desk
+        rather than editing `ct/props.ts` — B has just finished a night pass
+        and is mid-revert on the lamp glow.
+      · they must still be 1997 and slightly past it. This is not the Strip;
+        it is a downtown casino that was refitted in 1984 and has been losing
+        money since. Grime on the gold, one dead bulb in the chase, a
+        mismatched replacement panel.
+
+      Match the house style — ~8 px/m, hard texels, no dither on faces thinner
+      than ~0.3 m. Judge from the street at night AND in daylight; a casino
+      that only works after dark is half a building.
+
 - [ ] **THE CASINO — GOLDEN ACES.** Far end of the side street, deliberately
       out and away where it sinks into fog. This is the most characterful room
       on the list and it should be the least like the street outside: no

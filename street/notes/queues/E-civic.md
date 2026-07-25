@@ -204,20 +204,6 @@ then commit, then re-read this file before starting the next.
       is half of what makes it believable. Check the silhouette against the sky
       from the street, which is the only place it is ever seen from.
 
-- [ ] **HOTEL ORPHEUS and GOLDEN ACES facades want more detail.** Right now
-      both are flat brick + a painted band + rows of identical windows. They
-      are the two biggest buildings on the corner and they carry it, so they
-      should reward looking at. Ideas, take what serves:
-      · a canopy or marquee over the hotel entrance, with a soffit
-      · sills and lintels that project, not painted rectangles
-      · a cornice at the parapet with real depth
-      · fire escape on one flank
-      · window variety — some blinds down, one AC unit, one lit
-      · the casino gets neon that reads as tubes, not painted stripes
-      Match the house style: ~8 px/m, muted 1997 palette, no dither on any face
-      thinner than ~0.3 m (`GOTCHAS.md` §4). Two failures then delete (§ the
-      working rules) — if a detail misses twice, take it out and say so.
-
 ## Done
 
 _(nothing yet — you are new)_
