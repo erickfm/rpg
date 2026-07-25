@@ -511,7 +511,14 @@ either measurement said.
 - **"It works here" is the weakest evidence about a cycle**, and it is worth
   saying even when it is your own result that looks green.
 
-## 28. Say which world your number describes: empty or lived, capsule in or out
+## 29. Say which world your number describes: empty or lived, capsule in or out
+
+<!-- Numbered 29, not 28. It landed as a THIRD colliding number, alongside
+     "vite dev and the built bundle resolve circular imports differently".
+     Same rule as 22/23 and 27/28: the later commit renumbers, because any
+     reference that already exists points at the earlier. scripts/gotchas-
+     numbers.mjs now fails on a duplicate so the next one goes red instead of
+     living in the file. — C -->
 
 Two clearance figures on this project, quoted the same way, and they are not
 the same measurement. Both bit me in one day.
