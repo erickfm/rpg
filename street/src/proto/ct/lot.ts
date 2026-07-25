@@ -689,41 +689,109 @@ function buildLot(o: {
       scene.add(shackle);
     }
 
+    // WHERE THE POLE SIGN STANDS. Declared up here rather than beside the sign
+    // itself because the bunting ties to the mast, and a second copy of these
+    // two numbers is how the string and the sign would drift apart the next
+    // time one of them moves.
+    const px = X0 + 0.90, pz = zN - span * SITE_GATE + 0.95;
+
     // ── bunting ──────────────────────────────────────────────────────────
     // The flags hang from their OWN poles, clear above everything else, which
     // is both how it is really done and the answer to "what is holding that
     // up". Each swag is four short segments following a parabola, because the
     // SAG is the whole read: strung level it is a painted stripe, and only the
     // dip between poles says plastic on a string.
+    // ONE STRING, TIED OFF AT BOTH ENDS. The user: *"the pennant runs end in
+    // mid-air rather than meeting the posts they should be tied to, and the
+    // runs do not join each other ... build it as a chain of points and draw
+    // the runs between consecutive pairs."*
+    //
+    // It was already chained in the arithmetic — four evenly spaced poles, and
+    // consecutive swags shared an endpoint at each pole top — so the fault was
+    // never the topology. It was that THE STRING IS NOT WHERE THE MATHS PUT IT.
+    //
+    // The pennant texture draws its line along one edge of the sheet, not down
+    // the middle, and the old code positioned the sheet's CENTRE on the
+    // catenary. The sheet is 0.62 tall, so the string rendered 0.31 m above
+    // every point it was supposed to pass through — including both ends, where
+    // it therefore floated a foot clear of the pole it was tied to. Every run
+    // missed its post by the same 0.31 m, which is exactly the "ends in mid-air"
+    // the user is seeing. Now the sheet hangs BELOW the chord, so the string
+    // edge lands on the tie point itself.
+    //
+    // WHERE THE TIES ARE, and what holds each one — the rule being that a
+    // bunting line hanging from nothing is the floating-sign fault again:
+    //
+    //   · both fence corners, north and south, on their own poles
+    //   · both gate posts, so the run across the mouth is a real span and
+    //     nothing stands in the drive — a post mid-mouth is the mistake the
+    //     pole sign already made and had to be moved for
+    //   · the pole sign's mast, which is the one thing out there tall enough
+    //     that tying to it needs no excuse
+    //
+    // The gate-post z values are `runs`' own endpoints and the mast is `px`/`pz`
+    // — read from the fence and the sign rather than restated, so moving either
+    // moves the string with it.
     const PEN_M = 1.6;                               // one tile of four flags
-    const POLE_H = 3.1, SAG = 0.62;
-    const buntSeg = (za: number, ya: number, zb: number, yb: number) => {
-      const t = pennantT.clone();
-      t.wrapS = THREE.RepeatWrapping;
-      const len = Math.hypot(zb - za, yb - ya);
-      t.repeat.set(len / PEN_M, 1);
-      t.needsUpdate = true;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.62),
-        new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide }));
-      m.position.set(FENCE_X, (ya + yb) / 2, (za + zb) / 2);
-      m.rotation.y = Math.PI / 2;
-      m.rotation.z = Math.atan2(yb - ya, zb - za);
-      scene.add(m);
-    };
-    const SWAGS = 3, SEGS = 4;
-    for (let i = 0; i <= SWAGS; i++) {
-      const pz = zN - (span / SWAGS) * i;
+    const PEN_H = 0.62;                              // sheet height; the line is its top edge
+    const POLE_H = 3.1;
+    // SAG SCALES WITH SPAN, as asked. A fixed droop reads wrong the moment two
+    // runs differ in length: the 8 m span across the gate and the 1 m stub from
+    // the mast to the gate post were dipping the same 0.62 m, so the short one
+    // looked like a hammock and the long one looked like a washing line. 8.5%
+    // of the span keeps the old look on the old spacing and makes the gate
+    // crossing the deepest thing there, which is what a real one does. Capped
+    // so the lowest point stays above head height over the drive.
+    const SAG_PER_M = 0.085, SAG_MAX = 0.95;
+    const gzN = zN - span * SITE_GATE, gzS = zS + span * SITE_GATE;   // the mouth
+    const TIES = [
+      { x: FENCE_X, y: Y + POLE_H,        z: zN - 0.3, post: true },
+      { x: px,      y: Y + POLE_H + 0.35, z: pz,       post: false },  // the mast
+      { x: FENCE_X, y: Y + POLE_H,        z: gzN,      post: true },
+      { x: FENCE_X, y: Y + POLE_H,        z: gzS,      post: true },
+      { x: FENCE_X, y: Y + POLE_H,        z: zS + 0.3, post: true },
+    ];
+    for (const t of TIES) {
+      if (!t.post) continue;
       const bp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, POLE_H, 6), postM);
-      bp.position.set(FENCE_X, Y + POLE_H / 2, pz);
+      bp.position.set(t.x, Y + POLE_H / 2, t.z);
       scene.add(bp);
     }
-    for (let i = 0; i < SWAGS; i++) {
-      const a = zN - (span / SWAGS) * i, b = zN - (span / SWAGS) * (i + 1);
-      const yAt = (u: number) => Y + POLE_H - SAG * 4 * u * (1 - u);
-      for (let sg = 0; sg < SEGS; sg++) {
-        const u0 = sg / SEGS, u1 = (sg + 1) / SEGS;
-        buntSeg(a + (b - a) * u0, yAt(u0), a + (b - a) * u1, yAt(u1));
-      }
+    const UP = new THREE.Vector3(0, 1, 0);
+    const buntSeg = (a: THREE.Vector3, b: THREE.Vector3) => {
+      const t = pennantT.clone();
+      t.wrapS = THREE.RepeatWrapping;
+      const len = a.distanceTo(b);
+      t.repeat.set(len / PEN_M, 1);
+      t.needsUpdate = true;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(len, PEN_H),
+        new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide }));
+      // Basis: local x along the run, local y pointing DOWN. Down rather than
+      // up because the texture puts its line on the sheet's LOW edge and relies
+      // on the plane being upside down to render it on top — that was true of
+      // the old rotation.y/rotation.z pair by accident of the swags all running
+      // -z, and it is stated here on purpose. Keeping it means the texture
+      // comment above (verified by looking, not by reasoning about flipY)
+      // stays true.
+      const ex = new THREE.Vector3().subVectors(b, a).normalize();
+      const ey = new THREE.Vector3(0, -1, 0).addScaledVector(ex, ex.y).normalize();
+      const ez = new THREE.Vector3().crossVectors(ex, ey);
+      m.setRotationFromMatrix(new THREE.Matrix4().makeBasis(ex, ey, ez));
+      // string edge ON the chord, cloth hanging below it
+      m.position.addVectors(a, b).multiplyScalar(0.5).addScaledVector(ey, PEN_H / 2);
+      scene.add(m);
+    };
+    for (let i = 0; i + 1 < TIES.length; i++) {
+      const A = new THREE.Vector3(TIES[i].x, TIES[i].y, TIES[i].z);
+      const B = new THREE.Vector3(TIES[i + 1].x, TIES[i + 1].y, TIES[i + 1].z);
+      const L = A.distanceTo(B);
+      const sag = Math.min(L * SAG_PER_M, SAG_MAX);
+      const at = (u: number) => new THREE.Vector3().lerpVectors(A, B, u)
+        .addScaledVector(UP, -sag * 4 * u * (1 - u));
+      // segments proportional to length, so a long run curves as smoothly as a
+      // short one instead of being a flatter polyline
+      const n = Math.max(3, Math.round(L / 1.4));
+      for (let s = 0; s < n; s++) buntSeg(at(s / n), at((s + 1) / n));
     }
 
     // ── the office ───────────────────────────────────────────────────────
@@ -862,7 +930,6 @@ function buildLot(o: {
     // — the walk test stopped dead on it. North of the mouth's edge it is
     // still the first thing you see from the kerb and nothing has to drive
     // round it.
-    const px = X0 + 0.90, pz = zN - span * SITE_GATE + 0.95;
     const POLE_H2 = 15.5;
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, POLE_H2, 8), postM);
     pole.position.set(px, Y + POLE_H2 / 2, pz);
