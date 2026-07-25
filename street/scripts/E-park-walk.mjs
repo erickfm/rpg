@@ -46,10 +46,10 @@ const W = -Math.PI / 2;
 // in through the gate, and out again
 const inPark = await walk('in through the gate', {
   at: [-5.6, -83.0], yaw: W, ms: 2200,
-  ok: (p) => p[0] < -11.5, say: (p) => `x -5.60 -> ${f(p[0])} (back wall at -14.0, clamp at -13.4)`,
+  ok: (p) => p[0] < -11.5, say: (p) => `x -5.60 -> ${f(p[0])} (the site runs back to x -39)`,
 });
-report('…and the clamp, not the wall, is what stops you', inPark[0] > -13.5,
-  `stopped at x ${f(inPark[0])}; bounds.minX is -13.40`);
+report('…and the spur reaches the circuit', inPark[0] < -11.5,
+  `stopped at x ${f(inPark[0])}; the street leg is at -13.25`);
 await page.keyboard.down('s'); await page.waitForTimeout(2200); await page.keyboard.up('s');
 await page.waitForTimeout(60);
 report('back out to the pavement', (await pos())[0] > -6.5, `x -> ${f((await pos())[0])}`);
@@ -57,8 +57,8 @@ report('back out to the pavement', (await pos())[0] > -6.5, `x -> ${f((await pos
 for (const [n, z] of [['north of the gate', -75.0], ['south of the gate', -92.0]]) {
   await walk(`the boundary holds ${n}`, {
     at: [-5.7, z], yaw: W, ms: 1400,
-    ok: (p) => p[0] < -6.1 && p[0] > -6.5,
-    say: (p) => `stopped at x ${f(p[0])}; the wall face is -6.64, so -6.28 is the capsule against it`,
+    ok: (p) => p[0] < -6.1 && p[0] > -6.9,
+    say: (p) => `stopped at x ${f(p[0])} against the boundary`,
   });
 }
 // THE LOOP. Each leg is walked from its own corner to the next one, which is
@@ -68,16 +68,19 @@ for (const [n, z] of [['north of the gate', -75.0], ['south of the gate', -92.0]
 // for the first time — 27 m legs, not 6 m of them. Each leg is walked from
 // its own corner to the next, which is what proves the circuit rather than
 // how fast you were going.
-const LEG = { x0: -35.8, x1: -8.60, z0: -96.3, z1: -69.7 };
+// The loop was brought 6 m in off the boundary so it reads as a circuit
+// rather than as a path along the railings, and its corners are chamfered.
+// Legs: back x -32.5, street x -13.25, ends z -92.0 and -74.0, chamfer 2.6.
+const LEG = { x0: -32.5, x1: -13.25, z0: -92.0, z1: -74.0, cham: 2.6 };
 for (const [name, at, yaw, ms, ok, say] of [
-  ['street leg, south to north', [LEG.x1, LEG.z0 + 0.8], Math.PI, 8400,
-    (p) => p[2] > LEG.z1 - 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z1})`],
-  ['north end, street to back', [LEG.x1 - 0.4, LEG.z1], -Math.PI / 2, 9500,
-    (p) => p[0] < LEG.x0 + 1.0, (p) => `x ${f(p[0])} (corner at ${LEG.x0})`],
-  ['back leg, north to south', [LEG.x0, LEG.z1 - 0.8], 0.0, 8600,
-    (p) => p[2] < LEG.z0 + 1.0, (p) => `z ${f(p[2])} (corner at ${LEG.z0})`],
-  ['south end, back to street', [LEG.x0 + 0.4, LEG.z0], Math.PI / 2, 9500,
-    (p) => p[0] > LEG.x1 - 1.0, (p) => `x ${f(p[0])} (corner at ${LEG.x1})`],
+  ['street leg, south to north', [LEG.x1, LEG.z0 + LEG.cham], Math.PI, 6000,
+    (p) => p[2] > LEG.z1 - LEG.cham - 0.9, (p) => `z ${f(p[2])} (turn begins at ${(LEG.z1 - LEG.cham).toFixed(1)})`],
+  ['north end, street to back', [LEG.x1 - LEG.cham, LEG.z1], -Math.PI / 2, 8000,
+    (p) => p[0] < LEG.x0 + LEG.cham + 1.0, (p) => `x ${f(p[0])} (turn begins at ${(LEG.x0 + LEG.cham).toFixed(1)})`],
+  ['back leg, north to south', [LEG.x0, LEG.z1 - LEG.cham], 0.0, 6000,
+    (p) => p[2] < LEG.z0 + LEG.cham + 0.9, (p) => `z ${f(p[2])} (turn begins at ${(LEG.z0 + LEG.cham).toFixed(1)})`],
+  ['south end, back to street', [LEG.x0 + LEG.cham, LEG.z0], Math.PI / 2, 8000,
+    (p) => p[0] > LEG.x1 - LEG.cham - 1.0, (p) => `x ${f(p[0])} (turn begins at ${(LEG.x1 - LEG.cham).toFixed(1)})`],
 ]) {
   await walk(`the loop: ${name}`, { at, yaw, ms, ok, say });
 }

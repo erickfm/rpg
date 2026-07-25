@@ -198,17 +198,50 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // the park is deepened the field grows and the loop grows with it — the
   // shape is right at 7 m and it is the same shape at 30 m.
   const PATH_W = 1.5;
-  // The street leg stands far enough in that a bench and a bin fit BETWEEN it
-  // and the kerb, backs to the railings, facing the field. That strip is what
-  // the furniture was standing on the pavement for want of.
-  const lx0 = backX, lx1 = EDGE_X - 1.35;                    // the loop's legs
-  const lz0 = site.minZ + 1.7, lz1 = site.maxZ - 1.7;
-  lay(lx0 - PATH_W / 2, lx0 + PATH_W / 2, lz0, lz1, 'path');  // back leg
-  lay(lx1 - PATH_W / 2, lx1 + PATH_W / 2, lz0, lz1, 'path');  // street leg
-  for (const lz of [lz0, lz1]) {                              // the two ends
-    lay(lx0 - PATH_W / 2, lx1 + PATH_W / 2, lz - PATH_W / 2, lz + PATH_W / 2, 'path');
+  // ── THE LOOP HAS TO READ AS A CIRCUIT ────────────────────────────────────
+  //
+  // It was a rectangle hugging the site boundary — the street leg 1.35 m off
+  // the railings, the back leg 3.2 m off the wall — and from anywhere on it
+  // you saw one straight run 27 m long with a fence beside it. That is a path
+  // ALONG something, which is why "give it a loop" came back after the loop
+  // was built: nothing you could stand on let you see the circuit.
+  //
+  // Two changes, both about perception rather than plan:
+  //
+  //   INSET IT. Brought 6 m in on every side, so it has grass on BOTH sides
+  //     and the perimeter becomes a planted band rather than a gap. A path
+  //     with park on both sides reads as being in the park.
+  //   TURN THE CORNERS. Each is chamfered rather than square, so the path
+  //     visibly bends and the next leg is already in view as you reach it.
+  //     A right angle at 1.5 m wide reads as two paths meeting; a 2.6 m
+  //     chamfer reads as one path going round.
+  //
+  // The field inside is 19 × 16 m and still the largest single thing here.
+  const INSET = 6.0, CHAM = 2.6;
+  const lx0 = site.minX + INSET + 0.5, lx1 = EDGE_X - INSET;
+  const lz0 = site.minZ + INSET, lz1 = site.maxZ - INSET;
+  // the four straight legs, each stopped short by the chamfer
+  lay(lx0 - PATH_W / 2, lx0 + PATH_W / 2, lz0 + CHAM, lz1 - CHAM, 'path');   // back
+  lay(lx1 - PATH_W / 2, lx1 + PATH_W / 2, lz0 + CHAM, lz1 - CHAM, 'path');   // street
+  for (const lz of [lz0, lz1]) {
+    lay(lx0 + CHAM, lx1 - CHAM, lz - PATH_W / 2, lz + PATH_W / 2, 'path');   // the ends
   }
-  lay(site.maxX, lx1, gateMid - 1.9 / 2, gateMid + 1.9 / 2, 'path');   // in from the gate
+  // …and the four corners that turn between them
+  const corner = (cx: number, cz: number, sx: number, sz: number) => {
+    const len = Math.hypot(CHAM, CHAM) + PATH_W * 0.4;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(PATH_W, len),
+      wet(flat(surfaceTex(PATH_W, len, 'path'))));
+    m.rotation.x = -Math.PI / 2;
+    m.rotation.z = -Math.atan2(sx * CHAM, sz * CHAM);
+    m.position.set(cx + sx * CHAM / 2, KERB_H + LIFT, cz + sz * CHAM / 2);
+    scene.add(m);
+  };
+  corner(lx0, lz0 + CHAM, 1, -1);
+  corner(lx0, lz1 - CHAM, 1, 1);
+  corner(lx1, lz0 + CHAM, -1, -1);
+  corner(lx1, lz1 - CHAM, -1, 1);
+  // in from the gate to meet the circuit
+  lay(site.maxX, lx1, gateMid - 1.9 / 2, gateMid + 1.9 / 2, 'path');
 
   // The field itself: mown, and mown in stripes, because a parks department
   // mows in stripes and it is the cheapest way to say "this is maintained,
@@ -444,7 +477,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
-  const fx = lx1 - PATH_W / 2 - 0.45, fz = gateMid - 3.4;   // west of the loop, well inside
+  // OUTSIDE the loop, in the planted band. Everything here used to sit "just
+  // inside the leg", which was against the boundary; with the loop 6 m in,
+  // the same offsets would have stood it in the middle of the open field.
+  const fx = lx1 + PATH_W / 2 + 0.55, fz = gateMid - 4.2;
   const fPed = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.86, 0.34), concM);
   fPed.position.set(fx, KERB_H + 0.43, fz);
   scene.add(fPed);
@@ -619,7 +655,9 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // plinth with a plaque nobody has read in years, and a stone shaft. It is
   // the most municipal object there is, it is the right period, and it gives
   // the loop a destination that is not the gate you came in by.
-  const memX = lx1 - 4.2, memZ = lz1 - 4.2;
+  // outside the loop's north-east turn, so the corner has a reason to be
+  // there and the field is not intruded on
+  const memX = lx1 + 2.4, memZ = lz1 + 2.4;
   const stoneA = new THREE.MeshBasicMaterial({ color: 0x9a958a });
   const stoneB = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
   for (const [i, w2] of [[0, 2.4], [1, 1.9]] as [number, number][]) {
@@ -700,7 +738,9 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // 3.0 m off the back leg, not 2.6: at 2.6 the west posts blocked to
   // x = -35.28 and the path's east edge is -35.05, so the shelter stood in
   // the loop. It is a destination beside the path, never on it.
-  const shX = lx0 + 3.0, shZ = gateMid;
+  // beyond the back leg on the gate's axis: still the thing that terminates
+  // the view from the gate, now standing in the band rather than the field
+  const shX = lx0 - 3.4, shZ = gateMid;
   const postM = new THREE.MeshBasicMaterial({ color: 0x5a4a34 });
   const roofM = new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
   for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
@@ -799,7 +839,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   }
   for (let z = lz0 + 3.0; z < lz1 - 3.0; z += 7.2 + tsd() * 2.0) {       // framing the field
     if (Math.abs(z - gateMid) < 4.5) continue;                           // the entry stays open
-    tree(lx1 - PATH_W / 2 - 1.6, z, 0xC00 + Math.round(z * 3));
+    tree(lx1 + 3.4, z, 0xC00 + Math.round(z * 3));
   }
 
   // ── signs of use ─────────────────────────────────────────────────────────
