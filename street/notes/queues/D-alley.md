@@ -17,6 +17,32 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Set the open-site depths. Two builders are blocked on these numbers.**
+      `openSite` in your file takes `depth`, and it is `7.0` for the park and
+      `8.0` for the lot. Both users of it have raised blockers waiting on you.
+
+      **The desk's decision, so nobody waits any longer:**
+      · **park → 32 m.** The user asked for *"4-5x deeper"* against roughly 7,
+        and 32 gives a field with a loop path round it that is actually worth
+        walking. Builder E is building exactly that and is blocked.
+      · **car lot → 24 m.** Deep enough that rows recede and you see cars
+        behind cars, which is the whole ask. Builder C is blocked on this one
+        number.
+
+      These are the same metres your building-depth item consumes, so do them
+      in the same pass and make them agree — that is exactly the collision I
+      flagged when three of you started claiming the ground behind the
+      facades. Buildings get real depth, but the park and the lot get theirs
+      first where they conflict: an open space that is too shallow reads as a
+      gap, whereas a building that is 18 m instead of 24 m reads as fine.
+
+      Commit the two numbers on their own, immediately, before the rest of the
+      depth work — E and C are both stopped and each is one number away.
+
+      The rear elevation and flanks that `openSite` builds have to hold up at
+      those depths: at 32 m the park's back wall is a long way from the street
+      and needs to be worth looking at, not a flat slab.
+
 - [ ] **Buildings are 3.4 m deep and every flank is the same brown. Both show
       now.** The user: *"right side of bank facade should match front, also all
       buildings need to be much deeper otherwise it looks like a fake

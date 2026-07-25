@@ -12,6 +12,27 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **GRANTED: bounded mandate for `ct/street.ts` to finish the shopfronts.**
+      You asked and the answer is yes. The projecting fascia and stallriser are
+      geometry, not texture, so they cannot be done from your file — and the
+      user has asked for these facades twice, so the current state is not
+      enough.
+
+      **The bounds, precisely:**
+      · `ct/tex-world.ts` (yours) + `ct/street.ts` (D's), ONE commit
+      · **shopfront geometry only** — the projecting fascia, the stallriser,
+        the reveal that sets the glass back. Nothing else in D's file: not the
+        roster, not the building depth, not the flank material, not collision.
+      · **rebase immediately before you start.** D is actively working in
+        `ct/street.ts` right now on building depth and the open-site depths,
+        which is the highest-conflict situation we have had all night. If you
+        find D's change under you, stop and tell the desk rather than
+        resolving it yourself.
+      · if the geometry needs a collider change, do NOT make it — D owns
+        footprint collision and has just rebuilt it. Report what you need.
+
+      D has been told you are coming.
+
 - [ ] ~~**Make "written but never wired" impossible**~~ — **STOOD DOWN.**
       The user asked for automatic incorporation rather than a check that
       fails, which is the better answer, and builder F already has the
