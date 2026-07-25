@@ -495,6 +495,89 @@ builder's.
 
 ---
 
+## 15. Retrospective: what to fix next
+
+Measured after a full day of four agents on one world.
+
+### The contention is the WIRING, not the big files
+
+| file | lines | commits touching it (last 120) |
+|---|---:|---:|
+| `ct/street.ts` | 1277 | 6 |
+| `ct/apartment.ts` | 1054 | 12 |
+| **`crosstown.ts`** | **579** | **23** |
+| `ct/tex-world.ts` | 507 | 16 |
+| `ct/props.ts` | 648 | 15 |
+
+`crosstown.ts` is half the size of `street.ts` and gets touched **four times as
+often**. Splitting it further will not help, because it is not big — it is the
+*entry point*. Every new prop registers a collider there, every interactive
+object registers an `[E]` spot there, every module has its update hook called
+there. Any builder adding anything must edit it.
+
+**The fix is a registration pattern, not a split.** Modules should return what
+they contribute — colliders, `[E]` spots, update hooks — and the entry point
+should *iterate a list* rather than enumerate call sites. `ctx.ts` already does
+half of this (`boards`, `wetMats`, `propColliders` are appended to by modules);
+extend it to interactions and per-frame hooks and the entry point stops being a
+shared editing surface.
+
+### Splitting that IS still worth doing
+
+`ct/street.ts` at 1277 lines is where one builder accumulated ten queue items.
+It has clean seams already marked by its own comment banners:
+
+| new module | current lines | contents |
+|---|---|---|
+| `ct/street.ts` | 25–217 | rosters, `placeBld`, ordinary shopfronts |
+| `ct/landmarks.ts` | 218–638 | civic stone, the library, the church |
+| `ct/corner.ts` | 639–1020 | side street, far end, the bodega canted bay |
+| `ct/alley.ts` | 1021–end | the alley |
+
+`ct/apartment.ts` at 1054 splits the same way: shell + stairwell, rooms +
+hermit, street entrance.
+
+Both splits are worth doing **while the owning builder is idle**, never while it
+is mid-task — extracting `cat.ts` out of `street.ts` under a working builder
+cost about ten minutes and corrupted a third worktree during the repair.
+
+### Shared leaf modules must be desk-owned
+
+Every hand-resolved conflict traced to the same shape: a builder changed a
+shared leaf, callers in other owners' files broke, and the builder made a
+"drive-by" edit to somebody else's file to unbreak the tree. That drive-by is
+what conflicted — three separate times on `apartment.ts` alone. Two builders
+also rewrote `citizens.ts` simultaneously and the merge resolution silently
+dropped a feature (`grime`).
+
+`notes/OWNERSHIP.md` now records this, and `scripts/ownership.sh <agent>` checks
+it. The rule: **a builder may read a shared module and may add an export, but
+changing an existing signature is a desk operation**, done with every caller in
+one commit.
+
+### Tooling that came out of this
+
+- **`scripts/land.sh`** — the merge train. Rebases and merges every green
+  builder in one pass, typechecking *after each one* so a break is attributed
+  rather than discovered. Skips and names anything that conflicts or breaks.
+  Refuses to run if mainline is already broken.
+- **`scripts/queues.sh`** — every agent's current task, queue depth, and git
+  state in one view.
+- **`scripts/ownership.sh`** — pre-commit boundary check.
+- **`scripts/live-integrate.sh`** — the integration world, now typecheck-gated
+  so one broken builder cannot take down the world the user is playing.
+
+### Still open
+
+- The **masonry-density refactor** the seam audit calls for: texture px/m is
+  computed per-mesh in isolation, so no two neighbours agree. `walkTex` already
+  solves this (world extents in, repeat + offset out) and is the model.
+- **Build stamping** — still not done, and stale-build feedback has cost real
+  work twice.
+- **Publishing** — the artifact and Pages have not been updated in hours.
+
+---
+
 ## Sources
 
 - [The Human Review Bottleneck — Codex KB](https://codex.danielvaughan.com/2026/05/24/human-review-bottleneck-code-review-strategies-agent-output/)
