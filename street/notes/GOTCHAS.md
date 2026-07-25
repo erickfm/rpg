@@ -510,3 +510,43 @@ either measurement said.
   down — the same commit is two different programs.
 - **"It works here" is the weakest evidence about a cycle**, and it is worth
   saying even when it is your own result that looks green.
+
+## 28. Say which world your number describes: empty or lived, capsule in or out
+
+Two clearance figures on this project, quoted the same way, and they are not
+the same measurement. Both bit me in one day.
+
+**Is the capsule in it?** The convention everywhere except my own notes is a
+RAW GAP, quoted against the player's width:
+
+> *"sign/meter post leaves **0.90 m** of walk … 0.90 m against a 0.72 m capsule
+> is the tightest squeeze in the world"* — `AUDIT-TRIAGE.md`
+> *"**1.15 m** against a 0.72 m capsule is comfortable"* — builder B
+
+I filed a blocker reporting a 1.15 m gap as *"0.43 m of standing room once the
+0.72 m player is subtracted"* and then compared **that** against the auditor's
+**0.90 m**. Subtracted on one side, not the other. The comparable figure was
+1.15 m — and `AUDIT-TRIAGE.md` records the tightest walk in the world being
+raised *to* 1.15 m as the fix that closed the encroachment audit, so the pinch
+I was reporting as the worst in the world was exactly the value that audit had
+just celebrated reaching. (`ba8dda8a`, and the post had been removed anyway.)
+
+**Empty or lived?** `__ct.colliders()` holds the built world and not the
+citizens and cars moving through it, so every figure derived from it describes
+a pavement with nobody on it:
+
+```
+built lane, movers dropped   1.15 m
+lived: best 1.12 · median 0.77 · worst 0.72 · under 0.90 m in 14 of 20
+```
+
+Neither is wrong. The empty number is the right one for "is this geometry
+sound", because a wall does not move and a pedestrian does — a check that fails
+when somebody wanders through is a check people re-run until it goes green.
+The lived number is the right one for "what does this feel like to play".
+
+**So say which.** Not as a caveat at the bottom — in the sentence with the
+number, because the number gets quoted and the caveat does not. Both of my
+blockers were filed as "measured rather than guessed", which was true and not
+sufficient: **a measurement compared against the wrong thing is a guess with a
+number on it.**

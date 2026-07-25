@@ -10,6 +10,18 @@
 // So this does not check the spots somebody remembered. It walks the whole
 // registry and asks two things of each:
 //
+// WHICH WORLD THESE NUMBERS DESCRIBE: an EMPTY one. `__ct.colliders()` holds
+// the built world and not the citizens or cars moving through it, so every
+// reachability figure below is of a pavement with nobody on it. 6168c410 and
+// a047183e made this distinction for the lane widths and it applies here
+// unchanged — the built lane is 1.15 m and the lived median is 0.77 m.
+//
+// That is the right world for THIS question. A spot a pedestrian is briefly
+// standing on is not a broken spot, and failing on one would make this a check
+// people re-run until it goes green. A spot inside a WALL is broken, and walls
+// do not move. But the number is not "can you always reach it", it is "is
+// there anywhere to stand when nobody is in the way", and those differ.
+//
 //   reachable — is there anywhere you can legally STAND inside its radius? A
 //               trigger you cannot reach is a trigger that does not exist, and
 //               it is invisible until a player goes looking for it. This is
