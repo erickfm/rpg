@@ -15,6 +15,12 @@ const world = await p.evaluate(() => {
 });
 await b.close();
 if (!world) { console.error('rainAt not published'); process.exit(2); }
+// DELIBERATE COPY, and this comment is why. Every other script carrying
+// imul(h, 2246822519) is carrying a stale duplicate that should read
+// scene.userData.rainAt instead. This one holds it ON PURPOSE, as the thing
+// under test: the script's whole job is to diff the old formula against the
+// world's published one. A sweep for the constant will flag this file, and it
+// should — an exemption nobody declared looks exactly like a defect.
 const stale = (h) => (((h % 24) + 24) % 24) === 14 || ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
 let staleH = 0; for (let h = 0; h < 48; h++) if (stale(h)) { staleH = h; break; }
 let realH = world.findIndex(Boolean);

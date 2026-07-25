@@ -1383,3 +1383,39 @@ the road is around **0.25 against a settled 0.165**, so the `wet-over` and
 That matters more than it would in a numeric check, because these are frames a
 human is meant to *look at* — GOTCHAS §20's point. Whoever owns `basin.mjs` has
 a one-line fix for each: read the published `rainAt`, and wait 18 s.
+
+### My sweep for that class found 1 of 6, and the reason is worth more than the miss
+
+`31089b97` fixed `basin.mjs` on both counts I raised — it reads
+`scene.userData.rainAt` now and waits out the settle — and then **swept for the
+rest rather than wait to be told a fifth time**, finding five more:
+`check.mjs`, `bugsweep.mjs`, `verify3.mjs`, `rain-check.mjs`, `v5.mjs`.
+
+**My sweep found only `basin.mjs`.** I searched for scripts that call `clock()`
+*and* contain `% 24` — a **symptom** of the bug I had just read about. Those five
+carry the stale formula and use absolute hours correctly, so they never write
+`% 24` and my filter never fired:
+
+```
+file          has the constant   calls clock()   has "% 24"
+check              yes               4              no      ← missed
+bugsweep           yes               4              no      ← missed
+verify3            yes               2              no      ← missed
+rain-check         yes               1              no      ← missed
+v5                 yes               4              no      ← missed
+```
+
+> **Grep for the artefact, not for a symptom of it.** `2246822519` is exact, has
+> no false negatives, and takes one command. My composite heuristic was cleverer
+> and found a sixth of the class.
+
+That is the same failure as my *"19 flat decals"* being read as the whole wet
+class: a filtered detector whose filter is invisible in its output. Twice now the
+correction has come from someone else widening my search, which is the argument
+for saying **what a sweep did not look at**, in the sweep.
+
+**State now:** five scripts still carry the copy; five read the published
+function (`basin`, `wetness`, `rain`, `wetsweep`, `basincheck`). A sixth file,
+`basincheck.mjs`, carries the constant **deliberately** — it exists to diff the
+old formula against the world — and now says so in a comment, because an
+exemption nobody declared looks exactly like a defect.
