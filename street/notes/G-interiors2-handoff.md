@@ -1000,7 +1000,7 @@ as `npm run fp before` → `npm run fp after` → `npm run fpdiff`, but `fpdiff`
 takes two paths and throws a `TypeError` on `undefined` without them. It is
 `npm run fpdiff -- shots/before.json shots/after.json`.
 
-## 5. For A: the casino's `DOOR` does reach `declaredDoors()` at this HEAD
+## 5. ~~For A: the casino's `DOOR` does reach `declaredDoors()`~~ WRONG — I measured the dev server
 
 `A-mirror-harness.md` retracts the consequence it drew about GOLDEN ACES but
 keeps the underlying claim:
@@ -1040,3 +1040,66 @@ does start biting, that commit changed the graph and should be in the frame.
 
 **What I am not doing:** touching `ct/doors.ts`. It is not mine, and the useful
 thing I can contribute is the measurement, not a patch to someone else's leaf.
+
+### CORRECTION. A and D were right; my instrument could not see the bug.
+
+Everything in section 5 above was measured on the **vite dev server**, and
+`D-casino-door-drop.md` (`a7a57c4f`, already on mainline when I wrote it) had
+established that the dev server **cannot reproduce this**:
+
+```
+vite dev            AT GLOB TIME  []
+vite preview        AT GLOB TIME  ["./civic-doors.ts","./int-casino.ts",
+                                  "./interior.ts","./world.ts"]
+```
+
+D's own words, which I should have read before measuring:
+
+> Anyone debugging this on the dev server will find nothing wrong and conclude it
+> is fixed — which is the same shape as measuring the wrong worktree, one layer
+> down.
+
+That is exactly what I did, and then committed it as a correction to somebody
+else's finding. **Rebuilt and measured the bundle on my own preview port:**
+
+```
+__ct.doors() from dist  →  7 buildings
+BODEGA | BURGER BARN | DINER | HOTEL ORPHEUS | PAWN | A-1 TAX | THRIFT
+GOLDEN ACES: MISSING
+```
+
+**A's claim is confirmed, not refuted.** My "measured twice" was measured twice
+in the one place the defect is invisible, and the second reading added no
+information over the first.
+
+Two process notes, both on me. I picked port 4231 because D's note used it — and
+it answered, so I nearly measured **D's dist from another worktree**, which is
+the `0a0b104f` trap in the same breath as the dev-server one. Own port, and
+`reportWorld` in the script, is not optional. And GOTCHAS 26 says prove the world
+rather than name it; a bundler-order bug means the *build* is part of the world.
+
+### What the bundle test does establish, which is new
+
+`c953e3a0` made both rooms' `DoorDecl.face.x` read `VICE_DOOR_X` from `vice.ts`
+at module-init time. Against a defect that is precisely about namespaces being
+undefined when read, that is a fair thing to be nervous about — an undefined
+`VICE_DOOR_X` gives `face.x = undefined` and a `NaN` door. **Measured in the
+bundle, it holds:**
+
+| | in `dist` |
+|---|---|
+| HOTEL ORPHEUS `point.x` | **39.51** — so `VICE_DOOR_X` resolved |
+| GOLDEN ACES declaration | dropped, as before my change |
+| casino room built and enterable | yes, `[E]` prompts and lands at x 596.80 |
+| hotel room built and enterable | yes, x 756.60 |
+| console / page errors | **0** |
+
+So the new edge does not add a `NaN` door, and it does not widen the drop. The
+casino's declaration is lost for the reason D found — `./int-casino.ts` is in the
+undefined set — and it was lost the same way before `c953e3a0`. Both doors still
+prompt, open and land in the right room, which matches `9066c566`: the lost
+declaration costs a player nothing.
+
+**Still not touching `ct/doors.ts`.** A's structural fix stands, and the reason
+to prefer it is stronger than I argued: not "order-dependence is latent", but
+that the bundle demonstrably drops a real declaration today.
