@@ -412,6 +412,39 @@ plus `citizenSprite(look, opts)` — a ready-to-add billboarding mesh with the
 came from one missing document; F, G and C can each swap a plane for one call, and
 F's `room.person()` wraps this rather than competing with it.
 
+## Done — the third wave (a person in one call, three cars, and a verdict)
+
+- **`citizenSprite(look, opts?)`** (`dcc02711`) — the priority item, because
+  three builders were each about to draw their own flat person. Returns
+  `{ mesh, update, setFacing, setWalking }` with the 8-angle atlas, the
+  billboard turn, the mirrored back half and the view hysteresis already wired.
+  F wrapped it as `room.person()` at the kit level and G's four interiors now go
+  through that, so the cardboard-people problem is closed at the source.
+- **`notes/CITIZEN-STYLE.md`** (`157d8601`) — the missing page that caused four
+  hand-drawn people. Leads with *if you need a person, CALL THE ATLAS*, and
+  carries the contact sheet, every `Look` field, and the traps.
+- **Three cars that are not just parked** (`e09bbf32`) — `hood`, `wheelsOff`,
+  `jack`, `blocks` on `makeCar`, answering `BLOCKED-C` item 2. API and the
+  warnings C needs are in `notes/H-carstate.md`.
+- **Audit finding D ruled on** (`86c1c0d2`) — *"parking varies but never
+  re-rolls"*: closed, because not re-rolling is the feature. Details and the
+  measurement in `notes/H-parking-verdict.md`.
+- **`corner-traffic` was measuring the machine** (`fcb00b46`) — three checks in
+  it were timing thresholds wearing behaviour's clothes.
+- **The arch's rows-per-metre literal** (`8d4d2939`) — `ARCH_H * 40` where the
+  40 is `20 rows / 0.50 m panel`. Harmless today, a trap the moment anyone
+  raises the beltline, which is the fix I recommend.
+
+### The design rule the variants are built on
+
+**With no `state`, `makeCar` builds exactly the meshes it always did, in the
+same order.** three.js burns four `Math.random()` calls per object in
+`generateUUID`, so one extra mesh re-grains every unseeded texture painted after
+it and the world fingerprint moves. A lot full of jacked cars must not be able
+to change the pigeons. Proven with a **control run**: textures and structure
+identical, `tints`/`places` drifting 3 and 4 against unchanged code that drifts
+3. Without the control, "4 differ" means nothing.
+
 ## A pattern in my own probes, named because it cost four fixes
 
 `feet-check`, `side-walk` (twice) and `jitter` each **failed for lack of samples
@@ -425,6 +458,41 @@ of ping-ponging one lane.
 distinguish a real failure (exit 1) from an inconclusive run (exit 2), and wait
 for coverage rather than judging on whatever one sweep found. A check that fails
 half the time is a check people learn to skip, which is worse than not having it.
+
+## A second pattern, and it is worse than the first one
+
+The pattern above is about probes failing for lack of samples. This one is
+about probes that **cannot fail at all**, which is the failure you never see.
+
+Five separate instances, all mine, all found by deliberately breaking the world:
+
+1. **A guard behind a crash is not a guard.** `cartex.mjs` printed a clean
+   "no vehicle found" message that was unreachable — with nothing matched, the
+   page-side loop hit `truck.children` and threw first, so it died on a raw
+   Node trace. `citizen-sheet.mjs` was the same shape: its empty-sheet check
+   tested the finished data URL, but a missing affordance means `img.src = ''`,
+   whose `onload` never fires, so the evaluate hung instead.
+2. **Colour is stored LINEAR.** `material.color.r` on a `#3a4a63` body reads
+   0.067 — *darker* than the "this must be dark" threshold of 0.22 that
+   `carstate.mjs` used to prove the engine bay is not body-coloured. It would
+   have passed the exact bug it was written for. Read `getHexString()` for sRGB.
+3. **Do not infer what you can ask for.** The same probe derived the body colour
+   as "the commonest flat colour on the car" and got `#101114` — the tyre black
+   off the four wheels. `makeCar` publishes `userData.body` now.
+4. **A filter must not be the thing under test.** Gating corner-traffic's runs
+   on "did it come out heading east" would make the check that it comes out
+   heading east vacuous. `v.held` — the sim's own record of giving way — is
+   independent, so `ct/traffic.ts` publishes it.
+5. **`exit=$?` after a pipe reports `grep`'s status.** It made three separate
+   failure-watches on this project look like passes. Redirect to a file and read
+   node's own status.
+
+And one for the paint layer specifically: **PNG bytes cannot prove anything
+about a car texture.** `bodySideTex` ends in `dither(...)`, unseeded
+`Math.random()`, so two runs of identical code differ (GOTCHAS §1). I hashed
+before and after, saw a difference, and nearly reported my own change as the
+cause — the control run of unchanged code differed too. Use the structural
+fingerprint.
 
 ## Probes, and what each is for
 
@@ -440,6 +508,9 @@ half the time is a check people learn to skip, which is worse than not having it
 | `side-walk.mjs` | both side-street walks, the bodega door, parked-car clearance |
 | `gaps.mjs [--all]` | corridors in the trap band; asserts on parked vehicles only |
 | `truck.mjs [shots\|fleet]` · `kerb.mjs` · `cartex.mjs` | the fleet by eye, and its painted textures |
+| `citizen-sheet.mjs` | regenerates CITIZEN-STYLE.md's contact sheet |
+| `carstate.mjs` | the three not-just-parked cars: hood up, on a jack, up on blocks |
+| `park-repro.mjs` | parking is identical across two independent loads — see below |
 
 **If you are judging the fleet's wheels or arches, use `kerb.mjs`.** The desk's
 screenshot audit (`0e10244c`) found that `pl-P12`, the shot the wheel arches were
@@ -462,8 +533,6 @@ most of the tyre showing, and a dark arch hugging the top of each. It is a modes
 crescent rather than a pronounced flare, and that is the geometric limit written up
 under *For the desk* — the tyre is 0.68 m against a 0.50 m panel, so there is no
 room for more without changing the fleet's proportions.
-| `citizen-sheet.mjs` | regenerates CITIZEN-STYLE.md's contact sheet |
-
 ## For the desk
 
 1. **`crosstown.ts` is in my diff and `ownership.sh H` flags it** — for both
@@ -513,7 +582,12 @@ feet, and the pedestrian network. The whole of the original brief —
 that way and have more complicated paths"* — is now in.
 
 The two side-street items above (lamps, catch basins) are the only outstanding
-work I found, and both are in builder B's files.
+work I found, and both are in builder B's files. Item 1 was routed to B.
+
+**What is left in my ownership is three rulings, not work** — the wheel/body
+proportion, traffic density, and `ctx.obstacle` recording no owner. All three
+are in `notes/BLOCKED-H.md` with the numbers behind them, along with three gaps
+in tools that are not mine. Nothing there is waiting on a builder.
 
 For the path-graph item, note that the crowd is currently a **1-D ping-pong**:
 each person owns a `home` lane on the x axis and walks `dir` along z between
