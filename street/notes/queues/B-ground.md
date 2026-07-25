@@ -16,6 +16,35 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The user still cannot see puddles while it is raining.** *"still no
+      puddles during rain?"* — asked AFTER your `8a50f97` landed, so treat the
+      buried-decal fix as necessary but not sufficient.
+
+      You measured 11 of 14 showing during a storm in your own worktree. The
+      user is playing the LIVE integration world on port 5177, which is
+      mainline plus every builder's in-flight work — so verify there, not in
+      your worktree. There is now a build stamp in-frame (`acbda51`), so you
+      can confirm which build is actually being served rather than assuming.
+
+      Then work outward from the most likely causes, in this order:
+      1. **Is it raining at all when they look?** `rainAt(h)` is a hash gate
+         that is true for about 22% of hours. If a player walks around for two
+         minutes at a dry hour they see no rain and no puddles, and nothing is
+         broken. If that is what is happening, say so — and consider whether
+         22% is too rare to ever demonstrate a feature the user has asked
+         about three times.
+      2. **How long until a puddle is visible?** `puddleLevel` lerps at
+         `dt * 0.22` and only shows above 0.03. Work out the wall-clock time
+         from first drop to a visible puddle. If it is tens of seconds, the
+         user has almost certainly stopped watching before one appears.
+      3. **Where are they?** Puddles are in the gutter and under awnings. If
+         you are standing on the sidewalk looking down the street you may
+         simply not have any in frame.
+      4. Only then look for a remaining rendering fault.
+
+      Report what it actually is before changing anything — this has been
+      "fixed" once already and came back.
+
 - [ ] **Nothing queued.** Your two live items — the night pass and the wetness
       that outlasts the rain — both landed. Report to the desk and take a
       look at the world with fresh eyes: you own every surface the player
