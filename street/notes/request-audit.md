@@ -1921,3 +1921,57 @@ I will take the lane audit as the counter-example worth keeping: it compares
 `__ct.colliders()` — what the movement code actually tests — against the player
 capsule radius. Neither derives from the other, which is why *"0.89 m"* was a
 finding and *"the door is where the door is"* never could be.
+
+---
+
+# Which of the user's requests have a guard, and which are verified once and forgotten
+
+`28540aaa` asked *"which of my own user requests are unguarded?"* That question
+belongs to this report, so here it is for all of them. There are now **30
+registered checks** in `npm run checks`.
+
+## Guarded — a check would catch a regression
+
+| request | check |
+|---|---|
+| can you get into the car lot; office at the back, cars either side | `lotwalk`, `lot-layout`, `lot-frontage` |
+| the library and church steps | `steps-walk`, `civic-doors-walk` |
+| sit on every seat | `seats-walk` |
+| every `[E]` reachable and on its door | `spots-walk`, `doors-declared`, `frontage-honours`, `mirror-walk` |
+| close the 301 door | `door301` |
+| the park lit and alive | `park`, `glow` |
+| wetness lasting after rain; puddles in the gutter | `wetness`, `rain`, `basin` |
+| don't encroach the sidewalk | `lot-frontage`, `footprint` |
+| one masonry density | `density`, `seampairs` |
+| see-through shopfronts | `check-seethrough` |
+| the bus and its bench | `bus`, `bus-walk`, `bus-bench`, `bench` |
+| gutter litter, bins | `trash` |
+
+## **Unguarded** — verified once, by hand, and nothing would notice if it broke
+
+| request | how it was verified | would a regression be caught? |
+|---|---|---|
+| **wheel arches read as arches** | measured (arch top 0.72 vs tyre 0.663) and photographed | **no** |
+| **BURGER BARN red-and-beige, not red-and-yellow** | read off a frame | **no** |
+| **interior people turn through 8 angles** | `turn.mjs` — structural, 8 of 8 rooms | **no — not registered** |
+| **blade signs read correctly from both directions** | `handed.mjs` + scene-graph reasoning | **no** |
+| **the cat, the alley litter, the crates** | read off frames | **no** |
+| **citizens have legs and feet, not flat cards** | read off a frame | **no** |
+
+> **The suite covers behaviour and geometry thoroughly and appearance almost not
+> at all** — and appearance is where most of the user's requests live. Every
+> unguarded item above is something you can only currently confirm by looking at
+> it, which means it is confirmed exactly as often as somebody looks.
+
+## The cheapest thing that would close part of that gap
+
+**`turn.mjs` is already a structural check and is not registered.** It reads the
+atlas frame and mirror flag at eight headings and needs no camera or human
+judgement — the same shape as `density` or `seampairs`. Registering it would
+guard *"do the interior people turn through 8 angles"*, which is a direct user
+request currently protected by nothing.
+
+The others genuinely need a human eye or a pixel-sampling approach nobody has
+built. **Worth saying plainly rather than pretending the suite covers them.**
+
+*(`scripts/**` is builder A's; I am naming the gap, not filing the script.)*
