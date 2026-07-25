@@ -231,7 +231,7 @@ const CHECKS = [
   // 25 such scripts is what sent me looking. Registering it before the exit code
   // existed would have made the suite green on a red world.
   ['side-night',       'does the side street go dark, and catch its lamps?',  false],
-  ['world-wired',      'is every module that exports a builder called?',    false, [], true],
+  ['world-wired',      'is every module that exports a builder called?',    true, [], true],
   ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],

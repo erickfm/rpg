@@ -28,8 +28,28 @@ const DIR = 'src/proto/ct';
 const files = readdirSync(DIR).filter((f) => /^int-.+\.ts$/.test(f)).sort();
 if (!files.length) { console.error('no ct/int-*.ts files at all — wrong directory?'); process.exit(2); }
 
+// --selftest: claim a room exists on disk that the world never built, and
+// require this to go red.
+//
+// The last of my six checks to get one, and the only one whose mutation is not
+// a collider: it compares FILES ON DISK against rooms in the WORLD, so breaking
+// it means lying about the disk rather than changing the world. A phantom
+// `int-selftest.ts` exporting `buildSelftest` is exactly the failure this
+// script was written for — a finished room whose construction call nobody
+// made — and it is the shape all five real ones took (casino, hotel, tax
+// office, park, car lot).
+//
+// Injected AFTER the empty-directory guard above, so a genuinely wrong working
+// directory still exits 2 rather than being masked by the phantom.
+const SELFTEST = process.argv.includes('--selftest');
+if (SELFTEST) {
+  files.push('int-selftest.ts');
+  console.log('selftest: claiming an int-selftest.ts nobody built — this MUST now go red');
+}
+
 // what each file CLAIMS to be: its filename id, and the builder it exports
 const onDisk = files.map((f) => {
+  if (SELFTEST && f === 'int-selftest.ts') return { file: f, id: 'selftest', builders: ['buildSelftest'] };
   const src = readFileSync(`${DIR}/${f}`, 'utf8');
   const builders = [...src.matchAll(/export function (build\w+)\s*\(/g)].map((m) => m[1]);
   return { file: f, id: f.replace(/^int-|\.ts$/g, ''), builders };
