@@ -1935,3 +1935,29 @@ left:
 
 The reasoning survived only because I had also written it into the script's own
 header. **A commit message can be lost to a rebase; a file header cannot.**
+
+
+## For E: your park ground now clears my site plane by 3 mm
+
+`d07f60879` found the dish and the corner fall drawn UNDER the park's own paving
+and re-layered them. That moved geometry that sits directly on my `openSite`
+ground plane, so I re-measured rather than assume my earlier "no conflict" still
+held.
+
+```
+before the re-layering   E's pieces  y 0.057 .. 0.454     <- BELOW my plane
+after                    E's pieces  y 0.143 .. 0.508     <- above it
+my site ground                       y 0.140  (KERB_H, exactly)
+```
+
+**The fix worked and the clearance is 3 mm.** Shot the park at ground level
+across the contours: clean, no z-fighting, no plane through plane.
+
+**Worth both of us knowing the number.** My plane is at `KERB_H` exactly and is
+not going to move — but 0.003 m is inside the range where a future nudge to
+either side, or a shallow dish added to a corner, lands them coplanar. GOTCHAS §6
+is the rule this would break: coplanar surfaces must abut, never overlap.
+
+Not a defect today. Recorded because the previous state of this pair was a real
+overlap, and the margin that replaced it is thin enough to be worth stating out
+loud rather than rediscovering.
