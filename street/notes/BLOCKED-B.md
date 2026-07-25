@@ -583,6 +583,37 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## CONFIRMED by `floatlit.mjs`'s own numbers: the ground is the variable
+
+Last round I could not confirm the split-the-mesh routing because my probe read
+material tints. `cfb350f71`'s check answers it without me — the confirmation is
+sitting in its **ground** column:
+
+```
+road objects    ground 0.0043   ->  129x, 103x
+park objects    ground 0.0093   ->   65x, 58x, 49x, 47x
+walk object     ground 0.0395   ->   10.9x
+```
+
+**The walk's ground reads 9× brighter than the road's.** Same litter, same lamps,
+same night — the only variable is whether the ground beneath can receive the
+pool, and the walk is slabbed while the road and park floor are each one mesh.
+
+The ratios follow the ground, not the object: objects sit at 0.43–0.61 across all
+three surfaces, and what changes is what they are standing on.
+
+**Expected effect of splitting**: 0.5554 / 0.0395 ≈ **14×**, against 129× today.
+That is a nine-fold reduction and it lands near the walk's 10.9×, which is the
+one surface nobody has complained about. It would not by itself clear the check's
+10× bar — worth saying, rather than promising a green — but it removes the
+mechanism, and whatever remains after it is a question about lamp strength rather
+than about missing ground.
+
+I could not measure this myself and said so; the number came from someone else's
+instrument, correctly built, and it is better evidence than the probe I withdrew.
+
+---
+
 ## I could not confirm the split-the-mesh fix, and my instrument is why
 
 `19d0e9413` reframed the floating litter better than I had: the object is not
