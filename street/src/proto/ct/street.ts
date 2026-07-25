@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
-  facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight,
+  facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
 import { walkTex } from './tex-ground';
@@ -52,16 +52,17 @@ export function buildStreet(o: {
   //   · EAST before No. 227 must total 49.2, because the walk-up's door and
   //     its interior live in ct/apartment.ts at a fixed z
   // Change a width and you must pay for it out of a neighbour in the same run.
-  const WEST: (BldSpec | 'alley' | 'park')[] = [
+  const WEST: (BldSpec | 'alley' | 'park' | 'bank')[] = [
     // DINER and LAUNDRY swapped IDENTITIES, not slots — the widths stay where
     // they are, so both run totals are untouched (51.2 before the alley, 54.5
     // after). Moving the entries bodily would have cost 2.8 m of
     // reconciliation in each run for nothing. The diner also wants the wider
     // frontage, and the far side of the alley had nothing to eat on it.
-    { nm: 'LAUNDRY', col: '#2c4a7a', w: 9.2, brick: '#6b4034', floors: 4 },
-    // blander and more modern than anything either side of it — the whole
-    // point of standing it next to the library
-    { nm: 'MERIDIAN', col: '#5a6a72', w: 10, brick: '#8a8378', floors: 5 },
+    // LAUNDRY 9.2 + MERIDIAN 10 merged into one 19.2 m bank — the run before
+    // the alley still totals 51.2. MERIDIAN was the corporation, and a branch
+    // bank plays that part better: institutional, flat, and still the right
+    // foil for the library next door.
+    'bank',
     { nm: 'LIBRARY', col: '', w: 16, brick: '', floors: 0, kind: 'library' },
     // the loudest thing on the block, in the widest slot on this side, right
     // up against the quietest — that contrast is doing a lot of work here
@@ -260,10 +261,169 @@ export function buildStreet(o: {
       solid({ minX: XB - 0.36, maxX: XB, minZ: rz0, maxZ: rz1 });
     }
   };
+  // ── the bank ────────────────────────────────────────────────────────────
+  //
+  // LAUNDRY and MERIDIAN merged: 9.2 + 10 = 19.2 m, so the run before the
+  // alley still totals 51.2 and nothing is paid for out of a neighbour.
+  // MERIDIAN was the corporation — bland, modern, standing next to the
+  // library on purpose — and a branch bank does that job better, so this
+  // settles the corporation slot too.
+  //
+  // It is NOT a shopfront, and the difference is the point. No brick, no
+  // awning, no painted fascia: precast panel and polished granite, deep-set
+  // windows with bronze frames, applied metal letters with a drop shadow, an
+  // ATM in the wall. Dimensions are declared in METRES and converted once,
+  // which is A's convention on the shopfront painters — the ground band still
+  // uses masonry() at SHOP_MULT so its course datum is the same world grid as
+  // every other band on the block and the two neighbours line up with it.
+  //
+  // It also stands beside the LIBRARY, the other stone building on this side,
+  // and must not read as the same institution. The library is warm worn
+  // ashlar with arched openings and forty years of soot; the bank is cool
+  // grey precast, dead flat, square-headed, and looks like it was cleaned
+  // last year.
+  const BANK_STONE = '#9a9ca0', BANK_DARK = '#7c7f85', BANK_LIGHT = '#b3b5b8';
+  const BANK_GRANITE = '#4e5358', BANK_BRONZE = '#7a6a44';
+  const bankBand = (wM: number) => {
+    const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+    const { W, H, ppm } = surf;
+    const m = (v: number) => Math.round(v * ppm);
+    return surf.paint((g) => {
+      g.fillStyle = BANK_STONE; g.fillRect(0, 0, W, H);
+      // precast panels: wide bays with a recessed joint, NOT brick courses
+      g.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let x = 0; x <= W; x += m(2.4)) g.fillRect(x, 0, Math.max(1, m(0.05)), H);
+      g.fillStyle = 'rgba(255,255,255,0.1)';
+      for (let x = 0; x <= W; x += m(2.4)) g.fillRect(x + Math.max(1, m(0.05)), 0, 1, H);
+      g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, m(0.5), W, Math.max(1, m(0.06)));  // one shadow line
+      // polished granite plinth
+      g.fillStyle = BANK_GRANITE; g.fillRect(0, H - m(0.62), W, m(0.62));
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, H - m(0.62), W, Math.max(1, m(0.06)));
+      // deep-set windows: a dark reveal, bronze frame, blinds half down
+      const win = (cx: number, wWin: number) => {
+        g.fillStyle = 'rgba(0,0,0,0.5)';
+        g.fillRect(cx - m(wWin / 2) - m(0.14), m(1.28), m(wWin) + m(0.28), m(2.1) + m(0.14));
+        g.fillStyle = BANK_BRONZE;
+        g.fillRect(cx - m(wWin / 2), m(1.36), m(wWin), m(2.1));
+        g.fillStyle = '#26303a';
+        g.fillRect(cx - m(wWin / 2) + m(0.1), m(1.46), m(wWin) - m(0.2), m(1.9));
+        g.fillStyle = '#9aa2a8';                                   // venetian blinds, half down
+        for (let y = m(1.5); y < m(2.5); y += Math.max(2, m(0.13))) {
+          g.fillRect(cx - m(wWin / 2) + m(0.1), y, m(wWin) - m(0.2), Math.max(1, m(0.05)));
+        }
+        g.fillStyle = 'rgba(255,255,255,0.12)';
+        g.fillRect(cx - m(wWin / 2) + m(0.1), m(1.46), m(0.25), m(1.9));
+        g.fillStyle = BANK_LIGHT;                                   // sill
+        g.fillRect(cx - m(wWin / 2) - m(0.1), m(3.46), m(wWin) + m(0.2), m(0.12));
+      };
+      win(Math.round(W * 0.18), 2.2);
+      win(Math.round(W * 0.82), 2.2);
+      // applied metal letters — a shadow under each, no painted band
+      g.font = `bold ${m(0.5)}px monospace`;
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillText('FIRST FEDERAL', W / 2 + m(0.06), m(0.78) + m(0.06));
+      g.fillStyle = '#c9ccd0'; g.fillText('FIRST FEDERAL', W / 2, m(0.78));
+      // the ATM, which is very 1997, with its own little hood
+      const ax = Math.round(W * 0.36);
+      g.fillStyle = BANK_GRANITE; g.fillRect(ax - m(0.5), m(1.5), m(1.0), m(1.5));
+      g.fillStyle = '#1c2026'; g.fillRect(ax - m(0.38), m(1.66), m(0.76), m(0.72));
+      g.fillStyle = '#3f6a4a'; g.fillRect(ax - m(0.3), m(1.74), m(0.6), m(0.42));   // green CRT
+      g.fillStyle = '#8a8e94'; g.fillRect(ax - m(0.3), m(2.48), m(0.6), m(0.16));   // keypad
+      g.fillStyle = BANK_LIGHT; g.fillRect(ax - m(0.58), m(1.38), m(1.16), m(0.14)); // hood
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(ax - m(0.58), m(1.52), m(1.16), m(0.1));
+      // night depository, plaque, camera
+      const nx = Math.round(W * 0.62);
+      g.fillStyle = BANK_GRANITE; g.fillRect(nx - m(0.24), m(2.0), m(0.48), m(0.62));
+      g.fillStyle = '#16181c'; g.fillRect(nx - m(0.16), m(2.12), m(0.32), m(0.1));
+      g.fillStyle = BANK_BRONZE; g.fillRect(nx + m(0.4), m(2.0), m(0.3), m(0.42));   // plaque
+      g.fillStyle = '#2a2c30'; g.fillRect(Math.round(W * 0.28), m(0.28), m(0.22), m(0.16)); // camera
+      dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+    });
+  };
+  const bankWall = (wM: number, hM: number, floors: number) => {
+    const surf = masonry(wM, hM, SHOP_BAND_H);
+    const { W, H, ppm } = surf;
+    const m = (v: number) => Math.round(v * ppm);
+    return surf.paint((g) => {
+      g.fillStyle = BANK_STONE; g.fillRect(0, 0, W, H);
+      g.fillStyle = 'rgba(0,0,0,0.15)';                       // precast panel joints
+      for (let x = 0; x <= W; x += m(2.4)) g.fillRect(x, 0, Math.max(1, m(0.05)), H);
+      for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(0, y, W, Math.max(1, m(0.05)));
+      g.fillStyle = 'rgba(255,255,255,0.09)';
+      for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(0, y + Math.max(1, m(0.05)), W, 1);
+      const cols = Math.max(2, Math.floor(wM / 2.4));
+      for (let f = 0; f < floors; f++) {
+        for (let c = 0; c < cols; c++) {
+          const cx = Math.round(W * (c + 0.5) / cols);
+          const y = m(0.7) + f * m(FLOOR_M);
+          g.fillStyle = 'rgba(0,0,0,0.42)'; g.fillRect(cx - m(0.78), y - m(0.08), m(1.56), m(1.42));
+          g.fillStyle = BANK_BRONZE; g.fillRect(cx - m(0.7), y, m(1.4), m(1.26));
+          g.fillStyle = '#2b343d'; g.fillRect(cx - m(0.62), y + m(0.08), m(1.24), m(1.1));
+          g.fillStyle = 'rgba(160,180,200,0.18)'; g.fillRect(cx - m(0.62), y + m(0.08), m(0.4), m(1.1));
+          g.fillStyle = BANK_LIGHT; g.fillRect(cx - m(0.78), y + m(1.26), m(1.56), m(0.1));
+        }
+      }
+      g.fillStyle = BANK_DARK; g.fillRect(0, 0, W, m(0.55));          // flat capping, no cornice
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, m(0.55), W, Math.max(1, m(0.08)));
+      dither(g, W, H, Math.round(wM * hM * 3));
+    });
+  };
+  const placeBank = (z: number, w: number) => {
+    const cz = z - w / 2, floors = 4, h = wallHeight(floors);
+    const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
+    const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w),
+      [flat(bankWall(w, h, floors)), endM, roofM, roofM, endM, endM]);
+    wall.position.set(-(FACE + 1.7), h / 2 + SHOP_BAND_H, cz);
+    scene.add(wall);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(3.4, SHOP_BAND_H, w),
+      [flat(bankBand(w)), endM, roofM, roofM, endM, endM]);
+    band.position.set(-(FACE + 1.7), SHOP_BAND_H / 2, cz);
+    scene.add(band);
+    solid({ minX: -FACE - 8, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
+    // A recessed entrance, because a bank door is not a glass hole in a band.
+    // Same trick as the bodega's canted bay: the leaf sits back behind the
+    // wall line and the reveal is boxed in, so the opening has a shadow.
+    const DW = 1.9, DH = 2.6, DREC = 0.30;
+    const XF = -FACE;
+    const doorT = pixTex(60, 82, (g) => {
+      g.fillStyle = BANK_BRONZE; g.fillRect(0, 0, 60, 82);
+      g.fillStyle = '#232a31'; g.fillRect(5, 5, 22, 58); g.fillRect(33, 5, 22, 58);
+      g.fillStyle = 'rgba(170,190,210,0.16)'; g.fillRect(7, 7, 7, 54); g.fillRect(35, 7, 7, 54);
+      g.fillStyle = BANK_BRONZE; g.fillRect(28, 0, 4, 82);            // meeting stile
+      g.fillStyle = '#c9b07a'; g.fillRect(24, 30, 3, 20); g.fillRect(33, 30, 3, 20);  // pull handles
+      g.fillStyle = '#3a4048'; g.fillRect(0, 66, 60, 16);             // kick rail
+      g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(0, 66, 60, 1);
+    });
+    // The surround PROJECTS and the leaf sits flush behind it, rather than the
+    // leaf being set back into a solid wall — a band box is opaque, so a door
+    // buried behind it is just a hole with nothing in it. Three granite pieces
+    // make a portal: two jambs and a head, standing 0.30 m proud, which is
+    // exactly the cushion the footprint already reserves so it takes no
+    // pavement. The depth of those three is what casts the shadow.
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(DW, DH), flat(doorT));
+    leaf.position.set(XF + 0.02, DH / 2, cz);
+    leaf.rotation.y = Math.PI / 2;
+    scene.add(leaf);
+    const graniteM = new THREE.MeshBasicMaterial({ color: 0x4e5358 });
+    for (const sg of [-1, 1]) {
+      const jb = new THREE.Mesh(new THREE.BoxGeometry(DREC, DH + 0.42, 0.46), graniteM);
+      jb.position.set(XF + DREC / 2 - 0.01, (DH + 0.42) / 2, cz + sg * (DW / 2 + 0.23));
+      scene.add(jb);
+    }
+    const head = new THREE.Mesh(new THREE.BoxGeometry(DREC, 0.42, DW + 0.92), graniteM);
+    head.position.set(XF + DREC / 2 - 0.01, DH + 0.21, cz);
+    scene.add(head);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(DREC + 0.06, 0.14, DW + 1.16),
+      new THREE.MeshBasicMaterial({ color: 0x6a6f75 }));
+    lintel.position.set(XF + DREC / 2 + 0.01, DH + 0.49, cz);
+    scene.add(lintel);
+  };
   let zw = 14.2;
   for (const b of WEST) {
     if (b === 'alley') { zw = AZ1; continue; }
     if (b === 'park') { placePark(zw, 30); zw -= 30; continue; }
+    if (b === 'bank') { placeBank(zw, 19.2); zw -= 19.2; continue; }
     if (b.kind === 'library') placeLibrary(zw, b); else placeBld(-1, zw, b);
     zw -= b.w;
   }
