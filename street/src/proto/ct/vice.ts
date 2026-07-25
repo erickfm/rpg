@@ -108,16 +108,69 @@ const doorUOf = (b: BldSpec, x0: number) => {
  * guarantee ONE signage hand is for both sides to run the same painter rather
  * than to keep two that merely resemble each other.
  */
+/**
+ * Paint ONE layer with hard texel edges.
+ *
+ * Canvas 2D anti-aliases text and there is no flag that turns it off, so a
+ * glyph arrives as a field of part-alpha pixels. `NearestFilter` — which this
+ * world sets on every texture — then faithfully preserves those intermediates
+ * as fat soft texels, which is the blur the user reported on the marquee: "in a
+ * world where every other letter is hard texels".
+ *
+ * It was NOT the two obvious causes and both were checked first. `pixTex`
+ * already sets `magFilter = NearestFilter` and `minFilter =
+ * NearestMipmapNearestFilter`, and the canvas is not undersized — 96 texels
+ * across a 6.0 m sign is 16 px/m, the block's own density. The softness is
+ * baked into the texture before filtering ever sees it.
+ *
+ * Painting into an offscreen canvas and snapping alpha to 0 or 255 before
+ * compositing gives a glyph made of whole texels. One layer at a time, because
+ * thresholding the finished composite would only harden the outer edge and
+ * leave the casing/tube/core boundaries inside the letter still blended.
+ *
+ * The COLOUR has to be flattened too, and measuring is what showed it. Snapping
+ * alpha alone took one line of the marquee from 262 distinct colours to 45, not
+ * to the four it is drawn with: `getImageData` hands back premultiplied values,
+ * so a pixel the anti-aliaser wrote at alpha 60 reads as a darkened RGB, and
+ * promoting its alpha to 255 keeps that darkening as a fringe of near-colours.
+ * A layer is one colour by construction, so it is written back flat.
+ */
+export function hardLayer(
+  g: CanvasRenderingContext2D, colour: string, paint: (h: CanvasRenderingContext2D) => void,
+) {
+  const w = g.canvas.width, h = g.canvas.height;
+  const off = document.createElement('canvas');
+  off.width = w; off.height = h;
+  const o = off.getContext('2d')!;
+  paint(o);
+  const d = o.getImageData(0, 0, w, h);
+  const px = d.data;
+  const hex = colour.replace('#', '');
+  const cr = parseInt(hex.slice(0, 2), 16), cg = parseInt(hex.slice(2, 4), 16), cb = parseInt(hex.slice(4, 6), 16);
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] >= 128) { px[i] = cr; px[i + 1] = cg; px[i + 2] = cb; px[i + 3] = 255; }
+    else px[i + 3] = 0;
+  }
+  o.putImageData(d, 0, 0);
+  g.drawImage(off, 0, 0);
+}
+
 export function tube(
   g: CanvasRenderingContext2D, s: string, x: number, y: number,
   px: number, col: string, core = '#fff6e0', casing = '#1e1a24',
 ) {
-  g.font = `bold ${px}px monospace`;
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.lineJoin = 'round'; g.lineCap = 'round';
-  g.strokeStyle = casing; g.lineWidth = Math.max(3, px * 0.30); g.strokeText(s, x, y);
-  g.strokeStyle = col; g.lineWidth = Math.max(2, px * 0.17); g.strokeText(s, x, y);
-  g.fillStyle = core; g.fillText(s, x, y);
+  const setup = (h: CanvasRenderingContext2D) => {
+    h.font = `bold ${px}px monospace`;
+    h.textAlign = 'center'; h.textBaseline = 'middle';
+    h.lineJoin = 'round'; h.lineCap = 'round';
+  };
+  hardLayer(g, casing, (h) => {
+    setup(h); h.strokeStyle = casing; h.lineWidth = Math.max(3, px * 0.30); h.strokeText(s, x, y);
+  });
+  hardLayer(g, col, (h) => {
+    setup(h); h.strokeStyle = col; h.lineWidth = Math.max(2, px * 0.17); h.strokeText(s, x, y);
+  });
+  hardLayer(g, core, (h) => { setup(h); h.fillStyle = core; h.fillText(s, x, y); });
 }
 
 export function buildVice(o: {
@@ -583,9 +636,11 @@ export function buildVice(o: {
         g.fillStyle = GOLD_D; g.fillRect(0, 0, 96, 3); g.fillRect(0, 23, 96, 3);
         g.fillStyle = GOLD; g.fillRect(0, 1, 96, 1); g.fillRect(0, 24, 96, 1);
         tubeText(g, 'LOOSEST SLOTS', 48, 10, 8, '#f2b83a');
-        g.fillStyle = '#e8e0c8'; g.font = 'bold 6px monospace';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('$2 BLACKJACK  24 HRS', 48, 19);
+        hardLayer(g, '#e8e0c8', (h) => {
+          h.fillStyle = '#e8e0c8'; h.font = 'bold 6px monospace';
+          h.textAlign = 'center'; h.textBaseline = 'middle';
+          h.fillText('$2 BLACKJACK  24 HRS', 48, 19);
+        });
         grime(g, 96, 3, 6, 14);
       });
       const fasciaM = neon(fasciaT);
