@@ -434,6 +434,40 @@ Wait on the PID you started, on the artefact, or on the service answering.
 
 ---
 
+## A near-retraction I did not make: my probe picked the wrong 16×16
+
+Went to reconcile my "nine registered" against `3750fa61`'s per-owner table and
+briefly convinced myself I had published something false. Two probes said so:
+
+```
+litter shadows with userData.wet   0 of 14
+"first 16x16 material" dry -> rain  1 -> 1     (no response)
+```
+
+Both were my selector, not the world. Keyed to litter parentage instead of
+texture size:
+
+```
+litter contact shadows: 14 found
+  dry  1, 1, 1, 1, 1
+  rain 0.1644, 0.1644, 0.1644, 0.1644, 0.1644
+```
+
+They respond. `scripts/wetsweep.mjs` had been saying so all along — 11 props
+still dry and every one a lamp pool — and I doubted the shared instrument in
+favour of a throwaway I had written five minutes earlier.
+
+**"The first material matching a size" is not a selector**, it is a lottery in a
+world with 5625 materials. It is the same error as reading geometry and texture
+size and skipping `map.repeat`: specific-looking, and about something else. I
+have now made it twice, and both times the tell was two of my own measurements
+disagreeing rather than anything external.
+
+The committed claim stands unchanged. Recording the near-miss because a
+retraction of a true statement would have been worse than the original error.
+
+---
+
 ## A zombie preview passes `pgrep` and serves nothing
 
 Cost me a false FAIL on `kerbcut` while verifying at HEAD. `pgrep -f "vite
