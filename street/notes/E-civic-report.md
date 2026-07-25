@@ -101,6 +101,29 @@ for a busy pavement. `E-walk --selftest` exercises that branch — and caught my
 first rig, which forced the walk 3 m past the library into the next building's
 footprint where a collider legitimately is.
 
+### A six-area pass cannot outrun the merge train
+
+Worth the desk knowing, because it is not a fault in anything and it will bite
+anyone who writes a long harness.
+
+`E-verify` takes about twenty minutes over six areas under load. The merge train
+rebases builders more often than that, so HEAD moves out from under `dist/`
+mid-run and every remaining area exits 3 on the provenance guard. It took three
+attempts to catch a window; the successful one reads **`all 6 areas walk`**.
+
+That is the guard doing its job and there is nothing to fix in it — but it does
+mean the practical unit of verification here is the individual harness, and an
+aggregate is a thing you get when you are lucky rather than a gate you can rely
+on. If the desk ever wants `land.sh` to gate on one, it will need either a much
+faster suite or a way to pin the tree for the duration.
+
+It is also the clearest argument for the echo fix that went in today. The run
+before the good one came back *"5 of 6 areas failed — do not land this"*, and
+because the banner is now echoed it said exactly why: the served build was
+`9bffa9ed7` and the checkout was `be0767d62`. Before this morning that was five
+bare `FAILED` lines on a build where every harness passes by hand, which sends
+you looking at the world instead of at the build you are serving.
+
 ## Record, do not route
 
 | finding | why not |
