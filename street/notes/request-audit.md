@@ -2111,3 +2111,57 @@ and I have now learned that badly enough, three times, to write it at the top of
 The one thing that survives from this detour: **`looks.mjs` proves the BURGER
 BARN palette can be checked structurally**, which is a real, registerable guard
 for a user request that currently has none.
+
+---
+
+# Does the world still work when it is busy? Three systems, tested populated.
+
+Every check in the suite runs on a static world or drops the movers, so all of
+them — mine included — describe an empty street. Having found that the lane
+genuinely differs when populated, I tested the three systems that matter.
+
+## 1. The lane — tight, never closed
+
+| | built | lived |
+|---|---|---|
+| narrowest clear width | 1.15 m | **0.72 m**, exactly the capsule |
+| median | — | **0.77 m** |
+| samples impassable | — | **0 of 20** |
+
+## 2. Reachability — untouched
+
+Four flood-fills with the movers in: **every destination reachable in every
+sample**, reachable area varying by **9 cells in ~62,000 (0.015%)**. Citizens
+narrow the pavement and never cut it.
+
+## 3. The doors — never blocked
+
+Eight samples, movers included, counting standable points inside each trigger:
+
+```
+into the BODEGA            69 … 69
+into BURGER BARN           73 … 73
+into GOLDEN ACES           75 … 75
+into the DINER             73 … 73
+into the HOTEL ORPHEUS     63 … 63
+into the PAWN SHOP         73 … 73
+into A-1 TAX SERVICE       25 … 73     ← the only one anything intrudes on
+into the THRIFT STORE      73 … 73
+
+no door was ever fully blocked by a citizen
+```
+
+**Seven of eight triggers never vary at all** — nothing ever enters them. **A-1
+TAX drops to 25 of 73 standable points**, losing two-thirds of its approach at
+times, and still leaves ample room. That is the one door where the street's
+traffic actually reaches the threshold, which fits: it sits on the east walk at
+z −20, beside the parked car and the busiest stretch of pavement I measured.
+
+## The conclusion, which is a good one
+
+> **The world is robust to its own population.** The pavement gets tight enough
+> to touch the player's own width, one doorway loses two-thirds of its approach,
+> and **nothing anywhere becomes impassable, unreachable or unenterable.**
+
+Every earlier result in this audit was measured on an empty street. **They all
+hold on a busy one** — and that had never been checked, by me or by the suite.
