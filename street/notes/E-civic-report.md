@@ -157,6 +157,30 @@ a builder reading only the banner will trust a walk result they should throw
 away. Worth a stronger warning there, and it is shared code so I have not
 touched it.
 
+### A wait loop whose pattern matches the waiter never ends
+
+Not about the world, and it cost the shared machine more than anything else I
+did today.
+
+I used a lot of
+
+    until [ -z "$(pgrep -f 'node scripts/seats-walk')" ]; do sleep 10; done
+
+to wait on long harnesses. `pgrep -f` matches full command lines, and that loop's
+own command line contains the pattern — so it always sees a match, never sees
+the thing it is waiting for finish, and spins forever. I left **eleven** of them
+running. Two had been polling every ten seconds for three hours; one had
+survived from a previous session and had been going for **sixteen**.
+
+The bill landed on everyone. This box has sat at load 30–50 all day with five
+builders on it, and a good share of that was mine. It also cost me directly:
+several of my own runs crawled, and I spent turns diagnosing "the harness keeps
+restarting E-verify" when I was competing with myself.
+
+If you need to wait on a process, match something the waiter cannot contain —
+`pgrep -f "^node scripts/foo"`, or watch the output file, or just have the thing
+you started signal you. And check for strays before blaming the machine.
+
 ## Record, do not route
 
 | finding | why not |
