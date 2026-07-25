@@ -10,7 +10,12 @@ import { pixTex, dither } from './paint';
 export const CAR_COLORS = ['#7a8a5c', '#8a5a5a', '#5a6a8a', '#8a825a', '#6a5a7a', '#4a5a52'];
 export type CarKind = 'sedan' | 'hatch' | 'pickup' | 'van';
 
-function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean): THREE.Texture {
+/** The body side, rocker to beltline. `arches` are wheel-arch centres in metres
+ *  RELATIVE TO THIS FACE'S OWN CENTRE — the pickup's slab stops behind the cab,
+ *  so its face is no longer centred on the vehicle and only the front arch
+ *  belongs on it (the rear one is painted on the bed skin). */
+function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
+  arches: number[] = [-wheelZ, wheelZ]): THREE.Texture {
   return pixTex(96, 20, (g) => {
     g.fillStyle = body; g.fillRect(0, 0, 96, 20);
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, 0, 96, 3);
@@ -29,7 +34,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean): 
     g.fillRect(41, 11, 4, 2); g.fillRect(65, 11, 4, 2);
     // wheel arches at the true wheel positions
     g.fillStyle = '#0a0b0e';
-    for (const wz of [-wheelZ, wheelZ]) {
+    for (const wz of arches) {
       const ax = Math.round(((wz + len / 2) / len) * 96);
       g.beginPath(); g.arc(ax, 20, 10, Math.PI, 0); g.fill();
     }
@@ -236,7 +241,7 @@ function busRoofTex(body: string): THREE.Texture {
 
 // the roller sign: a linen roll behind glass, lit from inside
 function busRollTex(): THREE.Texture {
-  return pixTex(80, 14, (g) => {
+  const t = pixTex(80, 14, (g) => {
     g.fillStyle = '#0e0f12'; g.fillRect(0, 0, 80, 14);
     g.fillStyle = '#141519'; g.fillRect(1, 1, 78, 12);
     g.fillStyle = '#d8b048';
@@ -246,6 +251,11 @@ function busRollTex(): THREE.Texture {
     g.font = 'bold 8px monospace';
     g.fillText('CROSSTOWN', 20, 7);
   });
+  // 0.26 m tall and carrying LETTERS — the thinnest detailed face on the fleet,
+  // so it gets the rest of the §4 prescription even though it has no dither:
+  // no mip chain, nothing for the roller text to crawl through at a glance.
+  t.minFilter = THREE.NearestFilter;
+  return t;
 }
 
 /** the block's bus — a Group shaped like the cars so the traffic pool can
@@ -339,13 +349,28 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   }[kind];
   const half = spec.len / 2;
 
-  // slab
-  const sideT = flatT(bodySideTex(body, spec.len, spec.wheelZ, taxi));
+  // ── the body slab: rocker to beltline ───────────────────────────────────
+  //
+  // On the PICKUP it STOPS at the back of the cab. It used to run the whole
+  // length, and that one fact is why two separate requests for a deeper bed
+  // failed to land: the tub's floor was nested INSIDE this solid box (floor top
+  // 0.645 against a slab top of 0.84), so what you actually saw as the bed
+  // floor was this slab's top face — plain body colour, 0.13 m below the rail.
+  // Lowering the buried floor from 0.77 to 0.62 moved a surface nobody could
+  // see. A bed floor has to sit BELOW the beltline, so the body cannot be solid
+  // there; the bed is built as a real open tub below.
+  const BED_Z0 = 0.55;                                  // bed front, behind the cab
+  const ROCKER = 0.34, BELT = 0.84;                     // the slab's own extent
+  const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
+  const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
+  const sideT = flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi,
+    // only the front arch is on the cab body once the slab is short
+    kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ]));
   const slab = new THREE.Mesh(
-    new THREE.BoxGeometry(1.8, 0.5, spec.len),
+    new THREE.BoxGeometry(1.8, BELT - ROCKER, slabLen),
     [sideT, sideT, bodyM, darkM, flatT(carRearTex(body)), flatT(carFrontTex(body))],
   );
-  slab.position.y = 0.59;
+  slab.position.set(0, (ROCKER + BELT) / 2, slabZ);
   g.add(slab);
 
   const roofM = flatT(panelTopTex(body, 24));
@@ -371,68 +396,122 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     g.add(hood);
     // short cab, near-vertical rear window
     g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(1))));
-    // the bed is a real open tub: thick walls flush with the slab, a dark
-    // floor you can see over the rails, headboard sealed against the cab.
-    // Outer faces carry body paint with highlight/shadow so edges read.
-    const bedSideT = pixTex(96, 20, (g2) => {
-      g2.fillStyle = body; g2.fillRect(0, 0, 96, 20);
-      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 96, 2);
-      g2.fillStyle = 'rgba(0,0,0,0.25)'; g2.fillRect(0, 18, 96, 2);
-      g2.fillStyle = 'rgba(0,0,0,0.14)'; g2.fillRect(0, 11, 96, 1);  // side crease
-      dither(g2, 96, 20, 50);
+    // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
+    //
+    // Rebuilt rather than nudged, because the bed has now been asked about
+    // twice and the reason both previous passes failed is structural, not a
+    // number: the slab ran solid through here, so the tub's floor was inside
+    // it and the visible "floor" was the slab's body-coloured top face, 0.13 m
+    // under the rail. Now the slab stops at the cab (see above) and the bed is
+    // a genuine box: skin, floor, headboard, tailgate.
+    //
+    //   rail top   0.97   unchanged — a real pickup's rail sits near the base
+    //                     of the cab glass, and a playtest already rejected it
+    //                     standing proud of the beltline
+    //   floor top  0.50   so the inside is 0.47 m deep, which is a 1997
+    //                     half-ton bed, and lands just above the axle line
+    //   skin       0.34 … 0.97 — the outer wall now spans rocker to rail, so
+    //                     it carries the body side art the slab used to
+    const RAIL_T = 0.97;
+    const FLOOR_T = 0.50;               // the floor's TOP surface
+    const WALL_T = 0.16, GATE_T = 0.10;
+    const HW = 0.9;                     // body half-width — the slab is 1.8 wide
+    const SKIN_H = RAIL_T - ROCKER;     // 0.63 m of outer wall
+    const wallLen = (half - GATE_T) - BED_Z0;
+    const bedMidZ = BED_Z0 + wallLen / 2;
+    // Painted at the same texel density as the cab slab beside it (that face is
+    // 96 texels over slabLen, and 20 over its 0.5 m), so the bed's paint is not
+    // finer or coarser than the cab's.
+    const PPM_X = 96 / slabLen, PPM_Y = 40;
+    const skinW = Math.round(wallLen * PPM_X), skinH = Math.round(SKIN_H * PPM_Y);
+    const yRow = (worldY: number) => Math.round((RAIL_T - worldY) * PPM_Y);
+    const bedSkinT = pixTex(skinW, skinH, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, skinW, skinH);
+      // the same three lines the cab slab carries, at the same WORLD heights,
+      // so they run on across the seam instead of stepping at it
+      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, skinW, 2);        // rail cap
+      g2.fillStyle = 'rgba(255,255,255,0.18)'; g2.fillRect(0, yRow(0.84), skinW, 3); // beltline
+      g2.fillStyle = '#d8dade'; g2.fillRect(0, yRow(0.64), skinW, 1);              // chrome strip
+      g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(0, yRow(0.44), skinW, skinH - yRow(0.44)); // rocker
+      // the rear wheel arch, which used to be painted on the slab. Same texel
+      // radius as the slab's, so it is the same ellipse in world space.
+      g2.fillStyle = '#0a0b0e';
+      const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
+      g2.beginPath(); g2.ellipse(ax, skinH, 10, 10, 0, Math.PI, 0); g2.fill();
     });
-    const bedRearT = pixTex(48, 20, (g2) => {
-      g2.fillStyle = body; g2.fillRect(0, 0, 48, 20);
-      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, 48, 2);
-      g2.fillStyle = 'rgba(0,0,0,0.3)'; g2.fillRect(18, 9, 12, 4); // tailgate latch
-      g2.fillStyle = 'rgba(0,0,0,0.14)'; g2.fillRect(0, 15, 48, 1);
-      dither(g2, 48, 20, 34);
+    bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
+    // The tailgate IS the back of the truck now, so it carries the tail lights
+    // and the step bumper. Painted symmetrically and, unlike before, nothing is
+    // coplanar with it — the slab's rear face is 1.8 m forward, behind the
+    // headboard. The asymmetric lights the user saw were two symmetric painted
+    // lights inside a z-fight, not a texture fault (GOTCHAS §6).
+    const gateW = Math.round(HW * 2 * PPM_X), gateH = skinH;
+    const bedRearT = pixTex(gateW, gateH, (g2) => {
+      g2.fillStyle = body; g2.fillRect(0, 0, gateW, gateH);
+      g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, gateW, 2);        // rail cap
+      g2.fillStyle = 'rgba(0,0,0,0.3)';                                           // latch
+      g2.fillRect(Math.round(gateW * 0.42), yRow(0.72), Math.round(gateW * 0.16), 3);
+      const lw = Math.max(3, Math.round(gateW * 0.17)), lh = 4;
+      g2.fillStyle = '#8a1c1c';
+      g2.fillRect(Math.round(gateW * 0.07), yRow(0.58), lw, lh);
+      g2.fillRect(gateW - Math.round(gateW * 0.07) - lw, yRow(0.58), lw, lh);
+      g2.fillStyle = '#d8dade'; g2.fillRect(0, yRow(0.44), gateW, 3);             // step bumper
     });
+    bedRearT.minFilter = THREE.NearestFilter;
     const bodyC = new THREE.Color(body);
-    const outM = flatT(bedSideT);
+    const outM = flatT(bedSkinT);
     const rimM = new THREE.MeshBasicMaterial({ color: bodyC.clone().multiplyScalar(1.16) });
-    const inM = new THREE.MeshBasicMaterial({ color: bodyC.clone().multiplyScalar(0.6) });
-    const bedFloorT = pixTex(32, 48, (g2) => {
-      g2.fillStyle = '#17181c'; g2.fillRect(0, 0, 32, 48);
-      g2.fillStyle = 'rgba(255,255,255,0.1)';
-      for (let y = 4; y < 46; y += 7) g2.fillRect(0, y, 32, 2); // corrugations
-      dither(g2, 32, 48, 30);
+    // ── the liner: NEAR-BLACK, and that is the point ───────────────────────
+    //
+    // It used to be the body colour scaled by 0.6, which on this palette is
+    // #6d6646 against a #8a825a body — to the eye, the same green, which is
+    // most of why the bed read as a pressed dish. Nothing in this world casts
+    // a shadow, so the darkness of a cavity has to be PAINTED or it does not
+    // exist. Flagged noLight for the same reason the glass is: a sodium lamp
+    // warming the inside of a bed to amber is not a lighting effect.
+    const linerM = new THREE.MeshBasicMaterial({ color: 0x16171a });
+    linerM.userData.noLight = true;
+    // ribs front-to-back, deliberately COARSE: this is a near-horizontal face
+    // read at a grazing angle, which is the tailgate's own problem (GOTCHAS
+    // §4). Wide bands, no dither, NearestFilter.
+    const inW = HW * 2 - WALL_T * 2;
+    const floorT = pixTex(Math.round(inW * 16), Math.round(wallLen * 16), (g2) => {
+      const W = Math.round(inW * 16), H = Math.round(wallLen * 16);
+      g2.fillStyle = '#16171a'; g2.fillRect(0, 0, W, H);
+      for (let x = 2; x < W; x += 8) {                     // 0.25 m ribs
+        g2.fillStyle = 'rgba(255,255,255,0.07)'; g2.fillRect(x, 0, 3, H);
+        g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(x + 3, 0, 1, H);
+      }
     });
-    // The bed is part of the BODY, not a box sitting on it. Two rules, both
-    // from a playtest note that it "looked too high and not flush with the
-    // cabin":
-    //   * bed sides are FLUSH with the body sides (outer face at x = ±0.85,
-    //     same plane as the cab) — they used to be inset to 0.74, which read
-    //     as a separate tub perched on the slab;
-    //   * the rail top sits just above the beltline (0.89), not 0.19 m over
-    //     it — a real pickup's rail lines up near the base of the cab glass.
-    const RAIL_T = 0.97;          // rail top: a touch proud of the beltline
-    const FLOOR_Y = 0.62;         // tub floor — sits just above the axle line.
-                                  // Was 0.77, which made a 0.20 m tub: the bed
-                                  // read as a tray. 0.35 m is a real load bed.
-    const WALL_T = 0.16;          // wall thickness
-    const BODY_HALF = 0.85;       // body side plane — rails are flush to it
-    const wallLen = half - 0.65;
-    const RAIL_H = RAIL_T - FLOOR_Y;   // walls run the full depth of the tub
-    const floorY = FLOOR_Y;
+    floorT.minFilter = THREE.NearestFilter;
+    const floorM = flatT(floorT);
+    floorM.userData.noLight = true;
     const floor2 = new THREE.Mesh(
-      new THREE.BoxGeometry(BODY_HALF * 2 - WALL_T * 2, 0.05, wallLen),
-      [inM, inM, flatT(bedFloorT), darkM, inM, inM]);
-    floor2.position.set(0, floorY, 0.55 + wallLen / 2);
+      new THREE.BoxGeometry(inW, 0.05, wallLen),
+      [linerM, linerM, floorM, darkM, linerM, linerM]);
+    floor2.position.set(0, FLOOR_T - 0.025, bedMidZ);
     g.add(floor2);
+    // side walls: outer face flush with the slab's own side plane at ±0.9 (they
+    // used to stand at ±0.85, a 5 cm step in the body line), inner face liner
     for (const s of [-1, 1]) {
-      const railWall = new THREE.Mesh(
-        new THREE.BoxGeometry(WALL_T, RAIL_H, wallLen),
-        s < 0 ? [inM, outM, rimM, darkM, inM, inM] : [outM, inM, rimM, darkM, inM, inM],
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(WALL_T, SKIN_H, wallLen),
+        s < 0 ? [linerM, outM, rimM, darkM, linerM, linerM] : [outM, linerM, rimM, darkM, linerM, linerM],
       );
-      railWall.position.set(s * (BODY_HALF - WALL_T / 2), RAIL_T - RAIL_H / 2, 0.55 + wallLen / 2);
-      g.add(railWall);
+      wall.position.set(s * (HW - WALL_T / 2), (ROCKER + RAIL_T) / 2, bedMidZ);
+      g.add(wall);
     }
-    const head = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, RAIL_H, 0.1), [outM, outM, rimM, darkM, inM, inM]);
-    head.position.set(0, RAIL_T - RAIL_H / 2, 0.5);
+    // headboard, sealed against the back of the cab. Sits BETWEEN the walls so
+    // its sides are not coplanar with their outer faces (GOTCHAS §6).
+    const head = new THREE.Mesh(new THREE.BoxGeometry(inW, SKIN_H, 0.1),
+      [linerM, linerM, rimM, darkM, linerM, linerM]);
+    head.position.set(0, (ROCKER + RAIL_T) / 2, BED_Z0 + 0.05);
     g.add(head);
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(BODY_HALF * 2, RAIL_H, 0.1), [outM, outM, rimM, darkM, flatT(bedRearT), inM]);
-    gate.position.set(0, RAIL_T - RAIL_H / 2, half - 0.05);
+    // tailgate closes the end: the walls stop at half - GATE_T so the two ABUT
+    // instead of overlapping
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(HW * 2, SKIN_H, GATE_T),
+      [outM, outM, rimM, darkM, flatT(bedRearT), linerM]);
+    gate.position.set(0, (ROCKER + RAIL_T) / 2, half - GATE_T / 2);
     g.add(gate);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
@@ -449,6 +528,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       g2.textAlign = 'center'; g2.textBaseline = 'middle';
       g2.fillText('TAXI', 16, 7);
     });
+    signT.minFilter = THREE.NearestFilter;   // 0.18 m tall with letters on it — see busRollTex
     const sign = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.18, 0.24), flatT(signT));
     sign.position.set(0, 1.55, -0.1);
     g.add(sign);

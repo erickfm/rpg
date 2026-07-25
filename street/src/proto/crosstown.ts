@@ -172,14 +172,29 @@ export function makeCrosstown(): Proto {
       : cls === 'ordinary' ? 0.012 + rnd() * 0.038
         : 0.04 + rnd() * 0.06);                 // left it at an angle
   };
+  const carColliders: AABB[] = [];
+  const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
+  // ── nobody parks across an alley mouth ──────────────────────────────────
+  //
+  // The truck stood on the west kerb at z0 = -33, and the draw below spreads
+  // each car ±1.2 m off its nominal spot — so its tail reached z = -36.8, half
+  // a metre off the alley gap at AZ0 = -37, and it closed the sight line into
+  // the alley where the dumpster, the cat and the graffiti are.
+  //
+  // The arrangement is DRAWN now, not hand-placed, so the fix is to move the
+  // CONSTRAINT and let the draw keep its spread: the nominal spot is derived as
+  // the closest the truck can stand north of the mouth with its whole body, the
+  // full spread, and a sight line, all clear of it. Hand-placing a new z here
+  // would just be a different fixed arrangement.
+  const ALLEY_SIGHT = 2.5;                      // clear space off the mouth
+  const PARK_SPREAD = 2.4;                      // the ±1.2 m the draw applies
+  const truckZ0 = AZ0 + ALLEY_SIGHT + carHalf.pickup + PARK_SPREAD / 2;
   // kind, colour, which kerb, roughly where
   const parked: [CarKind, number, number, number][] = [
     ['sedan', 1, 1, -13],
-    ['pickup', 3, -1, -33],
+    ['pickup', 3, -1, truckZ0],
     ['hatch', 5, 1, -49],
   ];
-  const carColliders: AABB[] = [];
-  const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
   parked.forEach(([kind, ci, side, z0], pi) => {
     const cls = PARK_CLASS[pi % PARK_CLASS.length];
     const gap = Math.min(parkGap(cls), PARK_SNUG - PARK_OUT);
