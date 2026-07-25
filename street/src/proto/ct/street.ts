@@ -447,10 +447,18 @@ export function buildStreet(o: {
   };
   // 30 m of the west side, where BARBER and GROCERY stood. Contents: E, in
   // ct/park.ts.
+  //
+  // DEEP — 32 m, not the 7 it opened with. The shells either side of it now run
+  // 14–23.5 m back, and a 7 m yard between them read as a notch cut in a solid
+  // block rather than as a park. These are the same metres the building-depth
+  // item claims, and where the two want the same ground the open space wins:
+  // a shallow park reads as a gap, whereas a building 18 m deep instead of 24
+  // reads as a building. At 32 m its back wall is at x -39, clear of the
+  // deepest shell on this side (x -30.5), so nothing is actually contested.
   let PARK: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
   const placePark = (z: number, w: number) => {
     PARK = openSite(-1, z, w, {
-      depth: 7.0, ground: '#6a6f58', grain: '#5c6249', back: '#6b4034', flank: '#835444', gate: 0.36,
+      depth: 32.0, ground: '#6a6f58', grain: '#5c6249', back: '#6b4034', flank: '#835444', gate: 0.36,
     });
   };
   // 23.2 m of the east side, where CAFE and HARDWARE stood. Contents — the
@@ -460,7 +468,7 @@ export function buildStreet(o: {
   let LOT: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
   const placeLot = (z: number, w: number) => {
     LOT = openSite(1, z, w, {
-      depth: 8.0, ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
+      depth: w, ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
     });
   };
   // ── the bank ────────────────────────────────────────────────────────────
