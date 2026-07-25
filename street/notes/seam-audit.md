@@ -540,3 +540,16 @@ grown again: **six light pools now** at 2.56–9.41 px/m and 1.2–2.1 : 1
 anisotropic, and the three sign faces. The newest pool is 32 × 32 px over
 9.5 × 11.5 m at (10.2, 0.2, −4.4) — **3.37 × 2.78 px/m**, the coarsest surface
 in the world by a wide margin.
+
+### Regression check at `7148e296`
+
+`5403232a` — "The shopfront painters read the band table instead of restating
+it" — is the kind of refactor that could quietly move the 2× band grid, since it
+changes where the band heights come from. Re-measured: **277 wall-sized faces
+(275 + 2 from the gap work), every group identical to the previous check.** The
+band group still holds 17 faces at 16 × 15.95; every masonry face is still 8 × 8
+or 16 × 16.
+
+Behaviour-neutral, which is what a refactor of a shared painter should be, and
+worth having measured rather than assumed given it touches the one table three
+painters now depend on.
