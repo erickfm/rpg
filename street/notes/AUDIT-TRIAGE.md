@@ -114,3 +114,48 @@ than after every finding.
 
 Routed to whoever owns `ct/int-casino.ts`, with the specific check: **are those
 fixtures positioned from the room's `H`, or from a literal 2.5?**
+
+## CORRECTION — the casino "regression" is not one. The fittings were parameterised.
+
+I filed the three casino floats as a probable regression from my own ceiling
+recommendation, on the strength of the largest gap (0.40 m) matching the ceiling
+change (2.50 → 2.90) exactly. **It does not hold.** `ct/int-casino.ts:361` — a
+comment written *before* I looked:
+
+> *"Everything hung off the ceiling is measured **DOWN FROM IT**, not typed as
+> an absolute height. Raising this room from 2.5 to 2.9 would otherwise have
+> left the valances, the bulb runs and the cage sign stranded 0.4 m low — which
+> is how a height change turns into six separate bugs."*
+
+`const BULB_Y = room.H - 0.60;` and, for the glows, *"hung 0.35 m below the
+ceiling … down at 2.15 m"*.
+
+Against a 2.90 ceiling my three "floats" are:
+
+| found at y | gap below ceiling | what the source calls it |
+|---|---|---|
+| 2.55 | **0.35 m** | the glow planes, hung 0.35 m below |
+| 2.22 | **0.68 m** | the bulb run, `room.H − 0.60` |
+
+**Every one is a deliberate hang, correctly measured off `room.H`.** The builder
+anticipated precisely the failure I hypothesised and wrote the defence for it.
+The 0.40 m coincidence is a coincidence.
+
+### The part that stings
+
+**I documented this exact false-positive class myself, one round earlier.**
+`float-audit.md` Round 3: 158 small spheres flagged as floating that are bulbs on
+standoffs, and my own conclusion was that a fixture standing off its mounting is
+not a floating object. I wrote that, then applied the same detector to a
+different room and read the same signature as a defect.
+
+> Knowing an instrument's false positives is not the same as remembering them at
+> the moment it fires.
+
+Two wrong inferences from measurements in two rounds — the box faces and this.
+Both were caught by **reading the source** rather than by measuring harder.
+Neither reached a builder, but only because the desk and mainline are fast; this
+one I caught myself, one commit later, which is the improvement.
+
+**Nothing to route on the casino.** All four triage items stand closed, with no
+regression.
