@@ -14,6 +14,11 @@
 // what a player sees at the corner where they meet.
 import { chromium } from 'playwright';
 import { FACE_LIB } from './lib/faces.mjs';
+// --selftest: make one masonry face draw at the wrong scale and require this to
+// go red. Written because I listed seampairs in notes/A-selftests.md as the one
+// tool of mine that COULD NOT FAIL, and then left it that way for a week while
+// fixing three reporting bugs in it.
+const SELFTEST = process.argv.includes('--selftest');
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 600 } });
@@ -21,6 +26,26 @@ await p.addInitScript({ content: FACE_LIB });   // window.__faceLib, see scripts
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(1200);
+if (SELFTEST) {
+  // Double one stamped texture's repeat.x. Measured density is
+  // (canvas width * repeat) / face width, and the stamp is untouched — so this
+  // face still DECLARES 8 px/m while DRAWING 16, which is exactly the defect
+  // this tool exists to find: two faces meant to be one run of brick, drawing
+  // bricks of different sizes. No source changes, nothing on disk.
+  const hit = await p.evaluate(() => {
+    let n = 0;
+    window.__ct.scene().traverse((o) => {
+      if (n || !o.isMesh) return;
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (n || !m?.map?.userData?.masonry) continue;
+        m.map.repeat.x = (m.map.repeat.x || 1) * 2;
+        n++;
+      }
+    });
+    return n;
+  });
+  console.log(`selftest: doubled repeat.x on ${hit} masonry face — this MUST now go red`);
+}
 const out = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const faces = [];
@@ -219,6 +244,8 @@ const unlike = bad.filter(q => q.a.d !== null && q.c.d !== null && Math.abs(q.a.
 const ratios = unlike.map(q => Math.max(q.rU, q.rV));
 console.log(`\nLIKE-FOR-LIKE (both faces declare the same density): ${like.length} pairs`);
 console.log(`   disagreeing by more than 15%: ${likeBad.length}`);
+for (const q of likeBad.slice(0, 8))
+  console.log(`      ${q.a.u}×${q.a.v} at (${q.a.at.join(',')})  vs  ${q.c.u}×${q.c.v} at (${q.c.at.join(',')})`);
 // Break these down rather than asserting one explanation over the whole range.
 // The line used to say "SHOP_MULT is 2" across a range that now reaches 4.03x,
 // and a 4x pair is not SHOP_MULT — it is the 32 px/m flagstone paving meeting a
@@ -234,3 +261,21 @@ for (const q of (likeBad.length ? likeBad : bad).slice(0,10))
   console.log(`   u ${String(q.rU).padStart(5)}× v ${String(q.rV).padStart(5)}×   ${q.a.u}×${q.a.v} (decl ${q.a.d}) at (${q.a.at.join(',')})   vs   ${q.c.u}×${q.c.v} (decl ${q.c.d}) at (${q.c.at.join(',')})`);
 writeFileSync('shots/seampairs.json', JSON.stringify(out,null,2));
 await b.close();
+
+// THE VERDICT. Two conditions are defects and everything else in this output is
+// context: two faces meant to be one run of brick that draw different-sized
+// brick (like-for-like), and a hand-painted face declaring 'brick' that
+// disagrees with the masonry beside it. Unjudgeable pairs are a missing
+// declaration, not a fault, and are reported without failing.
+const real = likeBad.length + bothBrick.length;
+if (SELFTEST) {
+  if (real) { console.log(`\nSELFTEST PASSED — the mis-scaled face was caught (${real})`); process.exit(0); }
+  console.error('\nSELFTEST FAILED — a masonry face was made to draw at twice its declared');
+  console.error('scale and this did not notice. Do not trust a green run until that is fixed.');
+  process.exit(2);
+}
+if (real) {
+  console.error(`\n${real} REAL seam disagreement(s): brick that should match and does not.`);
+  process.exit(1);
+}
+console.log('\nno two faces that should draw the same brick draw different brick');
