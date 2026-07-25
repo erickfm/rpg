@@ -73,14 +73,14 @@ boundary wall may cross it.
    what fit.
 4. **Only reachable benches register a seat.** A bench past `REACH` would be a
    seat nobody can walk to, which F's `seats-walk.mjs` correctly calls
-   UNREACHABLE. `if (bx > REACH + 0.6)`. When the clamp moves, delete the
-   condition.
+   UNREACHABLE. **Done** — the clamp moved and the condition is gone; every
+   bench on the loop is a seat.
 
 ## What is verified, and how
 
 `scripts/E-park-walk.mjs`, all green against mainline with nothing patched:
 in through the gate and out; the boundary holding either side of it; all four
-loop legs walked corner to corner (the back two as far as the clamp allows);
+all four loop legs walked corner to corner;
 70 floor samples level; **an audit that nothing the park owns stands on the
 pavement**; and the capsule driven the full 30 m of frontage step by step,
 treating a stall as a squeeze only if it survives a pause.
@@ -95,12 +95,14 @@ Two harness lessons worth stealing:
   the other direction — it lets a stale reading off a step win on the flat
   beside it.
 
-## The one thing still owed — and it is not mine
+## Status, 2026-07-25
 
-`bounds.minX` in `crosstown.ts` is `-FACE - 6.4` = **−13.4**. The park's back
-wall is at **−39**. So 25 m of it — the loop's back leg, its benches, most of
-the tree runs and B's lamps along them — is built, lit and unreachable. It is
-one line. `notes/BLOCKED-E.md` has it.
+Nothing owed. `bounds.minX` moved to −40, so the whole 32 m walks; the loop
+closes on foot; every bench is a seat; B's lamps are in off the table that
+used to live in `notes/BLOCKED-E.md`, which is deleted.
 
-Nothing here needs changing when it moves: the layout is already at the site's
-true size, and the only reach-dependent line is the seat condition above.
+Two faults that only appeared once the clamp lifted, because nothing out
+there could be walked to before: the back tree line stood ON the back leg
+(trunks blocking to x = −35.74, path centre −35.80) and a shelter post was
+0.23 m inside the path. Both moved. If you add anything to the far half,
+walk the loop afterwards — that is the only way either of those shows up.

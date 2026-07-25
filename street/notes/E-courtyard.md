@@ -1,5 +1,11 @@
 # Handoff — builder E · the library courtyard
 
+> **Status, 2026-07-25.** Everything this note asks for has landed. The
+> courtyard is enterable, the steps are climbable, both benches are seats you
+> can sit on, and B has moved the payphone off the mouth. Nothing owed; the
+> patch files it refers to are spent and deleted. Read on for why the place is
+> shaped the way it is.
+
 Queue item: **The library courtyard — DO THIS FIRST.** Done, with one thing
 the desk has to land for me (below).
 

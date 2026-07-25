@@ -51,19 +51,16 @@ This is worth knowing generally: **anything in `ct/civic.ts` that needs world
 coordinates has to go through `solidLocal` / `floorLocal`,** not through raw
 numbers, or it will be correct for the library and wrong for the church.
 
-## Two patches, both in files I do not own
+## Status, 2026-07-25 — landed and open
 
-Until BOTH land, the church is solid exactly as it was — the yard is visible
-but not enterable, and nothing is worse than before.
+Both patches this note used to ask for are in: the entry point asks
+`courtGround` for the floor, and `ct/street.ts`'s blanket church footprint is
+gone. The churchyard is enterable and the flight is climbable, verified end to
+end by `scripts/E-yard-walk.mjs` — in through the gate, up to the doors at
+gy 0.55, back down, ramp monotone, flags level, facade holding.
 
-| patch | file | what it does |
-|---|---|---|
-| `notes/E-steps-crosstown.patch` | `crosstown.ts` | asks `courtGround(x, z)` for the floor, and sets `COURT.climbable`. Serves the library steps AND the churchyard. |
-| `notes/E-church-street.patch` | `ct/street.ts` (D) | drops D's blanket church footprint, which seals the yard exactly as the blanket wall sealed the library courtyard. `ct/civic.ts` registers the real one. |
-
-Both were applied locally to verify and then reverted; the commit is my file
-alone. `scripts/E-yard-walk.mjs` detects which state the world is in and names
-the missing patch rather than reporting failures.
+The lamp that stood in the gate has also been moved by B, so the diagnostic
+leg that existed only to record it now walks straight through.
 
 ## For builder B — a streetlamp stands in the church gate
 
@@ -96,7 +93,8 @@ the desk needs before I can do it:
    `placePark`, `DEPTH = 7.0`, the ground, the flanks, the rear elevation, and
    it publishes `park: PARK` extents. `ct/park.ts` does not exist yet; what
    stands IN the park is mine. Making it deeper means changing D's constant.
-2. **The player is clamped at x = −13.4.** `crosstown.ts` sets
+2. ~~The player is clamped at x = −13.4.~~ **Fixed** — `bounds.minX` is −40.
+   For the record, what it used to say: `crosstown.ts` sets
    `bounds: { minX: -FACE - 6.4 }`, a hard clamp in the rig. The park's back
    wall is already at x = −14.0, so you can only reach 6.4 m of the 7 m that
    is there and you stop 0.6 m short of the rear elevation. **Any deeper park
