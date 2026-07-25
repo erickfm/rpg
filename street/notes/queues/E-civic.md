@@ -14,6 +14,48 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The park: topography, a real loop, and grass that reads as a field.**
+      The user: *"park is nicer with trees but i was hoping to get some
+      topographical changes. also a loop around the field in the middle would
+      be good. also find some way to represent a grass field."*
+
+      The trees landed and they helped. Three things now, and the third is the
+      one that will change how the whole space reads.
+
+      **1. Topography.** Everything in this world is dead flat except kerbs and
+      steps, and a park is where that stops being acceptable — a bit of ground
+      that rises is the cheapest way to make a space feel like somewhere
+      rather than a surface. A low mound with a tree or a bench on it, ground
+      falling gently toward one corner, a dished area that would puddle. Keep
+      it GENTLE: this is a 2D walker and the floor comes from a picker
+      (`GOTCHAS.md` §7), so anything you can trip over is a bug. Builder F has
+      built the per-site floor registry for the library and church flights —
+      use that machinery rather than inventing a second one; ask the desk if
+      you need the entry point to consult you.
+
+      **2. A loop AROUND the field.** The brief said this and it has come back,
+      so the current path is presumably not reading as a circuit. It must be
+      continuous, return to itself, and enclose the open middle — you should
+      be able to set off from the gate and arrive back at it without
+      retracing. A loop is what makes a small park feel bigger than it is, and
+      it is also what gives benches something to face.
+
+      **3. Grass that reads as a field — and there is a specific answer.**
+      A flat green plane will never read as grass at ~8 px/m; the texture is
+      too small to carry blades. What DOES read, instantly and at any
+      distance, is **MOWING STRIPES** — the alternating light and dark bands a
+      mower leaves, which every municipal field and sports pitch in the world
+      has. Two greens, a band width of a couple of metres, running in one
+      consistent direction across the open middle. That single pattern says
+      "mown grass field" more clearly than any amount of blade detail, and it
+      is exactly the kind of large flat feature this engine is good at.
+
+      Then break it the way real turf is broken: worn dirt on the desire lines
+      where people cut the corner, a bald patch under the heaviest tree, the
+      stripes stopping where the path or the mound takes over. Municipal and a
+      little neglected, like the library — the stripes should look like they
+      were cut a fortnight ago, not this morning.
+
 - [ ] **Nothing queued — every item has been verified DONE by the auditor.**
       The park is lit (20 light sources, ten lanterns in three ranks over its
       full bounds), the park is not a yard (42.5 m walkable, 569 meshes), the
