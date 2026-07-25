@@ -1762,3 +1762,56 @@ passes every part of this test.** The record is wrong; the door is not.
 Every layer of the entry system is verified except the one that no player can
 see, and that one has a traced cause, a measured blast radius, and a one-line
 guard proposed.
+
+---
+
+# My "5 of 5 doors verified" checked exactly the five that were **told**, and none that guessed
+
+A's `eedeacff` adds `FrontageWorld.doorDeclared`, recording which facades were
+given the door position and which fell back to guessing:
+
+```
+declared  (5):  BURGER BARN, DINER, THRIFT, A-1 TAX, PAWN
+fell back (11): LIQUOR, BODEGA, FLOWERS, CHOP SUEY, DELI, RECORDS,
+                GARAGE, BILLIARDS, SMOKES, LOANS, RADIO
+```
+
+**My cross-check verified BURGER BARN, DINER, THRIFT, A-1 TAX and PAWN — the
+same five, exactly.** I reported them as *"walked position agrees with authored
+position to within 0.14 m"* and treated that as a check of the whole roster.
+
+> It was not. It was a check of **the declaration path**, on the only five
+> frontages that use it. Of course they agree: one end of my comparison is the
+> number the other end was handed.
+
+That is not worthless — it confirms the declaration is plumbed through correctly
+and nothing corrupts it in between. But it is a **much narrower claim** than the
+one I made, and the eleven that guess are untouched by it.
+
+## What my method can and cannot say about the other eleven
+
+It cannot say anything. Ten of the eleven have **no `[E]` at all** — LIQUOR,
+FLOWERS, CHOP SUEY, DELI, RECORDS, GARAGE, BILLIARDS, SMOKES, LOANS and RADIO
+are shopfronts without interiors, so there is no walked position to compare
+against. The eleventh is the BODEGA, whose door **is** declared to
+`__ct.doors()` even though its frontage fell back — which is why my axis-free
+2D check placed it at 1.20 m and my frontage-scalar check could not place it at
+all.
+
+**Eleven of sixteen frontages have a painted door whose position nothing
+verifies**, and my report implied otherwise.
+
+## Recorded because it is the same mistake in a new place
+
+I have a ledger of ten corrections in `audit-seams.md`, and the pattern in most
+of them is *"a measurement I trusted because it was precise."* This is that
+again, in its purest form:
+
+> **A cross-check between two sources is worth nothing if one source is derived
+> from the other.** I compared where the prompt fires against where the door was
+> authored — and for those five, the prompt fires there *because* that is where
+> it was authored.
+
+The check I should have run is the one A's new flag now makes possible: compare
+the **guessed** door positions against something independent. I cannot, because
+those eleven have no prompt. Someone who can paint-sample the facade could.
