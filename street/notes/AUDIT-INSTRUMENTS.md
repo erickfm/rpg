@@ -180,3 +180,41 @@ world's `[E]` spots** is the only one needing a different server from every
 other, defaults to a port nothing else uses, and takes longer than nine minutes.
 Any of those alone is fine; together they mean it is the instrument least likely
 to be run.
+
+### Correction: the unverified set is **18 spots, not 55** — and most are covered elsewhere
+
+I recorded the interior-gated spots as an unverified block. Splitting the
+registry properly (`scripts/spotsplit.mjs`) shrinks it a long way:
+
+```
+135 spots · 57 seats registered
+   live from the street (ok === true):    25
+   gated (ok === false):                 110
+      of the gated, seat spots:           92   ← seats-walk passes 57/57
+      gated, NOT a seat:                  18
+```
+
+**92 of the 110 are seat spots.** A seat is *two* ordinary spots — one to sit,
+one to stand (`crosstown.ts:157`) — so 57 seats account for most of the gated
+registry, and `seats-walk.mjs` already passes every one of them.
+
+The 18 that remain decompose further:
+
+| what | count | covered? |
+|---|---|---|
+| `take a booth seat` (diner) | 5 | **seats, my label regex missed them** — `seats-walk` covers these too |
+| `out to the street` (interior way-outs) | ~5 | what `interiors-walk.mjs` exists for |
+| `buy cereal` / `buy soda` (bodega counter) | 2 | not covered by anything I ran |
+| `close the door` / `out to the street` (apartment) | 2 | **verified independently** by `door301.mjs` |
+
+> So the genuine gap is roughly **five interior way-outs and two shop counters**
+> — not 55 spots, and not an undifferentiated block.
+
+**My first split was also wrong** and I nearly published it: matching seats by
+proximity returned **0 of 110**, because `__ct.seats()` does not expose `x`/`z`
+at top level. The list printed *"stand up"* spots at bench coordinates and called
+them non-seats. Classifying by the label the player actually reads fixed it —
+and the label was visible in my own output the whole time.
+
+That is the third time this session that the correct answer was already on my
+screen in a column I had not read properly.
