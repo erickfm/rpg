@@ -1609,3 +1609,43 @@ asks *"has the grader run"*, and the tint is exactly what the grader changes.
 tint × texture × opacity answers "is this bright". Reading the first as the
 second is the error, and it is not a reason to stop reading tint where the
 question is grading.
+
+
+## "The three floors agree exactly" — scoped, and a stale hour in my own probe
+
+`f29e7355e` corrected a ground-vs-ground comparison it had called sound. I made
+one: *"the three floors agree exactly with each other, which is what says my
+alley-floor fix was complete."* Three different materials, three different
+textures — so the question is what "agree" was claiming.
+
+Measured at a currently-wet hour, tint against appearance:
+
+```
+                tint      texture   on screen
+park ground     0.1705    0.395     0.0673
+lot ground      0.1705    0.298     0.0509
+alley floor     0.1705    0.181     0.0308
+```
+
+**The claim survives because it was a GRADING claim.** The three receive an
+identical wet factor — 0.1705 on all of them — which is precisely what the fix
+was for: the alley floor now gets the same treatment as the ground it abuts.
+They do **not** look alike, and should not: park grass, lot tarmac and alley
+asphalt differ by up to 2.2x on screen, because their textures differ.
+
+Same distinction as `midnight`'s control. Tint answers *"did the same treatment
+reach all three"*; only tint × texture answers *"do they look alike"*. I was
+asking the first.
+
+### And my probe was measuring a dry world
+
+The first run of this measurement reported **tint 1.0000 in the rain** — no
+wetness at all. `rainAt` was replaced by `e0c68e46` and **15:00 is no longer a
+wet hour**; the current wet hours are 0, 1, 10, 14, 16, 17, 21. My probe
+hard-codes 15:00 because that was raining when I wrote it.
+
+Everything I published from it was measured while 15:00 still rained, so those
+figures stand — the -83%, the settle curve, the three-floor table. But **any
+re-run of that probe today silently measures dry weather and would look like the
+wetness had been removed.** The 0.1705 here matches the settle curve's 0.17043
+exactly, which is what confirms the old numbers rather than my memory of them.
