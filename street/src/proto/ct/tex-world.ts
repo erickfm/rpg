@@ -343,14 +343,21 @@ export interface Placement {
 export interface Frontage {
   /** full width of the shopfront, metres */
   frontageM: number;
-  /** @deprecated local offset — use frontageWorld().doorWorld */
+  /** @deprecated use `frontageWorld(name).doorWorld`, converted with
+   *  `alongU(f, world)` — NOT with the building's `side`. Those disagree on the
+   *  DINER, and converting with `side` applies the mirror twice: measured, it
+   *  replaces that room's window with a solid panel. See A-glazing-handoff.md. */
   doorCentreM: number;
-  /** @deprecated local offset — use frontageWorld().doorWorld */
+  /** @deprecated as `doorCentreM` — `frontageWorld().doorWorld` via `alongU` */
   doorOffsetM: number;
   doorWidthM: number;
-  /** @deprecated local offsets — use frontageWorld().glazingLo/HiWorld */
+  /** @deprecated use `frontageWorld(name).glazingLo/HiWorld`, converted with
+   *  `alongU(f, world)`. Rolling the conversion by hand is what applied the
+   *  mirror twice — the helper exists so the handedness lives in one place. */
   glazingStartM: number;
-  /** @deprecated local offsets — use frontageWorld().glazingLo/HiWorld */
+  /** @deprecated use `frontageWorld(name).glazingLo/HiWorld`, converted with
+   *  `alongU(f, world)`. Rolling the conversion by hand is what applied the
+   *  mirror twice — the helper exists so the handedness lives in one place. */
   glazingEndM: number;
   /** stallriser height above the pavement, metres */
   stallriserH: number;
