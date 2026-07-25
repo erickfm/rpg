@@ -44,6 +44,30 @@ console.log(`lot frontage z ${span[0].toFixed(1)} … ${span[1].toFixed(1)}, fro
 
 // Sample across the frontage and a little past each end, so "the fence stops
 // you" is tested outside the lot as well as along it.
+// HOW LONG TO HOLD W. The rig covers about 3.3 m/s, and the test is "did it
+// get more than 3 m past the building line" — so 1.2 s is 4 m of travel,
+// comfortably over the line and comfortably short of the 8 m the aisle allows.
+// It was 2.6 s, which walked to the back fence and then stood there: 28 samples
+// of dead time made this the slowest check in `npm run checks` at 98 s, and a
+// shared runner should not be dominated by one builder's script.
+// HOLD, and the criterion that made it safe to shorten.
+//
+// This held W for 2.6 s per sample, which walked to the back fence and then
+// stood there. 28 samples of dead time made it the slowest check in
+// `npm run checks` at 98 s, and a shared runner should not be dominated by one
+// builder's script.
+//
+// Shortening it exposed the real problem, which was the CRITERION, not the
+// time: "did it travel more than 3 m" put the pass mark inside the noise once
+// the walk was short — 3.46 m against a 3 m line is one sample away from
+// flipping, and a flaky check is worse than a slow one.
+//
+// So ask WHERE IT ENDED UP instead of how far it got. Blocked samples stop
+// dead at x ~6.5 against the site boundary; ones that get in reach x >= 9.
+// That is a 2.5 m gap rather than a 0.4 m one, and it does not depend on how
+// long the key was held so long as the rig has cleared the gate.
+const HOLD = 1600;
+const INSIDE_X = 8.0;
 const STEP = 1.0;
 const ZS = [];
 for (let z = span[0] - 2; z <= span[1] + 2; z += STEP) ZS.push(+z.toFixed(2));
@@ -61,14 +85,14 @@ const start = 5.6;
 const RESULT = [];
 for (const z of ZS) {
   await p.evaluate(([x, z]) => window.__ct.warp(x, z, Math.PI / 2, 0.14, 0), [start, z]);
-  await p.waitForTimeout(250);
+  await p.waitForTimeout(120);
   await p.keyboard.down('w');
-  await p.waitForTimeout(2600);
+  await p.waitForTimeout(HOLD);
   await p.keyboard.up('w');
-  await p.waitForTimeout(200);
+  await p.waitForTimeout(120);
   const [x2, , z2] = await p.evaluate(() => window.__ct.pos());
   const got = x2 - start;
-  const inside = got > 3;
+  const inside = x2 > INSIDE_X;
   RESULT.push([z, inside]);
   console.log(`z=${String(z).padStart(5)}  walked ${got.toFixed(2)} m east -> x=${x2.toFixed(2)} z=${z2.toFixed(2)}  ${inside ? 'IN' : 'blocked'}`);
 }
