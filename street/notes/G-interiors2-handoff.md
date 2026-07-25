@@ -342,8 +342,9 @@ F replaced the two-lines-per-room wiring with auto-discovery in `ct/interior.ts`
 (`import.meta.glob('./int-*.ts')`, sorted by path so slab addresses come from
 file names). A room lands by existing. All four of mine are live.
 
-**One fact outlives that note and should not be lost with it: `pawnFront` in
-`ct/street.ts` still paints no door.** It is the only shopfront painter in that
+**~~One fact outlives that note: `pawnFront` paints no door.~~ CLOSED — see the
+PAWN section at the end of this file. The facade paints a door now, centred and
+aligned with the declaration.** It is the only shopfront painter in that
 file that does not — `burgerFront` uses `W * 0.44`, `taxFront` `W * 0.5`, and the
 block default `W * 0.48`. Nothing is broken by it: `ct/int-pawn.ts` puts its
 `[E]` spot where the convention would put a door (`W * 0.48` of a 96-texel
@@ -843,3 +844,49 @@ without touching the inside term.
 Not editing the harness — it is A's. This is the evidence for one of the four,
 measured two independent ways that agree with each other and with A's own
 walk-through.
+
+---
+
+# PAWN: its facade door exists now, and it cannot be mirror-verified
+
+Two things measured this round, both about the same room.
+
+## 1. The door I reported missing is there — that blocker is closed
+
+For a long stretch I reported `pawnFront` painting no door, with the visible cost
+that "the player walks up to blank barred glazing and gets a prompt from nowhere".
+**That is fixed.** Standing on the walk facing the frontage there is a recessed
+dark doorway dead centre, barred glazing either side of it, PAWN on the fascia and
+the three gold balls at one end. It sits where the declaration puts it — `at: 0`,
+world z −60.50, the frontage centre.
+
+So the last outstanding item from my old BLOCKED note is gone. Nothing left in the
+pawn shop needs another owner except the parked `Room.glazing` ask.
+
+## 2. It is the fifth room A's harness cannot verify, and that is not a harness fault
+
+`A-mirror-harness.md` has PAWN as the one unmeasured room of five, with its front
+wall reading at z −2.52 — the back wall — noted as a separate fault. Worth saving
+someone the chase: **even with that fixed, PAWN's door yields no handedness
+signal, because it is dead centre.** A centred door looks identical from both
+sides of its own wall. There is nothing to mirror.
+
+Measured to be sure rather than argued:
+
+| | door | barred window |
+|---|---|---|
+| inside, facing the front wall | centre | LEFT of the door |
+| outside, facing the facade | centre | glazing BOTH sides |
+
+The window is off-centre inside (local x +2.6) so it *would* carry handedness —
+but the facade paints continuous glazing on both sides of the door, so there is no
+unique counterpart on the outside to compare it against. The kit trims its opening
+to whichever side of the door has the bigger run, which is why one room window
+faces two facade bays.
+
+**Do not move the door to make it testable.** It is centred because the desk chose
+centre when I asked, and changing the world to suit an instrument is backwards.
+The right conclusion is that this room is exempt: four of five verify, and the
+fifth has no asymmetry to check. If a handedness check over all rooms is wanted,
+it should skip rooms whose declared `at` is 0 and say why, rather than report them
+as unmeasured.
