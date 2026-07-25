@@ -65,7 +65,7 @@ const CHECKS = [
   ['park',             'is the park lit, or black at night?',              ['park', 'park-walk']],
   ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],
   ['basin',            'are BOTH catch basins real casting, sunk and proud?', ['basin', 'basin-west']],
-  ['kerbcut',          'can a car get off the lot across the kerb?',       'kerbcut'],
+  ['kerbcut',          'is there a curb cut, and is it at the lot?',       ['kerbcut', 'kerbcut-moved']],
   ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],
   ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
   ['rain',             'does it rain, and does the street stay wet after?', ['rain', 'rain-memory']],

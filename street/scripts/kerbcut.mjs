@@ -29,6 +29,15 @@ await page.waitForTimeout(900);
 
 // the cut, as declared: east kerb, centred z = 2.6, opening 6.8 m, flares 0.9
 const CZ = 2.6, HW = 3.4, F = 0.9;
+// These three are a REMEMBERED COORDINATE, which ct/lot.ts:1617 warns about in
+// as many words: "from outside the scene graph you cannot tell whose a mesh is,
+// so a whole-world checker has to be handed a BOX, and a box is a remembered
+// coordinate." Every sample below is taken relative to them, so if the cut ever
+// moves — it is derived from the lot's AISLE_HW, which is C's — this script
+// would sample uncut kerb at z 2.6, find full reveal there, and report a
+// missing cut; or worse, if the window still clipped part of a moved cut, pass
+// on the wrong stretch. So the declaration is CROSS-CHECKED against where the
+// kerb is actually down, further below, rather than trusted.
 // 1. THE KERB-TOP PROFILE, read off the built geometry.
 //
 // The first version of this warped along the kerb and read pos()[3], which is
@@ -70,6 +79,26 @@ if (!full) process.exitCode = 1;
 let steps = 0;
 for (let i = 1; i < prof.length; i++) if (Math.abs(prof[i][1] - prof[i - 1][1]) > 0.05) steps++;
 console.log(`  ${steps === 0 ? 'OK  ' : 'FAIL'} it RAMPS rather than stepping (${steps} jumps > 5 cm)`);
+
+// IS THE CUT WHERE THE SCRIPT WAS TOLD IT IS? Measure it: the down-kerb run is
+// every bin whose face top is below half the full reveal. Its centre and half
+// width must agree with CZ and HW, or every measurement above was taken on a
+// stretch of kerb chosen from memory.
+const down = prof.filter(([, v]) => v < FACE_TOP / 2).map(([k]) => k);
+if (!down.length) {
+  console.log(`\n  FAIL no down-kerb found anywhere in the sampled window — there is no cut here`);
+  process.exitCode = 1;
+} else {
+  const lo = Math.min(...down), hi = Math.max(...down);
+  const mZ = CZ + (lo + hi) / 2, mHW = (hi - lo) / 2;
+  // Tolerance is one bin (0.2 m) on the centre, and the flares mean the
+  // measured half-width lands a little inside HW rather than on it.
+  const placed = Math.abs(mZ - CZ) <= 0.2 && Math.abs(mHW - HW) <= F + 0.2;
+  console.log(`\n  measured cut: centre z ${mZ.toFixed(2)}, half-width ${mHW.toFixed(2)} m ` +
+    `(declared ${CZ} / ${HW})`);
+  console.log(`  ${placed ? 'OK  ' : 'FAIL'} the cut is where this script was told it is`);
+  if (!placed) process.exitCode = 1;
+}
 
 // 2. WALK IT — in off the road, across the apron, into the lot
 const hike = async (label, x, z, yaw, secs, axis) => {

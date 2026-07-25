@@ -76,6 +76,16 @@ const CASES = [
     'const DRIVES: { x: number; z: number; hw: number }[] = [].concat([] as never[]) as any; const _DRIVES_OLD = [',
     'kerbcut.mjs', [], 'the car lot has no curb cut at all'],
 
+  // MOVES the cut instead of removing it. kerbcut.mjs samples everything
+  // relative to CZ = 2.6, a remembered coordinate — the cut is derived from the
+  // lot's AISLE_HW, which is another builder's, so it can move without anyone
+  // touching this script. Before the cross-check this mutation would have found
+  // uncut kerb at 2.6 and had no way to tell "moved" from "missing".
+  ['kerbcut-moved', GROUND,
+    '  { x: ROAD_HALF, z: 2.6, hw: 3.4 },     // the car lot, east kerb',
+    '  { x: ROAD_HALF, z: -14.0, hw: 3.4 },   // selftest: cut moved down the block',
+    'kerbcut.mjs', [], 'the curb cut somewhere the lot is not'],
+
   ['wetness', PROPS,
     'const PUDDLE_C = 0.444;',
     'const PUDDLE_C = 1.6;',
