@@ -196,6 +196,36 @@ to the registry is one line and the check will name it.
 
 **Routed to whoever owns `ct/vice.ts`, not C.**
 
+## `cf966b3d` beat my proposal, and the check now reads it (`b9c0e163`)
+
+I proposed `globalThis.__bounds` — modules publish their box, the checker looks
+you up. C did something better: **`userData.mod` on all 404 objects `ct/lot.ts`
+adds.**
+
+A box is still geography. It is right only while a module's things stay inside
+it *and* stay alone in it. A stamp is identity, so it survives being scattered,
+moved, or interleaved with someone else's work — which is exactly the case that
+misrouted this finding three times.
+
+So attribution asks the objects first, walking up for an inherited mark, and
+falls back to a published box only if nothing is stamped. Neither → still
+`(unattributed)`.
+
+**Verified rather than assumed:** 373 of 3369 meshes resolve to `'lot'` through
+the walk-up. My first probe returned **zero**, and I nearly reported that as the
+stamp not reaching the scene — it was testing a **stale `dist`**. One rebuild
+and it was 373. Worth recording because it is the same failure as everything
+else in this note: the tool was fine and the world it was looking at was old.
+
+No flagged cluster currently sits in lot territory, so the label path is proven
+at the data level and not yet exercised in live output. The thirteen still read
+`(unattributed)` because `ct/vice.ts` has not stamped.
+
+**The pattern now has three instances**, all one field, all set by the module
+that knows the answer: `userData.selfLit` (props), `userData.mod` (lot), and
+`declareDoorWorld` (rooms → my painter). Each replaced something a tool outside
+was guessing at.
+
 ## The thing worth remembering
 
 This is the third detector this week that was reporting confidently on something
