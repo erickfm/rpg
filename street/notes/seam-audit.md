@@ -1221,3 +1221,49 @@ same conclusion as `userData.mod` and the masonry stamp, for the third time.
 > eventually been wrong: the geometric masonry filter, the door-leaf shape
 > filter that found citizens, the float detector that found lamp bulbs, and now
 > the box face. Every one was fixed by the world declaring something instead.
+
+## Round 9b — the five unread frames, read. Sweep complete.
+
+I left five of eight shot and unread and said so. My own §20 says that is not an
+observation, so here they are. **All eight now read.**
+
+| frame | what it shows | verdict |
+|---|---|---|
+| seam-0 | park wall run, grazing — coursing unbroken, ivy, bench | clean |
+| seam-1 | **MISS** — aimed high, over half the frame is sky | see below |
+| seam-2 | park far corner, two ivy-clad faces meeting | clean |
+| seam-3 | **BODEGA** frontage running away, crates, tree in a proper pit | clean |
+| seam-4 | **FLOWERS** frontage, RADIO / DELI / RECORDS opposite | clean |
+| seam-5 | **CHOP SUEY** frontage at an extreme grazing angle | clean — see note |
+| seam-6 | **HOTEL ORPHEUS**, `[E] into the HOTEL ORPHEUS` firing | clean |
+| seam-7 | side street south, VACANCY neon, canopy, red entrance mat | clean |
+
+**Seven clean, one miss. No seam defects in the new ground.**
+
+`seam-5` is the strongest negative result of the set: at that grazing angle the
+fascia band, the sub-fascia and the glazing head run **dead straight and
+continuous** from the near end of the block to the far end, across several
+different frontages. A step in band heights between neighbours would be glaring
+from there and there is none.
+
+### One observation from the missed frame, flagged not filed
+
+`seam-1` is badly aimed, but what is in it is worth an eye: from low inside the
+park, the **tree canopies show straight horizontal lower edges and straight
+vertical edges against the sky** — three adjacent crowns each terminating on a
+hard rectangular boundary rather than tapering into foliage.
+
+That may be the billboard quad showing where the alpha does not taper, or it may
+be an artefact of this one bad angle. Recent commits deliberately reworked crowns
+(*"one ragged mass, not a bunch of balls"*, *"distinct clumps, lit tops, sky
+holes"*), so the owner will know immediately which it is.
+
+**I am flagging it, not filing it.** I have over-read an image twice this session
+— the brick corner that was perspective, and the casino fittings that were
+deliberate hangs — and this is a single badly-aimed frame. It wants five seconds
+from the person who drew the tree, not a ticket.
+
+### The sweep, closed
+
+New ground swept, 26 corners found, 8 shot at grazing angles, **8 read**,
+nothing to route. The last loose end I was carrying is closed.
