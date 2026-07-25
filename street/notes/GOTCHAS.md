@@ -471,7 +471,12 @@ If you add a check, add its selftest in the same commit and register it in
 `scripts/checks.mjs`. If a check has no selftest, `npm run checks -- --selftest`
 prints `no selftest` next to its name — that column is a to-do list.
 
-## 27. `vite dev` and the built bundle resolve circular imports DIFFERENTLY
+## 28. `vite dev` and the built bundle resolve circular imports DIFFERENTLY
+
+<!-- Numbered 28, not 27. It landed as a second `## 27` alongside "a check you
+     have never watched fail is a check you will ARGUE WITH", which was there
+     first. Same rule as the 22/23 collision: the newer entry renumbers,
+     because any existing reference points at the older. — C -->
 
 Same commit, same worktree, same script:
 
