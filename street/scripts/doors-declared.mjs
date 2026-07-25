@@ -11,6 +11,18 @@
 // do not this names the missing building rather than the missing count —
 // "GOLDEN ACES is not in declaredDoors()" is actionable, "7 of 8" is not.
 //
+// MEASURE THE BUNDLE, NOT THE DEV SERVER. Same commit, same worktree, same
+// script, two answers:
+//
+//   vite dev      (unbundled native ESM)  8 of 8 — every door arrives
+//   vite preview  (rollup bundle)         7 of 8 — GOLDEN ACES lost
+//
+// A bundler orders and hoists a circular import differently from the browser's
+// own module loader, so this defect exists ONLY in the built output — which is
+// the thing that ships, to the artifact and to Pages. That is the worst way
+// round: invisible while you develop, present for the player. This warns if it
+// is pointed at a dev server.
+//
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/doors-declared.mjs
 //        --selftest   pretend a declaration is missing, require this to fail
 import { chromium } from 'playwright';
@@ -39,6 +51,15 @@ p.on('console', (m) => { if (/\[doors\]/.test(m.text())) warns.push(m.text()); }
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
+// dev serves /src/main.ts unbundled; a build serves /assets/index-*.js
+const isDev = await p.evaluate(() =>
+  [...document.querySelectorAll('script[src]')].some((s) => /\/src\//.test(s.getAttribute('src') || '')));
+console.log(isDev ? 'mode: DEV SERVER (unbundled ESM)' : 'mode: BUILT BUNDLE');
+if (isDev) {
+  console.log('  WARNING: dev resolves circular imports differently from the bundle.');
+  console.log('  This check has read 8 of 8 in dev and 7 of 8 in the bundle at the same');
+  console.log('  commit. The bundle is what ships — measure that.');
+}
 await p.waitForTimeout(400);
 let arrived = await p.evaluate(() => (window.__ct.doors ? window.__ct.doors().map((d) => d.building) : null));
 await b.close();

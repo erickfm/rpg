@@ -470,3 +470,38 @@ Two things that make this less obvious than it sounds:
 If you add a check, add its selftest in the same commit and register it in
 `scripts/checks.mjs`. If a check has no selftest, `npm run checks -- --selftest`
 prints `no selftest` next to its name — that column is a to-do list.
+
+## 27. `vite dev` and the built bundle resolve circular imports DIFFERENTLY
+
+Same commit, same worktree, same script:
+
+```
+vite dev      (unbundled, native ESM)   8 of 8 declared doors arrive
+vite preview  (rollup bundle)           7 of 8 — GOLDEN ACES is lost
+```
+
+`ct/doors.ts` collects `export const DOOR` from an eager glob. A module in an
+import cycle with it can resolve to an **undefined namespace** at collection
+time, and its declaration is dropped. Whether that happens depends on module
+evaluation ORDER — and a bundler hoists and orders modules differently from the
+browser's own loader. So the fault is real in one and absent in the other.
+
+**It is present in the BUILT output**, which is the worst way round: invisible
+while you develop, and shipped to the artifact and to Pages.
+
+Two agents measured this and disagreed for a day — 8 of 8 against 7 of 8, both
+honest, both reproducible, neither wrong. The disagreement was never about the
+world; it was about which build each of us was looking at, and nothing in
+either measurement said.
+
+**So:**
+
+- **Verify against `vite preview`, not `vite dev`.** Anything that depends on
+  module order, evaluation timing, or a cycle can differ. `npm run checks`
+  defaults to the preview port for this reason.
+- **Say which mode you measured.** `scripts/doors-declared.mjs` prints
+  `mode: BUILT BUNDLE` or `mode: DEV SERVER` and warns on the latter. §26 made
+  scripts prove WHICH BUILD they read; this is the same argument one level
+  down — the same commit is two different programs.
+- **"It works here" is the weakest evidence about a cycle**, and it is worth
+  saying even when it is your own result that looks green.
