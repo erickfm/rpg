@@ -10,10 +10,25 @@ Two rules, both from the previous pass failing:
 
 1. **Every warp is verified before its reading is used.** `at()` warps, settles
    two frames, and compares the rig's own position against what it asked for; a
-   mismatch returns null and the sample is discarded, not reported. On the
-   library scan **1651 of 2275 warps were rejected** — that region is mostly
-   inside buildings — and the previous harness would have reported all 1651 as
-   ground-level readings taken wherever the player happened to be.
+   mismatch returns null and the sample is discarded.
+
+   **Correction, found by using it on the car lot and reported here rather than
+   left standing.** This check does *less* than I claimed. `warp` sets the rig's
+   position unconditionally and the rig only blocks *movement*, never pushes you
+   out — so a point inside solid brick verifies as "landed" perfectly happily.
+   What the check actually catches is **state carry-over between checks**, which
+   was the real bug last pass (the car-lot probe running from where the church
+   probe finished). It does **not** establish that a point is standable.
+
+   That matters for exactly one conclusion below, and I have withdrawn it.
+   Ground-height readings are unaffected — `groundY(x, z)` is a function of the
+   coordinates whether or not a wall is there — so the library and church step
+   results stand.
+
+   **The right test exists and I have already used it elsewhere:**
+   `__ct.colliders()` is exposed, and a point is standable iff it lies inside no
+   collider. That is exact, instant, and is what `scripts/lane3.mjs` already
+   does. The next pass should fold it into `at()`.
 2. **Nothing is aimed from memory.** The steps are *found* by scanning ground
    height across a region and clustering what comes back above 0.20 m. No
    coordinate for them appears in the script.
@@ -119,10 +134,15 @@ the library, where the same scan finds a 0.85 m climb immediately.
 
 # NOT CHECKED — and why
 
-**Car lot interior** (office at the back, rows either side): three separate
-camera attempts landed somewhere else — `pl-P9` is a brick canyon, `pl-P15` is
-empty sky. The lot has moved and I do not know where it is. **This needs the
-same treatment the steps got: find it by scanning, not by aiming.**
+**Car lot interior** (office at the back, rows either side): **still NOT
+CHECKED, and my attempt to fix it is what exposed the flaw above.** I scanned
+for standable ground east of the facade; it returned 746 "standable" points over
+x 7 … 34, z −8 … −59.8, which is most of the block behind the shopfronts and
+obviously wrong. Aiming a camera at the middle of that box
+(`shots/lot-lot-across.png`) gives a screen filled edge to edge with brick — the
+camera is *inside a building*. So the box is an artifact of the weak landing
+check, not a measurement of the lot, and **I am not reporting a location for
+it.** With the collider-based standability test it is a two-minute job.
 
 **Blade signs from the east** — `pl-P2` shows the ACES marquee and blade reading
 correctly, and the ORPHEUS blade at a distance where I cannot honestly call the
