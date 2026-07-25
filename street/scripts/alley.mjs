@@ -73,6 +73,22 @@ await setClock(page, 15, 0);
 await page.waitForTimeout(6000);          // wet fast, but not instant
 await shot('rain-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
 await shot('rain-floor', () => window.__ct.warp(-10.5, -40.5, -Math.PI / 2, 0, -0.45));
+
+// ── and the fourth corner: a WET NIGHT ────────────────────────────────────
+//
+// ba44eda0 shot the vice pair on a wet night because "the brief actually
+// described" one, and the same logic applies here: day, dry night and daytime
+// rain are three corners of a two-by-two and the fourth had never been looked
+// at. 01:00 rains AND is fully dark (props.ts rainAt is deterministic on the
+// absolute hour; 0,1,5,6,9,10,11,15,20 are wet).
+//
+// Nothing wrong in it, recorded so the negative is on file: frame means are
+// 57.9 dry day, 51.6 wet day, 8.9 dry night, 8.2 wet night. Rain barely shows
+// at night because everything it darkens is already at 0.06, which is right
+// rather than missing.
+await setClock(page, 1, 0);
+await page.waitForTimeout(8000);
+await shot('wetnight-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
 await setClock(page, 13, 0);
 
 // ── playtest reply shots (fixed names the user looks at) ──────────────────
