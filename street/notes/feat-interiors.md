@@ -126,7 +126,7 @@ build` clean, and the fingerprint above.
 
 ---
 
-# RUN 1 — verify and finish the kit and the diner (commit `34167b1`)
+# RUN 1 — verify and finish the kit and the diner (commit "Verify and finish the interior kit and the diner")
 
 ## `## Now` → **Verify and finish the kit and the diner** — DONE
 
@@ -394,33 +394,33 @@ world, not against memory.
 
 | # | line | item | landed as | verified by |
 |---|---|---|---|---|
-| 1 | 31 | `civicSeats()` called from nowhere | `f532b6a`, then `c20ba4a` gave civic.ts `ctx` so the export is gone | both benches prompt |
-| 2 | 72 | bodega `[E]` not on its facade door | `3474e81` | 2/3 approaches, E enters |
-| 3 | 100 | bodega interior small and sad | `ba7a82a` — rebuilt on the kit, crammed | 24/24 |
-| 4 | 121 | church steps cannot be climbed | `53550b6` + `edc034d` — they climb; **stops 0.44 m short**, see BLOCKED-F | steps-walk |
-| 5 | 148 | diner seating: booths perpendicular, lining the window | `768c0b4` | 24/24, 13 seats |
-| 6 | 187 | flip the authority: interior declares | `7b5ded0` | mirror 3/3 |
-| 7 | 227 | interiors and exteriors agree on handedness | `4ef227e` | mirror-walk 3/3 |
-| 8 | 269 | tax service `[E]` not on its door | `4762f7e` | room/painter agree to 0.01 |
-| 9 | 296 | wire `courtGround` | `53550b6` | E's own E-walk 18/18 |
-| 10 | 329 | generalise the glob | `9f2b3d2` | 8 on disk, 8 in world |
-| 11 | 378 | park and car lot not in the world | `053db46` | walk into both |
-| 12 | 410 | diner prompt on the BANK, then sweep every spot | `58cc650` + `1921bc7` | 79 spots reachable |
-| 13 | 442 | interior people on the 8-angle atlas | `e931276`, `650fc90`, `a171f7a` | people-walk: none left |
-| 14 | 471 | jump higher, gravity stronger | `10c16a0` | jump-walk 7/7 |
-| 15 | 494 | stuck protection | `b54d3ec` | 177/177 traps release |
-| 16 | 539 | derive door and window from the facade | `635acc0`, direction flipped by `7b5ded0` | 8 doors publish |
-| 17 | 576 | three finished rooms not in the world | `27c5139` | casino/hotel/tax enterable |
-| 18 | 612 | every seat sittable — `ctx.seat()` | `b353954` | 56/57 |
-| 19 | 648 | re-anchor the diner | `58cc650` | 24/24 |
-| 20 | 667 | thrift store interior, 12.5 m | landed earlier; re-anchored `4ef227e` | 27/27 |
+| 1 | 31 | `civicSeats()` called from nowhere | "The library's benches are sittable", then "ctx.ground(): civic.ts registers its own floor and seats" gave civic.ts `ctx` so the export is gone | both benches prompt |
+| 2 | 72 | bodega `[E]` not on its facade door | "The bodega [E] spot moves onto its drawn door; the descriptor learns chamfers" | 2/3 approaches, E enters |
+| 3 | 100 | bodega interior small and sad | "The bodega, rebuilt on the kit and made crammed" — rebuilt on the kit, crammed | 24/24 |
+| 4 | 121 | church steps cannot be climbed | "Open the library steps: ask ct/civic.ts for the civic floor" + "The church steps climb after all — I had the diagnosis wrong" — they climb; **stops 0.44 m short**, see BLOCKED-F | steps-walk |
+| 5 | 148 | diner seating: booths perpendicular, lining the window | "Diner booths: a run along the window, perpendicular, back to back" | 24/24, 13 seats |
+| 6 | 187 | flip the authority: interior declares | "Flip the authority: the ROOM declares its door, the facade follows" | mirror 3/3 |
+| 7 | 227 | interiors and exteriors agree on handedness | "The door swaps sides when you walk through it" | mirror-walk 3/3 |
+| 8 | 269 | tax service `[E]` not on its door | "The tax office [E] spot lands on its door; pawn declares its door too" | room/painter agree to 0.01 |
+| 9 | 296 | wire `courtGround` | "Open the library steps: ask ct/civic.ts for the civic floor" | E's own E-walk 18/18 |
+| 10 | 329 | generalise the glob | "A module is in the world because it exists" | 8 on disk, 8 in world |
+| 11 | 378 | park and car lot not in the world | "Put the park and the car lot in the world" | walk into both |
+| 12 | 410 | diner prompt on the BANK, then sweep every spot | "Re-anchor the diner: its prompt was standing outside the bank" + "Sweep every [E] in the world, not the ones somebody remembered" | 79 spots reachable |
+| 13 | 442 | interior people on the 8-angle atlas | "room.person(): the diner's waitress joins the 8-angle atlas", "The burger crew and the thrift keeper join the atlas too", "The casino dealer joins the atlas — no hand-drawn people left indoors" | people-walk: none left |
+| 14 | 471 | jump higher, gravity stronger | "A snappier jump: a little higher, much less hang" | jump-walk 7/7 |
+| 15 | 494 | stuck protection | "Stuck protection: resolve penetration instead of only refusing motion" | 177/177 traps release |
+| 16 | 539 | derive door and window from the facade | "Derive every door, window and [E] spot from A's frontage descriptor", direction flipped by "Flip the authority: the ROOM declares its door, the facade follows" | 8 doors publish |
+| 17 | 576 | three finished rooms not in the world | "Wire the casino, the hotel and the tax office into the world" | casino/hotel/tax enterable |
+| 18 | 612 | every seat sittable — `ctx.seat()` | "Sitting: ctx.seat(), and 29 seats that use it" | 56/57 |
+| 19 | 648 | re-anchor the diner | "Re-anchor the diner: its prompt was standing outside the bank" | 24/24 |
+| 20 | 667 | thrift store interior, 12.5 m | landed earlier; re-anchored "The door swaps sides when you walk through it" | 27/27 |
 
 **19 of 20 are complete.** #4 is partial and blocked: both flights climb, but
 the church stops 0.44 m short of its doors inside D's footprint box.
 
 Everything the auditor routed is also closed — triage #2 (thrift card,
-`9c06410`, re-measured this session at 0.02–0.04 m), #3 (keepers, G), #4
-(casino ceiling — it was my docstring, `8d14f83`). Triage #1 is `ct/props.ts`,
+"Two cards were hanging in mid-air; a tool that finds the rest", re-measured this session at 0.02–0.04 m), #3 (keepers, G), #4
+(casino ceiling — it was my docstring, "The kit's ceiling docstring was wrong, not the casino"). Triage #1 is `ct/props.ts`,
 B's.
 
 ## What is actually left
@@ -439,7 +439,7 @@ B's.
 
 # RUN N — the queue is empty; four commits, and two of them are corrections of mine
 
-`095c7d63` `0ecfd662` `bf9bcf58` `55b59c25`. Nothing left in
+`095c7d63` "Both civic flights now lead somewhere: the doors answer" "The fingerprint's three spheres are the chase, not a change" "[E] takes the NEAREST spot, which is what its comment always claimed". Nothing left in
 `queues/F-interiors.md` that is not blocked on another owner.
 
 ## 1. The spot sweep asks instead of guessing (`095c7d63`)
@@ -460,7 +460,7 @@ the exact risk I had named in the previous commit and left as a future problem;
 the probe turned it from a worry into a measurement in one run. Both derive
 from the declaration now — **8 of 8 rooms sit exactly on their published door.**
 
-## 2. Both civic flights lead somewhere (`0ecfd662`)
+## 2. Both civic flights lead somewhere ("Both civic flights now lead somewhere: the doors answer")
 
 The user: *"Do NOT leave a flight of steps that leads to nothing."* I had this
 in `BLOCKED-F.md` as "needing a decision, not a fix" with my recommendation
@@ -488,7 +488,7 @@ door announcing itself locked before anyone touched it (`tried = 0` reads as
 a once-per-frame key sample, so the press is never seen. It passed at the
 church and failed at the library on nothing but timing.
 
-## 3. `fp` reports a difference that is not there (`bf9bcf58`, `notes/F-fingerprint-phase.md`)
+## 3. `fp` reports a difference that is not there ("The fingerprint's three spheres are the chase, not a change", `notes/F-fingerprint-phase.md`)
 
 Proving item 2 moved nothing: textures identical, objects identical,
 `structure` **different and reproducibly so** — from a module that creates no
@@ -505,7 +505,7 @@ Reported rather than fixed: `ct/vice.ts` and the shared harness are other
 owners'. One line (`userData.animated`) plus `matSig` omitting colour when it
 sees it — the project's standard "the module that knows says so".
 
-## 4. `[E]` takes the NEAREST spot (`55b59c25`) — and my harness had excused it
+## 4. `[E]` takes the NEAREST spot ("[E] takes the NEAREST spot, which is what its comment always claimed") — and my harness had excused it
 
 `crosstown.ts` said *"nearest live spot wins"* and broke on the **first** spot
 in range, so overlapping triggers went to whichever module built earlier.

@@ -88,7 +88,7 @@ bugged   col 3          → sector 3, three-quarter away — authored facing -2.
 
 Those recover the source constants — 0 from my derivation, `Math.PI` from the
 bug — **off the rendered sprite, without reading the file.** That is the strong
-property, and it independently confirms the facing fix in `2c8d87e0`.
+property, and it independently confirms the facing fix in "The thrift was a boutique: 21 objects for a room whose brief is DENSITY".
 
 **What is still wrong is mine, and it is the same mistake twice.** G authors a
 customer viewpoint per room; both my attempts DERIVED one — first "the most

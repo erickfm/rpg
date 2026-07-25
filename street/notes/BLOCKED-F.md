@@ -72,7 +72,7 @@ distinguish the two, so it is not evidence of anything.
 
 **What that means for the claim.** I have now been wrong about this forecourt
 twice in the same way — once probing a single point and declaring the whole
-thing unreachable (corrected in `edc034d`), and now with a figure that the
+thing unreachable (corrected in "The church steps climb after all — I had the diagnosis wrong"), and now with a figure that the
 control case reproduces exactly. The honest position is that I do not have a
 measurement showing the church is defective.
 
@@ -99,7 +99,7 @@ already written: a locked-door response rather than two more rooms. That was
 wrong twice. It was not blocked on anyone, and the user had already made the
 call — *"Do NOT leave a flight of steps that leads to nothing."*
 
-Done in `ct/civic-doors.ts` (`0ecfd662`). Both doors answer; `claimed()` hands
+Done in `ct/civic-doors.ts` ("Both civic flights now lead somewhere: the doors answer"). Both doors answer; `claimed()` hands
 the door over automatically the moment a real room registers for that
 building, so E's library interior needs no coordination with me.
 
