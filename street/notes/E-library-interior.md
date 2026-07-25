@@ -97,4 +97,27 @@ the way out is offered and lands you at x −7.90, z −13.00, gy 0.14 — the f
 your own flight — without the way-in prompt coming straight back up. No console
 errors. Shots in `shots/E-library/`.
 
+## The rest of the brief, checked against the user's words
+
+`FEATURE-REQUESTS.md` carries the roster brief with both my buildings quoted.
+
+**Church — *"catholic, beautiful"*, "tallest thing on its stretch".** Measured
+by module stamp rather than by a guessed z-window: the church tops out at
+**32.70 m** at the cross, against **22.00 m** for the tallest thing on the
+stretch that is not it. Holds, by 10.70 m. (My first measurement said it failed
+by 11.10 m — it had binned the church's own tower, which stands 10 m up the
+street from the nave, as a neighbour.)
+
+**Library — "grand but unmaintained".** The grandeur was built; the second half
+of that sentence was not. There was soot from the cornice and a flat 0.18-alpha
+rectangle under each sill, which is measurable and barely visible. Now:
+
+- water comes off the ENDS of a sill, not evenly off its middle, so each window
+  sheds five separate runs from each outer corner, longest and darkest at the
+  corner itself;
+- the bottom 1.25 m is soiled — splash-back, grit and a green cast, densest at
+  grade. A stone plinth the same colour at the ground as at first-floor sill
+  level is a building somebody looks after, which is exactly what the user said
+  this one is not.
+
 _Builder E, 2026-07-25._

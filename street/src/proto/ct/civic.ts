@@ -604,7 +604,23 @@ export function buildCivic(o: {
         g.fillStyle = STONE_L; g.fillRect(cx - 3, yOf(9.15), 6, 9);
         g.fillRect(cx - 12, yOf(3.35), 24, 3);
         g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(cx - 12, yOf(3.35) + 3, 24, 2);
-        g.fillStyle = 'rgba(58,48,36,0.18)'; g.fillRect(cx - 9, yOf(3.35) + 5, 18, 14);
+        // WATER COMES OFF THE ENDS OF A SILL, not evenly off its middle. The
+        // stain under each window was one flat rectangle at 0.18 — measurable,
+        // barely visible, and the wrong shape: a sill sheds to its outer
+        // corners and the runs below them are long, dark and separate. This is
+        // the "unmaintained" half of the user's sentence, and it was the half
+        // that had not been drawn.
+        const sillY = yOf(3.35) + 5;
+        for (const end of [-1, 1]) {
+          for (let k = 0; k < 5; k++) {
+            const sx = cx + end * (6 + k) - (end > 0 ? 0 : 1);
+            const len = Math.round((16 + r() * 26) * (1 - k * 0.13));
+            g.fillStyle = `rgba(58,48,36,${(0.26 - k * 0.035).toFixed(3)})`;
+            g.fillRect(sx, sillY, 1, len);
+          }
+        }
+        g.fillStyle = 'rgba(58,48,36,0.10)';           // and a faint wash between them
+        g.fillRect(cx - 9, sillY, 18, 10);
       }
       // the archivolt round the recess — the only thing drawn at the bay, and
       // it stops at its edge because everything inside it is real geometry
@@ -643,6 +659,24 @@ export function buildCivic(o: {
       for (let i = 0; i < 26; i++) {                                 // forty years of soot
         g.fillStyle = `rgba(46,38,30,${0.05 + r() * 0.08})`;
         g.fillRect(Math.floor(r() * LW), CO, 2 + Math.floor(r() * 3), Math.round(r() * LH * 0.5));
+      }
+      // ── AND THE BOTTOM METRE, WHICH IS WHERE A BUILDING GOES FIRST ───────
+      //
+      // Splash-back off the paving, rising damp, and forty years of nobody
+      // washing it down. A stone plinth that is the same colour at the ground
+      // as it is at first-floor sill level is a building somebody looks after,
+      // which is precisely what the user said this one is not: *"a hallmark of
+      // the benefit of public funding ... 40 years ago. no longer around."*
+      const BASE = yOf(1.25);
+      for (let y = BASE; y < LH; y++) {
+        const t = (y - BASE) / (LH - BASE);                          // 0 at 1.25 m, 1 at grade
+        for (let x = 0; x < LW; x++) {
+          if (r() > 0.16 + t * 0.5) continue;
+          g.fillStyle = r() < 0.65
+            ? `rgba(58,52,40,${(0.05 + t * 0.16).toFixed(3)})`       // soot and grit
+            : `rgba(74,80,56,${(0.04 + t * 0.12).toFixed(3)})`;      // and a green cast
+          g.fillRect(x, y, 1, 1);
+        }
       }
       dither(g, LW, LH, 700);
     };
