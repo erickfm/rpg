@@ -1718,3 +1718,32 @@ for free.
 
 So of my six, one could pass on an empty world and now cannot; the other five
 were guarded, and I have now seen each of them refuse rather than assumed it.
+
+
+## The one threshold I would not defend is now derived
+
+`cd959c8d1` turns GOTCHAS §34 the other way up: **a threshold that makes a
+correct world fail.** I had already named my instance in the stopwatch sweep —
+`shells`'s fixed `>= 12 distinct flank textures`, where *"a builder who
+legitimately reduced variety to eleven gets a red that says nothing"* — and left
+it, because it guards a real defect.
+
+Leaving a known-bad threshold in place was the wrong call once the class had a
+name. What the assertion actually means is *"most buildings wear their own
+wall"*, so it now scales with how many buildings there are:
+
+```
+bar = max(3, floor(shells * 0.8))      18 shells -> 14, world reads 19
+```
+
+12 was chosen against a block that happens to have 18 shells. A block half the
+size would put the bar at 7 rather than failing on a number that outlived its
+block.
+
+**Still catches the defect:** the identical-parameters mutant reads 3 against a
+bar of 14 and fails. Selftest 5 of 5.
+
+That is the second threshold of mine to be replaced by a derived one, after the
+car lot's depth became `depth: w` instead of a hard-coded 23.2. The pattern is
+the same both times — **a constant that was measured off today's world, and
+would be wrong about tomorrow's.**

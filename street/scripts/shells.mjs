@@ -238,8 +238,20 @@ const untextured = shells.reduce((n, s) => n + s.flanksUntextured, 0);
 const flankWalls = countWalls(shells.flatMap((s) => s.flankMaps));
 say(untextured === 0, 'no return is a flat colour',
   untextured ? `${untextured} flank faces carry no texture` : `${shells.length * 2} flanks, all textured`);
-say(flankWalls >= 12, 'returns are not one shared material',
-  `${flankWalls} distinct walls across ${shells.length * 2} faces`);
+// DERIVED FROM THE POPULATION, not a fixed 12. GOTCHAS §34 the other way up
+// (cd959c8d1): a threshold that makes a correct world fail. I flagged this one
+// myself in the stopwatch sweep as the number I would not defend — "a builder
+// who legitimately reduced variety to eleven gets a red that says nothing" —
+// because 12 was chosen against a block that happens to have 18 shells.
+//
+// What the assertion means is "most buildings wear their own wall", so it scales
+// with how many buildings there are. 18 shells today puts the bar at 14 and the
+// world reads 19; a block half the size would put it at 7 rather than failing on
+// a number that outlived its block.
+const wallBar = Math.max(3, Math.floor(shells.length * 0.8));
+say(flankWalls >= wallBar, 'returns are not one shared material',
+  `${flankWalls} distinct walls across ${shells.length * 2} faces `
+  + `(bar ${wallBar} = 80% of ${shells.length} shells)`);
 // ── does the block go dark? ────────────────────────────────────────────────
 //
 // a7f2241d found `nightgrade`'s collector doing `if (Array.isArray(m)) return`,
