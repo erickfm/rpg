@@ -51,11 +51,32 @@ fleet has already been reverted once for a unilateral change, and the arch is on
 its third attempt under a two-strikes rule. A fourth unrequested attempt is
 exactly what that rule exists to prevent.
 
-**What the user needs in order to rule** is a picture, not this table.
-`SHOT_URL=… node scripts/kerb.mjs <tag>` already renders the view they judge
-from — standing at the kerb beside a parked car, eye level, no pitch tricks. If
-the desk wants a side-by-side of options 1 and 2, say so and I will build option
-2 behind a flag, shoot both, and delete the flag once it is ruled on.
+**What the user needs in order to rule is a picture, and I have stopped saying
+that and taken one.** `shots/` is gitignored, so this is a
+command rather than an attachment — one line, and it is the view the desk
+established is the only one an arch is visible in at all:
+
+```bash
+SHOT_URL=http://localhost:4187/ node scripts/kerb.mjs verdict
+#   -> shots/kerb-verdict-0.png, -1, -2 — all three parked cars, from the kerb,
+#      eye level, square to the flank, no pitch tricks
+```
+
+Verified sound in its own terms: that tool shoots a fully settled world
+(`notes/H-settle-reply.md` — 0.4713 mean luminance at 400 ms and at 2000 ms), so
+it is not a half-lit frame.
+
+What is in it, described so the desk can put the shot and the words together:
+**the tyres read as dark octagons standing proud of the bodyside**, the arch
+survives as a thin dark crescent over the top of each, and the flank between
+rocker and beltline is barely taller than the tyre it is meant to contain. That
+is the 0.68 m against 0.50 m in the table above, seen rather than calculated.
+Looking, not proving — the numbers are the proof.
+
+If the desk wants a side-by-side of options 1 and 2, say so and I will build
+option 2 behind a flag, shoot both from this same camera, and delete the flag
+once it is ruled on. Since `8d4d2939` and `bfcda08c` that is a one-line change
+that already passes its own checks.
 
 ---
 
