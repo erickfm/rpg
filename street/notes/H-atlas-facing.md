@@ -126,3 +126,54 @@ the bodega keeper SHOULD face −x is a question about his counter, and
 `int-bodega.ts` says he stands "behind the counter where he can see the door and
 the lottery at the same time" — which is an authored intent, not something the
 atlas can check.
+
+
+---
+
+# WAIT A FRAME BEFORE YOU READ IT
+
+`2d0ab02a0` decoded the four rooms `64c13034b` did not cover, reported every
+keeper at sector 0 or 4, and recorded: *"An earlier run reported bodega as
+sector 2; that was a first-load transient and did not recur."*
+
+**Sector 2 was the correct reading and the stable one was stale.** `int-bodega.ts`
+authors `facing: -Math.PI / 2`, and from a viewer due +z that is sector 2 — the
+arithmetic at the top of this note, and what the source says.
+
+The cause is in my own primitive, so it is mine to publish. `citizenSprite`
+updates from `ctx.onFrame(..., HOOK.LATE)`: the texture reflects the player
+position **from the previous frame** until that hook runs. A probe that warps and
+reads without yielding gets the sector from wherever it was standing before.
+
+Measured on the bodega keeper, standing first at +x and then warping to +z:
+
+```
+same frame as the warp     sector 4     <- stale: the +x viewpoint
+after 1 animation frame    sector 2     <- correct
+after 2 animation frames   sector 2     stable
+```
+
+So: `await new Promise(r => requestAnimationFrame(r))` — once is enough, twice
+is safe — between the warp and the read.
+
+## Decoded again with the wait, all nine interior sprites
+
+Standing due +z of each in turn, two frames between warp and read:
+
+```
+x  201.9  sector 2  mirror no    facing -1.571   (-π/2, and this is the bodega)
+x  442.4  sector 2  mirror no    facing -1.571
+x  517.7  sector 4  mirror no    facing -3.142
+x  603.1  sector 0  mirror no    facing  0
+x  678.6  sector 4  mirror no    facing -3.142
+x  754.8  sector 6  mirror YES   facing  1.571
+x  841.6  sector 0  mirror no    facing  0
+x  917.4  sector 0  mirror no    facing  0
+x 1002.2  sector 4  mirror no    facing -3.142
+```
+
+**Four distinct sectors, including a mirrored one**, not two. The conclusion
+"five face +z, three face −z" is an artefact of reading before the frame ran;
+the authored facings are 0, ±π/2 and −π. The mirrored frame at x 754.8 is also
+the first real instance of the collision warned about above — under the old
+`offset.x`-only reading it would have decoded as sector 3.
