@@ -218,6 +218,50 @@ four hand-verified rooms. If the convention is wrong, four rooms are fine and th
 harness needed one sign flipped. If the convention is right, four rooms are
 backwards and my earlier walk-through read them wrong.
 
+## RESOLVED (`bc717cf8`): the harness could never have passed
+
+I refused to route the conflict last turn because it contradicted verified
+evidence. Resolving it took one measurement.
+
+All four rooms build the doorway at exactly **minus** the local `at` their own
+declaration implies:
+
+```
+BURGER BARN  declared  3.6   measured -3.6
+DINER        declared  2.6   measured -2.6
+A-1 TAX      declared  4.2   measured -4.2
+THRIFT       declared  2.2   measured -2.2
+```
+
+Exact to the decimal — a **convention difference, not a placement fault**. And
+that made the algebra checkable. Substituting `lx = −side·offset·k` into the
+inside expression `sign(lx) · −1` gives `side · sign(offset)`; the outside
+expression is `sign(offset) · observerRight` with `observerRight = side`.
+
+**The same value.** Two identical expressions compared for disagreement can only
+ever agree, so this script reported SAME SIDE for **every room it ever measured**
+— including four already walked with shots and found correct.
+
+One sign, and it independently confirms the hand verification:
+
+```
+BURGER BARN  outside RIGHT | inside LEFT   SWAPPED ✓
+DINER        outside RIGHT | inside LEFT   SWAPPED ✓
+A-1 TAX      outside RIGHT | inside LEFT   SWAPPED ✓
+THRIFT       outside RIGHT | inside LEFT   SWAPPED ✓
+```
+
+**That satisfies the queue item's verification clause** — *"do that for every
+room, not just the tax office"* — with something re-runnable, rather than four
+screenshots and my word.
+
+### PAWN, the one left
+
+Still unmeasured. Its front wall reads at z −2.52, which is its **back** wall:
+the room has no front-wall colliders where the other four have them. A real
+difference in that room, and the last thing between this and 5 of 5. Not mine to
+fix — recorded for whoever owns it.
+
 ### The lesson, which cost three turns
 
 I changed the *method* three times and the *diagnostics* once. The diagnostics
