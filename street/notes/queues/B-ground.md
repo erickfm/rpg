@@ -16,6 +16,47 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The trash rig failed its own test. None of the 14 read.** The user,
+      looking at the rig you built: *"for all the trash in the alley i cant
+      tell what any of it is. these should be recognizable."*
+
+      The rig worked as a process — it got a fast verdict, which is exactly
+      what it was for. The verdict is that the whole approach misses, so do
+      not iterate on the 14. Change what is being drawn.
+
+      **What I think is actually wrong, and it is not the drawing.**
+
+      1. **You are judging them from above; the player never sees them from
+         above.** A flat ground decal viewed from 1.7 m eye height two metres
+         away is seen at roughly 15–20° off the ground, which foreshortens it
+         to about a quarter of its depth. A shape that is a clear crushed can
+         viewed top-down is a 3-pixel smear viewed while standing. Every
+         judgement on these has to be made from **standing eye height at
+         walking distance** — that is the only view that exists in the game.
+      2. **Flat is the wrong primitive for most of them.** Real litter has
+         height: a can is 6 cm of cylinder, a takeout box 8 cm, a bottle 6 cm
+         across. Give them a little real geometry — a low box or a short
+         cylinder lying down — and they gain a VERTICAL face, which is the
+         face you actually see when standing. That face is what makes the
+         object readable, and a decal has none of it.
+         (`GOTCHAS.md` §3 forbids BILLBOARDS on the ground because they rotate
+         and stand up. Low 3D geometry is not a billboard and does not have
+         that problem — do not confuse the two.)
+      3. **Some of these cannot be drawn at any size.** A cigarette end, a
+         bottle cap, a torn lottery slip and a crumpled receipt are 2–4 cm
+         objects. At this world's density they are one or two texels and no
+         amount of care will make them recognisable. Cut them. Litter that
+         reads as unidentifiable speckle is what the user is complaining
+         about; four fewer candidates that all read beats fourteen that do not.
+      4. **Draw them bigger than life.** This is a pixel world and legibility
+         beats measurement — the cat is not to scale either, and the user
+         liked it. A can at 1.5× reads; at 1× it is a smudge.
+
+      Rebuild the rig with **6–8 candidates**, each with a little height,
+      each drawn to read at 15° from standing, each oversized enough to
+      survive it. Then walk the alley and look at them the way a player does
+      before you tell me it works.
+
 - [ ] **Night, round three — and this time the three complaints are one
       system.** The user, in the same sitting:
       · *"i want night darkness to feel more dark"*
