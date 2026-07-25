@@ -319,3 +319,43 @@ finding graded by whether a player can see it, with an explicit **record, do
 not route** section for defects that are real and invisible. A latent bug that
 is written down costs nothing; a builder-hour spent on one costs a user-visible
 fix somewhere else.
+
+## 24. Name a script for what it ASSERTS, not for the subject it looks at
+
+Two scripts were silently lost in one session, and neither loss failed
+anything — because **a script that is gone does not go red, it stops being
+run.**
+
+- `scripts/curbcut.mjs` was a measurement suite (kerb profile, ramp-not-a-step,
+  a control walk 9 m north). I wrote a screenshot script for the same feature
+  under the same name; on a rebase mine won and theirs vanished. The curb cut
+  could then have been deleted whole with the suite staying green.
+- `scripts/wet.mjs` went the same way, and with it the assertion that puddles
+  are DARKER than the road — the exact bug that got that feature rejected four
+  times.
+
+Both were found only because somebody sat down to break things on purpose
+(`a84cf885`) and noticed the checks were not passing, they were absent. Neither
+git nor the build says a word: a rebase that takes "theirs" for a path is a
+normal, silent resolution.
+
+**`wet`, `rain`, `curbcut`, `lot`, `seams`, `verify` are SUBJECTS**, and more
+than one agent will investigate the same subject. Look at `scripts/` — `lot`,
+`lot2`, `lotwalk`, `lot-frontage`; `wet`, `wet2`, `wetness`; `seams` through
+`seams6`; `verify`, `verify2`, `verify3`. Every one of those pairs is a
+collision that happened to be noticed.
+
+**So name the file after the claim it makes, or prefix it with who owns it:**
+
+    kerbcut.mjs        the kerb profile holds        (assertion)
+    curbcut-shots.mjs  pictures of the curb cut      (investigation)
+    E-park-walk.mjs    E's park is walkable          (owner-prefixed)
+
+Investigations and assertion suites are both worth keeping, and **neither
+survives sharing a filename.** If you are about to write a script named after
+the thing you are looking at, check `ls scripts/` first — that is the whole
+cost of avoiding this.
+
+If you find a name taken, do not "improve" the file that is there. It is
+somebody's check, and the fact that you were about to write your own means
+you did not know what it asserted.
