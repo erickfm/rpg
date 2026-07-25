@@ -146,12 +146,52 @@ should not have, and the **second time it was mine**. The failure is not
 carelessness about arithmetic — it is that adding a new population to a tool
 silently changes every aggregate already in it.
 
+## Round 12 checked my candidates properly, and the pairing was wrong (`c15f6b26`)
+
+`7d4c345b` did what I asked — put eyes on the list — and went further, checking
+whether the junctions I reported exist at all:
+
+> no declared-16 face within 4 m of any of the four. The declared-16 faces are
+> shopfront bands — long thin meshes whose bounding boxes span an entire
+> frontage — so a bbox-adjacency test pairs one with something metres from any
+> part of its actual geometry. **A bounding box is not the shape.**
+
+Correct. And it is **the same error I fixed in two other scripts two rounds
+ago** — `parameters.width` is not the width of every face of a box — sitting in
+the adjacency test of the third, where I never thought to look for it. I fixed
+the reading of faces and left the *pairing* of them naive.
+
+Each face now carries its own world-space rectangle: placed on the correct side
+of the box, spanning the correct two axes, sampled on a **5×3 grid** and
+transformed by the mesh's own matrix. Adjacency is the minimum distance between
+those samples.
+
+The grid rather than the four corners, because **two long walls meeting along
+the middle of an edge share no corner** — exactly the junction this tool exists
+to find. Corners alone: 1778 pairs. The grid: 1941.
+
+```
+the four park boundary walls paired with a declared-16 band:  0   (was 4+)
+LIKE-FOR-LIKE pairs: 907, disagreeing by more than 15%:       0
+```
+
+The invariant survives the change, which is the reason to re-check it rather
+than assume: like-for-like masonry is still one density.
+
+**Also the ivy verdict was itself revised.** `1466eb13` said the four were ivy;
+`7d4c345b` says they are the park's boundary walls, with ivy and a tree in front
+— the normals settle it. My `alphaTest` exclusion was still the right rule for
+the wrong reason: it removes ivy, which is a cut-out, but the four faces it
+appeared to remove were the walls behind the ivy, and those are now excluded by
+the honest pairing fix instead.
+
 ## The pattern across three rounds
 
 | round | claim | actual |
 |---|---|---|
 | 10 | 42 of 109 faces off-density | box face index (`3f3c3ddb`) |
 | 11 | 135 of 239 junctions disagree | same index, plus band-vs-wall counted as a fault |
+| 12 | my four ~6 px/m candidates | park boundary walls; **the pairing was my bbox artefact** (`c15f6b26`) |
 
 Both tools were written to check my stamp and both inherited one read. That is
 not a knock on the auditor — the seam question is the right question, and nobody
