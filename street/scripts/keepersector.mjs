@@ -1,3 +1,7 @@
+// SUPERSEDED BY 64c13034b's decode, which is canonical and covers all nine
+// sprites. This script produced a WRONG table once (dba3c355e) by reading a
+// stale frame, and is fixed, but the published decode is the one to trust.
+// Kept as a worked example of the frame yield that fix required.
 // APPLY THE PUBLISHED DECODE TO THE FOUR ROOMS IT DID NOT COVER.
 //
 // 64c13034b decoded keeper facing exactly using the atlas layout 1aa7a871

@@ -1,3 +1,6 @@
+// SUPERSEDED -- kept only because a note quotes it. All this proved is that the
+// atlas frame changes with camera position, which billboardtest.mjs shows more
+// directly and 64c13034b's decode then explained properly.
 // If the figures billboard to the camera, their authored facing must live in
 // WHICH ATLAS FRAME they show, not in the transform. Read the map offset.
 import { chromium } from 'playwright';

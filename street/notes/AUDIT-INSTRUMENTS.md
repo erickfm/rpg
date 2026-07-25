@@ -1571,3 +1571,39 @@ the cheap one.
 450 ms was fine and `keepersector` at 450 ms was not, which means "is my wait long
 enough" is not a question to reason about from frame rates. Yield explicitly, and
 the question stops existing. It costs two animation frames.
+
+## Cleaning up after myself: 2 deleted, 4 marked superseded
+
+`bbe25ca43` deleted two of its own superseded scripts — *"they run never and
+cannot be seen"* — which is a debt I owed more than most. This file opens by
+admitting I left `masonry.mjs` executable with a known bug for six rounds after
+retracting the finding it produced, and the lesson I drew was **a retraction in a
+report does not repair a script**. I then wrote sixteen more scripts.
+
+Checked first: **none of the sixteen is registered in any tier**, so nothing here
+changes what the suite runs.
+
+**Deleted — unreferenced, and stale:**
+
+| | why |
+|---|---|
+| `parkentry.mjs` | a one-off diagnosis of the park locator, and it **hard-codes the park bounds** `{minX:-39, maxX:-7, …}`. The park has since gained topography and moved its loop, so those constants are exactly the rot this file warns about. The finding it produced is recorded; the script is a trap |
+| `wetprobe.mjs` | measured the ~16 s wet settle once. That number now lives in `wetsweep.mjs`'s own comment and in three notes. Nothing left to run |
+
+**Kept but banner-marked, because notes quote their tables:**
+
+| | why it must not be re-run for a verdict |
+|---|---|
+| `keeperbearing.mjs` | samples **fixed compass bearings**, and `8007a8c16` established the decode needs a *customer spot* — half the bearings round a shopkeeper are inside the counter |
+| `keeperframe.mjs` | only ever proved the frame changes with the camera; `billboardtest.mjs` shows that more directly |
+| `keepersector.mjs` | **produced a wrong table once** by reading a stale frame. Fixed, but `64c13034b`'s decode is canonical and covers all nine sprites |
+| `basincheck.mjs` | **spent** — `basin.mjs` reads the published `rainAt` now, so the old-vs-world diff has no subject left |
+
+Deleting a script a note quotes would leave the note citing nothing, so those
+four keep their banner instead. **The banner is the point**: the next reader
+meets the warning before the code, which is the one thing `masonry.mjs` did not
+have.
+
+The ten that remain all carry a live finding or a live method — `floatlit`,
+`wetsweep`, `corridor`, `ghosts`, `mutate`, `globorder`, `hand`, `seatface`,
+`keepercircle`, `billboardtest`.

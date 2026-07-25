@@ -1,3 +1,8 @@
+// SUPERSEDED -- do not use for a verdict. Kept because AUDIT-INSTRUMENTS.md
+// quotes its table. It samples FIXED COMPASS BEARINGS (+x, -x, +z, -z), and
+// 8007a8c16 established the decode needs a CUSTOMER SPOT rather than a compass
+// bearing: half the bearings round a shopkeeper are inside the counter. It also
+// predates the canonical decode in 64c13034b. Use that; this is history.
 // READ AUTHORED FACING THROUGH THE ATLAS FRAME.
 //
 // The interior figures billboard, so mesh rotation is the camera's, not theirs

@@ -1,3 +1,6 @@
+// SPENT -- basin.mjs reads the published rainAt now (31089b97), so the old-vs-world
+// diff this script performs has no subject left. Kept because three notes quote
+// its output; it deliberately carries the stale constant and says so below.
 // Does basin.mjs's hand-copied rain predicate still pick a rainy hour?
 // It duplicates the pre-e0c68e46 formula and comments that scripts "cannot
 // import from the TS module" — no longer true: rainAt is published on
