@@ -688,3 +688,42 @@ guard becomes three lines and cannot be fooled.
 That is a change to my own file and I would make it — but it is only worth
 making with a consumer, and the consumer is the guard. Recording it as the next
 concrete thing to do here rather than half-building both.
+
+---
+
+# Every lane number I have quoted is the BUILT lane, not the lived one
+
+`a047183e` says this about its own figures and the same lands on mine. I have
+written, in commits and in this report:
+
+> *the clear lane is 1.70 m, not 2.00 m* · *15 stretches under 1.20 m before,
+> six after* · *three stretches, none graded problem*
+
+All of those come from `lane3.mjs`, which prints `6 moving — citizens and
+traffic, dropped` and means it. They describe a pavement **with nobody on it**.
+
+Ran `lanelive.mjs`, which does not drop them:
+
+```
+20 samples of the world's narrowest pavement passage
+   best 1.12 m · median 0.77 m · worst 0.72 m   (capsule is 0.72 m)
+   under 0.90 m in 15 of 20 · impassable in 0 of 20
+   built lane with movers dropped: 1.15 m
+```
+
+**This does not retract the fixes.** The 0.18 m cushion and the 0.36 m boundary
+rail both removed collision that stood on no geometry, and that is true whether
+or not anyone is standing there.
+
+**But it changes what the numbers mean, and I stated them as if they settled
+the question.** The built lane is a floor; citizens subtract from it. So raising
+the floor raises what is left when someone is in your way — *that reasoning is
+mine and is not a measurement*: I never measured the lived lane before my
+changes, so I cannot say by how much, and I am not going to imply a figure I
+do not have.
+
+The rule I should have been following, in `a047183e`'s words: **say which lane a
+number describes.** Mine did not. Every lane figure above should be read as
+*built*, and the lived median on this street is 0.77 m — which is a busy
+pavement rather than a fault, and the two are only confusable if nobody says
+which one they measured.
