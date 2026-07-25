@@ -74,16 +74,44 @@ published to the playable artifact.
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
-- **"i need the facades to line up with the interior. so if the door on the interior is full right then the facade must match"** → **A**
-- **"facade of the thrift store building is lazy and chopped off at points"** →
-  **A** (THRIFT is one of the four fronts in A's facade brief, so this is the
-  brief not being met on that building rather than a new request). Both halves
-  turned out to be real and both were in `ct/tex-world.ts`: the window display
-  was painted and then the doorcase stamped over it, cutting the "50c" card in
-  half; and `facadeWindows` counted whole BAYS instead of windows, which
-  dropped a window that fits on nine of nineteen fronts and left every facade
-  on the block 0.625 m left of centre with the remainder dumped at one end.
-  The second one did affect the neighbours, as the user guessed it might.
+
+## Done — 2026-07-25, builder A (the facades)
+
+- **"facade of the thrift store building is lazy and chopped off at points"** ✅
+  Both halves real, both in `ct/tex-world.ts`. CHOPPED: the window display was
+  painted and the doorcase stamped over it, cutting the "50c" card in half —
+  and `facadeWindows` counted whole BAYS instead of windows, which dropped a
+  window that fits on nine of nineteen fronts and left every facade on the
+  block 0.625 m left of centre. The second one did reach the neighbours, as the
+  user guessed: the same door-chop was in the block default (~10 shops) and the
+  burger barn. LAZY: the character front carried LESS built detail than the
+  quiet shop next door — no transom, flat stallriser, no handle — and its
+  clothes rail was one unbroken stripe because the hanger width and the step
+  both rounded to 5 texels.
+
+- **"we need much better facades for the tax service, diner, burger barn,
+  thrift shop, casino, and hotel especially"** ✅ *for A's four.* Every bullet
+  of the brief now honoured on THRIFT, A-1 TAX, DINER and BURGER BARN: set-back
+  glass with a reveal, projecting fascia and stallriser, transom over the door,
+  mullions, something in the window, signage as a made object, and wear where
+  hands and weather reach. The tax banner was the last sign that was flat text
+  stamped on a band. The diner has a **projecting blade** over the pavement —
+  the one item on the user's list nobody had built. *The casino and hotel are
+  builder E's and are not covered by this.*
+
+- **"i need the facades to line up with the interior. so if the door on the
+  interior is full right then the facade must match"** ✅ Verified the user's
+  own way — stand inside, note the side, walk out, turn round: all 5 declared
+  rooms mirror, the tax office included. The 3 unchecked are canted bays, and
+  the bodega is exempt by the user's own later words, *"do not change the
+  facade i love it just make the entrance where i press e actually aligned."*
+
+- **"this is a part of the bodega corner that needs to be fixed i flagged this
+  to you a while ago but its still here"** (pavement through the shopfronts) ✅
+  Walked it rather than trusting the check, including the side street as the
+  brief asked: bodega, main block and all six side-street shops show a lit
+  ceiling, a stocked shelf and a dark floor behind the glass. No pavement
+  through any of them.
 
 ### 2026-07-24, session 3
 
