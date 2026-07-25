@@ -44,34 +44,20 @@ world stops.
       Either that is a UV mapping fault on the box or the texture is not
       symmetrical; either way it reads as a mistake.
 
-- [ ] **Split the walking sim out of `ct/citizens.ts` into `ct/crowd.ts`.**
+- [ ] **Move the parked truck away from the alley mouth.** The user:
+      *"move the truck a bit away from the alley"*. Ref:
+      `shots/user-truckalley.png`. Small and quick — do it alongside the
+      tailgate fix, it is the same vehicle.
 
-      Do this FIRST, before any behaviour work. `ct/citizens.ts` is a shared
-      leaf module — three modules call `citizenAtlas` — and it is desk-owned
-      for exactly that reason (`notes/OWNERSHIP.md`). But the two halves of it
-      are unrelated: the ATLAS paints an 8-angle sprite sheet, and the SIM
-      walks people around. Only the atlas is shared.
-
-      So: leave `citizens.ts` as the atlas alone (still desk-owned, still
-      read-only to you), and move the walking, steering and avoidance into
-      `ct/crowd.ts`, which you own. Verify it moved nothing:
-      `npm run fp before` → split → `npm run fp after` → `npm run fpdiff`.
-      Textures and structure must come back **identical**; 4–6 pigeons drifting
-      is the noise floor. Commit that as its own commit before you change any
-      behaviour, so if the behaviour work goes wrong the split is not in doubt.
+      Nobody parks across an alley mouth, and it also blocks the sight line
+      into the alley, which is where the dumpster, the cat and the graffiti
+      all are. The alley gap is `AZ0 = -37` to `AZ1 = -43.5`. Shift the truck
+      clear of that span with room to spare, and remember the parked
+      arrangement is DRAWN from the seeded stream now (`f0f4792`) rather than
+      hand-placed — so change the constraint the draw works within, do not
+      hand-place it back.
 
 ## Next
-
-- [ ] **Cars turn the corner.** Right now traffic runs one axis. Give the road
-      network an actual junction at z ≈ -98: a car reaching it picks a way to
-      go, turns through a real arc rather than snapping its heading, and
-      carries on down the side street toward the fog. Slow into the turn, and
-      make the wheels and the body agree — a car that turns without leaning or
-      slowing reads as a cardboard cutout sliding on ice.
-
-      Watch for: two cars arriving at the junction together; a car turning
-      through the crossing while a pedestrian is on it; and the parked cars,
-      which must not be treated as traffic.
 
 - [ ] **Extend the detail down the side street.** The user names trees, kerb
       and cars specifically, and the point is that the side street currently
@@ -114,4 +100,8 @@ world stops.
 
 ## Done
 
-_(nothing yet — you are new)_
+- [x] **Split the walking sim out of `citizens.ts` into `ct/crowd.ts`**
+      (`38cf9e6`), fingerprint-verified as world-neutral.
+- [x] **Cars turn the corner** — a real junction at the end of the main
+      street (`cb0386d`). The desk resolved its merge conflict against the
+      interior-belt changes.
