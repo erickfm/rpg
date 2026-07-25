@@ -20,6 +20,10 @@ const out = await p.evaluate(() => {
     if (o.type === 'Group' && o.userData.steer !== undefined && o.visible
         && o.position.x < -2 && o.position.z > -40 && o.position.z < -25) truck = o;
   });
+  // Return EMPTY rather than throwing when nothing matched: the node-side guard
+  // that reports this cleanly is unreachable if `truck.children` explodes first,
+  // which is what happened the first time I watched this fail on purpose.
+  if (!truck) return [];
   const seen = new Map();
   for (const c of truck.children) {
     const mats = Array.isArray(c.material) ? c.material : [c.material];
@@ -38,6 +42,15 @@ const out = await p.evaluate(() => {
   }
   return [...seen.values()];
 });
+// Finding NO vehicle is the interesting failure — it means the selector for a
+// car has drifted, not that the fleet has no textures. Say so instead of exiting
+// 0 having written nothing.
+if (!out.length) {
+  console.error('FAILED — no vehicle textures found. The pickup selector ' +
+    '(Group with userData.steer, west kerb, z -40..-25) matched nothing.');
+  await b.close();
+  process.exit(1);
+}
 for (const t of out) {
   writeFileSync(`shots/tex-${t.key}.png`, Buffer.from(t.url.split(',')[1], 'base64'));
   console.log(`  shots/tex-${t.key}.png`);

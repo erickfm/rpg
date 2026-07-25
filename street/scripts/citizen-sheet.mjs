@@ -35,7 +35,7 @@ await page.waitForFunction(() => window.__ct?.person !== undefined, { timeout: 1
 await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(300);
 
-const png = await page.evaluate(async (CAST) => {
+const sheet = await page.evaluate(async (CAST) => {
   const FW = 32, FH = 64, Z = 3;
   const COLS = 4;
   const cellW = FW * 5 * Z, cellH = FH * Z;
@@ -46,13 +46,20 @@ const png = await page.evaluate(async (CAST) => {
   cv.height = 34 + rows * (cellH + LBL + PAD);
   const g = cv.getContext('2d');
   g.imageSmoothingEnabled = false;
+  let missing = 0;
   g.fillStyle = '#4c5158'; g.fillRect(0, 0, cv.width, cv.height);
   g.fillStyle = '#e8e4d8'; g.font = 'bold 15px monospace'; g.textBaseline = 'top';
   g.fillText('CROSSTOWN ’97 — the people ct/citizens.ts makes. 5 painted views each: front, 3/4, profile, 3/4 back, back.', PAD, 9);
   for (let i = 0; i < CAST.length; i++) {
-    const url = window.__ct.person(CAST[i].look);
+    // CHECK THE URL BEFORE LOADING IT. If the affordance has been renamed or
+    // returns nothing, `img.src = ''` never fires onload and the whole evaluate
+    // hangs until Playwright kills it with a raw stack trace — which is how the
+    // node-side "empty sheet" guard turned out to be unreachable when I watched
+    // it fail on purpose.
+    const url = window.__ct.person?.(CAST[i].look);
+    if (!url || url.length < 200) { missing++; continue; }
     const img = new Image();
-    await new Promise((r) => { img.onload = r; img.src = url; });
+    await new Promise((r) => { img.onload = r; img.onerror = r; img.src = url; });
     const cx = PAD + (i % COLS) * (cellW + PAD);
     const cy = 34 + Math.floor(i / COLS) * (cellH + LBL + PAD);
     // a checker behind, so alphaTest holes read as holes
@@ -68,9 +75,20 @@ const png = await page.evaluate(async (CAST) => {
     g.fillStyle = '#b8c0c8'; g.font = '10px monospace';
     g.fillText(`skin ${L.skin} hair ${L.hair} stride ${L.stride}${L.grime ? ' grime ' + L.grime : ''}`, cx, cy + cellH + 19);
   }
-  return cv.toDataURL();
+  return { png: cv.toDataURL(), missing };
 }, CAST);
 
+// A BLANK SHEET IS A FAILURE, NOT A FILE. This paints through __ct.person, and
+// if that returned nothing — renamed affordance, atlas throwing — the old code
+// wrote a grey rectangle and reported success. Watched fail on purpose by
+// pointing it at a world without the affordance.
+const { png, missing } = sheet;
+if (missing) {
+  console.error(`FAILED — __ct.person painted nothing for ${missing} of ${CAST.length} looks. ` +
+    'The affordance is missing or returning empty; no sheet written.');
+  await browser.close();
+  process.exit(1);
+}
 writeFileSync('shots/citizen-range.png', Buffer.from(png.split(',')[1], 'base64'));
 console.log(`shots/citizen-range.png — ${CAST.length} people, standing pose, all five painted views each`);
 await browser.close();
