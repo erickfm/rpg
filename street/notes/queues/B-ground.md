@@ -16,6 +16,55 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Build a floor-trash comparison rig in the alley.** The user:
+      *"items on the floor are all bad i can't tell what they are. in fact how
+      about you design some of the floor trash put it in the alley and i'll
+      tell you which i like similar to how we did with the cat."*
+
+      This supersedes the older *"trash looks too clean"* note — the complaint
+      is no longer that it is too tidy, it is that **it is not legible**. At
+      ~8 px/m a crushed can seen from standing height is about 5 texels across.
+      That is the whole problem: there are not enough pixels to say "can"
+      unless the shape is chosen to survive at that size. Squinting at what is
+      there now, nothing reads as a specific object.
+
+      **Follow the cat precedent exactly**, because it worked: six cats were
+      built in a line, the user pointed at the ones they liked, and the winner
+      shipped. Do the same here.
+
+      · **12 to 16 candidates**, laid out in a numbered line down the alley
+        floor with a texel-drawn number beside each so the user can say "4 and
+        9" and be understood. Space them so no two touch.
+      · Each one **drawn top-down** — they are `flatDecal`s, not billboards.
+        This is `GOTCHAS.md` §3 and it has already cost this project a
+        floating yellow card that the user asked "what is this?" about twice.
+      · Draw them at the density they will actually be SEEN at, and judge them
+        from standing eye height looking down, not from a top-down screenshot.
+        A shape that only reads from directly above has failed.
+
+      Candidates worth trying — take these as a starting set, not a spec:
+      crushed drink can (side-crushed and stamped-flat read differently),
+      flattened cigarette pack, folded newspaper, soaked handbill, takeout
+      container, paper coffee cup on its side, plastic bag, bottle cap,
+      chip bag, broken bottle glass, a cigarette end, a torn lottery slip.
+
+      What makes these read at 8 px/m, and it is worth saying because it is
+      the actual skill here: a **hard dark outline** against the ground so the
+      silhouette survives; **one high-contrast identifying mark** (the red
+      band on a can, the white of a newspaper's fold); and a **contact
+      shadow** so it sits on the ground rather than floating over it. The
+      litter can that was rejected twice failed on exactly those three.
+
+      Put the rig somewhere the user will find it — the alley floor, near the
+      dumpster, walkable. Nothing solid; you walk straight over litter.
+      Tell the desk where it is and the numbering, and I will point the user
+      at it. Do NOT replace the existing street litter yet — the rig is for
+      choosing, and the winners get placed after they pick.
+
+      `rnd()` is a shared seeded stream and the trees and pigeons draw from
+      it before you — append any new draws at the END or you move every tree
+      in the world (`GOTCHAS.md` §2).
+
 - [ ] **Rain must wet the BUILDINGS, not just the ground.** The user:
       *"building should also get affected by the rain"*.
 
