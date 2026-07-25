@@ -762,8 +762,24 @@ export function buildProps(ctx: CtxBuild): Props {
     }
     nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
   };
+  // 0.35 OFF THE KERB, not 0.55. The lane audit traced twelve separate stretches
+  // of walk under 1.00 m — both walks, both side streets — to this one number,
+  // and found nothing was encroaching: every post in the world sits at exactly
+  // ±5.55, all placed correctly to the same rule, and the rule simply left too
+  // little behind it. That is one constant, not twelve tickets.
+  //
+  // Kerb 5.00, facade collider 6.70, so the lane is 1.70 m. A post at 5.55
+  // occupies 5.35…5.75 and eats 0.75 m of it while leaving 0.35 m of slack it
+  // was not using on the ROAD side. Moved to 5.35 it occupies 5.15…5.55: still
+  // 0.15 m clear of the kerb, nothing over the carriageway, and every 0.95 m
+  // stretch becomes 1.15 m.
+  //
+  // The base is 0.28 wide, so it spans 5.21…5.49 and stays comfortably inside
+  // the walk, which starts at ROAD_HALF + CH = 5.0625 — checked, because the
+  // audit explicitly did not claim it and asked someone to eyeball it.
+  const LAMP_OFF = 0.35;
   const makeLamp = (s: number, z: number) =>
-    makeLampAt(s * (ROAD_HALF + 0.55), z, -s, 0, s);
+    makeLampAt(s * (ROAD_HALF + LAMP_OFF), z, -s, 0, s);
   // A PARK LAMP: a post with a lantern on top, no crook and no arm. Shorter
   // than the street's 5 m because it lights a footpath rather than a roadway,
   // and it stands on the park's own ground, which is at KERB_H.
@@ -897,7 +913,9 @@ export function buildProps(ctx: CtxBuild): Props {
   for (const [lx, side] of [[20, 1], [34, -1], [50, 1]] as [number, 1 | -1][]) {
     // side +1 is the NORTH kerb at SIDE_Z0, and the pole stands 0.55 m out on
     // the walk with the crook reaching south over the road; -1 mirrors it.
-    const bz = side > 0 ? SIDE_Z0 + 0.55 : SIDE_Z1 - 0.55;
+    // same offset as the main street's, and for the same reason — three of the
+    // twelve tight stretches the audit found are on these two walks
+    const bz = side > 0 ? SIDE_Z0 + LAMP_OFF : SIDE_Z1 - LAMP_OFF;
     makeLampAt(lx, bz, 0, side > 0 ? -1 : 1, null);
   }
   makeLamp(1, -93);
