@@ -87,3 +87,4 @@ user anything is finished.
 | OPEN | F | the interior door doesnt match the exterior doorway | |
 | OPEN | G | casino interior is nice but i want more. bigger and more expansive / t | |
 | OPEN | AUDIT | verify the eight LANDED rows | |
+| OPEN | C | this guy is floating | |

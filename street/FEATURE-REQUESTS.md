@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"this guy is floating"** → **C**
 - **"verify the eight LANDED rows"** → **AUDIT**
 - **"casino interior is nice but i want more. bigger and more expansive / the interior door doesnt match the exterior doorway"** → **G**
 - **"the interior door doesnt match the exterior doorway"** → **F**
