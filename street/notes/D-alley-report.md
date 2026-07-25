@@ -1252,10 +1252,27 @@ fix was complete rather than partial — sampled at one moment, 13:00 dry agains
 15:00 raining:
 
 ```
-open site 32x30 (park)   1 -> 0.1938   -81%
+open site 32x30 (park)   1 -> 0.1938   -81%      <- under-settled, see below
 open site 23x23 (lot)    1 -> 0.1938   -81%
 alley floor              1 -> 0.1938   -81%
 ```
+
+**Those three were read at ~9 s and the wet look takes 16 s.** `baa675d7`
+measured that on the road; here is the same curve on my alley floor, which
+converges in the same place:
+
+```
+2s 0.5864   4s 0.3291   6s 0.2253   8s 0.1891   10s 0.1768
+12s 0.1726  14s 0.1712  16s 0.1707  18s 0.1705  20s 0.1705  24s 0.17043
+```
+
+Read at 7 s it is **-77%**; converged it is **-83%**. So the figure above is
+-83%, not -81%, and the pixel figure I published alongside it — *"54.5 -> 34.4,
+-37%"*, also under-settled — is **54.4 -> 33.0, -39%**.
+
+The correction is small because 9 s is most of the way there. It is worth making
+anyway: I quoted those numbers to argue my fix was complete, and a number that
+happens to be nearly right is not the same as one that is.
 
 Before `5333a1ce` the alley floor sat at 0.825 in the same comparison while the
 other two went to 0.19. It is now on the same footing as the ground it abuts.
