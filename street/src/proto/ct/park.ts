@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
+import { weedTuft } from './weeds';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
 // party walls the gap exposed, the rear elevation and the low boundary along
@@ -1370,6 +1371,85 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
       x += len + (0.3 + (1 - blank) * 2.2 + sb() * 0.8);  // gaps open up under the trees
     }
   }
+
+  // ── WEEDS, WHERE NOBODY STRIMS ───────────────────────────────────────────
+  //
+  // The user: *"grass sprouting through cracked paving... in the cracks and
+  // joints of the path, thicker at its edges where the mower cannot reach;
+  // along the base of the boundary walls...; around the feet of the lamp posts,
+  // the memorial and the bench legs, where nothing is ever strimmed... Vary the
+  // density — heaviest at edges and against verticals, absent from the middle
+  // of the path where feet keep it clear. That contrast between a worn clean
+  // centre and a weedy edge is the whole effect."*
+  //
+  // C's `weedTuft` draws them; this places them. Not a second tuft — the look
+  // lives in one file so a fix to it fixes every caller, which is the same
+  // reason `citizenSprite` is one call for a person.
+  //
+  // The last sentence of that brief is the design: **nothing goes in the middle
+  // of a path.** Every run below seeds its two EDGES and leaves the centre
+  // alone, because the effect is the contrast and a tuft in the walking line
+  // would destroy it. Height comes off `parkY`, never remembered — the file's
+  // own docs say to ask, and the park's ground is not flat any more.
+  const wsd = clcg(0x5eed11);
+  // TONE BY C'S RULE, not by eye. weeds.ts: `dry` is for ground that is PALER
+  // OR GREENER than the tuft, `dark` for asphalt and shadow. Every surface a
+  // tuft stands on in this park — the new buff hoggin at #9c8b66 and the site's
+  // grey slab — is DARKER than the dry palette's mid #a2955a, so `dark` is the
+  // one that separates by hue instead of laying straw on straw. I had them all
+  // on `dry` first and they read as a hay crop down both edges of the path.
+  const tuft = (x: number, z: number, tone: 'dark' | 'dry' = 'dark', scale = 1) => {
+    scene.add(weedTuft({ x, z, y: parkY(x, z), tone, scale,
+      seed: Math.floor(wsd() * 1e6) }));
+  };
+  /** both edges of a straight run, and never its middle */
+  const tuftEdges = (ax: number, az: number, bx: number, bz: number,
+    half: number, per = 0.62, skip = 0.24) => {
+    const len = Math.hypot(bx - ax, bz - az);
+    if (len < 0.5) return;
+    const ux = (bx - ax) / len, uz = (bz - az) / len;
+    const nx = -uz, nz = ux;
+    for (let t = 0.4; t < len - 0.3; t += per + wsd() * 0.55) {
+      for (const sgn of [-1, 1]) {
+        if (wsd() < skip) continue;                       // it is not continuous
+        const off = half - 0.04 - wsd() * 0.20;           // just inside the edge
+        tuft(ax + ux * t + nx * sgn * off, az + uz * t + nz * sgn * off,
+          'dark', 0.7 + wsd() * 0.55);
+      }
+    }
+  };
+  const HALF = PATH_W / 2;
+  tuftEdges(lx0, lz0 + CHAM, lx0, lz1 - CHAM, HALF);                    // back leg
+  tuftEdges(lx1, lz0 + CHAM, lx1, lz1 - CHAM, HALF);                    // street leg
+  for (const lz of [lz0, lz1]) tuftEdges(lx0 + CHAM, lz, lx1 - CHAM, lz, HALF);
+  tuftEdges(site.maxX - 0.6, gateMid, lx1 + HALF, gateMid, 0.95, 0.5);  // the gate spur
+  // the chamfered corners: the outside of a turn is where a mower gives up
+  for (const [cx, cz, sx, sz] of [[lx0, lz0 + CHAM, 1, -1], [lx0, lz1 - CHAM, 1, 1],
+    [lx1, lz0 + CHAM, -1, -1], [lx1, lz1 - CHAM, -1, 1]] as [number, number, number, number][]) {
+    tuftEdges(cx, cz, cx + sx * CHAM, cz + sz * CHAM, HALF, 0.7, 0.35);
+  }
+  // ALONG THE FOOT OF THE WALLS, which is also where the shrub layer stands —
+  // the desk asked that the two work together, so these sit in front of the
+  // shrubs rather than under them, in the line left clear for exactly this.
+  for (const [wallZ, inward] of [[site.minZ, 1], [site.maxZ, -1]] as [number, number][]) {
+    for (let x = site.minX + 1.0; x < lx1; x += 0.7 + wsd() * 0.9) {
+      tuft(x, wallZ + inward * (0.10 + wsd() * 0.22), 'dark', 0.7 + wsd() * 0.6);
+    }
+  }
+  for (let z = site.minZ + 1.0; z < site.maxZ - 1.0; z += 0.7 + wsd() * 0.9) {
+    tuft(site.minX + 0.10 + wsd() * 0.22, z, 'dark', 0.7 + wsd() * 0.6);
+  }
+  // AND AGAINST EVERY VERTICAL — nothing is ever strimmed round a post.
+  const around = (x: number, z: number, r: number, n: number) => {
+    for (let i = 0; i < n; i++) {
+      const a = wsd() * Math.PI * 2, d = r + wsd() * 0.16;
+      tuft(x + Math.cos(a) * d, z + Math.sin(a) * d, 'dark', 0.65 + wsd() * 0.4);
+    }
+  };
+  around(memX, memZ, 1.15, 7);                                   // the memorial plinth
+  around(fx, fz, 0.75, 5);                                       // the fountain
+  for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) around(shX + dx, shZ + dz, 0.2, 2);
+  for (const [bx, bz] of benchRun) around(bx, bz, 0.95, 3);      // every bench's feet
 
   // ── signs of use ─────────────────────────────────────────────────────────
   //

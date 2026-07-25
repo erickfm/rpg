@@ -53,6 +53,27 @@ at. Three rules straight out of that sentence:
 | **Long dark diagonal streaks on the paving** | **Yes** — a hard band across the foreground | **NOT MINE, and it correlates with D's.** The surface carrying them at those coordinates is the site ground, `mod: street`. D's own report records that module's three horizontal ground planes as *"the alley floor and the two open-site grounds (park and car lot)"* — so the park floor the user is seeing streaks on is literally one of the three surfaces D is working on. Same module, same class. → **D**, with this correlation rather than a second guess at it. |
 | **White path edging very stark** | **Yes, and the user predicted the fix** | Improved by item 1 as they said it would be: the edging has not changed, the surface beside it has, so the contrast is down. Worth re-judging on the next frame rather than tuning now. |
 
+## 4. Weeds — C's tuft, placed
+
+Held until `ct/weeds.ts` landed rather than drawing a second one, as asked. The
+placement is the user's own brief, and its last sentence is the design:
+*"absent from the middle of the path where feet keep it clear. That contrast
+between a worn clean centre and a weedy edge is the whole effect."* So every run
+seeds its two EDGES and leaves the centre alone — both sides of all four loop
+legs, the four chamfered corners, the gate spur, the foot of all three walls in
+the line the shrub layer was held clear for, and a ring at the base of the
+memorial, the fountain, the shelter posts and every bench.
+
+**Tone by C's rule, not by eye.** `weeds.ts` says `dry` is for ground PALER OR
+GREENER than the tuft and `dark` for asphalt and shadow. Every surface a tuft
+stands on here — the new buff hoggin at `#9c8b66` and the site's grey slab — is
+darker than the dry palette's mid `#a2955a`, so `dark` is the tone that
+separates by hue. I had them all on `dry` first and they read as a hay crop down
+both edges of the path; the rule was in the file and I had not applied it.
+
+Height comes from `parkY`, never remembered — the file's docs say to ask, and
+this park's ground stopped being flat this morning.
+
 ## Walked
 
 `E-park-walk` 16/16 after the shrubs went in — the new runs are colliders and
