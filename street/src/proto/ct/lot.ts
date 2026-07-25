@@ -299,7 +299,7 @@ export function buildLot(o: {
       const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 4.2), bayM);
       bay.rotation.x = -Math.PI / 2;
       bay.rotation.z = Math.PI / 2 - 0.5;           // the angle the stock parks at
-      bay.position.set(X0 + 3.2, Y + 0.006, bz);
+      bay.position.set(X0 + 3.0, Y + 0.006, bz);
       scene.add(bay);
       if (i % 2 === 0) {
         const oil = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), oilM);
@@ -380,7 +380,7 @@ export function buildLot(o: {
     // A portable cabin set back at the north end, turned to face the gate so
     // whoever is inside watches you come in.
     const CW = 4.6, CD = 3.0, CH = 2.7;
-    const cx = X0 + 5.6, cz = zN - 3.4;
+    const cx = X0 + Math.min(5.6, (X1 - X0) * 0.30), cz = zN - 3.4;
     const cabM = flat(cabinT), cabWinM = flat(cabinWinT);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x5a5f66 });
     const cabin = new THREE.Mesh(new THREE.BoxGeometry(CD, CH, CW),
@@ -524,15 +524,28 @@ export function buildLot(o: {
     // Prices are 1997 and cheap, and they end in 95 or 99 far more often than
     // they end in a round number, because that is what a lot writes.
     type Treat = 'soap' | 'burst' | 'card' | 'slip' | 'sold' | 'bare';
-    const STOCK: { kind: CarKind; col: number; price?: string; treat: Treat; slog?: string }[] = [
+    interface Unit { kind: CarKind; col: number; price?: string; treat: Treat; slog?: string }
+    // Treatments in an authored order rather than a random one: a lot has a
+    // FRONT — the carded, priced, polished end that faces the street — and a
+    // back, where the older stock and the ones not for sale sit. Reading down
+    // this list is reading from the pavement to the back fence.
+    const STOCK: Unit[] = [
       { kind: 'sedan', col: 1, price: '$1995', treat: 'soap' },
       { kind: 'pickup', col: 3, price: '$2495', treat: 'burst', slog: 'RUNS GREAT' },
       { kind: 'hatch', col: 0, price: '$899', treat: 'soap' },
       { kind: 'van', col: 4, price: '$1295', treat: 'card', slog: 'AS IS' },
-      { kind: 'sedan', col: 5, treat: 'sold' },
+      { kind: 'sedan', col: 5, price: '$2295', treat: 'burst', slog: '1 OWNER' },
       { kind: 'hatch', col: 2, price: '$795', treat: 'slip' },
-      { kind: 'pickup', col: 0, price: '$3495', treat: 'burst', slog: '1 OWNER' },
-      { kind: 'sedan', col: 3, treat: 'bare' },          // just came in
+      { kind: 'pickup', col: 0, price: '$3495', treat: 'soap' },
+      { kind: 'sedan', col: 3, treat: 'sold' },
+      { kind: 'van', col: 1, price: '$1495', treat: 'card', slog: 'AS IS' },
+      { kind: 'hatch', col: 5, price: '$695', treat: 'soap' },
+      { kind: 'sedan', col: 2, price: '$1795', treat: 'burst' },
+      { kind: 'pickup', col: 4, treat: 'bare' },
+      { kind: 'sedan', col: 0, price: '$999', treat: 'slip' },
+      { kind: 'hatch', col: 3, treat: 'bare' },
+      { kind: 'van', col: 2, treat: 'bare' },
+      { kind: 'sedan', col: 4, price: '$2795', treat: 'card', slog: 'RUNS GREAT' },
     ];
     /** hang a thing on the windshield of a car group, in the car's own frame */
     const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
@@ -545,39 +558,53 @@ export function buildLot(o: {
       g0.add(m);
     };
     const ANGLE = Math.PI / 2 - 0.5;
-    for (let i = 0; i < STOCK.length; i++) {
-      const it = STOCK[i];
-      const row = i < 4 ? 0 : 1;
-      const k = i < 4 ? i : i - 4;
-      const z = zN - 5.0 - k * 3.3 - row * 1.4;
-      if (z < zS + 2.2) break;
-      const x = X0 + (row === 0 ? 2.9 : 6.4);
-      const g0 = new THREE.Group();
-      g0.add(makeCar(it.kind, it.col));
-      switch (it.treat) {
-        case 'soap':                                       // straight on the glass
-          onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
-          break;
-        case 'burst':
-          onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
-          break;
-        case 'card':
-          onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
-          break;
-        case 'slip':                                       // slid down the glass
-          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
-          break;
-        case 'sold':
-          onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
-          break;
-        case 'bare': break;                                // nothing; it just landed
+    // ROWS ARE DERIVED FROM THE DEPTH, not hardcoded. The site went from 8 m
+    // to 24 and the whole point of the depth is rows RECEDING — you should see
+    // cars behind cars, and the back of the lot should be a different place
+    // from the street edge. At 5.5 m per row a car angled at 45 degrees plus
+    // its aisle fits, and the count falls out of whatever depth D sets.
+    const DEPTH = X1 - X0;
+    const ROW_PITCH = 5.5;
+    const ROWS = Math.max(1, Math.min(4, Math.floor((DEPTH - 2.2) / ROW_PITCH)));
+    const PER_ROW = Math.max(2, Math.floor((span - 4.0) / 3.4));
+    let n = 0;
+    for (let r = 0; r < ROWS && n < STOCK.length; r++) {
+      const x = X0 + 2.8 + r * ROW_PITCH;
+      // every other row is nudged half a bay down the frontage, so you look
+      // BETWEEN the cars in front rather than at their backs
+      const stagger = (r % 2) * 1.7;
+      for (let k = 0; k < PER_ROW && n < STOCK.length; k++) {
+        const it = STOCK[n];
+        const z = zN - 3.6 - stagger - k * 3.4;
+        if (z < zS + 2.2) break;
+        n++;
+        const g0 = new THREE.Group();
+        g0.add(makeCar(it.kind, it.col));
+        switch (it.treat) {
+          case 'soap':
+            onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
+            break;
+          case 'burst':
+            onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
+            if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
+            break;
+          case 'card':
+            onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
+            if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
+            break;
+          case 'slip':
+            onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
+            break;
+          case 'sold':
+            onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
+            break;
+          case 'bare': break;
+        }
+        g0.position.set(x, Y, z);
+        g0.rotation.y = ANGLE;
+        scene.add(g0);
+        solid({ minX: x - 1.3, maxX: x + 1.3, minZ: z - 1.5, maxZ: z + 1.5 });
       }
-      g0.position.set(x, Y, z);
-      g0.rotation.y = ANGLE;
-      scene.add(g0);
-      solid({ minX: x - 1.3, maxX: x + 1.3, minZ: z - 1.5, maxZ: z + 1.5 });
     }
 
     // ── the things that make it look TRIED ───────────────────────────────
