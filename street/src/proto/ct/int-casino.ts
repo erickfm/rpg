@@ -3,7 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { doorStandFor, type DoorDecl } from './doors';
-import { tube } from './vice';
+import { tube, VICE_DOOR_X } from './vice';
 
 // GOLDEN ACES, inside.
 //
@@ -27,10 +27,17 @@ import { tube } from './vice';
 // reel glass, the felt, and the cage. That contrast is the whole effect.
 //
 // GOLDEN ACES stands at the far end of the side street, x ∈ [45.45, 57.00] in
-// street.ts's NORTH2 roster, facade on z = -96.0. Its door is painted at
-// u = 0.4946 of a 92-texel shopfront, which lands at world x = 51.29 — derived
-// and then walked in notes/G-interiors2-prep.md rather than eyeballed, because
-// an [E] spot that misses its door is invisible until someone tries it.
+// street.ts's NORTH2 roster, facade on z = -96.0. Its door is painted by
+// ct/vice.ts, which is where the x lives — walked in
+// notes/G-interiors2-prep.md rather than eyeballed, because an [E] spot that
+// misses its door is invisible until someone tries it.
+//
+// This paragraph used to do the arithmetic itself: "u = 0.4946 of a 92-texel
+// shopfront". BOTH numbers were wrong — the band is 185 texels and the u is
+// 0.4944 — and the prose had been wrong for as long as it existed without
+// anything being visibly out of place, because prose is not compiled. It is
+// the same two-authorings defect as the constants, in the form that no test
+// can catch. Naming the owner instead of restating its arithmetic.
 /**
  * WHERE THIS ROOM'S DOOR IS, declared as a world POINT and an outward NORMAL.
  *
@@ -49,7 +56,11 @@ import { tube } from './vice';
  */
 export const DOOR: DoorDecl = {
   building: 'GOLDEN ACES', w: 11.55, cz: 51.225, side: 1, at: 0, width: 1.15,
-  face: { x: 51.29, z: -96.0, nx: 0, nz: -1 },
+  // Read from ct/vice.ts, which paints the gold portal at this x. It was typed
+  // here and typed again there as a u fraction; one of the two had to be the
+  // authority and it has to be the painter, because the facade is built before
+  // this module is evaluated. See VICE_DOOR_X for why the arrow points this way.
+  face: { x: VICE_DOOR_X['GOLDEN ACES'], z: -96.0, nx: 0, nz: -1 },
 };
 
 export function buildCasino(ctx: CtxBuild): void {

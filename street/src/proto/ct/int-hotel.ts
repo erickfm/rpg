@@ -3,6 +3,7 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { doorStandFor, type DoorDecl } from './doors';
+import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
 //
@@ -27,9 +28,10 @@ import { doorStandFor, type DoorDecl } from './doors';
 //
 // HOTEL ORPHEUS stands on the side street at x ∈ [33.45, 45.45] in street.ts's
 // NORTH2 roster, facade on z = -96.0, with its blade sign hung off the east end
-// of the building. The door is painted at u = 0.4948 of a 96-texel shopfront,
-// which lands at world x = 39.51 — derived and walked in
-// notes/G-interiors2-prep.md, not eyeballed.
+// of the building. The door is painted by ct/vice.ts, which is where the x
+// lives — derived and walked in notes/G-interiors2-prep.md, not eyeballed.
+// This said "u = 0.4948 of a 96-texel shopfront"; the band is 192 texels and
+// the u is 0.495, so both figures were wrong. See the casino's note.
 /**
  * WHERE THIS ROOM'S DOOR IS, declared as a world POINT and an outward NORMAL.
  *
@@ -48,7 +50,9 @@ import { doorStandFor, type DoorDecl } from './doors';
  */
 export const DOOR: DoorDecl = {
   building: 'HOTEL ORPHEUS', w: 12.0, cz: 39.45, side: 1, at: 0, width: 1.15,
-  face: { x: 39.51, z: -96.0, nx: 0, nz: -1 },
+  // Read from ct/vice.ts, which paints the entrance at this x — see the casino's
+  // decl and VICE_DOOR_X for why the painter is the authority and not this file.
+  face: { x: VICE_DOOR_X['HOTEL ORPHEUS'], z: -96.0, nx: 0, nz: -1 },
 };
 
 export function buildHotel(ctx: CtxBuild): void {

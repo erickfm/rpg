@@ -53,6 +53,39 @@ import { type AABB } from '../fp';
 // chase that never lights, one glazing panel replaced in a bronze that does not
 // match, and a VACANCY sign that has been on for a long time.
 /**
+ * WHERE THE PAINTED ENTRANCE IS. World x of the door on each of the two side-
+ * street facades, and the only place either number is written down.
+ *
+ * It used to be written twice: once here as the `u` fraction the band painter
+ * strokes the gold portal at, and once in each room's `DoorDecl.face.x`. Two
+ * authorings of one fact, which is the class of defect that already produced
+ * three false-passing checks in scripts/G-*.mjs — a coupling that is silent when
+ * it breaks. Walk up to the facade and the prompt comes from a metre to your
+ * left, and nothing fails.
+ *
+ * The obvious fix is the other direction — have the painter ask ct/doors.ts for
+ * the declaration. That one is NOT safe yet, and the reason is worth keeping:
+ * vice.ts paints during buildStreet, which runs before any `int-*.ts` module is
+ * evaluated, so `doorPointFor` here would read the glob mid-initialisation —
+ * exactly the module-order hazard A traced in 709ddfed. This direction has no
+ * cycle at all: both rooms already import `tube` from this file, so vice.ts is
+ * already upstream of them. When doors.ts is split so its lookup globs nothing,
+ * this can invert and the rooms become the authority.
+ */
+export const VICE_DOOR_X: Record<string, number> = {
+  'GOLDEN ACES': 51.29,
+  'HOTEL ORPHEUS': 39.51,
+};
+
+/**
+ * That world x as the band texture's u. Side-street buildings put the facade on
+ * the box's -z face and that face's u runs from HIGH x to low x, so texel 0 is
+ * the EAST end of the building — hence `x1 - doorX` and not `doorX - x0`.
+ */
+const doorUOf = (b: BldSpec, x0: number) =>
+  (x0 + b.w - VICE_DOOR_X[b.nm]) / b.w;
+
+/**
  * Neon drawn as a TUBE, not a stripe: three passes over one letterform — the
  * dark glass casing, the phosphor glow through it, and the hot core. A painted
  * stripe is one colour; a tube is all three at once.
@@ -134,18 +167,13 @@ export function buildVice(o: {
 
   // ═══ the casino's shopfront band ═══════════════════════════════════════
   //
-  // The entrance is drawn at u = 0.4944 of the band, which is world x = 51.29,
-  // which is where ct/int-casino.ts's [E] spot stands. That coupling is silent
-  // if it breaks — you would walk up to a painted wall and the prompt would
-  // come from a metre to your left — so it is stated in both files.
-  //
-  // Side-street buildings put the facade on the box's -z face, and that face's
-  // u runs from HIGH x to low x. So texel 0 is the EAST end of the building.
-  const acesBand = (b: BldSpec) => {
+  // The entrance is drawn where VICE_DOOR_X says it is, which is the same number
+  // ct/int-casino.ts's [E] spot stands at because that file reads it from here.
+  const acesBand = (b: BldSpec, x0: number) => {
     const s = masonry(b.w, SHOP_BAND_H, 0, SHOP_MULT);
     const { W, H } = s;
     const yOf = (wy: number) => Math.round(((SHOP_BAND_H - wy) / SHOP_BAND_H) * H);
-    const doorU = 0.4944;                       // == world x 51.29
+    const doorU = doorUOf(b, x0);
     return s.paint((g) => {
       // the 1984 refit: polished red panelling, not brick
       g.fillStyle = RED_D; g.fillRect(0, 0, W, H);
@@ -230,13 +258,12 @@ export function buildVice(o: {
   // The opposite decision to the casino's glass, and for the same reason it is
   // the right one: you SHOULD see the lobby. ct/int-hotel.ts has a window in
   // its front wall, the room behind it is warm, and a hotel wants you to see
-  // that there is somewhere to sit. Entrance at u = 0.495 == world x 39.51,
-  // where ct/int-hotel.ts's [E] spot stands.
-  const orpheusBand = (b: BldSpec) => {
+  // that there is somewhere to sit. Entrance from VICE_DOOR_X, as the casino's.
+  const orpheusBand = (b: BldSpec, x0: number) => {
     const s = masonry(b.w, SHOP_BAND_H, 0, SHOP_MULT);
     const { W, H } = s;
     const yOf = (wy: number) => Math.round(((SHOP_BAND_H - wy) / SHOP_BAND_H) * H);
-    const doorU = 0.495;                        // == world x 39.51
+    const doorU = doorUOf(b, x0);
     return s.paint((g) => {
       // rusticated stone base — this building is older than its refit and the
       // ground floor is the part that still says so
@@ -310,7 +337,7 @@ export function buildVice(o: {
       [endM, endM, roofM, roofM, endM, facade]);
     wall.position.set(cx, h / 2 + gh, zc);
     scene.add(wall);
-    const bandM = flat(b.nm === 'GOLDEN ACES' ? acesBand(b) : orpheusBand(b));
+    const bandM = flat(b.nm === 'GOLDEN ACES' ? acesBand(b, x0) : orpheusBand(b, x0));
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4),
       [endM, endM, roofM, roofM, endM, bandM]);
     shop.position.set(cx, gh / 2, zc);
