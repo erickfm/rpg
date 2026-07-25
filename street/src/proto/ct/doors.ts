@@ -25,6 +25,9 @@
 // builds.
 
 /** A room's own statement of where its door is. Declared in the room's file. */
+import { declareDoorWorld } from './tex-world';
+
+/** A room's own statement of where its door is. Declared in the room's file. */
 export interface DoorDecl {
   /** the roster name of the building this room is inside */
   building: string;
@@ -57,6 +60,19 @@ const DECLS = new Map<string, DoorDecl>();
       continue;
     }
     DECLS.set(d.building, d);
+  }
+  // …and tell the painter. A's `declareDoorWorld` takes the same world number
+  // this module computes, so the shopfront's door is painted where the room
+  // says its door is — which is the whole point of the flip: "make the
+  // exteriors match the interiors".
+  //
+  // At MODULE scope, which is load-bearing. interior.ts glob-imports the rooms
+  // eagerly and crosstown.ts imports interior.ts, so every declaration is in
+  // before buildStreet paints a single facade. A room that spoke while
+  // BUILDING would speak long after the painter had drawn its door.
+  for (const [name] of DECLS) {
+    const z = doorWorldFor(name);
+    if (z !== null) declareDoorWorld(name, z);
   }
 }
 
