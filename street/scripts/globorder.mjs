@@ -51,4 +51,12 @@ for (const g of groups) {
 console.log(bad
   ? `\n${bad} binding(s) read by a glob before they exist. Whatever those modules declare is silently dropped.`
   : '\nevery globbed binding is declared before the glob that reads it');
+// Finding NO glob literal means the bundle shape changed and this scan matched
+// nothing -- which is "I could not look", not "there is nothing wrong". Exiting
+// 0 there would be a vacuous pass that survives any future rollup change.
+if (groups.length === 0) {
+  console.error('\n  CANNOT ANSWER — no eager-glob object literal matched in the bundle.');
+  console.error('  The bundle shape has changed; re-derive the pattern before trusting a green.');
+  process.exit(3);
+}
 process.exit(bad ? 1 : 0);

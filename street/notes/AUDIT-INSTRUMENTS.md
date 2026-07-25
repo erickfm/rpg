@@ -1607,3 +1607,43 @@ have.
 The ten that remain all carry a live finding or a live method — `floatlit`,
 `wetsweep`, `corridor`, `ghosts`, `mutate`, `globorder`, `hand`, `seatface`,
 `keepercircle`, `billboardtest`.
+
+## Two of my scripts could exit 0 having asserted nothing — including the one I offered as a check
+
+`32d9d6521` found five of its own checks in that state. Swept mine: eight are
+reports and exit 0 legitimately, but **two assert, and both could pass
+vacuously.**
+
+| | the hole |
+|---|---|
+| **`floatlit.mjs`** | its entire assertion sits inside `if (process.env.PAIRED)`. Without a day capture it printed a report and **exited 0** — and I had **offered it to the shared runner in that state**, where it would have gone green forever |
+| **`globorder.mjs`** | if the bundle shape changes and the pattern matches nothing, it finds zero glob literals and exits 0. *"I could not look"* rendered as *"nothing is wrong"* |
+
+Both now exit **3** — GOTCHAS 32's code for *the check never ran* — and say what
+is missing.
+
+### The guard was broken twice, and only running it found either
+
+1. **It referenced a variable that does not exist.** I wrote `globs.length === 0`
+   where the collection is called `groups`. **`node --check` passed** — the name
+   only resolves when that branch is reached, so a syntax check proves nothing
+   about a guard that fires rarely. It would have thrown `ReferenceError` on the
+   exact day it mattered.
+2. **It refused the command its own error message prescribes.** The guard fired
+   in capture mode too, so `JSON_OUT=1 … floatlit.mjs` — the documented way to
+   *make* the pair file — exited 3 printing *"Make one: `JSON_OUT=1 …`"*. A
+   perfectly circular instruction.
+
+Neither was visible by reading. Both took one run each:
+
+```
+capture mode            @@ rows emitted
+no PAIRED, not capture  exit=3
+paired                  exit=1   (defect present, as expected)
+--selftest              3/3 inverted truths behaved as required
+```
+
+> **A guard against vacuous checks is itself a check, and mine was vacuous
+> twice.** The project's own standard is the answer — *"exercised rather than
+> merely present"*. I have now written that phrase approvingly about someone
+> else's work and then shipped two unexercised guards in one commit.

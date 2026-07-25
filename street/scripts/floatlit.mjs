@@ -14,6 +14,20 @@ import { reportWorld } from './lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
 const NIGHT = Number(process.env.NIGHT_H ?? 23);
 const JSON_OUT = process.env.JSON_OUT === '1';
+// GOTCHAS 32: exit 3 means the check never ran. Everything below is gated on a
+// day capture, so without one this script printed a report and exited 0 having
+// ASSERTED NOTHING -- and I had offered it to the shared runner in that state.
+// 32d9d6521 found the same shape in five checks; this is mine.
+// ...except in capture mode, which is how you MAKE the pair file. The first
+// version of this guard refused the exact command its own error message told
+// you to run.
+if (!process.env.PAIRED && process.env.JSON_OUT !== '1') {
+  console.error('\n  CANNOT ANSWER — no day capture to pair against.');
+  console.error('  Make one:  JSON_OUT=1 NIGHT_H=13 node scripts/floatlit.mjs > day.json');
+  console.error('  Then:      PAIRED=day.json node scripts/floatlit.mjs');
+  process.exit(3);
+}
+
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
