@@ -20,6 +20,8 @@ import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
+import { buildPark } from './ct/park';
+import { buildLot } from './ct/lot';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
@@ -162,6 +164,25 @@ export function makeCrosstown(): Proto {
   const bodegaColliders = buildBodega(ctx);
 
   // ── the block's furniture, and the weather over it ─────────────────────
+  // ── the park and the car lot ────────────────────────────────────────────
+  //
+  // `buildStreet` clears the two sites and publishes their extents; these two
+  // modules put something on them. Both were finished and neither was ever
+  // called, so the user went looking for the park and found a blank brick
+  // wall. They take the site from `street`, so nothing has to be threaded
+  // through street.ts.
+  // both register their own solids through ctx.obstacle, so there is nothing
+  // to spread here — the returned collider lists are for their own use
+  buildPark(ctx, street.park);
+  // buildLot only PREPARES the module; placeLot(site) is what fills the site.
+  // Calling the first without the second leaves you walking into a brick wall,
+  // which is what the site looked like before this.
+  const lot = buildLot({
+    scene, flat, wet, KERB_H, obstacle,
+    onFrame: (fn, order) => ctx.onFrame((f) => fn({ night: f.night }), order),
+  });
+  lot.placeLot(street.lot);
+
   const props = buildProps(ctx);
 
   // ── the parked cars ─────────────────────────────────────────────────────
