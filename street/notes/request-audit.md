@@ -2353,3 +2353,40 @@ unverifiable by me**, and already verified by whoever wrote that.
 sequence: pressing the key found a locked church, a locked library, a message
 naming a board that is not there, and a working residential door — **four
 findings from an action I had verified only up to the prompt.**
+
+## The round trip closes: every way-out puts you back at your own shop
+
+I confirmed all the way-outs *fire* and never pressed one. Pressed now:
+
+| room | from | landed | |
+|---|---|---|---|
+| bodega | (440, 3.65) | **(5.88, −97.12)** | east walk, at the bodega |
+| burger | (516.4, 3.7) | **(−5.8, −23.61)** | west walk, at BURGER BARN |
+| casino | (596.8, 3.95) | **(52.84, −97.25)** | side street, at GOLDEN ACES |
+| diner | (677.4, 2.95) | **(−5.8, −45.11)** | west walk, at the DINER |
+| hotel | (756.6, 3.95) | **(41.06, −97.25)** | side street, at the ORPHEUS |
+| pawn | (840, 3.45) | **(5.8, −59)** | east walk, at the PAWN SHOP |
+| tax | (915.8, 3.7) | **(5.8, −18.63)** | east walk, at A-1 TAX |
+| thrift | (997.8, 2.7) | **(−5.8, −57.82)** | west walk, at the THRIFT |
+
+**Every way-out puts you back on the street, and every one puts you back at its
+own building.** Not merely outside — outside *where you went in*. Each landing
+sits 1.5–1.6 m from the door it belongs to, which is the small forward offset
+you would want rather than being dropped exactly on the trigger you just used.
+
+### The round trip, complete and pressed rather than read
+
+| | |
+|---|---|
+| walk to a shop and press E | **8 of 8** land in the room the sign names |
+| press E inside to leave | **8 of 8** land on the street at that shop's frontage |
+| the apartment | **in and out**, No. 227 → `[E] out to the street` |
+| the 301 door | closes, blocks, reopens, refuses to shut on you |
+| the two civic flights | climb and descend; **both doors answer "shut"** |
+
+Everything a player does to get into and out of this world is now verified **by
+doing it**, not by reading a declaration that says it would work.
+
+That distinction earned its keep this session: firing prompts told me the civic
+doors were fine, and pressing them found a locked church, a closed library, and
+a message pointing at a board that is not there.
