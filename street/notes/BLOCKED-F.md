@@ -11,7 +11,8 @@ control that reproduces it. I filed both as "measured rather than guessed",
 which was true and not sufficient: a measurement compared against the wrong
 thing is a guess with a number on it.
 
-Nothing here needs anyone's attention. **Do not action items 1 or 2.**
+Nothing here needs anyone's attention. **Do not action items 1 or 2.** One OPEN DECISION is recorded at the bottom —
+it is not blocking me and it is not mine to settle.
 
 ---
 
@@ -121,3 +122,50 @@ is not a chamfer special case: it is the GENERAL form, and the main block's
 one from the other. Both side-street rooms now declare with `face`, using G's
 own already-walked door positions, so all eight rooms publish and nothing
 moved.
+
+
+---
+
+## OPEN DECISION — the door guard runs in the mode where the bug cannot happen
+
+Not a blocker, and not something I can close on my own. Written here because it
+is the one hole left in a subsystem I own.
+
+`scripts/doors-declared.mjs` is the check that catches a declared DOOR failing
+to reach `declaredDoors()`. It is registered in the DEFAULT tier of
+`npm run checks`, which runs against `$SHOT_URL` — a dev server.
+
+**The bug it guards is bundle-only.** Circular imports resolve differently in a
+build; GOLDEN ACES's door was dropped in the bundle while dev reported all
+eight, and the check says so itself:
+
+```
+mode: DEV SERVER (unbundled ESM)
+  WARNING: dev resolves circular imports differently from the bundle.
+  This check has read 8 of 8 in dev and 7 of 8 in the bundle at the same commit.
+  The bundle is what ships — measure that.
+```
+
+So `npm run checks` can report `✓ doors-declared` while a door is missing from
+the artifact the user plays. The row asserts the question was answered; in dev
+it was not.
+
+**Why I have not just fixed it.** The three obvious moves each cost something
+that is not mine to spend:
+
+1. **Make it exit non-zero in dev.** Then the default suite is permanently red,
+   which is the fastest way to teach people to stop reading it — GOTCHAS 27.
+2. **Move it to the slow tier under `PINNED_MODE=preview`.** Correct, and it
+   takes a check that is currently seconds and puts it behind a flag almost
+   nobody passes.
+3. **Have the runner set the mode per check.** The right answer, and it is a
+   change to how `scripts/checks.mjs` invokes things — shared, and a desk call.
+
+**What exists meanwhile.** `PINNED_MODE=preview ./scripts/slow-pinned.sh
+doors-declared` answers it properly against a built bundle, in about a minute,
+and is green at HEAD: 8 declare, 8 arrive, zero undefined namespaces. The cycle
+that caused the original drop is cut, so the risk today is latent rather than
+live. It stops being latent the moment a non-`int-` module declares a door.
+
+My recommendation is (3), and (2) as a stopgap that someone must remember —
+which by this project's own history is the weaker half of the pair.
