@@ -23,6 +23,44 @@ world stops.
 
 ## Now
 
+- [ ] **Write the citizen style guide. Every agent that draws a person needs
+      it.** The user: *"the people inside these places are always flat and not
+      like the people on the street, lets have the agents if they ever work on
+      a citizen to be able to see the style necessary — see some examples at
+      the very least of the kinds of citizens we have"*.
+
+      They have identified a real gap. You own `ct/citizens.ts`, and it is the
+      only place a person is drawn properly — 8 angles, build, skin, hair,
+      garment, pace, grime. Every OTHER agent that has needed a person has
+      hand-drawn a single-view plane instead, because nothing told them the
+      atlas existed or how to call it: the diner waitress, and then the
+      casino, hotel and tax office copied her because she was the nearest
+      example. That is four cardboard people, all from one missing document.
+
+      **Write `street/notes/CITIZEN-STYLE.md`**, and make it the thing an
+      agent reads instead of inventing:
+      · **what the atlas IS** — 8 views, how `citizenAtlas` and `viewFor` are
+        called, what a caller has to do about facing
+      · **the `Look` options**, each explained: build, skin, hair, `cut`,
+        `fit`, pace, grime — with the range each takes and what it looks like
+      · **rendered examples** — this is what the user actually asked for.
+        Dump a contact sheet of a dozen citizens across the range into
+        `shots/` via `__ct.atlases()` and reference it, so an agent can SEE
+        the kinds of people this world has rather than reading adjectives.
+      · **the rules that are easy to get wrong**: no dither on small faces
+        (the three-band face bug), what a stationary person should look like,
+        how a hood crops the head, why profile feet need a toe
+      · **the one instruction that matters most:** if you need a person,
+        CALL THE ATLAS. Do not draw a plane. If the atlas cannot do what you
+        need, ask the desk and H extends it.
+
+      Then tell the desk and I will link it from `START-HERE.md` and
+      `GOTCHAS.md` so a cold-start agent cannot miss it.
+
+      Builder F is separately adding a `room.person()` helper to the interior
+      kit that wraps the atlas — coordinate through the desk so the guide
+      documents that helper rather than contradicting it.
+
 - [ ] **Pedestrians are frozen IN THE ROAD.** The user: *"these people are
       stuck"*. Ref: `shots/user-pedstuck.png` — two citizens standing either
       side of a parked car, on the carriageway, motionless.
