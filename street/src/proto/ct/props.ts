@@ -275,6 +275,12 @@ export function buildProps(ctx: CtxBuild): Props {
         litSeen.add(m);
         // things in the street are street-level: they go as dark as the road
         // and the lamps buy them back
+        // STAMPED, so "was offered to the dimmer and did not move" is decidable
+        // from outside. Requested in notes/A-nightgrade.md, and it is the other
+        // half of the selfLit stamp: without it, graded-but-unchanged and
+        // never-handed-to-dimWorld are the same picture from out there, which
+        // is why that check's un-boxed number was 417 and answered nothing.
+        m.userData.graded = true;
         litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool, floor: FLOOR_GROUND, wetK: 0 });
       }
     });
@@ -355,6 +361,7 @@ export function buildProps(ctx: CtxBuild): Props {
         // for a neon sign and eleven lit window panels doing exactly what the
         // user asked for: "Lit windows and signs must NOT dim with it."
         if (selfLit) m.userData.selfLit = true;
+        m.userData.graded = true;
         litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable && !selfLit,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        wetK: selfLit ? 0 : wetKFor(wy.y) });
@@ -1023,6 +1030,11 @@ export function buildProps(ctx: CtxBuild): Props {
     const amb = ambient(FLOOR_GROUND);
     let roadLum = 1;      // reset each frame; the darkest broad sheet wins
     for (const w of wetMats) {
+      // The wet registry is graded too — updateRain owns these colours, and the
+      // note asking for the stamp called this out as the other blind spot. Same
+      // key so one test covers both, plus `wet` for anything that needs to know
+      // WHICH writer owns it.
+      if (!w.m.userData.graded) { w.m.userData.graded = true; w.m.userData.wet = true; }
       // Not every surface gives the water up at the same rate. The road crown
       // sheds it first; the gutter is where it is all running TO, so that
       // holds on longest. We can tell them apart by the shape of their sheet
