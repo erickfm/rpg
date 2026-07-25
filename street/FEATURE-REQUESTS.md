@@ -242,8 +242,11 @@ commit, as asked.
   mullions, something in the window, signage as a made object, and wear where
   hands and weather reach. The tax banner was the last sign that was flat text
   stamped on a band. The diner has a **projecting blade** over the pavement —
-  the one item on the user's list nobody had built. *The casino and hotel are
-  builder E's and are not covered by this.*
+  the one item on the user's list nobody had built. *The casino and hotel are not
+  covered by this — they are **builder G**'s (`OWNERSHIP.md`: `ct/vice.ts = G`),
+  not E's, and their half of the facade brief landed separately in `ct/vice.ts`.
+  The user's verdict on that elevation was "that exterior is the best thing in
+  the world right now".*
 
 - **"i need the facades to line up with the interior. so if the door on the
   interior is full right then the facade must match"** ✅ Verified the user's
@@ -271,10 +274,13 @@ commit, as asked.
   i think?"** → **builder E**. Real cause: the lancets are painted in texel
   space, the buttresses placed in metres, and nothing reconciles the two.
 - **"the sign up top is completely floating. make sure for stuff like this we
-  pay more attention."** → **builder E** (GOLDEN ACES roof sign), and a
-  standing sweep for unsupported objects → **auditor**
+  pay more attention."** → ~~builder E~~ → **builder G** (GOLDEN ACES is
+  `ct/vice.ts`, G's), and a standing sweep for unsupported objects → **auditor**
+  ✅ **verified fixed 2026-07-25**: the casino roof deck tops out at y 17.2 and
+  the sign's legs run y 17.16 → 19.44, so they land on it. Measured, not eyed.
 - **"i want more detail for both the hotel and golden aces casino facades"**
-  → **builder E**
+  → ~~builder E~~ → **builder G** ✅ delivered in `ct/vice.ts`; the user's reply
+  to the result was *"that exterior is the best thing in the world right now"*.
 - **"i want to build out the insides of the following: burger barn. diner.
   library. tax service. pawn shop. bodega. thrift store. my room. the casino.
   the hotel. ill let you divide all that up its pretty intense."** → split four
