@@ -34,8 +34,34 @@
 //      through the contract silently, and this still says so.
 //
 // It does not fail anything now. Nothing is gated on it.
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { join, dirname, posix } from 'node:path';
+
+// --selftest: write a real orphan and require this to catch it.
+//
+// notes/A-selftests.md has listed this as the last tool of mine never watched
+// failing. It HAS fired for real, on five unbuilt modules — but "it worked once
+// in the past" is the same evidence a stale camera offers, and this file's whole
+// argument is that absence is invisible. A check for invisible things is exactly
+// the check you cannot tell has stopped working.
+//
+// The mutation is a genuine file on disk, because the fault being detected IS a
+// file on disk that nothing references. Faking it in memory would test the
+// decision and not the scan. Cleanup is registered on process exit, so an
+// unhandled throw cannot leave a stray module behind to break tsc for whoever
+// runs next.
+const SELFTEST = process.argv.includes('--selftest');
+const DECOY = join(CT_DIR_FOR_DECOY(), '__selftest-orphan.ts');
+function CT_DIR_FOR_DECOY() { return 'src/proto/ct'; }
+if (SELFTEST) {
+  process.on('exit', () => { try { if (existsSync(DECOY)) unlinkSync(DECOY); } catch { /* best effort */ } });
+  writeFileSync(DECOY, [
+    '// TEMPORARY — written by scripts/check-wiring.mjs --selftest, deleted on exit.',
+    '// If you are reading this in a commit, the selftest died badly. Delete it.',
+    'export function buildSelftestOrphan() { return null; }',
+    ''].join('\n'));
+  console.log(`selftest: wrote ${DECOY}, an orphan nothing constructs — this MUST now fail`);
+}
 
 const CT = 'src/proto/ct';
 const ROOT = 'src/proto';
@@ -128,6 +154,14 @@ if (process.argv.includes('-v')) for (const w of wired) console.log('  wired  ' 
 // script exists to stop — one level up.
 for (const [mod, why] of Object.entries(ALLOWED)) {
   console.log(`wiring: ${mod} NOT constructed, allow-listed — ${why}`);
+}
+if (SELFTEST) {
+  const caught = orphans.some((o) => o.sym === 'buildSelftestOrphan');
+  try { unlinkSync(DECOY); } catch { /* the exit hook will retry */ }
+  if (caught) { console.log('SELFTEST PASSED — the orphan was caught'); process.exit(0); }
+  console.error('SELFTEST FAILED — a module was written that nothing constructs,');
+  console.error('and this did not notice. Do not trust a clean run until that is fixed.');
+  process.exit(2);
 }
 if (!orphans.length) {
   console.log(`wiring: ${exported.length} build* exports, all constructed`
