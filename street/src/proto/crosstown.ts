@@ -24,7 +24,7 @@ import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
-import { buildApartment } from './ct/apartment';
+import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
 import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
@@ -472,7 +472,20 @@ export function makeCrosstown(): Proto {
 
   props.dimWorld(scene);
 
-  rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
+  // YOU WAKE UP IN YOUR ROOM. "also make me spawn in my room" — the coordinate
+  // is not typed here, it is `SPAWN` in ct/apartment.ts, derived from that
+  // building's own APT_X0/APT_Z0/ST0 so it follows the walk-up if it ever moves.
+  // A copy of it here would be the exact defect the checks sweep for.
+  //
+  // SET THE FLOOR FIRST. This is the whole reason `SPAWN` carries a `gy` and
+  // not just x/z/yaw: `aptGround` picks the storey nearest the LAST height and
+  // refuses to step up more than 0.6 m (ct/apartment.ts, "no stepping up half a
+  // storey"). With `lastGy` still 0, the first ground query from three storeys
+  // up finds the lobby slab, not room 301's — you would spawn at the right
+  // x/z and fall through to the ground floor. Seeding the picker means the
+  // hysteresis starts settled on the floor you are actually standing on.
+  apt.setGy(SPAWN.gy);
+  rig = new FPRig(cam, { x: SPAWN.x, z: SPAWN.z, yaw: SPAWN.yaw }, {
     // maxX reaches only as far as the interiors actually built — every room
     // is constructed by now, so this is the real east edge, not a reservation
     // The west bound is DERIVED from the sites the street opened, not typed.

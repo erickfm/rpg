@@ -135,9 +135,10 @@ published to the playable artifact.
 - **"make sure the people in the buildings are in the right orientation. (burger barn guy is facing away from you always)"** → **F**
 - **"make the library interior larger and more ambitious. more halls and stair ways"** → **E**
 - **"the atm is still not right"** → **D**
-- **"the garlands are disconnected"** → **C**
-- **"big sign should be simpler"** → **C**
 - **"verify the ledger"** → **AUDIT**
+- **"the lot's pole sign ... is carrying FOUR messages stacked ... SIMPLIFY TO ONE MESSAGE. A pole sign is read from far away and at speed; it gets the NAME and nothing else, or the name plus one short line at most. CROSSTOWN AUTO, big, legible, and stop. Drop the phone number entirely — it is already on the fence banner ... Drop USED CARS or fold it into the name as a small strapline. The arrow can stay if it points at the entrance; if it points nowhere, drop that too. Fewer, bigger, legible. And check it reads from the far side of the street"** → **C**
+  (supersedes the earlier "panel is tiny against an enormous pole / faces read as skewed" row — same fix, simpler and bigger)
+- **"the bunting/garlands in the lot are disconnected ... the pennant runs end in mid-air rather than meeting the posts they should be tied to, and the runs do not join each other. (1) EVERY RUN MUST TERMINATE ON SOMETHING ... (2) THE RUNS SHOULD CHAIN: real lot bunting is one continuous string zigzagging from post to post around the perimeter ... build it as a chain of points and draw the runs between consecutive pairs. Also let it SAG properly between supports, deeper on the longer spans, and make the sag consistent with the span length rather than a fixed droop."** → **C**
 - **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
   → **A. FIXED.** It said EAT stacked down the plate and could not be read.
   Checked GOTCHAS 10 first — a DoubleSide plane rendering mirrored from behind,
