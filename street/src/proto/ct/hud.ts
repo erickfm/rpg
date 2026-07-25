@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SHA, DIRTY, AT } from 'virtual:build-stamp';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -170,6 +171,30 @@ export function makeHud(purse: Purse): Hud {
       + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#fff;background:rgba(0,0,0,.5);'
       + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
     document.body.appendChild(promptDiv);
+  }
+  // ── the build stamp ─────────────────────────────────────────────────────
+  // Twice this project has lost work to feedback given against a stale build:
+  // a bug is reported, it was fixed twenty minutes earlier, and somebody goes
+  // hunting for it. This makes a screenshot self-dating — whoever reads it can
+  // `git show` exactly what was on screen. A trailing `+` means the tree had
+  // uncommitted edits when the bundle was served, so the sha alone will not
+  // reproduce it.
+  //
+  // Set once and never touched again: it must survive a screenshot, so it does
+  // not fade, move, or hide. Dim enough to ignore while playing, legible when
+  // you go looking for it.
+  let stampDiv = document.getElementById('ct-stamp') as HTMLDivElement | null;
+  if (!stampDiv) {
+    stampDiv = document.createElement('div');
+    stampDiv.id = 'ct-stamp';
+    stampDiv.style.cssText = 'position:fixed;right:6px;bottom:5px;z-index:12;pointer-events:none;'
+      + 'font:10px/1 ui-monospace,Menlo,monospace;color:rgba(232,226,208,.5);'
+      + 'text-shadow:0 1px 2px rgba(0,0,0,.9);letter-spacing:.5px;';
+    document.body.appendChild(stampDiv);
+  }
+  {
+    const t = new Date(AT), p2 = (n: number) => String(n).padStart(2, '0');
+    stampDiv.textContent = `${SHA}${DIRTY ? '+' : ''} ${p2(t.getHours())}:${p2(t.getMinutes())}`;
   }
 
   return {
