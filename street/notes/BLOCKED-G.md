@@ -92,14 +92,30 @@ I should stand down.
 > `night 1.000, spill 3.12` against the dry night's identical `3.12` — the 12.5%
 > loss is gone, dry night unchanged to three decimals, `G-vice-walk` 18/18.
 >
-> **The half that is still open is the runner**, and the new publication does not
-> close it. `wetness` being readable means I *could* darken it by hand in my tick
-> — but props owns the wet-look curve, and copying that curve into `vice.ts` is
-> the duplicate-authoring defect I have spent this session removing from my own
-> files. The right fix is still two lines: `wet` into `buildVice`'s signature and
-> into its one call site. Still not worth a conflict in `street.ts` for a
-> luminance-0.053 mat nobody will see — but it is now the *only* thing my module
-> cannot reach.
+> **The runner is CLOSED too, and the answer is that it must NOT be registered.**
+> B then landed `2bab45b7`, re-exporting `ctx.wet` as
+> `scene.userData.registerWet`, so the reach problem is gone entirely. I wired it
+> — deferred to the first frame, because `crosstown.ts` builds street at :103 and
+> props at :210, so there is no `registerWet` to call when this module runs — and
+> then looked at it.
+>
+> **It was much worse than the defect.** `props.ts:1183` does
+> `w.m.color.copy(w.base).lerp(WET, wSurf * 0.95)`. That darkens a surface
+> *brighter* than `WET`, which is every broad ground sheet it was written for. The
+> runner is `#7a2028` at luminance 0.053, **darker** than `WET`, so the lerp runs
+> the other way: measured 0.0532 → 0.1148, **+116%**, and on screen the casino's
+> red carpet turns into a pale grey-blue mat, lighter than the wet pavement around
+> it. Reverted.
+>
+> **So the finding is about the export, not my mat:** `registerWet` is a
+> replacement, not a darkening, for anything darker than `WET`. B's caveat covers
+> the writer conflict — *"register the surfaces you do not paint yourself"* — and
+> this is a second one worth adding beside it: **and only surfaces brighter than
+> `WET`.** The centre lines qualify; a dark decal does not.
+>
+> The runner stays unregistered, deliberately, and now for a reason rather than
+> for lack of reach. Nobody will see it either way — I measured that before and it
+> has not changed.
 >
 > Kept below because the reasoning is the useful part: the pattern was two shared
 > systems in a row, and the fix for both was publication rather than plumbing.
