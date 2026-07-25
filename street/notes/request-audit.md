@@ -688,3 +688,42 @@ ad-panel geometry exists anywhere by shape); the 301 door; facade-door alignment
 for the bodega, diner and tax service; and wetness persisting after rain. I am
 not grading any of them, and the reachability grid now exists to do the first
 one properly next.
+
+## CAR LOT — **DONE.** Walked in, office at the back, rows either side.
+
+I looked in the wrong place first and it is worth saying how. My lot-finder
+defined the lot as *"reachable ground east of the shopfronts near things shaped
+like cars"*, which located a 553 m² region at x 7.5 … 54, z −83.5 … −109 with
+three cars beside it. `shots/lot-in-east.png` shows what that actually is: **the
+side street** — centre line, kerbs, BILLIARDS, CHOP SUEY, FLOWERS, the hotel
+blade. The three cars were parked at the kerb. A heuristic that says "cars mean
+car lot" finds every street in the world.
+
+`ct/street.ts:853` places it: `placeLot(ze, 23.2)` — **23.2 m of the east
+frontage**, at the north end. Shot from inside at (10.5, 2.5):
+
+- **rows either side of a central aisle** — five cars left, five right, nosed
+  into marked bays, white bay lines on the tarmac
+- **the office at the back, dead centre** — the only structure inside the lot
+  bounds, **3.0 × 2.7 × 4.6 m at (27.6, 2.6)**, glazed front, CROSSTOWN sign
+  over the door, **a keeper standing in the doorway**, a bin beside him
+- **WE FINANCE ANYONE** in red and **CALL 555 0199** in blue above the office
+- a faded ghost sign painted across the brick back wall — *"… AUTOS · WHOLESALE
+  AND RETAIL"* — plus a lamp, price starbursts on the windscreens and a banner
+  across one car
+- brick side walls enclosing it, so it reads as a lot and not as a gap
+
+Every part of the request is there: **you walk in from the street, the office is
+at the back, and the cars are in rows either side.**
+
+## Routing note — the 12 mirrored faces are the LOT's
+
+My `handed.mjs` found 12 mirrored shopfront faces at **x = 7.18**, spanning
+z +13.23 → −8.03, canvas 64 × 20, and a mainline commit replied that they were
+not in that builder's files.
+
+**x = 7.18 is the car lot's fence line, and z +13.23 → −8.03 is 21.3 m of the
+lot's 23.2 m frontage.** They belong to `ct/lot.ts` by position. The 64 × 20
+canvas matches `pennantT` at `ct/lot.ts:227`; the only other 64 × 20 in the world
+is an awning underside in `ct/vice.ts:733`, which is horizontal, not a 2 m
+upright. Position is the strong evidence and the texture size agrees with it.

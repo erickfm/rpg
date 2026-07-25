@@ -1,88 +1,74 @@
-// The used car lot, from the street and from inside it.
+// THE CAR LOT, as a player meets it: can you walk in, is the office at the
+// back, are there rows either side. Reachability is a flood fill from spawn over
+// the collider array the movement code tests -- a warp can put you inside a
+// building, walking cannot.
 //
-// The lot is on the EAST side, so you look at it from the west: yaw is
-// atan2(dx, -dz) toward a point dx east / dz north of you. It is the loudest
-// thing on the block by design, so several of these are deliberately taken
-// from far enough away to see it against its neighbours — that contrast, and
-// the one with E's park at the other end, is the point of it.
-//
-// Usage: SHOT_URL=http://localhost:4190/ node scripts/lot.mjs [outdir]
+// Nothing here is a remembered coordinate: the lot is found as the reachable
+// region east of the shopfront line that contains cars, and the cars are found
+// by shape.
 import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1200, height: 780 } });
+await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
+await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await p.evaluate(() => window.__ct.clock(13, 0));
+await p.waitForTimeout(800);
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
-const outDir = process.argv[2] ?? 'shots/lot';
-mkdirSync(outDir, { recursive: true });
-const at = (dx, dz) => Math.atan2(dx, -dz);
+const R = await p.evaluate(() => {
+  const RAD = 0.36, S = 0.5, X0 = -60, X1 = 70, Z0 = 16, Z1 = -150;
+  const cols = window.__ct.colliders().filter(c=>c&&isFinite(c.minX)&&Math.abs(c.minX)<500);
+  const free = (x,z)=>!cols.some(c=>x>c.minX-RAD&&x<c.maxX+RAD&&z>c.minZ-RAD&&z<c.maxZ+RAD);
+  const nx=Math.round((X1-X0)/S), nz=Math.round((Z0-Z1)/S);
+  const ix=x=>Math.round((x-X0)/S), iz=z=>Math.round((Z0-z)/S);
+  const ok=new Uint8Array(nx*nz);
+  for(let i=0;i<nx;i++)for(let j=0;j<nz;j++) if(free(X0+i*S,Z0-j*S)) ok[j*nx+i]=1;
+  const q0=window.__ct.pos(); const si=ix(q0[0]), sj=iz(q0[2]);
+  const seen=new Uint8Array(nx*nz); const st=[[si,sj]]; seen[sj*nx+si]=1;
+  while(st.length){const [i,j]=st.pop();
+    for(const [di,dj] of [[1,0],[-1,0],[0,1],[0,-1]]){const a=i+di,c=j+dj;
+      if(a<0||c<0||a>=nx||c>=nz)continue; const k=c*nx+a;
+      if(ok[k]&&!seen[k]){seen[k]=1;st.push([a,c]);}}}
+  const at=(x,z)=>{const i=ix(x),j=iz(z); return (i<0||j<0||i>=nx||j>=nz)?null:!!seen[j*nx+i];};
 
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-const errors = [];
-page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
-page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(URL, { waitUntil: 'networkidle' });
-await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await page.evaluate(() => window.__ct.clock(13, 0));
-await page.waitForTimeout(700);
-
-// [name, x, z, yaw, pitch]  — all at walk height on the west side
-const SHOTS = [
-  ['01-from-across',   -4.0,  2.6, at(11.0, 0),    0.06],
-  ['02-frontage-n',    -3.0, 12.0, at(10.0, -6.0), 0.04],
-  ['03-frontage-s',    -3.0, -8.0, at(10.0, 8.0),  0.04],
-  ['04-bunting',        2.0,  2.6, at(5.0, 0),     0.34],
-  ['06-gate',           4.6,  7.4, at(2.6, -1.0),  0.02],
-  ['07-pole-sign',      3.0,  6.5, at(4.0, 1.5),   0.46],
-  ['08-banners',        5.4,  0.0, at(1.8, 2.0),   0.06],
-  ['09-in-the-gate',    7.6,  2.6, at(6.0, 0.0),  -0.02],
-  ['10-aisle-in',      10.0,  2.6, at(14.0, 0.0), -0.01],
-  ['11-aisle-half',    16.0,  2.6, at(10.0, 0.0), -0.01],
-  ['12-office-front',  22.0,  2.6, at(6.0, 0.0),   0.06],
-  ['13-office-window', 24.5,  0.4, at(2.2, 1.6),   0.04],
-  ['14-from-office',   26.0,  2.6, at(-16.0, 0.0), 0.00],
-  ['15-north-row',     14.0,  6.0, at(6.0, 3.0),   0.00],
-  ['16-south-row',     14.0, -0.8, at(6.0, -3.0),  0.00],
-  ['17-asphalt',       12.0,  2.6, at(1.2, -2.0), -0.80],
-  ['18-down-the-walk',  6.1, 16.0, at(0.2, -14.0), 0.02],
-  ['19-depth-oblique',  8.5,  8.0, at(14.0, -5.0), 0.00],
-  ['20-back-corner',   24.0,  8.6, at(-8.0, -4.0), 0.00],
-  ['22-sandwich',       7.7,  4.84, at(1.0, 0),   -0.16],
-  ['23-tyres',         12.4, 10.0, at(1.6, 1.6),  -0.16],
-  ['33-buyers-guide',  11.0,  5.2, at(2.4, 1.6),   0.00],
-  ['35-balloons',      12.0,  4.0, at(3.0, 3.0),   0.30],
-  ['39-chairs',        20.0,  4.4, at(2.0, 0.0),  -0.06],
-  ['41-tyre-seat',     27.2, 11.6, at(1.4,  0.0), -0.16],
-  ['42-flagpole',       9.0, -1.0, at(-0.6, -3.0),  0.52],
-  ['43-cones',          8.2,  2.6, at(2.0,  3.0),  -0.34],
-  ['44-weeds',         10.0, -6.0, at(1.0, -2.0),  -0.44],
-  ['45-front-corner',  -3.0, -7.0, at(11.0, 4.0),   0.12],
-  ['46-back-wall',      9.0,  2.6, at(20.0, 0.0),   0.24],
-  ['47-back-wall-mid', 17.0,  2.6, at(12.0, 0.0),   0.30],
-  ['48-ghost-close',   24.0,  2.6, at(6.0,  0.0),   0.42],
-  ['49-salesman',      23.0,  2.0, at(3.0, -0.4),  -0.02],
-  ['50-salesman-side', 25.4, -1.2, at(0.4,  1.6),  -0.02],
-  ['51-salesman-far',  10.0,  2.6, at(16.0, -1.0),  0.02],
-];
-
-for (const [name, x, z, yaw, pitch] of SHOTS) {
-  await page.evaluate(([a, b, c, d]) => window.__ct.warp(a, b, c, 0.14, d), [x, z, yaw, pitch]);
-  await page.waitForTimeout(320);
-  await page.screenshot({ path: `${outDir}/${name}.png` });
-}
-
-// and after dark, for the floodlight
-await page.evaluate(() => window.__ct.clock(22, 30));
-await page.waitForTimeout(900);
-for (const [name, x, z, yaw, pitch] of [
-  ['19-night-front', -3.0, 2.6, at(10.0, 0), 0.10],
-  ['20-night-aisle', 10.0, 2.6, at(14.0, 0), -0.01],
-  ['21-night-office', 22.0, 2.6, at(6.0, 0), 0.06],
-]) {
-  await page.evaluate(([a, b, c, d]) => window.__ct.warp(a, b, c, 0.14, d), [x, z, yaw, pitch]);
-  await page.waitForTimeout(420);
-  await page.screenshot({ path: `${outDir}/${name}.png` });
-}
-
-await browser.close();
-console.log(`lot -> ${outDir} (${SHOTS.length + 3} shots)`);
-if (errors.length) { console.error('PAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
+  // cars by shape
+  const boxes=[]; const s=window.__ct.scene(); s.updateMatrixWorld(true);
+  s.traverse(o=>{ if(!o.isMesh||!o.geometry)return;
+    for(let q=o;q;q=q.parent) if(q.visible===false) return;
+    const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox(); if(!g.boundingBox)return;
+    const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    if(bb.max.x>400)return;
+    boxes.push({x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z});});
+  const cl=(sel,gap)=>{const it=boxes.filter(sel),sn=new Array(it.length).fill(false),out=[];
+    const t=(a,c)=>a.x0-gap<c.x1&&a.x1+gap>c.x0&&a.z0-gap<c.z1&&a.z1+gap>c.z0&&a.y0-gap<c.y1&&a.y1+gap>c.y0;
+    for(let i=0;i<it.length;i++){if(sn[i])continue;const stk=[i],mem=[];sn[i]=true;
+      while(stk.length){const k=stk.pop();mem.push(it[k]);
+        for(let j=0;j<it.length;j++) if(!sn[j]&&t(it[k],it[j])){sn[j]=true;stk.push(j);}}
+      out.push({x0:Math.min(...mem.map(q=>q.x0)),x1:Math.max(...mem.map(q=>q.x1)),
+        y1:Math.max(...mem.map(q=>q.y1)),z0:Math.min(...mem.map(q=>q.z0)),z1:Math.max(...mem.map(q=>q.z1))});}
+    return out.map(c=>({...c,w:+(c.x1-c.x0).toFixed(2),d:+(c.z1-c.z0).toFixed(2),
+      cx:+((c.x0+c.x1)/2).toFixed(2),cz:+((c.z0+c.z1)/2).toFixed(2)}));};
+  const cars=cl(q=>q.y0<0.9&&q.y1<2.3&&q.y1>0.6,0.35).filter(c=>{
+    const a=Math.min(c.w,c.d),bl=Math.max(c.w,c.d);
+    return a>1.4&&a<2.8&&bl>3.2&&bl<6.2;});
+  // the lot = reachable cells within 14 m of a car that is east of the shopfronts
+  const lotCars=cars.filter(c=>c.cx>7.2);
+  const cells=[];
+  for(let i=0;i<nx;i++)for(let j=0;j<nz;j++){ if(!seen[j*nx+i])continue;
+    const x=X0+i*S,z=Z0-j*S; if(x<7.2)continue;
+    if(lotCars.some(c=>Math.abs(x-c.cx)<16&&Math.abs(z-c.cz)<16)) cells.push([x,z]); }
+  const xs=cells.map(q=>q[0]), zs=cells.map(q=>q[1]);
+  return { spawn:[q0[0],q0[2]], nCars:cars.length, lotCars,
+    lot: cells.length?{n:cells.length, areaM2:+(cells.length*S*S).toFixed(0),
+      x0:Math.min(...xs),x1:Math.max(...xs),z0:Math.max(...zs),z1:Math.min(...zs)}:{n:0},
+    beside: lotCars.map(c=>({ car:[c.cx,c.cz],
+      north: at(c.cx, c.cz+3), south: at(c.cx, c.cz-3), east: at(c.cx+3, c.cz), west: at(c.cx-3, c.cz) })) };
+});
+console.log(`${R.nCars} cars in the world; ${R.lotCars.length} east of the shopfront line`);
+for (const c of R.lotCars) console.log(`   car ${c.w}×${c.d} at (${c.cx}, ${c.cz})`);
+console.log(R.lot.n ? `\nLOT reachable on foot: ${R.lot.areaM2} m² · x ${R.lot.x0} … ${R.lot.x1} · z ${R.lot.z0} … ${R.lot.z1}`
+                    : '\nLOT: NO reachable ground near any car east of the shopfronts');
+console.log('\ncan you stand beside each car (3 m out)?');
+for (const q of R.beside) console.log(`   (${q.car.join(', ')})  N ${q.north?'y':'n'}  S ${q.south?'y':'n'}  E ${q.east?'y':'n'}  W ${q.west?'y':'n'}`);
+writeFileSync('shots/lot.json', JSON.stringify(R,null,2));
+await b.close();
