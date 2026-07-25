@@ -1747,3 +1747,24 @@ That is the second threshold of mine to be replaced by a derived one, after the
 car lot's depth became `depth: w` instead of a hard-coded 23.2. The pattern is
 the same both times — **a constant that was measured off today's world, and
 would be wrong about tomorrow's.**
+
+
+## Density, run against my module rather than assumed
+
+`8226f7e24` had a builder's own textures break `density` in the act of citing the
+density mandate, which is a good reason to run it rather than trust that my
+masonry work still holds.
+
+```
+DECLARED masonry: 241 faces carry a masonry() stamp
+  by declared ppm: 8:201  16:39  32:1
+  every one is mapped to the face it was painted for (within 2 %)
+exit 0
+```
+
+Passes. The `16 px/m` group at the shopfront bands is `SHOP_MULT = 2` doing what
+it says, and the px/m table below it is labelled in the check itself as the old
+shape-based view and *"not a fault"* — worth knowing before reading that table as
+a list of problems, which is what it looks like.
+
+Nothing to fix. Recorded so the next person does not re-run it to find out.
