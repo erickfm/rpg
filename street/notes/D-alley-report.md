@@ -1186,3 +1186,27 @@ which is worth knowing before someone "improves" those stains into decals.
 
 Negative result, recorded so nobody sweeps it twice. Box tops (kerbs, sills) are
 a different question and mostly other people's.
+
+## Verified in the world the user plays, after everything moved underneath me
+
+`B`'s `isGlass` split, my `alphaTest`, the wet alley floor and the exit-3 change
+all landed in the same stretch, so I re-checked my area against the live `:5177`
+build rather than assume they composed.
+
+```
+alleycheck 8   builtlane 5   shells 7   windowlights 5   midnight 2
+27 assertions, 0 failures, all exit 0
+```
+
+And **looked**, because assertions cover the graded state and my last two fixes
+were about appearance. The integrated night alley (`c774de0d`) has the tags sunk
+into the wall where they belong. The crates are still vividly blue against
+near-black brick — that is `props`'s remaining 50, which `midnight` counts and
+does not assert on, and it is visible confirmation that the count is describing
+something real rather than an accounting artefact.
+
+One caution for anyone doing this: `alley.mjs` writes to `shots/`, so running it
+against `:5177` **overwrites your worktree's frames with the integration
+world's**. They are gitignored, so nothing is committed, but a shot you then
+compare against is somebody else's build. Re-ran against my own port afterwards
+to put them back.
