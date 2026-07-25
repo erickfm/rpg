@@ -27,53 +27,50 @@ owner's call, not mine. Stays routed, off my list.
 
 ---
 
-# ROUTED: three scripts can exit 0 having checked nothing
+# ROUTED (corrected): TWO scripts can exit 0 having checked nothing
 
-**To lamplight's, parking's and truck's owners** (`ec94ed4c1`, `f0f4792da`,
-`9b2e89507`). Two lines each; I cannot make them myself — OWNERSHIP says do not
-edit another agent's script.
+I first wrote this for three and one was wrong. Corrected before anyone acted on
+it — the fix below is now derived from each script's actual dispatch, not from a
+template.
 
-I mistyped my own: `node scripts/bus.mjs --walk`, the flag form most of this
-suite takes, instead of the bare `walk` it wants. It ran one second, printed
-"no page errors", and **exited 0**. No branch had run. The dispatch is
-
-```js
-const mode = process.argv[2] ?? 'all';
-if (mode === 'walk' || mode === 'all') { ...the entire check... }
-```
-
-and an unrecognised mode matches nothing, falls off the end of the file and
-reaches the exit with nothing failed, because nothing was ever asked. Five of
-mine did it — bus, trash, glow, wetness, basin — and all five are fixed. Yours
-still do:
-
-```
-FAIL lamplight.mjs   exit 0 on --no-such-mode
-FAIL parking.mjs     exit 0 on --no-such-mode
-FAIL truck.mjs       exit 0 on --no-such-mode
-```
-
-The fix is `scripts/lib/modes.mjs`, which is new and shared:
+**`lamplight.mjs`** — modes `shots`, `probe`, `all`; default `all`:
 
 ```js
 import { modes } from './lib/modes.mjs';
-const mode = modes('truck', ['probe', 'shots', 'all']);   // every mode you dispatch on
+const mode = modes('lamplight', ['shots', 'probe', 'all']);
 ```
 
-It exits 2 — "you asked me wrong", as distinct from 1, "the world is wrong" —
-before `chromium.launch()`, so it costs nothing.
+**`parking.mjs`** — modes `dist`, `probe`, `shots`, `all`, and its default is
+`probe`, NOT `all`, so it needs the third argument or you will change its
+no-argument behaviour:
 
-`scripts/no-silent-pass.mjs` now guards this and is registered in checks.mjs. It
-is **red until these three land**, which is the point of it; it finds its
-suspects by grepping source for a mode dispatch, so it will cover the next
-script with a mode word without anybody remembering to add it.
+```js
+import { modes } from './lib/modes.mjs';
+const mode = modes('parking', ['dist', 'probe', 'shots', 'all'], 'probe');
+```
 
-Worth saying plainly: **canfail cannot catch this class at all.** It mutates
-source and requires the check to go red, but it invokes each check with the same
-correct arguments checks.mjs does, so the bad-mode path is never taken. Every
-guard I have written about proving a check CAN fail was aimed at the mutation.
-This one is only reachable by hand, which is exactly when nobody is reading the
-exit code.
+**`truck.mjs` — WITHDRAWN, my error.** It has zero occurrences of
+`process.exit`/`process.exitCode` in 78 lines: its shots run unconditionally and
+only a `fleet` block is gated at all. It is a photo tool, not a check. It makes
+no claim, so it cannot make one falsely, and I nearly cost its owner a round
+fixing a non-problem. `no-silent-pass.mjs` now requires a script to have a
+verdict to lose before it will flag it.
+
+## What that near-miss changed about the check
+
+Two false readings in one sitting, both caught before landing:
+
+1. **False positive** — flagging a script with no verdicts. Fixed by requiring
+   `process.exit`/`process.exitCode` in the source.
+2. **False negative, and the more dangerous one** — `lamplight.mjs` exited 0 on
+   one run and 3 on the next, unchanged, because HEAD had moved and reportWorld
+   refused the stale build. Exit 3 is GOTCHAS 32, "the check never ran", and
+   counting it as "refused the bad mode" would have hidden a real offender
+   behind a stale `dist/`. It is now reported as `??  cannot tell` and fails the
+   run, because a check that could not do its job must not report green.
+
+Worth stating plainly: the first version of this check would have quietly gone
+green the moment somebody forgot to rebuild.
 
 ---
 
