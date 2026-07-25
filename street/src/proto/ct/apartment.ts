@@ -492,9 +492,27 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const railCap2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.09), railM);
     railCap2.position.set(AX(0.6), TOP_Y + RAIL_H, AZI(NIB_Z1));
     scene.add(railCap2);
-    const railLow = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.06), railM);
-    railLow.position.set(AX(0.6), TOP_Y + RAIL_H * 0.5, AZI(NIB_Z1));
-    scene.add(railLow);
+    // BALUSTERS, not a single mid-rail. Report finding 7: the cap was right —
+    // 1.0 m, continuous, meeting the core — but under it was one rail at half
+    // height and then 0.50 m of clear air down to the landing. Nothing a
+    // player can fall through, and that is exactly why it looked wrong rather
+    // than felt wrong: it is the one place in the building that reads
+    // under-BUILT instead of old, and a walk-up stair from this period is the
+    // last thing that would be.
+    //
+    // Pitch is 0.115 with a 0.035 stick, so the clear gap is 0.08 — under the
+    // hand's-breadth a balustrade is actually built to, which is the number
+    // that makes a run of sticks look considered rather than decorative.
+    const botRail = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.045, 0.055), railM);
+    botRail.position.set(AX(0.6), TOP_Y + 0.075, AZI(NIB_Z1));
+    scene.add(botRail);
+    const BAL_H = RAIL_H - 0.135;
+    for (let bx = 0.155; bx <= 1.05; bx += 0.115) {
+      const bal = new THREE.Mesh(new THREE.BoxGeometry(0.035, BAL_H, 0.035), railM);
+      bal.position.set(AX(bx), TOP_Y + 0.075 + BAL_H / 2 + 0.0225, AZI(NIB_Z1));
+      scene.add(bal);
+    }
+    // the newels last, so they read as heavier than what they carry
     for (const lx of [0.08, 0.6, 1.12]) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, RAIL_H, 0.07), railM);
       post.position.set(AX(lx), TOP_Y + RAIL_H / 2, AZI(NIB_Z1));

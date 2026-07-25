@@ -35,6 +35,9 @@ const SH = [
   ['15-radiator',   197.9, -16.4, at(-0.9, 0.2), -0.34, 5.4],
   ['16-drawer',     198.7, -17.2, at(-1.3, -0.5), -0.36, 5.4],
   ['17-radiator-ft',198.3, -16.4, at(-1.2, 0.1), -0.52, 5.4],
+  // the top landing guard: floor 3, east half of the shaft
+  ['18-top-guard',  201.6, -12.4, at(-1.0,  2.0), -0.16, 8.1],
+  ['19-top-guard-2',200.6, -12.0, at(0.0,   1.6), -0.22, 8.1],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);
