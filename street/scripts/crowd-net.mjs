@@ -34,6 +34,7 @@ const t = await page.evaluate(async (SECONDS) => {
   const out = {
     samples: 0, onSide: 0, offKerb: 0, jaywalk: [], inProp: [], overlap: [],
     moving: [], maxTravel: [], minTravel: [], seen: [],
+    roadT: [], roadWorst: [], stillT: [], stillWorst: [], prevPos: [],
   };
   const start = window.__ct.walkers().map((w) => ({ ...w }));
   const far = start.map(() => 0);
@@ -72,6 +73,23 @@ const t = await page.evaluate(async (SECONDS) => {
       const d = Math.hypot(p.x - start[i].x, p.z - start[i].z);
       if (d > far[i]) far[i] = d;
     });
+    // ── nobody FROZEN, and nobody lingering in the road ──────────────────
+    // Two citizens stuck on the carriageway either side of a parked car is the
+    // bug this watches for, and it is a MOTION bug: a still frame cannot tell a
+    // walker who has stopped for a beat from one that will never move again.
+    for (let i = 0; i < w.length; i++) {
+      const p = w[i];
+      const inRoad = (Math.abs(p.x) < 5 && p.z > -98)
+        || (p.z < -98 && p.z > -108 && p.x > -5 && p.x < 55);
+      const onCross = Math.abs(p.z + 97) < 1.2 || (p.x > 5.4 && p.x < 10.4);
+      out.roadT[i] = inRoad && !onCross ? (out.roadT[i] ?? 0) + 0.1 : 0;
+      out.roadWorst[i] = Math.max(out.roadWorst[i] ?? 0, out.roadT[i]);
+      const moved = out.prevPos[i]
+        ? Math.hypot(p.x - out.prevPos[i][0], p.z - out.prevPos[i][1]) : 1;
+      out.stillT[i] = moved < 0.004 ? (out.stillT[i] ?? 0) + 0.1 : 0;
+      out.stillWorst[i] = Math.max(out.stillWorst[i] ?? 0, out.stillT[i]);
+      out.prevPos[i] = [p.x, p.z];
+    }
     // nobody standing in a prop, nobody standing in anybody
     for (let i = 0; i < w.length; i++) {
       for (let j = i + 1; j < w.length; j++) {
@@ -121,6 +139,19 @@ const kinds = Object.keys(tally).filter((k) => k !== 'walking');
 check(stoppedShare > 0.04 && kinds.length >= 3,
   `varied errands — ${(stoppedShare * 100).toFixed(0)}% of person-samples stopped, ` +
   `doing: ${Object.entries(tally).map(([k, n]) => `${k} ${n}`).join(', ')}`);
+// A walker OFF a crossing and in the roadway is either an avoidance bug that
+// shoved it off the kerb or a graph fault. Either way it must not persist: the
+// unstick pass has PATIENCE 1.2 s and then puts it back on a node, so anything
+// past a few seconds means recovery is not working.
+check(Math.max(...t.roadWorst, 0) < 4,
+  `nobody lingered in the roadway off a crossing — worst ${Math.max(...t.roadWorst, 0).toFixed(1)} s ` +
+  `(${t.roadWorst.map((v) => v.toFixed(1)).join(', ')})`);
+// And nobody FROZEN. The longest legitimate stand is a bench wait, up to 25 s,
+// so this only fires on something that has stopped and is never coming back —
+// but a bench sitter does not count as frozen, so allow it generously and rely
+// on the roadway check above for the case that actually hurt.
+check(Math.max(...t.stillWorst, 0) < 30,
+  `nobody froze — longest anybody stood still was ${Math.max(...t.stillWorst, 0).toFixed(1)} s`);
 check(t.maxTravel.every((d) => d > 8),
   `everybody got somewhere — furthest each moved from where they started: ${t.maxTravel.join(', ')} m`);
 

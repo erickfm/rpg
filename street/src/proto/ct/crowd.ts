@@ -96,6 +96,9 @@ interface Citizen {
   /** the smoothed heading the sprite is drawn from, and the view sector it is
    *  holding — both exist to stop a walker twitching, see the frame hook */
   head: number; sector: number;
+  /** the last position known to be legal, and how long we have been illegal —
+   *  the crowd's half of what ct/fp.ts does for the player rig */
+  good: { x: number; z: number }; stuckT: number;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -152,6 +155,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       cad: 5 * Math.sqrt(p.sp) / p.hs,   // cadence: long legs swing slower
       route: [], at: -1, wait: 0, doing: 'none', jam: 0, bias: 0, vx: 0, vz: 0,
       was: -1, back: -1, id: i, pick: 0, head: i % 2 ? 0 : Math.PI, sector: -1,
+      good: { x: lane, z }, stuckT: 0,
     });
   });
 
@@ -167,6 +171,66 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
    *  after 0.8 s, which is walking through somebody politely. */
   const clearOfPeople = (x: number, z: number, self: Citizen) =>
     !citizens.some((q) => q !== self && !q.ghost && Math.hypot(q.lane - x, q.z - z) < 0.46);
+
+  // ── being somewhere illegal, and leaving ────────────────────────────────
+  //
+  // The sim could only ever REFUSE motion: every candidate position was tested
+  // and a blocked walker simply stood. That is fine until it is standing
+  // somewhere it should not be, and then nothing recovers it — which is the pair
+  // frozen on the carriageway either side of a parked car.
+  //
+  // ct/fp.ts solved exactly this for the player rig, so this is that solution
+  // with the crowd's own numbers rather than a second invention: the minimum
+  // translation out of a box (the smallest of the four axis escapes, which for an
+  // AABB is the shortest way out), eased rather than snapped so a walker resting
+  // legally against a wall is never shoved, and a last-known-good fallback when
+  // the push keeps cancelling.
+  const CIT_R = 0.28;          // the same footprint clearAt tests with
+  const UNSTICK = 1.4;         // m/s — walk out, do not teleport
+  const PATIENCE = 1.2;        // s of getting nowhere before falling back
+  const escapeFrom = (c: AABB, x: number, z: number) => {
+    const left = x - (c.minX - CIT_R);
+    const right = (c.maxX + CIT_R) - x;
+    const back = z - (c.minZ - CIT_R);
+    const front = (c.maxZ + CIT_R) - z;
+    if (left <= 0 || right <= 0 || back <= 0 || front <= 0) return null;   // outside
+    const d = Math.min(left, right, back, front);
+    if (d === left) return { dx: -left, dz: 0 };
+    if (d === right) return { dx: right, dz: 0 };
+    if (d === back) return { dx: 0, dz: -back };
+    return { dx: 0, dz: front };
+  };
+  /** push a citizen out of anything it is inside, and if that gets nowhere put it
+   *  back on the last node it legally stood on */
+  const unstick = (c: Citizen, dt: number) => {
+    let px = 0, pz = 0;
+    for (const b of o.citAvoid) {
+      const e = escapeFrom(b, c.lane, c.z);
+      if (e) { px += e.dx; pz += e.dz; }
+    }
+    if (px === 0 && pz === 0) {                 // legal: remember it
+      c.good.x = c.lane; c.good.z = c.z;
+      c.stuckT = 0;
+      return;
+    }
+    c.stuckT += dt;
+    const len = Math.hypot(px, pz);
+    if (len > 1e-6) {
+      const step = Math.min(len, UNSTICK * dt);
+      c.lane += (px / len) * step;
+      c.z += (pz / len) * step;
+    }
+    if (c.stuckT > PATIENCE) {
+      // Back to the last node we know is legal — a node, not just the last
+      // position, because a walker shoved off the kerb wants to be back ON the
+      // pavement network, not a metre further along the gutter.
+      const home = c.at >= 0 ? net.nodes[c.at] : null;
+      const to = home && !o.citAvoid.some((b) => escapeFrom(b, home.x, home.z))
+        ? { x: home.x, z: home.z } : c.good;
+      c.lane = to.x; c.z = to.z;
+      c.route = []; c.pick = 0; c.stuckT = 0;   // and re-plan from there
+    }
+  };
 
   // ── having somewhere to be ──────────────────────────────────────────────
   //
@@ -357,6 +421,9 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
           else if (net.nodes[c.at].act && rnd() < 0.35) arrive(c);
         }
       }
+      // resolve an illegal position rather than merely refusing to move into
+      // one — never leave a walker standing somewhere it should not be
+      unstick(c, dt);
       c.vx = vx; c.vz = vz;
       if (c.ghost) {
         c.box.minX = c.box.maxX = 1e5; c.box.minZ = c.box.maxZ = 1e5; // slip past you
