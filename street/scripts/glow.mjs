@@ -33,37 +33,22 @@ if (mode === 'probe' || mode === 'all') {
   // where is the halo relative to the head it belongs to?
   const r = await page.evaluate(() => {
     const sc = window.__ct.scene();
+    // FOUND BY STAMP, not by box dimensions.
+    //
+    // This matched heads and lenses by exact size, and it broke twice for the
+    // same reason. First it knew only the main street's shape and silently
+    // checked 8 of 11 lamps. Then, once the world grew, a sheet belonging to
+    // another module happened to sit within 0.5 m of a head-and-lens pair and
+    // got adopted as a 22nd lamp — and mis-measured, because it was never one.
+    // There are 50 halo-shaped additive sheets in this world now and only 21
+    // are lamps; size cannot tell them apart and was never going to.
     const halos = [], heads = [], lenses = [];
     sc.traverse((o) => {
-      if (!o.isMesh) return;
-      const m = o.material;
-      if (m?.map?.image?.width === 32 && m?.blending === 2 && m.transparent) halos.push(o);
-      const g = o.geometry?.parameters;
-      if (!g) return;
-      // Heads and lenses come in TWO orientations now: the main street's crook
-      // reaches along x, the side street's along z, so the boxes swap their
-      // width and depth. Matching only the first shape silently checked 8 of
-      // the 11 lamps and reported a clean pass — a check that covers part of
-      // the fleet and says nothing about the rest is worse than no check.
-      const head = (Math.abs(g.width - 0.34) < 1e-6 && Math.abs(g.depth - 0.32) < 1e-6) ||
-                   (Math.abs(g.width - 0.32) < 1e-6 && Math.abs(g.depth - 0.34) < 1e-6);
-      const lens = (Math.abs(g.width - 0.26) < 1e-6 && Math.abs(g.depth - 0.24) < 1e-6) ||
-                   (Math.abs(g.width - 0.24) < 1e-6 && Math.abs(g.depth - 0.26) < 1e-6);
-      if (head && Math.abs(g.height - 0.26) < 1e-6) heads.push(o);
-      if (lens && Math.abs(g.height - 0.08) < 1e-6) lenses.push(o);
-      // PARK LANTERNS. A post-top lantern is a different shape from a street
-      // head — 0.30 cube body, 0.22 cube lens — so the street matchers above
-      // skip it entirely. Adding ten lamps to the world and having the lamp
-      // check quietly stay at eleven is the same failure this script already
-      // had once with the side street: partial coverage that reads as a pass.
-      if (Math.abs(g.width - 0.24) < 1e-6 && Math.abs(g.height - 0.06) < 1e-6 &&
-          Math.abs(g.depth - 0.24) < 1e-6) heads.push(o);          // lantern collar
-      if (Math.abs(g.width - 0.22) < 1e-6 && Math.abs(g.height - 0.24) < 1e-6 &&
-          Math.abs(g.depth - 0.22) < 1e-6) lenses.push(o);          // lantern glass
+      const k = o.userData?.lampPart;
+      if (k === 'halo') halos.push(o);
+      else if (k === 'head') heads.push(o);
+      else if (k === 'lens') lenses.push(o);
     });
-    // pair a halo with the head/lens it actually belongs to — same pole, so
-    // within half a metre in x/z. Anything unpaired is not a streetlamp (the
-    // interiors have their own glow sheets at the same texture size).
     const near = (a, list) => list
       .filter((c) => Math.hypot(c.position.x - a.position.x, c.position.z - a.position.z) < 0.5)
       .sort((p, q) => Math.abs(p.position.y - a.position.y) - Math.abs(q.position.y - a.position.y))[0];
@@ -75,17 +60,27 @@ if (mode === 'probe' || mode === 'all') {
         haloY: +h.position.y.toFixed(3),
         dx: +(h.position.x - hd.position.x).toFixed(3),
         dz: +(h.position.z - hd.position.z).toFixed(3),
-        // is the halo centre inside the opaque head box? that is what ate it
         insideHead: h.position.y > hd.position.y - g.height / 2 &&
                     h.position.y < hd.position.y + g.height / 2,
         offLens: +(h.position.y - ln.position.y).toFixed(3),
       };
     }).filter(Boolean);
   });
-  console.log(`\n${r.length} lamp halos (street heads and park lanterns)`);
+  const halosSeen = await page.evaluate(() => {
+    let n = 0; window.__ct.scene().traverse((o) => { if (o.userData?.lampPart === 'halo') n++; });
+    return n;
+  });
+  console.log(`\n${r.length} lamps paired of ${halosSeen} stamped halos (street heads and park lanterns)`);
   const bad = r.filter((h) => h.insideHead || Math.abs(h.dx) > 0.01 || Math.abs(h.dz) > 0.01);
-  // 11 street lamps (6 main + 2 corner + 3 side street) and 10 park lanterns
-  if (r.length !== 21) { console.error(`\n  FAIL expected 21 lamps, paired ${r.length}`); process.exitCode = 1; }
+  // Every stamped halo must pair. The count is reported rather than asserted:
+  // how many lamps this world has is a design decision that changes, and a
+  // check that fails when someone adds a lamp is a check that gets ignored.
+  // What must hold is that every lamp I build is anchored — which is what the
+  // stamp makes answerable.
+  if (r.length !== halosSeen) {
+    console.error(`\n  FAIL ${halosSeen - r.length} stamped halo(s) could not be paired with a head and lens`);
+    process.exitCode = 1;
+  }
   const offLens = [...new Set(r.map((h) => h.offLens))];
   console.log(`  halo is directly over its head in x/z: ${r.every((h) => !h.dx && !h.dz) ? 'yes' : 'NO'}`);
   console.log(`  halo centre buried inside the opaque head box: ${r.some((h) => h.insideHead) ? 'YES — it will be eaten' : 'no'}`);

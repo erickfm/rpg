@@ -737,10 +737,12 @@ export function buildProps(ctx: CtxBuild): Props {
     const head = new THREE.Mesh(
       dx !== 0 ? new THREE.BoxGeometry(0.34, 0.26, 0.32)
                : new THREE.BoxGeometry(0.32, 0.26, 0.34), poleHi);
+    head.userData.lampPart = 'head';
     head.position.set(headX, sidewalkY + LAMP_H - 0.16, headZ); scene.add(head);
     const lens = new THREE.Mesh(
       dx !== 0 ? new THREE.BoxGeometry(0.26, 0.08, 0.24)
                : new THREE.BoxGeometry(0.24, 0.08, 0.26), lensM);
+    lens.userData.lampPart = 'lens';
     lens.position.set(headX, sidewalkY + LAMP_H - 0.31, headZ); scene.add(lens);
     obstacle({ minX: bx - 0.2, maxX: bx + 0.2, minZ: bz - 0.2, maxZ: bz + 0.2 });
     const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.7),
@@ -759,6 +761,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // (centre -0.31, spanning -0.35 … -0.27). Centre the halo there and the
     // core sits on the glowing lens with nothing in front of it, so the light
     // reads as coming out of the lamp. 9 cm, no redraw.
+    halo.userData.lampPart = 'halo';
     halo.position.set(headX, sidewalkY + LAMP_H - 0.31, headZ);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
@@ -829,6 +832,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // A park lantern is a collar, a glazed box, and a cap over it. Nothing
     // stands in front of the glass.
     const collar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.06, 0.24), poleHi);
+    collar.userData.lampPart = 'head';
     collar.position.set(x, y0 + PARK_LAMP_H + 0.03, z); scene.add(collar);
     const lens = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.22), lensM);
     // TAGGED, not left to be recognised by its dimensions. scripts/park.mjs
@@ -837,6 +841,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // that has ten. That is the third time a check keyed to exact geometry has
     // stopped seeing the thing it checks, so this one is keyed to a name.
     lens.userData.parkLantern = true;
+    lens.userData.lampPart = 'lens';
     lens.position.set(x, y0 + PARK_LAMP_H + 0.20, z); scene.add(lens);
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.07, 0.36), poleM);
     cap.position.set(x, y0 + PARK_LAMP_H + 0.37, z); scene.add(cap);
@@ -847,6 +852,7 @@ export function buildProps(ctx: CtxBuild): Props {
         depthWrite: false, blending: THREE.AdditiveBlending }));
     // on the glass, which is now the thing that is actually lit and has
     // nothing in front of it
+    halo.userData.lampPart = 'halo';
     halo.position.set(x, y0 + PARK_LAMP_H + 0.20, z);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
@@ -938,7 +944,28 @@ export function buildProps(ctx: CtxBuild): Props {
   // own side. The walk past each is the same 0.5 m the main street gets,
   // because the offsets are the same offsets.
   const SIDE_Z0 = -98, SIDE_Z1 = -108;   // as declared in crosstown.ts
-  for (const [lx, side] of [[20, 1], [34, -1], [50, 1]] as [number, 1 | -1][]) {
+  // KEEP OFF THE DOOR LINES. Builder F traced a walk that stopped 1.86 m short
+  // of the casino door to a 0.4 m post at (50.0, -97.65) — which is this lamp,
+  // and F attributed it to "H or D" because street furniture is usually
+  // theirs. It is mine.
+  //
+  // The pinch is not the lamp being misplaced: the north side-street walk is
+  // 1.70 m of clear space (kerb -98 to shopfront collider -96.30), so a lamp
+  // 0.35 m off the kerb leaves 1.15 m — exactly what every main-street lamp
+  // leaves after the lane audit, and the standard this world now runs to.
+  // 1.15 m is fine to WALK past. It is not fine to stand in front of a DOOR
+  // in, where you have to stop, turn and press a key: 0.43 m of standing room
+  // once a 0.72 m player is subtracted.
+  //
+  // So the lamp moves off the door's line rather than the offset changing. The
+  // two doors on this walk are the hotel at x 39.51 and the casino at 51.29
+  // (ct/int-hotel.ts and ct/int-casino.ts declare them), and x = 45 is the
+  // clear middle — 5.5 m from one and 6.3 m from the other. It costs the
+  // eastward thinning its last step, 14 then 11 instead of 14 then 16, which
+  // is a spacing preference losing to a doorway. That is the right way round.
+  const SIDE_DOORS = [39.51, 51.29];
+  for (const [lx, side] of [[20, 1], [34, -1], [45, 1]] as [number, 1 | -1][]) {
+    if (side > 0 && SIDE_DOORS.some((d) => Math.abs(d - lx) < 3)) continue;
     // side +1 is the NORTH kerb at SIDE_Z0, and the pole stands 0.55 m out on
     // the walk with the crook reaching south over the road; -1 mirrors it.
     // same offset as the main street's, and for the same reason — three of the
