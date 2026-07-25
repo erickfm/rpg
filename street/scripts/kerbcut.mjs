@@ -78,7 +78,16 @@ console.log(`  ${full ? 'OK  ' : 'FAIL'} full reveal returns outside the flares 
 if (!full) process.exitCode = 1;
 let steps = 0;
 for (let i = 1; i < prof.length; i++) if (Math.abs(prof[i][1] - prof[i - 1][1]) > 0.05) steps++;
-console.log(`  ${steps === 0 ? 'OK  ' : 'FAIL'} it RAMPS rather than stepping (${steps} jumps > 5 cm)`);
+// "0 jumps > 5 cm" is also what an EMPTY profile reports, and this printed OK
+// for one. The exit code was still correct — the two verdicts above it fail on
+// `undefined` and the down-kerb search fails explicitly — so nothing was ever
+// wrongly green. But the LINE was wrong, and a line in a log gets quoted on its
+// own, away from the exit code that contradicts it. Watched by pointing the
+// sampler at x=500 where there is no geometry: 0 samples, two FAILs, and this
+// cheerfully OK underneath them.
+console.log(`  ${prof.length && steps === 0 ? 'OK  ' : 'FAIL'} it RAMPS rather than stepping`
+  + ` (${steps} jumps > 5 cm over ${prof.length} samples)`);
+if (!prof.length) process.exitCode = 1;
 
 // IS THE CUT WHERE THE SCRIPT WAS TOLD IT IS? Measure it: the down-kerb run is
 // every bin whose face top is below half the full reveal. Its centre and half
