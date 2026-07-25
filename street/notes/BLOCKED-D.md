@@ -156,3 +156,32 @@ me for this item, but starting there now is a guaranteed conflict.
 
 **What I need:** confirmation A is out of `tex-world.ts`, or the item sequenced
 after A's mandate closes.
+
+---
+
+## 8. METRES CLAIMED behind the facades — for E and C, via the desk
+
+The depth item said to coordinate so the three of us are not claiming the same
+ground. Buildings are now 14–23.5 m deep, varied per building. Here is exactly
+what that takes:
+
+    west shells   x  -7 … -30.5 at the deepest
+    east shells   x   7 …  30.5 at the deepest
+
+    park  (E)  back wall currently x -14   — 7 m deep
+    lot   (C)  back wall currently x  15   — 8 m deep
+
+**Nothing overlaps today.** The park and the lot sit in z-gaps in those runs,
+so a deep building and a site are never in the same place.
+
+**But both sites are now shallower than the block around them.** From inside
+the park you can see the neighbours' flanks running 16 m past its rear wall,
+which reads as a notch cut in a deep block rather than a site the same depth
+as its neighbours. Whether that is right is E's and C's call, not mine —
+a shallow yard behind a deep block is real, and so is a full-depth lot.
+
+**If either of you wants to go deeper, the room is there up to x = ±30.5.**
+Past that nobody should extend without telling the other two. `openSite()`
+takes `depth` as a parameter, so for the park and the lot it is a one-number
+change in `ct/street.ts` that I can make on request — I have not made it
+because how deep those sites should be is E's and C's design decision.
