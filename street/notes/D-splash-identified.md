@@ -55,3 +55,45 @@ Either way it moves eight faces out of UNJUDGEABLE, and the question stops
 coming back.
 
 **Not touching `ct/props.ts`.** Routed through the desk.
+
+---
+
+# Same again: the 8.57 px/m ground family is the lamp POOL
+
+`c9a16d97` cleaned the list to **18 faces actually missing**. Five of them are
+the wall-splash above. Five more are its partner:
+
+    8.57 px/m, 5.6 x 5.6 m ground patches at
+    (±4.1, 0, -23) (±4.1, 0, -51) (20, 0, -98.9) (45, 0, -98.9) (34, 0, -107.1)
+
+That is `ct/props.ts:742`, `lampPoolT` — a 48 x 48 radial gradient laid flat on
+the pavement under each lamp head (`ct/props.ts:819`, `pool.rotation.x = -π/2`,
+`position.set(headX, 0.02, headZ)`).
+
+Identical reasoning to the splash: three colour stops, additive, flat on the
+ground, one per lamp. Not masonry, no module to agree with the paving about.
+8.57 px/m is 48 texels over the 5.6 m a pool of light happens to be.
+
+**So ten of the eighteen are the same object — a street lamp — seen twice**,
+once on the wall and once on the floor. Two `declareSurface` calls in
+`ct/props.ts` close more than half the remaining list:
+
+```ts
+declareSurface(wallSplashT, 'detail')
+declareSurface(lampPoolT,   'detail')
+```
+
+Both are B's line. Still not touching `ct/props.ts`.
+
+## What the other eight look like, unverified
+
+Recorded so nobody re-derives it, and flagged as **inference, not lookup** —
+the distinction that has cost this session twice:
+
+- `31.88x32 px/m at (-8.6, 0.1, -13)` — ground, inside the west building line
+  at the library. Reads as `ct/civic.ts` courtyard paving.
+- `8x8 px/m at (11.2, 13, -70.5)` and `(11.3, 8.5, -79.5)` — x ≈ 11, high up,
+  on the church. Reads as `ct/civic.ts`.
+
+Both E's if so. I have not queried either, and after this session's record I am
+not calling them without doing so.
