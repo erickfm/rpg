@@ -1,6 +1,7 @@
 // Are the interior figures BILLBOARDS? If their yaw follows the camera, then
 // mesh rotation says nothing about which way a keeper is authored to face.
 import { chromium } from 'playwright';
+import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage();
 await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
@@ -21,8 +22,7 @@ const read = () => p.evaluate(() => {
 const before = await read();
 // stand somewhere else entirely inside a room and look the other way
 await p.evaluate(()=>window.__ct.warp(760, 3.0, 1.6, 0, 0));
-await p.waitForTimeout(1200);
-await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
+await afterFrames(p);   // GOTCHAS 30 via lib/frames.mjs
 const after = await read();
 console.log(' room x    yaw @cam A   yaw @cam B   moved?');
 for(let i=0;i<before.length;i++){

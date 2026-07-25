@@ -1868,3 +1868,43 @@ does not run.
 > The control stays as a backstop. **Removing a gamble and keeping the detector
 > that catches it are not alternatives** — the wait can still cap on a loaded
 > machine, and `setClock` says so.
+
+## The shared warp helper fixed a staleness my own wait did not
+
+`16b730f29` published `lib/frames.mjs`'s `afterFrames(page, n=2)` — wait for
+rendered frames after a warp, not for a fixed 150 ms. **Its header cites my
+error as the motivating case**: *"a probe that warped and read without yielding
+decoded the sector from wherever it had been standing before — reported as a
+keeper facing the wrong way, in a room that was fine."*
+
+I had already fixed mine, with a hand-rolled `waitForTimeout(450)` plus a double
+`requestAnimationFrame`. **Switching to the shared helper changed the answer, and
+the new one is coherent where mine was not:**
+
+```
+  bearing   landed?  frame          bearing   landed?  frame
+      0°      yes    0.800              180°     yes    0.000
+     45°      yes    0.600              225°     yes    0.400M
+     90°      yes    0.400              270°     yes    0.600M
+    135°      yes    0.200              315°     yes    0.800M
+```
+
+**A textbook 8-direction sprite** — columns walk 4→3→2→1→0 as you come round to
+the front, then mirror back out. My own version reported `0.000` at **bearing 0°**
+and lost 180° to a slide. Two things improved:
+
+- **All eight bearings land.** The slide is gone because the position is now read
+  after the frame that actually applied the warp, not 450 ms after asking for it.
+- **The cycle is monotonic**, which it was not before — so my hand-rolled wait was
+  still returning a shifted frame at some bearings even with an explicit rAF.
+
+**And it confirms the authored facing.** Column 0 is the front, and it appears at
+bearing 180° — the keeper faces **−x**, toward the room centre. `int-bodega.ts`
+authors **−π/2**, which is exactly −x. My `keepersector` reading of sector 2
+agreed; now the circle agrees too, by a different route.
+
+> I fixed this bug in my own file and **still had it**. The shared helper waits
+> for the render loop; mine waited 450 ms and then asked for two frames, which is
+> not the same thing when the frame that applies the warp has not run yet.
+> **Writing your own version of a shared primitive is how you keep a bug you have
+> already fixed.**

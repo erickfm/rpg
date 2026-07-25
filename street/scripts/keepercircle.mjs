@@ -4,6 +4,7 @@
 // the landing tolerance is 0.25 m rather than 0.6 -- a slide smaller than the
 // old tolerance is exactly what a wall-adjacent sample does.
 import { chromium } from 'playwright';
+import { afterFrames } from './lib/frames.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4184/';
 const ROOM = process.env.ROOM ?? 'bodega';
@@ -33,8 +34,7 @@ for (let i=0;i<8;i++){
   const a = i*Math.PI/4;
   const cx = k.x + Math.cos(a)*R, cz = k.z + Math.sin(a)*R;
   await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,0,0), [cx,cz]);
-  await p.waitForTimeout(450);
-  await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
+  await afterFrames(p);   // GOTCHAS 30 via lib/frames.mjs — two rendered frames, then read
   const at = await p.evaluate(()=>window.__ct.pos());
   const off = Math.hypot(at[0]-cx, at[2]-cz);
   const fr = await p.evaluate(([kx,kz])=>{
