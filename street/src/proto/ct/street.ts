@@ -415,13 +415,72 @@ export function buildStreet(o: {
     // masonry() phases its courses off world Y, so they run level with the
     // brick on the street elevation either side instead of starting again —
     // which is the difference between a party wall and the raw end of a shell.
-    const wallTex = (wM: number, hM: number, brick: string, streaks: number) => {
+    // A party wall is not a wall somebody built. It is the side of a building
+    // that used to have another building against it, and everything on it is
+    // evidence of the one that went: the stepped scar where its roof ran, the
+    // chimney breasts that were shared, the windows bricked up when they
+    // stopped facing a room and started facing the street.
+    //
+    // This mattered much less when these sites were 7 and 8 m deep. At 32 m
+    // and 23 m a blank flank is most of what you see from inside, and 32 m of
+    // unmarked brick reads as a prison yard rather than as a hole in a block.
+    //
+    // `mark` is a deterministic hash off the site so the two flanks of one
+    // site do not wear identical scars.
+    const wallTex = (wM: number, hM: number, brick: string, salt: number) => {
       const ms = masonry(wM, hM, 0);
+      let h = (0x811c9dc5 ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+      const mark = (n: number) => {
+        h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+        return (h >>> 9) % n;
+      };
       return ms.paint((g) => {
         g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
         ms.courses(g);
+        // THE SCAR. The demolished neighbour's roofline, stepped down the
+        // wall — brick that spent decades behind a building is cleaner and
+        // paler than brick that spent them in the weather, so the ghost is
+        // drawn as the LIGHTER area, not as a line.
+        const steps = 2 + mark(3);
+        const ridge = ms.m(hM * (0.52 + mark(4) * 0.06));   // where the ridge ran
+        let x = 0;
+        for (let i = 0; i <= steps; i++) {
+          const x1 = Math.round(ms.W * ((i + 1) / (steps + 1)));
+          const top = ridge + ms.m((mark(5) - 2) * 0.55);
+          g.fillStyle = 'rgba(214,198,170,0.13)';
+          g.fillRect(x, top, x1 - x, ms.H - top);
+          g.fillStyle = 'rgba(0,0,0,0.13)';                  // the flashing line
+          g.fillRect(x, top, x1 - x, Math.max(1, ms.m(0.09)));
+          x = x1;
+        }
+        // chimney breasts: shallow pilasters that stop at the old roofline
+        const breasts = 1 + mark(3);
+        for (let i = 0; i < breasts; i++) {
+          const bx = ms.m(1.5) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+          const bw = ms.m(0.9 + mark(3) * 0.3);
+          g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(bx, ridge, bw, ms.H - ridge);
+          g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(bx + bw, ridge, Math.max(1, ms.m(0.12)), ms.H - ridge);
+        }
+        // bricked-up openings, in the same course rhythm as a real window
+        const blocked = 1 + mark(4);
+        for (let i = 0; i < blocked; i++) {
+          const wx = ms.m(1.2) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+          const wy = ridge + ms.m(1.0) + mark(4) * ms.m(1.4);
+          const ww = ms.m(1.1), wh = ms.m(1.4);
+          if (wy + wh > ms.H - ms.m(0.5)) continue;
+          g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
+          g.fillStyle = 'rgba(168,140,112,0.5)'; g.fillRect(wx, wy, ww, wh);
+          g.fillStyle = 'rgba(0,0,0,0.16)';                  // its own courses, offset
+          for (let c = 0; c < 6; c++) g.fillRect(wx, wy + Math.round((c * wh) / 6), ww, 1);
+          g.fillStyle = '#9a8a72'; g.fillRect(wx - 1, wy + wh, ww + 2, Math.max(1, ms.m(0.14)));
+        }
+        // weather streaks, PER METRE — a flat count spread over 32 m is what
+        // made the deepened park look scrubbed
+        const streaks = Math.max(6, Math.round(wM * 1.1));
         g.fillStyle = 'rgba(0,0,0,0.16)';
-        for (let i = 0; i < streaks; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+        for (let i = 0; i < streaks; i++) {
+          g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+        }
         g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));       // coping
         g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
         dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
@@ -429,13 +488,13 @@ export function buildStreet(o: {
     };
     const fh = wallHeight(4);
     for (const [zAt, ry] of [[z1 - 0.01, Math.PI], [z0 + 0.01, 0]] as [number, number][]) {
-      const p = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, fh), flat(wallTex(o.depth, fh, o.flank, 14)));
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, fh), flat(wallTex(o.depth, fh, o.flank, ry > 1 ? 3 : 7)));
       p.position.set((XF + XB) / 2, fh / 2, zAt);
       p.rotation.y = ry;
       scene.add(p);
     }
     // the back of the site, so the gap opens onto a city and not onto fog
-    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, fh), flat(wallTex(w, fh, o.back, 22)));
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(w, fh), flat(wallTex(w, fh, o.back, 11)));
     back.position.set(XF - side * 0.01, fh / 2, (z0 + z1) / 2);
     back.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
     scene.add(back);
