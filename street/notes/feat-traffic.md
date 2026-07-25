@@ -102,24 +102,155 @@ The 2 m walkable lane itself is unaffected and still clear.
 
 ---
 
+## Done — queue item 2: cars turn the corner
+
+**Commit:** `dc5b062` (rebased by the merge train mid-session, see below)
+**New file:** `ct/traffic.ts` · **also touched:** `ct/cars.ts`, `ct/crowd.ts`,
+`crosstown.ts` (wiring)
+
+### What was wrong
+
+Traffic ran one axis. A vehicle was a `z` coordinate and a direction, and it
+vanished at `z = -L + 6 = -90` — **eight metres short of the junction at
+z = -98**. The corner the user has twice called the best thing on the block was
+literally where the world stopped.
+
+### The junction, and why none of it is tuned
+
+A vehicle now follows a **route**: a chain of straights and circular arcs.
+Position, heading, lean and steer all come off one path parameter `s`, which is
+why nothing snaps — nothing is set directly any more.
+
+The main street dead-ends into the side street, so it is a **T** with exactly
+two movements. Both arcs are **concentric about the kerb corner**
+`J = (ROAD_HALF, SIDE_Z0)`, because a 90° arc joining two perpendicular lane
+centre lines has exactly one radius. For a vehicle in the lane `d` off the
+centre line:
+
+| movement | radius | ends on |
+|---|---|---|
+| tight — south → east | `ROAD_HALF - d` = 3.5 | `z = SIDE_Z0 - r` = −101.5 |
+| wide — west → north | `ROAD_HALF + d` = 6.5 | `x = -d` = −1.5 |
+
+Every arc end lands exactly on the far road's own lane centre. Nothing is
+eyeballed, and the bus's narrower 1.35 lane gets its own correct pair for free.
+Traffic keeps **right** (southbound sits at +x, which is a driver's right when
+heading −z), so the tight arc is the right turn and the wide one crosses the
+oncoming lane, as at any real intersection.
+
+**The consequence worth having: the two routes never intersect.** Concentric
+arcs of different radii cannot cross, and the four straights sit on four
+different lane lines. So the queue's "two cars arriving at the junction
+together" hazard is answered by the *geometry* — there is no reservation, no
+priority rule, and no deadlock to get wrong. Measured, not asserted: run both
+movements at once and they pass **3.00 m** apart, which is the 2 × laneX the
+arcs predict, neither dropping below 3.27 m/s.
+
+### The rest of it
+
+- **Slows into the turn** off the cornering limit (`A_LAT` 3 m/s²), so it
+  arrives already braking — 3.66 m/s through the arc against 8.50 on the
+  straight.
+- **Wheels and body agree.** Front wheels steer to `tan δ = wheelbase / r`
+  (the tight arc asks 39.6°, so it sits at the 35° lock) and the body leans
+  *away* from the turn. `ct/cars.ts` now exposes `userData.steer` and
+  `wheelbase`; the wheels use rotation order **YZX** so the steer angle turns
+  them about their own vertical instead of the tilted axle. At steer 0 that is
+  the same matrix as the `rotation.z` it replaces — no structural change, which
+  the fingerprint confirms.
+- **Gives way to anybody in the road ahead** — the queue's "turning through the
+  crossing while a pedestrian is on it". This reads the crowd's live positions
+  (`crowd.walkers()`, added for it) *and* the player.
+- **Dead ends U-turn** through one tight arc when the player is close enough to
+  watch, instead of the old code's teleport 3 m sideways plus an instant 180°
+  flip. The bus is never asked to — a 30-footer needs four times the room.
+- **Vehicle colliders are the body's box as an AABB**, so a car *across* the
+  junction is 5 m wide in x rather than in z. One box per vehicle in the pool.
+
+### Two things I got wrong first, since the numbers are the lesson
+
+**Proportional braking is not enough to avoid running people over.** Braking in
+proportion to the room left reads fine, but the eased speed *lags* the target
+by about 5 m at 8.5 m/s — the first cut drove to **0.12 m** from somebody
+standing on the crossing. It now follows the kinematic curve `sqrt(2·a·room)`
+and **clamps the speed itself**, not just the target. Comfort caps (the corner)
+may be eased through; a person in the road may not be. It now comes to rest
+**2.94 m** short.
+
+**A proximity test cannot tell "in my way" from "on the other arc."** The
+rear-end check used a radius around the other vehicle's centre — but a 5 m car's
+bounding circle is 3.7 m and the two arcs pass 3.0 m apart, so each car saw the
+other as an obstruction and both stopped dead *at the junction the geometry had
+just proved was safe*. Following distance is now measured in **route space**:
+only a vehicle on my own route can be in front of me. There is a comment on the
+one manoeuvre that crosses the other route (the dead-end U-turn) — it cannot
+collide while `maxActive` is 1, and **raising that needs a cross-route check**.
+
+### Deliberately unchanged
+
+One vehicle on the block at a time (an earlier deliberate decision — it is one
+number, `maxActive`), the 11% / 15% bus and taxi rarity, and the parked cars,
+which are built in `crosstown.ts` off the seeded stream and are not traffic.
+
+### Verification
+
+**The art and the structure of the world are untouched.** Fingerprinted against
+my base commit: `textures IDENTICAL`, `structure IDENTICAL` (723 objects), only
+the 6 walkers and a pigeon in `places` — the same noise floor as the crowd
+split. That is the check that proves the car textures were not re-grained (the
+`buildTraffic()` call sits at the same point in the build sequence for exactly
+that reason) and that the wheel rotation-order change added no meshes.
+
+**The bus contract is intact** — `scripts/bus.mjs stop`: front door at rest at
+`z=-33.52` against a flag at `-33.50`, pulled in to `x=3.54`, dwelt, pulled
+away.
+
+**Driven, not looked at** — `scripts/corner-traffic.mjs`, 22 checks, all pass:
+
+```
+entered heading S, left heading E
+settled in the eastbound lane — z=-101.50 (want -101.50)
+path is continuous — biggest step 0.53 m
+heading never snaps — biggest turn 3.5° in one frame
+slowed into the turn — 3.65 m/s in the arc vs 8.50 on the straight
+leans away from the turn, not into it (steer -35.0°, roll 3.4°)
+two vehicles ran together — never closer than 3.00 m, slowest 3.27 m/s
+stopped for the person on the crossing, closest 2.93 m
+the three parked cars never moved
+```
+
+`scripts/corner-traffic.mjs shots` writes `shots/ct-*.png` for looking at.
+`npm run sweep` is clean of new console errors, and the crowd probe still
+passes unchanged.
+
+**A note on the rebase.** The merge train rebased this branch onto new mainline
+*while I was running checks*, resolving a conflict in `crosstown.ts` — which is
+what a transient `<<<<<<< HEAD` in the vite log and two failed sweeps were. The
+tree came out clean; I re-ran the fingerprint against the **new** base and the
+full probe afterwards rather than assuming, and both are above.
+
+---
+
 ## For the desk
 
-1. **`crosstown.ts` is in my diff and `ownership.sh H` flags it.** Unavoidable —
-   there is no way to move code out of a file without touching it, and the
-   queue's item 1 is exactly that. Scope was kept to the minimum: delete the
-   sim, add one `buildCrowd()` call, repoint `__ct.atlases`/`__ct.people` at the
-   module. **No shared signature or behaviour changed**; `ct/ctx.ts` and
-   `ct/citizens.ts` are untouched.
-2. **`OWNERSHIP.md` is out of date for me.** It has no entry for
-   `src/proto/ct/crowd.ts`, and still lists `src/proto/ct/cars.ts = B`, which my
-   queue transfers to H. Until that lands, `ownership.sh H` will flag cars.ts as
-   B's the moment I start the corner-turning item. Your file, not mine.
+1. **`crosstown.ts` is in my diff and `ownership.sh H` flags it** — for both
+   items now. Unavoidable: the crowd sim and the traffic sim both lived there,
+   and moving code out of a file means touching it. Scope kept to the minimum
+   each time — delete the sim, add one `build*()` call, repoint the `__ct`
+   affordances. **No shared signature or behaviour changed**; `ct/ctx.ts` and
+   `ct/citizens.ts` are untouched, and both new modules take their own options
+   object rather than widening `CtxBuild`.
+2. **`OWNERSHIP.md` is out of date for me.** No entry for `ct/crowd.ts` or
+   `ct/traffic.ts`, and `ct/cars.ts` still reads `= B` though my queue transfers
+   it to H. Your file, not mine.
+3. **Traffic density is a knob, not a decision I made.** `maxActive = 1` keeps
+   the world exactly as it was, but the junction is now safe for two. If the
+   user wants a busier street it is one number — with the U-turn caveat above.
 
-## Next up (queue items 2–4, not started)
+## Next up (queue items 3–4, not started)
 
-Cars turn the corner → extend detail down the side street → pedestrian path
-graph. The split was deliberately landed on its own first so that if the
-behaviour work goes wrong, the refactor is not in doubt.
+Extend the detail down the side street → pedestrians get more complicated
+paths.
 
 For the path-graph item, note that the crowd is currently a **1-D ping-pong**:
 each person owns a `home` lane on the x axis and walks `dir` along z between

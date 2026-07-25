@@ -194,6 +194,27 @@ const parkedMoved = await page.evaluate(async () => {
 });
 check(parkedMoved.same >= 3, `the three parked cars never moved (${parkedMoved.same} unmoved of ${parkedMoved.a})`);
 
+// ── stills, for LOOKING at (never for proving — see GOTCHAS §1) ───────────
+// Screenshots cannot show that the turn is right; they can show that a car is
+// on the asphalt rather than up the kerb, which is worth a glance.
+if ((process.argv[2] ?? '') === 'shots') {
+  const at = async (name, s, ex, ez, pitch = -0.12) => {
+    await page.evaluate(([s, ex, ez, pitch]) => {
+      window.__ct.warp(ex, ez, Math.atan2(2.5 - ex, -(-101 - ez)), 0.14, pitch);
+      window.__ct.drive('NE', 'car', s);
+    }, [s, ex, ez, pitch]);
+    await page.waitForTimeout(260);
+    await page.screenshot({ path: `shots/ct-${name}.png` });
+  };
+  // s = 106 is the arc's start (the main street straight is 106 m long)
+  await at('approach', 96, 8.5, -92);
+  await at('entering', 106.5, 9.5, -95);
+  await at('mid-arc', 108.7, 10.5, -96.5);
+  await at('leaving', 111, 11.5, -97.5);
+  await at('down-the-side-street', 118, 8.0, -95.0, -0.05);
+  console.log('\nstills -> shots/ct-*.png');
+}
+
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
 console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nall corner checks pass');
 await browser.close();
