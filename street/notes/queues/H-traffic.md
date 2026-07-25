@@ -23,6 +23,41 @@ world stops.
 
 ## Now
 
+- [ ] **Pedestrians are frozen IN THE ROAD.** The user: *"these people are
+      stuck"*. Ref: `shots/user-pedstuck.png` — two citizens standing either
+      side of a parked car, on the carriageway, motionless.
+
+      Two faults, and the first is the more embarrassing one:
+
+      **(a) They should not be in the road at all.** Your queue already says
+      pedestrians *"cross at the crossing (and only at the crossing)"*. These
+      two are mid-carriageway beside a parked car, which is not a crossing.
+      Either the walkable graph includes road nodes it should not, or
+      avoidance is pushing them off the pavement when the lane gets tight —
+      and the lane IS tight, which is what the auditor is measuring right now.
+      A walker shoved off the kerb to get round a bin is a bug in the
+      avoidance, not in the graph.
+
+      **(b) Once stuck, nothing gets them out.** This is the same class as the
+      player being wedged between two cars, and builder F has already solved
+      it for the rig: `fp.ts` now resolves penetration with a minimum
+      translation instead of only refusing motion, plus a last-known-good
+      fallback. **Read what F did and give the crowd the equivalent.** A
+      citizen inside `citAvoid` should push out and carry on; one that cannot
+      resolve after a few frames should be returned to its last legal node on
+      the walk. Never leave one standing.
+
+      Also check the interaction with the parked cars specifically — you
+      constrained the parked draw so it cannot leave a gap the PLAYER gets
+      stuck in, but a citizen's avoidance radius is not the player's capsule,
+      so a gap that is safe for one may still trap the other. Use the same
+      rule with the citizen's own dimensions.
+
+      **Watch it, do not screenshot it.** Put walkers on a crowded stretch and
+      observe for a minute. This is the third motion bug in the crowd today
+      (the jitter, the stuck pair, and the atlas flicker) and they may share a
+      cause — if you find one root behind two of them, say so.
+
 - [ ] **The wheel arches came back worse. Fix or revert.** The user: *"what up
       with this car and its wheels? THEY LOOK SO WEIRD"*. Ref:
       `shots/user-wheelbad.png`.
