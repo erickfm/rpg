@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither } from './paint';
+import { declareSurface, pixTex, dither } from './paint';
 import {
   facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
   proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex, WALK_PROJECTION,
@@ -490,13 +490,13 @@ export function buildStreet(o: {
     const lo = Math.min(XF, XB), hi = Math.max(XF, XB);
     // the ground. A PLANE at exactly KERB_H that ABUTS the walk rather than
     // overlapping it — two coplanar tops z-fight (GOTCHAS §6).
-    const groundT = pixTex(64, 64, (g) => {
+    const groundT = declareSurface(pixTex(64, 64, (g) => {
       g.fillStyle = o.ground; g.fillRect(0, 0, 64, 64);
       g.fillStyle = o.grain;
       for (let i = 0; i < 90; i++) g.fillRect((i * 23) % 64, (i * 41) % 64, 2, 1);
       for (let i = 0; i < 60; i++) g.fillRect((i * 17) % 64, (i * 29) % 64, 1, 1);
       dither(g, 64, 64, 260);
-    });
+    }), 'ground');
     groundT.wrapS = groundT.wrapT = THREE.RepeatWrapping;
     groundT.repeat.set(o.depth / 2, w / 2);
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, w), wet(flat(groundT)));
@@ -797,7 +797,7 @@ export function buildStreet(o: {
     // wall line and the reveal is boxed in, so the opening has a shadow.
     const DW = 1.9, DH = 2.6, DREC = 0.30;
     const XF = -FACE;
-    const doorT = pixTex(60, 82, (g) => {
+    const doorT = declareSurface(pixTex(60, 82, (g) => {
       g.fillStyle = BANK_BRONZE; g.fillRect(0, 0, 60, 82);
       g.fillStyle = '#232a31'; g.fillRect(5, 5, 22, 58); g.fillRect(33, 5, 22, 58);
       g.fillStyle = 'rgba(170,190,210,0.16)'; g.fillRect(7, 7, 7, 54); g.fillRect(35, 7, 7, 54);
@@ -805,7 +805,7 @@ export function buildStreet(o: {
       g.fillStyle = '#c9b07a'; g.fillRect(24, 30, 3, 20); g.fillRect(33, 30, 3, 20);  // pull handles
       g.fillStyle = '#3a4048'; g.fillRect(0, 66, 60, 16);             // kick rail
       g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(0, 66, 60, 1);
-    });
+    }), 'detail');
     // The surround PROJECTS and the leaf sits flush behind it, rather than the
     // leaf being set back into a solid wall — a band box is opaque, so a door
     // buried behind it is just a hole with nothing in it. Three granite pieces
@@ -1117,7 +1117,7 @@ export function buildStreet(o: {
     // 0.3 m cushion the corner's footprint already reserves, so none of it
     // reaches the pavement (GOTCHAS §9).
     const DW = 1.3, DH = 2.35, DREC = 0.12;
-    const doorT = pixTex(52, 94, (g) => {
+    const doorT = declareSurface(pixTex(52, 94, (g) => {
       g.fillStyle = '#2b2f36'; g.fillRect(0, 0, 52, 94);                 // stiles and rails
       g.fillStyle = '#c9b184'; g.fillRect(5, 6, 42, 58);                 // warm light from inside
       g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(7, 8, 14, 54);  // glare down one side
@@ -1130,7 +1130,7 @@ export function buildStreet(o: {
       g.fillStyle = '#c9b45e'; g.fillRect(38, 44, 3, 22);                // push bar, vertical
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(41, 46, 1, 20);
       g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(24, 0, 2, 94);        // the meeting stile — two leaves
-    });
+    }), 'detail');
     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(DW + 0.04, DH + 0.04), flat(doorT));
     leaf.position.set(0, (DH + 0.04) / 2, -DREC);
     bay.add(leaf);
@@ -1143,13 +1143,13 @@ export function buildStreet(o: {
     const head = new THREE.Mesh(new THREE.BoxGeometry(DW + 0.14, 0.07, DREC), jambM);
     head.position.set(0, DH + 0.035, -DREC / 2);
     bay.add(head);
-    const awnT = pixTex(48, 12, (g) => {
+    const awnT = declareSurface(pixTex(48, 12, (g) => {
       for (let x = 0; x < 48; x += 8) {
         g.fillStyle = (x / 8) % 2 ? bod.col : '#d8d0c0';
         g.fillRect(x, 0, 8, 12);
       }
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, 9, 48, 3);
-    });
+    }), 'sign');
     const awn = new THREE.Mesh(new THREE.BoxGeometry(CFW, 0.1, 0.9), new THREE.MeshBasicMaterial({ map: awnT, side: THREE.DoubleSide }));
     // the awning tucks UNDER the sign band. On the taller band the fascia now
     // runs 3.15–4.04 m and the glass head is at 2.91, so it hangs at 2.99 —
@@ -1157,11 +1157,11 @@ export function buildStreet(o: {
     awn.position.set(0, 2.99, 0.35);
     awn.rotation.x = -0.18;   // slopes down and away from the face
     bay.add(awn);
-    const openT = pixTex(24, 12, (g) => {
+    const openT = declareSurface(pixTex(24, 12, (g) => {
       g.fillStyle = '#141416'; g.fillRect(0, 0, 24, 12);
       g.fillStyle = '#e8574a'; g.font = 'bold 7px monospace'; g.textAlign = 'center';
       g.fillText('OPEN', 12, 9);
-    });
+    }), 'sign');
     const open = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.31), flat(openT));
     // OVER THE DOOR, where a shop hangs it — it used to sit in the left
     // display window, which told you the wrong panel was the way in
@@ -1202,7 +1202,7 @@ export function buildStreet(o: {
     // dark of the inside shows between them, the corner posts stand proud of
     // the boards, and there is a rail round the top. A flat tan box with a
     // grid drawn on it reads as cardboard every time.
-    const crateT = pixTex(28, 18, (g) => {
+    const crateT = declareSurface(pixTex(28, 18, (g) => {
       g.fillStyle = '#1a1108'; g.fillRect(0, 0, 28, 18);              // the dark inside
       g.fillStyle = '#a8834a';
       for (const y of [2, 8, 13]) {                                    // three boards…
@@ -1222,15 +1222,15 @@ export function buildStreet(o: {
       g.fillStyle = '#b8944f'; g.fillRect(0, 0, 28, 2);                // top rail
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 16, 28, 2);       // shadow at the foot
       dither(g, 28, 18, 40);
-    });
+    }), 'detail');
     // The top of the crate is just the rim and the dark inside now — the fruit
     // that used to be painted flat on it is real geometry heaped above it.
-    const fruitTop = () => pixTex(28, 24, (g) => {
+    const fruitTop = () => declareSurface(pixTex(28, 24, (g) => {
       g.fillStyle = '#1a1108'; g.fillRect(0, 0, 28, 24);
       g.fillStyle = '#b8944f'; g.fillRect(0, 0, 28, 3); g.fillRect(0, 21, 28, 3);   // rim
       g.fillRect(0, 0, 3, 24); g.fillRect(25, 0, 3, 24);
       g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(3, 3, 22, 3);                    // inside shadow
-    });
+    }), 'detail');
     // A heap is read by seeing the INDIVIDUAL UNITS and the gaps between them.
     // Attempt two was one smooth faceted dome per crate, roughly as wide as
     // the crate, and it read as a single enormous tomato — a dome has neither
@@ -1342,7 +1342,7 @@ export function buildStreet(o: {
     const AF_W = 6.6, AF_L = AZ0 - AZ1, AF_PXM = 24;
     const AFW = Math.round(AF_W * AF_PXM), AFL = Math.round(AF_L * AF_PXM);
     const am = (v: number) => Math.max(1, Math.round(v * AF_PXM));
-    const alleyFloorT = pixTex(AFW, AFL, (g) => {
+    const alleyFloorT = declareSurface(pixTex(AFW, AFL, (g) => {
       g.fillStyle = '#2e3034'; g.fillRect(0, 0, AFW, AFL);
       // grain per SQUARE METRE, not a flat count — the same correction the
       // facades and the party walls already took
@@ -1366,7 +1366,7 @@ export function buildStreet(o: {
       for (let k = 1; k < 4; k++) {
         g.fillRect(dx - dw / 2, dy - dw / 2 + Math.round((k * dw) / 4), dw, Math.max(1, am(0.02)));
       }
-    });
+    }), 'ground');
     const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), new THREE.MeshBasicMaterial({ map: alleyFloorT }));
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
@@ -1573,7 +1573,7 @@ export function buildStreet(o: {
     }
     // the dumpster: ribbed tub with fork pockets, stencil on the long faces
     // only, lid hinged on the wall side and propped open onto the wall
-    const dumpFrontT = pixTex(96, 48, (g) => {
+    const dumpFrontT = declareSurface(pixTex(96, 48, (g) => {
       g.fillStyle = '#2e5a3c'; g.fillRect(0, 0, 96, 48);
       g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 96, 3);            // top lip
       g.fillStyle = 'rgba(0,0,0,0.3)';
@@ -1584,15 +1584,15 @@ export function buildStreet(o: {
       g.fillStyle = '#c9c4b0'; g.font = 'bold 9px monospace';
       g.textAlign = 'center'; g.fillText('CITY WASTE', 48, 20);
       dither(g, 96, 48, 160);
-    });
-    const dumpSideT = pixTex(48, 48, (g) => {
+    }), 'detail');
+    const dumpSideT = declareSurface(pixTex(48, 48, (g) => {
       g.fillStyle = '#2e5a3c'; g.fillRect(0, 0, 48, 48);
       g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 48, 3);
       g.fillStyle = 'rgba(0,0,0,0.3)';
       for (let x = 5; x < 48; x += 12) g.fillRect(x, 3, 2, 41);
       g.fillStyle = 'rgba(122,66,40,0.5)'; g.fillRect(10, 34, 14, 12);
       dither(g, 48, 48, 90);
-    });
+    }), 'detail');
     const dumpFrontM = new THREE.MeshBasicMaterial({ map: dumpFrontT });
     const dumpSideM = new THREE.MeshBasicMaterial({ map: dumpSideT });
     const dumpInsideM = new THREE.MeshBasicMaterial({ color: 0x101114 });
@@ -1638,7 +1638,7 @@ export function buildStreet(o: {
     };
     const placaTex = (word: string, ink: string) => {
       const W = word.length * 7 + 3;
-      return pixTex(W, 20, (g) => {
+      return declareSurface(pixTex(W, 20, (g) => {
         g.fillStyle = ink;
         for (let i = 0; i < word.length; i++) {
           const x0 = 2 + i * 7;
@@ -1648,7 +1648,7 @@ export function buildStreet(o: {
         }
         g.fillRect(2, 17, W - 6, 1); // the hard underline
         g.fillRect(W - 5, 16, 2, 1); // finished with a flick
-      });
+      }), 'sign');
     };
     const tag = (t: THREE.Texture, w: number, h: number, x: number, y: number, z: number, ry: number) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
