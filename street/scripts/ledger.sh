@@ -33,7 +33,8 @@ echo "OPEN — routed, not landed:"
 row OPEN | awk -F'|' '{printf "  %-3s %s\n", $3, $4}' | sed 's/  */ /g' | sort
 
 echo
-"$(dirname "$0")/ledger.sh" --stats
+printf 'CONFIRMED %s · LANDED %s · OPEN %s\n' \
+  "$(row CONFIRMED | wc -l)" "$(row LANDED | wc -l)" "$(row OPEN | wc -l)"
 echo
 echo "Only the desk or the auditor may set CONFIRMED — never the builder that"
 echo "did the work. Evidence means someone watched it happen in the world."
