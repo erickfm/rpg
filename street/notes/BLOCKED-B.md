@@ -583,6 +583,33 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## All 26 canfail cases are reachable — and my audit of that was nearly wrong
+
+The registry has grown since I last checked it end to end: `canfail.mjs` now
+carries 26 cases, six of them other builders'. Verified every one is reachable
+from `npm run checks -- --selftest`.
+
+**It is, and my first pass said otherwise.** I grepped for bracketed lists —
+`['park', 'park-partial']` — and concluded `wetness`, `faces-bands` and
+`park-repro` were orphaned. They are registered in the *string* form:
+
+```
+['park-repro', 'is the parked arrangement the same on every load?', 'park-repro'],
+['faces',      'does any face read as more than one tone?',         'faces-bands'],
+```
+
+Both forms are valid; my pattern only matched one. Fifth time this session a
+selector that looked specific has nearly produced a false finding, and the fifth
+time it was caught by checking the individual names rather than trusting the
+sweep. **A grep is a probe**, and every rule I have written about probes this
+session applies to it.
+
+Nothing to fix. Recorded because "three checks are unregistered" is precisely
+the kind of tidy, alarming claim that gets acted on, and it would have sent three
+owners looking for a problem that does not exist.
+
+---
+
 ## The park got topography and my lanterns are fine — checked, not assumed
 
 `9890a47ee` gave the park a mound, a dish and ground falling to a corner. My ten
