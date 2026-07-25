@@ -63,3 +63,42 @@ line rather than straddling it: `XB + side * 0.18` and a collider from `XB` to
 `XB + side * 0.36`. That keeps the edge and gives the walk its 2 m back.
 
 I have not touched `ct/street.ts`.
+
+
+---
+
+## The 0.16 × 0.24 post nobody has taken is a STREET TREE
+
+`667eec50` closed the lamp cluster with one constant and says the tightest
+point in the world is now 0.90 m on the west walk at z −71.4, caused by *"the
+0.16 × 0.24 m sign/meter post at x ±5.66, which Round 3 listed as its own row
+and nobody has [taken]"*.
+
+My frontage sweep found the same signature on the EAST walk, at
+`x 5.58…5.74, z −1.62…−1.38` — same 0.16 × 0.24, same |x| 5.66. So I looked at
+mine before anyone writes a ticket for it.
+
+**It is a tree.** Searching by mesh origin found only two flat ground decals
+and no post — which is the trap that hid the lobby door from me once already,
+so I redid it by world bounding box. One mesh covers that collider: a
+billboarded 3 × 4.5 m plane standing 0.14 → 4.64 m, at the kerb. A tree crown
+on a trunk, and the trunk is the collider.
+
+`shots/curbcut/06-along-walk-s.png` shows it plainly: a street tree in a square
+pit, kerb side, with the walk running past it between the tree and the site
+wall.
+
+**So it is not a defect and should not be removed.** A street tree in a pit is
+furniture doing its job, and it is on the KERB side — it takes its 0.16 m from
+the gutter end of the walk, not from the building line. It is also, by some
+distance, the thing that most makes this block feel like a street.
+
+Two caveats, because this is exactly where I have been wrong before:
+
+- **I verified the EAST instance, at z −1.5.** The auditor's is the west walk
+  at z −71.4. Same collider signature and almost certainly the same prop, but
+  that is an inference and they should confirm it on their own instance before
+  closing the row.
+- The genuine §9 question on this stretch is not the tree. It is the **0.36 m
+  `openSite` boundary wall** above, which takes its share off the BUILDING line
+  and runs the whole length of both sites rather than standing at one point.
