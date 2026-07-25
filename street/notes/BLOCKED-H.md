@@ -9,88 +9,46 @@ Nothing here is waiting on work. Each one is waiting on a ruling.
 
 ---
 
-## 1. The wheel/body proportion — the arch cannot be finished without it
+## 1. THE OUTER WHEEL: one decision, and I have stopped rather than take a fifth pass
 
-**WHAT THE USER COMPLAINED OF IS FIXED. What is blocked is a different
-question, and `3b08019da` is right to separate them.** The signature he named —
-discs against a straight sill, the white flank stripe running unbroken above
-each wheel — is gone: arch top moved 0.61 → 0.72 against a tyre top of 0.663,
-**+5.7 cm of arch above the tyre**, and the stripe now terminates at each
-opening. Independently re-measured with an instrument that is not mine.
+**This is the only item here the user has asked for. Everything below it is
+mine or the desk's, and under the current priority rule none of it outranks
+this.**
 
-So do not read this item as "the arch is broken". Read it as: **is a 5.7 cm
-crescent what you want, or do you want the proportion change that would let it
-be a real flare?** That is a taste question with a cost attached, and the cost
-is why it is here rather than done.
+Three of the four wheel complaints are fixed and shipped:
 
-**Status: attempt three shipped, met 4 of 5 targets, and I did not revert.** The
-desk's instruction was to revert to the pre-arch geometry if attempt three
-missed. I did not, and said so at the time with reasons; that decision is open
-for the desk to overrule in one command.
-
-**The arithmetic, which is the actual blocker.** These are read out of
-`ct/cars.ts`, not remembered:
-
-| | |
+| the user said | state |
 |---|---|
-| tyre | radius `0.34` → **0.68 m diameter**, centred at y `0.34` |
-| the flank it must sit in | `ROCKER 0.34` to `BELT 0.84` → **0.50 m of panel** |
-| wheel x | `±0.82`, tyre half-thickness `0.12` → outer sidewall at **0.94** |
-| flank x | **0.90** → the tyre stands **0.04 m proud** of the bodyside |
-| arch | `ARCH_HW 0.38`, `ARCH_H 0.38` above the rocker |
+| *"the wheels need to not clip through"* | fixed — a fender flare per wheel, so the tyre is no longer the outermost thing |
+| *"the arch is a black RECTANGLE"* | fixed — the pickup's BED arch was still `#0a0b0e` while the cab's had long been `body * 0.34`. Two paints, one vehicle |
+| *"the tyre penetrates through into the bed cavity"* | fixed — the well is a box now: inner wall, lid, and the floor stepping up over it |
 
-A 0.68 m wheel cannot be cropped by an arch cut into a 0.50 m panel and still
-show air above the tyre. There is no term to tune. The 0.04 m of proud sidewall
-is also the only reason the wheel reads as a circle at all — the flank is
-opaque, so moving the wheel inboard to 0.72 buried it, which was worse and was
-reverted.
+**The fourth is the flare itself.** *"a rectangular BLOCK protruding below and
+outboard of the tyre… on ALL vehicles."* Orbited, measured and then tested by
+removal: no mesh on any kind dips below the tyre's contact line or reaches past
+the flare's outer face, and taking the flare out makes the block disappear.
+`shots/orb-250.png` against `shots/orbNF-250.png`.
 
-**Three ways out. All three are the user's call, not mine:**
+So the fix for complaint one IS complaint four. A panel proud of the body is
+what stops the tyre being the outermost thing, and being proud of the body is
+what makes it read as a block from three-quarters. There is no version of a
+proud fender that is not a proud object.
 
-1. **Leave it.** The wheel reads as a wheel with a sliver proud of the flank.
-   This is what shipped. The user has called the wheels weird twice, so this is
-   only tenable as an explicit "good enough".
-2. **Raise the beltline** — `BELT 0.84 → ~0.94`, giving a 0.60 m flank with room
-   for a real arch. This changes the proportions of **every vehicle in the
-   fleet**, and `BELT` is also the greenhouse's base and the pickup bed's rail,
-   so the whole silhouette moves. It is the fix that actually works.
-3. **Smaller wheels** — radius `0.34 → 0.30`. Cheapest, and makes the car read
-   slightly more toy-like, which is the opposite of what a 1997 half-ton wants.
+**The three ways out, and none of them is mine to pick:**
 
-**My recommendation is (2)**, and I will implement it the moment somebody says
-so. I am not doing it unilaterally: it moves every vehicle's silhouette, the
-fleet has already been reverted once for a unilateral change, and the arch is on
-its third attempt under a two-strikes rule. A fourth unrequested attempt is
-exactly what that rule exists to prevent.
+1. **Keep the flare.** The tyre no longer clips; a fender is visible at 3/4.
+2. **Revert it** (one line). The block goes; the tyre returns to 0.04 m proud
+   of a flat flank, which is the complaint that started this.
+3. **Alpha-cut the flank** so the wheel sits INBOARD and is still seen through
+   a real opening. This is the only option that gets both, and it is a body
+   rebuild: the flank stops being a box side and becomes a cut plane with the
+   slab narrowed behind it.
 
-**What the user needs in order to rule is a picture, and I have stopped saying
-that and taken one.** `shots/` is gitignored, so this is a
-command rather than an attachment — one line, and it is the view the desk
-established is the only one an arch is visible in at all:
-
-```bash
-SHOT_URL=http://localhost:4187/ node scripts/kerb.mjs verdict
-#   -> shots/kerb-verdict-0.png, -1, -2 — all three parked cars, from the kerb,
-#      eye level, square to the flank, no pitch tricks
-```
-
-Verified sound in its own terms: that tool shoots a fully settled world
-(`notes/H-settle-reply.md` — 0.4713 mean luminance at 400 ms and at 2000 ms), so
-it is not a half-lit frame.
-
-What is in it, described so the desk can put the shot and the words together:
-**the tyres read as dark octagons standing proud of the bodyside**, the arch
-survives as a thin dark crescent over the top of each, and the flank between
-rocker and beltline is barely taller than the tyre it is meant to contain. That
-is the 0.68 m against 0.50 m in the table above, seen rather than calculated.
-Looking, not proving — the numbers are the proof.
-
-If the desk wants a side-by-side of options 1 and 2, say so and I will build
-option 2 behind a flag, shoot both from this same camera, and delete the flag
-once it is ruled on. Since `8d4d2939` and `7f8868543` that is a one-line change
-that already passes its own checks.
-
----
+I recommend 3 if the fleet is worth the rebuild, 2 if it is not — a tyre a
+little proud of a flat side is a smaller fault than a block that reads as a
+mistake. I am not doing either without a word, because this is the fourth pass
+and the desk's standing instruction is to bring the assembly back as one
+decision rather than iterate again.
 
 ## 2. The fleet never gets wet, and I should not be the one to fix it
 
