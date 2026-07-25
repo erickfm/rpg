@@ -618,6 +618,11 @@ export function buildProps(ctx: CtxBuild): Props {
     tree.position.y = sidewalkY;
     lit(tree);
     const pit = new THREE.Mesh(pitGeo, pitMat);
+    // tagged for scripts/footprint.mjs — see the note by `drop`. Anything of
+    // mine that sits on the ground near the building line gets checked against
+    // it, not only the litter, because the litter is simply the class that
+    // failed first.
+    pit.userData.groundProp = 'tree pit';
     pit.rotation.x = -Math.PI / 2;
     pit.position.set(tx, sidewalkY + 0.006, pz2);
     scene.add(pit);
@@ -1420,6 +1425,7 @@ export function buildProps(ctx: CtxBuild): Props {
     [flatT2(adT), flatT2(adT), benchM, benchM, benchM, benchM]);
   adPlate.position.set(-0.035 - 0.002, BACK_LEN / 2, 0);
   backGrp.add(adPlate);
+  backGrp.userData.groundProp = 'bench back';
   backGrp.position.set(BX_BACK + 0.035, SEAT_Y, BENCH_Z);
   backGrp.rotation.z = -RECLINE;             // top leans AWAY from the sitter
   scene.add(backGrp);
@@ -1429,6 +1435,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const w = 0.15;
     const slat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, BENCH_L),
       [benchM, benchM, flatT2(slatT), benchM, flatT2(slatT), flatT2(slatT)]);
+    slat.userData.groundProp = 'bench seat';
     slat.position.set(BX_SEAT0 + w / 2 + i * 0.175, SEAT_Y - 0.025, BENCH_Z);
     scene.add(slat);
     lit(slat);
@@ -1456,6 +1463,7 @@ export function buildProps(ctx: CtxBuild): Props {
   const LEG_TOP = SEAT_Y - 0.02, LEG_H = LEG_TOP - sidewalkY;
   for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.06, BX_SEAT1 - 0.05]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, LEG_H, 0.06), benchM);
+    leg.userData.groundProp = 'bench leg';
     leg.position.set(lx, sidewalkY + LEG_H / 2, BENCH_Z + sz * 0.72);
     scene.add(leg);
   }

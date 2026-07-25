@@ -102,10 +102,19 @@ const r = await page.evaluate(() => {
   };
   const solids = [];
   sc.traverse((o) => {
-    if (!o.isMesh || !o.geometry || o.userData?.litter) return;
-    let p2 = o; let isLitter = false;
-    while (p2) { if (p2.userData?.litter) { isLitter = true; break; } p2 = p2.parent; }
-    if (isLitter) return;
+    if (!o.isMesh || !o.geometry) return;
+    // A bench leg touching its own seat is construction, not a clip, so
+    // nothing tagged counts as a solid to hit — only the world does.
+    let p2 = o; let mine = false;
+    while (p2) { if (p2.userData?.litter || p2.userData?.groundProp) { mine = true; break; } p2 = p2.parent; }
+    if (mine) return;
+    // A SPRITE IS NOT A SOLID. Trees, the hydrant and the pigeons are
+    // alpha-tested billboards that turn to face the player, so their box is
+    // whatever they happen to be facing this frame and they are EXPECTED to
+    // overlap the architecture behind them — that is what a cut-out sprite in
+    // front of a wall looks like. Counting one as a thing to hit flagged all
+    // seven tree pits for being inside their own trees.
+    if (o.material?.alphaTest > 0) return;
     const b2 = box3(o); if (!b2 || !isFinite(b2.minX)) return;
     if (b2.maxY - b2.minY < 0.25 || b2.minY > 1.6) return;
     if (b2.maxX - b2.minX > 40 || b2.maxZ - b2.minZ > 60) return;
@@ -113,7 +122,14 @@ const r = await page.evaluate(() => {
   });
   out.clips = [];
   sc.traverse((o) => {
-    if (!o.userData?.litter) return;
+    // litter, and anything else of mine that stands on the ground near the
+    // building line. The litter is only the class that failed FIRST; a bench
+    // or a tree pit against a facade would clip exactly the same way, and A
+    // is still pushing shopfronts further out.
+    //
+    // The payphone is deliberately not tagged: it is bolted TO a wall, so an
+    // intersection with one is the correct state for it.
+    if (!o.userData?.litter && !o.userData?.groundProp) return;
     o.traverse((c) => {
       if (!c.isMesh) return;
       const b2 = box3(c); if (!b2) return;
@@ -121,7 +137,7 @@ const r = await page.evaluate(() => {
         if (b2.maxX <= w.minX || b2.minX >= w.maxX) continue;
         if (b2.maxY <= w.minY || b2.minY >= w.maxY) continue;
         if (b2.maxZ <= w.minZ || b2.minZ >= w.maxZ) continue;
-        out.clips.push({ kind: o.userData.litter,
+        out.clips.push({ kind: o.userData.litter ?? o.userData.groundProp,
           x: +o.position.x.toFixed(2), z: +o.position.z.toFixed(1) });
         return;
       }

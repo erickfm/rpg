@@ -40,8 +40,17 @@ if (mode === 'probe' || mode === 'all') {
       if (m?.map?.image?.width === 32 && m?.blending === 2 && m.transparent) halos.push(o);
       const g = o.geometry?.parameters;
       if (!g) return;
-      if (Math.abs(g.width - 0.34) < 1e-6 && Math.abs(g.height - 0.26) < 1e-6) heads.push(o);
-      if (Math.abs(g.width - 0.26) < 1e-6 && Math.abs(g.height - 0.08) < 1e-6) lenses.push(o);
+      // Heads and lenses come in TWO orientations now: the main street's crook
+      // reaches along x, the side street's along z, so the boxes swap their
+      // width and depth. Matching only the first shape silently checked 8 of
+      // the 11 lamps and reported a clean pass — a check that covers part of
+      // the fleet and says nothing about the rest is worse than no check.
+      const head = (Math.abs(g.width - 0.34) < 1e-6 && Math.abs(g.depth - 0.32) < 1e-6) ||
+                   (Math.abs(g.width - 0.32) < 1e-6 && Math.abs(g.depth - 0.34) < 1e-6);
+      const lens = (Math.abs(g.width - 0.26) < 1e-6 && Math.abs(g.depth - 0.24) < 1e-6) ||
+                   (Math.abs(g.width - 0.24) < 1e-6 && Math.abs(g.depth - 0.26) < 1e-6);
+      if (head && Math.abs(g.height - 0.26) < 1e-6) heads.push(o);
+      if (lens && Math.abs(g.height - 0.08) < 1e-6) lenses.push(o);
     });
     // pair a halo with the head/lens it actually belongs to — same pole, so
     // within half a metre in x/z. Anything unpaired is not a streetlamp (the
@@ -66,6 +75,7 @@ if (mode === 'probe' || mode === 'all') {
   });
   console.log(`\n${r.length} streetlamp halos`);
   const bad = r.filter((h) => h.insideHead || Math.abs(h.dx) > 0.01 || Math.abs(h.dz) > 0.01);
+  if (r.length !== 11) { console.error(`\n  FAIL expected 11 streetlamps, paired ${r.length}`); process.exitCode = 1; }
   const offLens = [...new Set(r.map((h) => h.offLens))];
   console.log(`  halo is directly over its head in x/z: ${r.every((h) => !h.dx && !h.dz) ? 'yes' : 'NO'}`);
   console.log(`  halo centre buried inside the opaque head box: ${r.some((h) => h.insideHead) ? 'YES — it will be eaten' : 'no'}`);
