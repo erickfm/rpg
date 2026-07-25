@@ -407,3 +407,17 @@ own `Math.round(FLANK_H * 11.2)` — written after the pattern was documented. I
 now measures 8 × 8. That is the strongest argument for the shape of the fix that
 was adopted: a shared `masonry()` helper makes the next one impossible, whereas a
 list of corrected instances would have been out of date the day it was written.
+
+### Regression check at `83f7c67`
+
+Six commits touched `tex-world.ts` / `street.ts` / `civic.ts` after Round 4's
+measurement — including `0a648f7` "Move the three special shopfronts into
+tex-world.ts", `938a3b8` the church front reset in metres, and `cff1464` DINER
+and LAUNDRY swapping identities. Re-measured: **107 wall-sized exterior faces,
+all still 8 × 8 or 16 × 16 within canvas rounding.** The four faces added since
+Round 4 all fall into existing conforming groups.
+
+Pattern #1 is holding under continued change, which is the property a shared
+`masonry()` helper was supposed to buy and a corrected instance list would not
+have. The only non-conforming faces are still the two roads (19.20 × 14.33,
+18.58 × 12.80) and the alley floor (9.70 × 9.85) — **pattern #5, unassigned.**
