@@ -212,8 +212,21 @@ export function buildHotel(ctx: CtxBuild): void {
   // night. `room.person` is the kit's wrapper over the same atlas every citizen
   // outside uses — the right altitude for a room, per notes/CITIZEN-STYLE.md,
   // and it owns the per-frame turn so the room does not wire one.
+  const CLERK_X = DESK_X - 0.62, CLERK_Z = DESK_Z + 0.35;   // behind the counter
   room.person({ jacket: '#8a8478', pants: '#3a3630', skin: '#8d5a34', hair: '#241a12',
-      accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 }, DESK_X - 0.62, DESK_Z + 0.35, { facing: Math.PI / 2, h: 1.0, w: 0.98 });
+      accent: '#6a2a30', fit: 'plain', cut: 'crop', build: 0, stride: 2 },
+    CLERK_X, CLERK_Z,
+    // Derived from where the GUEST stands, not typed and not aimed at the desk.
+    // `Math.PI / 2` was right, but it is the same copied-constant shape that left
+    // the tax preparer and the pawnbroker facing their back walls (GOTCHAS §23).
+    //
+    // Aiming at the desk CENTRE was my first attempt and it is wrong by 30°: the
+    // clerk stands off-centre along the counter, so the centre is diagonally
+    // forward of him while the guest is straight across. The desk is 0.75 m deep
+    // in x down the west wall, so the guest stands at its +x face, level with the
+    // clerk — which is what this points at, and it stays right if he moves along
+    // the counter.
+    { facing: Math.atan2((DESK_X + 0.375) - CLERK_X, CLERK_Z - CLERK_Z), h: 1.0, w: 0.98 });
 
   // ── the pigeonholes, on the wall behind the desk ──
   //

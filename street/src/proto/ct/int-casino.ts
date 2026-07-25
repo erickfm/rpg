@@ -358,7 +358,12 @@ export function buildCasino(ctx: CtxBuild): void {
   room.person({
     jacket: '#3a2226', pants: '#241e22', skin: '#b8845a', hair: '#2a2018',
     fit: 'plain', accent: '#d8d0c0', cut: 'short', build: 0,
-  }, TX, TZ - 0.95, { facing: 0, h: 0.98, w: 0.95 });
+  // Facing derived from the table he deals to, not typed. It was `facing: 0`,
+  // which happened to be right — the two rooms where the same constant was
+  // copied instead of derived both ended up backwards (GOTCHAS §23), so being
+  // right by luck is not a reason to leave it. He stands on the far side and
+  // looks across the felt at whoever is playing.
+  }, TX, TZ - 0.95, { facing: Math.atan2(TX - TX, TZ - (TZ - 0.95)), h: 0.98, w: 0.95 });
 
   // ── the cage ──
   //

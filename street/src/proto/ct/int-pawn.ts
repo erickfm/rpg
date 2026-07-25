@@ -187,12 +187,22 @@ export function buildPawn(ctx: CtxBuild): void {
   // just furniture if there is nobody on the other side of it holding the line.
   //
   // He stands in the staff strip behind the counter, facing the customer floor:
-  // `facing: PI` is atan2(vx, vz) toward +z, which is out toward the door. A
-  // little grime, because this is a shop where the proprietor works the bench
-  // himself. `room.person` is the kit's wrapper over the same atlas the street
-  // citizens use, and it owns the per-frame turn — see notes/CITIZEN-STYLE.md.
+  // FACING DERIVED FROM THE COUNTER, not typed. This read `facing: Math.PI` with
+  // the comment "atan2(vx, vz) toward +z, which is out toward the door" — the
+  // SAME sentence, wrong the same way, as the tax office had. `person` takes
+  // 0 = +z, so PI is -z: the broker was facing the back wall with the customer
+  // behind him. Two rooms carrying one copied mistake is GOTCHAS §23 exactly.
+  //
+  // He now faces across his own counter at whoever is on the customer side, so
+  // moving the counter moves his head. A little grime, because this is a shop
+  // where the proprietor works the bench himself. `room.person` is the kit's
+  // wrapper over the same atlas the street citizens use, and it owns the
+  // per-frame turn — see notes/CITIZEN-STYLE.md.
+  const BROKER_X = room.doorAt + 1.6, BROKER_Z = CTR_ZC - 0.62;   // behind his counter
   room.person({ jacket: '#4a4238', pants: '#2e2a26', skin: '#c9946a', hair: '#6a6058',
-      accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 }, room.doorAt + 1.6, CTR_ZC - 0.62, { facing: Math.PI, h: 1.0, w: 1.03 });
+      accent: '#8a2c22', fit: 'plain', cut: 'bald', build: 1, stride: 2, grime: 0.35 },
+    BROKER_X, BROKER_Z,
+    { facing: Math.atan2(0, (CTR_ZC + CTR_D) - BROKER_Z), h: 1.0, w: 1.03 });
 
   // ── the back wall, which is now what you walk in facing ──
   //

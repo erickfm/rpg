@@ -182,6 +182,12 @@ export function buildTax(ctx: CtxBuild): void {
   const deskTopM = ctx.flat(deskTopT);
   const deskSideM = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });
   const paperM = new THREE.MeshBasicMaterial({ color: 0xe4dfcc });
+  // The two chair positions, named because the preparer's FACING is derived from
+  // them (GOTCHAS §23). Local z, and the client sits on the +z side — nearer the
+  // door — with the preparer beyond the desk on the -z side.
+  const PREP_CZ = -2.15, CLIENT_CZ = -0.75;
+  const LAMP_DX = -2.6;              // the desk that is in use; the other is spare
+
   const desk = (dx: number, lamp: boolean) => {
     put(new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.74, 0.8),
       [deskSideM, deskSideM, deskTopM, deskSideM, deskSideM, deskSideM]), dx, 0.37, -1.5);
@@ -211,14 +217,14 @@ export function buildTax(ctx: CtxBuild): void {
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 10),
         new THREE.MeshBasicMaterial({ color: DARKSTEEL })), dx, 0.03, cz);
     };
-    chair(-2.15, 0x4a5560, 0.5);    // the preparer's, blue-grey, with a back
-    chair(-0.75, 0x6a5f4e, 0.42);   // the client's, brown, and lower
+    chair(PREP_CZ, 0x4a5560, 0.5);    // the preparer's, blue-grey, with a back
+    chair(CLIENT_CZ, 0x6a5f4e, 0.42); // the client's, brown, and lower
     // ONE collider for the desk and both its chairs. The gaps between them are
     // under the 0.72 m player, so per-object boxes would only carve slots to
     // wedge into — the lesson the diner's booths taught.
     solid(dx, -1.15, 1.9, 1.9);
   };
-  desk(-2.6, true);
+  desk(LAMP_DX, true);
   desk(1.4, false);
 
   // ── the preparer, at the desk that has the lamp ───────────────────────
@@ -228,18 +234,29 @@ export function buildTax(ctx: CtxBuild): void {
   // the lamp on it, because that is the desk that is being used and the other
   // one is the reason this office has two.
   //
-  // He sits on the far side facing the client chair, `facing: PI` — atan2(vx,
-  // vz) toward +z, which is out toward the door. Deliberately the dullest Look
-  // in the world: grey-blue shirt, grey trousers, nothing accented. This room's
-  // whole joke is that it is drab on purpose and made with care, and a
-  // flamboyant preparer would break it.
+  // FACING IS DERIVED FROM THE CLIENT CHAIR, not typed. GOTCHAS §23: anything
+  // with a front will end up backwards if its heading is a constant copied from
+  // a sibling, and this one was — it read `facing: Math.PI` with a comment
+  // claiming PI was "toward +z, out toward the door". It is not. `person` takes
+  // `atan2(vx, vz)` with 0 = +z, so PI points at -z, which is the back wall. The
+  // preparer stood beside his desk looking away from the person he is serving,
+  // and the comment asserting otherwise is why it survived a reading.
+  //
+  // Now: he stands behind his own chair and looks at the client's. Move either
+  // chair and the heading follows.
+  //
+  // Deliberately the dullest Look in the world: grey-blue shirt, grey trousers,
+  // nothing accented. This room's whole joke is that it is drab on purpose and
+  // made with care, and a flamboyant preparer would break it.
   //
   // Standing rather than seated: the atlas paints people upright and a sitting
   // pose is not one of its five views, so he is on his feet beside the chair —
   // a preparer who has got up to file something. Faking a sit by sinking the
   // sprite into the floor would cut his legs off at the shin.
+  const PREP_X = LAMP_DX, PREP_Z = PREP_CZ - 0.30;      // stood behind his chair
   room.person({ jacket: '#5a6470', pants: '#4a4a44', skin: '#e6bb92', hair: '#4a4038',
-      fit: 'plain', cut: 'short', build: 0, stride: 2 }, -2.6, -2.45, { facing: Math.PI, h: 0.99, w: 0.98 });
+      fit: 'plain', cut: 'short', build: 0, stride: 2 }, PREP_X, PREP_Z,
+    { facing: Math.atan2(LAMP_DX - PREP_X, CLIENT_CZ - PREP_Z), h: 0.99, w: 0.98 });
 
   // ── the pinboard ──
   //
