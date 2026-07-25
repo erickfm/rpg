@@ -28,6 +28,38 @@ change with them gone.
 `tsc` clean, textures `4afd7bb6` and structure `6caac454` identical, ten checks
 green, `mirror-walk` still 5 of 5.
 
+## A BLOCK THAT WAS NEVER REAL — the projecting blade, and two more with it
+
+An earlier rewrite of this file (`e377eea8`) said the last fifth of the facade
+brief was *"the critical path… standing between the user and the rest of what
+they asked for"*, needing a bounded mandate for `ct/street.ts`. It named three
+things: an **awning**, a **projecting blade sign**, a **recessed doorway** —
+*"all three are meshes, and shopfront meshes are built in `placeBld` in
+`ct/street.ts`, which is D's. I cannot do it from my file."*
+
+**That is wrong, and I repeated it to the desk a day later before checking.**
+
+`shopfrontRelief()` is in `ct/tex-world.ts` — my file — and it builds meshes. It
+takes the scene, makes its own `THREE.Group`, and adds the cornice, the bed
+mould, the jambs, the head, the cill, the plinth and the recessed room plane.
+`ct/street.ts` only CALLS it. Anything hung on a shopfront can be built from
+here without touching D's file at all.
+
+**The blade is built** (`5d430ba0`) and needed no mandate. The awning and the
+recessed doorway are the same shape of problem and are equally unblocked — the
+doorway is arguably already done, since the jambs, head and 0.45 m room recess
+in that function *are* the reveal, in geometry rather than paint.
+
+I also gave a second false reason for the same block: that a blade would breach
+the 0.30 m depth budget. It does not apply — that budget is about things you can
+walk into, and the sprite tree in the same file already settles the case ("you
+walk UNDER it"). A blade's underside is at 2.45 m.
+
+**The lesson worth keeping:** both times I reasoned about where the code lives
+instead of opening it. A block asserted from memory of a file layout is worth
+about as much as a check nobody has watched fail — and this one sat here for a
+day claiming to be the critical path.
+
 ## Resolved since this file was last rewritten
 
 - **the mirror verification** — `mirror-walk` checks all five declared rooms and
