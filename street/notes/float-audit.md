@@ -107,3 +107,38 @@ nearest-neighbour gap must be 0, and to the intended thing.
   caught by a single frame. Worth a repeat sweep at several times.
 - **Only daylight.** Nothing here should be time-dependent, but the lamp halos
   are opacity-driven and I did not re-run at night.
+
+---
+
+# Round 2 — both signs fixed; one new float, and it is indoors
+
+Base `add-stick-and-city98` @ `5803367e`. Re-ran `scripts/floats.mjs`.
+
+**Both findings closed.** `d2e5d02d` ("Signs: give both of them something to
+stand on") anchored the pair. The detector now reports **3 floating components
+out of 1,098 meshes**, down from 11 of 530:
+
+| | round 1 | **now** |
+|---|---|---|
+| GOLDEN ACES pylon (legs, frame, 2 faces) | floating, legs 2.05 m from any roof | **anchored** |
+| HOTEL blade + mast | floating, 0.47 m off the wall, base 4.10 m up in air | **anchored — visible brackets tie it to the brick** (`shots/tf-T4-aces.png`) |
+| lamp halos, bulb glows | additive, weightless by design | 2 remain, unchanged and correct |
+
+## New finding 3 — a price card floats inside the thrift store
+
+| # | sev | object | file | world coords | what's wrong |
+|---|-----|--------|------|--------------|--------------|
+| 3 | low | two coincident mapped planes, 0.44 × 0.22 m | `ct/int-thrift.ts` | (602.2, 1.42, −2.42) | A two-sided card — the `twoSided` two-plane idiom — hovers **0.325 m above the shelf under it** (a 2.7 × 0.05 × 0.68 counter top at y = 0.985). Nearest anchored geometry in any direction is that shelf, 0.325 m away. No stand, no bracket, no wire. |
+
+Small, indoors, and low severity on its own. It matters because of where it is:
+**the first float found inside a kit room.** The float brief named "hanging shop
+signage" as a category and this is the first instance; with seven rooms written
+and three more to come, it is worth builders knowing that `scripts/floats.mjs`
+covers interiors too — it walks the whole scene graph, slabs included.
+
+## Coverage — round 2
+
+- The **mirroring** of the two signs (seam audit R1) was **not** re-verified this
+  pass. It needs the matched opposite-side pair that settled it originally, and
+  a steep-angle shot is not enough to judge. Unknown, not clean.
+- Moving objects sampled at one instant, as before.

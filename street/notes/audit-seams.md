@@ -1,68 +1,49 @@
-## audit/seams — interiors round 6: four of seven finished rooms are unreachable
+## audit/seams — pattern #1 still clean; both floating signs fixed; one new float indoors
 
-Queue `## Now` (interiors, standing) re-walked at `499892c7`.
-Report: `notes/interior-audit.md`, Round 6 appended.
+Two queue items worked. Base `5803367e`.
 
-Touched:   notes/interior-audit.md (+Round 6), notes/audit-seams.md,
-           scripts/facade.mjs (new — maps the reachable limit along both facades)
+Touched:   notes/seam-audit.md (+regression check), notes/float-audit.md
+           (+Round 2), notes/interior-audit.md (+Round 6, previous commit),
+           scripts/facade.mjs, scripts/thriftfloat.mjs
            **nothing under street/src/**
-Base:      499892c7
 
-### Route first: the unwired-room count is growing, not shrinking
+### `## Next` — pattern #1: no regression after ten more commits
 
-| | round 3 | round 4 | **round 6** |
-|---|---|---|---|
-| written | 4 | 4 | **7** |
-| in the world | 2 | 2 | **3** |
-| unwired | casino | casino, hotel | **casino, hotel, pawn, tax** |
+Ten commits touched the three masonry files since the last check, including
+`b5f8264a` (MERIDIAN and LAUNDRY merged into one **19.2 m** bank), `e71b1da4`
+(pawnshop rebuilt, "the last legacy-texel painter" retired), `499892c7` (church
+inlaid) and `5cbb1620` (four shopfronts given depth). Re-measured: **every
+masonry face is still 8 × 8 or 16 × 16.**
 
-`buildCasino`, `buildHotel`, `buildPawn`, `buildTax` — all exported, none called.
-Slab 3 measures empty. **Four of seven finished rooms are unreachable, and the
-count has risen in each of the three rounds since I first reported it.** Two
-builders have each now shipped two rooms no player can enter.
+The bank merge is the case worth noting — a facade wider than anything that
+existed when `masonry()` was written came out at **8.02 × 8.00**, band at
+**15.99 × 15.95**, with nobody thinking about it. That is the property the
+helper was bought for, demonstrated rather than asserted.
 
-That is no longer plausibly a builder oversight. It is the mechanism from round
-4: the kit made a room's *contents* self-registering and left the room's *own
-existence* as one hand-written line in the most contended file in the project,
-with nothing checking it. **The kit already knows every id it handed a slab to;
-comparing that list against the ids it was asked to build is a build-time assert
-and it would have caught all four.**
+**One new non-conforming face, and it is not masonry.** The GOLDEN ACES pylon
+sign now measures **13.53 × 11.94** (was 10.45 × 10.57): `d2e5d02d` resized the
+boards and the canvas did not follow, so near-square texels became 1.13 : 1.
+Signage never went through `masonry()` and arguably should not — but it is the
+same failure in a subsystem the pattern does not cover: **a canvas that does not
+move when its surface does.** Worth a decision rather than a drive-by fix.
 
-### Finding 13 differentiated — and it gives D a one-number acceptance test
+### Float audit — both my findings are closed
 
-The thrift store now measures **0.01 m closest / 1.04 m margin / reachable**,
-where in round 5 it was 0.21 / 0.84 / blocked — with no change to its door
-coordinate. So I mapped the reachable limit along both facades every 4 m
-(`scripts/facade.mjs`):
+`d2e5d02d` anchored both signs. The detector is down to **3 floating components
+of 1,098 meshes**, from 11 of 530. The HOTEL blade now has **visible brackets
+tying it back to the brick** — the remedy recommended in `notes/float-audit.md`
+finding 1. The pylon is anchored. Remaining floats are the two bodega bulb
+glows, which are additive light and correct.
 
-| stretch | limiting x | |
-|---|---|---|
-| west wall, z ≥ −68 | −6.29 … −6.34 | still inset 0.3 m |
-| west wall, z ≤ −72 | **−6.64** | at the true facade — converted |
-| east wall, whole length | 6.28 … 6.34 | still inset 0.3 m |
+**One new float, and it is the first one indoors:** a two-sided price card in the
+thrift store at (602.2, 1.42, −2.42) hovers **0.325 m above the shelf beneath
+it**, nearest geometry in any direction. Low severity; logged because it is the
+first instance of the brief's "hanging shop signage" category and because it
+tells the interior builders that `scripts/floats.mjs` covers their rooms too.
 
-> **D's "collision follows geometry" has reached the west facade south of about
-> z = −70 and nowhere else.**
+### Not re-verified
 
-That is exactly why thrift came good (its door is at z = −74.94, inside the
-converted stretch) and the diner, burger barn and No. 227 did not. Acceptance
-test for the remainder: **the limit should read ±6.64 everywhere a facade
-stands.**
-
-### A correction I had to make mid-report, again
-
-I drafted the new-rooms section claiming pawn and tax both fill their frontage
-and that "the three low ones are the three oldest" — then read the roster and
-found **PAWN is 15 m, not the 12 m I assumed**. Corrected, seven rooms read 67,
-71, 75, 76, 94, 95, 95 %, and round 5's finding survives unchanged: room widths
-are 8.0–12.0 m against frontages of 11.55–16 m with **no relationship between
-them**. Rooms that "fill their frontage" are the ones behind narrow buildings.
-
-Second time in two rounds a stale roster width has caught me. Worth stating as a
-standing caution: **roster widths move, so any hand-copied frontage number older
-than one rebase is suspect** — which is also the argument for `RoomSpec` taking
-the frontage rather than a builder copying it.
-
-Left:      Four of seven rooms source-only — ceilings, densities, light, doors
-           and colliders unmeasured for those. Three of ten unwritten. Ceiling
-           spread still 0.9 m (2.50 → 3.40).
+The **mirroring** of the two signs (seam audit R1) was not re-checked. It needs
+the matched opposite-side pair that settled it originally; a steep-angle shot
+cannot judge it. **Unknown, not clean** — worth one pass when someone is next in
+that code.

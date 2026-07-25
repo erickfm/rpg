@@ -421,3 +421,24 @@ Pattern #1 is holding under continued change, which is the property a shared
 `masonry()` helper was supposed to buy and a corrected instance list would not
 have. The only non-conforming faces are still the two roads (19.20 × 14.33,
 18.58 × 12.80) and the alley floor (9.70 × 9.85) — **pattern #5, unassigned.**
+
+### Regression check at `5803367e`
+
+Ten further commits touched the three masonry files since the last check —
+including `b5f8264a` (MERIDIAN and LAUNDRY merged into one 19.2 m bank),
+`e71b1da4` ("Rebuild the pawnshop; retire the last legacy-texel painter"),
+`499892c7` (the church inlaid with a churchyard) and `5cbb1620` (four shopfronts
+given depth). Re-measured: **every masonry face is still 8 × 8 or 16 × 16.**
+
+The merge is the useful case: a brand-new 19.2 m facade — wider than anything
+that existed when `masonry()` was written — came out at **8.02 × 8.00**, and its
+shop band at **15.99 × 15.95**. A new building at a new size lands on the grid
+without anyone thinking about it. That is the property the helper was bought for.
+
+**One new non-conforming face, and it is not masonry.** The GOLDEN ACES pylon
+sign now measures **13.53 × 11.94** (face 6.8 × 6.2 m, canvas 92 × 74) where it
+was 10.45 × 10.57. `d2e5d02d` resized the boards when it gave the signs
+something to stand on, and the canvas did not follow — so texels that used to be
+near-square are now 1.13 : 1. Signage never went through `masonry()` and arguably
+should not, but it is the same failure in a subsystem the pattern does not
+cover: **a canvas that does not move when its surface does.**
