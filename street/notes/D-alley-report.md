@@ -976,3 +976,38 @@ reason I ran it rather than argued it.
 Nothing changed as a result. Recording it because "I checked and it was fine" is
 only worth anything if the check happened, and the table says which measurement
 backs each row.
+
+## Stopwatch sweep of my own probes, after `3dff741e` and `104c7f38`
+
+Two builders swept their probes for the pattern `81603988` named: a threshold on
+**how far or how long** something went, where the invariant is **whether it got
+stuck**. `3dff741e` records where it is *not*, which is the part worth copying.
+
+**No stopwatches in mine.** `D-walk` is the only one that walks, and it asserts
+on the PROMPT rather than on distance — `for (i < steps && !got) { hold('w');
+got = await prompt() }` loops until the condition appears and then checks the
+building's name. That is already the shape the other two converted to. No
+assertion anywhere in my five checks reads a distance or a duration.
+
+The honest residue is **magnitude thresholds**, which are a different animal, and
+what matters for those is the margin between the number and the world:
+
+| assertion | threshold | actual | basis |
+|---|---|---|---|
+| walk not sealed | 0.72 m | 1.12 m | the capsule — the body, not a choice |
+| walk not a trap | 0.95 m | 1.12 m | `ct/gap.ts` `PASSABLE`, the project's own line |
+| cereal runs out | 5–6 | 5 | arithmetic: $14.50 / $2.50 |
+| church steps climb | gy > 0.45 | 0.55 | kerb is 0.14; the invariant is "not still on the pavement" |
+| no shell is a flat | 8 m | 14 m | a room's depth; deliberately NOT `depthOf`'s own floor of 14 |
+| noon is dark | < 200 px | 0 | absolute on purpose — a relative test passes an all-dark world |
+| night is lit | > 1500 px | 2936 | same |
+| alley floor grain | ≥ 20 px/m | 23.9 | the defect was 9.7; neighbours run 14–32 |
+| returns not uniform | ≥ 12 | 19 | **the weakest number here — chosen, not derived** |
+
+Eight of the nine have either a physical basis, an arithmetic one, or a margin
+wide enough that a sound world cannot drift into them. **`≥ 12 distinct flank
+textures` is the one I would not defend that way**: 19 of 36 faces today, and a
+builder who legitimately reduced variety to eleven would get a red that says
+nothing. It is guarding a real defect — every return the same brown, raised
+twice — so it stays, but it is a chosen number and this is it being written down
+rather than discovered later.
