@@ -676,3 +676,66 @@ All other triggers unchanged from round 8, including THRIFT still at 0.27 / 0.78
 / blocked (finding 17 — the prop against the facade is still there).
 
 **Pawn is still unwired.**
+
+---
+
+# Round 10 — finding 10 is CLOSED: all seven rooms are in the world
+
+Base `add-stick-and-city98` @ `92828283`. `0b6d6630` — "Interiors self-register:
+writing `ct/int-<name>.ts` is what puts it in the world" — replaced the
+hand-written `buildX(ctx)` calls with `buildAllInteriors(ctx)`, which globs
+`./int-*.ts`, sorts by path so slab addresses are deterministic, finds each
+module's `build…()` export and calls it, warning if a module exports none and
+catching a throw so one bad room cannot take the world down.
+
+**Measured: slabs 0–6 are all populated. Seven rooms, seven slabs.** The pawn
+shop — unwired for three rounds — is in the world at slab 4 (11.0 × 8.0, h 2.80).
+
+> Finding 10 went 1 of 4 unreachable → 2 of 4 → 4 of 7 → 1 of 7 → **0 of 7.**
+> The fix is the one this audit argued for in round 4: *the kit already knows
+> every id it has handed a slab to.* It is now structurally impossible to write
+> a room and forget to put it in the world, which is a stronger outcome than the
+> assert I proposed — the failure cannot be made rather than being detected.
+
+Note for anyone with saved coordinates: **slab addresses have changed**, because
+they are now assigned by sorted filename. The mapping is burger 0, casino 1,
+diner 2, hotel 3, pawn 4, tax 5, thrift 6.
+
+## The set, all seven rooms, measured
+
+| | burger | casino | diner | hotel | pawn | tax | thrift |
+|---|---|---|---|---|---|---|---|
+| clear | 11.0 × 8.5 | 10.5 × 9.0 | 8.6 × 7.0 | 11.0 × 9.0 | 11.0 × 8.0 | 12.0 × 8.5 | 8.0 × 6.5 |
+| ceiling | 3.20 | **2.50** | 3.00 | **3.40** | 2.80 | 2.75 | 2.75 |
+| **wall thickness** | **0.18** | **0.18** | **0.18** | **0.18** | **0.18** | **0.18** | **0.18** |
+| **wall px/m** | 11.9 × 11.9 | 11.9 × 12.0 | 11.9 × 12.0 | 11.9 × 11.8 | 11.9 × 11.8 | 11.9 × 12.0 | 11.9 × 12.0 |
+| floor px/m | 20.4 × 18.8 | 21.3 × 21.3 | 18.6 × 18.3 | 20.4 × 21.3 | 20.4 × 20.0 | 21.3 × 18.8 | 20.0 × 19.7 |
+| ceiling luminance | **0.832** | **0.148** | 0.714 | 0.616 | 0.407 | 0.767 | 0.745 |
+| glows | 4 | 6 | 2 | 6 | 4 | 6 | 2 |
+
+**Seven rooms, four agents, wall thickness and wall texel density identical in
+every one.** The kit's owned half is now seven for seven. Everything still
+disagreeing is a free parameter: ceiling heights are seven distinct values
+spanning 0.9 m, ceiling luminance spans **5.6 : 1**, floor density runs
+18.3–21.3 and is still anisotropic within individual rooms.
+
+## Finding 12 — the enabler landed, the consumption has not
+
+`b002bea9` published **`frontageOf(name, wMeters)`** in `ct/tex-world.ts`: the
+shopfront's geometry — including where its door sits — is now a queryable fact
+rather than a number each builder copies. That is precisely what this audit
+asked for in round 5, after being caught twice by stale roster widths.
+
+**But no room module imports it.** `grep -l frontageOf src/proto/ct/int-*.ts`
+returns nothing. Room widths are unchanged: 8.0, 8.6, 10.5, 11.0, 11.0, 11.0,
+12.0 against frontages of 11.55–16 m. So the finding stands exactly as written —
+**the tool to fix it exists and nothing uses it yet.** That is a much better
+place to be than round 5, and it is one import per room away from closed.
+
+## Coverage — round 10
+
+- Three of ten rooms still unwritten.
+- Trigger margins not re-measured this round; the slab renumbering does not
+  affect street-side door spots, but the props situation (finding 17) moves.
+- The four newest rooms have not been through the round-7 side-by-side light
+  comparison.
