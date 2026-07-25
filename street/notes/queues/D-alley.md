@@ -17,6 +17,48 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **Swap BARBER and THRIFT, then turn BARBER + GROCERY into a small
+      park.** The user: *"swap barber for thrift, then grocery and barber turn
+      those into a small park"*.
+
+      The swap is not cosmetic — it is what makes the park possible, and it is
+      worth seeing why before you cut anything. The west run after the alley
+      currently reads, north to south:
+
+          DINER 12 · BARBER 12.5 · THRIFT 14 · GROCERY 16      = 54.5
+
+      Swap BARBER and THRIFT (identities, not slots, so every width stays put
+      exactly like the diner move) and it becomes:
+
+          DINER 12 · THRIFT 12.5 · BARBER 14 · GROCERY 16      = 54.5
+
+      Now **BARBER and GROCERY are adjacent**, and together they are a **30 m
+      frontage running to z = −98**, where the corner building takes over.
+      That is the park: the whole south end of the west side, meeting the
+      corner. Before the swap those two slots had THRIFT between them and no
+      park was possible without breaking the run.
+
+      **Your half is the roster and the ground.** Delete BARBER and GROCERY as
+      buildings, and give the 30 m to a park. The run total is unchanged —
+      54.5 either way — so nothing needs paying for out of a neighbour, which
+      is the whole point of doing the swap first.
+
+      **The park itself belongs to builder E**, in a new `ct/park.ts`, the same
+      way the library and the church live in `ct/civic.ts`. You decide where
+      it stands and how the ground behaves; E decides what is in it. Give E
+      its exact z-span and the sidewalk edge through the desk when you commit.
+
+      Things that are yours and easy to get wrong:
+      · the buildings either side now have **exposed party walls** where they
+        used to abut. A blank brick flank facing a park is correct and real —
+        but it must be a finished flank, not the raw end of a shell.
+      · the **skyline opens up**. Right now the west wall is continuous and
+        the fog closes the end; a 30 m gap will show whatever is behind it.
+        Make sure that is something, not void.
+      · **collision** — the park must be walk-INTO-able. This is your live
+        collision mandate; the two blanket wall rectangles in `crosstown.ts`
+        would seal a park exactly the way they sealed the library courtyard.
+
 - [ ] **Replace LAUNDRY with the DINER.** The user: *"replace laundry with
       diner."*
 

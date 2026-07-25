@@ -14,6 +14,46 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Build the park.** New file, `ct/park.ts`, yours — same relationship to
+      `ct/street.ts` that `ct/civic.ts` already has. The user:
+      *"swap barber for thrift, then grocery and barber turn those into a
+      small park"*.
+
+      Builder D is clearing the ground: BARBER and GROCERY come out of the
+      west roster, leaving a **30 m frontage at the south end of the west
+      side, running to z = −98** where the corner building takes over. D will
+      report the exact z-span through the desk — **wait for it and use the
+      real number**, do not anchor to this description.
+
+      This is the first thing on the block that is not a building, and that is
+      the opportunity: everything else here is a wall you walk past. A park is
+      a place you walk INTO and stop. Treat it like the library courtyard,
+      which the user liked, but bigger and less formal.
+
+      What a small 1997 city park actually is, and none of it is grass alone:
+      an iron fence with a gate on the street line so it reads as a room;
+      paths that go somewhere rather than curving decoratively; London plane
+      or honey locust with real canopy; benches facing the paths, not the
+      street; a drinking fountain; a bin; patchy grass worn to dirt on the
+      desire lines; a bit of asphalt where something used to be. It should
+      look municipal and slightly neglected — the same hand as the library,
+      which was *"built by people who thought public buildings should be
+      beautiful, and not looked after since"*.
+
+      Constraints:
+      · the **2 m sidewalk lane past it stays clear** (`GOTCHAS.md` §9), and
+        the park must be genuinely enterable — walk in, around, and out
+      · paving must ABUT the sidewalk, never overlap it (§6) or it z-fights
+      · trees are `ct/props.ts` (builder B) and the seeded `rnd()` order is
+        load-bearing (§2). If you draw new random values, append at the END,
+        and if you need B's tree work, ask the desk rather than reaching in
+      · benches should be sittable — builder F is landing a shared
+        `ctx.seat()` for exactly this. Ask the desk when it is ready rather
+        than building your own sit mechanic.
+      · D's collision mandate has to land first or the park will be sealed
+        off the way the library courtyard was. Check before concluding your
+        entrance does not work.
+
 - [ ] **You must be able to walk up the library steps.** The user, after the
       courtyard landed: *"also i want to be able to walk up the stairs of the
       library"*.
