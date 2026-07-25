@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { facadeTex, masonry, SHOP_BAND_H, SHOP_MULT } from './tex-world';
 import { type BldSpec } from './civic';
 import { type AABB } from '../fp';
@@ -334,12 +334,19 @@ export function buildVice(o: {
   const boardM = new THREE.MeshBasicMaterial({ color: 0x24222a, side: THREE.DoubleSide });
   const goldM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
 
-  const soft = pixTex(32, 32, (g) => {
+  // Declared, not left for a tool to guess at. `soft` is the radial falloff that
+  // every spill and haze sheet on these two buildings maps, and those four faces
+  // were turning up in the seam audit's brick-candidate list at ~6 px/m against
+  // declared-16 walls — a ratio that means nothing, because a surface that ADDS
+  // light to what is behind it is not masonry and cannot be. `declareSurface` is
+  // the module that knows saying so, which is the pattern that already settled
+  // `masonry`, `selfLit` and `mod`.
+  const soft = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(255,255,255,0.85)');
     gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
-  });
+  }), 'detail');
   /** a flat additive pool on the ground — GOTCHAS §3, top-down, never a board */
   const spill = (x: number, z: number, w: number, d: number, y: number, col: number, day: number, nite: number) => {
     const m = new THREE.MeshBasicMaterial({ map: soft, color: col, transparent: true,
