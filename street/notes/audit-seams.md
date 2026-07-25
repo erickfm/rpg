@@ -1,49 +1,56 @@
-## audit/seams — interiors round 3: the casino is written but not in the world
+## audit/seams — pattern #1 is CLOSED, measured
 
-Queue `## Now` (interiors, standing) re-walked at `1b990d7`.
-Report: `notes/interior-audit.md`, Round 3 appended.
+Queue `## Next` → "Re-verify pattern #1 AGAIN once builder A's cross-file fix
+lands" is **done**. Written up as **Round 4** in `notes/seam-audit.md`.
 
-Touched:   notes/interior-audit.md (+Round 3), notes/audit-seams.md,
-           scripts/interiors.mjs (regions widened), scripts/triggers.mjs
-           (+burger), scripts/intshots.mjs (new)
+Touched:   notes/seam-audit.md (+Round 4), notes/audit-seams.md,
+           scripts/reverify2.mjs (new)
            **nothing under street/src/**
-Base:      1b990d7
+Verified:  `scripts/density.mjs` over every textured face in the world, then the
+           headline corners re-shot (`shots/rv2-*.png`). Measured, not eyeballed.
+Base:      1b990d7 · A's commit `a848b9d`
 
-### Two high findings
+### Result
 
-**1 — `buildCasino` is never called.** G's room is written, committed and
-unreachable: `grep -rn buildCasino src/` returns only its own definition, slab 2
-measures empty, and no `[E] into GOLDEN ACES` exists. The kit removed the need to
-touch `crosstown.ts` to register *spots*, but the one-line `buildX(ctx)`
-construction call still lives there — so every room keeps a desk-contended step
-that nothing checks. **Route to whoever owns `crosstown.ts`; it is one line.**
+| finding | before | after | verdict |
+|---|---|---|---|
+| 2 — bodega canted bay | 11.50 × 11.70 | **8.13 × 8.02** | closed |
+| 12 — bay shopfront | 24.0 × 12.38 | **15.91 × 15.95** | closed |
+| 9 — east cross building | 7.33 × 7.65 | **8.00 × 8.01** | closed |
+| 19 — alley rear wall | 11.43 × 11.72 | **8.00 × 7.97** | closed |
+| civic ashlar | 8.00 × 11.75 | **8.00 × 8.03–8.06** | closed |
+| 1 — untextured `endM` | flat `#53382e` | unchanged, 5 sites | **still open, correctly outside A's mandate** |
 
-**2 — ceiling heights now span 0.7 m.** casino 2.50 / diner 3.00 / burger 3.20,
-against a kit default of 2.9 whose comment says *"a casino or a library wants
-more"*. The casino asked for 0.4 m **less** than the shop default.
+**Every masonry surface in the world is now 8 × 8 or 16 × 16 within canvas
+rounding.** The only non-conforming faces left are the roads and the alley floor
+— pattern **#5**, a different root cause, still open — plus non-masonry (lamp
+pools, tree sprites, sign faces).
 
-### Also
+Pattern #1 is the first in this audit trail to go all the way: instance → root
+cause → restatement → complete closure.
 
-- **Frontage rule already broken by the second room.** Diner fills 97 % of its
-  shopfront (8.96 m of 9.2). Burger barn fills **71 %** — 11.36 m inside a 16 m
-  frontage, 4.6 m of shopfront with no room behind it.
-- **The entry-trigger debt propagated exactly as round 2 predicted.** Burger
-  copied the diner's 0.45 m door offset, so its trigger centre is 0.21 m inside
-  the blanket wall, margin 0.84 m (80 %). Three of four street triggers are now
-  in debt. The bodega, once fixed, holds at 96 %.
-- **Round-1 findings 1–4 all unchanged** — A's density mandate was exteriors
-  only. Floor vs wall still ~1.6 : 1; floor density now anisotropic *within* the
-  burger barn (20.4 × 18.8) because `round(W/1.6)` and `round(D/1.6)` land on
-  different multiples in a non-square room; ceilings untextured; palette
-  luminance spans 5 : 1 with nothing bounding it.
+### Two things worth the desk knowing about how it closed
 
-### What is working
+**A found instances I missed, and the reason is instructive.** My list came from
+walking the world; A's came from grepping the painters. Three custom shop bands
+(BURGER BARN, PAWN, A-1 TAX) sat at 8 × 12.38 against 18 neighbours at 16 × 15.95
+and I never logged them, because I shot the joins either side rather than the
+bands themselves. Independent confirmation they are fixed: **the 16 × 15.95 group
+grew from 18 faces to 21.** A walk finds what is conspicuous; a grep finds what
+is uniform. This pattern needed both, and it is worth pairing them deliberately
+next time rather than by luck.
 
-The two rooms that are in the world read as one place — 0.18 m walls, 11.9 px/m
-square wall texels, identical shell and reveal language, door machinery correct
-in both. Every failure above is in a parameter the kit leaves free, not in a
-part it owns. That is the round-1 pattern holding under a second and third
-builder, which is the strongest evidence yet for closing those four findings.
+**The pattern reasserted itself mid-fix.** A rebased and found a new
+non-conforming painter — `partyTex` in E's courtyard, `Math.round(FLANK_H*11.2)`
+— written *after* the pattern was documented. Now 8 × 8. That is the argument
+for the shape adopted: a shared `masonry()` helper makes the next one impossible,
+where a list of corrected instances is stale the day it is written.
 
-Left:      Casino measurable only from source until it is wired. Seven of ten
-           rooms unwritten. Light measured as luminance, not judged side by side.
+### Still open, for routing
+
+- **Finding 1**, untextured `endM` party walls — 5 sites in `ct/street.ts`,
+  visible above every height change. Not a density defect; needs brick on the
+  exposed flank.
+- **Pattern #5**, ground surfaces: roads (19.2 × 14.33 and 18.58 × 12.8) and the
+  alley floor (9.7 × 9.85) still each carry their own ad-hoc repeat. Same shape
+  of fix, different subsystem, nobody assigned.

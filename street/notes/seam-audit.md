@@ -353,3 +353,57 @@ Shot the ten instances above and measured all 103 exterior wall faces. I did
 **not** re-verify findings 14, 15, 21–25 (interiors, gutter noise, awning, kerb
 ramp) — unrelated files, unchanged. Interiors were measured by density only, not
 walked. Daylight only.
+
+---
+
+# Round 4 — pattern #1 after the cross-file mandate: closed
+
+Base `add-stick-and-city98` @ `1b990d7`. A's cross-file commit is `a848b9d`
+(`notes/A-density-cross.md`). Measured with `scripts/density.mjs` over every
+textured face in the world; confirmation shots `shots/rv2-*.png`.
+
+## The five open instances, plus the civic one
+
+| finding | before | **after** | verdict |
+|---|---|---|---|
+| 2 — bodega canted bay, upper | 11.50 × 11.70 | **8.13 × 8.02** | **CLOSED** |
+| 12 — canted bay shopfront | 24.0 × 12.38 | **15.91 × 15.95** | **CLOSED** — now on the 2× band grid with its 20 neighbours |
+| 9 — east cross building | 7.33 × 7.65 | **8.00 × 8.01** | **CLOSED** — real 24 m extent now passed |
+| 19 — alley rear wall | 11.43 × 11.72 | **8.00 × 7.97** | **CLOSED** (flanks fall in an 8 × 8 group) |
+| civic ashlar (library, church, tower) | 8.00 × 11.75, tower 10.81 | **8.00 × 8.03 / 8.06 / 8.04** | **CLOSED** |
+| 1 — untextured `endM` party walls | flat `#53382e` | flat `#53382e`, 5 sites | **still open — correctly outside A's mandate.** Never a density defect; needs brick on the exposed flank, not a canvas size. |
+
+## Every remaining non-conforming face in the world
+
+Nothing masonry is left outside the grid. What is left is either ground —
+pattern **#5**, a different root cause, still open — or not masonry at all:
+
+| face | px/m | what |
+|---|---|---|
+| main road | 19.20 × 14.33 | finding 6, pattern #5 |
+| side road | 18.58 × 12.80 | finding 6, pattern #5 |
+| alley floor | 9.70 × 9.85 | finding 4, pattern #5 |
+| corner asphalt wedge | 18.29 × 18.29 | ground, square |
+| sidewalk | 32.0 × 32.0 | ground, square, correct |
+| lamp pools / halos, tree sprites, sign faces | — | not masonry |
+
+**Pattern #1 is closed.** Every masonry surface in the world now measures 8 × 8
+or 16 × 16 within canvas rounding. That is the first pattern in this audit trail
+to go all the way from instance to root cause to complete closure.
+
+## Two things worth recording about *how* it closed
+
+**A found instances I missed, and the reason is instructive.** My list came from
+walking the world; A's came from grepping the painters. Three custom shop bands
+— BURGER BARN, PAWN, A-1 TAX — were at 8 × 12.38 against 18 neighbours at
+16 × 15.95, and I never logged them because I shot the joins either side of them
+rather than the bands themselves. Independent confirmation that they are fixed:
+**the 16 × 15.95 group has grown from 18 faces to 21.** A walk finds what is
+conspicuous; a grep finds what is uniform. This pattern needed both.
+
+**The pattern reasserted itself during the fix.** A rebased mid-task and found a
+*new* non-conforming painter — `partyTex` in E's library courtyard, deriving its
+own `Math.round(FLANK_H * 11.2)` — written after the pattern was documented. It
+now measures 8 × 8. That is the strongest argument for the shape of the fix that
+was adopted: a shared `masonry()` helper makes the next one impossible, whereas a
+list of corrected instances would have been out of date the day it was written.
