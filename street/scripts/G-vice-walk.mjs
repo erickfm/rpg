@@ -42,10 +42,16 @@ const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout
 // the facade painter read the same declaration, so these three cannot disagree.
 const STAND = {};
 for (const nm of ['GOLDEN ACES', 'HOTEL ORPHEUS']) {
-  const d = await p.evaluate(async (name) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const s = dm.doorStandFor(name), pt = dm.doorPointFor(name);
-    return s && pt ? { sx: s.x, sz: s.z, px: pt.x, pz: pt.z } : null;
+  // Through `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. That source
+  // path only exists on the dev server, so the old form made this suite
+  // dev-only — and dev is precisely where the door-drop bug (1e49295b) is
+  // invisible. A check that cannot be pointed at the built bundle cannot see
+  // anything the bundler does. The runtime API says the same thing and works in
+  // both, so `SHOT_URL=<a vite preview> node scripts/G-vice-walk.mjs` now runs.
+  const d = await p.evaluate((name) => {
+    const e = window.__ct.doors().find((q) => q.building === name);
+    return e && e.stand && e.point
+      ? { sx: e.stand.x, sz: e.stand.z, px: e.point.x, pz: e.point.z } : null;
   }, nm);
   if (!d) { console.error(`no declaration for ${nm}`); process.exit(2); }
   STAND[nm] = d;

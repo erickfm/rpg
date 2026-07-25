@@ -142,10 +142,14 @@ const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout
 // the same declaration the room and the facade both read, so this cannot go
 // stale and cannot disagree with them.
 for (const r of ROOMS) {
-  const d = await p.evaluate(async (name) => {
-    const dm = await import('/src/proto/ct/doors.ts');
-    const s = dm.doorStandFor(name);
-    return s ? { x: s.x, z: s.z } : null;
+  // Through `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. That source
+  // path exists only on the dev server, which is what made this whole suite
+  // dev-only — and dev is exactly where the door-drop bug (1e49295b) cannot be
+  // seen. The runtime API answers the same question in both worlds, so this can
+  // now be pointed at a `vite preview` of dist.
+  const d = await p.evaluate((name) => {
+    const e = window.__ct.doors().find((q) => q.building === name);
+    return e && e.stand ? { x: e.stand.x, z: e.stand.z } : null;
   }, r.building);
   if (!d) { console.error(`no declaration for ${r.building} — cannot walk ${r.id}`); process.exit(2); }
   r.doorX = d.x; r.doorZ = d.z;
