@@ -356,12 +356,29 @@ are the DECLARATIONS, which are the authority; the probe is only how I noticed.
 
 ---
 
+## PICKING THIS UP FRESH — `./scripts/desk.sh` recommends it
+
+`desk.sh` reports **`interiors2 is at its CONTEXT LIMIT — its queue file holds the
+brief, so consider restarting it fresh rather than letting it compact mid-item`**.
+The board is right, and the handover is clean: **0 unlanded commits, 0 dirty
+files**, everything through the merge train.
+
+Read in this order:
+
+1. **this file** — six things waiting on a ruling, none of them work
+2. `notes/G-interiors2-handoff.md` — starts with a "READ THIS FIRST" index naming
+   what is current, what is superseded and what is stale
+3. `notes/queues/G-interiors2.md` — the brief. **All 8 items are delivered**;
+   `## Done` is empty because the desk writes that file and I only read it
+
+Nothing is half-finished. There is no work in progress to resume.
+
 ## State, for whoever picks this up
 
 | | |
 |---|---|
 | owned | `ct/int-casino.ts`, `ct/int-hotel.ts`, `ct/int-pawn.ts`, `ct/int-tax.ts`, `ct/vice.ts`, `scripts/G-*.mjs` |
-| `G-rooms-walk` | **113/113**, dev and `dist`, `--selftest` fails all 3 inverted truths |
+| `G-rooms-walk` | **114/114**, dev and `dist`, `--selftest` fails all 3 inverted truths |
 | `G-vice-walk` | **18/18**, dev and `dist`, `--selftest` fails both |
 | `doors-declared` | 8 of 8 in the built bundle |
 | re-verified against `dist` | at `cc2d8bb56`, after the selftests, the flag guard, the keeper check and the `groundAt` swap — every one of those could have broken bundle-compatibility and none did |
