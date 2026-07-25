@@ -280,10 +280,19 @@ export function buildBurger(ctx: CtxBuild): void {
         ok: room.inside, label: 'sit down',
       });
     }
-    // one collider for the whole unit — the gaps between a stool and its own
+    // One collider for the whole unit — the gaps between a stool and its own
     // table are nowhere near the 0.72 m the player needs, so boxing the parts
-    // separately would only build slots to get wedged in
-    solid(ux, uz, 1.28, 1.72);
+    // separately would only build slots to get wedged in.
+    //
+    // 1.60 deep, not 1.72, and the 0.12 matters. The furniture actually
+    // reaches uz ± 0.79: the stools sit at ± 0.62 and are 0.17 in radius. 1.72
+    // claimed 0.06 m more than exists at each end, and padded by the player's
+    // 0.36 that pushed the nearest standable floor to 3.52 — leaving the
+    // window-side stool of the front row 0.60 m away against a 0.66 m trigger,
+    // close enough to the boundary that it never prompted. Boxing furniture to
+    // what it IS rather than rounding up is what makes it reachable; widening
+    // the trigger instead would have hidden it.
+    solid(ux, uz, 1.28, 1.60);
   }
 
   // ── the bin, beside the door, with the swing flap ──
@@ -298,14 +307,22 @@ export function buildBurger(ctx: CtxBuild): void {
     dither(g, 24, 32, 24);
   });
   const bin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.0, 0.5), ctx.flat(binT));
-  put(bin, -1.9, 0.5, hd - 0.5);
+  // -5.6, not -1.9. At -1.9 the bin stood between the front row's window-side
+  // stool and the wall, and its padded box met the unit's with no gap at all —
+  // that stool had NO standable point anywhere near it and never prompted. It
+  // reads as "the seat is broken"; it was a waste bin 1.2 m away.
+  //
+  // Down at the far end of the queue lane it is out of the seating entirely
+  // and still beside the door, which is where a bin belongs. Clear of the
+  // opening too: padded it reaches -4.93 and the door starts at -4.20.
+  put(bin, -5.6, 0.5, hd - 0.5);
   const lid = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.08, 0.54), redM);
-  put(lid, -1.9, 1.04, hd - 0.5);
+  put(lid, -5.6, 1.04, hd - 0.5);
   const flap = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.22),
     new THREE.MeshBasicMaterial({ color: 0x2a2622, side: THREE.DoubleSide }));
   flap.rotation.x = -0.55;                                        // pushed in, hanging open
-  put(flap, -1.9, 0.98, hd - 0.28);
-  solid(-1.9, hd - 0.5, 0.62, 0.5);
+  put(flap, -5.6, 0.98, hd - 0.28);
+  solid(-5.6, hd - 0.5, 0.62, 0.5);
 
   // the tray stack on the counter's near end, where you pick one up
   const trayM = new THREE.MeshBasicMaterial({ color: 0x7a4a3a });
