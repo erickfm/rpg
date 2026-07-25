@@ -1158,3 +1158,51 @@ cost four separate probes into one line of shared arithmetic.
 
 **Bodega tally, closed:** canted bay → no `__frontages` entry → prompt off the
 walk line → trigger disc centred in the recess. Four anomalies, one cause.
+
+## Every `[E]` and every seat, checked with the tools that already existed
+
+I was about to write a spot-reachability sweep. `scripts/spots-walk.mjs` already
+does it, and `scripts/seats-walk.mjs` already does the seats. **I checked before
+building** — which is the discipline I have been slowest to learn this session,
+having just flagged that four copies of the face-index logic existed and two
+were wrong.
+
+Run at HEAD:
+
+```
+135 [E] spots registered
+   80 live spots checked: reachable, and standing where they claim
+      of those, 8 name a declared building and sit exactly on its published door
+   55 gated by ok() from the street — seats you are not on, interior way-outs
+
+57 seats registered
+   57/57 seats sit, lock, and stand clear
+```
+
+**No unreachable trigger anywhere.** `GOTCHAS.md` §8 — colliders eating `[E]`
+spots, which has bitten this project once — is clean across the whole registry.
+
+**57 of 57 seats work.** That is the user's *"for every seat in the game i want
+to be able to sit down"*, closed on the full set rather than on the ones anybody
+remembered — including the library courtyard benches and the park's far half,
+which I confirmed separately from a frame.
+
+### These do not contradict my bodega finding — they answer a different question
+
+`spots-walk` asks **"is there anywhere you can legally stand inside this
+radius?"** For the bodega the answer is yes, emphatically: 81 standable points.
+
+I asked **"does the radius reach where a player actually walks?"** For the bodega
+the answer is no, by 0.8 m against the group norm.
+
+Both are true and neither supersedes the other. A trigger can be perfectly
+reachable and still never meet anyone, because *reachable* is about the trigger
+and *reach* is about the pavement — the same distinction that made `Spot`'s
+hand-picked radius the root cause. Worth stating plainly so the two reports are
+not read as disagreeing.
+
+### What is left
+
+Nothing on the spot or seat side. Two clean sweeps from instruments I did not
+have to write, and the only open question in this area is the design call on
+`Spot`'s radius, which is a builder's.
