@@ -25,6 +25,7 @@ the directory — `f214cf76` and `fef145bb` hit the same thing. Index first.
 | `D-graffiti-glowed.md` | the alley tags rendered brighter than their wall | fixed; **figure corrected from 16x to 6-47x** |
 | `D-the-post-is-a-person.md` | the "mid-pavement post" is a walker | settled; `3f7b2623` retracted |
 | `D-pgrep-is-not-yours.md` | `pgrep -f` matches other builders' processes | rule, not a patch; four waiters were blocked 3h+ |
+| **`D-the-withdrawal-did-not-travel.md`** | my withdrawn 7.4% is cited in **8 places by five agents**, and all four of my retractions are **unlanded** | **for the desk, C, G, H — land the retractions first** |
 
 **The rest of this file is chronological and mostly history.** What is still
 worth reading in it: the mover audit of my probes, the stopwatch sweep and the

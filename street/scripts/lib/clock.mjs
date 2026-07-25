@@ -75,10 +75,21 @@
 // follows the wet look rather than the hour, so stepping only changed anything
 // when the intermediate hour happened to be wet — 20:00 was, under that day's
 // rainAt; `e0c68e46` replaced it, 20:00 went dry, and the same measurement gave
-// 0.2%. The 7.4% is WITHDRAWN in full (`9241a2f06`), and setNight below has
-// carried the corrected version for some time. This one did not, which is the
-// worse half: the correction lived under the helper nobody calls directly while
-// the retracted claim stayed on the function everybody does.
+// 0.2%.
+//
+// `3d71b035` — "A jumped clock is 7.4% brighter than the night the player
+// reaches" — IS WITHDRAWN IN FULL. Cited by hash because that one is merged and
+// you can read it; the withdrawal is written out here in words because as I
+// write this it lives in a commit of mine that has not landed, so nobody else
+// can resolve it. That asymmetry IS the problem: the false claim is on mainline
+// and its retraction is not, so `git log` hands every builder the wrong half and
+// no other. GOTCHAS §36 says to cite only merged hashes and that waiting costs
+// nothing — true for a finding, and exactly inverted for a retraction.
+//
+// setNight below has carried the corrected version for some time. This one did
+// not, which is the worse half: the correction lived under the helper nobody
+// calls directly while the retracted claim stayed on the function everybody
+// does.
 //
 // So do not step to "arm" anything. What IS worth having is the inverse, and
 // setNight does it for you: a clock landing on a night hour may have passed
