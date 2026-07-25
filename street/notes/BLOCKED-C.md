@@ -22,20 +22,26 @@ The guard was `if (!d || typeof d.building !== 'string')` — that catches a
 missing DOOR, not a missing MODULE. The comment four lines above the loop
 already predicts this exact cycle; the guard just does not cover it.
 
-**What I have done, and it is deliberately the minimum** (`ceb7525f`): skip an
-undefined namespace with a `console.warn` instead of throwing. The world boots
-again and health.mjs is green. I did not touch the cycle.
+**RESOLVED while this was being written** — the owner landed `MODS[path]?.DOOR`,
+which is the same fix and tidier than the guard I had staged, so mine was
+dropped on rebase. The world boots and `health.mjs` is green again. Left here
+because points 1–3 below are still open and the cause is worth having written
+down: it cost a full diagnosis to find, and reading the loop does not reveal
+it.
 
-**What still needs doing, by whoever owns these two files:**
+**What still needs doing, by whoever owns these two files** — the optional
+chain stops the throw, it does not fix the cause:
 
 1. **Break the cycle.** `ct/bodega.ts` importing `ct/doors.ts` while
    `ct/doors.ts` eagerly globs every sibling is the actual defect. Either
    bodega stops importing doors, or the glob stops being eager, or DOOR
    declarations move to a leaf module nobody imports back.
-2. **Bodega's declared door is currently being DROPPED.** That is why the skip
-   warns rather than passing silently — the warn should stay noisy until the
-   cycle is gone, because a silently ignored door declaration is the same
-   class of bug as the silently blank glyph that shipped "BUY ERE AY ERE".
+2. **Bodega's declared door is currently being DROPPED, silently.** `?.` turns
+   a crash into a shrug: if bodega declares a DOOR it is now ignored with no
+   trace. That is the same class of bug as the missing glyph that shipped
+   "BUY ERE AY ERE" for several commits — a silent blank is indistinguishable
+   from correct. Worth a `console.warn` on the undefined branch until the
+   cycle is actually gone.
 3. **`world.ts` globs `./*.ts` eagerly too**, and `interior.ts` globs
    `./int-*.ts`. Whatever rule comes out of this should be applied to all
    three, not just to doors.ts.
