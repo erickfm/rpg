@@ -115,3 +115,51 @@ unmodified. In order of value:
 **An option needing no new geometry:** a flag on `makeCar` to omit one or all
 wheels. That gives me both the jack car and the blocks car by itself, and I
 stack the tyres beside them — I already build tyre stacks.
+
+## 3. "Sleep in your room" needs a way to advance the clock — nobody has one
+
+**What I need:** a way for a module to move game time forward.
+**From whom:** whoever owns `ct/ctx.ts` and `crosstown.ts` — the desk.
+
+This is an outstanding request in the user's own words
+(`FEATURE-REQUESTS.md`): *"Sleep in your room… a real gameplay verb, not just
+a lit interior. Implies a bed to interact with, an `[E] sleep` prompt, and
+time passing (advance the clock, fade out/in)."* It has never been queued, it
+is in my file — room 301's bed, `ct/apartment.ts` — and I flagged it as
+missing in `notes/C-lot.md` a while back.
+
+**Everything except the time is mine and I can build it today.** The bed
+exists, `ctx.spot()` is how the prompt gets registered, and gating it to floor
+3 is the same `lastGy` check the door already uses.
+
+**What I cannot do is the part that makes it sleep.** `totalMin` is a closure
+local in `crosstown.ts`. The only thing that writes it is the `__ct.clock()`
+TEST affordance; `ctx` exposes the clock read-only, as `hourAbs`, `hourF` and
+`night` on the frame. No module can move it, and I checked — nothing in the
+tree does.
+
+I am not shipping the half of it I can reach. A sleep verb that does not pass
+time is not a partial feature, it is a prompt that appears to do nothing, and
+that reads as broken rather than unfinished.
+
+**The smallest thing that unblocks it**, and it is one line plus a field:
+
+```ts
+// ctx.ts
+/** move the game clock forward, in minutes. For anything that costs TIME —
+ *  sleeping, a long wait, a bus you let go past. */
+advanceTime: (minutes: number) => void;
+```
+
+wired in `crosstown.ts` to `totalMin += minutes`. Two callers will want it
+immediately: this, and G's hotel.
+
+**Two things to decide with it, which are not mine either:**
+
+1. **The fade.** The request says "fade out/in". That is a full-screen
+   overlay, so it belongs with the HUD, not in a world module. If it is not
+   worth doing, jumping the clock with no transition is jarring but shippable
+   — say which and I will build to it.
+2. **How long a sleep is.** "Until morning" (snap to 07:00) reads better than
+   a fixed eight hours, because it makes the verb mean something at any hour.
+   I would default to that unless told otherwise.
