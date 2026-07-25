@@ -583,6 +583,37 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## The fast tier's one red is already fixed — `park` is green at HEAD
+
+`9e1d7f76a` ran the fast tier at `cc46ed50` and found 44 green, 1 red:
+
+```
+park FAILED (1)  "could not find the gate entry path -- this check cannot answer"
+```
+
+Its diagnosis is exactly right — the locator wanted a path quad touching
+`site.maxX` and the y filter excluded every candidate. That is the same failure I
+hit in `fd47fd53`, and it was fixed there and in `4dae9afe`, both of which landed
+after the commit that run measured. At HEAD:
+
+```
+loop straights found: 12.8 m at x -32.5, 12.8 m at x -13.25
+gate entry at z -96.90, 1.50 m wide
+OK  no lantern stands on the entry (nearest is 1.55 m off its centreline)
+park exit=0
+```
+
+So the tier is **45 green, 0 red** on current mainline. Recording it because a
+twenty-minute suite is expensive to re-run, and the next person reading that
+report would otherwise spend a round on a locator that already derives itself.
+
+Worth keeping from their run: **the fast tier now runs past twenty minutes and
+had to go detached to finish.** Three of the slowest are mine — `bus`, `park`,
+`kerbcut` — and I raised the tier question for them earlier; that number makes it
+sharper than when I filed it.
+
+---
+
 ## CLOSED: the casino runner darkens now, at the number the clamp predicted
 
 The loop from `5a24c796` closes. It wired the entrance runner to `registerWet`,
