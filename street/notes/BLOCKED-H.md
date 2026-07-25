@@ -44,6 +44,49 @@ of "carry the ground detail east" that is outstanding.
 **What would unblock it:** builder B deciding the side street's drainage and
 adding the basins, or telling me the low points and exporting `basin()`.
 
+## 3. One vehicle-adjacent gap I could not close, and why it matters more than it looks
+
+**State:** `ct/gap.ts` now constrains both parked draws (main street in
+crosstown.ts, side street in ct/sidestreet.ts). Every corridor that involved a
+parked car or one of my side-street trees is gone. **One remains** and
+`scripts/gaps.mjs` fails on it:
+
+```
+0.80 m slot on x at (-5.35, -28.56)   boxes 0.50x0.50 vs 2.10x5.20
+```
+
+That is a 0.5 m kerb prop of builder B's against the parked pickup. Measured off
+`__ct.colliders()` the two boxes are:
+
+```
+prop   x -6.25 … -5.75   z -28.39 … -27.89
+truck  x -4.95 … -2.85   z -33.72 … -28.52
+```
+
+which by my reading **overlap on neither axis** — the truck's `maxZ` is -28.52
+and the prop's `minZ` is -28.39, so they are 0.13 m apart in z and 0.80 m apart
+in x, i.e. DIAGONAL. `ct/gap.ts` deliberately does not treat a diagonal gap as a
+trap, because you can always leave one the way you came in. The probe flags it
+anyway.
+
+**So the two disagree, and that is the actual defect.** The rule exists twice:
+once in `ct/gap.ts` (TypeScript, used at build time) and once inside
+`scripts/gaps.mjs` (JavaScript, run in the page against the built world). Two
+copies of a geometric predicate will drift, and here they already have — I cannot
+tell from the outside which one is right without stepping through both.
+
+**What would fix it properly:** expose the rule from the page — `__ct.gapRule` or
+similar returning `corridor(a, b)` straight out of `ct/gap.ts` — and have the
+probe call that instead of reimplementing it. Then the check and the constraint
+are the same code by construction, the way the traffic probe reads
+`__ct.traffic()` rather than recomputing what a car is doing. That needs one line
+in crosstown.ts, which is desk-owned, so I have left it.
+
+Until then, treat the single reported corridor as unconfirmed rather than as a
+known trap: it is either a real diagonal (harmless, probe wrong) or my overlap
+test is off by an epsilon (rule wrong). Both are cheap to settle with the shared
+predicate in place, and expensive to argue about without it.
+
 ---
 
 ## Not blocked, for the record

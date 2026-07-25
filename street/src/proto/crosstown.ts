@@ -18,6 +18,7 @@ import { buildGround } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
+import { nudgeClear } from './ct/gap';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { buildPark } from './ct/park';
@@ -252,14 +253,32 @@ export function makeCrosstown(): Proto {
     const cls = PARK_CLASS[pi % PARK_CLASS.length];
     const gap = Math.min(parkGap(cls), PARK_SNUG - PARK_OUT);
     const x = side * (PARK_SNUG - gap);
-    const z = z0 + (rnd() - 0.5) * 2.4;         // and they don't sit on a rhythm
+    const zDrawn = z0 + (rnd() - 0.5) * 2.4;    // and they don't sit on a rhythm
+    // ── never leave a gap the player can enter but not leave ──────────────
+    //
+    // The drawn spot is kept unless it makes a corridor 0.40–0.95 m wide against
+    // something already solid — a kerb prop, a tree pit, the bus bench, the car
+    // in front. Then it takes the NEAREST legal spot instead, so the spread the
+    // distribution chose survives and only the trap is removed. See ct/gap.ts;
+    // hand-placing a fixed offset back would just be a different arrangement,
+    // and the trap moves with the draw anyway.
+    const box = (zz: number) => ({
+      minX: x - 1.05, maxX: x + 1.05, minZ: zz - carHalf[kind], maxZ: zz + carHalf[kind],
+    });
+    // reach 4.5 m, not the 3 m default: a kerb prop's z-span has to be cleared
+    // ENTIRELY to remove an x-corridor between it and the car beside it, and a
+    // 5.2 m truck against a prop mid-block needs most of its own length to do
+    // that. The nearest legal spot is still taken, so the spread survives.
+    const fit = nudgeClear(zDrawn, box, [...propColliders, ...carColliders], 4.5);
+    if (!fit.ok) console.warn(`[parking] ${kind} at z=${zDrawn.toFixed(2)} leaves a trap-band gap and no clear spot within 3 m`);
+    const z = fit.at;
     const ry = (side > 0 ? 0 : Math.PI) + parkYaw(cls);
     const car = makeCar(kind, ci);
     car.position.set(x, 0, z);
     car.rotation.y = ry;
     scene.add(car);
     props.lit(car);          // parked in a lamp pool? then it catches it
-    const cb = { minX: x - 1.05, maxX: x + 1.05, minZ: z - carHalf[kind], maxZ: z + carHalf[kind] };
+    const cb = box(z);
     carColliders.push(cb); citAvoid.push(cb);
   });
   // ── the traffic, and the road network it drives ─────────────────────────

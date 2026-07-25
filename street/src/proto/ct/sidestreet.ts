@@ -1,8 +1,10 @@
 import * as THREE from 'three';
+import type { AABB } from '../fp';
 import { rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex } from './tex-world';
 import { type CarKind, makeCar } from './cars';
 import type { CtxBuild } from './ctx';
+import { nudgeClear } from './gap';
 
 // ── THE SIDE STREET'S FURNITURE ────────────────────────────────────────────
 //
@@ -64,6 +66,9 @@ const TREE_IDX0 = 40;
 
 export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
   const { scene, obstacle, sidewalkY, boards } = ctx;
+  /** everything solid THIS module puts on the side street, so the parked cars
+   *  below can be kept out of the dangerous-gap band against the trees above */
+  const mine: AABB[] = [];
   const MID_Z = (o.SIDE_Z0 + o.SIDE_Z1) / 2;      // the centre line, z = -103
 
   // ── street trees, in dirt pits, thinning eastward ──────────────────────
@@ -104,7 +109,7 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     pit.position.set(px, sidewalkY + 0.006, tz);
     scene.add(pit);
     // only the TRUNK is solid, so the walk stays passable
-    obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 0.08, maxZ: tz + 0.08 });
+    mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 0.08, maxZ: tz + 0.08 }));
     treeIdx++;
   }
 
@@ -127,7 +132,18 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     // street's, off the seeded stream so it is stable within a session
     const gap = rnd() * 0.17;
     const z = MID_Z + side * (PARK_SNUG - gap);
-    const x = x0 + (rnd() - 0.5) * 2.4;          // and they don't sit on a rhythm
+    const xDrawn = x0 + (rnd() - 0.5) * 2.4;     // and they don't sit on a rhythm
+    // Same rule as the main street's, along x because this street runs east:
+    // the drawn spot stands unless it makes a 0.40–0.95 m corridor against a
+    // tree trunk or another car, and then it takes the nearest legal one. The
+    // trees above are the ones that bite — a trunk on the walk and a car in the
+    // road leave a slot straddling the kerb line (ct/gap.ts).
+    const box = (xx: number) => ({
+      minX: xx - carHalf[kind], maxX: xx + carHalf[kind], minZ: z - 1.05, maxZ: z + 1.05,
+    });
+    const fit = nudgeClear(xDrawn, box, mine);
+    if (!fit.ok) console.warn(`[side street] ${kind} at x=${xDrawn.toFixed(2)} leaves a trap-band gap`);
+    const x = fit.at;
     const car = makeCar(kind, ci);
     car.position.set(x, 0, z);
     // east is yaw -π/2 (the models are built nose-first down -z)
@@ -136,9 +152,6 @@ export function buildSideStreet(ctx: CtxBuild, o: SideStreetOpts) {
     o.lit(car);
     // the body's long axis runs along X out here, so the collider is the main
     // street's box with its extents swapped
-    obstacle({
-      minX: x - carHalf[kind], maxX: x + carHalf[kind],
-      minZ: z - 1.05, maxZ: z + 1.05,
-    });
+    mine.push(obstacle(box(x)));
   }
 }
