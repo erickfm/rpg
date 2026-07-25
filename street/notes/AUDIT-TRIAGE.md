@@ -69,3 +69,48 @@ number that was true when I wrote it down and stale when I used it**:
 Every one was caught before it reached a builder, and every one was caught the
 same way: by checking the instrument against a second source rather than by
 looking harder at the first.
+
+---
+
+# Re-verified — all four routed items are closed, and one created a regression
+
+Measured at HEAD, not read off commit messages.
+
+| # | item | before | **now** |
+|---|---|---|---|
+| 1 | tightest walk | 0.90 m (0.89 when I started) | **1.15 m**, and 15 → **3** stretches under 1.20 m |
+| 2 | thrift price card floating | 0.325 m | **gone** — no float at that coordinate |
+| 3 | rooms with a keeper | 4 of 8 | **8 of 8**, one in every slab 0–7 |
+| 4 | casino ceiling | 2.50 m | **2.90 m**; set spread 0.90 → **0.80 m** |
+
+The lane result is worth stating on its own: **the tightest point a player can
+squeeze through anywhere in this world has gone from 0.89 m to 1.15 m**, and the
+count of sub-1.20 m stretches from 15 to 3. That is the whole of the encroachment
+audit closed, by two constants and a tree.
+
+## But raising the casino ceiling left three things behind
+
+The float sweep now finds **three components at 0.29–0.40 m, all in slab 2 —
+the casino**, the one room whose ceiling moved:
+
+```
+0.40 m at (598.01, 2.22, -1.6)
+0.33 m at (603.1,  2.55,  0.4)
+0.29 m at (598.01, 2.22,  0.9)
+```
+
+**The largest gap is 0.40 m. The ceiling moved 2.50 → 2.90, which is 0.40 m.**
+
+That is not proof, and I am not calling it proof — but a ceiling-mounted fixture
+left hanging by exactly the distance its ceiling rose is the obvious reading, in
+exactly the room where the change happened, and the two other gaps sit just under
+it. Anything anchored to the old ceiling height rather than to `H` would do this.
+
+**Worth knowing that this came from my own recommendation.** I asked for the
+casino ceiling to be raised; it was, correctly; and the room's fittings did not
+follow. The same re-verification pass that confirmed the fix found its cost,
+which is the argument for re-running every instrument after every fix rather
+than after every finding.
+
+Routed to whoever owns `ct/int-casino.ts`, with the specific check: **are those
+fixtures positioned from the room's `H`, or from a literal 2.5?**
