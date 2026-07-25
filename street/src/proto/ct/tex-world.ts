@@ -128,6 +128,26 @@ export function facadeTex(
   const m = (v: number) => Math.round(v * ppm);          // metres → texels
   const WIN_W = 1.5, WIN_H = 1.5, BAY_M = 2.75, SILL_M = 0.2, MARGIN_M = 1.0;
   const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
+  // Which windows are lit. This used to be `(f * 7 + c * 3) % 5 === 0`, which
+  // is a linear congruence in storey and column: every storey up shifts the
+  // lit column by a fixed amount, so the lit windows can only ever land on
+  // diagonals. The user read it as a pattern before reading it as a bug —
+  // "all the lighting on the windows goes up and to the right".
+  //
+  // A hash with a proper avalanche has no such structure. Seeded per building
+  // off its brick, width and height so two neighbours do not light alike.
+  // NOTE: deliberately not the shared rnd() stream — drawing from that here
+  // would shift every tree height and pigeon downstream (GOTCHAS §2).
+  let seed = 0x811c9dc5;
+  for (let i = 0; i < brick.length; i++) seed = Math.imul(seed ^ brick.charCodeAt(i), 0x01000193) >>> 0;
+  seed = Math.imul(seed ^ Math.round(wMeters * 8), 0x01000193) >>> 0;
+  seed = Math.imul(seed ^ Math.round(hMeters * 8), 0x01000193) >>> 0;
+  const litAt = (f: number, c: number) => {
+    let h = (seed ^ Math.imul(f + 1, 0x9e3779b1) ^ Math.imul(c + 1, 0x85ebca6b)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
+    h = Math.imul(h ^ (h >>> 13), 0x297a2d39) >>> 0;
+    return ((h ^ (h >>> 16)) >>> 0) % 100 < 19;      // ~1 in 5, scattered
+  };
   return surf.paint((g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
@@ -147,7 +167,7 @@ export function facadeTex(
       const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
       for (let c = 0; c < cols; c++) {
         const x = m(MARGIN_M + slack + c * BAY_M);
-        const lit = ((f * 7 + c * 3) % 5) === 0;
+        const lit = litAt(f, c);
         g.fillStyle = '#1a1c22';
         g.fillRect(x - 1, y - 1, winW + 2, winH + 2);
         g.fillStyle = lit ? '#c9a45e' : '#2e3a46';
@@ -752,24 +772,30 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
       ell(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
           RX * (0.26 + r() * 0.12), RY * (0.28 + r() * 0.13), MID);
     }
-    // ragged edge: bite small notches out of the outline so it is never smooth
+    // Ragged edge: bite notches out of the OUTLINE so it is never smooth.
+    //
+    // These used to be centred at 0.94R–1.16R, and a notch of up to 3.2 px
+    // radius centred at 0.94R reaches well inside the crown — so the pass
+    // that was meant to rough up the silhouette was punching alpha-0 through
+    // the mass. board() uses alphaTest 0.5, a hard cutout, so every one of
+    // those was a hole you could read a window through. Centres now start AT
+    // the full radius, which keeps the silhouette ragged and leaves the
+    // interior alone. More of them, and more varied, to make up the liveliness.
     g.save(); g.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < 22; i++) {
-      const a = (i / 22) * Math.PI * 2 + r() * 0.35;
-      const d = 0.94 + r() * 0.22;
+    for (let i = 0; i < 30; i++) {
+      const a = (i / 30) * Math.PI * 2 + r() * 0.32;
+      const d = 1.0 + r() * 0.14;
       g.beginPath();
       g.ellipse(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
-                1 + r() * 2.2, 1 + r() * 2.0, 0, 0, Math.PI * 2);
+                1 + r() * 2.4, 1 + r() * 2.2, 0, 0, Math.PI * 2);
       g.fill();
     }
-    // two or three real sky holes, well inside the mass
-    for (let i = 0; i < 3; i++) {
-      const a = r() * Math.PI * 2, d = 0.25 + r() * 0.35;
-      g.beginPath();
-      g.ellipse(cx + Math.cos(a) * RX * d, cy + Math.sin(a) * RY * d,
-                1.2 + r() * 1.6, 1.0 + r() * 1.3, 0, 0, Math.PI * 2);
-      g.fill();
-    }
+    // The three "real sky holes, well inside the mass" that used to sit here
+    // at 0.25R–0.60R are gone. They were the DEEPEST holes — measured as far
+    // in as 0.41R — and they are the ones you read brick through. Sky between
+    // branches is a fair thing to want, but at 60 px across a crown it lands
+    // as a couple of wrong-coloured specks, not as sky. The gaps in the rim
+    // carry that job now.
     g.restore();
 
     // shading INSIDE the mass — an uneven underside in shadow, an uneven
