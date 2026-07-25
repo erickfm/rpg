@@ -47,3 +47,13 @@ there is not permanently red.
 
 If you tried the flag and it still refused, say so and I will look — but on the
 evidence above the item can close.
+
+
+---
+
+**A note on the hex strings above.** `a72cfb40` and `838242af` are `:5177`
+**build stamps**, not commits — they name what the integration world was serving
+at the time, and no one can resolve them with `git show`. `12be9e163` and
+`f51f2a52e` both hit this: a 7-character hex string in a note can be a commit, a
+build stamp or a texture fingerprint, and only context tells them apart. Labelled
+here so a citation audit does not report them as dead work.

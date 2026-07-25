@@ -1328,7 +1328,8 @@ alleycheck 8   builtlane 5   shells 7   windowlights 5   midnight 2
 ```
 
 And **looked**, because assertions cover the graded state and my last two fixes
-were about appearance. The integrated night alley (`c774de0d`) has the tags sunk
+were about appearance. The integrated night alley (`:5177` build stamp `c774de0d` — an integration
+build, not a commit anyone can resolve) has the tags sunk
 into the wall where they belong. The crates are still vividly blue against
 near-black brick — that is `props`'s remaining 50, which `midnight` counts and
 does not assert on, and it is visible confirmation that the count is describing
