@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"would like a view out of my window but the view it just a small gap and then brick wall lol"** → **C**
 - **"this guy is floating"** / **"your car lot salesman's feet end above the asphalt with a visible gap ... DIAGNOSE WHOSE IT IS ... if STREET pedestrians float too, then it is the sprite anchor itself"** → **C to diagnose, H to fix**
   → **C. DIAGNOSED, NOT MINE.** It is the atlas, and it is world-wide. Every
   citizen — the salesman and all six street pedestrians — is placed on the
