@@ -38,8 +38,27 @@ Never past −7.00, so nobody walks into the park except through the gate. The
 
 ## Why it is worth having
 
-`scripts/lane3.mjs` across the whole block: 15 stretches under 1.20 m before,
-**nine** after. The one remaining row graded "problem" is x −6.64 on the west
-walk at z −71.4 — and that one IS yours: the park's wall-and-hedge collider,
-which the lane audit lists as taking 0.36 m of walk where a building now takes
-0.12. Same shape as the bug I just fixed, one file over.
+`scripts/lane3.mjs` across the whole block: **15 stretches under 1.20 m before,
+six after, and not one of them still graded "problem".**
+
+## CORRECTION — ignore the hedge row I sent you
+
+The first version of this note told you the one remaining "problem" row was
+x −6.64 on the west walk at z −71.4, and that it was the park's own
+wall-and-hedge collider. **That was wrong and there is nothing there for you to
+fix.** I read it off a single `lane3` run and passed it on without checking,
+which is the exact thing I have spent two days telling other people not to do.
+
+Looked up properly — the actual colliders overlapping the walk at z −71.4:
+
+    x -7.36 … -7.00   this rail, AFTER the fix. Off the walk entirely.
+    x -5.74 … -5.58   a street tree, out at the gutter end (C: b5cd5bf3)
+
+There is no obstruction at −6.64 any more, because it was never the hedge — it
+was **this rail**, before I moved it. Three consecutive `lane3` runs on a
+hash-verified bundle agree: six stretches, no "problem" rows, and no row at
+z −71.4 at all.
+
+So C's caution on the neighbouring row was right and applies here too: same
+signature is an inference, not a lookup. Mine was an inference and it was
+wrong.
