@@ -1177,3 +1177,42 @@ precisely the surface the player is looking at while walking home.
 So the report to whoever owns `props.ts` is narrower and more actionable than
 "nothing works at night": *the wet look survives the night grade on tex-ground
 and dies on street.* I have not diagnosed why, and it is not mine to fix.
+
+## Controlled against the jumped clock — the night headline holds
+
+`3d71b035` found **a jumped clock is 7.4% brighter than the night the player
+reaches**, because some grading is path-dependent. My night figures were taken by
+jumping 72 hours, so they need the same control every other agent has now run.
+`STEP=1` walks the clock an hour at a time into the target instead:
+
+| owner | stepped | jumped (as published) |
+|---|---|---|
+| **`street`** | **4 / 484** | **4 / 484** |
+| `props` | 26 / 216 | 26 / 216 |
+| `lot` | 3 / 323 | 4 / 323 |
+
+**The headline is identical.** *"`street` collapses to 4 of 484 at night"* is not
+an artefact of jumping — it survives the control unchanged. Only `lot` differs,
+by a single material out of 323, which is the size of one animation frame rather
+than a systematic bias.
+
+## The decal list is being worked: 8 closed, 3 new, still 19
+
+Re-measured in daylight at this HEAD, the class I enumerated has moved:
+
+```
+TRANSPARENT, UNMOVED, AND LYING ON GROUND THAT GOT WET: 19   (was 24)
+     11 × props    x -34.8…20   z -98.9…-37     (was 19)
+      5 × (untagged) PlaneGeometry — the vertical shopfront panels, not defects
+      2 × vice      x 51.3       z -99.4…-97.4  ← new
+      1 × street    x -11.6      z -43.5        ← new
+```
+
+`props` has gone from **19 dry decals to 11**, and its responding count from 9 to
+26 — eight of the list closed since I published it. But **three new ones arrived**
+in modules that had none, so the class stands at 19 rather than dropping to 11.
+
+That is the argument for the sweep being a standing check rather than a one-off
+report: a list that is being actively worked is also being actively re-created,
+and a count that goes 24 → 19 conceals eight fixes and three regressions. The
+composition is the finding, not the total.

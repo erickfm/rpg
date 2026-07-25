@@ -40,7 +40,19 @@ if (dryH === undefined) { console.error('no dry hour near 14'); process.exit(2);
 // takes ~16 s to settle, so anything sampled earlier reads as partly dry.
 const SETTLE_MS = 18000;
 
+// 3d71b035: a JUMPED clock is 7.4% brighter than the night the player reaches,
+// because some grading is path-dependent. My night figures were taken with a
+// 72-hour jump, so STEP=1 walks the clock an hour at a time to the target
+// instead, and the two can be compared.
+const STEP = process.env.STEP === '1';
 const sample = async (h) => {
+  if (STEP) {
+    const from = h - 12;                       // walk the last 12 hours in
+    for (let k = from; k < h; k++) {
+      await p.evaluate((hh) => window.__ct.clock(hh), k);
+      await p.waitForTimeout(700);
+    }
+  }
   await p.evaluate((hh) => window.__ct.clock(hh), h);
   await p.waitForTimeout(SETTLE_MS);         // the street remembers weather; let it settle
   return p.evaluate(() => {
