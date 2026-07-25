@@ -675,3 +675,27 @@ live example — it records CAUGHT on any non-zero exit, so a check that never
 ran certifies as one that caught its mutation, which is a false green in the
 tool whose whole job is proving checks can fail. Written up for its owner in
 `notes/C-wrong-world-exit.md`.
+
+## 23. Anything with a FRONT will end up backwards
+
+Four separate times in one session, and each looked like its own bug:
+
+- interiors disagreeing with their facades — a room and its facade are two
+  faces of one wall, so their handedness is opposite by construction
+- the casino and hotel blade signs, mirrored because a `DoubleSide` plane
+  renders reversed from behind (§10)
+- the car lot's far row of cars, and the chairs outside its office — a row on
+  the far side of an aisle is a MIRROR of the near row, not a copy, so a
+  shared heading with a flipped x offset is backwards by construction
+- the tax office preparer, facing away from the client
+
+The common shape: **an object with a front was placed by copying or
+translating something, and nothing recomputed which way it should look.**
+
+Rules that would have caught all four:
+- express positions in WORLD coordinates, not local offsets or "left/right" —
+  those are the terms that make mirroring gettable-wrong
+- derive facing from what the object faces (the aisle, the client, the street),
+  never as a constant copied from a sibling
+- test by standing where a player stands and asking "is it looking at me or
+  away from me" — every one of these was obvious the moment someone did
