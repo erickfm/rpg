@@ -61,23 +61,48 @@ A-1 TAX, LIQUOR, PAWN                 outward -1, uDir +1
 
 Every shop with a room behind it, plus RADIO.
 
-**I am not claiming this is broken.** I walked A-1 TAX, the diner, Burger Barn
-and THRIFT for the mirror test and the glass read correctly in all four
-(`A-mirror-verified.md`), so whatever the two conventions disagree about is not
-visible today — the trim may be absorbing it, or the two conventions may cancel.
-Two facts I can state:
+### SETTLED — it is one shop, and it is the DINER
 
-- `uDir` is measured; `fr.side` is assumed. Where they differ, only one of them
-  was ever checked against the mesh.
-- The door path already avoids the question — declared doors come through
-  `doorWorldFor`, in world coordinates. Only the glazing still goes through
-  `worldOf`.
+I left this as "unknown" for a turn and then realised it is decidable by algebra
+from the published registry, no walking required. `alongU` is invertible, so I
+can recover the canvas-metre pair the painter used and push it through
+`interior.ts`'s `worldOf` instead of my `toWorld`, and compare.
 
-So the patch above is the safe direction whichever convention is right, because
-it removes the second convention rather than choosing between them. If F would
-rather keep `worldOf`, that is fine too — but then `Room.glazing` should be
-built on it deliberately, not by inheritance, and someone should walk one of the
-seven with the glass deliberately off-centre to see which way it moves.
+**15 of 16 frontages come out identical. One does not:**
+
+```
+same  BURGER BARN  mine=[-36.4,-21.6]  interior=[-36.4,-21.6]
+DIFF  DINER        mine=[-55.0,-46.5]  interior=[-52.5,-44.0]   shift 2.45 m
+same  THRIFT       mine=[-67.5,-56.0]  interior=[-67.5,-56.0]
+same  A-1 TAX      mine=[-21.4, -9.6]  interior=[-21.4, -9.6]
+…all twelve others identical
+```
+
+**Why only one.** The two conventions differ by a mirror about the frontage
+centre, and a mirror is a no-op on a run that is symmetric about that centre.
+Fifteen are. The diner's is not: its frontage centre is −49.5 and its glass run
+reaches 5.5 m one way and 3.0 m the other.
+
+**Why it matters, and it is exactly G's symptom.** The diner's door is at −46.6.
+
+- With mine, the glass run *ends* at the door — the door is at the edge, so the
+  trim shortens one end and the opening stays on one side.
+- With `worldOf`, the run *straddles* the door, so the trim fires on the
+  straddle branch and keeps "whichever side is bigger" — a different, ~2.5 m
+  narrower window in a different place.
+
+That is *"the first assumed glass flanks a door, the second used the untrimmed
+span"* from the other end. G was working around a real discrepancy.
+
+**Why my mirror walk did not catch it.** That test asked *which side* the window
+run was on. Both conventions put the diner's glass on the same side; they
+disagree about its extent. A left/right check cannot see a 2.5 m shift, and I
+should not have treated it as covering this.
+
+**One assumption stated:** I read `fr.side` as the same quantity as the
+frontage's `outward`. If that is wrong the arithmetic changes — but a wrong
+mapping would scramble many frontages, not leave fifteen exact and one
+asymmetric, so I believe it.
 
 ## What I am not doing
 
