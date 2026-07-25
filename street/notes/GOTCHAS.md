@@ -914,3 +914,20 @@ So: **the integrator loop is OFF during a playtest.** `scripts/pull-latest.sh`
 refreshes once, on demand, and the user reloads the tab when they choose. Turn
 the loop back on for long unattended runs, at a couple of minutes, not fifteen
 seconds.
+
+## 25. A dirty mainline tree silently stops the merge train
+
+`land.sh` refuses to merge into a dirty working tree — correctly, since merging
+over uncommitted work would destroy it. But the failure is reported as
+`[merge failed]` against the BUILDER, which points at the wrong place entirely.
+
+The desk's own `route.sh` appended each routed request to
+`FEATURE-REQUESTS.md` and never committed it. Mainline was therefore dirty
+essentially all the time, and nothing landed. It surfaced only when two
+builders had **111 commits stranded between them** — hours of finished work
+the user could not see, caused by one uncommitted markdown file.
+
+Two rules: anything the desk writes to a tracked file gets committed in the
+same breath, and if `land.sh` reports `merge failed` for more than one builder
+at once, **check mainline's own tree first** — a single shared cause is far
+likelier than several builders conflicting simultaneously.

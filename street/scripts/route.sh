@@ -44,6 +44,14 @@ m = re.search(r'^## Inbox\n', s, re.M)
 s = s[:m.end()] + line + s[m.end():]
 open(p, 'w').write(s)
 PY
+# COMMIT the log line. Leaving it uncommitted makes mainline's working tree
+# permanently dirty, and `land.sh` refuses to merge into a dirty tree — so the
+# desk's own bookkeeping silently blocked the merge train. It went unnoticed
+# until two builders had 111 commits stranded between them, which is hours of
+# finished work the user could not see, caused entirely by an uncommitted
+# markdown file.
+git -C "$MAIN" add street/FEATURE-REQUESTS.md >/dev/null 2>&1
+git -C "$MAIN" commit -q -m "Log: \"$QUOTE\" -> $AGENT" >/dev/null 2>&1
 echo "logged: \"$QUOTE\" -> $AGENT"
 
 # 2. DISPATCH — text and Enter SEPARATELY. Sending them together silently
