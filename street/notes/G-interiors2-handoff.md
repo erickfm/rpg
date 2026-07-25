@@ -681,3 +681,45 @@ declared OFF the 8/16 grid: 1  — 32 px/m at (8.3, 0.1, -77), not mine
 `scripts/seampairs.mjs` reports no disagreeing pair anywhere on the side street
 either; everything it lists is the bodega corner around x 8–10. So the two vice
 facades can be excluded from that pattern.
+
+---
+
+# For the seam audit: four of the unstamped faces are my glow planes
+
+`scripts/seampairs.mjs` got better at pairing (`dbabd99f`, faces by their own
+rectangles rather than mesh bounding boxes) and the improved list now includes
+four surfaces from `ct/vice.ts`:
+
+| face | what it actually is |
+|---|---|
+| `2.56×4.71` at (51.3, 0.1, −99.4) | the casino's spill on the road |
+| `2.56×4.85` at (39.5, 0, −99.7) | the hotel's spill on the road |
+| `8.89×10.67` at (44.4, 0.2, −97) | the blade's spill on the pavement |
+| `1.45×3.56` at (45.2, 5.2, −98.6) | the low haze sheet over the frontages |
+
+**None of them is masonry and none of them can be.** They are additive glow
+decals — `blending: THREE.AdditiveBlending`, `transparent: true`,
+`depthWrite: false` — whose texture is a radial falloff. Their px/m is not a
+brick scale and comparing it to a wall's produces a ratio that means nothing.
+
+The tool already has the right instinct and the right argument for it:
+
+> The fix is not to name ivy — a list of things to ignore is the stale-constant
+> habit — but to ask something that is actually diagnostic: MASONRY IS NEVER A
+> CUT-OUT.
+
+The same sentence finishes itself one clause further: **masonry is never
+additive, and never transparent.** A surface that ADDS light to whatever is
+behind it is a glow; a wall occludes. That is diagnostic in exactly the way
+`alphaTest > 0` is, it needs no list of names, and it is one condition:
+
+```js
+if (!ms && (fw < 2 || fh < 2 || m.alphaTest > 0
+            || m.transparent || m.blending === THREE.AdditiveBlending)) return;
+```
+
+I have not touched `seampairs.mjs` — it is the auditor's. Flagging it with the
+instances so the next candidate list is not four glow planes and a paving slab.
+
+Nothing to change in `ct/vice.ts`: the four surfaces are correct as they are,
+and they are the reason the two buildings read as light sources at night.
