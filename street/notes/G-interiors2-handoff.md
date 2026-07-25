@@ -44,6 +44,36 @@ matters more than it sounds.
   dev server, which cannot reproduce the defect. Read the retraction, not the claim.
 - **§7** — **answered** by C in `38a6e78e`. The three measurements do reconcile.
 
+### What my suites demonstrably CATCH — mutation-tested, not assumed
+
+Following `31865213`, which mutation-tested its three probes and found two were
+not fine. Every row here was run: the source was broken, the suite was run, and
+the output read. **A check nobody has ever made fail is a claim, not a guard.**
+
+| mutation | result |
+|---|---|
+| casino ceiling `h` 2.9 → 1.8 | **CAUGHT** — "the 1.8 m ceiling clears the eye, eye y=1.62", plus a kit warning that the door no longer fits |
+| doorway `at` −3.2 → +2.0 (walk table still says −3.2) | **CAUGHT** — four checks, led by "walking to the inside of the door raises the way-out prompt: prompt=null". The way-out spot travels with the doorway, so a stale table finds nothing |
+| doorway `width` 1.15 → 3.0 | **not a mutation.** Stop unchanged at z 4.32 — see below |
+| doorway `width` 1.15 → 5.0 | **not a mutation.** The kit rejects it and builds no door at all |
+| pawn `minDepth` bar 2.0 → 3.5 | CAUGHT, 2.68 m |
+| casino given a `window` | CAUGHT, "1 glazed pane 3×1.4" |
+| chase frozen (`step = 0`) | CAUGHT, "0 of 4 changed" |
+| dead bulbs removed, chase running | CAUGHT, "0 permanently dark" |
+| blade rear texture mirrored (pixels) | CAUGHT, "61.4% identical" |
+| blade rear texture mirrored (`repeat.x = -1`) | CAUGHT, "MIRRORED BY TRANSFORM" |
+| runtime `./doors` import restored | CAUGHT by source, while every behavioural check stayed green |
+| casino standoff 0.75 → 1.00 | CAUGHT by the exactness check; **all 28 walking checks passed** |
+| a no-go probe aimed at open floor | CAUGHT, walked 5.19 m |
+| a 1 m collider across the side-street walk | CAUGHT, four frontage checks |
+
+**The two "not a mutation" rows are the useful ones.** Widening the door proves
+the doorway is not a hole — the kit closes it with its own collider 0.18 m proud
+of the wall — so that check guards the kit's collider, not a gap, and its comment
+said otherwise until `df02aeb6`. And a 5 m door is rejected outright, so the suite
+goes green for a reason unconnected to the question. **A mutation that does not
+build is not a test.**
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
