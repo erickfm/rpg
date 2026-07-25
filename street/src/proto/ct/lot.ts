@@ -206,6 +206,12 @@ export function buildLot(o: {
     T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100], U: [0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
     W: [0b10001, 0b10001, 0b10101, 0b11011, 0b10001], Y: [0b10001, 0b01010, 0b00100, 0b00100, 0b00100],
     Z: [0b11111, 0b00010, 0b00100, 0b01000, 0b11111], '-': [0, 0, 0b01110, 0, 0],
+    '0': [0b01110, 0b10001, 0b10001, 0b10001, 0b01110], '1': [0b00100, 0b01100, 0b00100, 0b00100, 0b01110],
+    '2': [0b11110, 0b00001, 0b01110, 0b10000, 0b11111], '3': [0b11110, 0b00001, 0b01110, 0b00001, 0b11110],
+    '4': [0b10010, 0b10010, 0b11111, 0b00010, 0b00010], '5': [0b11111, 0b10000, 0b11110, 0b00001, 0b11110],
+    '6': [0b01110, 0b10000, 0b11110, 0b10001, 0b01110], '7': [0b11111, 0b00010, 0b00100, 0b01000, 0b01000],
+    '8': [0b01110, 0b10001, 0b01110, 0b10001, 0b01110], '9': [0b01110, 0b10001, 0b01111, 0b00001, 0b01110],
+    $: [0b01111, 0b10100, 0b01110, 0b00101, 0b11110],
     ' ': [0, 0, 0, 0, 0], "'": [0b00100, 0b00100, 0, 0, 0],
   };
   const stamp = (g: CanvasRenderingContext2D, s: string, x0: number, y0: number, px: number, ink: string) => {
@@ -416,43 +422,130 @@ export function buildLot(o: {
     // Size the card from the string, the same lesson the office board taught:
     // four digits at 6 texels and 2 px per texel is 48 px, and on a 26 px
     // canvas that clipped to a blank card with a sliver of the first digit.
-    const priceT = (n: string) => {
-      const W = n.length * 6 * 2 + 6;
-      return pixTex(W, 20, (g) => {
-        g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, W, 20);
-        g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(0, 18, W, 2);
-        g.fillStyle = '#c0392f'; g.fillRect(0, 0, W, 3);          // a red header strip
-        stamp(g, n, 3, 6, 2, '#c0392f');
-        g.fillStyle = '#2a2118'; g.fillRect(3, 17, W - 6, 1);
+    // ── what is written on the glass ─────────────────────────────────────
+    // The windshield price is the ICON of this whole typology, and it has a
+    // vocabulary. A real lot mixes three treatments and leaves some cars
+    // blank, because the blank ones are the ones that came in this week.
+    //
+    // SOAPED NUMBERS. Written straight on the glass with a paint pen by
+    // somebody standing in a lot, so they must not be typeset: every glyph
+    // gets a deterministic wobble in baseline and a fat three-texel stroke
+    // with a bitten edge. Straight and even reads as signage; wonky reads as
+    // a hand. That is the whole difference.
+    const soapT = (price: string) => {
+      const px = 3, W = price.length * 6 * px + 10, H = 5 * px + 12;
+      return pixTex(W, H, (g) => {
+        g.clearRect(0, 0, W, H);
+        for (let i = 0; i < price.length; i++) {
+          const rows = GLYPH[price[i]] ?? GLYPH[' '];
+          const jy = ((i * 7) % 3) - 1, jx = ((i * 11) % 3) - 1;   // the wobble
+          for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
+            if (!(rows[r] & (1 << (4 - c)))) continue;
+            g.fillStyle = ((r * 3 + c + i) % 6) ? 'rgba(244,247,250,0.94)' : 'rgba(222,230,238,0.66)';
+            g.fillRect(5 + (i * 6 + c) * px + jx, 6 + r * px + jy, px, px);
+          }
+        }
       });
     };
-    const STOCK: [CarKind, number, string][] = [
-      ['sedan', 1, '1495'], ['pickup', 3, '2295'], ['hatch', 0, '995'],
-      ['van', 4, '1795'], ['sedan', 5, '1195'], ['hatch', 2, '895'],
-      ['pickup', 0, '2795'],
+    // STARBURST CARD. The sunburst outline is the other half of the icon —
+    // a hard-edged star, not a soft glow, so the points are drawn as a square
+    // wave in angle rather than tapered.
+    const burstT = (price: string) => {
+      const N = 56, C = N / 2;
+      return pixTex(N, N, (g) => {
+        g.clearRect(0, 0, N, N);
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const dx = x + 0.5 - C, dy = y + 0.5 - C;
+          const d = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+          const spike = Math.cos(a * 11) > 0 ? 1 : 0;
+          if (d <= C * (0.68 + 0.30 * spike)) { g.fillStyle = '#e0a81c'; g.fillRect(x, y, 1, 1); }
+        }
+        g.fillStyle = '#f2ead0';
+        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+          const dx = x + 0.5 - C, dy = y + 0.5 - C;
+          if (dx * dx + dy * dy <= (C * 0.60) ** 2) g.fillRect(x, y, 1, 1);
+        }
+        // 1 px per texel, not 2: the inner disc is only C*1.2 across and a
+        // five-character price at 2 px is 60 px against a 34 px disc, so it
+        // spilled under the spikes. Centred off the string length.
+        stamp(g, price, C - price.length * 3, C - 3, 1, '#c0392f');
+      });
+    };
+    // SLOGAN CARD. Small, propped in the corner of the glass.
+    const slogT = (words: string, bg: string, ink: string) => {
+      const W = words.length * 6 * 2 + 8;
+      return pixTex(W, 18, (g) => {
+        g.fillStyle = bg; g.fillRect(0, 0, W, 18);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 16, W, 2);
+        stamp(g, words, 4, 4, 2, ink);
+      });
+    };
+    // SOLD, across the glass at an angle, on the one that has gone.
+    const soldT = () => {
+      const W = 4 * 6 * 3 + 12;
+      return pixTex(W, 26, (g) => {
+        g.fillStyle = '#c0392f'; g.fillRect(0, 0, W, 26);
+        g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, W, 2);
+        stamp(g, 'SOLD', 6, 5, 3, '#f2ead0');
+      });
+    };
+
+    // Prices are 1997 and cheap, and they end in 95 or 99 far more often than
+    // they end in a round number, because that is what a lot writes.
+    type Treat = 'soap' | 'burst' | 'card' | 'slip' | 'sold' | 'bare';
+    const STOCK: { kind: CarKind; col: number; price?: string; treat: Treat; slog?: string }[] = [
+      { kind: 'sedan', col: 1, price: '$1995', treat: 'soap' },
+      { kind: 'pickup', col: 3, price: '$2495', treat: 'burst', slog: 'RUNS GREAT' },
+      { kind: 'hatch', col: 0, price: '$899', treat: 'soap' },
+      { kind: 'van', col: 4, price: '$1295', treat: 'card', slog: 'AS IS' },
+      { kind: 'sedan', col: 5, treat: 'sold' },
+      { kind: 'hatch', col: 2, price: '$795', treat: 'slip' },
+      { kind: 'pickup', col: 0, price: '$3495', treat: 'burst', slog: '1 OWNER' },
+      { kind: 'sedan', col: 3, treat: 'bare' },          // just came in
     ];
-    // NOSE OUT. A lot angles its stock so the front three-quarter faces the
-    // pavement — that is the view that sells a car, and it is why lots park
-    // crooked at all. At -0.52 the whole row faced INTO the lot and every
-    // windshield, and so every price card, was turned away from the street.
+    /** hang a thing on the windshield of a car group, in the car's own frame */
+    const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
+                     y: number, z: number, rz = 0) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+      m.position.set(0, y, z);
+      m.rotation.y = Math.PI;
+      m.rotation.z = rz;
+      g0.add(m);
+    };
     const ANGLE = Math.PI / 2 - 0.5;
     for (let i = 0; i < STOCK.length; i++) {
-      const [kind, col, price] = STOCK[i];
+      const it = STOCK[i];
       const row = i < 4 ? 0 : 1;
       const k = i < 4 ? i : i - 4;
-      const z = zN - 5.6 - k * 3.3 - row * 1.4;
+      const z = zN - 5.0 - k * 3.3 - row * 1.4;
       if (z < zS + 2.2) break;
       const x = X0 + (row === 0 ? 2.9 : 6.4);
       const g0 = new THREE.Group();
-      g0.add(makeCar(kind, col));
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), flat(priceT(price)));
-      card.position.set(0, 1.02, -0.80);     // proud of the windshield, facing front
-      card.rotation.y = Math.PI;
-      g0.add(card);
+      g0.add(makeCar(it.kind, it.col));
+      switch (it.treat) {
+        case 'soap':                                       // straight on the glass
+          onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
+          break;
+        case 'burst':
+          onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
+          break;
+        case 'card':
+          onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
+          break;
+        case 'slip':                                       // slid down the glass
+          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
+          break;
+        case 'sold':
+          onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
+          break;
+        case 'bare': break;                                // nothing; it just landed
+      }
       g0.position.set(x, Y, z);
       g0.rotation.y = ANGLE;
       scene.add(g0);
-      // a car is solid, and the box follows the car rather than the row
       solid({ minX: x - 1.3, maxX: x + 1.3, minZ: z - 1.5, maxZ: z + 1.5 });
     }
 
