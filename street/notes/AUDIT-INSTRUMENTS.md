@@ -1127,3 +1127,53 @@ So the corridor result now rests on three independent legs: the number itself,
 the long-window ghost check that showed dropping movers can only ever *widen* a
 passage, and a planted obstruction the detector catches at the exact figure that
 started the whole episode.
+
+## The wet look at night: narrower than "nothing", and worse where it shows
+
+`fd74b028` raised a player-visible one and declined to patch it, correctly —
+*"a player walking home at 23:00 in the rain sees a dry road"* — on the basis
+that all 62 wet-registered surfaces are bit-for-bit identical dry and rainy at
+23:30. Wet streets have been asked for **three times**, so this is worth an
+independent measurement rather than a second-hand one.
+
+**Two controls first, because the night pair is 72 hours apart where the day pair
+was one hour.** Anything on a multi-day cycle would confound it:
+
+| pair | responded | lightened |
+|---|---|---|
+| dry 23 vs **rainy** 95 | 51 | 0 |
+| dry 23 vs **dry** 71 | **0** | **0** |
+
+The dry-vs-dry control is a clean zero, so the 51 are genuinely rain-driven.
+
+**And a third mover bug of my own, found by that control.** My first night run
+reported *"a surface LIGHTENED by 280.9%"* — a clamp escape, if true. It was a
+**0.95 × 1.90 plane at kerb height that drifted z −37.7 → −38.3 between runs**:
+person-sized, and walking. A citizen sprite keeps its material uuid while it
+moves, so it joins to itself with a different colour and lands in whichever band
+its lighting fell into. The sweep now joins on **position as well as uuid** —
+2890 movers dropped of 4562 — and both the phantom lightening and the phantom
+control vanish. That is the third time movers have manufactured a finding in this
+audit, and the first time one of my own instruments produced it after I had
+written the lesson down twice.
+
+### What the corrected measurement says
+
+```
+EVERY outdoor owner at 23:00, responding / total
+      4 / 484   street        median y 3.26          16 / 26   tex-ground  y 0.05
+      4 / 323   lot           median y 0.80           1 / 76   vice        y 4.54
+      9 / 216   props         median y 0.14           0 / 142  civic       y 0.97
+     15 / 115   (untagged) PlaneGeometry y 0.74       0 / 84   walkup      y 6.10
+```
+
+**"The wet look does nothing after dark" is too strong — and the truth is worse
+for the player.** 51 surfaces do respond at night, so the system is not inert.
+But `street` collapses from **137 of 674 responding by day to 4 of 484 at
+night**, while `tex-ground` holds up at 16 of 26. The part that still works is
+the ground plane; the part that stops is **the street itself** — which is
+precisely the surface the player is looking at while walking home.
+
+So the report to whoever owns `props.ts` is narrower and more actionable than
+"nothing works at night": *the wet look survives the night grade on tex-ground
+and dies on street.* I have not diagnosed why, and it is not mine to fix.

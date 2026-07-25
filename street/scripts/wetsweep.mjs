@@ -30,8 +30,9 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
 
 // a wet hour the world guarantees, and the nearest dry hour, so the sun barely moves
-const wetH = 14;
-const dryH = [13, 15, 12, 16, 11, 17].find((h) => !rainy(h));
+const wetH = Number(process.env.WET_H ?? 14);
+const dryH = process.env.DRY_H ? Number(process.env.DRY_H)
+  : [13, 15, 12, 16, 11, 17].find((h) => !rainy(h));
 if (dryH === undefined) { console.error('no dry hour near 14'); process.exit(2); }
 
 // MEASURED, not guessed: after clock(14) the road walks 1.000 → 0.597 → 0.329 →
@@ -71,11 +72,20 @@ const dry = await sample(dryH);
 const wet = await sample(wetH);
 await b.close();
 
+// DROP MOVERS. A citizen sprite keeps its material uuid while it walks, so it
+// joins to itself across the two samples with a different colour AND a different
+// position — and lands in whichever band its lighting happened to change into.
+// That is what produced a "surface lightened by 280%" that turned out to be a
+// 0.95x1.90 person-shaped plane at kerb height, drifting z -37.7 to -38.3
+// between runs. Third time movers have faked a finding in this audit; this one
+// is joined on position as well as uuid.
 const W = new Map(wet.map((m) => [m.id, m]));
 const rows = [];
+let moved = 0;
 for (const d of dry) {
   const w = W.get(d.id);
   if (!w || d.lum <= 0.001) continue;
+  if (Math.abs(w.x - d.x) > 0.01 || Math.abs(w.z - d.z) > 0.01) { moved++; continue; }
   rows.push({ ...d, drop: (d.lum - w.lum) / d.lum });
 }
 // outdoors only: the interiors live out at x >= 400 and are entitled to stay dry
@@ -87,7 +97,7 @@ const pct = (v) => `${(v * 100).toFixed(1)}%`;
 // effect at all by naming the wettest surfaces it found.
 const responded = out.filter((r) => r.drop > 0.2);
 const best = [...responded].sort((a, c) => c.drop - a.drop).slice(0, 3);
-console.log(`dry hour ${dryH}, wet hour ${wetH}   ·   ${out.length} outdoor materials joined\n`);
+console.log(`dry hour ${dryH}, wet hour ${wetH}   ·   ${out.length} outdoor materials joined, ${moved} movers dropped\n`);
 console.log(`CONTROL — the surfaces that DID respond: ${responded.length}`);
 for (const r of best) console.log(`   ${pct(r.drop)}  ${r.mod || r.name}  at (${r.x}, ${r.z})`);
 
