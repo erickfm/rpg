@@ -71,6 +71,27 @@ twice, with zero navigation failures:
 Four of six red, on a door that works perfectly. `after E, doorway blocked:
 false` — the collider was read while the leaf was still travelling.
 
+## 3b. And the same fault was in my most important check
+
+`lotwalk.mjs` answers the user's *"I CANNOT WALK IN"*. It held W for a fixed
+1600 ms per sample and asked where the rig ended up.
+
+```
+12 concurrent, fixed 1600 ms hold   3/12 green   rig reached x=7.25 … 7.75, wanted 8.0
+12 concurrent, walk-until-stopped  12/12 green   and all twelve report the SAME span
+```
+
+It failed SAFE, and by luck rather than design: entering needs more travel than
+being stopped does, so the opening breaks first and the "an opening exists"
+assertion goes red. The dangerous version of this bug is the other way round —
+a starved walker that never reaches the fence, reported as *"the fence held"*.
+Anyone writing a movement check should know which way theirs fails.
+
+Now it stops on the ANSWER — inside, or no longer making progress, which is
+what being blocked actually looks like. The 1600 ms survives as a cap only. All
+twelve concurrent runs now agree on `opening at z 0 … 6, 7 of 28 samples`: the
+number stopped depending on how busy the machine was, which is the point.
+
 ## 4. So: wait for the event, not for a duration
 
 `scripts/lib/clock.mjs` — offered, not imposed, the way `3160410e` offered

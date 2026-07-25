@@ -97,10 +97,38 @@ for (const z of ZS) {
   await p.evaluate(([x, z]) => window.__ct.warp(x, z, Math.PI / 2, 0.14, 0), [start, z]);
   await p.waitForTimeout(120);
   await p.keyboard.down('w');
-  await p.waitForTimeout(HOLD);
+  // WALK UNTIL IT STOPS, don't hold W for a fixed time. Movement is driven by
+  // the render loop, so `HOLD` milliseconds buys frames, and frames are what
+  // the suite is short of: run twelve of these at once and the rig covers
+  // 7.25-7.75 m instead of 9, every sample reads `blocked`, and the script
+  // goes red on a lot you can walk straight into. Measured, 9 of 12 red.
+  //
+  // It failed SAFE — the opening needs the most travel, so it breaks first and
+  // the "an opening exists" assertion catches it — but a check that cries wolf
+  // whenever the machine is busy is one people learn to re-run rather than
+  // read. GOTCHAS 30.
+  //
+  // So stop on the ANSWER: either the rig is inside, or it has stopped making
+  // progress, which is what "the fence stopped me" actually looks like. HOLD
+  // survives as the cap only.
+  const walk = await p.evaluate(([insideX, cap]) => new Promise((res) => {
+    const t0 = performance.now(); let lastX = window.__ct.pos()[0], stuck = 0, f = 0;
+    const tick = () => {
+      const x = window.__ct.pos()[0]; f++;
+      if (x > insideX) return res({ x, f, why: 'inside', ms: +(performance.now() - t0).toFixed(0) });
+      stuck = (x - lastX < 0.004) ? stuck + 1 : 0;
+      lastX = x;
+      if (stuck >= 8) return res({ x, f, why: 'stopped', ms: +(performance.now() - t0).toFixed(0) });
+      if (performance.now() - t0 > cap) return res({ x, f, why: 'cap', ms: +(performance.now() - t0).toFixed(0) });
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }), [INSIDE_X, HOLD * 4]);
   await p.keyboard.up('w');
   await p.waitForTimeout(120);
   const [x2, , z2] = await p.evaluate(() => window.__ct.pos());
+  if (walk.why === 'cap') console.warn(`  [walk] z=${z} hit the ${HOLD * 4} ms cap still moving `
+    + `(${walk.f} frames, x=${walk.x.toFixed(2)}) — neither in nor stopped`);
   const got = x2 - start;
   const inside = x2 > INSIDE_X;
   RESULT.push([z, inside]);

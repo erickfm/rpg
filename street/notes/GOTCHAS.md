@@ -575,6 +575,17 @@ The bet is invisible when you make it, because you make it on an idle machine:
 Same code, same build, same server, no navigation failures. Four reds on a door
 that works perfectly — the collider was read while the leaf was still moving.
 
+The same fault was in `lotwalk.mjs`, which answers "can I walk into the lot":
+**3 of 12 green** under load holding W for a fixed 1600 ms, **12 of 12** — and
+all twelve agreeing on the same opening span — once it walked until it either
+got in or stopped making progress.
+
+Know which way yours fails. `lotwalk` failed safe by luck: entering needs more
+travel than being blocked does, so the opening breaks first and takes the check
+red with it. A movement check built the other way round — one that concludes
+"the fence held" because a starved walker never reached the fence — is a false
+GREEN, and nothing will tell you.
+
 **So wait for the event.** `scripts/lib/clock.mjs` does it for the clock
 (`setClock(page, h, m)` returns when the grade is actually on screen, and warns
 rather than returning quietly if frames stop). For an animation, poll the thing
