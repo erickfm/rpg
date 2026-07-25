@@ -50,11 +50,46 @@ independent half the harness does not have.**
 
 I should have said that when I reported 5 of 5.
 
-## What would make `mirror-walk` category A
+## ~~What would make `mirror-walk` category A~~ — it cannot be, and that is correct
 
-Compare the room's doorway against something that does **not** come from the
-declaration — the painted texture itself. The facade's door is drawn into a
-canvas at a texel column; reading where the dark door pixels actually are and
-converting through `alongU` gives a side B with a genuinely different ancestor.
-That is a real piece of work rather than a tweak, and I am recording it rather
-than claiming it.
+I proposed reading the **painted texture** as an independent side B. Checked
+before starting it, and it does not work:
+
+```ts
+export function doorAlongU(name, wMeters, fallbackM) {
+  return declaredAlongU(name, wMeters) ?? fallbackM;      // tex-world.ts:645
+}
+```
+
+The painter's door position **is** the declaration. Reading the pixels would
+compare the declaration against itself with extra steps.
+
+### And that is the design working, not a gap
+
+The circularity is a **consequence of the fix the user asked for.** Before the
+descriptor, the facade and the room each authored the door independently — two
+numbers, no connection — and that is exactly why they disagreed and why the user
+complained. Unifying them onto one declared number is what made the disagreement
+impossible.
+
+Once they share a source, **any pair of consumers is circular by construction.**
+That is not a weakness in the check; it is the whole point of the change. What
+remains possible after unification is a transit fault — a dropped declaration, a
+mirror applied twice or not at all — and a category-C check is exactly the
+instrument for those. It caught precisely that, twice: the harness whose two
+expressions reduced to the same value, and `frontage-honours`' dropped-declaration
+case.
+
+**So the correct reading is:** the independent evidence was needed to establish
+the requirement, and eyes supplied it (`A-mirror-verified.md`). The ongoing check
+is plumbing by design and cannot be otherwise. I should describe it that way
+rather than as a check with a deficiency.
+
+### The one candidate for genuine independence, unverified
+
+A room's **furniture** is hand-placed — the diner's booths "line the window".
+Comparing booth positions against the glazing run would pair two differently
+authored things, and I used exactly that reasoning once already to check the
+diner's glass. Whether it is truly independent depends on whether the furniture
+is placed from `spec` values that also drive the glazing, which I have **not**
+checked. Recording it as a candidate, not a plan.
