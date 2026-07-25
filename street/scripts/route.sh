@@ -61,14 +61,17 @@ sleep 6
 # which is worse than no check at all: a verifier that always cries wolf gets
 # ignored, and then the real failure it exists to catch goes through unnoticed.
 PANE=$(tmux capture-pane -p -t "$SESSION:$WIN")
-BOX=$(echo "$PANE" | grep -vE '^\s*$' | tail -4)
-# Claude Code also prints its own hints in the box — "Press up to edit queued
-# messages", greyed-out suggestions — and those are not user text either.
-if echo "$BOX" | grep -qE '^\s*❯\s*\S' \
-   && ! echo "$BOX" | grep -qE '^\s*❯\s*(Press up to edit|Try |Ask )'; then
-  echo "WARNING: $AGENT still has text at its prompt — the dispatch may not have submitted."
-elif echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; then
+# Trust the SPINNER first. If the agent is running, the dispatch went through —
+# that is dispositive, and no amount of text-matching on the input box beats it.
+# Ordering these the other way round produced a warning on every good dispatch,
+# because the box legitimately contains Claude Code's own hints ("Press up to
+# edit queued messages") and, if the message was queued behind current work,
+# genuinely does hold text that WILL be processed.
+if echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; then
   echo "dispatched: $AGENT (window $WIN) is working"
+elif echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE '^\s*❯\s*\S' \
+     && ! echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE 'Press up to edit'; then
+  echo "WARNING: $AGENT still has text at its prompt — the dispatch may not have submitted."
 else
   echo "NOTE: $AGENT submitted but is not spinning — it may have finished already (window $WIN)."
 fi
