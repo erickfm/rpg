@@ -111,6 +111,11 @@ for (let x = -38.0; x <= -7.4; x += 2.2) for (let z = -96; z <= -70; z += 4) {
   s.push([x, z, await gyAt(x, z)]);
 }
 const bad = s.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
+// `bad.length === 0` is also true of an empty `s`. The grid skips anything
+// inside the field, so a field that grew to fill the site would empty it
+// silently and this would go green having sampled nothing (§34).
+report('…and the level grid sampled something', s.length >= 40,
+  `${s.length} points off the grass`);
 report('the paths and the perimeter are still dead level', bad.length === 0,
   bad.length ? `${bad.length}/${s.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${s.length} samples off the grass, all at gy 0.14`);
 
@@ -160,6 +165,11 @@ for (let i = 1; i < line.length; i++) {
   const d = Math.abs(line[i][1] - line[i - 1][1]);
   if (d > steep[0]) steep = [d, line[i][0]];
 }
+// Same trap with the sign flipped: if the transect ever stopped crossing the
+// relief, every step would be 0 and "nothing is steep" would be trivially true.
+const span = Math.max(...line.map((q) => q[1])) - Math.min(...line.map((q) => q[1]));
+report('…and the transect actually crossed the relief', span > 0.10,
+  `it rises and falls ${(span * 1000).toFixed(0)} mm end to end`);
 report('nothing in the relief is steep enough to trip on', steep[0] < 0.06,
   `steepest half-metre is ${f(steep[0])} m at z ${f(steep[1])} — 1 in ${(0.5 / (steep[0] || 1e-9)).toFixed(0)}`);
 
@@ -188,6 +198,15 @@ const over = await page.evaluate(() => window.__ct.colliders()
   // starts exactly ON the line (minX = -7.00) so it is excluded by <.
   .filter((c) => c.minZ >= -98.5 && c.maxZ <= -67.5 && c.minX > -20 && c.minX < -7.0 && c.maxX > -7.0)
   .map((c) => [+c.minX.toFixed(2), +c.maxX.toFixed(2), +c.minZ.toFixed(2), +c.maxZ.toFixed(2)]));
+// THE §9 CHECK, and the one that most needs to be shown to have looked.
+// `over.length === 0` is equally true if the park has no colliders at all, if
+// `colliders()` came back empty, or if these bounds stopped matching the park —
+// and it would read green in every one of those cases. So: count what is
+// actually in the park's z-span first.
+const parkCols = await page.evaluate(() => window.__ct.colliders()
+  .filter((c) => c.minZ >= -98.5 && c.maxZ <= -67.5 && c.maxX < -7.0).length);
+report('…and there were park colliders to check', parkCols >= 20,
+  `${parkCols} colliders inside the park's z-span`);
 report('nothing the park owns stands on the pavement', over.length === 0,
   over.length ? `${over.length} over the line: ${JSON.stringify(over)}` : 'every park collider is west of x = -7.00');
 

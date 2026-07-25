@@ -171,6 +171,9 @@ if (WIRED && OPEN) {
     for (let x = 7.4; x <= 9.4; x += 0.5) flat.push([x, z, await gyAt(x, z)]);
   }
   const bad = flat.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
+  // an empty `flat` satisfies this too — say how many were looked at (§34)
+  report('…and the flag samples exist to be checked', flat.length >= 12,
+    `${flat.length} points either side of the flight`);
   report('the flags either side of the flight are level', bad.length === 0,
     bad.length ? `${bad.length}/${flat.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${flat.length} samples at gy 0.14`);
 

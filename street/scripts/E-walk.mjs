@@ -247,6 +247,11 @@ for (let x = -10.0; x <= -7.0; x += 0.4) {
 }
 const flat = samples.filter(([, z]) => Math.abs(z - CZ) > FLIGHT_HALF);
 const bad = flat.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
+// `bad.length === 0` is also true of an empty `flat`. It is filtered by the
+// flight's own half-width, so a wider flight would empty it and this would read
+// green having sampled nothing (§34).
+report('…and the level samples exist to be checked', flat.length >= 20,
+  `${flat.length} points clear of the flight`);
 report('the courtyard floor is walk level off the flight', bad.length === 0,
   bad.length ? `${bad.length}/${flat.length} off: ${JSON.stringify(bad.slice(0, 4))}`
     : `${flat.length} samples all at gy 0.14`, 1);
