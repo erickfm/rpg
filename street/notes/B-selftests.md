@@ -26,6 +26,7 @@ node scripts/canfail.mjs glow park    just these
 | `basin` | `PROUD` 0.007 → −0.02, surround buried behind the kerb | **yes** |
 | `rain` | `RAIN_N` 500 → 6 | **yes** |
 | `trash` | every piece seated 5 cm under the pavement | **yes** |
+| `park-walk` | lamp collider widened to 2.4 m — the loop walled shut | **yes** |
 
 `kerb.mjs` and `people.mjs` are measurements, not checks — they print what is
 there and assert nothing, so there is no verdict to mutate. Same status as A's
@@ -164,6 +165,49 @@ alone would not have been enough — two runs would still have fought over the
 same file — which is why the PID check is there as well.
 
 All ten re-verified under the new implementation, in batches.
+
+---
+
+## park's walk was one pedestrian from flipping, and had already flipped
+
+Went to `park.mjs` because `bfd0b7ae` cut lotwalk 98s → 61s as the shared
+runner's slowest check, which left four of the five slowest as mine. Profiling
+it instead of trimming the waits found the same defect that commit describes.
+
+The four legs asked "did you travel more than 16 m in 9 s". Measured over four
+runs:
+
+```
+street S→N    19.6   16.0   18.8   12.7 STUCK
+back   S→N    17.3   20.9   24.3   12.7 STUCK
+southbound    25.8   25.4   25.8   (25–29 throughout)
+```
+
+Northbound spread 12.7–19.6 m against a 16 m line — run 2 landed exactly on it,
+and one run failed outright. **The park loop has citizens walking it**, and one
+standing in a 1.5 m path stops the player for a few seconds. That is not a floor
+defect, and a floor defect is the only thing the leg is asking about.
+
+The fix is `bfd0b7ae`'s, not a longer hold: ask whether the player was STOPPED,
+not how far they got. Still moving when the clock runs out means the lane is
+open and the distance was only ever a time budget. Being independent of the hold
+length, it also let the hold drop 9 s → 6 s.
+
+```
+run 1  exit 0  no STUCK  35 s        (was 48 s)
+run 2  exit 0  no STUCK  38 s
+run 3  exit 0  no STUCK  34 s
+   run 3, street N→S: 15.4 m along, 4.61 m in the last 1.5 s
+```
+
+That last line is the whole case: 15.4 m is BELOW the old 16 m threshold, so
+that run would have been a false STUCK, and the player was plainly still walking
+when the clock stopped.
+
+Loosening a criterion without a mutation behind it is only assuming it still
+works, so `park-walk` widens my own lamp collider (`props.ts:902`) to 2.4 m and
+walls the loop at every lantern. CAUGHT. Both park cases are registered, so the
+lantern half and the walk half are exercised separately.
 
 ---
 
