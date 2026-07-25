@@ -727,3 +727,43 @@ number describes.** Mine did not. Every lane figure above should be read as
 *built*, and the lived median on this street is 0.77 m — which is a busy
 pavement rather than a fault, and the two are only confusable if nobody says
 which one they measured.
+
+## Source-mutation pass over my guards (dc0f4e8b)
+
+`bf820319` routes a selftest to the source mutation rather than the scene one,
+and that applies to all three of mine — every selftest I wrote inverts an
+assertion *inside the script*. That proves the measurement reads the world. It
+does not prove the guard catches a regression in the source. Mutating
+`ct/street.ts` and watching each one:
+
+| mutant | guard | result |
+|---|---|---|
+| `lateAt` returns `eveAt(h)` | windowlights | **fired** — 21:00 evening 1 / late 1 |
+| `depthOf` returns 3.4 | shells | **fired** — 18 under 8 m, 1 distinct depth |
+| `flankTex` hands out `.clone()` of one texture | shells | **fired**, but only after the assertion was rewritten |
+| bodega shell moved to z −60 | D-walk | did not fire — **invalid mutant** |
+
+Two things came out of it worth keeping.
+
+**One guard was blind.** "Returns are not one shared material" counted distinct
+`map.uuid`, and `partyWallTex` builds a fresh canvas per call — so 36 returns
+make 36 objects however they look. On the clone mutant (every return the same
+image, fresh uuids, which is the user's complaint exactly) the uuid instrument
+read 19 distinct and passed; the pixel hash reads 3 and fails. Fixed by hashing
+24×24 of each texture's own pixels.
+
+**Two mutants were invalid, and an invalid mutant looks exactly like a passing
+guard.** `flankTex` with a constant body does *not* make the returns identical,
+because `partyWallTex` varies per call beyond its salt — that world really does
+have 19 different-looking returns and both instruments are right to pass it. I
+read that green as proof of a hole; it was not, and the hole only shows under
+the clone. Separately, moving the BODEGA shell does not move the BODEGA door:
+`ct/int-bodega.ts` registers the prompt at its own `cz`. **No mutation in my
+file can reach D-walk's door legs**, so they remain unproven by this method
+rather than proven — if the desk wants them covered, it needs F's file or a
+mutation harness that can patch across ownership boundaries.
+
+I also grepped one mutant run down to PASS/FAIL lines and discarded
+`reportWorld`'s build banner — GOTCHAS 26, in a check I wrote myself.
+
+Check the mutant is the bug before believing what the guard says about it.
