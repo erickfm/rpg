@@ -909,6 +909,81 @@ export function shopfrontRelief(o: {
   //    pavement. The step you catch with your shin. ──────────────────────────
   put(o.wMeters, 0.09, CILL, 0, F.stallriserH + 0.02, mat(tint.clone().multiplyScalar(0.45)));
   put(o.wMeters, 0.12, PLINTH, 0, 0.06, mat(0x2a2620));
+
+  // ── A PROJECTING BLADE, on the one front that earns it ────────────────────
+  //
+  // The last item on the user's own list of what a better facade means:
+  // "signage that is a made object: a projecting blade, a hand-painted board,
+  // applied letters with a shadow". The thrift store has the painted board and
+  // all four have the applied letters. Nobody had built the blade.
+  //
+  // I had this filed as blocked on the 0.30 m depth budget, and that was wrong.
+  // The budget is about things you can WALK INTO — the note above says so, and
+  // the sprite tree in this file already settles the case: "the crown is WIDER
+  // than the walk on purpose… it clears head height, and collision is
+  // trunk-only, so the sidewalk stays as walkable as it was — the crown is
+  // allowed to be generous because you walk UNDER it." A blade hung at fascia
+  // height is that same case: its underside is at 2.6 m, a metre clear of a
+  // standing player, and it adds no collider because nothing can reach it.
+  // A real one overhangs the pavement; that IS the feature.
+  //
+  // Selected by name, the same dispatch shopfrontTex uses — the shopfront
+  // system decides how a named shop looks, and giving another shop a blade is
+  // a change here and nowhere else.
+  if (o.name === 'DINER') {
+    const PROJ = 0.95, TALL = 1.55, FOOT = 2.45;   // underside 2.45 m: walk under it
+    const bx = along(o.wMeters * 0.17);
+    // THE BRACKET FIRST, and spanning the FULL projection. My first attempt
+    // hung the plate off a stub arm reaching half way, which put the whole
+    // bracket behind the plate when you stand square to the shop — and a blade
+    // is edge-on from there, so all you saw was a pale stick floating in front
+    // of the brick. The user has already called out a floating sign on this
+    // block once ("the sign up top is completely floating"); shipping a second
+    // one would be the same fault with my name on it.
+    const armM = mat(tint.clone().multiplyScalar(0.5));
+    put(0.09, 0.09, PROJ, bx, FOOT + TALL + 0.05, armM);          // top arm, wall to tip
+    put(0.09, 0.34, 0.09, bx, FOOT + TALL + 0.05 - 0.21, armM);   // the drop at the wall
+    const blade = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, TALL, PROJ),
+      new THREE.MeshBasicMaterial({ map: bladeTex('EAT', PROJ, TALL) }));
+    blade.position.set(bx, FOOT + TALL / 2, PROJ / 2);
+    g.add(blade);
+  }
+}
+
+/**
+ * The face of a projecting blade sign: enamel plate, word stacked down it.
+ *
+ * Painted at the SAME density as everything else (`masonry` at SHOP_MULT), so
+ * the letters here are the same size as the letters on the fascia beside it.
+ * A blade painted on its own scale is the pattern-#1 fault in miniature.
+ *
+ * The word runs DOWN, one letter per row, because that is what a blade does
+ * and because a 0.95 m wide face is 15 texels — a horizontal word would be
+ * three texels a letter and unreadable. Stacked, each letter gets a row of
+ * about eight, which is the same letter height the fascia uses.
+ */
+function bladeTex(word: string, wM: number, hM: number): THREE.Texture {
+  const surf = masonry(wM, hM, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const PLATE = '#e8e0cc', INK = '#b8302a', EDGE = '#8a7f6a';
+  return surf.paint((g) => {
+    g.fillStyle = EDGE; g.fillRect(0, 0, W, H);
+    g.fillStyle = PLATE; g.fillRect(m(0.06), m(0.06), W - m(0.12), H - m(0.12));
+    g.fillStyle = INK;                                     // the enamel border
+    g.fillRect(m(0.14), m(0.14), W - m(0.28), Math.max(1, m(0.07)));
+    g.fillRect(m(0.14), H - m(0.14) - m(0.07), W - m(0.28), Math.max(1, m(0.07)));
+    g.font = `bold ${m(0.5)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    const n = word.length, top = m(0.34), run = H - m(0.68);
+    for (let i = 0; i < n; i++) {
+      const cy = top + Math.round((run * (i + 0.5)) / n);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillText(word[i], W / 2 + 1, cy + 1);
+      g.fillStyle = INK; g.fillText(word[i], W / 2, cy);
+    }
+    // weather: it has hung outside for thirty years
+    dither(g, W, H, Math.round(wM * hM * 5));
+  });
 }
 
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
