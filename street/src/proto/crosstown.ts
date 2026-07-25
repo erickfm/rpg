@@ -273,6 +273,7 @@ export function makeCrosstown(): Proto {
     citAvoid,
     solid: (b) => { propColliders.push(b); },
     lit: props.lit,
+    SIDE_Z0, SIDE_Z1, SIDE_X1,
   });
 
   // ── the interior belt, built LAST ───────────────────────────────────────
@@ -477,6 +478,8 @@ export function makeCrosstown(): Proto {
     // test affordance: which painted angle each person is showing, mirrored or
     // not, so the profile feet can be checked against travel (scripts/feet-check.mjs)
     views: () => crowd.views(),
+    // test affordance: where everybody is standing, for the routing probe
+    walkers: () => crowd.walkers(),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
     // test affordance: "is my [E] spot inside something solid?" is the single
     // most expensive question in this project — GOTCHAS §8, and the reason the

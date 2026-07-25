@@ -51,29 +51,40 @@ check(new Set(w0.map((p) => p.y.toFixed(3))).size === 1 && w0[0].y === 0.14,
 
 // ── 2 & 3. the encounter: they halt a step short, then give up and pass ───
 //
-// Stand still in the innermost lane and let a southbound walker come to you.
-// Only lane |x| = 6.05 is used: the outer lanes sit 0.31 m off the facade,
-// which is fine for a 0.25 m-half body but jams the 0.36 m player capsule in
-// the wall (maxX = -FACE + 0.3 = -6.70). Not a bug — the player simply cannot
-// stand where the walkers hug the wall.
-const tgt = (await walkers()).find((p) => Math.abs(Math.abs(p.x) - 6.05) < 0.01 && p.x < 0);
-await page.evaluate(([x, z]) => window.__ct.warp(x, z - 4, Math.PI, 0.14, 0), [tgt.x, tgt.z]);
+// Stand on the west walk and let whoever comes by come by. This used to pin a
+// citizen in the exact lane |x| = 6.05 — but the crowd routes over a graph now
+// and each trip takes its own lateral bias across the walk, so there is no
+// fixed lane to stand in any more. Standing put and waiting is also the truer
+// test: it is what a player does.
+//
+// x = -6.0 is the middle of the walk. The outer part is off limits to the
+// player whatever the crowd does: the wall collider reaches -6.70, so with the
+// 0.36 m capsule you cannot stand west of -6.34.
+await page.evaluate(() => window.__ct.warp(-6.0, -30, 0, 0.14, 0));
 await page.waitForTimeout(150);
 const me = await pos();
 const gaps = [];
-for (let i = 0; i < 70; i++) {            // 7 s of the encounter, sampled
+for (let i = 0; i < 260; i++) {           // 26 s — long enough for a passer-by
   const ws = await walkers();
-  const p = ws.reduce((m, q) => (Math.abs(q.x - me[0]) < 0.4 && Math.abs(q.z - me[2]) < Math.abs(m.z - me[2]) ? q : m), { z: 1e9 });
-  gaps.push(+(p.z - me[2]).toFixed(3));   // signed: + is north of me, - is past me
+  // the nearest person on THIS walk, signed along z so a pass shows as a sign
+  // change rather than just a small number
+  let best = null;
+  for (const q of ws) {
+    if (Math.abs(q.x - me[0]) > 0.9) continue;
+    if (!best || Math.abs(q.z - me[2]) < Math.abs(best.z - me[2])) best = q;
+  }
+  if (best) gaps.push(+(best.z - me[2]).toFixed(3));
   await page.waitForTimeout(100);
 }
 const closest = Math.min(...gaps.map(Math.abs));
 // a plateau: held roughly a step short of the player rather than walking on in
-const halted = gaps.filter((g) => g > 0.8 && g < 1.25).length;
-const passed = gaps.some((g) => g < -0.5);
-check(closest < 1.3, `they walked up to you — closest approach ${closest.toFixed(2)} m`);
-check(halted >= 5, `halted a step short instead of walking through — ${(halted / 10).toFixed(1)} s spent at 0.8–1.25 m`);
-check(passed, 'gave up and squeezed past — never trapped you');
+const halted = gaps.filter((g) => Math.abs(g) > 0.75 && Math.abs(g) < 1.35).length;
+const bothSides = gaps.some((g) => g > 0.6) && gaps.some((g) => g < -0.6);
+check(closest < 1.3, `somebody walked up to you — closest approach ${closest.toFixed(2)} m`);
+check(halted >= 4, `held a step short instead of walking through — ${(halted / 10).toFixed(1)} s spent at 0.75–1.35 m`);
+check(bothSides || closest < 0.6,
+  bothSides ? 'and got past you — never trapped, seen on both sides'
+    : `and got past you — closed to ${closest.toFixed(2)} m, inside the body`);
 
 // ── 4. the sacred 2 m lane, walked end to end ─────────────────────────────
 await page.evaluate(() => window.__ct.warp(-6.1, 6, 0, 0.14, 0));

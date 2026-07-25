@@ -24,9 +24,30 @@ let fails = 0;
 const check = (ok, msg) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
 const D = (r) => (r * 180 / Math.PI).toFixed(1);
 
+// Wait until the junction is clear of PEDESTRIANS before timing a run.
+//
+// This became necessary when the crowd started routing over a graph: they cross
+// at the corner now, and ct/traffic.ts brakes for anybody in the road ahead. So
+// a car yielding at the junction is the two features working together — but it
+// makes the junction's GEOMETRY unmeasurable, because the car never gets round
+// the arc. Wait for a gap, then measure.
+const clearJunction = async (timeoutMs = 25000) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    const near = await page.evaluate(() => window.__ct.walkers()
+      .filter((w) => Math.hypot(w.x - 5, w.z + 98) < 13).length);
+    if (near === 0) return true;
+    await page.waitForTimeout(400);
+  }
+  console.log('  (note: junction never cleared of pedestrians — timing anyway)');
+  return false;
+};
+
 // Drive one movement and record the whole run. Stand the player well away so
 // nothing yields to them and nothing turns around early.
-const run = async (route, seconds, park = [-6.2, 40]) => page.evaluate(async ([route, seconds, px, pz]) => {
+const run = async (route, seconds, park = [-6.2, 40]) => {
+  await clearJunction();
+  return page.evaluate(async ([route, seconds, px, pz]) => {
   window.__ct.warp(px, pz, 0, 0.14, 0);
   window.__ct.drive(route, 'car');
   const out = [];
@@ -40,8 +61,9 @@ const run = async (route, seconds, park = [-6.2, 40]) => page.evaluate(async ([r
     const v = window.__ct.traffic()[0];
     if (v) out.push([now / 1000, v.x, v.z, v.yaw, v.spd, v.lean, v.steer, v.s]);
   }
-  return out;
-}, [route, seconds, park[0], park[1]]);
+    return out;
+  }, [route, seconds, park[0], park[1]]);
+};
 
 // ── 1 & 2. southbound, round the corner, away east ────────────────────────
 console.log('corner probe:');
@@ -119,6 +141,7 @@ check(Math.sign(steerPeak2) === -Math.sign(steerPeak),
 // before its arc, the EN route only 47 m of side street — so spawning both at
 // s=0 has the taxi through the junction long before the car arrives. Start the
 // car 59 m in so both are 47 m from their arc and they meet in the middle.
+await clearJunction();
 const both = await page.evaluate(async () => {
   window.__ct.warp(-6.2, 40, 0, 0.14, 0);
   window.__ct.drive('NE', 'car', 59);
@@ -145,8 +168,18 @@ const closest = Math.min(...both.map((s) => s[0]));
 const nearJunction = both.filter((s) => s[2] < -94 && s[3] < 8);
 const minSpdThere = nearJunction.length ? Math.min(...nearJunction.map((s) => s[1])) : -1;
 check(both.length > 50, `two vehicles ran together (${both.length} samples)`);
-check(closest > 2.6, `they never came closer than ${closest.toFixed(2)} m`);
-check(minSpdThere > 0.5, `neither had to stop at the junction — slowest ${minSpdThere.toFixed(2)} m/s`);
+// 2 x laneX = 3.0 m is what the concentric arcs predict as the closest the two
+// movements ever come. Anything at or above that means they never conflicted.
+check(closest > 2.6, `they never came closer than ${closest.toFixed(2)} m (arcs predict 3.0 m at the tightest)`);
+// SEPARATION is the disjointness test, not speed. Speed at the junction stopped
+// being a usable invariant once the crowd started crossing there: a car braking
+// for a pedestrian is the two features working together, and it is not
+// distinguishable from a car braking for the other car. What disjoint routes
+// promise is that the two never have to interact at all — so measure the gap.
+console.log(nearJunction.length
+  ? `  ..   both were in the junction together; slowest either went was ${minSpdThere.toFixed(2)} m/s` +
+    ` (a stop here is a pedestrian on the crossing, not the other car — they are ${closest.toFixed(1)} m apart)`
+  : '  ..   they did not overlap in the junction this run (pedestrian yields shift the timing)');
 
 // ── 5. it stops for somebody on the crossing ──────────────────────────────
 // stand in the mouth of the junction, on the tight arc's path, and let a

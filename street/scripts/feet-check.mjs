@@ -46,10 +46,13 @@ const samples = await page.evaluate(async () => {
 });
 
 // toe·travel for one case. >0 means the toe leads the direction of travel.
-const along = (yaw, mirror, dir) => {
+// The crowd routes over a graph now, so travel is an arbitrary heading rather
+// than ±z — this is a dot product against the actual velocity.
+const along = (yaw, mirror, v) => {
   const lx = [Math.cos(yaw), -Math.sin(yaw)];             // the sprite's local +x
   const toe = mirror ? lx : [-lx[0], -lx[1]];             // painted at texture LEFT
-  return toe[1] * dir;                                    // they walk along z
+  const m = Math.hypot(v[0], v[1]) || 1;
+  return (toe[0] * v[0] + toe[1] * v[1]) / m;
 };
 
 let fails = 0, profiles = 0, mirrored = 0, unmirrored = 0;
@@ -67,11 +70,12 @@ for (const s of samples) {
   // SAME column with the mirror flipped. The billboard yaw does not depend on
   // dir at all. So (mirror flipped, dir flipped) at the same yaw is precisely
   // sector 2, and it is the case the user would see from the far pavement.
-  for (const [mir, dir, tag] of [[s.mirror, s.dir, 'observed'], [!s.mirror, -s.dir, 'counterpart']]) {
+  const v = [s.vx, s.vz];
+  for (const [mir, vv, tag] of [[s.mirror, v, 'observed'], [!s.mirror, [-v[0], -v[1]], 'counterpart']]) {
     profiles++;
     if (mir) mirrored++; else unmirrored++;
-    const a = along(s.yaw, mir, dir);
-    if (a < 0.7) { fails++; if (bad.length < 6) bad.push({ ...s, tag, mir, dir, a: +a.toFixed(3) }); }
+    const a = along(s.yaw, mir, vv);
+    if (a < 0.7) { fails++; if (bad.length < 6) bad.push({ ...s, tag, mir, a: +a.toFixed(3) }); }
   }
 }
 

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { type Look, citizenAtlas, viewFor } from './citizens';
-import { L, ROAD_HALF, FACE } from './rng';
+import { ROAD_HALF, rnd } from './rng';
+import { buildNet, STRAY, type Activity, type Net } from './crowd-net';
 import { ORDER, type CtxBuild } from './ctx';
 
 // ── the crowd: who is on the block, and how they walk it ───────────────────
@@ -26,6 +27,9 @@ export interface CrowdOpts {
   solid: (b: AABB) => void;
   /** the lamplight registry — people walk through the pools too */
   lit: (root: THREE.Object3D) => void;
+  /** the side street's dimensions, for laying out the walkable network — they
+   *  live in crosstown.ts, not in ct/rng.ts */
+  SIDE_Z0: number; SIDE_Z1: number; SIDE_X1: number;
 }
 
 // Six of them, and no two are the same person recoloured. Each carries its
@@ -66,7 +70,25 @@ const CAST: Person[] = [
 const strideFor = (sp: number, hs: number) =>
   Math.max(2, Math.min(5, Math.round(3.2 * Math.sqrt(sp) * hs)));
 
-interface Citizen { mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number; dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean; anim: number; cad: number;
+interface Citizen {
+  mesh: THREE.Mesh; tex: THREE.Texture; lane: number; home: number; z: number;
+  dir: number; sp: number; ph: number; box: AABB; stuck: number; ghost: boolean;
+  anim: number; cad: number;
+  /** the rest of the route, as node indices; empty means "needs a plan" */
+  route: number[];
+  /** the node last reached, -1 before the first plan */
+  at: number;
+  /** seconds still to spend standing here, doing `doing` */
+  wait: number;
+  doing: Activity;
+  /** how long something has been in the way — the passing rule's timer */
+  jam: number;
+  /** where this trip started, and where a double-back should head for */
+  was: number; back: number;
+  /** this trip's lateral bias across the walk */
+  bias: number;
+  /** this frame's movement, which is what the sprite's facing comes off now */
+  vx: number; vz: number;
   /** what the sprite is currently showing — for the feet check, see `views` */
   view?: { col: number; mirror: boolean; yaw: number; moving: boolean } }
 
@@ -84,11 +106,13 @@ export interface Crowd {
    *  is what makes "does the painted toe point the way they walk" checkable —
    *  the profile column is asymmetric now, so the mirror matters and a
    *  screenshot of one angle cannot answer it (scripts/feet-check.mjs). */
-  views: () => { dir: number; col: number; mirror: boolean; yaw: number; moving: boolean }[];
+  views: () => { vx: number; vz: number; col: number; mirror: boolean; yaw: number;
+    moving: boolean; doing: string; to: string }[];
 }
 
 export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const { scene, sidewalkY } = ctx;
+  const net = buildNet(o);
   const citizens: Citizen[] = [];
 
   CAST.forEach((p, i) => {
@@ -115,6 +139,8 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       mesh, tex, lane, home: lane, z, dir: i % 2 ? 1 : -1, sp: p.sp,
       ph: i * 1.3, box, stuck: 0, ghost: false, anim: i * 1.3,
       cad: 5 * Math.sqrt(p.sp) / p.hs,   // cadence: long legs swing slower
+      route: [], at: -1, wait: 0, doing: 'none', jam: 0, bias: 0, vx: 0, vz: 0,
+      was: -1, back: -1,
     });
   });
 
@@ -122,6 +148,76 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   // (the player isn't in this set — people phase the player, never props)
   const clearAt = (x: number, z: number) =>
     !o.citAvoid.some((a) => x + 0.28 > a.minX && x - 0.28 < a.maxX && z + 0.28 > a.minZ && z - 0.28 < a.maxZ);
+  /** …and clear of everybody ELSE. The old sim never checked this: people
+   *  walked straight through one another, which is the one thing the brief
+   *  called a non-negotiable. A candidate position is only taken if it is clear
+   *  of props AND of every other body, so overlapping is impossible rather than
+   *  merely discouraged — the first cut here paused and then squeezed through
+   *  after 0.8 s, which is walking through somebody politely. */
+  const clearOfPeople = (x: number, z: number, self: Citizen) =>
+    !citizens.some((q) => q !== self && !q.ghost && Math.hypot(q.lane - x, q.z - z) < 0.46);
+
+  // ── having somewhere to be ──────────────────────────────────────────────
+  //
+  // A destination and a reason for it. The old sim gave everybody the same
+  // errand — walk to the end of the block, turn round — which is why varying
+  // their speeds did not make the street feel any more alive: six people doing
+  // one thing at six paces is still six people doing one thing.
+  //
+  // Weighted so most trips are just a walk somewhere, with the errands
+  // sprinkled in; `rnd()` here runs at RUNTIME only, never during the build.
+  const WAIT: Record<Activity, [number, number]> = {
+    window: [5, 12],      // stop and look in
+    door: [4, 8],         // hesitate in a doorway
+    bench: [12, 25],      // wait for the 42
+    corner: [1.5, 4],     // pause at the kerb before crossing
+    none: [0.5, 2.5],     // even a plain stretch gets a beat, so nobody pivots
+  };
+  const plan = (c: Citizen) => {
+    const from = c.at >= 0 ? c.at : net.nearest(c.lane, c.z);
+    if (c.back >= 0 && c.back !== from) {              // double back
+      c.route = net.route(from, c.back).slice(1);
+      c.was = from; c.at = from; c.back = -1;
+      c.bias = (rnd() - 0.5) * 2 * STRAY;
+      if (c.route.length) return;
+    }
+    c.was = from;
+    // pick somewhere that is not where we already are, biased toward the marked
+    // errands — and every so often turn straight round and double back, which
+    // is the one thing a shortest path will never do on its own
+    // Mostly somewhere NEARBY and mostly somewhere with a reason to go: real
+    // pedestrians potter about locally, and it is arrivals that produce the
+    // stopping and looking, so long treks across the whole block have to be the
+    // minority or nobody is ever seen doing anything.
+    const here = net.nodes[from];
+    let to = from;
+    for (let tries = 0; tries < 10 && to === from; tries++) {
+      const wantAct = rnd() < 0.75;
+      const local = rnd() < 0.88 ? 26 : 1e9;          // metres, as the crow flies
+      const pool = net.nodes
+        .map((n, i) => ({ n, i }))
+        .filter(({ n, i }) => i !== from && (!wantAct || n.act)
+          && Math.hypot(n.x - here.x, n.z - here.z) < local)
+        .map(({ i }) => i);
+      if (pool.length) to = pool[Math.floor(rnd() * pool.length)];
+    }
+    c.route = net.route(from, to).slice(1);
+    c.at = from;
+    if (!c.route.length) c.route = [net.adj[from][Math.floor(rnd() * net.adj[from].length)].to];
+    // a personal lateral bias, redrawn each trip, so the same person does not
+    // always hug the same side of the walk
+    c.bias = (rnd() - 0.5) * 2 * STRAY;
+  };
+  const arrive = (c: Citizen) => {
+    const act = net.nodes[c.at]?.act ?? 'none';
+    const [lo, hi] = WAIT[act];
+    c.wait = lo + rnd() * (hi - lo);
+    c.doing = act;
+    // …and sometimes, having got there, turn straight round and go back the way
+    // you came. A shortest path will never do that on its own, and it is the
+    // thing that stops the block reading as a conveyor belt.
+    c.back = rnd() < 0.22 ? c.was : -1;
+  };
 
   // citizens: ping-pong the block, show the correct painted angle. They are
   // SOLID and politely halt a step short of you — but if held up against you
@@ -138,28 +234,78 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       if (!c.ghost && c.stuck > 1.4) c.ghost = true;       // fed up → push past YOU
       if (c.ghost && dist > 1.4) { c.ghost = false; c.stuck = 0; } // clear → solid again
       const holding = dist < 1.0 && !c.ghost;              // standing a step short of you
-      let moving = !holding;
-      if (moving) {
-        const s = Math.sign(c.home);
-        const nz = c.z + c.dir * c.sp * dt;
-        if (clearAt(c.lane, nz)) {
-          c.z = nz;
-          c.lane += (c.home - c.lane) * Math.min(1, dt * 2); // ease back to home lane
-        } else {
-          // a solid prop is ahead — step laterally to go AROUND it (never through)
-          let target: number | null = null;
-          for (const off of [0.45, 0.8, -0.45, 1.15]) {
-            const x = c.home + off * s;
-            if (Math.abs(x) >= ROAD_HALF + 0.55 && Math.abs(x) <= FACE - 0.35 && clearAt(x, nz)) { target = x; break; }
+      // ── the plan ────────────────────────────────────────────────────────
+      // Everybody is on their way SOMEWHERE and does something when they get
+      // there. Planned at runtime, never at build: a rnd() draw while the world
+      // is being constructed would shift every tree height and parked car after
+      // it (GOTCHAS §2).
+      if (!c.route.length) plan(c);
+      let moving = !holding && c.wait <= 0;
+      if (c.wait > 0) c.wait -= dt;
+      let vx = 0, vz = 0;
+      if (moving && c.route.length) {
+        // ── walk the current edge ─────────────────────────────────────────
+        //
+        // The position is kept ON THE EDGE plus a lateral offset, rather than
+        // by nudging it sideways each frame. The first cut did the latter and
+        // the nudges ACCUMULATED — there was nothing pulling anybody back to
+        // the line, so a few seconds of prop avoidance walked people off the
+        // kerb and into the roadway. Measuring the offset from the edge makes
+        // straying off the walk impossible by construction.
+        const A = net.nodes[c.at >= 0 ? c.at : c.route[0]];
+        const B = net.nodes[c.route[0]];
+        let dx = B.x - A.x, dz = B.z - A.z;
+        const len = Math.hypot(dx, dz) || 1;
+        dx /= len; dz /= len;
+        const rx = -dz, rz = dx;                       // to the right of travel
+        // where we are along the edge, and how far off its line
+        const t = (c.lane - A.x) * dx + (c.z - A.z) * dz;
+        // somebody in the way? Slow, and after a beat pass on YOUR right — a
+        // rule both parties apply, so a head-on meeting resolves instead of
+        // deadlocking.
+        const ahead = citizens.find((q) => q !== c
+          && Math.hypot(q.lane - (c.lane + dx * 0.7), q.z - (c.z + dz * 0.7)) < 0.62);
+        if (ahead) c.jam += dt; else c.jam = Math.max(0, c.jam - dt * 2);
+        const held = ahead && c.jam < 0.8;             // a pause before squeezing by
+        const step = held ? 0 : c.sp * dt;
+        // try the intended offset first, then wider — prop avoidance and
+        // passing are the same manoeuvre. Never wider than the walk allows.
+        const want = ahead ? Math.max(0.3, c.bias) : c.bias;
+        let placed = false;
+        for (const off of [want, want + 0.4, want - 0.8, 0, want + 0.8, want - 0.4]) {
+          const o2 = Math.max(-STRAY, Math.min(STRAY, off));
+          const nt = t + step;
+          const nx = A.x + dx * nt + rx * o2;
+          const nz2 = A.z + dz * nt + rz * o2;
+          if (clearAt(nx, nz2) && clearOfPeople(nx, nz2, c)) {
+            vx = nx - c.lane; vz = nz2 - c.z;
+            c.lane = nx; c.z = nz2;
+            placed = true;
+            break;
           }
-          if (target !== null) {
-            c.lane += (target - c.lane) * Math.min(1, dt * 5);
-            if (clearAt(c.lane, c.z + c.dir * c.sp * dt * 0.5)) c.z += c.dir * c.sp * dt * 0.5;
-          } else { c.dir *= -1; moving = false; }  // boxed in — turn back
+        }
+        if (!placed) {
+          // nothing clear either side: STAND. Never advance into somebody, and
+          // never shove through a prop. If it stays blocked long enough, take a
+          // different route from here rather than waiting forever — which is
+          // also what stops two people meeting head-on in a doorway from
+          // standing there for good.
+          c.jam += dt;
+          if (c.jam > 2.5) { c.route = []; c.jam = 0; }
+        }
+        if (Math.hypot(B.x - c.lane, B.z - c.z) < 0.45) {
+          c.at = c.route.shift()!;
+          if (!c.route.length) arrive(c);              // that was the destination
+          // …or stop HERE, part way, if this spot is worth stopping at. Waiting
+          // only at destinations made stops rare and clustered: a trip across
+          // the block takes the best part of a minute, so six people were
+          // walking 95% of the time and the errands never showed. Pausing en
+          // route is also just what people do — you pass a window and stop at
+          // it without that window being where you were going.
+          else if (net.nodes[c.at].act && rnd() < 0.35) arrive(c);
         }
       }
-      if (c.z < -L + 4) { c.z = -L + 4; c.dir = 1; }
-      if (c.z > 10) { c.z = 10; c.dir = -1; }
+      c.vx = vx; c.vz = vz;
       if (c.ghost) {
         c.box.minX = c.box.maxX = 1e5; c.box.minZ = c.box.maxZ = 1e5; // slip past you
       } else {
@@ -168,7 +314,13 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       }
       c.mesh.position.set(c.lane, sidewalkY, c.z);
       c.mesh.rotation.y = Math.atan2(px - c.lane, pz - c.z);
-      const facing = Math.atan2(0, c.dir); // 0 for +z, π for -z... atan2(0,-1)=π ✓
+      // Facing follows the ACTUAL direction of travel. It used to be
+      // atan2(0, dir), which only knew ±z — fine when everybody walked one
+      // axis, wrong the moment somebody turns the corner and walks east. The
+      // last non-zero movement is kept so a person standing still keeps facing
+      // the way they were going rather than snapping to face +z.
+      if (Math.hypot(c.vx, c.vz) > 1e-4) c.dir = Math.atan2(c.vx, c.vz);
+      const facing = c.dir;
       const camAng = Math.atan2(px - c.lane, pz - c.z);
       const [col, mirror] = viewFor(camAng - facing);
       // feet only stride while actually walking; stand still (feet together)
@@ -189,9 +341,14 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       footY: c.mesh.position.y,
     })),
     walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z })),
+    // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
+    // a graph, people walk east and west too, and the feet check has to compare
+    // the painted toe against an arbitrary heading
     views: () => citizens.map((c) => ({
-      dir: c.dir, col: c.view?.col ?? -1, mirror: !!c.view?.mirror,
+      vx: c.vx, vz: c.vz, col: c.view?.col ?? -1, mirror: !!c.view?.mirror,
       yaw: c.view?.yaw ?? 0, moving: !!c.view?.moving,
+      doing: c.wait > 0 ? c.doing : 'walking',
+      to: c.route.length ? net.nodes[c.route[c.route.length - 1]].id : '-',
     })),
   };
 }
