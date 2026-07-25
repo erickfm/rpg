@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
-         canTopTex, paperTex, scrapTex } from './tex-world';
+         paperTex, scrapTex } from './tex-world';
 import { gutterSurfaceY, GUTTER_W } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 
@@ -724,12 +724,27 @@ export function buildProps(ctx: CtxBuild): Props {
   // asphalt, which is not where litter collects. Water runs to the kerb and
   // takes the rubbish with it, so it piles in the last few centimetres.
   const GUT = ROAD_HALF - 0.10;
+  // NO canTopTex. The user, on the green-and-white one against the kerb: "i
+  // dont like the trash that looks like this please get rid of all of them."
+  // The sheet is still drawn in ct/tex-world.ts; nothing places it any more.
+  //
+  // The reason is worth carrying into everything else on the ground, because
+  // it is the opposite of what the sheet's own comment claims. canTopTex rings
+  // itself with a solid #16181c border on all four sides to protect the
+  // silhouette at ~10 screen pixels. At that size a full border stops reading
+  // as shading and reads as an OUTLINE — so the thing looks like a sticker
+  // printed on the pavement rather than an object lying on it. The two pieces
+  // the user did approve (scrapTex and paperTex, both below) have no ring at
+  // all; their dark side does the work. Let the object's own shading carry the
+  // silhouette, never a border.
   for (let i = 0; i < 7; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
     const z = -6 - rnd() * (L - 18);
     const x = s2 * (GUT - rnd() * 0.20);
+    // this draw used to pick can-or-scrap; it now picks between the two
+    // approved sheets, so the seeded stream is unchanged (GOTCHAS §2)
     if (rnd() < 0.42) {
-      flatDecal(canTopTex(i), 0.40, 0.23, x, z, rnd() * Math.PI, 0.014);
+      flatDecal(paperT[i % 4], 0.30, 0.24, x, z, rnd() * Math.PI, 0.014);
     } else {
       flatDecal(scrapT[i % 3], 0.26, 0.22, x, z, rnd() * Math.PI, 0.014);
     }
@@ -742,8 +757,10 @@ export function buildProps(ctx: CtxBuild): Props {
     const px2 = s2 * (GUT - rnd() * 0.22);
     flatDecal(paperT[i % 4], pw, pd, px2, -8 - rnd() * (L - 20), rnd() * Math.PI, surfaceY(px2));
   }
-  // one can up on the sidewalk, against the kerb
-  flatDecal(canTopTex(3), 0.40, 0.23, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
+  // one piece up on the sidewalk, against the kerb. This was the can, and it
+  // is the exact one the user pointed at — green band, black ring, reading as
+  // a sticker on the slab. Same spot, approved sheet.
+  flatDecal(scrapT[1], 0.28, 0.24, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
 
 
   // ── puddles ─────────────────────────────────────────────────────────────
