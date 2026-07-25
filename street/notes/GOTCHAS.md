@@ -699,3 +699,80 @@ Rules that would have caught all four:
   never as a constant copied from a sibling
 - test by standing where a player stands and asking "is it looking at me or
   away from me" — every one of these was obvious the moment someone did
+
+## 34. A check can pass because it found NOTHING TO CHECK
+
+§27 says a check you have never watched fail is one you will argue with. This is
+the same lesson one layer down: a check you have only watched fail *on a world
+that is wrong* may still be unable to fail on a world it cannot see.
+
+Two shapes, and I had both. Six scripts between them, three of them not mine.
+
+**Shape one — the mode word that matches no branch.** Most scripts here take a
+mode:
+
+```js
+const mode = process.argv[2] ?? 'all';
+if (mode === 'probe' || mode === 'all') { ...the entire check... }
+if (mode === 'shots' || mode === 'all') { ... }
+```
+
+Hand it a mode neither branch matches — `--probe` instead of `probe`, the flag
+form most of this suite takes — and it runs nothing, falls off the end of the
+file, and **exits 0**. One second, green, zero assertions, identical on the
+board to a real pass. Found by mistyping `bus --walk`; five of mine did it, and
+`no-silent-pass.mjs` immediately found three more.
+
+Fix: `scripts/lib/modes.mjs`. Name the modes you dispatch on; anything else
+exits 2 before `chromium.launch()`.
+
+```js
+import { modes } from './lib/modes.mjs';
+const mode = modes('bus', ['shots', 'walk', 'bench', 'stop', 'all']);
+```
+
+**Shape two — the absence over an empty set.** Most verdicts here are absences:
+nothing straddles the kerb, no halo is misplaced, no colour is impossible. All
+of them are FREE when the population is empty.
+
+`footprint.mjs` guards the user's tree-pit clearance. Widen the pit plane from
+1.0 m to 1.04 and its predicate stops recognising a tree pit — the pits are
+still standing in the street, the check simply cannot see them:
+
+```
+on the main street: 31 litter meshes, 0 tree pits, 9 water sheets
+OK  nothing straddles the kerb line (0)
+OK  nothing sits below the ground under it (0)
+exit=0
+```
+
+The clearance block is wrapped in `if (r.pits.length)`, so it does not even
+print. There is no missing output to notice. `glow.mjs` was worse: its
+population test is an *equality* (halos paired vs halos stamped), and 0 of 0
+satisfies it.
+
+Fix: assert the population before the absences, with a floor you **measured**.
+
+```js
+if (halosSeen < 15) { /* FAIL: every verdict below passes for free at zero */ }
+```
+
+**Two things this costs you if you skip it:**
+
+*Your mutation probably cannot catch this.* canfail breaks the WORLD and asks
+whether the check notices. This class needs a mutation that breaks the CHECK'S
+VIEW while leaving the world intact — `footprint-blind`, `glow-blind`. The
+existing `footprint-pits` moves `PIT_X`, so the pits still match the predicate
+and are still found; a mutation that keeps the population intact proves nothing
+about whether the population is checked. And no mutation of any kind reaches
+shape one, because canfail invokes every check with the same correct arguments
+`checks.mjs` does.
+
+*Positive verdicts do not have this problem.* `wetness.mjs` and `bus.mjs` came
+through clean without a floor, because "the puddles are still filling" and "the
+walker got past the stop" are false on an empty world rather than vacuously
+true. If you have a choice, assert the thing that must be TRUE.
+
+**Measure the floor. Do not remember it.** I wrote `pits: 10` from memory and my
+new guard failed the unmutated street on its first run — it has seven. That was
+in the same commit where I was fixing a check for not measuring.
