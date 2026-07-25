@@ -17,6 +17,41 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The produce crates read as ONE GIANT FRUIT each.** The user, looking
+      at your `530d385`: *"what is this?"* Ref: `shots/user-crates3.png`.
+
+      That question is this project's signal that something is unidentifiable
+      — it has been asked twice before, both times about a prop that was drawn
+      accurately and read as nothing. **This is attempt two on the crates**
+      (attempt one was "open boxes with a painted stripe"), so the working
+      rule applies: *two failures, then delete.* If attempt three does not
+      land, take the produce off and leave plain crates, and say so.
+
+      What is wrong, specifically:
+      · **The heap is a single faceted dome per crate**, roughly as wide as
+        the crate itself. It reads as one enormous tomato or pumpkin sitting
+        in a box — the dark star at the top even looks like a stem. The brief
+        was *fruit heaped above the rim*, and a heap is MANY THINGS. The eye
+        identifies a heap by seeing individual units and the gaps between
+        them; a smooth dome has neither.
+      · **The waffle/checker patches on top** read as a texture artefact, not
+        as produce. Whatever they are meant to be — netting, a highlight
+        pattern — at this size they look like a grid laid over the shape.
+      · **Scale.** Even as one fruit it is wrong: nothing in a bodega crate is
+        60 cm across.
+
+      What would work: eight to fifteen SEPARATE lumps per crate, varied in
+      size and shade, packed so they overflow the rim and a couple have
+      tumbled onto it. Vary the tone between them — a crate of identical
+      objects reads as a pattern, a crate of the same fruit in slightly
+      different reds reads as fruit. Keep the shadow between the slats you
+      already have; that part is good.
+
+      Judge it from **standing eye height at the shopfront**, which is the
+      only view that exists. Builder B just learned this the hard way on the
+      litter rig: it judged every candidate top-down, reported that they read,
+      and none of them did.
+
 - [ ] **MERIDIAN and LAUNDRY become one bank.** The user: *"make meridian and
       laundry a bank instead"*.
 
