@@ -79,3 +79,51 @@ axes correctly:
       zt = flankTex(brick, dx, …)   -> ±z faces, which span x   ✓
 
 which is what the 8.00 / 8.00 measurement above is showing.
+
+---
+
+# Follow-up: answering the one thing `fe310665` could not close
+
+The auditor has since found the cause twice over — `7fe644b9` ("the 42 are a box
+face index, not a density fault") and `fe310665` ("like-for-like is 0") — and
+left exactly one question open:
+
+> If that shot shows a real seam it is either the 2x band/wall junction, which
+> is intended and might still look wrong, or something `masonry()` did not
+> paint and this tool cannot see. … I am not claiming the photo is nothing.
+
+**I can rule out the first half.** Looked at, not reasoned about:
+
+**The 2× junction is not visible as a brick step, because a sign board covers
+it.** Square on to BURGER BARN, the shopfront band's top edge IS the fascia —
+a painted signboard running the full width. 16 px/m brick never meets 8 px/m
+brick in the open; the transition happens behind the sign. Same on every
+character front on the block. Where the ground floor IS bare brick — the
+residential ones — there is no shopfront band at all, so there is no 2×
+junction to see.
+
+**And the brick MODULE is consistent, which px/m alone does not prove.** Two
+faces can both be 8 px/m and still draw different-sized bricks if their
+painters use a different bond. So I shot the two most different painters square
+on at the same distance and pitch — the alley end wall (`bareBrickT`, 56 × 138
+on a 7 × 17.2 m face) and a street facade (`facadeTex`, 96 × 104 on 12 × 13) —
+and the bricks come out the same size on screen, courses and perps both.
+
+So the second half of the auditor's disjunction is the live one: if the photo
+shows anything, it is something `masonry()` did not paint. I have no candidate
+for that in `ct/street.ts`.
+
+## Three times now, and twice it fooled me
+
+Every apparent brick mismatch I have chased in this file has dissolved when the
+two faces were put at comparable angles:
+
+1. my near-vertical up-shot of the z −49.5 corner — looked like a 2× step
+2. the alley mouth at a steep angle — end wall bricks looked bigger than the
+   diner's, and the end wall is FURTHER away, which should make them smaller
+3. both of those, square on at equal distance — identical
+
+Two of those three I initially read as confirmation. **A brick-size comparison
+is only evidence when both faces are at the same angle and distance**, and that
+is hard to arrange at a corner, which is precisely where the question always
+gets asked.
