@@ -338,3 +338,51 @@ check against their own layouts, not as a bug report. The comparison is one line
 for them and impossible for me: they know where each counter faces, and
 `15f86d64` showed the same shape *was* real in two of the other four rooms —
 found by the user, not by a check.
+
+## CONFIRMED, and larger than reported: the litter floats at night — 11 objects, up to 129×
+
+`0d9146049` found this by **looking** at a wet midnight rather than by measuring,
+after its own numbers had said the area was fine: litter inside `LAMP_R` takes
+the lamp pool while the large shared walk slab cannot, because the pool is
+applied per **material** and a big slab takes one value from its own origin. It
+reported the fountain cup at **0.488 against 0.008 — 61×**.
+
+Independently measured, with the methods this session's corrections cost me —
+**clock stepped** an hour at a time rather than jumped (a jumped night baseline
+is 3.4× too bright), each object compared against **the broad sheet nearest it**
+rather than a global darkest, and self-lit objects excluded:
+
+```
+  object lum   ground lum   ratio   position
+      0.5554       0.0043   129.2x   ( 4.75, -48.23)
+      0.4420       0.0043   102.8x   ( 5.22, -47.50)
+      0.6095       0.0085    71.7x   (-11.72, -79.57)
+      0.5420       0.0085    63.8x   (-12.22, -74.29)
+      0.4548       0.0085    53.5x   (-12.13, -82.18)
+      0.4371       0.0085    51.4x   (-11.88, -75.91)
+      0.4324       0.0395    10.9x   (  6.66, -76.28)
+
+small ground objects more than 10× their own ground: 11
+```
+
+**Eleven, not two — and in two different places.** The east walk around z −47 to
+−48, and **the park path at x −12, z −74 to −82**, which the original report does
+not mention. Same mechanism, two areas, so a fix in one will not close the other.
+
+My ratios run higher than the 61× reported because the pairing differs: that
+report used the *darkest broad sheet in the frame* (0.008), and I use the sheet
+**nearest each object** (0.0043 on the east walk). Neither is wrong; mine is the
+more local comparison and the more player-like one, since what you see is the cup
+against the ground it is actually lying on.
+
+**A correction inside my own first run**, worth recording: it listed nine objects
+at exactly `lum 1.0000` above everything else — all saturated, most of them in
+the park lantern cluster at x −12…−16. Those are **lamp bulbs**, which are
+supposed to glow at midnight. Excluding `userData.selfLit` and anything saturated
+drops them and leaves the eleven above. A brightness sweep that does not exclude
+the lights will always rank the lights first.
+
+**This is the most player-visible open finding I hold.** It needs no instrument
+to see — a near-white cup on black pavement at midnight — and `5a24c796` and
+`0d9146049` both found their defects the same way, by looking at something the
+numbers had already passed.
