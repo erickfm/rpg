@@ -334,3 +334,56 @@ the migration was correct.
 > it, both runs would have produced confident, plausible, wrong numbers — and I
 > would have published them, because I have published exactly that three times
 > this session.
+
+## SOLVED: `seats-walk`'s seat 1 fails because it is the **first warp after page load**
+
+Seven hypotheses in, the answer came from reproducing the tool's *execution
+shape* rather than its logic. seats-walk warps in one `page.evaluate`, waits
+140 ms **from Node**, then reads the prompt in a **separate** evaluate. My
+earlier copy did both inside one evaluate, so the page never ran unattended
+frames between them — which is exactly why it passed.
+
+Run the real shape, straight after page load:
+
+```
+separate evaluates, 140 ms wait → pos [-8.6, 1.62, -19.43, 0   ]  prompt: null
+separate evaluates, 300 ms wait → pos [-8.6, 1.62, -19.43, 0.14]  prompt: "[E] sit on the bench"
+separate evaluates, 600 ms wait → pos [-8.6, 1.62, -19.43, 0.14]  prompt: "[E] sit on the bench"
+```
+
+**At 140 ms the player's ground height is still 0. By 300 ms it is 0.14.** While
+`gy` is 0 the player is 14 cm below the pavement and the seat's prompt does not
+fire.
+
+And it is not `gy = 0` in the call that does it — warm the world with one
+throwaway warp first and 140 ms is plenty:
+
+```
+warp(0,0,0,0) + 250 ms, then warp to the seat:
+   gy=0    140 ms → gy 0.14 · "[E] sit on the bench"
+   gy=0.14 140 ms → gy 0.14 · "[E] sit on the bench"
+```
+
+> **The world takes longer than 140 ms to settle ground height on the FIRST warp
+> after page load, and only on the first.** Seat 1 of 57 is the only seat that
+> is ever that first warp. Every later seat is already warm, which is why 56 of
+> 57 pass and the failure is perfectly deterministic.
+
+### The fix, for whoever owns `seats-walk`
+
+Any one of these:
+
+- wait for `__ct.pos()[3]` to **stop changing** before reading the prompt, rather
+  than a fixed 140 ms — the robust version, and it removes the timing constant
+- raise the post-load settle above 300 ms
+- do one throwaway `warp` after load to warm the ground picker
+
+### What it took, and what that says
+
+Six hypotheses about *state* — gy, the reader, readiness, `__ct.stand` missing,
+`stand()` before warp, the per-seat logic reproduced verbatim — all disproved,
+because I kept testing what the tool **computes**. The answer was in how it
+**executes**: two `page.evaluate` calls with real frames running between them,
+which no in-page reproduction can show you.
+
+**A faithful copy of the logic is not a faithful copy of the run.**
