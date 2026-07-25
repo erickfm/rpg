@@ -125,7 +125,9 @@ agent mid-edit cannot take down the world the user is playing.
 
 | | |
 |---|---|
-| `./scripts/queues.sh` | every agent's task, queue depth, and git state |
+| `./scripts/desk.sh` | **the desk's one command** — who is idle, what is unlanded, which queues are stale |
+| `./scripts/desk.sh --land` | the same, then run the merge train |
+| `./scripts/queues.sh` | every agent's task and queue depth |
 | `./scripts/land.sh --dry` | what would merge right now |
 | `./scripts/land.sh` | the merge train — rebase + merge every green builder |
 | `./scripts/ownership.sh <you>` | are your edits inside your boundaries |

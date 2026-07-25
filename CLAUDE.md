@@ -52,6 +52,7 @@ with `cd street && npm run build && node scripts/pack-artifact.mjs`, then publis
 
 | | |
 |---|---|
+| `./scripts/desk.sh` | **run this first** — who is idle, what is unlanded, which queues are stale |
 | `./scripts/queues.sh` | every agent's task, queue depth, git state |
 | `./scripts/land.sh [--dry]` | merge train: rebase + merge every green builder |
 | `./scripts/ownership.sh <agent>` | are your edits inside your boundaries |

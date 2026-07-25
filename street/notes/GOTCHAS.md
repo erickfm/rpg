@@ -118,3 +118,52 @@ Known issue, partially addressed. If you add an opening, give it a jamb.
   symlink, and the symlinks then block every merge.
 - A `git reset --hard` in a worktree can delete that symlink and silently break
   its dev server. If a world stops serving, check the symlink first.
+
+## 14. An agent's input box shows HINT text when it is idle
+
+Claude Code renders a greyed-out suggestion in the prompt box of an idle
+agent — "do the church move", "keep going, next item in the queue". Captured
+from a tmux pane that is indistinguishable from a message somebody typed and
+left unsent.
+
+The desk read six idle agents that way, concluded their briefs had failed to
+submit, and pressed Enter into six empty boxes. They had been sitting finished
+for up to twenty minutes while the desk reported them to the user as working.
+
+**Never infer an agent's state from its input box.** The honest signal is the
+spinner / interrupt hint, which only renders while it is actually running —
+and match a truncated prefix (`esc to inter`), because narrow panes cut it
+mid-word. `scripts/desk.sh` does this; use it rather than eyeballing a pane.
+
+## 15. Finished work is invisible until it LANDS
+
+Eleven commits once sat finished across seven worktrees for the better part of
+an hour while mainline had none of them, because nobody ran the merge train.
+The user experienced it as the project being slow; every builder had in fact
+delivered.
+
+`scripts/desk-watch.sh` now runs `land.sh` on a loop for exactly this reason.
+Landing is safe to automate — land.sh refuses to run on a broken mainline,
+typechecks after every single merge so a break is attributed to the builder
+that caused it, and reverts any builder that breaks the build.
+
+If you are the desk and the watcher is not running, start it:
+
+```bash
+nohup street/scripts/desk-watch.sh > /tmp/desk-watch.log 2>&1 &
+```
+
+## 16. Sending a brief to an agent can silently fail
+
+Two ways, both of which have happened:
+
+- **Text and Enter in one `send-keys`** — the text lands in the box and the
+  Enter does not register. Eight agents once sat with their instructions typed
+  but unsent while the desk reported them as briefed. Send the text, sleep,
+  then send `Enter` separately.
+- **`--permission-mode acceptEdits`** — the agent stalls on a dialog after
+  about thirty seconds of work and waits forever. Builders must launch with
+  `--permission-mode auto`.
+
+`scripts/builder.sh` handles both and then VERIFIES the prompt is empty before
+claiming the agent was briefed. Do not spawn builders by hand.
