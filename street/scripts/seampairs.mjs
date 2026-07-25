@@ -51,7 +51,16 @@ const out = await p.evaluate(() => {
     const img=m.map.image; if(!img) return;
     const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox();
     const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
-    if (!ms && (fw < 2 || fh < 2)) return;      // only wall-sized unstamped faces
+    // Only wall-sized unstamped faces, and NOT cut-outs.
+    //
+    // 1466eb13 put eyes on this tool's first candidate list and found all four
+    // ~6 px/m faces were IVY on party walls. Correct triage, and it cost someone
+    // a pass. The fix is not to name ivy — a list of things to ignore is the
+    // stale-constant habit — but to ask something that is actually diagnostic:
+    // MASONRY IS NEVER A CUT-OUT. A face with alphaTest is foliage, a fence, a
+    // sticker or a sign; you can see through it, so it is not the brick wall the
+    // seam question is about. Ivy is exactly that (alphaTest 0.5, DoubleSide).
+    if (!ms && (fw < 2 || fh < 2 || m.alphaTest > 0)) return;
     faces.push({ u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
                  v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
                  declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null,
@@ -96,7 +105,17 @@ console.log(`   of those, pairs where BOTH faces pass the 8/16 grid check: ${gri
 // a player can see.
 // ── THE LIVE HALF: declared masonry meeting something masonry() never painted ──
 const mixed = out.pairs.filter(q => q.mixed && (q.rU > 1.15 || q.rV > 1.15));
+// Split the candidates by whether the UNDECLARED face is itself on the 8/16
+// grid. One reads as brick at the right size and is only a provenance question —
+// painted outside masonry(), looks correct. The other is off-grid and is what a
+// photograph of mismatched brick would actually be.
+const onGridU = (f) => Math.abs(f.u - 8) < 0.5 || Math.abs(f.u - 16) < 0.5;
+const und = (q) => (q.a.d !== null ? q.c : q.a);
+const offGrid = mixed.filter((q) => !onGridU(und(q)));
 console.log(`\nDECLARED masonry touching UNDECLARED brick-like faces, densities disagreeing: ${mixed.length}`);
+console.log(`   of those, the undeclared face is itself OFF the 8/16 grid: ${offGrid.length}` +
+  ` — those are the ones a photograph of mismatched brick could be`);
+console.log(`   the rest read 8 or 16 and are a provenance question, not a visual one`);
 const seenM = new Set();
 for (const q of mixed.sort((a,c)=>(c.rU)-(a.rU))) {
   const st = q.a.d !== null ? q.a : q.c, un = q.a.d !== null ? q.c : q.a;
