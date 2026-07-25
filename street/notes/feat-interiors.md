@@ -554,3 +554,59 @@ the desk agrees.
 
 Suites at handoff: **195/195 rooms, 57/57 seats, 82 spots, 8/8 doors on their
 declaration, both civic flights, 177/177 unstick traps, health OK, build clean.**
+
+---
+
+# RUN N+1 — selftests, and the two bugs that registering them found
+
+Queue still empty (19/20 landed, #4 blocked on D's church box). This is the
+follow-through my last handoff asked for.
+
+## My walking suites had no selftests, and none were registered
+
+C had independently hit the same class the same day — `lotwalk` and `door301`
+printed `<- must be true` beside their results and exited 0 whatever they said
+(`3dfe0217`) — and built `npm run checks` with a `--selftest` convention.
+
+Four of mine have one now (`spots-walk`, `steps-walk`, `civic-doors-walk`,
+`seats-walk`), each pushing a collider onto the LIVE `__ct.colliders()` and
+requiring red. All verified both ways. Six suites registered behind a new
+`--slow` tier with their own `SLOW_MS` ceiling, since 180 s is right for a
+check that measures and wrong for one that walks eight rooms in real time.
+
+**Writing them found two real bugs**, which is the argument for them:
+
+1. **`int-civic.ts` was named wrong** and `world-wired` was right to go red.
+   `ct/int-*.ts` means "an interior room you can walk into" and that module
+   registers no room. Renamed `civic-doors.ts`.
+2. **`interiors-walk`'s "landing is not boxed in" was flaky** — red on the
+   bodega at 0.18 m, when eight consecutive attempts walked 2.4–3.6 m off that
+   landing with zero colliders ahead. Crowd and traffic actors are not in
+   `__ct.colliders()`, so no static pre-check can see them; three attempts now,
+   since a seal does not move but a pedestrian does.
+
+## And then it accused a room that was sound
+
+`--slow` reported three escapes from the PAWN SHOP. The room is fine. Players
+stopped dead at local x −6.51/−6.53/−6.54 — a wall at 6.9, exactly where 13.8 m
+puts one. My harness expected `5 x 4` because it carried its own table with
+`W: 10.0` and the note *"room width stays G's explicit 10.0"*. That pin was
+removed from the room in `358d82cc`, so it takes `roomWidthFor(15) = 13.8`.
+
+Two authorings of one number, in the file I wrote to catch that. **Had I
+"fixed" the room to match the harness I would have broken a correct wall in
+another builder's file.** The kit publishes resolved geometry now
+(`__ct.roomDims()`) and the harness asks.
+
+## For whoever owns the suite: it is flaky UNDER LOAD, not on its own
+
+`door301` went red in one full run and `density` in another. Both pass
+standalone — `door301` 3/3, `density` clean — and each was green in the other
+full run. The machine also OOM-killed my dev server during one pass.
+
+I have not chased it: neither check is mine and neither has a real defect that
+I can see. But it is worth someone's time, because `--slow` makes the suite
+long enough to hit this often, and **an intermittent red teaches people to
+ignore the suite** — which is exactly the failure GOTCHAS 27 was written about.
+A suite that cries wolf is the same problem as a check that excuses a bug,
+arrived at from the other end.
