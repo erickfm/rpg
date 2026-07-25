@@ -28,6 +28,42 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **DROP EVERYTHING: three finished rooms are not in the world.**
+
+      `ct/int-casino.ts`, `ct/int-hotel.ts` and `ct/int-tax.ts` are written,
+      committed and **never constructed**. `crosstown.ts` imports and calls
+      `buildDiner`, `buildBurger` and `buildThrift` and nothing else. Three
+      complete rooms — furniture, lighting, collision, `[E]` spots — exist and
+      no player can reach any of them.
+
+      The auditor reported this as finding #10 in round 3 (casino), escalated
+      it in round 4 when the hotel landed the same way, and it was still
+      unchanged in round 5. **The desk did not act on it. That is the desk's
+      failure, not yours or G's** — but you own the interior-belt wiring, so
+      you are the one who can fix it.
+
+      **Part one, immediately:** import and call all three. Then walk into
+      each one from the street and back out. Commit that on its own — the
+      user has been asking why the rooms they requested are not there.
+
+      **Part two, so it cannot happen again:** this is a structural hole in
+      the kit and it is the more important half. The kit deliberately removed
+      the need to touch `crosstown.ts` to register `[E]` spots — that is why
+      four agents could build rooms in parallel. But the one-line
+      `buildX(ctx)` construction call still lives in the entry point, which is
+      desk-owned, so **every room still has a desk-contended step that nothing
+      checks.** G could not wire its own rooms even though it had finished
+      them.
+
+      Close it: have rooms self-register the way spots do, so writing
+      `ct/int-<name>.ts` is sufficient to put it in the world — a registry the
+      kit owns and the entry point iterates once, or an explicit manifest that
+      a test asserts against. Then add a check that fails when a file matching
+      `ct/int-*.ts` exports a builder nothing calls. **A silent failure that
+      has recurred three times needs a test, not more care.**
+
+      You have the mandate for `crosstown.ts` for this.
+
 - [ ] **Every seat in the game should be sittable. Build the mechanic; you
       have a bounded mandate for the shared files.** The user: *"for every
       seat in the game i want to be able to sit down"*.
