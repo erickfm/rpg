@@ -37,7 +37,7 @@ export interface Props {
 }
 
 export function buildProps(ctx: CtxBuild): Props {
-  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H } = ctx;
+  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat } = ctx;
   const WET = new THREE.Color(0x5a626e);
   // ── weather: some hours it rains ────────────────────────────────────────
   const RAIN_N = 500;
@@ -1254,21 +1254,48 @@ export function buildProps(ctx: CtxBuild): Props {
   // AT THE KERB and BESIDE THE POLE, both of which it was not: it was 3.1 m
   // down the block from the flag, which is far enough to read as unrelated
   // street furniture rather than as part of the stop.
-  const BX_FRONT = ROAD_HALF + 0.12;         // the road-side face, hard by the kerb
+  // 5.07 rather than 5.12, and the 5 cm is not cosmetic: the recline below
+  // throws the top of the backrest 9 cm further from the kerb, and the bench
+  // may not block past x ≈ 5.75 or it becomes the narrowest point on the walk
+  // — the lamp poles cap that at 6.11 with the rig's 0.36 m radius. Still
+  // outboard of the chamfer at 5.0625, so it is on the walk and not over it.
+  const BX_FRONT = ROAD_HALF + 0.07;         // the road-side face, hard by the kerb
   const BX_SEAT0 = BX_FRONT;
   const BX_SEAT1 = BX_SEAT0 + 0.50;          // 0.50 m of seat depth
   const BX_BACK = BX_SEAT1;                  // backrest behind the sitter
   const SEAT_Y = sidewalkY + 0.45;
-  const BACK_TOP = sidewalkY + 0.88;
   const BENCH_L = 1.8;
+  // RECLINE. Dead vertical is why it read as a board rather than a seat —
+  // nothing you would actually lean on is at 90 degrees. 12 degrees off
+  // vertical, and the panel is lengthened to 0.44 so that after the lean its
+  // top still lands at 0.88 above the walk, which is the height that was
+  // approved.
+  const RECLINE = 0.21;                      // ~12 degrees
+  const BACK_LEN = 0.44;                     // along the panel, not vertical
+  const BACK_TOP = SEAT_Y + BACK_LEN * Math.cos(RECLINE);
 
   // backrest: slats on the sitter's side, plain on the wall side. 43 cm of it
   // above the seat, which is what makes it a bench and not a shelf.
-  // slats on BOTH faces — a bench backrest is boards through a frame, and the
-  // wall side is the face you see walking up to it
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.07, BACK_TOP - SEAT_Y, BENCH_L),
-    [flatT2(slatT), flatT2(slatT), benchM, benchM, benchM, benchM]);
-  back.position.set(BX_BACK + 0.035, (SEAT_Y + BACK_TOP) / 2, BENCH_Z);
+  // THE AD LIVES ON THE BACKREST, which is where a real bus-bench ad lives and
+  // is the biggest flat face anyone actually reads. It goes on the ROAD side
+  // (-x), which is counter-intuitive for a bench that faces the road until you
+  // look at one: the seat pan is only 0.45 m up and the back rises to 0.88, so
+  // from the roadway the whole of that face is in view above the seat. It is
+  // only occluded when somebody is actually sitting there, which is exactly
+  // how the real ones behave. The sitter leans on its other side.
+  //
+  // The recline helps it, too — tilted back 12 degrees the panel is angled up
+  // toward the eye of a passing driver rather than edge-on to them.
+  //
+  // Pivoted at its FOOT, not its centre: the joint with the seat is the thing
+  // a recline most easily opens up, and rotating about the seat's back edge
+  // means the two cannot separate no matter what angle is chosen.
+  const backGeo = new THREE.BoxGeometry(0.07, BACK_LEN, BENCH_L);
+  backGeo.translate(0, BACK_LEN / 2, 0);
+  const back = new THREE.Mesh(backGeo,
+    [flatT2(slatT), flatT2(adT), benchM, benchM, benchM, benchM]);
+  back.position.set(BX_BACK + 0.035, SEAT_Y, BENCH_Z);
+  back.rotation.z = -RECLINE;                // top leans AWAY from the sitter
   scene.add(back);
   lit(back);
   // seat: three slats with gaps, so it reads as seating rather than a slab
@@ -1280,10 +1307,11 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(slat);
     lit(slat);
   }
-  // the kick panel — the ad, facing the roadway, under the seat front where a
-  // passing car sees it and where it hides nothing
+  // the front skirt — plain slats now. It carried the ad for one round, which
+  // put the biggest bright thing on the bench at knee height and left the
+  // largest face on it blank.
   const kick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, BENCH_L),
-    [flatT2(adT), flatT2(adT), benchM, benchM, benchM, benchM]);
+    [flatT2(slatT), flatT2(slatT), benchM, benchM, benchM, benchM]);
   kick.position.set(BX_FRONT + 0.025, sidewalkY + 0.28, BENCH_Z);
   scene.add(kick);
   lit(kick);
@@ -1301,14 +1329,39 @@ export function buildProps(ctx: CtxBuild): Props {
     gr.addColorStop(1, 'rgba(20,18,15,0)');
     g.fillStyle = gr; g.fillRect(0, 2, 24, 44);
   });
-  const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.78, BENCH_L + 0.12),
+  const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.66, BENCH_L + 0.12),
     new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false }));
   bshadow.rotation.x = -Math.PI / 2;
-  bshadow.position.set(BX_FRONT + 0.30, sidewalkY + 0.004, BENCH_Z);
+  bshadow.position.set(BX_FRONT + 0.35, sidewalkY + 0.004, BENCH_Z);   // stays off the kerb
   scene.add(bshadow);
   // the collider stays inside the lamp-pole envelope (they block to x ≈ 6.11
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
-  obstacle({ minX: BX_FRONT, maxX: BX_BACK + 0.07, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
+  // The collider follows the RECLINE. The reclined panel's top-back corner is
+  // the furthest point on the bench from the kerb, and it is 9 cm past where
+  // the upright one reached — derived here rather than left at the old number,
+  // because the walking lane is decided by whichever prop reaches furthest and
+  // this is now a candidate for that.
+  const BENCH_MAX_X = BX_BACK + 0.035 + 0.035 * Math.cos(RECLINE) + BACK_LEN * Math.sin(RECLINE);
+  obstacle({ minX: BX_FRONT, maxX: BENCH_MAX_X, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
+  // ── and you can sit on it ────────────────────────────────────────────────
+  // It never was registered, which is a real gap rather than a refinement: the
+  // standing instruction quoted at the top of ct/ctx.ts is "for every seat in
+  // the game i want to be able to sit down", and the most obviously sittable
+  // object on the block was not offering itself. Two places, because 1.8 m of
+  // bench is two people.
+  //
+  // yaw = -pi/2 is -x, the roadway — you sit at a bus stop looking for the
+  // bus, which is the same reasoning that turned the bench round. You are
+  // offered it from the walking lane, since the bench itself is solid and you
+  // cannot stand where the seat is.
+  for (const dz of [-0.45, 0.45]) {
+    seat({
+      x: (BX_SEAT0 + BX_SEAT1) / 2, z: BENCH_Z + dz,
+      yaw: -Math.PI / 2, h: 0.45, r: 0.95,
+      approach: { x: BENCH_MAX_X + 0.42, z: BENCH_Z + dz },
+      label: 'sit at the stop',
+    });
+  }
 
   // ══════════════════ FLOOR TRASH ═════════════════════════════════════════
   //
