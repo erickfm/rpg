@@ -13,6 +13,9 @@
 //
 // Exit 1 = FAIL, something is wrong with the fleet. Exit 2 = INCONCLUSIVE, the
 // probe could not measure (no affordance, nothing built) — never a pass.
+// Exit 3 = wrong world: the server is serving a different build, so the run
+// never happened (reportWorld, ec7aae0d — asked for in BLOCKED-H after a red
+// that could not be told apart from a rebuild).
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 

@@ -150,7 +150,16 @@ Neither blocks me; both make other people's failures silent.
 2. **`scripts/fpdiff.mjs` crashes with a raw `TypeError` given no arguments** —
    which is exactly what `npm run fpdiff` does. It should ask for two
    fingerprints.
-3. **"Wrong world" and "real failure" are the same exit code.** `reportWorld`
+3. ~~**"Wrong world" and "real failure" are the same exit code.**~~ **DONE by
+   `ec7aae0d`** — `reportWorld` exits 3 now instead of throwing. Verified from
+   this side: `SHOT_URL=http://localhost:5177/ node scripts/carstate.mjs` exits
+   3 with the explanation, where it used to exit 1 and look like a broken fleet.
+   `park-repro.mjs` and `carstate.mjs` document the third code. Whoever took it
+   had hit the same confusion four times, most sharply with `D-walk` reading
+   "3 of 3 FAILED" under load where every one was this guard. Original report
+   kept below for the record.
+
+   ~~ `reportWorld`
    THROWS on a sha mismatch, unhandled, so the script dies with a stack trace
    and exit 1 — indistinguishable from a check that failed. `checks.mjs` copes
    by string-matching `MEASURING THE WRONG WORLD` in the output
@@ -163,7 +172,7 @@ Neither blocks me; both make other people's failures silent.
    cannot prove it, because I had discarded the output in that batch — my
    error, and the reason this is worth an exit code rather than a habit. A
    distinct status (2 is taken by INCONCLUSIVE, so 3) would make it decidable.
-   `lib/which-world.mjs` is not mine.
+   `lib/which-world.mjs` is not mine.~~
 
 4. **The slow tier cannot be completed on a rebasing branch — four attempts,
    same cause.** `3185527f` lost the six walking suites for the third time:

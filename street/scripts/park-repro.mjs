@@ -19,6 +19,8 @@
 //   SHOT_URL=http://localhost:4187/ node scripts/park-repro.mjs
 //
 // Exit 1 = FAIL. Exit 2 = INCONCLUSIVE (nothing found to measure) — never a pass.
+// Exit 3 = the server is not serving this checkout (reportWorld, ec7aae0d): the
+// run never happened, which is neither of the above.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
