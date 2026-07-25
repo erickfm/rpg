@@ -122,10 +122,33 @@ const peak = crest.reduce((a, b) => (b[1] > a[1] ? b : a));
 report('the mound is under your feet, not just on screen', peak[1] > 0.38,
   `highest floor across the crest line: gy ${f(peak[1])} at x ${f(peak[0])} (flat would be 0.14)`);
 
-// …and the dish, which is the same test with the sign flipped.
-const dip = await gyAt(-18.4, -79.15);
-report('the dish would hold a puddle', dip < 0.12 && dip > 0.0,
-  `gy ${f(dip)} in the hollow, against 0.14 on the level (and above the roadway at 0.0)`);
+// …and the dish, which is the same test with the sign flipped — but measured
+// AGAINST ITS OWN SURROUNDINGS, not against KERB_H.
+//
+// It used to assert `dip < 0.12`, i.e. lower than the paving. That was only
+// ever true by accident: the field is now crowned by 0.10 m, because the park
+// site's flat base plane is drawn by ct/street.ts at KERB_H and anything below
+// it is simply hidden. A hollow is a hollow relative to the ground around it,
+// which is what the eye reads and what water would do, so that is what this
+// measures. Held against the old wording it would now fail on a dish that is
+// 86 mm deep and perfectly visible.
+// The ring is 4.5 m, chosen from the geometry rather than from what passes:
+// the dish is a σ 2.6 gaussian, so at 3 m the ring still sits on half its own
+// shoulder and understates the hollow, and past 5 m it starts running out over
+// the rim fade instead. Between those the measured depth plateaus at ~50 mm.
+//
+// That is less than the 90 mm the dish is drawn as, and honestly so — the crown
+// falls away toward the same edge, so the ground around it is already lower
+// than the middle of the field. 50 mm over 5 m is what a player sees and what
+// water would do; the threshold is 35, well under it and well over the ~20 at
+// which a dip stops reading at all.
+const DX = -19.5, DZ = -80.2;
+const dip = await gyAt(DX, DZ);
+const ring = [];
+for (const [dx, dz] of [[4.5, 0], [-4.5, 0], [0, 4.5], [0, -4.5]]) ring.push(await gyAt(DX + dx, DZ + dz));
+const around = ring.reduce((a, b) => a + b, 0) / ring.length;
+report('the dish would hold a puddle', around - dip > 0.035 && dip > 0.0,
+  `gy ${f(dip)} in the hollow against ${f(around)} on the ring — ${((around - dip) * 1000).toFixed(0)} mm deep`);
 
 // GENTLE. Adjacent samples 0.5 m apart, straight over the crest and down the
 // far side: the biggest rise per half-metre is the number that decides whether

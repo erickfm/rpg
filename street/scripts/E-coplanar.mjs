@@ -64,13 +64,26 @@ const scan = (x0, x1, z0, z1, step) => page.evaluate(([x0, x1, z0, z1, step]) =>
         const l2 = ((d.z - a.z) * (x - d.x) + (a.x - d.x) * (z - d.z)) / det;
         const l3 = 1 - l1 - l2;
         if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
-        ys.push({ y: l1 * a.y + l2 * c.y + l3 * d.y, id: o.id });
+        ys.push({ y: l1 * a.y + l2 * c.y + l3 * d.y, id: o.id, o });
       }
     }
     ys.sort((p, q) => p.y - q.y);
     for (let i = 1; i < ys.length; i++) {
       if (ys[i].id !== ys[i - 1].id && Math.abs(ys[i].y - ys[i - 1].y) < 0.0005) {
-        return +ys[i].y.toFixed(4);
+        // WHICH TWO. A check that says "two surfaces coincide" without naming
+        // them cannot be acted on — the first version of this reported 80-odd
+        // points across four boxes and I could not tell a real overlap from
+        // two rectangles sharing an edge without going back to the source.
+        const say = (m) => {
+          const g = m.geometry, p2 = m.position;
+          const sz = g.parameters
+            ? `${g.type}(${[g.parameters.width, g.parameters.height, g.parameters.depth]
+              .filter((v) => v !== undefined).map((v) => (+v).toFixed(2)).join('×')})`
+            : g.type;
+          return `${sz} at ${p2.x.toFixed(2)},${p2.y.toFixed(3)},${p2.z.toFixed(2)}`
+            + (m.material?.map ? ' [mapped]' : ` [#${m.material?.color?.getHexString?.() ?? '??'}]`);
+        };
+        return { y: +ys[i].y.toFixed(4), a: say(ys[i - 1].o), b: say(ys[i].o) };
       }
     }
     return null;
@@ -78,12 +91,13 @@ const scan = (x0, x1, z0, z1, step) => page.evaluate(([x0, x1, z0, z1, step]) =>
   const hits = [];
   for (let x = x0; x <= x1; x += step) {
     for (let z = z0; z <= z1; z += step) {
-      if (coincident(x, z) === null) continue;
+      const here = coincident(x, z);
+      if (here === null) continue;
       let around = 0;
       for (const [dx, dz] of [[0.05, 0], [-0.05, 0], [0, 0.05], [0, -0.05]]) {
         if (coincident(x + dx, z + dz) !== null) around++;
       }
-      if (around >= 3) hits.push([+x.toFixed(2), +z.toFixed(2), coincident(x, z)]);
+      if (around >= 3) hits.push({ x: +x.toFixed(2), z: +z.toFixed(2), ...here });
     }
   }
   return hits;
@@ -100,8 +114,12 @@ for (const [name, box, step] of [
 ]) {
   const hits = await scan(box[0], box[1], box[2], box[3], step);
   report(`${name}: no two surfaces share a height`, hits.length === 0,
-    hits.length ? `${hits.length} coincident points, first: ${JSON.stringify(hits.slice(0, 4))}`
-      : 'every sampled point has one clear top surface');
+    hits.length ? `${hits.length} coincident points` : 'every sampled point has one clear top surface');
+  for (const h of hits.slice(0, 3)) {
+    console.log(`      at ${h.x},${h.z} both at y ${h.y}`);
+    console.log(`        A: ${h.a}`);
+    console.log(`        B: ${h.b}`);
+  }
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nnothing is fighting for the same height');

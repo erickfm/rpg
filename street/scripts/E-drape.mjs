@@ -71,6 +71,38 @@ const probe = (pts) => page.evaluate(([pts]) => {
   return out;
 }, [pts]);
 
+// the FIELD's own surface height under a point, ignoring anything standing over it
+const fieldAt = (pts) => page.evaluate(([pts]) => {
+  const scene = window.__ct.scene();
+  const V3 = Object.getPrototypeOf(scene.position).constructor;
+  const meshes = [];
+  scene.traverse((o) => {
+    if (o.isMesh && o.geometry?.attributes?.color) { o.updateWorldMatrix(true, false); meshes.push(o); }
+  });
+  const v = new V3();
+  const wp = (g, o, i) => { v.fromBufferAttribute(g.attributes.position, i); return v.applyMatrix4(o.matrixWorld).clone(); };
+  return pts.map(([x, z]) => {
+    let y = null;
+    for (const o of meshes) {
+      const g = o.geometry, idx = g.index;
+      const n = idx ? idx.count : g.attributes.position.count;
+      for (let t = 0; t < n; t += 3) {
+        const a = wp(g, o, idx ? idx.getX(t) : t);
+        const c = wp(g, o, idx ? idx.getX(t + 1) : t + 1);
+        const d = wp(g, o, idx ? idx.getX(t + 2) : t + 2);
+        const det = (c.z - d.z) * (a.x - d.x) + (d.x - c.x) * (a.z - d.z);
+        if (Math.abs(det) < 1e-9) continue;
+        const l1 = ((c.z - d.z) * (x - d.x) + (d.x - c.x) * (z - d.z)) / det;
+        const l2 = ((d.z - a.z) * (x - d.x) + (a.x - d.x) * (z - d.z)) / det;
+        const l3 = 1 - l1 - l2;
+        if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+        y = +(l1 * a.y + l2 * c.y + l3 * d.y).toFixed(4);
+      }
+    }
+    return { x, z, fieldY: y };
+  });
+}, [pts]);
+
 let fails = 0;
 const report = (n, ok, d) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}  ${d}`); };
 
@@ -90,6 +122,29 @@ if (clear.length) {
   report('…and with clearance left over, not by a hair', min > 0.002,
     `thinnest gap over the grass under it: ${(min * 1000).toFixed(1)} mm`);
 }
+
+// THE GRASS MUST NOT SINK UNDER THE PARK'S OWN PAVING. The site is floored by
+// one 32 × 30 m plane at KERB_H, and the field is drawn 3 mm over it — but the
+// field is DISPLACED, and two of my three gaussians go DOWN. A dish 90 mm deep
+// and a corner falling 100 mm both put grass below that plane, which does not
+// move, so the paving would be drawn over the hollow it is supposed to be
+// grass. `E-coplanar` found the two crossing at the rim; these are the places
+// the relief is most negative.
+// Sampled on GRASS, which is not the same as sampled in the hollow. The corner
+// point was first put at the fall's centre, which the loop's chamfered corner
+// path runs straight over — the check reported a path on top and was right to.
+const low = await fieldAt([[-19.5, -80.2], [-20.1, -80.7], [-16.6, -88.7], [-17.4, -87.9]]);
+// The invariant is NOT "the field is the top surface" — that was my first
+// wording and it fails wherever anything legitimately stands over the grass,
+// which at one sample was a bench 4 cm up. What must hold is that the GRASS
+// ITSELF never sinks below the site's own base plane at KERB_H, because that
+// plane is opaque, is drawn by ct/street.ts, and does not move.
+const KERB = 0.14;
+const sunk = low.filter((q) => q.fieldY === null || q.fieldY < KERB - 0.0002);
+report('the grass in the hollows stays above the site plane', sunk.length === 0,
+  sunk.length ? `${sunk.length}/${low.length} sink under the paving: ${JSON.stringify(sunk)}`
+    : `${low.length}/${low.length} hollows have grass at or above ${KERB} — lowest ${
+      Math.min(...low.map((q) => q.fieldY)).toFixed(4)}`);
 
 const r = await probe([[-28.55, -78.15], [-28.0, -78.6], [-29.1, -77.7]]);
 const bad = r.filter((q) => q[2] === 'FIELD');

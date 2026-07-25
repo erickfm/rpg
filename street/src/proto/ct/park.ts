@@ -278,11 +278,33 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   //
   // It is GENTLE on purpose. The player is a 2D walker whose floor comes
   // from a picker (GOTCHAS §7), so anything you could trip over is a bug,
-  // not a feature. Three gaussians, nothing else:
+  // not a feature. A crown and three gaussians:
   //
-  //   a MOUND     +0.33 m over σ 3.1   the thing you walk up
+  //   a CROWN     +0.10 m         the whole field, domed
+  //   a MOUND     +0.30 m over σ 3.1   the thing you walk up
   //   a DISH      -0.09 m over σ 2.6   the bit that would puddle
   //   a CORNER    -0.10 m over σ 5.2   the ground falling away to the south-east
+  //
+  // THE CROWN IS WHY THE HOLLOWS EXIST AT ALL. The park site is floored by one
+  // flat 32 × 30 m plane at KERB_H, drawn by `openSite` in ct/street.ts, and it
+  // is not mine and does not move. My first relief put the dish 90 mm and the
+  // corner 100 mm BELOW it, so both were drawn underneath an opaque plane: the
+  // hollows were invisible while the floor picker still lowered you into them,
+  // which is worse than not having them — you walk down into a dip that is not
+  // there. Measured, not guessed: at four points in the two hollows the top
+  // surface was the site plane and the grass was 16–79 mm under it.
+  //
+  // Real turf is crowned for drainage, so the fix is also the truer shape: dome
+  // the whole field by 0.10 and cut the hollows into the dome. Nothing then
+  // goes below the site plane, the dish still reads as an 86 mm hollow against
+  // the ground around it, and the corner still falls away — to exactly the
+  // paving level, which is as far as it is allowed to go.
+  //
+  // The cost is honest: the rim now has to climb the crown as well, so the
+  // steepest grade goes from 1 in 12 to 1 in 9.1 even with the fade widened
+  // from 3 m to 5.5. Still a lawn you stroll up, and I would rather have that
+  // than hollows nobody can see. If ct/street.ts ever lets a module own its
+  // site's ground, the crown can come off and the hollows can be real.
   //
   // The numbers were SWEPT, not eyeballed, and my first set was wrong in two
   // ways a drawing would never have shown. A gaussian's own steepest slope is
@@ -313,19 +335,29 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // there, which cancelled a -0.09 m dish outright and left a hollow that read
   // 0.15 — ABOVE the level ground it was meant to dip below. The walk caught
   // it; the drawing never would have.
-  const dshX = fx1 - 4.4, dshZ = fz1 - 4.4;
-  const cnrX = fx1 - 1.4, cnrZ = fz0 + 1.4;
+  // 5.5 m in, which is where the rim fade has finished. At 4.4 the dish sat
+  // inside the fade, so both it AND the ground around it were scaled toward
+  // zero and it could never be deep — it measured 36 mm against its
+  // surroundings instead of the 90 mm it is drawn as.
+  const dshX = fx1 - 5.5, dshZ = fz1 - 5.5;
+  // 2.6 m in from the corner of the grass, not 1.4. At 1.4 the deepest part of
+  // the fall sat UNDER the loop's chamfered corner path, which cuts diagonally
+  // across exactly that corner of the field — so the one place the fall was at
+  // full depth was the one place you could not see grass. Found by a drape
+  // sample that reported a path on top and was right to.
+  const cnrX = fx1 - 2.6, cnrZ = fz0 + 2.6;
   const gauss = (d2: number, sig: number) => Math.exp(-d2 / (2 * sig * sig));
   const relief = (x: number, z: number) => {
     const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
     if (inset <= 0) return 0;
     // smoothstep, not a linear ramp: a linear mask has a corner in it where
     // it reaches 1, and a corner in the mask is a crease in the lawn
-    const t = Math.min(1, inset / 3.0), rim = t * t * (3 - 2 * t);
-    const m = 0.33 * gauss((x - mndX) ** 2 + (z - mndZ) ** 2, 3.1);
+    const t = Math.min(1, inset / 5.5), rim = t * t * (3 - 2 * t);
+    const CROWN = 0.10;
+    const m = 0.30 * gauss((x - mndX) ** 2 + (z - mndZ) ** 2, 3.1);
     const d = -0.09 * gauss((x - dshX) ** 2 + (z - dshZ) ** 2, 2.6);
     const c = -0.10 * gauss((x - cnrX) ** 2 + (z - cnrZ) ** 2, 5.2);
-    return (m + d + c) * rim;
+    return Math.max(0, CROWN + m + d + c) * rim;   // never below the site plane
   };
 
   /** The floor of the park, at a point. Flat everywhere the relief is. */
