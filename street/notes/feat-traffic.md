@@ -487,6 +487,21 @@ Five separate instances, all mine, all found by deliberately breaking the world:
    failure-watches on this project look like passes. Redirect to a file and read
    node's own status.
 
+**And both fp captures must come from the same KIND of server** (`GOTCHAS.md`
+§31, `bff2f6a0`). A dev capture against a preview capture reports ~612 of 954
+textures changed on a world nobody touched: `scenedump` seeds `Math.random` so
+paint is reproducible, and dev burns 28 more draws at module-init than the
+bundle does before the first canvas exists, so every texture after that gets a
+different slice of the sequence.
+
+Every fingerprint in this note is **dev to dev** — `SHOT_URL` was
+`http://localhost:4187/` on both sides every time, and that port serves `/src/`
+and `/@vite/client`, so it is a dev server. Checked rather than assumed, because
+three commits here rest on a `textures IDENTICAL` line: the additive `CarState`
+design, the `BELT` derivation, and the arch's rows-per-metre. A crossed capture
+would have voided all three, and it would have failed LOUD (612 textures), not
+quietly — which is the one merciful thing about it.
+
 And one for the paint layer specifically: **PNG bytes cannot prove anything
 about a car texture.** `bodySideTex` ends in `dither(...)`, unseeded
 `Math.random()`, so two runs of identical code differ (GOTCHAS §1). I hashed
