@@ -106,34 +106,85 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     return m;
   };
 
-  // ── the paths ────────────────────────────────────────────────────────────
+  // ── the field, and the loop around it ────────────────────────────────────
   //
-  // A T, not a curve. Municipal paths go somewhere: in from the gate, then
-  // along the park to both ends. A path that meanders decoratively is a
-  // landscape-architecture path and this is not that kind of park — and a
-  // curve at this depth would only read as a wobble anyway.
-  const SPINE_W = 1.6, ENTRY_W = 1.9;
-  lay(site.maxX, backX + SPINE_W / 2, gateMid - ENTRY_W / 2, gateMid + ENTRY_W / 2, 'path');
-  lay(backX - SPINE_W / 2, backX + SPINE_W / 2, site.minZ + 2.4, site.maxZ - 2.4, 'path');
+  // The user's layout, and every part of it is doing something:
+  //
+  //   THE FIELD is the largest thing in the park, and it is open. Mown grass
+  //     and nothing standing in it. A park you can see across is bigger than
+  //     a park you cannot, and everything else here is arranged around
+  //     keeping this one rectangle clear.
+  //   THE LOOP goes AROUND the field, not across it. That is what makes a
+  //     small park feel bigger than it is: a circuit has no end to arrive at,
+  //     so you walk it rather than crossing it, and 60 m of walking fits in
+  //     30 m of park. A path across would halve the field and finish in four
+  //     seconds.
+  //   The gate opens onto the loop rather than into the middle of the grass.
+  //
+  // It is all measured off the site extents and the reachable line, so when
+  // the park is deepened the field grows and the loop grows with it — the
+  // shape is right at 7 m and it is the same shape at 30 m.
+  const PATH_W = 1.5;
+  const lx0 = backX, lx1 = site.maxX - 1.15;                 // the loop's legs
+  const lz0 = site.minZ + 1.7, lz1 = site.maxZ - 1.7;
+  lay(lx0 - PATH_W / 2, lx0 + PATH_W / 2, lz0, lz1, 'path');  // back leg
+  lay(lx1 - PATH_W / 2, lx1 + PATH_W / 2, lz0, lz1, 'path');  // street leg
+  for (const lz of [lz0, lz1]) {                              // the two ends
+    lay(lx0 - PATH_W / 2, lx1 + PATH_W / 2, lz - PATH_W / 2, lz + PATH_W / 2, 'path');
+  }
+  lay(site.maxX, lx1, gateMid - 1.9 / 2, gateMid + 1.9 / 2, 'path');   // in from the gate
+
+  // The field itself: mown, and mown in stripes, because a parks department
+  // mows in stripes and it is the cheapest way to say "this is maintained,
+  // just about" over a large flat area that would otherwise be one colour.
+  const fx0 = lx0 + PATH_W / 2, fx1 = lx1 - PATH_W / 2;
+  const fz0 = lz0 + PATH_W / 2, fz1 = lz1 - PATH_W / 2;
+  const fW = fx1 - fx0, fD = fz1 - fz0;
+  if (fW > 0.5 && fD > 0.5) {
+    const mownT = pixTex(Math.max(8, Math.round(fW * 16)), Math.max(8, Math.round(fD * 16)), (g) => {
+      const r = clcg(0x4fd21a);
+      const MW = Math.max(8, Math.round(fW * 16)), MH = Math.max(8, Math.round(fD * 16));
+      g.fillStyle = '#6e7458'; g.fillRect(0, 0, MW, MH);
+      const stripe = Math.max(4, Math.round(1.6 * 16));       // 1.6 m mower width
+      for (let z = 0, i = 0; z < MH; z += stripe, i++) {
+        if (i % 2) continue;
+        g.fillStyle = 'rgba(140,150,110,0.16)';
+        g.fillRect(0, z, MW, Math.min(stripe, MH - z));
+      }
+      g.fillStyle = '#5f6650';                                // the patchy bits
+      for (let i = 0; i < Math.round(MW * MH * 0.01); i++) {
+        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2));
+      }
+      g.fillStyle = 'rgba(120,104,72,0.5)';                   // and where it is thin
+      for (let i = 0; i < 30; i++) {
+        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 2 + Math.floor(r() * 6), 2 + Math.floor(r() * 4));
+      }
+      dither(g, MW, MH, Math.round(fW * fD * 5));
+    });
+    const field = new THREE.Mesh(new THREE.PlaneGeometry(fW, fD), wet(flat(mownT)));
+    field.rotation.x = -Math.PI / 2;
+    field.position.set((fx0 + fx1) / 2, KERB_H + LIFT * 0.5, (fz0 + fz1) / 2);
+    scene.add(field);
+  }
 
   // ── the desire lines ─────────────────────────────────────────────────────
   //
-  // Where the path does not go and people do. Both corners of the T are cut,
-  // because nobody has ever walked a right angle they could avoid, and there
-  // is a diagonal from the gate to each end — which is the shortest line
-  // between the two things anyone is actually crossing this park to reach.
+  // The loop is the path; these are what people do instead of walking it. Two
+  // corners cut, and one straight across the field from the gate — the line
+  // everyone takes when they are crossing the park rather than using it, and
+  // the one piece of evidence that the loop is a choice.
   const worn = (x0: number, z0: number, x1: number, z1: number, w = 0.75) => {
     const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz);
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), wet(flat(surfaceTex(w, len, 'dirt'))));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = -Math.atan2(dx, dz);
-    m.position.set((x0 + x1) / 2, KERB_H + LIFT * 0.5, (z0 + z1) / 2);
+    m.position.set((x0 + x1) / 2, KERB_H + LIFT * 0.75, (z0 + z1) / 2);
     scene.add(m);
   };
+  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.72);    // straight across
   for (const s of [-1, 1]) {
-    const zEnd = s < 0 ? site.minZ + 3.6 : site.maxZ - 3.6;
-    worn(site.maxX - 0.6, gateMid + s * 1.0, backX, zEnd, 0.8);   // the diagonal
-    worn(backX + 1.2, gateMid + s * 1.1, backX, gateMid + s * 3.4, 0.62);   // the cut corner
+    const cz = s < 0 ? lz0 : lz1;
+    worn(lx0 + 0.9, cz + s * -0.9, lx0 + 2.6, cz + s * -2.4, 0.6);   // the cut corners
   }
 
   // ── the fence ────────────────────────────────────────────────────────────
@@ -221,42 +272,62 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // nothing from the desk. The seat pan is 0.45 above the park floor, and the
   // trigger sits on the seat with the approach out on the path, because the
   // bench's own collider would otherwise keep you further away than `r`.
-  const bench = (z: number, faceEast: boolean) => {
-    const bx = backX + (faceEast ? 1.45 : -1.45);
-    const yaw = faceEast ? Math.PI / 2 : -Math.PI / 2;
+  // Benches face the FIELD, with their backs to the perimeter — the whole
+  // point of the loop is that there is something to look at from it. A bench
+  // turned to the street is a bus stop.
+  //
+  // SITTABLE, through `ctx.seat` — the user's *"for every seat in the game i
+  // want to be able to sit down"*, and F's registration means this needs
+  // nothing from the desk. The trigger sits ON the pan with its approach out
+  // on the path, because the bench's own collider would otherwise hold you
+  // further away than `r`.
+  const bench = (bx: number, bz: number, yaw: number) => {
+    // yaw is axis-aligned for every bench here, so facing and lateral come
+    // out as unit axes and every box can be sized exactly rather than rotated
+    const fx = Math.round(Math.sin(yaw)), fz = Math.round(-Math.cos(yaw));   // facing
+    const lx = Math.round(Math.cos(yaw)), lz = Math.round(Math.sin(yaw));    // across
+    const box = (f: number, a: number) => [Math.abs(fx) * f + Math.abs(lx) * a,
+      Math.abs(fz) * f + Math.abs(lz) * a] as [number, number];
     const y0 = KERB_H;
-    for (const dz of [-0.78, 0.78]) {                 // the two cast ends
-      const end = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.44, 0.1), ironM);
-      end.position.set(bx, y0 + 0.22, z + dz);
+    for (const d of [-0.78, 0.78]) {                  // the two cast ends
+      const [ew, ed] = box(0.62, 0.1);
+      const end = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.44, ed), ironM);
+      end.position.set(bx + lx * d, y0 + 0.22, bz + lz * d);
       scene.add(end);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.1), ironM);
-      arm.position.set(bx, y0 + 0.66, z + dz);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.07, ed), ironM);
+      arm.position.set(bx + lx * d, y0 + 0.66, bz + lz * d);
       scene.add(arm);
     }
     for (let i = 0; i < 3; i++) {                     // the seat slats
-      const sl = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.05, 1.7), i % 2 ? woodM2 : woodM);
-      sl.position.set(bx - 0.21 + i * 0.2, y0 + 0.45, z);
+      const off = -0.21 + i * 0.2;
+      const [sw, sd] = box(0.17, 1.7);
+      const sl = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.05, sd), i % 2 ? woodM2 : woodM);
+      sl.position.set(bx + fx * off, y0 + 0.45, bz + fz * off);
       scene.add(sl);
     }
-    for (let i = 0; i < 2; i++) {                     // …and the back
-      const sl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.16, 1.7), i % 2 ? woodM2 : woodM);
-      sl.position.set(bx + (faceEast ? -0.26 : 0.26), y0 + 0.62 + i * 0.19, z);
+    for (let i = 0; i < 2; i++) {                     // …and the back, behind you
+      const [sw, sd] = box(0.05, 1.7);
+      const sl = new THREE.Mesh(new THREE.BoxGeometry(sw, 0.16, sd), i % 2 ? woodM2 : woodM);
+      sl.position.set(bx - fx * 0.26, y0 + 0.62 + i * 0.19, bz - fz * 0.26);
       scene.add(sl);
     }
-    solid({ minX: bx - 0.34, maxX: bx + 0.34, minZ: z - 0.88, maxZ: z + 0.88 });
+    const [cw, cd] = box(0.34, 0.88);
+    solid({ minX: bx - cw, maxX: bx + cw, minZ: bz - cd, maxZ: bz + cd });
     ctx.seat({
-      x: bx, z, yaw, h: 0.45,
-      approach: { x: backX + (faceEast ? 0.1 : -0.1), z },
+      x: bx, z: bz, yaw, h: 0.45,
+      approach: { x: bx + fx * 0.95, z: bz + fz * 0.95 },
       label: 'sit on the bench',
     });
   };
-  bench(gateMid + 5.2, true);
-  bench(gateMid - 5.2, true);
-  bench(site.maxZ - 5.0, false);
+  // one on the street leg looking back across the grass, one at each end of
+  // the loop looking down the length of it
+  bench(lx1 + PATH_W / 2 + 0.42, gateMid + 4.6, -Math.PI / 2);
+  bench((lx0 + lx1) / 2 + 1.2, lz0 - 1.05, Math.PI);
+  bench((lx0 + lx1) / 2 - 1.2, lz1 + 1.05, 0);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
-  const fx = backX + 1.3, fz = gateMid - 1.6;
+  const fx = lx1 - PATH_W / 2 - 0.45, fz = gateMid - 3.4;
   const fPed = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.86, 0.34), concM);
   fPed.position.set(fx, KERB_H + 0.43, fz);
   scene.add(fPed);
@@ -272,7 +343,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   solid({ minX: fx - 0.3, maxX: fx + 0.3, minZ: fz - 0.28, maxZ: fz + 0.28 });
 
   // The bin, by the gate where the litter actually is
-  const binX = backX + 2.6, binZ = gateMid + 1.9;
+  const binX = lx1 + PATH_W / 2 + 0.4, binZ = gateMid + 1.5;
   const binT = pixTex(8, 14, (g) => {
     g.fillStyle = '#333a2b'; g.fillRect(0, 0, 8, 14);
     g.fillStyle = '#4e5340';
@@ -285,9 +356,14 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   scene.add(bin);
   solid({ minX: binX - 0.26, maxX: binX + 0.26, minZ: binZ - 0.26, maxZ: binZ + 0.26 });
 
-  // Planting along the back, against the rear elevation. It is the one thing
-  // that stops the wall being a wall — and at this depth the wall is most of
-  // what you see, so it earns its place. Overgrown, because nobody prunes it.
+  // Planting, in the four corners and nowhere else — which is not where it
+  // wants to be. It wants to be a bed along the back, screening the rear
+  // elevation, because at this depth that wall IS the view. There is no room:
+  // the reachable line is x = -13.4, the loop's back leg is at -12.5 with a
+  // 0.75 m half-width, and the wall is at -14.0. A bed behind the path had
+  // its collider across the path and you could not walk the loop at all —
+  // which is how this was found. The screening arrives with the depth (see
+  // notes/BLOCKED-E.md); until then the corners are what fits.
   const shrubT = pixTex(16, 16, (g) => {
     const r = clcg(0x3ea77c);
     g.fillStyle = '#3f5232'; g.fillRect(0, 0, 16, 16);
@@ -299,13 +375,16 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   });
   const shrubM = flat(shrubT);
   const rb = clcg(0x11d0ee);
-  for (let z = site.minZ + 1.6; z < site.maxZ - 1.4; z += 2.1) {
-    if (Math.abs(z - gateMid) < 3.4) continue;         // keep the entry clear
-    const h = 1.3 + rb() * 0.9, w = 1.1 + rb() * 0.6;
-    const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, 1.5 + rb() * 0.5), shrubM);
-    sh.position.set(site.minX + 0.75, KERB_H + h / 2, z);
-    scene.add(sh);
-    solid({ minX: site.minX, maxX: site.minX + 1.4, minZ: z - 0.8, maxZ: z + 0.8 });
+  // sized and set so their colliders clear the loop's end legs by more than
+  // the player's radius — an earlier pair pinched the south end shut
+  for (const cz of [site.minZ + 0.62, site.maxZ - 0.62]) {
+    for (const cx of [site.minX + 0.8, lx1 - 0.2]) {
+      const h = 1.1 + rb() * 0.7, w = 0.82;
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), shrubM);
+      sh.position.set(cx, KERB_H + h / 2, cz);
+      scene.add(sh);
+      solid({ minX: cx - w / 2, maxX: cx + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
+    }
   }
 
   return { colliders };

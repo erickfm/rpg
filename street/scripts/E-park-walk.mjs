@@ -44,15 +44,23 @@ for (const [n, z] of [['north of the gate', -75.0], ['south of the gate', -92.0]
     say: (p) => `stopped at x ${f(p[0])}; the wall face is -6.64, so -6.28 is the capsule against it`,
   });
 }
-// the length of the park, along the spine
-await walk('the spine, gate to the north end', {
-  at: [-12.0, -84.0], yaw: Math.PI, ms: 4200,
-  ok: (p) => p[2] > -71.0, say: (p) => `z -84.00 -> ${f(p[2])}`,
-});
-await walk('the spine, gate to the south end', {
-  at: [-12.0, -82.0], yaw: 0.0, ms: 4200,
-  ok: (p) => p[2] < -95.0, say: (p) => `z -82.00 -> ${f(p[2])}`,
-});
+// THE LOOP. Each leg is walked from its own corner to the next one, which is
+// what proves the circuit is clear — a single timed lap just tells you how
+// fast you were going. Legs: street x=-8.15, back x=-12.5, ends z=-96.3/-69.7.
+const LEG = { x0: -12.5, x1: -8.15, z0: -96.3, z1: -69.7 };
+for (const [name, at, yaw, ms, ok, say] of [
+  ['street leg, south to north', [LEG.x1, LEG.z0 + 0.8], Math.PI, 8400,
+    (p) => p[2] > LEG.z1 - 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z1})`],
+  ['north end, street to back', [LEG.x1 - 0.4, LEG.z1], -Math.PI / 2, 1800,
+    (p) => p[0] < LEG.x0 + 0.9, (p) => `x ${f(p[0])} (corner at ${LEG.x0})`],
+  ['back leg, north to south', [LEG.x0, LEG.z1 - 0.8], 0.0, 8400,
+    (p) => p[2] < LEG.z0 + 0.9, (p) => `z ${f(p[2])} (corner at ${LEG.z0})`],
+  ['south end, back to street', [LEG.x0 + 0.4, LEG.z0], Math.PI / 2, 1800,
+    (p) => p[0] > LEG.x1 - 0.9, (p) => `x ${f(p[0])} (corner at ${LEG.x1})`],
+]) {
+  await walk(`the loop: ${name}`, { at, yaw, ms, ok, say });
+}
+
 // the floor is level all through
 const s = [];
 for (let x = -13.2; x <= -7.4; x += 0.6) for (let z = -96; z <= -70; z += 4) {

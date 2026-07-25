@@ -1,5 +1,5 @@
 diff --git a/street/src/proto/crosstown.ts b/street/src/proto/crosstown.ts
-index ab8b0569..29123af0 100644
+index 47a1ce8d..40a7b0d6 100644
 --- a/street/src/proto/crosstown.ts
 +++ b/street/src/proto/crosstown.ts
 @@ -20,6 +20,7 @@ import { buildTraffic } from './ct/traffic';
@@ -10,7 +10,7 @@ index ab8b0569..29123af0 100644
  import { COURT } from './ct/civic';
  import { buildCrowd, type Crowd } from './ct/crowd';
  import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
-@@ -168,6 +169,11 @@ export function makeCrosstown(): Proto {
+@@ -162,6 +163,11 @@ export function makeCrosstown(): Proto {
    const bodegaColliders = buildBodega(ctx);
  
    // ── the block's furniture, and the weather over it ─────────────────────

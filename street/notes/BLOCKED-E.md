@@ -1,5 +1,27 @@
 # BLOCKED — builder E
 
+## 0. NOTHING CALLS `ct/park.ts`, so none of the park is in the world
+
+**This is the urgent one.** The railings, the gate, the loop, the field, the
+benches and the fountain are all built and walk-tested, and none of it exists
+in the live world, because no file imports `ct/park.ts`. That is why the park
+still reads as a blank wall from the street: what makes the frontage legible
+is exactly the part that is not wired.
+
+One line, in `crosstown.ts`, which already holds both things it needs:
+
+```ts
+import { buildPark } from './ct/park';
+// …after buildStreet, before buildProps:
+buildPark(ctx, street.park);
+```
+
+Ready to apply as **`notes/E-park-crosstown.patch`**. It takes `ctx` rather
+than being threaded through `ct/street.ts` precisely so it is the desk's one
+line and not a two-owner change. `ctx.seat` is why it wants the whole context:
+the benches are sittable through F's registration.
+
+
 ## The park cannot be made deeper from my file, and 6.4 m is the real ceiling
 
 Queue item: **"The park should be DEEPER."** I cannot do it and neither can
