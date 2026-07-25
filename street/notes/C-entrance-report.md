@@ -200,3 +200,38 @@ Worth writing down so it does not get "fixed" later:
 - **Port.** The queue header says 4180. That port is held by a stale
   `vite preview` from `/home/erick/projects/rpg`, which silently served me a
   different world until I noticed. I run 4190 with `--strictPort`.
+
+---
+
+## STATUS — what has since been closed
+
+Worked top-down after the report was written. Fixed and landed:
+
+| # | what | commit |
+|---|---|---|
+| 1 | the front door disagreed with itself — lobby side is now the same double door under the same glazed transom, with the gold 227 reading backwards through the glass | `the front door stops disagreeing` |
+| 2 | 301's window sits in a real hole with reveals, sill, apron and architrave; the mailboxes are a box with a lip and a shelf; the lobby door got its casing | `the window gets a hole`, `front door` |
+| 4 | the cellar gate — dimmer wire, a hasp that is a strap AND a staple, hinge plates and a shutting stile | `the cellar gate reads as a gate` |
+| 7 | the top landing's 0.50 m gap is a run of balusters at 0.08 clear | `balusters instead of half a metre of air` |
+| 8 | door knobs modelled as rose/stem/ball, radiator brackets and feet, the open drawer given sides, a bottom and a back | `three things you stand right next to` |
+
+Still open from the original list: **3** (wallpaper aliasing down the shaft),
+**5** (the half landings are lit past the turn rather than over it), and the
+flat doors' painted casing under **2** — which the report already called a
+bigger job and arguably fine.
+
+## NEW, found while fixing 4
+
+**You can see daylight past the flanks of the cellar gate** (`21-cellar-lock`).
+The east and far walls of the shaft were carried up past the lobby floor so
+you look at concrete through the mesh rather than at lit wallpaper — but the
+WEST boundary at `AX(1.2)` has nothing above floor level, because a wall there
+would stand in the middle of the lobby. So at an angle the pale of the lobby
+shows through the diamonds at the edges, which undoes some of what carrying
+the other two walls up bought.
+
+It is not a wall that is wanted, it is a soffit or a return: something opaque
+filling the gap between the top of the gate frame and the stair over it,
+across the west edge only. Recorded rather than fixed because it wants
+checking against the under-stair colliders (`underStairA`/`B`) first, and I do
+not want to close a hole a player is meant to be able to stand in.
