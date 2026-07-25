@@ -86,6 +86,16 @@ const CASES = [
     'halo.position.set(headX + 1.4, sidewalkY + LAMP_H - 0.31, headZ);',
     'glow.mjs', ['probe'], 'the glow floating 1.4 m off its lamp head'],
 
+  // Switches the lamp pool off at the source. The halo SHEET still hangs in
+  // exactly the right place, so the anchoring half of glow.mjs stays green —
+  // which is the point: for weeks that was the only half there was, and the
+  // user's actual request was "light around the light posts to show up on the
+  // objects and entities under the lights".
+  ['glow-pool', PROPS,
+    'const POOL_GAIN = 12;',
+    'const POOL_GAIN = 0;',
+    'glow.mjs', ['probe'], 'lamps that glow but light nothing beneath them'],
+
   ['park', PROPS,
     'lens.userData.parkLantern = true;',
     '',

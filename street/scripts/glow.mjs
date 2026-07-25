@@ -88,6 +88,51 @@ if (mode === 'probe' || mode === 'all') {
   console.log(`  halo centre buried inside the opaque head box: ${r.some((h) => h.insideHead) ? 'YES — it will be eaten' : 'no'}`);
   console.log(`  halo centre vs the lens it comes out of: ${offLens.join(', ')} m`);
   console.log(`\n  ${bad.length === 0 ? 'OK  ' : 'FAIL'} every halo is anchored on its lamp, core unoccluded`);
+
+  // DOES THE POOL ACTUALLY LIGHT ANYTHING? The user asked for "light around the
+  // light posts to show up on the objects and entities under the lights", and
+  // this script only ever checked that the halo SHEET hangs in the right place.
+  // A halo is a decal; the thing the request is about is POOL_GAIN reaching the
+  // materials underneath it, and nothing asserted that.
+  //
+  // nightgrade.mjs does not cover it either — it treats poolLit as an EXEMPTION
+  // from the must-dim rule, which is the opposite question. Exempt and lit look
+  // identical to a check that only asks whether things got darker.
+  const pool = await page.evaluate(() => {
+    const S = window.__ct.scene(); S.updateMatrixWorld(true);
+    const lamps = [];
+    S.traverse((o) => {
+      if (o.isMesh && (o.userData.lampPart === 'lens' || o.userData.parkLantern)) {
+        const e = o.matrixWorld.elements; lamps.push([e[12], e[14]]);
+      }
+    });
+    const near = [], far = [];
+    S.traverse((o) => {
+      if (!o.isMesh || !o.material?.map) return;
+      if (!o.userData.graded && !o.material.userData?.graded) return;
+      const e = o.matrixWorld.elements, x = e[12], z = e[14];
+      if (Math.abs(x) > 9 || z > 2 || z < -96) return;      // the main street only
+      const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+      const d = Math.min(...lamps.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
+      if (d < 3.0) near.push(L); else if (d > 9) far.push(L);
+    });
+    const med = (a) => (a.length ? a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)] : null);
+    return { lamps: lamps.length, n: near.length, f: far.length,
+             nearMed: med(near), farMed: med(far) };
+  });
+  if (pool.nearMed === null || pool.farMed === null || pool.n < 8 || pool.f < 8) {
+    console.log(`\n  FAIL cannot answer: ${pool.n} lit / ${pool.f} unlit samples from ${pool.lamps} lamps`);
+    process.exitCode = 1;
+  } else {
+    // Measured 0.6184 against 0.0450 at 23:00 — 13.7x. The bar is 3x, which is
+    // far below what the world does and far above anything a flat grade gives.
+    const ratio = pool.nearMed / Math.max(pool.farMed, 1e-4);
+    const ok = ratio > 3;
+    console.log(`\n  under a lamp ${pool.nearMed.toFixed(4)} vs mid-block ${pool.farMed.toFixed(4)} ` +
+      `— ${ratio.toFixed(1)}x (${pool.n}/${pool.f} samples, ${pool.lamps} lamps)`);
+    console.log(`  ${ok ? 'OK  ' : 'FAIL'} the pool LIGHTS what stands under it, not just the halo sheet`);
+    if (!ok) process.exitCode = 1;
+  }
   if (bad.length) process.exit(1);
 }
 
