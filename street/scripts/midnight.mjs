@@ -189,12 +189,19 @@ if (SELFTEST) {
   const before = fails;
   say(found.mine.length > 0, 'street has undeclared bright materials (the bug)',
     `${found.mine.length} found`);
+  // Invert the CONTROL too. It is the assertion doing the real work — the
+  // population one above is vacuously true on an empty world and the control is
+  // what stops that being a pass — so a selftest that never inverts it is not
+  // testing the part that matters. 4ac0f8e21's point.
+  say(found.control === null || found.control >= 0.2,
+    'the world is not actually at night (the bug)',
+    found.control === null ? 'no reference found' : `flank at ${found.control}`);
   const caught = fails - before;
-  console.log(caught === 1
-    ? '\nSELFTEST PASSED — the inverted assertion was caught'
-    : '\nSELFTEST FAILED — the inverted assertion passed, so this measures nothing');
+  console.log(caught === 2
+    ? '\nSELFTEST PASSED — both inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 2 caught, so this measures less than it claims`);
   await browser.close();
-  process.exit(caught === 1 ? 0 : 1);
+  process.exit(caught === 2 ? 0 : 1);
 }
 
 await browser.close();
