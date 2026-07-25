@@ -98,10 +98,53 @@ const sampleAt = async (H, SATCUT) => {
 };
 
 const DAY_H = Number(process.env.DAY_H ?? 13);
+
+// POSITIVE CONTROL — GOTCHAS 30, and 27b18b6ea's point that a fixed sleep after
+// a clock change fails in the direction that HIDES the bug. If a loaded machine
+// has not re-graded when this samples, the "night" pass is really a day pass:
+// object and ground both keep ~100%, the divergence collapses to 1, and this
+// check reports a clean world. So prove the world actually got dark before
+// trusting anything measured in it.
+//
+// The number is measured, not chosen: ground keeps 4-5% of its daylight value at
+// night. Anything above 30% means the grade had not landed when we looked.
+const proveNight = (night, day) => {
+  // CALIBRATED ON THE RIGHT STATISTIC. My first version compared the MEDIAN over
+  // all broad sheets and tripped at 55%, because the 4-5% figure it was calibrated
+  // against was one specific ground pair, not a median -- the same which-frame
+  // error this audit keeps finding, committed inside the control meant to catch
+  // a different one.
+  //
+  // The signal that is stable and measured many times is that SOME ground goes
+  // properly dark: the road darkens ~83% between day and night. So require that
+  // the best-darkening sheet dropped at least half. A world where nothing dropped
+  // that far has not been graded yet.
+  const key = (g) => `${g.x},${g.z}`;
+  const D = new Map(day.broad.map(g => [key(g), g]));
+  let best = 0, seen = 0;
+  for (const g of night.broad) {
+    const d = D.get(key(g));
+    if (!d || d.lum <= 0.001) continue;
+    seen++;
+    best = Math.max(best, 1 - g.lum / d.lum);
+  }
+  return seen ? { best, seen } : null;
+};
 const r = await sampleAt(NIGHT, true);
 // the day pass only when we are producing our own pair -- PAIRED= skips it
 const rDay = (process.env.PAIRED || JSON_OUT) ? null : await sampleAt(DAY_H, false);
 await b.close();
+
+if (rDay) {
+  const ctl = proveNight(r, rDay);
+  if (!ctl) { console.error('\n  CANNOT ANSWER — no ground sheet paired between the two passes.'); process.exit(3); }
+  console.log(`  positive control: best ground darkening ${(ctl.best*100).toFixed(1)}% over ${ctl.seen} paired sheets`);
+  if (ctl.best < 0.50) {
+    console.error(`\n  CANNOT ANSWER — the darkest-falling ground only dropped ${(ctl.best*100).toFixed(1)}%.`);
+    console.error('  The night grade had not landed when this sampled (GOTCHAS 30). Re-run on a quieter machine.');
+    process.exit(3);
+  }
+}
 
 // pair each small object with the nearest broad sheet
 const pairUp = (src) => src.small.map(s=>{
@@ -174,6 +217,14 @@ if (process.env.PAIRED || rDay) {
     // 3. the metric must be sensitive to the ground, not just the object
     const groundOnly = paired.map(o => ({ ...o, div: o.day.ratio > 0 ? 1 : 99 }));
     assertFails('divergence collapses to 1 when both sides move together', groundOnly.every(o => o.div === 1));
+    // 4. THE CONTROL MUST BE ABLE TO FIRE. A positive control that cannot fail is
+    //    the defect it exists to prevent, one level up.
+    const flat = { broad: [{x:0,z:0,lum:1}, {x:1,z:1,lum:1}] };
+    assertFails('the control trips on a world that never darkened',
+      (proveNight(flat, flat)?.best ?? 1) < 0.50);
+    assertFails('the control passes a world that did darken',
+      (proveNight({broad:[{x:0,z:0,lum:0.01}]}, {broad:[{x:0,z:0,lum:1}]})?.best ?? 0) >= 0.50);
+
     console.log(`\n  ${failures}/${checks} inverted truths behaved as required`);
     process.exit(failures === checks ? 0 : 1);
   }

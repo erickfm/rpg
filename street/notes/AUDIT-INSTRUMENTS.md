@@ -1790,3 +1790,47 @@ mechanism is live, and nothing currently declares through it.
 > Two of the three checks my triage said should be registered were other
 > people's. **The one that was mine took twenty minutes and needed no
 > permission**, which is the argument for doing your own first.
+
+## `floatlit` could not fail under load either, and my first control was miscalibrated
+
+`27b18b6ea` found a night check whose fixed sleep meant that *"if a loaded machine
+has not re-graded within 500 ms, the **night** sample IS the noon sample"* — and
+noted it **fails in the direction that hides the bug**. `floatlit` has the same
+shape: step the clock, wait a fixed 700 ms per hour and 3 s to settle, then
+measure. If the grade has not landed, object and ground both keep ~100%, the
+divergence collapses to 1, and my check reports a clean world.
+
+**Added a positive control. My first one was wrong, and it caught itself.** It
+compared the **median over all broad sheets** and tripped at 55% — against a
+threshold I had calibrated from the **4–5% figure for one specific ground pair**.
+A median and a pair are different quantities. That is the which-frame error this
+audit keeps finding, committed *inside the control written to catch a different
+one*.
+
+**Recalibrated on a signal measured many times and stable**: the road darkens
+~83% between day and night, so require that the **best-darkening sheet dropped at
+least half**. On a settled world:
+
+```
+positive control: best ground darkening 98.9% over 37 paired sheets
+of those, 18 are also bright enough to see
+FAIL the night grade is not reaching these objects        exit 1
+```
+
+**98.9% against a 50% floor** — a wide margin, and the finding is unchanged at
+18, which is what says the control does not distort the measurement it guards.
+
+**And the control is itself tested**, because a positive control that cannot fire
+is the defect it exists to prevent, one level up:
+
+```
+caught: the control trips on a world that never darkened
+caught: the control passes a world that did darken
+
+5/5 inverted truths behaved as required
+```
+
+> Three of the five inverted truths now test the check and two test the guard.
+> **The guard needed testing more**, because it is the part that only ever runs
+> when something has already gone wrong — and it is the part nobody would notice
+> was broken.
