@@ -111,6 +111,17 @@ const CASES = [
   // which is the point: for weeks that was the only half there was, and the
   // user's actual request was "light around the light posts to show up on the
   // objects and entities under the lights".
+  // A NaN IN THE GRADE, which is the failure grade-sane.mjs exists for: it does
+  // not throw, does not log, and three.js uploads it happily — you get a black
+  // or white mesh and no clue where from. POOL_GAIN feeds the multiplier every
+  // lit material takes, so poisoning it poisons the colours without touching
+  // any geometry. Every other check on this shelf stays green through it, which
+  // is the point.
+  ['grade-nan', PROPS,
+    'const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor',
+    'const POOL_GAIN = NaN;       // selftest: poison the grade',
+    'grade-sane.mjs', [], 'a NaN quietly poisoning every lit material'],
+
   ['glow-pool', PROPS,
     'const POOL_GAIN = 12;',
     'const POOL_GAIN = 0;',

@@ -77,6 +77,7 @@ const CHECKS = [
   ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],
   ['bus',              'does the east pavement run through the bus stop?', ['bus-walk'],  ['walk']],
   ['rain',             'does it rain, and does the street stay wet after?', ['rain', 'rain-memory']],
+  ['grade-sane',       'does the grade ever make an impossible colour?',   ['grade-nan']],
   // Reads the registry and classifies it — seconds, not minutes, so it belongs
   // in the DEFAULT tier. It sat in the walking block for one commit, which was
   // wrong: it does not walk, and a check behind a flag nobody passes is the
