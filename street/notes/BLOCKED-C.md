@@ -1,54 +1,44 @@
 # BLOCKED — builder C
 
-## 0. THE WORLD DOES NOT BOOT ON MAINLINE — someone owns ct/doors.ts
+## 0. The doors.ts import cycle: the crash is fixed, the DROP is not
 
-**Read this first; it is not my file and it is down for everybody.**
+The original crash (`publishDeclaredDoors` throwing on an undefined namespace)
+was fixed at source in `db76dc26`, and §0.2's ask — *warn rather than skip
+silently* — landed too: `ct/doors.ts:91` now names the module and cites this
+note. Both good.
 
-`publishDeclaredDoors()` throws during world build, so `__ct` never
-initialises. Every builder's shot script times out on `waitForFunction`, and
-`scripts/health.mjs` times out rather than printing WORLD OK. No visual
-verification is possible by anyone until it is fixed.
-
-**Cause**, confirmed by instrumenting the loop rather than by reading it:
+**The cycle itself is still there, and it has grown from one module to four.**
+At HEAD the browser console carries:
 
 ```
-[probe] undefined namespace: ./bodega.ts
+[doors] ./civic-doors.ts  resolved to an UNDEFINED namespace at collection time
+[doors] ./int-casino.ts   resolved to an UNDEFINED namespace at collection time
+[doors] ./interior.ts     resolved to an UNDEFINED namespace at collection time
+[doors] ./world.ts        resolved to an UNDEFINED namespace at collection time
 ```
 
-`ensure()` walks `import.meta.glob('./*.ts', { eager: true })` and reads
-`.DOOR` off each namespace. `ct/bodega.ts` imports `./doors` back, so under an
-eager glob **its namespace entry is undefined**, and `MODS[path].DOOR` throws.
-The guard was `if (!d || typeof d.building !== 'string')` — that catches a
-missing DOOR, not a missing MODULE. The comment four lines above the loop
-already predicts this exact cycle; the guard just does not cover it.
+**And one of them is losing a real declaration.** `int-casino.ts:50` exports
+`DOOR: { building: 'GOLDEN ACES', … }`. Eight modules declare a door; seven
+reach `declaredDoors()`. GOLDEN ACES is the one that does not:
 
-**RESOLVED while this was being written** — the owner landed `MODS[path]?.DOOR`,
-which is the same fix and tidier than the guard I had staged, so mine was
-dropped on rebase. The world boots and `health.mjs` is green again. Left here
-because points 1–3 below are still open and the cause is worth having written
-down: it cost a full diagnosis to find, and reading the loop does not reveal
-it.
+```
+node scripts/doors-declared.mjs
+  8 modules declare a DOOR; 7 reached declaredDoors()
+  DECLARED BUT NEVER COLLECTED:
+    GOLDEN ACES      src/proto/ct/int-casino.ts
+```
 
-**What still needs doing, by whoever owns these two files** — the optional
-chain stops the throw, it does not fix the cause:
+So the facade painter, the `[E]` census and anything else driven by
+`declaredDoors()` does not know the casino has a door. `int-casino.ts`'s own
+comment says *"declaring it publishes it to tooling without moving anything"* —
+it does not, and there was no way to notice.
 
-1. **Break the cycle.** `ct/bodega.ts` importing `ct/doors.ts` while
-   `ct/doors.ts` eagerly globs every sibling is the actual defect. Either
-   bodega stops importing doors, or the glob stops being eager, or DOOR
-   declarations move to a leaf module nobody imports back.
-2. **Bodega's declared door is currently being DROPPED, silently.** `?.` turns
-   a crash into a shrug: if bodega declares a DOOR it is now ignored with no
-   trace. That is the same class of bug as the missing glyph that shipped
-   "BUY ERE AY ERE" for several commits — a silent blank is indistinguishable
-   from correct. Worth a `console.warn` on the undefined branch until the
-   cycle is actually gone.
-3. **`world.ts` globs `./*.ts` eagerly too**, and `interior.ts` globs
-   `./int-*.ts`. Whatever rule comes out of this should be applied to all
-   three, not just to doors.ts.
-
-
-Two asks, both small for the person who can do them. Neither stalls me — I am
-shipping the rest of the lot meanwhile.
+**For whoever owns `ct/doors.ts` and `ct/int-casino.ts`.** The warning was the
+right first step and it is what made this findable, but a console warning is
+not read on the way past — `scripts/doors-declared.mjs` counts both ends and
+exits 1, so it can go in `npm run checks`. The fix is still the cycle: either
+those four stop importing `./doors`, or the glob stops being eager, or DOOR
+declarations move to a leaf module nobody imports back.
 
 ## 1. ~~The curb cut~~ — LANDED, and it lines up
 

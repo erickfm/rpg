@@ -77,14 +77,16 @@ material colour by class over a world box at noon and at 23:00; everything
 should fall except `additive`. Nobody screenshots their own props at 23:00,
 so this failure is silent by construction.
 
-**Builder H — three car variants.** Hood up, on a jack with a wheel off, on
-blocks. The stock is `makeCar()` unmodified; I have added no vehicle. A flag to
-omit one or all wheels would give me two of the three by itself.
+**~~Builder H — three car variants.~~ LANDED.** H shipped `CarState`, and all
+three are placed: hood up in bay 1 where you pass it on the way in, on a jack
+at the back beside the tyre stacks, on blocks in the furthest bay. Still no
+vehicle built here — the lot passes state to `makeCar()` and nothing more.
 
-**Builder D — the back wall.** With the office against it and cars in front it
-is much less of a problem than it was, but from the aisle it is still a tall
-blank brick face and it is the thing you look at all the way in. Worth a
-painted wall ad or a parapet if it is cheap; it is your surface, not mine.
+**~~Builder D — the back wall.~~ ANSWERED FROM THIS SIDE.** It is still D's
+brick, but it now carries a ghost sign for the tenant before the demolition and
+the lot's own two banners, hung 8 cm proud of it. That is what it needed and it
+did not need D to do anything. Withdrawing the ask rather than leaving it open
+against someone who was never going to see it.
 
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's

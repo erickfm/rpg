@@ -31,6 +31,7 @@ const CHECKS = [
   ['lotwalk',          'can a pedestrian enter the car lot, and only there?', true],
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
+  ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   // Slowest entry here by some way — it WALKS, so it costs what walking costs.
   // Kept because the things it covers cannot be asked any other way: whether a
   // wall stops you, whether a door prompts when you arrive rather than mid
