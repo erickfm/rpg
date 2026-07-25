@@ -85,11 +85,36 @@ the requirement, and eyes supplied it (`A-mirror-verified.md`). The ongoing chec
 is plumbing by design and cannot be otherwise. I should describe it that way
 rather than as a check with a deficiency.
 
-### The one candidate for genuine independence, unverified
+### The furniture candidate — checked, and the answer is "partly"
 
-A room's **furniture** is hand-placed — the diner's booths "line the window".
-Comparing booth positions against the glazing run would pair two differently
-authored things, and I used exactly that reasoning once already to check the
-diner's glass. Whether it is truly independent depends on whether the furniture
-is placed from `spec` values that also drive the glazing, which I have **not**
-checked. Recording it as a candidate, not a plan.
+I said this was unverified, so I verified it. `ct/int-diner.ts` places its booth
+run from the **room box** — `hw`, i.e. `roomWidthFor(frontageM)` — and `away`.
+There is no reference to `win`, `glaze` or the glazing run anywhere in that
+placement.
+
+So the two sides are:
+
+| side | derived from |
+|---|---|
+| the glazing run | the **painter's** canvas layout — `B.ox`, `B.gi`, the shopfront kit |
+| the booth run | the **room's** half-width, `roomWidthFor(frontageM)` |
+
+**Common ancestor: `frontageM`. Different derivations from it.** That makes the
+pair better than circular and short of independent:
+
+- it **can** catch the two sides computing different runs from the same width —
+  which is a real authoring disagreement, and is exactly the reasoning that
+  caught the diner's glazing when I nearly filed a false report about its blank
+  wall
+- it **cannot** catch a wrong `frontageM`, because both sides would move together
+
+That is worth writing down because "partly independent" is a real category the
+`1776b21e` scheme does not have, and the honest place for this pair is between
+its B and C rather than in A. One caveat on the booth side: `away` **is** derived
+from the door declaration, so only the booth run's EXTENT is independent, not
+which end of the room it sits at.
+
+Not building the check. The one time this comparison was needed it was done by
+hand in ten minutes, it is a single room's furniture rather than a rule about the
+world, and a permanent instrument whose two sides share `frontageM` would invite
+exactly the over-reading I have spent two commits warning about.
