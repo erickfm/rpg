@@ -35,11 +35,21 @@ export function buildCasino(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'casino',
     label: 'into GOLDEN ACES',
-    // Low on purpose. The kit's note says a casino "wants more" ceiling; it
-    // wants the opposite. 2.5 m over a 1.62 m eye leaves 0.88 m of headroom,
-    // which is what makes the mirrored panels read as pressing down on you
-    // instead of as a decorated ceiling you never look at.
-    w: 10.5, d: 9.0, h: 2.5,
+    // 2.9, raised from 2.5 on the audit's finding that this was the lowest
+    // room in the world by 0.30 m and 0.90 m under the hotel next door
+    // (AUDIT-TRIAGE item 4 / interior-audit R18).
+    //
+    // Recording the disagreement rather than burying it, because the original
+    // number was not careless: the user's brief for this room said "low ceiling
+    // with mirrored panels", and a real casino floor IS low — that is what the
+    // mirrors are for. The kit's docstring saying a casino "wants more than a
+    // shop" is the part I think is wrong, and the auditor offered fixing the
+    // docstring as the alternative. But being the single lowest room in the
+    // world is an outlier whatever the reasoning, and 2.9 still sits 0.5 m
+    // under the hotel two doors along, so the drop you feel walking in from
+    // that lobby survives. The intent cost about a third of its margin; it did
+    // not cost the effect.
+    w: 10.5, d: 9.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       x: DOOR_X, z: WALK_Z, r: 1.05,
@@ -324,7 +334,7 @@ export function buildCasino(ctx: CtxBuild): void {
     tube(g, 'CAGE', 24, 9, 11, '#e8c25a', '#fff4d0', '#2a2018');
   });
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.24), ctx.flat(signT)),
-    CAGE_X, 2.34, -hd + 0.06);
+    CAGE_X, room.H - 0.56, -hd + 0.06);
 
   // ── the same building, from the inside ────────────────────────────────
   //
@@ -348,6 +358,11 @@ export function buildCasino(ctx: CtxBuild): void {
   const phaseM = Array.from({ length: PHASES }, () => new THREE.MeshBasicMaterial({ color: 0x7a6438 }));
   const bulbGeo = new THREE.SphereGeometry(0.045, 5, 4);
   let bulbN = 0;
+  // Everything hung off the ceiling is measured DOWN FROM IT, not typed as an
+  // absolute height. Raising this room from 2.5 to 2.9 would otherwise have left
+  // the valances, the bulb runs and the cage sign stranded 0.4 m low — which is
+  // how a height change turns into six separate bugs.
+  const BULB_Y = room.H - 0.60;
   const bulbLine = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, pitch: number) => {
     const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0, z1 - z0) / pitch));
     for (let i = 0; i <= n; i++) {
@@ -364,7 +379,8 @@ export function buildCasino(ctx: CtxBuild): void {
   // which is what stops a bank reading as a row of boxes.
   // Shallower and higher than the first version, which hung a 1.5 m flat gold
   // slab across the whole arrival view at eye line and read as a ceiling beam
-  // rather than as a lit soffit. 1.0 m deep at 2.26 clears the sightline to the
+  // rather than as a lit soffit. 1.0 m deep, hung 0.64 m under the ceiling, it
+  // clears the sightline to the
   // machines, and the face is PAINTED — a run of diamonds in two golds — because
   // one flat colour over that much area is what made it read as a slab.
   const valT = pixTex(64, 12, (g) => {
@@ -386,7 +402,7 @@ export function buildCasino(ctx: CtxBuild): void {
     t.repeat.set(Math.round(bankW / 1.1), 1); t.needsUpdate = true;
     const faceM = ctx.flat(t);
     put(new THREE.Mesh(new THREE.BoxGeometry(bankW, 0.3, 1.0),
-      [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), bankCx, 2.26, bz);
+      [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), bankCx, room.H - 0.64, bz);
     for (const s2 of [-1, 1]) {
       bulbLine(bankCx - bankW / 2 + 0.15, 2.08, bz + s2 * 0.5,
                bankCx + bankW / 2 - 0.15, 2.08, bz + s2 * 0.5, 0.34);
@@ -404,14 +420,14 @@ export function buildCasino(ctx: CtxBuild): void {
   bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
 
   // ── the cage, given the same treatment as the front of the house ──
-  bulbLine(CAGE_X - CAGE_W / 2, 2.30, -hd + 0.10, CAGE_X + CAGE_W / 2, 2.30, -hd + 0.10, 0.3);
+  bulbLine(CAGE_X - CAGE_W / 2, BULB_Y, -hd + 0.10, CAGE_X + CAGE_W / 2, BULB_Y, -hd + 0.10, 0.3);
   for (const s2 of [-1, 1]) {
-    bulbLine(CAGE_X + s2 * CAGE_W / 2, 1.10, -hd + 0.10, CAGE_X + s2 * CAGE_W / 2, 2.30, -hd + 0.10, 0.3);
+    bulbLine(CAGE_X + s2 * CAGE_W / 2, 1.10, -hd + 0.10, CAGE_X + s2 * CAGE_W / 2, BULB_Y, -hd + 0.10, 0.3);
   }
 
   // ── and a bulb line round the room, under the mirrors ──
-  bulbLine(-hw + 0.12, 2.30, -hd + 0.12, -hw + 0.12, 2.30, hd - 0.12, 0.42);
-  bulbLine(hw - 0.12, 2.30, -hd + 0.12, hw - 0.12, 2.30, hd - 0.12, 0.42);
+  bulbLine(-hw + 0.12, BULB_Y, -hd + 0.12, -hw + 0.12, BULB_Y, hd - 0.12, 0.42);
+  bulbLine(hw - 0.12, BULB_Y, -hd + 0.12, hw - 0.12, BULB_Y, hd - 0.12, 0.42);
 
   // one bank of sockets is dead — the same joke as the marquee's dead bulb,
   // and the reason this room is losing money in the same building that is

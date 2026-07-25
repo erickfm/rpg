@@ -23,7 +23,7 @@ const KERB_H = 0.14, RADIUS = 0.36;
 // arrives instead.
 const ROOMS = [
   {
-    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0, H: 2.5,
+    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0, H: 2.9,
     doorX: 51.29, doorZ: -97.0, at: -3.2, hasWindow: false,
     // a z that is clear right across the room, for the ±x wall probes
     clearZ: 3.0,
