@@ -63,3 +63,41 @@ accident.
 No check would have caught this. The tags were exactly as bright as they were
 built to be, every assertion about them passed, and `alleycheck` is green
 throughout. **It took pointing a camera somewhere nobody had pointed one.**
+
+
+---
+
+## Correction: "16x" was a tint ratio; the true range is 6x to 47x
+
+`114c5bef7` established that `material.color` is a **tint**, white by default.
+The 16x in this note is `1.0 / 0.062` — tag tint against wall tint — and two
+materials' tints are not comparable as brightness when their textures differ.
+
+Measured properly, tint × texture × opacity, at HEAD:
+
+```
+alley flank   tint 0.062  texture 0.257  -> 0.0160
+alley flank   tint 0.062  texture 0.226  -> 0.0141
+TAG (SNAK)    tint 0.115  texture 0.752  -> 0.0864
+TAG (dark)    tint 0.115  texture 0.084  -> 0.0096
+TAG (mouth)   tint 0.394  texture 0.086  -> 0.0340
+```
+
+Before the fix the tags carried tint **1.0**, so their on-screen value was simply
+their texture. Against the same walls:
+
+```
+SNAK, pale ink     0.752 / 0.0160  =  47x its wall
+KOBRA/REZO, dark   0.084 / 0.0141  =   6x its wall
+```
+
+**So the defect was real and my single figure was wrong in both directions** —
+it understated the pale tag by three times and overstated the dark ones by
+nearly three. The photograph is what carried this finding, and it still does:
+SNAK glowing off the brick is exactly the 47x.
+
+The same tint trap does NOT touch this note's other numbers, because they are
+before-and-after on the **same** material, where the texture cancels: the wet
+floor's -83%, the three floors agreeing at 0.1938, the jumped-versus-stepped
+median. Cross-material comparisons are the ones that needed redoing, and this
+was the only one I had published.
