@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
+import { tube } from './vice';
 
 // GOLDEN ACES, inside.
 //
@@ -320,12 +321,104 @@ export function buildCasino(ctx: CtxBuild): void {
   const signT = pixTex(48, 16, (g) => {
     g.fillStyle = '#241e22'; g.fillRect(0, 0, 48, 16);
     g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 48, 1); g.fillRect(0, 15, 48, 1);
-    g.fillStyle = '#e8c25a'; g.font = 'bold 10px monospace';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('CAGE', 24, 9);
+    tube(g, 'CAGE', 24, 9, 11, '#e8c25a', '#fff4d0', '#2a2018');
   });
   put(new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.24), ctx.flat(signT)),
     CAGE_X, 2.34, -hd + 0.06);
+
+  // ── the same building, from the inside ────────────────────────────────
+  //
+  // The user, having seen the new facade: *"someone walking in from that
+  // facade should recognise the place"*. The room was already dim, which is
+  // right — no daylight, no clock, no windows — but dim had drifted into DRAB,
+  // and the thing the outside has that the inside did not is GLITTER: gold,
+  // small repeated bulbs, and the 777.
+  //
+  // The signage is painted by `tube` imported from ct/vice.ts — the same
+  // painter that draws GOLDEN ACES and LOOSEST SLOTS on the front of the
+  // building, so the hand is identical rather than merely similar.
+
+  // Bulbs, and a chase to run them. Same idea as the marquee outside: sockets
+  // are fixed and the chase is which of them are alight, so three shared
+  // materials animate the whole room. Driven off `onBeforeRender` on a mesh
+  // that is always drawn with the room, guarded on the renderer's own frame
+  // counter — the interior kit has no per-frame hook and does not need one.
+  const PHASES = 3;
+  const onCol = new THREE.Color(0xfff0bc), offCol = new THREE.Color(0x7a6438);
+  const phaseM = Array.from({ length: PHASES }, () => new THREE.MeshBasicMaterial({ color: 0x7a6438 }));
+  const bulbGeo = new THREE.SphereGeometry(0.045, 5, 4);
+  let bulbN = 0;
+  const bulbLine = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, pitch: number) => {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0, z1 - z0) / pitch));
+    for (let i = 0; i <= n; i++) {
+      const k = i / n;
+      const m = new THREE.Mesh(bulbGeo, phaseM[bulbN++ % PHASES]);
+      put(m, x0 + (x1 - x0) * k, y0 + (y1 - y0) * k, z0 + (z1 - z0) * k);
+    }
+  };
+
+  // ── gold valances over the slot banks, bulb-lit ──
+  //
+  // The thing a casino floor actually has over every bank and the room did not:
+  // a lit soffit you read the aisle by. It also gives the machines a top edge,
+  // which is what stops a bank reading as a row of boxes.
+  // Shallower and higher than the first version, which hung a 1.5 m flat gold
+  // slab across the whole arrival view at eye line and read as a ceiling beam
+  // rather than as a lit soffit. 1.0 m deep at 2.26 clears the sightline to the
+  // machines, and the face is PAINTED — a run of diamonds in two golds — because
+  // one flat colour over that much area is what made it read as a slab.
+  const valT = pixTex(64, 12, (g) => {
+    g.fillStyle = '#8a6a28'; g.fillRect(0, 0, 64, 12);
+    g.fillStyle = '#a8862f';
+    for (let x = 0; x < 64; x += 8) {
+      for (let i = 0; i < 4; i++) g.fillRect(x + 4 - i, 4 - i + 2, 1 + i * 2, 1);
+      for (let i = 0; i < 3; i++) g.fillRect(x + 2 + i, 7 + i, 5 - i * 2, 1);
+    }
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, 0, 64, 1);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 11, 64, 1);
+    dither(g, 64, 12, 22);
+  });
+  valT.wrapS = THREE.RepeatWrapping;
+  const valFaceM = ctx.flat(valT);
+  const valTopM = new THREE.MeshBasicMaterial({ color: 0x6a5220 });
+  for (const bz of [-1.6, 0.9]) {
+    const t = valT.clone(); t.wrapS = THREE.RepeatWrapping;
+    t.repeat.set(Math.round(bankW / 1.1), 1); t.needsUpdate = true;
+    const faceM = ctx.flat(t);
+    put(new THREE.Mesh(new THREE.BoxGeometry(bankW, 0.3, 1.0),
+      [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), bankCx, 2.26, bz);
+    for (const s2 of [-1, 1]) {
+      bulbLine(bankCx - bankW / 2 + 0.15, 2.08, bz + s2 * 0.5,
+               bankCx + bankW / 2 - 0.15, 2.08, bz + s2 * 0.5, 0.34);
+    }
+  }
+  void valFaceM;
+
+  // ── 777 on the back wall, in the facade's own red tube ──
+  const sevensT = pixTex(72, 26, (g) => {
+    g.fillStyle = '#2a1418'; g.fillRect(0, 0, 72, 26);
+    g.fillStyle = '#8a6a2c'; g.fillRect(0, 0, 72, 2); g.fillRect(0, 24, 72, 2);
+    tube(g, '777', 36, 13, 20, '#ff4a3a', '#ffd8c0', '#3a1016');
+  });
+  put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
+  bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
+
+  // ── the cage, given the same treatment as the front of the house ──
+  bulbLine(CAGE_X - CAGE_W / 2, 2.30, -hd + 0.10, CAGE_X + CAGE_W / 2, 2.30, -hd + 0.10, 0.3);
+  for (const s2 of [-1, 1]) {
+    bulbLine(CAGE_X + s2 * CAGE_W / 2, 1.10, -hd + 0.10, CAGE_X + s2 * CAGE_W / 2, 2.30, -hd + 0.10, 0.3);
+  }
+
+  // ── and a bulb line round the room, under the mirrors ──
+  bulbLine(-hw + 0.12, 2.30, -hd + 0.12, -hw + 0.12, 2.30, hd - 0.12, 0.42);
+  bulbLine(hw - 0.12, 2.30, -hd + 0.12, hw - 0.12, 2.30, hd - 0.12, 0.42);
+
+  // one bank of sockets is dead — the same joke as the marquee's dead bulb,
+  // and the reason this room is losing money in the same building that is
+  const deadM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
+  for (let i = 0; i < 5; i++) {
+    put(new THREE.Mesh(bulbGeo, deadM), bankCx - bankW / 2 + 0.15 + i * 0.34, 2.08, 0.9 + 0.5);
+  }
 
   // ── the light ──
   //
@@ -355,5 +448,18 @@ export function buildCasino(ctx: CtxBuild): void {
   pool(2.8, 2.0, TX, TZ);           // over the table
   pool(6.4, 1.6, bankCx, -0.35);    // the aisle between the banks
   pool(6.4, 1.6, bankCx, -3.0);     // the aisle in front of the cage
+
+  // The chase. `mesh.onBeforeRender` is a per-frame callback three.js already
+  // gives every mesh, so a room can animate without the kit growing a hook —
+  // and guarding on the renderer's frame counter keeps it to one pass however
+  // many meshes carry it.
+  let lastFrame = -1;
+  carpet.onBeforeRender = (renderer) => {
+    const f = (renderer as THREE.WebGLRenderer).info.render.frame;
+    if (f === lastFrame) return;
+    lastFrame = f;
+    const step = Math.floor(performance.now() / 1000 * 6) % PHASES;
+    for (let i = 0; i < PHASES; i++) phaseM[i].color.copy(i === step ? onCol : offCol);
+  };
 
 }

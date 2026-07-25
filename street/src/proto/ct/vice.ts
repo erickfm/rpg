@@ -52,6 +52,28 @@ import { type AABB } from '../fp';
 // mostly subtraction: grime streaking down from the gold, one dead bulb in the
 // chase that never lights, one glazing panel replaced in a bronze that does not
 // match, and a VACANCY sign that has been on for a long time.
+/**
+ * Neon drawn as a TUBE, not a stripe: three passes over one letterform — the
+ * dark glass casing, the phosphor glow through it, and the hot core. A painted
+ * stripe is one colour; a tube is all three at once.
+ *
+ * Exported because ct/int-casino.ts uses it too. The user asked that walking in
+ * from that facade should feel like the same building, and the surest way to
+ * guarantee ONE signage hand is for both sides to run the same painter rather
+ * than to keep two that merely resemble each other.
+ */
+export function tube(
+  g: CanvasRenderingContext2D, s: string, x: number, y: number,
+  px: number, col: string, core = '#fff6e0', casing = '#1e1a24',
+) {
+  g.font = `bold ${px}px monospace`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.strokeStyle = casing; g.lineWidth = Math.max(3, px * 0.30); g.strokeText(s, x, y);
+  g.strokeStyle = col; g.lineWidth = Math.max(2, px * 0.17); g.strokeText(s, x, y);
+  g.fillStyle = core; g.fillText(s, x, y);
+}
+
 export function buildVice(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
@@ -91,17 +113,7 @@ export function buildVice(o: {
   // highlight where the glass catches the light. Drawn as three passes over the
   // same letterform — a thick dark stroke, a mid stroke in the neon colour, a
   // thin near-white fill — which is what separates neon from a painted sign.
-  const tubeText = (
-    g: CanvasRenderingContext2D, s: string, x: number, y: number,
-    px: number, col: string, core = '#fff6e0', casing = '#1e1a24',
-  ) => {
-    g.font = `bold ${px}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.lineJoin = 'round'; g.lineCap = 'round';
-    g.strokeStyle = casing; g.lineWidth = Math.max(3, px * 0.30); g.strokeText(s, x, y);
-    g.strokeStyle = col; g.lineWidth = Math.max(2, px * 0.17); g.strokeText(s, x, y);
-    g.fillStyle = core; g.fillText(s, x, y);
-  };
+  const tubeText = tube;
 
   /** a run of bulb sockets, evenly spaced, as texel centres */
   const sockets = (from: number, to: number, pitch: number) => {
