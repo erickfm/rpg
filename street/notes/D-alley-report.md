@@ -929,3 +929,25 @@ that first and it flipped between three values non-monotonically at 600 / 1000 /
 1500 / 2000 / 3000 / 4000 ms, because something animates forever — the casino
 chase, which is what `cd91d251` already concluded. I had to isolate 108
 materials I know are static before the signal was readable.
+
+## D-walk under load: tested, and NOT changed
+
+`9deaf1ce` is the third fixed-duration-wait fix this session — *"walks until it
+stops, not for 1600 ms: 3/12 green under load → 12/12"*. `D-walk` is my longest
+check and has eleven `waitForTimeout` calls, so it is an obvious suspect.
+
+Ran it three times with 25–38 chromium processes live on the machine. **First
+attempt: 3 of 3 FAILED — and it was not a flake.** It was the wrong-world guard,
+because I had rebased and `dist` was one commit behind. Fourth time this session
+I have done that. Rebuilt and re-ran: **passes under load.**
+
+So there is **no evidence of a flake in D-walk and I have not rewritten it.**
+Its door legs already use the right pattern — `for i < steps: hold(); wait;
+got = prompt()` loops until the prompt appears rather than sleeping a guessed
+duration. The fixed waits that remain are for the camera and for a citizen to
+move on, which are weaker but unproven.
+
+Recording the negative result deliberately: a speculative rewrite of an 81 s
+walking check, justified by someone else's flake in a different file, is churn
+with a plausible-sounding reason. If it flakes, the log will say so and the fix
+is `9deaf1ce`'s.
