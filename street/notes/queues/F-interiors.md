@@ -28,6 +28,33 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **The tax service `[E]` spot is not on its door.** The user: *"the
+      entrance to the tax service is not aligned with the door of the
+      facade"*.
+
+      Second confirmed instance of the same fault after the diner's prompt
+      standing outside the bank, and the third symptom overall of interiors
+      and facades being authored independently.
+
+      **Do not fix this one by hand.** A-1 TAX has a special shopfront painter
+      (`taxFront`, now in builder A's `ct/tex-world.ts`) which decides where
+      its door sits, and `ct/int-tax.ts` hand-types an offset next to it.
+      Typing a better number just resets the clock until the next roster
+      change — the diner proved that.
+
+      **Land the frontage descriptor instead**, which is already queued to you
+      and to A: A publishes each shopfront's door centre, door width and
+      glazing span in metres derived from what the painter actually draws, and
+      the room, the window and the `[E]` spot all derive from it. Then this
+      class of bug cannot recur, and the sweep you were asked to do over every
+      other spot becomes unnecessary rather than a thing to repeat.
+
+      Check with the desk whether A has published the export yet. If it has
+      not, do the one-number fix for the tax office so the user can walk in
+      today, and say in your commit that it is a stopgap pending the
+      descriptor — a stopgap you have named is fine, a stopgap you have
+      forgotten is how we got here.
+
 - [ ] **WIRE `courtGround` — the library steps cannot be climbed until you
       do.** The user, in capitals: *"I WANT TO BE ABLE TO WALK UP THOSE
       STAIRS."*
