@@ -507,7 +507,7 @@ export function buildStreet(o: {
   // than afterwards so the paint order is unchanged — the fingerprint harness
   // seeds Math.random, so moving a texture's creation shifts the grain of every
   // texture painted after it.
-  const vice = buildVice({ scene, flat, solid });
+  const vice = buildVice({ scene, flat, solid, KERB_H });
   for (const b of NORTH2) {
     sideSpans[b.nm] = [xn, xn + b.w];
     if ((vice.VICE as readonly string[]).includes(b.nm)) vice.placeShell(xn, -94.3, b);
