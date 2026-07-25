@@ -69,3 +69,41 @@ await setClock(page, 23, 0);
 `scripts/midnight.mjs` does this now. Anything measuring night, lamps, splash or
 the wet look after dark should, and anything that has published a night number
 taken jumped is worth re-running before it is trusted.
+
+---
+
+## Narrowing the 7.4%: it is 305 materials across six modules
+
+I published the difference without an explanation. Here is as far as I can take
+it without editing anyone's file — a material-by-material diff of the two worlds
+at the same hour, joined on world position.
+
+```
+                differ in COLOUR: 305      differ in OPACITY: 139
+
+                  n     net dLum (stepped - jumped)   net dOp
+   vice          122          +0.09                    -0.15
+   street         94          -1.11                     0.00
+   (unstamped)    29          -0.56                    +2.55
+   lot            28          +1.37                     0.00
+   props          26          -0.73                    +2.98
+   tex-ground     12          -0.12                     0.00
+   civic           3          +0.06                     0.00
+```
+
+**The opacity change is the splash**, as expected: `props` and the unstamped
+sheets gain +2.98 and +2.55 of opacity between them, and nothing else moves.
+
+**The colour change is not, and it is much wider.** 305 materials are graded
+*differently* at the same hour depending on how the clock got there, across six
+modules including 94 of mine. That is `dimWorld`'s doing, not the splash's, and
+it is what actually produces the 7.4%.
+
+**A wrong turn worth recording**, because it nearly became "nothing differs": my
+first diff joined the two worlds on `o.uuid` and reported **0 differences in
+both colour and opacity**. three.js regenerates uuids per page load, so no key
+ever matched and the loop compared nothing — a clean-looking zero from a join
+that never joined. Re-keyed on world position, the 305 appeared. I only caught
+it because the zero contradicted a measurement I already had.
+
+Handed over rather than chased: the mechanism is in `ct/props.ts`.
