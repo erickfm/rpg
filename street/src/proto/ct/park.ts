@@ -250,30 +250,77 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const fz0 = lz0 + PATH_W / 2, fz1 = lz1 - PATH_W / 2;
   const fW = fx1 - fx0, fD = fz1 - fz0;
   if (fW > 0.5 && fD > 0.5) {
+    // ── MOWING STRIPES ────────────────────────────────────────────────────
+    //
+    // A flat green plane will never read as grass at this world's density —
+    // the texture cannot carry blades, and adding speckle just makes a green
+    // plane with grit on it. What reads as MOWN GRASS at any distance is the
+    // thing a mower physically leaves behind: alternating light and dark
+    // bands, because the roller lays the blades toward you on one pass and
+    // away on the next, and the two catch the light differently.
+    //
+    // So: two greens with real separation, 2.2 m bands, ONE direction across
+    // the whole field. The previous attempt had 1.6 m bands at 16% alpha,
+    // which is a stripe you can measure and cannot see.
+    //
+    // Then it is broken the way turf actually breaks, because a field mown
+    // this morning is a golf course and this one was cut a fortnight ago:
+    // worn dirt where the desire lines cross it, a bald ring under the
+    // heaviest tree where nothing grows and the mower cannot reach, and the
+    // stripes simply stop where the path takes over — the field plane ends at
+    // the loop, so that one comes free.
+    const MOW_LIGHT = '#7c8358', MOW_DARK = '#616a45', MOW_BAND = 2.2;
     const mownT = pixTex(Math.max(8, Math.round(fW * 16)), Math.max(8, Math.round(fD * 16)), (g) => {
       const r = clcg(0x4fd21a);
       const MW = Math.max(8, Math.round(fW * 16)), MH = Math.max(8, Math.round(fD * 16));
-      g.fillStyle = '#6e7458'; g.fillRect(0, 0, MW, MH);
-      const stripe = Math.max(4, Math.round(1.6 * 16));       // 1.6 m mower width
-      for (let z = 0, i = 0; z < MH; z += stripe, i++) {
-        if (i % 2) continue;
-        g.fillStyle = 'rgba(140,150,110,0.16)';
-        g.fillRect(0, z, MW, Math.min(stripe, MH - z));
+      const band = Math.max(6, Math.round(MOW_BAND * 16));
+      for (let z = 0, i = 0; z < MH; z += band, i++) {
+        g.fillStyle = i % 2 ? MOW_DARK : MOW_LIGHT;
+        g.fillRect(0, z, MW, Math.min(band, MH - z));
+        // the roller's own edge is never dead straight
+        g.fillStyle = i % 2 ? MOW_LIGHT : MOW_DARK;
+        for (let x = 0; x < MW; x += 3 + Math.floor(r() * 5)) {
+          if (r() < 0.45) g.fillRect(x, z, 2 + Math.floor(r() * 3), 1);
+        }
       }
-      g.fillStyle = '#5f6650';                                // the patchy bits
-      for (let i = 0; i < Math.round(MW * MH * 0.01); i++) {
-        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 2));
+      // a turn at one end of every other pass, where the mower swung round
+      g.fillStyle = 'rgba(97,106,69,0.5)';
+      for (let z = 0, i = 0; z < MH; z += band, i++) {
+        if (i % 2) g.fillRect(MW - Math.round(1.5 * 16), z, Math.round(1.5 * 16), band);
       }
-      g.fillStyle = 'rgba(120,104,72,0.5)';                   // and where it is thin
-      for (let i = 0; i < 30; i++) {
-        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 2 + Math.floor(r() * 6), 2 + Math.floor(r() * 4));
+      g.fillStyle = 'rgba(120,104,72,0.45)';                  // thin and worn
+      for (let i = 0; i < 40; i++) {
+        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 3 + Math.floor(r() * 8), 2 + Math.floor(r() * 5));
       }
-      dither(g, MW, MH, Math.round(fW * fD * 5));
+      g.fillStyle = 'rgba(74,86,58,0.35)';                    // and darker where it thrives
+      for (let i = 0; i < 24; i++) {
+        g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 4 + Math.floor(r() * 9), 3 + Math.floor(r() * 6));
+      }
+      dither(g, MW, MH, Math.round(fW * fD * 4));
     });
     const field = new THREE.Mesh(new THREE.PlaneGeometry(fW, fD), wet(flat(mownT)));
     field.rotation.x = -Math.PI / 2;
     field.position.set((fx0 + fx1) / 2, KERB_H + LIFT * 0.5, (fz0 + fz1) / 2);
     scene.add(field);
+    // the bald ring under the heaviest tree in the field's corner — dry shade,
+    // roots, and a mower that cannot get under the skirt of it
+    const baldT = pixTex(32, 32, (g) => {
+      const r = clcg(0x1a77e2);
+      g.clearRect(0, 0, 32, 32);
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const d = Math.hypot(x - 16, y - 16) / 16;
+        if (d > 0.92 - r() * 0.28) continue;
+        const k = r();
+        g.fillStyle = d > 0.6 ? (k > 0.5 ? '#6b6446' : '#77704f')
+          : (k > 0.66 ? '#7d7256' : k > 0.3 ? '#6e6449' : '#615840');
+        g.fillRect(x, y, 1, 1);
+      }
+    });
+    const bald = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4),
+      new THREE.MeshBasicMaterial({ map: baldT, alphaTest: 0.5, side: THREE.DoubleSide }));
+    bald.rotation.x = -Math.PI / 2;
+    bald.position.set(fx0 + 3.2, KERB_H + LIFT * 0.6, fz1 - 3.4);
+    scene.add(bald);
   }
 
   // ── the desire lines ─────────────────────────────────────────────────────
