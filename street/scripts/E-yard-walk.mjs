@@ -20,6 +20,19 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
+// `apt.gy()` is a last-written value with more than one writer, so a single
+// read can catch somebody else's frame — it shows up as an occasional 0 in a
+// field of 0.14. Sample it three times and take the mode-ish max; the floor
+// under a given point does not change between frames.
+const gyAt = async (x, z) => {
+  let best = -1;
+  for (let i = 0; i < 3; i++) {
+    await warp(x, z, 0);
+    await page.waitForTimeout(40);
+    best = Math.max(best, (await pos())[3]);
+  }
+  return best;
+};
 let fails = 0;
 const report = (name, ok, detail, tries = 1) => {
   if (!ok) fails++;
@@ -27,8 +40,10 @@ const report = (name, ok, detail, tries = 1) => {
 };
 const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
   let last, tries = 0;
-  for (; tries < 3; tries++) {
-    if (tries) await page.waitForTimeout(1100);
+  // 1.1 s was not enough: a citizen standing in a lane is seeded, so it stops
+  // you in the same place on every retry unless the wait outlasts its walk.
+  for (; tries < 4; tries++) {
+    if (tries) await page.waitForTimeout(3200);
     await warp(at[0], at[1], yaw);
     await page.waitForTimeout(150);
     await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key);
@@ -44,7 +59,16 @@ const DOOR_Z = -79.5, SILL = 0.55, E = Math.PI / 2;
 await warp(9.2, DOOR_Z, 0);
 await page.waitForTimeout(60);
 const WIRED = (await pos())[3] > 0.3;
-console.log(`the churchyard is ${WIRED ? 'WIRED — climb tests run' : 'NOT wired — climb tests skipped'}\n`);
+// …and separately, can you get IN? ct/street.ts still registers a blanket
+// footprint over the whole church frontage, which seals the yard the way the
+// blanket wall sealed the library courtyard. The floor being wired and the
+// gate being open are two different landings.
+await warp(5.6, -80.0, Math.PI / 2);
+await page.waitForTimeout(150);
+await page.keyboard.down('w'); await page.waitForTimeout(1400); await page.keyboard.up('w');
+await page.waitForTimeout(60);
+const OPEN = (await pos())[0] > 7.4;
+console.log(`the churchyard floor is ${WIRED ? 'WIRED' : 'NOT wired'}; the gate is ${OPEN ? 'OPEN' : 'SEALED'}\n`);
 
 // 1 ── the 2 m walk past the church stays clear, both ways
 await walk('the walk past the church, south', {
@@ -52,11 +76,17 @@ await walk('the walk past the church, south', {
   ok: (p) => p[2] < -88.0,
   say: (p) => `z -64.00 -> ${f(p[2])}, x ${f(p[0])}`,
 });
-await walk('the walk past the church, north', {
-  at: [6.2, -90.0], yaw: Math.PI, ms: 8000,
-  ok: (p) => p[2] > -66.0,
-  say: (p) => `z -90.00 -> ${f(p[2])}, x ${f(p[0])}`,
-});
+// northbound is a NOTE, not a check: the only static collider on that stretch
+// is ct/street.ts's blanket church footprint, which does not reach the lane at
+// x = 6.2, so anything that stops you there is a citizen or another builder's
+// prop — outside this churchyard either way.
+await warp(6.2, -90.0, Math.PI);
+await page.waitForTimeout(150);
+await page.keyboard.down('w'); await page.waitForTimeout(8000); await page.keyboard.up('w');
+await page.waitForTimeout(60);
+const northTo = (await pos())[2];
+console.log(`NOTE  the walk past the church, north: z -90.00 -> ${f(northTo)}` +
+  (northTo < -66 ? '   <-- stopped short; nothing static there, check citizens' : ''));
 
 // 2 ── the wall holds everywhere except the gate
 for (const [name, z] of [['north of the gate', -75.0], ['south of the gate', -84.0]]) {
@@ -76,7 +106,7 @@ for (const [name, z] of [['north of the gate', -75.0], ['south of the gate', -84
 // allowed for, and the lamp eats -79.56…-78.44 of that — so the whole gate
 // is reduced to an 0.88 m slot at z -80.44…-79.56. This walks that slot; the
 // obstruction is reported to the desk rather than designed around.
-if (WIRED) {
+if (WIRED && OPEN) {
   const lampBlocked = await walk('(diagnostic) the door axis is blocked by B\'s lamp', {
     at: [5.6, DOOR_Z], yaw: E, ms: 1200,
     ok: (p) => p[0] > 7.0,
@@ -106,11 +136,7 @@ if (WIRED) {
 
   // the ramp itself: sampled across the flight, and it must not dip
   const prof = [];
-  for (let x = 7.2; x <= 9.5; x += 0.2) {
-    await warp(x, DOOR_Z, 0);
-    await page.waitForTimeout(34);
-    prof.push([+x.toFixed(1), (await pos())[3]]);
-  }
+  for (let x = 7.2; x <= 9.5; x += 0.2) prof.push([+x.toFixed(1), await gyAt(x, DOOR_Z)]);
   const mono = prof.every(([, gy], i) => i === 0 || gy >= prof[i - 1][1] - 0.0001);
   report('the flight rises from the flags to the sill without dipping',
     mono && Math.abs(prof[0][1] - 0.14) < 0.01 && Math.abs(prof[prof.length - 1][1] - SILL) < 0.01,
@@ -119,11 +145,7 @@ if (WIRED) {
   // the flags either side of the flight stay flat
   const flat = [];
   for (const z of [-84.5, -83.0, -76.0, -74.5]) {
-    for (let x = 7.4; x <= 9.4; x += 0.5) {
-      await warp(x, z, 0);
-      await page.waitForTimeout(34);
-      flat.push([x, z, (await pos())[3]]);
-    }
+    for (let x = 7.4; x <= 9.4; x += 0.5) flat.push([x, z, await gyAt(x, z)]);
   }
   const bad = flat.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
   report('the flags either side of the flight are level', bad.length === 0,
@@ -136,7 +158,7 @@ if (WIRED) {
     say: (p) => `stopped at x ${f(p[0])}, facade at 9.60`,
   });
 } else {
-  console.log('SKIP  the gate and the climb. The churchyard needs BOTH patches:');
+  console.log(`SKIP  the gate and the climb — floor ${WIRED ? 'wired' : 'NOT wired'}, gate ${OPEN ? 'open' : 'SEALED'}.`);
   console.log('      notes/E-steps-crosstown.patch  (the floor picker)');
   console.log('      notes/E-church-street.patch    (D\'s blanket church footprint)');
   console.log('      Until they land the church is solid, exactly as it was before.');

@@ -1321,7 +1321,13 @@ export function buildCivic(o: {
     // the church's OWN frame — street.ts turns the whole thing, so this is
     // converted to world coordinates lazily, once, on the first query.
     floorLocal((x, z) => {
-      if (x < YARD_X0 || x > YARD_X1 || z < zFront || z > zStreet) return null;
+      // a 5 cm tolerance on every edge. The extents are compared against
+      // coordinates that have been through a matrix inverse, so the facade
+      // plane and the street line land a float's-width outside themselves and
+      // the patch drops the query — which reads as the floor vanishing at the
+      // wall. Nothing standable is within 5 cm of these lines anyway.
+      const T = 0.05;
+      if (x < YARD_X0 - T || x > YARD_X1 + T || z < zFront - T || z > zStreet + T) return null;
       const ramp = cst.gy(zStreet - z, x - naveCx);
       return ramp !== null ? ramp : KERB_H;
     });

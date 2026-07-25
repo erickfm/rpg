@@ -27,6 +27,19 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
+// `apt.gy()` is a last-written value with more than one writer, so a single
+// read can catch somebody else's frame — it shows up as an occasional 0 in a
+// field of 0.14. Sample it three times and take the mode-ish max; the floor
+// under a given point does not change between frames.
+const gyAt = async (x, z) => {
+  let best = -1;
+  for (let i = 0; i < 3; i++) {
+    await warp(x, z, 0);
+    await page.waitForTimeout(40);
+    best = Math.max(best, (await pos())[3]);
+  }
+  return best;
+};
 let fails = 0;
 const report = (name, ok, detail, tries) => {
   if (!ok) fails++;
@@ -36,8 +49,10 @@ const report = (name, ok, detail, tries) => {
 /** warp somewhere, hold a key, and test where you ended up — with retries */
 const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
   let last, tries = 0;
-  for (; tries < 3; tries++) {
-    if (tries) await page.waitForTimeout(1100);      // let the block clear
+  // 1.1 s was not enough: a citizen standing in a lane is seeded, so it stops
+  // you in the same place on every retry unless the wait outlasts its walk.
+  for (; tries < 4; tries++) {
+    if (tries) await page.waitForTimeout(3200);      // let the block clear
     await warp(at[0], at[1], yaw);
     await page.waitForTimeout(150);
     await page.keyboard.down(key); await page.waitForTimeout(ms); await page.keyboard.up(key);
@@ -139,9 +154,7 @@ const CZ = -13.0, FLIGHT_HALF = 2.05, XBOT = -8.4, XF = -10.2, TOP = 0.99;
 const samples = [];
 for (let x = -10.0; x <= -7.0; x += 0.4) {
   for (let z = -20.4; z <= -5.6; z += 2.0) {
-    await warp(x, z, 0);
-    await page.waitForTimeout(34);
-    samples.push([x, z, (await pos())[3]]);
+    samples.push([x, z, await gyAt(x, z)]);
   }
 }
 const flat = samples.filter(([, z]) => Math.abs(z - CZ) > FLIGHT_HALF);

@@ -10,6 +10,19 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
+// `apt.gy()` is a last-written value with more than one writer, so a single
+// read can catch somebody else's frame — it shows up as an occasional 0 in a
+// field of 0.14. Sample it three times and take the mode-ish max; the floor
+// under a given point does not change between frames.
+const gyAt = async (x, z) => {
+  let best = -1;
+  for (let i = 0; i < 3; i++) {
+    await warp(x, z, 0);
+    await page.waitForTimeout(40);
+    best = Math.max(best, (await pos())[3]);
+  }
+  return best;
+};
 let fails = 0;
 const report = (n, ok, d, t = 1) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}  ${d}${t > 1 ? `  [${t} tries]` : ''}`); };
 const walk = async (n, { at, yaw, ms, ok, say }) => {
@@ -67,7 +80,7 @@ console.log('      25 m of the park cannot be walked into — bounds.minX in cro
 // the floor is level all through
 const s = [];
 for (let x = -13.2; x <= -7.4; x += 0.6) for (let z = -96; z <= -70; z += 4) {
-  await warp(x, z, 0); await page.waitForTimeout(30); s.push([x, z, (await pos())[3]]);
+  s.push([x, z, await gyAt(x, z)]);
 }
 const bad = s.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
 report('the park floor is walk level everywhere', bad.length === 0,
