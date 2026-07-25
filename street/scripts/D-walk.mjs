@@ -199,11 +199,19 @@ for (const [name, x, z, yaw, test] of [
 ]) await walk(name, x, z, yaw, 8, test, (p) => `stopped at (${p[0]}, ${p[2]})`);
 
 console.log('\n5. the doors, and the money');
-for (const [name, x, z, yaw, steps] of [
+// The fifth field is WHAT THE PROMPT MUST SAY, and it is new.
+//
+// This asserted `got !== ''` — any prompt at all passed. Walk into range of a
+// neighbouring spot and the leg went green while the door under test was never
+// found. 1776b21e classifies instruments by whether their two sides share an
+// ancestor and 64df1705 found "a verdict that could not fail" in trash.mjs;
+// applying that reading to my own file found this. A non-empty string is not a
+// door.
+for (const [name, x, z, yaw, steps, must] of [
   // yaw 0 is -z. The door is NORTH of this start point, so this is Math.PI —
   // getting it wrong walks you away from the door and reports a dead trigger.
-  ['bodega street door', 8.0, -99.2, Math.PI, 8],
-  ['No. 227', 5.9, -44.0, Math.PI / 2, 6],
+  ['bodega street door', 8.0, -99.2, Math.PI, 8, 'BODEGA'],
+  ['No. 227', 5.9, -44.0, Math.PI / 2, 6, 'No. 227'],
 ]) {
   let got = '', t = 0;
   // `break`, not `&& !got` in the condition. That is the whole bug: on a
@@ -216,7 +224,7 @@ for (const [name, x, z, yaw, steps] of [
     for (let i = 0; i < steps && !got; i++) { await hold('w', 230); await page.waitForTimeout(200); got = await prompt(); }
     if (got) break;
   }
-  say(got !== '', name, JSON.stringify(got), t);
+  say(got.includes(must), name, JSON.stringify(got), t);
 }
 // The counters are the only spots in the world that SPEND, so prove the PURSE
 // moves rather than that a prompt reads.
