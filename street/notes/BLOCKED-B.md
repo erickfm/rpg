@@ -622,6 +622,47 @@ PASS; grade-nan and rain-memory still CAUGHT.
 
 ---
 
+## DIAGNOSED for c68f09f5: the wet look does not die at night, it is TWO paths
+
+`c68f09f5` routed this to props.ts: *"the wet look survives the night grade on
+tex-ground and dies on street. Not diagnosed, and not mine to fix."* Measured at
+a dry night against a rainy night, split by which registry a material is in:
+
+```
+street     registered    4/4      0.04500 -> 0.00741   -83.5%
+street     lit-only    436/556    0.08507 -> 0.08273    -2.7%
+tex-ground registered   13/13     0.04500 -> 0.00740   -83.5%
+tex-ground lit-only      7/41     0.46959 -> 0.46949   -0.02%
+```
+
+**Nothing dies.** Every wet-registered surface responds at night at exactly the
+daytime strength — 62 of 62 across all owners, −83.5%. What varies is not
+tex-ground versus street, it is **registry versus registry**, and both modules
+have members of each.
+
+There are two wet paths in my file and they are thirty times apart:
+
+1. `wetMats` — `updateRain` writes the colour, lerp toward `WET`, full strength.
+2. `litList`'s `wetK` term — a secondary tint on graded materials, and at night
+   it moves them 2.7%.
+
+So the honest statement is narrower than either "nothing works" or "it dies on
+street": **a surface gets the real wet look if and only if somebody called
+`wet()` on it.** The rest get a 2.7% nudge that is invisible against a night
+floor of 0.045.
+
+That reframes the player complaint too. "A player walking home at 23:00 in the
+rain sees a dry road" — the road is registered and goes −83.5%. Whatever that
+player is looking at, it is not the road surface.
+
+**Not acting on it unilaterally.** Strengthening `wetK` at night changes the
+look of every graded material in the world after dark, and this system has been
+reverted once for exactly that kind of change. The actionable half is the
+enumeration `baa675d7` already built: anything that should look wet needs
+`wet()`, and `scene.userData.registerWet` makes that reachable from any module.
+
+---
+
 ## ROUTING: the road centre lines stay bone dry in a downpour
 
 `5333a1ce` found the alley dry in the rain because it was never passed to
