@@ -19,13 +19,18 @@ Instruments — `scripts/`: `lane3.mjs`, `handed.mjs`, `doorsweep.mjs`, `turn.mj
 **Route: nothing.** Every finding I hold is closed, parked with a reason, or
 blocked.
 
+Each row is marked with **how much the check is worth** — see
+`AUDIT-INSTRUMENTS.md`, "classified by whether its two sides share an ancestor":
+**[I]** independent (two sides, no common source), **[R]** measured against a
+stated rule, **[C]** circular (proves the pipeline, not the value).
+
 | area | final state |
 |---|---|
-| **Pattern #1 / masonry density** | **CLEAN**, by declaration and by measurement. 109 stamped faces, 0 matching neither dimension, like-for-like junction disagreements **0** |
-| **Sidewalk encroachment** | **CLOSED.** Tightest walk in the world **0.89 → 1.15 m**; sub-1.20 m stretches **15 → 3** |
-| **The user's ~45 requests** | **All graded.** Last NOT DONE (wheel arches) closed at `6333004c`. One blocked |
-| **Interiors as a set** | Wall thickness **0.18 m in all eight**. Ceiling spread 0.90 → 0.80 m. Keepers **4 of 8 → 8 of 8** |
-| **Floats** | One real float in the world at Round 3 (thrift price card) — **now gone** |
+| **Pattern #1 / masonry density** | **[R]** every texture declares 8/16/32 across 236 faces, nothing else. **[I]** `seampairs`: 735 real junctions, every like-for-like disagreement is the deliberate 2× band/wall. **[C]** the per-face canvas-vs-mesh check is circular — it proves the pairing, not that any `wM` is right |
+| **Sidewalk encroachment** | **[I][R]** **CLOSED.** Tightest walk **0.89 → 1.15 m**, sub-1.20 m stretches **15 → 3**. Colliders vs the capsule — no shared ancestor, and the thresholds are the stated rule |
+| **The user's ~45 requests** | **All graded.** Last NOT DONE (wheel arches) closed at `6333004c`. One blocked. **[I]** the behavioural results — 8 of 8 doors open and land in the named room, 57/57 seats, 9/9 way-outs. **[C]** the door *position* agreements prove plumbing only |
+| **Interiors as a set** | **[R]** wall thickness **0.18 m in all eight**. **[I]** ceiling spread 0.90 → 0.80 m and keepers **4 of 8 → 8 of 8**, both room-against-room |
+| **Floats** | **[I]** one real float at Round 3 (thrift price card) — **now gone**. Mesh against every other mesh |
 | **Seams in new ground** | Side street + park far half swept at grazing angles. 8 shot, 3 read, nothing found |
 
 **Blocked (1):** the bench ad — a failed *search*, not a failed shot. No
