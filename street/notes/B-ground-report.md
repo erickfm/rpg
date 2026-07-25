@@ -64,6 +64,68 @@ clearance 5 mm, 11/14 puddles showing in a storm.**
 
 ---
 
+## DIAGNOSIS: "still no puddles during rain" — it is a contrast inversion
+
+Verified on the LIVE world at :5177 (build stamp `4867554`), not in my
+worktree. Worked the four causes in the order given. **Nothing changed yet.**
+
+**1. Is it raining when they look?** Partly. `rainAt` is true for **6 of 24
+hours (25%)**. From spawn at 13:20 the first rainy hour is h=15 — **100 real
+seconds of standing around** — then it rains for 60 s and is dry for ~300 s.
+So a player often genuinely is not in rain. *Contributing, not the cause.*
+
+**2. How long until a puddle is visible?** Not the problem. Measured on live:
+first puddle visible **2 s** after the rain starts, 11 of 14 by 6 s, all 14 by
+14 s. My `wetness` rework already fixed this — the old `dt * 0.22` figure in
+the queue predates it.
+
+**3. Where are they?** Every street puddle sits at |x| ≈ 4.6 — inside the
+45 cm gutter strip. Nothing is mid-road or anywhere you look while walking.
+*Contributing.*
+
+**4. Rendering — THIS IS IT.** The puddles are present, filled, correctly
+placed and genuinely being drawn. They are invisible because they have almost
+no contrast against the road, and it is worst exactly while it is raining.
+Measured by sampling the actual sheets and compositing them:
+
+| | road luminance | puddle body | contrast |
+|---|---|---|---|
+| dry | 0.2381 | 0.1523 | **22** / 255 levels |
+| raining | 0.0397 | 0.0551 | **4** / 255 levels |
+
+Two things go wrong at once, and both are mine:
+
+- **The wet tint crushes the road 6×**, 0.238 → 0.0397, because `updateRain`
+  lerps it toward the slate `WET` at 0.95. The puddle is a fixed dark sheet
+  and cannot go darker than that.
+- So the sign **inverts**: at 0.0551 the puddle is now 4 levels *lighter* than
+  the road it sits on. It is a faint pale smear — a very quiet version of the
+  glowing puddle that was shipped and rejected once already. The only reason
+  you can see anything at all is the sky-sheen texel (14 levels).
+
+The design rule "a puddle is darker than the road" is what breaks: it holds on
+dry asphalt and is impossible on a road already darkened to near-black by the
+rain that made the puddle. Standing water reads by **reflecting** — sky, lamps,
+signs — not by being dark, and reflection is the one thing the current sheet
+almost entirely lacks.
+
+### Options, not yet actioned
+
+1. **Ease off the wet tint** (one number, `rainLevel * 0.95`). The road should
+   darken when wet, but a 6× crush leaves no room under it for anything. This
+   also affects the night pass, which the user liked — so it is not free.
+2. **Let the puddle carry a real reflection**: a stronger sky/lamp sheen scaled
+   by the ambient, so it reads bright against a dark wet road by day and does
+   not glow at 3am. This is the honest physical answer and the one I would pick.
+3. **Put some water where the player looks** — a few shallow sheets on the road
+   crown and at the crossing, not only in the gutter.
+4. **Make rain findable at all**: 25% of hours, first one 100 s from spawn, is
+   thin for a feature asked about three times. A weather hook (or a rainier
+   opening hour) would let it be demonstrated on demand.
+
+I recommend 2 + 3, with 1 held back unless the desk wants it, because it
+trades against the night look that just landed.
+
 ## Found, not fixed — for the desk to rank
 
 ### A. "Trash looks too clean" — the other half of that note
