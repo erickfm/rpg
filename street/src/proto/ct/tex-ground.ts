@@ -221,6 +221,78 @@ export function walkTex(minX: number, maxX: number, minZ: number, maxZ: number):
   return t;
 }
 
+/** THE DRIVEWAY APRON, poured separately from the walk it interrupts.
+ *
+ *  The user: "a LARGE FLAT UNTEXTURED GREY PLANE: no concrete texture, no
+ *  scoring joints, no aggregate, a colour that matches neither the walk nor the
+ *  road." It was not untextured — it wore `walkTex`, the sidewalk sheet, at the
+ *  right density. But the apron is only 1.94 m across, which is 0.24 of that
+ *  8 m tile, so the window it samples can fall between the 1 m scoring joints
+ *  and contain none of them at all. A concrete sheet with no joint in frame is
+ *  a flat grey plane, and the eye is right to call it one.
+ *
+ *  So it gets its own sheet, sized from its REAL METRES at the one density —
+ *  32 px/m, the rule every other surface here follows — and mapped 1:1 with no
+ *  repeat, so a joint lands where this function puts it rather than wherever
+ *  the tile happens to cut.
+ *
+ *  Its joints run ACROSS the direction of travel: a car crosses them driving in
+ *  off the road, which is how an apron is actually poured and scored, instead of
+ *  continuing the sidewalk's grid through a slab that is not part of it. Same
+ *  aggregate and speckle as the walk, a slightly paler and warmer tone, because
+ *  it is a separate and usually newer pour.
+ *
+ *  It also has to READ AS A RAMP. The geometry already slopes — groundAt runs
+ *  0.042 at the kerb to 0.137 at the building line across the drive — but with
+ *  no joint or aggregate in view there is nothing for the slope to show on, and
+ *  a ramp you cannot see reads as broken geometry. The cross joints are what
+ *  give it that: they foreshorten as it falls away. */
+export function apronTex(minX: number, maxX: number, minZ: number, maxZ: number): THREE.Texture {
+  const w = Math.max(8, Math.round((maxX - minX) * WPM));   // 1.94 m -> 62 px
+  const h = Math.max(8, Math.round((maxZ - minZ) * WPM));   // 8.60 m -> 275 px
+  const t = pixTex(w, h, (g) => {
+    g.fillStyle = '#8a877d';                                 // paler and warmer than the walk's #84817a
+    g.fillRect(0, 0, w, h);
+    // aggregate: the same fine speckle the walk carries, so the two read as the
+    // same material even though the tone and the jointing differ
+    for (let i = 0; i < w * h * 0.10; i++) {
+      const x = Math.random() * w, y = Math.random() * h, v = Math.random();
+      g.fillStyle = v < 0.55 ? `rgba(60,56,49,${0.05 + v * 0.22})`
+                             : `rgba(226,221,208,${(v - 0.55) * 0.30})`;
+      g.fillRect(x, y, 1, 1);
+    }
+    // tyre track staining down the middle of the drive, and grime at the kerb
+    // lip where the water and grit collect
+    const gr = g.createLinearGradient(0, 0, w, 0);
+    gr.addColorStop(0, 'rgba(38,35,30,0.20)');               // kerb edge, dirtiest
+    gr.addColorStop(0.45, 'rgba(38,35,30,0.03)');
+    gr.addColorStop(1, 'rgba(38,35,30,0.00)');               // building line, cleanest
+    g.fillStyle = gr; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 14; i++) {
+      const x = Math.random() * w, y = Math.random() * h, r = 3 + Math.random() * 14;
+      const b = g.createRadialGradient(x, y, 1, x, y, r);
+      b.addColorStop(0, `rgba(44,40,34,${0.05 + Math.random() * 0.09})`);
+      b.addColorStop(1, 'rgba(44,40,34,0)');
+      g.fillStyle = b; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // SCORING JOINTS, across the direction of travel: constant-x lines running
+    // the full depth, spaced ~0.65 m so a 1.94 m apron carries two of them plus
+    // its edges. 2 px is 6 cm, the same joint width the walk uses.
+    g.fillStyle = 'rgba(0,0,0,0.28)';
+    const step = Math.round(0.65 * WPM);
+    for (let x = step; x < w - 2; x += step) g.fillRect(x, 0, 2, h);
+    // and the two edge joints where the pour meets the walk either side, which
+    // is what says "this slab was poured on its own"
+    g.fillRect(0, 0, 2, h);
+    g.fillRect(w - 2, 0, 2, h);
+    // the apron's own transverse joint at the flare shoulders, one each end
+    g.fillRect(0, 1, w, 2);
+    g.fillRect(0, h - 3, w, 2);
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;   // 1:1, no repeat — see above
+  return declareSurface(t, 'ground');
+}
+
 // ── the kerb face ─────────────────────────────────────────────────────────
 // 768 × 10 px = 12 m × 0.15 m, i.e. 64 px/m across and 67 px/m up: square
 // texels, so the grain never crowds. Read against walkTex's #84817a: the face
@@ -715,7 +787,18 @@ export function buildGround(o: GroundOpts): Ground {
     };
     for (let i = 0; i < NX; i++) for (let k = 0; k < NZ; k++) {
       const a0 = at(i, k), b0 = at(i + 1, k), c0 = at(i + 1, k + 1), d0 = at(i, k + 1);
-      for (const [vx, vy, vz] of [a0, b0, c0, a0, c0, d0]) {
+      // WOUND FOR AN UPWARD NORMAL. This emitted a,b,c / a,c,d, and with i
+      // increasing in x and k in z that is (dx,0,0) x (dx,0,dz) = -y: the top
+      // face pointed DOWN, was back-face culled, and you looked straight through
+      // the apron to the dark skirt box underneath it.
+      //
+      // That is the whole of the user's report. "A LARGE FLAT UNTEXTURED GREY
+      // PLANE ... a colour that matches neither the walk nor the road" is
+      // exactly right, and the colour is 605d56 — walkDarkM, the skirt's
+      // material, which is not meant to be seen from above at all. No texture I
+      // put on the apron could have shown, and the first one I tried did not:
+      // I painted it red with black stripes to test and the surface stayed grey.
+      for (const [vx, vy, vz] of [a0, c0, b0, a0, d0, c0]) {
         pos.push(vx, vy, vz);
         // walkTex encodes its world alignment in the texture's own repeat and
         // offset and expects UV 0..1 ACROSS THE REGION — exactly what a box's
@@ -728,7 +811,7 @@ export function buildGround(o: GroundOpts): Ground {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    scene.add(new THREE.Mesh(geo, wet(flat(walkTex(inner, 7, g0, g1)))));
+    scene.add(new THREE.Mesh(geo, wet(flat(apronTex(inner, 7, g0, g1)))));
     // and the dark edge under it, so the apron does not float at the kerb
     const skirt = new THREE.Mesh(new THREE.BoxGeometry(7 - inner, 0.14, g1 - g0), walkDarkM);
     skirt.position.set((inner + 7) / 2, -0.07 + 0.002, (g0 + g1) / 2);
