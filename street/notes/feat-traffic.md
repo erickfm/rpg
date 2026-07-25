@@ -504,6 +504,32 @@ Five separate instances, all mine, all found by deliberately breaking the world:
    failure-watches on this project look like passes. Redirect to a file and read
    node's own status.
 
+**Never cite your own commit until it is on mainline.** `10006a2ab` measured the
+project's dead-citation backlog as not shrinking, because it is a LEAK rather
+than a backlog: a builder rebases on nearly every turn, each rebase rewrites
+their commits, and any note pointing at a pre-rebase sha1 dies silently. 21 of
+my 59 citations were dead this way before I repaired them, and repairing is not
+the fix — the next note re-opens it.
+
+The rule that closes it costs nothing: **cite hashes that are already merged.**
+Other builders' landed commits are stable; your own un-merged ones are not. Mine
+have stayed at 2 unreachable across every commit since the repair, and those two
+are live-integrate build stamps, labelled as such. The check, worth re-running
+after any run of note-writing:
+
+```bash
+for h in $(grep -ohE '\b[0-9a-f]{7,10}\b' notes/H-*.md notes/BLOCKED-H.md | sort -u); do
+  git cat-file -e "$h^{commit}" 2>/dev/null || continue          # skip fingerprints
+  git merge-base --is-ancestor "$h" add-stick-and-city98 || echo "dead: $h"
+done
+```
+
+`git cat-file -e` alone is NOT that check — it passes for anything in your own
+object store, including the commits your rebases orphaned, which is how I
+published "every citation resolves" about notes that were broken for everyone
+else. And verify any remap by `git patch-id`, not by subject: mine were 19 of 19
+identical, but two commits can share a subject line.
+
 **And both fp captures must come from the same KIND of server** (`GOTCHAS.md`
 §31, `bff2f6a0`). A dev capture against a preview capture reports ~612 of 954
 textures changed on a world nobody touched: `scenedump` seeds `Math.random` so
