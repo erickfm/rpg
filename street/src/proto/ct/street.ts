@@ -656,14 +656,90 @@ export function buildStreet(o: {
     // were the block's brown brick, so it read as a stage flat. bankWall with
     // floors = 0 is the same panel, the same joints and the same palette with
     // no windows in it — which is what a blind precast return actually is.
-    const bankFlank = (wM: number, hM: number) => flat(bankWall(wM, hM, 0));
+    // THE RETURN, and it is a DECISION rather than a leftover.
+    //
+    // The complaint, twice: the front is a pale precast panel system with a
+    // regular window grid and the return was flat brick with nothing in it —
+    // not the wrong shade, a different building, two materials meeting at a
+    // sharp arris with nothing reconciling them.
+    //
+    // A blind flank IS real. Buildings do have windowless sides where they
+    // expected a neighbour. But it has to look like a party wall, and the
+    // strongest answer for a bank on a corner is the one real banks of the
+    // period use: CARRY THE FRONT ROUND THE FIRST BAY, then let it become a
+    // party wall behind that. The corner stays architecture; the depth of the
+    // site admits it was never meant to be seen.
+    //
+    // One texture, not two meshes: the transition IS the drawing. The bay is
+    // the same `bankWall` panel, joints, capping and window rhythm the FRONT
+    // is painted from — derived from that spec, never from a shared constant.
+    const BANK_PARTY = '#7d5140';        // cheaper, duller, NOT the block brick
+    const BAY_M = 3.2;
+    const bankReturn = (depM: number, hM: number, streetAt: 'left' | 'right') => {
+      const surf = masonry(depM, hM, SHOP_BAND_H);
+      const { W, H, ppm } = surf;
+      const m = (v: number) => Math.round(v * ppm);
+      const bayW = Math.min(m(BAY_M), Math.round(W * 0.45));
+      const bx = streetAt === 'right' ? W - bayW : 0;   // +z face reads +x; -z reads -x
+      return surf.paint((g) => {
+        // ── behind the bay: a party wall nobody was meant to see ──────────
+        g.fillStyle = BANK_PARTY; g.fillRect(0, 0, W, H);
+        surf.courses(g);
+        // tar ghosts — the roofline of what stood against it, painted over
+        g.fillStyle = 'rgba(30,24,20,0.28)';
+        const ghost = m(hM * 0.46);
+        g.fillRect(streetAt === 'right' ? 0 : bayW, ghost, W - bayW, H - ghost);
+        g.fillStyle = 'rgba(0,0,0,0.22)';
+        g.fillRect(streetAt === 'right' ? 0 : bayW, ghost, W - bayW, Math.max(1, m(0.14)));
+        // a painted sign that has almost gone, the way they do
+        g.fillStyle = 'rgba(214,198,170,0.10)';
+        g.fillRect(streetAt === 'right' ? m(0.8) : bayW + m(0.8), ghost + m(1.4), Math.max(2, W - bayW - m(1.6)), m(1.9));
+        // weather, per metre, heaviest at the top where it runs off
+        g.fillStyle = 'rgba(0,0,0,0.17)';
+        for (let i = 0; i < Math.max(6, Math.round(depM * 1.2)); i++) {
+          g.fillRect((i * 37) % W, 0, 2, Math.round(H * (0.25 + ((i % 5) / 6))));
+        }
+        // NO capping across the party wall. That is the tell: a cornice costs
+        // money and nobody spends it on a face that was going to be buried.
+        // ── the bay: the front, turning the corner ────────────────────────
+        g.fillStyle = BANK_STONE; g.fillRect(bx, 0, bayW, H);
+        g.fillStyle = 'rgba(0,0,0,0.15)';                      // the same panel joints
+        for (let x = bx; x <= bx + bayW; x += m(2.4)) g.fillRect(x, 0, Math.max(1, m(0.05)), H);
+        for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(bx, y, bayW, Math.max(1, m(0.05)));
+        g.fillStyle = 'rgba(255,255,255,0.09)';
+        for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(bx, y + Math.max(1, m(0.05)), bayW, 1);
+        // ONE window per floor, on the front's own rhythm and sill line, so
+        // the grid genuinely continues round the corner instead of restarting
+        const cx = bx + Math.round(bayW / 2);
+        for (let f = 0; f < 4; f++) {
+          const y = m(0.7) + f * m(FLOOR_M);
+          g.fillStyle = 'rgba(0,0,0,0.42)'; g.fillRect(cx - m(0.78), y - m(0.08), m(1.56), m(1.42));
+          g.fillStyle = BANK_BRONZE; g.fillRect(cx - m(0.7), y, m(1.4), m(1.26));
+          g.fillStyle = '#2b343d'; g.fillRect(cx - m(0.62), y + m(0.08), m(1.24), m(1.1));
+          g.fillStyle = 'rgba(160,180,200,0.18)'; g.fillRect(cx - m(0.62), y + m(0.08), m(0.4), m(1.1));
+          g.fillStyle = BANK_LIGHT; g.fillRect(cx - m(0.78), y + m(1.26), m(1.56), m(0.1));
+        }
+        // the capping returns over the bay ONLY, and stops dead
+        g.fillStyle = BANK_DARK; g.fillRect(bx, 0, bayW, m(0.55));
+        g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(bx, m(0.55), bayW, Math.max(1, m(0.08)));
+        // the arris itself: a shadow where precast meets brick, so the change
+        // reads as two materials meeting and not as a seam in one
+        g.fillStyle = 'rgba(0,0,0,0.34)';
+        g.fillRect(streetAt === 'right' ? bx - Math.max(1, m(0.07)) : bx + bayW, 0, Math.max(1, m(0.07)), H);
+        dither(g, W, H, Math.round(depM * hM * 4));
+      });
+    };
+    // the BACK is party wall all the way — no bay, nobody turns that corner
+    const bankFlank = (wM: number, hM: number) => flat(bankReturn(wM, hM, 'right'));
     const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, w),
-      [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM, bankFlank(dep, h), bankFlank(dep, h)]);
+      [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM,
+        flat(bankReturn(dep, h, 'right')),      // +z face: u runs with +x, street is at max
+        flat(bankReturn(dep, h, 'left'))]);     // -z face: u runs with -x, street is at min
     wall.position.set(cx, h / 2 + SHOP_BAND_H, cz);
     scene.add(wall);
     const band = new THREE.Mesh(new THREE.BoxGeometry(dep, SHOP_BAND_H, w),
       [flat(bankBand(w)), bankFlank(w, SHOP_BAND_H), roofM, roofM,
-        bankFlank(dep, SHOP_BAND_H), bankFlank(dep, SHOP_BAND_H)]);
+        flat(bankReturn(dep, SHOP_BAND_H, 'right')), flat(bankReturn(dep, SHOP_BAND_H, 'left'))]);
     band.position.set(cx, SHOP_BAND_H / 2, cz);
     scene.add(band);
     solid({ minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
