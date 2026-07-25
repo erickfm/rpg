@@ -1975,3 +1975,56 @@ The others genuinely need a human eye or a pixel-sampling approach nobody has
 built. **Worth saying plainly rather than pretending the suite covers them.**
 
 *(`scripts/**` is builder A's; I am naming the gap, not filing the script.)*
+
+## Two appearance checks attempted structurally: one works, one exposed a hole in my own verdict
+
+Testing whether "appearance" requests really need an eye.
+
+### BURGER BARN red-and-beige — **works, no camera needed**
+
+Sampling every material on that frontage's shopfront band and testing for
+yellow:
+
+```
+BURGER BARN   frontage found · 13 materials on the shopfront band
+   PASS — no yellow
+```
+
+**A direct user request, checked structurally in milliseconds.** This one could
+be registered tomorrow, and it confirms by a second method what I had only read
+off a frame.
+
+### Wheel arches — my check failed, and it was right to
+
+```
+94 tyres · highest tyre top 0.858 m · arch line 0.72 m
+   ** FAIL — the tyre stands above the arch **
+```
+
+That FAIL is **my instrument being naive**, not a defect: I applied a single arch
+line to every tyre in the world. There are **four size classes**:
+
+| tyre top | count | what |
+|---|---|---|
+| 0.663 m | 44 | the street fleet — the ones I measured |
+| **0.803 m** | **44** | **the car lot's stock** |
+| 0.851 m | 2 | larger vehicle |
+| 0.858 m | 4 | larger vehicle |
+
+`0.72` is the arch line for the **0.663 class only** — rocker 0.34 + `ARCH_H`
+0.38, from the sedan and pickup I photographed.
+
+### The part that matters: my wheel-arch verdict covered 2 vehicles of 94 tyres
+
+I graded *"wheel arches read as arches"* **DONE** on the maroon sedan and the
+olive pickup, side-on, at eye height. Both are the 0.663 class. **The car lot's
+44 tyres are a different size class and I never looked at one.**
+
+> The verdict stands for what I checked and **says nothing about half the tyres
+> in the world.** If the lot's stock uses the same `ARCH_HW`/`ARCH_H` constants
+> against a larger wheel, the arch would clear by less — or not at all — and
+> nothing I did would have seen it.
+
+That is a coverage gap in a DONE I reported confidently, found only because I
+tried to turn it into a check. **Trying to automate a hand verdict is a good way
+to discover how narrow the hand verdict was.**
