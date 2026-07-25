@@ -289,14 +289,33 @@ export function buildStreet(o: {
       // It faces ALONG the street, not across it. A sign hung parallel to its
       // own facade is edge-on to everyone approaching down the street, which
       // is the only way this one is ever seen — from the far end of it.
+      // ── and it STANDS ON SOMETHING ────────────────────────────────────
+      //
+      // The legs used to sit at z = -95 ± 3.2, which is -98.2 and -91.8: one
+      // of them hung in the air over the roadway and the other was buried
+      // behind the parapet. The building is only 3.4 m deep (z -96 … -92.6),
+      // so anything holding this up has to stand inside that. A rooftop sign
+      // with no visible steelwork reads as a decal pasted on the sky.
       const cxm = (casino[0] + casino[1]) / 2, top = SHOP_BAND_H + 3.4 + 4 * 2.4;
-      for (const dz of [-3.2, 3.2]) {                  // two legs it stands on
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.3, 4.2, 0.3), boardM);
-        leg.position.set(cxm, top + 2.1, -95.0 + dz);
-        scene.add(leg);
+      const ROOF = top, BOT = ROOF + 2.2;              // sign sits 2.2 m clear
+      const steelM = new THREE.MeshBasicMaterial({ color: 0x35323a });
+      for (const s of [-1, 1]) {
+        const upright = new THREE.Mesh(new THREE.BoxGeometry(0.2, BOT - ROOF, 0.2), steelM);
+        upright.position.set(cxm, (ROOF + BOT) / 2, -94.3 + s * 1.2);
+        scene.add(upright);
+        // a raking brace back to the parapet, which is what actually stops a
+        // sign this size pivoting in the wind
+        const brace = new THREE.Mesh(new THREE.BoxGeometry(0.13, 2.78, 0.13), steelM);
+        brace.position.set(cxm, ROOF + 1.1, -94.3 + s * 1.75);
+        brace.rotation.x = -s * 0.657;
+        scene.add(brace);
       }
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.55, 7.4, 9.2), boardM);
-      frame.position.set(cxm, top + 8.0, -95.0);
+      const tie = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 2.8), steelM);
+      tie.position.set(cxm, BOT - 0.2, -94.3);
+      scene.add(tie);
+      // the board itself, centred over the building rather than over the kerb
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2), boardM);
+      frame.position.set(cxm, BOT + 3.3, -94.3);
       scene.add(frame);
       twoSided(92, 74, (g) => {
         g.fillStyle = '#e8c25a'; g.font = 'bold 15px monospace';
@@ -307,7 +326,7 @@ export function buildStreet(o: {
         g.fillStyle = '#f2d98a';                       // chaser bulbs round the edge
         for (let x = 3; x < 92; x += 8) { g.fillRect(x, 2, 4, 3); g.fillRect(x, 69, 4, 3); }
         for (let y = 6; y < 70; y += 8) { g.fillRect(2, y, 3, 4); g.fillRect(87, y, 3, 4); }
-      }, 8.8, 7.0, cxm, top + 8.0, -95.0, 0.29);
+      }, 6.8, 6.2, cxm, BOT + 3.3, -94.3, 0.26);
     }
     if (hotel) {
       // a blade sign hung off the building at first-floor level, read end-on
@@ -316,6 +335,18 @@ export function buildStreet(o: {
       const mast = new THREE.Mesh(new THREE.BoxGeometry(0.22, 6.6, 0.5), boardM);
       mast.position.set(hx, 7.4, -96.72);
       scene.add(mast);
+      // Bracketed back to the wall. A blade sign is cantilevered off a
+      // building — without the arms and the raking stays it floats beside it.
+      const steelB = new THREE.MeshBasicMaterial({ color: 0x35323a });
+      for (const y of [9.9, 5.4]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.78), steelB);
+        arm.position.set(hx, y, -96.37);
+        scene.add(arm);
+        const stay = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.1, 0.07), steelB);
+        stay.position.set(hx, y + 0.43, -96.37);
+        stay.rotation.x = 0.69;                        // wall high, mast low
+        scene.add(stay);
+      }
       twoSided(16, 80, (g) => {
         g.fillStyle = '#7ad4e8'; g.font = 'bold 11px monospace';
         g.textAlign = 'center'; g.textBaseline = 'middle';
