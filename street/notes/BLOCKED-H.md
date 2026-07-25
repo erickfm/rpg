@@ -102,6 +102,14 @@ rain h14, 18 s settle     0.5355                 0.6236   <- 30.7%  fully wet
 The jump delivers wetness to everything that is registered. The fleet not
 moving is a fact about the fleet, and it survives a full settle.
 
+**The two hours are the right two hours**, checked against the published
+function rather than the constant I originally picked them from: `rainAt(12)`
+is false and `rainAt(14)` is true at HEAD. `c45e1fd4` warns that `clock(h)` sets
+the ABSOLUTE hour and `rainAt` keys on it, so a script that finds a rainy hour
+95 and calls `clock(95 % 24)` measures hour 23's weather instead — it cost that
+builder two measurements. Mine passed absolute hours under 24 throughout, so the
+wrap never applied.
+
 **My own first figure was a lower bound wearing the clothes of a measurement.**
 `b3e1e5c3` caught the same trap in its own numbers — `wSurf = wetness^1.7`, so a
 sample taken before wetness reaches 1.0 reports roughly half the effect. Mine
