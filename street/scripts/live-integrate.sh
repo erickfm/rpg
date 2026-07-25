@@ -29,7 +29,12 @@ snap() {  # a commit sha for the worktree's current state, dirty or not
   local tree; tree=$(GIT_INDEX_FILE="$idx" git -C "$wt" write-tree 2>/dev/null)
   rm -f "$idx"
   if [ -n "$tree" ]; then
-    git -C "$wt" commit-tree "$tree" -p "$(git -C "$wt" rev-parse HEAD)" -m wip 2>/dev/null
+    # Snapshot commits must never become reachable from a real branch. They
+    # leaked into mainline once via a rebase and showed up as "wip" in the
+    # project history. Tagged so they are identifiable, and never merged with
+    # --ff-only into anything but the throwaway `live` branch.
+    git -C "$wt" commit-tree "$tree" -p "$(git -C "$wt" rev-parse HEAD)" \
+      -m "live-snapshot: $(basename "$wt") [not for merge]" 2>/dev/null
   else
     git -C "$wt" rev-parse HEAD
   fi

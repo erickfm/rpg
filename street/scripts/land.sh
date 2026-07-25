@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# The merge train: land every builder that is green, in one pass.
+#
+# Rebases each builder branch onto mainline, fast-forwards it in, and typechecks
+# after EACH one so a break is attributed to the builder that caused it rather
+# than discovered at the end. A builder that conflicts or breaks the build is
+# skipped and reported — the train does not stop for it.
+#
+# Usage:  scripts/land.sh          land everything green
+#         scripts/land.sh --dry    report what would land, change nothing
+set -u
+ROOT=/home/erick/projects
+MAIN=$ROOT/rpg
+BASE=add-stick-and-city98
+DRY=${1:-}
+
+cd "$MAIN" || exit 1
+tsc_ok() { ( cd "$MAIN/street" && npx --no-install tsc --noEmit >/dev/null 2>&1 ); }
+
+if ! tsc_ok; then
+  echo "REFUSING TO LAND: mainline is already broken. Fix it first."
+  exit 1
+fi
+
+landed=(); skipped=(); nothing=()
+for wt in "$ROOT"/rpg-*; do
+  [ -d "$wt" ] || continue
+  case "$(basename "$wt")" in rpg-live) continue;; esac
+  b=$(git -C "$wt" rev-parse --abbrev-ref HEAD 2>/dev/null) || continue
+  [ "$b" = "$BASE" ] && continue
+
+  dirty=$(git -C "$wt" status --porcelain | grep -vc node_modules)
+  ahead=$(git -C "$wt" log --oneline "$BASE..$b" 2>/dev/null | wc -l)
+  if [ "$ahead" -eq 0 ]; then nothing+=("$(basename "$wt")"); continue; fi
+  if [ "$dirty" -gt 0 ]; then
+    skipped+=("$(basename "$wt") [uncommitted work — ask it to commit]"); continue
+  fi
+
+  if [ "$DRY" = "--dry" ]; then landed+=("$(basename "$wt") ($ahead commits)"); continue; fi
+
+  before=$(git rev-parse HEAD)
+  if ! git -C "$wt" rebase "$BASE" >/dev/null 2>&1; then
+    git -C "$wt" rebase --abort >/dev/null 2>&1
+    skipped+=("$(basename "$wt") [CONFLICTS with mainline — its owner must resolve]")
+    continue
+  fi
+  if ! git merge --ff-only "$b" >/dev/null 2>&1; then
+    git merge --no-edit "$b" >/dev/null 2>&1 || { git merge --abort >/dev/null 2>&1; \
+      skipped+=("$(basename "$wt") [merge failed]"); continue; }
+  fi
+  if tsc_ok; then
+    landed+=("$(basename "$wt") ($ahead commits)")
+  else
+    git reset -q --hard "$before"
+    skipped+=("$(basename "$wt") [merged but BROKE THE BUILD — reverted]")
+  fi
+done
+
+echo
+[ ${#landed[@]}   -gt 0 ] && printf 'LANDED:\n'  && printf '  ✓ %s\n' "${landed[@]}"
+[ ${#skipped[@]}  -gt 0 ] && printf 'SKIPPED:\n' && printf '  ✗ %s\n' "${skipped[@]}"
+[ ${#nothing[@]}  -gt 0 ] && printf 'NOTHING TO LAND: %s\n' "${nothing[*]}"
+if [ "$DRY" != "--dry" ]; then
+  ( cd "$MAIN/street" && npm run build 2>&1 | grep -E '✓ built|error' )
+fi
+echo
