@@ -1,4 +1,38 @@
-# Builder D — blocked on one thing, and it is a bug I put there
+# Builder D — blocked
+
+## LIVE BLOCK: the ATM. A ruling, not work.
+
+The only open D request is the ATM (`REJECTED` plus the user's fresh
+`"the atm is still not right"`). **The desk has instructed me not to start a
+fourth attempt**, and that instruction is right: three attempts each changed a
+different variable, so nobody knows which one is wrong.
+
+**Evidence is filed and the object is untouched:** `notes/D-atm-evidence.md`,
+with eye-height shots at `shots/atm-eye-{front,left30,right30}.png` (camY 1.760
+world = 1.62 m above the pavement, 1.5 m out, front and 30° each side).
+
+Eight of the nine asked-for figures measure correct in the built world. Two
+candidates remain and I am deliberately not choosing:
+
+1. **fascia HEIGHT 0.68 m** against *"about 1.0 m tall"* — the only geometric
+   miss. It fell out as a remainder of three pinned heights instead of being
+   set, and raising it conflicts with the screen height already asked for, so
+   the two figures may never have been meant to hold at once.
+2. **Not geometry at all** — the machine body is within **4%** luminance of the
+   bank wall (`#8d949b` vs `#9a9ca0`), so a genuine 0.17 m recess has nothing to
+   read against head-on. If this is the fault, three geometry attempts were
+   always going to miss it.
+
+**What unblocks me:** the desk or the user says which. Then it is one change,
+not another guess.
+
+Nothing else of mine is open — five D rows are CONFIRMED and the queue is
+discharged.
+
+---
+
+# Earlier, and RESOLVED — kept for the record
+
 
 `7b100b65` closes its bodega tally with *"canted bay → **no `__frontages`
 entry** → prompt off the walk line → trigger disc centred in the recess. Four
