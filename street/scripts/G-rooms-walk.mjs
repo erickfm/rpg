@@ -27,22 +27,30 @@ const KERB_H = 0.14, RADIUS = 0.36;
 const ROOMS = [
   {
     id: 'casino', label: /GOLDEN ACES/,
-    keeper: [3.1, 1.6],      // across the felt from the dealer
+    keeper: [-3.4, -6.2],    // across the felt from the dealer, in the pit
 
     building: 'GOLDEN ACES', at: 0, hasWindow: false,
-    // a z that is clear right across the room, for the ±x wall probes
-    clearZ: 3.0,
     // an x clear of furniture, for the ±z wall probes
-    // 3.0, not 0: 0 is where the door is now, so the probe walked out through
-    // the doorway instead of into the wall it is asserting about.
-    frontProbeX: 3.0, backProbeX: -3.0, backProbeZ: -3.0,
-    doorApproach: [0, 2.4],
+    // ALL RE-DERIVED for the 17 x 19 floor. Every number below was measured off
+    // the new layout, not nudged until it passed: the avenue is |x| < 1.3, the
+    // bank rows sit at z 6.2 / 3.4 / 0.6 / -2.2 / -5.0 and are 1.3 deep, the pit
+    // rope is at z -5.4 and the two tables at z -7.0.
+    //
+    // frontProbeX is 1.0: outside the 1.15 m door (half-width 0.575) but still
+    // in the clear avenue, so the probe walks up a lane and hits the front wall
+    // rather than starting inside a bank — which is what 3.0 did once the banks
+    // moved under it.
+    frontProbeX: 1.0, backProbeX: 1.0, backProbeZ: 0,
+    // clear right across the room: behind the pit rope (z -5.4, no collider) and
+    // in front of the tables, whose colliders now start at z -6.4
+    clearZ: -6.0,
+    doorApproach: [0, 7.6],
     lanes: [
-      ['the aisle between the slot banks, east', -4.2, -0.35, '+x', 2200, 'x', 4.6],
-      ['…and back west', 0.9, -0.35, '-x', 2200, 'x', 4.6],
-      ['the gap between the banks and the felt table', 1.5, 3.0, '-z', 2200, 'z', 3.0],
-      ['the aisle in front of the cage', -4.2, -3.0, '+x', 2200, 'x', 4.6],
-      ['past the felt table on the east wall side', 4.6, 3.0, '-z', 2200, 'z', 3.0],
+      ['down the avenue, past every bank', 0, 8.2, '-z', 3400, 'z', 11.0],
+      ['…and back up it to the door', 0, -4.2, '+z', 3400, 'z', 10.0],
+      ['the cross-aisle between the second and third banks', -7.4, 2.0, '+x', 3000, 'x', 13.0],
+      ['the open floor in front of the pit rope', -7.4, -6.0, '+x', 3000, 'x', 13.0],
+      ['past the tables to the cage', 0, -8.25, '+x', 2400, 'x', 5.0],
     ],
   },
   {

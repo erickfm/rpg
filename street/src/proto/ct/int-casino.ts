@@ -128,7 +128,18 @@ export function buildCasino(ctx: CtxBuild): void {
     // under the hotel two doors along, so the drop you feel walking in from
     // that lobby survives. The intent cost about a third of its margin; it did
     // not cost the effect.
-    w: 10.5, d: 9.0, h: 2.9,
+    // GROWN, on the user's instruction: "a casino floor should feel like it has
+    // no edges — that is the whole psychology of the room, no windows, no clock,
+    // and no sense of where it ends. Grow it well beyond a shop-sized box."
+    // 10.5 x 9.0 was a shop. 17.0 x 19.0 is a floor: from the door you cannot
+    // see the back wall past the banks, which is the whole of the effect.
+    //
+    // The HEIGHT deliberately does not grow with it. A low ceiling over a wide
+    // floor is what makes a casino feel boundless rather than cavernous — the
+    // mirror overhead reads as carrying on because you cannot see where it
+    // stops. Raising it would turn the room into a hall, which is the opposite
+    // of the brief.
+    w: 17.0, d: 19.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
@@ -394,9 +405,15 @@ export function buildCasino(ctx: CtxBuild): void {
     return [sideM, sideM, sideM, sideM, front, sideM];
   });
 
-  const SLOT_X0 = -4.55, SLOT_PITCH = 0.64, SLOT_N = 9;
-  const bankX0 = SLOT_X0 - 0.3, bankX1 = SLOT_X0 + (SLOT_N - 1) * SLOT_PITCH + 0.3;
-  const bankCx = (bankX0 + bankX1) / 2, bankW = bankX1 - bankX0;
+  // SLOT_N is 9 because ROWS below has NINE entries per row. I had this at 10
+  // for a while and it did not throw: row[9] is undefined, slotMats[undefined]
+  // is undefined, and three.js quietly draws the default white material — one
+  // wrong-looking cabinet at the end of every bank, in a room where the whole
+  // point is that the cabinets vary. A literal table and a loop bound are two
+  // authorings of one number; the loop reads the table's length now.
+  const SLOT_PITCH = 0.64;
+  const SLOT_N = 9;
+  const bankW = (SLOT_N - 1) * SLOT_PITCH + 0.6;
   // Which cabinet stands where, written out by hand rather than drawn from a
   // random stream. GOTCHAS §2: there is ONE seeded rnd() and its ORDER is
   // load-bearing — every tree height and pigeon in the world shifts if a new
@@ -408,20 +425,41 @@ export function buildCasino(ctx: CtxBuild): void {
     [0, 2, 0, 1, 0, 0, 1, 0, 0],
     [0, 0, 1, 0, 0, 0, 2, 0, 1],
   ];
+  // TWO BLOCKS EITHER SIDE OF A CENTRAL AVENUE, five rows deep each.
+  //
+  // "Banks of slots receding into the distance rather than a couple of rows",
+  // and "sightlines that never quite show you a wall". Both come out of the same
+  // arrangement: rows run along x and stack down z, so from the door you look
+  // straight down an avenue with bank after bank going away from you on both
+  // sides and no wall at the end of it that you can actually see.
+  //
+  // The avenue is 2.6 m wide and runs the full depth. It is also what keeps the
+  // entry clear — the old layout put a bank 1.4 m inside the door, which is the
+  // pawn shop's "i immediately hit a counter" waiting to be reported again.
+  // 1.6, not 1.3. The walk found the reason: the bank colliders start exactly on
+  // the avenue edge, so at 1.3 a 0.36 m player had only |x| < 0.94 of real lane
+  // and clipped the corner of the last bank on the way past. 1.6 gives 1.24 m
+  // either side of the centreline and still leaves 1.18 m between the outer bank
+  // and the wall.
+  const AVENUE = 1.6;                                  // half-width of the centre lane
+  const BANK_Z = [6.2, 3.4, 0.6, -2.2, -5.0];          // receding from the door
   let rowN = 0;
-  for (const bz of [-1.6, 0.9]) {
-    for (const face of [1, -1]) {
-      const row = ROWS[rowN++];
-      for (let i = 0; i < SLOT_N; i++) {
-        const m = new THREE.Mesh(slotGeo, slotMats[row[i]]);
-        if (face < 0) m.rotation.y = Math.PI;
-        put(m, SLOT_X0 + i * SLOT_PITCH, 0.725, bz + face * 0.35);
+  for (const bz of BANK_Z) {
+    for (const sx of [-1, 1]) {
+      const x0 = sx < 0 ? -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH : AVENUE + 0.3;
+      for (const face of [1, -1]) {
+        const row = ROWS[rowN++ % ROWS.length];
+        for (let i = 0; i < SLOT_N; i++) {
+          const m = new THREE.Mesh(slotGeo, slotMats[row[i]]);
+          if (face < 0) m.rotation.y = Math.PI;
+          put(m, x0 + i * SLOT_PITCH, 0.725, bz + face * 0.35);
+        }
       }
+      // ONE collider per bank, not one per machine. The cabinets are 0.04 m
+      // apart and the player is 0.72 m across, so per-machine boxes would only
+      // carve slots you wedge into — the same lesson the diner's booths taught.
+      solid(x0 + ((SLOT_N - 1) * SLOT_PITCH) / 2, bz, bankW, 1.3);
     }
-    // ONE collider per bank, not one per machine. The cabinets are 0.04 m
-    // apart and the player is 0.72 m across, so per-machine boxes would only
-    // carve slots you wedge into — the same lesson the diner's booths taught.
-    solid(bankCx, bz, bankW, 1.3);
   }
 
   // ── the felt table ──
@@ -445,7 +483,14 @@ export function buildCasino(ctx: CtxBuild): void {
   // for the player's centre on the bank side and 0.48 m on the wall side. A
   // 2.2 m table — the first size I drew — closed the wall side to 0.28 m and
   // turned the corner of the room into a wedge (GOTCHAS §9).
-  const TX = 3.1, TZ = 0.4;
+  // Was 3.1, 0.4, sized off the gap between the old bank and the old east wall.
+  // Both of those are gone: the floor is 17 x 19 now and the tables sit in the
+  // open ground BEYOND the banks, where a pit belongs — you walk the avenue
+  // past the machines and come out at the tables.
+  // TZ is -7.0, not -7.6, and the walk found the reason: at -7.6 the tables'
+  // colliders ended on z -8.2 and the cage's front face is at -8.9, leaving a
+  // 0.70 m gap for a 0.72 m player. Nobody would have got through it. 1.30 m now.
+  const TX = -3.4, TZ = -7.0;
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
@@ -484,7 +529,10 @@ export function buildCasino(ctx: CtxBuild): void {
   // one place in the building where the money is real is the last place you
   // reach. High counter, barred grille above it, one gap in the bars to pass
   // notes through.
-  const CAGE_X = 3.0, CAGE_W = 3.0, CAGE_Z = -hd + 0.3;
+  // "A cage in the far corner." It was central-ish on the back wall of a 9 m
+  // room, which on a 19 m floor would sit dead ahead of the avenue and close the
+  // view down it — the one sightline the room is built around.
+  const CAGE_X = hw - 2.6, CAGE_W = 3.0, CAGE_Z = -hd + 0.3;
   const cageWoodT = declareSurface(pixTex(48, 20, (g) => {
     g.fillStyle = '#3a2620'; g.fillRect(0, 0, 48, 20);
     g.fillStyle = 'rgba(0,0,0,0.25)';
@@ -586,15 +634,23 @@ export function buildCasino(ctx: CtxBuild): void {
   valT.wrapS = THREE.RepeatWrapping;
   const valFaceM = ctx.flat(valT);
   const valTopM = new THREE.MeshBasicMaterial({ color: 0x6a5220 });
-  for (const bz of [-1.6, 0.9]) {
-    const t = valT.clone(); t.wrapS = THREE.RepeatWrapping;
-    t.repeat.set(Math.round(bankW / 1.1), 1); t.needsUpdate = true;
-    const faceM = ctx.flat(t);
-    put(new THREE.Mesh(new THREE.BoxGeometry(bankW, 0.3, 1.0),
-      [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), bankCx, room.H - 0.64, bz);
-    for (const s2 of [-1, 1]) {
-      bulbLine(bankCx - bankW / 2 + 0.15, 2.08, bz + s2 * 0.5,
-               bankCx + bankW / 2 - 0.15, 2.08, bz + s2 * 0.5, 0.34);
+  // one valance per BANK, so the gold-and-bulbs run carries away down both
+  // blocks — it is the thing that makes the depth read as depth rather than as
+  // an empty floor with machines at the near end
+  for (const bz of BANK_Z) {
+    for (const sx of [-1, 1]) {
+      const cx2 = sx < 0
+        ? -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2
+        : AVENUE + 0.3 + ((SLOT_N - 1) * SLOT_PITCH) / 2;
+      const t = valT.clone(); t.wrapS = THREE.RepeatWrapping;
+      t.repeat.set(Math.round(bankW / 1.1), 1); t.needsUpdate = true;
+      const faceM = ctx.flat(t);
+      put(new THREE.Mesh(new THREE.BoxGeometry(bankW, 0.3, 1.0),
+        [valTopM, valTopM, valTopM, valTopM, faceM, faceM]), cx2, room.H - 0.64, bz);
+      for (const s2 of [-1, 1]) {
+        bulbLine(cx2 - bankW / 2 + 0.15, 2.08, bz + s2 * 0.5,
+                 cx2 + bankW / 2 - 0.15, 2.08, bz + s2 * 0.5, 0.34);
+      }
     }
   }
   void valFaceM;
@@ -607,6 +663,45 @@ export function buildCasino(ctx: CtxBuild): void {
   }), 'sign');
   put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
   bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
+
+  // ── the second table, and the pit rail around both ────────────────────
+  //
+  // "More than one table, a raised or roped-off area." Both come out of the
+  // same move: two tables sitting inside a roped pit, which is what a real floor
+  // does — it separates the people playing tables from the people walking past
+  // the machines without putting a wall anywhere.
+  const T2X = 3.4, T2Z = -7.0;
+  {
+    const legM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
+    const felt2 = feltT.clone(); felt2.needsUpdate = true;
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 1.2),
+      [railM, railM, ctx.flat(felt2), railM, railM, railM]), T2X, 0.86, T2Z);
+    for (const lx of [-0.7, 0.7]) for (const lz of [-0.4, 0.4]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.80, 0.12), legM), T2X + lx, 0.40, T2Z + lz);
+    }
+    solid(T2X, T2Z, 1.9, 1.2);
+  }
+
+  // the rope: brass posts with a slack line between them, three sides open to
+  // the avenue so you can walk in — a rope you cannot cross is a wall
+  {
+    const postM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
+    const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
+    const PX0 = -5.6, PX1 = 5.6, PZ = -5.4;
+    const posts: number[] = [];
+    for (let x = PX0; x <= PX1 + 0.01; x += 2.8) posts.push(+x.toFixed(2));
+    for (const px of posts) {
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.92, 8), postM), px, 0.46, PZ);
+      put(new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), postM), px, 0.95, PZ);
+    }
+    for (let i = 0; i < posts.length - 1; i++) {
+      // skip the middle span: that is the way in, on the avenue's centreline
+      if (Math.abs((posts[i] + posts[i + 1]) / 2) < 1.5) continue;
+      const w = posts[i + 1] - posts[i];
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.05), ropeM),
+        (posts[i] + posts[i + 1]) / 2, 0.80, PZ);
+    }
+  }
 
   // ── the cage, given the same treatment as the front of the house ──
   bulbLine(CAGE_X - CAGE_W / 2, BULB_Y, -hd + 0.10, CAGE_X + CAGE_W / 2, BULB_Y, -hd + 0.10, 0.3);
@@ -621,8 +716,11 @@ export function buildCasino(ctx: CtxBuild): void {
   // one bank of sockets is dead — the same joke as the marquee's dead bulb,
   // and the reason this room is losing money in the same building that is
   const deadM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
-  for (let i = 0; i < 5; i++) {
-    put(new THREE.Mesh(bulbGeo, deadM), bankCx - bankW / 2 + 0.15 + i * 0.34, 2.08, 0.9 + 0.5);
+  {
+    const cx2 = -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2;   // the west block, second row in
+    for (let i = 0; i < 5; i++) {
+      put(new THREE.Mesh(bulbGeo, deadM), cx2 - bankW / 2 + 0.15 + i * 0.34, 2.08, BANK_Z[1] + 0.5);
+    }
   }
 
   // ── the light ──
@@ -650,9 +748,18 @@ export function buildCasino(ctx: CtxBuild): void {
     m.rotation.x = Math.PI / 2;
     put(m, lx, room.H - 0.35, lz);
   };
-  pool(2.8, 2.0, TX, TZ);           // over the table
-  pool(6.4, 1.6, bankCx, -0.35);    // the aisle between the banks
-  pool(6.4, 1.6, bankCx, -3.0);     // the aisle in front of the cage
+  pool(2.8, 2.0, TX, TZ);                       // over the table
+  // …and one down the avenue for every gap between banks, so the floor is lit
+  // in bands all the way back rather than only where the old two rows were
+  for (let i = 0; i < BANK_Z.length - 1; i++) {
+    const mid = (BANK_Z[i] + BANK_Z[i + 1]) / 2;
+    for (const sx of [-1, 1]) {
+      const cx2 = sx < 0
+        ? -AVENUE - 0.3 - ((SLOT_N - 1) * SLOT_PITCH) / 2
+        : AVENUE + 0.3 + ((SLOT_N - 1) * SLOT_PITCH) / 2;
+      pool(6.4, 1.6, cx2, mid);
+    }
+  }
 
   // The chase. `mesh.onBeforeRender` is a per-frame callback three.js already
   // gives every mesh, so a room can animate without the kit growing a hook —
