@@ -56,6 +56,7 @@ const probe = async (h) => {
           // too. That is what makes "offered to the dimmer and did not move"
           // decidable — before it, that sentence could not be said from here.
           graded: !!m.userData?.graded, wet: !!m.userData?.wet,
+          dbl: m.side === 2,
           // cf966b3d: ct/lot.ts stamps `userData.mod` on everything it adds.
           // Identity, not geography — walk up, because the stamp is applied to
           // the top-level child and inherited by everything under it.
@@ -134,9 +135,24 @@ await b.close();
 //
 // It is 1. From 417 unknowns to one material, by asking instead of guessing.
 const SCOPED = A.length === 4;
-const pairs = Object.entries(day.each)
+// GOTCHAS §22 HAS TWO COSTS AND ONLY ONE OF THEM IS STILL LIVE.
+//
+//   the dimmer skip        — fixed at the source by db76dc26 (`isGlass`)
+//   the transparent queue  — still live, but the harm §22 actually names is
+//                            DoubleSide geometry picking up sorting artifacts
+//                            it would never have had
+//
+// Measured: of the flag-pair materials in reach, 14 are FrontSide and ZERO are
+// DoubleSide. So failing on all of them hands their author tickets for a harm
+// that cannot occur in their case — which is precisely what 8e473276 had to
+// correct me for once already. Fail on the pair only where the harm is real;
+// list the rest as the rule violation they are and leave the judgement with
+// the person who knows why the flag is there.
+const allPairs = Object.entries(day.each)
   .filter(([, d]) => d.cut && d.tr && d.reach)
   .map(([uuid, d]) => ({ uuid, ...d }));
+const pairs = allPairs.filter((d) => d.dbl);
+const pairsFront = allPairs.filter((d) => !d.dbl);
 // A GENUINE FAILURE, now that it can be stated: props.ts wrote a colour to this
 // material (`graded`), it is not one props.ts deliberately keeps bright
 // (`selfLit`), it is not a light, it is not black — and it still reads the same
@@ -153,9 +169,15 @@ console.log(`  (${ungraded} others were never offered to it at all — interiors
 console.log('   anything built outside its reach. That is not a fault, it is scope.)');
 for (const d of dead)
   console.log(`   ${d.v.toFixed(3)} at ${d.x},${d.y},${d.z}  ${d.shape}`);
-console.log(`\n${pairs.length} materials break GOTCHAS §22 — alphaTest AND transparent`);
+if (pairsFront.length) {
+  console.log(`\n${pairsFront.length} materials break GOTCHAS §22 — but are FrontSide, so the`);
+  console.log('  sorting harm §22 names cannot reach them, and db76dc26 fixed the dimming');
+  console.log('  half at the source. Listed, not failed on: still worth deleting the flag,');
+  console.log('  but not worth anyone being paged for it.');
+}
+console.log(`\n${pairs.length} materials break GOTCHAS §22 AND are DoubleSide — real artifact risk`);
 if (!pairs.length) {
-  console.log('  no cut-out is sitting in the transparent sort queue');
+  console.log('  no DoubleSide cut-out is sitting in the transparent sort queue');
   process.exit(dead.length ? 1 : 0);
 }
 const skipped = pairs;
