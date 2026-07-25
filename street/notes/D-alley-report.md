@@ -1649,3 +1649,33 @@ figures stand — the -83%, the settle curve, the three-floor table. But **any
 re-run of that probe today silently measures dry weather and would look like the
 wetness had been removed.** The 0.1705 here matches the settle curve's 0.17043
 exactly, which is what confirms the old numbers rather than my memory of them.
+
+
+## The empty-world class, tested across all six rather than read off the code
+
+Four builders have now found checks that exit 0 having asserted nothing
+(`32d9d6521`, `ae7a30bba`, `7d199bdf3`, `80b6abfe6` — that last one watched
+`footprint` pass with ZERO tree pits). I fixed `builtlane` for it. Then I
+*claimed* the other five were guarded, having read their code.
+
+Reading is not watching, so I emptied what each keys on:
+
+| mutant | check | result |
+|---|---|---|
+| drop `userData.facing` | `shells` | **FAIL** — "1 carry a facing stamp", plus two more |
+| drop `userData.alley` | `alleycheck` | **FAIL** — "0 stamped 'end'", plus two more |
+| drop `userData.litSheet` | `windowlights` | **FAIL** — "sheets stamped: NONE — is street.ts stamping litSheet?" |
+| drop the alley flank stamp | `midnight` | **FAIL** — "no graded reference material found" |
+
+All four fire, and `windowlights` prints the diagnostic I wrote for exactly this
+case, naming the file that should have stamped it.
+
+**`midnight` is the interesting one.** Its population assertion is vacuously true
+on an empty world — "nothing of mine is bright" passes when there is no "mine" —
+and it still fails, because the **control** fails. That is what the control was
+for: a separate thing that has to be true for the main assertion to mean
+anything. It was added to catch a wrong hour and it catches an empty traverse
+for free.
+
+So of my six, one could pass on an empty world and now cannot; the other five
+were guarded, and I have now seen each of them refuse rather than assumed it.
