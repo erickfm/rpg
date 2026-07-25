@@ -220,18 +220,32 @@ Still open from the original list: **3** (wallpaper aliasing down the shaft),
 flat doors' painted casing under **2** — which the report already called a
 bigger job and arguably fine.
 
-## NEW, found while fixing 4
+## NEW, found while fixing 4 — and then WITHDRAWN
 
-**You can see daylight past the flanks of the cellar gate** (`21-cellar-lock`).
-The east and far walls of the shaft were carried up past the lobby floor so
-you look at concrete through the mesh rather than at lit wallpaper — but the
-WEST boundary at `AX(1.2)` has nothing above floor level, because a wall there
-would stand in the middle of the lobby. So at an angle the pale of the lobby
-shows through the diamonds at the edges, which undoes some of what carrying
-the other two walls up bought.
+I logged this as "you can see daylight past the flanks of the cellar gate":
+a pale wedge shows behind the left half of the mesh in `22-cellar-obliq`,
+and the obvious explanation was the WEST boundary at `AX(1.2)`, which has
+nothing above floor level because a wall there would stand in the lobby.
 
-It is not a wall that is wanted, it is a soffit or a return: something opaque
-filling the gap between the top of the gate frame and the stair over it,
-across the west edge only. Recorded rather than fixed because it wants
-checking against the under-stair colliders (`underStairA`/`B`) first, and I do
-not want to close a hole a player is meant to be able to stand in.
+**It is not that, and the way I found out is the point.** I checked the
+colliders first — `underStairA` is live on the lobby floor and contains the
+whole footprint, so no player can stand in there and closing it was safe — and
+then built the surface: concrete across the full west boundary, floor to
+2.2 m, opaque.
+
+**The wedge did not change.** An opaque plane across the whole boundary would
+have hidden it if the light were coming from beyond, so it is not coming from
+beyond: it is INSIDE the cellar. It is the soffit of flight A, which runs
+directly over the cellar across exactly `CZ0`–`CZ1`, seen from underneath
+through the gate. That is a stair, correctly lit, correctly where it should
+be — you are looking up under the steps you are standing beside.
+
+So the surface came back out. It fixed nothing and would have been geometry
+nobody could ever see, in a place where a later reader would have had to work
+out why it was there.
+
+**The lesson is cheap and worth keeping:** a fix that changes nothing is
+evidence, not a failure. Building the wrong fix disproved the diagnosis
+faster than staring at the frame would have, and the cost was one commit's
+worth of work that got reverted in the same session rather than a wrong
+explanation left in the report for someone else to inherit.
