@@ -114,10 +114,31 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     // oversized against the panel), or the flank becomes an alpha-cut plane with
     // the slab narrowed behind it so the tyre is seen THROUGH an opening. Both
     // are body rebuilds and both need a decision that is not mine to take.
+    // ── the arch is sized to the WHEEL, in metres ───────────────────────
+    //
+    // It used to be a fixed 10-TEXEL radius, and a texel is not a length here:
+    // this canvas is 96 wide however long the panel is, so px/m varies with the
+    // body and 10 texels came out as a different arch on every kind —
+    //
+    //   sedan  4.5 m panel  21.3 px/m  ->  0.94 m wide
+    //   hatch  3.8          25.3       ->  0.79
+    //   pickup 3.0 (cab)    32.0       ->  0.63
+    //   van    4.6          20.9       ->  0.96
+    //
+    // against a tyre 0.68 m across. So the arch was 40% too wide on a sedan and
+    // about right on the pickup, from the same line of code: the extent was
+    // coming from the PANEL, not from the wheel. That is why it read as a band
+    // running down the flank on the long bodies and as an arch on the short one.
+    //
+    // Now the radius is stated in metres and converted per axis, so it is the
+    // same arch on every vehicle and it hugs the tyre it belongs to.
+    const ARCH_R = 0.36;                       // tyre radius 0.34, plus air
+    const arx = Math.max(3, Math.round(ARCH_R * (96 / len)));
+    const ary = Math.max(3, Math.round(0.27 * 40));   // 40 rows per metre up
     g.fillStyle = '#0a0b0e';
     for (const wz of arches) {
       const ax = Math.round(((wz + len / 2) / len) * 96);
-      g.beginPath(); g.arc(ax, 20, 10, Math.PI, 0); g.fill();
+      g.beginPath(); g.ellipse(ax, 20, arx, ary, 0, Math.PI, 0); g.fill();
     }
     dither(g, 96, 20, 120);
   });
@@ -525,9 +546,14 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(0, yRow(0.44), skinW, skinH - yRow(0.44)); // rocker
       // the rear wheel arch, one ellipse — same reversion as the cab flank's,
       // for the same reason. See the note there.
+      // same fix as the cab flank's: radius in METRES, converted with this
+      // face's own px/m, so the bed's arch matches the cab's instead of being
+      // whatever 10 texels happens to mean on a 1.8 m panel
       g2.fillStyle = '#0a0b0e';
       const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
-      g2.beginPath(); g2.ellipse(ax, skinH, 10, 10, 0, Math.PI, 0); g2.fill();
+      g2.beginPath();
+      g2.ellipse(ax, skinH, Math.max(3, Math.round(0.36 * PPM_X)), Math.max(3, Math.round(0.27 * PPM_Y)), 0, Math.PI, 0);
+      g2.fill();
     });
     bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
     // The tailgate IS the back of the truck now, so it carries the tail lights
