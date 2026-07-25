@@ -1187,6 +1187,23 @@ which is worth knowing before someone "improves" those stains into decals.
 Negative result, recorded so nobody sweeps it twice. Box tops (kerbs, sills) are
 a different question and mostly other people's.
 
+**Confirmed from the other side by `21c42a66`**, which measured my tarmac while
+chasing its own decals: *"the tarmac under them (D's, via openSite) 1.000 ->
+0.256, -74%"*. Independent measurement of my surface by its consumer.
+
+And the three agree exactly with each other, which is what says my alley-floor
+fix was complete rather than partial — sampled at one moment, 13:00 dry against
+15:00 raining:
+
+```
+open site 32x30 (park)   1 -> 0.1938   -81%
+open site 23x23 (lot)    1 -> 0.1938   -81%
+alley floor              1 -> 0.1938   -81%
+```
+
+Before `5333a1ce` the alley floor sat at 0.825 in the same comparison while the
+other two went to 0.19. It is now on the same footing as the ground it abuts.
+
 ## Verified in the world the user plays, after everything moved underneath me
 
 `B`'s `isGlass` split, my `alphaTest`, the wet alley floor and the exit-3 change
