@@ -53,7 +53,7 @@ touched, and the normal runs stay green.
 | `check-seethrough.mjs` | yes | **yes** — `--selftest` |
 | `density.mjs` | yes | **yes** — `--selftest` |
 | `nightgrade.mjs` | yes | **yes** — `--selftest` |
-| `check-wiring.mjs` | yes | no — but it fired for real on 5 unbuilt modules |
+| `check-wiring.mjs` | yes | **yes** — `--selftest` (`f6f09834`) |
 | `seampairs.mjs` | **yes** — like-for-like and brick-vs-brick disagreement | **yes** — `--selftest` (`57aa9a6c`) |
 | `fpdiff.mjs` | prints only | **yes** — classifier proven both ways on a mutated fingerprint |
 | `scenedump.mjs` | measurement, not a check | n/a |
@@ -73,5 +73,32 @@ teach people to pass `--force`, and a missing declaration is not a fault.
 still **declares** 8 px/m while **drawing** 16 — the exact defect. One mutated
 face produces 7 disagreeing junctions, because it meets seven neighbours.
 
-**The one honest gap left is `check-wiring`**, which has never been mutated,
-though it fired for real on five unbuilt modules.
+## `check-wiring` closed (`f6f09834`) — every tool of mine has now been watched fail
+
+I twice let this one off with "it fired for real on five unbuilt modules". That
+is exactly the evidence a stale camera offers: *it worked once.*
+
+And it was the worst candidate for that excuse. This check exists because an
+unwired module is **invisible** — it typechecks, it builds, the sweep is clean
+and the fingerprint is stable, because an unreferenced module is simply absent.
+**A check for invisible things is the one you cannot tell has stopped working**,
+since a clean run and a broken run look identical.
+
+`--selftest` writes a real orphan to `src/proto/ct/__selftest-orphan.ts`
+exporting `buildSelftestOrphan()`. A genuine file, because the fault being
+detected *is* a file on disk that nothing references — faking it in memory would
+test the decision and not the scan. Cleanup runs inline **and** on process exit,
+so an unhandled throw cannot leave a stray module to break `tsc` for whoever runs
+next. Verified after: no stray file, `git status` clean, `tsc` clean.
+
+| tool | watched fail |
+|---|---|
+| `check-seethrough` | yes |
+| `density` | yes |
+| `nightgrade` | yes |
+| `seampairs` | yes |
+| `fpdiff` | yes — classifier proven both ways |
+| `check-wiring` | **yes** |
+
+`scenedump` remains a measurement rather than a check, and has no verdict to
+mutate.
