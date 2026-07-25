@@ -319,29 +319,38 @@ const CNR_CLEAR = 4.0;   // back along each leg from a junction return
 // plants it at (ROAD_HALF + 0.35, -6); this is the kerb line it fronts.
 const HYDRANTS: [number, number][] = [[ROAD_HALF + 0.35, -6]];
 
-// 2 ft × 3 ft cast-iron grate, parallel slots
-function grateTex(): THREE.Texture {
-  return pixTex(24, 36, (g) => {
-    g.fillStyle = '#3c3833'; g.fillRect(0, 0, 24, 36);
-    g.fillStyle = '#4a453e'; g.fillRect(0, 0, 24, 1); g.fillRect(0, 0, 1, 36);
-    g.fillStyle = '#2a2723'; g.fillRect(2, 3, 20, 30);
-    g.fillStyle = '#14120f';
-    for (let i = 0; i < 5; i++) g.fillRect(3, 5 + i * 6, 18, 3);
-    g.fillStyle = 'rgba(120,112,98,0.25)';
-    for (let i = 0; i < 5; i++) g.fillRect(3, 4 + i * 6, 18, 1);
-    dither(g, 24, 36, 60);
+// grateTex is gone: the grate is geometry now, not a picture of a grate.
+// Cast iron, for the frame and the kerb-inlet surround. Flat colour plus grit
+// and one lit top row — no gradient anywhere, because the shape is carried by
+// the geometry's edges now and the sheet only has to say "rough grey iron".
+function castTex(): THREE.Texture {
+  return pixTex(16, 16, (g) => {
+    g.fillStyle = '#46413a'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#565046'; g.fillRect(0, 0, 16, 1);     // worn bright along the top arris
+    g.fillStyle = '#332f2a'; g.fillRect(0, 15, 16, 1);
+    dither(g, 16, 16, 26);
   });
 }
-
-// the hooded curb inlet — a cast-iron piece let into the kerb face
-function hoodTex(): THREE.Texture {
-  return pixTex(32, 12, (g) => {
-    g.fillStyle = '#4d4841'; g.fillRect(0, 0, 32, 12);
-    g.fillStyle = '#635d53'; g.fillRect(0, 0, 32, 1);
-    g.fillStyle = '#38342e'; g.fillRect(0, 1, 32, 1);
-    g.fillStyle = '#0d0c0a'; g.fillRect(2, 5, 28, 5);   // the throat
-    g.fillStyle = '#2a2723'; g.fillRect(2, 4, 28, 1);
-    dither(g, 32, 12, 40);
+// Looking into the throat. There is no geometry behind this — the kerb mesh
+// is solid — so the sheet has to carry what you would see: black under the
+// lintel where the shadow is deepest, the back of the box faintly catching
+// light, and a lit invert where the pan runs in. It is the one place here a
+// drawing is the honest answer, because what is being drawn IS darkness.
+function throatTex(): THREE.Texture {
+  return pixTex(24, 10, (g) => {
+    g.fillStyle = '#0a0b0d'; g.fillRect(0, 0, 24, 10);
+    g.fillStyle = '#050506'; g.fillRect(0, 0, 24, 4);        // deepest under the lintel
+    g.fillStyle = '#15171b'; g.fillRect(2, 6, 20, 2);        // the back wall, just catching
+    g.fillStyle = '#232529'; g.fillRect(0, 9, 24, 1);        // the invert, wet and lit
+    g.fillStyle = '#0d0e11'; g.fillRect(0, 8, 24, 1);
+  });
+}
+// the grate bars: darker than the frame, because they sit down in the rebate
+function barTex(): THREE.Texture {
+  return pixTex(16, 16, (g) => {
+    g.fillStyle = '#2b2825'; g.fillRect(0, 0, 16, 16);
+    g.fillStyle = '#3d382f'; g.fillRect(0, 0, 16, 1);     // the one lit edge on each bar
+    dither(g, 16, 16, 18);
   });
 }
 
@@ -633,17 +642,82 @@ export function buildGround(o: GroundOpts): Ground {
   }
 
   // ── catch basins at the two corner low points, where the gutters run to ─
-  const grateM = new THREE.MeshBasicMaterial({ map: grateTex() });
-  const hoodM = new THREE.MeshBasicMaterial({ map: hoodTex(), side: THREE.DoubleSide });
+  //
+  // v1 was two flat planes — a grate texture laid on the pan, a hood texture
+  // painted on the kerb face — and the user's read was "what is this it looks
+  // bad". That is right, and it is the same defect as the lamp glow: a decal
+  // asked to do a job only geometry can do. A grate drawn flat is a black
+  // void with bars floating in it. Nothing framed it, nothing seated it in the
+  // concrete, and the kerb inlet had no throat behind it, so it was a
+  // rectangle of paint on a kerb.
+  //
+  // A combination inlet is a CASTING, and it is built as one now:
+  //   · a frame whose flange beds into the pan and stands slightly proud, the
+  //     way one does once the surface around it has worn down
+  //   · the grate dropped into the frame's rebate so its bars sit about a
+  //     centimetre BELOW the frame top — that step is most of what says
+  //     "casting" rather than "drawing"
+  //   · slots that are open onto a dark shaft, so they are holes into
+  //     something instead of black paint
+  //   · a throat through the kerb face under a cast lintel, which is what the
+  //     inlet is FOR — it takes water when the grate blinds over with leaves
+  //
+  // Every one of those reads by an EDGE and the shadow the edge throws, and an
+  // edge is the one thing a flat decal cannot have.
+  const ironM = new THREE.MeshBasicMaterial({ map: castTex() });
+  const barM = new THREE.MeshBasicMaterial({ map: barTex() });
+  const voidM = new THREE.MeshBasicMaterial({ color: 0x08090b });
   const basin = (kx: number, z: number, side: number) => {
-    const grate = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.9), grateM);
-    grate.rotation.x = -Math.PI / 2;
-    grate.position.set(kx - side * 0.3, 0.021, z);
-    scene.add(grate);
-    const hood = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.104), hoodM);
-    hood.rotation.y = side * Math.PI / 2;
-    hood.position.set(kx - side * 0.004, 0.058, z);
-    scene.add(hood);
+    const cx = kx - side * 0.30;                  // centre of the opening in the pan
+    const PY = gutterSurfaceY(0.30);              // the pan is cross-sloped; this is its height here
+    const OW = 0.56, OL = 0.86;                   // clear opening: 2 ft x 3 ft
+    const FL = 0.075, FR_H = 0.028, BAR_H = 0.012;
+    const box = (w: number, h: number, d: number, x: number, y: number, cz: number, m: THREE.Material) => {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      b.position.set(x, y, cz);
+      scene.add(b);
+    };
+    // The pan is a continuous surface and there is no hole cut in it, so the
+    // casting sits ON it and the shaft is a dark plate 1 mm above the concrete
+    // seen through the slots. At a 2 cm rebate that is indistinguishable from
+    // a real opening and it costs no surgery on the kerb mesh.
+    box(OW, 0.02, OL, cx, PY - 0.009, z, voidM);
+    // frame — flange all four sides, top 24 mm above the pan
+    box(FL, FR_H, OL + FL * 2, cx - side * (OW + FL) / 2, PY + 0.010, z, ironM);
+    box(FL, FR_H, OL + FL * 2, cx + side * (OW + FL) / 2, PY + 0.010, z, ironM);
+    box(OW, FR_H, FL, cx, PY + 0.010, z - (OL + FL) / 2, ironM);
+    box(OW, FR_H, FL, cx, PY + 0.010, z + (OL + FL) / 2, ironM);
+    // the grate: seven bars across the flow, sunk 11 mm under the frame top
+    const NB = 7, pitch = OL / NB;
+    for (let i = 0; i < NB; i++) {
+      box(OW, BAR_H, pitch * 0.55, cx, PY + 0.007, z - OL / 2 + pitch * (i + 0.5), barM);
+    }
+    // the two rails the bars land on, along the kerb line
+    box(0.035, BAR_H, OL, cx - OW / 2 + 0.017, PY + 0.007, z, barM);
+    box(0.035, BAR_H, OL, cx + OW / 2 - 0.017, PY + 0.007, z, barM);
+
+    // ── the throat through the kerb face ──
+    // The kerb mesh cannot be opened without rebuilding KPATH, so the surround
+    // stands a few millimetres off the face with the dark opening just inside
+    // it. The FIRST attempt at this stood 22 mm proud, and that was wrong for
+    // a reason worth keeping: you look at a kerb from 1.6 m eye height two
+    // metres away, which is about 20 degrees down, and at 20 degrees a lintel
+    // 22 mm proud casts itself over 62 mm of the face below it. The opening
+    // was 66 mm tall, so the lintel hid the entire throat from the only angle
+    // anyone stands at. Anything proud of a near-vertical face has to be
+    // measured against the angle it will be SEEN at, not against the face.
+    const PROUD = 0.007;
+    const fx = kx - side * PROUD;
+    const TL = 0.92;
+    const throat = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.070, TL - 0.05),
+      new THREE.MeshBasicMaterial({ map: throatTex() }));
+    throat.position.set(kx - side * 0.002, 0.059, z);
+    scene.add(throat);
+    box(PROUD, 0.020, TL, fx, 0.104, z, ironM);                          // lintel
+    box(PROUD, 0.014, TL, fx, 0.017, z, ironM);                          // sill
+    for (const s2 of [-1, 1]) {                                          // cheeks either end
+      box(PROUD, 0.090, 0.045, fx, 0.059, z + s2 * (TL / 2 - 0.0225), ironM);
+    }
   };
   basin(ROAD_HALF, -92.5, 1);    // east gutter, just up-grade of the corner return
   basin(-ROAD_HALF, -105, -1);   // west gutter, above the inside bend

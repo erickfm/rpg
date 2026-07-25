@@ -791,15 +791,39 @@ export function buildProps(ctx: CtxBuild): Props {
   // standing water over which this one fills: a deep hollow starts collecting
   // almost at once and is the last thing left, while a shallow smear needs a
   // real storm and goes first.
+  // Water at a catch basin does not sit in a circle — it RUNS, down the pan
+  // and into the mouth, and it is narrow because the pan is narrow. The
+  // symmetric 2.5 m sheet that used to sit on the drain was the same defect as
+  // the lamp glow: a large soft gradient blob in a world of hard texels, and
+  // the user's read was "what is this it looks bad". So this sheet is stepped
+  // and directional — a one-texel wetted edge, quantised, widest at the mouth
+  // and thinning up-grade, with hard catch-light texels rather than a sheen.
+  const trackT = pixTex(16, 64, (g) => {
+    for (let y = 0; y < 64; y++) {
+      const t = 1 - y / 63;                                     // 1 at the mouth
+      const half = Math.max(1, Math.round(1.3 + t * 5.2 + (((y >> 2) % 3 === 1) ? 1 : 0)));
+      g.fillStyle = 'rgba(15,19,26,0.80)';
+      g.fillRect(8 - half + 1, y, half * 2 - 2, 1);
+      g.fillStyle = 'rgba(20,25,33,0.46)';                      // the wetted edge, one texel, hard
+      g.fillRect(8 - half, y, 1, 1); g.fillRect(8 + half - 1, y, 1, 1);
+    }
+    g.fillStyle = 'rgba(150,168,196,0.18)';
+    for (const [x, y] of [[7, 11], [8, 11], [9, 29], [6, 43], [8, 51]]) g.fillRect(x, y, 1, 1);
+  });
   interface Puddle { m: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
   const puddles: Puddle[] = [];
-  const addPuddle = (x: number, z: number, w: number, lo: number, hi: number, max: number) => {
+  // `run` makes it a directed track instead of a blob. Both rnd() draws happen
+  // either way, even when the shape is given, so the seeded stream does not
+  // move when a puddle changes shape (GOTCHAS §2).
+  const addPuddle = (x: number, z: number, w: number, lo: number, hi: number, max: number,
+                     run?: { len: number; tex: THREE.Texture }) => {
     const m = new THREE.MeshBasicMaterial({
-      map: puddleT, transparent: true, opacity: 0, depthWrite: false });
+      map: run ? run.tex : puddleT, transparent: true, opacity: 0, depthWrite: false });
     m.visible = false;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.42 + rnd() * 0.3)), m);
+    const aspect = 0.42 + rnd() * 0.3, spin = rnd() * Math.PI;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, run ? run.len : w * aspect), m);
     p.rotation.x = -Math.PI / 2;            // a ground DECAL, never a billboard
-    p.rotation.z = rnd() * Math.PI;
+    p.rotation.z = run ? 0 : spin;          // a run lies ALONG the gutter, so it is never spun
     p.position.set(x, surfaceY(x) + 0.005, z);   // a film ON the surface, not through it
     scene.add(p);
     puddles.push({ m, lo, hi, max });
@@ -813,10 +837,39 @@ export function buildProps(ctx: CtxBuild): Props {
     addPuddle(s2 * (PAN_X - rnd() * 0.22), -6 - rnd() * (L - 18),
               1.5 + rnd() * 2.2, 0.04 + rnd() * 0.10, 0.42 + rnd() * 0.3, 0.62 + rnd() * 0.22);
   }
-  // the two catch basins (ct/tex-ground.ts puts them here) — the lowest
-  // points on the block, so these fill first and outlast everything
-  addPuddle(ROAD_HALF - 0.4, -92.5, 2.5, 0.02, 0.30, 0.80);
-  addPuddle(-(ROAD_HALF - 0.4), -105, 2.2, 0.02, 0.32, 0.78);
+  // The two catch basins (ct/tex-ground.ts puts them here) — the lowest points
+  // on the block, so these fill first and outlast everything. Laid ALONG the
+  // pan and running into the mouth, up-grade of each basin, not spread round
+  // it: the gutter is 45 cm wide and water in it is a ribbon, not a pool.
+  const BASIN_Z = [-92.5, -105];
+  addPuddle(ROAD_HALF - 0.24, BASIN_Z[0] + 1.30, 0.40, 0.02, 0.30, 0.80,
+            { len: 2.6, tex: trackT });
+  addPuddle(-(ROAD_HALF - 0.24), BASIN_Z[1] + 1.15, 0.40, 0.02, 0.32, 0.78,
+            { len: 2.3, tex: trackT });
+  // The permanent stain, dry or wet, and it FOLLOWS THE WATER: a narrow track
+  // down the pan that darkens as it converges on the mouth. The version this
+  // replaces sat symmetrically around the grate, which is the one thing water
+  // never does — grime goes where the flow goes, and the flow is a ribbon in
+  // the last 20 cm against the kerb.
+  const stainT = pixTex(16, 64, (g) => {
+    for (let y = 0; y < 64; y++) {
+      const t = 1 - y / 63;                                     // 1 at the mouth
+      const half = Math.max(1, Math.round(0.9 + t * 4.4 + (((y >> 1) % 4 === 2) ? 1 : 0)));
+      g.fillStyle = `rgba(38,34,28,${(0.12 + t * 0.44).toFixed(3)})`;
+      g.fillRect(8 - half, y, half * 2, 1);
+      g.fillStyle = `rgba(22,21,18,${(0.12 + t * 0.42).toFixed(3)})`;
+      g.fillRect(7, y, 2, 1);                                   // the channel it actually runs in
+    }
+  });
+  const stain = (x: number, z: number, len: number) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, len),
+      new THREE.MeshBasicMaterial({ map: stainT, transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, surfaceY(x) + 0.003, z);
+    scene.add(m);
+  };
+  stain(ROAD_HALF - 0.22, BASIN_Z[0] + 1.55, 3.1);
+  stain(-(ROAD_HALF - 0.22), BASIN_Z[1] + 1.40, 2.8);
   // low spots out on the road: these need a proper storm and dry first
   for (let i = 0; i < 3; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
