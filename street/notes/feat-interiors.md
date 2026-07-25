@@ -610,3 +610,52 @@ long enough to hit this often, and **an intermittent red teaches people to
 ignore the suite** — which is exactly the failure GOTCHAS 27 was written about.
 A suite that cries wolf is the same problem as a check that excuses a bug,
 arrived at from the other end.
+
+---
+
+# RUN N+2 — every guard selftested, and nobody was watching the merged world
+
+Queue still empty. Two things closed and one gap named.
+
+## All seven of my registered suites now have a selftest, watched firing at HEAD
+
+Prompted by another builder's *"all ten of my guards watched firing at HEAD,
+not merely passing"*. Mine were verified when written and the world has moved a
+long way since, so I re-ran every one: green normally, red under mutation.
+
+`interiors-walk` had none, and giving it one found the worst bug of the batch.
+Walling all eight declared doors shut produced **`0/0 passed`, exit 0**. Two
+causes: the room filter was positional so `--selftest` was read as a room name,
+and — the real one — **an empty run counted as a pass**. The more completely
+broken the world, the fewer assertions run; at total failure the count reaches
+zero and the check reports success. A check that goes green precisely when
+things are worst, which is the shape it exists to catch in the world.
+
+`world-wired` was the last, and the only mutation that is not a collider: it
+compares files on disk against rooms in the world, so it lies about the disk —
+a phantom `int-selftest.ts` nobody built.
+
+## Nothing was checking the integrated world beyond "does it build"
+
+I have verified everything in a worktree where no other builder's colliders
+exist. `live-integrate.sh` drops a builder who breaks the BUILD, and that is
+the whole of what stands between the player and a merge that compiles but does
+not play.
+
+So I walked it: **8/8 declared doors let you in on :5177**, with the entire
+block merged, and the live world carries `roomDims()`, both civic prompts, 137
+spots and 57 seats. Reassuring rather than alarming — but it was luck that
+nobody had asked, not design.
+
+`scripts/integration-doors.mjs` does it, and is **deliberately not registered**
+in `checks.mjs`: it measures a tree that is not the checkout, so it cannot call
+`reportWorld` and would fail GOTCHAS 26 on purpose. Run by hand, read as an
+observation, never quoted as evidence about anyone's branch. If it ever goes
+red the next question is *whose change did it*, and this cannot answer that —
+which is exactly why it belongs to the desk and not to me.
+
+## Landing
+
+Four commits ahead of `add-stick-and-city98` at the time of writing, all
+scripts and notes, no world code. Nothing here needs to land urgently; the
+world-facing work is already in and verified in the merged build above.
