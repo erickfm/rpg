@@ -58,8 +58,16 @@ export function buildProps(ctx: CtxBuild): Props {
   const rain = new THREE.Points(rainGeo, rainM);
   rain.visible = false;
   scene.add(rain);
-  let rainLevel = 0;
-  let puddleLevel = 0;
+  let rainLevel = 0;      // is it raining RIGHT NOW — drives the falling drops
+  // The ground has its own state, and it is not rainLevel. Tying the wet look
+  // straight to the rain made the street bone dry the instant the last drop
+  // landed, which is the one thing a wet street never does.
+  let wetness = 0;        // how wet the GROUND is: rises fast, falls slowly
+  let soak = 0;           // how long it has been coming down — a long storm
+                          // leaves more water to get rid of
+  let puddleLevel = 0;    // standing water, which LAGS wetness in both
+                          // directions: it is still finding the low spots
+                          // after the rain stops, so it peaks late
   const RAIN_SKY = new THREE.Color('#5a626e');
   const rainAt = (h: number) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
 
@@ -378,17 +386,50 @@ export function buildProps(ctx: CtxBuild): Props {
     const wantRain = rainAt(hAbs) && px < 100 ? 1 : 0;
     rainLevel += (wantRain - rainLevel) * Math.min(1, dt * 0.6);
     if (px > 100) rainLevel = 0; // it NEVER rains indoors — cut, don't fade
+    // Wet fast, dry slow. Soaking takes seconds; drying takes minutes of game
+    // time, longer after a long storm and longer again at night when there is
+    // no sun on it. This asymmetry is the whole point — it is what makes the
+    // street remember the weather.
+    if (rainLevel > 0.02) {
+      wetness += (1 - wetness) * Math.min(1, dt * 0.55);
+      soak = Math.min(1, soak + dt / 100);
+    } else {
+      const dryFor = 48 * (1 + soak * 1.5) * (1 + nightNow * 1.1);
+      wetness = Math.max(0, wetness - dt / dryFor);
+      soak = Math.max(0, soak - dt / (dryFor * 2));
+    }
     // The ground darkens + cools as it wets down (roads and walks) — AND
     // loses the ambient after dark. updateRain is the single writer for these
     // materials, so it has to compose both; when it only did the wet half,
     // the road and the sidewalk kept full daylight brightness all night,
     // which is exactly why they read as "daylight asphalt with a filter".
     const amb = ambient(FLOOR_GROUND);
-    for (const w of wetMats) w.m.color.copy(w.base).lerp(WET, rainLevel * 0.95).multiplyScalar(amb);
+    for (const w of wetMats) {
+      // Not every surface gives the water up at the same rate. The road crown
+      // sheds it first; the gutter is where it is all running TO, so that
+      // holds on longest. We can tell them apart by the shape of their sheet
+      // — the kerb and gutter are long thin strips, everything else is a
+      // broad surface — which keeps this local instead of needing a new field
+      // on the shared WetSurface type.
+      const img = (w.m.map?.image as { height?: number } | undefined);
+      const holdsWater = !!img?.height && img.height < 32;
+      const wSurf = Math.pow(wetness, holdsWater ? 0.55 : 1.7);
+      w.m.color.copy(w.base).lerp(WET, wSurf * 0.95).multiplyScalar(amb);
+    }
     // water pools slower than it falls, and lingers after it stops
-    puddleLevel += (rainLevel - puddleLevel) * Math.min(1, dt * 0.22);
-    puddleM.opacity = 0.72 * Math.min(1, puddleLevel * 1.15);
-    puddleM.visible = puddleLevel > 0.03;   // bone dry means NO puddle at all
+    // Chased off WETNESS, slowly, and aimed a little past it — so while the
+    // wetness is already ebbing the pools are still filling, and they crest
+    // AFTER the rain has stopped. That late peak is the thing you notice
+    // walking out after a storm.
+    puddleLevel += (wetness * 1.06 - puddleLevel) * Math.min(1, dt * 0.09);
+    for (const q of puddles) {
+      const fill = Math.min(1, Math.max(0, (puddleLevel - q.lo) / (q.hi - q.lo)));
+      q.m.opacity = q.max * fill;
+      q.m.visible = fill > 0.02;             // bone dry means NO puddle at all
+      // never lighter than the road it sits on: the faint sky sheen in the
+      // sheet has to come down with the ambient or it glows at 3am
+      q.m.color.setScalar(amb);
+    }
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
       rainM.opacity = 0.55 * rainLevel;
@@ -525,16 +566,48 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillStyle = 'rgba(150,168,196,0.13)';  // one thin catch-light streak
     g.fillRect(14, 19, 11, 1);
   });
-  const puddleM = new THREE.MeshBasicMaterial({
-    map: puddleT, transparent: true, opacity: 0, depthWrite: false });
-  for (let i = 0; i < 9; i++) {
-    const s2 = rnd() < 0.5 ? -1 : 1;
-    const w = 1.5 + rnd() * 1.9;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.5 + rnd() * 0.22)), puddleM);
-    p.rotation.x = -Math.PI / 2;
+  // Each puddle is its OWN material, so they do not all fade in lockstep —
+  // one shared opacity was why none of them read. lo/hi is the window of
+  // standing water over which this one fills: a deep hollow starts collecting
+  // almost at once and is the last thing left, while a shallow smear needs a
+  // real storm and goes first.
+  interface Puddle { m: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
+  const puddles: Puddle[] = [];
+  const addPuddle = (x: number, z: number, w: number, lo: number, hi: number, max: number) => {
+    const m = new THREE.MeshBasicMaterial({
+      map: puddleT, transparent: true, opacity: 0, depthWrite: false });
+    m.visible = false;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.42 + rnd() * 0.3)), m);
+    p.rotation.x = -Math.PI / 2;            // a ground DECAL, never a billboard
     p.rotation.z = rnd() * Math.PI;
-    p.position.set(s2 * (ROAD_HALF - 0.5 - rnd() * 2.4), 0.012, -5 - rnd() * (L - 16));
+    p.position.set(x, 0.012, z);
     scene.add(p);
+    puddles.push({ m, lo, hi, max });
+  };
+  // Where water actually goes. The gutter pan first — that is what it is for
+  // — then the catch basins it drains to, then a few low spots out on the
+  // crown, then under the drip line where an awning sheds onto the walk.
+  const PAN_X = ROAD_HALF - 0.28;           // in the pan, hard against the kerb
+  for (let i = 0; i < 6; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    addPuddle(s2 * (PAN_X - rnd() * 0.22), -6 - rnd() * (L - 18),
+              1.5 + rnd() * 2.2, 0.04 + rnd() * 0.10, 0.42 + rnd() * 0.3, 0.62 + rnd() * 0.22);
+  }
+  // the two catch basins (ct/tex-ground.ts puts them here) — the lowest
+  // points on the block, so these fill first and outlast everything
+  addPuddle(ROAD_HALF - 0.4, -92.5, 2.5, 0.02, 0.30, 0.80);
+  addPuddle(-(ROAD_HALF - 0.4), -105, 2.2, 0.02, 0.32, 0.78);
+  // low spots out on the road: these need a proper storm and dry first
+  for (let i = 0; i < 3; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    addPuddle(s2 * (1.2 + rnd() * 2.2), -10 - rnd() * (L - 26),
+              1.3 + rnd() * 1.5, 0.45 + rnd() * 0.22, 0.9, 0.44 + rnd() * 0.16);
+  }
+  // under the drip line: an awning sheds its whole roof onto one strip of walk
+  for (let i = 0; i < 2; i++) {
+    const s2 = rnd() < 0.5 ? -1 : 1;
+    addPuddle(s2 * (ROAD_HALF + 0.9), -14 - rnd() * (L - 34),
+              1.0 + rnd() * 0.9, 0.16 + rnd() * 0.12, 0.6, 0.5 + rnd() * 0.14);
   }
 
   // ── the 42 stop: a flag on a pole, and a bench ──────────────────────────
