@@ -61,6 +61,9 @@ a result rather than a timeout, and it is somebody's to read.
 
 ### One of the five reds is my harness, not the world
 
+**VERIFIED FIXED.** A pinned fast tier re-run after the fix: **43 green, 0 red**,
+`seampairs` among them. That red was my harness and it is gone.
+
 `seampairs` died on `ENOENT: shots/seampairs.json`. A fresh worktree contains
 only TRACKED files, and `shots/` is gitignored, so it does not exist in a pinned
 checkout. Fixed — the script now creates it. **Discount `seampairs` in that

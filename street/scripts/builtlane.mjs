@@ -151,6 +151,23 @@ console.log(`  ${scan.length} cross-sections sampled every 0.5 m\n`);
 // logic is right by construction and unproven by experiment; when someone finds
 // a way to hold a citizen still on demand, that is the test.
 //
+// WHICH DIRECTION THE ERROR RUNS, and a552bc40 is right that it matters more
+// than the residual risk. A ghost is an ADDED collider, so it can only shrink a
+// free run. Demonstrated by injecting a synthetic stopped citizen (0.5 x 0.5,
+// mid-pavement) into the static set and reading its own station:
+//
+//     clean 2.27 m  ->  with the ghost 1.12 m
+//
+// The global figure did not move, because the ghost's effect happened to equal
+// the existing minimum — which is why this is measured AT the injected station
+// rather than off the headline number, and why my first attempt at it proved
+// nothing twice over.
+//
+// So the failure mode is a FALSE ALARM, never a silent pass. This check cannot
+// be fooled into saying the lane is clear when it is not; it can only be fooled
+// into saying it is blocked when a citizen is standing there, and the ghost
+// assertion above exists to name exactly that case when it happens.
+//
 // The better fix is not mine: 19e1e9f9 suggests the collider list carry the
 // userData.mod tag that lot, walkup and vice already use, so "is this a mover"
 // becomes a DECLARATION instead of an inference from two frames. That is
