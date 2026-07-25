@@ -72,7 +72,29 @@ export function roomWidthFor(frontageM: number): number {
 // still initialising then throws "Cannot access 'DOOR' before initialization"
 // and takes the whole world down. Importing is fine; READING has to wait until
 // everyone has finished evaluating, which is what `ensure()` does.
-const MODS = import.meta.glob<Record<string, unknown>>('./*.ts', { eager: true });
+// `./int-*.ts`, NOT `./*.ts` — and the narrowing is the cycle fix.
+//
+// Globbing every sibling made this module import `interior.ts`, which imports
+// four values back. That is an import cycle, and a module caught in one
+// resolves to `undefined` inside an eager glob: any DOOR it declares is dropped
+// SILENTLY, with no error and no gap in any count unless you compare the two
+// totals. GOLDEN ACES was lost exactly that way in the BUILT BUNDLE while the
+// dev server showed all eight — see notes/BLOCKED-C.md §0 and BLOCKED-D.md.
+//
+// Every door in the world is declared by an `int-*.ts`, and all eight of those
+// import only `type DoorDecl`, which TypeScript erases — so they have no
+// runtime edge back here and cannot form a cycle. Narrowing the pattern drops
+// `interior.ts`, `world.ts` and `civic-doors.ts` out of the glob entirely: the
+// bundle now reports ZERO undefined namespaces, where it reported three.
+//
+// Deliberately NOT the bigger refactor (invert to a push registry, or have
+// world.ts feed this one). I tried that first and it works, but it changes the
+// contract: importing `doors.ts` alone would no longer populate it, and FOUR
+// harnesses do exactly that — two of G's, one of A's, one of mine. Breaking
+// three builders' tools to fix a latent problem is the wrong trade, and
+// `scripts/doors-declared.mjs` guards the count either way, so a future
+// non-`int-` module that declares a door goes red rather than missing.
+const MODS = import.meta.glob<Record<string, unknown>>('./int-*.ts', { eager: true });
 const DECLS = new Map<string, DoorDecl>();
 let collected = false;
 

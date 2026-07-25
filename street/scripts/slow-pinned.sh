@@ -75,6 +75,21 @@ git worktree add --detach --quiet "$PIN" HEAD
 ln -s "$ROOT/node_modules" "$PIN/$PREFIX/node_modules"
 
 cd "$PIN/$PREFIX"
+# MODE. Default `dev`, because four harnesses — interiors-walk, mirror-walk and
+# two of G's — do `await import('/src/proto/ct/doors.ts')`, a source path that
+# only a dev server serves. Against `vite preview` they die with "Failed to
+# fetch dynamically imported module", so those checks are DEV-ONLY and cannot
+# measure the bundle at all.
+#
+# `PINNED_MODE=preview` serves the built bundle instead, which is the only way
+# to see bundle-specific behaviour — and it matters: circular imports resolve
+# differently there, which is how GOLDEN ACES's door was lost in the artefact
+# while dev showed all eight. scripts/doors-declared.mjs is the check that
+# cares; run that one with preview.
+#
+# Either way the tree is DETACHED and frozen, so nothing rebases under the run,
+# which is the whole point.
+MODE="${PINNED_MODE:-dev}"
 echo "building the pinned tree"
 npm run build >/dev/null
 
@@ -83,7 +98,11 @@ echo "serving it on :$PORT"
 # failure read "server never came up on :4196" with no cause — a runner that
 # cannot say why it failed is the same defect as a check that cannot fail.
 SRVLOG="$PIN/server.log"
-npx vite preview --port "$PORT" >"$SRVLOG" 2>&1 &
+if [ "$MODE" = "preview" ]; then
+  npx vite preview --port "$PORT" >"$SRVLOG" 2>&1 &
+else
+  npx vite --port "$PORT" >"$SRVLOG" 2>&1 &
+fi
 SRV=$!
 for _ in $(seq 1 60); do
   PORT="$(sed -nE 's#.*Local:.*http://[^:]+:([0-9]+)/.*#\1#p' "$SRVLOG" | head -1)"
