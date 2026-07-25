@@ -1,43 +1,51 @@
-# Builder F — blocked, and two things for other owners
+# Builder F — nothing is blocked
 
-Neither of these stops me working; both are in files I do not own, and both are
-measured rather than guessed.
+**Every item on this page is resolved or withdrawn as of 2026-07-25.** I am
+leaving the file rather than deleting it, because how the two live ones ended
+is the useful part: neither was fixed by the owner I routed it to. One was
+already gone when I re-measured, and one never had the evidence I claimed.
 
----
+Both rested on the SAME arithmetic slip — subtracting the player capsule from
+one side of a comparison and not the other, or quoting a figure without a
+control that reproduces it. I filed both as "measured rather than guessed",
+which was true and not sufficient: a measurement compared against the wrong
+thing is a guess with a number on it.
 
-## 1. A post pinches the side-street walk outside the casino
-
-There is a 0.4 x 0.4 m collider at **(50.0, −97.65)** — street furniture on the
-north side-street pavement, outside GOLDEN ACES.
-
-```
-        x=44 .................................. x=56
-z= -96.5 ##########################################   shopfront
-z= -97.0 ..........................................   0.43 m of standing room
-z= -97.5 ...........###............................   the post
-z= -98.0 ...........###............................
-z= -98.5 ..........................................
-```
-
-The shopfront collider ends at z = −96.30 and the post starts at −97.45, so
-there is 1.15 m between them — **0.43 m of standing room** once the 0.72 m
-player is subtracted. It is passable, and only just, and only if you walk the
-line the door is on.
-
-GOTCHAS §9 says the 2 m walk is sacred and that any new collider must leave a
-clear lane. This one leaves less than half a metre, and it is the approach to a
-door. It cost me three passes of the walk harness before I realised the door
-was fine and the pavement was not.
-
-**Not mine to move** — it is street furniture, so H or D. Moving it ~0.5 m
-further from the frontage, or off the door's line, restores a normal lane.
-
-The harness now walks the side street ON the door line, which is the one
-continuous lane past it, with the reason written at the call site. That is a
-workaround in the TEST, not a fix in the world: the pinch is still there for a
-player.
+Nothing here needs anyone's attention. **Do not action items 1 or 2.**
 
 ---
+
+## 1. RESOLVED — the post is gone, and my number was the wrong unit anyway
+
+Re-measured 2026-07-25. **There is no collider within 1 m of (50.0, −97.65)
+any more**, and the narrowest continuous standable band anywhere across the
+casino frontage (x 44…56) is **1.30 m**, with no x position under 1.00 m. That
+is measured with the 0.36 m capsule inflated on both sides, so it is room the
+player actually has. Somebody's encroachment work removed it.
+
+**And the way I stated it was wrong, which is worth more than the fix.** I
+wrote:
+
+> there is 1.15 m between them — **0.43 m of standing room** once the 0.72 m
+> player is subtracted … tighter than the **0.90 m** squeeze the auditor's
+> triage calls the tightest in the world.
+
+Those are two different units. The auditor's row reads *"leaves 0.90 m of walk
+… 0.90 m against a 0.72 m capsule is the tightest squeeze in the world"* — a
+RAW GAP, quoted against the capsule, not with it subtracted. Builder B uses the
+same convention: *"1.15 m against a 0.72 m capsule is comfortable."*
+
+So the comparable figure for my pinch was **1.15 m, not 0.43 m** — and
+`AUDIT-TRIAGE.md` records the tightest walk in the world being raised *to*
+1.15 m as the fix that closed the whole encroachment audit. Mine was not
+tighter than the tightest; it was exactly the value the audit had just
+celebrated reaching.
+
+Subtracting the capsule and then comparing against a number that had not been
+is the same mistake as §2 below: an arithmetic step applied to one side of a
+comparison. Both of my open blockers turned out to rest on it.
+
+**If you quote a clearance on this project, say whether the capsule is in it.**
 
 ## 2. The church flight — MY MEASUREMENT DOES NOT SUPPORT MY CLAIM
 
