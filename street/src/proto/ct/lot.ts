@@ -966,8 +966,23 @@ function buildLot(o: {
       // of a fence it was supposed to be attached to.
       for (const [gh, dx, ry] of [[false, -0.055, -Math.PI / 2], [true, -0.045, Math.PI / 2]] as
         [boolean, number, number][]) {
+        // NO TEXTURE FLIP ON THE REAR SHEET. GOTCHAS 35, landed today, names
+        // this exact clause as the one that re-creates the bug it is meant to
+        // fix: two single-sided planes rotated opposite ways are ALREADY
+        // mirrored relative to each other, because `ry = ±π/2` maps u to
+        // opposite world directions. Flipping the rear texture as well applies
+        // the mirror twice, and two mirrorings is no mirror.
+        //
+        // It mattered here in the direction nobody would think to check. The
+        // rear sheet is a washed-out GHOST — the print bleeding through the
+        // vinyl — and this file's own comment called it "a mirrored ghost",
+        // which is what a one-sided banner looks like from behind. The flip
+        // was quietly making it read FORWARDS from inside the lot: the front
+        // was right, so it never looked wrong from the street, which is where
+        // every screenshot of it was taken from.
+        //
+        // Verified the way §35 says to: stand on each side in turn and read it.
         const bt = bannerT2(words, bg, ink, gh);
-        if (gh) { bt.wrapS = THREE.RepeatWrapping; bt.repeat.x = -1; bt.offset.x = 1; }
         const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
           new THREE.MeshBasicMaterial({ map: bt, alphaTest: 0.35 }));
         b.position.set(FENCE_X + dx, y, z);
@@ -1053,8 +1068,8 @@ function buildLot(o: {
       // it is a banner that will be wrong the day the wall comes down.
       for (const [gh, dx, ry] of [[false, -0.02, -Math.PI / 2], [true, 0.0, Math.PI / 2]] as
         [boolean, number, number][]) {
+        // Same as the frontage banners above: the rotation is the mirror.
         const bt2 = bannerT2(words, bg, ink2, gh);
-        if (gh) { bt2.wrapS = THREE.RepeatWrapping; bt2.repeat.x = -1; bt2.offset.x = 1; }
         const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
           new THREE.MeshBasicMaterial({ map: bt2, alphaTest: 0.35 }));
         b2.position.set(BW_X + dx, Y + hy, zMid);
