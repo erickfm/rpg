@@ -716,3 +716,39 @@ Three notes worth keeping:
   spreading on its own, which is the best sign it is the right one.
 - `ct/vice.ts` still has not stamped, so A's thirteen remain `(unattributed)`.
   That is the next place the stamp pays for itself.
+
+## Round 7b — the three off-grid candidates, looked at
+
+All three still read `(unattributed)` — only `lot` and `walkup` have stamped —
+so these are eyes, not lookups, and I say which is which.
+
+**c1 — (−6.9, 2.8, −9), 3.4 × 5 m, canvas 32 × 48, `9.41 × 9.60 px/m`, 8 faces.
+The PUBLIC LIBRARY.** Pale ashlar, pilasters, `PVBLIC LIBRARY` cut into the
+entablature, recessed entrance, steps. This is **masonry, and it is off the
+grid** — the one genuine pattern #1 candidate of the three, and it is very
+likely the civic-ashlar instance already on the open list.
+
+**c2 — (5.7, 2.4, −1.5), 3 × 4.5 m, canvas 60 × 90, `20 px/m`, 11 faces. Not
+masonry.** The frame is the car lot frontage: the yellow **"…DOWN WE FINANCE"**
+banner, a `TODAY ONLY` A-board, a cone, chain-link, and the pennant strings.
+Signage carries its own density by right; 20 px/m here is not a defect.
+
+*(Incidentally, the pennants read **correctly** from this side — which is what
+"mirrored" should look like: right from the street, reversed from the other
+face. It is the same string I attributed to `lot` in Round 7.)*
+
+**c3 — (51.0, 22.7, −94.3), 6.8 × 6.2 m, canvas 92 × 74, `13.5 px/m`. MISS, and
+my fault.** The subject is **22.7 m up** and my camera ring starts at 4 m, so
+the shot is pitched ~80° and the frame is an unreadable tilted slab. **The
+candidate distance has to scale with the subject's height** and mine does not.
+Not graded; the instrument needs fixing before this one can be answered.
+
+### Where that leaves pattern #1
+
+The 126 "off-grid" faces reduce, on inspection, to **one real masonry candidate:
+8 faces of civic ashlar at 9.41 px/m**. Everything else looked at so far is
+foliage, ground decal, sidewalk sheet or signage — none of which the rule
+governs — and one face I could not see properly.
+
+That is a far smaller and more routable statement than the raw number, and it is
+why I refused to publish 65.7% as a conformance rate last round.
