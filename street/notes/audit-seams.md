@@ -1,56 +1,52 @@
-## audit/seams — pattern #1 is CLOSED, measured
+## audit/seams — interiors round 4: half the finished rooms are unreachable
 
-Queue `## Next` → "Re-verify pattern #1 AGAIN once builder A's cross-file fix
-lands" is **done**. Written up as **Round 4** in `notes/seam-audit.md`.
+Queue `## Now` (interiors, standing) re-walked at `096ec73`.
+Report: `notes/interior-audit.md`, Round 4 appended.
 
-Touched:   notes/seam-audit.md (+Round 4), notes/audit-seams.md,
-           scripts/reverify2.mjs (new)
+Touched:   notes/interior-audit.md (+Round 4), notes/audit-seams.md
            **nothing under street/src/**
-Verified:  `scripts/density.mjs` over every textured face in the world, then the
-           headline corners re-shot (`shots/rv2-*.png`). Measured, not eyeballed.
-Base:      1b990d7 · A's commit `a848b9d`
+Base:      096ec73
 
-### Result
+### The finding to route first
 
-| finding | before | after | verdict |
-|---|---|---|---|
-| 2 — bodega canted bay | 11.50 × 11.70 | **8.13 × 8.02** | closed |
-| 12 — bay shopfront | 24.0 × 12.38 | **15.91 × 15.95** | closed |
-| 9 — east cross building | 7.33 × 7.65 | **8.00 × 8.01** | closed |
-| 19 — alley rear wall | 11.43 × 11.72 | **8.00 × 7.97** | closed |
-| civic ashlar | 8.00 × 11.75 | **8.00 × 8.03–8.06** | closed |
-| 1 — untextured `endM` | flat `#53382e` | unchanged, 5 sites | **still open, correctly outside A's mandate** |
+**`buildCasino` and `buildHotel` are both defined and never called.** Slabs 2
+and 3 measure empty. Round 3 reported the casino; the hotel then landed the same
+way *after* it was reported. That makes it a mechanism, not an accident:
 
-**Every masonry surface in the world is now 8 × 8 or 16 × 16 within canvas
-rounding.** The only non-conforming faces left are the roads and the alley floor
-— pattern **#5**, a different root cause, still open — plus non-masonry (lamp
-pools, tree sprites, sign faces).
+> The kit made the **contents** of a room self-registering — `room.solid`,
+> `ctx.spot`, the slab allocator — and left the room's **own existence**
+> hand-wired as one line in `crosstown.ts`, the most contended file in the
+> project. Nothing checks it.
 
-Pattern #1 is the first in this audit trail to go all the way: instance → root
-cause → restatement → complete closure.
+**50 % of finished interior work is currently unreachable.** Two rooms of
+furniture, lighting and collision that no player can ever see. Every other kit
+guarantee is checked at build time; this is the one that is not, and its failure
+is total — a room 0.4 m too low still ships, a room never constructed ships as
+nothing.
 
-### Two things worth the desk knowing about how it closed
+Cheapest guard is an assert, not a convention: the kit already knows every id it
+has handed a slab to, so it can compare that against the ids it was asked to
+build. Or `crosstown.ts` builds from a manifest the modules export.
 
-**A found instances I missed, and the reason is instructive.** My list came from
-walking the world; A's came from grepping the painters. Three custom shop bands
-(BURGER BARN, PAWN, A-1 TAX) sat at 8 × 12.38 against 18 neighbours at 16 × 15.95
-and I never logged them, because I shot the joins either side rather than the
-bands themselves. Independent confirmation they are fixed: **the 16 × 15.95 group
-grew from 18 faces to 21.** A walk finds what is conspicuous; a grep finds what
-is uniform. This pattern needed both, and it is worth pairing them deliberately
-next time rather than by luck.
+### Also
 
-**The pattern reasserted itself mid-fix.** A rebased and found a new
-non-conforming painter — `partyTex` in E's courtyard, `Math.round(FLANK_H*11.2)`
-— written *after* the pattern was documented. Now 8 × 8. That is the argument
-for the shape adopted: a shared `masonry()` helper makes the next one impossible,
-where a list of corrected instances is stale the day it is written.
+- **Ceiling spread widened to 0.9 m** with the hotel: casino 2.50 / diner 3.00 /
+  burger 3.20 / hotel 3.40, against a 2.9 default. Nothing bounds `h`.
+- **D's collision refactor (`8a7941f`) did not change the entry-trigger debt.**
+  Re-measured: diner, No. 227 and burger are all still 0.21 m closest / 0.84 m
+  margin / centre blocked — identical to round 2. The refactor fixed *what* is
+  solid (and E's courtyard with it) but not the 0.3 m facade inset. Finding
+  stands.
+- Round-1 findings 1–4 still open — the density mandate was exteriors only.
 
-### Still open, for routing
+### A correction to my own round 3
 
-- **Finding 1**, untextured `endM` party walls — 5 sites in `ct/street.ts`,
-  visible above every height change. Not a density defect; needs brick on the
-  exposed flank.
-- **Pattern #5**, ground surfaces: roads (19.2 × 14.33 and 18.58 × 12.8) and the
-  alley floor (9.7 × 9.85) still each carry their own ad-hoc repeat. Same shape
-  of fix, different subsystem, nobody assigned.
+I wrote that the frontage rule was "already broken by the second room", implying
+something systemic. With four rooms measured that is too strong: diner 97 %,
+hotel 95 %, casino 94 %. **The burger barn at 71 % is a single outlier** — an
+11 m room behind a 16 m frontage — not evidence the rule is being ignored.
+
+Left:      Casino and hotel measurable only from source until wired, so their
+           ceilings, densities, light and doors are unmeasured. Six of ten rooms
+           unwritten. The hotel commit mentions "the fall it is still standing
+           in"; not investigated, it is not in the world to walk.

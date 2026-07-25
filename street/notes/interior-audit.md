@@ -265,3 +265,67 @@ which is the round-1 pattern holding up under a second and third builder.
   from `ct/int-casino.ts`, not from the world.
 - Seven of ten rooms are still unwritten.
 - Light was measured as material luminance again, not judged side by side.
+
+---
+
+# Round 4 — four rooms written, two in the world
+
+Base `add-stick-and-city98` @ `096ec73`. Since round 3: G's casino still not
+wired, and G's **hotel** landed (`99eda8f`). D's collision refactor also landed
+(`8a7941f`, "Collision follows geometry: each module registers its own
+footprint"), so the trigger margins were re-measured against it.
+
+| axis | **diner** | **burger barn** | casino (spec only) | hotel (spec only) |
+|---|---|---|---|---|
+| in the world? | yes | yes | **no** | **no** |
+| clear size | 8.6 × 7.0 | 11.0 × 8.5 | 10.5 × 9.0 | 11.0 × 9.0 |
+| ceiling | 3.00 | 3.20 | **2.50** | **3.40** |
+| clear + walls ÷ frontage | 8.96 / 9.2 = 97 % | **11.36 / 16 = 71 %** | 10.86 / 11.55 = 94 % | 11.36 / 12 = 95 % |
+| floor px/m | 18.6 × 18.3 | 20.4 × 18.8 | — | — |
+| wall px/m | 11.9 × 12.0 | 11.9 × 11.9 | — | — |
+
+## Findings
+
+| # | sev | instance | file | what's wrong |
+|---|-----|----------|------|--------------|
+| 10 | **high** *(escalated)* | **two of four written rooms are not in the world** | `crosstown.ts` | Round 3 reported the casino unwired. The hotel has now landed the same way: `buildHotel` is exported from `ct/int-hotel.ts` and never called, exactly as `buildCasino` is not. Slabs 2 and 3 both measure **empty**. This is no longer a one-off — **50 % of finished interior work is unreachable**, and the second instance arrived after the first was reported. The kit removed the need to touch `crosstown.ts` to register *spots*; the one-line `buildX(ctx)` construction call still lives there, is desk-contended, and nothing checks it. Two rooms of furniture, lighting and collision exist and no player can ever see them. |
+| 11 | **high** *(widened)* | ceiling heights span 0.9 m | the four room specs | casino **2.50** / diner 3.00 / burger 3.20 / hotel **3.40**, against a kit default of 2.9. Round 3 measured a 0.7 m spread across three rooms; the fourth widened it. Nothing in `RoomSpec` bounds `h`. |
+| 14 | medium | D's collision refactor did not change the entry-trigger debt | `ct/interior.ts` | Re-measured after `8a7941f`: diner, No. 227 and burger barn are all still **0.21 m closest / 0.84 m margin / centre blocked**, byte-identical to round 2. The refactor changed *what* is solid — correctly, and it fixed E's courtyard — but not the 0.3 m inset at the facade that puts every kit-convention door spot inside collision. The finding stands unaltered. |
+
+**Correcting my own round 3.** I wrote that the frontage rule was "already broken
+by the second room", implying a systemic failure. With four rooms measured that
+reads too strongly: the diner fills 97 % of its shopfront, the hotel 95 %, the
+casino 94 %. **The burger barn at 71 % is a single outlier, not a pattern** — an
+11 m room behind a 16 m frontage, leaving 4.6 m with nothing behind it. Worth
+fixing on its own terms; not evidence the rule is being ignored.
+
+**Unchanged from round 1** — still nothing bounding them: floor vs wall density
+(18.6–20.4 against 11.9), floor density anisotropic within a room, ceilings
+untextured, palette luminance unbounded.
+
+## Patterns — an addition
+
+Finding 10 is the interior instance of the pattern this trail keeps meeting, and
+it is worth stating in its own terms because the fix is different:
+
+> **The kit made the *contents* of a room self-registering and left the room's
+> own existence hand-wired.** `room.solid`, `ctx.spot` and the slab allocator all
+> mean a builder never edits shared state — and then the room only exists if
+> somebody remembers one line in the most contended file in the project.
+
+Everything else the kit owns is checked at build time; this is the one step that
+is not, and it is the step whose failure is total. A room that is 0.4 m too low
+still ships. A room that is never constructed ships as nothing. **The cheapest
+guard is an assert, not a convention:** the kit already knows every id it has
+handed a slab to, so it can compare that list against the ids it was asked to
+build and warn on the difference — or `crosstown.ts` can build from a manifest
+the room modules export rather than from hand-written calls.
+
+## Coverage — round 4
+
+- The casino and hotel could only be read from source. Their ceilings, densities,
+  light and door behaviour are **unmeasured**, and their frontage figures above
+  are computed from their specs, not from the world.
+- Six of ten rooms unwritten.
+- The hotel's commit message mentions "the fall it is still standing in" — I did
+  not investigate; it is not in the world to walk.
