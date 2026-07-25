@@ -53,6 +53,37 @@ sides were read the same wrong way**.
 ad-panel geometry exists anywhere by shape. Located as *the stop in front of
 LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
+## Scope of that state: there are TWO suites, and I only ran one
+
+**`npm run checks` is not the project's verification. It is one of two.**
+
+```
+E-* scripts on disk                      14
+E-* registered in npm run checks          0
+```
+
+All fourteen run under **`E-verify.mjs`**, a parallel six-area suite —
+courtyard, churchyard, park, drape, onslope, coplanar — and `E-verify` is not
+registered either. Among them are checks that **found real faults**:
+`E-coplanar` found three, and was made **150× faster** (`86df27558`) explicitly
+so a suite could finish between rebases — a suite that is not this one.
+
+**So the numbers below describe `npm run checks` and nothing else.** When I
+published *"52 green, 5 red"* as the project state, fourteen scripts covering an
+entire builder's area were outside it. That is a scope error in my report, not a
+gap in E's work: running your own harness is reasonable, and nothing anywhere
+records that a second suite exists.
+
+**`checks-registered` cannot see any of it** — its population is scripts carrying
+a `--selftest`, and none of the fourteen has one. That is the same blindness I
+measured at **25 scripts**, now with a concrete cost: an entire area's
+verification is invisible to the audit that exists to catch invisible checks.
+
+> **"The suite is green" is a claim about whichever suite you ran.** The desk's
+> options are to register the fourteen, or to record in one place that two suites
+> exist and what each covers. Either is fine; the present state — where neither
+> is written down — means a green board and a green board are different boards.
+
 ## Project state at handoff
 
 **Rewritten. The version that stood here was badly stale** — it reported *"28
