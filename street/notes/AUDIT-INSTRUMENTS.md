@@ -854,3 +854,42 @@ because `--strictPort` makes the replacement exit rather than steal the port, a
 rebuild-and-restart silently leaves the stale world up. Both times every check
 went red at once. Free the port, *confirm it is free*, then start — and read the
 served SHA back before trusting a sweep.
+
+## Is `door301`'s missing world-check a class or a one-off? Swept: two real, and one was mine
+
+`da53e530` found that `door301.mjs` **imports `reportWorld` and never calls it** —
+so the import makes it look done at a glance while the check has always been
+willing to measure whichever build was on the port. Its author notes the fix was
+reverted outside their session, so the gap is live. The obvious auditor question
+is whether other scripts share it.
+
+**Imports-but-never-calls is a one-off.** Across ~210 scripts that import it,
+`door301.mjs` is the only one. But the sharper question is scripts that drive a
+browser and never check the world *at all*:
+
+```
+browser-driving scripts: 220
+of those, never call reportWorld: 6
+   check-artifact.mjs   door301.mjs   hand.mjs
+   shotdiff.mjs         shotguard.mjs  twoworlds.mjs
+```
+
+Read individually, **four are entitled to skip it and two are not**:
+
+| script | verdict |
+|---|---|
+| `check-artifact.mjs` | opens the **packed artifact file**, not a served build — exempt |
+| `shotdiff.mjs`, `shotguard.mjs` | use chromium purely as a **PNG decoder**; never navigate to the world — exempt |
+| `twoworlds.mjs` | **mine.** Its subject *is* two servers that differ; the guard would fire on a healthy run — exempt |
+| `door301.mjs` | the real gap, already recorded by its owner |
+| **`hand.mjs`** | **mine, written this session, with no excuse** |
+
+So the raw count of 6 overstates it by three times: **two real gaps, and I wrote
+one of them.** `hand.mjs` has the call now, and it earned its keep on the first
+run — it immediately refused a server left stale by my own rebase. Re-run against
+a matching world it reproduces the same 7 of 16, so the published result stands.
+
+`twoworlds.mjs` now **declares** its exemption in a comment. That is the point
+worth carrying: `door301`'s whole problem was that it *looked* checked, and an
+undeclared exemption looks identical to a defect. This project's recurring lesson
+one more time — **make it declare, don't leave it to the reader's inference.**

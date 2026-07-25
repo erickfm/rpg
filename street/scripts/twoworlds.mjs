@@ -5,6 +5,14 @@
 // Nobody has asked whether anything ELSE differs, and an auditor should.
 //
 // Same census against both servers, diffed.
+//
+// DELIBERATELY does not call reportWorld, and this comment is why. reportWorld
+// refuses when the served build differs from your HEAD; this script's whole
+// subject is two servers that differ from each other, so the guard would either
+// fire on a healthy run or force both to be the same world and make the
+// comparison vacuous. Point it at two servers you started yourself. That makes
+// it one of only four browser-driving scripts in the repo entitled to skip the
+// check — see AUDIT-INSTRUMENTS.md.
 import { chromium } from 'playwright';
 const census = async (url) => {
   const b = await chromium.launch();
