@@ -84,6 +84,31 @@ is the point.
 - reports *"could not measure"* separately from *"does not mirror"*, so it
   cannot claim four verified rooms are broken
 
+## Third pass: the scan method is NOT the problem — a negative result
+
+I said the likely cause was the scan line sitting inside the furniture
+collider's pad, and called it a hypothesis. **Tested, and it is wrong.**
+
+I rewrote the scan to stop probing free space entirely and instead read the gap
+in the **front wall colliders themselves** — union their x spans, and the doorway
+is what the room's width has that the wall does not. No radius, no furniture,
+no air.
+
+**The same four rooms still come back empty**, and PAWN's reading shifted only
+slightly (`lx −6.23 / 1.35 m wide` → `−5.95 / 1.9 m`). Two independent methods
+failing on exactly the same four rooms is not a scan problem: the common inputs
+are `cx` (the room centre) and `hd` (the front wall's z), and one of those must
+be wrong for those four while being right for PAWN.
+
+**I reverted it.** It is arguably the more principled method, but committing a
+change that does not improve the outcome and that I cannot explain is how a file
+accumulates plausible-looking code nobody can reason about later.
+
+What the next attempt should do, and should not repeat: instrument `cx` and `hd`
+per room and print them, rather than changing the scan again. Both scan methods
+are now known good on PAWN and known useless on the other four, so the fault is
+upstream of both.
+
 ## One real finding: PAWN
 
 The first measurement ever taken of that room — it was unreachable until the
