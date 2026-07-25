@@ -116,6 +116,18 @@ green, 1 red"* on a suite that now registers **56** checks, and said `seats-walk
 passes, which my own later measurement contradicts. A reader lands on this
 section first, so it is the last thing that should lag.
 
+**Measured at build `29d6bfae0`, when `CHECKS` held 56 entries. It now holds 70.**
+The 14 added since — G's two room suites alone are 132 checks the runner had
+never run — are **not** in the figures below. I am dating it rather than
+re-running it, because an aggregate here needs a quiet window (see below) and a
+stale number that says when it was taken is worth more than a fresh one that
+does not.
+
+This is the second time this section has gone stale, and the previous fix went
+stale the same way: it corrected *"28 green"* to 52 and then said *"a suite that
+now registers 56 checks"* — a number that was true the day I wrote it. **The
+missing thing was never the count. It was the date.**
+
 Measured across the full suite, both tiers, and every red diagnosed:
 
 | | |
