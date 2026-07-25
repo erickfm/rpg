@@ -230,12 +230,16 @@ export function buildLot(o: {
     A: [0b01110, 0b10001, 0b11111, 0b10001, 0b10001], B: [0b11110, 0b10001, 0b11110, 0b10001, 0b11110],
     C: [0b01111, 0b10000, 0b10000, 0b10000, 0b01111], D: [0b11110, 0b10001, 0b10001, 0b10001, 0b11110],
     E: [0b11111, 0b10000, 0b11110, 0b10000, 0b11111], F: [0b11111, 0b10000, 0b11110, 0b10000, 0b10000],
-    I: [0b11111, 0b00100, 0b00100, 0b00100, 0b11111], K: [0b10001, 0b10010, 0b11100, 0b10010, 0b10001],
+    G: [0b01111, 0b10000, 0b10011, 0b10001, 0b01111], H: [0b10001, 0b10001, 0b11111, 0b10001, 0b10001],
+    I: [0b11111, 0b00100, 0b00100, 0b00100, 0b11111], J: [0b00111, 0b00010, 0b00010, 0b10010, 0b01100],
+    K: [0b10001, 0b10010, 0b11100, 0b10010, 0b10001],
     L: [0b10000, 0b10000, 0b10000, 0b10000, 0b11111], M: [0b10001, 0b11011, 0b10101, 0b10001, 0b10001],
     N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001], O: [0b01110, 0b10001, 0b10001, 0b10001, 0b01110],
+    P: [0b11110, 0b10001, 0b11110, 0b10000, 0b10000], Q: [0b01110, 0b10001, 0b10101, 0b10010, 0b01101],
     R: [0b11110, 0b10001, 0b11110, 0b10010, 0b10001], S: [0b01111, 0b10000, 0b01110, 0b00001, 0b11110],
     T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100], U: [0b10001, 0b10001, 0b10001, 0b10001, 0b01110],
-    W: [0b10001, 0b10001, 0b10101, 0b11011, 0b10001], Y: [0b10001, 0b01010, 0b00100, 0b00100, 0b00100],
+    V: [0b10001, 0b10001, 0b10001, 0b01010, 0b00100], W: [0b10001, 0b10001, 0b10101, 0b11011, 0b10001],
+    X: [0b10001, 0b01010, 0b00100, 0b01010, 0b10001], Y: [0b10001, 0b01010, 0b00100, 0b00100, 0b00100],
     Z: [0b11111, 0b00010, 0b00100, 0b01000, 0b11111], '-': [0, 0, 0b01110, 0, 0],
     '0': [0b01110, 0b10001, 0b10001, 0b10001, 0b01110], '1': [0b00100, 0b01100, 0b00100, 0b00100, 0b01110],
     '2': [0b11110, 0b00001, 0b01110, 0b10000, 0b11111], '3': [0b11110, 0b00001, 0b01110, 0b00001, 0b11110],
@@ -248,7 +252,13 @@ export function buildLot(o: {
   const stamp = (g: CanvasRenderingContext2D, s: string, x0: number, y0: number, px: number, ink: string) => {
     g.fillStyle = ink;
     for (let i = 0; i < s.length; i++) {
-      const rows = GLYPH[s[i]] ?? GLYPH[' '];
+      // A glyph this table does not have used to draw as a SPACE, which is
+      // how "BUY HERE PAY HERE" shipped reading "BUY ERE AY ERE" — the two
+      // most common letters in the copy were the two it was missing, and a
+      // silent blank is indistinguishable from good kerning. Draw a solid
+      // block instead: still wrong, but wrong in a way that is impossible to
+      // miss in the first screenshot.
+      const rows = GLYPH[s[i]] ?? [0b11111, 0b11111, 0b11111, 0b11111, 0b11111];
       for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
         if (rows[r] & (1 << (4 - c))) g.fillRect(x0 + (i * 6 + c) * px, y0 + r * px, px, px);
       }
@@ -474,38 +484,97 @@ export function buildLot(o: {
     scene.add(board);
 
     // ── the pole sign ────────────────────────────────────────────────────
-    // Out at the street line by the gate, high enough to be read from down
-    // the block. This is the lot's answer to the park's trees.
-    const px = X0 + 0.9, pz = zN - span * SITE_GATE - 1.1;   // just north of the mouth
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.4, 8), postM);
-    pole.position.set(px, Y + 2.7, pz);
+    // Taller than the building next to it, which is the point: a lot has no
+    // building worth seeing, so the sign IS the building. Read from four
+    // blocks away, which is why the phone number is set larger than the name
+    // — the name is decoration, the number is the entire business.
+    //
+    // It stands INSIDE the fence. A real one would be out over the pavement,
+    // but nothing may encroach the walk, so it goes just east of the line and
+    // gets its height instead.
+    const px = X0 + 0.85, pz = zN - span * SITE_GATE - 1.4;
+    const POLE_H2 = 15.5;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.17, POLE_H2, 8), postM);
+    pole.position.set(px, Y + POLE_H2 / 2, pz);
     scene.add(pole);
-    solid({ minX: px - 0.2, maxX: px + 0.2, minZ: pz - 0.2, maxZ: pz + 0.2 });
-    const signT = pixTex(60, 44, (g) => {
-      g.fillStyle = '#c0392f'; g.fillRect(0, 0, 60, 44);
-      g.fillStyle = '#e8dcb8'; g.fillRect(2, 2, 56, 40);
-      g.fillStyle = '#c0392f'; g.fillRect(4, 4, 52, 36);
-      stamp(g, 'USED', 12, 8, 2, '#e8dcb8');
-      stamp(g, 'CARS', 12, 21, 2, '#d8a72e');
-      dither(g, 60, 44, 40);
+    solid({ minX: px - 0.24, maxX: px + 0.24, minZ: pz - 0.24, maxZ: pz + 0.24 });
+    const signT = pixTex(72, 96, (g) => {
+      g.fillStyle = '#c0392f'; g.fillRect(0, 0, 72, 96);
+      g.fillStyle = '#f2ead0'; g.fillRect(3, 3, 66, 90);
+      g.fillStyle = '#c0392f'; g.fillRect(6, 6, 60, 30);
+      stamp(g, 'CROSSTOWN', 3, 10, 1, '#f2ead0');
+      stamp(g, 'AUTO SALES', 3, 20, 1, '#e0a81c');
+      g.fillStyle = '#25406b'; g.fillRect(6, 40, 60, 14);
+      stamp(g, 'USED CARS', 9, 44, 1, '#f2ead0');
+      // the number, deliberately too big for the cabinet — the one thing on
+      // the sign anybody was ever meant to act on
+      g.fillStyle = '#2a2118'; g.fillRect(6, 58, 60, 32);
+      stamp(g, '555', 12, 62, 3, '#e0a81c');
+      stamp(g, '0199', 8, 76, 3, '#e0a81c');
+      dither(g, 72, 96, 50);
     });
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.25), flat(signT));
-    sign.position.set(px + 0.02, Y + 4.6, pz);
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.2), flat(signT));
+    sign.position.set(px + 0.02, Y + POLE_H2 - 1.9, pz);
     sign.rotation.y = -Math.PI / 2;
     scene.add(sign);
+    // a small arrow cabinet under it, pointing at the mouth
+    const arrowT = pixTex(40, 16, (g) => {
+      g.fillStyle = '#e0a81c'; g.fillRect(0, 0, 40, 16);
+      g.fillStyle = '#2a2118'; g.fillRect(0, 0, 40, 2); g.fillRect(0, 14, 40, 2);
+      for (let i2 = 0; i2 < 7; i2++) g.fillRect(6 + i2 * 2, 8 - i2, 2, 1 + i2 * 2);
+      dither(g, 40, 16, 16);
+    });
+    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.6), flat(arrowT));
+    arrow.position.set(px + 0.02, Y + POLE_H2 - 4.1, pz);
+    arrow.rotation.y = -Math.PI / 2;
+    scene.add(arrow);
 
-    // ── banners on the fence ─────────────────────────────────────────────
-    // Cheap vinyl, cable-tied on. Three of them, spaced down the frontage.
+    // ── vinyl banners, zip-tied to the chain-link ────────────────────────
+    // Cheap vinyl does not hang flat. It is punched with grommets, zip-tied
+    // at four or five points, and it SAGS between every tie — that scalloped
+    // bottom edge is the whole read, and a rectangle pinned taut reads as a
+    // shopfront fascia instead. Drawn into the texture with alpha: the tie
+    // points are straight and the cloth falls away between them.
+    const bannerT2 = (words: string, bg: string, ink: string) => {
+      const W = Math.max(64, words.length * 6 * 2 + 14), H = 30;
+      const TIES = Math.max(2, Math.round(W / 46));
+      return pixTex(W, H, (g) => {
+        g.clearRect(0, 0, W, H);
+        for (let x = 0; x < W; x++) {
+          // a scallop per bay between ties, plus a slow overall droop
+          const u = (x / W) * TIES;
+          const sag = 3.2 * Math.sin((u % 1) * Math.PI) + 1.4 * Math.sin((x / W) * Math.PI);
+          const top = 1 + 0.8 * Math.sin((u % 1) * Math.PI);
+          g.fillStyle = bg;
+          g.fillRect(x, Math.round(top), 1, Math.round(H - 6 - top + sag));
+        }
+        g.fillStyle = 'rgba(0,0,0,0.20)';
+        for (let x = 0; x < W; x++) {
+          const u = (x / W) * TIES;
+          const sag = 3.2 * Math.sin((u % 1) * Math.PI) + 1.4 * Math.sin((x / W) * Math.PI);
+          g.fillRect(x, Math.round(H - 7 + sag), 1, 2);           // shadowed lower hem
+        }
+        stamp(g, words, 7, 10, 2, ink);
+        g.fillStyle = '#d8d4c8';                                   // the zip ties
+        for (let t2 = 0; t2 <= TIES; t2++) {
+          const x = Math.round((t2 / TIES) * (W - 3));
+          g.fillRect(x, 0, 3, 4);
+        }
+        dither(g, W, H, 30);
+      });
+    };
     const banners: [string, string, string, number][] = [
-      ['AS-IS', '#c0392f', '#e8dcb8', 0.30],
-      ['EZ CREDIT', '#25406b', '#e8dcb8', 0.52],
-      ['NO MONEY DOWN', '#d8a72e', '#2a2118', 0.78],
+      ['BUY HERE PAY HERE', '#c0392f', '#f2ead0', 0.16],
+      ['NO CREDIT NO PROBLEM', '#25406b', '#f2ead0', 0.40],
+      ['99 DOWN WE FINANCE', '#e0a81c', '#2a2118', 0.63],
+      ['SE HABLA ESPANOL', '#2f7a4a', '#f2ead0', 0.85],
     ];
     for (const [words, bg, ink, at] of banners) {
-      const t = bannerT(words, bg, ink);
-      const w = words.length * 0.24 + 0.3;
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.46), flat(t));
-      b.position.set(FX - 0.05, Y + 1.34, zN - span * at);
+      const t2 = bannerT2(words, bg, ink);
+      const w = words.length * 0.17 + 0.5;
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
+        new THREE.MeshBasicMaterial({ map: t2, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
+      b.position.set(X0 + 0.10, Y + 1.34, zN - span * at);
       b.rotation.y = -Math.PI / 2;
       scene.add(b);
     }
@@ -611,6 +680,90 @@ export function buildLot(o: {
       { kind: 'van', col: 2, treat: 'bare' },
       { kind: 'sedan', col: 4, price: '$2795', treat: 'card', slog: 'RUNS GREAT' },
     ];
+    // THE FTC BUYERS GUIDE. Required in the side window of every used car
+    // offered for sale in the United States since 1985, which makes its
+    // ABSENCE the thing that looks wrong to anyone who was ever on a lot —
+    // and makes it the most authentic detail available here. It is a small
+    // portrait sticker: black masthead, the two big AS-IS / WARRANTY boxes,
+    // and the yellow band across the lower half.
+    //
+    // At 0.20 m across it is four texels of text, so it is drawn as the
+    // PATTERN rather than as words — masthead, two boxes, yellow band, rule
+    // lines. That silhouette is what the eye recognises; the wording is not
+    // legible on a real one from outside the glass either.
+    const guideT = pixTex(20, 26, (g) => {
+      g.fillStyle = '#f2f0e8'; g.fillRect(0, 0, 20, 26);
+      g.fillStyle = '#1a1a1c'; g.fillRect(0, 0, 20, 4);            // masthead
+      g.fillStyle = '#f2f0e8'; g.fillRect(2, 1, 16, 2);
+      g.fillStyle = '#1a1a1c';
+      g.fillRect(2, 6, 7, 5); g.fillRect(11, 6, 7, 5);             // the two boxes
+      g.fillStyle = '#f2f0e8'; g.fillRect(3, 7, 5, 3); g.fillRect(12, 7, 5, 3);
+      g.fillStyle = '#1a1a1c'; g.fillRect(3, 8, 2, 2);             // one ticked
+      g.fillStyle = '#e8c81e'; g.fillRect(0, 13, 20, 7);           // the yellow band
+      g.fillStyle = 'rgba(0,0,0,0.55)';
+      for (let y = 14; y < 19; y += 2) g.fillRect(2, y, 16, 1);
+      g.fillStyle = 'rgba(0,0,0,0.45)';
+      for (let y = 21; y < 26; y += 2) g.fillRect(2, y, 15, 1);
+      g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(0, 0, 20, 1);  // tape sheen
+    });
+    const guideM = new THREE.MeshBasicMaterial({ map: guideT, side: THREE.DoubleSide });
+    /** Tape one inside the front door window, on whatever car this is.
+     *
+     *  The first cut put it at a fixed (x, y, z) and it hung in mid-air off
+     *  the rear quarter of a sedan, where there is no glass at all. The
+     *  greenhouse is not the same shape on the four kinds and it is H's to
+     *  change, so guessing its numbers is guessing twice. Instead: find the
+     *  lofted cabin in the car H just handed back — it is the one mesh with a
+     *  three-material array — and read the window off its own bounding box.
+     *  Beltline is box.min.y, the flank is box.max.x, the cabin front is
+     *  box.min.z. A sticker sits low in the front door glass, which is
+     *  0.15 m up and 0.35 m back of the cabin's nose on every one of them. */
+    const buyersGuide = (g0: THREE.Group) => {
+      let cabin: THREE.Mesh | null = null;
+      g0.traverse((o) => {
+        if ((o as THREE.Mesh).isMesh && Array.isArray((o as THREE.Mesh).material)
+          && ((o as THREE.Mesh).material as THREE.Material[]).length === 3) cabin = o as THREE.Mesh;
+      });
+      if (!cabin) return;                      // no greenhouse, no window, no sticker
+      const c = cabin as THREE.Mesh;
+      c.geometry.computeBoundingBox();
+      const bb = c.geometry.boundingBox!;
+      // BOTH flanks. A real one is in a single window, but sixteen cars are
+      // parked nose-out in rows and you walk the aisle down one side of them,
+      // so a sticker in the far window is a sticker nobody ever sees — which
+      // is exactly what the first pass shipped. Two is cheap; invisible is not.
+      for (const sx of [-1, 1]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.22), guideM);
+        // +6 mm proud of the flank: the glass tapers inward with height, so a
+        // sticker flush at the beltline would sink into it further up.
+        m.position.set(sx * (bb.max.x + 0.006), bb.min.y + 0.15, bb.min.z + 0.35);
+        m.rotation.y = sx * Math.PI / 2;
+        g0.add(m);
+      }
+    };
+    // Balloons on the antennas. Lot dressing tied ON to the car, not a change
+    // to it — H's fleet is untouched. Two of them have been up a week and are
+    // down to a wrinkled bag, which is what sells the rest as recent.
+    const balloonM = [
+      new THREE.MeshBasicMaterial({ color: 0xc0392f }),
+      new THREE.MeshBasicMaterial({ color: 0xe0a81c }),
+      new THREE.MeshBasicMaterial({ color: 0x2f5f9c }),
+    ];
+    const stringM = new THREE.MeshBasicMaterial({ color: 0xd8d4c8 });
+    const balloon = (g0: THREE.Group, ci: number, dead: boolean) => {
+      const rod = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.5, 0.015), stringM);
+      rod.position.set(-0.72, 1.35, -0.55);
+      rod.rotation.z = 0.12;
+      g0.add(rod);
+      const b = new THREE.Mesh(new THREE.SphereGeometry(dead ? 0.075 : 0.13, 7, 5), balloonM[ci % 3]);
+      b.scale.set(dead ? 1.5 : 0.92, dead ? 0.42 : 1.12, dead ? 0.9 : 0.92);
+      b.position.set(-0.75, dead ? 1.44 : 1.72, -0.56);
+      g0.add(b);
+      const str = new THREE.Mesh(new THREE.BoxGeometry(0.01, dead ? 0.12 : 0.3, 0.01), stringM);
+      str.position.set(-0.74, dead ? 1.53 : 1.48, -0.56);
+      g0.add(str);
+    };
+
     /** hang a thing on the windshield of a car group, in the car's own frame */
     const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
                      y: number, z: number, rz = 0) => {
@@ -656,6 +809,8 @@ export function buildLot(o: {
         n++;
         const g0 = new THREE.Group();
         g0.add(makeCar(it.kind, it.col));
+        buyersGuide(g0);                                  // every car, by law
+        if (n % 3 === 1) balloon(g0, n, n === 4 || n === 13);
         switch (it.treat) {
           case 'soap':
             onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
@@ -690,13 +845,26 @@ export function buildLot(o: {
     // where cars have stood for years.
 
     // the sandwich board, at the mouth where it would be dragged out
-    const boardFaceT = pixTex(52, 40, (g) => {
-      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, 52, 40);
-      g.fillStyle = '#2a2118'; g.fillRect(0, 0, 52, 2); g.fillRect(0, 38, 52, 2);
-      stamp(g, 'TODAY', 5, 6, 2, '#c0392f');
-      stamp(g, 'ONLY', 9, 18, 2, '#c0392f');
-      stamp(g, 'NO CREDIT', 3, 30, 1, '#25406b');
-      dither(g, 52, 40, 30);
+    // The canvas is sized from the LONGEST line and the aspect is taken from
+    // the face it lands on (0.62 wide by 0.86 tall), not chosen. Picking 52 px
+    // by eye is what shipped "TODA / ONLY / NO CREDI" — a 5-char line at 2 px
+    // per texel needs 58, and a 9-char line at 1 px needs 53. Same clipping
+    // that has now bitten the office board and the price cards; the rule is
+    // that no canvas here gets a number typed into it directly.
+    const BW = 62, BH = 86;
+    const wOf = (t: string, px: number) => (t.length - 1) * 6 * px + 5 * px;
+    const mid = (g: CanvasRenderingContext2D, t: string, y: number, px: number, ink: string) =>
+      stamp(g, t, Math.round((BW - wOf(t, px)) / 2), y, px, ink);
+    const boardFaceT = pixTex(BW, BH, (g) => {
+      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, BW, BH);
+      g.fillStyle = '#2a2118'; g.fillRect(0, 0, BW, 3); g.fillRect(0, BH - 3, BW, 3);
+      mid(g, 'TODAY', 10, 2, '#c0392f');
+      mid(g, 'ONLY', 26, 2, '#c0392f');
+      g.fillStyle = '#c0392f'; g.fillRect(8, 44, BW - 16, 2);
+      mid(g, 'NO CREDIT', 52, 1, '#25406b');
+      mid(g, 'NO PROBLEM', 62, 1, '#25406b');
+      mid(g, 'WE FINANCE', 74, 1, '#2a2118');
+      dither(g, BW, BH, 30);
     });
     const boardEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
     const sandZ = zN - span * SITE_GATE - 2.4;
