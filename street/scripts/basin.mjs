@@ -79,7 +79,13 @@ if (mode === 'shots' || mode === 'all') {
 }
 
 if (mode === 'wet' || mode === 'all') {
-  const rainy = (h) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
+  // The world's rain predicate, duplicated here because scripts cannot import
+  // from the TS module. It has an EXCEPTION now — 14:00 always rains, to put
+  // the first storm 40 s from spawn — so a script that picks "the first dry
+  // hour" must know about it or it will pick a wet one. Keep in step with
+  // rainAt() in ct/props.ts.
+  const rainy = (h) => (((h % 24) + 24) % 24) === 14 ||
+    ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
   let wetH = 0; for (let h = 0; h < 48; h++) if (rainy(h)) { wetH = h; break; }
   await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
   await page.waitForTimeout(7000);

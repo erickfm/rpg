@@ -18,18 +18,32 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await page.waitForTimeout(500);
 
 // same predicate ct/props.ts uses, so we pick hours the world agrees are wet
-const rainy = (h) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
+// The world's rain predicate, duplicated here because scripts cannot import
+// from the TS module. It has an EXCEPTION now — 14:00 always rains, to put
+// the first storm 40 s from spawn — so a script that picks "the first dry
+// hour" must know about it or it will pick a wet one. Keep in step with
+// rainAt() in ct/props.ts.
+const rainy = (h) => (((h % 24) + 24) % 24) === 14 ||
+  ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
 let wetH = -1, dryH = -1;
 for (let h = 0; h < 48; h++) { if (wetH < 0 && rainy(h)) wetH = h; if (dryH < 0 && !rainy(h)) dryH = h; }
 
 const read = () => page.evaluate(() => {
   const sc = window.__ct.scene();
-  const out = { pud: [], strip: null, broad: null, rainOpacity: 0 };
+  const out = { pud: [], refl: [], strip: null, broad: null, rainOpacity: 0 };
   sc.traverse((o) => {
     if (!o.isMesh || !o.material) return;
     const m = o.material;
-    if (m.map?.image?.width === 48 && m.map?.image?.height === 32 && m.transparent) {
-      out.pud.push(+m.opacity.toFixed(4));
+    // Puddle sheets come in two shapes now — 48x32 discs on the road crown
+    // and 16x64 RUNS in the gutter pan, since water in a gutter is a ribbon —
+    // and each one carries a second additive sheet on top of it, the
+    // reflection. Split them by blending: the body is NormalBlending (1), the
+    // reflection is AdditiveBlending (2). Reading them together was measuring
+    // a mixture of the two and reporting nonsense.
+    const im = m.map?.image;
+    const sheet = im && ((im.width === 48 && im.height === 32) || (im.width === 16 && im.height === 64));
+    if (sheet && m.transparent) {
+      (m.blending === 2 ? out.refl : out.pud).push(+m.opacity.toFixed(4));
       return;
     }
     if (!m.map?.image || m.transparent) return;
@@ -70,8 +84,14 @@ if (mode === 'probe' || mode === 'all') {
   // hitting zero, so ask whether it is still being DRAWN, at the end
   const rainStopped = !samples[samples.length - 1].raining;
   const maxAt = samples.map((s) => Math.max(...s.pud));
-  // puddles must still be FILLING after the rain has gone
-  const stillFilling = maxAt[3] > maxAt[0];
+  // Puddles must still be FILLING after the rain has gone. Measured on the
+  // MEAN rather than the max: the gutter ribbons start collecting almost at
+  // once and pin at 1.0 within a couple of seconds, so a max-based test can
+  // only ever report "not rising" once any one puddle has saturated. The
+  // claim is about the population — the deep low spots are still finding
+  // water minutes after the last drop — and the mean is what states it.
+  const meanAt = samples.map((s) => s.pud.reduce((a2, b2) => a2 + b2, 0) / s.pud.length);
+  const stillFilling = meanAt[3] > meanAt[0] + 0.005;
   // and the street must not be bone dry the moment it stops
   const streetStillWet = samples[samples.length - 1].broad !== wet.broad ||
                          samples[samples.length - 1].strip !== wet.strip;
@@ -83,11 +103,31 @@ if (mode === 'probe' || mode === 'all') {
   const gutterHolds = samples[3].strip !== samples[3].broad;
 
   console.log(`\n  ${rainStopped ? 'OK  ' : 'FAIL'} the rain actually stopped`);
-  console.log(`  ${stillFilling ? 'OK  ' : 'FAIL'} puddles are STILL filling after it stops — they crest late`);
+  console.log(`  ${stillFilling ? 'OK  ' : 'FAIL'} puddles are STILL filling after it stops — they crest late ` +
+    `(mean ${meanAt[0].toFixed(3)} -> ${meanAt[3].toFixed(3)})`);
   console.log(`  ${stillDark ? 'OK  ' : 'FAIL'} standing water outlasts the storm`);
   console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop`);
   console.log(`  ${individual ? 'OK  ' : 'FAIL'} puddles fill individually (${spread.size} distinct depths), not in lockstep`);
   console.log(`  ${gutterHolds ? 'OK  ' : 'FAIL'} the gutter and the road crown dry at different rates`);
+
+  // THE REFLECTION. This is the fix for the contrast inversion, and the whole
+  // claim is that it scales with the LIGHT rather than being a fixed sheet —
+  // so it must be strong in a daytime storm and near nothing in a small-hours
+  // one, in the same world state otherwise. A fixed sheet cannot do that, and
+  // a sheet that fails this is back to being a pale smear on a dark road.
+  const dayWet = [...Array(48).keys()].find((h) => rainy(h) && (h % 24) >= 11 && (h % 24) <= 16);
+  const nightWet = [...Array(48).keys()].find((h) => rainy(h) && ((h % 24) <= 3 || (h % 24) >= 22));
+  const reflAt = async (h) => {
+    await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
+    await page.waitForTimeout(9000);
+    return Math.max(...(await read()).refl);
+  };
+  const rDay = await reflAt(dayWet), rNight = await reflAt(nightWet);
+  console.log(`\n  reflection in a storm at ${dayWet % 24}:00 = ${rDay.toFixed(3)}, ` +
+    `at ${nightWet % 24}:00 = ${rNight.toFixed(3)}`);
+  const scales = rDay > 0.25 && rNight < rDay * 0.25;
+  console.log(`  ${scales ? 'OK  ' : 'FAIL'} standing water REFLECTS, and the reflection scales with the light`);
+  if (!scales) process.exitCode = 1;
   if (!rainStopped || !stillFilling || !stillDark || !streetStillWet || !individual || !gutterHolds) process.exit(1);
 }
 

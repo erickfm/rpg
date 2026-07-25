@@ -70,7 +70,24 @@ export function buildProps(ctx: CtxBuild): Props {
                           // directions: it is still finding the low spots
                           // after the rain stops, so it peaks late
   const RAIN_SKY = new THREE.Color('#5a626e');
-  const rainAt = (h: number) => ((Math.imul(h, 2246822519) >>> 0) % 100) < 22;
+  // RAIN HAS TO BE FINDABLE. It was 6 hours in 24 and the first one a hundred
+  // real seconds from spawn, and the user has now asked about rain four times
+  // — a feature nobody can see is not a feature. Two changes, and only one of
+  // them is the odds.
+  //
+  // The odds go to 8 hashed hours in 24, and they CLUSTER — 0,1 then 5,6 then
+  // 10,11 then 15, 20 — because weather arrives as fronts rather than as
+  // isolated hours.
+  //
+  // The opening storm is separate and deliberate. The world starts at 13:20
+  // and a game hour is 60 real seconds, so the first hashed storm at 15:00 is
+  // 100 seconds of standing about. The hash cannot be made to rain at 14:00
+  // without raining nearly always — its value there is 94 of 100 — so this is
+  // an explicit exception rather than a tuned threshold, and it puts the first
+  // storm 40 seconds from spawn.
+  const OPENING_H = 14;
+  const rainAt = (h: number) =>
+    (((h % 24) + 24) % 24) === OPENING_H || ((Math.imul(h, 2246822519) >>> 0) % 100) < 30;
 
   // billboard sprites: trees, hydrant, pigeons
   function board(tex: THREE.Texture, w: number, h: number, x: number, z: number): THREE.Mesh {
@@ -730,9 +747,18 @@ export function buildProps(ctx: CtxBuild): Props {
       const fill = Math.min(1, Math.max(0, (puddleLevel - q.lo) / (q.hi - q.lo)));
       q.m.opacity = q.max * fill;
       q.m.visible = fill > 0.02;             // bone dry means NO puddle at all
-      // never lighter than the road it sits on: the faint sky sheen in the
-      // sheet has to come down with the ambient or it glows at 3am
+      // the BODY is water, and water is dark. It comes down with the ambient
+      // so it never glows at 3am.
       q.m.color.setScalar(amb);
+      // the REFLECTION is the sky, so it scales with the light instead — this
+      // is what stops the contrast inverting during a storm, when the road is
+      // crushed six times darker and a fixed dark sheet has nowhere left to
+      // go. Only lightly reduced while it is actually coming down: a broken
+      // surface reflects less, but the whole point is that it stays readable
+      // in the rain, which is the one condition it used to disappear in.
+      const refl = fill * amb * (1 - 0.25 * rainLevel);
+      q.sheen.visible = refl > 0.012;
+      if (q.sheen.visible) q.sheen.opacity = refl * 0.92;
     }
     rain.visible = rainLevel > 0.02;
     if (rain.visible) {
@@ -979,7 +1005,41 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillStyle = 'rgba(150,168,196,0.18)';
     for (const [x, y] of [[7, 11], [8, 11], [9, 29], [6, 43], [8, 51]]) g.fillRect(x, y, 1, 1);
   });
-  interface Puddle { m: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
+  // ── the reflection, which is the actual fix for the contrast inversion ──
+  //
+  // The diagnosis that started this: while it is raining, updateRain crushes
+  // the road SIX TIMES toward slate, from 0.238 luminance to 0.0397. A fixed
+  // dark puddle sheet cannot go darker than the road it sits on, so the sign
+  // of the contrast INVERTS — measured at 0.0551 against the road's 0.0397,
+  // four levels out of 255, and on the wrong side. The puddle became a faint
+  // pale smear, which is a very quiet version of the glowing puddle that had
+  // already been shipped and rejected once.
+  //
+  // Standing water does not read by being dark. It reads by REFLECTING, and
+  // that is the property that fixes this rather than any amount of tuning: a
+  // reflection scales with the light falling on the scene, so it can never
+  // invert against the surface beside it. Bright against a dark wet road at
+  // midday, and gone at 3am when there is nothing above it to reflect — which
+  // is also exactly the note the first version got.
+  //
+  // It is a separate additive sheet rather than a brighter body, because the
+  // body must stay dark: water IS dark, and multiplying the whole sheet up
+  // would take the dark part with it.
+  //
+  // Hard texels only. A smooth highlight is the thing this world has now
+  // rejected twice, on the lamp halo and on the catch basin.
+  const glint = (g: CanvasRenderingContext2D, runs: [number, number, number][],
+                 dots: [number, number][]) => {
+    for (const [x, y, w] of runs) { g.fillStyle = 'rgba(174,196,226,0.52)'; g.fillRect(x, y, w, 1); }
+    for (const [x, y] of dots) { g.fillStyle = 'rgba(210,226,248,0.78)'; g.fillRect(x, y, 1, 1); }
+  };
+  const sheenDiscT = pixTex(48, 32, (g) => glint(g,
+    [[14, 11, 9], [19, 14, 7], [13, 18, 11], [22, 21, 6], [17, 24, 8]],
+    [[20, 9], [26, 13], [16, 20], [24, 25], [30, 17]]));
+  const sheenRunT = pixTex(16, 64, (g) => glint(g,
+    [[6, 8, 4], [7, 17, 3], [5, 26, 5], [8, 33, 3], [6, 41, 4], [7, 50, 3], [6, 57, 4]],
+    [[7, 12], [6, 21], [9, 30], [5, 37], [8, 46], [7, 54]]));
+  interface Puddle { m: THREE.MeshBasicMaterial; sheen: THREE.MeshBasicMaterial; lo: number; hi: number; max: number }
   const puddles: Puddle[] = [];
   // `run` makes it a directed track instead of a blob. Both rnd() draws happen
   // either way, even when the shape is given, so the seeded stream does not
@@ -1005,7 +1065,17 @@ export function buildProps(ctx: CtxBuild): Props {
     p.rotation.z = rot;
     p.position.set(cx, surfaceY(cx) + 0.005, z);  // a film ON the surface, not through it
     scene.add(p);
-    puddles.push({ m, lo, hi, max });
+    // the reflection rides on top of the body, additive, same shape
+    const sheen = new THREE.MeshBasicMaterial({
+      map: run ? sheenRunT : sheenDiscT, transparent: true, opacity: 0,
+      depthWrite: false, blending: THREE.AdditiveBlending });
+    sheen.visible = false;
+    const sm = new THREE.Mesh(new THREE.PlaneGeometry(w, d), sheen);
+    sm.rotation.x = -Math.PI / 2;
+    sm.rotation.z = rot;
+    sm.position.set(cx, surfaceY(cx) + 0.0065, z);
+    scene.add(sm);
+    puddles.push({ m, sheen, lo, hi, max });
   };
   // Where water actually goes, and it is not "anywhere". The pan is the low
   // point of the whole street — I built it cross-sloped 0.018 down to 0.006 at
