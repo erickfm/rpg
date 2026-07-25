@@ -1,6 +1,7 @@
 // The front door from both sides, one after the other — the only way to see
 // whether it is the same door. Report finding 1.
 import { chromium } from 'playwright';
+import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
@@ -14,8 +15,7 @@ p.on('pageerror', e => errs.push(e.message));
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
-await p.evaluate(() => window.__ct.clock(13, 0));
-await p.waitForTimeout(600);
+await setClock(p, 13, 0);   // waits for the frame that applies it, not a guess
 const SH = [
   // street side: FACE is 7, the door is at z -44
   ['01-street',      4.6, -44.0, at(2.6, 0),    0.10, 0.14],

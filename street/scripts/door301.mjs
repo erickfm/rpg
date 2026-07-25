@@ -9,6 +9,7 @@
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/door301.mjs [outdir]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
@@ -43,9 +44,14 @@ page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await page.evaluate(() => window.__ct.clock(13, 0));
-await page.mouse.click(640, 360);                     // take pointer lock so keys land
-await page.waitForTimeout(600);
+await setClock(page, 13, 0);                          // the frame that applies the grade
+// This click was commented "take pointer lock so keys land". Nothing in
+// src/proto requests pointer lock at all — keys are read from `input.keys`,
+// fed by a plain listener — so the click gives the page focus and the 600 ms
+// beside it was waiting for something that does not happen. Kept as a focus
+// click, described as what it is.
+await page.mouse.click(640, 360);                     // focus, so keydown lands
+await page.waitForTimeout(120);
 
 /** Prove the mirrored constants still describe this world: 301's leaf is a
  *  0.045-thick box hung at the pivot, so if it is not within a few cm of where
@@ -106,7 +112,72 @@ const prompt = () => page.evaluate(() => {
 });
 
 const shot = (n) => page.screenshot({ path: `${outDir}/${n}.png` });
-const press = async () => { await page.keyboard.press('e'); await page.waitForTimeout(950); };
+
+// Install a one-number signature of the leaf's pose, so the swing can be
+// waited on rather than slept through.
+await page.evaluate(([px, pz, fy]) => {
+  window.__leafSig = () => {
+    const s = window.__ct.scene(); s.updateMatrixWorld(true); let best = null;
+    s.traverse((o) => {
+      if (!o.isMesh) return;
+      let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
+      if (mod !== 'walkup') return;
+      const g = o.geometry?.parameters; if (!g || Math.abs((g.depth ?? 0) - 0.045) > 0.005) return;
+      const e = o.matrixWorld.elements;
+      if (Math.abs(e[13] - (fy + 1.05)) > 0.3) return;
+      const d = Math.hypot(e[12] - px, e[14] - pz);
+      if (!best || d < best.d) best = { d, e };
+    });
+    return best ? best.e.reduce((a, v) => a + v * v, 0) : NaN;
+  };
+}, [PIV[0], PIV[1], FLOOR]);
+
+// The swing is driven by the RENDER LOOP, so its duration is FRAMES, not
+// milliseconds. `waitForTimeout(950)` was a guess against that, and it is the
+// guess that made this script flaky: on a cold first run — shader compile,
+// texture upload — the leaf had not finished travelling when the collider was
+// read, and "after E, doorway blocked" came back false on a door that was
+// working perfectly. It failed 1 run in 3 that way, which is the worst
+// possible rate: often enough to be real, rare enough to be dismissed.
+//
+// So wait for the leaf to STOP MOVING. Same rule as lib/clock.mjs — wait for
+// the event, not for a duration — and it is faster too, because a settled
+// door returns immediately instead of always paying the full 950 ms.
+// Waiting for it to STOP is not enough on its own, and getting that wrong took
+// this script from flaky to 0/10: at the moment E is pressed the leaf has not
+// begun to travel, so a stillness test is satisfied instantly by the door
+// standing exactly where it was, and press() returned in ~70 ms every time.
+// You have to wait for the motion to START before waiting for it to STOP.
+//
+// The refusal case — E inside the swing, where nothing may move — is the same
+// code path: no motion inside START_CAP is the ANSWER there, not a timeout.
+const press = async () => {
+  await page.keyboard.press('e');
+  const r = await page.evaluate(() => new Promise((res) => {
+    const t0 = performance.now(), START_CAP = 1500, RUN_CAP = 8000;
+    const sig0 = window.__leafSig();
+    let last = sig0, still = 0, f = 0, moved = false;
+    const tick = () => {
+      const v = window.__leafSig(); f++;
+      if (!moved) {
+        if (Number.isFinite(v) && Math.abs(v - sig0) > 1e-9) moved = true;
+        else if (performance.now() - t0 > START_CAP)
+          return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: false, capped: false });
+      } else {
+        still = (Number.isFinite(v) && Math.abs(v - last) < 1e-9) ? still + 1 : 0;
+        if (still >= 4)
+          return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: true, capped: false });
+        if (performance.now() - t0 > RUN_CAP)
+          return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: true, capped: true });
+      }
+      last = v;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }));
+  if (r.capped) console.warn(`  [press] the leaf was still moving after ${r.ms} ms (${r.frames} frames) — not settled`);
+  return r;
+};
 
 // ── assertions, because printing "must be true" is not checking it ────────
 // This script used to print its five results with `<- must be true` beside

@@ -9,6 +9,7 @@
 // The cut is z 2.6, half-width 3.4, with 0.9 m flares — the same centre and
 // width as ct/lot.ts's drive aisle, so the two have to line up exactly.
 import { chromium } from 'playwright';
+import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
@@ -22,8 +23,7 @@ p.on('pageerror', (e) => errs.push(e.message));
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
-await p.evaluate(() => window.__ct.clock(13, 0));
-await p.waitForTimeout(700);
+await setClock(p, 13, 0);   // waits for the frame that applies it, not a guess
 const SH = [
   ['01-from-road',    -1.0,  2.6, at(9.0,  0.0), -0.10, 0.14],
   ['02-oblique-s',    -1.0, -4.0, at(9.0,  7.0), -0.12, 0.14],

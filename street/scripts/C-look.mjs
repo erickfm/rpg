@@ -13,6 +13,7 @@
 //
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/C-look.mjs [outdir]
 import { chromium } from 'playwright';
+import { setClock } from './lib/clock.mjs';
 import { mkdirSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
 const OUT = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/look';
@@ -24,8 +25,7 @@ const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
-await p.evaluate(() => window.__ct.clock(13, 0));
-await p.waitForTimeout(600);
+await setClock(p, 13, 0);   // waits for the frame that applies it, not a guess
 for (const [n, x, z, yaw, pitch, gy] of [
   ['01-lot-from-street', -2.0,  2.6, at(9.0, 0.0),  0.06, 0.14],
   ['02-in-the-gate',      8.0,  2.6, at(14.0, 0.0), 0.00, 0.14],

@@ -557,3 +557,36 @@ number, because the number gets quoted and the caveat does not. Both of my
 blockers were filed as "measured rather than guessed", which was true and not
 sufficient: **a measurement compared against the wrong thing is a guess with a
 number on it.**
+
+## 30. A fixed sleep for anything the RENDER LOOP drives fails only under load
+
+The clock, a door swing, a car, a walker — none of these advance in
+milliseconds. They advance in FRAMES. A frame is 17 ms on an idle machine and
+over a second on one running the rest of the suite, so every `waitForTimeout`
+standing in for one of them is a bet on how busy the machine is.
+
+The bet is invisible when you make it, because you make it on an idle machine:
+
+|  `door301.mjs`, pressing E and sleeping 950 ms for the leaf | |
+|---|---|
+| run one at a time | **13 of 13 green** |
+| six copies at once | **2 of 6 green** |
+
+Same code, same build, same server, no navigation failures. Four reds on a door
+that works perfectly — the collider was read while the leaf was still moving.
+
+**So wait for the event.** `scripts/lib/clock.mjs` does it for the clock
+(`setClock(page, h, m)` returns when the grade is actually on screen, and warns
+rather than returning quietly if frames stop). For an animation, poll the thing
+itself until it stops — but **wait for it to START before you wait for it to
+STOP**, or the test is satisfied instantly by the object standing still where
+it began. That mistake took the same script to 0 of 10, which was at least
+loud.
+
+And the corollary for anyone certifying a script against `159b9c1c`'s candidate
+list: **running it twice on a quiet machine cannot find this.** Run N copies at
+once.
+
+```sh
+for i in 1 2 3 4 5 6; do node scripts/<yours>.mjs "shots/_c$i" >/tmp/c$i.log 2>&1 & done; wait
+```
