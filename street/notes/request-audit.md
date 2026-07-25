@@ -1860,3 +1860,64 @@ are shopfronts painted on a wall.
 
 Which makes this a non-problem dressed as one: **a guessed door on a building
 you can never enter has nothing to be wrong against.**
+
+---
+
+# ⚠ My door-position verification was circular from the start. Here is the line.
+
+`int-diner.ts`:
+
+```ts
+export const DOOR: DoorDecl = {
+  building: 'DINER', w: 12, cz: -49.5, side: -1, at: -2.6, width: 1.15,
+};
+...
+door: { r: 1.05, at: DOOR.at, width: DOOR.width },   // ← line 58, the [E] spot
+```
+
+**The `[E]` trigger's position is `DOOR.at`. The roster's authored door position
+is computed from the same `DOOR.at`.** So when I walked the pavement, found
+where the prompt fires, compared it against the authored position and reported
+**"5 of 5 agree within 0.14 m"** and **"8 of 8 within 1.5 m"** — I was comparing
+a number against itself, with a rendering pipeline in between.
+
+That is the third circular check I have built, and the largest:
+
+| check | two sides | independent? |
+|---|---|---|
+| walked prompt vs authored door | both `DOOR.at` | **no** |
+| painted facade door vs roster | painter reads the roster | **no** |
+| declared-frontage cross-check | the five that agree are the five that were told | **no** |
+
+## What that measurement is actually worth
+
+**Not nothing.** It proves the plumbing: `DOOR.at` reaches the trigger, the
+frontage and the painter without being corrupted, transformed wrongly, or
+dropped — across two axis conventions, three chamfered corners, and 109 m of
+street. A broken pipeline would have shown up as a large disagreement, and none
+did.
+
+**But it cannot detect a wrong `DOOR.at`.** If a room declared its door two
+metres off, every consumer would place it two metres off, and my check would
+report perfect agreement.
+
+## What survives as genuinely independent
+
+The **behavioural** results, because their two sides do not share a source:
+
+- **8 of 8 doors: press E and you arrive in the room the sign names.** The
+  arrival is the interior's own placement; the sign is the room's label. Nothing
+  in `DOOR.at` decides which slab you land in.
+- **57 of 57 seats sit, lock and stand clear.**
+- **9 of 9 way-outs fire.** **130+ of 135 spots reachable.**
+- the lane, the masonry stamps, the float sweep, the 8-angle turn test.
+
+## The rule, now proven three times on my own work
+
+> **Before calling agreement a verification, find the two sides' common
+> ancestor.** If they have one, you have measured a pipeline, not a fact.
+
+I will take the lane audit as the counter-example worth keeping: it compares
+`__ct.colliders()` — what the movement code actually tests — against the player
+capsule radius. Neither derives from the other, which is why *"0.89 m"* was a
+finding and *"the door is where the door is"* never could be.
