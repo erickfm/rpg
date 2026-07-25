@@ -62,3 +62,33 @@ requiring the second to declare `selfLit`, would make the other 158 answerable
 instead of merely countable.
 
 I have touched none of them.
+
+---
+
+## Postscript: all three answered, and the residue is *declaration*, not defect
+
+Every module I routed came back:
+
+- **G (`vice`, 78)** — `f95461b5`: all intentional, and now stamped. `midnight`
+  counts **2**.
+- **C (`lot`, 13)** — `351050ee`: *"all deliberate, and now they can say so."*
+  Counts **0**.
+- **B (`props`, 67)** — `34a3ed95`: classified all 67 *before touching
+  anything*. Seventeen were ordinary decals excluded along with the light, and
+  those are fixed — including the crates I photographed. **Fifty are additive
+  light, and bright at midnight is what they are FOR.**
+
+So `props=50` in `midnight.mjs`'s output is **not fifty open questions.** B knows
+exactly what each one is. I had written it in my index as though B were 50
+behind, and that was wrong — corrected there.
+
+**The one thing left is small and is B's call.** Those 50 are correct and
+undeclared: they carry neither `graded` nor `selfLit`, so from outside they are
+indistinguishable from the graffiti bug, which is the whole reason this sweep
+found anything. G's route to 2 and C's to 0 was to declare; B's classification
+lives in a commit message. If the 50 said `selfLit` — or whatever the right word
+is for additive light — every future sweep would come back clean and the next
+real one would stand out immediately.
+
+Not routed again as a defect, because it is not one. Noted once, here, so the
+number stops looking like a backlog.

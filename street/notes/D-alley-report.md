@@ -15,7 +15,7 @@ the directory — `f214cf76` and `fef145bb` hit the same thing. Index first.
 | **`BLOCKED-D.md`** | the BODEGA frontage names the wing, not the door | **LIVE — the only thing blocking me**, needs a desk ruling |
 | `D-pinned-suite.md` | `scripts/pinned-suite.sh`, a checkout that cannot move under a run | live tool; answers BLOCKED-H §3 and §4 |
 | `D-integration-optin-exists.md` | `SHOT_WORLD=integration` already landed | **for H** — evidence their open item can close |
-| `D-bright-at-midnight.md` | 158 materials bright at 23:00 with no record why | routed; G's 78 and C's 13 answered, B fixed 17 |
+| `D-bright-at-midnight.md` | 158 materials bright at 23:00 with no record why | routed and answered; see the postscript below on 50 that are correct but undeclared |
 | `D-graffiti-glowed.md` | the alley tags rendered 16x brighter than their wall | fixed (`4955621e`); cause fixed at root by `34a3ed95` |
 | `D-the-post-is-a-person.md` | the "mid-pavement post" is a walker | settled; `3f7b2623` retracted |
 | `D-pgrep-is-not-yours.md` | `pgrep -f` matches other builders' processes | rule, not a patch; four waiters were blocked 3h+ |
