@@ -109,7 +109,49 @@ per room and print them, rather than changing the scan again. Both scan methods
 are now known good on PAWN and known useless on the other four, so the fault is
 upstream of both.
 
-## One real finding: PAWN
+## The false green, and PAWN withdrawn (`96d8e049`)
+
+**The worst thing in this file was the summary line.** It read
+
+```js
+fails.length ? "N do not mirror" : "all N rooms mirror"
+```
+
+so a run that measured **nothing** printed *"all 5 rooms mirror"* — a green
+verdict from zero evidence. I watched it do that while trying a third scan
+method. For a harness whose whole job is answering *"the user asked for this on
+every building"*, that is the worst failure available: **a check that cannot see
+is indistinguishable from a check that has looked.** It says so now, and exits
+non-zero.
+
+### What the third attempt measured, before I reverted it
+
+```
+the diner's front wall is TWO pieces; the doorway is the gap between them
+  [674.4, 676.8]  z 3.50..3.68
+  [678.0, 685.6]  z 3.50..3.68
+  doorway 676.8 .. 678.0  —  1.20 m
+```
+
+**Free-space probing cannot work here.** A 1.20 m doorway minus the 0.36 m
+player radius each side leaves 0.48 m, and a frame or threshold closes it — the
+scan finds no free run at all. Both of my earlier explanations, furniture pads
+and then `cx`/`hd`, were wrong about the mechanism. Three wrong guesses; the
+data settled it in one run.
+
+And the thing that hid the wall from me twice: **the left-hand piece is 2.4 m
+wide**, so any filter keeping only colliders that span most of the room throws it
+away and takes the doorway with it.
+
+### ~~PAWN~~ — withdrawn
+
+I reported last turn that PAWN's room builds its doorway 6.23 m off its declared
+centre. **Not confirmed, and I am withdrawing it.** PAWN's two spanning
+colliders are both at **negative z**, so `hd` resolved to −2.52 and the
+"doorway" measured was in the **back wall**. It was the one room that appeared
+to measure, and it was the one measuring the wrong wall.
+
+## ~~One real finding: PAWN~~ (superseded — see above)
 
 The first measurement ever taken of that room — it was unreachable until the
 `[E]` work landed.
