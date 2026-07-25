@@ -126,6 +126,38 @@ kind of state that can carry one — the same class of path-dependence D found i
 the splash sheets. **Asking instead of inferring bought robustness I was not
 aiming at.**
 
+### The runner soaks at NIGHT too — and two traps for anyone measuring wet
+
+I verified the entrance runner at 15:00, which is daylight rain, and the brief's
+image is a **wet night**. `c68f09f5` reports the night wet-look is narrower than
+`fd74b028` claimed, so this needed measuring rather than extrapolating. Fresh page
+per row, stepped clock:
+
+```
+                       night  wetness   runner           walk     road
+day dry     13         0      0.000     #7a2028 0.0532   1.0000   1.0000
+day rain    13→15      0      0.973     #5e2028 0.0354   0.7970   0.1765
+night dry   →19→21→23  1      0.000     #170203 0.0024   0.0450   0.0450
+night rain  →23→0      1      0.703     #130203 0.0019   0.0406   0.0139
+```
+
+**It responds: −21% at night**, against road −69% and walk −10%. So the fix holds
+in the conditions the brief actually describes, and this corroborates
+`c68f09f5`'s 51-of-62 rather than the "bit-for-bit identical" it corrects.
+
+**Trap 1 — the stepped clock soaks the world.** `rainAt` fires on 0, 1, 5, 6, 10,
+11, 15 and **20**, and the recommended night path steps *through* 20. My first
+"night dry" control came back at **wetness 1.0**: not dry at all, just rained on
+an hour earlier and still drying. A dry night needs a path that avoids 20 —
+13 → 18 → 19 → 21 → 23 works.
+
+**Trap 2 — wetness has hysteresis, so rows contaminate each other.** Running the
+four rows in one page gave "night dry" at **0.958**, carried over from the rain
+row two steps earlier: props dries deliberately slowly, and no plausible settle
+time undoes it. A fresh page per row fixes it. **Sequential measurement of a state
+with memory needs a fresh world, not a longer wait** — and both of my first two
+attempts read as findings about the world rather than about the probe.
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
