@@ -16,6 +16,36 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Move TONY'S PIZZA onto the bench BACK, and recline the back a little.**
+      The user: *"i think the tonys pizza sign should go on the back of the
+      bench also i think the bench back should lean back a lil"*. Ref:
+      `shots/user-bench3.png`.
+
+      The bench is much better since your rebuild — it faces the road and sits
+      at the kerb beside its pole. Two refinements:
+
+      · **The ad is on the front skirt panel, under the seat.** It should be on
+        the BACKREST, which is where a real bus-bench ad lives — it is the
+        biggest flat face on the object and the one people actually read. Move
+        the whole thing across: TONY'S PIZZA, the phone number, TWO SLICES
+        $1.75. The skirt below the seat then goes back to being plain slats or
+        a plain panel.
+      · **Give the backrest a recline.** It is dead vertical now, which is why
+        it reads as a board rather than a seat. Ten to fifteen degrees off
+        vertical is enough — it should look like something you would lean
+        against. Keep the slats.
+
+      Two things to check once it leans:
+      · the **seat and back must still meet cleanly** at the joint — a
+        reclined back that leaves a gap at the seat is worse than a vertical
+        one
+      · **the sit position** — `ctx.seat()` is F's and the bench is
+        registered with it. A reclined back changes where a seated player's
+        eye should be and which way they face. Sit on it after you change it.
+
+      Keep the ad copy exactly as it is; the concept was approved a while back
+      and the phone number and slice price are good.
+
 - [ ] **Night: wider beams, darker darks, and STARS.** The user: *"make street
       light a bit more broad in their emitted light (like a wider beam) and
       make the unilluminated stuff darker. it should feel scarier at night i
