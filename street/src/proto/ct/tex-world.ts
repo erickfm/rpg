@@ -1376,6 +1376,11 @@ export const taxFront = (brick: string, wM: number) => {
     glazed(g, surf, dx, gy + m(0.15), dw, gh - m(0.9), '#3a4038');
     g.fillStyle = BLIND; g.fillRect(dx, gy + m(0.15), dw, gh - m(0.9));
     g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(dx, gy + m(0.15), dw, gh - m(0.9));
+    // the door's transom, landing on the blind head rail that already runs
+    // across the glazing at 0.62 — the horizontals run through, so the door
+    // belongs to the frontage instead of sitting on it
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(dx, gy + m(0.62), dw, Math.max(1, m(0.08)));
+    g.fillStyle = ALU; g.fillRect(dx, gy + m(0.70), dw, 1);
     g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.75));           // kick plate
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.06));
     g.fillStyle = GOLD; g.fillRect(dx + dw - m(0.22), gy + m(1.5), m(0.08), m(0.3));   // handle
@@ -1473,6 +1478,12 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(1.0), '#3a2f26');
+    // a transom over the door, ON THE SAME LINE as the glazing's. The brief
+    // asks for the transom; the alignment is the part that makes it read —
+    // a shopfront's horizontals run through, and a door bar at its own
+    // arbitrary height is what makes a door look pasted onto a frontage.
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(dx, gy + m(0.78), dw, Math.max(1, m(0.08)));
+    g.fillStyle = STEEL; g.fillRect(dx, gy + m(0.86), dw, 1);
     g.fillStyle = STEEL; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.85));
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.07));
     g.fillStyle = CREAM; g.fillRect(dx + m(0.12), gy + m(1.15), dw - m(0.24), m(0.1));
