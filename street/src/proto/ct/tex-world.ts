@@ -405,7 +405,8 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
     // above continues from — same 0.5 m spacing, same lines
     surf.courses(g);
     // fascia: a signboard fixed to the brick, so it throws a shadow
-    const fy = m(0.16), fh = m(0.9);
+    const B = BANDS.default;
+    const fy = m(B.fy), fh = m(B.fh);
     const bandW = Math.min(W - m(2 * BAND_INSET), m(BAND_MAX)), bandX = Math.round((W - bandW) / 2);
     proud(g, surf, bandX, fy, bandW, fh, awning);
     g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(bandX, fy + fh - m(0.16), bandW, m(0.16));
@@ -414,10 +415,10 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
     g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillText(name, W / 2 + 1, fy + fh / 2 + 1);
     g.fillStyle = '#f2ead0'; g.fillText(name, W / 2, fy + fh / 2);
     // the opening, set back from the brick face
-    const ox = m(0.4), oy = fy + fh + m(0.26), ow = W - m(0.8), oh = H - oy - m(0.05);
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#211d18'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.8);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#38302a');
     // a room behind: lit ceiling, a shelf run at chest height, dark floor.
     // Three bands is all it takes to stop the glass reading as a black hole.
@@ -560,7 +561,8 @@ export const burgerFront = (brick: string, wM: number) => {
     // the light box: a plastic tray standing off the brick, lit from inside,
     // so its face is FLAT and even and its edges are hard — the opposite of
     // the painted board on the thrift shop
-    const fy = m(0.14), fh = m(1.05);
+    const B = BANDS.burger;
+    const fy = m(B.fy), fh = m(B.fh);
     proud(g, surf, 0, fy, W, fh, RED);
     g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, fy + m(0.1), W, m(0.5));  // even internal glow
     g.fillStyle = BEIGE; g.fillRect(0, fy + fh - m(0.14), W, m(0.14));              // trim rail
@@ -569,10 +571,10 @@ export const burgerFront = (brick: string, wM: number) => {
     g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillText('BURGER BARN', W / 2 + 1, fy + fh / 2 + 1);
     g.fillStyle = BEIGE; g.fillText('BURGER BARN', W / 2, fy + fh / 2);
     // the opening, set back from the brick
-    const ox = m(0.4), oy = fy + fh + m(0.22), ow = W - m(0.8), oh = H - oy - m(0.05);
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#2a2622'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.85);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, ROOM);
     // the room reads in three horizontal zones — lit ceiling, the furniture
     // you can pick out against it, dark floor. That structure is what makes a
@@ -631,7 +633,8 @@ export const pawnFront = (brick: string, wM: number) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     // hand-painted board, brush-streaked along its length
-    const fy = m(0.16), fh = m(0.92);
+    const B = BANDS.pawn;
+    const fy = m(B.fy), fh = m(B.fh);
     proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
     g.fillStyle = 'rgba(0,0,0,0.10)';
     for (let x = m(0.25); x < W - m(0.25); x += m(0.28)) if ((x / m(0.28)) % 3 < 1) g.fillRect(x, fy, m(0.14), fh);
@@ -651,10 +654,10 @@ export const pawnFront = (brick: string, wM: number) => {
       g.fillStyle = 'rgba(255,255,255,0.35)';
       g.beginPath(); g.ellipse(bx0 + m(ox2) - br * 0.3, by0 + m(oy2) - br * 0.3, br * 0.35, br * 0.35, 0, 0, Math.PI * 2); g.fill();
     }
-    const ox = m(0.4), oy = fy + fh + m(0.28), ow = W - m(0.8), oh = H - oy - m(0.05);
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#1d1a16'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.8);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#2b2622');
     // ONE bulb over a shelf of pledged goods — instruments, tools, a guitar
     // neck. Dim, because nothing in here is a display, it is storage.
@@ -735,10 +738,11 @@ export const taxFront = (brick: string, wM: number) => {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2);
     // the opening
-    const ox = m(0.4), oy = by0 + bh + m(0.3), ow = W - m(0.8), oh = H - oy - m(0.05);
+    const B = BANDS.tax;
+    const ox = m(B.ox), oy = by0 + bh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#232019'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.75);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#3a4038');
     // vertical blinds, half shut and not quite even — the whole character
     const step = m(0.22);
@@ -805,7 +809,8 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
     surf.courses(g);
     // stainless fascia, fluted — horizontal lines are what read as pressed
     // metal rather than painted board, and they cost two texels each
-    const fy = m(0.15), fh = m(1.0);
+    const B = BANDS.diner;
+    const fy = m(B.fy), fh = m(B.fh);
     proud(g, surf, 0, fy, W, fh, STEEL);
     for (let y = fy + m(0.12); y < fy + fh - m(0.1); y += m(0.16)) {
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, y, W, 1);
@@ -817,12 +822,12 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillText(nm, W / 2 + m(0.06), fy + fh / 2 + m(0.08));
     g.fillStyle = VINYL; g.fillText(nm, W / 2, fy + fh / 2);
-    const ox = m(0.35), oy = fy + fh + m(0.28), ow = W - m(0.7), oh = H - oy - m(0.05);
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#26221c'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
     // glass block at the left end: lit, translucent, shows nothing through it
     const bw = Math.min(m(2.2), Math.round(ow * 0.22));
-    const gy = oy + m(0.22), gh = oh - m(0.8);
+    const gy = oy + m(B.gi), gh = oh - m(B.sg);
     g.fillStyle = '#b9c4c2'; g.fillRect(ox + m(0.2), gy, bw, gh);
     for (let y = gy; y < gy + gh; y += m(0.42)) {
       for (let x = ox + m(0.2); x < ox + m(0.2) + bw; x += m(0.42)) {
@@ -832,7 +837,7 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
       }
     }
     // the window: counter, stools, a row of booths behind
-    const gx = ox + m(0.2) + bw + m(0.25), gw = ow - (gx - ox) - m(0.2);
+    const gx = ox + m(B.gi) + bw + m(0.25), gw = ow - (gx - ox) - m(B.gi);
     glazed(g, surf, gx, gy, gw, gh, '#3a2f26');
     g.fillStyle = '#d8b46a'; g.fillRect(gx, gy, gw, m(0.3));                       // warm ceiling
     g.fillStyle = 'rgba(216,180,106,0.28)'; g.fillRect(gx, gy + m(0.3), gw, m(0.55));
@@ -884,7 +889,8 @@ export const thriftFront = (brick: string, nm: string, awning: string, wM: numbe
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
     // a painted board, sun-bleached unevenly across its length
-    const fy = m(0.18), fh = m(0.92);
+    const B = BANDS.thrift;
+    const fy = m(B.fy), fh = m(B.fh);
     proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
     for (let x = m(0.25); x < W - m(0.25); x += m(0.5)) {
       g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin(x * 0.021))})`;
@@ -895,10 +901,10 @@ export const thriftFront = (brick: string, nm: string, awning: string, wM: numbe
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillText(nm, W / 2 + 1, fy + fh / 2 + 1);
     g.fillStyle = CARD; g.fillText(nm, W / 2, fy + fh / 2);
-    const ox = m(0.35), oy = fy + fh + m(0.3), ow = W - m(0.7), oh = H - oy - m(0.05);
+    const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#221e18'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    const gx = ox + m(0.2), gy = oy + m(0.2), gw = ow - m(0.4), gh = oh - m(0.7);
+    const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#332b24');
     // CROWDED: racks at the back, furniture and boxes stacked to the glass.
     // The crowding is the character — a tidy thrift window is a lie.
