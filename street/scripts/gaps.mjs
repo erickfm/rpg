@@ -12,7 +12,7 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/gaps.mjs [--all]
 import { chromium } from 'playwright';
 
-const PASSABLE = 0.95, ENTERABLE = 0.40;
+let PASSABLE = 0.95, ENTERABLE = 0.40;   // replaced by the world's own values below
 const showAll = process.argv.includes('--all');
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 800, height: 600 } });
@@ -22,45 +22,62 @@ await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: '
 await page.waitForFunction(() => window.__ct?.colliders !== undefined, { timeout: 10000 });
 await page.waitForTimeout(300);
 
-const boxes = await page.evaluate(() => window.__ct.colliders());
-// the moving vehicles park their boxes at 999 while idle; they are not scenery
-const solid = boxes.filter((b) => Math.abs(b.minX) < 400 && Math.abs(b.minZ) < 400);
+// Ask the world for the RULE and the predicate rather than reimplementing them.
+// This probe used to carry its own copy of `corridor()` and the two drifted:
+// they disagreed about a pair that overlapped on neither axis, so a reported
+// trap could not be settled without stepping through both. One implementation.
+const rule = await page.evaluate(() => window.__ct.gapRule());
+ENTERABLE = rule.ENTERABLE; PASSABLE = rule.PASSABLE;
 
-/** The corridor between two boxes: if their spans OVERLAP on one axis, the
- *  separation on the other axis is a slot of that width. Boxes that are only
- *  diagonal to each other do not form a corridor — you can always leave a
- *  diagonal gap the way you came in. */
-const corridor = (a, b) => {
-  const overlapX = a.minX < b.maxX && b.minX < a.maxX;
-  const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
-  const sx = Math.max(b.minX - a.maxX, a.minX - b.maxX);
-  const sz = Math.max(b.minZ - a.maxZ, a.minZ - b.maxZ);
-  if (overlapZ && sx > 0) return { w: sx, axis: 'x' };
-  if (overlapX && sz > 0) return { w: sz, axis: 'z' };
-  return null;
-};
-
-const traps = [];
-for (let i = 0; i < solid.length; i++) {
-  for (let j = i + 1; j < solid.length; j++) {
-    const c = corridor(solid[i], solid[j]);
-    if (!c) continue;
-    if (c.w > ENTERABLE && c.w < PASSABLE) {
-      // where is it? the middle of the slot
+// The whole pairwise scan runs INSIDE the page, calling ct/gap.ts's own
+// corridor() for every pair. Doing it out here would be 9,000 round trips, and
+// re-implementing the predicate is what caused the drift this replaces.
+const traps = await page.evaluate(async ([lo, hi]) => {
+  // ── only STATIC boxes ────────────────────────────────────────────────────
+  //
+  // Six of the colliders in this world MOVE: the citizens, whose footprints are
+  // 0.5 x 0.5 and walk the pavements. A pedestrian passing a parked car forms a
+  // 0.78 m corridor for about a second and then walks out of it, and this probe
+  // used to report that as a parking defect — which is why the build-time
+  // constraint kept reporting success while the probe kept failing. They were
+  // both right; they were looking at different moments.
+  //
+  // You cannot constrain a draw against something that moves, and a person
+  // standing near a car is not a trap: they leave. So sample twice and keep only
+  // the boxes that stayed put. (The traffic vehicles park their boxes at 999
+  // while idle, which the range filter already drops.)
+  const key = (q) => `${q.minX.toFixed(3)},${q.minZ.toFixed(3)},${q.maxX.toFixed(3)},${q.maxZ.toFixed(3)}`;
+  const first = window.__ct.colliders().map(key);
+  await new Promise((r) => setTimeout(r, 1200));
+  const now = window.__ct.colliders();
+  const solid = now.filter((q, i) => key(q) === first[i]
+    && Math.abs(q.minX) < 400 && Math.abs(q.minZ) < 400);
+  const out = [];
+  const dims = (q) => `${(q.maxX - q.minX).toFixed(2)}x${(q.maxZ - q.minZ).toFixed(2)}`;
+  for (let i = 0; i < solid.length; i++) {
+    for (let j = i + 1; j < solid.length; j++) {
       const a = solid[i], b = solid[j];
-      const x = c.axis === 'x' ? (Math.min(a.maxX, b.maxX) + Math.max(a.minX, b.minX)) / 2
+      const w = window.__ct.corridor(a, b);
+      if (w === null || !(w > lo && w < hi)) continue;
+      // which axis the slot runs on, for the report only
+      const overlapZ = a.minZ < b.maxZ && b.minZ < a.maxZ;
+      const axis = overlapZ ? 'x' : 'z';
+      const x = axis === 'x' ? (Math.min(a.maxX, b.maxX) + Math.max(a.minX, b.minX)) / 2
         : (Math.max(a.minX, b.minX) + Math.min(a.maxX, b.maxX)) / 2;
-      const z = c.axis === 'z' ? (Math.min(a.maxZ, b.maxZ) + Math.max(a.minZ, b.minZ)) / 2
+      const z = axis === 'z' ? (Math.min(a.maxZ, b.maxZ) + Math.max(a.minZ, b.minZ)) / 2
         : (Math.max(a.minZ, b.minZ) + Math.min(a.maxZ, b.maxZ)) / 2;
-      const dims = (q) => `${(q.maxX - q.minX).toFixed(2)}x${(q.maxZ - q.minZ).toFixed(2)}`;
-      traps.push({ w: +c.w.toFixed(3), axis: c.axis, x: +x.toFixed(2), z: +z.toFixed(2),
+      out.push({ w: +w.toFixed(3), axis, x: +x.toFixed(2), z: +z.toFixed(2),
         pair: `${dims(a)} vs ${dims(b)}` });
     }
   }
-}
+  return out;
+}, [ENTERABLE, PASSABLE]);
+const solid = await page.evaluate(() => window.__ct.colliders()
+  .filter((q) => Math.abs(q.minX) < 400 && Math.abs(q.minZ) < 400).length);
+console.log('  (moving boxes — the six citizens — are excluded; a person beside a car is not a trap)');
 traps.sort((p, q) => p.w - q.w);
 
-console.log(`gap probe: ${solid.length} solid boxes, ${traps.length} in the trap band ` +
+console.log(`gap probe: ${solid} solid boxes, ${traps.length} in the trap band ` +
   `(${ENTERABLE}–${PASSABLE} m)`);
 // The interior belt is parked out at x > 100 and is somebody else's furniture;
 // report it separately so the street's own traps are not buried in it.

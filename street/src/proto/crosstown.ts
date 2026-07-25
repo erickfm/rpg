@@ -18,7 +18,7 @@ import { buildGround } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
 import { buildSideStreet } from './ct/sidestreet';
-import { nudgeClear } from './ct/gap';
+import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
@@ -243,6 +243,10 @@ export function makeCrosstown(): Proto {
         : 0.04 + rnd() * 0.06);                 // left it at an angle
   };
   const carColliders: AABB[] = [];
+  // …and the fleet itself, because the gap rule cannot be finished here: half the
+  // things a car might trap you against are registered by modules built LATER.
+  // See settleParking() at the bottom of the build.
+  const parkedFleet: { car: THREE.Group; cb: AABB; half: number; kind: CarKind }[] = [];
   const carHalf: Record<CarKind, number> = { sedan: 2.4, hatch: 2.05, pickup: 2.6, van: 2.45 };
   // ── nobody parks across an alley mouth ──────────────────────────────────
   //
@@ -296,6 +300,7 @@ export function makeCrosstown(): Proto {
     props.lit(car);          // parked in a lamp pool? then it catches it
     const cb = box(z);
     carColliders.push(cb); citAvoid.push(cb);
+    parkedFleet.push({ car, cb, half: carHalf[kind], kind });
   });
   // ── the traffic, and the road network it drives ─────────────────────────
   //
@@ -420,6 +425,40 @@ export function makeCrosstown(): Proto {
   // the lamplight (cars, people, kerb props) or owned by the rain keeps its
   // own entry — this only picks up what nothing else was tinting, which is
   // most of the world and all of the reason it used to flatten after dark.
+  // ── settle the parking, now that everything solid exists ────────────────
+  //
+  // The dangerous-gap rule was applied when each car was drawn, and that was too
+  // early: props.ts's kerb furniture is in place by then, but the park, the car
+  // lot, the side street and the interiors all register obstacles AFTER, so a
+  // car could be nudged clear of everything that existed and still end up 0.78 m
+  // from a bin planted later. That is exactly what shipped — the probe found two,
+  // and the build logged no warning because at the time it looked fine.
+  //
+  // So the rule runs again here, against the FINISHED world, and moves the car
+  // and its collider together. Same nudge, same nearest-legal-spot behaviour, so
+  // the drawn spread still survives.
+  for (const p of parkedFleet) {
+    // against EVERY solid box in the world, not just propColliders: the one that
+    // caught us out belongs to a module that hands back its own collider list
+    // (the walls, the walk-up, the bodega, the interiors) and never goes through
+    // ctx.obstacle at all, so a check against propColliders cannot see it. That
+    // is why the first version of this pass reported success and shipped a trap.
+    const others = colliders.filter((b) => b !== p.cb);
+    const z0 = p.car.position.z;
+    const at = (zz: number) => ({
+      minX: p.cb.minX, maxX: p.cb.maxX, minZ: zz - p.half, maxZ: zz + p.half,
+    });
+    const fit = nudgeClear(z0, at, others, 4.5);
+    if (!fit.ok) {
+      console.warn(`[parking] ${p.kind} at z=${z0.toFixed(2)} still leaves a trap-band gap`);
+      continue;
+    }
+    if (fit.moved !== 0) {
+      p.car.position.z = fit.at;
+      p.cb.minZ = fit.at - p.half; p.cb.maxZ = fit.at + p.half;
+    }
+  }
+
   props.dimWorld(scene);
 
   rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
@@ -519,6 +558,12 @@ export function makeCrosstown(): Proto {
     walkers: () => crowd.walkers(),
     // test affordance: route two named nodes of the walkable network
     netRoute: (a: string, b: string) => crowd.netRoute(a, b),
+    // test affordance: THE dangerous-gap predicate, so scripts/gaps.mjs asks the
+    // same code the parked draw is constrained by. It had its own copy and the
+    // two disagreed about a near-degenerate pair — which is the only reason that
+    // corridor was ever in doubt. One implementation, no drift.
+    gapRule: () => ({ ENTERABLE, PASSABLE }),
+    corridor: (a: AABB, b: AABB) => corridor(a, b),
     // paint any Look — how notes/CITIZEN-STYLE.md's contact sheet is made
     person: (look: any) => crowd.paint(look),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
