@@ -137,6 +137,16 @@ const CASES = [
   // of these materials would look like, or an uncapped pool gain — takes it to
   // 1.32 and nothing else in the suite would notice: it is not NaN, not
   // negative, and clamps at render, so the frame merely looks slightly hotter.
+  // The third blinding case. Leaves every puddle in the street and retextures
+  // the sheet so wetness.mjs's predicate stops recognising it — population
+  // 11 -> 2. Worth having even though the check went red before the floor
+  // existed: it went red on `stillFilling`, because the two survivors happened
+  // to saturate, which is the right outcome for the wrong reason.
+  ['wet-blind', PROPS,
+    'const puddleT = declareSurface(pixTex(48, 32, (g) => {',
+    'const puddleT = declareSurface(pixTex(48, 34, (g) => {',
+    'wetness.mjs', ['probe'], 'the puddles still there but invisible to the check that measures them'],
+
   ['grade-twice', PROPS,
     '        e.base.r * mul * (1 + (WARM_R - 1) * k),',
     '        e.base.r * mul * (1 + (WARM_R - 1) * k) * (1 + (WARM_R - 1) * k),',

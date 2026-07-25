@@ -153,7 +153,7 @@ const CHECKS = [
   ['trash',            'is the APPROVED litter set placed, seated, varied?', ['trash', 'trash-set'], ['probe']],
   ['glow',             'do the lamps glow AND light what is under them?',  ['glow', 'glow-pool', 'glow-blind'], ['probe']],
   ['park',             'is EVERY park lantern lit, and the loop walkable?', ['park', 'park-partial', 'park-walk']],
-  ['wetness',          'are puddles darker than the road they sit in?',    'wetness',  ['probe']],
+  ['wetness',          'are puddles darker than the road they sit in?',    ['wetness', 'wet-blind'],  ['probe']],
   ['basin',            'are BOTH catch basins real casting, sunk and proud?', ['basin', 'basin-west']],
   ['kerbcut',          'is there a curb cut, and is it at the lot?',       ['kerbcut', 'kerbcut-moved']],
   ['bus',              'is the bench framed, seated and sittable?',        ['bus-bench'], ['bench']],

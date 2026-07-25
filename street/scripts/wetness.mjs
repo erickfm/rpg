@@ -127,6 +127,23 @@ if (mode === 'probe' || mode === 'all') {
   // individual fill: they must not move in lockstep
   const spread = new Set(samples[3].pud.filter((o) => o > 0.02).map((o) => o.toFixed(3)));
   const individual = spread.size >= 3;
+  // AND THE POPULATION ITSELF, explicitly. `individual` is a floor by accident
+  // — three distinct depths cannot happen with fewer than three pools — so this
+  // check was already safe against ZERO. It was not safe against a COLLAPSE:
+  // nine pools falling to three passes every verdict here.
+  //
+  // Watched, not reasoned. Retexturing the puddle sheet 48x32 -> 48x34 leaves
+  // the puddles in the street and hides them from the predicate at the top of
+  // this file; the population fell 9 -> 2 and this file went red on
+  // `stillFilling`, which is the right outcome for the WRONG reason — the two
+  // survivors happened to saturate. Had they not, 2 of 9 would have passed
+  // three of the six verdicts.
+  //
+  // Nine is what the street has, measured. Floor at 7 leaves room to retune.
+  const POOL_FLOOR = 7;
+  const nPools = samples[3].pud.length;
+  const enough = nPools >= POOL_FLOOR;
+  console.log(`  ${enough ? 'OK  ' : 'FAIL'} there are pools to measure (${nPools}, floor ${POOL_FLOOR})`);
   // the gutter holds water longer than the road crown
   const gutterHolds = samples[3].strip !== samples[3].broad;
 
@@ -188,7 +205,7 @@ if (mode === 'probe' || mode === 'all') {
     wetC.composite < wetC.road && dryC.composite < dryC.road;
   console.log(`  ${neverInverts ? 'OK  ' : 'FAIL'} standing water is darker than the road it sits on, wet AND dry`);
   if (!neverInverts) process.exitCode = 1;
-  if (!rainStopped || !stillFilling || !stillDark || !streetStillWet || !individual || !gutterHolds) process.exit(1);
+  if (!enough || !rainStopped || !stillFilling || !stillDark || !streetStillWet || !individual || !gutterHolds) process.exit(1);
 }
 
 if (mode === 'shots' || mode === 'all') {

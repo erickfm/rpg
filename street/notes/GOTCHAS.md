@@ -775,10 +775,25 @@ about whether the population is checked. And no mutation of any kind reaches
 shape one, because canfail invokes every check with the same correct arguments
 `checks.mjs` does.
 
-*Positive verdicts do not have this problem.* `wetness.mjs` and `bus.mjs` came
-through clean without a floor, because "the puddles are still filling" and "the
-walker got past the stop" are false on an empty world rather than vacuously
-true. If you have a choice, assert the thing that must be TRUE.
+*Positive verdicts resist this, but do not assume they are immune.* I wrote
+exactly that here first, from reasoning, and then went and watched. Half of it
+held and half did not.
+
+`bus.mjs` is genuinely safe: it locates the stop from `userData.benchAd` and
+fails explicitly when that returns nothing, so there is no walk to pass.
+
+`wetness.mjs` was safe against ZERO and not against a COLLAPSE. Retexturing the
+puddle sheet 48x32 -> 48x34 leaves every puddle in the street and hides them
+from its predicate; the population fell from ELEVEN to TWO and the file did go
+red — on "puddles are still filling", because the two survivors happened to
+saturate. Right outcome, wrong reason. Had they not saturated, two pools of
+eleven would have passed three of its six verdicts, and its one real floor
+(`spread.size >= 3`, three distinct depths) only bites below three.
+
+So: prefer asserting what must be TRUE, because it fails on an empty world far
+more often than an absence does. Then assert the population anyway, because
+"more often" is not "always" and you will not know which one you have until you
+break it and look.
 
 **Measure the floor. Do not remember it.** I wrote `pits: 10` from memory and my
 new guard failed the unmutated street on its first run — it has seven. That was
