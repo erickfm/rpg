@@ -66,8 +66,18 @@ catch {
 // Repo-wide is the default, because the number matters and scoping it away by
 // default would hide it.
 const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
-const files = git('ls-files', '*.ts', '*.mjs', '*.md', '*.sh', '*.json')
-  .split('\n').filter(Boolean)
+// TRACKED **AND** NEW. `git ls-files` alone lists only tracked files, so a note
+// you have just written is invisible to this until after you commit it — which
+// is precisely one commit too late, since committing is what fixes the hashes
+// in place. Found by writing a note full of citations, running this on it, and
+// being told "nothing matches".
+//
+// --others --exclude-standard adds untracked files while still honouring
+// .gitignore, so node_modules and dist stay out.
+const files = [
+  ...git('ls-files', '*.ts', '*.mjs', '*.md', '*.sh', '*.json').split('\n'),
+  ...git('ls-files', '--others', '--exclude-standard', '*.ts', '*.mjs', '*.md', '*.sh', '*.json').split('\n'),
+].filter(Boolean)
   .filter((f) => !f.includes('node_modules') && !f.endsWith('package-lock.json'))
   .filter((f) => !only.length || only.some((o) => f.includes(o)));
 
