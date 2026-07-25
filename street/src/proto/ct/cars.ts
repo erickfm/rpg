@@ -765,6 +765,38 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   g.userData.belt = BELT;
   g.userData.hoodTop = BELT + 0.10;      // the hood slab sits ON the belt, 0.1 thick
   g.userData.tyre = 0.34;
+  // ── the flare: "some inlaid wheel things pickups have" ──────────────────
+  //
+  // The user's words, twice: "the wheels need to not clip through". They do
+  // clip, by construction — a 0.24 m tyre centred at 0.82 puts its outer wall
+  // at 0.94 against a flank at 0.90, so 0.04 m of tyre stands through a flat
+  // slab. Moving it inboard buries it, because the arch is PAINT on a solid
+  // box and a wheel behind that plane is simply invisible. That is the whole
+  // reason this sat unfixed: with a flat flank the only two options are
+  // "pokes through" and "gone".
+  //
+  // A flare is the third. A short lip standing proud of the tyre's outer face
+  // turns "a tyre sticking out of a wall" into "a tyre sitting under a fender",
+  // which is what a pickup actually has and what was asked for. The tyre stops
+  // being the outermost thing on the car, so it stops reading as clipping.
+  //
+  // Cheap on purpose: one box per wheel, 6 cm proud of the tyre, sitting in the
+  // 2 cm of air above it that the arch already clears (tyre top 0.68, arch line
+  // 0.72). No new texture, no alpha cut, nothing that could crawl at a grazing
+  // angle (GOTCHAS §4).
+  const flareM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body).multiplyScalar(0.82) });
+  for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
+    const corner = `${wz < 0 ? 'f' : 'r'}${wx < 0 ? 'l' : 'r'}` as Corner;
+    if (off.has(corner)) continue;              // no wheel, no fender over it
+    // A 7 cm lip read as a STRIPE from the kerb, which is where this gets
+    // judged. A fender is a panel, not a line: run it from just above the tyre
+    // (0.70, the 2 cm of arch air) up to the beltline, so the wheel sits in a
+    // flared box rather than against a flat side.
+    const flare = new THREE.Mesh(new THREE.BoxGeometry(0.10, BELT - 0.70, 0.86), flareM);
+    flare.position.set(wx * 1.16, (0.70 + BELT) / 2, wz);   // |x| 0.951: proud of the tyre at 0.94
+    g.add(flare);
+  }
+
   g.userData.wheelbase = spec.wheelZ * 2;
   g.userData.steer = (a: number) => { for (const w of front) w.rotation.y = a; };
 
