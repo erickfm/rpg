@@ -134,3 +134,49 @@ the one shopfront with a **canted bay**, and the one with **no entry in
 `__frontages`**. Three separate probes have now singled out the same shop for
 being built differently. Not a defect — but if anything ever goes wrong with the
 bodega, that is why no generic sweep will see it.
+
+## The 55 interior-gated spots: I could not verify them, and here is exactly why
+
+`spots-walk.mjs` verifies 80 of the world's 135 `[E]` spots from the street and
+names `scripts/interiors-walk.mjs` as the tool that exercises the other **55** —
+seats you are not sitting on, and interior way-outs, all gated by `ok()` from
+outside. I tried to run it and could not.
+
+**Three things went wrong, and two of them were mine:**
+
+1. **`health.mjs` failed on `page.goto: url expected string, got undefined`.**
+   My fault — it reads a URL from the environment and I gave it none.
+2. **`interiors-walk.mjs` defaults to port 4185, not 4184.** I ran it against my
+   usual preview port, got *"Execution context was destroyed"* and then
+   *"Cannot read properties of undefined (reading 'pos')"*, and briefly believed
+   the world was crashing. It was not: a 12-second watch showed `__ct` present
+   throughout with **no page errors**. I was pointing it at a port with nothing
+   on it.
+3. **It needs a `vite dev` server, not `vite preview`.** It dynamically imports
+   `http://…/src/proto/ct/doors.ts` — TypeScript *source*, which only the dev
+   server serves. Every other instrument in this audit runs against the built
+   bundle.
+
+With a dev server on 4185 it starts correctly and then **runs for over nine
+minutes without finishing** — terminated twice at 300 s and 560 s. It may simply
+be that slow (it enters every room); I did not see it hang and I am not calling
+it hung.
+
+### What that means for the record
+
+**Those 55 spots are unverified by me.** Not suspect — unverified. I am not
+carrying them as a finding and I am not implying anything is wrong with them.
+
+### The bit worth keeping
+
+I nearly reported *"an existing instrument is broken"* on the strength of two
+crashes that were my own invocation. The check that stopped me was twelve
+seconds of watching `__ct` in a plain page — the same move that has caught every
+other error I made this session: **before blaming the thing you are measuring,
+measure the thing you are measuring with.**
+
+Practical note for whoever owns the toolchain: the tool covering **40% of the
+world's `[E]` spots** is the only one needing a different server from every
+other, defaults to a port nothing else uses, and takes longer than nine minutes.
+Any of those alone is fine; together they mean it is the instrument least likely
+to be run.
