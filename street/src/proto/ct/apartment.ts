@@ -75,6 +75,11 @@ export interface Apartment {
 
 export function buildApartment(ctx: CtxBuild): Apartment {
   const { scene, boards, sidewalkY } = ctx;
+  // Everything this module adds gets stamped `userData.mod = 'walkup'` at the
+  // end — see the note by the return. The mark is taken before anything is
+  // built; all 54 scene.add calls in this file are inside this function and it
+  // is synchronous, so children from here to the end are exactly ours.
+  const MARK = scene.children.length;
   const APT_X = 200, APT_Z = -20, ST = 2.7;
   // ── the switchback ───────────────────────────────────────────────────────
   // 7 risers over a 2.2 m run per half storey: a 0.193 m rise on a 0.314 m
@@ -1668,6 +1673,25 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // to take only the hour and read his own yaw back a frame late.
     hermitSprite.update(px, pz, dt);
   };
+
+  // ── say what is ours ─────────────────────────────────────────────────────
+  // `userData.mod = 'walkup'`, the same stamp ct/lot.ts carries and the same
+  // move props.ts made with `userData.selfLit`.
+  //
+  // From outside the scene graph you cannot tell whose a mesh is, so a
+  // whole-world checker has to be handed a BOX — and a box is a remembered
+  // coordinate that goes stale the moment D reorders the roster. The car lot
+  // had the same thirteen faults filed against it three times from a box that
+  // held none of it. Selecting by author needs no memory:
+  //
+  //     o.traverse(n => { if (n.userData.mod === 'walkup') … })
+  //
+  // This building is the awkward case that most needs it: the street entrance
+  // is at x ~7 and the interior is teleported out to x ~200, so NO single box
+  // contains the walk-up. A box was never going to work here at all.
+  for (let i = MARK; i < scene.children.length; i++) {
+    scene.children[i].traverse((n) => { n.userData.mod = 'walkup'; });
+  }
 
   return {
     AX, AZI, ST,
