@@ -25,6 +25,26 @@ authority on what is done"*) here is the reconciliation, and nothing was redone.
 | Catch basin | landed |
 | `[E]` spots | VOID, confirmed by the desk |
 
+### Off-queue: the car lot's curb cut (builder C unblocked)
+
+Came in by desk message rather than the queue. C had built the lot against a
+full-height kerb and correctly did not reach into `ct/tex-ground.ts`, so there
+was no way in — *"how does one even enter, drive a car off the lot"*.
+
+**I did not need C to report the frontage.** `ct/street.ts` puts the lot on
+23.2 m of the east kerb centred on z = 2.6, and `ct/lot.ts` runs its drive
+aisle down that same centre at 6.8 m wide, so the opening IS the aisle — same
+centre, same width, derived from the two files that own it rather than passed
+by message. That is also why it stays correct if C moves the aisle. Confirmed
+against the running world (lot floor at x 18.6, z 2.6, 23.2 square) before
+building anything.
+
+`scripts/curbcut.mjs` measures the kerb profile off the built mesh and then
+walks the cut, **with a control 9 m north where the kerb is full height**:
+19.7 m in through the cut against 1.7 m without one. Without that control the
+walk test proves nothing — "you can walk from the road into the lot" passes
+anywhere the player can step up a kerb.
+
 ### Two things I recommend the desk close WITHOUT doing
 
 - **Finding B, "lamp spacing leaves the middle of the block dark".** Written
@@ -51,7 +71,7 @@ street is a glowing wall closing it off. Toward black is `1 - 0.82 * lampNight`.
 
 ## The checks are the deliverable
 
-Eleven defects this session were found by a check, in work I had already
+Fifteen defects this session were found by a check, in work I had already
 reported as finished. Every one was invisible to a screenshot:
 
 1. Nine litter pieces sunk into the pavement after the footprint fix — the
@@ -69,6 +89,18 @@ reported as finished. Every one was invisible to a screenshot:
 10. `roadNow` picking the pale walk instead of the road, making puddles grey —
     the exact defect being fixed.
 11. `glow.mjs` checking 8 of 11 lamps and reporting a clean pass.
+12. The apron's UVs bypassing `walkTex`'s own repeat/offset, so it sampled the
+    walk sheet anywhere at all and came out brown.
+13. The curb-cut profile probe reading `pos()[3]` after a `warp` — but `warp`
+    *stores* a ground height, it does not resolve one, so it reported 0.000 the
+    whole way and would have reported 0.000 for a kerb that was never cut.
+14. That same probe then failing a *correct* kerb, by comparing against 0.140
+    when those vertices are the top of the vertical face with the chamfer
+    above — full reveal tops out at 0.110.
+15. Two walk probes measuring pedestrian traffic rather than the lane they
+    named: one started in the travel lane where cars shove the walker, and
+    `bus.mjs` assumed 2.4 m/s on a walk where citizens are solid until they
+    yield. The same unchanged world measured 15.8, 18.8, 22.2 and 25.4 m.
 
 The pattern in almost all of them is one thing: **a number that was written by
 hand where it could have been measured.** Base heights, half-extents, shadow
