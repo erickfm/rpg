@@ -15,6 +15,10 @@
 //
 //   import { reportWorld } from './lib/which-world.mjs';
 //   await reportWorld(page, URL);     // prints a line; throws on mismatch
+//
+//   SHOT_WORLD=integration SHOT_URL=http://localhost:5177/ node scripts/foo.mjs
+//     opts in to the live integration world, whose stamp can never equal any
+//     one checkout. Prints a loud banner instead of throwing. Default unchanged.
 import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 
@@ -68,6 +72,30 @@ export async function reportWorld(page, url) {
   const head = localHead();
   if (!served) { console.log(`measuring ${url}  (no build stamp found — cannot verify)`); return null; }
   const tag = `${served.sha}${served.dirty ? '+' : ''}`;
+  // BLOCKED-H 4: "no builder can measure the world the user actually plays."
+  // The live integration world on :5177 is mainline plus every builder's
+  // in-flight work, so its stamp is never equal to ANY one checkout and this
+  // guard refuses it forever. That is right by default — but "does my landed
+  // work hold up in the integrated world" is a different and legitimate
+  // question, and there was no way to ask it.
+  //
+  // So it is an explicit opt-in, and it does not weaken the default: you have
+  // to name the world you meant. The banner is deliberately loud, because the
+  // whole hazard this file exists for is a number quietly belonging to a tree
+  // you are not editing.
+  if (process.env.SHOT_WORLD === 'integration') {
+    console.log(`measuring ${url}  build ${tag}  [INTEGRATION WORLD, opted in]`);
+    console.log(`  this checkout is at ${head ?? '(unknown)'} — the numbers below describe the`);
+    console.log(`  INTEGRATED build (mainline plus every builder in flight), not your tree.`);
+    // Warned about rather than filtered. That world runs a DEV server, and
+    // live-integrate.sh rebuilds it every 15 s, which drops Vite's HMR socket
+    // and raises a pageerror in any check that collects them. It is noise here
+    // and a real failure anywhere else, so this says so and leaves the check's
+    // own error list alone — a filter that swallows one message is how the next
+    // real one gets swallowed too.
+    console.log(`  Expect one page error: Vite's HMR socket, dropped when live-integrate.sh rebuilds.`);
+    return served;
+  }
   if (head && !served.sha.startsWith(head) && !head.startsWith(served.sha)) {
     // Two different faults wear the same mismatch and want different actions.
     // A worktree under continuous rebase hits the first one often — HEAD moves
