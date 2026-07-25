@@ -203,6 +203,122 @@ export const SHOP_BAND_H = 4.2;
  *  wall above. Exported so `ct/street.ts`'s corner bay uses the same one. */
 export const SHOP_MULT = 2;
 
+/**
+ * WHERE THE SHOPFRONT ACTUALLY IS — the published geometry of a frontage.
+ *
+ * The interiors were hand-typing offsets beside the painter's own numbers
+ * (`ct/int-burger.ts` `at: -3.6`, `ct/int-diner.ts` `at: -2.6`) and nothing
+ * connected them, so of course they disagreed and the auditor measured it
+ * twice. That is the masonry-density pattern again: the defect is not that
+ * something computes the position badly, it is that TWO things compute it.
+ *
+ * So this is the one authority. `frontageOf()` returns the layout in metres;
+ * the painters below convert it to texels to draw, and the interiors read the
+ * same object to place a door. Neither restates the other. If a door moves, it
+ * moves here and both ends follow.
+ *
+ * Distances run along the frontage from its LEFT edge as the painter's canvas
+ * sees it (u = 0), which is the same direction `wMeters` measures. Heights run
+ * up from the pavement. `doorOffsetM` is the same fact expressed the way the
+ * int-*.ts rooms already write it: signed metres from the frontage CENTRE,
+ * negative to the left. Use whichever suits; they cannot disagree.
+ */
+export interface Frontage {
+  /** full width of the shopfront, metres */
+  frontageM: number;
+  /** door centre, metres from the left edge */
+  doorCentreM: number;
+  /** door centre, signed metres from the frontage centre (the `at:` convention) */
+  doorOffsetM: number;
+  doorWidthM: number;
+  /** the glazed span, metres from the left edge */
+  glazingStartM: number;
+  glazingEndM: number;
+  /** stallriser height above the pavement, metres */
+  stallriserH: number;
+  /** fascia band height, metres */
+  fasciaH: number;
+}
+
+/** the per-character band geometry, in metres. One row per painter below. */
+const BANDS = {
+  //            fascia y/h   opening inset  opening top gap  glazing inset  sill gap  door w
+  default: { fy: 0.16, fh: 0.90, ox: 0.40, og: 0.26, gi: 0.22, sg: 0.80, dw: 1.05 },
+  burger:  { fy: 0.14, fh: 1.05, ox: 0.40, og: 0.22, gi: 0.22, sg: 0.85, dw: 1.15 },
+  tax:     { fy: 0.20, fh: 0.78, ox: 0.40, og: 0.30, gi: 0.22, sg: 0.75, dw: 1.10 },
+  diner:   { fy: 0.15, fh: 1.00, ox: 0.35, og: 0.28, gi: 0.20, sg: 0.80, dw: 1.05 },
+  thrift:  { fy: 0.18, fh: 0.92, ox: 0.35, og: 0.30, gi: 0.20, sg: 0.70, dw: 1.05 },
+  pawn:    { fy: 0.16, fh: 0.92, ox: 0.40, og: 0.28, gi: 0.22, sg: 0.80, dw: 1.05 },
+} as const;
+type Character = keyof typeof BANDS;
+
+/** which character a named shop wears — the same dispatch shopfrontTex uses */
+function characterOf(name: string): Character {
+  if (name === 'DINER') return 'diner';
+  if (name === 'THRIFT') return 'thrift';
+  if (name === 'BURGER BARN') return 'burger';
+  if (name.startsWith('A-1 TAX')) return 'tax';
+  if (name === 'PAWN') return 'pawn';
+  return 'default';
+}
+
+/**
+ * Where the door sits along the glazed span, 0…1, DETERMINISTIC per building.
+ * Only the block default varies; the five characters place their door by
+ * design (the diner's is at the far end past the glass block, the thrift's is
+ * hard left, the tax office's is three-quarters along). The default hashes off
+ * the shop NAME, so it is stable across reloads and across both consumers —
+ * which it already was, and this is the same hash, moved not changed.
+ */
+function doorFrac(name: string): number {
+  let sd = 0x811c9dc5;
+  for (let i = 0; i < name.length; i++) sd = Math.imul(sd ^ name.charCodeAt(i), 0x01000193) >>> 0;
+  sd = Math.imul(sd ^ 0x9e3779b1, 0x01000193) >>> 0;
+  return 0.18 + ((sd >>> 8) % 5) * 0.16;
+}
+
+/** THE published geometry of a shopfront. Painters draw from it; rooms read it. */
+export function frontageOf(name: string, wMeters: number): Frontage {
+  const k = characterOf(name);
+  const B = BANDS[k];
+  const ow = wMeters - 2 * B.ox;                       // the opening cut in the brick
+  let glazingStartM = B.ox + B.gi;
+  let glazingEndM = glazingStartM + (ow - 2 * B.gi);
+  // the diner spends its left end on a glass-block panel, so its glazing —
+  // and therefore its door — starts past it
+  if (k === 'diner') {
+    const bw = Math.min(2.2, ow * 0.22);
+    glazingStartM = B.ox + 0.2 + bw + 0.25;
+    glazingEndM = B.ox + ow - 0.2;
+  }
+  const gw = glazingEndM - glazingStartM;
+  const dw = B.dw;
+  // door LEFT edge along the glazing, by character
+  const dx =
+    k === 'burger' ? glazingStartM + gw * 0.5 - dw / 2 :
+    k === 'tax' ? glazingStartM + gw * 0.72 :
+    k === 'diner' ? glazingEndM - dw - 0.15 :
+    k === 'thrift' ? glazingStartM + 0.2 :
+    k === 'pawn' ? glazingEndM - dw - 0.2 :
+    glazingStartM + (gw - dw) * doorFrac(name);
+  const doorCentreM = dx + dw / 2;
+  // the band runs SHOP_BAND_H tall; the stallriser is what is left under the
+  // glazing once the fascia, the opening's head gap and the sill gap are taken
+  const oy = B.fy + B.fh + B.og;                       // metres down to the opening
+  const gh = (SHOP_BAND_H - oy - 0.05) - B.sg;         // glazing height
+  const stallriserH = SHOP_BAND_H - (oy + B.gi + gh) - 0.05;
+  return {
+    frontageM: wMeters,
+    doorCentreM,
+    doorOffsetM: doorCentreM - wMeters / 2,
+    doorWidthM: dw,
+    glazingStartM,
+    glazingEndM,
+    stallriserH,
+    fasciaH: B.fh,
+  };
+}
+
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
   // Characters are selected HERE, by name, not by a `front:` flag in
   // ct/street.ts's roster. The shopfront system decides how a named shop
@@ -224,6 +340,10 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   // Each shop varies a little off its own name so fifteen of these in a row
   // are not fifteen copies: how far the door sits along the front, how many
   // bays, how bright the room behind. Hashed, not rnd() — see facadeTex.
+  // The door position is NOT decided here any more — frontageOf() owns it, and
+  // ct/int-*.ts reads the same object. What is left local is the cosmetic
+  // variation that no room needs to know about.
+  const F = frontageOf(name, wMeters);
   let sd = 0x811c9dc5;
   for (let i = 0; i < name.length; i++) sd = Math.imul(sd ^ name.charCodeAt(i), 0x01000193) >>> 0;
   const vary = (n: number) => { sd = Math.imul(sd ^ 0x9e3779b1, 0x01000193) >>> 0; return (sd >>> 8) % n; };
@@ -264,7 +384,7 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
     g.fillStyle = HI; g.fillRect(gx, gy + m(1.07), gw, 1);
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wMeters / 3.4)), '#3e372f');
     // the door, somewhere along the front rather than always dead centre
-    const dw = m(1.05), dx = gx + Math.round((gw - dw) * (0.18 + vary(5) * 0.16));
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = '#3e372f'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#38302a');
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.83));      // its panel
@@ -377,6 +497,7 @@ export function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: num
 export const burgerFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
+  const F = frontageOf('BURGER BARN', wM);
   const RED = '#c8302a', BEIGE = '#e6dcc6', PLASTIC = '#b8ada0';
   // The room behind is DIM. A shopfront lit as bright as the sky reads as a
   // cream slab — which is what the first pass did. Glass is dark, and the
@@ -423,7 +544,7 @@ export const burgerFront = (brick: string, wM: number) => {
     for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.2)), PLASTIC);
     // the door, in its own reveal, with a push bar
-    const dw = m(1.15), dx = gx + Math.round(gw * 0.5) - dw / 2;
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = '#3a3630'; g.fillRect(dx, gy, dw, gh);
     glazed(g, surf, dx + m(0.1), gy + m(0.12), dw - m(0.2), gh - m(0.24), '#cbbfa6');
     g.fillStyle = PLASTIC; g.fillRect(dx + m(0.15), gy + m(1.15), dw - m(0.3), m(0.1));  // push bar
@@ -452,6 +573,7 @@ export const burgerFront = (brick: string, wM: number) => {
 export const pawnFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
+  const F = frontageOf('PAWN', wM);
   const BOARD = '#6a5a3a', GOLD = '#c9a45e', STEEL = '#40453f';
   const GOODS = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a', '#a8a29a'];
   return surf.paint((g) => {
@@ -518,7 +640,7 @@ export const pawnFront = (brick: string, wM: number) => {
       g.fillStyle = STEEL; g.fillRect(gx, yy, gw, Math.max(1, m(0.08)));
     }
     // door, barred to match, with a heavy kick plate
-    const dw = m(1.05), dx = gx + gw - dw - m(0.2);
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = '#332c24'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.9));
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.06));
@@ -543,6 +665,7 @@ export const pawnFront = (brick: string, wM: number) => {
 export const taxFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
+  const F = frontageOf('A-1 TAX', wM);
   const NAVY = '#2c4a7a', GOLD = '#b89a4e', BLIND = '#cfd2c8', ALU = '#8f938f';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
@@ -595,7 +718,7 @@ export const taxFront = (brick: string, wM: number) => {
       g.fillStyle = '#8a2c22'; g.fillText(n, nx + m(0.55), ny + m(0.28));
     });
     // aluminium door, its own reveal, kick plate scuffed
-    const dw = m(1.1), dx = gx + Math.round(gw * 0.72);
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
     g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
     glazed(g, surf, dx, gy + m(0.15), dw, gh - m(0.9), '#3a4038');
@@ -624,6 +747,7 @@ export const taxFront = (brick: string, wM: number) => {
 export const dinerFront = (brick: string, nm: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
+  const F = frontageOf(nm, wM);
   const STEEL = '#9aa0a4', STEEL_D = '#6e747a', CREAM = '#e8e2d2', VINYL = '#8a2f34';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
@@ -674,7 +798,7 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
     for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.06));
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.6)), STEEL_D);
     // door, half-glazed, with a chrome push plate
-    const dw = m(1.05), dx = gx + gw - dw - m(0.15);
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(1.0), '#3a2f26');
     g.fillStyle = STEEL; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.85));
@@ -702,6 +826,7 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
 export const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
+  const F = frontageOf(nm, wM);
   const BOARD = awning || '#7a5a2c', CARD = '#e4dcc4', INK = '#3a3026';
   const STOCK = ['#7a6a52', '#5a6a72', '#8a5a4a', '#6a7a5a', '#7a5a6a', '#8a7a52'];
   return surf.paint((g) => {
@@ -762,7 +887,7 @@ export const thriftFront = (brick: string, nm: string, awning: string, wM: numbe
     g.lineTo(gx + gw * 0.64, gy + m(1.9));
     g.stroke();
     // door and a grubby stallriser
-    const dw = m(1.05), dx = gx + m(0.2);
+    const dw = m(F.doorWidthM), dx = m(F.doorCentreM - F.doorWidthM / 2);
     g.fillStyle = '#4a4038'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#332b24');
     g.fillStyle = '#5a4e42'; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.8));
