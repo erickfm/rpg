@@ -124,6 +124,17 @@ const CASES = [
     'const POOL_GAIN = NaN;       // selftest: poison the grade',
     'grade-sane.mjs', [], 'a NaN quietly poisoning every lit material'],
 
+  // BLIND THE CHECK, not the world — the sibling of footprint-blind. The lamps
+  // still glow; the stamp glow.mjs pairs them by is simply gone from one of the
+  // two places that sets it, so the check finds fewer halos than there are. Its
+  // mismatch test is an EQUALITY (paired vs stamped), which 0 of 0 satisfies,
+  // and its verdict is an ABSENCE, which is free over an empty set. The floor
+  // is what turns that into red.
+  ['glow-blind', PROPS,
+    "    halo.userData.lampPart = 'halo';\n    halo.position.set(headX,",
+    "    halo.userData.lampPart = 'halo-selftest';\n    halo.position.set(headX,",
+    'glow.mjs', ['probe'], 'the lamps glowing but their halos invisible to the check'],
+
   ['glow-pool', PROPS,
     'const POOL_GAIN = 12;',
     'const POOL_GAIN = 0;',

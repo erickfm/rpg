@@ -84,6 +84,17 @@ for (let h = 0; h < 24; h++) {
   for (const f of r.faults) bad.push(`${String(h).padStart(2)}:00  ${f}`);
 }
 
+// DID IT SWEEP ANYTHING? `bad` empty is the pass, and `bad` is empty when the
+// traverse found nothing to look at — 24 hours of zero materials reads exactly
+// like 24 hours of clean ones. 5536 materials at HEAD, measured; the floor is
+// well below that because the world grows and shrinks, and well above zero
+// because that is the failure being guarded.
+if (materials < 2000) {
+  console.log(`\n  FAIL swept 24 hours and found only ${materials} materials — expected thousands.`);
+  console.log(`  "No impossible values" over an empty set is not a pass. Did __mats`);
+  console.log(`  install, and does the scene still traverse?`);
+  process.exitCode = 1;
+}
 console.log(`\n  swept 24 hours, ${materials} materials each — ${bad.length} impossible values`);
 for (const line of bad.slice(0, 10)) console.log(`      ${line}`);
 if (bad.length > 10) console.log(`      … and ${bad.length - 10} more`);

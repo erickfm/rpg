@@ -82,6 +82,18 @@ if (mode === 'probe' || mode === 'all') {
   // check that fails when someone adds a lamp is a check that gets ignored.
   // What must hold is that every lamp I build is anchored — which is what the
   // stamp makes answerable.
+  // ZERO PAIRED OF ZERO IS NOT A PASS. The verdict below is `bad.length === 0`
+  // — an absence — and the mismatch test above is an equality, so a world where
+  // the halo stamp has stopped matching gives 0 of 0, no mismatch, no bad
+  // halos, and a green row for lamps nobody looked at. Same shape as the tree
+  // pits in footprint.mjs (footprint-blind), which I watched exit 0 with the
+  // pits still standing. 21 lamps are stamped at HEAD; the floor is measured,
+  // not remembered, because last time I remembered it I was wrong.
+  if (halosSeen < 15) {
+    console.error(`\n  FAIL only ${halosSeen} stamped halos — expected at least 15.`);
+    console.error(`  Every verdict below is an absence and passes for free at zero.`);
+    process.exitCode = 1;
+  }
   if (r.length !== halosSeen) {
     console.error(`\n  FAIL ${halosSeen - r.length} stamped halo(s) could not be paired with a head and lens`);
     process.exitCode = 1;
