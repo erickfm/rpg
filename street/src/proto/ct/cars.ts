@@ -10,13 +10,52 @@ import { pixTex, dither } from './paint';
 export const CAR_COLORS = ['#7a8a5c', '#8a5a5a', '#5a6a8a', '#8a825a', '#6a5a7a', '#4a5a52'];
 export type CarKind = 'sedan' | 'hatch' | 'pickup' | 'van';
 
+// ── DOORS ────────────────────────────────────────────────────────────────
+//
+// A door is an OUTLINE, not a line. What was drawn before was two 1-texel bars
+// at FIXED texels 38 and 62 of the flank — fixed, so they landed at a different
+// place on every body length — plus two small black rectangles halfway down.
+// Nothing tied them to the greenhouse above, and the greenhouse divided its
+// glass evenly across its OWN span, so the B-pillar and the shut line under it
+// were at different x on every car in the fleet. That is most of why it read
+// wrong, and it is why all four kinds looked the same: the flank layout never
+// varied at all, so a two-door and a four-door were identical below the glass.
+//
+// Now there is ONE list of shut-line positions per kind, in car-local metres,
+// and both painters convert it through their own mapping — so they cannot
+// disagree. `glass` is where the window panes go, in the same metres, which is
+// what puts a rear quarter light behind the back door and makes a four-door
+// read as a four-door.
+interface DoorPlan {
+  /** panel joins, front to back — a door lies between consecutive entries */
+  shut: number[];
+  /** window panes, each [from, to] */
+  glass: [number, number][];
+}
+function doorPlan(kind: CarKind, half: number): DoorPlan {
+  switch (kind) {
+    case 'sedan':   // four doors, and a quarter light behind the rear one
+      return { shut: [-1.0, 0.2, 1.4], glass: [[-0.9, 0.1], [0.3, 1.05], [1.15, 1.35]] };
+    case 'hatch':   // two doors: one long door, then a big rear side window
+      return { shut: [-0.85, 0.75], glass: [[-0.75, 0.65], [0.85, 1.7]] };
+    case 'pickup':  // two doors, short cab, no rear glass at all
+      return { shut: [-1.0, 0.45], glass: [[-0.9, 0.35]] };
+    case 'van':     // cab doors, then a long panel with a light at the back
+      return { shut: [-1.45, -0.15], glass: [[-1.35, -0.25], [0.1, 1.0], [1.2, 2.1]] };
+  }
+}
+
 /** The body side, rocker to beltline. `arches` are wheel-arch centres in metres
  *  RELATIVE TO THIS FACE'S OWN CENTRE — the pickup's slab stops behind the cab,
  *  so its face is no longer centred on the vehicle and only the front arch
  *  belongs on it (the rear one is painted on the bed skin). */
 function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
-  arches: number[] = [-wheelZ, wheelZ]): THREE.Texture {
+  arches: number[] = [-wheelZ, wheelZ],
+  /** shut lines in car-local metres, and this face's own z origin */
+  plan?: DoorPlan, faceZ0 = -len / 2): THREE.Texture {
   return pixTex(96, 20, (g) => {
+    /** car-local metres -> this face's texels */
+    const tx = (z: number) => Math.round(((z - faceZ0) / len) * 96);
     g.fillStyle = body; g.fillRect(0, 0, 96, 20);
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, 0, 96, 3);
     g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 16, 96, 4);
@@ -28,10 +67,26 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     } else {
       g.fillStyle = '#d8dade'; g.fillRect(0, 8, 96, 1);
     }
-    g.fillStyle = 'rgba(0,0,0,0.5)';
-    g.fillRect(38, 2, 1, 15); g.fillRect(62, 2, 1, 15);
-    g.fillStyle = '#1a1c20';
-    g.fillRect(41, 11, 4, 2); g.fillRect(65, 11, 4, 2);
+    // Shut lines run the FULL height of this face — which is sill to window
+    // base, because that is exactly what the flank spans — and each is a PAIR:
+    // a dark gap with a highlight down its trailing side, so it reads as two
+    // panels meeting rather than as a scratch.
+    if (plan) {
+      for (const z of plan.shut) {
+        const x = tx(z);
+        if (x < 1 || x > 94) continue;
+        g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x, 0, 1, 20);
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x + 1, 0, 1, 20);
+      }
+      // a handle just under the window line, one per door, set toward the
+      // door's trailing edge the way a real one is
+      g.fillStyle = '#1a1c20';
+      for (let i = 0; i + 1 < plan.shut.length; i++) {
+        const a = tx(plan.shut[i]), b = tx(plan.shut[i + 1]);
+        const hx = Math.round(b - (b - a) * 0.3);
+        if (hx > 2 && hx < 92) g.fillRect(hx - 2, 3, 4, 2);
+      }
+    }
     // wheel arches at the true wheel positions
     g.fillStyle = '#0a0b0e';
     for (const wz of arches) {
@@ -41,17 +96,24 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
     dither(g, 96, 20, 120);
   });
 }
-function cabinSideTex(windows: number): THREE.Texture {
+/** The greenhouse side. Panes are given in CAR-LOCAL METRES and converted with
+ *  the same mapping loftCabin uses for its UVs — u = (z - zbf) / (zbr - zbf) —
+ *  so a pillar between two panes lands at the same world z as the shut line
+ *  painted under it on the flank. Passing a pane COUNT, as this used to, cannot
+ *  do that: evenly dividing the cabin's own span has no relationship to where
+ *  the doors are. */
+function cabinSideTex(glass: [number, number][], zbf: number, zbr: number): THREE.Texture {
   return pixTex(96, 16, (g) => {
+    const tx = (z: number) => Math.round(((z - zbf) / (zbr - zbf)) * 96);
     g.fillStyle = '#141820'; g.fillRect(0, 0, 96, 16);
-    const w = Math.floor((96 - 10 - (windows - 1) * 5) / windows);
-    let x = 5;
-    for (let k = 0; k < windows; k++) {
+    for (const [z0, z1] of glass) {
+      const a = Math.max(1, tx(z0)), b = Math.min(95, tx(z1));
+      if (b - a < 3) continue;
       g.fillStyle = '#2e3c4e';
-      g.fillRect(x, 2, w, 12);
+      g.fillRect(a, 2, b - a, 12);
+      // the same soft highlight down the leading edge of every pane
       g.fillStyle = 'rgba(255,255,255,0.3)';
-      g.fillRect(x + 2, 3, 4, 11);
-      x += w + 5;
+      g.fillRect(a + 1, 3, Math.min(4, b - a - 1), 11);
     }
     g.fillStyle = '#d8dade'; g.fillRect(0, 14, 96, 1);
   });
@@ -363,9 +425,11 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   const ROCKER = 0.34, BELT = 0.84;                     // the slab's own extent
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
   const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
+  const plan = doorPlan(kind, half);
   const sideT = flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi,
     // only the front arch is on the cab body once the slab is short
-    kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ]));
+    kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ],
+    plan, slabZ - slabLen / 2));
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(1.8, BELT - ROCKER, slabLen),
     [sideT, sideT, bodyM, darkM, flatT(carRearTex(body)), flatT(carFrontTex(body))],
@@ -383,19 +447,19 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8));
     trunk.position.set(0, 0.885, (half + 1.35) / 2);
     g.add(trunk);
-    g.add(loftCabin(0.81, 0.74, 0.84, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofM, flatT(cabinSideTex(2))));
+    g.add(loftCabin(0.81, 0.74, 0.84, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
   } else if (kind === 'hatch') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40));
     hood.position.set(0, 0.89, -(half + 0.8) / 2 + 0.02);
     g.add(hood);
     // no trunk: the rear glass slopes all the way to the tail
-    g.add(loftCabin(0.81, 0.72, 0.84, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(2))));
+    g.add(loftCabin(0.81, 0.72, 0.84, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
   } else if (kind === 'pickup') {
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40));
     hood.position.set(0, 0.89, -half + 0.85);
     g.add(hood);
     // short cab, near-vertical rear window
-    g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(1))));
+    g.add(loftCabin(0.85, 0.74, 0.84, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
     // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
     //
     // Rebuilt rather than nudged, because the bed has now been asked about
@@ -518,7 +582,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
     const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
     hood.position.set(0, 0.89, -half + 0.5);
     g.add(hood);
-    g.add(loftCabin(0.85, 0.8, 0.84, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(3))));
+    g.add(loftCabin(0.85, 0.8, 0.84, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
   }
 
   if (taxi) {
