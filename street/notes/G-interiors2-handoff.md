@@ -66,6 +66,38 @@ sort-and-compare reports a dozen "overlaps" that are one building counted twice,
 and the 0.16 m porte-cochère posts show as "gaps". The three junction readings are
 the part that survived reading the output properly.
 
+### A dependency I did not know these buildings had
+
+Prompted by `4955621e` — alley graffiti glowing at midnight because
+`props.ts:160` treats `transparent && !(alphaTest > 0)` as glass and never offers
+it to the dimmer. My facades lean on the same machinery, so I measured them.
+**No defect, and the mechanism is worth writing down**, because it is not
+something either file says out loud:
+
+```
+mod=vice at 13:00 vs 23:00
+  opaque                                    20 materials — 14 dimmed, 6 unchanged
+  transparent, alphaTest > 0 (dimmer sees)  14 materials —  0 dimmed
+  transparent, no alphaTest (dimmer skips)  22 materials —  0 dimmed
+```
+
+The six opaque materials that do **not** dim are the two shopfront bands, the
+casino's big red panel, the rooftop pylon faces and one near-black post. That is
+correct — but not because `ct/vice.ts` asks for it. **`props.ts`'s `isSelfLit`
+reads the texture and calls a material signage when more than 8% of its opaque
+texels are bright *and* saturated**, then floors it at `FLOOR_SIGN` instead of
+grading it toward black.
+
+So these two buildings stay lit after dark **because of a heuristic on their
+artwork**, not because of anything declared. Repaint a band greyer, or move that
+0.08 threshold, and the casino goes dark at night with no error and nothing in
+`vice.ts` to explain it. The `G-vice-walk` spill check would still pass — it
+asserts the ground sheets brighten, and those are driven by my own ticks.
+
+If `props.ts` ever grows the explicit stamp H is asking for in `BLOCKED-H` §3,
+these surfaces should declare themselves rather than be inferred. Until then this
+paragraph is the only place the coupling is recorded.
+
 ### Still open, and none of it mine to take
 
 1. **The door-drop CLASS.** The instance is fixed (§ the casino door, `1e49295b`),
