@@ -203,7 +203,17 @@ Neither blocks me; both make other people's failures silent.
    opt-in (`SHOT_WORLD=integration`, or a second exported helper) would cover
    it without weakening the default.
 
-   **It works only by coincidence, and `27764977` is the proof.** That commit
+   > **CORRECTED, AND THIS ITEM IS DONE.** The opt-in exists and landed in
+   > `7db050f4`: `SHOT_WORLD=integration`. `27764977` was using the flag, not
+   > luck — my reading below was wrong, and `518c5d26` corrected it. Used it
+   > since: `carstate`, `gaps` and `park-repro` all pass against :5177, and it
+   > found two real faults in MY probes on the first run (`db06bc55`) — seven of
+   > them counted the integration world's dropped HMR socket as a page error and
+   > failed with every assertion green, and `park-repro` could compare two loads
+   > across a 15 s rebuild and call it a re-roll. Both fixed. The default path
+   > still refuses, which is right, and the reasoning below about it stands.
+
+   ~~**It works only by coincidence, and `27764977` is the proof.** That commit
    re-verified an area against :5177 and got exit 0 on five probes — while I
    could not. Neither of us is wrong: `reportWorld` compares the served stamp to
    YOUR `HEAD`, and the integration build equals mainline only while no builder
@@ -219,8 +229,8 @@ Neither blocks me; both make other people's failures silent.
    somebody else's build. The `kerb.mjs` command in item 1 above names
    `:4187` explicitly for that reason.
 
-   I checked mine by hand instead, which is why this is a gap and not a
-   blocker. In the :5177 build (`eeb9a3ab`): the three car variants all build
+   I checked mine by hand instead, which is why this was a gap and not a
+   blocker.~~ In the :5177 build (`eeb9a3ab`): the three car variants all build
    without throwing (12 / 9 / 16 meshes), 24 cars are placed exactly as in my
    worktree, and all six walkers moved 2.25–5.67 m over four seconds. The only
    page error is Vite's HMR socket, which is `live-integrate.sh` rebuilding.
