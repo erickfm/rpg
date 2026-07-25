@@ -1,4 +1,11 @@
-# For E, the desk, and whoever owns floatlit — two checks were running exactly never
+# For E, the desk, and whoever owns floatlit — two checks the shared suite never ran
+
+> **CORRECTION, and it is to my own title.** I first wrote that these were
+> "running exactly never". For `E-walk` that is **false**: `8a7b44bcb` landed
+> shortly after and shows it runs as the `courtyard` area of
+> `scripts/E-verify.mjs`, a parallel six-area suite of E's own. It was never
+> unrun — it was unrun *by `npm run checks`*. Corrected throughout below; the
+> conclusion (register it) is unchanged, the reason is narrower.
 
 `checks-registered` exists to catch this and it was catching it. It has been
 **red for every builder on every run**, naming two orphans:
@@ -19,8 +26,21 @@ They wanted **opposite** fixes, which is probably why neither got one.
 Nothing structural was stopping it. One invocation, no arguments, ~55 s, and it
 answers things only a walk can: the flight rises under your feet, the cheek
 walls hold you on the steps, the courtyard floor is walk level off the flight.
-It had simply never been added. Now in the slow tier beside `steps-walk`,
-`seats-walk` and the `G-*-walk` pair.
+Now in the slow tier beside `steps-walk`, `seats-walk` and the `G-*-walk` pair.
+
+**It was already running, in E's suite.** `E-verify.mjs` drives six areas —
+courtyard, churchyard, park, drape, onslope, coplanar — and `E-walk` is the
+courtyard one. Registering it here closes **one sixth** of what `8a7b44bcb`
+found; the other five areas and their scripts are still outside `npm run
+checks`, and whether they should be registered individually or as one
+`E-verify` row is the desk's call, which that commit explicitly asks for.
+
+**And it explains the audit's blind spot exactly.** `checks-registered`'s
+population is scripts carrying a `--selftest`. Of E's fourteen, **exactly one
+has one — `E-walk`** — which is why that check surfaced this and is silent about
+the other thirteen. (`8a7b44bcb` states none of the fourteen carries one; it is
+off by one, and the one is what made this visible at all.) The audit built to
+catch invisible checks cannot see thirteen checks.
 
 **Green at HEAD** — 19 PASS, *"all walks passed"*, seven consecutive clean runs.
 

@@ -276,6 +276,14 @@ const CHECKS = [
   // could not reproduce it in seven attempts. Recorded rather than smoothed
   // over, so the first intermittent red is met with "seen once already"
   // rather than as a fresh regression. (D)
+  // It was never UNRUN, only unrun by this file: it is the `courtyard` area of
+  // scripts/E-verify.mjs, E's own six-area suite (8a7b44bcb). Registering it
+  // here closes one sixth of that gap; churchyard, park, drape, onslope and
+  // coplanar are still outside `npm run checks` and that is the desk's call.
+  // And it is why checks-registered saw this one alone: that audit's
+  // population is scripts carrying a --selftest, and E-walk is the ONLY one
+  // of E's fourteen that has one — so the audit built to catch invisible
+  // checks is itself blind to the other thirteen. (D)
   ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
   // The ONLY check that walks into a room in a BUILT BUNDLE. interiors-walk
   // above cannot: it imports a source path no bundle serves. Run the slow tier
