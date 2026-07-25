@@ -118,7 +118,7 @@ than being accused by mine.
 
 ---
 
-## A dev/bundle ground discrepancy at the library kerb — observed, not diagnosed
+## ~~A dev/bundle ground discrepancy at the library kerb~~ — RETRACTED, it was my probe
 
 `716b21d13` made the point that "the pavement is 0.14" is a remembered constant
 standing in for a published one, so I stopped hard-coding it in `steps-walk` and
@@ -138,6 +138,30 @@ The climb is unaffected in both — `gy 0.14 → 0.99`, up and back down, and
 `the steps climb and descend, and nothing sinks` passes either way. So this is
 not a broken flight; it is the floor under the library's kerb answering
 differently in the artefact from the dev server, at one of the two flights.
+
+### RETRACTED. There is no discrepancy; the probe was reading a contaminated value.
+
+`steps-walk`'s `gyAt` warped to the point and read `pos()[3]` 25 ms later — the
+rig's gy, which is a SHARED last-written value with several writers, the
+citizens among them. `9e59be123` found `E-yard-walk` deciding whether to run its
+climb from that same reading and SKIPPING an entire flight when it came back
+low, while reporting "all walks passed".
+
+Asking `groundAt` instead — the same pick the rig uses, which nothing else
+writes — the two servers agree:
+
+```
+                        DEV        BUILT BUNDLE
+library, at the kerb    0.14       0.14
+church,  at the kerb    0.14       0.14
+```
+
+**I sent E a reproduction for a fault in their file that does not exist.** The
+numbers below were real readings and the conclusion drawn from them was wrong,
+which is the worse kind of false report: it carries evidence. Everything from
+here down is left as the record of what I claimed, struck through by this.
+
+The original text, wrong:
 
 **Not diagnosed, and deliberately not guessed at.** The one mechanism this
 project has already proved does exactly this is module init order differing in

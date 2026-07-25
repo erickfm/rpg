@@ -22,11 +22,21 @@ const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout
 // not by importing ct/civic.ts — a dynamic import in the page gets a second
 // module instance with COURT still at its defaults, which reads as "there are
 // no steps" and is a very convincing lie.
-const gyAt = async (x, z) => {
-  await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [x, z]);
-  await p.waitForTimeout(25);
-  return (await pos())[3];
-};
+// ASK THE PICKER, do not warp and read the rig back.
+//
+// This warped to (x, z), waited 25 ms and returned `pos()[3]` — the rig's gy,
+// which is a SHARED last-written value with several writers, the citizens among
+// them. 9e59be123 found E-yard-walk deciding whether to run its climb from that
+// same reading and SKIPPING the whole flight when it came back low, reporting
+// "all walks passed" having tested nothing.
+//
+// It also explains a "dev/bundle ground discrepancy" I reported and routed to E
+// two commits ago: the library kerb read 0.14 in dev and 0.00 in the bundle.
+// That was this probe, not the world. `groundAt` is the same pick the rig uses
+// and nothing else writes it, so it needs no settling time and no warp — which
+// also means this no longer MOVES THE PLAYER to ask where the floor is.
+const gyAt = async (x, z) =>
+  p.evaluate(([x, z]) => window.__ct.groundAt(x, z) ?? 0, [x, z]);
 
 // --selftest: block the middle of every flight in the LIVE collider array and
 // require this to go red. The ground picker is untouched, so the "no rise"
