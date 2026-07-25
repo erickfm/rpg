@@ -216,6 +216,18 @@ declaring what a material IS rather than having it inferred from pixels.
 Printed signage and lit signage are identical in texels and differ only in
 whether anything is behind them, which a texture cannot show.
 
+**It is visible, and I checked that before leaning on the number.**
+`shots/banner-night/01-pavement-south-run.png` — 21:30, dry, standing on the
+2 m pavement where a player actually walks. Both banners are at full daylight
+brightness, vivid yellow and green, while the fence they hang on, the brick
+behind them and the ground under them are all deep in shadow. They read as
+backlit signs on an unlit fence.
+
+The same frame carries the contrast: **the bunting directly above them is
+correctly dark**, because that one I could fix in my own texture. One fence,
+one fixed, one blocked, and the difference is obvious at a glance — which is
+the argument for the opt-out better than any of my numbers.
+
 `scripts/mods-dim.mjs` stays unregistered until this lands: it is red on this
 finding, and reddening the shared suite over something I cannot fix would hand
 the block my problem.
