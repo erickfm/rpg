@@ -1298,17 +1298,25 @@ export function buildProps(ctx: CtxBuild): Props {
     for (let y = 0; y < 12; y += 4) g.fillRect(0, y, 48, 1);
     dither(g, 48, 12, 40);
   });
-  const adT = pixTex(96, 22, (g) => {
-    g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 96, 22);
-    g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 96, 6);
+  // Laid out for the PLATE it now sits on, not for the whole backrest. The copy
+  // is unchanged — it was approved — but every element is inset so nothing runs
+  // to an edge: the red band stops 5 px short on both sides and starts 3 px
+  // down, and the two lines below have clear cream above and beneath them. A
+  // frame over a FULL-BLEED ad ate the top of TONY'S PIZZA and cut the red band
+  // in half, which is what a bezel does to artwork drawn as if it were not
+  // there. The canvas is 112 x 24 to match the plate's 4.67:1, so the texels
+  // stay square (GOTCHAS §5).
+  const adT = pixTex(112, 24, (g) => {
+    g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 112, 24);
+    g.fillStyle = '#8a2c22'; g.fillRect(5, 3, 102, 8);
     g.fillStyle = '#e8e4d8'; g.font = 'bold 5px monospace';
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText("TONY'S PIZZA", 48, 3);
+    g.fillText("TONY'S PIZZA", 56, 7);
     g.fillStyle = '#2b3138'; g.font = 'bold 6px monospace';
-    g.fillText('555-0143', 48, 12);
+    g.fillText('555-0143', 56, 15);
     g.fillStyle = '#6a6458'; g.font = '5px monospace';
-    g.fillText('TWO SLICES $1.75', 48, 18);
-    dither(g, 96, 22, 50);
+    g.fillText('TWO SLICES $1.75', 56, 20.5);
+    dither(g, 112, 24, 50);
   });
   // THE BENCH TURNED ROUND. The user, twice: "like the back of the bus is in
   // the front? doesnt make sense".
@@ -1384,8 +1392,9 @@ export function buildProps(ctx: CtxBuild): Props {
   const backGrp = new THREE.Group();
   const backGeo = new THREE.BoxGeometry(0.07, BACK_LEN, BENCH_L);
   backGeo.translate(0, BACK_LEN / 2, 0);
+  // the backrest itself is plain on the road side now — the ad is a plate
   const back = new THREE.Mesh(backGeo,
-    [flatT2(slatT), flatT2(adT), benchM, benchM, benchM, benchM]);
+    [flatT2(slatT), benchM, benchM, benchM, benchM, benchM]);
   backGrp.add(back);
   const BZ = 0.020, BZP = 0.010;             // bar section, and how proud it sits
   const bezelX = -0.035 - BZP / 2;           // just off the ad face, which is -x
@@ -1398,6 +1407,19 @@ export function buildProps(ctx: CtxBuild): Props {
     bar.position.set(bezelX, BACK_LEN / 2, bz * (BENCH_L / 2 - BZ / 2));
     backGrp.add(bar);
   }
+  // THE AD IS A PLATE INSIDE THE FRAME, not a print with a frame laid over it.
+  // The frame's clear opening is BACK_LEN - 2*BZ by BENCH_L - 2*BZ, and the
+  // plate is inset a further 15 mm all round inside that, so there is an equal
+  // margin of frame-to-artwork on all four sides and the artwork cannot be
+  // clipped by the thing that is meant to surround it. The plate stands 4 mm
+  // proud against the frame's 10 mm, so the frame visibly stands OVER it —
+  // which is the difference between a mounted sign and a painted board.
+  const AD_M = 0.015;
+  const adPlate = new THREE.Mesh(
+    new THREE.BoxGeometry(0.004, BACK_LEN - 2 * BZ - 2 * AD_M, BENCH_L - 2 * BZ - 2 * AD_M),
+    [flatT2(adT), flatT2(adT), benchM, benchM, benchM, benchM]);
+  adPlate.position.set(-0.035 - 0.002, BACK_LEN / 2, 0);
+  backGrp.add(adPlate);
   backGrp.position.set(BX_BACK + 0.035, SEAT_Y, BENCH_Z);
   backGrp.rotation.z = -RECLINE;             // top leans AWAY from the sitter
   scene.add(backGrp);
@@ -1417,9 +1439,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // light, and on a pavement this narrow it also opens the sightline along the
   // walk. The legs carry the seat on their own, which is what legs are for.
   // four legs, not a solid box
+  // THE LEGS WERE COPLANAR WITH THE SEAT. They stood 0.45 above the walk and
+  // the slats' top face is at exactly 0.45 too, so leg top and slat top shared
+  // a plane and z-fought — which is why they read as dark bars painted ACROSS
+  // the wood rather than as legs under it (GOTCHAS §6).
+  //
+  // The fix is NOT to make them abut. Two faces that abut in the same plane
+  // still share it. The leg top is BURIED 2 cm inside the slat instead, so it
+  // is coplanar with nothing and hidden in solid geometry, while 40 cm of leg
+  // stands clear below the seat where a leg belongs. Each leg sits within a
+  // slat's own width in x — 5.10…5.16 under the first slat, 5.49…5.55 under
+  // the third — so it never shows through a slat gap either.
+  //
+  // Set further in from the ends as well, so the seat visibly overhangs its
+  // supports instead of stopping flush with them.
+  const LEG_TOP = SEAT_Y - 0.02, LEG_H = LEG_TOP - sidewalkY;
   for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.06, BX_SEAT1 - 0.05]) {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), benchM);
-    leg.position.set(lx, sidewalkY + 0.225, BENCH_Z + sz * 0.78);
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, LEG_H, 0.06), benchM);
+    leg.position.set(lx, sidewalkY + LEG_H / 2, BENCH_Z + sz * 0.72);
     scene.add(leg);
   }
   // a proper contact shadow on the flags, so it sits ON the pavement
