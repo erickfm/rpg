@@ -86,6 +86,29 @@ it does not, and head-on is where the user stands.
 If that is the fault, it is a palette change, not a geometry change — which
 would explain three geometry attempts failing to fix it.
 
+## Candidate 2, rendered so it can be ruled on rather than argued
+
+The desk has to choose between the two candidates, and one of them can simply be
+shown. **The shipped object is unchanged** — this was produced by a temporary
+one-line edit to the machine body colour, screenshotted, and reverted; `git
+status src/` is clean and the build is back to what ships.
+
+| | |
+|---|---|
+| `shots/atm-eye-front.png` | AS SHIPPED — body `#8d949b`, wall `#9a9ca0` |
+| `shots/atm-tone-dark-front.png` | same geometry, body `#4d545b` |
+| `shots/atm-tone-dark-left30.png` | the same at 30° |
+
+Identical recess, identical rake, identical size, identical detail. **Only the
+body tone differs.** In the dark version the machine separates from the precast
+and the recess reads immediately head-on, which is the view the user complains
+from; in the shipped version the two greys sit ten levels apart and the eye has
+nothing to catch.
+
+That is not me ruling — the fascia may still be a third too short, and both may
+be true. It is the comparison that makes the ruling a two-second look instead of
+a fourth attempt.
+
 ## What I have not done
 
 Not touched the object. Not guessed between the two. The row is REJECTED and
