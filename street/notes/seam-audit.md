@@ -858,3 +858,49 @@ work was on provenance, and the cheapest question was the one about consequence.
 
 Pattern #1 got this right — it was reported with what a player sees. This one
 did not, and it is the only finding in the audit I would now file differently.
+
+## Round 9 — seam sweep of ground that had never had one
+
+The original brief was *"walk the whole world, shoot every junction from at
+least two angles including a grazing one."* Two areas have appeared since and
+neither had ever been swept: the **side street** (lit only at `4f6f7d58`) and
+the **park's far half** (unreachable until the clamp lifted — every earlier
+sweep of mine stopped seven metres in).
+
+`scripts/seamnew.mjs` finds building corners in that ground from the scene,
+then stands **7 m off to one side** so the face runs away from the eye — a
+grazing angle, not square on — with standability, line of sight and landing all
+verified. **26 distinct corners found, 8 shot, 3 read.**
+
+### Result: no seam defects in the three I read
+
+- **park far corner (−39, −98)** — two ivy-clad brick faces meeting, coursing
+  continuous on both, a tree trunk standing in the junction
+- **park wall run (−24.8, −68)** — coursing runs unbroken along the wall at a
+  grazing angle, which is where a repeat error would show first. Ivy, bench,
+  path, railings, lamp beyond
+- **side street (16.45, −96)** — FLOWERS fascia running away, RADIO / DELI /
+  RECORDS opposite, pier, glazing, tree, lamp, parked car. No discontinuity at
+  the corner
+
+**Five of the eight are unread**, and I am not claiming them. Three grazing
+angles finding nothing is coverage extended and a clean result, not a
+certificate.
+
+### Two things the frames showed that I was not looking for
+
+1. **`[E] sit on the bench` fires in the park's far half.** The seats out there
+   are wired, not just modelled — which is the *"can you sit on every bench"*
+   request, confirmed in the one part of the park nobody could reach until
+   recently.
+2. **It was raining, and the road was wet.** Rain streaks and a dark wet
+   carriageway in the side-street frame — a third independent confirmation of
+   the wetness system, from a frame taken for an unrelated reason.
+
+### An observation about the planting
+
+Both park corners have **a tree trunk standing in the junction** and ivy over
+the brick. Whether or not that is deliberate, it is the reason there is nothing
+to report: the corner where two walls meet is the hardest thing in this world to
+get right, and in both cases it is not visible. Masking a seam is a legitimate
+way of solving it, and cheaper than making two textures agree.
