@@ -583,6 +583,45 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## LOOKED at a wet night and found litter floating on black ground
+
+Every audit above is a measurement. `5a24c796` fixed my wet-look by *looking* at
+a red carpet, so I shot my own areas in a condition I had never examined — a wet
+midnight — and the picture shows something no check of mine reports.
+
+`shots/look-gutter.png`: the cup and the newspaper are the **brightest things in
+frame**, near-white on a pavement that has gone properly dark. Measured at that
+moment:
+
+```
+fountain cup   (4.8,-54.3)  brightest 0.488  nearest lamp 3.4 m
+coffee cup     (5.3,-35.3)  brightest 0.045  nearest lamp 9.6 m
+darkest broad ground sheet: 0.008
+```
+
+**61× brighter than the ground it lies on.** Litter inside `LAMP_R` takes the
+pool; the walk sheet under it does not, because the pool is applied **per
+material** and a large shared slab takes one value from its own origin. Same
+mechanism I documented for the park floor — *"one mesh cannot show a pool under
+one of its lamps"* — except on the main street it lights the objects and skips
+the ground, which is the visible half.
+
+**Not a bug in the feature.** "Light around the light posts to show up on the
+objects and entities under the lights" is what was asked for and what `glow-pool`
+guards; a lit cup near a lamp is correct. The defect is that the ground beside it
+stays black, so the cup reads as floating.
+
+**Why no check caught it**: `glow` compares near-lamp against mid-block medians
+and gets 13.6×, which is the feature working. Nothing compares an object against
+*the ground directly under it*, and that ratio — 61× — is the one a player sees.
+
+Not fixing it here. The remedy is either per-slab materials on the walk
+(`tex-ground`) or applying the pool by fragment rather than by material — both
+substantial changes to a night system that has been reverted once for exactly
+that kind of unilateral rework. Filed with the number and the frame.
+
+---
+
 ## Remembered coordinates: four found, and the dangerous ones are the quiet ones
 
 Having pulled three out of this shelf reactively — `kerbcut`'s `CZ`, park's gate
