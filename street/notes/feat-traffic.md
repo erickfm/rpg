@@ -459,6 +459,41 @@ distinguish a real failure (exit 1) from an inconclusive run (exit 2), and wait
 for coverage rather than judging on whatever one sweep found. A check that fails
 half the time is a check people learn to skip, which is worse than not having it.
 
+## A second pattern, and it is worse than the first one
+
+The pattern above is about probes failing for lack of samples. This one is
+about probes that **cannot fail at all**, which is the failure you never see.
+
+Five separate instances, all mine, all found by deliberately breaking the world:
+
+1. **A guard behind a crash is not a guard.** `cartex.mjs` printed a clean
+   "no vehicle found" message that was unreachable — with nothing matched, the
+   page-side loop hit `truck.children` and threw first, so it died on a raw
+   Node trace. `citizen-sheet.mjs` was the same shape: its empty-sheet check
+   tested the finished data URL, but a missing affordance means `img.src = ''`,
+   whose `onload` never fires, so the evaluate hung instead.
+2. **Colour is stored LINEAR.** `material.color.r` on a `#3a4a63` body reads
+   0.067 — *darker* than the "this must be dark" threshold of 0.22 that
+   `carstate.mjs` used to prove the engine bay is not body-coloured. It would
+   have passed the exact bug it was written for. Read `getHexString()` for sRGB.
+3. **Do not infer what you can ask for.** The same probe derived the body colour
+   as "the commonest flat colour on the car" and got `#101114` — the tyre black
+   off the four wheels. `makeCar` publishes `userData.body` now.
+4. **A filter must not be the thing under test.** Gating corner-traffic's runs
+   on "did it come out heading east" would make the check that it comes out
+   heading east vacuous. `v.held` — the sim's own record of giving way — is
+   independent, so `ct/traffic.ts` publishes it.
+5. **`exit=$?` after a pipe reports `grep`'s status.** It made three separate
+   failure-watches on this project look like passes. Redirect to a file and read
+   node's own status.
+
+And one for the paint layer specifically: **PNG bytes cannot prove anything
+about a car texture.** `bodySideTex` ends in `dither(...)`, unseeded
+`Math.random()`, so two runs of identical code differ (GOTCHAS §1). I hashed
+before and after, saw a difference, and nearly reported my own change as the
+cause — the control run of unchanged code differed too. Use the structural
+fingerprint.
+
 ## A third pattern: the stopwatch. Swept, and here is where it was
 
 Found three times before I stopped waiting to be bitten and audited all sixteen.
@@ -495,41 +530,6 @@ citizens alone — not with 40–60 s errand dwells, not with the give-way disab
 not with a 1.30 m body radius — but parking a car across the north walk gives a
 7.5 s stall immediately. That is why the citizen guard measures the GAP beside a
 stopped body and the hike guard measures the player's progress.
-
-## A second pattern, and it is worse than the first one
-
-The pattern above is about probes failing for lack of samples. This one is
-about probes that **cannot fail at all**, which is the failure you never see.
-
-Five separate instances, all mine, all found by deliberately breaking the world:
-
-1. **A guard behind a crash is not a guard.** `cartex.mjs` printed a clean
-   "no vehicle found" message that was unreachable — with nothing matched, the
-   page-side loop hit `truck.children` and threw first, so it died on a raw
-   Node trace. `citizen-sheet.mjs` was the same shape: its empty-sheet check
-   tested the finished data URL, but a missing affordance means `img.src = ''`,
-   whose `onload` never fires, so the evaluate hung instead.
-2. **Colour is stored LINEAR.** `material.color.r` on a `#3a4a63` body reads
-   0.067 — *darker* than the "this must be dark" threshold of 0.22 that
-   `carstate.mjs` used to prove the engine bay is not body-coloured. It would
-   have passed the exact bug it was written for. Read `getHexString()` for sRGB.
-3. **Do not infer what you can ask for.** The same probe derived the body colour
-   as "the commonest flat colour on the car" and got `#101114` — the tyre black
-   off the four wheels. `makeCar` publishes `userData.body` now.
-4. **A filter must not be the thing under test.** Gating corner-traffic's runs
-   on "did it come out heading east" would make the check that it comes out
-   heading east vacuous. `v.held` — the sim's own record of giving way — is
-   independent, so `ct/traffic.ts` publishes it.
-5. **`exit=$?` after a pipe reports `grep`'s status.** It made three separate
-   failure-watches on this project look like passes. Redirect to a file and read
-   node's own status.
-
-And one for the paint layer specifically: **PNG bytes cannot prove anything
-about a car texture.** `bodySideTex` ends in `dither(...)`, unseeded
-`Math.random()`, so two runs of identical code differ (GOTCHAS §1). I hashed
-before and after, saw a difference, and nearly reported my own change as the
-cause — the control run of unchanged code differed too. Use the structural
-fingerprint.
 
 ## Probes, and what each is for
 
