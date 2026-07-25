@@ -2,84 +2,113 @@
 
 Working from `notes/queues/D-alley.md`: rebase on `add-stick-and-city98`, take
 the top unchecked item, commit, re-read. I don't edit the queue — completions
-are reported here. Earlier runs are in `notes/archive/feat-alley.md` and
-`notes/archive/feat-roster.md`.
+are reported here. Earlier runs are in `notes/archive/`.
 
-Base: `a8dd629`. `scripts/ownership.sh D` clean. Build clean.
+Base: `6976f13`. `scripts/ownership.sh D` clean. `npm run sweep` shows the same
+warnings as baseline, no new page errors. `scripts/health.mjs` → WORLD OK.
 
 ---
 
-## `## Now` → **bodega BLOCKER** — already fixed, RE-VERIFIED on this base
+## `## Now` → **Move the church onto the main block** — DONE (`8447e7c`)
 
-Fixed in the previous run and already merged, so there was nothing to commit.
-But the tree moved a long way underneath it — `ct/street.ts` 1277 → 878 lines,
-church and library out to `ct/civic.ts` — so I re-ran the walk test rather than
-assume it survived the split:
+`ct/civic.ts` untouched. This is a roster change and nothing else.
 
-| approach | result |
-|---|---|
-| east along the side-street walk | prompt, **enters** (`rig.pos.x 8 → 241.3`) |
-| west along the side-street walk | prompt, **enters** |
-| diagonally at the canted face | prompt, **enters** |
+**Where it went.** EAST now runs … No. 227, PAWN, **ST BRIGID**, BODEGA. The
+church occupies **z −86 … −68** at x 7…10.4, facade on x = FACE looking west
+across the street. Its old slot on the south side of the side street is filled
+by the two shops it displaced.
 
-Driven with real key input and a real `e` press, not a screenshot. **Safe to
-move to `## Done`.**
+**The widths, which are load-bearing.** Both answers came from the desk and
+both are honoured:
 
-*Walking straight down the main street past the corner without turning gets no
-prompt — correctly. The door faces the crossing diagonally, so you turn toward
-it. That is wayfinding, not a blocker.*
+| run | before | after | total |
+|---|---|---|---|
+| EAST after No. 227 | PAWN 12, DELI 11, RECORDS 10, BODEGA 10 | PAWN **15**, ST BRIGID 18, BODEGA 10 | 43 ✓ (last shell still ends on −96) |
+| SOUTH2 | ST BRIGID 18, GARAGE 12, … | DELI **9.5**, RECORDS **8.5**, GARAGE 12, … | 64 ✓ (still ends dead on x = 57) |
 
-**What it actually was** (the queue's diagnosis named the chamfer; it wasn't):
-the **fruit-crate collider**, a single 2.2 m box `x 7.5…9.7, z -96.9…-96.2`
-spanning the whole canted-bay frontage, with the `[E]` spot at `(8.7, -96.85)`
-sitting **inside** it. You were stopped at `x = 7.13` from the east and
-`x = 10.07` from the west — exactly the box inflated by the rig's `RADIUS`
-(0.36), which is what identified it. Crates moved east and clear of the
-doorway; their collider became two boxes, one per crate.
+The church takes a 21 m slot and the nave is 18, so **PAWN — its north
+neighbour — takes the 3 m**, as instructed. No. 227 untouched.
 
-**Door coords, as the item asked:** canted face runs `A (7,-94) → B (9,-96)`,
-outward normal `(-1,-1)/√2`, **door centre `(8.0, -95.0)`**. The existing
-`[E]` spot `(8.7, -96.85) r 1.1` works and needs no change.
+**How it turned the corner without touching E's file.** `placeChurch` builds
+along +x with its facade on +z: the side-street axis it was authored for. Rather
+than ask E to parameterise the axis, the church is built into a **Group** and the
+group is turned. `buildCivic` only ever calls `scene.add` and registers nothing,
+so a Group is a perfectly good scene, and the transform is arithmetic on my side
+of the line. `rotation.y = −π/2` sends local +x → world +z and local +z → world
+−x, which puts the nave down the block and the facade exactly where `placeBld`
+puts an east shopfront.
 
-## BURGER BARN → red and beige — DONE (`d7e0b1f`)
+### Seams — walked, both sides of both junctions
 
-**The queue listed this under `## Done` but the change had never reached the
-code.** The fascia was still `#c8302a` red with an `#e8a02a` mustard stripe,
-`#f2d24a` yellow lettering and an `#e8c26a` interior — the mustard was reading
-as the second colour, which is why it kept coming back after being "fixed".
+Screenshots: `shots/user-church-mainblock.png`, `user-church-seam-north.png`,
+`user-church-seam-south.png`, `user-church-oldslot.png`.
 
-All three moved together and are now named at the top of `burgerFront`, so the
-scheme is one place to change: `BB_RED`, `BB_BEIGE`, `BB_INSIDE`.
-Shot: `shots/user-burger.png`.
+- **Stone meets brick on a clean vertical line** at z = −68 (PAWN) and z = −86
+  (BODEGA). No gap, no z-fight, no overlap.
+- **No sign band runs into the stone.** Each shop's band is painted in its own
+  texture and dies at its own edge, so the junction is brick-to-stone, nothing
+  more.
+- **No flat untextured party wall** — seam-audit #1 does not reproduce here.
+  At the north junction the 26 m tower stands at the church's north end and
+  hides PAWN's end cap completely (and the tower's own north face is textured,
+  not `stoneM()`). At the south junction the church is the taller of the two, so
+  there is no exposed cap at all.
+- **Return walls are correctly buried.** The nave's ±x ends are flat
+  `stoneM()`, which is what the queue warned about — but with neighbours flush
+  on both sides, neither is visible from anywhere on the street. I checked
+  specifically before reporting it, and it is a non-issue *at these two
+  neighbours' heights*.
+- **The sidewalk still walks.** Building-side lane at x = 6.30 runs the full
+  church frontage clear, both directions, verified with real key input. The
+  tower projects 0.3 m to x = 6.7 — exactly the existing wall collider's
+  `minX`, so it takes no pavement. (Straight-line walks at x = 5.8 and 6.0 stop
+  on the street trees and the lamp; those are pre-existing furniture you walk
+  around, not new.)
+
+### What I need from `ct/civic.ts` — for E, via the desk
+
+**One item, and it is already in E's area.**
+
+> **The buttresses are flat untextured `stoneM()` boxes.** Four of them stand
+> 0.3 m proud of a fully coursed ashlar facade, so they read as blank slabs
+> stuck on the front — most obvious in `shots/user-church-seam-south.png`, the
+> pale featureless strip immediately right of the bodega, and either side of the
+> doorway in `user-church-mainblock.png`.
+>
+> On the side street this was survivable because the church was seen head-on and
+> the buttresses were nearly edge-on. On the main block you walk *past* it, so
+> their front faces and both cheeks are lit and looked at from every angle.
+>
+> What I need: the buttress faces carrying the same ashlar as `naveTex`, with
+> the courses lining up with the wall behind them. Same for their weathered caps
+> if those stay flat colour.
+
+**Nothing else.** I deliberately have not asked for the return walls to be
+suppressed — they are invisible where the church now stands, and asking E to
+delete geometry that a future roster change would need back would be the wrong
+trade. Worth a comment in `civic.ts` that the ±x ends are now party walls, so it
+is not a surprise if a neighbour's height changes.
 
 ---
 
 ## For the desk
 
-**Port 4181 is still not free.** It is held by `/home/erick/projects/rpg`
-running `vite preview --port 4177`, which auto-drifted onto it. I verified on
-**4184 `--strictPort`** and checked the served bundle hash matched the one I had
-just built. This has caught me twice — once a test ran green against another
-worktree's build. Worth pinning every worktree with `--strictPort`, or stopping
-that drifting server.
+**Port contention is now costing real time.** 4181 is held by
+`/home/erick/projects/rpg`'s drifting `--port 4177` server, and while my 4184
+server was down for a rebuild **`rpg-audit` took 4184** — I caught it because
+the served bundle hash did not match the one I had just built. That is three
+different ports lost. I am on **4231 `--strictPort`** and I check the hash every
+time before trusting a result. Recommend every worktree get a pinned
+`--strictPort` port and that the stray 4177 server be stopped.
 
-**`ct/civic.ts` untouched**, as instructed; the church-tower item is E's.
+## Previously, still standing
 
-**Next item — moving the church onto DELI + RECORDS — is understood, not
-started.** Two things that will shape it, flagged early so E and the desk can
-weigh in before I cut anything:
+- **Bodega blocker** — the fruit-crate collider, not the chamfer. Re-verified
+  after the civic split. Door centre `(8.0, −95.0)`; the `[E]` spot works as is.
+- **BURGER BARN red + beige** (`d7e0b1f`) — the mustard constants had never
+  actually reached the code.
 
-- It is a **21 m slot against an 18 m nave**. Three metres has to come out of a
-  neighbour in the same EAST run, because that run's widths are load-bearing
-  (No. 227 sits at a fixed z that `ct/apartment.ts` depends on). I will pay for
-  it out of an adjacent shop rather than let the run overflow.
-- The church was authored **free-standing**, seen head-on from the side street,
-  with its own return walls. On the main block it gets **party walls hard
-  against it on both sides**, which will expose those returns and put a brick
-  sign band running into stone at both junctions. That is exactly the seam work
-  the item calls out, and some of it may need a change inside `ct/civic.ts` —
-  E's file, so it goes through the desk.
-
-Still open in my queue: bodega door readability, filling the crates, the church
-move, signs (a) and (c), window lights, the corporation, and moving my `[E]`
-spots onto `ctx.spot()`.
+Open in my queue: bodega door readability, filling the crates, signs (a) and
+(c), shop resizing (already in the tree — worth verifying before it is
+promoted), window lights, the corporation, and moving my `[E]` spots onto
+`ctx.spot()`.
