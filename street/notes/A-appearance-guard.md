@@ -112,3 +112,40 @@ user objected to come back"* — narrower, defensible, and it guards the case th
 actually recurred. Three of the remaining unguarded items may have such a
 signature; the rest need eyes, and saying so is better than pretending a
 threshold covers them.
+
+## Source mutations: one worked, one did not, and the failure is the useful half
+
+`b05dc7c5` routed `density`'s selftest to a **source** mutation on the grounds
+that a scene mutation is safe only "because nothing rewrites a texture per
+frame" — a fact about today's code. The appearance guards are in that position,
+so I tried to give them the same treatment.
+
+**`window-lattice` — worked.** The original bug is one line and it is quoted
+verbatim in my queue:
+
+```
+return ((h ^ (h >>> 16)) >>> 0) % 100 < pct;     the avalanche hash
+return ((f * 7 + c * 3) % 5) === 0;              what the user saw
+```
+
+Restored in source, rebuilt, caught. That asserts something no selftest of mine
+can: *if someone reintroduces the exact line the user complained about, the build
+says so.*
+
+**`tree-crown` — did not.** I found the historical line in `a3b803cf`
+(`const d = 0.94 + r() * 0.22;`, which its own message explains as "a notch of up
+to 3.2 px radius centred at 0.94R reaches well inside the crown"), restored it,
+rebuilt — and the check did **not** fire. 0 of 1.
+
+**So the fix was not that line.** `a3b803cf` changed 40 lines across the notch
+pass; restoring one of them reproduces the *shape* of the bug and not the bug.
+By my own standard from the previous commit — *a mutation that is merely LIKE
+the defect proves less than the scene mutation it replaces* — that case does not
+belong in the suite, so I reverted it rather than shipping a green line that
+means nothing.
+
+**What this says about the other two.** `burger-palette` and `shop-interior` have
+no single historical line either: the black-hole glass was fixed by *adding* a
+backing that did not exist, so there is nothing to restore. Source mutations are
+available where the defect was one line and not where it was a redesign, and
+that is a property of the bug rather than of the guard.
