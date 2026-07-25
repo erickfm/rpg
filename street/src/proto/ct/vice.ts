@@ -798,12 +798,23 @@ export function buildVice(o: {
       // The old one was flat cyan letters on a dark plane — a stripe, not a
       // tube. Same position and same size; the artwork is what changes, plus a
       // VACANCY sign under it that has been on for a long time.
+      // Full height, and that is the whole point of it. The user's sentence was
+      // "theyre a casino and hotel right next to each other", and what makes
+      // that an image rather than two buildings is TWO BLADES side by side —
+      // ACES burning red at 46.4 and ORPHEUS burning cyan at 44.35, two metres
+      // apart, both running from the canopy to above the roofline. The old
+      // blade said HOTEL in five letters over seven metres and was the smaller
+      // sign on a bigger building than the casino.
       const hx = hotel[1] - 1.1;
-      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.24, 7.6, 0.55), boardM);
-      mast.position.set(hx, 8.2, -96.75);
+      const HB_Y0 = 5.0, HB_Y1 = 19.2, HB_YC = (HB_Y0 + HB_Y1) / 2;
+      // 1.2 m deep, to match the casino's 1.35. At 0.6 it was the same height
+      // as the ACES blade and half its width, which from down the street read as
+      // the hotel standing behind the casino rather than beside it.
+      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.26, HB_Y1 - HB_Y0, 1.2), boardM);
+      mast.position.set(hx, HB_YC, -96.95);
       scene.add(mast);
-      for (const y of [11.2, 6.4]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.82), steel);
+      for (const y of [6.4, 10.2, 14.0, 17.8]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.86), steel);
         arm.position.set(hx, y, -96.38);
         scene.add(arm);
         const stay = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.2, 0.07), steel);
@@ -811,16 +822,20 @@ export function buildVice(o: {
         stay.rotation.x = 0.69;
         scene.add(stay);
       }
-      const hotelArt = (mirror: boolean) => pixTex(22, 118, (g) => {
-        g.fillStyle = '#17141c'; g.fillRect(0, 0, 22, 118);
-        g.fillStyle = '#3a3630'; g.fillRect(0, 0, 22, 2); g.fillRect(0, 116, 22, 2);
-        if (mirror) { g.translate(22, 0); g.scale(-1, 1); }
-        'HOTEL'.split('').forEach((ch, i) => tubeText(g, ch, 11, 15 + i * 19, 16, '#5ad2ea'));
-        g.fillStyle = '#ff5a8a'; g.fillRect(4, 110, 14, 3);
+      const hotelArt = (mirror: boolean) => pixTex(40, 250, (g) => {
+        g.fillStyle = '#17141c'; g.fillRect(0, 0, 40, 250);
+        g.fillStyle = '#3a3630'; g.fillRect(0, 0, 40, 3); g.fillRect(0, 247, 40, 3);
+        g.fillRect(0, 0, 3, 250); g.fillRect(37, 0, 3, 250);
+        if (mirror) { g.translate(40, 0); g.scale(-1, 1); }
+        // HOTEL small at the head, ORPHEUS at full size under it — the way a
+        // hotel blade is actually set, with the category over the name
+        'HOTEL'.split('').forEach((ch, i) => tubeText(g, ch, 20, 16 + i * 15, 13, '#ff5a8a'));
+        g.fillStyle = '#3a3630'; g.fillRect(7, 92, 26, 2);
+        'ORPHEUS'.split('').forEach((ch, i) => tubeText(g, ch, 20, 110 + i * 20, 26, '#5ad2ea'));
       });
       for (const s of [-1, 1]) {
-        const face = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 6.9), neon(hotelArt(s < 0)));
-        face.position.set(hx + s * 0.14, 8.2, -96.75);
+        const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, HB_Y1 - HB_Y0), neon(hotelArt(s < 0)));
+        face.position.set(hx + s * 0.15, HB_YC, -96.95);
         face.rotation.y = s * Math.PI / 2;
         scene.add(face);
       }
