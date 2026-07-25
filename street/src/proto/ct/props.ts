@@ -100,7 +100,27 @@ export function buildProps(ctx: CtxBuild): Props {
   interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
-  const LAMP_R = 4.0;        // the pools read about this wide
+  // How far a lamp reaches, and how it gets there. A sodium head 5 m up on a
+  // 1.25 m crook lights a STRETCH of pavement — you walk out of one pool and
+  // into the next — and the old 4 m radius with a straight linear falloff made
+  // a spot instead, bright directly underneath and gone by the time you had
+  // taken three steps.
+  //
+  // The fix is deliberately "keep the centre, move the edge": inside
+  // LAMP_CORE the light is at full strength, and only outside it does the
+  // shoulder begin, running all the way out to LAMP_R. So the brightest part
+  // is exactly as bright as it was — this is not a brightening pass — but it
+  // holds that value across a real patch of ground and then takes 5 m to die
+  // instead of 4. Combined with the floors coming down, that is more CONTRAST
+  // rather than more light: the lit stretch is longer AND the gap between two
+  // of them is darker.
+  //
+  // 7 m is chosen against the lamp spacing, not picked. Heads sit at x = ±4.3
+  // alternating every 14 m, so consecutive heads are 16.4 m apart; at 7 m the
+  // pools still fall short of each other by 2.4 m and the dark stretch between
+  // them survives. Take this much past 8 and the street becomes continuously
+  // lit, which is the opposite of what was asked for.
+  const LAMP_R = 7.0, LAMP_CORE = 1.8;
   // Sodium light WARMS a surface, it does not repaint it. So the base colour
   // is MULTIPLIED by a warm factor rather than lerped toward amber: a dark
   // green sedan stays a dark green sedan, slightly warmer. Lerping toward a
@@ -302,7 +322,10 @@ export function buildProps(ctx: CtxBuild): Props {
         const dx = px - h.x, dz = pz - h.z;
         const d2 = dx * dx + dz * dz;
         if (d2 >= LAMP_R * LAMP_R) continue;
-        const f = 1 - Math.sqrt(d2) / LAMP_R;
+        const d = Math.sqrt(d2);
+        // full strength across the core, then the shoulder — the whole point
+        // of the change is that this is flat, not a peak
+        const f = d <= LAMP_CORE ? 1 : 1 - (d - LAMP_CORE) / (LAMP_R - LAMP_CORE);
         if (f > best) best = f;
       }
       // smoothstep, not a square: squared only reaches 0.23 two metres from
@@ -502,7 +525,12 @@ export function buildProps(ctx: CtxBuild): Props {
     halo.position.set(headX, sidewalkY + LAMP_H - 0.31, z);
     boards.push({ m: halo }); scene.add(halo);
     nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.4),
+    // The wash on the road widens with the reach, or the litter and the people
+    // stay lit over a stretch of pavement that is visibly dark. Same sheet,
+    // same peak — a bigger plane spreads the SAME falloff over more ground,
+    // which is exactly "move the edge". Base opacity comes down a touch
+    // because a wider bright area adds up to more light even at equal peak.
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 5.6),
       new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(headX, 0.02, z); scene.add(pool);
     lampHeads.push({ x: headX, z });
@@ -515,7 +543,7 @@ export function buildProps(ctx: CtxBuild): Props {
     splash.rotation.y = -s * Math.PI / 2;   // face the street, not the brick
     scene.add(splash);
     nightLit.push({ mat: splash.material as THREE.MeshBasicMaterial, base: 0.62 });
-    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.85 });
+    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
   };
   // staggered down the block, kept clear of the tree pits (every 14 m at −2,−16…)
   [[-1, -9], [1, -23], [-1, -37], [1, -51], [-1, -65], [1, -79]].forEach(([s, z]) => makeLamp(s, z));
