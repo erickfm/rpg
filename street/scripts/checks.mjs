@@ -43,6 +43,7 @@ const CHECKS = [
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
+  ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
   // Slowest entry here by some way — it WALKS, so it costs what walking costs.
   // Kept because the things it covers cannot be asked any other way: whether a
   // wall stops you, whether a door prompts when you arrive rather than mid
