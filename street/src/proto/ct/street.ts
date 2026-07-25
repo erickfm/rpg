@@ -1310,18 +1310,47 @@ export function buildStreet(o: {
 
   // ── the alley: a dark cut in the left wall with a dumpster ──────────────
   {
-    const alleyFloorT = pixTex(64, 64, (g) => {
-      g.fillStyle = '#2e3034'; g.fillRect(0, 0, 64, 64);
-      dither(g, 64, 64, 700);
-      // stains + a drain
-      g.fillStyle = 'rgba(0,0,0,0.35)';
-      g.beginPath(); g.ellipse(20, 40, 12, 6, 0.5, 0, Math.PI * 2); g.fill();
-      g.beginPath(); g.ellipse(46, 14, 8, 5, -0.3, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#17181c'; g.fillRect(30, 28, 8, 8);
+    // The alley floor, painted PER METRE like everything else on the ground.
+    //
+    // It was one 64 x 64 canvas stretched over 6.6 x 6.5 m — 9.7 px/m, abutting
+    // a sidewalk at 32 and a road at 14-19. notes/seam-audit.md finding 4: "a
+    // three-to-one grain jump in a single frame, plus the stain blobs and the
+    // drain each appear exactly once so they read as smears rather than as
+    // ground." Both halves of that are the same cause: one small canvas doing
+    // a whole surface.
+    //
+    // 24 px/m is the number. The walk is 32 and the road 14-19, so the alley
+    // now sits between its two neighbours instead of three times coarser than
+    // either, and the arris at x = -7 stops announcing itself.
+    const AF_W = 6.6, AF_L = AZ0 - AZ1, AF_PXM = 24;
+    const AFW = Math.round(AF_W * AF_PXM), AFL = Math.round(AF_L * AF_PXM);
+    const am = (v: number) => Math.max(1, Math.round(v * AF_PXM));
+    const alleyFloorT = pixTex(AFW, AFL, (g) => {
+      g.fillStyle = '#2e3034'; g.fillRect(0, 0, AFW, AFL);
+      // grain per SQUARE METRE, not a flat count — the same correction the
+      // facades and the party walls already took
+      dither(g, AFW, AFL, Math.round(AF_W * AF_L * 22));
+      // Stains sized in METRES and scattered across the whole floor, rather
+      // than two blobs that each happened once. Deterministic, not rnd()
+      // (GOTCHAS §2).
+      let h = 0x9e3779b1;
+      const nx = () => { h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0; return (h >>> 9) / 0x7fffff; };
+      g.fillStyle = 'rgba(0,0,0,0.32)';
+      for (let i = 0; i < 9; i++) {
+        const cx = nx() * AFW, cy = nx() * AFL;
+        g.beginPath();
+        g.ellipse(cx, cy, am(0.35 + nx() * 0.75), am(0.2 + nx() * 0.4), nx() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+      }
+      // the drain: a real 0.4 m gully with its bars, not an 8 px square
+      const dx = Math.round(AFW * 0.5), dy = Math.round(AFL * 0.42), dw = am(0.4);
+      g.fillStyle = '#17181c'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
       g.fillStyle = 'rgba(255,255,255,0.12)';
-      g.fillRect(30, 31, 8, 1); g.fillRect(30, 34, 8, 1);
+      for (let k = 1; k < 4; k++) {
+        g.fillRect(dx - dw / 2, dy - dw / 2 + Math.round((k * dw) / 4), dw, Math.max(1, am(0.02)));
+      }
     });
-    const floorA = new THREE.Mesh(new THREE.PlaneGeometry(6.6, AZ0 - AZ1), new THREE.MeshBasicMaterial({ map: alleyFloorT }));
+    const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), new THREE.MeshBasicMaterial({ map: alleyFloorT }));
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     scene.add(floorA);
