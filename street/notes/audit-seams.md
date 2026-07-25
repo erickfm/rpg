@@ -1,46 +1,50 @@
-## audit/seams — pattern #1 clean; the same defect has moved into lighting and signage
+## audit/seams — all seven rooms in the world; six of nine doors blocked
 
-Two queue items worked, one commit each, per the one-outcome rule.
-Base `a4c64a82`.
+Two commits this pass, one outcome each.
+Base `3646cc3e`.
 
-Touched:   notes/interior-audit.md (+Round 9), notes/seam-audit.md
-           (+regression check), notes/audit-seams.md
+Touched:   notes/interior-audit.md (+Rounds 10, 11), notes/audit-seams.md,
+           scripts/triggers.mjs (+pawn), scripts/interiors.mjs (7 slabs)
            **nothing under street/src/**
 
-### `## Now` — interiors round 9 (committed separately, `3e0449b8`)
+### Round 10 (`67cb7571`) — finding 10 is CLOSED
 
-`5e1d58cd` moved the bodega's two door spots off hand-written `SPOTS` entries in
-`crosstown.ts` onto the kit's `ctx.spot` — the last hand-wired entry point gone.
-Re-ran the trigger harness: **behaviour-neutral.** Bodega measures 0.03 m closest
-/ 1.07 m margin / reachable with the correct prompt, identical to round 8.
-Verified rather than assumed, because the failure mode if it had gone wrong is
-the one this audit has met twice.
+`0b6d6630` replaced the hand-written `buildX(ctx)` calls with
+`buildAllInteriors`, which globs `./int-*.ts`, sorts by path for deterministic
+slab addresses, and calls each module's `build…()` export. **Measured: slabs 0–6
+all populated. Seven rooms, seven slabs.** The pawn shop, unwired for three
+rounds, is in.
 
-All other triggers unchanged, including THRIFT still at 0.27 / 0.78 / blocked
-(finding 17 — the 10.5 m prop against the facade is still there). **Pawn is
-still unwired.**
+> 1 of 4 unreachable → 2 of 4 → 4 of 7 → 1 of 7 → **0 of 7.**
 
-### `## Next` — pattern #1: clean for the third consecutive check
+The fix is stronger than the assert I proposed in round 4: the failure now
+**cannot be made**, rather than being detected. Slab addresses changed with it
+— burger 0, casino 1, diner 2, hotel 3, pawn 4, tax 5, thrift 6.
 
-`a4c64a82` and `03cdac1a` touched the masonry files. **Every masonry face is
-still 8 × 8 or 16 × 16.** That is the item's test and it passes.
+**Seven rooms, four agents, wall thickness 0.18 and wall density 11.9 × ~12.0 in
+every one.** Everything still disagreeing is a free parameter: seven distinct
+ceiling heights spanning 0.9 m, ceiling luminance 5.6 : 1, floor density
+18.3–21.3 and anisotropic within rooms.
 
-**The non-masonry anisotropy I flagged last round has gone from one face to
-seven**, all from the lighting-and-signage work:
+**Finding 12 — the tool landed, nothing uses it.** `b002bea9` published
+`frontageOf(name, wMeters)`, exactly what this audit asked for in round 5 after
+being caught twice by stale roster widths. But `grep -l frontageOf
+src/proto/ct/int-*.ts` returns nothing and room widths are unchanged. One import
+per room away from closed.
 
-- **HOTEL blade: 44.0 × 17.1 px/m — 2.57 : 1.** It carries the word HOTEL, so
-  its glyphs render 2.6× condensed. Low severity, but a legibility decision made
-  by arithmetic accident on a sign I have now audited three times.
-- **Two tall frontage strips at 35.4 × 14.2 (2.50 : 1).**
-- **Four light pools at 2.56–9.41 px/m, 1.8–2.1 : 1.** Anisotropy in a soft
-  gradient may well be deliberate — a pool cast along a wall *is* elliptical —
-  so this one is a question for whoever owns them, not a defect I can call.
+### Round 11 (this commit) — all nine street doors
 
-The pattern is unchanged: **a canvas whose size does not follow from the
-surface's real metres.** Masonry is immune by construction now; signage and
-lighting have inherited it wholesale. Worth a decision before there are twenty —
-the fix has a known shape and `masonry()` already exists to model it.
+| reachable | blocked |
+|---|---|
+| GOLDEN ACES 1.05 (100 %) · HOTEL 1.05 (100 %) · BODEGA 1.09 (99 %) | No. 227, BURGER, TAX, **PAWN** 0.84 (80 %) · DINER 0.83 · THRIFT **0.78 (74 %)** |
 
-Left:      Pawn unwired; three of ten rooms unwritten. The three newly wired
-           rooms have not been through the round-7 side-by-side light comparison.
-           Sign mirroring still unverified since the signs were moved.
+**The split is geographic, not per-builder.** Every side-street and corner door
+is fully reachable; **every main-street door is blocked.** Six of nine.
+
+Seven rooms have now independently placed a door 0.45 m off the facade — the
+correct thing to do — and six are inside solid because of where the *street*
+says the wall is. The pawn shop inherited the debt on arrival. This is not
+fixable from the interior side; it is the round-6 facade map showing through.
+
+Left:      Three of ten rooms unwritten. The four newest rooms have not been
+           through the round-7 side-by-side light comparison.

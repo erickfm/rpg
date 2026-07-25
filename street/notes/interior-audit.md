@@ -739,3 +739,44 @@ place to be than round 5, and it is one import per room away from closed.
   affect street-side door spots, but the props situation (finding 17) moves.
 - The four newest rooms have not been through the round-7 side-by-side light
   comparison.
+
+---
+
+# Round 11 — all nine street doors measured
+
+Base `add-stick-and-city98` @ `3646cc3e`. Closes the gap round 10 carried
+("trigger margins not re-measured"), and covers the pawn shop's door for the
+first time now that it is in the world.
+
+| door | r | closest | margin | centre | street |
+|---|---|---|---|---|---|
+| GOLDEN ACES | 1.05 | 0.00 | **1.05 (100 %)** | reachable | side |
+| HOTEL ORPHEUS | 1.05 | 0.00 | **1.05 (100 %)** | reachable | side |
+| BODEGA | 1.10 | 0.01 | **1.09 (99 %)** | reachable | corner |
+| No. 227 | 1.05 | 0.21 | 0.84 (80 %) | blocked | main |
+| BURGER BARN | 1.05 | 0.21 | 0.84 (80 %) | blocked | main |
+| A-1 TAX | 1.05 | 0.21 | 0.84 (80 %) | blocked | main |
+| **PAWN SHOP** | 1.05 | 0.21 | 0.84 (80 %) | blocked | main |
+| DINER | 1.05 | 0.22 | 0.83 (79 %) | blocked | main |
+| THRIFT | 1.05 | **0.27** | **0.78 (74 %)** | blocked | main |
+
+**The split is geographic, not per-builder.** Every door on the side street or
+the corner is fully reachable; **every door on the main street is blocked**, all
+at the same 0.21 m except thrift, which is worse because of the prop in finding
+17. Six of nine.
+
+That is the round-6 facade map showing through: the collision conversion reached
+the side street, and the main-street facades still register 0.3 m inside their
+own wall. It is not something the interior builders can fix from their side —
+seven rooms have now independently placed a door 0.45 m off the facade, which is
+the correct thing to do, and six of them are inside solid because of where the
+*street* says the wall is.
+
+The pawn shop, in the world for the first time this round, inherited the debt on
+arrival without anyone doing anything wrong.
+
+## Coverage — round 11
+
+- Three of ten rooms unwritten.
+- The four newest rooms still have not been through the round-7 side-by-side
+  light comparison.
