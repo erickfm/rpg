@@ -51,11 +51,19 @@ So three of the five offsets mean two different things:
 | **0.6** | 3/4 back | profile |
 | **0.8** | back | 3/4 back |
 
-**The live consequence:** a keeper showing a three-quarter front from the
-mirrored side reads as `0.4`, which that guard classifies as profile and FAILS —
+**LATENT, NOT LIVE — measured before claiming otherwise.** I ran that suite at
+HEAD: casino, hotel, tax and pawn all pass, *"the keeper is looking at you, not
+away"*, 4 of 4. The bar is `off <= 0.25`, so a pass comes from offset 0.0 or
+0.2, and only unmirrored frames produce those. No keeper is currently on the
+mirrored side of the collision.
+
+The consequence is real but waiting: a keeper showing a three-quarter front from
+the mirrored side reads `0.4`, which the guard classifies as profile and FAILS —
 a keeper doing exactly the right thing, failed by the check written to protect
-it. The other two collisions happen to land on the same verdict, so 0.4 is the
-one that bites.
+it. It bites the first person who authors a facing 45° the other way, and it
+will look like a defect in the room rather than in the reading. The other two
+collisions happen to land on the same verdict either way, so 0.4 is the only one
+that matters.
 
 One term fixes it, and recovers the sector exactly:
 
