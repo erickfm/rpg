@@ -80,6 +80,20 @@ function ensure(): void {
   if (collected) return;
   collected = true;
   for (const path of Object.keys(MODS).sort()) {
+    // An UNDEFINED namespace is not the same as "this module has no door", and
+    // the `?.` that stopped the world crashing here cannot tell them apart. A
+    // module caught in an import cycle with this one — directly, or through
+    // any chain of siblings — resolves to undefined inside an eager glob, so
+    // any DOOR it declares is dropped SILENTLY. That is the worse bug: a room
+    // with no door looks exactly like a room that never declared one, the same
+    // class as the missing glyph that shipped "BUY ERE AY ERE".
+    // Asked for in notes/BLOCKED-C.md §0.2.
+    if (MODS[path] === undefined) {
+      console.warn(`[doors] ${path} resolved to an UNDEFINED namespace at collection `
+        + `time — it is in an import cycle with ./doors, so any DOOR it declares is `
+        + `being dropped without trace. See notes/BLOCKED-C.md §0.`);
+      continue;
+    }
     const d = MODS[path]?.DOOR as DoorDecl | undefined;
     if (!d || typeof d.building !== 'string') continue;
     if (DECLS.has(d.building)) {
