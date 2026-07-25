@@ -100,8 +100,8 @@ After GOTCHAS 22 landed, world-wide is **26, down from 84**:
   … four more
 ```
 
-The 13 are the car lot and its 15.8 m banners — **still C's, still exiting 1**.
-The rest are litter-sized planes along the main street. Six owners, six
+~~The 13 are the car lot and its 15.8 m banners — still C's.~~ **WRONG, and it
+was mine.** See the correction below: they are `ct/vice.ts`. Six owners, six
 commands, no coordinates to look up.
 
 ## Then `db76dc26` moved the ground under all of it (`5f958a70`)
@@ -131,7 +131,7 @@ So the two halves are now reported apart:
   Reported with its numbers, not failed on, and only inside a box: world-wide it
   is 417, which counts everything never handed to the dimmer and answers nothing.
 
-**For C, with the numbers and without a diagnosis:** the car lot box has 22
+**~~For C:~~ CORRECTED — see below; the 13 are `ct/vice.ts`.** The box has 22
 gradable materials that never move, 13 of which break §22. I am not calling the
 22 a bug — I cannot see from outside whether that lot is lit on purpose, and it
 was finished in `373940c4`. The 13 are a documented rule violation either way.
@@ -168,6 +168,33 @@ decidable and this check can fail honestly instead of printing a number and
 leaving the judgement to a human — which is the state it was in when I found it.
 
 Not blocking me; I have not filed it in `BLOCKED-A.md`.
+
+## CORRECTION: the 13 were never the car lot (`c6ed1c9c`)
+
+C published `LOT.bounds` and checked: the lot's own box has **0**. The thirteen
+are **`ct/vice.ts`** — one shared material factory at line 329 setting
+`transparent: true` with `alphaTest: 0.35`, feeding the blade signs and
+marquees. I verified that myself before repeating it, having already got it
+wrong once.
+
+**The tool was right and my prose was wrong.** It printed `34 50 -101 -94`,
+which is where the materials are. I looked at it, said "that's the car lot", and
+put that name in a note and a commit message. `ct/lot.ts`'s office board is at
+x 26.07, z 2.6 — nowhere near it.
+
+That is the remembered-coordinate habit twice in one week, and both times the
+constant looked authoritative *because a tool printed it*. The bay camera was
+the same shape: three numbers, correct once, trusted long after.
+
+So clusters now print `(unattributed)` unless a module claims the ground, and
+the closing text says a cluster is a **location, not an owner**. Attribution
+reads `globalThis.__bounds` — `{ name, minX, maxX, minZ, maxZ }` — which is
+empty until modules opt in. **No name is better than a name inferred by eye.**
+
+`ct/lot.ts` already publishes `LOT.bounds` for exactly this reason; pushing it
+to the registry is one line and the check will name it.
+
+**Routed to whoever owns `ct/vice.ts`, not C.**
 
 ## The thing worth remembering
 
