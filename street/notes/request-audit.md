@@ -219,3 +219,49 @@ This is the third finding this session where the honest answer was "my
 instrument cannot see this" rather than a verdict. The pattern is worth naming:
 **when a check fails twice the same way, stop re-aiming the camera and change
 the instrument.**
+
+---
+
+# Handedness, settled by reading the scene graph — 12 mirrored sign faces
+
+The blade question defeated four cameras. `scripts/handed.mjs` stops
+photographing and asks the geometry instead. For every mapped plane above 1.8 m:
+
+```
+normal = the plane's +z rotated into world space
+uDir   = the plane's +x rotated into world space      (the texture's u axis)
+right  = cross(up, normal)                            (a viewer's right hand)
+correct  iff  dot(uDir, right) > 0
+```
+
+A negative dot means the artwork runs right-to-left for anyone looking at that
+face — whatever it depicts. Symmetrical letters cannot hide it.
+
+**179 mapped sign faces. 12 are mirrored, and they are all in one place.**
+
+| u·right | faces | canvas | at |
+|---|---|---|---|
+| **−0.997** | 6 | 64 × 20 | x **7.18**, y 2.70, z +11.30 → −6.10 |
+| **−0.972** | 6 | 64 × 20 | x **7.18**, y 3.01, z +13.23 → −8.03 |
+
+All twelve are `DoubleSide` planes standing at **x = 7.18** — 0.18 m proud of the
+east facade — at head height, spread along the east shopfronts from z = +13.2 to
+z = −8.0. Their front faces point **into the building**; the street sees the
+back, and a double-sided plane's back is mirrored by construction
+(`GOTCHAS.md` §10). Twelve shopfront signs on the busiest stretch of the block
+are reading backwards to anyone walking past them.
+
+**Method note, so the number is trusted:** the check is *undefined* for
+horizontal planes — with `up = (0,1,0)` the right-vector degenerates — and it
+reports exactly `0` for them rather than guessing. The two large horizontal
+canopies at (51.29, 3.71, −96.85) and (39.51, 4.31, −97.03) come back as `0` for
+that reason, not as a pass. **The vertical blades themselves are not in the
+179**, so this run still does not answer the original blade question; it answers
+a bigger one I was not looking for.
+
+## What is left of the blade question
+
+Still open. The next attempt should either shoot from the **south side-street
+walk at z ≈ −109 looking north** (~13 m, clears the marquee canopy that blocked
+all four previous cameras), or extend `handed.mjs` to include planes below 1.8 m
+and horizontal ones with a proper per-face basis instead of a global up vector.
