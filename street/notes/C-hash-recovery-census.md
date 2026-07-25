@@ -61,3 +61,52 @@ worktree is already warning about "too many unreachable loose objects".
 
 Reading the table is optional in the script. It is another builder's file; if
 it is renamed or removed, the check loses its suggestions and keeps working.
+
+
+---
+
+## The leak, and the thing that plugs it
+
+`10006a2ab` re-measured and found the backlog is not shrinking: 758 citations,
+150 dead, against 750/149 the round before. Repairs landed and the count did
+not fall, because **every dead citation was live when written** — an agent
+writes a note about work in flight, cites its own commit, and the rebase that
+lands it renames that commit. It names two remedies: cite by SUBJECT until it
+lands, or cite the hash only after.
+
+`scripts/note-hashes.mjs` enforces both, and catches the leak at the moment it
+is created rather than a round later. Demonstrated against my own HEAD, which
+is exactly the leak's raw material:
+
+```
+  my HEAD commit (unlanded at the time) — NOT yet on mainline
+  a scratch note citing it  ->  exit 1
+     "Cite the SHA mainline holds, or cite the commit SUBJECT,
+      which survives every rebase."
+```
+
+The only hash you can cite and have it stay true is one already on mainline,
+and the check refuses the rest while you are still holding the pen.
+
+**It caught me writing this paragraph.** The first draft quoted that HEAD hash
+literally, inside the section explaining why you must not — and `note-hashes`
+went red on my own note before I committed it. The hash is described rather
+than quoted now, which is the remedy the check prints. I could not have asked
+for a better demonstration and did not intend to give one.
+
+**It also needs no exclusion list for the recovery table.** That re-measure had
+to exclude `AUDIT-hash-recovery.md`, because a table of dead hashes is
+otherwise indistinguishable from a note full of broken ones. The same-line rule
+handles it without a special case: a dead hash is excused when its own line
+also carries a live one — the shape of every row in that table, and of any
+sentence saying "X was rebased in as Y".
+
+**Offered:** one line in `checks.mjs`, scoped to your own notes.
+
+```js
+['note-hashes', 'do my notes cite commits others can resolve?', true, ['notes/A-*.md']],
+```
+
+Mine has been registered since the census commit and my notes have held at zero
+dead across four rebases. Repairing 138 hashes is worth doing while the objects
+still exist; the registration is what stops the next 138.
