@@ -246,6 +246,22 @@ export function facadeLitTex(
  *  is what made every shop on the block read undersized. */
 export const SHOP_BAND_H = 4.2;
 
+/** How far a shopfront's RELIEF stands proud of its facade at WALKING height,
+ *  in metres — the number a collider has to reserve and not one centimetre
+ *  more.
+ *
+ *  The pieces are `JAMB` 0.12, `CILL` 0.11 and `PLINTH` 0.09; the deepest is
+ *  the jamb. `CORNICE` 0.20 and `BED` 0.13 are deeper but they sit up at the
+ *  fascia, three-and-a-half metres up, where nobody walks.
+ *
+ *  It exists because `ct/street.ts` was reserving a flat 0.30 m in front of
+ *  every facade on the block for "projecting doorcases and stallrisers" —
+ *  written before the relief was built, and 0.18 m more than the relief
+ *  actually needs. `notes/lane-audit.md` measured what that cost: the sacred
+ *  2 m walking lane was 1.70 m everywhere, permanently, against collision
+ *  that corresponded to no geometry. */
+export const WALK_PROJECTION = 0.12;
+
 /** Ground-floor bands run at 2× masonry density: they are the surfaces that
  *  have to render TEXT and one-texel stone arrises, and a shop's name at
  *  0.65 m of letter height is 5 texels at 1× — unreadable. An integer multiple
@@ -704,6 +720,9 @@ export function shopfrontRelief(o: {
   o.scene.add(g);
 
   const CORNICE = 0.20, BED = 0.13, JAMB = 0.12, CILL = 0.11, PLINTH = 0.09;
+  // NOTE: `WALK_PROJECTION` below is derived from these. If you deepen
+  // anything here that sits below head height, deepen that too or the
+  // collider stops matching the geometry.
   const RECESS = 0.45;                 // how far back the room sits
   const along = (mFromLeft: number) => mFromLeft - half;   // frontage metres → local x
   // Separate material instances on purpose: ct/props.ts's dimWorld() grades a

@@ -111,12 +111,23 @@ say(prevGy > 0.45, 'the church steps CLIMB', `ground reached ${prevGy.toFixed(2)
 say(rose >= 2, 'and they climb gradually', `${rose} steps of rise, not one teleport`, 1);
 say(jolt === 0, 'no riser-sized jolt on the way up', `${jolt} jumps over 0.34 m`, 1);
 
-console.log('\n4. no walking into buildings');
+console.log('\n4. no walking into buildings, and the lane you are owed');
+// TWO-SIDED now, and the second half is new. A facade stands at 7.00 and its
+// collider is inset by WALK_PROJECTION = 0.12, so the collider face is at
+// 6.88 and a 0.36 m player capsule comes to rest at 6.52.
+//
+//   too far IN  -> you are inside the shopfront; the footprint is wrong
+//   too far OUT -> the collider is reserving lane that no geometry occupies,
+//                  which is what notes/lane-audit.md caught: a flat 0.30 m
+//                  cushion held everyone at 6.34 and ate 15 % of the walk
+//
+// The old assertions only tested the first, so they PASSED the whole time the
+// lane was being stolen. That is the bug this pair exists to catch.
 for (const [name, x, z, yaw, test] of [
-  ['east shops  z=-30', 5.5, -30.0, Math.PI / 2, (p) => p[0] < 6.4],
-  ['west shops  z=-60', -5.5, -60.0, -Math.PI / 2, (p) => p[0] > -6.4],
-  ['side st N   x=30', 30.0, -97.5, Math.PI, (p) => p[2] < -96.3],
-  ['side st S   x=30', 30.0, -108.5, 0, (p) => p[2] > -109.4],
+  ['east shops  z=-30', 5.5, -30.0, Math.PI / 2, (p) => p[0] < 6.88 && p[0] > 6.4],
+  ['west shops  z=-60', -5.5, -60.0, -Math.PI / 2, (p) => p[0] > -6.88 && p[0] < -6.4],
+  ['side st N   x=30', 30.0, -97.5, Math.PI, (p) => p[2] < -96.3 && p[2] > -96.9],
+  ['side st S   x=30', 30.0, -108.5, 0, (p) => p[2] > -109.88 && p[2] < -109.3],
 ]) await walk(name, x, z, yaw, 8, test, (p) => `stopped at (${p[0]}, ${p[2]})`);
 
 console.log('\n5. the doors, and the money');

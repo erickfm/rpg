@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { pixTex, dither } from './paint';
 import {
   facadeTex, facadeLitTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight, FLOOR_M,
-  proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex,
+  proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex, WALK_PROJECTION,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
 import { walkTex } from './tex-ground';
@@ -33,11 +33,25 @@ export function buildStreet(o: {
   // frame hooks already outgrew, same fix — whoever draws it registers it.
   //
   // The two numbers every footprint below is built from:
-  //   0.3  the cushion in FRONT of a facade. Projecting doorcases, stallrisers
-  //        and the bodega's tower all live inside it, so nothing sticks
-  //        through the collider into the walking lane (GOTCHAS §9).
+  //   CUSH the cushion in FRONT of a facade, so nothing projecting sticks
+  //        through the collider into the walking lane (GOTCHAS §9). It was a
+  //        flat 0.3 on every building, written before the shopfront relief
+  //        existed and sized by guess. It is now `WALK_PROJECTION` — 0.12,
+  //        the depth of the deepest thing the relief actually puts at walking
+  //        height (the jamb; the cornice is deeper but it is 3.5 m up).
+  //
+  //        That 0.18 m difference was the single biggest encroachment on the
+  //        block. notes/lane-audit.md: "the clear lane is 1.70 m, not 2.00 m
+  //        — before anyone puts anything on it… 15 % of the sacred 2 m is
+  //        consumed by collision that corresponds to no geometry, everywhere,
+  //        permanently." Giving it back is worth more than every individual
+  //        lamp post and tree in that audit put together.
+  //
+  //        The BANK keeps 0.30, because its granite portal genuinely projects
+  //        that far (DREC below) — there the cushion describes real stone.
   //   8    the depth BEHIND a facade. Shells are only 3.4 m deep; the extra
   //        stops you running round the back into the dead ground.
+  const CUSH = WALK_PROJECTION;
   const colliders: AABB[] = [];
   const solid = (b: AABB) => { colliders.push(b); return b; };
   // `kind` takes a building OUT of the shopfront system entirely — a civic
@@ -243,8 +257,8 @@ export function buildStreet(o: {
     roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
     // collision follows the real footprint, not a fixed 8 m guess
     solid(side < 0
-      ? { minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
-      : { minX: FACE - 0.3, maxX: FACE + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
+      ? { minX: -FACE - dep, maxX: -FACE + CUSH, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
+      : { minX: FACE - CUSH, maxX: FACE + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
   };
   // ── civic stone ─────────────────────────────────────────────────────────
   //
@@ -882,8 +896,8 @@ export function buildStreet(o: {
     scene.add(shop);
     roofKit(cx, czd, b.w, dep, gh + h, b.nm);
     solid(facing > 0
-      ? { minX: x0, maxX: x0 + b.w, minZ: front - dep, maxZ: front + 0.3 }
-      : { minX: x0, maxX: x0 + b.w, minZ: front - 0.3, maxZ: front + dep });
+      ? { minX: x0, maxX: x0 + b.w, minZ: front - dep, maxZ: front + CUSH }
+      : { minX: x0, maxX: x0 + b.w, minZ: front - CUSH, maxZ: front + dep });
   };
   // The bodega is the anchor store on this corner, so it does not stop at the
   // canted bay — it runs on down the side street, taking the first 6 m of what
