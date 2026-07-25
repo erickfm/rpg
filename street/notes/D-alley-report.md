@@ -567,3 +567,19 @@ files removed.
 - `notes/D-density-red.md` — the one red in `npm run checks`, civic's church
   tower, one texture on two different face widths. `civic` has been idle two
   hours; the fix and a worked example are in the note.
+
+---
+
+# Two more notes finished — folded in and deleted
+
+| finding | conclusion |
+|---|---|
+| **`D-casino-door-drop`** | The lost casino DOOR costs a player nothing — `int-casino.ts` registers its own `ctx.spot` and the entrance works (`[E]` fires x 50.5…52.0). What it cost was **denominators**: `declaredDoors()` is the population several tools count against, so "5 of 5 rooms mirror" was five of those *still declared*. Acted on — `447514cb` now prints *"the world has 8 rooms. 3 cannot be checked here."* Two probes of mine also bounded the cause: adding an inert module does **not** move the loss, and the whole thing is a **bundler** phenomenon — the dev server has zero undefined namespaces, so a fix can only be tested with `npm run build && vite preview`. `418515c7` then solved it: the casino's binding is emitted after the glob that reads it. |
+| **`D-density-red`** | **RETRACTED — I routed a false positive to civic.** The church tower is correct: it reuses its 5 m canvas on the 3.7 m face with `towSide.repeat.x = TOWER_D / TOWER_W`, and `density` was ignoring `map.repeat` (`5e117dc6` fixed it; 241 faces now all correct). The fix I prescribed would have replaced a correct one-canvas solution with a redundant second texture. **I had named that exact trap myself** in an earlier note and then walked into it; the check's author records the same about themselves. Withdrawn on both sides (`2c147321`, `e26fb068`). |
+
+**The one thing worth carrying forward from the second row**, because it is now
+the most repeated failure in my work this session: *the finding was real and the
+diagnosis on top of it was not.* The red existed; `userData.mod` attributed it in
+one query; everything after that was wrong. Attribution is cheap and reliable
+now — diagnosis still needs the same check as any other claim, and I skipped it
+because the attribution had felt like progress.
