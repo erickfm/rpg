@@ -42,6 +42,20 @@ await reportWorld(page, URL);   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 0));
 await page.mouse.click(640, 360);
 await page.waitForTimeout(600);
+// WARM-UP, and it is not superstition. Without it the FIRST measured leg —
+// whichever it happens to be — walks off sideways: warped to (8, -99.2) facing
+// +z it ended at x 12.41, 4.4 m east, having never turned. Every subsequent
+// leg from the identical warp walks straight and arrives in 3 steps. One
+// throwaway warp and a settle is enough to make attempt 1 behave like the rest.
+//
+// This is the reason both door legs reported `[2 tries]` on EVERY run, which I
+// had attributed in the retry comment below to "a citizen in the way". It was
+// not. 098269aa is the cautionary version of the same mistake — a harness that
+// had found a real bug and written a paragraph explaining it away — and mine
+// was doing it in miniature: a retry that is always needed is not flakiness,
+// it is a defect with a workaround in front of it.
+await page.evaluate(() => window.__ct.warp(0, -40, 0, 0, 0));
+await page.waitForTimeout(700);
 
 const pos = () => page.evaluate(() => window.__ct.pos().map((n) => +n.toFixed(2)));
 const prompt = () => page.evaluate(() => {
@@ -58,8 +72,15 @@ const say = (okd, name, detail, tries) => {
   if (!okd) fails++;
   console.log(`  ${okd ? 'PASS' : 'FAIL'}  ${name}: ${detail}${tries > 1 ? `  [${tries} tries]` : ''}`);
 };
-/** walk forward from (x,z) facing yaw, and test where you end up. Retried,
- *  because a citizen in the way is not a collision bug. */
+/** walk forward from (x,z) facing yaw, and test where you end up.
+ *
+ *  Retried because citizens are solid and one standing in a doorway blocks a
+ *  0.36 m player — that is real and it is why E's scripts retry too. But see
+ *  the warm-up above before trusting a retry to mean that: the retries this
+ *  harness actually spent were a startup artefact, not pedestrians, and
+ *  `[N tries]` is printed precisely so a systematic N is visible rather than
+ *  averaged away. If every run needs 2, something is wrong that retrying is
+ *  hiding. */
 const walk = async (name, x, z, yaw, steps, test, fmt) => {
   let last, t = 0;
   for (t = 1; t <= 3; t++) {
@@ -185,9 +206,15 @@ for (const [name, x, z, yaw, steps] of [
   ['No. 227', 5.9, -44.0, Math.PI / 2, 6],
 ]) {
   let got = '', t = 0;
-  for (t = 1; t <= 3 && !got; t++) {
+  // `break`, not `&& !got` in the condition. That is the whole bug: on a
+  // FIRST-attempt success the update ran, the condition then failed, and `t`
+  // came out of the loop as 2 — so both door legs printed `[2 tries]` on every
+  // run while never having retried once. walk() above always used break and
+  // was always honest, which is why only these two ever showed it.
+  for (t = 1; t <= 3; t++) {
     await warp(x, z, yaw); await page.waitForTimeout(340);
     for (let i = 0; i < steps && !got; i++) { await hold('w', 230); await page.waitForTimeout(200); got = await prompt(); }
+    if (got) break;
   }
   say(got !== '', name, JSON.stringify(got), t);
 }
