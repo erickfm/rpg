@@ -1,0 +1,129 @@
+// The side street's furniture must not close the walk. GOTCHAS §9: the 2 m
+// lane is sacred, and it is proved by WALKING it, not by looking.
+//
+//   1. both side-street walks are passable end to end, past every tree
+//   2. the bodega door still opens (its [E] spot is on the north walk, 2 m
+//      west of the first tree — GOTCHAS §8)
+//   3. the parked cars are off the travel lanes: a car can still drive the
+//      side street without braking for them
+//   4. nothing is floating or sunk
+//
+// Usage: SHOT_URL=http://localhost:4187/ node scripts/side-walk.mjs
+import { chromium } from 'playwright';
+const browser = await chromium.launch();
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+page.on('pageerror', (e) => errs.push(String(e.message)));
+await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
+await page.waitForTimeout(400);
+await page.evaluate(() => window.__ct.clock(13, 0));
+
+let fails = 0;
+const check = (ok, msg) => { console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${msg}`); if (!ok) fails++; };
+const pos = () => page.evaluate(() => window.__ct.pos());
+
+// yaw for a heading: forward is (sin yaw, -cos yaw), so east is +π/2
+const EAST = Math.PI / 2, WEST = -Math.PI / 2;
+const hike = async (label, x, z, yaw, seconds, want) => {
+  await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
+  await page.waitForTimeout(150);
+  const a = await pos();
+  await page.keyboard.down('w');
+  await page.waitForTimeout(seconds * 1000);
+  await page.keyboard.up('w');
+  await page.waitForTimeout(60);
+  const b = await pos();
+  const moved = Math.abs(b[0] - a[0]);
+  check(moved > want, `${label}: ${moved.toFixed(1)} m in ${seconds}s ` +
+    `(x ${a[0].toFixed(1)}→${b[0].toFixed(1)}, z ${b[2].toFixed(2)})`);
+  return b;
+};
+
+console.log('side street probe:');
+
+// ── 0. what is out there, and is it sitting on the ground ─────────────────
+// Taken BEFORE any traffic is spawned, so a moving car cannot be counted as a
+// parked one — they are the same models with the same userData.
+const heights = await page.evaluate(() => {
+  const out = { trees: [], pits: [], cars: [] };
+  window.__ct.scene().traverse((o) => {
+    if (o.position.x < 8 || o.position.x > 60 || o.position.z > -95 || o.position.z < -112) return;
+    if (o.type === 'Group' && o.userData.steer !== undefined && o.visible) out.cars.push(+o.position.y.toFixed(3));
+    // a tree: a 3 m wide billboard. The side street's centre line is also an
+    // alphaTest plane down here, which is what the first cut of this counted.
+    else if (o.geometry?.parameters?.width === 3 && o.material?.alphaTest === 0.5) out.trees.push(+o.position.y.toFixed(3));
+    else if (o.geometry?.type === 'PlaneGeometry' && Math.abs(o.rotation.x + Math.PI / 2) < 1e-6
+      && o.position.y > 0.1 && o.position.y < 0.2) out.pits.push(+o.position.y.toFixed(3));
+  });
+  return out;
+});
+check(heights.trees.length === 4 && heights.trees.every((y) => y === 0.14),
+  `4 trees, all planted on the kerb at y=0.14 (${[...new Set(heights.trees)].join(',')})`);
+check(heights.cars.length === 3 && heights.cars.every((y) => y === 0),
+  `3 parked cars, all on the road at y=0 (${heights.cars.length} found at y=${[...new Set(heights.cars)].join(',')})`);
+check(heights.pits.length === 4, `4 dirt pits, at y=${[...new Set(heights.pits)].join(',')}`);
+
+// ── 1. the two walks, east and back ───────────────────────────────────────
+// Walk the middle of each walk: north walk is z -98…-96, south is -108…-110.
+// Trees stand at z=-97.6 / -108.4, so the lane past them is the building half.
+await hike('north walk, east past every tree', 12.5, -96.8, EAST, 11, 26);
+await hike('north walk, back west', 46, -96.8, WEST, 11, 26);
+await hike('south walk, east past every tree', 12.5, -109.2, EAST, 11, 26);
+await hike('south walk, back west', 46, -109.2, WEST, 11, 26);
+
+// ── 2. the bodega door is still reachable ─────────────────────────────────
+// Walk up to it the way a player would, west along the north walk, and sample
+// how close the player gets to the trigger. The HUD prompt is painted on a
+// canvas, not in the DOM, so "did the prompt appear" is not readable from here
+// — but "did the player get inside the trigger radius without being stopped"
+// is the mechanical question anyway, and it is the one the seam audit asked.
+const DOOR = { x: 8.7, z: -96.85, r: 1.05 };
+await page.evaluate(() => window.__ct.warp(14, -97.0, -Math.PI / 2, 0.14, 0));
+await page.waitForTimeout(150);
+const track = await page.evaluate(async () => {
+  const out = [];
+  window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+  const t0 = performance.now();
+  while (performance.now() - t0 < 3000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const p = window.__ct.pos();
+    out.push([p[0], p[2]]);
+  }
+  window.dispatchEvent(new KeyboardEvent('keyup', { key: 'w' }));
+  return out;
+});
+const closestDoor = Math.min(...track.map(([x, z]) => Math.hypot(x - DOOR.x, z - DOOR.z)));
+check(closestDoor < DOOR.r,
+  `bodega door still reachable along the north walk — got within ${closestDoor.toFixed(2)} m of the trigger (r=${DOOR.r})`);
+
+// ── 3. the parked cars are off the travel lane ────────────────────────────
+// drive the side street west→north and check it never has to brake for them
+const drive = await page.evaluate(async () => {
+  window.__ct.warp(-6.2, 40, 0, 0.14, 0);      // stand well away
+  window.__ct.drive('EN', 'car');
+  const out = [];
+  const t0 = performance.now();
+  let last = -1;
+  while (performance.now() - t0 < 12000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const now = performance.now() - t0;
+    if (now - last < 60) continue;
+    last = now;
+    const v = window.__ct.traffic()[0];
+    // x > 20 only: the wide arc caps speed at sqrt(3·6.5) = 4.4 m/s and the
+    // look-ahead starts braking about 10 m out, so anything west of ~15 is
+    // slowing for the CORNER. Sampling that would measure the junction, not
+    // the parked cars — which sit at x ≈ 15, 25 and 38.
+    if (v && v.x > 20) out.push([v.x, v.z, v.spd]);
+  }
+  return out;
+});
+const slowest = Math.min(...drive.map((s) => s[2]));
+check(drive.length > 20, `drove the side street (${drive.length} samples east of x=20)`);
+check(slowest > 7.5, `never braked for a parked car — slowest ${slowest.toFixed(2)} m/s past them (cruise is 8.5)`);
+
+console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
+console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nall side street checks pass');
+await browser.close();
+process.exitCode = fails ? 1 : 0;

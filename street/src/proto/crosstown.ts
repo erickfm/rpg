@@ -17,6 +17,7 @@ import { asphaltTex } from './ct/tex-world';
 import { buildGround } from './ct/tex-ground';
 import { type CarKind, makeCar } from './ct/cars';
 import { buildTraffic } from './ct/traffic';
+import { buildSideStreet } from './ct/sidestreet';
 import { buildBodega } from './ct/bodega';
 import { buildStreet } from './ct/street';
 import { COURT } from './ct/civic';
@@ -248,6 +249,22 @@ export function makeCrosstown(): Proto {
   // collider array never grows again however many rooms land.
   buildDiner(ctx);
   buildBurger(ctx);
+
+  // ── the side street's furniture — trees and parked cars ─────────────────
+  //
+  // AFTER the interior belt on purpose, and the reason is the paragraph above.
+  // These are street objects, so they belong with the street belt by rights —
+  // but creating a mesh burns Math.random in `generateUUID`, so a module placed
+  // in the middle re-grains every texture painted after it. Built here, after
+  // everything else that paints, it re-grains NOTHING: the fingerprint against
+  // mainline comes back as pure additions, which is the only way to show that
+  // adding content did not disturb the block. Still before `dimWorld` below, so
+  // the trees and cars go dark after sunset with the rest of the world.
+  //
+  // If this ever needs to move earlier, expect the interiors' grain to shift —
+  // harmless in the shipped world (Math.random is unseeded there and repaints
+  // every load) but it will make the next refactor's fingerprint unreadable.
+  buildSideStreet(ctx, { SIDE_Z0, SIDE_Z1, lit: props.lit });
 
   const colliders: AABB[] = [
     // The block's collision comes from the modules that DRAW it, not from
