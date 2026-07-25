@@ -53,9 +53,12 @@ export function buildStreet(o: {
     { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
     { nm: 'LIQUOR', col: '#8a2c42', w: 13, brick: '#835444', floors: 4 },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
-    { nm: 'PAWN', col: '#6a5a3a', w: 12, brick: '#5c4436', floors: 5, front: 'pawn' },
-    { nm: 'DELI', col: '#2e6a34', w: 11, brick: '#6b4034', floors: 3 },
-    { nm: 'RECORDS', col: '#6a2c6a', w: 10, brick: '#7a4a3a', floors: 3 },
+    // PAWN pays the 3 m. DELI + RECORDS were 21 m and the nave is 18, and the
+    // post-227 run must still total 43 so the last shell lands on -96 — so the
+    // difference goes to the church's north neighbour rather than overflowing
+    // the run. No. 227 is untouchable: ct/apartment.ts depends on its z.
+    { nm: 'PAWN', col: '#6a5a3a', w: 15, brick: '#5c4436', floors: 5, front: 'pawn' },
+    { nm: 'ST BRIGID', col: '', w: 18, brick: '', floors: 0, kind: 'church' },
     { nm: 'BODEGA', col: '#b8342a', w: 10, brick: '#6b4034', floors: 3 }, // the corner store
   ];
   // The side street. It runs east into the fog, and the far end of it is
@@ -70,8 +73,11 @@ export function buildStreet(o: {
     { nm: 'GOLDEN ACES', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
   ];
   const SOUTH2: BldSpec[] = [
-    // the parish church has the whole west end of the south side to itself
-    { nm: 'ST BRIGID', col: '', w: 18, brick: '', floors: 0, kind: 'church' },
+    // the church has moved to the main block; the two shops it displaced take
+    // its old slot. 9.5 + 8.5 = the 18 m the church vacated, so this run still
+    // totals 64 and still ends dead on x = 57.
+    { nm: 'DELI', col: '#2e6a34', w: 9.5, brick: '#6b4034', floors: 3 },
+    { nm: 'RECORDS', col: '#6a2c6a', w: 8.5, brick: '#7a4a3a', floors: 3 },
     { nm: 'GARAGE', col: '#5a5f66', w: 12, brick: '#5c4436', floors: 3 },
     { nm: 'BILLIARDS', col: '#2c5a3a', w: 12, brick: '#835444', floors: 4 },
     { nm: 'SMOKES', col: '#8a6a22', w: 11, brick: '#6b4034', floors: 3 },
@@ -236,11 +242,30 @@ export function buildStreet(o: {
     if (b.kind === 'library') placeLibrary(zw, b); else placeBld(-1, zw, b);
     zw -= b.w;
   }
+  // The church stands on the main block now, and `placeChurch` builds along +x
+  // with its facade on +z — the side-street axis it was authored for. Rather
+  // than ask E to parameterise that (ct/civic.ts is E's), the church is built
+  // into a GROUP and the group is turned: `buildCivic` only ever calls
+  // scene.add and registers nothing, so a Group is a perfectly good scene, and
+  // the transform is arithmetic on my side of the line.
+  //
+  // rotation.y = -π/2 sends local +x → world +z and local +z → world -x. So
+  // the nave runs down the block from `z - b.w` to `z`, and the facade — local
+  // +z, 1.7 out from the group origin — lands on x = FACE looking west across
+  // the street, exactly where placeBld puts an east shopfront.
+  const placeChurchEast = (z: number, b: BldSpec) => {
+    const g = new THREE.Group();
+    buildCivic({ scene: g as unknown as THREE.Scene, flat, KERB_H }).placeChurch(0, 0, b);
+    g.rotation.y = -Math.PI / 2;
+    g.position.set(FACE + 1.7, 0, z - b.w);
+    scene.add(g);
+  };
   let ze = 14.2;
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
   for (const b of EAST) {
     if (b.nm === 'BODEGA') { bodegaZ0 = ze; ze -= b.w; continue; }
-    placeBld(1, ze, b); ze -= b.w;
+    if (b.kind === 'church') placeChurchEast(ze, b); else placeBld(1, ze, b);
+    ze -= b.w;
   }
   // side-street rosters run along x; facade on the street-facing z side
   const placeBldZ = (x0: number, zc: number, b: BldSpec, facing: 1 | -1) => {
