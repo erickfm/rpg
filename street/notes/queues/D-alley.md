@@ -25,9 +25,14 @@ hour of work is where the conflicts live.
       · **park → 32 m.** The user asked for *"4-5x deeper"* against roughly 7,
         and 32 gives a field with a loop path round it that is actually worth
         walking. Builder E is building exactly that and is blocked.
-      · **car lot → 24 m.** Deep enough that rows recede and you see cars
-        behind cars, which is the whole ask. Builder C is blocked on this one
-        number.
+      · **car lot → 23.2 m, which makes it SQUARE.** The user has now said so
+        directly: *"deeper used car lot like make it square"*. The lot's
+        frontage is CAFE 11.2 + HARDWARE 12 = **23.2 m**, so setting depth to
+        the same number makes it square in plan — which is what a real corner
+        car lot is, and it is why it reads as a lot rather than as a gap
+        between buildings. Use the frontage value rather than a hard-coded
+        23.2, so it stays square if the frontage ever changes. Builder C is
+        blocked on this number.
 
       These are the same metres your building-depth item consumes, so do them
       in the same pass and make them agree — that is exactly the collision I
