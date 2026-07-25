@@ -23,6 +23,44 @@ world stops.
 
 ## Now
 
+- [ ] **A face reads as three different colours.** The user: *"whats up with
+      this kids face? its multi color?"* Ref: `shots/user-kidface.png`.
+
+      **Found it — the head's rim shading is too wide and too strong for a
+      face.** In `ct/citizens.ts` the head is 10 texels across (`cx-5` to
+      `cx+5`) and then gets:
+
+      ```
+      rgba(255,255,255,0.2)  at cx-5, 3 wide   // lit side
+      rgba(0,0,0,0.18)       at cx+2, 3 wide   // shadow side
+      ```
+
+      So 3 texels lightened, 4 texels of true skin, 3 texels darkened. That is
+      a **three-band face**, and at ten pixels wide the bands are wide enough
+      to read as areas rather than as lighting. The comment calls it rim
+      shading and on a torso it works — but a face is the one surface where
+      banding reads as *skin discolouration* instead, because people read
+      faces far more finely than they read coats.
+
+      **It is worse under a hood**, which is what the shot shows: `fit ===
+      'hoodie'` crops the outer texels of the head, so a good part of what
+      survives is the two tinted strips with barely any base tone left between
+      them. Whatever you do must be checked with a hood on, not just bare.
+
+      Options, in the order I would try them:
+      · narrow the bands to **1 texel** each and drop the alpha — enough to
+        model the form, not enough to read as colour
+      · or keep the rim on the skull and neck and **omit it across the face
+        area** entirely, so the features sit on one flat tone
+      · or make the shading strength scale with head size, since a child's
+        head is smaller and the same 3-texel band eats proportionally more of
+        it — which may be exactly why the user read this one as a kid
+
+      Check every skin tone in the atlas, not just this one: a band that is
+      subtle on a mid tone can be obvious on a dark or a pale one, since these
+      are alpha overlays rather than palette entries. `__ct.atlases()` shows
+      all 8 views; look at the hooded and capped fits too.
+
 - [ ] **A pedestrian jitters back and forth as he walks.** The user: *"this
       red guy glitches back and forth as he walks sometimes idk why"*. Ref:
       `shots/user-pedglitch.png` — two citizens close together in a narrow
