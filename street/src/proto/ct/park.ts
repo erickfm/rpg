@@ -249,6 +249,68 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const fx0 = lx0 + PATH_W / 2, fx1 = lx1 - PATH_W / 2;
   const fz0 = lz0 + PATH_W / 2, fz1 = lz1 - PATH_W / 2;
   const fW = fx1 - fx0, fD = fz1 - fz0;
+
+  // ── TOPOGRAPHY ────────────────────────────────────────────────────────
+  //
+  // Everything in this world is dead flat except kerbs and steps, and a
+  // park is where that stops being acceptable: ground that rises is the
+  // cheapest way to make a space feel like somewhere rather than a surface.
+  //
+  // It is GENTLE on purpose. The player is a 2D walker whose floor comes
+  // from a picker (GOTCHAS §7), so anything you could trip over is a bug,
+  // not a feature. Three gaussians, nothing else:
+  //
+  //   a MOUND     +0.33 m over σ 3.1   the thing you walk up
+  //   a DISH      -0.09 m over σ 2.6   the bit that would puddle
+  //   a CORNER    -0.10 m over σ 5.2   the ground falling away to the south-east
+  //
+  // The numbers were SWEPT, not eyeballed, and my first set was wrong in two
+  // ways a drawing would never have shown. A gaussian's own steepest slope is
+  // A/(σ√e), which for a 0.45 m mound over σ 4.6 is a comfortable 1 in 17 —
+  // but the rim mask below multiplies the whole field, so where it bites into
+  // a mound that is still 0.4 m high it ADDS its own 1-in-6 bank on top. And
+  // a -0.13 m dish on a 0.14 m kerb puts the floor 8 mm above the roadway.
+  // Sampling the composite on a 0.2 m grid instead: steepest 1 in 12 (a lawn
+  // you stroll up, a quarter of what a kerb ramp gets away with), floor never
+  // below 0.056 m, and 0.0 mm of step where the grass meets the paths.
+  //
+  // Two rules keep it honest:
+  //
+  //   THE PATHS STAY LEVEL. A municipal path is laid level and a decal laid
+  //     on a slope would either bury itself or float. The relief fades to
+  //     zero over the last 3 m of the field, so the grass meets the loop flat
+  //     and the paths need to know nothing about any of this. The two decals
+  //     that DO cross the grass — the desire lines and the litter — are draped
+  //     on the same function instead, because a worn line that stops at the
+  //     foot of a mound is not a worn line.
+  //   ONE FUNCTION, TWO CONSUMERS. The mesh is displaced by `relief` and the
+  //     floor picker answers `relief`. That is the whole discipline of §7 —
+  //     the shape you see and the height you walk on cannot be two
+  //     descriptions of the same thing, or they drift.
+  const mndX = fx0 + (fx1 - fx0) * 0.46, mndZ = (fz0 + fz1) / 2 - 1.6;
+  // The dish sits well clear of the mound, and that clearance was measured
+  // rather than assumed: at 4.6 m apart the mound's own skirt is still +0.11 m
+  // there, which cancelled a -0.09 m dish outright and left a hollow that read
+  // 0.15 — ABOVE the level ground it was meant to dip below. The walk caught
+  // it; the drawing never would have.
+  const dshX = fx1 - 4.4, dshZ = fz1 - 4.4;
+  const cnrX = fx1 - 1.4, cnrZ = fz0 + 1.4;
+  const gauss = (d2: number, sig: number) => Math.exp(-d2 / (2 * sig * sig));
+  const relief = (x: number, z: number) => {
+    const inset = Math.min(x - fx0, fx1 - x, z - fz0, fz1 - z);
+    if (inset <= 0) return 0;
+    // smoothstep, not a linear ramp: a linear mask has a corner in it where
+    // it reaches 1, and a corner in the mask is a crease in the lawn
+    const t = Math.min(1, inset / 3.0), rim = t * t * (3 - 2 * t);
+    const m = 0.33 * gauss((x - mndX) ** 2 + (z - mndZ) ** 2, 3.1);
+    const d = -0.09 * gauss((x - dshX) ** 2 + (z - dshZ) ** 2, 2.6);
+    const c = -0.10 * gauss((x - cnrX) ** 2 + (z - cnrZ) ** 2, 5.2);
+    return (m + d + c) * rim;
+  };
+
+  /** The floor of the park, at a point. Flat everywhere the relief is. */
+  const parkY = (x: number, z: number) => KERB_H + relief(x, z);
+
   if (fW > 0.5 && fD > 0.5) {
     // ── MOWING STRIPES ────────────────────────────────────────────────────
     //
@@ -298,10 +360,71 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
       }
       dither(g, MW, MH, Math.round(fW * fD * 4));
     });
-    const field = new THREE.Mesh(new THREE.PlaneGeometry(fW, fD), wet(flat(mownT)));
-    field.rotation.x = -Math.PI / 2;
-    field.position.set((fx0 + fx1) / 2, KERB_H + LIFT * 0.5, (fz0 + fz1) / 2);
+    const fCx = (fx0 + fx1) / 2, fCz = (fz0 + fz1) / 2;
+    // 1.5 vertices per metre: enough to carry a σ 3.1 crest without faceting
+    const fieldGeo = new THREE.PlaneGeometry(fW, fD, Math.round(fW * 1.5), Math.round(fD * 1.5));
+    fieldGeo.rotateX(-Math.PI / 2);                    // bake it, so y is up
+    const fp = fieldGeo.attributes.position;
+    for (let i = 0; i < fp.count; i++) {
+      fp.setY(i, relief(fp.getX(i) + fCx, fp.getZ(i) + fCz));
+    }
+    fp.needsUpdate = true;
+    fieldGeo.computeVertexNormals();
+    // …and SHADE it, because otherwise none of this is visible. Every material
+    // in this world is `MeshBasicMaterial` — unlit — so a slope is exactly the
+    // same colour as level ground and a 0.31 m mound reads only as a silhouette
+    // you notice once you are standing on it. Walking it proved the relief was
+    // there; looking at it proved you could not see it.
+    //
+    // So the light is baked into vertex colours: one fixed sun, one dot with
+    // the vertex normal, and a deliberate ZERO at flat ground — the multiplier
+    // is 1.0 exactly where the normal is straight up, so the level three
+    // quarters of the field keeps the mown texture's own colour and its stripes
+    // are not washed out. Only the slopes move.
+    //
+    // The gain is 5.5, which is not physical and is not meant to be. A 1-in-12
+    // slope tilts its normal by 5°, and 5° of lambert on a mid-green is about
+    // 2% — invisible. The alternative was a taller mound, and I costed it: at
+    // 0.52 m the composite grade goes to 1 in 6, because the rim mask has to
+    // take more height away over the same 3 m and does it with its own bank.
+    // Steeper ground to make gentle ground visible is the wrong trade in a
+    // world the brief calls gentle twice, so the exaggeration goes in the
+    // shading, where it costs nothing underfoot.
+    const SUN = new THREE.Vector3(-0.42, 0.80, 0.43).normalize();
+    const nrm = fieldGeo.attributes.normal;
+    // Slope is not the only cue, and on its own it is the weak one: it changes
+    // with where you stand, so from the crest itself the mound mostly vanishes.
+    // The one that works from every angle is what the ground does to the GRASS.
+    // High ground drains and goes dry and yellow at the crown; a hollow holds
+    // water and stays dark and green. That is a height tint, not a slope tint,
+    // and it draws the shape of the relief in plan whether you are on it, beside
+    // it or looking across it from the gate.
+    const shade = new Float32Array(fp.count * 3);
+    for (let i = 0; i < fp.count; i++) {
+      const d = nrm.getX(i) * SUN.x + nrm.getY(i) * SUN.y + nrm.getZ(i) * SUN.z;
+      const k = Math.max(0.78, Math.min(1.26, 1 + 5.5 * (d - SUN.y)));
+      const h = fp.getY(i);                       // + on the mound, - in the dish
+      const dry = Math.max(0, Math.min(1, h / 0.30));
+      const damp = Math.max(0, Math.min(1, -h / 0.09));
+      shade[i * 3] = k * (1 + 0.10 * dry - 0.09 * damp);
+      shade[i * 3 + 1] = k * (1 + 0.05 * dry - 0.02 * damp);
+      shade[i * 3 + 2] = k * (1 - 0.09 * dry - 0.04 * damp);
+    }
+    fieldGeo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+    const fieldM = wet(flat(mownT));
+    fieldM.vertexColors = true;
+    const field = new THREE.Mesh(fieldGeo, fieldM);
+    field.position.set(fCx, KERB_H + LIFT * 0.5, fCz);
     scene.add(field);
+    // …and the floor picker answers the SAME function the mesh was built from,
+    // through the same `parkY` the benches and the trees stand on. `crosstown.ts`
+    // asks the registered grounds BEFORE its flat per-site rule, so this wins
+    // inside the field and everything outside it falls through to `site.y`
+    // unchanged — the paths stay level without being told anything.
+    ctx.ground((x, z) => {
+      if (x < fx0 || x > fx1 || z < fz0 || z > fz1) return null;
+      return parkY(x, z);
+    }, ORDER);
     // the bald ring under the heaviest tree in the field's corner — dry shade,
     // roots, and a mower that cannot get under the skirt of it
     const baldT = pixTex(32, 32, (g) => {
@@ -319,7 +442,8 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     const bald = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4),
       new THREE.MeshBasicMaterial({ map: baldT, alphaTest: 0.5, side: THREE.DoubleSide }));
     bald.rotation.x = -Math.PI / 2;
-    bald.position.set(fx0 + 3.2, KERB_H + LIFT * 0.6, fz1 - 3.4);
+    const baldX = fx0 + 3.2, baldZ = fz1 - 3.4;
+    bald.position.set(baldX, KERB_H + LIFT * 0.6 + relief(baldX, baldZ), baldZ);
     scene.add(bald);
   }
 
@@ -331,10 +455,23 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // the one piece of evidence that the loop is a choice.
   const worn = (x0: number, z0: number, x1: number, z1: number, w = 0.75) => {
     const dx = x1 - x0, dz = z1 - z0, len = Math.hypot(dx, dz);
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), wet(flat(surfaceTex(w, len, 'dirt'))));
-    m.rotation.x = -Math.PI / 2;
-    m.rotation.z = -Math.atan2(dx, dz);
-    m.position.set((x0 + x1) / 2, KERB_H + LIFT * 0.75, (z0 + z1) / 2);
+    // A desire line goes OVER the mound — that is what a desire line does —
+    // so it is subdivided along its length and draped on the same relief the
+    // grass was displaced by, rather than laid flat and buried by it. The
+    // rotations are baked into the geometry instead of set on the mesh so the
+    // vertices are in world axes and can be asked for their own height.
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const geo = new THREE.PlaneGeometry(w, len, 1, Math.max(1, Math.ceil(len)));
+    geo.rotateZ(-Math.atan2(dx, dz));
+    geo.rotateX(-Math.PI / 2);
+    const wp = geo.attributes.position;
+    for (let i = 0; i < wp.count; i++) {
+      wp.setY(i, relief(wp.getX(i) + cx, wp.getZ(i) + cz) + LIFT * 0.75);
+    }
+    wp.needsUpdate = true;
+    geo.computeVertexNormals();
+    const m = new THREE.Mesh(geo, wet(flat(surfaceTex(w, len, 'dirt'))));
+    m.position.set(cx, KERB_H, cz);
     scene.add(m);
   };
   // A NETWORK, not a line. At 7 m one shortcut was the whole story; across a
@@ -454,7 +591,11 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     const lx = Math.round(Math.cos(yaw)), lz = Math.round(Math.sin(yaw));    // across
     const box = (f: number, a: number) => [Math.abs(fx) * f + Math.abs(lx) * a,
       Math.abs(fz) * f + Math.abs(lz) * a] as [number, number];
-    const y0 = KERB_H;
+    // A bench on the mound stands ON the mound. `parkY` is flat off the grass,
+    // so every bench on the loop is where it always was — and `ctx.seat` takes
+    // `h` as a height ABOVE the floor, which the picker now answers with the
+    // same relief, so the pose follows without being told.
+    const y0 = parkY(bx, bz);
     for (const d of [-0.78, 0.78]) {                  // the two cast ends
       const [ew, ed] = box(0.62, 0.1);
       const end = new THREE.Mesh(new THREE.BoxGeometry(ew, 0.44, ed), ironM);
@@ -521,6 +662,12 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     benchRun.push([x, lz1 + 1.05, 0]);
   }
   for (const [bx, bz, yaw] of benchRun) bench(bx, bz, yaw);
+  // The mound gets the one thing worth walking off the path for: a tree, and a
+  // bench under it turned to face back down the slope at the gate. This is the
+  // whole argument for the relief — off the circuit, up 0.45 m, with a view of
+  // where you came in — and it is only worth anything if there is a reason to
+  // stand on it.
+  bench(mndX + 2.1, mndZ + 0.4, Math.PI / 2);
 
   // The drinking fountain. Municipal, chipped, and it has not worked in
   // years — which is the same sentence as the library, and on purpose.
@@ -852,15 +999,16 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const tree = (x: number, z: number, seed: number) => {
     const t2 = clcg(seed);
     const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
+    const gy = parkY(x, z);                           // a tree on the mound too
     const tk = new THREE.Mesh(new THREE.BoxGeometry(0.3, trunk + 0.6, 0.3), barkM);
-    tk.position.set(x, KERB_H + (trunk + 0.6) / 2, z);
+    tk.position.set(x, gy + (trunk + 0.6) / 2, z);
     scene.add(tk);
     const mat = new THREE.MeshBasicMaterial({
       map: leafT(seed), alphaTest: 0.5, side: THREE.DoubleSide,
     });
     for (let i = 0; i < 3; i++) {
       const pl = new THREE.Mesh(new THREE.PlaneGeometry(spread, h - trunk), mat);
-      pl.position.set(x, KERB_H + trunk + (h - trunk) / 2, z);
+      pl.position.set(x, gy + trunk + (h - trunk) / 2, z);
       pl.rotation.y = (i * Math.PI) / 3;
       scene.add(pl);
     }
@@ -879,6 +1027,11 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
   // 1.5 m width, and the loop stopped being walkable. 1.7 m inside the path
   // still reads as a boundary line and still breaks the wall behind it.
+  // The mound's own tree, out in the open middle beside the bench — the one
+  // tree in the park that is not part of a boundary line. It stands where the
+  // ground is highest, which is how you read a mound as a mound from the gate:
+  // by something on top of it being higher than everything around it.
+  tree(mndX - 0.7, mndZ - 0.6, 0xE01);
   for (const zAt of [lz0 + 1.7, lz1 - 1.7]) {                            // both flanks
     for (let x = site.minX + 5.5; x < lx1 - 1.5; x += 5.8 + tsd() * 1.6) {
       tree(x, zAt + (zAt < gateMid ? -tsd() * 0.5 : tsd() * 0.5), 0x800 + Math.round(x * 3));
@@ -921,7 +1074,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     }));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = seed;
-    m.position.set(x, KERB_H + LIFT * 1.5, z);
+    m.position.set(x, parkY(x, z) + LIFT * 1.5, z);   // litter on the mound lies on it
     scene.add(m);
   };
   const lr = clcg(0x7c1de3);

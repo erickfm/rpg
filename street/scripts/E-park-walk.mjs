@@ -86,14 +86,69 @@ for (const [name, at, yaw, ms, ok, say] of [
 }
 
 
-// the floor is level all through
+// ── the floor ────────────────────────────────────────────────────────────
+//
+// The park is no longer flat, so "every sample reads 0.14" is the wrong test
+// and would now fail on purpose. Three questions instead, and they are the
+// three ways relief goes wrong:
+//
+//   the PATHS are still dead level        — a decal on a slope buries itself
+//   the RELIEF is actually there          — a picker that answers flat means
+//                                           the mesh and the floor have drifted
+//   nothing in it is STEEP ENOUGH TO TRIP — GOTCHAS §7, the whole constraint
+//
+// FIELD is the grass inside the loop: the legs at ±PATH_W/2.
+const FIELD = { x0: LEG.x0 + 0.75, x1: LEG.x1 - 0.75, z0: LEG.z0 + 0.75, z1: LEG.z1 - 0.75 };
+const inField = (x, z) => x > FIELD.x0 && x < FIELD.x1 && z > FIELD.z0 && z < FIELD.z1;
+
 const s = [];
 for (let x = -38.0; x <= -7.4; x += 2.2) for (let z = -96; z <= -70; z += 4) {
+  if (inField(x, z)) continue;
   s.push([x, z, await gyAt(x, z)]);
 }
 const bad = s.filter(([, , gy]) => Math.abs(gy - 0.14) > 0.001);
-report('the park floor is walk level everywhere', bad.length === 0,
-  bad.length ? `${bad.length}/${s.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${s.length} samples at gy 0.14`);
+report('the paths and the perimeter are still dead level', bad.length === 0,
+  bad.length ? `${bad.length}/${s.length} off: ${JSON.stringify(bad.slice(0, 3))}` : `${s.length} samples off the grass, all at gy 0.14`);
+
+// The mound has to be findable by walking onto it. Sampled across the crest,
+// not at one point: a single reading cannot tell a mound from a spike.
+const crest = [];
+for (let x = -30.0; x <= -16.0; x += 1.0) crest.push([x, await gyAt(x, -84.6)]);
+const peak = crest.reduce((a, b) => (b[1] > a[1] ? b : a));
+report('the mound is under your feet, not just on screen', peak[1] > 0.38,
+  `highest floor across the crest line: gy ${f(peak[1])} at x ${f(peak[0])} (flat would be 0.14)`);
+
+// …and the dish, which is the same test with the sign flipped.
+const dip = await gyAt(-18.4, -79.15);
+report('the dish would hold a puddle', dip < 0.12 && dip > 0.0,
+  `gy ${f(dip)} in the hollow, against 0.14 on the level (and above the roadway at 0.0)`);
+
+// GENTLE. Adjacent samples 0.5 m apart, straight over the crest and down the
+// far side: the biggest rise per half-metre is the number that decides whether
+// this is landscape or a trip hazard.
+const line = [];
+for (let z = -90.0; z <= -78.0; z += 0.5) line.push([z, await gyAt(-23.6, z)]);
+let steep = [0, 0];
+for (let i = 1; i < line.length; i++) {
+  const d = Math.abs(line[i][1] - line[i - 1][1]);
+  if (d > steep[0]) steep = [d, line[i][0]];
+}
+report('nothing in the relief is steep enough to trip on', steep[0] < 0.06,
+  `steepest half-metre is ${f(steep[0])} m at z ${f(steep[1])} — 1 in ${(0.5 / (steep[0] || 1e-9)).toFixed(0)}`);
+
+// The proof that is not a number: WALK it. Straight over the mound, gate side
+// to back side. A relief the picker disagrees with stops you dead.
+//
+// z -82.2, not the crest line at -84.6: the bench on the mound is a collider
+// from z -85.08 to -83.32 and this would have walked into the back of it —
+// which is the fourth time this session a test line has been drawn through my
+// own furniture. It still crosses the mound, 0.26 m lower over the top.
+await walk('you can walk straight over the mound', {
+  at: [-17.0, -82.2], yaw: -Math.PI / 2, ms: 6000,
+  ok: (p) => p[0] < -30.0,
+  say: (p) => `x ${f(p[0])} (set off at -17.0, over the crest at -23.6)`,
+});
+
 // ── the edge line ────────────────────────────────────────────────────────
 //
 // The user's standing rule: nothing the park owns may stand on the pavement.
