@@ -1,18 +1,22 @@
 # Builder A — artifact rebuilt, ready for the desk to publish
 
-**`street/dist/artifact.html`** — 668,439 bytes, built from **`1b990d7`**
-("Approve B's puddle fix…"). Not committed: `dist/` is gitignored. Per the
-queue I have not published it; that is the desk's step.
+**`street/dist/artifact.html`** — 669,344 bytes, built from **`8028664`**
+("density.mjs: measure faces locally…"). Not committed: `dist/` is gitignored.
+Per the queue I have not published it; that is the desk's step.
 
 It carries everything landed up to that commit — the cross-file density fix, the
-build stamp, the casino interior, the church on the main block, the library
-courtyard, B's puddles.
+build stamp, the casino interior, the church on the main block and its west
+front, the library courtyard, B's puddles.
+
+**Rebuild it with `npm run build && node scripts/pack-artifact.mjs`, in that
+order.** A bare `npm run build` wipes `dist/` and does not re-pack, so it
+deletes the artifact — which is how the first one I packed disappeared.
 
 ## Verified, not just packed
 
 Loaded from `file://` in a real browser rather than trusting the byte count:
 
-- `__ct` initialises; **861 scene objects**
+- `__ct` initialises; **885 scene objects**
 - **no failed network requests** — genuinely self-contained, which is the whole
   point of the packed file
 - no page errors, no console errors
@@ -20,7 +24,7 @@ Loaded from `file://` in a real browser rather than trusting the byte count:
 - the corner renders with the density fix — `shots/artifact-corner.png`,
   `shots/artifact-night.png`
 
-The stamp reads **`1b990d7 20:02`** in the bottom-right, with no `+`, so the
+The stamp reads **`8028664 20:07`** in the bottom-right, with no `+`, so the
 tree was clean when it was built. That is the first artifact that says which
 build it is.
 
