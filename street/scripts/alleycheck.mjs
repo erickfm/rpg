@@ -73,6 +73,38 @@ await setClock(page, 13, 0);
 
 const parts = await page.evaluate(() => {
   const out = { end: [], floor: [], flank: [] };
+  // A COARSE descriptor, not an exact hash of the pixels: 24x24 reduced to 4x4
+  // averaged blocks, so one-pixel noise cannot change it but a different wall
+  // does.
+  // PER CHANNEL, quantised at 8 — and both numbers are measured, not chosen.
+  // Same wall across two page loads drifts at most 2.22/255 in a block mean
+  // (that is the dither speckle, averaged over 36 px). The alley's two flanks,
+  // which are deliberately different walls, differ by 20.17/255. A step of 8
+  // sits 3.6x above the noise and 2.5x below the signal.
+  //
+  // My first version averaged R+G+B into one luminance and quantised at 32.
+  // That absorbed the speckle and ALSO absorbed the alley flanks: #623f32 and
+  // #563a2f both land in the same bucket, so a check that exists to prove two
+  // walls are different reported one. Throwing away hue to beat noise threw
+  // away the signal with it.
+  //
+  // The exact hash was blind, and this is the SECOND time this assertion has
+  // been. It counted map.uuid first, which counted allocations; that was fixed
+  // to hash pixels. But ct/paint.ts's dither() paints with UNSEEDED
+  // Math.random(), so two walls painted from IDENTICAL parameters still differ
+  // by speckle and still hash apart. Measured, mutating flankTex to paint every
+  // return from one set of parameters:
+  //
+  //                       clean world   every flank identical
+  //     exact pixel hash      19               19      <- blind
+  //     mean colour           19                5
+  //     coarse 4x4 blocks     15                4
+  //
+  // dc0f4e8b's comment claims that mutant "genuinely has 19 different-looking
+  // returns and BOTH instruments are right to pass it". That was wrong. They
+  // are the same brown with different dust on it, which is exactly the user's
+  // complaint, and 2e7f51c0's note about dither and Math.random is what pointed
+  // at it.
   const cv = document.createElement('canvas');
   cv.width = 24; cv.height = 24;
   const g = cv.getContext('2d', { willReadFrequently: true });
@@ -81,9 +113,20 @@ const parts = await page.evaluate(() => {
       g.clearRect(0, 0, 24, 24);
       g.drawImage(tex.image, 0, 0, 24, 24);
       const d = g.getImageData(0, 0, 24, 24).data;
-      let h = 0x811c9dc5;
-      for (let i = 0; i < d.length; i++) h = Math.imul(h ^ d[i], 0x01000193) >>> 0;
-      return 'px' + h.toString(16);
+      const out = [];
+      for (let by = 0; by < 4; by++) {
+        for (let bx = 0; bx < 4; bx++) {
+          let r = 0, gg = 0, bb = 0, n = 0;
+          for (let y = by * 6; y < by * 6 + 6; y++) {
+            for (let x = bx * 6; x < bx * 6 + 6; x++) {
+              const i = (y * 24 + x) * 4;
+              r += d[i]; gg += d[i + 1]; bb += d[i + 2]; n++;
+            }
+          }
+          out.push(r / n, gg / n, bb / n);
+        }
+      }
+      return out;
     } catch (e) { return null; }
   };
   window.__ct.scene().traverse((o) => {
@@ -131,6 +174,30 @@ const neigh = await page.evaluate(() => {
   };
 });
 
+// "How many DIFFERENT walls" is a distance question, not an equality one.
+// Quantising the descriptor did not make it robust, it only moved the
+// sensitivity to the bucket edges: with 48 numbers per wall, something always
+// lands near a boundary and flips on 2 units of speckle. Measured, the mutant
+// that paints every return from identical parameters still read 17 of 36.
+//
+// So walls are grouped by DISTANCE, with the threshold taken from measurement:
+// the same wall drifts at most 2.22/255 across page loads, two deliberately
+// different walls differ by 20.17. 6 sits between them with room either side.
+const SAME = 6;
+const countWalls = (descs) => {
+  const reps = [];
+  for (const d of descs) {
+    if (!d) continue;
+    const near = reps.some((r) => {
+      let mx = 0;
+      for (let i = 0; i < d.length; i++) mx = Math.max(mx, Math.abs(d[i] - r[i]));
+      return mx < SAME;
+    });
+    if (!near) reps.push(d);
+  }
+  return reps.length;
+};
+
 let fails = 0;
 const say = (ok, name, detail) => {
   if (!ok) fails++;
@@ -154,8 +221,9 @@ say(floor && floor.ppm >= 20, 'the alley floor is not a smeared canvas',
 // ── 3. two walls, two buildings ───────────────────────────────────────────
 say(parts.flank.length === 2, 'the alley has both its flanks', `${parts.flank.length} stamped 'flank'`);
 const fh = parts.flank.map((f) => f.hashes[0]);
-say(new Set(fh).size === 2 && fh.every(Boolean), 'the two flanks are two different walls',
-  `${new Set(fh).size} distinct wall textures`);
+const flankWalls = countWalls(fh);
+say(flankWalls === 2 && fh.every(Boolean), 'the two flanks are two different walls',
+  `${flankWalls} distinct walls`);
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {
@@ -168,7 +236,7 @@ if (SELFTEST) {
   say(!!neigh && neigh.endTop < nbTop - 0.05, 'the rear wall is short (the bug)',
     neigh ? `rear ${neigh.endTop} m vs ${nbTop} m` : 'no reading');
   say(floor && floor.ppm < 12, 'the floor is one stretched canvas (the bug)', `${floor?.ppm} px/m`);
-  say(new Set(fh).size <= 1, 'both flanks share one texture (the bug)', `${new Set(fh).size} distinct`);
+  say(flankWalls <= 1, 'both flanks share one texture (the bug)', `${flankWalls} distinct`);
   const caught = fails - before;
   console.log(caught === 3
     ? '\nSELFTEST PASSED — all three inverted assertions were caught'

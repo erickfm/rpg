@@ -1043,3 +1043,63 @@ known text rather than a pattern over WebSocket errors in general, so that if th
 message ever changes it stops matching and the red comes back. Verified both
 ways: 0 failures in the live world, and an injected `a real defect` in the same
 mode still fails.
+
+
+## My texture instrument was blind a second time, and hashing was the wrong idea
+
+`2e7f51c0` records that `ct/paint.ts`'s `dither()` paints with **unseeded
+`Math.random()`**. That is the thread that unpicked my own uniformity check.
+
+`shells.mjs` asserts "returns are not one shared material". It has now been
+wrong twice:
+
+1. **counting `map.uuid`** — counted allocations, not appearances. Fixed by
+   hashing pixels.
+2. **hashing pixels exactly** — two walls painted from IDENTICAL parameters
+   still differ by dither speckle, so they still hash apart.
+
+Measured, mutating `flankTex` so every return is painted from one set of
+parameters:
+
+```
+                      clean world   every flank identical
+    exact pixel hash      19               19      <- blind
+    mean colour           19                5
+    coarse 4x4 blocks     15                4
+```
+
+**`dc0f4e8b`'s comment says that mutant "genuinely has 19 different-looking
+returns and BOTH instruments are right to pass it". That was wrong.** They are
+the same brown with different dust on it, which is the user's complaint exactly.
+
+### Quantising did not fix it either
+
+The obvious repair — quantise the block means so speckle cannot change the
+bucket — still read **17 of 36** on the mutant. Quantisation does not make a hash
+robust; it moves the sensitivity to the bucket edges, and with 48 numbers per
+wall something always sits near one.
+
+Worse, my first quantised version averaged R+G+B into one luminance and stepped
+at 32. That absorbed the speckle **and** the alley's two flanks: `#623f32` and
+`#563a2f` land in the same bucket, so a check whose entire job is to prove those
+two walls differ reported one. **Throwing away hue to beat noise threw away the
+signal with it.**
+
+### "Are these the same wall" is a distance question
+
+So the descriptor is raw 4x4 block means per channel, and walls are grouped by
+distance. Both numbers are measured, not chosen:
+
+```
+same wall, two page loads   max block-mean drift  2.22 / 255   <- the speckle
+alley north vs south        max block-mean diff  20.17 / 255   <- real difference
+threshold                                         6
+```
+
+Clean world 19 walls across 36 faces; the identical-parameters mutant now reads
+**3 and fails**, and the alley's same-painter mutant reads **1 and fails**. Both
+selftests still pass.
+
+The general lesson, which cost me two rounds: **an exact hash answers "are these
+byte-identical", and I kept asking it "do these look the same".** Those come
+apart the moment anything in the paint is random.
