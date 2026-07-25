@@ -70,22 +70,51 @@ console.log(`lot      frontage z ${span[0].toFixed(1)} … ${span[1].toFixed(1)}
 // Name what is doing it, so the result routes itself. Anything overlapping the
 // walk is listed with how far it reaches in from the building line — the
 // question "is this mine" should not need a second script.
+// Overlap the frontage for a real length, not merely touch its ends: the
+// buildings north and south of the lot ABUT it, so a tolerance let both in and
+// the verdict fired on two neighbours' facades. A shared edge is not an
+// encroachment.
+const over = (c) => Math.min(c[3], span[1]) - Math.max(c[2], span[0]);
 const intruders = cols
-  .filter((c) => c[1] > ROAD_HALF && c[0] < FACE && c[3] > span[0] - 0.2 && c[2] < span[1] + 0.2)
+  .filter((c) => c[1] > ROAD_HALF && c[0] < FACE && over(c) > 0.05)
   .sort((a, b2) => a[2] - b2[2]);
 
+// WHAT THIS FAILS ON, and it took watching it fail to get right.
+//
+// It used to exit 1 on any sample narrower than the control, which meant it
+// went red on the street tree and the fire hydrant — both correct, both
+// somebody else's, and both there to be walked around. A verdict that fires on
+// furniture doing its job is the thing GOTCHAS §23 is about: real is not the
+// same as wrong.
+//
+// The question this script exists to answer is narrower: is THE SITE eating
+// the pavement? The site can only encroach from the building line — everything
+// ct/lot.ts builds is east of x = FACE — while street furniture stands out by
+// the kerb. So the verdict is intruders attached to the building line, and
+// everything else is reported and walked past.
+const SITE_EDGE = FACE - 1.0;
+const fromSite = intruders.filter((c) => c[1] >= SITE_EDGE);
 const bad = mine.filter((r) => r[1] < CLEAR - 0.05);
 const worst = mine.reduce((a, r) => (r[1] < a[1] ? r : a), mine[0]);
 console.log(`         narrowest ${worst[1].toFixed(2)} m at z ${worst[0]}`);
-if (bad.length) {
+if (fromSite.length) {
   console.log(`\n${bad.length} of ${mine.length} samples narrower than the control:`);
   for (const [z, w] of bad.slice(0, 6)) console.log(`   z ${z}  ->  ${w} m   (control ${CLEAR.toFixed(2)})`);
-  console.log(`\nwhat overlaps the walk here, and how far in from the building line:`);
-  for (const c of intruders) {
+  console.log(`\nATTACHED TO THE BUILDING LINE — the site is taking pavement:`);
+  for (const c of fromSite) {
     console.log(`   x ${c[0].toFixed(2)}..${c[1].toFixed(2)}  z ${c[2].toFixed(2)}..${c[3].toFixed(2)}`
       + `   reaches ${(FACE - c[0]).toFixed(2)} m in`);
   }
   process.exit(1);
 }
-console.log(`\nno sample is narrower than the control — nothing this module`);
-console.log(`builds narrows the walk. Measured against a control, not argued.`);
+console.log(`\nnothing attached to the building line takes pavement — the site`);
+console.log(`does not narrow the walk. Measured against a control, not argued.`);
+const kerbside = intruders.filter((c) => c[1] < SITE_EDGE);
+if (kerbside.length) {
+  console.log(`\nreported, not failed on — kerb-side furniture, which is there to be`);
+  console.log(`walked around and is not this module's:`);
+  for (const c of kerbside) {
+    console.log(`   x ${c[0].toFixed(2)}..${c[1].toFixed(2)}  z ${c[2].toFixed(2)}..${c[3].toFixed(2)}`);
+  }
+}
+if (bad.length) console.log(`\n(${bad.length} of ${mine.length} samples run under the control past those.)`);

@@ -169,3 +169,44 @@ door — the leaf at 6.45 and its upper hinge at 7.18, both carried on the jamb.
 
 Both my modules are clean on this check, and it is worth having run precisely
 because neither of them was the one that had the bug.
+
+---
+
+# Watching my own checks fail
+
+`a84cf885`: *"A check nobody has watched fail is not a check."* So I broke what
+each of mine guards, locally and uncommitted, and confirmed it goes red.
+
+| mutation | check | result |
+|---|---|---|
+| wall the mouth shut | `lotwalk.mjs` | **9 IN → 0 IN** |
+| a prop 0.70 m into the walk | `lot-frontage.mjs` | **exit 1**, names it: `x 6.30…6.70 reaches 0.70 m in` |
+| a seat inside the office box | `seatcheck.mjs` | `inSolid=true, seated=false` |
+| the same seat | `seats-walk.mjs` | **56/57 → 55/57** |
+
+All four notice. But the exercise found a real flaw in mine, which is the
+point of doing it:
+
+**`lot-frontage.mjs` was exiting 1 on the street tree and the fire hydrant.**
+Both correct, both somebody else's, both there to be walked around — and a
+verdict that fires on furniture doing its job is exactly what GOTCHAS §23 is
+about. It also fired on the two neighbouring buildings, because they ABUT the
+lot and a tolerance let a shared edge count as an overlap.
+
+The question the script exists to answer is narrower than "is this stretch
+tight": it is **is THE SITE taking pavement.** The site can only encroach from
+the building line — everything `ct/lot.ts` builds is east of `FACE` — while
+street furniture stands out by the kerb. So the verdict is now intruders
+attached to the building line, over a real length of frontage rather than a
+shared edge; everything else is printed and walked past.
+
+Re-checked both ways, because loosening a rule is how a check stops being able
+to fail: clean world **exit 0** with the tree and hydrant listed as kerb-side,
+mutated world **exit 1** naming the injected prop.
+
+## And the name collision was mine
+
+`scripts/curbcut.mjs` was already a measurement script when I wrote a
+screenshot script under the same name. On a rebase mine won and theirs was
+gone. Renamed to `curbcut-shots.mjs`; theirs is back as `kerbcut.mjs`. Theirs
+measures, mine takes pictures, and the names now say which.

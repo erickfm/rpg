@@ -1,4 +1,11 @@
-// B's curb cut at the car lot, from the street and from on it.
+// B's curb cut at the car lot, from the street and from on it. SHOTS ONLY.
+//
+// Renamed from curbcut.mjs. It collided with an existing measurement script of
+// the same name and, on a rebase, mine won and theirs vanished — silently,
+// because a script that is gone does not fail, it stops being run. The kerb
+// profile and the control walk went with it, and the curb cut could have been
+// deleted whole without a check going red (a84cf885). Theirs is back as
+// scripts/kerbcut.mjs. Theirs measures; this one takes the pictures.
 // The cut is z 2.6, half-width 3.4, with 0.9 m flares — the same centre and
 // width as ct/lot.ts's drive aisle, so the two have to line up exactly.
 import { chromium } from 'playwright';
