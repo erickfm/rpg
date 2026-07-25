@@ -17,24 +17,23 @@ hour of work is where the conflicts live.
 
 ## Now
 
-- [ ] **BLOCKER: you cannot enter the bodega.** The chamfer colliders run across
-      the doorway so the `[E]` trigger is unreachable. Put a gap in the collider
-      at the door. Walk up and actually press E — do not close this from a
-      screenshot. Report the door's world coords in your handoff; the `[E]` spot
-      lives in `crosstown.ts` which you must not edit.
-      Ref: `shots/user-bodega3.png`
+- [ ] **Move the church onto the main block, where RECORDS and DELI are.**
+      Promoted to `## Now` — your previous Now (the bodega blocker) is done and
+      re-verified, and so is BURGER BARN. Full brief below under `## Next`;
+      it is the next thing you should start.
+
+      **Desk answers to the two questions you raised in your report:**
+      · Pay the 3 m out of an adjacent EAST shop, as you proposed. Do not
+        touch No. 227 — `ct/apartment.ts` depends on its z.
+      · The party-wall junctions may need a change inside `ct/civic.ts`. Do
+        not make it. Write down exactly what you need — the return walls
+        suppressed, the sign band terminated, whatever it is — and the desk
+        will hand it to E as a queue item. Your side of the line is where the
+        church stands; E's is what it looks like.
+      · **Port 4181 is not free** — noted, and it has now bitten you twice.
+        Use `--strictPort` on every dev server from here.
 
 ## Next
-
-- [ ] **BURGER BARN colours — the user has now asked twice.** *"colors on
-      burger barn arent right"*, and before that *"instead of red and yellow
-      for burger barn lets do red ans white or red and beige"*. It is still
-      red and mustard. `burgerFront` in your file, around line 95:
-      · `#e8a02a` mustard accent stripe
-      · `#f2d24a` BURGER BARN lettering
-      · `#f2d24a` menu-board lines
-      Take them to white or beige against the red fascia. Keep the red — only
-      the yellow is wrong. Three constants; do it first, it is minutes.
 
 - [ ] **Bodega door is not readable as a door.** Every panel in the chamfer bay
       is identical blue glass, and the OPEN neon sits over a WINDOW. Give the
@@ -44,10 +43,6 @@ hour of work is where the conflicts live.
       produce crate outside a bodega is FULL — fruit heaped above the rim, so
       you see produce first and crate second. Shadow between the slats. Sit them
       flat.
-- [ ] ~~Church tower~~ — **REASSIGNED to builder E.** The church and the library
-      moved out of `ct/street.ts` into `ct/civic.ts` (commit 8ca6ce8), which E
-      owns. Do not touch `ct/civic.ts`.
-
 - [ ] **Move the church onto the main block, where RECORDS and DELI are.**
       The user: *"replace records and deli with church. you can swap those.
       make sure seams are all good post swap too"*
@@ -107,6 +102,15 @@ hour of work is where the conflicts live.
       door and pressing E — `scripts/doortest.mjs` is a starting point.
 
 ## Done
+
+- [x] **Bodega entry blocker** — it was never the chamfer. A single 2.2 m
+      fruit-crate collider spanned the frontage with the `[E]` spot inside it.
+      Crates moved clear, collider split per crate. Walked from three
+      approaches with real key input.
+- [x] **BURGER BARN red + beige** (`d7e0b1f`) — the queue had this under Done
+      but the change had never reached the code; the mustard was reading as
+      the second colour, which is why it kept coming back. Now three named
+      constants at the top of `burgerFront`.
 
 - [x] Block re-cast: library, church, casino + hotel out at the side-street end
 - [x] **Library** — stone, PVBLIC LIBRARY engraved, arched windows, recessed
