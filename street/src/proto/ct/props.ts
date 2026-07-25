@@ -1050,11 +1050,25 @@ export function buildProps(ctx: CtxBuild): Props {
   const makeLamp = (s: number, z: number) =>
     makeLampAt(s * (ROAD_HALF + LAMP_OFF), z, -s, 0, s);
   // A PARK LAMP: a post with a lantern on top, no crook and no arm. Shorter
-  // than the street's 5 m because it lights a footpath rather than a roadway,
-  // and it stands on the park's own ground, which is at KERB_H.
+  // than the street's 5 m because it lights a footpath rather than a roadway.
+  //
+  // IT STANDS ON THE PARK'S FLOOR, AND THE PARK SAYS WHERE THAT IS. This read
+  // `const y0 = KERB_H` under a comment asserting the park's ground "is at
+  // KERB_H" — true when written, and an assumption about somebody else's module
+  // rather than a fact I could defend. 46b330d35 is the owner of that ground
+  // arriving to say they had re-cut the loop these lamps sit along and crowned
+  // the field 0.10 m with a mound reaching 0.37, and asking whether I had
+  // stranded a lamp in it. I had not — all ten still stand at 0.140 — but that
+  // was luck rather than design, and they had to come and check MY file to find
+  // out.
+  //
+  // crosstown.ts publishes the park's site at :203, seven lines before
+  // buildProps at :210, and Site carries its floor as `y`. So ask. KERB_H stays
+  // as the fallback for the case where the site is not published, which is the
+  // only case where a constant was ever the right answer.
   const PARK_LAMP_H = 3.4;
   const makeParkLamp = (x: number, z: number) => {
-    const y0 = KERB_H;
+    const y0 = site('park')?.y ?? KERB_H;
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.42, 0.26), poleHi);
     base.position.set(x, y0 + 0.21, z); scene.add(base);
     const pole = new THREE.Mesh(new THREE.BoxGeometry(0.11, PARK_LAMP_H, 0.11), poleM);
