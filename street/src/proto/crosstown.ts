@@ -21,7 +21,7 @@ import { buildSideStreet } from './ct/sidestreet';
 import { nudgeClear, corridor, ENTERABLE, PASSABLE } from './ct/gap';
 import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
-import { COURT, courtGround, civicSeats } from './ct/civic';
+import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment } from './ct/apartment';
@@ -113,6 +113,10 @@ export function makeCrosstown(): Proto {
   // lazy closures — they are only ever CALLED at runtime, by which point both
   // exist.
   const SPOTS: Spot[] = [];
+  // Modules that answer for a patch of floor. Asked in declared order, first
+  // non-null wins — see ctx.ground. The entry point no longer names any of
+  // them, which is what lets a builder ship a staircase that works.
+  const GROUNDS: { fn: (x: number, z: number) => number | null; order: number }[] = [];
   // Named ground, published by whoever lays the block out and asked for by
   // name by whoever builds on it. See ctx.ts `Site`.
   const SITES = new Map<string, Site>();
@@ -145,6 +149,7 @@ export function makeCrosstown(): Proto {
     spot: (sp) => { SPOTS.push(sp); },
     purse,
     refreshWallet: () => hud.refreshWallet(),
+    ground: (fn, order = BUILD.PROPS) => { GROUNDS.push({ fn, order }); },
     site: (name) => SITES.get(name) ?? null,
     publishSite: (name, st) => { SITES.set(name, st); },
     // ── seats ───────────────────────────────────────────────────────────
@@ -363,16 +368,6 @@ export function makeCrosstown(): Proto {
   // Colliders come back through `interiorColliders()`, spread once below.
   buildWorld(ctx, BUILD.PROPS, 99);
 
-  // The library's benches. Registered AFTER the world is built, which is what
-  // civicSeats() asks for: the church is placed into a group street.ts turns
-  // afterwards, so a seat inside it is only in world coordinates once that
-  // transform exists.
-  //
-  // The user asked for every seat in the game to be sittable, and the
-  // courtyard was the one place it was not — the park's identical benches
-  // worked. E could not call ctx.seat() because buildCivic never receives a
-  // ctx; the next commit fixes that and this line goes away with the export.
-  for (const st of civicSeats()) ctx.seat(st);
 
   // ── the side street's furniture — trees and parked cars ─────────────────
   //
@@ -502,6 +497,11 @@ export function makeCrosstown(): Proto {
 
   function groundPick(x: number, z: number): number {
     {
+      // whoever registered themselves, in declared order
+      for (const g of GROUNDS) {
+        const y = g.fn(x, z);
+        if (y !== null) return apt.setGy(y);
+      }
       // the interior belt owns its own floors — each room answers for its
       // slab, so a builder can put a step or a mezzanine in a shop without
       // this file knowing anything about it
@@ -529,12 +529,6 @@ export function makeCrosstown(): Proto {
       // the floor drops away. ct/civic.ts publishes its extents and its paving
       // level for exactly this, so the notch and the floor come off ONE import
       // instead of being restated here.
-      // ct/civic.ts owns every civic floor — the forecourt, the churchyard
-      // and BOTH flights of steps — and answers null for anything else. Asked
-      // before the flat-paving fallback below, or the steps would be flattened
-      // to the courtyard level they stand on.
-      const cg = courtGround(x, z);
-      if (cg !== null) return apt.setGy(cg);
       return apt.setGy(Math.abs(x) > ROAD_HALF && Math.abs(x) < FACE + 0.3 ? KERB_H : 0);
     }
   }
@@ -553,6 +547,7 @@ export function makeCrosstown(): Proto {
     apt.setGy(gy);
   };
   HOOKS.sort((a, b) => a.order - b.order);
+  GROUNDS.sort((a, b) => a.order - b.order);
 
   const jumpTo = jumpToImpl;
   // The walk-up's two spots used to live here. ct/apartment.ts registers them

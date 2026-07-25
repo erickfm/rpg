@@ -180,6 +180,22 @@ export interface CtxBuild {
   /** publish a site. `ct/street.ts` owns the block's layout and is the only
    *  thing that should be calling this. */
   publishSite: (name: string, s: Site) => void;
+  /**
+   * Register a patch of GROUND you answer for: return the floor height at
+   * (x, z), or null if the point is not yours.
+   *
+   * The third dispatch point to get this treatment, after `[E]` spots and
+   * per-frame hooks, and for the same reason. Floor height is the one thing
+   * that cannot come from colliders (GOTCHAS §7), so a module that builds a
+   * step, a stair or a raised forecourt has to be ASKED — and until now the
+   * entry point asked by name, which meant a module could finish a flight of
+   * steps and have nobody call it. That happened: E built the library steps
+   * and the picker for them together and had to leave the treads solid,
+   * because the one line that consults them lived in a file E does not own.
+   *
+   * `order` decides who is asked first; the first non-null answer wins.
+   */
+  ground: (fn: (x: number, z: number) => number | null, order?: number) => void;
   /** register a per-frame hook. `order` decides when it runs — see ORDER.
    *  The billboard and citizen passes run after every registered hook. */
   onFrame: (fn: FrameHook, order?: number) => void;

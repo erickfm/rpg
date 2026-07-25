@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import { BUILD, type CtxBuild } from './ctx';
 import type { Seat } from './ctx';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
@@ -107,6 +108,32 @@ export const courtGround = (x: number, z: number): number | null => {
   }
   return null;
 };
+
+export const ORDER = BUILD.SITE;
+
+/**
+ * The world loader's entry point — and the reason this file no longer has to
+ * export lists for someone else to consume.
+ *
+ * `buildCivic` is called from `ct/street.ts`, which has no ctx of its own, so
+ * for a long time nothing in here could call `ctx.seat` or answer for its own
+ * floor: `COURT`, `courtGround` and `civicSeats` were all exports invented to
+ * get round that, and each one needed a line in the entry point that somebody
+ * had to remember. The library's benches went unsittable for weeks because
+ * nobody did, and the steps stayed solid for the same reason.
+ *
+ * The loader hands every module the full context. So this takes it here,
+ * directly, and registers what it owns — no change to street.ts required.
+ *
+ * It runs in the SITE band, after buildStreet has placed the buildings, which
+ * is what both registrations need: the church is built into a group street.ts
+ * turns afterwards, so a seat inside it is only in world coordinates once that
+ * transform exists.
+ */
+export function register(ctx: CtxBuild): void {
+  ctx.ground(courtGround, BUILD.SITE);
+  for (const s of civicSeats()) ctx.seat(s);
+}
 
 export function buildCivic(o: {
   scene: THREE.Scene;
