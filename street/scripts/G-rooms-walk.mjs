@@ -310,13 +310,31 @@ const walkTill = async (axis, enough = Infinity, maxSteps = 14) => {
     return runtime.length ? runtime.join(', ') : null;
   };
   const mine = { casino: 'int-casino.ts', hotel: 'int-hotel.ts', pawn: 'int-pawn.ts', tax: 'int-tax.ts' };
-  const bad = Object.entries(mine).filter(([, f]) => valueImport(src(f)));
-  results.push([bad.length === 0,
+  // SAY WHAT WAS READ, not just what was wrong (GOTCHAS §34). `valueImport`
+  // returns null both for "no import at all", which is fine, and for "an import
+  // this regex could not parse", which is the check going blind — a `./doors`
+  // import reformatted across two lines would read green here having examined
+  // nothing. A missing FILE is already loud, because `src` uses readFileSync and
+  // throws; a missing MATCH was not. Measured today: 4 of 4 mention './doors'
+  // and 4 of 4 parse.
+  const read = Object.entries(mine).map(([id, f]) => {
+    const text = src(f);
+    return { id, f, text,
+      mentions: text.includes("'./doors'"),
+      parsed: /^import\s+[^;]*?\s+from\s+'\.\/doors';/m.test(text) };
+  });
+  const blind = read.filter((r) => r.mentions && !r.parsed);
+  const bad = read.filter((r) => valueImport(r.text));
+  results.push([bad.length === 0 && blind.length === 0,
     'all four rooms import ./doors as a TYPE only, so none is in the registry cycle',
-    bad.length
-      ? `RUNTIME import from './doors' in ${bad.map(([id, f]) => `${f} (${valueImport(src(f))})`).join('; ')}`
-        + ' — its DOOR will be dropped from dist with no error'
-      : `${Object.keys(mine).length} rooms checked, all type-only`]);
+    blind.length
+      ? `NOTHING TO CHECK in ${blind.map((r) => r.f).join(', ')}: names './doors' in a form`
+        + ' this check cannot parse, so it was not checked at all'
+      : bad.length
+        ? `RUNTIME import from './doors' in ${bad.map((r) => `${r.f} (${valueImport(r.text)})`).join('; ')}`
+          + ' — its DOOR will be dropped from dist with no error'
+        : `${read.length} rooms read, ${read.filter((r) => r.parsed).length} with a parsed`
+          + " './doors' import, all type-only"]);
   // The other four rooms are not mine to fail the run over, but the class is the
   // same and a silent drop costs whoever owns them the same way.
   const others = ['int-diner.ts', 'int-bodega.ts', 'int-burger.ts', 'int-thrift.ts']
@@ -814,8 +832,19 @@ for (room of rooms) {
   await p.waitForTimeout(900);
   const night = await sample();
   const dimmed = noon.filter((c, i) => night[i] !== undefined && night[i] !== c).length;
+  // MEASURE THE FLOOR (GOTCHAS §34). `dimmed === 0` is equally true of a room
+  // that sampled nothing, and of a night pass that came back SHORT — every index
+  // missing from `night` is skipped by the `!== undefined` guard rather than
+  // counted, so a half-empty second sample reads as a clean room. Measured
+  // populations across the four rooms: 441, 155, 137, 123. The floor is 40:
+  // far below the smallest so ordinary authoring will not trip it, far above
+  // the collapse it exists to catch.
+  const enough = noon.length >= 40 && night.length === noon.length;
   check('the room keeps its own light after dark',
-    dimmed === 0, `${dimmed}/${noon.length} interior materials were dimmed by the night sweep`);
+    enough && dimmed === 0,
+    enough
+      ? `${dimmed}/${noon.length} interior materials were dimmed by the night sweep`
+      : `NOTHING TO CHECK: sampled ${noon.length} materials at noon and ${night.length} at 02:00`);
 }
 
 // the kit warns about openings that do not fit and exits that land inside
