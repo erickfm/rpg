@@ -1582,3 +1582,52 @@ from the walking side as well as by name.
 > Ten doors in the world. **Five verified against their authored position to
 > within 14 cm, one is a corner the check cannot express, and four are not in
 > the roster** — two of them major buildings.
+
+## Axis-free, corner-safe: **8 of 8 doors verified**, including all three corners
+
+Comparing **points in world space** instead of scalars along an axis. `__ct.doors()`
+publishes `{x, z, nx, nz}` and a stand point per building, so there is no axis
+convention left to get wrong:
+
+| prompt | walked centroid | declared door | distance |
+|---|---|---|---|
+| BURGER BARN | (−6.3, −25.25) | (−6.3, −25.1) | **0.15** |
+| DINER | (−6.3, −46.75) | (−6.3, −46.6) | **0.15** |
+| THRIFT STORE | (−6.3, −59.25) | (−6.3, −59.3) | **0.08** |
+| A-1 TAX SERVICE | (6.3, −20.25) | (6.3, −20.1) | **0.13** |
+| PAWN SHOP | (6.3, −60.5) | (6.3, −60.5) | **0.05** |
+| **BODEGA** | (6.3, −95.25) | (7.5, −95.5) | **1.20** · chamfer |
+| **HOTEL ORPHEUS** | (39.5, −97.3) | (39.5, −96.8) | **0.55** · chamfer |
+| **GOLDEN ACES** | (51.25, −97.3) | (51.3, −96.8) | **0.55** · chamfer |
+
+**8 of 8 name-matched prompts sit within 1.5 m of their own declared door.**
+Five flat frontages inside 15 cm; three chamfered corners inside 1.20 m, which
+is what a stand point offset around a 45° corner looks like.
+
+`[E] sit at the stop` and `[E] enter No. 227` match nothing within 12 m —
+correctly, since neither is a shop door.
+
+### The bodega is finally resolved rather than excluded
+
+Two scalar checks in a row could not express it and one of them printed a
+108-metre "disagreement". As a **distance between two points** it is 1.20 m and
+entirely unremarkable. The building was never the problem; **projecting a 2D
+question onto one axis was.**
+
+### And it narrows my own coverage claim
+
+I reported that GOLDEN ACES and HOTEL ORPHEUS are missing from the roster. They
+are missing from **`__frontages`** — but both **are** in `__ct.doors()`, with
+declared points and stand points that their prompts match to 0.55 m.
+
+> So the gap is narrower and more precise than I said: **the casino and the
+> hotel declare their doors but not their frontages.** Anything asking "where is
+> this building's door" finds them; anything asking "what is this building's
+> frontage" does not.
+
+### What I would keep from three rounds of this
+
+Two of my checks compared a z against an x, and I made the second mistake inside
+the script written to fix the first. The cure was not more care — it was
+**changing what is compared**: two coordinates and a distance, instead of one
+coordinate and a convention.
