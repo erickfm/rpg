@@ -21,6 +21,7 @@ const TRIGGERS = [
   { id: 'DINER (kit room)',        x: -6.55,  z: 9.6,    r: 1.05, gy: 0.14, from: [[-6.2, 15], [-6.2, 4], [-4.2, 9.6]] },
   { id: 'No. 227 street door',     x: 6.55,   z: -44,    r: 1.05, gy: 0.14, from: [[6.2, -38], [6.2, -50], [4.2, -44]] },
   { id: 'BODEGA corner store',     x: 8.7,    z: -96.85, r: 1.10, gy: 0.14, from: [[14, -97], [8.7, -99.5], [4, -99.5]] },
+  { id: 'BURGER BARN (kit room)',  x: -6.55,  z: -28.25, r: 1.05, gy: 0.14, from: [[-6.2, -22], [-6.2, -34], [-4.2, -28.25]] },
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });

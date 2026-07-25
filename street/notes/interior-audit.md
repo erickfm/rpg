@@ -205,3 +205,63 @@ bug has *not* appeared. It is the model, not the exception.
   registers a spot I did not know about, I did not test it.
 - The margin figures are for the world as it stands **today**, with today's
   props. They are a snapshot of a budget that other builders spend.
+
+---
+
+# Round 3 — three rooms written, two in the world
+
+Base `add-stick-and-city98` @ `1b990d7`. F's burger barn (`8bc06cb`… `343ad61`)
+and G's casino (`8bc06cb`) have both landed as files. Measured with the same
+instrument; shots `shots/int2-*.png`.
+
+## The set as it now stands
+
+| axis | bodega (pre-kit) | **diner** | **burger barn** | casino (spec only) |
+|---|---|---|---|---|
+| in the world? | yes | yes | yes | **no** |
+| clear size | 8.0 × 8.0 | 8.6 × 7.0 | 11.0 × 8.5 | 10.5 × 9.0 |
+| ceiling | 2.70 | **3.00** | **3.20** | **2.50** |
+| wall thickness | 0 | 0.18 | 0.18 | — |
+| floor px/m | 24.0 | 18.6 × 18.3 | **20.4 × 18.8** | — |
+| wall px/m | 11.9 × 20 | 11.9 × 12.0 | 11.9 × 11.9 | — |
+| ceiling textured | no | no | no | — |
+| ceiling luminance | 0.668 | 0.714 | 0.832 | **0.169** |
+| glows | 2 | 2 | 4 | — |
+| clear + walls ÷ frontage | — | 8.96 / 9.2 = **97 %** | 11.36 / 16 = **71 %** | — |
+
+## Findings
+
+| # | sev | instance | file | what's wrong |
+|---|-----|----------|------|--------------|
+| 10 | **high** | **the casino is not in the world** | `crosstown.ts` | `buildCasino` is exported from `ct/int-casino.ts` and **never called**. `grep -rn buildCasino src/` returns only its own definition. Slab 2 measures empty; there is no `[E] into GOLDEN ACES` anywhere. A whole room — slot machines, carpet, the lot — is written, committed and unreachable. The kit deliberately removed the need to touch `crosstown.ts` to register *spots*, but the one-line `buildX(ctx)` construction call still lives there, so every room still has a desk-contended step that nothing checks. |
+| 11 | **high** | ceiling heights spread 0.7 m across three rooms | the three room specs | 2.50 (casino) / 3.00 (diner) / 3.20 (burger). The kit's default is 2.9 and its own comment says *"2.9 is a shop; a casino or a library wants more"* — the casino is the one room that asked for **less**, 0.4 m under the shop default. Whatever the intent, three rooms built to a shared kit now differ by more than the kit's whole stated range. |
+| 12 | medium | room size against shopfront frontage | `ct/int-burger.ts` | The diner fills its frontage: 8.6 clear + 2 × 0.18 = **8.96 m** against DINER's 9.2 m — 97 %. The burger barn is 11.0 + 0.36 = **11.36 m** inside a **16 m** shopfront — **71 %**, leaving 4.6 m of frontage with no room behind it. The rule this audit proposed after round 1 is already broken by the second room, which is what an unenforced rule does. |
+| 13 | medium | the entry-trigger debt propagated exactly as predicted | `ct/interior.ts` | Round 2 predicted every room copying the diner's 0.45 m door offset would start 0.21 m inside the blanket wall. The burger barn does: closest reachable **0.21 m**, margin **0.84 m (80 %)**, centre **blocked**. Three of four street triggers are now in debt. The bodega, the one that was fixed, holds at 96 %. |
+
+**Unchanged and still open from round 1** — A's cross-file density mandate was
+exteriors only, so nothing here moved:
+
+- finding 1, floor vs wall inside a room: 18.6–20.4 px/m against 11.9 — still ~1.6 : 1.
+- finding 2, floor density not constant: diner 18.6 × 18.3, burger **20.4 × 18.8**
+  — now visibly anisotropic *within* a single room, because `round(W/1.6)` and
+  `round(D/1.6)` land on different multiples for a room that is not square.
+- finding 3, ceilings untextured in both kit rooms.
+- finding 4, palette luminance unbounded: ceilings now measure 0.169 → 0.832, a
+  **5 : 1** spread with nothing constraining it.
+
+## What is working
+
+Worth saying, because it is most of the kit: the two rooms that are in the world
+read as one place. Wall thickness is 0.18 in both, wall texel density is 11.9
+square in both, the shell/jamb/reveal language is identical, and the door
+machinery works in the burger barn exactly as it does in the diner. The failures
+above are all in the parameters the kit leaves free, not in the parts it owns —
+which is the round-1 pattern holding up under a second and third builder.
+
+## Coverage — round 3
+
+- The casino could only be read from source; it is not in the scene, so its
+  ceiling, densities and door could not be measured. Its numbers above are
+  from `ct/int-casino.ts`, not from the world.
+- Seven of ten rooms are still unwritten.
+- Light was measured as material luminance again, not judged side by side.

@@ -7,8 +7,10 @@ import { writeFileSync } from 'node:fs';
 const REGIONS = [
   { id: 'apartment (pre-kit)', x0: 100, x1: 230 },
   { id: 'bodega (pre-kit)',    x0: 230, x1: 260 },
-  { id: 'diner (kit)',         x0: 400, x1: 480 },
-  { id: 'slab 2 (unclaimed)',  x0: 480, x1: 560 },
+  { id: 'slab 0', x0: 400, x1: 480 },
+  { id: 'slab 1', x0: 480, x1: 560 },
+  { id: 'slab 2', x0: 560, x1: 640 },
+  { id: 'slab 3', x0: 640, x1: 720 },
 ];
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1400, height: 900 } });
