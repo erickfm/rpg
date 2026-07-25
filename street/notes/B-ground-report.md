@@ -271,7 +271,7 @@ bench. What is left:
 
 - **`[E]` spots** — nothing of mine is in `crosstown.ts`. The feed action
   cannot move and is blocked on the same missing `ctx` accessors as D. See
-  `notes/BLOCKED-B.md`.
+  `notes/B-routed-to-others.md`.
 - **Finding B, lamp spacing leaves the middle of the block dark** — I recommend
   **closing this as superseded, not doing it.** It was written before night
   five. The user has since asked for *"a wider beam… make the unilluminated

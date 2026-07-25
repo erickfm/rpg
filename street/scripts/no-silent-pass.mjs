@@ -49,7 +49,7 @@ const suspects = readdirSync(dir)
     // than a wrong answer.
     //
     // truck.mjs is the case that taught me this, and it caught me mid-routing:
-    // I had already written two lines of fix into notes/BLOCKED-B.md for its
+    // I had already written two lines of fix into my routing note for its
     // owner before checking whether it asserts anything. It does not — zero
     // occurrences of process.exit or process.exitCode in 78 lines, its shots
     // run unconditionally, and only a `fleet` block is gated at all. Sending

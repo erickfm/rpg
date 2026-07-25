@@ -48,7 +48,7 @@
 // with a colour component above 1.0 — zero in full day, 9 at night, 91-94 at
 // each of 07, 08, 18 and 19. That is real and it is NOT asserted here, because
 // 1.08 clamps at render and is pixel-identical to 1.0: it would be a red line
-// for something nobody can see. It is recorded in notes/BLOCKED-B.md with the
+// for something nobody can see. It is recorded in notes/B-routed-to-others.md with the
 // numbers, and if tone mapping ever arrives it becomes a defect that day.
 //
 //   SHOT_URL=http://localhost:4279/ node scripts/grade-sane.mjs

@@ -31,7 +31,7 @@ line per item, for whoever ticks them.
 Not blocked — empty. Everything still open on my side needs somebody else:
 
 - **`lamplight.mjs` and `parking.mjs`** can exit 0 having asserted nothing. Two
-  lines each, exact fix in `BLOCKED-B.md`, verified against their real mode
+  lines each, exact fix in `notes/B-routed-to-others.md`, verified against their real mode
   lists. `no-silent-pass` is red until they land, correctly.
 - **Road centre lines stay dry in rain** — unstamped mesh, 8x32 texture, not
   mine.

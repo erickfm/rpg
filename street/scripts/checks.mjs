@@ -186,7 +186,7 @@ const CHECKS = [
   // for a check that ran nothing. I found it in five of my own and fixed them
   // with lib/modes.mjs; lamplight, parking and truck still do it and are not
   // mine to edit (OWNERSHIP: "do not edit another agent's script"). Routed in
-  // notes/BLOCKED-B.md with the two-line fix.
+  // notes/B-routed-to-others.md with the two-line fix.
   //
   // Third field is `false` because there is no mutation — and it does not need
   // one. canfail invokes every check with the SAME correct arguments checks.mjs
