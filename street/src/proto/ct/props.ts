@@ -525,7 +525,24 @@ export function buildProps(ctx: CtxBuild): Props {
                        wx: wy.x, wz: wy.z,
                        pool: poolable && !selfLit && !noLamp,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
-                       wetK: selfLit ? 0 : wetKFor(wy.y) });
+                       // SELF-LIT MEANS "DO NOT DIM ME", NOT "DO NOT WET ME".
+                       // This zeroed wetK for anything isSelfLit() matched, and
+                       // isSelfLit matches a facade sheet with lit windows drawn
+                       // into it — which is most of the upper building line.
+                       // Measured in rain at 14:00: 17 of 26 high wall materials
+                       // and 2 of 2 mid ones carry the flag, and their tint sits
+                       // at exactly 1.0000 while the ground-level brick drops to
+                       // 0.9024. The user asked for rain to wet the BUILDINGS
+                       // and not just the ground; above head height it was not
+                       // wetting them at all.
+                       //
+                       // The night floor is what honours "lit windows and signs
+                       // must NOT dim" — FLOOR_SIGN, two lines up, and that is
+                       // untouched. Rain is a different question: a neon sign
+                       // still gets wet. Half weight rather than full, because
+                       // the bright texels are carrying the light and should not
+                       // take the whole wet lerp.
+                       wetK: selfLit ? wetKFor(wy.y) * 0.5 : wetKFor(wy.y) });
       }
     });
     // ── and stand a splash sheet against every wall on the building line ──
