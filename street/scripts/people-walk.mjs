@@ -95,6 +95,23 @@ const r = await p.evaluate(([BOX]) => {
   return { atlas: atlas.length, suspects };
 }, [BOX]);
 console.log(`${r.atlas} atlas figures`);
+// AN EMPTY WORLD MUST NOT PASS. Pointed at empty space this printed
+// "0 atlas figures / no hand-drawn people anywhere" and exited 0 — a world with
+// no people at all satisfying "is every figure drawn from the atlas", because
+// the verdict was computed from the suspects alone and nothing asserted that
+// the population existed. 32d9d6521 found five of its own doing this from a
+// mistyped flag; mine needed no typo, only an empty result.
+//
+// With an explicit BOX an empty result is a legitimate answer — the caller
+// chose the region. Without one this is the whole world, which is how
+// checks.mjs runs it, and the world has sixteen.
+if (!BOX && r.atlas === 0) {
+  console.error('\nNO ATLAS FIGURES ANYWHERE — this check saw nothing and cannot');
+  console.error('  vouch for anything. Either the world failed to build its people or');
+  console.error('  the traversal stopped finding them. Not a pass.');
+  await b.close();
+  process.exit(1);
+}
 console.log(r.suspects.length
   ? `${r.suspects.length} person-shaped hand-drawn cutouts remain:\n  ` + r.suspects.join('\n  ')
   : 'no hand-drawn people anywhere');

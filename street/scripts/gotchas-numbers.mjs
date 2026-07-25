@@ -28,6 +28,16 @@ if (SELFTEST && nums.length) nums.push({ n: nums[nums.length - 1].n, title: '(se
 
 console.log(`${FILE}: ${nums.length} numbered entries, 1 … ${nums.length ? nums[nums.length - 1].n : 0}`);
 const fail = [];
+// An EMPTY list is trivially unique and trivially ordered. If the file moves,
+// is renamed, or its heading style changes, `nums` goes to zero and every
+// assertion below passes by having nothing to disagree about. GOTCHAS has
+// thirty-plus entries; zero means the parse broke, not that the file is clean.
+if (!nums.length) {
+  console.error(`\nNO NUMBERED ENTRIES FOUND IN ${FILE}.`);
+  console.error('  Uniqueness and ordering are vacuous on an empty list, so this is a');
+  console.error('  parse failure rather than a pass — check the heading format.');
+  process.exit(1);
+}
 const seen = new Map();
 for (const e of nums) {
   if (seen.has(e.n)) fail.push(`§${e.n} used twice: "${seen.get(e.n)}" and "${e.title}"`);

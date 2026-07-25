@@ -186,6 +186,14 @@ const intruders = cols
 const SITE_EDGE = FACE - 1.0;
 const fromSite = intruders.filter((c) => c[1] >= SITE_EDGE);
 const bad = mine.filter((r) => r[1] < CLEAR - 0.05);
+// No samples means the band was never measured. Without this the reduce below
+// returns undefined and the script dies on a property access — an exit 1 that
+// looks like a real failure and names nothing.
+if (!mine.length) {
+  console.error('\nNO SAMPLES TAKEN ALONG THE FRONTAGE — the walk was never measured.');
+  console.error(`  span z ${span[0].toFixed(1)} … ${span[1].toFixed(1)} produced no sample points.`);
+  process.exit(1);
+}
 const worst = mine.reduce((a, r) => (r[1] < a[1] ? r : a), mine[0]);
 console.log(`         narrowest ${worst[1].toFixed(2)} m at z ${worst[0]}`);
 if (fromSite.length) {

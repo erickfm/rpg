@@ -75,6 +75,18 @@ if (SELFTEST) {
 }
 
 console.log(`${declaring.length} modules declare a DOOR; ${arrived.length} reached declaredDoors()`);
+// ZERO DECLARATIONS IS A BROKEN READ, NOT A CLEAN WORLD. `missing` is computed
+// by filtering `declaring`, so an empty `declaring` makes it empty too and this
+// prints "every declared door arrived" having compared nothing. The source scan
+// is a regex over ct/*.ts: rename the file, change `export const DOOR`, or move
+// the rooms, and the count silently goes to zero while the check goes green.
+// The world has eight.
+if (!declaring.length) {
+  console.error('\nNO `export const DOOR` FOUND IN SOURCE AT ALL.');
+  console.error(`  Scanned ${DIR}/ and matched nothing, so there is nothing to compare`);
+  console.error('  against declaredDoors() and this check can vouch for nothing.');
+  process.exit(1);
+}
 const missing = declaring.filter((d) => !arrived.includes(d.building));
 for (const w of warns) console.log(`  ${w.replace(/\s+/g, ' ').slice(0, 110)}…`);
 
