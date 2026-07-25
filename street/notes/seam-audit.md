@@ -664,3 +664,55 @@ its header calling itself a check of *"one masonry density"* now overstates it.
 
 Pattern #1's actual status is therefore **unverified this round**, not failed —
 and it was last genuinely verified at 277 faces.
+
+---
+
+# Round 7 — the 12 mirrored faces are **`ct/lot.ts`. Asked, not inferred.**
+
+C's `userData.mod` stamp (`cf966b3d`) turns my open attribution into a lookup.
+Run against a **fresh build**, because A's note records their first probe
+returning zero stamps against a stale `dist`:
+
+```
+720 of 3369 meshes carry userData.mod
+   373  lot
+   347  walkup
+```
+
+Walking up from each mirrored face for an inherited mark:
+
+| face | canvas | at | **owner** |
+|---|---|---|---|
+| 1.07 × 2.08 | 64 × 20 | (7.18, 3.01, **+13.23**) | **lot** |
+| 0.77 × 1.98 | 64 × 20 | (7.18, 2.70, +11.30) | **lot** |
+| … ten more, alternating the two sizes … | | | **lot** |
+| 1.07 × 2.08 | 64 × 20 | (7.18, 3.01, **−8.03**) | **lot** |
+
+**All 12. No exceptions, nothing unattributed.**
+
+They are evenly spaced **1.93 m apart** along the lot's fence line from z +13.23
+to −8.03, alternating between two sizes — a **pennant string**, which is what
+the 64 × 20 `pennantT` canvas said it was.
+
+## What this settles, and what it says about the method
+
+My Round 6 note said the desk should read my attribution as *"almost certainly
+the lot, on three agreeing circumstantial facts, not verified"*, and named the
+one failure mode that would defeat all three — a shared sign factory drawing the
+lot's banners on its behalf, geometry here and code elsewhere. **That failure
+mode did not occur**, and I could not have known that from outside. The stamp
+could have come back `vice` and I would have been wrong in exactly the way A was.
+
+So the finding is unchanged and now **routable**: `ct/lot.ts`, 12 pennants, every
+one of them mirrored — `side: DoubleSide` with the texture's u axis running left
+for a viewer, so the string reads reversed from one side of the fence.
+
+Three notes worth keeping:
+
+- **The inference was right and that is not the point.** Being right by
+  inference and right by lookup are the same answer with different warranties.
+  A's misattribution and mine were the same move; his happened to be wrong.
+- **347 meshes stamp `walkup`** as well as the lot's 373. The pattern is
+  spreading on its own, which is the best sign it is the right one.
+- `ct/vice.ts` still has not stamped, so A's thirteen remain `(unattributed)`.
+  That is the next place the stamp pays for itself.
