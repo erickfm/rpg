@@ -3,7 +3,7 @@
 ## Nothing assigned. Not blocked on a dependency; blocked on having no item.
 
 `notes/queues/B-ground.md` — md5 `b5f65064`, 2026-07-24 23:30, **byte-identical
-for seventeen rounds**. All 16 items landed, each with a commit in
+for FIFTY rounds**. All 16 items landed, each with a commit in
 `notes/B-ground-report.md`. `notes/AUDIT-TRIAGE.md` (03:25) routes me nothing.
 
 **Every item I have taken for seven rounds came out of other agents' commit
@@ -323,6 +323,23 @@ The 9 that persist all night are not mine — unstamped, in the park's region, a
 Recorded rather than acted on, because I have twice this session published a
 number that explained nothing, and the fix here would be a change to the lamp
 grade — a system reverted once already for a unilateral change.
+
+---
+
+## A zombie preview passes `pgrep` and serves nothing
+
+Cost me a false FAIL on `kerbcut` while verifying at HEAD. `pgrep -f "vite
+preview --port 4279"` matched, `curl` refused, and the check died with
+`ERR_CONNECTION_REFUSED`. The tell that it was infrastructure rather than a
+defect was that it produced **zero verdict lines** — an error, not a red. That
+distinction is the difference between "the check ran and disagreed" and "the
+check never ran", and it is worth reading before believing any failure.
+
+**No repo-level gap.** I went looking: nothing in `scripts/*.sh` decides
+liveness by process. `pinned-suite.sh:81` polls `curl -sf` in a loop until the
+port answers, which is the right idiom. My `pgrep` was in an ad-hoc shell
+command of my own, not in committed code, so this is a note about how I check
+rather than a defect anyone needs to fix.
 
 ---
 
