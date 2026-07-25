@@ -324,6 +324,20 @@ const CNR_CLEAR = 4.0;   // back along each leg from a junction return
 // plants it at (ROAD_HALF + 0.35, -6); this is the kerb line it fronts.
 const HYDRANTS: [number, number][] = [[ROAD_HALF + 0.35, -6]];
 
+//   RULE 3 — the bus stop. This is the same rule as the hydrant, not a new
+//            one: red kerb means NO PARKING, and the whole point of a bus
+//            stop is that nothing may stand in it. A bus needs the length to
+//            pull in parallel and get its door to the kerb, which is why a
+//            real stop zone is far longer than a hydrant's — an 18 m stop for
+//            a 30 ft bus is standard, and the 42 is 9.1 m (see makeBus in
+//            ct/cars.ts), so it wants roughly a bus length either side of the
+//            flag. I flagged this inconsistency in my own report twice: my
+//            own rule says red kerb marks no-parking and the one place on the
+//            block that most obviously is one had none.
+const STOP_CLEAR = 9.0;  // either side of the flag pole
+// ct/props.ts plants the 42's flag at (ROAD_HALF + 0.32, -33.5).
+const BUS_STOPS: [number, number][] = [[ROAD_HALF + 0.32, -33.5]];
+
 // grateTex is gone: the grate is geometry now, not a picture of a grate.
 // Cast iron, for the frame and the kerb-inlet surround. Flat colour plus grit
 // and one lit top row — no gradient anywhere, because the shape is carried by
@@ -508,6 +522,16 @@ export function buildGround(o: GroundOpts): Ground {
       if (d < bestD) { bestD = d; best = p.s; }
     }
     if (best >= 0) redZones.push([best - HYD_CLEAR, best + HYD_CLEAR]);
+  }
+  // the bus stop, resolved the same way — nearest point on the kerb path to
+  // the flag, then a bus length either side of it
+  for (const [sx, sz] of BUS_STOPS) {
+    let best = -1, bestD = Infinity;
+    for (const p of pts) {
+      const d = Math.hypot(p.x - sx, p.z - sz);
+      if (d < bestD) { bestD = d; best = p.s; }
+    }
+    if (best >= 0) redZones.push([best - STOP_CLEAR, best + STOP_CLEAR]);
   }
   const isRed = (s: number) => redZones.some(([a, b]) => s >= a && s <= b);
 

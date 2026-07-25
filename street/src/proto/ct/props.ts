@@ -458,13 +458,24 @@ export function buildProps(ctx: CtxBuild): Props {
   // strip is what stops the pit edge crumbling into the gutter. PIT_CLEAR is
   // that strip, and it is the same at every pit on the block.
   //
-  // A full 1 m slab of clearance does not fit and would be a worse answer than
-  // this: the walk is 1.94 m of usable width (ROAD_HALF + CH to FACE), so a
-  // 1 m band plus a 0.8 m pit leaves 14 cm at the building line. 0.50 m of
-  // kerb-side strip with a 0.6 m pit leaves 0.84 m at the building, which
-  // keeps the tree kerb-side of the walk's centre where a street tree belongs.
-  const PIT_W = 0.6, PIT_CLEAR = 0.50;
-  const PIT_X = ROAD_HALF + CHAMFER + PIT_CLEAR + PIT_W / 2;
+  // HOW MUCH clearance is not a matter of taste — it is bounded by the walking
+  // lane, and I got this wrong once already. A slab's width was asked for and
+  // provably does not fit: the walk is 1.94 m usable (ROAD_HALF + CH to FACE),
+  // so a 1 m band plus a 0.8 m pit leaves 14 cm at the building line.
+  //
+  // Worse, my first answer at 0.50 m CLOSED THE LANE. The trunk collider moves
+  // with the pit, and the lamp poles already block out to x ≈ 6.11 with the
+  // rig's 0.36 m radius while the wall bites at 6.34 — so the gap a walker
+  // gets past a lamp is 23 cm, and a tree pushed out to 5.86 blocked to 6.30
+  // and left 4 cm. `npm run bus walk` caught it; a screenshot never would.
+  //
+  // So the trunk is capped at the point where a tree blocks no further than a
+  // lamp already does, and the pit is derived from that rather than the other
+  // way round. 0.32 m — about a foot of pavement at the kerb, the same at all
+  // seven pits, and the chamfer overhang gone.
+  const PIT_X = 5.66;                        // trunk: blocks to 6.10, matching the lamps
+  const PIT_W = 0.56;
+  const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);
   const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   // Hand-tuned height exceptions. This is a hand-authored block, so a tree
@@ -1089,7 +1100,11 @@ export function buildProps(ctx: CtxBuild): Props {
   // wall bites at 6.34): the bench reaches only 5.66, so it never becomes the
   // narrowest point on the walk. The spot is the long clear run between the
   // tree at z = −29.5 and the lamp at z = −51, clear of the Whitmore door.
-  const STOP_Z = -33.5, BENCH_Z = -36.6;
+  // The bench sits 1.5 m down-street of the flag — close enough to read as
+  // one piece of furniture with it, far enough that you can stand at the pole
+  // without stepping over someone's knees. It was 3.1 m away, which is far
+  // enough to read as unrelated street furniture that happens to be nearby.
+  const STOP_Z = -33.5, BENCH_Z = -35.0;
   const metalM = new THREE.MeshBasicMaterial({ color: 0x2b3138 });
   // the bench gets its OWN instance: the lamplight registry binds a material
   // to one position, and the bench stands 3 m from the pole
@@ -1146,24 +1161,43 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillText('TWO SLICES $1.75', 48, 18);
     dither(g, 96, 22, 50);
   });
-  // A bus bench, built the way one actually is: a horizontal SEAT of slats at
-  // 0.45 m, a BACKREST rising from the seat's back edge to 0.88 m, and four
-  // legs under it. The advertisement is printed ON the backrest — it is the
-  // panel you lean against, not a billboard standing behind the seat.
+  // THE BENCH TURNED ROUND. The user, twice: "like the back of the bus is in
+  // the front? doesnt make sense".
   //
-  // The back edge is the ROAD side, because that is the way ad benches face:
-  // the sitter looks at the shopfronts and the advertiser gets the traffic.
-  const BX_BACK = ROAD_HALF + 0.10;          // outer face of the backrest
-  const BX_SEAT0 = BX_BACK + 0.07;           // seat starts where the back ends
+  // What I built was defensible and still read wrong, which is worth being
+  // honest about. Real American ad benches DO sit with their backs to the
+  // roadway — the advertiser is buying the eyes of passing traffic, not the
+  // riders' — so the ad went on the backrest facing the street and the sitter
+  // faced the shopfronts. But from the only place a player ever stands, that
+  // arrangement puts a 1.8 m board between you and the seat: you see the back
+  // of the thing first, the seat is hidden behind it, and it reads as a fence
+  // with a plank in front. Being right about street furniture does not help if
+  // the object does not read as a bench.
+  //
+  // So it faces the road now, which is also what a rider wants — you sit at a
+  // bus stop looking for the bus. That puts the backrest BEHIND the sitter on
+  // the building side, where an ad on it would face a brick wall. TONY'S PIZZA
+  // moves to the KICK PANEL, the board below the seat front, which is a real
+  // place bench ads go and is the part of a bench a passing car actually sees.
+  // Every constraint met at once, and nothing hidden behind anything.
+  //
+  // AT THE KERB and BESIDE THE POLE, both of which it was not: it was 3.1 m
+  // down the block from the flag, which is far enough to read as unrelated
+  // street furniture rather than as part of the stop.
+  const BX_FRONT = ROAD_HALF + 0.12;         // the road-side face, hard by the kerb
+  const BX_SEAT0 = BX_FRONT;
   const BX_SEAT1 = BX_SEAT0 + 0.50;          // 0.50 m of seat depth
+  const BX_BACK = BX_SEAT1;                  // backrest behind the sitter
   const SEAT_Y = sidewalkY + 0.45;
   const BACK_TOP = sidewalkY + 0.88;
   const BENCH_L = 1.8;
 
-  // backrest = the ad panel. [+x, -x, +y, -y, +z, -z]: slats face the sitter,
-  // the ad faces the roadway.
+  // backrest: slats on the sitter's side, plain on the wall side. 43 cm of it
+  // above the seat, which is what makes it a bench and not a shelf.
+  // slats on BOTH faces — a bench backrest is boards through a frame, and the
+  // wall side is the face you see walking up to it
   const back = new THREE.Mesh(new THREE.BoxGeometry(0.07, BACK_TOP - SEAT_Y, BENCH_L),
-    [flatT2(slatT), flatT2(adT), benchM, benchM, benchM, benchM]);
+    [flatT2(slatT), flatT2(slatT), benchM, benchM, benchM, benchM]);
   back.position.set(BX_BACK + 0.035, (SEAT_Y + BACK_TOP) / 2, BENCH_Z);
   scene.add(back);
   lit(back);
@@ -1176,8 +1210,15 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(slat);
     lit(slat);
   }
+  // the kick panel — the ad, facing the roadway, under the seat front where a
+  // passing car sees it and where it hides nothing
+  const kick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, BENCH_L),
+    [flatT2(adT), flatT2(adT), benchM, benchM, benchM, benchM]);
+  kick.position.set(BX_FRONT + 0.025, sidewalkY + 0.28, BENCH_Z);
+  scene.add(kick);
+  lit(kick);
   // four legs, not a solid box
-  for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.05, BX_SEAT1 - 0.05]) {
+  for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.06, BX_SEAT1 - 0.05]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), benchM);
     leg.position.set(lx, sidewalkY + 0.225, BENCH_Z + sz * 0.78);
     scene.add(leg);
@@ -1193,11 +1234,11 @@ export function buildProps(ctx: CtxBuild): Props {
   const bshadow = new THREE.Mesh(new THREE.PlaneGeometry(0.78, BENCH_L + 0.12),
     new THREE.MeshBasicMaterial({ map: benchShadowT, transparent: true, depthWrite: false }));
   bshadow.rotation.x = -Math.PI / 2;
-  bshadow.position.set(BX_BACK + 0.36, sidewalkY + 0.004, BENCH_Z);
+  bshadow.position.set(BX_FRONT + 0.30, sidewalkY + 0.004, BENCH_Z);
   scene.add(bshadow);
   // the collider stays inside the lamp-pole envelope (they block to x ≈ 6.11
   // with the rig's 0.36 m radius) so the bench never becomes the pinch point
-  obstacle({ minX: BX_BACK - 0.05, maxX: BX_SEAT1, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
+  obstacle({ minX: BX_FRONT, maxX: BX_BACK + 0.07, minZ: BENCH_Z - 0.92, maxZ: BENCH_Z + 0.92 });
 
   // ══════════════════ FLOOR TRASH ═════════════════════════════════════════
   //
@@ -1732,8 +1773,8 @@ export function buildProps(ctx: CtxBuild): Props {
   drop('milk crate', -6.74, -58.2, 0.55);
   drop('folded newspaper', 6.66, -76.0, 1.10);
   // under the bus bench, which is the one place on this street people sit
-  drop('coffee cup', 5.42, -37.2, 0.70);
-  drop('folded newspaper', 5.52, -36.0, -0.50);
+  drop('coffee cup', 5.38, -35.6, 0.70);
+  drop('folded newspaper', 5.48, -34.4, -0.50);
 
   // ── stars, on clear nights only ─────────────────────────────────────────
   //

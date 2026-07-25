@@ -36,8 +36,9 @@ if (mode === 'shots' || mode === 'all') {
   await shot('stop', 3.0, -35, 5.6, -34.5, 0, -0.10);
   await shot('stop-walk', 6.2, -30, 6.2, -40, 0.14, -0.16);   // walking up to it
   await shot('flag', 3.6, -32.0, 5.35, -33.5, 0, 0.12);
-  await shot('bench-ad', 2.6, -36.6, 5.2, -36.6, 0, -0.06);
-  await shot('bench-seat', 6.5, -34.6, 5.4, -37.2, 0.14, -0.30);
+  await shot('bench-ad', 2.4, -35.0, 5.2, -35.0, 0, -0.06);      // the ad, from the roadway
+  await shot('bench-seat', 6.6, -32.6, 5.4, -35.4, 0.14, -0.26);  // walking up to it
+  await shot('bench-sit', 6.3, -35.0, 3.0, -35.0, 0.14, -0.10);   // what a rider faces
   // ── the bus ───────────────────────────────────────────────────────────
   await shot('side', -2.0, -34, 1.4, -34, 0, 0.02, atBus(-34));
   await shot('front', -1.2, -44, 1.35, -37, 0, 0.03, atBus(-36));
@@ -89,23 +90,36 @@ if (mode === 'walk' || mode === 'all') {
   // straight through the stop on the building-side lane
   all = await hike('east walk, through the stop southbound', 6.22, -24, 0, 8, 'z') && all;
   all = await hike('east walk, through the stop northbound', 6.22, -46, Math.PI, 8, 'z') && all;
-  // The kerb-side strip: the flag pole must not pinch it. (The BENCH is
-  // solid and does occupy that strip — you walk round it on the lane above,
-  // which is the point of keeping the bench inside the lamp-pole envelope.)
-  // The kerb strip: assert it CLEARS THE POLE, not a raw distance. Walking
-  // on for long enough always ends at the bench (solid, by design, at
-  // z=-35.3) and citizens are solid too until they give way after 1.4 s — so
-  // a distance test here measures the furniture, not the pole.
-  await page.evaluate(() => window.__ct.warp(5.85, -28, 0, 0.14, 0));
-  await page.waitForTimeout(120);
-  await page.keyboard.down('w');
-  await page.waitForTimeout(4000);
-  await page.keyboard.up('w');
-  const poleEnd = (await page.evaluate(() => window.__ct.pos()))[2];
-  const clearedPole = poleEnd < -34.0;   // the flag pole stands at z=-33.5
-  console.log(`  ${clearedPole ? 'OK  ' : 'STUCK'} east walk, kerb strip past the flag pole: ` +
-    `reached z=${poleEnd.toFixed(1)} (pole at -33.5, bench stops you at -35.3)`);
-  all = clearedPole && all;
+  // WHERE IS THE NARROWEST POINT? This replaces a check that walked the
+  // kerb-side strip at a hand-picked x and asserted it got past the flag pole.
+  // That test stopped meaning anything once the furniture moved: the bench
+  // sits AT THE KERB now, by request, so it occupies that strip on purpose,
+  // and the thing that actually stopped the walker was a street tree several
+  // metres before the pole — so the test was reporting a pass or fail about
+  // the pole while measuring something else entirely.
+  //
+  // The invariant the project really has is different and worth testing
+  // directly: SOMETHING on this walk is the narrowest point, and nothing new
+  // may become narrower than the lamp poles, which have set that limit since
+  // they went in. So sweep inward from the wall and find the smallest x that
+  // walks the whole block. That number IS the lane, measured rather than
+  // assumed, and it fails loudly if any future prop encroaches on it.
+  let lane = null;
+  for (const x of [6.28, 6.22, 6.15, 6.08, 6.00]) {
+    await page.evaluate((xx) => window.__ct.warp(xx, -24, 0, 0.14, 0), x);
+    await page.waitForTimeout(120);
+    await page.keyboard.down('w');
+    await page.waitForTimeout(9000);
+    await page.keyboard.up('w');
+    const end = (await page.evaluate(() => window.__ct.pos()))[2];
+    // -45 is past the lamp at -37 and the whole stop; scraping the wall costs
+    // speed, so this is "got through", not "covered a target distance"
+    if (end < -45) lane = x;
+  }
+  const laneOK = lane !== null && lane <= 6.22;
+  console.log(`  ${laneOK ? 'OK  ' : 'STUCK'} east walk, narrowest clear lane: ` +
+    `x = ${lane === null ? 'NONE' : lane.toFixed(2)} (lamp poles cap it at 6.11)`);
+  all = laneOK && all;
   if (!all) { console.error('\nWALK FAILED — the stop blocks the lane'); process.exit(1); }
 }
 
