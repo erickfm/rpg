@@ -5,29 +5,32 @@ saying "not blocked" is worse than no file. These three were live inside it and
 are the only parts anyone else still needs. Everything else in it was my own
 working record and is in the commit history.
 
-## 1. The library forecourt patches → whoever owns `ct/civic.ts`
+## 1. The library forecourt patches → CLOSED, fixed by `ct/civic.ts`'s owner
 
-The user asked what the "large translucent quadrilateral patches" are. Full
-explanation, written to hand to them: `notes/B-forecourt-patches.md`.
+Resolved in `b0b69cb48` ("The park quality pass: the field, the bench, the
+shrubs, the forecourt"). Not with `plazaTex` — with their own texture, which is
+the right call: it is their surface and their palette.
 
-**Not a wet/night registration split.** All 26 civic ground meshes measure
-`graded: true` — every one registered, none diverged. That hypothesis is a real
-failure mode and it is not this one.
+Measured before and after:
 
-**They are untextured.** All 26 carry `map: none`, seven flat tones from 0.075 to
-0.405. The two the user is looking at are a 3.6 × 4.1 m landing and a 3.2 × 4.1 m
-flight, each a box with a materials array — which is why one object shows several
-quads at different tones with hard edges, and why they overlap in plan (y 0.155
-and 0.24, centres 0.2 m apart).
+```
+before   0 textured, 26 flat, 7 tones, two big flat slabs (3.6x4.1, 3.2x4.1)
+after   16 textured, 12 flat, 4 tones, NO flat slab over 3 m2
+```
 
-**The fix is one line and the texture already exists.** `plazaTex(minX, maxX,
-minZ, maxZ)` is exported from `ct/tex-ground.ts` beside `walkTex` and `apronTex`:
-canvas sized from the slab's real metres at the world's 32 px/m, 1:1 with no
-repeat, civic flagstone at 1.5 m units. Put it on the TOP face — index 2 of the
-materials array — of the landing and the flight. The copings, posts and planters
-are small enough that flat colour is defensible.
+The landing and the flight — the two the user was actually looking at — now carry
+a 48 px map. Looked at it from the courtyard mouth: flagstone with legible joints
+and tone variation, steps reading as steps, no flat translucent patches. **The
+user's complaint is fixed.**
 
-Confirmed still unadopted: `grep -c plazaTex src/proto/ct/civic.ts` → 0.
+**One measurement handed over, not a complaint.** Those slabs work out at
+12.4–13.8 px/m against the 32 px/m every other surface here derives from its real
+metres, and `repeat.y` differs across faces of the same box — 0.13, 0.93 and 2.73
+— so the joints do not line up face to face. On screen it reads fine, because the
+flags are large enough that the joints stay legible, which is why this is a note
+rather than a routed fix. If it ever wants tightening, `plazaTex(minX, maxX,
+minZ, maxZ)` is still exported and sizes its canvas from real metres at 32 px/m
+automatically.
 
 ## 2. `lamplight.mjs` and `parking.mjs` can exit 0 having asserted nothing
 
