@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
 
@@ -12,18 +13,47 @@ import { FACE } from './rng';
 // street it stands on, so the seam was already there; this just cuts it.
 //
 // Takes what it needs from the caller and hands back two placers. Owns no
-// state and registers nothing — street.ts still decides where these go.
+// state — street.ts still decides where these go.
+//
+// It DOES now have things you can walk into, so it also hands back the boxes
+// that stop you: `colliders`, filled as the buildings are placed. `obstacle`
+// is optional and registers them as they are made if the caller has a
+// registry to hand; if it does not, the same boxes come back in the return
+// value. See the courtyard note in placeLibrary for why this appeared.
 export interface BldSpec {
   nm: string; col: string; w: number; brick: string; floors: number;
   res?: boolean; kind?: 'library' | 'church'; front?: 'burger' | 'pawn' | 'tax';
 }
 
+/** The library forecourt, in world coordinates, filled in when the library is
+ *  placed (`live` until then is false).
+ *
+ *  This is the one piece of module state in here, and it exists because the
+ *  courtyard is the first thing in `ct/civic.ts` you can walk INTO. Two facts
+ *  about it live in the entry point and nowhere else: the west wall collider
+ *  runs unbroken down the block and has to be notched for the mouth, and
+ *  `groundY` decides the floor is at KERB_H only out to x = FACE + 0.3.
+ *  Publishing the extents lets the entry point read both off ONE import
+ *  instead of every caller in between forwarding a registry down to here.
+ *  `colliders` is everything solid inside the courtyard. */
+export const COURT = {
+  live: false,
+  minX: 0, maxX: 0, minZ: 0, maxZ: 0,
+  /** the paving level — what groundY should answer inside the extents */
+  y: 0,
+  colliders: [] as AABB[],
+};
+
 export function buildCivic(o: {
   scene: THREE.Scene;
   flat: (m: THREE.Texture) => THREE.MeshBasicMaterial;
   KERB_H: number;
+  /** register a solid box, if the caller has a registry at this point */
+  obstacle?: (b: AABB) => AABB;
 }) {
   const { scene, flat, KERB_H } = o;
+  const colliders: AABB[] = COURT.colliders;
+  const solid = (b: AABB) => { colliders.push(b); o.obstacle?.(b); return b; };
   //
   // The library and the church are the two buildings on this block that are
   // NOT shops, and they must not be built out of shop parts. Everything else
@@ -108,6 +138,89 @@ export function buildCivic(o: {
   const stoneM = () => new THREE.MeshBasicMaterial({ color: 0x9c9280 });
   const slateM = () => new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
 
+  // Forecourt paving. Deliberately NOT the sidewalk: the walk is cool grey
+  // 1 m concrete slabs at 32 px/m, so the courtyard is warm stone flags,
+  // BIGGER (1.15 m), laid in courses running parallel to the facade with a
+  // border course round the edge — the change of material is what tells you
+  // you have stepped off the pavement and into somewhere.
+  //
+  // Painted at 32 px/m from the surface's REAL METRES (GOTCHAS §5), so the
+  // texels stay square and the flag grid does not stretch if the courtyard is
+  // ever resized. `wM` runs in x (street → facade), `dM` in z.
+  const PAVE = '#8e887a', PAVE_D = '#7b7568', PAVE_L = '#9d9788';
+  const pavingTex = (wM: number, dM: number) => {
+    const W = Math.round(wM * 32), H = Math.round(dM * 32);
+    return pixTex(W, H, (g) => {
+      const r = clcg(0x51d0a3);
+      // the base coat IS the joint: every flag is inset a texel into it, so
+      // the mortar line is what is left over rather than something drawn on
+      // top of the flags and fighting them
+      g.fillStyle = '#6b6559'; g.fillRect(0, 0, W, H);
+      const CH = 26, FW = 37;                       // 0.8 m courses, 1.15 m flags
+      const BORD = 16;                              // 0.5 m border course
+      for (let x = BORD, i = 0; x < W - BORD; x += CH, i++) {
+        const ch = Math.min(CH, W - BORD - x);
+        for (let z = (i % 2 ? -Math.round(FW / 2) : 0); z < H; z += FW) {
+          const k = r();
+          g.fillStyle = k > 0.78 ? PAVE_L : k < 0.26 ? PAVE_D : PAVE;
+          g.fillRect(x + 1, Math.max(0, z + 1), ch - 1, Math.min(FW - 1, H - z - 1));
+        }
+      }
+      // the border: long slabs round all four edges, laid the other way
+      g.fillStyle = PAVE_D;
+      g.fillRect(1, 1, BORD - 1, H - 2); g.fillRect(W - BORD, 1, BORD - 1, H - 2);
+      g.fillRect(1, 1, W - 2, BORD - 1); g.fillRect(1, H - BORD, W - 2, BORD - 1);
+      g.fillStyle = '#6b6559';
+      for (let z = 0; z < H; z += 51) {             // a joint every 1.6 m
+        g.fillRect(0, z, BORD, 1); g.fillRect(W - BORD, z, BORD, 1);
+      }
+      for (let x = 0; x < W; x += 51) { g.fillRect(x, 0, 1, BORD); g.fillRect(x, H - BORD, 1, BORD); }
+      // forty years of nobody sweeping it: weeds in the joints, a run of
+      // stain out from under the doors, two flags cracked across
+      g.fillStyle = '#4c5535';
+      for (let i = 0; i < 46; i++) {
+        const jz = Math.round(r() * (H / FW)) * FW;
+        g.fillRect(Math.round(BORD + r() * (W - BORD * 2)), jz + (r() < 0.5 ? 0 : -1), 1 + Math.round(r() * 2), 1);
+      }
+      g.fillStyle = 'rgba(58,48,36,0.13)';
+      for (let i = 0; i < 22; i++) {
+        g.fillRect(Math.round(r() * W * 0.4), Math.round(r() * H), 3 + Math.round(r() * 9), 2 + Math.round(r() * 5));
+      }
+      g.fillStyle = 'rgba(40,34,26,0.3)';
+      for (const [cx, cz] of [[W * 0.55, H * 0.34], [W * 0.38, H * 0.71]]) {
+        let x = Math.round(cx);
+        for (let z = Math.round(cz); z < cz + 30; z++) { g.fillRect(x, z, 1, 1); x += r() < 0.4 ? 1 : 0; }
+      }
+      dither(g, W, H, 900);
+    });
+  };
+  // A bench slat is 0.13 m — one texel at this world's density, and GOTCHAS §4
+  // is unambiguous about what happens if you put grain on a surface that
+  // thin. So the slats are FLAT COLOUR, two weathered browns alternating,
+  // and all the variety comes from the gaps between them.
+  const SLAT = [0x6a5238, 0x5e4831];
+  // Clipped box in a planter. A clipped shrub at 8 px/m IS a box, which is
+  // the one piece of luck this world's density hands you.
+  const shrubTex = () => pixTex(16, 16, (g) => {
+    const r = clcg(0x7e34c1);
+    g.fillStyle = '#3f5232'; g.fillRect(0, 0, 16, 16);
+    for (let i = 0; i < 90; i++) {
+      const k = r();
+      g.fillStyle = k > 0.62 ? '#4e6440' : k > 0.3 ? '#374a2c' : '#2b3a23';
+      g.fillRect(Math.floor(r() * 16), Math.floor(r() * 16), 1 + Math.floor(r() * 2), 1);
+    }
+  });
+  // The bin is a wire basket, not a drum — but it is 0.44 m across, so the
+  // mesh cannot be drawn as mesh (§4 again). Four bars and two hoops, each
+  // several texels wide, is the most a bin this size can carry.
+  const meshTex = () => pixTex(8, 14, (g) => {
+    g.fillStyle = '#333a2b'; g.fillRect(0, 0, 8, 14);
+    g.fillStyle = '#5c5340';
+    for (const x of [1, 3, 5]) g.fillRect(x, 2, 1, 10);
+    g.fillRect(0, 3, 8, 1); g.fillRect(0, 10, 8, 1);
+    g.fillStyle = '#2b3226'; g.fillRect(0, 0, 8, 2); g.fillRect(0, 12, 8, 2);
+  });
+
   // ── the library ─────────────────────────────────────────────────────────
   //
   // A Carnegie branch, and the brief for it is the user's own line: built by
@@ -121,9 +234,28 @@ export function buildCivic(o: {
   // It is deliberately SHORTER than its neighbours. A civic building that
   // does not reach the party walls either side of it is a real condition and
   // it reads as one: the block grew past it and left it behind.
+  //
+  // …and since 2026-07-24 it is deliberately BEHIND them too. The whole mass
+  // stands SET back from the facade line and the notch that leaves is a
+  // public forecourt — the user's ask, in his words: *"make entire library
+  // building a bit recessed so there like a courtyard public 3rd space
+  // area."* It is the same idea as the height: this building was here before
+  // the block closed up around it, and it keeps its own ground.
+  //
+  // The setback is what pays for everything else. A flight of steps could
+  // never project onto a 2 m pavement, so it used to be folded away inside
+  // the entrance recess; now it comes down into the courtyard where a civic
+  // stair belongs, with cheek walls stepping down beside it. What is left
+  // either side is deep enough to sit in, which is the whole point of the
+  // request — benches facing each other across the axis, planters at the foot
+  // of the steps, a bin, and gate piers at the mouth so the space is read as
+  // one from the street.
   const LIB_H = 13.2, BAY_H = 6.0, BAY_W = 5.0, BAY_D = 1.8;
+  const SET = 3.2;                  // how far the mass stands back from x = -FACE
+  const XF = -FACE - SET;           // the library's own facade plane
   const placeLibrary = (z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
+    const CZ0 = cz - b.w / 2, CZ1 = cz + b.w / 2;   // the courtyard's z extent
     const LW = Math.round(b.w * 8), LH = Math.round(LIB_H * 11.73);
     const pm = LH / LIB_H;
     const yOf = (m: number) => Math.round(LH - m * pm);
@@ -186,7 +318,7 @@ export function buildCivic(o: {
     const side = stoneM(), roof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const box = (w: number, h: number, cx: number, cy: number, czz: number, face: THREE.Material) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w), [face, side, roof, roof, side, side]);
-      m.position.set(-(FACE + 1.7) + cx, cy, czz);
+      m.position.set(XF - 1.7 + cx, cy, czz);
       scene.add(m);
     };
     // the mass, with the entrance bay left OUT of it
@@ -208,31 +340,222 @@ export function buildCivic(o: {
     });
     const back = new THREE.Mesh(new THREE.BoxGeometry(3.4 - BAY_D, BAY_H, BAY_W),
       [flat(doorT), side, side, side, side, side]);
-    back.position.set(-(FACE + 1.7) - BAY_D / 2, BAY_H / 2, cz);
+    back.position.set(XF - 1.7 - BAY_D / 2, BAY_H / 2, cz);
     scene.add(back);
-    // The steps live INSIDE the recess. A projecting flight would eat a
-    // sidewalk that is only WALK m wide, and this street has no setback to
-    // spend — recessing the bay is how a zero-lot civic building gets its
-    // climb, its depth and its shadow without taking the pavement.
-    const RISE = 0.17, TREAD = (BAY_D - 0.5) / 5;
-    for (let i = 0; i < 5; i++) {
-      const front = -FACE - i * TREAD;                  // this step's nosing
-      const d = Math.abs(front - (-FACE - BAY_D));
-      const st = new THREE.Mesh(new THREE.BoxGeometry(d, KERB_H + (i + 1) * RISE, BAY_W - 0.9),
-        new THREE.MeshBasicMaterial({ color: i % 2 ? 0xa89e88 : 0x9c9280 }));
-      st.position.set(front - d / 2, (KERB_H + (i + 1) * RISE) / 2, cz);
+
+    // ── the forecourt ─────────────────────────────────────────────────────
+    //
+    // Its floor is a PLANE at exactly KERB_H, not a slab: every one of its
+    // four edges is closed by something — the walk's own slab at x = -FACE,
+    // the two neighbours' flanks, the library's face — so there is no edge to
+    // show, and a plane that ABUTS the walk cannot z-fight with it the way an
+    // overlapping box would (GOTCHAS §6). The walk's west edge is x = -FACE
+    // exactly; this starts there and runs back to the new facade.
+    const pave = new THREE.Mesh(new THREE.PlaneGeometry(SET, b.w), flat(pavingTex(SET, b.w)));
+    pave.rotation.x = -Math.PI / 2;
+    pave.position.set(XF + SET / 2, KERB_H, cz);
+    scene.add(pave);
+    COURT.live = true; COURT.y = KERB_H;
+    COURT.minX = XF; COURT.maxX = -FACE; COURT.minZ = CZ0; COURT.maxZ = CZ1;
+
+    // The steps, rebuilt for the depth. Same climb as before — 5 × 0.17 to a
+    // threshold 0.85 above the walk — but the flight now runs the other way:
+    // the recess is the LANDING, and the treads come down out of it into the
+    // courtyard. Each step is a box from its own nosing back to the doors, so
+    // they nest and no two risers are ever coplanar.
+    //
+    // Nothing in this world is lit, so a tread and a riser cut from the same
+    // colour are the SAME colour, and a flight of them reads as a ramp — the
+    // first cut of this had five steps in it and you could see two. The
+    // contrast has to be painted in: every tread takes the pale stone that
+    // faces the sky, every riser the dark one that faces you.
+    const RISE = 0.17, TREAD = 0.36, N = 5;
+    const TOP = KERB_H + N * RISE;                    // the threshold
+    const XBOT = XF + N * TREAD;                      // the bottom nosing, 1.8 m out
+    const treadM = new THREE.MeshBasicMaterial({ color: 0xb4aa92 });
+    const riserM = new THREE.MeshBasicMaterial({ color: 0x877d69 });
+    const flankM = new THREE.MeshBasicMaterial({ color: 0x9c9280 });
+    for (let k = 0; k < N; k++) {                     // k = 0 is the lowest step
+      const nose = XF + (N - k) * TREAD;
+      const d = nose - (XF - BAY_D);
+      const h = KERB_H + (k + 1) * RISE;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(d, h, BAY_W - 0.9),
+        [riserM, riserM, treadM, riserM, flankM, flankM]);
+      st.position.set(nose - d / 2, h / 2, cz);
       scene.add(st);
     }
-    for (const s of [-1, 1]) {                          // cheek walls either side
-      const ck = new THREE.Mesh(new THREE.BoxGeometry(BAY_D, 1.15, 0.42), stoneM());
-      ck.position.set(-FACE - BAY_D / 2, 0.575, cz + s * (BAY_W / 2 - 0.21));
-      scene.add(ck);
+    // cheek walls, stepping down beside the flight one segment per tread
+    for (const s of [-1, 1]) {
+      for (let k = 0; k < N; k++) {
+        const x1 = XF + (N - k) * TREAD, x0 = x1 - TREAD;
+        const h = KERB_H + (k + 1) * RISE + 0.5;
+        const ck = new THREE.Mesh(new THREE.BoxGeometry(TREAD, h, 0.42), stoneM());
+        ck.position.set((x0 + x1) / 2, h / 2, cz + s * (BAY_W / 2 - 0.21));
+        scene.add(ck);
+      }
+      const ckIn = new THREE.Mesh(new THREE.BoxGeometry(BAY_D, TOP + 0.5, 0.42), stoneM());
+      ckIn.position.set(XF - BAY_D / 2, (TOP + 0.5) / 2, cz + s * (BAY_W / 2 - 0.21));
+      scene.add(ckIn);
     }
-    // The profile, all of it inside the 0.3 m the wall collider already
-    // reserves, so the full length of this sidewalk stays walkable.
+    // the flight and its cheeks are one solid block in the middle of the
+    // courtyard; you walk round it, not up it
+    solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
+
+    // ── the two party walls the setback exposes ───────────────────────────
+    //
+    // Cutting a notch out of a terrace uncovers 3.2 m of each neighbour's
+    // FLANK, and a flank in this world is a bare `endM` box — a dead flat
+    // 0x53382e slab. In the courtyard it fills half the view and it was by
+    // far the worst thing about the first cut of this.
+    //
+    // These are not the library's walls to finish, so they are not finished
+    // in the library's stone: they are common brick, sooted, with the
+    // whitewashed dado every wall in a yard gets and the ghost of a lower
+    // roof that used to lean on them. Same hand as `facadeTex` — 8 px/m
+    // across, courses every 5 px — so they read as the same block.
+    //
+    // HEIGHT IS A COUPLING. The panel has to stop below the neighbour or it
+    // stands against the sky, and it cannot ask how tall the neighbour is
+    // (BURGER BARN is not even built yet when this runs). 15.4 m clears the
+    // shortest neighbour on this run — BURGER BARN, 4 floors, 17.2 m — with
+    // 1.8 m to spare, and the top 2.5 m of the paint FADES TO `endM`'s exact
+    // brown, so where the panel stops there is no seam to see. Drop a
+    // neighbour below four floors and this needs revisiting.
+    const FLANK_H = 15.4, END_BROWN = '#53382e';
+    const partyTex = (seed: number, wash: boolean) => {
+      const W = Math.round(SET * 8), H = Math.round(FLANK_H * 11.2);
+      return pixTex(W, H, (g) => {
+        const r = clcg(seed);
+        g.fillStyle = '#6f5344'; g.fillRect(0, 0, W, H);
+        g.fillStyle = 'rgba(0,0,0,0.22)';                       // courses + perps
+        for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
+        for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+        if (wash) {                                             // flaking whitewash dado
+          const wy = Math.round(H - 2.9 * 11.2);
+          g.fillStyle = 'rgba(214,206,188,0.5)'; g.fillRect(0, wy, W, H - wy);
+          g.fillStyle = 'rgba(214,206,188,0.28)'; g.fillRect(0, wy - 4, W, 4);
+          for (let i = 0; i < 40; i++) {                        // where it has come away
+            g.fillStyle = 'rgba(111,83,68,0.55)';
+            g.fillRect(Math.floor(r() * W), wy + Math.floor(r() * (H - wy)), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 3));
+          }
+        }
+        // the ghost of a lower roof that used to abut this wall
+        const gy = Math.round(H - (wash ? 7.4 : 9.1) * 11.2);
+        g.fillStyle = 'rgba(150,128,108,0.3)'; g.fillRect(0, gy, W, H - gy);
+        g.fillStyle = 'rgba(40,30,24,0.35)'; g.fillRect(0, gy, W, 2);
+        // soot down from the top, and rain off the pipe
+        for (let i = 0; i < 26; i++) {
+          g.fillStyle = `rgba(30,24,20,${0.06 + r() * 0.1})`;
+          g.fillRect(Math.floor(r() * W), 0, 1 + Math.floor(r() * 2), Math.round(r() * H * 0.7));
+        }
+        g.fillStyle = 'rgba(74,86,58,0.22)';
+        for (let i = 0; i < 14; i++) g.fillRect(3 + Math.floor(r() * 4), Math.round(H * 0.45 + r() * H * 0.5), 2, 4 + Math.floor(r() * 10));
+        // …and the top 2.5 m fades to the flank behind it, so the panel has
+        // no visible top edge — the neighbour just carries on upward
+        const FD = Math.round(2.5 * 11.2);
+        for (let y = 0; y < FD; y++) {
+          g.fillStyle = `rgba(83,56,46,${(1 - y / FD) ** 0.7})`;
+          g.fillRect(0, y, W, 1);
+        }
+        dither(g, W, H, 260);
+      });
+    };
+    const pipeM = new THREE.MeshBasicMaterial({ color: 0x3b332c });
+    const capM = new THREE.MeshBasicMaterial({ color: 0xb2a892 });
+    for (const s of [-1, 1]) {
+      const zp = s < 0 ? CZ0 : CZ1;                             // the party line
+      const pan = new THREE.Mesh(new THREE.PlaneGeometry(SET, FLANK_H),
+        flat(partyTex(s < 0 ? 0x3ac81f : 0x9b12ee, s < 0)));
+      pan.position.set(XF + SET / 2, FLANK_H / 2, zp - s * 0.03);
+      pan.rotation.y = s < 0 ? 0 : Math.PI;
+      scene.add(pan);
+      // a cast-iron downpipe on the sooty one, hopper head and all
+      if (s > 0) {
+        const px = XF + 0.5, pz = zp - 0.14;
+        const dp = new THREE.Mesh(new THREE.BoxGeometry(0.11, 13.4, 0.11), pipeM);
+        dp.position.set(px, 6.7, pz);
+        scene.add(dp);
+        const hop = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.34, 0.22), pipeM);
+        hop.position.set(px, 13.5, pz);
+        scene.add(hop);
+        for (const by of [3.2, 7.4, 11.6]) {
+          const br = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.09, 0.2), pipeM);
+          br.position.set(px, by, pz + 0.05);
+          scene.add(br);
+        }
+      }
+      solid({ minX: XF, maxX: -FACE - 0.5, minZ: Math.min(zp, zp - s * 0.3), maxZ: Math.max(zp, zp - s * 0.3) });
+      // A gate pier where each party line meets the pavement. Two of them
+      // read the mouth as a way IN — without them the notch is just a gap,
+      // and it is the one piece of the library's own stone that comes all
+      // the way out to the street line.
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.35, 0.5), stoneM());
+      pier.position.set(-FACE - 0.25, 0.675, zp - s * 0.25);
+      scene.add(pier);
+      const pcap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.12, 0.62), capM);
+      pcap.position.set(-FACE - 0.25, 1.41, zp - s * 0.25);
+      scene.add(pcap);
+      solid({ minX: -FACE - 0.5, maxX: -FACE, minZ: Math.min(zp, zp - s * 0.5), maxZ: Math.max(zp, zp - s * 0.5) });
+    }
+
+    // Two benches, facing each other across the axis with their backs to the
+    // boundary walls — the arrangement that says "sit here" rather than "wait
+    // here". Stone ends and four timber slats, because that is what a parks
+    // department bolted down in 1960 and never replaced.
+    for (const s of [-1, 1]) {
+      const bz = (s < 0 ? CZ0 : CZ1) - s * 0.62;
+      const bx = XF + 1.55;
+      for (const ex of [-0.85, 0.85]) {
+        const end = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.44, 0.52), new THREE.MeshBasicMaterial({ color: 0x8a806c }));
+        end.position.set(bx + ex, KERB_H + 0.22, bz);
+        scene.add(end);
+      }
+      for (let i = 0; i < 3; i++) {
+        const sl = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 0.13),
+          new THREE.MeshBasicMaterial({ color: SLAT[i % 2] }));
+        sl.position.set(bx, KERB_H + 0.45, bz - 0.17 + i * 0.17);
+        scene.add(sl);
+      }
+      solid({ minX: bx - 0.95, maxX: bx + 0.95, minZ: bz - 0.28, maxZ: bz + 0.28 });
+    }
+
+    // Planters in the two corners where the cheek walls meet the flanks, and
+    // a wire bin by the north bench where the litter actually collects.
+    //
+    // They started at the FOOT of the steps, which walked beautifully and
+    // failed the only test that matters: a planter there reaches x = -7.37,
+    // the steps reach -8.40, and between them they closed the courtyard off
+    // north-to-south — with the payphone blocking the pavement at the same z,
+    // there was no way through at all. Tucked into the corners they leave the
+    // whole mouth open. GOTCHAS §8: an approach corridor is reserved space.
+    const shrubM = flat(shrubTex());
+    for (const s of [-1, 1]) {
+      const pz = cz + s * 2.9, px = XBOT - 0.45;
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.52, 0.86), stoneM());
+      pl.position.set(px, KERB_H + 0.26, pz);
+      scene.add(pl);
+      const rim = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.09, 0.96), capM);
+      rim.position.set(px, KERB_H + 0.5, pz);
+      scene.add(rim);
+      const sh = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.62, 0.78), shrubM);
+      sh.position.set(px, KERB_H + 0.83, pz);
+      scene.add(sh);
+      solid({ minX: px - 0.48, maxX: px + 0.48, minZ: pz - 0.48, maxZ: pz + 0.48 });
+    }
+    const binZ = CZ1 - 1.9, binX = XF + 0.75;
+    const bin = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.78, 0.44), flat(meshTex()));
+    bin.position.set(binX, KERB_H + 0.39, binZ);
+    scene.add(bin);
+    solid({ minX: binX - 0.25, maxX: binX + 0.25, minZ: binZ - 0.25, maxZ: binZ + 0.25 });
+    // the recessed facade itself — the wall you stop at, 0.3 m proud of the
+    // stone the same way the street wall is proud of its shopfronts
+    solid({ minX: XF - 8, maxX: XF + 0.3, minZ: CZ0, maxZ: CZ1 });
+    // The profile — doorcase, entablature, cornice, coping. It projects from
+    // the RECESSED face now, into the courtyard rather than over the
+    // pavement, and stays inside the 0.3 m the facade collider reserves.
     const proj = (w: number, h: number, d: number, y: number, dz = 0, col = 0x9c9280) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(d, h, w), new THREE.MeshBasicMaterial({ color: col }));
-      m.position.set(-FACE + d / 2 - 0.01, y, cz + dz);
+      m.position.set(XF + d / 2 - 0.01, y, cz + dz);
       scene.add(m);
     };
     const jamb = BAY_W / 2 + 0.4;
@@ -432,5 +755,6 @@ export function buildCivic(o: {
     scene.add(nt);
   };
 
-  return { placeLibrary, placeChurch };
+  // `colliders` is filled as the placers run, so read it AFTER placing.
+  return { placeLibrary, placeChurch, colliders };
 }
