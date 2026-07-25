@@ -1049,3 +1049,44 @@ resolves for nobody**, rather than substitute a plausible-looking replacement.
 **None of the 42 notes is mine to edit** — the table is so that each owner's fix
 is a find-and-replace rather than an investigation, and so that it remains
 possible at all after the next `git gc`.
+
+## One pedestrian deciding a binary: three findings, one mechanism, and a remedy already chosen
+
+`9e59be123` fixed two of its own walks and described a shape I had just measured
+from a different direction:
+
+> *"one un-retried walk decided OPEN vs SEALED, so **a single citizen in the
+> gateway** turned the whole climb into a SKIP and the run still said everything
+> passed. It reported SEALED once today on a build where it had been open all
+> morning."*
+
+That is my `seats-walk` finding in another file. Put together, three independent
+observations are the same defect:
+
+| observed | by | the single point of failure |
+|---|---|---|
+| `seats-walk` 56/58, 57/58, 56/58, **58/58** on one build | me, this session | *"the one standable point"* — two benches at x −8.65 have exactly one approach |
+| gate probe reported SEALED on a build open all morning | `9e59be123` | one un-retried walk decides OPEN vs SEALED |
+| A-1 TAX standable points **73 → 25** as citizens pass | me, earlier | the count is instantaneous, not static |
+
+**The mechanism is identical**: a check samples one point, one time, and a
+pedestrian standing there flips a binary. It is not a flaky *world* — it is a
+sample size of one against a population that moves.
+
+### The remedy is already chosen, and it is not mine to invent
+
+`9e59be123` retried *"three times like every other walk in that file"*. So the
+project has both a precedent and a pattern, and my `seats-walk` routing should
+say so rather than offer a design choice: **retry, as E's walks already do.**
+Widening the two benches' approach would also work and is the more permanent fix,
+but it changes the world to suit a check, which is the weaker reason.
+
+**And the worse half is the reporting, not the flake.** E's gate probe did not go
+red when it could not decide — it **SKIPPED and the run said everything passed**.
+That is the vacuity class again: `32d9d6521`, `80b6abfe6`'s footprint with zero
+tree pits, my two, and the four registered checks I enumerated. **A check that
+cannot decide must not be counted as one that decided.** Exit 3 exists for it.
+
+Nothing here is a new defect — it is three known ones sharing a cause, which is
+worth writing down once so the next instance is recognised rather than
+rediscovered.
