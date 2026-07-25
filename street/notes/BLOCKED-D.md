@@ -5,7 +5,13 @@ rather than stalling; this file is the ask.
 
 ---
 
-## 1. Bodega corner bay — needs FIVE EXPORTS from builder A
+## 1. ~~Bodega corner bay — needs FIVE EXPORTS from builder A~~ — RESOLVED
+
+**A shipped the exports in `a4c64a82` and the bay landed in `1d5c7515`.** It
+now uses `proud`/`reveal`/`glazed`/`mullions` and has one fascia, one opening,
+one reveal depth, one cill and one stallriser. Left below for the record.
+
+### (original ask)
 
 **What I need:** `tex-world.ts` to export the shopfront depth helpers.
 
@@ -112,3 +118,41 @@ Either way the edit lands in `shopfrontTex`, which is **A's file under a live
 mandate** - so it is A's to make once you have picked. Everything else on this
 item is already true: band 4.2 m, residential still `ENTRANCE.BAND_H = 3.2`,
 sign band 0.9 m, and the texture is well past 52 texels (2x masonry density).
+
+---
+
+## 6. A IS ASKING FOR MY FILE — please route it
+
+`notes/BLOCKED-A.md` §1 asks for *"a bounded mandate for `ct/street.ts`, or a
+decision that the current state is enough"*. A wants three things that are
+0.3–0.6 m and would genuinely read as geometry rather than paint:
+
+- an **awning** over a shopfront
+- a **projecting blade sign** at right angles to the facade
+- a **recessed doorway** you can stand in
+
+**That work is squarely mine** — it is geometry in my file, and I have built all
+three before on the bodega (awning, blade brackets, and a recessed leaf with a
+boxed reveal), so there is a pattern to follow rather than invent.
+
+A has also just published **`frontageOf(name, wMeters)`** (`b002bea9`), which
+returns the door centre, glazing span and stallriser height in metres. That is
+exactly the input this needs — the geometry can read the same authority the
+painter draws from, so the awning lands over the real glazing and the blade
+clears the real door instead of either of us restating the other's numbers.
+
+**What I need:** the item in my queue. I have not started it because it is not
+in my queue and the process says builders take work from their queue file. Say
+the word and it is a short job.
+
+---
+
+## 7. Window lights — STILL contended, and now more so
+
+Flagged before as contending with A's live mandate in `tex-world.ts`. That is
+still true and has got sharper: A's last two commits are in that file
+(`a4c64a82`, `b002bea9`) and landed within minutes. `facadeTex` was handed to
+me for this item, but starting there now is a guaranteed conflict.
+
+**What I need:** confirmation A is out of `tex-world.ts`, or the item sequenced
+after A's mandate closes.
