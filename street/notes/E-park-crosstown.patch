@@ -1,0 +1,24 @@
+diff --git a/street/src/proto/crosstown.ts b/street/src/proto/crosstown.ts
+index ab8b0569..29123af0 100644
+--- a/street/src/proto/crosstown.ts
++++ b/street/src/proto/crosstown.ts
+@@ -20,6 +20,7 @@ import { buildTraffic } from './ct/traffic';
+ import { buildSideStreet } from './ct/sidestreet';
+ import { buildBodega } from './ct/bodega';
+ import { buildStreet } from './ct/street';
++import { buildPark } from './ct/park';
+ import { COURT } from './ct/civic';
+ import { buildCrowd, type Crowd } from './ct/crowd';
+ import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
+@@ -168,6 +169,11 @@ export function makeCrosstown(): Proto {
+   const bodegaColliders = buildBodega(ctx);
+ 
+   // ── the block's furniture, and the weather over it ─────────────────────
++  // What stands IN the park. street.ts owns the site and published its
++  // extents; ct/park.ts owns the fence, the paths and the furniture. It takes
++  // ctx because its benches register through ctx.seat.
++  buildPark(ctx, street.park);
++
+   const props = buildProps(ctx);
+ 
+   // ── the parked cars ─────────────────────────────────────────────────────
