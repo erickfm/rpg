@@ -104,6 +104,38 @@ The 13 are the car lot and its 15.8 m banners — **still C's, still exiting 1**
 The rest are litter-sized planes along the main street. Six owners, six
 commands, no coordinates to look up.
 
+## Then `db76dc26` moved the ground under all of it (`5f958a70`)
+
+`props.ts` fixed **dimWorld's own test** rather than the call sites:
+`isGlass = m.transparent && !(m.alphaTest > 0)`. That is the better fix — it
+closes the fault for every author at once instead of hunting them one by one.
+Measured immediately after it landed:
+
+| | before | after |
+|---|---|---|
+| world-wide non-dimmers | 26 | **13** |
+| `alphaCut` at 23:00 | 0.670 | **0.377** |
+
+And it invalidated my own script, which went on explaining a cost that no longer
+exists. That would have made this the third detector this week reporting
+confidently on a world that had moved underneath it — this one mine, twice over.
+So the two halves are now reported apart:
+
+- **The verdict is GOTCHAS §22 alone** — `alphaTest` with `transparent`. Static,
+  no timing, no threshold. `db76dc26` fixed the *dimming* half of §22 and did
+  not touch the other half: the sorted transparent queue, where `DoubleSide`
+  geometry picks up artifacts it would never have had.
+- **The symptom is no longer a verdict.** "Never moved" cannot tell deliberate
+  from broken — `litSeen`, `wetMats` and elevation grading are all invisible
+  from outside, and a floodlit lot that stays bright at midnight is correct.
+  Reported with its numbers, not failed on, and only inside a box: world-wide it
+  is 417, which counts everything never handed to the dimmer and answers nothing.
+
+**For C, with the numbers and without a diagnosis:** the car lot box has 22
+gradable materials that never move, 13 of which break §22. I am not calling the
+22 a bug — I cannot see from outside whether that lot is lit on purpose, and it
+was finished in `373940c4`. The 13 are a documented rule violation either way.
+
 ## The thing worth remembering
 
 This is the third detector this week that was reporting confidently on something
