@@ -8,10 +8,24 @@ its way into mainline and the hash changed.
 **132 of the 138 are recoverable**: the same commit is on mainline under a new
 hash, matched by exact subject. The remaining 6 are listed at the end.
 
-> This table cannot be rebuilt after `git gc`. Recovering a dead hash requires
-> reading the old object to learn its subject, and git is already warning that
-> there are *"too many unreachable loose objects"*. Once those are pruned the
-> citations stay broken and stop being repairable.
+> **What a prune costs, stated precisely** — my first wording here was too loose.
+> This table **survives**, because it is written down. What does not survive is
+> the ability to *verify* a mapping by patch-id, and any dead citation created
+> after the table was built.
+>
+> **Verified in this repo, not assumed:**
+>
+> - `gc.pruneExpire` **unset** → git's two-week default protects anything recent,
+>   so `git gc` is the safe one.
+> - `gc.auto` unset (default 6700), and
+>   `.git/worktrees/rpg-audit/gc.log` **exists** — that file is what suppresses
+>   the automatic run, which is why the warning repeats on every commit instead
+>   of a gc happening.
+>
+> **The trap is that the warning tells you to run `git prune`**, and `git prune`
+> has no expiry protection — it takes everything unreachable, now. Deleting
+> `gc.log` to silence the warning re-arms the automatic run. Neither is urgent;
+> both are one keystroke, which is why this is written down.
 
 **The mapping is verified, not inferred.** Matching by subject alone could pair
 two different commits that happen to share a message, so I checked with
