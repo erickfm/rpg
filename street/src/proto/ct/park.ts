@@ -977,15 +977,40 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     scene.add(post);
     solid({ minX: shX + dx - 0.12, maxX: shX + dx + 0.12, minZ: shZ + dz - 0.12, maxZ: shZ + dz + 0.12 });
   }
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.18, 2.7), postM);
-  beam.position.set(shX, KERB_H + 2.6, shZ);
-  scene.add(beam);
-  for (const s2 of [-1, 1]) {                           // two roof slopes
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.12, 1.65), roofM);
-    sl.position.set(shX, KERB_H + 2.95, shZ + s2 * 0.75);
+  // THE ROOF IS PITCHED AND YOU CAN NOW SEE THAT IT IS. It was built pitched
+  // from the start — two slopes at 0.32 rad — and read as a flat slab from
+  // every angle in the park, because the wall plate under it was one solid
+  // 3.6 × 2.7 m box whose flat underside spanned the entire roof and hid both
+  // slopes behind it. The slopes' lowest point was 2.69 m and the plate's top
+  // was 2.69 m: they touched exactly, so nothing of the pitch was ever below
+  // the thing drawn beneath it. A roof you only see the bottom of is a slab.
+  //
+  // So the plate becomes a PERIMETER, four members on the post lines with the
+  // middle left open, and the slopes overhang it by 0.2 m all round. Standing
+  // under it you see two soffits rising to a ridge; standing at the gate 26 m
+  // away — which is where this thing is mostly seen from, terminating the
+  // axis — you see a triangle instead of a rectangle.
+  for (const dz of [-1.15, 1.15]) {                     // plates, along the front
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 0.16), postM);
+    pl.position.set(shX, KERB_H + 2.57, shZ + dz);
+    scene.add(pl);
+  }
+  for (const dx of [-1.6, 1.6]) {                       // …and along the ends
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 2.14), postM);
+    pl.position.set(shX + dx, KERB_H + 2.57, shZ);
+    scene.add(pl);
+  }
+  // Eaves at 2.64 m and 1.35 m of overhang each side, so the ridge lands at
+  // 2.64 + 1.35·tan 0.32 = 3.09 and each slope's centre sits halfway up it.
+  for (const s2 of [-1, 1]) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.12, 1.45), roofM);
+    sl.position.set(shX, KERB_H + 2.864, shZ + s2 * 0.675);
     sl.rotation.x = s2 * 0.32;
     scene.add(sl);
   }
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.13, 0.34), roofM);
+  ridge.position.set(shX, KERB_H + 3.09, shZ);
+  scene.add(ridge);
   for (let i = 0; i < 3; i++) {                         // the bench inside it
     const sl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 0.17), i % 2 ? woodM2 : woodM);
     sl.position.set(shX, KERB_H + 0.45, shZ - 0.85 + i * 0.19);
@@ -997,6 +1022,21 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     scene.add(end);
   }
   solid({ minX: shX - 1.5, maxX: shX + 1.5, minZ: shZ - 1.0, maxZ: shZ - 0.4 });
+  // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
+  // destination the loop exists for did not — you walk 26 m to the thing that
+  // terminates the axis and it turns out to be scenery. It was the only bench
+  // in the park built by hand rather than through `bench()`, which is exactly
+  // how it missed the registration every other one gets for free.
+  //
+  // Facing +z, out of the open side toward the park, and the approach point is
+  // 0.95 m in front of the slats — INSIDE the shelter but clear of the bench's
+  // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
+  // sits on (§8), so the corridor you press it from has to be outside the box.
+  ctx.seat({
+    x: shX, z: shZ - 0.7, yaw: Math.PI, h: 0.45,
+    approach: { x: shX, z: shZ + 0.25 },
+    label: 'sit in the shelter',
+  });
 
   // ── the trees ────────────────────────────────────────────────────────────
   //

@@ -13,9 +13,9 @@ gotcha list. Shots in `shots/E-audit/`.
 | # | finding | can a player see it? | where | evidence |
 |---|---|---|---|---|
 | 1 | **The library courtyard and the churchyard have NO light source at all.** Not dim — unlit | **Yes, and it is the exact complaint the park got.** The courtyard has benches you sit on and steps you climb; at 22:30 you cannot see the doors you are standing in front of | lamps are `ct/props.ts` (B) | `shots/E-audit/i-night-court.png`, `j-night-churchyard.png`. `nightgrade` per box returns **no `additive` class** in either — courtyard `{opaque 0.029}`, churchyard `{opaque 0.029, alphaCut 0.07}` — against the park's, which has one |
-| 2 | **The shelter's bench is not a seat.** The one destination at the far end of the park is the only bench in it you cannot sit on | **Yes.** Eleven benches on the loop take `[E]`; you walk 26 m to the thing the loop exists for and it does not | `ct/park.ts`, mine | `__ct.seats()` returns 11 bench seats, none inside the shelter |
+| 2 | ~~**The shelter's bench is not a seat.**~~ **FIXED** — `ctx.seat` registered, facing out of the open side, approach clear of the bench's own collider (§8). 58 seats now. The one destination at the far end of the park is the only bench in it you cannot sit on | **Yes.** Eleven benches on the loop take `[E]`; you walk 26 m to the thing the loop exists for and it does not | `ct/park.ts`, mine | `__ct.seats()` returns 11 bench seats, none inside the shelter |
 | 3 | **The gate lamp stands on the entry centreline**, 1 m inside the gate at x −7.9, z −83 | **Yes** — it is the first object in the gateway and you side-step it going in. It does not block: `E-park-walk` enters clean | `ct/props.ts` (B), **but the coordinate was mine** — I gave B that position without checking it against my own entry path | `shots/E-audit/c-kerb-lowangle.png` |
-| 4 | **The shelter roof reads as a slab, not a pitched roof.** Its two slopes are hidden under the 0.18 m beam drawn beneath them | **Probably** — it is 26 m from the gate and terminates the park's axis, so it is seen far more often than it is stood under | `ct/park.ts`, mine | `shots/E-audit/b-shelter-roof.png` |
+| 4 | ~~**The shelter roof reads as a slab, not a pitched roof.**~~ **FIXED** — the wall plate became a perimeter instead of a solid box, and the slopes overhang it. Its two slopes are hidden under the 0.18 m beam drawn beneath them | **Probably** — it is 26 m from the gate and terminates the park's axis, so it is seen far more often than it is stood under | `ct/park.ts`, mine | `shots/E-audit/b-shelter-roof.png` |
 
 ## Record, do not route
 
@@ -53,5 +53,40 @@ of them puts a lamp in the middle of my own gateway. I checked those positions
 against my colliders and never against the entry path I had drawn myself — the
 same class of error as the bench that landed in the gate, and I made it while
 being careful about exactly that.
+
+## Since this was written
+
+Findings **2** and **4** are done — both were mine, both were in `ct/park.ts`,
+and both turned out to be the same mistake: the shelter is the one piece of
+furniture in the park built by hand rather than through the `bench()` helper, so
+it missed the `ctx.seat` registration every other bench gets for free, and its
+roof was drawn under a slab of a wall plate that hid the pitch it already had.
+
+Findings **1** and **3** are B's file and stay routed.
+
+### One for the desk, about the harness rather than the world
+
+`seats-walk.mjs` came back **56/58** on that build, red on my two library
+courtyard benches — *"no prompt from the one standable point"*. It is not
+reproducible and I do not believe it:
+
+- the same two seats passed the same harness **57/57** this morning, on code
+  that has not changed since;
+- walked the way a player meets them — stand 2.4 m out, hold W until the bench
+  stops you, press E — **both sit**, along with three park benches and the new
+  shelter seat. You stop 0.69–0.82 m from the seat, the prompt is up, and you
+  sit and stand clear;
+- probing the same point twice in two runs gave PROMPT once and null once,
+  which is what a timing artefact looks like and not what geometry looks like.
+
+The harness teleports to a point found by `standableNear` and reads the prompt
+140 ms later. My guess is that a teleport onto the approach point lands the
+capsule mid-settle, but it is a guess — what I can state is that the reds are
+not reproducible by walking, and that the seats work. Flagging rather than
+touching: `seats-walk.mjs` is not mine.
+
+The park has also changed under this report since it was written — a re-cut loop,
+mowing stripes, and relief (see `E-park-relief.md`) — so the park half of it is
+worth re-running rather than trusted.
 
 _Builder E, 2026-07-25._
