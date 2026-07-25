@@ -13,6 +13,47 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **The car lot: deeper, and go all-in on the detail.** The user:
+      *"car lot needs to be deeper. i like your initial aesthetic but i want
+      it refined and a try hard version of it. get the typical car price signs
+      yknow?"*
+
+      **The aesthetic is approved — this is not a redraw.** They like what you
+      built. This is depth plus density of detail on top of it, which is a
+      much better position to be in than the church or the lamp glow were.
+
+      **Deeper.** Same note the park just got: 23.2 m of frontage with only
+      building depth reads as a gap in the wall rather than a place. A car lot
+      wants to run BACK — rows receding, so you see cars behind cars and the
+      back of the lot is a different space from the street edge. Coordinate
+      with D through the desk on how far back it can go; beyond the facade
+      line is ground the player has never seen, so whatever closes the far
+      side has to be real.
+
+      **The price signs — this is the request inside the request.** The
+      windshield price card IS the icon of a used car lot, and there is a
+      specific vocabulary to get right:
+      · **soaped or paint-pen numbers directly on the windshield**, big,
+        hand-drawn, slightly wonky — `$1995`, `$2495`, `$899`
+      · **starburst cards** propped inside the glass — the sunburst outline
+        with a price in the middle
+      · a few with **"AS IS"**, **"RUNS GREAT"**, **"1 OWNER"**, **"SOLD"** on
+        one
+      · prices should be **period-correct and cheap** — three and four figures
+        in 1997, and ending in 95 or 99 far more often than round numbers
+      · vary them: not every car is carded, one card has slipped down
+
+      **Try-hard, as asked.** Pile the detail on: pennant bunting in two
+      colours strung between poles and sagging between them, a floodlight on a
+      pole, an inflatable or a banner, a sandwich board at the gate, tyre
+      stacks, a hose coiled by the office, oil stains where cars have stood, a
+      mirror-polished one at the front and a rough one at the back, one car
+      with its hood up. A lot that looks TRIED reads as a business; a tidy one
+      reads as a car park.
+
+      Cars are still builder H's — ask through the desk for variants (hood up,
+      up on blocks, a convertible) rather than adding your own.
+
 - [ ] **Build the used car lot.** New file, `ct/lot.ts`, yours — the same
       relationship to `ct/street.ts` that `ct/civic.ts` and `ct/park.ts`
       already have. The user: *"turn hardware and cafe into a used car lot"*.

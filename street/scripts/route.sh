@@ -56,7 +56,12 @@ tmux send-keys -t "$SESSION:$WIN" Enter
 #    dispatch that did not take, and the desk should know now, not in an hour.
 sleep 6
 PANE=$(tmux capture-pane -p -t "$SESSION:$WIN")
-if echo "$PANE" | grep -qE '^\s*❯\s*\S'; then
+# Claude Code prints its own hints at the prompt — "Press up to edit queued
+# messages", greyed-out suggestions — and they are NOT user text. Matching them
+# produced false "did not submit" warnings on dispatches that had in fact gone
+# through, which is the mirror image of the bug this check exists to catch.
+if echo "$PANE" | grep -qE '^\s*❯\s*\S' \
+   && ! echo "$PANE" | grep -qE '^\s*❯\s*(Press up to edit|Try |Ask )'; then
   echo "WARNING: $AGENT still has text at its prompt — the dispatch may not have submitted."
 elif echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; then
   echo "dispatched: $AGENT (window $WIN) is working"
