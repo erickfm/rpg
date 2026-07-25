@@ -17,6 +17,42 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **MERIDIAN and LAUNDRY become one bank.** The user: *"make meridian and
+      laundry a bank instead"*.
+
+      They are already adjacent — the first two entries in the west run before
+      the alley, LAUNDRY 9.2 then MERIDIAN 10 — so unlike the park this needs
+      no swap. Merge them into a single **19.2 m** bank and the run total stays
+      at 51.2. Nothing to pay for out of a neighbour.
+
+      **This also settles your last unplaced roster entry.** MERIDIAN *was*
+      the corporation — the comment above it says *"blander and more modern
+      than anything either side of it, the whole point of standing it next to
+      the library"*, which is the corporation brief almost word for word. A
+      bank does that job at least as well: institutional, flat, faintly
+      corporate, and the contrast against the library next door is preserved
+      rather than lost. **Treat the "Corporation" item further down your queue
+      as resolved by this one** and take it out.
+
+      What a 1997 branch bank looks like, and it is not a shopfront:
+      · a taller, flatter ground floor than the shops either side — polished
+        stone or precast panel rather than brick and an awning
+      · deep-set windows with a bronze or dark anodised frame, blinds behind
+      · a proper entrance with a recessed door, not a glass hole in a band
+      · the name in applied metal letters with a shadow, not painted on a
+        fascia — and an ATM in the wall, which is very 1997
+      · a night depository slot, a plaque, a security camera
+
+      Read what builder A lands on the shopfront painters before you draw it —
+      A has a live mandate giving shopfronts real depth, and the bank should
+      use that vocabulary rather than inventing a third one. If A has not
+      landed when you reach this, tell the desk and I will sequence it.
+
+      The bank stands next to the LIBRARY, which is the other stone building
+      on this side. Make sure they do not read as the same institution: the
+      library is warm worn ashlar with arched openings, the bank should be
+      cooler, flatter and newer.
+
 - [ ] **Swap BARBER and THRIFT, then turn BARBER + GROCERY into a small
       park.** The user: *"swap barber for thrift, then grocery and barber turn
       those into a small park"*.
@@ -239,8 +275,9 @@ hour of work is where the conflicts live.
       overlay of lit windows on the night curve; cross-fade a few variants
       slowly. Sensible: almost none at 4am, peak 8–10pm, a few all night.
       `facadeTex` is handed to you for this. Ref: `shots/user-windowlights.png`
-- [ ] **Corporation** — the last unplaced roster entry. Blander and more modern
-      than its neighbours; the contrast against the library is the point.
+- [ ] ~~**Corporation**~~ — **RESOLVED by the bank item above.** MERIDIAN was
+      the corporation; the user has replaced it with a bank, which fills the
+      same role and keeps the contrast against the library.
 
 - [ ] **Move your `[E]` spots out of `crosstown.ts` and into your own module.**
       The entry point no longer enumerates interactions — `CtxBuild` now has
