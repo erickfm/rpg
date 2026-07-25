@@ -38,7 +38,8 @@ user anything is finished.
 | CONFIRMED | desk | world stops reloading under the player | two runs, no change |
 | CONFIRMED | D | alley grate matches the kerb inlet | frame, bars and depth visible in the user's own shot |
 | CONFIRMED | C | TODAY ONLY board removed | only a comment remains recording its removal |
-| LANDED | E | park topography + mowing stripes | present in `park.ts`, but NOBODY HAS SEEN THEM — the desk has no visual evidence and will not confirm from a grep |
+| CONFIRMED | E | park: "some way to represent a grass field" (mowing stripes) | WALKED AND SEEN, `shots/pk-field.png`, `pk-relief.png`, `pk-day-*.png` (13:00). Broad lighter/darker bands run the length of the field and read unmistakably as mown grass from both ends and from the mound. Visible by day, correctly invisible at night (`pk-night-*.png`). — auditor |
+| OPEN | E | park: "topographical changes" | MEASURED, NOT CONFIRMED. groundAt on a 0.5 m grid, 3717 samples over the whole site: range **0.365 m** (0.140 → 0.505), peak at (−24, −84.5). But the median IS 0.140 and **85.2% of the park is flat at 0.14 m**; p90 is 0.219. Crossing the middle at z −83 a walker meets 0.14 → 0.40 → 0.46 → 0.31 → 0.14, so it is FELT underfoot. It is not SEEN: in `pk-relief.png` (stood west of the crest, eye level, looking along the rise) and `pk-field.png` (full length of the field) the far railing, benches and boundary are visible across the entire width with nothing occluded behind a crest, and the horizon reads flat. The desk's test is whether a player STANDING IN THE PARK SEES rising ground; they do not. — auditor |
 | OPEN | C | cars on the left row face backwards | reported TWICE |
 | OPEN | C | cars clipping into each other | reported TWICE |
 | OPEN | C | chairs outside the office face the wall | |
