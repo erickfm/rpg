@@ -630,9 +630,40 @@ export function buildProps(ctx: CtxBuild): Props {
   // lamp already does, and the pit is derived from that rather than the other
   // way round. 0.32 m — about a foot of pavement at the kerb, the same at all
   // seven pits, and the chamfer overhang gone.
-  const PIT_X = 5.66;                        // trunk: blocks to 6.10, matching the lamps
+  // MOVED IN AGAIN, to 5.46, and this one is a TRADE rather than a free win —
+  // the audit that asked for it did not know this constant carries a second
+  // user request.
+  //
+  // The finding: the tightest squeeze in the world was 0.90 m of walk on the
+  // west side at z -71.4, free span -6.64 … -5.74, and the auditor ranks it as
+  // FELT rather than seen, which is worse. It is labelled a "sign/meter post"
+  // there; measured, it is this tree's trunk collider — 0.16 x 0.24 at x ±5.66,
+  // which is exactly what the loop below builds. The label is wrong, the
+  // collider is right.
+  //
+  // At 5.46 the trunk blocks to 5.54 and the building-side lane becomes 1.10 m,
+  // the number the audit predicted, matching the lamps at 5.55.
+  //
+  // WHAT IT COSTS. PIT_CLEAR was 0.32 m because the user asked for "a bit of
+  // clearence on the curb side" and disliked how close the tree BASES sat to
+  // the edge. Moving the trunk in takes that strip down. Two mitigations and
+  // one honest admission:
+  //   · the TRUNK's own kerb-side face lands at 5.38 — 0.32 m off the walk
+  //     edge, which is precisely where the PIT edge sits today. The thing the
+  //     user was actually looking at, the base against the kerb, keeps the
+  //     clearance it was given.
+  //   · the PIT stays where it is. Only the trunk moves. A tree is not planted
+  //     dead-centre in its well on a narrow footway — it sits toward the kerb,
+  //     which is both what happens and what keeps the visible strip intact.
+  //
+  // My own footprint check caught the first attempt at this: I narrowed the pit
+  // to 0.44 and moved it with the trunk, and the strip fell to 0.178 m against
+  // an assertion of 0.20. The right answer was not to lower the assertion — it
+  // encodes a user request — but to stop moving the two things together.
+  const TRUNK_X = 5.46;                      // blocks to 5.54, as the lamps do
+  const PIT_X = 5.56;                        // the well: 0.22 m strip, 0.10 m of dirt kerb-side of the trunk
   const PIT_W = 0.56;
-  const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);
+  const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);   // 0.28 m of walk at the kerb
   const pitGeo = new THREE.PlaneGeometry(PIT_W, 1.0);
   const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
   // Hand-tuned height exceptions. This is a hand-authored block, so a tree
@@ -661,7 +692,8 @@ export function buildProps(ctx: CtxBuild): Props {
   let treeIdx = 0;
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
-    const tx = s * PIT_X;                          // inboard, with PIT_CLEAR of walk at the kerb
+    const tx = s * TRUNK_X;                        // the trunk, inboard of the lane
+    const px = s * PIT_X;                          // the well it stands in, which does not move
     const pz2 = Math.round(z - 0.5) + 0.5 + (TREE_SHIFT[treeIdx] ?? 0); // snapped to the 1 m slab grid
     // rnd() is consumed for EVERY tree regardless, so trimming one does not
     // shift the seeded stream and change the others.
@@ -676,7 +708,7 @@ export function buildProps(ctx: CtxBuild): Props {
     // failed first.
     pit.userData.groundProp = 'tree pit';
     pit.rotation.x = -Math.PI / 2;
-    pit.position.set(tx, sidewalkY + 0.006, pz2);
+    pit.position.set(px, sidewalkY + 0.006, pz2);
     scene.add(pit);
     obstacle({ minX: tx - 0.08, maxX: tx + 0.08, minZ: pz2 - 0.12, maxZ: pz2 + 0.12 });
     treeIdx++;
