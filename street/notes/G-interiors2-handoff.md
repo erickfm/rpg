@@ -74,6 +74,32 @@ said otherwise until `df02aeb6`. And a 5 m door is rejected outright, so the sui
 goes green for a reason unconnected to the question. **A mutation that does not
 build is not a test.**
 
+### The jumped clock does not affect my numbers — re-measured after `3d71b035`
+
+D found a jumped clock gives a night **7.4% brighter** than the one a player
+walks into, because the wall-splash sheets only arm if the clock passes through
+20:00, and said it affects everyone re-measuring night numbers this round. Every
+figure I have published — the 3.12 spill total, the 0.58/0.5/0.34/0.42/0.7/0.58
+set — came off a jumped clock, so they needed re-taking rather than defending.
+
+```
+JUMPED  13 → 23                 night 1   total 3.12
+STEPPED 13 → 18 → 20 → 23       night 1   total 3.12
+JUMPED  13 → 0  (wet night)     night 1   total 3.12
+STEPPED 13 → 18 → 20 → 23 → 0   night 1   total 3.12
+```
+
+**Identical to three decimals, all four.** So the numbers in these notes describe
+the night the player reaches, and `G-vice-walk` does not need a stepped clock.
+
+The reason is worth keeping, because it is an argument for the change rather than
+luck: since `5d2c5c9`-era this chain reads the **published** `nightFactor`, a
+scalar props recomputes from absolute time every frame. A published number has no
+history. The heuristic it replaced read `scene.background`, which is exactly the
+kind of state that can carry one — the same class of path-dependence D found in
+the splash sheets. **Asking instead of inferring bought robustness I was not
+aiming at.**
+
 ### Checked and clean, so nobody re-checks it
 
 **The side-street terrace junctions**, prompted by `1337cba1` going after a seam
