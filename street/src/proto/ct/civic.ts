@@ -430,41 +430,40 @@ export function buildCivic(o: {
     // neighbour below four floors and this needs revisiting.
     const FLANK_H = 15.4, END_BROWN = '#53382e';
     const partyTex = (seed: number, wash: boolean) => {
-      const W = Math.round(SET * 8), H = Math.round(FLANK_H * 11.2);
-      return pixTex(W, H, (g) => {
+      const flankS = masonry(SET, FLANK_H, 0);
+      const W = flankS.W, H = flankS.H, fm = flankS.m;
+      return flankS.paint((g) => {
         const r = clcg(seed);
         g.fillStyle = '#6f5344'; g.fillRect(0, 0, W, H);
-        g.fillStyle = 'rgba(0,0,0,0.22)';                       // courses + perps
-        for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-        for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
+        flankS.courses(g);                                      // courses + perps
         if (wash) {                                             // flaking whitewash dado
-          const wy = Math.round(H - 2.9 * 11.2);
+          const wy = H - fm(2.9);
           g.fillStyle = 'rgba(214,206,188,0.5)'; g.fillRect(0, wy, W, H - wy);
-          g.fillStyle = 'rgba(214,206,188,0.28)'; g.fillRect(0, wy - 4, W, 4);
+          g.fillStyle = 'rgba(214,206,188,0.28)'; g.fillRect(0, wy - fm(0.36), W, fm(0.36));
           for (let i = 0; i < 40; i++) {                        // where it has come away
             g.fillStyle = 'rgba(111,83,68,0.55)';
             g.fillRect(Math.floor(r() * W), wy + Math.floor(r() * (H - wy)), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 3));
           }
         }
         // the ghost of a lower roof that used to abut this wall
-        const gy = Math.round(H - (wash ? 7.4 : 9.1) * 11.2);
+        const gy = H - fm(wash ? 7.4 : 9.1);
         g.fillStyle = 'rgba(150,128,108,0.3)'; g.fillRect(0, gy, W, H - gy);
-        g.fillStyle = 'rgba(40,30,24,0.35)'; g.fillRect(0, gy, W, 2);
+        g.fillStyle = 'rgba(40,30,24,0.35)'; g.fillRect(0, gy, W, fm(0.18));
         // soot down from the top, and rain off the pipe
         for (let i = 0; i < 26; i++) {
           g.fillStyle = `rgba(30,24,20,${0.06 + r() * 0.1})`;
           g.fillRect(Math.floor(r() * W), 0, 1 + Math.floor(r() * 2), Math.round(r() * H * 0.7));
         }
         g.fillStyle = 'rgba(74,86,58,0.22)';
-        for (let i = 0; i < 14; i++) g.fillRect(3 + Math.floor(r() * 4), Math.round(H * 0.45 + r() * H * 0.5), 2, 4 + Math.floor(r() * 10));
+        for (let i = 0; i < 14; i++) g.fillRect(fm(0.36) + Math.floor(r() * fm(0.5)), Math.round(H * 0.45 + r() * H * 0.5), fm(0.25), fm(0.36) + Math.floor(r() * fm(0.9)));
         // …and the top 2.5 m fades to the flank behind it, so the panel has
         // no visible top edge — the neighbour just carries on upward
-        const FD = Math.round(2.5 * 11.2);
+        const FD = fm(2.5);
         for (let y = 0; y < FD; y++) {
           g.fillStyle = `rgba(83,56,46,${(1 - y / FD) ** 0.7})`;
           g.fillRect(0, y, W, 1);
         }
-        dither(g, W, H, 260);
+        dither(g, W, H, Math.round(SET * FLANK_H * 5.3));
       });
     };
     const pipeM = new THREE.MeshBasicMaterial({ color: 0x3b332c });
