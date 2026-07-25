@@ -23,6 +23,41 @@ world stops.
 
 ## Now
 
+- [ ] **The wheel arches came back worse. Fix or revert.** The user: *"what up
+      with this car and its wheels? THEY LOOK SO WEIRD"*. Ref:
+      `shots/user-wheelbad.png`.
+
+      Your arch fix overshot in two directions at once:
+
+      · **The arch is a black RECTANGLE, not an arch.** What is on the flank
+        is a flat dark horizontal bar. An arch is a CURVE — stepped coarsely
+        for this world, but curved. A rectangle reads as a painted hole or a
+        shadow smear, which is what it looks like now.
+      · **The wheel is buried.** Only the bottom sliver of tyre and hub is
+        visible; the well swallowed the rest. That is the opposite of the
+        original complaint. The tyre was clipping THROUGH the panel and now it
+        is hidden BEHIND it — both are wrong, and the target is between them:
+        **most of the wheel visible, the arch cropping only its top**, with a
+        clear gap between the tyre's top and the arch line.
+
+      Think about what the arch actually is: the body panel has a curved bite
+      taken out of it, and the wheel sits in that bite with air around it. You
+      should read the wheel as a circle. Right now you read a black bar with
+      something under it.
+
+      **The door lines in that same shot are good** — shut lines reaching the
+      window, the pillar aligned. Do not touch those; this is the arch only.
+
+      **This is attempt two on the wheels.** The project rule is two failures
+      then delete: if attempt three still reads wrong, revert to the
+      pre-arch geometry (tyre clipping and all) and say so, and the desk will
+      take it back to the user rather than letting it get worse. A clipping
+      wheel that reads as a wheel beats a well-modelled one that reads as a
+      black bar.
+
+      Judge from standing at the kerb beside a parked car, which is how the
+      user sees them — not from a three-quarter hero angle.
+
 - [ ] **A face reads as three different colours.** The user: *"whats up with
       this kids face? its multi color?"* Ref: `shots/user-kidface.png`.
 
