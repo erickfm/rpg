@@ -2442,3 +2442,40 @@ The `0.140` entry at `#323826` is still probably not a tyre. The rest, at
 arithmetic predicts, and I do not have an explanation for the gap. **That
 discrepancy is the open question**, and it belongs with the proportion decision
 rather than with me.
+
+## RESOLVED: the proud-of-flank discrepancy was my flank finder, and the tyres confirm H
+
+I left one open question — my instrument measured tyres **0.109–0.121 m proud**
+where `ct/cars.ts` predicts **0.04**, and I said the gap was unexplained and
+belonged with the proportion decision. It does not. It is mine.
+
+Measured across three cars:
+
+```
+tyre outer x   0.961  0.923  0.928  0.966  0.942  0.935  0.939  0.947  1.044  0.876
+flank half-width per car     0.981          0.826                     1.73
+```
+
+**The tyres cluster on 0.94 — exactly the outer sidewall H's arithmetic
+predicts.** The *flank* is what varies: 0.981, 0.826 and 1.73 for three cars,
+against a flank the source puts at **0.90**. The proud/inboard verdict flips
+entirely on that estimate, which is why the same fleet read as *"5 proud, 8
+inboard"* and looked like a regression.
+
+**So `arch2.mjs`'s flank detection is wrong and its tyre measurement is right** —
+and the tyre measurement is now **independent confirmation of H's numbers**
+rather than a contradiction of them: outer sidewall 0.94 predicted against
+0.923–0.966 measured, tyre top 0.663 against an arch line of 0.72.
+
+The script now carries that warning at the top of the file, because a retraction
+in a report does not repair a script — the lesson this audit opened with, and the
+second time this week I have had to apply it to my own work.
+
+### What this means for the ruling in front of the user
+
+`6de93860f` reframed H's item correctly: the reported fault is fixed and what is
+open is **taste with a cost** — a 5.7 cm crescent, or raise the beltline and move
+every silhouette. **My contribution to that decision is now a confirmation rather
+than a complication:** the tyre stands **0.04 m proud, not 0.11**, so the
+occlusion is what H's arithmetic says it is, and the crescent is the size the
+measurements say it is. Nobody needs to reopen the geometry before answering.

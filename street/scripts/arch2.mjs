@@ -1,3 +1,15 @@
+// FLANK COLUMN IS UNRELIABLE — DO NOT USE THE PROUD/INBOARD VERDICT.
+// Measured across three cars, this script's flank half-width reads 0.981, 0.826
+// and 1.73 where ct/cars.ts puts the flank at 0.90. The proud/inboard call flips
+// entirely on that estimate, which is why the same fleet reported "5 proud, 8
+// inboard" and looked like a regression.
+//
+// The TYRE column is sound and independently confirms H's arithmetic: outer x
+// measures 0.923-0.966 across eight tyres against a predicted 0.94, and every
+// tyre top reads 0.663 against an arch line of 0.72.
+//
+// So: trust the tyre numbers, ignore the flank comparison until the flank is
+// found by declaration rather than by shape.
 // Measure the arch instead of squinting at it. H's diagnosis was numeric --
 // arch top y=0.61 against a tyre top y=0.68, so 7 cm of tyre stood above the
 // arch and, being 0.04 m proud of the flank, hid the arch behind it. Height is
