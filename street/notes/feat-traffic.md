@@ -345,6 +345,103 @@ only knew ±z and was wrong the moment somebody turned the corner.
 against my base. The network builds no meshes and draws no `rnd()` at build time,
 which GOTCHAS §2 requires or every tree height and parked car downstream shifts.
 
+## Done — the second wave (faces, jitter, the frozen pair, the arch, the gap rule)
+
+Full reasoning is in each commit; this is the index and the parts worth carrying
+forward.
+
+**A face read as three colours** (`d9690d4`). The head is 10 texels across and
+carried 3 lightened + 4 true skin + 3 darkened. The file already had the rule and
+had not applied it here — the torso's own comment says *"narrow 2 px rim lighting,
+not wide bands"* on a body 14 wide, and the head is narrower and was getting 3.
+Now 1 texel each side at a third of the alpha. `scripts/faces.mjs` measures the
+cheek row on every skin tone, because these are alpha overlays and a band that is
+subtle on a mid tone is not on a dark one.
+
+**A pedestrian jittered** (`10457ab`). Two roots, one shared: **per-frame
+decisions with no memory.** The avoidance re-chose its passing side every frame
+from an ordered list, and the sprite re-rounded its heading to one of 8 sectors
+every frame. 67 travel reversals in 60 s became 1. Fixed by carrying state — a
+committed offset and sector hysteresis. Note "lower id yields" **starved the
+block** (id 0 gave way to all five others and completed no long trips); the
+tie-break alternates by pair parity instead.
+
+**Two citizens froze in the carriageway** (`fbdabde`). A *different* root, worth
+keeping separate: the sim could refuse an illegal position but never resolve one.
+Took ct/fp.ts's mechanism rather than inventing a second — minimum-translation
+escape with the citizen's own 0.28 footprint, eased not snapped, and after 1.2 s
+of getting nowhere, back to the last node it legally stood on.
+
+**The wheel arch, three passes and a revert.** Worth reading in full if you touch
+the fleet, because the ending is a proportion, not a drawing:
+
+- attempt one stepped it and produced a black bar UNDER the tyre (its steps
+  topped out at y=0.59; the tyre's top is 0.68) and buried the wheel by moving it
+  inboard — the flank is opaque, so a tyre tucked inside it is simply not there
+- reverted (`cd2e3f8`) on the user's own reasoning: a clipping wheel that reads as
+  a wheel beats a modelled one that reads as a bar
+- then the real term (`a574eb4`): the radius was a fixed **10 texels**, and a
+  texel is not a length here — the canvas is 96 wide however long the body is, so
+  the same line gave 0.94 m on a sedan and 0.63 m on the pickup, against a 0.68 m
+  tyre. Stated in metres now and converted per axis.
+- **the remaining limit is geometric:** the panel is 0.50 m tall and the tyre is
+  0.68 m, so an arch clearing the tyre needs ~85% of the panel height. It cannot
+  be drawn well until either the wheel shrinks or the beltline rises. See *For
+  the desk* below.
+
+**Cars stop their nose short, not their centre** (`b498b36`). `blockedAt()`
+reports distance along the path, and the path carries the vehicle's CENTRE — so a
+car whose centre was 2.5 m away had its bumper in you. It settled into a 1.87 m/s
+creep (= `sqrt(2·3.5·0.5)`, which is how it was found) and then ct/fp.ts's new
+depenetration pushed the player three metres down the road and the path cleared.
+**Two correct behaviours composing into a car that shoves pedestrians.** Fix is
+one term: `room = block - halfLen - STOP_GAP`.
+
+**The dangerous-gap rule** (`3b970d7`, `c60ce10`). `ct/gap.ts` holds it once and
+both parked draws use it. Three things learned: the trap MOVES with the draw (the
+0.49 m slot I measured was gone a few commits later because new modules consume
+`rnd()` first); the check has to run at the END of the build, because half the
+things a car can trap you against are registered later and some never go through
+`ctx.obstacle` at all; and **six of this world's colliders move — they are the
+citizens**, so a pedestrian passing a parked car forms a transient corridor that
+is not a defect. The probe samples twice and keeps only static boxes.
+
+**People, for everyone else** (`9c818a6`, `2f7fa68`). `notes/CITIZEN-STYLE.md`
+plus `citizenSprite(look, opts)` — a ready-to-add billboarding mesh with the
+8-angle atlas, hysteresis and standing-vs-walking wired. Four cardboard people
+came from one missing document; F, G and C can each swap a plane for one call, and
+F's `room.person()` wraps this rather than competing with it.
+
+## A pattern in my own probes, named because it cost four fixes
+
+`feet-check`, `side-walk` (twice) and `jitter` each **failed for lack of samples
+rather than for a defect**. Same shape every time: a threshold written when the
+world behaved differently, still passing until the world got BETTER. The jitter
+probe wants two citizens in a tight lane, and they meet less often now precisely
+because the graph works — they route the whole block and stop for errands instead
+of ping-ponging one lane.
+
+**Assert the invariant; report the sample count separately.** All four now
+distinguish a real failure (exit 1) from an inconclusive run (exit 2), and wait
+for coverage rather than judging on whatever one sweep found. A check that fails
+half the time is a check people learn to skip, which is worse than not having it.
+
+## Probes, and what each is for
+
+| | |
+|---|---|
+| `crowd-net.mjs [s]` | routing, crossings only, no overlap, errand variety, nobody frozen or lingering in the road |
+| `jitter.mjs [s]` | side flips, view flips, travel reversals — a motion bug a still cannot show |
+| `crowd-walk.mjs` | the politeness rules about the player, and the 2 m lane |
+| `feet-check.mjs` | the painted toe against the direction of travel, both mirror columns |
+| `feet.mjs [n]` | all 8 facing sectors of one citizen, standing and walking |
+| `faces.mjs` | the cheek row of every skin tone, hood and cap included |
+| `corner-traffic.mjs [shots]` | the junction: arcs, lean, steer, two-at-once, yielding, parked cars |
+| `side-walk.mjs` | both side-street walks, the bodega door, parked-car clearance |
+| `gaps.mjs [--all]` | corridors in the trap band; asserts on parked vehicles only |
+| `truck.mjs [shots\|fleet]` · `kerb.mjs` · `cartex.mjs` | the fleet by eye, and its painted textures |
+| `citizen-sheet.mjs` | regenerates CITIZEN-STYLE.md's contact sheet |
+
 ## For the desk
 
 1. **`crosstown.ts` is in my diff and `ownership.sh H` flags it** — for both
@@ -360,7 +457,16 @@ which GOTCHAS §2 requires or every tree height and parked car downstream shifts
 3. **Traffic density is a knob, not a decision I made.** `maxActive = 1` keeps
    the world exactly as it was, but the junction is now safe for two. If the
    user wants a busier street it is one number — with the U-turn caveat above.
-4. **`OWNERSHIP.md` needs four lines.** `ct/traffic.ts`, `ct/sidestreet.ts` and
+4. **TWO DECISIONS THAT ARE NOT MINE**, both flagged rather than assumed:
+   · **The fleet's wheel/body proportion.** A correctly-sized 0.68 m tyre against
+     a 0.50 m body panel is why the wheel arch cannot be drawn well — it needs
+     ~85% of the panel height to clear the tyre. Raising the beltline (a 1997
+     sedan's is ~1.1 m; this fleet's is 0.84, i.e. deliberately squat) or
+     shrinking the wheels fixes it and changes the whole fleet's stance.
+   · **Traffic density.** `maxActive = 1` in ct/traffic.ts is an earlier
+     deliberate choice, not a limitation — the junction is provably safe for two,
+     since the routes are disjoint. One number.
+5. **`OWNERSHIP.md` needs four lines.** `ct/traffic.ts`, `ct/sidestreet.ts` and
    `ct/crowd-net.ts` are all mine and unlisted; `ct/cars.ts` still reads `= B`
    though the queue transferred it. `ct/citizens.ts` moved to me with the feet
    item and is still marked DESK.
