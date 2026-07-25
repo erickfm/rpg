@@ -55,3 +55,36 @@ Of the four reported defects, **two are already fixed** (the OPEN neon, the
 shopfront rhythm), one is a misreading of the corner's structure, and one is a
 real but different problem from the one described. Worth the desk knowing before
 more time goes into it.
+
+
+---
+
+## The scoring, from the user's own shot: it is the CORNER paving pattern
+
+I finally found the reference — `shots/user-bodega-corner.png`, which I had been
+looking for as `user-bodegacorner.png`. What it shows is more specific than
+"scoring runs under the building":
+
+**The corner paving is scored diagonally, and its joints run into the canted bay
+at 45° to it.** The paving treats the corner as a square 90° arris — joints
+radiating across it — while the building cuts that corner off. So the two
+patterns disagree about where the corner is, and the joints run on under the bay
+rather than meeting it.
+
+That matches the measurement: no ground plane extends under the building
+(only E's civic slab, touching at the z = -86 boundary). Nothing clips. The
+joints simply do not know the bay is there.
+
+## Routed to B, because neither piece is wrong on its own
+
+- The **canted bay** is deliberate and is what the user asked for: a corner store
+  that cuts the corner and puts the door in the angled face.
+- The **corner paving** is `ct/tex-ground.ts`, B's, and a diagonally scored
+  corner is correct for a square corner.
+
+The interaction is what reads wrong. **A cut corner wants its paving cut to
+match** — joints stopped square on the bay's face, or turned to run parallel to
+it, the way a real pavement is cut around a chamfered building.
+
+I am not touching B's texture. Flagging it with the reference shot so whoever
+takes it is looking at the same picture the user was.
