@@ -57,48 +57,45 @@ walkable the moment the bound moves and nothing in `ct/park.ts` needs
 changing. Until then `scripts/E-park-walk.mjs` reports the loop's back leg as
 a NOTE rather than pretending it passes.
 
-## 2a. LAMPS — the park has none, and at night it is a void
+## 2a. LAMPS — for builder B, exact coordinates, nothing to guess
 
-`shots/user-parkbad.png` is the park at night in rain: a black rectangle
-inside brick. **There is not one lamp in it.** Everything else I have added is
-invisible after dark, so this is the single biggest thing left, and lamps are
-`ct/props.ts` — B's, and the night registry (`lit()`, the lamp-head list) is
-his too, so I have not reached in.
+The park has **zero light sources**. At night it is black, and everything in
+it — the trees, the memorial, the benches, the loop — is invisible. This is
+the biggest thing left in it and lamps are `ct/props.ts`, so they are B's.
 
-What the park wants, and it is worth doing properly because a lit path through
-a dark park is one of the best images this world could have:
+**The park has been re-cut twice, so these are measured off the CURRENT
+geometry** (`ct/park.ts`, site x −39…−7, z −98…−68; loop legs street x −8.60,
+back x −35.80, ends z −96.30 and z −69.70; path 1.5 m wide).
 
-- a run along the LOOP, not the frontage: on the field side of the path so the
-  pools fall across it. x ≈ **-9.6** (street leg) and **-34.8** (back leg),
-  z every ~9 m: **-93, -84, -75** on each, plus one at each end turn.
-- one at the **gate**, inside the piers, at x ≈ -7.9, z = -83.
-- and one over the **memorial** at (-12.8, -73.9), because that is the thing
-  the loop is for.
+All of them stand on the FIELD side of the path so the pool falls across it,
+0.45 m off the path edge. Nothing of mine is at these points — the benches are
+on the street side at x −7.43, the framing trees at x −10.95.
 
-Warm, on the same night curve as the street's, pooling the same way. If B
-would rather I placed plain posts in `ct/park.ts` and he adopted them into the
-registry, say so and I will.
+| where | x | z |
+|---|---|---|
+| street leg | **−9.80** | −93.0, −86.0, −79.0, −72.0 |
+| back leg | **−34.60** | −93.0, −86.0, −79.0, −72.0 |
+| south end leg | −33.0, −26.0, −19.0, −12.0 | **−95.10** |
+| north end leg | −33.0, −26.0, −19.0, −12.0 | **−68.50** |
+| at the gate, inside the piers | −7.90 | −83.0 |
+| over the memorial | −12.00 | −73.20 |
 
-## 2. Trees, which the item asks for and I must not build
+Warm, on the same night curve as the street's, pooling the same way, and
+registered with `lit()` so the park's own furniture takes the light. Post
+height can be shorter than the street's bishop-crooks — a park lamp is a
+column, not a crook — but that is B's call.
 
-*"trees around the edge and along the path"* — `ct/props.ts` is builder B's,
-and the seeded `rnd()` order is load-bearing (§2), so I have not reached in.
-The park needs two kinds:
+If B would rather I placed plain posts in `ct/park.ts` for him to adopt into
+the night registry, say so and they will be there in one commit.
 
-- **along the loop's street leg and its two ends**, framing the open middle —
-  the item's own description. Positions: x ≈ −8.9 (inside the street leg) at
-  z = −93, −87, −79, −73; and the corners.
-- **along the back**, x ≈ **-37.5**, every ~4 m — with the site now 32 m deep
-  the back wall is the far edge, and trees there are what stop it reading as
-  a yard wall.
-- **inside the loop's street leg**, x ≈ **-10.2**, every ~7 m, framing the
-  open middle the way the item describes.
+## 2. ~~Trees~~ — DONE, in ct/park.ts
 
-I have put ivy up all three walls in the meantime, which is the half of
-"screen the walls" that is mine, but ivy on brick is not a tree line.
-
-I have left those lines clear of my colliders and put a low hedge along the
-back in the meantime.
+Resolved by building them rather than waiting. The auditor's *"bare lawn,
+three blank brick walls"* is a wall problem, and only a canopy standing in
+front of a wall breaks it. There is a run along all three boundaries every
+~6 m plus a line framing the field, built as crossed alpha panels that do not
+turn — B still owns the STREET trees, the billboard cutouts; a park tree is
+walked under and seen from every side, so it could not be one of those.
 
 ## 3. ~~The pavement past the park is impassable~~ — RESOLVED
 

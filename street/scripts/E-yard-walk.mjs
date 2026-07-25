@@ -51,7 +51,20 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
     last = await pos();
     if (ok(last)) break;
   }
-  report(name, ok(last), say(last), tries + 1);
+  // A lane check that just says "blocked" sends you looking with a torch. On
+  // a real failure, say what is actually there — and if the answer is
+  // nothing, it was a citizen and the retries were unlucky.
+  if (!ok(last)) {
+    const near = await page.evaluate(([x, z]) => window.__ct.colliders()
+      .filter((c) => x > c.minX - 0.8 && x < c.maxX + 0.8 && z > c.minZ - 0.8 && z < c.maxZ + 0.8)
+      .map((c) => `x ${c.minX.toFixed(2)}…${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}…${c.maxZ.toFixed(2)}`),
+      [last[0], last[2]]);
+    report(name, false, say(last), tries + 1);
+    console.log(near.length ? `      what is there: ${near.join(' | ')}`
+      : '      nothing static within 0.8 m — a citizen was standing in it');
+    return last;
+  }
+  report(name, true, say(last), tries + 1);
   return last;
 };
 

@@ -642,6 +642,73 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   scene.add(capStone);
   solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
 
+  // ── the trees ────────────────────────────────────────────────────────────
+  //
+  // *"bare lawn, three blank brick walls"* — and this is what fixes the walls.
+  // Ivy softened their base; only a canopy standing in front of them breaks
+  // them, and at 32 m deep a token few reads as no trees at all. This is a
+  // RUN: every ~6 m along all three boundaries, and a second line inside the
+  // loop's street leg so the open middle is framed rather than merely empty.
+  //
+  // These are the PARK's trees and they live here, not in ct/props.ts. B owns
+  // the STREET trees — the billboard cutouts that turn to face you — and a
+  // park tree is stood in, walked under and seen from every side, so it is
+  // three crossed alpha panels that do NOT turn. A billboard would spin as
+  // you walked round it, which at this size is the difference between a tree
+  // and a poster of a tree.
+  //
+  // No `rnd()`: the seeded stream's order is load-bearing (GOTCHAS §2) and
+  // every tree height in the world hangs off it. These carry their own LCG.
+  const leafT = (seed: number) => pixTex(24, 24, (g) => {
+    const r = clcg(seed);
+    g.clearRect(0, 0, 24, 24);
+    for (let y = 0; y < 24; y++) {
+      for (let x = 0; x < 24; x++) {
+        const dx = (x - 12) / 12, dy = (y - 11) / 12;
+        if (Math.hypot(dx, dy * 1.15) > 0.92 + (r() - 0.5) * 0.3) continue;
+        const k = r(), edge = Math.hypot(dx, dy * 1.15) > 0.62;
+        g.fillStyle = edge ? (k > 0.5 ? '#4a6238' : '#3d5330')
+          : (k > 0.62 ? '#3b5130' : k > 0.28 ? '#2f4326' : '#26361f');
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+  });
+  const barkM = new THREE.MeshBasicMaterial({ color: 0x4a3d2e });
+  const tree = (x: number, z: number, seed: number) => {
+    const t2 = clcg(seed);
+    const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
+    const tk = new THREE.Mesh(new THREE.BoxGeometry(0.3, trunk + 0.6, 0.3), barkM);
+    tk.position.set(x, KERB_H + (trunk + 0.6) / 2, z);
+    scene.add(tk);
+    const mat = new THREE.MeshBasicMaterial({
+      map: leafT(seed), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    });
+    for (let i = 0; i < 3; i++) {
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(spread, h - trunk), mat);
+      pl.position.set(x, KERB_H + trunk + (h - trunk) / 2, z);
+      pl.rotation.y = (i * Math.PI) / 3;
+      scene.add(pl);
+    }
+    solid({ minX: x - 0.2, maxX: x + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
+  };
+  const tsd = clcg(0x2c9f41);
+  for (let z = site.minZ + 2.2; z < site.maxZ - 2.0; z += 5.4 + tsd() * 1.4) {
+    tree(site.minX + 2.0 + tsd() * 0.7, z, 0x400 + Math.round(z * 3));   // the back wall
+  }
+  // INBOARD of the loop's end legs, not against the flank walls: the first
+  // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
+  // 1.5 m width, and the loop stopped being walkable. 1.7 m inside the path
+  // still reads as a boundary line and still breaks the wall behind it.
+  for (const zAt of [lz0 + 1.7, lz1 - 1.7]) {                            // both flanks
+    for (let x = site.minX + 5.5; x < lx1 - 1.5; x += 5.8 + tsd() * 1.6) {
+      tree(x, zAt + (zAt < gateMid ? -tsd() * 0.5 : tsd() * 0.5), 0x800 + Math.round(x * 3));
+    }
+  }
+  for (let z = lz0 + 3.0; z < lz1 - 3.0; z += 7.2 + tsd() * 2.0) {       // framing the field
+    if (Math.abs(z - gateMid) < 4.5) continue;                           // the entry stays open
+    tree(lx1 - PATH_W / 2 - 1.6, z, 0xC00 + Math.round(z * 3));
+  }
+
   // ── signs of use ─────────────────────────────────────────────────────────
   //
   // *"come at this with some more life and energy"* — and life in a park like
