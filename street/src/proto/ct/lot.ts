@@ -38,37 +38,34 @@ import { makeCar, type CarKind } from './cars';
 //   · SEATS ARE BUILDER F's. Nothing here implements sitting.
 //   · THE ROSTER IS BUILDER D's. This module never decides its own z.
 //
-// THE BLANKET COLLIDER. The lot must be walk-into-able, and the entry point
-// hand-writes the east side of the street as one collider spanning the whole
-// block (`crosstown.ts`, "right wall", x FACE-0.3 → FACE+8). That box runs
-// straight across this lot's mouth, so the lot is unenterable until it is
-// NOTCHED for the gate — exactly what the library courtyard needed, and the
-// reason ct/civic.ts publishes COURT. `LOT` below publishes the same facts so
-// the notch can be read off one import instead of copied by hand.
+// WHAT THIS FILE DOES NOT BUILD. ct/street.ts's `openSite` owns the SITE —
+// the ground, the neighbours' newly exposed party walls, the rear elevation,
+// and a low boundary wall along the street with its middle left open. All of
+// that, and every collider for it, is D's and already there. This file builds
+// only what makes the site a CAR LOT, and takes the site as a parameter.
+//
+// That split is not bookkeeping. The first version of this module laid its
+// own asphalt at KERB_H, which is exactly coplanar with the site's ground —
+// two coplanar tops z-fight (GOTCHAS §6) — and drew its own fence and its own
+// perimeter colliders on top of D's. Everything below either sits ABOVE the
+// site (the chain-link rides on the low wall, the way a real lot does it) or
+// stands ON it (the stock, the office, the signs).
 
-/** The lot's extents in world coordinates, filled in when it is placed
- *  (`live` is false until then), plus everything solid inside it.
- *
- *  Published for the same reason `COURT` is: the caller has to notch the
- *  block-long east collider for the gate, and that is the only way to know
- *  where without duplicating the numbers. */
-export const LOT = {
-  live: false,
-  /** the street line and the back fence */
-  x0: 0, x1: 0,
-  /** north and south ends of the frontage; z0 > z1 */
-  z0: 0, z1: 0,
-  /** the gate mouth, in z — the span the east collider must be notched for */
-  gate0: 0, gate1: 0,
-  colliders: [] as AABB[],
-};
+/** The open site this fills, as ct/street.ts's `openSite` hands it back.
+ *  Declared structurally rather than imported because `Site` is local to
+ *  buildStreet — same shape, so it matches by structure. */
+export interface LotSite {
+  minX: number; maxX: number; minZ: number; maxZ: number; y: number;
+}
 
-/** How far back from the street line the lot runs. Shallower than it would be
- *  in life: this world is a stage and there is nothing behind the frontage to
- *  see, so the back fence closes the view at a believable distance. */
-const DEPTH = 9.0;
-/** the gate, measured from the north end of the frontage */
-const GATE_FROM_N = 2.6, GATE_W = 4.2;
+/** Everything this module makes solid — the office, the sign poles and the
+ *  stock. The site's own boundary and back are D's and already registered. */
+export const LOT = { live: false, colliders: [] as AABB[] };
+
+/** `openSite` leaves the middle of the street edge open as the gate, as a
+ *  fraction of the frontage taken off each end. Must match the `gate` it is
+ *  called with, or the chain-link crosses the mouth. */
+const SITE_GATE = 0.3;
 
 export function buildLot(o: {
   scene: THREE.Scene;
@@ -232,89 +229,85 @@ export function buildLot(o: {
 
   let placed = false;
 
-  /** Put the lot on the block. `zN` and `zS` are the real frontage, north end
-   *  first, and come from the roster — never from this file. */
-  const placeLot = (zN: number, zS: number) => {
-    if (placed) return;                    // one lot; the roster decides where
+  /** Fill an open site with a car lot. The site comes from ct/street.ts's
+   *  `openSite`; this module never decides where it is or how big it is. */
+  const placeLot = (site: LotSite) => {
+    if (placed) return;
     placed = true;
-    const X0 = FACE, X1 = FACE + DEPTH;
-    const Y = KERB_H;                       // flush with the walk, so you can step in
-    const gz0 = zN - GATE_FROM_N, gz1 = gz0 - GATE_W;
-    Object.assign(LOT, { live: true, x0: X0, x1: X1, z0: zN, z1: zS, gate0: gz0, gate1: gz1 });
+    LOT.live = true;
+    const X0 = site.minX, X1 = site.maxX;          // street edge, back
+    const zS = site.minZ, zN = site.maxZ;          // south and north ends
+    const Y = site.y;
     const span = zN - zS;
 
-    // the pad. Texels stay square by deriving repeat from real metres, which
-    // is the rule tex-ground exists to enforce.
-    const padTex = padT.clone();
-    padTex.wrapS = padTex.wrapT = THREE.RepeatWrapping;
-    padTex.repeat.set(DEPTH / 4.0, span / 4.0);
-    padTex.needsUpdate = true;
-    const pad = new THREE.Mesh(new THREE.PlaneGeometry(DEPTH, span), wet(flat(padTex)));
-    pad.rotation.x = -Math.PI / 2;
-    pad.position.set((X0 + X1) / 2, Y, (zN + zS) / 2);
-    scene.add(pad);
-
-    // faded bay lines, angled with the stock. Painted ON, not modelled, and
-    // sitting a hair above the pad so two coplanar faces never fight.
-    const bayM = new THREE.MeshBasicMaterial({ color: 0xb8b09a, transparent: true, opacity: 0.30 });
-    for (let i = 0; i < 7; i++) {
-      const bz = zN - 4.2 - i * 2.6;
+    // ── the two things the site does not have ────────────────────────────
+    // Oil, and faded bays. The site's ground is a clean surface because it
+    // serves the park too; what makes it a LOT is twenty years of cars
+    // standing in the same places. Decals a few mm above it, never coplanar.
+    const oilT = pixTex(32, 32, (g) => {
+      g.clearRect(0, 0, 32, 32);
+      g.fillStyle = 'rgba(12,12,14,0.34)';
+      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+        const dx = (x - 16) / 15, dy = (y - 16) / 12;
+        if (dx * dx + dy * dy <= 1 && ((x * 7 + y * 13) % 11) > 2) g.fillRect(x, y, 1, 1);
+      }
+      g.fillStyle = 'rgba(8,8,10,0.30)';
+      for (let i = 0; i < 14; i++) g.fillRect(10 + (i * 5) % 13, 11 + (i * 7) % 11, 2, 2);
+    });
+    const oilM = new THREE.MeshBasicMaterial({ map: oilT, transparent: true, depthWrite: false });
+    const bayM = new THREE.MeshBasicMaterial({ color: 0xb8b09a, transparent: true, opacity: 0.26 });
+    for (let i = 0; i < 8; i++) {
+      const bz = zN - 3.6 - i * 2.6;
       if (bz < zS + 1.6) break;
-      const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 4.4), bayM);
+      const bay = new THREE.Mesh(new THREE.PlaneGeometry(0.09, 4.2), bayM);
       bay.rotation.x = -Math.PI / 2;
-      bay.rotation.z = Math.PI / 2 - 0.5;           // same angle as the stock
-      bay.position.set(X0 + 3.4, Y + 0.006, bz);
+      bay.rotation.z = Math.PI / 2 - 0.5;           // the angle the stock parks at
+      bay.position.set(X0 + 3.2, Y + 0.006, bz);
       scene.add(bay);
+      if (i % 2 === 0) {
+        const oil = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.1), oilM);
+        oil.rotation.x = -Math.PI / 2;
+        oil.position.set(X0 + 3.0, Y + 0.004, bz - 0.5);
+        scene.add(oil);
+      }
     }
 
-    // ── the fence ────────────────────────────────────────────────────────
-    // The street run is LOW and the sides and back are tall, which is the
-    // whole logic of a lot: the frontage exists to show the stock, so fencing
-    // it to head height would hide the only thing the business has to say. A
-    // 2 m mesh along here buried every car behind a grey haze. The tall runs
-    // are the ones nobody is meant to get over.
-    const FH_STREET = 1.15, FH_BACK = 2.0;
-    const fencePost = (x: number, z: number, h: number) => {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.07, h + 0.06, 0.07), postM);
-      p.position.set(x, Y + (h + 0.06) / 2, z);
-      scene.add(p);
-    };
-    // a run of mesh between two points, with its top rail and its posts
-    const fenceRun = (xa: number, za: number, xb: number, zb: number, h: number) => {
-      const len = Math.hypot(xb - xa, zb - za);
-      if (len < 0.05) return;
+    // ── chain-link, ON the site's low wall ───────────────────────────────
+    // A concrete kerb-wall with mesh above it is how a lot really closes its
+    // frontage, so this adds only the half the site does not have. It stops
+    // where the site's wall stops, which leaves the gate open by
+    // construction rather than by a number kept in two places.
+    const MESH_TOP = 1.75;
+    const wallTop = Y + 0.62;
+    const runs: [number, number][] = [
+      [zS + 0.3, zS + span * SITE_GATE],
+      [zN - span * SITE_GATE, zN - 0.3],
+    ];
+    for (const [rz0, rz1] of runs) {
+      const len = rz1 - rz0, h = MESH_TOP - wallTop;
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, h), linkPanel(len, h));
-      mesh.position.set((xa + xb) / 2, Y + h / 2, (za + zb) / 2);
-      mesh.rotation.y = Math.atan2(xb - xa, zb - za) + Math.PI / 2;
+      mesh.position.set(X0 + 0.18, wallTop + h / 2, (rz0 + rz1) / 2);
+      mesh.rotation.y = Math.PI / 2;
       scene.add(mesh);
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(len, 0.05, 0.05), postM);
-      rail.position.set((xa + xb) / 2, Y + h, (za + zb) / 2);
-      rail.rotation.y = mesh.rotation.y;
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, len), postM);
+      rail.position.set(X0 + 0.18, MESH_TOP, (rz0 + rz1) / 2);
       scene.add(rail);
       const n = Math.max(1, Math.round(len / 2.6));
-      for (let i = 0; i <= n; i++) fencePost(xa + (xb - xa) * (i / n), za + (zb - za) * (i / n), h);
-    };
-    const FX = X0 + 0.12;                            // the street line
-    fenceRun(FX, zN, FX, gz0, FH_STREET);            // street, north of the gate
-    fenceRun(FX, gz1, FX, zS, FH_STREET);            // street, south of it
-    fenceRun(FX, zN, X1, zN, FH_BACK);               // north side
-    fenceRun(FX, zS, X1, zS, FH_BACK);               // south side
-    fenceRun(X1, zN, X1, zS, FH_BACK);               // the back
-    // the gate itself, standing open against the fence — a lot that is shut
-    // is a lot you cannot walk into
-    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(GATE_W * 0.5, FH_STREET - 0.08),
-      linkPanel(GATE_W * 0.5, FH_STREET - 0.08));
-    leaf.position.set(FX + GATE_W * 0.22, Y + (FH_STREET - 0.08) / 2, gz0 + 0.1);
-    leaf.rotation.y = Math.PI / 2 - 0.34;
-    scene.add(leaf);
-    fencePost(FX, gz0, FH_STREET); fencePost(FX, gz1, FH_STREET);
+      for (let i = 0; i <= n; i++) {
+        const pz = rz0 + len * (i / n);
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.07, MESH_TOP - Y, 0.07), postM);
+        post.position.set(X0 + 0.18, Y + (MESH_TOP - Y) / 2, pz);
+        scene.add(post);
+      }
+    }
 
     // ── bunting ──────────────────────────────────────────────────────────
-    // The flags hang from their OWN poles, well above the low fence — which
+    // The flags hang from their OWN poles, clear above everything else, which
     // is both how it is really done and the answer to "what is holding that
-    // up". Each swag is drawn as four short segments following a parabola,
-    // because the SAG is the whole read: strung level it is a painted stripe,
-    // and only the dip between poles says plastic on a string.
+    // up". Each swag is four short segments following a parabola, because the
+    // SAG is the whole read: strung level it is a painted stripe, and only the
+    // dip between poles says plastic on a string.
+    const FX = X0 + 0.18;
     const PEN_M = 1.6;                               // one tile of four flags
     const POLE_H = 3.1, SAG = 0.62;
     const buntSeg = (za: number, ya: number, zb: number, yb: number) => {
@@ -327,21 +320,21 @@ export function buildLot(o: {
         new THREE.MeshBasicMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide }));
       m.position.set(FX, (ya + yb) / 2, (za + zb) / 2);
       m.rotation.y = Math.PI / 2;
-      m.rotation.z = Math.atan2(yb - ya, zb - za);   // follow the slope of the swag
+      m.rotation.z = Math.atan2(yb - ya, zb - za);
       scene.add(m);
     };
     const BAYS = 3, SEGS = 4;
-    for (let i = 0; i <= BAYS; i++) {                 // the poles that carry it
+    for (let i = 0; i <= BAYS; i++) {
       const pz = zN - (span / BAYS) * i;
       const bp = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, POLE_H, 6), postM);
       bp.position.set(FX, Y + POLE_H / 2, pz);
       scene.add(bp);
     }
-    for (let i = 0; i < BAYS; i++) {                  // and the swags between them
+    for (let i = 0; i < BAYS; i++) {
       const a = zN - (span / BAYS) * i, b = zN - (span / BAYS) * (i + 1);
-      const yAt = (u: number) => Y + POLE_H - SAG * 4 * u * (1 - u);   // parabola, 0 at the poles
-      for (let s = 0; s < SEGS; s++) {
-        const u0 = s / SEGS, u1 = (s + 1) / SEGS;
+      const yAt = (u: number) => Y + POLE_H - SAG * 4 * u * (1 - u);
+      for (let sg = 0; sg < SEGS; sg++) {
+        const u0 = sg / SEGS, u1 = (sg + 1) / SEGS;
         buntSeg(a + (b - a) * u0, yAt(u0), a + (b - a) * u1, yAt(u1));
       }
     }
@@ -382,7 +375,7 @@ export function buildLot(o: {
     // ── the pole sign ────────────────────────────────────────────────────
     // Out at the street line by the gate, high enough to be read from down
     // the block. This is the lot's answer to the park's trees.
-    const px = X0 + 0.9, pz = gz1 - 1.0;
+    const px = X0 + 0.9, pz = zN - span * SITE_GATE - 1.1;   // just north of the mouth
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 5.4, 8), postM);
     pole.position.set(px, Y + 2.7, pz);
     scene.add(pole);
@@ -525,18 +518,11 @@ export function buildLot(o: {
       poolM.opacity = 0.62 * f.night;
     });
 
-    // ── what stops you ───────────────────────────────────────────────────
-    // The fence is solid everywhere except the gate. Thin boxes on the fence
-    // line, so the 2 m walk outside it is untouched.
-    // half-thickness kept small on purpose: the fence line is x = FACE + 0.12,
-    // so a 0.16 box reached back to 6.96 and ate 4 cm of the 2 m walk. At 0.10
-    // the whole collider sits east of the building line and the lane is whole.
-    const T = 0.10;
-    solid({ minX: FX - T, maxX: FX + T, minZ: gz0, maxZ: zN });          // street, north of gate
-    solid({ minX: FX - T, maxX: FX + T, minZ: zS, maxZ: gz1 });          // street, south of gate
-    solid({ minX: FX - T, maxX: X1 + T, minZ: zN - T, maxZ: zN + T });   // north side
-    solid({ minX: FX - T, maxX: X1 + T, minZ: zS - T, maxZ: zS + T });   // south side
-    solid({ minX: X1 - T, maxX: X1 + T, minZ: zS, maxZ: zN });           // back
+    // NOTHING here registers the perimeter. The site's low wall, its flanks
+    // and its back are ct/street.ts's and are already solid; the chain-link
+    // above the wall needs no box of its own because the wall under it
+    // already stops you. What this module makes solid is only what it put
+    // there: the office, the two poles, and the stock.
   };
 
   return { placeLot, colliders, LOT };
