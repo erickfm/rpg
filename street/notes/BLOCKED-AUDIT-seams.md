@@ -1,3 +1,9 @@
+> **UNBLOCKED, 2026-07-25.** The bench ad exists now and I have seen it: the
+> Tony's Pizza panel on the back of the bus bench at (5.2, −35), confirmed in
+> `shots/bad-ad2.png` against three of the user's own rows. This file's search
+> failed because there was nothing to find at the time, not because the sweep
+> was wrong. Kept for the record below.
+
 # BLOCKED — auditor (seams)
 
 ## The bench ad. I need its owner to say whether it exists.
