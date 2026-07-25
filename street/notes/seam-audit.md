@@ -1587,3 +1587,59 @@ the code still said 42.**
 
 When `scripts/lib/faces.mjs` lands, all of mine should use it rather than carry a
 fifth copy.
+
+---
+
+# Round 14 — the import cycle is not in anyone's import statements
+
+The `ct/doors.ts` undefined-namespace failure has now taken the world down once
+(my `BLOCKED-AUDIT-seams.md`, fixed by `84d59e04`) and cost the casino its
+declared door (`e6c08482`), growing from **one affected module to four**. So I
+mapped the cycles statically.
+
+```
+40 modules under src/proto, 139 static import edges resolved
+4 modules resolved ZERO dependencies
+no import cycles found
+```
+
+**There are no cycles in the import statements.** The graph is populated — 139
+edges — so that is a result, not a broken tool.
+
+## Where the cycle actually lives
+
+```
+modules using import.meta.glob (dependencies NOT visible in a static graph): 3
+   ct/doors
+   ct/interior
+   ct/world
+```
+
+Mainline names the four modules resolving to an undefined namespace as
+**`int-casino.ts`, `civic-doors.ts`, `interior.ts` and `world.ts`**. Three of
+those are exactly the three globbers.
+
+An **eager** `import.meta.glob('./*.ts')` makes *every sibling* a dependency of
+the globber. Any sibling that imports back into it — directly or through one
+hop — closes a loop. **Nobody wrote a circular import; the glob wrote it for
+them**, and it rewrites it every time a file is added to the directory.
+
+> **The cycle is not a mistake in any file. It is a property of globbing a
+> directory eagerly and then importing back into the globber.** That is why it
+> recurs, why it grows without anyone touching the imports, and why no static
+> tool — mine included — can see it.
+
+*(That last paragraph is inference from glob semantics plus the exact overlap
+between the globbers and the modules mainline names. I have not traced a
+specific loop edge, and the runtime evidence belongs to whoever can.)*
+
+## Why this matters more than the casino's door
+
+Every new `int-*.ts` joins `ct/interior`'s glob **automatically**. The set of
+modules inside the cycle is therefore *the set of rooms*, and it grows every time
+a builder adds one. The casino is the first to lose something real; the other
+three are quiet only because they declare nothing today.
+
+The guard I asked for in `BLOCKED-AUDIT-seams.md` — warn rather than skip
+silently — is what caught this, twice. **It should stay, and anything else
+reading a namespace out of a glob should be checked the same way.**
