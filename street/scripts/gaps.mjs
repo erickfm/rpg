@@ -88,6 +88,19 @@ const solid = await page.evaluate(() => window.__ct.colliders()
 console.log('  (moving boxes — the six citizens — are excluded; a person beside a car is not a trap)');
 traps.sort((p, q) => p.w - q.w);
 
+// A CHECK THAT CAN RETURN ZERO MUST PROVE IT CAN RETURN NON-ZERO. With no
+// colliders there are no corridors, so "no parked vehicle leaves a gap" would
+// pass having measured nothing — the vacuous pass, and the doorbell half below
+// already guards against it with a spot count while this half did not. 308
+// solid boxes at HEAD; 50 is a floor no real world falls under.
+if (solid < 50) {
+  console.error(`\nINCONCLUSIVE — only ${solid} solid boxes in the street's own range. ` +
+    'With nothing to make a corridor against, the trap-band checks below cannot fail, ' +
+    'and a pass would mean nothing.');
+  await browser.close();
+  process.exit(2);
+}
+
 console.log(`gap probe: ${solid} solid boxes, ${traps.length} in the trap band ` +
   `(${ENTERABLE}–${PASSABLE} m)`);
 // The interior belt is parked out at x > 100 and is somebody else's furniture;

@@ -97,6 +97,17 @@ const out = await page.evaluate(async () => {
 
 writeFileSync('shots/faces.png', Buffer.from(out.png.split(',')[1], 'base64'));
 console.log('faces -> shots/faces.png  (every citizen, all five painted views, head only)\n');
+// A CHECK THAT CAN RETURN ZERO MUST PROVE IT CAN RETURN NON-ZERO. Every
+// assertion here is inside this loop, over what __ct.atlases() returned. An
+// empty return runs it zero times, leaves `fails` at 0 and exits green having
+// inspected no faces at all — the vacuous pass. Six citizens at HEAD.
+if (!out.rows.length) {
+  console.error('\nINCONCLUSIVE — __ct.atlases() returned no citizens, so not one face was ' +
+    'inspected. Every check below is inside that loop, so a pass would mean nothing.');
+  await browser.close();
+  process.exit(2);
+}
+
 let fails = 0;
 for (const r of out.rows) {
   // ONE base tone across most of the face, and any rim within a few levels of
@@ -112,4 +123,7 @@ for (const r of out.rows) {
 }
 console.log(fails ? `\n${fails} face(s) still banded` : '\nevery face reads as one tone with a rim');
 await browser.close();
+// SAME GUARD, SAME REASON. Every assertion here is inside a loop over
+// __ct.atlases(); an empty return runs the loop zero times, leaves `fails` at 0
+// and exits green having inspected no faces at all. Six citizens at HEAD.
 process.exitCode = fails ? 1 : 0;
