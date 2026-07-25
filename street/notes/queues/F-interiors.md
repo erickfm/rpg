@@ -28,6 +28,46 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Interior people must use the 8-angle citizen atlas, like the street
+      does.** The user: *"i want the people inside the buildings to be as
+      detailed and quake-view like as the pedestrians on the street"*.
+
+      Right now every figure indoors is a **hand-drawn single-view plane** —
+      the diner waitress is a `PlaneGeometry` with one painted face, and the
+      casino and hotel copied that pattern from her because she was the
+      reference. So they are cardboard: walk round one and it is the same
+      picture from every angle, while the pedestrians outside turn through
+      eight views. The user has noticed the inconsistency, and it is the exact
+      thing `citizenAtlas` exists to solve.
+
+      **Put it in the kit, not in each room.** Add a `room.person({...})`
+      helper to `ct/interior.ts` that wraps `citizenAtlas` and `viewFor` and
+      handles the billboard-facing the way the street sprites do. Then every
+      room builder gets it for free and none of them re-invents a figure —
+      the same reason `ctx.seat()` and `ctx.spot()` live in shared code.
+
+      · `ct/citizens.ts` is **builder H's** now. Read it, do not edit it. If
+        you need a new `Look` option — an apron, a dealer's visor, a uniform —
+        ask the desk and H adds it.
+      · convert the diner waitress first, since she is the reference every
+        other room copied.
+      · tell the desk the helper's signature when you land it; **builder G has
+        four rooms with figures in them** and will convert theirs to it.
+      · indoor figures mostly stand still, so make sure a stationary person
+        still reads well — the atlas's idle frame, not a walk cycle frozen
+        mid-stride.
+
+- [ ] **Make the jump a tiny bit higher.** The user: *"make the jump a tiny
+      bit higher"*. `fp.ts`, which you hold the mandate for.
+
+      Emphasis on **tiny** — this is a feel adjustment, not a new movement
+      capability. Nudge the initial jump velocity, keep gravity as it is so
+      the jump does not start floating, and re-walk the two places it
+      matters: the kerb (0.14 m) and the stoop, and the apartment stairs,
+      where the floor picker has hysteresis and a higher jump can land you on
+      the wrong storey (`GOTCHAS.md` §7). Its own commit, separate from the
+      people work.
+
 - [ ] **STUCK PROTECTION — the player can be trapped with no way out. Do this
       before anything else.** The user: *"im literally stuck here. i think we
       need some sort of stuck protection or something smarter around collision
