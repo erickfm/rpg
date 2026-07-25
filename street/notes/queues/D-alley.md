@@ -17,6 +17,49 @@ hour of work is where the conflicts live.
 
 ## Now
 
+- [ ] **THE BANK FLANK — the user has now raised this twice. Do it first.**
+      *"this looks bad because the front of the bank doesnt match the side fix
+      this"*. Ref: `shots/user-bankflank2.png` (and the earlier
+      `shots/user-bankflank.png`).
+
+      Seen from this angle it is worse than a colour mismatch, and worth
+      restating precisely because the earlier brief undersold it:
+
+      · the FRONT is a pale precast panel system with a regular window grid
+      · the RETURN is **full red brick, floor to parapet, with no windows at
+        all**
+
+      So it is not that the flank is the wrong shade — it is a **different
+      building**. Two materials, two window regimes, meeting at a sharp arris
+      with nothing to reconcile them.
+
+      **What is actually right here.** A blind party wall IS correct and real
+      — buildings on a block do have windowless flanks where they expected a
+      neighbour. But a party wall has to look like one, and this does not.
+      A real exposed flank reads as either:
+      · **the same building continuing** — the front's material and its window
+        rhythm carried round the corner, which is what a corner building with
+        two public faces does; or
+      · **a genuine party wall** — plain, cheaper, with the marks of having
+        expected a neighbour: no cornice returning, a different brick to the
+        front because nobody was meant to see it, tar or paint ghosts, and
+        crucially it should NOT look freshly finished.
+
+      Pick one deliberately and make it read as a decision. The bank is a
+      civic-looking building on a corner with a park opposite; carrying the
+      front round at least the first bay, and then letting it become a party
+      wall behind that, is the strongest answer — that is exactly what real
+      banks of the period do.
+
+      Derive the flank from the same spec the front is painted from rather
+      than from the shared `endM` constant. Builder A owns `ct/tex-world.ts`
+      and has a live mandate in your file for shopfront geometry — coordinate
+      through the desk rather than both of you editing the same region.
+
+      Then walk the whole block and check every OTHER exposed return, because
+      opening up the park, the lot, the alley and the church has exposed
+      several and they will all have the same flat brown.
+
 - [ ] **Set the open-site depths. Two builders are blocked on these numbers.**
       `openSite` in your file takes `depth`, and it is `7.0` for the park and
       `8.0` for the lot. Both users of it have raised blockers waiting on you.
