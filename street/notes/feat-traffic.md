@@ -231,6 +231,120 @@ full probe afterwards rather than assuming, and both are above.
 
 ---
 
+## Done — the truck: tailgate, bed, and off the alley mouth
+
+**Commit:** `0abcbdf` · three queued items, one vehicle, one pass. Full reasoning
+is in the commit message; the short version:
+
+- **"Janky textures on the back"** was **GOTCHAS §6, not §4.** The tailgate's
+  outer face sat at exactly `z = half`, which is the body slab's rear plane —
+  1.70 m × 0.22 m of coplanar overlap fighting for the depth buffer. That is
+  also why **the tail lights read asymmetric**: they are symmetric in the
+  texture (texels 3…12 and 36…45 of 48) and always were, but a z-fight resolves
+  in patches, so one showed as a wide bar and the other as a short one. No UV
+  fault, no texture fault. §4 hygiene was applied as well — the bed faces lost
+  their dither and took `NearestFilter`, and I audited the rest of the fleet:
+  every remaining dither sits on a face 0.5 m or taller. Two faces thinner than
+  0.3 m carry no dither but do carry lettering (the bus's 0.26 m roller sign,
+  the taxi's 0.18 m roof sign) and now use `NearestFilter` too.
+- **The bed** was asked about twice, and the reason the first pass did not land
+  is structural: the slab ran solid the whole length at y 0.34…0.84 and the
+  tub's floor was **inside** it, so what you saw as the bed floor was the slab's
+  body-coloured top face, 0.13 m below the rail. Moving `FLOOR_Y` from 0.77 to
+  0.62 moved a surface nobody could see. The slab now stops behind the cab and
+  the bed is a real box: floor top 0.50 → **0.470 m inside**, liner **near-black**
+  (#16171a where it used to be the body colour × 0.6 — the same green to the
+  eye), coarse front-to-back ribs, no dither.
+- **The alley:** the truck's tail reached z = −36.8 against a mouth at −37.
+  Per the queue I moved the **constraint**, not the car: the nominal spot is
+  derived so the whole body, the full ±1.2 m draw spread and a 2.5 m sight line
+  are all clear. Worst case is now **2.50 m** and the draw keeps its spread.
+
+**Verified:** the other three car kinds and the bus are untouched — checked by
+diffing every vehicle's geometry against the base, where the only 24 changed
+lines are the two pickups. That check exists because the fingerprint **cannot**
+answer it here: rebuilding the pickup changes how many objects it creates, and
+three.js burns four `Math.random` calls per object in `generateUUID`, so 125
+textures re-grain under the seeded harness. Grain, not geometry.
+`scripts/truck.mjs [shots|fleet]` regenerates the stills.
+
+## Done — profile feet (third attempt)
+
+**Commit:** `49bb098` · `ct/citizens.ts` came to me with this item.
+
+Two separate faults. **A standing citizen had one leg** — both legs were drawn
+at `cx-2±stride`, the same x when stride is 0, and the back one was a 35%-alpha
+overlay that `alphaTest: 0.5` discards wherever it is not on top of the front
+leg, so offsetting it alone would have drawn nothing. **The shoe had no toe** —
+it spanned `cx-5…cx+6` around a leg at `cx-2…cx+2`, i.e. symmetric about the
+ankle, and a foot symmetric about the ankle cannot say which way it points. The
+eye resolves that as *backwards*, which is the user's word.
+
+The toe points **left** because that is where the view faces — the nose at
+`cx-7`, the brim at `cx-9` whose comment already read "brim points forward".
+Ankles are separated by `stride`, one texel less than the legs, so at rest they
+collapse to one shoe of the right length while the legs still read as two.
+
+**The old floating-shoes fix is not just kept but made unnecessary:** its cap
+existed because the shoes were flung 12 texels apart *while both legs were drawn
+at the same x*. With the legs splaying properly each shoe sits under its own leg
+at every stride 2–5, so there is nothing to float beside.
+
+**Checked at all eight angles, standing and walking**, because the last two
+attempts were judged on one: `scripts/feet.mjs` renders the 8 facing sectors
+(not the 5 painted columns) with `viewFor`'s mirroring applied, and measures the
+shoe off the painted pixels. `scripts/feet-check.mjs` answers what a screenshot
+cannot — whether the painted toe points the way the person actually *walks*,
+which is the product of the painted facing, `viewFor`'s column+mirror, and the
+billboard's yaw. 22 profile cases, both columns, all forward.
+
+## Done — pedestrians route over a walkable graph
+
+**Commit:** `b34e9c5` · **new:** `ct/crowd-net.ts`
+
+The sidewalk is one continuous ring around the roadway, so the graph is that
+ring, with every node derived from the constants the ground is built from. Plus
+exactly **two crossings, both at the junction**, because that is the only place
+the kerb has a ramp. Pedestrians never leave the graph, so "cross only at the
+crossing" is structural: 330 person-samples in the roadway over 100 s, every one
+on a crossing.
+
+Nodes carry a reason to stop — window, doorway, the 42's bench, a kerb to pause
+on. Trips are mostly local and mostly toward one of those, and some end in a
+double-back, which a shortest path never produces on its own.
+
+Two things I got wrong first:
+
+- **Stops were too rare (5%)** because waiting only happened at destinations,
+  and a long trip takes the best part of a minute. People pause **en route**
+  now — 14% stopped, four distinct errands.
+- **The lateral offset accumulated.** Nudging people sideways each frame to dodge
+  props, with nothing pulling them back, walked them off the kerb into the road.
+  Position is now kept *on* the edge plus a bounded offset, so straying off the
+  walk is impossible by construction.
+
+**Not walking through each other** was a non-negotiable the old sim did not even
+attempt. Candidate positions are tested against every other body as well as
+props, and if nothing is clear they stand. My first attempt paused 0.8 s then
+went through anyway — which is walking through somebody politely, and showed up
+as 0.25 m overlaps. Passing is a real lateral manoeuvre now, biased right so
+head-on meetings resolve, with a re-plan after 2.5 s so nobody wedges.
+
+**It also makes the corner work both ways.** `ct/traffic.ts` already braked for
+anybody in the road, but nothing was ever in the road — the queue's "a car
+turning through the crossing while a pedestrian is on it" was dormant code. It
+is live now, which is why `scripts/corner-traffic.mjs` gained a
+`clearJunction()` wait and why its two-car check asserts **separation** (8.4 m
+against the 3.0 m the concentric arcs predict) rather than speed: speed can no
+longer tell "yielded to the other car" from "yielded to a pedestrian".
+
+Facing follows the actual direction of travel now — it was `atan2(0, dir)`, which
+only knew ±z and was wrong the moment somebody turned the corner.
+
+**The world did not move:** textures and structure **IDENTICAL** at 422 and 1097
+against my base. The network builds no meshes and draws no `rnd()` at build time,
+which GOTCHAS §2 requires or every tree height and parked car downstream shifts.
+
 ## For the desk
 
 1. **`crosstown.ts` is in my diff and `ownership.sh H` flags it** — for both
@@ -246,11 +360,32 @@ full probe afterwards rather than assuming, and both are above.
 3. **Traffic density is a knob, not a decision I made.** `maxActive = 1` keeps
    the world exactly as it was, but the junction is now safe for two. If the
    user wants a busier street it is one number — with the U-turn caveat above.
+4. **`OWNERSHIP.md` needs four lines.** `ct/traffic.ts`, `ct/sidestreet.ts` and
+   `ct/crowd-net.ts` are all mine and unlisted; `ct/cars.ts` still reads `= B`
+   though the queue transferred it. `ct/citizens.ts` moved to me with the feet
+   item and is still marked DESK.
+5. **Two things on the side street are blocked on B, not on me** — flagged
+   rather than drive-by edited:
+   · **LAMPS.** The bishop-crook geometry is inline in `ct/props.ts` and the
+     lamplight registry `lampHeads` is private to it. A lamp built from my
+     module would be a dark post that lights nothing, which is worse than none.
+     It needs props.ts to expose a lamp factory. **The side street is still
+     unlit after dark.**
+   · **CATCH BASINS.** `ct/tex-ground.ts` puts them at the two junction low
+     points where the gutters run to. More of them means deciding where the side
+     street's pan drains, which is that module's business.
 
-## Next up (queue items 3–4, not started)
+## Queue state
 
-Extend the detail down the side street → pedestrians get more complicated
-paths.
+**Empty.** Every item in `## Now` and `## Next` is done and committed — the
+checkboxes are the desk's to tick. In order: the crowd split, the corner
+junction, the side street's furniture, the truck (three items), the profile
+feet, and the pedestrian network. The whole of the original brief —
+*"cars turn the corner … details extend out that way … pedestrians also go out
+that way and have more complicated paths"* — is now in.
+
+The two side-street items above (lamps, catch basins) are the only outstanding
+work I found, and both are in builder B's files.
 
 For the path-graph item, note that the crowd is currently a **1-D ping-pong**:
 each person owns a `home` lane on the x axis and walks `dir` along z between
