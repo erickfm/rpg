@@ -22,7 +22,7 @@ import { VICE_DOOR_X } from './vice';
 //   four ceiling fittings        one of them out
 //
 // None of that reads if the shabbiness is drawn as dirt. It has to be drawn as
-// REPLACEMENT — the vinyl is a different material from the tile, the chairs are
+// REPLACEMENT — the vinyl is a different material from the carpet, the chairs are
 // different shapes, the dead lamp is a different colour from the lit ones. A
 // grand room with grime on it is just a dirty grand room.
 //
@@ -91,7 +91,17 @@ export function buildHotel(ctx: CtxBuild): void {
     // casino two doors down is 2.5 m and presses on you; this one has to do
     // the opposite before it can have fallen from anywhere.
     w: 11.0, d: 9.0, h: 3.4,
-    palette: { floor: 0x9a9086, wall: 0x8a7f6e, ceil: 0xa89c88, trim: 0x5a4028 },
+    // THE FACADE'S PALETTE, BROUGHT INSIDE. The user, twice: what is outside is
+    // "deep red, gold, black, bulb-lit letters and a lit porte-cochere" and what
+    // was in here was "a pale beige room with plain tile ... clean, plain,
+    // municipal". These are ct/vice.ts's own constants for this elevation --
+    // RED #8e1f2a, RED_D #5a1520, GOLD_D #8a6a22 -- not colours that merely
+    // resemble them, for the same reason `tube` is one exported painter rather
+    // than two: someone walking in from that facade has to recognise the
+    // building. Faded, not municipal: the wall sits between RED and RED_D so it
+    // reads as deep red gone dusty, and the ceiling is darker than the wall so
+    // the room feels tall and the light hangs IN it.
+    palette: { floor: 0x5a2430, wall: 0x6d2029, ceil: 0x2e1c1e, trim: 0x8a6a22 },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
       // beside a declaration is the two-authorings problem in miniature, and
@@ -134,36 +144,58 @@ export function buildHotel(ctx: CtxBuild): void {
   const brassM = new THREE.MeshBasicMaterial({ color: BRASS });
   const mahogM = new THREE.MeshBasicMaterial({ color: MAHOG });
 
-  // ── the tile floor, and the vinyl over the worn part ──
+  // ── the carpet, and the vinyl over the worn part ──
   //
-  // The tile is the grand half: a bordered period pattern, cream and ochre
-  // with a dark inset at the crossings, laid at ~20 px/m to agree with the
-  // kit's own floor (GOTCHAS §5 — density comes from real metres).
-  const tileT = declareSurface(pixTex(48, 48, (g) => {
-    g.fillStyle = '#b9ab93'; g.fillRect(0, 0, 48, 48);
-    g.fillStyle = '#a2907a';                                   // the grout grid
+  // This was plain cream-and-ochre TILE and it was the single biggest reason the
+  // room read municipal. "Patterned carpet doing far too much rather than plain
+  // tile" is the instruction, and it is the same instruction the casino got and
+  // the user liked the result of, so this is deliberately the same hand: 48x48
+  // at the kit's density, a gold lattice on deep red, a colour fighting the gold,
+  // and one motif too many.
+  //
+  // Not a copy of the casino's, though. A casino's carpet is designed to stop
+  // you looking down; a hotel's is trying to look expensive, so this is a
+  // bordered medallion — a repeating centre with a frame around it — rather than
+  // an all-over diamond scatter.
+  const carpetT = declareSurface(pixTex(48, 48, (g) => {
+    g.fillStyle = '#5a2430'; g.fillRect(0, 0, 48, 48);
+    // the border frame, two golds so it has a highlight and a shadow side
+    g.fillStyle = '#8a6a22';
+    for (const v of [0, 24]) { g.fillRect(v, 0, 2, 48); g.fillRect(0, v, 48, 2); }
+    g.fillStyle = '#d8a83a';
     for (const v of [0, 24]) { g.fillRect(v, 0, 1, 48); g.fillRect(0, v, 48, 1); }
-    g.fillStyle = '#8a7256';                                   // dark inset at each crossing
-    for (const cx of [0, 24, 48]) for (const cy of [0, 24, 48]) g.fillRect(cx - 2, cy - 2, 4, 4);
-    g.fillStyle = '#c8bca6';                                   // a lighter field inside each tile
-    for (const cx of [12, 36]) for (const cy of [12, 36]) g.fillRect(cx - 7, cy - 7, 14, 14);
-    g.fillStyle = '#9c8a70';
-    for (const cx of [12, 36]) for (const cy of [12, 36]) {
-      g.fillRect(cx - 2, cy - 7, 4, 1); g.fillRect(cx - 2, cy + 6, 4, 1);
-      g.fillRect(cx - 7, cy - 2, 1, 4); g.fillRect(cx + 6, cy - 2, 1, 4);
+    // the medallion in each cell: a lozenge, ring and pip stacked
+    const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
+    g.fillStyle = '#8a6a22';
+    for (const [cx, cy] of cells) for (let t = 0; t <= 7; t++) {
+      const r = 7 - t;
+      g.fillRect(cx + t, cy - r, 1, 1); g.fillRect(cx - t, cy - r, 1, 1);
+      g.fillRect(cx + t, cy + r, 1, 1); g.fillRect(cx - t, cy + r, 1, 1);
     }
-    dither(g, 48, 48, 90);
+    g.strokeStyle = '#3d5a4a'; g.lineWidth = 1;                 // a green fighting the gold
+    for (const [cx, cy] of cells) { g.beginPath(); g.arc(cx + 0.5, cy + 0.5, 3, 0, Math.PI * 2); g.stroke(); }
+    g.fillStyle = '#d8a83a';
+    for (const [cx, cy] of cells) g.fillRect(cx - 1, cy - 1, 2, 2);
+    // and the motif too many: a fleuron at every border crossing
+    g.fillStyle = '#a8863a';
+    for (const cx of [0, 24, 48]) for (const cy of [0, 24, 48]) {
+      g.fillRect(cx - 3, cy, 7, 1); g.fillRect(cx, cy - 3, 1, 7);
+      g.fillRect(cx - 1, cy - 1, 3, 3);
+    }
+    dither(g, 48, 48, 130);
   }), 'ground');
-  tileT.wrapS = tileT.wrapT = THREE.RepeatWrapping;
-  tileT.repeat.set(Math.round(room.W / 2.4), Math.round(room.D / 2.4));
-  const tile = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(tileT));
-  tile.rotation.x = -Math.PI / 2;
-  put(tile, 0, 0.012, 0);
+  carpetT.wrapS = carpetT.wrapT = THREE.RepeatWrapping;
+  carpetT.repeat.set(Math.round(room.W / 2.4), Math.round(room.D / 2.4));
+  const carpet = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(carpetT));
+  carpet.rotation.x = -Math.PI / 2;
+  put(carpet, 0, 0.012, 0);
 
   // …and the shabby half, laid ON the track people actually walk: door to
   // desk. It is a different MATERIAL, not a dirtier tile — sheet vinyl in a
-  // colour that never matched, with the tile still showing at its edges. That
-  // is what makes it read as a repair rather than as wear.
+  // colour that never matched, with the carpet still showing at its edges. That
+  // is what makes it read as a repair rather than as wear — and it matters more
+  // now the floor under it is grand: sheet vinyl over a gold medallion carpet is
+  // exactly the shape of a place that peaked decades ago.
   const vinylT = declareSurface(pixTex(32, 48, (g) => {
     g.fillStyle = '#6a6358'; g.fillRect(0, 0, 32, 48);
     g.fillStyle = 'rgba(255,255,255,0.06)';
@@ -207,6 +239,51 @@ export function buildHotel(ctx: CtxBuild): void {
     DESK_X + 0.1, 1.15, DESK_Z + 1.5);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.5),
     new THREE.MeshBasicMaterial({ color: 0xd8d0bc })), DESK_X + 0.05, 1.14, DESK_Z - 0.6);
+
+  // ── brass and mirror behind the desk, and drapes at the window ────────
+  //
+  // The last two things the instruction names. Both are cheap and both do a lot,
+  // because they are what a lobby has and a waiting room does not.
+  //
+  // The mirror is a tall dark panel in a gold frame rather than a real
+  // reflection: this world has no reflective material and a flat pale rectangle
+  // would read as a hole. Dark glass with a highlight raked across it reads as
+  // mirror at a glance, which is the same trick the casino's bronzed glazing
+  // plays on the street outside.
+  const mirrorT = declareSurface(pixTex(24, 40, (g) => {
+    g.fillStyle = '#241a1c'; g.fillRect(0, 0, 24, 40);
+    g.fillStyle = 'rgba(216,168,58,0.10)';
+    for (let i = 0; i < 14; i++) g.fillRect(2 + i, 3 + i * 2, 8 - Math.floor(i / 3), 1);
+    g.fillStyle = 'rgba(255,246,224,0.13)'; g.fillRect(3, 2, 2, 34);
+    dither(g, 24, 40, 40);
+  }), 'detail');
+  for (const mz of [DESK_Z - 1.4, DESK_Z + 1.4]) {
+    put(new THREE.Mesh(new THREE.PlaneGeometry(1.25, 2.1), new THREE.MeshBasicMaterial({ color: 0xd8a83a })),
+      -hw + 0.05, 1.85, mz).rotation.y = Math.PI / 2;
+    put(new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.9), ctx.flat(mirrorT)),
+      -hw + 0.07, 1.85, mz).rotation.y = Math.PI / 2;
+  }
+
+  // Tall drapes at the window — floor length, not sill length, which is the
+  // whole difference between a lobby and an office. The window is at local
+  // x 3.3, 3.6 m wide with its sill at 0.9, so the pair hangs outside that at
+  // 1.5 and 5.1 and falls from the head to the floor.
+  const drapeT = declareSurface(pixTex(16, 64, (g) => {
+    g.fillStyle = '#5a1520'; g.fillRect(0, 0, 16, 64);
+    for (let x = 0; x < 16; x += 3) {                    // the folds
+      g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(x, 0, 1, 64);
+      g.fillStyle = 'rgba(216,168,58,0.10)'; g.fillRect(x + 1, 0, 1, 64);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 58, 16, 6);   // dust at the hem
+    dither(g, 16, 64, 60);
+  }), 'detail');
+  const drapeM = ctx.flat(drapeT);
+  for (const dx of [1.5, 5.1]) {
+    put(new THREE.Mesh(new THREE.PlaneGeometry(0.85, 2.75), drapeM), dx, 1.375, hd - 0.09);
+  }
+  // the pelmet the pair hangs from, in the same gold as everything else up high
+  put(new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.22, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0x8a6a22 })), 3.3, 2.86, hd - 0.10);
 
   // ── the clerk ─────────────────────────────────────────────────────────
   //
@@ -457,15 +534,27 @@ export function buildHotel(ctx: CtxBuild): void {
   }), 'detail');
   const glowM = new THREE.MeshBasicMaterial({
     map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const litShadeM = new THREE.MeshBasicMaterial({ color: 0xe0cf9a });
+  // "a chandelier or a run of glass fixtures instead of flush ceiling discs".
+  // A RUN, not a chandelier, because the brief this room was built to also says
+  // one lamp is out, and four fixtures with one dead tells that story where a
+  // single central chandelier cannot. They hang now — brass stem, brass gallery,
+  // faceted glass bowl — instead of sitting flush, which is most of what makes a
+  // ceiling read as tall.
+  const litShadeM = new THREE.MeshBasicMaterial({ color: 0xf0d9a0 });
   const deadShadeM = new THREE.MeshBasicMaterial({ color: 0x6e6a62 });
+  const galleryM = new THREE.MeshBasicMaterial({ color: 0xd8a83a });
   const FITTINGS: [number, number, boolean][] = [
     [-2.8, -2.4, true], [2.8, -2.4, false], [-2.8, 2.4, true], [2.8, 2.4, true],
   ];
   for (const [lx, lz, lit] of FITTINGS) {
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.06), mahogM), lx, room.H - 0.11, lz);
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.22, 0.16, 8), lit ? litShadeM : deadShadeM),
-      lx, room.H - 0.28, lz);
+    // the stem: brass, and long enough that the fitting is IN the room
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.52, 6), brassM), lx, room.H - 0.26, lz);
+    // the gallery it hangs from, and the ceiling rose above it
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.10, 0.05, 8), galleryM), lx, room.H - 0.03, lz);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.06, 6), galleryM), lx, room.H - 0.55, lz);
+    // the bowl: a faceted glass dish, wider and shallower than the old disc
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.16, 0.24, 8), lit ? litShadeM : deadShadeM),
+      lx, room.H - 0.70, lz);
     if (lit) {
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), glowM);
       gl.rotation.x = Math.PI / 2;

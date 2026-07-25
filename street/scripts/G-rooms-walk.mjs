@@ -697,7 +697,17 @@ for (room of rooms) {
         if (!m || !m.color) return;
         const w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y;
         // the fittings proper: one size, at one height, not the ceiling panels
-        if (bb.min.y > 2.9 && bb.min.y < 3.15 && h < 0.35 && w > 0.5 && w < 0.9) found.push(m.color.getHexString());
+        // The lower bound was 2.9, which meant "flush against a 3.4 m ceiling" —
+        // and the user has since asked for the opposite: "a chandelier or a run
+        // of glass fixtures INSTEAD OF flush ceiling discs". The hotel's bowls
+        // now hang on 0.52 m brass stems and sit at 2.58, so the old band found
+        // nothing and the check reported 0 fittings on a room with four.
+        // Widened to 2.4. What this check is for — four of them, one a different
+        // colour — is unchanged; only its assumption about how a light is fixed
+        // to a ceiling was wrong, and it was wrong because the room got better.
+        // The stems, galleries and ceiling roses are all under 0.5 m across and
+        // stay out of the width window, so nothing new is swept in.
+        if (bb.min.y > 2.4 && bb.min.y < 3.15 && h < 0.35 && w > 0.5 && w < 0.9) found.push(m.color.getHexString());
       });
       return { n: found.length, cols: [...new Set(found)], want };
     }, [CX, room.deadFitting]);
