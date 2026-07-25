@@ -83,12 +83,53 @@ const r = await p.evaluate(() => {
     // stone is pale and near-neutral; brick is darker and clearly red
     if (lum > 110 && R - B < 55) stone++; else brick++;
   }
-  return { w: im.width, h: im.height, ppm, row, stone, brick, dark, bayPx: Math.round(half * 2) };
+  // ── NO WINDOW MAY ENTER THE RESERVED BAY ───────────────────────────────
+  // The user: the ground-floor windows collided with the entrance.
+  // ENTRANCE.BAY_W is documented as "reserved span, centred on the building:
+  // no window may enter it", and resGroundTex lays its windows in the two
+  // panels either side. That is structural — and it regresses silently if
+  // bayW ever reaches this function as 0, or the bay comes out under 8 texels,
+  // because then the rhythm runs evenly across the whole width and straight
+  // through the doorway. Nothing checked it; the brick clause above only asks
+  // what COLOUR the bay is.
+  //
+  // The doorway is dark and IS inside the bay, so "no dark pixels here" would
+  // be wrong. The testable property is that the dark inside the bay forms ONE
+  // run — the opening — rather than several. A window intruding puts a second
+  // dark run beside it.
+  const winRow = Math.round(im.height * 0.42);      // the window band, above the cill
+  const runs = [];
+  let open = null;
+  for (let x = Math.round(cx - half); x < Math.round(cx + half); x++) {
+    const i = (winRow * im.width + x) * 4;
+    const isDark = (px[i] + px[i + 1] + px[i + 2]) / 3 < 70;
+    if (isDark && open === null) open = x;
+    if (!isDark && open !== null) { runs.push([open, x]); open = null; }
+  }
+  if (open !== null) runs.push([open, Math.round(cx + half)]);
+  const wide = runs.filter(([a, b2]) => b2 - a >= Math.round(0.35 * ppm));
+
+  return { w: im.width, h: im.height, ppm, row, stone, brick, dark, bayPx: Math.round(half * 2),
+           darkRuns: wide.map(([a, b2]) => [a, b2, +((b2 - a) / ppm).toFixed(2)]) };
 });
 await b.close();
 
 if (!r) { console.error("could not find No. 227's ground band — has the facade moved?"); process.exit(1); }
 let { stone, brick, dark, bayPx } = r;
+{
+  const runs = r.darkRuns ?? [];
+  console.log(`  reserved bay: ${runs.length} dark opening(s) at window height`
+    + (runs.length ? ` — ${runs.map((q) => q[2] + ' m').join(', ')}` : ''));
+  if (runs.length > 1) {
+    console.error(`\nA WINDOW HAS ENTERED THE RESERVED ENTRANCE BAY.`);
+    console.error(`  ENTRANCE.BAY_W is reserved so the doorway stands alone in it, and`);
+    console.error(`  ${runs.length} separate openings were found across it:`);
+    for (const [a, b2, m] of runs) console.error(`    texels ${a}..${b2}  (${m} m wide)`);
+    console.error(`  This is the collision the user reported. resGroundTex lays windows`);
+    console.error(`  in the panels either side — check bayW reached it non-zero.\n`);
+    process.exit(1);
+  }
+}
 if (SELFTEST) { stone += brick; brick = 0; console.log('selftest: calling the whole bay stone — this MUST now go red'); }
 const lit = stone + brick;
 const frac = lit ? stone / lit : 0;

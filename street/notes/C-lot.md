@@ -474,3 +474,41 @@ acts, a date bar, one dog-eared corner. Verified the way the request framed it
 — by LOOKING, from the spawn and from across the room
 (`shots/poster301/`) — because *"what is this"* was a readability complaint and
 only the picture can answer it. It is nameable at the real viewing distance.
+
+
+---
+
+## The request log, read the other way
+
+`533859821` checked FEATURE-REQUESTS for anything routed to G and still
+outstanding. Same for C: six items in `## In progress` name my area. Five are
+delivered, and I confirmed the visual ones by LOOKING rather than by grepping
+source, because every one of them was a complaint about how something reads:
+
+| item | state |
+|---|---|
+| ceiling lamps are a blurred smudge, no fixture | modelled flush-mount, faceted opal dome on a rose, stepped glow — `shots/audit-c/01` |
+| the "401" plate is white and smeared | brass, texel-aligned, legible — `shots/audit-c/02` |
+| rename THE WHITMORE | gone; source mentions it only in the past tense |
+| the neighbour is a flat cutout | on the 8-angle atlas — `people-walk` reports 16 atlas figures, 0 hand-drawn |
+| ground-floor windows collide with the entrance | reserved bay, **now guarded** (below) |
+| sleep in your room | blocked on `ctx.advanceTime` |
+
+**The entrance overlap was fixed structurally and never guarded.**
+`ENTRANCE.BAY_W` is documented as *"reserved span, centred on the building: no
+window may enter it"*, and `resGroundTex` lays its windows in the two panels
+either side. That holds — until `bayW` reaches the function as 0, or the bay
+comes out under 8 texels, when the rhythm runs evenly across the whole width
+and straight through the doorway. `entrance-brick` only asked what COLOUR the
+bay was.
+
+The doorway is dark and IS in the bay, so "no dark pixels here" is the wrong
+test. The property is that the dark forms ONE run — the opening — not several.
+At HEAD: `1 dark opening at window height — 1.75 m`. With `bayW = 0`:
+
+```
+  reserved bay: 2 dark opening(s) at window height — 1.06 m, 0.94 m
+  A WINDOW HAS ENTERED THE RESERVED ENTRANCE BAY.
+```
+
+Which is the user's original screenshot, reproduced on demand.
