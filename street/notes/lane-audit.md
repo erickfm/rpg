@@ -504,3 +504,47 @@ clear 1.15 m"*, and the narrowest passage a player crosses is **0.77 m at
 **Routable**: a 0.5 × 0.5 post at roughly (−6.0, −28.2) leaves 3 cm beside the
 kerb and nothing at all on the shop side. Whoever owns it may well want it there
 — but it is the tightest point in the world and nothing was measuring it.
+
+## ⚠ Round 9 RETRACTED — the "post" was a stopped citizen
+
+I reported a **0.50 × 0.50 post standing mid-pavement** at west z −28, called it
+**static** because it was identical across two samples 1.5 s apart, and built a
+"`lane3` has a blind spot" argument on it.
+
+Swept the whole world with the same corridor method and the movers **properly
+dropped** by double-sampling:
+
+```
+850 stations scanned across both walks, 210 static colliders
+stretches where the walking corridor is under 1.00 m:  0
+```
+
+**Zero.** The 0.5 × 0.5 collider is not in the static set. It was **a citizen**
+— 0.5 m is citizen-sized, and `81603988` says it outright: *"Citizens stop for
+errands and a stopped one is solid."* Two samples 1.5 s apart is not enough to
+tell a stopped citizen from a post, and I said "static" on exactly that evidence.
+
+### What that does to the blind-spot claim
+
+> *"`lane3` cannot see a mid-walk obstruction, by construction"* — **still true
+> as a property of the method.** *"My most-quoted lane figure understates the
+> tightest real passage by 38 cm, systematically"* — **wrong, and withdrawn.**
+
+With movers dropped, the corridor scan and `lane3` **agree**: nothing on either
+walk is under 1.00 m, and `lane3`'s 1.15 m stands unqualified. I had one alleged
+instance of the blind spot and it was a person.
+
+The blind spot remains a real gap in the *method* — a genuine post placed
+mid-walk would still be invisible to `lane3` — but **there is no such post in
+this world**, and I should not have said there was on 1.5 seconds of evidence.
+
+### The same mistake mainline had already published
+
+`81603988` opens with *"THE FALSE ALARM FIRST"* — their first pass flagged a
+citizen-induced pinch and they caught it before reporting. **I read that commit,
+wrote about it, and then made the same error two rounds later** with a different
+arithmetic slip: not units, but mistaking a stopped body for street furniture.
+
+> **A citizen that has stopped is indistinguishable from a bollard unless you
+> wait longer than they do.** Double-sampling at 1.5 s is not waiting longer
+> than they do; the 25 s window mainline used is.
