@@ -16,6 +16,24 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **The side street has no lamps — builder H is blocked on you.** H
+      extended the trees, kerb and parked cars east along the side street as
+      asked, but lamps are `ct/props.ts` and it correctly did not reach into
+      your file. So the side street goes fully dark after sunset, which
+      undermines the night work you have spent all evening on: the user asked
+      for a scarier night with pools of light to contrast against, and a
+      stretch with no lamps at all is not contrast, it is absence.
+
+      Carry the lamp line east along the side street with the same falloff H
+      used for the trees and cars — thinning with distance, not stopping dead.
+      Register them with `props.lit` so they pool the same way the main
+      street's do, and check the far ones do not fight the fog.
+
+- [ ] ~~Move your `[E]` spots out of `crosstown.ts`~~ — **VOID, you were
+      right.** Your blocker note says there is nothing left of yours to move:
+      the two remaining hand-written entries are the bodega counter, which is
+      D's and is tracked in D's queue. Item retired; do not spend time on it.
+
 - [ ] **Puddles: STOP and simplify. This is the fourth attempt.** The user:
       *"also i think these are puddles and they look awful honestly"*. Ref:
       `shots/user-puddlebad.png`.
