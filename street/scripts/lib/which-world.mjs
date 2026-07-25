@@ -16,23 +16,33 @@
 //   import { reportWorld } from './lib/which-world.mjs';
 //   await reportWorld(page, URL);     // prints a line; throws on mismatch
 import { execSync } from 'node:child_process';
+import { readdirSync, readFileSync } from 'node:fs';
 
 const localHead = () => {
   try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); }
   catch { return null; }
 };
 
-/** Is this SHA an ANCESTOR of my HEAD — i.e. is the served build simply behind
- *  where I am now?
+/** What SHA is baked into the dist ON THIS DISK? vite's build stamp ends up as
+ *  a string literal in the bundle, so this is the build `npm run build` last
+ *  produced here.
  *
- *  "Is it a commit in this repository" does NOT work and is worth saying so:
- *  worktrees share one object store, so another builder's preview serves a SHA
- *  that is perfectly well known here. Ancestry is the question that actually
- *  separates the two: my own stale dist is behind me, a sibling worktree is
- *  off to one side. */
-const isBehindMe = (sha) => {
-  try { execSync(`git merge-base --is-ancestor ${sha} HEAD`, { stdio: 'ignore' }); return true; }
-  catch { return false; }
+ *  This is the exact test for "is that server serving MY build", and it took
+ *  two wrong ones to get to. "Is the SHA a commit in this repository" fails
+ *  because worktrees share one object store — another builder's preview is
+ *  perfectly well known here. "Is it an ancestor of HEAD" fails because a
+ *  REBASE rewrites commits, so the build you made ten minutes ago is orphaned
+ *  rather than behind you, which is the normal state of a worktree on a merge
+ *  train. Comparing against the artefact removes the guessing entirely. */
+const distSha = () => {
+  try {
+    for (const f of readdirSync('dist/assets')) {
+      if (!f.endsWith('.js')) continue;
+      const m = readFileSync(`dist/assets/${f}`, 'utf8').match(/["`]([0-9a-f]{7,12})["`]/);
+      if (m) return m[1];
+    }
+  } catch { /* no dist yet */ }
+  return null;
 };
 
 /** Read the served build's stamp out of the HUD. */
@@ -64,18 +74,19 @@ export async function reportWorld(page, url) {
     // between `npm run build` and the check after it — and being told to
     // "start your own preview" when the preview is already yours sends you
     // looking in the wrong place.
-    const mine = isBehindMe(served.sha);
+    const dist = distSha();
+    const mine = dist !== null && served.sha.startsWith(dist);
     console.error(`\nMEASURING THE WRONG WORLD.`);
     console.error(`  ${url} is serving build ${tag}`);
     console.error(`  this checkout is at      ${head}`);
     if (mine) {
-      console.error(`\n  ${served.sha} is an ANCESTOR of HEAD, so this is your own preview`);
-      console.error(`  serving a stale dist — HEAD moved after you built it.`);
+      console.error(`\n  that is the SHA baked into dist/ on this disk, so the server IS`);
+      console.error(`  yours — it is serving a stale build. HEAD moved after you made it.`);
       console.error(`  Fix: npm run build, restart the preview, re-run.\n`);
     } else {
-      console.error(`\n  ${served.sha} is NOT an ancestor of HEAD — it is off to one side,`);
-      console.error(`  so that server is another worktree. Numbers from somebody`);
-      console.error(`  else's tree are not evidence about yours.`);
+      console.error(`\n  dist/ on this disk was built from ${dist ?? '(no dist)'}, which does not`);
+      console.error(`  match — so that server is not yours. Numbers from another`);
+      console.error(`  builder's tree are not evidence about yours.`);
       console.error(`  Fix: start your own preview, or set SHOT_URL to it.\n`);
     }
     throw new Error(`wrong world: served ${tag}, local ${head}`);
