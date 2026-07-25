@@ -109,9 +109,23 @@ for wt in "$ROOT"/rpg-*; do
 
   # failure 5: a builder blocked on someone else's file must not depend on the
   # desk happening to read a handoff note
-  if [ -f "$MAIN/street/notes/BLOCKED-$short.md" ]; then
-    ACTIONS+=("$short RAISED A BLOCKER — read street/notes/BLOCKED-$short.md and unblock it")
-  fi
+  #
+  # Look under BOTH names, and in the builder's OWN worktree as well as
+  # mainline. Same trap the report glob had: this checked BLOCKED-$short.md
+  # (worktree name) while the README tells builders to write BLOCKED-<you>.md,
+  # and half of them are "you" by letter — so BLOCKED-A.md, written exactly as
+  # instructed, was invisible. And a blocker matters MOST before it lands: the
+  # builder writes it and carries on, so checking only mainline delays it by a
+  # whole merge-train cycle, which is the cycle the blocked builder is stuck in.
+  qpfx0=$(basename "${qf:-}"); qpfx0=${qpfx0%%-*}
+  for bl in "$MAIN/street/notes/BLOCKED-$short.md" "$wt/street/notes/BLOCKED-$short.md" \
+            ${qpfx0:+"$MAIN/street/notes/BLOCKED-$qpfx0.md" "$wt/street/notes/BLOCKED-$qpfx0.md"}; do
+    if [ -f "$bl" ]; then
+      where=$([ "${bl#$MAIN}" = "$bl" ] && echo " (not landed yet)" || echo "")
+      ACTIONS+=("$short RAISED A BLOCKER — read street/notes/$(basename "$bl")$where and unblock it")
+      break
+    fi
+  done
 
   if [ -n "$qf" ]; then
     # Match reports two ways. By WORKTREE name catches the ones called after
