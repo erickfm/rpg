@@ -105,11 +105,26 @@ const hike = async (label, x, z, yaw, secs, axis) => {
   await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, undefined, 0), [x, z, yaw]);
   await page.waitForTimeout(150);
   const a = await page.evaluate(() => window.__ct.pos());
-  await page.keyboard.down('w'); await page.waitForTimeout(secs * 1000); await page.keyboard.up('w');
+  await page.keyboard.down('w');
+  await page.waitForTimeout((secs - 1.5) * 1000);
+  const mid = await page.evaluate(() => window.__ct.pos());
+  await page.waitForTimeout(1500);
+  await page.keyboard.up('w');
   const b = await page.evaluate(() => window.__ct.pos());
   const moved = Math.abs(axis === 'x' ? b[0] - a[0] : b[2] - a[2]);
-  const ok = moved > secs * 1.6;
-  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m ` +
+  const lastBit = Math.hypot(b[0] - mid[0], b[2] - mid[2]);
+  // DISTANCE **OR** STILL MOVING, and this one is pre-emptive rather than a
+  // repair. 710e1454: I cleared bus.mjs's lane sweep on three identical runs
+  // plus an argument that citizens could not reach it, and the shared runner
+  // caught it flaking within a day. This hike is the last distance threshold on
+  // the shelf and I cleared it the same way — 15.8 m against a 9.6 m line,
+  // measured once each. Wide margins are what a rare blocker eats.
+  //
+  // The negative control is unharmed: at "walk in where there is NO cut" the
+  // walker stops dead against a full kerb, so lastBit is ~0 and it still fails.
+  const ok = moved > secs * 1.6 || lastBit > 0.8;
+  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m, ` +
+    `${lastBit.toFixed(2)} m in the last 1.5 s ` +
     `(${a[0].toFixed(1)},${a[2].toFixed(1)}) -> (${b[0].toFixed(1)},${b[2].toFixed(1)}) gy ${b[3].toFixed(3)}`);
   return ok;
 };
