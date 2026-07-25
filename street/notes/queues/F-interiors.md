@@ -28,6 +28,45 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **Diner seating: bar stools or perpendicular window booths, nothing
+      else.** The user: *"in the diner for all the seating i either want bar
+      seating like what we have or booths but the booths should be
+      perpendicular to the wall and line the window like a regular diner
+      anywhere you go."*
+
+      The counter and its stools are approved — leave them exactly as they
+      are. The booths are the problem: they currently sit as free-standing
+      tables in the room, and a diner does not have those.
+
+      **What a real diner booth run is**, and this is the whole spec:
+      · booths run **PERPENDICULAR to the window wall** — each booth's long
+        axis points away from the window, so you sit facing your companion
+        across the table with the window at your shoulder
+      · they **line the window in a continuous row**, back to back, with the
+        seat backs forming a shared divider between adjacent booths — not
+        islands with a gap around each
+      · the row starts at one end of the window wall and runs to the other,
+        so the window is the thing the booths are FOR
+      · a walking aisle runs along the open side of the row, between the
+        booths and the counter — that aisle is how the room reads as a diner:
+        counter down one side, booths down the other, aisle between them
+      · table between the two benches, chrome edge, one napkin dispenser and
+        a ketchup bottle per table
+
+      So the room becomes: **counter and stools on one side, booth run along
+      the window on the other, aisle down the middle.** That is the plan of
+      essentially every diner, and it is what the user means by *"like a
+      regular diner anywhere you go"*.
+
+      Two constraints: the aisle must be genuinely walkable end to end (the
+      capsule is 0.72 m across — give it a metre at least), and every booth
+      seat must be registered with `ctx.seat()`, facing across the table.
+      Sit in several and stand up again; standing must not put you inside the
+      table.
+
+      The diner is also the REFERENCE interior that the other rooms copy, so
+      getting the furniture logic right here pays out across all of them.
+
 - [ ] **FLIP THE AUTHORITY: the INTERIOR declares the door, the facade
       follows. The desk got this backwards and the user is annoyed.**
 
