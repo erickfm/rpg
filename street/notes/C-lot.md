@@ -239,6 +239,14 @@ was measured applying to this lot"*. The ratio says otherwise:
   23:00 under my 0.47   0.727  vs  0.0077  =  94x the tarmac
 ```
 
+**And re-measured a THIRD time, stepped rather than jumped** — `3d71b035`
+found a jumped clock is 7.4% brighter than the night a player reaches. Only the
+"dry" rows move, and they move a long way: noon dry reads 0.6933/1.0000 jumped
+and 0.1978/0.2362 stepped, because **the world never offers a dry spell longer
+than 8 hours** and so a stepped arrival always follows recent rain. See
+`notes/C-weather-is-periodic.md`. The ratio — which was the point — holds at
+0.84 to 0.91 throughout.
+
 **Re-measured at HEAD and these numbers are the corrected ones.** The table I
 first published was taken with a 5 s settle and before `e24c959a` clamped the
 wet look, and both were wrong in my favour: `baa675d7` measured that the wet
