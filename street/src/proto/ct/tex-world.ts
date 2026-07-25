@@ -31,7 +31,7 @@ import { pixTex, dither } from './paint';
 //      identical density (seam pattern #2).
 //
 /** texels per metre for masonry, both axes. The world's documented density. */
-export const WALL_PPM = 8;
+const WALL_PPM = 8;
 /** one brick course in metres — 4 texels at 1×, so it survives mipmapping */
 const COURSE_M = 0.5;
 /** perp (vertical) joint pitch, and the stagger: half-lap every other course */
@@ -123,7 +123,7 @@ function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, 
  *  openings and `facadeLitTex` paints the light coming out of them. If each
  *  computed the grid itself, the light would drift off the holes it is
  *  shining through the first time either one changed. */
-export function facadeWindows(
+function facadeWindows(
   brick: string, floors: number, wMeters = 12,
   hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
   sill0 = SKIRT_M, variant = 0, pct = 19,
@@ -889,9 +889,9 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
 // anything here. Safe to call from any painter in any file.
 export const HI = 'rgba(255,255,255,0.20)';
 export const SH = 'rgba(0,0,0,0.30)';
-export const DP = 'rgba(0,0,0,0.55)';
+const DP = 'rgba(0,0,0,0.55)';
 
-export interface Band { m: (v: number) => number; W: number; H: number }
+interface Band { m: (v: number) => number; W: number; H: number }
 
 /** the shopfront opening, set back from the brick it is cut into */
 export function reveal(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number) {
@@ -1219,7 +1219,7 @@ export const taxFront = (brick: string, wM: number) => {
  * nothing, a counter with stools you can read through the glass, and a chrome
  * kick rail that is the only genuinely shiny thing at street level.
  */
-export const dinerFront = (brick: string, nm: string, wM: number) => {
+const dinerFront = (brick: string, nm: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);
@@ -1302,7 +1302,7 @@ export const dinerFront = (brick: string, nm: string, wM: number) => {
  * at angles, a window crammed to the glass with mismatched stock, and tape
  * over a crack nobody is going to fix.
  */
-export const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
+const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);

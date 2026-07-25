@@ -26,6 +26,24 @@ const errors = [];
 page.on('pageerror', (e) => errors.push(String(e.message)));
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct?.scene !== undefined, { timeout: 10000 });
+// PIN THE CLOCK BEFORE DUMPING, or `structure` is not a fingerprint.
+//
+// Nothing here stopped the world's own time, so a material whose colour depends
+// on the hour was sampled at whatever moment the page happened to reach. Three
+// runs of IDENTICAL code gave structure 9ad3c4ce, 9ad3c4ce, c0a3f42e — it flips.
+// fpdiff names the culprits: three r=0.075 spheres whose material colour reads
+// 6a in one run and ff in the next, which is a lamp bulb caught lit or unlit.
+//
+// This matters more than the three spheres. CLAUDE.md tells every builder to
+// prove a change did not move the world with `fp before` / `fp after` /
+// `fpdiff`, and says textures and structure must match. An unstable structure
+// hash means that proof reports a difference that is not there — and, worse,
+// teaches people to wave real differences away as noise.
+//
+// 13:00 rather than any hour: it is the same hour check-seethrough pins, so the
+// two tools describe the same world.
+await page.evaluate(() => window.__ct.clock?.(13, 0));
+await page.waitForTimeout(400);
 
 const dump = await page.evaluate(() => {
   const scene = window.__ct.scene();
