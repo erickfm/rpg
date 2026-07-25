@@ -309,3 +309,37 @@ instrument's true report by pattern-matching it to a familiar failure.
 > lesson this audit has to give: a number is not a measurement until you know
 > what frame it is in** — which clock path, which material, which registry, which
 > build, which instant, which suite.
+
+## [C] Apron and forecourt: both CONFIRMED (build e2ead9895)
+
+**The apron (B).** I missed this last time by standing inside the lot; the row is
+about the driveway where the lot meets the walk, so the shot has to come from the
+road. `kerbcut.mjs:174` already knew the line — CZ 2.6 — which is how I found it.
+
+A ramp is a *profile*, not a look, so I measured it and brought a contrast case:
+
+| | driveway z=2.6 | plain kerb z=-20 |
+|---|---|---|
+| profile | 0 -> 0.140 over **x 5.00 -> 7.00** | 0 -> 0.140 in **one sample** |
+| shape | 8 steps of ~1.35 cm, **2.0 m at ~7%** | a single 0.140 step |
+
+The contrast is the whole proof. A single scan showing a rise could be anything;
+the same scan 22 m away showing a one-sample step is what makes it a ramp.
+
+**Overlap answered itself from `groundAt`.** If the walk sheet still ran beneath
+the apron, the walkable top across x 5.25-7.00 would read 0.140 for its whole
+length. It reads the ramp — so the walk is genuinely cut for the driveway, and
+the apron reaches walk height exactly at its own far edge. That is a stronger
+answer than looking for z-fighting, because it uses the function the player's
+feet actually use.
+
+**The forecourt (B).** Textured, and it reads as stone: at 4x the flags carry
+per-slab grit and joints with tone varying flag to flag, and the treads carry
+aggregate. The real answer to what the user saw is that the forecourt is a WARM
+sand stone and the walk in front is a COOLER grey — the "patches" are a change of
+material at the building line, which reads as shadow only while both are flat
+fills. Confirms b0b69cb48 independently of the builder.
+
+**[Is] Only grainless surfaces left in frame: the two planter boxes.** Smooth
+cream, no grain. Matches B's "12 flat" being copings, posts and planters. Not
+this row; noted so it is not rediscovered as a new fault.
