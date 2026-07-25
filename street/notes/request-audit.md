@@ -1631,3 +1631,51 @@ Two of my checks compared a z against an x, and I made the second mistake inside
 the script written to fix the first. The cure was not more care — it was
 **changing what is compared**: two coordinates and a distance, instead of one
 coordinate and a convention.
+
+---
+
+# The casino's lost door: real, growing, and **invisible to a player**
+
+Mainline's `e6c08482` reports the casino's door declared but never collected —
+eight modules export a `DOOR`, seven reach `declaredDoors()`, and `int-casino.ts`
+is one of **four** modules now resolving to an undefined namespace.
+
+Confirmed at HEAD, and it is recent: **`__ct.doors()` returns 7 and GOLDEN ACES
+is absent.** My own run one round ago returned **8, with GOLDEN ACES present and
+matched to its prompt at 0.55 m.** So this arrived between those two builds.
+
+## What a player loses: nothing
+
+| | state |
+|---|---|
+| `[E] into GOLDEN ACES` trigger | **registered and live** — (51.29, −97) r 1.05, `ok=true` |
+| does it fire when you walk? | **yes**, from x 50.5 … 52.0 on the side-street pavement |
+| the painted facade door | **drawn and correct** — gold-framed double doors with push-bars, dead centre, red carpet out to the kerb, under the 777 and the LOOSEST SLOTS marquee |
+
+The trigger is a separate registration from the declaration, so **entry is
+unaffected**, and the door is painted by other means. `shots/casino-facade.png`
+shows a complete, handsome shopfront. **Nobody playing this world would ever
+know.**
+
+## What is actually lost: the casino disappears from every tool that asks
+
+Anything consuming `declaredDoors()` no longer sees it — including my own door
+cross-check, which is exactly why I counted **8 declared doors last round and 7
+now**. My *"8 of 8 doors verified"* is, at HEAD, **7 of 8 verifiable**, and
+GOLDEN ACES can no longer be checked that way at all.
+
+> **A silent defect that costs the player nothing and costs every instrument
+> everything.** It does not degrade the world; it degrades the ability to
+> measure the world — which is worse, because it is the thing that would have
+> caught the next one.
+
+## And it is a recurrence of a defect I filed
+
+`BLOCKED-AUDIT-seams.md` — mine — was the world-down report where
+`ct/doors.ts` read `MODS[path].DOOR` from an undefined namespace, fixed by
+`84d59e04`. The guard that landed then is precisely what surfaced this now
+(`ct/doors.ts:91` warns rather than skipping silently).
+
+**The same circular-import failure has gone from one module to four.** One of
+them is losing something. Three declare nothing today — so they are quiet now
+and will not be quiet forever.
