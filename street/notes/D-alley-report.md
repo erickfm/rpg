@@ -1408,3 +1408,34 @@ built street between the nearest edges. A sight line through both would have to
 run along the street rather than across it, and neither gap opens that way.
 
 `D-walk` and `builtlane` both green at HEAD.
+
+## The roofs are flat colour, and it does not matter — checked before changing anything
+
+The building-depth item warns: *"rooflines become visible from the street once
+buildings are deep — that is a gain, not a cost, but it means the roof needs to
+be worth seeing rather than a flat slab."*
+
+**The code says it is a flat slab.** `roofM = new THREE.MeshBasicMaterial({ color:
+0x2b2d33 })`, in five separate places, no map on any of them.
+
+**The world says you cannot see it.** Shot from the two places the item names —
+standing in the park looking at the flank that borders it, and on the pavement
+looking up at the block:
+
+- from the park, the flank rises to a **capped parapet** and steps up in the
+  middle; no roof surface is in frame at all
+- from the street, same — facades, cappings, sky. The roof plane sits behind the
+  parapet everywhere.
+
+There is no elevated public vantage in normal play either: jump and crouch do not
+reach it, the church steps rise 0.55 m, and the walk-up's stairs lead to an
+interior.
+
+**So no change.** Texturing five roof materials nobody can see is invisible work,
+and I would have done it on the strength of the code alone.
+
+That is the specific mistake I made one commit earlier with the park's back wall,
+where I read a call site, assumed `wallTex` meant plain brick, and "fixed"
+something that was already right. Reading the definition told me the roofs really
+are flat; **looking** told me it does not matter. Both steps were needed and
+neither substitutes for the other.
