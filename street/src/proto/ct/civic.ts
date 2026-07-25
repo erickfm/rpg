@@ -59,23 +59,37 @@ export const COURT = {
   colliders: [] as AABB[],
 };
 
-/** The courtyard floor at (x, z), or null if that is not the courtyard —
- *  same shape as the interior belt's `interiorGround`, so the entry point
- *  asks one question and this module owns the answer.
+/** Every ground patch this module owns, in world coordinates. Registered as
+ *  the buildings are placed; asked in order and the first answer wins. */
+const FLOORS: ((x: number, z: number) => number | null)[] = [];
+/** Deferred work that can only be done once the caller has finished placing
+ *  us — see `host` in buildCivic. Runs on the first floor query. */
+const PENDING: (() => void)[] = [];
+
+/** The civic ground at (x, z) — the library forecourt, the churchyard, and
+ *  the flights of steps in both — or null if this is neither, the same shape
+ *  as the interior belt's `interiorGround`. The entry point asks one question
+ *  and this module owns the whole answer, extents included.
  *
- *  It exists because you can WALK UP THE STEPS now. GOTCHAS §7: floor height
- *  in this world comes from a picker, never from colliders, so a flight that
- *  is drawn but not answered for here is a flight you cannot climb — which is
- *  exactly what the user found. `ct/apartment.ts` is the model and its rule is
- *  the one that matters: **the picker does not know about treads.** It walks
- *  you up a smooth ramp at the flight's own gradient, and the drawn steps ride
- *  either side of it by at most half a riser. Answer with the tread tops
- *  instead and you get a 0.17 m jolt five times on the way up.
+ *  It exists because you can WALK UP THE STEPS. GOTCHAS §7: floor height in
+ *  this world comes from a picker, never from colliders, so a flight that is
+ *  drawn but not answered for here is a flight you cannot climb — which is
+ *  exactly what the user found on the library.
  *
- *  No hysteresis, unlike the walk-up: nothing is stacked over anything here,
- *  so the floor is single-valued in x and there is no "which storey" to
- *  resolve. */
-export let courtGround: (x: number, z: number) => number | null = () => null;
+ *  `ct/apartment.ts` is the model and its rule is the one that bites: **the
+ *  picker does not know about treads.** It walks you up a smooth ramp at the
+ *  flight's own gradient and the drawn steps ride within half a riser of it.
+ *  Answer with tread tops instead and the camera jolts a whole riser at every
+ *  nosing. No hysteresis, unlike the walk-up — nothing here is stacked over
+ *  anything, so the floor is single-valued along the approach. */
+export const courtGround = (x: number, z: number): number | null => {
+  if (PENDING.length) { for (const f of PENDING) f(); PENDING.length = 0; }
+  for (const f of FLOORS) {
+    const y = f(x, z);
+    if (y !== null) return y;
+  }
+  return null;
+};
 
 export function buildCivic(o: {
   scene: THREE.Scene;
@@ -87,6 +101,47 @@ export function buildCivic(o: {
   const { scene, flat, KERB_H } = o;
   const colliders: AABB[] = COURT.colliders;
   const solid = (b: AABB) => { colliders.push(b); o.obstacle?.(b); return b; };
+
+  // ── where "here" is ──────────────────────────────────────────────────────
+  //
+  // Everything below is added to whatever the caller hands us as `scene`. For
+  // the library that IS the scene. For the church it is a GROUP, which
+  // ct/street.ts turns 90° and positions AFTER we return — the church was
+  // authored along +x with its facade on +z, and rather than ask this file to
+  // be parameterised, street.ts moves the whole thing. Good trade, but it
+  // means a world-space number CANNOT be computed here at build time: the
+  // transform does not exist yet.
+  //
+  // Colliders and floor patches are therefore registered in the HOST's frame
+  // and converted once, lazily, on the first floor query — by which point the
+  // matrix is real. AABBs start parked far away, the way ct/apartment.ts
+  // parks a cap that is not live yet, so a box is never briefly wrong in the
+  // middle of the street. An axis-aligned quarter turn maps a box to a box,
+  // so nothing is lost in the conversion.
+  const host = scene as unknown as THREE.Object3D;
+  const hostPt = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyMatrix4(host.matrixWorld);
+  /** register a solid box given in the HOST's frame */
+  const solidLocal = (x0: number, x1: number, z0: number, z1: number) => {
+    const box: AABB = { minX: 9e5, maxX: 9e5, minZ: 9e5, maxZ: 9e5 };
+    solid(box);
+    PENDING.push(() => {
+      host.updateWorldMatrix(true, false);
+      const a = hostPt(x0, z0), b2 = hostPt(x1, z1);
+      box.minX = Math.min(a.x, b2.x); box.maxX = Math.max(a.x, b2.x);
+      box.minZ = Math.min(a.z, b2.z); box.maxZ = Math.max(a.z, b2.z);
+    });
+    return box;
+  };
+  /** register a floor patch whose function is written in the HOST's frame */
+  const floorLocal = (fn: (x: number, z: number) => number | null) => {
+    const inv = new THREE.Matrix4(), p = new THREE.Vector3();
+    let ready = false;
+    FLOORS.push((wx, wz) => {
+      if (!ready) { host.updateWorldMatrix(true, false); inv.copy(host.matrixWorld).invert(); ready = true; }
+      p.set(wx, 0, wz).applyMatrix4(inv);
+      return fn(p.x, p.z);
+    });
+  };
   //
   // The library and the church are the two buildings on this block that are
   // NOT shops, and they must not be built out of shop parts. Everything else
@@ -188,6 +243,123 @@ export function buildCivic(o: {
   };
   const stoneM = () => new THREE.MeshBasicMaterial({ color: 0x9c9280 });
   const slateM = () => new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
+
+  const partyTex = (seed: number, wash: boolean, depthM: number, FLANK_H: number) => {
+    const flankS = masonry(depthM, FLANK_H, 0);
+    const W = flankS.W, H = flankS.H, fm = flankS.m;
+    return flankS.paint((g) => {
+      const r = clcg(seed);
+      g.fillStyle = '#6f5344'; g.fillRect(0, 0, W, H);
+      flankS.courses(g);                                      // courses + perps
+      if (wash) {                                             // flaking whitewash dado
+        const wy = H - fm(2.9);
+        g.fillStyle = 'rgba(214,206,188,0.5)'; g.fillRect(0, wy, W, H - wy);
+        g.fillStyle = 'rgba(214,206,188,0.28)'; g.fillRect(0, wy - fm(0.36), W, fm(0.36));
+        for (let i = 0; i < 40; i++) {                        // where it has come away
+          g.fillStyle = 'rgba(111,83,68,0.55)';
+          g.fillRect(Math.floor(r() * W), wy + Math.floor(r() * (H - wy)), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 3));
+        }
+      }
+      // the ghost of a lower roof that used to abut this wall
+      const gy = H - fm(wash ? 7.4 : 9.1);
+      g.fillStyle = 'rgba(150,128,108,0.3)'; g.fillRect(0, gy, W, H - gy);
+      g.fillStyle = 'rgba(40,30,24,0.35)'; g.fillRect(0, gy, W, fm(0.18));
+      // soot down from the top, and rain off the pipe
+      for (let i = 0; i < 26; i++) {
+        g.fillStyle = `rgba(30,24,20,${0.06 + r() * 0.1})`;
+        g.fillRect(Math.floor(r() * W), 0, 1 + Math.floor(r() * 2), Math.round(r() * H * 0.7));
+      }
+      g.fillStyle = 'rgba(74,86,58,0.22)';
+      for (let i = 0; i < 14; i++) g.fillRect(fm(0.36) + Math.floor(r() * fm(0.5)), Math.round(H * 0.45 + r() * H * 0.5), fm(0.25), fm(0.36) + Math.floor(r() * fm(0.9)));
+      // …and the top 2.5 m fades to the flank behind it, so the panel has
+      // no visible top edge — the neighbour just carries on upward
+      const FD = fm(2.5);
+      for (let y = 0; y < FD; y++) {
+        g.fillStyle = `rgba(83,56,46,${(1 - y / FD) ** 0.7})`;
+        g.fillRect(0, y, W, 1);
+      }
+      dither(g, W, H, Math.round(depthM * FLANK_H * 5.3));
+    });
+  };
+
+  // ── a flight of steps you can climb ──────────────────────────────────────
+  //
+  // ONE flight builder, used by the library and by the church. Both were
+  // asked for by the user in the same breath — *"give it some stairs similar
+  // to the library"* — and two hand-built approaches would drift apart the
+  // first time either was touched.
+  //
+  // Written in APPROACH coordinates: `u` runs from the street line INTO the
+  // building, `v` runs across the flight. The caller maps that onto its own
+  // axes, because the library approaches along x and the church — which
+  // street.ts turns a quarter turn — approaches along z. Everything else
+  // about a stair is the same at both: nested treads, cheek walls beside
+  // them, and a RAMP for the floor picker rather than tread tops (§7).
+  //
+  // Nothing in this world is lit, so a tread and a riser cut from the same
+  // colour are the SAME colour, and a flight of them reads as a smooth ramp —
+  // the library's first cut had five steps in it and you could see two. The
+  // contrast is painted in: every tread takes the pale stone that faces the
+  // sky, every riser the dark one that faces you.
+  const treadM = new THREE.MeshBasicMaterial({ color: 0xb4aa92 });
+  const riserM = new THREE.MeshBasicMaterial({ color: 0x877d69 });
+  const stepSideM = new THREE.MeshBasicMaterial({ color: 0x9c9280 });
+  const flight = (f: {
+    axis: 'x' | 'z';
+    /** host-frame (x, z) of u = 0, v = 0 — the street line on the centreline */
+    ox: number; oz: number;
+    /** +1 if u grows with the host axis, −1 if against it */
+    dir: 1 | -1;
+    n: number;
+    /** the level it starts from, and the threshold it reaches */
+    yBase: number; yTop: number;
+    /** u of the bottom nosing, of the threshold, and of the wall behind */
+    uNose: number; uTop: number; uBack: number;
+    /** clear width between the cheeks; cheek 0 leaves them off */
+    width: number; cheek: number;
+  }) => {
+    const rise = (f.yTop - f.yBase) / f.n, tread = (f.uTop - f.uNose) / f.n;
+    // place a box given its extent in approach coords
+    const put = (u0: number, u1: number, v0: number, v1: number, h: number, mats: THREE.Material | THREE.Material[]) => {
+      const du = Math.abs(u1 - u0), dv = Math.abs(v1 - v0);
+      const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2;
+      const m = new THREE.Mesh(
+        f.axis === 'x' ? new THREE.BoxGeometry(du, h, dv) : new THREE.BoxGeometry(dv, h, du), mats);
+      if (f.axis === 'x') m.position.set(f.ox + f.dir * uc, h / 2, f.oz + vc);
+      else m.position.set(f.ox + vc, h / 2, f.oz + f.dir * uc);
+      scene.add(m);
+      return m;
+    };
+    for (let k = 0; k < f.n; k++) {          // k = 0 is the lowest step
+      put(f.uNose + k * tread, f.uBack, -f.width / 2, f.width / 2, f.yBase + (k + 1) * rise,
+        f.axis === 'x' ? [riserM, riserM, treadM, riserM, stepSideM, stepSideM]
+          : [stepSideM, stepSideM, treadM, riserM, riserM, riserM]);
+    }
+    if (f.cheek > 0) {                       // cheeks, stepping down one per tread
+      for (const s of [-1, 1]) {
+        const vc = s * (f.width / 2 + f.cheek / 2);
+        for (let k = 0; k < f.n; k++) {
+          put(f.uNose + k * tread, f.uNose + (k + 1) * tread, vc - f.cheek / 2, vc + f.cheek / 2,
+            f.yBase + (k + 1) * rise + 0.5, stoneM());
+        }
+        put(f.uTop, f.uBack, vc - f.cheek / 2, vc + f.cheek / 2, f.yTop + 0.5, stoneM());
+      }
+    }
+    return {
+      /** the ramp, in approach coords. Outside the flight's width: null. */
+      gy: (u: number, v: number): number | null => {
+        if (Math.abs(v) > f.width / 2) return null;
+        if (u <= f.uNose) return f.yBase;
+        if (u >= f.uTop) return f.yTop;
+        return f.yBase + ((u - f.uNose) / (f.uTop - f.uNose)) * (f.yTop - f.yBase);
+      },
+      /** the cheeks, in approach coords, for the caller to register */
+      cheeks: [-1, 1].map((s) => ({
+        u0: f.uNose, u1: f.uBack,
+        v0: s * (f.width / 2) - (s < 0 ? f.cheek : 0), v1: s * (f.width / 2) + (s > 0 ? f.cheek : 0),
+      })),
+    };
+  };
 
   // Forecourt paving. Deliberately NOT the sidewalk: the walk is cool grey
   // 1 m concrete slabs at 32 px/m, so the courtyard is warm stone flags,
@@ -423,44 +595,23 @@ export function buildCivic(o: {
     const RISE = 0.17, TREAD = 0.36, N = 5;
     const TOP = KERB_H + N * RISE;                    // the threshold
     const XBOT = XF + N * TREAD;                      // the bottom nosing, 1.8 m out
-    const treadM = new THREE.MeshBasicMaterial({ color: 0xb4aa92 });
-    const riserM = new THREE.MeshBasicMaterial({ color: 0x877d69 });
-    const flankM = new THREE.MeshBasicMaterial({ color: 0x9c9280 });
-    for (let k = 0; k < N; k++) {                     // k = 0 is the lowest step
-      const nose = XF + (N - k) * TREAD;
-      const d = nose - (XF - BAY_D);
-      const h = KERB_H + (k + 1) * RISE;
-      const st = new THREE.Mesh(new THREE.BoxGeometry(d, h, BAY_W - 0.9),
-        [riserM, riserM, treadM, riserM, flankM, flankM]);
-      st.position.set(nose - d / 2, h / 2, cz);
-      scene.add(st);
-    }
-    // cheek walls, stepping down beside the flight one segment per tread
-    for (const s of [-1, 1]) {
-      for (let k = 0; k < N; k++) {
-        const x1 = XF + (N - k) * TREAD, x0 = x1 - TREAD;
-        const h = KERB_H + (k + 1) * RISE + 0.5;
-        const ck = new THREE.Mesh(new THREE.BoxGeometry(TREAD, h, 0.42), stoneM());
-        ck.position.set((x0 + x1) / 2, h / 2, cz + s * (BAY_W / 2 - 0.21));
-        scene.add(ck);
-      }
-      const ckIn = new THREE.Mesh(new THREE.BoxGeometry(BAY_D, TOP + 0.5, 0.42), stoneM());
-      ckIn.position.set(XF - BAY_D / 2, (TOP + 0.5) / 2, cz + s * (BAY_W / 2 - 0.21));
-      scene.add(ckIn);
-    }
+    // u runs east→west into the block from the street line at x = -FACE
+    const uOf = (x: number) => -FACE - x;
+    const st = flight({
+      axis: 'x', ox: -FACE, oz: cz, dir: -1, n: N,
+      yBase: KERB_H, yTop: TOP,
+      uNose: uOf(XBOT), uTop: uOf(XF), uBack: uOf(XF - BAY_D),
+      width: BAY_W - 0.9, cheek: 0.42,
+    });
     // ── climbing it ───────────────────────────────────────────────────────
     //
     // The flight used to be ONE SOLID BLOCK: you walked round it, not up it,
     // and the user went looking for the way up. Now the treads are open and
     // the only solids are the two cheek walls beside them — a stair in this
     // world is a floor-picker answer, never a collider (GOTCHAS §7).
-    const CHEEK = BAY_W / 2 - 0.21;                   // cheek wall centre line
     if (COURT.climbable) {
-      for (const s of [-1, 1]) {
-        solid({
-          minX: XF - BAY_D, maxX: XBOT,
-          minZ: cz + s * CHEEK - 0.21, maxZ: cz + s * CHEEK + 0.21,
-        });
+      for (const c of st.cheeks) {
+        solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz + c.v0, maxZ: cz + c.v1 });
       }
       // …and the doors you climb TO stop you, 0.36 m short of the leaf
       solid({ minX: XF - BAY_D - 8, maxX: XF - BAY_D, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
@@ -468,19 +619,13 @@ export function buildCivic(o: {
       // the entry point is not asking `courtGround` yet — see COURT.climbable
       solid({ minX: XF - BAY_D, maxX: XBOT, minZ: cz - BAY_W / 2, maxZ: cz + BAY_W / 2 });
     }
-    // The ramp the picker walks you up. It is the flight's own gradient, so
-    // the drawn treads ride within half a riser of it the whole way — the
-    // walk-up's rule, and the reason the climb feels smooth instead of
-    // jolting 0.17 m five times. Answers null outside the courtyard, so the
-    // entry point can ask one question and get the whole floor.
-    const FLIGHT_HALF = (BAY_W - 0.9) / 2;            // the open width, cheek to cheek
-    courtGround = (x, z) => {
+    // the whole forecourt floor: flat paving, and the flight where it climbs
+    floorLocal((x, z) => {
       if (x < XF - BAY_D || x > -FACE || z < CZ0 || z > CZ1) return null;
-      if (Math.abs(z - cz) > FLIGHT_HALF) return x >= XF ? KERB_H : null;
-      if (x <= XF) return TOP;                        // the landing, in the recess
-      if (x >= XBOT) return KERB_H;                   // the paving, in front of it
-      return KERB_H + ((XBOT - x) / (N * TREAD)) * (N * RISE);
-    };
+      const ramp = st.gy(uOf(x), z - cz);
+      if (ramp !== null) return ramp;
+      return x >= XF ? KERB_H : null;                 // beside the flight: paving
+    });
 
     // ── the two party walls the setback exposes ───────────────────────────
     //
@@ -496,56 +641,16 @@ export function buildCivic(o: {
     // across, courses every 5 px — so they read as the same block.
     //
     // HEIGHT IS A COUPLING. The panel has to stop below the neighbour or it
-    // stands against the sky, and it cannot ask how tall the neighbour is
-    // (BURGER BARN is not even built yet when this runs). 15.4 m clears the
-    // shortest neighbour on this run — BURGER BARN, 4 floors, 17.2 m — with
-    // 1.8 m to spare, and the top 2.5 m of the paint FADES TO `endM`'s exact
-    // brown, so where the panel stops there is no seam to see. Drop a
-    // neighbour below four floors and this needs revisiting.
-    const FLANK_H = 15.4, END_BROWN = '#53382e';
-    const partyTex = (seed: number, wash: boolean) => {
-      const flankS = masonry(SET, FLANK_H, 0);
-      const W = flankS.W, H = flankS.H, fm = flankS.m;
-      return flankS.paint((g) => {
-        const r = clcg(seed);
-        g.fillStyle = '#6f5344'; g.fillRect(0, 0, W, H);
-        flankS.courses(g);                                      // courses + perps
-        if (wash) {                                             // flaking whitewash dado
-          const wy = H - fm(2.9);
-          g.fillStyle = 'rgba(214,206,188,0.5)'; g.fillRect(0, wy, W, H - wy);
-          g.fillStyle = 'rgba(214,206,188,0.28)'; g.fillRect(0, wy - fm(0.36), W, fm(0.36));
-          for (let i = 0; i < 40; i++) {                        // where it has come away
-            g.fillStyle = 'rgba(111,83,68,0.55)';
-            g.fillRect(Math.floor(r() * W), wy + Math.floor(r() * (H - wy)), 1 + Math.floor(r() * 3), 1 + Math.floor(r() * 3));
-          }
-        }
-        // the ghost of a lower roof that used to abut this wall
-        const gy = H - fm(wash ? 7.4 : 9.1);
-        g.fillStyle = 'rgba(150,128,108,0.3)'; g.fillRect(0, gy, W, H - gy);
-        g.fillStyle = 'rgba(40,30,24,0.35)'; g.fillRect(0, gy, W, fm(0.18));
-        // soot down from the top, and rain off the pipe
-        for (let i = 0; i < 26; i++) {
-          g.fillStyle = `rgba(30,24,20,${0.06 + r() * 0.1})`;
-          g.fillRect(Math.floor(r() * W), 0, 1 + Math.floor(r() * 2), Math.round(r() * H * 0.7));
-        }
-        g.fillStyle = 'rgba(74,86,58,0.22)';
-        for (let i = 0; i < 14; i++) g.fillRect(fm(0.36) + Math.floor(r() * fm(0.5)), Math.round(H * 0.45 + r() * H * 0.5), fm(0.25), fm(0.36) + Math.floor(r() * fm(0.9)));
-        // …and the top 2.5 m fades to the flank behind it, so the panel has
-        // no visible top edge — the neighbour just carries on upward
-        const FD = fm(2.5);
-        for (let y = 0; y < FD; y++) {
-          g.fillStyle = `rgba(83,56,46,${(1 - y / FD) ** 0.7})`;
-          g.fillRect(0, y, W, 1);
-        }
-        dither(g, W, H, Math.round(SET * FLANK_H * 5.3));
-      });
-    };
+    // The exposed flanks. 15.4 m clears the shortest neighbour on this run —
+    // BURGER BARN, 4 floors, 17.2 m — with 1.8 m to spare. Drop a west
+    // neighbour below four floors and this number needs revisiting.
+    const FLANK_H = 15.4;
     const pipeM = new THREE.MeshBasicMaterial({ color: 0x3b332c });
     const capM = new THREE.MeshBasicMaterial({ color: 0xb2a892 });
     for (const s of [-1, 1]) {
       const zp = s < 0 ? CZ0 : CZ1;                             // the party line
       const pan = new THREE.Mesh(new THREE.PlaneGeometry(SET, FLANK_H),
-        flat(partyTex(s < 0 ? 0x3ac81f : 0x9b12ee, s < 0)));
+        flat(partyTex(s < 0 ? 0x3ac81f : 0x9b12ee, s < 0, SET, FLANK_H)));
       pan.position.set(XF + SET / 2, FLANK_H / 2, zp - s * 0.03);
       pan.rotation.y = s < 0 ? 0 : Math.PI;
       scene.add(pan);
@@ -669,10 +774,31 @@ export function buildCivic(o: {
   // coping, buttresses stepping down the front, and a tower with a louvred
   // belfry, a spire and a cross. It is the tallest thing for two streets and
   // that is the point — a landmark, not a storefront.
-  const placeChurch = (x0: number, zc: number, b: BldSpec) => {
+  const placeChurch = (x0: number, zBlock: number, b: BldSpec) => {
     const TOWER_W = 5, NAVE_W = b.w - TOWER_W;
     const NAVE_H = 17, RIDGE = 21.6, TOWER_H = 26, SPIRE = 5.2;
-    const zFront = zc + 1.7;                       // the facade plane, on the street
+    // ── inlaid ────────────────────────────────────────────────────────────
+    //
+    // *"inlay the church and give it some stairs similar to the library but
+    // keep the design of the church. the church facade is good i just want it
+    // to have depth and a lil courtyard"* — so this is a SETBACK and nothing
+    // else. Not one line of the elevation below changes: the stone, the
+    // gable, the rose, the lancets and the doorway in its recessed orders are
+    // approved and stay exactly as they are.
+    //
+    // The whole mass simply moves back off the block's facade line, and the
+    // notch that leaves becomes the churchyard. Because every piece of the
+    // church downstream is positioned off `zc` or `zFront`, moving those two
+    // numbers moves the nave, the gable, the roof, the buttresses, the tower,
+    // the spire and the noticeboard together, and nothing else needs to know.
+    //
+    // 2.6 m, not the library's 3.2: the user asked for *a lil courtyard*, and
+    // a churchyard that reads enclosed wants to be tighter than a civic
+    // plaza. It also has to pay for the flight, which eats 1.02 m of it.
+    const SET_C = 2.6;
+    const zStreet = zBlock + 1.7;                  // the block's facade line
+    const zc = zBlock - SET_C;                     // the mass, set back off it
+    const zFront = zc + 1.7;                       // the church's own facade
     const naveCx = x0 + NAVE_W / 2, towCx = x0 + NAVE_W + TOWER_W / 2;
     const naveS = masonry(NAVE_W, NAVE_H, 0);
     const NW = naveS.W, NH = naveS.H;
@@ -944,6 +1070,171 @@ export function buildCivic(o: {
     const nt = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.75, 0.1), flat(ntT));
     nt.position.set(naveCx + 4.6, 1.75, zFront + 0.06);
     scene.add(nt);
+
+    // ── the churchyard ────────────────────────────────────────────────────
+    //
+    // It must not read as the library's forecourt. That one is a civic plaza:
+    // sawn flags in courses, benches facing each other, a space that invites
+    // you to sit in the middle of it. This is a churchyard — enclosed, and
+    // quieter. Everything about it says so rather than being told:
+    //
+    //   FLAGS, not paving courses — irregular sizes on a broken bond, mossy
+    //     in the joints, a different and cooler stone from either the library
+    //     or the pavement.
+    //   A WALL ON THE STREET LINE with a gate, not open gate piers. You enter
+    //     through something. The library's mouth is 16 m wide; this one is
+    //     2.6 m and everything either side of it is wall.
+    //   PLANTING IN THE CORNERS, against the wall, not out in the space.
+    //   And the space left over is deliberately small — you cross it, you do
+    //     not sit down in it.
+    const YARD_X0 = x0, YARD_X1 = x0 + b.w;
+    const yardMid = (YARD_X0 + YARD_X1) / 2;
+    // The flags. Irregular, and drawn from the surface's real metres like
+    // every other masonry canvas in the world (A's density mandate).
+    const flagS = masonry(b.w, SET_C, 0, 4);
+    const flagTex = flagS.paint((g) => {
+      const r = clcg(0x6b2fd1);
+      const W = flagS.W, H = flagS.H, fm = flagS.at;
+      g.fillStyle = '#5f6058'; g.fillRect(0, 0, W, H);           // the joints
+      // a broken bond: each course a different depth, each flag a different
+      // width, so no two joints line up the way the library's do
+      for (let y = 0, i = 0; y < H; i++) {
+        const d = fm(0.62 + (i % 3) * 0.24);
+        for (let x = -Math.round(r() * fm(0.8)); x < W;) {
+          const w = fm(0.55 + r() * 0.75);
+          const k = r();
+          g.fillStyle = k > 0.82 ? '#8d8c80' : k > 0.5 ? '#82806f' : k > 0.2 ? '#78776a' : '#6e6d62';
+          g.fillRect(x + 1, y + 1, w - 1, Math.min(d - 1, H - y - 1));
+          x += w;
+        }
+        y += d;
+      }
+      g.fillStyle = 'rgba(74,86,58,0.5)';                        // moss in the joints
+      for (let i = 0; i < 260; i++) g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1 + Math.floor(r() * 2), 1);
+      g.fillStyle = 'rgba(38,34,28,0.16)';                       // worn, dished at the gate
+      for (let i = 0; i < 40; i++) {
+        g.fillRect(Math.round(W * 0.5 + (r() - 0.5) * fm(3)), Math.round(r() * H), 2 + Math.floor(r() * 5), 2 + Math.floor(r() * 3));
+      }
+      dither(g, W, H, Math.round(b.w * SET_C * 6));
+    });
+    const yard = new THREE.Mesh(new THREE.PlaneGeometry(b.w, SET_C), flat(flagTex));
+    yard.rotation.x = -Math.PI / 2;
+    yard.position.set(yardMid, KERB_H, zFront + SET_C / 2);
+    scene.add(yard);
+
+    // The steps: the SAME flight the library uses, turned a quarter turn
+    // because street.ts turns the church. 0.41 m of climb, not the library's
+    // 0.85 — the doorway is PAINTED with its sill 0.55 m above the church's
+    // base and its own three steps below that, and the facade is approved, so
+    // the real flight lands exactly where the painted one already says the
+    // threshold is. Change one and you must change the other.
+    const SILL = 0.55, N_C = 3, TREAD_C = 0.34;
+    const uTop = SET_C - 0.5;                       // a top landing you can stand on
+    const cst = flight({
+      axis: 'z', ox: naveCx, oz: zStreet, dir: -1, n: N_C,
+      yBase: KERB_H, yTop: SILL,
+      uNose: uTop - N_C * TREAD_C, uTop, uBack: SET_C,
+      width: 4.6, cheek: 0.4,
+    });
+
+    // The wall on the street line, with the gate in the middle of it. 0.3 m
+    // thick and standing INSIDE the line, so it takes nothing off the 2 m
+    // walk (§9) — it sits in the 0.3 m the block's facade collider already
+    // reserves, exactly like the library's profile does.
+    // A DWARF WALL WITH RAILINGS, not a wall on its own: 0.62 m of stone and
+    // 0.72 m of iron above it. The first cut was 0.92 m of solid stone and it
+    // hid the flight completely from the pavement — you cannot ask for stairs
+    // and then build a parapet in front of them. Low stone reads as boundary,
+    // the railing reads as enclosure, and you can see through both.
+    //
+    // The railings are PAINTED on an alpha-tested plane rather than built out
+    // of 70 little boxes. Symmetrical by construction, so the double-sided
+    // mirroring that bit the HOTEL sign (§10) cannot show here.
+    const GATE_W = 2.6, WALL_H = 0.62, RAIL_H = 0.72;
+    const gate0 = naveCx - GATE_W / 2, gate1 = naveCx + GATE_W / 2;
+    const capM2 = new THREE.MeshBasicMaterial({ color: 0xb2a892 });
+    const railTex = (wM: number) => {
+      const W = Math.max(8, Math.round(wM * 16)), H = Math.round(RAIL_H * 16);
+      return pixTex(W, H, (g) => {
+        g.clearRect(0, 0, W, H);
+        g.fillStyle = '#2f3238';
+        const pitch = Math.max(3, Math.round(0.19 * 16));
+        for (let x = Math.round(pitch / 2); x < W; x += pitch) g.fillRect(x, 1, 2, H - 2);
+        g.fillRect(0, 0, W, 2);                                  // top rail
+        g.fillRect(0, H - 3, W, 2);                              // bottom rail
+        g.fillStyle = '#3d4148';                                 // spear heads
+        for (let x = Math.round(pitch / 2); x < W; x += pitch) g.fillRect(x - 1, 2, 4, 2);
+      });
+    };
+    const railM = (wM: number) => new THREE.MeshBasicMaterial({
+      map: railTex(wM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    });
+    for (const [wx0, wx1] of [[YARD_X0, gate0 - 0.25], [gate1 + 0.25, YARD_X1]]) {
+      const w = wx1 - wx0;
+      if (w <= 0) continue;
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, 0.3), stoneM());
+      wall.position.set((wx0 + wx1) / 2, WALL_H / 2, zStreet - 0.15);
+      scene.add(wall);
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.4), capM2);
+      cap.position.set((wx0 + wx1) / 2, WALL_H + 0.05, zStreet - 0.15);
+      scene.add(cap);
+      const rail = new THREE.Mesh(new THREE.PlaneGeometry(w, RAIL_H), railM(w));
+      rail.position.set((wx0 + wx1) / 2, WALL_H + 0.1 + RAIL_H / 2, zStreet - 0.15);
+      scene.add(rail);
+      solidLocal(wx0, wx1, zStreet - 0.3, zStreet);
+    }
+    for (const gx of [gate0 - 0.25, gate1 + 0.25]) {             // the gate piers
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.55, 0.5), stoneM());
+      pier.position.set(gx, 0.775, zStreet - 0.25);
+      scene.add(pier);
+      const pc = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.14, 0.62), capM2);
+      pc.position.set(gx, 1.62, zStreet - 0.25);
+      scene.add(pc);
+      solidLocal(gx - 0.25, gx + 0.25, zStreet - 0.5, zStreet);
+      // its leaf, standing open INTO the yard — hinged on the pier and swung
+      // back, which is how a parish gate spends every hour it is not locked
+      const leaf = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.06), railM(1.15));
+      leaf.position.set(gx, 0.67, zStreet - 0.25 - 0.575);
+      leaf.rotation.y = Math.PI / 2;
+      scene.add(leaf);
+    }
+    // planting in the two corners, against the wall where it is always found
+    const shrubM2 = flat(shrubTex());
+    for (const s of [-1, 1]) {
+      const px = s < 0 ? YARD_X0 + 1.15 : YARD_X1 - 1.15;
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, SET_C - 1.1), new THREE.MeshBasicMaterial({ color: 0x4a4335 }));
+      bed.position.set(px, KERB_H + 0.13, zFront + (SET_C - 1.1) / 2);
+      scene.add(bed);
+      for (const [dx, dz, h] of [[-0.5, 0.4, 1.5], [0.45, 1.15, 1.15]] as [number, number, number][]) {
+        const yew = new THREE.Mesh(new THREE.BoxGeometry(0.8, h, 0.8), shrubM2);
+        yew.position.set(px + dx, KERB_H + 0.26 + h / 2, zFront + 0.5 + dz);
+        scene.add(yew);
+      }
+      solidLocal(px - 1.0, px + 1.0, zFront, zFront + SET_C - 1.1);
+    }
+    // the flight's cheeks, and the facade you stop at
+    for (const c of cst.cheeks) {
+      solidLocal(naveCx + c.v0, naveCx + c.v1, zStreet - c.u1, zStreet - c.u0);
+    }
+    solidLocal(YARD_X0, YARD_X1, zFront - 8, zFront);
+    // The churchyard floor: flags, and the flight where it climbs. Written in
+    // the church's OWN frame — street.ts turns the whole thing, so this is
+    // converted to world coordinates lazily, once, on the first query.
+    floorLocal((x, z) => {
+      if (x < YARD_X0 || x > YARD_X1 || z < zFront || z > zStreet) return null;
+      const ramp = cst.gy(zStreet - z, x - naveCx);
+      return ramp !== null ? ramp : KERB_H;
+    });
+    // the flanks the setback uncovers — PAWN one side, the bodega the other.
+    // 13.0 m clears the shorter of the two (the bodega, 3 floors, 14.8 m).
+    for (const s of [-1, 1]) {
+      const xp = s < 0 ? YARD_X0 : YARD_X1;
+      const pan = new THREE.Mesh(new THREE.PlaneGeometry(SET_C, 13.0),
+        flat(partyTex(s < 0 ? 0x51ba07 : 0x2d77fe, s > 0, SET_C, 13.0)));
+      pan.position.set(xp - s * 0.03, 6.5, zFront + SET_C / 2);
+      pan.rotation.y = s < 0 ? Math.PI / 2 : -Math.PI / 2;
+      scene.add(pan);
+    }
   };
 
   // `colliders` is filled as the placers run, so read it AFTER placing.

@@ -1,5 +1,8 @@
 // Builder E: the church west front — buttresses, lancets, rose.
 //
+// The church is INLAID 2.6 m now, so the facade is at x = 9.6 and the
+// churchyard is the notch between it and the street line at x = 7.0.
+//
 // D moved the church onto the main block, so it now stands on the EAST side
 // with its facade on x = 7.0 looking west, the nave running z -86…-73 and the
 // tower z -73…-68. Local x -> world z + (-86), so:
@@ -24,24 +27,21 @@ await page.waitForTimeout(400);
 
 const E = Math.PI / 2;   // yaw for facing east, at the church front
 const SHOTS = [
-  // the angle the user reported it from: at the foot of it, looking up
-  ['user-angle', 2.2, -79.5, E, 0.0, 0.55],
-  ['user-angle-off', 2.2, -83.0, E - 0.22, 0.0, 0.52],
-  // …and straight on, where a symmetric fault hides
+  // the churchyard, which has to read as a churchyard and not as the library
+  ['yard-from-street', 2.0, -79.5, E, 0.0, 0.12],
+  ['yard-gate', 6.2, -79.5, E, 0.14, 0.06],
+  ['yard-inside', 8.2, -79.5, E, 0.14, 0.10],
+  ['yard-corner', 8.4, -84.0, E - 0.6, 0.14, -0.06],
+  ['yard-back-out', 9.0, -79.5, -E, 0.55, -0.10],
+  ['yard-flags', 8.2, -76.0, E - 0.4, 0.14, -0.5],
+  ['yard-along', 7.6, -70.0, Math.PI - 0.12, 0.14, 0.04],
+  ['depth-oblique', 1.0, -71.0, 0.62, 0.0, 0.20],
+  // the facade, which must be UNCHANGED apart from standing further back
+  ['user-angle', 4.8, -79.5, E, 0.0, 0.55],
   ['head-on', -4.6, -79.5, E, 0.0, 0.16],
   ['head-on-up', -4.6, -79.5, E, 0.0, 0.34],
-  // the two lancets, each with the buttresses that used to cross it
-  ['lancet-south', -1.0, -84.2, E, 0.0, 0.44],
-  ['lancet-north', -1.0, -74.8, E, 0.0, 0.44],
   ['lancets-both', -3.0, -79.5, E, 0.0, 0.40],
-  // the rose, which used to be an oval
-  ['rose', -3.0, -79.5, E, 0.0, 0.58],
-  // the stages, raked along the front from both ends
   ['stages-rake-n', 1.0, -71.0, 0.62, 0.0, 0.30],
-  ['stages-rake-s', 1.0, -88.0, Math.PI - 0.62, 0.0, 0.30],
-  ['stages-rake-close', 3.4, -75.0, 0.75, 0.0, 0.42],
-  ['stages-top', 1.0, -73.0, 0.55, 0.0, 0.72],
-  // the whole thing, from across the street and from down the block
   ['from-across', -4.9, -79.5, E, 0.14, 0.30],
   ['down-the-block', -3.2, -58.0, Math.PI - 0.20, 0.0, 0.18],
   ['night', -4.6, -79.5, E, 0.0, 0.22],

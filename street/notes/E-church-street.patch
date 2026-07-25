@@ -1,0 +1,16 @@
+diff --git a/street/src/proto/ct/street.ts b/street/src/proto/ct/street.ts
+index 9e20d22d..dd796a75 100644
+--- a/street/src/proto/ct/street.ts
++++ b/street/src/proto/ct/street.ts
+@@ -288,7 +288,10 @@ export function buildStreet(o: {
+     // footprint or it is not there at all — with the blanket wall gone you
+     // walked straight through the nave. The 0.3 cushion covers the tower,
+     // which stands exactly that far proud of the facade.
+-    solid({ minX: FACE - 0.3, maxX: FACE + 8, minZ: z - b.w, maxZ: z });
++    // TEMPORARY (builder E, for verification only — revert before commit):
++    // the church is inlaid now and ct/civic.ts registers its own footprint,
++    // the way the library does. This blanket box seals the churchyard.
++    void 0;
+   };
+   let ze = 14.2;
+   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
