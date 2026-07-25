@@ -44,7 +44,35 @@ declared masonry stamp if any. A second exports the adjacency test, with
 Then `density`, `masonry`, `seampairs` and `pairclip` all read the same six
 lines, and getting them right once is getting them right everywhere.
 
-## Why I have not just done it
+## DONE for the three that are mine (`0a525ba0`)
+
+`ebe0afb0` — a builder retiring their own duplicate script rather than waiting
+for permission — is the precedent, and it settles the half of this I could act
+on alone.
+
+`scripts/lib/faces.mjs` now holds the face geometry, injected as **source** via
+`addInitScript` because every consumer needs it inside `page.evaluate` where an
+import cannot reach. `density`, `masonry` and `seampairs` read it.
+
+**Verified as a no-op on results**, which is the only way a refactor of measuring
+instruments is worth doing:
+
+| script | after migration | before |
+|---|---|---|
+| `density` | 236 faces, all mapped correctly | same |
+| `density --selftest` | still caught its corrupted stamp | same |
+| `masonry` | 3383 meshes, 236 stamps, **0** disagreeing | same |
+| `seampairs` | 419 faces, 1836 pairs, 851 like-for-like, **0** disagreeing, 86 unjudgeable | same |
+
+Every number identical.
+
+**`pairclip.mjs` is deliberately untouched** — the reason I gave for not acting
+still applies to it, and only to it. It also has the *better* adjacency test
+(surface-to-slab both ways, keeping three junctions mine drops). When its author
+is done, that test should become the reference the others call, rather than a
+fifth opinion. I am not going to reach into it to make that happen.
+
+## ~~Why I have not just done it~~ (kept: still true of pairclip)
 
 `pairclip.mjs` is an hour old and its author is active in it. A merge conflict
 in the tool everyone is currently arguing about is the worst possible place to
