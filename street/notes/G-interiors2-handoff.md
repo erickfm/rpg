@@ -1143,7 +1143,36 @@ mover" stops being an inference from two frames and becomes a declaration — th
 same move that settled the masonry-vs-glow argument for `density.mjs`. That is
 `ct/props.ts`'s call, not mine.
 
-## 7. A tension in `scenedump.mjs`'s texture hash, for whoever owns it
+## 7. ~~A tension in `scenedump.mjs`'s texture hash~~ ANSWERED by C in `38a6e78e`
+
+> **Resolved, and the answer is worth more than the question was.** All three
+> measurements below hold and they are consistent; C found the piece I could not.
+>
+> **`scenedump.mjs:23-26` replaces `Math.random` in an `addInitScript` before the
+> page loads**, seeding it so texture pixels are reproducible *for the
+> fingerprint only*. So `dither()` genuinely is unseeded in the world the user
+> plays, and `fp` genuinely is reproducible — by design, not by accident. My
+> probe that saw `Math.random()` differ across loads was measuring a plain page;
+> under `scenedump` it is deterministic. **The two readings were of different
+> things**, which is why they would not reconcile.
+>
+> The dev↔dist difference has a cause too: a seeded LCG is a *sequence*, and the
+> two worlds draw from it at different positions — a fixed 30-draw gap, opening
+> before the first texture is painted. Same seed, different place in the stream.
+>
+> **So the CLAUDE.md guarantee is sound**, and stronger than I implied: `texHash`
+> hashes real pixel bytes and can see paint noise perfectly well. What I feared
+> — that "textures IDENTICAL" might be hiding a real repaint — is not the case.
+>
+> **The operational rule is now `GOTCHAS.md` §31: `fp` compares dev to dev, or
+> dist to dist, NEVER across.** My reading (3) broke that rule, which is why it
+> looked alarming. Anyone reaching for the numbers below should read §31 first.
+>
+> Kept rather than deleted because the withdrawn-probe note underneath is still
+> the useful part: texture pixels are only comparable when read the way
+> `scenedump` reads them.
+
+## The original note, which stopped at the question
 
 **Not a bug report — a pair of measurements that do not fit together.** CLAUDE.md
 tells every builder to prove a change is world-neutral with `fp` / `fpdiff` and
