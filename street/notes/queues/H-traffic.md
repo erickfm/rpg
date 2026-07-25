@@ -23,6 +23,47 @@ world stops.
 
 ## Now
 
+- [ ] **Wheels clip through the bodies, and the doors do not read as doors.**
+      Two notes on the fleet, same pass.
+
+      **(a) The pickup needs wheel arches.** The user: *"pickup looks great but
+      the wheels need to not clip through, maybe we need to have some inlaid
+      wheel things pickups have"*. Ref: `shots/user-truckwheel.png`. The bed
+      side is a flat slab and the tyre passes straight through it, because
+      nothing in the body is cut away for the wheel. What they are describing
+      is a **wheel arch** — every real vehicle has one, and on a pickup it is a
+      pronounced flared well in the bed side. Cut the arch into the body so
+      the tyre sits INSIDE it with a visible gap at the top, and give the
+      arch a lip. Do it for the whole fleet, not just the truck: the sedan in
+      `shots/user-cardoors.png` has the same fault, its tyres just intersect a
+      flat flank.
+
+      Note the arch is a curved edge in a hard-texel world — step it, do not
+      smooth it, and keep the steps coarse. That face is seen at a grazing
+      angle, which is the condition that turned the tailgate into a
+      checkerboard (`GOTCHAS.md` §4).
+
+      **(b) The sedan's doors are two floating bars.** The user: *"idk if the
+      doors make sense on the car"*. Ref: `shots/user-cardoors.png`. What is
+      drawn is two short vertical strips in the middle of the flank that stop
+      well short of both the sill and the window, plus two small black
+      rectangles. Nothing reads as a door because a door is not a line — it is
+      an OUTLINE:
+      · shut lines run from the **sill all the way up to the window base**,
+        and there are TWO of them per door edge, not one
+      · the **B-pillar in the glass must line up with the shut line below
+        it**. In the shot the glass divider and the body strips are at
+        different x, which is most of why it reads wrong.
+      · **handles sit just under the window line**, not halfway down the door
+      · the window glass should be **divided by the same pillar**, so front and
+        rear windows are separate panes
+      · a **rear quarter window** behind the back door is what makes a
+        four-door sedan read as a four-door
+
+      Check every car in the fleet for both, and check that a two-door and a
+      four-door actually differ — if they share a flank texture, that is the
+      real bug.
+
 - [ ] **Parked cars can leave a gap the player fits into but cannot leave.**
       The user got wedged between two of yours: *"im literally stuck here"*.
       Ref: `shots/user-stuck.png`.
