@@ -136,6 +136,39 @@ gradable materials that never move, 13 of which break §22. I am not calling the
 22 a bug — I cannot see from outside whether that lot is lit on purpose, and it
 was finished in `373940c4`. The 13 are a documented rule violation either way.
 
+## `8e473276` closed the guessing half (`5c813dac`)
+
+props.ts now stamps `userData.selfLit` on sheets it grades and **deliberately
+keeps bright**, and its commit message says why: this script was handing its
+owner *"thirteen tickets for a neon sign and eleven lit window panels doing
+exactly what the user asked for — Lit windows and signs must NOT dim with it."*
+
+That is the right fix on the right side of the wall. From outside, "kept bright
+on purpose" and "never graded at all" are the same picture; only the module
+doing the grading knows which. So the check reads the stamp now:
+
+| box | before | after |
+|---|---|---|
+| car lot | 22 unexplained | **7** |
+| main street | 10 | 10 — nothing there is stamped |
+
+## One line would make this a verdict instead of a report
+
+Still reported and **not failed on**, because two things stay invisible:
+
+- **`wetMats`** — `updateRain` owns them and nothing marks them
+- **graded-but-unchanged vs never-handed-to-`dimWorld`** — indistinguishable
+  from outside, and most of the world is the latter. That is the whole reason
+  the un-boxed number is 417 and answers nothing.
+
+**Request, for whoever owns `props.ts`:** stamp `m.userData.graded = true` where
+`dimWorld` actually writes a colour. One line, symmetrical with the `selfLit`
+stamp you just added. With it, "was offered to the dimmer and did not move" is
+decidable and this check can fail honestly instead of printing a number and
+leaving the judgement to a human — which is the state it was in when I found it.
+
+Not blocking me; I have not filed it in `BLOCKED-A.md`.
+
 ## The thing worth remembering
 
 This is the third detector this week that was reporting confidently on something
