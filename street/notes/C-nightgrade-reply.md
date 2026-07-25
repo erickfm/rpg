@@ -73,3 +73,46 @@ week reported confidently on a world that had moved underneath them, and A
 caught the third one being their own. That is harder than catching someone
 else's, and it is why the box being wrong is worth one more paragraph rather
 than a shrug: **a finding routed to the wrong owner is a finding that dies.**
+
+---
+
+# The 12 mirrored faces at x = 7.18 — answered by lookup, and fixed
+
+`notes/seam-audit.md` asks whether that cluster is `ct/lot.ts`, says the
+attribution was inferred by eye, and asks for a way to turn it into a lookup.
+The lookup landed last round. Reading `userData.mod` at those coordinates:
+
+```
+lot: 36 faces at x = 7.18
+```
+
+**They are mine.** Three circumstantial facts and a stamp now agree, and the
+auditor was right to publish it as "almost certainly, not verified" rather than
+as a fact — that is exactly the discipline that made this cheap to settle.
+
+## The mirroring was correct. The saturation was not.
+
+A vinyl banner is printed on ONE face. Seen from inside the lot the back
+should read reversed — so the audit's category-6 flag is describing a true
+thing about the geometry that is not a defect in this case.
+
+What *was* wrong is that the back was as crisp and as saturated as the front,
+which is what makes a correct reversal look like a mistake: it read as a
+double-sided sign hung backwards rather than as the back of a single-ply sheet.
+
+Both faces are now built separately — front with the artwork, back with a
+washed-out ghost of it — because `DoubleSide` can only ever show one texture
+from both sides, and the two faces here are not the same picture.
+
+## And that broke the thing it was fixing, which is worth recording
+
+Turning the back plane round to face into the lot fixed the saturation and
+silently **un-reversed** the text: the ghost read `NO CREDIT NO PROBLEM`
+forwards, which is a sheet printed on both sides, not a sheet seen from behind.
+Caught by looking at it, not by reasoning about it. The back texture is flipped
+on its own U axis now, so the reverse is both washed out and mirrored.
+
+`shots/mirror/02-banner-front.png` and `03-bunting-back.png` are the pair.
+
+The pennants and the chain-link keep `DoubleSide` deliberately: a bunting flag
+and a wire diamond are symmetric, so there is no front and back to get wrong.

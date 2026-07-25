@@ -819,7 +819,20 @@ export function buildLot(o: {
     // bottom edge is the whole read, and a rectangle pinned taut reads as a
     // shopfront fascia instead. Drawn into the texture with alpha: the tie
     // points are straight and the cloth falls away between them.
-    const bannerT2 = (words: string, bg: string, ink: string) => {
+    // `ghost` paints the BACK of the sheet. A vinyl banner is printed on one
+    // face; the reverse is the blank stock with the ink showing dimly through
+    // it, so the back is the same artwork washed out and knocked back — never
+    // the same crisp colour. The seam audit found these 12 faces reading
+    // mirrored from inside the lot, and the mirroring is RIGHT for single-ply
+    // vinyl — what was wrong is that the back was as saturated as the front,
+    // which is what made a correct reversal look like a mistake.
+    // NOTE ON `ghost` AND MIRRORING, because getting one right broke the
+    // other: the back of a printed sheet is BOTH washed out AND reversed.
+    // Turning the back plane round to face into the lot fixed the saturation
+    // and quietly un-reversed the text — the ghost read "NO CREDIT NO PROBLEM"
+    // forwards, which is a sheet printed on both sides, not a sheet seen from
+    // behind. The texture is flipped on its own U axis to put it back.
+    const bannerT2 = (words: string, bg: string, ink: string, ghost = false) => {
       const W = Math.max(64, words.length * 6 * 2 + 14), H = 30;
       const TIES = Math.max(2, Math.round(W / 46));
       return pixTex(W, H, (g) => {
@@ -839,6 +852,7 @@ export function buildLot(o: {
           g.fillRect(x, Math.round(H - 7 + sag), 1, 2);           // shadowed lower hem
         }
         stamp(g, words, 7, 10, 2, ink);
+        if (ghost) { g.fillStyle = 'rgba(228,226,216,0.72)'; g.fillRect(0, 0, W, H); }
         g.fillStyle = '#d8d4c8';                                   // the zip ties
         for (let t2 = 0; t2 <= TIES; t2++) {
           const x = Math.round((t2 / TIES) * (W - 3));
@@ -854,17 +868,29 @@ export function buildLot(o: {
       ['SE HABLA ESPANOL', '#2f7a4a', '#f2ead0', 0.85],
     ];
     for (const [words, bg, ink, at] of banners) {
-      const t2 = bannerT2(words, bg, ink);
       const w = words.length * 0.17 + 0.5;
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
-        new THREE.MeshBasicMaterial({ map: t2, alphaTest: 0.35, side: THREE.DoubleSide }));
+      const y = MESH_TOP - 0.06 - 0.31, z = zN - span * at;
+      // TWO sheets, not one DoubleSide plane, because the two faces are not
+      // the same picture. DoubleSide can only ever show one texture from both
+      // sides; printed vinyl has ink on the front and a ghost of it on the
+      // back. The front looks at the street, the back looks into the lot, and
+      // the reversal comes for free from the orientation rather than from a
+      // second mirrored canvas.
+      //
       // On the street face of the mesh with its top edge just under the top
       // rail, which is where a grommeted banner is cable-tied. Hung at a
       // height picked by eye before, which is how it ended up floating clear
       // of a fence it was supposed to be attached to.
-      b.position.set(FENCE_X - 0.05, MESH_TOP - 0.06 - 0.31, zN - span * at);
-      b.rotation.y = -Math.PI / 2;
-      scene.add(b);
+      for (const [gh, dx, ry] of [[false, -0.055, -Math.PI / 2], [true, -0.045, Math.PI / 2]] as
+        [boolean, number, number][]) {
+        const bt = bannerT2(words, bg, ink, gh);
+        if (gh) { bt.wrapS = THREE.RepeatWrapping; bt.repeat.x = -1; bt.offset.x = 1; }
+        const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62),
+          new THREE.MeshBasicMaterial({ map: bt, alphaTest: 0.35 }));
+        b.position.set(FENCE_X + dx, y, z);
+        b.rotation.y = ry;
+        scene.add(b);
+      }
     }
 
     // ── the back wall ────────────────────────────────────────────────────
@@ -939,12 +965,19 @@ export function buildLot(o: {
       ['WE FINANCE ANYONE', '#c0392f', '#f2ead0', 4.85, 1.15],
       ['CALL 555 0199', '#25406b', '#e0a81c', 3.55, 0.90],
     ] as [string, string, string, number, number][]) {
-      const t2 = bannerT2(words, bg, ink2);
-      const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
-        new THREE.MeshBasicMaterial({ map: t2, alphaTest: 0.35, side: THREE.DoubleSide }));
-      b2.position.set(BW_X, Y + hy, zMid);
-      b2.rotation.y = -Math.PI / 2;
-      scene.add(b2);
+      // Same two-sheet treatment. These hang on a wall, so the back is never
+      // seen — but a banner whose back only exists when someone might look at
+      // it is a banner that will be wrong the day the wall comes down.
+      for (const [gh, dx, ry] of [[false, -0.02, -Math.PI / 2], [true, 0.0, Math.PI / 2]] as
+        [boolean, number, number][]) {
+        const bt2 = bannerT2(words, bg, ink2, gh);
+        if (gh) { bt2.wrapS = THREE.RepeatWrapping; bt2.repeat.x = -1; bt2.offset.x = 1; }
+        const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
+          new THREE.MeshBasicMaterial({ map: bt2, alphaTest: 0.35 }));
+        b2.position.set(BW_X + dx, Y + hy, zMid);
+        b2.rotation.y = ry;
+        scene.add(b2);
+      }
     }
 
     // ── the stock ────────────────────────────────────────────────────────
