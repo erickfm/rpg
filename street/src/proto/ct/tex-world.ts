@@ -296,14 +296,22 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
 // Composing every front from these also stops them drifting apart again,
 // which is what put this on the queue: change the vocabulary once and all
 // four move together.
-const HI = 'rgba(255,255,255,0.20)';
-const SH = 'rgba(0,0,0,0.30)';
-const DP = 'rgba(0,0,0,0.55)';
+// Exported for ct/street.ts's bodega corner bay (builder D, BLOCKED-D.md).
+// The whole point of a shared vocabulary is that the corner follows it instead
+// of inventing a second one, and module-private helpers made that impossible —
+// D's only options were to add these exports inside my live mandate, or to
+// copy them, which is the second vocabulary the brief forbids.
+//
+// These are values and pure draw calls: no state, no signature that depends on
+// anything here. Safe to call from any painter in any file.
+export const HI = 'rgba(255,255,255,0.20)';
+export const SH = 'rgba(0,0,0,0.30)';
+export const DP = 'rgba(0,0,0,0.55)';
 
-interface Band { m: (v: number) => number; W: number; H: number }
+export interface Band { m: (v: number) => number; W: number; H: number }
 
 /** the shopfront opening, set back from the brick it is cut into */
-function reveal(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number) {
+export function reveal(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number) {
   const d = Math.max(1, s.m(0.15));
   g.fillStyle = DP; g.fillRect(x, y, w, d);                     // head, casting down
   g.fillStyle = SH; g.fillRect(x, y + d, d, h - d);             // left jamb, turned from the light
@@ -312,7 +320,7 @@ function reveal(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: n
 }
 
 /** a band standing proud of the wall: lit along the top, casting underneath */
-function proud(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, fill: string) {
+export function proud(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, fill: string) {
   const d = Math.max(1, s.m(0.09));
   g.fillStyle = fill; g.fillRect(x, y, w, h);
   g.fillStyle = HI; g.fillRect(x, y, w, d);
@@ -321,7 +329,7 @@ function proud(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: nu
 
 /** plate glass: a raking sky reflection off the top-left, and the dark of the
  *  room behind. Never a flat black rectangle — that is the tell. */
-function glazed(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, room: string) {
+export function glazed(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, room: string) {
   g.fillStyle = room; g.fillRect(x, y, w, h);
   g.fillStyle = 'rgba(150,172,190,0.18)';                       // sky, raking across
   for (let i = 0; i < h; i++) {
@@ -332,7 +340,7 @@ function glazed(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: n
 }
 
 /** upright glazing bars. Real shopfronts are divided; one sheet reads as a hole. */
-function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, bays: number, col: string) {
+export function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, bays: number, col: string) {
   const t = Math.max(1, s.m(0.07));
   for (let i = 1; i < bays; i++) {
     const mx = x + Math.round((w * i) / bays);
