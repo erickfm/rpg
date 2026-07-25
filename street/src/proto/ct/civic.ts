@@ -959,7 +959,13 @@ export function buildCivic(o: {
     // goes negative the front is overcrowded and something must give
     //   side bays: 1.76 m clear, lancet 1.30  -> 0.23 m each side
     //   centre  : 5.80 m clear, doorway 5.50  -> 0.15 m each side
-    const naveTex = pixTex(NW, NH, (g) => {
+    // `naveS.paint` rather than a bare `pixTex(NW, NH, …)`: identical pixels —
+    // paint() IS pixTex(W, H, draw) — but it also stamps the canvas with what it
+    // is and at what density. The size was already derived from masonry(), so
+    // the DENSITY was never wrong here; only the declaration was missing, which
+    // is why seampairs could not judge these faces and kept offering them as
+    // candidates. ct/civic.ts's own flank painter already does it this way.
+    const naveTex = naveS.paint((g) => {
       const r = clcg(0x3c91e5);
       ashlar(g, NW, NH, r, naveS.m(STONE_COURSE_M), naveS.m(NAVE_BLOCK_M));
       const mid = mx(bayC[1]);
@@ -1018,7 +1024,7 @@ export function buildCivic(o: {
     // stone runs on across the eaves instead of stopping at a smooth plate.
     const gab = masonry(NAVE_W, RIDGE - NAVE_H, 0);
     const gabW = gab.W, gabH = gab.H;
-    const gabTex = pixTex(gabW, gabH, (g) => {
+    const gabTex = gab.paint((g) => {
       const r = clcg(0x5d21a7);
       ashlar(g, gabW, gabH, r, gab.m(STONE_COURSE_M), gab.m(NAVE_BLOCK_M));
       for (let y = 0; y < gabH; y++) {                 // coping along both rakes
@@ -1122,7 +1128,7 @@ export function buildCivic(o: {
     const tow = masonry(TOWER_W, TOWER_H, 0);
     const TW = tow.W, TH = tow.H;
     const tpm = tow.ppm, tyOf = (m: number) => Math.round(TH - m * tpm);
-    const towTex = pixTex(TW, TH, (g) => {
+    const towTex = tow.paint((g) => {
       const r = clcg(0x91b3c2);
       ashlar(g, TW, TH, r, tow.m(STONE_COURSE_M), tow.m(TOWER_BLOCK_M));
       for (let y = 0, i = 0; y < TH; y += 18, i++) {           // quoins
