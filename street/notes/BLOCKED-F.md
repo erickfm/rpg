@@ -296,3 +296,54 @@ is likely mine to fix — I am out of runway this session, not out of ownership.
 **Reproduce:** `SHOT_URL=… node scripts/seats-walk.mjs`, look for a failure with
 a displacement in the hundreds of metres; it is intermittent and not always the
 same seat (mainline saw two at x −8.65, I saw one at x 522.11).
+
+---
+
+## OPEN — the chamfered room. Designed, not built, and here is the signature
+
+The user: *"if the door for the bodega is on a cut corner (literally) then the
+interior should match."* The desk: do it in the kit, not as a one-off, because
+the bodega will not be the last cut corner on the block — and tell them the
+signature because G has four rooms that may want it.
+
+**Signature, for the desk to hand on:**
+
+```ts
+// ct/interior.ts — RoomSpec
+chamfer?: {
+  /** which corner is cut, in ROOM-LOCAL terms */
+  corner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
+  /** how far the cut runs back along each of the two walls it replaces */
+  cut: number;
+};
+
+// Room gains, so fittings can respect it the way they respect `doorAt`:
+chamferFace: { a: {x,z}, b: {x,z}, nx: number, nz: number } | null;
+```
+
+Driven from the same published data the door position comes from: the bodega's
+canted face runs A(7, −94) to B(9, −96) with the door centred at (8.0, −95.0),
+so `cut` is that face's length resolved into room-local metres through the
+existing `localOf`, and the door lands IN the cut face rather than beside it.
+
+**Why it is not built.** It is not an additive change. The kit's shell is four
+axis-aligned walls and the colliders are AABBs, so a chamfer needs:
+
+1. the two walls meeting that corner shortened,
+2. a diagonal wall MESH across the cut, at the frontage's own angle,
+3. a stepped run of small AABBs along the diagonal, because one AABB cannot be
+   a 45° face,
+4. `addHole` taught to cut a doorway in a wall that is not axis-aligned.
+
+Items 2 and 4 are the ones that make it a real piece of work rather than an
+afternoon.
+
+**Why I stopped rather than starting it.** Half of this is worse than none: the
+colliders and the visible wall would disagree, so the bodega would LOOK square
+and behave chamfered, and that is a harder bug to find than the one being
+fixed — the player would walk into nothing. I would rather hand over a signature
+that works than a shell that leaves nine other rooms one bad merge from a
+diagonal wall.
+
+**It is genuinely mine** and nothing blocks it but a clean run at it. Everything
+it needs is already published; no other builder is in the way.
