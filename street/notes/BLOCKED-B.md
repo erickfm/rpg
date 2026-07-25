@@ -583,6 +583,30 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## The park got topography and my lanterns are fine — checked, not assumed
+
+`9890a47ee` gave the park a mound, a dish and ground falling to a corner. My ten
+lanterns are placed at `y0 = KERB_H`, a constant, so terrain moving under them
+was the obvious risk — the same remembered-coordinate shape as the three I have
+already pulled out of this shelf.
+
+Measured: every lantern lens sits at world y **3.74**, identical, while meshes in
+the park box span **0.109 to 1.39**.
+
+That looked damning and **it is not a finding.** `shots/pk-topo-row.png`: the
+near lantern stands on the path, the row behind it is planted, nothing floats or
+sinks. The 1.28 m spread is benches, bins and the terrace — not the ground under
+a lantern. The lanterns sit beside the *path*, and the topography work kept the
+path level, which is what a path is for.
+
+Recorded as a negative result rather than dropped, because "constant y over new
+terrain" is exactly the argument that would have justified a fix, and the picture
+is what stopped it. The measurement was real and the inference from it was wrong.
+
+`park` is green at HEAD with all four legs walked and the entry located.
+
+---
+
 ## The fast tier's one red is already fixed — `park` is green at HEAD
 
 `9e1d7f76a` ran the fast tier at `cc46ed50` and found 44 green, 1 red:
