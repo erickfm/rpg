@@ -25,7 +25,18 @@ disagree, and it is the reference interior. Full numbers in
 `A-glazing-handoff.md`. **Furnishing that wall before the patch lands decorates
 the bug.**
 
-## URGENT-ISH: G's `Room.glazing` ask would cement the deprecated fields
+## ~~URGENT-ISH: G's `Room.glazing` ask would cement the deprecated fields~~ — STOOD DOWN
+
+`8f21b25c` withdrew the urgency from its own ask after reading the measurement:
+*"I have called this 'one line in interior.ts' for a dozen rounds. A applied it
+and measured, and it is wrong twice over."*
+
+So nothing is about to cement the deprecated fields, and this is no longer
+time-sensitive. It remains worth doing; it is not worth interrupting anyone for.
+Leaving the word URGENT on it after the reason expired would misroute the desk,
+which is the same failure as a stale reason in a blocker.
+
+## ~~The original urgency, kept for the record~~
 
 G asked F (`cf0609d4`) for `Room.glazing`. The value it wants is `glaze`, and
 `glaze` is computed at `interior.ts:549` **from two of the four fields I am
