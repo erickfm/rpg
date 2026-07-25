@@ -460,3 +460,111 @@ errors from my code · **95/95** across my four interiors · F's `interiors-walk
 All five items are built, walked and in mainline. Nothing under `## Now` or
 `## Next` is left that I can start. The only outstanding external thing is D's
 missing `pawnFront` door, which is cosmetic and recorded above.
+
+---
+
+# RUNS 6–9, and A STATUS TABLE so the queue can be closed
+
+My handoff stopped at RUN 5 while five more runs landed. That gap is probably why
+the same eight items keep being re-issued: `## Done` in my queue file still says
+*"(nothing yet — you are new)"* and nothing else tells the desk what is finished.
+So this section is deliberately a ledger rather than a narrative.
+
+## Every item in `notes/queues/G-interiors2.md`, and where it landed
+
+| queue item | state | commit |
+|---|---|---|
+| The vertical blade signs read BACKWARDS (§10) | **DONE** | `c39b5b36` |
+| The casino interior must match that exterior's vibe | **DONE** | `df223280` |
+| The pawn shop is unreadable from inside | **DONE** | `15a13af3` |
+| The casino and hotel EXTERIORS | **DONE**, six commits | `653e1923` `03cdac1a` `ae7981b6` `f33b59a9` `7fceb40a` `64a469e8` |
+| THE CASINO — GOLDEN ACES (interior) | **DONE** | earlier run, see RUN 1 |
+| HOTEL ORPHEUS lobby | **DONE** | `764547c`, see RUN 2 |
+| PAWN SHOP interior | **DONE**, then relaid | `75f9350` → `15a13af3` |
+| A-1 TAX SERVICE interior | **DONE** | `c63b2e4`, see RUN 3 |
+
+Nothing under `## Now` or `## Next` is left that I can start.
+
+## RUN 6 — the exteriors, four more passes
+
+`ae7981b6` light in the air · `f33b59a9` the whole elevation, not just the
+shopfront · `7fceb40a` the blank wall the 1984 refit made · `64a469e8` a hotel
+blade to stand beside the casino's rather than behind it.
+
+The one to steal from: **the chase is shared between both buildings.** Bulbs are
+fixed sockets and the chase is which of them are alight — a scrolling texture
+would carry the dead bulb along with it, and a dead bulb is a fixed socket.
+Three phase materials animate ~190 bulbs in three colour writes a frame, and
+both buildings run the same sequence on purpose: in step they read as one lit
+block at the end of the street, out of step as two separate mistakes.
+
+## RUN 7 — the blades, and why the obvious fix was the wrong one
+
+`c39b5b36`. The construction was already right — two SINGLE-sided planes back to
+back, never one `DoubleSide`. What was wrong is that I *also* painted the rear
+one flipped. With the planes at `rotation.y = ±π/2` the geometry has already
+supplied that flip, and the two mirrors cancel; painting one face flipped
+un-cancels them. **So the fix was to remove a flip, not add one.** East was
+correct and west was reversed, which is the exact asymmetry to look for.
+
+Verified from both ends of the roadway on asymmetric letters, before and after,
+and re-verified against current mainline: from the west HOTEL and ORPHEUS read
+correctly, from the east GOLDEN ACES, 777, LOOSEST SLOTS, $2 BLACKJACK, ACES,
+HOTEL, ORPHEUS and VACANCY all read correctly.
+
+Related, for whoever is still auditing mirrored blades (`684ccf46`, `2edf2e72`,
+`0ae4d9e7`): **the vice.ts blades are not among them.** They are checked from
+both approaches and they pass.
+
+## RUN 8 — the casino interior, matched to its facade
+
+`df223280`. Gold valances over both slot banks with bulb runs, bulbs round the
+cage and under the mirrors, the 777 on the back wall in the facade's own red
+tube, and a chase running all of it at the marquee's tempo. Dim stays; drab goes.
+
+The part worth keeping: **`tube()` is exported from `ct/vice.ts` and imported by
+`ct/int-casino.ts`**, so GOLDEN ACES on the front and CAGE and 777 inside come
+out of one painter. That is the difference between matching and resembling, and
+it cannot drift.
+
+## RUN 9 — the pawn relayout, and the people
+
+`15a13af3`. The lesson generalises and is written at the top of the file:
+**"kept at arm's length" is a property of the COUNTER, not of the customer's
+floor.** One counter across the back, wall to wall, not wrapping; the whole
+front of the room is customer floor; you land in the middle of it facing the
+case, the guitars and the cage.
+
+People: `e99d0c07` hotel clerk · `b33dfd6d` pawnbroker · `04213cab` tax preparer.
+The casino dealer was done in parallel by `9f4313da`. Two of the four were not
+swaps at all — the hotel and the pawn shop had **nobody** in them, and an
+untended desk under a full key rack reads as a hotel that has shut.
+
+The tax preparer stands beside his chair rather than sitting in it: the atlas
+paints upright figures and a seated pose is not one of its five views, so faking
+it would cut his legs off at the shin. **If seated staff are wanted that is an
+atlas request for H, not a per-room bodge.**
+
+## Two things I got wrong, recorded because they cost time
+
+**1. I filed a BLOCKED-G.md that was wrong.** I reported the tax and pawn street
+doors as unreachable, having scanned the whole east walk and found no prompt. The
+measurement was real; the tree was not. I was sitting on a half-migrated pawn
+shop where the door declaration had landed but the room still read its own typed
+constant, so the facade and the trigger were 1.44 m apart and neither was where I
+computed. Mainline finished both migrations, the doors work, and the note is
+deleted rather than left to mislead.
+
+**2. Mainline and I built the same things twice.** `8e348e4e` did the pawn/tax
+door declarations and `9f4313da` did the casino dealer while I was building the
+same two, and I lost a long time resolving rebase conflicts before thinking to
+compare branches. Comparing first would have taken a minute. **Ticking items in
+the queue as they land is what would have prevented it** — which is the other
+reason this ledger exists.
+
+## Verification, current mainline
+
+`scripts/G-rooms-walk.mjs` **98/98** over my four rooms · `scripts/G-vice-walk.mjs`
+**13/13** on the frontages · `scripts/people-walk.mjs` — *8 atlas figures inside,
+no hand-drawn people left indoors* · `node scripts/health.mjs` OK · `npm run
+build` clean · `./scripts/ownership.sh G` clean.
