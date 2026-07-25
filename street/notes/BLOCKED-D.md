@@ -25,9 +25,30 @@ Those are not the same door. They are not even the same wall.
   normal (−√½, −√½), which is what `DOOR.face` declares and what
   `declaredDoors()` publishes.
 
-**They are about 5 m apart.** Anything deriving a trigger disc, a stand point
-or a camera from `__frontages['BODEGA']` aims at a blank shopfront on the side
-street.
+**They are about 5 m apart.**
+
+### How bad, measured rather than asserted
+
+I wrote "anything deriving a trigger disc, a stand point or a camera from
+`__frontages['BODEGA']` aims at a blank shopfront". Checked it, and it wants
+qualifying twice:
+
+**Nothing reads it today.** `frontageWorld()` has no callers outside
+`ct/tex-world.ts`, and `__frontages` appears exactly once elsewhere — in a
+`crosstown.ts:611` comment which already says the quiet part: *"`__frontages`
+is A's and covers flat shopfronts only, so the BODEGA — whose door is on a
+canted bay and is deliberately never handed to the painter — was invisible to
+anything auditing doors."* The `doors:` affordance beside it exists to cover
+exactly this case. So the wrong entry is **latent, not live**.
+
+**And it is not aimed at a blank wall.** Shot the wing square on: it is a
+proper shopfront — BODEGA sign band, glazing, stallriser, crates outside — with
+a painted door roughly centred. The frontage entry describes that wall
+accurately.
+
+So the defect is narrower and stranger than I first wrote: the wing carries a
+**painted door you cannot open**, and the frontage published under the name
+`BODEGA` points at it. Nothing is broken until something believes it.
 
 ## Whose
 
@@ -64,7 +85,10 @@ wrong answer immediately, which is worth more than adding a right one later.
 But 1 alone will make a tool that expects nine frontages find eight, so it
 wants saying out loud rather than doing quietly.
 
-**Who:** the desk to pick, A if it is 2.
+**Who:** the desk to pick, A if it is 2. **Not urgent** on the evidence above —
+but it becomes urgent the moment `7b100b65`'s shared door-disc arithmetic is
+written, because that is a consumer, and it is the one thing that would make
+this live.
 
 ## Not blocked, and worth folding in
 
