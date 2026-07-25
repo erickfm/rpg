@@ -147,38 +147,63 @@ export function buildStreet(o: {
   // props.dimWorld() skips any material with `transparent` set, so the night
   // grading that darkens the brick leaves the light alone without either side
   // having to know about the other.
-  const litMats: THREE.MeshBasicMaterial[] = [];
-  const litSheet = (
-    tex: THREE.Texture, wM: number, hM: number,
-    x: number, y: number, z: number, ry: number,
+  // TWO sheets, not one, because a block that fades all its windows together
+  // is still one pattern — just a dimmer one at four in the morning. The
+  // EVENING set is the block at home; the SMALL-HOURS set is a different,
+  // much sparser set of rooms, and they cross-fade past each other so the
+  // windows that are on at three are not the windows that were on at nine.
+  const eveMats: THREE.MeshBasicMaterial[] = [];
+  const lateMats: THREE.MeshBasicMaterial[] = [];
+  const SHEETS = [
+    { list: eveMats, variant: 0, pct: 19, off: 0.02 },
+    { list: lateMats, variant: 1, pct: 8, off: 0.035 },
+  ];
+  // hang both sheets on a facade. `nx`/`nz` is the way the facade looks; the
+  // sheets stand at slightly different offsets along it so two coplanar quads
+  // never have to be ordered against each other.
+  const litSheets = (
+    b: BldSpec, wM: number, hM: number,
+    x: number, y: number, z: number, ry: number, nx: number, nz: number,
   ) => {
-    const m = new THREE.MeshBasicMaterial({
-      map: tex, transparent: true, opacity: 0, depthWrite: false,
-    });
-    litMats.push(m);
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), m);
-    p.position.set(x, y, z);
-    p.rotation.y = ry;
-    p.renderOrder = 2;                                  // over its own facade
-    scene.add(p);
+    for (const sh of SHEETS) {
+      const m = new THREE.MeshBasicMaterial({
+        map: facadeLitTex(b.brick, b.floors, wM, { variant: sh.variant, pct: sh.pct }),
+        transparent: true, opacity: 0, depthWrite: false,
+      });
+      sh.list.push(m);
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), m);
+      p.position.set(x + nx * sh.off, y, z + nz * sh.off);
+      p.rotation.y = ry;
+      p.renderOrder = 2;                                // over its own facade
+      scene.add(p);
+    }
   };
   // Not a light sensor — people. Nobody switches a lamp on at noon, the block
   // is at its fullest around nine, and by four in the morning it is down to
-  // whoever is still up. The curve is continuous across midnight: it leaves
-  // hour 24 at the same value it enters hour 0 with.
+  // whoever is still up. Both curves are continuous across midnight: they
+  // leave hour 24 at the value they enter hour 0 with.
   const ramp = (a: number, b: number, t: number) => THREE.MathUtils.clamp((t - a) / (b - a), 0, 1);
-  const windowsAt = (h: number) => {
-    if (h < 5) return 0.16 - 0.06 * ramp(2, 5, h);      // the last ones still up
-    if (h < 7) return 0.10 + 0.36 * ramp(5, 7, h);      // getting up in the dark
-    if (h < 9.5) return 0.46 * (1 - ramp(7, 9.5, h));   // out for the day
-    if (h < 16.5) return 0;                             // nobody lights a room at noon
-    if (h < 20) return ramp(16.5, 20, h);               // home, a window at a time
-    if (h < 22) return 1;                               // the block at its fullest
-    return 1 - 0.84 * ramp(22, 24, h);                  // going to bed
+  const eveAt = (h: number) => {
+    if (h < 5) return 1 - ramp(22.5, 24.5, h + 24);      // last night's tail
+    if (h < 6.5) return 0.35 * ramp(5, 6.5, h);          // kettles on
+    if (h < 7) return 0.35;
+    if (h < 9.5) return 0.35 * (1 - ramp(7, 9.5, h));    // out for the day
+    if (h < 16.5) return 0;                              // nobody lights a room at noon
+    if (h < 20) return ramp(16.5, 20, h);                // home, a window at a time
+    if (h < 22.5) return 1;                              // the block at its fullest
+    return 1 - ramp(22.5, 24.5, h);                      // going to bed
+  };
+  const lateAt = (h: number) => {
+    const t = h < 12 ? h + 24 : h;                       // one axis across midnight
+    if (t < 21.5) return 0;
+    if (t < 23) return ramp(21.5, 23, t);                // the ones who stay up
+    if (t < 28) return 1;                                // …until four
+    return 1 - ramp(28, 31, t);                          // gone by seven
   };
   const setWindows = (hourF: number) => {
-    const v = windowsAt(hourF);
-    for (const m of litMats) m.opacity = v;
+    const e = eveAt(hourF), l = lateAt(hourF);
+    for (const m of eveMats) m.opacity = e;
+    for (const m of lateMats) m.opacity = l;
   };
 
   const placeBld = (side: number, z: number, b: BldSpec) => {
@@ -192,8 +217,8 @@ export function buildStreet(o: {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, b.w), mats);
     wall.position.set(cx, h / 2 + gh, cz);
     scene.add(wall);
-    litSheet(facadeLitTex(b.brick, b.floors, b.w), b.w, h,
-      side * (FACE - 0.02), h / 2 + gh, cz, side < 0 ? Math.PI / 2 : -Math.PI / 2);
+    litSheets(b, b.w, h, side * FACE, h / 2 + gh, cz,
+      side < 0 ? Math.PI / 2 : -Math.PI / 2, -side, 0);
     const shopM = flat(
       b.res ? resGroundTex(b.brick, b.w)
         : b.front === 'burger' ? burgerFront(b.brick, b.w)
@@ -654,8 +679,8 @@ export function buildStreet(o: {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, dep), mats);
     wall.position.set(cx, h / 2 + gh, czd);
     scene.add(wall);
-    litSheet(facadeLitTex(b.brick, b.floors, b.w), b.w, h,
-      cx, h / 2 + gh, front + facing * 0.02, facing > 0 ? 0 : Math.PI);
+    litSheets(b, b.w, h, cx, h / 2 + gh, front,
+      facing > 0 ? 0 : Math.PI, 0, facing);
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
     const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, dep, b.brick, 0, false, roofM);
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, dep), shopMats);

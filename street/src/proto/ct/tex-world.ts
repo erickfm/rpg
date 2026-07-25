@@ -126,7 +126,7 @@ function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, 
 export function facadeWindows(
   brick: string, floors: number, wMeters = 12,
   hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
-  sill0 = SKIRT_M,
+  sill0 = SKIRT_M, variant = 0, pct = 19,
 ) {
   const surf = masonry(wMeters, hMeters, baseY);
   const { W, H, ppm } = surf;
@@ -147,10 +147,14 @@ export function facadeWindows(
   seed = Math.imul(seed ^ Math.round(wMeters * 8), 0x01000193) >>> 0;
   seed = Math.imul(seed ^ Math.round(hMeters * 8), 0x01000193) >>> 0;
   const litAt = (f: number, c: number) => {
-    let h = (seed ^ Math.imul(f + 1, 0x9e3779b1) ^ Math.imul(c + 1, 0x85ebca6b)) >>> 0;
+    // `variant` picks a DIFFERENT set of rooms off the same grid. Multiplied,
+    // not added, so variant 0 mixes in nothing and stays the set this block
+    // has always had.
+    let h = (seed ^ Math.imul(f + 1, 0x9e3779b1) ^ Math.imul(c + 1, 0x85ebca6b)
+      ^ Math.imul(variant, 0xc2b2ae35)) >>> 0;
     h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
     h = Math.imul(h ^ (h >>> 13), 0x297a2d39) >>> 0;
-    return ((h ^ (h >>> 16)) >>> 0) % 100 < 19;      // ~1 in 5, scattered
+    return ((h ^ (h >>> 16)) >>> 0) % 100 < pct;
   };
   // window bays: as many as fit at BAY_M pitch inside a margin each end
   const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
@@ -210,19 +214,21 @@ export function facadeTex(
 
 /** The light in the windows `facadeTex` just cut, on its own TRANSPARENT sheet
  *  so it can be faded up and down instead of being baked on at noon. Same
- *  arguments as `facadeTex` — pass it the same ones and the two line up texel
- *  for texel.
+ *  Takes the same brick/floors/width as `facadeTex` and lines up with it texel
+ *  for texel. `variant` picks a different set of rooms off the same grid and
+ *  `pct` how many of them — one sheet per time of day, cross-faded.
  *
  *  Nothing but the glass is drawn: no brick, no cornice, no sill. A window
  *  that is not lit contributes no pixels at all, which is what lets the whole
  *  sheet be faded out to nothing at midday and leave the dark facade behind. */
 export function facadeLitTex(
   brick: string, floors: number, wMeters = 12,
-  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
-  sill0 = SKIRT_M,
+  o: { variant?: number; pct?: number } = {},
 ): THREE.Texture {
-  const { surf, m, cells, winW, winH } =
-    facadeWindows(brick, floors, wMeters, hMeters, baseY, minCols, sill0);
+  const { surf, m, cells, winW, winH } = facadeWindows(
+    brick, floors, wMeters, wallHeight(floors), DEFAULT_BASE_Y, 2, SKIRT_M,
+    o.variant ?? 0, o.pct ?? 19,
+  );
   return surf.paint((g) => {
     for (const { x, y, lit } of cells) {
       if (!lit) continue;
