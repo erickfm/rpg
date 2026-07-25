@@ -96,25 +96,30 @@ bench and the lamps in the roadway.
 4. **A `'light'` kind for `SurfaceKind`** — `ct/paint.ts`, A's call. Five of the
    nine textures I declared are light, not material, and `'detail'` is the
    closest honest fit rather than the right one.
-5. **`density` is red, and the face is `civic`'s.** Confirmed at two builds
-   (`baf8a2f7` and `464934f0`), so it is not a stale-world artifact:
+5. ~~**`density` is red, and the face is `civic`'s.**~~ **WITHDRAWN — I was
+   wrong, and the face was always correct.**
+
+   I routed this to civic's owner with the geometry measured and the conclusion
+   guessed: `BoxGeometry 5 × 26 × 3.7` carrying one `40 × 208` canvas, 8 px/m
+   across the 5 m face and 10.8 across the 3.7 m ends. Every number there is
+   real. The conclusion drawn from them — that it needs per-face maps — is not,
+   because `ct/civic.ts:1169` already does the thing I said was missing:
 
    ```
-   declared 5x26 m at 8 px/m, mapped to 3.7x26 m (26% off) at (11.2, 13, -70.5)
+   towSide.repeat.x = TOWER_D / TOWER_W;
    ```
 
-   The mechanism, measured rather than guessed: that mesh is `BoxGeometry
-   5 × 26 × 3.7` carrying one `40 × 208` canvas. 40 px over the 5 m face is the
-   declared 8 px/m; the same 40 px over the 3.7 m ends is 10.8. One texture on a
-   box whose faces are not the same width will always do this — it needs
-   per-face maps or a repeat set from each face's own size.
+   The canvas still covers 5 canvas-metres of wall. `5e117dc6` found it from the
+   other end: the fault was in `density` itself, which compared declared metres
+   against raw face width and ignored `map.repeat`. It passes now, and the wall
+   never changed.
 
-   Worth noting how it became routable. Two rounds ago this was one of three
-   faces **nobody could attribute**, and `4906af20` refused to guess at it. The
-   `userData.mod` stamps turned that into a lookup, so a density failure on it
-   now arrives with an owner attached instead of starting another round of
-   "whose is this". That is the stamp work paying for itself, on someone else's
-   finding rather than mine.
+   **What I should have done differently is specific.** I checked geometry and
+   texture size and stopped, because those two agreed with the failure and made
+   a tidy story. `map.repeat` is the third term in that arithmetic and I never
+   read it — on a mesh I did not own, to route work to somebody who did not need
+   it. "Measured rather than inferred" was true of the numbers and not of the
+   conclusion, which is the harder half.
 
 ---
 
