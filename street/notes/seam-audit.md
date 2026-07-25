@@ -596,3 +596,71 @@ if a shared sign factory draws the lot's banners on the lot's behalf, the
 geometry sits in the lot's frontage while the code lives elsewhere — which is
 the *precise* shape of A's vice.ts case. Position cannot distinguish those two,
 and neither can I from outside.
+
+---
+
+# Round 6 — pattern #1 CANNOT be re-verified by this instrument any more.
+
+Re-ran `scripts/density.mjs` at `ea9ecbd7`. The headline number looks like a
+severe regression and **I do not believe it**:
+
+```
+1959 textured faces · 367 wall-sized exterior faces
+on the world grid (8 or 16 px/m, both axes):  241  (65.7%)
+OFF the grid:                                 126
+```
+
+Against my last round — **277 faces, all masonry ones on the grid** — that reads
+as 126 new violations. It is not. **The tool's net stopped being a masonry net.**
+
+Its filter is geometric, not material (`density.mjs:65`):
+
+```js
+r.filter(x => x.face[1] > 3 && x.c[0] < 100 && x.img[0] > 20)
+```
+
+— *any* face over 3 m tall, outside the interior belt, with a canvas wider than
+20 px. That was a fair proxy for "wall" when the only things that size were
+walls. The park's far half has since been furnished, and it is full of objects
+that are wall-sized and are not masonry.
+
+## What the 126 actually are
+
+| off-grid group | reading | masonry? |
+|---|---|---|
+| **~57 faces**, 3 at a time, canvas **24 × 24**, 4–6 m, y 4.8–6.6, all at x −10…−37, z −71…−96 | consistent with the **park's tree crowns** | no |
+| 10 faces, 10.91 px/m, canvas 48 × 48 on 4.4 × 4.4 m at (−9.5, 0.2, −93) etc. | the **lantern ground pools** — I measured these exact coordinates as glow decals last round | no |
+| 6 faces, 32 px/m, 1.94 × 126.5 m at (−6, 0.1, −46.8) | the **sidewalk sheet** | no |
+| 2 + 2 faces, 35.4 / 36.4 px/m on 1.24 × 15.8 m at (46, 13.5, −96.7) | **blade signs** | no |
+
+**I am labelling those by inference, not by lookup** — the same move A just
+retracted in `ea9ecbd7`, and I am flagging it rather than repeating it silently.
+The coordinates, counts and canvas sizes are measured; the words "tree" and
+"lantern" are mine.
+
+## The candidates that could genuinely be masonry
+
+Small, and worth someone's eyes rather than a mandate:
+
+| where | face | canvas | px/m |
+|---|---|---|---|
+| (−6.9, 2.8, −9) — upright, 8 faces | 3.4 × 5 m | 32 × 48 | **9.41 × 9.60** |
+| (5.7, 2.4, −1.5) — upright, 11 faces | 3 × 4.5 m | 60 × 90 | **20 × 20** |
+| (51.0, 22.7, −94.3) — 2 faces, high | 6.8 × 6.2 m | 92 × 74 | **13.53 × 11.94** |
+
+## What I am NOT claiming
+
+**I am not calling this a pattern #1 regression, and nobody should be routed on
+these numbers.** Pattern #1 is a rule about masonry, and I no longer have an
+instrument that isolates masonry. Reporting 65.7% as a conformance rate would be
+a confident wrong verdict of exactly the kind this audit exists to prevent —
+it would send a builder to "fix" the density of tree foliage.
+
+**What would fix the instrument.** The same one-line change A proposes: modules
+publishing their bounds (or their material provenance) to a registry, so a face
+can be *asked* what it is instead of inferred from its size. Until then, the
+honest scope of `density.mjs` is **"faces over 3 m that carry a texture"**, and
+its header calling itself a check of *"one masonry density"* now overstates it.
+
+Pattern #1's actual status is therefore **unverified this round**, not failed —
+and it was last genuinely verified at 277 faces.
