@@ -37,6 +37,23 @@ stated rule, **[C]** circular (proves the pipeline, not the value).
 ad-panel geometry exists anywhere by shape. Located as *the stop in front of
 LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
+## Every result in this report was measured on an **empty street** — and holds on a busy one
+
+Every check in the suite, mine included, runs static or drops the moving
+colliders. So every number in this handoff describes a pavement with nobody on
+it. Tested populated (`lane-audit.md` R6–R7, `request-audit.md`):
+
+| system | built / empty | lived / populated |
+|---|---|---|
+| narrowest pavement | 1.15 m | **0.72 m** — exactly the player's width, **0 of 20 samples impassable** |
+| reachability | all destinations | **all destinations**, area varying 0.015% |
+| door triggers | 63–75 standable points each | **never fully blocked**; only A-1 TAX intrudes on, 73 → 25 |
+
+> **The world is robust to its own population.** Nothing becomes impassable,
+> unreachable or unenterable. Quote the built figure when discussing the design
+> and the lived figure when discussing the experience — **1.15 m is the
+> pavement, 0.77 m is the walk.**
+
 ## Risk — the corrections ledger
 
 Every claim I published on this branch and later withdrew, in one place, because
