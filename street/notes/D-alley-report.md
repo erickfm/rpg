@@ -1840,6 +1840,35 @@ ff9c60ff  ->  1484a2f7e  The alley stops showing sky over its own back wall
 rather than the message, which works when you remember what a commit did and not
 what you called it.
 
+### Qualifying the method, as `e35219f43` did to theirs
+
+Re-ran it after fixing the two, and the numbers moved in ways worth explaining
+rather than reporting flat:
+
+```
+132 hex strings cited   (up from 128 — the fix ADDED the two dead hashes back,
+                         deliberately, as the left side of the mapping above)
+130 resolve
+  2 do not               <- 9f6ba0a2 and ff9c60ff, exactly those historical ones
+  1 ambiguous prefix     <- e78e5ec, and it is not a citation at all
+```
+
+**"Does not resolve" is not the same as "wrong".** The two remaining dead hashes
+are dead *on purpose*: a mapping from what a note used to say to what it says
+now is worthless if you delete the old number.
+
+**And "resolves" can hide an ambiguity.** `e78e5ec` matches two objects in this
+repository. It is a **build stamp read off a screenshot**, not a commit I chose
+to cite — `f51f2a52e` hit the same thing from the other side, where two of its
+hits were fingerprints rather than commits. A 7-character hex string in a note
+can be a commit, a build stamp, or a texture fingerprint, and only context
+distinguishes them.
+
+So the honest version of the result: **126 of 128 real citations resolved, 2 were
+genuinely stale and are fixed**, and the method needs a human to read the
+context of anything it flags — which is how I caught that both of mine sat in a
+"what | commit" column and were therefore real.
+
 **Two in 128 is a low rate and the mechanism guarantees more.** Every rebase
 rewrites every unlanded commit of mine, so a hash is only stable once it has
 landed on mainline. Citing my own in-flight work by hash is writing down a number
