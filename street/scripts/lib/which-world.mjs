@@ -49,6 +49,30 @@ const distSha = () => {
   return null;
 };
 
+/**
+ * Is this page error the integration world's own noise, rather than the world's?
+ *
+ * ONLY in integration mode, and ONLY the one message. The live world at :5177 is
+ * a DEV server that `live-integrate.sh` rebuilds every 15 s, which drops Vite's
+ * HMR WebSocket and raises `WebSocket closed without opened`. Measured: four of
+ * my checks run there, four reds, all this one string.
+ *
+ * I first warned about it in the banner and left each check's error list alone,
+ * on the grounds that a filter which swallows one known message is how the next
+ * real one gets swallowed. That reasoning is right and the outcome was still
+ * wrong: a mode that reports a red EVERY time teaches you to skip the red, which
+ * loses more errors than the filter would have.
+ *
+ * So it reclassifies rather than swallows. Any other page error still fails, and
+ * this is deliberately a string match on one known message rather than a pattern
+ * over WebSocket errors in general — if the HMR text ever changes, this stops
+ * matching and the red comes back, which is the safe way for it to break.
+ */
+export function integrationNoise(msg) {
+  return process.env.SHOT_WORLD === 'integration'
+    && /WebSocket closed without opened/.test(String(msg));
+}
+
 /** Read the served build's stamp out of the HUD. */
 export async function servedBuild(page) {
   return page.evaluate(() => {

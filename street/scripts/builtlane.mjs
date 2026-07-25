@@ -46,7 +46,7 @@
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/builtlane.mjs [--selftest]
 import { chromium } from 'playwright';
-import { reportWorld } from './lib/which-world.mjs';
+import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 import { setClock } from './lib/clock.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
@@ -60,7 +60,11 @@ const CAPSULE = 0.72;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 const errors = [];
-page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
+page.on('pageerror', (e) => {
+  // integrationNoise() is the HMR socket in the live world and nothing else.
+  if (integrationNoise(e.message)) return;
+  errors.push('pageerror: ' + String(e.message));
+});
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);

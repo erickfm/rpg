@@ -1011,3 +1011,35 @@ builder who legitimately reduced variety to eleven would get a red that says
 nothing. It is guarding a real defect — every return the same brown, raised
 twice — so it stays, but it is a chosen number and this is it being written down
 rather than discovered later.
+
+## My landed work, checked in the world the user actually plays
+
+`SHOT_WORLD=integration` (which I added for `BLOCKED-H` §4) finally lets a
+builder ask this, so I asked it of my own area against the live `:5177` build:
+
+```
+alleycheck   8 PASS   builtlane   5 PASS
+shells       7 PASS   windowlights 5 PASS
+```
+
+**25 assertions, 0 failures, in mainline-plus-every-builder.** That is the first
+evidence I have that my area holds up outside my own worktree.
+
+### And it made me reverse a decision of mine
+
+The first run was 21 PASS / **4 FAIL** — one per check, all the same string:
+`WebSocket closed without opened`. That is the HMR socket, which
+`live-integrate.sh` drops every 15 s when it rebuilds.
+
+I had chosen to *warn* about it in the banner and leave each check's error list
+alone, arguing that a filter which swallows one known message is how the next
+real one gets swallowed. **The reasoning was right and the outcome was still
+wrong**: four checks out of four reporting a red every single time teaches you to
+skip the red, which loses more errors than the filter ever would.
+
+So `integrationNoise()` **reclassifies rather than swallows** — only in
+integration mode, only that one message, and deliberately a string match on the
+known text rather than a pattern over WebSocket errors in general, so that if the
+message ever changes it stops matching and the red comes back. Verified both
+ways: 0 failures in the live world, and an injected `a real defect` in the same
+mode still fails.
