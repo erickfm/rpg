@@ -71,11 +71,26 @@ console.log(`${ROOMS.length} declared rooms to check: ${ROOMS.map((r) => r.name)
 // do), which puts it in a runtime import cycle, so its namespace is undefined
 // when the glob is read. scripts/doors-declared.mjs is the check for that and
 // it is red.
-const allRooms = await p.evaluate(() => (window.__ct.rooms?.() ?? []).length);
-if (allRooms > ROOMS.length) {
-  console.log(`  NOTE: the world has ${allRooms} rooms. ${allRooms - ROOMS.length} cannot be checked here`);
-  console.log('  because their door never reaches declaredDoors() — see doors-declared.mjs.');
-  console.log('  "All declared rooms mirror" is not "the world mirrors".');
+// SAY WHY EACH ROOM IS UNREACHABLE, computed, not asserted.
+//
+// This printed "3 cannot be checked because their door never reaches
+// declaredDoors()" — one reason for three rooms, and wrong for two of them. Two
+// are canted bays that are DELIBERATELY never handed to the painter (the bodega
+// and the hotel), which is design, not a fault. Only the third is a declaration
+// that did not arrive, and that one is order-dependent: 9c4fa019 measured 8 of 8
+// at cb696d3d, and it is 7 of 8 here across six runs, seven commits later.
+const scope = await p.evaluate(() => {
+  const rooms = window.__ct.rooms?.() ?? [];
+  const arrived = window.__ct.doors() ?? [];
+  return { rooms: rooms.length, arrived: arrived.length,
+           chamfer: arrived.filter((d) => d.chamfer).length };
+});
+const missing = scope.rooms - scope.arrived;
+if (scope.rooms > ROOMS.length) {
+  console.log(`  SCOPE: ${scope.rooms} rooms exist; ${ROOMS.length} are checked here.`);
+  if (scope.chamfer) console.log(`    ${scope.chamfer} canted bay(s) — deliberately never handed to the painter, not a fault`);
+  if (missing > 0) console.log(`    ${missing} declaration(s) never arrived — see doors-declared.mjs, and it is order-dependent`);
+  console.log('    "All declared rooms mirror" is not "the world mirrors".');
 }
 
 const pos = () => p.evaluate(() => window.__ct.pos());
