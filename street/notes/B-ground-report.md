@@ -6,6 +6,82 @@ Written for the desk to prioritise. **Fixed** items are already committed;
 
 ---
 
+## Queue status — everything queued is on mainline
+
+`## Now` and `## Next` are both fully landed. The queue has now gone stale three
+times in the same way, so per the README rule (*"the builder's report is the
+authority on what is done"*) here is the reconciliation, and nothing was redone.
+
+| queue item | state |
+|---|---|
+| Bench passes two, three and four | landed — ad on the reclined backrest, bezelled as an inset plate, no skirt, legs no longer coplanar, sittable |
+| Side street has no lamps (H blocked) | landed — `makeLampAt` factory, 3 lamps, H's file untouched |
+| Puddles: stop and simplify | landed — pass five, gutter pan only |
+| Milk crate clipping the shopfront | landed — 3D overlap test in `dimWorld` |
+| Night five: beams, floors, stars | landed in three commits |
+| Tree pits + puddles in the gutter | landed |
+| Litter footprint rule | landed |
+| Trash set shipped, rig down | landed |
+| Catch basin | landed |
+| `[E]` spots | VOID, confirmed by the desk |
+
+### Two things I recommend the desk close WITHOUT doing
+
+- **Finding B, "lamp spacing leaves the middle of the block dark".** Written
+  before night five. The user has since asked for wider beams and darker unlit
+  stuff so it "feels scarier", and the desk's own read was *"more contrast, not
+  more light"*. Filling the mid-block gap would undo what shipped. Heads are
+  16.4 m apart and reach 7 m, so 2.4 m of real dark survives between pools —
+  that is the design, not a defect.
+- **Finding D, "parking varies but never re-rolls".** The seed is `ct/rng.ts`
+  and the draw is `ct/cars.ts`. Neither is mine.
+
+### One handoff still open, one line, not mine
+
+`crosstown.ts:504` is desk-owned:
+
+```js
+scene.fog!.color.copy(skyCol).multiplyScalar(1 - 0.5 * lampNight);
+```
+
+Half the sky at full night is still grey, and grey fog at the end of a dark
+street is a glowing wall closing it off. Toward black is `1 - 0.82 * lampNight`.
+
+---
+
+## The checks are the deliverable
+
+Eleven defects this session were found by a check, in work I had already
+reported as finished. Every one was invisible to a screenshot:
+
+1. Nine litter pieces sunk into the pavement after the footprint fix — the
+   hand-written base heights were wrong.
+2. The east walk severed at every tree, because moving the pits moved the
+   trunk colliders and left 4 cm of lane.
+3. `wet.mjs` counting reflections as puddles, blind to the gutter ribbons, and
+   testing "still filling" on a maximum that pins at 1.0 — passing throughout.
+4. Contact shadows the GPU was discarding entirely (`alphaTest 0.5`).
+5. `trash.mjs` failing on a rule stricter than the one it named.
+6. Shadows sized from a table coming out WIDER than their objects.
+7. Shadows as siblings, left behind when a piece was pushed.
+8. A rectangle turned 86° whose corners exceed its object's world box.
+9. `groundUnder` sampling three points and missing the pan's high edge.
+10. `roadNow` picking the pale walk instead of the road, making puddles grey —
+    the exact defect being fixed.
+11. `glow.mjs` checking 8 of 11 lamps and reporting a clean pass.
+
+The pattern in almost all of them is one thing: **a number that was written by
+hand where it could have been measured.** Base heights, half-extents, shadow
+sizes, collider extents, sample counts. Where that has been replaced with a
+measurement off the geometry, the bug class has not come back.
+
+The second pattern, in 3, 5 and 11, is worse and worth naming on its own: **a
+check that covers part of the thing and reports a pass reads as coverage.**
+Those three were green while measuring the wrong sheets, the wrong rule and
+two-thirds of the fleet.
+
+---
+
 ## Queue status, 2026-07-24 — `## Now` is empty and `## Next` is nearly so
 
 The queue's whole `## Now` section is on mainline. It went stale a second time
