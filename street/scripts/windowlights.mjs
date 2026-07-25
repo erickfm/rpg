@@ -48,6 +48,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/windowlights.mjs [--selftest]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4231/';
@@ -64,7 +65,14 @@ await page.waitForTimeout(900);
 // One camera, mid-block, looking down the street so both elevations are in
 // frame. Never moves — the only variable is the hour.
 //
-// SETTLE TIME: 700 ms, and that is enough HERE — checked, not assumed.
+// SETTLE TIME: the clock now waits on the FRAME (lib/clock.mjs), not on a
+// number I chose. 2558b1ba found the real mechanism after I published mine:
+// there is no ramp, the jump costs ONE RENDERED FRAME, and a too-early read
+// returns the PREVIOUS time of day in full. The 700 ms below is what remains
+// for the CAMERA move, which is a different wait.
+//
+// My original note is kept because the measurement stands and the reasoning
+// was half right:
 // 2bdebbcf measured that the grade LERPS after a clock jump (at 23:00 an
 // out-of-range count reads 0 at 500 ms and 9 from 1000 ms on) and cd91d251
 // raised scenedump to 2 s because its hash reads material COLOUR, which is
@@ -80,7 +88,7 @@ await page.waitForTimeout(900);
 // the 2 s; this one does not, and now says why rather than leaving the next
 // person to re-derive it.
 const warmAt = async (hour) => {
-  await page.evaluate((h) => window.__ct.clock(h, 0), hour);
+  await setClock(page, hour, 0);
   await page.evaluate(() => window.__ct.warp(-1.2, -40, Math.PI, 0, 0.30));
   await page.waitForTimeout(700);
   return page.evaluate(() => {
@@ -103,8 +111,7 @@ const warmAt = async (hour) => {
 // The sheet opacities, straight off the materials. No camera involved, so no
 // crop, no threshold, and nothing a lamp halo can contribute to.
 const sheetsAt = async (hour) => {
-  await page.evaluate((h) => window.__ct.clock(h, 0), hour);
-  await page.waitForTimeout(500);
+  await setClock(page, hour, 0);
   return page.evaluate(() => {
     const out = {};
     window.__ct.scene().traverse((m) => {

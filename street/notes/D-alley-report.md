@@ -893,6 +893,31 @@ is the worst place to sample. No intermediate value appeared at any of
 200/400/600/700/800/900/1000/1200 ms, so it is a step, or a lerp faster than
 that sampling.
 
+### `2558b1ba` has the mechanism, and it is better than mine
+
+Read this section with that one. It measured what I did not: **there is no ramp
+at all, and the cost is ONE RENDERED FRAME.** A too-early sample does not catch
+a half-applied grade — it returns the PREVIOUS time of day in full, which is
+exactly the day-value-at-a-night-hour I was reporting. My "a step, or a lerp
+faster than that sampling" was the right shape and the wrong unit: **the unit is
+frames, not milliseconds.**
+
+That also reconciles the one place we disagree. They could not make a 600 ms
+sleep fail even at 80x throttle; I made it fail 1 in 8. Both hold, because my
+eight runs were **cold** — fresh page, `clock(23,0)`, read at 600 ms — and a
+cold page's first frame after the jump can land well past 600 ms while the world
+is still building. So the hazard is not "600 ms is too short", it is **"a
+millisecond count cannot express a frame"**, and a cold load is where that bites.
+
+`lib/clock.mjs` `setClock()` waits two rendered frames and warns rather than
+silently falling back. Adopted in all four of mine — `D-walk`, `alley`,
+`alleycheck`, `windowlights` — replacing every hand-chosen number. All four
+green after.
+
+**The discriminator below still holds and is still useful**, because the reason
+a day-hour script is safe is now clearer: the previous time of day IS day, so
+the stale read and the correct read are the same value.
+
 **The discriminator, for anyone working the list:** it is the HOUR, not the
 wait. Day-hour scripts are unaffected at any settle. Night-hour scripts under
 ~1000 ms are **flaky, not imprecise** — they will pass repeatedly and then read

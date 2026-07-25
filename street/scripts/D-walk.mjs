@@ -19,6 +19,7 @@
 //   SHOT_URL=http://localhost:PORT/ node scripts/D-walk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 
 // WHICH WORLD THIS MEASURED — `reportWorld` prints it, below.
 //
@@ -62,9 +63,9 @@ await reportWorld(page, URL);   // GOTCHAS 26: prove it, do not just name it
 // The rule for the 90-script list is therefore the HOUR, not the wait: a script
 // pinning a day hour is unaffected at any settle; one pinning a night hour and
 // sampling under ~1000 ms is flaky rather than merely imprecise.
-await page.evaluate(() => window.__ct.clock(13, 0));
+await setClock(page, 13, 0);
 await page.mouse.click(640, 360);
-await page.waitForTimeout(600);
+await page.waitForTimeout(600);   // the CLICK, not the clock — see below
 // WARM-UP, and it is not superstition. Without it the FIRST measured leg —
 // whichever it happens to be — walks off sideways: warped to (8, -99.2) facing
 // +z it ended at x 12.41, 4.4 m east, having never turned. Every subsequent

@@ -1,6 +1,7 @@
 // The alley: both side walls, the rear wall, the dumpster and the cat.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
@@ -29,8 +30,7 @@ await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // 
 // The rule for the 90-script list is therefore the HOUR, not the wait: a script
 // pinning a day hour is unaffected at any settle; one pinning a night hour and
 // sampling under ~1000 ms is flaky rather than merely imprecise.
-await page.evaluate(() => window.__ct.clock(13, 0));
-await page.waitForTimeout(600);
+await setClock(page, 13, 0);
 const shot = async (name, fn, wait = 350) => {
   await page.evaluate(fn); await page.waitForTimeout(wait);
   await page.screenshot({ path: `shots/al-${name}.png` });

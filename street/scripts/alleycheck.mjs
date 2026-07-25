@@ -46,6 +46,7 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats } from './lib/materials.mjs';
+import { setClock } from './lib/clock.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
@@ -58,11 +59,13 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
 await installMats(page);
-// 13:00 is a DAY hour and the world boots at 13:20, so nothing has to travel
-// and 600 ms is safe. A night hour here would be a coin flip — measured, and
-// written up in notes/D-alley-report.md.
-await page.evaluate(() => window.__ct.clock(13, 0));
-await page.waitForTimeout(600);
+// setClock waits on the FRAME, not on a guess. 2558b1ba established the real
+// mechanism: the jump costs one rendered frame, and a too-early read returns
+// the PREVIOUS time of day in full rather than a half-applied one. My own
+// 600 ms here was safe only because 13:00 is a day hour and the world boots at
+// 13:20, so the previous value happened to be the right one. That is luck
+// dressed as a margin.
+await setClock(page, 13, 0);
 
 const parts = await page.evaluate(() => {
   const out = { end: [], floor: [], flank: [] };
