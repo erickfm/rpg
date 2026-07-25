@@ -551,10 +551,23 @@ for (room of rooms) {
     const [kx, kz] = room.keeper;
     await warp(CX + kx, kz, 0, 0);
     await p.waitForTimeout(150);
-    // the sprite picks its frame from where the CAMERA is, so it needs frames
-    // after the warp — reading immediately gets the view from the last position
+    // WAIT FOR FRAMES, NOT MILLISECONDS. `citizenSprite` updates from
+    // `ctx.onFrame(..., HOOK.LATE)`, so its texture still shows the PREVIOUS
+    // frame's viewpoint until that hook runs — H measured the bodega keeper
+    // reading sector 4 on the warp frame and sector 2 one animation frame later,
+    // and an audit discarded the correct value as a transient because the stale
+    // one was the one that repeated (`32cb7bd76`, `dba3c355e`).
+    //
+    // This waited 500 ms, which is many frames idle and ONE frame on a machine
+    // running the suite at 2 fps — the same trap `lib/clock.mjs` documents for
+    // the grade. Two rAF ticks is deterministic under any load and faster than
+    // the sleep it replaces.
     await hold('w', 60);
-    await p.waitForTimeout(500);
+    await p.evaluate(() => new Promise((res) => {
+      let n = 0;
+      const tick = () => (++n >= 2 ? res() : requestAnimationFrame(tick));
+      requestAnimationFrame(tick);
+    }));
     const v = await p.evaluate(([cx, kx, kz]) => {
       const s = window.__ct.scene(); s.updateMatrixWorld(true);
       let best = null;
