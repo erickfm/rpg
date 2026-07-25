@@ -949,6 +949,26 @@ export function buildStreet(o: {
   // east of it is where it always was). Starts at BX1 = FACE + 3.4 so the wing
   // ABUTS the corner block exactly.
   const BODEGA_WING = 6.05;
+  // THIS LINE PUBLISHES THE BODEGA'S FRONTAGE, AND IT IS THE WING'S, NOT THE
+  // DOOR'S. Read this before trusting `__frontages['BODEGA']` for anything.
+  //
+  // `placeBldZ` paints the band from `nm` and `shopfrontRelief` registers the
+  // frontage from the same `nm`, so this call publishes an axis-x frontage on
+  // the side street's north face at z = -96 with a door at x 12.82 — the wing's
+  // PAINTED door, which is decorative and opens onto nothing (checked: no [E]
+  // fires anywhere along x 11.0…14.6).
+  //
+  // The customer door is round the corner on the canted bay at (8.0, -95.0),
+  // 5 m away and on a different wall. It is published by `DOOR.face` in
+  // ct/int-bodega.ts and readable through `declaredDoors()` / `doorStandFor`,
+  // which is what the [E] uses and what `crosstown.ts`'s `doors:` affordance
+  // exists to expose. `Placement` is axis-aligned (`axis: 'x' | 'z'`), so a 45°
+  // face cannot register a correct frontage at all — that is the root of it.
+  //
+  // So: for a CUT FACE, `declaredDoors()` is the authority and `__frontages` is
+  // not. Nothing consumes the wrong entry today; it goes live the moment anyone
+  // derives door geometry from the frontage roster. notes/BLOCKED-D.md has the
+  // three ways out and why none of them is mine to pick.
   placeBldZ(FACE + 3.4, -94.3, { nm: 'BODEGA', col: '#b8342a', w: BODEGA_WING, brick: '#6b4034', floors: 3 }, -1);
   let xn = FACE + 3.4 + BODEGA_WING;
   const sideSpans: Record<string, [number, number]> = {};
