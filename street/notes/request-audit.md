@@ -1113,3 +1113,48 @@ Neither is a blocker and I am routing neither as urgent. But the pair makes the
 bodega finding sharper rather than weaker: **the world has no shared convention
 for where a door's trigger should reach**, and the five that agree on 0.6 m agree
 by construction rather than by rule.
+
+### The mechanism: every `[E]` is a disc with a hand-picked centre and radius
+
+`ct/ctx.ts:21` —
+
+```ts
+export interface Spot {
+  x: number; z: number; r: number;
+  label: () => string;
+  ok: () => boolean;
+  act: () => void;
+}
+```
+
+**A trigger is a circle.** Each module picks its own centre and its own radius,
+and **nothing in the type relates `r` to where the pavement is.** That is the
+whole explanation for all three behaviours I measured:
+
+| door | why it reads the way it does |
+|---|---|
+| the five at 0.6 m kerb-side | centre near the doorway, radius ≈ 1.35 m — the disc happens to cross the walk |
+| **BODEGA** at 0.2 m facade-side | centre sits deep in the **canted bay**, so the same-sized disc starts further in |
+| **HOTEL / ACES** at 1.9 m into the road | larger radius against a **narrower pavement**, so the disc overshoots the kerb |
+
+Nobody made a mistake. Three modules each chose a sensible-looking `r` for their
+own doorway, and the pavement was not a term in any of those decisions.
+
+> **A radius is a property of the door. Reach is a property of the pavement in
+> front of it.** The `Spot` type only lets you express the first, so the second
+> is an accident everywhere — and it agrees on five doors purely because five
+> flat frontages happen to be the same depth.
+
+### The fix is already sitting there
+
+`__frontages` (`2bdcf1d8`) publishes `facePos`, `doorWorld` and `doorWidthM` for
+every shopfront. A door spot derived from that — centred on the published door,
+with a radius that reaches the kerb line and stops — would put all nine on the
+same footing without anyone choosing a number.
+
+**That is a builder's call, not mine, and it is not urgent.** Nothing here blocks
+a player. But it converts "the bodega feels different" from a mystery that has
+cost four separate probes into one line of shared arithmetic.
+
+**Bodega tally, closed:** canted bay → no `__frontages` entry → prompt off the
+walk line → trigger disc centred in the recess. Four anomalies, one cause.
