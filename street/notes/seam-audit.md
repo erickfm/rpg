@@ -2291,3 +2291,49 @@ that: it is two greps and a build. **Verification is already written** —
 before the glob that reads it"* and exit 0, `npm run build` must pass, and
 `doors-declared` must go green. Any of those failing kills the suggestion in
 under a minute.
+
+## Round 19b — the caveat is closed, and dev-vs-bundle confirms the mechanism
+
+**The caveat, resolved.** I said narrowing the glob risks silently dropping a
+future non-`int-` module that declares a `DOOR`, *"mitigated only if
+`doors-declared` compares against modules exporting a `DOOR` rather than a fixed
+number — which I have not verified."*
+
+`scripts/doors-declared.mjs:38–41`:
+
+```js
+for (const f of readdirSync(DIR)) {
+  const src = readFileSync(`${DIR}/${f}`, 'utf8');
+  if (!/^export const DOOR\b/m.test(src)) continue;
+```
+
+**It reads the source directory and counts modules that declare a `DOOR`.** Not
+a fixed number. So a future `civic-doors.ts` growing a `DOOR` under a narrowed
+glob would be caught immediately — *"N modules declare a DOOR; N−1 reached
+declaredDoors()"*. **The mitigation I needed is already in place, and the
+narrowing suggestion carries no silent-regression risk.**
+
+## And a fact I did not have, which corroborates everything
+
+The same file's header, lines 17–18:
+
+```
+vite dev      (unbundled native ESM)   8 of 8 — every door arrives
+vite preview  (rollup bundle)          7 of 8 — GOLDEN ACES lost
+```
+
+> **The casino's door is present in dev and lost only in the bundle.**
+
+That is the emission-order diagnosis confirmed from a direction I never
+approached. Native ESM has no concatenation and therefore no emission order —
+each module is its own file, and a namespace is live by the time anything reads
+it. Rollup flattens everything into one file with one linear order, and that
+order is where a binding can be referenced 1,766 bytes before it exists.
+
+**Two independent lines of evidence, neither derived from the other:** my byte
+offsets in the bundle, and somebody else's observation that dev and preview
+disagree. They say the same thing.
+
+That is what a non-circular confirmation looks like — and after three of my own
+checks turned out to compare a number against itself, it is worth pointing at
+one that does not.
