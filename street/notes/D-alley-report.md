@@ -1556,3 +1556,30 @@ It holds: from outside, the dumpster and the three tags are what you see, and
 the cat is a small dark shape beside the dumpster that resolves on a second look.
 Worth doing, because "beside the dumpster" could equally have produced a cat that
 fills the alley mouth, and from inside the alley I could not have told.
+
+
+## The road-can-never-light finding does not have an analogue on my frontages
+
+`071e4fd27` found the road is one 134 m mesh whose origin sits 12.3 m from any
+lamp, so it can never take a light pool. My facades are far larger than the
+`span < 6` a pool requires, so they are not poolable either — by design:
+`props.ts` says warming a 12 m facade off its centre point would be wrong, and
+long walls get the **wall splash** instead, which is per-lamp and correctly
+placed.
+
+So the question for my area is whether the splash actually reaches my frontages.
+Measured at a stepped 23:00, the runs and their gaps:
+
+```
+west  covered -110..-98  -94.7..-91.3  -68..-43.5  -38.7..-21  -10.7..-7.3  -5..14.2
+east  covered  -96..-86  -80.7..-77.3  -68..-8.9
+```
+
+**Every gap is a real gap in the wall line, not a hole in the lighting.** The
+23.3 m one is the park, the 4.8 m one is the alley, the rest are the side
+streets and the set-back civic frontage — I probed the largest unexplained one,
+west z -21..-10.7, and there is no wall there at all: my shells end at z -21, the
+bank starts at -5, and the only things on that line are props.
+
+No defect, and no analogue of the road's problem here. Recorded because "the
+splash has gaps" looks alarming in a table and is the correct behaviour.
