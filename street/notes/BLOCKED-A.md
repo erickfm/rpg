@@ -69,10 +69,29 @@ marked `@deprecated`, and while that field exists someone will read it and
 believe it.
 
 **I will delete `doorCentreM`, `doorOffsetM`, `glazingStartM` and
-`glazingEndM` the moment the desk says F is across.** I have not done it
-unilaterally because it breaks F's build, and `live-integrate.sh` drops a
-builder whose build fails — F's work would vanish from the world the user is
-playing, mid-flight.
+`glazingEndM` the moment the desk says F is across.**
+
+**The reason I gave for not doing it myself is no longer true, and I am not
+going to leave a stale justification sitting in a blocker.** I said it would
+break F's build. I have now applied the migration, rebuilt, and dumped every
+interior mesh before and after: **`tsc` clean, and 0 of 226 room meshes change**,
+across all eight rooms. It is a proven no-op, and I reverted it.
+
+Two things came out of measuring instead of reasoning, and both are in
+`A-glazing-handoff.md`:
+
+- the patch I had been handing F **did not compile** — `F` is a `Frontage` and
+  has no `doorWorld`;
+- made to compile the obvious way, it **replaced the diner's window with a solid
+  panel**, because `fr.side` and `uDir` disagree there and the mirror landed
+  twice.
+
+The form that works converts world → `alongU` with the frontage's own `uDir` and
+reuses `localOf`.
+
+**So the only thing blocking this now is ownership, not risk.** `ct/interior.ts`
+is F's, I have no mandate, and I have declined to take one unasked all session.
+One word and it lands.
 
 ## Not blocked, just unfinished, and honest about it
 
