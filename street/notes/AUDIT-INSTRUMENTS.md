@@ -1383,7 +1383,6 @@ the road is around **0.25 against a settled 0.165**, so the `wet-over` and
 That matters more than it would in a numeric check, because these are frames a
 human is meant to *look at* — GOTCHAS §20's point. Whoever owns `basin.mjs` has
 a one-line fix for each: read the published `rainAt`, and wait 18 s.
-
 ### My sweep for that class found 1 of 6, and the reason is worth more than the miss
 
 `31089b97` fixed `basin.mjs` on both counts I raised — it reads
