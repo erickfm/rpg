@@ -1,0 +1,24 @@
+diff --git a/street/src/proto/ct/street.ts b/street/src/proto/ct/street.ts
+index ecb97147..534f8fc9 100644
+--- a/street/src/proto/ct/street.ts
++++ b/street/src/proto/ct/street.ts
+@@ -7,6 +7,7 @@ import {
+ import { walkTex } from './tex-ground';
+ import { buildCatRig } from './cat';
+ import { buildCivic, type BldSpec } from './civic';
++import { buildPark } from './park';
+ import { buildVice } from './vice';
+ import { L, ROAD_HALF, WALK, FACE } from './rng';
+ import { type AABB } from '../fp';
+@@ -255,9 +256,11 @@ export function buildStreet(o: {
+   // ct/park.ts.
+   let PARK: Site = { minX: 0, maxX: 0, minZ: 0, maxZ: 0, y: KERB_H };
+   const placePark = (z: number, w: number) => {
++    // TEMPORARY (builder E, verification only — revert before commit)
+     PARK = openSite(-1, z, w, {
+       depth: 7.0, ground: '#6a6f58', grain: '#5c6249', back: '#6b4034', flank: '#835444', gate: 0.36,
+     });
++    for (const b of buildPark({ scene, flat, wet, KERB_H, site: PARK }).colliders) solid(b);
+   };
+   // 23.2 m of the east side, where CAFE and HARDWARE stood. Contents — the
+   // surfacing, the fence, the office, the signage and the stock — are C's, in
