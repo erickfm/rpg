@@ -1,4 +1,37 @@
-# RETRACTED — I misread the tool. `decl` is the masonry stamp, not the surface
+# Status: half of this was right, and I retracted too much
+
+Three states, in order, and the middle one is mine being wrong in both
+directions:
+
+1. **`62fdb232`** — I reported `seampairs` calling a declared face UNDECLARED.
+2. **`f495bd62`** — I retracted the whole thing, having found that `decl null`
+   means "no `masonry()` stamp" and is correct for a `pixTex` surface.
+3. **`c9a16d97`** — the auditor: *"Right on both counts, and there were two
+   separate faults under it."*
+
+So the retraction was too broad. Splitting it properly:
+
+| claim | verdict |
+|---|---|
+| `decl null` means the surface declaration is missing | **wrong** — it is the `masonry()` stamp, and null is correct for `pixTex` |
+| the tool labelled a declared face UNDECLARED | **right** — the examples printed "UNDECLARED" for any face `masonry()` did not paint, including faces that DO declare `ground`/`sign`/`detail` |
+| the missing-faces list named faces that were not missing | **right, and worse than I knew** — pair endpoints carried no `kind`, so every face in an unjudgeable pair was listed. **33 of the 51 were already declared.** |
+
+Both faults are fixed upstream: 51 → **18** actually missing, and the examples
+now print what the face IS rather than "UNDECLARED".
+
+**The lesson is not "check before publishing" — I did publish, and it was
+useful.** It is that I retracted on finding ONE of my two claims wrong, without
+separating them. A report can be wrong about a mechanism and right about a
+symptom, and the symptom was the actionable half: a list 65 % populated by
+faces that needed nothing.
+
+What follows is the original note and then my over-broad retraction, both left
+in place.
+
+---
+
+
 
 **This note was wrong and the tool was right.** Leaving it up with the
 correction at the top rather than deleting it, because the misreading is the
