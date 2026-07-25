@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import type { Seat } from './ctx';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
 import { masonry } from './tex-world';
@@ -58,6 +59,22 @@ export const COURT = {
   y: 0,
   colliders: [] as AABB[],
 };
+
+/** Every seat the civic buildings own, in WORLD coordinates.
+ *
+ *  The library's benches were built before `ctx.seat` existed and never went
+ *  back for it, so the courtyard had furniture you could not sit on while the
+ *  park's identical benches worked. They are registered here rather than
+ *  through the options object because `buildCivic` is called from
+ *  `ct/street.ts`, which has no ctx of its own — the same reason `COURT` and
+ *  `courtGround` are exports. Call AFTER the world is built: the church is
+ *  placed into a group that street.ts turns afterwards, so a seat inside it
+ *  is only in world coordinates once that transform exists. */
+export function civicSeats(): Seat[] {
+  if (PENDING.length) { for (const f of PENDING) f(); PENDING.length = 0; }
+  return SEATS;
+}
+const SEATS: Seat[] = [];
 
 /** Every ground patch this module owns, in world coordinates. Registered as
  *  the buildings are placed; asked in order and the first answer wins. */
@@ -132,6 +149,26 @@ export function buildCivic(o: {
     });
     return box;
   };
+  /** register a seat given in the HOST's frame — position, approach and
+   *  FACING are all turned with it, because a seat that faces the right way
+   *  in the church's own frame faces the street once street.ts turns it */
+  const seatLocal = (sp: Seat) => {
+    const out: Seat = { ...sp };
+    SEATS.push(out);
+    PENDING.push(() => {
+      host.updateWorldMatrix(true, false);
+      const e = new THREE.Euler().setFromRotationMatrix(host.matrixWorld, 'YXZ');
+      const p = hostPt(sp.x, sp.z);
+      out.x = p.x; out.z = p.z;
+      out.yaw = sp.yaw - e.y;
+      if (sp.approach) {
+        const a = hostPt(sp.approach.x, sp.approach.z);
+        out.approach = { x: a.x, z: a.z };
+      }
+    });
+    return out;
+  };
+
   /** register a floor patch whose function is written in the HOST's frame */
   const floorLocal = (fn: (x: number, z: number) => number | null) => {
     const inv = new THREE.Matrix4(), p = new THREE.Vector3();
@@ -751,6 +788,16 @@ export function buildCivic(o: {
         scene.add(sl);
       }
       solid({ minX: bx - 0.95, maxX: bx + 0.95, minZ: bz - 0.28, maxZ: bz + 0.28 });
+      // …and you can sit on it. The facing is the whole point of a courtyard
+      // bench: its back is to the party wall, so it seats you looking INTO
+      // the space and up at the library, not at the brick behind you.
+      // s < 0 is the south bench, which faces north (+z) — and the reverse.
+      const yaw = s < 0 ? Math.PI : 0;
+      seatLocal({
+        x: bx, z: bz, yaw, h: 0.45,
+        approach: { x: bx + Math.sin(yaw) * 0.95, z: bz - Math.cos(yaw) * 0.95 },
+        label: 'sit on the bench',
+      });
     }
 
     // Planters in the two corners where the cheek walls meet the flanks, and
