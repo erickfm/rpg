@@ -72,6 +72,24 @@ grade goes to **1 in 6**, because the rim has to lose more height over the same
 that says *gentle* twice, so the exaggeration went into the shading, where it
 costs nothing underfoot.
 
+## The stripes stop where the mound takes over
+
+The queue asked for this in item 3 and the mound did not exist when the stripes
+were cut. A ride-on mower does not stripe a rise, it goes round it, so the crest
+is shaggy and unbanded — which turns out to be the cue that makes the mound read
+as a mound *in plan* rather than as a tonal patch.
+
+Painted into the field's own canvas rather than laid over it as a second mesh:
+one texture, no coplanar decal to keep flat on a slope (§6), no cut-out material
+to get wrong at midnight (§22).
+
+The direction of `v` was **checked, not derived** — looked straight down at the
+mound's south flank and at its mirror position on the far side of the field:
+tufts on one, stripes on the other (`shots/E-mound/z-south-flank.png`,
+`z-north-mirror.png`, `z-off-mound.png`). A UV flip would have put the unmown
+patch on bare grass 6 m from the mound and looked entirely deliberate from every
+angle a player can stand at.
+
 ## Verification
 
 - `E-park-walk.mjs` — 16/16, against my own preview build on 4194. The old

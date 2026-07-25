@@ -350,6 +350,40 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
       for (let z = 0, i = 0; z < MH; z += band, i++) {
         if (i % 2) g.fillRect(MW - Math.round(1.5 * 16), z, Math.round(1.5 * 16), band);
       }
+      // …and the stripes STOP where the mound takes over. A ride-on mower
+      // does not stripe a rise, it goes round it, so the crest is shaggier and
+      // unbanded — which is also the piece of evidence that makes the mound
+      // read as a mound in plan rather than as a tonal patch.
+      //
+      // Painted into the field's own canvas rather than laid over it as a
+      // second mesh: one texture, no coplanar decal to keep off the grass
+      // (§6), no cut-out material to get wrong at midnight (§22). The field's
+      // UVs run 0..1 across its own rect, so world metres convert directly —
+      // and the direction of v was CHECKED rather than derived, by looking
+      // straight down at the mound's south flank and at its mirror image on
+      // the far side of the field: tufts on one, stripes on the other
+      // (`shots/E-mound/z-south-flank.png`, `z-north-mirror.png`). A UV flip
+      // would have put the unmown patch on bare grass 6 m from the mound and
+      // looked entirely deliberate from every angle a player stands at.
+      const uAt = (x: number) => ((x - fx0) / fW) * MW;
+      const vAt = (z: number) => ((z - fz0) / fD) * MH;
+      const shaggy = (cx: number, cz: number, rad: number) => {
+        const px = uAt(cx), py = vAt(cz), rx = (rad / fW) * MW, ry = (rad / fD) * MH;
+        g.save();
+        g.beginPath();
+        g.ellipse(px, py, rx, ry, 0, 0, Math.PI * 2);
+        g.clip();
+        g.fillStyle = '#6f7750';                              // between the two greens
+        g.fillRect(px - rx, py - ry, rx * 2, ry * 2);
+        for (let i = 0; i < 260; i++) {                       // tufts, not bands
+          g.fillStyle = r() < 0.5 ? 'rgba(124,131,88,0.55)' : 'rgba(90,99,66,0.55)';
+          g.fillRect(px - rx + r() * rx * 2, py - ry + r() * ry * 2,
+            2 + Math.floor(r() * 4), 2 + Math.floor(r() * 3));
+        }
+        g.restore();
+      };
+      shaggy(mndX, mndZ, 4.6);
+
       g.fillStyle = 'rgba(120,104,72,0.45)';                  // thin and worn
       for (let i = 0; i < 40; i++) {
         g.fillRect(Math.floor(r() * MW), Math.floor(r() * MH), 3 + Math.floor(r() * 8), 2 + Math.floor(r() * 5));
