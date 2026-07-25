@@ -15,6 +15,7 @@
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-rooms-walk.mjs [id]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { readFileSync } from 'node:fs';
 
 const KERB_H = 0.14, RADIUS = 0.36;
 
@@ -155,6 +156,49 @@ let room = null;
 const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, detail]);
 const f2 = (n) => +n.toFixed(2);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
+
+// ── the one defect in these rooms this suite CANNOT walk to ─────────────
+//
+// A room that imports a runtime VALUE from ./doors joins an import cycle with the
+// door registry, and a module in that cycle resolves to an undefined namespace in
+// the Rollup bundle — so its DOOR is collected in dev and dropped without trace in
+// `dist`. That is how GOLDEN ACES was missing from declaredDoors() in the shipped
+// artefact for many commits (fixed in 1e49295b).
+//
+// EVERY OTHER CHECK IN THIS FILE RUNS AGAINST THE DEV SERVER, WHERE THE DEFECT IS
+// INVISIBLE BY CONSTRUCTION. Re-add the import and all 107 stay green while the
+// door disappears from the build the user actually plays. So this one is read off
+// the SOURCE rather than the running world — the only honest way to see it from
+// here. `scripts/doors-declared.mjs` catches it properly, but only after a build
+// and a preview, which is not where I work.
+//
+// A `type` import is erased and costs nothing, which is why the six rooms that
+// only ever imported the type were never affected.
+{
+  const src = (f) => readFileSync(new URL(`../src/proto/ct/${f}`, import.meta.url), 'utf8');
+  const valueImport = (text) => {
+    const m = text.match(/^import\s+([^;]*?)\s+from\s+'\.\/doors';/m);
+    if (!m) return null;                                  // no import at all is fine
+    const clause = m[1].trim();
+    if (clause.startsWith('type ')) return null;          // import type { ... }
+    const names = clause.replace(/^\{|\}$/g, '').split(',').map((s) => s.trim()).filter(Boolean);
+    const runtime = names.filter((n) => !n.startsWith('type '));
+    return runtime.length ? runtime.join(', ') : null;
+  };
+  const mine = { casino: 'int-casino.ts', hotel: 'int-hotel.ts', pawn: 'int-pawn.ts', tax: 'int-tax.ts' };
+  const bad = Object.entries(mine).filter(([, f]) => valueImport(src(f)));
+  results.push([bad.length === 0,
+    'all four rooms import ./doors as a TYPE only, so none is in the registry cycle',
+    bad.length
+      ? `RUNTIME import from './doors' in ${bad.map(([id, f]) => `${f} (${valueImport(src(f))})`).join('; ')}`
+        + ' — its DOOR will be dropped from dist with no error'
+      : `${Object.keys(mine).length} rooms checked, all type-only`]);
+  // The other four rooms are not mine to fail the run over, but the class is the
+  // same and a silent drop costs whoever owns them the same way.
+  const others = ['int-diner.ts', 'int-bodega.ts', 'int-burger.ts', 'int-thrift.ts']
+    .filter((f) => valueImport(src(f)));
+  if (others.length) console.log(`  note  not mine, same risk: runtime ./doors import in ${others.join(', ')}`);
+}
 
 for (room of rooms) {
 
