@@ -429,3 +429,60 @@ by a script that shares no code with the ones that found them:
 That is the useful shape for this kind of scare: a defect found in someone
 else's tool is a hypothesis about yours, and the cost of checking was one script
 and four minutes.
+
+---
+
+# Every instrument, classified by whether its two sides share an ancestor
+
+Three of my checks turned out to compare a number against itself. Rather than
+find a fourth by accident, here is the whole set classified. **Read this before
+quoting any number I produced.**
+
+## A — Independent: two sides, no common source. These verify.
+
+| instrument | side A | side B |
+|---|---|---|
+| `lane3.mjs` | `__ct.colliders()` — what movement tests | `RADIUS = 0.36`, the capsule |
+| `seampairs.mjs` · `seamreal.mjs` | one face's density | **a different face's** density |
+| `floats.mjs` | a mesh's position | every other mesh's extent |
+| `enterall.mjs` | the label on the sign | the slab you physically land in |
+| `turn.mjs` | the atlas frame shown | the heading you orbit to |
+| `rooms.mjs` | one room's measurements | **the other seven rooms'** |
+| `globorder.mjs` | a binding's byte offset | the glob literal's byte offset |
+| `seats-walk` · `spots-walk` (A's) | a registered spot | whether a body can stand and act there |
+
+**Everything I would defend hardest is in this table**, and the common shape is
+that side B is either *another instance of the same kind of thing* or *a physical
+consequence*. Neither can be derived from side A.
+
+## B — Rule-based: measured against a stated rule, not another number. These verify.
+
+| instrument | the rule |
+|---|---|
+| `masonry.mjs` (declared densities) | must be 8, 16 or 32 px/m — **196 / 39 / 1, nothing else** |
+| `lane3.mjs` (thresholds) | 0.72 m capsule, 2 m lane, `GOTCHAS` §9 |
+| `handed.mjs` | `dot(uDir, right) > 0` — a geometric identity |
+| `rooms.mjs` (wall thickness) | the kit's own constant, 0.18 in all eight |
+
+## C — Circular: both sides descend from one value. These verify **plumbing only**.
+
+| instrument | the shared ancestor | still catches |
+|---|---|---|
+| `doorcross` · `doorpoint` | `DOOR.at` feeds the `[E]` spot **and** the roster | corruption in transit, wrong axis handling, a dropped declaration |
+| `masonry.mjs` (per-face) | `(wM, hM)` sizes the canvas **and** the mesh | a texture handed to a differently-sized mesh |
+| `guessdoors` | the painter reads the roster it is compared against | nothing — this one is fully circular |
+| `doorside2` | interior spot and frontage both from the room's own spec | nothing I can rely on |
+
+**A circular check is not worthless** — it proves a value survives its pipeline —
+**but it can never detect that the value is wrong.** Every "N of N agree" I
+reported from table C means *"the pipeline is intact"*, not *"the world is
+right"*.
+
+## The one line to keep
+
+> **Find the common ancestor before calling agreement a verification.**
+
+Three times I did not, and each time the number was precise, reproducible, and
+about nothing. Precision is the tell: `0.00 m`, `0 of 236`, `5 of 5` — real
+independent measurements are almost never that clean, and the cleanliness should
+have been the warning rather than the reassurance.
