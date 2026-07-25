@@ -555,3 +555,28 @@ are unrun by me and I am not claiming anything about them. `spots-walk` and
 The first failure is worth recording as a rule: **a long check run and
 concurrent commits do not mix.** The guard is doing exactly its job, and the
 cost of ignoring that is a twelve-minute run producing nothing.
+
+### The third run did complete — and the failure is precise
+
+```
+23 ✓   including frontage-honours, burger-palette, park, wetness, rain,
+       basin, kerbcut, bus ×2, trash, glow, shells, footprint, windowlights
+ 1 ✗   doors-declared  FAILED (1)      ← a real failure
+18 ✗   WRONG WORLD                     ← invalidated when I committed mid-run
+```
+
+**The six walking suites run LAST.** That is why all three attempts lost exactly
+them: they are the tail of a twelve-minute run, so they are the most exposed to
+any HEAD movement, and I could not hold still that long.
+
+`doors-declared` failed **as a genuine failure, not a world mismatch** — the
+casino's declared door, confirmed on a third independent run.
+
+And `burger-palette` — *"has BURGER BARN gone back to mustard?"* — is registered
+and **green**. That check did not exist when I reported the palette as verified
+only by eye; it is one of the appearance guards written in response to that gap,
+and it now covers a user request that had none.
+
+> **23 green, one real red, and the one red is the defect with a complete
+> write-up already attached.** The rest is my own commit, and the six suites at
+> the tail remain unrun by me.
