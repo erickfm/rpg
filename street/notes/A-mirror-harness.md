@@ -182,6 +182,42 @@ is ambiguous there. Something else — the piece's z depth, or which side of it 
 can stand — has to break the tie. Recording that rather than guessing a fourth
 time.
 
+## Found it (`e7a23bdd`): the doorway is a collider standing proud of the wall
+
+```
+DINER    wall z 3.50..3.68   door [676.8, 678.0] z 3.68..3.86  w 1.15
+A-1 TAX  wall z 4.25..4.43   door [915.2, 916.4] z 4.43..4.61  w 1.15
+```
+
+The door leaf sits **one wall-thickness further out** than the wall plane, so
+its `minZ` is the wall's `maxZ`. Exact, and it breaks the tie width alone could
+not — A-1 TAX has a 1.31 m wall piece beside its 1.15 m door, and only the door
+starts where the wall ends. The declared `widthM` then confirms it.
+
+**Rooms measured: 0 → 4 of 5.** PAWN is still unmeasured, its front wall still
+reading at z −2.52, which is the back wall — a separate fault.
+
+### And the result CONFLICTS with hand verification, so it is not a finding
+
+The harness now calls all four measured rooms **SAME SIDE**.
+`A-mirror-verified.md` records those same four — A-1 TAX, diner, Burger Barn,
+THRIFT — walked by hand **with shots**, each mirroring correctly.
+
+**One of the two is wrong and I have not determined which.** The doorway
+detection is new and measured; the *side convention* is the untested half:
+`observerRight = side < 0 ? -1 : 1` outside, `sign(gap.lx) * -1` inside. A single
+sign error would flip exactly these four and nothing else.
+
+The script prints that conflict in its own output and tells the reader **not to
+route it**. I am not going to assert a defect over my own verified evidence, and
+I am not going to quietly suppress the disagreement either — the next person to
+run this must see both halves.
+
+**This is the next thing to do here:** validate the side convention against the
+four hand-verified rooms. If the convention is wrong, four rooms are fine and the
+harness needed one sign flipped. If the convention is right, four rooms are
+backwards and my earlier walk-through read them wrong.
+
 ### The lesson, which cost three turns
 
 I changed the *method* three times and the *diagnostics* once. The diagnostics
