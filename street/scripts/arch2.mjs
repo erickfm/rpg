@@ -22,8 +22,28 @@ const out = await p.evaluate(() => {
     const m=Array.isArray(o.material)?o.material[0]:o.material;
     all.push({ x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
       hex: m&&m.color? '#'+m.color.getHexString():null, type:o.geometry.type }); });
-  // the three street cars, by the shape rule used before
-  const CARS = [[3.79,-13.96],[-3.92,-30.04],[3.62,-48.34]];
+  // SELF-LOCATING: the parked fleet is DRAWN, not placed, so a coordinate
+  // harvested from one session is a coordinate about a car that may not be
+  // there. Find them by shape at run time -- low clusters roughly 1.4-2.8 m
+  // one way and 3.2-6.2 m the other, near the carriageway.
+  const boxes = [];
+  s.traverse(o => { if(!o.isMesh||!o.geometry) return;
+    for(let q=o;q;q=q.parent) if(q.visible===false) return;
+    const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox(); if(!g.boundingBox)return;
+    const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    if (bb.max.x > 400) return;
+    boxes.push({x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z}); });
+  const it = boxes.filter(q=>q.y0<0.9&&q.y1<2.3&&q.y1>0.6), sn=new Array(it.length).fill(false), cl=[];
+  const touch=(a,c,g)=>a.x0-g<c.x1&&a.x1+g>c.x0&&a.z0-g<c.z1&&a.z1+g>c.z0&&a.y0-g<c.y1&&a.y1+g>c.y0;
+  for(let i=0;i<it.length;i++){ if(sn[i])continue; const st=[i],mem=[]; sn[i]=true;
+    while(st.length){const k=st.pop();mem.push(it[k]);
+      for(let j=0;j<it.length;j++) if(!sn[j]&&touch(it[k],it[j],0.35)){sn[j]=true;st.push(j);}}
+    const x0=Math.min(...mem.map(q=>q.x0)), x1=Math.max(...mem.map(q=>q.x1));
+    const z0=Math.min(...mem.map(q=>q.z0)), z1=Math.max(...mem.map(q=>q.z1));
+    const w=x1-x0, d=z1-z0, a=Math.min(w,d), l=Math.max(w,d);
+    if (a>1.4&&a<2.8&&l>3.2&&l<6.2&&Math.abs((x0+x1)/2)<12) cl.push([+((x0+x1)/2).toFixed(2), +((z0+z1)/2).toFixed(2)]);
+  }
+  const CARS = cl;
   return CARS.map(([cx,cz]) => {
     const near = all.filter(q => Math.abs((q.x0+q.x1)/2-cx)<1.9 && Math.abs((q.z0+q.z1)/2-cz)<3.2 && q.y1 < 2.4);
     // a tyre: dark, low, small in plan

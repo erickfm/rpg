@@ -53,3 +53,38 @@ against the wrong edge. Every one was fixed by the world **declaring** something
 **Prefer a probe that asks over a probe that guesses.** Where you must guess,
 say so in the output, and never let the guess sit in a file that outlives the
 report explaining it.
+
+---
+
+## Two of the stale-prone scripts fixed, and one nuance I had wrong
+
+**`turn.mjs` — fixed and it mattered.** Its hardcoded citizen positions are now
+found by atlas signature at run time. Doing so surfaced five figures that *walk
+away mid-measurement*, which the old version could only have reported as
+somebody else's reading. It also extended the interior-keeper result from 4 rooms
+to 8, all passing. Written up in `request-audit.md`.
+
+**`arch2.mjs` — fixed, and the constants turned out to still be right.** Made
+self-locating (cars found by cluster shape). It found the same three cars at
+(3.79, −13.96), (−3.92, −30.04), (3.62, −48.34) — **identical to the values that
+were baked in** — and the same tyre top of 0.663 m on every wheel. The wheel-arch
+DONE is unaffected.
+
+### The nuance I stated too strongly
+
+I wrote that the parked fleet *"is **drawn**, not placed"* and implied its
+coordinates would therefore rot. They had not. The draw comes off a **seeded**
+stream (`ct/rng.ts`), so the same build produces the same fleet every run, and a
+harvested coordinate stays valid.
+
+What that means, precisely:
+
+> A seeded draw is **stable within a build and fragile across builds.** Nothing
+> jitters run to run — but if anything upstream consumes a different number of
+> random values, every car downstream moves at once, and a script full of
+> harvested coordinates fails *silently and completely* rather than gradually.
+
+So the risk was real and the mechanism was not what I said. **Seeded is not the
+same as fixed**, and "it has not moved yet" is not evidence that it will not.
+
+Both scripts now locate their own subjects, so neither depends on the answer.
