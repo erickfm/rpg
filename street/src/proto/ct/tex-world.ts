@@ -624,8 +624,29 @@ export function doorAlongU(name: string, wMeters: number, fallbackM: number): nu
 
 /** world coordinate on the frontage axis → 0..1 across the canvas. The mirror,
  *  applied once, here, for anything that needs to draw ON the facade. */
+/**
+ * A world coordinate on this frontage → METRES along u from the painter's
+ * u = 0 edge. The exact inverse of the private `toWorld`.
+ *
+ * This is where handedness lives, and it is the reason it exists here rather
+ * than at each call site. `uDir` is MEASURED off the mesh uv; `fr.side` in
+ * ct/interior.ts is assumed from which side of the street a building sits on,
+ * and for the DINER those two disagree. A consumer that converts with `side`
+ * applies the mirror twice — measured: it replaces the diner's window with a
+ * solid panel. Anyone converting a world coordinate on a frontage should call
+ * this and not roll their own.
+ *
+ * `uAt` below is this over the frontage width, for anyone who wants 0..1. It
+ * was the only exported form for a long time and had ZERO consumers, because
+ * the one caller that wanted it needed metres and hand-rolled them instead —
+ * which is how the mirror got applied twice in the first place.
+ */
+export function alongU(f: FrontageWorld, world: number): number {
+  return f.uDir > 0 ? world - f.loWorld : f.hiWorld - world;
+}
+
 export function uAt(f: FrontageWorld, world: number): number {
-  return (f.uDir > 0 ? world - f.loWorld : f.hiWorld - world) / f.frontageM;
+  return alongU(f, world) / f.frontageM;
 }
 
 /**
