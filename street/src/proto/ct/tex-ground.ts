@@ -69,6 +69,15 @@ function thin(t: THREE.Texture): THREE.Texture {
  *  away, so the chamfer can never eat more than the reveal it sits on */
 const rise = (h: number) => Math.min(0.03, h * 0.4);
 
+/** The gutter pan's surface height, `d` metres out from the kerb line. The
+ *  pan is cross-sloped, so anything laid IN it — litter, puddles — has to
+ *  follow that slope or it ends up under the concrete. Exported because
+ *  ct/props.ts drops decals in here and cannot otherwise know. */
+export const gutterSurfaceY = (d: number) =>
+  GY_K + (GY_R - GY_K) * Math.min(1, Math.max(0, d / GW));
+/** how wide that pan is, from the kerb outward */
+export const GUTTER_W = GW;
+
 // ── the sidewalk sheet ────────────────────────────────────────────────────
 // One 256 px tile = 8 m of walk at 32 px/m, so the scoring grid is 1 m and
 // the staining doesn't repeat until you've walked eight paces past it. Every

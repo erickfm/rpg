@@ -3,6 +3,7 @@ import { pixTex, dither } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          canTopTex, paperTex, scrapTex } from './tex-world';
+import { gutterSurfaceY, GUTTER_W } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
@@ -537,6 +538,18 @@ export function buildProps(ctx: CtxBuild): Props {
   // shifts the whole world. Kept deliberately sparse — the note was "just
   // trying to add detail and realism. dont go over board." Nothing here is
   // solid; you walk straight over it.
+  // What is the ground actually AT, under a decal at this x? Three different
+  // surfaces meet along the kerb line and they are at three different heights:
+  // the road at 0, the gutter pan cross-sloped from 0.018 down to 0.006 at the
+  // kerb, and the walk up at sidewalkY. Laying everything at one flat y is why
+  // the gutter puddles ended up UNDER the pan and the awning ones under the
+  // pavement.
+  const surfaceY = (x: number) => {
+    const ax = Math.abs(x);
+    if (ax > ROAD_HALF) return sidewalkY;                       // up on the walk
+    if (ax > ROAD_HALF - GUTTER_W) return gutterSurfaceY(ROAD_HALF - ax);
+    return 0;                                                   // open road
+  };
   const flatDecal = (tex: THREE.Texture, w: number, d: number, x: number, z: number, rot: number, y: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
       new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: true }));
@@ -568,8 +581,9 @@ export function buildProps(ctx: CtxBuild): Props {
   // these than cans: paper is what actually collects along a wet kerb.
   for (let i = 0; i < 5; i++) {
     const s2 = rnd() < 0.5 ? -1 : 1;
-    flatDecal(paperT[i % 4], 0.34 + rnd() * 0.14, 0.26 + rnd() * 0.10,
-              s2 * (GUT - rnd() * 0.22), -8 - rnd() * (L - 20), rnd() * Math.PI, 0.014);
+    const pw = 0.34 + rnd() * 0.14, pd = 0.26 + rnd() * 0.10;
+    const px2 = s2 * (GUT - rnd() * 0.22);
+    flatDecal(paperT[i % 4], pw, pd, px2, -8 - rnd() * (L - 20), rnd() * Math.PI, surfaceY(px2));
   }
   // one can up on the sidewalk, against the kerb
   flatDecal(canTopTex(3), 0.40, 0.23, ROAD_HALF + 0.22, -47.5, 0.7, sidewalkY);
@@ -612,7 +626,7 @@ export function buildProps(ctx: CtxBuild): Props {
     const p = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.42 + rnd() * 0.3)), m);
     p.rotation.x = -Math.PI / 2;            // a ground DECAL, never a billboard
     p.rotation.z = rnd() * Math.PI;
-    p.position.set(x, 0.012, z);
+    p.position.set(x, surfaceY(x) + 0.005, z);   // a film ON the surface, not through it
     scene.add(p);
     puddles.push({ m, lo, hi, max });
   };
