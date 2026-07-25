@@ -1257,3 +1257,42 @@ against `:5177` **overwrites your worktree's frames with the integration
 world's**. They are gitignored, so nothing is committed, but a shot you then
 compare against is somebody else's build. Re-ran against my own port afterwards
 to put them back.
+
+## `userData.selfLit` is documentation, not control — confirmed by mutation
+
+Tried to prove `midnight.mjs` would catch my lit sheets losing their `selfLit`
+stamp. **It does not, and chasing why turned up something better.**
+
+Removing `m.userData.selfLit = true` from `ct/street.ts` changes the flag and
+**nothing else** — the sheets' colours at 21:00 are identical either way.
+`ct/props.ts` decides self-lit for itself with `isSelfLit(m.map)` and uses its
+own answer for `floor: selfLit ? FLOOR_SIGN : floorFor(y)`. **My stamp is an
+output, never an input.** I suspected that when I added it (`120ac459` says the
+grader "does not read it") and this is the mutation that proves it.
+
+So `midnight` cannot catch that regression, and it is right not to: the stamp
+does not control anything, so losing it is a documentation loss, not a
+behaviour one.
+
+### And B's `isGlass` split changed which of my sheets get graded
+
+Before, every lit sheet was skipped as glass. Now `dimWorld` reaches them, and
+`isSelfLit(m.map)` recognises 28 of 34. The other **6 are graded like ordinary
+geometry**, 4 of them visible at opacity 1 with luminance **0.054** — lit
+windows whose colour is nearly black.
+
+**Measured before calling it a defect, and it is not one.** Forcing those 4 back
+to white:
+
+```
+camera down the street   4864 -> 4932 warm px   +68   (+1.4%)
+camera in front of them 10576 -> 10586 warm px   +10   (+0.09%)
+```
+
+Negligible from both viewpoints, and `windowlights` is unchanged at 2936. So the
+inconsistency is in the data and not in the picture. **Not fixing it**: holding
+them bright means `isSelfLit`'s heuristic recognising those six textures, which
+is `ct/props.ts` and B's call, and there is no visible symptom to justify asking.
+
+Recorded because the next person to see `selfLit: true` sitting beside a dimmed
+colour will think one of them is a bug, and neither is.
