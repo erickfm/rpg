@@ -52,7 +52,36 @@ of centre and y in 22..30 is inside any crown it can produce.
 than 40 px is excluded **by shape** — ivy is foliage but not a crown — so
 anything new is covered or excluded on its merits rather than by a name list.
 
-## The third candidate, and why I have not built it
+## All four landed
+
+| user's words | guard | measured today | fails at |
+|---|---|---|---|
+| "it is still mustard" | `burger-palette` | mustard 0.0% of the band | above 15% |
+| "you can read a window through the trees" | `tree-crown` | 0% holes in 11 crowns | above 2% |
+| "the lit windows are diagonal stripes" | `window-lattice` | 0 lattice matches of 7 testable | any exact residue class |
+| "the glass is a black hole" | `shop-interior` | mean luminance 45–76 | below 20, or >20% near-black |
+
+Each was reported by the user in their own words, each was fixed, and each was
+then protected by nothing. Every one has a `--selftest` that restores the
+original defect and is watched going red.
+
+**The transferable result, and it is the opposite of where I started.** I
+accepted `e90c6736`'s framing that appearance cannot be guarded because it needs
+eyes. That is true of appearance as **quality** and false of appearance as
+**regression**:
+
+- *"red and beige"*, *"a ragged natural silhouette"*, *"a room behind the glass"*
+  — judgements. Not checkable, and I did not pretend otherwise: the red half of
+  `burger-palette` is documented as unassertable rather than loosened until it
+  passed.
+- *"it went mustard"*, *"there is a hole in the crown"*, *"they are on a
+  diagonal"*, *"it is a black rectangle"* — signatures. Countable, and three of
+  the four are **exact** rather than statistical.
+
+The reason it works is that a user complaining tells you the defect, not the
+quality. The complaint is already the specification for the check.
+
+## ~~The third candidate, and why I have not built it~~ (built — see above)
 
 The **lit-window lattice**: the user's report was that lit windows formed diagonal
 stripes, because the choice was `((f*7 + c*3) % 5) === 0` — a linear congruence
