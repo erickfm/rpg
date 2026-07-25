@@ -1699,3 +1699,42 @@ I have not implemented that — I do not touch `src/` — and I have not verifie
 against the build. It is one import line per room and one file move, which is
 worth an hour of somebody's time against a defect that has already taken the
 world down once and silently eaten a door.
+
+## Round 14c — not a lottery. Deterministic per build, unpredictable across builds.
+
+Six page loads against one build:
+
+```
+load 1..6: 7 doors — A-1 TAX, BODEGA, BURGER BARN, DINER, HOTEL ORPHEUS, PAWN, THRIFT
+STABLE — the same 7 doors every load
+```
+
+**GOLDEN ACES is absent every time.** So the loss is **not** decided at page
+load; it is baked in when the bundle is built. That matters for how this should
+be treated:
+
+- **The world is stable and testable right now.** A check that asserts 8 doors
+  will fail the same way every run, which is exactly what you want from a guard.
+- **The danger is the rebuild, not the reload.** Which room loses is fixed by
+  module ordering in the bundle, and that ordering changes when a room is added,
+  renamed, or its imports reshuffled. **Room nine arriving can silently move the
+  loss to a different shop** — and the shop that starts working again will look
+  like someone fixed it.
+
+> Deterministic within a build, unpredictable across builds, and silent in both
+> directions. That is the worst combination for a defect: it will never
+> reproduce as "flaky", so it will be treated as a specific bug about the casino
+> rather than a structural one about the glob.
+
+*(One correction to my own output: the script's "missing: none" line is vacuous
+— it compares against the set of buildings **ever collected**, which cannot
+contain a building that is never collected. The `7 doors` count and the name
+list are the real evidence, and I knew GOLDEN ACES was the absentee from the
+declaration count of 8. The line is wrong; the conclusion does not rest on it.)*
+
+### The concrete guard this deserves
+
+`npm run checks` already runs a suite. **Assert that `__ct.doors().length` equals
+the number of modules exporting a `DOOR`** — 8 today, 9 when the next room
+lands. It is one line, it fails loudly on the exact defect, and unlike a
+hand-written list of expected buildings it stays correct as rooms are added.
