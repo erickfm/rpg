@@ -208,3 +208,38 @@ Two things worth routing rather than assuming I have covered them:
   whether `dinerFront`, `burgerFront`, `pawnFront` or `taxFront` have the same
   gaps, and "the character front has less in it than the plain one" is a fault
   that would look like a style from outside — exactly like the fencepost.
+
+  **DONE, and it found two more — see the section below.**
+
+## I walked the other five fronts, and the door-chop was in three of them
+
+The user said the truncation "may affect the neighbours too, since they share
+your painters", so I dumped every front's band canvas at 6× and read them.
+
+| front | verdict |
+|---|---|
+| **`shopfrontTex` default** | **CHOPPED** — the shelf ran into the door and a jar was cut in half by it. **This painter does ~10 shops**, so it is the widest instance of the fault by far |
+| **`burgerFront`** | **CHOPPED** — the backlit menu box ran the full glazing and the door leaf was stamped across it. The brightest object on the frontage, cut in half |
+| `pawnFront` | already correct — it dresses either side of its door |
+| `dinerFront` | door sits past the glass block, so nothing crosses it |
+| `taxFront` | vertical blinds, continuous by design; nothing to cut |
+
+Both fixed the same way as THRIFT: resolve the doorcase first, dress the glass
+in the runs either side. The ceiling and floor bands still run full width on
+purpose — a **room** continues behind its own door; it is the **furniture** that
+stops. That distinction is the whole difference between "continuous" and
+"chopped", and it is why this is not just "clip everything to the runs".
+
+```
+textures  956 vs 956 — 13 differ, every one *x67 — shopfront bands and nothing else
+structure          identical      tints  IDENTICAL      places  8, all pigeons
+```
+
+Thirteen is twelve default shops plus the burger barn, which is exactly the
+population the two painters cover.
+
+`dinerFront`'s stool run stops one bay short of its counter — the loop guard
+leaves a bay's worth of gap at the end. It reads as "the stools stop before the
+counter does" rather than as a cut, so I have **not** changed it; it is a taste
+call and it belongs to whoever wants to make it, not to me smuggling it in
+under a thrift store fix.

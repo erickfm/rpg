@@ -961,27 +961,42 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
     reveal(g, surf, ox, oy, ow, oh);
     const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#38302a');
+    // WHERE THE DOOR IS, before the room behind the glass is dressed.
+    //
+    // The shelf and its stock used to be drawn straight across the glazing and
+    // the doorcase stamped over the top, so on every quiet shop on the block
+    // the shelf ran INTO the door and a jar was cut in half by it. That is the
+    // thrift store's chopped "50c" card, in the painter that does ten shops
+    // rather than one — the user's own guess that this would reach the
+    // neighbours, since they share these painters.
+    const dcM = doorAlongU(name, wMeters, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    const dL = dx - m(0.07), dR = dx + dw + m(0.07);
+    const runs = ([[gx, Math.min(dL, gx + gw)], [Math.max(dR, gx), gx + gw]] as [number, number][])
+      .filter(([a, c]) => c - a >= m(0.6));
     // a room behind: lit ceiling, a shelf run at chest height, dark floor.
     // Three bands is all it takes to stop the glass reading as a black hole.
+    // The ceiling and the floor DO run the full width — they are the room, and
+    // a room continues behind its own door. The shelf is furniture and stops.
     const warm = ['#c9a45e', '#b8a06a', '#c2a862'][vary(3)];
     g.fillStyle = warm; g.fillRect(gx, gy, gw, m(0.26));
     g.fillStyle = 'rgba(201,164,94,0.22)'; g.fillRect(gx, gy + m(0.26), gw, m(0.5));
-    g.fillStyle = '#4a3f33'; g.fillRect(gx, gy + m(1.35), gw, m(0.12));           // shelf
-    g.fillStyle = '#2b241e';
-    for (let x = gx + m(0.35); x < gx + gw - m(0.4); x += m(0.7)) {               // stock on it
-      g.fillRect(x, gy + m(1.35) - m(0.3) - (vary(3) * m(0.06)), m(0.36), m(0.3) + vary(3) * m(0.06));
+    for (const [a, c] of runs) {
+      g.fillStyle = '#4a3f33'; g.fillRect(a, gy + m(1.35), c - a, m(0.12));       // shelf
+      g.fillStyle = '#2b241e';
+      for (let x = a + m(0.2); x + m(0.36) <= c - m(0.1); x += m(0.7)) {          // stock on it
+        g.fillRect(x, gy + m(1.35) - m(0.3) - (vary(3) * m(0.06)), m(0.36), m(0.3) + vary(3) * m(0.06));
+      }
     }
     g.fillStyle = '#241e19'; g.fillRect(gx, gy + gh - m(0.42), gw, m(0.42));      // floor
     // transom over the glazing, then the bars that divide it
     g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(gx, gy + m(0.98), gw, Math.max(1, m(0.09)));
     g.fillStyle = HI; g.fillRect(gx, gy + m(1.07), gw, 1);
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wMeters / 3.4)), '#3e372f');
-    // the door, somewhere along the front rather than always dead centre
-    // where the ROOM says its door is, falling back to this painter's own
-    // layout only if no room has spoken for this frontage
-    const dcM = doorAlongU(name, wMeters, F.doorCentreM);
-    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
-    g.fillStyle = '#3e372f'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    // the door, somewhere along the front rather than always dead centre —
+    // where the ROOM says its door is, resolved above so the display could be
+    // dressed around it
+    g.fillStyle = '#3e372f'; g.fillRect(dL, gy, dR - dL, gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#38302a');
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.83));      // its panel
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.83), dw, m(0.06));
@@ -1123,28 +1138,39 @@ export const burgerFront = (brick: string, wM: number) => {
     // the room reads in three horizontal zones — lit ceiling, the furniture
     // you can pick out against it, dark floor. That structure is what makes a
     // window look INTO something instead of being a panel of paint.
+    // The door is resolved BEFORE the room is dressed. The backlit menu box ran
+    // the full width of the glazing and the door was stamped over it, so the
+    // brightest object on this frontage was cut in half by a door leaf — the
+    // same fault as the thrift store's price card, and just as visible, because
+    // a lit menu is the one thing anyone looks at on a burger barn.
+    const dcM = doorAlongU('BURGER BARN', wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    const runs = ([[gx, Math.min(dx, gx + gw)], [Math.max(dx + dw, gx), gx + gw]] as [number, number][])
+      .filter(([a, c]) => c - a >= m(0.8));
     g.fillStyle = CEIL; g.fillRect(gx, gy, gw, m(0.34));                            // strip lights on the ceiling
     g.fillStyle = 'rgba(201,164,94,0.35)'; g.fillRect(gx, gy + m(0.34), gw, m(0.5)); // its spill
     g.fillStyle = FLOOR; g.fillRect(gx, gy + gh - m(0.5), gw, m(0.5));              // floor, in shadow
-    g.fillStyle = '#f2ead0'; g.fillRect(gx + m(0.3), gy + m(0.45), gw - m(0.6), m(0.42)); // backlit menu box
-    g.fillStyle = RED;
-    for (let x = gx + m(0.55); x < gx + gw - m(0.7); x += m(1.1)) g.fillRect(x, gy + m(0.54), m(0.55), m(0.1));
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(gx + m(0.3), gy + m(0.87), gw - m(0.6), m(0.1)); // its underside
-    // booths: dark against the lit ceiling, at human scale, with the gap
-    // between each pair reading as an aisle
-    g.fillStyle = '#241c16';
-    for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) {
-      g.fillRect(x, gy + m(1.15), m(0.95), m(1.35));                                // seat back
-      g.fillRect(x + m(1.05), gy + m(1.5), m(0.55), m(1.0));                        // table + far seat
+    for (const [a, c] of runs) {
+      const bx = a + m(0.3), bw2 = (c - a) - m(0.6);
+      g.fillStyle = '#f2ead0'; g.fillRect(bx, gy + m(0.45), bw2, m(0.42));          // backlit menu box
+      g.fillStyle = RED;
+      for (let x = bx + m(0.25); x + m(0.55) <= bx + bw2 - m(0.2); x += m(1.1)) {
+        g.fillRect(x, gy + m(0.54), m(0.55), m(0.1));
+      }
+      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(bx, gy + m(0.87), bw2, m(0.1)); // its underside
+      // booths: dark against the lit ceiling, at human scale, with the gap
+      // between each pair reading as an aisle
+      for (let x = a + m(0.5); x + m(1.6) <= c - m(0.2); x += m(2.3)) {
+        g.fillStyle = '#241c16';
+        g.fillRect(x, gy + m(1.15), m(0.95), m(1.35));                              // seat back
+        g.fillRect(x + m(1.05), gy + m(1.5), m(0.55), m(1.0));                      // table + far seat
+        g.fillStyle = 'rgba(201,164,94,0.22)';                                      // rim light off the ceiling
+        g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
+      }
     }
-    g.fillStyle = 'rgba(201,164,94,0.22)';                                          // rim light off the ceiling
-    for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
     mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.2)), PLASTIC);
-    // the door, in its own reveal, with a push bar
-    // where the ROOM says its door is, falling back to this painter's own
-    // layout only if no room has spoken for this frontage
-    const dcM = doorAlongU('BURGER BARN', wM, F.doorCentreM);
-    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    // the door, in its own reveal, with a push bar — resolved above so the
+    // room could be dressed around it
     g.fillStyle = '#3a3630'; g.fillRect(dx, gy, dw, gh);
     glazed(g, surf, dx + m(0.1), gy + m(0.12), dw - m(0.2), gh - m(0.24), '#cbbfa6');
     g.fillStyle = PLASTIC; g.fillRect(dx + m(0.15), gy + m(1.15), dw - m(0.3), m(0.1));  // push bar
