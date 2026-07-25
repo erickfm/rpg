@@ -25,7 +25,7 @@ const out = await p.evaluate(async () => {
   const RAD=0.36, cols=window.__ct.colliders().filter(q=>q&&isFinite(q.minX)&&Math.abs(q.minX)<500);
   const free=(x,z)=>!cols.some(q=>x>q.minX-RAD&&x<q.maxX+RAD&&z>q.minZ-RAD&&z<q.maxZ+RAD);
   // find the buy spots from the registry
-  const buys = window.__ct.spots().filter(s => /buy /i.test(s.label || ''));
+  const buys = window.__ct.spots().filter(s => /try the doors/i.test(s.label || ''));
   const res = [];
   for (const s of buys) {
     // sweep the disc: is any point in it standable, and does the prompt fire?
@@ -55,5 +55,5 @@ for (const r of out) {
   console.log(`   standable samples: ${r.standable} · prompt fired at: ${r.fired}`);
   console.log(`   ${r.fired ? `reads "${r.firstHit.text}" from (${r.firstHit.x}, ${r.firstHit.z})` : 'NEVER FIRED — unreachable in practice'}`);
 }
-writeFileSync('shots/counters.json', JSON.stringify(out,null,2));
+writeFileSync('shots/trydoors.json', JSON.stringify(out,null,2));
 await b.close();

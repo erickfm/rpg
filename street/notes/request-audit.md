@@ -1380,3 +1380,60 @@ re-learning, now stated as plainly as I can:
 
 > **A failing check is a claim about the check until you have reproduced the
 > failure by hand.** I reproduced it by hand and it did not reproduce.
+
+---
+
+# Census restated at the current build: **137 spots**, and two new ones close the steps request
+
+My `[E]` census said 135. The guarded re-run says **137** — my earlier numbers
+came from a build one step behind, which `scripts/lib/which-world.mjs` would have
+caught if my scripts had carried it. **They do now.** (Guard added to
+`counters.mjs`, `wayouts.mjs`, `spotsplit.mjs`; five one-shot diagnostics
+deleted rather than left lying around.)
+
+Re-verified at `c5566b8d`, everything holds:
+
+| set | count | state |
+|---|---|---|
+| live from the street | 25 | ✓ `spots-walk` |
+| seat spots | 92 | ✓ `seats-walk` |
+| booth seats | 6 | ✓ `seats-walk` |
+| **interior way-outs** | **9** | ✓ **all nine fire, re-confirmed** |
+| **bodega counters** | **2** | ✓ **70/70 each, re-confirmed** |
+| apartment door + exit | 2 | ✓ `door301` |
+| **civic doors — NEW** | **2** | ✓ **verified below** |
+
+## The two new spots are the tops of both flights
+
+```
+try the doors of the PVBLIC LIBRARY   disc (-11.25, -13)  r 1.2
+   73 standable samples · prompt fired at 73
+try the doors of the church           disc (8.75, -79.5)  r 1.2
+   80 standable samples · prompt fired at 68
+```
+
+Those coordinates are **exactly where I found the flights**:
+
+- the library steps I located at **x −11.5 … −9.0, z −14.5 … −11.5**, rising
+  gy 0.42 → 0.99 — the spot sits at (−11.25, −13), inside them
+- the church flight at **x 8.5 … 9.0, z −78 … −81**, rising gy 0.31 → 0.51 —
+  the spot sits at (8.75, −79.5), inside it
+
+> **The user asked: *"can you walk up the LIBRARY steps and the CHURCH steps and
+> go in"*. You can now walk up both, and there is something to press at the top
+> of each.** That request is closed end to end rather than half — the climb was
+> already there and the arrival now answers.
+
+The church fires from 68 of 80 sampled points rather than all 80, which is the
+same threshold effect as the way-outs: a 1.2 m disc at the head of a flight
+overhangs the steps, and the overhang is not standable ground.
+
+## What this round actually demonstrates
+
+I published a census off a stale build and did not know. The guard that catches
+that already existed, 163 of 182 scripts already used it, and mine did not
+because I wrote them before noticing. **The fix was three import lines.**
+
+That is the fifth time this session the answer was an existing convention I had
+not adopted — after `doorsweep`'s visibility check, `spots-walk`, `seats-walk`,
+`lib/faces.mjs` and `groundAt`.

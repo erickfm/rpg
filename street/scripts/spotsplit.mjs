@@ -3,11 +3,13 @@
 // -- so some of the 55 are already covered. Split the registry and find out how
 // many are genuinely unverified rather than merely unverified BY ME.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 800, height: 600 } });
 await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p);   // refuse to measure a build that is not this checkout
 await p.waitForTimeout(900);
 const out = await p.evaluate(() => {
   const spots = window.__ct.spots();

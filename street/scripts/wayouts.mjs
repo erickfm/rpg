@@ -5,11 +5,13 @@
 // Spots are read from the live registry, not typed in, so this stays correct if
 // the shop is re-priced or re-laid-out.
 import { chromium } from 'playwright';
+import { reportWorld } from './lib/which-world.mjs';
 import { writeFileSync } from 'node:fs';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 700 } });
 await p.goto('http://localhost:4184/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await reportWorld(p);   // refuse to measure a build that is not this checkout
 await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(800);
 const out = await p.evaluate(async () => {
