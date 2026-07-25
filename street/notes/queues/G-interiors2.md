@@ -31,6 +31,52 @@ style for interiors; copy its shape.
 
 ## Now
 
+- [ ] **The LIBRARY INTERIOR moves to you. Builder E is overloaded and it
+      shows.** The user, on E's park: *"this is a lazy job here. quality is bad
+      for the park overall."* E is carrying the park, the church, the library
+      exterior and now a library interior, and the park is being rejected
+      repeatedly. So E keeps the park until the user is happy with it, and the
+      interiors go to the builder who has built four confirmed rooms.
+
+      The ask, in the user's words: *"make the library interior larger and more
+      ambitious. more halls and stair ways."* `ct/int-library.ts` is 308 lines
+      and one room; they want a building.
+
+      What a Carnegie branch is inside, and the sequence is the point: a small
+      dark VESTIBULE, then through into a tall READING ROOM lit by the high
+      arched windows — that contrast between low dark entry and tall bright
+      hall is the whole experience of walking into one. Then a CIRCULATION
+      DESK facing the door, STACKS in parallel runs with aisles too narrow to
+      see over, a STAIR to a gallery running round the reading room with a
+      balustrade you look down from, a children's or periodicals alcove, and
+      back-of-house doors that do not open.
+
+      **The stair matters most** — the user named it, and a level change is
+      what makes an interior read as a building rather than a room. Use the
+      per-site floor registry F built for the library and church steps; do not
+      invent a second mechanism.
+
+      The windows must agree with the exterior E built — same spacing, same
+      heights. Ask through the desk rather than reading E's file for numbers
+      that may move.
+
+- [ ] **The CHURCH is 'locked' and the user wants in.** They asked *"why is
+      church 'locked'?"* — which is the answer to a decision the desk made
+      badly: I let the church ship with a locked-door response rather than an
+      interior. A flight of steps you climb to a door that refuses you is
+      worse than no steps.
+
+      Build the church interior. It is the best room left in the world and it
+      is nothing like the others: a single tall volume, timber pews in rows
+      down a central aisle, the lancets and rose window you can already see
+      from outside throwing coloured light on the floor, an altar and a
+      chancel step, a side chapel with candles, stone underfoot, and a
+      confessional. Cold, quiet and much taller than anything else you can
+      walk into.
+
+      Coordinate the window positions with E through the desk so inside and
+      outside agree.
+
 - [ ] **The vertical blade signs read BACKWARDS — this is `GOTCHAS.md` §10.**
       The user: *"the text needs to not be backwards. please fix."* Ref:
       `shots/user-blademirror.png`.
