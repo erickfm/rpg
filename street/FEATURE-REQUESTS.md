@@ -147,7 +147,29 @@ published to the playable artifact.
 - **"verify the ledger"** → **AUDIT**
 - **"the lot's pole sign ... is carrying FOUR messages stacked ... SIMPLIFY TO ONE MESSAGE. A pole sign is read from far away and at speed; it gets the NAME and nothing else, or the name plus one short line at most. CROSSTOWN AUTO, big, legible, and stop. Drop the phone number entirely — it is already on the fence banner ... Drop USED CARS or fold it into the name as a small strapline. The arrow can stay if it points at the entrance; if it points nowhere, drop that too. Fewer, bigger, legible. And check it reads from the far side of the street"** → **C**
   (supersedes the earlier "panel is tiny against an enormous pole / faces read as skewed" row — same fix, simpler and bigger)
+  → **C. FIXED.** Phone number dropped entirely (it is on the fence banner,
+  where you can read it). USED CARS folded into a bottom-band strapline. The
+  cabinet went LANDSCAPE, which is what buys the size: 'CROSSTOWN' is 53 glyph
+  units wide against 5 tall, so the portrait panel was setting the type size.
+  CROSSTOWN 0.31 → 0.51 m, AUTO 0.31 → 1.19 m, and the 0.92 m of unreadable
+  digits gone. Contrast fixed too — it was cream on red inside a red panel.
+  Read from the far kerb at 13.7 m and obliquely at 24.2 m
+  (`shots/polesign/`). The arrow stays because it does point at the entrance —
+  after fixing the REAR face, which shared the front's texture and so pointed
+  at the back fence.
 - **"the bunting/garlands in the lot are disconnected ... the pennant runs end in mid-air rather than meeting the posts they should be tied to, and the runs do not join each other. (1) EVERY RUN MUST TERMINATE ON SOMETHING ... (2) THE RUNS SHOULD CHAIN: real lot bunting is one continuous string zigzagging from post to post around the perimeter ... build it as a chain of points and draw the runs between consecutive pairs. Also let it SAG properly between supports, deeper on the longer spans, and make the sag consistent with the span length rather than a fixed droop."** → **C**
+  → **C. FIXED.** The topology was already a chain — four poles, consecutive
+  swags sharing an endpoint. The fault was that the string is not where the
+  arithmetic put it: the pennant texture draws its line along one EDGE of the
+  sheet and the code put the sheet's CENTRE on the catenary, so the string
+  rendered 0.31 m above every point it passed through, including both ends.
+  One offset, not four loose runs. Rebuilt as explicit tie points with the
+  cloth hanging BELOW the chord; all four post tops now have a string endpoint
+  on them to **0.000 m**, against 0.31 m before. Ties: both fence corners, both
+  gate posts (so the 9.28 m mouth is one span and nothing stands in the drive)
+  and the pole sign's mast. Sag is 8.5% of span, capped — the gate crossing is
+  now the deepest thing there and the 1.24 m stub no longer droops like a
+  hammock.
 - **"what is this diner sign? it's not legible and its strange? doesnt make any sense not sure what you were trying to go for here. pls fix"** → **A**
   → **A. FIXED.** It said EAT stacked down the plate and could not be read.
   Checked GOTCHAS 10 first — a DoubleSide plane rendering mirrored from behind,
@@ -177,6 +199,15 @@ published to the playable artifact.
 - **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
 - **"especially more of this kind of thing in the park"** → **E**
 - **"big fan of these grass textures put em in more places and especially more of this kind of thing in the park"** → **C**
+  → **C. SHIPPED AS AN EXPORT, so B and E get the same weed rather than drawing
+  a second one.** `ct/weeds.ts`: `weedTuft({ x, z, y?, scale?, tone?, seed? })`
+  returns the group without adding it. Two crossed quads (a single plane
+  vanishes edge-on), `alphaTest` never `transparent` (which would land it on
+  dimWorld's skip list), one cached texture and material per tone. The lot's
+  own placement went 24 → 44 tufts. The park and the street are E's and B's to
+  place. `tone: 'dry'` exists for pale paving and grass, where the default
+  palette is green-on-green and vanishes — it has never been looked at in
+  place, so shoot it against your own ground first.
 - **"the paths and the graphics in the park need a big deep review"** → **AUDIT**
 - **"the park is a bit better but i think needs some shrubs on the edges. also the paths and the graphics in the park need a big deep review"** → **E**
 - **"what is this block that sticks out from the wheels of all vehicles. please fix"** → **H**
@@ -197,6 +228,15 @@ published to the playable artifact.
 - **"tree in the dirt looks janky, i think we need to make the dirt patch a lil bigger on the curb side"** → **B**
 - **"this looks bad with the lines on the ground, also move the cat to the right"** → **D**
 - **"also make me spawn in my room"** → **C**
+  → **C. FIXED — you now wake up in 301.** The coordinate had been exported and
+  asserted for several rounds; what was missing was the one line in
+  `crosstown.ts` that uses it, which is a DESK file I had been told not to
+  touch and which the user overrode explicitly. The floor has to be seeded
+  first: `aptGround` picks the storey nearest the last height and refuses to
+  step up more than 0.6 m, so from a lastGy of 0 the first query three storeys
+  up resolves to the lobby — right x/z, wrong floor. Walked, not
+  screenshotted: WASD in all four directions holds at floor 3, and bed → door →
+  hall → switchback → lobby steps 5.40, 4.05, 2.70, 1.35, 0.00.
 - **"make sure none of the cars in the lot are clipping into each other"** → **C**
 - **"park is nicer with tres but i was hoping to get some topographical changes. also a loop around the field in the middle would be good. also find some way to represent a grass field"** → **E**
 - **"inside of the thrift store leaves a lot to be desired as well"** → **F**
