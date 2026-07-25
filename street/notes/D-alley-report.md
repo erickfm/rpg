@@ -1202,7 +1202,36 @@ a throw, because node forces 1 on an uncaught exception and would overwrite it.
 `checks.mjs` now reads the status first and keeps the banner string-match as a
 fallback, so nothing that predates the code regresses.
 
-## CORRECTION: my wet-night figure was -82% and is -43%
+## The correction to my wet-night figure was itself wrong: it IS -83%
+
+**Read this before the section below, which is now history.** I "corrected"
+-82% to -43% and the correction was the error.
+
+The corrected figure used a *stepped* dry baseline of 0.01335. Stepping went
+through 20:00, and **20:00 rained** under the rainAt of that day — so my "dry
+night" was a wet night, and dividing by it flattened the ratio.
+
+Re-measured with `setNight` now choosing a genuinely dry evening hour, and a
+full 20 s wet settle at each end:
+
+```
+23:00 dry night    alley floor tint 0.04500
+01:00 wet night    alley floor tint 0.00768
+                                    -83%
+```
+
+**So the original -82% was right all along**, and the thing that made it look
+wrong was the same contaminated tool that produced the withdrawn jumped-clock
+finding. One bad helper corrupted a measurement, then corrupted the correction
+to that measurement.
+
+What actually fixed it was repairing the tool rather than re-reading the
+numbers: once `setNight` picked a dry hour, the right answer fell out
+immediately. **A correction is only as good as the instrument that produced
+it**, and I applied more scepticism to the original figure than to my own
+revision of it.
+
+## (superseded) CORRECTION: my wet-night figure was -82% and is -43%
 
 I published *"all three darken -82% on a wet night"* while checking `e24c959a`'s
 lightening concern. That was measured with a **jumped clock** — three rounds
