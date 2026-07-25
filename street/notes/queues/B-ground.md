@@ -16,6 +16,24 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **REJECTED — remove every instance.** The user: *"i dont like the trash
+      that looks like this please get rid of all of them"*. Ref:
+      `shots/user-trash-reject.png`.
+
+      A small green-and-white banded rectangle on the sidewalk with a heavy
+      black outline. Identify it from position the way you are identifying the
+      two approved ones, and **delete every placement of it** — not just this
+      one. Keep the drawing in the file unplaced, like the other rejects.
+
+      Worth noting why it fails, because it affects round 3: **the black
+      outline is too heavy.** The rule was "a hard dark outline so the
+      silhouette survives", and at this size a 1-texel black border around a
+      small object stops reading as shading and starts reading as a STICKER —
+      an icon laid on the pavement rather than a thing lying on it. The two
+      approved pieces work partly because their outline is doing less. On the
+      new candidates, let the object's own dark side do the work rather than
+      ringing it.
+
 - [ ] **Two pieces of placed trash approved in situ — identify them and tell
       the desk which.** The user, walking the street: *"i like this piece of
       trash"* (`shots/user-trash-good.png`) and *"i like this trash too"*
