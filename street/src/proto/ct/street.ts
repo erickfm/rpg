@@ -137,12 +137,13 @@ export function buildStreet(o: {
   const placeBld = (side: number, z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
     const gh = bandOf(b);
+    const dep = depthOf(b.nm || 'res'), cx = side * (FACE + dep / 2);
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const mats = shellMats(side < 0 ? 0 : 1, facade, 3.4, h, b.w, b.brick, gh, true, roofM);
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, b.w), mats);
-    wall.position.set(side * (FACE + 1.7), h / 2 + gh, cz);
+    const mats = shellMats(side < 0 ? 0 : 1, facade, dep, h, b.w, b.brick, gh, true, roofM);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, b.w), mats);
+    wall.position.set(cx, h / 2 + gh, cz);
     scene.add(wall);
     const shopM = flat(
       b.res ? resGroundTex(b.brick, b.w)
@@ -150,13 +151,15 @@ export function buildStreet(o: {
           : b.front === 'pawn' ? pawnFront(b.brick, b.w)
             : b.front === 'tax' ? taxFront(b.brick, b.w)
               : shopfrontTex(b.brick, b.nm, b.col, b.w));
-    const shopMats = shellMats(side < 0 ? 0 : 1, shopM, 3.4, gh, b.w, b.brick, 0, false, roofM);
-    const shop = new THREE.Mesh(new THREE.BoxGeometry(3.4, gh, b.w), shopMats);
-    shop.position.set(side * (FACE + 1.7), gh / 2, cz);
+    const shopMats = shellMats(side < 0 ? 0 : 1, shopM, dep, gh, b.w, b.brick, 0, false, roofM);
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(dep, gh, b.w), shopMats);
+    shop.position.set(cx, gh / 2, cz);
     scene.add(shop);
+    roofKit(cx, cz, dep, b.w, gh + h, b.nm || 'res');
+    // collision follows the real footprint, not a fixed 8 m guess
     solid(side < 0
-      ? { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
-      : { minX: FACE - 0.3, maxX: FACE + 8, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
+      ? { minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 }
+      : { minX: FACE - 0.3, maxX: FACE + dep, minZ: cz - b.w / 2, maxZ: cz + b.w / 2 });
   };
   // ── civic stone ─────────────────────────────────────────────────────────
   //
@@ -167,6 +170,83 @@ export function buildStreet(o: {
   // this file. street.ts still owns WHERE they stand; civic.ts owns what
   // they look like.
   const { placeLibrary, placeChurch } = buildCivic({ scene, flat, KERB_H });
+  // ── how deep a building is ──────────────────────────────────────────────
+  //
+  // Every shell on the block was 3.4 m deep. That is a corridor, not a
+  // building, and it is the "fake building" complaint: a real commercial block
+  // is 15-30 m. It never showed while the street was an unbroken wall on both
+  // sides and you never saw a return — it shows everywhere now the park, the
+  // car lot, the alley and the church have opened the block up.
+  //
+  // Depth VARIES per building, hashed off the name so it is deterministic and
+  // so the backs are not a second flat wall 20 m behind the first. A block
+  // where every mass is the same depth is its own kind of fake.
+  //
+  // METRES CLAIMED, so E and C can plan against them (see notes/BLOCKED-D.md):
+  //   west shells  x -7 … -30.5 at the deepest      park back wall is x -14
+  //   east shells  x  7 …  30.5 at the deepest      lot  back wall is x  15
+  // The two sites sit in z-gaps in those runs, so nothing overlaps — but if E
+  // or C wants a site as deep as the block around it, the room is there and
+  // this is the number to match.
+  const depthOf = (nm: string) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < nm.length; i++) h = Math.imul(h ^ nm.charCodeAt(i), 0x01000193) >>> 0;
+    return 14 + ((h >>> 9) % 6) * 1.9;               // 14 … 23.5 m
+  };
+
+  // ── what you now see on top ─────────────────────────────────────────────
+  //
+  // Deep buildings mean you see their ROOFS — from the park, from the car lot,
+  // from the alley, from anywhere the block has been opened. A 20 m slab of
+  // flat colour up there is worse than the 3.4 m corridor was, so every shell
+  // gets the things that are actually on a roof: a parapet standing above the
+  // deck, a stair bulkhead, a water tank on legs, and a vent or two. Placed
+  // deterministically off the name so the skyline varies without jittering.
+  const roofKit = (cx: number, cz: number, dx: number, dz: number, top: number, nm: string) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < nm.length; i++) h = Math.imul(h ^ nm.charCodeAt(i), 0x01000193) >>> 0;
+    const r = () => { h = Math.imul(h ^ 0x9e3779b1, 0x01000193) >>> 0; return (h >>> 8) / 0xffffff; };
+    const deckM = new THREE.MeshBasicMaterial({ color: 0x33343a });
+    const wallM = new THREE.MeshBasicMaterial({ color: 0x6b5f52 });
+    const tankM = new THREE.MeshBasicMaterial({ color: 0x5a4632 });
+    // parapet: a low upstand round the deck, which is what gives a roofline
+    // its edge instead of letting the wall just stop
+    for (const [px, pz, sx, sz] of [
+      [cx, cz - dz / 2 + 0.15, dx, 0.3], [cx, cz + dz / 2 - 0.15, dx, 0.3],
+      [cx - dx / 2 + 0.15, cz, 0.3, dz], [cx + dx / 2 - 0.15, cz, 0.3, dz],
+    ] as [number, number, number, number][]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.62, sz), wallM);
+      p.position.set(px, top + 0.31, pz);
+      scene.add(p);
+    }
+    // stair bulkhead — every flat roof has one, it is how you get out there
+    const bw = 2.2 + r() * 1.2, bd = 2.0 + r() * 1.0;
+    const bulk = new THREE.Mesh(new THREE.BoxGeometry(bw, 2.4, bd), deckM);
+    bulk.position.set(cx + (r() - 0.5) * (dx - bw - 1.2), top + 1.2, cz + (r() - 0.5) * (dz - bd - 1.2));
+    scene.add(bulk);
+    // a timber water tank on legs, if the roof is big enough to hold one
+    if (dx > 12 && dz > 8) {
+      const tx = cx + (r() - 0.5) * (dx - 4), tz2 = cz + (r() - 0.5) * (dz - 4);
+      for (const [lx, lz] of [[-0.7, -0.7], [0.7, -0.7], [0.7, 0.7], [-0.7, 0.7]] as [number, number][]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.9, 0.16), tankM);
+        leg.position.set(tx + lx, top + 0.95, tz2 + lz);
+        scene.add(leg);
+      }
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 2.3, 9), tankM);
+      tank.position.set(tx, top + 3.05, tz2);
+      scene.add(tank);
+      const cap = new THREE.Mesh(new THREE.ConeGeometry(1.15, 0.6, 9), new THREE.MeshBasicMaterial({ color: 0x3f3a33 }));
+      cap.position.set(tx, top + 4.5, tz2);
+      scene.add(cap);
+    }
+    // vents
+    for (let i = 0; i < 2 + Math.floor(r() * 3); i++) {
+      const v = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.5), deckM);
+      v.position.set(cx + (r() - 0.5) * (dx - 2), top + 0.35, cz + (r() - 0.5) * (dz - 2));
+      scene.add(v);
+    }
+  };
+
   // ── flanks: a return is made of what the building is made of ────────────
   //
   // `endM` was ONE flat brown — 0x53382e — on the sides, ends and returns of
@@ -418,22 +498,23 @@ export function buildStreet(o: {
   };
   const placeBank = (z: number, w: number) => {
     const cz = z - w / 2, floors = 4, h = wallHeight(floors);
+    const dep = depthOf('FIRST FEDERAL'), cx = -(FACE + dep / 2);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // THE REPORTED DEFECT. The bank's front is pale precast and its returns
     // were the block's brown brick, so it read as a stage flat. bankWall with
     // floors = 0 is the same panel, the same joints and the same palette with
     // no windows in it — which is what a blind precast return actually is.
     const bankFlank = (wM: number, hM: number) => flat(bankWall(wM, hM, 0));
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w),
-      [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM, bankFlank(3.4, h), bankFlank(3.4, h)]);
-    wall.position.set(-(FACE + 1.7), h / 2 + SHOP_BAND_H, cz);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, w),
+      [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM, bankFlank(dep, h), bankFlank(dep, h)]);
+    wall.position.set(cx, h / 2 + SHOP_BAND_H, cz);
     scene.add(wall);
-    const band = new THREE.Mesh(new THREE.BoxGeometry(3.4, SHOP_BAND_H, w),
+    const band = new THREE.Mesh(new THREE.BoxGeometry(dep, SHOP_BAND_H, w),
       [flat(bankBand(w)), bankFlank(w, SHOP_BAND_H), roofM, roofM,
-        bankFlank(3.4, SHOP_BAND_H), bankFlank(3.4, SHOP_BAND_H)]);
-    band.position.set(-(FACE + 1.7), SHOP_BAND_H / 2, cz);
+        bankFlank(dep, SHOP_BAND_H), bankFlank(dep, SHOP_BAND_H)]);
+    band.position.set(cx, SHOP_BAND_H / 2, cz);
     scene.add(band);
-    solid({ minX: -FACE - 8, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
+    solid({ minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
     // A recessed entrance, because a bank door is not a glass hole in a band.
     // Same trick as the bodega's canted bay: the leaf sits back behind the
     // wall line and the reveal is boxed in, so the opening has a shadow.
@@ -515,21 +596,24 @@ export function buildStreet(o: {
   const placeBldZ = (x0: number, zc: number, b: BldSpec, facing: 1 | -1) => {
     const cx = x0 + b.w / 2;
     const gh = bandOf(b);
+    const dep = depthOf(b.nm), front = zc + facing * 1.7;
+    const czd = front - facing * dep / 2;             // centre of the deeper shell
     const h = 3.4 + b.floors * 2.4;
     const facade = flat(facadeTex(b.brick, b.floors, b.w));
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const mats = shellMats(facing > 0 ? 4 : 5, facade, b.w, h, 3.4, b.brick, gh, true, roofM);
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 3.4), mats);
-    wall.position.set(cx, h / 2 + gh, zc);
+    const mats = shellMats(facing > 0 ? 4 : 5, facade, b.w, h, dep, b.brick, gh, true, roofM);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, dep), mats);
+    wall.position.set(cx, h / 2 + gh, czd);
     scene.add(wall);
     const shopM = flat(shopfrontTex(b.brick, b.nm, b.col, b.w));
-    const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, 3.4, b.brick, 0, false, roofM);
-    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4), shopMats);
-    shop.position.set(cx, gh / 2, zc);
+    const shopMats = shellMats(facing > 0 ? 4 : 5, shopM, b.w, gh, dep, b.brick, 0, false, roofM);
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, dep), shopMats);
+    shop.position.set(cx, gh / 2, czd);
     scene.add(shop);
+    roofKit(cx, czd, b.w, dep, gh + h, b.nm);
     solid(facing > 0
-      ? { minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 8, maxZ: zc + 1.7 + 0.3 }
-      : { minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 0.3, maxZ: zc + 1.7 + 8 });
+      ? { minX: x0, maxX: x0 + b.w, minZ: front - dep, maxZ: front + 0.3 }
+      : { minX: x0, maxX: x0 + b.w, minZ: front - 0.3, maxZ: front + dep });
   };
   // The bodega is the anchor store on this corner, so it does not stop at the
   // canted bay — it runs on down the side street, taking the first 6 m of what
