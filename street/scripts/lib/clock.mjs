@@ -117,7 +117,44 @@ export async function setClock(page, h, m = 0, capMs = 8000) {
  * Costs one extra clock set and a settle. Added by D; setClock itself unchanged.
  */
 export async function setNight(page, h, m = 0, settleMs = 1200) {
-  await setClock(page, 20, 0);
+  // REACH NIGHT WITHOUT GETTING WET. That is what this is for, and it is NOT
+  // what I originally wrote it for.
+  //
+  // The original claim was that stepping through the evening "arms" night state
+  // that a jump leaves off, with the wall splash as evidence: 0 when jumped,
+  // 0.286 when stepped via 20:00. **That was rain.** 20:00 rained under the
+  // rainAt of that day; e0c68e46 replaced it, and measured again with 20:00 dry:
+  //
+  //     jump to 23 (dry)       splash 0
+  //     via 20 DRY  -> 23      splash 0        <- stepping does nothing
+  //     via 21 WET  -> 23      splash 0.295
+  //     via 17 WET  -> 23      splash 0.295
+  //
+  // The splash follows the WET LOOK, not the hour, and it persists after the
+  // rain because the ground dries slowly. So there is no night state to arm and
+  // a jump is not deficient.
+  //
+  // What survives is the inverse and it is worth having: a clock that lands on
+  // a night hour may have passed through a wet one on the way, and then your
+  // "night" measurement is a wet night. This picks an evening hour the world
+  // says is DRY, so it cannot happen by accident.
+  //
+  // Not hypothetical. My "a jumped clock is 7.4% brighter" finding was mostly
+  // RAIN, because this helper went via 20:00 and 20:00 rained under the rainAt
+  // of that day. e0c68e46 replaced rainAt, 20:00 became dry, and the same
+  // measurement re-run gave 0.2%. The hard-coded hour was right until it was
+  // not, and nothing failed when it changed.
+  //
+  // props.ts publishes the predicate so nothing has to mirror it; 18, 19 and 20
+  // all arm the splash (measured), so take whichever of them is dry.
+  const evening = await page.evaluate(() => {
+    const f = window.__ct.scene && window.__ct.scene().userData
+      ? window.__ct.scene().userData.rainAt : null;
+    if (!f) return 20;                        // pre-publication build
+    for (const hh of [20, 19, 18, 21, 17]) if (!f(hh)) return hh;
+    return 20;                                // every evening hour wet: nothing better
+  });
+  await setClock(page, evening, 0);
   await page.waitForTimeout(settleMs);
   await setClock(page, h, m);
   await page.waitForTimeout(settleMs);

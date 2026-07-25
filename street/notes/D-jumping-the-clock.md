@@ -1,4 +1,30 @@
-# A jumped clock does not give you the night the player sees
+# WITHDRAWN — a jumped clock is fine; all of this was rain
+
+> **This note's finding does not survive. Both halves were the weather.**
+>
+> The headline 7.4% was withdrawn earlier: `setNight` routed via 20:00 and 20:00
+> rained, so I was comparing a dry world against a wet one.
+>
+> **The part I kept — "the wall splash is off when jumped and on when stepped" —
+> is also rain.** Measured again once `e0c68e46` made 20:00 dry:
+>
+> ```
+> jump to 23 (dry)      splash 0
+> via 20 DRY  -> 23     splash 0        <- stepping through a dry evening does nothing
+> via 21 WET  -> 23     splash 0.295
+> via 17 WET  -> 23     splash 0.295
+> ```
+>
+> The splash follows the wet look and persists after the rain stops, because the
+> ground dries slowly. There is **no night state that a jump fails to arm**, and
+> nothing below this line should be relied on.
+>
+> `setNight()` still exists and is still worth calling, for the opposite reason:
+> it picks an evening hour the world says is DRY, so a night measurement cannot
+> be accidentally a wet one. That is the hazard that was really there — the one
+> that fooled me twice — and the helper now says so.
+
+# (superseded) A jumped clock does not give you the night the player sees
 
 > **CORRECTION, and read it before the numbers below.** The headline figure —
 > *"7.4% brighter"* — was **mostly rain, not the clock path**. When I measured
