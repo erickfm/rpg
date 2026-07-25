@@ -34,8 +34,11 @@ const out = await p.evaluate(() => {
     const mats = Array.isArray(o.material)?o.material:[o.material];
     mats.forEach((m, mi) => {
     if (!m || !m.map) return;
-    const ms = m.map.userData && m.map.userData.masonry;
-    if (!ms) return;
+    // Unstamped faces are collected too, marked. The live half of the brick
+    // question (f604c531) is "something masonry() did not paint" — a hand-
+    // painted brick-like face standing next to declared masonry. Collecting
+    // only stamps made that case invisible here by construction.
+    const ms = (m.map.userData && m.map.userData.masonry) || null;
     const e=o.matrixWorld.elements, len=(a,b2,c)=>Math.hypot(e[a],e[b2],e[c]);
     const S=[len(0,1,2),len(4,5,6),len(8,9,10)], pr=o.geometry.parameters||{};
     let fw, fh;
@@ -48,9 +51,10 @@ const out = await p.evaluate(() => {
     const img=m.map.image; if(!img) return;
     const g=o.geometry; if(!g.boundingBox)g.computeBoundingBox();
     const bb=g.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    if (!ms && (fw < 2 || fh < 2)) return;      // only wall-sized unstamped faces
     faces.push({ u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
                  v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
-                 declared: ms.ppm,
+                 declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null,
                  x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
                  at:[+((bb.min.x+bb.max.x)/2).toFixed(1),+((bb.min.y+bb.max.y)/2).toFixed(1),+((bb.min.z+bb.max.z)/2).toFixed(1)] });
     });
@@ -69,7 +73,8 @@ const out = await p.evaluate(() => {
     const rU = Math.max(a.u,c.u)/Math.min(a.u,c.u);
     const rV = Math.max(a.v,c.v)/Math.min(a.v,c.v);
     pairs.push({ rU:+rU.toFixed(2), rV:+rV.toFixed(2), a:{u:a.u,v:a.v,d:a.declared,at:a.at}, c:{u:c.u,v:c.v,d:c.declared,at:c.at},
-      bothOnGrid: [a.declared,c.declared].every(d=>Math.abs(d-8)<0.01||Math.abs(d-16)<0.01) });
+      mixed: a.stamped !== c.stamped,
+      bothOnGrid: [a.declared,c.declared].every(d=>d!==null&&(Math.abs(d-8)<0.01||Math.abs(d-16)<0.01)) });
   }
   return { nFaces: faces.length, nPairs: pairs.length, pairs };
 });
@@ -89,9 +94,24 @@ console.log(`   of those, pairs where BOTH faces pass the 8/16 grid check: ${gri
 // Only pairs that declare the SAME density are like-for-like: two faces meant to
 // be one continuous run of brick. Those are the ones where a mismatch is a seam
 // a player can see.
-const like = out.pairs.filter(q => Math.abs(q.a.d - q.c.d) < 0.01);
+// ── THE LIVE HALF: declared masonry meeting something masonry() never painted ──
+const mixed = out.pairs.filter(q => q.mixed && (q.rU > 1.15 || q.rV > 1.15));
+console.log(`\nDECLARED masonry touching UNDECLARED brick-like faces, densities disagreeing: ${mixed.length}`);
+const seenM = new Set();
+for (const q of mixed.sort((a,c)=>(c.rU)-(a.rU))) {
+  const st = q.a.d !== null ? q.a : q.c, un = q.a.d !== null ? q.c : q.a;
+  const k = `${un.at.join(',')}`; if (seenM.has(k)) continue; seenM.add(k);
+  if (seenM.size > 8) break;
+  console.log(`   u ${String(q.rU).padStart(5)}×   UNDECLARED ${un.u}×${un.v} px/m at (${un.at.join(',')})` +
+              `   touching declared ${st.d} px/m at (${st.at.join(',')})`);
+}
+const like = out.pairs.filter(q => q.a.d !== null && q.c.d !== null && Math.abs(q.a.d - q.c.d) < 0.01);
 const likeBad = like.filter(q => q.rU > 1.15 || q.rV > 1.15);
-const unlike = bad.filter(q => Math.abs(q.a.d - q.c.d) >= 0.01);
+// BOTH declared, and declaring differently — the band/wall case. Unstamped
+// faces must not leak in here: they have no declared density to differ from,
+// and letting them widen the ratio range makes this line claim something it
+// cannot support. That is the mistake I have twice corrected in other tools.
+const unlike = bad.filter(q => q.a.d !== null && q.c.d !== null && Math.abs(q.a.d - q.c.d) >= 0.01);
 const ratios = unlike.map(q => Math.max(q.rU, q.rV));
 console.log(`\nLIKE-FOR-LIKE (both faces declare the same density): ${like.length} pairs`);
 console.log(`   disagreeing by more than 15%: ${likeBad.length}`);
