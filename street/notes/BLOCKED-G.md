@@ -244,6 +244,33 @@ only its tint.
 everything else; the fix stands on its delta. What is withdrawn is the reason I
 gave for it not mattering, which was never measured.
 
+#### Then I measured it, and the claim holds — on evidence I never had
+
+Appearance is texture mean × tint, so a flat material and a textured one become
+comparable. At night, dry against rainy, fresh world each and settled to plateau:
+
+```
+              textured   tint dry → wet      APPEARANCE dry → wet
+  runner      no         0.0017 → 0.0016     0.0017 → 0.0016
+  side walk   no         0.0044 → 0.0043     0.0044 → 0.0043
+  side road   yes        0.0135 → 0.0074     0.0032 → 0.0018
+```
+
+**The runner IS darker than the pavement it sits on** — 0.0017 against 0.0044, at
+night, measured like against like. So "nobody will see it" survives.
+
+Two things worth keeping anyway. The **numbers I originally quoted were the wrong
+ones**: I cited 0.053 against 1.0, which were daytime tints, and the real night
+appearances are 0.0017 against 0.0044 — a different quantity, a different pair of
+values, and only the ordering in common. And the **side walk turns out to carry no
+texture at all**, so its tint was its appearance all along; the material I assumed
+was textured is not the one my selector matches. I was right by luck about which
+of the two was flat.
+
+**Withdrawing it was still correct.** A conclusion that happens to hold is not the
+same as one that was measured, and I had asserted it twice off a comparison that
+could not support it.
+
 ## 6. Two user requests about my buildings are logged against builder E
 
 Checked `FEATURE-REQUESTS.md` — the source of truth in the user's own words —
