@@ -41,8 +41,8 @@ one `git rev-parse` per page load, no way to miss a move.
 
 ```
 HEAD 4c667bb  → stamp "4c667bb+"
-   (commit <next> — notes/ only, server NOT restarted)
-HEAD <next>   → stamp "<next>+"       ← correct
+   (commit a016178, then a notes-ONLY commit — server never restarted)
+HEAD <filled below> → stamp matches   ← correct
 ```
 
 In the live worktree `HEAD` is the throwaway `live` merge commit, which is
