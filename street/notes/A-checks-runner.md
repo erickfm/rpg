@@ -40,6 +40,30 @@ it fell through to the normal verdict afterwards. I had run that selftest, read
 the word PASSED, and never looked at the exit code. The runner prints status in
 a column, so it was visible immediately.
 
+## It outgrew its own reporting within a day (`04e85e53`)
+
+`3dfe0217` registered three more checks — which is what the runner is for — and
+the suite immediately broke its own reporting. It printed **nothing** until every
+check finished. Fine at six; not fine at nine, because the run now takes about
+three minutes, so a caller with a two-minute limit sees **no output at all** and
+cannot tell a slow check from a hung one.
+
+I hit that twice in one turn and my first assumption both times was that
+something had broken. **A runner that looks hung gets killed, and a killed suite
+reports nothing** — a worse failure than any check it contains.
+
+- a line on stderr as each check starts
+- 180 s per check, reported as `TIMED OUT` with the check named
+- elapsed shown for anything over 20 s
+
+```
+9/9 green,  lotwalk 99s
+```
+
+That 99 s was invisible before and is worth seeing. It is not a fault — it is
+the one check that walks a pedestrian around the lot — but anyone waiting three
+minutes deserves to know what they are waiting for.
+
 ## Where it stands
 
 ```
