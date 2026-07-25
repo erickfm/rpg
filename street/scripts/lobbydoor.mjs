@@ -38,8 +38,10 @@ const SH = [
   // the top landing guard: floor 3, east half of the shaft
   ['18-top-guard',  201.6, -12.4, at(-1.0,  2.0), -0.16, 8.1],
   ['19-top-guard-2',200.6, -12.0, at(0.0,   1.6), -0.22, 8.1],
-  ['20-cellar-gate',201.6, -16.6, at(0.0,  -2.2), -0.14, 0],
-  ['21-cellar-lock',201.6, -17.6, at(0.0,  -1.1), -0.10, 0],
+  // the cellar gate: under the stairs, CXM 201.8, at z = AZI(8.4) = -11.6
+  ['20-cellar-gate',201.8, -13.9, at(0.0,  2.3), -0.10, 0],
+  ['21-cellar-lock',201.8, -12.4, at(0.0,  0.8), -0.06, 0],
+  ['22-cellar-obliq',201.0,-13.2, at(0.8,  1.6), -0.08, 0],
 ];
 for (const [n, x, z, yaw, pitch, gy] of SH) {
   await p.evaluate(([a,b2,c,d,e]) => window.__ct.warp(a,b2,c,d,e), [x, z, yaw, gy, pitch]);
