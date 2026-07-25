@@ -348,13 +348,80 @@ export function buildStreet(o: {
   // Same family as the two patterns already fixed: one masonry density for the
   // world, one authoring of the door position. The defect is always the same
   // fact decided twice, or decided once and applied where it does not belong.
-  const flankTex = (brick: string, wM: number, hM: number, baseY: number, cope: boolean) => {
+  // ── ONE party-wall painter, for every exposed return on the block ───────
+  //
+  // Opening the park, the car lot, the alley and the churchyard exposed a lot
+  // of flanks that were never meant to be seen, and they all read as freshly
+  // built blank brick — which is the "fake building" complaint again, one
+  // surface further round. A flank that nobody was meant to see is not blank.
+  // It carries what it was built against:
+  //
+  //   the SCAR      the demolished neighbour's roofline, stepped down the
+  //                 wall, drawn as the LIGHTER area rather than as a line —
+  //                 brick that spent decades sheltered is cleaner than brick
+  //                 that spent them in the weather, so the ghost is the clean
+  //                 part, not a stripe
+  //   BREASTS       the chimneys they shared, shallow pilasters dying at the
+  //                 old roofline
+  //   BLOCKED-UP    windows bricked shut when they stopped facing a room and
+  //                 started facing the street, in their own course rhythm
+  //                 with the cill left proud
+  //
+  // This used to exist TWICE — here for the buildings and again inside
+  // openSite for the park's and the lot's walls, which is how the two drifted
+  // (the sites had the marks and the buildings did not). One painter now.
+  //
+  // Everything is hashed off `salt`, so two flanks of one building do not
+  // wear identical scars, and none of it touches rnd() (GOTCHAS §2).
+  const partyWallTex = (
+    brick: string, wM: number, hM: number, baseY: number, cope: boolean, salt: number,
+  ) => {
     const ms = masonry(wM, hM, baseY);
+    let hh = (0x811c9dc5 ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
+    const mark = (n: number) => {
+      hh = Math.imul(hh ^ (hh >>> 15), 0x2c1b3c6d) >>> 0;
+      return (hh >>> 9) % Math.max(1, n);
+    };
     return ms.paint((g) => {
       g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
       ms.courses(g);
-      g.fillStyle = 'rgba(0,0,0,0.16)';                       // weather off the parapet
-      for (let i = 0; i < 14; i++) g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+      const steps = 2 + mark(3);
+      const ridge = ms.m(hM * (0.50 + mark(4) * 0.06));
+      let x = 0;
+      for (let i = 0; i <= steps; i++) {
+        const x1 = Math.round(ms.W * ((i + 1) / (steps + 1)));
+        const top = ridge + ms.m((mark(5) - 2) * 0.55);
+        g.fillStyle = 'rgba(214,198,170,0.12)';
+        g.fillRect(x, top, x1 - x, ms.H - top);
+        g.fillStyle = 'rgba(0,0,0,0.12)';
+        g.fillRect(x, top, x1 - x, Math.max(1, ms.m(0.09)));
+        x = x1;
+      }
+      const breasts = 1 + mark(3);
+      for (let i = 0; i < breasts; i++) {
+        const bx = ms.m(1.5) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+        const bw = ms.m(0.9 + mark(3) * 0.3);
+        g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(bx, ridge, bw, ms.H - ridge);
+        g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(bx + bw, ridge, Math.max(1, ms.m(0.12)), ms.H - ridge);
+      }
+      const blocked = 1 + mark(4);
+      for (let i = 0; i < blocked; i++) {
+        const wx = ms.m(1.2) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
+        const wy = ridge + ms.m(1.0) + mark(4) * ms.m(1.4);
+        const ww = ms.m(1.1), wh = ms.m(1.4);
+        if (wy + wh > ms.H - ms.m(0.5) || wx + ww > ms.W) continue;
+        g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
+        g.fillStyle = 'rgba(168,140,112,0.45)'; g.fillRect(wx, wy, ww, wh);
+        g.fillStyle = 'rgba(0,0,0,0.15)';
+        for (let c = 0; c < 6; c++) g.fillRect(wx, wy + Math.round((c * wh) / 6), ww, 1);
+        g.fillStyle = '#9a8a72'; g.fillRect(wx - 1, wy + wh, ww + 2, Math.max(1, ms.m(0.14)));
+      }
+      // weather, PER METRE. It was a flat 14 per wall, so a 32 m park flank
+      // got the same fourteen streaks as a 6 m shop return.
+      g.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let i = 0; i < Math.max(6, Math.round(wM * 1.1)); i++) {
+        g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
+      }
       if (cope) {                                             // only where it IS the top
         g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));
         g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
@@ -362,6 +429,14 @@ export function buildStreet(o: {
       dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
     });
   };
+  const flankSalt = (brick: string, wM: number, hM: number) => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < brick.length; i++) h = Math.imul(h ^ brick.charCodeAt(i), 0x01000193) >>> 0;
+    h = Math.imul(h ^ Math.round(wM * 8), 0x01000193) >>> 0;
+    return Math.imul(h ^ Math.round(hM * 8), 0x01000193) >>> 0 >>> 16;
+  };
+  const flankTex = (brick: string, wM: number, hM: number, baseY: number, cope: boolean) =>
+    partyWallTex(brick, wM, hM, baseY, cope, flankSalt(brick, wM, hM));
   /** the six materials of a shell: its front where the front goes, and its own
    *  masonry on every side and return. `fi` is the BoxGeometry face index the
    *  facade belongs on (0 +x, 1 -x, 4 +z, 5 -z). */
@@ -430,65 +505,8 @@ export function buildStreet(o: {
     //
     // `mark` is a deterministic hash off the site so the two flanks of one
     // site do not wear identical scars.
-    const wallTex = (wM: number, hM: number, brick: string, salt: number) => {
-      const ms = masonry(wM, hM, 0);
-      let h = (0x811c9dc5 ^ Math.imul(salt + 1, 0x9e3779b1)) >>> 0;
-      const mark = (n: number) => {
-        h = Math.imul(h ^ (h >>> 15), 0x2c1b3c6d) >>> 0;
-        return (h >>> 9) % n;
-      };
-      return ms.paint((g) => {
-        g.fillStyle = brick; g.fillRect(0, 0, ms.W, ms.H);
-        ms.courses(g);
-        // THE SCAR. The demolished neighbour's roofline, stepped down the
-        // wall — brick that spent decades behind a building is cleaner and
-        // paler than brick that spent them in the weather, so the ghost is
-        // drawn as the LIGHTER area, not as a line.
-        const steps = 2 + mark(3);
-        const ridge = ms.m(hM * (0.52 + mark(4) * 0.06));   // where the ridge ran
-        let x = 0;
-        for (let i = 0; i <= steps; i++) {
-          const x1 = Math.round(ms.W * ((i + 1) / (steps + 1)));
-          const top = ridge + ms.m((mark(5) - 2) * 0.55);
-          g.fillStyle = 'rgba(214,198,170,0.13)';
-          g.fillRect(x, top, x1 - x, ms.H - top);
-          g.fillStyle = 'rgba(0,0,0,0.13)';                  // the flashing line
-          g.fillRect(x, top, x1 - x, Math.max(1, ms.m(0.09)));
-          x = x1;
-        }
-        // chimney breasts: shallow pilasters that stop at the old roofline
-        const breasts = 1 + mark(3);
-        for (let i = 0; i < breasts; i++) {
-          const bx = ms.m(1.5) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
-          const bw = ms.m(0.9 + mark(3) * 0.3);
-          g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(bx, ridge, bw, ms.H - ridge);
-          g.fillStyle = 'rgba(0,0,0,0.14)'; g.fillRect(bx + bw, ridge, Math.max(1, ms.m(0.12)), ms.H - ridge);
-        }
-        // bricked-up openings, in the same course rhythm as a real window
-        const blocked = 1 + mark(4);
-        for (let i = 0; i < blocked; i++) {
-          const wx = ms.m(1.2) + mark(Math.max(1, Math.round(wM - 3))) * ms.ppm;
-          const wy = ridge + ms.m(1.0) + mark(4) * ms.m(1.4);
-          const ww = ms.m(1.1), wh = ms.m(1.4);
-          if (wy + wh > ms.H - ms.m(0.5)) continue;
-          g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(wx - 1, wy - 1, ww + 2, wh + 2);
-          g.fillStyle = 'rgba(168,140,112,0.5)'; g.fillRect(wx, wy, ww, wh);
-          g.fillStyle = 'rgba(0,0,0,0.16)';                  // its own courses, offset
-          for (let c = 0; c < 6; c++) g.fillRect(wx, wy + Math.round((c * wh) / 6), ww, 1);
-          g.fillStyle = '#9a8a72'; g.fillRect(wx - 1, wy + wh, ww + 2, Math.max(1, ms.m(0.14)));
-        }
-        // weather streaks, PER METRE — a flat count spread over 32 m is what
-        // made the deepened park look scrubbed
-        const streaks = Math.max(6, Math.round(wM * 1.1));
-        g.fillStyle = 'rgba(0,0,0,0.16)';
-        for (let i = 0; i < streaks; i++) {
-          g.fillRect((i * 37) % ms.W, 0, 2, Math.round(ms.H * ((i % 5) / 6)));
-        }
-        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, ms.W, ms.m(0.5));       // coping
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, ms.m(0.5), ms.W, ms.m(0.16));
-        dither(g, ms.W, ms.H, Math.round(wM * hM * 5));
-      });
-    };
+    const wallTex = (wM: number, hM: number, brick: string, salt: number) =>
+      partyWallTex(brick, wM, hM, 0, true, salt);
     const fh = wallHeight(4);
     for (const [zAt, ry] of [[z1 - 0.01, Math.PI], [z0 + 0.01, 0]] as [number, number][]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(o.depth, fh), flat(wallTex(o.depth, fh, o.flank, ry > 1 ? 3 : 7)));
