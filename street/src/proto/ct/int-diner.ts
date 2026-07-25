@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import type { AABB } from '../fp';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
@@ -21,7 +20,7 @@ import { FACE } from './rng';
 //
 // The diner stands on the west side of the block at z ≈ 9.6, first slot in
 // the WEST roster. Its door on the street is at x = -(FACE - 0.45).
-export function buildDiner(ctx: CtxBuild): AABB[] {
+export function buildDiner(ctx: CtxBuild): void {
   const DZ = 9.6;
   const room = buildRoom(ctx, {
     id: 'diner',
@@ -216,5 +215,4 @@ export function buildDiner(ctx: CtxBuild): AABB[] {
     new THREE.MeshBasicMaterial({ map: wT, alphaTest: 0.5, side: THREE.DoubleSide }));
   put(waitress, -1.4, 0.95, CZ - 0.55);
 
-  return room.colliders;
 }

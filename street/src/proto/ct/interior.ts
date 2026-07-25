@@ -43,6 +43,18 @@ interface Slab { id: string; x0: number; x1: number; gy: (x: number, z: number) 
 const SLABS: Slab[] = [];
 
 /**
+ * Every collider every room has registered, in one list.
+ *
+ * The belt owns this so that adding a room does not mean adding a line to the
+ * collider array in `crosstown.ts`. That array is in the most-contended file
+ * in the project (GOTCHAS §11); ten rooms would have meant ten separate edits
+ * to it, each one a merge conflict waiting for whichever builder landed
+ * second. Now the entry point spreads this once and never changes again.
+ */
+const BELT_COLLIDERS: AABB[] = [];
+export function interiorColliders(): AABB[] { return BELT_COLLIDERS; }
+
+/**
  * The east edge of the world, which is the east edge of the LAST slab actually
  * claimed. It has to be derived rather than fixed: a constant sized for the
  * sixteen rooms we might one day build would leave the player free to walk a
@@ -98,6 +110,37 @@ export interface RoomSpec {
   };
   /** shopfront glazing on the front wall, so the room is not a sealed box */
   window?: { at?: number; w: number; h?: number; sill?: number };
+  /**
+   * Tiled dado up the bottom of every wall, painted into the plaster rather
+   * than modelled — a commercial room that is plaster to the floor reads as a
+   * bedroom. Fast food and the tax office tile to the waist; a diner does not.
+   */
+  wainscot?: {
+    /** dado height in metres (default 1.1 — waist height) */
+    h?: number;
+    /** tile size in metres. Default 0.32 — larger than real wall tile
+     *  because at ~12 px/m anything under ~0.25 m draws a one-texel tile
+     *  beside a one-texel joint, which reads as a dotted line, not tile. */
+    tile?: number;
+    /** the joint colour showing between tiles */
+    grout?: number;
+    /** the tile face itself */
+    face?: number;
+  };
+  /**
+   * The ceiling light. `kind` picks the fixture, `tint` its colour, `count`
+   * how many (default: one per 3.5 m of depth).
+   *
+   * There IS a fixture, always. The user has already rejected the bare-glow
+   * version of this once, on the walk-up: *"there is no fixture at all — it's
+   * a bare glow decal on the ceiling, no shade, no bulb, so it reads as a
+   * smudge rather than a light"*, and *"it's a smooth radial gradient in a
+   * world that is entirely hard-edged nearest-filtered texels — the blur is
+   * wildly off-style"*. This kit shipped that exact mistake, and would have
+   * shipped it ten more times. The glow is stepped on the texel grid now and
+   * it hangs under something you can see.
+   */
+  light?: { kind?: 'dome' | 'troffer'; tint?: number; count?: number };
 }
 
 export interface Room {
@@ -204,6 +247,8 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const PXM = 32 / TILE_M;                                  // ≈ 11.9 px/m
   const wallPx = Math.max(16, Math.round(H * PXM));
   const scuffPx = Math.max(2, Math.round(0.5 * PXM));
+  const wain = spec.wainscot;
+  const wainPx = wain ? Math.round((wain.h ?? 1.1) * PXM) : 0;
   const plasterT = pixTex(32, wallPx, (g) => {
     const c = new THREE.Color(WALL);
     g.fillStyle = '#' + c.getHexString(); g.fillRect(0, 0, 32, wallPx);
@@ -219,6 +264,31 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
     g.translate(0, wallPx - grimePx);
     dither(g, 32, grimePx, Math.round(32 * grimePx * 0.05));
     g.restore();
+    // the tiled dado, over the top of all of that — tile is the wall down
+    // here, not a decal on it, so it covers the grime rather than sharing it
+    if (wain && wainPx > 2) {
+      const y0 = wallPx - wainPx;
+      const tilePx = Math.max(3, Math.round((wain.tile ?? 0.32) * PXM));
+      const face = new THREE.Color(wain.face ?? 0xd8d0be);
+      g.fillStyle = '#' + new THREE.Color(wain.grout ?? 0xa89e8c).getHexString();
+      g.fillRect(0, y0, 32, wainPx);                         // the grout bed
+      // Tiles laid ON the grout bed, one texel short each way, so the joint is
+      // the bed showing through. One texel at ~12 px/m is an 8 cm joint —
+      // coarse for grout, but it is the thinnest line this world can draw, and
+      // a joint you cannot see is not a tiled wall.
+      for (let ty = 0; y0 + ty * tilePx < wallPx; ty++) {
+        for (let tx = 0; tx * tilePx < 32; tx++) {
+          const x = tx * tilePx, y = y0 + ty * tilePx;
+          g.fillStyle = '#' + face.clone()
+            .multiplyScalar((tx + ty) % 2 ? 0.95 : 1.03).getHexString();
+          g.fillRect(x, y, tilePx - 1, Math.min(tilePx - 1, wallPx - y));
+        }
+      }
+      // the capping bullnose: the line that makes it read as tile stopping at
+      // a height rather than as a differently-coloured wall
+      g.fillStyle = '#' + new THREE.Color(TRIM).getHexString();
+      g.fillRect(0, y0 - 1, 32, 2);
+    }
   });
   const wallMat = (len: number) => {
     const t = plasterT.clone();
@@ -312,6 +382,21 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
     place(glass, wAt, wSill + wH / 2, hd + T / 2);
     const sill = new THREE.Mesh(new THREE.BoxGeometry(wW + 0.2, 0.08, T + 0.12), trimM);
     place(sill, wAt, wSill - 0.04, hd + T / 2);
+    // Mullions, and a transom bar across the top.
+    //
+    // Shopfront glazing is never one pane — it is panes in a frame, because
+    // nobody in 1997 is hanging six metres of unsupported glass. Without them
+    // a wide window is a single flat slab of colour taking up a third of the
+    // room, which is what the burger barn's 6.2 m one looked like. One bar
+    // every ~2 m, which is about the widest pane you would actually see.
+    const bays = Math.max(1, Math.round(wW / 2.0));
+    for (let i = 1; i < bays; i++) {
+      const mx = wAt - wW / 2 + (wW * i) / bays;
+      const mull = new THREE.Mesh(new THREE.BoxGeometry(0.07, wH, T + 0.04), trimM);
+      place(mull, mx, wSill + wH / 2, hd + T / 2);
+    }
+    const transom = new THREE.Mesh(new THREE.BoxGeometry(wW, 0.07, T + 0.04), trimM);
+    place(transom, wAt, wSill + wH * 0.72, hd + T / 2);
   }
 
   // wall colliders — the openings are NOT gaps you can walk out of, except
@@ -321,6 +406,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const wall = (mnx: number, mxx: number, mnz: number, mxz: number) => {
     const b: AABB = { minX: cx + mnx, maxX: cx + mxx, minZ: cz + mnz, maxZ: cz + mxz };
     colliders.push(b);
+    BELT_COLLIDERS.push(b);
     return b;
   };
   wall(-hw - T, hw + T, -hd - T, -hd);            // back
@@ -347,20 +433,67 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // with the lights on at 2am is exactly what a lit window on the street is
   // promising. This is the glow, not the illumination; the flat materials do
   // the rest.
-  const bulbT = pixTex(32, 32, (g) => {
-    const gr = g.createRadialGradient(16, 16, 2, 16, 16, 15);
-    gr.addColorStop(0, 'rgba(255,235,190,0.8)');
-    gr.addColorStop(1, 'rgba(255,235,190,0)');
-    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  //
+  // There is a FIXTURE, and the glow is STEPPED. Both are corrections to a
+  // complaint already on file against the walk-up's ceiling lamps: *"there is
+  // no fixture at all — it's a bare glow decal on the ceiling, no shade, no
+  // bulb, so it reads as a smudge rather than a light"*, and *"it's a smooth
+  // radial gradient in a world that is entirely hard-edged nearest-filtered
+  // texels — the blur is wildly off-style"*. The first version of this kit
+  // reproduced that mistake exactly, and ten rooms were about to inherit it.
+  const lit = spec.light ?? {};
+  const kind = lit.kind ?? 'dome';
+  const tint = new THREE.Color(lit.tint ?? (kind === 'troffer' ? 0xe8f0f4 : 0xffebbe));
+  const rgb = `${Math.round(tint.r * 255)},${Math.round(tint.g * 255)},${Math.round(tint.b * 255)}`;
+  // A halo quantised onto the texel grid: four hard steps, no interpolation.
+  // Same job as a gradient, drawn the way everything else in this world is.
+  const haloT = pixTex(16, 16, (g) => {
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const d = Math.hypot(x - 7.5, y - 7.5) / 8;
+      const step = Math.max(0, Math.ceil((1 - d) * 4) / 4);   // 0, .25, .5, .75, 1
+      if (step <= 0) continue;
+      // Weak on purpose. Additive white on an already-pale ceiling stops
+      // reading as spill and starts reading as a splat of paint very quickly —
+      // the first pass at 0.5 put a blocky cloud around every fixture. The
+      // room is lit by its flat materials; this is only the bloom at the edge.
+      g.fillStyle = `rgba(${rgb},${(step * 0.16).toFixed(3)})`;
+      g.fillRect(x, y, 1, 1);
+    }
   });
-  const bulbM = new THREE.MeshBasicMaterial({
-    map: bulbT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-  const lamps = Math.max(1, Math.round(D / 3.5));
+  haloT.minFilter = haloT.magFilter = THREE.NearestFilter;
+  const haloM = new THREE.MeshBasicMaterial({
+    map: haloT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+  const diffuserM = new THREE.MeshBasicMaterial({ color: tint });
+  // The housing is painted metal, NOT the room's trim. Trim is right for
+  // mullions and skirting — they are joinery — but a light fitting is a
+  // bought object, and taking TRIM here gave the burger barn bright red
+  // ceiling troffers, which no building has ever had.
+  const roseM = new THREE.MeshBasicMaterial({ color: 0xc4c0b8 });
+
+  const lamps = Math.max(1, lit.count ?? Math.round(D / 3.5));
   for (let i = 0; i < lamps; i++) {
     const lz = -hd + D * ((i + 0.5) / lamps);
-    const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.4), bulbM);
-    gl.rotation.x = Math.PI / 2;
-    place(gl, 0, H - 0.25, lz);
+    if (kind === 'troffer') {
+      // a recessed fluorescent tray: the 1997 commercial ceiling, and the
+      // reason a fast-food room feels harder than a diner
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.1, 0.42), roseM);
+      place(tray, 0, H - 0.05, lz);
+      const dif = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.34), diffuserM);
+      dif.rotation.x = Math.PI / 2;
+      place(dif, 0, H - 0.105, lz);
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.95), haloM);
+      gl.rotation.x = Math.PI / 2;
+      place(gl, 0, H - 0.12, lz);
+    } else {
+      // a shallow opal flush-mount on a ceiling rose
+      const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 8), roseM);
+      place(rose, 0, H - 0.03, lz);
+      const dome = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.13, 10), diffuserM);
+      place(dome, 0, H - 0.12, lz);
+      const gl = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 1.05), haloM);
+      gl.rotation.x = Math.PI / 2;
+      place(gl, 0, H - 0.2, lz);
+    }
   }
 
   // ── the way in and the way out ────────────────────────────────────────

@@ -24,8 +24,9 @@ import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type Play
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX } from './ct/interior';
+import { interiorGround, interiorMaxX, interiorColliders } from './ct/interior';
 import { buildDiner } from './ct/int-diner';
+import { buildBurger } from './ct/int-burger';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -225,14 +226,27 @@ export function makeCrosstown(): Proto {
   // one does NOT mean editing this file — which is the whole reason ten of
   // them can be built in parallel.
   //
-  // Last on purpose, and it must stay last. GOTCHAS §2 is about the seeded
-  // rnd() stream, but the same argument applies to the paint layer's
-  // Math.random: the fingerprint harness seeds it, so a module that paints
-  // mid-build shifts the grain of every texture painted after it. Built here,
-  // ten new interiors add 500 objects to the world and change nothing about
-  // the street — which is the only way `fpdiff` can still answer the question
-  // it exists to answer while this programme is running.
-  const dinerColliders = buildDiner(ctx);
+  // Last on purpose, and it must stay last.
+  //
+  // GOTCHAS §2 is about the seeded rnd() stream. The same argument applies,
+  // harder, to the paint layer's Math.random — which the fingerprint harness
+  // seeds. And it is not only `dither()` that draws from it: three.js burns
+  // FOUR Math.random calls per object in `generateUUID`, so under the harness
+  // every mesh, material and texture you CREATE shifts the grain of every
+  // texture painted after it. Build a room in the middle and you repaint half
+  // the block.
+  //
+  // Built here, after the last street object exists, ten interiors can add a
+  // thousand objects and the street's fingerprint does not move — which is the
+  // only reason it can still answer the question it exists to answer while
+  // this programme is running. (Interiors do reshuffle each OTHER's grain;
+  // that is harmless, because the shipped world's Math.random is unseeded and
+  // repaints every load anyway.)
+  // Adding a room is ONE line here and nothing else — the kit collects each
+  // room's colliders into `interiorColliders()`, spread once below, so the
+  // collider array never grows again however many rooms land.
+  buildDiner(ctx);
+  buildBurger(ctx);
 
   const colliders: AABB[] = [
     { minX: FACE - 0.3, maxX: FACE + 8, minZ: -96, maxZ: 20 },              // right wall (stops at the corner)
@@ -264,7 +278,7 @@ export function makeCrosstown(): Proto {
     // without reaching into `ct/bodega.ts`, which is not this builder's file —
     // the gap itself is reported to the desk in notes/feat-interiors.md.
     { minX: 260, maxX: 262, minZ: -112, maxZ: 20 },
-    ...dinerColliders,
+    ...interiorColliders(),
     // the traffic pool replaces the single hand-placed cruiser: one box per
     // vehicle, parked at x=999 while idle (see ct/traffic.ts)
     ...vehicleBoxes,
@@ -368,6 +382,11 @@ export function makeCrosstown(): Proto {
     // test affordance: who is on the block, how big and how fast
     people: () => crowd.people(),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
+    // test affordance: "is my [E] spot inside something solid?" is the single
+    // most expensive question in this project — GOTCHAS §8, and the reason the
+    // bodega was un-enterable — and it was previously only answerable by
+    // bisecting the walk with the player. Read-only view of the live list.
+    colliders: () => colliders,
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
   };
 
