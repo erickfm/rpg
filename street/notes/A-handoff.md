@@ -37,6 +37,13 @@ Two of mine had stopped working at some point without anyone noticing — the ba
 camera aimed at brick beside the glass, and `mirror-walk`, whose two sides were
 the same expression and which therefore could never have passed.
 
+## One thing to clear that costs nothing
+
+`72ec4790` has a casino-door fix **that has been run in dist** and is holding it
+back because it believes I am working in `ct/doors.ts`. I am not, and never have
+been — `A-not-in-doors.md` says so with the list of files I have touched. That
+fix is the only thing between the project and a fully green suite.
+
 ## Waiting on someone else
 
 | what | who | state |
