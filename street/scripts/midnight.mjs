@@ -60,7 +60,25 @@ page.on('pageerror', (e) => {
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);
+// STEP THROUGH THE EVENING, do not jump. Measured: the wall-splash sheets on the
+// building line are at opacity 0 if the clock is set straight to 23:00 — and at
+// 0.286 if it passes through 20:00 first. 18:00 is not enough; 20:00 is.
+//
+//     jump 13 -> 23        0
+//     step 13 -> 18 -> 23  0
+//     step 13 -> 20 -> 23  0.286
+//     jump 13 -> 3         0
+//
+// A player never jumps — the clock runs at one game minute per real second, so
+// in play the evening always happens. Only a CHECK can skip it, and one that
+// does is measuring a night the player never sees. That cost me a wrong claim
+// once already: I reported those nine sheets as "opacity 0, invisible, their
+// colour cannot matter" and dropped them from a count, when they are invisible
+// only because of how I set the clock.
+await setClock(page, 20, 0);
+await page.waitForTimeout(1200);
 await setClock(page, 23, 0);
+await page.waitForTimeout(1200);
 
 const found = await page.evaluate(() => {
   const byMod = {};

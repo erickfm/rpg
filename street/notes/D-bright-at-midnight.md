@@ -92,3 +92,53 @@ real one would stand out immediately.
 
 Not routed again as a defect, because it is not one. Noted once, here, so the
 number stops looking like a backlog.
+
+---
+
+## Correction: my counts were taken in a night the player never reaches
+
+Chasing a disagreement between `baa675d7`'s label for the facade-line planes
+("vertical shopfront panels") and mine ("lamp splash sheets"), I found something
+that invalidates the numbers above.
+
+**The wall-splash sheets only turn on if the clock PASSES THROUGH the evening.**
+
+```
+jump 13 -> 23        splash opacity 0
+step 13 -> 18 -> 23  splash opacity 0
+step 13 -> 20 -> 23  splash opacity 0.286
+jump 13 -> 3         splash opacity 0
+```
+
+18:00 is not enough; 20:00 is. And it is not a settle ramp — I watched it flat
+at 0 for 24 seconds after jumping to 23:00.
+
+**A player never jumps.** The clock runs at a game minute per real second, so in
+play the evening always happens and the splash is always there. Only a CHECK can
+skip it — and `midnight.mjs` did, along with every sweep in this note.
+
+### What that changes
+
+Same world, same hour, two ways of arriving:
+
+```
+jumped to 23:00    props=50            vice=2
+stepped via 20:00  props=50  unstamped=9  vice=8
+```
+
+Fifteen materials that a player sees were missing from my counts. **My module is
+still 0 either way**, but the routed figures (`vice 78`, `props 67`, `lot 13`)
+were all taken jumped, so they were short too.
+
+And the specific claim I made earlier — that the nine facade-line planes "sit at
+opacity 0, invisible, so their colour cannot matter", which I used to *drop them
+from a count* — is wrong. They are invisible only because of how I set the
+clock.
+
+`midnight.mjs` now steps through 20:00. Two extra seconds, and it measures the
+night the world actually has.
+
+**Both labels were half right.** They are vertical (normals horizontal, so
+`baa675d7` is right that they are panels, not ground) AND they are the night
+splash (opacity driven by darkness, 0 by day, matching `props.ts`'s own comment
+about standing a sheet against every wall on the building line).
