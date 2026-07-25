@@ -101,17 +101,84 @@ check(bothSides || closest < 0.6,
 // ── 4. the sacred 2 m lane, walked end to end ─────────────────────────────
 await page.evaluate(() => window.__ct.warp(-6.1, 6, 0, 0.14, 0));
 await page.waitForTimeout(150);
+// STOP MEASURING THIS WITH A STOPWATCH. It was `> 14`, then `> 9`, and it failed
+// at 8.6 m on a sound world — a third of the block covered, nowhere near stuck,
+// while the check's own note said "anything near zero is the failure this
+// catches". How far you get in six seconds depends on how many people you meet:
+// a stopped citizen is solid for 1.4 s before it gives way, and three encounters
+// legitimately eat most of the window. That is the same fault I have now fixed
+// three times in corner-traffic, in my own file this time.
+//
+// The invariant is NOT TRAPPED, so measure that: sample while the key is held
+// and look at the longest STALL. Being held 1.4 s is the give-way working;
+// being held for four seconds is being stuck, whatever the total distance.
 const d = await pos();
-await hold('w', 6000);
-const e = await pos();
-// > 9 m, not > 14. The invariant is that the lane is PASSABLE and you are never
-// trapped — not that you cover a particular distance. Citizens stop for errands
-// now (a window, a doorway, the bench), and a stationary one is solid for the 1.4 s
-// before it gives way, so the same walk legitimately takes longer than it did when
-// they all ping-ponged without pausing. 9 m in 6 s is still a third of the block
-// and far beyond being stuck; anything near zero is the failure this catches.
-check(d[2] - e[2] > 9, `west walk still passable — ${(d[2] - e[2]).toFixed(1)} m south in 6 s ` +
-  '(people stopping in the lane and all)');
+await page.keyboard.down('w');
+const track = [d];
+for (let i = 0; i < 12; i++) { await page.waitForTimeout(500); track.push(await pos()); }
+await page.keyboard.up('w');
+await page.waitForTimeout(40);
+const e = track[track.length - 1];
+let stall = 0, worstStall = 0;
+for (let i = 1; i < track.length; i++) {
+  const step = Math.hypot(track[i][0] - track[i - 1][0], track[i][2] - track[i - 1][2]);
+  if (step < 0.15) { stall += 0.5; if (stall > worstStall) worstStall = stall; } else stall = 0;
+}
+check(worstStall <= 2.5, `never stuck walking the west lane — longest stall ${worstStall.toFixed(1)} s `
+  + `(a stopped citizen gives way in 1.4 s), ${(d[2] - e[2]).toFixed(1)} m covered in 6 s of input`);
+check(d[2] - e[2] > 4, `and the lane goes somewhere — ${(d[2] - e[2]).toFixed(1)} m south `
+  + '(unobstructed is ~18 m; three give-ways at 1.4 s each leave ~5 m, so 4 m is the floor that means "moving")');
+
+// ── a citizen who STOPS must not seal the lane (GOTCHAS §9) ───────────────
+//
+// 710e1454 caught bus.mjs failing intermittently on an unchanged world, and the
+// mechanism was one of mine: "one citizen standing kerb-side blocks every
+// inboard position while the outermost squeezes past". Citizens stop for
+// errands, and a stopped one is solid to the player. So the invariant is not
+// about walking distance — it is that whatever a stopped body does to the lane,
+// a gap the player fits through always remains.
+//
+// MEASURE A GAP AGAINST A DIAMETER, NOT A CENTRE-SPAN AGAINST A DIAMETER. My
+// first attempt at this scanned the free CENTRE positions across the walk and
+// failed anything under 0.72 m, and reported 93 of 1305 samples sealed. That is
+// a units error: a free centre-span of 0.50 m already means a 1.22 m gap, which
+// the player walks through with 0.5 m to spare. Corrected, nothing was sealed
+// at all — so this check exists to hold that, not to report a defect.
+const lane = await page.evaluate(async () => {
+  const RAD = 0.36, STEP = 0.02;
+  let samples = 0, sealed = 0, tight = 99, where = null, last = null;
+  const t0 = performance.now();
+  while (performance.now() - t0 < 25000) {
+    await new Promise((r) => requestAnimationFrame(r));
+    const w = window.__ct.walkers(), cols = window.__ct.colliders();
+    if (last && w.length === last.length) {
+      for (let i = 0; i < w.length; i++) {
+        if (Math.hypot(w[i].x - last[i].x, w[i].z - last[i].z) > 0.004) continue;   // still walking
+        const z = w[i].z;
+        if (Math.abs(w[i].x) < 4) continue;            // on the carriageway: crowd-net's business
+        samples++;
+        let best = 0, run = 0;
+        for (let x = Math.sign(w[i].x) * 4.2, n = 0; n < 190; n++, x += Math.sign(w[i].x) * STEP) {
+          const blocked = cols.some((c) => x > c.minX - RAD && x < c.maxX + RAD
+            && z > c.minZ - RAD && z < c.maxZ + RAD);
+          if (blocked) run = 0; else { run += STEP; if (run > best) best = run; }
+        }
+        const gap = best > 0 ? best + 2 * RAD : 0;      // centre freedom plus the capsule
+        if (best <= 0) sealed++;
+        if (gap < tight) { tight = gap; where = [+w[i].x.toFixed(2), +z.toFixed(2)]; }
+      }
+    }
+    last = w.map((q) => ({ x: q.x, z: q.z }));
+  }
+  return { samples, sealed, tight: +tight.toFixed(2), where };
+});
+if (lane.samples < 40) {
+  console.log(`  ??   only ${lane.samples} stopped-citizen sample(s) in 25 s — nobody paused, so the lane was not tested`);
+} else {
+  check(lane.sealed === 0, `no stopped citizen ever sealed the walk — ${lane.samples} samples, ${lane.sealed} sealed`);
+  check(lane.tight >= 0.95, `the tightest gap past a stopped citizen was ${lane.tight} m at (${lane.where})`
+    + ` — the player is 0.72 m and 0.95 is ct/gap.ts's comfortably-passable line`);
+}
 
 console.log(errs.length ? `\npage errors:\n${errs.slice(0, 3).join('\n')}` : '\nno page errors');
 console.log(fails ? `\n${fails} CHECK(S) FAILED` : '\nall crowd checks pass');
