@@ -1578,10 +1578,12 @@ export function buildProps(ctx: CtxBuild): Props {
   const bezelX = -0.035 - BZP / 2;           // just off the ad face, which is -x
   for (const by of [BZ / 2, BACK_LEN - BZ / 2]) {          // top and bottom rails
     const bar = new THREE.Mesh(new THREE.BoxGeometry(BZP, BZ, BENCH_L), benchM);
+    bar.userData.benchBezel = 'rail';
     bar.position.set(bezelX, by, 0); backGrp.add(bar);
   }
   for (const bz of [-1, 1]) {                              // the two stiles
     const bar = new THREE.Mesh(new THREE.BoxGeometry(BZP, BACK_LEN, BZ), benchM);
+    bar.userData.benchBezel = 'stile';
     bar.position.set(bezelX, BACK_LEN / 2, bz * (BENCH_L / 2 - BZ / 2));
     backGrp.add(bar);
   }
@@ -1596,6 +1598,12 @@ export function buildProps(ctx: CtxBuild): Props {
   const adPlate = new THREE.Mesh(
     new THREE.BoxGeometry(0.004, BACK_LEN - 2 * BZ - 2 * AD_M, BENCH_L - 2 * BZ - 2 * AD_M),
     [flatT2(adT), flatT2(adT), benchM, benchM, benchM, benchM]);
+  // NAMED, not left to be found by shape. An auditor went looking for the ad
+  // panel world-wide and could not find it — reasonably, because it searched
+  // for "a 1.8 x 0.6 upright board" and this is a 1.73 x 0.37 plate 4 mm thick,
+  // reclined 12 degrees with the backrest. A failed SEARCH is worse than a
+  // failed shot: it cannot tell "not there" from "not shaped how I guessed".
+  adPlate.userData.benchAd = "TONY'S PIZZA";
   adPlate.position.set(-0.035 - 0.002, BACK_LEN / 2, 0);
   backGrp.add(adPlate);
   backGrp.userData.groundProp = 'bench back';

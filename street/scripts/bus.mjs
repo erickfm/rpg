@@ -132,6 +132,65 @@ if (mode === 'walk' || mode === 'all') {
   if (!all) { console.error('\nWALK FAILED — the stop blocks the lane'); process.exit(1); }
 }
 
+if (mode === 'bench' || mode === 'all') {
+  // THE TWO QUESTIONS AN AUDIT COULD NOT ANSWER FROM OUTSIDE, answered as
+  // numbers. It went looking for the ad panel by shape and could not find it —
+  // it searched for "a 1.8 x 0.6 upright board" and the panel is a 1.73 x 0.37
+  // plate 4 mm thick, reclined 12 degrees with the backrest. props.ts stamps
+  // it now, so this is a lookup rather than a shape hunt.
+  const r = await page.evaluate(() => {
+    const sc = window.__ct.scene();
+    const box = (o) => {
+      o.updateWorldMatrix(true, false);
+      const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox();
+      const bb = g.boundingBox, m = o.matrixWorld.elements;
+      const acc = { minX: 1e9, maxX: -1e9, minY: 1e9, maxY: -1e9, minZ: 1e9, maxZ: -1e9 };
+      for (const sx of [bb.min.x, bb.max.x]) for (const sy of [bb.min.y, bb.max.y])
+        for (const sz of [bb.min.z, bb.max.z]) {
+          const x = m[0]*sx + m[4]*sy + m[8]*sz + m[12];
+          const y = m[1]*sx + m[5]*sy + m[9]*sz + m[13];
+          const z = m[2]*sx + m[6]*sy + m[10]*sz + m[14];
+          acc.minX = Math.min(acc.minX, x); acc.maxX = Math.max(acc.maxX, x);
+          acc.minY = Math.min(acc.minY, y); acc.maxY = Math.max(acc.maxY, y);
+          acc.minZ = Math.min(acc.minZ, z); acc.maxZ = Math.max(acc.maxZ, z);
+        }
+      return acc;
+    };
+    let ad = null; const bez = []; const legs = []; const slats = [];
+    sc.traverse((o) => {
+      if (o.userData?.benchAd) ad = box(o);
+      if (o.userData?.benchBezel) bez.push(box(o));
+      if (o.userData?.groundProp === 'bench leg') legs.push(box(o));
+      if (o.userData?.groundProp === 'bench seat') slats.push(box(o));
+    });
+    return { ad, bez, legs, slats };
+  });
+  console.log('\nthe bench ad and legs, measured:');
+  if (!r.ad) { console.error('  FAIL no material stamped benchAd — the panel is not there'); process.exit(1); }
+  const inner = {
+    minY: Math.max(...r.bez.map((b2) => b2.minY).filter((v) => v < r.ad.minY + 0.2)),
+    maxY: Math.min(...r.bez.map((b2) => b2.maxY).filter((v) => v > r.ad.maxY - 0.2)),
+    minZ: Math.max(...r.bez.filter((b2) => b2.maxZ < r.ad.minZ + 0.2).map((b2) => b2.maxZ)),
+    maxZ: Math.min(...r.bez.filter((b2) => b2.minZ > r.ad.maxZ - 0.2).map((b2) => b2.minZ)),
+  };
+  const marginZ0 = r.ad.minZ - inner.minZ, marginZ1 = inner.maxZ - r.ad.maxZ;
+  const framed = r.bez.length === 4 && marginZ0 > 0.005 && marginZ1 > 0.005;
+  console.log(`  ad panel at x ${r.ad.minX.toFixed(3)}…${r.ad.maxX.toFixed(3)}, ` +
+    `${(r.ad.maxZ - r.ad.minZ).toFixed(2)} m long, ${(r.ad.maxY - r.ad.minY).toFixed(2)} m tall`);
+  console.log(`  bezel bars: ${r.bez.length}; clear margin to the artwork ` +
+    `${marginZ0.toFixed(3)} m / ${marginZ1.toFixed(3)} m at the ends`);
+  console.log(`  ${framed ? 'OK  ' : 'FAIL'} the ad is FRAMED by a four-sided bezel, not clipped by it`);
+  // legs: their tops must be INSIDE the slat, sharing no plane with it
+  const slatTop = Math.max(...r.slats.map((s2) => s2.maxY));
+  const slatBot = Math.min(...r.slats.map((s2) => s2.minY));
+  const legTop = Math.max(...r.legs.map((l) => l.maxY));
+  const buried = legTop > slatBot + 0.002 && legTop < slatTop - 0.002;
+  console.log(`  seat slats span y ${slatBot.toFixed(3)}…${slatTop.toFixed(3)}; ` +
+    `leg tops at ${legTop.toFixed(3)}`);
+  console.log(`  ${buried ? 'OK  ' : 'FAIL'} leg tops are BURIED in the slat — coplanar with nothing (GOTCHAS §6)`);
+  if (!framed || !buried) process.exitCode = 1;
+}
+
 if (mode === 'stop' || mode === 'all') {
   // Does the 42 actually CALL at the stop? Not something a still can show, so
   // sample the run: it should brake from 6.4 m/s, come to rest with its front
