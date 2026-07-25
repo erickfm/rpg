@@ -13,6 +13,12 @@
 //   2. RIGHT AND LEFT  — stepping off that aisle either way puts you into a car
 //   3. OFFICE IN BACK  — the cabin stands in the rear third, not at the front
 //
+// And one more from an earlier round of the same conversation:
+//
+//   "why is there just signs floating"
+//
+//   4. NOTHING FLOATS  — every banner on the frontage has fence behind it
+//
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-layout.mjs
 //        --selftest    move the office to the front, require this to go red
 import { chromium } from 'playwright';
@@ -26,10 +32,12 @@ await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);
 
-// Where the lot is, and where its office is — asked, not remembered.
+// Where the lot is, its office, its banners and its fence — asked, not
+// remembered.
 const site = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, office = null;
+  const banners = [], fence = [];
   s.traverse((o) => {
     if (!o.isMesh) return;
     let mod = null; for (let q = o; q; q = q.parent) if (q.userData?.mod) { mod = q.userData.mod; break; }
@@ -41,8 +49,15 @@ const site = await p.evaluate(() => {
     const g = o.geometry?.parameters;
     if (g && Math.abs(g.width - 3.0) < 0.01 && Math.abs(g.height - 2.7) < 0.01
           && Math.abs(g.depth - 4.6) < 0.01) office = [e[12], e[14]];
+    // banners: alpha-cut planes 0.62 m tall carrying a wide, short canvas
+    const im = o.material?.map?.image;
+    if (g && g.height && Math.abs(g.height - 0.62) < 0.001 && im && im.height === 30)
+      banners.push({ x: e[12], y: e[13], z: e[14], w: g.width });
+    // the chain-link panels: a 24x24 wire tile, and only the fence uses it
+    if (im && im.width === 24 && im.height === 24 && g && g.width)
+      fence.push({ x: e[12], y: e[13], z: e[14], w: g.width, h: g.height });
   });
-  return x0 > x1 ? null : { x0, x1, z0, z1, office };
+  return x0 > x1 ? null : { x0, x1, z0, z1, office, banners, fence };
 });
 if (!site) { console.error('no meshes stamped `lot` — is the lot in this world?'); process.exit(1); }
 const zMid = (site.z0 + site.z1) / 2;
@@ -91,6 +106,21 @@ else {
   const frac = (ox - site.x0) / depth;
   console.log(`  office at x ${ox.toFixed(1)}, ${(frac * 100).toFixed(0)}% of the way back`);
   if (frac < 0.66) FAIL.push(`the office is not in the back — ${(frac * 100).toFixed(0)}% back, wanted 66%+`);
+}
+
+// 4 — NOTHING FLOATS: every banner has fence behind it.
+// The banners are hung on the mesh; the complaint was that they were hung on
+// nothing. A banner is "attached" if a chain-link panel spans its z and its
+// height — which is the geometric form of what the user was looking at.
+console.log(`  frontage: ${site.banners.length} banners, ${site.fence.length} chain-link panels`);
+if (!site.banners.length) FAIL.push('no banners on the frontage at all');
+if (!site.fence.length) FAIL.push('no chain-link on the frontage at all');
+for (const bn of site.banners) {
+  const backed = site.fence.some((f) =>
+    Math.abs(f.x - bn.x) < 0.6
+    && bn.z > f.z - f.w / 2 - 0.1 && bn.z < f.z + f.w / 2 + 0.1
+    && bn.y > f.y - f.h / 2 - 0.1 && bn.y < f.y + f.h / 2 + 0.1);
+  if (!backed) FAIL.push(`a banner at z ${bn.z.toFixed(1)}, y ${bn.y.toFixed(2)} has no fence behind it`);
 }
 
 await b.close();

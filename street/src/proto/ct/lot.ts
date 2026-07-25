@@ -879,15 +879,36 @@ function buildLot(o: {
         dither(g, W, H, 30);
       });
     };
-    const banners: [string, string, string, number][] = [
-      ['BUY HERE PAY HERE', '#c0392f', '#f2ead0', 0.16],
-      ['NO CREDIT NO PROBLEM', '#25406b', '#f2ead0', 0.40],
-      ['99 DOWN WE FINANCE', '#e0a81c', '#2a2118', 0.63],
-      ['SE HABLA ESPANOL', '#2f7a4a', '#f2ead0', 0.85],
+    // ON THE RUNS, AND STACKED — not spread evenly along the frontage.
+    //
+    // They were placed at 0.16 / 0.40 / 0.63 / 0.85 of the frontage, which
+    // spaces them nicely and puts TWO OF THE FOUR across the mouth, hanging on
+    // nothing. That is the user's original complaint — *"why is there just
+    // signs floating"* — still half true after the fence was built, because
+    // the fence deliberately stops at the gateway and the banners never learnt
+    // that. scripts/lot-layout.mjs found it by asking whether each banner has
+    // chain-link behind it.
+    //
+    // The fence is two runs of 6.66 m and the banners are 3.2–3.9 m wide, so
+    // two side by side do not fit on one run. Two ROWS do, which is what a lot
+    // with more slogans than fence actually does: the mesh is 1.43 m tall and
+    // a banner is 0.62, so an upper and a lower row sit clear of each other and
+    // of both rails.
+    //
+    // `run` is 1 for the north run and −1 for the south; `row` is 0 upper,
+    // 1 lower. Positions derive from the SAME `runs` the fence is built from,
+    // so a banner cannot end up off the mesh again.
+    const banners: [string, string, string, number, number][] = [
+      ['BUY HERE PAY HERE', '#c0392f', '#f2ead0', 1, 0],
+      ['NO CREDIT NO PROBLEM', '#25406b', '#f2ead0', 1, 1],
+      ['99 DOWN WE FINANCE', '#e0a81c', '#2a2118', -1, 0],
+      ['SE HABLA ESPANOL', '#2f7a4a', '#f2ead0', -1, 1],
     ];
-    for (const [words, bg, ink, at] of banners) {
+    for (const [words, bg, ink, run, row] of banners) {
       const w = words.length * 0.17 + 0.5;
-      const y = MESH_TOP - 0.06 - 0.31, z = zN - span * at;
+      const [rz0, rz1] = run > 0 ? runs[1] : runs[0];
+      const z = (rz0 + rz1) / 2;
+      const y = MESH_TOP - 0.06 - 0.31 - row * 0.70;
       // TWO sheets, not one DoubleSide plane, because the two faces are not
       // the same picture. DoubleSide can only ever show one texture from both
       // sides; printed vinyl has ink on the front and a ghost of it on the
