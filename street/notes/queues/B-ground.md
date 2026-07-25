@@ -164,6 +164,32 @@ then commit, then re-read this file before starting the next.
 
 ## Next
 
+- [ ] **The bus bench is backwards, and it is not at a bus stop.** The user:
+      *"bench for bus is messed up, like the back of the bus is in the front?
+      doesnt make sense"*. Ref: `shots/user-bench2.png`
+
+      You rebuilt this once (`ec94ed4`) and the brief then was "the ad panel
+      must BE the backrest". It is — but it now reads wrong for two reasons
+      and they compound:
+
+      1. **The backrest barely rises above the seat.** In the shot the TONY'S
+         PIZZA panel and the seat slats sit at almost the same height, so
+         instead of a bench with a back you see a flat red board with a plank
+         in front of it. Nothing tells you which side you sit on. A real
+         backrest tops out around 0.85 m against a 0.45 m seat — that
+         difference has to be obvious in silhouette.
+      2. **It is shoved against the building, parallel to the wall, nowhere
+         near the stop.** A bus bench belongs at the KERB, facing the road, so
+         a person waiting can see the bus coming — and it belongs beside the
+         stop pole, which currently stands several metres away with nothing
+         around it. Right now the bench and the stop read as two unrelated
+         objects, which is most of why it "doesn't make sense".
+
+      Put the bench and the pole together at the kerb, seat facing the street,
+      ad panel as a full-height backrest behind the sitter. Keep TONY'S PIZZA;
+      the ad concept was approved. Leave the 2 m walking lane clear behind it
+      (`GOTCHAS.md` §9) — walk past it to prove it, do not eyeball it.
+
 - [ ] **Move your `[E]` spots out of `crosstown.ts` and into your own module.**
       `CtxBuild` has `ctx.spot({...})` and `ctx.player` (`x()`, `z()`, `gy()`,
       `jumpTo()`). Register the spots belonging to `ct/props.ts` from inside it
