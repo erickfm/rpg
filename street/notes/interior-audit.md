@@ -1196,3 +1196,50 @@ now tested first.
 - **Two rooms have doors centred on both sides**, which makes the rule vacuous
   for them. A check that cannot fail on 2 of 8 rooms should say so rather than
   pass them.
+
+## Round 19b — I validated the method by looking, and my TAX flag dissolves
+
+I published the door-side table with the caveat that the interior-x ↔ street-z
+mapping was **assumed, not derived**. Tested it the way the user would — four
+frames, two rooms, inside and out.
+
+| | inside (facing the front wall) | outside (facing the facade) | |
+|---|---|---|---|
+| **DINER** | door on the **RIGHT** | door on the **LEFT** | disagree — **correct** |
+| **A-1 TAX** | door on the **RIGHT** | door on the **LEFT** | disagree — **correct** |
+
+**A-1 TAX is correct.** My data method called it `** SAME SIDE **`. It is not.
+
+### The artefact, exactly
+
+I compared raw signed offsets along **z** for buildings on **opposite sides of
+the street**. Facing a west facade you look toward −x; facing an east facade you
+look toward +x — so *"left"* corresponds to **opposite z directions** on the two
+walks. My comparison needed a flip for `facePos`'s sign and did not have one.
+
+The tell was in my own table and I did not read it:
+
+> **Every room I called correct — burger, diner, thrift — is on the WEST walk.
+> The only room I flagged, tax, is on the EAST.** That is the signature of a
+> missing side flip, not of a defect.
+
+Which is the third time this session the discriminating column was already on my
+screen: `canvas ÷ wMeters = 8.00` before the masonry retraction, `planeDist`
+measured from a band's centre, and now `facePos`.
+
+### What stands
+
+- **Mainline's PAWN report is unchallenged.** My method produced no valid
+  contradiction — my only conflicting verdict was an artefact, and pawn itself
+  reads `centred — undecidable` either way.
+- **The caveat did its job.** I published this as *"a second opinion with an
+  unvalidated assumption; where we conflict, believe the one that walks"* — and
+  then went and validated it, and the assumption was wrong. Nobody was routed
+  anywhere on it.
+- **The coverage point survives**: eight of eight rooms can be asked this
+  question from published data in twenty seconds. The comparison just needs the
+  street-side flip before any verdict from it is worth anything.
+
+I am not fixing the script to add the flip and re-publishing verdicts. Mainline
+has a walking harness for this and it is the authority; a second method that has
+already been wrong once should earn its way back before it contradicts anyone.
