@@ -15,7 +15,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 import { reportWorld } from './lib/which-world.mjs';
-const OUT = process.argv[2] ?? 'shots/look';
+const OUT = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/look';
 mkdirSync(OUT, { recursive: true });
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
 const at = (dx, dz) => Math.atan2(dx, -dz);

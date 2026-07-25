@@ -12,7 +12,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
-const out = process.argv[2] ?? 'shots/curbcut';
+const out = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/curbcut';
 mkdirSync(out, { recursive: true });
 const at = (dx, dz) => Math.atan2(dx, -dz);
 const b = await chromium.launch();

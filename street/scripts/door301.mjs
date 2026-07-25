@@ -12,7 +12,11 @@ import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
-const outDir = process.argv[2] ?? 'shots/door301';
+// argv[2] is NOT the output directory — argv is a mix of flags and paths, and
+// `--selftest` landed here as a folder name and got a directory called
+// `--selftest/` full of screenshots. Take the first argument that is not a
+// flag.
+const outDir = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'shots/door301';
 mkdirSync(outDir, { recursive: true });
 
 // These MIRROR ct/apartment.ts. That is a copy, and a copy goes stale silently:
