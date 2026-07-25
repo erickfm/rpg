@@ -233,6 +233,20 @@ worth stating rather than assuming: `phaseM` and `deadM` are both
 `MeshBasicMaterial({ color })` with **no map** (`ct/vice.ts:444-446`), so their
 colours are their appearance and comparing them is like with like.
 
+**Re-checked after `f29e7355e`**, which withdrew a *ground-vs-ground* comparison
+its author had called sound — *"two different grounds at one instant share
+nothing of the kind"*, road texMean 0.2401 against walk 0.4162 on identical
+tints. That is the neighbouring error to mine and it lands one line from where
+they were correcting themselves about tints, so it was worth not taking my own
+word for it.
+
+It does not reach the chase check. Their pair is textured-vs-textured with
+*different* textures, so the tints hide a real gap; mine is flat-vs-flat with **no
+texture on either side**, so there is nothing to hide. Verified at source rather
+than from the constructor call: the only `.map =` assignments in `ct/vice.ts` are
+`hazeM` and `lowM` at 1045 and 1053, neither of them a bulb. **Give a bulb a
+texture and this stops being true**, which is why the condition is written down.
+
 **Clean — nothing to change.** Third time I have swept my own instruments against
 a fault someone else published this session, and the first time the answer was
 already right.
