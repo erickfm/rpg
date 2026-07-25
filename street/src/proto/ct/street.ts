@@ -94,20 +94,26 @@ export function buildStreet(o: {
   // and more glass than anyone else because you are supposed to see in.
   const burgerFront = (brick: string, wM: number) => {
     const W = Math.max(64, Math.round(wM * 8));
+    // RED AND BEIGE, asked for twice. The scheme is these three: the fascia
+    // red, the beige it is trimmed and lettered in, and the warm-but-not-
+    // yellow interior. It used to run red + mustard (#e8a02a stripe, #f2d24a
+    // letters, #e8c26a interior) and the mustard is what read as the second
+    // colour — so all three moved together. Change them here, nowhere else.
+    const BB_RED = '#c8302a', BB_BEIGE = '#e6dcc6', BB_INSIDE = '#e0d2b4';
     return pixTex(W, SB, (g) => {
       g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      g.fillStyle = '#c8302a'; g.fillRect(0, 0, W, 16);              // the big red fascia
-      g.fillStyle = '#e8a02a'; g.fillRect(0, 16, W, 3);              // mustard accent stripe
+      g.fillStyle = BB_RED; g.fillRect(0, 0, W, 16);                 // the big red fascia
+      g.fillStyle = BB_BEIGE; g.fillRect(0, 16, W, 3);               // beige accent stripe
       g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 19, W, 2);
-      g.fillStyle = '#f2d24a'; g.font = 'bold 9px monospace';
+      g.fillStyle = BB_BEIGE; g.font = 'bold 9px monospace';
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText('BURGER BARN', W / 2, 8);
       g.fillStyle = '#141820'; g.fillRect(4, 21, W - 8, 31);
-      g.fillStyle = '#e8c26a'; g.fillRect(6, 23, W - 12, 25);        // lit right through
-      g.fillStyle = '#8a5a2a';                                       // booths in silhouette
+      g.fillStyle = BB_INSIDE; g.fillRect(6, 23, W - 12, 25);        // lit right through
+      g.fillStyle = '#8a6a4a';                                       // booths in silhouette
       for (let x = 10; x < W - 14; x += 17) { g.fillRect(x, 33, 7, 12); g.fillRect(x + 9, 36, 5, 9); }
-      g.fillStyle = '#c8302a'; g.fillRect(Math.round(W * 0.62), 23, 12, 12);  // menu board
-      g.fillStyle = '#f2d24a'; g.fillRect(Math.round(W * 0.62) + 2, 26, 8, 1);
+      g.fillStyle = BB_RED; g.fillRect(Math.round(W * 0.62), 23, 12, 12);     // menu board
+      g.fillStyle = BB_BEIGE; g.fillRect(Math.round(W * 0.62) + 2, 26, 8, 1);
       g.fillRect(Math.round(W * 0.62) + 2, 29, 8, 1);
       g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), 23, 4, 25);   // door
       g.fillStyle = '#d8d0c0';                                        // window decals
