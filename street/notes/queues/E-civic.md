@@ -14,6 +14,38 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Two on the library front: the fanlight, and the name.**
+
+      · **The fanlight glass is a rectangle inside an arch.** Ref:
+        `shots/user-librarystairs.png`. The pale glass above the doors is a
+        flat rectangular panel that runs past the arched head on both sides,
+        so the arch reads as drawn ON the glass rather than the glass being
+        cut to fit it. The user: *"the glass here needs to be cropped to fit
+        within the arch. like the windows above the doors i mean."* Crop it to
+        the arch profile — you already have `archFill`, which is the same
+        stepped curve, so mask the glass with it rather than drawing a
+        rectangle behind it. Check the other arched openings on the elevation
+        for the same fault.
+
+      · **PVBLIC LIBRARY is obscured.** Ref: `shots/user-libname.png`. The
+        engraved frieze sits directly under the projecting cornice and the
+        dentil course, and from the street — which is the only place it is
+        read from — the cornice shadows it and the dentils crowd it, so the
+        lettering is barely legible. It is the building's name and the most
+        deliberate thing on the facade.
+        Fix by separation rather than by shouting: give the frieze more clear
+        band above and below the letters, and move it far enough clear of the
+        cornice that nothing overlaps. If it still will not read, the letters
+        can grow — but check the engraved effect survives, since the cut
+        shadow and lit lower lip are what make it read as carved rather than
+        painted, and those are fixed pixel offsets that do not scale.
+        Judge it from the pavement looking up, which is the shot the user
+        sent.
+
+      **Note the stairs are not yours to fix** — you were right to leave
+      `COURT.climbable` false. Builder F is wiring `courtGround` into the
+      entry point's ground picker now.
+
 - [ ] **The park's edge is a mess and its furniture is in the walking lane.**
       The user: *"park border with sidewalk looks fucked up, we gotta fix this.
       in general we should not encroach the already cramped sidewalk"*. Ref:

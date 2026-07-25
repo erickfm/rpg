@@ -28,6 +28,39 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+- [ ] **WIRE `courtGround` — the library steps cannot be climbed until you
+      do.** The user, in capitals: *"I WANT TO BE ABLE TO WALK UP THOSE
+      STAIRS."*
+
+      Builder E built the steps and the floor picker and then deliberately
+      left them SOLID, because the picker has to be consulted by the entry
+      point and that is not E's file. Its comment in `ct/civic.ts` says so
+      exactly:
+
+      > *"the steps and the picker have to arrive together… Open treads with
+      > nothing answering for their height is not 'not climbable yet' — it is
+      > walking through stone at pavement level, which is worse than what it
+      > replaces. So the geometry only opens when the floor is there to catch
+      > you."*
+
+      That was the right call. `COURT.climbable` is `false` and stays false
+      until `crosstown.ts` asks `courtGround` for the floor — and the ground
+      picker currently only consults `apt.ground` and the interior belt.
+
+      Add it to the picker and set the flag. Then **walk up and back down**,
+      and check the hysteresis: E's note says the drawn steps ride within half
+      a riser of the flight's own gradient, so a wrong dispatch order will
+      either sink you or stop you climbing (`GOTCHAS.md` §7).
+
+      **This is the seventh time a builder has finished work that could not
+      reach the world because the last line lives in a desk-owned file** —
+      casino, hotel, tax office, park, lot, pawn, and now this. Your automatic
+      incorporation covers CONSTRUCTION; this one is the GROUND PICKER, which
+      is a second dispatch point with the same defect. When you generalise the
+      contract, cover it: a module that owns floor height should be able to
+      register that fact the way it registers a spot or a frame hook, without
+      anyone editing the entry point.
+
 - [ ] **Generalise your glob so ANY new world module is in the world by
       existing.** The user: *"can you just make the new module incorporation
       automatic?"* — and they are right, this beats a check that fails.
