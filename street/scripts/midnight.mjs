@@ -11,6 +11,11 @@
 // carrying three meanings — real glazing, self-lit signage, and decals that
 // ought to dim — and `34a3ed95` has since split it.
 //
+// GOTCHAS §34 — the population assertion below is vacuously true on an empty
+// world, and the CONTROL is what stops that being a pass. Watched: drop the
+// alley flank stamp and the control fails with "no graded reference material
+// found" while the main assertion still says everything is fine.
+//
 // WHAT THIS ASSERTS, AND WHOSE. Only `mod=street`. A material that is visible,
 // bright, and neither `userData.graded` nor `userData.selfLit` has nothing on
 // record saying whether that is deliberate. For my module that is a defect, and

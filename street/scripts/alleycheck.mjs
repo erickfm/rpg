@@ -38,6 +38,10 @@
 //      patched brick north, sooty and damp south. One shared texture is the
 //      same defect the user raised twice about the bank's return.
 //
+// GOTCHAS §34: the three counts below — one rear wall, one floor, two flanks —
+// are the population guards. Watched failing by dropping the stamps: "0 stamped
+// 'end'".
+//
 // HOW IT FINDS THEM. ct/street.ts stamps `userData.alley` = 'end' | 'floor' |
 // 'flank'. It does not infer from position, because inferring from position is
 // exactly what made scripts/shells.mjs read this end wall as a 1.2 m building.

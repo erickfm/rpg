@@ -201,7 +201,8 @@ const rescan = ghosts.length
   : null;
 
 say(scan.length > 300, 'the walk was actually sampled', `${scan.length} cross-sections`);
-// A CHECK THAT CAN PASS ON AN EMPTY WORLD HAS ASSERTED NOTHING. 32d9d6521 found
+// A CHECK THAT CAN PASS ON AN EMPTY WORLD HAS ASSERTED NOTHING — GOTCHAS §34,
+// which this was one of the instances behind. 32d9d6521 found
 // five of its own that could; this was one of mine. The scan walks fixed bands
 // of x whatever the world contains, so with no colliders every section reads as
 // clear and all three assertions below go green — measured, by making
