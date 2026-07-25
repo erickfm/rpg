@@ -134,15 +134,27 @@ the library, where the same scan finds a 0.85 m climb immediately.
 
 # NOT CHECKED — and why
 
-**Car lot interior** (office at the back, rows either side): **still NOT
-CHECKED, and my attempt to fix it is what exposed the flaw above.** I scanned
-for standable ground east of the facade; it returned 746 "standable" points over
-x 7 … 34, z −8 … −59.8, which is most of the block behind the shopfronts and
-obviously wrong. Aiming a camera at the middle of that box
-(`shots/lot-lot-across.png`) gives a screen filled edge to edge with brick — the
-camera is *inside a building*. So the box is an artifact of the weak landing
-check, not a measurement of the lot, and **I am not reporting a location for
-it.** With the collider-based standability test it is a two-minute job.
+**Car lot — now SEEN, from the street.** `shots/lot2-mid.png`, standing on the
+road looking east. Chain-link fence with a gate, pennant bunting across the
+frontage, **"$99 DOWN WE FINANCE" · "NO CREDIT NO PROBLEM" · "BUY HERE PAY
+HERE"** banners, a pennant flag on a pole, a floodlight mast, a "TODAY ONLY"
+A-board, a traffic cone, and a row of cars behind the fence. The
+*"typical car price signs yknow?"* and *"lot sleaze"* asks are visibly **DONE**,
+and it reads as a used car lot at a glance.
+
+**What I still cannot confirm: whether you can walk IN, and whether the office
+is at the back with rows either side.** Every camera I have is from outside the
+fence looking in. The standability scan cannot answer it either, and the reason
+is itself a finding — see below.
+
+**Finding: there is no collision east of x ≈ 15.** The building colliders in
+`crosstown.ts` run `FACE − 0.3 … FACE + 8`, i.e. x 6.7 … 15. Past that the
+collider list is empty, so a collider-based standability scan reports the entire
+region x 15 … 36 as standable — 2137 points in **one connected component**
+running x 7.5 … 36, z −6 … −62. That is why it cannot separate "the lot" from
+"inside a building": as far as collision is concerned, there is nothing out
+there. It is only the shells' geometry that stops you, and only for the first
+8 m.
 
 **Blade signs from the east** — `pl-P2` shows the ACES marquee and blade reading
 correctly, and the ORPHEUS blade at a distance where I cannot honestly call the
