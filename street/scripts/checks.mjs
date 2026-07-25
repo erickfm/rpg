@@ -215,6 +215,12 @@ const CHECKS = [
   // there at 45 s.
   ['G-vice-walk',      'do GOLDEN ACES and HOTEL ORPHEUS light the street, and read right from both sides?', true, [], true],
   ['G-rooms-walk',     'can you enter all four rooms, and does each keeper look AT you?', true, [], true],
+  // E's courtyard walk, registered by A after checks-registered caught it — it
+  // had been sitting unregistered for the best part of an hour. Measured on an
+  // idle preview: 77 s, so SLOW by the same rule as the rest of this block.
+  // It walks the sacred 2 m lane, the courtyard mouth and the flight, which are
+  // the three things GOTCHAS §1 and §9 say a screenshot cannot answer.
+  ['E-walk',           'is the library courtyard walkable, in and out and up the steps?', true, [], true],
   // H's walking and watching suites. These drive or watch in real time, so they
   // belong in the SLOW tier for the reason stated above — a runtime tier, not an
   // importance tier. Measured: crowd-walk 45 s, jitter 73 s, side-walk 77 s,

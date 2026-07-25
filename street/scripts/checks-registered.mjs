@@ -22,6 +22,15 @@ const EXEMPT = {
   'checks': 'is the runner itself',
   'canfail': 'is a mutation harness that RUNS the checks; registering it would recurse',
   'check-artifact': 'needs dist/artifact.html packed first — it is the second half of `npm run artifact`',
+  // Exits 3 without PAIRED — it compares a NIGHT capture against a DAY one, so
+  // a single invocation cannot answer its own question. Same shape as
+  // check-artifact: the second half of a two-step command, not a check the
+  // runner can call. Registering it would have added a permanent exit-3 row,
+  // which reads as WRONG WORLD and would have taught everyone to ignore that
+  // banner — the failure the banner exists to prevent.
+  //   JSON_OUT=1 NIGHT_H=13 node scripts/floatlit.mjs > day.json
+  //   PAIRED=day.json node scripts/floatlit.mjs
+  'floatlit': 'needs a paired DAY capture first — one invocation cannot answer it; see its header',
 };
 
 const dir = 'scripts';
