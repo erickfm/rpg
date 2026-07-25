@@ -1455,7 +1455,17 @@ export function buildStreet(o: {
         g.fillRect(dx - dw / 2, dy - dw / 2 + Math.round((k * dw) / 4), dw, Math.max(1, am(0.02)));
       }
     }), 'ground');
-    const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), new THREE.MeshBasicMaterial({ map: alleyFloorT }));
+    // wet(), like the open sites' ground at the top of this file. The alley is
+    // ROOFLESS — rain falls in it — but this floor was never registered, so it
+    // only ever got the grading path's wetK and not updateRain's treatment.
+    // Measured from a fixed camera, 13:00 dry against 15:00 raining, mean pixel
+    // luminance of the surface:
+    //
+    //     road          67.1 -> 28.0   -58%
+    //     alley floor   54.4 -> 51.1    -6%
+    //
+    // The street soaked and the alley stayed dry, in the same downpour.
+    const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), wet(new THREE.MeshBasicMaterial({ map: alleyFloorT })));
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     floorA.userData.alley = 'floor';

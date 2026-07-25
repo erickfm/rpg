@@ -64,6 +64,17 @@ await shot('night-rear', () => window.__ct.warp(-10.0, -40.2, -Math.PI / 2, 0, 0
 await shot('night-dumpster', () => window.__ct.warp(-9.0, -40.2, Math.atan2(-2.2, -2.0), 0, 0));
 await setClock(page, 13, 0);
 
+// ── and in the rain ───────────────────────────────────────────────────────
+//
+// 15:00 rains (props.ts rainAt is deterministic on the absolute hour), and the
+// alley floor is registered wet() now. Before that it darkened 6% in a downpour
+// that took the road down 58%: the street soaked, the alley dry.
+await setClock(page, 15, 0);
+await page.waitForTimeout(6000);          // wet fast, but not instant
+await shot('rain-in', () => window.__ct.warp(-8.2, -40.2, Math.atan2(-3, 0.2), 0, 0.05));
+await shot('rain-floor', () => window.__ct.warp(-10.5, -40.5, -Math.PI / 2, 0, -0.45));
+await setClock(page, 13, 0);
+
 // ── playtest reply shots (fixed names the user looks at) ──────────────────
 const named = async (file, fn, wait = 400) => {
   await page.evaluate(fn); await page.waitForTimeout(wait);
