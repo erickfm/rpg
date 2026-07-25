@@ -184,6 +184,14 @@ export const SHOP_BAND_H = 4.2;
 export const SHOP_MULT = 2;
 
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
+  // Characters are selected HERE, by name, not by a `front:` flag in
+  // ct/street.ts's roster. The shopfront system decides how a named shop
+  // looks — that is the boundary the consolidation drew — so giving another
+  // shop a character is a change in this file and nowhere else. (BURGER BARN,
+  // PAWN and A-1 TAX still come in through the roster flag; both routes work,
+  // and the flag can retire whenever D is next in that file.)
+  if (name === 'DINER') return dinerFront(brick, name, wMeters);
+  if (name === 'THRIFT') return thriftFront(brick, name, awning, wMeters);
   const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H, ppm } = surf;
   const m = (v: number) => Math.round(v * ppm);
@@ -229,6 +237,67 @@ export function shopfrontTex(brick: string, name: string, awning: string, wMeter
   });
 }
 
+// ═══════════════════════ SHOPFRONT DEPTH VOCABULARY ═══════════════════════
+//
+// What separates a shopfront that reads as BUILT from one that reads as
+// wallpaper is depth — and at 16 px/m depth is not geometry. A 50 mm fascia
+// lip is a third of a texel; modelling it would be invisible. It is SHADING,
+// and it has to be consistent or it reads as noise.
+//
+// Light in this world falls from above and slightly LEFT — the convention
+// resGroundTex's doorcase and facadeTex's sills already use. So:
+//
+//   a recess     head dark · cill lit · LEFT jamb dark · right jamb lit
+//   a projection top edge lit · a cast shadow on whatever it overhangs
+//
+// Composing every front from these also stops them drifting apart again,
+// which is what put this on the queue: change the vocabulary once and all
+// four move together.
+const HI = 'rgba(255,255,255,0.20)';
+const SH = 'rgba(0,0,0,0.30)';
+const DP = 'rgba(0,0,0,0.55)';
+
+interface Band { m: (v: number) => number; W: number; H: number }
+
+/** the shopfront opening, set back from the brick it is cut into */
+function reveal(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number) {
+  const d = Math.max(1, s.m(0.15));
+  g.fillStyle = DP; g.fillRect(x, y, w, d);                     // head, casting down
+  g.fillStyle = SH; g.fillRect(x, y + d, d, h - d);             // left jamb, turned from the light
+  g.fillStyle = HI; g.fillRect(x + w - d, y + d, d, h - d);     // right jamb, turned into it
+  g.fillStyle = HI; g.fillRect(x, y + h - d, w, d);             // cill
+}
+
+/** a band standing proud of the wall: lit along the top, casting underneath */
+function proud(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, fill: string) {
+  const d = Math.max(1, s.m(0.09));
+  g.fillStyle = fill; g.fillRect(x, y, w, h);
+  g.fillStyle = HI; g.fillRect(x, y, w, d);
+  g.fillStyle = DP; g.fillRect(x, y + h, w, d);                 // the shadow it throws
+}
+
+/** plate glass: a raking sky reflection off the top-left, and the dark of the
+ *  room behind. Never a flat black rectangle — that is the tell. */
+function glazed(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, room: string) {
+  g.fillStyle = room; g.fillRect(x, y, w, h);
+  g.fillStyle = 'rgba(150,172,190,0.18)';                       // sky, raking across
+  for (let i = 0; i < h; i++) {
+    const run = Math.round(w * 0.42 * (1 - i / h));
+    if (run > 0) g.fillRect(x, y + i, run, 1);
+  }
+  g.fillStyle = 'rgba(180,200,215,0.10)'; g.fillRect(x, y, w, Math.max(1, s.m(0.1)));
+}
+
+/** upright glazing bars. Real shopfronts are divided; one sheet reads as a hole. */
+function mullions(g: CanvasRenderingContext2D, s: Band, x: number, y: number, w: number, h: number, bays: number, col: string) {
+  const t = Math.max(1, s.m(0.07));
+  for (let i = 1; i < bays; i++) {
+    const mx = x + Math.round((w * i) / bays);
+    g.fillStyle = col; g.fillRect(mx, y, t, h);
+    g.fillStyle = SH; g.fillRect(mx + t, y, 1, h);
+  }
+}
+
 // ── three shopfronts that are NOT the block default ─────────────────────
 //
 // Everything else on the street wears shopfrontTex, which is the right
@@ -255,35 +324,81 @@ const bandSurf = (wM: number) => {
 };
 // 1997 fast food: saturated brand colours, a fascia twice the usual depth,
 // and more glass than anyone else because you are supposed to see in.
+/**
+ * BURGER BARN — plastic and backlit plexi, the loudest thing on the block.
+ *
+ * RED AND BEIGE, asked for twice. It ran red + mustard for three "fixes"
+ * because the mustard was spread over four separate fills and nobody found
+ * them all; they are now the two constants below and nowhere else.
+ *
+ * The character is that everything is a moulded plastic part bolted on: a
+ * light box rather than a painted board, a plexi menu strip, a kick rail that
+ * has been scuffed by trolleys and feet since it went up.
+ */
 export const burgerFront = (brick: string, wM: number) => {
-  const { surf, W, H: SB, bx, by } = bandSurf(wM);
-  // RED AND BEIGE, asked for twice. The scheme is these three: the fascia
-  // red, the beige it is trimmed and lettered in, and the warm-but-not-
-  // yellow interior. It used to run red + mustard (#e8a02a stripe, #f2d24a
-  // letters, #e8c26a interior) and the mustard is what read as the second
-  // colour — so all three moved together. Change them here, nowhere else.
-  const BB_RED = '#c8302a', BB_BEIGE = '#e6dcc6', BB_INSIDE = '#e0d2b4';
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const RED = '#c8302a', BEIGE = '#e6dcc6', PLASTIC = '#b8ada0';
+  // The room behind is DIM. A shopfront lit as bright as the sky reads as a
+  // cream slab — which is what the first pass did. Glass is dark, and the
+  // lit things inside it (the ceiling, the menu box) are what you see.
+  const ROOM = '#4a3c2e', CEIL = '#c9a45e', FLOOR = '#2e2620';
   return surf.paint((g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-    g.fillStyle = BB_RED; g.fillRect(0, 0, W, by(16));              // the big red fascia
-    g.fillStyle = BB_BEIGE; g.fillRect(0, by(16), W, by(3));        // beige accent stripe
-    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, by(19), W, by(2));
-    g.fillStyle = BB_BEIGE; g.font = `bold ${by(9)}px monospace`;
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // the light box: a plastic tray standing off the brick, lit from inside,
+    // so its face is FLAT and even and its edges are hard — the opposite of
+    // the painted board on the thrift shop
+    const fy = m(0.14), fh = m(1.05);
+    proud(g, surf, 0, fy, W, fh, RED);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, fy + m(0.1), W, m(0.5));  // even internal glow
+    g.fillStyle = BEIGE; g.fillRect(0, fy + fh - m(0.14), W, m(0.14));              // trim rail
+    g.fillStyle = BEIGE; g.font = `bold ${m(0.62)}px monospace`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('BURGER BARN', W / 2, by(8));
-    g.fillStyle = '#141820'; g.fillRect(bx(4), by(21), W - bx(8), by(31));
-    g.fillStyle = BB_INSIDE; g.fillRect(bx(6), by(23), W - bx(12), by(25));   // lit right through
-    g.fillStyle = '#8a6a4a';                                       // booths in silhouette
-    for (let x = bx(10); x < W - bx(14); x += bx(17)) { g.fillRect(x, by(33), bx(7), by(12)); g.fillRect(x + bx(9), by(36), bx(5), by(9)); }
-    g.fillStyle = BB_RED; g.fillRect(Math.round(W * 0.62), by(23), bx(12), by(12));   // menu board
-    g.fillStyle = BB_BEIGE; g.fillRect(Math.round(W * 0.62) + bx(2), by(26), bx(8), 1);
-    g.fillRect(Math.round(W * 0.62) + bx(2), by(29), bx(8), 1);
-    g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), by(23), bx(4), by(25)); // door
-    g.fillStyle = '#d8d0c0';                                        // window decals
-    g.fillRect(bx(9), by(25), bx(10), by(4)); g.fillRect(W - bx(22), by(25), bx(12), by(4));
-    g.fillStyle = '#8a3a24'; g.fillRect(bx(4), by(48), W - bx(8), by(4));    // stallriser
-    g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(bx(4), by(48), W - bx(8), 1);
-    dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillText('BURGER BARN', W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = BEIGE; g.fillText('BURGER BARN', W / 2, fy + fh / 2);
+    // the opening, set back from the brick
+    const ox = m(0.4), oy = fy + fh + m(0.22), ow = W - m(0.8), oh = H - oy - m(0.05);
+    g.fillStyle = '#2a2622'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.85);
+    glazed(g, surf, gx, gy, gw, gh, ROOM);
+    // the room reads in three horizontal zones — lit ceiling, the furniture
+    // you can pick out against it, dark floor. That structure is what makes a
+    // window look INTO something instead of being a panel of paint.
+    g.fillStyle = CEIL; g.fillRect(gx, gy, gw, m(0.34));                            // strip lights on the ceiling
+    g.fillStyle = 'rgba(201,164,94,0.35)'; g.fillRect(gx, gy + m(0.34), gw, m(0.5)); // its spill
+    g.fillStyle = FLOOR; g.fillRect(gx, gy + gh - m(0.5), gw, m(0.5));              // floor, in shadow
+    g.fillStyle = '#f2ead0'; g.fillRect(gx + m(0.3), gy + m(0.45), gw - m(0.6), m(0.42)); // backlit menu box
+    g.fillStyle = RED;
+    for (let x = gx + m(0.55); x < gx + gw - m(0.7); x += m(1.1)) g.fillRect(x, gy + m(0.54), m(0.55), m(0.1));
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(gx + m(0.3), gy + m(0.87), gw - m(0.6), m(0.1)); // its underside
+    // booths: dark against the lit ceiling, at human scale, with the gap
+    // between each pair reading as an aisle
+    g.fillStyle = '#241c16';
+    for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) {
+      g.fillRect(x, gy + m(1.15), m(0.95), m(1.35));                                // seat back
+      g.fillRect(x + m(1.05), gy + m(1.5), m(0.55), m(1.0));                        // table + far seat
+    }
+    g.fillStyle = 'rgba(201,164,94,0.22)';                                          // rim light off the ceiling
+    for (let x = gx + m(0.5); x < gx + gw - m(1.2); x += m(2.3)) g.fillRect(x, gy + m(1.15), m(0.95), m(0.08));
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.2)), PLASTIC);
+    // the door, in its own reveal, with a push bar
+    const dw = m(1.15), dx = gx + Math.round(gw * 0.5) - dw / 2;
+    g.fillStyle = '#3a3630'; g.fillRect(dx, gy, dw, gh);
+    glazed(g, surf, dx + m(0.1), gy + m(0.12), dw - m(0.2), gh - m(0.24), '#cbbfa6');
+    g.fillStyle = PLASTIC; g.fillRect(dx + m(0.15), gy + m(1.15), dw - m(0.3), m(0.1));  // push bar
+    g.fillStyle = SH; g.fillRect(dx + m(0.15), gy + m(1.25), dw - m(0.3), 1);
+    // stallriser: a plastic kick rail, scuffed where feet and trolleys reach
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#8a3a24');
+    g.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let i = 0; i < Math.round(wM * 1.6); i++) {
+      const sx = ox + Math.floor(Math.random() * (ow - m(0.4)));
+      g.fillRect(sx, ry + rh - m(0.16) - Math.floor(Math.random() * m(0.12)), m(0.2), m(0.06));
+    }
+    g.fillStyle = 'rgba(30,24,20,0.28)'; g.fillRect(ox, H - m(0.12), ow, m(0.12));  // road dirt at the foot
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
   });
 };
 // the pawnshop: barred glass, a hand-painted board, and the three balls
@@ -317,37 +432,246 @@ export const pawnFront = (brick: string, wM: number) => {
 };
 // the tax office: no sign worth the name, just a banner cable-tied over the
 // brick and paper taped inside the glass. The least designed thing here.
+/**
+ * A-1 TAX SERVICE — the least designed thing on the block, and deliberately.
+ *
+ * Its character is that nobody ever commissioned a shopfront: a vinyl banner
+ * cable-tied over the brick, vertical blinds permanently half-shut, one piece
+ * of gold-leaf lettering applied by somebody who did know what they were
+ * doing, and a strip light on all day. The depth is all in the blinds — a
+ * plane of them behind glass is the whole read.
+ */
 export const taxFront = (brick: string, wM: number) => {
-  const { surf, W, H: SB, bx, by } = bandSurf(wM);
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const NAVY = '#2c4a7a', GOLD = '#b89a4e', BLIND = '#cfd2c8', ALU = '#8f938f';
   return surf.paint((g) => {
-    g.fillStyle = brick; g.fillRect(0, 0, W, SB);
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
-    // a vinyl banner, sagging a texel in the middle, grommets at the corners
-    const bw = W - bx(14);
-    g.fillStyle = '#d8d2c4'; g.fillRect(bx(7), by(3), bw, by(9));
-    g.fillStyle = '#d8d2c4'; g.fillRect(bx(9), by(12), bw - bx(4), 1);   // the sag
-    g.fillStyle = '#2c4a7a'; g.font = `bold ${by(7)}px monospace`;
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText('A-1 TAX SERVICE', W / 2, by(7));
+    // the banner: cloth, so it sags and its edges are soft — no light box
+    const by0 = m(0.2), bh = m(0.78), bx0 = m(0.45), bw = W - m(0.9);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bx0, by0 + bh - m(0.06), bw, m(0.2));  // shadow on brick
+    g.fillStyle = '#d8d2c4'; g.fillRect(bx0, by0, bw, bh);
+    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(bx0, by0 + bh - m(0.14), bw, m(0.14)); // the sag
     g.fillStyle = 'rgba(0,0,0,0.35)';
-    for (const gx of [bx(8), W - bx(9)]) { g.fillRect(gx, by(4), 1, 1); g.fillRect(gx, by(10), 1, 1); }
-    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(bx(7), by(13), bw, by(2));
-    g.fillStyle = '#141820'; g.fillRect(bx(5), by(15), W - bx(10), by(37));
-    g.fillStyle = '#cfd6c8'; g.fillRect(bx(7), by(17), W - bx(14), by(31));  // flat fluorescent interior
-    g.fillStyle = 'rgba(255,255,255,0.5)';
-    for (let x = bx(12); x < W - bx(12); x += bx(22)) g.fillRect(x, by(19), bx(14), by(2)); // tube fittings
-    // paper signs taped up inside, slightly off square
-    const notes = ['REFUNDS', 'FAST', 'E-FILE'];
-    g.font = `bold ${by(4)}px monospace`;
+    for (const gx of [bx0 + m(0.12), bx0 + bw - m(0.18)]) {                             // grommets
+      g.fillRect(gx, by0 + m(0.1), m(0.09), m(0.09));
+      g.fillRect(gx, by0 + bh - m(0.2), m(0.09), m(0.09));
+    }
+    g.fillStyle = NAVY; g.font = `bold ${m(0.5)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('A-1 TAX SERVICE', W / 2, by0 + bh / 2);
+    // the opening
+    const ox = m(0.4), oy = by0 + bh + m(0.3), ow = W - m(0.8), oh = H - oy - m(0.05);
+    g.fillStyle = '#232019'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(0.22), gy = oy + m(0.22), gw = ow - m(0.44), gh = oh - m(0.75);
+    glazed(g, surf, gx, gy, gw, gh, '#3a4038');
+    // vertical blinds, half shut and not quite even — the whole character
+    const step = m(0.22);
+    for (let x = gx; x < gx + gw; x += step) {
+      const lean = (Math.floor((x - gx) / step) % 5 === 0) ? m(0.05) : 0;
+      g.fillStyle = BLIND; g.fillRect(x, gy, Math.max(1, step - m(0.07)) , gh);
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x + step - m(0.09) + lean, gy, Math.max(1, m(0.06)), gh);
+    }
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(gx, gy, gw, m(0.5));           // strip light above them
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(gx, gy + gh - m(0.45), gw, m(0.45)); // floor shadow below
+    g.fillStyle = ALU; g.fillRect(gx, gy + m(0.62), gw, m(0.09));                     // the blind head rail
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.2)), ALU);
+    // gold leaf on the glass — the one piece of real signwriting here
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.font = `bold ${m(0.42)}px serif`;
+    g.fillText('REFUNDS', gx + gw * 0.5 + 1, gy + m(1.5) + 1);
+    g.fillStyle = GOLD; g.fillText('REFUNDS', gx + gw * 0.5, gy + m(1.5));
+    g.fillStyle = 'rgba(184,154,78,0.5)'; g.fillRect(gx + gw * 0.5 - m(0.9), gy + m(1.75), m(1.8), m(0.06));
+    // paper taped inside the glass, off square
+    const notes = ['E-FILE', 'FAST', 'WALK-IN'];
+    g.font = `bold ${m(0.26)}px monospace`;
     notes.forEach((n, i) => {
-      const nx = bx(10) + i * Math.round((W - bx(26)) / 3), ny = by(26) + (i % 2) * by(6);
-      g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, bx(18), by(8));
-      g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(nx, ny + by(8), bx(18), 1);
-      g.fillStyle = '#8a2c22'; g.fillText(n, nx + bx(9), ny + by(4));
+      const nx = gx + m(0.5) + i * Math.round((gw - m(1.4)) / 3), ny = gy + m(2.0) + (i % 2) * m(0.4);
+      g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, m(1.1), m(0.5));
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(nx, ny + m(0.5), m(1.1), m(0.06));
+      g.fillStyle = 'rgba(255,255,255,0.35)';                                          // tape at the corners
+      g.fillRect(nx - m(0.05), ny - m(0.05), m(0.2), m(0.12));
+      g.fillRect(nx + m(0.95), ny - m(0.05), m(0.2), m(0.12));
+      g.fillStyle = '#8a2c22'; g.fillText(n, nx + m(0.55), ny + m(0.28));
     });
-    g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.5), by(17), bx(4), by(31));   // door
-    g.fillStyle = '#6a665e'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
-    dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
+    // aluminium door, its own reveal, kick plate scuffed
+    const dw = m(1.1), dx = gx + Math.round(gw * 0.72);
+    g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
+    g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
+    glazed(g, surf, dx, gy + m(0.15), dw, gh - m(0.9), '#3a4038');
+    g.fillStyle = BLIND; g.fillRect(dx, gy + m(0.15), dw, gh - m(0.9));
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(dx, gy + m(0.15), dw, gh - m(0.9));
+    g.fillStyle = '#6e726e'; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.75));           // kick plate
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.75), dw, m(0.06));
+    g.fillStyle = GOLD; g.fillRect(dx + dw - m(0.22), gy + m(1.5), m(0.08), m(0.3));   // handle
+    // stallriser: painted board, grubby at the pavement
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#6a665e');
+    g.fillStyle = 'rgba(30,26,20,0.30)'; g.fillRect(ox, H - m(0.16), ow, m(0.16));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * THE DINER — chrome, glass block and vinyl. The one front on the block with
+ * any 1950s left in it, forty years on and grubby with it.
+ *
+ * Character: everything is a MADE metal part — a stainless fascia with
+ * horizontal flutes, a glass-block panel at one end that glows and shows
+ * nothing, a counter with stools you can read through the glass, and a chrome
+ * kick rail that is the only genuinely shiny thing at street level.
+ */
+export const dinerFront = (brick: string, nm: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const STEEL = '#9aa0a4', STEEL_D = '#6e747a', CREAM = '#e8e2d2', VINYL = '#8a2f34';
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // stainless fascia, fluted — horizontal lines are what read as pressed
+    // metal rather than painted board, and they cost two texels each
+    const fy = m(0.15), fh = m(1.0);
+    proud(g, surf, 0, fy, W, fh, STEEL);
+    for (let y = fy + m(0.12); y < fy + fh - m(0.1); y += m(0.16)) {
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, y, W, 1);
+      g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, y + 1, W, 1);
+    }
+    g.fillStyle = STEEL_D; g.fillRect(0, fy + fh - m(0.16), W, m(0.16));
+    // applied letters: a shadow under them is what makes them sit ON the metal
+    g.font = `bold ${m(0.58)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillText(nm, W / 2 + m(0.06), fy + fh / 2 + m(0.08));
+    g.fillStyle = VINYL; g.fillText(nm, W / 2, fy + fh / 2);
+    const ox = m(0.35), oy = fy + fh + m(0.28), ow = W - m(0.7), oh = H - oy - m(0.05);
+    g.fillStyle = '#26221c'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    // glass block at the left end: lit, translucent, shows nothing through it
+    const bw = Math.min(m(2.2), Math.round(ow * 0.22));
+    const gy = oy + m(0.22), gh = oh - m(0.8);
+    g.fillStyle = '#b9c4c2'; g.fillRect(ox + m(0.2), gy, bw, gh);
+    for (let y = gy; y < gy + gh; y += m(0.42)) {
+      for (let x = ox + m(0.2); x < ox + m(0.2) + bw; x += m(0.42)) {
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x, y, m(0.36), m(0.36));
+        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x, y + m(0.36), m(0.42), m(0.05));
+        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x + m(0.36), y, m(0.05), m(0.42));
+      }
+    }
+    // the window: counter, stools, a row of booths behind
+    const gx = ox + m(0.2) + bw + m(0.25), gw = ow - (gx - ox) - m(0.2);
+    glazed(g, surf, gx, gy, gw, gh, '#3a2f26');
+    g.fillStyle = '#d8b46a'; g.fillRect(gx, gy, gw, m(0.3));                       // warm ceiling
+    g.fillStyle = 'rgba(216,180,106,0.28)'; g.fillRect(gx, gy + m(0.3), gw, m(0.55));
+    g.fillStyle = CREAM; g.fillRect(gx, gy + m(1.55), gw, m(0.16));                // the counter top
+    g.fillStyle = STEEL_D; g.fillRect(gx, gy + m(1.71), gw, m(0.12));
+    g.fillStyle = '#1e1a16'; g.fillRect(gx, gy + m(1.83), gw, m(0.55));            // under the counter
+    for (let x = gx + m(0.45); x < gx + gw - m(0.3); x += m(0.85)) {               // stools
+      g.fillStyle = VINYL; g.fillRect(x, gy + m(1.34), m(0.34), m(0.22));
+      g.fillStyle = STEEL; g.fillRect(x + m(0.13), gy + m(1.56), m(0.08), m(0.5));
+    }
+    g.fillStyle = '#2a221c';                                                        // booths at the back
+    for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.5));
+    g.fillStyle = 'rgba(216,180,106,0.2)';
+    for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.06));
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.6)), STEEL_D);
+    // door, half-glazed, with a chrome push plate
+    const dw = m(1.05), dx = gx + gw - dw - m(0.15);
+    g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(1.0), '#3a2f26');
+    g.fillStyle = STEEL; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.85));
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.07));
+    g.fillStyle = CREAM; g.fillRect(dx + m(0.12), gy + m(1.15), dw - m(0.24), m(0.1));
+    // chrome kick rail — the shiniest thing at street level, and dulled at the
+    // very bottom where the pavement throws grit at it
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, STEEL);
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(ox, ry + m(0.06), ow, m(0.08));
+    g.fillStyle = STEEL_D; g.fillRect(ox, ry + rh - m(0.14), ow, m(0.14));
+    g.fillStyle = 'rgba(30,26,22,0.34)'; g.fillRect(ox, H - m(0.14), ow, m(0.14));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
+  });
+};
+
+/**
+ * THE THRIFT STORE — handwritten card and a window with too much in it.
+ *
+ * The opposite of the burger barn in every way: nothing here was ordered from
+ * a catalogue. A painted board that has faded unevenly, price cards taped up
+ * at angles, a window crammed to the glass with mismatched stock, and tape
+ * over a crack nobody is going to fix.
+ */
+export const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
+  const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H } = surf, m = surf.m;
+  const BOARD = awning || '#7a5a2c', CARD = '#e4dcc4', INK = '#3a3026';
+  const STOCK = ['#7a6a52', '#5a6a72', '#8a5a4a', '#6a7a5a', '#7a5a6a', '#8a7a52'];
+  return surf.paint((g) => {
+    g.fillStyle = brick; g.fillRect(0, 0, W, H);
+    surf.courses(g);
+    // a painted board, sun-bleached unevenly across its length
+    const fy = m(0.18), fh = m(0.92);
+    proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
+    for (let x = m(0.25); x < W - m(0.25); x += m(0.5)) {
+      g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin(x * 0.021))})`;
+      g.fillRect(x, fy, m(0.5), fh);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(m(0.25), fy + fh - m(0.1), W - m(0.5), m(0.1));
+    g.font = `bold ${m(0.55)}px monospace`;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillText(nm, W / 2 + 1, fy + fh / 2 + 1);
+    g.fillStyle = CARD; g.fillText(nm, W / 2, fy + fh / 2);
+    const ox = m(0.35), oy = fy + fh + m(0.3), ow = W - m(0.7), oh = H - oy - m(0.05);
+    g.fillStyle = '#221e18'; g.fillRect(ox, oy, ow, oh);
+    reveal(g, surf, ox, oy, ow, oh);
+    const gx = ox + m(0.2), gy = oy + m(0.2), gw = ow - m(0.4), gh = oh - m(0.7);
+    glazed(g, surf, gx, gy, gw, gh, '#332b24');
+    // CROWDED: racks at the back, furniture and boxes stacked to the glass.
+    // The crowding is the character — a tidy thrift window is a lie.
+    g.fillStyle = '#c9a45e'; g.fillRect(gx, gy, gw, m(0.22));                        // one bare bulb's worth
+    let seed = 0x2f6a1b;
+    const r = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+    for (let x = gx + m(0.1); x < gx + gw - m(0.3); x += m(0.34)) {                  // a rail of clothes
+      g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
+      g.fillRect(x, gy + m(0.5), m(0.3), m(0.9) + Math.round(r() * m(0.35)));
+    }
+    g.fillStyle = '#4a4038'; g.fillRect(gx, gy + m(0.44), gw, m(0.07));             // the rail itself
+    for (let x = gx + m(0.2); x < gx + gw - m(0.6); x += m(0.95)) {                 // stacked stock below
+      const bh2 = m(0.4) + Math.round(r() * m(0.5)), bw2 = m(0.45) + Math.round(r() * m(0.3));
+      g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
+      g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, bh2);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, m(0.06));
+    }
+    g.fillStyle = '#2a2420'; g.fillRect(gx, gy + gh - m(0.28), gw, m(0.28));        // floor
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.5)), '#4a4038');
+    // hand-lettered price cards taped INSIDE the glass, none of them straight
+    const cards: [number, number, string][] = [[0.16, 0.30, '50c'], [0.44, 0.16, 'ALL 1$'], [0.72, 0.36, 'SALE']];
+    g.font = `bold ${m(0.3)}px monospace`;
+    for (const [fx, fy2, txt] of cards) {
+      const cx = gx + Math.round(gw * fx), cy = gy + Math.round(gh * fy2);
+      const cw = m(1.3), ch = m(0.6);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(cx + m(0.06), cy + m(0.08), cw, ch);
+      g.fillStyle = CARD; g.fillRect(cx, cy, cw, ch);
+      g.fillStyle = 'rgba(255,255,255,0.30)';                                        // tape, one corner only
+      g.fillRect(cx - m(0.06), cy - m(0.06), m(0.28), m(0.14));
+      g.fillStyle = INK; g.fillText(txt, cx + cw / 2, cy + ch / 2);
+    }
+    // tape over a crack, running off the mullion — nobody is fixing this
+    g.strokeStyle = 'rgba(226,220,204,0.5)'; g.lineWidth = Math.max(1, m(0.07));
+    g.beginPath();
+    g.moveTo(gx + gw * 0.62, gy + m(0.3));
+    g.lineTo(gx + gw * 0.68, gy + m(1.1));
+    g.lineTo(gx + gw * 0.64, gy + m(1.9));
+    g.stroke();
+    // door and a grubby stallriser
+    const dw = m(1.05), dx = gx + m(0.2);
+    g.fillStyle = '#4a4038'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#332b24');
+    g.fillStyle = '#5a4e42'; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.8));
+    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.06));
+    const ry = gy + gh, rh = H - ry - m(0.05);
+    proud(g, surf, ox, ry, ow, rh, '#5e5142');
+    g.fillStyle = 'rgba(28,24,18,0.34)'; g.fillRect(ox, H - m(0.2), ow, m(0.2));
+    dither(g, W, H, Math.round(wM * SHOP_BAND_H * 5));
   });
 };
 
