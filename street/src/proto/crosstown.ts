@@ -508,6 +508,8 @@ export function makeCrosstown(): Proto {
     walkers: () => crowd.walkers(),
     // test affordance: route two named nodes of the walkable network
     netRoute: (a: string, b: string) => crowd.netRoute(a, b),
+    // paint any Look — how notes/CITIZEN-STYLE.md's contact sheet is made
+    person: (look: any) => crowd.paint(look),
     pos: () => [rig.pos.x, rig.pos.y, rig.pos.z, apt.gy()],
     // test affordance: "is my [E] spot inside something solid?" is the single
     // most expensive question in this project — GOTCHAS §8, and the reason the

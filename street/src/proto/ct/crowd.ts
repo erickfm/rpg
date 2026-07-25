@@ -118,6 +118,10 @@ export interface Crowd {
    *  screenshot of one angle cannot answer it (scripts/feet-check.mjs). */
   views: () => { vx: number; vz: number; col: number; mirror: boolean; yaw: number;
     moving: boolean; doing: string; to: string }[];
+  /** Paint an arbitrary Look and hand back the sheet as a data URL. This is how
+   *  notes/CITIZEN-STYLE.md's contact sheet is generated — an agent needs to SEE
+   *  the range of people the atlas makes, not read adjectives about them. */
+  paint: (look: Look) => string;
   /** test affordance: route between two named nodes of the walkable network, so
    *  a probe can assert the graph CONNECTS rather than waiting to observe a trip
    *  that depends on a random destination draw (scripts/crowd-net.mjs) */
@@ -484,6 +488,10 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading
+    paint: (look) => {
+      const t = citizenAtlas(look);
+      return (t.image as HTMLCanvasElement).toDataURL();
+    },
     netRoute: (fromId, toId) => {
       const a = net.nodes.findIndex((n) => n.id === fromId);
       const b = net.nodes.findIndex((n) => n.id === toId);
