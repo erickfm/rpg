@@ -1,60 +1,58 @@
 # BLOCKED — builder A
 
-## `ct/interior.ts` must move to world coordinates, and only F can do it
+## For builder F, via the desk: the facade side is ready and waiting
 
-**What I need:** F to migrate `ct/interior.ts` off the deprecated local fields.
+**What I need:** F's rooms to call `declareDoorWorld()`.
 **From whom:** builder F, through the desk.
 
-The frontage descriptor now publishes world coordinates (`e1a355bf`), which is
-what the tax-office mirror needs. My half is done and verified. **F's half is
-the one the user will actually see**, because the room is the other face of the
-wall.
+The authority is flipped (`3627d1d6`). **The room decides; my painter obeys.**
+Nothing declares yet, so every facade is unchanged today — F's declarations are
+what make the doors actually move.
 
-### What F consumes today, and why each is the bug
-
-```
-interior.ts:457   F.doorOffsetM * (W / F.frontageM)        local offset
-interior.ts:466   F.glazingStartM / F.glazingEndM           local offsets
-interior.ts:709   fr.side < 0 ? fr.cz + fr.w/2 - F.doorCentreM
-                              : fr.cz - fr.w/2 + F.doorCentreM
-```
-
-Line 709 is the important one. That is **the mirror, hand-written from
-`side`** — the assumption the user asked us to stop carrying around. It happens
-to be right today for the two orientations it was written against, and it is
-wrong the moment a room faces a way its author did not picture.
-
-### What it becomes
+### The call
 
 ```ts
-import { frontageWorld } from './tex-world';
+import { declareDoorWorld } from './tex-world';
 
-const F = frontageWorld(spec.name);          // by name; null means a typo
-// the door, in world coordinates, on F.axis
-F.doorWorld
-// → the room's own local space, mirroring as ITS facing implies, computed
-//   from the room's own orientation rather than from `side`
+// AT MODULE SCOPE — not inside the build function
+declareDoorWorld('A-1 TAX', /* world z of this room's door */ -14.2);
 ```
 
-`uAt(F, world)` is there if a room needs a fraction across the frontage.
+- **Name** is the roster name exactly, the same string `frontageOf` dispatches
+  character on (`'A-1 TAX'`, `'DINER'`, `'BURGER BARN'`, `'THRIFT'`, `'PAWN'`…).
+- **Value** is a WORLD coordinate on the frontage's axis: world **z** for a
+  main-block shop, world **x** for a side-street one. Not an offset. Not a side.
+- **Module scope matters.** `interior.ts` eagerly glob-imports the rooms and
+  `crosstown.ts` imports `interior.ts`, so a module-scope call lands before
+  `buildStreet` runs and the painter reads it while painting. A call inside the
+  room's build function is too late — the facade is already painted, and it
+  will silently keep its own door position, which looks exactly like the
+  feature not working.
+
+The value is clamped onto the frontage, so a wrong number cannot paint a door
+into the neighbouring shop — it will sit at the edge instead, which is visible.
+
+### What F gets back
+
+`frontageWorld(name)` returns the same number the painter used, plus the
+frontage's world extent, the facade plane, which way is outdoors, and `uDir`.
+The room applies its own mirror from its own facing — that is the whole point,
+and it is why a room flipped later keeps working.
+
 `glazingBottomM` is the `sill:` the rooms hand-type today.
 
-**The point is that the room applies its own mirror from its own facing.** Then
-a room later flipped keeps working, which is the whole reason for the redesign.
+### Still outstanding from before
 
-### Why I have not done it myself
+`ct/interior.ts` consumes the deprecated local fields — `doorOffsetM`,
+`doorCentreM`, `glazingStartM`, `glazingEndM` — and at **interior.ts:709**
+hand-writes the mirror off `side`. That is the assumption the redesign removes.
+I have left the fields in place so F's build keeps working; **I will delete
+them the moment the desk says F is across.**
 
-`ct/interior.ts` is F's, F is live in it, and it is not shopfront geometry so my
-mandate does not reach it. I also deliberately did **not** delete the deprecated
-fields: that would break F's build, and `live-integrate.sh` drops a builder
-whose build fails, so F's work would vanish from the world the user is playing.
+### One thing I changed in D's file, which must not be reverted
 
-**Delete `doorCentreM` / `doorOffsetM` / `glazingStartM` / `glazingEndM` from
-`Frontage` once F has migrated** — I will do it the moment the desk says F is
-across, and until then they are a live invitation to author the mirror twice.
-
-### Verify it the way the user did
-
-Stand inside, note which side the door is on, walk out, turn round, confirm it
-swapped. For every room, not just the tax office — that is what was asked. I can
-verify the facade side of that today; the room side needs F's change first.
+`shopfrontRelief` now runs **above** the painter in both placement functions in
+`ct/street.ts`. It registers where the frontage is in the world, and the painter
+needs that registration to turn a world coordinate into a texel column. Move it
+back below and every facade silently falls back to its own door position. There
+is a comment saying so at both sites.
