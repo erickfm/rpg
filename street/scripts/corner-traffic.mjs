@@ -85,7 +85,11 @@ check(startedS && endedE, `entered heading ${dirs[0]}, left heading ${dirs[dirs.
 const finalZ = ne[ne.length - 1][2];
 check(Math.abs(finalZ + 101.5) < 0.12, `settled in the eastbound lane — z=${finalZ.toFixed(2)} (want -101.50)`);
 const finalX = ne[ne.length - 1][1];
-check(finalX > 20, `carried on east down the side street to x=${finalX.toFixed(1)}`);
+// x > 12 rather than 20: the junction exit is at x=5, so anything past 12 has
+// carried on down the side street, which is what this asserts. 20 was a distance
+// the car happened to cover in the window before it learned to brake for
+// pedestrians on the crossing — a timing threshold masquerading as a behaviour.
+check(finalX > 12, `carried on east down the side street to x=${finalX.toFixed(1)}`);
 
 // CONTINUITY: no jump. At 8.5 m/s and ~40 ms samples a step is ~0.34 m; a
 // snapped heading or a seam between segments would show as a big one.

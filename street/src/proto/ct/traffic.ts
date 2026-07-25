@@ -380,7 +380,19 @@ export function buildTraffic(ctx: CtxBuild, o: TrafficOpts): Traffic {
       // 5 m at 8.5 m/s — enough that the first cut of this drove up to 0.12 m
       // from somebody standing on the crossing. So this also clamps the speed
       // itself, below, rather than only asking for it.
-      const room = block === Infinity ? Infinity : Math.max(0, block - STOP_GAP);
+      // Measured from the NOSE, not from the centre. `blockedAt` reports how far
+      // along the path the obstruction is, and the path carries the vehicle's
+      // CENTRE — so a car whose centre is 2.5 m from somebody already has its
+      // bumper in them. Subtracting halfLen is the whole fix.
+      //
+      // Without it the braking curve settled at sqrt(2·a·(block − STOP_GAP)) with
+      // block bottoming out around 2.5, i.e. a permanent 1.87 m/s creep — and then
+      // the collider did the rest: ct/fp.ts now pushes the player OUT of a box it
+      // is inside, so the car shunted the player 3 m down the road, the path
+      // cleared, and it drove on. Two correct behaviours composing into a car
+      // that shoves pedestrians along the street.
+      const nose = (v.obj.userData.halfLen ?? 2.5) as number;
+      const room = block === Infinity ? Infinity : Math.max(0, block - nose - STOP_GAP);
       const safe = room === Infinity ? Infinity : Math.sqrt(2 * A_BRAKE * room);
       if (block < Infinity) { want = Math.min(want, safe); v.held += dt; } else v.held = 0;
       v.spd += (want - v.spd) * Math.min(1, dt * 1.7);
