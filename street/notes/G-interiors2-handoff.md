@@ -626,3 +626,65 @@ this note is the justification `RoomSpec` asks for.
 
 Two failed attempts is the "two failures then delete" line, so I have stopped
 rather than trying a third conversion.
+
+---
+
+# AUDIT-TRIAGE items 3 and 4 — both closed, with evidence
+
+The triage is the auditor's file so I have not edited it. Recording the outcomes
+here instead, because item 4 in particular will re-raise itself otherwise.
+
+## Item 3 — "four of eight rooms have no keeper" — STALE, no change needed
+
+`interior-audit.md` R16 sampled people at x ≈ 442, 517, 678, 1002 — slabs 0, 1,
+3, 7. My four rooms are slabs 2, 4, 5 and 6, so on that measurement mine were
+the empty half.
+
+Re-measured by counting the 160×128 citizen atlas per slab: **8 of 8 occupied,
+one keeper each.** `scripts/people-walk.mjs` agrees — 8 figures, no hand-drawn
+planes. R16 predates the hotel clerk, the pawnbroker and the tax preparer
+landing, so nobody was missing and nobody was added.
+
+The real thing under it was consistency: the casino had moved to the kit's
+`room.person()` while my other three still called `citizenSprite` and wired
+their own `ctx.onFrame`. All four use the wrapper now (`9748be19`).
+
+## Item 4 — casino ceiling — RAISED 2.50 → 2.90 (`73aeb2a4`)
+
+**And the audit's own tool still reports the old value.** `scripts/rooms.mjs`
+prints `ceiling 2.5` for slab 2 on a freshly restarted dev server, while the
+geometry on that same server measures:
+
+```
+kit ceiling plane   y = 2.90
+mirror panel plane  y = 2.88
+wall boxes top out  y = 2.90
+```
+
+So slab 2 is 2.90 m and `rooms.mjs` disagrees. It takes the highest flat
+horizontal (`h < 0.25 && w > 2 && d > 2`), which both of those planes satisfy, so
+either the filter is not matching them or the slab window is picking a different
+room. **Whoever owns `rooms.mjs` should check it before the next triage pass**,
+or item 4 will keep coming back against a room that has already been fixed.
+
+Also worth knowing for anyone raising a room's height: six fittings in the
+casino were typed as absolute heights and would have been stranded 0.4 m low —
+the valances, four bulb runs and the cage sign. They are measured down from
+`room.H` now. A room that hangs things off its ceiling should express them that
+way from the start.
+
+## Item 0 — masonry density — `ct/vice.ts` is NOT a contributor
+
+Item 0 routes to `masonry()` "+ callers", and vice.ts is a caller: two shopfront
+bands at `SHOP_MULT` and the casino's skin panel at mult 1. Checked with
+`scripts/masonry.mjs`:
+
+```
+stamps checkable against geometry: 236
+stamps that DISAGREE with their face by >0.6 px/m: 0
+declared OFF the 8/16 grid: 1  — 32 px/m at (8.3, 0.1, -77), not mine
+```
+
+`scripts/seampairs.mjs` reports no disagreeing pair anywhere on the side street
+either; everything it lists is the bodega corner around x 8–10. So the two vice
+facades can be excluded from that pattern.
