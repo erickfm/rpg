@@ -71,6 +71,21 @@ export function buildBodega(ctx: CtxBuild): void {
     // recess, so the same radius that covers a flat frontage falls short here
     // by exactly the depth of the bay. Nearest neighbouring spot is 5.4 m
     // away, so there is no overlap to buy at this size.
+    //
+    // THERE IS A CEILING AT ~1.90 AND I DID NOT CHECK IT WHEN I WENT TO 1.8.
+    // ct/interior.ts:859 guards against stepping out INTO the trigger you just
+    // used — "that has shipped once" — with `outGap < doorR + 0.35`. Measured
+    // here: you enter at the bay and come out at (5.88, -97.12), which is
+    //
+    //     2.248 m from this spot's centre
+    //     r 1.5 needed 1.85   margin +0.398
+    //     r 1.8 needed 2.15   margin +0.098   <- where it stands
+    //     r > 1.898 trips the guard
+    //
+    // So the centreline fix spent three quarters of the margin. It passes, and
+    // it is the right radius, but anyone reaching for 2.0 to solve some future
+    // approach will trip a guard whose whole point is that the failure it
+    // catches is invisible until someone walks it. Move the way-out first.
     door: { r: 1.8, at: DOOR.at, width: DOOR.width },
   });
 
