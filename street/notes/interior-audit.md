@@ -653,3 +653,26 @@ report.
 - PAWN is still source-only; three of ten rooms unwritten.
 - Light judged side by side in round 7 for three rooms; the three newly wired
   ones have **not** been through that comparison.
+
+---
+
+# Round 9 — the bodega's migration to `ctx.spot` is behaviour-neutral
+
+Base `add-stick-and-city98` @ `a4c64a82`. One interior change since round 8:
+`5e1d58cd`, "Bodega's two door spots register themselves" — the last pre-kit
+room moved off hand-written `SPOTS` entries in `crosstown.ts` and onto the kit's
+`ctx.spot`.
+
+Re-ran the trigger harness. **No regression:** the bodega measures **0.03 m
+closest / 1.07 m margin (97 %) / centre reachable**, with the correct
+`[E] into the BODEGA` prompt — identical to round 8, before the migration.
+
+Worth recording rather than assuming, because this is the migration that removes
+the last hand-wired entry point from `crosstown.ts`, and the failure mode if it
+had gone wrong is the one this audit has met twice: a door that still looks
+right in source and cannot be reached in the world.
+
+All other triggers unchanged from round 8, including THRIFT still at 0.27 / 0.78
+/ blocked (finding 17 — the prop against the facade is still there).
+
+**Pawn is still unwired.**
