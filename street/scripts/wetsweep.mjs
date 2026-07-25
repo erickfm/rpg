@@ -147,3 +147,22 @@ for (const [X, Z] of [[48.8, -97.7], [49.9, -97.7], [50.9, -97.7]]) {
   const top = hits.sort((a, c) => c.drop - a.drop)[0];
   console.log(`   (${X}, ${Z}): ${hits.length} materials, best ${top ? pct(top.drop) + '  tag=' + (top.mod || top.name) : 'none'}`);
 }
+
+// THE FULL PICTURE, because a filtered count reads as a complete one.
+// 67299640 found the fleet outside the wet system entirely — 33 materials on one
+// sedan, identical to four decimals — and it is NOT in the 19 above, because that
+// list was filtered to transparent decals lying flat. Show every owner instead,
+// so the next class does not have to be found by hand.
+console.log('\nEVERY outdoor owner: responding / total, and how high it sits');
+const all = new Map();
+for (const r of out) {
+  const k = r.mod || `(untagged) ${r.name}`;
+  if (!all.has(k)) all.set(k, []);
+  all.get(k).push(r);
+}
+for (const [k, v] of [...all.entries()].sort((a, c) => c[1].length - a[1].length)) {
+  const resp = v.filter((r) => r.drop > 0.2).length;
+  const ys = v.map((r) => r.y).sort((a, c) => a - c);
+  const flag = resp === 0 ? '   ← nothing responds' : '';
+  console.log(`   ${String(resp).padStart(4)} / ${String(v.length).padEnd(5)} ${k.padEnd(26)} median y ${ys[ys.length >> 1].toFixed(2)}${flag}`);
+}

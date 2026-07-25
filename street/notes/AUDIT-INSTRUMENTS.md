@@ -1021,3 +1021,62 @@ belongs to vice's owner**, and it is one command to re-check either way.
 The reason this was invisible is worth keeping: the world got *greener* while a
 district silently stopped responding, because no check counts wet surfaces **per
 owner**. It does now.
+
+## RESOLVED: vice responds again — my finding was true for one build
+
+Re-measured at `c05e445a`, one build after I published *"vice responds to
+nothing"*:
+
+```
+vice: 303 outdoor materials, 62 responding
+   (48.8, -97.7): best 87.9%  tag=vice
+   (49.9, -97.7): best 87.9%  tag=vice
+   (50.9, -97.7): best 87.9%  tag=vice
+```
+
+**87.9% restored at the same three coordinates.** The finding was real at
+`e24c959a` — reproduced twice there — and it is closed now. Nobody should go
+looking for it. A district-sized regression that lived for about one build is
+still worth having caught, but the correction matters more than the catch:
+**anyone acting on the previous section would be chasing something already
+fixed.**
+
+## The fleet, confirmed from outside — and why my "19" was never the whole class
+
+`67299640` found the fleet outside the wet system entirely, one sedan's **33
+materials** identical to four decimals in dry and rain, and said *"the fleet
+belongs on that list"* — my list. It was right that it belongs and right that it
+was missing: **my 19 were filtered to transparent decals lying flat**, which is
+the `dimWorld` hole specifically, not the question the script's own title asks.
+A filtered count reads as a complete one, so the sweep now reports every owner:
+
+```
+EVERY outdoor owner: responding / total, and how high it sits
+     28 / 762   lot                         median y 0.73
+    137 / 674   street                      median y 7.40
+     10 / 644   (untagged) BoxGeometry      median y 0.59
+      9 / 373   props                       median y 0.17
+     62 / 303   vice                        median y 6.40
+      6 / 285   civic                       median y 1.57
+      0 / 144   (untagged) CylinderGeometry median y 0.34   ← nothing responds
+      0 / 138   walkup                      median y 6.10   ← nothing responds
+     19 / 124   (untagged) PlaneGeometry    median y 0.71
+     47 / 85    tex-ground                  median y 0.05
+      0 / 33    (untagged) BufferGeometry   median y 0.00   ← nothing responds
+      0 / 2     cat                         median y 0.02   ← nothing responds
+```
+
+The fleet is visible in two rows and neither is tagged. **33 BufferGeometry
+materials at median y 0.00** is exactly H's sedan count, arrived at independently.
+**144 cylinders at median y 0.34** is the tyre radius in `ct/cars.ts` — the
+wheels, 144 of them, none wet.
+
+Two of the four zero rows are entitled to be dry and are **not** findings:
+`walkup` sits at median y **6.10** (upper storeys — rain does not run up a wall),
+and `cat` is an animal. That is the value of showing height beside the count:
+**a zero is only interesting once you know how high it sits.**
+
+The wider lesson for my own reports: `19` was a true number to a filtered
+question, published under a heading that read like the whole class. H had to find
+the fleet by hand because my list looked complete. **State the filter in the
+headline, or the count will be read as the population.**
