@@ -226,6 +226,46 @@ that knows the answer: `userData.selfLit` (props), `userData.mod` (lot), and
 `declareDoorWorld` (rooms → my painter). Each replaced something a tool outside
 was guessing at.
 
+## It fails honestly now — 417 unknowns down to one (`8c0a0ba7`)
+
+`6ced1c20` granted the request above: props.ts stamps `userData.graded` on every
+material it writes a colour to, **and** `userData.wet` on the registry
+`updateRain` owns. That was the last thing this check could not see.
+
+Every clause is now somebody's own mark, and nothing is inferred:
+
+| clause | whose mark | commit |
+|---|---|---|
+| `graded` — a colour was written here | props.ts | `6ced1c20` |
+| not `wet` — updateRain owns its own curve | props.ts | `6ced1c20` |
+| not `selfLit` — kept bright on purpose | props.ts | `8e473276` |
+| not additive, not black, unchanged at 23:00 | measured | — |
+
+**World-wide that is one material, and the check now fails on it without a box.**
+The 456 never offered to the dimmer are printed as *scope*, not as faults.
+
+The one: `3.90 x 0.12`, untextured, colour 0.079, at **−32.8, 3.1, −83.8**.
+Reported as a candidate, not asserted as a bug — but the innocent explanation
+was tested and does not hold. `dimWorld` grades by elevation, so a factor of ~1
+at that height would explain it; of **71 graded materials within 0.6 m of that
+height, 56 do move**. Its neighbours dim and it does not.
+
+It is `(unattributed)` — nothing there carries a `userData.mod`.
+
+## The arc of this file, which is the actual point
+
+```
+417 materials "never moved"   — a number nobody could act on
+ 84 with the flag pair        — cause and symptom agreed, but the cause went away
+ 26 after dimWorld's own fix  — the right fix, on the right side
+ 13 after selfLit             — and those 13 were mine to misroute
+  1 after graded + wet        — located, described, one owner to ask
+```
+
+Every step down came from a module stamping what only it knew, **not** from this
+script getting cleverer. The script's whole contribution was asking the right
+question and then refusing to answer it on evidence it did not have.
+
 ## The thing worth remembering
 
 This is the third detector this week that was reporting confidently on something
