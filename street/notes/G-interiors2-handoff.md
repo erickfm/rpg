@@ -597,11 +597,32 @@ where that is. `Room` exposes `doorAt` but not the glazing span, so I converted
 Bars over a brick pier read as a mistake in a way that missing bars do not, so
 the typed override is back and the room is verified at 27/27.
 
-**What would close it: `Room.glazing` — the derived opening's local span, the
-way `Room.doorAt` already gives the derived door.** One field, and the room can
-hang bars, blinds, a security grille or a display riser on real glass without
-re-deriving anything. That is F's file. Until then the override stays and this
-note is the justification `RoomSpec` asks for.
+**Since writing that I read the kit and found why both attempts failed, so the
+ask can be precise.** `interior.ts` does not use the frontage's glazing run as
+it stands — it converts both ends, then **trims the glass to whichever side of
+the door has the bigger run**:
+
+```ts
+// keep whichever side of the door is the bigger run of glass
+if (a < dl && b > dr) { if (dl - a >= b - dr) b = dl; else a = dr; }
+```
+
+So the opening is only ever on ONE side of the door, which is exactly what both
+my attempts got wrong — the first assumed glass flanks a door, the second used
+the untrimmed span. No amount of care in the room would have got there, because
+the trimming is a kit decision the room cannot see.
+
+**What would close it: `Room.glazing` — the local `{ at, w }` the kit already
+computes as `glaze`, returned the way `Room.doorAt` already returns the derived
+door.** It is one line in the return object; the value exists. Then a room can
+hang bars, blinds, a grille or a display riser on real glass without re-deriving
+anything and without copying the trimming rule, which is the part that would go
+stale silently.
+
+I am not replicating those twelve lines in my room. Duplicated LOGIC is how the
+door positions drifted in the first place, and this file is where I would be
+copying it from. F's file, F's call — until then the typed override stays and
+this note is the justification `RoomSpec` asks for.
 
 Two failed attempts is the "two failures then delete" line, so I have stopped
 rather than trying a third conversion.
