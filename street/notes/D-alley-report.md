@@ -1380,3 +1380,31 @@ row was run, not reasoned.**
 The uuid counter and the exact pixel hash both passed the uniformity mutant. A
 check that has never been watched failing on the defect it names is a check with
 an unknown value, and in both cases the unknown value turned out to be zero.
+
+## Car lot — the z-span C asked for, and the see-through watch
+
+The item: *"Report the exact z-span through the desk when you commit; C is
+waiting on that number and cannot start without it."* C has since built
+`ct/lot.ts`, so they got it, but the number was never written where the desk
+reads. Measured from the ground plane at HEAD:
+
+```
+LOT    x  7.00 .. 30.20     z  -9.00 .. 14.20     23.20 x 23.20 m
+PARK   x -39.00 .. -7.00    z -98.00 .. -68.00    32.00 x 30.00 m
+```
+
+**The lot's z-span is -9.00 to 14.20.** 23.20 m is CAFE 11.2 + HARDWARE 12
+exactly, so the EAST-before-No.227 total of 49.2 is preserved by construction
+and `ct/apartment.ts`'s pinned walk-up door does not move.
+
+### The watch: you cannot see through one gap to the other
+
+*"this is the second gap in the block's walls after the park — check you cannot
+now see straight through one to the other."*
+
+**You cannot, and it is not close.** The park occupies z -98..-68 and the lot
+z -9..14.20 — the two ranges do not overlap by any amount, and there are 59 m of
+built street between the nearest edges. A sight line through both would have to
+run along the street rather than across it, and neither gap opens that way.
+
+`D-walk` and `builtlane` both green at HEAD.
