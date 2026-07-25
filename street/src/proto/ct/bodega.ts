@@ -11,10 +11,9 @@ export function buildBodega(ctx: CtxBuild): AABB[] {
   // being hand-written into the entry point's SPOTS array. Same move C, F and H
   // already made — the shop that owns a door owns its [E].
   //
-  // NOT moved: the cereal and soda counters. They need `purse` and
-  // `hud.refreshWallet()`, and `ctx` carries neither; adding them changes the
-  // CtxBuild interface, which is a desk operation across every caller. They are
-  // still in crosstown.ts and flagged in notes/BLOCKED-D.md.
+  // The counters moved too, now that ctx carries the purse. A spot that SELLS
+  // something belongs with the counter it is sold over, not in the entry
+  // point — these two were the last hand-written spots in the world.
   ctx.spot({
     x: 8.7, z: -96.85, r: 1.1,
     ok: () => player.x() < 100,
@@ -30,6 +29,26 @@ export function buildBodega(ctx: CtxBuild): AABB[] {
     // re-enter trigger radius so you cannot be sucked straight back in
     act: () => player.jumpTo(11, -97.3, 0, ctx.KERB_H),
   });
+  // the two counters. `ok` gates on being INSIDE (x > 230), the same test the
+  // exit spot uses, so neither can be triggered from the street.
+  const counter = (x: number, z: number, item: string, price: number, what: string) => {
+    ctx.spot({
+      x, z, r: 1.0,
+      ok: () => player.x() > 230,
+      label: () => (ctx.purse.cash >= price
+        ? `buy ${what} — $${price.toFixed(2)}`
+        : `${what} $${price.toFixed(2)} — you\u2019re short`),
+      act: () => {
+        if (ctx.purse.cash < price) return;
+        ctx.purse.cash -= price;
+        ctx.purse.inv[item] = (ctx.purse.inv[item] ?? 0) + 1;
+        ctx.refreshWallet();
+      },
+    });
+  };
+  counter(242.2, -17.5, 'CEREAL', 2.5, 'cereal');
+  counter(246.9, -14.6, 'SODA', 1.25, 'soda');
+
   const bodegaColliders: AABB[] = [];
   {
     const texM2 = (t: THREE.Texture) => new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });

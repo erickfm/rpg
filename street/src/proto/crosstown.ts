@@ -119,9 +119,18 @@ export function makeCrosstown(): Proto {
   // per-frame hooks, sorted by declared order once the world is built — so
   // moving a module's build call cannot silently change run order
   const HOOKS: { fn: FrameHook; order: number }[] = [];
+  // ── the pockets, and the HUD that draws them ────────────────────────────
+  //
+  // Declared HERE, above ctx, because ctx carries them now: a spot that sells
+  // something has to be able to live with the counter it is sold over.
+  const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
+  const hud = makeHud(purse);
+
   const ctx: CtxBuild = {
     scene, flat, wet, obstacle, boards, wetMats, sidewalkY, KERB_H,
     spot: (sp) => { SPOTS.push(sp); },
+    purse,
+    refreshWallet: () => hud.refreshWallet(),
     site: (name) => SITES.get(name) ?? null,
     publishSite: (name, st) => { SITES.set(name, st); },
     // ── seats ───────────────────────────────────────────────────────────
@@ -158,12 +167,10 @@ export function makeCrosstown(): Proto {
   };
   const apt = buildApartment(ctx);
 
-  // ── the clock and the pockets, and the HUD that draws them ──────────────
+  // ── the clock ───────────────────────────────────────────────────────────
   let totalMin = 13 * 60 + 20; // one real second = one game minute
-  const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   let rmbHeld = false;
   let feedHeld = false;
-  const hud = makeHud(purse);
 
   // ── the bodega interior — one bright little room off the corner ─────────
   const bodegaColliders = buildBodega(ctx);
@@ -452,23 +459,10 @@ export function makeCrosstown(): Proto {
   const jumpTo = jumpToImpl;
   // The walk-up's two spots used to live here. ct/apartment.ts registers them
   // itself now, via ctx.spot — the entry point does not enumerate them.
-  SPOTS.push(
-    // the bodega's two door spots now register themselves from ct/bodega.ts.
-    // What is left here is the shop counter, which needs `purse` and `hud` —
-    // neither of which ctx carries. See notes/BLOCKED-D.md.
-    {
-      x: 242.2, z: -17.5, r: 1.0,
-      ok: () => rig.pos.x > 230,
-      label: () => purse.cash >= 2.5 ? 'buy cereal — $2.50' : 'cereal $2.50 — you’re short',
-      act: () => { if (purse.cash >= 2.5) { purse.cash -= 2.5; purse.inv.CEREAL = (purse.inv.CEREAL ?? 0) + 1; hud.refreshWallet(); } },
-    },
-    {
-      x: 246.9, z: -14.6, r: 1.0,
-      ok: () => rig.pos.x > 230,
-      label: () => purse.cash >= 1.25 ? 'buy soda — $1.25' : 'soda $1.25 — you’re short',
-      act: () => { if (purse.cash >= 1.25) { purse.cash -= 1.25; purse.inv.SODA = (purse.inv.SODA ?? 0) + 1; hud.refreshWallet(); } },
-    },
-  );
+  // The hand-written SPOTS block is GONE. Every `[E]` in the world is now
+  // registered by the module that draws the thing you press it on — the last
+  // two were the bodega's counters, and they went home to ct/bodega.ts once
+  // ctx started carrying the purse.
 
   (window as any).__ct = {
     warp: (x: number, z: number, yaw?: number, gy?: number, pitch?: number) => {

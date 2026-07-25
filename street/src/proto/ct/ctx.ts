@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
+import type { Purse } from './hud';
 
 // The construction-time context the world modules are handed.
 //
@@ -157,6 +158,13 @@ export interface CtxBuild {
   /** register an `[E]` interaction. The entry point iterates whatever has been
    *  registered; it does not know what any of them are. */
   spot: (s: Spot) => void;
+  /** the player's money and pockets. Here so that a spot which SELLS something
+   *  can live with the counter it is sold over, instead of being stranded in
+   *  the entry point — which is where the bodega's two were, and the only
+   *  reason they were the last hand-written spots left in crosstown.ts. */
+  purse: Purse;
+  /** call after changing `purse` so the wallet readout catches up */
+  refreshWallet: () => void;
   /** register a seat. Sitting, standing and the prompt are handled for you —
    *  see `Seat`. Register one per seat you actually want offered. */
   seat: (s: Seat) => void;
