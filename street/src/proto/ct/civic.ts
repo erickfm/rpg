@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { pixTex, dither } from './paint';
 import { FACE } from './rng';
+import { masonry } from './tex-world';
 
 // The two buildings on this block that are NOT shops.
 //
@@ -73,9 +74,15 @@ export function buildCivic(o: {
   //     silhouette, and that is most of what tells them apart at a glance.
   const STONE = '#a89e88', STONE_D = '#8a806c', STONE_L = '#c2b8a0';
   const SLATE = '#4a4e56';
+  /** the stone bond in metres: course height, and block length per building */
+  const STONE_COURSE_M = 0.75, STONE_BLOCK_M = 2.75, NAVE_BLOCK_M = 2.5, TOWER_BLOCK_M = 2.25;
   const clcg = (s: number) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
   // squared stone, laid in courses, every third block a shade off
-  const ashlar = (g: CanvasRenderingContext2D, W: number, H: number, r: () => number, courseH = 9, blockW = 22) => {
+  // Ashlar's bond, in METRES. Stone courses are legitimately taller than the
+  // brick bond next door — what has to match across a civic-to-shop party wall
+  // is the DENSITY, not the course height. These are converted to texels
+  // through the surface, so they never encode a px/m.
+  const ashlar = (g: CanvasRenderingContext2D, W: number, H: number, r: () => number, courseH: number, blockW: number) => {
     g.fillStyle = STONE; g.fillRect(0, 0, W, H);
     for (let y = 0, i = 0; y < H; y += courseH, i++) {
       const off = (i % 2) ? 0 : Math.round(blockW / 2);
@@ -256,10 +263,10 @@ export function buildCivic(o: {
   const placeLibrary = (z: number, b: BldSpec) => {
     const cz = z - b.w / 2;
     const CZ0 = cz - b.w / 2, CZ1 = cz + b.w / 2;   // the courtyard's z extent
-    const LW = Math.round(b.w * 8), LH = Math.round(LIB_H * 11.73);
-    const pm = LH / LIB_H;
+    const surf = masonry(b.w, LIB_H, 0);
+    const LW = surf.W, LH = surf.H, pm = surf.ppm;
     const yOf = (m: number) => Math.round(LH - m * pm);
-    const bayPx = Math.round(BAY_W * 8);
+    const bayPx = surf.m(BAY_W);
     const bx0 = Math.round((LW - bayPx) / 2), bx1 = bx0 + bayPx;   // the bay in texels
     const wSide = (bx0 / LW) * b.w;                                 // …and in metres
     // ONE drawing of the whole elevation, sampled three times. Slicing the
@@ -268,7 +275,7 @@ export function buildCivic(o: {
     // block were painted separately.
     const paint = (g: CanvasRenderingContext2D) => {
       const r = clcg(0x7ab31d);
-      ashlar(g, LW, LH, r);
+      ashlar(g, LW, LH, r, surf.m(STONE_COURSE_M), surf.m(STONE_BLOCK_M));
       const PL = yOf(2.6);
       g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, PL, LW, LH - PL);
       for (let y = PL; y < LH; y += 13) { g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, y, LW, 2); }
@@ -328,7 +335,7 @@ export function buildCivic(o: {
     // …and the back of the recess, 1.8 m in, carrying the doors
     const doorT = pixTex(40, 48, (g) => {
       g.fillStyle = STONE; g.fillRect(0, 0, 40, 48);
-      const r2 = clcg(0x1188cd); ashlar(g, 40, 48, r2, 8, 18);
+      const r2 = clcg(0x1188cd); ashlar(g, 40, 48, r2, 8, 18);   // door leaf, not a wall face
       archFill(g, 20, 26, 4, 48, STONE_D);
       archFill(g, 20, 22, 6, 48, '#2a2118');
       g.fillStyle = '#4a3a26'; g.fillRect(10, 16, 20, 32);
@@ -580,11 +587,12 @@ export function buildCivic(o: {
     const NAVE_H = 17, RIDGE = 21.6, TOWER_H = 26, SPIRE = 5.2;
     const zFront = zc + 1.7;                       // the facade plane, on the street
     const naveCx = x0 + NAVE_W / 2, towCx = x0 + NAVE_W + TOWER_W / 2;
-    const NW = Math.round(NAVE_W * 8), NH = Math.round(NAVE_H * 11.76);
-    const pm = NH / NAVE_H, yOf = (m: number) => Math.round(NH - m * pm);
+    const naveS = masonry(NAVE_W, NAVE_H, 0);
+    const NW = naveS.W, NH = naveS.H;
+    const pm = naveS.ppm, yOf = (m: number) => Math.round(NH - m * pm);
     const naveTex = pixTex(NW, NH, (g) => {
       const r = clcg(0x3c91e5);
-      ashlar(g, NW, NH, r, 9, 20);
+      ashlar(g, NW, NH, r, naveS.m(STONE_COURSE_M), naveS.m(NAVE_BLOCK_M));
       const mid = Math.round(NW / 2);
       g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, yOf(1.5), NW, NH - yOf(1.5)); // plinth
       g.fillStyle = STONE_L; g.fillRect(0, yOf(1.5) - 2, NW, 2);
@@ -630,10 +638,11 @@ export function buildCivic(o: {
     // The gable carries the same coursing as the wall under it, mapped with
     // triangular UVs — (0,0),(1,0),(0.5,1) is the gable's own shape, so the
     // stone runs on across the eaves instead of stopping at a smooth plate.
-    const gabW = Math.round(NAVE_W * 8), gabH = Math.round((RIDGE - NAVE_H) * 11.76);
+    const gab = masonry(NAVE_W, RIDGE - NAVE_H, 0);
+    const gabW = gab.W, gabH = gab.H;
     const gabTex = pixTex(gabW, gabH, (g) => {
       const r = clcg(0x5d21a7);
-      ashlar(g, gabW, gabH, r, 9, 20);
+      ashlar(g, gabW, gabH, r, gab.m(STONE_COURSE_M), gab.m(NAVE_BLOCK_M));
       for (let y = 0; y < gabH; y++) {                 // coping along both rakes
         const xL = Math.round((gabW / 2) * (1 - y / gabH));
         g.fillStyle = STONE_L;
@@ -684,11 +693,12 @@ export function buildCivic(o: {
       scene.add(cap);
     }
     // ── the tower ──
-    const TW = Math.round(TOWER_W * 8), TH = Math.round(TOWER_H * 11.76);
-    const tpm = TH / TOWER_H, tyOf = (m: number) => Math.round(TH - m * tpm);
+    const tow = masonry(TOWER_W, TOWER_H, 0);
+    const TW = tow.W, TH = tow.H;
+    const tpm = tow.ppm, tyOf = (m: number) => Math.round(TH - m * tpm);
     const towTex = pixTex(TW, TH, (g) => {
       const r = clcg(0x91b3c2);
-      ashlar(g, TW, TH, r, 9, 18);
+      ashlar(g, TW, TH, r, tow.m(STONE_COURSE_M), tow.m(TOWER_BLOCK_M));
       for (let y = 0, i = 0; y < TH; y += 18, i++) {           // quoins
         g.fillStyle = (i % 2) ? STONE_L : STONE_D;
         g.fillRect(0, y, 6, 18); g.fillRect(TW - 6, y, 6, 18);
@@ -718,8 +728,16 @@ export function buildCivic(o: {
       dither(g, TW, TH, 520);
     });
     const towM = flat(towTex);
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(TOWER_W, TOWER_H, 3.7),
-      [flat(towTex.clone()), stoneM(), slateM(), slateM(), towM, stoneM()]);
+    // The side face is 3.7 m deep, not TOWER_W. Stretching the 5 m canvas
+    // across it painted the tower's flank at 10.81 px/m against the front's
+    // 8 — same texture, two densities. Map the same stone at the same px/m
+    // and let it crop instead.
+    const TOWER_D = 3.7;
+    const towSide = towTex.clone();
+    towSide.repeat.x = TOWER_D / TOWER_W;
+    towSide.needsUpdate = true;
+    const tower = new THREE.Mesh(new THREE.BoxGeometry(TOWER_W, TOWER_H, TOWER_D),
+      [flat(towSide), stoneM(), slateM(), slateM(), towM, stoneM()]);
     tower.position.set(towCx, TOWER_H / 2, zc + 0.15);   // stands 0.3 m proud of the nave front
     scene.add(tower);
     // the spire, and the cross on top of it

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
-import { facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H } from './tex-world';
+import { facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight } from './tex-world';
 import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
 import { buildCivic, type BldSpec } from './civic';
@@ -95,104 +95,117 @@ export function buildStreet(o: {
   // thing on the block, the tax office is the least designed, and the
   // pawnshop is the most defended. All three keep the block's 8 px/m and the
   // same band heights as shopfrontTex, so they line up with their neighbours.
-  const SB = 52;   // texels over SHOP_BAND_H — the shared band grid
+  // The three custom shop bands below were authored on a (wM*8) x 52 canvas —
+  // 8 x 12.38 px/m — while every other band on the block runs at the shared
+  // 2x masonry density. bandSurf() hands them the correct canvas and re-bases
+  // the coordinates they were drawn in: `bx`/`by` map an old texel onto the
+  // same WORLD position on the new one, so the art is unchanged and no painter
+  // here carries a px/m of its own.
+  const OLD_SB = 52;
+  const bandSurf = (wM: number) => {
+    const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
+    const oldW = Math.max(64, Math.round(wM * 8));
+    return {
+      surf, W: surf.W, H: surf.H,
+      bx: (v: number) => Math.round(v * surf.W / oldW),
+      by: (v: number) => Math.round(v * surf.H / OLD_SB),
+    };
+  };
   // 1997 fast food: saturated brand colours, a fascia twice the usual depth,
   // and more glass than anyone else because you are supposed to see in.
   const burgerFront = (brick: string, wM: number) => {
-    const W = Math.max(64, Math.round(wM * 8));
+    const { surf, W, H: SB, bx, by } = bandSurf(wM);
     // RED AND BEIGE, asked for twice. The scheme is these three: the fascia
     // red, the beige it is trimmed and lettered in, and the warm-but-not-
     // yellow interior. It used to run red + mustard (#e8a02a stripe, #f2d24a
     // letters, #e8c26a interior) and the mustard is what read as the second
     // colour — so all three moved together. Change them here, nowhere else.
     const BB_RED = '#c8302a', BB_BEIGE = '#e6dcc6', BB_INSIDE = '#e0d2b4';
-    return pixTex(W, SB, (g) => {
+    return surf.paint((g) => {
       g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      g.fillStyle = BB_RED; g.fillRect(0, 0, W, 16);                 // the big red fascia
-      g.fillStyle = BB_BEIGE; g.fillRect(0, 16, W, 3);               // beige accent stripe
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 19, W, 2);
-      g.fillStyle = BB_BEIGE; g.font = 'bold 9px monospace';
+      g.fillStyle = BB_RED; g.fillRect(0, 0, W, by(16));              // the big red fascia
+      g.fillStyle = BB_BEIGE; g.fillRect(0, by(16), W, by(3));        // beige accent stripe
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, by(19), W, by(2));
+      g.fillStyle = BB_BEIGE; g.font = `bold ${by(9)}px monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('BURGER BARN', W / 2, 8);
-      g.fillStyle = '#141820'; g.fillRect(4, 21, W - 8, 31);
-      g.fillStyle = BB_INSIDE; g.fillRect(6, 23, W - 12, 25);        // lit right through
+      g.fillText('BURGER BARN', W / 2, by(8));
+      g.fillStyle = '#141820'; g.fillRect(bx(4), by(21), W - bx(8), by(31));
+      g.fillStyle = BB_INSIDE; g.fillRect(bx(6), by(23), W - bx(12), by(25));   // lit right through
       g.fillStyle = '#8a6a4a';                                       // booths in silhouette
-      for (let x = 10; x < W - 14; x += 17) { g.fillRect(x, 33, 7, 12); g.fillRect(x + 9, 36, 5, 9); }
-      g.fillStyle = BB_RED; g.fillRect(Math.round(W * 0.62), 23, 12, 12);     // menu board
-      g.fillStyle = BB_BEIGE; g.fillRect(Math.round(W * 0.62) + 2, 26, 8, 1);
-      g.fillRect(Math.round(W * 0.62) + 2, 29, 8, 1);
-      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), 23, 4, 25);   // door
+      for (let x = bx(10); x < W - bx(14); x += bx(17)) { g.fillRect(x, by(33), bx(7), by(12)); g.fillRect(x + bx(9), by(36), bx(5), by(9)); }
+      g.fillStyle = BB_RED; g.fillRect(Math.round(W * 0.62), by(23), bx(12), by(12));   // menu board
+      g.fillStyle = BB_BEIGE; g.fillRect(Math.round(W * 0.62) + bx(2), by(26), bx(8), 1);
+      g.fillRect(Math.round(W * 0.62) + bx(2), by(29), bx(8), 1);
+      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), by(23), bx(4), by(25)); // door
       g.fillStyle = '#d8d0c0';                                        // window decals
-      g.fillRect(9, 25, 10, 4); g.fillRect(W - 22, 25, 12, 4);
-      g.fillStyle = '#8a3a24'; g.fillRect(4, 48, W - 8, 4);           // stallriser
-      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(4, 48, W - 8, 1);
-      dither(g, W, SB, 300);
+      g.fillRect(bx(9), by(25), bx(10), by(4)); g.fillRect(W - bx(22), by(25), bx(12), by(4));
+      g.fillStyle = '#8a3a24'; g.fillRect(bx(4), by(48), W - bx(8), by(4));    // stallriser
+      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(bx(4), by(48), W - bx(8), 1);
+      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
     });
   };
   // the pawnshop: barred glass, a hand-painted board, and the three balls
   const pawnFront = (brick: string, wM: number) => {
-    const W = Math.max(64, Math.round(wM * 8));
-    return pixTex(W, SB, (g) => {
+    const { surf, W, H: SB, bx, by } = bandSurf(wM);
+    return surf.paint((g) => {
       g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      g.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let y = 0; y < SB; y += 5) g.fillRect(0, y, W, 1);
-      g.fillStyle = '#6a5a3a'; g.fillRect(3, 2, W - 6, 11);           // a painted board, not a light box
-      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(3, 13, W - 6, 2);
-      g.fillStyle = '#e8dcc0'; g.font = 'bold 8px monospace';
+      surf.courses(g);
+      g.fillStyle = '#6a5a3a'; g.fillRect(bx(3), by(2), W - bx(6), by(11));  // a painted board, not a light box
+      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx(3), by(13), W - bx(6), by(2));
+      g.fillStyle = '#e8dcc0'; g.font = `bold ${by(8)}px monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('PAWN', W / 2 - 12, 7);
-      g.font = 'bold 5px monospace';
-      g.fillText('LOANS  GOLD  TOOLS', W / 2 + 26, 8);
+      g.fillText('PAWN', W / 2 - bx(12), by(7));
+      g.font = `bold ${by(5)}px monospace`;
+      g.fillText('LOANS  GOLD  TOOLS', W / 2 + bx(26), by(8));
       g.fillStyle = '#c9a45e';                                        // the three balls
-      for (const bx of [8, 14, 11]) g.beginPath(), g.arc(bx, bx === 11 ? 11 : 6, 2.4, 0, Math.PI * 2), g.fill();
-      g.fillStyle = '#141820'; g.fillRect(5, 14, W - 10, 38);
-      g.fillStyle = '#2e2a26'; g.fillRect(7, 16, W - 14, 32);         // dim, crowded window
+      for (const b of [8, 14, 11]) g.beginPath(), g.arc(bx(b), b === 11 ? by(11) : by(6), by(2.4), 0, Math.PI * 2), g.fill();
+      g.fillStyle = '#141820'; g.fillRect(bx(5), by(14), W - bx(10), by(38));
+      g.fillStyle = '#2e2a26'; g.fillRect(bx(7), by(16), W - bx(14), by(32));  // dim, crowded window
       const junk = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a'];
-      for (let i = 0; i < Math.floor(W / 6); i++) {
+      for (let i = 0; i < Math.floor(W / bx(6)); i++) {
         g.fillStyle = junk[i % 6];
-        g.fillRect(9 + i * 6, 20 + ((i * 7) % 18), 4, 3 + (i % 4) * 2);
+        g.fillRect(bx(9) + i * bx(6), by(20) + ((i * by(7)) % by(18)), bx(4), by(3) + (i % 4) * by(2));
       }
       g.fillStyle = 'rgba(0,0,0,0.55)';                               // the security bars
-      for (let x = 8; x < W - 8; x += 5) g.fillRect(x, 16, 1, 32);
-      g.fillRect(7, 24, W - 14, 1); g.fillRect(7, 38, W - 14, 1);
-      g.fillStyle = '#3a3020'; g.fillRect(5, 48, W - 10, 4);
-      dither(g, W, SB, 280);
+      for (let x = bx(8); x < W - bx(8); x += bx(5)) g.fillRect(x, by(16), 1, by(32));
+      g.fillRect(bx(7), by(24), W - bx(14), 1); g.fillRect(bx(7), by(38), W - bx(14), 1);
+      g.fillStyle = '#3a3020'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
+      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
     });
   };
   // the tax office: no sign worth the name, just a banner cable-tied over the
   // brick and paper taped inside the glass. The least designed thing here.
   const taxFront = (brick: string, wM: number) => {
-    const W = Math.max(64, Math.round(wM * 8));
-    return pixTex(W, SB, (g) => {
+    const { surf, W, H: SB, bx, by } = bandSurf(wM);
+    return surf.paint((g) => {
       g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      g.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let y = 0; y < SB; y += 5) g.fillRect(0, y, W, 1);
+      surf.courses(g);
       // a vinyl banner, sagging a texel in the middle, grommets at the corners
-      const bw = W - 14;
-      g.fillStyle = '#d8d2c4'; g.fillRect(7, 3, bw, 9);
-      g.fillStyle = '#d8d2c4'; g.fillRect(9, 12, bw - 4, 1);          // the sag
-      g.fillStyle = '#2c4a7a'; g.font = 'bold 7px monospace';
+      const bw = W - bx(14);
+      g.fillStyle = '#d8d2c4'; g.fillRect(bx(7), by(3), bw, by(9));
+      g.fillStyle = '#d8d2c4'; g.fillRect(bx(9), by(12), bw - bx(4), 1);   // the sag
+      g.fillStyle = '#2c4a7a'; g.font = `bold ${by(7)}px monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('A-1 TAX SERVICE', W / 2, 7);
+      g.fillText('A-1 TAX SERVICE', W / 2, by(7));
       g.fillStyle = 'rgba(0,0,0,0.35)';
-      for (const gx of [8, W - 9]) { g.fillRect(gx, 4, 1, 1); g.fillRect(gx, 10, 1, 1); }
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(7, 13, bw, 2);
-      g.fillStyle = '#141820'; g.fillRect(5, 15, W - 10, 37);
-      g.fillStyle = '#cfd6c8'; g.fillRect(7, 17, W - 14, 31);         // flat fluorescent interior
+      for (const gx of [bx(8), W - bx(9)]) { g.fillRect(gx, by(4), 1, 1); g.fillRect(gx, by(10), 1, 1); }
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(bx(7), by(13), bw, by(2));
+      g.fillStyle = '#141820'; g.fillRect(bx(5), by(15), W - bx(10), by(37));
+      g.fillStyle = '#cfd6c8'; g.fillRect(bx(7), by(17), W - bx(14), by(31));  // flat fluorescent interior
       g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let x = 12; x < W - 12; x += 22) g.fillRect(x, 19, 14, 2); // tube fittings
+      for (let x = bx(12); x < W - bx(12); x += bx(22)) g.fillRect(x, by(19), bx(14), by(2)); // tube fittings
       // paper signs taped up inside, slightly off square
       const notes = ['REFUNDS', 'FAST', 'E-FILE'];
-      g.font = 'bold 4px monospace';
+      g.font = `bold ${by(4)}px monospace`;
       notes.forEach((n, i) => {
-        const nx = 10 + i * Math.round((W - 26) / 3), ny = 26 + (i % 2) * 6;
-        g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, 18, 8);
-        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(nx, ny + 8, 18, 1);
-        g.fillStyle = '#8a2c22'; g.fillText(n, nx + 9, ny + 4);
+        const nx = bx(10) + i * Math.round((W - bx(26)) / 3), ny = by(26) + (i % 2) * by(6);
+        g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, bx(18), by(8));
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(nx, ny + by(8), bx(18), 1);
+        g.fillStyle = '#8a2c22'; g.fillText(n, nx + bx(9), ny + by(4));
       });
-      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.5), 17, 4, 31);   // door
-      g.fillStyle = '#6a665e'; g.fillRect(5, 48, W - 10, 4);
-      dither(g, W, SB, 300);
+      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.5), by(17), bx(4), by(31));   // door
+      g.fillStyle = '#6a665e'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
+      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
     });
   };
   // A shop's ground floor and a flat's are NOT the same height, and pretending
@@ -430,37 +443,12 @@ export function buildStreet(o: {
     const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    // facadeTex floors its width at 64 px, which on a 2.5 m bay would paint
-    // brick three times finer than the elevation next to it. Same recipe,
-    // no floor — so the canted bay and the corner pier keep the block's
-    // texel density and read as one building.
-    const bodegaBrick = (wM: number, hM: number, floors: number) => {
-      const W = Math.max(12, Math.round(wM * 8)), H = Math.round(hM * 11.7);
-      return pixTex(W, H, (g) => {
-        g.fillStyle = bod.brick; g.fillRect(0, 0, W, H);
-        g.fillStyle = 'rgba(0,0,0,0.22)';
-        for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-        for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
-        g.fillStyle = '#8a7a62'; g.fillRect(0, 0, W, 6);           // cornice
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 6, W, 2);
-        // a 2.5 m bay is one window wide, not none — floor the count at 1 so
-        // the canted bay keeps the elevation's window rhythm going round it
-        const cols = Math.max(1, Math.floor((W - 10) / 22));
-        for (let f = 0; f < floors; f++) {
-          const y = 14 + f * 28;
-          for (let c = 0; c < cols; c++) {
-            const x = Math.max(2, Math.round((W - cols * 22) / 2) + 4) + c * 22;
-            const lit = ((f * 7 + c * 3) % 5) === 0;
-            g.fillStyle = '#1a1c22'; g.fillRect(x - 1, y - 1, 14, 18);
-            g.fillStyle = lit ? '#c9a45e' : '#2e3a46'; g.fillRect(x, y, 12, 16);
-            if (!lit) { g.fillStyle = '#48586a'; g.fillRect(x + 7, y, 3, 16); }
-            else { g.fillStyle = '#8a6a3a'; g.fillRect(x, y + 10, 12, 6); }
-            g.fillStyle = '#9a8a72'; g.fillRect(x - 1, y + 17, 14, 2);
-          }
-        }
-        dither(g, W, H, Math.round(W * H * 0.03));
-      });
-    };
+    // The corner used to carry its own brick painter, because facadeTex once
+    // floored its canvas at 64 px and would have painted a 2 m bay three times
+    // finer than the elevation beside it. That clamp is gone and the density
+    // now comes from ct/tex-world.ts's masonry() like every other wall, so the
+    // local copy is deleted rather than corrected — a painter that derives its
+    // own px/m is the defect, however carefully it derives it.
     // R1 — the block north of the cut, full depth, street shopfront on -x
     {
       const d = BZ0 - (BZ1 + CHF), cz = (BZ0 + BZ1 + CHF) / 2;
@@ -476,7 +464,7 @@ export function buildStreet(o: {
     // R2 — the brick pier that closes the cut on the side street
     {
       const w = BX1 - (BX0 + CHF);
-      const pier = flat(bodegaBrick(w, TOP, bod.floors));
+      const pier = flat(facadeTex(bod.brick, bod.floors, w, TOP, 0, 1, SHOP + 2.4));
       const p = new THREE.Mesh(new THREE.BoxGeometry(w, TOP, CHF), [endM, endM, roofM, roofM, endM, pier]);
       p.position.set((BX0 + CHF + BX1) / 2, TOP / 2, BZ1 + CHF / 2);
       scene.add(p);
@@ -487,37 +475,41 @@ export function buildStreet(o: {
     bay.position.set(BX0 + CHF / 2, 0, BZ1 + CHF / 2);
     bay.rotation.y = -Math.PI * 0.75;
     scene.add(bay);
-    const bayUp = new THREE.Mesh(new THREE.PlaneGeometry(CFW, BH), flat(bodegaBrick(CFW, BH, bod.floors)));
+    const bayUp = new THREE.Mesh(new THREE.PlaneGeometry(CFW, BH), flat(facadeTex(bod.brick, bod.floors, CFW, BH, SHOP, 1)));
     bayUp.position.set(0, SHOP + BH / 2, 0);
     bay.add(bayUp);
     // the shopfront in the bay: recessed doorway dead centre, a run of
     // display glass either side, sign band over the lot
-    // 52 texels over the taller band, same bands as shopfrontTex so the bay
-    // lines up exactly with the two shopfronts it turns the corner between
-    const bayFrontT = pixTex(48, 52, (g) => {
-      g.fillStyle = bod.brick; g.fillRect(0, 0, 48, 52);
-      g.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let y = 0; y < 52; y += 5) g.fillRect(0, y, 48, 1);
-      g.fillStyle = bod.col; g.fillRect(2, 2, 44, 11);            // sign band
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 13, 44, 2);
-      g.fillStyle = '#f2ead0'; g.font = 'bold 8px monospace';
+    // Same band grid as shopfrontTex, so the bay lines up exactly with the two
+    // shopfronts it turns the corner between. It used to be a fixed 48x52
+    // canvas regardless of how wide the bay actually is — 24 x 12.38 px/m on a
+    // 2 m face, three times the density of the elevation it abuts.
+    const bayS = masonry(CFW, SHOP, 0, SHOP_MULT);
+    const bm = bayS.m, bw = bayS.W, bh = bayS.H;
+    const bayFrontT = bayS.paint((g) => {
+      g.fillStyle = bod.brick; g.fillRect(0, 0, bw, bh);
+      bayS.courses(g);
+      g.fillStyle = bod.col; g.fillRect(bm(0.08), bm(0.16), bw - bm(0.16), bm(0.89));   // sign band
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(bm(0.08), bm(1.05), bw - bm(0.16), bm(0.16));
+      g.fillStyle = '#f2ead0'; g.font = `bold ${bm(0.65)}px monospace`;
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(bod.nm, 24, 8);
-      g.fillStyle = '#141820'; g.fillRect(3, 14, 42, 38);         // frames
-      g.fillStyle = '#3a3020'; g.fillRect(5, 16, 38, 32);
-      g.fillStyle = '#5a6a7a'; g.fillRect(6, 17, 9, 31);          // display glass, left
-      g.fillStyle = '#c9a45e'; g.fillRect(7, 28, 7, 12);          // stacked cartons in it
-      g.fillStyle = '#5a6a7a'; g.fillRect(33, 17, 9, 31);         // display glass, right
-      g.fillStyle = '#4a7a3a'; g.fillRect(34, 30, 7, 10);
-      g.fillStyle = '#141820'; g.fillRect(16, 13, 16, 39);        // the door
-      g.fillStyle = '#8a97a2'; g.fillRect(18, 15, 12, 27);        // daylight through it
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(18, 27, 12, 1);
-      g.fillStyle = '#3a2c22'; g.fillRect(18, 43, 12, 6);         // kick plate
-      g.fillStyle = '#c9b45e'; g.fillRect(27, 27, 1, 4);          // handle
-      g.fillStyle = '#4a4034'; g.fillRect(5, 48, 11, 4);          // stallriser either side
-      g.fillRect(32, 48, 11, 4);
-      g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(5, 48, 11, 1); g.fillRect(32, 48, 11, 1);
-      dither(g, 48, 52, 280);
+      g.fillText(bod.nm, bw / 2, bm(0.61));
+      g.fillStyle = '#141820'; g.fillRect(bm(0.12), bm(1.13), bw - bm(0.24), bh - bm(1.13));  // frames
+      g.fillStyle = '#3a3020'; g.fillRect(bm(0.2), bm(1.29), bw - bm(0.4), bm(2.59));
+      g.fillStyle = '#5a6a7a'; g.fillRect(bm(0.24), bm(1.37), bm(0.73), bm(2.5));   // display glass, left
+      g.fillStyle = '#c9a45e'; g.fillRect(bm(0.28), bm(2.26), bm(0.57), bm(0.97));  // stacked cartons in it
+      g.fillStyle = '#5a6a7a'; g.fillRect(bw - bm(1.21), bm(1.37), bm(0.73), bm(2.5)); // display glass, right
+      g.fillStyle = '#4a7a3a'; g.fillRect(bw - bm(1.13), bm(2.42), bm(0.57), bm(0.81));
+      g.fillStyle = '#141820'; g.fillRect(bw / 2 - bm(0.65), bm(1.05), bm(1.29), bh - bm(1.05)); // the door
+      g.fillStyle = '#8a97a2'; g.fillRect(bw / 2 - bm(0.48), bm(1.21), bm(0.97), bm(2.18)); // daylight through it
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(bw / 2 - bm(0.48), bm(2.18), bm(0.97), 1);
+      g.fillStyle = '#3a2c22'; g.fillRect(bw / 2 - bm(0.48), bm(3.47), bm(0.97), bm(0.48)); // kick plate
+      g.fillStyle = '#c9b45e'; g.fillRect(bw / 2 + bm(0.24), bm(2.18), 1, bm(0.32));        // handle
+      g.fillStyle = '#4a4034'; g.fillRect(bm(0.2), bm(3.88), bm(0.89), bm(0.32));           // stallriser either side
+      g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), bm(0.32));
+      g.fillStyle = 'rgba(255,255,255,0.12)';
+      g.fillRect(bm(0.2), bm(3.88), bm(0.89), 1); g.fillRect(bw - bm(1.09), bm(3.88), bm(0.89), 1);
+      dither(g, bw, bh, Math.round(CFW * SHOP * 6));
     });
     const bayFront = new THREE.Mesh(new THREE.PlaneGeometry(CFW, SHOP), flat(bayFrontT));
     bayFront.position.set(0, SHOP / 2, 0);
@@ -631,7 +623,7 @@ export function buildStreet(o: {
     const eRoof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const eWall = new THREE.Mesh(
       new THREE.BoxGeometry(6, 13.6, 24),
-      [eEnd, flat(facadeTex('#5c4436', 4, 22)), eRoof, eRoof, eEnd, eEnd],
+      [eEnd, flat(facadeTex('#5c4436', 4, 24, 13.6, 0)), eRoof, eRoof, eEnd, eEnd],
     );
     eWall.position.set(SIDE_X1 + 5, 6.8, (SIDE_Z0 + SIDE_Z1) / 2);
     scene.add(eWall);
@@ -642,7 +634,9 @@ export function buildStreet(o: {
 
   // cross building closing the north end; the south end turns the corner now
   {
-    const facade = flat(facadeTex('#5c4436', 4, 30));
+    // 13.6 m tall, not wallHeight(4) = 13.0 — pass the real face or the
+    // texture is painted for a wall that does not exist and lands at 7.65 up
+    const facade = flat(facadeTex('#5c4436', 4, 30, 13.6, 0));
     const endM = new THREE.MeshBasicMaterial({ color: 0x53382e });
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6), [endM, endM, roofM, roofM, endM, facade]);
@@ -667,18 +661,18 @@ export function buildStreet(o: {
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     scene.add(floorA);
-    // bare-brick end wall (no shop, one grimy window) — same brick course
-    // density as the street facades (~11.7 px/m, 5 px courses)
-    const bareBrickT = pixTex(80, 150, (g) => {
-      g.fillStyle = '#5a3a30'; g.fillRect(0, 0, 80, 150);
-      g.fillStyle = 'rgba(0,0,0,0.22)';
-      for (let y = 0; y < 150; y += 5) g.fillRect(0, y, 80, 1);
-      for (let y = 0; y < 150; y += 10) for (let x = (y % 20) ? 0 : 4; x < 80; x += 9) g.fillRect(x, y, 1, 5);
-      g.fillStyle = '#1a1c22'; g.fillRect(30, 35, 20, 28);
-      g.fillStyle = '#3a4450'; g.fillRect(32, 37, 16, 24);
+    // bare-brick end wall (no shop, one grimy window). 7 m x 12.8 m of wall —
+    // it used to be a fixed 80 x 150 canvas, i.e. 11.43 x 11.72 px/m.
+    const endS = masonry(7.0, 12.8, 0);
+    const bareBrickT = endS.paint((g) => {
+      const EW = endS.W, EH = endS.H, em = endS.m;
+      g.fillStyle = '#5a3a30'; g.fillRect(0, 0, EW, EH);
+      endS.courses(g);
+      g.fillStyle = '#1a1c22'; g.fillRect(em(2.6), em(3.0), em(1.75), em(2.4));   // window reveal
+      g.fillStyle = '#3a4450'; g.fillRect(em(2.8), em(3.15), em(1.4), em(2.05));  // grimy glass
       g.fillStyle = 'rgba(0,0,0,0.3)';
-      for (let k = 0; k < 4; k++) g.fillRect(Math.floor(Math.random() * 76), 0, 2, Math.floor(150 * Math.random()));
-      dither(g, 80, 150, 700);
+      for (let k = 0; k < 4; k++) g.fillRect(Math.floor(Math.random() * (EW - em(0.25))), 0, em(0.25), Math.floor(EH * Math.random()));
+      dither(g, EW, EH, Math.round(7.0 * 12.8 * 7.8));
     });
     const endWallM = new THREE.MeshBasicMaterial({ color: 0x3d2a24 });
     const alleyEnd = new THREE.Mesh(
@@ -703,20 +697,16 @@ export function buildStreet(o: {
     // harness seeds Math.random globally, so spending draws here would
     // ripple through every texture the world builds after the alley.
     const lcg = (s: number) => () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296);
-    const courses = (g: CanvasRenderingContext2D, W: number, H: number) => {
-      g.fillStyle = 'rgba(0,0,0,0.22)';
-      for (let y = 0; y < H; y += 5) g.fillRect(0, y, W, 1);
-      for (let y = 0; y < H; y += 10) for (let x = (y % 20) ? 0 : 4; x < W; x += 9) g.fillRect(x, y, 1, 5);
-    };
     // whole stretchers a shade off the run — the thing that stops flat brick
-    // reading as wallpaper. Walks the same grid courses() lays down.
-    const mottle = (g: CanvasRenderingContext2D, W: number, H: number, up: string, dn: string, r: () => number) => {
-      for (let y = 0; y < H; y += 5) {
-        const off = (y % 20) ? 0 : 4;
-        for (let x = off; x < W; x += 9) {
+    // reading as wallpaper. Walks the same bond masonry() lays down, so the
+    // alley brick is the street brick seen from the side.
+    const mottle = (g: CanvasRenderingContext2D, W: number, H: number, up: string, dn: string, r: () => number, cH: number, pW: number) => {
+      for (let y = 0; y < H; y += cH) {
+        const off = (Math.round(y / cH) % 2) ? 0 : Math.round(pW / 2);
+        for (let x = off; x < W; x += pW) {
           const k = r();
           if (k > 0.85) g.fillStyle = up; else if (k < 0.13) g.fillStyle = dn; else continue;
-          g.fillRect(x + 1, y + 1, 8, 4);
+          g.fillRect(x + 1, y + 1, pW - 1, cH - 1);
         }
       }
     };
@@ -726,81 +716,104 @@ export function buildStreet(o: {
         g.fillRect(Math.floor(r() * W), Math.floor(r() * H), 1, 1);
       }
     };
-    const AW = 80;            // 7 m of wall at the rear wall's texel density
-    const PXM = 150 / 12.8;   // …and the rear wall's px-per-metre vertically
+    // The flanks are 7 m of wall, as tall as the building they belong to.
+    // They used to be a fixed 80 px wide at 150/12.8 px per metre up — 11.43 x
+    // 11.74, against a street that now runs 8 x 8.
+    //
+    // The art below is still written in the texel coordinates it was drawn in.
+    // Restating two dozen constants in metres is a bigger edit than this file
+    // can safely take right now, so `ox`/`oy` re-base them onto the correctly
+    // dense canvas instead: same world positions, one derivation, no painter
+    // carrying a px/m of its own. Worth restating properly next time the alley
+    // is opened — see notes/A-density-cross.md.
+    const FLANK_W = 7.0, OLD_AW = 80, OLD_PXM = 150 / 12.8;
     // north flank — the wall of whatever sits north of the gap. Warmer red brick, badly patched: a square
     // of newer grey brick let in mid-height, a bricked-up service door at
     // the bottom, and a long rust-and-rain streak off a missing downpipe.
-    const northFlankT = (H: number) => pixTex(AW, H, (g) => {
+    const northFlankT = (hM: number) => {
+      const surf = masonry(FLANK_W, hM, 0);
+      const AW = surf.W, H = surf.H;
+      const ox = (v: number) => Math.round(v * (AW / OLD_AW));
+      const oy = (v: number) => Math.round(v * (surf.ppm / OLD_PXM));
+      const cH = surf.m(0.5), pW = surf.m(1.125);
+      return surf.paint((g) => {
       const r = lcg(0x51f0a3);
       g.fillStyle = '#623f32'; g.fillRect(0, 0, AW, H);
-      mottle(g, AW, H, '#6f4b3a', '#553629', r);
-      courses(g, AW, H);
+      mottle(g, AW, H, '#6f4b3a', '#553629', r, cH, pW);
+      surf.courses(g);
       // NO rectangular infill anywhere on this flank. Any outlined block with
       // a line across its head reads as a bricked-up doorway from inside the
       // alley — twice now — so this wall's history is told with repointing
       // that follows the courses and stops on a ragged brick edge instead.
-      for (let y = Math.round(H * 0.3); y < Math.round(H * 0.62); y += 5) {
-        const x0 = 40 + Math.floor(r() * 8), x1 = 68 + Math.floor(r() * 10);
+      for (let y = Math.round(H * 0.3); y < Math.round(H * 0.62); y += cH) {
+        const x0 = ox(40) + Math.floor(r() * ox(8)), x1 = ox(68) + Math.floor(r() * ox(10));
         g.fillStyle = 'rgba(216,200,172,0.1)'; g.fillRect(x0, y, x1 - x0, 1);
-        g.fillStyle = 'rgba(214,198,170,0.06)'; g.fillRect(x0 + 2, y + 1, x1 - x0 - 5, 3);
+        g.fillStyle = 'rgba(214,198,170,0.06)'; g.fillRect(x0 + 2, y + 1, x1 - x0 - 5, oy(3));
       }
       // the streak: a wet column off a downpipe that isn't there any more
       for (const [sx, sw, a] of [[35, 3, 0.3], [34, 1, 0.16], [38, 1, 0.13]] as [number, number, number][]) {
         g.fillStyle = `rgba(24,14,10,${a})`;
-        g.fillRect(sx, 0, sw, Math.round(H * 0.78));
-        g.fillRect(sx - 1, Math.round(H * 0.5), sw + 2, Math.round(H * 0.28));
+        g.fillRect(ox(sx), 0, ox(sw), Math.round(H * 0.78));
+        g.fillRect(ox(sx) - 1, Math.round(H * 0.5), ox(sw) + 2, Math.round(H * 0.28));
       }
       g.fillStyle = 'rgba(196,178,150,0.09)';                    // salt bloom near the floor
-      for (let i = 0; i < 14; i++) g.fillRect((i * 17) % 74, H - 4 - ((i * 11) % 22), 5, 2);
-      grain(g, AW, H, 620, r);
-    });
+      for (let i = 0; i < 14; i++) g.fillRect((i * ox(17)) % ox(74), H - oy(4) - ((i * oy(11)) % oy(22)), ox(5), oy(2));
+      grain(g, AW, H, Math.round(FLANK_W * hM * 9), r);
+      });
+    };
     // south flank — MUSIC's wall. Darker, sootier, wetter: a tide-line of
     // damp climbing off the floor, spalled brick faces, and the ghost of a
     // painted sign nobody has been able to scrub off.
-    const southFlankT = (H: number) => pixTex(AW, H, (g) => {
+    const southFlankT = (hM: number) => {
+      const surf = masonry(FLANK_W, hM, 0);
+      const AW = surf.W, H = surf.H;
+      const ox = (v: number) => Math.round(v * (AW / OLD_AW));
+      const oy = (v: number) => Math.round(v * (surf.ppm / OLD_PXM));
+      const cH = surf.m(0.5), pW = surf.m(1.125);
+      return surf.paint((g) => {
       const r = lcg(0x2b91c7);
       g.fillStyle = '#563a2f'; g.fillRect(0, 0, AW, H);       // greyer, sootier — same value, different cast
-      mottle(g, AW, H, '#604436', '#492f28', r);
-      courses(g, AW, H);
+      mottle(g, AW, H, '#604436', '#492f28', r, cH, pW);
+      surf.courses(g);
       // soot: this flank gets the weather off the roof, top down
       for (let y = 0; y < H * 0.4; y++) {
         g.fillStyle = `rgba(18,14,14,${0.2 * (1 - y / (H * 0.4))})`;
         g.fillRect(0, y, AW, 1);
       }
       // ghost sign — painted over decades ago, still coming through
-      const gY = Math.round(H * 0.30), gW = 58, gX = 11;
-      g.fillStyle = 'rgba(186,172,146,0.1)'; g.fillRect(gX, gY, gW, 29);
+      const gY = Math.round(H * 0.30), gW = ox(58), gX = ox(11);
+      g.fillStyle = 'rgba(186,172,146,0.1)'; g.fillRect(gX, gY, gW, oy(29));
       g.fillStyle = 'rgba(198,184,158,0.16)';
-      for (let i = 0; i < 5; i++) g.fillRect(gX + 4 + i * 11, gY + 6, 7, 11);   // washed lettering
-      g.fillRect(gX + 8, gY + 22, gW - 20, 2);
+      for (let i = 0; i < 5; i++) g.fillRect(gX + ox(4) + i * ox(11), gY + oy(6), ox(7), oy(11));   // washed lettering
+      g.fillRect(gX + ox(8), gY + oy(22), gW - ox(20), oy(2));
       g.fillStyle = 'rgba(0,0,0,0.09)';
-      for (let i = 0; i < 26; i++) g.fillRect((i * 29) % (gW - 4) + gX, gY + ((i * 13) % 28), 3, 2); // flaked off
+      for (let i = 0; i < 26; i++) g.fillRect((i * ox(29)) % (gW - ox(4)) + gX, gY + ((i * oy(13)) % oy(28)), ox(3), oy(2)); // flaked off
       // damp climbing out of the floor. Stepped BRICK BY BRICK, not a smooth
       // curve — masonry wicks along the courses, and a sine here just reads
       // as bunting at this texel size.
-      for (let x = 0; x < AW; x += 9) {
-        const t = 5 * (3 + Math.floor(r() * 5));               // tide height, whole courses
+      for (let x = 0; x < AW; x += pW) {
+        const t = cH * (3 + Math.floor(r() * 5));              // tide height, whole courses
         for (let y = H - t; y < H; y++) {
           g.fillStyle = `rgba(20,15,17,${0.07 + 0.26 * ((y - (H - t)) / t)})`;
-          g.fillRect(x, y, 9, 1);
+          g.fillRect(x, y, pW, 1);
         }
       }
       // spalled faces — brick that has blown off, showing the dark core
       for (let i = 0; i < 8; i++) {
-        const sx = 3 + Math.floor(r() * (AW - 14)), sy = 8 + Math.floor(r() * (H - 60));
-        g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(sx, sy, 5 + Math.floor(r() * 3), 4);
-        g.fillStyle = 'rgba(206,190,166,0.1)'; g.fillRect(sx, sy + 4, 5, 1);
+        const sx = ox(3) + Math.floor(r() * (AW - ox(14))), sy = oy(8) + Math.floor(r() * (H - oy(60)));
+        g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(sx, sy, ox(5) + Math.floor(r() * ox(3)), oy(4));
+        g.fillStyle = 'rgba(206,190,166,0.1)'; g.fillRect(sx, sy + oy(4), ox(5), 1);
       }
       // one long stepped crack running down from the top
-      let cx = 52;
-      for (let y = 2; y < H * 0.62; y += 3) {
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx, y, 1, 3);
+      let cx = ox(52);
+      for (let y = oy(2); y < H * 0.62; y += oy(3)) {
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx, y, 1, oy(3));
         cx += r() < 0.42 ? (r() < 0.5 ? -1 : 1) : 0;
       }
-      g.fillStyle = 'rgba(10,9,11,0.45)'; g.fillRect(0, H - 2, AW, 2);          // tar line at the foot
-      grain(g, AW, H, 620, r);
-    });
+      g.fillStyle = 'rgba(10,9,11,0.45)'; g.fillRect(0, H - oy(2), AW, oy(2));  // tar line at the foot
+      grain(g, AW, H, Math.round(FLANK_W * hM * 9), r);
+      });
+    };
     // Each flank is as tall as its building and stands 1 cm proud of the
     // shell face — the shells now stop exactly on AZ0/AZ1, so 1 cm is all
     // the clearance the depth test needs.
@@ -811,7 +824,7 @@ export function buildStreet(o: {
       [southFlankT, WEST[ai + 1] as BldSpec, AZ1 + 0.01, 0],
     ] as [(h: number) => THREE.Texture, BldSpec, number, number][]) {
       const wh = topOf(spec);
-      const m = new THREE.MeshBasicMaterial({ map: paint(Math.round(wh * PXM)), side: THREE.DoubleSide });
+      const m = new THREE.MeshBasicMaterial({ map: paint(wh), side: THREE.DoubleSide });
       const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, wh), m);
       sideWall.position.set(-FACE - 3.5, wh / 2, az);
       sideWall.rotation.y = ry;

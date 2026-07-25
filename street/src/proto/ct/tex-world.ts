@@ -53,6 +53,39 @@ export const wallHeight = (floors: number) => WALL_BASE_M + floors * FLOOR_M;
  *  building out (No. 227 sits on ENTRANCE.BAND_H) and its courses line up too. */
 const DEFAULT_BASE_Y = 4.2;
 
+/**
+ * THE one place a masonry canvas is sized. Hand it the real extent of the
+ * surface in metres and it hands back the canvas, the converter, and the
+ * course grid — so a painter never sees a px/m at all.
+ *
+ * This exists because the first version of pattern #1 fixed the three painters
+ * in THIS file and left five more in `ct/street.ts` and `ct/civic.ts` deriving
+ * their own. Closing 4 of 10 instances made the other 6 *worse*, because their
+ * neighbours had been tidied and they had not. The defect was never that a
+ * painter computed density badly — it is that any painter computed it at all.
+ *
+ * `mult` is an INTEGER multiple of WALL_PPM, for surfaces that carry fine
+ * content (text, one-texel stone arrises). Integer keeps texels square and the
+ * course grid commensurate: a 0.5 m course is 4 px at 1× and 8 px at 2×,
+ * landing on the same world lines either way.
+ */
+export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 1) {
+  const ppm = WALL_PPM * mult;
+  const W = Math.max(1, Math.round(wMeters * ppm));
+  const H = Math.max(1, Math.round(hMeters * ppm));
+  return {
+    W, H, ppm,
+    /** metres → texels on this surface. At least 1, so a thin line survives. */
+    m: (v: number) => Math.max(v > 0 ? 1 : 0, Math.round(v * ppm)),
+    /** metres → texels as a raw (possibly 0) count, for offsets */
+    at: (v: number) => Math.round(v * ppm),
+    /** the brick bond, phased off world Y so it crosses a party wall in step */
+    courses: (g: CanvasRenderingContext2D) => courses(g, W, H, hMeters, baseY, ppm),
+    /** paint it. The canvas size is not the caller's to choose. */
+    paint: (draw: (g: CanvasRenderingContext2D) => void) => pixTex(W, H, draw),
+  };
+}
+
 /** lay horizontal course lines on the WORLD-Y grid across a canvas of `hM`
  *  metres whose bottom edge sits at world `baseY`. Returns nothing; draws. */
 function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, baseY: number, ppm: number) {
@@ -78,32 +111,39 @@ function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, 
  * `wMeters` × `hMeters` are the REAL dimensions of the face this paints, and
  * every feature below is expressed in metres and converted once. `baseY` is the
  * world height of the wall's bottom edge — the course datum.
+ *
+ * `minCols` floors the window count: a 2 m canted bay is one window wide, not
+ * none and not two. `sill0` is the height of the lowest sill above the face's
+ * own foot — the default suits a wall that starts at its shopfront band, and
+ * the bodega's corner pier passes its own because that face runs all the way
+ * to the ground and still has to line its windows up with the elevation.
  */
 export function facadeTex(
   brick: string, floors: number, wMeters = 12,
-  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y,
+  hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
+  sill0 = SKIRT_M,
 ): THREE.Texture {
-  const ppm = WALL_PPM;
-  const W = Math.round(wMeters * ppm), H = Math.round(hMeters * ppm);
+  const surf = masonry(wMeters, hMeters, baseY);
+  const { W, H, ppm } = surf;
   const m = (v: number) => Math.round(v * ppm);          // metres → texels
   const WIN_W = 1.5, WIN_H = 1.5, BAY_M = 2.75, SILL_M = 0.2, MARGIN_M = 1.0;
   const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
-  return pixTex(W, H, (g) => {
+  return surf.paint((g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
-    courses(g, W, H, hMeters, baseY, ppm);
+    surf.courses(g);
     g.fillStyle = '#8a7a62';
     g.fillRect(0, 0, W, m(CORNICE_M));
     g.fillStyle = 'rgba(0,0,0,0.3)';
     g.fillRect(0, m(CORNICE_M), W, m(CORNICE_SHADE_M));
     // window bays: as many as fit at BAY_M pitch inside a margin each end
-    const cols = Math.max(2, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
+    const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
     const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
     const winW = m(WIN_W), winH = m(WIN_H);
     for (let f = 0; f < floors; f++) {
       // storey f counted from the BOTTOM, so a 4- and a 5-storey neighbour
       // share every window band they both have (seam finding 7)
-      const sill = SKIRT_M + f * FLOOR_M;                 // metres above the wall's foot
+      const sill = sill0 + f * FLOOR_M;                   // metres above the wall's foot
       const y = Math.round(H - (sill + WIN_H) * ppm);     // canvas y of the window head
       for (let c = 0; c < cols; c++) {
         const x = m(MARGIN_M + slack + c * BAY_M);
@@ -135,27 +175,28 @@ export function facadeTex(
  *  is what made every shop on the block read undersized. */
 export const SHOP_BAND_H = 4.2;
 
-/** The shopfront band runs at 2× masonry density: it is the only wall surface
- *  that has to render TEXT, and a shop's name at 0.65 m of letter height is 5
- *  texels at 1× — unreadable. An integer multiple keeps the texels square and
- *  keeps the course grid commensurate, so the brick either side of the fascia
- *  still lands on the same world lines as the wall above. */
-const SHOP_PPM = WALL_PPM * 2;
+/** Ground-floor bands run at 2× masonry density: they are the surfaces that
+ *  have to render TEXT and one-texel stone arrises, and a shop's name at
+ *  0.65 m of letter height is 5 texels at 1× — unreadable. An integer multiple
+ *  keeps the texels square and keeps the course grid commensurate, so the
+ *  brick either side of the fascia still lands on the same world lines as the
+ *  wall above. Exported so `ct/street.ts`'s corner bay uses the same one. */
+export const SHOP_MULT = 2;
 
 export function shopfrontTex(brick: string, name: string, awning: string, wMeters = 12): THREE.Texture {
-  const ppm = SHOP_PPM;
-  const W = Math.round(wMeters * ppm), H = Math.round(SHOP_BAND_H * ppm);
+  const surf = masonry(wMeters, SHOP_BAND_H, 0, SHOP_MULT);
+  const { W, H, ppm } = surf;
   const m = (v: number) => Math.round(v * ppm);
   // every dimension below is METRES of real shopfront, converted once
   const FASCIA_Y = 0.16, FASCIA_H = 0.89, FASCIA_SHADE = 0.16, LETTER_H = 0.65;
   const BAND_MAX = 12, BAND_INSET = 0.5;   // sign caps at 12 m of fascia
   const FRAME_X = 0.63, FRAME_Y = 1.13, GLASS_X = 0.88, GLASS_Y = 1.29;
   const GLASS_H = 2.59, TRANSOM_Y = 1.70, RISER_Y = 3.88, RISER_H = 0.32;
-  return pixTex(W, H, (g) => {
+  return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     // the band's foot IS world y = 0, so its courses are the datum the wall
     // above continues from — same 0.5 m spacing, same lines
-    courses(g, W, H, SHOP_BAND_H, 0, ppm);
+    surf.courses(g);
     const bandW = Math.min(W - m(2 * BAND_INSET), m(BAND_MAX)), bandX = Math.round((W - bandW) / 2);
     g.fillStyle = awning;
     g.fillRect(bandX, m(FASCIA_Y), bandW, m(FASCIA_H));
@@ -416,8 +457,8 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
   // same 2× masonry density as the shopfront band it sits in line with — this
   // face carries the doorcase's stone arrises and the window bars, which are
   // one-texel features, so it earns the extra multiple the same way
-  const ppm = SHOP_PPM;
-  const W = Math.round(wMeters * ppm), H = Math.round(ENTRANCE.BAND_H * ppm);
+  const surf = masonry(wMeters, ENTRANCE.BAND_H, 0, SHOP_MULT);
+  const { W, H, ppm } = surf;
   const ppmX = ppm, ppmY = ppm;
   const m = (v: number) => Math.round(v * ppm);        // metres → texels
   /** metres DOWN from the top of the band → canvas y */
@@ -447,11 +488,11 @@ export function resGroundTex(brick: string, wMeters = 12, bayW = ENTRANCE.BAY_W)
   const LINT_Y = 0.6, LINT_H = 0.2, REV_Y = 0.8, REV_H = 1.4;
   const GLASS_Y = 0.9, GLASS_H = 1.2, SILL_Y = 2.2, SILL_H = 0.2;
   const BAR_PITCH = 0.375;   // security bars, on a real pitch not a texel count
-  return pixTex(W, H, (g) => {
+  return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     // this band's foot is world y = 0 too, so it shares the shopfront band's
     // course lines along the block and the wall above continues them
-    courses(g, W, H, ENTRANCE.BAND_H, 0, ppm);
+    surf.courses(g);
     for (const wx of wins) {
       g.fillStyle = STONE; g.fillRect(wx - 1, ty(LINT_Y), winW + 2, m(LINT_H));   // lintel
       g.fillStyle = STONE_HI; g.fillRect(wx - 1, ty(LINT_Y), winW + 2, 1);
