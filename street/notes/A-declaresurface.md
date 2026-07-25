@@ -79,6 +79,45 @@ file produces is now declared and none is that face. Still unowned — but the
 coordinates now rule me out rather than merely failing to rule me in, and that is
 a smaller search for whoever picks it up.
 
+## "I declared 53 textures and nothing moved" — my fault, fixed (`c0e29ec1`)
+
+`8154f456` declared everything its two files paint and reported the unjudgeable
+count **did not move**. My first question was whether my reading was broken.
+
+It is not — adoption is real and substantial:
+
+```
+textures by declaration:
+  brick 197   detail 227   sign 55   ground 43   foliage 12   undeclared 420
+```
+
+The count only moves when the faces **in these pairs** declare, and my tool
+printed a number without saying which faces those were. So the experience was:
+declare everything you own, see no change, learn nothing. **That is the tool's
+fault, not the declarer's** — and it is the same failure as printing "3 differ"
+or "4 flagged" without saying which.
+
+It names them now, largest first — the scoping `21292ebb` did by hand, done by
+the tool:
+
+```
+51 distinct faces are what is actually missing:
+   12 pairs   9.41x9.6 px/m at (6.9,2.8,-23)
+   12 pairs   9.41x9.6 px/m at (6.9,2.8,-51)
+    7 pairs   31.88x32 px/m at (-8.6,0.1,-13)
+    6 pairs   9.41x9.6 px/m at (6.9,2.8,-93)
+    5 pairs   9.41x9.6 px/m at (-6.9,2.8,-37)
+```
+
+**Four faces account for 35 of the 63 pairs**, and they are the 9.41 px/m family
+`9e1bce93` already identified as the **lamp wall-splash** — light, not brick.
+One `declareSurface` call by its owner closes more than half of what remains.
+
+Also newly visible: several **16 × 15.95 px/m faces at y = 2.1** are undeclared.
+That is shopfront-band density at shopfront-band height, but `masonry()` did not
+paint them — so there is a band being painted somewhere other than the shopfront
+kit. Worth its owner knowing; not mine, and I am not guessing whose.
+
 ## Proven a no-op, and the control earned its keep
 
 Textures `dac59c30` and structure identical with and without the change on the
