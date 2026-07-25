@@ -319,13 +319,32 @@ namespace is undefined when the eager glob is read and its `DOOR` is skipped.
 and *does* arrive. So the cycle is necessary but not sufficient, and whoever owns
 that file should establish why before assuming the fix.
 
-### Why this matters on my side
+### ~~Why this matters on my side~~ — I got this wrong, corrected in `eedeacff`
 
-With no declaration, **my painter falls back to its own layout** for that
-shopfront — so GOLDEN ACES gets a painted door wherever the painter would have
-put it, while its room has one somewhere else. That is the user's original
-complaint, exteriors not matching interiors, **in the one building this harness
-cannot see**.
+I wrote that GOLDEN ACES *"gets a painted door wherever the painter would have
+put it, while its room has one somewhere else"*. **That is wrong, and I did not
+check it before writing it.**
+
+`GOLDEN ACES is not in the frontage register at all` — there are 16 frontages
+and it is not one of them. My painter paints no door for it, so the
+painted-vs-room disagreement I described does not exist.
+
+The `doors-declared` failure is still real: the casino's `DOOR` never reaches
+`declaredDoors()`, so the `[E]` census and anything driven by it does not know
+that building has a door. **But the consequence I attached to it was invented.**
+
+`FrontageWorld.doorDeclared` now records which facades were told and which
+guessed, which is the flag that would have told me before I wrote it:
+
+```
+declared (5):  BURGER BARN, DINER, THRIFT, A-1 TAX, PAWN
+fell back (11): LIQUOR, BODEGA, FLOWERS, CHOP SUEY, DELI, RECORDS,
+                GARAGE, BILLIARDS, SMOKES, LOANS, RADIO
+```
+
+**Second time this week I reasoned a consequence into existence rather than
+measuring it** — the diner's blank wall was the other, and that one reached
+another builder before I caught it.
 
 Not my file, not fixing it. Naming it precisely, and making my own check stop
 implying coverage it does not have.
