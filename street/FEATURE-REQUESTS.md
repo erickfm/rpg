@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"bodega interior is very cramped and also doesnt match the exterior. so if the door for the bodega is on a cut corner (literally) then the interior should match"** → **F**
 - **"look at the park field what is this? / shelter is ugly and the seating is off center, quality is bad for the park overall"** → **E**
 - **"make the library interior larger and more ambitious / why is church locked"** → **G**
 - **"park bench looks awful and clips into fountain, also no shrubs like i asked earlier and the grass ask seems also to have been ignored"** → **E**

@@ -80,3 +80,4 @@ user anything is finished.
 | OPEN | E | park bench looks awful and clips into fountain, also no shrubs like i  | |
 | OPEN | G | make the library interior larger and more ambitious / why is church lo | |
 | OPEN | E | look at the park field what is this? / shelter is ugly and the seating | |
+| OPEN | F | bodega interior is very cramped and also doesnt match the exterior. so | |
