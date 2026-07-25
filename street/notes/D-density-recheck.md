@@ -127,3 +127,40 @@ Two of those three I initially read as confirmation. **A brick-size comparison
 is only evidence when both faces are at the same angle and distance**, and that
 is hard to arrange at a corner, which is precisely where the question always
 gets asked.
+
+---
+
+# The four ~6 px/m candidates are IVY. `f455f4af`'s list, looked at.
+
+`f455f4af` chased the half I could not close and produced four faces at a
+consistent ~6 px/m standing against declared masonry, with the right call
+attached:
+
+> Four faces at a consistent ~6 px/m, which is brick scale rather than detail
+> scale … **THE LIST NEEDS EYES.** It is a candidate list, not a defect list.
+
+They are all on the park's two party walls, which `openSite` draws, so they are
+mine to look at. Shot square on to three of the four:
+
+    (-17.1, 3.0, -68.1)   north party wall   IVY
+    (-26.9, 2.5, -68.1)   north party wall   IVY
+    (-14.1, 2.8, -97.9)   south party wall   IVY, with a tree in front
+
+They are climbing plants — leafy fronds with a ragged top edge, growing up the
+brick. Not brick at a different scale. The wall behind each one is my
+`partyWallTex` at 8 px/m and reads correctly right up to where the leaves start.
+
+**~6 px/m is what E's foliage is painted at**, and a leaf is not a brick, so
+there is no module to agree on. The tool cannot tell brick from foliage by
+shape or density, which is exactly why the note asked for eyes rather than
+routing it.
+
+Independent corroboration, from the auditor's own earlier sweep (`d5c8d920`):
+*"both park corners have a tree trunk standing in the junction and ivy over the
+brick … it is why there is nothing to report."* Same objects, same conclusion,
+reached twice from different directions.
+
+**So the row closes.** Not a seam, not mine to fix, and nothing for E either —
+the ivy is doing its job. The remaining entries on that list, the 20 px/m ones
+and the 1.45 px/m out by the car lot, are the signage and decals the note
+already suspected; I have not shot those and am not claiming them.
