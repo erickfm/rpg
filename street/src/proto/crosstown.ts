@@ -23,6 +23,8 @@ import { ORDER, type Board, type CtxBuild, type WetSurface, type Spot, type Play
 import { buildApartment } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
+import { interiorGround, interiorMaxX } from './ct/interior';
+import { buildDiner } from './ct/int-diner';
 
 // ═══════════════════════════════ the world ════════════════════════════════
 
@@ -221,6 +223,22 @@ export function makeCrosstown(): Proto {
     lit: props.lit,
   });
 
+  // ── the interior belt, built LAST ───────────────────────────────────────
+  //
+  // Rooms parked far out along +x that you teleport into. Each claims its own
+  // slab from ct/interior.ts and registers its own way in and out, so adding
+  // one does NOT mean editing this file — which is the whole reason ten of
+  // them can be built in parallel.
+  //
+  // Last on purpose, and it must stay last. GOTCHAS §2 is about the seeded
+  // rnd() stream, but the same argument applies to the paint layer's
+  // Math.random: the fingerprint harness seeds it, so a module that paints
+  // mid-build shifts the grain of every texture painted after it. Built here,
+  // ten new interiors add 500 objects to the world and change nothing about
+  // the street — which is the only way `fpdiff` can still answer the question
+  // it exists to answer while this programme is running.
+  const dinerColliders = buildDiner(ctx);
+
   const colliders: AABB[] = [
     { minX: FACE - 0.3, maxX: FACE + 8, minZ: -96, maxZ: 20 },              // right wall (stops at the corner)
     { minX: -FACE - 8, maxX: -FACE + 0.3, minZ: -112, maxZ: AZ1 },          // left wall south of alley, wraps the corner
@@ -241,6 +259,17 @@ export function makeCrosstown(): Proto {
     ...carColliders,
     ...apt.colliders,
     ...bodegaColliders,
+    // The east edge of the OLD world, which used to be the `maxX: 260` bound.
+    //
+    // Moving that bound out to the interior belt quietly un-hid a hole: the
+    // bodega's east wall has a gap around z = -21, and sprinting at it now
+    // carries you out of the shop and 200 m across the dead ground between
+    // the bodega and the first slab. The bound was covering for it. Putting a
+    // real wall back where the bound was restores exactly the old behaviour
+    // without reaching into `ct/bodega.ts`, which is not this builder's file —
+    // the gap itself is reported to the desk in notes/feat-interiors.md.
+    { minX: 260, maxX: 262, minZ: -112, maxZ: 20 },
+    ...dinerColliders,
     cruiserBox,
   ];
   // Everything is built by now, so sweep the block into the night registry:
@@ -251,9 +280,16 @@ export function makeCrosstown(): Proto {
   props.dimWorld(scene);
 
   rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
-    bounds: { minX: -FACE - 6.4, maxX: 260, minZ: -110.6, maxZ: 13 },
+    // maxX reaches only as far as the interiors actually built — every room
+    // is constructed by now, so this is the real east edge, not a reservation
+    bounds: { minX: -FACE - 6.4, maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     groundY: (x, z) => {
+      // the interior belt owns its own floors — each room answers for its
+      // slab, so a builder can put a step or a mezzanine in a shop without
+      // this file knowing anything about it
+      const ig = interiorGround(x, z);
+      if (ig !== null) return apt.setGy(ig);
       if (x > 230) return apt.setGy(0);  // bodega interior, flat
       if (x > 100) return apt.ground(x, z);
       // the kerb returns are curved and the corner one ramps — the ground
