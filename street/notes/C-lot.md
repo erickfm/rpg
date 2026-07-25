@@ -106,6 +106,34 @@ started stamping (`cf966b3d`).
 Reachability is not the fault: the walker found a standable point and stood on
 it. The seat registered and the prompt did not appear there.
 
+**F / G — `interiors-walk` cannot pass in the shared runner, and that is
+probably the slow tier's red.** `1d4d7e31` reported it red — *"the one check in
+the project I have never seen complete"* finally reaching a verdict — and left
+it unread because it was not theirs. It is not mine either, but it is a
+two-line diagnosis so here it is.
+
+Run alone against a DEV server it is **195/195 green**. Against the built
+bundle it does not run at all:
+
+```
+Failed to fetch dynamically imported module: http://localhost:4190/src/proto/ct/doors.ts
+```
+
+It reaches into SOURCE at `interiors-walk.mjs:85` and `:90`
+(`await import('/src/proto/ct/doors.ts')`), and only a dev server serves
+`/src/`. But it is registered in `checks.mjs:151`, and that runner defaults to
+a **preview** — the built bundle. So in the default run it cannot pass, and the
+red says nothing about the world.
+
+**The world is fine.** 195/195, including every room holding you in.
+
+If it should be bundle-capable, most of what it imports is already on the
+runtime affordance: `window.__ct.doors()` returns 8 records carrying
+`stand`, `point` and `widthM`, which covers `doorStandFor` and `doorWorldFor`.
+`roomWidthFor(w)` is just `max(4, w - 1.2)`. The only thing with no runtime
+source is `decl.at`, so that is the one gap to close. Yours to decide — I have
+not touched the file.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the

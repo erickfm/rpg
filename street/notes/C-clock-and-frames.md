@@ -130,3 +130,43 @@ for i in 1 2 3 4 5 6; do node scripts/<yours>.mjs "shots/_c$i" >/tmp/c$i.log 2>&
 ```
 
 That is the check I would put in front of the other 89.
+
+
+---
+
+## 6. Who else holds a movement key for a fixed time
+
+Same method as `159b9c1c`, and the same warning attached: **this is a candidate
+list, not a defect list.** I have not run any of them under load, and whether a
+fixed hold matters depends entirely on what the script concludes from it.
+
+Scripts where a `keyboard.down('w'|'a'|'s'|'d')` is followed by a fixed
+`waitForTimeout` rather than a wait on the rig's own position:
+
+```
+crowd-walk      E-park-walk    E-walk      E-yard-walk
+interiors-walk  park-walk      smoke
+```
+
+The sharpest example is `interiors-walk.mjs:436`, which converts a distance
+into a duration outright:
+
+```js
+await hold('w', Math.round((lane.run / 3.3) * 1000) + 900);
+```
+
+3.3 m/s is the right speed and 900 ms is honest slack — on a quiet machine.
+It is a *distance* being measured in *milliseconds*, and the exchange rate is
+however many frames the machine felt like rendering.
+
+**Ask which way yours fails before you spend anything on it.** Mine failed
+safe: `lotwalk` needs more travel to get IN than to be stopped, so starvation
+breaks the "there is an opening" assertion and goes loudly red. A check that
+concludes *"the wall held"* from a walker that never arrived fails the other
+way, and nothing tells you. That is the one worth an afternoon.
+
+The test is one line, and unlike the settle-ramp question it is decisive:
+
+```sh
+for i in 1 2 3 4 5 6; do node scripts/<yours>.mjs "shots/_c$i" >/tmp/c$i.log 2>&1 & done; wait
+```
