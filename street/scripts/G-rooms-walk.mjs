@@ -153,8 +153,39 @@ for (const r of ROOMS) {
 
 const results = [];
 let room = null;
-const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, detail]);
 const f2 = (n) => +n.toFixed(2);
+
+// ── the [E] spot sits EXACTLY on the published door ─────────────────────
+//
+// The casino and the hotel derive their spot from the `face` they declare, with
+// their own copy of the 0.75 m standoff, because importing the value from
+// ./doors is what dropped their DOOR from the bundle (1e49295b). That duplicated
+// constant needs a guard, and in that commit I said this file was it. IT IS NOT,
+// and I checked instead of leaving the claim standing: with the casino's standoff
+// drifted 0.75 → 1.00, this suite passes 28/28. Every walking check here goes
+// through a 1.05 m trigger radius, which swallows a 0.25 m error whole — the same
+// blindness I documented for the old typed door constants and then walked into
+// again by asserting a guarantee rather than testing it.
+//
+// `spots-walk.mjs` does catch it exactly ("NOT ON ITS DOOR … 0.25 m away"), so
+// the guarantee is real — but it lives in the slow tier, which two builders have
+// now failed to get a clean run out of. A constant duplicated in my files should
+// be guarded by the suite I actually run, so here it is: no walking, no trigger
+// radius, just the two numbers.
+{
+  const spots = await p.evaluate(() => (window.__ct.spots ? window.__ct.spots() : []));
+  const bad = [];
+  for (const r of ROOMS) {
+    const s = spots.find((q) => r.label.test(q.label ?? ''));
+    if (!s) { bad.push(`${r.id}: no [E] spot matching ${r.label}`); continue; }
+    const off = Math.hypot(s.x - r.doorX, s.z - r.doorZ);
+    if (off > 0.01) bad.push(`${r.id}: spot ${f2(s.x)},${f2(s.z)} is ${off.toFixed(3)} m off the published door ${f2(r.doorX)},${f2(r.doorZ)}`);
+  }
+  results.push([bad.length === 0,
+    'every [E] spot sits exactly on its published door, not merely within reach',
+    bad.length ? bad.join('; ') : `${ROOMS.length} spots, all within 1 cm of the declaration`]);
+}
+const check = (name, ok, detail) => results.push([ok, `${room.id}: ${name}`, detail]);
 const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 
 // ── the one defect in these rooms this suite CANNOT walk to ─────────────

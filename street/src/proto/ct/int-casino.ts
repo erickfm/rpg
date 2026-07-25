@@ -49,10 +49,18 @@ import { tube, VICE_DOOR_X } from './vice';
  * and silently dropped in `dist`. Type-only imports are erased and cost nothing,
  * which is why the other six rooms were never affected.
  *
- * The standoff default is duplicated from `doors.ts` and that is the price. It is
- * guarded rather than hoped over: `scripts/G-rooms-walk.mjs` asks the world for
- * `doorStandFor` and walks to it, so if these two ever disagree the walk stops
- * raising the prompt and says so.
+ * The standoff default is duplicated from `doors.ts` and that is the price.
+ *
+ * I first wrote that walking to the door guards it. It does not, and I checked
+ * rather than leaving the claim standing: with this constant drifted to 1.00,
+ * every walking check still passed, because they all approach through a 1.05 m
+ * trigger radius that swallows a 0.25 m error whole. That is the same blindness
+ * the typed door constants had, asserted a second time instead of tested.
+ *
+ * What actually guards it is a comparison of the two NUMBERS, no walking
+ * involved: `spots-walk.mjs` does it across the world, and `G-rooms-walk.mjs`
+ * now does it for these four rooms — "every [E] spot sits exactly on its
+ * published door", within 1 cm.
  */
 const standOf = (d: DoorDecl, standoff = 0.75) =>
   ({ x: d.face!.x + d.face!.nx * standoff, z: d.face!.z + d.face!.nz * standoff });
