@@ -75,6 +75,17 @@ const CASES = [
     't.userData.masonry = { ppm, mult, wMeters: wMeters * 1.4, hMeters, baseY, W, H };',
     'density.mjs', [], 'masonry painted for a width it was not mapped to'],
 
+  // Restores the fencepost the user photographed as "chopped off at points":
+  // size the window run as whole BAYS rather than as what the windows span.
+  // The run then centres on something 1.25 m too long and every facade on the
+  // block sits left of centre — which is what it did for months, uniformly
+  // enough that it read as a style. In SOURCE, because the property under test
+  // is the arithmetic, not the stamp the runtime selftest can reach.
+  ['facade-run', TEXW,
+    'const spanOf = (n: number) => (n - 1) * BAY_M + WIN_W;',
+    'const spanOf = (n: number) => n * BAY_M;   // whole bays, the original fencepost',
+    'facade-run.mjs', [], 'the window run pushed off centre on every facade'],
+
   // Moves the kerb line the guard protects out to infinity rather than
   // neutering the function: same effect (nothing is ever pushed clear), but it
   // still typechecks, and an uncompilable mutation tests nothing.

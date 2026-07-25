@@ -71,6 +71,7 @@ const CHECKS = [
   ['burger-palette',  'has BURGER BARN gone back to mustard?',            true],
   ['tree-crown',      'can you read a window through a tree again?',      true],
   ['window-lattice',  'are the lit windows a lattice again?',             ['window-lattice']],
+  ['facade-run',      'does a facade\'s window run terminate on its wall?', true],
   ['shop-interior',   'is the shop glass a room, or a black hole?',       true],
   ['checks-registered','is every self-testing script actually registered?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],

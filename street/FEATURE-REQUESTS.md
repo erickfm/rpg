@@ -75,6 +75,15 @@ published to the playable artifact.
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
 - **"i need the facades to line up with the interior. so if the door on the interior is full right then the facade must match"** → **A**
+- **"facade of the thrift store building is lazy and chopped off at points"** →
+  **A** (THRIFT is one of the four fronts in A's facade brief, so this is the
+  brief not being met on that building rather than a new request). Both halves
+  turned out to be real and both were in `ct/tex-world.ts`: the window display
+  was painted and then the doorcase stamped over it, cutting the "50c" card in
+  half; and `facadeWindows` counted whole BAYS instead of windows, which
+  dropped a window that fits on nine of nineteen fronts and left every facade
+  on the block 0.625 m left of centre with the remainder dumped at one end.
+  The second one did affect the neighbours, as the user guessed it might.
 
 ### 2026-07-24, session 3
 

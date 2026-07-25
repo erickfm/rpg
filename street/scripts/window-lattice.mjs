@@ -43,6 +43,11 @@ const r = await p.evaluate(([selftest]) => {
       const w = m?.map?.userData?.windows;
       if (!w || seen.has(m.map.uuid)) continue;
       seen.add(m.map.uuid);
+      // The DARK facade sheet carries the same stamp for scripts/facade-run.mjs
+      // but no `lit` key — it has no lit information by construction. Not
+      // "skipped": counting it would put unjudgeable sheets into the coverage
+      // line and make it read worse than it is.
+      if (!w.lit) continue;
       if (selftest && testable === 0 && w.floors * w.cols >= 12) {
         // put back the exact bug: light one residue class and nothing else
         const lit = [];

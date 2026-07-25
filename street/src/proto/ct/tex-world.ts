@@ -178,9 +178,35 @@ function facadeWindows(
     h = Math.imul(h ^ (h >>> 13), 0x297a2d39) >>> 0;
     return ((h ^ (h >>> 16)) >>> 0) % 100 < pct;
   };
-  // window bays: as many as fit at BAY_M pitch inside a margin each end
-  const cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M) / BAY_M));
-  const slack = (wMeters - 2 * MARGIN_M - cols * BAY_M) / 2;
+  // window bays: as many as fit at BAY_M pitch inside a margin each end.
+  //
+  // FENCEPOST, and it was in the world for months because it looked like a
+  // style rather than a bug. `n` windows at BAY_M pitch span
+  // `(n-1) * BAY_M + WIN_W` — the last bay's trailing gap is not part of the
+  // run. Counting whole BAYS instead:
+  //
+  //   · dropped a window that fits, on NINE of the block's nineteen fronts
+  //   · centred the run on `cols * BAY_M`, which is 1.25 m longer than the
+  //     run really is, so EVERY facade sat 0.625 m left of centre and the
+  //     right-hand end carried exactly BAY_M - WIN_W more blank brick
+  //
+  // Uniform across the block, which is why nobody read it as wrong; but on
+  // THRIFT (12.5 m, three windows) it left 2.13 m of brick at one end and
+  // 3.38 m at the other, and the user read that as the facade being "chopped
+  // off at points". A composition that terminates in the middle of nothing is
+  // what that phrase describes.
+  const spanOf = (n: number) => (n - 1) * BAY_M + WIN_W;
+  let cols = Math.max(minCols, Math.floor((wMeters - 2 * MARGIN_M - WIN_W) / BAY_M) + 1);
+  // …but never more than the wall can hold. `minCols` asks for two windows on
+  // a narrow front so it does not read as a blind wall — on the 1.4 m returns
+  // and slivers that also come through here it was laying them at negative x
+  // and drawing them straight off the edge of the canvas. A window cut by the
+  // end of the wall is the same complaint as a sign cut by a door, and it is
+  // the honest fix to admit a 1.4 m pier has no window on it.
+  const EDGE_M = 0.3;
+  while (cols > 0 && spanOf(cols) > wMeters - 2 * EDGE_M) cols--;
+  const runM = spanOf(cols);                           // what the windows ACTUALLY span
+  const slack = (wMeters - 2 * MARGIN_M - runM) / 2;
   // f and c travel with each cell. They cost nothing here and they are the only
   // way anything outside can ask "are the lit windows a LATTICE again?" — the
   // user's original report was diagonal stripes, and a lattice is a property of
@@ -196,7 +222,18 @@ function facadeWindows(
       cells.push({ x: m(MARGIN_M + slack + c * BAY_M), y, lit: litAt(f, c), f, c });
     }
   }
-  return { surf, W, H, m, cells, winW: m(WIN_W), winH: m(WIN_H), sillT: m(SILL_M) };
+  // The run's own extents, published rather than left to be re-derived. The
+  // fencepost above survived because the only way to ask "is this composition
+  // centred?" was to re-do the arithmetic that was wrong — so the painter says
+  // where its windows START and END, and scripts/facade-run.mjs checks the
+  // brick left over at each end is the same. See A-density-stamp.md: whoever
+  // knows, says.
+  const runX0 = cols ? m(MARGIN_M + slack) : 0;
+  const runX1 = cols ? m(MARGIN_M + slack + (cols - 1) * BAY_M) + m(WIN_W) : W;
+  return {
+    surf, W, H, m, cells, cols, runX0, runX1,
+    winW: m(WIN_W), winH: m(WIN_H), sillT: m(SILL_M),
+  };
 }
 
 export function facadeTex(
@@ -204,10 +241,10 @@ export function facadeTex(
   hMeters = wallHeight(floors), baseY = DEFAULT_BASE_Y, minCols = 2,
   sill0 = SKIRT_M,
 ): THREE.Texture {
-  const { surf, W, H, m, cells, winW, winH, sillT } =
+  const { surf, W, H, m, cells, cols, runX0, runX1, winW, winH, sillT } =
     facadeWindows(brick, floors, wMeters, hMeters, baseY, minCols, sill0);
   const CORNICE_M = 0.5, CORNICE_SHADE_M = 0.2;
-  return surf.paint((g) => {
+  const tex = surf.paint((g) => {
     g.fillStyle = brick;
     g.fillRect(0, 0, W, H);
     surf.courses(g);
@@ -237,6 +274,16 @@ export function facadeTex(
     }
     dither(g, W, H, Math.round(wMeters * hMeters * 3.2));
   });
+  // The DARK sheet publishes its run too, not only the lit one. The narrow
+  // returns and piers never get a lit sheet, and they are exactly the walls
+  // where the run can fall off the end — so stamping only the lit half would
+  // leave scripts/facade-run.mjs blind to the case it most needs to see.
+  // No `lit` key at all, rather than an empty one: this sheet has no lit
+  // information by construction, and handing window-lattice an empty array
+  // would put 24 unjudgeable sheets into its "too small to judge" count and
+  // make its own coverage line lie.
+  tex.userData.windows = { floors, cols, runX0, runX1, W };
+  return tex;
 }
 
 /** The light in the windows `facadeTex` just cut, on its own TRANSPARENT sheet
@@ -252,7 +299,7 @@ export function facadeLitTex(
   brick: string, floors: number, wMeters = 12,
   o: { variant?: number; pct?: number } = {},
 ): THREE.Texture {
-  const { surf, m, cells, winW, winH } = facadeWindows(
+  const { surf, m, cells, winW, winH, cols, runX0, runX1, W } = facadeWindows(
     brick, floors, wMeters, wallHeight(floors), DEFAULT_BASE_Y, 2, SKIRT_M,
     o.variant ?? 0, o.pct ?? 19,
   );
@@ -272,7 +319,10 @@ export function facadeLitTex(
       g.fillRect(x, y + winH - m(0.6), winW, m(0.6));
     }
   });
-  litTex.userData.windows = { floors, cols: Math.max(...cells.map((k) => k.c)) + 1, lit: litGrid };
+  // `cols` comes from the layout, not from `Math.max` over the cells: a wall
+  // too narrow for a window has no cells at all, and Math.max of nothing is
+  // -Infinity.
+  litTex.userData.windows = { floors, cols, lit: litGrid, runX0, runX1, W };
   return litTex;
 }
 
@@ -1397,10 +1447,17 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
     // a painted board, sun-bleached unevenly across its length
     const B = BANDS.thrift;
     const fy = m(B.fy), fh = m(B.fh);
-    proud(g, surf, m(0.25), fy, W - m(0.5), fh, BOARD);
-    for (let x = m(0.25); x < W - m(0.25); x += m(0.5)) {
-      g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin(x * 0.021))})`;
-      g.fillRect(x, fy, m(0.5), fh);
+    const bx0 = m(0.25), bw = W - m(0.5);
+    proud(g, surf, bx0, fy, bw, fh, BOARD);
+    // the bleaching is stepped across the board's OWN width — stepping across
+    // the canvas at a fixed pitch overruns onto the brick whenever the board
+    // is not a whole number of steps, which is the same fragment-at-the-end
+    // fault as the window run above.
+    const bleach = Math.max(4, Math.round(bw / m(0.5)));
+    for (let i = 0; i < bleach; i++) {
+      const x0 = bx0 + Math.round((bw * i) / bleach), x1 = bx0 + Math.round((bw * (i + 1)) / bleach);
+      g.fillStyle = `rgba(228,220,196,${0.05 + 0.09 * Math.abs(Math.sin(x0 * 0.021))})`;
+      g.fillRect(x0, fy, x1 - x0, fh);
     }
     g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(m(0.25), fy + fh - m(0.1), W - m(0.5), m(0.1));
     g.font = `bold ${m(0.55)}px monospace`;
@@ -1412,54 +1469,153 @@ const thriftFront = (brick: string, nm: string, awning: string, wM: number) => {
     reveal(g, surf, ox, oy, ow, oh);
     const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#332b24');
+    // WHERE THE DOOR IS, decided BEFORE the window is dressed.
+    //
+    // This used to be the last thing painted, stamped over a finished display —
+    // which chopped the "50c" card in half and cut the clothes rail through the
+    // middle of a hanger. The user's words were "chopped off at points", and a
+    // sign cut mid-word by something drawn after it is exactly that. So the
+    // doorcase is measured first and the display is dressed in the glass EITHER
+    // SIDE of it: nothing is drawn where something else will cover it.
+    const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    const dL = dx - m(0.07), dR = dx + dw + m(0.07);          // the doorcase, outside edges
+    const runs = ([[gx, Math.min(dL, gx + gw)], [Math.max(dR, gx), gx + gw]] as [number, number][])
+      .filter(([a, b]) => b - a >= m(0.6));                   // too narrow to dress is not a run
+    const wide = runs.length
+      ? runs.reduce((p, c) => (c[1] - c[0] > p[1] - p[0] ? c : p))
+      : [gx, gx + gw] as [number, number];
+
     // CROWDED: racks at the back, furniture and boxes stacked to the glass.
     // The crowding is the character — a tidy thrift window is a lie.
     g.fillStyle = '#c9a45e'; g.fillRect(gx, gy, gw, m(0.22));                        // one bare bulb's worth
+    g.fillStyle = 'rgba(201,164,94,0.16)'; g.fillRect(gx, gy + m(0.22), gw, m(0.45));
+    g.fillStyle = '#2a2420'; g.fillRect(gx, gy + gh - m(0.28), gw, m(0.28));         // floor
     let seed = 0x2f6a1b;
     const r = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
-    for (let x = gx + m(0.1); x < gx + gw - m(0.3); x += m(0.34)) {                  // a rail of clothes
-      g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
-      g.fillRect(x, gy + m(0.5), m(0.3), m(0.9) + Math.round(r() * m(0.35)));
+    // GARMENTS. The gap between hangers is counted in TEXELS, not asked for in
+    // metres: m(0.30) and m(0.34) BOTH round to 5 px at 16 px/m, so the step
+    // equalled the width and the rail came out as one unbroken stripe of
+    // colour. That is most of why this window read as painted on rather than
+    // stocked — a rounding loss, not a taste.
+    const cw2 = Math.max(3, m(0.26)), cstep = cw2 + Math.max(1, m(0.06));
+    for (const [a, b] of runs) {
+      g.fillStyle = '#4a4038'; g.fillRect(a, gy + m(0.44), b - a, m(0.07));          // the rail itself
+      for (let x = a + 2; x + cw2 <= b - 2; x += cstep) {
+        const hgt = m(0.9) + Math.round(r() * m(0.35));
+        g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
+        g.fillRect(x, gy + m(0.5), cw2, hgt);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, gy + m(0.5), 1, hgt);        // the fold beside it
+        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x + cw2 - 1, gy + m(0.5), 1, hgt);
+      }
+      for (let x = a + m(0.2); x + m(0.45) <= b - m(0.1); x += m(0.95)) {            // stacked stock below
+        const bh2 = m(0.4) + Math.round(r() * m(0.5));
+        const bw2 = Math.min(m(0.45) + Math.round(r() * m(0.3)), b - m(0.1) - x);
+        g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
+        g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, bh2);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, m(0.06));
+      }
     }
-    g.fillStyle = '#4a4038'; g.fillRect(gx, gy + m(0.44), gw, m(0.07));             // the rail itself
-    for (let x = gx + m(0.2); x < gx + gw - m(0.6); x += m(0.95)) {                 // stacked stock below
-      const bh2 = m(0.4) + Math.round(r() * m(0.5)), bw2 = m(0.45) + Math.round(r() * m(0.3));
-      g.fillStyle = STOCK[Math.floor(r() * STOCK.length)];
-      g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, bh2);
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, gy + gh - m(0.25) - bh2, bw2, m(0.06));
+    // The price cards are LAID OUT here and drawn further down, so the
+    // mannequin can be stood in the gap between two of them. A card taped over
+    // its head would hide the only silhouette in the window — which is the
+    // same fault as the door chopping the "50c", one layer up.
+    const cards: [number, number, string][] = [[0.06, 0.26, '50c'], [0.44, 0.10, 'ALL 1$'], [0.86, 0.34, 'SALE']];
+    const cdw = m(1.3), cdh = m(0.6);
+    const span = (wide[1] - wide[0]) - cdw - m(0.3);
+    const cardX = cards.map(([fx]) => Math.round(wide[0] + m(0.15) + span * fx));
+    // A MANNEQUIN, turned away from the glass. The one thing in this window
+    // that is a figure and not a rectangle, and the brief asked for it by name.
+    // Built as stacked slabs that step sideways going up, which is how you
+    // read "at an angle" at 16 px/m — a rotation would just alias.
+    {
+      // the middle of the widest clear stretch between cards, measured rather
+      // than picked: a hand-chosen fraction goes stale the moment a card moves
+      const busy = cardX.map((x) => [x, x + cdw]).sort((p, q) => p[0] - q[0]);
+      let bestA = wide[0], bestB = wide[0], cur = wide[0];
+      for (const [a, b] of [...busy, [wide[1], wide[1]]]) {
+        if (a - cur > bestB - bestA) { bestA = cur; bestB = a; }
+        cur = Math.max(cur, b);
+      }
+      const mx = Math.round((bestA + bestB) / 2);
+      const foot = gy + gh - m(0.26), coat = '#cbbc9c', skin = '#a98b66';
+      const slab = (top: number, hh: number, ww: number, off: number, col: string) => {
+        g.fillStyle = col;
+        g.fillRect(mx - Math.round(ww / 2) + off, top, ww, hh);
+      };
+      const t = (v: number) => foot - m(v);
+      // clear the rail and the hangers behind it: a figure standing IN FRONT
+      // of the rack, not another shape in the middle of it
+      g.fillStyle = '#241f1a';
+      g.fillRect(mx - m(0.36), t(1.78), m(0.76), m(1.78));
+      slab(t(0.80), m(0.80), m(0.50), 0, coat);                 // skirt, widest at the hem
+      slab(t(1.10), m(0.30), m(0.40), 1, coat);                 // waist
+      slab(t(1.36), m(0.26), m(0.46), 2, coat);                 // chest and shoulders
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(mx - m(0.23) + 2, t(1.36), Math.max(1, m(0.06)), m(0.26));
+      slab(t(1.44), m(0.08), m(0.14), 3, skin);                 // neck
+      slab(t(1.66), m(0.22), m(0.22), 3, skin);                 // head
+      g.fillStyle = 'rgba(0,0,0,0.30)';                          // the stand it is bolted to
+      g.fillRect(mx - 1, t(0.80) + m(0.80), Math.max(1, m(0.07)), m(0.26));
     }
-    g.fillStyle = '#2a2420'; g.fillRect(gx, gy + gh - m(0.28), gw, m(0.28));        // floor
-    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.5)), '#4a4038');
-    // hand-lettered price cards taped INSIDE the glass, none of them straight
-    const cards: [number, number, string][] = [[0.16, 0.30, '50c'], [0.44, 0.16, 'ALL 1$'], [0.72, 0.36, 'SALE']];
+    // hand-lettered price cards taped INSIDE the glass, none of them straight.
+    // Laid out above; drawn here, along the DISPLAY RUN and clamped to it, so
+    // no card can slide under the doorcase and be read as half a word.
     g.font = `bold ${m(0.3)}px monospace`;
-    for (const [fx, fy2, txt] of cards) {
-      const cx = gx + Math.round(gw * fx), cy = gy + Math.round(gh * fy2);
-      const cw = m(1.3), ch = m(0.6);
-      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(cx + m(0.06), cy + m(0.08), cw, ch);
-      g.fillStyle = CARD; g.fillRect(cx, cy, cw, ch);
+    for (let i = 0; i < cards.length; i++) {
+      const [, fy2, txt] = cards[i];
+      if (span < 0) break;
+      const cx = cardX[i];
+      const cy = gy + Math.round((gh - cdh - m(0.4)) * fy2);
+      g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(cx + m(0.06), cy + m(0.08), cdw, cdh);
+      g.fillStyle = CARD; g.fillRect(cx, cy, cdw, cdh);
       g.fillStyle = 'rgba(255,255,255,0.30)';                                        // tape, one corner only
       g.fillRect(cx - m(0.06), cy - m(0.06), m(0.28), m(0.14));
-      g.fillStyle = INK; g.fillText(txt, cx + cw / 2, cy + ch / 2);
+      g.fillStyle = INK; g.fillText(txt, cx + cdw / 2, cy + cdh / 2);
     }
-    // tape over a crack, running off the mullion — nobody is fixing this
+    // price stickers stuck straight on the glass, the way a shop with no
+    // window dresser does it
+    for (let i = 0; i < 7; i++) {
+      const sx = Math.round(wide[0] + m(0.2) + r() * ((wide[1] - wide[0]) - m(0.5)));
+      const sy = gy + m(0.3) + Math.round(r() * (gh - m(1.0)));
+      g.fillStyle = '#e8dfc2'; g.fillRect(sx, sy, m(0.22), m(0.16));
+      g.fillStyle = INK; g.fillRect(sx + 1, sy + 1, Math.max(1, m(0.08)), 1);
+    }
+    // TRANSOM over the glazing, then the bars that divide it. The block
+    // default has had a transom all along; this front — one of the four the
+    // user asked to be BETTER than the default — did not, and that gap is the
+    // "lazy" half of the complaint stated exactly.
+    g.fillStyle = 'rgba(0,0,0,0.32)'; g.fillRect(gx, gy + m(0.98), gw, Math.max(1, m(0.09)));
+    g.fillStyle = HI; g.fillRect(gx, gy + m(1.07), gw, 1);
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 4.5)), '#4a4038');
+    // Tape over a crack, nobody is fixing it. It now STARTS on the transom and
+    // DIES on the cill — both ends used to stop in open glass, which is a
+    // feature cut rather than terminated.
     g.strokeStyle = 'rgba(226,220,204,0.5)'; g.lineWidth = Math.max(1, m(0.07));
     g.beginPath();
-    g.moveTo(gx + gw * 0.62, gy + m(0.3));
-    g.lineTo(gx + gw * 0.68, gy + m(1.1));
-    g.lineTo(gx + gw * 0.64, gy + m(1.9));
+    const kx = wide[0] + (wide[1] - wide[0]) * 0.34;
+    g.moveTo(kx, gy + m(1.02));
+    g.lineTo(kx + m(0.4), gy + gh * 0.6);
+    g.lineTo(kx + m(0.15), gy + gh);
     g.stroke();
-    // door and a grubby stallriser
-    // where the ROOM says its door is, falling back to this painter's own
-    // layout only if no room has spoken for this frontage
-    const dcM = doorAlongU(nm, wM, F.doorCentreM);
-    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
-    g.fillStyle = '#4a4038'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    // ── the doorcase: a transom light over the leaf, and a handle ────────────
+    g.fillStyle = '#4a4038'; g.fillRect(dL, gy, dR - dL, gh);
     glazed(g, surf, dx, gy + m(0.12), dw, gh - m(0.95), '#332b24');
+    g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(dx, gy + m(0.62), dw, Math.max(1, m(0.07)));
+    g.fillStyle = HI; g.fillRect(dx, gy + m(0.69), dw, 1);
     g.fillStyle = '#5a4e42'; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.8));
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.8), dw, m(0.06));
+    g.fillStyle = '#8a7a52'; g.fillRect(dx + dw - m(0.22), gy + m(1.5), m(0.08), m(0.26));
+    // OPEN, hung on the glass, because a thrift store tells you so on a card
+    g.fillStyle = CARD; g.fillRect(dx + m(0.18), gy + m(0.86), m(0.66), m(0.3));
+    g.fillStyle = INK; g.fillRect(dx + m(0.24), gy + m(0.97), m(0.54), Math.max(1, m(0.07)));
+    // ── the stallriser: panelled and grubby, not a flat slab ─────────────────
     const ry = gy + gh, rh = H - ry - m(0.05);
     proud(g, surf, ox, ry, ow, rh, '#5e5142');
+    g.fillStyle = 'rgba(0,0,0,0.26)';
+    const panels = Math.max(2, Math.round(ow / surf.ppm / 1.5));
+    for (let i = 1; i < panels; i++) {
+      g.fillRect(ox + Math.round((ow * i) / panels), ry + m(0.1), Math.max(1, m(0.09)), rh - m(0.2));
+    }
     g.fillStyle = 'rgba(28,24,18,0.34)'; g.fillRect(ox, H - m(0.2), ow, m(0.2));
     dither(g, W, H, Math.round(wM * SHOP_BAND_H * 5));
   });
