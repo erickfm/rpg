@@ -2028,3 +2028,37 @@ olive pickup, side-on, at eye height. Both are the 0.663 class. **The car lot's
 That is a coverage gap in a DONE I reported confidently, found only because I
 tried to turn it into a check. **Trying to automate a hand verdict is a good way
 to discover how narrow the hand verdict was.**
+
+### The lot class, looked at — weaker evidence, and I will not over-read it
+
+Same method, applied to the 0.803 m class: camera 2.6 m from a lot car's wheel,
+standing eye height, landed verified. `shots/lotarch.png`.
+
+What the frame supports: two lot cars in the foreground, a maroon sedan and an
+olive one, both showing **dark regions around the wheels** rather than a disc
+laid on a flat slab, and no tyre obviously standing proud of a straight sill.
+The olive car's rear wheel in particular sits in a visibly darker well.
+
+What the frame does **not** support: a confident verdict. The lot's cars are
+parked nose-in, so the only camera position the aisle allows gives a **rear
+three-quarter** view, not the clean side-on I had for the street pair. Arches
+read at their weakest from three-quarters — which is exactly the angle at which
+I would most like to be careful, given I have already read one perspective
+artefact as a defect this session.
+
+> **The 0.803 class is not obviously wrong, and that is all I am claiming.** The
+> street class got a side-on photograph and a numeric clearance (0.72 vs 0.663).
+> The lot class has a three-quarter photograph and no arch line, because I do not
+> know its rocker height.
+
+### What would settle it, cheaply
+
+The numeric check needs **the arch line per vehicle class**, not one constant.
+`ARCH_HW`/`ARCH_H` are in `ct/cars.ts` and the rocker height per body is right
+there beside them — someone with `src/` access can read four numbers and turn
+this into an assertion that covers all 94 tyres instead of 44.
+
+Until then the honest state of the request is: **DONE for the street fleet,
+plausible-but-unverified for the lot's stock**, and I have corrected my own
+report to say so rather than leaving a blanket DONE covering vehicles I never
+examined.
