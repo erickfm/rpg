@@ -1282,22 +1282,89 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // street with its face turned WEST — so what you see is the far pavement,
     // the facades opposite, and the mouth of the alley almost straight ahead.
     // It has to agree with where the building actually is.
-    const winT = surfTex('detail', 40, 40, (g) => {
-      g.fillStyle = '#8a97a2'; g.fillRect(0, 0, 40, 40);          // the sky, scene fog colour
-      g.fillStyle = '#6e5347'; g.fillRect(3, 13, 34, 17);         // facades opposite
-      g.fillStyle = 'rgba(0,0,0,0.18)';
-      for (let y = 14; y < 30; y += 4) g.fillRect(3, y, 34, 1);   // brick courses
-      g.fillStyle = '#2e3a46';                                     // their windows
-      for (let wy = 16; wy < 28; wy += 6) for (let wx = 5; wx < 34; wx += 7) g.fillRect(wx, wy, 4, 4);
-      g.fillStyle = '#c9a45e'; g.fillRect(19, 22, 4, 4);          // one lit, someone else up late
-      g.fillStyle = '#141519'; g.fillRect(21, 13, 5, 17);         // the alley mouth, straight across
-      g.fillStyle = '#84817a'; g.fillRect(3, 30, 34, 3);          // far pavement
-      g.fillStyle = '#3a3d42'; g.fillRect(3, 33, 34, 4);          // and the road below
-      g.fillStyle = '#b8a24e'; g.fillRect(9, 35, 5, 1); g.fillRect(24, 35, 5, 1);
-      dither(g, 40, 40, 90);
-      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 40, 3); g.fillRect(0, 37, 40, 3);
-      g.fillRect(0, 0, 3, 40); g.fillRect(37, 0, 3, 40);          // frame
-      g.fillRect(19, 3, 2, 34); g.fillRect(3, 19, 34, 2);         // glazing bars
+    // THE VIEW. The user: *"the user wants A VIEW from room 301 and gets a
+    // light well — a small gap and then brick ... you should be able to see
+    // the street from a standing position at the window and from the bed, not
+    // only by pressing your face to the glass."*
+    //
+    // The window was already on the street facade and already pointing west;
+    // there is no light well behind it and never was. What was wrong is the
+    // PICTURE. The old 40x40 gave rows 13-30 to the brick opposite and left
+    // the pavement and road four rows at the very bottom — a tenth of the
+    // opening, below the sill line of anyone standing up. So you got sky, then
+    // brick, and the street only if you walked into the glass and looked down.
+    // The user described exactly what was painted.
+    //
+    // Recomposed for the height it is actually at. Three storeys up across a
+    // 14 m street you look slightly DOWN, so the road belongs just under the
+    // middle of the opening and the facade opposite above it, not filling it.
+    // The street — far pavement, road, parked cars, near kerb — now runs rows
+    // 30 to 61 of 64: half the glass, centred on the eye rather than pooled at
+    // the bottom.
+    //
+    // What is in it is the point, because a view is things happening: two
+    // people on the far pavement, cars nose-to-tail at both kerbs, the centre
+    // line, a shopfront with an awning, the alley mouth straight across, and
+    // one window lit in the afternoon because somebody else is in.
+    // LOOK UP, NOT ACROSS. The old picture gave rows 13-30 of 40 to the brick
+    // opposite and left four rows at the very bottom for anything else, so
+    // standing up you got a slice of sky and then a wall — which is exactly
+    // what the user reported, and it was an accurate description of what was
+    // painted.
+    //
+    // The window opens onto a light well and it still does; nothing moved.
+    // What changed is where the interest is. A narrow well between two tall
+    // buildings has one genuinely good thing in it, and it is ABOVE the wall
+    // opposite: rooftops, water towers on their legs, a slice of sky. So the
+    // wall is pushed down to the bottom third and the top two thirds are the
+    // skyline, with a fire escape zigzagging down the near flank to carry the
+    // eye between them.
+    //
+    // Sizing is set by where the eye is, not by taste. The window centre is at
+    // WIN_Y and a standing eye is 7.02, so the middle of the glass is what you
+    // see from across the room — which is why the water towers and the roofline
+    // sit at rows 20-30 of 64 rather than up in the frame.
+    const winT = surfTex('detail', 64, 64, (g) => {
+      g.fillStyle = '#8a97a2'; g.fillRect(0, 0, 64, 64);            // sky, the fog colour
+      // ── the far skyline, over the top of the well ──
+      g.fillStyle = '#6c737e';                                       // distant blocks, hazed back
+      g.fillRect(3, 24, 13, 8); g.fillRect(20, 27, 9, 5); g.fillRect(46, 22, 15, 10);
+      g.fillStyle = '#5d6470';
+      g.fillRect(31, 25, 12, 7); g.fillRect(16, 29, 6, 3);
+      // water tower: a barrel on legs with a conical hat, the one thing that
+      // says which city this is
+      const tower = (x: number, w: number, top: number, h: number, body: string) => {
+        g.fillStyle = body; g.fillRect(x, top + 3, w, h);
+        g.fillStyle = '#4e4238';                                     // the hat
+        for (let i = 0; i < 3; i++) g.fillRect(x + i, top + i, w - i * 2, 1);
+        g.fillStyle = '#3f3a34';                                     // legs down to the roof
+        for (const lx of [x + 1, x + w - 2]) g.fillRect(lx, top + 3 + h, 1, 4);
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, top + 3 + Math.floor(h / 2), w, 1);
+      };
+      tower(7, 9, 12, 8, '#6b5a48');
+      tower(48, 6, 17, 5, '#5f5142');
+      g.fillStyle = '#4a4b50';                                       // a vent stack and an aerial
+      g.fillRect(37, 20, 2, 5); g.fillRect(28, 22, 1, 5);
+      // ── the wall opposite: the bottom third, where a well's wall belongs ──
+      g.fillStyle = '#6e5347'; g.fillRect(3, 32, 58, 29);
+      g.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let y = 33; y < 61; y += 3) g.fillRect(3, y, 58, 1);     // brick courses
+      g.fillStyle = '#2e3a46';                                       // their windows
+      for (let wy = 35; wy < 57; wy += 8) for (let wx = 7; wx < 56; wx += 12) g.fillRect(wx, wy, 6, 6);
+      g.fillStyle = '#c9a45e'; g.fillRect(31, 43, 6, 6);            // one lit, somebody else in
+      g.fillStyle = '#a8823f'; g.fillRect(19, 51, 6, 6);            // and one further down
+      g.fillStyle = '#8d6b4e'; g.fillRect(43, 35, 6, 6);            // one with the blind down
+      // ── the fire escape, zigzagging down the flank ──
+      g.fillStyle = '#3a3a3c';
+      for (const ly of [39, 48, 57]) g.fillRect(24, ly, 22, 1);     // landings
+      for (const ly of [39, 48, 57]) for (let x = 24; x < 46; x += 3) g.fillRect(x, ly - 3, 1, 3);  // rails
+      for (let i = 0; i < 8; i++) { g.fillRect(26 + i * 2, 40 + i, 3, 1); g.fillRect(44 - i * 2, 49 + i, 3, 1); }
+      // the well floor, which never sees the sun
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(3, 57, 58, 4);
+      dither(g, 64, 64, 90);
+      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 64, 3); g.fillRect(0, 61, 64, 3);
+      g.fillRect(0, 0, 3, 64); g.fillRect(61, 0, 3, 64);            // frame
+      g.fillRect(31, 3, 2, 58); g.fillRect(3, 31, 58, 2);           // glazing bars
     });
     // ── the window's reveal, sill and architrave ─────────────────────────
     // Report finding 2: the one window in the building was a flat plane stuck
@@ -1335,6 +1402,51 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.22, 0.045, WIN_W + 0.22, WIN_LX + 0.09, WIN_Y - WIN_H / 2 - 0.035, WIN_LZ, sillM);
     box(0.20, 0.03, WIN_W + 0.18, WIN_LX + 0.085, WIN_Y - WIN_H / 2 - 0.07, WIN_LZ,
       new THREE.MeshBasicMaterial({ color: 0x8f887a }));                              // its apron
+    // ── and something ON it ──────────────────────────────────────────────
+    // The user's third condition: *"a sill, and something on it — that is what
+    // makes a window read as somewhere you stand rather than a hole."* The
+    // sill was already here and already projected; it was bare.
+    //
+    // A plant somebody has not watered enough and a mug they left there. Both
+    // at the ENDS, because the middle of the sill is where you put your hands
+    // when you lean on it to look down at the street, and leaving that clear is
+    // the difference between a sill somebody uses and a shelf of ornaments.
+    const SILL_TOP = WIN_Y - WIN_H / 2 - 0.035 + 0.0225;
+    const SILL_X = WIN_LX + 0.09;
+    const potM = new THREE.MeshBasicMaterial({ color: 0x9c5b3c });
+    box(0.11, 0.10, 0.11, SILL_X, SILL_TOP + 0.05, WIN_LZ + 0.52, potM);
+    box(0.125, 0.018, 0.125, SILL_X, SILL_TOP + 0.101, WIN_LZ + 0.52, potM);   // its rim
+    const leafT = surfTex('detail', 12, 14, (g) => {
+      g.clearRect(0, 0, 12, 14);
+      const greens = ['#4e6b34', '#5f7d3f', '#6d8a49'];
+      for (let b = 0; b < 5; b++) {
+        const bx = 2 + ((b * 5) % 8), lean = ((b * 7) % 5) - 2, hgt = 7 + ((b * 11) % 6);
+        g.fillStyle = greens[b % 3];
+        for (let k = 0; k < hgt; k++) {
+          const px = bx + Math.round((lean * k) / hgt);
+          g.fillRect(px, 13 - k, 2, 1);
+        }
+      }
+      // one frond gone brown, because nobody in this room waters anything
+      g.fillStyle = '#8a7340'; g.fillRect(3, 6, 2, 5);
+      dither(g, 12, 14, 12);
+    });
+    const leafM = new THREE.MeshBasicMaterial({ map: leafT, alphaTest: 0.4, side: THREE.DoubleSide });
+    for (const ry of [0, Math.PI / 2]) {
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(0.20, 0.24), leafM);
+      q.position.set(AX(SILL_X), SILL_TOP + 0.10 + 0.12, AZI(WIN_LZ + 0.52));
+      q.rotation.y = ry + 0.4;
+      scene.add(q);
+    }
+    // the mug, at the other end, with the handle turned to the room
+    const mugM = new THREE.MeshBasicMaterial({ color: 0xd8d2c4 });
+    const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.034, 0.095, 8), mugM);
+    mug.position.set(AX(SILL_X), SILL_TOP + 0.0475, AZI(WIN_LZ - 0.55));
+    scene.add(mug);
+    const handle = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.008, 4, 8), mugM);
+    handle.position.set(AX(SILL_X + 0.055), SILL_TOP + 0.05, AZI(WIN_LZ - 0.55));
+    handle.rotation.y = Math.PI / 2;
+    scene.add(handle);
     // architrave, room side only. `casing` puts trim on BOTH faces, which is
     // right for a doorway you pass through and wrong for a window — the far
     // face of this wall is the FACADE, and the street does not want a lobby

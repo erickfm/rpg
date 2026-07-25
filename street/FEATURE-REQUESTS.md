@@ -125,6 +125,23 @@ published to the playable artifact.
 ## Inbox
 - **"just do what i want for this bespoke minor window ask"** → **C**
 - **"would like a view out of my window but the view it just a small gap and then brick wall lol"** → **C**
+  (desk's relay: *"a painted city backdrop beyond the gap — rooftops, water
+  towers, fire escapes, a slice of sky, lit windows at night ... nobody is ever
+  going to stand in that light well and check. Make it read well from standing
+  at the window and from the bed, and stop there."* This supersedes an earlier,
+  over-engineered brief about moving the window to the street facade and
+  matching a bay on the elevation, which the desk withdrew.)
+  → **C. FIXED.** Nothing moved: the window is the same 1.3 m opening in the
+  same wall. Only the picture changed. The old one gave rows 13-30 of 40 to the
+  brick opposite and four rows at the very bottom to anything else, so standing
+  up you got a slice of sky and then a wall — an accurate description of what
+  was painted. A well between two tall buildings has one good thing in it and
+  it is ABOVE the wall: the brick is pushed to the bottom third and the top two
+  thirds are skyline — two water towers on their legs, a vent stack, a hazed
+  roofline, a slice of sky — with a fire escape zigzagging down the flank to
+  carry the eye between them, and three lit windows. A plant nobody waters and
+  a left mug on the sill, at the ENDS so the middle stays clear for leaning on.
+  Checked from standing at the glass and from beside the bed.
 - **"this guy is floating"** / **"your car lot salesman's feet end above the asphalt with a visible gap ... DIAGNOSE WHOSE IT IS ... if STREET pedestrians float too, then it is the sprite anchor itself"** → **C to diagnose, H to fix**
   → **C. DIAGNOSED, NOT MINE.** It is the atlas, and it is world-wide. Every
   citizen — the salesman and all six street pedestrians — is placed on the
