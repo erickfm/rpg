@@ -343,3 +343,51 @@ fills. Confirms b0b69cb48 independently of the builder.
 **[Is] Only grainless surfaces left in frame: the two planter boxes.** Smooth
 cream, no grain. Matches B's "12 flat" being copings, posts and planters. Not
 this row; noted so it is not rediscovered as a new fault.
+
+## [C] Cups CONFIRMED; the trash/puddles row split (build e2ead9895)
+
+**Cups (B) — CONFIRMED.** B's tag at `props.ts:2597` is what made this
+answerable at all; four of my shape-based finders failed on exactly this kind of
+question earlier in the audit.
+
+| type | n | share |
+|---|---|---|
+| flattened cardboard | 5 | 35.7% |
+| folded newspaper | 4 | 28.6% |
+| milk crate | 3 | 21.4% |
+| **fountain cup** | **1** | 7.1% |
+| **coffee cup** | **1** | 7.1% |
+
+2 of 14 = 14.3%, down from 5 of 14, and each cup type is rarer than each of the
+other three. Not oversized: the fountain cup's 0.430 m box is a **straw**, and
+the cup body is 0.156 m — visible only by walking to it. Both sit believably
+(gutter against the kerb; under the Tony's Pizza bench beside a newspaper).
+
+**[I] My own summary line said "not rarest" while its own table said otherwise.**
+The rank check took the first `/cup/` match and ignored the second, so two types
+tied at n=1 for last were reported as fourth of five. This is the SECOND time in
+this audit a summary line has contradicted the data directly above it —
+`benchlean.mjs` filtered on `tiltX` while the lean was in `tiltZ`, and I nearly
+sent a satisfied request back to OPEN on it. **When a one-line verdict and the
+table disagree, the table is right and the verdict is a bug.**
+
+**[I] A clean 0 over an empty set, again.** My first litter run reported "0
+inside a collider" — off ZERO pieces, because the tag is on the litter GROUP and
+I had filtered `isMesh`. GOTCHAS 34. The script now exits 3 when nothing carries
+the tag. The finding only becomes evidence once it is 0-inside over 14 REAL
+pieces.
+
+**[R] The trash/puddles row split in two.** One row was carrying two distinct
+user complaints that need two different kinds of answer:
+
+- *"trash cannot be clipping through stuff like this"* — a factual claim.
+  0 of 14 inside 364 colliders, 14 of 14 grounded within 3 cm. **CONFIRMED.**
+- *"these are puddles and they look awful"* — an aesthetic verdict. The artefact
+  class is gone (contrast the right way round, edges soft and irregular, no hard
+  rectangles at 3x) so OPEN would be false, but I am not the eye that said
+  "awful". **Stays LANDED; the desk should show the user `shots/cp-pud.png`.**
+
+That second call is downstream of the ATM: I confirmed it from a viewpoint I
+chose rather than where a player stands, and the user's verdict overturned mine.
+An auditor can settle whether an artefact exists. It cannot settle whether
+something looks good.
