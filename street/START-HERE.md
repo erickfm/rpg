@@ -102,11 +102,17 @@ ln -sfn "$PWD/node_modules" ../rpg-live/street/node_modules
 (cd ../rpg-live/street && npx vite --port 5177 --host &)
 while true; do ./scripts/live-integrate.sh; sleep 15; done &
 
-# 2. a builder
-git worktree add ../rpg-<topic> -b feat/<topic>
-ln -sfn "$PWD/node_modules" ../rpg-<topic>/street/node_modules
-tmux new-window -c ../rpg-<topic> 'claude --permission-mode auto'
+# 2. a builder — use the script, do not do this by hand
+scripts/builder.sh <topic> feat/<topic> 4178 "You are builder X. Read ..."
 ```
+
+`scripts/builder.sh` exists because standing one up by hand went wrong twice in
+one session: once launched in `acceptEdits` rather than `auto`, so every agent
+stalled on a permission dialog and the desk became a permission-clicking
+bottleneck; and once with the brief typed into the prompt but never submitted,
+so eight agents sat idle while the desk reported them as working. The script
+forces auto mode, sends the text and the Enter separately, and then checks the
+prompt is actually empty before claiming success.
 
 `scripts/live-integrate.sh` rebuilds a throwaway `live` branch every 15 s as
 *mainline + every worktree's current state*, including uncommitted edits. It
