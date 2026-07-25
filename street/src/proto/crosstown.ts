@@ -603,6 +603,11 @@ export function makeCrosstown(): Proto {
     colliders: () => colliders,
     rooms: () => interiorRoomIds(),
     modules: () => worldRegistrants(),
+    // test affordance, like colliders() and seats(): every registered [E], so
+    // scripts/spots-walk.mjs can check the whole set rather than the ones
+    // somebody remembered. Labels are evaluated, which is why they come back
+    // as strings and not thunks.
+    spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
     seats: () => SEATS,
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
