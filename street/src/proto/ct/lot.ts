@@ -1033,6 +1033,125 @@ export function buildLot(o: {
       solid({ minX: x - 1.4, maxX: x + 1.4, minZ: z - 2.0, maxZ: z + 2.0 });
     }
 
+    // ── the yard ─────────────────────────────────────────────────────────
+    // The last of the sleaze list: a flagpole, weeds, and cones. All three are
+    // about the GROUND, which is the half of a lot nobody draws — the asphalt
+    // has been there twenty years and things have been growing out of it and
+    // getting left on it for most of them.
+
+    // WEEDS. Only where a car has never driven: hard against the fence, along
+    // the perimeter, and in the seam where the asphalt meets a wall. Weeds in
+    // the middle of a live drive aisle is the tell that they were scattered
+    // rather than placed, so the aisle band is excluded outright.
+    const weedT = pixTex(12, 14, (g) => {
+      g.clearRect(0, 0, 12, 14);
+      for (let b = 0; b < 7; b++) {
+        const bx = 2 + ((b * 5) % 9), lean = ((b * 7) % 5) - 2, hgt = 6 + ((b * 11) % 7);
+        g.fillStyle = b % 3 === 0 ? '#6e7a3a' : (b % 3 === 1 ? '#57682e' : '#7d8646');
+        for (let k = 0; k < hgt; k++) {
+          const px2 = bx + Math.round((lean * k) / hgt);
+          g.fillRect(px2, 13 - k, 1, 1);
+          if (k > hgt - 3) g.fillRect(px2 + (b % 2 ? 1 : -1), 13 - k, 1, 1);
+        }
+      }
+    });
+    const weedM = new THREE.MeshBasicMaterial({ map: weedT, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+    const weed = (wx: number, wz: number, sc: number) => {
+      // Two crossed quads, not one. A single plane vanishes edge-on, and a
+      // tuft of grass that disappears when you walk past it is worse than no
+      // tuft at all — the same reason the bunting is not a billboard.
+      for (const ry of [0, Math.PI / 2]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.30 * sc, 0.35 * sc), weedM);
+        m.position.set(wx, Y + 0.175 * sc, wz);
+        m.rotation.y = ry;
+        scene.add(m);
+      }
+    };
+    for (let i = 0; i < 26; i++) {
+      const h = (i * 2654435761) >>> 0;
+      const edge = i % 4;
+      let wx: number, wz: number;
+      if (edge === 0) { wx = FENCE_X + 0.30 + ((h >>> 3) % 40) / 100; wz = zS + 0.6 + ((h >>> 9) % 2100) / 100; }
+      else if (edge === 1) { wx = X0 + 1.0 + ((h >>> 5) % 2100) / 100; wz = zN - 0.5 - ((h >>> 11) % 60) / 100; }
+      else if (edge === 2) { wx = X0 + 1.0 + ((h >>> 7) % 2100) / 100; wz = zS + 0.5 + ((h >>> 13) % 60) / 100; }
+      else { wx = X1 - 0.5 - ((h >>> 15) % 60) / 100; wz = zS + 0.8 + ((h >>> 17) % 2100) / 100; }
+      if (edge === 0 && wz > zMid - AISLE_HW - 0.4 && wz < zMid + AISLE_HW + 0.4) continue;  // not in the gateway
+      weed(wx, wz, 0.7 + ((h >>> 19) % 60) / 100);
+    }
+
+    // THE FLAGPOLE, at the front corner where a lot puts one, south of the
+    // entrance so it does not crowd the pole sign at the other side. The flag
+    // is the dealer's own — the same red and the same star as the price cards
+    // and the flyer, because a lot buys one set of colours and uses it on
+    // everything.
+    {
+      const fpx = X0 + 1.2, fpz = zS + span * SITE_GATE - 2.2, FPH = 7.0;
+      const poleWhite = new THREE.MeshBasicMaterial({ color: 0xd6d2c6 });
+      const fp = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.075, FPH, 8), poleWhite);
+      fp.position.set(fpx, Y + FPH / 2, fpz);
+      scene.add(fp);
+      const finial = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xd8b040 }));
+      finial.position.set(fpx, Y + FPH + 0.09, fpz);
+      scene.add(finial);
+      solid({ minX: fpx - 0.22, maxX: fpx + 0.22, minZ: fpz - 0.22, maxZ: fpz + 0.22 });
+      const flagT = pixTex(28, 18, (g) => {
+        g.fillStyle = '#c0392f'; g.fillRect(0, 0, 28, 18);
+        g.fillStyle = '#f2ead0';
+        g.beginPath();
+        for (let i = 0; i < 10; i++) {
+          const a = -Math.PI / 2 + (i * Math.PI) / 5, r = i % 2 ? 2.6 : 6.2;
+          const px2 = 11 + Math.cos(a) * r, py2 = 9 + Math.sin(a) * r;
+          if (i === 0) g.beginPath(), g.moveTo(px2, py2); else g.lineTo(px2, py2);
+        }
+        g.closePath(); g.fill();
+        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, 0, 28, 2); g.fillRect(0, 16, 28, 2);
+        dither(g, 28, 18, 22);
+      });
+      // ONE plane with a ripple pushed into its vertices, not three panels in
+      // a row. Three panels each got the WHOLE texture, so the flag flew with
+      // three stars on it — a tiled texture is not a bent one. Displacing a
+      // segmented plane keeps one star and still puts a bend in the cloth,
+      // which is the only thing separating a flag from a painted sign bolted
+      // to a mast.
+      const FLAG_W = 1.5, FLAG_H = 0.92;
+      const flagGeo = new THREE.PlaneGeometry(FLAG_W, FLAG_H, 6, 1);
+      const pa = flagGeo.attributes.position;
+      for (let i = 0; i < pa.count; i++) {
+        const u = pa.getX(i) / FLAG_W + 0.5;             // 0 at the mast, 1 at the fly
+        pa.setZ(i, Math.sin(u * Math.PI * 1.6) * 0.10 * u);
+        pa.setY(i, pa.getY(i) - u * 0.06);               // the fly droops a little
+      }
+      pa.needsUpdate = true;
+      flagGeo.computeVertexNormals();
+      const flag = new THREE.Mesh(flagGeo,
+        new THREE.MeshBasicMaterial({ map: flagT, side: THREE.DoubleSide }));
+      flag.position.set(fpx + 0.03, Y + FPH - 0.72, fpz + 0.06 + FLAG_W / 2);
+      flag.rotation.y = -Math.PI / 2;
+      scene.add(flag);
+    }
+
+    // TRAFFIC CONES, which on a lot are never coning anything off — they are
+    // holding a space, or they have been there since a delivery. One at each
+    // side of the gateway and one lying on its side, because one always is.
+    const coneM = new THREE.MeshBasicMaterial({ color: 0xd4551f });
+    const cuffM = new THREE.MeshBasicMaterial({ color: 0xe8e2d2 });
+    const cone = (kx: number, kz: number, tipped = false) => {
+      const g0 = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.55, 8), coneM);
+      body.position.y = 0.30; g0.add(body);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.132, 0.09, 8), cuffM);
+      cuff.position.y = 0.34; g0.add(cuff);
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.045, 0.34), coneM);
+      base.position.y = 0.022; g0.add(base);
+      if (tipped) { g0.rotation.z = Math.PI / 2 - 0.12; g0.position.set(kx, Y + 0.17, kz); }
+      else g0.position.set(kx, Y, kz);
+      scene.add(g0);
+    };
+    cone(FENCE_X + 1.15, zMid - AISLE_HW - 0.35);
+    cone(FENCE_X + 1.15, zMid + AISLE_HW + 0.35);
+    cone(X0 + 4.2, zMid + AISLE_HW + 0.55, true);
+
     // ── the things that make it look TRIED ───────────────────────────────
     // A tidy lot reads as a car park. What says business is the clutter round
     // the edges: a board dragged out to the gate every morning, tyres nobody
