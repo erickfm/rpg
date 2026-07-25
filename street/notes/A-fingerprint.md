@@ -67,15 +67,53 @@ The second is the dangerous one. It converts the project's only structural proof
 into a formality, and it does so quietly, exactly when someone is relying on it
 to ship a change they believe is a no-op.
 
+## The real fix, and my first one was wrong (`9866dd32`)
+
+`1746b2f0` diagnosed this properly and routed it to whoever owns
+`scenedump.mjs`, which is me.
+
+I found `structure` flipping on identical code, traced it to three animated
+bulbs, and pinned the clock. **That bought stability and not correctness.** The
+casino/hotel chase recolours three shared phase materials off **frame** time,
+not the world clock, so the hash still encoded which frame the dump landed on.
+It only *looked* pinned because startup timing was consistent — and that round
+proved it by adding a module that creates **nothing** and watching the hash
+move, because the extra import delayed the first frame.
+
+**A proof that reacts to a module which builds nothing is not a proof** — and it
+is the proof `CLAUDE.md` tells every builder to rely on.
+
+So the question is split rather than patched:
+
+- **`structure`** — geometry and material *identity*: type, texture, blend flags
+- **`tints`** — colour, on its own, reported and never a verdict
+
+```
+five dumps, identical code, BEFORE:  structure flipped between two values
+five dumps, identical code, NOW:     ee5bb559 ×5
+```
+
+`tints` still varies, which is *correct* — those materials really are being
+recoloured. `places` still varies, which is walkers.
+
+My clock pin stays. It removes a real second source of variance and costs
+nothing; it just was never the one that mattered. **I had the right symptom, the
+right three objects, and the wrong cause** — and the thing that exposed it was
+somebody else changing something that could not possibly have mattered, and
+noticing that it did.
+
 ## For the desk
 
 `CLAUDE.md`'s wording — *"Textures and structure must match"* — is now wrong in
 the strict sense. **Textures do match**, run after run, and remain the reliable
 half. Structure matches only up to animated colour. Suggested replacement:
 
-> Textures must match exactly. For structure and places, `fpdiff` says whether
-> the difference is animated colour / drift or a real change — read its verdict,
-> not the hash.
+> Textures and structure must match exactly. `tints` and `places` are expected to
+> differ — animated colour and walkers. Read `fpdiff`'s verdict line, not the
+> hashes.
+
+*(Updated after `9866dd32`: structure IS now exact, so the original wording is
+right again — it just was not true when it was written.)*
 
 I have not edited `CLAUDE.md`; it is not mine.
 
