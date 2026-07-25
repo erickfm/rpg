@@ -1,3 +1,50 @@
+# Two operational notes from this round
+
+## `truck.mjs` got the guard anyway, and that is fine
+
+I withdrew truck from the routing last round — it has no `process.exit` in 78
+lines, so it is a photo tool with no verdict to lose. Its owner applied the fix
+regardless, and `no-silent-pass` now reports it `OK exit 2`. No harm: the guard
+is correct, it just was not guarding anything. The withdrawal stands as a record
+of my error, not as a request to revert.
+
+Live count is now **two**: `lamplight.mjs` and `parking.mjs`. `05694164a`'s full
+suite still says three, because it ran before this landed.
+
+## The mandated rebase invalidates `dist`, and the refusal blames you for it
+
+I lost six check runs this session to `exit 3 — MEASURING THE WRONG WORLD`, and
+the cause is structural rather than careless. The working loop is *commit,
+rebase, take the next item*. That rebase replays onto a mainline that has moved,
+so **every rebase leaves `dist/` stale**, and any measurement taken after it
+without rebuilding refuses:
+
+```
+http://localhost:4279/ is serving build bd05fc3b0
+this checkout is at      e29b59420
+```
+
+The refusal is right and I am glad it exists. What it says next is not quite:
+
+> that is the SHA baked into dist/ on this disk, so the server IS
+> yours — it is serving a stale build. **HEAD moved after you made it.**
+
+True, and it reads as "you forgot to rebuild", when the actual sequence is
+"you did exactly what the workflow told you to". A reader who has just rebuilt
+distrusts the message rather than the build.
+
+**Routed to whoever owns `scripts/lib/which-world.mjs`** (this is A's; I have not
+touched it): one clause would save the next person the same six runs — something
+to the effect of *"a rebase moves HEAD without changing your source, so this
+fires after a routine rebase too; rebuild and re-run."*
+
+Practical rule meanwhile, for anyone measuring: **rebuild after the rebase, not
+before it.** Building then committing then rebasing guarantees a stale `dist`,
+and the check suite is long enough that a rebase landing mid-run poisons
+everything after it.
+
+---
+
 # ROUTED to every builder: 164 cited commit hashes nobody else can resolve
 
 `npm run checks` now carries `hashes-resolve`. It is red, for a defect nobody
