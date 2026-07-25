@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          paperTex, scrapTex } from './tex-world';
@@ -1405,7 +1405,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // c = 0.444 that is 0.55 x road, always, at any hour and any weather. It
   // cannot invert because it is defined relative to the thing it must stay
   // darker than.
-  const puddleT = pixTex(48, 32, (g) => {
+  const puddleT = declareSurface(pixTex(48, 32, (g) => {
     // quantised, not feathered: three alpha steps so the edge belongs to the
     // same hand as the rest of the world, and no sheen of any kind
     const ring = (rx: number, ry: number, a: number) => {
@@ -1415,7 +1415,7 @@ export function buildProps(ctx: CtxBuild): Props {
     ring(23, 14.5, 0.34);
     ring(19, 11.5, 0.68);
     ring(14, 8.0, 0.95);
-  });
+  }), 'ground');
   // Each puddle is its OWN material, so they do not all fade in lockstep —
   // one shared opacity was why none of them read. lo/hi is the window of
   // standing water over which this one fills: a deep hollow starts collecting
@@ -1457,7 +1457,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // replaces sat symmetrically around the grate, which is the one thing water
   // never does — grime goes where the flow goes, and the flow is a ribbon in
   // the last 20 cm against the kerb.
-  const stainT = pixTex(16, 64, (g) => {
+  const stainT = declareSurface(pixTex(16, 64, (g) => {
     for (let y = 0; y < 64; y++) {
       const t = 1 - y / 63;                                     // 1 at the mouth
       const half = Math.max(1, Math.round(0.9 + t * 4.4 + (((y >> 1) % 4 === 2) ? 1 : 0)));
@@ -1466,7 +1466,7 @@ export function buildProps(ctx: CtxBuild): Props {
       g.fillStyle = `rgba(22,21,18,${(0.12 + t * 0.42).toFixed(3)})`;
       g.fillRect(7, y, 2, 1);                                   // the channel it actually runs in
     }
-  });
+  }), 'ground');
   const stain = (x: number, z: number, len: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, len),
       new THREE.MeshBasicMaterial({ map: stainT, transparent: true, depthWrite: false }));
@@ -1510,7 +1510,7 @@ export function buildProps(ctx: CtxBuild): Props {
   const flatT2 = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
 
   // the flag sign — dark blue field, white pictogram, route number
-  const flagT = pixTex(32, 44, (g) => {
+  const flagT = declareSurface(pixTex(32, 44, (g) => {
     g.fillStyle = '#e8e4d8'; g.fillRect(0, 0, 32, 44);
     g.fillStyle = '#2c4a7a'; g.fillRect(1, 1, 30, 42);
     g.fillStyle = '#e8e4d8'; g.fillRect(2, 12, 28, 20);
@@ -1523,7 +1523,7 @@ export function buildProps(ctx: CtxBuild): Props {
     g.font = 'bold 8px monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText('BUS', 16, 7);
     g.fillText('42', 16, 38);
-  });
+  }), 'sign');
   // Sign height is set to the standard: the bottom of a bus stop flag sits
   // 2.2–2.5 m above the walk. This one is at the LOW end, 2.20.
   const FLAG_BOT = 2.20, FLAG_H = 0.52;
@@ -1555,7 +1555,7 @@ export function buildProps(ctx: CtxBuild): Props {
   // in half, which is what a bezel does to artwork drawn as if it were not
   // there. The canvas is 112 x 24 to match the plate's 4.67:1, so the texels
   // stay square (GOTCHAS §5).
-  const adT = pixTex(112, 24, (g) => {
+  const adT = declareSurface(pixTex(112, 24, (g) => {
     g.fillStyle = '#c9c2ae'; g.fillRect(0, 0, 112, 24);
     g.fillStyle = '#8a2c22'; g.fillRect(5, 3, 102, 8);
     g.fillStyle = '#e8e4d8'; g.font = 'bold 5px monospace';
@@ -1566,7 +1566,7 @@ export function buildProps(ctx: CtxBuild): Props {
     g.fillStyle = '#6a6458'; g.font = '5px monospace';
     g.fillText('TWO SLICES $1.75', 56, 20.5);
     dither(g, 112, 24, 50);
-  });
+  }), 'sign');
   // THE BENCH TURNED ROUND. The user, twice: "like the back of the bus is in
   // the front? doesnt make sense".
   //

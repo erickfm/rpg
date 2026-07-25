@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, declareSurface } from './paint';
 import { ROAD_HALF, WALK, FACE } from './rng';
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -199,7 +199,11 @@ function walkMap(): THREE.Texture {
   t.magFilter = THREE.NearestFilter;
   t.minFilter = THREE.NearestMipmapNearestFilter;
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  // GROUND, not brick. Concrete paving compared to a brick wall by density is a
+  // question with no answer, and until a face SAYS what it is the seam tools
+  // cannot separate "different on purpose" from "wrong" — 90 pairs sit in that
+  // column. Declaring is one line per surface (ct/paint.ts).
+  return declareSurface(t, 'ground');
 }
 
 // WORLD-space uv for the walk sheet. Every walk surface uses these two, so a
@@ -225,7 +229,7 @@ export function walkTex(minX: number, maxX: number, minZ: number, maxZ: number):
 // arris strip, not here.
 const KW = Math.round(SEG_K * KPM), KH = 10;
 
-function kerbTex(): THREE.Texture {
+function kerbTex(): THREE.Texture {   // concrete kerb face — ground
   const t = pixTex(KW, KH, (g) => {
     const band = (y0: number, y1: number, c: string) => { g.fillStyle = c; g.fillRect(0, y0, KW, y1 - y0); };
     band(0, 1, '#8f8a81');   // just under the arris
@@ -253,7 +257,7 @@ function kerbTex(): THREE.Texture {
       g.fillRect(Math.floor(Math.random() * KW), 5, 14 + Math.floor(Math.random() * 30), 2);
     }
   });
-  return thin(t);
+  return declareSurface(thin(t), 'ground');
 }
 
 // ── the arris ─────────────────────────────────────────────────────────────
@@ -261,7 +265,7 @@ function kerbTex(): THREE.Texture {
 // same 64 px/m as the face. It used to borrow the kerb sheet's top texel row,
 // which stretched every dark pixel in that one row across the full width of
 // the chamfer — a dense speckle band right along the joint with the walk.
-function arrisTex(): THREE.Texture {
+function arrisTex(): THREE.Texture {  // the chamfer, same pour — ground
   const t = pixTex(KW, 4, (g) => {
     const band = (y0: number, y1: number, c: string) => { g.fillStyle = c; g.fillRect(0, y0, KW, y1 - y0); };
     band(0, 1, '#928d84');   // catching the sky
@@ -279,14 +283,14 @@ function arrisTex(): THREE.Texture {
       g.fillStyle = '#585349'; g.fillRect(x + 1, 0, w - 3, 1);
     }
   });
-  return thin(t);
+  return declareSurface(thin(t), 'ground');
 }
 
 // ── the gutter pan ────────────────────────────────────────────────────────
 // 96 × 14 px = 3 m × 0.45 m. v = 0 is the kerb (canvas bottom), v = 1 is the
 // asphalt joint (canvas top). Clearly lighter than the road, grimiest at the
 // flow line where the water actually runs.
-function gutterTex(): THREE.Texture {
+function gutterTex(): THREE.Texture { // the pan, same pour — ground
   const t = pixTex(96, 14, (g) => {
     const band = (y0: number, y1: number, c: string) => { g.fillStyle = c; g.fillRect(0, y0, 96, y1 - y0); };
     band(0, 1, '#2f2c29');   // tar seal at the asphalt joint
@@ -310,7 +314,7 @@ function gutterTex(): THREE.Texture {
     dither(g, 96, 14, 150);
   });
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
+  return declareSurface(t, 'ground');
 }
 
 // ── red kerb paint ────────────────────────────────────────────────────────
@@ -332,7 +336,7 @@ function gutterTex(): THREE.Texture {
 // tenths of a metre. No noise of any kind, and no mipmaps (see thin() below).
 const PW = Math.round(SEG_K * 32), PH = 5;   // 12 m × 0.15 m at 32 px/m
 
-function paintTex(): THREE.Texture {
+function paintTex(): THREE.Texture {  // red kerb paint — it is a marking, not masonry
   const t = pixTex(PW, PH, (g) => {
     // faded oxide red — dusty and desaturated, sitting near the brick rather
     // than shouting over it. Three flat bands, nothing per-pixel.
@@ -353,7 +357,7 @@ function paintTex(): THREE.Texture {
     }
     g.globalCompositeOperation = 'source-over';
   });
-  return thin(t);
+  return declareSurface(thin(t), 'detail');
 }
 
 // ── WHERE the kerb is painted, and why ────────────────────────────────────
@@ -397,12 +401,12 @@ const BUS_STOPS: [number, number][] = [[ROAD_HALF + 0.32, -33.5]];
 // and one lit top row — no gradient anywhere, because the shape is carried by
 // the geometry's edges now and the sheet only has to say "rough grey iron".
 function castTex(): THREE.Texture {
-  return pixTex(16, 16, (g) => {
+  return declareSurface(pixTex(16, 16, (g) => {
     g.fillStyle = '#46413a'; g.fillRect(0, 0, 16, 16);
     g.fillStyle = '#565046'; g.fillRect(0, 0, 16, 1);     // worn bright along the top arris
     g.fillStyle = '#332f2a'; g.fillRect(0, 15, 16, 1);
     dither(g, 16, 16, 26);
-  });
+  }), 'detail');
 }
 // Looking into the throat. There is no geometry behind this — the kerb mesh
 // is solid — so the sheet has to carry what you would see: black under the
@@ -410,21 +414,21 @@ function castTex(): THREE.Texture {
 // light, and a lit invert where the pan runs in. It is the one place here a
 // drawing is the honest answer, because what is being drawn IS darkness.
 function throatTex(): THREE.Texture {
-  return pixTex(24, 10, (g) => {
+  return declareSurface(pixTex(24, 10, (g) => {
     g.fillStyle = '#0a0b0d'; g.fillRect(0, 0, 24, 10);
     g.fillStyle = '#050506'; g.fillRect(0, 0, 24, 4);        // deepest under the lintel
     g.fillStyle = '#15171b'; g.fillRect(2, 6, 20, 2);        // the back wall, just catching
     g.fillStyle = '#232529'; g.fillRect(0, 9, 24, 1);        // the invert, wet and lit
     g.fillStyle = '#0d0e11'; g.fillRect(0, 8, 24, 1);
-  });
+  }), 'detail');
 }
 // the grate bars: darker than the frame, because they sit down in the rebate
 function barTex(): THREE.Texture {
-  return pixTex(16, 16, (g) => {
+  return declareSurface(pixTex(16, 16, (g) => {
     g.fillStyle = '#2b2825'; g.fillRect(0, 0, 16, 16);
     g.fillStyle = '#3d382f'; g.fillRect(0, 0, 16, 1);     // the one lit edge on each bar
     dither(g, 16, 16, 18);
-  });
+  }), 'detail');
 }
 
 // ═══════════════════════════ the kerb line ════════════════════════════════
