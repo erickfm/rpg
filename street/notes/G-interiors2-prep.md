@@ -16,16 +16,21 @@ reading the kit.
 ## 1. The casino can omit its window. No kit change needed.
 
 This was the explicit test in my queue. Answer: the kit already handles it.
-`RoomSpec.window` is optional and the front-wall hole loop guards on
-`if (win && wW > 0)` (`interior.ts:208`), so omitting the key leaves the front
-wall solid apart from the doorway. GOLDEN ACES gets no daylight for free.
+`RoomSpec.window` is optional and the front-wall hole loop only opens a window
+when `win && wW > 0`, so omitting the key leaves the front wall solid apart
+from the doorway. GOLDEN ACES gets no daylight for free.
+
+(Checked twice, against F's working copy before and after F hardened that loop
+with `addHole` validation — the guard survives the rewrite. `interior.ts` is
+still uncommitted and moving, so everything I say about it below is by symbol
+rather than line number, and is worth re-checking against whatever F lands.)
 
 ## 2. What I will need from F, in the order it matters
 
 **a. The room lights are not configurable, and two of my four rooms are about
 their light.** The kit hard-codes the glow colour `rgba(255,235,190,·)`, puts
 the lamps on the room's centreline, and picks the count as `round(D / 3.5)`
-(`interior.ts:261-276`). The casino brief is "a warm dim light that is nothing
+(the `── the light ──` block). The casino brief is "a warm dim light that is nothing
 like the flat civic daylight everywhere else"; the hotel brief is "one lamp
 out". Neither is reachable today — I can add my own glow planes with
 `room.put`, but I cannot recolour or suppress the kit's.
@@ -45,8 +50,8 @@ walls and adding one is a single call.
 
 **c. Not a blocker:** the kit's floor is a fixed 2×2 lino checker tinted by
 `palette.floor`, and my carpet/tile floors cannot replace it. The diner already
-solves this by laying its own plane at `y = 0.012` over the kit's
-(`int-diner.ts:47-58`), which is the house pattern now and what I will copy.
+solves this by laying its own plane at `y = 0.012` over the kit's (the
+`── the checker floor ──` block), which is the house pattern now and what I will copy.
 Flagging it only so nobody "fixes" the kit floor on my account.
 
 ## 3. The street-side numbers for my four doors
@@ -130,7 +135,7 @@ z = −44, which is the number `tex-world.ts:281` states on its own.
 
 Found while walking the approaches, pre-existing, and in B's file so I have
 left it alone. The bishop-crook lamps stand at `bx = ROAD_HALF + 0.55 = 5.55`
-with a `±0.2` collider (`props.ts:281`); the building wall collider starts at
+with a `±0.2` collider (`props.ts:280`); the building wall collider starts at
 `FACE − 0.3 = 6.7`. That is 0.95 m of clear walk past a lamp against a 0.72 m
 capsule, so the player's centre has to thread a **0.23 m** band.
 
