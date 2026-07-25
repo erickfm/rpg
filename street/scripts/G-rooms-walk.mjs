@@ -15,6 +15,7 @@
 // Usage: SHOT_URL=http://localhost:4186/ node scripts/G-rooms-walk.mjs [id]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { setClock } from './lib/clock.mjs';
 import { readFileSync } from 'node:fs';
 
 const KERB_H = 0.14, RADIUS = 0.36;
@@ -825,12 +826,19 @@ for (room of rooms) {
     });
     return out;
   }, CX);
-  await p.evaluate(() => window.__ct.clock(12, 0));
-  await p.waitForTimeout(500);
-  const noon = await sample();
-  await p.evaluate(() => window.__ct.clock(2, 0));
-  await p.waitForTimeout(900);
-  const night = await sample();
+  // WAIT ON FRAMES, NOT ON A GUESS (GOTCHAS §30) — and here the guess fails in
+  // the direction that hides the bug. This was `clock()` then a fixed 500/900 ms.
+  // If a loaded machine has not re-graded by then, the "night" sample is still
+  // the noon world, `dimmed` is 0, and the check reports the room keeping its own
+  // light having never turned the lights off. A sleep that is too short makes
+  // this check PASS. `setClock` waits two rendered frames, which 2558b1ba
+  // measured as what the grade actually costs, and warns loudly if rAF does not
+  // deliver them.
+  const nf = () => p.evaluate(() => window.__ct.scene().userData?.nightFactor ?? null);
+  await setClock(p, 12, 0);
+  const noon = await sample(), nfNoon = await nf();
+  await setClock(p, 2, 0);
+  const night = await sample(), nfNight = await nf();
   const dimmed = noon.filter((c, i) => night[i] !== undefined && night[i] !== c).length;
   // MEASURE THE FLOOR (GOTCHAS §34). `dimmed === 0` is equally true of a room
   // that sampled nothing, and of a night pass that came back SHORT — every index
@@ -839,12 +847,21 @@ for (room of rooms) {
   // populations across the four rooms: 441, 155, 137, 123. The floor is 40:
   // far below the smallest so ordinary authoring will not trip it, far above
   // the collapse it exists to catch.
-  const enough = noon.length >= 40 && night.length === noon.length;
+  // …and a POSITIVE CONTROL, because a floor on the sample size still does not
+  // prove the world went dark. "Nothing dimmed" is worth having only if the
+  // night sweep ran at all, so ask the published night factor whether it did.
+  // Without this the strongest failure mode left — the clock not taking — still
+  // reads green with 441 materials sampled.
+  const wentDark = nfNoon !== null && nfNight !== null && nfNight > nfNoon + 0.5;
+  const enough = noon.length >= 40 && night.length === noon.length && wentDark;
   check('the room keeps its own light after dark',
     enough && dimmed === 0,
     enough
-      ? `${dimmed}/${noon.length} interior materials were dimmed by the night sweep`
-      : `NOTHING TO CHECK: sampled ${noon.length} materials at noon and ${night.length} at 02:00`);
+      ? `${noon.length - dimmed}/${noon.length} interior materials kept their colour while`
+        + ` the world went night ${nfNoon.toFixed(2)} → ${nfNight.toFixed(2)}`
+      : !wentDark
+        ? `NOTHING TO CHECK: the world did not go dark — nightFactor ${nfNoon} → ${nfNight}`
+        : `NOTHING TO CHECK: sampled ${noon.length} materials at noon and ${night.length} at 02:00`);
 }
 
 // the kit warns about openings that do not fit and exits that land inside
