@@ -268,6 +268,34 @@ this file was one frame from, since `Frame` exposes `night` but no wetness.
 
 Textures and structure IDENTICAL across the change; the tints move, on purpose.
 
+**The salesman faces the customer — re-verified with the corrected decode.** I
+first read him off `map.offset.x` alone, which `H-atlas-facing.md` says is
+ambiguous: a MIRRORED frame is stored as `repeat.x = -1/5` and
+`offset.x = (col + 1) / 5`, so the offset moves to the far edge and three of
+the five values mean two things. My reading survived only because the two
+unmirrored columns I happened to land on — 0.0 and 0.2 — are on the half where
+the naive table is right.
+
+Redone with `[col, mirror] -> sector`, warping to a customer spot and waiting
+for rendered frames before reading (`8007a8c16`, `32cb7bd76`):
+
+```
+  at the gate, walking in    col 0, sector 0   FRONT, facing you
+  mid-aisle                  col 0, sector 0   FRONT, facing you
+  beside the office          col 1, sector 1   3/4 front
+  behind him, off the aisle  col 3, sector 5   3/4 back
+```
+
+He faces whoever is coming down the aisle, and shows his back only from a spot
+no customer stands in. Claim unchanged, instrument now the right one.
+
+**And the "outlier" I nearly reported was mine.** My first corrected pass read
+`col 4, mirror true`, which H's bijection has no sector for, and I was one step
+from filing it against their table. It was my own decode: I computed
+`col = round(offset.x * 5)` without subtracting the 1 that a mirrored frame
+carries. The note documents the encoding exactly; I had read the table and not
+the paragraph under it.
+
 **Checked against the floating-litter sweep, and the lot is clean.** `0d9146049`
 shot a wet midnight and found litter reading 61x the ground it lies on — the
 same shape as my own decals reading 94x the tarmac. Worth checking my area
