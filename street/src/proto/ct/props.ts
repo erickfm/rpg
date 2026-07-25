@@ -751,6 +751,9 @@ export function buildProps(ctx: CtxBuild): Props {
 
   // pigeons: peck, chase scattered cereal, spook when approached
   const updatePigeons = (dt: number, t: number, px: number, pz: number) => {
+    // the star dome rides with the player — this is the hook that already
+    // receives the position every frame, and stars have no parallax
+    starDome.position.set(px, 0, pz);
     if (crumbs) {
       crumbs.t -= dt;
       if (crumbs.t <= 0) { scene.remove(crumbs.m); crumbs = null; }
@@ -1732,8 +1735,63 @@ export function buildProps(ctx: CtxBuild): Props {
   drop('coffee cup', 5.42, -37.2, 0.70);
   drop('folded newspaper', 5.52, -36.0, -0.50);
 
+  // ── stars, on clear nights only ─────────────────────────────────────────
+  //
+  // Hard single texels and nothing else. PointsMaterial with sizeAttenuation
+  // OFF draws a fixed-size square in SCREEN space, which is exactly a texel —
+  // no sprite, no map, no falloff. That matters more here than usual: the one
+  // note this world has now given twice is that a smooth glow among hard
+  // texels reads as a rendering artefact, and a star drawn with a soft halo
+  // would be that same mistake a third time.
+  //
+  // Two tiers — a scattering of small ones and a handful of larger, whiter
+  // ones for the eye to catch. Ninety altogether, which is something you
+  // notice when you look up rather than a planetarium. Nothing below about 20
+  // degrees of elevation, because that is buildings and fog.
+  //
+  // The dome rides with the player. At radius 150 inside a 220 m camera a
+  // fixed dome would visibly swing over a 96 m street, and stars do not have
+  // parallax.
+  //
+  // Appended at the very END of the module, after every other rnd() draw, so
+  // the seeded stream is untouched and no tree or pigeon moves (GOTCHAS §2).
+  const STAR_R = 150;
+  const starDome = new THREE.Group();
+  const starMats: { m: THREE.PointsMaterial; base: number }[] = [];
+  const starField = (n: number, size: number, col: number, base: number) => {
+    const pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const az = rnd() * Math.PI * 2;
+      // uniform over the cap ABOVE 20 degrees. Uniform in the angle instead
+      // would crowd them all around the zenith, which is the giveaway that a
+      // star field was generated rather than observed.
+      const el = Math.asin(0.34 + rnd() * 0.66);
+      const cr = Math.cos(el) * STAR_R;
+      pos[i * 3] = Math.cos(az) * cr;
+      pos[i * 3 + 1] = Math.sin(el) * STAR_R;
+      pos[i * 3 + 2] = Math.sin(az) * cr;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const m = new THREE.PointsMaterial({ size, sizeAttenuation: false, color: col,
+      transparent: true, opacity: 0, depthWrite: false, fog: false });
+    starDome.add(new THREE.Points(g, m));
+    starMats.push({ m, base });
+  };
+  starField(77, 2, 0xbcc6d6, 0.72);     // the scattering
+  starField(13, 3, 0xffffff, 1.0);      // the handful that carry
+  starDome.visible = false;
+  scene.add(starDome);
+
   return {
     setLampNight: (v) => {
+      // Stars are gated on the WEATHER, not faded by it. Rain means cloud, and
+      // cloud means no stars — not dimmer ones — so this goes to nothing well
+      // before the storm is at full strength.
+      const clear = Math.max(0, 1 - rainLevel * 2.4);
+      const sv = v * clear;
+      starDome.visible = sv > 0.004;
+      if (starDome.visible) for (const s of starMats) s.m.opacity = s.base * sv;
       for (const g of nightLit) g.mat.opacity = g.base * v;
       lensM.color.copy(lensDay).lerp(lensLit, v);
       updateLit(v);   // and everything standing in a pool takes the amber
