@@ -1095,3 +1095,87 @@ and this is what it exposes.
 
 `scripts/seampairs.mjs` is the check, it runs in about twenty seconds, and it is
 the one I would put in the build if only one could go there.
+
+---
+
+# ⚠ RETRACTION — Rounds 10, 10b and 11 are WRONG. Pattern #1 is clean.
+
+**I published a headline finding two commits ago and it is an error in my own
+instrument.** Retracting it in full, with the measurement that kills it.
+
+## What I claimed
+
+- Round 10: *"42 of 109 masonry faces disagree with their own stamp"*
+- Round 10b: *"the mismatch is legible at one corner, in one glance"*
+- Round 11: *"135 of 239 like-for-like touching pairs disagree by more than 15%"*
+- and I promoted it to the **top** of `AUDIT-TRIAGE.md`'s route list
+
+## Why it is wrong
+
+**A `BoxGeometry` has four side faces. Two are `parameters.width` across and two
+are `parameters.depth`.** I used `width` for all of them.
+
+All 42 "disagreements" were boxes. Checking each against both dimensions:
+
+```
+42 stamped BoxGeometry faces
+   density correct against the box's DEPTH:  42
+   density correct against the box's WIDTH:   0
+   correct against NEITHER dimension:         0
+
+   painted for 19.2 m · box 15.9 × 19.2 · declared  8 · vs W  9.69 · vs D  8.02
+   painted for   12 m · box 23.5 ×   12 · declared  8 · vs W  4.09 · vs D  8.00
+   painted for    7 m · box  1.2 ×    7 · declared  8 · vs W 46.67 · vs D  8.00
+```
+
+**Every box's depth is exactly its painted-for width.** The masonry is on the
+depth-facing pair, at exactly 8 or 16 px/m. The famous "46.67 px/m face" is a
+7 m-wide face I measured against a 1.2 m edge.
+
+## The corrected result
+
+```
+109 masonry faces · 293 touching pairs
+faces whose density matches NEITHER of their dimensions:   0
+pairs disagreeing by more than 15%:                       54 of 293
+```
+
+And all 54 are a **declared-16 face against a declared-8 face at exactly 2×** —
+the shopfront band against the wall above it, which I had already identified as
+deliberate and excluded from the like-for-like set in Round 11.
+
+> **Like-for-like disagreements: zero. Every pair of masonry faces declaring the
+> same density agrees with its neighbour. Pattern #1 is clean — by declaration
+> and by measurement.**
+
+## Round 10b's photograph, retracted too
+
+I read `cand-brick-409.png` as two walls meeting with different brick widths. It
+is a near wall about 3 m from the camera and a far wall about 12 m away. **That
+is perspective.** I had rejected exactly this explanation for the library
+candidate a few rounds earlier and then accepted the same appearance as evidence
+when it agreed with a number I already believed.
+
+## What actually happened, and it is not subtle
+
+I have caught this same class of error three times in this audit — the
+`map.repeat` omission on floor density, the citizens that matched my door
+filter, the camera that did not scale with height. Each time I wrote that the
+lesson was to check the instrument against a second source.
+
+**Here I had the second source and ignored it.** The stamp records `wMeters`.
+For all 42, `canvas ÷ wMeters` came out to exactly 8.00 or 16.00 — I printed
+that column, looked at it, and read it as "the texture is painted correctly for
+a width it is not applied to" instead of the far simpler "`wMeters` is the face
+width and my face width is wrong."
+
+A number that lands on **exactly 8.00** forty-two times is not a coincidence,
+and I treated it as one because it fitted a defect I wanted to have found.
+
+## Status
+
+- **Pattern #1: CLEAN.** No further verification needed on current evidence.
+- `scripts/masonry.mjs` and `scripts/seampairs.mjs` are both fixed and now handle
+  box faces. `seampairs.mjs` is still worth having — *"does this face agree with
+  the one it touches"* remains the right question, and it now answers **yes**.
+- `AUDIT-TRIAGE.md` entry #0 removed.
