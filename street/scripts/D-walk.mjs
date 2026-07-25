@@ -296,6 +296,38 @@ if (found) {
     `${bought} x $2.50 against $14.50`, 1);
 }
 
+// ── the ATM answers, and answers with real money ──────────────────────────
+//
+// The user asked for this specifically: *"'doesn't work' is a request for an
+// interaction ... What is not an answer is a machine that looks usable and
+// ignores you."* It is a ctx.spot registered by ct/street.ts, and nothing
+// guarded it — the interaction could rot silently and only a player would find
+// out.
+//
+// The balance is asserted against the WALLET, not against a hard-coded 14.50,
+// because the point of the feature is that it reads ctx.purse.cash rather than
+// printing a number. This leg runs after the cereal legs above, so the purse is
+// down to $2.00 by now, and the ATM has to say so — which a constant would not
+// have caught.
+{
+  await warp(-6.0, 7.29, -Math.PI / 2);
+  await page.waitForTimeout(420);
+  const before = await prompt();
+  say(before.includes('FIRST FEDERAL'), 'the ATM offers itself',
+    JSON.stringify(before), 1);
+  await page.keyboard.press('e');
+  await page.waitForTimeout(420);
+  const after = await prompt();
+  const m = after.match(/\$([0-9]+\.[0-9]{2})/);
+  say(/balance/.test(after) && !!m, 'and it answers with a balance',
+    JSON.stringify(after), 1);
+  // 5 or 6 cereal bought above at $2.50 from $14.50 leaves $2.00 or -$0.50;
+  // the shop refuses the sixth, so $2.00 is the only reachable figure.
+  say(!!m && Math.abs(parseFloat(m[1]) - 2.0) < 0.005,
+    'and the balance is the money the shopping actually left',
+    m ? `$${m[1]} — $14.50 less five cereal at $2.50` : 'no figure', 1);
+}
+
 await browser.close();
 console.log(fails ? `\n${fails} FAILURES` : '\nall D walks pass');
 process.exit(fails ? 1 : 0);
