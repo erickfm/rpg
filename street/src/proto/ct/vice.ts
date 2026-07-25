@@ -395,8 +395,32 @@ export function buildVice(o: {
 
   // ── the shell ─────────────────────────────────────────────────────────
   const spans: Record<string, [number, number]> = {};
+  // HOW DEEP A BUILDING IS — "all buildings need to be much deeper otherwise it
+  // looks like a fake building", the user, twice, routed here by 4734d631f.
+  //
+  // Both shells were BoxGeometry(w, h, 3.4) while every building street.ts places
+  // gets `depthOf()`, 14 … 23.5 m. Same split as the flanks: these two left
+  // ct/street.ts before that work and did not travel with it.
+  //
+  // 14.0 is not a taste pick. Three things already agreed on it and none of them
+  // was the shell:
+  //   · the COLLIDER below already claimed `zc + 1.7 + 8`, so 8 m of solid
+  //     nothing stood behind a 3.4 m building. You were stopped by a wall that
+  //     was not there. Filling that volume is the fix for both faults at once.
+  //   · the neighbour west of the hotel (x 22.4…33.5) has its back wall on
+  //     z = -82, and 14 m from this frontage lands exactly there, so the block
+  //     gets one rear line instead of a notch.
+  //   · 14 is the floor of `depthOf`'s own range, so these two are the shallowest
+  //     buildings on the street rather than outliers in the other direction.
+  //
+  // The FRONT does not move: the facade stays on z = -96, which is what the
+  // portal, the declared door and the [E] spot are all keyed to. Only the back
+  // goes back.
+  const DEP = 14.0;
   const placeShell = (x0: number, zc: number, b: BldSpec) => {
     const cx = x0 + b.w / 2;
+    // front face stays at zc - 1.7; the box grows backwards from there
+    const zMid = zc - 1.7 + DEP / 2;
     const gh = SHOP_BAND_H;
     const h = 3.4 + b.floors * 2.4;
     spans[b.nm] = [x0, x0 + b.w];
@@ -407,20 +431,21 @@ export function buildVice(o: {
     // as flat brown on each box. The +-x faces span the DEPTH, the +z face spans
     // the WIDTH; painting both from one texture is how you get brick that
     // stretches on one pair of faces and not the other.
-    const xt = flat(flankTex(b.brick, 3.4, h, gh));
+    const xt = flat(flankTex(b.brick, DEP, h, gh));
     const zt = flat(flankTex(b.brick, b.w, h, gh));
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, 3.4),
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, DEP),
       [xt, xt, roofM, roofM, zt, facade]);
-    wall.position.set(cx, h / 2 + gh, zc);
+    wall.position.set(cx, h / 2 + gh, zMid);
     scene.add(wall);
     const bandM = flat(b.nm === 'GOLDEN ACES' ? acesBand(b, x0) : orpheusBand(b, x0));
-    const xs = flat(flankTex(b.brick, 3.4, gh, 0));
+    const xs = flat(flankTex(b.brick, DEP, gh, 0));
     const zs = flat(flankTex(b.brick, b.w, gh, 0));
-    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, 3.4),
+    const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, DEP),
       [xs, xs, roofM, roofM, zs, bandM]);
-    shop.position.set(cx, gh / 2, zc);
+    shop.position.set(cx, gh / 2, zMid);
     scene.add(shop);
-    solid({ minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 0.3, maxZ: zc + 1.7 + 8 });
+    // the collider now ENDS where the building ends, instead of 8 m past it
+    solid({ minX: x0, maxX: x0 + b.w, minZ: zc - 1.7 - 0.3, maxZ: zc - 1.7 + DEP });
   };
 
   // ── shared material factories ─────────────────────────────────────────
