@@ -61,19 +61,57 @@ const out = await p.evaluate(() => {
     // sticker or a sign; you can see through it, so it is not the brick wall the
     // seam question is about. Ivy is exactly that (alphaTest 0.5, DoubleSide).
     if (!ms && (fw < 2 || fh < 2 || m.alphaTest > 0)) return;
+    // THE FACE'S OWN RECTANGLE IN WORLD SPACE, not the mesh's bounding box.
+    //
+    // 7d4c345b: "a bounding box is not the shape". The adjacency test below used
+    // the MESH bbox, and a shopfront band is a long thin mesh whose box spans an
+    // entire frontage — so it paired with faces metres from any part of its real
+    // geometry, and reported junctions that do not exist. Same error as reading
+    // parameters.width for every face of a box, in a different place.
+    //
+    // So each face carries five world points: its centre and its four corners,
+    // placed on the correct side of the box and spanning the correct two axes.
+    const V = (x,y,z) => new (s.position.constructor)(x,y,z);
+    const hw = fw/2, hh = fh/2;
+    let ctr, ax, ay;                      // local centre offset and in-plane axes
+    if (o.geometry.type === 'BoxGeometry') {
+      const W=(pr.width??0)/2, H=(pr.height??0)/2, D=(pr.depth??0)/2;
+      if (mi===0)      { ctr=[ W,0,0]; ax=[0,0,1]; ay=[0,1,0]; }
+      else if (mi===1) { ctr=[-W,0,0]; ax=[0,0,1]; ay=[0,1,0]; }
+      else if (mi===4) { ctr=[0,0, D]; ax=[1,0,0]; ay=[0,1,0]; }
+      else if (mi===5) { ctr=[0,0,-D]; ax=[1,0,0]; ay=[0,1,0]; }
+      else             { ctr=[0, mi===2?H:-H, 0]; ax=[1,0,0]; ay=[0,0,1]; }
+    } else { ctr=[0,0,0]; ax=[1,0,0]; ay=[0,1,0]; }
+    // A 5x3 grid, not just the corners. Two long walls meeting along the MIDDLE
+    // of an edge share no corner, so a corner-only test misses exactly the
+    // junction this tool exists to find.
+    const pts = [];
+    const GU = [-1,-0.5,0,0.5,1], GV = [-1,0,1];
+    for (const su of GU) for (const sv of GV) {
+      const lx = ctr[0] + ax[0]*su*hw + ay[0]*sv*hh;
+      const ly = ctr[1] + ax[1]*su*hw + ay[1]*sv*hh;
+      const lz = ctr[2] + ax[2]*su*hw + ay[2]*sv*hh;
+      const wv = o.localToWorld(V(lx,ly,lz));
+      pts.push([wv.x, wv.y, wv.z]);
+    }
     faces.push({ u:+((img.width*Math.abs(m.map.repeat.x))/fw).toFixed(2),
                  v:+((img.height*Math.abs(m.map.repeat.y))/fh).toFixed(2),
                  declared: ms ? ms.ppm : null, stamped: !!ms, d: ms ? ms.ppm : null,
+                 pts,
                  x0:bb.min.x,x1:bb.max.x,y0:bb.min.y,y1:bb.max.y,z0:bb.min.z,z1:bb.max.z,
                  at:[+((bb.min.x+bb.max.x)/2).toFixed(1),+((bb.min.y+bb.max.y)/2).toFixed(1),+((bb.min.z+bb.max.z)/2).toFixed(1)] });
     });
   });
-  // neighbours: bboxes within 0.6 m in plan AND overlapping in height
+  // neighbours: the two FACES' own rectangles within 0.6 m of each other.
+  // Corner-and-centre samples, so a long band only pairs where it actually
+  // reaches. The bbox version paired a band with anything inside its frontage-
+  // wide box (7d4c345b).
   const near = (a,c) => {
-    const gap = (a0,a1,c0,c1) => (a0 > c1) ? a0-c1 : (c0 > a1) ? c0-a1 : 0;
-    const gx = gap(a.x0,a.x1,c.x0,c.x1), gz = gap(a.z0,a.z1,c.z0,c.z1);
-    const yOverlap = Math.min(a.y1,c.y1) - Math.max(a.y0,c.y0);
-    return gx < 0.6 && gz < 0.6 && yOverlap > 1.5;
+    for (const p1 of a.pts) for (const p2 of c.pts) {
+      const dx=p1[0]-p2[0], dy=p1[1]-p2[1], dz=p1[2]-p2[2];
+      if (dx*dx+dy*dy+dz*dz < 0.36) return true;      // 0.6 m
+    }
+    return false;
   };
   const pairs = [];
   for (let i=0;i<faces.length;i++) for (let j=i+1;j<faces.length;j++) {
@@ -134,9 +172,16 @@ const unlike = bad.filter(q => q.a.d !== null && q.c.d !== null && Math.abs(q.a.
 const ratios = unlike.map(q => Math.max(q.rU, q.rV));
 console.log(`\nLIKE-FOR-LIKE (both faces declare the same density): ${like.length} pairs`);
 console.log(`   disagreeing by more than 15%: ${likeBad.length}`);
-console.log(`declared-DIFFERENT pairs among the disagreements: ${unlike.length}` +
-  (ratios.length ? ` — ratios ${Math.min(...ratios).toFixed(2)}x to ${Math.max(...ratios).toFixed(2)}x` +
-   ` (SHOP_MULT is 2: a band meeting the wall above it is the design)` : ''));
+// Break these down rather than asserting one explanation over the whole range.
+// The line used to say "SHOP_MULT is 2" across a range that now reaches 4.03x,
+// and a 4x pair is not SHOP_MULT — it is the 32 px/m flagstone paving meeting a
+// wall. Claiming more than the data supports is the failure this file has now
+// made three times.
+const near2 = unlike.filter(q => Math.max(q.rU,q.rV) < 2.2).length;
+const other = unlike.length - near2;
+console.log(`declared-DIFFERENT pairs among the disagreements: ${unlike.length}`);
+console.log(`   ${near2} at ~2x — a shopfront band meeting the wall above it, which is SHOP_MULT and the design`);
+if (other) console.log(`   ${other} at other ratios — includes the 32 px/m flagstone paving against 8 px/m wall (4x)`);
 console.log('');
 for (const q of (likeBad.length ? likeBad : bad).slice(0,10))
   console.log(`   u ${String(q.rU).padStart(5)}× v ${String(q.rV).padStart(5)}×   ${q.a.u}×${q.a.v} (decl ${q.a.d}) at (${q.a.at.join(',')})   vs   ${q.c.u}×${q.c.v} (decl ${q.c.d}) at (${q.c.at.join(',')})`);
