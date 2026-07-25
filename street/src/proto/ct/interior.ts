@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
+import { frontageOf } from './tex-world';
+import { FACE } from './rng';
 
 // ── the interior kit ──────────────────────────────────────────────────────
 //
@@ -142,8 +144,9 @@ export interface RoomSpec {
   id: string;
   /** what the [E] prompt says outside: 'into the DINER' */
   label: string;
-  /** clear interior size in metres, wall face to wall face */
-  w: number;
+  /** clear interior size in metres, wall face to wall face. `w` is optional
+   *  when `frontage` is given — the kit sizes the room off the building. */
+  w?: number;
   d: number;
   /** ceiling height. 2.9 is a shop; a casino or a library wants more */
   h?: number;
@@ -151,16 +154,40 @@ export interface RoomSpec {
   palette?: { floor?: number; wall?: number; ceil?: number; trim?: number };
   /** the way in, on the street: where you stand and press E */
   door: {
-    /** street coords of the [E] spot outside */
-    x: number; z: number; r?: number;
+    /** Street coords of the [E] spot outside. Derived from the frontage when
+     *  one is given — and it must be, because a hand-typed one cannot know its
+     *  building moved. Three have: the diner's ended up outside a bank. */
+    x?: number; z?: number; r?: number;
     /** where standing outside is legal — defaults to "anywhere on the street" */
     ok?: () => boolean;
     /** where you land when you step back OUT, and which way you face */
-    outX: number; outZ: number; outYaw: number; outGy: number;
+    outX?: number; outZ?: number; outYaw?: number; outGy?: number;
     /** door centre along the room's front (south) wall, in local x. 0 = middle */
     at?: number;
     /** clear door width. 1.1 is generous; the player capsule is 0.72 across */
     width?: number;
+  };
+  /**
+   * The building this room is inside, so the kit can DERIVE the door, the
+   * window and the street trigger instead of the room hand-typing them.
+   *
+   * The user: *"i need the facades to line up with the interior. so if the
+   * door on the interior is full right then the facade must match."* They were
+   * two authorings of one fact — `ct/tex-world.ts` painted a door wherever it
+   * liked and each `int-*.ts` typed an offset beside it — so of course they
+   * disagreed, and the auditor measured it twice. `frontageOf()` is now the
+   * one authority; this reads it.
+   *
+   * Supplying this makes `door.at`, `door.width`, `door.x/z` and `window`
+   * optional: give them anyway only to override, and expect to justify it.
+   */
+  frontage?: {
+    /** the roster name, exactly — `frontageOf` dispatches character on it */
+    name: string;
+    /** the building's frontage width and centre z, from the roster */
+    w: number; cz: number;
+    /** -1 west (facade at x = -FACE), +1 east */
+    side: -1 | 1;
   };
   /** shopfront glazing on the front wall, so the room is not a sealed box */
   window?: { at?: number; w: number; h?: number; sill?: number };
@@ -270,7 +297,20 @@ let slabN = 0;
 
 export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const { scene, flat, player } = ctx;
-  const W = spec.w, D = spec.d, H = spec.h ?? 2.9;
+
+  // ── derive from the facade, if we were told which building this is ──────
+  //
+  // Everything below that the frontage can answer, it answers, and the room's
+  // own value becomes an override rather than the source. Where the two used
+  // to disagree they now cannot, because there is only one of them.
+  const fr = spec.frontage;
+  const F = fr ? frontageOf(fr.name, fr.w) : null;
+  // The room is as wide as the building, less the wall thickness at each end.
+  // Room width used to be a number each room picked: the burger barn had
+  // 11.36 m of room behind 16 m of frontage — 71%, where the others were
+  // 94–97% — and nothing said which was right. This makes it a rule.
+  const W = spec.w ?? (F ? Math.max(4, F.frontageM - 1.2) : 8);
+  const D = spec.d, H = spec.h ?? 2.9;
   const pal = spec.palette ?? {};
   const FLOOR = pal.floor ?? 0x8a8578, WALL = pal.wall ?? 0x9aa88e;
   const CEIL = pal.ceil ?? 0xb0aa9c, TRIM = pal.trim ?? 0x5a4632;
@@ -405,10 +445,33 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   wallRun(hw + T / 2, 0, D + T * 2, 'z', 0, H);
 
   // the front wall carries the door and the window, so it is built in pieces
-  const dAt = spec.door.at ?? 0;
-  const dW = spec.door.width ?? 1.1;
+  // Where the door sits along the room's front wall, and how wide it is —
+  // from the facade when we know the building.
+  //
+  // `doorOffsetM` is signed metres from the frontage centre, the same
+  // convention `at:` already used, so it drops straight in. It is SCALED by
+  // room width over frontage width: the room is a little narrower than the
+  // building (wall thickness), and the user's ask was that the door be in the
+  // corresponding PLACE — "if the door on the interior is full right then the
+  // facade must match" — which is a proportion, not an absolute offset.
+  const dAt = spec.door.at ?? (F ? F.doorOffsetM * (W / F.frontageM) : 0);
+  const dW = spec.door.width ?? F?.doorWidthM ?? 1.1;
   const DOOR_H = 2.15;
-  const win = spec.window;
+  // The glazing, likewise: the painter's glazed span, scaled into the room and
+  // then trimmed back off the door so the two openings cannot collide — which
+  // the front-wall builder would otherwise drop on the floor with a warning.
+  const glaze = F ? (() => {
+    const k = W / F.frontageM;
+    const c = F.frontageM / 2;
+    let a = (F.glazingStartM - c) * k, b = (F.glazingEndM - c) * k;
+    const dl = dAt - dW / 2 - 0.12, dr = dAt + dW / 2 + 0.12;
+    // keep whichever side of the door is the bigger run of glass
+    if (a < dl && b > dr) { if (dl - a >= b - dr) b = dl; else a = dr; }
+    else if (b > dl && b <= dr) b = dl;
+    else if (a >= dl && a < dr) a = dr;
+    return b - a > 0.8 ? { at: (a + b) / 2, w: b - a } : null;
+  })() : null;
+  const win = spec.window ?? (glaze ? { at: glaze.at, w: glaze.w, h: 1.5, sill: 0.95 } : undefined);
   const wAt = win?.at ?? 0;
   const wW = win?.w ?? 0;
   const wSill = win?.sill ?? 0.95;
@@ -625,6 +688,33 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   // OUTSIDE the entry trigger's radius or you get sucked straight back in the
   // moment you step out. That bug has shipped once already.
   const doorR = spec.door.r ?? 1.05;
+  // ── the [E] spot on the street ──
+  //
+  // Derived from the SAME published door centre the painter draws with, so the
+  // prompt cannot drift off its door — and cannot be left behind when its
+  // building moves, which has now happened three times.
+  //
+  // The facade plane is at x = ±FACE and the wall collider reaches 0.3 m past
+  // it, so the spot stands 0.75 m off the plane rather than the 0.45 m the
+  // rooms were typing. The auditor measured every kit door spot sitting 0.21 m
+  // INSIDE collision, prompting only because the trigger radius is five times
+  // the intrusion. This puts it on ground you can actually stand on.
+  //
+  // Along the street: a west facade is the +x face of its box, where three.js
+  // runs u along -z, so u = 0 is the HIGH-z edge. An east facade is the -x
+  // face and runs the other way. That sign is the whole conversion.
+  const spotOnStreet = F && fr
+    ? {
+      x: fr.side * (FACE - 0.75),
+      z: fr.side < 0 ? fr.cz + fr.w / 2 - F.doorCentreM : fr.cz - fr.w / 2 + F.doorCentreM,
+    }
+    : { x: spec.door.x ?? 0, z: spec.door.z ?? 0 };
+  // and stepping out: 1.5 m along the walk, which clears the trigger by more
+  // than the 0.35 m margin the kit warns below
+  const outAt = spec.door.outX !== undefined && spec.door.outZ !== undefined
+    ? { x: spec.door.outX, z: spec.door.outZ, yaw: spec.door.outYaw ?? 0, gy: spec.door.outGy ?? 0 }
+    : { x: (fr ? fr.side : -1) * (FACE - 1.2), z: spotOnStreet.z + 1.5,
+      yaw: (fr ? fr.side : -1) < 0 ? Math.PI / 2 : -Math.PI / 2, gy: ctx.KERB_H };
   // where the way-out trigger sits, and — separately — where you actually land
   // when you come in. They are not the same point: landing ON the threshold
   // puts you inside the swing of the door leaf and a step from walking back
@@ -633,7 +723,7 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
   const spotX = wx(dAt), spotZ = wz(hd - 0.55);
   const arriveZ = wz(hd - 1.15);
   ctx.spot({
-    x: spec.door.x, z: spec.door.z, r: doorR,
+    x: spotOnStreet.x, z: spotOnStreet.z, r: doorR,
     ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100),
     label: () => spec.label,
     // yaw 0 is fwd = (0,0,-1). The door is in the +z wall, so facing away from
@@ -644,14 +734,14 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
     x: spotX, z: spotZ, r: 1.0,
     ok: () => player.x() >= x0 && player.x() < x1,
     label: () => 'out to the street',
-    act: () => player.jumpTo(spec.door.outX, spec.door.outZ, spec.door.outYaw, spec.door.outGy),
+    act: () => player.jumpTo(outAt.x, outAt.z, outAt.yaw, outAt.gy),
   });
   // Stepping out must not put you back inside the trigger you just used. Get
   // this wrong and the street prompt reads "into the DINER" the instant you
   // leave, and one more E — the key you are already pressing — puts you
   // straight back. That has shipped once. Checked rather than trusted,
   // because it is invisible until someone walks it.
-  const outGap = Math.hypot(spec.door.outX - spec.door.x, spec.door.outZ - spec.door.z);
+  const outGap = Math.hypot(outAt.x - spotOnStreet.x, outAt.z - spotOnStreet.z);
   if (outGap < doorR + 0.35) {
     bad(`stepping out lands ${outGap.toFixed(2)} m from the way-in spot, inside its `
       + `${doorR.toFixed(2)} m trigger — you will be sucked straight back in. `

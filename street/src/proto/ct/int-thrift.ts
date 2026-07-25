@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
-import { FACE } from './rng';
 
 // THE THRIFT STORE, inside.
 //
@@ -26,20 +25,14 @@ import { FACE } from './rng';
 // then WALKED — `scripts/interiors-walk.mjs` drives the aisles, not just the
 // spine, because a room that is only passable down one lane is a corridor.
 //
-// THRIFT is the eighth slot in the WEST roster: 9.2 + 10 + 16 + 16 from
-// z = 14.2, then the alley resets to −43.5, then 12 + 12.5 — so it spans
-// z −68…−82, centre −75, and it is 14 m wide.
+// WHERE IT IS is not written here. The room names its building and the kit
+// reads `frontageOf('THRIFT', 12.5)` for the door, its width, the glazing and
+// the [E] spot on the pavement.
 //
-// It wears the block's DEFAULT shopfront (no `front:` field in the roster),
-// and `shopfrontTex` paints its door at `fillRect(round(W * 0.48), 16, 3, 32)`
-// on W = round(14 × 8) = 112 texels → texels 54…56, centre 55.5, f = 0.4955.
-// The west facade is the +x face of a box and three.js runs u along −z there:
-//
-//     z = cz + w/2 − f·w = −75 + 7 − 0.4955 × 14 = −74.94
-//
-// Nearly central, unlike the burger barn's — but derived, not assumed, because
-// "nearly" is how you end up 0.5 m off and standing in front of the glass.
-const DOOR_Z = -74.94;
+// This file used to hold `DOOR_Z = -74.94`, derived by hand and correct when
+// written. It then went wrong TWICE without being touched: D swapped THRIFT
+// with BARBER, moving it 13 m up the block, and A's descriptor put its door
+// hard left instead of near the middle. The prompt was standing in the park.
 
 export function buildThrift(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
@@ -48,7 +41,7 @@ export function buildThrift(ctx: CtxBuild): void {
     // Small, and lower than the shops either side of it. The burger barn is
     // 11.0 × 8.5 × 3.2; this is deliberately the opposite end of that so the
     // ceiling is in your eyeline and the walls are close.
-    w: 8.0, d: 6.5, h: 2.75,
+    d: 6.5, h: 2.75,
     // faded, mismatched, second-hand: cream that used to be white, a worn
     // vinyl floor, and brown trim nobody has repainted since the seventies
     palette: { floor: 0x9a8f7c, wall: 0xc6c0a8, ceil: 0xc4beac, trim: 0x6a4a2c },
@@ -60,15 +53,8 @@ export function buildThrift(ctx: CtxBuild): void {
       // more for "this place is barely holding on" than any amount of clutter.
       kind: 'strip', tint: 0xe4e8dc, count: 3, dead: [1],
     },
-    door: {
-      x: -(FACE - 0.45), z: DOOR_Z, r: 1.05,
-      at: -2.2, width: 1.1,
-      // along the walk, clear of the 1.05 m trigger by more than the kit's
-      // 0.35 m margin. The nearest street tree is at z = −72.5 and the nearest
-      // lamp at z = −65, so this stretch of pavement is empty.
-      outX: -(FACE - 0.9), outZ: DOOR_Z + 1.5, outYaw: Math.PI / 2, outGy: ctx.KERB_H,
-    },
-    window: { at: 1.2, w: 3.6, h: 1.4, sill: 0.9 },
+    frontage: { name: 'THRIFT', w: 12.5, cz: -61.75, side: -1 },
+    door: { r: 1.05 },
   });
 
   const { put, solid } = room;

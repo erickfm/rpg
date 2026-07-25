@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
-import { FACE } from './rng';
 
 // The DINER, inside.
 //
@@ -18,46 +17,31 @@ import { FACE } from './rng';
 // touches. Get those four and it reads instantly; miss the counter and it is
 // just a room with tables.
 //
-// WHERE IT IS, and this moved: the DINER used to be the first slot in the WEST
-// roster at z ≈ 9.6. Builder D swapped its identity with LAUNDRY's, so it now
-// takes the 12 m slot on the far side of the alley — z −55.5 … −43.5, centre
-// −49.5, per the note above the roster entry in ct/street.ts. The old slot is
-// a BANK now, and for a while this file still pointed at it: the "into the
-// DINER" prompt stood outside a bank, and pressing it took you to a diner that
-// was nowhere near.
+// WHERE IT IS is no longer written down here at all.
 //
-// The door is DERIVED from the facade, not from that centre. DINER wears the
-// block's default shopfront, which paints its door at `round(W * 0.48)` on
-// W = round(12 × 8) = 96 texels → texels 46…48, centre 47.5, f = 0.49479. The
-// west facade is the +x face of a box and three.js runs u along −z there:
+// This file used to carry `DZ`, a hand-typed world z for the door. It was
+// wrong twice: once when D moved the DINER across the alley and the prompt
+// ended up outside a bank, and again when A's frontage descriptor moved the
+// painted door 4.8 m along the shopfront. A constant cannot know either of
+// those happened.
 //
-//     z = cz + w/2 − f·w = −49.5 + 6 − 0.49479 × 12 = −49.44
-//
-// A hand-typed constant cannot know its building moved. This one is at least
-// written down next to its derivation, which is the next best thing until the
-// frontage descriptors land.
+// The room now names its building and the kit reads `frontageOf()` — the one
+// authority the painter also draws from. The door, its width, the glazing, the
+// [E] spot on the pavement and the spot you step back out onto all come from
+// there. The only facts left in this file are which building it is and how
+// wide, and those come out of D's roster.
 export function buildDiner(ctx: CtxBuild): void {
-  const DZ = -49.44;
   const room = buildRoom(ctx, {
     id: 'diner',
     label: 'into the DINER',
-    // 12 m of frontage now instead of 9.2, so the room grew with it — a
-    // diner with a longer counter is a better diner, and the old 8.6 m
-    // interior behind a 12 m shopfront would read as a false front.
-    w: 10.4, d: 7.0, h: 3.0,
+    // width comes from the frontage — a diner with a longer counter is a
+    // better diner, and an 8.6 m room behind a 12 m front is a false front
+    d: 7.0, h: 3.0,
     palette: { floor: 0xb0a996, wall: 0xc4bca8, ceil: 0xbdb6a4, trim: 0x4a3a2a },
-    door: {
-      x: -(FACE - 0.45), z: DZ, r: 1.05,
-      at: -2.6, width: 1.15,
-      // Step out ALONG the walk, not across it. Landing straight out from the
-      // door put you 0.65 m from the way-in trigger — inside it — so the
-      // street prompt still read "into the DINER" and the next E took you
-      // back. Going 1.5 m down the walk clears the trigger without crowding
-      // the kerb: at x = -6.1 the 0.36 m capsule sits between the facade at
-      // -7.0 and the kerb edge at -5.0, well inside the 2 m lane (GOTCHAS §9).
-      outX: -(FACE - 0.9), outZ: DZ - 1.5, outYaw: Math.PI / 2, outGy: ctx.KERB_H,
-    },
-    window: { at: 1.9, w: 5.4, h: 1.55, sill: 0.9 },
+    frontage: { name: 'DINER', w: 12, cz: -49.5, side: -1 },
+    // door, width, the [E] spot on the street and the way back out are all
+    // derived from that — see RoomSpec.frontage. Nothing here is typed twice.
+    door: { r: 1.05 },
   });
 
   const { put, solid } = room;

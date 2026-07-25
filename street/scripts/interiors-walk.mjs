@@ -15,16 +15,13 @@ const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 // a matter of days.
 const ROOMS = [
   {
-    id: 'diner', label: /DINER/, W: 10.4, D: 7.0,
-    doorX: -(FACE - 0.45), doorZ: -49.44, at: -2.6,
+    id: 'diner', label: /DINER/, D: 7.0, front: ['DINER', 12, -49.5, -1],
   },
   {
-    id: 'burger', label: /BURGER/, W: 11.0, D: 8.5,
-    doorX: -(FACE - 0.45), doorZ: -28.25, at: -3.6,
+    id: 'burger', label: /BURGER/, D: 8.5, front: ['BURGER BARN', 16, -29, -1],
   },
   {
-    id: 'thrift', label: /THRIFT/, W: 8.0, D: 6.5,
-    doorX: -(FACE - 0.45), doorZ: -74.94, at: -2.2,
+    id: 'thrift', label: /THRIFT/, D: 6.5, front: ['THRIFT', 12.5, -61.75, -1],
     // …and because "dense but walkable" is this room's whole risk, it also
     // gets its aisles walked: between rail rows, and down the open spine.
     aisles: [
@@ -53,6 +50,10 @@ const ROOMS = [
   },
 ];
 
+// Rooms that name a building get their door and width DERIVED from the same
+// published frontage the kit and the painter use. Hand-typed door positions in
+// a test file go stale exactly the way they did in the rooms — three of them
+// did, and a test asserting a stale number is worse than no test.
 const only = process.argv[2];
 const rooms = only ? ROOMS.filter((r) => r.id === only) : ROOMS;
 
@@ -64,6 +65,23 @@ p.on('console', (m) => { if (m.type() === 'warning' && /\[interior:/.test(m.text
 await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await p.waitForTimeout(400);
+
+for (const r of ROOMS) {
+  if (!r.front) continue;
+  const [name, w, cz, side] = r.front;
+  const d = await p.evaluate(async ([name, w, cz, side]) => {
+    const m = await import('/src/proto/ct/tex-world.ts');
+    const F = m.frontageOf(name, w);
+    return {
+      z: side < 0 ? cz + w / 2 - F.doorCentreM : cz - w / 2 + F.doorCentreM,
+      at: F.doorOffsetM * (Math.max(4, F.frontageM - 1.2) / F.frontageM),
+      W: Math.max(4, F.frontageM - 1.2),
+    };
+  }, [name, w, cz, side]);
+  r.doorX = side * (FACE - 0.75);
+  r.doorZ = d.z; r.at = d.at; r.W = d.W;
+  if (side > 0) r.east = true;
+}
 
 const pos = () => p.evaluate(() => window.__ct.pos());
 const prompt = () => p.evaluate(() => {
@@ -355,7 +373,12 @@ for (room of rooms) {
     await warp(cx + from, lane.z, yaw, 0);
     await p.waitForTimeout(150);
     const a0 = await pos();
-    await hold('w', 3200);
+    // long enough for the run that actually exists. A fixed 3.2 s is 10.56 m
+    // at the walk speed, so the moment a room got wider than that the test
+    // started reporting "blocked" for a player who had simply run out of
+    // clock — which is what the burger barn did when the frontage rule took
+    // it to 14.8 m.
+    await hold('w', Math.round((lane.run / 3.3) * 1000) + 900);
     const a1 = await pos();
     check(`you can walk the room ${what}`, Math.abs(a1[0] - a0[0]) > lane.run * 0.8,
       `travelled ${f2(Math.abs(a1[0] - a0[0]))} m of a ${f2(lane.run)} m run`);
@@ -371,7 +394,7 @@ for (room of rooms) {
     await warp(cx - half, az, Math.PI / 2, 0);
     await p.waitForTimeout(150);
     const a0 = await pos();
-    await hold('w', 3200);
+    await hold('w', Math.round((half * 2 / 3.3) * 1000) + 900);
     const a1 = await pos();
     check(`you can walk ${what}`, a1[0] - a0[0] > half * 1.5,
       `travelled ${f2(a1[0] - a0[0])} m of ${f2(half * 2)} (want > ${f2(half * 1.5)})`);

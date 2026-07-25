@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
 import { pixTex, dither } from './paint';
 import { buildRoom } from './interior';
-import { FACE } from './rng';
 
 // BURGER BARN, inside.
 //
@@ -22,26 +21,13 @@ import { FACE } from './rng';
 const BB_RED = 0xc8302a;
 const BB_INSIDE = 0xe0d2b4;
 
-// Where the door is, and this is the whole reason the item exists — the user
-// walked up to this building and could not get in.
+// WHERE IT IS is not written here. The room names its building and the kit
+// reads `frontageOf('BURGER BARN', 16)` — the same object the facade painter
+// draws from — for the door centre, its width, the glazing and the [E] spot.
 //
-// It is DERIVED, not guessed. `burgerFront` paints the door at
-// `fillRect(round(W * 0.44), 23, 4, 25)` on a W = round(16 × 8) = 128 texel
-// facade, so it covers texels 56…59 and its centre is texel 58 → f = 0.4531.
-//
-// The west facade is the +x face of a box of depth b.w, and Three.js runs u
-// along -z on that face: u = 0 at the high-z edge. So
-//
-//     z = cz + w/2 − f·w
-//
-// BURGER BARN is the fourth slot in the WEST roster, which starts at z = 14.2
-// and runs 9.2 + 10 + 16 before it — so it spans z −21…−37, cz = −29, w = 16:
-//
-//     z = −29 + 8 − 0.4531 × 16 = −28.25
-//
-// Not "near the middle of the building". The painted door is 3.75 m north of
-// the middle, and standing at the middle is standing in front of the glass.
-const DOOR_Z = -28.25;
+// This file used to derive that by hand from the painter's texel arithmetic,
+// which was right at the time and wrong the moment A moved the door: the
+// derivation said z = -28.25 and the published door is now at -29.0.
 
 export function buildBurger(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
@@ -50,7 +36,7 @@ export function buildBurger(ctx: CtxBuild): void {
     // wider, deeper and taller than the diner. Fast food buys floor area and
     // spends it on turnover; the height is what stops all that hard surface
     // feeling like a corridor.
-    w: 11.0, d: 8.5, h: 3.2,
+    d: 8.5, h: 3.2,
     // The wall is BB_INSIDE, and that is not a free choice: it is the colour
     // `burgerFront` paints behind the glass as "lit right through". That patch
     // is what the street promises this room looks like, so the room has to
@@ -62,19 +48,8 @@ export function buildBurger(ctx: CtxBuild): void {
     // fluorescent, cool, and more of them than the room needs. Over-lighting
     // is not an accident in these places.
     light: { kind: 'troffer', tint: 0xeaf2f6, count: 4 },
-    door: {
-      x: -(FACE - 0.45), z: DOOR_Z, r: 1.05,
-      at: -3.6, width: 1.2,
-      // Out ALONG the walk, never across it — 1.57 m from the way-in trigger,
-      // which is clear of its 1.05 m radius by more than the kit's 0.35 m
-      // margin. Landing straight out from the door is what made the diner
-      // re-swallow you. Nothing stands on this stretch of walk: the west trees
-      // are at z = −16/−44 and the west lamps at z = −9/−37.
-      outX: -(FACE - 0.9), outZ: DOOR_Z + 1.5, outYaw: Math.PI / 2, outGy: ctx.KERB_H,
-    },
-    // "more glass than anyone else because you are supposed to see in" — the
-    // facade painter's own note. The window runs most of the front.
-    window: { at: 1.7, w: 6.2, h: 1.7, sill: 0.85 },
+    frontage: { name: 'BURGER BARN', w: 16, cz: -29, side: -1 },
+    door: { r: 1.05 },
   });
 
   const { put, solid } = room;
@@ -108,7 +83,13 @@ export function buildBurger(ctx: CtxBuild): void {
   // diner counter is something you sit AT, this is something you stand at and
   // are served across. No overhang, no knee room, no stools — the three
   // things that made the diner's counter hospitable are all absent here.
-  const CZ = -hd + 1.25, CL = 7.4;
+  // Everything below is sized off the ROOM, not off a constant, because the
+  // room is sized off the frontage and the frontage can change. It did: the
+  // kit's width rule took this room from 11.0 m to 14.8 m to match 16 m of
+  // shopfront, and a 7.4 m counter centred in it left four metres of bare
+  // tile at each end. Furniture that does not follow its room is how a room
+  // grows into a waiting hall.
+  const CZ = -hd + 1.25, CL = room.W * 0.68, CCX = -room.W * 0.036;
   const counterFaceT = pixTex(96, 24, (g) => {
     g.fillStyle = '#c8302a'; g.fillRect(0, 0, 96, 24);
     g.fillStyle = 'rgba(0,0,0,0.18)';
@@ -129,11 +110,11 @@ export function buildBurger(ctx: CtxBuild): void {
   const cFace = ctx.flat(counterFaceT), cTop = ctx.flat(cTopT);
   const counter = new THREE.Mesh(new THREE.BoxGeometry(CL, 1.15, 0.75),
     [cFace, cFace, cTop, cFace, cFace, cFace]);
-  put(counter, -0.4, 0.575, CZ);
-  solid(-0.4, CZ, CL, 0.75);
+  put(counter, CCX, 0.575, CZ);
+  solid(CCX, CZ, CL, 0.75);
 
   // three tills along it, and the tray rail they push your tray onto
-  for (const tx of [-3.0, -0.4, 2.2]) {
+  for (const tx of [CCX - CL * 0.35, CCX, CCX + CL * 0.35]) {
     const till = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.3, 0.34),
       new THREE.MeshBasicMaterial({ color: 0x38383a }));
     put(till, tx, 1.3, CZ - 0.1);
@@ -144,7 +125,7 @@ export function buildBurger(ctx: CtxBuild): void {
   }
   const rail = new THREE.Mesh(new THREE.BoxGeometry(CL, 0.04, 0.05),
     new THREE.MeshBasicMaterial({ color: 0xb8b2a6 }));
-  put(rail, -0.4, 1.13, CZ + 0.41);
+  put(rail, CCX, 1.13, CZ + 0.41);
 
   // ── the crew wall behind it: fryers, the grill, the warming chute ──
   //
@@ -174,7 +155,7 @@ export function buildBurger(ctx: CtxBuild): void {
     dither(g, 128, 48, 60);
   });
   const crew = new THREE.Mesh(new THREE.PlaneGeometry(CL + 1.4, 2.4), ctx.flat(crewT));
-  put(crew, -0.4, 1.35, -hd + 0.05);
+  put(crew, CCX, 1.35, -hd + 0.05);
 
   // ── the menu boards, backlit, over the crew wall ──
   //
@@ -213,9 +194,9 @@ export function buildBurger(ctx: CtxBuild): void {
       });
     });
     const bd = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.95), ctx.flat(boardT));
-    put(bd, -0.4 + (i - 1) * 2.45, 2.5, -hd + 0.07);
+    put(bd, CCX + (i - 1) * (CL / 3), 2.5, -hd + 0.07);
     const frame = new THREE.Mesh(new THREE.BoxGeometry(2.45, 1.08, 0.06), redM);
-    put(frame, -0.4 + (i - 1) * 2.45, 2.5, -hd + 0.03);
+    put(frame, CCX + (i - 1) * (CL / 3), 2.5, -hd + 0.03);
   });
 
   // ── the seating: moulded, fixed, and bolted to the floor ──
@@ -237,10 +218,19 @@ export function buildBurger(ctx: CtxBuild): void {
     t.needsUpdate = true;
     return ctx.flat(t);
   };
-  const UNITS: [number, number][] = [
-    [-0.7, 2.35], [1.6, 2.35], [3.9, 2.35],   // along the window
-    [0.3, -0.15], [2.9, -0.15],               // and a second row behind them
-  ];
+  // Laid out from the room rather than listed: the left of the room is the
+  // queue lane (furniture standing in it is furniture nobody can reach at
+  // lunchtime), and the rest fills with units on a 2.3 m pitch — which is what
+  // keeps the aisles between them walkable whatever width the room turns out
+  // to be.
+  const SX0 = -room.W * 0.10, SX1 = hw - 0.95;
+  const cols = Math.max(2, Math.floor((SX1 - SX0) / 2.3) + 1);
+  const pitch = cols > 1 ? (SX1 - SX0) / (cols - 1) : 0;
+  const UNITS: [number, number][] = [];
+  for (let c = 0; c < cols; c++) {
+    UNITS.push([SX0 + c * pitch, 2.35]);
+    if (c < cols - 1) UNITS.push([SX0 + (c + 0.5) * pitch, -0.15]);   // staggered second row
+  }
   for (const [ux, uz] of UNITS) {
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.16, 0.72, 8), postM);
     put(ped, ux, 0.36, uz);
