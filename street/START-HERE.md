@@ -3,6 +3,20 @@
 You are an agent working on **CROSSTOWN '97**. Assume you have no memory of this
 project. This page gets you productive; everything else is linked from it.
 
+**There are only four documents you need.** Everything else is history.
+
+| | | |
+|---|---|---|
+| **START-HERE.md** | you are here | orientation + how to run things |
+| **notes/GOTCHAS.md** | 120 lines | landmines. read before your first change |
+| **notes/OWNERSHIP.md** | 53 lines | which files are yours |
+| **notes/queues/\<you\>.md** | short | your actual tasks |
+
+Two more exist as **reference**, not reading: `PARALLEL-WORKFLOW.md` (the
+multi-agent process, look things up in it) and `FEATURE-REQUESTS.md` (every
+request in the user's own words). `notes/archive/` is finished handoff notes —
+open one only when you are about to touch the area it describes.
+
 ---
 
 ## What this is
@@ -49,11 +63,10 @@ Then read, in this order:
 
 1. **`notes/GOTCHAS.md`** — landmines that have each cost hours. Not optional.
 2. **`notes/queues/<you>.md`** — your tasks, with links to the user's screenshots.
-3. **`PARALLEL-WORKFLOW.md`** — how the whole multi-agent process works. §12 is
-   how feedback is given, §15 is what we would fix next.
-4. **`FEATURE-REQUESTS.md`** — the running log of everything the user has asked
-   for, in his words.
-5. Any `notes/feat-*.md` — handoff notes from whoever worked your area before.
+
+That is enough to start. Reach for `PARALLEL-WORKFLOW.md` when you need the
+process (§12 how feedback is given, §15 what we would fix next), and
+`notes/archive/` when you want to know why an area looks the way it does.
 
 ---
 

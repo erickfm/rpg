@@ -1,4 +1,8 @@
-# CROSSTOWN ’97
+# CROSSTOWN ’97 — how this world got here
+
+> **Working on this project? Read [`START-HERE.md`](START-HERE.md) instead.**
+> This page is design history: where the look came from and why the world is
+> shaped the way it is. It is not instructions.
 
 A first-person, wide-FOV city street built like a 1997 console game — chunky
 nearest-filtered texel art, camera-facing sprites with true 8-angle rotations,
@@ -62,38 +66,3 @@ One closed street block, authored by hand in `src/proto/crosstown.ts`:
   window; a payphone; sprite trees of varied heights; pigeons on the kerb.
 - **Collision on everything**, including the moving taxi (live AABB).
 
-## Architecture
-
-```
-src/
-  main.ts             world shell: renderer, input (pointer-lock + drag-look),
-                      registry loader, per-world lifecycle & disposal
-  protos.ts           REGISTRY — currently just Crosstown
-  proto/
-    types.ts          Proto interface (each world: scene/camera/update/dispose)
-    fp.ts             FPRig (mouselook, WASD, axis-separated AABB collision,
-                      kerb step-up via groundY, jump) + sky/env/curve helpers
-    crosstown.ts      THE WORLD. All texel painters (canvas → NearestFilter
-                      textures), the car fleet, the citizen atlas, the street
-scripts/
-  smoke.mjs           headless boot + walkthrough + screenshots, fails on any
-                      page error
-  shots.mjs           one screenshot per registered world
-```
-
-**Conventions**
-- Forward is −z; camera fwd = `(sin yaw, 0, −cos yaw)` → mouse-right = yaw +=.
-- Box material order `[+x, −x, +y, −y, +z, −z]`; car fronts paint on −z.
-- All detail lives in small canvas textures (`pixTex`, 64–128 px, NearestFilter
-  + dither). Geometry stays simple; the texel is the brush.
-- Debug hook: `window.__ct.warp(x, z, yaw?)` for tours and screenshot scripts.
-
-## Working agreement
-
-Small, good pieces — proposed, built, screenshotted, then played on the dev
-server and iterated. The fog is the world’s edge; when the street feels right,
-the next block earns its place.
-
-**Roadmap candidates:** enterable shop (era door-load), a corner/cross-street,
-the 6 pm dusk palette flip, the drivable car, era ambience/audio, and — later,
-if the world wants it — the subway.

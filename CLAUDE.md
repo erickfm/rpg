@@ -4,21 +4,19 @@
 `street/START-HERE.md` first.** It assumes zero context and links everything
 else in reading order.
 
-## The essentials
+## The four documents
 
-- **`street/START-HERE.md`** — cold start: what this is, which agent you are,
-  first five minutes, how to bring the whole rig up.
-- **`street/notes/GOTCHAS.md`** — landmines that have each cost hours. Unseeded
-  `Math.random` in the paint layer, the single seeded `rnd()` whose call order
-  is load-bearing, billboards vs ground decals, 1–2 texel faces, the apartment
-  floor-picker. **Read before your first change.**
-- **`street/notes/OWNERSHIP.md`** — one file, one owner. Almost every merge
-  conflict here came from editing a file you do not own.
-- **`street/PARALLEL-WORKFLOW.md`** — how the multi-agent process works: desk +
-  builders, queues, briefs, merge protocol, and a retrospective on what to fix
-  next. A living doc; update it as we learn.
-- **`street/FEATURE-REQUESTS.md`** — every playtest request in the user's own
-  words. New requests land here immediately.
+Read these; everything else is history or reference.
+
+1. **`street/START-HERE.md`** — orientation, which agent you are, how to run things
+2. **`street/notes/GOTCHAS.md`** — landmines. Read before your first change
+3. **`street/notes/OWNERSHIP.md`** — which files are yours
+4. **`street/notes/queues/<agent>.md`** — your actual tasks
+
+Reference, for looking things up rather than reading: `street/PARALLEL-WORKFLOW.md`
+(the multi-agent process) and `street/FEATURE-REQUESTS.md` (every request in the
+user's own words). `street/notes/archive/` holds finished handoff notes — open
+one only when touching the area it describes.
 
 ## Working agreements
 
