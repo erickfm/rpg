@@ -22,7 +22,7 @@
 import { execSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 
-const localHead = () => {
+export const localHead = () => {
   try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim(); }
   catch { return null; }
 };
@@ -38,7 +38,7 @@ const localHead = () => {
  *  REBASE rewrites commits, so the build you made ten minutes ago is orphaned
  *  rather than behind you, which is the normal state of a worktree on a merge
  *  train. Comparing against the artefact removes the guessing entirely. */
-const distSha = () => {
+export const distSha = () => {
   try {
     for (const f of readdirSync('dist/assets')) {
       if (!f.endsWith('.js')) continue;

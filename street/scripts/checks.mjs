@@ -29,6 +29,7 @@
 // measure. "Could not measure" and "measured, and it is wrong" are different
 // sentences and the second one is the expensive one to get wrong.
 import { spawnSync } from 'node:child_process';
+import { distSha, localHead } from './lib/which-world.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
 const SLOW = process.argv.includes('--slow');
@@ -48,6 +49,36 @@ const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
     console.error('  would have measured anything. That is not the same as red.\n');
     console.error('  Start one:   npm run preview -- --port <yours>');
     console.error('  Or point at an existing one:   SHOT_URL=http://localhost:PORT/ npm run checks\n');
+    process.exit(2);
+  }
+}
+
+// IS THE BUILD ON DISK THE ONE CHECKED OUT? Second probe, same argument as the
+// first, and it cost two twelve-minute runs to learn that the argument applies
+// twice.
+//
+// A preview serves `dist/`. If dist was built from a different commit than
+// HEAD, every check calls reportWorld, every one exits 3, and you get sixty-
+// eight identical WRONG WORLD rows twelve minutes later. Measured, twice in one
+// session: 68 of 68. Nothing was tested and nothing could have been.
+//
+// This worktree sits on a merge train that REBASES, so HEAD moves under a
+// running suite without anyone touching a file — you do not have to do anything
+// wrong to land here. Asking once, before any browser starts, turns twelve
+// wasted minutes into one second and a sentence.
+//
+// Not fatal in integration mode: that world's stamp can never equal any one
+// checkout, which is exactly what SHOT_WORLD=integration exists to say.
+const headAtStart = localHead();
+if (process.env.SHOT_WORLD !== 'integration') {
+  const dist = distSha();
+  if (dist && headAtStart && !dist.startsWith(headAtStart) && !headAtStart.startsWith(dist)) {
+    console.error(`\ndist/ ON THIS DISK IS NOT THIS COMMIT.\n`);
+    console.error(`  dist/ was built from  ${dist}`);
+    console.error(`  this checkout is at   ${headAtStart}\n`);
+    console.error('  A preview serves dist/, so every check below would exit 3 and report');
+    console.error('  WRONG WORLD. That is not red — it is nothing measured at all.\n');
+    console.error('  Fix: npm run build   (then re-run; restart the preview if it caches)\n');
     process.exit(2);
   }
 }
@@ -262,4 +293,21 @@ for (const [name, question, status, secs] of rows)
   // how six checks stayed invisible in the first place
   console.log(`  ${status === 'ok' ? '✓' : status === '—' ? '·' : '✗'} ${name.padEnd(w)}  ${status === 'ok' || status === '—' ? question : status}`
     + (secs && +secs >= 20 ? `   (${secs}s)` : ''));
+// DID THE TREE MOVE WHILE WE WERE MEASURING? The probe above can only speak
+// for the instant it ran. A suite takes twelve minutes and a rebase takes none,
+// so HEAD can move halfway through — and when it does, the checks before the
+// move measured one world and the checks after it measured nothing.
+//
+// Without this the two are indistinguishable in the summary: a run that was
+// invalidated at minute six prints ticks for the first half and WRONG WORLD for
+// the second, and reads as "some checks are broken". It is not that. It is a
+// run that stopped being about anything, and it should say so in its own voice
+// rather than leave the reader to notice the pattern.
+const headAtEnd = localHead();
+if (headAtStart && headAtEnd && headAtStart !== headAtEnd) {
+  console.log(`\nTHE TREE MOVED UNDER THIS RUN: ${headAtStart} -> ${headAtEnd}`);
+  console.log('  Everything after the move measured a stale dist/, so any WRONG WORLD');
+  console.log('  above is the rebase, not the check. A green here is provisional.');
+  console.log('  Re-run: npm run build && npm run checks');
+}
 if (process.exitCode) console.log('\nSomething above is red. It is not gating the build; it is telling you.');
