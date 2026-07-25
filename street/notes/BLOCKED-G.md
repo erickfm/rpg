@@ -219,6 +219,44 @@ file I own, on work already delivered.**
 **The ruling:** re-point both entries at G, or mark them done. `FEATURE-REQUESTS.md`
 is the desk's file.
 
+## 7. The casino and hotel facades are centred; their interior doorways are not
+
+**A decision, not a bug, and not mine to take alone** — it trades against the
+facade the user called "the best thing in the world right now".
+
+The user's first handedness complaint was *"i need the facades to line up with the
+interior. so if the door on the interior is full right then the facade must
+match"*. `mirror-walk` checks that for five rooms and passes. **It cannot check
+mine**: it lists three canted bays as "deliberately never handed to the painter,
+not a fault", and GOLDEN ACES and HOTEL ORPHEUS are two of them — their facades
+are painted by `ct/vice.ts`, not by the frontage painter. So they sit outside both
+harnesses, and measured:
+
+```
+GOLDEN ACES    facade door x 51.29 of [45.45, 57.00], mid 51.225  → CENTRE
+               interior doorway declared at local x -3.2 of ±5.25 → LEFT
+HOTEL ORPHEUS  facade door x 39.51 of [33.45, 45.45], mid 39.45   → CENTRE
+               interior doorway declared at local x -3.4 of ±5.5  → LEFT
+```
+
+**Both facades put the entrance dead centre and both interiors put it a third of
+the way to one side.** Not the gross case the user described, but the same
+disagreement.
+
+**The interior side is deliberate and documented.** `int-casino.ts`: *"The door is
+off to one side, so walking in puts the length of the slot banks across your view
+rather than an aisle straight down the middle."* Moving it to centre costs that
+composition. Moving the FACADE door off-centre instead costs the marquee's
+symmetry, the gold portal's placement and the `[E]` spot — on the elevation the
+user singled out. **Neither is free, which is why this is a ruling and not a
+commit.**
+
+**One caveat on the measurement, since I nearly filed it wrong.** My collider
+probe read the hotel's doorway at local −4.83, against a declared −3.4. That room
+has a window as well as a door in the front wall, and my "the run that sits proud
+of the wall line" heuristic almost certainly found the glazing. The numbers above
+are the DECLARATIONS, which are the authority; the probe is only how I noticed.
+
 ---
 
 ## State, for whoever picks this up
