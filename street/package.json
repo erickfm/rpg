@@ -16,7 +16,8 @@
     "capture": "node scripts/capture.mjs",
     "wiring": "node scripts/check-wiring.mjs -v",
     "checks": "node scripts/checks.mjs",
-    "walk": "node scripts/D-walk.mjs"
+    "walk": "node scripts/D-walk.mjs",
+    "artifact": "node scripts/pack-artifact.mjs && node scripts/check-artifact.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"
