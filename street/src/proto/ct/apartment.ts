@@ -63,6 +63,45 @@ function stampNum(g: CanvasRenderingContext2D, num: string, x0: number, y0: numb
   }
 }
 
+/**
+ * WHERE THE GAME STARTS: beside the bed in 301, facing the window.
+ *
+ * Declared here rather than typed into the entry point, the same way a room
+ * declares its own `DOOR` and lets the facade read it: 301 is built around
+ * these numbers, so 301 is the only place that can keep them true. Move the
+ * walk-up and the spawn moves with it. `crosstown.ts` is builder F's — this is
+ * the number for F to use, not an edit to their file.
+ *
+ *   crosstown.ts:460   new FPRig(cam, { x: SPAWN.x, z: SPAWN.z, yaw: SPAWN.yaw })
+ *                      ...starting the rig on SPAWN.gy, not ground level.
+ *
+ * ── why this spot and not the middle of the room ──
+ *
+ * The user asked for a viewpoint rather than a centre: *"waking up should have
+ * a viewpoint ... so the first thing they see is the room and the street
+ * beyond it rather than a wall."* This stands just off the foot of the bed,
+ * looking west down the long axis of the room and straight out of the window,
+ * so the first frame holds the bed, the radiator under the sill, the dresser,
+ * and the buildings across the street through the glass. Confirmed by warping
+ * there and looking at it, not by reasoning about it.
+ *
+ * ── the two things that had to be checked ──
+ *
+ * GOTCHAS 7, the stacked-storey floor picker: `groundAt` reads 5.4 here and
+ * still reads 5.4 after walking forward, back, left and right from it, so the
+ * hysteresis settles on floor 3 rather than resolving to the lobby underneath.
+ * Starting on the wrong storey is worse than starting on the street.
+ *
+ * And it is clear of the furniture: 0 colliders within the rig's 0.36 m at the
+ * spawn — the bed is 0.7 m north, the dresser is in the far corner, and the
+ * door leaf misses it with the door OPEN and with it SHUT, which is the case
+ * the closable door added.
+ *
+ * Local, so it survives the building moving: x = APT_X - 1.4, z = APT_Z + 3.7,
+ * floor 3 = 2 storeys up. Eye height lands at 7.02.
+ */
+export const SPAWN = { x: 200 - 1.4, z: -20 + 3.7, yaw: -Math.PI / 2, gy: 2 * 2.7 };
+
 export interface Apartment {
   /** hall/stair/room walls, plus the floor-aware caps kept up to date inside
    *  this module's own per-frame hook */
