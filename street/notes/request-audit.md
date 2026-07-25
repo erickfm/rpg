@@ -2310,3 +2310,46 @@ sends you, which is *at the doors you just tried*.
 
 The climb is done and done well. The entry was never built, and one of the two
 refusals makes a promise the world does not keep.
+
+## Pressing the last two keys: No. 227 works, the counter I cannot observe
+
+Continuing the method that found the locked civic doors — press the key, then
+check what actually happened.
+
+**`enter No. 227` — works.**
+
+```
+before: "[E] enter No. 227"
+after : "[E] out to the street"      moved 196.3 m
+```
+
+You press E on the pavement and you are inside the walk-up, with the way out
+offered. The residential entrance is as real as the eight shops.
+
+**`buy cereal — $2.50` — no observable change, and I cannot read the wallet.**
+
+```
+before: prompt "[E] buy cereal — $2.50"   wallet: null
+after : prompt "[E] buy cereal — $2.50"   wallet: null   moved 0.0 m
+```
+
+The prompt does not change, the player does not move, and **I cannot read the
+purse through the DOM** — my first detector matched the prompt element itself
+(it contains `$2.50`), and right-clicking, which the HUD offers as *"right-click
+= wallet"*, surfaced no readable amount.
+
+> **This is not "the counter is broken."** It is *"pressing E here produces
+> nothing I can observe, and the purse is not visible to a DOM probe."* Those
+> are very different claims and only the second is mine to make.
+
+### And someone else can already do this
+
+`27424ae1` — *"The purse proof buys until refused, instead of counting on five
+keystrokes"* — so a purse test exists and works by a method I do not have. The
+right conclusion is not that the counters are unverified; it is that **they are
+unverifiable by me**, and already verified by whoever wrote that.
+
+**Recorded rather than routed.** The pattern worth keeping from this small
+sequence: pressing the key found a locked church, a locked library, a message
+naming a board that is not there, and a working residential door — **four
+findings from an action I had verified only up to the prompt.**
