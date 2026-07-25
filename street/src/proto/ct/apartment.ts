@@ -886,18 +886,77 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     mail.position.set(AX(2.315), 1.4, AZI(1.3));
     mail.rotation.y = -Math.PI / 2;
     scene.add(mail);
-    const frontDoorT = pixTex(32, 64, (g) => {
-      g.fillStyle = '#2c3c2e'; g.fillRect(0, 0, 32, 64);
-      g.fillStyle = '#3e5240'; g.fillRect(3, 3, 26, 58);
-      g.fillStyle = '#141820'; g.fillRect(7, 8, 18, 20);
-      g.fillStyle = 'rgba(255,255,255,0.15)';
-      for (let i = 10; i < 28; i += 4) g.fillRect(7, i, 18, 1);
-      g.fillStyle = '#c9b45e'; g.fillRect(24, 36, 3, 3);
-      dither(g, 32, 64, 40);
+    // ── the front door, from inside ──────────────────────────────────────
+    // My own report, finding 1: *the front door disagrees with itself*. From
+    // the street it is a DOUBLE door, dark green, under a glazed transom
+    // carrying the gold 227. From the lobby it was a SINGLE louvred door with
+    // no transom at all. You pass through it in one step and it changes.
+    //
+    // The lobby and the facade are not the same geometry — the interior is a
+    // separate place you are teleported into — so nothing enforces the match
+    // and it drifted. It is enforced here instead: the leaf takes its width,
+    // its height, its transom and its glazing from ENTRANCE and the same
+    // DOOR_TOP / BAR / TRANSOM_H the street side uses, so the two cannot part
+    // again without someone changing both.
+    const IN_LEAF_W = ENTRANCE.OPEN_W - 0.125 * 2;      // = the street leaf
+    const IN_DOOR_H = 2.30 - ENTRANCE.OPEN_BOT;
+    const IN_BAR = 0.08, IN_TRANSOM_H = 0.45;
+    // Same two leaves, seen from behind. What changes is what changes in
+    // reality: the glass is now the BRIGHT side, because you are looking at
+    // daylight through it, and the handles are on the other hand.
+    const frontDoorT = pixTex(48, 64, (g) => {
+      g.fillStyle = '#22301f'; g.fillRect(0, 0, 48, 64);
+      for (const ox of [2, 25]) {
+        g.fillStyle = '#33452e'; g.fillRect(ox, 2, 21, 62);        // shaded side
+        g.fillStyle = '#8fa2ae'; g.fillRect(ox + 3, 6, 15, 26);     // daylight
+        g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(ox + 9, 7, 6, 24);
+        g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(ox + 3, 38, 15, 20);
+        g.fillStyle = '#6a7a5c'; g.fillRect(ox + 3, 5, 15, 1);      // glazing bead
+      }
+      g.fillStyle = '#c9b45e'; g.fillRect(21, 34, 2, 4); g.fillRect(25, 34, 2, 4);
+      g.fillStyle = '#8d8d92'; g.fillRect(2, 56, 44, 4);            // kick plate
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(2, 56, 44, 1);
+      dither(g, 48, 64, 40);
     });
-    const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(DOOR_W, 2.1), texM(frontDoorT));
-    lobbyDoor.position.set(AX(1.2), 1.05, AZI(0.085));
+    const lobbyDoor = new THREE.Mesh(new THREE.PlaneGeometry(IN_LEAF_W, IN_DOOR_H), texM(frontDoorT));
+    // AZI(0.09), not AZI(0.008). The lobby's front wall is a box whose
+    // geometry is translated rather than positioned, so it does not show up
+    // where a search by mesh origin looks for it — and its inner face is
+    // around AZI(0.07). A door at AZI(0.008) is buried INSIDE the wall and
+    // renders nowhere, which is exactly what the first cut did. The old
+    // single door sat at 0.085 for this reason; keep it there.
+    lobbyDoor.position.set(AX(1.2), IN_DOOR_H / 2, AZI(0.09));
     scene.add(lobbyDoor);
+    // THE TRANSOM, glazed from both sides — the report asked to be able to see
+    // the daylight through it from the lobby, and the gold 227 is leaf on the
+    // street face of the glass, so from in here it reads BACKWARDS. That is
+    // the detail that says it is one piece of glass and not two signs.
+    const transomInT = pixTex(48, 14, (g) => {
+      g.fillStyle = '#8fa2ae'; g.fillRect(0, 0, 48, 14);            // daylight
+      g.fillStyle = 'rgba(255,255,255,0.20)'; g.fillRect(2, 2, 44, 5);
+      g.save(); g.translate(48, 0); g.scale(-1, 1);
+      g.fillStyle = '#a98d34';                                       // gold, from behind
+      stampNum(g, '227', 17, 4, '#a98d34');
+      g.restore();
+      g.fillStyle = '#3a4438'; g.fillRect(0, 0, 48, 2); g.fillRect(0, 12, 48, 2);
+    });
+    const lobbyTransom = new THREE.Mesh(
+      new THREE.PlaneGeometry(IN_LEAF_W, IN_TRANSOM_H), texM(transomInT));
+    lobbyTransom.position.set(AX(1.2), IN_DOOR_H + IN_BAR + IN_TRANSOM_H / 2, AZI(0.09));
+    scene.add(lobbyTransom);
+    // the meeting rail between leaf and transom
+    const tbar = new THREE.Mesh(new THREE.BoxGeometry(IN_LEAF_W + 0.10, IN_BAR, 0.05),
+      new THREE.MeshBasicMaterial({ color: 0x2f3f2c }));
+    tbar.position.set(AX(1.2), IN_DOOR_H + IN_BAR / 2, AZI(0.10));
+    scene.add(tbar);
+    // and the trim it never had. Report finding 2: this was the one door in
+    // the building with no casing at all, which read worse once every other
+    // opening got real jambs.
+    // wallN picked so the trim lands just PROUD of the leaf: casing puts its
+    // faces at wallN +- 0.084, and the leaf is at AZI(0.09).
+    casing(AZI(0.02), AX(1.2) - IN_LEAF_W / 2, AX(1.2) + IN_LEAF_W / 2,
+      0, IN_DOOR_H + IN_BAR + IN_TRANSOM_H, false);
+
     // 301 — your place: wood floor, a bed, the window with the city in it
     wallMesh(3.5, 2.55, AX(-3.2), 2 * ST + 1.275, AZI(3.75), Math.PI / 2, roomWallT);
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(2), 0, roomWallT);
