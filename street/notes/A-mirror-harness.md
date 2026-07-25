@@ -286,6 +286,50 @@ door standing on it.** The leaf sits proud, `minZ` on the wall's `maxZ`, and onl
 the front wall has one. **No width filter anywhere** — a width filter is what hid
 the doorway three separate times.
 
+## The coverage claim was wrong (`994426ea`)
+
+`5 of 5` is a statement about five. **The world has eight rooms.**
+
+The harness can only reach rooms whose door reaches `declaredDoors()`, and it
+was printing *"all 5 rooms mirror"* as though that settled the ask — which was
+*"this should be done for all buildings"*. It now names the gap in its own
+output:
+
+```
+5 declared rooms to check: BURGER BARN, DINER, PAWN, A-1 TAX, THRIFT
+  NOTE: the world has 8 rooms. 3 cannot be checked here
+  because their door never reaches declaredDoors() — see doors-declared.mjs.
+  "All declared rooms mirror" is not "the world mirrors".
+```
+
+### GOLDEN ACES, named for its owner
+
+`scripts/doors-declared.mjs` is red on it: the room declares a door that never
+arrives. `ct/int-casino.ts` imports a **value** from `ct/doors.ts` —
+
+```ts
+import { doorStandFor, type DoorDecl } from './doors';
+```
+
+— where its siblings import `type DoorDecl` only, which erases at build and
+creates no runtime edge. The value import makes a genuine cycle, so its
+namespace is undefined when the eager glob is read and its `DOOR` is skipped.
+
+**One caveat I am not going to skip:** `ct/int-hotel.ts` imports the same value
+and *does* arrive. So the cycle is necessary but not sufficient, and whoever owns
+that file should establish why before assuming the fix.
+
+### Why this matters on my side
+
+With no declaration, **my painter falls back to its own layout** for that
+shopfront — so GOLDEN ACES gets a painted door wherever the painter would have
+put it, while its room has one somewhere else. That is the user's original
+complaint, exteriors not matching interiors, **in the one building this harness
+cannot see**.
+
+Not my file, not fixing it. Naming it precisely, and making my own check stop
+implying coverage it does not have.
+
 ### One more bug found in passing
 
 `__ct.pos()` is `[x, y, z, gy]`, and this passed `inside[1]` — **eye height** —
