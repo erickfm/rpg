@@ -22,6 +22,7 @@ const before = await read();
 // stand somewhere else entirely inside a room and look the other way
 await p.evaluate(()=>window.__ct.warp(760, 3.0, 1.6, 0, 0));
 await p.waitForTimeout(1200);
+await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
 const after = await read();
 console.log(' room x    yaw @cam A   yaw @cam B   moved?');
 for(let i=0;i<before.length;i++){

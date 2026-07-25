@@ -34,6 +34,7 @@ for (let i=0;i<8;i++){
   const cx = k.x + Math.cos(a)*R, cz = k.z + Math.sin(a)*R;
   await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,0,0), [cx,cz]);
   await p.waitForTimeout(450);
+  await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
   const at = await p.evaluate(()=>window.__ct.pos());
   const off = Math.hypot(at[0]-cx, at[2]-cz);
   const fr = await p.evaluate(([kx,kz])=>{

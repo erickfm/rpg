@@ -38,6 +38,7 @@ const keepers = await p.evaluate(() => {
 const frameAt = async (k, dx, dz) => {
   await p.evaluate(([x,z]) => window.__ct.warp(x, z, 0, 0, 0), [k.x+dx, k.z+dz]);
   await p.waitForTimeout(500);
+  await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
   const at = await p.evaluate(() => window.__ct.pos());
   const off = Math.hypot(at[0] - (k.x+dx), at[2] - (k.z+dz));
   if (off > 0.6) return 'MOVED';   // did not reach the requested bearing

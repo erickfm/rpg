@@ -1528,3 +1528,46 @@ That is a fair division rather than a gap to close: `688c2db7` bounded §23 insi
 its own four rooms from the source side in one pass, which is the right level to
 ask this question from. My contribution is the negative — **do not build a
 facing check on `rotation.y`**, because it will confidently report the camera.
+
+## Two of my own instruments disagreed, and I published the wrong one
+
+After the stale-frame correction I swept my own scripts for the pattern —
+warp, then read sprite state, without yielding a frame:
+
+```
+   keepercircle     warp:1  reads-sprite:1  yields:0   ** STALE-FRAME RISK **
+   keeperbearing    warp:1  reads-sprite:1  yields:0   ** STALE-FRAME RISK **
+   keeperframe      warp:1  reads-sprite:1  yields:0   ** STALE-FRAME RISK **
+   billboardtest    warp:1  reads-sprite:1  yields:0   ** STALE-FRAME RISK **
+   keepersector     warp:1  reads-sprite:1  yields:1   fixed
+```
+
+All four now yield two frames. Re-running the bodega circle with the yield, the
+six bearings that land are **byte-identical to the run without it** — so that
+table was never stale, and the withdrawal it supported stands.
+
+### And it contained the right answer the whole time
+
+The circle samples bearing 90° with the camera at `(442.35, 3.60)` — **due +z of
+the keeper**, the exact bearing `keepersector.mjs` uses. It reads frame
+**`0.400` unmirrored → col 2 → sector 2**, which is `int-bodega.ts`'s authored
+−π/2.
+
+`keepersector.mjs`, at that same bearing, read `0.000 → sector 0`, and that is
+the number I published.
+
+> **Two of my instruments answered the same question differently, and I never put
+> them side by side.** One warp-and-read was stale and one was not, both nominally
+> waiting 450 ms. I had the correct sector sitting in a table I had written the
+> round before, in a file I was still editing.
+
+That is a cheaper check than either measurement: **when you own two probes that
+overlap, run both and diff them.** Agreement is weak evidence — as I argued when
+splitting `[I]` from `[Is]` — but *disagreement is conclusive*, and it costs one
+command. I did the expensive thing (three repeat runs of one script) and skipped
+the cheap one.
+
+**On why the yield is mandatory rather than a judgement call**: `keepercircle` at
+450 ms was fine and `keepersector` at 450 ms was not, which means "is my wait long
+enough" is not a question to reason about from frame rates. Yield explicitly, and
+the question stops existing. It costs two animation frames.

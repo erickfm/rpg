@@ -24,6 +24,7 @@ const read = () => p.evaluate(() => {
 const A = await read();
 await p.evaluate(()=>window.__ct.warp(760, 3.0, 1.6, 0, 0));
 await p.waitForTimeout(1200);
+await p.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));  // HOOK.LATE: the sprite carries the PREVIOUS frame
 const B = await read();
 console.log('  room x    atlas      offset @camA      offset @camB     frame changed?');
 for(let i=0;i<A.length;i++)
