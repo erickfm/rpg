@@ -42,6 +42,13 @@ which is survivable but silly.
 clause. `GOTCHAS.md` §10 itself is fine; it warns about `DoubleSide` and says to
 test with asymmetric text, which is correct.
 
+**Since written up as `GOTCHAS.md` §35**, with the u-axis mapping derived rather
+than asserted, so the rule survives this queue item being fixed or not. That is
+the most I can do from outside the file: a reader who follows the clause now hits
+a shared landmine entry that contradicts it *and* a red from `G-vice-walk`. It
+still wants the one-line deletion — two things telling you the instruction is
+wrong is worse than the instruction being right.
+
 ## 2. `ct/doors.ts` has no owner, and the class is still open
 
 The **instance** is fixed: GOLDEN ACES was missing from `declaredDoors()` in the

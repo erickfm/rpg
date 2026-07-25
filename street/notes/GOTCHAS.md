@@ -776,3 +776,43 @@ true. If you have a choice, assert the thing that must be TRUE.
 **Measure the floor. Do not remember it.** I wrote `pits: 10` from memory and my
 new guard failed the unmutated street on its first run — it has seven. That was
 in the same commit where I was fixing a check for not measuring.
+
+## 35. Back-to-back planes want the SAME texture, not a mirrored one
+
+§33 says anything with a front ends up backwards. This is the specific repair
+that keeps getting mis-stated, and mis-stating it re-creates the very bug it is
+meant to fix.
+
+The correct fix for a double-sided sign that reads mirrored from behind (§10) is
+**two single-sided planes back to back, a hair apart, facing opposite ways**.
+That part is widely written down. What follows it is usually a clause like *"…
+with the texture flipped horizontally on the rear one"*, and that clause is
+**wrong**. It is currently sitting in at least one queue file — mine — where the
+next reader will do exactly as told and re-introduce the mirroring.
+
+**Why the rear plane needs no flip.** `PlaneGeometry` lies in XY with u along
+local +x and its normal along local +z. Rotate by `ry = θ` and u maps to
+`(cos θ, 0, −sin θ)`, the normal to `(sin θ, 0, cos θ)`:
+
+| `ry` | faces | u runs | viewer's forward | viewer's right = `cross(fwd, up)` |
+|---|---|---|---|---|
+| `−π/2` | −x | **+z** | +x | **+z** |
+| `+π/2` | +x | **−z** | −x | **−z** |
+
+In both rows u increases toward the reader's right, so the same texture reads
+left-to-right from both sides. **The rotation has already done the mirroring.**
+Flipping the rear texture applies it a second time, and two mirrorings is a
+mirror.
+
+The trap is that "the rear face must be mirrored" is true — it is just already
+true, paid for by the rotation, and paying again reverses it. This is the same
+shape as §33's car-lot row: a mirror the construction already performed, applied
+once more by hand.
+
+**How to test it in ten seconds**, which beats deriving it: stand on each side in
+turn and read the sign. Not a screenshot from one angle — the whole defect is
+that one side is right. If you want it in a check, compare the two planes'
+`map.repeat.x`: back-to-back planes that read correctly have the **same sign**,
+and a `-1/w` against a `+1/w` is the bug. `G-vice-walk` asserts this both ways,
+by pixels and by the transform, so anyone who "fixes" the blades per that clause
+gets a red rather than a shipped mirror.
