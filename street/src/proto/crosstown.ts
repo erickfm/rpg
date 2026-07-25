@@ -279,19 +279,9 @@ export function makeCrosstown(): Proto {
   HOOKS.sort((a, b) => a.order - b.order);
 
   const jumpTo = jumpToImpl;
+  // The walk-up's two spots used to live here. ct/apartment.ts registers them
+  // itself now, via ctx.spot — the entry point does not enumerate them.
   SPOTS.push(
-    {
-      x: FACE - 0.45, z: -44, r: 1.05,
-      ok: () => rig.pos.x < 100 && apt.gy() < 1,
-      label: () => 'enter THE WHITMORE',
-      act: () => jumpTo(apt.AX(1.2), apt.AZI(1.3), Math.PI, 0),
-    },
-    {
-      x: apt.AX(1.2), z: apt.AZI(0.4), r: 0.95,
-      ok: () => rig.pos.x > 100 && rig.pos.x < 230 && apt.gy() < 0.5,
-      label: () => 'out to the street',
-      act: () => jumpTo(FACE - 1.1, -44, -Math.PI / 2, KERB_H),
-    },
     {
       x: 8.7, z: -96.85, r: 1.1,
       ok: () => rig.pos.x < 100,

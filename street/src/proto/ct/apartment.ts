@@ -969,6 +969,36 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // 0.40 m of it stands proud of the wall, the rest is buried in the brick
     stoop.position.set(FACE + 0.15 - STOOP_D / 2, (STOOP_TOP + STOOP_BASE) / 2, DOOR_Z);
     scene.add(stoop);
+
+    // ── the two [E] spots this building owns ─────────────────────────────
+    // Registered here, not hand-written into crosstown.ts's SPOTS array. The
+    // entry point no longer knows what these are; it just iterates whatever
+    // has been registered. Adding a door now touches only the file that owns
+    // the door, which is the whole point of ctx.spot.
+    //
+    // `lastGy` is read directly rather than through ctx.player.gy(), because
+    // that accessor routes back through this module anyway.
+    const ENTER_X = FACE - 0.45, ENTER_R = 1.05;
+    ctx.spot({
+      x: ENTER_X, z: DOOR_Z, r: ENTER_R,
+      ok: () => ctx.player.x() < 100 && lastGy < 1,
+      // The building has no name — the gold 227 on the transom is its only
+      // identification, so the prompt says that rather than the long-dead
+      // THE WHITMORE it carried before the nameplate came off.
+      label: () => 'enter No. 227',
+      act: () => ctx.player.jumpTo(AX(1.2), AZI(1.3), Math.PI, 0),
+    });
+    ctx.spot({
+      x: AX(1.2), z: AZI(0.4), r: 0.95,
+      ok: () => ctx.player.x() > 100 && ctx.player.x() < 230 && lastGy < 0.5,
+      label: () => 'out to the street',
+      // Land WELL OUTSIDE the enter spot's radius. It used to drop you at
+      // FACE-1.1, which is 0.65 m from a 1.05 m trigger — you were inside it
+      // the instant you arrived, and one held E ping-ponged you straight back
+      // into the lobby, so the exit simply did not work. FACE-1.8 is 1.35 m
+      // clear. Same fix the bodega exit already carries, for the same reason.
+      act: () => ctx.player.jumpTo(FACE - 1.8, DOOR_Z, -Math.PI / 2, ctx.KERB_H),
+    });
   }
   // multi-floor ground: pick the floor candidate nearest the last height —
   // that one closure is what makes stacked floors work with a 2D walker
