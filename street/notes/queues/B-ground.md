@@ -27,13 +27,17 @@ then commit, then re-read this file before starting the next.
       · **7 milk crate**
       · **11 fountain cup**
 
-      **One judgement call the desk made, flag it if you disagree.** Candidate
-      1, the coffee cup, is not in this list — but the user approved it
-      explicitly last round (*"coffee cup is good"*) and nothing has said
-      otherwise. Treat it as still approved and ship it, giving five types.
-      The risk is that 11 (fountain cup) was meant to REPLACE it, since they
-      are the same idea at different sizes. If both in the world start reading
-      as one repeated object, say so and the desk will ask.
+      **Both cups are wanted — confirmed by the user directly:** *"i like
+      having both cups"*. So candidate 1 (coffee cup) and candidate 11
+      (fountain cup) both ship, and the question of whether one replaced the
+      other is closed. Five types.
+
+      Draw the distinction between them rather than letting it blur, since
+      they now sit in the same world: the coffee cup is the small tapered
+      paper one, the fountain cup is the tall waxed soda cup — different
+      height, different proportion, and the fountain cup can keep a lid and
+      straw where the coffee cup does not. If a player cannot tell them apart
+      at a glance you have two of the same object rather than five types.
 
       Also keep the **two gutter decals the user liked in situ** — your report
       established those are the old placements, not rig candidates, so they
