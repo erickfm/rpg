@@ -1456,7 +1456,7 @@ function buildLot(o: {
     // aisle — which is now the view. Both chair and approach have to sit on
     // open asphalt: the first placement put them inside a solid box, the seat
     // registered, the prompt appeared, and you could never walk to it, which
-    // is GOTCHAS §8 exactly. scripts/seatcheck.mjs is what catches that.
+    // is GOTCHAS §8 exactly. scripts/seats-walk.mjs is what catches that.
     const chX = cx - CD / 2 - 0.55;
     chair(chX, cz + 1.15, -Math.PI / 2, 0x2f5f9c);
     chair(chX - 0.10, cz + 1.95, -Math.PI / 2 - 0.30, 0xc4622a);

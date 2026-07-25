@@ -181,7 +181,7 @@ each of mine guards, locally and uncommitted, and confirmed it goes red.
 |---|---|---|
 | wall the mouth shut | `lotwalk.mjs` | **9 IN → 0 IN** |
 | a prop 0.70 m into the walk | `lot-frontage.mjs` | **exit 1**, names it: `x 6.30…6.70 reaches 0.70 m in` |
-| a seat inside the office box | `seatcheck.mjs` | `inSolid=true, seated=false` |
+| a seat inside the office box | `seatcheck.mjs` (since retired) | `inSolid=true, seated=false` |
 | the same seat | `seats-walk.mjs` | **56/57 → 55/57** |
 
 All four notice. But the exercise found a real flaw in mine, which is the

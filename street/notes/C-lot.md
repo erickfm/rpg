@@ -27,7 +27,7 @@ Three scripts, all in `scripts/`, all reusable by anyone:
 |---|---|
 | `lot.mjs` | 32 shots including three after dark |
 | `lotwalk.mjs` | holds W eastward off the pavement at 15 values of z and reports how far the rig gets |
-| `seatcheck.mjs` | every seat in the world: is the approach point inside a collider, and does E actually seat you |
+| `seats-walk.mjs` | every seat in the world: can you WALK to it, and does E sit/lock/stand you (not mine — it replaced my `seatcheck.mjs`, see below) |
 
 **Access.** The opening is clear from z −0.5 to 6.0 — six and a half metres —
 and the fence stops you at every other z tested. That check is not optional
@@ -51,7 +51,7 @@ The barbed arms on the fence lean INTO the lot for that reason.
 | `GLYPH` without G H J P Q V X | "BUY HERE PAY HERE" shipped as **"BUY ERE AY ERE"** for several commits | full alphabet, and a missing glyph now draws a solid block — still wrong, but impossible to miss in the first screenshot. A silent blank is indistinguishable from wide kerning |
 | the FTC Buyers Guide at fixed coordinates | hanging in mid-air off the rear quarter of a sedan, where there is no glass | it FINDS the lofted cabin in the car H hands back and reads the window off its own bounding box, so it survives H changing the fleet |
 | a flag as three panels in a row | three panels each got the whole texture, so the flag flew with **three stars** | one segmented plane with a ripple in its vertices. A tiled texture is not a bent one |
-| chairs west of the office | both chair and both approach points inside a solid box: seat registers, prompt appears, you can never walk to it | GOTCHAS §8. `seatcheck.mjs` exists because of this |
+| chairs west of the office | both chair and both approach points inside a solid box: seat registers, prompt appears, you can never walk to it | GOTCHAS §8. I wrote `seatcheck.mjs` for it; `seats-walk.mjs` supersedes it |
 | a chair with its back on +x | the seat pose said yaw 0, which is −z, so it sat you square across the arms of your own chair | a model and its seat pose have to agree on which way is front |
 | the office name board at 2.05 | lay across the top quarter of the window | both take their height from the same texture now |
 | 32 × 24 texels on a 4.6 m office wall | seven per metre — cannot hold a blind slat, let alone a room behind one | 64 × 40, which is what unlocked the blinds, the desk lamp and the room behind them |
@@ -90,3 +90,29 @@ painted wall ad or a parapet if it is cheap; it is your surface, not mine.
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
 stock. If a flank is ever fenced instead of walled, the slats belong there.
+
+
+## `seatcheck.mjs` is retired — use `seats-walk.mjs`
+
+I wrote `seatcheck.mjs` when the chairs turned out to be inside a solid box. It
+warped to each seat's approach point, tested it against the collider list with
+the rig radius, and pressed E.
+
+`scripts/seats-walk.mjs` does the same job by WALKING, which is strictly
+stronger, and I said the weakness out loud when I wrote mine: **warp reaches
+places you cannot walk to.** A test that teleports into a spot and then reports
+the spot as reachable is capable of passing a seat no player can get to. Mine
+never did — it inflated colliders to approximate the walk — but approximating
+the thing the movement code actually does is how a check drifts away from it.
+
+Both were run against the same mutation, a seat moved inside the office box:
+
+```
+seatcheck.mjs   inSolid=true, seated=false
+seats-walk.mjs  56/57 -> 55/57,  "UNREACHABLE — no standable point
+                                  within its 0.66 m trigger"
+```
+
+Same catch, and theirs names the reason. Deleted rather than left beside it,
+by GOTCHAS §24's second half: two scripts on one subject is how the wrong one
+gets run, and the weaker one giving a green is worse than no script.
