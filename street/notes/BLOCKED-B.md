@@ -129,6 +129,30 @@ small block for someone who knows, rather than a row that lies for everyone.
 
 ---
 
+## For density's owner — your stronger selftest is unreachable from the runner
+
+`0d6d1c03` put `density` into `scripts/canfail.mjs` and gave the best argument
+anyone has made for that harness: a rebuilt source mutation cannot be repaired
+by the frame loop, and *"props.ts re-stamps `userData.selfLit` every frame; the
+sky rewrites `scene.background` every frame"* had beaten a scene mutation twice.
+
+**`scripts/checks.mjs:28` still registers density as `true`**, which routes
+`npm run checks -- --selftest` to the script's own `--selftest` flag — the scene
+mutation that argument was against. The canfail case runs only when somebody
+invokes `canfail` directly with no arguments. Mine does, which is why it appears
+in my full runs; the shared runner never reaches it.
+
+That is `e8509118`'s point one level in: written, registered in the wrong place,
+and green in a way that credits the weaker mechanism. One character fixes it —
+`true` → `['density']` — but which mechanism the runner should exercise is the
+owner's call, and wanting both is a reasonable answer. Not editing another
+builder's row.
+
+Checked my own while I was there, by diffing the case list against the registry
+rather than assuming: all 19 of mine are registered and reachable.
+
+---
+
 ## Still needing routing, not self-assignment
 
 1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
