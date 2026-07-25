@@ -664,14 +664,19 @@ export function buildStreet(o: {
     // the boards, and there is a rail round the top. A flat tan box with a
     // grid drawn on it reads as cardboard every time.
     const crateT = pixTex(28, 18, (g) => {
-      g.fillStyle = '#241a10'; g.fillRect(0, 0, 28, 18);              // the dark inside
+      g.fillStyle = '#1a1108'; g.fillRect(0, 0, 28, 18);              // the dark inside
       g.fillStyle = '#a8834a';
-      for (const y of [2, 7, 12]) {                                    // three boards
+      for (const y of [2, 8, 13]) {                                    // three boards…
         g.fillRect(0, y, 28, 4);
-        g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, y, 28, 1);
-        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, y + 3, 28, 1);
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(0, y, 28, 1);
+        g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(0, y + 3, 28, 1);
         g.fillStyle = '#a8834a';
       }
+      // …with the GAP between them left dark and deep. A slatted crate is
+      // read by its shadows; painting the boards edge to edge with a hairline
+      // between made it one flat plank with stripes on it.
+      g.fillStyle = 'rgba(0,0,0,0.55)';
+      g.fillRect(0, 6, 28, 2); g.fillRect(0, 12, 28, 1); g.fillRect(0, 17, 28, 1);
       g.fillStyle = '#8d6b3a';                                         // corner posts
       g.fillRect(0, 0, 3, 18); g.fillRect(25, 0, 3, 18);
       g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(0, 0, 1, 18); g.fillRect(25, 0, 1, 18);
@@ -679,35 +684,59 @@ export function buildStreet(o: {
       g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(0, 16, 28, 2);       // shadow at the foot
       dither(g, 28, 18, 40);
     });
-    const fruitTop = (c1: string, c2: string) => pixTex(28, 24, (g) => {
-      g.fillStyle = '#241a10'; g.fillRect(0, 0, 28, 24);
+    // The top of the crate is just the rim and the dark inside now — the fruit
+    // that used to be painted flat on it is real geometry heaped above it.
+    const fruitTop = () => pixTex(28, 24, (g) => {
+      g.fillStyle = '#1a1108'; g.fillRect(0, 0, 28, 24);
       g.fillStyle = '#b8944f'; g.fillRect(0, 0, 28, 3); g.fillRect(0, 21, 28, 3);   // rim
       g.fillRect(0, 0, 3, 24); g.fillRect(25, 0, 3, 24);
-      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(3, 3, 22, 2);                    // inside shadow
-      for (let i = 0; i < 20; i++) {                                                // heaped produce
-        g.fillStyle = i % 2 ? c1 : c2;
-        g.beginPath(); g.arc(6 + (i % 5) * 4, 8 + Math.floor(i / 5) * 4, 2.2, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(3, 3, 22, 3);                    // inside shadow
+    });
+    // A produce crate outside a bodega is FULL — the fruit is the first thing
+    // you see and the crate is what it happens to be sitting in. So the heap
+    // is a MOUND that stands proud of the rim, with loose fruit perched on it
+    // to break the silhouette, not a lid with circles drawn on it.
+    const heapTex = (c1: string, c2: string) => pixTex(32, 32, (g) => {
+      g.fillStyle = '#2a1c10'; g.fillRect(0, 0, 32, 32);
+      for (let i = 0; i < 44; i++) {
+        const x = 3 + (i % 7) * 4.4, y = 3 + Math.floor(i / 7) * 4.4;
+        g.fillStyle = (i % 3) ? c1 : c2;
+        g.beginPath(); g.arc(x, y, 2.5, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(Math.round(x) - 1, Math.round(y) - 2, 1, 1);
+        g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(Math.round(x), Math.round(y) + 2, 2, 1);
       }
-      g.fillStyle = 'rgba(255,255,255,0.16)';
-      for (let i = 0; i < 8; i++) g.fillRect(5 + (i % 5) * 4, 7 + Math.floor(i / 5) * 4, 1, 1); // highlights
     });
     const crateM = flat(crateT);
-    for (const [cxx, czz, top] of [
+    for (const [cxx, czz, c1, c2] of [
       // NOT in front of the canted bay. They used to stand at x 7.9 and 9.3,
       // straight across the door's approach, and their collider is what made
       // the bodega impossible to enter: you were stopped at x = 7.13 walking
       // east and x = 10.07 walking west, with the [E] spot stranded inside
       // the box between. Crates belong against the side-street frontage,
       // where they dress the shop without standing in its doorway.
-      [10.05, -96.28, fruitTop('#d88a2a', '#c9762a')],
-      [10.95, -96.25, fruitTop('#8a3a2e', '#a84a36')],
-    ] as [number, number, THREE.Texture][]) {
-      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55), [crateM, crateM, flat(top), crateM, crateM, crateM]);
+      [10.05, -96.28, '#d88a2a', '#c9762a'],
+      [10.95, -96.25, '#8a3a2e', '#a84a36'],
+    ] as [number, number, string, string][]) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55),
+        [crateM, crateM, flat(fruitTop()), crateM, crateM, crateM]);
       crate.position.set(cxx, sidewalkY + 0.2, czz);
       // one box per crate and no bigger than the crate. A single generous box
       // across both is what swallowed the bodega's [E] spot (GOTCHAS §8).
       solid({ minX: cxx - 0.31, maxX: cxx + 0.31, minZ: czz - 0.28, maxZ: czz + 0.28 });
       scene.add(crate);
+      const heapM = flat(heapTex(c1, c2));
+      const mound = new THREE.Mesh(new THREE.SphereGeometry(0.29, 8, 4), heapM);
+      mound.scale.set(1, 0.52, 0.92);
+      mound.position.set(cxx, sidewalkY + 0.4, czz);   // equator on the rim
+      scene.add(mound);
+      for (const [ox, oy, oz] of [
+        [-0.13, 0.10, -0.08], [0.11, 0.12, 0.06], [0.02, 0.15, -0.13], [-0.06, 0.09, 0.12],
+      ] as [number, number, number][]) {
+        const fruit = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.09), heapM);
+        fruit.position.set(cxx + ox, sidewalkY + 0.4 + oy, czz + oz);
+        fruit.rotation.y = ox * 6;
+        scene.add(fruit);
+      }
     }
   }
   // south-west corner building closes the side street's west end
