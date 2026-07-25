@@ -1,8 +1,8 @@
-# The casino's dropped door: FIXED in `84fa72ec`, and not the way this note said
+# The casino's dropped door: FIXED in `1e49295b`, and not the way this note said
 
 > **SUPERSEDED, read this first.** Everything below recommends a four-line patch
 > to `ct/doors.ts` and asks the desk to find that file an owner. **It does not
-> need one.** The fix landed in `84fa72ec` entirely inside `ct/int-casino.ts` and
+> need one.** The fix landed in `1e49295b` entirely inside `ct/int-casino.ts` and
 > `ct/int-hotel.ts`, which are mine, and it is better than the patch below on
 > every axis: no unowned file is touched, and C's dropped-door warning does not
 > become a false alarm.
@@ -104,7 +104,7 @@ declarations in dist: 8
 `tsc` clean, build clean, all four doors still prompt, open and land in the named
 room. **Measured against the bundle, never the dev server** — D proved in
 `a7a57c4f` that dev cannot reproduce this, and I have already filed one wrong
-retraction against A by forgetting that (`f732f405`). Do not re-verify this on
+retraction against A by forgetting that (`f0be2c38`). Do not re-verify this on
 `npm run dev`; it reads 8 of 8 there whether or not the fix is applied.
 
 ## Two things the patch does NOT do

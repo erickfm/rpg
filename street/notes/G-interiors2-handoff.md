@@ -297,6 +297,38 @@ that quotes a fingerprint gets a DEAD line for a number that was never a commit,
 and the fix is to confirm each hit is a hash-shaped thing in a hash-shaped
 context, not to widen the pattern.
 
+### The audit above asked the wrong question, and `a67cfda46` asked the right one
+
+**Correction.** "78 of 78 resolving" was measured with `git cat-file -e`, run
+here. That resolves anything in **this worktree's object store** — including my
+own pre-rebase commits, which exist locally forever and exist for nobody else.
+The question a reader of these notes actually has is not *does this object
+exist* but *can I look this up*, and the test for that is reachability from
+mainline:
+
+```sh
+git merge-base --is-ancestor "$h" add-stick-and-city98
+```
+
+Re-run that way, **14 of my 86 citations were unreachable** — every one of them
+a commit of mine from before a rebase, cited in a note while it was still my
+local HEAD and never updated when the merge train landed it under a new hash.
+All 14 have been re-pointed at their landed equivalents, matched by exact commit
+subject; the notes now read 86 of 86 reachable. The subjects are unchanged, so
+the remap is checkable: `git log --format=%s -1 <new>` should equal what the
+sentence around the citation describes.
+
+This is `a67cfda46`'s finding ("21 of my 59 hash citations pointed at commits
+nobody else can resolve") landing on me at the same rate — 16% there, 16% here.
+It is not a coincidence and it is not really about hashes. **A citation written
+from your own HEAD is written in a name that only you can read**, and rebasing
+is what turns it private. The habit that avoids it is to cite your own work only
+after it lands, or to cite it by subject and let the reader find the hash.
+
+The audit two sections up is still worth running for typos and for
+fingerprint-shaped false hits. It just answers a weaker question than it claims,
+and `--is-ancestor` is the line to use instead of `cat-file -e`.
+
 ### Every enumerated brief item, checked against what is built
 
 A class I had never verified: the queue items **list content**, and I had checked
@@ -422,7 +454,7 @@ paragraph is the only place the coupling is recorded.
 
 ---
 
-# RUN 1 — THE CASINO, GOLDEN ACES (commit `2ae3040`)
+# RUN 1 — THE CASINO, GOLDEN ACES (commit `8bc06cbc`)
 
 ## `## Now` → **THE CASINO — GOLDEN ACES** — DONE, but **it needs three lines
 from F before anyone can walk into it.** See "For F" below. Everything else is
@@ -580,7 +612,7 @@ stallriser, and no door rect anywhere — so there is no world position for its
 
 ---
 
-# RUN 2 — HOTEL ORPHEUS lobby (commit `764547c`)
+# RUN 2 — HOTEL ORPHEUS lobby (commit `99eda8f3`)
 
 ## `## Now` → **HOTEL ORPHEUS lobby** — DONE
 
@@ -612,7 +644,7 @@ kit collects colliders into `interiorColliders()`. That is F having done a
 lighter version of the thing I asked for in my prep note, and it means wiring a
 room is now one line rather than three edits.
 
-# RUN 3 — A-1 TAX SERVICE (commit `c63b2e4`)
+# RUN 3 — A-1 TAX SERVICE (commit `955dabc6`)
 
 ## `## Next` → **A-1 TAX SERVICE** — DONE, taken out of order
 
@@ -643,7 +675,7 @@ centre over the cabinets where everybody waiting can watch it.
   from a fresh load showed it clear in every direction. It retries now: a wall
   blocks all three attempts, a pedestrian has moved on by the next one.
 
-# RUN 4 — PAWN SHOP (commit `75f9350`)
+# RUN 4 — PAWN SHOP (commit `207124b1`)
 
 ## `## Next` → **PAWN SHOP** — DONE, with one number still an assumption
 
@@ -791,18 +823,18 @@ paint layer draws with a seeded `Math.random` under the harness. `fpdiff`:
 **textures 422 vs 422 IDENTICAL, structure 1097 vs 1097 IDENTICAL**, two pigeons
 1 cm apart. Doing this as its own commit is what made the next five verifiable.
 
-**2 — the frontages** (`39ccb6ef`). Marquee, blade, porte-cochère, glass, spill.
+**2 — the frontages** (`03cdac1a`). Marquee, blade, porte-cochère, glass, spill.
 
-**3 — light in the air** (`0b59a132`). Judged from the corner 45 m away, which
+**3 — light in the air** (`ae7981b6`). Judged from the corner 45 m away, which
 is the view the brief actually names, and it was the weakest of the lot.
 
-**4 — the whole elevation** (`2ba0f89e`). Both buildings were lit at the ground
+**4 — the whole elevation** (`f33b59a9`). Both buildings were lit at the ground
 and dark above it, which is a lit shopfront, not a lit building.
 
-**5 — the blank wall** (`7fa68803`). The casino had four storeys of sash windows
+**5 — the blank wall** (`7fceb40a`). The casino had four storeys of sash windows
 above its marquee, which contradicted its own windowless interior.
 
-**6 — the hotel's blade** (`3572584a`). Two blades side by side is the image.
+**6 — the hotel's blade** (`64a469e8`). Two blades side by side is the image.
 
 ## The governing idea, and why it needed no help from anyone
 
@@ -893,9 +925,9 @@ So this section is deliberately a ledger rather than a narrative.
 | The pawn shop is unreadable from inside | **DONE** | `15a13af3` |
 | The casino and hotel EXTERIORS | **DONE**, six commits | `653e1923` `03cdac1a` `ae7981b6` `f33b59a9` `7fceb40a` `64a469e8` |
 | THE CASINO — GOLDEN ACES (interior) | **DONE** | earlier run, see RUN 1 |
-| HOTEL ORPHEUS lobby | **DONE** | `764547c`, see RUN 2 |
-| PAWN SHOP interior | **DONE**, then relaid | `75f9350` → `15a13af3` |
-| A-1 TAX SERVICE interior | **DONE** | `c63b2e4`, see RUN 3 |
+| HOTEL ORPHEUS lobby | **DONE** | `99eda8f3`, see RUN 2 |
+| PAWN SHOP interior | **DONE**, then relaid | `207124b1` → `15a13af3` |
+| A-1 TAX SERVICE interior | **DONE** | `955dabc6`, see RUN 3 |
 
 Nothing under `## Now` or `## Next` is left that I can start.
 
@@ -1061,9 +1093,9 @@ landing, so nobody was missing and nobody was added.
 
 The real thing under it was consistency: the casino had moved to the kit's
 `room.person()` while my other three still called `citizenSprite` and wired
-their own `ctx.onFrame`. All four use the wrapper now (`9748be19`).
+their own `ctx.onFrame`. All four use the wrapper now (`0d23b3b7`).
 
-## Item 4 — casino ceiling — RAISED 2.50 → 2.90 (`73aeb2a4`)
+## Item 4 — casino ceiling — RAISED 2.50 → 2.90 (`a1caf3b4`)
 
 **Resolved.** For a while `scripts/rooms.mjs` kept reporting `ceiling 2.5` for
 slab 2 while the geometry on the same server measured the kit's ceiling plane at
@@ -1304,7 +1336,7 @@ fifth has no asymmetry to check. If a handedness check over all rooms is wanted,
 it should skip rooms whose declared `at` is 0 and say why, rather than report them
 as unmeasured.
 
-## 3. The side-street doors were authored twice, in my own file (c953e3a0)
+## 3. The side-street doors were authored twice, in my own file (fe6fdb98)
 
 Found while checking whether A's `ct/doors.ts` circular-import finding
 (`709ddfed`) was actually biting. It is not, at that HEAD — all eight
@@ -1445,7 +1477,7 @@ not absent, and "it works here" is the weakest possible evidence about it. A's
 proposed fix — move the lookup into a leaf `door-util.ts` that globs nothing —
 removes the dependence rather than the symptom, and that is the right shape.
 
-**One variable to know about if anyone bisects this.** My `c953e3a0` adds an
+**One variable to know about if anyone bisects this.** My `fe6fdb98` adds an
 import edge, `int-hotel.ts → vice.ts`, and adding any edge perturbs evaluation
 order. It does not add a cycle — `vice.ts` imports no `int-*` — and the census
 above was taken both before and after it, with 8 of 8 either way. But if this
@@ -1493,7 +1525,7 @@ rather than name it; a bundler-order bug means the *build* is part of the world.
 
 ### What the bundle test does establish, which is new
 
-`c953e3a0` made both rooms' `DoorDecl.face.x` read `VICE_DOOR_X` from `vice.ts`
+`fe6fdb98` made both rooms' `DoorDecl.face.x` read `VICE_DOOR_X` from `vice.ts`
 at module-init time. Against a defect that is precisely about namespaces being
 undefined when read, that is a fair thing to be nervous about — an undefined
 `VICE_DOOR_X` gives `face.x = undefined` and a `NaN` door. **Measured in the
@@ -1509,7 +1541,7 @@ bundle, it holds:**
 
 So the new edge does not add a `NaN` door, and it does not widen the drop. The
 casino's declaration is lost for the reason D found — `./int-casino.ts` is in the
-undefined set — and it was lost the same way before `c953e3a0`. Both doors still
+undefined set — and it was lost the same way before `fe6fdb98`. Both doors still
 prompt, open and land in the right room, which matches `9066c566`: the lost
 declaration costs a player nothing.
 
