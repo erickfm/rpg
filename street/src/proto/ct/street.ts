@@ -254,6 +254,18 @@ export function buildStreet(o: {
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const mats = shellMats(side < 0 ? 0 : 1, facade, dep, h, b.w, b.brick, gh, true, roofM);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(dep, h, b.w), mats);
+    // WHICH WAY THIS SHELL FACES. A BoxGeometry carries width/depth in world
+    // axes and nothing that says which of them is the DEPTH — that depends on
+    // whether the shell fronts the main street or a cross street, and only the
+    // placer knows. Inferring it from position outside this file misreads the
+    // alley's end wall and the bodega's corner block (notes/D-alley-report.md),
+    // so the fact is published instead of guessed. Same reasoning as
+    // userData.mod: whoever knows, says.
+    //
+    // 'x' means the facade's normal runs along x, so the shell's DEPTH is its
+    // x extent. Only real shells carry it, which is what lets a checker tell a
+    // building from a wall without a list of exceptions.
+    wall.userData.facing = 'x';
     wall.position.set(cx, h / 2 + gh, cz);
     scene.add(wall);
     litSheets(b, b.w, h, side * FACE, h / 2 + gh, cz,
@@ -809,6 +821,7 @@ export function buildStreet(o: {
       [flat(bankWall(w, h, floors)), bankFlank(w, h), roofM, roofM,
         flat(bankReturn(dep, h, 'right')),      // +z face: u runs with +x, street is at max
         flat(bankReturn(dep, h, 'left'))]);     // -z face: u runs with -x, street is at min
+    wall.userData.facing = 'x';        // the bank fronts the main street
     wall.position.set(cx, h / 2 + SHOP_BAND_H, cz);
     scene.add(wall);
     const band = new THREE.Mesh(new THREE.BoxGeometry(dep, SHOP_BAND_H, w),
@@ -924,6 +937,7 @@ export function buildStreet(o: {
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     const mats = shellMats(facing > 0 ? 4 : 5, facade, b.w, h, dep, b.brick, gh, true, roofM);
     const wall = new THREE.Mesh(new THREE.BoxGeometry(b.w, h, dep), mats);
+    wall.userData.facing = 'z';        // cross-street shells front along z
     wall.position.set(cx, h / 2 + gh, czd);
     scene.add(wall);
     litSheets(b, b.w, h, cx, h / 2 + gh, front,
