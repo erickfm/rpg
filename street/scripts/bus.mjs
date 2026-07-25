@@ -73,7 +73,10 @@ if (mode === 'shots' || mode === 'all') {
 }
 
 if (mode === 'walk' || mode === 'all') {
-  const hike = async (label, x, z, yaw, seconds, axis) => {
+  // PAST THE STOP, which is the thing this walk is about. The bus stop pole is
+  // at z -33.5 and the bench at -35.0; a hike that clears them has answered the
+  // question. `past` is the z the walker must be beyond, signed by direction.
+  const hike = async (label, x, z, yaw, seconds, axis, past = null) => {
     await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
     await page.waitForTimeout(120);
     const a = await page.evaluate(() => window.__ct.pos());
@@ -101,74 +104,48 @@ if (mode === 'walk' || mode === 'all') {
     // 5.0 m and stopped, which this catches and a distance line only caught by
     // luck of placement. Distance is kept as an OR so a fast clear run passes
     // outright.
-    const ok = moved > seconds * 1.9 || lastBit > 0.8;
+    // THREE WAYS TO PASS, and the first is the only one that is about the stop.
+    //
+    // Distance and "still moving" can BOTH fail on a clear lane: this run gave
+    // northbound 16.1 m against a 15.2 m line with 0.00 m in the last 1.5 s — a
+    // citizen standing at the far end, saved only by 0.9 m of distance margin.
+    // Block that citizen a second earlier and a passable walk reports STUCK.
+    //
+    // Getting past the stop cannot fail that way. It is where the walker ENDED,
+    // not how far it got or whether it happened to be moving on the last frame,
+    // which is lotwalk's lesson (bfd0b7ae) applied to the case that made me
+    // learn it twice.
+    // Direction comes from the START, not from the sign of `past` — both of
+    // these thresholds are negative, and keying off that made the northbound
+    // hike ask the southbound question and never report clearing anything.
+    const cleared = past === null ? false
+      : (past < a[2] ? b[2] < past : b[2] > past);
+    const ok = cleared || moved > seconds * 1.9 || lastBit > 0.8;
     console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m in ${seconds}s, ` +
-      `${lastBit.toFixed(2)} m in the last 1.5 s ` +
+      `${lastBit.toFixed(2)} m in the last 1.5 s${cleared ? ', past the stop' : ''} ` +
       `(${a[0].toFixed(1)},${a[2].toFixed(1)}) -> (${b[0].toFixed(1)},${b[2].toFixed(1)})`);
     return ok;
   };
   console.log('\nwalking past the stop (W held, no mouse):');
   let all = true;
   // straight through the stop on the building-side lane
-  all = await hike('east walk, through the stop southbound', 6.22, -24, 0, 8, 'z') && all;
-  all = await hike('east walk, through the stop northbound', 6.22, -46, Math.PI, 8, 'z') && all;
-  // WHERE IS THE NARROWEST POINT? This replaces a check that walked the
-  // kerb-side strip at a hand-picked x and asserted it got past the flag pole.
-  // That test stopped meaning anything once the furniture moved: the bench
-  // sits AT THE KERB now, by request, so it occupies that strip on purpose,
-  // and the thing that actually stopped the walker was a street tree several
-  // metres before the pole — so the test was reporting a pass or fail about
-  // the pole while measuring something else entirely.
+  all = await hike('east walk, through the stop southbound', 6.22, -24, 0, 8, 'z', -38) && all;
+  all = await hike('east walk, through the stop northbound', 6.22, -46, Math.PI, 8, 'z', -31) && all;
+  // THE LANE WIDTH IS builtlane.mjs's NOW, and it measures it better than this
+  // did. b49036ab samples 446 static cross-sections every 0.5 m and reports the
+  // narrowest — 1.12 m at z -92.5, on this very walk — deterministically, with
+  // moving colliders dropped.
   //
-  // The invariant the project really has is different and worth testing
-  // directly: SOMETHING on this walk is the narrowest point, and nothing new
-  // may become narrower than the lamp poles, which have set that limit since
-  // they went in. So sweep inward from the wall and find the smallest x that
-  // walks the whole block. That number IS the lane, measured rather than
-  // assumed, and it fails loudly if any future prop encroaches on it.
-  let lane = null;
-  for (const x of [6.28, 6.22, 6.15, 6.08, 6.00]) {
-    await page.evaluate((xx) => window.__ct.warp(xx, -24, 0, 0.14, 0), x);
-    await page.waitForTimeout(120);
-    await page.keyboard.down('w');
-    await page.waitForTimeout(7500);
-    const mid = await page.evaluate(() => window.__ct.pos());
-    await page.waitForTimeout(1500);
-    await page.keyboard.up('w');
-    const p2 = await page.evaluate(() => window.__ct.pos());
-    const end = p2[2], lastBit = Math.hypot(p2[0] - mid[0], p2[2] - mid[2]);
-    // -45 is past the lamp at -37 and the whole stop; scraping the wall costs
-    // speed, so this is "got through", not "covered a target distance".
-    //
-    // AND "still moving" as an OR, for the same reason the two hikes above
-    // needed it. I argued in a44af5e6 that this sweep was safe from citizens
-    // because "everything at or inside 6.22 would have to block at once" — and
-    // then the shared runner caught it doing exactly that, reporting 6.28 on a
-    // world that gives 6.15 on a re-run. Five sequential 9 s walks down one
-    // stretch is forty seconds of exposure; one citizen standing kerb-side
-    // blocks every inboard position and lets the outermost past.
-    //
-    // I was wrong about the mechanism being unreachable, not about what it
-    // would look like. A walker still moving when the clock stops has an open
-    // lane whether or not it reached the line.
-    if (end < -45 || lastBit > 0.8) lane = x;
-  }
-  // WHY THIS SURVIVES CITIZENS while the hike above needed rewriting. I came
-  // back to this expecting the same fragility: 21 m to cover in 9 s needs
-  // 2.33 m/s against ~2.9 m/s clear, a thinner margin than either leg walk I
-  // rewrote. Ran it three times and it returned x = 6.15 every time.
+  // What used to be here was five 9 s walks at five lateral positions, 45 s of
+  // the fast tier, producing a coarser version of that number. It is also the
+  // part 710e1454 caught flaking: a citizen standing kerb-side blocked every
+  // inboard position and it reported the lane as 6.28. I fixed the criterion,
+  // and then a better instrument arrived that does not have to walk at all.
   //
-  // The margin is in the SWEEP, not in the walk. Five lateral positions are
-  // tried and the narrowest one that gets through wins, so a pedestrian
-  // blocking a single attempt moves the number it prints without moving the
-  // verdict — everything at or inside 6.22 would have to be blocked at once.
-  // Worth writing down, because the printed x IS noisy under traffic and the
-  // next person to read one of these should not treat it as a measurement of
-  // the lane the way the verdict is.
-  const laneOK = lane !== null && lane <= 6.22;
-  console.log(`  ${laneOK ? 'OK  ' : 'STUCK'} east walk, narrowest clear lane: ` +
-    `x = ${lane === null ? 'NONE' : lane.toFixed(2)} (lamp poles cap it at 6.11)`);
-  all = laneOK && all;
+  // The two hikes above stay. GOTCHAS 9 wants movement verified by MOVING, and
+  // they do that end to end through the stop in both directions; builtlane
+  // proves the geometry leaves room, and the hikes prove a body gets through
+  // it. Those are different questions and the cheap one is not the walk.
   if (!all) { console.error('\nWALK FAILED — the stop blocks the lane'); process.exit(1); }
 }
 
