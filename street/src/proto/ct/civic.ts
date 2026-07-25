@@ -123,20 +123,32 @@ export function buildCivic(o: {
     g.fillStyle = 'rgba(255,255,255,0.34)'; g.fillText(text, cx, cy + 1);
     g.fillStyle = 'rgba(38,30,22,0.62)'; g.fillText(text, cx, cy);
   };
-  // rose window: stone surround, eight lights of coloured glass, stone boss
-  const roseWin = (g: CanvasRenderingContext2D, cx: number, cy: number, R: number) => {
+  // Rose window: stone surround, eight lights of coloured glass, stone boss.
+  //
+  // Takes its two radii in TEXELS and works in NORMALISED radius, so every
+  // ring and spoke is the same thickness in metres either way round.
+  //
+  // It had one radius, and the nave front it is painted on used to be 8 px/m
+  // across and 11.76 px/m up — so the rose came out 5.5 m wide and 3.7 m
+  // tall. An oval, in the screenshot the user sent. A's density mandate has
+  // since made every masonry canvas square, which would hide that on this
+  // wall today; the two radii stay because the bug was the ASSUMPTION, and
+  // the next painter to be given a stretched canvas should not have to
+  // rediscover it. See the call site for the radii coming off the surface.
+  const roseWin = (g: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number) => {
     // four hues, not eight. Real glass in a small parish rose is a limited
     // palette, and eight saturated ones at this texel size read as a beach
     // ball rather than as leaded glass in a muted street.
     const glass = ['#7a3e3c', '#3d5470', '#a08348', '#3f6050', '#7a3e3c', '#3d5470', '#a08348', '#3f6050'];
-    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
-      const d = Math.hypot(dx, dy);
-      if (d > R) continue;
-      const a = Math.atan2(dy, dx) + Math.PI;
+    const rim = 2.4 / rx, boss = 3 / rx;
+    for (let dy = -ry; dy <= ry; dy++) for (let dx = -rx; dx <= rx; dx++) {
+      const u = Math.hypot(dx / rx, dy / ry);
+      if (u > 1) continue;
+      const a = Math.atan2(dy / ry, dx / rx) + Math.PI;
       const seg = a / (Math.PI / 4);
-      if (d > R - 2.4) g.fillStyle = STONE_D;
-      else if (d < 3) g.fillStyle = STONE_L;
-      else if (Math.abs(d - (R - 2.4) * 0.56) < 1.2) g.fillStyle = STONE;
+      if (u > 1 - rim) g.fillStyle = STONE_D;
+      else if (u < boss) g.fillStyle = STONE_L;
+      else if (Math.abs(u - (1 - rim) * 0.56) < 1.2 / rx) g.fillStyle = STONE;
       else if (Math.abs(seg - Math.round(seg)) < 0.075) g.fillStyle = STONE;
       else g.fillStyle = glass[Math.floor(seg) % 8];
       g.fillRect(cx + dx, cy + dy, 1, 1);
@@ -589,17 +601,51 @@ export function buildCivic(o: {
     const naveS = masonry(NAVE_W, NAVE_H, 0);
     const NW = naveS.W, NH = naveS.H;
     const pm = naveS.ppm, yOf = (m: number) => Math.round(NH - m * pm);
+    // ── the west front, set out in METRES, once ───────────────────────────
+    //
+    // The buttresses are REAL boxes and the openings are PAINTED, and until
+    // now those two lived in different coordinate spaces: buttresses at
+    // `gxm ± 3.4` in metres, lancets at `NW * 0.19` in texels. Nothing
+    // reconciled them, so nothing made them miss — and they didn't. The
+    // user: *"pillars of the church seem not fully thought out. they block
+    // the windows i think?"* They did, by 0.82 m of a 2 m window, each side.
+    //
+    // So the BAYS come first. Four buttresses stand on the bay divisions,
+    // three bays sit between them, and every opening is centred in a bay and
+    // sized to fit inside it with its margins to spare. Both the boxes and
+    // the paint read these same numbers, which is what makes the fix a fix
+    // rather than a nudge: you cannot now move one without the other.
+    //
+    // The metres→texels conversion is the SURFACE's, not this painter's —
+    // `masonry()` is the one place a canvas is sized (A's density mandate),
+    // and a set-out that carried its own px/m would be the same defect one
+    // level up.
+    const mx = naveS.at;                // metres -> texel x
+    const wx = naveS.m;                 // …and widths, never thinner than a texel
+    const BUT_W = 0.92;                 // buttress width at the base
+    const BUT_X = [0.46, 3.14, NAVE_W - 3.14, NAVE_W - 0.46];
+    const bayC = [                      // the three bay centres
+      (BUT_X[0] + BUT_W / 2 + BUT_X[1] - BUT_W / 2) / 2,
+      NAVE_W / 2,
+      (BUT_X[2] + BUT_W / 2 + BUT_X[3] - BUT_W / 2) / 2,
+    ];
+    const DOOR_W = 5.5, LANCET_W = 1.3, ROSE_D = 3.7;
+    // widest thing in each bay vs the bay it has to live in — if this ever
+    // goes negative the front is overcrowded and something must give
+    //   side bays: 1.76 m clear, lancet 1.30  -> 0.23 m each side
+    //   centre  : 5.80 m clear, doorway 5.50  -> 0.15 m each side
     const naveTex = pixTex(NW, NH, (g) => {
       const r = clcg(0x3c91e5);
       ashlar(g, NW, NH, r, naveS.m(STONE_COURSE_M), naveS.m(NAVE_BLOCK_M));
-      const mid = Math.round(NW / 2);
+      const mid = mx(bayC[1]);
       g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(0, yOf(1.5), NW, NH - yOf(1.5)); // plinth
       g.fillStyle = STONE_L; g.fillRect(0, yOf(1.5) - 2, NW, 2);
-      // the doorway: three recessed orders, pointed, with a tympanum
-      archFill(g, mid, 44, yOf(7.4), yOf(0.55), STONE_D, true);
-      archFill(g, mid, 36, yOf(7.0), yOf(0.55), STONE, true);
-      archFill(g, mid, 30, yOf(6.6), yOf(0.55), 'rgba(0,0,0,0.4)', true);
-      archFill(g, mid, 26, yOf(6.3), yOf(0.55), '#2a2118', true);
+      // the doorway: three recessed orders, pointed, with a tympanum. Centred
+      // in the middle bay and 0.15 m clear of the buttress either side.
+      archFill(g, mid, wx(DOOR_W), yOf(7.4), yOf(0.55), STONE_D, true);
+      archFill(g, mid, wx(DOOR_W - 1.0), yOf(7.0), yOf(0.55), STONE, true);
+      archFill(g, mid, wx(DOOR_W - 1.75), yOf(6.6), yOf(0.55), 'rgba(0,0,0,0.4)', true);
+      archFill(g, mid, wx(DOOR_W - 2.25), yOf(6.3), yOf(0.55), '#2a2118', true);
       g.fillStyle = '#4a3524'; g.fillRect(mid - 12, yOf(4.4), 24, yOf(0.55) - yOf(4.4)); // the doors
       g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(mid - 1, yOf(4.4), 2, yOf(0.55) - yOf(4.4));
       g.fillStyle = '#8a7a4a';
@@ -612,16 +658,20 @@ export function buildCivic(o: {
       }
       g.fillStyle = STONE_L; g.fillRect(0, yOf(8.4), NW, 3);        // string course
       g.fillStyle = 'rgba(0,0,0,0.24)'; g.fillRect(0, yOf(8.4) + 3, NW, 1);
-      // paired lancets either side
-      for (const cx of [Math.round(NW * 0.19), Math.round(NW * 0.81)]) {
-        archFill(g, cx, 16, yOf(13.2), yOf(9.2), STONE_D, true);
-        archFill(g, cx, 12, yOf(13.0), yOf(9.35), '#26303a', true);
-        g.fillStyle = '#7a4a4a'; g.fillRect(cx - 5, yOf(12.0), 10, 6);
-        g.fillStyle = '#3a5a8a'; g.fillRect(cx - 5, yOf(11.0), 10, 6);
-        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx - 1, yOf(13.0), 2, yOf(9.35) - yOf(13.0));
-        g.fillStyle = STONE_L; g.fillRect(cx - 8, yOf(9.35), 16, 2);
+      // A lancet in each side bay — centred on the bay, so the buttresses
+      // that define the bay cannot cross it. Narrower than they were (1.3 m,
+      // not 2.0), which is both what the bay allows and what a lancet is.
+      const lw = wx(LANCET_W), lg = wx(LANCET_W - 0.3), lh = Math.round(lg / 2);
+      for (const cx of [mx(bayC[0]), mx(bayC[2])]) {
+        archFill(g, cx, lw, yOf(13.4), yOf(9.2), STONE_D, true);
+        archFill(g, cx, lg, yOf(13.2), yOf(9.35), '#26303a', true);
+        g.fillStyle = '#7a4a4a'; g.fillRect(cx - lh, yOf(12.0), lg, 6);
+        g.fillStyle = '#3a5a8a'; g.fillRect(cx - lh, yOf(11.0), lg, 6);
+        g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(cx, yOf(13.2), 1, yOf(9.35) - yOf(13.2));
+        g.fillStyle = STONE_L; g.fillRect(cx - lh - 2, yOf(9.35), lg + 4, 2);
       }
-      roseWin(g, mid, yOf(14.3), 22);
+      // both radii off the same surface: square today, honest if it is not
+      roseWin(g, mid, yOf(14.3), wx(ROSE_D / 2), wx(ROSE_D / 2));
       g.fillStyle = 'rgba(46,38,30,0.1)';
       for (let i = 0; i < 16; i++) g.fillRect(Math.floor(r() * NW), yOf(8.4), 2, Math.round(r() * 60));
       dither(g, NW, NH, 620);
@@ -682,14 +732,62 @@ export function buildCivic(o: {
     const oc = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: ocT, alphaTest: 0.5 }));
     oc.position.set(gxm, NAVE_H + 1.5, zf + 0.02);
     scene.add(oc);
-    // buttresses — the vertical emphasis, and real depth in the silhouette
-    for (const bx of [gx0 + 0.5, gxm - 3.4, gxm + 3.4, gx1 - 0.5]) {
-      const bt = new THREE.Mesh(new THREE.BoxGeometry(0.9, 12.5, 0.3), stoneM());
-      bt.position.set(bx, 6.25, zFront + 0.15);
-      scene.add(bt);
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.45, 0.42), new THREE.MeshBasicMaterial({ color: 0xb2a892 }));
-      cap.position.set(bx, 12.6, zFront + 0.2);
-      scene.add(cap);
+    // ── the buttresses ────────────────────────────────────────────────────
+    //
+    // They stand ON the bay divisions (see the set-out above), which is the
+    // half of the fix that stops them crossing the lancets. This is the other
+    // half: a buttress that runs 0 → 12.5 m as one slab and stops dead under
+    // a flat cap, 4.5 m below the eaves, is a pilaster. A real one is built
+    // in stages, each stepping back under a sloped weathering that sheds the
+    // water onto the stage below, and it dies into the wall under the eaves.
+    //
+    // The stepping is mostly in WIDTH rather than in projection, and that is
+    // forced: the church stands on a 2 m pavement and the wall collider
+    // reserves only 0.3 m in front of the facade (GOTCHAS §9), so NOTHING
+    // here may project further than that — the plinth is already at the
+    // limit. 0.16 m of width per stage reads from straight on, which is the
+    // angle this was reported from, and the weatherings do the rest.
+    // A set-off is a sloped slab: high against the wall, low at the outer
+    // edge. It has to carry the whole read, because the projections it steps
+    // between are 0.06 m apart and this world has no lighting to shade them
+    // with — the same lesson the courtyard steps taught, that in a MeshBasic
+    // world contrast is PAINTED, not lit. So each one oversails the stage
+    // sideways, and its UNDERSIDE is dark: from the pavement you are looking
+    // up at these, and the shadow line under the slab is the whole cue.
+    const wTop = new THREE.MeshBasicMaterial({ color: 0xc0b69e });
+    const wUnder = new THREE.MeshBasicMaterial({ color: 0x6d6555 });
+    const wSide = new THREE.MeshBasicMaterial({ color: 0x8f8571 });
+    const setOff = (bx: number, y: number, w: number, pFrom: number, pTo: number, drop: number) => {
+      const run = Math.max(0.05, pFrom - pTo), T = 0.18;
+      const th = Math.atan2(drop, run);
+      // A tilted slab's outermost point is its lower outer CORNER, not the
+      // end of its slope — (T/2)·sin θ further out, which on the steep plinth
+      // set-off is 0.08 m. That is the difference between living inside the
+      // 0.3 m the facade reserves and hanging over the pavement, so the whole
+      // slab is pulled back by exactly that. Nothing here reaches past 0.30.
+      const wm = new THREE.Mesh(new THREE.BoxGeometry(w, T, Math.hypot(run, drop)),
+        [wSide, wSide, wTop, wUnder, wSide, wSide]);
+      wm.position.set(bx, y + drop / 2, zFront + (pFrom + pTo) / 2 - (T / 2) * Math.sin(th));
+      wm.rotation.x = -th;
+      scene.add(wm);
+    };
+    const STAGES = [
+      { top: 1.50, w: BUT_W + 0.12, p: 0.30, drop: 0.14 },   // plinth, on the wall's own plinth line
+      { top: 6.40, w: BUT_W, p: 0.24, drop: 0.30 },
+      { top: 11.40, w: BUT_W - 0.16, p: 0.17, drop: 0.30 },
+      { top: 15.40, w: BUT_W - 0.32, p: 0.10, drop: 0.34 },  // dies in under the eaves at 17
+    ];
+    for (const bxLocal of BUT_X) {
+      const bx = x0 + bxLocal;
+      STAGES.forEach((st, i) => {
+        // every stage runs from the GROUND up, each one narrower and
+        // shallower than the last: they nest rather than stack, so no two
+        // faces are ever coplanar and there is nothing to z-fight (§6)
+        const bt = new THREE.Mesh(new THREE.BoxGeometry(st.w, st.top, st.p), stoneM());
+        bt.position.set(bx, st.top / 2, zFront + st.p / 2);
+        scene.add(bt);
+        setOff(bx, st.top, st.w + 0.16, st.p, STAGES[i + 1]?.p ?? 0, st.drop);
+      });
     }
     // ── the tower ──
     const tow = masonry(TOWER_W, TOWER_H, 0);
