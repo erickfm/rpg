@@ -11,10 +11,10 @@
 //
 //   1. at 13:00 the upper floors are DARK          (the defect, exactly)
 //   2. at 21:00 a good number of them are LIT      (the fix did something)
+//   3. the rooms lit at 3am are NOT the rooms lit at 9pm
 //
-// WHAT THIS DELIBERATELY DOES NOT ASSERT, and why. The complaint had a third
-// half — "the same windows at 4am as at 8pm" — and a warm-pixel count cannot
-// support it. Measured while writing this:
+// (3) WAS CUT, AND IS NOW BACK BY A DIFFERENT MEASURE. A warm-pixel count
+// cannot carry it. Measured when this file was written:
 //
 //     21:00  2936     03:00  2476     06:00  0
 //
@@ -25,8 +25,21 @@
 // camera twice trying to make the ratio behave and stopped, because tuning a
 // threshold until it agrees is how you get a check that measures the tuning.
 //
-// The two assertions kept are ones the measure can carry. The third needs the
-// lit-sheet opacities read from the scene, not pixels counted off a frame.
+// What I wrote instead was that it "needs the lit-sheet opacities read from
+// the scene, not pixels counted off a frame" — so that is what it now does.
+// `ct/street.ts` stamps `userData.litSheet` = 'evening' | 'late' on each sheet,
+// because WHICH SET OF ROOMS a sheet is, is a fact only the painter has; a
+// camera can never recover it. Read directly, the same four hours are
+// unambiguous:
+//
+//     13:00  evening 0     late 0
+//     21:00  evening 1     late 0
+//     03:00  evening 0     late 1
+//     06:00  evening 0.235 late 0.331     <- the hour the pixel count read as 0
+//
+// Same move as `userData.facing` in scripts/shells.mjs, and for the same
+// reason: when a measurement cannot see something, have the module that knows
+// publish it, rather than tuning a threshold until it appears to.
 //
 // The crop is the LEFT 64 % and TOP 42 % of the frame from a fixed camera:
 // that excludes the street lamp on the right and the BURGER BARN fascia, both
@@ -71,8 +84,26 @@ const warmAt = async (hour) => {
   });
 };
 
+// The sheet opacities, straight off the materials. No camera involved, so no
+// crop, no threshold, and nothing a lamp halo can contribute to.
+const sheetsAt = async (hour) => {
+  await page.evaluate((h) => window.__ct.clock(h, 0), hour);
+  await page.waitForTimeout(500);
+  return page.evaluate(() => {
+    const out = {};
+    window.__ct.scene().traverse((m) => {
+      const k = m.userData && m.userData.litSheet;
+      if (!k) return;
+      out[k] = { n: (out[k]?.n ?? 0) + 1, op: +m.material.opacity.toFixed(3) };
+    });
+    return out;
+  });
+};
+
 const noon = await warmAt(13);
 const night = await warmAt(21);
+const s21 = await sheetsAt(21);
+const s03 = await sheetsAt(3);
 
 let fails = 0;
 const say = (ok, name, detail) => {
@@ -86,6 +117,17 @@ const say = (ok, name, detail) => {
 // had in the other direction.
 say(noon < 200, 'nothing is lit at one in the afternoon', `${noon} warm px in the crop`);
 say(night > 1500, 'the block is lit at nine at night', `${night} warm px`);
+
+// The half of the complaint the pixel count could not reach. Both directions
+// are asserted: a world that lit the 'late' sheet at both hours would satisfy
+// one of these and read exactly as the bug did.
+const swaps = (s21.evening?.op ?? 0) > (s21.late?.op ?? 0)
+           && (s03.late?.op ?? 0) > (s03.evening?.op ?? 0);
+say(Object.keys(s21).length === 2, 'both sets of rooms exist',
+  `sheets stamped: ${Object.keys(s21).join(', ') || 'NONE — is street.ts stamping litSheet?'}`);
+say(swaps, 'the rooms lit at 3am are not the rooms lit at 9pm',
+  `21:00 evening ${s21.evening?.op} / late ${s21.late?.op}` +
+  ` · 03:00 evening ${s03.evening?.op} / late ${s03.late?.op}`);
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {
@@ -94,12 +136,15 @@ if (SELFTEST) {
   console.log('\nselftest — asserting the original defect, which must FAIL');
   const before = fails;
   say(noon > 1500, 'noon is as lit as night (the bug)', `${noon} warm px`);
+  say((s03.evening?.op ?? 0) >= (s21.evening?.op ?? 0),
+    'the same rooms burn all night (the bug)',
+    `evening sheet 03:00 ${s03.evening?.op} vs 21:00 ${s21.evening?.op}`);
   const caught = fails - before;
-  console.log(caught === 1
-    ? '\nSELFTEST PASSED — the inverted assertion was caught'
-    : '\nSELFTEST FAILED — the inverted assertion passed, so this measures nothing');
+  console.log(caught === 2
+    ? '\nSELFTEST PASSED — both inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 2 caught, so this measures less than it claims`);
   await browser.close();
-  process.exit(caught === 1 ? 0 : 1);
+  process.exit(caught === 2 ? 0 : 1);
 }
 
 await browser.close();

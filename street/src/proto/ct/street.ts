@@ -211,6 +211,16 @@ export function buildStreet(o: {
       });
       sh.list.push(m);
       const p = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), m);
+      // WHICH SET OF ROOMS THIS SHEET IS. The user's complaint had two halves
+      // and only one is visible in a frame: "lit at one in the afternoon" a
+      // camera can see, but "the same windows at 4am as at 8pm" it cannot —
+      // a warm-pixel count is non-linear in opacity and cannot tell a window
+      // at 0.35 from a window that is off (scripts/windowlights.mjs records
+      // the numbers that proved it). The fact only this file knows is WHICH
+      // sheet is which, so it says so, and a checker can read the two
+      // opacities instead of guessing at pixels. Same move as userData.mod
+      // and userData.facing.
+      p.userData.litSheet = sh.variant === 0 ? 'evening' : 'late';
       p.position.set(x + nx * sh.off, y, z + nz * sh.off);
       p.rotation.y = ry;
       p.renderOrder = 2;                                // over its own facade
