@@ -89,6 +89,24 @@ One field on `ctx.obstacle` — the registering module's name — turns that lis
 into per-owner lists that builders can act on. `ct/ctx.ts` and `crosstown.ts`
 are desk-owned. I have not touched them beyond disclosed test affordances.
 
+**It is not only colliders, which is why this is worth doing properly.** The
+same gap turned up in a completely different check today. `52b33dd6` stamped
+`userData.selfLit` on 34 sheets so that A's `nightgrade` could stop asking why
+they were never graded — good — and `nightgrade` also reports *3 materials past
+1.0 at 23:00* and *14 breaking GOTCHAS §22*. It reports COUNTS. Nothing in
+either population says whose it is, so no builder can pick it up, and I had to
+write two throwaway scene walks to establish that none of the nine mesh
+instances were mine (they are not: no ancestor of any of them carries
+`userData.wheelbase`, and the §22 set is `street`, `vice`, `walkup`, `lot`,
+`props`).
+
+`userData.mod` exists but is absent on exactly the objects a finding lands on —
+every one of the nine reported `mod: '?'` on itself and its parent. A finding
+nobody owns is a finding nobody fixes, and both of these have now sat in a
+report for a while. **The ask is one thing: whatever creates a mesh, a collider
+or a material stamps who made it.** Then every check in the tree can route its
+own output.
+
 ---
 
 ## Two gaps in tools that are not mine
