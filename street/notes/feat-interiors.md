@@ -355,3 +355,31 @@ needed a follow-up commit to repair — the burger barn's seating rows alone too
 three passes because each fix broke a different constraint. Adding furniture I
 cannot fully walk afterwards is how that happens again. It wants its own item
 with room to verify.
+
+---
+
+# Interior floor texel density is CORRECT — do not "fix" it to 8 px/m
+
+`notes/interior-audit.md` tabulates interior floors at 18–36 px/m next to the
+project's stated "~8 px/m", and the triage rightly did not route it. Recording
+why, because the table on its own reads like a defect and the fix would make
+every room wrong.
+
+Measured across all eight interiors: floors run **19–27 px/m**.
+
+The 8 px/m in `START-HERE.md` is the FACADE grid — `shopfrontTex` builds its
+canvas as `wMeters * 8` and every painted shopfront is exactly that. The
+GROUND is a different grid and always has been: `asphaltTex` is a 64 px tile
+over 3.4 m, which is **18.8 px/m**, and every road and pavement in the world
+is drawn at it.
+
+A floor is ground, not facade. The kit's default lino is 32 px over 1.6 m =
+20 px/m, which lands on the road's grid, and the rooms that lay their own
+floor — the diner's checker, the burger barn's quarry tile — sit between 19
+and 27. That is the right neighbourhood.
+
+Two entries in the measurement above are small props, not floors: a 0.62 m cat
+at 38.7 px/m and a 0.76 m card at 42.1. Small objects carry more texels per
+metre by construction, and neither is a surface anyone walks on.
+
+**If this is ever revisited, the number to compare against is 18.8, not 8.**
