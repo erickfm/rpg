@@ -142,3 +142,38 @@ night the world actually has.
 `baa675d7` is right that they are panels, not ground) AND they are the night
 splash (opacity driven by darkness, 0 by day, matching `props.ts`'s own comment
 about standing a sheet against every wall on the building line).
+
+---
+
+## Second correction: I was measuring TINT, not brightness
+
+`114c5bef7` could not confirm my routing and found why: **`material.color` is a
+tint, white by default.** A material with an untouched white colour and a dark
+map renders dark, and my sweep counted the colour.
+
+Measured at HEAD, tint-only against tint × texture × opacity:
+
+```
+props   tint-only 50    actually bright 50     <- all genuine, additive light
+vice    tint-only  8    actually bright  1     <- 7 are white tint over dark map
+```
+
+**So props's 50 were right and vice's were over-counted seven-fold.** That also
+means the original routed figures — `vice 78`, `props 67`, `lot 13` — were
+measured the same wrong way, and vice's 78 was substantially inflated. G answered
+"all 78 intentional" so nothing was built on the bad number, but that was luck.
+
+`midnight.mjs` now multiplies tint by the texture's own mean luminance and by
+opacity. My module still reports 0 either way, so no assertion changes; the
+printed counts stop being misleading.
+
+### That is three separate ways this one measurement was wrong
+
+1. counting **allocations** instead of appearances (uuids)
+2. counting a jumped night that **no player reaches**
+3. counting **tint** instead of what reaches the screen
+
+Each looked like a finished measurement. Each was caught by somebody trying to
+use the number rather than by me re-reading it — `34a3ed95` chasing the crates,
+`72749add` on the rain in `setNight`, and now `114c5bef7` failing to confirm a
+routing. **A number nobody consumes is a number nobody checks.**

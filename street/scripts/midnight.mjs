@@ -80,6 +80,18 @@ await setNight(page, 23, 0);
 const found = await page.evaluate(() => {
   const byMod = {};
   const mine = [];
+  // mean luminance of a texture's own pixels, alpha-weighted
+  const tcv = document.createElement('canvas'); tcv.width = 8; tcv.height = 8;
+  const tg = tcv.getContext('2d', { willReadFrequently: true });
+  const texLum = (t) => {
+    try {
+      tg.clearRect(0, 0, 8, 8); tg.drawImage(t.image, 0, 0, 8, 8);
+      const d = tg.getImageData(0, 0, 8, 8).data;
+      let s = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4) { if (d[i + 3] < 8) continue; s += (d[i] + d[i + 1] + d[i + 2]) / 3; n++; }
+      return n ? s / n / 255 : null;
+    } catch (e) { return null; }
+  };
   window.__ct.scene().traverse((o) => {
     if (!o.isMesh || !o.visible) return;
     const wp = new o.position.constructor();
@@ -90,10 +102,19 @@ const found = await page.evaluate(() => {
     for (const m of ms) {
       if (!m || !m.color) continue;
       if (m.userData?.graded || m.userData?.selfLit) continue;   // it SAID which it is
-      const lum = (m.color.r + m.color.g + m.color.b) / 3;
-      if (lum <= 0.5) continue;
+      // BRIGHTNESS IS TINT x TEXTURE x OPACITY, not tint alone. 114c5bef7:
+      // "material.color is a tint, white by default" — so a material with an
+      // untouched white colour and a dark map renders dark, and counting the
+      // colour counts nothing. Measured when that landed: of 8 vice materials
+      // my old tint-only test called bright, exactly 1 was; all 50 of props's
+      // were, because theirs really are additive light.
+      const tint = (m.color.r + m.color.g + m.color.b) / 3;
+      if (tint <= 0.5) continue;
       const op = m.transparent ? m.opacity : 1;
       if (op <= 0.05) continue;                        // invisible; colour cannot matter
+      const tl = m.map ? texLum(m.map) : 1;            // no map: the tint IS the colour
+      if (tl !== null && tint * tl * op <= 0.4) continue;
+      const lum = tint * (tl === null ? 1 : tl) * op;
       const mod = o.userData?.mod || '(unstamped)';
       byMod[mod] = (byMod[mod] || 0) + 1;
       if (mod === 'street') {
