@@ -847,3 +847,58 @@ and by night, it needs a multi-minute hold and I ran 20 s. So I am grading the
 persistence **DONE on construction plus a consistent partial measurement**, not
 on having seen the tail. If anyone wants the tail proven, that is a longer run
 and I will say plainly that I have not done it.
+
+---
+
+# WHEEL ARCHES — **DONE.** The last NOT DONE in the request audit is closed.
+
+Re-walked the fleet at `e73dd6a8`, after H's attempt three (`6333004c`), from
+the kerb beside each parked car at **standing eye height (1.74 m)** with the
+camera looking down at the wheel — no hero angle, no crouch, no low camera. All
+three street cars found by shape, every warp verified to have landed.
+
+## Measured, not eyeballed
+
+| | before | now |
+|---|---|---|
+| arch top | 0.34 + 0.27 = **0.61 m** | 0.34 + **0.38** = **0.72 m** |
+| tyre top | 0.68 m | **0.663 m** (measured on all 12 wheels) |
+| clearance | **−0.07 m** — tyre stood *above* the arch | **+0.057 m of arch above the tyre** |
+
+H's diagnosis was right and it was the height, exactly as stated. The width term
+was already correct (0.38 m half-width against a 0.34 m tyre) and both terms are
+now stated **in metres and converted per axis**, so it is the same arch on every
+body instead of one derived from panel length — which is what used to make it a
+band down a van and an arch on a pickup.
+
+The second half of the fix matters as much: the well was `#0a0b0e` against a
+tyre of `#101114`, indistinguishable, so the cleared air above the tyre read as
+one dark mass with a hubcap in it. That is changed.
+
+## The old signature is gone
+
+My NOT DONE was specific, and it is the thing to re-test:
+
+> *"the white side stripe runs unbroken from front to rear, straight through the
+> space above each wheel"*
+
+**It no longer does.** On both the maroon sedan and the olive pickup the flank
+stripe now runs along the body and **terminates at each wheel opening**. On the
+pickup the wells read plainly at 2 m — dark arch above and around each tyre. On
+the sedan the rim is present but subtle at that distance, because the tyre still
+stands 0.04 m proud of the flank and the disc occludes the arch behind it; what
+clears the disc is the 5.7 cm above the tyre's top, and 5.7 cm at 2 m is a thin
+band.
+
+**That is a pass, not a hedge.** The wheel sits in a well with air above it, the
+sill is no longer straight through, and the defect I named is not reproducible.
+
+## One thing for H, not a defect
+
+`ct/cars.ts:90` still carries a full comment block headed **"wheel arches:
+REVERTED to the pre-arch paint, deliberately"**, arguing the arch cannot work
+and should not be attempted — and it sits **directly above the live arch
+implementation that does work**. Two contradictory blocks, the stale one first.
+The next person to read that file will believe the arch was abandoned. Worth
+deleting now that the argument it makes has been disproved by the code beneath
+it.
