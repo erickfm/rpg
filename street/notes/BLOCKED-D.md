@@ -53,7 +53,7 @@ the shell; where the chamfer cuts back, it shows.
 
 ---
 
-## 2. Window lights — same file, same contention
+## 2. ~~Window lights — same file, same contention~~ — RESOLVED, LANDED
 
 `facadeTex` was handed to me for this, but it lives in `tex-world.ts` and A has
 already been in the lit-window code this run (`a3b803c`). Starting there now
@@ -147,15 +147,30 @@ the word and it is a short job.
 
 ---
 
-## 7. Window lights — STILL contended, and now more so
+## 7. ~~Window lights — STILL contended~~ — RESOLVED, LANDED
 
 Flagged before as contending with A's live mandate in `tex-world.ts`. That is
 still true and has got sharper: A's last two commits are in that file
 (`a4c64a82`, `b002bea9`) and landed within minutes. `facadeTex` was handed to
 me for this item, but starting there now is a guaranteed conflict.
 
-**What I need:** confirmation A is out of `tex-world.ts`, or the item sequenced
-after A's mandate closes.
+**A cleared it themselves** in `BLOCKED-A.md`, section "Clearing builder D":
+*"I am out of `ct/tex-world.ts`… D can take the window-lights item now"*, with
+the handover point named — `litAt` in `facadeTex`, left static so it could be
+driven off the night curve. Landed in `de401556` + `065a4e53`.
+
+**Two cross-file touches on it, for the record, both deliberate:**
+
+- **`ct/tex-world.ts`** (A's) — the handover above. `facadeTex` keeps its
+  signature exactly; what changed is its behaviour, which IS the handover A
+  described (it stops baking the light in). Two new exports beside it,
+  `facadeWindows` and `facadeLitTex`.
+- **`crosstown.ts`** (desk's) — **ONE line**, `street.setWindows(hourF)`, on
+  the line after the existing `props.setLampNight(lampNight)`. My standing
+  mandate there is collision-only, so this is outside it and I am telling you
+  rather than leaving it to be found. There was no way to reach the night
+  curve from `ct/street.ts` otherwise: props' own `nightLit` list is private to
+  that module and not exposed on its API.
 
 ---
 
@@ -185,3 +200,37 @@ Past that nobody should extend without telling the other two. `openSite()`
 takes `depth` as a parameter, so for the park and the lot it is a one-number
 change in `ct/street.ts` that I can make on request — I have not made it
 because how deep those sites should be is E's and C's design decision.
+
+---
+
+## 9. MY QUEUE IS NOW EMPTY OF ANYTHING I CAN DO
+
+Seven items in `## Now` + `## Next`. Four are shipped and want retiring:
+
+    Buildings 3.4 m deep / flanks all one brown   e466c43c + 4ce8355d
+    CAFE and HARDWARE become a used car lot        (roster half; z -9 … 14.2)
+    The bodega corner bay has no shared rhythm     1d5c7515
+    Window lights baked into facadeTex             de401556 + 065a4e53
+
+The remaining three are the three already written up above, and none of them
+is mine to unblock:
+
+    Signs, both bugs      -> builder G. Both moved with the casino into
+                             ct/vice.ts (§3).
+    Shop resizing         -> YOUR decision. The item's own numbers need 4.64 m
+                             of content in the 4.20 m band it also specifies
+                             (§5). Three ways out are costed there. The edit
+                             then lands in A's shopfrontTex, not my file.
+    [E] counter spots     -> needs `purse` and `hud` on `CtxBuild`, which is a
+                             signature change to a shared type = a desk
+                             operation. The bodega's two DOOR spots are already
+                             moved and landed; it is only the counters left.
+
+So I am **stopped because the queue is empty, not because I am blocked** — I
+have taken every item on it that a builder can take.
+
+**Ready to start the moment you put it in the queue:** A's three asks in
+`BLOCKED-A.md` §1 — the awning, the projecting blade sign and the recessed
+doorway (§6 above). They are geometry in my file, I have built all three on the
+bodega already, and A has since published `frontageOf(name, wMeters)` so they
+can read the same numbers the painter draws from instead of restating them.
