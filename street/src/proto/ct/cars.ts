@@ -87,11 +87,31 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean,
         if (hx > 2 && hx < 92) g.fillRect(hx - 2, 3, 4, 2);
       }
     }
-    // wheel arches at the true wheel positions
-    g.fillStyle = '#0a0b0e';
+    // ── wheel arches ────────────────────────────────────────────────────
+    //
+    // STEPPED, not smoothed. A curve in a hard-texel world has to be a
+    // staircase, and the steps have to be COARSE: this face is read at a
+    // grazing angle, which is the exact condition that turned the tailgate into
+    // a crawling checkerboard (GOTCHAS §4). Three steps per side, 3 texels
+    // apart, and no dither inside the opening.
+    //
+    // And it gets a LIP: one texel of highlight along the top of the opening and
+    // a darker one just inside it, so the arch reads as a flared well cut into
+    // the body rather than as a black sticker on a flat slab.
+    const ARCH = [[10, 5], [7, 8], [4, 10]];   // [half-width, height] per step
     for (const wz of arches) {
       const ax = Math.round(((wz + len / 2) / len) * 96);
-      g.beginPath(); g.arc(ax, 20, 10, Math.PI, 0); g.fill();
+      for (const [hw, h] of ARCH) {
+        g.fillStyle = '#0a0b0e';
+        g.fillRect(ax - hw, 20 - h, hw * 2, h);
+      }
+      // the lip, following the same staircase
+      for (const [hw, h] of ARCH) {
+        g.fillStyle = 'rgba(255,255,255,0.20)';
+        g.fillRect(ax - hw, 20 - h - 1, hw * 2, 1);
+        g.fillStyle = 'rgba(0,0,0,0.30)';
+        g.fillRect(ax - hw, 20 - h, hw * 2, 1);
+      }
     }
     dither(g, 96, 20, 120);
   });
@@ -497,11 +517,19 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
       g2.fillStyle = 'rgba(255,255,255,0.18)'; g2.fillRect(0, yRow(0.84), skinW, 3); // beltline
       g2.fillStyle = '#d8dade'; g2.fillRect(0, yRow(0.64), skinW, 1);              // chrome strip
       g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(0, yRow(0.44), skinW, skinH - yRow(0.44)); // rocker
-      // the rear wheel arch, which used to be painted on the slab. Same texel
-      // radius as the slab's, so it is the same ellipse in world space.
-      g2.fillStyle = '#0a0b0e';
+      // The rear wheel arch, which used to be painted on the slab. Stepped and
+      // lipped like the cab's — and on a pickup this is the PRONOUNCED one, so
+      // it is a step taller and gets the flare highlight carried a texel wider
+      // than the opening at each step.
       const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
-      g2.beginPath(); g2.ellipse(ax, skinH, 10, 10, 0, Math.PI, 0); g2.fill();
+      for (const [hw, h] of [[11, 7], [8, 10], [5, 12]]) {
+        g2.fillStyle = '#0a0b0e';
+        g2.fillRect(ax - hw, skinH - h, hw * 2, h);
+        g2.fillStyle = 'rgba(255,255,255,0.22)';
+        g2.fillRect(ax - hw - 1, skinH - h - 1, hw * 2 + 2, 1);
+        g2.fillStyle = 'rgba(0,0,0,0.28)';
+        g2.fillRect(ax - hw, skinH - h, hw * 2, 1);
+      }
     });
     bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
     // The tailgate IS the back of the truck now, so it carries the tail lights
@@ -603,7 +631,13 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false): THREE.Gr
   tireM.userData.noLight = true;
   const capM = flatT(hubcapTex());
   const front: THREE.Mesh[] = [];
-  for (const wx of [-0.82, 0.82]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
+  // 0.72, not 0.82. The body's flank is at x = ±0.90 and a tyre is 0.24 wide,
+  // so a centre at 0.82 put its outer sidewall at 0.94 — OUTSIDE the body,
+  // which is the "wheels clip through" in the report: the tyre intersected the
+  // flank and stuck out the far side of it. At 0.72 the tyre spans 0.60…0.84 and
+  // sits inside the body with 0.06 m to spare, so it emerges from under the arch
+  // instead of through the panel.
+  for (const wx of [-0.72, 0.72]) for (const wz of [spec.wheelZ, -spec.wheelZ]) {
     const w = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.24, 10), [tireM, capM, capM]);
     // see makeBus: YZX so steering turns the wheel about its own vertical.
     // Front is -z (the whole model is built nose-first, see the file header).
