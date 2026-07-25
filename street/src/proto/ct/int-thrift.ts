@@ -281,22 +281,15 @@ export function buildThrift(ctx: CtxBuild): void {
 
   // ── the proprietor, behind the till ──
   //
-  // Cardigan, reading glasses, a paperback of her own. She is not selling to
-  // you; she is minding the shop.
-  const oldT = pixTex(40, 64, (g) => {
-    g.fillStyle = '#6a5a48'; g.fillRect(9, 25, 22, 24);           // cardigan
-    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(19, 25, 2, 24);  // the button line
-    g.fillStyle = '#8a7a62'; g.fillRect(12, 30, 16, 3);
-    g.fillStyle = '#4a4a52'; g.fillRect(11, 49, 8, 13); g.fillRect(21, 49, 8, 13);
-    g.fillStyle = '#c9a48a'; g.fillRect(4, 27, 5, 13); g.fillRect(31, 27, 5, 13);
-    g.fillStyle = '#c9a48a'; g.fillRect(14, 10, 12, 14);          // head
-    g.fillStyle = '#c8c4bc'; g.fillRect(12, 7, 16, 6);            // grey hair, set
-    g.fillStyle = '#2a2622'; g.fillRect(15, 16, 4, 2); g.fillRect(21, 16, 4, 2);  // glasses
-    g.fillStyle = '#2a2622'; g.fillRect(19, 17, 2, 1);
-    g.fillStyle = '#7a4a4a'; g.fillRect(18, 21, 4, 1);
-    dither(g, 40, 64, 18);
-  });
-  const keeper = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.8),
-    new THREE.MeshBasicMaterial({ map: oldT, alphaTest: 0.5, side: THREE.DoubleSide }));
-  put(keeper, TILL_CX, 0.9, TILL_Z - 0.55);
+  // From the citizen atlas. She was a hand-painted plane — the third copy of
+  // the diner waitress's mistake — and a shop whose whole character is that
+  // somebody has been minding it for thirty years cannot have a keeper who
+  // only exists from one angle.
+  //
+  // Brown cardigan over grey, grey hair: she is not selling to you, she is
+  // minding the shop, and the atlas carries that in the palette.
+  room.person({
+    jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
+    fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,
+  }, TILL_CX, TILL_Z - 0.55, { facing: Math.PI, h: 0.95, w: 0.94 });
 }

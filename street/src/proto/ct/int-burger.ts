@@ -312,23 +312,14 @@ export function buildBurger(ctx: CtxBuild): void {
 
   // ── the crew member, behind the counter ──
   //
-  // Visor and a polo, not the diner's uniform dress and apron: the two rooms
-  // employ different decades of person and the difference should be visible.
-  const crewPersonT = pixTex(40, 64, (g) => {
-    g.fillStyle = '#c8302a'; g.fillRect(9, 24, 22, 22);           // red polo
-    g.fillStyle = '#e6dcc6'; g.fillRect(9, 24, 22, 3);            // collar
-    g.fillStyle = '#4a4a52'; g.fillRect(11, 46, 8, 16); g.fillRect(21, 46, 8, 16);
-    g.fillStyle = '#c9946a'; g.fillRect(4, 26, 5, 13); g.fillRect(31, 26, 5, 13);
-    g.fillStyle = '#a87a52'; g.fillRect(14, 9, 12, 14);           // head
-    g.fillStyle = '#2a2622'; g.fillRect(13, 7, 14, 4);            // hair
-    g.fillStyle = '#c8302a'; g.fillRect(12, 10, 16, 3);           // the visor
-    g.fillStyle = '#e6dcc6'; g.fillRect(12, 12, 16, 1);
-    g.fillStyle = '#241a12'; g.fillRect(16, 16, 2, 2); g.fillRect(22, 16, 2, 2);
-    g.fillStyle = '#8a5a4a'; g.fillRect(18, 20, 4, 1);
-    dither(g, 40, 64, 18);
-  });
-  const person = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 1.85),
-    new THREE.MeshBasicMaterial({ map: crewPersonT, alphaTest: 0.5, side: THREE.DoubleSide }));
-  put(person, -2.2, 0.925, CZ - 0.72);
+  // From the citizen atlas, like everyone on the street — she was a
+  // hand-painted plane copied from the diner's waitress, who was the original
+  // mistake. Red polo and a visor rather than the diner's dress and apron:
+  // the two rooms should employ visibly different decades of person, and that
+  // difference survives the move to the atlas because it is in the colours.
+  room.person({
+    jacket: '#c8302a', pants: '#4a4a52', skin: '#a87a52', hair: '#2a2622',
+    fit: 'cap', accent: '#e6dcc6', cut: 'crop', build: 0,
+  }, CCX - 1.8, CZ - 0.72, { facing: Math.PI, h: 1.0, w: 0.95 });
 
 }
