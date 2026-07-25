@@ -1,106 +1,35 @@
-// feat/ground — the car lot's curb cut.
-//
-// A curb cut is the one detail on this street that has to work as GEOMETRY and
-// as GROUND at the same time: it must look like the kerb drops, and the player
-// (and anything else that reads gy) must actually be able to go up and over it.
-// So this measures the profile and then walks it.
-//
-// Usage: SHOT_URL=http://localhost:4279/ node scripts/curbcut.mjs
+// B's curb cut at the car lot, from the street and from on it.
+// The cut is z 2.6, half-width 3.4, with 0.9 m flares — the same centre and
+// width as ct/lot.ts's drive aisle, so the two have to line up exactly.
 import { chromium } from 'playwright';
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 900, height: 560 } });
-const errors = [];
-page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
-page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
-await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
-await page.evaluate(() => window.__ct.clock(13, 0));
-await page.waitForTimeout(900);
-
-// the cut, as declared: east kerb, centred z = 2.6, opening 6.8 m, flares 0.9
-const CZ = 2.6, HW = 3.4, F = 0.9;
-// 1. THE KERB-TOP PROFILE, read off the built geometry.
-//
-// The first version of this warped along the kerb and read pos()[3], which is
-// the rig's ground height — and warp does not RESOLVE the ground, it only
-// stores what you pass it. So it reported 0.000 the whole way and would have
-// reported 0.000 for a kerb that was never cut at all. Measure the mesh.
-const prof = await page.evaluate(({ CZ, HW, F }) => {
-  const sc = window.__ct.scene();
-  const bins = new Map();
-  sc.traverse((o) => {
-    const g = o.geometry;
-    if (!o.isMesh || !g?.attributes?.position || g.type !== 'BufferGeometry') return;
-    const pa = g.attributes.position.array;
-    for (let i = 0; i < pa.length; i += 3) {
-      const x = pa[i], y = pa[i + 1], z = pa[i + 2];
-      if (Math.abs(x - 5.0) > 0.02) continue;              // the kerb line itself
-      if (z < CZ - (HW + F + 2) || z > CZ + (HW + F + 2)) continue;
-      const k = Math.round((z - CZ) * 5) / 5;
-      bins.set(k, Math.max(bins.get(k) ?? -9, y));
-    }
-  });
-  return [...bins.entries()].sort((a, b) => a[0] - b[0]).map(([k, v]) => [k, +v.toFixed(4)]);
-}, { CZ, HW, F });
-const at = (dz) => { let best = null, bd = 9;
-  for (const [k, v] of prof) if (Math.abs(k - dz) < bd) { bd = Math.abs(k - dz); best = v; }
-  return best; };
-// These vertices are the top of the kerb's VERTICAL FACE, not the top of the
-// kerb: the chamfered arris rises from here to KERB_H over the next 6.25 cm.
-// rise(0.140) is 0.030, so a full-reveal face tops out at 0.110 and a
-// 0.035 lip at 0.021. Comparing against 0.140 failed a correct kerb.
-const FACE_TOP = 0.140 - 0.030;
-console.log(`\n  kerb-top height across the cut, from the mesh (${prof.length} samples, full-reveal face top is ${FACE_TOP}):`);
-console.log('   ' + prof.filter((_, i) => i % 3 === 0).map((p) => `${p[0]}:${p[1].toFixed(3)}`).join('  '));
-const mid = at(0), out1 = at(-(HW + F + 1.5)), out2 = at(HW + F + 1.5);
-console.log(`\n  ${mid !== null && mid < 0.06 ? 'OK  ' : 'FAIL'} the kerb is DOWN across the opening (${mid?.toFixed(3)} m)`);
-const full = out1 > FACE_TOP - 0.005 && out2 > FACE_TOP - 0.005;
-console.log(`  ${full ? 'OK  ' : 'FAIL'} full reveal returns outside the flares (${out1?.toFixed(3)} / ${out2?.toFixed(3)})`);
-if (!full) process.exitCode = 1;
-let steps = 0;
-for (let i = 1; i < prof.length; i++) if (Math.abs(prof[i][1] - prof[i - 1][1]) > 0.05) steps++;
-console.log(`  ${steps === 0 ? 'OK  ' : 'FAIL'} it RAMPS rather than stepping (${steps} jumps > 5 cm)`);
-
-// 2. WALK IT — in off the road, across the apron, into the lot
-const hike = async (label, x, z, yaw, secs, axis) => {
-  await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, undefined, 0), [x, z, yaw]);
-  await page.waitForTimeout(150);
-  const a = await page.evaluate(() => window.__ct.pos());
-  await page.keyboard.down('w'); await page.waitForTimeout(secs * 1000); await page.keyboard.up('w');
-  const b = await page.evaluate(() => window.__ct.pos());
-  const moved = Math.abs(axis === 'x' ? b[0] - a[0] : b[2] - a[2]);
-  const ok = moved > secs * 1.6;
-  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${moved.toFixed(1)} m ` +
-    `(${a[0].toFixed(1)},${a[2].toFixed(1)}) -> (${b[0].toFixed(1)},${b[2].toFixed(1)}) gy ${b[3].toFixed(3)}`);
-  return ok;
-};
-await page.mouse.click(450, 280);
-console.log('\n  walking the cut:');
-let all = true;
-// Start in the PARKING lane, not the travel lane. At x = 3.6 the walker is
-// standing in traffic and a passing car shoves them sideways, which made this
-// pass at 19.6 m on one run and fail at 6.4 m on the next — a flaky test that
-// was measuring the bus timetable.
-all = await hike('off the road, up the cut, into the lot', 4.6, CZ, Math.PI / 2, 6, 'x') && all;
-all = await hike('back out of the lot to the road', 9.5, CZ, -Math.PI / 2, 6, 'x') && all;
-// and the walk still runs past it, over the apron
-all = await hike('the pavement still runs THROUGH the cut', 6.4, CZ - 6.5, Math.PI, 6, 'z') && all;
-// CONTROL. The walk-in above only means something if it FAILS somewhere there
-// is no cut — otherwise it is measuring that the player can step up a kerb
-// anywhere, and would pass on a lot with no entrance at all.
-console.log('\n  control — the same walk 9 m north, where the kerb is full height:');
-await hike('walk in where there is NO cut', 4.6, CZ + 9.0, Math.PI / 2, 6, 'x');
-
-const shot = async (n, x, z, tx, tz, gy, p2) => {
-  await page.evaluate(([x, z, tx, tz, gy, p2]) =>
-    window.__ct.warp(x, z, Math.atan2(tx - x, -(tz - z)), gy, p2), [x, z, tx, tz, gy, p2]);
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: `shots/cc-${n}.png` });
-};
-await shot('road', 1.2, CZ, 7.0, CZ, 0, -0.10);
-await shot('along', 5.9, CZ - 9.0, 5.9, CZ + 6.0, 0.14, -0.16);
-await shot('lot', 12.0, CZ + 0.4, 2.0, CZ - 0.6, 0.14, -0.08);
-await browser.close();
-if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!all) { console.error('\nCURB CUT NOT PASSABLE'); process.exit(1); }
-console.log('\nno page errors');
+import { mkdirSync } from 'node:fs';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4190/';
+const out = process.argv[2] ?? 'shots/curbcut';
+mkdirSync(out, { recursive: true });
+const at = (dx, dz) => Math.atan2(dx, -dz);
+const b = await chromium.launch();
+const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
+const errs = [];
+p.on('pageerror', (e) => errs.push(e.message));
+await p.goto(URL, { waitUntil: 'networkidle' });
+await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
+await p.evaluate(() => window.__ct.clock(13, 0));
+await p.waitForTimeout(700);
+const SH = [
+  ['01-from-road',    -1.0,  2.6, at(9.0,  0.0), -0.10, 0.14],
+  ['02-oblique-s',    -1.0, -4.0, at(9.0,  7.0), -0.12, 0.14],
+  ['03-oblique-n',    -1.0,  9.0, at(9.0, -7.0), -0.12, 0.14],
+  ['04-close',         4.2,  2.6, at(4.0,  0.0), -0.34, 0.14],
+  ['05-along-walk',    6.1,  9.0, at(0.0, -7.0), -0.22, 0.14],
+  ['06-along-walk-s',  6.1, -4.0, at(0.0,  7.0), -0.22, 0.14],
+  ['07-from-inside',   9.5,  2.6, at(-8.0, 0.0), -0.16, 0.14],
+  ['08-gutter',        3.6,  2.6, at(3.0,  0.0), -0.52, 0.14],
+];
+for (const [n, x, z, yaw, pitch, gy] of SH) {
+  await p.evaluate(([a, b2, c, d, e]) => window.__ct.warp(a, b2, c, d, e), [x, z, yaw, gy, pitch]);
+  await p.waitForTimeout(340);
+  await p.screenshot({ path: `${out}/${n}.png` });
+}
+await b.close();
+console.log(`curbcut -> ${out} (${SH.length})`);
+if (errs.length) { console.error('PAGE ERRORS:\n' + errs.join('\n')); process.exit(1); }

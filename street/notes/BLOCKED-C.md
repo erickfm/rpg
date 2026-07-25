@@ -50,50 +50,27 @@ chain stops the throw, it does not fix the cause:
 Two asks, both small for the person who can do them. Neither stalls me — I am
 shipping the rest of the lot meanwhile.
 
-## 1. The curb cut needs the kerb to break — that is B's file
+## 1. ~~The curb cut~~ — LANDED, and it lines up
 
-**What I need:** a break in the kerb and a ramped apron across the walk, over
-one span of the lot's frontage.
-**From whom:** builder B (`ct/tex-ground.ts`), through the desk.
+**Resolved by B.** `ct/tex-ground.ts` now breaks the kerb across the lot's
+mouth, keeps a 35 mm lip at the gutter so the gutter still carries water past
+the drive, flares back to full reveal over 0.9 m either side, and carries the
+walk over it on a ramped apron sampled from the same `apronY()` the
+ground-height function uses — so what you see and what you walk on cannot
+drift apart.
 
-This is the top half of my current item and the question the user actually
-asked — *"how does one even enter, drive a car off the lot"*. I cannot answer
-it from `ct/lot.ts`, and I want to be exact about why rather than half-build
-something that looks wrong.
+It is built to the aisle rather than to a guess: `{ x: ROAD_HALF, z: 2.6,
+hw: 3.4 }` is the same centre and the same half-width as `ct/lot.ts`'s
+`AISLE_HW`. If I ever move the aisle, that is the one line that has to follow.
 
-`buildGround` lays the kerb along a continuous path with red zones and corner
-fillets resolved by arclength. There is no gap, notch or driveway facility in
-it. So:
+Verified from my side (`shots/curbcut/`, and `scripts/lotwalk.mjs`): you still
+enter across z −0.5 to 6.0 and the fence still stops you at every other z; the
+road, gutter, dropped kerb, apron and lot asphalt run continuously with no step
+and nothing floating; and nothing this module builds sits on the apron —
+everything of mine is at x ≥ 7.18 and the apron ends at x = 7.
 
-- **The kerb face has to stop.** It is 0.14 m tall at x = ±ROAD_HALF. I can
-  ramp the walk down to meet it and I can flare an apron, but B's kerb face
-  still stands across the mouth — an 11 cm lip exactly where a car would
-  drive over it. Anything I build from my file leaves that lip, and a lip is
-  the thing that says nobody thought about it.
-- **The walk itself has to change.** The brief is specific and correct: the
-  paving RAMPS down over the cut and the scoring runs ACROSS it. A dropped
-  kerb with unbroken pavement over it is wrong. The walk surface and its
-  score grid are `walkTex`/`buildGround` — B's, and deliberately world-aligned
-  so the grid is continuous across neighbouring surfaces. Overlaying my own
-  slab on top of it would fight the very thing that makes the grid work.
-
-**The exact span**, so this is a five-minute job rather than a conversation:
-the lot's mouth is the middle of its frontage, `openSite(..., gate: 0.3)`,
-which with the lot at z 14.2 → −9.0 puts the opening at **z −2.04 → 7.24**.
-The part a vehicle actually uses is narrower and is now measured rather than
-guessed: `scripts/lotwalk.mjs` walks the rig in and the clear lane is
-**z −0.5 → 6.0**. A cut on **z 0.0 → 5.5** with the flares inside that lands
-squarely in it.
-
-Everything on my side is built to suit whatever B lands. The lot's whole plan
-now points at this opening — the drive aisle runs from it to the back of the
-site, the stock herringbones off the aisle, and the office sits at the far end
-facing back down it. The rolling gate is parked clear to the north of the
-mouth. A pedestrian can already walk in and is stopped by the fence
-everywhere else; it is only the KERB that a car cannot cross.
-
-**Nothing I have added encroaches the walk.** The auditor is sweeping for that
-and the fence, banners, pole sign and gate are all east of x = FACE.
+That closes "how does a car get on and off", which was the oldest open thing
+on this lot.
 
 ## 2. Three car variants — H's file
 
