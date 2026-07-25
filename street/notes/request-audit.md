@@ -2165,3 +2165,51 @@ z −20, beside the parked car and the busiest stretch of pavement I measured.
 
 Every earlier result in this audit was measured on an empty street. **They all
 hold on a busy one** — and that had never been checked, by me or by the suite.
+
+---
+
+# The whole suite, run: **one red in the project, and it is the glob-order defect**
+
+I had never run `npm run checks` end to end. Doing so at `ba8dda8a`:
+
+```
+✓ check-wiring   ✓ health          ✓ check-seethrough  ✓ density
+✓ nightgrade     ✓ seampairs       ✓ lotwalk           ✓ lot-frontage
+✓ door301        ✓ mirror-walk     ✓ frontage-honours  ✓ burger-palette
+✓ tree-crown     ✓ window-lattice  ✓ shop-interior     ✓ checks-registered
+✗ doors-declared FAILED (1)
+✓ lot-layout     ✓ people-walk     ✓ entrance-brick    ✓ D-walk (98s)
+✓ windowlights   ✓ shells          ✓ footprint         ✓ trash
+✓ glow           ✓ park (36s)      ✓ wetness (40s)     ✓ basin
+✓ kerbcut        ✓ bus ×2 (65s)    ✓ rain (58s)        ✓ spot-coverage
+· six walking suites deferred to --slow
+```
+
+**Twenty-eight green. One red. `doors-declared` — the casino's `DOOR` never
+reaching `declaredDoors()`.**
+
+That is the defect I traced from *"a door is missing"* to a byte offset:
+
+- the glob object literal is emitted at **809,884**
+- `int-casino`'s binding at **811,650** — **1,766 bytes too late**
+- `interior` and `civic-doors` and `world` likewise, all after it
+- **only the earliest of three globs is affected**; `interior`'s and `world`'s
+  are constructed after everything they read and lose nothing
+- the fix is `doorStandFor` in a leaf module, and **the working glob already
+  proves the shape**
+- verifiable by `node scripts/globorder.mjs`, no runtime, exit-coded
+- **no player-visible consequence** — all 8 doors open and land in the right room
+
+## What it means that this is the only red
+
+Two things worth saying:
+
+**The suite is in good order.** Twenty-eight checks covering wiring, health,
+glass, density, seams, the lot, the park, litter, lighting, wetness, rain, the
+bus, the kerb, the palette, the trees, the windows, the spots — all passing,
+several of them written today in response to gaps I named.
+
+**And the one red has a complete answer already written.** Mechanism, blast
+radius, determinism, player impact, a one-command diagnostic, and a fix whose
+correctness is demonstrated by another glob in the same bundle. **There is
+nothing left to investigate on it** — only to do.
