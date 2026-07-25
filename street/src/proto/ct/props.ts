@@ -1280,14 +1280,39 @@ export function buildProps(ctx: CtxBuild): Props {
   // Pivoted at its FOOT, not its centre: the joint with the seat is the thing
   // a recline most easily opens up, and rotating about the seat's back edge
   // means the two cannot separate no matter what angle is chosen.
+  //
+  // BEZELLED. Flush, the ad read as paint on a plank — a real bus-bench ad is
+  // a printed panel MOUNTED in a frame, and the frame is most of what says
+  // "sign" rather than "painted board". Four thin bars proud of the panel face
+  // on all four sides, in the bench's dark metal against the cream print, so
+  // the difference is material and not just relief. 20 mm on a 440 mm panel:
+  // a heavier frame at this scale starts eating the copy, which is the whole
+  // reason the ad is up here.
+  //
+  // Built as a GROUP so the bezel rides the recline with the panel instead of
+  // being positioned in a rotated frame by hand — one rotation, applied once,
+  // and the frame cannot drift off the thing it frames.
+  const backGrp = new THREE.Group();
   const backGeo = new THREE.BoxGeometry(0.07, BACK_LEN, BENCH_L);
   backGeo.translate(0, BACK_LEN / 2, 0);
   const back = new THREE.Mesh(backGeo,
     [flatT2(slatT), flatT2(adT), benchM, benchM, benchM, benchM]);
-  back.position.set(BX_BACK + 0.035, SEAT_Y, BENCH_Z);
-  back.rotation.z = -RECLINE;                // top leans AWAY from the sitter
-  scene.add(back);
-  lit(back);
+  backGrp.add(back);
+  const BZ = 0.020, BZP = 0.010;             // bar section, and how proud it sits
+  const bezelX = -0.035 - BZP / 2;           // just off the ad face, which is -x
+  for (const by of [BZ / 2, BACK_LEN - BZ / 2]) {          // top and bottom rails
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(BZP, BZ, BENCH_L), benchM);
+    bar.position.set(bezelX, by, 0); backGrp.add(bar);
+  }
+  for (const bz of [-1, 1]) {                              // the two stiles
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(BZP, BACK_LEN, BZ), benchM);
+    bar.position.set(bezelX, BACK_LEN / 2, bz * (BENCH_L / 2 - BZ / 2));
+    backGrp.add(bar);
+  }
+  backGrp.position.set(BX_BACK + 0.035, SEAT_Y, BENCH_Z);
+  backGrp.rotation.z = -RECLINE;             // top leans AWAY from the sitter
+  scene.add(backGrp);
+  lit(backGrp);
   // seat: three slats with gaps, so it reads as seating rather than a slab
   for (let i = 0; i < 3; i++) {
     const w = 0.15;
@@ -1297,14 +1322,11 @@ export function buildProps(ctx: CtxBuild): Props {
     scene.add(slat);
     lit(slat);
   }
-  // the front skirt — plain slats now. It carried the ad for one round, which
-  // put the biggest bright thing on the bench at knee height and left the
-  // largest face on it blank.
-  const kick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.30, BENCH_L),
-    [flatT2(slatT), flatT2(slatT), benchM, benchM, benchM, benchM]);
-  kick.position.set(BX_FRONT + 0.025, sidewalkY + 0.28, BENCH_Z);
-  scene.add(kick);
-  lit(kick);
+  // NO SKIRT. There was a slatted board under the seat front; it did nothing
+  // structurally or visually and it made the bench read as a heavy box rather
+  // than a seat on legs. The GAP under a bench is most of what makes one look
+  // light, and on a pavement this narrow it also opens the sightline along the
+  // walk. The legs carry the seat on their own, which is what legs are for.
   // four legs, not a solid box
   for (const sz of [-1, 1]) for (const lx of [BX_SEAT0 + 0.06, BX_SEAT1 - 0.05]) {
     const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), benchM);
