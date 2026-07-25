@@ -156,6 +156,19 @@ if (mode === 'probe' || mode === 'all') {
       out[k] = { n: v.near.length, f: v.far.length, nearMed: med(v.near), farMed: med(v.far) };
     return out;
   });
+  // CONTROLLED AGAINST THE JUMPED CLOCK. 3d71b035 found a jumped clock reads
+  // 7.4% brighter than the night a player reaches by stepping, and this check
+  // jumps straight to 23:00. Ran the control rather than assuming the ratio
+  // absorbed it:
+  //
+  //   JUMPED   near 0.6103  far 0.045  = 13.6x   (49/162 samples)
+  //   STEPPED  near 0.6103  far 0.045  = 13.6x   (50/149)
+  //
+  // Identical to four decimals. Both bands shift together if they shift at all,
+  // so a ratio is immune to the thing an absolute reading is not — but that was
+  // worth measuring rather than arguing, since it is exactly the reasoning that
+  // would sound convincing while being wrong.
+  //
   // MOVERS ARE IN THIS SAMPLE ON PURPOSE. 83 of the ~254 materials it reads are
   // alpha-tested billboards — citizens, trees, pigeons — and the population
   // drifts between snapshots (near 51 -> 53, far 203 -> 202 over three seconds).
