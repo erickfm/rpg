@@ -262,22 +262,22 @@ export function buildCasino(ctx: CtxBuild): void {
   put(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.07, 0.12), brassM), TX, 0.86, TZ - 0.34);
   solid(TX, TZ, 1.9, 1.2);
 
-  // the dealer, stood on the house side of it. Same billboard-free treatment
-  // as the diner's waitress: a plane with alphaTest, facing the room.
-  const dealerT = pixTex(32, 58, (g) => {
-    g.fillStyle = '#3a2226'; g.fillRect(9, 22, 15, 24);          // waistcoat
-    g.fillStyle = '#d8d0c0'; g.fillRect(12, 22, 9, 20);          // shirt
-    g.fillStyle = '#8a2c32'; g.fillRect(15, 22, 3, 8);           // bow tie ribbon
-    g.fillStyle = '#241e22'; g.fillRect(10, 44, 6, 13); g.fillRect(18, 44, 6, 13);
-    g.fillStyle = '#c9946a'; g.fillRect(5, 24, 4, 13); g.fillRect(24, 24, 4, 13);
-    g.fillStyle = '#b8845a'; g.fillRect(13, 8, 10, 12);          // head
-    g.fillStyle = '#2a2018'; g.fillRect(12, 5, 12, 6);           // hair
-    g.fillStyle = '#241a12'; g.fillRect(15, 13, 2, 2); g.fillRect(20, 13, 2, 2);
-    dither(g, 32, 58, 18);
-  });
-  const dealer = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8),
-    new THREE.MeshBasicMaterial({ map: dealerT, alphaTest: 0.5, side: THREE.DoubleSide }));
-  put(dealer, TX, 0.9, TZ - 0.95);
+  // The dealer, on the house side of the table, from the 8-ANGLE ATLAS.
+  //
+  // He was a hand-painted plane whose own comment said "same billboard-free
+  // treatment as the diner's waitress" — which was true, and the waitress was
+  // the mistake being copied. The user: *"the people inside these places are
+  // always flat and not like the people on the street."* Every figure indoors
+  // traced back to her; she went onto the atlas first and this is the last one
+  // in the interiors.
+  //
+  // Black waistcoat over a white shirt: house uniform, described to the atlas
+  // rather than drawn. `ct/citizens.ts` has no bow tie, so the shirt is the
+  // accent — worth asking H for, not worth hand-drawing around.
+  room.person({
+    jacket: '#3a2226', pants: '#241e22', skin: '#b8845a', hair: '#2a2018',
+    fit: 'plain', accent: '#d8d0c0', cut: 'short', build: 0,
+  }, TX, TZ - 0.95, { facing: 0, h: 0.98, w: 0.95 });
 
   // ── the cage ──
   //
