@@ -119,7 +119,7 @@ different aggregate, most likely. **Worth reconciling before either number is
 quoted anywhere.**
 
 The reason is worth keeping, because it is an argument for the change rather than
-luck: since `5d2c5c9`-era this chain reads the **published** `nightFactor`, a
+luck: since `5d5c2b9f` this chain reads the **published** `nightFactor`, a
 scalar props recomputes from absolute time every frame. A published number has no
 history. The heuristic it replaced read `scene.background`, which is exactly the
 kind of state that can carry one — the same class of path-dependence D found in
