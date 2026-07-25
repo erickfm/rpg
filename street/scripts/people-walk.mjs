@@ -34,11 +34,22 @@ const r = await p.evaluate(([BOX]) => {
   const V = window.__ct.scene().position.constructor;
   const atlas = [], suspects = [];
   window.__ct.scene().traverse((o) => {
-    const m = Array.isArray(o.material) ? null : o.material;
-    if (!o.isMesh || !m || !m.map || !o.geometry?.parameters) return;
+    // EVERY material on the mesh, not just a lone one. This opened with
+    // `Array.isArray(o.material) ? null : o.material`, which drops a
+    // multi-material mesh entirely — and a7f2241d, bb23c8b3 and 8ceded66 have
+    // just found the identical blind spot in nightgrade, glow's pool sampler
+    // and an hours sweep, the last of which reported it was seeing 51% of the
+    // world. A figure painted on one face of a box was invisible here, which
+    // is precisely the sort of thing this check exists to catch.
+    if (!o.isMesh || !o.geometry?.parameters) return;
+    const mats = (Array.isArray(o.material) ? o.material : [o.material]).filter((mm) => mm?.map);
+    if (!mats.length) return;
     const w = new V(); o.getWorldPosition(w);
     if (BOX && (w.x < BOX[0] || w.x > BOX[1] || w.z < BOX[2] || w.z > BOX[3])) return;
-    if (Math.abs(Math.abs(m.map.repeat.x) - 0.2) < 0.001) { atlas.push(+w.x.toFixed(0)); return; }
+    if (mats.some((mm) => Math.abs(Math.abs(mm.map.repeat.x) - 0.2) < 0.001)) {
+      atlas.push(+w.x.toFixed(0)); return;
+    }
+    const m = mats[0];
     // PERSON-shaped, which is narrower than prop-shaped. A standing figure is
     // about 1:1.8 — the waitress was 1.20 x 1.90 and the casino dealer 1.00 x
     // 1.80. Interiors are also full of standing PROPS on alphaTest planes: the
@@ -46,7 +57,7 @@ const r = await p.evaluate(([BOX]) => {
     // squatter. The ratio is what separates them, and it is a heuristic — a
     // genuinely stout person or a very tall plant would need a human eye.
     const { width: pw, height: ph } = o.geometry.parameters;
-    if (o.geometry.type !== 'PlaneGeometry' || m.alphaTest !== 0.5) return;
+    if (o.geometry.type !== 'PlaneGeometry' || !mats.some((mm) => mm.alphaTest === 0.5)) return;
     if (Math.abs(o.rotation.x) > 0.01) return;
     if (pw >= 0.8 && pw <= 1.4 && ph >= 1.5 && ph <= 2.1 && ph / pw >= 1.55)
       suspects.push(`${pw.toFixed(2)}x${ph.toFixed(2)} (ratio ${(ph / pw).toFixed(2)}) @ x=${w.x.toFixed(0)}`);
