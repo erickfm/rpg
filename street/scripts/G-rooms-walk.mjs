@@ -265,12 +265,34 @@ for (room of rooms) {
   if (!room.skipBack) await probe(room.backProbeX, room.backProbeZ, '-z', 'z', LIMZ, -1);
 
   // the doorway is the one gap in the collider line — the one place a room leaks
+  //
+  // Walk until the player STOPS, not for a fixed time. This was `hold('w', 2600)`
+  // and that is the defect this same file already fixed for the prompt walk 100
+  // lines up: a fixed hold measures the clock, not the world. 2600 ms covers
+  // about 8.2 m, the hotel's run from clearZ to its front wall is 8.4, so the
+  // walker was being stopped by running out of time roughly where the wall is —
+  // 0.21 m of margin between "the collider held" and "the hold expired", and no
+  // way to tell which had happened. A leak of up to a fifth of a metre past the
+  // wall would have read as a pass every time.
+  //
+  // This check reported a spurious FAIL once (z = 9.00) and it is still the only
+  // observation of it: five walk-until-stopped runs at that doorway all stop at
+  // z = 4.29, and mainline without my change passes too, so it is neither the
+  // world nor the change. I have not identified the mechanism. Recorded rather
+  // than tidied away, because "it passed when I ran it again" is how a real
+  // intermittent leak gets closed.
   await warp(CX + room.at, room.clearZ, Math.PI, 0);
   await p.waitForTimeout(150);
-  await hold('w', 2600);
-  const doorRun = await pos();
+  let doorZ = (await pos())[2];
+  for (let i = 0; i < 14; i++) {
+    await hold('w', 500);
+    const c = await pos();
+    if (c[2] - doorZ < 0.05) break;               // stopped: something is holding
+    doorZ = c[2];
+    if (c[2] > hd + 1.5) break;                   // well out — no point continuing
+  }
   check('you cannot walk out through the doorway onto dead ground',
-    doorRun[2] < hd + 0.4, `walking at the door reached z=${f2(doorRun[2])} (front wall at ${hd})`);
+    doorZ < hd + 0.4, `walked at the door until stopped, z=${f2(doorZ)} (front wall at ${hd})`);
 
   // ── the lanes ────────────────────────────────────────────────────────
   for (const [name, lx, lz, key, ms, axis, want] of room.lanes) {

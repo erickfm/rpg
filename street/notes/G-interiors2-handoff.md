@@ -890,3 +890,112 @@ The right conclusion is that this room is exempt: four of five verify, and the
 fifth has no asymmetry to check. If a handedness check over all rooms is wanted,
 it should skip rooms whose declared `at` is 0 and say why, rather than report them
 as unmeasured.
+
+## 3. The side-street doors were authored twice, in my own file (c953e3a0)
+
+Found while checking whether A's `ct/doors.ts` circular-import finding
+(`709ddfed`) was actually biting. It is not, at that HEAD — all eight
+declarations resolve, mine included, measured in the browser:
+
+```
+declarations collected: 8
+A-1 TAX | BODEGA | BURGER BARN | DINER | GOLDEN ACES | HOTEL ORPHEUS | PAWN | THRIFT
+doorStandFor: GOLDEN ACES=ok  HOTEL ORPHEUS=ok  A-1 TAX=ok  PAWN=ok
+```
+
+So the cycle is **latent, not active** — worth fixing, not urgent.
+
+But looking for it surfaced the same defect one layer down in `ct/vice.ts`:
+
+```
+vice.ts:148   const doorU = 0.4944;    // == world x 51.29
+vice.ts:239   const doorU = 0.495;     // == world x 39.51
+```
+
+against `face: { x: 51.29 }` and `{ x: 39.51 }` in the two rooms. **One fact,
+two authorings** — and the silent kind, because the failure is a painted door a
+metre from the `[E]` prompt and nothing throws. This is the fourth time this
+exact class has come out of my work; the first three were in
+`scripts/G-*.mjs` and I had assumed the source was clean because I had been
+looking at the checks.
+
+`VICE_DOOR_X` in `vice.ts` is now the only authoring. The band painters derive
+`u`; both rooms read `face.x` from it.
+
+### Why the arrow points painter → room, which is backwards
+
+The natural direction is for the painter to ask `doorPointFor` for the
+declaration. **That one is not safe yet.** `vice.ts` paints during
+`buildStreet`, which runs before any `int-*.ts` module is evaluated, so calling
+`doorPointFor` there reads the glob mid-initialisation — precisely A's hazard.
+Painter → room adds no cycle at all, because both rooms already import `tube`
+from `vice.ts`. **When `doors.ts` is split so its lookup globs nothing, this can
+and should invert.**
+
+### The prose was wrong too, and had been all along
+
+Both room headers did the same arithmetic in words, and **both figures in both
+files were wrong**: "u = 0.4946 of a 92-texel shopfront" against a real 185
+texels at 0.4944, and "0.4948 / 96" against 192 at 0.495. Wrong for as long as
+they had existed, with nothing visibly out of place, because prose is not
+compiled and no check reads it. Worth stating as its own category: the
+two-authorings rule applies to comments, and comments are the copy that cannot
+fail loudly.
+
+### Verified world-neutral rather than asserted
+
+- derived `u` lands on the **same texel** as the literal (91 and 95)
+- `fpdiff`: **textures IDENTICAL 954/954, structure IDENTICAL 3489/3489**
+- the 3 `tints` diffs are the chase recolouring its own shared materials
+  mid-animation; the 2 `places` diffs are pigeons 2 cm apart
+- `tsc` clean; all 8 declarations still resolve, no `NaN`
+
+## 4. Two faults in MY OWN walk scripts, both found by a failure I nearly dismissed
+
+The commit above verified clean, but the two walks came back **12/13 and
+101/102** where both had been green. Neither failure was the change — mainline
+with my work stashed passes 102/102, and the fingerprint says no geometry moved
+— but "my diff cannot have caused it" is the reasoning that has burned me
+before, so I measured instead of arguing.
+
+**`G-vice-walk.mjs` — `runEast(..., 1)` turned a citizen into a facade defect.**
+The check reported `x = 34.00`, its own start point. Probing that lane by hand
+straight afterwards reached **36.06 — the column, exactly where it belongs**:
+
+```
+z=-97.5  landed x=34.00  →  reached x=36.06     (expected band 35.8 … 36.6)
+```
+
+`runEast` takes the **max** over its tries and its own comment says "citizens
+are obstacles too". For a check of the form *you get this far and no further*, a
+retry can only correct a wanderer blocking the start — there was never a reason
+to pass `tries = 1`. Fixed to the default 3. The upper bound stays, so a
+vanished column still fails.
+
+**`G-rooms-walk.mjs` — the doorway check was measuring the clock.** It held `w`
+for a fixed 2600 ms, which covers ~8.2 m; the hotel's run from `clearZ` to its
+front wall is 8.4 m. So the walker was stopping *because the hold expired*,
+about where the wall is — **0.21 m between "the collider held" and "time ran
+out", with no way to tell which**. A leak of up to a fifth of a metre would have
+read as a pass forever. Now it walks until the player stops moving, which is the
+fix this same file already applied to the prompt walk 100 lines above. I fixed
+that one and left its twin directly below it.
+
+**One thing I could not explain, left in the file rather than tidied away.** The
+doorway check failed once with `z = 9.00` and that is still the only observation:
+five walk-until-stopped probes at that doorway all stop at **z = 4.29**, and
+baseline passes too. I do not have the mechanism. It is recorded in the source at
+the check, because *"it passed when I ran it again"* is exactly how a real
+intermittent leak gets closed.
+
+### The pattern across all three
+
+Every one is the same shape as something I had **already fixed elsewhere in the
+same file** — the typed constant, the fixed-time hold, the number copied out of
+the world into the check. Knowing the class does not find the instances; only
+running the thing and disbelieving the green does.
+
+Also, minor, for whoever maintains the docs: `CLAUDE.md` documents the sequence
+as `npm run fp before` → `npm run fp after` → `npm run fpdiff`, but `fpdiff`
+takes two paths and throws a `TypeError` on `undefined` without them. It is
+`npm run fpdiff -- shots/before.json shots/after.json`.
