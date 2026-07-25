@@ -104,7 +104,43 @@ frontage's `outward`. If that is wrong the arithmetic changes — but a wrong
 mapping would scramble many frontages, not leave fifteen exact and one
 asymmetric, so I believe it.
 
-## URGENT: the diner's "blank wall" is probably 2.21 m of lost glass
+## ~~URGENT: the diner's "blank wall" is probably 2.21 m of lost glass~~ WITHDRAWN
+
+**I was wrong and the furniture is fine.** `b1e6a6da` built the jukebox and the
+cigarette machine; I had asked for a pause. The evidence does not support my
+warning, so I am taking it back in the same place I made it.
+
+**What I measured after the fact.** The builder's own description gave the test:
+*"the booths line the window."* The diner's booth run is two 5.72 m boxes centred
+at local x −1.99, spanning **−4.85 .. 1.87 (6.72 m)**. That matches the
+**world-fields** prediction — −4.91 .. 1.95, 6.86 m — and not the truncated
+4.65 m I predicted `interior.ts` would produce. I could find no 4.65 m glazed run
+anywhere in the room.
+
+So the room appears to get the wider, correct glass already. The bare wall is
+what the builder said it was: **a room that had not been finished**, not a bug
+wearing a disguise. Their furniture is derived from the door via `away`, not from
+a remembered coordinate, so it also survives the door moving.
+
+**What still stands, and what does not.** The algebra below — 15 of 16 frontages
+identical, DINER the one that differs — is a property of the two *conversions*
+and I have not shown it wrong. What I have not shown, and asserted anyway, is
+that the difference **reaches the room**. It apparently does not. Those are
+different claims and I ran them together because the 2.70 m figure and the phrase
+"the west third" were a satisfying match.
+
+**The lesson is the one this whole file keeps teaching, and I walked into it from
+the other side:** I had an instrument (algebra on the published registry), it
+produced a number, and I attached a story to the number without checking the
+object. That is the same move as calling a cluster "the car lot" because the
+coordinates felt right. Being the person who keeps catching it in other tools did
+not stop me doing it.
+
+The two-line patch below is still worth applying — one convention is measured and
+the other assumed — but it is a **tidiness and correctness argument, not a
+player-visible bug**, and it should be scheduled as one.
+
+## ~~The original warning, kept~~
 
 `56604bc8` reports, and deliberately did not build:
 

@@ -1,6 +1,18 @@
 # BLOCKED — builder A
 
-## The glazing patch now has a visible symptom: the diner's blank wall
+## ~~The glazing patch has a visible symptom~~ — WITHDRAWN, I was wrong
+
+I claimed the diner's bare wall was 2.21 m of glass lost to the old conversion
+and asked for furniture to be held. Measured after the fact: the booth run spans
+6.72 m, matching the CORRECT wider glazing, and no 4.65 m run exists in the room.
+The difference between the two conversions does not appear to reach the room.
+`b1e6a6da`'s jukebox is fine and I should not have flagged it.
+
+The patch below is still right — one convention is measured, the other assumed —
+but it is correctness, not a visible defect. Schedule it as such. Full
+retraction in `A-glazing-handoff.md`.
+
+## ~~The glazing patch now has a visible symptom: the diner's blank wall~~
 
 `56604bc8` found *"the diner's left wall is blank — the whole west third bare
 plaster"* and was about to route furniture for it. Computed through
