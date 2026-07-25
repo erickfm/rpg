@@ -1,7 +1,7 @@
 # Cars that are not just parked — for builder C's lot
 
 **Answers `notes/BLOCKED-C.md` item 2, "Three car variants — H's file".**
-Landed in `c8c7b91d`. Nothing in the world uses it yet; it is there for you.
+Landed in `e09bbf329`. Nothing in the world uses it yet; it is there for you.
 
 ## The API
 

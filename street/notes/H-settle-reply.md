@@ -115,14 +115,14 @@ and the flag was correct at the time it was taken.
 it.** That list finds `keyboard.down(...)` followed by a fixed `waitForTimeout`.
 In `crowd-walk` the only thing matching that shape was a `hold(key, ms)` HELPER
 whose last caller went away when I rewrote the west-lane check to sample while
-the key is held (`ccf98753`). It sat there as dead code and kept the script on
+the key is held (`81603988a`). It sat there as dead code and kept the script on
 the list. Deleted.
 
 The one remaining hold in that file is the sampled loop, and nothing concludes
 anything from its duration — the key is held for six seconds because that is how
 long you need to be exposed to the crowd, and the assertion is over the position
 samples taken during it. `side-walk`'s four hikes are the same shape after
-`eb48fb36`.
+`6907ea698`.
 
 **So a fixed hold is not the defect; concluding from the duration is.** A script
 that holds a key for eleven seconds and then asks "did the longest stall exceed

@@ -25,7 +25,7 @@ fault this project keeps hitting with tools, applied to prose.
 
 ## Done — queue item 1: split the walking sim into `ct/crowd.ts`
 
-**Commit:** `09b8323`
+**Commit:** `38cf9e640`
 
 ### What the queue asked for vs. what was actually there
 
@@ -250,7 +250,7 @@ full probe afterwards rather than assuming, and both are above.
 
 ## Done — the truck: tailgate, bed, and off the alley mouth
 
-**Commit:** `0abcbdf` · three queued items, one vehicle, one pass. Full reasoning
+**Commit:** `9b2e89507` · three queued items, one vehicle, one pass. Full reasoning
 is in the commit message; the short version:
 
 - **"Janky textures on the back"** was **GOTCHAS §6, not §4.** The tailgate's
@@ -287,7 +287,7 @@ textures re-grain under the seeded harness. Grain, not geometry.
 
 ## Done — profile feet (third attempt)
 
-**Commit:** `49bb098` · `ct/citizens.ts` came to me with this item.
+**Commit:** `053627b04` · `ct/citizens.ts` came to me with this item.
 
 Two separate faults. **A standing citizen had one leg** — both legs were drawn
 at `cx-2±stride`, the same x when stride is 0, and the back one was a 35%-alpha
@@ -317,7 +317,7 @@ billboard's yaw. 22 profile cases, both columns, all forward.
 
 ## Done — pedestrians route over a walkable graph
 
-**Commit:** `b34e9c5` · **new:** `ct/crowd-net.ts`
+**Commit:** `7c93e47ad` · **new:** `ct/crowd-net.ts`
 
 The sidewalk is one continuous ring around the roadway, so the graph is that
 ring, with every node derived from the constants the ground is built from. Plus
@@ -367,7 +367,7 @@ which GOTCHAS §2 requires or every tree height and parked car downstream shifts
 Full reasoning is in each commit; this is the index and the parts worth carrying
 forward.
 
-**A face read as three colours** (`d9690d4`). The head is 10 texels across and
+**A face read as three colours** (`649519892`). The head is 10 texels across and
 carried 3 lightened + 4 true skin + 3 darkened. The file already had the rule and
 had not applied it here — the torso's own comment says *"narrow 2 px rim lighting,
 not wide bands"* on a body 14 wide, and the head is narrower and was getting 3.
@@ -375,7 +375,7 @@ Now 1 texel each side at a third of the alpha. `scripts/faces.mjs` measures the
 cheek row on every skin tone, because these are alpha overlays and a band that is
 subtle on a mid tone is not on a dark one.
 
-**A pedestrian jittered** (`10457ab`). Two roots, one shared: **per-frame
+**A pedestrian jittered** (`78a8b6a57`). Two roots, one shared: **per-frame
 decisions with no memory.** The avoidance re-chose its passing side every frame
 from an ordered list, and the sprite re-rounded its heading to one of 8 sectors
 every frame. 67 travel reversals in 60 s became 1. Fixed by carrying state — a
@@ -383,7 +383,7 @@ committed offset and sector hysteresis. Note "lower id yields" **starved the
 block** (id 0 gave way to all five others and completed no long trips); the
 tie-break alternates by pair parity instead.
 
-**Two citizens froze in the carriageway** (`fbdabde`). A *different* root, worth
+**Two citizens froze in the carriageway** (`d09751a37`). A *different* root, worth
 keeping separate: the sim could refuse an illegal position but never resolve one.
 Took ct/fp.ts's mechanism rather than inventing a second — minimum-translation
 escape with the citizen's own 0.28 footprint, eased not snapped, and after 1.2 s
@@ -395,9 +395,9 @@ the fleet, because the ending is a proportion, not a drawing:
 - attempt one stepped it and produced a black bar UNDER the tyre (its steps
   topped out at y=0.59; the tyre's top is 0.68) and buried the wheel by moving it
   inboard — the flank is opaque, so a tyre tucked inside it is simply not there
-- reverted (`cd2e3f8`) on the user's own reasoning: a clipping wheel that reads as
+- reverted (`eeb554780`) on the user's own reasoning: a clipping wheel that reads as
   a wheel beats a modelled one that reads as a bar
-- then the real term (`a574eb4`): the radius was a fixed **10 texels**, and a
+- then the real term (`522e27d26`): the radius was a fixed **10 texels**, and a
   texel is not a length here — the canvas is 96 wide however long the body is, so
   the same line gave 0.94 m on a sedan and 0.63 m on the pickup, against a 0.68 m
   tyre. Stated in metres now and converted per axis.
@@ -406,7 +406,7 @@ the fleet, because the ending is a proportion, not a drawing:
   be drawn well until either the wheel shrinks or the beltline rises. See *For
   the desk* below.
 
-**Cars stop their nose short, not their centre** (`b498b36`). `blockedAt()`
+**Cars stop their nose short, not their centre** (`1e0f6755a`). `blockedAt()`
 reports distance along the path, and the path carries the vehicle's CENTRE — so a
 car whose centre was 2.5 m away had its bumper in you. It settled into a 1.87 m/s
 creep (= `sqrt(2·3.5·0.5)`, which is how it was found) and then ct/fp.ts's new
@@ -414,7 +414,7 @@ depenetration pushed the player three metres down the road and the path cleared.
 **Two correct behaviours composing into a car that shoves pedestrians.** Fix is
 one term: `room = block - halfLen - STOP_GAP`.
 
-**The dangerous-gap rule** (`3b970d7`, `c60ce10`). `ct/gap.ts` holds it once and
+**The dangerous-gap rule** (`7148e296d`, `04f08feaa`). `ct/gap.ts` holds it once and
 both parked draws use it. Three things learned: the trap MOVES with the draw (the
 0.49 m slot I measured was gone a few commits later because new modules consume
 `rnd()` first); the check has to run at the END of the build, because half the
@@ -423,7 +423,7 @@ things a car can trap you against are registered later and some never go through
 citizens**, so a pedestrian passing a parked car forms a transient corridor that
 is not a defect. The probe samples twice and keeps only static boxes.
 
-**People, for everyone else** (`9c818a6`, `2f7fa68`). `notes/CITIZEN-STYLE.md`
+**People, for everyone else** (`157d8601a`, `dcc02711d`). `notes/CITIZEN-STYLE.md`
 plus `citizenSprite(look, opts)` — a ready-to-add billboarding mesh with the
 8-angle atlas, hysteresis and standing-vs-walking wired. Four cardboard people
 came from one missing document; F, G and C can each swap a plane for one call, and

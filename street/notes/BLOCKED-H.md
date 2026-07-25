@@ -75,7 +75,7 @@ Looking, not proving — the numbers are the proof.
 
 If the desk wants a side-by-side of options 1 and 2, say so and I will build
 option 2 behind a flag, shoot both from this same camera, and delete the flag
-once it is ruled on. Since `8d4d2939` and `bfcda08c` that is a one-line change
+once it is ruled on. Since `8d4d2939` and `7f8868543` that is a one-line change
 that already passes its own checks.
 
 ---
@@ -300,7 +300,7 @@ Neither blocks me; both make other people's failures silent.
    > `7db050f4`: `SHOT_WORLD=integration`. `27764977` was using the flag, not
    > luck — my reading below was wrong, and `518c5d26` corrected it. Used it
    > since: `carstate`, `gaps` and `park-repro` all pass against :5177, and it
-   > found two real faults in MY probes on the first run (`db06bc55`) — seven of
+   > found two real faults in MY probes on the first run (`32248f74b`) — seven of
    > them counted the integration world's dropped HMR socket as a page error and
    > failed with every assertion green, and `park-repro` could compare two loads
    > across a 15 s rebuild and call it a re-roll. Both fixed. The default path
@@ -310,7 +310,8 @@ Neither blocks me; both make other people's failures silent.
    re-verified an area against :5177 and got exit 0 on five probes — while I
    could not. Neither of us is wrong: `reportWorld` compares the served stamp to
    YOUR `HEAD`, and the integration build equals mainline only while no builder
-   has in-flight work. Measured just now: :5177 serves `a72cfb40` while my HEAD
+   has in-flight work. Measured just now: :5177 serves integration build `a72cfb40` (a
+   live-integrate commit, never on mainline — not a citation) while my HEAD
    and mainline are both `444d17bb`, so it would refuse today. Whether you can
    measure the world the user plays currently depends on whether anybody else
    happens to be mid-change.
@@ -323,7 +324,7 @@ Neither blocks me; both make other people's failures silent.
    `:4187` explicitly for that reason.
 
    I checked mine by hand instead, which is why this was a gap and not a
-   blocker.~~ In the :5177 build (`eeb9a3ab`): the three car variants all build
+   blocker.~~ In the :5177 integration build (`eeb9a3ab`, likewise not on mainline): the three car variants all build
    without throwing (12 / 9 / 16 meshes), 24 cars are placed exactly as in my
    worktree, and all six walkers moved 2.25–5.67 m over four seconds. The only
    page error is Vite's HMR socket, which is `live-integrate.sh` rebuilding.
