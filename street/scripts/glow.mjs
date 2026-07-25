@@ -252,6 +252,15 @@ if (mode === 'probe' || mode === 'all') {
       const area = p.w * p.w; let covered = 0;
       for (const q of solids) {
         if (q.y <= p.y + 1e-6 || q.y - p.y > 0.10) continue;
+      // A LID, NOT AN EDGE. A 2D footprint overlap cannot tell "lying on top
+      // of" from "standing beside": a kerb line measured 12 x 0.12 m and a
+      // basin grate bar 0.56 x 0.01 m both overlap a decal's footprint while
+      // occluding nothing. Found by running this same test over my ground
+      // decals — 12 of 26 showed coverage, every one of them a thin strip
+      // contributing 0.01-0.04 m2, and none of it real.
+      // Both dimensions must be at least 0.3 m before this counts as a lid.
+      // The park's residual 2% was exactly this artefact: a 2.4 x 0.18 m strip.
+      if (q.w < 0.3 || q.h < 0.3) continue;
         const ox = Math.min(p.x + p.w / 2, q.x + q.w / 2) - Math.max(p.x - p.w / 2, q.x - q.w / 2);
         const oz = Math.min(p.z + p.w / 2, q.z + q.h / 2) - Math.max(p.z - p.w / 2, q.z - q.h / 2);
         if (ox > 0 && oz > 0) covered += ox * oz;
