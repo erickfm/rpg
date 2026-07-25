@@ -548,3 +548,39 @@ arithmetic slip: not units, but mistaking a stopped body for street furniture.
 > **A citizen that has stopped is indistinguishable from a bollard unless you
 > wait longer than they do.** Double-sampling at 1.5 s is not waiting longer
 > than they do; the 25 s window mainline used is.
+
+# Re-graded after the tree moved: the lane the user called cramped
+
+My queue's user-quoting item:
+
+> **"in general we should not encroach the already cramped sidewalk"**
+
+The trees have moved twice since I last measured, both on the user's word. First
+*"i dont like how close the tree bases are to the edge here i think ideal would
+be with a bit of clearence on the curb side"* — `1a88b8c1b` moved the **trunk**
+kerb-ward to `TRUNK_X 5.46`, opening a 0.90 m squeeze to 1.10 m. Then
+*"the trunk sits hard against the kerb-side edge of its pit"* — `e05ff8a62`
+brought the **well** to match, since the trunk is pinned by that lane and cannot
+move back.
+
+Two changes to the furniture standing in the walk. Re-measured at `e2e8f57e3`:
+
+```
+850 stations scanned across both walks, 205 static colliders
+stretches where the walking corridor is under 1.00 m: 0
+narrowest 1.12 m at east z -85.75
+ghosts (static-by-1.5s that moved later): 0 — identical under a 22 s window
+```
+
+**Unchanged: 0 under a metre, narrowest 1.12 m.** The tree work opened its own
+squeeze from 0.90 to 1.10 and did not cost the walk anywhere else — the narrowest
+point in the world is still the east walk at z −85.75, which is not a tree.
+
+**So the user's rule holds after the fixes made for him.** That is the whole
+value of re-measuring here: two builders moved objects that stand in the sidewalk
+to answer one complaint, and the guarantee behind a *different* complaint of his
+survived it. Neither of them could have told him that, because neither measures
+the whole block.
+
+This is my queue item 2, re-graded rather than re-verified: the sweep existed, the
+world changed underneath it, and the user's sentence is the thing being checked.
