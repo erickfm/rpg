@@ -326,6 +326,36 @@ grade — a system reverted once already for a unilateral change.
 
 ---
 
+## A tier decision for the desk: my three walkers are in the FAST run
+
+`checks.mjs` says the SLOW tier is *"a runtime tier, not an importance tier"*,
+and H's real-time suites (crowd-walk 45 s … corner-traffic 141 s) are in it.
+Three of mine walk in real time and are **not**:
+
+```
+bus      65 s    two hikes past the stop, plus a five-position lane sweep
+park     35 s    four legs of the loop
+kerbcut  31 s    four hikes across the cut
+                 131 s of the default run, out of ~260 s that is mine
+```
+
+By the stated rule they belong in SLOW. **I have not moved them**, and the
+reason is a coverage judgement rather than a runtime one: they guard the sacred
+2 m lane and the curb cut — one of them is the check that caught its own
+flakiness in the shared runner last round, and it would not have if it only ran
+under `--slow`.
+
+That trade is the desk's to make, not mine to make quietly. Moving them saves
+131 s on the command everyone runs and stops the pavement being checked there.
+
+**What I am deliberately not doing is shaving the walks.** Each sweep position
+could drop from 9 s to ~5 s now that "still moving" carries the verdict, saving
+~20 s. I have twice reasoned my way to a conclusion about these exact walks and
+been wrong within a day, and 20 s off a seven-minute suite is not worth a third
+attempt at out-thinking a pedestrian.
+
+---
+
 ## Still needing routing, not self-assignment
 
 1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
