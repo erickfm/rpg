@@ -12,6 +12,51 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+- [ ] **The shopfronts are not good enough. Bring all of them up, and take
+      the special fronts into your file while you do it.** The user:
+      *"we need much better facades for the tax service, diner, burger barn,
+      thrift shop, casino, and hotel especially."*
+
+      Four of those six are yours or should be. The casino and hotel are
+      builder E's and stay there — they are side-street buildings with their
+      own brief already queued.
+
+      **First, consolidate.** `burgerFront`, `pawnFront` and `taxFront` live in
+      `ct/street.ts` (D's file) while `shopfrontTex` and `facadeTex` live in
+      yours. That split is why the specials drifted — the burger barn kept its
+      mustard through three "fixes" partly because nobody who owned the
+      shopfront system owned it. Move all three painters into
+      `ct/tex-world.ts` next to `shopfrontTex`. This is a **bounded cross-file
+      mandate**: `tex-world.ts` + `ct/street.ts`, one commit, moving painters
+      and nothing else. It also unloads D, who has ten items.
+
+      **Then make them better.** What is actually wrong is that a shopfront is
+      a FLAT PAINTED PLANE. Every one of them is brick, a coloured band, a
+      name, and a dark rectangle of glass. Real shopfronts have depth, and
+      depth is most of what tells a good one from a bad one at a glance:
+      · the glass **set back** from the brick, with a visible reveal
+      · a **stallriser** below the glass and a **fascia** above it that
+        project, rather than being painted stripes
+      · a **transom** over the door, mullions dividing the glazing
+      · **something IN the window** — a display, shelving, a silhouette of
+        the room behind, so the glass is not a black hole
+      · signage that is a made object: a projecting blade, a hand-painted
+        board, applied letters with a shadow — not text stamped on a band
+      · wear where hands and weather reach: dirt at the stallriser, a bent
+        security grille, tape on cracked glass
+
+      Give each of the four its own character rather than one template with
+      the colour swapped. A diner is chrome and glass block; a thrift store is
+      handwritten card and crowded window; a tax office is vertical blinds and
+      a gold-leaf window decal; a burger barn is plastic and backlit plexi.
+
+      **Coordinate on the diner:** builder D is moving it to the 12 m slot
+      after the alley right now, so its frontage is changing width. Rebase
+      before you start and check where it actually is.
+
+      Match the house style: ~8 px/m, muted 1997 palette, no dither on a face
+      thinner than ~0.3 m (`GOTCHAS.md` §4). Two failures then delete.
+
 - [ ] **Finish pattern #1 across the files it does not reach. You have a
       one-time cross-file mandate for this, granted by the desk.**
 

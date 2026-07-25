@@ -14,6 +14,28 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **You must be able to walk up the library steps.** The user, after the
+      courtyard landed: *"also i want to be able to walk up the stairs of the
+      library"*.
+
+      The steps are drawn but not walkable, so the courtyard reads as a place
+      you can stand in front of rather than a building you can approach. That
+      is most of what a civic building's steps are FOR.
+
+      Floor height in this world comes from a picker, not from colliders —
+      `ct/apartment.ts` owns `ground(x, z)` for the walk-up and the entry point
+      dispatches to it. Read how the walk-up's stairs work before you start
+      (`GOTCHAS.md` §7); the same shape of solution applies here, and getting
+      it wrong means falling through or being unable to climb.
+
+      Note that builder D is separately fixing the fact that `crosstown.ts`
+      hand-writes blanket wall colliders that override what modules register
+      — that is why the courtyard is not enterable yet. Your steps depend on
+      that landing. Check whether it has before you conclude yours do not
+      work.
+
+      **Walk it, up and back down, and do not close this from a screenshot.**
+
 - [ ] **The library courtyard — DO THIS FIRST.** Promoted above the buttresses:
       the user went looking for it, found the library unchanged, and said so —
       *"library is exactly the same no copurt yard or anything i asked for"*.
