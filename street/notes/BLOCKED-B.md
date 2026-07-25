@@ -1,3 +1,76 @@
+# noLight: fixed, measured, and one thing it did NOT explain
+
+`d09e55e7f` reported that `userData.noLight` is honoured by `register()` and
+ignored by the scene-wide sweep. Correct, measured, and my file. It is worse than
+one path: `register()` tests the flag BEFORE its own `litSeen.add`, so a flagged
+material is skipped there *without being marked seen*, and the sweep then
+collects and grades it. The flag never exempted anything on either route — it
+only moved which loop did the grading.
+
+## The fix, and the wrong one before it
+
+`if (noLight) continue;` in the sweep was my first attempt and the measurement
+killed it. Snapshotting all 5536 material colours at 23:00:
+
+```
+flagged materials, distinct colours
+  baseline      010101 010102 020202 020305 030303 050506 090904 0d0e11 3c3c3c
+  `continue`    0e0f12 101114 14161a 16171a 1c2836 1d1e22 24262a 2b2a1c ffffff
+  pool:false    010101 010102 020202 020305 030303 050506 090904 0d0e11 3c3c3c
+```
+
+Skipping means never graded, so the material keeps its DAYLIGHT colour after
+dark — 389 lines moved, tyres and engine bays sitting brighter than the road.
+What the flag is for is written where it is set (`ct/cars.ts:791`, *"a lit engine
+bay reads as a brown tray"*): it excludes a surface from LAMPLIGHT, not from
+nightfall. That is `pool: false`, and the non-pool branch of `updateLit` already
+applies ambient and no warm term. Shipped that. Night dimming is preserved
+exactly — the only whole-scene difference from baseline is 20 lines whose Y
+moved, which is pigeons.
+
+## The part I could not explain, and am not claiming
+
+If the fix works, a flagged material standing in a lamp pool should have stopped
+taking the warm term, and its colour should have moved. **62 of the 255 flagged
+materials are within `LAMP_R` (7.0 m) of a lamp, nearest 1.58 m — and not one
+colour changed.**
+
+So either those 62 were already taking no warm term, or something upstream makes
+the pool term zero for them. A candidate, from reading and NOT verified: the
+sweep registers with `{ root: o, ox: 0, oz: 0 }`, and `updateLit`'s pool branch
+derives the sample point as `e.root.position` plus those offsets. For a car part
+`o.position` is LOCAL to the car group, so the point tested against `lampHeads`
+would not be where the part actually stands. If that is right, sweep-registered
+car parts have never been poolable in practice and my change is correct but
+currently inert — and the real defect is one layer down.
+
+**Do not act on that paragraph without measuring it.** The obvious probe is to
+print, for a few `litList` entries with `pool: true`, the `px, pz` the pool
+branch computes against the object's world position. I ran out of shell before I
+could.
+
+## Two more, read out of the source
+
+**The fix is order-independent**, which is the property it needs. `register()`
+still `continue`s before its `litSeen.add`, so whichever loop arrives first, the
+material ends up graded and unpoolable. That is why I did not also change
+`register()`: one edit, one behaviour.
+
+**Caveat that does need measuring:** the two routes disagree on elevation.
+`register()` uses `floor: FLOOR_GROUND`, the sweep uses `floorFor(wy.y)`. For a
+tyre those are probably the same bracket, and "probably" is doing real work
+there.
+
+**CANDIDATE, NOT A FINDING: `register()` never checks `wetMats`.** The sweep does
+— `if (wetMats.some((w) => w.m === m)) continue; // updateRain owns those` — and
+`register()` has no equivalent, so a material in the wet registry handed to
+`props.lit(root)` would join `litList` too and be written every frame by BOTH
+`updateRain` and `updateLit`. The two paths are 30x apart in strength, so a
+collision would not be subtle. Whether any material is in both I do not know:
+the probe is to intersect `wetMats` with `litList` and print the count.
+
+---
+
 # For the desk: the merge train would take four branches right now
 
 Not a blocker for me, and I have not run it — `./scripts/land.sh --dry` says:

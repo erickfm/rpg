@@ -404,6 +404,44 @@ export function buildProps(ctx: CtxBuild): Props {
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
         if (!m || !m.color || isGlass(m) || litSeen.has(m)) continue;
         if (wetMats.some((w) => w.m === m)) continue; // updateRain owns those
+        // HONOUR noLight HERE TOO. It was read only by register() above, so the
+        // flag meant "do not grade me" for geometry handed to props.lit()
+        // explicitly and meant NOTHING for geometry this scene-wide sweep
+        // collected. Same flag, same file, opposite outcomes, decided by which
+        // loop reached the material first.
+        //
+        // Found by another builder failing to break their own check: marking a
+        // side-street tree material noLight left it dimming 0.814 -> 0.038
+        // exactly as before. They reported it with measurements rather than as
+        // a suspicion, which is why it was actionable at all.
+        //
+        // Their one inference I could not reproduce is that the car fleet's
+        // noLight materials "do take effect, because crosstown.ts calls
+        // props.lit(car)". They do not — see below. The observation was right
+        // and the mechanism was half of it.
+        //
+        // AND IT IS WORSE THAN "ONE PATH ONLY": the flag has never worked on
+        // EITHER path. register() tests it BEFORE its own `litSeen.add`, so a
+        // noLight material is skipped there without being marked seen — and
+        // this sweep then collects and grades it. The flag did not exempt
+        // anything; it only moved which loop did the grading.
+        //
+        // NOT `continue`, WHICH WAS MY FIRST FIX AND WAS WRONG. Skipping here
+        // means the material is never graded at all, so it keeps its DAYLIGHT
+        // colour after dark. Measured: snapshotting all 5536 materials at 23:00
+        // moved 389 of them from 010101 to 101114 — tyres and engine bays
+        // sitting brighter than the road they stand on.
+        //
+        // What the flag is for is written where it is set, at ct/cars.ts:791:
+        // "a lit engine bay reads as a brown tray". It excludes a surface from
+        // LAMPLIGHT, not from nightfall. A tyre still darkens at night; it just
+        // never takes the sodium warm term. That is precisely `pool: false`,
+        // and the machinery already exists — the non-pool branch of updateLit
+        // applies ambient by elevation and no warm or pool term at all.
+        //
+        // So honour it by registering WITHOUT poolability rather than by
+        // refusing to register.
+        const noLamp = !!m.userData?.noLight;
         litSeen.add(m);
         // world geometry is graded by its own elevation — the shopfront box
         // and the facade box above it are separate meshes, which is what makes
@@ -426,7 +464,8 @@ export function buildProps(ctx: CtxBuild): Props {
         // user asked for: "Lit windows and signs must NOT dim with it."
         if (selfLit) m.userData.selfLit = true;
         m.userData.graded = true;
-        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(), pool: poolable && !selfLit,
+        litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(),
+                       pool: poolable && !selfLit && !noLamp,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        wetK: selfLit ? 0 : wetKFor(wy.y) });
       }
