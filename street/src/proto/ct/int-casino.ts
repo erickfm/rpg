@@ -164,6 +164,77 @@ export function buildCasino(ctx: CtxBuild): void {
   const { put, solid } = room;
   const hw = room.W / 2, hd = room.D / 2;
 
+  // ── the way in, matched to the doorway you came through ───────────────
+  //
+  // The user, on shots/user-casinodoor.png: "yours is a narrow single domestic
+  // leaf with a small window; outside it is a wide gold-framed DOUBLE door under
+  // a lit canopy". Their fourth interior/exterior mismatch.
+  //
+  // BY HAND, DELIBERATELY AND TEMPORARILY. F is extending the frontage
+  // descriptor to publish the door's FORM — width, leaf count, frame material —
+  // so both sides derive from one fact and cannot drift. That is the real fix and
+  // it is not mine to write: `ct/interior.ts` is F's, and OWNERSHIP.md's rule for
+  // it is that everyone else reads it and asks. So this matches the facade in MY
+  // file until that lands, and should be deleted the day it does.
+  //
+  // The colours are ct/vice.ts's entrance, not colours chosen to look similar:
+  // #3a3020 bronzed glass, #d8a83a gold, #8a6a22 its shadow. Same argument as
+  // the hotel's palette and as `tube` being one shared painter — a door you walk
+  // through twice should not be two designs.
+  const GOLD_I = 0xd8a83a, GOLD_ID = 0x8a6a22;
+  const goldM = new THREE.MeshBasicMaterial({ color: GOLD_I });
+  const goldDM = new THREE.MeshBasicMaterial({ color: GOLD_ID });
+  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+
+  // The kit hangs ONE leaf, propped open, and it is the thing the user is
+  // objecting to. Hidden rather than edited — and asserted, because a silent
+  // miss here leaves both doors in the opening at once, which is worse than the
+  // fault being fixed.
+  {
+    const hits: THREE.Mesh[] = [];
+    room.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+      const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+      const img = mat?.map?.image as HTMLCanvasElement | undefined;
+      if (img && img.width === 32 && img.height === 64) hits.push(m);
+    });
+    if (hits.length === 1) hits[0].visible = false;
+    else console.warn(`[interior:casino] expected 1 kit door leaf to hide, found ${hits.length}`
+      + ' — the casino now has both the kit door and its own. ct/interior.ts changed shape.');
+  }
+
+  // the gold surround: jambs and head, the portal repeated on the inside face
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.34, 0.16, 0.10), goldM), dAt, DH + 0.06, hd - 0.06);
+  put(new THREE.Mesh(new THREE.BoxGeometry(DW + 0.34, 0.05, 0.11), goldDM), dAt, DH - 0.03, hd - 0.06);
+  for (const sx of [-1, 1]) {
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.15, DH + 0.16, 0.10), goldM),
+      dAt + sx * (DW / 2 + 0.10), (DH + 0.16) / 2, hd - 0.06);
+  }
+
+  // two leaves, hinged at the jambs and standing a little open, each carrying
+  // the glazing pattern from the street: bronzed glass, a long gold pull, and
+  // the raked highlight that says glass rather than brown paint
+  const leafT = declareSurface(pixTex(24, 56, (g) => {
+    g.fillStyle = '#8a6a22'; g.fillRect(0, 0, 24, 56);
+    g.fillStyle = '#3a3020'; g.fillRect(2, 2, 20, 52);
+    g.fillStyle = 'rgba(232,200,138,0.16)';
+    for (let i = 0; i < 10; i++) g.fillRect(3 + i, 3 + i * 2, 18 - i, 1);
+    g.fillStyle = '#d8a83a'; g.fillRect(18, 22, 2, 14);
+    dither(g, 24, 56, 40);
+  }), 'detail');
+  const leafM = new THREE.MeshBasicMaterial({ map: leafT, side: THREE.DoubleSide });
+  const LW = DW / 2 - 0.03, OPEN = 0.55;                 // ~31 deg, both swinging in
+  for (const sx of [-1, 1]) {
+    const hx = dAt + sx * DW / 2;                        // hinge on its own jamb
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06), leafM);
+    leaf.rotation.y = -sx * OPEN;
+    // same arithmetic the kit uses: offset a half-leaf from the hinge along the
+    // open angle, rather than rotating a centred plane through its own jamb
+    put(leaf, hx - sx * Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2,
+      hd - 0.12 - Math.sin(OPEN) * LW / 2);
+  }
+
   const GOLD = 0xa8863a, DARKWOOD = 0x2e1e20;
 
   // ── the carpet ──
