@@ -191,3 +191,49 @@ So this instrument survives, with a documented threshold, and the finding it
 produces is a single routable item rather than a number that needs an essay.
 **A tool whose false positives are separable by a rule is repairable; one whose
 false positives require knowing what an object *is* needs the world's help.**
+
+# Standing sweep for unsupported objects — the user's item, re-run at `f6916034a`
+
+The user's words, routed to me in `FEATURE-REQUESTS.md`:
+
+> **"the sign up top is completely floating. make sure for stuff like this we
+> pay more attention."** → builder E (the GOLDEN ACES sign), *and a standing
+> sweep for unsupported objects* → **auditor**
+
+Re-run now, because the world has changed a great deal since I last did it — park
+topography, the shelter, the drain, the church, ten interiors.
+
+```
+meshes 3261 · anchored 2955 · floating components 202
+```
+
+**202 is not 202 problems**, and saying so is the whole job here. The headline
+figure is dominated by two harmless shapes:
+
+- **things resting on a surface.** A sphere of radius `0.045` whose centre sits
+  `0.05` above a shelf is *on* the shelf. My detector measures centre-to-surface,
+  so every resting bead is a "float".
+- **things mounted on a wall.** Five spheres at `y 19.76` report a 19.5 m *drop
+  to the ground* and a **0.128 m** gap to the facade behind them. They are sign
+  bulbs standing proud of a board, twenty metres up, and the ground is not what
+  holds them.
+
+**Ranked by the number that means something** — gap to the nearest anchored mesh:
+
+| gap | where | what |
+|---|---|---|
+| 0.66 m | (675.3, 1.95, −1.7) | 0.36 × 0.29 textured plane — **diner interior** |
+| 0.62 m | (675.3, 1.95, 2.1) | same shape, same wall |
+| 0.59 m | (675.3, 2.15, 0.3) | 0.34 × 0.34 textured plane |
+| **0.22 m** | **(44.2, 4.5, −96.75)** | **0.95 × 0.56 plane — the largest OUTDOOR gap in the world** |
+
+**Nothing outdoors is unsupported at the scale the user complained about.** The
+worst outdoor case is a 0.22 m gap on a facade at head height and above — a
+mounted fixture standing off its wall, not a sign hanging in the air. The three
+largest gaps in the whole world are **interior** wall plates in the diner at
+0.59–0.66 m, and a plate 0.6 m off a wall is a thing to look at, not a thing
+falling.
+
+**So the specific fault is gone and the class is quiet.** Recorded here rather
+than routed: I have no candidate worth a builder's hour, and I would rather say
+that than hand over 202 rows and let somebody else find that out.
