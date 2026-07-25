@@ -642,6 +642,82 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   scene.add(capStone);
   solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
 
+  // ── hoop rail, and a shelter at the far end ─────────────────────────────
+  //
+  // The auditor's *"bare lawn"* is fair about the MIDDLE, not the edges: the
+  // trees broke the walls, but between them lay 25 m of undifferentiated
+  // grass, and a field with no edge and nothing beyond it reads as a vacant
+  // lot however well it is mown. Two things fix that without closing the
+  // field, which the user asked to be the largest thing in the park:
+  //
+  //   HOOP RAIL along the field side of the loop. The most municipal object
+  //     there is — bent bar, knee high, half of them leaning. It gives the
+  //     grass an edge and it draws the loop's line away into the distance,
+  //     which is what tells you how deep the park is. No collider: a hoop is
+  //     something you step over, and a knee-high wall you cannot cross would
+  //     be worse than none.
+  //   A SHELTER on the gate's axis at the far end, 26 m away, terminating the
+  //     view. The memorial gives the near turn a destination; this gives the
+  //     deep half one, and it is the thing you walk the loop to reach.
+  const hoopM = new THREE.MeshBasicMaterial({ color: 0x3d4239 });
+  const hoop = (x: number, z: number, alongZ: boolean, lean: number) => {
+    const w = 0.58, h = 0.29;
+    for (const d of [-w / 2, w / 2]) {                  // two legs
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.05 : 0.05, h, 0.05), hoopM);
+      leg.position.set(x + (alongZ ? 0 : d), KERB_H + h / 2, z + (alongZ ? d : 0));
+      leg.rotation.x = alongZ ? 0 : lean;
+      leg.rotation.z = alongZ ? lean : 0;
+      scene.add(leg);
+    }
+    const top = new THREE.Mesh(new THREE.BoxGeometry(alongZ ? 0.05 : w, 0.05, alongZ ? w : 0.05), hoopM);
+    top.position.set(x, KERB_H + h, z);
+    top.rotation.z = lean;
+    scene.add(top);
+  };
+  const hp = clcg(0x64bb17);
+  for (const [lx, side] of [[lx0, 1], [lx1, -1]] as [number, number][]) {
+    for (let z = lz0 + 1.2; z < lz1 - 1.2; z += 1.15) {
+      hoop(lx + side * (PATH_W / 2 + 0.25), z, true, (hp() - 0.5) * 0.22);
+    }
+  }
+  for (const [lz, side] of [[lz0, 1], [lz1, -1]] as [number, number][]) {
+    for (let x = lx0 + 1.2; x < lx1 - 1.2; x += 1.15) {
+      hoop(x, lz + side * (PATH_W / 2 + 0.25), false, (hp() - 0.5) * 0.22);
+    }
+  }
+
+  // the shelter: four posts, a pitched roof, a bench in it, and the paint
+  // going. Municipal, and the one thing at the far end worth walking to.
+  const shX = lx0 + 2.6, shZ = gateMid;
+  const postM = new THREE.MeshBasicMaterial({ color: 0x5a4a34 });
+  const roofM = new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
+  for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.5, 0.16), postM);
+    post.position.set(shX + dx, KERB_H + 1.25, shZ + dz);
+    scene.add(post);
+    solid({ minX: shX + dx - 0.12, maxX: shX + dx + 0.12, minZ: shZ + dz - 0.12, maxZ: shZ + dz + 0.12 });
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.18, 2.7), postM);
+  beam.position.set(shX, KERB_H + 2.6, shZ);
+  scene.add(beam);
+  for (const s2 of [-1, 1]) {                           // two roof slopes
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(3.9, 0.12, 1.65), roofM);
+    sl.position.set(shX, KERB_H + 2.95, shZ + s2 * 0.75);
+    sl.rotation.x = s2 * 0.32;
+    scene.add(sl);
+  }
+  for (let i = 0; i < 3; i++) {                         // the bench inside it
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.05, 0.17), i % 2 ? woodM2 : woodM);
+    sl.position.set(shX, KERB_H + 0.45, shZ - 0.85 + i * 0.19);
+    scene.add(sl);
+  }
+  for (const dx of [-1.2, 1.2]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.44, 0.5), ironM);
+    end.position.set(shX + dx, KERB_H + 0.22, shZ - 0.66);
+    scene.add(end);
+  }
+  solid({ minX: shX - 1.5, maxX: shX + 1.5, minZ: shZ - 1.0, maxZ: shZ - 0.4 });
+
   // ── the trees ────────────────────────────────────────────────────────────
   //
   // *"bare lawn, three blank brick walls"* — and this is what fixes the walls.
