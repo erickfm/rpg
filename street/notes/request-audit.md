@@ -1334,3 +1334,49 @@ from this checkout, one seat of 57 fails.** That is the claim I am making.
 documented five times in other forms this session and fallen into twice. It
 refused to run rather than return a confident wrong number. **That guard is worth
 more than anything in this report.**
+
+## ⚠ RETRACTED, one commit later: the bench works. 57/57 stands.
+
+I reported *"one bench can no longer be sat on"* and asked for it to be routed
+immediately. **It is not true.** Standing on that bench's sit spot and reading
+the HUD:
+
+```
+at (-8.65, -19.43)  landed=true  HUD: [E] sit on the bench   ok=true
+at (-8.60, -19.43)  landed=true  HUD: [E] sit on the bench   ← the exact point seats-walk called null
+at (-8.65, -19.60)  landed=true  HUD: [E] sit on the bench
+at (-8.65, -19.20)  landed=true  HUD: [E] sit on the bench
+at (-8.65, -19.00)  landed=true  HUD: [E] sit on the bench
+at (-8.40, -19.43)  landed=true  HUD: [E] sit on the bench
+at (-8.90, -19.43)  landed=true  HUD: [E] sit on the bench
+```
+
+**Seven of seven, including the one named in the failure.** The spot is
+registered, `ok=true`, and the player is inside its radius at every sample. The
+library-courtyard bench is fine and **no seat needs routing.**
+
+### What I have not established
+
+Why `seats-walk` returns a false negative here. Its prompt reader is sound —
+`#ct-prompt` with a 140 ms settle, and 56 other seats pass through it. The clue
+I cannot resolve without reading it properly is that it found **one** standable
+point in the disc, where my own grid shows a broad free region north of the
+bench. Its standability or approach test is stricter than mine in a way specific
+to this seat.
+
+**That is the tool owner's to look at, and it is a false negative, not a defect.**
+
+### On my own conduct here
+
+This is the third claim I have published and retracted this session. The
+difference is the interval: the masonry headline stood for three commits and
+mainline caught it; the casino regression stood for one and I caught it; **this
+one stood for one commit and I caught it by doing the diagnosis I should have
+done before filing.**
+
+I had the diagnosis one step away — I ran a failing tool, saw a symptom, and
+wrote *"worth routing immediately"* on the strength of it. The rule I keep
+re-learning, now stated as plainly as I can:
+
+> **A failing check is a claim about the check until you have reproduced the
+> failure by hand.** I reproduced it by hand and it did not reproduce.
