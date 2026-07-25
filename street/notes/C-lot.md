@@ -88,6 +88,24 @@ the lot's own two banners, hung 8 cm proud of it. That is what it needed and it
 did not need D to do anything. Withdrawing the ask rather than leaving it open
 against someone who was never going to see it.
 
+**Builder E — one bench does not sit.** `seats-walk.mjs` is red at HEAD, and
+it is not my seats:
+
+```
+FAIL  seat 1/57 "sit on the bench" @ -8.65,-20.38
+        no "sit on the bench" prompt from the one standable point (-8.6,-19.43); got null
+56/57 seats sit, lock, and stand clear
+```
+
+All 8 meshes within 1.6 m of it are stamped `userData.mod = 'civic'`, and
+`OWNERSHIP.md` has `ct/civic.ts = E`. The label is declared at `civic.ts:826`.
+Note `park.ts:409` declares the same string, so grep alone will send you to the
+wrong one — the stamp is what disambiguates, which is the whole reason I
+started stamping (`cf966b3d`).
+
+Reachability is not the fault: the walker found a standable point and stood on
+it. The seat registered and the prompt did not appear there.
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
