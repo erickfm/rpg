@@ -34,6 +34,7 @@
 // "the obvious version of this bug is not present", which is exactly the
 // question that has been asked three times.
 import { chromium } from 'playwright';
+import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 import { ensureAlive } from './shotguard.mjs';
 
@@ -53,17 +54,10 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 
 await reportWorld(page, URL);   // GOTCHAS 26
-await page.evaluate(() => window.__ct.clock(13, 0));
-// 2 s, not 800 ms. 2bdebbcf measured that the grade LERPS after a clock jump
-// rather than snapping — 0 out-of-range materials at 500 ms, 9 from 1000 ms.
-//
-// It matters HERE specifically because this check tints the ground magenta and
-// then looks for magenta: dimWorld multiplies those very materials, so a sample
-// taken mid-ramp sees a DIMMER magenta than the world will settle at. Too dim
-// and the pixel test stops recognising it — a see-through shopfront reads as
-// clean. Wrong in the reassuring direction, on the one check the user asked for
-// twice.
-await page.waitForTimeout(2000);
+// setClock waits on RENDERED FRAMES rather than a guessed sleep — 2558b1ba
+// measured that the grade does not ramp; it costs one frame, and a too-early
+// read sees the PREVIOUS time of day in full.
+await setClock(page, 13, 0);
 
 const tinted = await page.evaluate(() => {
   let n = 0;

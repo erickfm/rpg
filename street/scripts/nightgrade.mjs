@@ -31,6 +31,7 @@
 // exactly the shape this check exists to find: offered to the dimmer, not
 // excused by any stamp, and unchanged between noon and 23:00.
 import { chromium } from 'playwright';
+import { setClock } from './lib/clock.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 const SELFTEST = process.argv.includes('--selftest');
 const b = await chromium.launch();
@@ -41,17 +42,11 @@ await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4190/');   // GOT
 const A = process.argv.slice(2).map(Number);
 const BOX = A.length === 4 ? A : [-1e9, 1e9, -1e9, 1e9];
 const probe = async (h) => {
-  await p.evaluate(([hh]) => window.__ct.clock(hh, 0), [h]);
-  // 2 s, not 1 s. 2bdebbcf measured that the night grade LERPS after a clock
-  // jump rather than snapping: at 23:00 the out-of-range count is 0 at 500 ms
-  // and 9 from 1000 ms on. A probe sampling inside the ramp reads a world that
-  // is settling, and reads it as clean — "wrong in the reassuring direction",
-  // which is the failure mode this file has been bitten by twice.
-  //
-  // 1000 ms was ON the threshold it measured. Sitting exactly on a cliff edge
-  // is not a margin, and the cost of two seconds is nothing next to a green run
-  // that means nothing.
-  await p.waitForTimeout(2000);
+  // setClock waits on RENDERED FRAMES, not a guessed sleep. 2558b1ba measured
+  // that the grade does not ramp: it costs one frame, and a too-early read sees
+  // the PREVIOUS time of day in full rather than a half-applied grade. My 2 s
+  // was chosen against a lerp that does not exist — harmless, and still a guess.
+  await setClock(p, h, 0);
   return p.evaluate(([BOX]) => {
     const s = window.__ct.scene(); s.updateMatrixWorld(true);
     const out = {}, each = {};

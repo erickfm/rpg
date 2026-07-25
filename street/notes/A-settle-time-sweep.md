@@ -1,52 +1,49 @@
-# Builder A — 90 scripts sample inside the grade's settle ramp
+# Builder A — ~~90 scripts sample inside the grade's settle ramp~~ THERE IS NO RAMP
 
-**Not a defect list. A list worth someone's five minutes each.**
+**This note was wrong at the top, and `2558b1ba` measured why.** Left in place
+with the correction rather than deleted, because 90 owners were pointed at it.
 
-`2bdebbcf` measured that the night grade **lerps after a clock jump rather than
-snapping**:
+## What I claimed
+
+That the grade **lerps** after a clock jump — from `2bdebbcf`'s reading of 0
+out-of-range materials at 500 ms and 9 from 1000 ms — and that 90 of 129 scripts
+waiting under 1000 ms might therefore be sampling a settling world.
+
+## What is actually true
+
+`2558b1ba` measured both directions from 100 ms to 4 s: **every sample is the
+final value.** The 9 out-of-range materials are not a ramp artefact — they are
+what night looks like, present at 100 ms and at 4 s alike, absent from day at
+every delay.
+
+The cost is **one rendered frame**, and it is not synchronous: `clock()` then a
+read in the same tick returns **day**. So a too-early sample does not see a
+half-applied grade — **it sees the previous time of day, in full.** That is a
+different failure with a different signature, and "wrong in the reassuring
+direction" was the right instinct pointed at the wrong mechanism.
+
+It could not make a 600 ms sleep fail even at 80× throttle, so **the 90 are not
+broken** and my list should not be read as a defect list — which at least it
+never claimed to be.
+
+**The live hazard is animation under load**, not grading: `door301` slept 950 ms
+for a leaf to swing and went 13/13 alone but 2/6 under six concurrent copies.
+Four reds on a door that works.
+
+## What I changed as a result
+
+My three now use `lib/clock.mjs`'s `setClock()`, which waits on **rendered
+frames** and caps with a warning rather than a quiet fallback:
 
 ```
-23:00   200ms 0 · 500ms 0 · 1000ms 9 · 2000ms 9 · 4000ms 9 · 8000ms 9
+nightgrade  check-seethrough  scenedump
 ```
 
-A hard threshold between 500 ms and one second. **A probe sampling inside that
-window reads a world still settling — and reads it as clean.**
+All three read identically to the fixed 2 s sleeps they replace, and both
+selftests still fire. The sleeps were harmless and were still guesses — chosen
+against a ramp that does not exist.
 
-I moved my three (`nightgrade` 1000→2000, `scenedump` 400→2000,
-`check-seethrough` 800→2000) and then asked how many others are in the same
-position.
-
-## The count
-
-**129 scripts set the clock. 90 of them wait under 1000 ms afterwards.**
-The tightest:
-
-```
-   40 ms  crowd-walk       500 ms  G-rooms-walk, hands, interiors-walk, watch
-  120 ms  walk-tree        600 ms  C-look, D-walk, alley, basin, door301
-  300 ms  hydrant
-  400 ms  E-church, E-courtyard
-```
-
-Six more set the clock with no `waitForTimeout` within 400 characters at all:
-`E-park-walk`, `E-park`, `E-signcheck`, `E-walk`, `E-yard-walk`, `bugsweep`.
-
-## Why this is a candidate list and not a finding
-
-**It matters only if what you sample depends on the grade.** A script that jumps
-the clock and then measures a COLLIDER, a position or a prompt is unaffected —
-geometry does not lerp. It matters for anything reading material colour, sampling
-pixels, or judging brightness. Two of my three qualified; the third
-(`check-seethrough`) qualified for a reason I would not have guessed, because it
-tints the ground magenta and `dimWorld` multiplies the very materials it then
-looks for.
-
-So: **each owner has to look at what their script measures.** I have not audited
-90 scripts I do not own, and the mechanical fix — raise every wait — would cost
-minutes of suite time for scripts that were never at risk.
-
-## The cheap test, if you want to know rather than guess
-
-Run yours at its current delay and again at 2 s. If the answer moves, it was
-sampling inside the ramp. If it does not, leave it alone and note that you
-checked — that is a better outcome than a raised timeout nobody can justify.
+**The lesson I take from being wrong here:** I acted on someone else's
+measurement without reproducing its *mechanism*, only its number. The number was
+real. The story I attached to it — a ramp — was mine, and I propagated it to 90
+scripts inside one turn.
