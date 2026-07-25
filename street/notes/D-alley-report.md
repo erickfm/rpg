@@ -463,3 +463,49 @@ fails intermittently: citizens use that mouth, and one standing in it blocks a
 
 **BLOCKED-D.md is deleted**, per your instruction; the additive `ctx` change
 stays.
+
+---
+
+# Everything since, in the form the desk reconciles against
+
+`SESSION-STATE.md` says four queues went stale listing landed work as open, and
+the remedy is *"reconcile against the builder's report before adding to a
+queue."* Mine is `notes/queues/D-alley.md`, still at `a5fc24d8` with all nine
+items unchecked, and all nine are landed — the table above has the commits.
+
+This section exists so the rebuild has something current to reconcile against.
+None of the work below was in my queue; it came from other builders' notes and
+the audits, which is where the routing actually happened.
+
+## Landed since the last append
+
+| what | commit |
+|---|---|
+| **0.18 m of sidewalk given back.** The lane audit's headline: every building's collider sat 0.3 m inside its facade, so the "sacred 2 m" was 1.70 m everywhere. Measured the relief — deepest thing at walking height is the jamb at 0.12 — and published `WALK_PROJECTION`. Eight stretches moved problem → tight. | `9f6ba0a2` |
+| **The site boundary moved off the walk.** `openSite`'s rail straddled the street line, putting its whole 0.36 m in the pavement on BOTH sites. Routed by C with a measurement. Block-wide: 15 stretches under 1.20 m → **six, none graded problem**. | `5be75c19` |
+| **The alley stopped showing sky over its own back wall.** End-wall height derived from the taller neighbour instead of a literal 12.8 that stopped being true. | `ff9c60ff` |
+| **The alley floor painted per metre** — 9.7 px/m against a 32 px/m walk → 24, grain per m², stains in metres, a real drain. | `226a28b9` |
+| **The alley flanks went single-sided** once party-wall marks made their paint handed. | `98c320f2` |
+| **D-walk.mjs landed in the repo** with retries, and found the bodega door trigger was unreachable on foot (you stop 1.38 m out, outside r=1.1). | `05ca03b8` |
+| **The purse proof buys until refused** instead of counting five keystrokes. | `27424ae1` |
+| **Seam audit closed out for `ct/street.ts`** — all eight, six already fixed elsewhere. | `7c93bfa8` |
+| **Pattern #1 does not reproduce**; then the 2× band/wall junction ruled out; then the four ~6 px/m candidates identified as **ivy**. | `793721de`, `f604c531`, `1466eb13` |
+
+## Corrections I had to make to my own work
+
+Worth reading, because two of them are the same mistake:
+
+- I told E the last "problem" lane row was their park hedge. **It was my own
+  rail**, read off a stale bundle. Corrected in `e26df4c8`.
+- I committed the alley floor while a test was failing. It turned out flaky,
+  but I should not have committed before reading it.
+- Twice I read a brick mismatch off a screenshot where the two faces were at
+  very different angles — once nearly publishing it as a confirmation. A
+  brick-size comparison is only evidence when both faces are at the same angle
+  and distance.
+
+## Still not routed anywhere
+
+- **`ct/doors.ts` has no owner** in `OWNERSHIP.md`; C's items on it are open.
+- **`ct/int-bodega.ts` is not listed either**, and I was the de-facto owner of
+  its predecessor.
