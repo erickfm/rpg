@@ -1142,3 +1142,43 @@ tag that `lot`, `walkup` and `vice` already use for meshes. Then "is this a
 mover" stops being an inference from two frames and becomes a declaration — the
 same move that settled the masonry-vs-glow argument for `density.mjs`. That is
 `ct/props.ts`'s call, not mine.
+
+## 7. A tension in `scenedump.mjs`'s texture hash, for whoever owns it
+
+**Not a bug report — a pair of measurements that do not fit together.** CLAUDE.md
+tells every builder to prove a change is world-neutral with `fp` / `fpdiff` and
+says *"textures and structure must match"*, so what that hash is sensitive to is
+load-bearing for everyone.
+
+**Measured:**
+
+1. `ct/paint.ts:50` — `dither()` uses **unseeded `Math.random()`**, exactly as
+   CLAUDE.md warns. `Math.random()` demonstrably differs across page loads:
+   `0.650184 …` on one, `0.771610 …` on the next.
+2. `fp` nevertheless reports **textures IDENTICAL across two dev loads** — not
+   merely the same summary hash, the `_textures` arrays are byte-equal, all 954
+   entries including the 65 dithered 48×48 ones.
+3. Under the same protocol, `fp` reports **612 of 954 textures differing between
+   dev and a `vite preview` of `dist`.**
+
+(1) and (2) pull against each other: unseeded noise painted into 65 canvases
+should not survive a reload byte-identical. Either those textures are not the
+dithered ones, or something makes the paint reproducible that I have not found —
+there is no `Math.random` override in `src/proto/`.
+
+**One thing I got wrong on the way, worth recording because it is the trap:** an
+ad-hoc probe of my own said those textures *do* differ across loads. It read them
+without `scenedump`'s protocol — no `setClock(13,0)`, no waiting on rendered
+frames — and its 65 hashes overlap `fp`'s by **exactly 1 of 65** on the same
+world. So texture pixels are only comparable when read the way `scenedump` reads
+them, and my first version compared the first four in traversal order, which need
+not even be the same four textures. I withdrew that reading rather than report it.
+
+**Why it matters despite touching nothing:** if the hash is insensitive to paint
+noise, then "textures IDENTICAL" is a weaker guarantee than it sounds and a real
+repaint could hide in it; if it is sensitive, then (2) needs explaining and the
+dev↔dist difference in (3) is a genuine visual difference between what we test
+and what the user plays. **I could not settle which, and I am not guessing.**
+
+Reproduce: `SHOT_URL=<dev> npm run fp devA`, again as `devB`, then
+`npm run fpdiff -- shots/devA.json shots/devB.json`.
