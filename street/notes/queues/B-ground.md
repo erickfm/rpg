@@ -16,6 +16,35 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Bench pass four: the bezel is eating the ad, and the legs are
+      coplanar with the seat.** The user: *"it should not be cutting off the
+      actual ad for tonys pizza also theres some strange graphical bug on the
+      legs you see its like the same plane as the wood probs should have the
+      leg do that clip through the wood"*. Ref: `shots/user-bench5.png`.
+
+      · **The bezel overlaps the artwork.** TONY'S PIZZA is clipped at the top
+        by the frame, and the red band runs under it. A bezel FRAMES a panel —
+        it sits outside the artwork, and the artwork is INSET within it. So
+        shrink the ad face to fit inside the frame rather than laying the
+        frame over a full-bleed ad. All four sides need the same clear margin,
+        and the copy needs a little breathing space inside that again: the
+        phone number and TWO SLICES $1.75 should not touch the frame either.
+      · **The legs are drawn in the same plane as the seat slats.** They read
+        as dark bars painted across the wood rather than as legs under it —
+        that is coplanar geometry, and it is the z-fighting condition this
+        world has hit before (`GOTCHAS.md` §6: coplanar surfaces must ABUT,
+        never overlap). The leg is a separate solid: it belongs BELOW the seat
+        and slightly inboard, so the seat visibly rests on it and you can see
+        the joint. Offset it in depth so nothing shares a plane with the
+        slats, then look along the bench from a low angle where coplanar
+        faces show worst.
+
+      This is the fourth pass on the bench. Everything the user has asked for
+      is still wanted — ad on the back, reclined back, no lower slats, a bezel
+      — so this is not a redo, it is finishing. But look at the whole object
+      from three angles before you call it done rather than fixing only what
+      is in the shot; that is what has made this take four passes.
+
 - [ ] **Bench, third pass: drop the lower slats and put a bezel on the ad.**
       The user: *"make this look nicer, i dont think we need the bottom wood
       part. also the tonys pizza part i think needs to have a bezel"*. Ref:
