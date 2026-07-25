@@ -106,33 +106,64 @@ if (mode === 'probe' || mode === 'all') {
         const e = o.matrixWorld.elements; lamps.push([e[12], e[14]]);
       }
     });
-    const near = [], far = [];
+    const REG = { main: { near: [], far: [] }, side: { near: [], far: [] } };
     S.traverse((o) => {
       if (!o.isMesh || !o.material?.map) return;
       if (!o.userData.graded && !o.material.userData?.graded) return;
       const e = o.matrixWorld.elements, x = e[12], z = e[14];
-      if (Math.abs(x) > 9 || z > 2 || z < -96) return;      // the main street only
+      // MAIN STREET **AND SIDE STREET**. The side street was excluded for no
+      // reason I can find and it pools hardest of the three: 1.0 against 0.0529
+      // mid-block, 18.9x. Eight of the twenty-one lamps live there.
+      const main = Math.abs(x) <= 9 && z <= 2 && z >= -96;
+      const side = x > 9 && z < -94;
+      if (!main && !side) return;
+      // THE PARK IS DELIBERATELY OUT, and the reason is structural rather than
+      // a defect — worth writing down so nobody "fixes" it by widening this and
+      // gets a false failure. Measured at 23:00: park near-lamp 0.0938 against
+      // 0.045 mid-block, only 2.08x, which would fail the 3x bar below.
+      //
+      // It is not that park lamps are missing from the light. They push onto the
+      // same lampHeads registry (ct/props.ts:921) and lay their own 4.4 m pool
+      // decal. It is that this tint is PER MATERIAL, so a mesh takes one pool
+      // value from its own origin — and the park floor is a single 32 x 30
+      // plane at (-23, 0.1, -83), while the street's walk is cut into slabs.
+      // One mesh cannot show a pool under one of its lamps. The park's light
+      // arrives as the additive decal, which is park.mjs's business, and it
+      // asserts the lanterns are emitting there.
       const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
       const d = Math.min(...lamps.map(([lx, lz]) => Math.hypot(x - lx, z - lz)));
-      if (d < 3.0) near.push(L); else if (d > 9) far.push(L);
+      const R = REG[main ? 'main' : 'side'];
+      if (d < 3.0) R.near.push(L); else if (d > 9) R.far.push(L);
     });
     const med = (a) => (a.length ? a.slice().sort((p, q) => p - q)[Math.floor(a.length / 2)] : null);
-    return { lamps: lamps.length, n: near.length, f: far.length,
-             nearMed: med(near), farMed: med(far) };
+    const out = { lamps: lamps.length };
+    for (const [k, v] of Object.entries(REG))
+      out[k] = { n: v.near.length, f: v.far.length, nearMed: med(v.near), farMed: med(v.far) };
+    return out;
   });
-  if (pool.nearMed === null || pool.farMed === null || pool.n < 8 || pool.f < 8) {
-    console.log(`\n  FAIL cannot answer: ${pool.n} lit / ${pool.f} unlit samples from ${pool.lamps} lamps`);
-    process.exitCode = 1;
-  } else {
-    // Measured 0.6184 against 0.0450 at 23:00 — 13.7x. The bar is 3x, which is
-    // far below what the world does and far above anything a flat grade gives.
-    const ratio = pool.nearMed / Math.max(pool.farMed, 1e-4);
+  // PER REGION, NOT POOLED. Widening the window to take in the side street and
+  // then taking ONE median across both would have added samples and no
+  // coverage: the main street has far more materials, so its median carries the
+  // verdict and every side-street lamp could go dark behind it. A median over a
+  // mixed population answers a question nobody asked. Same error as wetness
+  // judging nine pools by whichever it reached first, one level up.
+  console.log('');
+  for (const key of ['main', 'side']) {
+    const q = pool[key];
+    if (q.nearMed === null || q.farMed === null || q.n < 4 || q.f < 4) {
+      console.log(`  FAIL ${key}: cannot answer — ${q.n} lit / ${q.f} unlit samples`);
+      process.exitCode = 1;
+      continue;
+    }
+    // Measured at 23:00: main 0.6184/0.0450 = 13.7x, side 1.0/0.0529 = 18.9x.
+    // The bar is 3x — far under what the world does, far over a flat grade.
+    const ratio = q.nearMed / Math.max(q.farMed, 1e-4);
     const ok = ratio > 3;
-    console.log(`\n  under a lamp ${pool.nearMed.toFixed(4)} vs mid-block ${pool.farMed.toFixed(4)} ` +
-      `— ${ratio.toFixed(1)}x (${pool.n}/${pool.f} samples, ${pool.lamps} lamps)`);
-    console.log(`  ${ok ? 'OK  ' : 'FAIL'} the pool LIGHTS what stands under it, not just the halo sheet`);
+    console.log(`  ${ok ? 'OK  ' : 'FAIL'} ${key} street: under a lamp ${q.nearMed.toFixed(4)} vs ` +
+      `mid-block ${q.farMed.toFixed(4)} — ${ratio.toFixed(1)}x (${q.n}/${q.f} samples)`);
     if (!ok) process.exitCode = 1;
   }
+  console.log(`       ${pool.lamps} lamps carry a lens or lantern stamp`);
   if (bad.length) process.exit(1);
 }
 
