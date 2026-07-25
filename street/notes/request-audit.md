@@ -2263,3 +2263,50 @@ CHURCH steps **and go in**"*, and the church's answer is no.
 I have corrected that above rather than leaving a DONE that covers less than it
 sounds like. **`interiors-walk` remains the one suite I have never completed** —
 it exceeded nine minutes solo, twice.
+
+## Neither civic building opens — and the library's refusal points at a board that is not there
+
+Pressing E at both civic doors:
+
+```
+library: climbed to gy 0.99, "[E] try the doors of the PVBLIC LIBRARY"
+         pressed E -> "[E] the PVBLIC LIBRARY is closed — opening hours are on the board"
+
+church:  climbed to gy 0.55, "[E] try the doors of the church"
+         pressed E -> "[E] the church is locked"
+```
+
+**Both are authored refusals, not failures.** Somebody wrote both strings, and
+the library's is the better line of the two — it declines and tells you where to
+look instead.
+
+**But there is no board.** Searching 4.5 m around the library's door spot for
+anything board-shaped between waist and head height returns **two meshes**, both
+0.78 × 0.62 × 0.78 with 16 × 16 canvases at (−8.85, 0.97, −15.9) and
+(−8.85, 0.97, −10.1) — and a square view of the entrance shows what they are:
+**the two hedges on plinths flanking the steps.**
+
+`shots/libdoor.png`, from the pavement: stone flight, double doors with brass
+push-plates, fanlight over, pilasters either side, dark canopy, hedges left and
+right. **Nothing on the wall, nothing on a stand, nothing beside the doors.**
+
+> **The refusal tells the player to read something the world does not have.**
+
+Scope, honestly: I searched 4.5 m around the door and looked at one square
+frame. A board somewhere else on the building — the courtyard side, further
+along the frontage — would not be in either. But it is not where the message
+sends you, which is *at the doors you just tried*.
+
+### What this does to the steps request
+
+*"Can you walk up the LIBRARY steps and the CHURCH steps and go in"*:
+
+| | state |
+|---|---|
+| walk up the library steps | **yes** — gy 0.14 → 0.99, walked and confirmed twice |
+| walk up the church steps | **yes** — gy 0.14 → 0.55, walked and confirmed twice |
+| go in | **no, either** — both authored as shut |
+| the library's "see the board" | **the board does not exist at the doors** |
+
+The climb is done and done well. The entry was never built, and one of the two
+refusals makes a promise the world does not keep.
