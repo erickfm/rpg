@@ -206,3 +206,22 @@ lose any of them, did you?" to surface it.
 
 Use `scripts/route.sh <agent> "<user's words>" "<message>"`. It logs, dispatches
 and verifies in one command, so the log cannot be the step that gets skipped.
+
+## 20. An unread screenshot is not an observation
+
+The auditor's line, and it earned its place. A verification pass produced
+fifteen screenshots and graded seven checks from probes it later found had run
+from the wrong position — the walk tests shared player state, so the "car lot"
+test stood where the "church" test had finished. It reported those as NOT
+CHECKED rather than as failures, which was correct: a confident wrong verdict
+would have sent three builders chasing nothing.
+
+Two rules follow:
+
+- **A check must verify it is where it thinks it is** before it presses a key.
+  Re-warping is not enough if the previous check moved you.
+- **Aim from the source, not from memory.** Every coordinate in that probe was
+  hand-typed, which is the same defect this project has now hit five times —
+  a stale diner z in a trigger harness, a hand-typed room offset, a hand-typed
+  `DZ`. `scripts/doorsweep.mjs` finds things by walking and has never been
+  wrong. Copy it.
