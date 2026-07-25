@@ -43,6 +43,58 @@ published to the playable artifact.
 - **"colors on burger barn arent right"** → **builder D** (still red + mustard;
   asked for red + white or red + beige, second time of asking)
 
+### 2026-07-24, session 3 continued
+_(The desk stopped logging here for a stretch and reconstructed it afterwards.
+Nothing was lost — every item was routed and is in a queue or landed — but the
+master record had a gap, which is what this section closes.)_
+
+**Landed**
+- "needs to be darker at night" + "light around the light posts to show up on
+  the objects and entities under the lights" → **B** ✅
+- "street lights light effect looks odd" → **B** ✅ reverted per the watch
+  precedent; halo re-anchored to the lens
+- "truck bed needs to be a bit deeper and black in the bottom" → **H** ✅
+- "textures on back of truck are janky" → **H** ✅
+- "move the truck a bit away from the alley" → **H** ✅
+- "for every seat in the game i want to be able to sit down" → **F** ✅
+  `ctx.seat()` with 29 seats
+- "legs on these people is still off from the side, looks backwards on the
+  feet" → **H** ✅ shoe given a toe, standing pose given two legs
+- "tree looks transparent in parts" → **A** ✅ ragged-edge notches were eating
+  the crown interior
+- "all the lighting on the windows goes up and to the right" → **A** ✅ it was
+  `((f*7 + c*3) % 5)`, a lattice
+- "what is this?" (produce crates) → **D** ✅ attempt three, twelve separate
+  fruit rather than one dome
+- "replace laundry with diner" → **D** ✅ identity swap, run totals untouched
+- "swap barber for thrift, then grocery and barber turn those into a small
+  park" → **D** ✅ ground cleared
+- "make meridian and laundry a bank instead" → **D** ✅ 19.2 m; also resolved
+  the long-open Corporation item
+- "inlay the church and give it some stairs... and a lil courtyard" → **E** ✅
+- "i want to be able to walk up the stairs of the library" → **E** ✅ shared
+  stair mechanic, used by both
+- "we need much better facades for the tax service, diner, burger barn, thrift
+  shop" → **A** ✅ (casino + hotel are separate, below)
+
+**In flight**
+- "park should be deeper" → **E**
+- "turn hardware and cafe into a used car lot" → **D** (roster) + **C** (the
+  lot itself, `ct/lot.ts` — built, waiting on D's roster)
+- "the front facade of the casino and the hotel are so low effort and boring...
+  meant to be some of the most insane" → **G**, extracted into `ct/vice.ts`
+- "strange corner for bodega, also collision is odd in this same corner" →
+  **D** — visual half BLOCKED on helpers A has not exported
+- "what is this it looks bad" (catch basin) → **B**
+- trash programme → **B**: three rig rounds. Approved and shipping: coffee cup,
+  fountain cup, folded newspaper (reworked grimier/thinner), flattened
+  cardboard, milk crate, plus two gutter decals liked in situ. Rejected: the
+  banded rectangle, all instances removed.
+- "i feel like nothing im communicating to you is actually happening" → traced
+  to three finished interiors never being constructed in `crosstown.ts`;
+  **still not fixed at time of writing**
+
+
 ## In progress
 
 - **Re-cast the block.** Replace the current shop rosters with: fast food,
