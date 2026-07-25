@@ -174,6 +174,13 @@ Both **routed to builder C** — `ct/lot.ts` is C's. Landed together in one
 commit, as asked.
 
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
+  — **B: both halves landed and measured.** Clearance on the kerb side is
+  0.218 m of walk between the kerb chamfer and the pit edge, the same at all
+  seven pits. The water is 9 sheets, every one of them 0.22 m in from the kerb
+  line and inside the 0.45 m gutter pan, none up on the pavement. Guarded by
+  `scripts/footprint.mjs` with four mutations behind it (`footprint`,
+  `footprint-pits`, `footprint-water`, `footprint-blind`). Left in the Inbox
+  for the desk to move — flagging it here so it does not read as outstanding.
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F**
 

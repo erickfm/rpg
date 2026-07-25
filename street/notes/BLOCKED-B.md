@@ -1,3 +1,32 @@
+# CLOSED this round — three of my own open items, two of them wrong
+
+**The over-1.0 overshoot: NOT A DEFECT.** I had it filed as "158/161 materials
+over 1.0 at ramp hours, clamped at render". Measured across all 24 hours it is
+0/5536 through the middle of the day, 156-166 at the four ramp hours and 20
+overnight, peaking at 1.1497 — which is `WARM_R, WARM_G, WARM_B = 1.15, 1.05,
+0.85` from my own file, exactly. Sodium light warms a surface rather than
+repainting it, so the base is multiplied by that factor instead of lerped toward
+amber; the note explaining why sits directly above the constant. I filed it
+without reading it.
+
+What was real was `grade-sane`'s own sentence — "every material colour is a real
+number in 0..1" while testing NaN and negative only. It claimed a bound it never
+checked and could not have checked, because asserting it would fail a correct
+world. It now asserts the bound that exists (`mul` capped at 1, `base`
+authored, so nothing can exceed `WARM_R`), reads that constant out of
+ct/props.ts rather than repeating it, and `grade-twice` proves it goes red.
+
+**My three walkers: not worth trimming.** Measured park 27 s, kerbcut 31 s, bus
+walk 18 s = 76 s of a fast tier over 20 minutes, so 6%. park.mjs's own history
+is two threshold tunings that each made it flakier, and both are written up in
+the file. Trading proof for 76 s is the wrong trade. Dropped, not blocked.
+
+**turn.mjs: not mine.** It defaults to port 4184 — the auditor's worktree — and
+came in with the citizens work (`f7318ab72`). Giving it a verdict is its
+owner's call, not mine. Stays routed, off my list.
+
+---
+
 # ROUTED: three scripts can exit 0 having checked nothing
 
 **To lamplight's, parking's and truck's owners** (`ec94ed4c1`, `f0f4792da`,
