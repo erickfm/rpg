@@ -473,11 +473,22 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         g.fillRect(x, y, 1, 1);
       }
     });
-    const bald = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4),
-      new THREE.MeshBasicMaterial({ map: baldT, alphaTest: 0.5, side: THREE.DoubleSide }));
-    bald.rotation.x = -Math.PI / 2;
+    // Draped, not lifted by one number. A 4.4 m quad offset by the relief at
+    // its CENTRE is only right at its centre; this one sits where the ground
+    // starts climbing toward the mound and its uphill edge was 7.5 mm INSIDE
+    // the grass. Same treatment as the desire lines — subdivided and put on
+    // the same function the field was built from.
     const baldX = fx0 + 3.2, baldZ = fz1 - 3.4;
-    bald.position.set(baldX, KERB_H + LIFT * 0.6 + relief(baldX, baldZ), baldZ);
+    const baldG = new THREE.PlaneGeometry(4.4, 4.4, 9, 9);
+    baldG.rotateX(-Math.PI / 2);
+    const bp = baldG.attributes.position;
+    for (let i = 0; i < bp.count; i++) {
+      bp.setY(i, relief(bp.getX(i) + baldX, bp.getZ(i) + baldZ) + LIFT * 2.0);
+    }
+    bp.needsUpdate = true;
+    const bald = new THREE.Mesh(baldG,
+      new THREE.MeshBasicMaterial({ map: baldT, alphaTest: 0.5, side: THREE.DoubleSide }));
+    bald.position.set(baldX, KERB_H, baldZ);
     scene.add(bald);
   }
 
@@ -495,12 +506,32 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     // rotations are baked into the geometry instead of set on the mesh so the
     // vertices are in world axes and can be asked for their own height.
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
-    const geo = new THREE.PlaneGeometry(w, len, 1, Math.max(1, Math.ceil(len)));
-    geo.rotateZ(-Math.atan2(dx, dz));
+    // Lie the plane down, THEN turn it about the vertical. The first cut of
+    // this baked `rotateZ(-atan2(dx, dz))` before `rotateX(-π/2)` — the same
+    // two angles the mesh used to carry as `rotation.z` and `rotation.x` — on
+    // the assumption that baking them in that order reproduces what an Euler
+    // 'XYZ' mesh transform does. It does not: the line came out on the OTHER
+    // DIAGONAL, running from the wrong corner, at x -32 it sat at z -83 where
+    // it belonged at -78.5. Every desire line in the park fanned the wrong way
+    // from the gate for as long as that was in.
+    //
+    // Derived rather than guessed the second time. After `rotateX(-π/2)` the
+    // plane's length axis (local +y) points at world -z; turning by φ about Y
+    // sends it to (-sin φ, 0, -cos φ), so the φ that lands it on (dx, dz) is
+    // atan2(-dx, -dz), and there is no second angle to get wrong.
+    //
+    // 2 segments per metre both ways, not 1 along and 1 across: this is draped
+    // on the relief and two tessellations of one curve only agree at their
+    // shared vertices. A coarse strip cuts the chord under a fine field and
+    // sinks into it, which looks exactly like a worn path that fades out over
+    // the mound.
+    const geo = new THREE.PlaneGeometry(w, len,
+      Math.max(2, Math.round(w * 2)), Math.max(2, Math.round(len * 2)));
     geo.rotateX(-Math.PI / 2);
+    geo.rotateY(Math.atan2(-dx, -dz));
     const wp = geo.attributes.position;
     for (let i = 0; i < wp.count; i++) {
-      wp.setY(i, relief(wp.getX(i) + cx, wp.getZ(i) + cz) + LIFT * 0.75);
+      wp.setY(i, relief(wp.getX(i) + cx, wp.getZ(i) + cz) + LIFT * 2.5);
     }
     wp.needsUpdate = true;
     geo.computeVertexNormals();

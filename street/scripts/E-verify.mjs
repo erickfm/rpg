@@ -31,6 +31,12 @@ const AREAS = [
     what: 'the churchyard, its gate and its flight' },
   { name: 'park', script: 'scripts/E-park-walk.mjs',
     what: 'the park: the loop, the frontage, the edge line' },
+  // Added the day the ground stopped being flat. A decal on a slope is a
+  // failure you cannot see — a worn path that sinks into the grass looks like
+  // a worn path that stops there — and the first thing this found was not
+  // burial at all but every desire line in the park running the wrong diagonal.
+  { name: 'drape', script: 'scripts/E-drape.mjs',
+    what: 'what is laid on the grass stays on top of it' },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
@@ -111,7 +117,8 @@ for (const a of run) {
   const { code, out } = await exec(a.script);
   // echo only what matters: the failures, the notes, and the verdict
   for (const line of out.split('\n')) {
-    if (/^(FAIL|NOTE|SKIP)/.test(line.trim()) || /walks passed|FAILED/.test(line)) {
+    if (/^(FAIL|NOTE|SKIP)/.test(line.trim())
+        || /walks passed|FAILED|sinking into it/.test(line)) {
       console.log(`   ${line.trim()}`);
     }
   }
