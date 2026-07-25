@@ -703,7 +703,10 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
 
   // the shelter: four posts, a pitched roof, a bench in it, and the paint
   // going. Municipal, and the one thing at the far end worth walking to.
-  const shX = lx0 + 2.6, shZ = gateMid;
+  // 3.0 m off the back leg, not 2.6: at 2.6 the west posts blocked to
+  // x = -35.28 and the path's east edge is -35.05, so the shelter stood in
+  // the loop. It is a destination beside the path, never on it.
+  const shX = lx0 + 3.0, shZ = gateMid;
   const postM = new THREE.MeshBasicMaterial({ color: 0x5a4a34 });
   const roofM = new THREE.MeshBasicMaterial({ color: 0x4a4e56 });
   for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
@@ -783,8 +786,13 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     solid({ minX: x - 0.2, maxX: x + 0.2, minZ: z - 0.2, maxZ: z + 0.2 });
   };
   const tsd = clcg(0x2c9f41);
+  // The back line stands BEHIND the loop's back leg, not on it. At
+  // site.minX + 2.0 its trunks blocked to x = -35.74 and the path centre is
+  // -35.80, so the back leg could not be walked — found the day the clamp
+  // lifted and the leg could be walked for the first time. Same fault the
+  // flank lines had. 1.4 m off the wall clears the path by 0.7 m.
   for (let z = site.minZ + 2.2; z < site.maxZ - 2.0; z += 5.4 + tsd() * 1.4) {
-    tree(site.minX + 2.0 + tsd() * 0.7, z, 0x400 + Math.round(z * 3));   // the back wall
+    tree(site.minX + 1.4 + tsd() * 0.4, z, 0x400 + Math.round(z * 3));   // the back wall
   }
   // INBOARD of the loop's end legs, not against the flank walls: the first
   // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
