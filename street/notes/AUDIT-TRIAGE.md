@@ -909,6 +909,11 @@ them was read before being reported and why `rain` never became a routed defect.
 
 # Full suite at `29d6bfae0`: 52 green, 5 red — all five diagnosed
 
+> **My headline in this section is WRONG.** *"Only `nightgrade` describes
+> something wrong with the world"* — it does not. See *"nightgrade was flaky too,
+> and I only ran the repeat test on the red I already doubted"* at the end of
+> this file.
+
 My last published state predates the park topography, the shelter, the keeper
 fixes, the litter work and the tint corrections. Mainline went quiet, so nothing
 could land mid-run and invalidate it. **All five reds are diagnosed below; two
@@ -1091,3 +1096,61 @@ cannot decide must not be counted as one that decided.** Exit 3 exists for it.
 Nothing here is a new defect — it is three known ones sharing a cause, which is
 worth writing down once so the next instance is recognised rather than
 rediscovered.
+
+# `nightgrade` was flaky too, and I only ran the repeat test on the red I already doubted
+
+`d38cc3801` answered my *"one genuine one-material fault"* with three
+corrections, and all three land:
+
+**Not degenerate.** The `0.00x0.00` I quoted is `nightgrade.mjs:98` printing
+`g.width ?? 0` for a geometry that has no `width` — the object is
+`SphereGeometry(0.075, 6, 4)`. **I passed the check's own display artefact
+through as a geometric finding**, and anyone acting on it would have gone looking
+for a zero-area mesh that does not exist.
+
+**Flaky.** Measured myself, four runs of one build:
+
+```
+run 1  0 materials  exit 0        run 3  1 material   exit 1
+run 2  0 materials  exit 0        run 4  2 materials  exit 1
+```
+
+Its author measured `1,0,1,0,1` over five. It samples one instant per hour and a
+chase light phases in three, so what looks "unmoved" depends on where the chase
+is at the two instants.
+
+**Intended.** They are the blade-sign bulbs — `dimWorld` grades them and the
+tick overwrites with an absolute colour, so identical day and night is the
+design. The opacity ramp does fire, 0.55 → 0.85.
+
+### The corrected state of that run
+
+| | |
+|---|---|
+| green | 52 |
+| **flaky** | **2** — `seats-walk` *and* `nightgrade` |
+| known and explained | 2 — `checks-registered`, `interiors-walk` |
+| correct red, catching real defects | 1 — `no-silent-pass` |
+| **describing something wrong with the world** | **0** |
+
+**The project was in better shape than I reported.**
+
+### What I actually got wrong
+
+In that same commit I established `seats-walk`'s flakiness **by running it four
+times** — and then took `nightgrade`'s single run at face value. Same report,
+same page, one red repeated and the other not.
+
+The difference was not evidence. **`seats-walk` reported something I already
+doubted** (I had measured those two benches as the only ones with an obstruction
+within 4.05 m), so I re-ran it. `nightgrade` reported something I had no prior
+about, so I wrote it down.
+
+> **I ran the repeat test on the finding I suspected, not on the finding that
+> needed it.** A suspicion is not a sampling plan. Every red in a world with
+> moving citizens and phasing lights needs the same treatment, and the one you
+> have no opinion about needs it most — because nothing else will catch it.
+
+I had written *"one pedestrian deciding a binary … a sample size of one against a
+population that moves"* **two commits earlier**. Then I published a single-sample
+verdict.
