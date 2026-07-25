@@ -1491,3 +1491,54 @@ The same move finishes it:
 
 That is the whole remaining seam question, and it is not a defect list — it is a
 missing declaration.
+
+## Round 13b — the missing declaration is **49 faces**, not "everything unstamped"
+
+Round 13 ended with *"150 pairs are unjudgeable until unstamped faces declare
+what they are"*, which is true and unhelpfully large. Scoped:
+
+> **All 150 unjudgeable disagreements involve just 49 distinct unstamped faces.**
+
+And only some of those matter. By density band:
+
+| band | faces | what it is |
+|---|---|---|
+| **brick-like, 3–10 px/m** | **27** | **the ones that matter** — if these are meant to be masonry they are real candidates |
+| detail, 10–25 px/m | 12 | trim, fittings |
+| signage, >25 px/m | 9 | lettering; dense on purpose |
+| very coarse, <3 px/m | 1 | a large flat panel |
+
+The 27 brick-like faces are not scattered. They fall into three groups:
+
+1. **The park's west and south boundary walls** — x −33 to −39, z −72 to −96,
+   consistently 3.79–6.07 px/m. These are the ivy-clad walls I photographed in
+   Round 12; they are one object with one answer.
+2. **A stallriser/pilaster family at x ± 6.9**, at a consistent **9.41 px/m** —
+   (6.9, 2.8, −51) and (6.9, 2.8, −23) here, and (−6.9, 2.8, −9) is the face I
+   flagged as the "library ashlar" candidate in Round 7b. `f3ea0450` already
+   established these are not `masonry()` output, and they are the same family
+   on both walks.
+3. **The car lot office** at (27.6, 1.5, 2.6), 6.96 px/m — the cabin I found at
+   the back of the lot.
+
+## What this makes possible
+
+Three owners, three answers, and the whole unjudgeable half collapses:
+
+- `ct/park.ts` — are the boundary walls masonry? (≈14 faces)
+- whoever owns the x ± 6.9 stallriser family — masonry or trim? (≈6 faces)
+- `ct/lot.ts` — is the office cabin masonry? (1 face)
+
+Each is a single yes/no from the module that already knows, and each is the same
+one-line stamp that `masonry()`, `userData.mod` and `__frontages` already use.
+
+**Nothing here is a defect claim.** A 6 px/m park wall may be exactly right —
+larger stone for a boundary is a real choice. The point is that no tool can tell,
+and 49 declarations would mean no tool ever has to guess again.
+
+---
+
+*(Noted in passing: mainline has adopted `pairclip`'s back-to-back test
+(`134d7ba2`) and proposed `scripts/lib/faces.mjs` after finding four copies of
+the face-index logic, two of them wrong — `1a9e4661`. Two of those four copies
+were mine. Sharing that helper is worth more than any finding in this round.)*
