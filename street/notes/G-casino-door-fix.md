@@ -1,4 +1,39 @@
-# The casino's dropped door: a fix that works, measured in `dist`
+# The casino's dropped door: FIXED in `84fa72ec`, and not the way this note said
+
+> **SUPERSEDED, read this first.** Everything below recommends a four-line patch
+> to `ct/doors.ts` and asks the desk to find that file an owner. **It does not
+> need one.** The fix landed in `84fa72ec` entirely inside `ct/int-casino.ts` and
+> `ct/int-hotel.ts`, which are mine, and it is better than the patch below on
+> every axis: no unowned file is touched, and C's dropped-door warning does not
+> become a false alarm.
+>
+> **What I had missed, twice:** D's `seam-audit.md` Round 16 already said that six
+> of the eight rooms import only `type DoorDecl` — erased, no runtime edge — and
+> that only `int-casino` and `int-hotel` import the *value* `doorStandFor`. That
+> import is the entire cause. Removing it and deriving the `[E]` spot from the
+> `face` each room already declares takes both files out of the cycle. Same
+> arithmetic, same numbers, no registry.
+>
+> Measured with `scripts/doors-declared.mjs` against the built bundle:
+>
+> ```
+> before         8 declare, 7 arrive   GOLDEN ACES missing
+> casino only    8 declare, 7 arrive   HOTEL ORPHEUS missing   <- the loss MOVED
+> both           8 declare, 8 arrive   "every declared door arrived."
+> ```
+>
+> The middle row is the proof rather than a step: fixing one file moved the drop
+> to the other file carrying the same import.
+>
+> **Still true and still unowned:** `civic-doors.ts`, `interior.ts` and `world.ts`
+> resolve to undefined namespaces too. They declare no doors today, so nothing is
+> lost — but the next module that declares one from inside the cycle drops the
+> same way, silently. The class is open even though this instance is closed.
+>
+> The rest of this note is kept because the negative results are still worth
+> having: they rule out two fixes that look obvious.
+
+# The original note: a fix that works, measured in `dist`
 
 **For whoever ends up owning `ct/doors.ts`.** Three of us have now measured this
 file and stopped at the same place — it has no owner. This note is the part that
