@@ -44,7 +44,23 @@ const found = await p.evaluate(([BOX]) => {
     const g = o.geometry.parameters;
     const isBox = o.geometry.type === 'BoxGeometry';
     const isPlane = o.geometry.type === 'PlaneGeometry';
-    if (!isBox && !isPlane) return;
+    const isCyl = o.geometry.type === 'CylinderGeometry';
+    if (!isBox && !isPlane && !isCyl) return;
+    // A CYLINDER IS A SURFACE. It is a leg, a pedestal, a barrel, a bin — and
+    // leaving it out made this report a stool as a floating prop: the tax
+    // office's seat pads sit on 0.4 m cylindrical pedestals, and with only
+    // boxes and planes counted the nearest thing beneath them was the FLOOR,
+    // 0.383 m down. Two clean false positives at knee height, which is exactly
+    // the band this script exists to police (the thrift price card was 0.325 m).
+    //
+    // Not a subtle omission — a round table would have done the same. The
+    // reason it survived is that this script REPORTS rather than fails, so a
+    // wrong line costs nothing and nobody has to reconcile it.
+    if (isCyl) {
+      const rt = Math.max(g.radiusTop ?? 0, g.radiusBottom ?? 0);
+      surfaces.push({ x: w.x, z: w.z, hw: rt, hd: rt, top: w.y + (g.height ?? 0) / 2 });
+      return;                       // a cylinder is never the small PROP here
+    }
     const wx = (g.width ?? 0), wy = (g.height ?? 0), wd = (g.depth ?? 0);
     // a SURFACE is anything with a horizontal top: a box, or a plane laid flat
     if (isBox) surfaces.push({ x: w.x, z: w.z, hw: wx / 2, hd: wd / 2, top: w.y + wy / 2 });
@@ -63,7 +79,13 @@ const found = await p.evaluate(([BOX]) => {
       if (Math.abs(s.x - pr.x) > s.hw + pr.w / 2) continue;
       if (Math.abs(s.z - pr.z) > s.hd + pr.d / 2 + 0.05) continue;
       const bottom = pr.y - pr.half;
-      if (s.top > bottom + 0.02) continue;                   // it is above us
+      // 0.06, not 0.02: a prop MODELLED SLIGHTLY SUNK into what it rests on is
+      // normal and deliberate — it hides the seam. The tax office's seat pads
+      // overlap their pedestals by 0.025 m, which the old tolerance rejected as
+      // "this surface is above you", so the nearest thing beneath became the
+      // FLOOR and a stool was reported as floating 0.35 m. Tightness here does
+      // not buy accuracy; it just moves which wrong answer you get.
+      if (s.top > bottom + 0.06) continue;                   // it is above us
       if (!best || s.top > best) best = s.top;
     }
     if (best === null) continue;                             // nothing under it at all
@@ -77,5 +99,8 @@ console.log(found.length ? 'props with air under them, worst first:' : 'nothing 
 for (const f of found) console.log(`  ${f.gap.toFixed(3)} m  ${f.kind} @ ${f.at.join(', ')}`);
 console.log('\nA hanging sign is SUPPOSED to have air under it, so this reports and does not');
 console.log('fail. What it is for is the prop that was meant to be RESTING on something.');
+console.log('KNOWN LIMITATION: the list is dominated by upright wall planes — signs, cards,');
+console.log('photos — which hang by design. Read from the BOTTOM up: furniture-height');
+console.log('entries are the ones worth looking at. Nothing under 1.4 m is floating today.');
 if (errs.length) console.log('page errors: ' + errs.slice(0, 3).join(' | '));
 await b.close();
