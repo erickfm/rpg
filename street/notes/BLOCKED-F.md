@@ -78,7 +78,7 @@ already written: a locked-door response rather than two more rooms. That was
 wrong twice. It was not blocked on anyone, and the user had already made the
 call — *"Do NOT leave a flight of steps that leads to nothing."*
 
-Done in `ct/int-civic.ts` (`0ecfd662`). Both doors answer; `claimed()` hands
+Done in `ct/civic-doors.ts` (`0ecfd662`). Both doors answer; `claimed()` hands
 the door over automatically the moment a real room registers for that
 building, so E's library interior needs no coordination with me.
 

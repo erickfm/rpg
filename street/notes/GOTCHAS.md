@@ -422,3 +422,51 @@ Two rules fall out of it:
   the same class of wrong as a stale document, and the same class as a check
   that has left the tree (§24) — all three fail by being quietly absent rather
   than by going red.
+
+## 27. A check you have never watched fail is a check you will ARGUE WITH
+
+Three times in one day, across two builders, a check saw a real bug and let it
+through — not by missing it, but by being **talked out of it**.
+
+- **`seats-walk.mjs`** found the `[E]` dispatch seating players on the wrong
+  bench. I wrote a paragraph in the script explaining why that was unavoidable
+  geometry (*"any trigger big enough to reach one from the aisle overlaps the
+  other… shrinking below 0.34 m would fix the ambiguity by making both
+  unreachable"*), loosened the assertion from THE seat to A seat, and moved on.
+  Three seats then passed it while seating the player somewhere they had not
+  chosen. It was a three-line dispatch bug: the loop said "nearest wins" and
+  broke on the first match (`098269aa`).
+- **`spots-walk.mjs`** tested "orphaned" as *is anything solid within 3 m*. I
+  moved the thrift's declaration onto the park frontage to watch it fire, it
+  passed, I wrote that down as a known weakness — and left it in place for
+  another round (`095c7d63`).
+- **`lotwalk.mjs` and `door301.mjs`** printed their results with `<- must be
+  true` beside them and exited 0 whatever they said, which made the READER the
+  assertion. Wall the mouth or jam the doorway and both stayed green
+  (`3dfe0217`).
+
+The common shape is not carelessness. In each case the author **looked straight
+at the failure** and produced a reason it did not count. A check is a claim
+about the world, and the moment you start negotiating with it, it is measuring
+your patience rather than the world.
+
+**So: never let a check's tolerance be set by an argument. Set it by a
+mutation.** `npm run checks -- --selftest` breaks each check on purpose in the
+LIVE world — a collider pushed onto `__ct.colliders()`, the same array the
+movement code tests — and requires it to go red. If it stays green, the check
+is decoration.
+
+Two things that make this less obvious than it sounds:
+
+- **A mutation that does not actually break the thing proves nothing, and looks
+  exactly like a check that works.** My first `civic-doors-walk` selftest walled
+  the top of the flight; the player still stopped inside the 1.2 m trigger, the
+  prompt still fired, and the selftest passed. I had to watch the selftest fail
+  to fail before it was worth anything.
+- **"I tested it by hand once" is the weakest form of this.** It is exactly what
+  I did to `spots-walk`, and the result was a documented weakness rather than a
+  fixed one, because nothing re-ran the experiment.
+
+If you add a check, add its selftest in the same commit and register it in
+`scripts/checks.mjs`. If a check has no selftest, `npm run checks -- --selftest`
+prints `no selftest` next to its name — that column is a to-do list.

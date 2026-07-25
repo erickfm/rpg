@@ -1,5 +1,13 @@
 // A flight of steps that leads to nothing.
 //
+// NAMED `civic-doors.ts`, NOT `int-civic.ts`. It was the latter for one commit,
+// and scripts/world-wired.mjs was right to go red at it: `ct/int-*.ts` means
+// "an interior room you can walk into", and this registers no room — it is the
+// answer for a door with NO room behind it. The prefix is a contract with the
+// check, and I took it because the file felt interior-adjacent. GOTCHAS 24
+// says the same thing about scripts: name a thing for what it is, not for the
+// subject it stands near.
+//
 // The user, about the civic buildings: *"Do NOT leave a flight of steps that
 // leads to nothing."* Both civic flights climb now — the library reaches its
 // doors, the church stops 0.44 m short inside a collider that is not mine —

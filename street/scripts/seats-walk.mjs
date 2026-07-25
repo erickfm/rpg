@@ -67,6 +67,25 @@ const standableNear = (at, r) => p.evaluate(([at, r, RADIUS]) => {
   return null;
 }, [at, r, RADIUS]);
 
+// --selftest: bury one seat's approach in the LIVE collider array and require
+// this to go red.
+//
+// This check has the worst record of any of mine, which is why it gets one.
+// It found the [E] dispatch seating players on the wrong bench, and I wrote a
+// paragraph explaining why that was unavoidable geometry instead of a bug,
+// then loosened the assertion from THE seat to A seat so it would pass. It
+// then passed, for three seats, while the player sat somewhere they had not
+// chosen. A selftest does not catch that on its own — but a check you have
+// never watched fail is one you will argue with, and that is how it went.
+const SELFTEST = process.argv.includes('--selftest');
+if (SELFTEST) {
+  const v = seats[0];
+  await p.evaluate(([x, z]) => window.__ct.colliders().push({
+    minX: x - 1.4, maxX: x + 1.4, minZ: z - 1.4, maxZ: z + 1.4 }), [v.pose.x, v.pose.z]);
+  console.log(`selftest: buried "${v.label}" at ${v.pose.x.toFixed(2)},${v.pose.z.toFixed(2)}`
+    + ' — this MUST now go red');
+}
+
 const results = [];
 const f2 = (n) => +n.toFixed(2);
 let idx = 0;

@@ -467,7 +467,7 @@ in `BLOCKED-F.md` as "needing a decision, not a fix" with my recommendation
 already attached — wrong twice, since it was not blocked on anyone and the
 user had already decided it in that sentence.
 
-`ct/int-civic.ts`. Not new rooms: **the kit's degenerate case.** The kit owns
+`ct/civic-doors.ts`. Not new rooms: **the kit's degenerate case.** The kit owns
 door → room, so a door with no room is still the kit's to answer for, and the
 answer is a locked door.
 

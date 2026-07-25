@@ -5,7 +5,7 @@ it will waste somebody an hour eventually — it just wasted some of mine.
 
 ## What happened
 
-I added `ct/int-civic.ts`, a module that creates **no three.js objects at all**:
+I added `ct/civic-doors.ts`, a module that creates **no three.js objects at all**:
 it reads the ground picker and registers two `[E]` spots. Then, per CLAUDE.md,
 I proved it moved nothing:
 

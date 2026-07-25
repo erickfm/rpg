@@ -27,6 +27,13 @@ const gyAt = async (x, z) => {
   return (await pos())[3];
 };
 
+// --selftest: block the middle of every flight in the LIVE collider array and
+// require this to go red. The ground picker is untouched, so the "no rise"
+// assertion still passes and only the WALK fails — which is the right shape:
+// this check exists because a flight can report a 0.99 m landing and still not
+// be climbable, and that is exactly the half being proven here.
+const SELFTEST = process.argv.includes('--selftest');
+
 const fails = [];
 const FLIGHTS = [
   { nm: 'library', z: -13.5, fromX: -6.0, toX: -11.5, yawUp: -Math.PI / 2 },
@@ -34,6 +41,15 @@ const FLIGHTS = [
   // reached from the pavement walking +x. Same flight, same picker.
   { nm: 'church', z: -79.5, fromX: 6.5, toX: 9.4, yawUp: Math.PI / 2 },
 ];
+if (SELFTEST) {
+  for (const f of FLIGHTS) {
+    const mid = (f.fromX + f.toX) / 2;
+    await p.evaluate(([mx, z]) => window.__ct.colliders().push({
+      minX: mx - 0.6, maxX: mx + 0.6, minZ: z - 3, maxZ: z + 3 }), [mid, f.z]);
+  }
+  console.log('selftest: walled the middle of both flights — this MUST now go red');
+}
+
 for (const f of FLIGHTS) {
   const bottom = await gyAt(f.fromX, f.z);
   // find the top by scanning, not by trusting a hand-typed x. The church's

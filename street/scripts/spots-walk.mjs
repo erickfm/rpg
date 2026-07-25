@@ -31,6 +31,12 @@
 //
 // A spot whose `ok()` is false right now (an interior's way-out while you are
 // on the street) is REPORTED, not failed: it is gated, not broken.
+// --selftest: wall one live spot shut in the LIVE collider array — the same
+// array the movement code tests — and require this to go red. A check nobody
+// has watched fail is worth what a tool nobody can run is worth, and this one
+// has form: its previous incarnation asked "is anything solid within 3 m",
+// which I tested by moving the thrift's declaration onto the park frontage and
+// watched PASS. Had there been a selftest it would have been one command.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
@@ -45,9 +51,26 @@ await p.waitForFunction(() => window.__ct?.spots !== undefined, { timeout: 15000
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(300);
 
+const SELFTEST = process.argv.includes('--selftest');
+
 const spots = await p.evaluate(() => window.__ct.spots());
 const doors = await p.evaluate(() => window.__ct.doors());
 console.log(`${spots.length} [E] spots registered\n`);
+
+if (SELFTEST) {
+  // Bury the first live spot under a collider bigger than its own radius, so
+  // there is nowhere legal to stand inside it. Deterministic: the first spot
+  // the registry reports as live, whatever the world currently contains.
+  const victim = spots.find((s) => s.ok);
+  if (!victim) { console.log('selftest: no live spot to break'); await b.close(); process.exit(1); }
+  await p.evaluate(([v]) => {
+    window.__ct.colliders().push({
+      minX: v.x - v.r - 1, maxX: v.x + v.r + 1,
+      minZ: v.z - v.r - 1, maxZ: v.z + v.r + 1 });
+  }, [victim]);
+  console.log(`selftest: walled "${victim.label}" shut at ${victim.x.toFixed(2)},${victim.z.toFixed(2)}`
+    + ' — this MUST now go red');
+}
 
 const report = await p.evaluate(([spots, R]) => {
   const cols = window.__ct.colliders();

@@ -1,7 +1,7 @@
 // Climb both civic flights and try the doors.
 //
 // The user: *"Do NOT leave a flight of steps that leads to nothing."* Both
-// flights climb; neither had anything at the top. `ct/int-civic.ts` gives each
+// flights climb; neither had anything at the top. `ct/civic-doors.ts` gives each
 // a locked-door response.
 //
 // A registry read would prove nothing here — the whole failure being fixed is
@@ -20,7 +20,7 @@ import { reportWorld } from './lib/which-world.mjs';
 
 // Foot-of-the-steps and top-of-the-flight for each civic building, taken from
 // scripts/steps-walk.mjs, which is the script that owns these two flights.
-// Deliberately NOT the door coordinates: those are derived in int-civic.ts and
+// Deliberately NOT the door coordinates: those are derived in civic-doors.ts and
 // a test that recomputed them the same way would agree with a bug.
 const FLIGHTS = [
   { nm: 'library', z: -13.5, fromX: -6.0, toX: -11.5, yaw: -Math.PI / 2, want: /LIBRARY/i },
@@ -53,6 +53,26 @@ const prompt = () => p.evaluate(() => {
 
 const warp = (x, z, yaw) => p.evaluate(([x, z, yaw]) =>
   window.__ct.warp(x, z, yaw, window.__ct.groundAt(x, z) ?? 0.14, 0), [x, z, yaw]);
+
+// --selftest: wall the top of both flights so the climb never reaches the
+// landing, and require this to go red. The prompt is still registered and
+// still correct — what breaks is a player's ability to arrive at it, which is
+// the failure this check was written for: "a prompt that exists in an array
+// and never reaches a player".
+const SELFTEST = process.argv.includes('--selftest');
+if (SELFTEST) {
+  // Mid-flight, NOT at the top: a wall on the landing still leaves the player
+  // inside the 1.2 m trigger, so the prompt fires and the check stays green.
+  // Watching the first attempt at this selftest pass is the whole argument for
+  // having one — a mutation that does not actually break the thing proves
+  // nothing, and looks identical to a check that works.
+  for (const f of FLIGHTS) {
+    const mid = (f.fromX + f.toX) / 2;
+    await p.evaluate(([mx, z]) => window.__ct.colliders().push({
+      minX: mx - 0.7, maxX: mx + 0.7, minZ: z - 3, maxZ: z + 3 }), [mid, f.z]);
+  }
+  console.log('selftest: walled the middle of both flights — this MUST now go red');
+}
 
 const fails = [];
 for (const f of FLIGHTS) {

@@ -6,6 +6,7 @@
 //
 //   npm run checks               # against $SHOT_URL, or the default preview
 //   npm run checks -- --selftest # break each one on purpose, require it to fail
+//   npm run checks -- --slow     # include the WALKING suites (minutes, not seconds)
 //
 // NOT A GATE. `npm run build` stays `tsc --noEmit && vite build`; the desk stood
 // wiring down as a gate deliberately and that reasoning holds for all of these.
@@ -16,6 +17,7 @@
 import { spawnSync } from 'node:child_process';
 
 const SELFTEST = process.argv.includes('--selftest');
+const SLOW = process.argv.includes('--slow');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // what each one answers, in the order a reader would want it
@@ -57,6 +59,26 @@ const CHECKS = [
   ['kerbcut',          'can a car get off the lot across the kerb?',       'kerbcut'],
   ['bus',              'is the bench framed, seated and sittable?',        'bus-bench', ['bench']],
   ['rain',             'does it actually rain, and hard enough to see?',   'rain'],
+  // ── the walking suites (5th field: SLOW) ────────────────────────────────
+  //
+  // These hold the player-facing mechanics — every room entered, every seat sat
+  // on, every [E] reached, both civic flights climbed — and they cost what
+  // walking costs. interiors-walk alone is ~10 minutes.
+  //
+  // SLOW is a runtime tier, not an importance tier. In the default run they
+  // would make the one command nobody-runs-it slow, which is the failure this
+  // file exists to fix; left out of the file entirely they stay six more tools
+  // you can only run if you read the note that introduced them.
+  //
+  // Their selftests are the boolean kind — the mutation is a collider pushed
+  // onto the LIVE `__ct.colliders()`, the same array the movement code tests,
+  // so there is nothing to rebuild and no source to mutate.
+  ['world-wired',      'is every module that exports a builder called?',    false, [], true],
+  ['spots-walk',       'is every [E] reachable, and on the door it names?',  true, [], true],
+  ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
+  ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
+  ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
+  ['interiors-walk',   'can you enter every room, and does each hold you in?', false, [], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
@@ -71,8 +93,14 @@ const CHECKS = [
 // preview, so a check past three minutes is stuck rather than thorough, and
 // saying which one is stuck is the whole point.
 const PER_CHECK_MS = 180_000;
+// The walking suites break the assumption above — 180 s is right for a check
+// that measures, and wrong for one that walks eight rooms in real time. They
+// get their own ceiling rather than relaxing everyone else's, so "past three
+// minutes is stuck rather than thorough" stays true where it was written.
+const SLOW_MS = 1_500_000;
 const rows = [];
-for (const [name, question, selftest, extra = []] of CHECKS) {
+for (const [name, question, selftest, extra = [], slow = false] of CHECKS) {
+  if (slow && !SLOW) { rows.push([name, 'walks — use --slow', '—']); continue; }
   if (SELFTEST && !selftest) { rows.push([name, 'no selftest', '—']); continue; }
   process.stderr.write(`  … ${name}\n`);
   const t0 = Date.now();
@@ -93,7 +121,7 @@ for (const [name, question, selftest, extra = []] of CHECKS) {
     continue;
   }
   const args = [`scripts/${name}.mjs`, ...extra, ...(SELFTEST ? ['--selftest'] : [])];
-  const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS });
+  const r = spawnSync('node', args, { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: slow ? SLOW_MS : PER_CHECK_MS });
   const secs = ((Date.now() - t0) / 1000).toFixed(0);
   if (r.error?.code === 'ETIMEDOUT' || r.signal === 'SIGTERM') {
     rows.push([name, question, `TIMED OUT after ${secs}s`, secs]);
@@ -111,6 +139,8 @@ for (const [name, question, selftest, extra = []] of CHECKS) {
 const w = Math.max(...rows.map(([n]) => n.length));
 console.log(SELFTEST ? '\nSELFTEST — each check was broken on purpose:' : `\nchecks against ${URL}:`);
 for (const [name, question, status, secs] of rows)
-  console.log(`  ${status === 'ok' ? '✓' : status === '—' ? '·' : '✗'} ${name.padEnd(w)}  ${status === 'ok' ? question : status}`
+  // a skipped row must say WHY, or "·" reads as "passed quietly" — which is
+  // how six checks stayed invisible in the first place
+  console.log(`  ${status === 'ok' ? '✓' : status === '—' ? '·' : '✗'} ${name.padEnd(w)}  ${status === 'ok' || status === '—' ? question : status}`
     + (secs && +secs >= 20 ? `   (${secs}s)` : ''));
 if (process.exitCode) console.log('\nSomething above is red. It is not gating the build; it is telling you.');

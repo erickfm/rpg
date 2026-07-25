@@ -469,18 +469,32 @@ for (room of rooms) {
     ? [['out to the road', 0], ['east along the walk', Math.PI / 2], ['west along the walk', -Math.PI / 2]]
     : [['out to the road', room.east ? -Math.PI / 2 : Math.PI / 2], ['up the walk', 0], ['down the walk', Math.PI]];
   for (const [what, yaw] of landingDirs) {
-    await warp(back[0], back[2], yaw, KERB_H);
-    await p.waitForTimeout(120);
-    const a = await pos();
-    // 2 s, not 0.5 s: a citizen standing on the landing is solid until it has
-    // been in your way for 1.4 s (crowd.ts), and a half-second nudge reports
-    // that as boxed-in pavement. This failed exactly that way on the tax
-    // office in a full run while passing on its own.
-    await hold('w', 2000);
-    const c = await pos();
-    check(`the landing is not boxed in — ${what}`,
-      Math.hypot(c[0] - a[0], c[2] - a[2]) > 0.9,
-      `moved ${f2(Math.hypot(c[0] - a[0], c[2] - a[2]))} m`);
+    // RETRIED, because the thing in your way may not be part of the building.
+    //
+    // 2 s rather than 0.5 s was the first fix here: a citizen is solid until it
+    // has blocked you for 1.4 s (crowd.ts), and a half-second nudge reported
+    // that as boxed-in pavement. It was not enough. This went red on the bodega
+    // in a full run — "out to the road, moved 0.18 m" — and the landing is not
+    // boxed in at all: eight consecutive attempts walked 2.4–3.6 m off it with
+    // ZERO colliders ahead. What blocked that one run was a citizen or a car,
+    // and the corner landings face live traffic.
+    //
+    // Crucially a static pre-check cannot see it: crowd and traffic actors are
+    // NOT in `__ct.colliders()`, so "is anything in the way" is unanswerable
+    // from the array this script reads. What IS answerable is the question the
+    // check actually asks — is this landing SEALED — and a seal does not move.
+    // So: up to three attempts, pass on the first that gets away. A real box
+    // fails all three; a pedestrian fails at most the one it is standing in.
+    let best = 0, a, c;
+    for (let attempt = 0; attempt < 3 && best <= 0.9; attempt++) {
+      await warp(back[0], back[2], yaw, KERB_H);
+      await p.waitForTimeout(attempt ? 700 : 120);   // let a walker clear the landing
+      a = await pos();
+      await hold('w', 2000);
+      c = await pos();
+      best = Math.max(best, Math.hypot(c[0] - a[0], c[2] - a[2]));
+    }
+    check(`the landing is not boxed in — ${what}`, best > 0.9, `moved ${f2(best)} m`);
   }
 
   // ── 6. the room keeps its light after dark ──
