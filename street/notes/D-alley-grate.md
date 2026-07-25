@@ -117,5 +117,41 @@ worst disagreement **0.0 mm across 4 points**, and walking in from the mouth
 takes you down **6.0 cm** with a largest step of 19 mm. Watched failing on the
 real defect — remove the registration and it reports 59.9 mm and a 0.0 cm walk.
 
-**Still blocked, and only this:** the frame, bars and throat. `const basin` in
-B's `ct/tex-ground.ts` is not exported. The question in this note stands.
+---
+
+## RESOLVED — B exported the casting, and the grate is built
+
+**B answered.** `ct/tex-ground.ts` now exports `floorDrain(scene, x, y, z, size)`
+— the kerb inlet's vocabulary with the throat removed, because a yard gully
+takes water from every side rather than down a gutter, so there is nowhere for a
+throat to go. That is a better answer than exporting `basin` would have been: it
+is the same casting language in a second correct variant, rather than one object
+bent to two jobs. **The block has one grate design, which is what the request
+asked for.** I drew nothing.
+
+**Placed at the bottom of the bowl.** `floorDrain` takes the floor height from
+its caller and explicitly does not guess it, and ours is the dished paving:
+`floorA.position.y + dishAt(DRAIN_X, DRAIN_Z)` = −0.055 m. Passing the flat
+alley height would have left the frame floating 60 mm above the dip it is meant
+to sit at the bottom of — and from directly overhead, which is how anyone would
+screenshot it, that looks identical to correct. There is now an assertion for
+exactly that.
+
+**Measured:** 12 solids, 7 bars, frame top −0.0310 m, **rebate 11.0 mm** — the
+bars sunk under the frame top, which is B's whole point (*"a flush grate looks
+painted on"*) and the difference between a hole and four stripes. Frame stands
+24 mm proud of the paving.
+
+**The texture now paints the HOLE and nothing else.** The old painted bars are
+gone — geometry provides those, and painting them twice double-images against
+the casting. The dark square is deliberately a little larger than the 0.60 m
+opening: B's void plate sits under the slots but this floor plane is opaque and
+continuous beneath it, so what you actually see between the bars is that paint.
+Flush to the opening, a rim of lit paving would show inside the frame.
+
+**And the staining the request asked for** — *"staining where water runs to
+it"* — is 16 streaks that CONVERGE on the drain rather than more scattered
+blobs. The alley falls to this point now, so the dirt says so.
+
+Shot from standing height in `shots/D-drain-standing.png` and
+`shots/D-drain-close.png`. Nothing in this item is still blocked.

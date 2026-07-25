@@ -176,6 +176,41 @@ say(walkedDepth > 0.02, 'walking into the alley actually takes you down',
   `${(walkedDepth * 100).toFixed(1)} cm below the flat floor at the lowest point of the walk`);
 say(jump < 0.025, 'no step: the fall is continuous under the feet',
   `largest change between consecutive samples ${(jump * 1000).toFixed(1)} mm${jumpAt !== null ? ` near z ${jumpAt}` : ''}`);
+// THE CASTING, which is B's floorDrain() rather than a second grate design.
+// Scoped to the alley drain by position — basin.mjs owns the two kerb inlets
+// and finds them the same way, so neither check can see the other's castings.
+const cast = await page.evaluate(([dx, dz]) => {
+  const parts = [];
+  window.__ct.scene().traverse((o) => {
+    if (!o.isMesh || !o.userData?.basinPart) return;
+    if (Math.hypot(o.position.x - dx, o.position.z - dz) > 1.5) return;
+    const g = o.geometry?.parameters ?? {};
+    parts.push({ part: o.userData.basinPart, y: +o.position.y.toFixed(4),
+      top: g.height ? +(o.position.y + g.height / 2).toFixed(4) : null });
+  });
+  const tops = (n) => parts.filter((q) => q.part === n).map((q) => q.top).filter((v) => v !== null);
+  const f = tops('frame'), b = tops('bar');
+  return { n: parts.length, frameTop: f.length ? Math.max(...f) : null,
+    barTop: b.length ? Math.max(...b) : null, bars: b.length };
+}, [-10.30, -40.77]);
+
+say(cast.n >= 12 && cast.bars >= 5, 'the drain is casting, not four painted lines',
+  `${cast.n} solids near the drain, ${cast.bars} bars`);
+// The whole read, and B's own reason for the geometry: a flush grate looks
+// painted on. Bars sunk under the frame top is what makes it a HOLE.
+const rebate = cast.frameTop !== null && cast.barTop !== null ? cast.frameTop - cast.barTop : 0;
+say(rebate > 0.005, 'the bars are sunk under the frame, so it reads as a hole',
+  `rebate ${(rebate * 1000).toFixed(1)} mm`);
+// INTEGRATION, not the casting's own property: it must sit at the BOTTOM OF THE
+// BOWL. floorDrain takes the floor height from its caller and does not guess,
+// so passing the flat alley height would have left the frame floating 60 mm
+// over the dip it is supposed to sit in — and from directly above, which is how
+// anyone would screenshot it, that looks identical to correct.
+say(cast.frameTop !== null && cast.frameTop < -0.02,
+  'the casting sits at the bottom of the dish, not at the flat floor',
+  cast.frameTop === null ? 'no frame found'
+    : `frame top ${cast.frameTop.toFixed(4)} m; flat placement would put it near +0.029`);
+
 say(errors.length === 0, 'no page errors', errors.length ? errors[0] : 'none');
 
 if (SELFTEST) {

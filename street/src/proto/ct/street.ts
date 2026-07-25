@@ -5,7 +5,7 @@ import {
   proud, reveal, glazed, mullions, HI, shopfrontRelief, shopInteriorTex, WALK_PROJECTION,
   burgerFront, pawnFront, taxFront,
 } from './tex-world';
-import { walkTex } from './tex-ground';
+import { walkTex, floorDrain } from './tex-ground';
 import { buildCatRig } from './cat';
 import type { CtxBuild } from './ctx';
 import { buildCivic, type BldSpec } from './civic';
@@ -1508,7 +1508,7 @@ export function buildStreet(o: {
     // drain is 42% of the way from the END WALL toward the street, not from the
     // street. Getting that backwards puts the dish 1.3 m off, on the wrong side
     // of the alley's centre, and it would look deliberate.
-    const DRAIN_U = 0.5, DRAIN_V = 0.42;
+    const DRAIN_U = 0.5, DRAIN_V = 0.42, DRAIN_SIZE = 0.60;
     const DRAIN_X = -FACE - 3.3 + (DRAIN_U - 0.5) * AF_W;
     const DRAIN_Z = AZ1 + DRAIN_V * AF_L;
     const AFW = Math.round(AF_W * AF_PXM), AFL = Math.round(AF_L * AF_PXM);
@@ -1530,13 +1530,39 @@ export function buildStreet(o: {
         g.ellipse(cx, cy, am(0.35 + nx() * 0.75), am(0.2 + nx() * 0.4), nx() * Math.PI, 0, Math.PI * 2);
         g.fill();
       }
-      // the drain: a real 0.4 m gully with its bars, not an 8 px square
-      const dx = Math.round(AFW * DRAIN_U), dy = Math.round(AFL * DRAIN_V), dw = am(0.4);
-      g.fillStyle = '#17181c'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
-      g.fillStyle = 'rgba(255,255,255,0.12)';
-      for (let k = 1; k < 4; k++) {
-        g.fillRect(dx - dw / 2, dy - dw / 2 + Math.round((k * dw) / 4), dw, Math.max(1, am(0.02)));
+      // THE DRAIN IS REAL CASTING NOW, so this paints the HOLE and nothing
+      // else. B exported `floorDrain()` from ct/tex-ground.ts — frame, seven
+      // bars sunk 11 mm under the frame top, a dark void plate — and it is
+      // placed below. Painting bars here as well would double-image them
+      // against the geometry, which is worse than either alone.
+      //
+      // The square is deliberately a little LARGER than the casting's 0.60 m
+      // opening. B's void plate sits 9 mm under the slots, and this floor plane
+      // is opaque and continuous underneath it, so what you actually see
+      // between the bars is THIS PAINT. If it were flush to the opening, a rim
+      // of lit paving would show inside the frame and the drain would read as a
+      // grille sitting on the ground rather than over a hole.
+      const dx = Math.round(AFW * DRAIN_U), dy = Math.round(AFL * DRAIN_V);
+      // WATER FINDS IT — the user asked for "staining where water runs to it".
+      // Streaks that CONVERGE on the drain, rather than nine more blobs that
+      // happen to be near it: the alley falls toward this point now, so the
+      // dirt should say so. Drawn before the void square, which then cuts them
+      // off cleanly at the frame line.
+      g.save();
+      g.strokeStyle = 'rgba(0,0,0,0.14)';
+      g.lineCap = 'round';
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + nx() * 0.4;
+        const r0 = am(1.5 + nx() * 1.1);
+        g.lineWidth = Math.max(1, am(0.05 + nx() * 0.10));
+        g.beginPath();
+        g.moveTo(dx + Math.cos(a) * r0, dy + Math.sin(a) * r0);
+        g.quadraticCurveTo(dx + Math.cos(a) * r0 * 0.45, dy + Math.sin(a) * r0 * 0.45, dx, dy);
+        g.stroke();
       }
+      g.restore();
+      const dw = am(DRAIN_SIZE + 0.06);
+      g.fillStyle = '#0a0b0d'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
     }), 'ground');
     // wet(), like the open sites' ground at the top of this file. The alley is
     // ROOFLESS — rain falls in it — but this floor was never registered, so it
@@ -1594,6 +1620,22 @@ export function buildStreet(o: {
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     floorA.userData.alley = 'floor';
     scene.add(floorA);
+    // THE CASTING, and it is B's rather than a second design.
+    //
+    // The user was explicit: "If the casting is B's asset, ask me and B exports
+    // it rather than you drawing a second one — a second grate design is exactly
+    // how this project ended up with two of everything." I asked
+    // (notes/D-alley-grate.md) and B exported `floorDrain()`, which is the kerb
+    // inlet's vocabulary with the throat removed, because water arrives at a
+    // yard gully from every side rather than down a gutter. So the block has ONE
+    // grate design in two correct variants, which is what was asked for.
+    //
+    // The y it wants is the FLOOR HEIGHT here, and B's doc says the caller knows
+    // its own floor and this does not guess. Ours is the dished paving surface:
+    // the plane sits 5 mm proud of nominal and the bowl takes it 60 mm down.
+    // Passing the flat height instead would bury the frame in the dip it is
+    // supposed to sit at the bottom of.
+    floorDrain(scene, DRAIN_X, floorA.position.y + dishAt(DRAIN_X, DRAIN_Z), DRAIN_Z, DRAIN_SIZE);
     // the collision half. Same dishAt the geometry was built from, so the floor
     // you walk cannot drift from the floor you see.
     o.ground((x, z) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));
