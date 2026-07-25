@@ -302,10 +302,17 @@ export class FPRig {
     }
     // a modest hop
     const jumpDown = input.keys.has(' ');
-    if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 3.6;
+    // A SNAPPIER jump: a little more height, noticeably less hang.
+    //
+    // 3.6 / 11 gave a 0.589 m apex over 0.655 s in the air, and the float at
+    // the top was the part that felt wrong. 4.0 / 13 is a 0.615 m apex over
+    // 0.615 s — 4% higher, 6% quicker. Both changes are tiny and they only
+    // work together: more velocity alone floats worse, stronger gravity alone
+    // makes the hop feel stunted.
+    if (jumpDown && !this.jumpHeld && this.airY === 0 && this.vy === 0) this.vy = 4.0;
     this.jumpHeld = jumpDown;
     if (this.vy !== 0 || this.airY > 0) {
-      this.vy -= 11 * dt;
+      this.vy -= 13 * dt;
       this.airY = Math.max(0, this.airY + this.vy * dt);
       if (this.airY === 0 && this.vy < 0) this.vy = 0;
     }
