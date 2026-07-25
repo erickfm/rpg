@@ -51,6 +51,13 @@ for (const nm of ['GOLDEN ACES', 'HOTEL ORPHEUS']) {
   STAND[nm] = d;
 }
 const ACES = STAND['GOLDEN ACES'], ORPH = STAND['HOTEL ORPHEUS'];
+// The facade plane, derived rather than typed. A door POINT sits on the facade
+// by definition — `doorStandFor` is that point pushed out along the outward
+// normal by the standoff — so the declaration gives the wall's z for free. The
+// walk band and the building-line assertions below used to carry -96.66 and
+// -96.9 as literals, which is a number ct/street.ts owns and could move under
+// them; the same fault as the door literals in d955a0fc.
+const FACADE_Z = ACES.pz;
 
 const results = [];
 const check = (n, ok, d) => results.push([ok, n, d]);
@@ -108,7 +115,7 @@ const runEast = async (z, from, to, tries = 3) => {
 console.log('the north side-street walk — measuring the clear band eastward:');
 const BAND_MIN = 0.25;
 const clear = [];
-for (let z = -97.4; z <= -96.65; z += 0.1) {
+for (let z = FACADE_Z - 1.4; z <= FACADE_Z - 0.65; z += 0.1) {
   await warp(30.0, z, EAST, KERB_H);
   await p.waitForTimeout(140);
   let last = 30.0;
@@ -190,9 +197,9 @@ check('the same band runs back west past both columns',
 // walking band. Standing under them means reaching the building line.
 for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', ACES.px]]) {
   let deepest = -99, moved = 0;
-  for (let a = 0; a < 3 && deepest < -96.9; a++) {
+  for (let a = 0; a < 3 && deepest < FACADE_Z - 0.9; a++) {
     if (a) await p.waitForTimeout(1500);
-    await warp(x, -97.8, Math.PI, KERB_H);
+    await warp(x, FACADE_Z - 1.8, Math.PI, KERB_H);
     await p.waitForTimeout(180);
     const a0 = await pos();
     await hold('w', 1100);
@@ -200,8 +207,9 @@ for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', ACES.px]
     deepest = Math.max(deepest, c[2]);
     moved = Math.max(moved, Math.hypot(c[0] - a0[0], c[2] - a0[2]));
   }
-  check(`you can walk in under ${nm} to the building line`, deepest > -96.9 && moved > 0.3,
-    `reached z=${f2(deepest)} (the building collider stops you at -96.66)`);
+  check(`you can walk in under ${nm} to the building line`,
+    deepest > FACADE_Z - 0.9 && moved > 0.3,
+    `reached z=${f2(deepest)}, facade at ${f2(FACADE_Z)} — within ${f2(FACADE_Z - deepest)} m of it`);
 }
 
 // ── 3. the doors the facades were redrawn around still work ─────────────
@@ -209,7 +217,7 @@ for (const [nm, x, re] of [
   ['GOLDEN ACES', ACES.px, /GOLDEN ACES/],
   ['HOTEL ORPHEUS', ORPH.px, /ORPHEUS/],
 ]) {
-  await warp(x, -97.8, Math.PI, KERB_H);
+  await warp(x, FACADE_Z - 1.8, Math.PI, KERB_H);
   await p.waitForTimeout(180);
   await hold('w', 950);
   const pr = await prompt();
