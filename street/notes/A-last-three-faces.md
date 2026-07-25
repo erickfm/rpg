@@ -1,50 +1,44 @@
-# Builder A — the last three unjudgeable faces are civic.ts's
+# Builder A — ~~the last three unjudgeable faces~~ ALL CLOSED
 
-For whoever owns `ct/civic.ts`. **Three `declareSurface` calls and the seam
-question closes at zero.**
-
-## Where it stands
+**`UNJUDGEABLE: 0`.** The seam thread is finished.
 
 ```
-LIKE-FOR-LIKE (same declared density): 925 pairs, disagreeing:  0
-brick vs brick, a real seam question:                           0
-UNJUDGEABLE:                                                   10   (from 150)
-   resting on 3 distinct faces — all three are yours
+brick vs brick, a real seam question:  0
+one side says it is not brick:       112
+UNJUDGEABLE:                           0        (was 150 at the start)
+LIKE-FOR-LIKE 934 pairs, disagreeing:  0
 ```
 
-`userData.mod` made this a five-minute answer instead of a hunt. All three
-resolve to `mod=civic`:
+## How the three went
 
-| face | measured | what it looks like |
-|---|---|---|
-| `PlaneGeometry 3.20 × 16.00`, canvas 102 × 512 | 31.88 px/m | at y = 0.1 — ground, a path or ramp |
-| `BoxGeometry 5.00 × 26.00 × 3.70`, canvas 40 × 208 | 8 px/m | at y = 13.0 — a tower or flank face |
-| `BoxGeometry 13.00 × 17.00 × 3.40` | 8 px/m | at y = 8.5 |
+Two were **civic's nave, gable and tower** — they called `masonry()` to size the
+canvas and then `pixTex` directly instead of the handle's `.paint()`, so the
+density was right and the stamp was absent (`4f1214f3`, under the density
+mandate).
 
-## What to do
-
-One line each where the texture is made — `declareSurface(tex, kind)` from
-`ct/paint.ts`:
+The last was **civic's paving**, closed in `82947c26` under a grant for that one
+line:
 
 ```ts
-declareSurface(pathTex, 'ground');   // the 3.2 x 16 at y = 0.1
-declareSurface(flankTex, 'brick');   // the two 8 px/m faces, if they are brick
+return declareSurface(pixTex(W, H, …), 'ground');
 ```
 
-**Two of them read exactly 8 px/m**, which is the world's wall density, so if
-they are brick they are already *correct* and only undeclared — a provenance
-question, not a visible one. Nobody can photograph them. That is why this is not
-routed as a defect and nobody should be paged for it.
+**32 px/m was correct there and always was.** Paving derives from real metres at
+its own density — that function's own comment said so — and it is not masonry.
+Nothing was wrong with the wall.
 
-The 31.88 px/m one is off the 8/16 grid, which is fine for ground — interior
-floors run 19–27 px/m by design (`2e60f0cc`) and paving is denser than wall for
-good reasons. Declaring it `'ground'` takes it out of the brick comparison
-entirely, which is the right answer rather than a suppression.
+## What the whole thread turned out to be
 
-## Why bother at all
+**150 pairs unjudgeable at the start, 0 now, and not one of them was a
+mismatched wall.**
 
-Because the alternative is that these three sit in an UNJUDGEABLE column
-forever, and the next person to look at the seam tooling spends an hour
-rediscovering that they are fine. `masonry()`'s stamp answered that question for
-236 faces automatically; these three are the remainder that a hand-painted
-surface leaves behind, and three lines retire the whole category.
+Every step down came from a module declaring what only it knew — `userData.mod`
+for whose a mesh is, `userData.masonry` for how dense a wall was painted,
+`userData.selfLit` / `graded` / `poolLit` for why a thing did not dim,
+`userData.surface` for whether a face is even brick. None came from a tool
+getting cleverer.
+
+The instruments' contribution was asking the right question and then **refusing
+to answer it on evidence they did not have** — which is why the answer, when it
+arrived, was "the world is fine and here is why" rather than a defect list
+somebody had to disprove.
