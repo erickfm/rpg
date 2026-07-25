@@ -201,6 +201,21 @@ const rescan = ghosts.length
   : null;
 
 say(scan.length > 300, 'the walk was actually sampled', `${scan.length} cross-sections`);
+// A CHECK THAT CAN PASS ON AN EMPTY WORLD HAS ASSERTED NOTHING. 32d9d6521 found
+// five of its own that could; this was one of mine. The scan walks fixed bands
+// of x whatever the world contains, so with no colliders every section reads as
+// clear and all three assertions below go green — measured, by making
+// colliders() return nothing: "0 colliders, 0 static ... the lane is still 2 m
+// of nothing". The count was printed in its own output and nothing consumed it.
+//
+// Two guards, because they fail for different reasons. The population one
+// catches the API going away; the bounded one catches a world that loaded but
+// has no geometry on the walk — the free band is 2.0 m of centre-span, so a
+// narrowest of 2.72 m means nothing bounded it anywhere along 446 sections.
+say(stat.length > 50, 'the world actually has colliders to measure',
+  `${stat.length} static of ${a1.length}`);
+say(worst.clear < 2.6, 'and the walk is bounded by geometry, not by the band',
+  `narrowest ${worst.clear} m against a ${(2.0 + 0.72).toFixed(2)} m unbounded band`);
 // The load-bearing one. Static geometry that a body cannot pass is a wall
 // across the pavement, and it is permanent — unlike a citizen, it never
 // moves out of the way.
@@ -228,12 +243,13 @@ if (SELFTEST) {
   const before = fails;
   say(sealed.length > 0, 'static geometry blocks the walk (the bug)', `${sealed.length} sealed`);
   say(tight.length > 5, 'the walk is full of traps (the bug)', `${tight.length} under ${PASSABLE} m`);
+  say(stat.length <= 50, 'the world is empty (the bug)', `${stat.length} static colliders`);
   const caught = fails - before;
-  console.log(caught === 2
-    ? '\nSELFTEST PASSED — both inverted assertions were caught'
-    : `\nSELFTEST FAILED — only ${caught} of 2 caught`);
+  console.log(caught === 3
+    ? '\nSELFTEST PASSED — all three inverted assertions were caught'
+    : `\nSELFTEST FAILED — only ${caught} of 3 caught`);
   await browser.close();
-  process.exit(caught === 2 ? 0 : 1);
+  process.exit(caught === 3 ? 0 : 1);
 }
 
 await browser.close();
