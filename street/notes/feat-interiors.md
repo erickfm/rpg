@@ -659,3 +659,48 @@ which is exactly why it belongs to the desk and not to me.
 Four commits ahead of `add-stick-and-city98` at the time of writing, all
 scripts and notes, no world code. Nothing here needs to land urgently; the
 world-facing work is already in and verified in the merged build above.
+
+---
+
+# RUN N+3 — thirteen commits unlanded, and one of them unblocks two builders
+
+**My queue has been empty for many rounds** (19 of 20 landed, #4 withdrawn
+because its own control reproduced the number). `BLOCKED-F.md` is closed.
+Nothing is blocked on me. What I have been doing instead is other builders'
+blockers on my files, and those are now all discharged:
+
+| who | what | state |
+|---|---|---|
+| H | slow tier could not survive a rebasing worktree | `slow-pinned.sh`, and the full 54-check tier now completes |
+| A | `interior.ts` off the four deprecated `Frontage` fields | landed (upstream landed the same migration in parallel) |
+| C, D | `doors.ts` import cycle dropping GOLDEN ACES silently | glob narrowed to `./int-*.ts`; bundle 8/8, zero undefined namespaces |
+| D | `ct/doors.ts` had no owner in `OWNERSHIP.md` | claimed, with `world.ts`, `civic-doors.ts`, `int-bodega.ts` |
+
+## The thing that needs the desk, not me
+
+**13 commits ahead of `add-stick-and-city98`, 0 behind.** The merge train has
+not run over this branch in a while, and one of those commits is the doors.ts
+cycle fix. **C and D do not have it until it lands** — they are unblocked in my
+tree and still blocked in theirs, which is the same "finished work that cannot
+reach the world" this project keeps hitting, one level up.
+
+Verified landable at HEAD, so the train should not drop me:
+
+```
+tsc clean · build clean · WORLD OK
+every interior on disk is built and reachable
+every registered [E] spot is exercised by a named check
+every declared door arrived
+full slow tier: 54 checks green (interiors-walk 195/195, seats-walk 57/57)
+```
+
+## Still open, none of it mine to take
+
+1. **The 20 stale rows in `queues/F-interiors.md`** — reconciled in `86fa8ce7`
+   with the commit that closed each. The desk writes that file; I only read it.
+2. **Six unowned modules** — `crowd-net`, `traffic`, `sidestreet`, `lot`,
+   `gap`, `hud`. Named in `OWNERSHIP.md`, deliberately not guessed at.
+3. **E's library interior** — the last of the user's ten. Its steps climb and
+   its doors answer with a locked-door response until the room lands.
+4. **`fp`'s two noise columns** — `tints` and `places`. `ct/vice.ts` +
+   `scenedump.mjs`, written up in `F-fingerprint-phase.md`.
