@@ -394,6 +394,36 @@ invariant for `mod === 'street'` and only prints the rest, which is the scoping
 I recorded as an open gap two weeks ago and did not close. This is what that gap
 costs.
 
+**Every script of mine that asserts anything is in `npm run checks` — audited
+after `8a7b44bcb`.** That commit found fourteen `E-*` scripts running under a
+second suite nobody had recorded, so a published "52 green, 5 red" had left an
+entire builder's area outside it. Worth checking rather than assuming the same
+was not true here.
+
+```
+  15 scripts I own
+  11 registered in npm run checks
+   4 not, and each on purpose:
+       C-look, curbcut-shots, lobbydoor   shot-takers — they assert NOTHING,
+                                          they exist to be looked at
+       mods-dim                           red on the banner blocker; goes in
+                                          the runner the day the banners dim
+```
+
+No second suite, and nothing of mine runs outside the one runner.
+
+**But the hole E's fourteen fell through is real and I have three sitting in
+it.** `checks-registered` flags a script that has a `--selftest` and is not
+registered. A script with NO selftest is invisible to it and to the runner
+both — which is correct for a shot-taker and indistinguishable from a check
+somebody forgot. Recording it here so the next reader does not have to guess
+which of mine is which:
+
+| script | what it is |
+|---|---|
+| `C-look`, `curbcut-shots`, `lobbydoor` | take screenshots. No assertions, no exit codes worth reading. Run them when you want to SEE something |
+| everything else in the list above | asserts, has a selftest, is registered |
+
 **Not built, and why.** Privacy slats were on the brief for "the back and side
 runs". There are no back or side runs — the site's rear and flanks are D's
 brick, and the only chain-link here is the frontage, which exists to show the
