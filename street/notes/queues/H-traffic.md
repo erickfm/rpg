@@ -23,6 +23,46 @@ world stops.
 
 ## Now
 
+- [ ] **Profile feet read backwards. `ct/citizens.ts` is now YOURS.** The
+      user: *"legs on these people is still off from the side, looks backwards
+      on the feet somehow?"* Ref: `shots/user-feet3.png`.
+
+      Ownership moved to you with this item — you already own `ct/crowd.ts`
+      and you did the split that separated the atlas from the walking sim, so
+      you know the file. It was desk-owned, which is part of why this has been
+      attempted and dropped before.
+
+      **The diagnosis, measured off the code.** In the profile view
+      (`view === 2`) at stride 0:
+
+      · **the two legs draw at exactly the same x.**
+        `cx - 2 - stride` and `cx - 2 + stride` coincide when stride is 0, so a
+        standing citizen has ONE leg. That is what the shot shows.
+      · **the shoe has no toe.** The two feet span `cx - 5` to `cx + 6` — an
+        11-texel plank, centred half a texel right of the leg, which is 4 wide
+        at `cx - 2 … cx + 2`. So it sticks out roughly equally in FRONT of and
+        BEHIND the ankle. A shape that is symmetric about the ankle cannot say
+        which way it points, and the eye resolves that as "backwards" —
+        exactly the word the user used.
+
+      What a profile foot actually is: the ankle sits near the BACK of it,
+      with a short heel behind — one or two texels — and the whole length of
+      the foot forward of it. Roughly 1 back, 7 forward, not 5 and 6.
+
+      · make the toe direction follow the facing, so the mirrored profile
+        gets its toe on the correct side rather than inheriting a symmetric
+        shape that looks wrong in one of the two
+      · give the legs a small default offset at stride 0 so a standing person
+        has two of them
+      · keep the fix that is already there: feet must NOT part company at long
+        stride, which is the "two shoes floating beside the person" bug the
+        comment in that function describes. Whatever you do has to survive
+        stride 2–5.
+
+      **This is the third attempt at profile feet.** Check all 8 atlas angles
+      with `__ct.atlases()` before you commit, standing AND walking — the
+      previous fixes were judged on one angle and broke another.
+
 - [ ] **The truck tailgate is aliasing into a checkerboard.** The user:
       *"textures on back of truck are janky"*. Ref: `shots/user-tailgate.png`
 

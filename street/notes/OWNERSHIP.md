@@ -18,6 +18,7 @@ src/proto/ct/props.ts       = B
 src/proto/ct/tex-ground.ts  = B
 src/proto/ct/cars.ts        = H
 src/proto/ct/crowd.ts       = H
+src/proto/ct/citizens.ts    = H   # the atlas; H already owns the walking sim
 src/proto/ct/interior.ts    = F
 src/proto/ct/int-diner.ts   = F
 src/proto/ct/int-burger.ts  = F
@@ -40,7 +41,6 @@ add a new export, but must never change an existing signature or behaviour** —
 that is a desk operation, coordinated across every caller in one commit.
 
 ```
-src/proto/ct/citizens.ts    = DESK   # citizenAtlas is called from 3 modules
 src/proto/ct/ctx.ts         = DESK   # the build context every module receives
 src/proto/ct/rng.ts         = DESK   # the ONE seeded stream + world dimensions
 src/proto/fp.ts             = DESK   # the rig: RADIUS, movement, collision
