@@ -211,6 +211,29 @@ const rescan = ghosts.length
         [{ lo: -7.0, hi: -5.0, from: 12, to: -104 }, { lo: 5.0, hi: 7.0, from: 12, to: -94 }]])
   : null;
 
+// IS THE WALK STILL WHERE THIS CHECK THINKS IT IS? The bands above are literal
+// -7.0..-5.0 and 5.0..7.0, taken from ct/rng.ts's ROAD_HALF 5.0 and FACE 7.0.
+// A hard-coded world constant does not fail when the constant moves — it
+// quietly measures a different strip. That is exactly how scripts/alley.mjs
+// spent an unknown number of runs photographing a DRY alley after rainAt was
+// replaced and 15:00 stopped raining.
+//
+// So the check verifies its own premise: the building line has to be where the
+// bands assume, found from the shells rather than from the constant.
+const faceX = await page.evaluate(() => {
+  let east = -1e9, west = 1e9;
+  window.__ct.scene().traverse((o) => {
+    if (!o.isMesh || o.userData?.facing !== 'x') return;
+    o.geometry.computeBoundingBox();
+    const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld);
+    if (bb.min.x > 0) east = Math.max(east, -bb.min.x); else west = Math.min(west, bb.max.x);
+  });
+  return { east: -east, west };
+});
+say(Math.abs(faceX.east - 7.0) < 0.05 && Math.abs(faceX.west + 7.0) < 0.05,
+  'the building line is where these bands assume',
+  `facades at x ${faceX.west.toFixed(2)} and ${faceX.east.toFixed(2)}, bands assume ±7.00`);
+
 say(scan.length > 300, 'the walk was actually sampled', `${scan.length} cross-sections`);
 // A CHECK THAT CAN PASS ON AN EMPTY WORLD HAS ASSERTED NOTHING — GOTCHAS §34,
 // which this was one of the instances behind. 32d9d6521 found
