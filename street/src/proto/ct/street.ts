@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { pixTex, dither } from './paint';
-import { facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight } from './tex-world';
+import {
+  facadeTex, shopfrontTex, resGroundTex, ENTRANCE, SHOP_BAND_H, masonry, SHOP_MULT, wallHeight,
+  burgerFront, pawnFront, taxFront,
+} from './tex-world';
 import { walkTex } from './tex-ground';
 import { buildCatRig } from './cat';
 import { buildCivic, type BldSpec } from './civic';
@@ -110,127 +113,11 @@ export function buildStreet(o: {
   // neighbours share the boundary plane; their facade quads meet edge to
   // edge instead of overlapping, so there is no coplanar strip to z-fight
   // (same rule that fixed the corner road: abut, never overlap).
-  // ── three shopfronts that are NOT the block default ─────────────────────
-  //
-  // Everything else on the street wears shopfrontTex, which is the right
-  // neutral for a barber or a deli. These three are characters, and the
-  // spread between them is the point: the fast-food place is the loudest
-  // thing on the block, the tax office is the least designed, and the
-  // pawnshop is the most defended. All three keep the block's 8 px/m and the
-  // same band heights as shopfrontTex, so they line up with their neighbours.
-  // The three custom shop bands below were authored on a (wM*8) x 52 canvas —
-  // 8 x 12.38 px/m — while every other band on the block runs at the shared
-  // 2x masonry density. bandSurf() hands them the correct canvas and re-bases
-  // the coordinates they were drawn in: `bx`/`by` map an old texel onto the
-  // same WORLD position on the new one, so the art is unchanged and no painter
-  // here carries a px/m of its own.
-  const OLD_SB = 52;
-  const bandSurf = (wM: number) => {
-    const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
-    const oldW = Math.max(64, Math.round(wM * 8));
-    return {
-      surf, W: surf.W, H: surf.H,
-      bx: (v: number) => Math.round(v * surf.W / oldW),
-      by: (v: number) => Math.round(v * surf.H / OLD_SB),
-    };
-  };
-  // 1997 fast food: saturated brand colours, a fascia twice the usual depth,
-  // and more glass than anyone else because you are supposed to see in.
-  const burgerFront = (brick: string, wM: number) => {
-    const { surf, W, H: SB, bx, by } = bandSurf(wM);
-    // RED AND BEIGE, asked for twice. The scheme is these three: the fascia
-    // red, the beige it is trimmed and lettered in, and the warm-but-not-
-    // yellow interior. It used to run red + mustard (#e8a02a stripe, #f2d24a
-    // letters, #e8c26a interior) and the mustard is what read as the second
-    // colour — so all three moved together. Change them here, nowhere else.
-    const BB_RED = '#c8302a', BB_BEIGE = '#e6dcc6', BB_INSIDE = '#e0d2b4';
-    return surf.paint((g) => {
-      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      g.fillStyle = BB_RED; g.fillRect(0, 0, W, by(16));              // the big red fascia
-      g.fillStyle = BB_BEIGE; g.fillRect(0, by(16), W, by(3));        // beige accent stripe
-      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, by(19), W, by(2));
-      g.fillStyle = BB_BEIGE; g.font = `bold ${by(9)}px monospace`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('BURGER BARN', W / 2, by(8));
-      g.fillStyle = '#141820'; g.fillRect(bx(4), by(21), W - bx(8), by(31));
-      g.fillStyle = BB_INSIDE; g.fillRect(bx(6), by(23), W - bx(12), by(25));   // lit right through
-      g.fillStyle = '#8a6a4a';                                       // booths in silhouette
-      for (let x = bx(10); x < W - bx(14); x += bx(17)) { g.fillRect(x, by(33), bx(7), by(12)); g.fillRect(x + bx(9), by(36), bx(5), by(9)); }
-      g.fillStyle = BB_RED; g.fillRect(Math.round(W * 0.62), by(23), bx(12), by(12));   // menu board
-      g.fillStyle = BB_BEIGE; g.fillRect(Math.round(W * 0.62) + bx(2), by(26), bx(8), 1);
-      g.fillRect(Math.round(W * 0.62) + bx(2), by(29), bx(8), 1);
-      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.44), by(23), bx(4), by(25)); // door
-      g.fillStyle = '#d8d0c0';                                        // window decals
-      g.fillRect(bx(9), by(25), bx(10), by(4)); g.fillRect(W - bx(22), by(25), bx(12), by(4));
-      g.fillStyle = '#8a3a24'; g.fillRect(bx(4), by(48), W - bx(8), by(4));    // stallriser
-      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(bx(4), by(48), W - bx(8), 1);
-      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
-    });
-  };
-  // the pawnshop: barred glass, a hand-painted board, and the three balls
-  const pawnFront = (brick: string, wM: number) => {
-    const { surf, W, H: SB, bx, by } = bandSurf(wM);
-    return surf.paint((g) => {
-      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      surf.courses(g);
-      g.fillStyle = '#6a5a3a'; g.fillRect(bx(3), by(2), W - bx(6), by(11));  // a painted board, not a light box
-      g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx(3), by(13), W - bx(6), by(2));
-      g.fillStyle = '#e8dcc0'; g.font = `bold ${by(8)}px monospace`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('PAWN', W / 2 - bx(12), by(7));
-      g.font = `bold ${by(5)}px monospace`;
-      g.fillText('LOANS  GOLD  TOOLS', W / 2 + bx(26), by(8));
-      g.fillStyle = '#c9a45e';                                        // the three balls
-      for (const b of [8, 14, 11]) g.beginPath(), g.arc(bx(b), b === 11 ? by(11) : by(6), by(2.4), 0, Math.PI * 2), g.fill();
-      g.fillStyle = '#141820'; g.fillRect(bx(5), by(14), W - bx(10), by(38));
-      g.fillStyle = '#2e2a26'; g.fillRect(bx(7), by(16), W - bx(14), by(32));  // dim, crowded window
-      const junk = ['#8a3a2e', '#c9a45e', '#3a5a8a', '#8a8378', '#4a7a3a', '#7a3a6a'];
-      for (let i = 0; i < Math.floor(W / bx(6)); i++) {
-        g.fillStyle = junk[i % 6];
-        g.fillRect(bx(9) + i * bx(6), by(20) + ((i * by(7)) % by(18)), bx(4), by(3) + (i % 4) * by(2));
-      }
-      g.fillStyle = 'rgba(0,0,0,0.55)';                               // the security bars
-      for (let x = bx(8); x < W - bx(8); x += bx(5)) g.fillRect(x, by(16), 1, by(32));
-      g.fillRect(bx(7), by(24), W - bx(14), 1); g.fillRect(bx(7), by(38), W - bx(14), 1);
-      g.fillStyle = '#3a3020'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
-      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
-    });
-  };
-  // the tax office: no sign worth the name, just a banner cable-tied over the
-  // brick and paper taped inside the glass. The least designed thing here.
-  const taxFront = (brick: string, wM: number) => {
-    const { surf, W, H: SB, bx, by } = bandSurf(wM);
-    return surf.paint((g) => {
-      g.fillStyle = brick; g.fillRect(0, 0, W, SB);
-      surf.courses(g);
-      // a vinyl banner, sagging a texel in the middle, grommets at the corners
-      const bw = W - bx(14);
-      g.fillStyle = '#d8d2c4'; g.fillRect(bx(7), by(3), bw, by(9));
-      g.fillStyle = '#d8d2c4'; g.fillRect(bx(9), by(12), bw - bx(4), 1);   // the sag
-      g.fillStyle = '#2c4a7a'; g.font = `bold ${by(7)}px monospace`;
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('A-1 TAX SERVICE', W / 2, by(7));
-      g.fillStyle = 'rgba(0,0,0,0.35)';
-      for (const gx of [bx(8), W - bx(9)]) { g.fillRect(gx, by(4), 1, 1); g.fillRect(gx, by(10), 1, 1); }
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(bx(7), by(13), bw, by(2));
-      g.fillStyle = '#141820'; g.fillRect(bx(5), by(15), W - bx(10), by(37));
-      g.fillStyle = '#cfd6c8'; g.fillRect(bx(7), by(17), W - bx(14), by(31));  // flat fluorescent interior
-      g.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let x = bx(12); x < W - bx(12); x += bx(22)) g.fillRect(x, by(19), bx(14), by(2)); // tube fittings
-      // paper signs taped up inside, slightly off square
-      const notes = ['REFUNDS', 'FAST', 'E-FILE'];
-      g.font = `bold ${by(4)}px monospace`;
-      notes.forEach((n, i) => {
-        const nx = bx(10) + i * Math.round((W - bx(26)) / 3), ny = by(26) + (i % 2) * by(6);
-        g.fillStyle = '#f2ead0'; g.fillRect(nx, ny, bx(18), by(8));
-        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(nx, ny + by(8), bx(18), 1);
-        g.fillStyle = '#8a2c22'; g.fillText(n, nx + bx(9), ny + by(4));
-      });
-      g.fillStyle = '#2a3440'; g.fillRect(Math.round(W * 0.5), by(17), bx(4), by(31));   // door
-      g.fillStyle = '#6a665e'; g.fillRect(bx(5), by(48), W - bx(10), by(4));
-      dither(g, W, SB, Math.round(wM * SHOP_BAND_H * 6));
-    });
-  };
+  // The three shopfronts that are NOT the block default — BURGER BARN, PAWN
+  // and A-1 TAX — now live in ct/tex-world.ts next to shopfrontTex, which is
+  // the system they are variants of. They were here, in a file owned by
+  // somebody who did not own that system, and drifting is what that split
+  // bought us: the burger barn kept its mustard through three fixes.
   // A shop's ground floor and a flat's are NOT the same height, and pretending
   // they were is what made every storefront on this block read undersized:
   // 3.2 m of band left only 1.92 m of glass, shorter than the door beside it.
