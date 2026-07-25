@@ -342,6 +342,75 @@ export function buildVice(o: {
 
   const placeSigns = (sideSpans: Record<string, [number, number]>) => {
     const casino = sideSpans['GOLDEN ACES'], hotel = sideSpans['HOTEL ORPHEUS'];
+    const FACE_Z0 = -96.0;
+
+    // ── the chase, shared by both buildings ─────────────────────────────
+    //
+    // Hoisted out of the casino so the hotel's porte-cochère runs off the SAME
+    // sequence. That is the point of the pair: two buildings blinking in step
+    // read as one lit block at the end of the street, and two blinking out of
+    // step read as two separate mistakes.
+    //
+    // Bulbs are FIXED sockets and the chase is which of them are alight, so the
+    // light runs and the sockets do not — a scrolling texture would carry the
+    // dead bulb along with it, and a dead bulb is a fixed socket. Three shared
+    // phase materials do it in three colour writes a frame however many bulbs
+    // there are, plus a fourth that never lights.
+    const PHASES = 3;
+    const chaseOn = new THREE.Color(0xfff2c0), chaseOff = new THREE.Color(0x6a5a3a);
+    const phaseM = Array.from({ length: PHASES }, () => new THREE.MeshBasicMaterial({
+      color: 0x6a5a3a, transparent: true, fog: false }));
+    const deadM = new THREE.MeshBasicMaterial({ color: 0x4a453e, transparent: true, fog: false });
+    const bulbGeo = new THREE.SphereGeometry(0.075, 6, 4);
+    let bulbN = 0;
+    /** hang a run of bulbs on the shared chase; every Nth socket is a dud */
+    const bulbRun = (pts: [number, number, number][], deadEvery = 0) => {
+      for (const [bx, by, bz] of pts) {
+        const i = bulbN++;
+        const dud = deadEvery > 0 && i % deadEvery === 0;
+        const m = new THREE.Mesh(bulbGeo, dud ? deadM : phaseM[i % PHASES]);
+        m.position.set(bx, by, bz);
+        scene.add(m);
+      }
+    };
+    ticks.push((n, t) => {
+      const step = Math.floor(t * 6) % PHASES;          // six sockets a second
+      for (let i = 0; i < PHASES; i++) {
+        const on = i === step;
+        phaseM[i].color.copy(on ? chaseOn : chaseOff);
+        phaseM[i].opacity = on ? 1 : 0.55 + 0.30 * n;
+      }
+    });
+
+    // ── a neon tube, run vertically up a facade ─────────────────────────
+    //
+    // The buildings were lit at the ground and dark above it, which is a lit
+    // SHOPFRONT, not a lit building — and the brief is that these two are the
+    // only light sources in the world. A tube up the full height turns the
+    // whole elevation into the sign. Dull glass by day, burning at night, on
+    // the same night factor as everything else.
+    const tubeTex = (col: string) => {
+      const t = pixTex(8, 16, (g) => {
+        g.fillStyle = '#151119'; g.fillRect(0, 0, 8, 16);
+        g.fillStyle = col; g.fillRect(2, 0, 4, 16);
+        g.fillStyle = '#fff6e0'; g.fillRect(3, 0, 1, 16);
+        g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(5, 0, 1, 16);
+      });
+      t.wrapT = THREE.RepeatWrapping;
+      return t;
+    };
+    const riser = (x: number, y0: number, y1: number, col: string) => {
+      const t = tubeTex(col);
+      t.repeat.set(1, Math.round((y1 - y0) / 1.2));
+      const m = new THREE.MeshBasicMaterial({
+        map: t, transparent: true, opacity: 0.4, fog: false, side: THREE.FrontSide });
+      const q = new THREE.Mesh(new THREE.PlaneGeometry(0.22, y1 - y0), m);
+      q.rotation.y = Math.PI;                  // face the road, not the brick
+      q.position.set(x, (y0 + y1) / 2, FACE_Z0 - 0.07);
+      scene.add(q);
+      ticks.push((n) => { m.opacity = 0.34 + 0.66 * n; });
+    };
+
     const FACE_Z = -96.0;                        // the facade plane
     let driverHost: THREE.Mesh | null = null;
 
@@ -409,12 +478,7 @@ export function buildVice(o: {
       // turns, and a fourth that never lights. Bulb i belongs to class i % 3,
       // so animating the chase is three colour writes a frame however many
       // bulbs there are.
-      const PHASES = 3;
-      const chaseOn = new THREE.Color(0xfff2c0), chaseOff = new THREE.Color(0x6a5a3a);
-      const phaseM = Array.from({ length: PHASES }, () => new THREE.MeshBasicMaterial({
-        color: 0x6a5a3a, transparent: true, fog: false }));
-      const deadM = new THREE.MeshBasicMaterial({ color: 0x4a453e, transparent: true, fog: false });
-      const bulbGeo = new THREE.SphereGeometry(0.075, 6, 4);
+
       // round the front fascia and both returns, at both top and bottom edges
       const ring: [number, number, number][] = [];
       for (const y of [MQ_Y0 + 0.12, MQ_Y1 - 0.12]) {
@@ -429,26 +493,20 @@ export function buildVice(o: {
       }
       // the dead one: 1984 refit, and nobody has been up the ladder since
       const DEAD = 11;
-      ring.forEach(([bx, by, bz], i) => {
-        const m = new THREE.Mesh(bulbGeo, i === DEAD ? deadM : phaseM[i % PHASES]);
-        m.position.set(bx, by, bz);
-        scene.add(m);
-      });
+      bulbRun(ring);
+      // the dead one: 1984 refit, and nobody has been up the ladder since. It is
+      // placed by hand rather than by a modulo, so it is a specific socket on a
+      // specific corner of the marquee and it never moves.
+      const dud = new THREE.Mesh(bulbGeo, deadM);
+      dud.position.set(...ring[DEAD]);
+      scene.add(dud);
       // and the marquee's own glow, sitting in the air under the soffit
       const mqGlow = new THREE.Mesh(new THREE.PlaneGeometry(MQ_W + 1.4, mqD + 1.2),
         glowM(0xffd98a, 0.18));
       mqGlow.rotation.x = Math.PI / 2;
       mqGlow.position.set(DOOR_X, MQ_Y0 - 0.5, mqCz);
       scene.add(mqGlow);
-      ticks.push((n, t) => {
-        const step = Math.floor(t * 6) % PHASES;      // six sockets a second
-        for (let i = 0; i < PHASES; i++) {
-          const on = i === step;
-          phaseM[i].color.copy(on ? chaseOn : chaseOff);
-          phaseM[i].opacity = on ? 1 : 0.85;
-        }
-        (mqGlow.material as THREE.MeshBasicMaterial).opacity = 0.10 + 0.30 * n;
-      });
+      ticks.push((n) => { (mqGlow.material as THREE.MeshBasicMaterial).opacity = 0.10 + 0.30 * n; });
 
       // ── the blade: full height, and the tallest thing on the frontage ──
       //
@@ -499,6 +557,31 @@ export function buildVice(o: {
         face.position.set(BL_X + s * 0.18, (BL_Y0 + BL_Y1) / 2, blCz);
         face.rotation.y = s * Math.PI / 2;
         scene.add(face);
+      }
+
+      // ── the whole elevation, not just the shopfront ──────────────────
+      //
+      // This is what the user was actually looking at when they said "so low
+      // effort and boring": a lit ground floor under four storeys of dark
+      // brick. A downtown casino outlines the BUILDING. So the roofline and
+      // both party edges carry the same chase as the marquee, and three tubes
+      // run the full height between them.
+      //
+      // The vocabulary here is excess and repetition, which is exactly what a
+      // pixel world is good at — one bulb is a dot, ninety bulbs on a rhythm is
+      // a casino.
+      {
+        const CROWN = 17.2, BASE = 4.35;                 // roofline, top of band
+        const x0 = casino[0] + 0.28, x1 = casino[1] - 0.28;
+        const crown: [number, number, number][] = [];
+        for (const bx of sockets(x0, x1, 0.42)) crown.push([bx, CROWN + 0.18, FACE_Z0 - 0.16]);
+        for (const bx of [x0, x1]) {
+          for (const by of sockets(BASE, CROWN, 0.52)) crown.push([bx, by, FACE_Z0 - 0.16]);
+        }
+        bulbRun(crown, 23);                              // roughly one dud in every 23
+        riser(cxm, BASE, CROWN, '#ff4a3a');
+        riser(x0 + 2.6, BASE, CROWN, '#f2b83a');
+        riser(x1 - 2.6, BASE, CROWN, '#f2b83a');
       }
 
       // ── the entrance, in three dimensions ────────────────────────────
@@ -593,6 +676,37 @@ export function buildVice(o: {
         solid({ minX: cx0 - 0.15, maxX: cx0 + 0.15, minZ: -98.0, maxZ: -97.7 });
       }
 
+      // ── the porte-cochère runs the same chase as the marquee ─────────
+      //
+      // Same sequence, deliberately. The two buildings blinking in step read as
+      // one lit block at the end of the street; out of step they read as two
+      // separate mistakes.
+      {
+        const ring: [number, number, number][] = [];
+        for (const by of [PC_Y0 + 0.1, PC_Y1 - 0.08]) {
+          for (const bx of sockets(DOOR_X - PC_W / 2 + 0.2, DOOR_X + PC_W / 2 - 0.2, 0.38)) {
+            ring.push([bx, by, PC_Z1 - 0.03]);
+          }
+        }
+        bulbRun(ring, 19);
+      }
+
+      // ── and the elevation above it ───────────────────────────────────
+      //
+      // Quieter than the casino on purpose. The hotel is the older building and
+      // the one still pretending to be respectable, so it gets a cornice line
+      // and two tubes rather than a full outline — but it is still LIT, which
+      // is the point. A dark hotel beside a lit casino reads as derelict.
+      {
+        const CROWN = 19.6, BASE = 4.9;
+        const x0 = hotel[0] + 0.3, x1 = hotel[1] - 0.3;
+        const crown: [number, number, number][] = [];
+        for (const bx of sockets(x0, x1, 0.5)) crown.push([bx, CROWN + 0.16, FACE_Z0 - 0.16]);
+        bulbRun(crown, 17);
+        riser(x0 + 1.1, BASE, CROWN, '#5ad2ea');
+        riser(x1 - 1.1, BASE, CROWN, '#5ad2ea');
+      }
+
       // ── ORPHEUS in applied letters on the fascia ─────────────────────
       //
       // Individual plaques standing 0.07 m off the fascia, one per letter, not
@@ -661,12 +775,23 @@ export function buildVice(o: {
         tubeText(g, 'NO', 9, 10, 11, '#4a4640', '#6a6660', '#241f22');
         tubeText(g, 'VACANCY', 22, 10, 8, '#ff6a9a');
       });
+      const vacM: THREE.MeshBasicMaterial[] = [];
       for (const s of [-1, 1]) {
-        const v = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.56), neon(vacT(s < 0)));
+        const mat = neon(vacT(s < 0));
+        const v = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.56), mat);
         v.position.set(hx + s * 0.14, 4.5, -96.75);
         v.rotation.y = s * Math.PI / 2;
         scene.add(v);
+        vacM.push(mat);
       }
+      // It has a bad ballast. Not a clean blink — a long steady burn with an
+      // occasional stutter, which is what a tube on its way out actually does
+      // and what separates "broken" from "animated".
+      ticks.push((n, t) => {
+        const ph = t % 4.2;
+        const flick = ph > 3.86 && ph < 3.94 ? 0.25 : ph > 4.02 && ph < 4.07 ? 0.4 : 1;
+        for (const m of vacM) m.opacity = (0.35 + 0.65 * n) * flick;
+      });
 
       // ── rooms that are occupied ──────────────────────────────────────
       //
