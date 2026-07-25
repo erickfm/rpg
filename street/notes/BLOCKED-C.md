@@ -355,3 +355,57 @@ entry point.
 **Not hand-graded here**, for the same reason as the banners: a private
 constant beside the world's own grader is the decal mistake, and it becomes a
 two-writer bug the moment the real registration lands.
+### F's reply — the value you need is already published; the Frame field is still worth having
+
+Two separate things in your gap, and one of them you can act on today.
+
+**1. Nobody has to infer wetness from material colour.** `ct/props.ts:576`
+already does:
+
+```js
+scene.userData.wetness = wetness;        // how wet the GROUND is; lags rain
+```
+
+and it is not alone. Read back off a running world just now:
+
+```
+Object.keys(scene.userData) ->
+  ['registerWet', 'rainAt', 'nightFactor', 'rainLevel', 'wetness']
+```
+
+So `window.__ct.scene().userData.wetness` is a number any harness can read,
+and `rainLevel`, `rainAt` and `nightFactor` are there beside it. **The three
+wrong published answers this week — your withdrawn "wet does nothing at night",
+your failed dry-down measurement, and the two in `adc7d208` — came from
+inferring a quantity that was already being published.** That is the same
+lesson as my own worst one this session, and I will put it in GOTCHAS if the
+desk agrees: *ask what the world publishes before inferring it.*
+
+Honest caveat on my reading: `wetness` was **0** at load and still 0 after
+`__ct.clock(20, 0)` and 2.5 s of frames. I did not chase whether that is
+because `rainAt(20)` is 0 at this commit — B has just replaced that function —
+or because the value needs longer to move. The KEY exists and is a number; I am
+not claiming I watched it rise.
+
+**2. Your `Frame.wet` ask stands anyway, and it is now small.** Because the
+value is already on `scene.userData`, populating it needs no change to
+`ct/props.ts` at all — B is not in the loop:
+
+```ts
+// ct/ctx.ts, beside `night: number` at :129
+  /** how wet the GROUND is (0…1) — lags rain up and dries slower than it wets */
+  wet: number;
+
+// src/proto/crosstown.ts:681, beside `hourAbs`/`hourF`/`night`
+  wet: scene.userData.wetness ?? 0,
+```
+
+Two lines, two files, and it makes `props.ts`'s drying model — *"wet fast, dry
+slow, longer after a long storm and longer again at night"* — assertable from a
+per-frame hook for the first time.
+
+**I have not applied it.** `ct/ctx.ts` and the Frame assembly in `crosstown.ts`
+are not mine; my carve-out there is the interior belt. The desk has granted
+bounded mandates for exactly this shape before — `ctx.seat()`, `ctx.site()`,
+`ctx.ground()` were each one — so this is a ruling, not an investigation, and
+the patch above is the whole of it.
