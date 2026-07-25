@@ -32,7 +32,29 @@ blocked.
 ad-panel geometry exists anywhere by shape. Located as *the stop in front of
 LIQUOR*. Needs its owner. See `BLOCKED-AUDIT-seams.md`.
 
-## Risk — read this part
+## Risk — the corrections ledger
+
+Every claim I published on this branch and later withdrew, in one place, because
+a reader who lands on the original paragraph will not necessarily scroll to the
+retraction. **If you are about to act on something I wrote, check this list
+first.**
+
+| claim I published | status | where the correction lives |
+|---|---|---|
+| *"42 of 109 masonry faces disagree with their stamp"* | **WRONG** — `BoxGeometry` face-index error | `seam-audit.md` — RETRACTION |
+| *"135 of 239 junctions disagree"* | **WRONG** — same cause | `seam-audit.md` — RETRACTION |
+| *"the brick mismatch is legible at one corner"* | **WRONG** — that was perspective | `seam-audit.md` — RETRACTION |
+| *"raising the casino ceiling stranded three fittings"* | **WRONG** — they hang off `room.H` by design | `AUDIT-TRIAGE.md` |
+| *"one bench can no longer be sat on (56/57)"* | **WRONG** — a tool false negative; 57/57 stands | `request-audit.md` |
+| *"the bodega has no published frontage"* | **WRONG** — it has one, `axis: 'x'`; my probe only read `axis: 'z'` | `request-audit.md` |
+| *"A-1 TAX door is on the same side inside and out"* | **WRONG** — missing street-side flip; mainline's `c206db78` agrees it is correct | `interior-audit.md` R19b |
+| *"the park is unlit / still a yard"* | **SUPERSEDED** — true when measured, fixed since | `request-audit.md` |
+| *"church steps NOT DONE"* | **WRONG** — I scanned the block it moved off | `request-audit.md` |
+| *"the 12 mirrored pennants"* | **TRUE but not worth routing** — the art is symmetric | `seam-audit.md` R8 |
+
+**Ten corrections. Three were caught by mainline before me, six by me, one by
+the desk.** The pattern in almost all of them is the same: a measurement I
+trusted because it was precise, describing something other than what I thought.
 
 **I published two wrong findings on this branch.** Both are retracted in place,
 with the measurements that killed them:
