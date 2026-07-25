@@ -126,3 +126,35 @@ number and it also closes interior finding 18.
   complaint was partly visual. A mesh-based overhang pass is a separate job.
 - The alley, the park interior and the car lot interior are not walks and were
   not swept.
+
+---
+
+# Re-run at `c889ed23`
+
+A lot of furniture landed after the first sweep — side-street lamps
+(`d896c64f`), three bench passes, the lot's banners and waiting bench, litter
+re-placement. Colliders went **164 → 181** (175 static). Re-measured; the sweep
+is ~2 s, which is the point of it.
+
+**Still nothing impassable and nothing urgent. Tightest point unchanged at
+0.89 m.** Two changes:
+
+| | before | now | |
+|---|---|---|---|
+| side st north z −97.25…−96.30 at x 19.8 and 49.8 | *(no lamp)* | **0.95 m** | new side-street lamps, `d896c64f` |
+| side st south z −109.70…−108.75 at x 33.8 | *(no lamp)* | **0.95 m** | same |
+| car-lot A-board, east z −34.1 | 1.01 m | **0.97 m** | moved 0.04 m outward, 5.69 → 5.73 |
+
+**The new side-street lamps landed at exactly the block's standard 0.95 m** —
+the same figure as every main-street lamp. That is the right outcome: whoever
+placed them matched the existing condition rather than inventing a new one, and
+the lamp factory being "not bolted to one street" evidently carried the offset
+with it.
+
+**The A-board has tightened from 1.01 m to 0.97 m** and is now under the 1.00 m
+line as well as being the longest sustained pinch on the block (1.8 m of walk).
+It remains the one object where a small nudge toward the kerb — it currently
+starts at x 5.12, only 0.12 m off the kerb line — would buy back the most.
+
+Nothing else moved. The ranking, the baseline (1.70 m) and the recommendation
+below are unchanged.
