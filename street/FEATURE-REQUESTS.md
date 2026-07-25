@@ -22,6 +22,20 @@ published to the playable artifact.
   standing sweep for unsupported objects → **auditor**
 - **"i want more detail for both the hotel and golden aces casino facades"**
   → **builder E**
+- **"i want to build out the insides of the following: burger barn. diner.
+  library. tax service. pawn shop. bodega. thrift store. my room. the casino.
+  the hotel. ill let you divide all that up its pretty intense."** → split four
+  ways behind a shared room kit (`ct/interior.ts`): **F** diner + burger barn +
+  thrift, **G** casino + hotel + pawn + tax, **E** library, **C** room 301.
+  The bodega interior already exists and waits on D's door blocker.
+- **"i want the cars to turn the corner and for the details to extend out that
+  way trees crub, cars, etc. i want the pedestrians to also go out that way and
+  have more complicated paths"** → **builder H** (new — traffic and nav)
+- **"replace records and deli with church. you can swap those. make sure seams
+  are all good post swap too"** → **builder D** (the roster is street.ts; E
+  owns how the church looks, D owns where it stands)
+- **"needs to be darker at night"** → **builder B**, folded into its in-flight
+  flat-night item
 
 ## In progress
 

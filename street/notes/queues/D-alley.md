@@ -34,10 +34,42 @@ hour of work is where the conflicts live.
       produce crate outside a bodega is FULL — fruit heaped above the rim, so
       you see produce first and crate second. Shadow between the slats. Sit them
       flat.
-- [ ] **Church tower.** Remove the campanile entirely; keep the stone, gable,
-      rose window, lancets, arched entrance. Close the roofline cleanly, no
-      orphaned collider, and put a modest cross on the gable peak.
-      Ref: `shots/user-church.png`
+- [ ] ~~Church tower~~ — **REASSIGNED to builder E.** The church and the library
+      moved out of `ct/street.ts` into `ct/civic.ts` (commit 8ca6ce8), which E
+      owns. Do not touch `ct/civic.ts`.
+
+- [ ] **Move the church onto the main block, where RECORDS and DELI are.**
+      The user: *"replace records and deli with church. you can swap those.
+      make sure seams are all good post swap too"*
+
+      This is a ROSTER change and the roster is yours — `ct/street.ts` decides
+      where buildings stand; `ct/civic.ts` (builder E) decides what the church
+      looks like. Stay on your side of that line and neither of you will
+      conflict.
+
+      · EAST currently runs … No. 227, PAWN 12, **DELI 11, RECORDS 10**, … —
+        so the church takes a 21 m slot there.
+      · The church's current slot is the west end of the south side
+        (`ST BRIGID`, w 18, placed by `placeChurch` at z = -111.7). Fill it
+        with the shops you displaced, and mind that the church nave is 18 m
+        against 21 m of DELI + RECORDS — the difference has to come out of a
+        neighbour in the same run, which is the rule the roster comments spell
+        out at the top of the file. **Do not just let a run overflow**: the
+        widths are load-bearing, WEST before the alley must still total 51.2
+        and the last shell must still end on -98.
+      · The church was authored to be seen head-on from the side street, with
+        its own return walls and no party walls. On the main block it will have
+        neighbours hard against it on both sides. Check what that exposes.
+
+      **Seams are explicitly part of this item**, at the user's request. After
+      the swap, walk both sides of every new junction and check: brick courses
+      meeting stone, the sign band running into the church where there is now
+      no band, the roofline step between a 5-storey neighbour and a nave, the
+      sidewalk under it, and the coping. `notes/seam-audit.md` lists the
+      failure patterns this block already has — do not reintroduce them.
+
+      Coordinate with E through the desk, not directly: E is working inside the
+      church at the same time on its buttresses.
 - [ ] **Signs — three separate bugs.** (a) GOLDEN ACES marquee is rotated 180°
       IN PLANE (upside-down AND mirrored) — not a back-face issue. (b) HOTEL
       blade is the plain back-face case. (c) Neither is structurally supported:

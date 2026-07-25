@@ -32,6 +32,25 @@ hour of work is where the conflicts live.
       instead (the way `wetMats` does for rain), so lamp pools have something to
       contrast against. Consider fog fading toward near-black at night for depth
       falloff. Ref: `shots/user-nightflat.png`
+
+      **Follow-up from the user on your work in progress** — *"needs to be
+      darker at night"*, ref `shots/user-night2.png`. The lamp pools now read
+      well and the sky is right; what is still wrong is everything OUTSIDE the
+      pools:
+      · the road and the sidewalk are the worst offenders. They are still a
+        bright mid-grey, reading as daylight asphalt with a filter over it.
+        The road between two lamps should be nearly black — you should lose
+        the kerb line in it.
+      · the brick facades stay bright and saturated across the whole
+        elevation, including the upper floors that no lamp can reach. Height
+        should cost light: a 5th-floor window surround has nothing lighting it.
+      · `NIGHT_FLOOR = 0.30` is doing this. That is a THIRD of daylight left
+        at 3am on a surface with no lamp on it, which is far too generous.
+        Pull it down hard and lean on `POOL_GAIN` to keep the lamplit areas
+        where they are — the dynamic range you want is the gap between those
+        two numbers, and right now the floor is eating it.
+      · the lit shop windows and signs must NOT come down with it. They are
+        the reward for the street going dark.
 - [ ] **Wetness must OUTLAST the rain, and the rain must leave puddles.**
       The user: *"make wetness last a lil after it stops raining"* and *"also
       make rain cause some puddles"*.

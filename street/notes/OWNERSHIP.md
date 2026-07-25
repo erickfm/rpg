@@ -13,9 +13,23 @@ src/proto/ct/cat.ts         = D
 src/proto/ct/civic.ts       = E
 src/proto/ct/apartment.ts   = C
 src/proto/ct/props.ts       = B
-src/proto/ct/cars.ts        = B
 src/proto/ct/tex-ground.ts  = B
+src/proto/ct/cars.ts        = H
+src/proto/ct/crowd.ts       = H
+src/proto/ct/interior.ts    = F
+src/proto/ct/int-diner.ts   = F
+src/proto/ct/int-burger.ts  = F
+src/proto/ct/int-thrift.ts  = F
+src/proto/ct/int-casino.ts  = G
+src/proto/ct/int-hotel.ts   = G
+src/proto/ct/int-pawn.ts    = G
+src/proto/ct/int-tax.ts     = G
 ```
+
+`ct/interior.ts` is a shared kit with FOUR consumers (F, G, E, C) but it is
+owned by F rather than the desk, because it is under active development — a
+kit nobody is allowed to change is a kit that stops fitting. Everyone else
+reads it and asks F, through the desk, for what it does not do.
 
 ## SHARED — desk-owned, builders read only
 
