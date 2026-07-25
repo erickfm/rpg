@@ -55,16 +55,20 @@ tmux send-keys -t "$SESSION:$WIN" Enter
 # 3. VERIFY — an empty prompt and a running spinner. Anything else is a
 #    dispatch that did not take, and the desk should know now, not in an hour.
 sleep 6
+# Look ONLY at the live input box — the last handful of lines. Capturing the
+# whole pane matched the desk's own dispatched message echoed back in the
+# scrollback and warned "did not submit" on every single successful dispatch,
+# which is worse than no check at all: a verifier that always cries wolf gets
+# ignored, and then the real failure it exists to catch goes through unnoticed.
 PANE=$(tmux capture-pane -p -t "$SESSION:$WIN")
-# Claude Code prints its own hints at the prompt — "Press up to edit queued
-# messages", greyed-out suggestions — and they are NOT user text. Matching them
-# produced false "did not submit" warnings on dispatches that had in fact gone
-# through, which is the mirror image of the bug this check exists to catch.
-if echo "$PANE" | grep -qE '^\s*❯\s*\S' \
-   && ! echo "$PANE" | grep -qE '^\s*❯\s*(Press up to edit|Try |Ask )'; then
+BOX=$(echo "$PANE" | grep -vE '^\s*$' | tail -4)
+# Claude Code also prints its own hints in the box — "Press up to edit queued
+# messages", greyed-out suggestions — and those are not user text either.
+if echo "$BOX" | grep -qE '^\s*❯\s*\S' \
+   && ! echo "$BOX" | grep -qE '^\s*❯\s*(Press up to edit|Try |Ask )'; then
   echo "WARNING: $AGENT still has text at its prompt — the dispatch may not have submitted."
 elif echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; then
   echo "dispatched: $AGENT (window $WIN) is working"
 else
-  echo "WARNING: $AGENT is not showing a spinner — check window $WIN."
+  echo "NOTE: $AGENT submitted but is not spinning — it may have finished already (window $WIN)."
 fi
