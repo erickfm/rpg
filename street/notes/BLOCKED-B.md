@@ -481,6 +481,43 @@ attempt at out-thinking a pedestrian.
 
 ---
 
+## ROUTING: the road centre lines stay bone dry in a downpour
+
+`5333a1ce` found the alley dry in the rain because it was never passed to
+`wet()`. That is a completeness question about my registry, so I asked it of the
+whole world rather than the one surface, and found another.
+
+Measured at a rainy daytime hour against a dry one, material luminance:
+
+```
+wet-registered materials      33, every one darkens 82.9–83.4%
+road centre lines             35 segments, 0.2927 -> 0.2927 = 0.0%
+```
+
+**A bright dry stripe down the middle of a road that darkens 83%.** Identified
+precisely so its author recognises it without a coordinate hunt:
+
+```
+0.5 x 134  at (0, -31)     y 0.030   tex 8x32   alphaTest 0.5
+0.5 x 48   at (30, -103)   y 0.032   tex 8x32   alphaTest 0.5
+        graded = true      wet = false      mod = unstamped
+```
+
+They are in the NIGHT registry and not the WET one, so they dim after dark and
+ignore the weather entirely. **Not mine** — neither of my two files makes an
+8×32 texture, and I checked rather than assumed. The mesh carries no `mod`
+stamp, which is exactly the no-owner gap `de551fc7` filed; I could not identify
+the author from the scene, only rule myself out.
+
+The registry itself is healthy — 33 of 33 darken uniformly — so this is a
+missing `wet()` call, the same shape as the alley, not a broken mechanism.
+
+**43 ground slabs carry no wet registration in total.** Most are plausibly
+indoor or covered and I am not filing them; the two centre lines are the ones
+that sit on a surface measured to darken 83% around them.
+
+---
+
 ## Still needing routing, not self-assignment
 
 1. ~~**The fog line**, `crosstown.ts:504`~~ **WITHDRAWN — measured at HEAD and
