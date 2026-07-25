@@ -54,6 +54,24 @@ against my colliders and never against the entry path I had drawn myself — the
 same class of error as the bench that landed in the gate, and I made it while
 being careful about exactly that.
 
+## Found by a later pass, and already fixed
+
+**The shelter's own textures broke §5 the morning they were added** — by me, in
+the act of citing the density mandate. A 16 px map with no `repeat` is one tile
+stretched over whatever face it lands on, so the density falls out of the
+member's size and differs for every one. Measured on what had shipped:
+
+| member | before | after |
+|---|---|---|
+| roof slope | 4.0 px/m across, 11.0 up | 8.0 / 8.0 |
+| front plate | 4.4 across, 114.3 up | 8.0 / 8.0 |
+| post | 100 across, 6.4 up | 8.0 / 8.0 |
+| ridge | 4.0 across, 47.1 up | 8.0 / 8.0 |
+
+The world's masonry standard is 8 px/m. Fine detail plus a stretch is worse than
+no detail: it is grain that changes scale between two pieces of one shelter. A
+16 px tile over 2 m is exactly 8 px/m, so every repeat is just metres / 2.
+
 ## Since this was written
 
 Findings **2** and **4** are done — both were mine, both were in `ct/park.ts`,

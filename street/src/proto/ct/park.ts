@@ -1028,15 +1028,39 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // tint. Left here because a wrong reading of a real measurement is worth
   // more written down than deleted.
   const tim = clcg(0x51a7c3);
-  const postM = flat(pixTex(16, 16, (g) => {
+  /** A 2 m tile, and every member repeats it by its own REAL METRES.
+   *
+   *  §5, which I broke this morning in the act of citing the density mandate.
+   *  A 16 px map with no repeat is one tile stretched over whatever face it
+   *  lands on, so the density falls out of the member's size and is different
+   *  for every one: measured on what I had shipped, 4.0 px/m across the roof
+   *  slope and 114 px/m up the front plate, against the world's WALL_PPM of 8.
+   *  Fine detail plus a stretch is worse than no detail — it is grain that
+   *  changes scale between two pieces of the same shelter.
+   *
+   *  16 px over 2 m is exactly 8 px/m, so the repeat is just metres / 2. The
+   *  texture is cloned rather than rebuilt: `repeat` lives on the Texture, not
+   *  the material, and a clone shares the image. Box faces all take one repeat,
+   *  so it is set from the face that is actually seen — the narrow ones here
+   *  are 0.14–0.16 m and carry no detail anybody can resolve (§4).
+   */
+  const TILE_M = 2.0;
+  const tiled = (t: THREE.Texture, wM: number, hM: number) => {
+    const c = t.clone();
+    c.needsUpdate = true;
+    c.wrapS = THREE.RepeatWrapping; c.wrapT = THREE.RepeatWrapping;
+    c.repeat.set(wM / TILE_M, hM / TILE_M);
+    return flat(c);
+  };
+  const postT = pixTex(16, 16, (g) => {
     g.fillStyle = '#5a4a34'; g.fillRect(0, 0, 16, 16);
     for (let i = 0; i < 26; i++) {                        // sawn timber grain
       g.fillStyle = tim() < 0.5 ? 'rgba(74,60,42,0.55)' : 'rgba(104,88,64,0.4)';
       g.fillRect(0, Math.floor(tim() * 16), 16, 1);
     }
     dither(g, 16, 16, 26);
-  }));
-  const roofM = flat(pixTex(16, 16, (g) => {
+  });
+  const roofT = pixTex(16, 16, (g) => {
     g.fillStyle = '#4a4e56'; g.fillRect(0, 0, 16, 16);
     for (let i = 0; i < 30; i++) {                        // felt, patched and worn
       g.fillStyle = tim() < 0.45 ? 'rgba(58,62,70,0.6)' : 'rgba(88,92,100,0.35)';
@@ -1044,7 +1068,14 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         1 + Math.floor(tim() * 3), 1 + Math.floor(tim() * 2));
     }
     dither(g, 16, 16, 30);
-  }));
+  });
+  const postM = tiled(postT, 0.16, 2.5);                  // the four uprights
+  const plateM = tiled(postT, 3.6, 0.14);                 // the wall plate, front
+  const endPlateM = tiled(postT, 2.14, 0.14);             // …and the ends, which
+                                                          // are a different length
+                                                          // and so a different repeat
+  const roofM = tiled(roofT, 4.0, 1.45);                  // a slope
+  const ridgeM = tiled(roofT, 4.0, 0.34);
   for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.16, 2.5, 0.16), postM);
     post.position.set(shX + dx, KERB_H + 1.25, shZ + dz);
@@ -1065,12 +1096,12 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   // away — which is where this thing is mostly seen from, terminating the
   // axis — you see a triangle instead of a rectangle.
   for (const dz of [-1.15, 1.15]) {                     // plates, along the front
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 0.16), postM);
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.14, 0.16), plateM);
     pl.position.set(shX, KERB_H + 2.57, shZ + dz);
     scene.add(pl);
   }
   for (const dx of [-1.6, 1.6]) {                       // …and along the ends
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 2.14), postM);
+    const pl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.14, 2.14), endPlateM);
     pl.position.set(shX + dx, KERB_H + 2.57, shZ);
     scene.add(pl);
   }
@@ -1082,7 +1113,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     sl.rotation.x = s2 * 0.32;
     scene.add(sl);
   }
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.13, 0.34), roofM);
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.13, 0.34), ridgeM);
   ridge.position.set(shX, KERB_H + 3.09, shZ);
   scene.add(ridge);
   for (let i = 0; i < 3; i++) {                         // the bench inside it
