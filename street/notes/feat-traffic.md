@@ -17,6 +17,7 @@ fault this project keeps hitting with tools, applied to prose.
 | `notes/CITIZEN-STYLE.md` | If you need a person, CALL THE ATLAS. The `Look` table, the contact sheet, and the traps |
 | `notes/H-carstate.md` | The car variants for C's lot: hood up, on a jack, up on blocks — API, and the fingerprint warning that comes with using them |
 | `notes/H-parking-verdict.md` | Audit finding D ruled on: parking not re-rolling is the FEATURE, and what breaks if you change it |
+| `notes/H-atlas-facing.md` | How to read a citizen's AUTHORED facing from outside — the column/mirror table, and why the bodega keeper is not an anomaly |
 | `notes/H-settle-reply.md` | My answers to A's settle-ramp list and C's movement-key list, both corrected after the ramp was retracted |
 | this file | what landed, the three probe patterns, and the sixteen probes |
 
