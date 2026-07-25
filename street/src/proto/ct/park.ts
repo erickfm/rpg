@@ -294,7 +294,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     });
   };
   const railM = (lenM: number) => new THREE.MeshBasicMaterial({
-    map: railTex(lenM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+    map: railTex(lenM), alphaTest: 0.5, side: THREE.DoubleSide,
   });
   // ct/street.ts stands its boundary wall on the PAVEMENT side of the line
   // (x -7.00…-6.64), so the railings belong at its centre — they were 0.18 m
@@ -592,7 +592,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   };
   const ivy = (x: number, z: number, wM: number, hM: number, ry: number, seed: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(wM, hM), new THREE.MeshBasicMaterial({
-      map: ivyT(seed, wM, hM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+      map: ivyT(seed, wM, hM), alphaTest: 0.5, side: THREE.DoubleSide,
     }));
     m.position.set(x, hM / 2, z);
     m.rotation.y = ry;
@@ -769,7 +769,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
     tk.position.set(x, KERB_H + (trunk + 0.6) / 2, z);
     scene.add(tk);
     const mat = new THREE.MeshBasicMaterial({
-      map: leafT(seed), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+      map: leafT(seed), alphaTest: 0.5, side: THREE.DoubleSide,
     });
     for (let i = 0; i < 3; i++) {
       const pl = new THREE.Mesh(new THREE.PlaneGeometry(spread, h - trunk), mat);
@@ -830,7 +830,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   });
   const drop = (x: number, z: number, sz: number, kind: 'paper' | 'can' | 'leaves', seed: number) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(sz, sz), new THREE.MeshBasicMaterial({
-      map: litterT(seed, kind), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+      map: litterT(seed, kind), alphaTest: 0.5, side: THREE.DoubleSide,
     }));
     m.rotation.x = -Math.PI / 2;
     m.rotation.z = seed;
@@ -862,7 +862,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const tx = lx0 + 3.4, tz = gateMid - 7.5;
   for (const [dx, dz, ry] of [[0, 0, 0], [0.42, 0, 0], [0.21, 0.3, Math.PI / 2]] as [number, number, number][]) {
     const side = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.42), new THREE.MeshBasicMaterial({
-      map: meshT, alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+      map: meshT, alphaTest: 0.5, side: THREE.DoubleSide,
     }));
     side.position.set(tx + dx, KERB_H + 0.21, tz + dz);
     side.rotation.y = ry;

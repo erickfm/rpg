@@ -1294,7 +1294,7 @@ export function buildCivic(o: {
       });
     };
     const railM = (wM: number) => new THREE.MeshBasicMaterial({
-      map: railTex(wM), alphaTest: 0.5, side: THREE.DoubleSide, transparent: true,
+      map: railTex(wM), alphaTest: 0.5, side: THREE.DoubleSide,
     });
     for (const [wx0, wx1] of [[YARD_X0, gate0 - 0.25], [gate1 + 0.25, YARD_X1]]) {
       const w = wx1 - wx0;
