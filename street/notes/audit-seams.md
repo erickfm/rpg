@@ -1,56 +1,80 @@
-## audit/seams — doors clean, facade reach regressed, masonry still on the grid
+## audit/seams — lane audit: nothing impassable, and the baseline is the finding
 
-Four commits this pass, one outcome each. Base `7148e296`.
+Queue `## Now` (new top item). Base `a7d228d5`.
+Report: `notes/lane-audit.md`. Instrument: `scripts/lane3.mjs`.
 
-Touched:   notes/interior-audit.md (+Rounds 13, 14), notes/seam-audit.md
-           (+Round 5, +regression check), notes/audit-seams.md,
-           scripts/doorsweep.mjs, scripts/flanks.mjs
-           removed notes/BLOCKED-AUDIT-seams.md — **unblocked**
+Touched:   notes/lane-audit.md (new), notes/audit-seams.md, scripts/lane3.mjs
            **nothing under street/src/**
 
-### The one to route: finding 18 — the facade reach has regressed
+### Result
 
-The **−6.64 stretch on the west facade south of z = −70 is gone.** It does not
-appear once across 25 samples; the tally is now −6.24 … −6.34 everywhere, on
-both walls.
+Measured against `__ct.colliders()` — the array `fp.ts` actually tests — so a gap
+under 0.72 m means the player is physically stopped. **Nothing on the block is
+impassable and nothing is urgent.** Tightest point anywhere: **0.89 m**.
 
-That stretch was round 6's evidence that D's "collision follows geometry" had
-begun reaching the main street, and it was why the thrift store was briefly the
-only main-street door whose trigger centre a player could stand on. **Every
-main-street door is inset again**, by slightly more than before.
+**The finding that matters is the baseline, not the instances:**
 
-I cannot attribute it from here — `7148e296` (parked draw, new `ct/gap.ts`,
-`sidestreet.ts`) is the obvious candidate, but the park or the car lot could
-equally have changed what stands where. **Wants D.** Acceptance test unchanged
-since round 6: **the limit should read ±6.64 wherever a facade stands.**
+> **The clear lane is 1.70 m, not 2.00 m, before anyone puts anything on it.**
+> Every building's collider is registered at `FACE − 0.3` — 0.30 m inside its own
+> facade. 15 % of the sacred 2 m is consumed by collision corresponding to no
+> geometry, everywhere, permanently.
 
-### Finding 1 is CLOSED — the last instance from the original sweep
+That is the **same 0.30 m inset** behind interior finding 18 (six of nine door
+triggers inside solid). **One fix closes both**, and it is worth more than every
+instance below combined — give it back and every figure gains 0.30 m.
 
-`e466c43c` added `flankTex()`: a blind party wall painted from the **same brick
-as the front**, same density, same world-Y datum. Flat-colour `endM` sites 5 → 1;
-flank faces measure 7.94–8.02 × 8.00–8.10 px/m.
+| clear | walk | at | pinched between | owner |
+|---|---|---|---|---|
+| **0.89** | west | z −92.9 | park wall/hedge ∣ lamp post | E + B |
+| **0.90** | west | z −71.4 | park wall/hedge ∣ tree trunk | E + B |
+| 0.95 ×6 | both | every lamp | building wall ∣ lamp post | B |
+| 0.96 ×4 | both | every tree | building wall ∣ tree trunk | B |
+| **1.01 over 1.8 m** | east | z −34.1 | **car-lot A-board** ∣ wall | `ct/lot.ts` |
+| 1.11 | east | z −5.9 | shopfront projection ∣ wall | D |
 
-Its reasoning is better than mine and I have said so in the report: *a blind
-party wall IS correct — what it must not be is a different **material**.* I
-logged it as "untextured" for eleven rounds when the defect was the missing
-brick, not the missing windows.
+Rows 3–4 are the block's **normal** condition, not encroachment. Rows 1–2 are the
+park, only 0.06 m worse than normal. **Row 5 is the one new object genuinely
+making things worse** — the A-board sits hard against the kerb and holds the lane
+at 1.01 m for 1.8 m, the longest sustained pinch on the block.
 
-### Pattern #1 has stopped being reachable
+**The park's bin — the object in the user's report — is not the constraint.** It
+has a collider and 0.26 m of it is on the walk, but it stands where the park has
+railings rather than wall, so it leaves **1.74 m**: wider than a normal stretch
+of building. It looks like it is in the lane and measurably is not.
 
-`4ce8355d` gave buildings real depth: **107 wall faces → 277.** Every one is on
-the grid. A 2.5× increase in painted wall area produced **zero** new instances.
-And `5403232a` refactored the shopfront painters onto a shared band table —
-re-measured, behaviour-neutral, band group still 17 faces at 16 × 15.95.
+### Permanent test: yes, and it is cheap
 
-### The diner prompt had been standing outside a bank
+The lane is a **global invariant violated by local edits** — five builders added
+furniture today and none can see the others' work. An audit tells you about the
+day it ran; this needs a test.
 
-`4fe23d0f` fixed it. **My own harness held the same stale coordinate**, so I
-replaced it with `scripts/doorsweep.mjs`, which finds doors by walking the
-pavement — no door coordinate in it. Nine doors for nine rooms, none unknown,
-and the doors are byte-identical after the collider work.
+For **A** (`scripts/**`):
+- **No new export needed** — `__ct.colliders()` is already exposed at
+  `crosstown.ts:508`. That is what makes it a two-second check.
+- Assert **min static gap ≥ 0.80 m**, warn under 1.00 m. Today passes at 0.89.
+- **Also assert the baseline** (kerb-to-wall, currently 1.70 m) — that catches a
+  regression in the inset itself, which no per-object check would see.
+- **Sample the collider list twice and drop movers.** Citizens carry a ±0.25 m
+  box and walk the lane; my first run produced **six spurious URGENT hits** that
+  evaporated on a second sample.
+- Lift `scripts/lane3.mjs`; ~2 s, no screenshots.
 
-### Still unassigned
+Desk judgement call: at the current inset, six lamps and four trees sit
+permanently at 0.95 m, so a ≥ 1.00 m assert fails on landing against furniture
+nobody wants moved. Either assert 0.80 now and tighten later, **or fix the inset
+first and assert 1.00 immediately — I would do the latter.**
 
-- **Pattern #5** — roads and the alley floor still carry ad-hoc repeats.
-- **Lighting/signage anisotropy, now six light pools**, the coarsest 32 × 32 px
-  over 9.5 × 11.5 m = **3.37 × 2.78 px/m**, the coarsest surface in the world.
+### Two false-positive classes, recorded because they will bite the test too
+
+1. **Moving colliders.** Six of 164 are citizens and traffic. Sampled once, a
+   pedestrian near the kerb reads as a 0.75 m URGENT pinch.
+2. **Walk-based probing does not work here.** My first instrument walked the
+   player across the lane; warping to the building face puts them *inside* the
+   wall, so face-outward numbers are meaningless. Calibrating on empty pavement
+   is what exposed it — the numbers looked plausible (a recurring "0.41 m") and
+   were an artifact. Deleted rather than shipped.
+
+Left:      Colliders only — overhangs without colliders (bunting, fascias,
+           stallrisers, sign boards) cannot narrow the lane but can look like
+           they do, and the user's complaint was partly visual. Separate job.
+           Sampled every 0.10 m along the run.
