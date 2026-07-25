@@ -465,20 +465,40 @@ export function makeCrosstown(): Proto {
   rig = new FPRig(cam, { x: -1.4, z: 9, yaw: 0 }, {
     // maxX reaches only as far as the interiors actually built — every room
     // is constructed by now, so this is the real east edge, not a reservation
-    // minX was -FACE - 6.4 = -13.4, sized when the deepest thing on the west
-    // side was a 7 m park. The park is 32 m now, so the clamp cut it off 25 m
-    // short: you walked in through the gate and stopped dead in mid-air with
-    // most of it still in front of you (BLOCKED-E §1, walked and confirmed).
+    // The west bound is DERIVED from the sites the street opened, not typed.
     //
-    // -FACE - 33 = -40 clears the park's rear wall at -39. Nothing else out
-    // there becomes reachable, because west of the building line every metre
-    // is already spoken for by a shell's own footprint — the clamp was never
-    // what stopped you anywhere except in the park. Walked at 1.5 m intervals
-    // down the whole west side to confirm exactly that before changing it.
-    bounds: { minX: -FACE - 33, maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
+    // It was -FACE - 6.4 = -13.40, right when the deepest thing off the block
+    // was an alley. D deepened the park to 32 m and nothing followed: you walk
+    // in, stop dead at -13.40, and the lamps, the trees, the benches and the
+    // loop are all in front of you and unreachable. The user has only ever
+    // seen the first seven metres of it, which is what "the shittiest park ive
+    // ever seen" was actually describing. E flagged the shape of it before the
+    // depth landed — "deepening the site alone builds a park you can see and
+    // not enter".
+    //
+    // A fix landed in parallel with this one, hard-coding -FACE - 33 to clear
+    // the park's rear wall at -39, having walked the whole west side at 1.5 m
+    // intervals to confirm nothing else out there becomes reachable — west of
+    // the building line every metre is already spoken for by a shell's own
+    // footprint, so the clamp never stopped you anywhere except the park.
+    // That check holds and is worth keeping written down. The number is
+    // derived rather than typed because that is the part that cannot go stale:
+    // the next site to deepen would need someone to remember this line again.
+    bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     groundY: (x, z) => groundPick(x, z),
   });
+
+  /** How far west the world goes: past the deepest open site, or past the
+   *  building line if there are none. The 1.2 m is the same cushion the old
+   *  constant carried past the alley. */
+  function westBound(): number {
+    let deepest = -FACE - 6.4;
+    for (const st of [street.park, street.lot]) {
+      if (st && st.minX < deepest) deepest = st.minX;
+    }
+    return deepest - 1.2;
+  }
 
   function groundPick(x: number, z: number): number {
     {

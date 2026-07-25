@@ -808,10 +808,10 @@ export function buildRoom(ctx: CtxBuild, spec: RoomSpec): Room {
       // chamfer — it walks you into the shopfront next door, which is what the
       // bodega's landing did.
       ? {
-        // 2.6, not 2.3: the kit warns below when the landing sits inside the
-        // way-in trigger, and a chamfer trigger is 1.3 m so it needs 1.65 m
-        // clear of the DOOR — which is 0.75 m in from where you stand.
-        x: dp.x + dp.nx * 2.6, z: dp.z + dp.nz * 2.6,
+        // 3.0: the kit warns below when the landing sits inside the
+        // way-in trigger, and D widened the chamfer trigger to 1.5 m, so the
+        // landing needs 1.85 m clear of the door it stands 0.75 m in front of.
+        x: dp.x + dp.nx * 3.0, z: dp.z + dp.nz * 3.0,
         yaw: Math.atan2(dp.nx, dp.nz), gy: ctx.KERB_H,
       }
       : { x: (fr ? fr.side : -1) * (FACE - 1.2), z: spotOnStreet.z + 1.5,
