@@ -1,8 +1,24 @@
 # Handoff — builder H, `feat/traffic`
 
 **Worktree:** `../rpg-traffic` · **port** 4187 · **base:** `c7135dd` (mainline)
-**Owns:** `ct/crowd.ts` (new, this note), `ct/cars.ts` (per queue — see
-*Ownership* below)
+**Owns:** `ct/crowd.ts`, `ct/cars.ts`, `ct/citizens.ts`, `ct/traffic.ts`,
+`ct/crowd-net.ts`, `ct/sidestreet.ts`, `ct/gap.ts` (per queue — see *Ownership*
+below)
+
+## Everything I have written down, in one place
+
+Five documents, and until now three of them were reachable only from a
+paragraph in the middle of this file — which is the same "nobody could find it"
+fault this project keeps hitting with tools, applied to prose.
+
+| | |
+|---|---|
+| `notes/BLOCKED-H.md` | **Start here if you are the desk.** Three rulings I cannot take myself, each with the arithmetic, plus four gaps in tools that are not mine |
+| `notes/CITIZEN-STYLE.md` | If you need a person, CALL THE ATLAS. The `Look` table, the contact sheet, and the traps |
+| `notes/H-carstate.md` | The car variants for C's lot: hood up, on a jack, up on blocks — API, and the fingerprint warning that comes with using them |
+| `notes/H-parking-verdict.md` | Audit finding D ruled on: parking not re-rolling is the FEATURE, and what breaks if you change it |
+| `notes/H-settle-reply.md` | My answers to A's settle-ramp list and C's movement-key list, both corrected after the ramp was retracted |
+| this file | what landed, the three probe patterns, and the sixteen probes |
 
 ---
 
