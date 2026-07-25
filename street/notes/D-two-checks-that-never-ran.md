@@ -61,3 +61,29 @@ EXEMPT in this file WITH A REASON. Opting out is fine. Opting out silently is
 not."*
 
 `checks-registered` is green again: **68 registered**, 0 orphans.
+
+---
+
+## A third one, found by the same sweep — `parking.mjs`, and it is NOT mine
+
+The pinned fast tier at HEAD is **1 red**, and it is `no-silent-pass`:
+
+```
+FAIL parking.mjs   exit 0 on --no-such-mode — it can pass having checked nothing
+1 script can exit 0 having asserted nothing.
+Fix: import { modes } from './lib/modes.mjs' and list the modes it dispatches on.
+```
+
+**Pre-existing and none of mine.** Verified rather than assumed: no commit on my
+branch touches `scripts/parking.mjs` or `scripts/lib/modes.mjs`, and restoring
+the mainline copy of the file reproduces the same red. Routed, not fixed — it is
+somebody's script and the remedy is one import plus a list.
+
+It is worth flagging loudly anyway, because it is the exact family this whole
+session keeps landing in: **a check that passes because it found nothing.**
+GOTCHAS §34, and my own `builtlane` shipped with the same hole — it reported
+*"the lane is still 2 m of nothing"* while printing `0 colliders` in its own
+output. A mistyped mode word here does not error; it runs nothing and exits 0,
+which reads as a pass in every tier that calls it.
+
+Everything else in the tier is green.
