@@ -11,6 +11,7 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/side-walk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { afterFrames } from './lib/frames.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
@@ -51,7 +52,7 @@ const EAST = Math.PI / 2, WEST = -Math.PI / 2;
 // "went nowhere", which is what the original was reaching for.
 const hike = async (label, x, z, yaw, seconds, want) => {
   await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
-  await page.waitForTimeout(150);
+  await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
   const a = await pos();
   await page.keyboard.down('w');
   const track = [a];
@@ -116,7 +117,7 @@ await hike('south walk, back west', 46, -109.2, WEST, 11, 12);
 // is the mechanical question anyway, and it is the one the seam audit asked.
 const DOOR = { x: 8.7, z: -96.85, r: 1.05 };
 await page.evaluate(() => window.__ct.warp(14, -97.0, -Math.PI / 2, 0.14, 0));
-await page.waitForTimeout(150);
+await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
 const track = await page.evaluate(async () => {
   const out = [];
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));

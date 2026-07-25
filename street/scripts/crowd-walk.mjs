@@ -9,6 +9,7 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/crowd-walk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { afterFrames } from './lib/frames.mjs';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errs = [];
@@ -91,7 +92,7 @@ check(planted.length === w0.length,
 // player whatever the crowd does: the wall collider reaches -6.70, so with the
 // 0.36 m capsule you cannot stand west of -6.34.
 await page.evaluate(() => window.__ct.warp(-6.0, -30, 0, 0.14, 0));
-await page.waitForTimeout(150);
+await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
 const me = await pos();
 const gaps = [];
 for (let i = 0; i < 260; i++) {           // 26 s — long enough for a passer-by
@@ -118,7 +119,7 @@ check(bothSides || closest < 0.6,
 
 // ── 4. the sacred 2 m lane, walked end to end ─────────────────────────────
 await page.evaluate(() => window.__ct.warp(-6.1, 6, 0, 0.14, 0));
-await page.waitForTimeout(150);
+await afterFrames(page);   // GOTCHAS 30: the warp lands on a FRAME, not after 150 ms
 // STOP MEASURING THIS WITH A STOPWATCH. It was `> 14`, then `> 9`, and it failed
 // at 8.6 m on a sound world — a third of the block covered, nowhere near stuck,
 // while the check's own note said "anything near zero is the failure this
