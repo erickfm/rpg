@@ -583,6 +583,40 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## Tried the widen-the-pool fix for the floating litter. It does not work.
+
+`e7cf57085` confirmed my finding independently and larger — **11 objects, up to
+129×**, with better method than mine (stepped clock, nearest-ground comparison,
+self-lit excluded) — and called it the most player-visible open finding it holds.
+So I stopped calling it a look decision and tried the option I had argued for.
+
+I had filed two: widen the ground pool decal to match `LAMP_R`, or pull `LAMP_R`
+in to match the decal. The first is the one the request supports — *"light AROUND
+THE LIGHT POSTS to show up on the objects"* — light on the ground around the post
+is the first clause, and it reached 2.8 m while the second clause reached 7.
+
+Widened the street pool 5.6 → 11.2 m. **`shots/look-gutter-after.png`: the cup is
+still near-white.** Reverted.
+
+The reason is structural and it kills that option for good. **The pool decal is
+ADDITIVE**: at 3.4 m from centre it adds perhaps 0.05 to a ground sitting at
+0.008, while the object's own material is at 0.488. A gradient that adds a
+twentieth cannot close a gap of sixty. Widening it lights more ground faintly and
+leaves the object exactly as bright as it was.
+
+Two things follow:
+
+1. **The remaining option is the other one** — reduce what the material gain
+   gives objects, so nothing out-lights its own ground. That darkens objects the
+   user asked to be lit, so it needs a ruling rather than my judgement.
+2. **A material-colour metric cannot see this fix either way.** I measured
+   "objects >5× their nearest ground" before and after and the numbers moved, but
+   the metric reads material colour and the decal never touches it — so that
+   movement was method noise, not effect. The only instrument that answers this
+   question is the screenshot, which is how the defect was found twice.
+
+---
+
 ## All 26 canfail cases are reachable — and my audit of that was nearly wrong
 
 The registry has grown since I last checked it end to end: `canfail.mjs` now
