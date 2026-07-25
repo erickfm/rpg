@@ -27,18 +27,38 @@ const pos = () => page.evaluate(() => window.__ct.pos());
 
 // yaw for a heading: forward is (sin yaw, -cos yaw), so east is +π/2
 const EAST = Math.PI / 2, WEST = -Math.PI / 2;
+// A HIKE ASSERTS THAT THE WALK IS PASSABLE, WHICH IS NOT THE SAME AS A DISTANCE
+// IN A TIME. It was `moved > 26` over 11 s, and six samples of the same
+// unchanged world ran 28.4 to 36.4 m — 2.4 m of margin against a 7.6 m swing,
+// which is why a run failed two of these and the next three passed. How far you
+// get depends on who you meet: a stopped citizen is solid until it gives way,
+// and B's bus.mjs was caught by the same mechanism from the other side
+// (710e1454).
+//
+// So sample while the key is held and assert the longest STALL. Being held for
+// a beat is the give-way working; being held for four seconds is the lane being
+// blocked, and that is true whatever the total distance. The distance floor
+// stays as a second, much looser line — it only has to separate "moving" from
+// "went nowhere", which is what the original was reaching for.
 const hike = async (label, x, z, yaw, seconds, want) => {
   await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
   await page.waitForTimeout(150);
   const a = await pos();
   await page.keyboard.down('w');
-  await page.waitForTimeout(seconds * 1000);
+  const track = [a];
+  for (let i = 0; i < seconds * 2; i++) { await page.waitForTimeout(500); track.push(await pos()); }
   await page.keyboard.up('w');
   await page.waitForTimeout(60);
-  const b = await pos();
+  const b = track[track.length - 1];
+  let stall = 0, worst = 0;
+  for (let i = 1; i < track.length; i++) {
+    const step = Math.hypot(track[i][0] - track[i - 1][0], track[i][2] - track[i - 1][2]);
+    if (step < 0.15) { stall += 0.5; if (stall > worst) worst = stall; } else stall = 0;
+  }
   const moved = Math.abs(b[0] - a[0]);
-  check(moved > want, `${label}: ${moved.toFixed(1)} m in ${seconds}s ` +
-    `(x ${a[0].toFixed(1)}→${b[0].toFixed(1)}, z ${b[2].toFixed(2)})`);
+  check(worst <= 2.5, `${label}: never stuck — longest stall ${worst.toFixed(1)} s, ${moved.toFixed(1)} m covered `
+    + `(x ${a[0].toFixed(1)}→${b[0].toFixed(1)}, z ${b[2].toFixed(2)})`);
+  check(moved > want, `${label}: and it goes somewhere — ${moved.toFixed(1)} m`);
   return b;
 };
 
@@ -74,10 +94,10 @@ check(heights.pits.length === 4 && new Set(heights.pits).size === 1,
 // ── 1. the two walks, east and back ───────────────────────────────────────
 // Walk the middle of each walk: north walk is z -98…-96, south is -108…-110.
 // Trees stand at z=-97.6 / -108.4, so the lane past them is the building half.
-await hike('north walk, east past every tree', 12.5, -96.8, EAST, 11, 26);
-await hike('north walk, back west', 46, -96.8, WEST, 11, 26);
-await hike('south walk, east past every tree', 12.5, -109.2, EAST, 11, 26);
-await hike('south walk, back west', 46, -109.2, WEST, 11, 26);
+await hike('north walk, east past every tree', 12.5, -96.8, EAST, 11, 12);
+await hike('north walk, back west', 46, -96.8, WEST, 11, 12);
+await hike('south walk, east past every tree', 12.5, -109.2, EAST, 11, 12);
+await hike('south walk, back west', 46, -109.2, WEST, 11, 12);
 
 // ── 2. the bodega door is still reachable ─────────────────────────────────
 // Walk up to it the way a player would, west along the north walk, and sample
