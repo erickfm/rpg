@@ -6,7 +6,9 @@ import { reportWorld } from './lib/which-world.mjs';
 const tag = process.argv[2] ?? 'now';
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
-await p.goto(process.env.SHOT_URL, { waitUntil: 'networkidle' });
+const WORLD = process.env.SHOT_URL ?? 'http://localhost:4177/';
+await p.goto(WORLD, { waitUntil: 'networkidle' });
+await reportWorld(p, WORLD);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(p, process.env.SHOT_URL);   // GOTCHAS 26: prove it, do not just name it
 await p.waitForTimeout(400);
