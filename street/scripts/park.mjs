@@ -93,6 +93,40 @@ console.log(`  ${okLit ? 'OK  ' : 'FAIL'} they are emitting at 3am (${r.lit} she
 console.log(`  ${okBeside ? 'OK  ' : 'FAIL'} every lantern stands beside the loop (worst ${worst} m)`);
 console.log(`  ${okClear ? 'OK  ' : 'FAIL'} none stands ON the 1.5 m path (nearest ${Math.min(...offs)} m)`);
 
+// AND WALK PAST THEM. This check knew where the lanterns stand and never once
+// tried to get past one, which is not good enough for ten new colliders on a
+// path — the project's rule is that anything involving movement is verified by
+// walking it, and "0.95 m from the path centre" is arithmetic, not a walk.
+//
+// It was builder E's own park walk that showed this up: E's instrument walks
+// all four legs and mine did not walk any. My own ad-hoc attempt earlier had
+// measured distance along z only, so a run that drifted 22 m sideways off the
+// leg still counted as a pass. Distance travelled is not the same as getting
+// there.
+await page.evaluate(() => window.__ct.clock(13, 0));
+await page.waitForTimeout(700);
+await page.mouse.click(500, 310);
+const leg = async (label, x, z, yaw, secs, axis, want) => {
+  await page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
+  await page.waitForTimeout(160);
+  const a = await page.evaluate(() => window.__ct.pos());
+  await page.keyboard.down('w'); await page.waitForTimeout(secs * 1000); await page.keyboard.up('w');
+  const c = await page.evaluate(() => window.__ct.pos());
+  const along = Math.abs(axis === 'x' ? c[0] - a[0] : c[2] - a[2]);
+  const drift = Math.abs(axis === 'x' ? c[2] - a[2] : c[0] - a[0]);
+  // BOTH conditions. Far enough along the leg, and still ON the leg — the
+  // second is the one a distance-only test misses.
+  const ok = along > want && drift < 1.2;
+  console.log(`  ${ok ? 'OK  ' : 'STUCK'} ${label}: ${along.toFixed(1)} m along, ${drift.toFixed(2)} m off the leg`);
+  return ok;
+};
+console.log('\n  walking the loop past the lanterns:');
+let walked = true;
+walked = await leg('street leg, south to north', lx1, lz0 + 1.0, Math.PI, 9, 'z', 16) && walked;
+walked = await leg('street leg, north to south', lx1, lz1 - 1.0, 0, 9, 'z', 16) && walked;
+walked = await leg('back leg, north to south', lx0, lz1 - 1.0, 0, 9, 'z', 16) && walked;
+walked = await leg('back leg, south to north', lx0, lz0 + 1.0, Math.PI, 9, 'z', 16) && walked;
+
 const shot = async (n, x, z, tx, tz, gy, p2) => {
   await page.evaluate(([x, z, tx, tz, gy, p2]) =>
     window.__ct.warp(x, z, Math.atan2(tx - x, -(tz - z)), gy, p2), [x, z, tx, tz, gy, p2]);
@@ -108,5 +142,5 @@ await shot('path-day', lx1, lz0 + 1.5, lx1, lz1, 0.14, -0.02);
 
 await browser.close();
 if (errors.length) { console.error('\nPAGE ERRORS:\n' + errors.join('\n')); process.exit(1); }
-if (!okCount || !okLit || !okBeside || !okClear) process.exit(1);
+if (!okCount || !okLit || !okBeside || !okClear || !walked) process.exit(1);
 console.log('\nno page errors');
