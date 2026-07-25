@@ -29,12 +29,14 @@ const ROOMS = [
     id: 'casino', label: /GOLDEN ACES/,
     keeper: [3.1, 1.6],      // across the felt from the dealer
 
-    building: 'GOLDEN ACES', at: -3.2, hasWindow: false,
+    building: 'GOLDEN ACES', at: 0, hasWindow: false,
     // a z that is clear right across the room, for the ±x wall probes
     clearZ: 3.0,
     // an x clear of furniture, for the ±z wall probes
-    frontProbeX: 0, backProbeX: -3.0, backProbeZ: -3.0,
-    doorApproach: [-3.2, 2.4],
+    // 3.0, not 0: 0 is where the door is now, so the probe walked out through
+    // the doorway instead of into the wall it is asserting about.
+    frontProbeX: 3.0, backProbeX: -3.0, backProbeZ: -3.0,
+    doorApproach: [0, 2.4],
     lanes: [
       ['the aisle between the slot banks, east', -4.2, -0.35, '+x', 2200, 'x', 4.6],
       ['…and back west', 0.9, -0.35, '-x', 2200, 'x', 4.6],
@@ -51,15 +53,15 @@ const ROOMS = [
     // colour from the rest.
     deadFitting: 4,
 
-    building: 'HOTEL ORPHEUS', at: -3.4, hasWindow: true,
+    building: 'HOTEL ORPHEUS', at: 0, hasWindow: true,
     clearZ: -3.9,
     frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
-    doorApproach: [-3.4, 2.4],
+    doorApproach: [0, 2.4],
     lanes: [
       ['along the reception desk, toward the back', -3.0, 3.0, '-z', 2400, 'z', 5.0],
       ['…and back toward the door', -3.0, -3.6, '+z', 2400, 'z', 5.0],
       ['across the lobby in front of the lift', -4.5, -3.9, '+x', 2600, 'x', 7.0],
-      ['between the chairs and the east wall', 4.3, 3.4, '-z', 2000, 'z', 3.0],
+      ['between the chairs and the east wall', 4.8, 3.4, '-z', 2000, 'z', 3.0],
       ['behind the chairs, along the window', 0, 3.85, '+x', 1600, 'x', 2.5],
     ],
   },

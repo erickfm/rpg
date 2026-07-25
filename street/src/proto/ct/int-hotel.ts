@@ -105,7 +105,12 @@ export function buildHotel(ctx: CtxBuild): void {
       // import, and that import is what dropped this building's door from the
       // built bundle. See `standOf` above.
       ...standOf(DOOR), r: 1.05,
-      at: -3.4, width: 1.15,
+      // CENTRED to match the facade, for the reason written out in full in
+      // int-casino.ts: the portal on this elevation is at the frontage centre
+      // (39.51 of [33.45, 45.45], mid 39.45) and this was -3.4, so the same wall
+      // read centre from the street and a third to the right from inside. The
+      // user's rule is "i need the facades to line up with the interior".
+      at: 0, width: 1.15,
       // Along the walk, east, for the same reason as the casino: the north
       // side-street walk is a 2 m band and the building collider eats down to
       // z = -96.3, so stepping BACK from the door cannot clear a 1.05 m
@@ -115,7 +120,12 @@ export function buildHotel(ctx: CtxBuild): void {
     // A lobby has a window — it is the one room on my list that wants people
     // outside to see in. East of the door, clear of it by 0.6 m so the kit's
     // overlap check has nothing to say.
-    window: { at: 2.6, w: 4.0, h: 1.7, sill: 0.9 },
+    // Moved east and narrowed because the door moved to centre. At `at: 2.6,
+    // w: 4.0` this spanned local x [0.6, 4.6]; a centred 1.15 m door spans
+    // [-0.575, 0.575], so the two would have met with 2.5 cm between them and
+    // the kit's overlap check would have had something to say. [1.5, 5.1] keeps
+    // 0.93 m clear of the door and 0.4 m off the corner (half-width 5.5).
+    window: { at: 3.3, w: 3.6, h: 1.7, sill: 0.9 },
   });
 
   const { put, solid } = room;
@@ -321,7 +331,16 @@ export function buildHotel(ctx: CtxBuild): void {
   // ONE collider with the table, not four — the gaps between them are 0.4 m
   // and the player is 0.72 m across, so per-chair boxes would only carve slots
   // to wedge into, which is the lesson the diner's booths taught.
-  const CH_X = 1.6, CH_Z = 2.2;
+  // Shifted east from 1.6 when the door moved to centre. The seating collider
+  // is 3.0 x 2.0 about this point, so at 1.6 it spanned local x [0.1, 3.1] --
+  // directly in front of a centred door, and walking in put you straight into
+  // it. That is the pawn shop's "i immediately hit a counter" all over again,
+  // caught by G-rooms-walk's spawn probe rather than by the user this time.
+  // At 2.6 it spans [1.1, 4.1]: clear of a 0.36 m player entering at x 0, under
+  // the window where lobby seating wants to be, and leaving 1.4 m between the
+  // chairs and the east wall. 3.0 was the first try and pushed that lane down to
+  // 1.0 m -- walkable, but a squeeze the room did not used to have.
+  const CH_X = 2.6, CH_Z = 2.2;
   const chair = (lx: number, lz: number, col: number, back: number, ry: number) => {
     const m = new THREE.MeshBasicMaterial({ color: col });
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.5), m);

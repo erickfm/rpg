@@ -124,9 +124,29 @@ export function buildCasino(ctx: CtxBuild): void {
       // import, and that import is what dropped this building's door from the
       // built bundle. See `standOf` above.
       ...standOf(DOOR), r: 1.05,
-      // The door is off to one side, so walking in puts the length of the slot
-      // banks across your view rather than an aisle straight down the middle.
-      at: -3.2, width: 1.15,
+      // CENTRED, to match the facade. This was -3.2, and the comment here used
+      // to justify it: "the door is off to one side, so walking in puts the
+      // length of the slot banks across your view rather than an aisle straight
+      // down the middle". That is a composition I preferred. It is not something
+      // the user asked for, and it broke something the user did ask for:
+      //
+      //   "i need the facades to line up with the interior. so if the door on
+      //    the interior is full right then the facade must match"
+      //
+      // The gold portal on this elevation sits at the frontage centre (51.29 of
+      // [45.45, 57.00], mid 51.225). Standing on the street you face +z, so your
+      // right is -x and the door reads CENTRE. Walk in, turn to the wall you came
+      // through, and you are facing +z again — right is still -x — and a door at
+      // local -3.2 reads a third of the way to your right. Same wall, two
+      // different answers, which is the complaint.
+      //
+      // I had this filed as a ruling I could not take alone, on the grounds that
+      // centring the interior costs the composition and moving the facade costs
+      // the marquee's symmetry on the elevation the user called "the best thing
+      // in the world right now". That framing was wrong: it is not a trade
+      // between two design options, it is a trade between a user instruction and
+      // a preference of mine. Those do not rank equally.
+      at: 0, width: 1.15,
       // Step out ALONG the walk, east, away from the way-in trigger. The north
       // side-street walk is only the 2 m band z ∈ (-98, -96) and the building
       // collider eats down to -96.3, so there is about a metre of standing
