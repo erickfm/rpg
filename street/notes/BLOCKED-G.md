@@ -190,7 +190,9 @@ move, because it was never registered with `wet()`. **Structurally identical to
 the centre lines.**
 
 **Visually it is close to nothing**, and I would rather say so than inflate it:
-the runner is `#7a2028` at luminance 0.053, already darker than wet pavement, so
+the runner is `#7a2028` at luminance 0.053 — **and the comparison I drew from that
+was invalid, see the correction at the end of this item** — already darker than
+wet pavement, so
 "fails to darken further" is not something anyone will see. The centre lines were
 bone white on an 83%-darkened road, which is a different order of wrong.
 
@@ -214,6 +216,33 @@ wettest surface, so those are exactly the two systems they most need.
 proxy from the sky. That is `ct/props.ts`'s call. It is the same shape as H's
 `BLOCKED-H` §3 and C's `isGlass` split: **let the thing that knows say so, rather
 than have three modules each guess it from appearances.**
+
+### CORRECTION: "already darker than wet pavement" compared a colour to a tint
+
+`114c5bef7` establishes that **`MeshBasicMaterial.color` is a TINT, white by
+default** — the texture carries the appearance, so at noon every textured
+material reads as luminance 1.0 by construction rather than because it is bright.
+
+I leaned on exactly that mistake. The runner is a flat material with **no map**,
+so its 0.053 is real. The pavement and the road are **textured with white tints**,
+so their 1.0 and 0.797 are tint values, not brightness. Putting the two side by
+side and concluding *"the runner is already darker than wet pavement, so nobody
+will see it"* compared a colour against a placeholder.
+
+**What survives:** every DELTA. Grading multiplies the tint, so "did this material
+darken, and by how much" is sound — the runner's −34% by day and −35% at night,
+the road's −78%, the 51-of-65 at −83.5%, and the six opaque `vice` materials that
+do not dim. Those are ratios of a quantity against itself.
+
+**What does not:** any comparison of luminance BETWEEN a flat-coloured material
+and a textured one. That includes the sentence above, and the claim it was
+supporting — I do not actually know whether the runner reads darker or lighter
+than the pavement it sits on, because I never measured the pavement's appearance,
+only its tint.
+
+**It does not change what shipped.** The runner is registered and darkens with
+everything else; the fix stands on its delta. What is withdrawn is the reason I
+gave for it not mattering, which was never measured.
 
 ## 6. Two user requests about my buildings are logged against builder E
 
