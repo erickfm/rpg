@@ -1489,7 +1489,15 @@ export function buildStreet(o: {
       [southFlankT, WEST[ai + 1] as BldSpec, AZ1 + 0.01, 0],
     ] as [(h: number) => THREE.Texture, BldSpec, number, number][]) {
       const wh = topOf(spec);
-      const m = new THREE.MeshBasicMaterial({ map: paint(wh), side: THREE.DoubleSide });
+      // FrontSide, not DoubleSide. These are the alley's two flanks and you
+      // only ever stand on one side of them — but the reason it matters CHANGED
+      // under them: flank paint used to be plain brick, which is its own
+      // mirror, and it now carries party-wall marks (the stepped scar, chimney
+      // breasts, blocked-up windows) which are emphatically handed. A
+      // double-sided plane renders the back mirrored (GOTCHAS §10), so this
+      // was a latent defect the moment those marks landed. Single-sided means
+      // it cannot arise if the alley is ever opened up from behind.
+      const m = new THREE.MeshBasicMaterial({ map: paint(wh) });
       const sideWall = new THREE.Mesh(new THREE.PlaneGeometry(7.0, wh), m);
       sideWall.position.set(-FACE - 3.5, wh / 2, az);
       sideWall.rotation.y = ry;
