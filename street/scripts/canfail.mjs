@@ -119,6 +119,18 @@ const CASES = [
   // lit material takes, so poisoning it poisons the colours without touching
   // any geometry. Every other check on this shelf stays green through it, which
   // is the point.
+  // WARMED TWICE. The grade's ceiling is exactly WARM_R: `mul` is capped at 1
+  // and `base` is an authored colour, so 1.15 is the most it can produce and
+  // grade-sane reads that number out of props.ts rather than repeating it.
+  // Applying the warm term a second time — which is what a second writer on one
+  // of these materials would look like, or an uncapped pool gain — takes it to
+  // 1.32 and nothing else in the suite would notice: it is not NaN, not
+  // negative, and clamps at render, so the frame merely looks slightly hotter.
+  ['grade-twice', PROPS,
+    '        e.base.r * mul * (1 + (WARM_R - 1) * k),',
+    '        e.base.r * mul * (1 + (WARM_R - 1) * k) * (1 + (WARM_R - 1) * k),',
+    'grade-sane.mjs', [], 'a material warmed twice — over the ceiling the grade can produce'],
+
   ['grade-nan', PROPS,
     'const POOL_GAIN = 12;        // what a lamp hands back, against the deep floor',
     'const POOL_GAIN = NaN;       // selftest: poison the grade',
