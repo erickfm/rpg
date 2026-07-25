@@ -11,6 +11,22 @@
   balance"*, then the balance from `purse.cash`, which is the same object the
   wallet reads.
 
+- **ATM attempt three — INLAID and SLANTED, and lower** (`shots/user-atm3.png`)
+  — *"you have swung from far too much to too little while STILL not doing the
+  two things asked for twice: INLAID and SLANTED … cut a RECESS into the bank
+  wall, about 0.15 m deep, a little larger than the machine … the machine face
+  inside that recess is RAKED, not vertical."*
+  → **D. DONE, and this time measured rather than intended.** The reason two
+  attempts missed the same two words was not a number: I had composed the rake
+  as mesh `rotation.y` then `rotation.z`, which is Euler-order dependent, and it
+  never produced the tilt I thought it did. Baked into the geometry in a known
+  order instead, then measured — **screen 8.1° up, keypad 33.7° up** (closest to
+  horizontal), apron −45° as the underside, all square to the wall. Recess 0.15 m
+  with the opening larger than the machine on all four sides, and three reveal
+  tones — lit head, dark jambs, sill between — because one flat grey was what let
+  the last one read as laid on. Lowered: screen 1.37, keypad 1.10, bottom 0.90
+  above the pavement. Only the four details asked for. `shots/D-atm3-standing.png`.
+
 - **The ATM overshot — subtract, and rake it** (`shots/user-atm2.png`) — *"it
   reads as a display case or a vending machine, not as an ATM in a wall. THE
   SIZE IS THE MAIN FAULT … Yours is maybe three times that … THEN THE IDEA THEY
