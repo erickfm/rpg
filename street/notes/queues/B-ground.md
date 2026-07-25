@@ -16,6 +16,48 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Tree pits need clearance from the kerb, and puddles belong IN the
+      gutter.** The user: *"i dont like how close the tree bases are to the
+      edge here i think ideal would be with a bit of clearence on the curb
+      side. also the puddle doesnt make sense here. the gutter should have the
+      water in the gutter."* Ref: `shots/user-pit-puddle.png`.
+
+      **Both are the footprint rule from the item below**, so do them in the
+      same pass — this is the same defect on two more objects, and treating it
+      as one job is how it stops recurring.
+
+      **The tree pit.** Its stone frame runs right up to the kerb with no
+      strip of walk between them, which is why it reads as crowding the edge —
+      and your own report already flagged the related fault, that pits
+      overhang the kerb chamfer by ~6 cm. Real street trees sit inboard with a
+      continuous band of pavement between the pit and the kerb, because that
+      band is where the kerb is walked on, swept and parked against. Give it a
+      real clearance — a slab's width reads best, and it should be consistent
+      pit to pit rather than varying. Check the trunk lean too: the tree can
+      lean over the kerb even when the pit does not, and the canopy already
+      has a hard limit at the facade (`GOTCHAS.md` §9).
+
+      **The puddle.** Water runs downhill to the lowest point, and you built
+      that low point yourself — the gutter pan cross-slopes from 0.018 at the
+      asphalt joint down to 0.006 at the kerb. So the gutter IS where water
+      collects, and a puddle spreading across the walk is wrong twice: wrong
+      physically, and wrong because the sidewalk is where the player walks and
+      the gutter is where they look.
+
+      Constrain puddle placement to the pan and the road's low spots: they
+      should read as a ribbon along the kerb line rather than as discs
+      scattered anywhere. Where one does sit on the walk it needs a reason —
+      a dip, a broken slab, under a downpipe or an awning drip line — and it
+      must not cross the kerb edge. Same footprint test: sample the corners,
+      never straddle the discontinuity.
+
+      This also gives you the answer to the visibility problem you diagnosed.
+      You noted that every street puddle sits in the 45 cm gutter strip where
+      nobody looks — the fix is not to scatter them onto the walk, it is to
+      make the gutter worth looking at: a longer continuous ribbon of standing
+      water along the kerb reads far better than isolated patches, and it is
+      what a real street does after rain.
+
 - [ ] **Litter clips into the kerb. Placement must respect the object's
       FOOTPRINT, not just its centre.** The user: *"dont like when the trash
       clips like this we need to be better about our graphics"*. Ref:
