@@ -242,11 +242,29 @@ commit, as asked.
   mullions, something in the window, signage as a made object, and wear where
   hands and weather reach. The tax banner was the last sign that was flat text
   stamped on a band. The diner has a **projecting blade** over the pavement —
-  the one item on the user's list nobody had built. *The casino and hotel are not
-  covered by this — they are **builder G**'s (`OWNERSHIP.md`: `ct/vice.ts = G`),
-  not E's, and their half of the facade brief landed separately in `ct/vice.ts`.
-  The user's verdict on that elevation was "that exterior is the best thing in
-  the world right now".*
+  the one item on the user's list nobody had built.
+
+  ✅ **…and for G's two as well** — the user said "casino, and hotel
+  **especially**", so this stayed open-looking while it was in fact done. They
+  are **G**'s (`OWNERSHIP.md`: `ct/vice.ts = G`), not E's. Every bullet, checked
+  against the facade rather than against A's wording, because the two fronts use
+  their own vocabulary and a word-search says they are missing:
+
+  | the user's bullet | GOLDEN ACES | HOTEL ORPHEUS |
+  |---|---|---|
+  | set-back glass with a reveal | doors set in a reveal, `vice.ts:261` | door surround, `:344` |
+  | projecting fascia | gold fascia + bulb row, `:276` | canopy / porte-cochère |
+  | stallriser | black granite base below 0.55 m, `:222` | rusticated stone base below 0.4 m, `:313` |
+  | transom over the door | gold head on the glazing line, `:262` | head band, `:345` |
+  | mullions | bronze mullion per bay, `:252` | bronze mullion per bay, `:337` |
+  | something in the window | mirrored bronze glass, deliberate — a casino does not let the street see its floor (`:225`) | the lobby, which is why it is the one room with a front window |
+  | wear where hands and weather reach | grime at fascia and at 0.62 m, `:287` | grime + dither |
+
+  The door heads land on the line the glazing already has — `gy0 - 6` against the
+  bronze rail at `gy0 - 3` — which is the alignment A's transom commit argues is
+  what makes a door read as part of the front rather than pasted onto it.
+  The user's verdict on this elevation was *"that exterior is the best thing in
+  the world right now"*.
 
 - **"i need the facades to line up with the interior. so if the door on the
   interior is full right then the facade must match"** ✅ Verified the user's
