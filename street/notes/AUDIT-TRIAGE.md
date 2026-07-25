@@ -1627,3 +1627,39 @@ number again.
 
 **The four rows stay LANDED.** That is the honest state: a builder says they are
 done, and the auditor cannot yet see them.
+
+## "this guy is floating": my instrument cannot see it, and C's already found it
+
+I measured every standing figure's mesh bottom against `groundAt` beneath it —
+35 figures, 26 of them "more than 6 cm off". **That number is worthless**, and
+the row itself says why: C measured it world-wide and proved the float is in
+**the ATLAS, not any call site** — *"call-site gap 0.000 for every one, atlas
+padding 0.108–0.129 … the shoe is painted on rows 57-59 of a 64-row frame."*
+
+**So the mesh is placed correctly and the float lives inside the texture.**
+Comparing mesh geometry to ground can never see it; my 26 are figures on raised
+ground, on steps, and three inside the walk-up at x 196.8 that my street filter
+let through.
+
+This is the **third** time in this audit that a property turned out to live in the
+atlas rather than the transform — after keeper *facing* (decoded from the frame,
+not `rotation.y`) and the citizen sprite carrying the previous frame's position.
+Worth stating as a rule: **for a billboarded sprite, position and orientation are
+in the transform, but everything you can SEE is in the frame.** Reach for the
+atlas first.
+
+## Incidental, and it belongs to an OPEN row rather than a LANDED one
+
+Shooting for the apron I ended up inside the car lot, which shows the user's
+*"car lot needs to be deeper… get the typical car price signs yknow?"* visibly
+delivered: windscreen prices (**$3495**, **$1495**), a **SOLD** banner, a sales
+kiosk reading *WE FINANCE ANYONE / CALL 555 0199 / CROSSTOWN MOTORS*, a salesman,
+and a painted ghost sign on the back wall. `shots/lot-apron.png`.
+
+**Not confirming it** — that row is OPEN, not LANDED: C has not declared it done,
+and the ledger's rule is that CONFIRMED follows a builder saying it is finished.
+Recording the evidence so the desk knows there is something to look at when C
+does.
+
+**The apron itself I did not reach** — that view is the lot's interior, and the
+row is about the driveway where the lot meets the walk. It stays LANDED.
