@@ -176,7 +176,31 @@ export function buildProps(ctx: CtxBuild): Props {
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.
-  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number }
+  // `wx/wz` — A FIXED WORLD POINT, for anything that does not move.
+  //
+  // The pool branch of updateLit locates a material as `root.position` plus
+  // `ox/oz` rotated by `root.rotation.y`. That is exactly right for a car: the
+  // root is the car group, the offsets are the part's place within it, and the
+  // whole thing drives around.
+  //
+  // It is wrong for everything dimWorld collects, which registers
+  // `{ root: o, ox: 0, oz: 0 }` — so the sample point is `o.position`, the
+  // mesh's LOCAL position. That is the world position only when nothing above
+  // it in the scene graph is transformed, and plenty is. Measured at 23:00:
+  //
+  //   149 materials within 1.8 m of a lamp by WORLD position — only 42 poolLit
+  //    17 materials carrying poolLit while over 9 m from any lamp
+  //
+  // The second number is the one that cannot be argued with: `poolLit` is
+  // stamped when a pool holds a material at full daylight, and there is no lamp
+  // within nine metres of those seventeen. One offender stands at world
+  // (3.7, -49.7), 1.39 m from a lamp, while its local (0.0, -1.3) is 8.7 m from
+  // one — so it is graded as if it were somewhere it is not.
+  //
+  // Static geometry does not need the moving-root machinery at all, so when
+  // `wx/wz` are present the pool branch uses them directly. Cars keep the old
+  // path; nothing about them changes.
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number; wx?: number; wz?: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   // WHAT COUNTS AS GLASS. The night grading skips translucent materials on
@@ -398,7 +422,17 @@ export function buildProps(ctx: CtxBuild): Props {
   };
   const dimWorld = (root: THREE.Object3D) => {
     root.traverse((o) => {
-      if (Math.abs(o.position.x) > 100) return;      // interiors keep their own light
+      // WORLD x, not local. This read `o.position.x`, which is the world x only
+      // when nothing above the mesh is transformed — and the rooms are built in
+      // groups that are. Measured: 18 interior meshes were being graded by the
+      // street's night curve despite this guard, the furthest standing at world
+      // x 199.7 while its own position.x reads -0.8. "Interiors keep their own
+      // light" is what the line says and now what it does.
+      //
+      // Called once, from crosstown.ts:458, so the extra world-position lookup
+      // costs nothing per frame.
+      const wp = new THREE.Vector3(); o.getWorldPosition(wp);
+      if (Math.abs(wp.x) > 100) return;              // interiors keep their own light
       const mm = (o as THREE.Mesh).material;
       if (!mm) return;
       for (const m of (Array.isArray(mm) ? mm : [mm]) as THREE.MeshBasicMaterial[]) {
@@ -465,6 +499,10 @@ export function buildProps(ctx: CtxBuild): Props {
         if (selfLit) m.userData.selfLit = true;
         m.userData.graded = true;
         litList.push({ root: o, ox: 0, oz: 0, m, base: m.color.clone(),
+                       // wy is this mesh's WORLD position, already computed above
+                       // for the elevation floor. The pool branch needs the same
+                       // point and was using o.position instead.
+                       wx: wy.x, wz: wy.z,
                        pool: poolable && !selfLit && !noLamp,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        wetK: selfLit ? 0 : wetKFor(wy.y) });
@@ -637,9 +675,11 @@ export function buildProps(ctx: CtxBuild): Props {
         continue;
       }
       // the part's world position — cars only ever rotate about Y
+      // A fixed world point wins when it was recorded — see the note on Lit.
+      // Only cars need the rotate-about-the-root form, and only cars move.
       const a = e.root.rotation.y, ca = Math.cos(a), sa = Math.sin(a);
-      const px = e.root.position.x + e.ox * ca + e.oz * sa;
-      const pz = e.root.position.z - e.ox * sa + e.oz * ca;
+      const px = e.wx !== undefined ? e.wx : e.root.position.x + e.ox * ca + e.oz * sa;
+      const pz = e.wz !== undefined ? e.wz : e.root.position.z - e.ox * sa + e.oz * ca;
       let best = 0;
       for (const h of lampHeads) {
         const dx = px - h.x, dz = pz - h.z;
