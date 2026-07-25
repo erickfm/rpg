@@ -37,7 +37,7 @@ export interface Props {
 }
 
 export function buildProps(ctx: CtxBuild): Props {
-  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat } = ctx;
+  const { scene, flat, obstacle, boards, wetMats, sidewalkY, KERB_H, seat, site } = ctx;
   const WET = new THREE.Color(0x5a626e);
   // ── weather: some hours it rains ────────────────────────────────────────
   const RAIN_N = 500;
@@ -752,10 +752,97 @@ export function buildProps(ctx: CtxBuild): Props {
   };
   const makeLamp = (s: number, z: number) =>
     makeLampAt(s * (ROAD_HALF + 0.55), z, -s, 0, s);
+  // A PARK LAMP: a post with a lantern on top, no crook and no arm. Shorter
+  // than the street's 5 m because it lights a footpath rather than a roadway,
+  // and it stands on the park's own ground, which is at KERB_H.
+  const PARK_LAMP_H = 3.4;
+  const makeParkLamp = (x: number, z: number) => {
+    const y0 = KERB_H;
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.42, 0.26), poleHi);
+    base.position.set(x, y0 + 0.21, z); scene.add(base);
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.11, PARK_LAMP_H, 0.11), poleM);
+    pole.position.set(x, y0 + PARK_LAMP_H / 2, z); scene.add(pole);
+    // the lantern: a tapered box with a cap, which is what a park lantern is
+    const lant = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.34, 0.30), poleHi);
+    lant.position.set(x, y0 + PARK_LAMP_H + 0.13, z); scene.add(lant);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.07, 0.38), poleM);
+    cap.position.set(x, y0 + PARK_LAMP_H + 0.33, z); scene.add(cap);
+    const lens = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.20, 0.22), lensM);
+    lens.position.set(x, y0 + PARK_LAMP_H + 0.11, z); scene.add(lens);
+    obstacle({ minX: x - 0.16, maxX: x + 0.16, minZ: z - 0.16, maxZ: z + 0.16 });
+    // the halo, anchored on the lens exactly as the street's is
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5),
+      new THREE.MeshBasicMaterial({ map: lampGlowT, transparent: true, opacity: 0,
+        depthWrite: false, blending: THREE.AdditiveBlending }));
+    halo.position.set(x, y0 + PARK_LAMP_H + 0.11, z);
+    boards.push({ m: halo }); scene.add(halo);
+    nightLit.push({ mat: halo.material as THREE.MeshBasicMaterial, base: 1.0 });
+    // the pool on the ground. Smaller than the street's 5.6 m because the
+    // lantern is 1.6 m lower — the same light from lower down covers less.
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 4.4),
+      new THREE.MeshBasicMaterial({ map: lampPoolT, transparent: true, opacity: 0,
+        depthWrite: false, blending: THREE.AdditiveBlending }));
+    pool.rotation.x = -Math.PI / 2;
+    pool.position.set(x, y0 + 0.02, z); scene.add(pool);
+    nightLit.push({ mat: pool.material as THREE.MeshBasicMaterial, base: 0.72 });
+    lampHeads.push({ x, z });
+  };
   // staggered down the block, kept clear of the tree pits (every 14 m at −2,−16…)
   [[-1, -9], [1, -23], [-1, -37], [1, -51], [-1, -65], [1, -79]].forEach(([s, z]) => makeLamp(s, z));
   // two more lighting the corner turn
   makeLamp(-1, -93);
+
+  // ── THE PARK, which had no light source at all ──────────────────────────
+  //
+  // The auditor: "NOT lit — ZERO light sources; black at night." The user:
+  // "maybe the shittiest park ive ever seen". A 32 x 30 m park with nothing
+  // emitting light, in a world whose night floors I have just taken down to
+  // 0.045, is a black void — and builder E could not fix it, because lamps
+  // live in this file. It has been waiting on me.
+  //
+  // A park lamp is NOT a street lamp. No bishop crook and no arm reaching over
+  // a roadway: a shorter post with a lantern on top of it, throwing straight
+  // down onto the path it stands beside. Same glow sheet, same ground pool,
+  // same lampHeads registry, so anything standing near one warms exactly as it
+  // does on the street.
+  //
+  // WHERE THEY GO IS DERIVED, NOT GUESSED. The desk offered to get the path
+  // coordinates from E, and the park has been re-cut twice tonight — which is
+  // the argument for not holding a number at all. ct/park.ts builds its loop
+  // entirely from ctx.site('park') plus four offsets, so this reads the same
+  // site and applies the same four. If the park moves again, the lamps move
+  // with it. scripts/park.mjs then checks every lamp actually stands beside
+  // the path, so if E changes those offsets this fails loudly instead of
+  // quietly lighting the grass.
+  const parkSite = site('park');
+  if (parkSite) {
+    // ct/park.ts: backX = minX + 3.2, EDGE_X = maxX - KERB_W (0.25),
+    //             lx1 = EDGE_X - 1.35, lz0/lz1 = minZ/maxZ -+ 1.7
+    const lx0 = parkSite.minX + 3.2, lx1 = parkSite.maxX - 0.25 - 1.35;
+    const lz0 = parkSite.minZ + 1.7, lz1 = parkSite.maxZ - 1.7;
+    // Lamps stand on the GRASS just off the path, on the field side of every
+    // leg — which is where park lamps stand, and which keeps the 1.5 m path
+    // itself completely clear of a new collider.
+    const OFF = 0.95;
+    const legs: [number, number, number, number][] = [
+      [lx1 - OFF, lz0, lx1 - OFF, lz1],     // street leg, field side
+      [lx0 + OFF, lz1, lx0 + OFF, lz0],     // back leg, field side
+    ];
+    // Spaced so the path READS END TO END: four to a leg over ~26.6 m is one
+    // every 8.9 m, which is tighter than the street's 14 m on purpose. A park
+    // path is what you are looking along, and the gaps between street lamps
+    // are a feature of a street rather than of a footpath you have to follow.
+    for (const [ax, az, bx2, bz] of legs) {
+      for (let k = 0; k < 4; k++) {
+        const u = (k + 0.5) / 4;
+        makeParkLamp(ax + (bx2 - ax) * u, az + (bz - az) * u);
+      }
+    }
+    // and one at each end of the loop, so the corners are not the dark bit
+    for (const cz of [lz0 + 0.95, lz1 - 0.95]) {
+      makeParkLamp((lx0 + lx1) / 2, cz);
+    }
+  }
 
   // ── the side street, which had no lamps at all after dark ───────────────
   //
