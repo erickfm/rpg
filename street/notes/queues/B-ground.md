@@ -16,6 +16,48 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+- [ ] **Two pieces of placed trash approved in situ — identify them and tell
+      the desk which.** The user, walking the street: *"i like this piece of
+      trash"* (`shots/user-trash-good.png`) and *"i like this trash too"*
+      (`shots/user-trash-good2.png`).
+
+      Both are in the gutter. The first is tan-brown with darker marks; the
+      second is pale cream and cleaner, lying near a parked car's wheel.
+      **You placed them, so you can identify them from position — do that and
+      report which candidate each is**, rather than the desk guessing from a
+      screenshot.
+
+      If they turn out to be the same object at two different grime values,
+      that is a result worth knowing: it means the per-instance variation you
+      built is doing the work, and round 3 should vary the new candidates the
+      same way rather than shipping each one identical.
+
+- [ ] **The catch basin looks bad.** The user: *"what is this it looks bad"*.
+      Ref: `shots/user-drain-bad.png`. That phrasing is the project's signal
+      for unidentifiable, and it has now been used on three separate props.
+
+      What is in the shot:
+      · **A large soft dark blob on the road around the drain** — a smooth
+        gradient smear, metres across, in a world where everything else is
+        hard texels. It reads as a rendering artefact or a stain, not as
+        anything. This is the same failure as the lamp pool you are already
+        reverting: a soft radial gradient does not belong in this world at
+        any size.
+      · **The grate is a black void with bars floating in it.** There is no
+        frame, no seating into the gutter pan, no depth — it reads as a hole
+        cut in the road rather than as an iron casting sitting in a kerb
+        inlet.
+      · **The red kerb strip runs straight past it** as a thin bright line.
+        Red kerb by rule is right, but at a catch basin it wants to read as
+        painted onto a real kerb face, not as a stripe laid over everything.
+
+      A real kerb inlet is: a cast frame flush with the gutter pan, a grate
+      with heavy bars and visible thickness, a throat under the kerb face, and
+      staining that FOLLOWS THE WATER — a narrow darker track along the gutter
+      line into the mouth, not a symmetrical blob. If you cannot make the
+      stain read at this density, delete it; the casting alone will do the
+      job. Judge from standing at the kerb, not from above.
+
 - [ ] **Trash rig round 3 — the user wants more to choose from.** *"ok update
       the trash so i can pick some more out."*
 
