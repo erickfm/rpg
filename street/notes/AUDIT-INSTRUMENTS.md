@@ -1481,3 +1481,50 @@ correctness: my false anomaly was perfectly repeatable, because the *mechanism*
 producing it was deterministic. That is the third probe artefact this session
 that nearly became a finding, and the first one a guard caught before I wrote it
 down rather than after.
+
+### WITHDRAWN: the bodega keeper is fine, and my tolerance was the bug
+
+I flagged bodega's keeper as *unexplained* — the same unmirrored frame from both
+±x, which no other keeper did. Circling it at eight bearings with a **0.25 m**
+landing tolerance instead of 0.6:
+
+```
+  bearing   landed?   frame            bearing   landed?   frame
+      0°      yes     0.000                180°   slid 0.56  (discarded)
+     45°      yes     0.600                225°     yes     0.400M
+     90°      yes     0.400                270°     yes     0.600M
+    135°      yes     0.200                315°     yes     0.800M
+```
+
+**Eight bearings, eight distinct directional frames**, the mirror flag flipping
+cleanly between 135° and 225°. The sprite is the 8-angle citizen system working
+exactly as designed. And the 180° sample **slid 0.56 m — under my earlier 0.6 m
+tolerance**, which is precisely the mechanism I predicted: a wall-adjacent sample
+sliding just far enough to pass the guard and return a frame from the wrong
+bearing. The flag is withdrawn; there was never anything wrong with bodega.
+
+### The limit this method actually has: you cannot circle a shopkeeper
+
+Calibrating "which column is front" against the just-fixed tax keeper failed, and
+the reason is worth recording rather than retrying. Half its bearings are
+unreachable:
+
+```
+     45°  slid 0.46      90°  slid 0.97     135°  slid 2.16     270°  slid 0.32
+```
+
+**The counter is in the way** — which is correct world-building, not a defect.
+A player can only ever stand on the customer side, so the reachable bearings are
+a minority arc, and that arc is too small to invert the frame→direction map
+without knowing the atlas layout.
+
+> So: an outside probe can prove a keeper's sprite is **directional and healthy**,
+> and can compare two keepers at a shared bearing. It **cannot** establish which
+> way one faces in world terms. That needs the atlas layout and the `facing`
+> parameter — both of which the room's owner has, and neither of which is
+> published.
+
+That is a fair division rather than a gap to close: `688c2db7` bounded §23 inside
+its own four rooms from the source side in one pass, which is the right level to
+ask this question from. My contribution is the negative — **do not build a
+facing check on `rotation.y`**, because it will confidently report the camera.
