@@ -762,3 +762,31 @@ named check, every declared door arriving in the bundle, full slow tier green.
 4. **`doors-declared` runs in the mode where its bug cannot happen** — the open
    decision in `BLOCKED-F.md`.
 5. **`fp`'s two noise columns**, `tints` and `places` — `F-fingerprint-phase.md`.
+
+
+---
+
+## The train: verified, not guessed — my 20 commits land clean
+
+I have been reporting "the merge train has not run" for several rounds without
+checking whether the reason was *me*. It is not. `./scripts/land.sh --dry`:
+
+```
+LANDED:
+  ✓ rpg-audit (1 commits)
+  ✓ rpg-interiors (20 commits)
+NOTHING TO LAND: rpg-alley rpg-civic rpg-entrance rpg-ground
+                 rpg-interiors2 rpg-split2b rpg-traffic
+```
+
+**No conflict, no green-check failure, nothing to fix.** The work merges as it
+stands; nobody has run the train. Two branches are waiting and every other
+worktree is already drained, which matches mainline being static.
+
+I have NOT run it without `--dry`. It would merge another builder's branch as
+well as mine, and merging to mainline is a shared, hard-to-reverse action that
+is the desk's call, not a builder's. `--dry` is read-only, which is why running
+it was mine to do.
+
+**That closes the last open question I could answer myself.** Everything else
+outstanding needs someone else's decision or someone else's file.
