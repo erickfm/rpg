@@ -1233,13 +1233,30 @@ export function buildStreet(o: {
   {
     // 13.6 m tall, not wallHeight(4) = 13.0 — pass the real face or the
     // texture is painted for a wall that does not exist and lands at 7.65 up
-    const facade = flat(facadeTex('#5c4436', 4, 30, 13.6, 0));
-
+    //
+    // THIS is the object in shots/user-bankflank.png, not the bank. It used to
+    // be a 30 m box at z 13.5…19.5 while the bank runs to z 14.2, so the two
+    // shells INTERPENETRATED by 0.7 m — a brick block standing through the
+    // bank's precast front, floor to parapet, meeting it at a razor arris with
+    // nothing between. Raycasting from that screenshot's camera hits this box
+    // on every ray; the bank's own returns are behind it.
+    //
+    // It now ABUTS instead of overlapping (GOTCHAS §6: coplanar surfaces must
+    // abut, never overlap — the same rule that fixed the alley walls and the
+    // building seams), and it is only as wide as the gap it has to close, so
+    // it stops barging across the building line on either side.
+    const NZ = 14.2;                                   // the block's north end
+    const CAP_W = 2 * FACE;                            // exactly the street, no more
+    const CAP_D = 6;
+    const facade = flat(facadeTex('#5c4436', 4, CAP_W, 13.6, 0));
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(30, 13.6, 6),
-      shellMats(5, facade, 30, 13.6, 6, '#5c4436', 0, true, roofM));
-    wall.position.set(0, 6.8, 16.5);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(CAP_W, 13.6, CAP_D),
+      shellMats(5, facade, CAP_W, 13.6, CAP_D, '#5c4436', 0, true, roofM));
+    wall.position.set(0, 6.8, NZ + CAP_D / 2);
     scene.add(wall);
+    // and the two returns it presents where it meets the flanking runs are
+    // party walls, not the block's flat brown — same reasoning as the bank's
+    solid({ minX: -FACE, maxX: FACE, minZ: NZ, maxZ: NZ + CAP_D });
   }
 
   // ── the alley: a dark cut in the left wall with a dumpster ──────────────
