@@ -183,6 +183,24 @@ const CHECKS = [
   // Discovery is a source grep, not a list: a new script with a mode word is
   // covered the day it is written, by an author who never read this comment.
   ['no-silent-pass',   'can any check pass by doing nothing?',             false],
+  // ALSO RED ON ARRIVAL, for a defect nobody planted: 164 of the 610 commit
+  // hashes cited in this repo cannot be resolved from mainline. 158 have a
+  // landed twin carrying the same subject, so they are rebase-rewritten hashes
+  // written down while the commit was still on a branch — the note keeps the
+  // old one, the merge train keeps the new. It resolves fine in the worktree
+  // that wrote it, which is why the author cannot catch it by checking.
+  //
+  // a67cfda46 found 21 of its author's 59 in that state and fixed them by hand.
+  // This is that audit, repeatable, naming the replacement for each. Scope it
+  // to your own notes rather than reading everybody's:
+  //
+  //     node scripts/hashes-resolve.mjs A-
+  //
+  // Deliberately NOT the obvious "every hash resolves": e35219f43 showed fpdiff
+  // fingerprints are hash-shaped and were never commits, so that direction has
+  // false alarms no regex removes. This asserts the direction that cannot — a
+  // token which RESOLVES AS A COMMIT must be reachable. Costs no browser.
+  ['hashes-resolve',   'can anyone else resolve the commits we cite?',     false],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat
