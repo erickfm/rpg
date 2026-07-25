@@ -107,6 +107,25 @@ if (!stranded.length) {
   process.exit(0);
 }
 
+// THIS EVIDENCE IS PERISHABLE, and the repo is currently inviting its deletion.
+// The stranded objects survive only as unreachable loose objects in this store —
+// that is what makes them resolvable here and nowhere else, and it is also what
+// lets this report name each replacement, since the landed twin is matched on
+// the SUBJECT read off the stranded commit.
+//
+// git is presently printing "There are too many unreachable loose objects; run
+// 'git prune'" on this repo (7336 loose against a 6700 auto-gc threshold).
+// Automatic gc will NOT drop them yet — gc.pruneExpire defaults to 2 weeks and
+// these are hours old — but the advice git volunteers is `git prune`, which
+// takes them immediately. Run that before fixing these citations and every one
+// of them becomes an unresolvable string with no way left to discover what it
+// meant.
+if (stranded.length) {
+  console.log(`\n  NOTE: these resolve here only as unreachable loose objects.`);
+  console.log(`  \`git prune\` / \`gc --prune=now\` deletes them and the replacement`);
+  console.log(`  hashes below become undiscoverable. Fix the citations first.`);
+}
+
 console.log(`\n  ${stranded.length} cited commit${stranded.length > 1 ? 's are' : ' is'}`
   + ` NOT reachable from ${MAINLINE} — a fresh clone cannot resolve`
   + ` ${stranded.length > 1 ? 'them' : 'it'}:\n`);

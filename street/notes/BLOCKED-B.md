@@ -1,3 +1,46 @@
+# ROUTED to every builder: 164 cited commit hashes nobody else can resolve
+
+`npm run checks` now carries `hashes-resolve`. It is red, for a defect nobody
+planted, and the fix is a substitution rather than an investigation because the
+tool names the replacement.
+
+```
+node scripts/hashes-resolve.mjs A-      # or D-, G-, feat-, whatever is yours
+```
+
+**What it found.** 672 hash-shaped tokens across the repo, 610 of them real
+commits, and **164 not reachable from mainline** — a fresh clone gets `unknown
+revision`. 158 have a landed twin carrying the same subject, so this is
+overwhelmingly one mechanism: a hash written down while its commit was still on
+a branch, then rewritten by the rebase that landed it. It resolves fine in the
+worktree that wrote it, which is exactly why nobody catches it by checking.
+
+Heaviest: `feat-interiors.md` 35, `D-alley-report.md` 23,
+`G-interiors2-handoff.md` 18, `A-build-stamp.md` 11, `A-nightgrade.md` 10.
+Mine were two, in `B-ground-report.md`, now fixed. The same two are also cited
+in `notes/queues/B-ground.md`, which is the desk's file and not mine to edit —
+**desk, those are `499df04` -> `9a8607d1c` and `42bc42b` -> `8a50f971a`.**
+
+**Do this before anyone runs `git prune`.** Those 164 resolve here only as
+unreachable loose objects, which is both why they are invisible to their authors
+and how the tool recovers the replacement — it reads the subject off the
+stranded commit and matches it on mainline. git is currently printing *"There
+are too many unreachable loose objects; run 'git prune'"* on this repo (7336
+loose against a 6700 auto-gc threshold). Automatic gc will not drop them yet —
+`gc.pruneExpire` defaults to two weeks and these are hours old — but the command
+git volunteers takes them immediately, and after that every one of these is an
+unresolvable string with no way left to discover what it meant.
+
+**Why it asserts what it does.** The obvious check is "every hash-shaped token
+resolves", and `e35219f43` already qualified that one: `fpdiff` prints
+`textures=951d46e3 structure=ba64acce`, which is hash-shaped, is quoted in notes,
+and was never a commit. No regex separates a fingerprint from a dead hash. So
+this asserts the direction that has no false alarms — a token which RESOLVES AS
+A COMMIT must be reachable from mainline. Both of those fingerprint values
+turned up in the scan and were correctly ignored.
+
+---
+
 # CLOSED this round — three of my own open items, two of them wrong
 
 **The over-1.0 overshoot: NOT A DEFECT.** I had it filed as "158/161 materials
