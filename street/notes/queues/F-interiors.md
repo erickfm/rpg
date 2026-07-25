@@ -89,12 +89,24 @@ something from it, they ask you and you add it — they do not edit it.
         still reads well — the atlas's idle frame, not a walk cycle frozen
         mid-stride.
 
-- [ ] **Make the jump a tiny bit higher.** The user: *"make the jump a tiny
+- [ ] **Make the jump a tiny bit higher AND gravity a tiny bit stronger.**
+      The user asked for these minutes apart, so treat them as one feel
+      change and tune them together in one commit rather than two — a higher
+      jump landed alone and a stronger gravity landed alone would each feel
+      wrong on their own, and you would be chasing your own tail.
+
+      Together they are a coherent target: **a snappier jump.** More initial
+      velocity gets you a little higher; stronger gravity brings you down
+      faster and cuts the floaty hang time. Roughly similar apex, much less
+      time in the air. That is the arcade feel, and it is almost certainly
+      what "a tiny bit" of each is reaching for.
+
+      Emphasis still on TINY — this is feel, not a new movement capability.
+
+      Original note: The user: *"make the jump a tiny
       bit higher"*. `fp.ts`, which you hold the mandate for.
 
-      Emphasis on **tiny** — this is a feel adjustment, not a new movement
-      capability. Nudge the initial jump velocity, keep gravity as it is so
-      the jump does not start floating, and re-walk the two places it
+      Nudge both, then re-walk the two places it
       matters: the kerb (0.14 m) and the stoop, and the apartment stairs,
       where the floor picker has hysteresis and a higher jump can land you on
       the wrong storey (`GOTCHAS.md` §7). Its own commit, separate from the
