@@ -21,7 +21,7 @@ const JSON_OUT = process.env.JSON_OUT === '1';
 // ...except in capture mode, which is how you MAKE the pair file. The first
 // version of this guard refused the exact command its own error message told
 // you to run.
-if (!process.env.PAIRED && process.env.JSON_OUT !== '1') {
+if (false) {
   console.error('\n  CANNOT ANSWER — no day capture to pair against.');
   console.error('  Make one:  JSON_OUT=1 NIGHT_H=13 node scripts/floatlit.mjs > day.json');
   console.error('  Then:      PAIRED=day.json node scripts/floatlit.mjs');
@@ -33,11 +33,16 @@ await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await reportWorld(p,URL);
 
-// step in, an hour at a time
-for (let h = NIGHT-8; h <= NIGHT; h++) { await p.evaluate((x)=>window.__ct.clock(x), h); await p.waitForTimeout(700); }
-await p.waitForTimeout(3000);
-
-const r = await p.evaluate((SATCUT) => {
+// SELF-CONTAINED. This used to need a separate day capture passed in by
+// PAIRED=, which is why it could not be registered: the runner has nowhere to
+// put a two-command dance. It takes both samples in one session now, stepping
+// the clock to each hour in turn, so it registers like any other check. PAIRED
+// still works and still overrides, for comparing against a capture from another
+// build.
+const sampleAt = async (H, SATCUT) => {
+  for (let h = H-8; h <= H; h++) { await p.evaluate((x)=>window.__ct.clock(x), h); await p.waitForTimeout(700); }
+  await p.waitForTimeout(3000);
+  return p.evaluate((SATCUT) => {
   // APPEARANCE = TEXTURE MEAN x TINT. 114c5bef7/40522fa6f: material.color is a
   // TINT, white by default, and the texture carries the look. A tint-only
   // comparison between two DIFFERENT materials is not a comparison -- that is
@@ -89,10 +94,20 @@ const r = await p.evaluate((SATCUT) => {
     else if(area > 20) broad.push(rec);
   });
   return {small, broad};
-}, process.env.NIGHT_H === undefined || Number(process.env.NIGHT_H) >= 20);
+  }, SATCUT);
+};
+
+const DAY_H = Number(process.env.DAY_H ?? 13);
+const r = await sampleAt(NIGHT, true);
+// the day pass only when we are producing our own pair -- PAIRED= skips it
+const rDay = (process.env.PAIRED || JSON_OUT) ? null : await sampleAt(DAY_H, false);
 await b.close();
 
 // pair each small object with the nearest broad sheet
+const pairUp = (src) => src.small.map(s=>{
+  const g = src.broad.slice().sort((a,c)=>Math.hypot(a.x-s.x,a.z-s.z)-Math.hypot(c.x-s.x,c.z-s.z))[0];
+  return g ? {...s, glum:g.lum, ratio: g.lum>0 ? +(s.lum/g.lum).toFixed(1) : Infinity} : null;
+}).filter(Boolean).filter(s=>s.lum>0.02).sort((a,c)=>c.ratio-a.ratio);
 const rows = r.small.map(s=>{
   const g = r.broad.slice().sort((a,c)=>Math.hypot(a.x-s.x,a.z-s.z)-Math.hypot(c.x-s.x,c.z-s.z))[0];
   return g ? {...s, glum:g.lum, ratio: g.lum>0 ? +(s.lum/g.lum).toFixed(1) : Infinity} : null;
@@ -122,9 +137,11 @@ console.log(`\nsmall objects more than 10x their own ground: ${rows.filter(s2=>s
 const SELFTEST = process.argv.includes('--selftest');
 const DIVERGE_MAX = 4;
 
-if (process.env.PAIRED) {
+if (process.env.PAIRED || rDay) {
   const fs = await import('node:fs');
-  const day = JSON.parse(fs.readFileSync(process.env.PAIRED, 'utf8'));
+  const day = process.env.PAIRED
+    ? JSON.parse(fs.readFileSync(process.env.PAIRED, 'utf8'))
+    : pairUp(rDay);
   const D = new Map(day.map(o => [`${o.x},${o.z}`, o]));
   const paired = rows.map(o => ({ ...o, day: D.get(`${o.x},${o.z}`) })).filter(o => o.day && o.day.ratio > 0)
     // METRIC: the fraction of daylight each side KEEPS, object against ground.
@@ -161,7 +178,7 @@ if (process.env.PAIRED) {
     process.exit(failures === checks ? 0 : 1);
   }
 
-  console.log(`\n  paired against ${process.env.PAIRED}: ${paired.length} objects`);
+  console.log(`\n  paired against ${process.env.PAIRED ?? `a day pass at ${DAY_H}:00 taken in this run`}: ${paired.length} objects`);
   console.log(`  worst divergence ${worst.div.toFixed(1)}x at (${worst.x}, ${worst.z})` +
     `  — day ${worst.day.ratio}x, night ${worst.ratio}x`);
   console.log(`  ${diverging.length} of ${paired.length} objects keep more of their daylight than their ground does`);

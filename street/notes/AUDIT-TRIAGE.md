@@ -548,6 +548,11 @@ before it was a gotcha: *establishing that a defect is real is not the same as
 establishing that it matters.* A check that failed on all 211 would be true and
 unroutable.
 
+> **The exemption asked for below is WITHDRAWN — it can just be registered.**
+> `floatlit.mjs` takes both samples in one session now; no `PAIRED`, no env, no
+> two-command dance. Standalone: `exit 1` with the defect present, `--selftest`
+> 3/3. See *"the last orphan is registrable"* at the end of this file.
+
 **Offered to the shared runner**, following `59e925b10`'s pattern: it has the
 `--selftest` the runner requires, and it needs a day capture to pair against
 (`JSON_OUT=1 NIGHT_H=13` once, then `PAIRED=<file>`). It is **red at HEAD by
@@ -1400,3 +1405,40 @@ that notes quote.
 > **Check references before deleting, and check that your reference check can see
 > a reference.** I did the first and not the second, and the first is what made
 > me confident.
+
+## The last orphan is registrable — I removed the reason I had asked for an exemption
+
+`c7a9a09af` registered `G-rooms-walk` and `G-vice-walk`, **132 checks the runner
+had never run**, leaving `checks-registered` with exactly one orphan: **mine**.
+
+I had argued `floatlit.mjs` *"cannot be dropped into a tier unmodified"* because
+it needed a day capture passed in by `PAIRED=`, and asked the desk for an
+`EXEMPT` line. That was true of the script and not true of the problem — **the
+two-command dance was my design, not a constraint**.
+
+It takes both samples in one session now: step the clock to the day hour, sample,
+step to the night hour, sample, pair internally. `PAIRED=` still works and still
+overrides, for comparing against a capture from a different build.
+
+```
+standalone, no env at all
+  paired against a day pass at 13:00 taken in this run: 322 objects
+  227 of 322 objects keep more of their daylight than their ground does
+  of those, 18 are also bright enough to see
+  exit 1
+
+--selftest      3/3 inverted truths behaved as required
+```
+
+**18 visible — the same figure the two-command form produced**, which is what
+says the restructure did not change the measurement.
+
+So the ask is no longer for an exemption but for a registration, and the entry is
+ordinary: name, question, `true` for the selftest column. It is **red at HEAD by
+design** — it guards an open defect and goes green when the litter is graded like
+its ground.
+
+> **I spent two rounds routing a request for special treatment, and the fix was
+> to stop needing it.** The exemption would have been granted and the check would
+> still not have run — an exemption is permission to stay outside the suite, and
+> what I actually wanted was to be in it.
