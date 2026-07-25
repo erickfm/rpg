@@ -11,6 +11,26 @@
 // stand in, against the same collider array the movement code tests. The rig
 // is 0.36 m in radius, so a band is only walkable where a 0.36 m disc fits.
 //
+// WHAT THIS NUMBER IS WORTH, measured rather than assumed. a047183e: "every
+// lane number I have quoted was of an empty street, including mine." So is
+// this one — and here is exactly how empty.
+//
+// `__ct.colliders()` holds 310 boxes and the count does not move over ten
+// seconds with six citizens walking about: PEOPLE ARE NOT COLLIDERS. That cuts
+// both ways.
+//
+//   · The reading is STABLE. Pedestrians cannot make this check flap, which is
+//     why the control (1.54 m) and the lot (1.30 m before D's fix) reproduce
+//     to the centimetre run after run.
+//   · The reading is of the BUILT lane, not the lane a player has when
+//     somebody is standing in it. This check cannot see that and does not
+//     claim to.
+//
+// The populated question is answered elsewhere and was answered yes:
+// b0398ead flood-fills from spawn with the movers included, four times, and
+// "car lot mid" is reachable in every sample — worst observed clear width
+// 0.72 m, exactly the player's own, and connectivity never lost.
+//
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lot-frontage.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';

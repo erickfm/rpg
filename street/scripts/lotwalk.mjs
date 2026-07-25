@@ -10,6 +10,16 @@
 // comes from ct/lot.ts's own `userData.mod` stamps, so the walk follows the
 // building.
 //
+// AN EMPTY STREET, and that is a real limit rather than a quibble. Citizens
+// are not in `__ct.colliders()` — measured: 310 boxes, unchanged over ten
+// seconds with six people walking about — so nobody can block this walk and
+// nobody can make it flap. What it proves is that the FENCE and the GATE are
+// where they should be, which is a question about built geometry.
+//
+// Whether the world stays connected when it is busy is a different question,
+// answered in b0398ead by flood-filling with the movers included: "car lot
+// mid" reachable in all four fills.
+//
 // Usage: SHOT_URL=http://localhost:4190/ node scripts/lotwalk.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
