@@ -30,13 +30,18 @@ const CHECKS = [
   ['lot-frontage',     'does the car lot take any of the 2 m walk?',        false],
   ['door301',          'does 301\'s door open, shut, block and refuse?',     true],
   // ── the ground: kerb, litter, lamps, water ──────────────────────────────
-  // Third field as a STRING names a case in scripts/canfail.mjs, which breaks
-  // the guarded thing in source, rebuilds, and requires the check to go red.
-  // Fourth field is any arguments the check itself needs.
+  // Third field as a STRING (or a LIST of them) names cases in
+  // scripts/canfail.mjs, which break the guarded thing in source, rebuild, and
+  // require the check to go red. Fourth field is any arguments the check needs.
   //
-  // These ten were the case this file's preamble describes: real checks with no
-  // npm entry, runnable only by whoever had read the note that introduced them.
-  ['footprint',        'does anything on the pavement clip the kerb?',     'footprint'],
+  // These were the case this file's preamble describes: real checks with no npm
+  // entry, runnable only by whoever had read the note that introduced them.
+  //
+  // footprint guards two separate promises and needs both mutations — the kerb
+  // line litter must not straddle, and the strip of walk the tree pits must
+  // leave at it. One case would have left the other silently unproven, which is
+  // the failure this column exists to make visible.
+  ['footprint',        'does anything on the pavement clip the kerb?',     ['footprint', 'footprint-pits']],
   ['trash',            'is the litter set placed, seated and varied?',     'trash',    ['probe']],
   ['glow',             'is every lamp glow anchored to its own head?',     'glow',     ['probe']],
   ['park',             'is the park lit, or black at night?',              'park'],
@@ -66,9 +71,12 @@ for (const [name, question, selftest, extra = []] of CHECKS) {
   const t0 = Date.now();
   // A string names a case in scripts/canfail.mjs: the mutation lives there,
   // in source, rather than as a --selftest flag inside the check itself.
-  if (SELFTEST && typeof selftest === 'string') {
-    const rc = spawnSync('node', ['scripts/canfail.mjs', selftest],
-      { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS });
+  if (SELFTEST && typeof selftest !== 'boolean') {
+    const cases = Array.isArray(selftest) ? selftest : [selftest];
+    // canfail takes them all in one run: it holds a per-file lock, so two
+    // invocations would refuse each other rather than queue.
+    const rc = spawnSync('node', ['scripts/canfail.mjs', ...cases],
+      { env: { ...process.env, SHOT_URL: URL }, encoding: 'utf8', timeout: PER_CHECK_MS * cases.length });
     const csecs = ((Date.now() - t0) / 1000).toFixed(0);
     if (rc.error?.code === 'ETIMEDOUT' || rc.signal === 'SIGTERM') {
       rows.push([name, question, `TIMED OUT after ${csecs}s`, csecs]); process.exitCode = 1; continue;
