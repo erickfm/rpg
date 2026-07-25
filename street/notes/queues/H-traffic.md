@@ -23,6 +23,28 @@ world stops.
 
 ## Now
 
+- [ ] **Export a drop-in citizen sprite so the cardboard people can be fixed
+      in PARALLEL.** Verified just now: **zero** `ct/int-*.ts` files call
+      `citizenAtlas`. Every person indoors is still a painted plane — the
+      diner waitress, the bodega keeper, and the figures in the casino, hotel
+      and tax office.
+
+      The fix was queued to builder F as a `room.person()` helper in the
+      interior kit, but F is carrying 19 items and is the bottleneck for
+      several things the user has asked about twice. So do the half that
+      unblocks everyone else: **export a `citizenSprite(look)` from
+      `ct/citizens.ts`** returning a ready-to-add billboarding mesh with the
+      8-angle atlas already wired — the same facing behaviour the street
+      sprites use.
+
+      Then builders F, G and C can each swap a painted plane for one call,
+      independently, without waiting on the kit. F can wrap it in
+      `room.person()` later; this is the primitive under it.
+
+      Ship it as its own commit and tell the desk the signature immediately —
+      three builders are waiting on it. Include it in `CITIZEN-STYLE.md` as
+      the answer to *"I need a person."*
+
 - [ ] **Write the citizen style guide. Every agent that draws a person needs
       it.** The user: *"the people inside these places are always flat and not
       like the people on the street, lets have the agents if they ever work on

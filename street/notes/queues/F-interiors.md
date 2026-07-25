@@ -28,6 +28,21 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+> **DESK PRIORITY ORDER — you have 19 items and are the bottleneck for four
+> things the user has raised more than once. Work these in order, commit each
+> separately:**
+> 1. **The church steps** — a per-site floor registry. Verified: nothing
+>    answers for the church forecourt's floor, and the user has asked twice.
+> 2. **The bodega `[E]` spot** — one number, `(8.0, −95.0)`, facade untouched.
+> 3. **Tax office and diner alignment** via the descriptor, authority flipped
+>    so the INTERIOR declares and the facade follows.
+> 4. Everything else.
+>
+> Builder H is exporting a drop-in `citizenSprite(look)` so the cardboard
+> people get fixed in parallel — you do NOT need `room.person()` to exist
+> before G and C can act.
+
+
 - [ ] **The bodega `[E]` spot is not on its facade door — and DO NOT touch the
       facade.** The user: *"the bodega entrance is not where the facade door
       is. do not change the facade i love it just make the entrance where i
