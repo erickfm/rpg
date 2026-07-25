@@ -126,8 +126,14 @@ for (room of rooms) {
   const off = room.east ? -1.7 : 1.7;         // toward the road from the facade
   const approaches = room.sideStreet
     ? [
-      ['walking east along the walk', room.doorX - 3.0, room.doorZ - 0.3, Math.PI / 2],
-      ['walking west along the walk', room.doorX + 3.0, room.doorZ - 0.3, -Math.PI / 2],
+      // ON the door line, not offset off it. The side-street walk outside the
+      // casino is pinched by a 0.4 m post at (50.0, -97.65): between the post
+      // and the shopfront there is 1.15 m, which is 0.43 m of standing room
+      // once the 0.72 m player is subtracted. The only continuous lane past it
+      // runs at z = -97.0, which is the door line. Offsetting the test lane by
+      // 0.3 or 0.75 put it inside the post and read as a broken door.
+      ['walking east along the walk', room.doorX - 3.0, room.doorZ, Math.PI / 2],
+      ['walking west along the walk', room.doorX + 3.0, room.doorZ, -Math.PI / 2],
       // the side street's north-side shops face -z, so you come at them from
       // the road side walking +z (yaw π), not -z
       ['straight at the door from the kerb', room.doorX, room.doorZ - 1.7, Math.PI],
@@ -194,6 +200,12 @@ for (room of rooms) {
     return last;
   }, [dx, dz, yaw, want, RADIUS]);
 
+  // Two goes at each approach. Citizens are solid and one that happens to be
+  // walking the same way as you never triggers the 1.4 s ghost timer — it just
+  // stays a step ahead the whole length of the pavement. A second attempt
+  // starts from a different moment in the crowd's cycle, which is enough. The
+  // casino's east approach failed this way and its walk is otherwise clear:
+  // the only thing on it was one 0.4 x 0.4 box, which is a person.
   for (const [how, sx0, sz0, yaw] of approaches) {
     const headOn = /from the kerb/.test(how);
     const backed = headOn ? await backUpTheNormal(room.doorX, room.doorZ, yaw, 2.6) : null;
@@ -209,9 +221,22 @@ for (room of rooms) {
     }
     await p.keyboard.up('w');
     await p.waitForTimeout(120);
+    if (!seen) {
+      // second go
+      await warp(sx, sz, yaw, KERB_H);
+      await p.waitForTimeout(200);
+      await p.keyboard.down('w');
+      for (let t = 0; t < 4000 && !seen; t += 130) {
+        await p.waitForTimeout(130);
+        const pr = await prompt();
+        if (room.label.test(pr ?? '')) { seen = pr; at = await pos(); }
+      }
+      await p.keyboard.up('w');
+      await p.waitForTimeout(120);
+    }
     check(`you can reach the door ${how}`, !!seen,
       seen ? `prompt "${seen}" came up at ${at.slice(0, 3).map(f2)}`
-        : `walked the whole stretch and the door never announced itself (ended ${(await pos()).slice(0, 3).map(f2)})`);
+        : `walked the whole stretch TWICE and the door never announced itself (ended ${(await pos()).slice(0, 3).map(f2)})`);
   }
 
   // …and independently of any of that: prove nothing STATIC is sitting on the
