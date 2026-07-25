@@ -365,3 +365,8 @@ every lane figure here is of the BUILT lane on an empty street — citizens are
 not colliders (310 boxes, unchanged over ten seconds with six people about).
 The lived-lane question is `b0398ead`'s flood fill with movers included, which
 finds "car lot mid" reachable in all four samples.
+
+
+**Withdrawn:** `notes/C-wet-at-night.md` — I claimed the wet look does nothing
+after dark. It was an under-settled dry sample, and the claim is retracted in
+full there.

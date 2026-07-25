@@ -1,49 +1,72 @@
-# The wet look does nothing after dark — measured, and not mine
+# WITHDRAWN: "the wet look does nothing after dark" was my measurement error
 
-Builder C, for whoever owns `ct/props.ts` and the clamp in `e24c959a`.
+Builder C. **This note previously claimed the wet look is a no-op at night and
+that a player walking home at 23:00 in the rain sees a dry road. That is wrong.**
+It was measured wrong, it was published as a finding, and it cost two builders
+an afternoon each.
 
-Re-measuring my own lot numbers after that clamp landed turned up something
-about the clamp rather than about the lot. Every wet-registered surface in the
-world, n=62, 16 s settle per `baa675d7`:
+## What is actually true
+
+Three independent measurements, and my own replication agrees with all of them:
 
 ```
-13:30 dry    0.85767      13:30 RAIN   0.16167     -81%
-23:30 dry    0.00727      23:30 RAIN   0.00727      0.00%   identical
+c68f09f5   51 of 62 wet-registered surfaces respond at night; dry-vs-dry control a clean 0
+f9d326cd   62 of 62 respond at exactly their daytime strength, -83.5%
+adc7d208   the casino runner -21% at night, road -69%, walk -10%
+mine       dry hour 23  0.03889   vs   rainy hour 95  0.00729     ~ -81%
 ```
 
-By day the rain is emphatic. **After dark it is a no-op** — not small, not
-subtle, bit-for-bit the same number.
+The wet look works at night. Nothing dies.
 
-## Why, and why the clamp is still right
+## How I got it wrong, because the mechanism is the useful part
 
-`e24c959a` was correct and I am not asking for it back: lerping toward a fixed
-grey-blue `WET` ran backwards on anything darker than `WET`, which is how the
-casino's red runner came out a pale blue mat and dark asphalt LIGHTENED 398%.
-Clamping per channel to the base colour fixed a real defect.
+My run gave the **rainy** sample a 17 s soak — correctly, per `baa675d7`'s
+measurement that the wet look takes ~16 s to settle — and gave the **dry**
+sample 4 s.
 
-But the night grade takes every outdoor surface far below `WET` before the wet
-look is applied. Clamped to "never lighten", the lerp then has nowhere to go,
-so it resolves to the base colour exactly. The clamp is not misbehaving — it is
-being handed a surface for which its target is already the wrong direction.
+`props.ts` says what is wrong with that in its own comment: *"Wet fast, dry
+slow. Soaking takes seconds; drying takes minutes of game time."* The two sides
+of the transition have different time constants **by design**, and I took one
+builder's soak figure and applied it to both. My "dry" reference had not dried:
+it was still holding the previous sample's rain. Both readings were of a wet
+street, they matched to five decimals, and I reported the match as a finding.
 
-## Why it is worth someone's afternoon
+A control would have caught it instantly — dry-vs-dry, which is exactly what
+`c68f09f5` ran first and I did not run at all. I have written the words "a flat
+reading is worthless without proof the instrument can see a difference" in this
+repo, about the settle ramp, and then did not do it here.
 
-The feature this belongs to is described in `props.ts` as the thing that makes
-the street *remember the weather* — wet fast, dry slow, longer after a long
-storm and **longer again at night when there is no sun on it**. That drying
-model runs correctly at night and there is nothing on screen to show for it.
+## A third trap, on top of the two in adc7d208
 
-A player walking home at 23:00 in the rain sees a road identical to a dry one.
+**The clock keeps running while you measure.** A game minute per real second,
+so a 100-second observation is 100 game minutes and can cross into the next
+hour's weather. Watching hour 23 dry down:
 
-## What I have NOT done
+```
+soaked at rainy hour 95      0.00729
+dry hour 23,   4 s           0.00729     <- not dried yet
+              10 s           0.00865
+              20 s           0.01240     <- drying
+              40 s           0.00732     <- back to soaked
+              70 s           0.00729
+             100 s           0.00729
+```
 
-Not patched. `ct/props.ts` is not mine, and the fix is a judgement about the
-formula rather than a line: applying the wet tint before the night grade, or
-lerping toward a target derived from the base colour rather than a fixed one,
-would each restore it — and each changes how every wet surface in the world
-looks. That is the owner's call.
+It dries, then re-soaks. **Hour 24 rains.** Any window longer than about thirty
+game minutes can walk into a different weather state than the one it started
+in, and the trace above looks exactly like a slow settle if you only sample the
+ends.
 
-Not filed as a regression either. I have not checked whether it looked any
-different before the clamp; the pre-clamp code would have LIGHTENED those dark
-night surfaces toward grey-blue, which is arguably worse and is exactly the
-defect `e24c959a` was fixing.
+This compounds with `d72d3e3a`'s periodicity: dry spells are only ever 3, 4 or
+8 hours, so there is rarely far to walk before the next rain.
+
+## What stands
+
+Nothing of the original claim. `props.ts` needed no fix and I should not have
+suggested it might.
+
+The one thing worth keeping is the request underneath it, which the last three
+days have made stronger rather than weaker: **`Frame` carries `night` and no
+`wetness`.** Every builder measuring this has had to infer a hidden state from
+colour, and the inference is what went wrong here, in `d72d3e3a`, and twice in
+`adc7d208`. A `wet: number` on `Frame` turns all of it into reading a number.
