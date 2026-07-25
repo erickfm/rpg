@@ -44,3 +44,34 @@ which is which.
 
 **Not started pending that answer.** The height and interaction work on the ATM,
 and the cat move, are done and independent of it.
+
+
+---
+
+## The dished paving is mine and I have NOT done it — here is why, and what it costs
+
+The request splits the job: the casting is B's, but *"an alley drain sits
+mid-floor with the alley falling toward it … and the paving should dish slightly
+into it"* is mine and does not need the casting.
+
+I went to do it and stopped, because **it is a two-part change and doing only
+the visible half introduces a defect.**
+
+**Where it goes.** The drain is painted at texture `(0.5, 0.42)` of the alley
+floor — centre of the 6.6 m width, 42% along the 7.0 m length. A dish would be
+`PlaneGeometry(AF_W, AF_L, 12, 12)` with vertices pulled down toward that point,
+about 6 cm over a 5 m radius.
+
+**Why that alone is wrong.** GOTCHAS §7: floor height comes from a **picker**,
+not from the mesh. `crosstown.ts:506 groundPick` asks each module that registered
+a `ground(fn)` callback. `ct/street.ts` does not register one — `buildStreet`'s
+parameter list has no `ground` — so the player would keep walking the flat height
+and **float over the visible dip**. That is exactly the class of defect this
+project keeps catching, and I would have shipped it as a cosmetic tweak.
+
+**So it is:** segment and displace the floor, AND register a ground function for
+the alley patch that returns the dished height, AND pass `ground` through to
+`buildStreet` — a third field on a signature I have already widened once.
+
+Worth doing with the casting, in one pass, rather than now in two. Recorded so
+whoever picks it up knows the collision half exists before they see the dip.
