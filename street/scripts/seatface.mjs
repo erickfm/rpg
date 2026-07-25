@@ -1,6 +1,6 @@
 // WHAT DOES EVERY SEAT LOOK AT?
 //
-// GOTCHAS 23 (the newer one) claims a class: "anything with a FRONT will end up
+// GOTCHAS 33 claims a class: "anything with a FRONT will end up
 // backwards", off d5d15797's mirrored car row and d1268485's lot chairs facing
 // the wall. A class claim is worth testing rather than accepting, and seats are
 // the part of it the world publishes enough data to test.

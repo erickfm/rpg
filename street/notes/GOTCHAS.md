@@ -676,7 +676,7 @@ ran certifies as one that caught its mutation, which is a false green in the
 tool whose whole job is proving checks can fail. Written up for its owner in
 `notes/C-wrong-world-exit.md`.
 
-## 23. Anything with a FRONT will end up backwards
+## 33. Anything with a FRONT will end up backwards
 
 Four separate times in one session, and each looked like its own bug:
 

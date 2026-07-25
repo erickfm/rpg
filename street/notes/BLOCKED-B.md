@@ -583,6 +583,36 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## Cleared the live red on mainline: §23 was used twice
+
+`19289805` filed it and it was still failing:
+
+```
+§23 used twice: "Real is not the same as visible…" and "Anything with a FRONT…"
+§23 appears after §32 — out of order
+```
+
+A live red in the shared runner is worse than the defect it names, because it
+teaches everyone to read past a red — which is the habit I have spent this
+session arguing against in other people's checks.
+
+Applied the **standing rule**, which `539ed470` set and used for the same
+collision twice before: *"the LATER commit renumbers; existing references point
+at the earlier one."* The later entry became §33.
+
+```
+notes/GOTCHAS.md: 33 numbered entries, 1 … 33 — unique and in order
+```
+
+Not a judgement call and not my documentation: a documented procedure with two
+precedents, applied mechanically. I also repointed the one reference that
+explicitly meant the newer entry — `scripts/seatface.mjs:3` read *"GOTCHAS 23
+(the newer one)"*, which is itself evidence of the collision, and which my
+renumber would otherwise have left dangling. The two references meaning the
+earlier §23 are untouched, which is what the rule is for.
+
+---
+
 ## FIVE MORE stale copies of the rain formula, none of them mine
 
 `04013742` found the fourth in `basin.mjs` — mine, fixed — and its checker
