@@ -226,16 +226,61 @@ export function buildLot(o: {
     g.fillStyle = 'rgba(120,100,80,0.22)'; g.fillRect(2, 17, 28, 7); // weathered skirt
     dither(g, 32, 24, 60);
   });
-  const cabinWinT = pixTex(32, 24, (g) => {
-    g.fillStyle = '#c9c4b4'; g.fillRect(0, 0, 32, 24);
+  // The office is now the thing you drive TOWARD, at the far end of the aisle,
+  // so its front is the most-looked-at face in the lot and it was carrying 32
+  // by 24 texels for a 4.6 m wall — 7 per metre, which by GOTCHAS §4 cannot
+  // hold a blind slat, let alone what is behind it. At 64 by 40 it can.
+  const cabinWinT = pixTex(64, 40, (g) => {
+    g.fillStyle = '#c9c4b4'; g.fillRect(0, 0, 64, 40);
     g.fillStyle = 'rgba(0,0,0,0.16)';
-    for (let y = 3; y < 24; y += 5) g.fillRect(0, y, 32, 1);
-    g.fillStyle = '#3a4650'; g.fillRect(4, 5, 24, 12);            // the big window
-    g.fillStyle = 'rgba(200,215,225,0.20)'; g.fillRect(5, 6, 9, 10);
-    g.fillStyle = '#2a2118'; g.fillRect(16, 11, 10, 6);           // a desk, inside
-    g.fillStyle = '#c9a45e'; g.fillRect(18, 9, 5, 2);             // and a lamp on it
-    g.fillStyle = '#6a6258'; g.fillRect(4, 5, 24, 1); g.fillRect(4, 16, 24, 1);
-    dither(g, 32, 24, 50);
+    for (let y = 5; y < 40; y += 8) g.fillRect(0, y, 64, 1);      // lap boards
+    g.fillStyle = 'rgba(120,100,80,0.22)'; g.fillRect(3, 30, 58, 10);
+    const WX = 8, WY = 8, WW = 48, WH = 20;
+    g.fillStyle = '#33404b'; g.fillRect(WX, WY, WW, WH);          // the glass
+
+    // What is BEHIND the glass, painted before the blinds go over it, so the
+    // blinds read as being in front of a room rather than as stripes on a
+    // dark rectangle. A desk end-on, a chair, a filing cabinet, and the lamp.
+    g.fillStyle = '#3d3128'; g.fillRect(WX + 24, WY + 11, 18, 9);   // desk
+    g.fillStyle = '#2b2f36'; g.fillRect(WX + 20, WY + 12, 4, 8);    // chair back
+    g.fillStyle = '#4a4f57'; g.fillRect(WX + 3, WY + 6, 7, 14);     // filing cabinet
+    g.fillStyle = '#5a6068';
+    for (let d = 0; d < 3; d++) g.fillRect(WX + 4, WY + 8 + d * 4, 5, 1);
+    // THE DESK LIGHT, ON. A stepped pool rather than a gradient — this world
+    // is nearest-filtered and a soft falloff turns to mush, the same lesson
+    // the ceiling lamps in the walk-up taught.
+    g.fillStyle = 'rgba(232,196,110,0.18)'; g.fillRect(WX + 20, WY + 5, 26, 15);
+    g.fillStyle = 'rgba(238,206,126,0.30)'; g.fillRect(WX + 24, WY + 7, 18, 11);
+    g.fillStyle = 'rgba(246,222,150,0.46)'; g.fillRect(WX + 28, WY + 8, 10, 8);
+    g.fillStyle = '#f6e6b4'; g.fillRect(WX + 31, WY + 8, 4, 2);     // the shade itself
+    g.fillStyle = '#8d7a48'; g.fillRect(WX + 32, WY + 10, 1, 3);    // its stem
+
+    // VERTICAL BLINDS, half-drawn and hanging badly, which is the only state
+    // a lot office's blinds are ever in. Drawn as 2-texel slats with a 1-texel
+    // gap: at this density a slat is two pixels wide on screen and reads; at
+    // the old density it would have been a third of one.
+    for (let x = WX + 1; x < WX + WW - 1; x += 3) {
+      const open = x > WX + 30 && x < WX + 40;                     // a gap, pulled aside
+      if (open) continue;
+      const skew = (x % 9 === 1) ? 1 : 0;                          // one slat turned
+      g.fillStyle = skew ? 'rgba(226,222,206,0.60)' : 'rgba(214,210,194,0.88)';
+      g.fillRect(x, WY + 1, 2, WH - 2);
+    }
+    g.fillStyle = '#8d8878'; g.fillRect(WX, WY, WW, 2);            // the blind track
+    g.fillStyle = '#6a6258';                                        // window frame
+    g.fillRect(WX - 1, WY - 1, WW + 2, 2); g.fillRect(WX - 1, WY + WH - 1, WW + 2, 2);
+    g.fillRect(WX - 1, WY, 2, WH); g.fillRect(WX + WW - 1, WY, 2, WH);
+    dither(g, 64, 40, 50);
+  });
+  // The window AC unit's grille. Horizontal louvres and a rusted seam where it
+  // has sat in the same hole through several winters.
+  const acT = pixTex(20, 16, (g) => {
+    g.fillStyle = '#b9b4a6'; g.fillRect(0, 0, 20, 16);
+    g.fillStyle = '#6a675e';
+    for (let y = 3; y < 14; y += 2) g.fillRect(2, y, 16, 1);
+    g.fillStyle = 'rgba(120,72,40,0.45)'; g.fillRect(0, 14, 20, 2);
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(0, 0, 20, 2);
+    dither(g, 20, 16, 40);
   });
 
   // Hand-lettered, because a lot's sign is painted by whoever owned the
@@ -570,10 +615,67 @@ export function buildLot(o: {
       stamp(g, 'AUTO SALES', 4, 16, 1, '#d8a72e');
       dither(g, BOARD_W, 26, 30);
     });
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.85), flat(boardT));
-    board.position.set(cx - CD / 2 - 0.03, Y + 2.05, cz);
+    // ABOVE the glass, not across it. The window's top texel row puts it at
+    // 2.16 m and the board was centred at 2.05 with 0.85 of height, so it lay
+    // over the top quarter of the window — invisible until the blinds went in
+    // and gave the glass something to be covered up. Both numbers now come
+    // off the same texture: window top at (1 - WY/40) * CH.
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.46), flat(boardT));
+    board.position.set(cx - CD / 2 - 0.03, Y + 2.42, cz);
     board.rotation.y = -Math.PI / 2;
     scene.add(board);
+
+    // THE WINDOW AC UNIT. Half in and half out of a hole cut through the wall
+    // beside the window, which is the only way one was ever fitted to a
+    // portable, and it drips on the step below it. Face 1 is -x, the front.
+    const acM = flat(acT), acCase = new THREE.MeshBasicMaterial({ color: 0xa9a496 });
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.40, 0.50),
+      [acCase, acM, acCase, acCase, acCase, acCase]);
+    // Clear of the glass: the window runs to cz + 1.725, so the unit sits in
+    // the strip of wall outboard of it rather than through the pane.
+    ac.position.set(cx - CD / 2 - 0.13, Y + 1.45, cz + 1.99);
+    scene.add(ac);
+    // the bracket under it, because nothing holds up 30 kg of steel but angle
+    // iron and hope
+    for (const bz of [-0.2, 0.2]) {
+      const br = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.04, 0.04), postM);
+      br.position.set(cx - CD / 2 - 0.17, Y + 1.23, cz + 1.99 + bz);
+      br.rotation.z = 0.42;
+      scene.add(br);
+    }
+    // the rust streak it has run down the wall for years
+    const dripM = new THREE.MeshBasicMaterial({ color: 0x8a6a44, transparent: true, opacity: 0.30 });
+    const drip = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 1.1), dripM);
+    drip.position.set(cx - CD / 2 - 0.02, Y + 0.70, cz + 1.99);
+    drip.rotation.y = -Math.PI / 2;
+    scene.add(drip);
+
+    // THE SATELLITE DISH, on the roof edge and aimed at nothing in particular.
+    // A dish reads from three things and none of them is the dish: the ELLIPSE
+    // it makes when it is not pointed at you, the stalk, and the LNB arm
+    // sticking out of the middle of it. Drawn as a shallow spherical cap so
+    // the ellipse is real geometry and holds up from every angle.
+    {
+      const dishM = new THREE.MeshBasicMaterial({ color: 0xd8d4c6, side: THREE.DoubleSide });
+      const dz = cz - CW / 2 + 0.7, dx = cx - CD / 2 + 0.45;
+      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.62, 0.06), postM);
+      mast.position.set(dx, Y + CH + 0.31, dz);
+      scene.add(mast);
+      const dish = new THREE.Mesh(
+        new THREE.SphereGeometry(0.32, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2.7), dishM);
+      dish.position.set(dx, Y + CH + 0.66, dz);
+      dish.rotation.x = -Math.PI / 2 + 0.55;      // tilted up at the sky
+      dish.rotation.z = -0.5;
+      scene.add(dish);
+      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.34), postM);
+      arm.position.set(dx - 0.16, Y + CH + 0.70, dz - 0.10);
+      arm.rotation.y = 0.5; arm.rotation.x = 0.5;
+      scene.add(arm);
+      const lnb = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.11),
+        new THREE.MeshBasicMaterial({ color: 0x6a6258 }));
+      lnb.position.set(dx - 0.29, Y + CH + 0.80, dz - 0.18);
+      scene.add(lnb);
+    }
 
     // ── the pole sign ────────────────────────────────────────────────────
     // Taller than the building next to it, which is the point: a lot has no
