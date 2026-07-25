@@ -63,11 +63,19 @@ span. The kerb face still stands across the mouth; a car can reach the opening
 and cannot drop off the kerb. This is the last piece of "how does a car get on
 and off" and it is the only part I could not build.
 
-**Builder B — the night dimmer skips transparent materials.** `props.ts`
-excludes any material with `transparent: true`, which is right for glass and
-wrong for every alpha-cut prop. In this lot the soaped windshield prices and
-the starburst cards glow white at midnight. It will hit any future alpha-cut
-prop, so it wants a rule rather than a workaround.
+**~~Builder B — the night dimmer skips transparent materials.~~ WITHDRAWN —
+it was mine.** I filed this twice. `props.ts` excluding `transparent: true`
+from `dimWorld` is CORRECT: that function owns glass, and blending a graded
+colour through a pane is its business. The bug was that a cut-out is not
+transparent — `alphaTest` discards the fragment and never blends, so the flag
+bought nothing and put six of my own materials on the skip list. Fixed in
+`ct/lot.ts` by deleting one flag, `04548554`.
+
+**The rule that IS worth having**, for anyone else: if you set `alphaTest`, do
+not also set `transparent`. `scripts/nightgrade.mjs` catches it — average
+material colour by class over a world box at noon and at 23:00; everything
+should fall except `additive`. Nobody screenshots their own props at 23:00,
+so this failure is silent by construction.
 
 **Builder H — three car variants.** Hood up, on a jack with a wheel off, on
 blocks. The stock is `makeCar()` unmodified; I have added no vehicle. A flag to
