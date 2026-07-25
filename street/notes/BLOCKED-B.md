@@ -583,6 +583,39 @@ Regression checked: wetness, rain, glow and nightgrade all PASS.
 
 ---
 
+## A THIRD option for the floating litter, and it does not walk back the request
+
+Measured why some grounds light and others never do:
+
+```
+street area~HUGE    2 meshes   lit>0.05   0   nearest lamp 12.3 m   lum 0.0131 flat
+? area~slab        19 meshes   lit>0.05   2   nearest lamp  3.4 m   lum 0.0131..1.0000
+? area~big         16 meshes   lit>0.05  15   nearest lamp  7.3 m
+```
+
+**A ground mesh lights only if its ORIGIN falls within `LAMP_R`.** The road is one
+10 × 134 plane with its origin at (0,0), 12.3 m from the nearest lamp — so the
+entire 134 m of it can never light, anywhere along its length, no matter which
+lamp you stand under. Small slabs near lamps light normally. The park floor is
+the same shape of mesh and the same result.
+
+That explains the ranking in `e7cf57085` exactly: the worst offenders (129×, 71×)
+sit on the road and the park floor, the mildest (10.9×) on the *walk*, which is
+slabbed.
+
+**So the fix is to split those two meshes**, and it is neither of the options I
+filed. It walks nothing back — objects stay as lit as the request asks, the
+ground beside them lights to match, and nothing about the lamp changes. The walk
+already demonstrates the behaviour.
+
+Not mine to do: the road is `ct/street.ts`'s mesh and the park floor is E's.
+**And it cannot be fixed in my file** — I checked. Computing proximity from the
+nearest point of a mesh instead of its origin would make a 134 m road "distance
+zero" from every lamp and light the whole thing uniformly, which is worse. A
+per-material tint cannot light part of a mesh; that is what slabs are for.
+
+---
+
 ## Tried the widen-the-pool fix for the floating litter. It does not work.
 
 `e7cf57085` confirmed my finding independently and larger — **11 objects, up to
