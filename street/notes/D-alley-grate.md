@@ -75,3 +75,47 @@ the alley patch that returns the dished height, AND pass `ground` through to
 
 Worth doing with the casting, in one pass, rather than now in two. Recorded so
 whoever picks it up knows the collision half exists before they see the dip.
+
+---
+
+## UPDATE — the dish is BUILT, both halves. Only the casting is still blocked
+
+I was wrong to bundle it. The casting has been waiting on a ruling for a while
+and the dish never needed it: **I** decide where the drain sits, B would only
+export the art that drops into it. So the paving now falls to the drain and the
+casting can land in a floor that already slopes to meet it.
+
+**Where it is.** Drain at world **x −10.30, z −40.77**, derived rather than
+guessed. `DRAIN_U`/`DRAIN_V` are now one pair of constants that both the texture
+painter and the geometry read, so the painted gully and the low point of the
+bowl cannot drift apart.
+
+**The z axis runs backwards through the canvas and that is measured, not
+assumed.** `pixTex` leaves `flipY` at the CanvasTexture default `true`, so canvas
+row 0 is v = 1 is local +y is world −z. Verified by mapping the canvas corners
+through the mesh's own `localToWorld`: top → z −43.50 (the end wall), bottom →
+z −37.00 (the mouth). The drain is 42% of the way from the **end wall** toward
+the street. Reading it the other way puts the dish 1.3 m out, on the wrong side
+of the alley's centre, and it would look deliberate.
+
+**The shape.** 6 cm over a 2.6 m radius — a 2% fall, what a real yard gully is
+laid to. smoothstep rather than a cone: flat at the centre so the casting beds
+level when it arrives, flat at the rim so the bowl does not meet the paving on a
+crease.
+
+**Both halves, which was the whole reason I stopped.** `ct/street.ts` now
+registers a ground function through `ctx.ground` — the pattern `ct/park.ts` and
+`ct/civic.ts` already use. It answers **only inside the bowl** and returns null
+everywhere else, so nothing outside changes hands. That is deliberate: the
+fallback in `groundPick` gives `KERB_H` for |x| < FACE + 0.3, so there is a 14 cm
+kerb step in the strip x −7.3 … −7.0 at the alley mouth, and a patch that
+answered for the whole alley floor would have quietly flattened it.
+
+**Walked, not screenshotted.** `scripts/alleydish.mjs` compares the mesh's own
+displaced vertices against the ground picker, by standing the player on them:
+worst disagreement **0.0 mm across 4 points**, and walking in from the mouth
+takes you down **6.0 cm** with a largest step of 19 mm. Watched failing on the
+real defect — remove the registration and it reports 59.9 mm and a 0.0 cm walk.
+
+**Still blocked, and only this:** the frame, bars and throat. `const basin` in
+B's `ct/tex-ground.ts` is not exported. The question in this note stands.

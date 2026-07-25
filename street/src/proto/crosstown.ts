@@ -109,10 +109,20 @@ export function makeCrosstown(): Proto {
   const SPOTS: Spot[] = [];
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
+  // Modules that answer for a patch of floor. Asked in declared order, first
+  // non-null wins — see ctx.ground. The entry point no longer names any of
+  // them, which is what lets a builder ship a staircase that works.
+  //
+  // Hoisted for the same reason SPOTS was, and by the same hand: ct/street.ts
+  // registers the dished alley paving during its build, so the register has to
+  // exist before any builder runs. Moved, not changed. (D; flagged.)
+  const GROUNDS: { fn: (x: number, z: number) => number | null; order: number }[] = [];
 
   const street = buildStreet({ scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1,
-    // so ct/street.ts can register the ATM's own [E] — D, additive, flagged
-    spot: (sp) => { SPOTS.push(sp); }, purse, refreshWallet: () => hud.refreshWallet() });
+    // so ct/street.ts can register the ATM's own [E] and the alley dish's own
+    // floor height — D, additive, flagged
+    spot: (sp) => { SPOTS.push(sp); }, purse, refreshWallet: () => hud.refreshWallet(),
+    ground: (fn, order = BUILD.PROPS) => { GROUNDS.push({ fn, order }); } });
   // solid props the citizens must steer AROUND (never walk/phase through) —
   // trees, lamp poles, the hydrant, the payphone, and the cars. Declared up
   // here because every module that builds appends to the same two lists.
@@ -124,10 +134,7 @@ export function makeCrosstown(): Proto {
   // `rig` and the teleport are created ~200 lines below, so the accessors are
   // lazy closures — they are only ever CALLED at runtime, by which point both
   // exist.
-  // Modules that answer for a patch of floor. Asked in declared order, first
-  // non-null wins — see ctx.ground. The entry point no longer names any of
-  // them, which is what lets a builder ship a staircase that works.
-  const GROUNDS: { fn: (x: number, z: number) => number | null; order: number }[] = [];
+  // (GROUNDS is declared above the builders now — see the hoist.)
   // Named ground, published by whoever lays the block out and asked for by
   // name by whoever builds on it. See ctx.ts `Site`.
   const SITES = new Map<string, Site>();

@@ -23,15 +23,19 @@ export function buildStreet(o: {
   boards: { m: THREE.Mesh }[];
   AZ0: number; AZ1: number;
   SIDE_X1: number; SIDE_Z0: number; SIDE_Z1: number;
-  // Three fields that already exist on CtxBuild, passed through so this module
+  // Four fields that already exist on CtxBuild, passed through so this module
   // can register its OWN [E] instead of one being hand-written in the entry
   // point — which is what ctx.spot exists for (ctx.ts: "a module describes its
   // own furniture and the entry point never learns what any of it is").
-  // Additive: crosstown.ts gains three names in one object literal and nothing
+  // Additive: crosstown.ts gains four names in one object literal and nothing
   // it already passes changes. Flagged for the desk, as with the purse field.
   spot: CtxBuild['spot'];
   purse: CtxBuild['purse'];
   refreshWallet: CtxBuild['refreshWallet'];
+  // `ground` is the newest of the four and it is the collision half of the
+  // dished alley paving: ct/park.ts and ct/civic.ts already register theirs
+  // this way, so this is the established pattern rather than a new one.
+  ground: CtxBuild['ground'];
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
   // ── collision, registered by the module that draws the building ─────────
@@ -1490,6 +1494,23 @@ export function buildStreet(o: {
     // now sits between its two neighbours instead of three times coarser than
     // either, and the arris at x = -7 stops announcing itself.
     const AF_W = 6.6, AF_L = AZ0 - AZ1, AF_PXM = 24;
+    // WHERE THE DRAIN IS, decided once. The painter puts the gully at these
+    // fractions of the canvas and the dished geometry below falls toward the
+    // same point; before this they were the literal 0.42 in the painter and a
+    // number I had worked out by hand in a note, which is the shape of defect
+    // this file keeps finding — the same fact decided twice.
+    //
+    // The canvas maps to the alley BACKWARDS along z, and that is not a guess:
+    // pixTex leaves flipY at the CanvasTexture default of true, so canvas row 0
+    // is v = 1 is local +y is world -z. Verified against the built world by
+    // mapping the canvas corners through the mesh's own localToWorld —
+    // top -> z -43.50 (the end wall), bottom -> z -37.00 (the mouth). So the
+    // drain is 42% of the way from the END WALL toward the street, not from the
+    // street. Getting that backwards puts the dish 1.3 m off, on the wrong side
+    // of the alley's centre, and it would look deliberate.
+    const DRAIN_U = 0.5, DRAIN_V = 0.42;
+    const DRAIN_X = -FACE - 3.3 + (DRAIN_U - 0.5) * AF_W;
+    const DRAIN_Z = AZ1 + DRAIN_V * AF_L;
     const AFW = Math.round(AF_W * AF_PXM), AFL = Math.round(AF_L * AF_PXM);
     const am = (v: number) => Math.max(1, Math.round(v * AF_PXM));
     const alleyFloorT = declareSurface(pixTex(AFW, AFL, (g) => {
@@ -1510,7 +1531,7 @@ export function buildStreet(o: {
         g.fill();
       }
       // the drain: a real 0.4 m gully with its bars, not an 8 px square
-      const dx = Math.round(AFW * 0.5), dy = Math.round(AFL * 0.42), dw = am(0.4);
+      const dx = Math.round(AFW * DRAIN_U), dy = Math.round(AFL * DRAIN_V), dw = am(0.4);
       g.fillStyle = '#17181c'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
       g.fillStyle = 'rgba(255,255,255,0.12)';
       for (let k = 1; k < 4; k++) {
@@ -1527,11 +1548,55 @@ export function buildStreet(o: {
     //     alley floor   54.4 -> 51.1    -6%
     //
     // The street soaked and the alley stayed dry, in the same downpour.
-    const floorA = new THREE.Mesh(new THREE.PlaneGeometry(AF_W, AF_L), wet(new THREE.MeshBasicMaterial({ map: alleyFloorT })));
+    // THE ALLEY FALLS TO THE DRAIN — and the player falls with it.
+    //
+    // The user: *"an alley drain sits mid-floor with the alley falling toward
+    // it … the paving should dish slightly into it."* 6 cm over 2.6 m is a 2%
+    // fall, which is what a real yard gully is laid to.
+    //
+    // BOTH HALVES OR NEITHER. GOTCHAS §7: walking height comes from the PICKER,
+    // not from the mesh. Displacing this geometry alone would leave the player
+    // striding flat across a visible dip — a cosmetic change that ships a
+    // floating-player bug, and it looks finished on its own, which is why I
+    // stopped last time instead of doing half of it (`177b0e332`).
+    //
+    // The registration answers ONLY INSIDE THE DISH and returns null everywhere
+    // else, so nothing outside the bowl changes hands. That matters more than
+    // it looks: groundPick's final fallback gives KERB_H for |x| < FACE + 0.3
+    // and 0 beyond it, so the alley walks at road level but there is a 14 cm
+    // kerb step in the strip x −7.3 … −7.0 at the mouth. A patch that answered
+    // for the whole alley floor would silently flatten that step. The dish is
+    // 2.6 m from a drain at x −10.30, so it never reaches it.
+    //
+    // smoothstep, not a cone: zero slope at the centre so the casting beds flat
+    // when it arrives, and zero slope at the rim so the bowl does not meet the
+    // flat paving on a crease.
+    const DISH_R = 2.6, DISH_D = 0.06;
+    /** metres below the flat alley floor at (x, z) — 0 outside the bowl */
+    const dishAt = (x: number, z: number) => {
+      const t = Math.hypot(x - DRAIN_X, z - DRAIN_Z) / DISH_R;
+      if (t >= 1) return 0;
+      return -DISH_D * (1 - t * t * (3 - 2 * t));
+    };
+    const floorG = new THREE.PlaneGeometry(AF_W, AF_L, 22, 22);
+    {
+      // local +x is world +x, local +y is world −z, local +z is world +y —
+      // the mesh is laid down by rotation.x = −π/2 below.
+      const pos = floorG.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        pos.setZ(i, dishAt(-FACE - 3.3 + pos.getX(i), (AZ0 + AZ1) / 2 - pos.getY(i)));
+      }
+      pos.needsUpdate = true;
+      floorG.computeVertexNormals();
+    }
+    const floorA = new THREE.Mesh(floorG, wet(new THREE.MeshBasicMaterial({ map: alleyFloorT })));
     floorA.rotation.x = -Math.PI / 2;
     floorA.position.set(-FACE - 3.3, 0.005, (AZ0 + AZ1) / 2);
     floorA.userData.alley = 'floor';
     scene.add(floorA);
+    // the collision half. Same dishAt the geometry was built from, so the floor
+    // you walk cannot drift from the floor you see.
+    o.ground((x, z) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));
     // bare-brick end wall (no shop, one grimy window). 7 m wide, and as tall
     // as the taller of the two buildings the alley is cut between.
     //
