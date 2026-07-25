@@ -18,15 +18,38 @@ node scripts/canfail.mjs glow park    just these
 |---|---|---|
 | `footprint` | kerb line moved to infinity — litter may straddle it | **yes** |
 | `footprint-pits` | `PIT_X` 5.56 → 5.09, pits flush into the kerb | **yes** |
+| `footprint-water` | `PAN_X` 0.22 → 1.60, pools out in the travel lane | **yes** |
 | `kerbcut` | `DRIVES` emptied — the car lot has no curb cut | **yes** |
 | `wetness` | `PUDDLE_C` 0.444 → 1.6, puddles lighter than the road | **yes** |
 | `glow` | halo moved 1.4 m off its lamp head | **yes** |
+| `glow-pool` | `POOL_GAIN` 12 → 0 — lamps that light nothing | **yes** |
 | `park` | `parkLantern` stamp removed — lanterns unfindable | **yes** |
-| `bus bench` | leg tops raised into the slat plane (GOTCHAS 6) | **yes** |
+| `park-walk` | lamp collider widened to 2.4 m — the loop walled shut | **yes** |
+| `bus-bench` | leg tops raised into the slat plane (GOTCHAS 6) | **yes** |
+| `bus-walk` | tree collider to 1.2 m — east pavement severed | **yes** |
 | `basin` | `PROUD` 0.007 → −0.02, surround buried behind the kerb | **yes** |
 | `rain` | `RAIN_N` 500 → 6 | **yes** |
+| `rain-memory` | `dryFor` 48 → 0.24 — the street forgets the weather | **yes** |
 | `trash` | every piece seated 5 cm under the pavement | **yes** |
-| `park-walk` | lamp collider widened to 2.4 m — the loop walled shut | **yes** |
+| `trash-set` | catalogue key renamed — a whole approved type gone | **yes** |
+
+## Every user request routed to B now has a check AND a mutation
+
+That was not true a week in. Four of them were built and then left undefended,
+which is how a feature gets refactored away with the suite still green:
+
+| the user asked for | the check that would notice it going |
+|---|---|
+| "a bit of clearence on the curb side" (tree bases) | `footprint-pits` |
+| "the gutter should have the water in the gutter" | `footprint-water` |
+| "make wetness last a lil after it stops raining" | `rain-memory` |
+| "light … to show up on the objects under the lights" | `glow-pool` |
+| "get rid of all of them" (the banded rectangle) | `trash` — absence asserted |
+| the five approved litter types | `trash-set` |
+
+The last two are worth separating. A **rejection** with no check is a decision
+waiting to be quietly undone, and that one cost the user three rig rounds to
+make; the texture is still exported and nothing but this stops it returning.
 
 `kerb.mjs` and `people.mjs` are measurements, not checks — they print what is
 there and assert nothing, so there is no verdict to mutate. Same status as A's
