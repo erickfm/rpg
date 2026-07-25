@@ -83,6 +83,27 @@ The other 71 are spread across several modules — tall banners (1.24 × 15.80,
 1.10 × 14.20), a 6 m sign board, and a lot of small litter planes. Whoever owns
 those can run the check over their own box and get an answer instead of a guess.
 
+## Follow-up, landed in `78309300`: it now hands you the box
+
+The section above told owners to "run it over your own box" and gave nobody a
+box. Fixed the way that does not rot: clusters are derived from the flagged
+positions, not from a table of named regions, and each is printed as a command
+with the shapes named so their builder recognises them.
+
+After GOTCHAS 22 landed, world-wide is **26, down from 84**:
+
+```
+ 13 at 42,-98  1.24x15.80 tex 44x224 / 0.62x0.72 tex 16x20 /+2
+     node scripts/nightgrade.mjs 34 50 -101 -94
+  4 at 0,-57   0.26x0.22 tex 14x12 / 0.30x0.24 tex 22x16 /+2
+     node scripts/nightgrade.mjs -8 8 -71 -45
+  … four more
+```
+
+The 13 are the car lot and its 15.8 m banners — **still C's, still exiting 1**.
+The rest are litter-sized planes along the main street. Six owners, six
+commands, no coordinates to look up.
+
 ## The thing worth remembering
 
 This is the third detector this week that was reporting confidently on something
