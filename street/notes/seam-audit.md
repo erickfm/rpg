@@ -1953,3 +1953,54 @@ output**, which is why nothing in the source could ever have shown it.
 `npm run checks` can call this directly — it needs no world, no page, and takes
 milliseconds. It catches **any** future case of this, not just doors: a new
 eager glob emitted early would be caught the same way.
+
+## Round 14h — why `doors.ts` is first, and the proof that the fix works
+
+The three glob literals, in emission order, with the module that owns each:
+
+| glob | owner bound at | literal emitted at | late bindings |
+|---|---|---|---|
+| `./*.ts` | **`doors.ts` — 595,086** | **809,884** | **4** |
+| `./int-*.ts` | `interior.ts` — 818,760 | 819,144 | **0** |
+| `./*.ts` | `world.ts` — 827,991 | 828,080 | **0** |
+
+**`doors.ts` is bound at byte 595,086 — 94 KB before the first room.** It has to
+be: all eight rooms `import { doorStandFor } from './doors'`, so it must exist
+before them. That early binding is what drags its glob literal to 809,884, ahead
+of four modules that are still to come.
+
+`interior.ts` is bound at 818,760 — **after** every room. Nothing imports it that
+it also globs, so it is free to be late, and its literal at 819,144 sees all
+eight rooms bound. **Zero late bindings.**
+
+> **`interior.ts` globs the same eight rooms as `doors.ts` and loses nothing.**
+> The two differ in one respect: the rooms import `doors.ts` and do not import
+> `interior.ts` back for anything `interior.ts` needs at module scope. That is
+> the whole defect, and that is the whole fix.
+
+### So the proposed fix is not speculative any more
+
+Move `doorStandFor` to a leaf. The rooms stop importing `./doors`. `doors.ts` no
+longer has to be bound before them, its glob literal is free to be emitted after
+them **exactly as `interior.ts`'s already is**, and the four late bindings
+disappear.
+
+**The evidence that this works is already in the bundle**: it is what the second
+glob does today, on the same eight modules, with zero losses.
+
+And it is verifiable in one command — `node scripts/globorder.mjs` must print
+`every globbed binding is declared before the glob that reads it` and exit 0.
+
+### Where this investigation ends
+
+Started from *"the casino's door is declared and never arrives."* Now:
+
+- **mechanism** — the binding is emitted 1,766 bytes after the literal that reads it
+- **why the casino** — nothing in its source; it lands in a 1.7 KB window
+- **why `doors.ts` and not the other two globs** — it is bound 94 KB early because
+  the rooms import it
+- **the fix** — remove that import; the working glob proves the shape
+- **verification** — `scripts/globorder.mjs`, no runtime, exit-coded
+- **player impact** — none; all 8 doors open and land in the right room
+
+I have not touched `src/`. Everything above is measurement and reading.
