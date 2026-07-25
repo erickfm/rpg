@@ -41,6 +41,10 @@ const AREAS = [
     what: 'what stands on the grass is not floating above it' },
   { name: 'coplanar', script: 'scripts/E-coplanar.mjs',
     what: 'no two visible surfaces share a height (§6)' },
+  { name: 'jump', script: 'scripts/E-jump.mjs',
+    what: 'no boundary of mine can be jumped, now the ground is higher' },
+  { name: 'rain', script: 'scripts/E-rain.mjs',
+    what: 'the park still gets wet with the relief shading on it' },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
@@ -129,6 +133,7 @@ for (const a of run) {
         // and the banner did not match anything here. A summary that says
         // everything is broken and shows nothing is worse than no summary.
         || /walks passed|FAILED|sinking into it|is floating|same height/.test(line)
+        || /boundary holds|park gets wet/.test(line)
         || /MEASURING THE WRONG WORLD|is serving build|this checkout is at|Fix:/.test(line)) {
       console.log(`   ${line.trim()}`);
     }
