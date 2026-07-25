@@ -70,6 +70,34 @@ GOTCHAS 28.
 Every texture painted after that offset gets a different slice of the sequence.
 Hence 612 of 954.
 
+## The fuller answer, reached independently: the worlds are IDENTICAL
+
+`506bd4d2` landed the same resolution at the same time and went further, so
+read that one for the mechanism. Two things it has that this note does not:
+
+**Why the offset propagates at all.** The seeded stream is shared with three.js,
+which spends **four `Math.random` calls per object on `generateUUID`**
+(`fpadd.mjs:21` says so). So a texture's grain depends on how many objects were
+created before it was painted — which is why a divergence before canvas #0
+reaches every texture after it, and why the count I measured moves in small
+multiples.
+
+**Proof that nothing is actually different.** `fpadd`'s repaint-versus-deletion
+test: 612 lost and 612 gained, every lost texture having a same-dimension
+partner — a repaint, not a loss. Comparing what exists with the grain stripped:
+
+```
+_structure  1070 distinct kinds, 0 unmatched
+_textures    253 distinct kinds, 0 unmatched
+objects identical (3489), uniqueTextures identical (954)
+```
+
+**Dev and dist build the identical world.** The only real difference is 6 tints
+of 3489 — living things, GOTCHAS 1's documented noise floor.
+
+That strengthens the rule below rather than changing it: the 612 is entirely an
+artefact of comparing across two servers, and there is nothing underneath it.
+
 ## What to actually do about it
 
 **`fp` compares dev to dev, or dist to dist. Never dev to dist.** That is the

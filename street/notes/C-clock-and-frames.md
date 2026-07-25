@@ -144,9 +144,19 @@ Scripts where a `keyboard.down('w'|'a'|'s'|'d')` is followed by a fixed
 `waitForTimeout` rather than a wait on the rig's own position:
 
 ```
-crowd-walk      E-park-walk    E-walk      E-yard-walk
-interiors-walk  park-walk      smoke
+E-park-walk    E-walk    E-yard-walk
+interiors-walk park-walk smoke
 ```
+
+**`crowd-walk` was on this list and is CLEARED** (`afc594f0`). The shape was
+real — a `hold(key, ms)` helper — but its last caller had gone away when the
+west-lane check was rewritten to sample while the key is held. Dead code, still
+greppable. Deleted, and the script still passes. Its one remaining hold is a
+sampled loop that concludes nothing from its duration: the key is down for six
+seconds because that is how long you need to be exposed to a crowd.
+
+That is the list working the way a candidate list is supposed to: six left, one
+answered by its owner in the only way that settles it.
 
 The sharpest example is `interiors-walk.mjs:436`, which converts a distance
 into a duration outright:

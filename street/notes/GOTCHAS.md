@@ -626,6 +626,15 @@ first canvas of 818:  dev at draw 132, dist at draw 104
 evaluation-order difference again — and every texture painted afterwards gets a
 different slice of the sequence.
 
+**Dev and dist build the identical world** — `506bd4d2` proved it by stripping
+the grain and comparing what exists: 1070 structure kinds and 253 texture kinds
+with 0 unmatched, 3489 objects and 954 textures identical, and the 612 "lost"
+textures each having a same-dimension partner among the 612 "gained". A
+repaint, not a loss. (The stream is shared with three.js, which spends four
+draws per object on `generateUUID`, so grain depends on how many objects
+preceded a texture — which is how an offset before the first canvas reaches
+everything after it.)
+
 It is not a visual regression: the shipped world leaves `Math.random` unseeded,
 so the grain differs on every load anyway. It is only ever an artefact of the
 comparison. **So keep both captures on the same kind of server**, and if a
