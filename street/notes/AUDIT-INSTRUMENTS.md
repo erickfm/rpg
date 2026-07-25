@@ -1216,3 +1216,46 @@ That is the argument for the sweep being a standing check rather than a one-off
 report: a list that is being actively worked is also being actively re-created,
 and a count that goes 24 → 19 conceals eight fixes and three regressions. The
 composition is the finding, not the total.
+
+## CORRECTION: "the wet look dies on street" — my numbers were right, my attribution was wrong
+
+`f9d326cd` diagnosed what I had routed to `props.ts` and found my framing off.
+I reported *"the wet look survives the night grade on tex-ground and dies on
+street"*, grouping by `userData.mod`. The real variable is **which registry a
+material is in**, and both modules have members of both:
+
+```
+street     registered    4/4      -83.5%        street     lit-only  436/556   -2.7%
+tex-ground registered   13/13     -83.5%        tex-ground lit-only    7/41    -0.02%
+```
+
+**Nothing dies.** All 62 wet-registered surfaces respond at night at exactly
+their daytime strength. Checked from outside, and it holds:
+
+| | responders (> 20%) | within ±1 pt of −83.5% | median |
+|---|---|---|---|
+| **day** | 220 | **64** | 20.8% |
+| **night** | 68 | **64** | 83.6% |
+
+**64 full-strength responders, day and night, unchanged.** At night they are 64
+of 68 — a tight cluster. By day the same 64 are joined by ~156 surfaces
+responding weakly, because the secondary `wetK` tint is visible against a bright
+floor and invisible against a night floor of 0.045.
+
+### So what did I actually measure?
+
+`street` going *137 of 674 by day to 4 of 484 at night* was never the wet look
+collapsing. It was **my own fixed 20% threshold** meeting two very different
+luminance floors. The registered surfaces never changed; the weak ones crossed my
+line by day and fell under it at night.
+
+That is this audit's oldest lesson arriving in its newest form. I have three
+times published a number that was precise, reproducible, and about the wrong
+thing — world-space against car-local, `parameters.width` against the mapped
+face, and now **a threshold applied across two floors it was never calibrated
+against.** A cut-off is a frame too, and mine was daylight.
+
+The statement that survives is the narrow one, and it is `f9d326cd`'s rather than
+mine: **a surface gets the real wet look if and only if somebody called `wet()`
+on it.** My contribution to it is the outside confirmation that the 64 are
+constant, which is the part that rules out any night-specific failure.

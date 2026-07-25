@@ -188,3 +188,14 @@ for (const [k, v] of [...all.entries()].sort((a, c) => c[1].length - a[1].length
   const flag = resp === 0 ? '   ← nothing responds' : '';
   console.log(`   ${String(resp).padStart(4)} / ${String(v.length).padEnd(5)} ${k.padEnd(26)} median y ${ys[ys.length >> 1].toFixed(2)}${flag}`);
 }
+
+// f9d326cd says the split is REGISTRY vs registry, not module vs module: every
+// wet-registered surface responds at exactly -83.5% and everything else gets a
+// ~2.7% nudge. If true, the responders must cluster tightly rather than spread.
+const drops = out.filter((r) => r.drop > 0.2).map((r) => r.drop).sort((a, c) => a - c);
+if (drops.length) {
+  const at835 = drops.filter((d) => Math.abs(d - 0.835) < 0.01).length;
+  console.log(`\nresponder distribution: n=${drops.length}` +
+    `  min ${pct(drops[0])}  median ${pct(drops[drops.length >> 1])}  max ${pct(drops[drops.length - 1])}`);
+  console.log(`   within ±1 point of -83.5%: ${at835} of ${drops.length}`);
+}
