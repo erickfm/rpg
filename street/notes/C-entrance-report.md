@@ -10,6 +10,12 @@ Nothing below is committed as a change.
 
 Ordered by how much it costs the illusion, not by how hard it is.
 
+**Revision:** finding 6 was rewritten after walking it. I had it wrong — the
+stoop is not something you walk through, it is something you cannot reach, and
+the cause is a blanket collider in `crosstown.ts` rather than anything in this
+module. It is the same defect the desk has just routed to D (`bcd2c82`), and
+the section now says what D needs from here when the blanket wall goes.
+
 ---
 
 ## 1. The front door disagrees with itself · `08-lobby-back`, `05-door`
@@ -88,12 +94,55 @@ Headroom is genuinely fine (2.56 m over the landing; I checked the numbers,
 not the picture). It is purely a lighting placement problem: the lamp is
 0.3 m past the landing centre and wants to be over the turn.
 
-## 6. The stoop is not solid · `03-stoop`
+## 6. You cannot reach the stoop at all · `03-stoop`, `47-stoop-reach`
 
-You walk through the step instead of onto it. Invisible in first person
-because the camera rides well above a 0.17 m rise, so it has never shown up in
-a screenshot — but it is the first piece of the building you touch. Long
-standing, noted in the previous handoff, still true.
+**Corrected.** I first wrote this up as "the stoop is not solid, you walk
+through the step". That is wrong, and the truth is more interesting.
+
+Walked into it rather than reasoning about it: stand in the road at the door,
+hold forward, and you stop dead at **x = 6.34**. The stoop's front face is at
+x = 6.60. You are held **0.26 m short of it** and can never stand on it.
+
+The cause is not in this module. `crosstown.ts:238` hand-writes the east side
+of the street as one blanket collider —
+
+```
+{ minX: FACE - 0.3, maxX: FACE + 8, minZ: -96, maxZ: 20 }   // right wall
+```
+
+— which is x 6.70 → 15 for the **whole length of the block**, independent of
+what any module draws. With the rig's 0.36 m radius that is a hard stop at
+6.34, well in front of a facade that actually stands at 7.0. So the stoop, the
+0.40 m it projects, and the whole depth of the doorcase reveal sit *behind* the
+collision line and are scenery you can look at but not touch.
+
+This is the same finding the desk has just routed to D — `bcd2c82`,
+"Collision does not follow geometry — the blanket walls override every
+module", raised against the library courtyard. **The walk-up's entrance is the
+same bug at a different address.**
+
+### What D needs from this module when the blanket wall goes
+
+Two things, in this order, or replacing the blanket makes the entrance worse
+rather than better:
+
+1. **The facade line moves out from 6.70 to 7.00.** A tight facade collider
+   lets the player reach x = 6.64 — which is *past* the stoop's front face at
+   6.60. The moment the blanket goes, the stoop stops being unreachable and
+   starts being something you clip through.
+2. **So the stoop needs its own collider**, registered from `ct/apartment.ts`,
+   before or with that change: roughly
+   `{ minX: 6.60, maxX: 7.15, minZ: -44.98, maxZ: -43.02 }`. It is a 0.17 m
+   step, so it also wants the floor-picker to lift you onto it rather than
+   stopping you at it — which is this module's `ground()`, not a collider.
+
+I have not made either change: they are only correct together with D's, and
+the entrance currently works because the blanket wall keeps the player far
+enough back that the `[E]` spot at x = 6.55, r = 1.05 still catches them at
+0.21 m. That margin is what is holding the front door up, and it is exactly
+the failure `GOTCHAS.md` #8 describes — the bodega's `[E]` spot was eaten by a
+generous collider the same way, and the comment at `crosstown.ts:244` is the
+scar from it.
 
 ## 7. The top guard rail has one lower rail and a 0.50 m gap under it · `38-top-landing`, `40-top-over`
 
