@@ -43,7 +43,12 @@ const VIEWS = [
 ];
 // 23:00 first: it is the one that matters, and putting it first means a run that
 // is interrupted still produced the picture worth having.
-const HOURS = [['night', 23, 0], ['day', 13, 0]];
+// 00:00 is night AND raining. props.ts's rainAt is deterministic on the absolute
+// hour and fires on 0, 1, 5, 6, 10, 11, 15, 20, so those three dark hours are the
+// only place the brief's actual image exists — "throwing colour onto wet asphalt".
+// The side street soaks like every other road (road -78%, pavement -20% against
+// dry), so the reflection surface is really there; 23:00 is dark but DRY.
+const HOURS = [['wetnight', 0, 0], ['night', 23, 0], ['day', 13, 0]];
 
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1200, height: 800 } });
@@ -59,7 +64,7 @@ for (const [when, h, m] of HOURS) {
     // the chase and the spill are driven by a per-frame tick that only runs on
     // frames where the marquee is actually rendered, so give it frames to settle
     // before the shutter — a shot taken too early catches the daylight opacity
-    await p.waitForTimeout(1200);
+    await p.waitForTimeout(when === 'wetnight' ? 6500 : 1200);   // wet fast, but not instant
     const file = `shots/G-vice-${when}-${name}.png`;
     await p.screenshot({ path: file });
     console.log(`  ${file}`);
