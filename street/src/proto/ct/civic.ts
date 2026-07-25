@@ -204,6 +204,24 @@ export function buildCivic(o: {
       if (hw > 0) g.fillRect(cx - hw, yTop + dy, hw * 2, 1);
     }
   };
+  // The half-width of an `archFill` at a given row — the SAME stepped curve,
+  // exposed so that anything drawn INSIDE an arch can be cut to it.
+  //
+  // The library's fanlight was a rectangle sitting behind the arched head and
+  // running past it both sides, so the arch read as drawn ON the glass rather
+  // than the glass being cut to fit. The window glazing bars did it too. An
+  // opening and the thing inside it have to come off one curve, which is the
+  // same lesson as the buttresses and the lancets one storey down: two
+  // descriptions of the same edge will always drift.
+  const archHW = (w: number, yTop: number, y: number, pointed = false) => {
+    const rr = Math.floor(w / 2), rise = pointed ? Math.round(rr * 1.9) : rr;
+    const dy = y - yTop;
+    if (dy >= rise) return rr;                       // below the springing
+    if (dy < 0) return 0;
+    const t = (rise - dy) / rise;
+    return pointed ? Math.round(rr * (1 - Math.pow(t, 1.8)))
+      : Math.round(Math.sqrt(Math.max(0, rr * rr - (rise - dy) * (rise - dy))));
+  };
   // lettering CUT into the stone: shadow first, then a lit lower lip
   const engrave = (g: CanvasRenderingContext2D, text: string, cx: number, cy: number, px: number) => {
     g.font = `bold ${px}px monospace`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -505,12 +523,16 @@ export function buildCivic(o: {
         g.fillRect(0, y, 8, 18); g.fillRect(LW - 8, y, 8, 18);
       }
       for (const cx of [Math.round(LW * 0.11), Math.round(LW * 0.28), Math.round(LW * 0.72), Math.round(LW * 0.89)]) {
-        archFill(g, cx, 22, yOf(9.2), yOf(3.2), STONE_D);
-        archFill(g, cx, 18, yOf(9.0), yOf(3.35), '#26303a');
+        archFill(g, cx, 22, yOf(8.75), yOf(3.2), STONE_D);
+        archFill(g, cx, 18, yOf(8.55), yOf(3.35), '#26303a');
         g.fillStyle = 'rgba(196,212,222,0.22)';
-        for (let y = yOf(8.3); y < yOf(3.35); y += 10) g.fillRect(cx - 9, y, 18, 1);
-        g.fillRect(cx - 1, yOf(9.0), 2, yOf(3.35) - yOf(9.0));
-        g.fillStyle = STONE_L; g.fillRect(cx - 3, yOf(9.6), 6, 9);
+        for (let y = yOf(8.9); y < yOf(3.35); y += 10) {          // cut to the head
+          const hw = archHW(18, yOf(8.55), y);
+          if (hw > 1) g.fillRect(cx - hw, y, hw * 2, 1);
+        }
+        const spr = yOf(8.55) + 9;                                // the springing
+        g.fillRect(cx - 1, spr, 2, yOf(3.35) - spr);
+        g.fillStyle = STONE_L; g.fillRect(cx - 3, yOf(9.15), 6, 9);
         g.fillRect(cx - 12, yOf(3.35), 24, 3);
         g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(cx - 12, yOf(3.35) + 3, 24, 2);
         g.fillStyle = 'rgba(58,48,36,0.18)'; g.fillRect(cx - 9, yOf(3.35) + 5, 18, 14);
@@ -519,11 +541,30 @@ export function buildCivic(o: {
       // it stops at its edge because everything inside it is real geometry
       archFill(g, Math.round(LW / 2), bayPx + 12, yOf(BAY_H + 0.6), yOf(0), STONE_D);
       archFill(g, Math.round(LW / 2), bayPx + 4, yOf(BAY_H + 0.25), yOf(0), STONE_L);
-      const FR = yOf(11.0), FRH = Math.round(1.1 * pm);
+      // ── the name ──────────────────────────────────────────────────────
+      //
+      // It is the most deliberate thing on the building and it could not be
+      // read from the pavement, which is the only place it is ever read from.
+      // Two reasons, and the second was not "crowding":
+      //
+      //   · the frieze sat directly under a cornice that PROJECTS 0.45 m, so
+      //     the letters were in its shadow at every angle you see them from;
+      //   · and the cornice's own lower course was drawn AFTER the frieze and
+      //     0.5 m of it landed on top of the letters. The name was bisected.
+      //     Two bands whose extents were written 0.9 m apart in the file and
+      //     never checked against each other.
+      //
+      // Fixed by SEPARATION rather than by shouting. The cornice goes up
+      // 0.45 m, the windows below come down 0.45, and the frieze takes the
+      // 1.7 m band that opens between them — 0.44 m of clear stone above the
+      // letters and the same below. The letters stay at 9 px: `engrave`
+      // builds its cut out of a 1 px shadow and a 1 px lit lip, and those are
+      // fixed offsets, so a bigger letter is a shallower-looking cut.
+      const CO = yOf(12.35);
+      const FR = yOf(10.6), FRH = Math.round(1.7 * pm);
       g.fillStyle = STONE_L; g.fillRect(0, FR, LW, FRH);
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, FR, LW, 1); g.fillRect(0, FR + FRH - 1, LW, 1);
       engrave(g, 'PVBLIC LIBRARY', Math.round(LW / 2), FR + Math.round(FRH / 2), 9);
-      const CO = yOf(11.9);
       g.fillStyle = STONE_D; g.fillRect(0, CO, LW, 3);
       g.fillStyle = STONE_L;
       for (let x = 2; x < LW; x += 6) g.fillRect(x, CO + 3, 3, 5);
@@ -557,8 +598,16 @@ export function buildCivic(o: {
       g.fillStyle = '#4a3a26'; g.fillRect(10, 16, 20, 32);
       g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(19, 16, 2, 32);
       g.fillStyle = '#c9a45e'; g.fillRect(16, 30, 2, 4); g.fillRect(22, 30, 2, 4);
-      g.fillStyle = '#8a97a2'; g.fillRect(12, 8, 16, 6);          // fanlight over the doors
-      g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(19, 8, 2, 6);
+      // the fanlight, CUT TO THE ARCH: same cx, same width, same yTop as the
+      // opening it sits in, stopped at the transom over the doors
+      archFill(g, 20, 22, 6, 16, '#8a97a2');
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      g.fillRect(19, 6 + 4, 2, 6);                                // the centre bar
+      for (const by of [10, 13]) {                                // …and its lights
+        const hw = archHW(22, 6, by);
+        if (hw > 1) g.fillRect(20 - hw, by, hw * 2, 1);
+      }
+      g.fillStyle = STONE_D; g.fillRect(9, 16, 22, 1);            // the transom
       dither(g, 40, 48, 120);
     });
     const back = new THREE.Mesh(new THREE.BoxGeometry(3.4 - BAY_D, BAY_H, BAY_W),
@@ -848,7 +897,11 @@ export function buildCivic(o: {
       archFill(g, mid, wx(DOOR_W - 1.0), yOf(7.0), yOf(0.55), STONE, true);
       archFill(g, mid, wx(DOOR_W - 1.75), yOf(6.6), yOf(0.55), 'rgba(0,0,0,0.4)', true);
       archFill(g, mid, wx(DOOR_W - 2.25), yOf(6.3), yOf(0.55), '#2a2118', true);
-      g.fillStyle = '#4a3524'; g.fillRect(mid - 12, yOf(4.4), 24, yOf(0.55) - yOf(4.4)); // the doors
+      // the leaves, cut to the innermost order rather than through it — the
+      // top corners of a 24-px rectangle poked out of the pointed head
+      const leafHW = Math.min(12, archHW(wx(DOOR_W - 2.25), yOf(6.3), yOf(4.4), true));
+      g.fillStyle = '#4a3524';
+      g.fillRect(mid - leafHW, yOf(4.4), leafHW * 2, yOf(0.55) - yOf(4.4));
       g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(mid - 1, yOf(4.4), 2, yOf(0.55) - yOf(4.4));
       g.fillStyle = '#8a7a4a';
       for (const hy of [yOf(3.4), yOf(2.2)]) { g.fillRect(mid - 10, hy, 8, 1); g.fillRect(mid + 3, hy, 8, 1); }
