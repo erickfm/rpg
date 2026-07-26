@@ -51,11 +51,41 @@ const sootT = s.paint((g) => {
 });
 ```
 
-`s.paint()` also stamps `userData.masonry`, so the well starts appearing in
-`density.mjs` as a declared face rather than an undeclared one.
-
 **Your `base` default matches what you already use** (`#3a2a25`), so the field
 colour is unchanged; only the bond and the density move.
+
+## Two things I checked rather than assumed, because they will bite
+
+**1. Drop the `repeat` when you drop the tile.** `wellM()` currently does
+`t.repeat.set(uw / 1.15, uh / 1.15)` to tile a 1.15 m patch across the face.
+A `masonry()` canvas IS the face, so the repeat becomes **1**. If you keep both
+you will tile a full-size canvas ~1.65x and `density.mjs` will go red — it
+compares `face / repeat` against the metres the painter was handed, so a repeat
+you meant for a tile reads as a face painted for the wrong width.
+
+`sootT.clone()` is fine and keeps working: I verified that `Texture.clone()`
+deep-copies `userData`, so the `masonry` stamp survives the clone (distinct
+object, `ppm` preserved). Your per-surface clone pattern does not need to
+change — only the repeat.
+
+**2. `mult` — or the well gets much coarser.** This is the one that would
+surprise you. Your tile is 32 px over 1.15 m, so the well is currently painted
+at about **27.8 px/m**. `masonry(w, h, baseY)` defaults to `WALL_PPM` = **8
+px/m**, which is the right density for a street wall and would be a big visible
+loss of detail on brick you can nearly touch through the glass.
+
+So pass a mult:
+
+```ts
+const s = masonry(WELL_W_METRES, WELL_H, WELL_FLOOR, 4);   // 32 px/m
+```
+
+32 px/m is the closest the shared scale comes to what you already have, and the
+desk's ruling of 2026-07-25 puts the world's interior surfaces in the 19-27
+px/m band with ground at 32 — so a well you stand a metre from sits naturally
+at the top of that. `s.paint()` will stamp the achieved density too (`ppmW`,
+`ppmH`), so `density.mjs` sees the well as a declared face at whatever you pick
+rather than as an undeclared one.
 
 ## Two things I did NOT do
 
