@@ -1,1 +1,1 @@
-WORKING | VERIFIER: fixed my 3 sunk sitters (G found them); writing the verdict on G's casino row | nobody
+DONE | 3 rows verified (B kerb, G SEVENS, G casino seat); my own 3 sunk sitters fixed | DESK — G-seated-check.mjs hard-codes port 4186 and cannot be aimed (GOTCHAS 26)
