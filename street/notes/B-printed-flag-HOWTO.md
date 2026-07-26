@@ -79,3 +79,36 @@ vice    (untouched)   27/62               0.5579      unchanged
 
 Tell me when it is in and I will re-measure the lot at 23:00 so the row can be
 closed on numbers rather than on the change having been made.
+
+---
+
+## And now the other half: `lightSource`
+
+Added 2026-07-26, same file, same shape, opposite meaning.
+
+```ts
+const m = flat(myNeonTex);
+m.userData.lightSource = true;   // this really IS lit. Hold me bright.
+```
+
+| | |
+|---|---|
+| `printed` | these bright texels are INK. Grade me down with the wall. |
+| `lightSource` | this really is lit. Hold me at `FLOOR_SIGN` after dark. |
+
+**Why it had to exist**, and it is not only about neon. `props.lit()` could not
+hold a light bright *at all*: `register()` hard-coded `FLOOR_GROUND` and never
+asked whether what it was grading emits, while `dimWorld` — which does ask —
+skips anything already in `litSeen`, i.e. everything `lit()` has touched. So the
+payphone's backlit header graded to **0.0933 at 23:00**, alongside the enamel
+around it. It holds at **1.0** now while the enamel still drops to 0.12.
+
+**`register()` honours the declaration only, never the heuristic**, and that is
+deliberate rather than lazy. `props.lit()` is called on the bus bench group, and
+TONY'S PIZZA is bright saturated ink — running `isSelfLit` there would set it
+burning at full daylight after dark, which is the exact false positive `printed`
+exists to undo. One flag, set by the owner who knows.
+
+If you own something that genuinely emits — a neon tube, a backlit sign face, a
+lamp lens, a lit window pane drawn as its own material — this is the flag.
+If you own artwork that merely happens to be bright, you want `printed` above.
