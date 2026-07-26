@@ -72,3 +72,36 @@ while a street pedestrian at **23%** hot — same `citizenSprite`, same atlas
 generator — is classed as masonry and dims **95.5%**. A hotter sheet called "not
 a light" and a cooler one called a light is proof the threshold is not what
 decides. No better number fixes that; a hand flag does.
+
+---
+
+# Queue state for B, item by item
+
+Recording this because two items are done, one is declined, and one is not mine
+— and none of that is visible from the queue file itself.
+
+**Item 1, "your own findings, ranked by the desk":**
+
+- **C, bus stop frontage should be red kerb** — DONE. RULE 3 in
+  `ct/tex-ground.ts`, `STOP_CLEAR = 9.0` either side of the flag at z −33.5,
+  sized off the 42's 9.1 m so a bus can pull in parallel.
+- **B, lamp spacing leaves the middle of the block dark** — **DECLINED**, and it
+  is the only item I have refused. The user asks for the opposite in their own
+  words: *"make the unilluminated stuff darker… it should feel scarier at
+  night"*. `LAMP_R` is held at 7 m precisely so consecutive pools fall 2.4 m
+  short of each other. The desk should strike it, or the next builder to take it
+  will brighten the street and undo a request.
+- **E, tree pits overhang the kerb chamfer by ~6 cm** — DONE, and asserted on
+  every run: `footprint` measures 0.117 m of walk between chamfer and pit edge,
+  identical at all seven pits.
+- **D, parking varies but never re-rolls** — NOT MINE, and my own report already
+  said so: the seed is in `ct/rng.ts` and the draw in `ct/cars.ts`. Desk's call
+  and someone else's file. Not writing a BLOCKED note for something already
+  routed.
+
+**Item 2, "move your `[E]` spots out of `crosstown.ts`"** — already true.
+`props.ts` has one `seat({…})` call and zero `ctx.spot()`; `tex-ground.ts` has
+neither. The only two direct `SPOTS.push` calls left in `crosstown.ts` are inside
+F's generic `seat:` helper — the "sit down" and "stand up" pair every seat gets —
+not hand-written entries for my props. The item also says *"walk each spot
+after"*: I have one spot and I sat on it this round. The sitter faces the road.
