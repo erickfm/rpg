@@ -701,6 +701,7 @@ export function makeCrosstown(): Proto {
     seated: () => (rig.seated ? rig.seatedOn : null),
     stand: () => rig.stand(),
     scene: () => scene,   // test affordance: structural fingerprinting (scripts/scenedump.mjs)
+    camera: () => cam,    // test affordance: raycast a screen pixel back to the mesh under it
   };
 
   return {

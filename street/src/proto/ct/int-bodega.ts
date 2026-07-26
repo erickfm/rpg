@@ -349,9 +349,31 @@ export function buildBodega(ctx: CtxBuild): void {
   back.rotation.y = -Math.PI / 2;
   put(back, hw - 0.06, 1.35, CTR_Z);
 
+  // THE REGISTER, which was the last bare box in this room.
+  //
+  // Raycast from a customer's eye at (441.0, 1.9) through the dark shape in
+  // shots/f-bodega-counter2.png: all three probes returned THIS mesh, 1.34 m
+  // away - a 0.4 x 0.28 x 0.32 box in #3a3a3e with no map on it. That is the
+  // same fault as the grey gondola end the user complained about ("the first
+  // thing you see is a blank grey slab"): an untextured box close to the eye
+  // reads as a slab, whatever it is meant to be. So it gets a face.
+  const regT = declareSurface(pixTex(20, 14, (g) => {
+    g.fillStyle = '#4a4a50'; g.fillRect(0, 0, 20, 14);
+    g.fillStyle = '#22262c'; g.fillRect(2, 1, 16, 5);              // the display well
+    g.fillStyle = '#7fe0a0'; g.fillRect(3, 2, 9, 3);               // lit total
+    for (let r = 0; r < 2; r++) for (let c = 0; c < 6; c++) {      // the keys
+      g.fillStyle = (r + c) % 4 === 0 ? '#c8c0b0' : '#8a8478';
+      g.fillRect(2 + c * 3, 8 + r * 3, 2, 2);
+    }
+    dither(g, 20, 14, 40);
+  }), 'detail');
   const reg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.28, 0.32),
-    new THREE.MeshBasicMaterial({ color: 0x3a3a3e }));
+    new THREE.MeshBasicMaterial({ color: 0x4a4a50 }));
   put(reg, CTR_X, 1.22, CTR_Z + 0.7);
+  // the keys and display, facing the customer side of the counter
+  const regFace = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.26), ctx.flat(regT));
+  regFace.rotation.y = -Math.PI / 2;
+  put(regFace, CTR_X - 0.205, 1.22, CTR_Z + 0.7);
 
   // ── the deli case and the coffee station ──
   const deliT = declareSurface(pixTex(64, 24, (g) => {
