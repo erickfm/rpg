@@ -1,1 +1,1 @@
-DONE | found 2 MORE dropped verifier notes (4 total); re-attached the live one, M crash finding now moot at 54/54 |
+DONE | queue empty; all 9 of my checks green, D-dead-prompt-literals learned 2 more false-positive classes |

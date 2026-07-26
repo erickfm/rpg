@@ -75,8 +75,14 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await reportWorld(page, URL);
 const LABELS = (await page.evaluate(() => (window.__ct.spots() || []).map((s) => String(s.label)))).join('\n');
 await browser.close();
-/** alive if the WORLD still says it, or the source still writes it */
-const alive = (needle) => LABELS.includes(needle) || SRC_TEXT.includes(needle);
+/** Alive if the WORLD still says it, or the source still writes it.
+ *
+ *  CASE MATTERS AND MUST NOT. `B-verify-jail2.mjs` matches
+ *  `/detention|jail|cell|sergeant/i` and the world publishes `into the HOUSE OF
+ *  DETENTION` — alive, obviously, but a case-sensitive `includes` said dead and
+ *  I nearly filed it. The regex carries `i`; the aliveness test has to as well. */
+const LOWER = (LABELS + '\n' + SRC_TEXT).toLowerCase();
+const alive = (needle) => LOWER.includes(needle.toLowerCase());
 
 /** Literals this file must not flag: they are not prompt text. */
 const IGNORE = /^(true|false|null|undefined|[0-9.]+|[a-z]{1,3})$/i;
@@ -131,7 +137,18 @@ for (const f of readdirSync('scripts').filter((f) => f.endsWith('.mjs'))) {
         if (/[!]\s*$/.test(before)) continue;
         const lit = m[1];
         if (lit.includes('${')) continue;                 // interpolated, not a literal
-        for (const alt of lit.split('|')) {
+        // AN ALTERNATION IS ONLY DEAD IF EVERY BRANCH IS. `find(q =>
+        // /use the machine|check balance/i.test(q.label))` is a DEFENSIVE
+        // fallback: the first branch is the current label, the second is the
+        // old one kept for compatibility. The matcher succeeds, so flagging the
+        // stale branch would be telling somebody off for being careful — the
+        // positive-position twin of the negation case G taught me.
+        const branches = lit.split('|');
+        if (branches.some((alt) => {
+          const n = alt.replace(/\\([$.*+?^{}()[\]])/g, '$1').replace(/^\[E\]\s*/, '').trim();
+          return n.length >= 4 && /[a-z]{4}/i.test(n) && !/[\\+*?\[\]{}()^$]/.test(alt) && alive(n);
+        })) continue;
+        for (const alt of branches) {
           // THE `[E] ` PREFIX IS THE HUD'S, NOT THE SOURCE'S. A spot registers
           // `enter No. 227`; the HUD prints `[E] enter No. 227`. Comparing the
           // printed form against the source finds nothing and flags a check
