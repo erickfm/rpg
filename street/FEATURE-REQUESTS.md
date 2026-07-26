@@ -158,6 +158,14 @@ published to the playable artifact.
 
 ## Inbox
 - **"'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the church might be off."** → **G**
+- **`rainLevel` and `wetness` stay 0 even at an hour `rainAt()` reports as raining** → **B**
+  Noticed by C while wiring `Frame.wet`; `props.ts` is B's, so filed rather than
+  chased. `scene.userData.rainAt(62)` returns **true**, but `rainLevel` and
+  `wetness` both read **0.000** for ten seconds at that hour — jumped to it, and
+  again stepped into it an hour at a time over four hours in case a jumped clock
+  was the problem (GOTCHAS: a jumped clock is a world that has never had
+  weather). Either the rain never starts, or it keys on something other than the
+  absolute hour `rainAt` hashes on. C has NOT touched it and cannot say which.
 - **"sleep in your room needs a way to advance the clock — nobody has one"** → **F**
 - **"casino internals are cool but leave a lot to be desired. i like the improvements but a few too many slot machines and not enough diversity in games/design/tables. also no seats? some if not all of the slots should have seats. also it shouldnt feel so crowded maybe higher ceilings and more space between machines"** → **G**
 - **"i like the space in the hotel lobby its eerie. enrich the lobby with furniture decor, etc. i want to be impressed"** → **G**

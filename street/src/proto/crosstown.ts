@@ -750,6 +750,10 @@ export function makeCrosstown(): Proto {
       const frame: Frame = {
         dt, t, px, pz, gy: apt.gy(),
         hourAbs: Math.floor(totalMin / 60), hourF, night,
+        // props.ts owns the drying model and publishes the result here each
+        // frame; this reads it rather than keeping a second copy, so there is
+        // still exactly one writer.
+        wet: (scene.userData.wetness as number | undefined) ?? 0,
       };
       for (const h of HOOKS) h.fn(frame);
       // look down: your watch

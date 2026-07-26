@@ -127,6 +127,16 @@ export interface Frame {
   hourF: number;
   /** the night wash, 0…1 */
   night: number;
+  /** How wet the GROUND is, 0…1. Lags the rain: wets fast, dries slow, and
+   *  dries slower again after a long storm and at night.
+   *
+   *  `props.ts` has always had this as a closure local and published it at
+   *  `scene.userData.wetness`; it was not on `Frame`, so a module that wanted
+   *  to react to rain had to infer it from material colour. That inference
+   *  produced three wrong published answers in one week, including one of
+   *  mine that I had to withdraw. Reading a number instead of guessing at a
+   *  tint is the whole point of it being here. */
+  wet: number;
 }
 export type FrameHook = (f: Frame) => void;
 
