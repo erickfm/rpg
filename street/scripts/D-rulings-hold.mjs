@@ -125,10 +125,23 @@ say(back < -96.12 && back > -96.16, 'their backs are flush to the wing plinth, n
 // 2. "bodega sign is tilted up ... should be tilted a bit down"
 say(w.awn.rotX > 0, 'the awning slopes DOWN and away from the face', `rotation.x ${w.awn.rotX}`);
 
-// 3. "cat is dead center in alley i need it right to the right of that news paper"
-// right of the mouth view is -z, and the newspaper's right edge is z -41.725
-say(w.cat.z < -41.725, 'the cat is to the RIGHT of the newspaper by the drain',
-  `cat z ${w.cat.z}, paper edge -41.725`);
+// 3. "put the cat on the right side of the paper trash" — the SIXTH note on it.
+//
+// Guarded as a POSITION rather than as an inequality on one axis, and that is
+// the correction the sixth note forced. The old assertion was `cat.z < -41.725`
+// — "right of the paper" expressed along the mouth view's axis. It PASSED on the
+// position the user then rejected, because right-of-in-one-frame is not
+// right-of-in-another, and an inequality on a single axis cannot tell them
+// apart. A check that agrees with a rejected position is measuring the author's
+// reasoning, not the world (GOTCHAS §27).
+//
+// So: the cat must sit in the open floor BETWEEN the two paper decals — right of
+// the printed one at (-10.60, -41.45) and clear of the cardboard at
+// (-9.40, -42.40) — which is a claim about where it is, not about a sign.
+const dPaper = Math.hypot(w.cat.x + 10.60, w.cat.z + 41.45);
+const dCard = Math.hypot(w.cat.x + 9.40, w.cat.z + 42.40);
+say(dPaper > 0.6, 'the cat is clear of the printed paper, not standing on it', `${dPaper.toFixed(2)} m`);
+say(dCard > 0.5, 'and has not drifted onto the cardboard to its right', `${dCard.toFixed(2)} m`);
 say(w.cat.z > -43.1, 'and not pushed back into the south wall', `${(w.cat.z + 43.5).toFixed(2)} m of floor behind it`);
 
 // 4. "extend the fascia DOWNWARD to 0.75m" — said three times
@@ -148,7 +161,7 @@ if (SELFTEST) {
   const before = fails;
   say(stagger !== 0, 'the crates are staggered again (the bug)', `${stagger.toFixed(3)} m`);
   say(w.awn.rotX < 0, 'the awning is tilted UP at the sky again (the bug)', `${w.awn.rotX}`);
-  say(w.cat.z > -41.725, 'the cat is back on the newspaper or left of it (the bug)', `${w.cat.z}`);
+  say(dPaper <= 0.6, 'the cat is back on the printed paper (the bug)', `${dPaper.toFixed(2)} m`);
   say(Math.abs(lo - 0.75) > 0.005, 'the fascia bottom has drifted off 0.75 (the bug)', `${lo.toFixed(3)}`);
   const caught = fails - before;
   console.log(caught === 4

@@ -174,33 +174,44 @@ export function buildCatRig(o: {
     // 0.375), crates 2.2 m at its back rather than marooned, and the alley has
     // no 2 m lane — `builtlane` measures the sidewalk at |x| 5..7 and this is
     // at x -9.35, well inside the alley. Green.
-    // SIXTH POSITION, and the note that closes it: *"cat is dead center in
-    // alley i need it right to the right of that news paper on the ground"*,
-    // with `shots/user-catfinal.png`. The fifth move had put it dead centre of
-    // the mouth view on purpose, which is exactly what the user is now naming
-    // as the fault — so this one is not a refinement of the last brief, it
-    // replaces it.
+    // SEVENTH POSITION — and the first one FOUND BY LOOKING END TO END rather
+    // than derived and then checked.
     //
-    // "RIGHT" IS THE PART THAT HAS BEEN GOT WRONG BEFORE, three times, so it is
-    // derived and not guessed (GOTCHAS §33). You read this alley from its mouth
-    // at x = −7 looking −x, and this world's forward is `(sin yaw, 0, −cos yaw)`
-    // so screen right is `cross(forward, up)` = (0, 0, −1). **Right is −z.**
+    // *"put the cat on the right side of the paper trash"*, `shots/user-catsix.png`,
+    // and the user was explicit about the method because five derived positions
+    // had all missed: warp to the exact viewpoint of that shot, look, move the
+    // cat a little, screenshot from the SAME spot, compare the two images, and
+    // repeat. Do not compute an offset from coordinates.
     //
-    // WHICH NEWSPAPER: the litter beside the drain casting, at (−10.60, −41.45)
-    // — a 0.73 × 0.55 decal that reads as newsprint with columns and a
-    // half-lifted leaf (`shots/D-litter-grate.png`). Its right edge is z
-    // −41.725, and the cat's own plane is 0.59 m wide standing on the z axis,
-    // so a centre at −42.05 leaves its shoulder ~3 cm off the paper's edge:
-    // beside it, not on it. The other tan decal at (−9.40, −42.40) is flattened
-    // cardboard and not the one named.
+    // That is what happened here, and the coordinate below is an OUTCOME rather
+    // than an input — it is where the cat had got to when the pictures agreed,
+    // and it should be read that way by anyone tempted to tidy it:
     //
-    // Constraints re-checked at the new spot rather than assumed to survive:
-    // 1.33 m from the grate casting (half-extent 0.375), 1.45 m of open floor
-    // still between it and the south wall at z −43.5 so it is not back in a
-    // corner, and the alley has no 2 m lane to protect — `builtlane` measures
-    // the sidewalk at |x| 5…7 and this is four metres inside.
+    //   the user's frame   the cat's body overlaps the right corner of the
+    //                      printed paper — they touch, so it reads as standing
+    //                      ON the paper rather than beside it
+    //   iteration 1        (-9.90, -42.70): clearly right of that paper, but it
+    //                      had drifted onto the SECOND cardboard
+    //   iteration 2        (-10.00, -42.35): in the open floor between the two,
+    //                      a clear strip of alley visible on both sides
+    //
+    // Compared frame to frame, not by arithmetic: `shots/user-catsix.png` beside
+    // `shots/D-catsix-after.png`, taken from (-8.5, -39.5) yaw -0.785, the
+    // viewpoint that reproduces the user's landmarks — KOBRA on the left wall,
+    // SNAK right of the wall corner, both crates, the grate below centre.
+    //
+    // WHY THE PREVIOUS ONE MISSED, since this is the sixth note on one object.
+    // It was derived: I took "right" from the mouth view's axis, put the cat
+    // 3 cm off the paper's right edge, and that IS right of it — from the mouth.
+    // The user was standing somewhere else. An offset is only right in the frame
+    // it was computed for, and nothing in a coordinate says which frame that was.
+    //
+    // Still true at the new spot, re-measured rather than assumed to travel:
+    // 1.15 m of floor between it and the south wall at -43.5 so it is not back
+    // in a corner, 1.6 m clear of the grate casting, and it still reads from the
+    // alley mouth — `shots/c6-mouth.png`, which is the test the fourth note set.
     const SPOTS: [number, number][] = [
-      [-10.40, -42.05],  // immediately right of the newspaper by the drain
+      [-10.00, -42.35],  // where the pictures agreed, not where arithmetic pointed
       [-8.9, -41.4],     // nearer the mouth, clear of everything, half in shade
     ];
     const [cx, cz] = SPOTS[i % SPOTS.length];
