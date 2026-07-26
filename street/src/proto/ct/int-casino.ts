@@ -177,7 +177,14 @@ export function buildCasino(ctx: CtxBuild): void {
     // boundless, and defended 2.9 against the kit's docstring. The user has now
     // asked directly for higher, so the argument is settled and the number
     // changes. It was a defensible call and it is no longer mine to make.
-    w: 11.0, d: 26.0, h: 3.6,
+    // 36 m DEEP, and the ceiling that was holding it at 26 is gone. The user
+    // asked for the space the slab allows; the real limit was crosstown.ts's
+    // player bound `maxZ: 13`, which I bisected and named, and which now reads
+    // `Math.max(13, interiorMaxZ())`. Re-tested before taking the depth: at 36 m
+    // you walk to the door, come to rest at z 16.96 against a 18.0 front wall,
+    // and E puts you on the street. The frontage stays 11.0 — pinned to the
+    // building, which is the half of this that was never mine to grow.
+    w: 11.0, d: 36.0, h: 3.6,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
@@ -516,7 +523,11 @@ export function buildCasino(ctx: CtxBuild): void {
   // real floor is not a slot warehouse, so two rows' worth of space goes to
   // games instead. The reels keep the front of the house, where you meet them
   // walking in; everything else is beyond them.
-  const BANK_Z = [9.6, 6.4, 3.2];
+  // Five rows of reels now rather than three, spread over the front half of a
+  // 36 m floor at the same 3.2 m centres — the aisle width the user asked for is
+  // unchanged, there is simply more room to put banks in before you reach the
+  // games.
+  const BANK_Z = [15.6, 12.4, 9.2, 6.0, 2.8];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -599,7 +610,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // TZ is -7.0, not -7.6, and the walk found the reason: at -7.6 the tables'
   // colliders ended on z -8.2 and the cage's front face is at -8.9, leaving a
   // 0.70 m gap for a 0.72 m player. Nobody would have got through it. 1.30 m now.
-  const TX = -2.6, TZ = -9.0;
+  const TX = -2.6, TZ = -13.0;
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
@@ -870,7 +881,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // same move: two tables sitting inside a roped pit, which is what a real floor
   // does — it separates the people playing tables from the people walking past
   // the machines without putting a wall anywhere.
-  const T2X = 2.6, T2Z = -9.0;
+  const T2X = 2.6, T2Z = -13.0;
   {
     const legM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
     const felt2 = feltT.clone(); felt2.needsUpdate = true;
@@ -887,7 +898,7 @@ export function buildCasino(ctx: CtxBuild): void {
   {
     const postM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
     const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
-    const PX0 = -4.2, PX1 = 4.2, PZ = -6.8;
+    const PX0 = -4.2, PX1 = 4.2, PZ = -10.4;
     const posts: number[] = [];
     for (let x = PX0; x <= PX1 + 0.01; x += 2.8) posts.push(+x.toFixed(2));
     for (const px of posts) {

@@ -27,7 +27,7 @@ const KERB_H = 0.14, RADIUS = 0.36;
 const ROOMS = [
   {
     id: 'casino', label: /GOLDEN ACES/,
-    keeper: [-2.6, -8.2],    // across the felt from the dealer, in the pit
+    keeper: [-2.6, -12.2],   // across the felt from the dealer, in the pit
 
     building: 'GOLDEN ACES', at: 0, hasWindow: false,
     // an x clear of furniture, for the ±z wall probes
@@ -40,19 +40,24 @@ const ROOMS = [
     // in the clear avenue, so the probe walks up a lane and hits the front wall
     // rather than starting inside a bank — which is what 3.0 did once the banks
     // moved under it.
-    // RE-DERIVED for the 11.0 x 26.0 floor. Measured off the layout: the avenue
-    // is |x| < 1.5 with bank colliders from 1.5 outward, seven bank rows from
-    // z 10.4 down to -4.0, the pit rope at z -6.8 and the two tables at z -9.0.
+    // RE-DERIVED for the 11.0 x 36.0 floor, once crosstown.ts's maxZ stopped
+    // capping the belt at 13. Measured off the layout: avenue |x| < 1.5, five
+    // reel rows from z 15.6 down to 2.8, the games at 0.2 and -3.6, the pit rope
+    // at -10.4 and the two tables at -13.0.
     frontProbeX: 1.0, backProbeX: 1.0, backProbeZ: 0,
-    // clear right across: behind the rope and in front of the tables
-    clearZ: -7.8,
-    doorApproach: [0, 11.1],
+    clearZ: -11.6,
+    doorApproach: [0, 16.1],
     lanes: [
-      ['down the avenue, past all seven banks', 0, 11.6, '-z', 4000, 'z', 16.0],
-      ['…and back up it to the door', 0, -5.6, '+z', 4000, 'z', 14.0],
-      ['the cross-aisle between the third and fourth banks', -4.9, 4.4, '+x', 2600, 'x', 8.0],
-      ['the open floor in front of the pit rope', -4.9, -7.8, '+x', 2600, 'x', 8.0],
-      ['past the tables to the cage', 0, -10.6, '+x', 2200, 'x', 3.5],
+      // want 22, not 24, and the reason is the harness rather than the room:
+      // walkTill tops out reporting about 23.5 m on one call. Instrumented
+      // separately at 600 ms intervals, the player leaves z 16.6 and is still
+      // moving at -7.7 — 24.3 m of unbroken avenue with no collider on the
+      // centreline between them. 22 proves what this lane exists to prove.
+      ['down the avenue, past every bank and the games', 0, 16.6, '-z', 7200, 'z', 22.0],
+      ['…and back up it to the door', 0, -8.0, '+z', 7200, 'z', 22.0],
+      ['the cross-aisle between the third and fourth banks', -4.9, 7.6, '+x', 2600, 'x', 8.0],
+      ['the open floor in front of the pit rope', -4.9, -11.6, '+x', 2600, 'x', 8.0],
+      ['past the tables to the cage', 0, -14.6, '+x', 2200, 'x', 3.5],
     ],
   },
   {
