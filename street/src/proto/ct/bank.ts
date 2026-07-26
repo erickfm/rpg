@@ -35,10 +35,13 @@ import type { CtxBuild } from './ctx';
  *    recess with nothing to read against is not visible from where a player
  *    walks. Same shape as the puddles that were present, filled and invisible
  *    because they matched the wet road.
- *  · **`M_BOT` at 0.68, not 0.75.** The ruling asked for a bottom near 0.75 to
- *    give "0.9–1.0 m of fascia". Those cannot both hold — the TOP is pinned at
- *    1.58 by the screen height, so 0.75 yields 0.83. 0.68 yields exactly 0.90,
- *    which is the target the number was aiming at. Flagged to the desk twice.
+ *  · **`M_BOT` at 0.75, which is the NUMBER the user asked for.** It had been
+ *    0.68 on my reading that the *target* — "0.9–1.0 m of fascia" — was what the
+ *    number was reaching for, since the TOP is pinned at 1.58 by the screen
+ *    height and 0.75 therefore yields 0.83 m rather than 0.90. I flagged that
+ *    twice and the user said 0.75 both times, so **the number wins over my
+ *    inference of the target.** Fascia is 0.83 m. Do not "fix" it back to 0.68
+ *    without asking: 0.68 is the taller reading and 0.75 is the ruling.
  */
 export function buildBank(k: {
   scene: THREE.Scene;
@@ -137,16 +140,20 @@ export function buildBank(k: {
   //     M_TOP          1.58   unchanged
   //     screen centre  1.37   unchanged
   //     keypad centre  1.10   unchanged
-  //     M_BOT          0.90 -> 0.68
-  //     fascia height  0.68 -> 0.90 m
+  //     M_BOT          0.90 -> 0.68 -> 0.75
+  //     fascia height  0.68 -> 0.90 -> 0.83 m
   //
-  // The desk suggested a bottom near 0.75, which would have given 0.83 m here
-  // because our top is fixed at 1.58 by the screen. 0.68 reaches the 0.9 m the
-  // ruling was aiming at, and the extra 7 cm is apron — the panel the cash slot
-  // sits on, which is what a real machine has a lot of below the keys.
+  // THE USER ASKED FOR 0.75 TWICE, so 0.75 it is. I had read the "0.9-1.0 m of
+  // fascia" in the same ruling as the thing the number was reaching for, and
+  // since the top is pinned at 1.58 by the screen height, only a bottom of 0.68
+  // reaches 0.90. Raised that twice; the answer came back 0.75 both times. A
+  // number the user has repeated is a decision, not an oversight, so it wins
+  // over my reading of the target and the fascia is 0.83 m rather than 0.90.
+  // The 7 cm that comes off is apron — the blank panel below the cash slot —
+  // and nothing pinned moves: screen 1.37, keypad 1.10, both rakes, recess.
   const M_W = 0.62;
   const M_TOP = KERB_H + 1.58, M_SCREEN_BOT = KERB_H + 1.16;
-  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.68;
+  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;
   const ATM_SCREEN_Y = (M_TOP + M_SCREEN_BOT) / 2;      // 1.37 above the walk
   const ATM_KEYS_Y = (M_SCREEN_BOT + M_KEYS_BOT) / 2;   // 1.10 above the walk
   // depths, from the facade plane. Top deepest, keypad front edge shallowest,
