@@ -279,7 +279,13 @@ export function buildStreet(o: {
     { nm: 'THRIFT', col: '#7a5a2c', w: 12.5, brick: '#5c4436', floors: 4 },
     'park',   // the old BARBER 14 + GROCERY 16, given over — see placePark
   ];
-  const EAST: (BldSpec | 'lot')[] = [
+  /** The slot between No. 227 and PAWN. A token in the roster rather than a
+   *  building, like `'lot'` and the west `'alley'` — the run walks past it and
+   *  leaves the frontage open, and the shell below closes the sides. */
+  const ALLEY2 = 'alley2' as const;
+  const ALLEY2_W = 2.5;                 // "very narrow" — turn sideways, not a road
+  let alley2Z0 = 0;                     // published by the roster walk below
+  const EAST: (BldSpec | 'lot' | typeof ALLEY2)[] = [
     // CAFE 11.2 + HARDWARE 12 given over to a used car lot. Already adjacent,
     // so no swap — and the run before No. 227 still totals 49.2, which is
     // load-bearing: the walk-up's door and interior sit at a fixed z in
@@ -288,11 +294,29 @@ export function buildStreet(o: {
     { nm: 'A-1 TAX', col: '#2c4a7a', w: 13, brick: '#7a4a3a', floors: 5, front: 'tax' },
     { nm: 'LIQUOR', col: '#8a2c42', w: 13, brick: '#835444', floors: 4 },
     { nm: '', col: '', w: 18, brick: '#835444', floors: 5, res: true }, // No. 227 — home, across from the alley, a bit off
+    // THE SECOND ALLEY, and the width is PAID FOR, not added on the end.
+    //
+    // *"a very narrow, long, and detailed alley in between the pawn shop and my
+    // apt building."* No. 227 and PAWN were already neighbours, so nobody's home
+    // moves — but the run cannot grow. Two constants either side of it say so:
+    // the run before No. 227 totals 49.2 because `ct/apartment.ts` pins the
+    // walk-up's door and interior to a fixed z, and the run AFTER it totals 43
+    // so the last shell lands on −96 and the bodega keeps the corner it has been
+    // rebuilt on three times.
+    //
+    // So the 2.5 m comes out of PAWN, which was the widest of the three at 15 m
+    // and is the one the alley is against:
+    //
+    //     PAWN 12.5 + alley 2.5 + ST BRIGID 18 + BODEGA 10 = 43   unchanged
+    //
+    // Checked against the built world rather than the arithmetic alone: No. 227
+    // still spans −35…−53, the alley is −53…−55.5, and `bodegaZ0` is still −86.
+    ALLEY2,
     // PAWN pays the 3 m. DELI + RECORDS were 21 m and the nave is 18, and the
     // post-227 run must still total 43 so the last shell lands on -96 — so the
     // difference goes to the church's north neighbour rather than overflowing
     // the run. No. 227 is untouchable: ct/apartment.ts depends on its z.
-    { nm: 'PAWN', col: '#6a5a3a', w: 15, brick: '#5c4436', floors: 5, front: 'pawn' },
+    { nm: 'PAWN', col: '#6a5a3a', w: 12.5, brick: '#5c4436', floors: 5, front: 'pawn' },
     { nm: 'ST BRIGID', col: '', w: 18, brick: '', floors: 0, kind: 'church' },
     { nm: 'BODEGA', col: '#b8342a', w: 10, brick: '#6b4034', floors: 3 }, // the corner store
   ];
@@ -810,6 +834,7 @@ export function buildStreet(o: {
   let bodegaZ0 = 0; // the bodega turns the corner — hand-built below, not by placeBld
   for (const b of EAST) {
     if (b === 'lot') { placeLot(ze, 23.2); ze -= 23.2; continue; }
+    if (b === ALLEY2) { alley2Z0 = ze; ze -= ALLEY2_W; continue; }
     if (b.nm === 'BODEGA') { bodegaZ0 = ze; ze -= b.w; continue; }
     if (b.kind === 'church') placeChurchEast(ze, b); else placeBld(1, ze, b);
     ze -= b.w;
@@ -995,6 +1020,67 @@ export function buildStreet(o: {
       southNeighbour: WEST[ai + 1] as BldSpec,
       bandOf,
     });
+  }
+
+  // ── the PAWN alley: bare shell only ─────────────────────────────────────
+  //
+  // *"a very narrow, long, and detailed alley in between the pawn shop and my
+  // apt building."* THIS COMMIT IS THE SHELL AND THE ROSTER ONLY — floor, two
+  // flanks, an end wall and collision — committed alone and before any dressing,
+  // because the width had to be paid for out of a run with a fixed total at both
+  // ends and a wrong accounting is much cheaper to find in a small commit.
+  //
+  // The dressing is deliberately NOT here and will not be a copy of the west
+  // alley. That one has the dumpster, the grate and the cat and is one of the
+  // best-liked things in the world; a second identical alley halves the value of
+  // the first. This one is 2.5 m against the west alley's 6.6, and it is between
+  // a PAWN SHOP and a RESIDENTIAL WALK-UP, so it wants what those two put out:
+  // fire escapes off the flats, a standpipe, meters, cables overhead, one wall
+  // light — not a second dumpster.
+  {
+    const A2_Z0 = alley2Z0, A2_Z1 = alley2Z0 - ALLEY2_W;   // −53.0 … −55.5
+    // LONG: it runs as deep as its shallower neighbour, so neither flank ends in
+    // mid-air and the slot closes on a real wall rather than on the sky.
+    const A2_DEEP = Math.min(depthOf('PAWN'), depthOf(''));
+    const A2_X0 = FACE, A2_X1 = FACE + A2_DEEP;
+    const nb = EAST.filter((b): b is BldSpec => typeof b !== 'string');
+    const pawn = nb.find((b) => b.nm === 'PAWN')!;
+    const res = nb.find((b) => b.res)!;
+    const topOf = (b: BldSpec) => bandOf(b) + 3.4 + b.floors * 2.4;
+    const A2_H = Math.max(topOf(pawn), topOf(res));
+    // the floor. Flat for now: the ground is `ct/tex-ground.ts`, which is B's,
+    // and a placeholder tone here is honest about that rather than pretending.
+    const fl = new THREE.Mesh(new THREE.PlaneGeometry(A2_DEEP, ALLEY2_W),
+      flat(pixTex(8, 8, (g) => { g.fillStyle = '#2e3034'; g.fillRect(0, 0, 8, 8); dither(g, 8, 8, 10); })));
+    fl.rotation.x = -Math.PI / 2;
+    fl.position.set((A2_X0 + A2_X1) / 2, 0.005, (A2_Z0 + A2_Z1) / 2);
+    scene.add(fl);
+    // the two flanks, each made of what the building behind it is made of —
+    // the rule the whole block already follows, so the slot does not read as a
+    // corridor cut into something else.
+    for (const [b, z, ry] of [[res, A2_Z0 - 0.01, 0], [pawn, A2_Z1 + 0.01, Math.PI]] as [BldSpec, number, number][]) {
+      const h = topOf(b);
+      const w = new THREE.Mesh(new THREE.PlaneGeometry(A2_DEEP, h),
+        new THREE.MeshBasicMaterial({ map: flankTex(b.brick, A2_DEEP, h, 0, false) }));
+      w.position.set((A2_X0 + A2_X1) / 2, h / 2, z);
+      w.rotation.y = ry;
+      w.userData.alley2 = 'flank';
+      scene.add(w);
+    }
+    // the closed end
+    const endT = flankTex(pawn.brick, ALLEY2_W, A2_H, 0, false);
+    const end = new THREE.Mesh(new THREE.PlaneGeometry(ALLEY2_W, A2_H),
+      new THREE.MeshBasicMaterial({ map: endT }));
+    end.position.set(A2_X1, A2_H / 2, (A2_Z0 + A2_Z1) / 2);
+    end.rotation.y = -Math.PI / 2;
+    end.userData.alley2 = 'end';
+    scene.add(end);
+    // COLLISION. Narrower than the sacred 2 m walk, so this is the one place in
+    // the world where getting it wrong wedges the player rather than merely
+    // annoying them — the walls are solid and the slot itself is left open.
+    solid({ minX: A2_X0, maxX: A2_X1 + 0.4, minZ: A2_Z0, maxZ: A2_Z0 + 0.12 });
+    solid({ minX: A2_X0, maxX: A2_X1 + 0.4, minZ: A2_Z1 - 0.12, maxZ: A2_Z1 });
+    solid({ minX: A2_X1, maxX: A2_X1 + 0.4, minZ: A2_Z1, maxZ: A2_Z0 });
   }
 
   stampFrom(STREET_MARK, 'street');
