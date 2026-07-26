@@ -82,7 +82,7 @@ for (const v of VIEWS) {
     for (const [name, x0, x1, y0, y1] of bands) {
       const d = cx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
       const w = x1 - x0, h = y1 - y0;
-      let edges = 0, cells = 0, sr = 0, sg = 0, sb = 0, n = 0;
+      let edges = 0, fine = 0, cells = 0, sr = 0, sg = 0, sb = 0, n = 0;
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const i = (y * w + x) * 4;
@@ -94,11 +94,21 @@ for (const v of VIEWS) {
             if (nx >= w || ny >= h) continue;
             const j = (ny * w + nx) * 4;
             cells++;
-            if (Math.abs(d[i] - d[j]) + Math.abs(d[i + 1] - d[j + 1]) + Math.abs(d[i + 2] - d[j + 2]) > 24) edges++;
+            const dv = Math.abs(d[i] - d[j]) + Math.abs(d[i + 1] - d[j + 1]) + Math.abs(d[i + 2] - d[j + 2]);
+            // TWO BANDS, because "no grain" and "no joints" are B's own two
+            // halves and a single threshold blends them. A hard JOINT clears 24
+            // easily; the fine speckle a surface needs to read as a material
+            // lives between 8 and 24 and is invisible to the coarse count. After
+            // B's second pass the joints landed and the blended number still
+            // said "flat" -- which was true and useless, because it could not
+            // say WHICH half was missing.
+            if (dv > 24) edges++;
+            else if (dv > 8) fine++;
           }
         }
       }
       out.push({ name, edgePct: +(100 * edges / cells).toFixed(2),
+        grainPct: +(100 * fine / cells).toFixed(2),
         mean: [Math.round(sr / n), Math.round(sg / n), Math.round(sb / n)] });
     }
     return out;
@@ -113,15 +123,26 @@ let FAIL = null;
 for (const { label, res } of results) {
   console.log(`  ${label}`);
   for (const r of res)
-    console.log(`     ${r.name}   ${String(r.edgePct).padStart(6)}%   mean rgb ${r.mean.join(',')}`);
+    console.log(`     ${r.name}   joints ${String(r.edgePct).padStart(6)}%   grain ${String(r.grainPct).padStart(6)}%   mean rgb ${r.mean.join(',')}`);
+  // JOINTS + GRAIN, not joints alone. B's diagnosis names two things -- "no
+  // grain for the eye to attach to and no joints to give it scale" -- and my
+  // first criterion keyed on the >24 count, which sees only the joints. After
+  // B's second pass that read 2.32% against the road's 5.92% and I was about to
+  // publish "still flat", when the same run showed the band's GRAIN at 5.14%
+  // against the road's 2.76%: more fine texture than the road, less hard
+  // jointing. A concrete walk legitimately has fewer hard edges than a road
+  // with lane paint or a deck with tyre marks. Judging it on the half that
+  // suited my earlier finding would have sent B back for a fault that had been
+  // fixed.
   const disputed = res.find((r) => r.name.includes('in dispute'));
-  const good = res.filter((r) => r.name.includes('known good')).map((r) => r.edgePct);
+  const tot = (r) => r.edgePct + r.grainPct;
+  const good = res.filter((r) => r.name.includes('known good')).map(tot);
   const ref = Math.min(...good);
-  if (disputed.edgePct < ref * 0.5) {
-    FAIL = FAIL ?? `${disputed.edgePct}% against ${ref}% for the worst known-good band in the same frame`;
-    console.log(`     -> FLAT: ${disputed.edgePct}% against ${ref}% worst known-good\n`);
+  if (tot(disputed) < ref * 0.5) {
+    FAIL = FAIL ?? `${tot(disputed).toFixed(2)}% against ${ref.toFixed(2)}% for the worst known-good band in the same frame`;
+    console.log(`     -> FLAT: ${tot(disputed).toFixed(2)}% total against ${ref.toFixed(2)}% worst known-good\n`);
   } else {
-    console.log(`     -> reads as a material: ${disputed.edgePct}% against ${ref}% worst known-good\n`);
+    console.log(`     -> reads as a material: ${tot(disputed).toFixed(2)}% total against ${ref.toFixed(2)}% worst known-good\n`);
   }
 }
 if (FAIL) {

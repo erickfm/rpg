@@ -174,6 +174,13 @@ const CHECKS = [
   // face varies by kind, so on a van it sat 0.53 m inside the roof. Derived from
   // the car's own windscreen now, and this is the guard. (I)
   ['I-cards',          'is every price card ON the glass, or inside the car?', true],
+  // Held OUT of this suite while it was red on B's surface -- C's rule, and it
+  // was right: "reddening the shared suite over something I cannot fix would
+  // hand the block my problem." B fixed it in 41547e84f, so it comes in now, as
+  // a guard against the lot mouth going flat again. Measures the RENDERED frame
+  // from two viewpoints, joints and grain separately, with known-good control
+  // bands read from the same image. (I)
+  ['I-apron-grain',    'does the ground at the lot mouth read as a material?', false],
   // C WROTE THIS AND HELD IT BACK ON PURPOSE: "mods-dim stays unregistered
   // until this lands: it is red on this finding, and reddening the shared suite
   // over something I cannot fix would hand the block my problem." The finding
