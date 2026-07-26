@@ -2083,6 +2083,43 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // Registered rather than called by name from the sim loop: the entry point
   // no longer knows this module has per-frame work. WORLD order because the
   // stair guards and the hermit's presence are state that later passes read.
+  // ── respawn: home is 301 ─────────────────────────────────────────────────
+  // The user asked for both, separately: *"also make me spawn in my room"* and
+  // *"i want the respawn to be my room"*. Spawn is the entry point starting the
+  // rig on SPAWN. Respawn is this: wherever the player ends up, home is here.
+  //
+  // WHAT CAN ACTUALLY GO WRONG, since a safety net for an impossible state is
+  // just dead code. Movement is clamped to `bounds` and `groundPick` always
+  // returns a number, so you cannot walk off the world or fall out of it. What
+  // CAN happen is a bad FLOOR: the walk-up stacks four storeys of 2D colliders
+  // and the floor picker carries hysteresis, so a teleport, a collider added
+  // under you, or a clock jump mid-stair can leave `lastGy` at a height no
+  // storey occupies. The building runs 0 to 3*ST with stair ramps between, so
+  // anything outside that band by more than a step is not a floor at all.
+  //
+  // It uses ctx.player.jumpTo, which already exists — no new plumbing, and none
+  // fp.ts or crosstown.ts touched, both of which are the desk's.
+  //
+  // NOT a general stuck-recovery: the rig's own fallback returns you to
+  // `lastGood`, which is wherever you last stood legally rather than your room,
+  // and that lives in fp.ts. If the desk wants respawn to mean "always 301"
+  // everywhere in the world, that is a one-line change to fp.ts's unstick
+  // fallback and it is theirs to make. This covers the building.
+  const FLOOR_LO = -0.6, FLOOR_HI = 3 * ST + 1.0;
+  let lostFor = 0;
+  ctx.onFrame((f) => {
+    if (f.px <= 100) { lostFor = 0; return; }        // not in the walk-up at all
+    const lost = f.gy < FLOOR_LO || f.gy > FLOOR_HI;
+    // a tenth of a second of it, not one frame — a single bad sample during a
+    // teleport is not the player being lost, and bouncing them for it would be
+    // its own bug
+    lostFor = lost ? lostFor + f.dt : 0;
+    if (lostFor > 0.1) {
+      lostFor = 0;
+      ctx.player.jumpTo(SPAWN.x, SPAWN.z, SPAWN.yaw, SPAWN.gy);
+    }
+  }, ORDER.WORLD);
+
   ctx.onFrame((f) => { updateCaps(f.px); updateDoor(f.dt); updateHermitAt(f.hourAbs, f.px, f.pz, f.dt); }, ORDER.WORLD);
 
   const updateCaps = (px: number) => {
