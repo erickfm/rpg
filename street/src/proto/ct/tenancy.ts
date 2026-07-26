@@ -3,6 +3,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0 } from './apartment';
 import { closePockets } from './inventory';
+import { citizenSprite } from './citizens';
 
 // ── TENANCY ───────────────────────────────────────────────────────────────
 //
@@ -147,7 +148,7 @@ export interface Letter {
    *  is a solved problem nobody needs solved twice; these are written to fit. */
   lines: string[];
   /** a rent notice is graded differently — it gets the stamp and the figure */
-  kind: 'rent' | 'late' | 'junk';
+  kind: 'rent' | 'late' | 'junk' | 'receipt' | 'hand';
 }
 
 /**
@@ -677,7 +678,7 @@ function paintLetter(): void {
 
   // A rent notice quotes the figure that is actually outstanding, read off the
   // clock at the moment you unfold it rather than baked in when it was written.
-  if ((l.kind === 'rent' || l.kind === 'late') && CTX) {
+  if (l.kind !== 'junk' && CTX) {
     const day = Math.floor(CTX.clock.now().totalMin / 1440);
     const bal = owed(day);
     y += 6;
@@ -936,6 +937,159 @@ export function register(ctx: CtxBuild): void {
     }, { passive: false });
   }
 
+  // ── THE LANDLORD ────────────────────────────────────────────────────────
+  //
+  // *"rent that must be paid to a landlord"* — a man, in the hall, who takes
+  // cash. Not a menu and not a slot in the wall, because the notice he sent
+  // says so in his own words: *"I collect in person. I am in the hall or on the
+  // stairs. Cash only."* A feature that contradicts its own letter is worse
+  // than one that has no letter.
+  //
+  // HE IS DRAWN FROM THE ATLAS (GOTCHAS §21). Four people in this world are
+  // cardboard because nothing told their authors `ct/citizens.ts` existed, and
+  // the user spotted every one of them: *"the people inside these places are
+  // always flat and not like the people on the street"*. This is three lines
+  // and a hook, and he turns to watch you through eight angles.
+  //
+  // Deliberately nothing like C's hermit two floors up, who is the nearest
+  // other person in this building: the hermit is a yellowed undershirt, long
+  // grown-out hair and `grime: 1`. This is a pressed grey overcoat, short hair,
+  // clean. Two men in one walk-up should not read as the same texture.
+  const LL_X = APT_X0 + 0.62;      // west side of the lobby, off the wall
+  const LL_Z = APT_Z0 + 4.4;       // mid-hall — between the front door and the stairs
+  const LL_FACING = Math.PI;       // atan2(vx, vz): π looks −z, at the front door
+  const landlord = citizenSprite(
+    { jacket: '#3f4048', pants: '#2b2f36', skin: '#5a3a22', hair: '#1c1410',
+      fit: 'coat', cut: 'short', build: 1 },
+    { facing: LL_FACING, h: 1.06, w: 1.06 },
+  );
+  landlord.mesh.position.set(LL_X, 0, LL_Z);     // the atlas puts the origin at the FEET
+  landlord.mesh.visible = false;
+  scene.add(landlord.mesh);
+
+  // He is SOLID while he is standing there, the same way C's hermit is —
+  // otherwise the man you owe money to is a hologram you walk through. The AABB
+  // is registered once and parked at 999 when he is away, because `ctx.obstacle`
+  // takes a box at build time and a person who comes and goes cannot be a
+  // second registration.
+  const llBox = ctx.obstacle({ minX: 999, maxX: 999, minZ: 999, maxZ: 999 });
+
+  /**
+   * Is he in the hall right now?
+   *
+   * When you owe him money, between seven in the morning and ten at night. He
+   * is not a fixture — a landlord standing in the lobby of a building where
+   * nobody owes him anything is scenery, and one standing there at four in the
+   * morning is a different genre.
+   *
+   * Derived from the clock like everything else here, so sleeping past him is
+   * the same code path as walking past him.
+   */
+  function landlordIn(totalMin: number): boolean {
+    const day = Math.floor(totalMin / 1440);
+    const hour = (totalMin % 1440) / 60;
+    return owed(day) > 0 && hour >= 7 && hour < 22;
+  }
+
+  /** the lane past him. Wide enough that he is pressure and not a wall — the
+   *  2 m sidewalk lane is sacred outside and the principle holds indoors. */
+  const LL_HALF_X = 0.30, LL_HALF_Z = 0.22;
+
+  ctx.onFrame(({ px, pz, dt, gy }) => {
+    const { totalMin } = ctx.clock.now();
+    const here = landlordIn(totalMin);
+    landlord.mesh.visible = here;
+    if (here) landlord.update(px, pz, dt);
+    // WITHHELD IF YOU ARE ALREADY STANDING IN IT — C's rule for the hermit and
+    // for the landing packages, and it is not a nicety: a collider that appears
+    // around the player shoves them, and being shoved by a man materialising is
+    // the kind of thing that reads as the world breaking.
+    const inIt = Math.abs(px - LL_X) < LL_HALF_X + 0.36 && Math.abs(pz - LL_Z) < LL_HALF_Z + 0.36;
+    const solid = here && !inIt && gy < 0.5;
+    llBox.minX = solid ? LL_X - LL_HALF_X : 999;
+    llBox.maxX = solid ? LL_X + LL_HALF_X : 999;
+    llBox.minZ = solid ? LL_Z - LL_HALF_Z : 999;
+    llBox.maxZ = solid ? LL_Z + LL_HALF_Z : 999;
+  });
+
+  /** A receipt is a letter you were handed rather than posted. Same sheet. */
+  function receipt(day: number, amount: number): Letter {
+    const weeks = Math.round(amount / RENT.amount);
+    return {
+      day, kind: 'receipt', from: `${RENT.landlord} — RECEIVED`,
+      lines: [
+        `RECEIVED OF APT ${RENT.flat}`,
+        '',
+        `THE SUM OF $${amount.toFixed(2)},`,
+        `being ${weeks === 1 ? "one week's" : `${weeks} weeks'`} rent.`,
+        '',
+        'Signed in pencil, on the back of an',
+        'envelope from his coat pocket.',
+      ],
+    };
+  }
+
+  /**
+   * What he gives you when you cannot pay: a slip, not a sentence.
+   *
+   * The first version narrated — *"He counts what you have. He does not take
+   * it."* — on a sheet of paper held in both thumbs, which is a category
+   * error: an object you are holding cannot describe the man holding it out.
+   * It looked wrong the moment it was on screen and read fine in the source.
+   *
+   * So it is the DOCUMENT a landlord with a carbon book actually produces, and
+   * the outstanding figure comes off the live band below it rather than being
+   * typed into the body twice.
+   */
+  function shortSlip(day: number): Letter {
+    return {
+      day, kind: 'hand', from: `${RENT.landlord} — NOTE OF ACCOUNT`,
+      lines: [
+        `APT ${RENT.flat}`,
+        '',
+        'RECEIVED TODAY ............ $0.00',
+        '',
+        'Torn out of a carbon book he keeps',
+        'in his coat, and handed to you.',
+        '',
+        '"Come back when you have it."',
+      ],
+    };
+  }
+
+  ctx.spot({
+    // He is the object, so the prompt and the highlight name the same man.
+    x: LL_X, z: LL_Z, r: 1.15,
+    obj: landlord.mesh,
+    ok: () => landlordIn(ctx.clock.now().totalMin) && ctx.player.gy() < 0.5,
+    // THE FIGURE IS IN THE PROMPT, both ways round. K's rule, and it is the
+    // difference between a refusal you understand and a key that does nothing:
+    // *"the refusal is in the caption you are already reading."*
+    label: () => {
+      const day = Math.floor(ctx.clock.now().totalMin / 1440);
+      const bal = owed(day);
+      const cash = ctx.purse.cash;
+      if (cash >= RENT.amount) {
+        const weeks = Math.min(Math.floor(cash / RENT.amount), bal / RENT.amount);
+        return `pay the rent — $${(weeks * RENT.amount).toFixed(2)}`;
+      }
+      return `rent is $${bal.toFixed(2)} — you are $${(RENT.amount - cash).toFixed(2)} short`;
+    },
+    act: () => {
+      const day = Math.floor(ctx.clock.now().totalMin / 1440);
+      const paid = payRent(ctx, day);
+      // PRESSING IT ALWAYS ANSWERS. A key that does nothing and explains
+      // nothing is how a player concludes the whole feature is broken
+      // (`ct/inventory.ts` on the same point). Short of the money you get the
+      // man's answer, on paper, because `ct/hud.ts` publishes no module-level
+      // `note()` yet — asked for in notes/N-asks.md.
+      const l = paid > 0 ? receipt(day, paid) : shortSlip(day);
+      HELD.push(l);
+      while (HELD.length > KEEP) HELD.shift();
+      showLetters([l]);
+    },
+  });
+
   // Test affordance, the same shape and the same reason as `__ct` and `__inv`:
   // the tenancy is a handful of closure locals and there is no other way to ask
   // what is in the box from outside. READ ONLY, except for `pay` — a probe that
@@ -971,7 +1125,36 @@ export function register(ctx: CtxBuild): void {
       return { x: w.x, y: w.y, z: w.z, stand: { x: STAND_X, z: me.z }, snapped: bank.found };
     },
     envelopes: () => envs.filter((e) => e.visible).length,
+    /** the two slips he hands over, so the overrun check can measure them too:
+     *  they never go through mailFor() and were invisible to it. */
+    slips: () => [receipt(0, RENT.amount), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
+    /** the landlord: where he is, whether he is in the hall, and his box */
+    landlord: () => ({
+      x: LL_X, z: LL_Z, in: landlordIn(ctx.clock.now().totalMin),
+      visible: landlord.mesh.visible,
+      solid: llBox.minX < 900,
+      /** the clear lane past him, against the 0.72 m player. GOTCHAS §29:
+       *  this is a RAW GAP on an EMPTY lobby, quoted the way the rest of the
+       *  project quotes one. */
+      lane: (APT_X0 + 2.395) - (LL_X + LL_HALF_X),
+    }),
     reading: () => (open ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),
+    /**
+     * A FIXTURE, not a fake: put `n` dollars in the purse so the paying path
+     * can be measured at all.
+     *
+     * The purse starts at $14.50 and a week's rent is $45, so without this
+     * every clause about money leaving the wallet is a verdict over an empty
+     * set — green because it never happened (GOTCHAS §34). `ct/atm.ts` is the
+     * one thing in the world that adds cash, and driving K's machine to fund my
+     * own check would redden this suite every time K's ATM moved.
+     *
+     * It sets up a PRECONDITION and cannot make any assertion true: whether
+     * exactly $45 leaves, whether the arrears clear, and whether a refusal
+     * takes nothing are all still the code's answer. Same class as
+     * `__ct.warp` and `__ct.clock`, which write the world for the same reason.
+     */
+    stage: (n: number) => { ctx.purse.cash = n; ctx.refreshWallet(); return ctx.purse.cash; },
   };
 }

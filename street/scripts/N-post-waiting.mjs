@@ -94,14 +94,19 @@ ok(plates >= MIN_PLATES, `${plates} number plates on the bank (floor ${MIN_PLATE
 // saw was the landlord's signature, in a screenshot.
 const over = await page.evaluate(() => {
   const cols = window.__rent.cols, bad = [];
-  for (let d = 0; d < 220; d++) for (const l of window.__rent.mailOn(d)) {
+  // The landlord's receipt and his note of account never go through mailFor()
+  // and were invisible to the first version of this clause — a whole class of
+  // letter unmeasured because the loop asked only about POSTED mail.
+  const all = [...window.__rent.slips()];
+  for (let d = 0; d < 220; d++) all.push(...window.__rent.mailOn(d));
+  for (const l of all) {
     if (l.from.length > cols) bad.push(l.from);
     for (const s of l.lines) if (s.length > cols) bad.push(s);
   }
-  return { cols, bad: [...new Set(bad)] };
+  return { cols, n: all.length, bad: [...new Set(bad)] };
 });
 ok(over.bad.length === 0,
-  `every letter fits the sheet's ${over.cols} columns (${over.bad.length} overrun)`);
+  `all ${over.n} letters fit the sheet's ${over.cols} columns (${over.bad.length} overrun)`);
 for (const s of over.bad.slice(0, 5)) console.log(`      CLIPPED: ${JSON.stringify(s)}`);
 
 // ── 4. the post is there when you walk in ─────────────────────────────────
@@ -284,25 +289,125 @@ ok(rent.week2.owed === rent.due.owed * 2,
 
 // paying takes REAL money out of the ONE purse — K's, through ctx.purse, never
 // a second wallet of this module's own
+// ── 11. the landlord ──────────────────────────────────────────────────────
+//
+// He is the other half of the request — *"rent that must be paid to a
+// landlord"* — and the two claims worth guarding are that he is CONDITIONAL
+// and that he is not a WALL.
+const man = await page.evaluate(() => {
+  const at = (d, h) => {
+    window.__ct.clock(0, 0); window.__ct.advanceClock(d * 1440 + h * 60, 0);
+    return { ...window.__rent.landlord(), owed: window.__rent.owed(), day: window.__rent.day() };
+  };
+  return { square: at(1, 13), due: at(2, 13), night: at(2, 3), evening: at(2, 21) };
+});
+await page.waitForTimeout(200);
+ok(!man.square.in, `he is NOT in the hall on day ${man.square.day}, when nothing is owed`);
+ok(man.due.in, `he IS in the hall on day ${man.due.day}, when $${man.due.owed.toFixed(2)} is`);
+ok(!man.night.in, 'and not at three in the morning — he is a man, not a fixture');
+ok(man.evening.in, 'still there at nine in the evening');
+// GOTCHAS §29, said in the sentence with the number: a RAW GAP, on an EMPTY
+// lobby, against the 0.72 m player capsule. The tightest walk in this world is
+// 1.15 m and that was celebrated as the fix that closed the encroachment audit.
+ok(man.due.lane >= 1.15,
+  `he leaves ${man.due.lane.toFixed(2)} m of clear hall beside him `
+  + '(raw gap, empty lobby, against a 0.72 m capsule)');
+
+// He is drawn from the ATLAS and not hand-painted on a plane (GOTCHAS §21):
+// five painted views on one sheet, which is a 5 x 2 texture repeat.
+const atlas = await page.evaluate(() => {
+  let found = null;
+  window.__ct.scene().traverse((o) => {
+    // `!o.material?.map` is NOT enough: a multi-material mesh has an ARRAY
+    // there, and `Array.prototype.map` is a function, so the guard passes and
+    // `.repeat` is undefined. C's bank of boxes is exactly such a mesh and it
+    // is three metres away. Threw on the first run.
+    if (!o.isMesh || Array.isArray(o.material) || !o.material?.map?.repeat) return;
+    const r = o.material.map.repeat;
+    if (Math.abs(Math.abs(r.x) - 1 / 5) < 1e-6 && Math.abs(r.y - 0.5) < 1e-6
+        && Math.abs(o.position.x - window.__rent.landlord().x) < 0.01
+        && Math.abs(o.position.z - window.__rent.landlord().z) < 0.01) found = true;
+  });
+  return found;
+});
+ok(atlas === true, 'the landlord is an 8-angle atlas sprite, not a flat plane');
+
+// And the money never moves without a person: pressing [E] on him is the only
+// way rent is paid, and it ALWAYS answers — a key that does nothing and
+// explains nothing is how a player concludes the feature is broken.
+const answered = await page.evaluate(async () => {
+  window.__ct.clock(0, 0); window.__ct.advanceClock(2 * 1440 + 13 * 60, 0);
+  window.__rent.stage(14.5);      // short, deterministically — the refusal branch
+  const l = window.__rent.landlord();
+  window.__ct.warp(l.x, l.z - 1.0, Math.PI, 0, 0);
+  return { cash: window.__inv.cash(), owed: window.__rent.owed() };
+});
+await page.waitForTimeout(300);
+const llSpot = await page.evaluate(() =>
+  window.__ct.spots().filter((q) => q.ok && /rent/.test(q.label)).map((q) => q.label));
+ok(llSpot.length === 1, `standing at him offers exactly one rent [E] (${llSpot.length})`);
+if (llSpot.length) console.log(`      "${llSpot[0]}"`);
+ok(/\$\d/.test(llSpot[0] ?? ''), 'and the prompt names the FIGURE before you press it');
+await page.keyboard.down('e');
+await page.waitForFunction(() => window.__rent.reading() !== null, { timeout: 8000 }).catch(() => {});
+await page.keyboard.up('e');
+const gave = await page.evaluate(() => ({
+  reading: window.__rent.reading(), cash: window.__inv.cash(), owed: window.__rent.owed(),
+}));
+ok(gave.reading !== null, 'pressing it ALWAYS answers — paid or refused, you get paper');
+if (answered.cash < 45) {
+  ok(gave.cash === answered.cash && gave.owed === answered.owed,
+    `refused without taking anything ($${gave.cash.toFixed(2)} still in the purse, `
+    + `$${gave.owed.toFixed(2)} still owed)`);
+}
+await page.keyboard.press('Escape');
+
+// ── 12. paying him. LAST, because it is the only thing here that MOVES ────
+//
+// `paidPeriods` is session state with no reset, so a payment made early is a
+// payment every later clause inherits. Ordering these first cost seven reds in
+// one run — the landlord correctly absent on a day I had already paid for, and
+// a two-week arrears reading one week. My check was wrong about the world
+// because my check had changed it (GOTCHAS §20, one level in).
+//
+// So nothing above this line spends money, and every figure below comes off a
+// LIVE `owed()` rather than a constant.
+//
+// The purse starts at $14.50 and a week's rent is $45, so EVERY clause about
+// money leaving the wallet is free over an empty set unless the wallet is
+// staged first — green because it never happened (GOTCHAS §34). `stage` is a
+// fixture and cannot make any of the three answers below true.
 const paid = await page.evaluate(() => {
   window.__ct.clock(0, 0); window.__ct.advanceClock(2 * 1440 + 800, 0);
-  const cashBefore = window.__inv.cash();
+  const short = { cash: window.__rent.stage(20), owed: window.__rent.owed() };
+  const refused = window.__rent.pay();
+  const afterRefusal = { cash: window.__inv.cash(), owed: window.__rent.owed() };
+  const cashBefore = window.__rent.stage(120);
   const took = window.__rent.pay();
-  return { cashBefore, took, cashAfter: window.__inv.cash(), owedAfter: window.__rent.owed() };
+  return { short, refused, afterRefusal, cashBefore,
+    took, cashAfter: window.__inv.cash(), owedAfter: window.__rent.owed() };
 });
-if (paid.cashBefore >= 45) {
-  ok(paid.took === 45 && paid.cashAfter === paid.cashBefore - 45,
-    `paying moved $${paid.took.toFixed(2)} out of the purse `
-    + `($${paid.cashBefore.toFixed(2)} -> $${paid.cashAfter.toFixed(2)})`);
-  ok(paid.owedAfter === 0, 'and the arrears are cleared');
-} else {
-  // The honest branch, and it is not a pass by default: the purse starts at
-  // $14.50 and a week's rent is $45, so with no income in the world yet the
-  // refusal is what there is to assert. It must refuse WITHOUT taking money.
-  ok(paid.took === 0 && paid.cashAfter === paid.cashBefore,
-    `$${paid.cashBefore.toFixed(2)} is short of the $45.00 rent, and the refusal `
-    + 'took nothing (there is no income in the world yet — see notes/N-tenancy.md)');
-}
+ok(paid.refused === 0 && paid.afterRefusal.cash === paid.short.cash,
+  `$20.00 against $${paid.short.owed.toFixed(2)} rent takes NOTHING — `
+  + 'a part payment that vanished would be the worst outcome available');
+ok(paid.afterRefusal.owed === paid.short.owed, 'and the arrears are untouched by the refusal');
+ok(paid.took === 45 && paid.cashAfter === paid.cashBefore - 45,
+  `paying moved $${paid.took.toFixed(2)} out of the ONE purse `
+  + `($${paid.cashBefore.toFixed(2)} -> $${paid.cashAfter.toFixed(2)})`);
+ok(paid.owedAfter === 0, 'and the arrears are cleared');
+
+// Two weeks owed and enough for both: he takes both, and not three.
+const two = await page.evaluate(() => {
+  window.__ct.clock(0, 0); window.__ct.advanceClock(9 * 1440 + 800, 0);
+  const before = { cash: window.__rent.stage(200), owed: window.__rent.owed() };
+  const took = window.__rent.pay();
+  return { before, took, cash: window.__inv.cash(), owed: window.__rent.owed() };
+});
+ok(two.before.owed > 0 && two.took === two.before.owed,
+  `a further $${two.before.owed.toFixed(2)} owed by day 9, and he takes exactly that`);
+ok(two.owed === 0 && two.cash === two.before.cash - two.took,
+  `never a week more than is owed ($${two.cash.toFixed(2)} left of $${two.before.cash.toFixed(2)})`);
+
 
 ok(errors.length === 0, `no console errors (${errors.length})`);
 for (const e of errors.slice(0, 5)) console.log(`      ${e}`);
