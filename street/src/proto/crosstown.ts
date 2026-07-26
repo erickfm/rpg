@@ -277,6 +277,11 @@ export function makeCrosstown(): Proto {
   // failed twice.
   ctx.publishSite('park', street.park);
   ctx.publishSite('lot', street.lot);
+  // The jail's ground, at the side street's closed east end. It replaces the
+  // 6 x 24 cross-building shell that used to stand there and z-fought with the
+  // frontage O needs (GOTCHAS §6), and it is published rather than described so
+  // O never hand-types a coordinate out of ct/street.ts.
+  ctx.publishSite('jail', street.jail);
   // Modules are found by `ct/world.ts` and run in ORDER bands. This band sits
   // exactly where buildPark/buildLot were called, so construction order — and
   // therefore every tree height and pigeon in the world — is unchanged.
@@ -757,6 +762,13 @@ export function makeCrosstown(): Proto {
     // bodega was un-enterable — and it was previously only answerable by
     // bisecting the walk with the player. Read-only view of the live list.
     colliders: () => colliders,
+    // test affordance: WHAT GROUND HAS BEEN PUBLISHED, and where? Same argument
+    // as colliders() and groundAt() — a module that asks `ctx.site('jail')` and
+    // gets null must build nothing and say so, and until now there was no way
+    // from outside to tell "the site is missing" from "the module ignored it".
+    // O is building against a site it cannot see published; this is how it, and
+    // whoever verifies the row, can check the publish actually landed.
+    sites: () => Object.fromEntries(SITES),
     rooms: () => interiorRoomIds(),
     // resolved room geometry, so a harness never carries its own copy
     roomDims: () => interiorRooms(),

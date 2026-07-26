@@ -1535,3 +1535,14 @@ Half landed: the aim cone's ceiling came down 35.5° -> 15°, median off-axis
 10.8° -> 5.2°. The residue is the proximity rule, which ignores aim by design;
 see `fp.ts:lookTolerance` and `scripts/D-offer-rate.mjs`.
 
+## The JAIL site — two blockers cleared for O
+
+> *"THE EAST CROSS BUILDING, ct/street.ts:958-968, needs deleting or shortening…
+> PUBLISH ctx.site for the jail, the way the other sites are published."*
+
+Routed to **D** (both parts are in `ct/street.ts`, which is D's). O owns
+`ct/jail.ts` and `ct/int-jail.ts` and was blocked on both. Landed: the shell is
+deleted, and `ctx.site('jail')` publishes
+`{ minX: 57, maxX: 75, minZ: -110, maxZ: -96, y: 0.14 }`. See
+`notes/D-to-O-jail-site.md`.
+

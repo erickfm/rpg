@@ -955,17 +955,53 @@ export function buildStreet(o: {
   });
   // south-west corner building closes the side street's west end
   placeBld(-1, -98, { nm: 'RADIO', col: '#3a4a7a', w: 12, brick: '#835444', floors: 4 });
-  // east cross building — the side street disappears into the fog toward it
-  {
+  // THE EAST CROSS BUILDING IS GONE, AND THE JAIL SITE IS PUBLISHED IN ITS PLACE.
+  //
+  // What stood here was a 6 x 24 x 13.6 shell centred on (SIDE_X1 + 5), put
+  // there to stop the side street simply ending in fog. The jail does that job
+  // properly, and the two cannot both exist: the jail takes a WEST-FACING
+  // frontage on x = 57 and this shell's own west face was at x = 57 as well, so
+  // the pair are coplanar and z-fight (GOTCHAS §6). O could not build in front
+  // of it and was blocked on me for the removal.
+  //
+  // IT COSTS THE ROSTER NOTHING. Both NORTH2 and SOUTH2 already stop dead on
+  // x = SIDE_X1 and this cap was on neither cursor — it was placed absolutely,
+  // not walked to — so no frontage moves and no building loses a metre.
+  //
+  // PUBLISHED, NOT DESCRIBED. O asked for `ctx.site` rather than a coordinate
+  // to hand-type out of this file, and was right to: that habit has failed six
+  // documented times, most recently with the diner's [E] landing outside a bank
+  // and the car lot sitting finished and unplaced waiting on a relayed number.
+  // The site is the ground east of the side street's end, so it is expressed in
+  // SIDE_X1 and the road band rather than in literals — move the side street
+  // and the jail's ground follows it, which is the whole point of asking.
+  const JAIL: Site = {
+    minX: SIDE_X1 + 2,          // the frontage: the shell's old west face
+    // 18 m deep, and the depth is UNCONTESTED rather than negotiated: probed at
+    // HEAD, nothing at all stands east of x 56.0 between z -112 and -94 — the
+    // 41 objects in that band are the east walk itself, all at x 56.0. So this
+    // is not carved out of anyone; it is ground nobody was using. 18 m is
+    // offered because it is deeper than the widest shell on the block (12.5 m)
+    // and leaves O room for cells behind a frontage. O may take less.
+    maxX: SIDE_X1 + 20,
+    minZ: SIDE_Z1 - 2,          // z -110, the south walk plus its kerb
+    maxZ: SIDE_Z0 + 2,          // z -96, the north walk plus its kerb
+    y: KERB_H,
+  };
+  // RETURNED, NOT PUBLISHED FROM HERE, and that is not a style choice.
+  //
+  // My first cut called `o.publishSite?.('jail', JAIL)` beside the park's and
+  // the lot's calls, built clean, and published NOTHING — `__ct.sites()` showed
+  // park and lot and no jail. `publishSite` is optional in this module's params
+  // and the entry point does not pass it: it publishes park and lot from this
+  // function's RETURN, at crosstown.ts:278. And it cannot do otherwise, because
+  // `const SITES` is declared after `buildStreet` is called, so wiring the
+  // callback in directly is a temporal-dead-zone error that blanks the world —
+  // which is a thing I have already found once and written up. The optional `?.`
+  // is what made it silent: no callback, no publish, no error.
+  //
+  // So the jail joins the return like the other two. One publisher, one place.
 
-    const eRoof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
-    const eWall = new THREE.Mesh(
-      new THREE.BoxGeometry(6, 13.6, 24),
-      shellMats(1, flat(facadeTex('#5c4436', 4, 24, 13.6, 0)), 6, 13.6, 24, '#5c4436', 0, true, eRoof),
-    );
-    eWall.position.set(SIDE_X1 + 5, 6.8, (SIDE_Z0 + SIDE_Z1) / 2);
-    scene.add(eWall);
-  }
 
   // billboard registry (declared early — the alley adds to it too)
   interface Board { m: THREE.Mesh }
@@ -1088,5 +1124,5 @@ export function buildStreet(o: {
   }
 
   stampFrom(STREET_MARK, 'street');
-  return { colliders, park: PARK, lot: LOT, setWindows };
+  return { colliders, park: PARK, lot: LOT, jail: JAIL, setWindows };
 }
