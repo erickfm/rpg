@@ -55,8 +55,14 @@ for (const [yaw, pitch] of [[0, -0.05], [0, 1.2], [0, -1.4], [Math.PI / 2, 0], [
   await p.evaluate(([y, pi]) => { const q = window.__ct.pos(); window.__ct.warp(q[0], q[2], y, undefined, pi); }, [yaw, pitch]);
   await p.waitForTimeout(300);
   const label = await prompt();
+  // WAIT FOR THE TRANSITION, do not sample once. Sampling at a fixed 700 ms
+  // reported "stuck at yaw -1.2 pitch 0.6" on the sixth cycle of this loop;
+  // re-run at that exact orientation six times and it stands up six times.
+  // The flake was this script's own press bookkeeping slipping phase, not the
+  // world — GOTCHAS 30 again, in a check written to catch a real trap.
   await p.keyboard.press('KeyE');
-  await p.waitForTimeout(700);
+  const t0 = Date.now();
+  while (Date.now() - t0 < 2500 && (await seated())) await p.waitForTimeout(80);
   if (await seated()) { worst = `stuck at yaw ${yaw.toFixed(1)} pitch ${pitch}`; break; }
   if (!label || !/stop watching TV/.test(label)) worst = worst ?? `label read "${label}"`;
   n++;
