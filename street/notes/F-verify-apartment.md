@@ -1,3 +1,39 @@
+# CORRECTED — the sleep WORKS. My earlier report below was a positioning error.
+
+## The correction
+
+I reported that I could not trigger the sleep. I was wrong, and the cause was
+mine: I stood at (197.4, **-15.4**) and the spot is at (197.4, **-15.8**).
+Forty centimetres, and outside the trigger. Standing ON the registered
+coordinates:
+
+    on "close the door" spot -> [E] close the door
+    on "sleep" spot         -> [E] sleep until morning
+    slept: 22:31 -> 7:03  ** TIME JUMPED **
+
+So **both halves of C's row work**: the door can be closed, and sleeping
+advances the clock to morning. That is *"sleep in your room"*, a request the
+user has had open since early on, working end to end. No reservations on C's
+side.
+
+The time jump runs through `ctx.clock.advance`, which is my kit verb, so the
+clock half still wants someone who is not me. C's spot, wiring and room are
+verified.
+
+## Why I got it wrong, and what would have prevented it
+
+I wrote in the original report that a missing station *"costs the ANSWER"*
+here, because I could not tell a gated spot from a dead one. That reasoning
+was sound and the conclusion was still wrong — the spot was neither gated nor
+dead, it was 0.4 m away. A station line would have given me the exact place to
+stand and the question would never have arisen. It remains the best argument
+for the policy I have; it just also happens to be an argument about my own
+carelessness rather than C's omission.
+
+---
+
+# Original report, kept for the record
+
 # F verifying C's room 301 — contents good; I could NOT trigger the sleep
 
 ## Contents: good
