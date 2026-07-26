@@ -57,6 +57,13 @@ const PATH = '#9c8b66', PATH_D = '#8a7a58', PATH_L = '#b3a37c';
 // actually looks like — the grass gives up before the soil shows.
 const DIRT = '#7c7658', DIRT_D = '#6f6a4e';
 
+// ONE SUN FOR THE PARK. The field bakes its relief shading against this, and
+// so does the shelter roof — a world lit from two directions reads as neither.
+// Materials here are `MeshBasicMaterial`, so every bit of form in the park is
+// baked into vertex colour or it does not exist.
+const SUN = new THREE.Vector3(-0.42, 0.80, 0.43).normalize();
+
+
 // Takes the build context the whole world is given, plus the site extents
 // ct/street.ts published. The entry point already holds both — it reads
 // `street.park` for the floor height — so wiring this is one line there and
@@ -437,6 +444,7 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
 // desire lines beside them. Both are fixed together, because either alone would
 // have looked like a fix and not been one.
 const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
+
     const mownT = pixTex(Math.max(8, Math.round(fW * 16)), Math.max(8, Math.round(fD * 16)), (g) => {
       const r = clcg(0x4fd21a);
       const MW = Math.max(8, Math.round(fW * 16)), MH = Math.max(8, Math.round(fD * 16));
@@ -529,7 +537,6 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     // Steeper ground to make gentle ground visible is the wrong trade in a
     // world the brief calls gentle twice, so the exaggeration goes in the
     // shading, where it costs nothing underfoot.
-    const SUN = new THREE.Vector3(-0.42, 0.80, 0.43).normalize();
     const nrm = fieldGeo.attributes.normal;
     // Slope is not the only cue, and on its own it is the weak one: it changes
     // with where you stand, so from the crest itself the mound mostly vanishes.
@@ -1406,7 +1413,22 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
       minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
   }
   {
-    const y0 = SH_TOP - SH_SKIRT, y1 = SH_TOP, ya = SH_TOP + SH_RISE;
+    // THE ROOF HAS TO TOUCH THE POST TOPS, and the first two attempts did not.
+    //
+    // Putting the eaves at the post-top height LOOKS right in the source and
+    // is wrong in the world: the eaves are at the OVERHANG radius E, the posts
+    // stand inboard at SH_H, and the slope has already climbed by the time it
+    // gets there. Measured, that left the underside 0.20 m clear of all four
+    // posts — the roof floating over them, which is exactly the "thin skewed
+    // slab that does not sit on its posts" the user has now said twice.
+    //
+    // A hipped roof's rafters cross the wall plate and keep going DOWN past
+    // it, so the eaves hang below the post top rather than level with it. So
+    // fix the slope from the apex through the post top and let the overhang
+    // fall where it falls: at r = SH_H the surface is exactly SH_TOP.
+    const ya = SH_TOP + SH_RISE;
+    const y1 = SH_TOP - (SH_RISE / SH_H) * SH_OVER;
+    const y0 = y1 - SH_SKIRT;
     const c = [[-E, -E], [E, -E], [E, E], [-E, E]];      // the four eaves corners
     const pos: number[] = [], uv: number[] = [];
     const push = (x: number, y: number, z: number, u: number, v: number) => {
@@ -1425,7 +1447,29 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
     geo.computeVertexNormals();
-    const roof = new THREE.Mesh(geo, roofM);
+    // FOUR FACES THE SAME COLOUR IS NOT A PYRAMID, IT IS AN UMBRELLA.
+    //
+    // Seating the roof on the posts fixed the geometry and it still read as a
+    // parasol, because a hipped roof's whole form is that its faces catch the
+    // light differently — and under `MeshBasicMaterial` nothing does that for
+    // you. Flat tone across all four slopes gives a silhouette with no
+    // interior, which the eye files as fabric.
+    //
+    // The buffer is non-indexed, so `computeVertexNormals` has already left
+    // each triangle's three vertices carrying that triangle's own normal:
+    // shading per vertex here IS shading per face. Same sun and the same
+    // clamped-lambert shape the field uses, so the two agree.
+    const nrm = geo.attributes.normal;
+    const shade = new Float32Array(pos.length);
+    for (let i = 0; i < nrm.count; i++) {
+      const d = nrm.getX(i) * SUN.x + nrm.getY(i) * SUN.y + nrm.getZ(i) * SUN.z;
+      const k = Math.max(0.70, Math.min(1.22, 0.90 + 0.60 * d));
+      shade[i * 3] = k; shade[i * 3 + 1] = k; shade[i * 3 + 2] = k * 0.99;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+    const shadedRoofM = roofM.clone();          // not the shared slope material
+    shadedRoofM.vertexColors = true;
+    const roof = new THREE.Mesh(geo, shadedRoofM);
     roof.position.set(shX, KERB_H, shZ);
     scene.add(roof);
   }
