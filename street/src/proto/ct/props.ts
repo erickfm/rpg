@@ -420,7 +420,37 @@ export function buildProps(ctx: CtxBuild): Props {
   // Cached per texture: sheets are shared across many meshes and this reads
   // the whole canvas.
   const sheetLit = new Map<string, boolean>();
-  const isSelfLit = (t: THREE.Texture | null | undefined): boolean => {
+  // ── THE OPT-OUT: `m.userData.printed` ─────────────────────────────────────
+  //
+  // "There is no flag to read and there cannot be one" (above) was true only
+  // because nothing outside this file was setting one. C is, on ~40 lot
+  // materials, so the premise has expired and the paragraph above should be
+  // read as history.
+  //
+  // `printed` means: THIS SHEET IS INK, NOT A LIGHT — grade me like masonry.
+  // It exists because the heuristic cannot win on printed signage. A price
+  // card or a pole sign IS its artwork: saturated colour held at high value is
+  // exactly what "bright and chromatic" tests for, so the sheets score 62–97%
+  // hot and are held at FLOOR_SIGN with the yard black behind them. Lowering
+  // the 8% threshold does not generalise — that only worked for the bunting at
+  // 13.3%, one point over — and the 85.3% sheet is the pole sign the user had
+  // just had ENLARGED and re-contrasted for legibility, so making it dimmer to
+  // satisfy a detector would undo a request.
+  //
+  // It also settles the disagreement C measured: the lot salesman at 13.2% hot
+  // is called a light and does not dim, while a street pedestrian at 23% hot —
+  // same `citizenSprite`, same atlas generator — is called masonry and dims
+  // 95.5%. A hotter sheet classed as "light" and a cooler one as "not" is the
+  // proof that the threshold is not what decides; sprite atlases simply do not
+  // sort by it. A hand flag is the honest answer for those, not a better number.
+  //
+  // THE FLAG TAKES THE MATERIAL, NOT THE TEXTURE, and that is deliberate: the
+  // check now reads `isSelfLit(m)` so the opt-out cannot be bypassed by a
+  // future caller who has a map in hand and calls it directly. `cLight` is the
+  // opposite flag and stays C's — set by hand where something really is a light.
+  const isSelfLit = (m: THREE.MeshBasicMaterial): boolean => {
+    if (m.userData?.printed) return false;
+    const t = m.map;
     const img = t?.image as HTMLCanvasElement | undefined;
     if (!img || typeof img.getContext !== 'function') return false;
     const key = t!.uuid;
@@ -511,7 +541,7 @@ export function buildProps(ctx: CtxBuild): Props {
         const bx = new THREE.Box3().setFromObject(o);
         const span = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z);
         const poolable = wy.y < 4.5 && Number.isFinite(span) && span < 6;
-        const selfLit = isSelfLit(m.map);
+        const selfLit = isSelfLit(m);
         // Say so on the material. A sheet held at FLOOR_SIGN is graded and
         // deliberately kept bright, which from outside is indistinguishable
         // from a sheet that was never graded at all — and scripts/nightgrade
