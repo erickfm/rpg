@@ -73,6 +73,11 @@ const MUTATIONS = {
   },
   // The face is drawn 1:1 in a corner instead of scaled to fit.
   'no-fit': (S) => { S.FELT.w = 32; S.FELT.h = 26; },
+  // THE TAUNT COMES BACK, the blackjack half of the same fault.
+  'taunt-the-broke': (S) => {
+    const real = S.paintTable;
+    S.paintTable = (g, w, h, v) => real(g, w, h, v, undefined);
+  },
   // THE SHOE STOPS SAYING HOW MANY DECKS.
   //
   // It REMOVES the placard rather than moving RULES.decks, and the difference
@@ -472,6 +477,24 @@ if (mode === 'felt' || mode === 'all') {
     // commit message and a ledger cell — everywhere except where a player can
     // see it. Six decks and one deck are different games and the difference is
     // invisible from the outside.
+    // AND IT DOES NOT TAUNT A BROKE PLAYER, the same fact the slot machine
+    // learned: "BUY IN TO PLAY" to somebody with nothing in their pockets is
+    // advice for a key that does nothing, which reads as a broken button.
+    {
+      const tb = S.createTable({ rng: lcg(3) });        // no chips bought
+      const v0 = tb.view();
+      const broke = recorder(); S.paintTable(broke.g, W, H, v0, 0);
+      const rich = recorder(); S.paintTable(rich.g, W, H, v0, 50);
+      const t2 = (r) => r.ops.filter((o) => o.op === 'fillText').map((o) => o.text);
+      console.log(`    no chips, $0.00 in pocket: ${t2(broke).find((t) => /NO CASH|BUY IN/.test(t))}`);
+      console.log(`    no chips, $50 in pocket:   ${t2(rich).find((t) => /NO CASH|BUY IN/.test(t))}\n`);
+      check(v0.chips === 0, 'the rail really is empty — the population for this verdict');
+      check(t2(broke).some((t) => /NO CASH/.test(t)),
+        'with an empty wallet the felt says NO CASH IN YOUR POCKETS');
+      check(t2(rich).some((t) => /BUY IN/.test(t)) && !t2(rich).some((t) => /NO CASH/.test(t)),
+        'and with money it says BUY IN TO PLAY — one message per situation,'
+        + ' the same pair of words the slot machine uses');
+    }
     check(texts.includes(`${S.RULES.decks} DECKS`),
       `and the SHOE SAYS HOW MANY DECKS are in it — "${S.RULES.decks} DECKS", on the`
       + ' table, read from RULES so the placard and the shoe cannot disagree');

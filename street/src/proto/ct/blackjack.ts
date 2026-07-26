@@ -847,6 +847,14 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
  *  same cabinet rather than resizing K's bezel between them. */
 export const FELT = { w: 320, h: 256 } as const;
 
+/** What one chip costs, for the ONE question the felt has to answer about money:
+ *  can this player buy in at all. The authority is `CREDIT` in `ct/slots.ts` and
+ *  `register()` below reads it from there — this is the painter's fallback for
+ *  when it is drawn outside the world, and the in-world check asserts the two
+ *  agree so the fallback cannot quietly become a second rate. */
+let CHIP_HINT = 0.25;
+export const setChipValue = (v: number): void => { CHIP_HINT = v; };
+
 const T = {
   felt: '#1e5a3e', feltLo: '#17462f', feltHi: '#2a6d4c',
   rail: '#3a2226', railHi: '#54353a',
@@ -980,7 +988,13 @@ const paintHand = (
  * wrong place, which is why `TableView` publishes it rather than leaving the
  * caller to keep its own.
  */
-export function paintTable(g: Paint2D, w: number, h: number, v: TableView): void {
+export function paintTable(
+  g: Paint2D, w: number, h: number, v: TableView,
+  /** the player's POCKETS, in the wallet's units. Same contract as the slot
+   *  machine's: the table knows nothing about dollars and is handed the one
+   *  fact it cannot derive — whether "BUY IN TO PLAY" is advice or a taunt. */
+  cash?: number,
+): void {
   const s = Math.max(0.1, Math.min(w / FELT.w, h / FELT.h));
   g.save();
   g.fillStyle = T.rail; g.fillRect(0, 0, w, h);
@@ -1078,7 +1092,12 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView): void
   g.fillStyle = T.railHi; g.fillRect(sx, sy, sw, 1);
   g.textAlign = 'center'; g.font = '7px monospace';
   g.fillStyle = v.phase === 'settle' || v.phase === 'paying' ? T.win : T.dim;
-  if (v.says) g.fillText(v.says, FELT.w / 2, sy + 10);
+  // Telling a player with nothing in their pockets to BUY IN is the same taunt
+  // the slot machine used to give — see the note beside `NO CASH IN YOUR
+  // POCKETS` in ct/slots.ts. One fact, two games, said the same way.
+  const says = (v.phase === 'betting' && v.chips < v.bet
+    && cash !== undefined && cash < CHIP_HINT) ? 'NO CASH IN YOUR POCKETS' : v.says;
+  if (says) g.fillText(says, FELT.w / 2, sy + 10);
 
   // ── the meters ──
   const meter = (mx: number, mw: number, label: string, val: string, lit: boolean) => {
@@ -1207,15 +1226,18 @@ export function register(ctx: CtxBuild): void {
 
   void Promise.all([import('./hud'), import('./slots')]).then(([{ makePanel }, slots]) => {
     CHIP = slots.CREDIT;
+    setChipValue(CHIP);          // one rate, and the felt reads the same one
     panel = makePanel({
       id: 'ct-blackjack',
       w: FELT.w, h: FELT.h, scale: 2,
       chrome: 'machine',
       title: 'BLACKJACK',
       hint: () => (table.view().phase === 'betting'
-        ? 'SPACE deal · +/- bet · I buy in $20 · C cash out'
+        ? (ctx.purse.cash < CHIP
+          ? 'SPACE deal · +/- bet · C cash out'          // no I: nothing to buy in with
+          : 'SPACE deal · +/- bet · I buy in $20 · C cash out')
         : 'H hit · S stand · D double · P split'),
-      draw: (g, w, h) => paintTable(g, w, h, table.view()),
+      draw: (g, w, h) => paintTable(g, w, h, table.view(), ctx.purse.cash),
       key: (k) => {
         const v = table.view();
         if (v.phase === 'betting') {

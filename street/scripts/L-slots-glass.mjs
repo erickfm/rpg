@@ -134,6 +134,12 @@ const MUTATIONS = {
       set: (o, k, val) => Reflect.set(o, k, val),
     }), w, h, v, t);
   },
+  // THE TAUNT COMES BACK. The face advises INSERT COIN to a player with nothing
+  // to insert, so pressing I does nothing and the button reads as broken.
+  'taunt-the-broke': (S) => {
+    const real = S.paintMachine;
+    S.paintMachine = (g, w, h, v, t) => real(g, w, h, v, t, undefined);
+  },
   // A NaN creeps into a coordinate. Canvas silently draws nothing, so the reel
   // simply vanishes with no error anywhere.
   nan: (S) => {
@@ -475,6 +481,25 @@ if (mode === 'glass' || mode === 'all') {
     check(said.some((t) => /INSERT COIN/.test(t)),
       'and it SAYS so on its own face rather than failing silently');
     check(!m.play(), 'and the button genuinely refuses rather than staking a credit it does not have');
+
+    // AND IF THE POCKETS ARE EMPTY TOO, it stops advising a key that cannot
+    // work. INSERT COIN with an empty wallet is not "saying so", it is a taunt:
+    // pressing I does nothing at all, and the player reads that as a broken
+    // button — the same failure the requirement was written against, one level
+    // further out.
+    const r2 = recorder();
+    S.paintMachine(r2.g, W, H, broke, 0, 0);            // …and no cash either
+    const said2 = r2.ops.filter((o) => o.op === 'fillText').map((o) => o.text);
+    const r3 = recorder();
+    S.paintMachine(r3.g, W, H, broke, 0, 50);           // meter empty, wallet full
+    const said3 = r3.ops.filter((o) => o.op === 'fillText').map((o) => o.text);
+    console.log(`    empty meter, $0.00 in pocket:  ${said2.find((t) => /NO CASH|INSERT/.test(t))}`);
+    console.log(`    empty meter, $50 in pocket:    ${said3.find((t) => /NO CASH|INSERT/.test(t))}\n`);
+    check(said2.some((t) => /NO CASH/.test(t)) && !said2.some((t) => /INSERT COIN/.test(t)),
+      'with an empty WALLET it says NO CASH IN YOUR POCKETS instead of telling you'
+      + ' to insert a coin you do not have');
+    check(said3.some((t) => /INSERT COIN/.test(t)),
+      'and with money in the wallet it still says INSERT COIN — the two are told apart');
   }
 
   // ── THE ATTRACT ───────────────────────────────────────────────────────────

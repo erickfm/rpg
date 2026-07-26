@@ -72,6 +72,19 @@ check(live, 'ct/blackjack.ts reached ct/world.ts\'s glob and register() ran —'
 if (!live) { await b.close(); process.exit(1); }
 
 const CHIP = await p.evaluate(() => window.__blackjack.chip());
+// ONE RATE, ASSERTED ACROSS THE TWO GAMES.
+//
+// `ct/blackjack.ts` carries a `CHIP_HINT` fallback so its painter can answer
+// "can this player buy in at all" when drawn outside the world, and `register()`
+// sets it from `ct/slots.ts`'s `CREDIT`. A fallback that is never checked is a
+// second exchange rate waiting to happen, and the comment beside it promises
+// this check exists — so it does.
+const SLOT_CREDIT = await p.evaluate(() => window.__slots?.credit?.() ?? null);
+check(SLOT_CREDIT !== null && Math.abs(CHIP - SLOT_CREDIT) < 1e-9,
+  `a blackjack chip and a slot credit are the SAME money ($${CHIP.toFixed(2)}`
+  + ` vs $${SLOT_CREDIT === null ? '?' : SLOT_CREDIT.toFixed(2)}) — one building`
+  + ' cannot have two exchange rates, and the felt\'s fallback constant is where'
+  + ' a second one would quietly appear');
 const rules = await p.evaluate(() => window.__blackjack.rules());
 console.log(`  a chip is $${CHIP.toFixed(2)};`
   + ` ${rules.decks} decks, blackjack pays ${rules.blackjackPays}\n`);

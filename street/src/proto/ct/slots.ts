@@ -1016,7 +1016,14 @@ const paintReel = (g: Paint2D, i: number, r: ReelView, flash: boolean) => {
  * Everything else is a function of the view, so a still frame of a stopped
  * machine is identical every time it is painted.
  */
-export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t = 0): void {
+export function paintMachine(
+  g: Paint2D, w: number, h: number, v: MachineView, t = 0,
+  /** what is in the player's POCKETS, in the wallet's own units. Optional, and
+   *  the machine still knows nothing about dollars — it is handed the one fact
+   *  it cannot work out for itself: whether "INSERT COIN" is advice or a taunt.
+   *  Undefined means "not told", and the face falls back to INSERT COIN. */
+  cash?: number,
+): void {
   const s = Math.max(0.1, Math.min(w / FACE.w, h / FACE.h));
   g.save();
   g.fillStyle = P.carpet; g.fillRect(0, 0, w, h);
@@ -1128,7 +1135,16 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   const say = v.win
     ? `${v.win.line}   PAYS ${v.win.pays * v.bet}`
     : v.state === 'spinning' ? ''
-      : v.credits < v.bet ? 'INSERT COIN'
+      // TELLING A BROKE PLAYER TO INSERT A COIN IS NOT SAYING SO, IT IS A TAUNT.
+      //
+      // The queue's item 3 is "if the player is broke, say so on the machine
+      // rather than failing silently", and the machine did say INSERT COIN with
+      // an empty meter — but pressing I with an empty WALLET does nothing at
+      // all, and the face went on advising the one action that could not work.
+      // A player reads that as a broken button, which is the same failure the
+      // requirement was written against, one level further out.
+      : v.credits < v.bet
+        ? (cash !== undefined && cash < CREDIT ? 'NO CASH IN YOUR POCKETS' : 'INSERT COIN')
         : attract
           // the three things a machine shouts at an empty stool
           ? ['PLAY 1 TO 5 CREDITS', 'SEVENS PAY 250', 'GOOD LUCK'][walk % 3]
@@ -1336,9 +1352,11 @@ export function register(ctx: CtxBuild): void {
     // the facade's; `ct/vice.ts` paints SEVENS and LOOSEST SLOTS on the front.
     title: 'LOOSEST SLOTS',
     hint: () => (machine.settled()
-      ? 'SPACE spin · B bet · M max · I insert $5 · C cash out'
+      ? (ctx.purse.cash < CREDIT
+        ? 'SPACE spin · B bet · M max · C cash out'      // no I: there is nothing to insert
+        : 'SPACE spin · B bet · M max · I insert $5 · C cash out')
       : '…'),
-    draw: (g, w, h) => paintMachine(g, w, h, machine.view(), clock),
+    draw: (g, w, h) => paintMachine(g, w, h, machine.view(), clock, ctx.purse.cash),
     key: (k) => {
       if (k === ' ' || k === 'enter') machine.play();
       else if (k === 'b') machine.betUp();
