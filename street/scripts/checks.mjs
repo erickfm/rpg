@@ -524,6 +524,15 @@ const CHECKS = [
   // because the deck's soffit hides it, and the only symptom was a player
   // climbing the west side stopping dead partway up.
   ['J-gallery-walk', 'can you climb to the library gallery, walk it, and get back down?', true],
+  // The pockets. Registered in the same commit as the feature, per GOTCHAS §27,
+  // and it guards the one rule of `ct/inventory.ts` that a picture cannot check:
+  // TAKING SOMETHING CHANGES THE WORLD. A pickup that leaves the object standing
+  // where it was looks identical from every camera to one that works — you
+  // simply have two newspapers — so the mutation is exactly that, the taken
+  // piece forced back to visible while it is in your pocket, and the check has
+  // been watched going red on it. ~6 s, no walking; it warps to the [E] the
+  // world reports rather than to a coordinate this file remembers. (K)
+  ['K-pocket-loop', 'can you take a newspaper, and does it leave the ground?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

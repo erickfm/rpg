@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SHA, DIRTY, AT } from 'virtual:build-stamp';
+import { bindHud, POCKETS, slots } from './inventory';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -29,6 +30,19 @@ export interface Hud {
   refreshWallet: () => void;
   /** the [E] hint under the crosshair; null hides it */
   prompt: (text: string | null) => void;
+  /**
+   * A line that says what just HAPPENED, and then goes away.
+   *
+   * Distinct from `prompt`, which says what you COULD do and is rewritten every
+   * frame from whatever you are looking at — a result posted into it would be
+   * gone on the next frame. Pocketing something, dropping it, and being refused
+   * because your pockets are full all need to survive looking away.
+   *
+   * It sits above the prompt so the two never fight for the same line, and it
+   * fades rather than cutting, because at the bottom of the screen a hard
+   * disappearance reads as a glitch.
+   */
+  note: (text: string, ms?: number) => void;
   /**
    * Outline whatever the `[E]` would act on, in screen space.
    *
@@ -202,10 +216,19 @@ export function makeHud(purse: Purse): Hud {
     g.fillStyle = '#c9b48a'; g.fillRect(lx, wy + 8, 54, 20);
     g.fillStyle = '#8a7a58'; g.fillRect(lx + 2, wy + 10, 18, 16);
     g.fillStyle = '#6a5a3c'; g.fillRect(lx + 23, wy + 12, 28, 2); g.fillRect(lx + 23, wy + 16, 24, 2); g.fillRect(lx + 23, wy + 20, 20, 2);
-    g.fillStyle = '#e8e2d0'; g.font = '7px monospace'; g.textAlign = 'left';
-    let iy = wy + 42;
+    // How full you are, ABOVE the list rather than under it. The pockets have
+    // been finite since `ct/inventory.ts` landed, and a limit the player only
+    // meets by being refused is a limit that reads as a bug — so it goes on the
+    // face of the thing whose whole job is to list them. Above, because the list
+    // grows downward and the bottom of the wallet is where the world's own
+    // caption bar sits: a line under six items would be printed behind it.
+    g.textAlign = 'left';
+    g.fillStyle = '#9a927e'; g.font = '6px monospace';
+    g.fillText(`${slots(purse).length}/${POCKETS} pockets`, lx, wy + 36);
+    g.fillStyle = '#e8e2d0'; g.font = '7px monospace';
+    let iy = wy + 47;
     for (const [k, n] of Object.entries(purse.inv)) { if (n > 0) { g.fillText(`${k} x${n}`, lx, iy); iy += 10; } }
-    if (iy === wy + 42) { g.fillStyle = '#9a927e'; g.fillText('(empty pockets)', lx, iy); }
+    if (iy === wy + 47) { g.fillStyle = '#9a927e'; g.fillText('(empty pockets)', lx, iy); }
     // thumbs gripping the near corners
     const thumb = (tx: number) => {
       g.fillStyle = skin; g.fillRect(tx, wy + wh - 22, 26, 34);
@@ -224,6 +247,19 @@ export function makeHud(purse: Purse): Hud {
       + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
     document.body.appendChild(promptDiv);
   }
+  // the transient line — what just happened, above the [E] prompt
+  let noteDiv = document.getElementById('ct-note') as HTMLDivElement | null;
+  if (!noteDiv) {
+    noteDiv = document.createElement('div');
+    noteDiv.id = 'ct-note';
+    noteDiv.style.cssText = 'position:fixed;left:50%;bottom:118px;transform:translateX(-50%);z-index:10;'
+      + 'font:13px/1.4 ui-monospace,Menlo,monospace;color:#e8e2d0;text-shadow:0 1px 3px rgba(0,0,0,.95);'
+      + 'pointer-events:none;opacity:0;transition:opacity .35s linear;letter-spacing:.3px;'
+      + 'max-width:70vw;text-align:center;';
+    document.body.appendChild(noteDiv);
+  }
+  let noteTimer = 0;
+
   // ── the selection outline ───────────────────────────────────────────────
   //
   // One absolutely-positioned div with two borders rather than a canvas: a rect
@@ -266,7 +302,7 @@ export function makeHud(purse: Purse): Hud {
     stampDiv.textContent = `${SHA}${DIRTY ? '+' : ''} ${p2(t.getHours())}:${p2(t.getMinutes())}`;
   }
 
-  return {
+  const hud: Hud = {
     skyAt, nightAt,
     // The wash is now a THIN cool cast, not the darkness itself. It used to
     // carry the whole night at 0.58, which flattened contrast: every surface
@@ -294,6 +330,12 @@ export function makeHud(purse: Purse): Hud {
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
     },
+    note: (text, ms = 2400) => {
+      noteDiv!.textContent = text;
+      noteDiv!.style.opacity = '1';
+      clearTimeout(noteTimer);
+      noteTimer = setTimeout(() => { noteDiv!.style.opacity = '0'; }, ms) as unknown as number;
+    },
     highlight: (rect) => {
       if (!rect) { hiDiv!.style.display = 'none'; return; }
       // Clamped to a sane on-screen size. An outline is a hint about WHICH thing
@@ -310,4 +352,10 @@ export function makeHud(purse: Purse): Hud {
       hiDiv!.style.display = 'block';
     },
   };
+  // `ct/inventory.ts` posts its own lines — "pocketed the folded newspaper",
+  // "pockets full" — from a `[E]` that was registered at build time by a module
+  // that has no business holding the HUD. One binding here, rather than the
+  // screen layer threaded through every takeable in the world.
+  bindHud(hud);
+  return hud;
 }
