@@ -360,6 +360,22 @@ const CHECKS = [
   // "improving" a script that is already there has an obvious corollary: check
   // whether the CLAIM is taken before you register a second answer to it.
   //
+  // Not mine, and registered because checks-registered.mjs has been red on it:
+  // globorder had a --selftest and was in NO tier, so it ran exactly never.
+  //
+  // Registering someone else's check is a coverage decision, so the asymmetry
+  // matters and it is why this is here while D-walk's tier is not touched:
+  // adding a check that currently never runs can only ADD coverage, whereas
+  // moving D-walk to the slow tier would REMOVE its walked proof from the
+  // default run. The first is mine to do; the second is the desk's.
+  //
+  // Measured before registering rather than assumed: it reads the BUILT bundle,
+  // starts no browser, and takes 0 s. Its --selftest inverts three truths and
+  // catches all three. And it guards a real, silent failure — a glob binding
+  // declared after the literal that reads it, which is how GOLDEN ACES' door
+  // stopped being collected (GOTCHAS 28).
+  ['globorder',            'is any globbed module bound after the glob that reads it?',  true],
+
   // These two survive because nothing else makes their claim:
   ['A-tree-canopy-opaque', 'can you see the wall through the middle of a tree?',         'tree-holes'],
   ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
