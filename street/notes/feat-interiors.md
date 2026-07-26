@@ -814,3 +814,40 @@ Also visible in the same reading, and good news for the other half of the same
 complaint — *"i cant walk up the stairs or go in, same as library"*: **the live
 world already has a `library` room**, so E has landed that interior. Between
 the two, the whole of that user request is now built.
+
+---
+
+# The bodega door-in-cut: it is the FIXTURES now, not the shell
+
+`BLOCKED-F.md` was retired by the desk ("Clear resolved blockers F and A") while
+this was in flight, so the note that commit `009c8abf6` says it wrote went
+nowhere. Here it is.
+
+Fifth attempt at the user's *"if the door for the bodega is on a cut corner then
+the interior should match"*, second half — the door IN the cut.
+
+**Fixed on the way, and worth keeping regardless:** the chamfer's colliders were
+bounding squares of ~0.35 m diagonal segments, so each was `(L/√2 + T)` across,
+far fatter than the wall it stood for. They are a chain of `T`-sized boxes every
+0.12 m now — thin enough that nothing slips through a 0.36 m capsule, and they
+hug the line instead of boxing it. Shape still 25/25.
+
+**It did not unblock the door.** Walking out along the doorway's own normal:
+
+```
+t = 0.6  blocked      t = 1.3  blocked      t = 2.5  CLEAR
+t = 0.9  blocked      t = 1.8  blocked
+```
+
+Clear at 2.5 m, blocked for the first 1.8. **The shell is out of the way — that
+is the room's own stock.** The bodega was laid out around a door in the front
+wall, so the corner the chamfer cuts is exactly where a gondola and the cooler
+stand.
+
+**The remaining work is a floor plan, not geometry and not a harness.** The
+aisle has to arrive at the cut face instead of the front wall, in a room whose
+contents the user has already approved — so it is rearranging, not adding.
+
+Four wrong theories reached this one, each disproved by measuring: the harness's
+door model, the approach point's axes, the collider fatness, and now the layout.
+`door: true` is one line the day the aisle points at the corner.
