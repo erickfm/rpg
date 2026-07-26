@@ -405,6 +405,38 @@ export function buildChurch(ctx: CtxBuild) {
     fit: 'coat', accent: '#5a5260', cut: 'short', build: 0,
   }, -PEW_CX, PRAY_Z, { facing: Math.PI, h: 0.62, w: 0.92 });
 
+  // ── the crucifix, over the altar ──
+  //
+  // The user: *"this church is catholic wheres the jesus on the cross?"* Fair,
+  // and it is the one thing a Catholic church cannot be missing. It hangs on
+  // the sanctuary wall above the altar, below the window, which is where it
+  // goes — the eye travels altar, cross, light.
+  //
+  // Built rather than painted, because a cross read from an angle has to stay a
+  // cross: two boxes make it solid from every heading, where a plane would go
+  // edge-on and vanish exactly when you walked up the nave to look at it.
+  const CRX_Z = -hd + 0.16, CRX_Y = 2.35;
+  const woodDark = new THREE.MeshBasicMaterial({ color: 0x4a3a28 });
+  const upright = new THREE.Mesh(new THREE.BoxGeometry(0.13, 1.5, 0.09), woodDark);
+  put(upright, 0, CRX_Y, CRX_Z);
+  const crossarm = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.13, 0.09), woodDark);
+  put(crossarm, 0, CRX_Y + 0.36, CRX_Z);
+  // the corpus: pale against the dark wood, small enough to read as a figure
+  // rather than a shape, and inset so the cross stays proud of it
+  const skinM = new THREE.MeshBasicMaterial({ color: 0xc9b49a });
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.42, 0.07), skinM);
+  put(torso, 0, CRX_Y + 0.26, CRX_Z + 0.07);
+  const arms = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.06), skinM);
+  put(arms, 0, CRX_Y + 0.37, CRX_Z + 0.07);
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.34, 0.06), skinM);
+  put(legs, 0, CRX_Y - 0.05, CRX_Z + 0.07);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.07), skinM);
+  put(head, 0, CRX_Y + 0.53, CRX_Z + 0.07);
+  // INRI, the small board above the head
+  const inri = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.07, 0.05),
+    new THREE.MeshBasicMaterial({ color: 0xbdb08c }));
+  put(inri, 0, CRX_Y + 0.63, CRX_Z + 0.07);
+
   // ── a rack of votive candles by the door, the one warm thing ──
   //
   // MOVED, and it is the same sign error as the altar. This sat at `-hd + 2.0`
