@@ -1040,3 +1040,29 @@ and it was the false half.
 *The cheap guard for both: state the request as a measurable predicate before
 touching anything — "band's long axis ∥ face" and "figure's z > desk's far edge" —
 then the check cannot be about the change.*
+
+## [C] Church CONFIRMED by walking; black stripe CONFIRMED against my own old numbers
+
+**Church — CONFIRMED.** Swept the nave centre line as a **disc of radius 0.36**
+rather than a point: **12.35 m clear from the door end**, stopping at the altar
+rail; 1.15 m from the altar end because you are already standing at it. The
+asymmetry is the whole finding — the long walk is now from the entrance. G
+measured 11.71 m holding forward; before, the altar collider sat across the
+entrance and gave 0.51 m.
+
+**Black stripe — CONFIRMED, and this one cost nothing because I had already
+measured the part.** H's diagnosis was a wheel-well lid coming through the wall.
+My own part dump from an earlier session recorded the housing cap at
+**x 0.66…0.90**, and the bed's outer wall occupies **0.74…0.90** — so the cap ran
+the full thickness of the wall and showed outside. It now reads **0.66…0.74**,
+stopping at the inner face.
+
+**[Is] An audit accumulates its own baselines, and that is worth more than it
+looks.** I could confirm this in one command because a measurement taken for a
+different row three sessions ago happened to contain the before-state. Compare
+the crossing row, where I had to lean on a builder's before-number and it turned
+out to mean something else.
+
+*The practical form: dump whole part tables rather than the one number a row
+asks about.* `bedparts.mjs` printed all 20 parts because that was cheap, and two
+separate rows have now been settled from it.
