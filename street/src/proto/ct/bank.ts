@@ -5,6 +5,7 @@ import { masonry, SHOP_BAND_H, SHOP_MULT, wallHeight, facadeTex, FLOOR_M } from 
 import { type BldSpec } from './civic';
 import type { AABB } from '../fp';
 import type { CtxBuild, Spot } from './ctx';
+import { openAtm } from './atm';
 
 /** FIRST FEDERAL — the bank, and the ATM in its wall.
  *
@@ -513,19 +514,30 @@ export function buildBank(k: {
     // agree exactly; now they cannot disagree.
     const atmZ = z - ATM_U * w;
     const atmZ2 = atmZ + ATM_PAIR_M;          // the left-hand machine of the pair
-    let readAt = -1e9;
     // Registered here but the machine is BUILT further down, so the object is
     // attached after the fact — `ctx.spot` keeps the same object reference, so
     // filling `obj` in later is the same spot the dispatch already holds.
-    const atmSpot: Spot = {
-      x: -FACE, z: atmZ, r: 1.25,
+    // THE MACHINE, not a readout. K built the whole ATM interface in `ct/atm.ts`
+    // and it was UNREACHABLE — nothing in the world invoked it, so a finished
+    // feature was invisible. GOTCHAS 49: published is not adopted.
+    //
+    // The old label printed `purse.cash`, which is the money in the player's
+    // POCKET, not the account — K spotted that in passing. The machine says the
+    // balance on its own screen now, so the readout goes rather than moving to
+    // `purse.account`: two places to state one number is how they disagree.
+    //
+    // BOTH MACHINES GET ONE. I added the left-hand ATM of the pair earlier and
+    // gave it no spot, so half the thing the user liked was scenery. A spot per
+    // machine, each on its own z, is what "on the ATM's own position" means.
+    const atmSpotAt = (zc: number): Spot => ({
+      x: -FACE, z: zc, r: 1.25,
       ok: () => true,
-      label: () => (performance.now() - readAt < 6000
-        ? `FIRST FEDERAL — balance $${o.purse.cash.toFixed(2)}`
-        : 'FIRST FEDERAL — check balance'),
-      act: () => { readAt = performance.now(); o.refreshWallet(); },
-    };
+      label: () => 'FIRST FEDERAL — use the machine',
+      act: () => openAtm(),
+    });
+    const atmSpot = atmSpotAt(atmZ);
     o.spot(atmSpot);
+    o.spot(atmSpotAt(atmZ2));
     const dep = depthOf('FIRST FEDERAL'), cx = -(FACE + dep / 2);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // THE HOLE NEEDS alphaTest, or `clearRect` buys nothing: an untested
