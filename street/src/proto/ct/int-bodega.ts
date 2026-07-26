@@ -267,6 +267,14 @@ export function buildBodega(ctx: CtxBuild): void {
     }), 'detail');
     const cap = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
     put(cap, gx, 0.95, GOND_Z + GOND_L / 2 + 0.012);
+    // AND THE FAR END. Capping only the door end left the same bare
+    // 0.62 x 1.95 steel face at the back of every run — the user's original
+    // complaint reproduced exactly, just seen from the cooler instead of from
+    // the door. A sweep for untextured boxes in my rooms is what turned these
+    // up; nothing about standing at the entrance would have.
+    const capFar = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
+    capFar.rotation.y = Math.PI;
+    put(capFar, gx, 0.95, GOND_Z - GOND_L / 2 - 0.012);
     for (const sx of [-1, 1]) {
       const st = stockT.clone();
       st.wrapS = st.wrapT = THREE.RepeatWrapping;
