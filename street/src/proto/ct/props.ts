@@ -3,7 +3,8 @@ import { pixTex, dither, declareSurface } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          paperTex, scrapTex } from './tex-world';
-import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse } from './tex-ground';
+import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse,
+         alley2Ground } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 import { weedTuft } from './weeds';
 import { BAY } from './bodega-corner';
@@ -2788,6 +2789,38 @@ export function buildProps(ctx: CtxBuild): Props {
 
   for (let i = mark; i < scene.children.length; i++) {
     scene.children[i].traverse((n) => { n.userData.mod = 'props'; });
+  }
+
+  // ── the pawn alley's ground ─────────────────────────────────────────────
+  //
+  // The slot is cut in ct/street.ts, which is D's, and D left the floor a flat
+  // placeholder saying in as many words that the ground is mine. The dressing
+  // is `alley2Ground` in ct/tex-ground.ts; the CALL is here because of when
+  // things build: tex-ground builds at crosstown.ts:66 before any building
+  // exists, ct/street.ts cuts the alley during buildWorld at 241, and this file
+  // builds at 243. Laying it from the ground module found no alley and silently
+  // laid nothing.
+  //
+  // THE RECTANGLE IS READ FROM D'S OWN WALLS, never copied. `alley2 = 'flank'`
+  // is stamped on both flanks and `'end'` on the back wall, so the slot reports
+  // its own extent and cannot drift out of sync with the module that cuts it.
+  // If those stamps ever go, this lays nothing rather than laying a floor
+  // somewhere wrong, and scripts/alley2.mjs says so out loud.
+  {
+    let fz0 = Infinity, fz1 = -Infinity, endX: number | null = null;
+    scene.traverse((o) => {
+      const tag = (o as THREE.Mesh).userData?.alley2;
+      if (!tag) return;
+      const p2 = new THREE.Vector3(); o.getWorldPosition(p2);
+      if (tag === 'flank') { fz0 = Math.min(fz0, p2.z); fz1 = Math.max(fz1, p2.z); }
+      if (tag === 'end') endX = p2.x;
+    });
+    if (isFinite(fz0) && isFinite(fz1) && endX !== null && fz1 > fz0) {
+      // 0.009, a few mm over D's 0.005 placeholder, so the two cannot z-fight
+      // while both exist. D removes theirs and this drops to the slab proper —
+      // asked for in notes/B-alley2-ground-for-D.md.
+      alley2Ground(scene, FACE, endX, fz0, fz1, 0.009, (t) => wet(flat(t)), wet);
+    }
   }
 
   return {

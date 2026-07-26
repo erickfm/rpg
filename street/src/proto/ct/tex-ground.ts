@@ -867,6 +867,175 @@ export function crossingStripes(scene: THREE.Scene, cx: number, z0: number, z1: 
   scene.add(m);
 }
 
+/** The PAWN ALLEY's floor — the slot between No. 227 and the pawn shop.
+ *
+ *  D laid a flat `#2e3034` plane there and said in the code why: *"the ground
+ *  is ct/tex-ground.ts, which is B's, and a placeholder tone here is honest
+ *  about that rather than pretending."* This replaces it, and my own words are
+ *  the brief: a flat colour is not a material, no grain for the eye to attach
+ *  to and no joints to give it scale.
+ *
+ *  IT MUST NOT READ LIKE THE FIRST ALLEY. That one is a service yard behind a
+ *  shop — even grain, scattered stains, no story about where anyone walks.
+ *  This is the back of a five-storey walk-up, so the floor carries traffic:
+ *  a polished strip down the middle where every tenant walks, and grime
+ *  building at the flanks where nothing ever scuffs it clean. That contrast is
+ *  the whole difference, and it is drawn in the texture rather than modelled,
+ *  because a 2.5 m slot is narrower than the 2 m walking lane and nothing on
+ *  this floor may trip.
+ *
+ *  Sized from real metres at 32 px/m like every other surface (GOTCHAS 5). */
+function alley2FloorTex(deep: number, wide: number): THREE.Texture {
+  const w = Math.max(16, Math.round(deep * WPM)), h = Math.max(16, Math.round(wide * WPM));
+  return declareSurface(pixTex(w, h, (g) => {
+    // DETERMINISTIC, never rnd(). One seeded stream feeds tree heights and
+    // pigeons and its ORDER is load-bearing (GOTCHAS 2) — a draw here would
+    // move every tree in the world.
+    let s = 0x6d2b79f5 >>> 0;
+    const nx = () => { s = Math.imul(s ^ (s >>> 15), 0x2c1b3c6d) >>> 0; return (s >>> 9) / 0x7fffff; };
+    g.fillStyle = '#33353a'; g.fillRect(0, 0, w, h);
+    // the worn crown: lighter and smoother down the middle third
+    const mid = h / 2, wear = h * 0.19;
+    for (let y = 0; y < h; y++) {
+      const t = Math.max(0, 1 - Math.abs(y - mid) / wear);
+      if (t <= 0) continue;
+      g.fillStyle = `rgba(126,128,132,${(0.05 + t * 0.20).toFixed(3)})`;
+      g.fillRect(0, y, w, 1);
+    }
+    // grime at both flanks, heavier than the first alley's even scatter
+    for (let y = 0; y < h; y++) {
+      const e = Math.max(0, 1 - (Math.min(y, h - 1 - y) / (h * 0.30)));
+      if (e <= 0) continue;
+      g.fillStyle = `rgba(22,21,19,${(e * 0.40).toFixed(3)})`;
+      g.fillRect(0, y, w, 1);
+    }
+    // JOINTS, which is what gives it scale: slabs across the alley every 1.2 m
+    g.fillStyle = 'rgba(18,18,20,0.55)';
+    const step = Math.round(1.2 * WPM);
+    for (let x = step; x < w - 1; x += step) g.fillRect(x, 0, 2, h);
+    g.fillRect(0, 0, w, 2); g.fillRect(0, h - 2, w, 2);   // against both flanks
+    // THE GUTTER CHANNEL, drawn not modelled. A real alley drains somewhere and
+    // the user has already said once "the gutter should have the water in the
+    // gutter". It runs the full length to the mouth, set 18% across the width
+    // against ONE flank rather than down the centre — the centre is the walking
+    // line, and a channel there would be both wrong and a thing to catch a heel
+    // on. Which flank is not a compass claim I have checked; it is whichever
+    // side the texture's v=0 edge lands on, and the gully below is placed from
+    // the SAME expression so the two cannot disagree.
+    const cz = Math.round(h * 0.18), cw = Math.max(3, Math.round(0.30 * WPM));
+    g.fillStyle = 'rgba(14,14,16,0.62)'; g.fillRect(0, cz, w, cw);
+    g.fillStyle = 'rgba(8,8,9,0.55)';    g.fillRect(0, cz + Math.floor(cw / 2) - 1, w, 2);
+    g.fillStyle = 'rgba(150,152,156,0.20)'; g.fillRect(0, cz - 1, w, 1);   // lit arris
+    // standing damp in the channel, and silt where it has dried at the edges
+    for (let i = 0; i < Math.round(deep * 0.7); i++) {
+      const px = nx() * w, len = (0.4 + nx() * 1.4) * WPM;
+      g.fillStyle = `rgba(6,7,9,${(0.10 + nx() * 0.18).toFixed(3)})`;
+      g.fillRect(px, cz, len, cw);
+    }
+    // grain per SQUARE METRE, the correction the facades and the first alley
+    // both took — a flat count leaves a big floor bald
+    dither(g, w, h, Math.round(deep * wide * 26));
+    // spills and stains, sized in metres, kept OFF the worn crown so the story
+    // the floor tells stays legible
+    for (let i = 0; i < 11; i++) {
+      const cx = nx() * w;
+      const edge = nx() < 0.5 ? h * (0.06 + nx() * 0.20) : h * (0.74 + nx() * 0.20);
+      g.fillStyle = `rgba(0,0,0,${(0.16 + nx() * 0.18).toFixed(3)})`;
+      g.beginPath();
+      g.ellipse(cx, edge, (0.25 + nx() * 0.55) * WPM, (0.14 + nx() * 0.3) * WPM,
+                nx() * Math.PI, 0, Math.PI * 2);
+      g.fill();
+    }
+  }), 'ground');
+}
+
+/** Lay the pawn alley's ground: floor, gutter channel, gully and two vents.
+ *  `deep`/`wide` come from the caller so no coordinate is remembered here. */
+export function alley2Ground(scene: THREE.Scene, x0: number, x1: number,
+                             z0: number, z1: number, y: number,
+                             dress: (t: THREE.Texture) => THREE.Material,
+                             /** `ctx.wet`, which is typed for MeshBasicMaterial — the same
+                              *  shape floorDrain already takes, narrowed to match the
+                              *  builder rather than casting at every call site */
+                             wetFn: (m: THREE.MeshBasicMaterial) => THREE.MeshBasicMaterial
+                               = (m) => m): void {
+  // ABUT, DO NOT COINCIDE. The flanks are zero-thickness planes standing at
+  // z -53.01 and -55.49 and the back wall at x 24.8; a slab laid EXACTLY wall
+  // to wall shares a coordinate with each of them, and whether that reads as
+  // "touching" or "overlapping" then comes down to the last bit of a float.
+  // footprint.mjs called it a clip — correctly, on the numbers it was given.
+  //
+  // 6 mm off each wall makes it unambiguous, and it is what a real slab does
+  // anyway: it stops short of the brick and the joint is the gap. Invisible at
+  // 32 px/m; the alternative was widening a tolerance in the check, which would
+  // have blunted it for everyone to spare me a millimetre.
+  const J = 0.006;
+  const deep = Math.abs(x1 - x0) - J, wide = Math.abs(z1 - z0) - J * 2;
+  const zN = Math.min(z0, z1) + J, zS = Math.max(z0, z1) - J;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(deep, wide),
+                           dress(alley2FloorTex(deep, wide)));
+  m.rotation.x = -Math.PI / 2;
+  m.position.set((x0 + x1) / 2 - J / 2, y, (z0 + z1) / 2);
+  m.userData.mod = 'tex-ground';
+  m.userData.groundProp = 'alley2 floor';
+  scene.add(m);
+  // The channel's line, matching the texture's 0.18 across the width.
+  const cz = zN + wide * 0.18;
+  // THE GULLY GOES AT THE MOUTH END, because that is where the fall takes the
+  // water — the channel runs the length TO the mouth. 1.6 m in, so it is in the
+  // alley rather than in the doorway you step through.
+  // floorDrain's wetFn is generic and stays that way: ct/street.ts calls it,
+  // and narrowing a signature under another module's caller is not mine to do.
+  // Everything it dresses really is a MeshBasicMaterial, so adapt here.
+  const wetAny = <T extends THREE.Material>(mm: T): T =>
+    wetFn(mm as unknown as THREE.MeshBasicMaterial) as unknown as T;
+  floorDrain(scene, x0 + 1.6, y, cz, 0.5, wetAny);
+  // Two vents, on the SOUTH side, opposite the channel. Opposite on purpose:
+  // a vent in a wet channel is a thing nobody builds, and keeping them apart
+  // means neither is ever read as the other.
+  ventGrille(scene, x0 + 5.4, y, zS - wide * 0.24, 0.75, 0.45, wetFn);
+  ventGrille(scene, x0 + 11.9, y, zS - wide * 0.24, 0.75, 0.45, wetFn);
+}
+
+/** A flush ground vent — the louvred kind set INTO a floor that you walk over
+ *  without noticing until you do. Deliberately not the drain: the drain is a
+ *  square casting with bars across a black void, this is a wider, shallower
+ *  frame with close blades and no hole behind them, so the two are told apart
+ *  at a glance (the user's standing alley rule).
+ *
+ *  FLUSH MEANS FLUSH. The frame stands 6 mm proud, the blades sit 4 mm below
+ *  it, and nothing here is tall enough to catch a foot — the alley is 2.5 m
+ *  wide against a 2 m walking lane, so anything that could trip is a fault. */
+export function ventGrille(scene: THREE.Scene, x: number, y: number, z: number,
+                           w = 0.75, d = 0.45,
+                           wetFn: (m: THREE.MeshBasicMaterial) => THREE.MeshBasicMaterial
+                             = (m) => m): THREE.Object3D[] {
+  const FR = 0.05, FR_H = 0.006, BL_H = 0.004;
+  const frameM = wetFn(new THREE.MeshBasicMaterial({ map: castTex() }));
+  const bladeM = wetFn(new THREE.MeshBasicMaterial({ map: barTex() }));
+  const backM = new THREE.MeshBasicMaterial({ color: 0x0d0e10 });
+  const made: THREE.Object3D[] = [];
+  const box = (bw: number, bh: number, bd: number, bx: number, by: number, bz: number,
+               m: THREE.Material, part: string) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, bd), m);
+    b.position.set(bx, by, bz);
+    b.userData.ventPart = part;
+    b.userData.groundProp = 'vent grille';
+    scene.add(b); made.push(b);
+  };
+  // a shallow back so the blades have something dark behind them rather than
+  // the floor showing through and killing the read
+  box(w, 0.01, d, x, y - 0.004, z, backM, 'back');
+  box(FR, FR_H, d + FR * 2, x - (w + FR) / 2, y + 0.003, z, frameM, 'frame');
+  box(FR, FR_H, d + FR * 2, x + (w + FR) / 2, y + 0.003, z, frameM, 'frame');
+  box(w, FR_H, FR, x, y + 0.003, z - (d + FR) / 2, frameM, 'frame');
+  box(w, FR_H, FR, x, y + 0.003, z + (d + FR) / 2, frameM, 'frame');
+  const NB = 9, pitch = d / NB;
+  for (let i = 0; i < NB; i++)
+    box(w, BL_H, pitch * 0.6, x, y + 0.001, z - d / 2 + pitch * (i + 0.5), bladeM, 'blade');
+  return made;
+}
+
 export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, size = 0.60,
                            /** Pass `ctx.wet` to have the casting darken with the ground it
                             *  sits in. Optional and identity by default, because this is
@@ -1303,6 +1472,12 @@ export function buildGround(o: GroundOpts): Ground {
   // over it (GOTCHAS 6). 20 cm off H's centreline, well inside the corridor
   // their walkers use.
   crossingStripes(scene, 53.8, -107.4, -98.6, 1.1, 0, (t) => wet(flat(t)));
+
+  // The pawn alley's ground is laid from ct/props.ts, NOT here. This module
+  // builds at crosstown.ts:66, before any building exists; the alley is cut by
+  // ct/street.ts during buildWorld at 241, and buildProps runs at 243. Laying
+  // it here found no alley at all and silently laid nothing — the guard doing
+  // its job for the wrong reason. `alley2Ground` is exported for that caller.
 
   for (let i = mark; i < scene.children.length; i++) {
     scene.children[i].traverse((n) => { n.userData.mod = 'tex-ground'; });
