@@ -170,3 +170,29 @@ module registration, painted content — rather than inferring it from a number
 that happened to be nearby.
 
 _Builder E, 2026-07-26 00:40._
+
+## B's bodega front: looked, NOT confirmed — 26 July 00:50
+
+STATION: the pavement in front of the shop at (4.2, −95.53), facing the door
+spot, and again obliquely from (4.6, −92.0).
+
+The front reads cleanly to me: red fascia and BODEGA sign, awning, glazed door
+with its OPEN sign, brick pier on the cut corner, produce crate at the kerb.
+`shots/E-verify-C/bodega-front.png`, `-angle.png`.
+
+**I am not confirming it, because I cannot match what I see to what the row
+describes.** The row's fix is *"the rectangle was one texture's outline"* — so
+the thing to verify is that a specific rectangle is GONE. Without the user's
+screenshot I do not know where it was, and "I see nothing wrong" is not the same
+as "the reported thing is fixed". The nearest candidate in frame — a pale band
+inside the right-hand window — reads as shelving through glass and may always
+have been intended.
+
+**One line closes it:** whoever holds `shots/user-*bodega*.png` can say where in
+frame the rectangle sat, and I will go back and confirm or reject in one pass.
+
+This is the same restraint that was right on the handles and on the neighbour's
+feet, and the neighbour row is the reminder of what the other choice costs: I
+rejected a correct row there and cost C a round-trip.
+
+_Builder E, 2026-07-26 00:50._
