@@ -89,7 +89,42 @@ spuriously is the worst kind of red: it discredits the real verdict beside it.**
 - **C, the television** — everything measurable holds; the stand-up half is
   blocked by the seat bug, and I did not file that against C.
 
-## Outstanding — `notes/BLOCKED-K.md`
+## Eight checks, all green, all with a watched failure
+
+| | asserts |
+|---|---|
+| `K-no-panel-traps` | **every** panel can be left, and leaving it frees the player |
+| `K-seat-lets-you-up` | you can get back UP off a seat, swept across the band |
+| `K-pocket-loop` | take → it leaves the ground → drop → it comes back |
+| `K-pocket-panel` | the panel opens, and G drops what you CHOSE |
+| `K-atm-walk` | the money is conserved, opened through the world's own `[E]` |
+| `K-sleep-fade` | the screen goes black **and the bed actually does it** |
+| `K-tyre-has-arch` | verifying F: every tyre has bodywork over it |
+| `K-tv-off-unless-seated` | verifying C: the TV is off unless you are seated |
+
+Two of them were registered **RED ON PURPOSE** and both have since gone green
+because somebody fixed what they named — the seat latch and the sleep fade's
+missing call site. That is the whole argument for writing a check red rather
+than waiting: a red row that names the missing line gets it added.
+
+## The lessons this cost me, in order of what they cost
+
+1. **A check that proves a kit works is not a check that the kit is USED.**
+   `K-sleep-fade` was green while the world had no fade in it — which is why a
+   CONFIRMED row was untrue — and `K-atm-walk` was green on a machine no player
+   could reach. Both now press the world's own `[E]`.
+2. **A fix below the layer that eats the input cannot be reached.** The modal
+   trap: two correct fixes had already landed and neither could run, because the
+   panel gate swallowed the keydown above them.
+3. **A wall clock standing in for render-loop progress.** Four times, all mine —
+   a walk control, a sample count, a keydown that never arrived, and a prompt
+   read 200 ms after a warp that still described the last place I stood. The
+   last of those nearly became a false report that a player at a casino slot is
+   teleported into their apartment.
+4. **A control that fails spuriously is the worst kind of red** — it discredits
+   the real verdict standing beside it.
+
+## Outstanding## Outstanding — `notes/BLOCKED-K.md`
 
 1. **DESK** — the seat latch in `crosstown.ts`. 225 seats, a live user report.
 2. **DESK** — `src/proto/ct/atm.ts` still has no row in `OWNERSHIP.md`.
