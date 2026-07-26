@@ -235,6 +235,18 @@ const CHECKS = [
   // somebody's source; it is the one kind of test that a REFACTOR breaks
   // silently and a bug never does." (D)
   ['mutations-quote-real-source', 'do the mutation cases still quote source that exists?', true],
+  // The sibling of hashes-resolve, one axis over: every `file.ts:123` pointer we
+  // write into a note or a comment still lands inside the file it names. Costs
+  // no browser and no build.
+  //
+  // Same refactor, same class, and again mine: splitting street.ts left a
+  // pointer at street.ts line 1602 in the auditor's CONFIRMED ledger row for a
+  // user ruling, 600 lines past the end of the file. (Written "line 1602" and
+  // not in citation form on purpose — this check reads its own registry, and a
+  // dead example in the comment would make it red forever.)
+  // GOTCHAS 36 killed dead COMMIT citations;
+  // this is the other pointer we write constantly and nothing was watching. (D)
+  ['citations-resolve', 'does every file:line citation land inside its file?',  true],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat

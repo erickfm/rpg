@@ -21,7 +21,7 @@ as four and is three.
 ## Corrected: two of the four are already done, not one
 
 **The shopfront rhythm is fixed and the code says so in the past tense.** The bay
-painter at `street.ts:~1188` reads: *"Every panel used to sit at its own depth
+painter at `ct/bodega-corner.ts:~221` reads: *"Every panel used to sit at its own depth
 and its own width, with three different kick-plate heights, so the bay read as
 several unrelated fronts jammed into a corner. Now there is one fascia line, one
 opening, one reveal depth, one cill and one stallriser running the full width."*
