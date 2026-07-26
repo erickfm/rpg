@@ -129,6 +129,11 @@ export interface Apartment {
   setGy: (v: number) => number;
   /** debug hook: force him in (true) / out (false) / back on schedule (null) */
   forceHermit: (v: boolean | null) => void;
+  /** debug hook: every door gets a package (true) / none (false) / roll (null) */
+  forcePackages: (v: boolean | null) => void;
+  /** every door and whether it is holding a package right now — for checks */
+  packages: () => { num: string; floor: number; present: boolean;
+                    x: number; z: number; side: number; doorZ: number; doorW: number }[];
 }
 
 // WHAT CAME OFF THIS INTERFACE, and why it is worth a note rather than a
@@ -254,6 +259,40 @@ export function buildApartment(ctx: CtxBuild): Apartment {
    *  four numbers happening to agree. Same shape as F's entry-spot descriptor:
    *  one declaration, none hand-typed. */
   const hingeSide = (num: string) => (num.endsWith('01') ? 1 : -1);
+  // ── EVERY DOOR IN THE BUILDING, DECLARED ONCE ────────────────────────────
+  // The building used to know its own door count in exactly one place — the
+  // loop that drew them — so anything else that wanted to reason about doors
+  // had to restate the arithmetic and hope. This is that knowledge, hoisted:
+  // eight flats, four landings, two per landing, and the two on floor 2 hung
+  // as real openings rather than drawn as panels.
+  //
+  // Same argument as F's entry-spot descriptors, which is the precedent the
+  // desk named: derive from the declaration and nothing hand-typed can drift
+  // out of step when a landing moves.
+  type WalkupDoor = {
+    num: string; floor: number;
+    x: number; z: number; ry: number; wallN: number;
+    hinge: number;      // +1 hinges toward +z, -1 toward -z
+    face: number;       // which way it opens into the hall: +1 is +x
+    hung: boolean;      // a real swinging opening (301, 302) rather than a panel
+  };
+  const DOORS: WalkupDoor[] = [];
+  for (let f = 0; f < 4; f++) {
+    for (const side of ['01', '02'] as const) {
+      const num = `${f + 1}${side}`;
+      const west = side === '01';
+      DOORS.push({
+        num, floor: f,
+        x: west ? AX(0.085) : AX(2.315),
+        z: AZI(3.5),
+        ry: west ? Math.PI / 2 : -Math.PI / 2,
+        wallN: west ? AX(0.005) : AX(2.395),
+        hinge: hingeSide(num),
+        face: west ? 1 : -1,
+        hung: f === 2,
+      });
+    }
+  }
   // 301 hangs on the +z jamb (hingeSide('301') = +1), so its leaf must span
   // TOWARD -z when shut. Local -x maps to (-cos t, 0, sin t), so -z wants
   // t = -pi/2, and the open pose mirrors with it — still swinging back into the
@@ -305,6 +344,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   let hermitX = HERMIT_X_IN;
   let hermitDwell = 0;
   let DOOR_PIV_X = 0, DOOR_PIV_Z = 0, DOOR_LEAF_W = 0.91;
+  // assigned where the packages are built, which is inside the same block that
+  // owns their meshes. Declared here so the returned object can close over them.
+  // raised by the floor picker on the one frame it can still see that the
+  // player was above the building; read and cleared by the respawn hook.
+  let lostAbove = false;
+  let pkgForceSet: (v: boolean | null) => void = () => {};
+  let pkgReport: () => { num: string; floor: number; present: boolean;
+                         x: number; z: number; side: number; doorZ: number; doorW: number }[] = () => [];
 
   // `doorClear` lived here: the swept-volume test that decided whether the
   // door was allowed to close. It is gone with the refusal it served — the
@@ -812,12 +859,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       casing(wallN, wz - DOOR_W / 2 - 0.015, wz + DOOR_W / 2 + 0.015,
         baseY, baseY + 2.1);
     };
-    for (let f = 0; f < 4; f++) {
-      if (f !== 2) {
-        doorPlane(`${f + 1}01`, AX(0.085), f * ST, AZI(3.5), Math.PI / 2, AX(0.005));
-        doorPlane(`${f + 1}02`, AX(2.315), f * ST, AZI(3.5), -Math.PI / 2, AX(2.395));
-      }
-    }
+    // Built from DOORS rather than from a second copy of the same arithmetic.
+    // The desk, on the packages that hang off this: *"the walk-up needs to know
+    // how many doors it has — if that is currently hardcoded per floor, derive
+    // it."* It was: this loop knew, and nothing else did.
+    for (const d of DOORS) if (!d.hung) doorPlane(d.num, d.x, d.floor * ST, d.z, d.ry, d.wallN);
     // ── 302, ajar ────────────────────────────────────────────────────────
     // It was a flat black quad hung on the wall face. Pure black behind a
     // hard edge reads as a hole cut in the wall, not as a dark room — and it
@@ -1827,6 +1873,120 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         ctx.clock.advance(mins);
       },
     });
+    // ── PACKAGES ON THE LANDINGS ─────────────────────────────────────────
+    // The user: *"every neighbor in the building has a small chance of getting
+    // a package · every night all packages go away · packages never go in
+    // front of a door, only to the sides · you have the option to steal one ·
+    // stealing gives you a random item."*
+    //
+    // Everything here derives from `DOORS`, which is why the walk-up now
+    // declares its doors instead of drawing them from a loop that was the only
+    // thing that knew. The side-of-door rule is a PLACEMENT CONSTRAINT, so it
+    // is arithmetic off the door's own frame rather than eight hand-typed
+    // spots: a package sits at the jamb plus half its own depth plus a
+    // margin, which cannot land on a threshold however the landings move.
+    //
+    // THE ROLL IS PER DOOR PER DAY and it is a hash, not a stored random.
+    // That is what makes "every night they go away" free: the day index is an
+    // input, so a new day IS a new set, and it works identically whether the
+    // player walked through midnight or slept through it. Nothing to clear.
+    const PKG_CHANCE = 0.10;                 // per door per day — see scripts/packages.mjs
+    const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
+    // margin from the jamb: half the parcel, plus enough that it reads as
+    // beside the door rather than against it
+    const PKG_OFF = DOOR_W / 2 + PKG_D / 2 + 0.09;
+    const pkgT = surfTex('detail', 24, 24, (g) => {
+      g.fillStyle = '#a98d63'; g.fillRect(0, 0, 24, 24);        // parcel paper
+      g.fillStyle = 'rgba(0,0,0,0.10)';
+      for (let i = 0; i < 26; i++) g.fillRect((i * 7) % 24, (i * 11) % 24, 2, 2);
+      g.fillStyle = '#6d5436'; g.fillRect(0, 10, 24, 3);        // string, one way
+      g.fillRect(10, 0, 3, 24);                                  // and the other
+      g.fillStyle = '#e6e2d6'; g.fillRect(14, 15, 8, 6);         // the label
+      g.fillStyle = '#3a352c';
+      for (let i = 0; i < 3; i++) g.fillRect(15, 16 + i * 2, 6 - i, 1);
+    });
+    const pkgM = texM(pkgT);
+    /** deterministic, and the day is an INPUT rather than state to reset */
+    const pkgRoll = (num: string, day: number, salt: number) => {
+      let h = (2166136261 ^ day ^ (salt * 374761393)) >>> 0;
+      for (let i = 0; i < num.length; i++) {
+        h ^= num.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return (h % 100000) / 100000;
+    };
+    const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
+    let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
+    const packages = DOORS.map((d) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(PKG_W, PKG_H, PKG_D), pkgM);
+      mesh.visible = false;
+      scene.add(mesh);
+      const cap = mkCap();
+      sevColliders.push(cap);
+      return { d, mesh, cap, side: 1, present: false };
+    });
+    /** where the parcel stands for a given door and side — never the threshold */
+    const pkgPos = (d: WalkupDoor, side: number): [number, number, number] =>
+      [d.x + d.face * (PKG_W / 2 + 0.03), d.floor * ST + PKG_H / 2, d.z + side * PKG_OFF];
+    for (const q of packages) {
+      const key = () => `${Math.floor(ctx.clock.now().totalMin / 1440)}:${q.d.num}`;
+      const [sx, , sz] = pkgPos(q.d, 1);
+      ctx.spot({
+        // registered at the door's centre-ish and moved with the parcel each
+        // frame would be nicer, but a spot's x/z are read once — so one spot
+        // per SIDE would be two prompts on one parcel. It sits at the parcel's
+        // own place and `ok()` answers for whichever side today's roll chose.
+        x: sx, z: sz, r: 0.95,
+        ok: () => q.present && q.side === 1
+          && Math.abs(lastGy - q.d.floor * ST) < 0.5,
+        label: () => `take the package at ${q.d.num}`,
+        act: () => {
+          pkgTaken.add(key());
+          // K's `ct/inventory.ts` publishes the random-item call; see
+          // notes/C-for-K.md. THE TAKE IS STUBBED until it lands — the parcel
+          // leaves the landing and the player gets no item yet.
+        },
+      });
+      const [ox, , oz] = pkgPos(q.d, -1);
+      ctx.spot({
+        x: ox, z: oz, r: 0.95,
+        ok: () => q.present && q.side === -1
+          && Math.abs(lastGy - q.d.floor * ST) < 0.5,
+        label: () => `take the package at ${q.d.num}`,
+        act: () => { pkgTaken.add(key()); },
+      });
+    }
+    ctx.onFrame(({ px, pz }) => {
+      const day = Math.floor(ctx.clock.now().totalMin / 1440);
+      for (const q of packages) {
+        const k = `${day}:${q.d.num}`;
+        q.side = pkgRoll(q.d.num, day, 7) < 0.5 ? 1 : -1;
+        q.present = !pkgTaken.has(k)
+          && (pkgForce === -1 ? pkgRoll(q.d.num, day, 1) < PKG_CHANCE : pkgForce === 1);
+        const [x, y, z] = pkgPos(q.d, q.side);
+        q.mesh.position.set(x, y, z);
+        q.mesh.visible = q.present;
+        // Withheld if you are already standing in it, for the same reason the
+        // hermit's is: a collider that appears around the player shoves them.
+        const inIt = Math.abs(px - x) < 0.4 && Math.abs(pz - z) < 0.45;
+        setCap(q.cap, q.present && !inIt && Math.abs(lastGy - q.d.floor * ST) < 0.5,
+          x - PKG_W / 2, x + PKG_W / 2, z - PKG_D / 2, z + PKG_D / 2);
+      }
+    });
+    pkgForceSet = (v) => { pkgForce = v === null ? -1 : v ? 1 : 0; };
+    // AND published on the scene, because `__ct` is assembled in crosstown.ts
+    // and that file is not mine — my mandate there was two named fields. This
+    // is the same route props.ts already uses for `registerWet`, so a harness
+    // can drive the packages today without waiting on the desk to wire a hook.
+    scene.userData.packages = {
+      force: (v: boolean | null) => { pkgForce = v === null ? -1 : v ? 1 : 0; },
+      list: () => pkgReport(),
+    };
+    pkgReport = () => packages.map((q) => ({
+      num: q.d.num, floor: q.d.floor, present: q.present,
+      x: q.mesh.position.x, z: q.mesh.position.z, side: q.side,
+      doorZ: q.d.z, doorW: DOOR_W,
+    }));
     // dresser on the north wall, middle drawer permanently out
     const dresserT = surfTex('detail', 28, 32, (g) => {
       g.fillStyle = '#4a3626'; g.fillRect(0, 0, 28, 32);
@@ -2181,6 +2341,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   // multi-floor ground: pick the floor candidate nearest the last height —
   // that one closure is what makes stacked floors work with a 2D walker
   const aptGround = (wx: number, wz: number): number => {
+    // THE ROOF BUG LIVES HERE, and this is the only place that can see it.
+    // `consider()` below refuses to step UP more than 0.6 m and puts no limit
+    // at all on stepping DOWN, so a player 5 m above the building is silently
+    // caught by the top landing — the nearest candidate — and set down on it.
+    // That is the "respawn puts you on the roof" report: nothing respawned,
+    // the picker rescued them onto floor 3 and the lost-test downstream never
+    // saw a bad height because by then there was not one.
+    //
+    // The flag is raised on the PRE-SNAP value, which exists for exactly one
+    // statement, and the respawn hook reads it. Fixing it in the hook instead
+    // is impossible: the hook is handed `gy` after this function has already
+    // laundered it.
+    if (lastGy > 3 * ST + 1.0) lostAbove = true;
     const lx = wx - APT_X, lz = wz - APT_Z;
     let rel = 0;
     if (lx >= 0 && lz > STAIR_Z0) {
@@ -2284,12 +2457,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   let lostFor = 0;
   ctx.onFrame((f) => {
     if (f.px <= 100) { lostFor = 0; return; }        // not in the walk-up at all
+    // `lostAbove` fires IMMEDIATELY rather than through the 0.1 s debounce.
+    // The debounce is there because one odd sample during a teleport is not a
+    // lost player; but being above the top landing is not a sample that can be
+    // odd, and the flag only survives a single frame anyway because the picker
+    // corrects itself on the next one.
+    const above = lostAbove;
+    lostAbove = false;
     const lost = f.gy < FLOOR_LO || f.gy > FLOOR_HI;
     // a tenth of a second of it, not one frame — a single bad sample during a
     // teleport is not the player being lost, and bouncing them for it would be
     // its own bug
     lostFor = lost ? lostFor + f.dt : 0;
-    if (lostFor > 0.1) {
+    if (above || lostFor > 0.1) {
       lostFor = 0;
       ctx.player.jumpTo(SPAWN.x, SPAWN.z, SPAWN.yaw, SPAWN.gy);
     }
@@ -2474,5 +2654,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     gy: () => lastGy,
     setGy: (v) => (lastGy = v),
     forceHermit: (v) => { hermitForce = v === null ? -1 : v ? 1 : 0; },
+    forcePackages: (v) => pkgForceSet(v),
+    packages: () => pkgReport(),
   };
 }
