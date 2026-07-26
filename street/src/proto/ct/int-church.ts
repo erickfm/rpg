@@ -73,7 +73,12 @@ export function buildChurch(ctx: CtxBuild) {
     // 13.0 x 20.0. The nave is wide enough for its pews to be pews and long
     // enough that the altar is a walk away, and the narthex sequence the user
     // likes — low compressed lobby, then the arch — is untouched by either.
-    w: 13.0, d: 20.0, h: 9.5,
+    // 24 m deep, not 20. The user: "if the rear needs another two metres of
+    // clear floor to hold the confessionals properly, take it rather than
+    // deleting a fourth pew." Four metres, so the nave keeps its length AND the
+    // back of the church gets the empty floor a church actually has behind the
+    // last pew — which is also what the narthex sequence he likes is made of.
+    w: 13.0, d: 24.0, h: 9.5,
     // Cold stone, not shop plaster. The floor is the flagstone the forecourt
     // uses so the threshold reads as continuous; the walls go pale and chalky
     // and the ceiling is nearly white, because height you cannot see the top of
@@ -140,6 +145,10 @@ export function buildChurch(ctx: CtxBuild) {
   // whole point of a nave, and the one place in this world where a WIDE gap is
   // correct rather than lazy.
   const woodM = new THREE.MeshBasicMaterial({ color: 0x5a4632 });
+  // The confessionals' footprint, declared ONCE and read by the pew loop below
+  // as well as by the booth itself — three separate clipping reports in this
+  // corner say the two were being placed independently.
+  const CONF_D = 2.70, CONF_Z = hd - 2.6 - 1.9;
   const AISLE = 1.6, PEW_W = (room.W - AISLE) / 2 - 0.55;
   const PEW_CX = AISLE / 2 + PEW_W / 2;
   // ENOUGH ROWS TO FILL THE NAVE. Nine was right for a 16 m church; at 20 m it
@@ -147,7 +156,22 @@ export function buildChurch(ctx: CtxBuild) {
   // pew, because the rows are laid from the ALTAR end and all the new length
   // arrived at the other one. Derived so the nave stays full whatever the room
   // becomes: rows from -hd + 3.2 up to 3.6 short of the narthex face.
-  const PEW_ROWS = Math.max(6, Math.floor(((hd - 3.6) - (-hd + 3.2)) / 1.05) + 1);
+  // THE REAR PEWS STOP CLEAR OF THE CONFESSIONALS, which is the user's own
+  // remedy: "pews in the church clip into the confession booths, lets get rid of
+  // some of the rear pews". Filling the nave to the rear wall is what caused the
+  // collision — the row count was derived to fill, and it filled straight into
+  // the furniture standing there.
+  //
+  // Derived from the confessional's own front face rather than a row count I
+  // pick, so moving the booth moves the last pew with it. 1.2 m of clearance,
+  // which is enough to stand and open a door.
+  // MINUS, not plus. The pews march from the altar end toward the door, so the
+  // limit is the confessional's NEAR face — CONF_Z - CONF_D/2 — less clearance.
+  // I wrote `+` first and the footprint check caught it: it put the limit 3.9 m
+  // BEHIND the booth and left three pew rows still inside it. Eleventh sign
+  // error of the session and the first one a check found before the user did.
+  const REAR_CLEAR = CONF_Z - CONF_D / 2 - 1.2;
+  const PEW_ROWS = Math.max(6, Math.floor((REAR_CLEAR - (-hd + 3.2)) / 1.05) + 1);
   for (let i = 0; i < PEW_ROWS; i++) {
     const pz = -hd + 3.2 + i * 1.05;
     for (const side of [-1, 1]) {
@@ -487,7 +511,10 @@ export function buildChurch(ctx: CtxBuild) {
   // of them burnt down, in front of a small painted statue on a bracket. It is
   // the one warm thing in the room, which is what makes the rest read as cold.
   {
-    const CX = -hw + 0.95, CZ = hd - 2.6;
+    // Clear of the narthex pier, which stands at z = hd - NAR_D. The stand was
+    // ON that line — the footprint check's last overlapping pair, and the fourth
+    // thing I have found buried in a pier I added after it.
+    const CX = -hw + 0.95, CZ = hd - 2.6 - 1.5;
     const ironM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
     const waxM = new THREE.MeshBasicMaterial({ color: 0xe8dfc4 });
     const flameM = new THREE.MeshBasicMaterial({
@@ -537,10 +564,10 @@ export function buildChurch(ctx: CtxBuild) {
     // box x 3.01..3.99 z 3.75..6.45 against a pier at z 5.40. Moved into the
     // nave behind the pier, and it stands 0.26 m off the side wall, which is
     // what "proud, as furniture" means.
-    const FX = hw - 0.75, FZ = hd - 2.6 - 1.9;
+    const FX = hw - 0.75, FZ = CONF_Z;
     const oakM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
     const oakDM = new THREE.MeshBasicMaterial({ color: 0x372a1c });
-    const BOXW = 0.98, BOXH = 2.42, BOXD = 2.70;
+    const BOXW = 0.98, BOXH = 2.42, BOXD = CONF_D;
     put(new THREE.Mesh(new THREE.BoxGeometry(BOXW, BOXH, BOXD), oakM), FX, BOXH / 2, FZ);
     // the cornice, which is what stops it reading as a wardrobe
     put(new THREE.Mesh(new THREE.BoxGeometry(BOXW + 0.14, 0.12, BOXD + 0.14), oakDM),
