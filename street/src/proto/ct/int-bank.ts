@@ -186,6 +186,25 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const oakDarkM = new THREE.MeshBasicMaterial({ color: OAK_DARK });
   const paperM = new THREE.MeshBasicMaterial({ color: 0xe6e2d4 });
 
+  /**
+   * "THIS FACE IS MEANT TO BE LOOKED AT."
+   *
+   * The queue's rule is blunt — *"a flat colour is not a material"* — and I broke
+   * it twice in this room before measuring: the loan desk's client side was a
+   * 1.9 x 0.74 m plate of one brown, and the back of the vault door was 3.69 m2
+   * of one grey on the room's headline object.
+   *
+   * A blanket "nothing untextured over N m2" check cannot work here, because most
+   * of the big flat faces in any room are the UNDERSIDES and BACKS of boxes and a
+   * probe cannot tell those from the ones you stand in front of. So the room says
+   * which is which, and `M-bank-int-walk.mjs` asserts that every face declared
+   * here carries paint — a positive claim, with a population floor, which is what
+   * GOTCHAS 34 asks for over an absence that is free on an empty set.
+   */
+  const skin = <T extends THREE.Object3D>(m: T, what: string): T => {
+    m.userData.bankSkin = what;
+    return m;
+  };
   /** a box at a local position — the shorthand every room in here ends up with */
   const bx = (w: number, h: number, d: number, m: THREE.Material,
               x: number, y: number, z: number) =>
@@ -307,7 +326,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
   terrazzoT.repeat.set(Math.round(room.W / BAY_M), Math.round(room.D / BAY_M));
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(terrazzoT));
   floor.rotation.x = -Math.PI / 2;
-  put(floor, 0, 0.012, 0);
+  skin(put(floor, 0, 0.012, 0), 'terrazzo floor');
 
   // an inlaid dark-stone mat inside the doors, which is where the grit lands
   const matT = declareSurface(pixTex(32, 24, (g) => {
@@ -341,7 +360,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
   ceilT.repeat.set(Math.round(room.W / 1.2), Math.round(room.D / 1.2));
   const ceil = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(ceilT));
   ceil.rotation.x = Math.PI / 2;
-  put(ceil, 0, room.H - 0.02, 0);
+  skin(put(ceil, 0, room.H - 0.02, 0), 'acoustic ceiling');
 
   // ── two more rows of troffers, matching the kit's ─────────────────────────
   //
@@ -427,13 +446,15 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const concreteM = ctx.flat(concreteT);
 
   // the east wall, full height of the strongroom
-  bx(V_T, V_H, V_Z1 - (-hd), concreteM, V_X1 - V_T / 2, V_H / 2, (V_Z1 + -hd) / 2);
+  skin(bx(V_T, V_H, V_Z1 - (-hd), concreteM, V_X1 - V_T / 2, V_H / 2, (V_Z1 + -hd) / 2),
+    'vault east wall');
   solid(V_X1 - V_T / 2, (V_Z1 + -hd) / 2, V_T, V_Z1 - (-hd));
   // the front wall, in two pieces either side of the throat, plus a header
   {
     const wSeg = (x0: number, x1: number) => {
       if (x1 - x0 <= 0.001) return;
-      bx(x1 - x0, V_H, V_T, concreteM, (x0 + x1) / 2, V_H / 2, V_Z1 - V_T / 2);
+      skin(bx(x1 - x0, V_H, V_T, concreteM, (x0 + x1) / 2, V_H / 2, V_Z1 - V_T / 2),
+        'vault front wall');
       solid((x0 + x1) / 2, V_Z1 - V_T / 2, x1 - x0, V_T);
     };
     wSeg(-hw, THROAT_X0);
@@ -444,8 +465,8 @@ export function buildBankInterior(ctx: CtxBuild): void {
       THROAT_CX, THROAT_H + (V_H - THROAT_H) / 2, V_Z1 - V_T / 2);
   }
   // the roof slab, which is what makes it read as a box in a taller room
-  bx(hw + V_X1, 0.18, V_Z1 - (-hd), concreteM,
-    (-hw + V_X1) / 2, V_H + 0.09, (V_Z1 + -hd) / 2);
+  skin(bx(hw + V_X1, 0.18, V_Z1 - (-hd), concreteM,
+    (-hw + V_X1) / 2, V_H + 0.09, (V_Z1 + -hd) / 2), 'vault roof');
 
   // ── the throat: a steel architrave, and a sill you step over ───────────────
   //
@@ -459,14 +480,32 @@ export function buildBankInterior(ctx: CtxBuild): void {
   // this block had the jambs straddling the wall's own arris and the head
   // straddling the jambs — three coincident face pairs, all of them front-facing,
   // all of them in the one opening the room is built around.
+  // BRUSHED, not one tone. The architrave lines the reveal of the room's headline
+  // object, so a jamb's inner face is 1.03 m2 of polished steel a player stands a
+  // metre from — measured, and it was the second-largest flat colour in the room.
+  // A brushed grain is the honest texture for it: real polished stone-cut steel
+  // has a directional finish, and at 0.3 m of section a grain is all it can carry
+  // (GOTCHAS 4 forbids dither on anything this thin).
+  const archT = declareSurface(pixTex(24, 64, (g) => {
+    g.fillStyle = '#a8acb0'; g.fillRect(0, 0, 24, 64);
+    for (let i = 0; i < 40; i++) {                        // the drawn direction
+      const y = (i * 13) % 64;
+      g.fillStyle = i % 3 ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
+      g.fillRect(0, y, 24, 1);
+    }
+    g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 2, 64);   // the lit arris
+    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(22, 0, 2, 64);
+  }), 'detail');
+  const archM = ctx.flat(archT);
   const ARCH_T = 0.12;                                   // architrave section
   const ARCH_D = V_T + 0.20;                             // wraps 0.10 proud each side
   const IN_X0 = THROAT_X0 + ARCH_T, IN_X1 = THROAT_X1 - ARCH_T;   // clear 1.26 m
   const IN_TOP = THROAT_H - ARCH_T;                      // clear 2.03 m
   for (const jx of [THROAT_X0 + ARCH_T / 2, THROAT_X1 - ARCH_T / 2]) {
-    bx(ARCH_T, THROAT_H, ARCH_D, steelM, jx, THROAT_H / 2, V_Z1 - V_T / 2);
+    skin(bx(ARCH_T, THROAT_H, ARCH_D, archM, jx, THROAT_H / 2, V_Z1 - V_T / 2), 'vault jamb');
   }
-  bx(IN_X1 - IN_X0, ARCH_T, ARCH_D, steelM, THROAT_CX, IN_TOP + ARCH_T / 2, V_Z1 - V_T / 2);
+  skin(bx(IN_X1 - IN_X0, ARCH_T, ARCH_D, archM, THROAT_CX, IN_TOP + ARCH_T / 2,
+    V_Z1 - V_T / 2), 'vault head');
   // the sill. A vault has one, it is the thing you step over, and it is what
   // tells you from across the lobby that the floor continues in there.
   bx(IN_X1 - IN_X0, 0.06, ARCH_D - 0.04, steelDarkM, THROAT_CX, 0.03, V_Z1 - V_T / 2);
@@ -574,14 +613,59 @@ export function buildBankInterior(ctx: CtxBuild): void {
     }
     dither(g, 24, 96, 30);
   }), 'detail');
+  // ── THE BACK OF THE DOOR, which is 3.69 m2 and I had left as one grey ────
+  //
+  // Measured: the largest untextured surface a player can actually see in this
+  // room, and it is on the room's headline object. A door standing open at 100
+  // degrees shows its INNER face across the lobby, so "the back" is not the
+  // hidden side — it is half of what you look at.
+  //
+  // What is on the inside of a vault door: the bolt-work carrier plate, the
+  // spindle boss the dial turns through, an emergency release handle, and the
+  // ventilator somebody bolted on after the 1961 date on the front. No dial and
+  // no spoke wheel — those are on the outside, and putting them on both faces is
+  // the mistake that makes a thing read as a sticker.
+  const vaultBackT = declareSurface(pixTex(80, 104, (g) => {
+    g.fillStyle = '#6e7276'; g.fillRect(0, 0, 80, 104);
+    g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 0, 80, 2);
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 102, 80, 2);
+    // the carrier plate, bolted on, with the bolt-work bars running off it
+    g.fillStyle = '#5e6266'; g.fillRect(14, 22, 52, 60);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(14, 22, 52, 1);
+    g.fillStyle = 'rgba(0,0,0,0.24)'; g.fillRect(14, 81, 52, 1);
+    g.fillStyle = '#7e8286';
+    for (let i = 0; i < 5; i++) g.fillRect(2, 14 + i * 19, 14, 7);      // to the bolts
+    g.fillStyle = 'rgba(0,0,0,0.26)';
+    for (let i = 0; i < 5; i++) g.fillRect(2, 20 + i * 19, 14, 1);
+    // the plate's own fixings
+    g.fillStyle = '#4a4e52';
+    for (const [bx2, by] of [[18, 26], [62, 26], [18, 78], [62, 78]]) {
+      g.beginPath(); g.arc(bx2, by, 2, 0, Math.PI * 2); g.fill();
+    }
+    // the spindle boss the dial turns through, dead centre of the plate
+    g.fillStyle = '#8a8f93'; g.beginPath(); g.arc(40, 44, 9, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#3a3e42'; g.beginPath(); g.arc(40, 44, 4, 0, Math.PI * 2); g.fill();
+    // the emergency release: a stubby lever, and it is the one warm thing here
+    g.fillStyle = '#8a6a2e'; g.fillRect(34, 60, 12, 4);
+    g.fillStyle = '#a8853c'; g.fillRect(34, 60, 12, 1);
+    g.fillStyle = '#3a3e42'; g.fillRect(44, 58, 4, 8);
+    // the ventilator, bolted on later and not square to anything
+    g.save(); g.translate(60, 92); g.rotate(0.06);
+    g.fillStyle = '#5e6266'; g.fillRect(-10, -7, 20, 14);
+    g.fillStyle = '#2a2e32';
+    for (let i = 0; i < 4; i++) g.fillRect(-7, -4 + i * 3, 14, 2);
+    g.restore();
+    dither(g, 80, 104, 40);
+  }), 'detail');
   const vFaceM = ctx.flat(vaultFaceT);
   const vEdgeM = ctx.flat(vaultEdgeT);
-  const vBackM = new THREE.MeshBasicMaterial({ color: 0x6e7276 });
+  const vBackM = ctx.flat(vaultBackT);
   const vaultDoor = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W, DOOR_H2, DOOR_TH),
     // [+x, -x, +y, -y, +z, -z] — the FACE is on -z, which `rotation.y = π + θ`
     // turns to point across the lobby. See the derivation above.
     [vEdgeM, vEdgeM, vEdgeM, vEdgeM, vBackM, vFaceM]);
   vaultDoor.rotation.y = Math.PI + THETA;
+  skin(vaultDoor, 'vault door');
   put(vaultDoor,
     HINGE_X - (DOOR_W / 2) * Math.cos(THETA), DOOR_H2 / 2,
     HINGE_Z + (DOOR_W / 2) * Math.sin(THETA));
@@ -628,7 +712,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const m = along === 'x'
       ? [concreteM, concreteM, concreteM, concreteM, sdbM, sdbM]
       : [sdbM, sdbM, concreteM, concreteM, concreteM, concreteM];
-    put(new THREE.Mesh(geo, m), lx, 1.02, lz);
+    skin(put(new THREE.Mesh(geo, m), lx, 1.02, lz), 'safe-deposit boxes');
     if (along === 'x') solid(lx, lz, len, 0.16); else solid(lx, lz, 0.16, len);
   };
   sdbNest(-hw + 0.08, (-hd + V_IN_Z1) / 2, V_IN_Z1 - (-hd) - 0.2, 'z');      // west wall
@@ -763,8 +847,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const front = panelMat(CTR_W), top = topMat(CTR_W);
     // the body, then a stone top with a lip standing proud of the panelling —
     // the lip is what you rest your elbows and your cheque book on
-    put(new THREE.Mesh(new THREE.BoxGeometry(CTR_W, CTR_H - 0.06, CTR_D),
-      [front, front, top, front, front, front]), CTR_CX, (CTR_H - 0.06) / 2, CTR_Z);
+    skin(put(new THREE.Mesh(new THREE.BoxGeometry(CTR_W, CTR_H - 0.06, CTR_D),
+      [front, front, top, front, front, front]), CTR_CX, (CTR_H - 0.06) / 2, CTR_Z),
+      'teller counter');
     put(new THREE.Mesh(new THREE.BoxGeometry(CTR_W, 0.06, CTR_D + 0.10),
       [top, top, top, top, top, top]), CTR_CX, CTR_H - 0.03, CTR_Z + 0.05);
     // a bronze foot rail along the customer side, at the height they always are
@@ -875,8 +960,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
   {
     const BB_W = CTR_W - 0.4;
     const bbFront = panelMat(BB_W), bbTop = topMat(BB_W);
-    put(new THREE.Mesh(new THREE.BoxGeometry(BB_W, BB_H, BB_D),
-      [bbFront, bbFront, bbTop, bbFront, bbFront, bbFront]), CTR_CX, BB_H / 2, BB_Z);
+    skin(put(new THREE.Mesh(new THREE.BoxGeometry(BB_W, BB_H, BB_D),
+      [bbFront, bbFront, bbTop, bbFront, bbFront, bbFront]), CTR_CX, BB_H / 2, BB_Z),
+      'back bench');
     // the drawer bank, its fronts standing 1 cm PROUD of the carcass. Buried
     // 1 cm behind it they would be invisible, which is the fault that has now
     // cost this project a confessional, a font and a LOANS sign.
@@ -936,7 +1022,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // lobby. Two objects that never touch and still read as one mess.
     const NAME_H = 0.62, NAME_Y = 3.05;             // spans 2.74…3.36, clear of 2.705
     const name = new THREE.Mesh(new THREE.PlaneGeometry(3.9, NAME_H), ctx.flat(nameT));
-    put(name, CTR_CX, NAME_Y, -hd + 0.06);
+    skin(put(name, CTR_CX, NAME_Y, -hd + 0.06), 'FIRST FEDERAL sign');
     bx(4.02, NAME_H + 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0x24282c }),
       CTR_CX, NAME_Y, -hd + 0.03);
   }
@@ -1052,9 +1138,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // which is the biggest surface in the room a player is ever within arm's
     // reach of, and the queue's rule is blunt about it: *"a flat colour is not a
     // material"*.
-    put(new THREE.Mesh(new THREE.BoxGeometry(DESK_W, DESK_H, DESK_D),
+    skin(put(new THREE.Mesh(new THREE.BoxGeometry(DESK_W, DESK_H, DESK_D),
       [veneerM, veneerM, veneerM, deskSideM, veneerM, veneerM]),
-      DESK_X, DESK_H / 2, DESK_Z);
+      DESK_X, DESK_H / 2, DESK_Z), 'loan desk');
     // THE MODESTY PANEL STANDS PROUD, which is the whole point of it. I first put
     // it at `DESK_D / 2 - 0.03` — three centimetres INSIDE a solid box, so it was
     // building an object inside another object and could never be seen. That is
@@ -1504,8 +1590,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const ISL_X = -2.4, ISL_Z = 1.20, ISL_W = 1.70, ISL_D = 0.80, ISL_H = 1.06;
     {
       const front = panelMat(ISL_W), top = topMat(ISL_W);
-      put(new THREE.Mesh(new THREE.BoxGeometry(ISL_W, ISL_H - 0.05, ISL_D),
-        [front, front, top, front, front, front]), ISL_X, (ISL_H - 0.05) / 2, ISL_Z);
+      skin(put(new THREE.Mesh(new THREE.BoxGeometry(ISL_W, ISL_H - 0.05, ISL_D),
+        [front, front, top, front, front, front]), ISL_X, (ISL_H - 0.05) / 2, ISL_Z),
+        'writing island');
       put(new THREE.Mesh(new THREE.BoxGeometry(ISL_W + 0.08, 0.05, ISL_D + 0.08),
         [top, top, top, top, top, top]), ISL_X, ISL_H - 0.025, ISL_Z);
       // the slip holders: two raked trays, one each side, with the slips in them
@@ -1657,7 +1744,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
       }), 'sign');
       const board = new THREE.Mesh(new THREE.PlaneGeometry(2.10, 1.30), ctx.flat(boardT));
       board.rotation.y = -Math.PI / 2;                       // faces -x, into the room
-      put(board, hw - 0.07, 2.02, WAIT_Z[1]);
+      skin(put(board, hw - 0.07, 2.02, WAIT_Z[1]), 'rate board');
       bx(0.05, 1.42, 2.22, new THREE.MeshBasicMaterial({ color: 0x14171a }),
         hw - 0.035, 2.02, WAIT_Z[1]);                        // the frame, BEHIND the face
     }
@@ -1684,9 +1771,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
         dither(g, 56, 64, 26);
       }), 'detail');
       const brochM = ctx.flat(brochT);
-      put(new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.42, 0.30),
+      skin(put(new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.42, 0.30),
         [oakDarkM, oakDarkM, oakDarkM, oakDarkM, oakDarkM, brochM]),
-        RACK_X, 0.71, RACK_Z);
+        RACK_X, 0.71, RACK_Z), 'brochure rack');
       solid(RACK_X, (RACK_Z - 0.15 + hd) / 2, 1.1, hd - (RACK_Z - 0.15));
 
       // TWO PLANTS FLANKING THE DOORS. One texture, one plane, so the foliage

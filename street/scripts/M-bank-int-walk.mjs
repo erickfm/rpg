@@ -153,8 +153,24 @@ if (SELFTEST) {
   await p.evaluate(([x, z]) => {
     window.__ct.colliders().push({ minX: x - 0.9, maxX: x + 0.9, minZ: z - 0.5, maxZ: z + 0.5 });
   }, [R.cx - 5.40, R.cz - 3.0]);
-  console.log(`selftest: removed ${n} counter collider(s) and walled the vault throat `
-    + '— the containment and walk-in claims MUST now go red\n');
+  // C. A BLIND MUTATION, which is a different animal from A and B: it leaves the
+  //    WORLD untouched and breaks the CHECK'S VIEW of it. Stripping half the
+  //    `bankSkin` declarations does not change a pixel — it makes the paint
+  //    verdict pass over a smaller population, which is exactly the failure
+  //    GOTCHAS 34 says no world-breaking mutation can reach. The population floor
+  //    is what must catch it.
+  const stripped = await p.evaluate(([cx, cz]) => {
+    const hits = [];
+    window.__ct.scene().traverse((o) => {
+      if (o.isMesh && o.userData.bankSkin
+        && Math.abs(o.position.x - cx) < 40 && Math.abs(o.position.z - cz) < 40) hits.push(o);
+    });
+    hits.slice(0, Math.ceil(hits.length / 2)).forEach((o) => { delete o.userData.bankSkin; });
+    return hits.length;
+  }, [R.cx, R.cz]);
+  console.log(`selftest: removed ${n} counter collider(s), walled the vault throat, and `
+    + `stripped half of ${stripped} skin declarations — the containment, walk-in and `
+    + 'population claims MUST now go red\n');
   if (n === 0) {
     console.error('selftest ABORT: found no counter collider to remove, so mutation A '
       + 'did nothing and a green below would prove nothing');
@@ -503,6 +519,49 @@ await p.waitForTimeout(160);
   say(t !== null, 'the loan desk answers at 3 a.m. rather than going silent',
     `prompt: ${JSON.stringify(t)}`);
   await p.evaluate(() => window.__ct.clock(14, 20));
+}
+
+// ── 7. EVERY DECLARED FACE CARRIES PAINT ───────────────────────────────────
+//
+// The queue's rule, held permanently: *"a flat colour is not a material — any
+// big blank surface takes A's slabTex, which keeps your colour"*. I broke it
+// twice in this room before measuring — the loan desk's client side was a
+// 1.9 x 0.74 m plate of one brown, and the back of the vault door was 3.69 m2 of
+// one grey on the room's headline object.
+//
+// A blanket "nothing untextured over N m2" cannot be the check: most of the big
+// flat faces in any room are the UNDERSIDES and BACKS of boxes, and a probe
+// cannot tell those from the ones you stand in front of. So the ROOM declares
+// which faces are meant to be looked at (`userData.bankSkin`) and this asserts
+// each one carries a map — a POSITIVE claim, which fails on an empty world where
+// an absence would pass for free, plus a population floor for the same reason
+// (GOTCHAS 34).
+//
+// THE FLOOR IS MEASURED, NOT REMEMBERED. It is 14 today. I wrote 16 from memory
+// first and it went red on a sound room, which is the exact mistake GOTCHAS 34
+// closes with — "I wrote pits: 10 from memory and my new guard failed the
+// unmutated street on its first run".
+{
+  const faces = await p.evaluate(([cx, cz, hw2, hd2]) => {
+    const out = [];
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh || !o.userData.bankSkin) return;
+      if (Math.abs(o.position.x - cx) > hw2 + 1 || Math.abs(o.position.z - cz) > hd2 + 1) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      out.push({ what: o.userData.bankSkin, painted: mats.some((m) => m && m.map) });
+    });
+    return out;
+  }, [R.cx, R.cz, hw, hd]);
+  // 18, MEASURED: the room declares 20 today, so this leaves two of slack for
+  // ordinary edits and still catches a real loss of declarations. Calibrated
+  // against the failure and not merely set below the current count — GOTCHAS 34's
+  // closing lesson, which I have now been caught by once in this file already.
+  const FLOOR = 18;
+  say(faces.length >= FLOOR, 'the room declares its looked-at faces',
+    `${faces.length} declared, floor is ${FLOOR} — under it, the verdict below is free`);
+  const bare = faces.filter((f) => !f.painted).map((f) => f.what);
+  say(bare.length === 0, 'and every one of them carries paint rather than a flat colour',
+    bare.length ? `BARE: ${[...new Set(bare)].join(', ')}` : `all ${faces.length} painted`);
 }
 
 // ── 6. and nothing threw or warned while doing any of that ───────────────
