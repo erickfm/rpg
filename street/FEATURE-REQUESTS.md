@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"pressing e doesnt get me out of it — the player is STUCK in the TV-watching state"** → **C**
 - **"props.ts addLamp has no removal, so a light that should go out has to be deleted instead"** → **B** (mine; raised by C hitting it on the TV)
 
   <!-- B: lampHeads is a build-time list and nothing takes an entry out.
