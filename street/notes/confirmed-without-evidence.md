@@ -88,3 +88,19 @@ A confirmation, a guard and a screenshot all fail the same way: **they keep
 looking exactly like themselves after they have stopped meaning anything.**
 Related: [[street-parallel-agents]], `notes/stale-preview.md`,
 `notes/check-integrity.md`.
+
+## One I tried and dropped: "block protruding from wheels on all vehicles"
+
+I built a predicate — *no solid may stick out past its own tyre's outer face* —
+and it reported **83 of 87 tyres failing**, with protrusions of 1.7 m and 3.1 m.
+
+Those are **car body panels**. A car's bodywork extends far past its wheels along
+the car's length, so my rule flagged every vehicle in the world. The tell was the
+rate: **a 95% failure rate indicts the tool**, and applying the rule I wrote
+yesterday — *ask what a PASS would look like* — a pass here would require a car
+with no bodywork near its wheels. **The predicate could not go green.**
+
+Left with no evidence rather than a wrong measurement. What it needs is a rule
+that distinguishes a small block AT the wheel from the body it is attached to,
+and I do not have one that does not also depend on knowing which meshes belong to
+which car — the same identity problem that `userData.tyre` would solve.
