@@ -20,7 +20,16 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw) => page.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0.14, 0), [x, z, yaw]);
 let fails = 0;
-const report = (n, ok, d) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}  ${d}`); };
+// COUNT WHAT YOU TESTED. This printed "every boundary holds against the jump
+// key" without ever saying how many boundaries that was — so if a `chargeAt`
+// call were deleted, or an early `await` threw and the rest never ran, the
+// green would read exactly the same. GOTCHAS 34.
+//
+// Four bad numbers today all came from the same habit: a plausible result off a
+// set nobody stated the size of. The committed checks that report their counts
+// were never the ones that lied.
+let tested = 0;
+const report = (n, ok, d) => { tested++; if (!ok) fails++; console.log(`${ok ? 'PASS' : 'FAIL'}  ${n}  ${d}`); };
 
 // run at the barrier holding jump, several times — a single hop can be unlucky
 const chargeAt = async (name, from, yaw, held, ok, say) => {
@@ -74,6 +83,12 @@ await chargeAt('you cannot jump through the courtyard party wall',
   (p) => p[2] < -5.0,
   (p) => `ended at z ${p[2].toFixed(2)} — the party line is -5.00`);
 
-console.log(fails ? `\n${fails} FAILED — something can be jumped` : '\nevery boundary holds against the jump key');
+const EXPECTED = 5;                      // the boundaries this file charges at
+if (tested < EXPECTED) {
+  console.log(`\nEXIT 3: only ${tested} of ${EXPECTED} boundaries were charged — this run did not test what it claims`);
+  await b.close(); process.exit(3);
+}
+console.log(fails ? `\n${fails} of ${tested} FAILED — something can be jumped`
+  : `\nall ${tested} boundaries hold against the jump key`);
 await b.close();
 process.exit(fails ? 1 : 0);
