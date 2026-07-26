@@ -1401,3 +1401,43 @@ revealed that one was masonry and the other was six copies of the same number.
 class on a citizen wearing the cap, not on **p1 by name**. The row says the kid is
 p1; my instruments cannot tell the six walkers apart by height, so that
 identification is the builder's and I have not independently confirmed it.
+
+## [C] Hotel palette: delivered, and one third of the claim is not accurate
+
+The lobby reads as a red-and-gold hotel — **44.1% of the frame warm, 42.0%
+strongly red**, against a street exterior at 0.0% strongly red.
+
+**The constants are real** (`vice.ts:184`: GOLD, GOLD_D, RED, RED_D) and **two of
+the three named are used verbatim inside**. But **`#8e1f2a` — RED itself — appears
+in `int-hotel.ts` only in the comment naming it**; the wall is `0x6d2029` and the
+floor `0x5a2430`. Those are lookalikes, which is precisely what the row says they
+are not.
+
+**And none is imported.** `vice.ts:184` declares them inside a function scope, so
+they *cannot* be — both files carry duplicate literals. **The values agree today
+and nothing keeps them agreeing.** Same shape as the four hand-copied `minFilter`
+calls: a rule living in copies instead of one place.
+
+**[I] Three of my instruments failed on this one row before the source answered
+it.** `material.color` read the palette as absent on the exterior (the tint trap,
+**fifth time** — the exterior is textured). My rendered-frame comparison sampled
+**road and sky** rather than the facade. Only reading the source settled it.
+
+*When a claim is about which constant was used, the source is the measurement* —
+the render can only show that the result looks right, which was never in doubt.
+
+## [Is] Graph edge flag: left LANDED because I cannot read it
+
+H's claim is precise — the east-end edge crosses ten metres of carriageway and is
+now flagged as a crossing. **`window.__ct.netRoute` exposes no net, nodes or
+edges**, so an outside test cannot read an edge's `road` flag at all.
+
+Behaviourally nothing is stranded at that end (241 s, nobody stationary in the
+carriageway for 3 s, nobody off the block) — **consistent with the fix and not
+evidence of it.**
+
+I could have written "no walker is stuck there, so the flag must be right". It
+does not follow: the flag governs lateral allowance, not whether anyone gets
+stuck. **Fourth "cannot answer without a declaration" of this audit** — after the
+missing frontages, the litter tag and the room orientation. One accessor for the
+net makes this and every future graph claim checkable.
