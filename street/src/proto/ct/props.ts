@@ -895,7 +895,11 @@ export function buildProps(ctx: CtxBuild): Props {
   // DERIVED, and it moves nothing: the well is positioned from PIT_X below.
   // Kept because the number is the promise ('a bit of pavement at the kerb'),
   // but change PIT_X to change the world — editing this line does nothing.
-  const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);   // 0.28 m of walk at the kerb
+  // 0.118 m of walk at the kerb. It said 0.28 for a while, which is the DIRT
+  // half-width from the paragraph above and not this strip at all — two numbers
+  // that happen to sit four lines apart. Since this constant is "the promise",
+  // a wrong number on it is the kind of thing that gets quoted back as fact.
+  const PIT_CLEAR = PIT_X - PIT_W / 2 - (ROAD_HALF + CHAMFER);
   // LENGTH ALONG THE STREET IS FREE, and it is where the dirt comes back.
   //
   // Centring the well on the trunk capped its width at 0.36 m — the walk is

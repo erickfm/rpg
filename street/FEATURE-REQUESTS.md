@@ -613,9 +613,15 @@ commit, as asked.
   the window display the glass looks into — a dressed form and the better stock
   on a plinth at the front wall, deliberately the one tidy corner in the room.
 - **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
-  — **B: both halves landed and measured.** Clearance on the kerb side is
+  — **B: both halves landed and measured.** Clearance on the kerb side was
   0.218 m of walk between the kerb chamfer and the pit edge, the same at all
-  seven pits. The water is 9 sheets, every one of them 0.22 m in from the kerb
+  seven pits. **SUPERSEDED BY THE USER'S OWN LATER INSTRUCTION** — "make the
+  dirt patch a lil bigger on the curb side" widened the well from 0.36 m to
+  0.56 m and spent that strip down to **0.118 m**, which is what the world
+  measures today and what `footprint` asserts (bar moved 0.20 → 0.10 to match,
+  deliberately). Left here rather than overwritten because 0.218 was true when
+  it was written; it is simply no longer the current number, and it had begun
+  to be quoted as one. The water is 9 sheets, every one of them 0.22 m in from the kerb
   line and inside the 0.45 m gutter pan, none up on the pavement. Guarded by
   `scripts/footprint.mjs` with four mutations behind it (`footprint`,
   `footprint-pits`, `footprint-water`, `footprint-blind`). Left in the Inbox
