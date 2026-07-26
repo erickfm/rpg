@@ -440,6 +440,16 @@ export function lookTolerance(r: number, d: number): number {
  */
 export function pickSpot<T extends Pickable>(
   spots: readonly T[], view: PickView, reach = 6,
+  /** LINE OF SIGHT. A candidate that fails this cannot win, however near or
+   *  however centred. *"an [E] target must be VISIBLE from where the player
+   *  stands"* — and 'ever' was doing the work in that sentence, so it is a
+   *  filter on the candidate list rather than a tiebreak.
+   *
+   *  It is supplied by the caller because only the caller has the scene. A
+   *  proximity test alone cannot tell inside from outside, which is how the
+   *  thrift offered itself through its own shopfront and the bed through the
+   *  bed. */
+  visible?: (s: T) => boolean,
 ): { spot: T; looked: boolean; offAxis: number; dist: number } | null {
   let best: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
   let bestKey = Infinity;
@@ -457,6 +467,11 @@ export function pickSpot<T extends Pickable>(
     const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
     const looked = d < reach && offAxis < lookTolerance(s.r, d);
     if (!near && !looked) continue;
+    // WIDE AND VISIBLE, not narrow and blind. The volumes stay generous and the
+    // look-at stays forgiving; sight is what gates them. Tested last because it
+    // is the expensive one — a raycast per candidate, only for candidates that
+    // have already passed the cheap tests.
+    if (visible && !visible(s)) continue;
     // SCREEN CENTRE FIRST. A spot you are looking at beats one you are merely
     // standing in, and between two you are looking at, the more centred wins.
     // Distance is the tiebreak, not the rule.

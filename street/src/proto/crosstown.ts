@@ -23,7 +23,7 @@ import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
-import { pickSpot, SpotOutline } from './fp';
+import { pickSpot, SpotOutline, REACH_MARGIN } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
@@ -117,6 +117,25 @@ export function makeCrosstown(): Proto {
   // affordance in this file is already a function on `__ct` (`clock`, `hermit`,
   // `bus`, `drive`), so it needs no new mechanism and no new place to look.
   let debugSpots = false;
+  // HYSTERESIS ON TRANSITIONS. A spot you have just USED is latched off until
+  // you have physically left its volume, and only then re-arms.
+  //
+  // F found the regression this closes, world-wide, from bce720de7 — every
+  // interior failing "you are NOT standing in the re-entry trigger after
+  // stepping out" and "a second E on the landing does not suck you straight back
+  // in". Widening the volumes (REACH_MARGIN 0.6) is what did it: stepping out of
+  // a door now leaves you inside the entry trigger, so the door will not let go
+  // of you. The user has already reported the feeling once — *"im literally
+  // stuck here"* — and this is a new way to produce it from a change meant to
+  // make things easier.
+  //
+  // The fix is NOT to narrow the volumes back; the easier-selection half is what
+  // he asked for first. It is the same shape as the floor picker's hysteresis
+  // (GOTCHAS §7) and as the citizen view-selector's margin, which H proved
+  // load-bearing by setting it to 0 and watching flicker return on 5 of 6
+  // walkers within 47 ms. A transition you have just made stays latched until
+  // you clear it.
+  let latched: Spot | null = null;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
@@ -833,7 +852,45 @@ export function makeCrosstown(): Proto {
       //
       // Prompt and outline both read the same `picked`, so the thing framed is
       // always the thing that fires.
-      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch });
+      // LINE OF SIGHT — an [E] must be visible from where you stand. A wall, a
+      // door, a counter, a shelf, a car or a slot bank between you and it means
+      // it is not selectable, with no exceptions by type: the test is the real
+      // scene geometry, so a spot near something nobody thought of cannot leak.
+      //
+      // Aimed at 1.1 m above the spot's own ground rather than at the spot
+      // itself, and that height is the whole trick. A ray along the floor is
+      // blocked by the TABLE in front of a chair, which would make every seat at
+      // a table unselectable; at chest height it clears the table and is still
+      // stopped by anything that is actually a wall.
+      //
+      // Lines are skipped so the debug volume cannot occlude the world, and the
+      // held watch and wrist are DOM rather than scene, so they never can.
+      // re-arm the latch once the player is genuinely clear of it
+      if (latched && Math.hypot(px - latched.x, pz - latched.z) > latched.r + REACH_MARGIN + 0.25) {
+        latched = null;
+      }
+      const eye = new THREE.Vector3(px, 1.6, pz);
+      const aim = new THREE.Vector3();
+      const seeRay = new THREE.Raycaster();
+      const canSee = (s: Spot) => {
+        if (s === latched) return false;              // just used it; wait until clear
+
+        aim.set(s.x, groundPick(s.x, s.z) + 1.1, s.z);
+        const dir = aim.clone().sub(eye);
+        const dist = dir.length();
+        if (dist < 0.45) return true;                 // standing on it
+        seeRay.set(eye, dir.normalize());
+        seeRay.far = dist - 0.35;                     // stop short: the thing itself is not a blocker
+        for (const h of seeRay.intersectObject(scene, true)) {
+          const o = h.object as THREE.Mesh;
+          if (!o.isMesh || !o.geometry) continue;     // lines, sprites, the debug volume
+          const m = o.material as THREE.Material;
+          if (m && m.visible === false) continue;
+          return false;                               // something solid is in the way
+        }
+        return true;
+      };
+      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch }, 6, canSee);
       const active: Spot | null = picked ? picked.spot : null;
       hud.prompt(active ? `[E] ${active.label()}` : null);
       spotOutline.show(scene, debugSpots ? active : null);
@@ -841,7 +898,19 @@ export function makeCrosstown(): Proto {
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {
         if (active) {
+          // LATCH ONLY WHAT MOVED YOU. The hysteresis is for TRANSITIONS — a
+          // door that just put you somewhere else must not immediately pull you
+          // back. Latching every spot would break the ones you use repeatedly
+          // from where you stand: the ATM would stop offering "check balance"
+          // after one press until you walked away from it, and a seat would
+          // stop offering "stand up".
+          //
+          // So the test is what actually happened, not what kind of thing it
+          // was: if the act moved the player more than a stride, it was a
+          // transition and the spot is held off until they clear its volume.
+          const wasX = rig.pos.x, wasZ = rig.pos.z;
           active.act();
+          if (Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > 1.0) latched = active;
         } else if ((purse.inv.CEREAL ?? 0) > 0 && px < 100) {
           purse.inv.CEREAL--;
           props.scatter(px + Math.sin(rig.yaw) * 1.3, pz - Math.cos(rig.yaw) * 1.3, apt.gy());
