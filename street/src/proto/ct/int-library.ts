@@ -297,10 +297,28 @@ export function buildLibrary(ctx: CtxBuild): void {
   // Behind the desk, facing the door. Drawn from the 8-angle citizen atlas
   // rather than as a flat plane — the kit exists because the diner's waitress
   // was cardboard from every angle but dead ahead.
+  const STAFF_OFF = 0.75;
+  const LIB_Z = DESK_Z - STAFF_OFF;          // behind the desk, away from the door
+  const VISITOR_Z = DESK_Z + STAFF_OFF;      // where you stand to be served
   room.person({
     jacket: '#5a6470', pants: '#3f4450', skin: '#c9a184', hair: '#6b5236',
     fit: 'plain', cut: 'short', build: 0,
-  }, DESK_X, DESK_Z - 0.75, { facing: Math.PI, h: 0.97, w: 0.95 });
+  // BOTH NUMBERS DERIVED FROM THE DESK, not typed beside it.
+  //
+  // The user: the librarian "is standing in front of the circulation desk rather
+  // than behind it". She was in fact behind it — DESK_Z - 0.75 is the staff side,
+  // because the kit's door is at +hd and a visitor therefore arrives from +z —
+  // but she was FACING Math.PI, which is -z, straight away from the room and the
+  // door. A figure behind a counter with its back to the customer reads exactly
+  // like a figure standing on the wrong side of it, which is what was seen.
+  //
+  // So: STAFF is the side away from the door, and the visitor stands the same
+  // distance on the other side. The facing is the vector from her to them. Move
+  // the desk and both follow; turn the room round and both follow. This is the
+  // ninth orientation fault of the session and GOTCHAS §23's rule is the one
+  // that would have caught every one of them — derive facing from what the
+  // object faces, never as a constant.
+  }, DESK_X, LIB_Z, { facing: Math.atan2(0, VISITOR_Z - LIB_Z), h: 0.97, w: 0.95 });
 
   // ── WHAT IS ON THE WALLS ─────────────────────────────────────────────────
   //
