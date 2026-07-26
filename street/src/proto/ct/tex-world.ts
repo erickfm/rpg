@@ -1372,9 +1372,33 @@ export const burgerFront = (brick: string, wM: number) => {
     g.fillStyle = CEIL; g.fillRect(gx, gy, gw, m(0.34));                            // strip lights on the ceiling
     g.fillStyle = 'rgba(201,164,94,0.35)'; g.fillRect(gx, gy + m(0.34), gw, m(0.5)); // its spill
     g.fillStyle = FLOOR; g.fillRect(gx, gy + gh - m(0.5), gw, m(0.5));              // floor, in shadow
+    // THE MENU IS AN OBJECT OVER THE COUNTER, NOT A RIBBON ACROSS THE WINDOW.
+    //
+    // It used to be `bw2 = (c - a) - 0.6` — the whole run — so on a 16 m
+    // frontage the brightest surface in the world was a seven-metre unbroken
+    // band of #f2ead0, twice. Measured against every shop on the street at
+    // 13:30: burger barn 234 against a sky at 149, when nothing else on the
+    // block clears 85. A backlit menu IS a light source and should read as
+    // one; what it should not be is the length of the shop.
+    //
+    // A real one is three or four lit panels bolted over the counter. So:
+    // bounded to 4.2 m, anchored at the run's DOOR-SIDE end because that is
+    // where the counter is, and split into panels with dark stiles between so
+    // it reads as made rather than as a stripe. The tone comes down to 210 —
+    // still plainly lit, still `mx > 199` with chroma 41 so ct/props.ts keeps
+    // grading it as self-lit and it stays on after dark, which is the point of
+    // a backlit menu.
+    const MENU = '#ddd2b4';
     for (const [a, c] of runs) {
-      const bx = a + m(0.3), bw2 = (c - a) - m(0.6);
-      g.fillStyle = '#f2ead0'; g.fillRect(bx, gy + m(0.45), bw2, m(0.42));          // backlit menu box
+      const doorSide = Math.abs(c - dx) < Math.abs(a - dx);       // which end faces the door
+      const span = Math.min(m(4.2), (c - a) - m(0.6));
+      const bx = doorSide ? c - m(0.3) - span : a + m(0.3);
+      const bw2 = span;
+      g.fillStyle = MENU; g.fillRect(bx, gy + m(0.45), bw2, m(0.42));              // backlit menu panels
+      g.fillStyle = '#3a332a';                                                      // stiles between panels
+      for (let k = 1; k < 3; k++) {
+        g.fillRect(bx + Math.round((bw2 * k) / 3), gy + m(0.45), Math.max(1, m(0.07)), m(0.42));
+      }
       g.fillStyle = RED;
       for (let x = bx + m(0.25); x + m(0.55) <= bx + bw2 - m(0.2); x += m(1.1)) {
         g.fillRect(x, gy + m(0.54), m(0.55), m(0.1));
