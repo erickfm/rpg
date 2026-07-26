@@ -283,6 +283,47 @@ export function buildChurch(ctx: CtxBuild) {
   // came in through
   room.sign(roseT, 2.4, 3.6, 0, 3.4, -hd + 0.09);
 
+  // ── …and the light it throws on the stone ─────────────────────────────
+  //
+  // "The lancets and rose window throwing coloured light on stone" is the line
+  // in the brief, and until now the rose was a lit picture on a wall: bright
+  // itself and changing nothing around it. A window that does not colour the
+  // room it is in reads as a poster of a window.
+  //
+  // Everything in this world is unlit MeshBasicMaterial, so "light" is not a
+  // lighting change — it is additive geometry, the same trick the casino's
+  // spill and the lamp pools use. Five patches in the rose's own five glass
+  // colours, thrown DOWN the nave from a window 3.4 m up: a long lozenge on the
+  // floor where the sun would land, and two smaller ones riding up the side
+  // walls where the splay catches them.
+  //
+  // Deliberately weak. A church in the afternoon is dim with a few burning
+  // colours in it, not a disco; each patch is opacity 0.10 to 0.16, which reads
+  // as stain on stone rather than as a projector.
+  {
+    const GLASS = ['#2f4a7a', '#7a2f38', '#8a6a2a', '#2f6a4a', '#5a2f6a'];
+    const patch = (hex: string, w: number, d: number, lx: number, lz: number, op: number) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({
+        color: new THREE.Color(hex), transparent: true, opacity: op,
+        depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+      m.rotation.x = -Math.PI / 2;
+      put(m, lx, 0.02, lz);
+      return m;
+    };
+    // the floor lozenge, brightest nearest the window and stretched up the nave
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4;
+      patch(GLASS[i], 2.3 - t * 0.6, 1.5, (i % 2 ? 0.28 : -0.28) * (1 - t),
+        -hd + 1.5 + i * 1.45, 0.16 - t * 0.06);
+    }
+    // I also put two patches on the side walls, where a reveal would splay the
+    // light sideways, and took them out again after looking: additive blue on a
+    // pale stone wall desaturates to grey, so a 2.6 x 1.7 rectangle of it reads
+    // as a flat PANEL hung on the wall rather than as light falling on one. On
+    // the floor the same colours work, because the floor is darker and the shape
+    // is long and irregular. Not every surface takes the same trick.
+  }
+
   // ── one person, four rows back, and she is the difference ──
   //
   // The room shipped with `keeper: null` and the reasoning was sound as far as
@@ -309,17 +350,29 @@ export function buildChurch(ctx: CtxBuild) {
   }, -PEW_CX, PRAY_Z, { facing: Math.PI, h: 0.62, w: 0.92 });
 
   // ── a rack of votive candles by the door, the one warm thing ──
+  //
+  // MOVED, and it is the same sign error as the altar. This sat at `-hd + 2.0`
+  // while the comment above it said "by the door" — and -hd is the FAR end under
+  // the kit's convention, so it was up beside the altar, 11 m from the door it
+  // was written for. The prose was right and the arithmetic was not, which is
+  // exactly how the altar was wrong too.
+  //
+  // It now stands beside the votive stand at the near end rather than duplicating
+  // it: this is the plain iron rack people actually light candles at, and the
+  // stand a couple of metres along has the statue over it. Two racks eleven
+  // metres apart, one of them contradicting its own comment, was the state
+  // before.
   const rack = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.34),
     new THREE.MeshBasicMaterial({ color: 0x4a4038 }));
-  put(rack, -hw + 0.9, 0.78, -hd + 2.0);
+  put(rack, -hw + 0.9, 0.78, hd - 5.4);
   for (let i = 0; i < 7; i++) {
     const lit = i !== 2 && i !== 5;                 // most of them burnt out
     const c = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, lit ? 0.13 : 0.05, 6),
       new THREE.MeshBasicMaterial({ color: lit ? 0xe8c87a : 0xbdb6a4 }));
-    put(c, -hw + 0.9 - 0.36 + i * 0.12, 0.81 + (lit ? 0.065 : 0.025), -hd + 2.0);
+    put(c, -hw + 0.9 - 0.36 + i * 0.12, 0.81 + (lit ? 0.065 : 0.025), hd - 5.4);
   }
   const stand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.78, 0.12),
     new THREE.MeshBasicMaterial({ color: 0x4a4038 }));
-  put(stand, -hw + 0.9, 0.39, -hd + 2.0);
-  solid(-hw + 0.9, -hd + 2.0, 0.9, 0.36);
+  put(stand, -hw + 0.9, 0.39, hd - 5.4);
+  solid(-hw + 0.9, hd - 5.4, 0.9, 0.36);
 }
