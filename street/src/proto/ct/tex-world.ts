@@ -2114,13 +2114,22 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
       ell(tx, ty, trx, try_, MID);
       ell(tx + side * trx * 0.3, ty + try_ * 0.35, trx * 0.62, try_ * 0.6, DARK);
       ell(tx - side * trx * 0.25, ty - try_ * 0.4, trx * 0.5, try_ * 0.42, LIT);
-      // same ragged treatment as the crown so it belongs to the same tree
+      // Same ragged treatment as the crown so it belongs to the same tree —
+      // INCLUDING the rim constraint, which the crown got and this did not.
+      //
+      // The user's report was "tree looks transparent in parts that probably
+      // shouldn't be transparent", and the crown's notches were duly moved out
+      // to `1.0 + r() * 0.14` so they only bite the outline. These were left at
+      // 0.92, and a tuft is SMALL: at trx ≈ 8 texels a notch centred at 0.92
+      // with its own radius of up to 2.2 reaches 5.2 texels in, well inside the
+      // shape, and punches alpha-0 straight through it. Same bug, same fix, one
+      // object smaller — which is exactly why it survived the first pass.
       g.save(); g.globalCompositeOperation = 'destination-out';
       for (let i = 0; i < 8; i++) {
         const a = (i / 8) * Math.PI * 2 + r() * 0.4;
         g.beginPath();
-        g.ellipse(tx + Math.cos(a) * trx * (0.92 + r() * 0.2),
-                  ty + Math.sin(a) * try_ * (0.92 + r() * 0.2),
+        g.ellipse(tx + Math.cos(a) * trx * (1.0 + r() * 0.14),
+                  ty + Math.sin(a) * try_ * (1.0 + r() * 0.14),
                   0.9 + r() * 1.3, 0.9 + r() * 1.2, 0, 0, Math.PI * 2);
         g.fill();
       }
@@ -2140,6 +2149,51 @@ export function treeSprite(v: number, H = 96): THREE.Texture {
       g.fillStyle = Math.random() < 0.5 ? 'rgba(206,224,148,0.50)' : 'rgba(12,28,12,0.40)';
       g.fillRect(Math.floor(cx + Math.cos(a) * rr * RX * 0.92),
                  Math.floor(cy + Math.sin(a) * rr * RY * 0.92), 2, 2);
+    }
+
+    // SEAL ANY ENCLOSED TRANSPARENT REGION. The queue offered two fixes for
+    // the see-through crowns — constrain the notches to the rim, or re-fill
+    // the interior afterwards — and only the first was done. It is not
+    // sufficient, and the reason is geometric rather than a missed case:
+    // moving a notch centre out to 1.0R still lets a notch up to 3.4 texels
+    // across eat into the rim, and the overlapping bulges either side of it
+    // can close that bay off. A bite that gets sealed at its mouth IS a hole,
+    // however conservatively it was aimed. Measured after the rim fix, with
+    // the tufts corrected too: 303 enclosed texels still spread over all 11
+    // crowns.
+    //
+    // Ragged and holed are not a matter of degree, they are a matter of
+    // TOPOLOGY: a bite is connected to the outside and a hole is not. So flood
+    // the outside and fill whatever it cannot reach. The silhouette keeps
+    // every notch; only the pockets close. ~6k texels a sprite, at build time.
+    {
+      const im = g.getImageData(0, 0, TREE_W, H);
+      const d = im.data, N = TREE_W * H;
+      const out = new Uint8Array(N);
+      const st: number[] = [];
+      for (let x = 0; x < TREE_W; x++) { st.push(x, x + (H - 1) * TREE_W); }
+      for (let y = 0; y < H; y++) { st.push(y * TREE_W, TREE_W - 1 + y * TREE_W); }
+      while (st.length) {
+        const i = st.pop() as number;
+        if (out[i] || d[i * 4 + 3] !== 0) continue;
+        out[i] = 1;
+        const x = i % TREE_W, y = (i / TREE_W) | 0;
+        if (x > 0) st.push(i - 1);
+        if (x < TREE_W - 1) st.push(i + 1);
+        if (y > 0) st.push(i - TREE_W);
+        if (y < H - 1) st.push(i + TREE_W);
+      }
+      // MID, so a sealed pocket reads as the mass it was cut out of. The
+      // speckle above has already run, so these come back plain — which is
+      // right: they are small, and a filled pocket that is also the only
+      // speckle-free patch would just be a different artefact.
+      const [mr, mg, mb] = [MID.slice(1, 3), MID.slice(3, 5), MID.slice(5, 7)]
+        .map((h) => parseInt(h, 16));
+      for (let i = 0; i < N; i++) {
+        if (d[i * 4 + 3] !== 0 || out[i]) continue;
+        d[i * 4] = mr; d[i * 4 + 1] = mg; d[i * 4 + 2] = mb; d[i * 4 + 3] = 255;
+      }
+      g.putImageData(im, 0, 0);
     }
   }), 'foliage');
 }
