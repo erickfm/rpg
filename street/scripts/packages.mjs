@@ -91,13 +91,24 @@ rep('a night wipes the landings', before === 8 && after < 8,
 // filed, and now an OPEN row against DESK). 101 and 102 are on gy 0.
 await force(true);
 await p.waitForTimeout(300);
-const g = (await list()).find((q) => q.floor === 0 && q.present);
+// PICK THE PARCEL WITH THE MOST ELBOW ROOM, and stand close to it. The rarity
+// test above advances forty days, which accrues rent — and builder N's rent
+// prompt is r 1.15 and sits 0.38 m from where a parcel lands at door 101. It
+// does not BLOCK the steal (approaching 101 from the hall offers the package
+// at every distance from 0.35 m to 1.0 m), but a station 0.62 m out on that
+// side is nearer the rent spot than the parcel, and the nearest live spot
+// wins. That was this check failing, not the world.
+const others = (await p.evaluate(() => window.__ct.spots()
+  .filter((q) => q.ok && !/steal/.test(q.label ?? '')).map((q) => [q.x, q.z])));
+const cands = (await list()).filter((q) => q.floor === 0 && q.present);
+const roomAround = (q) => others.reduce((m, o) => Math.min(m, Math.hypot(o[0] - q.x, o[1] - q.z)), 99);
+const g = cands.sort((a, c) => roomAround(c) - roomAround(a))[0];
 if (!g) { console.error('\nno ground-floor parcel even when forced — nothing to steal.'); await b.close(); process.exit(3); }
 // STAND IN THE HALL, not in the flat. The hall runs x 200.0..202.4 and the
 // west parcels sit at x 200.25, so `x - 0.75` puts you through the wall at
 // 199.5 with the parcel unreachable and the sight ray blocked by masonry —
 // which reads exactly like a broken spot. Approach from the hall side.
-await p.evaluate(([x, z, f]) => window.__ct.warp(x + f * 0.62, z, f > 0 ? -Math.PI / 2 : Math.PI / 2, 0, 0),
+await p.evaluate(([x, z, f]) => window.__ct.warp(x + f * 0.40, z, f > 0 ? -Math.PI / 2 : Math.PI / 2, 0, 0),
   [g.x, g.z, g.x < 201.2 ? 1 : -1]);
 await p.waitForTimeout(700);
 const pr = await prompt();
