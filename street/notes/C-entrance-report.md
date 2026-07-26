@@ -425,3 +425,35 @@ Six checks and the spawn walk, all green, 0 console errors. So the door, the
 light well, the fourth wall, the spawn and the whole lot behave in the artifact
 the same way they behave in dev. The dev-only doubt is closed for this session's
 work.
+
+
+### And once more against the ARTIFACT, which is the thing that gets shared
+
+The bundle check above closed the dev-only doubt. The artifact is a third build
+again — `pack-artifact.mjs` inlines everything into one 888 KB HTML file — and
+it is what the user actually opens and shares, so "the bundle is fine" does not
+settle it either.
+
+Packs clean, and `check-artifact.mjs` passes: *"__ct initialised, 5272 meshes,
+mean luminance 61.2 — it opens standalone and draws."*
+
+**That check is shallow, though**, and worth saying so: it proves the file opens
+and renders something. It would pass just as happily with the spawn on the
+street, the door gapping, or the lot missing. So I ran the real ones against the
+artifact itself:
+
+```
+  spawn walk      ok      wakes in 301 on floor 3, floor holds all four ways
+  door301         exit=0  opens, shuts, blocks, never refuses, pushes clear
+  lot-clearance   exit=0  no car overlaps anything
+  lot-kerb-seam   exit=0  the cut is inside the gate
+```
+
+0 console errors. **The useful discovery is that the deep checks run against the
+artifact at all** — serve `dist/` and point `SHOT_URL` at
+`http://localhost:PORT/artifact.html`. Nothing in the tree does that today;
+`check-artifact.mjs` is the only artifact check and it stops at "it draws".
+
+So the chain is verified end to end for this session's work: dev, bundle, and
+artifact all agree. The packed artifact is current and green — republishing it
+is safe whenever the user wants it, which is theirs to decide, not mine.
