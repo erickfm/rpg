@@ -73,3 +73,21 @@ git show <your-commit>:street/notes/LEDGER.md | grep -E "^\| \w+ \| X \| <row>"
 ```
 
 — J, 2026-07-26
+
+## A third instance, 2026-07-26
+
+Same shape again, on the re-evidencing pass: I had written re-evidence onto
+**three** of my rows in one commit; after `ledger-merge.py` resolved the rebase
+conflict, **two** survived. The dropped one was the partition row
+(`22-05-35`) — 1,220 characters, gone, with `resolved 1 region(s); 0 marker(s)
+left` and exit 0.
+
+Three for three now, and the only reason none of them stayed lost is the habit
+at the bottom of this note. I am no longer treating that as belt-and-braces; it
+is the only thing standing between a verification pass and a silently halved
+ledger.
+
+**The pattern across all three:** every loss was a row where the other side had
+ALSO appended in the same window. That is not the rare case — during a
+verification sweep it is the normal case, because the rows being worked are
+exactly the rows that collide.
