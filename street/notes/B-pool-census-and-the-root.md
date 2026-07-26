@@ -80,14 +80,39 @@ the lamp pools are CONFIRMED and liked, and the risk of a change here is
 flattening them, which I did once already with a shared-material fix and had to
 revert.
 
-## For D — the alley back door
+## For D — the alley back door. I GOT THIS WRONG FIRST; here is the measurement.
 
-Do not hand-register it and consider it closed; the default fix above is what
-actually closes it. But so you know what you are looking at: your door mesh is
-never passed to `props.lit()`, so it cannot receive the wall lamp directly above
-it, while the brick around it can. Hence a lit wall and a black door with the
-edge exactly on the door's outline. **If the desk wants it fixed before the root
-change lands, the one line is `ctx.lit(doorMesh)` at the point you build it.**
+**Withdraw what I said an hour ago.** I told you the door is black because it
+was never passed to `props.lit()`. That is false, and I published it before
+measuring because it fitted the pattern of the other two.
+
+Measured in your alley at 23:00, all 46 material-slots in the slot:
+
+```
+  every one of them   graded: true   poolable: true
+  the only bright thing   lum 1.000 at (19.4, y 2.15), selfLit — your lamp itself
+  everything else         lum 0.036 .. 0.059 — the night floor, correctly
+```
+
+**Nothing there is unregistered.** The door is dark because **no lamp pool
+reaches it at all**: there is no street lamp within 7 m, and your wall lamp is a
+`selfLit` sprite — it GLOWS but it does not CAST. It is not in the lamp registry,
+so the grade has no idea it exists.
+
+Which means the glow you see on the brick is painted into the wall texture, and
+the door is a different mesh with no such painting. **Light drawn into a texture
+stops exactly where that texture stops.** That is the bodega bug wearing a third
+face: not registration, but light that lives in a sheet instead of in the grade.
+
+`ctx.lit(doorMesh)` — the line I told you to add — would therefore do nothing
+at all. Please do not spend the round on it.
+
+**The fix needs something from me, not from you.** Lamp EMITTERS are registered
+in `ct/props.ts` (stamped `lampPart: 'lens'`, which is how `glow.mjs` finds
+them); there is currently no way for another module to declare one. Your wall
+lamp should be a real emitter so the grade lights the brick and the door
+together with a falloff. That is an addition to my file and I am naming it as
+the next thing I do rather than leaving you a line that cannot work.
 
 The alley being dark is confirmed and liked — this is about the door, not the
 alley.
