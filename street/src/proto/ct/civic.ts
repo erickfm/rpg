@@ -4,6 +4,7 @@ import { BUILD, type CtxBuild } from './ctx';
 import type { Seat } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { FACE } from './rng';
+import { plazaTex } from './tex-ground';
 import { masonry } from './tex-world';
 
 // The two buildings on this block that are NOT shops.
@@ -468,10 +469,36 @@ export function buildCivic(o: {
       scene.add(m);
       return m;
     };
+    // THE TREADS AND THE LANDING TAKE `plazaTex`, per A's routing note.
+    //
+    // A character swap, not a bare quad — these already carried `SCORED`. The
+    // difference is that `plazaTex` KNOWS WHAT IT IS DRAWING: 1.5 m civic
+    // flags with joints both ways, cooler and greyer than the walk, which is
+    // what a library forecourt is paved with. B's finding is the reason it
+    // matters — *"a flat colour is not a material… it reads as a TINT OVER the
+    // paving rather than as a piece of paving"* — and a generic stone grain
+    // sits between the two.
+    //
+    // It takes WORLD extents, so each tread computes its own rather than
+    // sharing one texture: the flight runs in u and the box sits at
+    // `ox + dir * u`, so the x span reverses with `dir` and the z span is
+    // `oz + v`. Sizing per tread keeps the flags 1.5 m whatever the tread
+    // measures, which is the whole point of passing metres.
+    const flagTop = (u0: number, u1: number, v0: number, v1: number) => {
+      const ax = f.ox + f.dir * u0, bx = f.ox + f.dir * u1;
+      const az = f.oz + v0, bz = f.oz + v1;
+      return new THREE.MeshBasicMaterial({
+        map: declareSurface(plazaTex(Math.min(ax, bx), Math.max(ax, bx),
+          Math.min(az, bz), Math.max(az, bz)), 'ground'),
+      });
+    };
     for (let k = 0; k < f.n; k++) {          // k = 0 is the lowest step
-      put(f.uNose + k * tread, f.uBack, -f.width / 2, f.width / 2, f.yBase + (k + 1) * rise,
-        f.axis === 'x' ? [riserM, riserM, treadM, riserM, stepSideM, stepSideM]
-          : [stepSideM, stepSideM, treadM, riserM, riserM, riserM]);
+      const u0 = f.uNose + k * tread, u1 = f.uBack;
+      const top = f.axis === 'x' ? flagTop(u0, u1, -f.width / 2, f.width / 2)
+        : flagTop(u0, u1, -f.width / 2, f.width / 2);
+      put(u0, u1, -f.width / 2, f.width / 2, f.yBase + (k + 1) * rise,
+        f.axis === 'x' ? [riserM, riserM, top, riserM, stepSideM, stepSideM]
+          : [stepSideM, stepSideM, top, riserM, riserM, riserM]);
     }
     if (f.cheek > 0) {                       // cheeks, stepping down one per tread
       for (const s of [-1, 1]) {
