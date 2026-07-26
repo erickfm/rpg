@@ -135,7 +135,20 @@ export function makeCrosstown(): Proto {
   // load-bearing by setting it to 0 and watching flicker return on 5 of 6
   // walkers within 47 ms. A transition you have just made stays latched until
   // you clear it.
-  let latched: Spot | null = null;
+  //
+  // LATCHED BY LANDING POSITION, NOT BY SPOT — and that correction is the whole
+  // fix. My first version held off the spot that was USED, which does nothing
+  // for the reported fault: stepping OUT uses the exit spot, so the ENTRY spot
+  // is a different object entirely and fires the instant you arrive. Measured
+  // it failing exactly that way on BURGER BARN, GOLDEN ACES and ST BRIGID —
+  // "[E] into BURGER BARN" showing the moment you stepped onto the pavement,
+  // and a second E throwing you 522 m back inside.
+  //
+  // So what is held off is EVERYWHERE YOU JUST LANDED: after any transition,
+  // nothing is offered until you have taken a step away from the spot you
+  // arrived on. One rule, no per-spot bookkeeping, and it cannot be defeated by
+  // two spots sharing a doorway.
+  let landing: { x: number; z: number } | null = null;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
@@ -865,15 +878,13 @@ export function makeCrosstown(): Proto {
       //
       // Lines are skipped so the debug volume cannot occlude the world, and the
       // held watch and wrist are DOM rather than scene, so they never can.
-      // re-arm the latch once the player is genuinely clear of it
-      if (latched && Math.hypot(px - latched.x, pz - latched.z) > latched.r + REACH_MARGIN + 0.25) {
-        latched = null;
-      }
+      // everything re-arms once you have stepped away from where you arrived
+      if (landing && Math.hypot(px - landing.x, pz - landing.z) > 1.2) landing = null;
       const eye = new THREE.Vector3(px, 1.6, pz);
       const aim = new THREE.Vector3();
       const seeRay = new THREE.Raycaster();
       const canSee = (s: Spot) => {
-        if (s === latched) return false;              // just used it; wait until clear
+        if (landing) return false;                    // just arrived here; take a step first
 
         aim.set(s.x, groundPick(s.x, s.z) + 1.1, s.z);
         const dir = aim.clone().sub(eye);
@@ -910,7 +921,12 @@ export function makeCrosstown(): Proto {
           // transition and the spot is held off until they clear its volume.
           const wasX = rig.pos.x, wasZ = rig.pos.z;
           active.act();
-          if (Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > 1.0) latched = active;
+          // a TRANSITION is an act that moved you. Only those latch: latching
+          // everything would stop the ATM re-offering "check balance" after one
+          // press, and a seat re-offering "stand up".
+          if (Math.hypot(rig.pos.x - wasX, rig.pos.z - wasZ) > 1.0) {
+            landing = { x: rig.pos.x, z: rig.pos.z };
+          }
         } else if ((purse.inv.CEREAL ?? 0) > 0 && px < 100) {
           purse.inv.CEREAL--;
           props.scatter(px + Math.sin(rig.yaw) * 1.3, pz - Math.cos(rig.yaw) * 1.3, apt.gy());
