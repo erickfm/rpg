@@ -62,6 +62,26 @@ and as my own float CONFIRMED that a crowd regression quietly falsified today.
 3. **Rows whose own check says CANNOT ANSWER should go back to OPEN** — that is
    a smaller set than 28 and it is unambiguous. `wheel arches` is one.
 
+## CORRECTION: rows disappearing is NOT a one-off
+
+I swept 150 commits after the payphone row was deleted and reported the exposure
+as **bounded and a one-off**. **That was wrong.** A second CONFIRMED row —
+E's *"what is the shadow geometry here?"* — vanished upstream within the day,
+found by `scripts/ledger-lost.py` and restored. An auditor evidence cell was
+dropped separately in the same window.
+
+**Three record losses in one day, of three different kinds:**
+
+| what was lost | how it was found |
+|---|---|
+| a CONFIRMED row (payphone) | noticed by hand while verifying it |
+| a CONFIRMED row (E, shadow geometry) | `ledger-lost.py`, routinely |
+| an evidence cell (sleep-fade) | fingerprint check in `rebase-safe.sh` |
+
+The lesson is not that anyone is careless — it is that **this file is edited
+concurrently by eleven agents and nothing in the process notices a deletion.**
+`ledger-lost.py` should run on a schedule, not after an incident.
+
 ## The general shape, which is the session's recurring one
 
 A confirmation, a guard and a screenshot all fail the same way: **they keep

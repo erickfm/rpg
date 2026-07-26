@@ -59,10 +59,14 @@ for i, l in enumerate(cur):
     if add:
         l = l.rstrip().rstrip('|').rstrip() + ''.join(s.rstrip().rstrip('|').rstrip() for s in add) + ' |'
         restored += len(add)
-    if status(old[k]) == 'CONFIRMED' and status(l) != 'CONFIRMED':
-        l = '| CONFIRMED |' + l[l.index('|', 1) + 1:]
-        promoted += 1
+    # NEVER RESTORE A STATUS. Evidence is append-only and safe to merge back;
+    # a STATUS is a judgement that may have been changed deliberately since.
+    # This promoted a row I had just downgraded to OPEN back to CONFIRMED,
+    # silently undoing a rejection - the tool for recovering lost work quietly
+    # destroying current work. Statuses are reported, never rewritten.
+    if status(old[k]) != status(l):
+        print(f'  note: status differs ({status(old[k])} then, {status(l)} now) for {k[0]} "{k[1][:40]}" — LEFT ALONE')
     cur[i] = l
 
 open(PATH, 'w').write('\n'.join(cur))
-print(f'  restored {restored} auditor segment(s); promoted {promoted} row(s) back to CONFIRMED')
+print(f'  restored {restored} auditor segment(s); statuses untouched')
