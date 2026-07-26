@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+import { afterFrames } from './lib/frames.mjs';
+const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1000,height:640}});
+await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
+await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
+await afterFrames(p,10); await p.waitForTimeout(1200);
+await p.evaluate(()=>window.__ct.clock(13,0)); await afterFrames(p,6);
+await p.evaluate(()=>window.__ct.warp(198.30,-16.30,0,window.__ct.pos()[3],0)); await afterFrames(p,5);
+await p.mouse.click(450,280); await p.waitForTimeout(200);
+await p.keyboard.press('e'); await afterFrames(p,10); await p.waitForTimeout(800);
+await p.screenshot({path:'shots/tvblack-seated.png'});
+const q=await p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(2)));
+console.log(`  seated at (${q[0]}, ${q[2]}) — shots/tvblack-seated.png`);
+await b.close();
