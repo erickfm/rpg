@@ -7,7 +7,7 @@ import { type DoorDecl } from './doors';
 // street — same reason ct/int-hotel.ts imports it
 import { hardLayer as hardLayerLib } from './vice';
 
-// PVBLIC LIBRARY, inside.
+// PUBLIC LIBRARY, inside.
 //
 // The user asked for ten interiors in one breath — *"i want to build out the
 // insides of the following: burger barn. diner. library. tax service. pawn
@@ -75,7 +75,7 @@ const GALLERY_Z1 = 0.60, STAIR_Z0 = 5.40;
 export function buildLibrary(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'library',
-    label: 'into the PVBLIC LIBRARY',
+    label: 'into the PUBLIC LIBRARY',
     // "Make the library interior larger and more ambitious. More halls and stair
     // ways." 11 m deep was one room; 22 m is a building you walk through.
     // WIDER THAN THE BUILDING, on the user's ruling: "you can make it wider than

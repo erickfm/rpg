@@ -52,7 +52,7 @@ export const ORDER = BUILD.INTERIOR + 1;
  *
  * Everything else — where the doors are, which way they face, how far back you
  * stand — is measured off the world at build time. A name cannot be measured;
- * the library's is engraved on its frieze as `PVBLIC LIBRARY` and the church
+ * the library's is engraved on its frieze as `PUBLIC LIBRARY` and the church
  * carries no lettering at all.
  *
  * Keyed by which side of the street the flight is on, because that is the one
@@ -62,7 +62,7 @@ export const ORDER = BUILD.INTERIOR + 1;
  * the failure mode is a slightly vague prompt, never silence.
  */
 const CIVIC: Record<'west' | 'east', { name: string; shut: string }> = {
-  west: { name: 'the PVBLIC LIBRARY', shut: 'closed — opening hours are on the board' },
+  west: { name: 'the PUBLIC LIBRARY', shut: 'closed — opening hours are on the board' },
   east: { name: 'the church', shut: 'locked' },
 };
 
