@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"why so many vertical stripes on the brick?"** → **C**
 - **`scripts/slow-pinned.sh` cannot start its own server, so the whole slow tier is unrunnable** → **H**
   Filed by C; the script is H's (its header says the `--slow` tier is). It builds
   and serves the pinned tree fine, then dies with *"the server never reported a
