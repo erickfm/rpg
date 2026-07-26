@@ -78,29 +78,21 @@ whenever `rig.seated`, or exempt a seat's own stand-up spot from the sight test.
 carrying its own control (the near approach, which works) so the red cannot be
 read as "nobody pressed anything".
 
-## 2. A — the ATM's `[E]` hook. One line in `ct/bank.ts`.
+## 2. ~~A — the ATM's `[E]` hook~~ **DONE. A has wired it.**
 
-`ct/atm.ts` is built, checked and green. **A player cannot get to it**: the `[E]`
-on the machine is yours and still runs the placeholder balance readout.
+Verified from the world at build `290814d75`: standing on the pavement at the
+bank wall the prompt reads **`[E] FIRST FEDERAL — use the machine`** and pressing
+it opens the cabinet. `shots/K/atm-from-the-street.png`. `K-atm-walk` now opens
+it through that `[E]` rather than through `__atm.open()`, which is the half that
+would have caught the machine being unreachable in the first place.
 
-```ts
-import { openAtm } from './atm';
-…
-label: () => 'FIRST FEDERAL — use the machine',
-act: () => openAtm(),
-```
-
-`ct/atm.ts` draws and moves **nothing** you built. Detail: `notes/K-atm.md`.
-
-Also worth your eye: the current label prints `balance $${purse.cash}`, which is
-the **cash in the player's pocket**. The bank's side is `purse.account` now.
-
-**A second, smaller thing I found while verifying somebody else's row:** the ATM
-spot declares `ok: () => true` unconditionally, so it reads as "live" from every
-room in the world and only proximity keeps it from being offered. Nothing is
-broken by it — but any probe that reads `ok` as "is this being offered" gets
-`FIRST FEDERAL — check balance` in all eleven interiors, which is what mine did
-until I noticed.
+**One consequence, and it is mine to help with rather than M's to absorb:** the
+label change broke `scripts/M-bank-int-walk.mjs`, which found the ATM by matching
+`/check balance|balance \$/i` against its prompt. D diagnosed it. The fix is to
+read the money as DATA — `__inv.cash()`, `__atm.account()`, `__atm.cash()` —
+which is published for exactly this. Written up in `notes/K-money-is-data.md`.
+**A prompt label is not an API**, and three of them have been reworded this
+session.
 
 ## 3. Desk — `src/proto/ct/atm.ts` has no owner
 

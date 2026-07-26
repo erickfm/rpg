@@ -45,7 +45,34 @@ if (!(await page.evaluate(() => typeof window.__atm === 'object' && window.__atm
   await browser.close(); process.exit(3);
 }
 
-// ── it opens, and it is a panel ──────────────────────────────────────────
+// ── A PLAYER CAN ACTUALLY GET TO IT ──────────────────────────────────────
+//
+// OPENED BY THE WORLD'S OWN `[E]`, not by `__atm.open()`. This check used the
+// test hook while `ct/bank.ts` still ran the placeholder readout, so it was
+// green on a machine no player could reach — the same shape as `K-sleep-fade`
+// being green while the world had no fade in it: A CHECK THAT PROVES A KIT
+// WORKS IS NOT A CHECK THAT THE KIT IS USED. A has since wired it, so this half
+// can exist, and it is the half that would have caught the gap.
+const spot = await page.evaluate(() => window.__ct.spots()
+  .filter((q) => /FIRST FEDERAL/i.test(q.label) && !/into /i.test(q.label))
+  .map((q) => ({ x: q.x, z: q.z, label: q.label }))[0] ?? null);
+ok(!!spot, `the machine on the bank wall offers an [E] (${spot ? spot.label : 'none'})`);
+if (spot) {
+  await page.evaluate(([x, z]) => window.__ct.warp(x + 1.1, z, Math.atan2(-1.1, 0), window.__ct.groundAt(x + 1.1, z), 0), [spot.x, spot.z]);
+  await page.waitForTimeout(420);
+  const prompt = await page.evaluate(() => {
+    const e = document.getElementById('ct-prompt');
+    return e && e.style.display !== 'none' ? e.textContent : null;
+  });
+  ok(!!prompt && /FIRST FEDERAL/i.test(prompt), `standing at it, the prompt is up (${JSON.stringify(prompt)})`);
+  await page.keyboard.down('e');
+  await page.waitForFunction(() => window.__hud.panel() === 'ct-atm', null, { timeout: 6000 }).catch(() => {});
+  await page.keyboard.up('e');
+  ok((await page.evaluate(() => window.__hud.panel())) === 'ct-atm',
+    'pressing E ON THE MACHINE IN THE WALL opens the cabinet — not just __atm.open()');
+}
+// …and from here on drive it directly, so the rest of the session is measured
+// rather than re-walked
 await page.evaluate(() => window.__atm.open());
 await page.waitForTimeout(200);
 let s = await st();
