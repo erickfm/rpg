@@ -55,7 +55,7 @@ export function buildBodega(ctx: CtxBuild): void {
     // against 74. The HEIGHT is deliberately untouched — 2.6 is low on purpose
     // and low ceiling is half of what makes a corner shop feel like one. It is
     // floor the player was short of, not headroom.
-    d: 11.0, h: 2.6,
+    d: 12.6, h: 2.6,
     // THE CUT CORNER, matching the building. The user: "if the door for the
     // bodega is on a cut corner (literally) then the interior should match."
     //
@@ -75,7 +75,21 @@ export function buildBodega(ctx: CtxBuild): void {
     // room dimensions already went through. Shape now, door when the harness
     // can follow it, because a room that walks red is a room nobody can verify
     // the next change against.
-    chamfer: { corner: 'front-right', cut: 2.0 },
+    // DOOR IN THE CUT, which is the whole point and which I had left off.
+    //
+    // The user has now said this three times: "if the door for the bodega is
+    // on a cut corner (literally) then the interior should match." The cut was
+    // built; the DOOR stayed in the flat front wall, so walking in you met a
+    // square doorway and the chamfer was just a bevel off to one side.
+    //
+    // I held `door: true` back because my own walk harness went red on it, and
+    // I read that as the feature being wrong. It was not. The fault was the
+    // harness heading: it computed an approach for a FRONT wall and then held
+    // `w` for 3 s, which carries the player 3.15 m past a door set at 45
+    // degrees. A test I had not proven was measuring the right thing kept a
+    // working feature switched off for the user - GOTCHAS 27, a check you
+    // never watched fail is one you will argue with.
+    chamfer: { corner: 'front-right', cut: 2.0, door: true },
     palette: { floor: 0xa89e88, wall: 0xc4c8b4, ceil: 0xbcbcae, trim: 0x5a4a34 },
     // Fluorescent battens, and all three work. A bodega is over-lit on
     // purpose — it is open at 2am and the light is half of why you go in.
@@ -200,9 +214,22 @@ export function buildBodega(ctx: CtxBuild): void {
     }
     dither(g, 64, 48, 60);
   }), 'detail');
-  const GOND_L = room.D - 3.2;            // leaves the front and back clear
-  const GOND_Z = -0.35;
-  const AISLE = 0.95;
+  // THE RUNS CLEAR THE CORNER ENTRY.
+  //
+  // With the door in the CUT, you no longer arrive on the front wall's
+  // centreline — you arrive diagonally at the front-right corner, and the runs
+  // were still laid out against the old front-wall door. Walking in gave
+  // 0.44 m ahead and about a metre each way: the user's "cramped", produced by
+  // furniture placed against a door that had moved.
+  //
+  // "Cramped is a statement about SHAPE, not area" — so this is measured as
+  // the largest continuous free run from where you actually come to rest, not
+  // in square metres. The runs are shortened and pushed back off the corner,
+  // and the extra 1.6 m of depth goes into the approach rather than into more
+  // shelving.
+  const GOND_L = room.D - 5.6;            // was -3.2: the front end comes back
+  const GOND_Z = -1.35;                   // was -0.35: pushed toward the cooler
+  const AISLE = 1.15;                     // was 0.95: a capsule is 0.72 across
   const GOND_W = 0.62;
   // THE DOOR LOOKS DOWN AN AISLE, not into the end of a run.
   //
@@ -322,7 +349,13 @@ export function buildBodega(ctx: CtxBuild): void {
   // A corner shop puts its counter where it can watch the door, not across it.
   // `hd - 4.6` keeps it on the same wall, still facing the entrance, with the
   // corner itself left as the way in.
-  const CTR_X = hw - 1.5, CTR_Z = hd - 4.6;
+  // THE COUNTER SITS BESIDE THE CORNER DOOR, NOT ACROSS IT.
+  //
+  // Walking in through the cut gave 0.45 m ahead: the counter spanned z 0.4 to
+  // 3.0 and the diagonal you enter along ran straight into its front. A corner
+  // shop puts the counter where it can watch the door — beside the entry, not
+  // blocking it — so it moves back off the approach.
+  const CTR_X = hw - 1.5, CTR_Z = hd - 7.0;
   const ctrTopT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#b0a692'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.22)';
