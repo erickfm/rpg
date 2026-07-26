@@ -117,3 +117,77 @@ it is worth one check by someone who owns the file.
 
 **(440, 5.9), then turn left.** That is the whole test, and it is the walk a
 customer actually makes.
+
+---
+
+# Verifying F, third and fourth rows
+
+## "thrift interior too thin" — CONFIRMED
+
+The row's **entire** evidence cell was four words: *"thinnest room in the
+world"*. No number, no predicate, no station — against this ledger's own rule
+that a LANDED row says where to stand. So there was nothing to read.
+
+`scripts/B-room-density.mjs`: props per m² of floor, every interior room, **one
+predicate applied to all ten**. The claim is a ranking, so a ranking is what it
+produces — and a ranking survives the thing an absolute count cannot, which is
+that a module's prop total depends on how it happens to split its meshes.
+
+```
+   x 1000   13.8 x 8.0    110 m2   ceil 2.80    17   0.15   <- thinnest: the PAWN
+   x  840   11.0 x 26.0   286 m2   ceil 3.40    52   0.18
+   x  440    8.8 x 12.6   111 m2   ceil 2.60    25   0.23
+   x 1080   11.8 x 8.5    100 m2   ceil 2.73    39   0.39
+   x  920   20.0 x 22.0   440 m2   ceil 2.64   211   0.48
+   x  760   10.8 x 7.0     76 m2   ceil 3.00    55   0.73
+   x 1160   11.3 x 9.4    106 m2   ceil 2.75    95   0.89   <- the THRIFT
+   x  520   14.8 x 8.5    126 m2   ceil 3.20   119   0.95
+   x  680   13.0 x 24.0   312 m2   ceil 4.20   301   0.96
+   x  600   11.0 x 36.0   396 m2   ceil 3.25   696   1.76
+```
+
+The thrift is found by `ct/int-thrift.ts`'s own declared **11.3 × 9.4**, matched
+to 0.00 m. It sits at **0.89 props/m², rank 7 of 10 from the thin end** — the
+fourth densest room in the world.
+
+**And the room that IS thinnest is the pawn shop**, 13.8 × 8 with a 2.80
+ceiling, matching `ct/int-pawn.ts`'s declared `d: 8.0, h: 2.8`. F has already
+told G exactly that — *"pawn shop density: 0.5/m², thinnest in the world"* — a
+different absolute on a different predicate, same conclusion reached
+independently. **So the four words in this cell are the pawn's finding sitting
+in the thrift's row.** Worth catching before someone reads it as a live
+complaint about the thrift.
+
+Looked, too: `shots/B-verify-F/thrift-back.png` — rails packed two deep,
+hand-priced shelving, ALL COATS $9, SHIRTS 2 FOR $3, a bin on the floor, and
+still floor to walk on. That last part is the desk's own correction to its own
+brief landing correctly: *"the answer is NOT to remove stock: the user says the
+room should be LARGER."*
+
+## "people in the buildings are in the right orientation" — NOT confirmed
+
+Left LANDED on purpose. Written up in the ledger row itself; the short version
+is that **H's sector-4 reading holds, the auditor's "profile" does not, and the
+bodega keeper still shows his back** from a station the game validates (the
+`[E] buy cereal` prompt is up in `shots/B-verify-F/keeper-oblique.png`).
+
+The thing that defeated the auditor was keeper identification, and the fix is to
+define a keeper **positionally** — the standing figure behind a counter — rather
+than as the first atlas-framed figure in the room, which picked up a customer
+sitting in a diner booth. It resolves to (442.35, −0.70), 0.05 m off the
+counter, landing exactly on `ct/int-bodega.ts`'s own `KEEP_AT = CTR_X − 0.55`.
+Method and source agree to the centimetre, which is the check on the method.
+
+Routed to F/H. Not my file and I have not touched it.
+
+## Four rows, and the pattern in what went wrong
+
+Three of my own camera stations were useless before one worked: *far side of the
+counter* hit the back wall, *toward the room centre* hit the inside of a
+gondola, and an absolute `z = 0` photographed the outside of a clapboard wall.
+
+The fix that worked was the same each time — **stop generating stations
+geometrically and use what the world publishes**: the `[E]` spot for where a
+customer stands, and the room's own measured centre instead of a remembered
+coordinate. Every probe in this set returns the centre it measured, so the next
+person does not repeat it.
