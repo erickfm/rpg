@@ -2215,7 +2215,31 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   };
 
   const updateHermitAt = (hAbs: number, px: number, pz: number, dt: number) => {
-    hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+    // HE IS ONLY ON HIS OWN LANDING. Ref shots/user-neighbour-floating.png: he
+    // was drawn beside 202, a storey below where he lives, with his feet in the
+    // air.
+    //
+    // ONE BUG, NOT TWO, and it is worth being exact because the two candidates
+    // wanted opposite fixes. His Y IS CORRECT — measured, he stands at float
+    // 0.00 on the landing whose carpet is 2 * ST, which is his. What was wrong
+    // is that `visible` was set from the schedule ALONE, with no floor gate, so
+    // he was drawn on every landing in the building at his own storey's height:
+    //
+    //     player on the lobby      he floats 5.40 m
+    //     player on 201/202        he floats 2.70 m   <- the shot
+    //     player on 301/302        he stands, 0.00
+    //
+    // So NO y offset, and the desk's warning is the right one to have heeded:
+    // citizenPlane owns the origin and a hand-fudge here would have been the
+    // world-wide 12 cm float all over again. The floor is the thing to fix.
+    //
+    // Gated with the SAME test hermitCap already used, which is the other half
+    // of it: the collider was floor-gated and the sprite was not, so from
+    // another landing he was visible and not solid — two halves of one figure
+    // disagreeing about whether he was there.
+    const onHisLanding = Math.abs(lastGy - 2 * ST) < 0.5;
+    hermit.visible = onHisLanding
+      && (hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1);
     // ── his door follows him ───────────────────────────────────────────────
     // An open door says somebody is there even when the sprite is not, which
     // is half of why the landing read as though he was out constantly — the
