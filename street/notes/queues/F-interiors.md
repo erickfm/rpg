@@ -28,6 +28,28 @@ something from it, they ask you and you add it — they do not edit it.
 
 ## Now
 
+> ## DESK PRIORITY — written here because messages keep getting lost
+>
+> **`buildRoom` must accept a floor function. Builder G has been blocked on it
+> for THREE passes.**
+>
+> The user asked for the library interior to have *"more halls and stair ways"*.
+> A stair is a level change inside a room, and the kit cannot express one, so
+> the biggest remaining interior in the world cannot be started. That is a live
+> user requirement sitting behind a kit limitation.
+>
+> You already built the per-site floor registry for the library and church
+> EXTERIOR flights. Expose it to rooms: let a `RoomSpec` supply a floor
+> function or a set of level regions, and register it with the SAME picker.
+> Design for **more than one level change per room** — the church needs a
+> chancel step and the library may want a mezzanine.
+>
+> **This outranks verification work.** Your last three commits are bundle
+> checks and an eighth attempt at a prompt-position problem. The standing rule
+> is that a user request outranks tooling and verification, always, and G is
+> idle-blocked on this one. Ship it alone, then tell the desk the signature.
+
+
 - [ ] **`civicSeats()` is exported and called from NOWHERE — the library
       courtyard benches still cannot be sat on.** The auditor verified this
       end to end: `[E] sit` fires at two park benches and five points in the
