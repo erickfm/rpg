@@ -126,6 +126,15 @@ export function buildBank(k: {
   // bottom edge so it tilts up toward the face. The keypad shelf comes closest
   // to horizontal, the screen stays closer to vertical.
   const ATM_U = 0.36;                       // across the frontage; band u runs -z
+  // A SECOND MACHINE, ON THE LEFT. The user: "maybe add another on the left" —
+  // banks put them in pairs and this is the cheapest win on the facade.
+  //
+  // Spaced in METRES, not in u, so the pair stays a pair whatever the frontage
+  // measures; u is derived from it wherever it is needed. Smaller u is further
+  // LEFT from the pavement opposite (u increases toward -z, and screen right is
+  // -z on a west facade), so the second machine sits below ATM_U, between the
+  // first and the window at 0.18.
+  const ATM_PAIR_M = 0.95;                  // centre to centre
   const ATM_R = 0.15;                       // recess depth
   // the OPENING, a little larger than the machine on every side
   const ATM_W = 0.74, ATM_SILL = KERB_H + 0.62, ATM_TOP = KERB_H + 1.66;
@@ -171,9 +180,52 @@ export function buildBank(k: {
       g.fillStyle = 'rgba(255,255,255,0.1)';
       for (let x = 0; x <= W; x += m(2.4)) g.fillRect(x + Math.max(1, m(0.05)), 0, 1, H);
       g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, m(0.5), W, Math.max(1, m(0.06)));  // one shadow line
-      // polished granite plinth
-      g.fillStyle = BANK_GRANITE; g.fillRect(0, H - m(0.62), W, m(0.62));
-      g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, H - m(0.62), W, Math.max(1, m(0.06)));
+      // ── COURSING, so the blocks have a size ────────────────────────────
+      //
+      // The user, after praising the ATM and the doors: "make the rest of the
+      // facade match the same vibe." Those two work because they are drawn at
+      // the scale of a person standing on the pavement. The stone was not: one
+      // shadow line and vertical joints every 2.4 m, so between them sat two
+      // and a half metres of flat tone with nothing to read. That is the
+      // flat-colour fault — no grain, no joints, no scale — at the size of a
+      // whole facade rather than a ground quad.
+      //
+      // Precast panels are not brick, so this is NOT a brick bond: it is the
+      // horizontal joint every course of panels, which gives the wall a unit
+      // and therefore a size. 0.9 m, read against the 2.4 m verticals already
+      // here, so the panels come out landscape as precast actually is.
+      for (let y = m(0.9); y < H - m(0.62); y += m(0.9)) {
+        g.fillStyle = 'rgba(0,0,0,0.13)'; g.fillRect(0, y, W, Math.max(1, m(0.04)));
+        g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(0, y + Math.max(1, m(0.04)), W, 1);
+      }
+      // ── THE PLINTH, which was a flat granite band ──────────────────────
+      //
+      // It had a lit top edge and nothing else, so it read as a painted stripe
+      // rather than as stone the building stands on. A plinth is a projecting
+      // course: it needs a top surface catching light, a shadow where the wall
+      // above sits back from it, and a darker foot where the pavement throws
+      // grit at it. A 1997 savings bank is meant to look slightly overbuilt and
+      // this is where that reads first.
+      const pT = H - m(0.62);
+      g.fillStyle = BANK_GRANITE; g.fillRect(0, pT, W, m(0.62));
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, pT - m(0.05), W, m(0.05));   // wall sits back
+      g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, pT, W, Math.max(1, m(0.05)));
+      g.fillStyle = 'rgba(255,255,255,0.09)'; g.fillRect(0, pT + m(0.05), W, Math.max(1, m(0.03)));
+      // polished granite is not uniform — a slow vertical mottle, no speckle
+      for (let x = 0; x < W; x += m(0.55)) {
+        const v = Math.random();
+        g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.03 + v * 0.05})` : `rgba(255,255,255,${(v - 0.5) * 0.06})`;
+        g.fillRect(x, pT + m(0.06), m(0.55), m(0.56));
+      }
+      g.fillStyle = 'rgba(20,20,22,0.34)'; g.fillRect(0, H - m(0.12), W, m(0.12));  // grubby foot
+      // ── A STRING COURSE under the upper floor ──────────────────────────
+      // The band met the wall above with nothing between them. A projecting
+      // course there is what stops a four-storey elevation reading as one
+      // undivided sheet, and it is the horizontal the FIRST FEDERAL letters
+      // are meant to sit under rather than float on.
+      g.fillStyle = BANK_LIGHT; g.fillRect(0, m(0.12), W, m(0.14));
+      g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(0, m(0.12), W, Math.max(1, m(0.04)));
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(0, m(0.26), W, m(0.07));
       // deep-set windows: a dark reveal, bronze frame, blinds half down
       const win = (cx: number, wWin: number) => {
         g.fillStyle = 'rgba(0,0,0,0.5)';
@@ -222,10 +274,30 @@ export function buildBank(k: {
       g.fillStyle = '#16181c'; g.fillRect(nx - m(0.16), m(2.12), m(0.32), m(0.1));
       g.fillStyle = BANK_BRONZE; g.fillRect(nx + m(0.4), m(2.0), m(0.3), m(0.42));   // plaque
       g.fillStyle = '#2a2c30'; g.fillRect(Math.round(W * 0.28), m(0.28), m(0.22), m(0.16)); // camera
+      // ── SOMETHING AT THE DOOR ──────────────────────────────────────────
+      //
+      // The brief asks for it and a bank is where it is most expected: you do
+      // not walk up to a branch entrance and find bare stone either side. A
+      // brass plate with the branch name engraved, and the hours card under it,
+      // both at reading height beside the portal — this is the detail that
+      // rewards standing close, which is what the ATM and the doors already do
+      // and the rest of the wall did not.
+      const dpx = Math.round(W * 0.62) + m(1.35);            // just right of the portal
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(dpx + m(0.03), m(1.55), m(0.46), m(0.62));
+      g.fillStyle = '#8a7a4e'; g.fillRect(dpx, m(1.52), m(0.46), m(0.62));      // brass plate
+      g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(dpx, m(1.52), m(0.46), Math.max(1, m(0.04)));
+      g.fillStyle = 'rgba(40,34,20,0.55)';                                       // engraved lines
+      for (let k = 0; k < 3; k++) g.fillRect(dpx + m(0.07), m(1.66) + k * m(0.13), m(0.32), Math.max(1, m(0.035)));
+      g.fillStyle = '#20242a'; g.fillRect(dpx, m(2.28), m(0.46), m(0.40));       // hours card, dark frame
+      g.fillStyle = '#cfd3d6'; g.fillRect(dpx + m(0.04), m(2.32), m(0.38), m(0.32));
+      g.fillStyle = 'rgba(60,64,70,0.75)';
+      for (let k = 0; k < 4; k++) g.fillRect(dpx + m(0.07), m(2.37) + k * m(0.07), m(0.28), Math.max(1, m(0.025)));
       dither(g, W, H, Math.round(wM * SHOP_BAND_H * 4));
       // …and now the hole, after the dither.
-      const ax = Math.round(W * ATM_U);
-      g.clearRect(ax - m(ATM_W / 2), m(SHOP_BAND_H - ATM_TOP), m(ATM_W), m(ATM_TOP - ATM_SILL));
+      for (const u of [ATM_U, ATM_U - ATM_PAIR_M / wM]) {
+        const ax = Math.round(W * u);
+        g.clearRect(ax - m(ATM_W / 2), m(SHOP_BAND_H - ATM_TOP), m(ATM_W), m(ATM_TOP - ATM_SILL));
+      }
     });
   };
   /** One face of the raked fascia. Only what was asked for and nothing else:
@@ -233,7 +305,7 @@ export function buildBank(k: {
    *  slot, and a keypad that reads as separate keys. No name plate, no frame —
    *  those are what made attempt two ugly.
    */
-  const atmPanelTex = (which: 'screen' | 'keys' | 'apron', wM: number, hM: number) => {
+  const atmPanelTex = (which: 'screen' | 'keys' | 'apron', wM: number, hM: number, v = 0) => {
     const PXM = 160;
     const W = Math.max(2, Math.round(wM * PXM)), H = Math.max(2, Math.round(hM * PXM));
     const px = (v: number) => Math.max(1, Math.round(v * PXM));
@@ -255,9 +327,18 @@ export function buildBank(k: {
         g.fillStyle = '#1c2026'; g.fillRect(sx, sy, sw, sh);
         g.fillStyle = '#0d1418'; g.fillRect(sx + px(0.012), sy + px(0.012), sw - px(0.024), sh - px(0.024));
         g.fillStyle = '#3f6a4a'; g.fillRect(sx + px(0.024), sy + px(0.024), sw - px(0.048), sh - px(0.048));
+        // WHAT IS ON THE SCREEN is the one thing that differs between the two.
+        // Machine 0 sits on a menu — two lines of options. Machine 1 is idle on
+        // its greeting: one wider line centred, and a cursor block after it.
         g.fillStyle = 'rgba(180,255,190,0.32)';
-        g.fillRect(sx + px(0.05), sy + px(0.06), px(0.20), px(0.016));
-        g.fillRect(sx + px(0.05), sy + px(0.10), px(0.13), px(0.016));
+        if (v === 0) {
+          g.fillRect(sx + px(0.05), sy + px(0.06), px(0.20), px(0.016));
+          g.fillRect(sx + px(0.05), sy + px(0.10), px(0.13), px(0.016));
+        } else {
+          g.fillRect(sx + px(0.05), sy + px(0.075), px(0.26), px(0.016));
+          g.fillStyle = 'rgba(180,255,190,0.5)';
+          g.fillRect(sx + px(0.33), sy + px(0.075), px(0.022), px(0.016));
+        }
         g.fillStyle = 'rgba(255,255,255,0.07)';
         g.fillRect(sx + px(0.024), sy + px(0.024), px(0.06), sh - px(0.048));
         // CARD SLOT down the right edge, with its lit arrow
@@ -277,7 +358,8 @@ export function buildBank(k: {
         for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
           const x = k0x + c * (kw + gx), y = k0y + r * (kh + gy);
           g.fillStyle = '#31363c'; g.fillRect(x - px(0.005), y - px(0.004), kw + px(0.01), kh + px(0.008));
-          g.fillStyle = c === 1 ? '#c6cbcf' : '#aab0b6';       // middle column worn pale
+          // wear falls where the hand rests, and not identically on two machines
+          g.fillStyle = c === (v === 0 ? 1 : 2) ? '#c6cbcf' : '#aab0b6';
           g.fillRect(x, y, kw, kh);
           g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(x, y, kw, px(0.005));
           g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillRect(x, y + kh - px(0.005), kw, px(0.005));
@@ -297,7 +379,13 @@ export function buildBank(k: {
   };
 
   /** The niche: a 0.15 m recess with a two-plane RAKED fascia inside it. */
-  const atmNiche = (zc: number): THREE.Group => {
+  // `v` is which machine of the pair this is: 0 the original on the right, 1
+  // the new one on the left. It varies ONLY what would really vary between two
+  // machines bolted up the same week — what is on the screen, and which keys
+  // have been worn pale. Everything the user singled out is identical, because
+  // "I like the ATM" is about the cabinet, the lit screen, the keypad and the
+  // fascia, and a pair that differs in those is two different products.
+  const atmNiche = (zc: number, v = 0): THREE.Group => {
     // Collected into a GROUP so the [E] spot can NAME it. The selection outline
     // draws whatever the spot names, and a spot that names nothing gets a plain
     // box — which is honest, but this is the machine, so it can have its own
@@ -346,21 +434,21 @@ export function buildBank(k: {
      *  (x,y,z) -> (z,y,-x), giving (cosθ, sinθ, 0): out of the wall and UP.
      *  Order-independent, and the resulting normal is asserted in the check.
      */
-    const panel = (which: 'screen' | 'keys' | 'apron', yTop: number, yBot: number, dTop: number, dBot: number) => {
+    const panel = (which: 'screen' | 'keys' | 'apron', yTop: number, yBot: number, dTop: number, dBot: number, v = 0) => {
       const dy = yTop - yBot, dd = dTop - dBot;
       const len = Math.hypot(dy, dd), theta = Math.atan2(dd, dy);
       const geo = new THREE.PlaneGeometry(M_W, len);
       geo.rotateX(-theta);
       geo.rotateY(Math.PI / 2);
-      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: atmPanelTex(which, M_W, len) }));
+      const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: atmPanelTex(which, M_W, len, v) }));
       mesh.position.set(xF - (dTop + dBot) / 2, (yTop + yBot) / 2, zc);
       mesh.userData.atmPart = which;
       mesh.userData.atmTilt = +(theta * 180 / Math.PI).toFixed(1);
       atmGroup.add(mesh);
     };
-    panel('screen', M_TOP, M_SCREEN_BOT, D_TOP, D_SCREEN_BOT);
-    panel('keys', M_SCREEN_BOT, M_KEYS_BOT, D_SCREEN_BOT, D_KEYS_BOT);
-    panel('apron', M_KEYS_BOT, M_BOT, D_KEYS_BOT, D_BOT);
+    panel('screen', M_TOP, M_SCREEN_BOT, D_TOP, D_SCREEN_BOT, v);
+    panel('keys', M_SCREEN_BOT, M_KEYS_BOT, D_SCREEN_BOT, D_KEYS_BOT, v);
+    panel('apron', M_KEYS_BOT, M_BOT, D_KEYS_BOT, D_BOT, v);
     return atmGroup;
   };
 
@@ -375,6 +463,14 @@ export function buildBank(k: {
       for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(0, y, W, Math.max(1, m(0.05)));
       g.fillStyle = 'rgba(255,255,255,0.09)';
       for (let y = 0; y <= H; y += m(FLOOR_M)) g.fillRect(0, y + Math.max(1, m(0.05)), W, 1);
+      // the same 0.9 m coursing the ground band now carries, so the elevation
+      // reads as ONE building rather than a detailed base under a blank slab.
+      // Lighter than the floor lines above, which stay the dominant horizontal.
+      for (let y = m(0.9); y < H; y += m(0.9)) {
+        if (Math.abs(y % m(FLOOR_M)) < m(0.12)) continue;      // never beside a floor line
+        g.fillStyle = 'rgba(0,0,0,0.09)'; g.fillRect(0, y, W, Math.max(1, m(0.035)));
+        g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, y + Math.max(1, m(0.035)), W, 1);
+      }
       const cols = Math.max(2, Math.floor(wM / 2.4));
       for (let f = 0; f < floors; f++) {
         for (let c = 0; c < cols; c++) {
@@ -410,7 +506,13 @@ export function buildBank(k: {
     // u = 0.36 across the frontage, and the band's u runs -z (measured, not
     // assumed: the depository at u 0.62 photographs at z 2.3). The frontage
     // runs from `z` back to `z - w`, so u maps to `z - u * w`.
-    const atmZ = z - 0.36 * w;
+    // FROM THE CONSTANT. This read `z - 0.36 * w`, repeating ATM_U's value as a
+    // literal — the band cut its hole from ATM_U and the machine was placed from
+    // a second copy of the number, so moving one would have left the other
+    // behind. The file's own comment two hundred lines up says these two must
+    // agree exactly; now they cannot disagree.
+    const atmZ = z - ATM_U * w;
+    const atmZ2 = atmZ + ATM_PAIR_M;          // the left-hand machine of the pair
     let readAt = -1e9;
     // Registered here but the machine is BUILT further down, so the object is
     // attached after the fact — `ctx.spot` keeps the same object reference, so
@@ -531,7 +633,8 @@ export function buildBank(k: {
     band.position.set(cx, SHOP_BAND_H / 2, cz);
     scene.add(band);
     // the outline draws the MACHINE now, not a generic box at the spot
-    atmSpot.obj = atmNiche(atmZ);
+    atmSpot.obj = atmNiche(atmZ, 0);
+    atmNiche(atmZ2, 1);          // the pair — same cabinet, its own screen and wear
     solid({ minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
     // A recessed entrance, because a bank door is not a glass hole in a band.
     // Same trick as the bodega's canted bay: the leaf sits back behind the
