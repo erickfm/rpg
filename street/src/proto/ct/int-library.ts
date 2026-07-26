@@ -3,6 +3,9 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+// the hard-texel text painter, so a sign in here is as crisp as one on the
+// street — same reason ct/int-hotel.ts imports it
+import { hardLayer as hardLayerLib } from './vice';
 
 // PVBLIC LIBRARY, inside.
 //
@@ -319,6 +322,79 @@ export function buildLibrary(ctx: CtxBuild): void {
   // that would have caught every one of them — derive facing from what the
   // object faces, never as a constant.
   }, DESK_X, LIB_Z, { facing: Math.atan2(0, VISITOR_Z - LIB_Z), h: 0.97, w: 0.95 });
+
+  // ── THE PERIODICALS ALCOVE ───────────────────────────────────────────────
+  //
+  // The queue's third space, after the vestibule and the reading room: "a
+  // children's or periodicals alcove". It goes in the strip between the west
+  // ends of the stacks and the west wall — 2.4 m the stacks do not use, which is
+  // exactly an alcove's worth and is why the room reads as having corners rather
+  // than as one rectangle with shelving in it.
+  //
+  // Periodicals rather than children's, because the one figure in this room is a
+  // librarian and the one on the street outside is nobody's parent; a children's
+  // corner with no children in it reads as closed.
+  {
+    const AX = -W / 2 + 1.05;
+    // the sloping newspaper rack: papers laid on a rail, spines toward you
+    const paperT = declareSurface(pixTex(40, 28, (g) => {
+      g.fillStyle = '#8a8578'; g.fillRect(0, 0, 40, 28);
+      for (let i = 0; i < 5; i++) {
+        const y = 1 + i * 5.4;
+        g.fillStyle = i % 2 ? '#d8d2c2' : '#cfc8b6'; g.fillRect(2, y, 36, 4);
+        g.fillStyle = '#6a6458'; g.fillRect(3, y + 1, 14, 1);      // the masthead
+        g.fillStyle = '#8a8478'; g.fillRect(3, y + 2, 30, 1);
+      }
+      dither(g, 40, 28, 40);
+    }), 'detail');
+    for (let i = 0; i < 3; i++) {
+      const rz = -1.6 + i * 1.9;
+      // the rail and its sloping face
+      box(0.42, 0.06, 1.5, woodDark, AX, 1.02, rz);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.62), ctx.flat(paperT));
+      face.rotation.y = Math.PI / 2; face.rotation.x = -0.42;
+      put(face, AX + 0.20, 1.24, rz);
+      box(0.09, 1.0, 0.09, wood, AX, 0.5, rz - 0.68);
+      box(0.09, 1.0, 0.09, wood, AX, 0.5, rz + 0.68);
+      solid(AX, rz, 0.5, 1.5);
+    }
+    // a chair to read them in, turned into the alcove rather than facing the room
+    box(0.46, 0.06, 0.46, wood, AX + 1.15, 0.44, 0.9);
+    box(0.46, 0.52, 0.06, wood, AX + 1.15, 0.72, 1.12);
+    for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {
+      box(0.05, 0.44, 0.05, woodDark, AX + 1.15 + lx, 0.22, 0.9 + lz);
+    }
+    solid(AX + 1.15, 0.9, 0.5, 0.5);
+  }
+
+  // ── BACK OF HOUSE, AND IT DOES NOT OPEN ──────────────────────────────────
+  //
+  // Also the queue's: "back-of-house doors that do not open". A public building
+  // is half rooms you are not allowed into, and a far wall with nothing on it
+  // says the building stops there. These carry no [E] and never will — the point
+  // is that they are shut, not that they are a puzzle.
+  {
+    const BZ = -D / 2 + 0.07;
+    const plateT = declareSurface(pixTex(28, 8, (g) => {
+      g.fillStyle = '#4a4638'; g.fillRect(0, 0, 28, 8);
+      hardLayerLib(g, '#d8d2c0', (h) => {
+        h.fillStyle = '#d8d2c0'; h.font = 'bold 5px monospace';
+        h.textAlign = 'center'; h.textBaseline = 'middle';
+        h.fillText('STAFF ONLY', 14, 4);
+      });
+    }), 'sign');
+    for (const [bx, plate] of [[-3.6, true], [3.6, false]] as [number, boolean][]) {
+      // the door itself: flush panel, dark, with a plain lever handle
+      box(0.96, 2.10, 0.08, woodDark, bx, 1.05, BZ + 0.05);
+      box(1.10, 2.24, 0.05, wood, bx, 1.12, BZ);              // the casing round it
+      box(0.10, 0.04, 0.05, metal, bx + 0.36, 1.02, BZ + 0.10);
+      if (plate) {
+        put(new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.18), ctx.flat(plateT)),
+          bx, 1.62, BZ + 0.11);
+      }
+      solid(bx, BZ + 0.05, 1.1, 0.2);
+    }
+  }
 
   // ── WHAT IS ON THE WALLS ─────────────────────────────────────────────────
   //
