@@ -474,7 +474,15 @@ export function citizenPlane(seated = false): THREE.PlaneGeometry {
   // figure's footprint changes.
   const HIP_ROW = 44, ROWS = 64;   // 0.445 m above the shoe — see SEAT_DROP
   const originRow = seated ? HIP_ROW : ROWS - PAD_ROWS;
-  geo.translate(0, H / 2 - (originRow / ROWS) * H + (seated ? 0 : 0), 0);
+  // SIGN CARE. The plane spans -H/2..+H/2, so frame row r sits at
+  // y = H/2 - (r/ROWS)*H, and putting the ORIGIN there means translating by
+  // the NEGATIVE of that. I got this backwards when I rewrote the function for
+  // the seated pose — the original measured PAD_ROWS up from the bottom, I
+  // measured originRow down from the top and kept the same sign, which put
+  // every standing citizen's origin at the crown of its head and sank the
+  // whole crowd 1.66 m. Caught by measuring the composed sprite's bounds
+  // rather than the atlas frames, which is the check the seated work never had.
+  geo.translate(0, (originRow / ROWS) * H - H / 2, 0);
   return geo;
 }
 
