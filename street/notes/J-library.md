@@ -270,6 +270,24 @@ scripts/J-library-door.mjs    3 PASS, and its --selftest watched go red
 scripts/E-library-in.mjs      unchanged across all seven commits
 ```
 
+And in the ARTIFACT — the single file the user actually opens, which GOTCHAS §37
+says nobody checks a room in:
+
+```
+J-library-door   3 PASS in dist/artifact.html   identical to the preview run
+J-gallery-walk   5 PASS in dist/artifact.html   identical to the preview run
+nightgrade 910 930 -11 11   0 materials break §22, no DoubleSide cut-out in the
+                            sorted queue
+footpaint                   4 of 4 figures' PAINTED feet on the floor
+```
+
+That matters for this room in particular: the door's whole geometry is built
+from `DOOR.leaf`, collected through the eager glob that GOTCHAS §28 records
+silently dropping GOLDEN ACES' declaration **in the bundle and not in dev**. The
+method is written up in `notes/J-artifact-room-check.md` — three commands, works
+with any check that honours `SHOT_URL`, and there are nine other rooms in that
+file that nobody has pointed one at.
+
 **Read the two aisle numbers together, because the median alone misleads.** It
 fell from 11.85 to 7.70 and that is the price of the furniture, paid
 deliberately. But the **minimum is 4.85 m** — second only to the hotel's 5.27,
