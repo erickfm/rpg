@@ -61,6 +61,19 @@ const w = await page.evaluate(() => {
   const sc = window.__ct.scene();
   const out = { crates: [], awn: null, cat: null, atm: [], litter: [] };
   sc.traverse((o) => {
+    // THE TAG IS ON THE GROUP, not on its meshes. ct/props.ts builds each piece
+    // with drop() as a Group and sets `userData.litter` on that group, so the
+    // piece is ONE object with several children. Reading it at mesh level and
+    // de-duplicating by position gave 15 "pieces" for 7, because the children
+    // sit at their own offsets. Read it where it is published.
+    const lit = o.userData.litter;
+    if (lit) {
+      o.updateWorldMatrix(true, false);
+      const g = o.position.clone().setFromMatrixPosition(o.matrixWorld);
+      if (g.x > -13.6 && g.x < -7 && g.z > -43.5 && g.z < -37) {
+        out.litter.push({ name: String(lit), x: +g.x.toFixed(3), z: +g.z.toFixed(3) });
+      }
+    }
     if (!o.isMesh) return;
     o.updateWorldMatrix(true, false);
     const q = o.position.clone().setFromMatrixPosition(o.matrixWorld);
@@ -73,11 +86,6 @@ const w = await page.evaluate(() => {
     }
     if (P.width && Math.abs(P.width - 20 / 34) < 1e-6 && Math.abs(P.height - 28 / 34) < 1e-6) {
       out.cat = { x: +q.x.toFixed(3), z: +q.z.toFixed(3) };
-    }
-    // ground litter lying in the alley: flat decals, laid down by rotation.x
-    if (Math.abs(o.rotation.x + Math.PI / 2) < 0.01 && q.y < 0.05 && !o.userData.catShadow
-        && q.x > -13.6 && q.x < -7 && q.z > -43.5 && q.z < -37) {
-      out.litter.push({ x: +q.x.toFixed(3), z: +q.z.toFixed(3) });
     }
     if (q.x < -6.8 && q.x > -7.4 && q.z > 6.5 && q.z < 8.1) {
       o.geometry.computeBoundingBox();
@@ -113,10 +121,15 @@ say(machine.length >= 3, "the ATM's machine panels are in the world", `${machine
 // `ct/props.ts`'s numbers — B's file. A hard-coded quotation of somebody else's
 // source is the one thing a refactor breaks silently and a bug never does, and I
 // had already written two guards against that class before committing this
-// instance. Measured floor: 6 flat decals lie in the alley once the cat's own
-// contact shadow is excluded — it is a flat decal at the cat's exact position,
-// so it read as litter 0.00 m away until ct/cat.ts started declaring it.
-say(w.litter.length >= 4, 'the alley litter is in the world', `${w.litter.length} flat decals`);
+// instance. MEASURED floor: FIVE pieces lie in the alley — two milk crates, two
+// flattened cardboards and a folded newspaper, which is exactly the five drop()
+// calls ct/props.ts makes there. Not the 7 I first wrote from memory, and not
+// the 21 that counting meshes gave, and not the 15 that de-duplicating meshes
+// by position gave. Three wrong counts for one population, each of which would
+// have set a floor that could never bite. Superseded note: 6 flat decals once the cat's own
+// contact shadow is excluded — see the collection above for why that stopped
+// mattering once the published name replaced the shape heuristic.
+say(w.litter.length >= 4, 'the alley litter is in the world', `${w.litter.length} pieces: ${[...new Set(w.litter.map((L) => L.name))].join(', ')}`);
 
 if (fails) {
   console.log(`\n${fails} of the four objects this check exists for are MISSING.`);
@@ -168,7 +181,7 @@ const nearest = w.litter
   .sort((a, b) => a.d - b.d);
 const toTheLeft = nearest.filter((n) => n.r < catR);
 say(nearest[0].d > 0.5, 'the cat is not standing on any piece of litter',
-  `nearest is ${nearest[0].d.toFixed(2)} m away`);
+  `nearest is the ${nearest[0].L.name} at ${nearest[0].d.toFixed(2)} m`);
 say(toTheLeft.length > 0, 'there IS paper to the cat\'s left in the user\'s frame — it is on the right of it',
   `${toTheLeft.length} of ${w.litter.length} decals sit left of the cat`);
 const dPaper = nearest[0].d;
