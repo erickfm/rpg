@@ -397,3 +397,47 @@ Two things, and only one is mine to fix:
    than papering over.
 
 _Builder E, 2026-07-25 19:55._
+
+---
+
+## Verified on the world the user plays — 25 July 20:40
+
+Every check re-run against `:5177` (build `7f74bf1c1`), not my tree. This
+matters because my previous *"all green on :5177"* was partly false: `E-mound`
+had a port hard-coded and no `SHOT_URL`, so it measured my own preview while
+reporting under a heading that said otherwise. It honours `SHOT_URL` now and
+its banner names `:5177` on this run.
+
+| check | on `:5177` |
+|---|---|
+| `E-benchface` | 9/9 face into the park |
+| `E-seatreach` | 9/9 reachable, approached from the front |
+| `E-overlap` | none across 150 park meshes |
+| `E-weedspread` | 89 clumps of 1–15, 1.40 m apart |
+| `E-field` | 1.03 m bands at 6.8% contrast |
+| `E-mound` | 0.37 m of relief, nowhere steeper than 1 in 9.5 |
+| `E-partyline` | nothing the library owns crosses either party line |
+| `E-park-walk` | all walks pass |
+| `E-circuit` | loop continuous — 72 m walked, back at the gate |
+
+## Where this stops, and why
+
+The queue's live item asks me to keep fixing until I am impressed. **I am not,
+and the three reasons are unchanged** — but none of them is now something I can
+act on inside my own ownership:
+
+1. **The grey site slab** — perimeter band, gate apron, deep-end ground.
+   `openSite` in `ct/street.ts`, **D's**. It is the largest surface a player
+   sees in the park and everything I fixed today sits on it.
+2. **The tufts at 9.4–11.6× their ground after dark** — one line in
+   `ct/weeds.ts`, **C's**, with B's mechanism confirmed and my two wrong
+   diagnoses withdrawn.
+3. **The deep end reads FAIR, not good.** Mine, and accepted rather than
+   fixed: the shelter is on a no-fourth-attempt ruling, and the desk's
+   standing ruling is to add nothing further to the park until the user says
+   it looks right. Paving a small apron under the bench and tree would help
+   and is the obvious next move — **I have deliberately not done it**, because
+   it is an addition and the ruling is recent and emphatic. Say the word and it
+   is twenty minutes.
+
+_Builder E, 2026-07-25 20:40._
