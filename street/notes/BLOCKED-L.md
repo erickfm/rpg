@@ -63,9 +63,20 @@ Any ONE of these, in G's file, and I need nothing else:
 ```ts
 // three or four along the +z side, opposite the dealer
 ctx.seat({ x: room.wx(TX + dx), z: room.wz(TZ + 1.15), yaw: 0, h: GSTOOL_TOP,
-  approach: { x: room.wx(TX + dx), z: room.wz(TZ + 1.9) },
+  approach: { x: room.wx(TX + dx), z: room.wz(TZ + 1.9) },   // <-- NOT OPTIONAL
   label: 'sit at the blackjack table', ok: () => room.inside() });
 ```
+
+**THE `approach` IS NOT OPTIONAL, and it is the one line to get right.**
+`ctx.seat()` builds a seat out of TWO spots (`crosstown.ts:223`) — one to sit,
+at the approach point, and one to stand, at the seat itself. Leave `approach`
+out and it defaults to `{ x: s.x, z: s.z }`: the two land on the identical
+coordinate and the tiebreak between them is undefined. **69 of this world's 225
+seats are in that state today** — the church pews, the diner counter, the diner
+booths — and a player has already got stuck in one. G's slot stools are NOT
+among them, precisely because they declare 0.75 m, which is why the slots ship
+able to stand up from. Measurement in
+`notes/L-for-C-the-zero-cluster-is-not-the-slots.md`.
 
 The label is the whole of the interface between us — anything distinct works and
 I will match whatever it says. If the desk grants `onSit` first

@@ -128,6 +128,30 @@ if (mode === 'sit' || mode === 'all') {
   check(slotSeats.length >= 48,
     `${slotSeats.length} playable machines on the floor — the population this rests on`);
 
+  // ── YOU CAN GET OFF THE STOOL AGAIN ────────────────────────────────────────
+  //
+  // C's seat audit reports 149 of 225 seats with a non-stand spot inside the
+  // 0.5 m stand radius and a cluster sitting at EXACTLY 0.00 m, and attributes
+  // that cluster to the casino floor — the stools my game opens on. A player got
+  // stuck in a seat, and a machine you cannot stand up from would be that bug in
+  // the room he is most likely to sit in.
+  //
+  // `ctx.seat()` builds a seat from TWO spots (`crosstown.ts:223`): one to sit,
+  // at the approach point, and one to stand, at the seat itself. A seat
+  // registered with no `approach` gets `at = { x: s.x, z: s.z }` — the two spots
+  // land on the identical coordinate and the tiebreak between them is undefined.
+  //
+  // So it is measured here rather than taken on report. The gap is a property of
+  // the world, so it is asked of the world.
+  const gaps = slotSeats.map((s) => Math.hypot(s.at.x - s.pose.x, s.at.z - s.pose.z));
+  const worst = Math.min(...gaps);
+  console.log(`  every stool's sit spot stands ${worst.toFixed(2)}–${Math.max(...gaps).toFixed(2)} m`
+    + ` from its stand spot\n`);
+  check(worst > 0.1,
+    `no slot stool has coincident sit and stand spots (closest ${worst.toFixed(2)} m) —`
+    + ' G declares an approach point on every one, so the undefined tiebreak'
+    + ' cannot arise here');
+
   const seat = slotSeats[Math.floor(slotSeats.length / 2)];
   // Stand where the seat says to stand, which is the seat's OWN approach point.
   await p.evaluate((s) => window.__ct.warp(s.at.x, s.at.z, 0, window.__ct.pos().gy ?? 0, 0), seat);
@@ -220,6 +244,11 @@ if (mode === 'money' || mode === 'all') {
   console.log(`  left the machine holding ${held} credits; meter now ${left}`);
   if (c2 !== null) console.log(`  wallet  $${(c1 ?? 0).toFixed(2)} -> $${c2.toFixed(2)}\n`);
   check(await panelUp() === null, 'ESC closes the machine');
+  // …AND THEN YOU CAN GET UP. The whole point of the paragraph above, done by
+  // pressing the key rather than by reasoning about spot radii.
+  await press('e');
+  const off = await until(() => window.__ct.seated() === null, 'the player to stand up');
+  check(off, 'and E then gets you off the stool — you cannot be trapped at a machine');
   check(left === 0, 'the meter is empty when you leave — no credits survive the sitting');
   if (c2 !== null) {
     check(Math.abs(c2 - ((c1 ?? 0) + held * CREDIT)) < 1e-6,
