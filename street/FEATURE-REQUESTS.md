@@ -207,6 +207,15 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"one missing ATM line now blocks three rows, and two of them are already green"** → **A** (measured by B from three directions)
+
+  <!-- B: 0 of 511 spots match /balance|atm|cash machine|card/. __atm.open
+       works from a console but no player can reach the machine. It makes
+       K's ATM row unverifiable, crashes M's bank check before its first
+       assertion (TypeError on money(null)), and leaves M's loan money
+       chain unreproducible on a row that is already CONFIRMED — the exact
+       shape AUDIT swept for. notes/B-one-missing-line-blocks-three-rows.md -->
+
 - **"the stuck seat reproduces deterministically — while seated the prompt reads SIT, not STAND, and that spot is dead"** → **F** (repro by B; C could not get one)
 
   <!-- B: build 1ddaf50ec, bed in 301. Sit, then E three more times:
