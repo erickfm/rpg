@@ -1500,3 +1500,18 @@ master record had a gap, which is what this section closes.)_
   (afternoon-ish hours).
 - Game clock (1 s = 1 min), day/night sky+fog, look-down wristwatch.
 - Entrance: dropped "THE SEVILLE"; door + gold "227" transom + buzzer.
+
+## "i think the selection options are a bit to wide"
+
+> *"i think the selection options are a bit to wide. i feel like i select stuff
+> without even looking at it."*
+
+Routed to **D**. A walk-back of the earlier "keep the volumes wide and gate on
+line of sight" brief — that was right for the through-walls bug and is not this.
+With the outline behind the debug flag the prompt is the only selection feedback
+there is, so it has to mean *this is what you are looking at*.
+
+Half landed: the aim cone's ceiling came down 35.5° -> 15°, median off-axis
+10.8° -> 5.2°. The residue is the proximity rule, which ignores aim by design;
+see `fp.ts:lookTolerance` and `scripts/D-offer-rate.mjs`.
+

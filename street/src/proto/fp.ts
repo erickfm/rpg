@@ -426,7 +426,41 @@ export const REACH_MARGIN = 0.6;
 
 export function lookTolerance(r: number, d: number): number {
   const raw = Math.atan2(r, Math.max(0.35, d));
-  return Math.min(0.62, Math.max(0.20, raw));      // ~11.5° … ~35.5°
+  // THE CEILING CAME DOWN FROM 35.5° TO 15°, on the user's report: *"i think
+  // the selection options are a bit to wide. i feel like i select stuff without
+  // even looking at it."*
+  //
+  // 35.5° is most of peripheral vision. Anything in that arc could win, so the
+  // prompt had stopped meaning *this is what you are looking at* and started
+  // meaning *something is near you* — and since the outline went behind the
+  // debug flag, the prompt is the only selection feedback there is.
+  //
+  // MEASURED, scripts/D-offer-rate.mjs, identical routes before and after:
+  //
+  //   median off-axis angle of whatever won the prompt   10.8° -> 5.2°
+  //   winners more than 15° off his aim                    48% -> 43%
+  //   something offered at all, over 264 sampled stations  32% -> 32%
+  //
+  // SO THIS IS HALF THE FIX AND THE NUMBERS SAY WHICH HALF. The median halved,
+  // which is the cone doing its job. The 43% residue and the unchanged 32% are
+  // NOT the cone: they are the proximity rule, which ignores aim entirely by
+  // design — `near = d < r + REACH_MARGIN`. That is why the worst sample is a
+  // spot 180° BEHIND the player. Tightening the cone cannot touch those, and
+  // narrowing REACH_MARGIN would break the thing he asked for first (a door you
+  // are standing at opens without looking at it). The desk already named the
+  // shape of the remaining work: keep proximity generous only for what you are
+  // touching, and require real aim beyond that. Not done here.
+  //
+  // The walk rate he asked for is reported too — 0.25 -> 0.26 offers per 10 m —
+  // but it rests on 5 and 6 offers over ~200 m and one offer moves it 20%, so
+  // it is printed and not leant on. The aim distribution is the same complaint
+  // measured where the data is.
+  //
+  // ONLY THE CONE MOVED. `REACH_MARGIN` is untouched, because proximity does
+  // the other half of his original request — a door you are standing at opens
+  // whether or not you are looking at it — and `D-walk`'s four-way door test
+  // still passes on all four, including standing beside it NOT looking.
+  return Math.min(0.26, Math.max(0.20, raw));      // ~11.5° … ~15°
 }
 
 /**
