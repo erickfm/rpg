@@ -152,26 +152,27 @@ export function buildCasino(ctx: CtxBuild): void {
     // shrink — it stops being wider than its own front door and becomes what a
     // casino actually is, a normal-width entrance with an enormous floor going
     // back from it.
-    // DEPTH 19, NOT 30, AND THE REASON IS A FAULT THAT IS NOT MINE TO FIX.
-    // Re-tested at 30 m after b948e9370 raised the possibility that this class
-    // of "prompt reads null" is harness SEQUENCING rather than the world. It is
-    // not, here. Instrumented from a fresh page with nothing run before it —
-    // enter, walk to mid-room, turn, walk back at the door:
+    // 26 m, bisected rather than guessed. The user asked to grow the depth hard
+    // and I had this at 19 because 30 broke the way out; 19 was the last value I
+    // happened to know worked, not the limit.
     //
-    //   z 7.04  8.03  9.08  10.12  11.17  12.21  13.00  13.00
-    //   came to rest at 13.00, pressed E, still inside at (600.00, 13.00)
+    // Bisecting found the real mechanism: THE PLAYER CANNOT PASS LOCAL z 13.00
+    // IN AN INTERIOR ROOM. Walking at the door from inside:
     //
-    // The way-out spot is at hd - 0.55 = 14.45 with r 1.05, so it starts at
-    // 13.40 and the player cannot get within 0.40 m of it. You can enter this
-    // room and not leave it. Nothing explains the stop: the only colliders
-    // across the doorway are the front wall at z 15.00-15.18 and the threshold
-    // at 15.18-15.36, and the room's own wall colliders derive correctly from
-    // hd. It is not the trigger radius either — 1.75 covers 12.70-16.20 and
-    // changed nothing, while breaking the outside landing.
+    //   d 26  rest 12.80 (its own front wall)   E -> out
+    //   d 28  rest 13.00, spot 13.45 r 1.05     E -> out
+    //   d 29  rest 13.00, spot 13.95 r 1.05     E -> out
+    //   d 30  rest 13.00, spot 14.45 r 1.05     E -> STUCK, spot starts at 13.40
     //
-    // 19 m is the depth this room passes 30/30 on and the depth it ships at.
-    // notes/BLOCKED-G.md carries the trace for whoever owns the movement code.
-    w: 11.0, d: 19.0, h: 2.9,
+    // Under ~26 the front wall is nearer than 13.00 so the clamp never shows.
+    // Above it the player is held at 13.00 and the room keeps working only while
+    // the trigger is wide enough to reach someone stuck short of their own wall.
+    // 28 and 29 pass on that luck; 26 passes because the player actually reaches
+    // the wall. So 26 is the deepest honest number and this is it.
+    //
+    // The clamp is not in this file or in ct/interior.ts — the room's wall
+    // colliders derive correctly from hd. notes/BLOCKED-G.md has the trace.
+    w: 11.0, d: 26.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
@@ -487,7 +488,7 @@ export function buildCasino(ctx: CtxBuild): void {
   const AVENUE = 1.5;                                  // half-width of the centre lane
   // EIGHT rows now, not five, over 30 m of depth — the avenue is longer and the
   // banks keep coming, which is the whole "no sense of where it ends".
-  const BANK_Z = [7.0, 4.6, 2.2, -0.2, -2.6];
+  const BANK_Z = [10.4, 8.0, 5.6, 3.2, 0.8, -1.6, -4.0];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -535,7 +536,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // TZ is -7.0, not -7.6, and the walk found the reason: at -7.6 the tables'
   // colliders ended on z -8.2 and the cage's front face is at -8.9, leaving a
   // 0.70 m gap for a 0.72 m player. Nobody would have got through it. 1.30 m now.
-  const TX = -2.6, TZ = -6.6;
+  const TX = -2.6, TZ = -9.0;
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
@@ -715,7 +716,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // same move: two tables sitting inside a roped pit, which is what a real floor
   // does — it separates the people playing tables from the people walking past
   // the machines without putting a wall anywhere.
-  const T2X = 2.6, T2Z = -6.6;
+  const T2X = 2.6, T2Z = -9.0;
   {
     const legM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
     const felt2 = feltT.clone(); felt2.needsUpdate = true;
@@ -732,7 +733,7 @@ export function buildCasino(ctx: CtxBuild): void {
   {
     const postM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
     const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
-    const PX0 = -4.2, PX1 = 4.2, PZ = -4.8;
+    const PX0 = -4.2, PX1 = 4.2, PZ = -6.8;
     const posts: number[] = [];
     for (let x = PX0; x <= PX1 + 0.01; x += 2.8) posts.push(+x.toFixed(2));
     for (const px of posts) {

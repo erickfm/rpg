@@ -27,7 +27,7 @@ const KERB_H = 0.14, RADIUS = 0.36;
 const ROOMS = [
   {
     id: 'casino', label: /GOLDEN ACES/,
-    keeper: [-2.6, -5.8],    // across the felt from the dealer, in the pit
+    keeper: [-2.6, -8.2],    // across the felt from the dealer, in the pit
 
     building: 'GOLDEN ACES', at: 0, hasWindow: false,
     // an x clear of furniture, for the ±z wall probes
@@ -40,24 +40,19 @@ const ROOMS = [
     // in the clear avenue, so the probe walks up a lane and hits the front wall
     // rather than starting inside a bank — which is what 3.0 did once the banks
     // moved under it.
-    // RE-DERIVED again for the 11.0 x 30.0 floor. The avenue is |x| < 1.5 with
-    // bank colliders from 1.5 outward, eight bank rows from z 11.4 down to -5.4,
-    // the pit rope at z -8.0 and the two tables at z -10.4.
+    // RE-DERIVED for the 11.0 x 26.0 floor. Measured off the layout: the avenue
+    // is |x| < 1.5 with bank colliders from 1.5 outward, seven bank rows from
+    // z 10.4 down to -4.0, the pit rope at z -6.8 and the two tables at z -9.0.
     frontProbeX: 1.0, backProbeX: 1.0, backProbeZ: 0,
     // clear right across: behind the rope and in front of the tables
-    clearZ: -5.6,
-    // 14.2 puts the probe INSIDE the way-out trigger, which sits at z 14.45 with
-    // r 1.0 — measured, not guessed. At 13.2 and 14.0 the probe's own 1.4 s walk
-    // left it at z 13.0, just outside the 13.45 edge, and reported prompt=null on
-    // a door that works: standing in the trigger and pressing E does put you back
-    // on the street at 52.84,-97.25. The room was fine and the approach was not.
-    doorApproach: [0, 7.6],
+    clearZ: -7.8,
+    doorApproach: [0, 11.1],
     lanes: [
-      ['down the avenue, past every bank', 0, 8.4, '-z', 3400, 'z', 11.0],
-      ['…and back up it to the door', 0, -4.0, '+z', 3400, 'z', 10.0],
-      ['the cross-aisle between the second and third banks', -4.9, 3.4, '+x', 2600, 'x', 8.0],
-      ['the open floor in front of the pit rope', -4.9, -5.6, '+x', 2600, 'x', 8.0],
-      ['past the tables to the cage', 0, -8.2, '+x', 2200, 'x', 3.5],
+      ['down the avenue, past all seven banks', 0, 11.6, '-z', 4000, 'z', 16.0],
+      ['…and back up it to the door', 0, -5.6, '+z', 4000, 'z', 14.0],
+      ['the cross-aisle between the third and fourth banks', -4.9, 4.4, '+x', 2600, 'x', 8.0],
+      ['the open floor in front of the pit rope', -4.9, -7.8, '+x', 2600, 'x', 8.0],
+      ['past the tables to the cage', 0, -10.6, '+x', 2200, 'x', 3.5],
     ],
   },
   {
