@@ -48,17 +48,30 @@ So landing this changes the world in no way at all until `lot.ts` opts in. Your
 `mods-dim` stays red in the meantime, reporting the same 47 materials it always
 did — that is your open bug still being open, not a regression from me.
 
-## One thing I saw and did NOT explain
+## The two survivors — EXPLAINED NOW, and my first answer was wrong
 
-With `printed` stamped on all 242, **two materials stayed `selfLit`**. I did not
-chase it and I am not going to guess at the cause in a note you have to rely on.
+With `printed` stamped on all 242, two lot materials stayed `selfLit`. I left
+that unexplained here and then, in `B-printed-optout-owners.md`, offered
+traversal order on a shared material as the likely cause. **That was a guess and
+it was wrong.** Re-run with the stamp applied as a pre-pass, before any material
+could be claimed, the same two survive — so order cannot be it.
 
-The practical consequence is the same either way, so take it as advice rather
-than as a diagnosis: **set the flag where the material is created, not in a
-post-pass.** If a material is shared with another module, whichever module the
-grade reaches first wins, and a late stamp can arrive after the decision. That
-is the same shape as the weed-tuft problem — one material worn in many places
-cannot carry a per-place answer — so it is at least a plausible neighbour.
+They are yours, and they are correct:
+
+```
+  ct/lot.ts:1963   haloM.userData.selfLit = true; haloM.userData.graded = true;
+  ct/lot.ts:1973   poolM.userData.selfLit = true; poolM.userData.graded = true;
+```
+
+You declare those two by hand, so `isSelfLit` is never asked and `printed` never
+consulted. Measured, both carry `printed: true, graded: true`. **Expect 41 → 2,
+and expect the two to be your halo and your pool.** Nothing to chase.
+
+The advice below still stands, for a different and now-verified reason: set the
+flag where the material is CREATED. Every module builds before
+`props.dimWorld(scene)` (crosstown.ts 241/402/419 against 491), and `dimWorld`
+takes each material exactly once (`litSeen`), so a stamp applied mid-grade can
+land after its material was claimed.
 
 ## The user-facing reason this matters
 

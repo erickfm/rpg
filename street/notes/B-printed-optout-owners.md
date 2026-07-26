@@ -60,8 +60,37 @@ rather than assuming; I assumed the reassuring answer first and it was wrong for
 the general case.
 
 **So: set the flag where the material is CREATED**, not in a pass over the built
-scene. A late stamp can arrive after the grade has already read the material,
-and on a shared material whichever module is traversed first wins.
+scene. Every module builds before `props.dimWorld(scene)` runs (crosstown.ts
+lines 241/402/419, against 491), so a creation-time stamp is always in place
+before the grade — and `dimWorld` processes each material exactly ONCE
+(`litSeen.has(m)) continue`), so a stamp applied while it is already running can
+arrive after that material has been claimed.
+
+## EXPECT TWO SURVIVORS IN THE LOT, and do not chase them
+
+**Corrected here, because I published the wrong reason first.** I wrote that the
+two lot materials which stay `selfLit` under the flag were probably a
+traversal-order effect on a shared material, flagged as a guess. It is not, and
+guessing was the mistake — I re-ran it with the stamp applied as a PRE-PASS,
+before any material could be claimed, and the same two survived. Traversal order
+cannot explain something that survives being flagged first.
+
+The real reason is in your own file, and it is correct behaviour:
+
+```
+  ct/lot.ts:1963   haloM.userData.selfLit = true; haloM.userData.graded = true;
+  ct/lot.ts:1973   poolM.userData.selfLit = true; poolM.userData.graded = true;
+```
+
+You hand-declare the halo and the lamp pool as lights. `isSelfLit` is never
+asked about them, so `printed` is never consulted — measured, both survivors
+carry `printed: true, graded: true`, the 24x24 halo at full brightness and the
+32x32 pool at 0.367.
+
+**A hand declaration outranks the heuristic, which is the right way round.**
+`printed` governs what the GUESS decides, not what a module asserts. So when you
+flag your sheets, expect **41 → 2**, and expect those two to be your halo and
+your pool. That is the finished state, not a residue.
 
 ## Why a hand flag rather than a better threshold
 
