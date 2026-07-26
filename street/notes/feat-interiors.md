@@ -924,3 +924,37 @@ read it back out of `__ct.spots()` with the flag ON and the player INSIDE.
 
 Seven attempts, seven measurements. The shape is landed and green; only the
 door's position within it is outstanding, and the flag is one line.
+
+
+## Attempt eight: POSITION IS RULED OUT. The prompt fires where the harness stands.
+
+Did the thing seven passes had not: read the spot back with the flag ON and the
+player INSIDE, then read the PROMPT at the harness's own coordinates.
+
+```
+spot, from inside   local (2.48, 3.58) r 1.4  ok: TRUE
+harness stands at   local (2.29, 3.38)        [instrumented, its own log]
+prompt there, by hand   "[E] out to the street"
+prompt on the spot      "[E] out to the street"
+prompt deeper in        "[E] out to the street"
+```
+
+**The spot exists, is live, and its prompt fires at the exact coordinates the
+harness warps to — and the harness still reads null.** So it is not the
+position, not the radius, not the inset, not `ok()`, and not the spot failing to
+be registered. Eight theories, eight measurements, all retired.
+
+What is left is SEQUENCING: something the harness does between entering and
+reading leaves the player or the world in a state my hand-run does not
+reproduce. It runs a full-width walk, two end-to-end traverses and a 3 s hold
+against the doorway before this check, any of which could leave the rig
+mid-motion or the prompt element stale.
+
+**The next attempt should instrument the harness itself** — log `pos()` and the
+prompt immediately before the failing read, rather than reconstructing where it
+ought to be. I reconstructed, and the reconstruction was right, which is exactly
+why it took eight passes to notice the question was wrong.
+
+Also found and reverted: there are TWO warps to the inside of the door and I had
+converted only one. Fixing the second did not fix the check, so it went back
+rather than shipping unverified.
