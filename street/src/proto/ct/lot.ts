@@ -1333,19 +1333,24 @@ function buildLot(o: {
         // Verified the way §35 says to: stand on each side in turn and read it.
         const bt = bannerT2(words, bg, ink, gh);
         const bm = printed(new THREE.MeshBasicMaterial({ map: bt, alphaTest: 0.35 }));
-        // KNOWN, BLOCKED, AND NAMED. props.ts's isSelfLit reads 13-81% of these
-        // sheets as bright-and-saturated — which they are, in #e0a81c yellow on
-        // cream — and hands them FLOOR_SIGN = 1.0, so they hold full daylight
-        // brightness at midnight. Measured, and visible from the pavement:
-        // notes/BLOCKED-C.md and shots/banner-night/.
+        // THE EXEMPTION THAT USED TO BE HERE IS GONE, BECAUSE ITS BLOCKER IS.
         //
-        // It is not fixable here: the palette is the user's and approved, props
-        // sets selfLit and never reads it, and hand-grading beside the world's
-        // grader is the decal mistake again. So it is MARKED rather than left
-        // to redden mods-dim, which otherwise cannot run at all — and a check
-        // that cannot run guards nothing. The marker names its blocker so the
-        // exemption expires with it rather than becoming permanent by silence.
-        bm.userData.cKnownUngraded = 'banners — BLOCKED-C, isSelfLit holds them at FLOOR_SIGN';
+        // These sheets carried `userData.cKnownUngraded = 'banners — BLOCKED-C,
+        // isSelfLit holds them at FLOOR_SIGN'`, and `mods-dim` excused anything
+        // wearing it. That was the right call at the time: the check was red on
+        // the banners alone, so it sat unregistered and guarded nothing.
+        //
+        // The blocker was `isSelfLit` reading 13–81% of these as bright-and-
+        // saturated and handing them FLOOR_SIGN = 1.0. It is closed — B landed
+        // the `printed` opt-out and this module now declares it on every printed
+        // sheet, including these, a few lines up. Measured after removing the
+        // marker: `mods-dim` reports **717 dim, 45 declared lights, 0 holding
+        // without saying why**, and no material is excused by name any more.
+        //
+        // The comment that introduced it asked for exactly this: *"the marker
+        // names its blocker so the exemption expires with it rather than
+        // becoming permanent by silence."* An exemption nobody retires is how a
+        // check quietly stops covering the thing it was written for.
         const b = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.62), bm);
         b.position.set(FENCE_X + dx, y, z);
         b.rotation.y = ry;
