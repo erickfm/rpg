@@ -6,6 +6,16 @@ is a report only.
 
 ## Now
 
+- [ ] **`scripts/reach.mjs` declares the whole world unwalkable AND EXITS 0.**
+      C found this and it is the worst kind of check failure — a green check
+      that guards nothing. `reach.mjs` seeds its flood fill at `__ct.pos()`
+      and its grid is the street world only (x −46…62). The spawn moved to
+      x 198.6 (room 301, the user asked to spawn and respawn there), so the
+      seed cell falls off the array and it reports *"1 of 63072 cells
+      reachable"* — at exit 0. Give it a street seed, and make "almost nothing
+      is reachable" a RED, not a shrug. Then sweep your other checks for the
+      same shape: any that can report catastrophe and still exit 0.
+
 - [ ] **Verify the ledger. This is now your standing job.**
       `notes/LEDGER.md` holds every user request with a status, and
       `scripts/ledger.sh` lists what is not yet CONFIRMED. **Only you or the

@@ -16,6 +16,57 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · `isSelfLit` NEEDS AN OPT-OUT. This is the top
+> item in your queue, above everything below it.
+>
+> **The user's request this serves, in his words:** *"make the unilluminated
+> stuff darker. it should feel scarier at night i want to be able to see stars
+> sometimes"* — and separately, *"needs to be darker at night"*.
+>
+> `props.ts`'s `isSelfLit` calls any sheet with >8% bright-saturated texels a
+> light source and pins it at full daylight. C has measured what that costs,
+> twice, and it is not a corner case:
+>
+> ```
+>   39 printed sheets in the car lot alone hold FULL daylight brightness
+>      after dark. Hot fraction 8.6% .. 97%, against an 8% threshold.
+>      97.0%  a windshield price card
+>      85.3%  THE POLE SIGN the user just had us make legible
+>      80.7%  a fence banner
+>   2 citizens (the lot salesman, the walkup hermit) — same cause
+> ```
+>
+> Seen, not only computed: `shots/lotpass/10-night-aisle.png`, price cards and
+> signboards glowing over a black yard, and
+> `shots/banner-night/01-pavement-south-run.png` from the pavement where a
+> player actually walks — banners at full daylight on a fence that is deep in
+> shadow.
+>
+> **The heuristic is not wrong about what it can see.** Printed artwork in
+> saturated ink and a neon sign are identical in texels; they differ only in
+> whether anything is behind them, which a texture cannot show. So the fix is
+> not a better threshold — it is letting the owner declare what a material IS,
+> the same shape as `ctx.wet()`.
+>
+> **Build:** a userData flag on the material — *printed, not lit, grade me* —
+> that `isSelfLit` honours before it looks at pixels. Name it whatever fits
+> `props.ts`; publish the name in a note the same commit so C can apply it to
+> ~40 sheets and H to the citizens in the round after.
+>
+> **Do not** repaint anyone's artwork to slip under the threshold. C tried
+> that first and was right to stop: the palette is the user's and approved in
+> as many words, and the pole sign was enlarged and re-contrasted **for
+> legibility from the far kerb** — trading that back for night grading is the
+> wrong trade. The one 8.6% sheet that could be nudged is not worth a second
+> undocumented workaround.
+>
+> C's citizen diagnosis in `BLOCKED-C.md` was withdrawn and corrected by C
+> itself — it is not a missing `lit` in the module context, it is this same
+> heuristic. Two blockers, one cause, one fix.
+>
+> `scripts/mods-dim.mjs` is written and works and stays unregistered until
+> this lands. Tell C when it is in.
+
 > ## DESK RULING — REMOVE STANDING PUDDLES. Written here so it survives.
 >
 > `shots/user-puddlebad2.png`: the puddle is a PALE smear, lighter than the

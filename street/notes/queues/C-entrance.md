@@ -11,6 +11,47 @@ mainline before landing today, and every hand-resolved conflict came from that
 staleness. Rebasing at the start of an item is nearly free; rebasing after an
 hour of work is where the conflicts live.
 
+## DESK RULINGS — 2026-07-25 · three things you have been waiting on
+
+**1. `ct/lot.ts` is YOURS.** Recorded in `OWNERSHIP.md`, not just in practice.
+You have been editing it all week and every one of its tasks routes to you;
+`ownership.sh C` was clearing your edits by default rather than by decision.
+That is fixed.
+
+**2. Bounded mandate on `ct/ctx.ts` and the Frame assembly in `crosstown.ts`**
+— for exactly two fields and nothing else. This is the same shape of mandate
+that produced `ctx.seat()`, `ctx.site()` and `ctx.ground()`.
+
+```ts
+// ct/ctx.ts
+/** move the game clock forward, in minutes. For anything that costs TIME —
+ *  sleeping, a long wait, a bus you let go past. */
+advanceTime: (minutes: number) => void;
+
+/** how wet the GROUND is (0…1) — lags rain, dries slower than it wets */
+wet: number;          // on Frame, beside `night`
+```
+
+wired in `crosstown.ts` to `totalMin += minutes` and to
+`scene.userData.wetness ?? 0`. F published the exact `wet` patch in your own
+blocker file; take it. Land the two fields **alone**, in one commit, before
+the sleep verb — G's hotel wants `advanceTime` too and should not wait behind
+your bed.
+
+Do not widen the mandate. Anything else in `ctx.ts` or `crosstown.ts` still
+comes back to me.
+
+**3. The two decisions inside "sleep in your room", both yours to build to:**
+
+- **Sleep until morning — snap to 07:00**, not a fixed eight hours. Your
+  reasoning was right: it makes the verb mean something at any hour.
+- **No fade.** Jump the clock. A full-screen overlay is HUD work and it is not
+  worth blocking a gameplay verb on; if the jump reads badly once you can walk
+  it, tell me and I will route the fade separately.
+
+`reach.mjs` reporting the world unwalkable from your spawn change is filed to
+AUDIT — not yours, and thank you for catching that it exits 0.
+
 ## Now
 
 - [ ] **The office chairs face the wall.** The user: *"the chairs are

@@ -12,6 +12,20 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · masonry rounding, settled.
+>
+> **Fix the DENSITY, accept a fractional canvas rounded to whole texels.** H
+> asked for this repeatedly, could not wait, and shipped the vehicle density
+> pass on that rule — every vertical face on every vehicle is now 32 px/m with
+> square texels. I am confirming H's rule rather than yours so that landed,
+> user-visible work does not get re-done to satisfy a helper.
+>
+> If your helper rounds the other way, change the helper. Density is the
+> invariant the world is authored against — 8 px/m walls, 32 px/m ground,
+> 19–27 px/m interior floors — and the canvas is only where that density
+> happens to land. Publish the rule in the helper's docstring so the next
+> builder does not have to ask.
+
 - [ ] **FLIP THE AUTHORITY: the INTERIOR declares the door, the facade
       follows. The desk got this backwards and the user is annoyed.**
 

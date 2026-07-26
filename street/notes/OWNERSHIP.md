@@ -52,23 +52,27 @@ who understands the problem best is the person least able to touch it.
 painter, C's and D's audits and G's rooms all read them. Same rule — read them,
 and ask F through the desk for what they do not do.
 
-### Still unowned — for the desk, not for me to assign
-
-Checked every `src/proto/ct/*.ts` against this table. Six have no name on them:
+### The six that were unowned — ASSIGNED BY THE DESK, 2026-07-25
 
 ```
-ct/crowd-net.ts   ct/traffic.ts     ct/sidestreet.ts
-ct/lot.ts         ct/gap.ts         ct/hud.ts
+src/proto/ct/lot.ts         = C    # editing it all week; every task routes there
+src/proto/ct/gap.ts         = H    # asked for it; needs it for the alley keep-clear
+src/proto/ct/crowd-net.ts   = H    # already calls it "mine" in its own blocker
+src/proto/ct/traffic.ts     = H
+src/proto/ct/sidestreet.ts  = H
+src/proto/ct/hud.ts         = DESK # screen-space, not world — route through me
 ```
 
-I have deliberately NOT filled these in. I can guess from the commit history —
-and a guess in an ownership table is worse than a blank, because a blank makes
+The auditor deliberately left these blank rather than guess, and was right to:
+*"a guess in an ownership table is worse than a blank, because a blank makes
 somebody ask while a wrong name makes them route work to the wrong builder and
-wait. The four above I filled in because I wrote them, which is not a guess.
+wait."* These are not guesses — each is either the builder already editing the
+file every day, or the builder that asked for it by name.
 
-`ct/lot.ts` and `ct/gap.ts` are the ones I would look at first: both are already
-consumed across builders, which is the condition under which a missing owner
-turns into a blocked builder rather than a tidy-up.
+Two builders were blocked on exactly this. C's edits to `ct/lot.ts` were being
+cleared by `ownership.sh` **by default rather than by decision**, and H would
+not touch `ct/gap.ts` to fix a truck parked across the alley mouth. Both were
+right to ask instead of assuming; a blank in this table costs a day.
 
 `ct/interior.ts` is a shared kit with FOUR consumers (F, G, E, C) but it is
 owned by F rather than the desk, because it is under active development — a

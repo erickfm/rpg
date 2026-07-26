@@ -23,6 +23,44 @@ world stops.
 
 ## Now
 
+> ## DESK RULINGS — 2026-07-25 · the four things you asked for repeatedly.
+> Answers, not deferrals. Written here so they survive.
+>
+> **1. `ct/gap.ts` is YOURS**, recorded in `OWNERSHIP.md`. With it, a bounded
+> mandate on `crosstown.ts` for **one thing only**: the keep-clear array that
+> `nudgeClear` works against. Move that list into `ct/gap.ts` if that is the
+> cleaner home, add the alley mouth (AZ0 −37 … AZ1 −43.5, alley side, with a
+> margin either side so the sight line is *open* rather than merely
+> unblocked), and let the seeded draw take the nearest legal z the way it
+> already does for kerb props. Do not widen the mandate — anything else in
+> `crosstown.ts` still comes back to me.
+>
+> **2. The wheel-arch well: DARKEN IT to ×0.18.** Your measurement settles it
+> — sill shadow 90,84,58 against a well at 83,78,52 is seven levels, which is
+> not a shadow, it is one dark mass across three quarters of the flank, and it
+> is exactly the "large soft DARK BLOTCH" the user reported. The earlier
+> "do not disturb them" protected the arch *paint* you had already got right;
+> it was never a licence for the blotch to stay. Keep the body's hue, land
+> clear of the tyre's 16,17,20, and commit it alone so it can be confirmed on
+> its own.
+>
+> **3. Masonry rounding: FIX THE DENSITY, accept a fractional canvas rounded
+> to whole texels.** That is the rule you shipped on and it is the right one —
+> density is the invariant the whole world is authored against (8 px/m walls,
+> 32 px/m ground), and a canvas is just where it lands. Your vertical faces at
+> 32 px/m with square texels stand; carry the same rule to the roof, hood and
+> bed floor. A has been told to match you rather than the other way round, so
+> nothing you have landed gets re-done.
+>
+> **4. The side street's east end has NO pavement.** It is a closed end of a
+> minor side street, not a frontage; there is nothing there to walk to. So
+> `EEND_X = SIDE_X1 − 1` is wrong on its own terms — close the ring another
+> way, or make that edge an explicit crossing so a walker on it is at least
+> honest about being in the road. Your call which; you own the graph. If
+> closing it another way leaves the ring ugly, say so and I will route a
+> pavement to B instead — but I would rather not add pavement to justify a
+> node.
+
 > ## DESK RULING — THE OUTER WHEEL. Written here, not sent as a message.
 >
 > You asked twice and I answered twice by tmux; both times the answer was lost

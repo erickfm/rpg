@@ -162,13 +162,27 @@ for wt in "$ROOT"/rpg-*; do
     # exists to catch precisely that — could not see it, because notes/*split2b*
     # matches no file. A staleness detector that is itself silently inert is
     # worse than none, because the desk reads a clean board and believes it.
+    #
+    # ONE LINE PER AGENT, naming the NEWEST report only. It used to emit a line
+    # per report, and reports accumulate forever: nine builders with forty-odd
+    # notes between them produced 50 identical "may be stale" lines that buried
+    # three real actions — two idle agents and a raised blocker — under a wall
+    # of noise the desk learned to scroll past. An alert that always fires is
+    # an alert nobody reads, which is the same failure as one that never fires.
     qpfx=$(basename "$qf"); qpfx=${qpfx%%-*}
+    newest=""; nstale=0
     for rep in "$MAIN"/street/notes/*"$short"*.md "$MAIN"/street/notes/"$qpfx"-*.md; do
       [ -f "$rep" ] || continue
       case " ${seen_reps[*]} " in *" $rep "*) continue;; esac
       seen_reps+=("$rep")
-      [ "$rep" -nt "$qf" ] && ACTIONS+=("$short: $(basename "$rep") is newer than its queue — read it, the queue may be stale")
+      [ "$rep" -nt "$qf" ] || continue
+      nstale=$((nstale + 1))
+      [ -z "$newest" ] || [ "$rep" -nt "$newest" ] && newest="$rep"
     done
+    if [ -n "$newest" ]; then
+      more=""; [ "$nstale" -gt 1 ] && more=" (+$((nstale - 1)) more)"
+      ACTIONS+=("$short: $(basename "$newest") is newer than its queue$more — read it, the queue may be stale")
+    fi
   fi
 done
 
