@@ -184,6 +184,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"instead of calling the casino golden aces call it SEVENS"** → **G**
 - **"'Screenshot from 2026-07-25 23-30-58.png' hotel textures are buggy"** → **G**
 - **"'Screenshot from 2026-07-25 23-27-45.png' whats wrong with this plant in the tax service place"** → **G**
 - **"'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the library"** → **J**
