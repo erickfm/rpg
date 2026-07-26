@@ -1280,6 +1280,14 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // Standing goes on the FLOOR, seated goes on the SEAT TOP: the origin
       // moves with the pose and citizenPlane owns the 0.445 m hip offset.
       place(s.mesh, lx, o.y ?? 0, lz);
+      // TAG IT AS A PERSON. A circle test that selects "textured plane about
+      // person-height" also catches the thrift's mannequin and the diner's
+      // framed photographs, so it cannot tell a figure that wrongly stares at
+      // you from a picture that correctly does. The kit is the only thing that
+      // knows which meshes are people; saying so here is what makes
+      // "does every figure turn?" answerable instead of inferable.
+      s.mesh.userData.citizen = true;
+      s.mesh.userData.seated = !!o.seated;
       // the sprite picks its painted view from where YOU are, so it needs the
       // frame. LATE, after the world has moved: it is reacting to the finished
       // position, the same as the billboard pass.
