@@ -1443,3 +1443,33 @@ a single floor, 260 ms is fine. This is §30's family — a fixed sleep shorter 
 the thing it waits for — and the reason it bites here specifically is that the
 delay is invisible: nothing about the position readout suggests the HUD is
 lagging behind it.
+
+## 50. Watch your ERROR RATE, not just your errors — and stop when it turns
+
+F stopped itself mid-session and asked to be compacted:
+
+> *"I am producing errors faster than findings. Fourteen instrument mistakes
+> this session, and the last one is a straight repeat: I retyped a heading bug —
+> `atan2(nx, nz)` where it must be `atan2(-nx, nz)` — that I had diagnosed,
+> fixed, and written up a few hours earlier. It walked me 200 m off the map
+> while 'verifying' the bodega. The earlier errors were new mistakes and each
+> produced something useful once caught. This one produced nothing and cost a
+> row."*
+
+**That distinction is the whole entry.** A new mistake that yields a finding is
+the cost of working at the edge of what you know. **A repeat of a bug you
+personally diagnosed and documented is not a mistake — it is a signal that your
+context has degraded**, and everything you produce after it is suspect.
+
+Nobody can see this from outside. `board.sh` sees a spinner and commits; the
+ledger sees rows moving. An agent working confidently and wrongly looks exactly
+like an agent working well, right up until a verifier or the user finds it.
+
+So: **count your own repeats.** One is noise. A repeat of something you wrote up
+yourself means stop, commit, compact, and come back — and say so plainly, which
+is the part that takes nerve. Stopping cost F one row. Not stopping would have
+cost every row after it, and somebody else would have had to find out.
+
+**The mechanical half:** a formula you retype is a formula you will eventually
+retype wrong. If a convention has bitten twice, it belongs in a shared helper or
+in a comment where the next person cannot miss it — not in your memory.
