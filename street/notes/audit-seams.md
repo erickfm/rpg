@@ -1494,3 +1494,27 @@ made was correct. Only checking whether the bar was reachable would have.
 
 *Before rejecting on a criterion, ask what the passing version would look like.
 If you cannot describe it, the criterion is the fault.*
+
+## [C] The library stair: CONFIRMED, and I nearly reported it unreachable
+
+The floor rises **0 → 2.90 m** and the rise is a real flight — **21 distinct
+walkable levels in ~0.145 m increments**, a 20-tread stair, measured from
+`groundAt`.
+
+**[I] My first four profiles said the opposite, and looked completely credible.**
+Every one ran along **x** and returned `0 0 0 … 0 2.9 2.9 2.9`: a single sheer
+2.9 m step at every z I sampled. I was one commit from filing *"a mezzanine you
+cannot reach on foot"* against a stair that works.
+
+**The stair runs in z.** Each x-scanline crossed it at exactly one tread, so each
+saw a cliff — and four independent scanlines agreeing made it look robust. *Four
+samples of the same mistake is not corroboration.*
+
+**What caught it cost one line:** count DISTINCT LEVELS in a column instead of
+reading a single profile. Two levels is a step; twenty-one is a stair. That test
+does not care which axis the feature runs along, which is exactly why it works.
+
+This is the same family as the four tree-pit failures and the AABB misses: **the
+instrument agreed with itself and was wrong.** The pattern across all of them is
+that a measurement aligned to the wrong axis, or built on the wrong primitive,
+fails *silently and plausibly* — never with an error, always with a number.
