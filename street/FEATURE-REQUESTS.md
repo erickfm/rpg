@@ -184,6 +184,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 23-24-37.png' whats going on here? looks like an issue with the sale sign, itsa like embedded in the car"** → **I**
 - **"'Screenshot from 2026-07-25 23-09-56.png' dont like how this curb is discontinuous and only 3 slabs, its unrealistic"** → **B**
 - **"five mutation guards have STOPPED GUARDING — three are A's, and canfail is not in any gate"** → **A**
 - **"'Screenshot from 2026-07-25 23-08-52.png' i think the door needs to open the other way to match the other floors"** → **C**
