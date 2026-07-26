@@ -35,7 +35,18 @@ interface DoorPlan {
 function doorPlan(kind: CarKind, half: number): DoorPlan {
   switch (kind) {
     case 'sedan':   // four doors, and a quarter light behind the rear one
-      return { shut: [-1.0, 0.2, 1.4], glass: [[-0.9, 0.1], [0.3, 1.05], [1.15, 1.35]] };
+      // The rear door's trailing shut is at 1.10, NOT 1.40, and the 0.30 m
+      // between those two numbers was the whole of the misalignment the user
+      // photographed. The panes put the rear pillar at (1.05 + 1.15) / 2 =
+      // 1.10; a shut line at 1.40 therefore had no pillar above it, the pillar
+      // at 1.10 had no shut below it, and the quarter light at [1.15, 1.35]
+      // fell INSIDE the rear door instead of behind it. Moving the shut to the
+      // pillar answers both halves of the request — "the glass divider at the
+      // SAME x as the shut line below it" and "a rear quarter window behind
+      // the back door" — and it is the paint that was wrong, not the glass.
+      // Front door 1.20 m, rear door 0.90 m, which is the way round real ones
+      // are. The other three kinds already agreed and are left alone.
+      return { shut: [-1.0, 0.2, 1.1], glass: [[-0.9, 0.1], [0.3, 1.05], [1.15, 1.35]] };
     case 'hatch':   // two doors: one long door, then a big rear side window
       return { shut: [-0.85, 0.75], glass: [[-0.75, 0.65], [0.85, 1.7]] };
     case 'pickup':  // two doors, short cab, no rear glass at all
@@ -61,10 +72,30 @@ function doorPlan(kind: CarKind, half: number): DoorPlan {
 function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, panelH: number,
   arches: number[] = [-wheelZ, wheelZ],
   /** shut lines in car-local metres, and this face's own z origin */
-  plan?: DoorPlan, faceZ0 = -len / 2): THREE.Texture {
+  plan?: DoorPlan, faceZ0 = -len / 2,
+  /** ── WHICH FLANK IS THIS? AND WHY THERE HAS TO BE A SECOND TEXTURE ──────
+   *
+   *  The user: *"the worker doesnt realize they need to confirm the logic
+   *  independently per side of the car."* Exactly right, and this is the line
+   *  that proves it. A BoxGeometry's two side faces carry UVs that run in
+   *  OPPOSITE world directions, so handing one texture to both — which is what
+   *  `[sideT, sideT, ...]` did — paints the near flank correctly and the far
+   *  one back to front. Measured on the geometry rather than reasoned from
+   *  three.js's source, all four kinds agreeing:
+   *
+   *    -x face:  z = +len*u + faceZ0     u = 0 is the FRONT  <- matches tx()
+   *    +x face:  z = -len*u - faceZ0     u = 0 is the REAR   <- reversed
+   *
+   *  So the +x face needs the same paint with u running the other way. The
+   *  mirror is applied at the ONE place every feature's column comes from, so
+   *  a feature added later cannot forget it. */
+  flip = false): THREE.Texture {
   return pixTex(96, 20, (g) => {
+    /** 0..1 along the panel -> this face's texel column, mirrored if this is
+     *  the flank whose UVs run backwards */
+    const col = (u: number) => Math.round((flip ? 1 - u : u) * 96);
     /** car-local metres -> this face's texels */
-    const tx = (z: number) => Math.round(((z - faceZ0) / len) * 96);
+    const tx = (z: number) => col((z - faceZ0) / len);
     g.fillStyle = body; g.fillRect(0, 0, 96, 20);
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, 0, 96, 3);
     g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 16, 96, 4);
@@ -85,7 +116,10 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
         const x = tx(z);
         if (x < 1 || x > 94) continue;
         g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x, 0, 1, 20);
-        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x + 1, 0, 1, 20);
+        // the highlight sits down the shut's TRAILING side — which is the
+        // other texel column once the face is mirrored, or the two flanks
+        // would catch the light from opposite directions
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x + (flip ? -1 : 1), 0, 1, 20);
       }
       // a handle just under the window line, one per door, set toward the
       // door's trailing edge the way a real one is
@@ -173,7 +207,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     const well = new THREE.Color(body).multiplyScalar(0.34);
     g.fillStyle = `#${well.getHexString()}`;
     for (const wz of arches) {
-      const ax = Math.round(((wz + len / 2) / len) * 96);
+      const ax = col((wz + len / 2) / len);
       g.beginPath(); g.ellipse(ax, 20, arx, ary, 0, Math.PI, 0); g.fill();
     }
     dither(g, 96, 20, 120);
@@ -541,13 +575,17 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   const slabLen = kind === 'pickup' ? half + BED_Z0 : spec.len;
   const slabZ = kind === 'pickup' ? (BED_Z0 - half) / 2 : 0;
   const plan = doorPlan(kind, half);
-  const sideT = flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi, BELT - ROCKER,
-    // only the front arch is on the cab body once the slab is short
-    kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ],
-    plan, slabZ - slabLen / 2));
+  // only the front arch is on the cab body once the slab is short
+  const archZ = kind === 'pickup' ? [-spec.wheelZ - slabZ] : [-spec.wheelZ, spec.wheelZ];
+  const sideOf = (flip: boolean) => flatT(bodySideTex(body, slabLen, spec.wheelZ, taxi,
+    BELT - ROCKER, archZ, plan, slabZ - slabLen / 2, flip));
+  // ONE TEXTURE PER FLANK, not one texture twice. Material order on a
+  // BoxGeometry is [+x, -x, +y, -y, +z, -z], and it is the +x face whose UVs
+  // run rear-to-front, so that is the one that gets the mirrored paint.
   const slab = new THREE.Mesh(
     new THREE.BoxGeometry(1.8, BELT - ROCKER, slabLen),
-    [sideT, sideT, bodyM, darkM, flatT(carRearTex(body)), flatT(carFrontTex(body))],
+    [sideOf(true), sideOf(false), bodyM, darkM,
+      flatT(carRearTex(body)), flatT(carFrontTex(body))],
   );
   slab.position.set(0, (ROCKER + BELT) / 2, slabZ);
   g.add(slab);
