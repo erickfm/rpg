@@ -46,6 +46,17 @@ pane_of() {
 # Match a truncation-safe prefix — narrow panes cut "esc to interrupt".
 busy()    { tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; }
 blocked() { tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null | grep -q 'Do you want to proceed'; }
+# Is the agent even ALIVE? A Claude session that exits leaves a bare shell
+# prompt in the window, and every check here reads that as "idle" — so a dead
+# builder looks identical to a resting one. Builder D's session exited and the
+# desk only noticed by chance, an hour and several routed items later, because
+# nothing was watching for it. A live session always renders its mode line.
+dead() {
+  local pane; pane=$(tmux capture-pane -p -t "$SESSION:$1" 2>/dev/null)
+  echo "$pane" | grep -qE 'auto mode on|accept edits|plan mode|bypass' && return 1
+  echo "$pane" | grep -qE '\$ $|@[a-z]+:.*\$' && return 0
+  return 1
+}
 # An agent at its context limit is about to compact, and a compacted agent
 # loses the reasoning it built up on the current item. It is not stuck, so it
 # never trips the STALL check — but its next few commits are the least
@@ -86,6 +97,7 @@ for wt in "$ROOT"/rpg-*; do
   win=$(pane_of "$wt")
   mins=0
   if   [ -z "$win" ];      then state=NO-AGENT
+  elif dead "$win";        then state=DEAD
   elif blocked "$win";     then state=BLOCKED
   elif busy "$win";        then state=busy; mins=$(busy_minutes "$win")
   else state=IDLE
@@ -98,6 +110,7 @@ for wt in "$ROOT"/rpg-*; do
     "$short" "$state" "$( [ "$mins" -gt 0 ] && echo "${mins}m" || echo '-')" \
     "$ahead" "$dirty" "$qopen" "$last"
 
+  [ "$state" = DEAD ] && ACTIONS+=("$short SESSION HAS EXITED — a bare shell, not an agent. Restart it: tmux send-keys -t crosstown:$win 'claude --permission-mode auto' Enter, then re-brief from its queue file (window $win)")
   [ "$state" = BLOCKED ] && ACTIONS+=("$short BLOCKED on a permission dialog — answer it (window $win)")
   [ -n "$win" ] && ctxfull "$win" \
     && ACTIONS+=("$short is at its CONTEXT LIMIT — its queue file holds the brief, so consider restarting it fresh rather than letting it compact mid-item (window $win)")

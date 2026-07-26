@@ -44,6 +44,24 @@ while true; do
   # out of work is surfaced for the desk instead, because giving it something
   # to do is a real decision.
   status=$("$MAIN/street/scripts/desk.sh" 2>/dev/null)
+
+  # A DEAD agent is restarted automatically. Its queue file holds the whole
+  # brief, so bringing the session back costs nothing and losing an hour of a
+  # builder's output does. Two sessions exited during one stretch and the desk
+  # read both as "idle" — a dead window and a resting one look identical to
+  # every other check here.
+  echo "$status" | grep -E 'SESSION HAS EXITED' | while read -r line; do
+    win=$(echo "$line" | grep -oE 'window [0-9]+' | grep -oE '[0-9]+')
+    who=$(echo "$line" | awk '{print $2}')
+    [ -z "$win" ] && continue
+    echo "[$ts] RESTARTING $who — its session had exited (window $win)"
+    tmux send-keys -t "crosstown:$win" "claude --permission-mode auto"; sleep 0.5
+    tmux send-keys -t "crosstown:$win" Enter
+    sleep 12
+    tmux send-keys -t "crosstown:$win" "Your previous session exited. Read street/START-HERE.md, street/notes/GOTCHAS.md and your queue file in street/notes/queues/, then rebase on add-stick-and-city98 and work your queue continuously. Check street/notes/LEDGER.md for the user requests that are still OPEN against you."
+    sleep 1
+    tmux send-keys -t "crosstown:$win" Enter
+  done
   echo "$status" | grep -E 'IDLE with [0-9]+ queued' | while read -r line; do
     win=$(echo "$line" | grep -oE 'window [0-9]+' | grep -oE '[0-9]+')
     who=$(echo "$line" | awk '{print $2}')

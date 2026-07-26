@@ -963,3 +963,16 @@ confident test.
 **Check each side independently, and say in the handoff that you did.** Every
 one of the session's five facing bugs would have been caught by one extra look
 from the opposite side.
+
+## 28. A dead agent looks exactly like an idle one
+
+When a Claude session exits it leaves a bare shell prompt in its tmux window.
+Every state check the desk had — spinner, input box, mode line — reads that as
+"idle". Two builders' sessions exited during one stretch and the desk kept
+routing work to them; one was found by accident an hour later, the other only
+when a check was finally written for it.
+
+`scripts/desk.sh` now reports **DEAD** when a window shows a shell prompt and
+no Claude mode line, and `desk-watch.sh` restarts it automatically and re-briefs
+it from its queue file. That recovery is free precisely because the queue files
+exist — the brief was never in the agent's head.
