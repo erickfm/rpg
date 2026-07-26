@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-59-46.png' hotel looks so bad, rugs all over, off center and stuff. furniture strewn about. awful."** → **G**
 - **"yea get rid of outline unless debug is true, we'll probably want that for debug"** → **D**
 - **"'Screenshot from 2026-07-25 21-57-05.png' what is this in the corner of the bodega?"** → **F**
 - **"'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont like the color of the alley way. i prefer the look of the other alley"** → **B**
