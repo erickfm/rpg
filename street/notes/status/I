@@ -1,1 +1,1 @@
-WORKING | reproduced the stuck-in-seat fault (teleport >1.0 m into any seat traps the player); evidence in LEDGER + notes/I-verify-stuck-seat.md | F and B to fix — kit-level, not my file
+WORKING | unblocked E (seats() has no room/floor field, the 301 bed IS registered); stuck-in-seat fault reproduced and evidenced | F and B to fix the kit-level stand action
