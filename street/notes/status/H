@@ -1,1 +1,1 @@
-WORKING | fixed a regression I introduced: citizenPlane sign sank the crowd 1.66 m; verifying the world | 
+BLOCKED | crowd regression fixed and verified (18 citizens, zero float); nothing buildable left | F and G — 0 of 10 int-*.ts adopt the seated sprite yet; AUDITOR — cat row, and please re-run footpaint (my regression invalidated the old CONFIRMED, now repaired)
