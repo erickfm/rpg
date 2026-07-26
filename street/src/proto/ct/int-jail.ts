@@ -301,4 +301,450 @@ export function buildJail(ctx: CtxBuild): void {
     put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.58, 0.055), radM),
       -hw + 0.10, 0.36, hd - 6.9 + i * 0.09);
   }
+
+  // ══ THE THRESHOLD ══════════════════════════════════════════════════════
+  //
+  // *"The interesting part of a jail is the threshold between the public half
+  // and the locked half; build that."*
+  //
+  // It is built as a line you can see through and a line you can walk through,
+  // and they are not the same line. The COUNTER is glazed to the ceiling: you
+  // can see the whole of the working side of the building and reach none of
+  // it. The GATE beside it stands open and you can walk straight through.
+  //
+  // That the gate is OPEN is a decision, and the reasoning is worth having on
+  // the record because the obvious alternative is to lock it:
+  //
+  //   · a player who can see the interesting half and never reach it reads it
+  //     as unfinished, not as forbidden. This project has that failure mode
+  //     written down — `ct/civic-doors.ts`: *"a climb that ends in silence is
+  //     a bug the player cannot distinguish from an unfinished build."*
+  //   · the thing that SHOULD be locked is the cell, and it is. You walk the
+  //     corridor, you look through the bars at a bunk made up for somebody,
+  //     and you cannot go in. That is the image.
+  //   · and there is NO WAY TO GET ARRESTED here, per the desk. The cells are
+  //     a place, not a consequence.
+  const CNT_Z = hd - 7.4;              // the counter line
+  const CNT_X1 = 0.4;                  // it runs from the -x wall to here
+  const GATE_X0 = 0.6, GATE_X1 = 2.2;  // and the way through is this gap
+  const CNT_H = 1.12;                  // worktop height
+
+  const steelM = new THREE.MeshBasicMaterial({ color: 0x51565a });
+  const darkSteelM = new THREE.MeshBasicMaterial({ color: 0x33383c });
+  const barM = new THREE.MeshBasicMaterial({ color: 0x3d4246 });
+
+  // ── the counter ────────────────────────────────────────────────────────
+  const cntT = declareSurface(pixTex(72, 28, (g) => {
+    g.fillStyle = '#6b5f4c'; g.fillRect(0, 0, 72, 28);
+    // a recessed panel run along the public face, and a kick that has been
+    // kicked — the front of a counter is at shoe height and it shows
+    for (let x = 3; x < 72; x += 17) {
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x, 4, 14, 17);
+      g.fillStyle = '#75694f'; g.fillRect(x + 1, 5, 12, 15);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 24, 72, 4);
+    for (let i = 0; i < 140; i++) {
+      const x = Math.random() * 72, y = 22 + Math.random() * 6;
+      g.fillStyle = `rgba(30,26,20,${0.06 + Math.random() * 0.18})`;
+      g.fillRect(x, y, 2, 1);
+    }
+    dither(g, 72, 28, 90);
+  }), 'detail');
+  const topT = declareSurface(pixTex(48, 16, (g) => {
+    g.fillStyle = '#8e8676'; g.fillRect(0, 0, 48, 16);
+    for (let i = 0; i < 260; i++) {
+      const x = Math.random() * 48, y = Math.random() * 16, v = Math.random();
+      g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.04 + v * 0.10})` : `rgba(255,255,255,${(v - 0.5) * 0.14})`;
+      g.fillRect(x, y, 1, 1);
+    }
+  }), 'detail');
+  const CNT_W = CNT_X1 - -hw, CNT_CX = (-hw + CNT_X1) / 2;
+  {
+    const body = new THREE.Mesh(new THREE.BoxGeometry(CNT_W, CNT_H, 0.72), ctx.flat(cntT));
+    put(body, CNT_CX, CNT_H / 2, CNT_Z);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(CNT_W + 0.12, 0.06, 0.86), ctx.flat(topT));
+    put(top, CNT_CX, CNT_H + 0.03, CNT_Z);
+    solid(CNT_CX, CNT_Z, CNT_W + 0.12, 0.9);
+  }
+
+  // ── the glazed screen, counter top to ceiling ──────────────────────────
+  //
+  // TWO back-to-back single-sided planes, not one DoubleSide plane. GOTCHAS
+  // §22: `transparent` on a DoubleSide mesh puts both faces in the sorted
+  // queue and the far one can paint over the near one. And no `alphaTest` —
+  // this is genuine translucency, not a cut-out, so it correctly carries
+  // `transparent` alone.
+  //
+  // It is glass and it is NOT clean: a screen in a public building is
+  // fingerprinted at hand height and dusty at the top, and that is most of
+  // what stops a transparent plane reading as a hole in the air.
+  const GLASS_H = room.H - CNT_H - 0.06;
+  const glassT = declareSurface(pixTex(96, 40, (g) => {
+    g.fillStyle = 'rgba(210,222,214,0.10)'; g.fillRect(0, 0, 96, 40);
+    for (let i = 0; i < 260; i++) {          // smears at hand height
+      const x = Math.random() * 96, y = 24 + Math.random() * 14;
+      g.fillStyle = `rgba(255,255,255,${0.03 + Math.random() * 0.09})`;
+      g.fillRect(x, y, 2, 2);
+    }
+    for (let i = 0; i < 90; i++) {           // dust along the top
+      const x = Math.random() * 96, y = Math.random() * 7;
+      g.fillStyle = `rgba(210,206,190,${0.05 + Math.random() * 0.10})`;
+      g.fillRect(x, y, 1, 1);
+    }
+  }), 'detail');
+  const glassM = () => new THREE.MeshBasicMaterial({
+    map: glassT, transparent: true, opacity: 0.42, side: THREE.FrontSide,
+    depthWrite: false,
+  });
+  for (const [dz, ry] of [[0.012, 0], [-0.012, Math.PI]] as const) {
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(CNT_W, GLASS_H), glassM());
+    pane.rotation.y = ry;
+    put(pane, CNT_CX, CNT_H + 0.06 + GLASS_H / 2, CNT_Z + dz);
+  }
+  // mullions, and the two things that make a screen read as a screen rather
+  // than as a window: a SPEAK-HOLE and a PAPER SLOT
+  for (let i = 0; i <= 5; i++) {
+    const lx = -hw + (CNT_W * i) / 5;
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.06, GLASS_H, 0.10), steelM),
+      lx, CNT_H + 0.06 + GLASS_H / 2, CNT_Z);
+  }
+  put(new THREE.Mesh(new THREE.BoxGeometry(CNT_W, 0.07, 0.11), steelM),
+    CNT_CX, room.H - 0.04, CNT_Z);
+  const SPEAK_X = -1.6;                       // the station you are served at
+  {
+    // a perforated disc, on the lobby side and repeated on the back so it is
+    // the same object from both sides
+    const holeT = declareSurface(pixTex(24, 24, (g) => {
+      g.fillStyle = '#4a4f52'; g.fillRect(0, 0, 24, 24);
+      g.fillStyle = '#1a1d1f';
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
+        if ((r - 2) ** 2 + (c - 2) ** 2 > 6) continue;
+        g.fillRect(4 + c * 4, 4 + r * 4, 2, 2);
+      }
+    }), 'detail');
+    for (const dz of [0.055, -0.055]) {
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), ctx.flat(holeT));
+      d.rotation.y = dz > 0 ? 0 : Math.PI;
+      put(d, SPEAK_X, CNT_H + 0.72, CNT_Z + dz);
+    }
+    // the paper slot: a gap in the glass with a steel tray under it
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.045, 0.28), steelM), SPEAK_X, CNT_H + 0.09, CNT_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.30), darkSteelM), SPEAK_X, CNT_H + 0.115, CNT_Z);
+  }
+
+  // ── the desk sergeant ──────────────────────────────────────────────────
+  //
+  // FACING THE DOOR, derived from what he faces rather than copied — GOTCHAS
+  // §33's rule, and its test: stand where a visitor stands and ask whether he
+  // is looking at you or past you. The lobby is at +z, so he faces +z, which
+  // is `facing: 0` in the atlas's `atan2(vx, vz)`.
+  //
+  // The uniform needs no new atlas option, which I checked before assuming:
+  // a navy jacket with `fit: 'cap'` and a dark accent is a peaked cap over a
+  // tunic at this density. `notes/CITIZEN-STYLE.md` is explicit that adding a
+  // `fit` is a change to H's file and goes through the desk — this needed no
+  // such thing.
+  room.person(
+    { jacket: '#2f3a4c', pants: '#2b3038', skin: '#e6bb92', hair: '#4a4038',
+      fit: 'cap', accent: '#20262f', cut: 'short', build: 1, stride: 2 },
+    SPEAK_X, CNT_Z - 0.62, { facing: 0 },
+  );
+
+  // what is behind him: a key board, a ledger open on the worktop, a
+  // typewriter, and a wall of forms. All of it visible, none of it reachable —
+  // which is the counter's whole job.
+  {
+    const keyT = declareSurface(pixTex(40, 28, (g) => {
+      g.fillStyle = '#5a5348'; g.fillRect(0, 0, 40, 28);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(1, 1, 38, 26);
+      g.fillStyle = '#6c6456'; g.fillRect(2, 2, 36, 24);
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 8; c++) {
+        if (Math.random() < 0.22) continue;                 // hooks with no key
+        g.fillStyle = '#3a3630'; g.fillRect(4 + c * 4, 5 + r * 6, 1, 4);
+        g.fillStyle = Math.random() < 0.5 ? '#b8a878' : '#8a8a80';
+        g.fillRect(3 + c * 4, 8 + r * 6, 3, 3);
+      }
+      dither(g, 40, 28, 60);
+    }), 'sign');
+    const kb = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.7), ctx.flat(keyT));
+    kb.rotation.y = Math.PI;                 // on the far side, looking back at +z
+    put(kb, -4.4, 1.85, CNT_Z - 1.28);
+    // the ledger, open, on the worktop
+    const ledM = new THREE.MeshBasicMaterial({ color: 0xdad3bd });
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.035, 0.36), ledM), SPEAK_X + 0.9, CNT_H + 0.08, CNT_Z - 0.2);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.36), new THREE.MeshBasicMaterial({ color: 0x6a2c2c })),
+      SPEAK_X + 0.9, CNT_H + 0.09, CNT_Z - 0.2);
+    // a typewriter, squared to the counter like everything else in here
+    const tw = new THREE.MeshBasicMaterial({ color: 0x3a3a38 });
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.16, 0.34), tw), -3.4, CNT_H + 0.14, CNT_Z - 0.24);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.10, 0.06), tw), -3.4, CNT_H + 0.27, CNT_Z - 0.36);
+  }
+
+  // ── the gate ───────────────────────────────────────────────────────────
+  //
+  // A steel frame with a barred leaf standing OPEN against the wall. The frame
+  // is what makes the threshold legible: you pass through something, and you
+  // can see that it is a thing that closes.
+  const GATE_CX = (GATE_X0 + GATE_X1) / 2, GATE_W = GATE_X1 - GATE_X0;
+  const GATE_H = 2.35;
+  {
+    for (const lx of [GATE_X0, GATE_X1]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.14, GATE_H, 0.30), steelM), lx, GATE_H / 2, CNT_Z);
+    }
+    put(new THREE.Mesh(new THREE.BoxGeometry(GATE_W + 0.14, 0.16, 0.30), steelM), GATE_CX, GATE_H, CNT_Z);
+    // the leaf, swung back into the cell-block side and standing against the
+    // wall stub. Hinged at GATE_X1, so it opens toward -z: its far edge is
+    // deeper into the building than its hinge, never in front of it.
+    const HINGE = GATE_X1, LEAF = GATE_W - 0.06;
+    const leaf = new THREE.Group();
+    for (let i = 0; i <= 7; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.045, GATE_H - 0.16, 0.045), barM);
+      b.position.set(0, (GATE_H - 0.16) / 2, -(LEAF * i) / 7);
+      leaf.add(b);
+    }
+    for (const y of [0.35, GATE_H - 0.45]) {
+      const r = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, LEAF), barM);
+      r.position.set(0, y, -LEAF / 2);
+      leaf.add(r);
+    }
+    put(leaf, HINGE, 0, CNT_Z - 0.02);
+    // the stub of wall the leaf folds against, so the gate has somewhere to be
+    put(new THREE.Mesh(new THREE.BoxGeometry(hw - GATE_X1, room.H, 0.30),
+      new THREE.MeshBasicMaterial({ color: P.tile })), (GATE_X1 + hw) / 2, room.H / 2, CNT_Z);
+    solid((GATE_X1 + hw) / 2, CNT_Z, hw - GATE_X1, 0.36);
+    // and the open leaf itself is solid, so you walk round it rather than
+    // through it — an open gate you can walk through the leaf of is worse
+    // than no gate
+    solid(HINGE, CNT_Z - 0.02 - LEAF / 2, 0.12, LEAF);
+  }
+
+  // ══ THE CELL BLOCK ══════════════════════════════════════════════════════
+  //
+  // Four cells down the −x side, a corridor past them, and the bars are the
+  // point. Real geometry on a spacing you can see between, never a painted
+  // bar — the same argument as the exterior's windows and as the flat
+  // waitress the atlas exists to prevent (GOTCHAS §21).
+  // CELLS DOWN BOTH SIDES, and the second run is a correction rather than an
+  // ornament. With one run the corridor measured 9.5 m across — that is a hall
+  // with cells along one wall, not a cell block, and it photographed as an
+  // empty gymnasium (`shots/O-room-corridor.png` before this). The corollary to
+  // GOTCHAS §45 says to measure the largest continuous free run rather than the
+  // square metres; here the fault was the opposite of the library's, too much
+  // undifferentiated floor rather than too little. Two runs bring it to 5.2 m,
+  // which is a corridor you walk down with bars on both sides.
+  const CELL_D = 3.8;                         // how deep a cell is
+  const CELL_X1 = -hw + CELL_D;               // the barred face of the WEST run
+  const CELLS: { z0: number; z1: number }[] = [];
+  {
+    let z = CNT_Z - 1.9;
+    for (let i = 0; i < 4; i++) {
+      CELLS.push({ z0: z - 3.4, z1: z });
+      z -= 3.8;                               // 3.4 of cell, 0.4 of pier
+    }
+  }
+
+  const cellFloorT = declareSurface(pixTex(64, 64, (g) => {
+    g.fillStyle = '#55524b'; g.fillRect(0, 0, 64, 64);
+    for (let i = 0; i < 900; i++) {
+      const x = Math.random() * 64, y = Math.random() * 64, v = Math.random();
+      g.fillStyle = v < 0.6 ? `rgba(0,0,0,${0.03 + v * 0.10})` : `rgba(220,214,200,${(v - 0.6) * 0.16})`;
+      g.fillRect(x, y, 1, 1);
+    }
+  }), 'ground');
+  const cellFloorM = ctx.flat(cellFloorT);
+  const bunkM = new THREE.MeshBasicMaterial({ color: 0x4c5155 });
+  const mattM = new THREE.MeshBasicMaterial({ color: 0x6e6656 });
+  const blankM = new THREE.MeshBasicMaterial({ color: 0x5a4f44 });
+  const porcM = new THREE.MeshBasicMaterial({ color: 0xc8c6ba });
+  const wallM = new THREE.MeshBasicMaterial({ color: P.tile });
+
+  // the daylight slot at the back of every cell. It DIMS WITH THE WORLD —
+  // a bright window at two in the morning is the tell that a room is a set.
+  const slotM = new THREE.MeshBasicMaterial({ color: 0xdfe6ea });
+  slotM.userData.selfLit = true;
+  ctx.onFrame(({ night }) => {
+    slotM.color.setRGB(0.87 - 0.72 * night, 0.90 - 0.74 * night, 0.92 - 0.74 * night);
+  });
+
+  /**
+   * ONE CELL, on a given side of the corridor.
+   *
+   * `side` is −1 for the west run and +1 for the east, and EVERY x in here is
+   * derived from it. GOTCHAS §41 is exactly this shape: *"when geometry is
+   * mirrored… checking one instance proves nothing about the other. The mirror
+   * is precisely the operation that breaks handedness."* The lock box, the
+   * basin, the bunk and the door swing all have a side, and a second run
+   * written as a copy with a flipped sign is how the car lot's far row ended up
+   * facing backwards.
+   *
+   *   backX   the room wall this cell is against
+   *   faceX   the barred face, always CORRIDOR-side of backX
+   *   inward  the direction from the bars toward the back wall
+   */
+  const cell = (side: -1 | 1, c: { z0: number; z1: number }, occupied: boolean) => {
+    const backX = side * hw;
+    const faceX = backX - side * CELL_D;
+    const inward = -side;                      // bars -> back wall
+    const cz = (c.z0 + c.z1) / 2, cw = c.z1 - c.z0;
+    const midX = backX + inward * (CELL_D / 2);
+    // the piers between cells, full height and full depth
+    for (const pz of [c.z1 + 0.2, c.z0 - 0.2]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(CELL_D, room.H, 0.4), wallM), midX, room.H / 2, pz);
+      solid(midX, pz, CELL_D, 0.4);
+    }
+    // the cell floor, a shade darker than the corridor's
+    const f = new THREE.Mesh(new THREE.PlaneGeometry(CELL_D, cw), cellFloorM);
+    f.rotation.x = -Math.PI / 2;
+    put(f, midX, 0.018, cz);
+
+    // ── THE BARS, and you can see between them ──
+    //
+    // 0.11 m clear between 0.05 m bars. Wider than a real cell, deliberately:
+    // at this world's ~8 px/m a true 4-inch gap closes up to nothing at any
+    // distance and the run reads as a solid grey panel — which is the exact
+    // failure the queue warned about, a bar you cannot see through being no
+    // better than a painted one.
+    const GAP = 0.16;
+    const n = Math.floor(cw / GAP);
+    const DOOR_W2 = 0.95, doorZ0 = cz - DOOR_W2 / 2, doorZ1 = cz + DOOR_W2 / 2;
+    for (let k = 0; k <= n; k++) {
+      const bz = c.z0 + (cw * k) / n;
+      if (bz > doorZ0 - 0.02 && bz < doorZ1 + 0.02) continue;   // the doorway
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.05, room.H, 0.05), barM), faceX, room.H / 2, bz);
+    }
+    // the rails, and a head-height transom over the whole face
+    for (const y of [0.42, 1.62, room.H - 0.10]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, cw), barM), faceX, y, cz);
+    }
+    // ── the cell door: barred, hinged, and SHUT ──
+    {
+      const leaf = new THREE.Group();
+      for (let k = 0; k <= 6; k++) {
+        const b = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.24, 0.05), barM);
+        b.position.set(0, 1.12, (DOOR_W2 * k) / 6);
+        leaf.add(b);
+      }
+      for (const y of [0.42, 1.62, 2.20]) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, DOOR_W2), barM);
+        r.position.set(0, y, DOOR_W2 / 2);
+        leaf.add(r);
+      }
+      // THE LOCK BOX IS ON THE CORRIDOR SIDE, which is the whole statement the
+      // door makes — and it is `-side * 0.06`, derived, not a constant copied
+      // from the other run. Copied, it would sit INSIDE the east cells.
+      const lock = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.26, 0.16), steelM);
+      lock.position.set(-side * 0.06, 1.06, DOOR_W2 - 0.06);
+      leaf.add(lock);
+      put(leaf, faceX, 0, doorZ0);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.06, room.H - 2.28, DOOR_W2), wallM),
+        faceX, (room.H + 2.28) / 2, cz);
+    }
+    // the whole barred face is solid: you look through it, you do not go in
+    solid(faceX, cz, 0.12, cw);
+
+    // ── what is inside, and it is furnished for somebody ──
+    const BUNK_Y = 0.46;
+    const bunkX = backX + inward * 1.15;         // against the back wall
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.92, 0.10, 0.72), bunkM), bunkX, BUNK_Y, cz + 0.5);
+    for (const t of [0.30, 2.00]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.07, BUNK_Y, 0.07), bunkM),
+        backX + inward * t, BUNK_Y / 2, cz + 0.5);
+    }
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.84, 0.09, 0.64), mattM), bunkX, BUNK_Y + 0.09, cz + 0.5);
+    // a blanket, folded at the foot on the empty ones and thrown back on the
+    // one that is occupied — the difference between a cell and a cell somebody
+    // is in
+    if (occupied) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.07, 0.60), blankM),
+        backX + inward * 1.85, BUNK_Y + 0.17, cz + 0.48);
+    } else {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.13, 0.58), blankM),
+        backX + inward * 1.95, BUNK_Y + 0.19, cz + 0.5);
+    }
+    // basin and stool, both against the back wall and derived from it
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.16, 0.34), porcM),
+      backX + inward * 0.26, 0.86, cz - 1.05);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.10, 0.05), steelM),
+      backX + inward * 0.12, 1.00, cz - 1.05);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 8), bunkM),
+      backX + inward * 1.9, 0.44, cz - 1.15);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.42, 6), bunkM),
+      backX + inward * 1.9, 0.21, cz - 1.15);
+    // the slot window, high in the back wall, barred on its own account
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.44, 0.80), slotM),
+      backX + inward * 0.03, 2.42, cz);
+    for (let k = 0; k < 4; k++) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.44, 0.035), barM),
+        backX + inward * 0.07, 2.42, cz - 0.30 + k * 0.20);
+    }
+    return { bunkX, cz: cz + 0.5, faceX };
+  };
+
+  // Four each side. The two runs are built by the SAME function with a
+  // different `side`, so there is no second copy to drift — and both are
+  // photographed from the corridor in `scripts/O-jailroom-look.mjs`, because
+  // GOTCHAS §41 is that checking one instance proves nothing about the other.
+  const occupiedCell = cell(-1, CELLS[1], true);
+  CELLS.forEach((c, i) => { if (i !== 1) cell(-1, c, false); });
+  CELLS.forEach((c) => cell(1, c, false));
+
+  // THE MAN IN CELL TWO. One occupied cell out of eight, not eight: eight is a
+  // set, one is a place where somebody is. He sits on the bunk with the blanket
+  // thrown back, facing the bars — which is what you do when you hear somebody
+  // in the corridor, and it is what makes the corridor feel watched rather
+  // than toured.
+  //
+  // Seated: the origin is the HIP and goes on the SEAT TOP, not the floor
+  // (`notes/H-seated-sprite.md`). The bunk top with its mattress is
+  // 0.46 + 0.09 + 0.045 = 0.595. If that ever needs a fudge the atlas is wrong
+  // and it goes to H, not patched here.
+  //
+  // His facing is derived from where the bars are relative to him, not typed:
+  // he is in the WEST run, so the corridor is at +x, so he looks +x.
+  room.person(
+    { jacket: '#6a6358', pants: '#4a4640', skin: '#7a4a28', hair: '#22201c',
+      fit: 'plain', cut: 'crop', build: 0, stride: 2, grime: 0.55, seated: true },
+    occupiedCell.bunkX, occupiedCell.cz,
+    { facing: Math.atan2(occupiedCell.faceX - occupiedCell.bunkX, 0), seated: true, y: 0.595 },
+  );
+
+  // ── the corridor's own light ───────────────────────────────────────────
+  //
+  // Caged bulkheads, not troffers. The kit's ceiling run is the LOBBY's light
+  // and it is a suspended commercial tray; the cell block is the part of the
+  // building where a fitting has to survive being hit, so it gets the fixture
+  // that says so. One per cell, over the corridor rather than over the cells,
+  // which is also true: you do not put a light where a prisoner can reach it.
+  const cageM = new THREE.MeshBasicMaterial({ color: 0xf2efdc });
+  cageM.userData.selfLit = true;
+  for (const c of CELLS) {
+    const cz = (c.z0 + c.z1) / 2;
+    for (const lx of [CELL_X1 + 0.8, -CELL_X1 - 0.8]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.10, 0.22), cageM), lx, room.H - 0.10, cz);
+      for (let k = 0; k < 3; k++) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.03, 0.03), darkSteelM),
+          lx, room.H - 0.10, cz - 0.07 + k * 0.07);
+      }
+    }
+  }
+
+  // ── the end of the corridor ────────────────────────────────────────────
+  //
+  // A mop sink, a bucket and a stack of chairs. The corridor has to END in
+  // something: a run of cells that stops at a blank wall reads as a room that
+  // ran out, and this is the corner of every institution in the world.
+  {
+    const bz = -hd + 1.1;
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.34, 0.62), porcM), -1.9, 0.17, bz);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.62, 0.05), steelM), -2.1, 0.65, bz);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.14, 0.30, 8),
+      new THREE.MeshBasicMaterial({ color: 0x63594a })), -1.1, 0.15, bz - 0.1);
+    solid(-1.7, bz, 1.6, 0.9);
+    const chairM = new THREE.MeshBasicMaterial({ color: 0x4a5560 });
+    for (let k = 0; k < 5; k++) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.05, 0.44), chairM), 1.9, 0.44 + k * 0.075, bz + 0.3);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.44, 0.05), chairM), 1.9, 0.68 + k * 0.075, bz + 0.52);
+    }
+    solid(1.9, bz + 0.4, 0.6, 0.8);
+  }
 }

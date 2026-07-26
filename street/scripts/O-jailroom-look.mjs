@@ -25,18 +25,32 @@ console.log(`jail room: ${R.w} x ${R.d} centred (${R.cx}, ${R.cz})`);
 const wx = (lx) => R.cx + lx, wz = (lz) => R.cz + lz;
 const hd = R.d / 2, hw = R.w / 2;
 
+// STATIONS DERIVED FROM THE ROOM'S OWN CONSTANTS, not from fractions of its
+// depth. My first cut put "at the glass" 0.44 m from the counter's front face —
+// close enough to be standing on it — and I graded the counter from a frame no
+// player would ever see. GOTCHAS 20: aim from the source.
+const CNT_Z = hd - 7.4;              // ct/int-jail.ts's counter line
+const GATE_CX = 1.4;                 // the way through beside it
+const CELL_X1 = -hw + 3.8;           // the barred face of the WEST cell run
+const CELL1_CZ = CNT_Z - 1.9 - 1.7;  // the first cell's centre
+const CELL2_CZ = CELL1_CZ - 3.8;
+
 for (const [n, lx, lz, tlx, tlz, pi] of [
-  ['arrive', 0, hd - 1.2, 0, -hd, 0.0],            // the frame the kit puts you in
+  ['arrive', 0, hd - 1.2, 0, -hd, 0.0],             // the frame the kit puts you in
   ['lobby', 0, hd - 4.5, -hw, hd - 3.0, 0.0],       // the bench and whoever is on it
-  ['bench', 2.0, hd - 3.0, -hw, hd - 3.0, 0.0],     // straight at the sitter
-  ['board', hw - 2.4, hd - 2.2, hw, hd - 2.2, 0.05],
-  ['counter', 0, hd - 8.0, 0, -hd, 0.02],           // walking up to the counter
-  ['atglass', 0, hd - 6.6, 0, -hd, 0.05],           // where you are spoken to
-  ['gate', 0, hd - 10.0, 0, -hd, 0.0],
-  ['corridor', 0, 0, 0, -hd, 0.0],
-  ['cell', 1.4, -4.0, hw, -4.0, 0.0],               // into a cell through the bars
-  ['back', 0, -hd + 1.5, 0, hd, 0.0],               // turn round: GOTCHAS 41
-  ['ceiling', 0, hd - 5.0, 0, -hd, 0.55],           // the troffers and the dead ones
+  ['bench', 2.6, hd - 3.0, -hw, hd - 3.0, 0.0],     // straight at the sitter
+  ['board', hw - 2.6, hd - 2.2, hw, hd - 2.2, 0.05],
+  ['counter', 0, CNT_Z + 4.5, 0, -hd, 0.02],        // walking up to it
+  ['atglass', -1.6, CNT_Z + 1.5, -1.6, -hd, 0.02],  // where you are SPOKEN TO
+  ['sergeant', -1.6, CNT_Z + 1.2, -1.6, CNT_Z - 1, 0.06],
+  ['gate', GATE_CX, CNT_Z + 2.6, GATE_CX, -hd, 0.0],
+  ['through', GATE_CX, CNT_Z - 1.4, -hw, CELL1_CZ, 0.0],   // just inside, turning
+  ['corridor', 0, CELL2_CZ + 2, 0, -hd, 0.0],
+  ['cell', CELL_X1 + 1.4, CELL2_CZ, -hw, CELL2_CZ, 0.0],   // WEST run, through the bars
+  ['cell-east', -CELL_X1 - 1.4, CELL2_CZ, hw, CELL2_CZ, 0.0],  // and the EAST run: GOTCHAS 41
+  ['cellman', CELL_X1 + 1.1, CELL2_CZ + 0.6, -hw, CELL2_CZ + 0.5, 0.0],
+  ['back', 0, -hd + 1.6, 0, hd, 0.0],               // turn round: GOTCHAS 41
+  ['frontwall', 0, hd - 4.0, 0, hd, 0.06],          // the door, from inside
 ]) {
   const x = wx(lx), z = wz(lz);
   await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0, 0),

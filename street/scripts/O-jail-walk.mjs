@@ -108,12 +108,37 @@ if (mode === 'door' || mode === 'all') {
   ok(reachable.some((h) => h.near && h.ok),
     'standing where the walk stopped, the jail\'s [E] is within reach and live');
 
+  // WAIT FOR THE TRANSITION, not for six frames. A door is driven by the
+  // render loop and a frame is 17 ms on an idle machine and over a second on
+  // one running the rest of the suite (GOTCHAS 30) — `afterFrames(p, 6)` here
+  // passed on a quiet machine and gave FOUR reds on a working door as soon as
+  // anything else was running, every one of them one step behind the truth.
   await p.keyboard.press('e');
-  await afterFrames(p, 6);
+  const crossed = await p.evaluate(() => new Promise((res) => {
+    const t0 = performance.now();
+    const tick = () => {
+      if (window.__ct.pos()[0] > 400) return res(true);
+      if (performance.now() - t0 > 8000) return res(false);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }));
   const inside = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
-  ok(inside[0] > 400, `E puts you INSIDE — x ${inside[0]}, the interior slab belt is x >= 400`);
+  ok(crossed && inside[0] > 400, `E puts you INSIDE — x ${inside[0]}, the interior slab belt is x >= 400`);
+  if (!crossed) { console.error('ABORT: never got inside, so nothing below measures the room'); await b.close(); process.exit(3); }
 
-  // walk the length of the room, then come back and leave
+  // WALK THE LENGTH OF THE ROOM — down the line the gate is on, not down the
+  // middle. The middle is the counter, and the counter is SUPPOSED to stop
+  // you; a check that walks into it and reports the room unwalkable would be
+  // measuring the threshold working and calling it a fault.
+  // yaw 0, NOT PI. The camera's forward is (sin t, -cos t) — see GOTCHAS 33,
+  // where the two yaw conventions in this world differ by a z-flip and cost
+  // the park its benches. At yaw 0 the camera looks down -z, which is INTO the
+  // room; at PI it looks at the front wall, which is what I did first and it
+  // walked 0.78 m into the door and reported the room unwalkable.
+  await p.evaluate(([x, z]) => window.__ct.warp(x + 1.4, z - 1.0, 0, 0, 0),
+    [inside[0], inside[2]]);
+  await afterFrames(p, 4);
   await p.keyboard.down('w');
   let l2 = null, s2 = 0;
   for (let i = 0; i < 120 && s2 < 6; i++) {
@@ -131,8 +156,17 @@ if (mode === 'door' || mode === 'all') {
   await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0), [inside[0], inside[2]]);
   await afterFrames(p, 5);
   await p.keyboard.press('e');
-  await afterFrames(p, 6);
+  const left = await p.evaluate(() => new Promise((res) => {
+    const t0 = performance.now();
+    const tick = () => {
+      if (window.__ct.pos()[0] < 400) return res(true);
+      if (performance.now() - t0 > 8000) return res(false);
+      requestAnimationFrame(tick);
+    };
+    tick();
+  }));
   const out = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
+  if (!left) { console.error('ABORT: E from inside never left the room'); await b.close(); process.exit(3); }
   ok(out[0] < 100, `E from inside puts you back on the STREET — (${out[0]}, ${out[2]})`);
   ok(out[0] > KERB && out[0] < FX, `and on the PAVEMENT, not in the road — ${KERB} < ${out[0]} < ${FX}`);
   // the way out must clear the way in, or a second E bounces you straight back
