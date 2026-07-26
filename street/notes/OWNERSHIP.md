@@ -61,7 +61,8 @@ src/proto/ct/gap.ts         = H    # asked for it; needs it for the alley keep-c
 src/proto/ct/crowd-net.ts   = H    # already calls it "mine" in its own blocker
 src/proto/ct/traffic.ts     = H
 src/proto/ct/sidestreet.ts  = H
-src/proto/ct/hud.ts         = D    # screen-space: the watch, the wrist, the wallet
+src/proto/ct/hud.ts         = K    # moved from D 2026-07-26 — D has the interaction rework
+src/proto/ct/inventory.ts   = K    # the pockets model + the take verb
 src/proto/ct/bank.ts        = A    # assigned 2026-07-25 — split out of street.ts, unowned until now;
                                    # A owns the facade painters and just landed the pawn shop exterior
 ```
