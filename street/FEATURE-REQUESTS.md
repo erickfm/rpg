@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"what is this shadow geometry here? / park paths read as road, not park path (the CIVIC + PARK half of the flat-colour fix)"** → **E**
 - **"when i enter bodega i should be facing perpendicular to the wall door. so looking this way (ref shot down the aisles)"** → **F**
 - **"'Screenshot from 2026-07-25 21-47-13.png' benches still tilted and clipping trash or whatever that is"** → **E**
 - **"'Screenshot from 2026-07-25 21-46-49.png' whys the gazeobo structure look chopped? also should be taller a lil bit"** → **E**
