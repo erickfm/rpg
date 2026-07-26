@@ -146,6 +146,13 @@ const CHECKS = [
   // fail independently — a wall dropped into a seated view, and a sign turned
   // to read into the office wall. (I)
   ['I-facing',         'does any seat or sign in the lot face a wall?',      true],
+  // B's class: "a flat colour is not a material — an untextured quad has no
+  // grain for the eye to attach to and no joints to give it scale, so it reads
+  // as a TINT OVER the paving rather than as a piece of paving." Guards the
+  // lot's side of it. Takes area from the QUAD, never the world box: the bay
+  // stripes are 0.09 x 5.0 m planes raked 0.55 rad, and measured as axis-aligned
+  // boxes each reads 11.59 m2 instead of 0.45. (I)
+  ['I-flatground',     'is any ground surface in the lot flat colour?',      true],
   ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],

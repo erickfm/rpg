@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { Seat } from './ctx';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface, type SurfaceKind } from './paint';
+import { pixTex, dither, declareSurface, slabTex, type SurfaceKind } from './paint';
 
 /** `pixTex` + `declareSurface` in one call.
  *
@@ -841,8 +841,29 @@ function buildLot(o: {
     cabin.position.set(cx, Y + CH / 2, cz);
     scene.add(cabin);
     solid({ minX: cx - CD / 2, maxX: cx + CD / 2, minZ: cz - CW / 2, maxZ: cz + CW / 2 });
-    // a step up to the door, because a portable sits on blocks
-    const step = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 1.0), new THREE.MeshBasicMaterial({ color: 0x8b867e }));
+    // a step up to the door, because a portable sits on blocks.
+    //
+    // ITS TREAD IS THE ONE FLAT-COLOUR GROUND SURFACE THIS MODULE OWNS, and it
+    // is the one you stand on to open the office door, so it gets A's `slabTex`.
+    // B's diagnosis of the class: *"a flat colour is not a material. an
+    // untextured quad has no grain for the eye to attach to and no joints to
+    // give it scale, so it reads as a TINT OVER the paving rather than as a
+    // piece of paving."*
+    //
+    // `slabTex` KEEPS THE COLOUR — `base` is filled unchanged — so this is not
+    // a repaint of approved artwork, it is the same tone with grain in it.
+    // `joint: 0` because a 0.7 x 1.0 m concrete step is one cast piece; a joint
+    // pattern would invent a scale that is not there.
+    //
+    // Materials array is [+x, -x, +y, -y, +z, -z], so index 2 is the tread. A
+    // box's +Y face UVs span the full 0..1 on both axes and slabTex is mapped
+    // 1:1, so it covers the tread exactly (measured by A, notes/A-flat-ground-routing.md).
+    const stepSide = new THREE.MeshBasicMaterial({ color: 0x8b867e });
+    const stepTop = new THREE.MeshBasicMaterial({
+      map: slabTex({ wMeters: 0.7, dMeters: 1.0, base: '#8b867e', joint: 0, grain: 0.12 }),
+    });
+    const step = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.22, 1.0),
+      [stepSide, stepSide, stepTop, stepSide, stepSide, stepSide]);
     step.position.set(cx - CD / 2 - 0.35, Y + 0.11, cz - 1.2);
     scene.add(step);
     // the hand-lettered board over the window

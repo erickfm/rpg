@@ -1,3 +1,30 @@
+## Open — 2026-07-25, routed to I (car lot)
+
+- **Adopt the ground painters — the driveway apron above all** — *"ADOPTION, one
+  line per surface, and it is cheap … ct/lot.ts has 12 untextured ground-facing
+  surfaces totalling 82 square metres — the second worst in the world after
+  civic. The one the user pointed at is the DRIVEWAY APRON, which he saw as 'a
+  large flat untextured grey plane'. Take apronTex for it, and slabTex for the
+  yard surfaces that are still bare quads."* Ranked after the two he reported
+  twice (left row backwards, cars clipping); both of those are done.
+
+  Carrying B's diagnosis, because it generalises: *"a flat colour is not a
+  material. an untextured quad has no grain for the eye to attach to and no
+  joints to give it scale, so it reads as a TINT OVER the paving rather than as
+  a piece of paving."*
+
+  → **I. PARTLY DONE, and the census does not reproduce against `ct/lot.ts`.**
+  Measured with `scripts/I-flatground.mjs`: the lot had **one** flat-colour
+  ground surface, the 0.7 m² office door step, now on `slabTex` — every
+  ground-facing surface in the module is textured. **The driveway apron is not
+  in `ct/lot.ts`.** Walking the ground line across the lot mouth, every surface
+  from x 1 to x 9.5 reports `mod: tex-ground` — B's file. The apron proper
+  already carries B's own `apronTex` at 32 texels/m. What does read flat is the
+  60 × 124 m street ground sheet either side of it, at **0.03–0.11 texels per
+  metre along z** against 32/m for the lot deck. Filed to B in
+  `notes/BLOCKED-I.md` with the numbers; the user's complaint is real and
+  `shots/I-apron-out.png` shows it. See `notes/I-ground.md`.
+
 ## Open — 2026-07-25, routed to D (this session)
 
 <!-- The two entries below were LOGGED LATE, by D, after the work had landed.
