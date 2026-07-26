@@ -28,9 +28,25 @@ def room_at(x):
             bd, best = d, r
     return best if bd <= HALF else None
 
-bad = []
+# A ROW THAT EXPLAINS THE SHIFT IS NOT A ROW THAT SUFFERS FROM IT. A correction
+# necessarily quotes the old coordinate beside the room name, so the naive
+# detector re-flags every cell it has just fixed and the count never falls -
+# which reads to the desk as "nothing was done".
+bad, fixed = [], []
 for i, l in enumerate(open('notes/LEDGER.md').read().split('\n')):
     if not l.startswith('| CONFIRMED'):
+        continue
+    # ANY acknowledgement of the shift, not just my own wording. Another agent
+    # had already corrected a row with "corrected: the interiors moved +80 m in
+    # x when ct/int-bank.ts was inserted", and my marker-only skip counted it as
+    # outstanding - a tool that only recognises its author's phrasing will keep
+    # reporting other people's fixed work as broken.
+    low = l.lower()
+    if ('address correction' in low
+            or 'moved +80' in low
+            or 'interiors moved' in low
+            or ('corrected' in low and '+80' in low)):
+        fixed.append(i + 1)
         continue
     for m in re.finditer(r'\b(' + '|'.join(rooms) + r')\b', l, re.I):
         name = m.group(1).lower()
@@ -50,7 +66,8 @@ for i, l in enumerate(open('notes/LEDGER.md').read().split('\n')):
                 break
 
 print(f'rooms now: {" ".join(f"{k}@{v}" for k, v in sorted(rooms.items(), key=lambda t: t[1]))}')
-print(f'CONFIRMED rows whose evidence names a room beside an x now in ANOTHER room: {len(set(b[0] for b in bad))}\n')
+print(f'CONFIRMED rows whose evidence names a room beside an x now in ANOTHER room: {len(set(b[0] for b in bad))}')
+print(f'  (plus {len(fixed)} row(s) already carrying an ADDRESS CORRECTION, not counted)\n')
 seen = set()
 for row, name, x, here, ctx in bad:
     if row in seen:
