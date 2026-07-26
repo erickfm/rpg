@@ -1,1 +1,1 @@
-DONE | CONFIRMED: E is blocked in the slots modal, ESC works; a consistency fault not a hud fault | nobody
+DONE | modal sweep was broken (room.inside gate needs settling time); only the slots row is settled | nobody
