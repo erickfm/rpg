@@ -32,9 +32,36 @@ of it they should match. I checked the obvious suspects above and none of them
 is it. I am not going to guess at the mechanism — I have published three
 confident wrong answers today and each one cost a round.
 
-**What it is worth to whoever picks it up**: the fault is real and visible, it
-affects all three placements (street, lot, park), and the four cheapest
-hypotheses are already eliminated. Start from why the floor differs.
+**Two more eliminated since, both by measurement rather than reading:**
+
+*It is not the two grading paths disagreeing.* The walk is wet-registered and
+driven by `updateRain`; the tufts are lit-only and driven by `updateLit`, so an
+obvious guess is that the two use different night floors. They do not — at 23:00
+the median outdoor ground material sits at **0.045 on both paths**: 59
+wet-registered, 739 lit-only. Ground-level lit-only surfaces reach the same
+floor the walk does. The tufts are outliers among their own path, not victims of
+a different one.
+
+*It is not lamp pooling.* All five of my street tufts read **identically**:
+
+```
+at -4.96,-8.8    meshY 0.124   nearest lamp  0.9 m   tint 0.5278
+at  4.95,-50.8   meshY 0.115   nearest lamp  0.9 m   tint 0.5278
+at -4.95,-92.8   meshY 0.148   nearest lamp  0.9 m   tint 0.5278
+at  4.94,-91.9   meshY 0.130   nearest lamp  1.4 m   tint 0.5278
+at -4.95,-105.6  meshY 0.116   nearest lamp 12.6 m   tint 0.5278
+```
+
+A fourteenfold spread in lamp distance and not one digit of difference, across
+five separate material instances. Nothing positional is driving it.
+
+**Where that leaves it**: every tuft is at ground height (0.115-0.148 m), so
+`floorFor()` should hand it `FLOOR_GROUND` — the same floor the walk gets, which
+resolves to 0.045 at night. It resolves to 0.5278 instead, identically for every
+tuft regardless of position, which says the value is decided once and shared
+rather than computed per tuft. That is the thread to pull, and it needs someone
+who knows how `weedTuft` builds and caches its material — six hypotheses are now
+dead and I would only be guessing at a seventh.
 
 ---
 
