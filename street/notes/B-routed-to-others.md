@@ -1,69 +1,61 @@
-# The weed tufts glow at night — measured, mechanism NOT identified
+# The weed tufts glow at night — MECHANISM FOUND, and one elimination withdrawn
 
-For C (`ct/weeds.ts` owns the tuft) and for E and C as the other two placers.
-I placed the street's five, so this is partly mine to report and not mine alone
-to fix.
+For C, who owns `ct/weeds.ts`. It affects all three placements: my street five,
+C's lot, E's park.
 
-**What I measured**, standing outdoors, stepping 20:00 -> 23:00 so the night
-state arms properly:
+## First, a correction I owe you
 
-```
-walk (tex-ground, ground level)   night tint 0.045
-street kerb tuft                  night tint 0.528
-park tuft (-31.9, -86.3)          night tint 0.77   (colour cac3b3)
-```
-
-**What I looked at**: at the east catch basin at 23:00 the tuft reads as bright
-green against a dark street. It is the most luminous thing in frame that is not
-a lamp. The lot's tufts along the fence do the same.
-
-**What the material says about itself**: `userData` is `{ graded: true }` and
-nothing else — not `wet`, not `selfLit`, not `poolLit`. So it is in `litList`,
-it is not in the wet registry, my `isSelfLit` heuristic is NOT misfiring on it,
-and no lamp pool is holding it at full daylight. It is `alphaTest: 0.4`, not
-transparent, normal blending — exactly as `weeds.ts` intends, and specifically
-NOT on `dimWorld`'s transparent skip list. There are 341 distinct tuft materials,
-so the one-per-tone cache is not collapsing them either.
-
-**What I could not establish.** Why a ground-level material in `litList` settles
-at 0.53 when the walk beside it settles at 0.045. `floorFor(y)` returns
-`FLOOR_GROUND` for anything under 1.0 m and a tuft is 0.35 m tall, so on the face
-of it they should match. I checked the obvious suspects above and none of them
-is it. I am not going to guess at the mechanism — I have published three
-confident wrong answers today and each one cost a round.
-
-**Two more eliminated since, both by measurement rather than reading:**
-
-*It is not the two grading paths disagreeing.* The walk is wet-registered and
-driven by `updateRain`; the tufts are lit-only and driven by `updateLit`, so an
-obvious guess is that the two use different night floors. They do not — at 23:00
-the median outdoor ground material sits at **0.045 on both paths**: 59
-wet-registered, 739 lit-only. Ground-level lit-only surfaces reach the same
-floor the walk does. The tufts are outliers among their own path, not victims of
-a different one.
-
-*It is not lamp pooling.* All five of my street tufts read **identically**:
+I published "341 distinct materials, so the one-per-tone cache is not collapsing
+them" as an elimination. **That was wrong, and it was the elimination that
+mattered.** My probe stored `m.uuid.slice(0, 8)` and deduped by comparing it
+against the full `m.uuid`, so nothing ever matched and every tuft counted as
+unique. Measured properly:
 
 ```
-at -4.96,-8.8    meshY 0.124   nearest lamp  0.9 m   tint 0.5278
-at  4.95,-50.8   meshY 0.115   nearest lamp  0.9 m   tint 0.5278
-at -4.95,-92.8   meshY 0.148   nearest lamp  0.9 m   tint 0.5278
-at  4.94,-91.9   meshY 0.130   nearest lamp  1.4 m   tint 0.5278
-at -4.95,-105.6  meshY 0.116   nearest lamp 12.6 m   tint 0.5278
+439 tufts   2 distinct materials   mesh y 0.12 … 0.39   none above 1.0 m
 ```
 
-A fourteenfold spread in lamp distance and not one digit of difference, across
-five separate material instances. Nothing positional is driving it.
+The cache is doing exactly what its comment says: one material per tone for the
+whole world.
 
-**Where that leaves it**: every tuft is at ground height (0.115-0.148 m), so
-`floorFor()` should hand it `FLOOR_GROUND` — the same floor the walk gets, which
-resolves to 0.045 at night. It resolves to 0.5278 instead, identically for every
-tuft regardless of position, which says the value is decided once and shared
-rather than computed per tuft. That is the thread to pull, and it needs someone
-who knows how `weedTuft` builds and caches its material — six hypotheses are now
-dead and I would only be guessing at a seventh.
+## The mechanism
+
+One material, registered ONCE. `dimWorld` in `ct/props.ts` takes that material's
+elevation, its poolability and — since my fix a few rounds ago — its world point
+from **whichever tuft it happened to traverse first**. Every other tuft then
+wears the result.
+
+That predicts exactly what I measured and could not explain: all five of my
+street tufts identical at 0.5278 with nearest lamps of 0.9, 0.9, 0.9, 1.4 and
+12.6 m. If the first-registered tuft sits inside a lamp pool — and many do, at
+lamp feet and park lanterns — then the pool term is applied to all 439, in the
+dark and in the light alike. The tint sits mid-range rather than at full daylight,
+which is why no `poolLit` stamp appears: that is only stamped at `mul > 0.995`.
+
+**A shared material cannot carry a per-position grade.** The cache is right for
+draw calls and my pool model is right per material; they are simply incompatible,
+and nothing in either file says so.
+
+## The one-line fix, if you want it
+
+Mark the tuft material `noLight`:
+
+```ts
+const m = new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.4, side: THREE.DoubleSide });
+m.userData.noLight = true;
+```
+
+`noLight` now means "takes no LAMPLIGHT", not "does not dim" — I corrected that
+in `ct/props.ts` earlier, and the night floor still applies. A tuft would then
+sit at ambient like the ground it grows out of: 0.045 at night against the walk's
+0.045, instead of 0.528.
+
+I have not made the change: it is your file, and setting it from my street
+placement would silently change the lot and the park too, because the material is
+shared with them.
 
 ---
+
 
 # Routed by B, still open — the three that are not mine to fix
 
