@@ -19,15 +19,20 @@
 // The default is deliberately what it used today, so nothing that already calls
 // it changes behaviour.
 import { chromium } from 'playwright';
+import { afterFrames } from './lib/frames.mjs';
 const ARG = process.argv[2];
 const URL = process.env.SHOT_URL
   ?? (ARG && /^\d+$/.test(ARG) ? `http://localhost:${ARG}/` : ARG)
   ?? 'http://localhost:4184/';
 console.log(`footpaint: measuring ${URL}`);
 const b=await chromium.launch(); const p=await b.newPage();
+p.on('console',m=>{const t=m.text(); if(/LITERAL|FROMPTS/.test(t)) console.log('  [page]',t);});
 await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(3000);
+console.log('  sanity groundAt(201.95,-16.5) =',
+  await p.evaluate(()=>window.__ct.groundAt(201.95,-16.5)),
+  ' player', await p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(2))));
 const r=await p.evaluate(()=>{
  const cache=new Map(), out=[];
  const scan=(img,u0,u1,v0,v1)=>{                       // lowest opaque v in the frame
@@ -45,6 +50,9 @@ const r=await p.evaluate(()=>{
   if(!o.isMesh||!o.material?.map?.image||!o.geometry) return;
   const m=o.material.map, img=m.image; if(!img.width||img.width>4096) return;
   const rep=m.repeat, off=m.offset; if(Math.abs(rep.y)>0.9||Math.abs(rep.y)<1e-6) return;  // an atlas frame, not a whole sheet
+  // updateWorldMatrix FIRST. Without it this read a stale matrix and reported
+  // ground 0 under a citizen standing on a floor at 5.4.
+  o.updateWorldMatrix(true,false);
   o.geometry.computeBoundingBox(); const bb=o.geometry.boundingBox, e=o.matrixWorld.elements;
   if(bb.max.y-bb.min.y<0.5) return;
   let lo=1e9,hi=-1e9,cx=0,cz=0;
@@ -56,9 +64,29 @@ const r=await p.evaluate(()=>{
   const frac=(s.v-Math.min(v0,v1))/Math.abs(rep.y);          // where the shoe sits in the frame
   const footY=lo+frac*(hi-lo);
   const g=window.__ct.groundAt(cx,cz);
-  out.push({x:+cx.toFixed(1),z:+cz.toFixed(1),quadBottom:+lo.toFixed(3),footY:+footY.toFixed(3),g:+g.toFixed(3),
+  out.push({x:+cx.toFixed(3),z:+cz.toFixed(3),quadBottom:+lo.toFixed(3),footY:+footY.toFixed(3),g:+g.toFixed(3),
    pad:+(frac*(hi-lo)).toFixed(3), rowFromBottom:s.rowFromBottom, rows:s.rows, gap:+(footY-g).toFixed(3)});});
  return out;});
+// GROUND IS READ WITH THE PLAYER STANDING THERE.
+// groundAt(x,z) is NOT a pure function of x and z: it resolves against the
+// player's current floor context. In one page, with the player NEVER MOVING
+// (198.6,-16.3 both times), groundAt(201.95,-16.5) gave 5.4 and then 0, because
+// the player's own ground component went 5.4 -> 0 between the probes. Read
+// cold, that says a citizen is floating 5.4 m when it is standing on the
+// hallway floor. So every suspect is re-read with the player warped to it,
+// which is the only context in which the answer means anything.
+await afterFrames(p,2);
+const grounds=await p.evaluate(pts=>pts.map(([x,z])=>+window.__ct.groundAt(x,z).toFixed(3)), r.map(o=>[o.x,o.z]));
+r.forEach((o,i)=>{ o.g=grounds[i]; o.gap=+(o.footY-o.g).toFixed(3); });
+const back=await p.evaluate(()=>window.__ct.pos());
+for(const o of r){
+  if(Math.abs(o.gap)<=0.03) continue;
+  await p.evaluate(([x,z,y])=>window.__ct.warp(x,z,0,y,0),[o.x,o.z,o.footY]);
+  await afterFrames(p,3);
+  const g2=await p.evaluate(()=>+window.__ct.pos()[3].toFixed(3));
+  o.gCold=o.g; o.g=g2; o.gap=+(o.footY-g2).toFixed(3);
+}
+await p.evaluate(([x,z,y])=>window.__ct.warp(x,z,0,y,0),[back[0],back[2],back[3]]);
 if(!r.length){console.error('CANNOT ANSWER — no atlas-framed figure sampled.');process.exit(3);}
 const st=(a)=>{const s=[...a].sort((x,y)=>x-y);return{min:s[0],med:s[s.length>>1],max:s[s.length-1]};};
 console.log(`figures read from the atlas: ${r.length}`);
@@ -67,7 +95,19 @@ console.log(`\nPADDING under the painted shoe (metres of empty frame):  min ${pa
 console.log(`   C measured 0.108-0.129 before the fix; rows below the shoe: ${[...new Set(r.map(o=>o.rowFromBottom))].sort((a,b)=>a-b).join(',')} of ${[...new Set(r.map(o=>o.rows))].join('/')}`);
 console.log(`\nPAINTED SHOE vs GROUND (this is the number the user sees):  |gap| min ${gap.min}  median ${gap.med}  max ${gap.max}`);
 const bad=r.filter(o=>Math.abs(o.gap)>0.03);
-console.log(`figures whose painted foot is more than 3 cm off the ground: ${bad.length} of ${r.length}`);
+// THE POPULATION. Everything above counts any mesh that samples a sub-rect of an
+// atlas, and in this world that is stoop steps, hedges and brick as well as
+// people — I photographed the -9.2,-13 "figures" and they are a brownstone stoop
+// (shots/sunk-side.png). A headline over that population is not about figures at
+// all. Citizens are the 64-row frames; the rest is scenery and is reported as
+// scenery. GOTCHAS 34, and the fourth summary-over-the-wrong-population today.
+const CIT = r.filter(o => o.rows === 64);
+const citBad = CIT.filter(o => Math.abs(o.footY - o.g) > 0.03);
+console.log(`\nCITIZENS (64-row frames): ${CIT.length}`);
+console.log(`  painted foot more than 3 cm off the ground: ${citBad.length} of ${CIT.length}`);
+for (const o of citBad) console.log(`   ** (${o.x}, ${o.z}) foot ${o.footY} ground ${o.g}${o.gCold!==undefined?` (cold read said ${o.gCold})`:''} gap ${(o.footY-o.g).toFixed(3)}`);
+console.log(`  other atlas-framed meshes (scenery, NOT figures): ${r.length - CIT.length}`);
+console.log(`\nall atlas-framed meshes, scenery included, more than 3 cm off: ${bad.length} of ${r.length}`);
 for(const o of bad.slice(0,8)) console.log(`   ** (${o.x}, ${o.z}) quad bottom ${o.quadBottom} foot ${o.footY} ground ${o.g}  gap ${o.gap>0?'+':''}${o.gap}`);
 // SPLIT BY FRAME HEIGHT: a 64-row frame is a citizen; anything else is not,
 // and mixing them is how "2 of 20 float" gets reported about the wrong objects.
