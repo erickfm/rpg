@@ -30,9 +30,11 @@ const seats = await page.evaluate(() => {
     const blocked = cols.some((c) =>
       s.at.x > c.minX - 0.36 && s.at.x < c.maxX + 0.36 &&
       s.at.z > c.minZ - 0.36 && s.at.z < c.maxZ + 0.36);
-    // and is the approach in FRONT? forward is (sin yaw, cos yaw) in this
-    // world — the same convention `E-benchface` and the shelter both use.
-    const fx = Math.sin(s.pose.yaw), fz = Math.cos(s.pose.yaw);
+    // IN FRONT means in front of the SITTER. The pose yaw is the camera's, so
+    // the sitter looks along (sin yaw, -cos yaw); the mesh's own front is the
+    // other convention. Getting this backwards is what made a green here and
+    // in E-benchface mean nothing.
+    const fx = Math.sin(s.pose.yaw), fz = -Math.cos(s.pose.yaw);
     const dx = s.at.x - s.pose.x, dz = s.at.z - s.pose.z;
     const len = Math.hypot(dx, dz) || 1;
     return { x: +s.pose.x.toFixed(2), z: +s.pose.z.toFixed(2), blocked,

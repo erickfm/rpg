@@ -911,8 +911,25 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
     // mirror" half of the rule — and on ONE of the four there is a collider
     // behind the bench, which is the user's *"cannot sit on a bench"*.
     const faceX = Math.round(Math.sin(yaw)), faceZ = Math.round(Math.cos(yaw));
+    // THE SEAT'S YAW IS NOT THE MESH'S YAW, and this is the tenth orientation
+    // bug — the one that was hiding UNDER the eighth.
+    //
+    // This world has two conventions and they differ by a z-flip:
+    //     a MESH rotated by rotation.y = t faces (sin t,  cos t)
+    //     the PLAYER/camera at yaw t looks along (sin t, -cos t)
+    // three.js cameras look down local -z, meshes are authored facing +z, and
+    // nothing reconciles them. Measured, not reasoned: warping to yaw 0 and
+    // holding W moves -z, and yaw PI moves +z.
+    //
+    // `facingIn` returns the MESH value, which is right for the bench body and
+    // is why the backrest genuinely sits on the wall side. Handing that same
+    // number to ctx.seat pointed the SITTER the other way, so the bench faced
+    // the park and the person on it faced the wall. I confirmed 9/9 "facing
+    // into the park" twice on a check that shared the mistake, and only found
+    // it by doing what the user actually asked for - sitting in one and
+    // looking. camera = PI - mesh.
     ctx.seat({
-      x: bx, z: bz, yaw, h: 0.45,
+      x: bx, z: bz, yaw: Math.PI - yaw, h: 0.45,
       approach: { x: bx + faceX * 0.95, z: bz + faceZ * 0.95 },
       label: 'sit on the bench',
     });
@@ -1534,7 +1551,8 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
   // sits on (§8), so the corridor you press it from has to be outside the box.
   ctx.seat({
-    x: shX, z: shZ, yaw: Math.atan2(loopCx - shX, loopCz - shZ), h: 0.45,
+    // PI - mesh yaw: the sitter's convention, not the mesh's. See bench().
+    x: shX, z: shZ, yaw: Math.PI - Math.atan2(loopCx - shX, loopCz - shZ), h: 0.45,
     approach: { x: shX + 1.05, z: shZ },
     label: 'sit in the shelter',
   });

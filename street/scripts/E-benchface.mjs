@@ -19,7 +19,13 @@ const seats = (await page.evaluate(() => window.__ct.seats()))
 let bad = 0;
 for (const [i, s] of seats.entries()) {
   const yaw = s.pose.yaw;
-  const fx = Math.sin(yaw), fz = Math.cos(yaw);          // the bench's front
+  // WHERE THE SITTER LOOKS, which is not where the mesh points. A seat pose
+  // yaw is consumed by the PLAYER camera, and this world's camera looks along
+  // (sin yaw, -cos yaw) — measured by warping to yaw 0 and holding W, which
+  // moves -z. Using (sin, cos) here made this script agree with the bug it
+  // existed to catch: it passed 9/9 twice while a sitter on four of those
+  // benches was looking at the boundary wall.
+  const fx = Math.sin(yaw), fz = -Math.cos(yaw);        // where the sitter looks
   const tx = CX - s.pose.x, tz = CZ - s.pose.z;
   const len = Math.hypot(tx, tz) || 1;
   const dot = (fx * tx + fz * tz) / len;                 // 1 = straight at the park
