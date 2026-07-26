@@ -1,1 +1,1 @@
-WORKING | cat look-up: an UP frame in ct/cat.ts, near-and-above with hysteresis, no billboard pitch | 
+BLOCKED | cat look-up: designed, needs a per-frame hook into buildCatRig | DESK/D — buildCatRig takes {scene,boards,AZ1} only, no onFrame; the near-and-above test has nowhere to run and the call site is in D's ct/alley.ts
