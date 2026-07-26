@@ -222,6 +222,19 @@ const CHECKS = [
   // false alarms no regex removes. This asserts the direction that cannot — a
   // token which RESOLVES AS A COMMIT must be reachable. Costs no browser.
   ['hashes-resolve',   'can anyone else resolve the commits we cite?',     false],
+  // Every canfail case still quotes source that EXISTS. Costs no browser and no
+  // build — it reads canfail.mjs and greps the files it names.
+  //
+  // Registered because the failure it guards is one I caused: 23e12c691 split
+  // the alley out of ct/street.ts, two mutation cases went on quoting street.ts,
+  // and both matched nothing — "0/2 checks caught their mutation". canfail says
+  // so plainly, but only while running all 40 cases with a build and a browser
+  // apiece, which is far too slow to run after a refactor, so in practice the
+  // cases sit guarding air until somebody runs the whole thing. canfail's own
+  // note is the argument: "a mutation case is a hard-coded quotation of
+  // somebody's source; it is the one kind of test that a REFACTOR breaks
+  // silently and a bug never does." (D)
+  ['mutations-quote-real-source', 'do the mutation cases still quote source that exists?', true],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat
