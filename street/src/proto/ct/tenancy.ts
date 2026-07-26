@@ -1056,6 +1056,15 @@ export function register(ctx: CtxBuild): void {
       const day = Math.floor(ctx.clock.now().totalMin / 1440);
       const bal = owed(day);
       const cash = ctx.purse.cash;
+      // A LABEL MUST BE TRUE EVEN WHEN NOBODY CAN READ IT. `ok()` is false
+      // whenever nothing is owed, so this branch is unreachable in play — and
+      // it read `rent is $0.00 — you are $30.50 short`, which is two false
+      // statements in one line. It cost nothing to leave and it is not
+      // harmless: labels are the world's public description of itself, and C's
+      // packages check already took a false red off one of my prompts once
+      // (notes/C-package-vs-rent-for-N.md). An instrument reading spots gets
+      // this text; the gate is not visible from there.
+      if (bal <= 0) return 'nothing is owed';
       if (cash >= RENT.amount) {
         const weeks = Math.min(Math.floor(cash / RENT.amount), bal / RENT.amount);
         return `pay the rent — $${(weeks * RENT.amount).toFixed(2)}`;

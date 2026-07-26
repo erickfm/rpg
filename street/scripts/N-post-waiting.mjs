@@ -469,6 +469,34 @@ ok(swallow.mine >= 3,
   + '(floor 3, the mailbox, the man and the slip)');
 ok(swallow.bad.length === 0,
   `none of my triggers contains another module's centre (${swallow.bad.length} swallowed)`);
+
+// AND NO LABEL OF MINE IS FALSE, including on a spot nobody can currently
+// reach. `ok()` hid a prompt reading "rent is $0.00 — you are $30.50 short" —
+// two false statements in one line, unreachable in play and perfectly visible
+// to any instrument that reads spots, which is how C's packages check took a
+// false red off one of my prompts. Labels are the world's public description
+// of itself and the gate is not visible from outside it.
+const lies = await page.evaluate(() => {
+  const MINE = /mailbox|read your mail|rent is|pay the rent|slip of paper|nothing is owed/;
+  const out = [];
+  const say = (label, owedNow) => {
+    const m = label.match(/\$([\d.]+)/g) ?? [];
+    // a money figure of $0.00 in a prompt that is asking for money
+    if (/rent is|pay the rent/.test(label) && m.includes('$0.00')) out.push({ label, owedNow });
+  };
+  for (const d of [0, 1, 2, 3, 5, 9, 16]) {
+    for (const h of [3, 9, 13, 21]) {
+      window.__ct.clock(0, 0); window.__ct.advanceClock(d * 1440 + h * 60, 0);
+      const owedNow = window.__rent.owed();
+      for (const q of window.__ct.spots()) if (MINE.test(q.label)) say(q.label, owedNow);
+    }
+  }
+  return [...new Map(out.map((o) => [o.label, o])).values()];
+});
+await page.waitForTimeout(200);
+ok(lies.length === 0,
+  `no prompt of mine asks for $0.00, live or gated (${lies.length} across 28 clock states)`);
+for (const l of lies) console.log(`      FALSE LABEL: "${l.label}" while $${l.owedNow} is owed`);
 for (const b of swallow.bad) console.log(`      "${b.mine}" (r ${b.r}) contains "${b.theirs}" at ${b.d} m`);
 for (const n of swallow.near) {
   console.log(`      margin: "${n.mine}" (r ${n.r}) nearest is "${n.theirs}" (r ${n.theirR}) at ${n.d} m`);
