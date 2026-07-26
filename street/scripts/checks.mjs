@@ -300,6 +300,31 @@ const CHECKS = [
   ['side-walk',        'are both side-street walks clear, doors reachable?',  false, [], true],
   ['jitter',           'does a walker flip-flop when it passes somebody?',    false, [], true],
   ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
+
+  // ── A's five, from the facade work. Fast tier: all measure, none walk. ────
+  //
+  // These shipped over several commits each labelled "not registered in
+  // checks.mjs and no selftest". That label was honest and it was not a
+  // discharge — GOTCHAS 24 is that a check nobody runs does not go red, it
+  // stops being run, and five unregistered ones make the board look fuller
+  // than it is. Every one now names a case in canfail.mjs and every case has
+  // been watched going red.
+  //
+  // `diner-door-authority` is worth singling out: my FIRST mutation for it
+  // slept, because it swapped an expression for one that resolves to the same
+  // number. The check was fine and my mutation broke nothing — GOTCHAS 27's
+  // "a mutation that does not actually break the thing proves nothing".
+  ['A-diner-door-aligns',  'does the facade paint its door where the ROOM declared it?', 'diner-door-authority'],
+  ['A-door-mirrors',       'do rooms and facades agree which side the door is on?',      'door-mirror-skew'],
+  ['A-tree-canopy-opaque', 'can you see the wall through the middle of a tree?',         'tree-holes'],
+  ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
+  // The mutation for this one proves the CHECK notices, NOT that a player
+  // would see anything: the `NO seethrough CASE` note in canfail.mjs measured
+  // that removing backings no longer produces visible see-through, because the
+  // one real cut-out face has masonry behind it too. Guarding the invariant is
+  // still right — it is what stops the next cut-out arriving unbacked — and
+  // saying which of the two claims it supports is GOTCHAS 23's whole point.
+  ['A-shopfronts-backed',  'is there something opaque behind every shopfront glass?',    'shopfront-backing'],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

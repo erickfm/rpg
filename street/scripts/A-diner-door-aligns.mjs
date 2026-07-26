@@ -11,13 +11,17 @@
 // neutral. Find that run of columns in the painter's own canvas, convert the
 // run's centre back to world z through the frontage's own uDir, and compare it
 // to `doorWorld`. Reads the canvas, not a screenshot — GOTCHAS 1.
-// NOT REGISTERED IN scripts/checks.mjs, AND IT HAS NO SELFTEST. GOTCHAS 27
-// says both go in the same commit as the check, and I am deliberately not
-// paying that here: a proper mutation for this one has to make the DECLARED
-// door move while the painted one stays put, which means a hook in
-// ct/tex-world.ts, and this branch is under a "look and report, change
-// nothing" instruction. So this is EVIDENCE I ran once, not a guard standing
-// watch — do not read a green board as covering it.
+// REGISTERED in scripts/checks.mjs; its mutation is `diner-door-authority` in
+// scripts/canfail.mjs, which paints the door 1.5 m from where the room
+// declared it against this file's 0.30 m tolerance.
+//
+// It shipped unregistered and I said so at the time. Worth recording what the
+// first mutation attempt did: it swapped `doorAlongU(...)` for `F.doorCentreM`
+// on the reasoning that this drops the painter back to its own layout — and it
+// SLEPT, because `frontageOf` already overwrites `doorCentreM` with the
+// declaration, so the two are the same number. The check was fine; the
+// mutation broke nothing. GOTCHAS 27, on the entry I would most have believed
+// a green from.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 

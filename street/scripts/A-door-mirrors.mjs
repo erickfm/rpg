@@ -36,7 +36,11 @@
 // Both numbers come from published state — `__frontages` and `__ct.roomDims()`
 // — so this checks what the world built, not what either side intended.
 //
-// NOT REGISTERED in checks.mjs and no selftest committed.
+// REGISTERED in scripts/checks.mjs; its mutation is `door-mirror-skew` in
+// scripts/canfail.mjs, which shifts what the ROOMS declare by 2 m so the
+// facade door moves while the room's own hand-typed `at:` does not. It has to
+// move ONE side only — a number both consumers read would move them together
+// and this check would pass, which is the trap GOTCHAS 34 describes.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 

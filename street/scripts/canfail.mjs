@@ -446,6 +446,80 @@ const CASES = [
     "g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(cx - 5, oy + 8, 1, 12);",
     "g.fillStyle = 'rgba(255,255,255,0.2)'; g.fillRect(cx - 5, oy + 8, 3, 12);",
     'faces.mjs', [], 'a face banded into three tones'],
+
+  // ── A's five from the facade work, registered late and deliberately ───────
+  //
+  // I shipped all five saying "not registered, no selftest" in the commit
+  // message. That is an honest label on a debt, not a discharge of it: GOTCHAS
+  // 24's whole point is that a check nobody runs does not go red, it stops
+  // being run, and 27's is that one nobody has watched fail is one you will
+  // argue with. Five of those is worse than none, because the board looks
+  // fuller than it is.
+
+  // THE DINER'S DOOR: paint it 1.5 m from where the room declared, against a
+  // 0.30 m tolerance. Anchored on the STEEL_D line because `thriftFront` has a
+  // byte-identical dcM line.
+  //
+  // MY FIRST VERSION OF THIS SLEPT, and the reason is worth more than the case.
+  // I replaced `doorAlongU(nm, wM, F.doorCentreM)` with `F.doorCentreM`, on the
+  // reasoning that it would drop the painter back to its own layout and send
+  // the door to the far end of the shop. It does not: `frontageOf` ALREADY
+  // overwrites `doorCentreM` with the declaration before the painter ever sees
+  // it, so the two expressions are the same number and the mutation was a
+  // no-op. The check was fine; my mutation broke nothing.
+  //
+  // That is GOTCHAS 27's warning verbatim — "a mutation that does not actually
+  // break the thing proves nothing, and looks exactly like a check that works"
+  // — and it landed on the one entry where I would have been most inclined to
+  // believe a green. An offset cannot be absorbed by any resolution order.
+  ['diner-door-authority', TEXW,
+    `const dcM = doorAlongU(nm, wM, F.doorCentreM);
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);`,
+    `const dcM = doorAlongU(nm, wM, F.doorCentreM) + 1.5;   // not where the room said
+    const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
+    g.fillStyle = STEEL_D; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);`,
+    'A-diner-door-aligns.mjs', [], 'the facade painting its door where the room did not put it'],
+
+  // THE GLASS BLOCK, restored to the value that made it the brightest surface
+  // in the world. Watched red by hand when the check was written (51 brighter
+  // than the sky); here so it stays watched.
+  ['diner-block-glare', TEXW,
+    "const BLOCK = '#6f7b76';",
+    "const BLOCK = '#b9c4c2';   // the lightbox the user was looking at",
+    'A-diner-block-vs-sky.mjs', [], 'a glass block brighter than the sky'],
+
+  // THE CANOPY SEAL, removed — the enclosed pockets come straight back. This is
+  // the one whose mutation matters most, because the rim-constrained notches
+  // LOOK sufficient and are not: 303 enclosed texels across 11 crowns survived
+  // aiming alone, and only the flood-fill closes them.
+  ['tree-holes', TEXW,
+    'if (d[i * 4 + 3] !== 0 || out[i]) continue;',
+    'if (true) continue;   // stop sealing enclosed pockets',
+    'A-tree-canopy-opaque.mjs', [], 'holes punched clean through a tree crown'],
+
+  // THE SHOPFRONT BACKINGS, made translucent. READ THE `NO seethrough CASE`
+  // note above before trusting what this proves: removing backings does NOT
+  // produce visible see-through any more, because the one face that is a real
+  // cut-out — the bodega's canted bay — has masonry behind it as well. So this
+  // mutation proves the CHECK notices its invariant, not that a player would
+  // see anything. The invariant is still worth guarding: it is what stops the
+  // next cut-out face from arriving unbacked. Saying which of the two it is,
+  // rather than implying the stronger one, is the entire point of GOTCHAS 23.
+  ['shopfront-backing', TEXW,
+    'new THREE.MeshBasicMaterial({ map: shopInteriorTex(o.name, o.wMeters, SHOP_BAND_H) }));',
+    'new THREE.MeshBasicMaterial({ map: shopInteriorTex(o.name, o.wMeters, SHOP_BAND_H), transparent: true }));',
+    'A-shopfronts-backed.mjs', [], 'shopfronts with nothing opaque behind the glass'],
+
+  // THE MIRROR. Shift what the ROOMS declare by 2 m and the facade door moves
+  // while the room's own hand-typed `at:` does not, so the two faces of one
+  // wall stop agreeing. This is the mutation that has to move ONE side only —
+  // shifting a number both consumers read would move them together and the
+  // check would pass, which is the trap GOTCHAS 34 describes.
+  ['door-mirror-skew', TEXW,
+    'DECLARED.set(name, doorWorld);',
+    'DECLARED.set(name, doorWorld + 2);   // facade moves, room does not',
+    'A-door-mirrors.mjs', [], 'a room and its facade disagreeing about which side the door is on'],
 ];
 
 const sh = (c) => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });

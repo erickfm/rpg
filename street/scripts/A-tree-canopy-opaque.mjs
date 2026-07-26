@@ -18,8 +18,10 @@
 // inward from the border — every alpha-0 texel it cannot reach is a hole,
 // however the notches were drawn.
 //
-// NOT REGISTERED in checks.mjs yet and no selftest committed; see the mutation
-// note at the bottom, which I did run.
+// REGISTERED in scripts/checks.mjs; its mutation is `tree-holes` in
+// scripts/canfail.mjs, which removes the seal and brings the 303 enclosed
+// texels straight back. That is the mutation that matters most here, because
+// rim-constrained notches LOOK sufficient and measurably are not.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 

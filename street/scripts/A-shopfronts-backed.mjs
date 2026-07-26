@@ -22,7 +22,13 @@
 // within the frontage's span, behind its face, opaque, and wide enough to
 // cover the glazing?
 //
-// NOT REGISTERED in checks.mjs and no selftest committed yet.
+// REGISTERED in scripts/checks.mjs; its mutation is `shopfront-backing` in
+// scripts/canfail.mjs. READ WHAT THAT PROVES: it shows this check notices its
+// invariant, NOT that a player would see anything. canfail's own `NO
+// seethrough CASE` note measured that removing backings no longer produces
+// visible see-through, because the one real cut-out face — the bodega's canted
+// bay — has masonry behind it as well. The invariant is still worth guarding:
+// it is what stops the next cut-out face arriving unbacked.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 

@@ -15,9 +15,9 @@
 // halves of that comparison were wrong in the same direction. GOTCHAS 29 —
 // say which number you mean, and measure it rather than remember it.
 //
-// NOT REGISTERED IN scripts/checks.mjs AND NO SELFTEST YET, for the same
-// reason as A-diner-door-aligns: the mutation belongs with the next change to
-// this painter. Evidence, not a standing guard.
+// REGISTERED in scripts/checks.mjs; its mutation is `diner-block-glare` in
+// scripts/canfail.mjs, which restores #b9c4c2 — the lightbox the user was
+// looking at — and takes this check red at 51 brighter than the sky.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
