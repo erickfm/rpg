@@ -199,6 +199,43 @@ export interface CtxBuild {
   /** register a per-frame hook. `order` decides when it runs — see ORDER.
    *  The billboard and citizen passes run after every registered hook. */
   onFrame: (fn: FrameHook, order?: number) => void;
+  /**
+   * TIME, as a verb the entry point hands out rather than state it guards.
+   *
+   * Builder C, blocked: *"sleeping means TIME PASSES — but nothing outside the
+   * entry point can advance the clock."* `totalMin` lives in `crosstown.ts` and
+   * no module could touch it, so "sleep in your room" — a user request from
+   * hours ago — could not be built without editing the most contended file in
+   * the tree. Same argument as `spot`, `seat`, `onFrame` and the floor
+   * registry: the entry point owns the STATE and hands out the VERB.
+   *
+   *   ctx.clock.now()                  -> { hour, minute, totalMin }
+   *   ctx.clock.advance(8 * 60)        // sleep eight hours, ramped
+   *   ctx.clock.advance(20, { overSeconds: 0 })   // snap, for a wristwatch set
+   *
+   * ADVANCING IS RAMPED, not snapped, and that is the whole design. Everything
+   * that reads the clock — the sky curve, the night wash, the lamps, the rain
+   * schedule — reads `totalMin` fresh every frame, so moving it smoothly means
+   * all of them follow smoothly and none of them has to know a sleep happened.
+   * Snapping is what would fight them: the grade would jump a full night in one
+   * frame and the rain would teleport through its own schedule.
+   *
+   * Designed for more than sleeping — a wristwatch, a bus timetable, opening
+   * hours and a "wait here" all want exactly this.
+   */
+  clock: {
+    /** the time right now */
+    now: () => { hour: number; minute: number; totalMin: number };
+    /**
+     * Move the clock forward by `minutes` of game time.
+     *
+     * `overSeconds` is how long the ramp takes in REAL time — default 1.5 s,
+     * which is long enough that the night curve visibly sweeps rather than
+     * cuts, and short enough that a player is not waiting. 0 snaps, for the
+     * cases where a smooth sweep would be wrong.
+     */
+    advance: (minutes: number, opts?: { overSeconds?: number }) => void;
+  };
   /** where the player is and how to move them, for use inside a Spot's
    *  ok()/act(). Safe to capture at build time — the accessors are live. */
   player: PlayerRef;

@@ -198,11 +198,29 @@ export function makeCrosstown(): Proto {
     },
     onFrame: (fn, order = ORDER.PROPS) => { HOOKS.push({ fn, order }); },
     player,
+    clock: {
+      now: () => ({ hour: Math.floor((totalMin % 1440) / 60), minute: Math.floor(totalMin % 60),
+        totalMin }),
+      advance: (minutes: number, opts?: { overSeconds?: number }) => {
+        if (!(minutes > 0)) return;
+        const over = opts?.overSeconds ?? 1.5;
+        if (over <= 0) { totalMin += minutes; return; }
+        clockRamp += minutes;
+        clockRampRate = Math.max(clockRampRate, minutes / over);
+      },
+    },
   };
   const apt = buildApartment(ctx);
 
   // ── the clock ───────────────────────────────────────────────────────────
   let totalMin = 13 * 60 + 20; // one real second = one game minute
+  // A RAMP, not a jump. `ctx.clock.advance` adds to this and the sim drains it
+  // a slice per frame, so everything that reads the clock fresh — the sky
+  // curve, the night wash, the lamps, the rain schedule — sweeps instead of
+  // cutting, and none of them needs to know a sleep happened. Snapping is what
+  // would fight them.
+  let clockRamp = 0;          // game minutes still owed
+  let clockRampRate = 0;      // game minutes per real second
   let rmbHeld = false;
   let feedHeld = false;
 
@@ -597,7 +615,19 @@ export function makeCrosstown(): Proto {
       if (gy !== undefined) apt.setGy(gy);
       if (pitch !== undefined) rig.pitch = pitch;
     },
-    clock: (h: number, m = 0) => { totalMin = h * 60 + m; },
+    clock: (h: number, m = 0) => { totalMin = h * 60 + m; clockRamp = 0; clockRampRate = 0; },
+    // test affordance for the ctx.clock verb, the same way colliders() and
+    // groundAt() expose their registries — a capability nobody can drive from
+    // a harness is a capability nobody can prove works.
+    advanceClock: (minutes: number, overSeconds?: number) => {
+      if (!(minutes > 0)) return;
+      const over = overSeconds ?? 1.5;
+      if (over <= 0) { totalMin += minutes; return; }
+      clockRamp += minutes;
+      clockRampRate = Math.max(clockRampRate, minutes / over);
+    },
+    clockNow: () => ({ hour: Math.floor((totalMin % 1440) / 60),
+      minute: Math.floor(totalMin % 60), totalMin }),
     // test affordance: the 42 is rare on purpose, so put it on the block now
     bus: (z = -20, dir: 1 | -1 = -1) => traffic.bus(z, dir),
     // …and read back what it's doing, so the stop can be verified as motion
@@ -687,6 +717,14 @@ export function makeCrosstown(): Proto {
 
       // the clock: one real second is one game minute
       totalMin += dt;
+      // …plus any ramped advance somebody asked for. Drained at a bounded rate
+      // so a sleep sweeps the night curve rather than cutting through it.
+      if (clockRamp > 0) {
+        const slice = Math.min(clockRamp, clockRampRate * dt);
+        totalMin += slice;
+        clockRamp -= slice;
+        if (clockRamp <= 0.001) { clockRamp = 0; clockRampRate = 0; }
+      }
       const clockMin = totalMin % 1440;
       const hourF = clockMin / 60;
       const skyCol = hud.skyAt(hourF);
