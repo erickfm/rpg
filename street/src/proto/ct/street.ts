@@ -157,6 +157,25 @@ export function buildStreet(o: {
   // dished alley paving: ct/park.ts and ct/civic.ts already register theirs
   // this way, so this is the established pattern rather than a new one.
   ground: CtxBuild['ground'];
+  // THE ROSTER PUBLISHES ITS OWN SITES. `ctx.ts` already says this is how it
+  // should work — *"`ct/street.ts` owns the block's layout and is the only
+  // thing that should be calling this"* — and `crosstown.ts` says the same from
+  // the other side: *"Until ct/street.ts publishes these itself, this file
+  // relays the two it already receives — the relay it replaces is the desk
+  // copying a z-span out of D's roster by hand, which failed twice."*
+  //
+  // Those two failures are on the record: the diner's `[E]` prompt ended up on
+  // the bank because a z-span was never passed on, and the car lot sat blocked
+  // waiting for one. Both are the same shape as the six hand-typed coordinates
+  // GOTCHAS §20 counts — a fact that lives in this file, retyped somewhere else.
+  //
+  // OPTIONAL on purpose. `crosstown.ts` is desk-owned and I do not edit it, so
+  // making this required would break the build until the desk wired it, and
+  // `live-integrate.sh` would drop this worktree out of the world the user is
+  // playing. Unwired it is inert; wired it makes the relay redundant, and the
+  // relay can then go. `SITES.set` is idempotent and both paths publish the
+  // same object, so the overlap while both exist is harmless.
+  publishSite?: CtxBuild['publishSite'];
 }) {
   const { scene, flat, wet, sidewalkY, KERB_H, boards, AZ0, AZ1, SIDE_X1, SIDE_Z0, SIDE_Z1 } = o;
   /** the module-scope painter with this build's `flat` bound in — same six
@@ -712,6 +731,9 @@ export function buildStreet(o: {
     PARK = openSite(-1, z, w, {
       depth: 32.0, ground: '#6a6f58', grain: '#5c6249', back: '#6b4034', flank: '#835444', gate: 0.36,
     });
+    // PUBLISHED HERE, at the moment the ground is laid out, rather than handed
+    // back for the entry point to relay. See `publishSite` in the params above.
+    o.publishSite?.('park', PARK);
   };
   // 23.2 m of the east side, where CAFE and HARDWARE stood. Contents — the
   // surfacing, the fence, the office, the signage and the stock — are C's, in
@@ -722,6 +744,7 @@ export function buildStreet(o: {
     LOT = openSite(1, z, w, {
       depth: w, ground: '#4a4c50', grain: '#3e4044', back: '#5c4436', flank: '#6b4034', gate: 0.3,
     });
+    o.publishSite?.('lot', LOT);
   };
   // ── the bank, and the ATM in its wall ───────────────────────────────────
   //
