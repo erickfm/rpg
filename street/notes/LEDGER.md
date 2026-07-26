@@ -103,3 +103,4 @@ user anything is finished.
 | OPEN | G | i asked for more expansive interiors for casino and for hotel. so far  | |
 | OPEN | G | the church interior is reversed i think. the entrance/exit is at the a | |
 | OPEN | D | align these crates so they fit better against this wall | |
+| OPEN | G | these signs block each other can you fix | |

@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"these signs block each other can you fix"** → **G**
 - **"align these crates so they fit better against this wall"** → **D**
 - **"the church interior is reversed i think. the entrance/exit is at the alter?"** → **G**
 - **"i asked for more expansive interiors for casino and for hotel. so far they look the same size. no additional depth"** → **G**
