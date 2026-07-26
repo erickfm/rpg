@@ -91,11 +91,18 @@ const mean = col.reduce((a, c) => a + c, 0) / col.length;
 const sorted = col.slice().sort((a, c) => a - c);
 const lo = sorted[Math.floor(col.length * 0.10)], hi = sorted[Math.floor(col.length * 0.90)];
 const contrast = (hi - lo) / mean;
-// The row means are clean enough to count directly: two crossings per full
-// light+dark cycle, so one BAND is half a cycle. 16 texels = 1 m.
+// N BANDS HAVE N-1 INTERNAL TRANSITIONS, not N.
+//
+// This divided the texture height by the CROSSING count, which over-reads by
+// exactly one band's worth: 264 texels of 1.5 m bands is 11 bands and 10
+// crossings, and 264/10/16 gives 1.65 m for something authored at 1.50. I saw
+// that 1.65-against-1.50 earlier today, decided it was close enough, and moved
+// on — and it came back as a FAIL the moment the desk asked for 1.5 m, on a
+// world that was correct. An instrument that is 10% out is a check that will
+// eventually argue with the truth.
 let crossings = 0;
 for (let i = 1; i < col.length; i++) if ((col[i - 1] - mean) * (col[i] - mean) < 0) crossings++;
-const bandM = crossings ? (col.length / crossings) / 16 : Infinity;
+const bandM = crossings ? (col.length / (crossings + 1)) / 16 : Infinity;
 
 console.log(`mown texture ${band.w}x${band.h} px at 16 px/m`);
 console.log(`  luminance  mean ${mean.toFixed(1)}  p10 ${lo.toFixed(0)}  p90 ${hi.toFixed(0)}`);

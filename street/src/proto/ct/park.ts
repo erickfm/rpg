@@ -463,14 +463,20 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
 // closer than the frame suggested; what actually buried them was the mud of the
 // desire lines beside them. Both are fixed together, because either alone would
 // have looked like a fix and not been one.
-// MEASURED ON SCREEN, not chosen by eye. The pair below reads at ~6%
-// peak-to-trough across the turf; the previous pair read at 12.7%, which is
-// where mown grass stops looking like nap and starts looking like paint —
-// the user's "cut the contrast hard". A gang mower's swathe is 0.5-1.5 m and
-// 1.5 was the top of that range, so the band narrows with it.
+// TWO INDEPENDENT VARIABLES, and only one of them was doing the work.
+//
+// CONTRAST is what made the turf read as churned: this pair sits at ~6.9%
+// peak-to-trough, where the previous one read 11.4% — the point at which mown
+// grass stops looking like nap and starts looking like paint.
+//
+// WIDTH is not that, and narrowing it was a mistake I made by reading one
+// sentence as one instruction. 1.5 m is a real mower deck, and a mown field
+// reads as mown precisely BECAUSE the bands are as wide as the machine that
+// cut them. At 1.03 m they were narrower than any mower exists, which is a
+// second way of looking wrong — it just does not look wrong in the same way.
 // `E-field` scans a line across the rendered frame and will fail if either
 // drifts back: over 14% is stripes, under 1.5% is not there at all.
-const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
+const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
 
     const mownT = pixTex(Math.max(8, Math.round(fW * 16)), Math.max(8, Math.round(fD * 16)), (g) => {
       const r = clcg(0x4fd21a);
