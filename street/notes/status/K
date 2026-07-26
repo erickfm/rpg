@@ -1,1 +1,1 @@
-WORKING | modal-trap fix landed: Escape never swallowed, closing releases the seat, guard over EVERY panel (watched it fail) | DESK — ctx.stand(); DESK — the seat latch; DESK — a row for ct/atm.ts
+DONE | modal-trap fixed structurally and guarded over all six panels; queue empty, 0 live | DESK — ctx.stand(); DESK — the seat latch; DESK — a row for ct/atm.ts

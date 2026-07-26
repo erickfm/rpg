@@ -59,7 +59,16 @@ const spot = await page.evaluate(() => window.__ct.spots()
 ok(!!spot, `the machine on the bank wall offers an [E] (${spot ? spot.label : 'none'})`);
 if (spot) {
   await page.evaluate(([x, z]) => window.__ct.warp(x + 1.1, z, Math.atan2(-1.1, 0), window.__ct.groundAt(x + 1.1, z), 0), [spot.x, spot.z]);
-  await page.waitForTimeout(420);
+  // POLLED, NOT SLEPT ON. The prompt is rewritten once a FRAME from wherever the
+  // player is, so 420 ms after a warp is a bet on the frame rate: one run in
+  // three read `[E] sit on the bed and watch TV` — the selection from the
+  // SPAWN, in room 301, still on screen because the warp had not been drawn yet.
+  // GOTCHAS §30, and the third time I have paid for it in my own scripts.
+  await page.waitForFunction(() => {
+    const e = document.getElementById('ct-prompt');
+    const t = e && e.style.display !== 'none' ? e.textContent : '';
+    return /FIRST FEDERAL/i.test(t || '');
+  }, null, { timeout: 6000 }).catch(() => {});
   const prompt = await page.evaluate(() => {
     const e = document.getElementById('ct-prompt');
     return e && e.style.display !== 'none' ? e.textContent : null;
