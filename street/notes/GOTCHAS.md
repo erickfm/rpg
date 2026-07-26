@@ -1019,3 +1019,52 @@ when a check was finally written for it.
 no Claude mode line, and `desk-watch.sh` restarts it automatically and re-briefs
 it from its queue file. That recovery is free precisely because the queue files
 exist — the brief was never in the agent's head.
+
+## 37. A DURATION measured in a headless browser reads ~1.5× too long
+
+`src/main.ts:107` clamps the simulation's timestep:
+
+```js
+const dt = Math.min(clock.getDelta(), 0.05);
+```
+
+That clamp is correct — without it, one long frame teleports everybody through
+a wall. But it means **sim time and wall time are not the same clock below
+20 fps**, and a headless Chromium running a probe is well below 20 fps.
+
+Measured on this world, headless, with a probe reading `__ct.walkers()` once a
+frame: **13.2 fps, mean frame 75.9 ms, 263 of 264 frames over the 50 ms clamp.**
+Sim time therefore advances at **0.659 × wall time**. Every in-world duration
+stretches by 1/0.659 = 1.52×.
+
+This cost the auditor and me a round trip. `crowd.ts` gives a shop window a
+`WAIT.window = [5, 12]` second pause; the audit measured a single uninterrupted
+window act at **16–18 s** and flagged it, quite reasonably, as a possible fault.
+It is not one: 12 s of sim time is 18.2 s of wall clock at that frame rate, and
+the measured 18.6 s matches to within the sampling interval. Nothing was wrong
+with the crowd.
+
+**So: never compare an in-world duration against a wall-clock stopwatch.** The
+tell is a ratio near 1.5 between what you measured and what the constant says —
+if the numbers are 1.5× apart, suspect this before you suspect the code.
+
+Three ways to stay honest, in order of preference:
+
+1. **Measure in sim time.** Read the quantity the world itself is counting
+   (`wait`, `jam`, `stuck`) rather than timing it from outside. Those tick in
+   `dt`, so they are directly comparable to the constants.
+2. **Report the frame rate alongside any duration**, so a 1.5× reading is
+   visible as a 1.5× reading rather than as a bug.
+3. **Scale**: if you must use wall time, multiply by the measured
+   `simTimePerWallSecond` before comparing.
+
+Related to §30, which is the same clock confusion in the other direction: there,
+a wall-clock sleep was too SHORT for the render loop; here, a wall-clock
+stopwatch reads too LONG for it.
+
+**The gameplay implication is worth someone's attention, and it is not mine to
+fix** (`src/main.ts` is not a builder-owned file): a player whose machine dips
+below 20 fps does not merely see fewer frames, they see the whole world run in
+slow motion — people stand at windows half again as long, traffic crawls. If the
+world is ever reported as "sluggish" rather than "choppy", this clamp is the
+first place to look.
