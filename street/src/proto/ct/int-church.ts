@@ -152,6 +152,18 @@ export function buildChurch(ctx: CtxBuild) {
       // rail blocks — which is what stops you walking through the bank and is
       // the only part that should.
       solid(side * PEW_CX, pz + 0.24, PEW_W, 0.16);
+
+      // THE KNEELER, in the brief's list and the thing that makes a bench a pew.
+      // Hinged down in front of each row: a padded board on two brackets, low
+      // enough to kneel at and clear of where your feet go when seated. No
+      // collider — you step over it, and a 0.13 m rail that stops you walking
+      // the row would be worse than not having one.
+      put(new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.07, 0.26),
+        new THREE.MeshBasicMaterial({ color: 0x5a2a2e })), side * PEW_CX, 0.13, pz - 0.60);
+      for (const end of [-PEW_W / 2 + 0.12, PEW_W / 2 - 0.12]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.13, 0.20), woodM),
+          side * PEW_CX + end, 0.065, pz - 0.60);
+      }
       // …and you can sit in it. The user asked that EVERY seat in the game be
       // sittable, and a church full of benches you cannot use would be the
       // largest exception in the world.
@@ -188,6 +200,74 @@ export function buildChurch(ctx: CtxBuild) {
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.34, 6),
       new THREE.MeshBasicMaterial({ color: 0xb8a24e }));
     put(stick, dx, 0.18 + 0.95 + 0.17, -hd + 2.4);
+  }
+
+  // ── THE WEST END: a narthex, and an arch in three recessed orders ─────
+  //
+  // The user: "outside, this church has a POINTED ARCHED DOORWAY IN THREE
+  // RECESSED ORDERS — that is what you should meet on the inside too: an arched
+  // opening, a shallow narthex or porch inside the west end. A flat rectangular
+  // hole in a plain wall is the opposite of what the facade promises."
+  //
+  // The narthex is a dropped stone ceiling over the first 2.6 m inside the door,
+  // the same move the library's vestibule uses: the kit gives a room ONE height,
+  // and a porch under the roof of the nave beyond is what a narthex physically
+  // is. Coming through it you meet a low dark ceiling and then 9.5 m of air,
+  // which is the contrast the facade is promising.
+  {
+    // NAR_Y 4.20, not 3.10, and the arch is why: its apex sits at SPRING 2.35 +
+    // RISE 1.35 + the keystone = 3.80, so at 3.10 the narthex ceiling cut the
+    // head off the arch it was supposed to frame. A pointed arch needs the
+    // height to be pointed in. 4.20 still reads as low against 9.50 of nave —
+    // which is the contrast the facade promises — and now the whole arch is
+    // under it.
+    const NAR_D = 2.60, NAR_Y = 4.20;
+    const zc = hd - NAR_D / 2, zFace = hd - NAR_D;
+    const stone = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+    const stoneD = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });
+    const stoneL = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
+
+    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.26, NAR_D), stoneD), 0, NAR_Y + 0.13, zc);
+
+    // THE ARCH, three orders, each stepped back and in. A pointed arch is two
+    // struck curves meeting at a point; at 8 px/m the honest way to draw one is
+    // a run of small boxes following that profile, which is also how the facade
+    // outside is painted. Each order is 0.16 narrower and 0.18 further into the
+    // room, so the reveal reads as depth rather than as a line.
+    const ORDERS: [number, number, number][] = [
+      [2.30, 0.00, 0], [2.14, 0.18, 1], [1.98, 0.36, 2],
+    ];
+    for (const [halfSpanX2, inset, oi] of ORDERS) {
+      const hx2 = halfSpanX2 / 2, zAt = zFace + inset;
+      const m = oi === 1 ? stone : oi === 2 ? stoneL : stoneD;
+      const SPRING = 2.35;                          // where the curve starts
+      // the jambs
+      for (const sx of [-1, 1]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.20, SPRING, 0.20), m),
+          sx * (hx2 + 0.10), SPRING / 2, zAt);
+      }
+      // the two struck curves, meeting at a point above the springing
+      const N = 9, RISE = 1.35;
+      for (const sx of [-1, 1]) {
+        for (let i = 0; i < N; i++) {
+          const t = i / (N - 1);
+          // a pointed profile: x falls to zero as y rises to the apex
+          const x = sx * hx2 * (1 - t * t);
+          const y = SPRING + RISE * Math.sqrt(t);
+          put(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.20), m), x, y, zAt);
+        }
+      }
+      // the keystone
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.34, 0.22), stoneL),
+        0, SPRING + RISE + 0.10, zAt);
+    }
+    // the piers either side of the arch carry the narthex ceiling and stop you
+    // walking round it
+    for (const sx of [-1, 1]) {
+      const pw = (8.5 - 2.7) / 2, px = sx * (2.7 / 2 + pw / 2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(pw, NAR_Y, 0.26), stone), px, NAR_Y / 2, zFace);
+      solid(px, zFace, pw, 0.30);
+    }
   }
 
   // ── the chancel, at the altar end where it belongs ───────────────────
