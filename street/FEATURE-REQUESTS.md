@@ -124,7 +124,8 @@ published to the playable artifact.
 
 ## Inbox
 - **"the brick area outside my room is too deep in. and i dont want there to be another window in the area. i do like the pipe though. i just want the length of that area to be less. the opposite wall should be closer to the window"** → **C**
-  → **C. ALREADY LANDED** in `53c7be2ab`, which answers all three clauses. Depth
+  → **C. ALREADY LANDED** in *"Light well: shallower, plain far wall, pipe
+  untouched"*, which answers all three clauses. Depth
   **2.4 → 1.2 m**, so the opposite wall is half as far and reads as a gap and
   then brick rather than a shaft. The window on the far wall is gone and it is
   plain brick. The pipe is untouched — its position is expressed against the far
