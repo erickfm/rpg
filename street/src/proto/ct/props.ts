@@ -908,7 +908,17 @@ export function buildProps(ctx: CtxBuild): Props {
   // 0.56 m2 the off-centre 0.56 x 1.0 well had, and it reads as a well again.
   const PIT_L = 1.4;
   const pitGeo = new THREE.PlaneGeometry(PIT_W, PIT_L);
-  const pitMat = new THREE.MeshBasicMaterial({ map: pitT });
+  // THE DIRT GETS WET. Measured: the walk the pits are cut into goes 1.000 ->
+  // 0.226 in rain, -77%, while the pit dirt moved 0.0% — seven patches of bone
+  // dry earth in a wet street, and earth is the WORST surface to leave dry,
+  // because wet soil darkens further than concrete does, not less. It is the
+  // same class as the catch basin castings a round ago and the gutter decals
+  // before that: a small surface that nobody registered because the big one
+  // beside it looked right.
+  //
+  // Registered rather than hand-tinted, so updateRain owns it and is its one
+  // writer — ct/props.ts skips wetMats materials in both grading paths.
+  const pitMat = wet(new THREE.MeshBasicMaterial({ map: pitT }));
   // Hand-tuned height exceptions. This is a hand-authored block, so a tree
   // that reads wrong in its particular spot gets trimmed by index rather than
   // by re-rolling the seed and disturbing every other tree. treeIdx 2 stands
