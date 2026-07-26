@@ -36,8 +36,19 @@ compounding faults in `ct/crowd.ts`:
   offset (its own current position) is clear, `placed` goes true, and the
   re-plan never ran. Its jam timer counted up the whole time.
 
-  The number: **one walker spent 29.8 s of a 60 s minute stuck, and another
-  12.1 s** — with `placed` true on every one of those frames.
+  **CORRECTION — I overstated this and the first version of this note and its
+  commit message are wrong.** I wrote that "one walker spent 29.8 s of a 60 s
+  minute stuck". That is not what I measured. On the OLD code `jam` incremented
+  on any frame with somebody inside the 0.7 m lookahead (`if (ahead) c.jam +=
+  dt`), which includes a perfectly healthy follow at matched pace. So the 29.8 s
+  and 12.1 s peaks measure PROXIMITY, not standing still, and they do not
+  establish a stall. The rewritten counter measures progress, which is why it
+  reads 0 — the two numbers are not comparable and I should not have put them
+  in a before/after column.
+
+  What is still solid is the code path itself, which is readable in the diff and
+  does not need a measurement: a stopped walker satisfies `theirs <= 1e-4`, the
+  yield fires, and `!placed` is unreachable when `step = 0`.
 
 - And re-planning would not have helped anyway. It cleared the route and ran
   Dijkstra over an unchanged graph, which returns the same path through the same
@@ -81,21 +92,44 @@ like everywhere else. Nothing needed doing; I checked rather than assumed.
 
 ## Measured after
 
+**Read the second correction below before this table.** Only the throughput row
+is a real before/after; the rest are after-only.
+
 | | before | after |
 |---|---|---|
-| worst jam, per walker over 60 s | **29.8 s**, 12.1 s | **0.0 s — all six** |
-| walkers reaching the junction at once | 1 | 2 |
 | metres walked by the crowd per minute | 334 | 361 |
+| walkers reaching the junction at once | 1 | 2 |
+| worst jam per walker over 60 s | *not comparable — see correction* | 0.0 s, all six |
 | samples off the walk (roadway, away from the crossing) | — | **0 of 3090** |
+| bunch of 2+ immobile people, over SIX minutes | — | **max 2, none at the junction** |
+| any walker immobile > 30 s, over SIX minutes | — | **none** |
+
+**CORRECTION 2 — my six-minute "before" runs measured the wrong build.** I ran
+`git stash push -- ct/crowd.ts ct/crowd-net.ts` to get a baseline, but I had
+already COMMITTED the fix, so the tree was clean and the stash was a no-op that
+saved nothing. Both six-minute runs therefore measured the NEW code. They stand
+as after-results and I have relabelled them; there is no six-minute baseline.
+The 60 s throughput pair (334 -> 361) is a genuine before/after — that stash did
+have something to save, and `pop` restored it.
 
 ## What I did NOT prove, and it matters
 
-**I never reproduced a visible pile-up.** Across four minutes of watching, the
-most walkers at the junction at once was two, and **street transits were 0 both
-before and after** — with six citizens, 85% of trips inside a 26 m radius and
-5–25 s errands, nobody crossed the street in any minute I watched. So the
-throughput numbers above are not evidence about the crossing, and I am not
-claiming them as such.
+**I never reproduced a visible pile-up, and the user's word is "tons".** The
+crowd in MY world is `CAST`, and `CAST.length === 6`. Across ten minutes of
+watching, the most walkers at the junction at once was two, the biggest bunch of
+immobile people anywhere was two (on the east walk at 6.0, -65.6, not the
+crossing), and **street transits were 0** — with six citizens, 85% of trips
+inside a 26 m radius and 5-25 s errands, nobody crossed the street in any minute
+I watched.
+
+Six people cannot make "tons", and that gap is the most important open thing
+here. **The user plays the live integration world on 5177, not my 4187** — every
+builder's work merged, and other builders put people in the interiors. If the
+crowd there is much bigger than six, the density that produces the user's
+screenshot exists there and not in my tree, and the fix wants re-checking
+against it. I did not measure 5177 because it is not my build and GOTCHAS 26
+says not to quote numbers from a tree that is not mine. **Desk: worth someone
+counting citizens on 5177.**
 
 What IS evidence: the 29.8 s stall is real, measured, and its mechanism runs
 exactly through the crossing endpoints (74 parked samples on `n-bodega`). I
