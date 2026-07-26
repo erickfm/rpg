@@ -832,25 +832,51 @@ export function buildLibrary(ctx: CtxBuild): void {
   // Moved to the entrance end, which was the last large piece of empty floor
   // and is where a second, smaller table belongs anyway — you come in, and
   // there is somewhere to sit down with what you are carrying.
-  const TAB_X = 5.80, TAB_Z = 8.40;
-  box(1.5, 0.08, 2.4, wood, TAB_X, 0.74, TAB_Z);
-  for (const dx of [-0.62, 0.62]) for (const dz of [-1.05, 1.05]) {
+  // ── AND ITS CHAIRS ALL FACE THE ROOM, 2026-07-26 ──
+  //
+  // Found by SITTING IN IT, which is the one player action I had never
+  // performed in my own room. GOTCHAS §33's last rule: *"do the player's
+  // action. Sitting on the bench showed brick wall filling the frame. Nothing
+  // short of sitting in it had caught it in three attempts."*
+  //
+  // The table kept its old orientation when it moved to the entrance end, so
+  // two of its four chairs seated you facing EAST at a blank stretch of plaster
+  // 5.5 m away — the park benches' failure, in the session that quotes them.
+  //
+  // A quarter turn was my first fix and it was WRONG, which is worth recording
+  // because the reasoning sounded right: chairs facing ±z, one side looking at
+  // the entrance doorcase. Sat in it and the north pair still faced blank wall
+  // — the doorcase is on the door axis at x 0 and this table is 5.8 m east of
+  // it, so "+z" here is front wall, not doors.
+  //
+  // MEASURED WHAT IS ACTUALLY WORTH LOOKING AT from this corner, instead of
+  // guessing a third time. At z ≈ 8.4 the room is empty in every direction but
+  // one: east is wall, west is wall past the desk, +z is the front wall unless
+  // you are standing on the door axis. Only −z has anything in it — the hall,
+  // the desk, the stacks, the terminals and the stair.
+  //
+  // So this is now what a library entrance table actually is: a bench along the
+  // front wall with its chairs on ONE side, and you sit with your back to the
+  // doors looking into the room. Four seats, four good views, and no seat that
+  // exists only to make the table symmetrical.
+  const TAB_X = 5.80, TAB_Z = 9.30;
+  box(2.4, 0.08, 0.90, wood, TAB_X, 0.74, TAB_Z);
+  for (const dx of [-1.05, 1.05]) for (const dz of [-0.33, 0.33]) {
     box(0.09, 0.74, 0.09, woodDark, TAB_X + dx, 0.37, TAB_Z + dz);
   }
-  solid(TAB_X, TAB_Z, 1.6, 2.5);
-  for (const [dx, dz, yaw] of [
-    [-1.25, -0.6, Math.PI / 2], [-1.25, 0.6, Math.PI / 2],
-    [1.25, -0.6, -Math.PI / 2], [1.25, 0.6, -Math.PI / 2],
-  ] as [number, number, number][]) {
-    const cx = TAB_X + dx, cz = TAB_Z + dz;
+  solid(TAB_X, TAB_Z, 2.5, 1.0);
+  for (const dx of [-0.9, -0.3, 0.3, 0.9]) {
+    const cx = TAB_X + dx, cz = TAB_Z - 0.80;
     box(0.44, 0.05, 0.44, wood, cx, 0.45, cz);                          // the seat pan
-    box(0.05, 0.5, 0.42, wood, cx - Math.sign(dx) * 0.20, 0.70, cz);    // the back
+    box(0.44, 0.5, 0.05, wood, cx, 0.70, cz - 0.20);                    // the back
     for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
       box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
     }
     ctx.seat({
-      x: room.wx(cx), z: room.wz(cz), yaw, h: 0.45,
-      approach: { x: room.wx(cx + Math.sign(dx) * 0.85), z: room.wz(cz) },
+      // camera yaw 0 looks along −z, into the room. `ctx.seat` hands its yaw to
+      // the rig, so this is the CAMERA convention and not the sprite one.
+      x: room.wx(cx), z: room.wz(cz), yaw: 0, h: 0.45,
+      approach: { x: room.wx(cx), z: room.wz(cz - 0.85) },
       label: 'sit at the table',
       // only offered while you are actually in here, like every kit seat
       ok: () => room.inside(),
