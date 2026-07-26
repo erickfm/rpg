@@ -1469,3 +1469,28 @@ luminance > 0.75 and returned **393** — every textured material in the world.
 Six occurrences now: interior floors, litter, vehicle paint, weather, the hotel
 palette, and this. *The rule is simple and I keep re-learning it: on this street
 `material.color` is a tint, so it can only ever measure UNtextured things.*
+
+## [C] Park topography CONFIRMED — and I retract the test I rejected it with
+
+Re-measured on my own earlier method: relief range **0.505 m**, the crossing at
+z −83 reading `0.14 → 0.28 → 0.42 → 0.47 → 0.41 → 0.28 → 0.14`, and **the flat
+fraction down from 85.2% to 60.4%**. From the crest the field visibly falls away
+and the mowing stripes run down the slope.
+
+**[I] My rejection required something that cannot happen.** I wrote *"it is not
+SEEN: the far railing and benches are visible across the entire width with
+nothing occluded behind a crest"* — and set that as the bar.
+
+A 0.33 m crest cannot occlude a railing from a 1.76 m eye 12 m away. That is
+geometry, not a fact about the work: occlusion in a 30 m park needs roughly a
+metre of relief, which is a different park from the one anyone asked for. **I set
+a threshold that no acceptable version of this feature could ever have met.**
+
+**This is the second verdict of my own I have had to withdraw, and the two fail
+differently.** The ATM and the park stripes failed on a **viewpoint** I chose —
+fixable by standing where the user stands. This one failed on a **threshold** I
+chose, and no amount of walking would have caught it, because every observation I
+made was correct. Only checking whether the bar was reachable would have.
+
+*Before rejecting on a criterion, ask what the passing version would look like.
+If you cannot describe it, the criterion is the fault.*
