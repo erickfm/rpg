@@ -564,6 +564,15 @@ const CHECKS = [
   // Four of its five verdicts have a mutation I watched go red; the facing one
   // does not and the script says so rather than faking one.
   ['J-library-room', 'is the partition still gone, the librarian behind her desk, the computers lit?', true],
+  // The library's readers are built with `citizenSprite` directly, because the
+  // kit places at the FLOOR and a sitter belongs at the seat top — so they do
+  // not get `room.person`'s `userData.citizen` tag unless the room sets it.
+  // They did not, and for a while three 8-angle citizens sat in that room
+  // tagged as nothing. THAT FAILS SILENT IN THE WORST DIRECTION: a world sweep
+  // asking "does every figure turn?" does not see them, finds nothing to
+  // complain about, and prints GREEN. Registered because no camera and no
+  // other check in this file could have caught it.
+  ['J-library-people', 'are the library\'s figures visible as people, and the seated ones on their seats?', true],
   // The pockets. Registered in the same commit as the feature, per GOTCHAS §27,
   // and it guards the one rule of `ct/inventory.ts` that a picture cannot check:
   // TAKING SOMETHING CHANGES THE WORLD. A pickup that leaves the object standing
