@@ -1,3 +1,25 @@
+// ┌───────────────────────────────────────────────────────────────────────┐
+// │  HEADING CONVENTION — atan2(-nx, nz).  NOT atan2(nx, nz).             │
+// │                                                                       │
+// │  Yaw 0 looks along -z, so heading y points along (sin y, -cos y).     │
+// │  A door publishes its INWARD normal n; walking AT it means -n, so     │
+// │      sin y = -nx,  cos y = nz   =>   y = atan2(-nx, nz)               │
+// │                                                                       │
+// │  THE TRAP: for every flat-wall door nx === 0, and atan2(-0, nz) and   │
+// │  atan2(0, nz) give the SAME direction. The wrong form is correct for  │
+// │  nine rooms out of ten and points you down the street for the tenth,  │
+// │  the bodega's 45-degree cut face. Testing the easy cases cannot catch │
+// │  it. I got it wrong twice in one session and walked 200 m off the map │
+// │  both times, the second time hours after diagnosing and fixing it.    │
+// │                                                                       │
+// │  DO NOT RETYPE IT. Import it:                                         │
+// │      import { approachHeading, exitHeading } from './lib/viewof.mjs'; │
+// │  A formula you retype is a formula you will retype wrong.             │
+// │                                                                       │
+// │  And take the POSITION from doorStandFor(building), not from          │
+// │  door - normal * k. That arithmetic put me on ground that does not    │
+// │  hold you up, and fixing the heading only revealed it.                │
+// └───────────────────────────────────────────────────────────────────────┘
 // Walk every interior in the belt. Interiors cannot be verified from a
 // screenshot (GOTCHAS §1) and floors/collision least of all (§7), so this
 // drives the real rig: it walks up to the door on the street, presses E, and
@@ -6,6 +28,7 @@
 // Usage: SHOT_URL=http://localhost:4185/ node scripts/interiors-walk.mjs [id]
 import { chromium } from 'playwright';
 import { flags } from './lib/flags.mjs';
+import { approachHeading } from './lib/viewof.mjs';
 import { reportWorld } from './lib/which-world.mjs';
 
 const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
@@ -730,7 +753,7 @@ for (room of rooms) {
   const cut = Math.abs(DOOR.nx) > 0.01 && Math.abs(DOOR.nz) > 0.01;
   await warp(cx + DOOR.x + DOOR.nx * 0.9,
     cut ? built.cz + DOOR.z + DOOR.nz * 0.9 : (doorLane ? doorLane[1] : lane.z),
-      Math.atan2(-DOOR.nx, DOOR.nz), 0);
+      approachHeading(DOOR), 0);   // see the banner: never retype this
   await p.waitForTimeout(150);
   await hold('w', 2600);
   const dPrompt = await prompt();
