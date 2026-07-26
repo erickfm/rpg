@@ -726,11 +726,19 @@ export interface Ground {
  * not guess. Parts carry userData.basinPart so a check can find them by name
  * rather than by size (park.mjs went blind once matching on exact dimensions).
  */
-export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, size = 0.60): THREE.Object3D[] {
+export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, size = 0.60,
+                           /** Pass `ctx.wet` to have the casting darken with the ground it
+                            *  sits in. Optional and identity by default, because this is
+                            *  exported and ct/street.ts calls it — a required parameter
+                            *  would have been a breaking change to somebody else's file for
+                            *  a cosmetic gain. See the note below on the kerb inlet, which
+                            *  measured 0.0% against a gutter going -83%. */
+                           wetFn: <T extends THREE.Material>(m: T) => T = (m) => m): THREE.Object3D[] {
   const OW = size, OL = size;
   const FL = 0.075, FR_H = 0.028, BAR_H = 0.012;
-  const ironM = new THREE.MeshBasicMaterial({ map: castTex() });
-  const barM = new THREE.MeshBasicMaterial({ map: barTex() });
+  // Wet only if the caller asked for it — see wetFn above.
+  const ironM = wetFn(new THREE.MeshBasicMaterial({ map: castTex() }));
+  const barM = wetFn(new THREE.MeshBasicMaterial({ map: barTex() }));
   const voidM = new THREE.MeshBasicMaterial({ color: 0x08090b });
   const made: THREE.Object3D[] = [];
   const box = (w: number, h: number, d: number, bx: number, by: number, bz: number,
@@ -1023,8 +1031,21 @@ export function buildGround(o: GroundOpts): Ground {
   //
   // Every one of those reads by an EDGE and the shadow the edge throws, and an
   // edge is the one thing a flat decal cannot have.
-  const ironM = new THREE.MeshBasicMaterial({ map: castTex() });
-  const barM = new THREE.MeshBasicMaterial({ map: barTex() });
+  // THE CASTING GETS WET WITH THE GUTTER IT SITS IN. Measured before fixing:
+  // the gutter pan goes 1.000 -> 0.169 in rain, a drop of 83%, while this
+  // basin's frame, bars and throat all moved 0.0% — bone-dry iron in the one
+  // place on the street the water is actually draining to. wetsweep.mjs had
+  // them in its "never gets wet" class and I wrote them off as the known "light
+  // surfaces stay dry" group without checking which surfaces they were.
+  //
+  // Registered rather than hand-tinted: `wet()` puts the material in the
+  // registry updateRain owns, which is also its ONE writer — ct/props.ts skips
+  // anything in wetMats in both grading paths, so this cannot be written twice.
+  //
+  // The void is the shaft seen through the slots, already 0x08090b, and 83% of
+  // near black is still near black. Left out on purpose.
+  const ironM = wet(new THREE.MeshBasicMaterial({ map: castTex() }));
+  const barM = wet(new THREE.MeshBasicMaterial({ map: barTex() }));
   const voidM = new THREE.MeshBasicMaterial({ color: 0x08090b });
   const basin = (kx: number, z: number, side: number) => {
     const cx = kx - side * 0.30;                  // centre of the opening in the pan
@@ -1074,7 +1095,9 @@ export function buildGround(o: GroundOpts): Ground {
     const fx = kx - side * PROUD;
     const TL = 0.92;
     const throat = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.070, TL - 0.05),
-      new THREE.MeshBasicMaterial({ map: throatTex() }));
+      // wet with the rest of the casting: the throat is the wettest part of it,
+      // being the hole the gutter drains into
+      wet(new THREE.MeshBasicMaterial({ map: throatTex() })));
     throat.position.set(kx - side * 0.002, 0.059, z);
     throat.userData.basinPart = 'throat';
     throat.userData.basinSide = side;
