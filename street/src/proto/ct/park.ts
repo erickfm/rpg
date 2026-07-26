@@ -1674,19 +1674,63 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     scene.add(weedTuft({ x, z, y: parkY(x, z), tone, scale,
       seed: Math.floor(wsd() * 1e6) }));
   };
-  /** both edges of a straight run, and never its middle */
+  // ── CLUMPS, NOT A DOTTED LINE ────────────────────────────────────────────
+  //
+  // The user: *"the weed tufts along the park path are EVENLY SPACED and all
+  // the same size, so they read as a dotted line rather than as plants...
+  // VARIATION, RANDOM PLACING, CLUSTERING."* All three were missing and the
+  // third is the one that matters:
+  //
+  //   *"weeds do not distribute evenly OR uniformly at random, they grow in
+  //   CLUMPS where a seed landed and spread... A metre of nothing followed by a
+  //   dense patch of five looks natural; one every 80 cm never will."*
+  //
+  // That is exactly right and it is also a warning about the obvious fix: my
+  // first pass stepped `t += per + rnd*0.55`, which is evenly-spaced-plus-noise
+  // and still reads as a row, because jitter moves a tuft off the beat without
+  // ever leaving a bare metre. So the run is not walked at all now. A small
+  // number of CLUMP CENTRES are drawn along it, each gets a handful of tufts
+  // with a tight falloff, and the gaps between clumps are whatever the draw
+  // leaves — sometimes nothing, sometimes three metres.
+  //
+  // Variation comes from three places, because scale alone still reads as one
+  // plant photocopied: `scale` runs 0.55-1.45 with a few deliberately large,
+  // `seed` is different per tuft so C's tuft turns and leans differently, and
+  // one in six takes the other tone so the green is not uniform.
+  //
+  // On the seeded stream: these draw from `wsd`, a local LCG of my own, NOT the
+  // shared `rnd()`. The desk's warning is about appending draws to the world
+  // stream and shifting everything downstream of them; a private stream cannot
+  // do that from any position in the file, which is why the park has used one
+  // since it was written.
+  const clump = (x: number, z: number, n: number, spread: number) => {
+    for (let i = 0; i < n; i++) {
+      // tight falloff: most of the clump sits inside a third of its spread
+      const r = spread * Math.pow(wsd(), 1.8);
+      const a2 = wsd() * Math.PI * 2;
+      const big = wsd() < 0.13;
+      tuft(x + Math.cos(a2) * r, z + Math.sin(a2) * r,
+        wsd() < 0.17 ? 'dry' : 'dark',
+        big ? 1.15 + wsd() * 0.3 : 0.55 + wsd() * 0.5);
+    }
+  };
+  /** both edges of a straight run, in clumps, and never its middle */
   const tuftEdges = (ax: number, az: number, bx: number, bz: number,
-    half: number, per = 0.62, skip = 0.24) => {
+    half: number, per = 3.4) => {
     const len = Math.hypot(bx - ax, bz - az);
     if (len < 0.5) return;
     const ux = (bx - ax) / len, uz = (bz - az) / len;
     const nx = -uz, nz = ux;
-    for (let t = 0.4; t < len - 0.3; t += per + wsd() * 0.55) {
-      for (const sgn of [-1, 1]) {
-        if (wsd() < skip) continue;                       // it is not continuous
-        const off = half - 0.04 - wsd() * 0.20;           // just inside the edge
-        tuft(ax + ux * t + nx * sgn * off, az + uz * t + nz * sgn * off,
-          'dark', 0.7 + wsd() * 0.55);
+    // how many clumps this run gets, then WHERE they fall is drawn — not
+    // stepped. Two can land close together and leave four metres bare, which
+    // is the thing that reads as planting rather than as spacing.
+    const n = Math.max(1, Math.round(len / per));
+    for (const sgn of [-1, 1]) {
+      for (let i = 0; i < n; i++) {
+        const t = 0.4 + wsd() * (len - 0.8);
+        const off = half - 0.02 - wsd() * 0.26;
+        clump(ax + ux * t + nx * sgn * off, az + uz * t + nz * sgn * off,
+          2 + Math.floor(wsd() * 5), 0.34 + wsd() * 0.3);
       }
     }
   };
@@ -1694,28 +1738,39 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   tuftEdges(lx0, lz0 + CHAM, lx0, lz1 - CHAM, HALF);                    // back leg
   tuftEdges(lx1, lz0 + CHAM, lx1, lz1 - CHAM, HALF);                    // street leg
   for (const lz of [lz0, lz1]) tuftEdges(lx0 + CHAM, lz, lx1 - CHAM, lz, HALF);
-  tuftEdges(site.maxX - 0.6, gateMid, lx1 + HALF, gateMid, 0.95, 0.5);  // the gate spur
+  tuftEdges(site.maxX - 0.6, gateMid, lx1 + HALF, gateMid, 0.95, 2.4);  // the gate spur
   // the chamfered corners: the outside of a turn is where a mower gives up
   for (const [cx, cz, sx, sz] of [[lx0, lz0 + CHAM, 1, -1], [lx0, lz1 - CHAM, 1, 1],
     [lx1, lz0 + CHAM, -1, -1], [lx1, lz1 - CHAM, -1, 1]] as [number, number, number, number][]) {
-    tuftEdges(cx, cz, cx + sx * CHAM, cz + sz * CHAM, HALF, 0.7, 0.35);
+    tuftEdges(cx, cz, cx + sx * CHAM, cz + sz * CHAM, HALF, 2.0);
   }
   // ALONG THE FOOT OF THE WALLS, which is also where the shrub layer stands —
   // the desk asked that the two work together, so these sit in front of the
   // shrubs rather than under them, in the line left clear for exactly this.
+  // the wall feet, clumped the same way — a stepped loop here would put the
+  // dotted line back along three more edges
   for (const [wallZ, inward] of [[site.minZ, 1], [site.maxZ, -1]] as [number, number][]) {
-    for (let x = site.minX + 1.0; x < lx1; x += 0.7 + wsd() * 0.9) {
-      tuft(x, wallZ + inward * (0.10 + wsd() * 0.22), 'dark', 0.7 + wsd() * 0.6);
+    const runX = (lx1 + 1.0) - (site.minX + 1.0);
+    for (let i = 0; i < Math.round(runX / 2.6); i++) {
+      clump(site.minX + 1.0 + wsd() * runX, wallZ + inward * (0.10 + wsd() * 0.3),
+        2 + Math.floor(wsd() * 5), 0.36 + wsd() * 0.3);
     }
   }
-  for (let z = site.minZ + 1.0; z < site.maxZ - 1.0; z += 0.7 + wsd() * 0.9) {
-    tuft(site.minX + 0.10 + wsd() * 0.22, z, 'dark', 0.7 + wsd() * 0.6);
+  const runZ2 = (site.maxZ - 1.0) - (site.minZ + 1.0);
+  for (let i = 0; i < Math.round(runZ2 / 2.6); i++) {
+    clump(site.minX + 0.10 + wsd() * 0.3, site.minZ + 1.0 + wsd() * runZ2,
+      2 + Math.floor(wsd() * 5), 0.36 + wsd() * 0.3);
   }
   // AND AGAINST EVERY VERTICAL — nothing is ever strimmed round a post.
+  // against a vertical, weeds bank on ONE side rather than ringing it evenly —
+  // whichever side the mower turns away from. So a ring is drawn as one or two
+  // clumps on an arc, not as n points round a circle.
   const around = (x: number, z: number, r: number, n: number) => {
-    for (let i = 0; i < n; i++) {
-      const a = wsd() * Math.PI * 2, d = r + wsd() * 0.16;
-      tuft(x + Math.cos(a) * d, z + Math.sin(a) * d, 'dark', 0.65 + wsd() * 0.4);
+    const side = wsd() * Math.PI * 2;
+    for (let k = 0; k < 1 + (wsd() < 0.45 ? 1 : 0); k++) {
+      const a = side + k * (1.6 + wsd());
+      clump(x + Math.cos(a) * r, z + Math.sin(a) * r,
+        Math.max(2, Math.round(n / 2)), 0.26 + wsd() * 0.2);
     }
   };
   around(memX, memZ, 1.15, 7);                                   // the memorial plinth
