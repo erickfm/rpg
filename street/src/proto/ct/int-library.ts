@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ORDER as HOOK, type CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { citizenSprite } from './citizens';
 import { type DoorDecl } from './doors';
@@ -185,6 +185,38 @@ export function buildLibrary(ctx: CtxBuild): void {
   const box = (w: number, h: number, d: number, m: THREE.Material,
     lx: number, y: number, lz: number) =>
     put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), lx, y, lz);
+
+  // ── GRAIN ON THE BIG FLAT FACES ──────────────────────────────────────────
+  //
+  // The queue's last row: *"any large blank surface left in the room takes A's
+  // `slabTex` — it keeps your colour (measured drift 1-4) and gives edge
+  // density."* A's own account of why is the part worth carrying:
+  //
+  //   *"the fault was never the colour — it was that a colour alone has no
+  //   grain and no joint, so nothing gives it scale."*
+  //
+  // ONE FACE AT A TIME, sized from THAT FACE'S METRES. A `BoxGeometry`'s six
+  // faces each span the full 0..1 of the map, so handing a single texture to
+  // the whole box stretches a 3 m top and a 0.16 m edge over the same canvas —
+  // GOTCHAS §5, the asphalt that came out 21 m by 0.33 m. So the face index is
+  // given explicitly and the painter is told the real metres of that face.
+  //
+  // `joint: 0` throughout: these are TIMBER, not paving, and A's note is
+  // specific that joints-off is what a surface wants when it should read as
+  // scale rather than as slabs.
+  const FACE_PY = 2, FACE_NY = 3, FACE_PZ = 4;
+  const grained = (w: number, d: number, base: string) =>
+    new THREE.MeshBasicMaterial({
+      map: slabTex({ wMeters: w, dMeters: d, base, joint: 0, grain: 0.11, kind: 'detail' }),
+    });
+  /** a box whose one named face carries grain and whose others keep `m` */
+  const boxFace = (w: number, h: number, d: number, m: THREE.Material,
+    lx: number, y: number, lz: number,
+    face: number, fw: number, fd: number, base: string) => {
+    const mats: THREE.Material[] = [m, m, m, m, m, m];
+    mats[face] = grained(fw, fd, base);
+    return put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mats), lx, y, lz);
+  };
 
   // ── BOOKS ────────────────────────────────────────────────────────────────
   //
@@ -651,7 +683,10 @@ export function buildLibrary(ctx: CtxBuild): void {
   const DESK_W = 3.2, RETURN_D = 2.0;             // the pocket, front face to back
   const BACK_Z = DESK_Z - RETURN_D;
   // the front counter, facing the door
-  box(DESK_W, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
+  // the counter's public face is 3.2 x 1.06 m of one tone and it is the first
+  // large surface you meet coming through the doors
+  boxFace(DESK_W, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z,
+    FACE_PZ, DESK_W, 1.06, '#6b5334');
   box(DESK_W + 0.1, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);        // the worn top
   box(0.5, 0.16, 0.34, woodDark, DESK_X - 1.05, 1.20, DESK_Z);          // date stamp block
   box(0.34, 0.10, 0.26, metal, DESK_X + 0.75, 1.17, DESK_Z);            // a wire tray
@@ -875,7 +910,8 @@ export function buildLibrary(ctx: CtxBuild): void {
   {
     const BX = 3.60, BZ0 = 2.40, BZ1 = 5.60;
     const BZC = (BZ0 + BZ1) / 2, BL = BZ1 - BZ0, TOP = 0.74;
-    box(0.76, 0.06, BL, wood, BX, TOP, BZC);                      // the bench top
+    boxFace(0.76, 0.06, BL, wood, BX, TOP, BZC,                   // the bench top
+      FACE_PY, 0.76, BL, '#6b5334');
     for (const lz of [BZ0 + 0.3, BZC, BZ1 - 0.3]) {               // and its legs
       for (const dx of [-0.30, 0.30]) box(0.07, TOP, 0.07, woodDark, BX + dx, TOP / 2, lz);
     }
@@ -992,8 +1028,14 @@ export function buildLibrary(ctx: CtxBuild): void {
 
     // the deck, with a dark soffit under it — from the reading room below its
     // underside is all you see of it
-    box(GW, 0.10, deckD, wood, GCX, GALLERY_Y - 0.05, deckCZ);
-    box(GW, 0.16, deckD, woodDark, GCX, GALLERY_Y - 0.18, deckCZ);
+    boxFace(GW, 0.10, deckD, wood, GCX, GALLERY_Y - 0.05, deckCZ,
+      FACE_PY, GW, deckD, '#6b5334');            // 3.0 x 11.5 m, and you walk on it
+    // ITS UNDERSIDE IS THE BIGGEST FLAT FACE IN THE ROOM — 34.5 m2 of one
+    // dark tone, and from the whole reading floor it is most of what the
+    // gallery IS. If only one surface in here took A's helper it would be
+    // this one.
+    boxFace(GW, 0.16, deckD, woodDark, GCX, GALLERY_Y - 0.18, deckCZ,
+      FACE_NY, GW, deckD, '#4a3826');
     box(0.16, 0.34, deckD, woodDark, GALLERY_X0 + 0.08, GALLERY_Y - 0.28, deckCZ);
     for (const pz of [deckZ0 + 1.2, deckCZ, deckZ1 - 1.2]) {
       box(0.18, GALLERY_Y - 0.34, 0.18, woodDark, GALLERY_X0 + 0.09, (GALLERY_Y - 0.34) / 2, pz);
@@ -1126,7 +1168,8 @@ export function buildLibrary(ctx: CtxBuild): void {
   // its clear aisle fell to 2.10 m.
   const RT_X = -4.0, RT_Z = 0.6, RT_LEN = 4.8, RT_D = 1.10;
   {
-    box(RT_LEN, 0.08, RT_D, wood, RT_X, 0.74, RT_Z);
+    boxFace(RT_LEN, 0.08, RT_D, wood, RT_X, 0.74, RT_Z,
+      FACE_PY, RT_LEN, RT_D, '#6b5334');
     for (const dx of [-RT_LEN / 2 + 0.3, 0, RT_LEN / 2 - 0.3]) {
       for (const dz of [-RT_D / 2 + 0.15, RT_D / 2 - 0.15]) {
         box(0.09, 0.74, 0.09, woodDark, RT_X + dx, 0.37, RT_Z + dz);
