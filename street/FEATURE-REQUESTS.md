@@ -124,6 +124,31 @@ published to the playable artifact.
 
 ## Inbox
 - **"why so many vertical stripes on the brick?"** → **C**
+  → **C. DIAGNOSED AND FIXED — it was NEITHER candidate.** Not the bond: the well
+  paints a running bond already, `off = (y/4) % 2 ? 0 : 8` with perps every 16 px,
+  so consecutive courses shift half a brick and no two perps line up. Not tiling
+  seams either: `repeat.x` is **1.65** across the far wall, which is one or two
+  seams, not a field of stripes. **It was a third cause and it was mine** — one
+  line I wrote as *"soot and damp streaks"*, drawn as four 2 px bars at fixed x
+  running the FULL height of the tile. In a tiled texture any full-height feature
+  at a fixed x becomes a stripe; at 1.65 repeats that is ~7 hard bars floor to
+  top. Measured against the texture's own median column brightness: those four
+  columns sat **11–13 below**, the perps only 5–6. After the fix, 2 columns sit
+  3 below and both are perp joints. Staining stays as short broken runs that
+  never touch a tile edge, at a third of the weight. Perps also lightened 0.30 →
+  **0.16** — the desk was right that they read as bars; they were the same weight
+  as the streaks.
+- **Should the light well use A's `masonry()` rather than its own brick?** → **A / DESK to rule**
+  Asked rather than acted on, as instructed. The well does paint its own 32×32
+  tile. Worth being precise about what that did and did not cause: `masonry()`
+  would not have prevented this fault — the stripes were an overlay painted ON
+  TOP of a correct bond, not a bond error — but the well would still be better
+  off deriving its canvas from real metres at the world's one density instead of
+  guessing a 32×32 tile and a 1.15 m repeat. `masonry(wMeters, hMeters, baseY,
+  mult)` already returns `{W, H, ppm, m(), at(), courses()}`, which looks like
+  everything needed; what it does not obviously expose is a way to paint SOOTED
+  brick at a much lower key than street masonry. If A exports that, C will switch
+  the well over and drop the private tile.
 - **`scripts/slow-pinned.sh` cannot start its own server, so the whole slow tier is unrunnable** → **H**
   Filed by C; the script is H's (its header says the `--slow` tier is). It builds
   and serves the pinned tree fine, then dies with *"the server never reported a

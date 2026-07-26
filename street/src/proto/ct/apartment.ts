@@ -1431,16 +1431,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const WELL_H = WELL_TOP - WELL_FLOOR;
     const sootT = surfTex('brick', 32, 32, (g) => {
       g.fillStyle = '#3a2a25'; g.fillRect(0, 0, 32, 32);          // dark, sooted brick
-      g.fillStyle = 'rgba(0,0,0,0.30)';
+      // A MORTAR JOINT IS A LINE, NOT A BAR. These were 0.30 black, the same
+      // weight as the streaks below, which is why the joints read as heavy
+      // dark bars rather than as pointing. 0.16 puts them back to a fine line.
+      g.fillStyle = 'rgba(0,0,0,0.16)';
       for (let y = 3; y < 32; y += 4) g.fillRect(0, y, 32, 1);    // courses
       for (let y = 0; y < 32; y += 4) {
+        // RUNNING BOND: the perps shift half a brick every course, so no two
+        // ever line up and there is no continuous vertical line. This part was
+        // always right and is not what striped the wall.
         const off = (y / 4) % 2 ? 0 : 8;
         for (let x = off; x < 32; x += 16) g.fillRect(x, y, 1, 4); // perpends
       }
-      // soot and damp streaks: a well is stained down its whole height
-      g.fillStyle = 'rgba(0,0,0,0.30)';
-      for (const sx of [2, 11, 19, 27]) g.fillRect(sx, 0, 2, 32);
-      g.fillStyle = 'rgba(90,100,86,0.10)'; g.fillRect(6, 14, 5, 18);  // a patch of damp
+      // THE STRIPES WERE HERE. This used to be
+      //     for (const sx of [2, 11, 19, 27]) g.fillRect(sx, 0, 2, 32);
+      // — four 2 px bars at fixed x running the FULL height of the tile, which
+      // I wrote as "a well is stained down its whole height". In a tiled
+      // texture any full-height feature at a fixed x becomes a stripe, and at
+      // 1.65 repeats across the far wall that is ~7 hard vertical bars floor to
+      // top. Measured: those four columns sat 11-13 below the texture's median
+      // brightness while the perps sat 5-6 below, so the streaks, not the bond
+      // and not a seam, were what the eye was reading.
+      //
+      // Staining stays, because a light well IS stained — but as short broken
+      // runs that never touch the tile's top or bottom edge, so nothing can
+      // line up across a repeat, and at a third of the old weight.
+      g.fillStyle = 'rgba(0,0,0,0.10)';
+      for (const [sx, sy, sh] of [[5, 6, 9], [14, 17, 8], [22, 3, 7], [29, 20, 8]] as [number, number, number][])
+        g.fillRect(sx, sy, 1, sh);
+      g.fillStyle = 'rgba(90,100,86,0.08)'; g.fillRect(7, 15, 4, 11);  // a patch of damp
       dither(g, 32, 32, 34);
     });
     const wellM = (uw: number, uh: number) => {
