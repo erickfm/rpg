@@ -1,0 +1,665 @@
+import * as THREE from 'three';
+import { BUILD, type CtxBuild } from './ctx';
+import { pixTex, declareSurface, dither } from './paint';
+import { masonry, WALK_PROJECTION } from './tex-world';
+
+// ── CITY OF CROSSTOWN · HOUSE OF DETENTION ────────────────────────────────
+//
+// *"also we need a jail. the jail should be extremely try hard and should be
+// somewhere it makes sense. probably over by the casino tbh lol"*
+//
+// This file is the OUTSIDE. The room is `ct/int-jail.ts` — the same split G
+// holds between `ct/vice.ts` and `ct/int-casino.ts`, and it is not a
+// preference: `ct/doors.ts` collects door declarations from a glob of
+// `./int-*.ts` and nothing else, and `scripts/world-wired.mjs` fails outright
+// on a room id with no matching `int-<id>.ts`.
+//
+// ── WHERE IT STANDS, and why it costs the block nothing ──────────────────
+//
+// The closed east end of the side street. Approved by the desk 2026-07-26 on
+// the reasoning in `notes/O-jail-site.md`: the two side-street roster runs
+// both stop dead on x = 57 —
+//
+//     NORTH2   16.45 + 6 + 11 + 12 + 11.55        = 57.0   (SEVENS ends here)
+//     SOUTH2   -7 + 9.5 + 8.5 + 12 + 12 + 11 + 11 = 57.0   (LOANS ends here)
+//
+// — and the east cap is on NEITHER cursor. So this building is placed directly,
+// outside both roster walks, and nothing before it or after it moves. That is
+// the whole of why it could be sited here at all: `ct/street.ts:249` says those
+// widths are load-bearing, and one of the totals is why the bodega lands on its
+// corner.
+//
+// It also answers a dead end this project has failed to justify twice. The desk
+// ruled in H's queue that the east end was *"a closed end of a minor side
+// street, not a frontage; there is nothing there to walk to"*, and declined to
+// add pavement to justify a graph node; B painted a crossing instead; the user
+// has since asked for that crossing removed and the ring closed another way.
+// A municipal building is a thing to walk to.
+//
+// ── the section, in world coordinates ────────────────────────────────────
+//
+//        x = 55        x = 57                            x = 69
+//         kerb          facade                             back
+//          │              │                                  │
+//          │◄── 2.0 m ───►│                                  │
+//          │   pavement   │        the House of Detention    │
+//                         │                                  │
+//   z = -96  ── SEVENS ends here, the jail's north flank abuts its east face
+//   z = -110 ── LOANS  ends here, the south flank abuts its east face
+//   z = -103 ── the side street's centre line, and the door is dead on it:
+//               you walk 60 m down the middle of the street toward this door.
+
+/** ORDER: the SITE band, which is where a building belongs — and, being a
+ *  NEW module, every `rnd()` draw it makes lands after every existing one in
+ *  its band (ties break on filename, and `jail.ts` sorts last among them). So
+ *  no tree height and no pigeon in the world moves. GOTCHAS §2. */
+export const ORDER = BUILD.SITE;
+
+/**
+ * THE SITE, published as one object so that the room, the door and the
+ * collider are all derived from it rather than each hand-typing a coordinate.
+ *
+ * GOTCHAS §20 counts six failures of the other way round in this project — a
+ * stale diner z, a hand-typed room offset, a hand-typed DZ — and the desk's
+ * ruling was explicit that I should not retype a number out of D's file.
+ * `ct/int-jail.ts` imports this; nothing in the room repeats a number.
+ */
+export const JAIL = {
+  /** the facade plane. Both roster runs end on it. */
+  FACE_X: 57.0,
+  /** the frontage, which is exactly the side street's own section: 2 m north
+   *  walk + 10 m carriageway + 2 m south walk */
+  Z_S: -110.0, Z_N: -96.0,
+  /** how far back it runs. Nothing is out there; the fog closes behind it. */
+  DEPTH: 12.0,
+  /** heights, from the street surface up */
+  BASE_H: 4.6,          // the stone ground floor, and the sally port is in it
+  UPPER_H: 6.6,         // two brick floors of 3.3
+  CORNICE_H: 0.6,
+  PARAPET_H: 1.8,
+  /** the clear door opening */
+  DOOR_W: 2.4, DOOR_H: 3.06,
+  /**
+   * How far the sally port is recessed BEHIND the facade plane.
+   *
+   * The depth goes IN, and that is only possible because D deleted the filler
+   * box that used to fill x 57…63. It matters which way round it goes: the
+   * pavement here is 2.00 m kerb to facade, and the whole reason this site was
+   * approved is that it WIDENS the walk. A recess is free of that budget and a
+   * projection is not, so every centimetre of depth here is one the player
+   * still gets to walk on.
+   *
+   * (For one pass this was `PORTAL_PROUD: 0.28`, a projecting aedicule, built
+   * while the filler box was still standing — a recess into it rendered as 12 m
+   * of somebody else's brown brick, which is in `shots/O-jail-day-atdoor.png`
+   * from before D's deletion landed. That was the right call for that hour and
+   * it is the wrong one now.)
+   */
+  RECESS: 0.55,
+} as const;
+
+/** the door, as a world POINT and an OUTWARD NORMAL — the general form
+ *  `ct/doors.ts` takes, which is what `ct/int-casino.ts` uses for the same
+ *  reason: this building fronts no roster axis, so "signed metres along the
+ *  frontage" cannot describe it. The room declares this; the facade below
+ *  builds its opening from the same object. */
+export const JAIL_DOOR = {
+  x: JAIL.FACE_X, z: (JAIL.Z_S + JAIL.Z_N) / 2, nx: -1, nz: 0,
+} as const;
+
+/** total height to the top of the parapet */
+const TOP = JAIL.BASE_H + JAIL.UPPER_H + JAIL.CORNICE_H + JAIL.PARAPET_H;   // 13.6
+
+// The parapet reaching 13.6 was chosen while `ct/street.ts`'s 13.6 m filler box
+// was still standing behind this building, so that no strip of its brown brick
+// showed over the top. **D has deleted that box and the number stays**, because
+// it is right on its own merits: a civic building closing a street should stand
+// over its neighbours, and SEVENS and LOANS are both 13.0.
+
+// ── the palette ───────────────────────────────────────────────────────────
+//
+// Grey-green granite over dark engineering brick. Not black: a black building
+// at the end of a foggy street reads as a hole. This is the colour of a
+// building nobody has cleaned since it went up.
+//
+// THE STONE WAS `#6e6f68` FOR ONE PASS AND IT WAS WRONG — measured against its
+// own screenshot rather than argued: at 1.8 m the base read as near-white
+// cinder block, a full value step lighter than every other ground floor on the
+// street, and it made the building look like a warehouse rather than the one
+// building on the block you do not want to enter. Darkened, and the per-block
+// drift widened at the same time, because a pale field shows a flat tone and a
+// dark one hides it.
+const STONE = '#585a53';
+const BRICK = '#4a3a34';
+const STEEL = 0x3a3c40;
+const STEEL_DK = 0x26282c;
+
+export function register(ctx: CtxBuild): void {
+  const { scene, flat } = ctx;
+
+  // ── where, ASKED FOR rather than assumed ────────────────────────────────
+  //
+  // `ctx.site('jail')` is D's, and D has published it: the frontage at
+  // `SIDE_X1 + 2`, the z band at the side street's own walks, 18 m of depth
+  // offered *"deeper than the widest shell on the block… O may take less"*.
+  // Not one of those numbers is typed here. Move the side street and this
+  // building follows it, which is the whole point of asking — GOTCHAS §20
+  // counts six failures of copying a coordinate out of somebody else's file.
+  //
+  // A module that asks for a site it was not given must build NOTHING and say
+  // so (`ct/ctx.ts:201`). The constants in `JAIL` above stay as the
+  // ASSERTION — what this building believes it was granted — and a
+  // disagreement with the site is a loud console line rather than a silently
+  // misplaced building.
+  const site = ctx.site('jail');
+  if (!site) {
+    console.warn('[jail] no site published for "jail" — building nothing. '
+      + 'ct/street.ts owns the block layout; ask the desk, do not hand-type it.');
+    return;
+  }
+  if (Math.abs(site.minX - JAIL.FACE_X) > 0.01 || Math.abs(site.minZ - JAIL.Z_S) > 0.01
+      || Math.abs(site.maxZ - JAIL.Z_N) > 0.01) {
+    console.warn(`[jail] the published site has MOVED: x ${site.minX} z ${site.minZ}…${site.maxZ}, `
+      + `against the approved x ${JAIL.FACE_X} z ${JAIL.Z_S}…${JAIL.Z_N}. Following the site.`);
+  }
+  const FX = site.minX;
+  const Z_S = site.minZ;
+  const Z_N = site.maxZ;
+  const W = Z_N - Z_S;                       // 14.0
+  const CZ = (Z_S + Z_N) / 2;                // -103.0, the street's centre line
+  const BX = FX + JAIL.DEPTH;                // the back of the building
+  const DEP = BX - FX;
+
+  /** everything this module adds, stamped with its owner so an audit does not
+   *  have to infer whose face it is looking at from geography — `ct/street.ts`
+   *  measured 79% of cross-agent attribution being inference, and inference
+   *  misrouted thirteen faults onto one module. Never overwrites. */
+  const add = <T extends THREE.Object3D>(o: T): T => {
+    o.traverse((n) => { if (!n.userData.mod) n.userData.mod = 'jail'; });
+    scene.add(o);
+    return o;
+  };
+
+  // ── STONE ──────────────────────────────────────────────────────────────
+  //
+  // *"A flat colour is not a material… A blank grey wall in a jail will read as
+  // unfinished, not as institutional."* So the base is drawn as what it is:
+  // rusticated ashlar, deep-jointed, every block chamfered so it catches the
+  // light on its top and left arris and loses it on the bottom and right.
+  //
+  // Painted through `masonry()` rather than beside it, for the density
+  // declaration and the whole-texel canvas rounding the desk ruled on — but
+  // with its own coursing rather than `surf.courses`, because that lays a brick
+  // bond and this is stone. The stamp says `brick`; what it actually asserts is
+  // "this face is on the masonry grid at this density", which is true.
+  // 8 courses in the 4.6 m base, not 6. The first pass drew 0.767 m courses of
+  // 1.4 m blocks and at walking distance they read as breeze block — a civic
+  // ashlar course is about the height of a step, and the eye counts them.
+  const COURSE = 0.575;
+  const BLOCK = 1.15;
+  const stoneTex = (wM: number, hM: number, baseY: number) => {
+    const s = masonry(wM, hM, baseY, 2);      // 16 px/m — you stand right at this
+    return s.paint((g) => {
+      g.fillStyle = STONE;
+      g.fillRect(0, 0, s.W, s.H);
+      const ch = Math.max(2, Math.round(COURSE * s.ppm));
+      const bw = Math.max(3, Math.round(BLOCK * s.ppm));
+      // Courses walk up from the WORLD grid, not from the canvas bottom, so the
+      // bond continues across the two boxes this facade is built from instead
+      // of restarting at each seam.
+      const k0 = Math.ceil(baseY / COURSE);
+      for (let k = k0; (k * COURSE - baseY) <= hM; k++) {
+        const yW = k * COURSE - baseY;
+        const y = Math.round(s.H - yW * s.ppm);
+        // the recessed joint, and the two arrises either side of it
+        g.fillStyle = 'rgba(0,0,0,0.40)'; g.fillRect(0, y, s.W, 2);
+        g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(0, y + 2, s.W, 1);
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(0, y - 1, s.W, 1);
+        // perpends, half-lapped course by course so it is a bond and not a grid
+        const off = (k % 2) ? 0 : Math.round(bw / 2);
+        for (let x = off; x < s.W; x += bw) {
+          g.fillStyle = 'rgba(0,0,0,0.36)'; g.fillRect(x, y - ch + 2, 2, ch - 2);
+          g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(x + 2, y - ch + 2, 1, ch - 2);
+        }
+        // per-block tone drift: ashlar is quarried, so no two blocks match, and
+        // this is the whole difference between stone and a painted panel
+        for (let x = off; x < s.W; x += bw) {
+          const v = Math.random();
+          g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.03 + v * 0.16})`
+                                : `rgba(255,255,255,${(v - 0.5) * 0.10})`;
+          g.fillRect(x + 2, y - ch + 3, bw - 3, ch - 4);
+        }
+      }
+      // soot, heavier at the bottom where the traffic throws it up
+      for (let i = 0; i < s.W * s.H * 0.10; i++) {
+        const x = Math.random() * s.W, y = s.H - Math.pow(Math.random(), 1.7) * s.H;
+        g.fillStyle = `rgba(24,22,20,${0.06 + Math.random() * 0.16})`;
+        g.fillRect(x, y, 1, 1);
+      }
+      dither(g, s.W, s.H, Math.round(s.W * s.H * 0.02));
+    });
+  };
+
+  // ── BRICK, with the windows painted into it ────────────────────────────
+  //
+  // The openings are PAINTED and the bars are GEOMETRY. Both halves are needed
+  // and they do different jobs: the paint is what reads at 40 m down the street
+  // — which is where this building is seen from most — and the bars are what
+  // reads from the pavement, where a painted bar would be the same mistake as
+  // the flat waitress the atlas exists to prevent.
+  const BAYS = 5;
+  const bayZ = (i: number) => Z_S + W * (i + 0.5) / BAYS;   // world z of a bay centre
+  /** windows: [sill, head] in metres above the street, per floor */
+  const ROWS: [number, number][] = [[6.15, 7.60], [9.25, 10.70]];
+  const WIN_W = 0.85;
+
+  const upperTex = (wM: number, hM: number, baseY: number, front: boolean) => {
+    const s = masonry(wM, hM, baseY, 2);
+    return s.paint((g) => {
+      g.fillStyle = BRICK;
+      g.fillRect(0, 0, s.W, s.H);
+      s.courses(g, 'rgba(198,188,170,0.13)');
+      // vertical soot streaks under every opening, which is what actually says
+      // "nobody has washed this" — flat grime reads as a tint
+      for (let i = 0; i < s.W * s.H * 0.05; i++) {
+        const x = Math.random() * s.W, y = Math.random() * s.H;
+        g.fillStyle = `rgba(24,20,18,${0.04 + Math.random() * 0.10})`;
+        g.fillRect(x, y, 1, 1);
+      }
+      if (!front) { dither(g, s.W, s.H, Math.round(s.W * s.H * 0.02)); return; }
+      // ── the openings ──
+      for (let i = 0; i < BAYS; i++) {
+        const uM = bayZ(i) - Z_S;                 // metres along the facade's u
+        for (const [sill, head] of ROWS) {
+          const x0 = Math.round((uM - WIN_W / 2) * s.ppm);
+          const wpx = Math.max(4, Math.round(WIN_W * s.ppm));
+          const y0 = Math.round(s.H - (head - baseY) * s.ppm);
+          const y1 = Math.round(s.H - (sill - baseY) * s.ppm);
+          const hpx = y1 - y0;
+          // the void. Not black — a hole in a wall in daylight is the colour of
+          // the room behind it, and this room has a dead fluorescent in it.
+          g.fillStyle = '#1b1d1e'; g.fillRect(x0, y0, wpx, hpx);
+          // the reveal: light down one jamb and across the head, dark down the
+          // other, which is the whole of how a painted opening gets depth
+          g.fillStyle = 'rgba(0,0,0,0.45)';
+          g.fillRect(x0, y0, 2, hpx); g.fillRect(x0, y0, wpx, 2);
+          g.fillStyle = 'rgba(255,255,255,0.08)';
+          g.fillRect(x0 + wpx - 1, y0, 1, hpx);
+          // a segmental brick arch over it — one course, stepped
+          g.fillStyle = 'rgba(0,0,0,0.22)';
+          g.fillRect(x0 - 2, y0 - 3, wpx + 4, 3);
+          g.fillStyle = 'rgba(255,255,255,0.07)';
+          g.fillRect(x0 - 2, y0 - 3, wpx + 4, 1);
+          // and the bars, painted as well as built — this is the read at 40 m
+          g.fillStyle = 'rgba(20,22,24,0.85)';
+          for (let b = 1; b <= 4; b++) {
+            g.fillRect(x0 + Math.round(wpx * b / 5), y0 + 2, 1, hpx - 2);
+          }
+          g.fillRect(x0, y0 + Math.round(hpx / 2), wpx, 1);
+        }
+      }
+      dither(g, s.W, s.H, Math.round(s.W * s.H * 0.02));
+    });
+  };
+
+  const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+  /** a box with the FACADE on its −x face. BoxGeometry face order is
+   *  [+x, −x, +y, −y, +z, −z], so index 1 is the face that looks down the
+   *  street and 4/5 are the flanks. Getting that index wrong is how a facade
+   *  ends up painted on the back of a building. */
+  const shell = (
+    depth: number, height: number, width: number,
+    cx: number, cy: number, cz: number,
+    face: THREE.Material, flank: THREE.Material,
+  ) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(depth, height, width),
+      [flank, face, roofM, roofM, flank, flank]);
+    m.position.set(cx, cy, cz);
+    return add(m);
+  };
+
+  // ── the ground floor: two piers, a lintel, and the port between them ────
+  //
+  // Built as four boxes rather than one, so the sally port is a REAL opening
+  // with REAL jambs and a REAL soffit. GOTCHAS §12 is about openings cut in
+  // paper with zero visible depth — *"if you add an opening, give it a jamb"* —
+  // and the jambs here are the piers' own inner faces, the soffit is the
+  // lintel's underside, and the back of the recess is a fourth box so the
+  // doorway is a doorway and not a 12 m tunnel into the building.
+  const D_HW = JAIL.DOOR_W / 2;
+  const LINT_Y = JAIL.DOOR_H + 0.14;                 // the head, above the 0.14 kerb
+  const pierS_W = (CZ - D_HW) - Z_S;                 // 5.8
+  const pierN_W = Z_N - (CZ + D_HW);                 // 5.8
+  const stoneFlank = flat(stoneTex(DEP, JAIL.BASE_H, 0));
+  shell(DEP, JAIL.BASE_H, pierS_W, FX + DEP / 2, JAIL.BASE_H / 2, Z_S + pierS_W / 2,
+    flat(stoneTex(pierS_W, JAIL.BASE_H, 0)), stoneFlank);
+  shell(DEP, JAIL.BASE_H, pierN_W, FX + DEP / 2, JAIL.BASE_H / 2, Z_N - pierN_W / 2,
+    flat(stoneTex(pierN_W, JAIL.BASE_H, 0)), stoneFlank);
+  shell(DEP, JAIL.BASE_H - LINT_Y, JAIL.DOOR_W, FX + DEP / 2,
+    (LINT_Y + JAIL.BASE_H) / 2, CZ,
+    flat(stoneTex(JAIL.DOOR_W, JAIL.BASE_H - LINT_Y, LINT_Y)), stoneFlank);
+  shell(DEP - JAIL.RECESS, LINT_Y, JAIL.DOOR_W,
+    FX + JAIL.RECESS + (DEP - JAIL.RECESS) / 2, LINT_Y / 2, CZ,
+    flat(stoneTex(JAIL.DOOR_W, LINT_Y, 0)), stoneFlank);
+
+  // ── the upper floors, the cornice and the parapet ───────────────────────
+  const UY = JAIL.BASE_H;
+  shell(DEP, JAIL.UPPER_H, W, FX + DEP / 2, UY + JAIL.UPPER_H / 2, CZ,
+    flat(upperTex(W, JAIL.UPPER_H, UY, true)),
+    flat(upperTex(DEP, JAIL.UPPER_H, UY, false)));
+
+  // The cornice projects FORWARD only. Extending it sideways would poke it
+  // through SEVENS' and LOANS' east walls, which stop dead on this same plane —
+  // GOTCHAS §6: abut, never overlap.
+  const CY = UY + JAIL.UPPER_H;
+  const CORN_PROUD = 0.24;
+  shell(DEP + CORN_PROUD, JAIL.CORNICE_H, W,
+    FX - CORN_PROUD + (DEP + CORN_PROUD) / 2, CY + JAIL.CORNICE_H / 2, CZ,
+    flat(stoneTex(W, JAIL.CORNICE_H, CY)), flat(stoneTex(DEP + CORN_PROUD, JAIL.CORNICE_H, CY)));
+
+  const PY = CY + JAIL.CORNICE_H;
+  shell(DEP, JAIL.PARAPET_H, W, FX + DEP / 2, PY + JAIL.PARAPET_H / 2, CZ,
+    flat(upperTex(W, JAIL.PARAPET_H, PY, false)),
+    flat(upperTex(DEP, JAIL.PARAPET_H, PY, false)));
+
+  // ── the sally port ──────────────────────────────────────────────────────
+  //
+  // Steel, two leaves, no glazing. `ct/int-jail.ts` declares the same leaf on
+  // the `DoorLeaf` so the room's opening and this one cannot disagree — which
+  // is the bug the user reported on the casino, *"the interior door doesnt
+  // match the exterior doorway"*, and the reason `DoorDecl.leaf` exists.
+  const steelM = new THREE.MeshBasicMaterial({ color: STEEL });
+  const steelDkM = new THREE.MeshBasicMaterial({ color: STEEL_DK });
+  /** a plain box, in world coordinates */
+  const box = (w: number, h: number, d: number, m: THREE.Material,
+               x: number, y: number, z: number) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(x, y, z);
+    return add(b);
+  };
+
+  const DOOR_FACE = FX + JAIL.RECESS;                // the leaf plane, 0.6 m back
+  const SILL = 0.14;                                 // the kerb; the sill is flush
+  const leafW = JAIL.DOOR_W / 2;
+  const doorT = declareSurface(pixTex(24, 64, (g) => {
+    g.fillStyle = '#3a3c40'; g.fillRect(0, 0, 24, 64);
+    // pressed panels — two per leaf, the shape every steel service door has
+    for (const [py, ph] of [[6, 22], [34, 22]] as const) {
+      g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(3, py, 18, ph);
+      g.fillStyle = '#42444a'; g.fillRect(4, py + 1, 16, ph - 2);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(4, py + 1, 16, 1);
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(4, py + ph - 2, 16, 1);
+    }
+    // rust creeping up from the threshold, and a kick plate over it
+    for (let i = 0; i < 90; i++) {
+      const x = Math.random() * 24, y = 64 - Math.pow(Math.random(), 2) * 14;
+      g.fillStyle = `rgba(96,58,34,${0.08 + Math.random() * 0.22})`;
+      g.fillRect(x, y, 1, 1);
+    }
+    g.fillStyle = '#4a4c52'; g.fillRect(2, 56, 20, 6);
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(2, 56, 20, 1);
+    dither(g, 24, 64, 60);
+  }), 'detail');
+  const doorM = flat(doorT);
+  for (const s of [-1, 1]) {
+    box(0.09, JAIL.DOOR_H - 0.02, leafW - 0.02, doorM,
+      DOOR_FACE + 0.045, SILL + (JAIL.DOOR_H - 0.02) / 2 - 0.07, CZ + s * leafW / 2);
+  }
+  // the meeting stile, a pull handle on each leaf, and the threshold
+  box(0.12, JAIL.DOOR_H - 0.02, 0.06, steelDkM, DOOR_FACE + 0.05, SILL + JAIL.DOOR_H / 2 - 0.07, CZ);
+  for (const s of [-1, 1]) {
+    box(0.06, 0.34, 0.05, steelDkM, DOOR_FACE - 0.02, SILL + 1.02, CZ + s * 0.18);
+  }
+  box(JAIL.RECESS + 0.06, 0.05, JAIL.DOOR_W, steelDkM,
+    FX + JAIL.RECESS / 2, SILL + 0.02, CZ);
+
+  // ── the portal surround ─────────────────────────────────────────────────
+  //
+  // It projects 0.12 and no further, which is `WALK_PROJECTION` — the depth of
+  // the deepest thing this world puts at walking height, and the number the
+  // block's colliders are cut to. A civic portal wants to be deeper than that,
+  // and the depth comes from the 0.6 m RECESS going in rather than from stone
+  // coming out: a sally port is a recess, not a porch, and a projection past
+  // 0.12 would be eating the pavement the whole site was chosen to widen.
+  const PROUD = WALK_PROJECTION;
+  const surroundM = flat(stoneTex(1.0, 1.0, 0));
+  const jambW = 0.7;
+  for (const s of [-1, 1]) {
+    box(PROUD, LINT_Y + 0.55, jambW, surroundM,
+      FX - PROUD / 2, (LINT_Y + 0.55) / 2, CZ + s * (D_HW + jambW / 2));
+  }
+  box(PROUD, 0.55, JAIL.DOOR_W + 2 * jambW, surroundM,
+    FX - PROUD / 2, LINT_Y + 0.275, CZ);
+
+  // ── the municipal plate ─────────────────────────────────────────────────
+  //
+  // `HOUSE OF DETENTION` is asymmetric ON PURPOSE. GOTCHAS §10 is a HOTEL blade
+  // that shipped mirrored and got away with it because H, O and T read the same
+  // both ways — only the E and the L gave it away. The S, F and N here make a
+  // mirror visible in the first screenshot.
+  //
+  // It is ONE single-sided plane, not a DoubleSide one: nobody can get behind
+  // this wall, so the back-to-back pair GOTCHAS §35 prescribes would be a second
+  // plane nothing can ever see.
+  const GLYPH: Record<string, number[]> = {
+    A: [0b01110, 0b10001, 0b11111, 0b10001, 0b10001], B: [0b11110, 0b10001, 0b11110, 0b10001, 0b11110],
+    C: [0b01111, 0b10000, 0b10000, 0b10000, 0b01111], D: [0b11110, 0b10001, 0b10001, 0b10001, 0b11110],
+    E: [0b11111, 0b10000, 0b11110, 0b10000, 0b11111], F: [0b11111, 0b10000, 0b11110, 0b10000, 0b10000],
+    G: [0b01111, 0b10000, 0b10011, 0b10001, 0b01111], H: [0b10001, 0b10001, 0b11111, 0b10001, 0b10001],
+    I: [0b11111, 0b00100, 0b00100, 0b00100, 0b11111], J: [0b00111, 0b00010, 0b00010, 0b10010, 0b01100],
+    K: [0b10001, 0b10010, 0b11100, 0b10010, 0b10001], L: [0b10000, 0b10000, 0b10000, 0b10000, 0b11111],
+    M: [0b10001, 0b11011, 0b10101, 0b10001, 0b10001], N: [0b10001, 0b11001, 0b10101, 0b10011, 0b10001],
+    O: [0b01110, 0b10001, 0b10001, 0b10001, 0b01110], P: [0b11110, 0b10001, 0b11110, 0b10000, 0b10000],
+    Q: [0b01110, 0b10001, 0b10101, 0b10010, 0b01101], R: [0b11110, 0b10001, 0b11110, 0b10010, 0b10001],
+    S: [0b01111, 0b10000, 0b01110, 0b00001, 0b11110], T: [0b11111, 0b00100, 0b00100, 0b00100, 0b00100],
+    U: [0b10001, 0b10001, 0b10001, 0b10001, 0b01110], V: [0b10001, 0b10001, 0b10001, 0b01010, 0b00100],
+    W: [0b10001, 0b10001, 0b10101, 0b11011, 0b10001], X: [0b10001, 0b01010, 0b00100, 0b01010, 0b10001],
+    Y: [0b10001, 0b01010, 0b00100, 0b00100, 0b00100], Z: [0b11111, 0b00010, 0b00100, 0b01000, 0b11111],
+    '0': [0b01110, 0b10011, 0b10101, 0b11001, 0b01110], '1': [0b00100, 0b01100, 0b00100, 0b00100, 0b01110],
+    '2': [0b11110, 0b00001, 0b01110, 0b10000, 0b11111], '3': [0b11110, 0b00001, 0b01110, 0b00001, 0b11110],
+    '4': [0b10010, 0b10010, 0b11111, 0b00010, 0b00010], '5': [0b11111, 0b10000, 0b11110, 0b00001, 0b11110],
+    '6': [0b01110, 0b10000, 0b11110, 0b10001, 0b01110], '7': [0b11111, 0b00010, 0b00100, 0b01000, 0b01000],
+    '8': [0b01110, 0b10001, 0b01110, 0b10001, 0b01110], '9': [0b01110, 0b10001, 0b01111, 0b00001, 0b01110],
+    '·': [0, 0, 0b00100, 0, 0], ' ': [0, 0, 0, 0, 0],
+  };
+  /** stamp a word as texel blocks. A glyph this table does not have draws as a
+   *  SOLID BLOCK, not as a space — `ct/lot.ts` shipped "BUY ERE AY ERE" because
+   *  a missing glyph is indistinguishable from good kerning. */
+  const stamp = (g: CanvasRenderingContext2D, s: string, x0: number, y0: number,
+                 px: number, ink: string) => {
+    g.fillStyle = ink;
+    for (let i = 0; i < s.length; i++) {
+      const rows = GLYPH[s[i]] ?? [0b11111, 0b11111, 0b11111, 0b11111, 0b11111];
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
+        if (rows[r] & (1 << (4 - c))) g.fillRect(x0 + (i * 6 + c) * px, y0 + r * px, px, px);
+      }
+    }
+  };
+  // THE FIRST PASS OVERFLOWED AND SHIPPED "ITY OF CROSSTOW / E OF DETEN" —
+  // `shots/O-jail-day-approach.png` before this commit. The arithmetic is worth
+  // writing down because it is the whole of the fix and nothing about it is
+  // guessable from looking:
+  //
+  //   a line of n characters is  n * 6 * px  texels wide and  5 * px  tall
+  //   so in METRES it is  n * 6 * px / ppm  wide and  5 * px / ppm  tall
+  //
+  // The binding line is `HOUSE OF DETENTION`, 18 characters. At px = 1 and
+  // ppm = 24 that is 4.50 m wide inside a 5.20 m plate, with 0.208 m letters —
+  // taller than the LOANS fascia across the street, which reads from the far
+  // kerb. The old numbers asked for 18 * 6 * 3 = 324 texels on a 187-texel
+  // canvas: it was never going to fit and nothing said so.
+  const PLATE_W = 5.2, PLATE_H = 0.75, PLATE_PPM = 24;
+  const pw = Math.round(PLATE_W * PLATE_PPM), ph = Math.round(PLATE_H * PLATE_PPM);
+  const plateT = declareSurface(pixTex(pw, ph, (g) => {
+    g.fillStyle = '#5d5e57'; g.fillRect(0, 0, pw, ph);
+    // a cast plate is a raised field inside a bevelled frame
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, pw, 2);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, ph - 2, pw, 2);
+    g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(3, 3, pw - 6, ph - 6);
+    g.fillStyle = '#66675f'; g.fillRect(5, 5, pw - 10, ph - 10);
+    const line = (s: string, px: number, y: number) => {
+      const wpx = s.length * 6 * px - px;
+      // A line that does not fit is a line somebody will ship without noticing —
+      // it clips at the canvas edge and the first and last words simply go.
+      // Say so rather than draw it.
+      if (wpx > pw - 4) console.warn(`[jail] plate line "${s}" needs ${wpx}px of ${pw}px — it will clip`);
+      const x = Math.round((pw - wpx) / 2);
+      stamp(g, s, x, y + 1, px, 'rgba(0,0,0,0.34)');    // the cast shadow first
+      stamp(g, s, x, y, px, '#20221f');
+    };
+    line('CITY OF CROSSTOWN', 1, 3);
+    line('HOUSE OF DETENTION', 1, 11);
+    dither(g, pw, ph, 220);
+  }), 'sign');
+  {
+    // `rotation.y = -π/2` faces −x, and on that plane the texture's u runs +z,
+    // which is the reader's right when they are looking at it. GOTCHAS §35: the
+    // rotation has ALREADY done the mirroring and flipping the texture as well
+    // would undo it. Verified by standing in the street and reading it.
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(PLATE_W, PLATE_H),
+      new THREE.MeshBasicMaterial({ map: plateT, side: THREE.FrontSide }));
+    p.rotation.y = -Math.PI / 2;
+    // centred in the frieze between the portal head and the top of the stone,
+    // so it sits ON something rather than floating on a field of ashlar
+    p.position.set(FX - PROUD - 0.02, (LINT_Y + 0.55 + JAIL.BASE_H) / 2, CZ);
+    add(p);
+  }
+
+  // ── the bars, which are the point ───────────────────────────────────────
+  //
+  // Real geometry, on every opening. A barred window painted on a wall is the
+  // same class of mistake as a person painted on a plane, and this is the one
+  // detail the whole building is recognised by.
+  const barM = new THREE.MeshBasicMaterial({ color: 0x2a2c2e });
+  /** a barred grille standing PROUD of a face, in the plane x = xf */
+  const grille = (xf: number, z: number, y0: number, y1: number, w: number, n: number) => {
+    const h = y1 - y0;
+    for (let i = 0; i < n; i++) {
+      const t = n === 1 ? 0.5 : i / (n - 1);
+      box(0.05, h, 0.045, barM, xf, (y0 + y1) / 2, z - w / 2 + t * w);
+    }
+    // two horizontal ties — a grille with only uprights reads as a fence
+    for (const ty of [y0 + h * 0.32, y0 + h * 0.68]) {
+      box(0.045, 0.045, w, barM, xf, ty, z);
+    }
+  };
+  for (let i = 0; i < BAYS; i++) {
+    const z = bayZ(i);
+    for (const [sill, head] of ROWS) {
+      grille(FX - 0.045, z, sill + 0.03, head - 0.03, WIN_W - 0.06, 5);
+      // a stone sill under each, projecting just enough to throw a line
+      box(0.10, 0.08, WIN_W + 0.30, surroundM, FX - 0.05, sill - 0.05, z);
+    }
+  }
+
+  // ── two slot windows in the stone, either side of the port ──────────────
+  //
+  // Ground-floor openings are what you actually walk past, so they are the ones
+  // that have to hold up at 1.8 m. Small, high and heavily barred — a lock-up
+  // gives its street elevation as little as it can.
+  const SLOT_W = 0.72, SLOT_Y0 = 3.05, SLOT_Y1 = 3.95;
+  const slotT = declareSurface(pixTex(16, 20, (g) => {
+    g.fillStyle = '#17191a'; g.fillRect(0, 0, 16, 20);
+    g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(0, 0, 16, 3); g.fillRect(0, 0, 3, 20);
+    g.fillStyle = 'rgba(150,150,140,0.10)'; g.fillRect(13, 3, 3, 17);
+    dither(g, 16, 20, 30);
+  }), 'detail');
+  for (const s of [-1, 1]) {
+    const z = CZ + s * 2.85;
+    const p = new THREE.Mesh(new THREE.PlaneGeometry(SLOT_W, SLOT_Y1 - SLOT_Y0), flat(slotT));
+    p.rotation.y = -Math.PI / 2;
+    p.position.set(FX - 0.015, (SLOT_Y0 + SLOT_Y1) / 2, z);
+    add(p);
+    grille(FX - 0.05, z, SLOT_Y0 + 0.04, SLOT_Y1 - 0.04, SLOT_W - 0.08, 4);
+    box(0.10, 0.09, SLOT_W + 0.26, surroundM, FX - 0.05, SLOT_Y0 - 0.06, z);
+  }
+
+  // ── a string course, where the stone gives out and the brick starts ─────
+  //
+  // The first pass ran ashlar straight into engineering brick with nothing
+  // between them and the junction read as two textures meeting rather than as
+  // one building — `shots/O-jail-day-approach.png` before this. A civic base
+  // always terminates in a band; it is one box and it does most of the work of
+  // making the elevation look composed.
+  box(0.16, 0.26, W, surroundM, FX - 0.06, JAIL.BASE_H - 0.02, CZ);
+
+  // ── the lamps ──────────────────────────────────────────────────────────
+  //
+  // TWO, flanking the door, not one over it. The single overhead lamp was
+  // built first and it landed at 4.15 m — dead behind the municipal plate,
+  // which is centred at 4.175. Neither could be seen properly and nothing in
+  // the code connected them: two objects, two independently reasonable
+  // heights, one occupying the other. A flanking pair is also the more
+  // truthful fixture for a precinct entrance, so this is not a workaround.
+  //
+  // They hang at 3.3 m — well over a 1.8 m player — so the 0.42 m of arm is
+  // nowhere near the walking lane the collider is cut to. `ct/street.ts:196`
+  // makes exactly this argument about the cornice: *"the cornice is deeper but
+  // it is 3.5 m up"*.
+  const LAMP_Y = 3.30;
+  const lensM = new THREE.MeshBasicMaterial({
+    color: 0xffe6a8, transparent: true, opacity: 0.25, fog: false, depthWrite: false });
+  // THIS FIXTURE CARRIES ITS OWN LIGHT — `userData.selfLit` is the convention
+  // for saying so, so the night sweep's exclusion is DECLARED rather than
+  // incidental (GOTCHAS §22, and ct/street.ts:397 makes the same declaration
+  // for the same reason).
+  lensM.userData.selfLit = true;
+  const LAMP_DZ = 2.16;                   // clear of the portal jamb at 1.90
+  for (const s of [-1, 1]) {
+    const lz = CZ + s * LAMP_DZ;
+    box(0.34, 0.05, 0.06, steelDkM, FX - 0.17, LAMP_Y + 0.26, lz);         // the arm
+    box(0.06, 0.24, 0.06, steelDkM, FX - 0.02, LAMP_Y + 0.14, lz);         // the wall drop
+    const shade = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.18, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: 0x3f3a30, side: THREE.DoubleSide }));
+    shade.position.set(FX - 0.32, LAMP_Y + 0.16, lz);
+    add(shade);
+    const lens = new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 6), lensM);
+    lens.position.set(FX - 0.32, LAMP_Y + 0.05, lz);
+    add(lens);
+  }
+  // the pool it throws on the stone, and on the pavement under it
+  const soft = declareSurface(pixTex(32, 32, (g) => {
+    const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
+    gr.addColorStop(0, 'rgba(255,255,255,0.85)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+  }), 'detail');
+  const poolM = new THREE.MeshBasicMaterial({
+    map: soft, color: 0xffd899, transparent: true, opacity: 0, depthWrite: false,
+    fog: false, blending: THREE.AdditiveBlending });
+  poolM.userData.selfLit = true;
+  // One pool per lamp, on the stone and on the pavement — a single pool for two
+  // fixtures would put the brightest patch of wall midway between them, which
+  // is the one place neither lamp is.
+  for (const s of [-1, 1]) {
+    const lz = CZ + s * LAMP_DZ;
+    const wallPool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.0), poolM);
+    wallPool.rotation.y = -Math.PI / 2;
+    wallPool.position.set(FX - 0.06, LAMP_Y - 0.7, lz);
+    add(wallPool);
+    const groundPool = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.2), poolM);
+    groundPool.rotation.x = -Math.PI / 2;
+    groundPool.position.set(FX - 0.8, ctx.sidewalkY + 0.012, lz);
+    add(groundPool);
+  }
+  ctx.onFrame(({ night }) => {
+    lensM.opacity = 0.25 + 0.72 * night;
+    poolM.opacity = 0.42 * night;
+  });
+
+  // ── collision, registered by the module that draws the building ─────────
+  //
+  // The desk's ruling: `crosstown.ts:491` held a hand-written collider standing
+  // in for this building before it existed, and *"a collider in the entry point
+  // standing in for a building that is about to be replaced is exactly the
+  // wiring the registration pattern exists to remove."* It is deleted in the
+  // same commit as this line.
+  //
+  // The front face is cut to `WALK_PROJECTION`, not to the legacy 0.30 — the
+  // difference is 0.18 m of pavement per facade, which `ct/street.ts:196` calls
+  // the single biggest encroachment on the block. That takes the walk across
+  // the closed end from 1.70 m to 1.88 m against a 0.72 m capsule, raw gap,
+  // capsule not subtracted (GOTCHAS §29). The jail arrives and the pavement
+  // gets wider.
+  ctx.obstacle({ minX: FX - PROUD, maxX: BX, minZ: Z_S, maxZ: Z_N });
+}

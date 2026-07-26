@@ -493,7 +493,15 @@ export function makeCrosstown(): Proto {
     // colliders are the only thing there.
     ...street.colliders,
     ...COURT.colliders,
-    { minX: SIDE_X1 + 1.7, maxX: SIDE_X1 + 9, minZ: -112, maxZ: -92 },      // east end of the side street
+    // The east end of the side street used to be a hand-written rectangle
+    // here, standing in for the anonymous filler box that closed the street.
+    // `ct/jail.ts` is that building now and registers its own footprint
+    // through `ctx.obstacle`, which is how every other module does it — desk
+    // ruling 2026-07-26, on a bounded mandate for this one line: *"a collider
+    // in the entry point standing in for a building that is about to be
+    // replaced is exactly the wiring the registration pattern exists to
+    // remove."* It also stopped the player at x = 56.35, which would have put
+    // the jail's door out of reach (GOTCHAS §8).
     ...propColliders,
     ...carColliders,
     ...apt.colliders,
