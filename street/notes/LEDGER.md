@@ -219,3 +219,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | F+G | interior people, THE ADOPTION HALF: 0 of 10 int-*.ts call citizenSprite | Desk 2026-07-25: split from H's row at H's own request — *"as one row it reads as H being late for work in files I do not own."* H's half is built and published; until a room calls it the user's want is not met. F takes diner/burger/thrift/bodega, G takes casino/hotel/pawn/tax/church/library. One line per figure: `seated: true` on the Look, placed at the SEAT rather than the floor. |
 | OPEN | C | 'Screenshot from 2026-07-25 21-53-27.png' top right part of window fra | |
 | OPEN | D | 'Screenshot from 2026-07-25 21-54-16.png' why is this what is highligh | |
+| OPEN | B | 'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont l | |
