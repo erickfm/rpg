@@ -839,49 +839,6 @@ and a `-1/w` against a `+1/w` is the bug. `G-vice-walk` asserts this both ways,
 by pixels and by the transform, so anyone who "fixes" the blades per that clause
 gets a red rather than a shipped mirror.
 
-## 37. A dev-server pass says nothing about what SHIPS — and the tool for that is currently broken
-
-Everything the user opens is one of two builds neither of which is the dev
-server: the bundle (`npm run build`) and the packed single-file artifact
-(`dist/artifact.html`). `notes/BLOCKED-C.md` §0 recorded a whole week of "all
-eight doors reach declaredDoors()" claims that described **dev** — the built
-bundle was dropping three of them to an undefined namespace at collection time,
-and the check said so in its own output.
-
-`scripts/slow-pinned.sh` is the sanctioned way to check against a pinned build.
-**It cannot start its server right now** and dies with *"the server never
-reported a port"* while Vite has plainly printed one — line 119 matches
-`:([0-9]+)/`, but Vite 8 colourises the port, so the raw line is
-
-```
-localhost:  ESC[1m  24684  ESC[22m  /
-```
-
-and the digits are not adjacent to the slash. It worked until Vite started
-bolding the number, then failed for everyone at once. Filed to H; until it
-lands, **the whole slow tier is unrunnable and nobody is checking the bundle.**
-
-Do it by hand instead — it is three commands, and every ordinary check works
-against both:
-
-```bash
-npm run build && npx vite preview --port 4199 --strictPort &
-SHOT_URL=http://localhost:4199/ node scripts/door301.mjs
-
-node scripts/pack-artifact.mjs
-npx vite preview --port 4201 --strictPort --outDir dist &
-SHOT_URL=http://localhost:4201/artifact.html node scripts/door301.mjs
-```
-
-**The deep checks run against the artifact**, which is worth knowing because
-nothing in the tree does it: `check-artifact.mjs` is the only artifact check and
-it stops at *"it opens standalone and draws"* — it would pass just as happily
-with the spawn on the street, a door gapping, or a whole module missing.
-
-Related: §31, which is the same trap one level down — capture `fp` against dev
-and compare it to dist and you will conclude you destroyed 612 textures you
-never touched.
-
 ## 36. Cite commit hashes that are ALREADY MERGED
 
 Your own un-merged commits are renamed by the rebase that lands them. A note
@@ -936,7 +893,69 @@ holds `GOTCHAS.md` as desk-only anyway, then §35 is mine and equally out of
 order — revert both, not just this one. My own contribution here is small: 14
 dead citations of my own repaired and re-verified by patch-id (`48b9156a6`).
 
-## 24. Continuous integration and playtesting are incompatible
+## 37. A dev-server pass says nothing about what SHIPS — and the tool for that is currently broken
+
+Everything the user opens is one of two builds neither of which is the dev
+server: the bundle (`npm run build`) and the packed single-file artifact
+(`dist/artifact.html`). `notes/BLOCKED-C.md` §0 recorded a whole week of "all
+eight doors reach declaredDoors()" claims that described **dev** — the built
+bundle was dropping three of them to an undefined namespace at collection time,
+and the check said so in its own output.
+
+`scripts/slow-pinned.sh` is the sanctioned way to check against a pinned build.
+**It cannot start its server right now** and dies with *"the server never
+reported a port"* while Vite has plainly printed one — line 119 matches
+`:([0-9]+)/`, but Vite 8 colourises the port, so the raw line is
+
+```
+localhost:  ESC[1m  24684  ESC[22m  /
+```
+
+and the digits are not adjacent to the slash. It worked until Vite started
+bolding the number, then failed for everyone at once. Filed to H; until it
+lands, **the whole slow tier is unrunnable and nobody is checking the bundle.**
+
+Do it by hand instead — it is three commands, and every ordinary check works
+against both:
+
+```bash
+npm run build && npx vite preview --port 4199 --strictPort &
+SHOT_URL=http://localhost:4199/ node scripts/door301.mjs
+
+node scripts/pack-artifact.mjs
+npx vite preview --port 4201 --strictPort --outDir dist &
+SHOT_URL=http://localhost:4201/artifact.html node scripts/door301.mjs
+```
+
+**The deep checks run against the artifact**, which is worth knowing because
+nothing in the tree does it: `check-artifact.mjs` is the only artifact check and
+it stops at *"it opens standalone and draws"* — it would pass just as happily
+with the spawn on the street, a door gapping, or a whole module missing.
+
+Related: §31, which is the same trap one level down — capture `fp` against dev
+and compare it to dist and you will conclude you destroyed 612 textures you
+never touched.
+
+## 38. Continuous integration and playtesting are incompatible
+
+<!-- Numbered 38, not 24. This entry and the four below it (39-42), plus 43,
+     were a SECOND run of 24-28 and a second 37 living at the foot of the file:
+     43 headings numbering 1..37, which is what scripts/gotchas-numbers.mjs
+     had been going red on. The rule this file states three times is that the
+     LATER commit renumbers, because any existing reference points at the
+     earlier entry — so which of each pair moved was decided by COMMIT TIME,
+     not by position in the file:
+
+       tail 24-28  1785019055 .. 1785025469   ->  38-42   (these)
+       main 24-28  1784975855 .. 1784986835   ->  unchanged
+       37 @1023    1785030023                 ->  43
+       37 @842     1785029165                 ->  unchanged
+
+     Nothing that cited 24-28 or 37 changes meaning: those numbers already
+     resolved to the main-sequence entries for every reader, so a citation
+     aimed at the content below was broken before this and is merely findable
+     now. Renumbered by A, whose scripts/checks.mjs run was the one going red;
+     the content is the desk's and is untouched. -->
 
 The live world rebuilt every 15 s from every worktree. With one or two builders
 that felt like magic. With nine it made the world unplayable, and the user said
@@ -958,7 +977,7 @@ refreshes once, on demand, and the user reloads the tab when they choose. Turn
 the loop back on for long unattended runs, at a couple of minutes, not fifteen
 seconds.
 
-## 25. A dirty mainline tree silently stops the merge train
+## 39. A dirty mainline tree silently stops the merge train
 
 `land.sh` refuses to merge into a dirty working tree — correctly, since merging
 over uncommitted work would destroy it. But the failure is reported as
@@ -975,7 +994,7 @@ same breath, and if `land.sh` reports `merge failed` for more than one builder
 at once, **check mainline's own tree first** — a single shared cause is far
 likelier than several builders conflicting simultaneously.
 
-## 26. A stopped integrator means a STALE world — refresh it after every batch
+## 40. A stopped integrator means a STALE world — refresh it after every batch
 
 Turning the integration loop off during a playtest is right (§24). Forgetting
 to refresh it is not. The world sat **47 minutes and 226 commits behind** while
@@ -990,7 +1009,7 @@ The desk's job when the loop is off:
   before routing it**. `git -C ../rpg-live log -1 --format=%cr` takes a second
   and prevents a builder being sent to fix what it already fixed.
 
-## 27. Verify BOTH sides of anything mirrored — the mirror is where the bug hides
+## 41. Verify BOTH sides of anything mirrored — the mirror is where the bug hides
 
 The user's own diagnosis, and it is better than the one the desk had: *"the
 worker doesn't realise they need to confirm the logic independently per side of
@@ -1007,7 +1026,7 @@ confident test.
 one of the session's five facing bugs would have been caught by one extra look
 from the opposite side.
 
-## 28. A dead agent looks exactly like an idle one
+## 42. A dead agent looks exactly like an idle one
 
 When a Claude session exits it leaves a bare shell prompt in its tmux window.
 Every state check the desk had — spinner, input box, mode line — reads that as
@@ -1020,7 +1039,7 @@ no Claude mode line, and `desk-watch.sh` restarts it automatically and re-briefs
 it from its queue file. That recovery is free precisely because the queue files
 exist — the brief was never in the agent's head.
 
-## 37. A DURATION measured in a headless browser reads ~1.5× too long
+## 43. A DURATION measured in a headless browser reads ~1.5× too long
 
 `src/main.ts:107` clamps the simulation's timestep:
 
