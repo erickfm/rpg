@@ -272,7 +272,22 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // A wheel well in daylight is shadowed body metal, not a hole: dark, but
     // lighter than a tyre and still carrying the car's own colour. Derived from
     // the body so every car's well matches its paint.
-    const well = new THREE.Color(body).multiplyScalar(0.34);
+    // ── 0.18, NOT 0.34: the well must not be the sill ──────────────────
+    //
+    // Measured off the painted texture: the rocker shadow is rgba(0,0,0,0.35)
+    // over the body = 90,84,58, and the well at x0.34 came out 83,78,52.
+    // SEVEN LEVELS APART. They merged into one dark mass across the bottom
+    // three quarters of the flank, which is the user's "large soft DARK
+    // BLOTCH" — and it broke one of my own probes too, which when asked for
+    // the darkest run on the bottom row returned the whole panel.
+    //
+    // x0.18 puts it at about 62,58,40: clearly a recess against the 90 of the
+    // sill, still carrying the body's own hue rather than going flat black,
+    // and well clear of the tyre's 16,17,20 — which is the mistake the
+    // previous '#0a0b0e' made, indistinguishable from the rubber in front of
+    // it. The desk's ruling: the earlier "do not disturb" protected the arch
+    // PAINT and was never a licence for the blotch.
+    const well = new THREE.Color(body).multiplyScalar(0.18);
     g.fillStyle = `#${well.getHexString()}`;
     for (const wz of arches) {
       const ax = col((wz + len / 2) / len);
@@ -797,7 +812,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       // user was pointing at — the bed arch reads as a hard black rectangle
       // stamped on the side, which is their words for it exactly: "The arch is
       // a black RECTANGLE, not an arch."
-      g2.fillStyle = `#${new THREE.Color(body).multiplyScalar(0.34).getHexString()}`;   // bodyC is declared BELOW this painter
+      // same 0.18 as the cab flank — a pickup carrying two different well
+      // tones is exactly the fault that produced "a black RECTANGLE, not an
+      // arch" the first time round. (bodyC is declared BELOW this painter.)
+      g2.fillStyle = `#${new THREE.Color(body).multiplyScalar(0.18).getHexString()}`;
       const au = (spec.wheelZ - bedMidZ + wallLen / 2) / wallLen;
       const ax = Math.round((flip ? 1 - au : au) * skinW);
       g2.beginPath();
