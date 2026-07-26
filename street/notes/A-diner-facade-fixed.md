@@ -116,6 +116,47 @@ shadows. Still dark, because a diner window IS dark below the worktop.
   for the reason in their headers. `A-diner-block-vs-sky` has at least been
   watched failing; `A-diner-door-aligns` has not.
 
+## Also closed this session, from further down the queue
+
+Four queue items turned out to be **already built and never checked**. Each is
+now closed by a measurement rather than by reading the code:
+
+- **"Interiors and exteriors must agree on handedness"** — the top item.
+  `scripts/A-door-mirrors.mjs`. Every room with a declared door agrees with its
+  facade to **0.00 m**, including the A-1 TAX office the user was standing in
+  when they filed it. I nearly filed the opposite: my first version encoded
+  "two faces of one wall, so opposite sign", failed four buildings at once with
+  the magnitudes matching to the centimetre, and would have sent a builder to
+  break four working rooms. Four independent rooms agreeing that exactly means
+  a wrong expectation, not four broken rooms — so I ran the user's own test
+  instead, entered the diner and turned round. Inside, door right, window left.
+  Outside, door left. It mirrors. The mirror lives in the VIEWING, not the
+  coordinate, and `alongU` has already applied it — negating again is GOTCHAS
+  35 exactly. The sign in that file is calibrated against that observation and
+  says so.
+- **"You can see the pavement through the shopfronts"** —
+  `scripts/A-shopfronts-backed.mjs`. All 16 registered frontages backed, plus
+  the bodega's canted bay, which `__frontages` deliberately excludes and which
+  is the corner the user actually pointed at. Watched failing.
+- **Diagonal lit windows** — already fixed; `facadeTex` uses a proper avalanche
+  hash, not the old linear congruence.
+- **Cross-file texture density** — already closed: `masonry()` is exported and
+  used by `ct/street.ts` and `ct/civic.ts`; `scripts/density.mjs` reports 254
+  stamped faces, every one mapped within 2 %.
+
+**Tree canopies** were only half fixed and are now done — see the separate
+commit. The crown's notches had been moved to the rim; the lower tufts kept the
+old radius, and aiming alone was not sufficient anyway because a bite sealed at
+its mouth is a hole. The painter now floods the outside and fills what it
+cannot reach: 303 enclosed texels across 11 crowns, now 0.
+
+## Artifact
+
+Rebuilt and packed: `street/dist/artifact.html`, 888,840 bytes, build
+`fd36a6b8e`. `scripts/check-artifact.mjs` opens it standalone — `__ct`
+initialises, 5090 meshes, mean luminance 61.2. **Handed to the desk to
+publish**, per the queue, rather than published by me.
+
 ## Not mine, seen in passing
 
 `npm run checks` has two reds that predate this work and are in files I have
