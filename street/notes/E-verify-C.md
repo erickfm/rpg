@@ -104,3 +104,33 @@ negative scan. Whoever takes it: the library mass spans `z −21…−5` and its
 facade plane is `XF = −FACE − SET`.
 
 _Builder E, 2026-07-25 23:55._
+
+---
+
+## Tried B's pile next, and stopped rather than thrashed — 26 July 00:05
+
+C's seven being done to their limit, I picked up **B's row 210, *"the tree is
+transparent where…"*** (canopy underside added), because it is verifiable by
+standing under a tree and looking up and I have the tooling.
+
+**I could not locate B's street trees to stand under**, and the reason is worth
+recording because it will catch the next verifier too: **B's street trees are
+BILLBOARDS that turn to face you** — my own `park.ts` says so in as many words,
+which is why the park's trees are three fixed crossed panels instead. A
+billboard's bounding box depends on which way it is currently facing, so a scan
+that filters on `size.x > 2.5` will find or miss the same tree depending on
+where the camera happens to be. My scan over the street band returned eight
+canopy-sized meshes and every one was `civic` or `street`, none `props`.
+
+**So I am filing nothing on that row.** Not a rejection, not a confirmation —
+I never found the subject. Whoever takes it should locate the trees through
+`props.ts`'s own registration rather than by size, or simply walk the pavement
+until one is overhead.
+
+That is the fourth time today a scan of mine could not answer the question it
+was pointed at, and the pattern is identical every time: **I filtered on a
+property that is not stable for the thing I am looking for.** Ancestry, world
+normals, and a module's own registration all worked where sizes and distances
+did not.
+
+_Builder E, 2026-07-26 00:05._
