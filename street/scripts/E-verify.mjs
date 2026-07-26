@@ -49,6 +49,40 @@ const AREAS = [
     what: "B's park lamps still stand on ground that is at KERB_H" },
   { name: 'moundseat', script: 'scripts/E-seat-mound.mjs',
     what: 'the one seat the relief moved still sits at the right height' },
+  // ── added 25 July, and the reason is this file's own failure mode ──────
+  //
+  // This header says "everything builder E owns, walked in one command". It
+  // stopped being true: eleven checks were written today and none of them was
+  // listed here, so a full green from this file meant nothing about the twelve
+  // ledger rows those checks are the evidence for. An entry point that claims
+  // completeness and quietly covers a subset is the same fault as a check that
+  // passes having examined nothing (§34) — it just fails one level up, where
+  // nobody thinks to look.
+  //
+  // Anything that becomes the evidence for a ledger row belongs in this list
+  // the same day it is written.
+  { name: 'benchsweep', script: 'scripts/E-benchsweep.mjs',
+    what: 'every bench: seat boards level, nothing standing inside it, sitter facing the park' },
+  { name: 'benchface', script: 'scripts/E-benchface.mjs',
+    what: 'each bench derives its facing, verified per instance rather than by mirror' },
+  { name: 'seatreach', script: 'scripts/E-seatreach.mjs',
+    what: 'every seat can actually be reached and is approached from the front (§8)' },
+  { name: 'fence', script: 'scripts/E-fence.mjs',
+    what: 'the boundary railing sits centred on its wall, both runs, clear of the pavement' },
+  { name: 'shelter', script: 'scripts/E-shelter.mjs',
+    what: 'four identical posts and a roof that lands on them' },
+  { name: 'overlap', script: 'scripts/E-overlap.mjs',
+    what: 'no park prop stands inside another one' },
+  { name: 'field', script: 'scripts/E-field.mjs',
+    what: 'the mown bands are a mower deck wide and read as nap, not paint' },
+  { name: 'mound', script: 'scripts/E-mound.mjs',
+    what: 'the relief is visible and gentle enough to walk' },
+  { name: 'weedspread', script: 'scripts/E-weedspread.mjs',
+    what: 'the weeds cluster with gaps, and none grows down the middle of a path' },
+  { name: 'circuit', script: 'scripts/E-circuit.mjs',
+    what: 'the loop is continuous: set off from the gate and arrive back' },
+  { name: 'partyline', script: 'scripts/E-partyline.mjs',
+    what: "nothing the library projects crosses either neighbour's party line" },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────

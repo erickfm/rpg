@@ -52,7 +52,8 @@ const data = await page.evaluate(() => {
       gw: g.width ?? 0, gh: g.height ?? 0 });
   });
   return { seats: seats.map((s) => ({ x: s.pose.x, z: s.pose.z, yaw: s.pose.yaw,
-    raised: window.__ct.groundAt(s.pose.x, s.pose.z) > 0.30 })), parts };
+    raised: window.__ct.groundAt(s.pose.x, s.pose.z) > 0.30 })), parts,
+    groundAt: null };
 });
 
 if (data.seats.length < 5) {
@@ -86,12 +87,50 @@ for (const s of data.seats) {
 }
 console.log(`PASS  ${checked} seat boards across ${data.seats.length} benches are level (backrests and hoop legs lean by design)`);
 
+// ── 1b. STANDING ON THE GROUND ──────────────────────────────────────────────
+//
+// THE FAULT THIS CHECK COULD NOT SEE. It asserted that a seat board's own up
+// vector is world up — and every board in the world passes that, because
+// nothing is rotated. The user was looking at a bench whose SEAT is level and
+// whose GROUND is not: on the mound the floor falls 0.436 m across the bench's
+// own footprint, so the uphill end is buried and the downhill end hangs a
+// quarter of a metre in the air. From standing height that reads as a tilted
+// seat, and it is the fault reported three times.
+//
+// Level is a property of the bench. Sitting ON something is a relationship
+// between the bench and the world, and only the second one is visible.
+for (const s of data.seats) {
+  const near = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) < 1.4 && p.top < 1.6);
+  if (!near.length) continue;
+  const base = Math.min(...near.map((p) => p.bot));
+  const x0 = Math.min(...near.map((p) => p.minX)), x1 = Math.max(...near.map((p) => p.maxX));
+  const z0 = Math.min(...near.map((p) => p.minZ)), z1 = Math.max(...near.map((p) => p.maxZ));
+  const g = await page.evaluate(([a, b2, c2, d2]) => [
+    window.__ct.groundAt(a, c2), window.__ct.groundAt(b2, c2),
+    window.__ct.groundAt(a, d2), window.__ct.groundAt(b2, d2)], [x0, x1, z0, z1]);
+  const inPark = g.filter((v) => v > 0.05);          // off-site corners read road level
+  if (!inPark.length) continue;
+  const gap = base - Math.min(...inPark), buried = Math.max(...inPark) - base;
+  if (gap > 0.06) fail(`bench ${s.x.toFixed(1)},${s.z.toFixed(1)}: hangs ${(gap * 1000).toFixed(0)} mm clear of the ground at its low end — level, but not standing on anything`);
+  else if (buried > 0.06) fail(`bench ${s.x.toFixed(1)},${s.z.toFixed(1)}: sunk ${(buried * 1000).toFixed(0)} mm into the ground at its high end`);
+}
+if (!fails) console.log(`PASS  every bench meets the ground it stands on`);
+
 // ── 2. CLEAR ────────────────────────────────────────────────────────────────
 let pairs = 0;
 for (const s of data.seats) {
   // 1.4 m, not 1.15: the bench's own cast ENDS sit at 1.22 m from its centre,
   // and at 1.15 they counted as foreign objects intersecting their own slats.
   // A bench overlapping itself is how it is built.
+  // KNOWN HOLE, AND IT IS THE REPORTED ONE. Anything within 1.4 m of the seat
+  // centre is treated as PART OF the bench, so a litter bin standing 0.9 m
+  // away — which is exactly where a bin stands, and exactly what the user
+  // photographed intersecting the arm — is classified as bench and never
+  // tested against it. Widening the radius is not the fix: the bench's own
+  // cast ends genuinely sit at 1.22 m. The fix is to identify a bench's parts
+  // by what they ARE rather than by how close they are, which needs the parts
+  // tagged at build time in park.ts. NOT DONE — I am naming it rather than
+  // leaving a check that reports clean over the fault it was written for.
   const mine = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) < 1.4 && p.top < 1.6);
   const others = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) >= 1.4
     && Math.hypot(p.x - s.x, p.z - s.z) < 3.2 && !p.massed
