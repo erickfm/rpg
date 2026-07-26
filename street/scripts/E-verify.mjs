@@ -83,6 +83,11 @@ const AREAS = [
     what: 'the loop is continuous: set off from the gate and arrive back' },
   { name: 'partyline', script: 'scripts/E-partyline.mjs',
     what: "nothing the library projects crosses either neighbour's party line" },
+  // Not mine to own, but mine to have verified — and a check that decided
+  // another builder's row belongs where it will be re-run, not in my shell
+  // history. Exits 3 rather than failing when the [E] does not land.
+  { name: 'sleepfade', script: 'scripts/E-sleep-fades-to-black.mjs',
+    what: "the bed fades the screen to black, holds it, and gives the world back (K/C's row)" },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
