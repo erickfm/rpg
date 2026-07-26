@@ -1,90 +1,93 @@
-# F — the user's door test now runs, and it finds the tax office
+# F — CORRECTION: the tax office is fine. Do not change its `side`.
 
-## The test was reporting nothing
+**Builder G: ignore the previous version of this note.** It asked you to
+consider changing `side: 1` in `int-tax.ts`. That sign is CORRECT and changing
+it would break a room that works. I am glad this was routed rather than
+reached into.
 
-The queue item says to run the user's own test on every building: *"stand
-inside, note which side the door is on, walk out, turn round, and confirm the
-exterior door is on the mirrored side."* `scripts/doorside2.mjs` claimed to do
-this. It was not doing it.
+## What I got wrong
 
-Two faults, both GOTCHAS 34 — a check can pass because it found nothing to
-check:
+I ran the user's door test across all ten rooms and it reported:
 
-1. **It measured the wrong thing inside.** It took the "out to the street"
-   SPOT and compared it against a room centre recovered by scanning the scene
-   for flat meshes. The spot is placed for standing room, not on the door
-   centreline, and the scan took whichever flat mesh was lowest. Five of eight
-   rooms came out at `insideOffset = 0` and were written off as "centred —
-   undecidable" — including the diner, which declares `at: -2.6`, and the
-   thrift, which declares `at: -2.2`. Neither is remotely centred.
-
-   It now reads `__ct.roomDims()`, which publishes `door: {x, z, nx, nz}` in
-   room-local coordinates. `door.x` **is** the signed offset from the room's
-   centre: no arithmetic, no guessing where the slab starts.
-
-2. **It only looked at eight rooms.** The loop was `slab < 8` against a
-   hard-coded list of eight names. The world has ten rooms. **Tax and thrift
-   fell off the end** — so the check silently stopped covering the one room
-   this whole item is about.
-
-## What it says now
-
-    room       inside offset   outside offset   signs
-    bodega             0        -0.6      centred — undecidable
-    burger          -3.6        3.89      OPPOSITE — correct
-    casino             0        null      no frontage published
-    church             0        null      no frontage published
-    diner           -2.6        2.89      OPPOSITE — correct
-    hotel              0        null      no frontage published
-    library            0        null      no frontage published
-    pawn               0           0      centred — undecidable
     tax             -4.2       -4.63      ** SAME SIDE **
-    thrift          -2.2        2.43      OPPOSITE — correct
 
-Three rooms verify correct. **The tax office is wrong**, which is exactly the
-building the user was standing in when they complained:
+I then noticed that `int-tax.ts` declares `side: 1` while the diner and thrift,
+which both passed, declare `side: -1`, and offered that as the likely cause.
 
-> *"the interior of the tax service is on the right side of the interior so i
-> would expect the exterior to match… this should be done for all buildings.
-> make the exteriors match the interiors."*
+That was pattern-matching, not measurement. Before asking G to act on it I
+checked which side of the street each building is actually on:
 
-## The diagnosis, and why I have not fixed it
+    A-1 TAX   door at x = +7   outward normal -1
+    PAWN      door at x = +7   outward normal -1
+    THRIFT    door at x = -7   outward normal +1
+    LIBRARY   door at x = -11  outward normal +1
 
-`int-tax.ts` declares `side: 1`. The two rooms that verify correct declare
-`side: -1`:
+**Tax and thrift are on OPPOSITE SIDES of the street.** Different `side`
+values are exactly what that should produce. There was never an inconsistency
+between them to explain.
 
-    building: 'A-1 TAX', w: 13,   cz: -15.5, side:  1, at: -4.2
-    building: 'THRIFT',  w: 12.5, cz: -61.75, side: -1, at: -2.2
-    building: 'DINER',   w: 12,   cz: -49.5, side: -1, at: -2.6
+## The real fault was in the check
 
-`side` is what applies the mirror in `doorWorldFor` — `d.cz + d.side * (d.at /
-k)`. With the wrong sign the mirror runs the wrong way, which produces exactly
-the SAME SIDE verdict above.
+`doorside2.mjs` judged with:
 
-**`int-tax.ts` is builder G's file, so I am routing this rather than reaching
-in.** If tax sits on the same side of the street as the diner and thrift, its
-`side` should be `-1` and this is a one-character fix in G's room. Please
-confirm the street side before anyone changes it — the sign is only obvious
-from the layout, and guessing it is how this went wrong the first time.
+    opposite signs = correct
 
-## Not a fault: the authority is already the right way round
+with no reference to which way the facade faces. That is only true for
+buildings on one side of the street. The relation the mechanism actually
+encodes is `doorWorldFor`'s own:
 
-The queue asks to flip the authority so the room declares and the facade
-follows. That already holds: rooms populate `DECLS` in `ct/doors.ts`,
-`publishDeclaredDoors()` pushes each room's door out to the painter, and
-`doorAlongFrontage()` hands it over in the canvas columns a painter wants. The
-mirror lives in one place. Nothing needed flipping — the queue text predates
-the flip.
+    worldOffset = side * (localOffset / k),   with side = -normal
 
-## Two more stale items, both verified by walking
+so `sign(outside)` must equal `-sign(normal) * sign(inside)`. Checked against
+both rooms that were already passing, which is what makes it a rule and not
+another guess:
 
-- **Church** (previous note): steps climb 0.14 → 0.55 and back down;
-  `interiors-walk church` 25/25 in and out.
-- **Diner seating**: the booth run is already perpendicular, continuous and
-  lining the window. Walked it: **8.65 m of clear travel** end to end along
-  the aisle in a band from z −0.3 to +0.9, blocked at −0.6 which is the
-  counter side — comfortably past the 1 m the queue asks for. Sat in two
-  booths and stood up; standing returns you to your pre-sit position with
-  2.3 m of free movement, so nobody ends up inside a table.
-  `shots/f-diner-aisle.png` is the view down it: counter and stools one side,
-  booths lining the window on the other, aisle between.
+    thrift   normal +1   inside -2.2   outside +2.43   -(+1)(-1) = +1  ✓
+    tax      normal -1   inside -4.2   outside -4.63   -(-1)(-1) = -1  ✓
+
+With the normal in the rule, every decidable room passes:
+
+    room       inside offset   outside offset   nrm  verdict
+    bodega             0        -0.6   -1   centred — undecidable
+    burger          -3.6        3.89   +1   mirrors correctly
+    casino             0        null   -1   no frontage published
+    church             0        null    ?   no frontage published
+    diner           -2.6        2.89   +1   mirrors correctly
+    hotel              0        null   -1   no frontage published
+    library            0        null    ?   no frontage published
+    pawn               0           0   -1   centred — undecidable
+    tax             -4.2       -4.63   -1   mirrors correctly
+    thrift          -2.2        2.43   +1   mirrors correctly
+
+So the user's complaint — *"the interior of the tax service is on the right
+side of the interior so i would expect the exterior to match"* — is satisfied
+by the current code for every building that can be judged. Four mirror
+correctly; the rest have centred doors or publish no frontage, and those are
+undecidable rather than passing. Nothing here is a silent pass.
+
+## What still stands from the previous note
+
+The two measurement faults I fixed were real, and finding them is what
+eventually surfaced this:
+
+1. The check measured the "out to the street" SPOT, not the door, against a
+   room centre recovered by scanning for flat meshes. Five of eight rooms read
+   `0` and were dismissed as "centred — undecidable", including the diner,
+   which declares `at: -2.6`. It now reads `__ct.roomDims()`, where `door.x`
+   IS the signed offset from the room centre.
+2. The loop was `slab < 8` against eight hard-coded names, and the world has
+   ten rooms — **tax and thrift fell off the end entirely.**
+
+Both are GOTCHAS 34. The third fault, the verdict rule, is a nastier version
+of the same thing: not a check that finds nothing, but one that confidently
+reports the wrong answer and names an innocent file.
+
+## Also still standing
+
+- **Authority direction** is already room → facade: rooms populate `DECLS`,
+  `publishDeclaredDoors()` pushes to the painter, the mirror lives once in
+  `doorWorldFor`. Nothing to flip.
+- **Church**: steps climb 0.14 → 0.55 and back; `interiors-walk church` 25/25.
+- **Diner seating**: booth run is perpendicular, continuous, lining the
+  window. Walked 8.65 m of clear aisle end to end; sat and stood in two
+  booths without landing inside a table. `shots/f-diner-aisle.png`.

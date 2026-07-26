@@ -60,23 +60,44 @@ const out = await p.evaluate(() => {
     res.push({ room:rd.id, insideOffset, roomW:+rd.w.toFixed(1),
                doorAt:[+rd.door.x.toFixed(2), +rd.door.z.toFixed(2)] });
   }
-  return { res, doors: doors.map(d=>({ b:d.building, x:+d.point.x.toFixed(2), z:+d.point.z.toFixed(2) })),
+  return { res, doors: doors.map(d=>({ b:d.building, x:+d.point.x.toFixed(2), z:+d.point.z.toFixed(2),
+             nx:d.point.nx, nz:d.point.nz })),
            fronts: fronts.map(f=>({ name:f.name, axis:f.axis, c:+((f.loWorld+f.hiWorld)/2).toFixed(2),
              door:+f.doorWorld.toFixed(2), off:+(f.doorWorld-(f.loWorld+f.hiWorld)/2).toFixed(2) })) };
 });
 const NAME = { bodega:'BODEGA', burger:'BURGER BARN', casino:'GOLDEN ACES', diner:'DINER',
                hotel:'HOTEL ORPHEUS', pawn:'PAWN', tax:'A-1 TAX', thrift:'THRIFT' };
-console.log('room       inside offset   outside offset   signs');
+console.log('room       inside offset   outside offset   nrm  verdict');
 for (const r of out.res) {
   if (r.note) { console.log(`${r.room.padEnd(10)} ${r.note}`); continue; }
   const fr = out.fronts.find(f => f.name === NAME[r.room]);
   const outside = fr ? fr.off : null;
-  // Math.sign(0) === -Math.sign(0) is true, so a centred door on either side
-  // was being reported as "correct". Test centredness FIRST.
+  // WHICH SIDE OF THE STREET THE BUILDING IS ON DECIDES THE EXPECTED SIGN,
+  // and leaving that out is what made this check accuse an innocent room.
+  //
+  // It used to read: opposite signs = correct, full stop. That is only true
+  // for buildings whose facade faces one way. A-1 TAX sits at x = +7 with an
+  // outward normal of -1; the THRIFT sits at x = -7 with +1. They are on
+  // OPPOSITE SIDES of the street, so the mirror runs the other way and their
+  // inside/outside offsets are expected to relate with the opposite sign.
+  // The old rule called tax "** SAME SIDE **" and I nearly had its `side: 1`
+  // changed on the strength of it - a sign that is correct.
+  //
+  // The relation the mechanism actually encodes is doorWorldFor's:
+  //     worldOffset = side * (localOffset / k),  with side = -normal
+  // so sign(outside) must equal -sign(normal) * sign(inside). Checked against
+  // both verified rooms: thrift normal +1, inside -2.2, outside +2.43; tax
+  // normal -1, inside -4.2, outside -4.63. Both satisfy it.
+  const dr = out.doors.find(q => q.b === NAME[r.room]);
+  const fAxis = fr ? fr.axis : null;
+  const normal = !dr ? null : (fAxis === 'x' ? dr.nz : dr.nx);
+  const expect = normal === null || !normal ? null : -Math.sign(normal) * Math.sign(r.insideOffset);
   const verdict = outside === null ? 'no frontage published'
     : (Math.abs(r.insideOffset) < 0.05 || Math.abs(outside) < 0.05) ? 'centred — undecidable'
-      : (Math.sign(r.insideOffset) === -Math.sign(outside) ? 'OPPOSITE — correct' : '** SAME SIDE **');
-  console.log(`${r.room.padEnd(10)} ${String(r.insideOffset).padStart(9)}   ${String(outside).padStart(9)}      ${verdict}`);
+      : expect === null ? 'no door normal published'
+        : (Math.sign(outside) === expect ? 'mirrors correctly' : '** DOES NOT MIRROR **');
+  const nStr = normal === null ? ' ?' : (normal > 0 ? '+1' : '-1');
+  console.log(`${r.room.padEnd(10)} ${String(r.insideOffset).padStart(9)}   ${String(outside).padStart(9)}   ${nStr}   ${verdict}`);
 }
 writeFileSync('shots/doorside2.json', JSON.stringify(out,null,2));
 await b.close();
