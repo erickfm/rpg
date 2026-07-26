@@ -1718,3 +1718,25 @@ park canopies read 52–93% sky directly overhead; the worst lets through 93%.
 
 The fix B describes has an obvious counterpart here. Ledger row annotated rather
 than reopened, because the row is B's and B's own seven are not what I measured.
+
+## [Is] The resolver that the rebase was rewriting
+
+Three losses of ledger evidence, same root: **a tool cannot be trusted while the
+operation it serves is rewriting it.**
+
+1. Chose one SIDE of each conflicting row. Evidence is append-only, so choosing
+   always loses something — and where mainline already carried an older auditor
+   segment and was already CONFIRMED, my newer longer line looked weaker and
+   lost. Fixed by appending instead of choosing.
+2. `key()` sliced 60 raw characters, which spill past the request column into
+   the builder's text, so the same row with newer builder text hashed as a
+   different row. Only the selftest saw this.
+3. **The one that matters.** Having fixed both, the next rebase lost four passes
+   anyway: during a replay the working tree holds the version of
+   `scripts/ledger-merge.py` from the commit being replayed, so every conflict
+   before the fix-commit was resolved by the OLD buggy copy.
+
+`scripts/rebase-safe.sh` copies the resolver out first, drives the rebase, and
+counts auditor segments before and after — because all three failures were
+silent. The file always read plausibly afterwards; the only symptom was the
+CONFIRMED count moving, 124 → 115 → 118.

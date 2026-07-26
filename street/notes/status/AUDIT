@@ -1,1 +1,1 @@
-WORKING | recovered 14 lost ledger segments; resolver now append-merges | nobody
+WORKING | evidence recovered again; rebase now uses pinned tools | nobody
