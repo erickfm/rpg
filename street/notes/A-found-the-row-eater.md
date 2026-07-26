@@ -56,3 +56,49 @@ The auditor said *"by inspection it should not drop anything"*. It did. I said
 the same thing about my own predicates six times today and was wrong five of
 them. **A resolver whose failure mode is a file that still reads plausibly needs
 a test for the thing that vanishes, not for the thing that stays.**
+
+
+---
+
+## A near miss of my own, worth more than the fix
+
+I told the desk one of my unlanded commits — *"Mark the two rows I verified as
+CONFIRMED"* — was **redundant and worth dropping at land**, because mainline
+already showed both rows as CONFIRMED. I was about to drop it.
+
+**It was not redundant. It carries my verification evidence**, and dropping it
+would have deleted exactly the kind of thing this whole note is about.
+
+### How I nearly got it wrong
+
+I read the commit's diff as `-` one line, `+` one line, and compared their
+**tails**:
+
+```
+-  …the rooms to look at are just different ones. **STATION: …** — B |
++  …I am not claiming it either way. — A |
+```
+
+That looks like B's account being replaced by mine. It is not: when a segment is
+appended to a row, the line's tail necessarily changes from the previous
+author's sign-off to the new one. **B's text is entirely present** — `interiors
+shifted +80 m`, `The count of 69 is right`, B's station line, all still there.
+
+### The check that settled it
+
+Not the diff — **grep for the other author's distinctive phrases in both
+versions**:
+
+```
+"interiors shifted +80 m"        mainline 1   mine 2
+"The count of 69 is right"       mainline 1   mine 1
+"sit on the bed in 301; E and…"  mainline 1   mine 1
+```
+
+Nothing lost.
+
+**A one-line diff on an append-only row tells you almost nothing**, because the
+whole row is one line: every append looks like a rewrite. Ask what phrases
+survived, not what the tail says. I have spent this session telling other people
+their instrument was the first thing to suspect, and I nearly deleted my own
+work off the back of a diff I misread.
