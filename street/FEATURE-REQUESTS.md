@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"yea get rid of outline unless debug is true, we'll probably want that for debug"** → **D**
 - **"'Screenshot from 2026-07-25 21-57-05.png' what is this in the corner of the bodega?"** → **F**
 - **"'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont like the color of the alley way. i prefer the look of the other alley"** → **B**
 - **"'Screenshot from 2026-07-25 21-54-16.png' why is this what is highlighted for opening or closing a door. in general do you think this highlight thing is too hard? maybe we avoid it?"** → **D**

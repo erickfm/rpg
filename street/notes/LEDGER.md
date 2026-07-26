@@ -221,3 +221,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | D | 'Screenshot from 2026-07-25 21-54-16.png' why is this what is highligh | |
 | OPEN | B | 'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont l | |
 | OPEN | F | 'Screenshot from 2026-07-25 21-57-05.png' what is this in the corner o | |
+| OPEN | D | yea get rid of outline unless debug is true, we'll probably want that  | |
