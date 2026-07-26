@@ -196,3 +196,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | A | 123 ground-facing surfaces across the world are untextured flat colour (~454 m2) | Desk 2026-07-25: routed by direct dispatch, never logged. B's measurement while answering 'what is this shadow geometry': civic 14 surfaces / 92 m2 with ZERO textured ground anywhere, lot 12 / 82, street 27 / 43. One cause behind four separate user complaints — the library forecourt patches, the driveway apron, the blank library slab, the park paths reading as road. A owns the shared painters and fixes the CLASS; plazaTex/walkTex/apronTex are the pattern. |
 | OPEN | D | 'Screenshot from 2026-07-25 21-44-36.png' the door isnt high lighted? | |
 | OPEN | D | 'Screenshot from 2026-07-25 21-44-52.png' the highlight is not the con | |
+| OPEN | C | 'Screenshot from 2026-07-25 21-45-18.png' whys my 3rd floor neighbor f | |
