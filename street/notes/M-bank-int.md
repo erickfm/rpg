@@ -1,5 +1,23 @@
 # FIRST FEDERAL, inside — handoff
 
+> ## MY QUEUE FILE IS STALE — all three items are built and CONFIRMED
+>
+> `notes/queues/M-bank-int.md` still shows items 1, 2 and 3 unticked. `live.sh M`
+> reports **0 live, 0 awaiting a check**, and both ledger rows are **CONFIRMED**.
+> The queue README's rule applies — *"if your queue file lists something live.sh
+> does not, it is finished or void. File a one-line note naming it. Do not build
+> it a second time"* — so this is that note, at the top of the handoff where a
+> restarted me will read it before the checkboxes:
+>
+> | item | state |
+> |---|---|
+> | **1. the room, walkable, entered from the street** | built · `M-bank-int-walk.mjs` walks it in from the pavement from three approaches |
+> | **2. very nice inside** | built · teller line, walk-in vault, terrazzo, rate board, 20 painted faces, three atlas people |
+> | **3. the loan** | built · on K's shared panel, design and the one open question in `notes/M-loan-design.md` |
+>
+> The only thing outstanding is not mine to do: the two kit changes in
+> `notes/BLOCKED-M.md`.
+
 **M, 2026-07-26.** `src/proto/ct/int-bank.ts` is new and is the only source file
 I touched. Both of my ledger rows are built: you can walk in off the pavement,
 and you can apply for a loan.

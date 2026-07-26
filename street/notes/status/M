@@ -1,1 +1,1 @@
-WORKING | wrote a union ledger resolver after 4 conflicts; found 77/222 rows malformed; re-reading the queue next |
+DONE | queue empty and both rows CONFIRMED; BLOCKED-M has two asks for F; filed the stale-queue note and the F+G adoption measurement |
