@@ -44,7 +44,7 @@ one() {
 if [ $# -ge 1 ]; then
   one "$(echo "$1" | tr '[:lower:]' '[:upper:]')"
 else
-  for a in A B C D E F G H AUDIT; do one "$a"; done
+  for a in A B C D E F G H I J K L M N O AUDIT; do one "$a"; done
 fi
 
 cat <<'EOF'

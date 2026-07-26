@@ -289,3 +289,6 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | C | i want to be able to watch tv. and i sit on the bed and literally watc | |
 | OPEN | O | also we need a jail. the jail should be extremely try hard and should  | |
 | OPEN | L | i would like a black jack interface. very nice and impressive and try  | |
+| OPEN | M | i would like to enter the bank and be able to apply for a loan | Desk 2026-07-26: briefed into notes/queues/M-bank-int.md and never given a ledger row — GOTCHAS 47 again, my own direct dispatch. Money is K's pockets; M proposes the loan design in a note before building it. |
+| OPEN | M | create a whole interior for the bank. it should be very nice inside | Desk 2026-07-26: the bank was FACADE-ONLY — there is no int-bank.ts. New builder M, new file. GOTCHAS 45 applies: take the room a bank needs, the facade does not constrain it. |
+| OPEN | N | implement rent that needs to get paid to your landlord and you get letters at the mailboxes on entry | Desk 2026-07-26: new builder N, new file ct/tenancy.ts. Mailboxes live in C's building (ask, do not edit); money is K's; rent is a CLOCK feature so it must behave when the player SLEEPS through days as well as walking through them. |
