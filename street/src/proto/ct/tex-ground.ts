@@ -581,7 +581,23 @@ const KPATH: [number, number][] = [
   [ROAD_HALF, 16.5],    // east kerb, north end
 ];
 const KR = [0, 2.0, 2.0, 2.0, 3.5, 0];      // fillet radius per vertex
-const KRAMP = [false, false, false, false, true, false]; // kerb ramp on the corner return
+// Kerb ramp per vertex. Index 4 is the bodega corner return, which carried the
+// only ramp in the world and was therefore the only place crowd-net.ts could
+// honestly put a crossing.
+//
+// 2 and 3 are the CLOSED EAST END, added for H's east-end crossing. H links
+// (54, -109) to (54, -97) as a road edge — ten metres of carriageway, and the
+// residual in their in-the-road measurement until they flagged it. Their note
+// asked for "a ramp and painted stripes like the two at the junction".
+//
+// A RAMP AND NOT A DRIVEWAY CUT, and the geometry is why. My first read was
+// that the crossing meets the kerb mid-run, which `revealAt` cannot dip — it
+// only ramps a fillet — so this looked like it needed the `driveReveal`
+// machinery instead. It does not: KR is 2.0 at both these vertices, so the
+// straight kerb ENDS at x = 53 and the crossing at x = 54 lands inside both
+// corner arcs. The fillet ramp is exactly the right mechanism, and the desk's
+// "give it the same treatment" is literally correct.
+const KRAMP = [false, false, true, true, true, false];
 // Which vertices are the main-street / side-street JUNCTION. The two at x=55
 // are the closed east end of the side street, not an intersection, so they
 // are not corner approaches and carry no red kerb (see the paint rules above).
@@ -786,6 +802,59 @@ export function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: n
   m.rotation.z = yaw;
   m.position.set(cx, y + 0.004, cz);
   m.userData.mod = 'tex-ground';
+  scene.add(m);
+}
+
+/** A painted crossing across a carriageway that runs EAST-WEST: bars lying
+ *  along the direction cars travel, repeating across the road, which is the way
+ *  round you step OVER them rather than along them.
+ *
+ *  THE FIRST PAINTED CROSSING IN THE WORLD. `crowd-net.ts` has had three
+ *  crossings as graph edges for a while and the ground has never marked any of
+ *  them — the two at the junction read as crossings only because the bodega
+ *  corner has a kerb ramp. So "make it look like the two at the junction"
+ *  could not be done literally; there was nothing to copy. Built to be reused:
+ *  the two junction crossings can take the same paint whenever the desk wants
+ *  it, and until they do the east end is the only striped one, which is the
+ *  one thing about this that is NOT consistent. Flagged, not decided.
+ *
+ *  Sized from real metres at the world's 32 px/m like every other surface here
+ *  (GOTCHAS 5), and transparent so the asphalt shows between the bars rather
+ *  than the crossing sitting on a grey slab. */
+export function crossingStripes(scene: THREE.Scene, cx: number, z0: number, z1: number,
+                                halfW: number, y: number,
+                                /** the builder's `wet(flat(...))` — road paint gets
+                                 *  wet with the road it is painted on */
+                                dress: (t: THREE.Texture) => THREE.Material): void {
+  const len = Math.abs(z1 - z0), w = halfW * 2;
+  const cw = Math.max(8, Math.round(w * WPM)), ch = Math.max(8, Math.round(len * WPM));
+  const BAR = 0.45, PITCH = 1.0;                    // bar depth and spacing, in metres
+  const t = pixTex(cw, ch, (g) => {
+    g.clearRect(0, 0, cw, ch);
+    const bar = Math.round(BAR * WPM), pitch = Math.round(PITCH * WPM);
+    // start half a gap in, so neither kerb gets a half-bar jammed against it
+    for (let p = Math.round((pitch - bar) / 2); p + bar <= ch; p += pitch) {
+      g.fillStyle = 'rgba(214,210,196,0.92)';       // road white, not paper white
+      g.fillRect(0, p, cw, bar);
+      // worn: traffic eats the middle of a bar where the wheels track
+      g.fillStyle = 'rgba(214,210,196,0.55)';
+      g.fillRect(Math.round(cw * 0.30), p, Math.round(cw * 0.16), bar);
+      g.fillStyle = 'rgba(214,210,196,0.62)';
+      g.fillRect(Math.round(cw * 0.62), p, Math.round(cw * 0.13), bar);
+    }
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  const mat = dress(declareSurface(t, 'ground')) as THREE.MeshBasicMaterial;
+  // Set HERE rather than asked of the caller: the gaps between bars must show
+  // asphalt, and a caller passing its standard `wet(flat(...))` has no reason
+  // to know this one needs alpha.
+  mat.transparent = true;
+  mat.depthWrite = false;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(cx, y + 0.004, (z0 + z1) / 2);
+  m.userData.mod = 'tex-ground';
+  m.userData.groundProp = 'crossing stripes';
   scene.add(m);
 }
 
@@ -1209,6 +1278,23 @@ export function buildGround(o: GroundOpts): Ground {
     }
     return null;
   };
+  // H's east-end crossing, painted. The kerb ramps at both ends are KRAMP on
+  // vertices 2 and 3 above; this is the carriageway half.
+  //
+  // Held clear of BOTH gutter pans — the road cross-slopes through the last
+  // 0.45 m into the pan at each kerb, and paint laid across that would either
+  // float off the slope or sink into it. The kerbs here are z -108 and -98, so
+  // the bars run -107.4 to -98.6 and the last 0.6 m at each end is bare
+  // asphalt, which is what a real crossing looks like anyway: the bars stop
+  // short of the gutter.
+  //
+  // x 53.8, not H's 54.0: the crossing corridor has to fit between the
+  // carriageway and the closed end's kerb at x = 55, and 1.1 m either side of
+  // 53.8 lands the far edge at 54.9 — abutting that kerb rather than climbing
+  // over it (GOTCHAS 6). 20 cm off H's centreline, well inside the corridor
+  // their walkers use.
+  crossingStripes(scene, 53.8, -107.4, -98.6, 1.1, 0, (t) => wet(flat(t)));
+
   for (let i = mark; i < scene.children.length; i++) {
     scene.children[i].traverse((n) => { n.userData.mod = 'tex-ground'; });
   }
