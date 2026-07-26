@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"door at the pawn shop makes no sense"** → **G**
 - **"graphics clipping between library and burger barn, might want to refine the library geometry"** → **E**
 - **"why so many vertical stripes on the brick?"** → **C**
   → **C. DIAGNOSED AND FIXED — it was NEITHER candidate.** Not the bond: the well
