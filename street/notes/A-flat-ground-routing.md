@@ -55,6 +55,42 @@ square grid at the same pitch both ways, so the flag pattern is symmetric under
 that flip. It would matter for `apronTex`, whose joints deliberately run across
 the direction of travel.
 
+## And a fourth helper, for the surfaces B's three do not name
+
+B's three are ANSWERS — *this is the sidewalk, this is an apron, these are
+civic flags* — and where one fits it beats anything generic, because it knows
+what it is drawing. `slabTex` in `ct/paint.ts` (mine) is for everything else,
+and it does the deliberately smaller thing:
+
+**It keeps your colour.** `base` is the tone you already chose and it is filled
+unchanged. The brief said *do not repaint anyone's approved artwork*, and the
+fault was never the colour — it was that a colour alone has no grain and no
+joint, so nothing gives it scale. Measured over three real cases: worst channel
+drift from the tone passed in is **1 to 4**, while edge density — the grain the
+eye attaches to — goes from a flat quad's **zero** to **9-17%**.
+
+```ts
+import { slabTex } from './paint';
+
+// a box landing: the materials array is [+x,-x,+y,-y,+z,-z] — index 2 is the top
+const top = new THREE.MeshBasicMaterial({
+  map: slabTex({ wMeters: 3.6, dMeters: 4.1, base: '#7d7d79', joint: 1.5 }),
+});
+mesh.material = [side, side, top, side, side, side];
+```
+
+`joint: 0` gives grain with no joints — what a park path or worn ground wants,
+scale without pretending to be a slab. `grain` above 0.14 adds pebbles.
+
+**My own proof caught a defect in it**, which is the reason to trust the
+numbers above: at `joint: 0` the first version measured **1.2%** edge density
+against 4.9% for the jointed case — a fine speckle carries a surface fine
+*beside a joint* and carries nothing without one, so a park path would have
+read as exactly the tint-over-paving this exists to end. Grain contrast is tied
+to `grain` now, and the park case measures **16.7%**.
+
+`scripts/A-slabtex-proof.mjs` is that check and it exits non-zero.
+
 ## What is NOT this class, so nobody should be routed for it
 
 **Park paths are already textured.** `ct/park.ts:140` defines
