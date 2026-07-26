@@ -355,23 +355,20 @@ await p.waitForTimeout(160);
 // is a better witness than anything in this room: it proves the ECONOMY moved,
 // and it proves the machine outside agrees with the desk inside.
 {
-  const atmCash = async () => {
-    const at = await p.evaluate(() => {
-      // `spots()` publishes `label` already EVALUATED, as a string — it is not
-      // the closure. Calling it throws, which is how I found out.
-      const s = (window.__ct.spots() || []).find((q) => /check balance|balance \$/i.test(q.label || ''));
-      return s ? { x: s.x, z: s.z } : null;
-    });
-    if (!at) return null;
-    await p.evaluate(() => window.__ct.warp(-5.0, 20, 0, 0.14, 0));    // clear the latch
-    await p.waitForTimeout(200);
-    await p.evaluate(([x, z]) => window.__ct.warp(x + 0.85, z, -Math.PI / 2, 0.14, 0), [at.x, at.z]);
-    await p.waitForTimeout(240);
-    await press();
-    const t = await prompt();
-    const m = /\$([0-9]+\.[0-9]{2})/.exec(t || '');
-    return m ? +m[1] : null;
-  };
+  // ── THE WITNESS: K's `__inv.cash()`, not my own prompt ───────────────────
+  //
+  // The claim is that the ECONOMY moved, so it has to be measured by something
+  // that is not this room. It used to read the balance off A's ATM label on the
+  // pavement — and K's ATM INTERFACE landed under me, so the label became
+  // "FIRST FEDERAL — use the machine" and the number moved inside a panel that
+  // draws to canvas. The check died on `null.toFixed`.
+  //
+  // `__inv.cash()` is the better witness and I should have used it first: it is
+  // `ct/inventory.ts` publishing the same `ctx.purse` object the wallet draws and
+  // the bodega spends from — a different module, a published affordance rather
+  // than a prompt string being scraped, and it cannot be broken by somebody
+  // rewording a label.
+  const cash = () => p.evaluate(() => window.__inv.cash());
   const at = async (lx, lz, yaw) => {
     await warp(wx(lx), wz(lz), yaw, 0);
     await p.waitForTimeout(240);
@@ -397,10 +394,10 @@ await p.waitForTimeout(160);
       `prompt: ${JSON.stringify(t1)}`);
   }
 
-  const cash0 = await atmCash();
-  say(cash0 !== null, 'the ATM outside reports a balance, so it can witness this',
-    cash0 === null ? 'no ATM spot found — the rest of this section is unwitnessed'
-      : `opening balance ${money(cash0)}`);
+  const cash0 = await cash();
+  say(typeof cash0 === 'number', 'the pockets publish a balance, so it can witness this',
+    typeof cash0 === 'number' ? `opening balance ${money(cash0)}`
+      : '__inv.cash() gave nothing — the rest of this section is unwitnessed');
 
   await p.evaluate(() => window.__ct.clock(14, 20));                   // banking hours
   await p.waitForTimeout(200);
@@ -440,7 +437,7 @@ await p.waitForTimeout(160);
     `__hud.panel() = ${JSON.stringify(await panelUp())}`);
   await p.keyboard.press('Escape'); await p.waitForTimeout(300);
   say((await panelUp()) === null, 'and ESC always closes it', `__hud.panel() = ${JSON.stringify(await panelUp())}`);
-  const cashD = await atmCash();
+  const cashD = await cash();
   say(cashD === cash0, 'a refusal costs you nothing', `${money(cash0)} -> ${money(cashD)}`);
   t = await atHer();
   say(/apply for a loan/i.test(t || ''), 'and the desk still offers to try again',
@@ -463,7 +460,7 @@ await p.waitForTimeout(160);
   say(/approved/i.test(t || '') && /window 2/i.test(t || ''),
     'a loan you CAN secure is approved, and the desk sends you to the teller',
     `prompt: ${JSON.stringify(t)}`);
-  const cashA = await atmCash();
+  const cashA = await cash();
   say(cashA === cash0, 'and approval alone does not hand you the money',
     `${money(cash0)} -> ${money(cashA)}`);
 
@@ -473,9 +470,9 @@ await p.waitForTimeout(160);
   say(/collect your loan/i.test(t || '') && /200\.00/.test(t || ''),
     'window 2 offers to count it out', `prompt: ${JSON.stringify(t)}`);
   await press();
-  const cash1 = await atmCash();
+  const cash1 = await cash();
   say(cash1 !== null && Math.abs(cash1 - (cash0 + 200)) < 0.005,
-    'and the cash lands in the purse, as the ATM outside agrees',
+    'and the cash lands in the purse, as the pockets agree',
     `${money(cash0)} -> ${money(cash1)}`);
 
   // and it is a DEBT: 13.5% on $200 is $227.00, wanted back at the same window
@@ -490,7 +487,7 @@ await p.waitForTimeout(160);
     'the same window wants it back with the interest it quoted',
     `prompt: ${JSON.stringify(t)}`);
   await press();
-  const cash2 = await atmCash();
+  const cash2 = await cash();
   say(cash2 !== null && cash2 < cash1 - 200,
     'a part payment is taken when you cannot cover the whole debt',
     `${money(cash1)} -> ${money(cash2)}`);

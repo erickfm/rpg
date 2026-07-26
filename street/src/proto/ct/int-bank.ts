@@ -945,7 +945,11 @@ export function buildBankInterior(ctx: CtxBuild): void {
   // everybody in the queue can see, and this one is where they can see it.
   // …and the clock moves EAST, off the sign it was sitting on top of. Over the
   // closed window, where the queue can see it, which is where a bank hangs one.
-  room.clock({ lx: 5.95, y: 2.72, lz: -hd + 0.08, r: 0.24 });
+  // r 0.34 — a 0.68 m face, not the 0.48 m shop clock I first hung. The queue
+  // asked for "a big clock" in as many words and I had given it an ordinary one;
+  // a bank clock is sized to be read from the back of a queue, and this one hangs
+  // where the queue is looking.
+  room.clock({ lx: 5.95, y: 2.80, lz: -hd + 0.08, r: 0.34 });
 
   // ── the people ────────────────────────────────────────────────────────────
   //
