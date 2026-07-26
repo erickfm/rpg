@@ -23,6 +23,33 @@ world stops.
 
 ## Now
 
+> ## DESK RULING — THE OUTER WHEEL. Written here, not sent as a message.
+>
+> You asked twice and I answered twice by tmux; both times the answer was lost
+> to a stall or a session exit. It lives in the file now.
+>
+> **THE FLARE COMES OFF.**
+>
+> Your reasoning was right: the fix for complaint one *is* complaint four, and
+> that is a genuine contradiction rather than a mistake. The resolution is in
+> the original words — *"the wheels need to not clip through"*. The complaint
+> was the tyre passing THROUGH the panel, which your WELL fixes: inner wall,
+> lid, floor stepping over it. **Nobody asked for the tyre to stop being the
+> outermost thing.** That was an inference, and the flare that satisfies it is
+> what reads as a protruding block from three-quarters.
+>
+> On real vehicles the tyre often IS proud of the body and it looks right.
+>
+> So: keep the well, keep the corrected arch paint, **remove the flare**, then
+> orbit each vehicle and confirm nothing sits outside the silhouette of tyre
+> and body. If removing it brings back visible clipping rather than merely
+> making the tyre outermost, STOP and tell me — that would mean the well is
+> missing a case, and I would rather know than have you compensate with a
+> panel.
+>
+> This ruling is final; do not re-raise it. Delete `BLOCKED-H.md` once done.
+
+
 - [ ] **Export a drop-in citizen sprite so the cardboard people can be fixed
       in PARALLEL.** Verified just now: **zero** `ct/int-*.ts` files call
       `citizenAtlas`. Every person indoors is still a painted plane — the
