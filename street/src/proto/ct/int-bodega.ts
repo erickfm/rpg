@@ -469,9 +469,13 @@ export function buildBodega(ctx: CtxBuild): void {
   const benchTopT = declareSurface(slabTex({
     wMeters: CF_W, dMeters: CF_D, base: '#6a5442', joint: 0.45, grain: 0.14,
   }), 'detail');
-  put(new THREE.Mesh(new THREE.BoxGeometry(CF_W, CF_H - 0.06, CF_D * 0.92), woodM),
+  // TURNED SO THE URNS FACE THE DOOR. Running the bench along x put its long
+  // face parallel to the sightline from the entrance, so you saw its 0.55 m
+  // END and the three urns lined up one behind another. Along z, its face and
+  // all three urns are square to you as you walk in.
+  put(new THREE.Mesh(new THREE.BoxGeometry(CF_D * 0.92, CF_H - 0.06, CF_W), woodM),
     CF_X, (CF_H - 0.06) / 2, CF_Z);                       // the carcass, set back
-  const top = new THREE.Mesh(new THREE.BoxGeometry(CF_W + 0.06, 0.06, CF_D + 0.06),
+  const top = new THREE.Mesh(new THREE.BoxGeometry(CF_D + 0.06, 0.06, CF_W + 0.06),
     new THREE.MeshBasicMaterial({ map: benchTopT }));
   put(top, CF_X, CF_H - 0.03, CF_Z);                      // the top, proud: an EDGE
   const frontT = declareSurface(pixTex(28, 18, (g) => {
@@ -482,39 +486,41 @@ export function buildBodega(ctx: CtxBuild): void {
     dither(g, 28, 18, 40);
   }), 'detail');
   const front = new THREE.Mesh(new THREE.PlaneGeometry(CF_W, CF_H - 0.12), ctx.flat(frontT));
-  put(front, CF_X, (CF_H - 0.12) / 2, CF_Z + CF_D / 2 + 0.01);
+  front.rotation.y = Math.PI / 2;                         // faces +x, into the shop
+  put(front, CF_X + CF_D / 2 + 0.01, (CF_H - 0.12) / 2, CF_Z);
 
-  for (const dx of [-0.42, 0, 0.42]) {
-    const ux = CF_X + dx;
+  for (const dz of [-0.42, 0, 0.42]) {
+    const ux = CF_X, uz = CF_Z + dz;
     const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.40, 10), urnM);
-    put(urn, ux, CF_H + 0.20, CF_Z);
+    put(urn, ux, CF_H + 0.20, uz);
     // the LID, domed, with a handle on top
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.125, 0.06, 10), chromeM);
-    put(lid, ux, CF_H + 0.43, CF_Z);
+    put(lid, ux, CF_H + 0.43, uz);
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 5), urnM);
-    put(knob, ux, CF_H + 0.475, CF_Z);
+    put(knob, ux, CF_H + 0.475, uz);
     // THE TAP, on the customer side, which is the detail that says urn
     const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.09, 6), chromeM);
-    put(spout, ux, CF_H + 0.10, CF_Z + 0.13);
+    put(spout, ux + 0.13, CF_H + 0.10, uz);
     const lever = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.02), chromeM);
-    lever.rotation.x = 0.5;
-    put(lever, ux, CF_H + 0.17, CF_Z + 0.13);
+    lever.rotation.z = 0.5;
+    put(lever, ux + 0.13, CF_H + 0.17, uz);
     // a sight glass up the side, so it is not one flat black
     const gauge = new THREE.Mesh(new THREE.PlaneGeometry(0.022, 0.24),
       new THREE.MeshBasicMaterial({ color: 0x6a4a2a }));
-    put(gauge, ux + 0.11, CF_H + 0.21, CF_Z + 0.055);
+    gauge.rotation.y = Math.PI / 2;
+    put(gauge, ux + 0.055, CF_H + 0.21, uz + 0.11);
   }
   // THE DRIP TRAY, under the taps, running the width
-  const tray = new THREE.Mesh(new THREE.BoxGeometry(CF_W - 0.2, 0.018, 0.14), chromeM);
-  put(tray, CF_X, CF_H + 0.035, CF_Z + 0.13);
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, CF_W - 0.2), chromeM);
+  put(tray, CF_X + 0.13, CF_H + 0.035, CF_Z);
 
   // the paper cups, a stack of them, beside the urns
   for (let i = 0; i < 3; i++) {
     const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.034, 0.11, 8),
       new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
-    put(cup, CF_X + 0.62, CF_H + 0.055 + i * 0.105, CF_Z - 0.12);
+    put(cup, CF_X, CF_H + 0.055 + i * 0.105, CF_Z + 0.62);
   }
-  solid(CF_X, CF_Z, CF_W, CF_D);
+  solid(CF_X, CF_Z, CF_D, CF_W);
 
   // ── the handwritten signs ──
   const cardT = (a: string, bl: string) => declareSurface(pixTex(48, 24, (g) => {
@@ -532,7 +538,7 @@ export function buildBodega(ctx: CtxBuild): void {
   // sign standing over nothing, which is the exact floating-prop fault this
   // room was pulled up for twice. It now reads CF_X/CF_Z/CF_H, so the card
   // goes wherever the bench goes.
-  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, CF_X, CF_H + 0.125, CF_Z + 0.02);
+  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, CF_X + 0.02, CF_H + 0.125, CF_Z, Math.PI / 2);
   room.sign(cardT('NO', 'LOITERING'), 0.5, 0.25, CTR_X - 0.6, 1.72, CTR_Z);
   room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
 
