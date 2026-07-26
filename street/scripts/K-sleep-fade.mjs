@@ -73,12 +73,30 @@ await page.waitForTimeout(150);
 //     the next few frames. I measured 0.132 m of it and spent a round reading
 //     that as a broken input lock. The keyed run is compared against THIS, not
 //     against zero.
+//
+// WALKED UNTIL IT GETS THERE, not for a fixed 2.6 s. This assertion was
+// `> 2 m in 2.6 s` and it went red on 2 runs in 5 under load, reporting 1.54 and
+// 1.87 m — a false red on a control, which is the worst kind because it
+// discredits the real verdict beside it. The world advances in FRAMES and a
+// headless browser runs the sim at about two thirds of wall time (GOTCHAS §43),
+// so any distance-per-second bar is a bet on how busy the machine is. Poll the
+// position and stop when the target is reached or progress stalls — §30's own
+// prescription, and the same fix `lotwalk.mjs` needed.
+const WALK_TARGET = 1.0;
 const walkFrom = await page.evaluate(() => { const q = window.__ct.pos(); return [q[0], q[2]]; });
 await page.keyboard.down('w');
-await page.waitForTimeout(2600);
+let WALK = 0, stalled = 0;
+for (let i = 0; i < 60; i++) {
+  await page.waitForTimeout(120);
+  const now = await travelled(walkFrom);
+  if (now - WALK < 0.01) stalled++; else stalled = 0;
+  WALK = now;
+  if (WALK >= WALK_TARGET || stalled >= 6) break;      // there, or against a wall
+}
 await page.keyboard.up('w');
-const WALK = await travelled(walkFrom);
-ok(WALK > 2, `CONTROL: a held W with no fade really walks (${WALK.toFixed(2)} m in 2.6 s)`);
+ok(WALK >= WALK_TARGET,
+  `CONTROL: a held W with no fade really walks (${WALK.toFixed(2)} m, walked until it got there`
+  + ` rather than for a fixed time — the sim runs at ~0.66x wall clock headless)`);
 
 await warp();
 await page.waitForTimeout(200);
@@ -184,10 +202,21 @@ console.log(`      ${run.samples.length} samples over ${Math.round(run.total)} m
 // ── it actually goes black, and actually comes back ──────────────────────
 ok(run.peak >= 0.99, `the screen goes FULLY black (peak opacity ${run.peak.toFixed(3)})`);
 ok(run.end <= 0.01, `and comes back (ended at ${run.end.toFixed(3)})`);
-// …as a FADE, not a cut: the way up has to pass through the middle. A cut would
-// step 0 -> 1 between two samples and never be seen part way.
+// …as a FADE, not a cut. COUNTED IN MILLISECONDS, NOT IN SAMPLES: the first
+// version wanted 4 readings part way up and went red 2 runs in 4 under
+// concurrent load with 3 — the sampler was starved, the fade was perfect, and
+// the check was measuring how busy the machine was (GOTCHAS §30). Elapsed time
+// between the first non-zero reading and the first fully-black one does not
+// care how often the sampler ran, and starvation can only make it LOOK longer,
+// never shorter. The sample count stays as a floor of one, which is all it can
+// honestly assert.
 const mid = run.samples.filter(([, o]) => o > 0.1 && o < 0.9).length;
-ok(mid >= 4, `it FADES rather than cuts (${mid} samples caught part way)`);
+const firstUp = run.samples.find(([, o]) => o > 0.05);
+const firstFull = run.samples.find(([, o]) => o >= 0.99);
+const rampMs = firstUp && firstFull ? firstFull[0] - firstUp[0] : -1;
+ok(mid >= 1 && rampMs >= 200,
+  `it FADES rather than cuts (${Math.round(rampMs)} ms from first light to full black,`
+  + ` ${mid} samples caught part way)`);
 
 // ── the world changed WHILE it was black ─────────────────────────────────
 ok(run.clockAfter !== null && run.clockAfter > run.clockBefore,
@@ -237,10 +266,10 @@ ok(after > 0.3, `and you can walk again when it is over (${after.toFixed(2)} m o
 //
 // A check that proves a kit works is not a check that the kit is USED.
 //
-// IT IS RED ON PURPOSE UNTIL `ct/apartment.ts` CALLS `screenFade`. That is C's
-// file and one line; `notes/K-screen-fade.md` has the shape. A red row naming
-// the missing call site is worth more than a green suite that agrees with the
-// bug.
+// It was RED ON PURPOSE until `ct/apartment.ts` called `screenFade`, which C has
+// now done — one line, the shape published in `notes/K-screen-fade.md`. Kept
+// green rather than deleted: this half is the only thing standing between a
+// working capability and a repeat of the CONFIRMED-but-not-true row.
 if (!SELFTEST) {
   const bed = await page.evaluate(() => window.__ct.spots().find((q) => /sleep/i.test(q.label)) ?? null);
   ok(!!bed, 'the world offers a sleep verb at all');
@@ -280,9 +309,12 @@ if (!SELFTEST) {
       const moved = +((await page.evaluate(() => window.__ct.clockNow().totalMin)) - t0).toFixed(1);
       console.log(`      the bed: clock moved ${moved} min, peak overlay opacity ${seen.peak} over ${seen.n} samples`);
       ok(moved > 60, `pressing E at the bed advances the clock (${moved} min)`);
+      // GREEN SINCE C LANDED THE CALL (`ct/apartment.ts` line ~1918:
+      // `screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) })`).
+      // It was written red on purpose and it stayed red for exactly as long as
+      // the world had no fade in it, which is what a check is for.
       ok(seen.peak >= 0.99,
-        `…AND THE SCREEN GOES BLACK WHILE IT DOES (peak ${seen.peak}) —`
-        + ' RED UNTIL ct/apartment.ts calls screenFade({ mid }); notes/K-screen-fade.md');
+        `…AND THE SCREEN GOES BLACK WHILE IT DOES (peak ${seen.peak})`);
     }
   }
 }
