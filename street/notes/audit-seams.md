@@ -1219,3 +1219,33 @@ question.**
 **[Is] Fifth untracked request.** This one came to the builder mid-turn and was in
 neither FEATURE-REQUESTS nor the ledger while the work was done. Second one a
 builder filed themselves.
+
+## [C] Parked-car gaps: CONFIRMED, by disagreeing with the metric and agreeing with the verdict
+
+H reports 64 band gaps, none involving a parked car. I measure **148**, of which
+**55 are on the playable block**. Our counts differ and it changes nothing,
+because the count was never the right quantity.
+
+**What settles it is connectivity.** The whole-world flood as a **disc of radius
+0.36** gives **8593 m² in ONE connected region**. Three pockets, all previously
+established as unreachable behind continuous railings, none involving a car.
+**Not one of the 55 on-block gaps isolates anything.**
+
+**[Is] Why a band-gap census cannot decide trapping.** A gap narrower than 0.72 m
+cannot be entered by the player at all. A gap wider than 0.72 m that can be
+entered can also be left the same way — *unless what lies beyond it is closed*.
+So the property that makes a gap dangerous is not its width; it is whether the
+space behind it has another exit. **Width is a local property and trapping is a
+global one, and no amount of pair-wise measurement crosses that gap.**
+
+This is the same shape as the free-floor number in the interior audit: 81% free
+floor distinguished nothing between the bodega and the burger bar, because the
+question was about the *shape* of the free space, not its quantity.
+
+**[R] Agreeing with a builder's verdict while rejecting their metric is a real
+outcome, not a fudge.** H's constraint on the parked-car draw is sound and their
+parked-car figure holds — 0 parked-car pairs in the band. The disagreement is
+about what the band count would have proved had it come out the other way: if I
+had found a parked car in the band, that still would not have been a trap, and if
+H had found none anywhere, that still would not have been proof. We reach the
+same place; only one of the two routes gets there for a reason.
