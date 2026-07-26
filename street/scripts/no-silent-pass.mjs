@@ -42,7 +42,22 @@ const suspects = readdirSync(dir)
   .filter((f) => f !== self)
   .filter((f) => {
     const src = readFileSync(dir + f, 'utf8');
-    if (!/mode\s*===/.test(src)) return false;
+    // IT MUST TAKE ITS MODE FROM THE COMMAND LINE. `mode ===` alone is not the
+    // defect: scripts/laneaudit.mjs writes `for (const mode of ['fixtures',
+    // 'all'])` and never reads argv at all, so it cannot be handed a mode it
+    // does not know — it ignores arguments entirely, which is a different thing
+    // and not a fault. I flagged it as one and would have routed a non-problem
+    // to its owner, which is exactly what happened with truck.mjs.
+    //
+    // The condition is a mode DERIVED FROM argv, then dispatched on.
+    // Either route counts: reading argv[2] directly, or calling the shared
+    // guard, which reads it for you. Testing only for argv[2] excluded every
+    // script that had ALREADY adopted lib/modes.mjs — five of mine — so the
+    // check would have stopped verifying the ones it had fixed. A guard that
+    // stops watching what it repaired is worth less than no guard.
+    const takesArgvMode = /process\.argv\s*\[\s*2\s*\]/.test(src) || /\bmodes\(/.test(src);
+    if (!takesArgvMode) return false;
+    if (!/mode\s*===/.test(src) && !/\bmodes\(/.test(src)) return false;
     // IT MUST HAVE A VERDICT TO LOSE. A script that never sets an exit code is
     // a photo tool, not a check — it makes no claim, so it cannot make one
     // falsely, and exiting 0 having taken no screenshots is a wasted run rather

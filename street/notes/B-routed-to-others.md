@@ -41,6 +41,12 @@ FAIL lamplight.mjs   exit 0 on --no-such-mode
 FAIL parking.mjs     exit 0 on --no-such-mode
 ```
 
+Still exactly these two, re-checked this round. `laneaudit.mjs` briefly appeared
+on the list and was a FALSE POSITIVE of mine, not a fault of theirs: its `mode`
+is a loop variable — `for (const mode of ['fixtures','all'])` — and it never
+reads `process.argv`, so it cannot be handed a mode it does not know. The check
+requires an argv-derived mode now and no longer flags it.
+
 Hand either a mode it does not know and it matches no branch, falls off the end
 of the file and exits 0 — a green row for a check that ran nothing. `truck.mjs`
 was on this list and its owner has fixed it; these two are the remainder.
