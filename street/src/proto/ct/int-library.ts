@@ -754,7 +754,33 @@ export function buildLibrary(ctx: CtxBuild): void {
   // The reading tables move OUT of the stacks and into the open floor they now
   // face. At -D/2 + 3.2 they sat among the runs, which is a study carrel; on the
   // open floor they are the reading room, which is what the room is for.
-  const TAB_X = W / 2 - 3.0, TAB_Z = 1.2;
+  //
+  // ── AND OUT OF THE STAIRCASE, 2026-07-25 ──
+  //
+  // It was at (W/2 - 3.0, 1.2) = local (7.00, 1.20), with a 1.6 x 2.5 m
+  // collider running x 6.20..7.80, z -0.05..2.45. The gallery occupies
+  // x 6.90..9.90 and its flight runs z 0.60..5.40, so **the table was standing
+  // inside the stairs** — buried under the treads, with its collider eating the
+  // west portion of the flight.
+  //
+  // Nobody put it there. It was placed when the gallery was x 4.30..7.30 in a
+  // 14.8 m room; widening the room to 20 m moved the gallery out with the east
+  // wall (the note above GALLERY_X0 says so in as many words) and the gallery
+  // walked over the table where it stood. **A constant that was right stopped
+  // being right because a DIFFERENT constant moved**, which is why nothing
+  // flagged it: both numbers were correct when written.
+  //
+  // Found by walking the flight, not by looking at it — from every camera in
+  // the room the table is hidden under the deck's soffit, and the only symptom
+  // is that a player climbing the west side of the stair stops dead partway up.
+  // That is CLAUDE.md's rule ("anything involving movement, collision or floors
+  // must be verified by ACTUALLY WALKING IT") earning its place, and it is why
+  // scripts/J-gallery-walk.mjs now exists.
+  //
+  // Moved to the entrance end, which was the last large piece of empty floor
+  // and is where a second, smaller table belongs anyway — you come in, and
+  // there is somewhere to sit down with what you are carrying.
+  const TAB_X = 5.80, TAB_Z = 8.40;
   box(1.5, 0.08, 2.4, wood, TAB_X, 0.74, TAB_Z);
   for (const dx of [-0.62, 0.62]) for (const dz of [-1.05, 1.05]) {
     box(0.09, 0.74, 0.09, woodDark, TAB_X + dx, 0.37, TAB_Z + dz);

@@ -458,6 +458,21 @@ const CHECKS = [
   // and the room gets BOTH doors in one opening. mirror-walk and
   // frontage-honours both stop at flat shopfronts and neither looks at a leaf.
   ['J-library-door', 'is the library\'s inside doorway the door its facade has?', true],
+  // The library's LEVEL CHANGE, which the user named twice ("i want to be able
+  // to walk up the stairs of the library", "i like the stairs, and the idea of
+  // a balcony but they are inaccessible because of walls") and which nothing
+  // asserted. scripts/libstair.mjs samples groundAt and prints a picture of the
+  // climb — a good investigation, no exit code, no walking, in no tier.
+  //
+  // FAST tier despite walking, and measured before claiming it: 14 s on an idle
+  // preview, against the 36 s that moved lotwalk to SLOW. It is four short
+  // walks in one room, not a sweep of the world.
+  //
+  // It earned its entry on the first run: the old reading table's collider was
+  // standing INSIDE the staircase, invisible from every camera in the room
+  // because the deck's soffit hides it, and the only symptom was a player
+  // climbing the west side stopping dead partway up.
+  ['J-gallery-walk', 'can you climb to the library gallery, walk it, and get back down?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
