@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Proto } from './types';
-import { FPRig, type AABB } from './fp';
+import { FPRig, type AABB, type SeatPose } from './fp';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CROSSTOWN '97 — the small world. One hand-authored street.
