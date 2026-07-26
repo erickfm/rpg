@@ -1553,3 +1553,28 @@ apart, and it says the painted foot is 1.6 m down.**
 *The same instrument error can produce a false alarm and a false all-clear on
 consecutive attempts.* What settled it was neither measurement but the pair of
 photographs: same script, same station, one figure present and then absent.
+
+## [C] The keeper regression closed in one build — and the church shows the shape of the fix
+
+Nine of ten keepers now stand exactly on their floors (gap **0.00**), against
+−1.58 to −1.66 m one build earlier. The tax preparer is back behind his desk in
+the identical frame that was empty of him an hour before.
+
+**Verified the same way it was found:** one script, one station, three shots —
+present, absent, present. *A regression proven by a photograph pair is closed by
+the same pair, and nothing else needs arguing.*
+
+**[Is] The church residual tells you how the fix was made.** It reads **−0.18 m**,
+and its floor is the only one not at 0. So the correction placed figures at a
+fixed height rather than at `groundAt` — which lands nine rooms perfectly and
+misses precisely the one that is raised.
+
+**A fix that assumes a constant where the world has a function will always miss
+exactly the exceptional case**, and the exceptional case is the one someone
+deliberately made different. It is 0.18 m and nobody will see it; it is worth a
+line because the next raised floor will inherit it silently.
+
+**[R] Restored the CONFIRMED I withdrew.** Withdrawing it was right — the people
+genuinely were gone — and restoring it on the same evidence standard is the other
+half of that discipline. **A status that only ever moves one way is not a
+measurement, it is a ratchet.**
