@@ -1547,3 +1547,24 @@ deleted, and `ctx.site('jail')` publishes
 `{ minX: 57, maxX: 75, minZ: -110, maxZ: -96, y: 0.14 }`. See
 `notes/D-to-O-jail-site.md`.
 
+
+## Rent, a landlord, and letters at the mailboxes
+
+> *"rent that must be paid to a landlord, and letters waiting at the mailboxes
+> when he comes in off the street"*
+
+Routed to **N** (new builder; owns the new `ct/tenancy.ts`). The desk's ordering:
+the letters come FIRST, because they are how he finds out he owes rent.
+
+Followed by, in the same stretch: *"numbered to match the doors upstairs"*.
+
+Landed so far: C's bank of twelve painted doors is real hardware now — 301 has a
+bottom-hinged brass door, a keyhole, a name card and post riding out of the slot
+when there is any, and all eight let flats carry number plates in C's own door
+numerals. The letters open as a sheet held in both thumbs; fourteen kinds of
+1997 junk, a rent notice two days before each rent day, a second notice every
+third day it goes unpaid. Rent is DERIVED from the clock, never accumulated, so
+sleeping through a week fills the box the same way walking through one does.
+Guarded by `scripts/N-post-waiting.mjs`. See `notes/N-tenancy.md`.
+
+Still open: the landlord himself, and paying him.
