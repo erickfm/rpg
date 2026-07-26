@@ -39,26 +39,78 @@ a 10,000-character line nobody can read in a diff, "revert to what was there
 before" is the resolution that feels safest and is the only one that can destroy
 work on both sides at once.
 
+## AND THE THIRD TIME I USED THE REPO'S OWN RESOLVER, AND IT DROPPED THE SAME ROW
+
+`scripts/ledger-merge.py` exists for exactly this and I reached for it rather than
+hand-resolving again — which was the right instinct and the wrong outcome. It
+printed
+
+    resolved 1 region(s); 0 marker(s) left
+
+and had silently taken **5,168 characters** out of L's row: L's whole verdict and
+my verification with it. I only caught it because I grepped for my own segment
+afterwards.
+
+**Its rule is the problem, and its own docstring explains why the rule is there:**
+
+> *start from MAINLINE's row — the builder's account is newer than mine*
+> *APPEND any auditor segment my side has that mainline's row lacks*
+
+That is sound when mainline's row is newer. **It is exactly backwards when
+mainline's row is itself a regression** — an `OPEN` with an empty cell is not a
+newer account, it is a previous loss, and "start from mainline" adopts it. And the
+append clause looks for an **auditor** segment; my segment begins
+`**VERIFIER (M) CONFIRMED**`, so it was not recognised and not carried across.
+
+The tool is not wrong to exist and I have not touched it — it is somebody else's
+script. But it is worth its owner knowing that:
+
+- **it cannot distinguish a newer row from a shorter one**, and this file has now
+  produced both;
+- **"resolved, 0 markers left" is not a claim that nothing was lost**, and that is
+  the whole failure — it fails QUIET, which is the one thing a repair tool must
+  not do. A line printing `row X: 7341 -> 2203 chars` would have stopped me in
+  one second;
+- **`VERIFIER (<X>)` is a segment kind it does not know about**, and the verifier
+  protocol tells builders to write exactly that.
+
+**What I did instead**, and it is three lines of the same idea the docstring
+already states — *evidence is APPEND-ONLY, so never choose a side*: for each row
+take the **LONGEST** version available across history and the **strongest**
+status. Recovering the three affected rows that way put L's verdict, my
+verification and my own two LANDED cells back.
+
+One trap in doing that, which cost me a pass: `git log --all` **does not reach
+your own pre-rebase commits**, because a rebase rewrites them and nothing points
+at the originals any more. My first sweep across 60 commits reported every row
+already complete, because the versions holding the missing evidence were only in
+the **reflog**. If you are recovering from a rebase, scan
+`git reflog --format=%h`, not `git log --all`.
+
 ## What would stop it, for whoever owns the tooling
 
 I am not proposing to build any of these — `scripts/**` says do not edit another
 agent's script, and the merge machinery is the desk's:
 
-1. **A guard that refuses a shrinking evidence cell.** A row whose status moves
+1. **`ledger-merge.py` should print every row whose length CHANGES**, and refuse
+   to shrink one without `--force`. It has all the information already; it just
+   does not say. This is the single cheapest change on the list and it converts
+   a quiet loss into a loud one.
+2. **A guard that refuses a shrinking evidence cell.** A row whose status moves
    BACKWARDS (`CONFIRMED → OPEN`) or whose evidence cell gets shorter, without
    the word `re-open` or `withdraw` in the new text, is almost always a botched
    resolution rather than a decision. That is a `git diff` away and it would have
    caught both instances.
-2. **`ledger-merge.py` on the merge driver**, if it is not there already — the
+3. **`ledger-merge.py` on the merge driver**, if it is not there already — the
    repo has one, and a `.gitattributes` line pointing `notes/LEDGER.md` at it
    would make this a non-event.
-3. **Or stop storing verdicts in table cells.** The reason a row cannot be merged
+4. **Or stop storing verdicts in table cells.** The reason a row cannot be merged
    is that it is one line. One file per row, or evidence in a per-row note with
    the table holding only the status, and git can merge two people's work on the
    same row without anybody choosing.
 
-The cheapest of those is (1), because it needs no format change and it fails
-LOUD.
+The cheapest of those is (1): it needs no format change, it touches one file, and
+it fails LOUD.
 
 ## The bit that worries me most
 
