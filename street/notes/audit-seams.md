@@ -1122,3 +1122,32 @@ night".**
 records that this one had no ledger row at all. My reconciliation caught nine;
 this is a tenth, which suggests the drift is ongoing rather than historical, and
 strengthens the case for the check to be a script rather than an audit pass.
+
+## [C] Tree pits and drive entrance CONFIRMED — and a finder that failed 21 for 21
+
+**Pits:** seven, every one **0.56 × 1.40 m**, trunk centred to **+0.000** on all
+seven. Dirt 0.28 m each side against the 0.18 m kerb-side it had.
+
+**Drive entrance:** duplicate of my own apron row, re-measured for regression —
+still ramps 0 → 0.140 over x 5.00→7.00 against a one-sample step at a plain kerb.
+
+**[I] My first pit pass reported "21 of 21 off-centre by more than 30 mm".
+Every one of those was false.** A global nearest-trunk match paired pits with
+**lamp posts**, and the same filter swept gutter decals in as pits. Searching
+instead for a trunk *directly above each pit* gave 0.000 across the board.
+
+**This is the third time tree pits have defeated a shape-based finder here** —
+first pairing a west trunk with an east pit, then matching the old 0.42 m size,
+now this. The pattern is always the same: **two populations matched globally will
+pair whatever is nearest, and nearest is not related.** Anchor first, search
+outward, and require the match to be *above* or *within* rather than merely near.
+
+Worth noting what a 100% failure rate should have signalled immediately. **21 of
+21 is not a finding, it is a broken instrument** — a real fault of that kind would
+have to have been introduced deliberately and uniformly. A verdict that indicts
+everything indicts the tool.
+
+**[Is] Two harmless differences from B's numbers, recorded so they are not read
+as faults later.** The kerb strip is 0.117 in the row and 0.070 in mine — same
+clearance, different reference for the kerb line. And one pit reads ground 0.12
+rather than 0.14 because it sits at the edge of the lot's ramped apron.
