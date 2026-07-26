@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the church interior is reversed i think. the entrance/exit is at the alter?"** → **G**
 - **"i asked for more expansive interiors for casino and for hotel. so far they look the same size. no additional depth"** → **G**
 - **"bodega sign is tilted up which makes no sense should be tilted a bit down no? i actually think the orientation is the issue here. like it needs to be rotated 180 degrees"** → **D**
 - **"gazebo shelter is fucked / bin is in the sign? overall fix the park"** → **E**
