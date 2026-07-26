@@ -1,1 +1,1 @@
-DONE | 0 live; re-ran AUDIT's evidence sweep — the 28 bare rows are now 0; caught my own false "7 cannot-answer" before filing it
+DONE | 0 live, 0 awaiting; re-checked my own 5 CONFIRMED rows at build 43d273df0 — all hold, none regressed
