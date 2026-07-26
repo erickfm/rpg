@@ -116,6 +116,26 @@ const CHECKS = [
   ['window-lattice',  'are the lit windows a lattice again?',             ['window-lattice']],
   ['facade-run',      'does a facade\'s window run terminate on its wall?', true],
   ['shop-interior',   'is the shop glass a room, or a black hole?',       true],
+  // ── FIRST FEDERAL's interior, added by M ────────────────────────────────
+  //
+  // SLOW TIER, and by this file's own rule rather than by preference: it WALKS —
+  // three approaches to the doors, five stations against the teller line, the
+  // vault, and the whole loan mechanic end to end — and costs ~90 s against the
+  // 1-2 s every fast check here runs in. "SLOW is a runtime tier, not an
+  // importance tier."
+  //
+  // 54 claims, and its `--selftest` reddens 8 of them: it removes the teller
+  // line's collider by predicate, walls the vault throat, and — the one no
+  // world-breaking mutation can reach — strips half the room's painted-face
+  // DECLARATIONS, so the population floor has to catch a check that would
+  // otherwise pass over a smaller set (GOTCHAS 34).
+  //
+  // IT WAS UNREGISTERED FOR SEVEN COMMITS, which is the whole reason this entry
+  // has a comment: `checks-registered` could not see it. That guard matches the
+  // literal `argv.includes('--selftest')`, and this script — like 34 others,
+  // including `interiors-walk` and every `K-*` — declares its flag through the
+  // shared `flags(['--selftest'])` helper. See `notes/M-selftest-blindspot.md`.
+  ['M-bank-int-walk',  'can you enter the bank, use the vault, and get a loan?', true, [], true],
   ['checks-registered','is every self-testing script actually registered?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],

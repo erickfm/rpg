@@ -1,1 +1,1 @@
-DONE | queue empty, both bank rows CONFIRMED; verified 4 rows for others; only LANDED row left is AUDIT's own ledger sweep |
+WORKING | registered M-bank-int-walk in checks.mjs (it had never run for anyone); filed the guard blind spot for its owner |
