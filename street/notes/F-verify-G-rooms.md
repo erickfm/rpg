@@ -169,3 +169,26 @@ One urgent fault, one one-line fix, two rooms that need nothing:
 
 Nothing marked CONFIRMED by me; that is the desk's or the auditor's call. The
 church is mine and still needs a different verifier.
+
+## LIBRARY (E's) — walked it. The stair and mezzanine are real.
+
+Not in my assignment, but nobody had walked it and my queue was empty.
+
+The room reads: circulation desk with a librarian behind it, book stacks,
+study carrels with terminals, bins, and **a mezzanine with a full staircase
+up to a second level of shelving**. That is the thing E was blocked on for
+three passes, and it exists in the world now.
+
+**I am NOT confirming the floor-function row** even though I just watched its
+result. That row is mine — `buildRoom` accepting levels is my kit change — and
+confirming my own work is exactly what the protocol forbids. What I can say as
+a witness is narrower and still useful: *E's side is built and standing.* Some-
+one else has to close the row.
+
+Same for its clock: I converted it, so that line is mine and not mine to
+verify.
+
+Content verdict on E's work: good, no action. And the same caveat I gave the
+hotel applies here — at 0.6 meshes/m2 the library is on my "thin" list, but a
+reading room is supposed to be open floor. My density table should not be used
+to push clutter into it. It is a shop metric.
