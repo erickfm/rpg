@@ -35,7 +35,13 @@ const SELF = fileURLToPath(import.meta.url);
 // Lets node resolve this project's extensionless relative imports. See the file.
 register('./lib/L-ts-imports.mjs', import.meta.url);
 const MODES = ['feel', 'honest', 'all', '--selftest'];
-const mode = process.argv[2] ?? 'feel';
+// `--selftest` is detected ANYWHERE in argv, not just as the first argument.
+// `scripts/checks.mjs` builds its command as `[script, ...extra, '--selftest']`,
+// so a registration carrying a mode would give this file `all --selftest` — and
+// reading only argv[2] would see `all`, run the ordinary checks, pass, and
+// report a selftest that never happened. A false green in the one tier whose
+// entire job is proving checks can fail (GOTCHAS §27).
+const mode = process.argv.includes('--selftest') ? '--selftest' : (process.argv[2] ?? 'feel');
 if (!MODES.includes(mode)) {
   console.error(`usage: node scripts/L-slots-feel.mjs [${MODES.join('|')}]`);
   process.exit(2);

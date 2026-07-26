@@ -654,6 +654,52 @@ const CHECKS = [
   // across the doorway onto `__ct.colliders()`, the same array the movement
   // code reads. (O)
   ['O-jail-walk', 'can you walk into the jail, and did its pavement get wider?', true, ['all'], true],
+
+  // ── THE CASINO GAMES (L) ────────────────────────────────────────────────
+  //
+  // Six of these seven start NO BROWSER and take under six seconds between
+  // them, because the game logic in `ct/slots.ts` and `ct/blackjack.ts` draws
+  // nothing, imports nothing at module scope and advances by a `dt`. That is
+  // the point of the boundary rather than a happy accident: the FEEL of a slot
+  // machine and the fairness of a card table are normally things you can only
+  // check by watching, and here they are arithmetic.
+  //
+  // Two of them are worth knowing about because they check things no
+  // screenshot and no RTP figure can:
+  //
+  //   L-slots-glass  hands the panel painter a RECORDING 2D context and asserts
+  //                  the call list — GOTCHAS 1 says two runs of this project
+  //                  differ in 20% of pixels, so the panel is checked by what
+  //                  it DRAWS. All 54 reel/row cells must draw exactly the
+  //                  symbol that reel's strip has there.
+  //   L-blackjack-table  sits a basic-strategy player at the real table, through
+  //                  the API the panel uses, for 300,000 hands, and requires the
+  //                  return to match the one the RTP proof costed. There are two
+  //                  implementations of one rule set and there have to be; this
+  //                  is what stops them drifting. It found the dealer playing on
+  //                  after a player natural — a fault the money could not see,
+  //                  because settle() skips a hand already paid.
+  //
+  // NOT REGISTERED HERE: `L-games-in-artifact.mjs`, deliberately. It tests the
+  // PACKED single-file build and this runner hands every check the ordinary
+  // SHOT_URL, so it would abort at exit 3 every run. It refuses a non-artifact
+  // URL rather than passing on the wrong build, which is right and makes it
+  // un-registerable until the suite grows an artifact tier. Run it by hand:
+  //   node scripts/pack-artifact.mjs && npx vite preview --outDir dist --port <p>
+  //   SHOT_URL=http://localhost:<p>/artifact.html node scripts/L-games-in-artifact.mjs
+  // (L)
+  ['L-slots-rtp',        'does the slot machine return the 92.834% it claims?',        true, ['all']],
+  ['L-slots-feel',       'do the reels stop one at a time, left to right?',            true, ['all']],
+  ['L-slots-glass',      'does the glass show the symbol the machine paid on?',        true, ['all']],
+  ['L-blackjack-rtp',    'does the blackjack table return 99.5% to correct play?',     true, ['all']],
+  ['L-blackjack-table',  'does the table you sit at play the game that was costed?',   true, ['all']],
+  ['L-blackjack-felt',   'does the felt hide the hole card and show the hand?',        true, ['all']],
+  // The only one of mine that needs a browser. It walks — sit at a stool, spin,
+  // cash out, stand up — but it waits for EVENTS rather than sleeping, so it
+  // comes in at 2.4 s and does not belong in the slow tier on runtime grounds,
+  // which is the tier's stated basis. No `--selftest`: its mutations would have
+  // to break the world, not the module, and `canfail.mjs` is where that belongs.
+  ['L-slots-inworld',    'can you sit at a machine in SEVENS and play it?',            false, ['all']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

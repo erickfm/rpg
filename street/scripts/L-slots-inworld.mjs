@@ -55,8 +55,24 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(URL, { waitUntil: 'networkidle' });
-await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 20000 });
+// A SERVER THAT IS NOT THERE IS EXIT 3, NOT EXIT 1.
+//
+// `page.goto` throws ERR_CONNECTION_REFUSED and node turns an unhandled throw
+// into exit 1 — which is "measured, and it is WRONG" in this project's
+// convention, when in fact NOTHING was measured (GOTCHAS §32). It matters more
+// than it sounds: a preview that dies partway through `npm run checks` takes
+// every remaining browser check down with it, and a board of a dozen reds reads
+// as a dozen defects rather than as one dead server. That is exactly what
+// happened on the run that made me write this.
+try {
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.waitForFunction(() => window.__ct?.seats !== undefined, { timeout: 20000 });
+} catch (e) {
+  console.error(`ABORTED: ${URL} did not serve a world — ${String(e.message).split('\n')[0]}`);
+  console.error('  Nothing was measured. This is not a red: start a preview and re-run.');
+  await b.close();
+  process.exit(3);
+}
 await reportWorld(p, URL);                       // GOTCHAS §26: prove it, do not name it
 await p.waitForTimeout(400);
 
