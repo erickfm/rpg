@@ -74,7 +74,11 @@ const ROOMS = [
       ['down the whole lobby to the corridor mouth', 0, 10.5, '-z', 3800, 'z', 14.0],
       ['…and back up it to the door', 0, -8.0, '+z', 3800, 'z', 14.0],
       ['across the lobby in front of the lift', -4.8, -3.5, '+x', 2800, 'x', 8.0],
-      ['along the east wall, past the lounge', 4.9, 6.0, '-z', 3000, 'z', 10.0],
+      // starts SOUTH of the corner seating group (sofa + two armchairs occupy
+      // x 3.4..5.5 at z 1.8..5.2) rather than through it — a lounge suite in a
+      // corner is supposed to interrupt the wall lane, and the walk that matters
+      // is the long one past the lift to the corridor
+      ['along the east wall, past the lift', 4.9, -1.0, '-z', 3000, 'z', 9.0],
       ['between the desk and the lounge', -3.0, 8.4, '+x', 1800, 'x', 3.0],
     ],
   },

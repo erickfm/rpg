@@ -297,7 +297,154 @@ export function buildHotel(ctx: CtxBuild): void {
   vinylT.repeat.set(1, 3);
   const vinyl = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 6.8), ctx.flat(vinylT));
   vinyl.rotation.x = -Math.PI / 2;
-  put(vinyl, -3.75, 0.014, 0.8);
+  put(vinyl, -3.75, 0.014, hd - 6.0);
+
+  // ── THE WORN TRACK, which is the detail that sells the room ───────────
+  //
+  // The user: "a patterned carpet with a worn track across it where everyone
+  // walks — the worn track is the detail that will sell it, because it says
+  // people cross this room without ever stopping in it." That is exactly the
+  // story this lobby is telling now that it is 26 m deep and nearly empty.
+  //
+  // Drawn as the carpet's own pattern with the pile walked flat: same weave,
+  // paler and greyer, the gold rubbed thin. NOT a different material — the
+  // vinyl runner is the repair, and this is the wear the repair did not cover.
+  // It runs door -> desk and then the length of the room to the lift and the
+  // corridor, because that is where the feet actually go.
+  const wornT = declareSurface(pixTex(48, 48, (g) => {
+    g.fillStyle = '#6a4048'; g.fillRect(0, 0, 48, 48);             // the field, greyed
+    g.fillStyle = '#7a6a48';                                       // gold rubbed thin
+    for (const v of [0, 24]) { g.fillRect(v, 0, 2, 48); g.fillRect(0, v, 48, 2); }
+    const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
+    g.fillStyle = '#6e5a44';
+    for (const [cx2, cy] of cells) for (let t = 0; t <= 5; t++) {
+      const r = 5 - t;
+      g.fillRect(cx2 + t, cy - r, 1, 1); g.fillRect(cx2 - t, cy - r, 1, 1);
+      g.fillRect(cx2 + t, cy + r, 1, 1); g.fillRect(cx2 - t, cy + r, 1, 1);
+    }
+    dither(g, 48, 48, 190);                                        // more noise: it is worn
+  }), 'ground');
+  wornT.wrapS = wornT.wrapT = THREE.RepeatWrapping;
+  const worn = (w: number, d: number, lx: number, lz: number) => {
+    const t = wornT.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(Math.max(1, Math.round(w / 2.4)), Math.max(1, Math.round(d / 2.4)));
+    t.needsUpdate = true;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ctx.flat(t));
+    m.rotation.x = -Math.PI / 2;
+    put(m, lx, 0.013, lz);                                         // under the vinyl, over the carpet
+  };
+  worn(2.0, 7.0, -1.2, hd - 4.2);        // in from the door, angling toward the desk
+  worn(2.2, 15.0, 1.0, -2.0);            // and the long haul to the lift and the corridor
+
+  // ── ENRICHMENT AT THE EDGES, AND THE MIDDLE LEFT ALONE ────────────────
+  //
+  // The user called this room EERIE and asked explicitly not to fill it in:
+  // "keep the sense of too much room and too few people; crowding it would
+  // destroy the thing they just praised". So every one of these sits against a
+  // wall or in a corner. The centre of the floor stays empty on purpose, and
+  // that is a design decision, not an unfinished one.
+  {
+    const brass2 = new THREE.MeshBasicMaterial({ color: 0x9a7c3a });
+    const oak = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    const oakD = new THREE.MeshBasicMaterial({ color: 0x372a1c });
+    const plush = new THREE.MeshBasicMaterial({ color: 0x6d2029 });
+    const paper = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
+    const bx = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
+
+    // A SOFA AND TWO ARMCHAIRS ROUND A LOW TABLE, in the east corner
+    {
+      const SX = hw - 1.5, SZ = hd - 9.5;
+      bx(0.85, 0.42, 2.1, plush, SX, 0.21, SZ);                    // sofa seat
+      bx(0.30, 0.52, 2.1, plush, SX + 0.32, 0.62, SZ);             // its back
+      bx(0.95, 0.16, 2.2, oakD, SX, 0.06, SZ);                     // the plinth
+      solid(SX, SZ, 1.1, 2.2);
+      for (const az of [-1.7, 1.7]) {                              // the armchairs
+        bx(0.72, 0.40, 0.72, plush, SX - 1.1, 0.20, SZ + az);
+        bx(0.72, 0.46, 0.22, plush, SX - 1.1, 0.58, SZ + az + (az < 0 ? -0.25 : 0.25));
+        solid(SX - 1.1, SZ + az, 0.9, 0.9);
+      }
+      bx(0.80, 0.06, 0.80, oak, SX - 1.15, 0.40, SZ);              // the low table
+      for (const lx of [-0.3, 0.3]) for (const lz of [-0.3, 0.3]) {
+        bx(0.06, 0.38, 0.06, oakD, SX - 1.15 + lx, 0.19, SZ + lz);
+      }
+    }
+
+    // A SINGLE CHAIR FACING NOTHING, which is the loneliest object in the room
+    bx(0.62, 0.40, 0.62, plush, -hw + 1.1, 0.20, -2.0);
+    bx(0.62, 0.44, 0.20, plush, -hw + 1.1, 0.57, -2.25);
+    solid(-hw + 1.1, -2.0, 0.8, 0.8);
+
+    // A LUGGAGE CART WITH NOBODY'S BAGS ON IT
+    {
+      const LX = -hw + 1.4, LZ = hd - 8.0;
+      bx(0.72, 0.06, 1.20, brass2, LX, 0.30, LZ);
+      for (const p of [-0.5, 0.5]) bx(0.05, 1.55, 0.05, brass2, LX - 0.30, 0.78, LZ + p);
+      bx(0.05, 0.05, 1.20, brass2, LX - 0.30, 1.55, LZ);
+      for (const w of [[-0.28, -0.5], [0.28, -0.5], [-0.28, 0.5], [0.28, 0.5]] as [number, number][]) {
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.05, 8), oakD),
+          LX + w[0], 0.09, LZ + w[1]).rotation.z = Math.PI / 2;
+      }
+      solid(LX, LZ, 0.9, 1.4);
+    }
+
+    // A PAYPHONE ALCOVE on the west wall, and a leaflet rack beside it
+    {
+      const PZ2 = -5.4;
+      bx(0.30, 2.30, 1.30, oakD, -hw + 0.16, 1.15, PZ2);           // the alcove lining
+      bx(0.16, 0.62, 0.30, new THREE.MeshBasicMaterial({ color: 0x2a2a2e }), -hw + 0.38, 1.32, PZ2);
+      bx(0.10, 0.22, 0.08, brass2, -hw + 0.46, 1.05, PZ2 - 0.16);  // the handset
+      bx(0.34, 0.05, 0.42, oak, -hw + 0.44, 0.92, PZ2 + 0.42);     // the shelf
+      solid(-hw + 0.3, PZ2, 0.6, 1.4);
+
+      const RZ2 = -7.0;                                            // leaflets nobody has taken
+      bx(0.16, 1.05, 0.70, oak, -hw + 0.24, 0.86, RZ2);
+      for (let i = 0; i < 3; i++) for (const lz of [-0.2, 0.2]) {
+        bx(0.05, 0.22, 0.16, paper, -hw + 0.34, 0.55 + i * 0.30, RZ2 + lz);
+      }
+    }
+
+    // A CIGARETTE URN by the lift, and a rate card behind glass by the desk
+    {
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.20, 0.72, 10), brass2), hw - 0.7, 0.36, -2.6);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.05, 10),
+        new THREE.MeshBasicMaterial({ color: 0x8a8478 })), hw - 0.7, 0.74, -2.6);
+      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.66),
+        new THREE.MeshBasicMaterial({ color: 0xcfc7ae }));
+      card.rotation.y = Math.PI / 2;
+      put(card, -hw + 0.07, 1.55, hd - 6.4);
+      bx(0.05, 0.74, 0.58, brass2, -hw + 0.05, 1.55, hd - 6.4);
+    }
+
+    // A WALL CLOCK STOPPED AT THE WRONG TIME, and prints hung too high
+    {
+      const clockT = declareSurface(pixTex(24, 24, (g) => {
+        g.fillStyle = '#2a1c1e'; g.fillRect(0, 0, 24, 24);
+        g.fillStyle = '#d8d2c0'; g.fillRect(2, 2, 20, 20);
+        g.fillStyle = '#3a3026';
+        for (const [x, y] of [[11, 3], [11, 19], [3, 11], [19, 11]] as [number, number][]) g.fillRect(x, y, 2, 2);
+        g.fillRect(11, 7, 2, 5);                                   // hands at 4:50, stopped
+        g.fillRect(6, 11, 6, 2);
+      }), 'detail');
+      const cl = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46), ctx.flat(clockT));
+      cl.rotation.y = Math.PI / 2;
+      put(cl, -hw + 0.07, 2.55, -0.4);
+
+      const printT = declareSurface(pixTex(20, 26, (g) => {
+        g.fillStyle = '#6a5a3a'; g.fillRect(0, 0, 20, 26);
+        g.fillStyle = '#c9bfa4'; g.fillRect(2, 2, 16, 22);
+        g.fillStyle = '#8a9a8a'; g.fillRect(4, 12, 12, 10);        // a dull landscape
+        g.fillStyle = '#a8b0bc'; g.fillRect(4, 4, 12, 8);
+        dither(g, 20, 26, 26);
+      }), 'detail');
+      const pm = ctx.flat(printT);
+      for (const [pz, sx] of [[-6.2, 1], [-9.0, 1], [-4.0, -1]] as [number, number][]) {
+        const pr = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.64), pm);
+        pr.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+        put(pr, sx * (hw - 0.07), 2.62, pz);                       // deliberately too high
+      }
+    }
+  }
 
   // ── the reception desk ──
   //
