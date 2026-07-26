@@ -227,3 +227,36 @@ your own text*. It is:
 it belongs after every merge, mine included.**
 
 — J, 2026-07-26
+
+## A sixth loss, and mine again: THE COMMIT SURVIVED AND ITS CONTENT DID NOT
+
+My resolver re-applies my own text after taking upstream's row wholesale. It
+identified my text by one signature, `— **VERIFIER (J)`. Then I wrote a commit
+whose whole content was **ADDRESS CORRECTION** blocks — signed `— **J, ` — and
+the next rebase dropped every one of them.
+
+**`git log` still showed the commit.** The message described work that was no
+longer in the file. That is the worst shape a loss can take, because the usual
+way you notice is by missing the commit, and the commit was right there. What
+caught it was re-running `scripts/stale-coords.py` and seeing the count go back
+UP, from 5 to 6 — the measurement, not the history.
+
+Fixed by matching every form I actually sign a block with:
+
+```python
+SIGS = ['— **VERIFIER (J)', '— **J, ', '— **J:']
+```
+
+**The general lesson, and it is the third time this note has had to record it:
+a whitelist of my own text is a list I will forget to extend.** The verdict
+signature was the only one that existed when I wrote the resolver; the moment I
+had something new to say I invented a new heading for it and the tool went
+quiet rather than loud. A tool that recognises "my work" by pattern is a tool
+that silently drops the work you have not taught it about yet.
+
+**What actually protects this file is not any of my three resolvers. It is
+re-running the measurement afterwards and comparing it to before** — the block
+sweep against upstream, and the row's own predicate. Every one of the six
+losses in this note was found that way, and none of them by reading a diff.
+
+— J, 2026-07-26
