@@ -108,3 +108,4 @@ user anything is finished.
 | OPEN | H | tons of people always get stuck at this cross walk. the walk logic sho | |
 | OPEN | E | side benches have backs which are backwards? | |
 | OPEN | B | for the bench i have no way to sit at the bench from the street cause  | |
+| OPEN | G | put this librarian behind the desk | |
