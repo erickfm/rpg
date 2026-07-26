@@ -1114,6 +1114,11 @@ function buildLot(o: {
       // street, so that face belongs WEST of the mast and its twin east.
       face.position.set(px + (ry < 0 ? -0.19 : 0.19), signY, pz);
       face.rotation.y = ry;
+      // NAME IT. H built a sign-finder by geometric signature and it returned a
+      // 26 x 17 m BUILDING FACADE, stood 78 m back, and produced frames of
+      // brick — never the panel. A 6 x 4.5 m lit rectangle is not a rare enough
+      // shape to find by guessing at one.
+      face.name = ry < 0 ? 'lot-pole-sign-street' : 'lot-pole-sign-lot';
       scene.add(face);
       // the tubes, 1 cm proud of the face on its own side so it never z-fights
       const lit = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), signGlowM);
@@ -1122,6 +1127,59 @@ function buildLot(o: {
       scene.add(lit);
     }
     o.onFrame?.((f) => { signGlowM.opacity = 0.62 * f.night; });
+
+    /* ── THE POLE SIGN, PUBLISHED ─────────────────────────────────────────
+     * H's sign-finder returned a building facade and stood 78 m back from it.
+     * That is not H's fault: nothing in the scene said which rectangle was the
+     * sign, so it had to be guessed at by size, and a 6 x 4.5 m panel is not a
+     * distinctive shape in a city.
+     *
+     * Same move `ct/bodega-corner.ts` makes with its bay, and the same reason
+     * (GOTCHAS §20, *"aim from the source, not from memory"*): a verifier that
+     * reads this cannot drift from the object, and if the sign moves the
+     * station moves with it.
+     *
+     * The file's own warning two screens up is that UNREAD published state is
+     * worse than none. This has a reader — H's verifier — and that is why it
+     * is here and why `LOT.bounds` was deleted.
+     *
+     * `station` is the whole point: a world point, a yaw and a pitch that put
+     * the street face of the panel in frame. Derived from the panel's own
+     * geometry, not typed. It stands back along the face's own outward normal
+     * far enough for a 4.5 m panel to frame in a ~50 deg vertical FOV with
+     * margin, which also lands it about where the far kerb is — the distance
+     * the artwork was sized for.
+     */
+    {
+      const half = SIGN_H * 1.35 / (2 * Math.tan((50 * Math.PI / 180) / 2));
+      const eye = Y + 1.74;
+      const stationX = px - 0.19 - half;              // back along the street normal (−x)
+      scene.userData.lotSign = {
+        /** the cabinet's centre, between its two faces */
+        centre: { x: px, y: signY, z: pz },
+        size: { w: SIGN_W, h: SIGN_H },
+        /** the two single-sided faces. `normal` is the direction each one LOOKS. */
+        faces: [
+          { name: 'lot-pole-sign-street', centre: { x: px - 0.19, y: signY, z: pz },
+            normal: { x: -1, y: 0, z: 0 } },
+          { name: 'lot-pole-sign-lot', centre: { x: px + 0.19, y: signY, z: pz },
+            normal: { x: 1, y: 0, z: 0 } },
+        ],
+        /** stand here, look this way, and the street face fills the frame */
+        station: { x: +stationX.toFixed(2), z: +pz.toFixed(2),
+          yaw: Math.PI / 2, pitch: +Math.atan2(signY - eye, half).toFixed(3) },
+        /** THE STATION THE TWO SIGN ROWS ARE ACTUALLY ABOUT. Both say the panel
+         *  must be legible FROM THE FAR KERB, and that is a different question
+         *  from "does it frame" — it is the distance the type was sized for.
+         *  14 m back along the same normal: the far walk is about there, and the
+         *  sizing note above works to "the far kerb is ~18 m and wants 0.15 m of
+         *  letter", which `CROSSTOWN` at 0.51 m clears by better than 3x. */
+        readStation: { x: +(px - 0.19 - 14).toFixed(2), z: +pz.toFixed(2),
+          yaw: Math.PI / 2, pitch: +Math.atan2(signY - eye, 14).toFixed(3) },
+        /** the sign is a LIGHTBOX after dark — this is on `f.night`, not always */
+        lit: true,
+      };
+    }
     // ── the arrow: it stays, because it does point at the entrance ──────────
     //
     // The user: *"the arrow can stay if it points at the entrance; if it points
@@ -1650,6 +1708,33 @@ function buildLot(o: {
      * Derived from the car's own z rather than applied as a constant to one
      * row, so a row added later cannot come out backwards: whatever side of
      * the aisle it is given, its heading follows.
+     */
+    /* ── THE FACING CONVENTION, WRITTEN DOWN ──────────────────────────────
+     * Published because H asked for it in one sentence and was right that it
+     * is NOT DERIVABLE FROM A TRANSFORM: a matrix tells you where a car points,
+     * never which row a person calls "the left row". Guessing it is how this
+     * fault came back twice.
+     *
+     *   THE LEFT ROW IS THE SOUTH ROW, AT LOW z (z = SOUTH_Z, −3.4).
+     *   EVERY CAR IN BOTH ROWS FACES NOSE-OUT TOWARD THE AISLE,
+     *   AND BOTH ROWS RAKE THE SAME WAY — NOSES ANGLED TOWARD THE STREET (−x).
+     *
+     * Why left = south, derived rather than asserted: you enter the lot driving
+     * +x. `fp.ts` has `fwd = (sin yaw, −cos yaw)` and `right = (cos yaw,
+     * sin yaw)`, so a player facing +x has `right = (0, +1)` — their right hand
+     * points to +z, north. Left is therefore −z, south.
+     *
+     * Measured in the world at this commit, and these are the numbers to quote
+     * (an earlier set is stale — the variants moved, and the pass that moved
+     * them did not republish):
+     *
+     *   LEFT  (south, z −3.4)  6 cars  nose (−0.52, +0.85); corner (−0.91, +0.41)
+     *   RIGHT (north, z  8.6)  5 cars  nose (−0.52, −0.85); corner (−0.91, −0.41)
+     *
+     * Read it as: the z component points TOWARD the aisle centreline (z 2.60)
+     * from whichever side the car stands on, and the x component is negative on
+     * both sides, which is the shared rake toward the gate. `scripts/I-rows.mjs`
+     * asserts exactly that and its --selftest turns the south row around.
      */
     const mirrorYaw = (yaw: number) => Math.PI - yaw;
     /** the heading for a bay, from which side of the aisle it stands on */
