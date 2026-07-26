@@ -127,7 +127,17 @@ def main():
             out.append(line)
         i = end + 1
 
-    open(LEDGER, 'w', encoding='utf-8').write('\n'.join(out))
+    text = '\n'.join(out)
+    # NEVER hand back a file that still has markers in it. My rebase loop ran
+    # `git add -A` unconditionally, so on a turn where this script was not yet
+    # on disk it staged the markers and committed them - two marker lines, three
+    # duplicated rows and two shrunk cells reached the base. Refusing here means
+    # the caller's `git add` has nothing to stage.
+    left = sum(1 for l in out if l.startswith(('<<<<<<<', '=======', '>>>>>>>')))
+    if left:
+        print(f'REFUSING TO WRITE — {left} marker line(s) would remain. Nothing changed.')
+        return 1
+    open(LEDGER, 'w', encoding='utf-8').write(text)
     print(f'resolved {hunks} hunk(s) from {REF}; re-appended {kept} of my segment(s)')
     print('now run:  npm run ledger')
     return 0
