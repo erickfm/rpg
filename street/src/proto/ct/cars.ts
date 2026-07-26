@@ -1126,7 +1126,14 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // 0.10 m of lift across a 1.64 m track and a wheelbase of spec.wheelZ*2.
     body.rotation.z = -sx * 0.061;
     body.rotation.x = sz * (0.10 / (spec.wheelZ * 2));
-    body.position.y = 0.03;
+    // The lift must leave the two GROUNDED wheels touching down exactly as the
+    // rest of the fleet does. That reference is not the deck: every road wheel
+    // in the world floors 0.017 m above the ground under it (80 of 88 on the
+    // block, one figure, no spread), so 0.017 IS contact here and measuring
+    // against the deck reports a sound car as floating.
+    // At 0.03 the grounded pair measured 0.025 — 8 mm proud of the fleet — so
+    // the lift carries that much more than the tilt takes back.
+    body.position.y = 0.022;
     g.add(body);
 
     const jm = new THREE.MeshBasicMaterial({ color: 0x24262a });
