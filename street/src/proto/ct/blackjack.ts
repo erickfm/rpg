@@ -1166,6 +1166,11 @@ export function register(ctx: CtxBuild): void {
   const table = createTable();
   let panel: Panel | null = null;
   let lastT = -1;
+  // The same dismissal guard `ct/slots.ts` carries, and the same note applies:
+  // since C's seat-exit fix (`e090a74fa`, `f110b7f5a`) leaving the panel leaves
+  // the seat as well, so this is currently unreachable. Kept for the reason
+  // given there — its unreachability is a fact about K's and C's files, not
+  // about this one.
   let dismissed: object | null = null;
   /** What a chip is worth. NOT a second number — read from `ct/slots.ts`, which
    *  is where the one rate lives, so the casino cannot quietly have two

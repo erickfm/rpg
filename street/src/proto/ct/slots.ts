@@ -1286,6 +1286,25 @@ export function register(ctx: CtxBuild): void {
    * So a dismissal is remembered against the stool it was made at. Stand up, or
    * move to a different machine, and it offers itself again. Same stool, same
    * sitting: it stays shut and you get the ordinary "stand up" prompt back.
+   *
+   * AND AS OF C's SEAT-EXIT FIX THIS IS UNREACHABLE — kept anyway, deliberately.
+   *
+   * `e090a74fa` and `f110b7f5a` made standing up a state exit that fires at the
+   * lowest level, and a side effect is that leaving the panel leaves the STOOL
+   * too. Measured both ways rather than assumed: pressing ESC, and calling
+   * `__hud.closePanels()` directly, each end with `seated=false, panel=null`.
+   * There is no longer any path that closes this cabinet while the player is
+   * still on the stool, so `dismissed` is always null and the guard never fires.
+   *
+   * It stays because its unreachability lives in OTHER PEOPLE'S files — K's
+   * panel close and C's seat exit — and quietly depending on another module's
+   * current behaviour for your own correctness is the thing this project keeps
+   * being bitten by. Four lines that cost nothing are a better trade than
+   * re-deriving this the day one of those two changes.
+   *
+   * What PINS it is not this code: `scripts/L-slots-inworld.mjs` asserts that
+   * ESC leaves both the machine and the seat. If that stops being true the
+   * verdict goes red, which is the honest place for the claim to live.
    */
   let dismissed: object | null = null;
 
