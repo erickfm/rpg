@@ -1075,6 +1075,36 @@ function buildLot(o: {
     // ry = +pi/2 already mirrors it; flipping the texture as well applies the
     // mirror twice and un-does it. That is the exact clause GOTCHAS 35 was
     // written about, and I had it in the banners two rounds ago.
+    /**
+     * A POLE SIGN IS A LIGHTBOX, and this one went dark at nightfall.
+     *
+     * Standing across the street at 21:30 — `shots/I-wn-02-pavement-at.png`,
+     * the view that is the lot's whole advertisement — CROSSTOWN AUTO read as a
+     * murky rectangle on a pole. Every other thing about it is right and stays;
+     * what was missing is that a pole sign is an internally illuminated
+     * CABINET. Tubes behind a translucent face is the entire reason the object
+     * exists, and a lot switches it on before it switches on anything else.
+     *
+     * This does not undo the `printed` flag and does not contradict the desk's
+     * ruling to apply it here. The two say different things and both are true:
+     *
+     *   printed        the INK is not a light — do not hold the artwork at
+     *                  full daylight brightness after dark
+     *   this glow      the CABINET is lit from within — add light back, as a
+     *                  light, declared, and only after dark
+     *
+     * The artwork is untouched, which matters because the palette and the
+     * legibility trade are approved in the user's own words. The glow uses the
+     * sign's OWN texture as its map, so the cream field lights up and the deep
+     * red border stays dark — which is exactly how a backlit cabinet behaves,
+     * and it costs no second painting to get.
+     */
+    const signGlowM = new THREE.MeshBasicMaterial({
+      map: signT, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    signGlowM.userData.cLight = true;
+    signGlowM.userData.selfLit = true; signGlowM.userData.graded = true;
     for (const ry of [-Math.PI / 2, Math.PI / 2]) {
       const face = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), printed(flat(signT)));
       // CLEAR OF THE MAST, on each face's own side. At +-0.03 the faces sat
@@ -1085,7 +1115,13 @@ function buildLot(o: {
       face.position.set(px + (ry < 0 ? -0.19 : 0.19), signY, pz);
       face.rotation.y = ry;
       scene.add(face);
+      // the tubes, 1 cm proud of the face on its own side so it never z-fights
+      const lit = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), signGlowM);
+      lit.position.set(px + (ry < 0 ? -0.20 : 0.20), signY, pz);
+      lit.rotation.y = ry;
+      scene.add(lit);
     }
+    o.onFrame?.((f) => { signGlowM.opacity = 0.62 * f.night; });
     // ── the arrow: it stays, because it does point at the entrance ──────────
     //
     // The user: *"the arrow can stay if it points at the entrance; if it points
