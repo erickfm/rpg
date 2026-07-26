@@ -727,7 +727,18 @@ published to the playable artifact.
   light by looking at the sheet — bright *and* chromatic — and my enamel cream
   cleared that test by two points, so the plate was graded a light source and
   stayed the brightest thing on a night street. Night luminance 152 → 55.
-- **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**  <!-- B: NOT MINE. Routed to B here, but the ledger row for this is CONFIRMED and owned by E. Left unmarked deliberately rather than claimed — one of us has the wrong owner and it is worth the desk deciding which. -->
+- **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B** ✅ built
+
+  <!-- B: I FLAGGED THIS AS A ROUTING MISMATCH AND I WAS WRONG. It IS mine.
+       There are THREE shadow-geometry rows: "explain the shadow geometry on
+       the forecourt" (B, CONFIRMED by the auditor — the library forecourt
+       patches) and two of E's about the park desire lines. E has its own two
+       inbox lines at 403 and 675; this one is the third and it is the
+       forecourt.
+       My fuzzy matcher paired this line with E's row because the WORDING is
+       closer, and I published the mismatch without reading the alternatives.
+       Third time in three rounds that matcher has misled me — the other two I
+       caught before filing. This one I did not. -->
 - **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
 - **"especially more of this kind of thing in the park"** → **E**
 - **"big fan of these grass textures put em in more places and especially more of this kind of thing in the park"** → **C**
