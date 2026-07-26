@@ -57,3 +57,38 @@ https://erickfm.github.io/rpg/ auto-deploys on push and is current, so the
 artifact's remaining value is being a single file you can hand to someone who
 will not clone a repo. Worth the desk deciding whether that still earns the
 step.
+
+
+---
+
+## Re-packed at mainline `69b5db064` (the earlier one had gone stale)
+
+The merge train landed a great deal after I packed `953d17c08`, so the artifact
+was behind again. Re-built and re-packed:
+
+```
+packed dist/artifact.html — 1 091 962 bytes, build 69b5db064
+```
+
+**Verified standalone from `file://` with no server**, same as before:
+
+```
+286 spots · 7821 meshes · spawn (198.6, -16.3) floor 5.4
+prompt live: [E] sit on the bed and watch TV
+#ct-atm present · #ct-fade present
+page errors: 0
+```
+
+**One number moved a long way and I checked it rather than shipping it.** Spots
+went **511 → 286** between the two packings — a 44% drop, which is exactly the
+shape of something lost in packing. It is not: the dev world on 4188 reports
+**286** as well, so the artifact is faithful to the world and the change is real
+upstream consolidation. (`ok` spots are 53 of 286; the rest are the seats and
+package spots that gate on time and place.)
+
+`#ct-atm` and `#ct-fade` are both present in the bundle, so K's ATM interface and
+the screen fade are packed in — an artifact cut before those would have shipped
+a bank you cannot use.
+
+> **DESK — still yours to publish.** `street/dist/artifact.html`, on disk and
+> gitignored. My queue says hand it back rather than publish it myself.
