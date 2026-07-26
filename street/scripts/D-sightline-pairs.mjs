@@ -107,8 +107,34 @@ const pairs = await page.evaluate((RADII) => {
     return true;
   };
   const out = [];
+  // ONLY SPOTS WITH A UNIQUE LABEL, and this is fault 5.
+  //
+  // The HUD gives a label and nothing else, so the label is the only handle a
+  // prompt read has on WHICH spot won. "sit at the slot" is not unique — the
+  // casino has a row of them — so at a station where the tested seat is
+  // correctly refused for being behind a citizen, the NEXT slot along, plainly
+  // visible, wins and prints the identical string. I scored that as the tested
+  // spot leaking. It is H's own fault a third time ("the prompt I read is
+  // whatever is nearest to where I STOOD, not the spot I meant to test"),
+  // reached by a different road: not proximity this time, but a name that two
+  // objects share.
+  //
+  // Verified rather than assumed: the blocker in both reports was a
+  // `PlaneGeometry 0.95x1.90` citizen with `side=2` (DoubleSide), which THREE
+  // does hit — so `canSee` was right to refuse it and the world was never
+  // wrong.
+  // A globally-unique label is too strong a demand — it left 2 candidates and
+  // scored none. What actually has to hold is that no spot SHARING THIS LABEL
+  // is close enough to win the prompt instead, and `pickSpot` is called with a
+  // reach of 6, so 8 m is a comfortable margin on the only thing that matters.
+  // Excluding every spot with a twin was too blunt — it left 2 candidates and
+  // scored none. Twins are allowed back in; the ambiguity is resolved LATER,
+  // at the moment of judging, by asking whether a twin could actually have
+  // produced the prompt from that station (see `twinCouldWin` below). A spot
+  // is only unusable when a same-labelled one is both in reach and visible.
+  const ALL = window.__ct.spots();
   // NOT filtered on ok() here — see note 3 at the top of this file.
-  for (const sp of window.__ct.spots()) {
+  for (const sp of ALL) {
     const gy = groundAt(sp.x, sp.z);
     const aim = [sp.x, gy + 1.1, sp.z];
     const clear = [], blocked = [];
@@ -118,7 +144,7 @@ const pairs = await page.evaluate((RADII) => {
         const th = (i / 36) * Math.PI * 2;
         const x = sp.x + Math.sin(th) * R, z = sp.z + Math.cos(th) * R;
         if (!standable(x, z, gy)) continue;
-        const { t } = window.__dSee([x, 1.6, z], aim);
+        const { t } = window.__dSee([x, gy + 1.6, z], aim);
         // margins, so a pair is never built on a grazing hit or a near miss
         if (t < 0) clear.push({ x: +x.toFixed(3), z: +z.toFixed(3), R });
         else if (t > 0.25) blocked.push({ x: +x.toFixed(3), z: +z.toFixed(3), t: +t.toFixed(2), R });
@@ -139,14 +165,22 @@ const at = async (st, sp) => {
   const yaw = Math.atan2(sp.x - st.x, -(sp.z - st.z));
   await page.evaluate(([x, z, y, gy]) => window.__ct.warp(x, z, y, gy, 0), [st.x, st.z, yaw, sp.gy]);
   await page.waitForTimeout(260);
-  const now = await page.evaluate(([sx, sz, gy]) => {
+  // READ THE PLAYER'S LIVE STOREY, not the one discovery recorded.
+  //
+  // `groundAt` is itself storey-dependent (GOTCHAS §7 — the floor picker has
+  // hysteresis and answers for the storey you are ON), so a gy captured during
+  // discovery, while the player stood somewhere else entirely, is not the gy
+  // the game will use here. `pos()[3]` IS `apt.gy()`, which is exactly what
+  // crosstown.ts's eye now reads, so this asks the same question from the same
+  // height instead of from a remembered one.
+  const now = await page.evaluate(([sx, sz]) => {
     const p = window.__ct.pos();
-    return window.__dSee([p[0], 1.6, p[2]], [sx, gy + 1.1, sz]);
-  }, [sp.x, sp.z, sp.gy]);
+    return window.__dSee([p[0], p[3] + 1.6, p[2]], [sx, window.__ct.groundAt(sx, sz) + 1.1, sz]);
+  }, [sp.x, sp.z]);
   return { see: await prompt(), t: now.t, who: now.who };
 };
 
-let pass = 0, fail = 0, invalid = 0, skipped = 0, moved = 0;
+let pass = 0, fail = 0, invalid = 0, skipped = 0, moved = 0, ambiguous = 0;
 for (const sp of pairs.slice(0, CAP)) {
   const want = `[E] ${sp.label}`;
   // the control: a station with a genuinely clear line that offers this spot.
@@ -175,6 +209,26 @@ for (const sp of pairs.slice(0, CAP)) {
     if (r.t < 0) continue;                        // the blocker moved away — not evidence
     judged = true;
     if (r.see === want) {
+      // COULD A TWIN HAVE SAID THAT? The HUD gives a label and nothing else, so
+      // before calling this a leak, rule out a same-labelled spot that is in
+      // reach AND visible from here — it would print the identical string while
+      // being correctly selected.
+      const twin = await page.evaluate(([lbl, sx, sz]) => {
+        const p = window.__ct.pos();
+        for (const o of window.__ct.spots()) {
+          if (o.label !== lbl || (o.x === sx && o.z === sz)) continue;
+          if (Math.hypot(o.x - p[0], o.z - p[2]) > 6) continue;
+          if (window.__dSee([p[0], p[3] + 1.6, p[2]], [o.x, window.__ct.groundAt(o.x, o.z) + 1.1, o.z]).t < 0) {
+            return { x: o.x, z: o.z };
+          }
+        }
+        return null;
+      }, [sp.label, sp.x, sp.z]);
+      if (twin) {
+        ambiguous++;
+        console.log(`  ambig    ${sp.label}  —  a twin at (${twin.x.toFixed(1)}, ${twin.z.toFixed(1)}) is in reach and visible; the label cannot tell them apart`);
+        break;
+      }
       fail++;
       console.log(`  LEAK     ${sp.label}`);
       console.log(`           offered through a blocker ${r.t.toFixed(2)} m away, from (${st.x}, ${st.z})`);
@@ -190,7 +244,7 @@ for (const sp of pairs.slice(0, CAP)) {
 await b.close();
 
 const tested = pass + fail + invalid;
-console.log(`\n  ${pass} pairs hold, ${fail} leak, ${invalid} invalid, ${skipped} not-live, ${moved} moved — ${tested} scored`);
+console.log(`\n  ${pass} pairs hold, ${fail} leak, ${invalid} invalid, ${skipped} not-live, ${moved} moved, ${ambiguous} ambiguous — ${tested} scored`);
 if (tested < MIN_PAIRS) {
   console.log(`\n  FAIL: only ${tested} pairs scored, wanted ${MIN_PAIRS}. A run that finds`);
   console.log('  nothing to test must not report success (GOTCHAS §34).');

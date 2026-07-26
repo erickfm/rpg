@@ -900,7 +900,25 @@ export function makeCrosstown(): Proto {
       // held watch and wrist are DOM rather than scene, so they never can.
       // everything re-arms once you have stepped away from where you arrived
       if (landing && Math.hypot(px - landing.x, pz - landing.z) > 1.2) landing = null;
-      const eye = new THREE.Vector3(px, 1.6, pz);
+      // THE EYE IS ON WHATEVER STOREY THE PLAYER IS, and this line was 1.6
+      // flat, which killed every `[E]` above the ground floor.
+      //
+      // The aim has always been storey-aware — `groundPick(s.x, s.z) + 1.1` —
+      // so at room 301's door the ray was cast from 1.6 m, INSIDE THE GROUND
+      // FLOOR, up to 6.5 m at the spot, through the slabs at 2.7 and 5.4 on the
+      // way. `canSee` returned false and the prompt simply never appeared:
+      // nothing threw and nothing logged. You could not open your own apartment
+      // door in the live world. Found by C (notes/C-los-storey.md), whose 301
+      // item it was blocking, with the patch already tested.
+      //
+      // It survived because 425 of 431 interior spots sit at gy 0, where 1.6 is
+      // correct — and because MY OWN CHECKS COULD NOT SEE IT. Their occlusion
+      // oracle copied this constant from this line, so it agreed with the bug
+      // and skipped every upper-floor spot as "no clear line" instead of
+      // failing. An oracle that shares the implementation's assumptions is not
+      // independent about those assumptions; it is only independent about the
+      // code path. lib/D-see.mjs now takes the eye height from the caller.
+      const eye = new THREE.Vector3(px, apt.gy() + 1.6, pz);
       const aim = new THREE.Vector3();
       const seeRay = new THREE.Raycaster();
       const canSee = (s: Spot) => {

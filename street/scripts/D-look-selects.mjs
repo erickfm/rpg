@@ -89,7 +89,7 @@ const cands = await page.evaluate(([ISOLATION, REACH_MARGIN]) => {
       const th = (i / 72) * Math.PI * 2;
       const st = [3, 5, 8].map((d) => ({ d, x: sp.x + Math.sin(th) * d, z: sp.z + Math.cos(th) * d }));
       if (!st.every((s) => standable(s.x, s.z, gy))) continue;
-      if (!st.every((s) => window.__dSee([s.x, 1.6, s.z], aim).t < 0)) continue;
+      if (!st.every((s) => window.__dSee([s.x, gy + 1.6, s.z], aim).t < 0)) continue;
       out.push({ label: sp.label, x: sp.x, z: sp.z, r: sp.r, gy: +gy.toFixed(3),
                  stations: st.map((s) => ({ d: s.d, x: +s.x.toFixed(3), z: +s.z.toFixed(3) })) });
       break;
@@ -131,10 +131,14 @@ const at = async (st, sp, turn) => {
   await page.waitForTimeout(260);
   const out = [];
   for (let i = 0; i < 4; i++) {
-    const clear = await page.evaluate(([sx, sz, gy]) => {
+    // the player's LIVE storey. `groundAt` is storey-dependent (GOTCHAS §7), so
+    // a gy captured at discovery — while the player stood somewhere else — is
+    // not the gy the game uses here. `pos()[3]` IS `apt.gy()`, which is what
+    // crosstown.ts's eye reads.
+    const clear = await page.evaluate(([sx, sz]) => {
       const p = window.__ct.pos();
-      return window.__dSee([p[0], 1.6, p[2]], [sx, gy + 1.1, sz]).t < 0;
-    }, [sp.x, sp.z, sp.gy]);
+      return window.__dSee([p[0], p[3] + 1.6, p[2]], [sx, window.__ct.groundAt(sx, sz) + 1.1, sz]).t < 0;
+    }, [sp.x, sp.z]);
     out.push({ see: await prompt(), clear });
     if (i < 3) await page.waitForTimeout(200);
   }

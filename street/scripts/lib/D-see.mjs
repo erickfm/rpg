@@ -7,8 +7,19 @@
 // a near-degenerate pair and put a whole corridor in doubt. One implementation,
 // no drift.
 //
+// EYE HEIGHT IS THE CALLER'S, and that is a scar. This oracle used to hardcode
+// `1.6` because crosstown.ts's `canSee` did, and it was WRONG IN BOTH PLACES:
+// the aim is storey-aware (`groundPick + 1.1`) while the eye was not, so above
+// the ground floor the ray was cast from inside the ground floor and every
+// `[E]` upstairs was dead. C found it; my own checks could not, because they
+// had copied the constant from the code under test and therefore agreed with
+// it — they skipped every upper-floor spot as "no clear line" rather than
+// failing. **An oracle that shares the implementation's assumptions is
+// independent only about the code path, not about the assumptions.** So the
+// eye is a parameter now and callers pass `gy + 1.6`.
+//
 // It answers the question crosstown.ts's `canSee` answers, with the same three
-// numbers — eye at 1.6, aim 1.1 m above the spot's own ground, stopping 0.35 m
+// numbers — eye at the player's own storey plus 1.6, aim 1.1 m above the spot's own ground, stopping 0.35 m
 // short so the thing itself is not its own blocker — because those numbers ARE
 // the invariant as landed, and an oracle using different ones would report
 // disagreements that are only conventions. What it does NOT share is the code

@@ -132,7 +132,7 @@ const small = await page.evaluate(() => {
       const d = 3.5;
       const x = sp.x + Math.sin(th) * d, z = sp.z + Math.cos(th) * d;
       if (!standable(x, z, gy)) continue;
-      if (window.__dSee([x, 1.6, z], aim).t >= 0) continue;
+      if (window.__dSee([x, gy + 1.6, z], aim).t >= 0) continue;
       out.push({ label: sp.label, r: sp.r, sx: +sp.x.toFixed(2), sz: +sp.z.toFixed(2),
                  gy: +gy.toFixed(2), x: +x.toFixed(2), z: +z.toFixed(2),
                  yaw: +Math.atan2(sp.x - x, -(sp.z - z)).toFixed(3) });
