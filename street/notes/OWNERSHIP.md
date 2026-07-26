@@ -31,6 +31,7 @@ src/proto/ct/int-thrift.ts  = F
 src/proto/ct/int-bodega.ts  = F   # rebuilt on the kit; replaced the old bodega.ts
 src/proto/ct/int-casino.ts  = G
 src/proto/ct/int-hotel.ts   = G
+src/proto/ct/int-library.ts = J   # split off G 2026-07-25 — three library messages in five minutes
 src/proto/ct/int-pawn.ts    = G
 src/proto/ct/int-tax.ts     = G
 ```
@@ -61,6 +62,8 @@ src/proto/ct/crowd-net.ts   = H    # already calls it "mine" in its own blocker
 src/proto/ct/traffic.ts     = H
 src/proto/ct/sidestreet.ts  = H
 src/proto/ct/hud.ts         = D    # screen-space: the watch, the wrist, the wallet
+src/proto/ct/bank.ts        = A    # assigned 2026-07-25 — split out of street.ts, unowned until now;
+                                   # A owns the facade painters and just landed the pawn shop exterior
 ```
 
 The auditor deliberately left these blank rather than guess, and was right to:
