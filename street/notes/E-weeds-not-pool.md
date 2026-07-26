@@ -1,52 +1,62 @@
-# The weed tufts do not glow because of lamp pools — I was wrong
+# The weed tufts at night — I have now been wrong twice, and this is the measurement
 
-For **C** (`ct/weeds.ts`) and **B**, who built on my earlier note. This
-withdraws that note's diagnosis.
+For **C** (`ct/weeds.ts`) and **B**. This supersedes both my earlier note and my
+retraction of it. Read only this one.
 
-## What I said, and why it was believable
+## What I claimed, twice, and what each was worth
 
-I reported the park's night tufts at 13–22× their ground and attributed it to
-`POOL_GAIN 12` in `ct/props.ts` — the same mechanism I had just measured on the
-shelter roof. B accepted it and wrote a follow-up that treats the tufts as part
-of `glow.mjs`'s near-lamp median.
+1. **"They are saturated by `POOL_GAIN 12`."** Believable, and I only ever
+   sampled tufts standing in lamp pools, because that is where I put them.
+2. **"No — the material is never dimmed at all; they sit at 11× their ground
+   everywhere."** I measured 0.503 at 22:30 and read `graded: false`.
 
-It was believable because I only ever measured tufts that were **near lamps**.
-The park's tufts line the path edges and ring the verticals, and that is where
-the lanterns are, so every sample I took was inside a pool. **A hypothesis that
-only ever meets confirming cases is not tested.**
+**Both readings were faulty, in different ways.**
 
-## The measurement that separates the two
+- `graded` is stamped by `dimWorld` on the **MATERIAL** (`props.ts:386`). I
+  read it off the **MESH**, where it is never set. That `false` meant nothing.
+- The `0.503` was a **transient**. Jumping straight to 22:30 from page load
+  samples the grade mid-convergence. Sampling noon first, then night, the same
+  material settles at **0.1053**.
 
-At 22:30, every tuft in the park, split by distance to the nearest lamp column:
+## The settled numbers
 
-| | tufts | mean material luminance |
-|---|---|---|
-| within 3 m of a lamp | 200 | **0.508** |
-| 7.3 m from any lamp | 510 | **0.503** |
-| the ground beneath them | — | **0.045** |
+| | noon | 22:30 | `graded` on the material |
+|---|---|---|---|
+| tuft | 1.0000 | **0.1053** | true |
+| the ground it stands on | 1.0000 | **0.0450** | true |
 
-**0.508 against 0.503.** Distance to a lamp changes nothing. If lamp pools were
-lifting these, the near set would be far brighter than the far set and it is
-not. They sit at roughly **11× their ground everywhere**, lit or unlit.
+So the tufts **are** graded and **are** dimmed. They finish at **2.34× their
+ground**, not 11×. Still the brightest thing in the park after dark, and still
+worth fixing — but a quarter of the problem I reported.
 
-That is the signature of a material that is **never dimmed at all**, not one
-that is dimmed and then over-brightened by a pool. 0.503 at 22:30 is
-daylight tone.
+## And my near-vs-far test was VOID, not evidence
 
-## What this changes for the fix
+I compared 200 tufts within 3 m of a lamp (0.508) against 510 at 7.3 m (0.503)
+and concluded that lamp pools were exonerated because distance changed nothing.
 
-- **The fix is in `weeds.ts` and it is C's**, which is where B's follow-up put
-  it anyway — so the destination was right even though my reasoning was wrong.
-- **But `POOL_GAIN` is exonerated.** Anyone tuning it to chase this will move
-  every lamp in the world and the tufts will not shift.
-- B's *"one thing to check AFTER you fix it"* still stands: `glow.mjs`'s
-  main-street ratio will move when the tuft tone drops, and that is expected.
+**`weeds.ts` caches ONE material per tone for the whole world.** Near and far
+tufts are the same material object. They cannot differ, whatever the lighting
+does. I was comparing a thing with itself and reporting the equality as a
+finding.
 
-## Why it matters beyond the tufts
+That equality is not evidence against B's mechanism — **it is B's mechanism.**
+B's own note says the pool term is computed once and applied to all 439
+instances precisely because the material is shared. A tuft in the dark getting
+a lamp's boost is the predicted symptom, and I mistook it for a refutation.
 
-This is the worst thing in my park after dark — 710 tufts at 11× their ground,
-and the user has been shown the park at night. It is also the second time today
-that a number of mine was measured off the wrong thing: the mowing scan that
-crossed a bench, and now a glow diagnosis sampled only where it could not fail.
+## Where this leaves the fix
 
-_Builder E, 2026-07-25 20:10._
+**Unchanged, and B was right.** `ct/weeds.ts`, C's file, one line. `POOL_GAIN`
+is NOT exonerated — I withdraw that. Nothing here should be tuned in
+`props.ts`.
+
+## The lesson I keep re-learning today
+
+Three times now a number of mine was measured off the wrong thing: a mowing
+scan that crossed a bench, a brightness rank read off `material.color` when the
+tone lives in the map, and this. **The failure mode is always the same — the
+measurement is plausible, and nobody checks what it is actually a measurement
+OF.** A shared material cannot answer a per-position question, and I should
+have known that before running it, because B's note says so in the file.
+
+_Builder E, 2026-07-25 20:25._
