@@ -20,6 +20,46 @@ await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
 await page.evaluate(() => window.__ct.clock(13, 20));
 
+// A WARM-UP, ONCE, BEFORE THE FIRST SHOT.
+//
+// `__ct` existing means the world has been BUILT, not that it has been DRAWN.
+// The first frames after load are compiling shaders and uploading ~950
+// textures, and a screenshot taken inside that window comes back BLACK with a
+// perfectly correct HUD painted over it — which is exactly what fooled me into
+// hunting a regression in ct/civic.ts. Measured here: black at 0.3 s from load,
+// correct at 3 s, from the identical warp. Per-shot settling does not help,
+// because the cost is paid once and it is paid at the beginning.
+await page.waitForTimeout(3000);
+
+// WAIT FOR THE THING TO STOP MOVING, NOT FOR MILLISECONDS — GOTCHAS §30.
+//
+// This shot the library forecourt BLACK three runs in a row on a busy machine
+// and I spent a round looking for a regression in somebody else's file before
+// measuring what was actually happening. A warp sets x and z and asks for a
+// ground height; the FLOOR PICKER then walks the camera to it over frames, and
+// on the library's flight that is a 0.85 m climb:
+//
+//   warp(-6, -13, …, gy 0.14)   after 300 ms   gy 0.14   picture BLACK
+//                               after 3000 ms  gy 0.99   picture correct
+//
+// So the camera was still under the forecourt when the shutter went. Sleeping
+// longer would have "fixed" it on this machine and lost it again on a busier
+// one, which is the whole of §30. Poll gy until it stops changing instead —
+// and START by waiting for it to move, or a warp that needs no climb is
+// satisfied instantly by the value it began with.
+const settle = async (capMs = 6000) => {
+  const t0 = Date.now();
+  let last = null, still = 0;
+  while (Date.now() - t0 < capMs) {
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r())));
+    const gy = (await page.evaluate(() => window.__ct.pos()))[3];
+    still = (last !== null && Math.abs(gy - last) < 0.001) ? still + 1 : 0;
+    last = gy;
+    if (still >= 5) return;
+  }
+  console.warn(`  settle: gy never stopped moving in ${capMs} ms — shot may be mid-climb`);
+};
+
 const pressE = async () => {
   await page.keyboard.down('e');
   await page.waitForTimeout(120);
@@ -37,7 +77,7 @@ for (const [name, x, z, yaw, pitch] of [
   ['x3-on-the-platform', -10.6, -13.0, -Math.PI / 2, 0.02],
 ]) {
   await page.evaluate(([a, c, y, p]) => window.__ct.warp(a, c, y, 0.14, p), [x, z, yaw, pitch]);
-  await page.waitForTimeout(320);
+  await settle();
   await page.screenshot({ path: `${OUT}/${name}.png` });
   console.log(`  ${name}`);
 }
@@ -76,7 +116,7 @@ const shots = [
 for (const [name, lx, lz, yaw, pitch] of shots) {
   await page.evaluate(([x, z, y, p]) => window.__ct.warp(x, z, y, window.__ct.pos()[3], p),
     [cx + lx, cz + lz, yaw, pitch]);
-  await page.waitForTimeout(320);
+  await settle();
   await page.screenshot({ path: `${OUT}/${name}.png` });
   console.log(`  ${name}`);
 }

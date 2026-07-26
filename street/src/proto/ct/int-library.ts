@@ -49,8 +49,39 @@ import { hardLayer as hardLayerLib } from './vice';
 const XF = -10.2;                       // the recessed facade plane, from civic.ts
 const DOOR_Z = -13.0;                   // the library's axis, and the flight's
 
+// WHAT THE DOOR IS, measured off the facade rather than remembered.
+//
+// The user: *"library entrance doesnt match exterior"*
+// (`Screenshot from 2026-07-25 22-05-14.png`, taken from inside, facing out).
+//
+// He is right, and it is the exact fault `DoorLeaf` was invented for — one
+// fact authored twice. `ct/civic.ts` paints the entrance at the back of the
+// 1.8 m recess as a 40x48 texture across BAY_W 5.0 m by BAY_H 6.0 m, which is
+// 8 px/m, so its texels convert straight to metres:
+//
+//   leaves      fillRect(10, 16, 20, 32)          2.50 m wide, 4.00 m tall
+//   meeting     fillRect(19, 16,  2, 32)          a centre stile, so TWO leaves
+//   push plates fillRect(16/22, 30, 2, 4)         brass, #c9a45e
+//   fanlight    archFill(20, 22, 6, 16)           2.75 m wide, 4.00 -> 5.25 m
+//   transom     fillRect( 9, 16, 22, 1)           STONE_D, under the fanlight
+//   orders      archFill(20, 26, 4) / (20, 22, 6) 3.25 m and 2.75 m, round-headed
+//   leaf colour #4a3a26 timber, in a #2a2118 reveal
+//
+// The interior had the kit's fallback: ONE 1.60 x 2.15 flush leaf with a
+// vision panel and a rectangular head. Same doorway, two designs.
+//
+// So the room declares the leaf it actually has and the kit builds the opening
+// from it. Nothing outside interiors reads `width` or `leaf` — checked:
+// `doorLeafFor` has one caller (ct/interior.ts) and `declareDoorWorld` is
+// handed the door's POSITION only — so this cannot move E's facade, which is
+// as it should be. The authority runs room -> facade (GOTCHAS §45), and here
+// the room is simply catching up with a facade that was already right.
 export const DOOR: DoorDecl = {
-  building: 'LIBRARY', w: 16, cz: -13, side: -1, at: 0, width: 1.6,
+  building: 'LIBRARY', w: 16, cz: -13, side: -1, at: 0, width: 2.5,
+  leaf: {
+    clearW: 2.5, h: 4.0, leaves: 2,
+    frame: { colour: 0x4a3a26, material: 'timber' }, glazing: 'none',
+  },
   face: { x: XF - 0.8, z: DOOR_Z, nx: 1, nz: 0 },
 };
 
@@ -283,6 +314,237 @@ export function buildLibrary(ctx: CtxBuild): void {
   //
   // The piers carried colliders across the room at z = 6.80. Those go with
   // them, which widens the way in from 5.6 m to the full 20.
+
+  // ── THE ENTRANCE, FROM THE INSIDE ────────────────────────────────────────
+  //
+  // *"library entrance doesnt match exterior"*, and the numbers it has to match
+  // are read off `ct/civic.ts` at the top of this file, not chosen to look
+  // similar. The DECLARATION above gives the kit the 2.50 x 4.00 opening; this
+  // block gives that opening the doorcase, the fanlight and the two leaves the
+  // facade has, on the side you see them from.
+  //
+  // Everything here is in THIS file because `ct/interior.ts` is F's and the kit
+  // hangs one flush leaf with a vision panel regardless of what the declaration
+  // says — `leaves` and `glazing` are declared and not yet consumed. Same
+  // position `ct/int-casino.ts` was in and the same shape of answer: hide the
+  // kit's leaf, draw the building's own, and say out loud that this deletes
+  // itself the day the kit grows the feature.
+  {
+    const LEAF_J = DOOR.leaf!;
+    const DW = LEAF_J.clearW, DH = Math.min(LEAF_J.h, room.H - 0.2);
+    const hd = D / 2, T = 0.18;                 // the kit's front wall: hd .. hd+T
+
+    // The kit hangs ONE leaf, propped open, 32x64 texels, and it is half of
+    // what the user is objecting to. Hidden rather than edited — and ASSERTED,
+    // because silently missing it leaves the flush door standing in the middle
+    // of the new one, which is worse than the fault. Lifted from
+    // ct/int-casino.ts, which has been doing this since the casino's own
+    // door/facade disagreement.
+    {
+      const hits: THREE.Mesh[] = [];
+      room.group.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh || m.geometry?.type !== 'PlaneGeometry') return;
+        const mat = (Array.isArray(m.material) ? m.material[0] : m.material) as THREE.MeshBasicMaterial;
+        const img = mat?.map?.image as HTMLCanvasElement | undefined;
+        if (img && img.width === 32 && img.height === 64) hits.push(m);
+      });
+      if (hits.length === 1) hits[0].visible = false;
+      else console.warn(`[interior:library] expected 1 kit door leaf to hide, found ${hits.length}`
+        + ' — the library now has both the kit door and its own. ct/interior.ts changed shape.');
+    }
+
+    // ── the stone, borrowed by VALUE from ct/civic.ts ──
+    //
+    // E's `ashlar`, `archFill` and `archHW` are private to that file and it is
+    // read-never-edit for me, so the three of them are re-stated here. What is
+    // shared is the DATA — the colours and the bond — because two doorcases
+    // that are meant to be one doorway must not drift on tone. If the kit ever
+    // grows a stone painter these go.
+    const STONE = '#a89e88', STONE_D = '#8a806c', STONE_L = '#c2b8a0';
+    const GLASS = '#8a97a2', TIMBER = '#4a3a26', BRASS = '#c9a45e';
+    // 16 px/m, where the facade paints the same doorway at 8.
+    //
+    // The METRES are identical — that is what "match the exterior" means and it
+    // is asserted below. What differs is the grain, for the reason the shelf
+    // texture in this file is at 32 while the street is at 8: the facade is
+    // read from across a forecourt and this is read from arm's length, and at
+    // 8 px/m the fanlight's centre bar came out 25 cm wide and sat in the glass
+    // as a dark blob. At 16 a texel is 6 cm and the same bar is a glazing bar.
+    const PPM = 16;
+    const COURSE = Math.round(0.75 * PPM), BLOCK = Math.round(2.75 * PPM);
+    const ashlar = (g: CanvasRenderingContext2D, w: number, h: number, r: () => number) => {
+      g.fillStyle = STONE; g.fillRect(0, 0, w, h);
+      for (let y = 0, i = 0; y < h; y += COURSE, i++) {
+        const off = (i % 2) ? 0 : Math.round(BLOCK / 2);
+        for (let x = -off; x < w; x += BLOCK) {
+          const k = r();
+          if (k > 0.8) g.fillStyle = STONE_L; else if (k < 0.22) g.fillStyle = STONE_D; else continue;
+          g.fillRect(x + 1, y + 1, BLOCK - 2, COURSE - 2);
+        }
+      }
+      g.fillStyle = 'rgba(255,255,255,0.16)';
+      for (let y = 0; y < h; y += COURSE) g.fillRect(0, y, w, 1);
+      g.fillStyle = 'rgba(0,0,0,0.15)';
+      for (let y = 0; y < h; y += COURSE) g.fillRect(0, y + 1, w, 1);
+    };
+    // the stepped round head, and its half-width at a row, off ONE curve —
+    // civic.ts's own lesson: "an opening and the thing inside it have to come
+    // off one curve, two descriptions of the same edge will always drift"
+    const archHW = (w: number, yTop: number, y: number) => {
+      const rr = Math.floor(w / 2), dy = y - yTop;
+      if (dy >= rr) return rr;
+      if (dy < 0) return 0;
+      return Math.round(Math.sqrt(Math.max(0, rr * rr - (rr - dy) * (rr - dy))));
+    };
+    const archFill = (g: CanvasRenderingContext2D, cx: number, w: number,
+      yTop: number, yBot: number, col: string) => {
+      const rr = Math.floor(w / 2);
+      g.fillStyle = col;
+      if (yBot > yTop + rr) g.fillRect(cx - rr, yTop + rr, w, yBot - (yTop + rr));
+      for (let dy = 0; dy <= rr; dy++) {
+        const hw = archHW(w, yTop, yTop + dy);
+        if (hw > 0) g.fillRect(cx - hw, yTop + dy, hw * 2, 1);
+      }
+    };
+
+    // ── the doorcase: one panel, with the doorway cut OUT of it ──
+    //
+    // Cut out rather than drawn round, so the arch, the fanlight, the transom
+    // and the reveal all come off the same canvas and cannot drift from each
+    // other by a texel. alphaTest and NOT transparent — GOTCHAS §22: this is a
+    // cut-out, and putting it in the sorted queue is how a DoubleSide neighbour
+    // starts painting over it.
+    // EVERY NUMBER BELOW IS A METRE, converted once. The whole point of this
+    // block is that it agrees with a facade in somebody else's file, and the
+    // way that agreement rots is a texel count typed next to a comment saying
+    // what it means in metres (GOTCHAS §20 — aim from the source).
+    const CASE_W = 3.75, CASE_H = 5.625;               // the doorcase's own extent
+    const ORDER_W = 3.25, ORDER_Y = 5.50;              // the outer order
+    const REVEAL_W = 2.75, REVEAL_Y = 5.25;            // the inner order + fanlight
+    const m = (v: number) => Math.round(v * PPM);
+    const CW = m(CASE_W), CH = m(CASE_H), cx = Math.round(CW / 2);
+    const caseT = declareSurface(pixTex(CW, CH, (g) => {
+      const yOf = (v: number) => Math.round(CH - v * PPM);
+      const r2 = (() => { let s = 0x51b3a7; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); })();
+      ashlar(g, CW, CH, r2);
+      archFill(g, cx, m(ORDER_W), yOf(ORDER_Y), CH, STONE_D);
+      archFill(g, cx, m(REVEAL_W), yOf(REVEAL_Y), CH, STONE);
+      // the fanlight, CUT TO THE ARCH — same cx, same width, same yTop as the
+      // opening it sits in, stopped at the transom over the doors
+      const fTop = yOf(REVEAL_Y), fBot = yOf(DH);
+      archFill(g, cx, m(REVEAL_W), fTop, fBot, GLASS);
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      const bar = Math.max(1, m(0.10));
+      g.fillRect(cx - Math.round(bar / 2), fTop + m(0.25), bar, fBot - fTop - m(0.25));
+      for (const by of [yOf(4.90), yOf(4.55)]) {        // …and its two lights
+        const hw = archHW(m(REVEAL_W), fTop, by);
+        if (hw > 1) g.fillRect(cx - hw, by, hw * 2, Math.max(1, m(0.06)));
+      }
+      g.fillStyle = STONE_D;                            // the transom under it
+      g.fillRect(cx - m(REVEAL_W) / 2, fBot, m(REVEAL_W), Math.max(1, m(0.10)));
+      dither(g, CW, CH, Math.round(CASE_W * CASE_H * 12));
+      // THE HOLE — 2.50 m across and 4.00 tall, centred, which is the same
+      // opening the kit cut in the wall behind this panel.
+      const hw2 = m(DW) / 2;
+      g.clearRect(cx - hw2, yOf(DH) + Math.max(1, m(0.10)), hw2 * 2, CH);
+    }), 'sign');
+    const caseP = new THREE.Mesh(new THREE.PlaneGeometry(CASE_W, CASE_H),
+      new THREE.MeshBasicMaterial({ map: caseT, alphaTest: 0.5 }));
+    caseP.rotation.y = Math.PI;                        // face into the room
+    put(caseP, room.doorAt, CASE_H / 2, hd - 0.03);
+
+    // A REAL PROFILE, which is what civic.ts says tells a civic building from a
+    // shopfront: two jamb pilasters and an impost band, proud of the panel, so
+    // the doorcase has a silhouette from an angle and not only head-on.
+    const stoneM = new THREE.MeshBasicMaterial({ color: 0xa89e88 });
+    const stoneDM = new THREE.MeshBasicMaterial({ color: 0x8a806c });
+    for (const sx of [-1, 1]) {
+      box(0.22, DH + 0.30, 0.20, stoneM, room.doorAt + sx * (DW / 2 + 0.11), (DH + 0.30) / 2, hd - 0.13);
+    }
+    box(DW + 0.90, 0.18, 0.22, stoneM, room.doorAt, DH + 0.32, hd - 0.14);   // the impost
+    box(DW + 0.60, 0.06, 0.24, stoneDM, room.doorAt, DH + 0.20, hd - 0.15);  // its shadow
+    box(DW + 0.44, 0.05, 0.30, stoneDM, room.doorAt, 0.025, hd - 0.12);      // the threshold
+
+    // ── daylight, so the opening reads as an opening ──
+    //
+    // The kit gives a CUT-FACE room a bright panel outside its doorway and a
+    // flat-wall room nothing, so this hole looked out onto empty scene: a flat
+    // slate field that reads as neither outside nor wall. What is actually out
+    // there is the forecourt — pale paving under a pale sky — so that is what
+    // this is, two bands and a horizon, not one card.
+    //
+    // SIZED SO ITS EDGES ARE NEVER IN SHOT. The first cut was 4.6 m tall
+    // starting at floor level and there was a slate band under the doors in
+    // every screenshot: the panel's bottom edge subtends 27° below the horizon
+    // from a player's eye and the threshold subtends 28°, so a one-degree
+    // wedge of empty scene showed between them. Interiors are parked at
+    // x > 100 where there is no ground and no sky, and empty scene reads as a
+    // flat blue-grey card — the exact thing this panel exists to cover. It now
+    // runs 1.6 m BELOW the floor and 6 m wide against a 2.5 m opening.
+    const DAY_W = 6.0, DAY_Y0 = -1.6, DAY_Y1 = 5.0;
+    const yIn = (v: number) => Math.round((DAY_Y1 - v) / (DAY_Y1 - DAY_Y0) * 44);
+    const dayT = declareSurface(pixTex(32, 44, (g) => {
+      g.fillStyle = '#cfdae4'; g.fillRect(0, 0, 32, 44);          // sky over the court
+      g.fillStyle = '#8f8878'; g.fillRect(0, 0, 32, yIn(4.2));    // the recess head, in shadow
+      g.fillStyle = '#b8b0a0'; g.fillRect(0, yIn(1.5), 32, yIn(1.1) - yIn(1.5));
+      g.fillStyle = '#a89e88'; g.fillRect(0, yIn(1.1), 32, 44);   // the forecourt paving
+      g.fillStyle = 'rgba(0,0,0,0.10)';                           // and its joints
+      for (let y = yIn(0.9); y < 44; y += 3) g.fillRect(0, y, 32, 1);
+      dither(g, 32, 44, 80);
+    }), 'sign');
+    const day = new THREE.Mesh(new THREE.PlaneGeometry(DAY_W, DAY_Y1 - DAY_Y0),
+      new THREE.MeshBasicMaterial({ map: dayT, side: THREE.DoubleSide }));
+    put(day, room.doorAt, (DAY_Y0 + DAY_Y1) / 2, hd + T + 0.55);
+
+    // ── the two leaves, standing open ──
+    //
+    // OUTWARD, into the recess, for the same reason the kit swings its own leaf
+    // out: a pair swung inward at any angle wide enough to read as open sweeps
+    // straight across the way-out [E] spot at (0, hd - 0.55), and at any angle
+    // narrow enough to clear it they read as shut.
+    //
+    // Hinged on their own jamb by arithmetic, not by a pivot Group: a child of
+    // a nested group carries a LOCAL position and `dimWorld` reads that, which
+    // is the note in ct/interior.ts and the reason the kit does it this way.
+    const leafT = declareSurface(pixTex(16, 48, (g) => {
+      g.fillStyle = TIMBER; g.fillRect(0, 0, 16, 48);
+      g.fillStyle = 'rgba(0,0,0,0.22)';                 // two sunk panels
+      g.fillRect(2, 4, 12, 18); g.fillRect(2, 25, 12, 18);
+      g.fillStyle = 'rgba(226,214,186,0.10)';
+      g.fillRect(2, 4, 12, 1); g.fillRect(2, 25, 12, 1);
+      g.fillStyle = BRASS; g.fillRect(11, 27, 3, 6);    // the push plate, leading edge
+      dither(g, 16, 48, 70);
+    }), 'detail');
+    // BACK TO BACK, NOT DOUBLE-SIDED, and the rear plane takes the SAME texture
+    // unflipped — GOTCHAS §35. The rotation has already done the mirroring, and
+    // flipping it again would put the brass on the hinge stile, which is the
+    // one place a door handle is never.
+    const OPEN = 0.85;                                  // ~49 deg, matching the kit
+    const LW = DW / 2 - 0.02;
+    const hz = hd + T + 0.02;                           // the hinge, on the OUTER face
+    const dAtJ = room.doorAt;
+    for (const sx of [-1, 1]) {
+      const hx = dAtJ + sx * DW / 2;                    // each leaf on its own jamb
+      const th = -sx * OPEN;
+      // a plane at rotation.y = th has its local +x along (cos th, 0, -sin th)
+      // and its normal along (sin th, 0, cos th). The leaf runs from its hinge
+      // toward the middle of the opening, which is -sx in world x, so its
+      // centre is half a leaf back along that direction.
+      const cxl = hx - sx * Math.cos(th) * LW / 2;
+      const czl = hz + sx * Math.sin(th) * LW / 2;
+      const nx = Math.sin(th), nz = Math.cos(th);       // the leaf's own normal
+      for (const face of [1, -1]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH * 0.98),
+          new THREE.MeshBasicMaterial({ map: leafT }));
+        m.rotation.y = face > 0 ? th : th + Math.PI;
+        // a hair apart ALONG THE LEAF'S OWN NORMAL, not along z: two planes
+        // separated on a world axis are still coplanar when the leaf is raked,
+        // which is the z-fight in GOTCHAS §6 wearing a rotation.
+        put(m, cxl + face * nx * 0.008, DH * 0.49, czl + face * nz * 0.008);
+      }
+    }
+  }
 
   // ── THE ISSUE DESK ───────────────────────────────────────────────────────
   //

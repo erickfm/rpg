@@ -438,6 +438,19 @@ const CHECKS = [
   // holes actually were — 303 of them across 11 crowns, after the rim fix that
   // tree-crown was written to guard. This one floods from the border instead,
   // so "hole" is topology rather than a sampled box.
+
+  // ── J's one, from the library entrance ──────────────────────────────────
+  //
+  // Fast tier: it measures and does not walk. 4 s against a live preview.
+  //
+  // The claim nothing else here makes: the library's INTERIOR doorway is the
+  // 2.50 x 4.00 double door its facade paints, and the kit's flush single leaf
+  // is not standing inside it. That second half is the one worth the entry —
+  // `ct/int-library.ts` hides the kit's leaf by finding its 32x64 texture, and
+  // if `ct/interior.ts` ever paints it any other size the hide silently misses
+  // and the room gets BOTH doors in one opening. mirror-walk and
+  // frontage-honours both stop at flat shopfronts and neither looks at a leaf.
+  ['J-library-door', 'is the library\'s inside doorway the door its facade has?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
