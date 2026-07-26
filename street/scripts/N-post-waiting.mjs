@@ -362,6 +362,62 @@ if (answered.cash < 45) {
 }
 await page.keyboard.press('Escape');
 
+// ── 11b. the second notice, under your own door ───────────────────────────
+//
+// The desk's steer on what being late should feel like: *"a second notice
+// under the door is more in keeping than a lockout."* So the two claims are
+// that it appears only when the rent is actually LATE, and that it is on YOUR
+// floor and not in the lobby — the slip and the mailbox sit within a metre of
+// each other in x and z and are separated only by which storey you stand on,
+// which is exactly the mistake GOTCHAS §7 is about.
+const slips = await page.evaluate(() => {
+  const at = (d) => {
+    window.__ct.clock(0, 0); window.__ct.advanceClock(d * 1440 + 9 * 60, 0);
+    return { ...window.__rent.slip(), owed: window.__rent.owed(), day: window.__rent.day() };
+  };
+  return { before: at(1), onTheDay: at(2), late: at(3), later: at(5) };
+});
+await page.waitForTimeout(250);
+ok(!slips.before.down, `no slip on day ${slips.before.day}, when nothing is owed`);
+ok(!slips.onTheDay.down,
+  `and none on day ${slips.onTheDay.day} — the day it falls due is not yet LATE, `
+  + 'a landlord who came up that morning could not count');
+ok(slips.late.down, `there IS one on day ${slips.late.day}, the morning after`);
+ok(slips.later.down, `and still on day ${slips.later.day}, while it stays unpaid`);
+// on YOUR floor, not the lobby three storeys down
+const floor3 = await page.evaluate(() => {
+  const s = window.__rent.slip();
+  return { y: s.y, lobby: window.__ct.groundAt(s.x, s.z), room: s };
+});
+ok(floor3.y > 5.0 && floor3.y < 5.8,
+  `it lies at y=${floor3.y.toFixed(3)} — floor 3, your own boards`);
+
+// picking it up: gated on the FLOOR, then it is gone for that day
+const took = await page.evaluate(() => {
+  window.__ct.clock(0, 0); window.__ct.advanceClock(3 * 1440 + 9 * 60, 0);
+  const s = window.__rent.slip();
+  window.__ct.warp(s.x, s.z, 0, 0, 0);          // same x/z, but in the LOBBY
+  return { s, fromLobby: window.__ct.spots().filter((q) => q.ok && /slip/.test(q.label)).length };
+});
+await page.waitForTimeout(250);
+ok(took.fromLobby === 0,
+  'standing under it in the lobby offers nothing — the floor gate holds (GOTCHAS §7)');
+await page.evaluate(([x, z, y]) => window.__ct.warp(x - 0.7, z, Math.PI / 2, y, -0.6),
+  [took.s.x, took.s.z, took.s.y]);
+await page.waitForTimeout(250);
+const offered = await page.evaluate(() =>
+  window.__ct.spots().filter((q) => q.ok && /slip/.test(q.label)).length);
+ok(offered === 1, `standing in your own doorway offers it (${offered})`);
+await page.keyboard.down('e');
+await page.waitForFunction(() => window.__rent.reading() !== null, { timeout: 8000 }).catch(() => {});
+await page.keyboard.up('e');
+const gone = await page.evaluate(() => ({
+  reading: window.__rent.reading(), slip: window.__rent.slip(), held: window.__rent.held().length,
+}));
+ok(gone.reading !== null, 'picking it up unfolds it');
+ok(!gone.slip.down && !gone.slip.visible, 'and it LEAVES THE FLOOR — no ghost behind it');
+await page.keyboard.press('Escape');
+
 // ── 12. paying him. LAST, because it is the only thing here that MOVES ────
 //
 // `paidPeriods` is session state with no reset, so a payment made early is a

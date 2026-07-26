@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { declareSurface, pixTex } from './paint';
-import { APT_X0, APT_Z0 } from './apartment';
+import { APT_X0, APT_Z0, ST0 } from './apartment';
 import { citizenSprite } from './citizens';
 import { UI, makePanel, type Panel } from './hud';
 
@@ -1055,6 +1055,98 @@ export function register(ctx: CtxBuild): void {
     },
   });
 
+  // ── THE SECOND NOTICE, UNDER YOUR DOOR ──────────────────────────────────
+  //
+  // The desk's steer on what being late should feel like, and it is the right
+  // one: *"make being late feel like a consequence rather than a game-over. A
+  // second notice under the door is more in keeping than a lockout."*
+  //
+  // So when the rent is actually LATE — not merely due today — there is a slip
+  // of paper on your own floorboards when you wake up. He came up. You did not
+  // answer. He will come again. Nothing is taken from you and nothing is
+  // barred; the building simply knows.
+  //
+  // IT IS A FLAT DECAL, NOT A BILLBOARD (GOTCHAS §3). `board()` turns to face
+  // the camera, so a slip drawn in side view stands up on end as a card the
+  // moment you look down at it — which is precisely how you look at something
+  // on the floor. Painted from ABOVE and laid flat.
+  //
+  // Anchored off C's own doorway arithmetic — `ct/apartment.ts` cuts the 301
+  // opening at `AZI(3.5) ± DOOR_GAP / 2` in the wall at `AX(0)` — expressed off
+  // the exported constants so the walk-up can move. Same class of copy as the
+  // bank of boxes, and covered by the same ask in notes/N-asks.md.
+  //
+  // 0.11 x 0.16 m painted at 11 x 16 texels — 100 px/m BOTH WAYS. The first
+  // cut was a 16 x 11 texture on a 0.108 x 0.155 m plane, which is 148 px/m
+  // across and 71 down: rectangular texels on a hand-painted world, which is
+  // GOTCHAS §5 in miniature. Take the repeat from the surface's real metres.
+  const SLIP = {
+    x: APT_X0 - 0.15,          // just inside the wall at AX(0), on the room side
+    z: APT_Z0 + 3.5,           // the centre of the opening
+    y: 2 * ST0 + 0.012,        // floor 3, a hair proud of the boards
+    w: 0.16, d: 0.11,
+  };
+  const slipT = declareSurface(pixTex(11, 16, (g) => {
+    g.fillStyle = '#e2ddc8'; g.fillRect(0, 0, 11, 16);
+    g.fillStyle = '#cdc7b0'; g.fillRect(0, 8, 11, 1);          // the fold, seen from above
+    g.fillStyle = '#c6c0a8'; g.fillRect(0, 15, 11, 1);         // the shadowed far edge
+    g.fillStyle = '#4a4335';                                    // type, at this size
+    g.fillRect(2, 3, 7, 1); g.fillRect(2, 5, 5, 1);
+    g.fillRect(2, 11, 7, 1); g.fillRect(2, 13, 4, 1);
+  }), 'detail');
+  const slip = new THREE.Mesh(new THREE.PlaneGeometry(SLIP.d, SLIP.w),
+    new THREE.MeshBasicMaterial({ map: slipT }));
+  slip.rotation.x = -Math.PI / 2;      // flat on the boards, painted from above
+  slip.rotation.z = 0.19;              // shoved under at an angle, as paper is
+  slip.position.set(SLIP.x, SLIP.y, SLIP.z);
+  slip.visible = false;
+  scene.add(slip);
+
+  /** the last day whose under-door slip you picked up. -1 = never. */
+  let slipTakenDay = -1;
+
+  /** Is there one on the floor right now? Late, and you have not picked
+   *  today's up. Derived, like everything else here. */
+  function slipDown(totalMin: number): boolean {
+    const day = Math.floor(totalMin / 1440);
+    // LATE, not merely due: he posts a notice before the rent day and comes up
+    // the stairs after it. A slip on the mat the same morning the rent falls
+    // due would be a landlord who cannot count.
+    const late = owed(day) > 0 && day > dueDay(duePeriodsBy(day) - 1);
+    return late && slipTakenDay !== day;
+  }
+
+  ctx.onFrame(() => { slip.visible = slipDown(ctx.clock.now().totalMin); });
+
+  ctx.spot({
+    x: SLIP.x, z: SLIP.z, r: 0.8,
+    obj: slip,
+    // FLOOR 3, and not the lobby three storeys below it — the mailbox and this
+    // slip sit within a metre of each other in x and z and are separated only
+    // by which floor you are standing on.
+    ok: () => slipDown(ctx.clock.now().totalMin) && Math.abs(ctx.player.gy() - 2 * ST0) < 0.5,
+    label: () => 'pick up the slip of paper',
+    act: () => {
+      const day = Math.floor(ctx.clock.now().totalMin / 1440);
+      slipTakenDay = day;
+      const l: Letter = {
+        day, kind: 'hand', from: 'PUSHED UNDER YOUR DOOR',
+        lines: [
+          `APT ${RENT.flat}.`,
+          '',
+          'I came up. You were not in, or you',
+          'were in and did not answer.',
+          '',
+          'I will come again tomorrow.',
+          `                      — ${RENT.landlord}`,
+        ],
+      };
+      HELD.push(l);
+      while (HELD.length > KEEP) HELD.shift();
+      showLetters([l]);
+    },
+  });
+
   // Test affordance, the same shape and the same reason as `__ct` and `__inv`:
   // the tenancy is a handful of closure locals and there is no other way to ask
   // what is in the box from outside. READ ONLY, except for `pay` — a probe that
@@ -1093,6 +1185,9 @@ export function register(ctx: CtxBuild): void {
     /** the two slips he hands over, so the overrun check can measure them too:
      *  they never go through mailFor() and were invisible to it. */
     slips: () => [receipt(0, RENT.amount), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
+    /** the slip under 301's door: where it is and whether it is on the floor */
+    slip: () => ({ x: SLIP.x, z: SLIP.z, y: SLIP.y,
+      down: slipDown(ctx.clock.now().totalMin), visible: slip.visible }),
     /** the landlord: where he is, whether he is in the hall, and his box */
     landlord: () => ({
       x: LL_X, z: LL_Z, in: landlordIn(ctx.clock.now().totalMin),
