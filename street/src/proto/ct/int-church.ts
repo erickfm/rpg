@@ -54,6 +54,10 @@ export function buildChurch(ctx: CtxBuild) {
     // uses so the threshold reads as continuous; the walls go pale and chalky
     // and the ceiling is nearly white, because height you cannot see the top of
     // is height you do not feel.
+    // THE CHANCEL STEP, and the first user of the kit's new `floor`. The dais
+    // at the altar end was a box you walked into; now it is a level you walk
+    // ONTO, answered by the same picker the exterior flights use.
+    floor: [{ x0: -3.2, x1: 3.2, z0: 8 - 3.5, z1: 8, y: 0.18 }],
     palette: { floor: 0x6e6a62, wall: 0xa8a294, ceil: 0xbdb8ab, trim: 0x8a8274 },
     door: {
       x: 8.85, z: -79.5, r: 1.2,

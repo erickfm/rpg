@@ -165,6 +165,9 @@ export function interiorGround(x: number, z: number): number | null {
 
 // ── the shell ─────────────────────────────────────────────────────────────
 
+/** a rectangular patch of room floor at a given height, in ROOM-LOCAL metres */
+export interface RoomLevel { x0: number; x1: number; z0: number; z1: number; y: number }
+
 export interface RoomSpec {
   /** stable id, also the slab key — 'diner', 'pawn', 'casino' */
   id: string;
@@ -185,6 +188,31 @@ export interface RoomSpec {
    * room that looks square and behaves chamfered is a worse bug than the one
    * being fixed.
    */
+  /**
+   * LEVEL CHANGES INSIDE THE ROOM — a stair, a chancel step, a mezzanine.
+   *
+   * Builder G, blocked: *"The library's STAIR needs buildRoom to accept a floor
+   * function"*, for the user's ask that the library have "more halls and stair
+   * ways". The kit assumed one flat floor per room.
+   *
+   * The mechanism already exists — `ctx.ground` is the per-site floor registry
+   * the library and church EXTERIOR flights use, and the entry point dispatches
+   * over it. This exposes it to a ROOM, so there is still exactly ONE floor
+   * picker in the world. A second one is the thing this project has paid for
+   * repeatedly.
+   *
+   * Two forms, both in ROOM-LOCAL metres:
+   *
+   *   floor: [{ x0: -2, x1: 2, z0: 3, z1: 5, y: 0.18 },   // the dais
+   *           { x0: -2, x1: 2, z0: 5, z1: 7, y: 0.36 }]   // and the step up
+   *
+   *   floor: (lx, lz) => lz > 3 ? (lz - 3) * 0.14 : 0     // a ramp or a stair
+   *
+   * A LIST, not a single split, and later entries win — so a mezzanine over a
+   * dais is two rows rather than a special case. Return null from the function
+   * form for "not mine", exactly as `ctx.ground` does.
+   */
+  floor?: RoomLevel[] | ((lx: number, lz: number) => number | null);
   chamfer?: {
     corner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
     cut: number;
@@ -1041,7 +1069,19 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     hx + Math.cos(SWING) * leafW / 2, DOOR_H / 2,
     hz - Math.sin(SWING) * leafW / 2);
 
-  SLABS.push({ id: spec.id, x0, x1, gy: () => 0, w: W, d: D, cx, cz,
+  // the room's own floor picker, in world coords, answering for THIS slab. One
+  // registry for the world: this is the same `gy` the entry point already
+  // dispatches over for the exterior flights.
+  const levelAt = (wxx: number, wzz: number): number => {
+    const f = spec.floor;
+    if (!f) return 0;
+    const lx = wxx - cx, lz = wzz - cz;
+    if (typeof f === 'function') return f(lx, lz) ?? 0;
+    let y = 0;
+    for (const L of f) if (lx >= L.x0 && lx <= L.x1 && lz >= L.z0 && lz <= L.z1) y = L.y;
+    return y;                       // later rows win, so a mezzanine can sit over a dais
+  };
+  SLABS.push({ id: spec.id, x0, x1, gy: (gx, gz) => levelAt(gx, gz), w: W, d: D, cx, cz,
     // in the cut face when the door lives there, otherwise mid front wall
     door: CH
       ? { x: chMx, z: chMz, nx: -chSx / Math.SQRT2, nz: -chSz / Math.SQRT2 }
