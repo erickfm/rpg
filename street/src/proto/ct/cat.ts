@@ -166,9 +166,34 @@ export function buildCatRig(o: {
     // 0.375), crates 2.2 m at its back rather than marooned, and the alley has
     // no 2 m lane — `builtlane` measures the sidewalk at |x| 5..7 and this is
     // at x -9.35, well inside the alley. Green.
+    // SIXTH POSITION, and the note that closes it: *"cat is dead center in
+    // alley i need it right to the right of that news paper on the ground"*,
+    // with `shots/user-catfinal.png`. The fifth move had put it dead centre of
+    // the mouth view on purpose, which is exactly what the user is now naming
+    // as the fault — so this one is not a refinement of the last brief, it
+    // replaces it.
+    //
+    // "RIGHT" IS THE PART THAT HAS BEEN GOT WRONG BEFORE, three times, so it is
+    // derived and not guessed (GOTCHAS §33). You read this alley from its mouth
+    // at x = −7 looking −x, and this world's forward is `(sin yaw, 0, −cos yaw)`
+    // so screen right is `cross(forward, up)` = (0, 0, −1). **Right is −z.**
+    //
+    // WHICH NEWSPAPER: the litter beside the drain casting, at (−10.60, −41.45)
+    // — a 0.73 × 0.55 decal that reads as newsprint with columns and a
+    // half-lifted leaf (`shots/D-litter-grate.png`). Its right edge is z
+    // −41.725, and the cat's own plane is 0.59 m wide standing on the z axis,
+    // so a centre at −42.05 leaves its shoulder ~3 cm off the paper's edge:
+    // beside it, not on it. The other tan decal at (−9.40, −42.40) is flattened
+    // cardboard and not the one named.
+    //
+    // Constraints re-checked at the new spot rather than assumed to survive:
+    // 1.33 m from the grate casting (half-extent 0.375), 1.45 m of open floor
+    // still between it and the south wall at z −43.5 so it is not back in a
+    // corner, and the alley has no 2 m lane to protect — `builtlane` measures
+    // the sidewalk at |x| 5…7 and this is four metres inside.
     const SPOTS: [number, number][] = [
-      [-9.35, -40.15],  // centred in the mouth view, 2.35 m in, crates behind
-      [-8.9, -41.4],    // nearer the mouth, clear of everything, half in shade
+      [-10.40, -42.05],  // immediately right of the newspaper by the drain
+      [-8.9, -41.4],     // nearer the mouth, clear of everything, half in shade
     ];
     const [cx, cz] = SPOTS[i % SPOTS.length];
     // THE ALLEY FLOOR IS DISHED NOW, so this asks it rather than assuming 0.
