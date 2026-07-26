@@ -4,7 +4,7 @@ import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { mkdirSync } from 'node:fs';
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const OUT = process.env.OUT ?? 'shots/E-court';
 mkdirSync(OUT, { recursive: true });
 

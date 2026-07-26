@@ -6,9 +6,9 @@ mkdirSync('shots/E-park', { recursive: true });
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 950, height: 700 } });
 p.on('pageerror', (e) => console.error('PAGEERR', e.message));
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4182/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4188/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4182/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 20));
 const W = -Math.PI / 2;
 for (const [n, x, z, yaw, gy, pitch] of [

@@ -5,9 +5,9 @@ import { reportWorld } from './lib/which-world.mjs';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 900, height: 600 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
+await page.goto(process.env.SHOT_URL ?? 'http://localhost:4182/', { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4188/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4182/');   // GOTCHAS 26: prove it, do not just name it
 await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);

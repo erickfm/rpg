@@ -50,7 +50,7 @@ const SELFTEST = process.argv.includes('--selftest');
 if (SELFTEST) console.log('selftest: the south lane leg is rigged to fail; it MUST come back a NOTE\n');
 
 
-const URL = process.env.SHOT_URL ?? 'http://localhost:4188/';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
 page.on('pageerror', (e) => console.error('PAGEERR', e.message));

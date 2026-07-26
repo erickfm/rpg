@@ -18,7 +18,7 @@
 //   PERIOD is how wide one band is. A gang mower cuts a 0.5-1.5 m swathe.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage({ viewport: { width: 1000, height: 600 } });
 await page.goto(URL, { waitUntil: 'networkidle' });

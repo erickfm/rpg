@@ -13,7 +13,7 @@
 //     there to make the bench unusable.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

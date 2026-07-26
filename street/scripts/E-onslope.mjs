@@ -5,7 +5,7 @@
 // The bench on the mound is the case that matters: 1.56 m of it, on 1-in-17.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
-const URL = process.env.SHOT_URL ?? 'http://localhost:4194/';
+const URL = process.env.SHOT_URL ?? 'http://localhost:4182/';
 const b = await chromium.launch();
 const page = await b.newPage();
 await page.goto(URL, { waitUntil: 'networkidle' });

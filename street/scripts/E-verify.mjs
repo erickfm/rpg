@@ -16,7 +16,7 @@
 //
 //   node scripts/E-verify.mjs                 # all of it
 //   node scripts/E-verify.mjs park            # one area
-//   SHOT_URL=http://localhost:4193/ node scripts/E-verify.mjs
+//   SHOT_URL=http://localhost:4182/ node scripts/E-verify.mjs
 //
 // Exits non-zero if any area fails, so it can gate something later if the
 // desk wants it to. It is slow — three browsers, a lot of walking — so it is

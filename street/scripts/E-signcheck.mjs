@@ -6,9 +6,9 @@ import { mkdirSync } from 'node:fs';
 mkdirSync('shots/E-sign', { recursive: true });
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 700 } });
-await p.goto(process.env.SHOT_URL ?? 'http://localhost:4188/', { waitUntil: 'networkidle' });
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4182/', { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
-await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4188/');   // GOTCHAS 26: prove it, do not just name it
+await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4182/');   // GOTCHAS 26: prove it, do not just name it
 await p.evaluate(() => window.__ct.clock(13, 20));
 for (const [n, x, z, yaw, pitch] of [
   ['down-the-side-street', 8.0, -103.0, Math.PI / 2, 0.20],
