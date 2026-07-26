@@ -127,6 +127,42 @@ builders committing the same file is the `LEDGER.md` conflict all over again. So
 board-level number, that wants a stamp per builder collected at land, and I would
 rather be asked for it than invent the format.
 
+## The full suite: 42/43, and the sleeper is none of the five
+
+```
+42/43 checks caught their mutation
+  FAIL wetness  SLEPT  the street bone dry on the last drop of rain
+```
+
+Every one of the five reported guards CAUGHT in the full run, and so did
+`crowd-lane`. The single sleeper is **`wetness`, which was not on the list.**
+
+**And `wetness` is FLAKY, not asleep.** Five identical invocations:
+
+```
+CAUGHT · CAUGHT · SLEPT · SLEPT · CAUGHT
+```
+
+That is the missing mechanism, and it explains a five-at-once report better than
+sudden rot in one module: at roughly even odds per run, a 43-case suite lands a
+cluster of SLEPTs, and a cluster in one module reads like a common cause because
+that is what a common cause looks like.
+
+Note the new verdicts did **not** fire here — the mutation demonstrably reached
+the world — so by the stricter definition this is a true SLEPT. The instrument is
+distinguishing correctly.
+
+**I built a retry for it and took it out again.** Re-running the check against the
+same mutated world does not stabilise it: when `wetness` sleeps it sleeps on the
+retry too, so the non-determinism lives in the built world or the run rather than
+the invocation. Shipping it would have put an unproven mechanism in the one tool
+whose entire job is trustworthiness — the exact fault this file exists to catch.
+
+> **ROUTE B** — `wetness` is flaky at about even odds. The case mutates
+> `ct/props.ts` and the check is `wetness.mjs probe`. It wants its
+> non-determinism removed, **not** a rewrite: the guard detects the defect fine
+> when it runs at all.
+
 ## What I would want checked next
 
 The five were reported from a real run and I cannot see the environment it ran

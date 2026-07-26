@@ -808,6 +808,21 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
         continue;
       }
     }
+    // FLAKY IS REAL AND THIS FILE CANNOT YET TELL YOU WHICH. `wetness` measured
+    // CAUGHT, CAUGHT, SLEPT, SLEPT, CAUGHT across five identical invocations —
+    // so a 43-case suite reports it asleep roughly half the time, and several
+    // flaky guards land together as a cluster of SLEPTs that reads exactly like
+    // sudden rot in one module. That is the likeliest reading of a
+    // five-at-once report.
+    //
+    // I BUILT A RETRY HERE AND TOOK IT OUT AGAIN. Re-running the check against
+    // the same mutated world does not stabilise it: when wetness sleeps it
+    // sleeps on the retry too, so the non-determinism is at the level of the
+    // built world or the run, not the invocation. Shipping the retry would have
+    // put a mechanism in the one tool whose whole job is trustworthiness
+    // without evidence that it detects anything — the exact fault this file
+    // exists to catch. Whoever removes wetness's non-determinism should own
+    // that, and it is B's: the case mutates ct/props.ts.
     results.push([name, red ? 'CAUGHT' : 'SLEPT', expect]);
   } finally { restore(); }
 }
@@ -820,7 +835,7 @@ for (const [name, verdict, note] of results) {
   console.log(`  ${mark} ${name.padEnd(11)} ${verdict.padEnd(7)} ${note}`);
 }
 const bad = results.filter((r) => r[1] !== 'CAUGHT');
-const unprovable = results.filter((r) => r[1] === 'INERT' || r[1] === 'NOT-RUN');
+const unprovable = results.filter((r) => ['INERT', 'NOT-RUN'].includes(r[1]));
 if (unprovable.length) {
   console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
   for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);
