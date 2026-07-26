@@ -157,3 +157,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | C | sleep in your room needs a way to advance the clock — nobody has one | Desk 2026-07-25: reassigned F->C with a bounded mandate on ctx.ts/crosstown.ts for `advanceTime` and `wet`. Sleep snaps to 07:00, no fade. F is at its context limit with 20 queued and this was blocking C. |
 | OPEN | G | 'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the | |
 | OPEN | G | 'Screenshot from 2026-07-25 20-45-15.png' i really like the inner lobb | |
+| OPEN | F | 'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very c | |
