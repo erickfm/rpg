@@ -60,6 +60,15 @@ import { FACE } from './rng';
  */
 export const DOOR: DoorDecl = {
   building: 'PAWN', w: 15, cz: -60.5, side: 1, at: 0, width: 1.15,
+  // The reported one: "the LEAF IS MUCH NARROWER THAN ITS OPENING: pale panels
+  // show either side of it". Declared now, so the opening and the leaf come from
+  // one number. A pawn shop's street door is SOLID and single — no glazing, which
+  // is why `glazing: 'none'` here and why the drawn leaf has a barred squint
+  // rather than a pane.
+  leaf: {
+    clearW: 1.15, h: 2.15, leaves: 1,
+    frame: { colour: 0x3d2a1e, material: 'timber' }, glazing: 'none',
+  },
 };
 
 export function buildPawn(ctx: CtxBuild): void {
@@ -94,7 +103,7 @@ export function buildPawn(ctx: CtxBuild): void {
     // it does not fix anything, it just stops the room being smaller than the
     // shopfront it sits behind.
     frontage: { name: 'PAWN', w: 15, cz: -60.5, side: 1 },
-    door: { r: 1.05, at: DOOR.at, width: DOOR.width },
+    door: { r: 1.05, at: DOOR.at },   // width comes from the declared leaf
     // The glazing sits east of the door. One window rather than a pair either
     // side, because the kit opens one — and a pawn shop with a single barred
     // window and a solid pier beside it is right anyway.
@@ -116,7 +125,14 @@ export function buildPawn(ctx: CtxBuild): void {
   // F's, and all three of these should be deleted the day that lands. Single
   // leaf here, not double -- matching the facade is the point, and this facade
   // has one.
-  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+  // from the declaration — this is the fix for the reported fault
+  // READ OFF THIS FILE'S OWN DECLARATION, not fetched with doorLeafFor(). Same
+  // number, and the difference is that asking the registry is a RUNTIME import
+  // of ./doors — which is the import cycle that drops a building's DOOR from the
+  // built bundle with no error. G-rooms-walk caught it the moment I wrote it;
+  // `standOf` above exists for exactly the same reason.
+  const LEAF_P = DOOR.leaf!;
+  const DW = LEAF_P.clearW, DH = Math.min(LEAF_P.h, room.H - 0.2), dAt = room.doorAt;
   {
     const hits: THREE.Mesh[] = [];
     room.group.traverse((o) => {

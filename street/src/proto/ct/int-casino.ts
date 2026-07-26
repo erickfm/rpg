@@ -197,6 +197,11 @@ export function buildCasino(ctx: CtxBuild): void {
       // 1.75 m trigger, so you would be pulled straight back into the room.
       // A bigger trigger is the library's fix for a different problem — a long
       // approach up a flight — not a fix for a door you cannot walk to.
+      // NO `width:` HERE ANY MORE. The kit takes `spec.door.width ?? LEAF.clearW`,
+      // so setting it made this room override its own building's declaration —
+      // the facade said a 2.4 m double door and the room forced 1.10. That is
+      // the two-authorings fault the descriptor exists to kill, committed by the
+      // consumer rather than the author.
       ...standOf(DOOR), r: 1.05,
       // CENTRED, to match the facade. This was -3.2, and the comment here used
       // to justify it: "the door is off to one side, so walking in puts the
@@ -261,7 +266,17 @@ export function buildCasino(ctx: CtxBuild): void {
   const GOLD_I = 0xd8a83a, GOLD_ID = 0x8a6a22;
   const goldM = new THREE.MeshBasicMaterial({ color: GOLD_I });
   const goldDM = new THREE.MeshBasicMaterial({ color: GOLD_ID });
-  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+  // SIZED FROM THE DECLARATION, not from two numbers typed here. doorLeafFor()
+  // is the same call the kit makes for the opening, so the leaf and the hole it
+  // fills cannot disagree — which is exactly the fault the user reported on the
+  // pawn shop ("the leaf is much narrower than its opening").
+  // READ OFF THIS FILE'S OWN DECLARATION, not fetched with doorLeafFor(). Same
+  // number, and the difference is that asking the registry is a RUNTIME import
+  // of ./doors — which is the import cycle that drops a building's DOOR from the
+  // built bundle with no error. G-rooms-walk caught it the moment I wrote it;
+  // `standOf` above exists for exactly the same reason.
+  const LEAF_G = DOOR.leaf!;
+  const DW = LEAF_G.clearW, DH = Math.min(LEAF_G.h, room.H - 0.2), dAt = room.doorAt;
 
   // The kit hangs ONE leaf, propped open, and it is the thing the user is
   // objecting to. Hidden rather than edited — and asserted, because a silent

@@ -80,6 +80,14 @@ const standOf = (d: DoorDecl, standoff = 0.75) =>
  */
 export const DOOR: DoorDecl = {
   building: 'HOTEL ORPHEUS', w: 12.0, cz: 39.45, side: 1, at: 0, width: 1.15,
+  // WHAT THE DOOR IS, declared so both sides read one fact. Outside, ct/vice.ts
+  // paints "a revolving door in a stone case" — a wide entrance somebody arrives
+  // at, two dark glazed leaves in pale stone with a brass post between them. The
+  // room was building a 1.10 m domestic leaf against it.
+  leaf: {
+    clearW: 2.2, h: 2.6, leaves: 2,
+    frame: { colour: 0x8a8478, material: 'steel' }, glazing: 'full',
+  },
   // Read from ct/vice.ts, which paints the entrance at this x — see the casino's
   // decl and VICE_DOOR_X for why the painter is the authority and not this file.
   face: { x: VICE_DOOR_X['HOTEL ORPHEUS'], z: -96.0, nx: 0, nz: -1 },
@@ -135,7 +143,7 @@ export function buildHotel(ctx: CtxBuild): void {
       // (39.51 of [33.45, 45.45], mid 39.45) and this was -3.4, so the same wall
       // read centre from the street and a third to the right from inside. The
       // user's rule is "i need the facades to line up with the interior".
-      at: 0, width: 1.15,
+      at: 0,
       // Along the walk, east, for the same reason as the casino: the north
       // side-street walk is a 2 m band and the building collider eats down to
       // z = -96.3, so stepping BACK from the door cannot clear a 1.05 m
@@ -172,7 +180,14 @@ export function buildHotel(ctx: CtxBuild): void {
   const STONE = 0x8a8478, STONE_L = 0x9a9488;
   const stoneM = new THREE.MeshBasicMaterial({ color: STONE });
   const stoneLM = new THREE.MeshBasicMaterial({ color: STONE_L });
-  const DW = 1.15, DH = 2.15, dAt = room.doorAt;
+  // from the declaration, so the leaves cannot be narrower than their opening
+  // READ OFF THIS FILE'S OWN DECLARATION, not fetched with doorLeafFor(). Same
+  // number, and the difference is that asking the registry is a RUNTIME import
+  // of ./doors — which is the import cycle that drops a building's DOOR from the
+  // built bundle with no error. G-rooms-walk caught it the moment I wrote it;
+  // `standOf` above exists for exactly the same reason.
+  const LEAF_H = DOOR.leaf!;
+  const DW = LEAF_H.clearW, DH = Math.min(LEAF_H.h, room.H - 0.2), dAt = room.doorAt;
   {
     const hits: THREE.Mesh[] = [];
     room.group.traverse((o) => {
