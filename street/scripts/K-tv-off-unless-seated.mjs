@@ -35,6 +35,32 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
 
+// AFTER A WARP THE PROMPT DESCRIBES WHERE YOU WERE, for about a second.
+//
+// Measured: warp to the casino's street door and the prompt still reads
+// `[E] sit on the bed and watch TV` — the SPAWN's prompt, from 166 m away — at
+// 200 ms and at 600 ms, and only becomes `[E] into SEVENS` by 1200 ms. The
+// player is still settling in those frames (z −95.8 → −96.7, gy 0 → 0.1) and
+// the spot pick has not caught up.
+//
+// This nearly cost me a false report that a player at a casino slot is
+// teleported into their apartment. It is also a live hazard for any sweep that
+// looks for a named prompt, because the PREVIOUS station's prompt is exactly
+// the thing a stale read returns — a false positive on the square before.
+//
+// So: wait for the position to stop moving, which is the event, rather than
+// sleeping on a number that was measured on an idle machine (GOTCHAS §30).
+const settled = async (page) => {
+  let last = null;
+  for (let i = 0; i < 25; i++) {
+    const q = await page.evaluate(() => window.__ct.pos().map((n) => +n.toFixed(3)));
+    if (last && q[0] === last[0] && q[2] === last[2] && q[3] === last[3]) return true;
+    last = q;
+    await page.waitForTimeout(90);
+  }
+  return false;
+};
+
 const fails = [];
 const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'}  ${msg}`); if (!cond) fails.push(msg); };
 
@@ -79,7 +105,7 @@ let stand = null;
 for (let dx = -1.4; dx <= 1.4 && !stand; dx += 0.35) {
   for (let dz = -1.4; dz <= 1.4 && !stand; dz += 0.35) {
     await at(seat.x + dx, seat.z + dz, Math.atan2(-dx, dz));
-    await page.waitForTimeout(140);
+    await settled(page);
     const p = await prompt();
     if (p && /sit on the bed/i.test(p)) stand = { x: +(seat.x + dx).toFixed(2), z: +(seat.z + dz).toFixed(2) };
   }
