@@ -1343,3 +1343,31 @@ verdict gets made six weeks from now.
 road and got **1.000 at every sample**. The road is textured; its colour is a
 white tint and says nothing about wetness. I have now hit this on interior floors,
 litter, vehicle paint and weather.
+
+## [C] The side street: detail extended, pedestrians out there, one gap in MY evidence
+
+**Pedestrians — better than claimed.** The row says every walker visited 2–3
+distinct stretches; over 150 s I measure **3 to 5 each**, with all four stretches
+reached — west walk, east walk, side street north, side street south. Two walkers
+crossed to the south side, which needs the graph to reach.
+
+**Detail — seen.** Street trees with trunks and canopies on both pavements, lamp
+posts, parked cars, shopfronts running east. Parked cars at x 15.4, 26.4, 38.2,
+gaps **11.0 and 11.8 m**, growing as the row says.
+
+**[I] The tree-pit gap sequence is unverified, and I filed it as unverified.** The
+row gives 8, 10, 12 m between trees. My pit finder — the same one that measured
+all seven main-street pits at 0.56 × 1.40 with +0.000 centring — **finds no pit of
+those dimensions on the side street at all**. The trees are plainly visible in the
+shots, so this is a hole in my instrument, not a missing feature.
+
+**Fourth tree-pit finder failure in this audit.** The temptation was to write "the
+trees are there, so the gaps are presumably right" and let the visual carry a
+number it never measured. *A photograph can confirm that a thing exists; it
+cannot confirm a dimension.* Filing "unverified" costs the desk nothing and keeps
+the ledger honest about which claims have actually been checked.
+
+**[Is] Worth noticing that the confirmation EXCEEDED the claim.** H said 2–3
+stretches; the crowd does 3–5. A builder understating their own result is the
+opposite of the failure this ledger was built for, and it is worth recording in
+the same breath as the misses.
