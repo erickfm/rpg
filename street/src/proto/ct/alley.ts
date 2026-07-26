@@ -144,15 +144,39 @@ export function buildAlley(a: {
       g.fillStyle = '#0a0b0d'; g.fillRect(dx - dw / 2, dy - dw / 2, dw, dw);
     }), 'ground');
     // wet(), like the open sites' ground at the top of this file. The alley is
-    // ROOFLESS — rain falls in it — but this floor was never registered, so it
-    // only ever got the grading path's wetK and not updateRain's treatment.
-    // Measured from a fixed camera, 13:00 dry against 15:00 raining, mean pixel
-    // luminance of the surface:
+    // ROOFLESS — rain falls in it — and this `wet()` is what registers the floor
+    // with `updateRain`, which owns every material handed to it.
+    //
+    // THE FAULT THIS FIXED, AND THE PROOF IT IS FIXED. Before the call, the
+    // floor got only the grading path's wetK and never updateRain's treatment:
     //
     //     road          67.1 -> 28.0   -58%
     //     alley floor   54.4 -> 51.1    -6%
     //
-    // The street soaked and the alley stayed dry, in the same downpour.
+    // — the street soaked and the alley stayed dry in the same downpour. That
+    // measurement stood here for a long time in the PRESENT TENSE with no
+    // "after" beside it, so it read as an open fault. It is not one. Re-measured
+    // from the material colours, standing in the alley, 13:00 dry against 14:00
+    // raining:
+    //
+    //     road planes   -12.1%
+    //     alley floor   -12.1%     the same, to three figures
+    //
+    // A comment that records a fault and not its repair costs the next reader
+    // the whole investigation again — which is what it just cost me, and the
+    // same shape as the awning line two files away that described a slope
+    // opposite to the one its number produced.
+    //
+    // Two things about the measurement, because the first version of it was
+    // wrong twice. **Ask the world which hours rain**: `props.ts` publishes
+    // `rainAt` on `scene.userData` precisely so nothing mirrors the formula, and
+    // 15:00 — which I had assumed was wet from a note — is DRY, so my first
+    // comparison was dry against dry and correctly showed nothing. **And do not
+    // measure the road by pixels**: cars and pedestrians drive through the
+    // frame, so the same dry hour read 57 in one pass and 32.9 in another. The
+    // alley is traffic-free and read 42.9 three times running, which is the only
+    // reason the pixel method looked trustworthy at all (GOTCHAS §29: say
+    // whether your number describes an empty world or a lived one).
     // THE ALLEY FALLS TO THE DRAIN — and the player falls with it.
     //
     // The user: *"an alley drain sits mid-floor with the alley falling toward
