@@ -892,13 +892,27 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // ribs front-to-back, deliberately COARSE: this is a near-horizontal face
     // read at a grazing angle, which is the tailgate's own problem (GOTCHAS
     // §4). Wide bands, no dither, NearestFilter.
+    // ── THE BED FLOOR JOINS THE FLEET'S ONE DENSITY ────────────────────
+    //
+    // This was the last surface not at PX_PER_M: 16.2 x 16.1 px/m, square so
+    // nothing was stretched, but HALF the resolution of the walls standing
+    // either side of it — so a rib was twice the size of any feature next to
+    // it. Ruled to 32 with the ribs redrawn.
+    //
+    // The ribs are stated in METRES now, which is the whole point: the pitch
+    // is a property of the truck, not of the canvas, so doubling the density
+    // must not halve the number of ribs. 0.50 m pitch, a 0.19 m lit face and a
+    // 0.06 m shadow line — the same numbers the 16 px/m version drew (8, 3 and
+    // 1 texels), now written so they cannot drift again.
     const inW = HW * 2 - WALL_T * 2;
-    const floorT = pixTex(Math.round(inW * 16), Math.round(wallLen * 16), (g2) => {
-      const W = Math.round(inW * 16), H = Math.round(wallLen * 16);
+    const RIB_PITCH = 0.5, RIB_LIT = 0.1875, RIB_DARK = 0.0625;
+    const floorT = pixTex(Math.round(inW * PX_PER_M), Math.round(wallLen * PX_PER_M), (g2) => {
+      const W = Math.round(inW * PX_PER_M), H = Math.round(wallLen * PX_PER_M);
+      const m = (v: number) => Math.max(1, Math.round(v * PX_PER_M));
       g2.fillStyle = '#16171a'; g2.fillRect(0, 0, W, H);
-      for (let x = 2; x < W; x += 8) {                     // 0.25 m ribs
-        g2.fillStyle = 'rgba(255,255,255,0.07)'; g2.fillRect(x, 0, 3, H);
-        g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(x + 3, 0, 1, H);
+      for (let x = m(0.0625); x < W; x += m(RIB_PITCH)) {
+        g2.fillStyle = 'rgba(255,255,255,0.07)'; g2.fillRect(x, 0, m(RIB_LIT), H);
+        g2.fillStyle = 'rgba(0,0,0,0.35)'; g2.fillRect(x + m(RIB_LIT), 0, m(RIB_DARK), H);
       }
     });
     floorT.minFilter = THREE.NearestFilter;
