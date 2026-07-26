@@ -52,6 +52,15 @@ const hits = await page.evaluate(() => {
       const a = items[i], q = items[j];
       if (a.root === q.root) continue;             // one prop against itself
       if (a.massed && q.massed) continue;          // shrub blocks massing, by design
+      // CONCENTRIC AND FROM ONE MODULE IS ONE ASSEMBLY. B's lamps put a collar
+      // on a column at the same x/z; that is a lamp, not a collision, and it
+      // is not in a Group I can see from here because it is not my file. Two
+      // genuinely separate props are never concentric to 6 cm — the faults the
+      // user found were all OFFSET, a bin beside a board, a bench through a
+      // fountain. Without this the sweep exits red on ten of another builder's
+      // lamps for ever, and a red I cannot act on is one I learn to ignore.
+      if (a.mod !== '?' && a.mod === q.mod &&
+          Math.hypot(a.c.x - q.c.x, a.c.z - q.c.z) < 0.06) continue;
       const ox =Math.min(a.bb.max.x, q.bb.max.x) - Math.max(a.bb.min.x, q.bb.min.x);
       const oy = Math.min(a.bb.max.y, q.bb.max.y) - Math.max(a.bb.min.y, q.bb.min.y);
       const oz = Math.min(a.bb.max.z, q.bb.max.z) - Math.max(a.bb.min.z, q.bb.min.z);

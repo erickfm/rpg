@@ -1402,13 +1402,17 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   const SH_RISE = 0.95;                        // apex above the eaves
   const SH_SKIRT = 0.14;                       // the eaves' own depth
   const E = SH_H + SH_OVER;
+  // Posts, pads and roof are ONE shelter. Now that the eaves correctly wrap
+  // down over the post tops, that seating shows up as four prop-on-prop
+  // overlaps in `E-overlap` — the fix reading as the fault it fixed.
+  const shelterG = new THREE.Group();
   for (const dx of [-SH_H, SH_H]) for (const dz of [-SH_H, SH_H]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_TOP, SH_POST), postM);
     post.position.set(shX + dx, KERB_H + SH_TOP / 2, shZ + dz);
-    scene.add(post);
+    shelterG.add(post);
     const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.16, 0.10, SH_POST + 0.16), plateM);
     pad.position.set(shX + dx, KERB_H + 0.05, shZ + dz);
-    scene.add(pad);
+    shelterG.add(pad);
     solid({ minX: shX + dx - SH_POST / 2, maxX: shX + dx + SH_POST / 2,
       minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
   }
@@ -1471,7 +1475,8 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     shadedRoofM.vertexColors = true;
     const roof = new THREE.Mesh(geo, shadedRoofM);
     roof.position.set(shX, KERB_H, shZ);
-    scene.add(roof);
+    shelterG.add(roof);
+    scene.add(shelterG);
   }
   // one bench, centred under it, facing out of the park's approach
   // …and it faces INTO THE PARK, like every other bench. It ran along x and
