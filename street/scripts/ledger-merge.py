@@ -40,10 +40,24 @@ def status(l):
     m = re.match(r'\|\s*(\w+)\s*\|', l)
     return m.group(1) if m else ''
 
-SEG = ' — **AUDITOR'
+# A SEGMENT IS ANY APPENDED ACCOUNT, NOT ONLY THE AUDITOR'S.
+#
+# This was the literal string ' — **AUDITOR', so `segments()` returned NOTHING
+# for a row appended to by anybody else and the whole append was dropped on the
+# next conflict. It cost three of A's verifier segments in one session before
+# anyone noticed, and it would have cost every second verifier's evidence
+# forever — which is the one thing this file exists to prevent. The docstring
+# above already says "never choose a side"; the code chose, by recognising only
+# one author.
+#
+# The boundary is the marker every appender actually writes: " — **" followed by
+# a capital. Over-splitting is harmless — every piece is re-joined in order and
+# the dedupe is per piece — while under-splitting silently eats an account.
+SEG_RE = re.compile(r' — (?=\*\*[A-Z0-9])')
 
 def segments(l):
-    return [SEG + p for p in l.split(SEG)[1:]]
+    parts = SEG_RE.split(l)
+    return [' — ' + p for p in parts[1:]]
 
 def merge(theirs, mine):
     """Mainline's row, plus any auditor segment of mine it does not already
