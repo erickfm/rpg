@@ -224,7 +224,15 @@ export const symAt = (reel: number, stop: number): Sym =>
  * renderer.
  */
 export const windowAt = (reel: number, stop: number): readonly [Sym, Sym, Sym] =>
-  [symAt(reel, stop - 1), symAt(reel, stop), symAt(reel, stop + 1)];
+  [symAt(reel, stop + 1), symAt(reel, stop), symAt(reel, stop - 1)];
+// ABOVE is stop + 1, and that is a fact about which way the reel turns rather
+// than an arbitrary choice. This read `stop - 1` first, which was the natural
+// way to write it and disagreed with the glass: a reel spins with its symbols
+// travelling DOWNWARD past the window, so `paintReel` places strip index i at
+// `y = centre - (i - pos) · rowH`, and a HIGHER index therefore sits higher.
+// Nothing about the maths depends on it — `isSevenTease` looks at both rows and
+// the RTP never looks at either — but a check asking "is the seven visible above
+// the line" would have been told about the row below it.
 
 /**
  * Is this spin a near miss on the top prize — two sevens on the line, and the
@@ -382,6 +390,10 @@ export interface ReelView {
   readonly stop: number;
   /** true while this reel is being held back for the anticipation */
   readonly teasing: boolean;
+  /** stops per second, right now. The glass blurs on this — a reel you can read
+   *  at full speed is a reel that is not moving. Differentiated from the
+   *  schedule rather than tracked, so it costs nothing and cannot drift. */
+  readonly speed: number;
 }
 
 export type MachineState = 'idle' | 'spinning' | 'paying';
@@ -617,7 +629,12 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
       if (r.spinning && tt < r.stopT) {
         phase = tt >= tCrawl + FEEL.brakeT ? 'settling' : tt >= tCrawl ? 'braking' : 'spinning';
       }
-      return { pos: posOf(r, tt), stop: r.stop, teasing: r.teasing && tt < tCrawl && tt >= r.rampT + r.cruiseT, phase };
+      const h = 1 / 240;
+      return {
+        pos: posOf(r, tt), stop: r.stop, phase,
+        teasing: r.teasing && tt < tCrawl && tt >= r.rampT + r.cruiseT,
+        speed: r.spinning ? (posOf(r, tt + h) - posOf(r, tt - h)) / (2 * h) : 0,
+      };
     }),
   });
 
@@ -646,7 +663,20 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
     // reel's own position is unbounded and `symAt` wraps, so this only ever has
     // to be congruent — there is no seam to think about.
     const fixed = r.dRamp + r.dCrawl + r.dBrake - FEEL.bounce;
-    const need = ((target + FEEL.bounce - r.start) % STOPS + STOPS) % STOPS;
+    // `need` is the distance to where the reel RESTS, not to where the brake
+    // aims. Those differ by `bounce`, and having it the wrong way round left
+    // every reel sitting 0.16 of a stop past its detent for ever — a permanent
+    // 5 px offset on every symbol at a 30 px row, which looks like nothing and
+    // is wrong in every frame. Nothing in the maths could see it: `stop` was
+    // always correct, so the pay was always correct; only the GLASS was off,
+    // and only by a fifth of a symbol.
+    //
+    // Found by the glass check refusing to match a symbol against the same
+    // painter drawing it alone. The arithmetic: travel comes out at
+    // `need + n·STOPS + bounce`, the settle gives back `bounce`, so the rest
+    // position is `start + need + n·STOPS` and `need` must be measured to the
+    // detent itself.
+    const need = ((target - r.start) % STOPS + STOPS) % STOPS;
     const other = r.rampT + r.crawlT + FEEL.brakeT + FEEL.bounceT;
 
     // The smallest whole number of extra revolutions that both leaves the
@@ -745,6 +775,312 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
     },
     settled: () => state === 'idle',
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PART THREE: THE GLASS.
+//
+// One function, `paintMachine`, which takes a 2D context and a `MachineView`
+// and draws the front of the machine. It reads state; it never changes any.
+//
+// IT IS PAINTED AT 320 × 240 AND SCALED UP, which is the idiom `ct/hud.ts`
+// already set for this world's panels: the wallet is a 180 × 140 canvas shown
+// at 340 × 264 with `image-rendering: pixelated`. Everything is flat `fillRect`
+// and small monospace type. Painting at the panel's real pixel size and
+// scaling nothing would give smooth 2026 vector UI bolted onto a 1997 street,
+// which is exactly the mismatch the shared-panel decision exists to avoid.
+//
+// NO `Math.random()` ANYWHERE IN HERE, and that is worth stating because the
+// rest of this project's paint layer is built on it: GOTCHAS §1 opens with
+// `dither()` and thirteen other sites calling it directly, which is why two runs
+// of identical code differ in 20% of pixels and why screenshots cannot be
+// diffed. This panel is a deterministic function of (view, t). Give it the same
+// machine and the same clock and it paints the same pixels, so it CAN be
+// diffed — which is the only reason `scripts/L-slots-glass.mjs` can assert
+// anything about it without a browser.
+//
+// The palette is the room's, read off `ct/int-casino.ts` rather than chosen to
+// look similar: #d8a83a gold and #8a6a22 its shadow are the entrance portal,
+// #d8d0c0 is the reel cream on the cabinet fronts, #4a1f24 is the carpet,
+// #241e22 the cabinet body. A machine you walk up to and a machine you sit at
+// should not be two designs — the same argument `int-casino.ts` makes for
+// importing `tube` from `ct/vice.ts` instead of drawing its own letters.
+
+/** The logical size everything below is drawn at. The caller scales. */
+export const FACE = { w: 320, h: 240 } as const;
+
+const P = {
+  case: '#241e22', caseHi: '#3a3038', caseLo: '#15111a',
+  gold: '#d8a83a', goldLo: '#8a6a22', goldHi: '#f0d68a',
+  glass: '#141014',
+  reel: '#d8d0c0', reelLo: '#b0a898',
+  red: '#c8342c', redLo: '#8a2c32', redHi: '#f0a08a',
+  green: '#2c6a4a', greenHi: '#4a9a6a',
+  cream: '#e8e2d0', ink: '#2a2018',
+  lampOn: '#fff0bc', lampOff: '#7a6438',
+  meter: '#12180f', meterInk: '#7ae05a', meterDim: '#2c4a24',
+  carpet: '#4a1f24',
+} as const;
+
+/** The three reel windows, and the row grid inside them. Derived once so the
+ *  painter and any check agree on where the payline is. */
+export const GLASS = {
+  x: 22, y: 96, w: 276, h: 90,
+  reelW: 84, gap: 12, rowH: 30,
+} as const;
+const REEL_X = [0, 1, 2].map((i) => GLASS.x + i * (GLASS.reelW + GLASS.gap));
+const PAYLINE_Y = GLASS.y + GLASS.h / 2;
+
+/** A minimal slice of the 2D context — everything this file actually calls.
+ *
+ *  Typed structurally rather than as `CanvasRenderingContext2D` so the glass can
+ *  be driven by a RECORDING context in node and asserted on without a browser.
+ *  A real context satisfies it; nothing here needs a DOM. */
+export interface Paint2D {
+  fillStyle: string; strokeStyle: string; font: string;
+  textAlign: string; globalAlpha: number; lineWidth: number;
+  fillRect(x: number, y: number, w: number, h: number): void;
+  strokeRect(x: number, y: number, w: number, h: number): void;
+  fillText(s: string, x: number, y: number): void;
+  clearRect(x: number, y: number, w: number, h: number): void;
+  save(): void; restore(): void;
+  translate(x: number, y: number): void; scale(x: number, y: number): void;
+  beginPath(): void; arc(x: number, y: number, r: number, a: number, b: number): void; fill(): void;
+  rect(x: number, y: number, w: number, h: number): void; clip(): void;
+}
+
+// ── the symbols ──────────────────────────────────────────────────────────────
+//
+// Drawn into a cell, centred, from flat rectangles — no gradients and no
+// curves except the cherries, which need them to be cherries. Each one has to
+// be legible at a glance while sliding past at 26 stops a second, so they
+// differ in SILHOUETTE first and colour second: the sevens are the only tall
+// thin mark, the bars are the only horizontal ones and count upward, the
+// cherries are the only round thing. That ordering is the same reason
+// `ct/int-casino.ts` gives roulette, craps and poker three different shapes.
+
+const bars = (g: Paint2D, cx: number, cy: number, n: number) => {
+  // One, two or three stacked bars — the count IS the symbol, so the stack is
+  // sized to fill the same height whatever n is. A player reads "how many" from
+  // the divisions, not from the overall block.
+  const w = 46, gap = 3;
+  const h = (24 - (n - 1) * gap) / n;
+  for (let i = 0; i < n; i++) {
+    const y = cy - 12 + i * (h + gap);
+    g.fillStyle = P.ink; g.fillRect(cx - w / 2 - 1, y - 1, w + 2, h + 2);
+    g.fillStyle = P.gold; g.fillRect(cx - w / 2, y, w, h);
+    g.fillStyle = P.goldHi; g.fillRect(cx - w / 2, y, w, 1);
+    g.fillStyle = P.goldLo; g.fillRect(cx - w / 2, y + h - 1, w, 1);
+  }
+};
+
+const seven = (g: Paint2D, cx: number, cy: number) => {
+  // A blocky 7: top bar, then the diagonal stepped down in whole pixels. Drawn
+  // as steps rather than as a rotated rect because everything else in this
+  // world is axis-aligned pixels and a smooth diagonal would read as imported.
+  const top = cy - 12;
+  g.fillStyle = P.redLo; g.fillRect(cx - 10, top + 1, 21, 21);      // its own shadow
+  g.fillStyle = P.red; g.fillRect(cx - 11, top, 21, 5);
+  for (let i = 0; i < 9; i++) {
+    g.fillRect(cx + 6 - i * 1.7, top + 5 + i * 2, 6, 2);
+  }
+  g.fillStyle = P.redHi; g.fillRect(cx - 11, top, 21, 1);           // lit top edge
+};
+
+const cherry = (g: Paint2D, cx: number, cy: number) => {
+  g.fillStyle = P.green;                                            // the stems
+  g.fillRect(cx - 1, cy - 12, 2, 7);
+  g.fillRect(cx - 7, cy - 6, 7, 2);
+  g.fillRect(cx + 1, cy - 7, 7, 2);
+  g.fillStyle = P.greenHi; g.fillRect(cx + 1, cy - 13, 8, 3);       // the leaf
+  for (const [dx, dy] of [[-8, 3], [7, 5]] as const) {
+    g.fillStyle = P.redLo;
+    g.beginPath(); g.arc(cx + dx, cy + dy + 1, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = P.red;
+    g.beginPath(); g.arc(cx + dx, cy + dy, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = P.redHi;
+    g.beginPath(); g.arc(cx + dx - 2, cy + dy - 2, 1.6, 0, Math.PI * 2); g.fill();
+  }
+};
+
+/** One symbol, centred in its cell. BLANK really is nothing — the cream of the
+ *  reel showing through, which is what a blank stop on a real strip is. */
+export function paintSym(g: Paint2D, s: Sym, cx: number, cy: number): void {
+  if (s === 'SEVEN') seven(g, cx, cy);
+  else if (s === 'BAR1') bars(g, cx, cy, 1);
+  else if (s === 'BAR2') bars(g, cx, cy, 2);
+  else if (s === 'BAR3') bars(g, cx, cy, 3);
+  else if (s === 'CHERRY') cherry(g, cx, cy);
+}
+
+// ── one reel behind its window ───────────────────────────────────────────────
+
+const paintReel = (g: Paint2D, i: number, r: ReelView, flash: boolean) => {
+  const x = REEL_X[i], y = GLASS.y, w = GLASS.reelW, h = GLASS.h;
+  g.save();
+  g.beginPath(); g.rect(x, y, w, h); g.clip();
+
+  g.fillStyle = P.reel; g.fillRect(x, y, w, h);
+
+  // Strip index i sits at `centre − (i − pos)·rowH`, so a HIGHER index is
+  // HIGHER on the glass and the symbols travel DOWNWARD as `pos` grows — which
+  // is the way a reel drum actually turns. `windowAt` agrees with this; it did
+  // not at first, and the two disagreeing is how a check ends up describing the
+  // wrong row.
+  const base = Math.floor(r.pos);
+  for (let k = -2; k <= 2; k++) {
+    const idx = base + k;
+    const cy = PAYLINE_Y - (idx - r.pos) * GLASS.rowH;
+    if (cy < y - GLASS.rowH || cy > y + h + GLASS.rowH) continue;
+    paintSym(g, symAt(i, idx), x + w / 2, cy);
+  }
+
+  // THE BLUR. Above about eight stops a second the eye should not be able to
+  // read the strip — a reel you can read at full speed is a reel that is not
+  // moving. Horizontal streaks in the reel's own cream, plus a wash that grows
+  // with speed, and both fall away as the brake bites so the last symbols come
+  // back into focus. That resolve is most of what the brake FEELS like.
+  const sp = Math.abs(r.speed);
+  if (sp > 6) {
+    const a = Math.min(0.62, (sp - 6) / 34);
+    g.globalAlpha = a;
+    g.fillStyle = P.reel; g.fillRect(x, y, w, h);
+    g.globalAlpha = Math.min(0.5, a * 0.9);
+    g.fillStyle = P.reelLo;
+    for (let sy = y + 2; sy < y + h; sy += 5) g.fillRect(x, sy, w, 1);
+    g.globalAlpha = 1;
+  }
+
+  // the drum curving away at top and bottom — what makes it read as a cylinder
+  // rather than as a list scrolling in a box
+  g.globalAlpha = 0.55;
+  g.fillStyle = P.ink;
+  for (let d = 0; d < 9; d++) {
+    g.globalAlpha = 0.5 * (1 - d / 9);
+    g.fillRect(x, y + d, w, 1);
+    g.fillRect(x, y + h - 1 - d, w, 1);
+  }
+  g.globalAlpha = 1;
+  g.restore();
+
+  // the window's own frame, gold, lit when this reel is part of a win
+  g.strokeStyle = flash ? P.goldHi : P.goldLo;
+  g.lineWidth = 2;
+  g.strokeRect(x - 1, y - 1, w + 2, h + 2);
+};
+
+// ── the whole face ───────────────────────────────────────────────────────────
+
+/**
+ * Draw the machine, letterboxed into whatever the panel gives us.
+ *
+ * `t` is a clock in seconds, used ONLY for the bulb chase and the win flash.
+ * Everything else is a function of the view, so a still frame of a stopped
+ * machine is identical every time it is painted.
+ */
+export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t = 0): void {
+  const s = Math.max(0.1, Math.min(w / FACE.w, h / FACE.h));
+  g.save();
+  g.fillStyle = P.carpet; g.fillRect(0, 0, w, h);
+  g.translate((w - FACE.w * s) / 2, (h - FACE.h * s) / 2);
+  g.scale(s, s);
+
+  // the cabinet
+  g.fillStyle = P.case; g.fillRect(0, 0, FACE.w, FACE.h);
+  g.fillStyle = P.caseHi; g.fillRect(0, 0, FACE.w, 2);
+  g.fillStyle = P.caseLo; g.fillRect(0, FACE.h - 3, FACE.w, 3);
+
+  // ── the topper ──
+  g.fillStyle = P.glass; g.fillRect(10, 6, 300, 26);
+  g.fillStyle = P.goldLo; g.fillRect(10, 6, 300, 1); g.fillRect(10, 31, 300, 1);
+  g.fillStyle = P.gold; g.font = 'bold 17px monospace'; g.textAlign = 'center';
+  g.fillText('SEVENS', FACE.w / 2, 25);
+  // bulbs round it, three-phase chase — the same trick the marquee outside uses
+  const phase = Math.floor(t * 6) % 3;
+  for (let i = 0; i < 30; i++) {
+    g.fillStyle = i % 3 === phase ? P.lampOn : P.lampOff;
+    g.fillRect(12 + i * 10, 2, 3, 3);
+    g.fillRect(12 + i * 10, 34, 3, 3);
+  }
+
+  // ── the pay table, printed on the glass above the reels ──
+  //
+  // On the machine itself, where it belongs. A player should be able to see what
+  // a triple bar is worth without leaving the game, and it is the only thing on
+  // the face that makes the odds legible at all.
+  g.fillStyle = P.glass; g.fillRect(10, 40, 300, 50);
+  g.strokeStyle = P.goldLo; g.lineWidth = 1; g.strokeRect(10.5, 40.5, 299, 49);
+  g.font = '7px monospace';
+  PAYTABLE.forEach((p, i) => {
+    const col = i < 4 ? 0 : 1, row = i % 4;
+    const px = 18 + col * 150, py = 52 + row * 11;
+    const winning = v.win?.line === p.line;
+    g.textAlign = 'left';
+    g.fillStyle = winning ? P.lampOn : P.cream;
+    g.fillText(p.line, px, py);
+    g.textAlign = 'right';
+    g.fillStyle = winning ? P.lampOn : P.gold;
+    g.fillText(String(p.pays * v.bet), px + 132, py);
+  });
+
+  // ── the reels ──
+  g.fillStyle = P.glass; g.fillRect(GLASS.x - 6, GLASS.y - 6, GLASS.w + 12, GLASS.h + 12);
+  // the win flash pulses rather than sitting on, so a win reads as an event
+  const flash = !!v.win && Math.floor(t * 8) % 2 === 0;
+  for (let i = 0; i < 3; i++) paintReel(g, i, v.reels[i], flash);
+
+  // THE PAYLINE. One line across the middle, with a pointer either side, and it
+  // is the thing that tells you which of the three rows you are being paid for.
+  // Drawn OVER the reels, because on the real machine it is painted on the glass.
+  g.fillStyle = flash ? P.lampOn : P.red;
+  g.fillRect(GLASS.x, PAYLINE_Y - 0.5, GLASS.w, 1);
+  for (const px of [GLASS.x - 8, GLASS.x + GLASS.w + 2]) {
+    for (let k = 0; k < 5; k++) g.fillRect(px + (px < GLASS.x ? k : 5 - k), PAYLINE_Y - k, 1, k * 2 + 1);
+  }
+
+  // ── the meters ──
+  //
+  // Three of them, which is what a machine of this period has: what you have,
+  // what you are betting, what the last spin paid. The WIN meter counting up is
+  // the payout ramp made visible, and it is the reason the ramp exists.
+  const meter = (mx: number, mw: number, label: string, value: string, lit: boolean) => {
+    g.fillStyle = P.meter; g.fillRect(mx, 192, mw, 22);
+    g.strokeStyle = P.caseLo; g.lineWidth = 1; g.strokeRect(mx + 0.5, 192.5, mw - 1, 21);
+    g.fillStyle = P.meterDim; g.font = '6px monospace'; g.textAlign = 'left';
+    g.fillText(label, mx + 4, 200);
+    g.fillStyle = lit ? P.lampOn : P.meterInk;
+    g.font = 'bold 11px monospace'; g.textAlign = 'right';
+    g.fillText(value, mx + mw - 4, 211);
+  };
+  meter(22, 108, 'CREDITS', String(v.credits), false);
+  meter(138, 44, 'BET', String(v.bet), false);
+  meter(190, 108, 'WIN PAID', String(v.paid), v.state === 'paying');
+
+  // ── the button deck ──
+  const btn = (bx: number, bw: number, label: string, live: boolean) => {
+    g.fillStyle = live ? P.gold : P.caseHi;
+    g.fillRect(bx, 220, bw, 14);
+    g.fillStyle = live ? P.goldHi : P.case;
+    g.fillRect(bx, 220, bw, 1);
+    g.fillStyle = live ? P.ink : '#6a6258';
+    g.font = 'bold 7px monospace'; g.textAlign = 'center';
+    g.fillText(label, bx + bw / 2, 229);
+  };
+  const idle = v.state === 'idle';
+  btn(22, 62, 'BET ONE', idle);
+  btn(88, 62, 'MAX BET', idle);
+  btn(154, 76, v.state === 'spinning' ? 'SPINNING' : 'SPIN', idle && v.credits >= v.bet);
+  btn(234, 64, 'CASH OUT', idle && v.credits > 0);
+
+  // ── what the machine is saying ──
+  g.textAlign = 'center'; g.font = '7px monospace';
+  g.fillStyle = v.win ? P.lampOn : P.meterDim;
+  const say = v.win
+    ? `${v.win.line}   PAYS ${v.win.pays * v.bet}`
+    : v.state === 'spinning' ? '' : v.credits < v.bet ? 'INSERT COIN' : 'PLACE YOUR BET';
+  if (say) g.fillText(say, FACE.w / 2, 188);
+
+  g.restore();
 }
 
 // THE MEASURING INSTRUMENTS ARE NOT IN THIS FILE, and that is a decision worth
