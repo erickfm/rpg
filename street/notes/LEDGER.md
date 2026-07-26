@@ -199,3 +199,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | C | 'Screenshot from 2026-07-25 21-45-18.png' whys my 3rd floor neighbor f | |
 | OPEN | D | 'Screenshot from 2026-07-25 21-45-46.png' why is this highlighted for  | |
 | OPEN | B | 'Screenshot from 2026-07-25 21-46-19.png' the tree is transparent wher | |
+| OPEN | E | 'Screenshot from 2026-07-25 21-46-49.png' whys the gazeobo structure l | |
