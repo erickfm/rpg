@@ -184,6 +184,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch an invisible wall here?"** → **B**
 - **"'Screenshot from 2026-07-25 22-06-38.png' lighting on this alley back door looks messed up like it gets cropped by door."** → **B**
 - **"'Screenshot from 2026-07-25 22-05-35.png' get rid of this weird internal structure inside the library"** → **G**
 - **"'Screenshot from 2026-07-25 22-05-14.png' library entrance doesnt match exterior"** → **G**

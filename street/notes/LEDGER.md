@@ -232,3 +232,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | 'Screenshot from 2026-07-25 22-05-14.png' library entrance doesnt matc | |
 | OPEN | G | 'Screenshot from 2026-07-25 22-05-35.png' get rid of this weird intern | |
 | OPEN | B | 'Screenshot from 2026-07-25 22-06-38.png' lighting on this alley back  | |
+| OPEN | B | 'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch  | |
