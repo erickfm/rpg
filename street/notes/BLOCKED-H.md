@@ -51,7 +51,21 @@ I will not mark the row landed — but as one row it reads as H being late for
 work in files I do not own. **Still worth splitting into an H row (done) and an
 F/G row (open).**
 
-## 3. Done this session, needing nothing further
+## 3. All four desk rulings are discharged — evidence, so they stop being re-issued
+
+- **Bed floor -> 32 px/m** — landed `03853f26a`. Ribs restated in METRES
+  (0.50 m pitch, 0.19 m lit, 0.06 m shadow) so doubling the density changes the
+  sampling and not the pattern.
+- **Before/after** — delivered `39b8826fc`, `shots/bedfloor-ribs.png`, both
+  densities at the same physical size. **Verdict: not worse at 32, and not
+  better — the pattern is identical, which is the correct outcome.** No
+  exception needed; a player will not see a difference in that panel alone.
+- **Alley mouth** — landed `a00cc06ec`, `A2_MOUTH` in the `nudgeClear` array at
+  `crosstown.ts:348`. It measured clear beforehand (nearest car 2.61 m, east
+  kerb) but by LUCK; now by rule.
+- **East-end ramp and stripes** — B landed `c0c906d6c`. Closed, not mine.
+
+## 4. Done this session, needing nothing further
 
 Bed floor at 32 px/m with the ribs restated in metres, and the before/after the
 ruling asked for (`shots/bedfloor-ribs.png` — pattern identical at both
@@ -60,7 +74,7 @@ then added to the keep-clear array so it stays clear by rule rather than by
 luck; its span is a literal because `street.ts` does not export `A2_Z0/A2_Z1`,
 and exporting it would be an improvement.
 
-## 4. The structural note, fourth instance today
+## 5. The structural note, fourth instance today
 
 `lit`, `wet`, the cat's per-frame need, and now `footpaint`'s hardcoded port:
 leaf modules and leaf scripts each needing something their caller never passed.
