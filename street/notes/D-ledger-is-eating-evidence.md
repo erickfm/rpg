@@ -63,7 +63,7 @@ line 291  status OPEN, owner M — "…interior for the bank"  evidence: AUDITOR
 Those two cells are written at different times by different people, so when they
 disagree one of them has been rolled back. It cannot detect lost *prose* —
 nothing can miss what was never there — but a lost STATUS leaves this fingerprint
-every time. Register it once the desk has settled these two.
+every time. **REGISTERED** — the desk settled both rows and the check is green at 231 rows, 0 mismatches. It will go red the next time a status is rolled back.
 
 ## What would actually help, cheapest first
 

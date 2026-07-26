@@ -243,6 +243,15 @@ const CHECKS = [
   // which belongs to whoever last wrote the interaction. This finds literals
   // tested against a label that no longer match anything the world says. (D)
   ['D-dead-prompt-literals', 'do checks still match wording the world still uses?', true],
+  // LEDGER.md is what the desk reads before telling the user something is
+  // finished, and it has been losing content in conflict resolution — eleven
+  // rows in one sweep, K's LANDED move, five verifier notes of mine. Most of
+  // that is undetectable: nothing can notice prose that is no longer there. But
+  // a lost STATUS leaves a fingerprint, because the status cell and the evidence
+  // cell are written at different times by different people, so a row reading
+  // OPEN over "AUDITOR CONFIRMED" has been rolled back. Held back until it was
+  // green (C's mods-dim rule) — the two rows it found are settled. (D)
+  ['D-ledger-status-vs-evidence', 'does every row\'s status agree with its evidence?', true],
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
