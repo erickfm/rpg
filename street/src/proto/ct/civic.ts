@@ -1157,8 +1157,19 @@ export function buildCivic(o: {
       dither(g, NW, NH, 620);
     });
     const roofM = slateM();
+    // THE SIDES AND THE BACK ARE STONE TOO. Only the +z face carried a texture;
+    // the two returns and the whole rear elevation were `stoneM()`, a plain
+    // colour. That is B's forecourt finding on the ELEVATION rather than the
+    // ground, and it is worse here because these faces are 17 m tall: a flat
+    // colour has no grain or joints for the eye to hold, so a 13 x 17 m wall
+    // reads as a slab rather than as masonry.
+    //
+    // Grained at each face's OWN metres — the returns are 3.4 m wide and the
+    // rear is NAVE_W — so the courses stay the same size in the world however
+    // the faces differ in shape (GOTCHAS 5).
+    const naveSide = stoneFace(DRESSED, 3.4, NAVE_H);
     const nave = new THREE.Mesh(new THREE.BoxGeometry(NAVE_W, NAVE_H, 3.4),
-      [stoneM(), stoneM(), roofM, roofM, flat(naveTex), stoneM()]);
+      [naveSide, naveSide, roofM, roofM, flat(naveTex), stoneFace(DRESSED, NAVE_W, NAVE_H)]);
     nave.position.set(naveCx, NAVE_H / 2, zc);
     scene.add(nave);
     // the gable: a real prism, so the silhouette is a gable and not a box
@@ -1314,7 +1325,8 @@ export function buildCivic(o: {
     towSide.repeat.x = TOWER_D / TOWER_W;
     towSide.needsUpdate = true;
     const tower = new THREE.Mesh(new THREE.BoxGeometry(TOWER_W, TOWER_H, TOWER_D),
-      [flat(towSide), stoneM(), slateM(), slateM(), towM, stoneM()]);
+      [flat(towSide), stoneFace(DRESSED, TOWER_D, TOWER_H), slateM(), slateM(),
+        towM, stoneFace(DRESSED, TOWER_W, TOWER_H)]);
     tower.position.set(towCx, TOWER_H / 2, zc + 0.15);   // stands 0.3 m proud of the nave front
     scene.add(tower);
     // the spire, and the cross on top of it
