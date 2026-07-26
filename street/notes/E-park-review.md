@@ -134,6 +134,30 @@ give this one area a private exception to a rule the whole street shares.
 
 → **B**, and it is now the park's most visible defect after dark.
 
+### The world the user plays is 20 minutes behind mainline
+
+Worth the desk knowing before the next review frame, because it may explain
+several of today's repeats.
+
+`:5177` is serving build `d07fd0272`, stamped 17:24 and titled *live:
+rpg-alley*. Mainline took my bench-facing fix at 17:24 as `4fa317a1e`, and
+`d07fd0272` does **not** contain it — it was merged from a base captured just
+before. At 17:44 the integration world had still not rebuilt, against a
+`live-integrate.sh` that is supposed to run every 15 s.
+
+Measured rather than assumed: `facingIn` appears five times in mainline's
+`park.ts` and zero times in the served build; `shrubRun`/`clump` appear in both,
+so it has *some* of the afternoon's work and not the last of it. This is a
+STALL, not a drop — `live-integrate.sh` drops a builder only when the merged
+tree fails to typecheck, and mine typechecks.
+
+Why it matters: a review frame taken from that world right now shows benches
+facing out of the park — a fault fixed twenty minutes earlier. The user has
+already reported two things this session that were fixed but not visible to
+them, and one ledger row was rejected on exactly that basis. Checking the served
+stamp against mainline before reading a review frame would separate "not fixed"
+from "not deployed".
+
 ## Walked
 
 `E-park-walk` 16/16 after the shrubs went in — the new runs are colliders and
