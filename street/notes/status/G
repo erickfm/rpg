@@ -1,1 +1,1 @@
-WORKING | live.sh G empty; verifying other builders. FLAG: interiors-walk.mjs refuses to run world-wide — the new `jail` room is not in its ROOMS list | desk/O, to register jail in interiors-walk — not stopping me
+WORKING | church pews given an approach (0.00 m seat/stand clash gone); verifying others | F, for the kit-level "while seated, E stands" fix — not stopping me

@@ -225,8 +225,48 @@ export function buildChurch(ctx: CtxBuild) {
       // …and you can sit in it. The user asked that EVERY seat in the game be
       // sittable, and a church full of benches you cannot use would be the
       // largest exception in the world.
+      //
+      // AND IT DECLARES AN `approach`, WHICH IS NOT COSMETIC.
+      //
+      // A seat registered without one puts its SIT spot and its STAND spot on the
+      // identical coordinate, and C measured what that costs across the world:
+      // of 225 seats, 149 have a non-stand spot inside the 0.5 m stand radius and
+      // **69 sit at exactly 0.00 m**, where the tiebreak between two spots at
+      // distance 0 is undefined. That is the *"pressing e doesnt get me out of
+      // it — stuck in the TV seat"* row.
+      //
+      // I re-measured it because that row names the casino stools as the 0.00 m
+      // cluster and they are NOT: mine declare an approach and come out at
+      // 0.41 m minimum. **The 69 are burger 28, church 28 and diner 13 — and the
+      // church is mine.** All 36 of these pews were registered with no approach.
+      //
+      // THE APPROACH GOES IN THE ROW, NOT IN THE AISLE, and I tried it the other
+      // way first and it was worse. An aisle approach at `side * (AISLE / 2 +
+      // 0.45)` put all eighteen rows' sit spots in a single line 1.05 m apart —
+      // the row pitch — each with r 0.62 and a 0.6 m reach margin on top, so they
+      // overlapped heavily and E picked whichever won rather than the row you were
+      // standing at. Measured: I approached row 3 and came to rest seated in
+      // row 1. That trades an undefined tiebreak for a wrong-row teleport.
+      //
+      // So it is `pz - 0.42`: in the leg space between the kneeler at pz - 0.60
+      // and the bench at pz, which is exactly where somebody stands before they
+      // sit down, and which is standable because only the back rail carries a
+      // collider. Adjacent rows are no closer than they already were.
+      //
+      // 0.42 m is deliberately INSIDE the 0.5 m band my own clash report flags,
+      // and I am not going to move it to clear a threshold: a pew's standing space
+      // is only ~0.55 m deep, so anywhere a person would really stand is inside
+      // it. The property that matters is that the distance is NOT ZERO — a
+      // tiebreak between two spots at distance 0 is undefined, and at 0.42 m it
+      // is not a tiebreak at all.
+      //
+      // This does NOT replace the kit fix C routed to F — *"while `rig.seated`, E
+      // stands, full stop, no selection"* — which is the real answer. It is
+      // defence in depth at the room level, so this room is not relying on a
+      // tiebreak that is undefined even after the kit changes.
       ctx.seat({
         x: wx(side * PEW_CX), z: wz(pz), yaw: 0, h: 0.54, r: 0.62,
+        approach: { x: wx(side * PEW_CX), z: wz(pz - 0.42) },
         label: 'sit in the pew',
       });
     }
