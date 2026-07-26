@@ -130,7 +130,16 @@ export interface Crowd {
   /** test affordance: route between two named nodes of the walkable network, so
    *  a probe can assert the graph CONNECTS rather than waiting to observe a trip
    *  that depends on a random destination draw (scripts/crowd-net.mjs) */
-  netRoute: (fromId: string, toId: string) => { hops: number; len: number } | null;
+  /** test affordance: a route BETWEEN TWO NAMED NODES, and the edges it walks.
+   *  `road` on an edge is what "cross at the crossing, and only at the
+   *  crossing" comes to, and until now it was unreadable from outside — an
+   *  audit could see that nobody was stranded at the side street's east end
+   *  but not that the edge there is flagged, which is a different claim. */
+  netRoute: (fromId: string, toId: string) => {
+    hops: number; len: number;
+    edges: { from: string; to: string; road: boolean; half: number; len: number }[];
+    crossings: number;
+  } | null;
 }
 
 export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
@@ -655,7 +664,31 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         len += Math.hypot(net.nodes[r[i]].x - net.nodes[r[i + 1]].x,
           net.nodes[r[i]].z - net.nodes[r[i + 1]].z);
       }
-      return { hops: r.length, len };
+      // ── THE EDGES, SO AN OUTSIDE TEST CAN READ A ROAD FLAG ─────────────
+      //
+      // The auditor could not verify the east-end crossing fix and said so
+      // rather than passing it: "window.__ct.netRoute exposes no net, nodes or
+      // edges, so an outside test cannot read an edge's road flag.
+      // Behaviourally nothing is stranded at that end, which is consistent
+      // with the fix and not evidence of it — the flag governs lateral
+      // allowance, not whether anyone gets stuck." That is exactly right, and
+      // it is my affordance that was too thin.
+      //
+      // Added to the RETURN rather than as a new `__ct` entry on purpose:
+      // `crosstown.ts` is DESK-owned and already wires `netRoute` through, so
+      // widening what it answers needs no edit to a file that is not mine.
+      // `hops` and `len` are untouched, so existing callers are unaffected.
+      const step = [];
+      for (let i = 0; i + 1 < r.length; i++) {
+        const [u, v] = [r[i], r[i + 1]];
+        step.push({ from: net.nodes[u].id, to: net.nodes[v].id,
+          road: net.isCrossing(u, v),
+          half: +net.halfOf(u, v).toFixed(2),
+          len: +Math.hypot(net.nodes[u].x - net.nodes[v].x,
+            net.nodes[u].z - net.nodes[v].z).toFixed(2) });
+      }
+      return { hops: r.length, len, edges: step,
+        crossings: step.filter((e) => e.road).length };
     },
     views: () => citizens.map((c) => ({
       vx: c.vx, vz: c.vz, col: c.view?.col ?? -1, mirror: !!c.view?.mirror,
