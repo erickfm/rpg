@@ -2285,15 +2285,38 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const CASE_W = 0.52, CASE_H = 0.46, CASE_D = 0.40;
     const SCR_W = 0.36, SCR_H = 0.26, SCR_Y = TV_Y + 0.045;
     const TV_FRONT = TV_Z + CASE_D / 2;                 // the plane of the surround
-    const caseM = new THREE.MeshBasicMaterial({ color: 0x9a9080 });      // beige plastic
-    const caseDarkM = new THREE.MeshBasicMaterial({ color: 0x6a6256 });
+    // BLACK PLASTIC IS NOT BLACK. The user: *"the tv bezel looks good but i
+    // think i want the tv black."* The shape is untouched — he likes it — and
+    // only the casing's colour changes.
+    //
+    // A mesh filled with #000 would read as a hole in the wall, which is the
+    // exact fault the OFF SCREEN was told to avoid, so the casing gets the
+    // same treatment: a very dark neutral grey, the TOP FACE lighter than the
+    // front where the moulding catches light, sides darker than the front and
+    // the underside darker still, and the surround a shade off the carcass so
+    // the mould line between them reads.
+    //
+    // It also has to separate from the dead screen, which is now the other
+    // dark thing on that wall. They are different HUES — the casing neutral,
+    // the glass grey-green — and the well between them (#14141a) is darker
+    // than both, so there is a boundary at any light level.
+    const tvFrontM = new THREE.MeshBasicMaterial({ color: 0x26262c });
+    const tvTopM = new THREE.MeshBasicMaterial({ color: 0x36363f });   // catches light
+    const tvSideM = new THREE.MeshBasicMaterial({ color: 0x1f1f25 });
+    const tvUnderM = new THREE.MeshBasicMaterial({ color: 0x161619 });
+    const tvRailFaceM = new THREE.MeshBasicMaterial({ color: 0x2e2e37 }); // the surround
+    const tvCaseM: THREE.Material[] =
+      [tvSideM, tvSideM, tvTopM, tvUnderM, tvFrontM, tvSideM];
+    const tvRailM: THREE.Material[] =
+      [tvSideM, tvSideM, tvTopM, tvUnderM, tvRailFaceM, tvSideM];
+    const tvBandM = new THREE.MeshBasicMaterial({ color: 0x17171c });
     // THE BODY STOPS SHORT OF THE FACE. A solid box the full depth has an
     // opaque front, and a screen recessed behind it is simply not drawn — the
     // set read as a blank beige slab. So the carcass ends 0.06 m back and the
     // surround is four RAILS around an open aperture, which is what a bezel
     // physically is.
     const BODY_D = CASE_D - 0.06, BODY_Z = TV_Z - 0.03;
-    box(CASE_W, CASE_H, BODY_D, TV_X, TV_Y, BODY_Z, caseM);
+    box(CASE_W, CASE_H, BODY_D, TV_X, TV_Y, BODY_Z, tvCaseM);
     const WELL_Z = BODY_Z + BODY_D / 2;                 // the face the glass sits on
     box(SCR_W + 0.02, SCR_H + 0.02, 0.012, TV_X, SCR_Y, WELL_Z + 0.004,
       new THREE.MeshBasicMaterial({ color: 0x14141a }));                 // the dark well
@@ -2305,18 +2328,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const topH = (TV_Y + CASE_H / 2) - (SCR_Y + SCR_H / 2);
     const botH = (SCR_Y - SCR_H / 2) - (TV_Y - CASE_H / 2);
     const sideW = (CASE_W - SCR_W) / 2;
-    box(CASE_W, topH, RAIL_D, TV_X, SCR_Y + SCR_H / 2 + topH / 2, RAIL_Z, caseM);
-    box(CASE_W, botH, RAIL_D, TV_X, SCR_Y - SCR_H / 2 - botH / 2, RAIL_Z, caseM);
-    box(sideW, SCR_H, RAIL_D, TV_X - SCR_W / 2 - sideW / 2, SCR_Y, RAIL_Z, caseM);
-    box(sideW, SCR_H, RAIL_D, TV_X + SCR_W / 2 + sideW / 2, SCR_Y, RAIL_Z, caseM);
+    box(CASE_W, topH, RAIL_D, TV_X, SCR_Y + SCR_H / 2 + topH / 2, RAIL_Z, tvRailM);
+    box(CASE_W, botH, RAIL_D, TV_X, SCR_Y - SCR_H / 2 - botH / 2, RAIL_Z, tvRailM);
+    box(sideW, SCR_H, RAIL_D, TV_X - SCR_W / 2 - sideW / 2, SCR_Y, RAIL_Z, tvRailM);
+    box(sideW, SCR_H, RAIL_D, TV_X + SCR_W / 2 + sideW / 2, SCR_Y, RAIL_Z, tvRailM);
     // and the furniture of the thing, on the bottom rail's own face
     const FZ = RAIL_Z + RAIL_D / 2 + 0.002;
     const BY = SCR_Y - SCR_H / 2 - botH / 2;
-    box(CASE_W - 0.06, 0.055, 0.010, TV_X, BY, FZ, caseDarkM);
+    box(CASE_W - 0.06, 0.055, 0.010, TV_X, BY, FZ, tvBandM);
     box(0.10, 0.020, 0.008, TV_X - 0.16, BY, FZ + 0.006,
-      new THREE.MeshBasicMaterial({ color: 0xc8c0ae }));                 // brand badge
+      new THREE.MeshBasicMaterial({ color: 0x8f897c }));                 // brand badge
     for (let k = 0; k < 3; k++)
-      box(0.020, 0.020, 0.008, TV_X + 0.04 + k * 0.032, BY, FZ + 0.006, caseM);
+      box(0.020, 0.020, 0.008, TV_X + 0.04 + k * 0.032, BY, FZ + 0.006,
+        new THREE.MeshBasicMaterial({ color: 0x40404a }));               // buttons, lighter than the band
     box(0.012, 0.012, 0.008, TV_X + 0.19, BY, FZ + 0.006,
       new THREE.MeshBasicMaterial({ color: 0xd83a2a }));                 // standby LED
     // NO `addLamp` HERE, and that is a decision rather than an omission.
