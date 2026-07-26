@@ -93,7 +93,7 @@ user anything is finished.
 | OPEN | C | just do what i want for this bespoke minor window ask | |
 | OPEN | C | there should be a bit of a gap out of the window and then just a brick | |
 | OPEN | C | gap in the door sucks. also i dont like that it says stand back when y | |
-| OPEN | B | a little too many grasses in the streets. like way too many. should be | |
+| LANDED | B | a little too many grasses in the streets. like way too many. should be | 44 tufts down to 5 on the whole block. It was my overshoot: I placed them every 2.4 m along both kerbs and called it sporadic, which is a line, not an exception. Placement is now DERIVED from what shelters a weed — every third street lamp foot plus the two catch basin collars — so a post cannot move out from under a tuft and a removed lamp takes its weed with it. Fixed one pattern twice: every OTHER lamp put all four on the west kerb because the lamps alternate sides; every third lands on both (west -105.6/-92.8/-8.8, east -91.9/-50.8). C's lot and E's park keep their 268 and are meant to be weedier. builtlane and footprint pass; every tuft is in the kerb seam on the road side, clear of the 2 m walk. CHECK FROM: walk the east kerb from z -30 to -60 — bare gutter, no line. |
 | OPEN | D | cat is dead center in alley i need it right to the right of that news  | |
 | OPEN | H | textures on vehicles need a deep review and fix | |
 | OPEN | H | the doors are misaligned. i think the worker doesnt realize they need  | |
