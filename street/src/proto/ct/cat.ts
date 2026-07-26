@@ -1,6 +1,14 @@
 import * as THREE from 'three';
 import { pixTex } from './paint';
-import { alleyFloorY, ALLEY_SLAB_Y } from './street';
+// From the LEAF, not from `ct/street.ts`, and that is the whole reason
+// `ct/alley-floor.ts` exists. `ct/alley.ts` calls this file, so importing the
+// floor back out of `street.ts` would close `street -> alley -> cat -> street`.
+// GOTCHAS §28: a module in an import cycle can resolve to an undefined
+// namespace at collection time, a bundler orders modules differently from the
+// browser's own loader, and the fault is REAL IN THE BUILT OUTPUT while dev
+// stays green — the worst way round, because that is what ships to the artifact
+// and to Pages.
+import { alleyFloorY, ALLEY_SLAB_Y } from './alley-floor';
 
 // ── the alley cat, and the rig for choosing her ────────────────────────────
 //
