@@ -736,27 +736,66 @@ export function buildLibrary(ctx: CtxBuild): void {
   //
   // The object that dates the room. Sixty drawers with brass pulls and label
   // holders; in 1997 the terminal is on order and this is still the catalogue.
-  const CAT_X = -W / 2 + 1.0, CAT_Z = D / 2 - 2.6;
-  const catT = declareSurface(pixTex(48, 40, (g) => {
-    g.fillStyle = '#5a4632'; g.fillRect(0, 0, 48, 40);
-    for (let r0 = 0; r0 < 5; r0++) {
-      for (let c = 0; c < 6; c++) {
-        const x = 1 + c * 8, y = 1 + r0 * 8;
-        g.fillStyle = '#6b5334'; g.fillRect(x, y, 7, 7);                // the drawer front
-        g.fillStyle = '#3d2f20'; g.fillRect(x, y + 6, 7, 1);            // its shadow line
-        g.fillStyle = '#cbb488'; g.fillRect(x + 2, y + 1, 3, 2);        // the label holder
-        g.fillStyle = '#8a7d5a'; g.fillRect(x + 3, y + 4, 1, 1);        // the brass pull
+  // ── TURNED TO FACE THE ROOM, AND MADE LEGIBLE, 2026-07-25 ──
+  //
+  // Found by shooting the two objects in here I had never pointed a camera at.
+  // Two faults, and the first is the one that matters:
+  //
+  //   IT FACED THE FRONT WALL. The drawer face was a plane at CAT_Z + 0.31
+  //   looking +z, which is toward the entrance — so from anywhere in the body
+  //   of the room, which is where a player spends the whole visit, the object
+  //   was a 1.9 x 1.25 x 0.6 m featureless dark brown box. The queue's own
+  //   warning is that the user "has flagged large blank internal masses in this
+  //   room TWICE".
+  //
+  //   AND EVEN HEAD-ON IT DID NOT READ. Carcass #5a4632, drawer #6b5334, label
+  //   #cbb488 — three browns within a few points of each other at 25 px/m. Set
+  //   beside the magazine case built an hour earlier, which reads instantly,
+  //   it was a speckled block.
+  //
+  // Both are the same standard the user set for the periodicals: "if you cannot
+  // name the object in one second it is not done." A card catalogue is one of
+  // the most recognisable objects there is — a grid of small drawers, each with
+  // a CREAM CARD in a holder and a brass pull — and the cream card is the whole
+  // tell. It was the one tone missing.
+  //
+  // So: against the west wall with its drawers facing EAST into the room, 60 of
+  // them (which is what the note above has always claimed), at 34 px/m so a
+  // drawer is 6 x 8 texels — enough for a label, a pull and a shadow, and not
+  // enough for anything finer, so nothing finer is drawn.
+  const CAT_X = -W / 2 + 0.35, CAT_Z = D / 2 - 2.6;
+  const CAT_W = 1.9, CAT_H = 1.25, CAT_D = 0.60;
+  const CAT_COLS = 10, CAT_ROWS = 6;
+  const catT = declareSurface(pixTex(64, 48, (g) => {
+    g.fillStyle = '#2f2418'; g.fillRect(0, 0, 64, 48);                  // the carcass
+    const cw = Math.floor(64 / CAT_COLS), ch = Math.floor(48 / CAT_ROWS);
+    for (let r0 = 0; r0 < CAT_ROWS; r0++) {
+      for (let c = 0; c < CAT_COLS; c++) {
+        const x = 2 + c * cw, y = 1 + r0 * ch;
+        g.fillStyle = '#7a6144'; g.fillRect(x, y, cw - 1, ch - 1);       // the drawer front
+        g.fillStyle = '#241b12'; g.fillRect(x, y + ch - 2, cw - 1, 1);   // its shadow line
+        g.fillStyle = '#e8e0c8'; g.fillRect(x + 1, y + 1, cw - 3, 2);    // THE CARD — the tell
+        g.fillStyle = '#8a8068'; g.fillRect(x + 1, y + 2, cw - 3, 1);    // its typed line
+        g.fillStyle = '#c9a45e'; g.fillRect(x + Math.floor(cw / 2) - 1, y + ch - 4, 2, 1); // the pull
       }
     }
-    dither(g, 48, 40, 90);
+    dither(g, 64, 48, 70);
   }), 'detail');
-  const CAT_W = 1.9, CAT_H = 1.25;
-  box(CAT_W, 0.12, 0.62, woodDark, CAT_X, CAT_H + 0.06, CAT_Z);         // its top slab
+  // the body, with grain on the two faces you see from the floor rather than
+  // flat colour — A's helper, sized from each face's own metres (GOTCHAS §5)
+  boxFace(CAT_D, CAT_H, CAT_W, woodDark, CAT_X, CAT_H / 2, CAT_Z,
+    FACE_PZ, CAT_D, CAT_H, '#4a3826');
+  box(CAT_D + 0.04, 0.12, CAT_W + 0.04, woodDark, CAT_X, CAT_H + 0.06, CAT_Z);  // its top slab
   const catFace = new THREE.Mesh(new THREE.PlaneGeometry(CAT_W, CAT_H),
     new THREE.MeshBasicMaterial({ map: catT }));
-  put(catFace, CAT_X, CAT_H / 2, CAT_Z + 0.31);
-  box(CAT_W, CAT_H, 0.60, woodDark, CAT_X, CAT_H / 2, CAT_Z);
-  solid(CAT_X, CAT_Z, CAT_W + 0.1, 0.7);
+  catFace.rotation.y = Math.PI / 2;                                     // +z -> +x, into the room
+  put(catFace, CAT_X + CAT_D / 2 + 0.01, CAT_H / 2, CAT_Z);
+  // a tray of loose cards on the top, because the drawers are the thing people
+  // actually touched and a catalogue nobody has opened reads as furniture
+  box(0.26, 0.05, 0.36, woodDark, CAT_X, CAT_H + 0.14, CAT_Z + 0.4);
+  box(0.20, 0.06, 0.30, new THREE.MeshBasicMaterial({ color: 0xe8e0c8 }),
+    CAT_X, CAT_H + 0.18, CAT_Z + 0.4);
+  solid(CAT_X, CAT_Z, CAT_D + 0.1, CAT_W + 0.1);
 
   // ── THE READING TABLE, AND YOU CAN SIT AT IT ─────────────────────────────
   //
