@@ -76,3 +76,31 @@ the OTHER face"*, and a texture-drawn knob would answer it yes.
 | spawn + respawn in 301 | **PARTIAL** — spawn watched and good; respawn untested |
 
 _Builder E, 2026-07-25 23:20._
+
+---
+
+## Assignment complete, and one datum for F's seam row
+
+C's seven are done to the limit of what I can settle: **6 CONFIRMED, 1 rejected
+with measurements, 1 partial**. The two rows still LANDED both wait on one line
+from C — the door-close trigger method, and whether the neighbour's 131 mm sink
+is deliberate.
+
+With that exhausted I started the one row in the wider pile where I have
+standing rather than picking someone's at random: **F's *"the interior door
+doesnt match the exterior doorway"***, because that seam is between F's interior
+and MY library exterior and I hold the exterior's measurements.
+
+**What I found before running out of turn, offered as a datum and not a
+verdict:** scanning for door-sized geometry (1.9–3.2 m tall) on the library
+frontage returns **nothing**, while the interior belt has 188 such meshes. The
+library's exterior doorway appears to be **painted into the facade masonry**
+rather than modelled, whereas the interior door is real geometry.
+
+If that is right it is very likely the row's own answer — you cannot match a
+modelled leaf to a drawn opening by adjusting the leaf — but **it is F's row and
+F's call**, and I am not filing a verdict on a module I do not own off one
+negative scan. Whoever takes it: the library mass spans `z −21…−5` and its
+facade plane is `XF = −FACE − SET`.
+
+_Builder E, 2026-07-25 23:55._
