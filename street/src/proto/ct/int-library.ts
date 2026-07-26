@@ -543,6 +543,43 @@ export function buildLibrary(ctx: CtxBuild): void {
     caseP.rotation.y = Math.PI;                        // face into the room
     put(caseP, room.doorAt, CASE_H / 2, hd - 0.03);
 
+    // ── THE FANLIGHT IS GLASS, SO IT GOES DARK TOO ──
+    //
+    // The second instance of the fault the daylight panel had, and I am not
+    // leaving it half-corrected — GOTCHAS §44: "half a correction is most of
+    // the way to none." The stone doorcase is an INTERIOR surface and correctly
+    // stays lit at 2am. The fanlight in it is not stone, it is a window, and a
+    // window over a dark street should not glow pale blue above a dark doorway.
+    //
+    // Drawn as its own plane a hair proud of the doorcase rather than by
+    // splitting caseT, because caseT's whole property is that the arch, the
+    // glass, the transom and the reveal come off ONE curve and cannot drift by
+    // a texel. Same `archFill`, same cx, same width, same yTop — so this is the
+    // same curve again, not a second description of it.
+    const FAN_H = REVEAL_Y - DH;
+    const fanT = declareSurface(pixTex(m(REVEAL_W), m(FAN_H), (g) => {
+      const w = m(REVEAL_W), h = m(FAN_H), fcx = Math.round(w / 2);
+      g.clearRect(0, 0, w, h);
+      archFill(g, fcx, w, 0, h, GLASS);
+      g.fillStyle = 'rgba(0,0,0,0.35)';
+      const bar = Math.max(1, m(0.10));
+      g.fillRect(fcx - Math.round(bar / 2), m(0.25), bar, h - m(0.25));
+      for (const by of [m(0.35), m(0.70)]) {
+        const hw = archHW(w, 0, by);
+        if (hw > 1) g.fillRect(fcx - hw, by, hw * 2, Math.max(1, m(0.06)));
+      }
+    }), 'sign');
+    const fanM = new THREE.MeshBasicMaterial({ map: fanT, alphaTest: 0.5 });
+    const fanP = new THREE.Mesh(new THREE.PlaneGeometry(REVEAL_W, FAN_H), fanM);
+    fanP.rotation.y = Math.PI;
+    put(fanP, room.doorAt, DH + FAN_H / 2, hd - 0.05);
+    // the same two endpoint colours the daylight panel uses, for the same
+    // reason and off the same measurement
+    ctx.onFrame(() => {
+      const n = (ctx.scene.userData.nightFactor as number) ?? 0;
+      fanM.color.setRGB(1, 1, 1).lerp(new THREE.Color(0x3c3c3c), n);
+    }, HOOK.LATE);
+
     // A REAL PROFILE, which is what civic.ts says tells a civic building from a
     // shopfront: two jamb pilasters and an impost band, proud of the panel, so
     // the doorcase has a silhouette from an angle and not only head-on.
@@ -582,9 +619,71 @@ export function buildLibrary(ctx: CtxBuild): void {
       for (let y = yIn(0.9); y < 44; y += 3) g.fillRect(0, y, 32, 1);
       dither(g, 32, 44, 80);
     }), 'sign');
-    const day = new THREE.Mesh(new THREE.PlaneGeometry(DAY_W, DAY_Y1 - DAY_Y0),
-      new THREE.MeshBasicMaterial({ map: dayT, side: THREE.DoubleSide }));
+    const dayM = new THREE.MeshBasicMaterial({ map: dayT, side: THREE.DoubleSide });
+    const day = new THREE.Mesh(new THREE.PlaneGeometry(DAY_W, DAY_Y1 - DAY_Y0), dayM);
     put(day, room.doorAt, (DAY_Y0 + DAY_Y1) / 2, hd + T + 0.55);
+    // ── AND IT GOES DARK WITH THE WORLD, 2026-07-26 ──
+    //
+    // Found by shooting this room at an hour I had never shot it at. At 02:00
+    // the forecourt outside IS properly dark and looking OUT through these
+    // doors gave you full noon daylight — the doorway was a lightbox at 2am.
+    //
+    // `dimWorld` skips |x| > 100, so nothing in an interior is graded. That is
+    // RIGHT for the room: a shop with its lights on at 2am is exactly what a
+    // lit window promises from the street. It is wrong for THIS, because this
+    // is not room light — it is a picture of OUTSIDE, and outside is dark.
+    //
+    // GOTCHAS §22 names the case and the remedy: a surface the grader will not
+    // touch, painted to depict one it does, "should dim its own from its
+    // onFrame, matching the factor the world is measured applying rather than
+    // picking one. ct/lot.ts does."
+    //
+    // So it is measured, on the very surface this panel depicts — the library's
+    // own forecourt, sampled through the world's own materials:
+    //
+    //   scene.userData.nightFactor   13:20  0        02:00  1
+    //   forecourt paving  (y 0.14)   #ffffff  ->  #3c3c3c   x 0.235
+    //   the flight's steps(y 0.16)   #ffffff  ->  #918e89   x 0.569
+    //
+    // The paving is the band that reads as the lightbox and it is most of the
+    // panel, so the panel follows the paving. The two differing factors are
+    // recorded rather than averaged: they are the world's, not mine, and if a
+    // later pass makes this look wrong the number to argue with is 0.235.
+    // READ `scene.userData.nightFactor`, NOT the frame's `night`. They are two
+    // different quantities with almost the same name — GOTCHAS §25's shape —
+    // and I shipped the wrong one for one build:
+    //
+    //   f.night                       hud's raw wash curve. NIGHT_STOPS tops
+    //                                 out at 0.58, so it never reaches 1.
+    //   scene.userData.nightFactor    "0 broad day … 1 fully night", published
+    //                                 by props.ts's dimWorld for precisely this
+    //                                 reason: "let the thing that knows say so,
+    //                                 instead of three modules each guessing it
+    //                                 from appearances".
+    //
+    // AND SET THE COLOUR THE WAY THE MEASUREMENT WAS TAKEN. The second wrong
+    // build used `setScalar(0.235)`, which writes a LINEAR value, while 0.235
+    // came from `getHexString()` — an sRGB readout. Linear 0.235 displays as
+    // #858585, more than twice the brightness intended, and the formula looked
+    // perfectly correct while doing it. Caught only by measuring the tint back
+    // out and finding #858585 where #3c3c3c was expected, twice in a row.
+    //
+    // So the endpoints are the world's own graded colours for the surface this
+    // panel depicts, and it lerps between them:
+    //
+    //   the library forecourt paving   13:20 #ffffff   02:00 #3c3c3c
+    //   its flight's steps             13:20 #ffffff   02:00 #918e89
+    //
+    // The paving is the band that reads as the lightbox and is most of the
+    // panel, so the panel follows the paving. Both are recorded rather than
+    // averaged: they are the world's numbers, not mine, and if a later pass
+    // makes this look wrong then #3c3c3c is the value to argue with.
+    const DAY_TINT = new THREE.Color(0xffffff);
+    const NIGHT_TINT = new THREE.Color(0x3c3c3c);
+    ctx.onFrame(() => {
+      const n = (ctx.scene.userData.nightFactor as number) ?? 0;
+      dayM.color.copy(DAY_TINT).lerp(NIGHT_TINT, n);
+    }, HOOK.LATE);
 
     // ── the two leaves, standing open ──
     //
