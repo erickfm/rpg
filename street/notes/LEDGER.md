@@ -154,3 +154,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | i like the space in the hotel lobby its eerie. enrich the lobby with f | |
 | OPEN | G | casino internals are cool but leave a lot to be desired. i like the im | |
 | OPEN | F | sleep in your room needs a way to advance the clock — nobody has one | |
+| OPEN | G | 'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the | |

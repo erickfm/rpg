@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the church might be off."** → **G**
 - **"sleep in your room needs a way to advance the clock — nobody has one"** → **F**
 - **"casino internals are cool but leave a lot to be desired. i like the improvements but a few too many slot machines and not enough diversity in games/design/tables. also no seats? some if not all of the slots should have seats. also it shouldnt feel so crowded maybe higher ceilings and more space between machines"** → **G**
 - **"i like the space in the hotel lobby its eerie. enrich the lobby with furniture decor, etc. i want to be impressed"** → **G**
