@@ -1893,7 +1893,21 @@ function buildLot(o: {
      */
     const NOT_PARKED = new Map<number, CarState>([
       [1, { hood: true }],                    // S, first bay you pass
-      [BAY.length - 2, { jack: 'rl' }],       // N back corner, beside the tyre stacks
+      // 'fl', NOT 'rl'. The user, on a frame from beside the office: "it sits
+      // nose-high with its wheels not meeting the ground, and there is nothing
+      // under it holding it there ... either the jack is on the far side and
+      // invisible from the aisle a customer walks down, or it is still not with
+      // this car." It was the first: `jack` puts the stand at the named corner,
+      // and on this car REAR-LEFT lands between the car and the back wall.
+      // 'fr', and this took two goes because I derived the flank instead of
+      // measuring it. This car's nose reads (-0.91, -0.41), so walking its
+      // heading the LEFT flank faces +z -- away from the aisle and into the back
+      // wall. 'fl' put the stand at z 7.63 against a car centred at 7.30, i.e.
+      // further from the customer than the car itself, and the shot from the
+      // aisle showed a tilted car with nothing under it, exactly as reported.
+      // The RIGHT flank is the one a customer sees. Verified by measuring where
+      // the jack mesh lands, not by re-deriving it.
+      [BAY.length - 2, { jack: 'fr' }],       // N back corner, beside the tyre stacks
       [BAY.length - 1, { blocks: true }],     // S back corner, the donor
     ]);
 
@@ -1918,6 +1932,36 @@ function buildLot(o: {
       // so on that car the two are competing for the same volume no matter
       // where the card is derived from. `I-cards` measured both of its sheets
       // at exactly 0 m clear of the raised hood.
+      // THE WHEEL THAT CAME OFF, leaning against the wing beside the jack. The
+      // brief: "a jack under the raised end, a wheel off and leaning against
+      // the wing, an axle stand. A raised car with a visible jack is great
+      // sleazy-lot detail; a raised car with nothing under it is a bug."
+      // makeCar already removes the wheel and stands the jack; what it does not
+      // do is say where the wheel WENT, and that is lot dressing, so it is mine.
+      const jacked = NOT_PARKED.get(b)?.jack;
+      if (jacked) {
+        const sx = jacked[1] === 'l' ? -1 : 1, sz = jacked[0] === 'f' ? -1 : 1;
+        const tyreOff = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.20, 12),
+          new THREE.MeshBasicMaterial({ color: 0x333335 }));
+        // axis across the car and leaning in against the wing, so it reads as
+        // propped rather than dropped
+        // A HUB, or the wheel is invisible. Rubber is 0x333335 and the deck it
+        // leans on is nearly the same value, so a bare tyre against a dark car
+        // on dark asphalt reads as a smudge -- which is the "what survives is
+        // unidentifiable" half of the fault this pass is about. The car's own
+        // wheels carry a pale hubcap and that is what makes them read; the
+        // spare gets the same, on its outward face.
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.022, 10),
+          new THREE.MeshBasicMaterial({ color: 0x9aa0a6 }));
+        hub.position.y = 0.105;
+        tyreOff.add(hub);
+        tyreOff.rotation.z = sx * (Math.PI / 2 - 0.30);
+        // 0.35, not 0.30: measured at 0.30 the leaning tyre's lowest point sat
+        // 3.5 cm UNDER the deck. A prop that sinks into the ground is the same
+        // fault as a card inside a bonnet, one surface down.
+        tyreOff.position.set(sx * 1.02, 0.35, sz * 1.15);
+        g0.add(tyreOff);
+      }
       const state = NOT_PARKED.get(b);
       if (state?.hood) { g0.position.set(x, Y, z); g0.rotation.y = yaw; scene.add(g0); continue; }
       switch (it.treat) {

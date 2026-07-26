@@ -73,3 +73,31 @@ goes green.
 
 **Not blocking me.** I am carrying on with the standing quality brief; this is
 filed so it reaches its owner with a viewpoint, a number and a control.
+
+---
+
+## For H — the jacked car floats 2.5 cm on the wheels that should be down
+
+**Owner: H, `ct/cars.ts`.** Not blocking me; filed because the user reported it
+and the remaining half is not in my file.
+
+The user: *"check the tilt is a believable jack angle rather than a whole-body
+float — one end up, the other end's wheels still firmly down."* Measured on the
+lot's one jacked car, deck top at y 0.140:
+
+```
+  wheel                     lowest y     vs deck
+  jacked corner (raised)      0.265      +0.125   correct — it is on the jack
+  other wheel                 0.165      +0.025   should be ON the ground
+  other wheel                 0.165      +0.025   should be ON the ground
+```
+
+`cars.ts:1129` has `body.position.y = 0.03` alongside the tilt, so the whole body
+is lifted 3 cm before it is rotated. The tilt alone is what should raise the
+jacked corner; the flat lift takes the other two wheels off the ground with it,
+which is exactly the "whole-body float" the user named.
+
+I have not touched it — one flat lift is presumably there to stop the low corner
+sinking through the deck once it rotates, and which way to resolve that is H's
+call. The lot side of the report (the jack being on the invisible flank, and
+nothing propped beside it) is fixed in my file.
