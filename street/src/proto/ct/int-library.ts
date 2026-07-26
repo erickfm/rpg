@@ -933,9 +933,21 @@ export function buildLibrary(ctx: CtxBuild): void {
   // U stops at x -1.85 and the gallery starts at x 6.90, so the walk from the
   // doors to the bottom tread is 2.9 m clear and the main aisle west of the
   // bank is 4.5 m.
+  // hoisted out of the block below: the seated reader further down this file
+  // needs the middle terminal's chair, and a sitter placed from a second copy
+  // of these numbers is the two-authorings fault this whole file keeps fixing.
+  const BX = 3.60, BZ0 = 2.40, BZ1 = 5.60;
+  const BZC = (BZ0 + BZ1) / 2, BL = BZ1 - BZ0, BENCH_TOP = 0.74;
+  const TERM_CX = BX - 1.00;              // where its chairs stand
+  // WHICH terminal has somebody at it, read by the chair loop below and by the
+  // sitter further down. The PC at the near end, NOT the amber one in the
+  // middle: a person sitting at a bank of terminals occludes their own screen
+  // from behind, which is correct and is also how I hid the one screen the
+  // queue asked for by name ("give at least one screen a lit amber or green
+  // catalogue prompt"). Shot it, saw the amber gone, moved the person.
+  const TERM_TAKEN_Z = BZ0 + 0.55;
   {
-    const BX = 3.60, BZ0 = 2.40, BZ1 = 5.60;
-    const BZC = (BZ0 + BZ1) / 2, BL = BZ1 - BZ0, TOP = 0.74;
+    const TOP = BENCH_TOP;
     boxFace(0.76, 0.06, BL, wood, BX, TOP, BZC,                   // the bench top
       FACE_PY, 0.76, BL, '#6b5334');
     for (const lz of [BZ0 + 0.3, BZC, BZ1 - 0.3]) {               // and its legs
@@ -1010,12 +1022,19 @@ export function buildLibrary(ctx: CtxBuild): void {
     // which is at the screens. The reading table's west chairs use the same
     // number, which is the cross-check: same side, same value.
     for (const [, tz] of seats) {
-      const cx = BX - 1.00;
+      const cx = TERM_CX;
       box(0.44, 0.05, 0.44, wood, cx, 0.45, tz);                  // the seat pan
       box(0.05, 0.5, 0.42, wood, cx - 0.20, 0.70, tz);            // the back
       for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
         box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, tz + fz);
       }
+      // AN OCCUPIED CHAIR IS NOT A FREE ONE. Somebody is at the middle
+      // terminal (further down this file), and a seat offered under a person
+      // sits the player inside them. The user's rule is *"for every seat in
+      // the game i want to be able to sit down"*, and a chair that visibly has
+      // somebody in it is not an exception to that rule — it is the rule
+      // reading correctly, because the chair is taken.
+      if (Math.abs(tz - TERM_TAKEN_Z) < 0.01) continue;
       ctx.seat({
         x: room.wx(cx), z: room.wz(tz), yaw: Math.PI / 2, h: 0.45,
         approach: { x: room.wx(cx - 0.85), z: room.wz(tz) },
@@ -1193,6 +1212,10 @@ export function buildLibrary(ctx: CtxBuild): void {
   // the failure mode the auditor measured when this room doubled in area and
   // its clear aisle fell to 2.10 m.
   const RT_X = -4.0, RT_Z = 0.6, RT_LEN = 4.8, RT_D = 1.10;
+  // WHICH CHAIRS HAVE SOMEBODY IN THEM — one list, read twice: once to skip
+  // registering the chair as free, and once to place the reader. Two lists
+  // would drift, and this file has fixed that fault four times already.
+  const TAKEN = [{ dx: -1.6, side: -1 }, { dx: 1.6, side: 1 }] as const;
   {
     boxFace(RT_LEN, 0.08, RT_D, wood, RT_X, 0.74, RT_Z,
       FACE_PY, RT_LEN, RT_D, '#6b5334');
@@ -1231,6 +1254,12 @@ export function buildLibrary(ctx: CtxBuild): void {
         for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
           box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
         }
+        // …and these two have readers in them. Same rule as the terminals:
+        // one predicate, `TAKEN`, decides both who is drawn sitting there and
+        // which chairs are offered, so the two can never disagree. When I first
+        // shipped the readers all six chairs were still registered and you
+        // could sit down INSIDE one of them.
+        if (TAKEN.some((t) => t.dx === dx && t.side === side)) continue;
         ctx.seat({
           x: room.wx(cx), z: room.wz(cz),
           yaw: side < 0 ? Math.PI : 0, h: 0.45,
@@ -1268,11 +1297,33 @@ export function buildLibrary(ctx: CtxBuild): void {
   // MESH/sprite convention here (`atan2(vx, vz)`, 0 = +z), which is NOT the
   // camera one two blocks above; they differ by the z-flip in GOTCHAS §33 and
   // this is the one place in the file where both appear within twenty lines.
-  sitter({ jacket: '#6a5a48', pants: '#3a3f46', skin: '#8a5f3c', hair: '#241c14',
-    fit: 'plain', cut: 'short', build: 0 }, RT_X - 1.6, RT_Z - 0.95, 0);
-  // …and a second at the far end, reading, turned the other way
-  sitter({ jacket: '#4a5a52', pants: '#443c34', skin: '#e0b48c', hair: '#a8925c',
-    fit: 'plain', cut: 'long', build: 1 }, RT_X + 1.6, RT_Z + 0.95, Math.PI);
+  //
+  // PLACED FROM `TAKEN`, the same list the chair loop skips, so a reader can
+  // never end up in a chair that is still offered or a chair be left empty and
+  // unregistered. A reader on the -z side faces +z (sprite yaw 0) and one on
+  // the +z side faces -z, derived from the side rather than typed per person.
+  const LOOKS = [
+    { jacket: '#6a5a48', pants: '#3a3f46', skin: '#8a5f3c', hair: '#241c14',
+      fit: 'plain', cut: 'short', build: 0 },
+    { jacket: '#4a5a52', pants: '#443c34', skin: '#e0b48c', hair: '#a8925c',
+      fit: 'plain', cut: 'long', build: 1 },
+  ] as const;
+  TAKEN.forEach((t, i) => {
+    sitter(LOOKS[i % LOOKS.length], RT_X + t.dx, RT_Z + t.side * 0.95,
+      t.side < 0 ? 0 : Math.PI);
+  });
+
+  // AND ONE AT THE TERMINALS — the queue's row names them: *"the reading
+  // tables and the new terminals want sitters."* At the PC on the near end,
+  // for the reason recorded beside TERM_TAKEN_Z: a sitter occludes their own
+  // screen, and in the middle they stood exactly in front of the amber prompt
+  // the queue asked for. Facing +x, at the screens, which is sprite yaw
+  // PI/2 — the chair's own `ctx.seat` yaw two hundred lines up is also PI/2 and
+  // that is a COINCIDENCE of this axis, not the same convention (GOTCHAS §33:
+  // the camera looks along (sin t, -cos t) and a sprite faces (sin t, cos t),
+  // and they agree only where cos is zero).
+  sitter({ jacket: '#7a6a52', pants: '#4a4438', skin: '#c98f5e', hair: '#3a2c1e',
+    fit: 'plain', cut: 'short', build: 1 }, TERM_CX, TERM_TAKEN_Z, Math.PI / 2);
 
   // ── THE THINGS THAT SAY THE ROOM IS USED ─────────────────────────────────
   //
