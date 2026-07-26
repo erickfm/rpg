@@ -1,1 +1,1 @@
-WORKING | per-segment check caught my own damage (length GREW, segments fell); repaired | nothing
+WORKING | corrected the slot-trap severity: ONE Escape exits (3/3 fresh pages), not a reload-only trap | nothing
