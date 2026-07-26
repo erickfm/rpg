@@ -271,3 +271,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | 'Screenshot from 2026-07-25 23-30-58.png' hotel textures are buggy | |
 | OPEN | G | instead of calling the casino golden aces call it SEVENS | |
 | OPEN | B | 'Screenshot from 2026-07-25 23-39-02.png' we gotta move this phone thi | |
+| OPEN | D | i think the selection options are a bit too wide. i feel like i select | |
