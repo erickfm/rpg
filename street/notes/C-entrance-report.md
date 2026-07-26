@@ -369,3 +369,32 @@ sits within the 2.7 m storey tile; without it that strip samples from the
 bottom of the tile and puts a skirting band above the door. Hall side
 untouched. With the door open you now get blue up to the frame and the hall's
 tan seen THROUGH the opening, which is the reading that was always intended.
+
+### Re-checked the two things I had only LOOKED at — both sound
+
+Fixing the door's head gap made the point that my sign-offs this session were
+reliable when I measured and unreliable when I looked. So the two other pieces I
+had signed off from screenshots alone got the same treatment.
+
+**301's fourth wall (the skin) is exact.** Three hand-sized panels are the shape
+that produced the head gap, so I measured their world extents against the wall
+they cover rather than trusting the blue-vs-tan screenshot:
+
+```
+  panel 1.025 x 2.55   z -18.000 .. -16.975   y 5.40 .. 7.95
+  panel 0.950 x 0.45   z -16.975 .. -16.025   y 7.50 .. 7.95
+  panel 1.525 x 2.55   z -16.025 .. -14.500   y 5.40 .. 7.95
+```
+
+Flush to both jambs, floor to ceiling, and the over-door panel meets the head at
+7.50 and the cornice at 7.95. No strip of hall paper anywhere. 8 of 8 clauses.
+
+**The light well is enclosed at grazing angles.** A far wall only 1.9 m across
+could be seen past from the glass, which would show void — the same failure as
+the head gap, sideways. Pressed to the glass looking hard left, hard right,
+steeply up and steeply down: brick fills the opening every time, with the
+returns converging and the reveal reading correctly. `g1-left`, `g2-right`,
+`g3-upleft`, `g4-downrt`.
+
+Both negative results, and worth the time only because the identical check on
+the door found a real 25 mm gap that two head-on screenshots had passed.
