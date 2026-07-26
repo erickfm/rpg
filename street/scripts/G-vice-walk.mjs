@@ -114,6 +114,25 @@ const EAST = Math.PI / 2, WEST = -Math.PI / 2;
 // So the honest assertion is NOT "every lane is open" — a column you can walk
 // through is not a column. It is: there is a CONTINUOUS lane past both of them,
 // and standing in the outer lane you can step around rather than being trapped.
+// HOW MANY HOLDS, DERIVED FROM THE DISTANCE — not a magic 12.
+//
+// The westward check failed on three runs in a row reporting "walked the middle
+// of the band from x 52 back to x=35.67 (want < 33.0)", and it was the CHECK, not
+// the world. Measured the walk band independently: the widest free run across the
+// 2 m lane is 1.4–1.88 m at every half metre from x 32 to 46, narrowest 1.15 m at
+// x 45 — all far wider than the 0.72 m player, and there is no collider anywhere
+// in the band between x 33 and 38. The lane is clear.
+//
+// What ran out was ITERATIONS. A `hold('w', 700)` covers about 1.36 m, so a fixed
+// 12 gives ~16.3 m; x 52 -> 33 is 19 m and needs about 14. The walker stopped
+// early and the check called a clear lane blocked — the most expensive kind of
+// failure, because it reads as a world regression and sends somebody looking for
+// a collider that is not there. I nearly went looking for it myself.
+//
+// So the bound comes from the distance now, with headroom, and it is the same
+// number in both directions.
+const holdsFor = (from, to) => Math.ceil(Math.abs(from - to) / 1.2) + 4;
+
 const runEast = async (z, from, to, tries = 3) => {
   let best = from;
   for (let a = 0; a < tries && best < to; a++) {
@@ -121,7 +140,7 @@ const runEast = async (z, from, to, tries = 3) => {
     await warp(from, z, EAST, KERB_H);
     await p.waitForTimeout(180);
     let last = from;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0, n = holdsFor(from, to); i < n; i++) {
       await hold('w', 700);
       const c = await pos();
       if (c[0] - last < 0.15) break;
@@ -142,7 +161,7 @@ const runWest = async (z, from, to, tries = 3) => {
     await warp(from, z, WEST, KERB_H);
     await p.waitForTimeout(180);
     let last = from;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0, n = holdsFor(from, to); i < n; i++) {
       await hold('w', 700);
       const c = await pos();
       if (last - c[0] < 0.15) break;

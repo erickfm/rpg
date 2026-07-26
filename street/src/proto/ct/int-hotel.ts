@@ -5,7 +5,7 @@ import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 // the hard-texel text painter from the casino's facade — one signage hand for
 // both sides of this pair, and it is why the corridor sign is not soft
-import { hardLayer } from './vice';
+import { hardLayer, leafPair } from './vice';
 import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
@@ -255,14 +255,13 @@ export function buildHotel(ctx: CtxBuild): void {
     dither(g, 24, 56, 36);
   }), 'detail');
   const hLeafM = new THREE.MeshBasicMaterial({ map: hLeafT, side: THREE.DoubleSide });
-  const LW = DW / 2 - 0.04, OPEN = 0.50;
-  for (const sx of [-1, 1]) {
-    const hx = dAt + sx * DW / 2;
-    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06), hLeafM);
-    leaf.rotation.y = -sx * OPEN;
-    put(leaf, hx - sx * Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2,
-      hd - 0.13 - Math.sin(OPEN) * LW / 2);
-  }
+  const OPEN = 0.50, LEAF_GAP = 0.04;
+  // THE SAME FAULT WAS HERE. The desk predicted it — "if this one was mirrored
+  // wrong, its siblings were authored the same way" — and it is true to the line:
+  // same `rotation.y = -sx * OPEN`, same placement arithmetic, same brass pull at
+  // texture x 18 of 24, so this pair had its handle on the hinge on one leaf too.
+  // Both now go through the one rule in vice.ts.
+  leafPair(put, hLeafM, dAt, DW, DH, hd - 0.13, OPEN, 'hotel', LEAF_GAP);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.05, DH - 0.06, 0.05),
     new THREE.MeshBasicMaterial({ color: 0x9a7c3a })), dAt, (DH - 0.06) / 2, hd - 0.13);
   const BRASS = 0x9a7c3a, MAHOG = 0x4a2a20;

@@ -5,7 +5,7 @@ import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
-import { tube, VICE_DOOR_X } from './vice';
+import { tube, VICE_DOOR_X, leafPair } from './vice';
 
 // SEVENS, inside.
 //
@@ -357,16 +357,12 @@ export function buildCasino(ctx: CtxBuild): void {
     dither(g, 24, 56, 40);
   }), 'detail');
   const leafM = new THREE.MeshBasicMaterial({ map: leafT, side: THREE.DoubleSide });
-  const LW = DW / 2 - 0.03, OPEN = 0.55;                 // ~31 deg, both swinging in
-  for (const sx of [-1, 1]) {
-    const hx = dAt + sx * DW / 2;                        // hinge on its own jamb
-    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06), leafM);
-    leaf.rotation.y = -sx * OPEN;
-    // same arithmetic the kit uses: offset a half-leaf from the hinge along the
-    // open angle, rather than rotating a centred plane through its own jamb
-    put(leaf, hx - sx * Math.cos(OPEN) * LW / 2, (DH - 0.06) / 2,
-      hd - 0.12 - Math.sin(OPEN) * LW / 2);
-  }
+  // Both leaves through `leafPair`, which owns the mirror. The user reported one
+  // leaf reversed here, and it was the HANDLE: the pull is drawn at the +u edge,
+  // u = 1 lands on the +x side for BOTH leaves after their rotation, and the free
+  // edge is the side away from the hinge — so on one leaf the pull sat exactly ON
+  // the hinge. Hinge edge, swing and face were all already right. See vice.ts.
+  leafPair(put, leafM, dAt, DW, DH, hd - 0.12, 0.55, 'casino', 0.03);
 
   const GOLD = 0xa8863a, DARKWOOD = 0x2e1e20;
 

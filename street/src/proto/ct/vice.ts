@@ -135,6 +135,75 @@ const doorUOf = (b: BldSpec, x0: number) => {
  * promoting its alpha to 255 keeps that darkening as a fringe of near-colours.
  * A layer is one colour by construction, so it is written back flat.
  */
+/**
+ * A PAIR OF DOOR LEAVES, and the MIRROR APPLIED ONCE TO A WHOLE LEAF.
+ *
+ * The user: *"the LEFT leaf is reversed"* on the SEVENS entrance. Measured the
+ * four things that must agree per leaf, one at a time, and three of them were
+ * already right — which is exactly why a mirrored leaf is hard to see:
+ *
+ *   HINGE EDGE  right — `hx = dAt + sx * DW / 2`, each leaf on its own outer jamb
+ *   SWING       right — both centres offset toward the middle and into the room
+ *                       by the same `sin(open)`, so neither sweeps the frame,
+ *                       the wall or the other leaf
+ *   FACE        right — the plane normal after `rotation.y` is `(sin t, 0, cos t)`
+ *                       and both come out +z, toward the street
+ *   HANDLE      WRONG on one leaf
+ *
+ * The pull is drawn at the +u edge of the leaf texture. A `PlaneGeometry` puts
+ * u = 1 at local +x, and after `rotation.y = -sx * open` the local +x axis maps
+ * to world `(cos open, 0, -sin open)` — a POSITIVE x component for BOTH leaves.
+ * So the +u edge always lies on the +x side, while the free edge is the side
+ * away from the hinge, which is `-sx`. Those agree only when `sx = -1`. For the
+ * other leaf, u = 1 landed exactly ON the hinge: measured, the handle edge sat
+ * 0 m from the hinge and the blank edge sat `LW * cos(open)` away from it.
+ *
+ * THE FIX IS ONE RULE, NOT A FLIPPED SIGN: `scale.x = -sx` mirrors the ENTIRE
+ * leaf — geometry, texture, handle, face — once, for the leaf that needs it. A
+ * hand-flip on the handle alone is how you get three of four right, which is the
+ * state this was already in. GOTCHAS 41: verify BOTH sides of anything mirrored.
+ *
+ * It is here, in the shared file, because the hotel's pair was authored by the
+ * same hand with the same arithmetic and had the same fault. One rule, one place,
+ * two buildings — the same reason `tube` and `hardLayer` live here.
+ *
+ * `zFace` is the z of the door plane; the leaves hang just inside it. `gap` is
+ * the shadow line between the leaves, per building.
+ */
+export function leafPair(
+  put: (m: THREE.Mesh, x: number, y: number, z: number) => unknown,
+  mat: THREE.Material, dAt: number, DW: number, DH: number,
+  zFace: number, open: number, who: string, gap: number,
+): void {
+  // `gap` is the shadow line between the two leaves, and it comes IN rather than
+  // being fixed here: the casino was built at 0.03 and the hotel at 0.04, and
+  // folding two rooms into one helper is not a licence to quietly change one of
+  // their leaf widths by a centimetre.
+  const LW = DW / 2 - gap;
+  for (const sx of [-1, 1] as const) {
+    const hx = dAt + sx * DW / 2;                    // hinge on its own outer jamb
+    const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06), mat);
+    leaf.rotation.y = -sx * open;
+    leaf.scale.x = -sx;                              // THE ONE MIRROR, whole leaf
+    const cx = hx - sx * Math.cos(open) * LW / 2;
+    put(leaf, cx, (DH - 0.06) / 2, zFace - Math.sin(open) * LW / 2);
+
+    // A leaf that looks right at rest can still be wrong, and this is the
+    // property the bug broke: the HANDLE edge must be the FREE edge, i.e.
+    // farther from the hinge than the leaf's other edge. Derived from the same
+    // numbers rather than eyeballed, and it throws rather than warning, because
+    // a warning in a build is a check nobody watches (GOTCHAS 27).
+    const uDir = leaf.scale.x * Math.cos(leaf.rotation.y);      // world x of local +x
+    const handleX = cx + uDir * LW / 2;
+    const blankX = cx - uDir * LW / 2;
+    if (Math.abs(handleX - hx) <= Math.abs(blankX - hx)) {
+      throw new Error(`[${who}] door leaf sx=${sx}: the handle is on the HINGE edge `
+        + `(handle ${Math.abs(handleX - hx).toFixed(3)} m from the hinge, blank edge `
+        + `${Math.abs(blankX - hx).toFixed(3)} m). The leaf mirror is inverted.`);
+    }
+  }
+}
+
 export function hardLayer(
   g: CanvasRenderingContext2D, colour: string, paint: (h: CanvasRenderingContext2D) => void,
 ) {
