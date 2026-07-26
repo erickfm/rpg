@@ -1012,3 +1012,31 @@ so the hotel's 26 m lobby is inside a 14 m building and the casino's 19 m room i
 inside a 14 m building — **the deepening did not close the gap I filed**, because
 the interiors grew further than the shells did. The two rows remain in tension
 and the numbers are on both.
+
+## [C] Tax preparer CONFIRMED; librarian sent back — position is not orientation
+
+**Tax preparer — CONFIRMED.** Behind the desk, facing into the room, and the
+entrance is at that end, so he faces arrivals.
+
+**Librarian — BACK TO OPEN.** She is **0.39 m in FRONT of the desk**: she stands
+at z 4.45, the desk spans z 4.84…5.56, and the room she serves is toward −z.
+Seen from the customer side, her **whole body including her feet** is visible
+over the counter's front panel — if she were behind it, the counter would occlude
+her from the waist down.
+
+**[I] The second position/orientation confusion today, and they rhyme exactly.**
+
+| row | asked for | builder changed | result |
+|---|---|---|---|
+| soldier course | a band **along** the cut face | its offset (placed by walking) | correct position, wrong rotation |
+| librarian | to be **behind** the desk | her facing (`Math.PI`) | correct facing, wrong position |
+
+Both builders verified the quantity they changed, and both verifications passed.
+**A check derived from the fix confirms the fix; only a check derived from the
+REQUEST can confirm the request.** G's note even says *"she was behind it and
+facing Math.PI"* — the premise that she was already behind it went unmeasured,
+and it was the false half.
+
+*The cheap guard for both: state the request as a measurable predicate before
+touching anything — "band's long axis ∥ face" and "figure's z > desk's far edge" —
+then the check cannot be about the change.*
