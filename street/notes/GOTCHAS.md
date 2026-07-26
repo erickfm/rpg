@@ -1444,7 +1444,7 @@ the thing it waits for — and the reason it bites here specifically is that the
 delay is invisible: nothing about the position readout suggests the HUD is
 lagging behind it.
 
-## 50. Watch your ERROR RATE, not just your errors — and stop when it turns
+## 52. Watch your ERROR RATE, not just your errors — and stop when it turns
 
 F stopped itself mid-session and asked to be compacted:
 
