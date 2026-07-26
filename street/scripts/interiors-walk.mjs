@@ -17,6 +17,23 @@ const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 // a matter of days.
 const ROOMS = [
   {
+    // ADDED because the suite refused to run without them - the world published
+    // `bank` and `library` and this hand-written list did not have them, so
+    // nine rooms were being reported as if they were the world. The guard above
+    // now makes that impossible; these are the entries it demanded.
+    //
+    // Neither publishes a served spot yet, so the keeper check will say so
+    // rather than lean on a station I typed - which is the fault that let the
+    // bodega keeper face his own wall for weeks. A teller window in the bank
+    // and a desk prompt in the library would make both decidable.
+    keeper: null,
+    id: 'bank', label: /FIRST FEDERAL|BANK/, D: 12.0, front: ['FIRST FEDERAL', 19.2, 4.6, -1],
+  },
+  {
+    keeper: null,
+    id: 'library', label: /LIBRARY/, D: 22.0, front: ['LIBRARY', 16, -13, -1],
+  },
+  {
     // the bodega's door is on a CHAMFER, so its [E] spot is not on an axis —
     // the harness reads it from ct/doors.ts like everything else
     // `keeper` is where a PLAYER STANDS to be served — the customer side of the
@@ -195,6 +212,31 @@ const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 // size now (`__ct.roomDims()`), which is the same fix as the doors: one
 // authoring, asked for rather than copied.
 const DIMS = await p.evaluate(() => window.__ct.roomDims());
+
+// EVERY ROOM THE WORLD PUBLISHES MUST BE IN `ROOMS`, OR THIS SUITE IS LYING.
+//
+// `ROOMS` is a hand-written list and the world grows rooms without asking it.
+// A new `bank` room landed today and this suite did not test it, did not skip
+// it, and did not say so — it simply reported on nine rooms and looked
+// complete. That is the same fault as `doorside2.mjs` looping `slab < 8`
+// against eight hard-coded names while the world had ten, which quietly
+// dropped tax and thrift, and it is the fault the whole GOTCHAS 34 family
+// keeps wearing: a check that passes because it never looked.
+//
+// So the world's own list is the authority and the hand-written one has to
+// keep up with it. This cannot be silent, so it exits 2 — "refused to run",
+// distinguishable from "ran and found a fault", per lib/flags.mjs.
+{
+  const known = new Set(ROOMS.map((r) => r.id));
+  const missing = DIMS.map((d) => d.id).filter((id) => !known.has(id));
+  if (missing.length) {
+    console.error(`\nthe world publishes rooms this suite does not test: ${missing.join(', ')}`);
+    console.error('add them to ROOMS (with a `keeper` entry, or `keeper: null` if unstaffed)');
+    console.error('refusing to report on a subset and call it the world — see GOTCHAS 34');
+    await b.close();
+    process.exit(2);
+  }
+}
 
 // --selftest: wall every declared door shut from the STREET and require this
 // to go red.
