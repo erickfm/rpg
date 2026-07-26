@@ -89,25 +89,34 @@ export function makeHud(purse: Purse): Hud {
   // `sleeve` is the forearm covering (a sweater here); a tee would just leave
   // the forearm as `skin`. The first-person hands (watch + wallet) read from it.
   const player = { skin: '#c9946a', skinHi: '#d8a67d', skinLo: '#a87a54', sleeve: '#3f4a5c', cuff: '#333c4a' };
+  /** canvas width. 176 rather than 120 since the fist arrived: the wrist ends at
+   *  x 104 and the hand needs 72 px beyond it. Height is unchanged — the arm is
+   *  cut by the bottom of the frame, which is what makes it read as YOUR arm. */
+  const WATCH_W = 176;
   let watchWrap = document.getElementById('ct-watch') as HTMLDivElement | null;
   let watchCv: HTMLCanvasElement;
   if (!watchWrap) {
     watchWrap = document.createElement('div');
     watchWrap.id = 'ct-watch';
-    watchWrap.style.cssText = 'position:fixed;left:52%;bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
+    // WIDER CANVAS, SAME WATCH POSITION. The canvas grew 120 -> 176 to make room
+    // for the hand; the element is centred with translateX(-50%), so growing it
+    // to the right would have slid the watch 77 px to the LEFT. `left` moves the
+    // same 77 px the other way to cancel it exactly, so the watch face lands
+    // where it has always landed and only the hand is new.
+    watchWrap.style.cssText = 'position:fixed;left:calc(52% + 77px);bottom:-14px;z-index:11;pointer-events:none;transform:translateX(-50%) translateY(140%) rotate(-6deg);transition:transform .18s ease-out;';
     watchCv = document.createElement('canvas');
-    watchCv.width = 120; watchCv.height = 72;
-    watchCv.style.cssText = 'width:330px;height:198px;image-rendering:pixelated;display:block;';
+    watchCv.width = WATCH_W; watchCv.height = 72;
+    watchCv.style.cssText = 'width:484px;height:198px;image-rendering:pixelated;display:block;';
     watchWrap.appendChild(watchCv);
     document.body.appendChild(watchWrap);
   } else {
     watchCv = watchWrap.firstChild as HTMLCanvasElement;
-    watchCv.width = 120; watchCv.height = 72;
+    watchCv.width = WATCH_W; watchCv.height = 72;
   }
   // the wrist-and-watch close-up (the good one — arm version was reverted)
   const drawWatch = (mins: number) => {
     const g = watchCv.getContext('2d')!;
-    g.clearRect(0, 0, 120, 72);
+    g.clearRect(0, 0, WATCH_W, 72);
     // STEP 1 of an incremental rebuild (an all-at-once redraw was rejected).
     // Only change so far: the forearm runs OFF THE LEFT EDGE instead of
     // floating with a gap either side. A limb cut by the frame reads as your
@@ -115,6 +124,30 @@ export function makeHud(purse: Purse): Hud {
     g.fillStyle = '#c9946a'; g.fillRect(0, 6, 104, 66);          // wrist, cut by the frame
     g.fillStyle = 'rgba(0,0,0,0.15)'; g.fillRect(0, 6, 10, 66);
     g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(94, 6, 10, 66);
+    // ── THE FIST ──────────────────────────────────────────────────────────
+    //
+    // *"it actually should be really minimal considering it would be the top of
+    // the fist. no fingers would actually show so i kinda expect a square larger
+    // in width than the wrist attached to the right side of the wrist."*
+    //
+    // ONE BOX, and that is the whole design. He worked out the anatomy himself
+    // and he is right: from this camera you are looking down at the BACK of a
+    // closed fist, the fingers are curled underneath and out of sight, and the
+    // back of a fist really is just a slab. Minimal is the CORRECT answer here,
+    // not a cheap one — no fingers, no knuckles, no taper, no thumb.
+    //
+    // 72 px against the wrist's 66, so it is "larger in width than the wrist"
+    // as asked, with the extra reading as the swell of the hand above the wrist.
+    // Cut by the bottom of the frame like the wrist, for the same reason.
+    //
+    // Drawn BEFORE the strap and the case so it can never overlap them; it butts
+    // at x 104 where the wrist ends, and the strap lives at 38…82.
+    g.fillStyle = '#c9946a'; g.fillRect(104, 0, 72, 72);
+    // …and the same two-tone shading the wrist carries, light coming from the
+    // right, so it reads as one limb and not as a glove: the identical rgba
+    // values, not a matched-by-eye pair.
+    g.fillStyle = 'rgba(255,255,255,0.12)'; g.fillRect(166, 0, 10, 72);
+    g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(104, 0, 4, 72);   // the wrist's shadow on it
     g.fillStyle = '#26282e'; g.fillRect(38, 0, 44, 72);          // strap
     g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(38, 0, 4, 72);
     g.fillStyle = '#3a3d45'; g.fillRect(32, 14, 56, 42);         // case
