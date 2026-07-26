@@ -1,1 +1,1 @@
-DONE | solved the aiming problem by computing sightlines; blade reached but not legible at 15.5m | G
+DONE | built scripts/lib/viewof.mjs - computes a sightline to anything; limitation documented | nobody
