@@ -96,3 +96,47 @@ The density table still stands for PAWN, which is thin AND is a shop.
 - **church** — cannot verify, it is mine. Needs another verifier.
 
 Nothing marked CONFIRMED. Only the desk or the auditor may.
+
+
+## TAX — contents good, but its CLOCK is still painted and now visibly wrong
+
+Walked in. The room reads: filing cabinets, desks and chairs, a clerk facing
+you, a notice board, ceiling grid with fluorescents, a plant, drab
+institutional palette that suits a tax office. No action on contents.
+
+But there is a wall clock on its back wall, and it is one of the painted faces
+I listed as unconverted when `room.clock()` landed. Counted live clock hands
+across the world:
+
+    rooms with LIVE clock hands: diner 2, library 2
+
+Two each - an hour hand and a minute hand - and they are the two rooms I
+converted. **Nothing else in the world has a moving hand.** So the tax
+office's clock is a fixed painted hour, hanging in plain sight, and it now
+disagrees with the diner and the library rather than merely being static.
+
+This matters more than it did before the primitive landed. The user's ask was
+*"make sure all the clocks throughout the world (library, diner, etc. tell the
+time accurately)"* — a property of the world, every face agreeing. Converting
+two of them and leaving a third painted is the state that ask was filed
+against, just with different rooms in it.
+
+**One line for G**, and the call is in `notes/F-clock-primitive.md`:
+
+    room.clock({ lx: ..., y: ..., lz: ..., r: 0.16 });
+
+Same for the hotel lobby clock at `int-hotel.ts:421`. NOT the hotel lift dial
+(stopped between floors on purpose) and NOT the pawn shop's dials
+(merchandise) — those are correct as they are.
+
+## Final state of this verification pass
+
+| room | doors | contents | verdict |
+|---|---|---|---|
+| pawn | 19/25 | thinnest in world, 0.5/m2 | **TRAPS THE PLAYER — urgent, routed** |
+| hotel | 24/25 | good, reads as a lobby | no action; my density number was wrong for it |
+| tax | 25/25 | good | one line: convert the clock |
+| casino | 24/25 | not looked at | outstanding |
+| church | — | — | mine, needs another verifier |
+
+Nothing marked CONFIRMED. Only the desk or the auditor may.
