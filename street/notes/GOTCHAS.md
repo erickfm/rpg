@@ -1228,3 +1228,37 @@ One corollary worth keeping, from the auditor's library measurement:
 all ten rooms — because the new footprint got cut into strips by stacks. Free
 floor was a normal 81%. Measure the largest continuous free run
 (`scripts/roomaisle.mjs`), not the square metres, before calling a room fixed.
+
+## 46. A complaint about EXECUTION is not a verdict on the THING
+
+The user said, over several passes: *"gazebo shelter is fucked"*, *"this like
+shelter gazebo thing hasw graphics issues abound"*. The desk read that as
+patience running out and ruled **"third and final attempt or delete"**. E
+deleted it. The user's next message:
+
+> *"also the gazebo shelter type thing in the park is gone, i liked it."*
+
+He was never complaining about the shelter. He was complaining about z-fighting
+roof planes, posts that did not meet the deck, and a bin intersecting it — a
+**defect list**, delivered in strong language because the defects kept coming
+back.
+
+The desk turned a defect list into a verdict, and deleting was the one outcome
+that could not be recovered from by trying again. **When a thing has been
+rejected repeatedly, the question is whether the DEFECTS are converging, not
+whether the user still wants the thing.** If you cannot tell, ask — one
+question costs a message; a deletion costs the feature and the pass that built
+it.
+
+The same reading error nearly happened twice more:
+
+- **The puddles** were removed after five attempts, and that ruling was right —
+  but only because the user had said *"i think these are puddles and they look
+  awful honestly"*, which is a verdict on the thing itself.
+- **PVBLIC LIBRARY** was the reverse: the desk sat on a defensible detail
+  (Roman capitals have no U) waiting for a ruling instead of asking, and the
+  user read it as a typo twice before it got fixed.
+
+Strong language about how something looks is a bug report. A statement that the
+thing itself is unwanted is a verdict. They are different messages and only the
+second one licenses removal.
