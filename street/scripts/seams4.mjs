@@ -9,7 +9,7 @@
 //             No.227 -35..-53 · PAWN -53..-65 · DELI -65..-76 · RECORDS -76..-86 ·
 //             BODEGA -86..-96
 //   NORTH2 x: FLOWERS 16.45..22.45 · CHOP SUEY 22.45..33.45 ·
-//             HOTEL ORPHEUS 33.45..45.45 · GOLDEN ACES 45.45..57
+//             HOTEL ORPHEUS 33.45..45.45 · SEVENS 45.45..57
 //   SOUTH2 x: ST BRIGID -7..11 · GARAGE 11..23 · BILLIARDS 23..35 ·
 //             SMOKES 35..46 · LOANS 46..57
 //
@@ -47,7 +47,7 @@ const SHOTS = [
   ['N-church-x-west',     -4.0, -105,  look(-4.0, -105, -7, -110), 0, 0.40],
   ['N-church-roof-plan',   2.0, -104,  0,                          0, 1.28],
 
-  // ── GOLDEN ACES x 45.45…57 and HOTEL ORPHEUS x 33.45…45.45, z = −96 ────
+  // ── SEVENS x 45.45…57 and HOTEL ORPHEUS x 33.45…45.45, z = −96 ────
   ['N-aces-front',        51.0, -103,  look(51.0, -103, 51, -96),  0, 0.45],
   ['N-aces-up',           51.0, -99,   look(51.0, -99, 51, -96),   0, 1.05],
   ['N-aces-graze',        58.0, -97.0, look(58.0, -97.0, 30, -96.1), 0.14, 0.25],

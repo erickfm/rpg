@@ -9,13 +9,14 @@
 // So count both ends. The source says how many modules declare a door; the
 // running world says how many were collected. They must match, and when they
 // do not this names the missing building rather than the missing count —
-// "GOLDEN ACES is not in declaredDoors()" is actionable, "7 of 8" is not.
+// "SEVENS is not in declaredDoors()" is actionable, "7 of 8" is not. (It was
+// called GOLDEN ACES when this was written.)
 //
 // MEASURE THE BUNDLE, NOT THE DEV SERVER. Same commit, same worktree, same
 // script, two answers:
 //
 //   vite dev      (unbundled native ESM)  8 of 8 — every door arrives
-//   vite preview  (rollup bundle)         7 of 8 — GOLDEN ACES lost
+//   vite preview  (rollup bundle)         7 of 8 — SEVENS lost
 //
 // A bundler orders and hoists a circular import differently from the browser's
 // own module loader, so this defect exists ONLY in the built output — which is

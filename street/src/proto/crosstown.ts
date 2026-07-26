@@ -140,7 +140,7 @@ export function makeCrosstown(): Proto {
   // fix. My first version held off the spot that was USED, which does nothing
   // for the reported fault: stepping OUT uses the exit spot, so the ENTRY spot
   // is a different object entirely and fires the instant you arrive. Measured
-  // it failing exactly that way on BURGER BARN, GOLDEN ACES and ST BRIGID —
+  // it failing exactly that way on BURGER BARN, SEVENS and ST BRIGID —
   // "[E] into BURGER BARN" showing the moment you stepped onto the pavement,
   // and a second E throwing you 522 m back inside.
   //

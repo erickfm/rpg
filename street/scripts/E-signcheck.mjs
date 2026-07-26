@@ -1,4 +1,4 @@
-// Builder E: evidence for the GOLDEN ACES roof sign report. The sign lives in
+// Builder E: evidence for the SEVENS roof sign report. The sign lives in
 // ct/street.ts (D's), so this LOOKS and measures, it does not change anything.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';

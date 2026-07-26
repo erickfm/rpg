@@ -18,7 +18,7 @@ const prompt = () => p.evaluate(() => {
   return d && d.style.display !== 'none' ? d.textContent : null;
 });
 const pos = () => p.evaluate(() => window.__ct.pos().map(v=>+v.toFixed(2)));
-for (const [tag, x, z] of [['DINER (control)', -6.3, -46.75], ['GOLDEN ACES', 51.25, -97.3]]) {
+for (const [tag, x, z] of [['DINER (control)', -6.3, -46.75], ['SEVENS', 51.25, -97.3]]) {
   await p.evaluate(([x,z]) => window.__ct.warp(x, z, 0, 0.14, 0), [x, z]);
   await p.waitForTimeout(350);
   const before = await pos(), pr = await prompt();

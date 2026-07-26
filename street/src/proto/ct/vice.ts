@@ -4,7 +4,7 @@ import { facadeTex, masonry, SHOP_BAND_H, SHOP_MULT } from './tex-world';
 import { type BldSpec } from './civic';
 import { type AABB } from '../fp';
 
-// GOLDEN ACES and HOTEL ORPHEUS — the two buildings at the far end of the side
+// SEVENS and HOTEL ORPHEUS — the two buildings at the far end of the side
 // street, and the ONLY TWO IN THE WORLD THAT ARE LIGHT SOURCES rather than lit
 // surfaces. That sentence is the whole design and everything below serves it.
 //
@@ -73,7 +73,7 @@ import { type AABB } from '../fp';
  * this can invert and the rooms become the authority.
  */
 export const VICE_DOOR_X: Record<string, number> = {
-  'GOLDEN ACES': 51.29,
+  'SEVENS': 51.29,
   'HOTEL ORPHEUS': 39.51,
 };
 
@@ -92,7 +92,7 @@ const doorUOf = (b: BldSpec, x0: number) => {
   //
   // It cannot fire today — `VICE` holds exactly the two names this map has — so
   // this is for whoever adds a third. `placeShell` dispatches with
-  // `nm === 'GOLDEN ACES' ? acesBand : orpheusBand`, so a new building falls to
+  // `nm === 'SEVENS' ? sevensBand : orpheusBand`, so a new building falls to
   // the hotel painter by default and would hit exactly this.
   if (doorX === undefined) throw new Error(`ct/vice.ts: no VICE_DOOR_X for "${b.nm}" — add its door x beside the other two`);
   return (x0 + b.w - doorX) / b.w;
@@ -292,7 +292,7 @@ export function buildVice(o: {
   //
   // The entrance is drawn where VICE_DOOR_X says it is, which is the same number
   // ct/int-casino.ts's [E] spot stands at because that file reads it from here.
-  const acesBand = (b: BldSpec, x0: number) => {
+  const sevensBand = (b: BldSpec, x0: number) => {
     const s = masonry(b.w, SHOP_BAND_H, 0, SHOP_MULT);
     const { W, H } = s;
     const yOf = (wy: number) => Math.round(((SHOP_BAND_H - wy) / SHOP_BAND_H) * H);
@@ -490,7 +490,7 @@ export function buildVice(o: {
       [xt, xt, roofM, roofM, zt, facade]);
     wall.position.set(cx, h / 2 + gh, zMid);
     scene.add(wall);
-    const bandM = flat(b.nm === 'GOLDEN ACES' ? acesBand(b, x0) : orpheusBand(b, x0));
+    const bandM = flat(b.nm === 'SEVENS' ? sevensBand(b, x0) : orpheusBand(b, x0));
     const xs = flat(flankTex(b.brick, DEP, gh, 0));
     const zs = flat(flankTex(b.brick, b.w, gh, 0));
     const shop = new THREE.Mesh(new THREE.BoxGeometry(b.w, gh, DEP),
@@ -543,7 +543,7 @@ export function buildVice(o: {
   };
 
   const placeSigns = (sideSpans: Record<string, [number, number]>) => {
-    const casino = sideSpans['GOLDEN ACES'], hotel = sideSpans['HOTEL ORPHEUS'];
+    const casino = sideSpans['SEVENS'], hotel = sideSpans['HOTEL ORPHEUS'];
     const FACE_Z0 = -96.0;
 
     // ── the chase, shared by both buildings ─────────────────────────────
@@ -748,7 +748,7 @@ export function buildVice(o: {
         stay.rotation.x = 0.72;
         scene.add(stay);
       }
-      // ACES down the blade in tube neon, over a chevron of bulbs pointing at
+      // SEVENS down the blade in tube neon, over a chevron of bulbs pointing at
       // the door.
       //
       // ── GOTCHAS §10, and the way this one actually works ──────────────
@@ -768,14 +768,14 @@ export function buildVice(o: {
       // un-cancels them, which is exactly what made the west face read
       // backwards while the east face was fine.
       //
-      // Verified from BOTH ends of the street on asymmetric letters — ACES,
+      // Verified from BOTH ends of the street on asymmetric letters — SEVENS,
       // ORPHEUS, VACANCY, LOOSEST SLOTS. Symmetric text hides this completely,
       // which is why the last one survived.
       const bladeArt = () => pixTex(44, 224, (g) => {
         g.fillStyle = '#17141c'; g.fillRect(0, 0, 44, 224);
         g.fillStyle = GOLD_D; g.fillRect(0, 0, 44, 3); g.fillRect(0, 221, 44, 3);
         g.fillRect(0, 0, 3, 224); g.fillRect(41, 0, 3, 224);
-        'ACES'.split('').forEach((ch, i) => tubeText(g, ch, 22, 32 + i * 33, 30, '#ff5a4a'));
+        'SEVENS'.split('').forEach((ch, i) => tubeText(g, ch, 22, 32 + i * 33, 30, '#ff5a4a'));
         // the chevrons, running down toward the marquee
         for (let k = 0; k < 4; k++) {
           const y = 168 + k * 13;
@@ -796,7 +796,7 @@ export function buildVice(o: {
 
       // ── the blank wall the 1984 refit made ───────────────────────────
       //
-      // GOLDEN ACES had four storeys of ordinary sash windows above its
+      // SEVENS had four storeys of ordinary sash windows above its
       // marquee, which is the single thing most at odds with what it is
       // supposed to be. Casinos do not have windows — that is the whole point
       // of a casino, and it is why ct/int-casino.ts has no daylight in it. A
@@ -831,9 +831,16 @@ export function buildVice(o: {
               g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(gx, gy + gh - 1, gw, 1);
             }
           }
-          // and the name across it, big enough to read from the block
-          tubeText(g, 'GOLDEN', Math.round(W / 2), Math.round(H * 0.30), Math.round(H * 0.13), '#e8b93a', '#f7e6b0', '#3a1016');
-          tubeText(g, 'ACES', Math.round(W / 2), Math.round(H * 0.50), Math.round(H * 0.17), '#e8b93a', '#f7e6b0', '#3a1016');
+          // AND THE NAME ACROSS IT — RE-SET, NOT SUBSTITUTED.
+          //
+          // This was two stacked lines, GOLDEN at 0.13 H over ACES at 0.17 H,
+          // because the old name needed two. SEVENS is one word, so the whole
+          // height that was spent on two lines and the gap between them goes into
+          // ONE line of letters at 0.30 H — nearly double the old cap height.
+          // That is also the answer to "casino text is a bit too blurry": the
+          // letters were small for the canvas, and the cheapest legibility there
+          // has ever been is fewer, bigger letters rather than a bigger texture.
+          tubeText(g, 'SEVENS', Math.round(W / 2), Math.round(H * 0.38), Math.round(H * 0.30), '#e8b93a', '#f7e6b0', '#3a1016');
           // The house's mark under the name. This was a spade first and it came
           // out looking like a bird — a suit symbol needs curves and there are
           // not enough texels here to spend on them. Three sevens need none:
@@ -1060,14 +1067,14 @@ export function buildVice(o: {
       // Full height, and that is the whole point of it. The user's sentence was
       // "theyre a casino and hotel right next to each other", and what makes
       // that an image rather than two buildings is TWO BLADES side by side —
-      // ACES burning red at 46.4 and ORPHEUS burning cyan at 44.35, two metres
+      // SEVENS burning red at 46.4 and ORPHEUS burning cyan at 44.35, two metres
       // apart, both running from the canopy to above the roofline. The old
       // blade said HOTEL in five letters over seven metres and was the smaller
       // sign on a bigger building than the casino.
       const hx = hotel[1] - 1.1;
       const HB_Y0 = 5.0, HB_Y1 = 19.2, HB_YC = (HB_Y0 + HB_Y1) / 2;
       // 1.2 m deep, to match the casino's 1.35. At 0.6 it was the same height
-      // as the ACES blade and half its width, which from down the street read as
+      // as the SEVENS blade and half its width, which from down the street read as
       // the hotel standing behind the casino rather than beside it.
       const mast = new THREE.Mesh(new THREE.BoxGeometry(0.26, HB_Y1 - HB_Y0, 1.2), boardM);
       mast.position.set(hx, HB_YC, -96.95);
@@ -1223,15 +1230,36 @@ export function buildVice(o: {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(0.5, 6.6, 7.2), boardM);
       frame.position.set(cxm, BOT + 3.3, -94.3);
       scene.add(frame);
-      twoSided(92, 74, (g) => {
-        g.fillStyle = '#e8c25a'; g.font = 'bold 15px monospace';
+      // THE BLADE, RE-SET FOR A SHORTER NAME AND SHARPENED.
+      //
+      // Two faults, and the rename is the chance to close the second:
+      //  - it read GOLDEN over ACES at 15 px on a 92 x 74 canvas over a
+      //    6.8 x 6.2 m board. SEVENS is one word, so it gets the height both
+      //    lines had, at 34 px.
+      //  - "casino text is a bit too blurry". The canvas was 13.5 px/m and the
+      //    text was drawn with plain fillText, which ANTIALIASES — grey fringe
+      //    texels on every letter, in a world that is nearest-filtered
+      //    throughout. Doubled to 184 x 148 (27 px/m) and every glyph now goes
+      //    through `hardLayer`, which snaps alpha to 0 or 255 and flattens the
+      //    colour, so a letter edge is a texel edge. That painter exists in this
+      //    file already and is what the marquee lettering uses; the blade was
+      //    the one sign in the pair still drawing soft.
+      twoSided(184, 148, (g) => {
         g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('GOLDEN', 46, 26); g.fillText('ACES', 46, 45);
-        g.fillStyle = '#e8574a';
-        g.font = 'bold 9px monospace'; g.fillText('OPEN ALL NITE', 46, 62);
+        hardLayer(g, '#e8c25a', (h) => {
+          h.textAlign = 'center'; h.textBaseline = 'middle';
+          h.font = 'bold 34px monospace';
+          h.fillText('SEVENS', 92, 58);
+        });
+        hardLayer(g, '#e8574a', (h) => {
+          h.textAlign = 'center'; h.textBaseline = 'middle';
+          h.font = 'bold 15px monospace';
+          h.fillText('OPEN ALL NITE', 92, 108);
+        });
+        // the bulb run round the edge, on the texel grid
         g.fillStyle = '#f2d98a';
-        for (let x = 3; x < 92; x += 8) { g.fillRect(x, 2, 4, 3); g.fillRect(x, 69, 4, 3); }
-        for (let y = 6; y < 70; y += 8) { g.fillRect(2, y, 3, 4); g.fillRect(87, y, 3, 4); }
+        for (let x = 6; x < 184; x += 16) { g.fillRect(x, 4, 8, 6); g.fillRect(x, 138, 8, 6); }
+        for (let y = 12; y < 140; y += 16) { g.fillRect(4, y, 6, 8); g.fillRect(174, y, 6, 8); }
       }, 6.8, 6.2, cxm, BOT + 3.3, -94.3, 0.26);
     }
 
@@ -1242,5 +1270,5 @@ export function buildVice(o: {
     }
   };
 
-  return { placeShell, placeSigns, VICE: ['GOLDEN ACES', 'HOTEL ORPHEUS'] as const };
+  return { placeShell, placeSigns, VICE: ['SEVENS', 'HOTEL ORPHEUS'] as const };
 }

@@ -1,3 +1,26 @@
+## Done — 2026-07-25, routed to G (the rename)
+
+- **"the casino is called SEVENS, not GOLDEN ACES"** — facade, blade sign,
+  interior signage, the `[E]` prompt, the door label, everything a player can
+  read. Granted as a **bounded cross-file mandate for this rename only**, in one
+  commit, because *"a key renamed in four files and missed in two is a room that
+  silently stops existing, and that failure is far worse than the ownership
+  cost."*
+
+  **THE NAME CHANGED ON 2026-07-25. `GOLDEN ACES` AND `SEVENS` ARE THE SAME
+  BUILDING.** Every mention of GOLDEN ACES in `notes/` and in the history part of
+  this file is left standing on purpose — it records what was true when it was
+  written, and rewriting it would make the record lie about what people said and
+  found. This line is the pointer that makes those references resolve. Nothing
+  functional still uses the old string: 52 occurrences across 28 code and script
+  files became 0, verified in the built bundle and not only in dev.
+
+  Also closed in the same pass, both previously reported: *"casino text is a bit
+  too blurry"* (the blade was 13.5 px/m and drawn with antialiasing `fillText`;
+  it is 27 px/m through the hard-texel painter now) and the shorter word was the
+  occasion to re-set the lettering rather than substitute it — one line of
+  letters at more than double the old cap height, instead of two stacked lines.
+
 ## Open — 2026-07-25, routed to I (car lot)
 
 - **Adopt the ground painters — the driveway apron above all** — *"ADOPTION, one

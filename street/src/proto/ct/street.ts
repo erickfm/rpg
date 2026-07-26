@@ -32,7 +32,7 @@ export { ALLEY_SLAB_Y, alleyFloorY } from './alley-floor';
 // ── SHARED SHELL VOCABULARY, hoisted to module scope and exported ──────────
 //
 // These were closures inside `buildStreet`. Nothing about them changed; they
-// moved so that `ct/vice.ts` can call them, because GOLDEN ACES and HOTEL
+// moved so that `ct/vice.ts` can call them, because SEVENS and HOTEL
 // ORPHEUS still carry the two faults the user has raised twice — a flat
 // untextured brown on every return, and a 3.4 m deep box — and every other
 // building on the block was fixed by exactly these two functions.
@@ -330,7 +330,7 @@ export function buildStreet(o: {
     { nm: 'FLOWERS', col: '#4a7a52', w: 6, brick: '#835444', floors: 3 }, // half of it is the bodega's now
     { nm: 'CHOP SUEY', col: '#8a3a2e', w: 11, brick: '#5c4436', floors: 3 },
     { nm: 'HOTEL ORPHEUS', col: '#6a4a2c', w: 12, brick: '#7a4a3a', floors: 5 },
-    { nm: 'GOLDEN ACES', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
+    { nm: 'SEVENS', col: '#8a2c42', w: 11.55, brick: '#5c4436', floors: 4 },
   ];
   const SOUTH2: BldSpec[] = [
     // the church has moved to the main block; the two shops it displaced take
@@ -900,7 +900,7 @@ export function buildStreet(o: {
   placeBldZ(FACE + 3.4, -94.3, { nm: 'BODEGA', col: '#b8342a', w: BODEGA_WING, brick: '#6b4034', floors: 3 }, -1);
   let xn = FACE + 3.4 + BODEGA_WING;
   const sideSpans: Record<string, [number, number]> = {};
-  // GOLDEN ACES and HOTEL ORPHEUS are built by ct/vice.ts — they are not
+  // SEVENS and HOTEL ORPHEUS are built by ct/vice.ts — they are not
   // shopfronts and are not made of shopfront parts (same argument that took the
   // library and the church into ct/civic.ts). street.ts still owns where they
   // stand: the roster above and this cursor. Called from INSIDE the loop rather

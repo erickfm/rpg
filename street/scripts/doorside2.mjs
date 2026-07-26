@@ -65,7 +65,7 @@ const out = await p.evaluate(() => {
            fronts: fronts.map(f=>({ name:f.name, axis:f.axis, c:+((f.loWorld+f.hiWorld)/2).toFixed(2),
              door:+f.doorWorld.toFixed(2), off:+(f.doorWorld-(f.loWorld+f.hiWorld)/2).toFixed(2) })) };
 });
-const NAME = { bodega:'BODEGA', burger:'BURGER BARN', casino:'GOLDEN ACES', diner:'DINER',
+const NAME = { bodega:'BODEGA', burger:'BURGER BARN', casino:'SEVENS', diner:'DINER',
                hotel:'HOTEL ORPHEUS', pawn:'PAWN', tax:'A-1 TAX', thrift:'THRIFT' };
 console.log('room       inside offset   outside offset   nrm  verdict');
 for (const r of out.res) {

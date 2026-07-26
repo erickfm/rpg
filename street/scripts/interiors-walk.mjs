@@ -82,7 +82,7 @@ const ROOMS = [
   {
     // G's OWN spot, copied from scripts/G-rooms-walk.mjs — across the felt from the dealer
     keeper: [3.1, 1.6],
-    id: 'casino', label: /GOLDEN ACES/, W: 10.5, D: 9.0,
+    id: 'casino', label: /SEVENS/, W: 10.5, D: 9.0,
     doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
   },
   {

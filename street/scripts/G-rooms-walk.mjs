@@ -26,10 +26,10 @@ const KERB_H = 0.14, RADIUS = 0.36;
 // arrives instead.
 const ROOMS = [
   {
-    id: 'casino', label: /GOLDEN ACES/,
+    id: 'casino', label: /SEVENS/,
     keeper: [-2.6, -12.2],   // across the felt from the dealer, in the pit
 
-    building: 'GOLDEN ACES', at: 0, hasWindow: false,
+    building: 'SEVENS', at: 0, hasWindow: false,
     // an x clear of furniture, for the ±z wall probes
     // ALL RE-DERIVED for the 17 x 19 floor. Every number below was measured off
     // the new layout, not nudged until it passed: the avenue is |x| < 1.3, the
@@ -340,7 +340,7 @@ const walkTill = async (axis, enough = Infinity, maxSteps = 14) => {
 // A room that imports a runtime VALUE from ./doors joins an import cycle with the
 // door registry, and a module in that cycle resolves to an undefined namespace in
 // the Rollup bundle — so its DOOR is collected in dev and dropped without trace in
-// `dist`. That is how GOLDEN ACES was missing from declaredDoors() in the shipped
+// `dist`. That is how SEVENS was missing from declaredDoors() in the shipped
 // artefact for many commits (fixed in 1e49295b).
 //
 // EVERY OTHER CHECK IN THIS FILE RUNS AGAINST THE DEV SERVER, WHERE THE DEFECT IS

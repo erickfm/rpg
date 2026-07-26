@@ -66,7 +66,7 @@ console.log(`${ROOMS.length} declared rooms to check: ${ROOMS.map((r) => r.name)
 // SAY WHAT THIS CANNOT CHECK. The user asked for every building, and this can
 // only reach rooms whose door reaches `declaredDoors()` — so "all N mirror" is
 // a statement about N, not about the world. Right now 8 rooms exist and one of
-// them, GOLDEN ACES, never arrives at all: ct/int-casino.ts imports a VALUE
+// them, SEVENS, never arrives at all: ct/int-casino.ts imports a VALUE
 // from ct/doors.ts (`doorStandFor`, not just `type DoorDecl` as its siblings
 // do), which puts it in a runtime import cycle, so its namespace is undefined
 // when the glob is read. scripts/doors-declared.mjs is the check for that and

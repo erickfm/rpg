@@ -29,7 +29,7 @@ const r = await p.evaluate(() => {
     return {label,me:{geo:me.geo,size:me.size,minY:+me.min[1].toFixed(2)},nearest:n};
   };
   return [probe(44.35,7.4,-96.72,'HOTEL blade mast'),
-          probe(51.23,19.3,-98.2,'ACES leg (street side)'),
+          probe(51.23,19.3,-98.2,'SEVENS leg (street side)'),
           probe(201.8,4.61,-10.5,'apartment stair flight'),
           probe(201.2,5.15,-16.5,'apartment ceiling dome')];
 });

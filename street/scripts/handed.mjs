@@ -1,6 +1,6 @@
 // SIGN HANDEDNESS, read off the scene graph instead of photographed.
 //
-// Four camera attempts failed the same way: the GOLDEN ACES marquee canopy
+// Four camera attempts failed the same way: the SEVENS marquee canopy
 // overhangs the pavement, so every street-level camera within ~8 m of a blade is
 // underneath it. When a check fails twice the same way, change the instrument.
 //

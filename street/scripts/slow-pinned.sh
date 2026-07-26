@@ -88,7 +88,7 @@ cd "$PIN/$PREFIX"
 #
 # `PINNED_MODE=preview` serves the built bundle instead, which is the only way
 # to see bundle-specific behaviour — and it matters: circular imports resolve
-# differently there, which is how GOLDEN ACES's door was lost in the artefact
+# differently there, which is how SEVENS's door was lost in the artefact
 # while dev showed all eight. scripts/doors-declared.mjs is the check that
 # cares; run that one with preview.
 #

@@ -25,7 +25,7 @@ const S = [
   ['V6-church-garage',  14.0, -105,  look(14.0,-105, 11,-110),     0, 0.40],
   // finding 8 — north cross building at z=13.5 vs CAFE at x=7
   ['V7-north-cross',     4.0, 10.5,  look(4.0,10.5, 7,13.5),       0, 0.35],
-  // finding 9 — east cross building at x=57 vs GOLDEN ACES
+  // finding 9 — east cross building at x=57 vs SEVENS
   ['V8-east-cross',     52.0, -101,  look(52.0,-101, 57,-96),      0, 0.35],
   // finding 19 — alley flank vs street brick at the mouth
   ['V9-alley-arris',    -4.0, -34.0, look(-4.0,-34.0, -7,-37),     0, 0.35],

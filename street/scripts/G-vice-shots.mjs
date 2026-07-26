@@ -1,4 +1,4 @@
-// LOOKING at GOLDEN ACES and HOTEL ORPHEUS — day and, above all, night.
+// LOOKING at SEVENS and HOTEL ORPHEUS — day and, above all, night.
 //
 // These are for LOOKING, never for proving (CLAUDE.md, GOTCHAS §1). Two runs of
 // identical code differ in ~20% of pixels; if you want to show the world did not

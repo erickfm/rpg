@@ -33,7 +33,7 @@ if(!r.ctrl.detected){console.error('  ** the swallow detector cannot see a point
 console.log('  so "0 doors swallowed" is a measurement, not a blind pass\n');
 const front={'BURGER BARN':16,'DINER':12,'THRIFT':12.5,'A-1 TAX':13,'PAWN':15,'BODEGA':6.05};
 const idOf={'BURGER BARN':'burger','DINER':'diner','THRIFT':'thrift','A-1 TAX':'tax','PAWN':'pawn','BODEGA':'bodega',
- 'GOLDEN ACES':'casino','ST BRIGID':'church','HOTEL ORPHEUS':'hotel','LIBRARY':'library'};
+ 'SEVENS':'casino','ST BRIGID':'church','HOTEL ORPHEUS':'hotel','LIBRARY':'library'};
 console.log('building         room w   published   DERIVED facade   building depth   room d   ratio(room/facade)');
 for(const o of r.rows){
  const id=idOf[o.b]; const d=r.dims.find(q=>q.id===id); if(!d) {console.log(`${o.b.padEnd(15)} (no room)`); continue;}

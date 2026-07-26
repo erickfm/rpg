@@ -810,7 +810,7 @@ export interface FrontageWorld extends Placement {
    * them and nothing to ask. It is also SILENT, and that is the problem: when a
    * room exists but its declaration never arrives, the facade gets a door
    * wherever the painter would have put it while the room has one somewhere
-   * else, which is the user's original complaint. GOLDEN ACES is in exactly
+   * else, which is the user's original complaint. SEVENS is in exactly
    * that state today — ct/int-casino.ts is in an import cycle with ct/doors.ts,
    * so its DOOR is skipped (scripts/doors-declared.mjs).
    *

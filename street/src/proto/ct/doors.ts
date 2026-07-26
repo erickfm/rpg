@@ -126,7 +126,8 @@ export function roomWidthFor(frontageM: number): number {
 // four values back. That is an import cycle, and a module caught in one
 // resolves to `undefined` inside an eager glob: any DOOR it declares is dropped
 // SILENTLY, with no error and no gap in any count unless you compare the two
-// totals. GOLDEN ACES was lost exactly that way in the BUILT BUNDLE while the
+// totals. SEVENS (then called GOLDEN ACES) was lost exactly that way in the
+// BUILT BUNDLE while the
 // dev server showed all eight — see notes/BLOCKED-C.md §0 and BLOCKED-D.md.
 //
 // Every door in the world is declared by an `int-*.ts`, and all eight of those

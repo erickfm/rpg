@@ -25,16 +25,16 @@ const out = await p.evaluate(async () => {
     await new Promise(r=>requestAnimationFrame(r)); await new Promise(r=>requestAnimationFrame(r));
     const s = read(); if (s) hits.push({ x:+x.toFixed(1), s });
   }
-  const spots = window.__ct.spots().filter(q => /GOLDEN ACES/i.test(q.label||''))
+  const spots = window.__ct.spots().filter(q => /SEVENS/i.test(q.label||''))
     .map(q=>({label:q.label, x:+q.x.toFixed(2), z:+q.z.toFixed(2), r:+q.r.toFixed(2), ok:q.ok}));
   return { hits, spots, nDoors: (window.__ct.doors?window.__ct.doors():[]).length };
 });
 console.log(`__ct.doors(): ${out.nDoors}`);
-console.log(`GOLDEN ACES spots registered: ${out.spots.length}`);
+console.log(`SEVENS spots registered: ${out.spots.length}`);
 for (const s of out.spots) console.log(`   "${s.label}" at (${s.x}, ${s.z}) r ${s.r} ok=${s.ok}`);
-const aces = out.hits.filter(h => /ACES/i.test(h.s));
-console.log(`\nwalking the side street x 46…58: ${out.hits.length} samples fired a prompt, ${aces.length} of them ACES`);
-if (aces.length) console.log(`   ACES fires from x ${aces[0].x} … ${aces[aces.length-1].x}`);
+const sevens = out.hits.filter(h => /SEVENS/i.test(h.s));
+console.log(`\nwalking the side street x 46…58: ${out.hits.length} samples fired a prompt, ${sevens.length} of them SEVENS`);
+if (sevens.length) console.log(`   SEVENS fires from x ${sevens[0].x} … ${sevens[sevens.length-1].x}`);
 // and a look at the facade
 await p.evaluate(() => window.__ct.warp(51.3, -105, Math.PI, 0.14, 0.05));
 await p.waitForTimeout(300);

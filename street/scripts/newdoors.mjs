@@ -23,7 +23,7 @@ const r = await p.evaluate(async () => {
     return { label, standingOn: [x, z], prompt: showing() };
   };
   const out = [];
-  out.push(await at(51.29, -97.0, 'GOLDEN ACES door'));
+  out.push(await at(51.29, -97.0, 'SEVENS door'));
   out.push(await at(39.51, -97.0, 'HOTEL ORPHEUS door'));
   out.push(await at(6.55, -15.25, 'A-1 TAX door'));
   // what is now near the thrift door that was not before?

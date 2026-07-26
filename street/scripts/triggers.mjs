@@ -46,7 +46,7 @@ const out = await p.evaluate(async () => {
     }
   }
   // the SIDE STREET runs along x, so its walk line is a z. Two more doors live
-  // there (doorsweep finds HOTEL ORPHEUS and GOLDEN ACES) and a census that
+  // there (doorsweep finds HOTEL ORPHEUS and SEVENS) and a census that
   // stops at the main block is not a census.
   const probeSide = async (x,z) => {
     if(!free(x,z)) return null;

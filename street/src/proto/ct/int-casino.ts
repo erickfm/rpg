@@ -7,7 +7,7 @@ import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
 import { tube, VICE_DOOR_X } from './vice';
 
-// GOLDEN ACES, inside.
+// SEVENS, inside.
 //
 // The brief was that this should be the LEAST like the street outside of any
 // room on the list, and everything here is bent to that one idea. A casino is
@@ -28,7 +28,7 @@ import { tube, VICE_DOOR_X } from './vice';
 // bright things in the room are the things a casino wants you looking at: the
 // reel glass, the felt, and the cage. That contrast is the whole effect.
 //
-// GOLDEN ACES stands at the far end of the side street, x ∈ [45.45, 57.00] in
+// SEVENS stands at the far end of the side street, x ∈ [45.45, 57.00] in
 // street.ts's NORTH2 roster, facade on z = -96.0. Its door is painted by
 // ct/vice.ts, which is where the x lives — walked in
 // notes/G-interiors2-prep.md rather than eyeballed, because an [E] spot that
@@ -84,7 +84,7 @@ const standOf = (d: DoorDecl, standoff = 0.75) =>
  * to tooling without moving anything.
  */
 export const DOOR: DoorDecl = {
-  building: 'GOLDEN ACES', w: 11.55, cz: 51.225, side: 1, at: 0,
+  building: 'SEVENS', w: 11.55, cz: 51.225, side: 1, at: 0,
   // WHAT THE DOOR IS — the user's own complaint, routed to F: "the interior
   // door doesnt match the exterior doorway". The exterior is a wide gold-framed
   // DOUBLE door under a lit canopy; the room was building a narrow single
@@ -107,15 +107,15 @@ export const DOOR: DoorDecl = {
   // here and typed again there as a u fraction; one of the two had to be the
   // authority and it has to be the painter, because the facade is built before
   // this module is evaluated. See VICE_DOOR_X for why the arrow points this way.
-  face: { x: VICE_DOOR_X['GOLDEN ACES'], z: -96.0, nx: 0, nz: -1 },
+  face: { x: VICE_DOOR_X['SEVENS'], z: -96.0, nx: 0, nz: -1 },
 };
 
 export function buildCasino(ctx: CtxBuild): void {
   const DOOR_X = 51.29, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
     id: 'casino',
-    building: 'GOLDEN ACES',   // finds the published DoorLeaf above
-    label: 'into GOLDEN ACES',
+    building: 'SEVENS',   // finds the published DoorLeaf above
+    label: 'into SEVENS',
     // 2.9, raised from 2.5 on the audit's finding that this was the lowest
     // room in the world by 0.30 m and 0.90 m under the hotel next door
     // (AUDIT-TRIAGE item 4 / interior-audit R18).
@@ -142,7 +142,7 @@ export function buildCasino(ctx: CtxBuild): void {
     // stops. Raising it would turn the room into a hall, which is the opposite
     // of the brief.
     // 11.0 WIDE, NOT 17.0 — and the width was mine to get wrong. The user's rule
-    // is "KEEP THE FRONTAGE WIDTH, GROW THE DEPTH, hard", and GOLDEN ACES has an
+    // is "KEEP THE FRONTAGE WIDTH, GROW THE DEPTH, hard", and SEVENS has an
     // 11.55 m frontage. I grew both axes and the auditor measured the result at
     // build 4a311be0a: the interior was 1.96x the building it sits in, 323 m²
     // against a 165 m² footprint, where the church is 0.94x and the hotel 0.58x.
@@ -904,7 +904,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // small repeated bulbs, and the 777.
   //
   // The signage is painted by `tube` imported from ct/vice.ts — the same
-  // painter that draws GOLDEN ACES and LOOSEST SLOTS on the front of the
+  // painter that draws SEVENS and LOOSEST SLOTS on the front of the
   // building, so the hand is identical rather than merely similar.
 
   // Bulbs, and a chase to run them. Same idea as the marquee outside: sockets

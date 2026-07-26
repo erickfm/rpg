@@ -386,7 +386,7 @@ const CHECKS = [
   // one outcome worse than not running it. 47 s is slow-tier by this file's own
   // precedent — lotwalk moved there at 36 s (c68d718c2) and crowd-walk sits
   // there at 45 s.
-  ['G-vice-walk',      'do GOLDEN ACES and HOTEL ORPHEUS light the street, and read right from both sides?', true, [], true],
+  ['G-vice-walk',      'do SEVENS and HOTEL ORPHEUS light the street, and read right from both sides?', true, [], true],
   ['G-rooms-walk',     'can you enter all four rooms, and does each keeper look AT you?', true, [], true],
   // E's courtyard walk, registered by A after checks-registered caught it — it
   // had been sitting unregistered for the best part of an hour. Measured on an
@@ -462,7 +462,7 @@ const CHECKS = [
   // Measured before registering rather than assumed: it reads the BUILT bundle,
   // starts no browser, and takes 0 s. Its --selftest inverts three truths and
   // catches all three. And it guards a real, silent failure — a glob binding
-  // declared after the literal that reads it, which is how GOLDEN ACES' door
+  // declared after the literal that reads it, which is how SEVENS' door
   // stopped being collected (GOTCHAS 28).
   ['globorder',            'is any globbed module bound after the glob that reads it?',  true],
 

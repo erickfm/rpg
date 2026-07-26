@@ -9,7 +9,7 @@
 // what ships to the artifact and to Pages:
 //
 //     vite dev      (unbundled, native ESM)   8 of 8 declared doors arrive
-//     vite preview  (rollup bundle)           7 of 8 — GOLDEN ACES is lost
+//     vite preview  (rollup bundle)           7 of 8 — SEVENS is lost (then GOLDEN ACES)
 //
 // Two agents measured that and disagreed for a day, both honest, both
 // reproducible. Nothing in the suite watches for the condition itself.

@@ -271,7 +271,7 @@ export interface RoomSpec {
    *
    * Which way a room departs from that is a character decision, and it goes
    * BOTH ways. A library wants more — it is trying to feel civic. A casino
-   * wants LESS: GOLDEN ACES is 2.5 m over a 1.62 m eye, because a casino is
+   * wants LESS: SEVENS is 2.5 m over a 1.62 m eye, because a casino is
    * built to make you lose the thread of the time, the weather and the way
    * out, and a low ceiling is how that is done in geometry. The bodega is 2.6
    * for the same reason in a different key — cramped is height as much as

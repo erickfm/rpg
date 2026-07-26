@@ -63,7 +63,7 @@ const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout
 // `doorStandFor` publishes where a player is meant to stand and the rooms and
 // the facade painter read the same declaration, so these three cannot disagree.
 const STAND = {};
-for (const nm of ['GOLDEN ACES', 'HOTEL ORPHEUS']) {
+for (const nm of ['SEVENS', 'HOTEL ORPHEUS']) {
   // Through `__ct.doors()`, NOT `import('/src/proto/ct/doors.ts')`. That source
   // path only exists on the dev server, so the old form made this suite
   // dev-only — and dev is precisely where the door-drop bug (1e49295b) is
@@ -78,14 +78,14 @@ for (const nm of ['GOLDEN ACES', 'HOTEL ORPHEUS']) {
   if (!d) { console.error(`no declaration for ${nm}`); process.exit(2); }
   STAND[nm] = d;
 }
-const ACES = STAND['GOLDEN ACES'], ORPH = STAND['HOTEL ORPHEUS'];
+const SVN = STAND['SEVENS'], ORPH = STAND['HOTEL ORPHEUS'];
 // The facade plane, derived rather than typed. A door POINT sits on the facade
 // by definition — `doorStandFor` is that point pushed out along the outward
 // normal by the standoff — so the declaration gives the wall's z for free. The
 // walk band and the building-line assertions below used to carry -96.66 and
 // -96.9 as literals, which is a number ct/street.ts owns and could move under
 // them; the same fault as the door literals in d955a0fc.
-const FACADE_Z = ACES.pz;
+const FACADE_Z = SVN.pz;
 
 // ── --selftest: prove this suite can still fail ─────────────────────────
 //
@@ -225,7 +225,7 @@ const statics = await (async () => {
 
 // A lane at height z is clear if no static box blocks the corridor from x = 30 to
 // the casino door, inflated by the player's radius in both axes.
-const X0 = 30.0, X1 = ACES.px;
+const X0 = 30.0, X1 = SVN.px;
 const laneClear = (z) => !statics.some(([mnX, mxX, mnZ, mxZ]) =>
   z > mnZ - RADIUS && z < mxZ + RADIUS && mxX + RADIUS > X0 && mnX - RADIUS < X1);
 const clear = [];
@@ -311,7 +311,7 @@ check('the same band runs back west past both columns',
 // ── 2. you can stand UNDER the porte-cochère and under the marquee ───────
 // Both are overhead structures and neither should have put a collider in the
 // walking band. Standing under them means reaching the building line.
-for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', ACES.px]]) {
+for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', SVN.px]]) {
   let deepest = -99, moved = 0;
   for (let a = 0; a < 3 && deepest < FACADE_Z - 0.9; a++) {
     if (a) await p.waitForTimeout(1500);
@@ -330,7 +330,7 @@ for (const [nm, x] of [['the porte-cochère', ORPH.px], ['the marquee', ACES.px]
 
 // ── 3. the doors the facades were redrawn around still work ─────────────
 for (const [nm, x, re] of [
-  ['GOLDEN ACES', ACES.px, /GOLDEN ACES/],
+  ['SEVENS', SVN.px, /SEVENS/],
   ['HOTEL ORPHEUS', ORPH.px, /ORPHEUS/],
 ]) {
   await warp(x, FACADE_Z - 1.8, Math.PI, KERB_H);
