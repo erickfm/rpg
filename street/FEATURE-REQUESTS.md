@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"tv off unless i sit down to watch it pls"** → **C**
 - **"every interior room moved +80 m in x when ct/int-bank.ts was inserted — every ledger station naming an interior coordinate now points at the wrong room"** → **DESK** (found by B verifying)
 
   <!-- B: measured at build 4b7070163. bodega 440->520, casino 600->680,
