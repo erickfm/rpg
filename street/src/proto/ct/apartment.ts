@@ -235,8 +235,35 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   //         the far jamb — so the leaf fills the gap and touches neither end
   //   OPEN  swung back flat against the room wall, which is where a door in a
   //         one-room flat actually lives
-  const DOOR_A_OPEN = -Math.PI / 2 + 0.25;
-  const DOOR_A_SHUT = Math.PI / 2;
+  /** WHICH JAMB A DOOR HANGS ON — one declaration for the whole building.
+   *
+   *  The user: *"301's knob is on the left ... to match the other floors"*, and
+   *  he is right. Measured across the walk-up before changing anything:
+   *
+   *    101, 201, 401  (numbers ending 01)   hinge +z, knob -z
+   *    102, 202, 402  (numbers ending 02)   hinge -z, knob +z
+   *    302                                  hinge -z, knob +z   agrees with 02
+   *    301                                  hinge -z, knob +z   should be 01
+   *
+   *  So a landing's pair MIRRORS — the two flats face each other and their
+   *  doors open away from each other — and 301 was the only door in the
+   *  building that broke it. Three 01 doors against one; the other floors win.
+   *
+   *  It is derived here rather than typed at each door so that "every 01 door
+   *  in this building hands the same way" is true by construction and not by
+   *  four numbers happening to agree. Same shape as F's entry-spot descriptor:
+   *  one declaration, none hand-typed. */
+  const hingeSide = (num: string) => (num.endsWith('01') ? 1 : -1);
+  // 301 hangs on the +z jamb (hingeSide('301') = +1), so its leaf must span
+  // TOWARD -z when shut. Local -x maps to (-cos t, 0, sin t), so -z wants
+  // t = -pi/2, and the open pose mirrors with it — still swinging back into the
+  // room, which is where a door in a one-room flat lives. Both angles are
+  // derived from the hand rather than typed, so flipping the hand flips the
+  // swing WITH it: a knob moved without its hinges is a door that opens from
+  // its own hinge edge, which looks right in a still and absurd in motion.
+  const H301 = 1;                                   // = hingeSide('301')
+  const DOOR_A_SHUT = H301 * -Math.PI / 2;
+  const DOOR_A_OPEN = H301 * (Math.PI / 2 - 0.25);
   let doorShut = false;           // persists for the session, not per visit
   let doorA = DOOR_A_OPEN;        // where the leaf is right now
   let leaf301: THREE.Group | null = null;
@@ -754,7 +781,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // A knob is a rose, a stem and a ball. The rose is what actually reads
       // at hall distance — a knob with no backplate looks stuck on.
       const nx = Math.sin(ry) < 0 ? -1 : 1;          // which way the door faces
-      const off = (num.endsWith('01') ? -1 : 1) * (DOOR_W / 2 - 0.13);
+      const off = -hingeSide(num) * (DOOR_W / 2 - 0.13);   // knob opposite the hinge
       doorKnob(scene, wx, baseY + 1.02, wz + off, nx, 'x');
       // Report finding 2, the last of it: these six doors had their casing
       // PAINTED INTO doorTexN, so beside 301's and 302's real architrave they
@@ -809,6 +836,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       leaf.position.set(x0 + 0.05, yb + 1.05, DOOR_Z0 + 0.04);
       leaf.rotation.y = d302A;        // starts SHUT; updateHermitAt drives it
       scene.add(leaf);
+      leaf.name = 'leaf302';
+      scene.userData.doorTravel = {
+        ...(scene.userData.doorTravel ?? {}),
+        leaf302: { shut: D302_SHUT, open: D302_OPEN },
+      };
       leaf302 = leaf;
       // the same knob every other door in the building has, on BOTH faces —
       // GOTCHAS 41, the mirror is where the bug hides, and a handle on one
@@ -865,14 +897,28 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // shut leaf spans DOOR_Z0-0.02 to DOOR_Z0+0.97 across a gap that runs
       // DOOR_Z0 to DOOR_Z0+0.95 — covered at both ends instead of short at
       // both ends.
-      DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z0 - 0.02; DOOR_LEAF_W = LW;
+      // ON THE +z JAMB now, per hingeSide('301'). It was DOOR_Z0 - 0.02, the
+      // -z jamb, which is what made 301 the only 01 door in the building
+      // hinged the wrong way. The 0.02 still overlaps the jamb by the same
+      // amount, just from the other end.
+      DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z1 + 0.02; DOOR_LEAF_W = LW;
+      // named so scripts/swing.mjs can drive the arc and check what it sweeps
+      leaf301.name = 'leaf301';
+      // PUBLISH THE TRAVEL, do not make a harness guess it. scripts/swing.mjs
+      // first swept 76deg of a 166deg arc, in the wrong direction, and passed
+      // — a door check that never visited the doorway. Same idea as props.ts
+      // publishing `wetness`: state what the world knows rather than infer it.
+      scene.userData.doorTravel = {
+        ...(scene.userData.doorTravel ?? {}),
+        leaf301: { shut: DOOR_A_SHUT, open: DOOR_A_OPEN },
+      };
       leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.09, DOOR_PIV_Z);
       leaf301.rotation.y = doorA;
       scene.add(leaf301);
       const hingeM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
       for (const hy of [2 * ST + 0.32, 2 * ST + 1.78]) {
         const hg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.11, 0.022), hingeM);
-        hg.position.set(AX(-0.032), hy, DOOR_PIV_Z - 0.007);   // on the pivot line
+        hg.position.set(AX(-0.032), hy, DOOR_PIV_Z + 0.007);   // on the pivot line
         scene.add(hg);
       }
 
@@ -880,7 +926,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // on the room side — a door you can only reach by standing inside its
       // own swing is a door you can never shut.
       ctx.spot({
-        x: DOOR_PIV_X - 0.55, z: DOOR_PIV_Z + 1.45, r: 0.95,
+        x: DOOR_PIV_X - 0.55, z: DOOR_PIV_Z - H301 * 1.45, r: 0.95,
         ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
         // IT NEVER REFUSES. The user: *"it should always be able to
         // open/close."* This used to read 'step clear of the door' and do
@@ -1815,14 +1861,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     box(0.02, 0.42, 0.02, -1.68, RY + 0.95, 2.34, antM, 0).rotation.z = 0.38;   // rabbit ears
     box(0.02, 0.38, 0.02, -1.44, RY + 0.93, 2.34, antM, 0).rotation.z = -0.44;
     // a chair with yesterday's clothes over the back
+    //
+    // TUCKED 0.30 m NORTH of where it used to stand. Re-handing the door to
+    // match the rest of the building swung its 166deg arc across this half of
+    // the room instead of the other, and the leaf passed clean through the
+    // chair from 138deg onward — scripts/swing.mjs, twelve sampled points at
+    // all three heights. The arc is 0.86 m from a pivot at (-0.09, 3.975) and
+    // the chair's near corner was 0.75 m out; it is 1.01 m out now. It could
+    // not go deeper into the room instead: the dresser collider runs to
+    // x -1.15 and the chair is 0.45 wide, which leaves 0.01 m of margin, so
+    // north to the wall was the only direction with room in it.
     const chairM = new THREE.MeshBasicMaterial({ color: 0x6b5033 });
-    box(0.42, 0.04, 0.40, -0.72, RY + 0.44, 4.82, chairM);
-    for (const [lx, lz] of [[-0.54, 4.65], [-0.90, 4.65], [-0.54, 4.99], [-0.90, 4.99]] as [number, number][]) {
+    box(0.42, 0.04, 0.40, -0.72, RY + 0.44, 5.12, chairM);
+    for (const [lx, lz] of [[-0.54, 4.95], [-0.90, 4.95], [-0.54, 5.29], [-0.90, 5.29]] as [number, number][]) {
       box(0.05, 0.44, 0.05, lx, RY + 0.22, lz, chairM);
     }
-    box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 4.99, chairM);
-    box(0.40, 0.20, 0.26, -0.74, RY + 0.80, 4.94, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
-    box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 4.78, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
+    box(0.42, 0.46, 0.05, -0.72, RY + 0.69, 5.29, chairM);
+    box(0.40, 0.20, 0.26, -0.74, RY + 0.80, 5.24, new THREE.MeshBasicMaterial({ color: 0x3f5a6b }), 0.1);
+    box(0.34, 0.14, 0.22, -0.70, RY + 0.50, 5.08, new THREE.MeshBasicMaterial({ color: 0x7a5a4a }), -0.3);
     // ── the poster ───────────────────────────────────────────────────────
     // The user: *"what is this poster on the wall?"* — which on this project
     // has meant the same thing four times now: the object is drawn but it is
@@ -1949,7 +2005,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { minX: AX(-3.10), maxX: AX(-2.94), minZ: AZI(3.25), maxZ: AZI(4.25) },  // radiator
       { minX: AX(-3.00), maxX: AX(-2.30), minZ: AZI(2.12), maxZ: AZI(2.80) },  // dresser + its open drawer
       { minX: AX(-1.75), maxX: AX(-1.37), minZ: AZI(2.15), maxZ: AZI(2.53) },  // crate + TV
-      { minX: AX(-0.95), maxX: AX(-0.50), minZ: AZI(4.60), maxZ: AZI(5.04) },  // chair
+      { minX: AX(-0.95), maxX: AX(-0.50), minZ: AZI(4.90), maxZ: AZI(5.34) },  // chair, clear of 301's arc
       // 301's leaf, standing open against the wall — a door is solid even
       // when it is open. Safe on every floor: west of AX(0) is only ever
       // reachable through 301's opening, which aptDoorCap gates to floor 3.
@@ -2247,7 +2303,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // was ever getting through, and a collider with a hole in it reads as a
     // bug rather than as a draught.
     setCap(doorShutCap,
-      doorA > DOOR_A_SHUT - 0.10 && Math.abs(lastGy - 2 * ST) < 0.5,
+      // NEAR the shut pose, not "past" it. This was `doorA > DOOR_A_SHUT - 0.10`,
+      // which silently assumed shut was the LARGER angle. Flip the hand and shut
+      // becomes -pi/2 while open is +1.32, so that test was true at BOTH ends and
+      // the doorway stayed blocked with the door standing open. A distance test
+      // has no handedness in it and cannot be wrong that way again.
+      Math.abs(doorA - DOOR_A_SHUT) < 0.10 && Math.abs(lastGy - 2 * ST) < 0.5,
       AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2) - 0.02, AZI(3.5 + DOOR_GAP / 2) + 0.02);
   };
 

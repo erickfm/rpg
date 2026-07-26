@@ -8,13 +8,43 @@ every item names an owner, because none of it is waiting on me.
 
 | what | owner | filed as a ledger row |
 |---|---|---|
+| **every `[E]` above the ground floor is dead — one tested line** | **D** | yes |
 | `isSelfLit` holds ~40 printed sheets and one citizen at full daylight | **B** | yes |
-| `ctx.advanceTime` for "sleep in your room" | **DESK** | yes |
+| ~~`ctx.advanceTime` for "sleep in your room"~~ CLOSED — F landed `ctx.clock` | — | landed |
 | `reach.mjs` declares the world unwalkable at exit 0 | **AUDIT** | yes |
 | `slow-pinned.sh` cannot start its server, so the slow tier is unrunnable | **H** | yes |
 | `ct/lot.ts` has no owner | — | nobody to route to |
 
-## 3. "Sleep in your room" needs a way to advance the clock — nobody has one
+## 4. Every `[E]` above the ground floor is dead — `crosstown.ts:883`
+
+**Owner: D** — it is a side effect of D's *"shouldnt be able to select things
+through objects ever"*. Full write-up, both directions of evidence and the tested
+one-line patch: **`notes/C-los-storey.md`**.
+
+In one line: the spot-selection line-of-sight ray is cast from a hardcoded
+`y = 1.6` whatever storey you are on, while its target is storey-aware, so on
+floor 3 it starts inside the ground floor and every slab in between blocks it.
+`const eye = new THREE.Vector3(px, 1.6, pz)` wants `px, apt.gy() + 1.6, pz`;
+`apt.gy()` is already in scope two lines away.
+
+Blocks 4 of `scripts/door301.mjs`'s 12 clauses — every one that needs the
+prompt. With the patch applied all 12 pass; reverted, the same 4 come back.
+**The handing fix itself is verified without it**, so this holds up the
+interaction check, not the change.
+
+It is regression, from `4d50e8a1a`, and it is user-facing: you cannot open your
+own apartment door in the live world.
+
+## 3. ~~"Sleep in your room" needs a way to advance the clock~~ — CLOSED
+
+F landed `ctx.clock` (`ct/ctx.ts:226`), with `advance(minutes, {overSeconds})`
+ramped over 1.5 s by default. Room 301's sleep spot is built on it and snaps to
+07:00. The section below is kept only because it records what was asked for and
+why; **it is not blocking anything.** The desk's ruling on the two open
+questions was "sleep snaps to 07:00 with no fade", and that is what shipped.
+
+<details><summary>the original ask, for the record</summary>
+
 
 **What I need:** a way for a module to move game time forward.
 **From whom:** whoever owns `ct/ctx.ts` and `crosstown.ts` — the desk.
@@ -61,6 +91,8 @@ immediately: this, and G's hotel.
 2. **How long a sleep is.** "Until morning" (snap to 07:00) reads better than
    a fixed eight hours, because it makes the verb mean something at any hour.
    I would default to that unless told otherwise.
+
+</details>
 
 
 ---

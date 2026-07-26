@@ -30,8 +30,16 @@ const APT_X = 200, APT_Z = -20, ST = 2.7, GAP = 0.95;
 const AX = (l) => APT_X + l, AZI = (l) => APT_Z + l;
 const FLOOR = 2 * ST;
 const Z0 = AZI(3.5 - GAP / 2), Z1 = AZI(3.5 + GAP / 2);
-const PIV = [AX(-0.09), Z0 + 0.02];
-const SPOT = [PIV[0] - 0.55, PIV[1] + 1.45];
+// WHICH JAMB 301 HANGS ON is derived, not remembered. ct/apartment.ts declares
+// `hingeSide(num) = num.endsWith('01') ? 1 : -1` for the whole building, so a
+// door numbered 01 hangs on the +z jamb. This script had Z0 + 0.02 — the -z
+// jamb — baked in, and went red the moment 301 was brought into line with 101,
+// 201 and 401. Correctly red: it refused to measure rather than measure the
+// wrong leaf. Deriving it the same way the world does means the next hand
+// change moves both together.
+const HAND = 1;                       // hingeSide('301')
+const PIV = [AX(-0.09), HAND > 0 ? Z1 + 0.02 : Z0 - 0.02];
+const SPOT = [PIV[0] - 0.55, PIV[1] - HAND * 1.45];
 const at = (dx, dz) => Math.atan2(dx, -dz);
 
 // --selftest: jam a collider across the doorway in the LIVE list, so the
