@@ -107,10 +107,25 @@ shadows. Still dark, because a diner window IS dark below the worktop.
     same-dimension partner** — a repaint, not a loss. GOTCHAS 31's grain
     shift, from the object count moving by one.
   - 189 structure entries differ; **7 have no same-geometry partner**. Those
-    are the diner ROOM's window panes: `ct/interior.ts:651` derives them from
+    are the diner ROOM's window panes: `ct/interior.ts` derives them from
     `FW.glazingLoWorld/HiWorld`, so moving the glazing span moves them. That
     is the designed contract, not a break — the room declares the door, the
     facade follows; the room's glazing follows the facade.
+
+    > **VERIFIED LATER, and it holds** — I had asserted this from reading the
+    > line, which is the habit that produced four wrong mechanism claims this
+    > session, so it was worth going back for. `int-diner` carries no
+    > hand-typed `window:`, so `spec.window` is undefined and the derived path
+    > at `interior.ts:713` is genuinely live.
+    >
+    > The verification also corrected my own understanding of it. The room's
+    > window is **not** the whole glazing span scaled — it is the LARGER of the
+    > two runs either side of the door (`interior.ts:706-708` keeps whichever
+    > side is bigger). For the diner: glazing u 0.55-9.00, door at 3.11, so the
+    > runs are 1.92 m and 5.25 m; the 5.25 scaled by room/frontage 10.8/12
+    > gives 4.72 m against the 4.61 m I measured on the front wall. That is the
+    > mechanism, and "derives them from the glazing span" was true but vaguer
+    > than I knew when I wrote it.
   - Noise floor established first: the same build twice is IDENTICAL on
     textures, structure and tints, so those diffs are signal.
 
