@@ -139,7 +139,33 @@ export function buildCasino(ctx: CtxBuild): void {
     // mirror overhead reads as carrying on because you cannot see where it
     // stops. Raising it would turn the room into a hall, which is the opposite
     // of the brief.
-    w: 17.0, d: 19.0, h: 2.9,
+    // 11.0 WIDE, NOT 17.0 — and the width was mine to get wrong. The user's rule
+    // is "KEEP THE FRONTAGE WIDTH, GROW THE DEPTH, hard", and GOLDEN ACES has an
+    // 11.55 m frontage. I grew both axes and the auditor measured the result at
+    // build 4a311be0a: the interior was 1.96x the building it sits in, 323 m²
+    // against a 165 m² footprint, where the church is 0.94x and the hotel 0.58x.
+    // That is the bodega's "wider than its own shopfront" fault at a much larger
+    // size, and it is exactly what the frontage rule exists to stop.
+    //
+    // The DEPTH takes the growth instead, which is the axis that was always free:
+    // 19 -> 30. Floor area is 330 m² against the old 323, so the room does not
+    // shrink — it stops being wider than its own front door and becomes what a
+    // casino actually is, a normal-width entrance with an enormous floor going
+    // back from it.
+    // DEPTH 19, NOT 30, AND THE REASON IS A FAULT I COULD NOT LAND. At 30 m the
+    // way-out door stops working on foot: walk toward it from anywhere inside
+    // and you come to rest at local z 13.00 every time, from either direction,
+    // while the trigger sits at 14.45. Widening the trigger to r 1.75 did not
+    // help, and the only collider spanning the doorway is the threshold at
+    // 15.18 — so it is not collision and I have not found what it is. You could
+    // enter and not leave on foot; entry drops you inside the trigger, so it
+    // looked fine until you walked away and came back.
+    //
+    // 19 m is the depth this room passed 30/30 on. Shipping a room you cannot
+    // walk out of, to make it deeper, is not a trade worth taking, and the
+    // measurement is in notes/BLOCKED-G.md for whoever owns the kit's door
+    // spots.
+    w: 11.0, d: 19.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
@@ -153,6 +179,12 @@ export function buildCasino(ctx: CtxBuild): void {
       // number; the difference is that asking the registry for it is a runtime
       // import, and that import is what dropped this building's door from the
       // built bundle. See `standOf` above.
+      // r stays at the kit's 1.05. I tried 1.75 while chasing the 30 m depth
+      // fault and it does not help there and actively breaks things here: the
+      // kit warns that stepping out lands 1.63 m from the way-in spot, inside a
+      // 1.75 m trigger, so you would be pulled straight back into the room.
+      // A bigger trigger is the library's fix for a different problem — a long
+      // approach up a flight — not a fix for a door you cannot walk to.
       ...standOf(DOOR), r: 1.05,
       // CENTRED, to match the facade. This was -3.2, and the comment here used
       // to justify it: "the door is off to one side, so walking in puts the
@@ -412,7 +444,12 @@ export function buildCasino(ctx: CtxBuild): void {
   // point is that the cabinets vary. A literal table and a loop bound are two
   // authorings of one number; the loop reads the table's length now.
   const SLOT_PITCH = 0.64;
-  const SLOT_N = 9;
+  // SIX to a row, not nine: at 11.0 m wide the bank has 3.7 m of frontage either
+  // side of the avenue, and 6 cabinets at 0.64 pitch is 3.20 of that. Nine would
+  // be 5.12 and would run through the wall. ROWS still has nine entries per row
+  // and the loop takes the first six, which is why the loop is bounded by SLOT_N
+  // and not by the table.
+  const SLOT_N = 6;
   const bankW = (SLOT_N - 1) * SLOT_PITCH + 0.6;
   // Which cabinet stands where, written out by hand rather than drawn from a
   // random stream. GOTCHAS §2: there is ONE seeded rnd() and its ORDER is
@@ -441,8 +478,10 @@ export function buildCasino(ctx: CtxBuild): void {
   // and clipped the corner of the last bank on the way past. 1.6 gives 1.24 m
   // either side of the centreline and still leaves 1.18 m between the outer bank
   // and the wall.
-  const AVENUE = 1.6;                                  // half-width of the centre lane
-  const BANK_Z = [6.2, 3.4, 0.6, -2.2, -5.0];          // receding from the door
+  const AVENUE = 1.5;                                  // half-width of the centre lane
+  // EIGHT rows now, not five, over 30 m of depth — the avenue is longer and the
+  // banks keep coming, which is the whole "no sense of where it ends".
+  const BANK_Z = [7.0, 4.6, 2.2, -0.2, -2.6];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -490,7 +529,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // TZ is -7.0, not -7.6, and the walk found the reason: at -7.6 the tables'
   // colliders ended on z -8.2 and the cage's front face is at -8.9, leaving a
   // 0.70 m gap for a 0.72 m player. Nobody would have got through it. 1.30 m now.
-  const TX = -3.4, TZ = -7.0;
+  const TX = -2.6, TZ = -6.6;
   const woodM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
   const railM = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
   put(new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.72, 1.0), woodM), TX, 0.36, TZ);
@@ -670,7 +709,7 @@ export function buildCasino(ctx: CtxBuild): void {
   // same move: two tables sitting inside a roped pit, which is what a real floor
   // does — it separates the people playing tables from the people walking past
   // the machines without putting a wall anywhere.
-  const T2X = 3.4, T2Z = -7.0;
+  const T2X = 2.6, T2Z = -6.6;
   {
     const legM = new THREE.MeshBasicMaterial({ color: DARKWOOD });
     const felt2 = feltT.clone(); felt2.needsUpdate = true;
@@ -687,7 +726,7 @@ export function buildCasino(ctx: CtxBuild): void {
   {
     const postM = new THREE.MeshBasicMaterial({ color: 0xb98f30 });
     const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
-    const PX0 = -5.6, PX1 = 5.6, PZ = -5.4;
+    const PX0 = -4.2, PX1 = 4.2, PZ = -4.8;
     const posts: number[] = [];
     for (let x = PX0; x <= PX1 + 0.01; x += 2.8) posts.push(+x.toFixed(2));
     for (const px of posts) {

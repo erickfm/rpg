@@ -59,6 +59,40 @@ field exists, and the room is being laid out with its footprint left clear.
 
 ---
 
+## 1b. A room deeper than ~20 m loses its way-out door, and I cannot see why
+
+Found while acting on the auditor's casino row. Not blocking that fix — the
+casino is landed at 19 m — but it is a real limit on "grow the depth, hard" and
+the next person to push a room past it will lose an hour to it as I did.
+
+**The measurement.** Casino at `w 11.0, d 30.0`. Walk toward the way-out door
+from anywhere inside and you come to rest at local **z 13.00**, every time, from
+either direction:
+
+```
+warp z=12   -> after a 1.4 s walk, z 13.00
+warp z=13   -> after a 1.4 s walk, z 13.00
+warp z=14.2 -> after a 1.4 s walk, z 13.00
+```
+
+The way-out spot sits at z 14.45 with r 1.0, so 13.00 is 0.45 m outside it. The
+prompt never appears and E does nothing. **You can enter the room and not leave
+it on foot** — and it looks fine until you try, because entry drops you inside
+the trigger, so the prompt is there the moment you arrive and gone once you walk
+away and come back.
+
+**What it is not.** Not collision: the only collider spanning the doorway between
+z 12.5 and 16 is the threshold at 15.18–15.36. Not the trigger's size: r 1.75
+covers 12.70–16.20 and changed nothing (and breaks the outside landing, which
+the kit correctly warns about). Standing in the trigger by warp and pressing E
+works and puts you on the street at 52.84,-97.25, so the door itself is sound.
+
+**Not mine to fix.** The way-out spot is placed by `ct/interior.ts` from the room
+spec, and that file is F's. This is a report, not an ask — the casino is fine at
+19 m and I am not blocked. But "keep the frontage width, grow the depth, hard"
+has a ceiling somewhere around 20 m that nobody knew about, and the hotel is at
+26 m, so it is worth someone checking that one before it is reported.
+
 ## 2. Window numbers for the library and the church
 
 The user's instruction was *"the interior windows must agree with the exterior E
