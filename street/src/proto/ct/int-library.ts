@@ -55,10 +55,17 @@ export function buildLibrary(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'library',
     label: 'into the PVBLIC LIBRARY',
-    d: 11.0,
-    // 3.6 m. The one number that does the most work in here: it is what stops
-    // a room this size reading as a shop unit with shelves in it.
-    h: 3.6,
+    // "Make the library interior larger and more ambitious. More halls and stair
+    // ways." 11 m deep was one room; 22 m is a building you walk through.
+    d: 22.0,
+    // 6.4, up from 3.6. The tall half of "small dark vestibule, then through into
+    // a tall reading room" — that contrast IS the experience of a Carnegie
+    // branch, and it cannot be done with one ceiling height. The room gets the
+    // TALL one and the vestibule gets a dropped soffit below it, further down
+    // this file. Doing it the other way round — a low room with a hole in the
+    // ceiling — would need the kit to grow a second height, and it does not
+    // need to.
+    h: 6.4,
     palette: {
       floor: 0x6f7a63,      // green-grey lino, the municipal default
       wall: 0xc9c0a8,       // cream distemper
@@ -166,15 +173,62 @@ export function buildLibrary(ctx: CtxBuild): void {
     }
     solid(lx, cz, BAY_D + 0.08, len);
   };
-  const zBack = -D / 2 + 1.3, zFront = D / 2 - 4.6;
-  for (let i = 0; i < 4; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
+  // Six runs, not four, and they start behind the desk rather than behind the
+  // door: 13.9 m of shelving down a 22 m room. The 2.15 m spacing is unchanged
+  // and it is the number that matters — 1.63 m of aisle between 1.95 m bays is
+  // "too narrow to see over" for a 1.6 m eye, which is what makes the stacks
+  // read as stacks rather than as shelving against a wall.
+  const zBack = -D / 2 + 1.3, zFront = D / 2 - 7.4;
+  for (let i = 0; i < 6; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
+
+  // ── THE VESTIBULE ────────────────────────────────────────────────────────
+  //
+  // "Small dark vestibule, then through into a tall reading room lit by the high
+  // arched windows — that low-dark-to-tall-bright contrast is the whole
+  // experience of a Carnegie branch."
+  //
+  // Built as a dropped SOFFIT rather than as a second room height. The kit gives
+  // a room one ceiling, and the honest way to get two is not to ask it for a
+  // feature — it is to hang a lower ceiling over the first four metres, which is
+  // what a real vestibule is anyway: a lobby ceiling under the roof of the hall
+  // beyond. The room keeps its 6.4 m and you walk in under 2.6 m of it.
+  //
+  // The contrast is doing the work, so the soffit is DARK — the trim's stained
+  // oak rather than the ceiling's cream — and the piers either side of the
+  // opening frame the view through into the bright room. Standing in it you see
+  // a tall lit hall through a low dark hole, which is the whole effect.
+  {
+    const VEST_D = 4.2;                       // how far in the low ceiling reaches
+    const VEST_Y = 2.60;                      // its underside
+    const OPEN_W = 5.6;                       // the hole you walk through
+    const zc = D / 2 - VEST_D / 2;
+    const dark = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    const stone = new THREE.MeshBasicMaterial({ color: 0x8a8172 });
+
+    // the soffit itself, and its dark face looking back at you from inside
+    box(W, 0.22, VEST_D, dark, 0, VEST_Y + 0.11, zc);
+    box(OPEN_W, 0.34, 0.14, stone, 0, VEST_Y - 0.17, D / 2 - VEST_D);
+
+    // the piers either side of the opening: they carry the soffit visually and
+    // they are what makes it a doorway into the hall rather than a low ceiling
+    // that merely stops
+    for (const sx of [-1, 1]) {
+      const px = sx * (OPEN_W / 2 + (W / 2 - OPEN_W / 2) / 2);
+      const pw = W / 2 - OPEN_W / 2;
+      box(pw, VEST_Y, 0.34, stone, px, VEST_Y / 2, D / 2 - VEST_D);
+      solid(px, D / 2 - VEST_D, pw, 0.34);
+    }
+  }
 
   // ── THE ISSUE DESK ───────────────────────────────────────────────────────
   //
   // Between the door and the stacks, turned so the librarian faces whoever
   // comes in. Its front is a solid panel to the floor: a counter you can see
   // the librarian's knees under is a shop counter, not a civic one.
-  const DESK_X = W / 2 - 2.9, DESK_Z = D / 2 - 2.5;
+  // Moved back from D/2 - 2.5 to D/2 - 5.8: at the old number the desk stood
+  // inside the vestibule, and the whole point of the vestibule is that it is
+  // small, dark and EMPTY — you come through it and the room opens.
+  const DESK_X = W / 2 - 2.9, DESK_Z = D / 2 - 5.8;
   box(2.9, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
   box(3.0, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);                 // the worn top
   box(0.5, 0.16, 0.34, woodDark, DESK_X - 0.9, 1.20, DESK_Z);           // date stamp block
