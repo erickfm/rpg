@@ -104,3 +104,34 @@ Left with no evidence rather than a wrong measurement. What it needs is a rule
 that distinguishes a small block AT the wheel from the body it is attached to,
 and I do not have one that does not also depend on knowing which meshes belong to
 which car — the same identity problem that `userData.tyre` would solve.
+
+## ESCALATION: five row losses in one day, and I cannot exonerate myself
+
+| # | row | status when lost | how found |
+|---|---|---|---|
+| 1 | payphone — "we gotta move this phone thing" | CONFIRMED | by hand |
+| 2 | E — "what is the shadow geometry here?" | CONFIRMED | `ledger-lost.py` |
+| 3 | E — same row, **a second time**, after I restored it | CONFIRMED | `ledger-lost.py` |
+| 4 | C — "i want the tv black" | OPEN | `ledger-lost.py` |
+| 5 | C — "tv off unless i sit down to watch it pls" | **LANDED** | `ledger-lost.py` |
+
+Number 5 is the worst kind: **a builder had done the work and was waiting for a
+verifier**, and the row stopped existing. Nobody would have chased it.
+
+**I cannot rule out my own rebase as the cause.** My resolver iterates mainline's
+rows, keeps every one, and appends only rows unique to my side — by inspection it
+cannot drop anything. But five rows have vanished from a file I rebase every few
+minutes, and *"by inspection it should not"* is precisely the confidence this
+session keeps punishing: the wall that could not pool, the predicate that could
+not go green, the guard that could not see a swap.
+
+**So the deletion source should be treated as UNKNOWN, not as somebody else's.**
+What I can say with certainty is only that the rows were present at a named
+revision and absent from `add-stick-and-city98` afterwards.
+
+### What would settle it
+
+- **Run `scripts/ledger-lost.py` on every land**, not after an incident. It takes
+  one command and it has now caught four of the five.
+- **If it fires immediately after an AUDIT merge**, the cause is me and I should
+  stop resolving this file by script.
