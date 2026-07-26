@@ -136,3 +136,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | door at the pawn shop makes no sense | |
 | OPEN | A | pawn shop exterior leaves a lot to be desired | |
 | OPEN | G | church entrance geometry is fucked / the church itself leaves a lot to | |
+| OPEN | F | entrance to bodega looks like this. so ugly and is so crowded. have th | |
