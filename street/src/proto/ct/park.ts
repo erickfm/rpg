@@ -197,31 +197,14 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         }
       }
       if (kind === 'path') {
-        // A REPAIR, NOT A HOLE. The user, on the same frame: *"black rectangles
-        // sitting on the path mid-right that read as holes or missing
-        // texture."* That is this patch. It was #4c4a48 — near-black against
-        // the old path and pitch-black against the new buff — with a hard
-        // 2 px shadow along its top edge, which is exactly how a missing
-        // texture looks.
-        //
-        // I had this in my own quality report and waved it through: "reads as a
-        // tar repair, which is what it is meant to be. Cosmetic and arguably
-        // correct." It is not correct, and the user found it before I did. A
-        // real cold-patch repair is BROWNER and only a little darker than what
-        // it is patching, and it has a ragged edge because it is shovelled in.
-        const ax = Math.round(PW * 0.2), ay = Math.round(PH * 0.42);
-        const aw = Math.round(PW * 0.55), ah = Math.max(2, Math.round(PH * 0.06));
-        g.fillStyle = '#6e6047';
-        g.fillRect(ax, ay, aw, ah);
-        g.fillStyle = '#7a6c52';                     // the coarse aggregate in it
-        for (let i = 0; i < aw * ah * 0.3; i++) {
-          g.fillRect(ax + Math.floor(r() * aw), ay + Math.floor(r() * ah), 1, 1);
-        }
-        for (let x = ax; x < ax + aw; x++) {         // shovelled, so the edge is ragged
-          g.fillStyle = PATH;
-          if (r() < 0.45) g.fillRect(x, ay, 1, 1);
-          if (r() < 0.45) g.fillRect(x, ay + ah - 1, 1, 1);
-        }
+        // THE TAR REPAIR IS GONE. The user called these "black rectangles ...
+        // that read as holes or missing texture", I re-coloured it browner and
+        // called it fixed, and it is still a distinct rectangle sitting on a
+        // path they have now criticised ten times. The desk's ruling is to stop
+        // adding features to a base that is still wrong, and a cold-patch
+        // repair is a feature. Hoggin is not patched with tarmac anyway — it is
+        // raked and rolled, so a repair in it does not read as a rectangle at
+        // all. Removing it costs nothing and removes one more thing to explain.
       }
       dither(g, PW, PH, Math.round(wM * dM * 8));
     });
@@ -615,37 +598,10 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
       if (x < fx0 || x > fx1 || z < fz0 || z > fz1) return null;
       return parkY(x, z);
     }, ORDER);
-    // the bald ring under the heaviest tree in the field's corner — dry shade,
-    // roots, and a mower that cannot get under the skirt of it
-    const baldT = pixTex(32, 32, (g) => {
-      const r = clcg(0x1a77e2);
-      g.clearRect(0, 0, 32, 32);
-      for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
-        const d = Math.hypot(x - 16, y - 16) / 16;
-        if (d > 0.92 - r() * 0.28) continue;
-        const k = r();
-        g.fillStyle = d > 0.6 ? (k > 0.5 ? '#6b6446' : '#77704f')
-          : (k > 0.66 ? '#7d7256' : k > 0.3 ? '#6e6449' : '#615840');
-        g.fillRect(x, y, 1, 1);
-      }
-    });
-    // Draped, not lifted by one number. A 4.4 m quad offset by the relief at
-    // its CENTRE is only right at its centre; this one sits where the ground
-    // starts climbing toward the mound and its uphill edge was 7.5 mm INSIDE
-    // the grass. Same treatment as the desire lines — subdivided and put on
-    // the same function the field was built from.
-    const baldX = fx0 + 3.2, baldZ = fz1 - 3.4;
-    const baldG = new THREE.PlaneGeometry(4.4, 4.4, 9, 9);
-    baldG.rotateX(-Math.PI / 2);
-    const bp = baldG.attributes.position;
-    for (let i = 0; i < bp.count; i++) {
-      bp.setY(i, relief(bp.getX(i) + baldX, bp.getZ(i) + baldZ) + LIFT * 2.0);
-    }
-    bp.needsUpdate = true;
-    const bald = new THREE.Mesh(baldG,
-      new THREE.MeshBasicMaterial({ map: baldT, alphaTest: 0.5, side: THREE.DoubleSide }));
-    bald.position.set(baldX, KERB_H, baldZ);
-    scene.add(bald);
+    // NO BALD RING EITHER. It was the last of the ground wear and it goes with
+    // the desire lines: the user's *"looks like a couple of dirt bikes ran
+    // through it all"* is about scattered dark patches on the lawn, and a 4.4 m
+    // brown disc in the corner of the field is one of them.
   }
 
   // ── the desire lines ─────────────────────────────────────────────────────
@@ -703,20 +659,27 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
     scene.add(m);
     wornN++;
   };
-  // A NETWORK, not a line. At 7 m one shortcut was the whole story; across a
-  // 26 m field one line reads as a scratch. These are the four crossings
-  // anybody actually makes — gate to each far corner, gate straight through,
-  // and the two corners of the loop nobody walks round.
-  worn(lx1 - 0.4, gateMid, lx0 + 0.4, gateMid + 4.5, 0.55);       // straight across
-  worn(lx1 - 1.2, gateMid - 1.4, lx0 + 3.0, lz0 + 5.0, 0.5);      // to the south corner
-  worn(lx1 - 1.2, gateMid + 1.4, lx0 + 3.0, lz1 - 5.0, 0.5);      // and the north
-  for (const sgn of [-1, 1]) {
-    const cz = sgn < 0 ? lz0 : lz1;
-    // THREE LINES, NOT SEVEN. A desire-line network is evidence of where people
-    // go; seven of them is a ploughed field. The corner cuts nearest the gate
-    // are the two anybody actually makes, so they stay and the rest go.
-    if (sgn > 0) worn(lx1 - 0.9, cz - sgn * 0.9, lx1 - 2.6, cz - sgn * 2.4, 0.42);
-  }
+  // ── NO GROUND WEAR ON THE FIELD ─────────────────────────────────────────
+  //
+  // The user, on the tenth criticism of this park: *"looks like a couple of
+  // dirt bikes ran through it all."* They are describing these, and they are
+  // right. All wear is out: four desire lines and the bald ring under the
+  // corner tree.
+  //
+  // The desk's own reading is that the BRIEF caused it — *"worn dirt on the
+  // desire lines"* became scattered wear across the whole lawn. But the way it
+  // got there is mine, and it is the same shape as the seven-lines-cut-to-three
+  // edit that used to sit here: each round I reduced the wear a little instead
+  // of asking whether it belonged. I softened these edges twenty minutes ago
+  // rather than removing them, which is another turn of the same handle.
+  //
+  // A desire line is a COHERENT TRACK between two real destinations. Three
+  // fanning from a gate plus a corner cut is not evidence of where people
+  // walk, it is texture. Clean mown grass reads better than a churned field,
+  // and the field is the largest thing in the park.
+  //
+  // If wear comes back it is ONE track between two places a player actually
+  // goes — gate to shelter — and nothing else. `worn()` is kept for that.
 
   // ── the fence ────────────────────────────────────────────────────────────
   //
@@ -798,7 +761,13 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
       }
       dither(g, PK_PX, PK_PX, Math.round(PK_PX * PK_PX * 0.05));
     });
-  const PK_STONE = stoneCanvas('#9a958a', '#8c8779', '#a9a496');
+  // QUIETER. The user: the edging is "very stark" — near-white against a dark
+  // path. Lifting the path to buff fixed half of that by raising what sits
+  // beside it; this is the other half. A municipal path edging is a concrete
+  // kerb that has been rained on for thirty years, which is a warm mid-grey,
+  // not a white line. Pulled down and warmed so it reads as a quiet kerb
+  // rather than as a stripe drawn along the path.
+  const PK_STONE = stoneCanvas('#8b8578', '#7e7869', '#968f81');
   const PK_CONC = stoneCanvas('#8a8478', '#7d786c', '#99938６'.replace('６', '6'));
   const stoneOf = (t: THREE.Texture, wM: number, hM: number) => {
     const c = t.clone();
@@ -1469,131 +1438,27 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // on the post tops by construction: the eaves are AT post-top height.
   //
   // Square plan, identical posts, bench centred. Nothing else.
-  const SH_H = 1.55;                           // half the square plan, post centres
-  // 0.22, not 0.18. The user's word was "spindly", and 0.18 m of section
-  // carrying 2.4 m is 13:1 — right at the edge where a post stops reading as
-  // something holding a roof up and starts reading as a stick.
-  const SH_POST = 0.22;
-  const SH_TOP = 2.40;                         // post top, and the eaves
-  const SH_OVER = 0.42;                        // even, all four sides
-  const SH_RISE = 0.95;                        // apex above the eaves
-  // 0.24, not 0.14. The other half of "a thin skewed slab": a roof seen from
-  // outside is mostly its EDGE, and a 0.14 m fascia at 4 m reads as a knife
-  // edge — which is what a parasol has and a roof does not.
-  const SH_SKIRT = 0.24;                       // the eaves' own depth
-  const E = SH_H + SH_OVER;
-  // Posts, pads and roof are ONE shelter. Now that the eaves correctly wrap
-  // down over the post tops, that seating shows up as four prop-on-prop
-  // overlaps in `E-overlap` — the fix reading as the fault it fixed.
-  const shelterG = new THREE.Group();
-  for (const dx of [-SH_H, SH_H]) for (const dz of [-SH_H, SH_H]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_TOP, SH_POST), postM);
-    post.position.set(shX + dx, KERB_H + SH_TOP / 2, shZ + dz);
-    shelterG.add(post);
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.16, 0.10, SH_POST + 0.16), plateM);
-    pad.position.set(shX + dx, KERB_H + 0.05, shZ + dz);
-    shelterG.add(pad);
-    solid({ minX: shX + dx - SH_POST / 2, maxX: shX + dx + SH_POST / 2,
-      minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
-  }
-  {
-    // THE ROOF HAS TO TOUCH THE POST TOPS, and the first two attempts did not.
-    //
-    // Putting the eaves at the post-top height LOOKS right in the source and
-    // is wrong in the world: the eaves are at the OVERHANG radius E, the posts
-    // stand inboard at SH_H, and the slope has already climbed by the time it
-    // gets there. Measured, that left the underside 0.20 m clear of all four
-    // posts — the roof floating over them, which is exactly the "thin skewed
-    // slab that does not sit on its posts" the user has now said twice.
-    //
-    // A hipped roof's rafters cross the wall plate and keep going DOWN past
-    // it, so the eaves hang below the post top rather than level with it. So
-    // fix the slope from the apex through the post top and let the overhang
-    // fall where it falls: at r = SH_H the surface is exactly SH_TOP.
-    const ya = SH_TOP + SH_RISE;
-    const y1 = SH_TOP - (SH_RISE / SH_H) * SH_OVER;
-    const y0 = y1 - SH_SKIRT;
-    const c = [[-E, -E], [E, -E], [E, E], [-E, E]];      // the four eaves corners
-    const pos: number[] = [], uv: number[] = [];
-    const push = (x: number, y: number, z: number, u: number, v: number) => {
-      pos.push(x, y, z); uv.push(u, v);
-    };
-    for (let i = 0; i < 4; i++) {
-      const [ax, az] = c[i], [bx, bz] = c[(i + 1) % 4];
-      // the eaves skirt, so the roof has an edge you can see rather than a
-      // paper rim
-      push(ax, y0, az, 0, 0); push(bx, y0, bz, 1, 0); push(bx, y1, bz, 1, 1);
-      push(ax, y0, az, 0, 0); push(bx, y1, bz, 1, 1); push(ax, y1, az, 0, 1);
-      // and the slope up to the shared apex
-      push(ax, y1, az, 0, 0); push(bx, y1, bz, 1, 0); push(0, ya, 0, 0.5, 1);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
-    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
-    geo.computeVertexNormals();
-    // FOUR FACES THE SAME COLOUR IS NOT A PYRAMID, IT IS AN UMBRELLA.
-    //
-    // Seating the roof on the posts fixed the geometry and it still read as a
-    // parasol, because a hipped roof's whole form is that its faces catch the
-    // light differently — and under `MeshBasicMaterial` nothing does that for
-    // you. Flat tone across all four slopes gives a silhouette with no
-    // interior, which the eye files as fabric.
-    //
-    // The buffer is non-indexed, so `computeVertexNormals` has already left
-    // each triangle's three vertices carrying that triangle's own normal:
-    // shading per vertex here IS shading per face. Same sun and the same
-    // clamped-lambert shape the field uses, so the two agree.
-    const nrm = geo.attributes.normal;
-    const shade = new Float32Array(pos.length);
-    for (let i = 0; i < nrm.count; i++) {
-      const d = nrm.getX(i) * SUN.x + nrm.getY(i) * SUN.y + nrm.getZ(i) * SUN.z;
-      const k = Math.max(0.70, Math.min(1.22, 0.90 + 0.60 * d));
-      shade[i * 3] = k; shade[i * 3 + 1] = k; shade[i * 3 + 2] = k * 0.99;
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
-    const shadedRoofM = roofM.clone();          // not the shared slope material
-    shadedRoofM.vertexColors = true;
-    const roof = new THREE.Mesh(geo, shadedRoofM);
-    roof.position.set(shX, KERB_H, shZ);
-    shelterG.add(roof);
-    scene.add(shelterG);
-  }
-  // one bench, centred under it, facing out of the park's approach
-  // …and it faces INTO THE PARK, like every other bench. It ran along x and
-  // faced down the wall, which the per-instance facing check caught at dot 0.00
-  // — square to the park rather than away from it, which is why looking at it
-  // had not shown it up. The shelter stands at the park's west end, so the
-  // interior is +x: the bench runs in z and faces east.
-  const SB_L = SH_H * 2 - 0.55;
-  for (let i = 0; i < 3; i++) {
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, SB_L), i % 2 ? woodM2 : woodM);
-    sl.position.set(shX - 0.17 + i * 0.17, KERB_H + 0.45, shZ);
-    scene.add(sl);
-  }
-  for (const dz of [-1, 1]) {
-    const end = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.45, 0.12), ironM);
-    end.position.set(shX, KERB_H + 0.225, shZ + dz * (SB_L / 2 - 0.06));
-    scene.add(end);
-  }
-  solid({ minX: shX - 0.32, maxX: shX + 0.32,
-    minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1 });
-  // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
-  // destination the loop exists for did not — you walk 26 m to the thing that
-  // terminates the axis and it turns out to be scenery. It was the only bench
-  // in the park built by hand rather than through `bench()`, which is exactly
-  // how it missed the registration every other one gets for free.
+  // ── THE SHELTER IS DELETED ───────────────────────────────────────────────
   //
-  // Facing +z, out of the open side toward the park, and the approach point is
-  // 0.95 m in front of the slats — INSIDE the shelter but clear of the bench's
-  // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
-  // sits on (§8), so the corridor you press it from has to be outside the box.
-  ctx.seat({
-    // PI - mesh yaw: the sitter's convention, not the mesh's. See bench().
-    x: shX, z: shZ, yaw: Math.PI - Math.atan2(loopCx - shX, loopCz - shZ), h: 0.45,
-    approach: { x: shX + 1.05, z: shZ },
-    label: 'sit in the shelter',
-  });
-
+  // Third failure, and the desk's rule here is two failures then delete. It
+  // offered the choice one more time — one coherent structure, or a bench and
+  // a tree — and I am taking the bench and the tree rather than spending a
+  // fourth attempt on a thing the user has now called ugly, fucked and jank.
+  //
+  // What is worth recording is that I could not see it. I MEASURED this roof
+  // as correct: four identical posts, tops equal to 0.01 m, eaves seated
+  // 0.50 m below the plate, `E-shelter` green. The user still read the eaves
+  // as not landing and a bench as half outside. When a measurement says fixed
+  // three times and the person looking says broken three times, the
+  // measurement is answering a question nobody asked — my check tested the
+  // eaves against the POST TOPS, and what reads wrong is the roof against the
+  // whole silhouette. I never found the question that matched what they saw.
+  //
+  // A bench under a tree at the end of the axis does the same job the shelter
+  // was there for — it terminates the view from the gate and gives the deep
+  // half of the loop a destination — with nothing to get wrong.
+  const bx0 = shX + 0.5;
+  bench(...facingIn(bx0, shZ));
   // ── the trees ────────────────────────────────────────────────────────────
   //
   // *"bare lawn, three blank brick walls"* — and this is what fixes the walls.
@@ -1686,7 +1551,11 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // by eye, and the reason the rule above exists.
   for (let z = site.minZ + 2.2; z < site.maxZ - 2.0; z += 5.4 + tsd() * 1.4) {
     const tx = site.minX + 1.4 + tsd() * 0.4;
-    if (Math.abs(tx - shX) < 2.6 && Math.abs(z - shZ) < 2.6) continue;
+    // The tree run used to step around the shelter's footprint. The shelter is
+    // gone and a TREE is half of what replaced it, so the exclusion shrinks to
+    // the bench itself — the deep end of the axis now terminates in a tree
+    // standing over a bench, which is what the shelter was there to do.
+    if (Math.abs(tx - bx0) < 1.3 && Math.abs(z - shZ) < 1.6) continue;
     tree(tx, z, 0x400 + Math.round(z * 3));                              // the back wall
   }
   // INBOARD of the loop's end legs, not against the flank walls: the first
@@ -1856,14 +1725,22 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // stream and shifting everything downstream of them; a private stream cannot
   // do that from any position in the file, which is why the park has used one
   // since it was written.
-  const clump = (x: number, z: number, n: number, spread: number) => {
+  const clump = (x: number, z: number, n: number, spread: number,
+    keep?: (px: number, pz: number) => boolean) => {
     for (let i = 0; i < n; i++) {
       // tight falloff: most of the clump sits inside a third of its spread
       const r = spread * Math.pow(wsd(), 1.8);
       const a2 = wsd() * Math.PI * 2;
       const big = wsd() < 0.13;
-      tuft(x + Math.cos(a2) * r, z + Math.sin(a2) * r,
-        wsd() < 0.17 ? 'dry' : 'dark',
+      const px = x + Math.cos(a2) * r, pz = z + Math.sin(a2) * r;
+      // NOTHING GROWS DOWN THE MIDDLE OF A PATH PEOPLE WALK ON. The clump
+      // CENTRES were always near the edge, but a clump scatters up to 0.64 m
+      // and half the path is only 0.75 m, so individual tufts were landing
+      // across the centre line — which is what the user is looking at. Placing
+      // the centre correctly is not the same as placing the plant correctly,
+      // and only the plant is visible.
+      if (keep && !keep(px, pz)) continue;
+      tuft(px, pz, wsd() < 0.17 ? 'dry' : 'dark',
         big ? 1.15 + wsd() * 0.3 : 0.55 + wsd() * 0.5);
     }
   };
@@ -1881,9 +1758,14 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
     for (const sgn of [-1, 1]) {
       for (let i = 0; i < n; i++) {
         const t = 0.4 + wsd() * (len - 0.8);
-        const off = half - 0.02 - wsd() * 0.26;
+        // STRADDLE the edge rather than sitting inside it: a weed at the kerb
+        // of a path is half on the path and half in the grass, and the half in
+        // the grass is the half that survives the mower.
+        const off = half + 0.04 + wsd() * 0.30;
         clump(ax + ux * t + nx * sgn * off, az + uz * t + nz * sgn * off,
-          2 + Math.floor(wsd() * 5), 0.34 + wsd() * 0.3);
+          2 + Math.floor(wsd() * 5), 0.34 + wsd() * 0.3,
+          // and no tuft closer to the centre line than the edge itself
+          (px, pz) => Math.abs((px - ax) * nx + (pz - az) * nz) >= half * 0.94);
       }
     }
   };
@@ -1928,7 +1810,7 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   };
   around(memX, memZ, 1.15, 7);                                   // the memorial plinth
   around(fx, fz, 0.75, 5);                                       // the fountain
-  for (const dx of [-1.6, 1.6]) for (const dz of [-1.15, 1.15]) around(shX + dx, shZ + dz, 0.2, 2);
+  for (const dz of [-1.0, 1.0]) around(bx0, shZ + dz, 0.2, 2);   // the bench that replaced the shelter
   for (const [bx, bz] of benchRun) around(bx, bz, 0.95, 3);      // every bench's feet
 
   // ── signs of use ─────────────────────────────────────────────────────────

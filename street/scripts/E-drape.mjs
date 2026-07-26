@@ -111,11 +111,15 @@ for (let t = 0.06; t <= 0.94; t += 0.02) {
   line.push([-13.65 + (-32.1 + 13.65) * t, -83.0 + (-78.5 + 83.0) * t]);
 }
 const got = await probe(line);
-const buried = got.filter((r) => r[2] === 'FIELD');
-report('the desire line stays on top of the grass it crosses', buried.length === 0,
-  buried.length
-    ? `${buried.length}/${got.length} samples have GRASS on top: ${JSON.stringify(buried.slice(0, 3))}`
-    : `${got.length} samples along it, the worn strip is the top surface at every one`);
+// AND THE DESIRE LINES ARE GONE TOO — same ruling, same reason as the bald
+// patch. The user's "a couple of dirt bikes ran through it" was about all the
+// wear on the field, not some of it, so four worn tracks and a bald ring all
+// came out and the field is clean mown grass. This assertion required a decal
+// on top of the grass along a line that no longer has one.
+//
+// What survives here is the part that is still true and still worth checking:
+// litter and props laid on the relief must not sink into it, and the hollows
+// must stay above the site plane. Those run above.
 const clear = got.filter((r) => r[5] > 0).map((r) => r[5]);
 if (clear.length) {
   const min = Math.min(...clear);
@@ -172,10 +176,16 @@ report('the grass in the hollows stays above the site plane', sunk.length === 0,
     : `${low.length}/${low.length} hollows have grass at or above ${KERB} — lowest ${
       Math.min(...low.map((q) => q.fieldY)).toFixed(4)}`);
 
-const r = await probe([[-28.55, -78.15], [-28.0, -78.6], [-29.1, -77.7]]);
-const bad = r.filter((q) => q[2] === 'FIELD');
-report('the bald patch under the tree lies on the grass', bad.length === 0,
-  bad.length ? `${bad.length}/${r.length} buried: ${JSON.stringify(bad)}` : `${r.length}/${r.length} on top`);
+// THE BALD PATCH IS GONE, so the assertion about it goes too. It used to probe
+// three points under the corner tree and require a decal on top of the grass;
+// with the decal deleted those points report FIELD and the check fails for the
+// world being CORRECT — the same shape as GOTCHAS 32, a red that means "this no
+// longer applies" rather than "this is broken".
+//
+// Deleted rather than commented out or loosened. All ground wear came out of
+// the field on the desk's ruling (the user: "looks like a couple of dirt bikes
+// ran through it all"), and a check kept alive for a feature that no longer
+// exists is a check that will be argued with the next time it goes red.
 
 console.log(fails ? `\n${fails} FAILED` : '\nnothing laid on the grass is sinking into it');
 await b.close();
