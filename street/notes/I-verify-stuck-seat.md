@@ -1,5 +1,25 @@
 # I verifying C's "pressing e doesnt get me out of it" — IT REPRODUCES
 
+> **FIXED SINCE — READ THIS FIRST. The numbers below are the fault report and
+> no longer describe the world.** F landed `e090a74fa` (while `rig.seated`, E
+> stands, full stop — standing no longer goes through spot selection) and
+> `f110b7f5a` (an Escape binding, this world's first cancel key of any kind).
+> Re-ran my own check on build `5d997cbe5`: **32 seats across 16 labels → 27
+> stood up, 3 stuck, 2 could not sit**, and **the teleport threshold is gone** —
+> a 4.82 m teleport now releases the player, having trapped him before, so the
+> released band runs 0.04–4.82 m with no upper edge. That is the mechanism
+> genuinely fixed rather than moved.
+>
+> **All three survivors are `sit at the slot`** — the modal trap F found while
+> fixing this one, where `ct/hud.ts:168` blocks `keydown` so neither E nor
+> Escape ever reaches the world. It is a different bug with its own OPEN row,
+> which I have evidenced: **96 of the world's 225 seats carry that label, 43% of
+> every seat in the game.**
+>
+> Everything below stands as the record of the original fault. Do not quote its
+> *18 of 24* or its *0.81–1.10 m* as current.
+
+
     station:   room 301, stand a pace back from the bed's own approach point
                at (198.45, -16.56), press E to sit, then press E to stand
     predicate: after sitting, E does not stand you up and WASD do not move you

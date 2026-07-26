@@ -1,1 +1,1 @@
-WORKING | republished my stale seat-trap numbers (F fixed it; 3 of 30 now, all slot stools) and evidenced the empty modal-trap row for K | K to unblock keydown for the slot modal
+DONE | seat trap fixed by F and re-verified (3 of 30 left, all slot stools); republished my stale numbers in ledger + note; evidenced the modal-trap row for K | K to unblock keydown while a panel is open (hud.ts:168)
