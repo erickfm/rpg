@@ -260,11 +260,38 @@ if (mode === 'money' || mode === 'all') {
   console.log(`  left the machine holding ${held} credits; meter now ${left}`);
   if (c2 !== null) console.log(`  wallet  $${(c1 ?? 0).toFixed(2)} -> $${c2.toFixed(2)}\n`);
   check(await panelUp() === null, 'ESC closes the machine');
-  // …AND THEN YOU CAN GET UP. The whole point of the paragraph above, done by
-  // pressing the key rather than by reasoning about spot radii.
-  await press('e');
-  const off = await until(() => window.__ct.seated() === null, 'the player to stand up');
-  check(off, 'and E then gets you off the stool — you cannot be trapped at a machine');
+  // …AND IT LEAVES THE STOOL IN THE SAME KEY.
+  //
+  // This asserted a two-step sequence — ESC to close, then E to stand — and it
+  // went red because the world got BETTER underneath it: C's seat-exit fix
+  // (`e090a74fa`, `f110b7f5a`) makes standing a state exit that fires
+  // unconditionally, so ESC now returns the player to their feet as well as
+  // closing the cabinet. Pressing E afterwards SITS THEM BACK DOWN, which is
+  // correct — sitting is what opens the machine — and my check read that as
+  // being trapped.
+  //
+  // The claim was never "E works after ESC", it was "you cannot be trapped at a
+  // machine". One key doing both is a stronger answer to it than two, so the
+  // assertion moves to the stronger claim rather than being loosened to fit
+  // (GOTCHAS §27: a tolerance set by an argument is measuring your patience).
+  const out = await until(() => window.__ct.seated() === null, 'the player to leave the seat');
+  check(out,
+    'and it leaves the STOOL too — one key gets you out of both the machine and'
+    + ' the seat, so you cannot be trapped at a machine');
+  // The freeze has to lift with it, or "not trapped" is only half true: a player
+  // standing beside a closed panel who cannot walk is still stuck.
+  // `__ct.pos()` returns an ARRAY — [x, eyeY, z, yaw] — not the {x, z} object
+  // the name suggests. Assuming the object gave `NaN m walked` and a red on a
+  // world that was fine, which is the cheapest possible version of GOTCHAS §20:
+  // ask the source rather than assume the shape.
+  const wasAt = await p.evaluate(() => window.__ct.pos());
+  await p.keyboard.down('w'); await p.waitForTimeout(400); await p.keyboard.up('w');
+  const nowAt = await p.evaluate(() => window.__ct.pos());
+  const moved = Math.hypot(nowAt[0] - wasAt[0], nowAt[2] - wasAt[2]);
+  console.log(`  walked ${moved.toFixed(2)} m after leaving the machine\n`);
+  check(moved > 0.15,
+    `and the world is yours again — held W moves you ${moved.toFixed(2)} m, so the`
+    + ' panel\'s input freeze lifted with it');
   check(left === 0, 'the meter is empty when you leave — no credits survive the sitting');
   if (c2 !== null) {
     check(Math.abs(c2 - ((c1 ?? 0) + held * CREDIT)) < 1e-6,
