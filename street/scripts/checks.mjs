@@ -247,6 +247,18 @@ const CHECKS = [
   // GOTCHAS 36 killed dead COMMIT citations;
   // this is the other pointer we write constantly and nothing was watching. (D)
   ['citations-resolve', 'does every file:line citation land inside its file?',  true],
+  // No import cycle anywhere under src/proto. Costs no browser and no build.
+  //
+  // GOTCHAS 28 is entirely about what a cycle costs here — a module can resolve
+  // to an undefined namespace at collection time, a bundler orders modules
+  // differently from the browser, and the fault is REAL IN THE BUILT OUTPUT and
+  // absent in dev. Two agents disagreed for a day over 8 doors versus 7 because
+  // of one. Nothing was watching for the CONDITION, only for its symptoms.
+  //
+  // Comments are stripped before the graph is built: my first two audits scanned
+  // raw text, read a usage example in ct/weeds.ts as a self-import, and I filed
+  // the phantom twice as "one pre-existing self-edge". (D)
+  ['no-import-cycles', 'is any module in an import cycle? (GOTCHAS 28)',       true],
   // ── the walking suites (5th field: SLOW) ────────────────────────────────
   //
   // These hold the player-facing mechanics — every room entered, every seat sat
