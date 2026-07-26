@@ -17,6 +17,25 @@ const FACE = 7.0, KERB_H = 0.14, RADIUS = 0.36;
 // a matter of days.
 const ROOMS = [
   {
+    // ADDED because the coverage guard refused to run without it - the jail
+    // landed and this hand-written list did not have it. The guard catching a
+    // brand-new room within hours of being written is the whole reason it
+    // exists; before it, the suite would have reported on eleven rooms and
+    // looked complete.
+    //
+    // Its door is declared by `face:` like the bodega's chamfer, not by a
+    // frontage along an axis, and it publishes no `__frontages` entry - so no
+    // `front` tuple. The harness reads the door from ct/doors.ts, which is
+    // exactly the case `chamfer: true` already covers.
+    //
+    // `keeper: null` because it publishes no served spot. A desk sergeant with
+    // a prompt would make the facing check decidable; until then it abstains
+    // rather than leaning on a station I typed, which is the fault that let the
+    // bodega keeper face his own wall for weeks.
+    keeper: null,
+    id: 'jail', label: /JAIL/, D: 26.0, chamfer: true,
+  },
+  {
     // ADDED because the suite refused to run without them - the world published
     // `bank` and `library` and this hand-written list did not have them, so
     // nine rooms were being reported as if they were the world. The guard above
@@ -212,6 +231,29 @@ const YAW = { '+x': Math.PI / 2, '-x': -Math.PI / 2, '+z': Math.PI, '-z': 0 };
 // size now (`__ct.roomDims()`), which is the same fix as the doors: one
 // authoring, asked for rather than copied.
 const DIMS = await p.evaluate(() => window.__ct.roomDims());
+// A ROOM MAY DECLARE ITS DOOR BY `face:` AND PUBLISH NO FRONTAGE.
+//
+// The jail does. Its door is a cut face like the bodega's chamfer, it has no
+// `__frontages` entry and no axis extent, so the `front`-tuple path above never
+// runs and `doorX` comes out undefined - the suite crashed on `toFixed`.
+//
+// `doorStandFor()` already answers for these: it reads the declaration in
+// ct/doors.ts, which carries the face, and it is the same call the front path
+// uses. So a room with no `front` gets its approach from the world's own door
+// rather than from a tuple I would otherwise have to hand-write - which is the
+// rule that keeps being right tonight: ask what the world publishes.
+for (const r of ROOMS) {
+  if (r.front || r.doorX !== undefined) continue;
+  const nm = (r.id || '').toUpperCase();
+  const stand = await p.evaluate(async ([n]) => {
+    const dm = await import('/src/proto/ct/doors.ts');
+    const s = dm.doorStandFor(n);
+    const pt = dm.doorPointFor(n);
+    return s ? { x: s.x, z: s.z, at: pt ? pt.x : 0 } : null;
+  }, [nm]);
+  if (stand) { r.doorX = stand.x; r.doorZ = stand.z; if (r.at === undefined) r.at = 0; }
+}
+
 
 // EVERY ROOM THE WORLD PUBLISHES MUST BE IN `ROOMS`, OR THIS SUITE IS LYING.
 //
