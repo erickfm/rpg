@@ -301,30 +301,41 @@ const CHECKS = [
   ['jitter',           'does a walker flip-flop when it passes somebody?',    false, [], true],
   ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
 
-  // ── A's five, from the facade work. Fast tier: all measure, none walk. ────
+  // ── A's TWO, from the facade work. Fast tier: both measure, neither walks. ──
   //
-  // These shipped over several commits each labelled "not registered in
-  // checks.mjs and no selftest". That label was honest and it was not a
-  // discharge — GOTCHAS 24 is that a check nobody runs does not go red, it
-  // stops being run, and five unregistered ones make the board look fuller
-  // than it is. Every one now names a case in canfail.mjs and every case has
-  // been watched going red.
+  // It was five for about ten minutes, and the other three are deleted. I
+  // appended to the bottom of this table without reading the middle of it, and
+  // every one of those three was already checked here, BETTER:
   //
-  // `diner-door-authority` is worth singling out: my FIRST mutation for it
-  // slept, because it swapped an expression for one that resolves to the same
-  // number. The check was fine and my mutation broke nothing — GOTCHAS 27's
-  // "a mutation that does not actually break the thing proves nothing".
-  ['A-diner-door-aligns',  'does the facade paint its door where the ROOM declared it?', 'diner-door-authority'],
-  ['A-door-mirrors',       'do rooms and facades agree which side the door is on?',      'door-mirror-skew'],
+  //   A-door-mirrors       -> mirror-walk, which WALKS the user's own test
+  //                           (stand inside, go out, turn round) over all five
+  //                           declared rooms. Mine compared geometry and needed
+  //                           a hand-calibrated sign to do it.
+  //   A-diner-door-aligns  -> frontage-honours, which checks every declared
+  //                           door against what the painter drew. Mine was the
+  //                           diner alone.
+  //   A-shopfronts-backed  -> check-seethrough, which repaints every ground
+  //                           surface magenta and looks for it through each
+  //                           facade — an actual see-through test, where mine
+  //                           only asserted that an opaque plane exists. Plus
+  //                           shop-interior for "dark but never black".
+  //
+  // Two checks for one claim is the same defect this project keeps fixing one
+  // layer down — the auditor's line is that the fault is not computing a thing
+  // badly, it is two things computing it at all — and a suite that reports the
+  // same fact twice is slower and no safer. The rule in GOTCHAS 24 about not
+  // "improving" a script that is already there has an obvious corollary: check
+  // whether the CLAIM is taken before you register a second answer to it.
+  //
+  // These two survive because nothing else makes their claim:
   ['A-tree-canopy-opaque', 'can you see the wall through the middle of a tree?',         'tree-holes'],
   ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
-  // The mutation for this one proves the CHECK notices, NOT that a player
-  // would see anything: the `NO seethrough CASE` note in canfail.mjs measured
-  // that removing backings no longer produces visible see-through, because the
-  // one real cut-out face has masonry behind it too. Guarding the invariant is
-  // still right — it is what stops the next cut-out arriving unbacked — and
-  // saying which of the two claims it supports is GOTCHAS 23's whole point.
-  ['A-shopfronts-backed',  'is there something opaque behind every shopfront glass?',    'shopfront-backing'],
+  // tree-crown above overlaps but does NOT cover this: it samples a box at the
+  // crown's centre (x within +/-8 of centre, y 22..30), so it cannot see the
+  // LOWER TUFTS at y 45-60 or a pocket sealed at the rim. Both are where the
+  // holes actually were — 303 of them across 11 crowns, after the rim fix that
+  // tree-crown was written to guard. This one floods from the border instead,
+  // so "hole" is topology rather than a sampled box.
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

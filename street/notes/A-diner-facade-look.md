@@ -1,5 +1,18 @@
 # The diner frontage, looked at from the pavement — findings, no changes yet
 
+> **CORRECTION, same session.** Three scripts this note cites —
+> `A-diner-door-aligns.mjs`, `A-door-mirrors.mjs`, `A-shopfronts-backed.mjs` —
+> **have been deleted.** Registering them in `checks.mjs` revealed that every
+> claim they made was already checked there, and better: `mirror-walk` walks
+> the user's own inside/outside test over all five declared rooms,
+> `frontage-honours` checks every declared door rather than the diner's alone,
+> and `check-seethrough` repaints the ground magenta and looks for it through
+> each facade. Two checks for one claim is the defect this project fixes
+> everywhere else, one layer down. **The measurements below still stand** — they
+> were taken and they were right; only the duplicate guards are gone.
+> `A-tree-canopy-opaque` and `A-diner-block-vs-sky` survive and are registered.
+
+
 The user: *"where are we with diner facade changes? looks really bad rn"*.
 
 My ledger has the diner **blade** and the **thrift facade** confirmed. Neither

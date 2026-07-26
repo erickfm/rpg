@@ -1,5 +1,18 @@
 # The four fronts the user named, measured against each other
 
+> **CORRECTION, same session.** Three scripts this note cites —
+> `A-diner-door-aligns.mjs`, `A-door-mirrors.mjs`, `A-shopfronts-backed.mjs` —
+> **have been deleted.** Registering them in `checks.mjs` revealed that every
+> claim they made was already checked there, and better: `mirror-walk` walks
+> the user's own inside/outside test over all five declared rooms,
+> `frontage-honours` checks every declared door rather than the diner's alone,
+> and `check-seethrough` repaints the ground magenta and looks for it through
+> each facade. Two checks for one claim is the defect this project fixes
+> everywhere else, one layer down. **The measurements below still stand** — they
+> were taken and they were right; only the duplicate guards are gone.
+> `A-tree-canopy-opaque` and `A-diner-block-vs-sky` survive and are registered.
+
+
 The user: *"we need much better facades for the tax service, diner, burger
 barn, thrift shop, casino, and hotel especially."* The casino and hotel are E's.
 Of the four that are mine, only the **diner** had ever been stood in front of —
