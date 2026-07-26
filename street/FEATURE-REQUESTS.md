@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-26 00-50-34.png' remove this cross walk"** → **B**
 - **"'Screenshot from 2026-07-26 00-49-48.png' left door in casino is reversed"** → **G**
 - **"the bodega keeper still shows his back from the counter — H's sector-4 reading is right and the turn was never made"** → **F / H** (found by B verifying, not B's file)
 
