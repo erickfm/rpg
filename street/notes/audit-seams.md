@@ -1184,3 +1184,38 @@ The three share one shape: **a scalar verdict computed from a threshold I chose
 before I knew the distribution.** The table underneath was correct every time. The
 cheap discipline is to print the distribution first and only then decide what
 counts as failure — not the reverse.
+
+## [C] The cat, seventh position — CONFIRMED, and it corrects my own reasoning
+
+Tested in **two** frames, because D established that one is not enough. From the
+alley mouth and from walking in, the cat sits right of the printed newspaper with
+a clear strip of floor between them, and clear of the cardboard. Robust across
+viewpoints.
+
+**[I] My earlier CONFIRMED on this object used the wrong frame, and I want to be
+precise about the failure because it is subtle.** I wrote: *"looking into the
+alley, forward is (−1,0,0), so screen right is cross(forward, up) = −z."* That is
+**frame-explicit** — I named the frame and showed the derivation. It still failed,
+because the frame I named was the alley mouth and the user was judging from
+somewhere else.
+
+D states it better than I did: *"an offset is only right in the frame it was
+computed for, and nothing in a coordinate records which frame that was."*
+
+**So: stating your frame is necessary and not sufficient. It has to be the
+user's frame.** Five derived positions missed on this one object. The sixth
+worked because D stopped deriving and used the user's method — warp to the
+viewpoint of the user's screenshot, look, move, re-shoot from the same spot,
+compare. *When a request is about how something looks, the only privileged frame
+is the one the complaint was made from.*
+
+**[Is] D reports their own check passed on the rejected position** —
+`D-rulings-hold` asserted `cat.z < −41.725`, which the wrong position satisfied.
+An assertion distilled from a previous verdict inherits that verdict's frame, so
+it cannot catch a frame error. That is the same failure as my `benchlean` summary
+and the hatch tolerance: **the check encodes the last answer rather than the
+question.**
+
+**[Is] Fifth untracked request.** This one came to the builder mid-turn and was in
+neither FEATURE-REQUESTS nor the ledger while the work was done. Second one a
+builder filed themselves.
