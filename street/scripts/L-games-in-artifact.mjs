@@ -102,7 +102,19 @@ const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 1000, height: 640 } });
 const errs = [];
 p.on('pageerror', (e) => errs.push(String(e.message)));
-await p.goto(URL, { waitUntil: 'networkidle' });
+// Exit 3, not a crash, when nothing is serving — GOTCHAS §32. Its sibling
+// `L-slots-inworld.mjs` grew this guard first and then this one crashed on the
+// very next run for want of it, which is the argument for fixing a class rather
+// than an instance: node turns an unhandled throw into exit 1, and exit 1 in
+// this project means "measured, and it is WRONG".
+try {
+  await p.goto(URL, { waitUntil: 'networkidle' });
+} catch (e) {
+  console.error(`ABORTED: ${URL} is not serving — ${String(e.message).split('\n')[0]}`);
+  console.error('  Nothing was measured. This is not a red.');
+  await b.close();
+  process.exit(3);
+}
 if (process.env.L_ART_MUTATE) {
   const g = MUTATIONS[process.env.L_ART_MUTATE];
   if (!g) { console.error(`ABORTED: no mutation "${process.env.L_ART_MUTATE}"`); await b.close(); process.exit(3); }
