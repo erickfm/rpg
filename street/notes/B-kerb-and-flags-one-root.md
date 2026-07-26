@@ -1,3 +1,36 @@
+> # CORRECTION, filed the same night. THIS NOTE IS WRONG, and the number in it
+> # is not a measurement of anything.
+>
+> **There IS a separate walk mesh on the main street, and it is at exactly
+> 32 texels/m in both axes** — as is every other walk sheet in the world:
+>
+> ```
+>   1.94 x 126.5 m   west walk   256x256 rep [0.242, 15.813]  ->  32 / 32
+>   1.94 x  92.8 m   east walk   256x256 rep [0.242, 11.600]  ->  32 / 32
+>  60.13 x   1.94 m  south walk  256x256 rep [7.516, 0.242]   ->  32 / 32
+>  48.50 x   1.94 m  north walk  256x256 rep [6.063, 0.242]   ->  32 / 32
+> ```
+>
+> The "60 x 124 m sheets at 0.03 texels/m" below are not sheets. They are the
+> **kerb face, the arris, the gutter pan and the red paint** — four ribbons that
+> wrap the whole block, so their BOUNDING BOX is 60 x 124 m while the ribbon
+> itself is 0.15 m tall. I divided a texture size by a bounding box and read the
+> answer as a density. It measures nothing. `scripts/kerbwalk.mjs` prints the
+> real per-sheet numbers.
+>
+> **So this is NOT I's finding and there is no shared root cause.** I told the
+> desk it accounted for four reports; it accounts for none of them.
+>
+> The user's actual fault, found by standing where he stood: the **driveway
+> apron**, 8.60 m of pavement that `apronTex` scored in ONE direction — three
+> ribbons its whole length with a joint only at each end — and a kerb depressed
+> to its lip for 7.40 m across it whose face uv cropped the middle out of the
+> profile. Measured with `scripts/jointfade.mjs` and `scripts/curbcut.mjs`,
+> fixed in `861c838d1`, and written up in `notes/B-the-apron-was-the-report.md`.
+>
+> The original is left below unedited. A note that quietly rewrites itself is
+> worse than one that shows its correction.
+
 # The kerb breaks and the "only 3 slabs" are ONE fault, and it is I's finding
 
 Measured before painting, as the desk asked.
