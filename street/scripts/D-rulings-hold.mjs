@@ -59,7 +59,7 @@ await reportWorld(page, URL);        // GOTCHAS §26, and exit 3 if it is not th
 
 const w = await page.evaluate(() => {
   const sc = window.__ct.scene();
-  const out = { crates: [], awn: null, cat: null, atm: [] };
+  const out = { crates: [], awn: null, cat: null, atm: [], litter: [] };
   sc.traverse((o) => {
     if (!o.isMesh) return;
     o.updateWorldMatrix(true, false);
@@ -73,6 +73,11 @@ const w = await page.evaluate(() => {
     }
     if (P.width && Math.abs(P.width - 20 / 34) < 1e-6 && Math.abs(P.height - 28 / 34) < 1e-6) {
       out.cat = { x: +q.x.toFixed(3), z: +q.z.toFixed(3) };
+    }
+    // ground litter lying in the alley: flat decals, laid down by rotation.x
+    if (Math.abs(o.rotation.x + Math.PI / 2) < 0.01 && q.y < 0.05 && !o.userData.catShadow
+        && q.x > -13.6 && q.x < -7 && q.z > -43.5 && q.z < -37) {
+      out.litter.push({ x: +q.x.toFixed(3), z: +q.z.toFixed(3) });
     }
     if (q.x < -6.8 && q.x > -7.4 && q.z > 6.5 && q.z < 8.1) {
       o.geometry.computeBoundingBox();
@@ -103,6 +108,15 @@ say(w.crates.length === 2, 'both produce crates are in the world', `${w.crates.l
 say(w.awn !== null, 'the bodega awning is in the world');
 say(w.cat !== null, 'the alley cat is in the world');
 say(machine.length >= 3, "the ATM's machine panels are in the world", `${machine.length} of the ${w.atm.length} parts at the niche`);
+// The litter the cat is placed RELATIVE TO. Read from the world, never quoted:
+// this check used to hard-code (-10.60, -41.45) and (-9.40, -42.40), which are
+// `ct/props.ts`'s numbers — B's file. A hard-coded quotation of somebody else's
+// source is the one thing a refactor breaks silently and a bug never does, and I
+// had already written two guards against that class before committing this
+// instance. Measured floor: 6 flat decals lie in the alley once the cat's own
+// contact shadow is excluded — it is a flat decal at the cat's exact position,
+// so it read as litter 0.00 m away until ct/cat.ts started declaring it.
+say(w.litter.length >= 4, 'the alley litter is in the world', `${w.litter.length} flat decals`);
 
 if (fails) {
   console.log(`\n${fails} of the four objects this check exists for are MISSING.`);
@@ -138,10 +152,26 @@ say(w.awn.rotX > 0, 'the awning slopes DOWN and away from the face', `rotation.x
 // So: the cat must sit in the open floor BETWEEN the two paper decals — right of
 // the printed one at (-10.60, -41.45) and clear of the cardboard at
 // (-9.40, -42.40) — which is a claim about where it is, not about a sign.
-const dPaper = Math.hypot(w.cat.x + 10.60, w.cat.z + 41.45);
-const dCard = Math.hypot(w.cat.x + 9.40, w.cat.z + 42.40);
-say(dPaper > 0.6, 'the cat is clear of the printed paper, not standing on it', `${dPaper.toFixed(2)} m`);
-say(dCard > 0.5, 'and has not drifted onto the cardboard to its right', `${dCard.toFixed(2)} m`);
+//
+// AND "RIGHT OF" IS EXPRESSED IN THE FRAME IT WAS ASKED IN. The sixth note came
+// because I had taken "right" from the alley mouth's axis: an offset is only
+// right in the frame it was computed for, and nothing in a coordinate records
+// which frame that was. So the frame is recorded here — the viewpoint of
+// `shots/user-catsix.png`, which `shots/D-catsix-after.png` reproduces — and the
+// right-axis is derived from it rather than assumed.
+const VIEW = { x: -8.5, z: -39.5, yaw: -0.785 };          // the user's own frame
+const fwd = { x: Math.sin(VIEW.yaw), z: -Math.cos(VIEW.yaw) };
+const rightOf = (o) => (o.x - VIEW.x) * -fwd.z + (o.z - VIEW.z) * fwd.x;   // cross(fwd, up)
+const catR = rightOf(w.cat);
+const nearest = w.litter
+  .map((L) => ({ L, d: Math.hypot(L.x - w.cat.x, L.z - w.cat.z), r: rightOf(L) }))
+  .sort((a, b) => a.d - b.d);
+const toTheLeft = nearest.filter((n) => n.r < catR);
+say(nearest[0].d > 0.5, 'the cat is not standing on any piece of litter',
+  `nearest is ${nearest[0].d.toFixed(2)} m away`);
+say(toTheLeft.length > 0, 'there IS paper to the cat\'s left in the user\'s frame — it is on the right of it',
+  `${toTheLeft.length} of ${w.litter.length} decals sit left of the cat`);
+const dPaper = nearest[0].d;
 say(w.cat.z > -43.1, 'and not pushed back into the south wall', `${(w.cat.z + 43.5).toFixed(2)} m of floor behind it`);
 
 // 4. "extend the fascia DOWNWARD to 0.75m" — said three times
@@ -161,7 +191,7 @@ if (SELFTEST) {
   const before = fails;
   say(stagger !== 0, 'the crates are staggered again (the bug)', `${stagger.toFixed(3)} m`);
   say(w.awn.rotX < 0, 'the awning is tilted UP at the sky again (the bug)', `${w.awn.rotX}`);
-  say(dPaper <= 0.6, 'the cat is back on the printed paper (the bug)', `${dPaper.toFixed(2)} m`);
+  say(dPaper <= 0.5, 'the cat is back on a piece of litter (the bug)', `${dPaper.toFixed(2)} m`);
   say(Math.abs(lo - 0.75) > 0.005, 'the fascia bottom has drifted off 0.75 (the bug)', `${lo.toFixed(3)}`);
   const caught = fails - before;
   console.log(caught === 4

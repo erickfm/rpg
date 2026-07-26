@@ -232,6 +232,14 @@ export function buildCatRig(o: {
     scene.add(m);
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.38), new THREE.MeshBasicMaterial({ map: catShadeT, alphaTest: 0.5 }));
     sh.rotation.x = -Math.PI / 2;
+    // SAYS WHAT IT IS. A checker looking for "litter the cat might be standing
+    // on" finds every flat decal in the alley, and the cat's own shadow is a
+    // flat decal at the cat's exact position — so it read as a piece of litter
+    // 0.00 m away. Inferring it by size or by proximity would work and would
+    // also MASK the real fault it is there to catch (a cat standing exactly on a
+    // paper looks identical from outside). So the module that draws it says so,
+    // which is the same move as ct/bodega-corner.ts publishing its bay.
+    sh.userData.catShadow = true;
     sh.position.set(cx, 0.012 + gy, cz);
     scene.add(sh);
   });
