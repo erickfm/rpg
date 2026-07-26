@@ -784,10 +784,25 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       // uses. All liner-dark made the hump vanish into the floor it rises out
       // of; the ribs are what make it read as the floor STEPPING UP, which is
       // the thing the user says is the most recognisable part of a pickup bed.
+      // ── THE LID STOPS AT THE WALL'S INNER FACE, NOT AT THE BODY SIDE ─────
+      //
+      // This is the black stripe on the back of the truck, and it was mine.
+      // The lid was `HW - WELL_IN` wide and centred at (WELL_IN + HW) / 2, so
+      // it ran from x 0.66 out to 0.90 — THROUGH the 0.16 m bed wall, with its
+      // outer face landing exactly on the wall's outer skin at ±0.90. Two
+      // surfaces in one plane, one of them liner-dark: a z-fight 4 cm tall and
+      // 0.86 m long sitting in the body side above the rear wheel, which reads
+      // as a black stripe painted down the flank.
+      //
+      // GOTCHAS §6, and the headboard eight lines below says so in as many
+      // words — it "sits BETWEEN the walls so its sides are not coplanar with
+      // their outer faces". The lid has to obey the same rule: it closes the
+      // top of the well, and the well ends where the wall begins.
+      const lidW = (HW - WALL_T) - WELL_IN;          // 0.66 -> 0.74, inside the wall
       const lid = new THREE.Mesh(
-        new THREE.BoxGeometry(HW - WELL_IN, WELL_LID, 0.86),
+        new THREE.BoxGeometry(lidW, WELL_LID, 0.86),
         [linerM, linerM, floorM, linerM, linerM, linerM]);
-      lid.position.set(s * ((WELL_IN + HW) / 2), WELL_TOP + WELL_LID / 2, spec.wheelZ);
+      lid.position.set(s * (WELL_IN + lidW / 2), WELL_TOP + WELL_LID / 2, spec.wheelZ);
       g.add(lid);
     }
 
