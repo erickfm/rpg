@@ -194,9 +194,20 @@ say(meter === 0 || meter === null, 'and the credit meter is left at zero',
   const sN = stools[stools.length - 1];
   await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [sN.at.x, sN.at.z]);
   await p.waitForTimeout(320);
-  await press('e');
-  const up2 = await until(async () => (await panel()) !== null);
-  say(up2, 'the last stool in the list works the same way',
+  // UP TO THREE TRIES TO SIT, and the retry separates a dropped keypress from a
+  // stool that does not open its cabinet. This flaked once at 14 of 15 with
+  // `panel = null` — not because the last stool is different but because the E
+  // never registered, and the E dispatch is edge-triggered on a per-frame read
+  // (GOTCHAS 30). Asserting the SIT first means the two can never be confused,
+  // which is the third time in this session I have needed exactly this.
+  let sat2 = false;
+  for (let t = 0; t < 3 && !sat2; t++) {
+    await press('e');
+    sat2 = await until(async () => (await seated()) !== null, 1400);
+  }
+  say(sat2, 'the last stool in the list can be sat on', sat2 ? 'seated' : 'never sat after three tries');
+  const up2 = sat2 && await until(async () => (await panel()) !== null);
+  say(up2, 'and it opens the same cabinet',
     `__hud.panel() = ${JSON.stringify(await panel())}`);
   await press('Escape');
   const off2 = await until(async () => (await seated()) === null);
