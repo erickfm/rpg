@@ -111,6 +111,37 @@ export function sootedBrick(
   surf.courses(g, 'rgba(198,188,170,0.14)');
 }
 
+/**
+ * THE ROUNDING RULE, ruled by the desk on 2026-07-25 and published here as that
+ * ruling asked: **fix the DENSITY, accept a fractional canvas rounded to whole
+ * texels.**
+ *
+ * Density is the invariant this world is authored against — 8 px/m walls,
+ * 32 px/m ground, 19-27 px/m interior floors — and the canvas is only where
+ * that density happens to land. So `ppm` is held exactly and `W`/`H` absorb
+ * the remainder. Never the other way round: nudging the density to make a
+ * canvas come out whole is what breaks a bond across a party wall, because the
+ * neighbour nudged differently.
+ *
+ * H shipped the vehicle density pass on this rule (every vertical face on
+ * every vehicle at 32 px/m with square texels) and the desk confirmed H's rule
+ * rather than mine so that landed, user-visible work would not be re-done to
+ * satisfy a helper. Measured, this helper already rounded that way — no change
+ * was needed, only the writing-down.
+ *
+ * WHAT THE REMAINDER COSTS, measured across all 210 masonry textures:
+ *
+ *     achieved density == declared exactly   38 of 210
+ *     worst drift                            0.211 px/m  (0.95 m face at 16 -> 15 px)
+ *     worst drift as a share of declared     1.79%
+ *
+ * That 1.79% matters because `scripts/density.mjs` checks a face against its
+ * DECLARED ppm within 2%, so rounding noise alone was within a whisker of
+ * turning that check red on a surface behaving exactly as ruled. The stamp
+ * therefore carries the ACHIEVED density as well, and a checker can tell
+ * "authored at the wrong density" — a real fault — from "rounded to whole
+ * texels", which is correct by ruling.
+ */
 export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 1) {
   const ppm = WALL_PPM * mult;
   const W = Math.max(1, Math.round(wMeters * ppm));
@@ -141,7 +172,14 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
      */
     paint: (draw: (g: CanvasRenderingContext2D) => void) => {
       const t = pixTex(W, H, draw);
-      t.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H };
+      // `ppm` is what was ASKED FOR; `ppmW`/`ppmH` are what the whole-texel
+      // canvas actually achieved. They differ by up to 1.79% purely from the
+      // rounding the desk's ruling requires, and density.mjs's tolerance
+      // against the declared value is 2% — so a checker that wants to catch a
+      // face authored at the WRONG density should compare the mesh against
+      // ppmW/ppmH and reserve the declared value for "what was intended".
+      t.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H,
+                             ppmW: W / wMeters, ppmH: H / hMeters };
       // and say what it IS, not only how dense it is — see declareSurface().
       // Everything masonry() paints is brick by definition, so this one is free.
       t.userData.surface = 'brick';
