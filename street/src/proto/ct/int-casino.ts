@@ -512,7 +512,11 @@ export function buildCasino(ctx: CtxBuild): void {
   // crowded with PEOPLE, not with furniture you cannot walk between" — the gap
   // between bank colliders goes from 1.10 m to 1.90 m, which is the difference
   // between edging past a machine and walking between two of them.
-  const BANK_Z = [9.6, 6.4, 3.2, 0.0, -3.2];
+  // THREE rows of reels, not five. "Too many slots, not enough diversity" — a
+  // real floor is not a slot warehouse, so two rows' worth of space goes to
+  // games instead. The reels keep the front of the house, where you meet them
+  // walking in; everything else is beyond them.
+  const BANK_Z = [9.6, 6.4, 3.2];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -523,6 +527,22 @@ export function buildCasino(ctx: CtxBuild): void {
           const m = new THREE.Mesh(slotGeo, slotMats[row[i]]);
           if (face < 0) m.rotation.y = Math.PI;
           put(m, x0 + i * SLOT_PITCH, 0.725, bz + face * 0.35);
+          // CABINETS THAT ARE NOT ALL THE SAME. "A hundred identical machines is
+          // what makes it read as wallpaper" — so every third one carries a
+          // raised topper and every fourth a taller crown, off the machine's
+          // INDEX rather than a random stream (GOTCHAS §2: there is one seeded
+          // rnd() and its order is load-bearing). Three silhouettes down a bank
+          // instead of one, from two boxes.
+          const k = (i + rowN) % 4;
+          if (k === 1 || k === 3) {
+            put(new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.30, 0.30), slotMats[row[i]][4]),
+              x0 + i * SLOT_PITCH, 1.60, bz + face * 0.35);
+          }
+          if (k === 3) {
+            put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.22, 0.22),
+              new THREE.MeshBasicMaterial({ color: 0xd8a83a })),
+              x0 + i * SLOT_PITCH, 1.86, bz + face * 0.35);
+          }
         }
       }
       // ONE collider per bank, not one per machine. The cabinets are 0.04 m
@@ -752,6 +772,97 @@ export function buildCasino(ctx: CtxBuild): void {
   }), 'sign');
   put(new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.83), ctx.flat(sevensT)), -2.0, 1.86, -hd + 0.07);
   bulbLine(-3.25, 1.30, -hd + 0.10, -0.75, 1.30, -hd + 0.10, 0.3);
+
+  // ── THE GAMES, which is what stops this being a slot warehouse ────────
+  //
+  // "A real floor has zones: a blackjack pit, a roulette wheel, a craps table
+  // with its high sides, a poker corner, a keno board, a wall of video poker
+  // distinct from the reel slots." Each of these is a different SHAPE, which is
+  // the point — a floor reads as varied because you can tell the games apart
+  // across the room, not because the cabinets have different stickers.
+  {
+    const feltG = new THREE.MeshBasicMaterial({ color: 0x1e5a3e });
+    const feltR = new THREE.MeshBasicMaterial({ color: 0x5a1f24 });
+    const rail = new THREE.MeshBasicMaterial({ color: 0x3a2226 });
+    const wood = new THREE.MeshBasicMaterial({ color: DARKWOOD });
+    const chrome = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
+    const ivory = new THREE.MeshBasicMaterial({ color: 0xd8d0bc });
+
+    // ROULETTE — round, and the only round thing on the floor
+    {
+      const RX = -3.1, RZ = 0.2;
+      put(new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.12, 16), feltG), RX, 0.86, RZ);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(1.10, 1.10, 0.10, 16), rail), RX, 0.78, RZ);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.10, 12), wood), RX, 0.97, RZ - 0.42);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.04, 12), chrome), RX, 1.03, RZ - 0.42);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.16, 8), chrome), RX, 1.10, RZ - 0.42);
+      for (const lz of [-0.7, 0.7]) for (const lx of [-0.7, 0.7]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.78, 0.10), wood), RX + lx, 0.39, RZ + lz);
+      }
+      solid(RX, RZ, 2.3, 2.3);
+    }
+
+    // CRAPS — long, and high-sided, which is its whole silhouette
+    {
+      const CX2 = 3.0, CZ2 = 0.2;
+      put(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 2.8), feltG), CX2, 0.88, CZ2);
+      for (const sx of [-1, 1]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 2.8), rail), CX2 + sx * 0.75, 1.12, CZ2);
+      }
+      for (const sz of [-1, 1]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.46, 0.12), rail), CX2, 1.12, CZ2 + sz * 1.4);
+      }
+      for (const lz of [-1.2, 1.2]) for (const lx of [-0.6, 0.6]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.82, 0.10), wood), CX2 + lx, 0.41, CZ2 + lz);
+      }
+      solid(CX2, CZ2, 1.8, 3.0);
+    }
+
+    // POKER — oval-ish, red felt, and lower than the rest
+    {
+      const PX2 = -3.0, PZ2 = -3.6;
+      put(new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.15, 0.11, 12), feltR), PX2, 0.80, PZ2);
+      put(new THREE.Mesh(new THREE.TorusGeometry(1.16, 0.06, 4, 14), rail), PX2, 0.86, PZ2)
+        .rotation.x = Math.PI / 2;
+      for (const a of [0, 1.6, 3.1, 4.7]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.72, 0.09), wood),
+          PX2 + Math.cos(a) * 0.7, 0.36, PZ2 + Math.sin(a) * 0.7);
+      }
+      solid(PX2, PZ2, 2.5, 2.5);
+    }
+
+    // VIDEO POKER — a low run against the east wall, deliberately NOT a reel
+    // cabinet: half the height, a counter rather than a box, screens not reels
+    {
+      const VX = hw - 0.55;
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.92, 4.2), wood), VX, 0.46, -3.4);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.06, 4.3), rail), VX, 0.95, -3.4);
+      for (let i = 0; i < 6; i++) {
+        const vz = -5.2 + i * 0.72;
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.34, 0.44),
+          new THREE.MeshBasicMaterial({ color: i % 2 ? 0x2a4a6a : 0x1e3a52 })), VX - 0.36, 1.18, vz);
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.05, 0.30), chrome), VX - 0.30, 0.99, vz);
+      }
+      solid(VX, -3.4, 0.9, 4.4);
+    }
+
+    // KENO — a lit board on the west wall, the only thing up there with numbers
+    {
+      const kenoT = declareSurface(pixTex(64, 26, (g) => {
+        g.fillStyle = '#14161c'; g.fillRect(0, 0, 64, 26);
+        g.fillStyle = '#2a2e38';
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 20; c++) g.fillRect(2 + c * 3, 2 + r * 6, 2, 4);
+        g.fillStyle = '#f2b83a';
+        for (const [c, r] of [[3, 0], [7, 1], [11, 0], [2, 2], [16, 3], [9, 2], [18, 1]]) {
+          g.fillRect(2 + c * 3, 2 + r * 6, 2, 4);
+        }
+        dither(g, 64, 26, 30);
+      }), 'sign');
+      const kb = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 1.05), ctx.flat(kenoT));
+      kb.rotation.y = Math.PI / 2;
+      put(kb, -hw + 0.06, 2.05, -3.0);
+    }
+  }
 
   // ── the second table, and the pit rail around both ────────────────────
   //
