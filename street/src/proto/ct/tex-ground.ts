@@ -1090,6 +1090,85 @@ export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, 
   return made;
 }
 
+
+/** ALONG-STREET GRAIN AT THE LOT MOUTH — a feathered overlay, not a patch.
+ *
+ *  Builder I measured the fault and I judged it rather than auto-fixing it
+ *  (notes/B-density-judgement-for-I.md): the long ground sheets are painted as
+ *  a CROSS-SECTION and stretched down the street — 12.8 texels/m across, and
+ *  **0.03 along z**. That is a legitimate technique, because a carriageway does
+ *  not vary much along its length, and it is where the kerb-to-crown detail
+ *  comes from. It runs out at exactly one place: the lot mouth, which is the
+ *  "drive a car off the lot" view and the one spot where the player looks ALONG
+ *  the street instead of across it. There, the user's "a large flat untextured
+ *  grey plane" is literally true on that axis.
+ *
+ *  WHY THIS FEATHERS INSTEAD OF ABUTTING. The obvious local fix is a patch of
+ *  proper 32 px/m ground laid over the mouth. That would put a straight-edged
+ *  rectangle of one density against another — which is the exact fault class I
+ *  have spent this session removing from the lighting, and I is not going to
+ *  thank me for trading a bland surface for a visible seam. So the overlay
+ *  carries alpha that falls to zero at all four edges: it ADDS grain where he
+ *  stands and dissolves before it ends. There is no boundary to see.
+ *
+ *  It does not repaint the 124 m ribbons and it does not touch the apron, which
+ *  is already 32 texels/m and is the control — nobody has complained about it.
+ */
+export function mouthGrain(scene: THREE.Scene, cx: number, cz: number,
+                           w: number, d: number, y: number,
+                           dress: (t: THREE.Texture) => THREE.Material): void {
+  const W = Math.max(16, Math.round(w * WPM)), H = Math.max(16, Math.round(d * WPM));
+  const t = declareSurface(pixTex(W, H, (g) => {
+    g.clearRect(0, 0, W, H);
+    // deterministic — a rnd() draw here moves every tree in the world (GOTCHAS 2)
+    let s2 = 0x1b873593 >>> 0;
+    const rr = () => { s2 = Math.imul(s2 ^ (s2 >>> 15), 0x2c1b3c6d) >>> 0; return (s2 >>> 9) / 0x7fffff; };
+    // ALONG-STREET features, which is the whole point: the cross-section sheets
+    // already carry everything that varies across the road.
+    for (let i = 0; i < Math.round(w * d * 0.5); i++) {
+      const px = rr() * W, py = rr() * H;
+      const rx = (0.25 + rr() * 1.1) * WPM, ry = (0.18 + rr() * 0.6) * WPM;
+      g.fillStyle = rr() < 0.55 ? `rgba(24,24,26,${(0.05 + rr() * 0.10).toFixed(3)})`
+                                : `rgba(150,150,148,${(0.03 + rr() * 0.06).toFixed(3)})`;
+      g.beginPath(); g.ellipse(px, py, rx, ry, rr() * Math.PI, 0, Math.PI * 2); g.fill();
+    }
+    // a few tar-band repairs running ACROSS the carriageway, which is what a
+    // real road has along its length and what the stretched sheet cannot show
+    for (let i = 0; i < 3; i++) {
+      const py = (0.18 + rr() * 0.64) * H;
+      g.strokeStyle = `rgba(18,18,19,${(0.14 + rr() * 0.10).toFixed(3)})`;
+      g.lineWidth = 1 + rr() * 2.2;
+      g.beginPath(); g.moveTo(0, py);
+      for (let x = 0; x <= W; x += 8) g.lineTo(x, py + (rr() - 0.5) * 3.2);
+      g.stroke();
+    }
+    dither(g, W, H, Math.round(w * d * 14));
+    // FEATHER: multiply alpha down to nothing at every edge, so this overlay
+    // has no boundary anywhere. 1.2 m of fade, which at 32 px/m is ~38 px.
+    const img = g.getImageData(0, 0, W, H), px2 = img.data;
+    const fx = Math.max(2, Math.round(1.2 * WPM)), fy = Math.max(2, Math.round(1.2 * WPM));
+    for (let yy = 0; yy < H; yy++) {
+      const ey = Math.min(1, Math.min(yy, H - 1 - yy) / fy);
+      for (let xx = 0; xx < W; xx++) {
+        const ex = Math.min(1, Math.min(xx, W - 1 - xx) / fx);
+        const k = (yy * W + xx) * 4 + 3;
+        px2[k] = Math.round(px2[k] * ex * ey);
+      }
+    }
+    g.putImageData(img, 0, 0);
+  }), 'ground');
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  const mat = dress(t) as THREE.MeshBasicMaterial;
+  mat.transparent = true;
+  mat.depthWrite = false;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(cx, y, cz);
+  m.userData.mod = 'tex-ground';
+  m.userData.mouthGrain = true;
+  scene.add(m);
+}
+
 export function buildGround(o: GroundOpts): Ground {
   const { scene, flat, wet, KERB_H } = o;
   // THE WET REGISTRATION, REACHABLE BY ANYONE HOLDING `scene`, and published
@@ -1493,6 +1572,12 @@ export function buildGround(o: GroundOpts): Ground {
   // over it (GOTCHAS 6). 20 cm off H's centreline, well inside the corridor
   // their walkers use.
   crossingStripes(scene, 53.8, -107.4, -98.6, 1.1, 0, (t) => wet(flat(t)));
+
+  // The lot mouth: the kerb cut at z 2.6 (DRIVES above). Wide enough to cover
+  // the carriageway the player looks down when driving out, long enough along
+  // the street that the feather has room to dissolve. Laid 3 mm over the road,
+  // under nothing.
+  mouthGrain(scene, 0, 2.6, 11.0, 14.0, 0.003, (t) => wet(flat(t)));
 
   // The pawn alley's ground is laid from ct/props.ts, NOT here. This module
   // builds at crosstown.ts:66, before any building exists; the alley is cut by
