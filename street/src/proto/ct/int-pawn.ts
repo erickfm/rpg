@@ -160,7 +160,29 @@ export function buildPawn(ctx: CtxBuild): void {
     dither(g, 24, 56, 34);
   }), 'detail');
   {
-    const LW = DW * 0.95, OPEN = 0.80;
+    // HELD OPEN AGAINST THE JAMB, NOT HALF OPEN ACROSS THE OPENING.
+    //
+    // 0.80 rad is 46 degrees: the leaf stood diagonally IN its own doorway,
+    // reaching to z 3.505 while the way-out spot is at 3.45. Two things came out
+    // of that, and the first is a shipped bug:
+    //
+    //  - walk to the door and the way-out prompt GOES OUT. crosstown.ts:886 now
+    //    requires line of sight to a spot, and this leaf is the thing in the way:
+    //    measured, the prompt is live 0.16 m from the spot and null at 0.37 m,
+    //    which is exactly where the doorway blocker stops you. So the last step
+    //    toward the door is the one that takes the exit away. That is the
+    //    *"im literally stuck here"* class, in a room the user has already sent
+    //    back once.
+    //  - it is the user's own complaint about the library entrance, in his words:
+    //    *"the door reads as SHUT-BUT-OPEN — the leaf is swung in with a dark
+    //    void behind it"*. A door somebody props open lies back against the
+    //    return, it does not hang at 45 degrees in the gap.
+    //
+    // 1.35 rad is 77 degrees, so the leaf lies back along the west jamb from
+    // local x -0.64 to -0.40 — clear of the door centreline at -0.06 by 0.34 m,
+    // out of the sight line, and out of the way you walk. It is a plane with no
+    // collider, so nothing about the lane changes.
+    const LW = DW * 0.95, OPEN = 1.35;
     const hx = dAt - DW / 2;
     const leaf = new THREE.Mesh(new THREE.PlaneGeometry(LW, DH - 0.06),
       new THREE.MeshBasicMaterial({ map: pLeafT, side: THREE.DoubleSide }));

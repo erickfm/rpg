@@ -516,8 +516,45 @@ export function buildCasino(ctx: CtxBuild): void {
       ['#8a2c32', '#c9a45e', '#2c6a4a'][i],
       '#' + side.toString(16).padStart(6, '0'),
       i === 2 ? '#5a5048' : '#3a3038'));
+    // THE SIDES ARE NOT A FLAT COLOUR. The user, of the entry shot: "the black
+    // slot-bank sides are large untextured flat masses". They were exactly that —
+    // one MeshBasicMaterial of the body colour on five of six faces — and a bank
+    // is six cabinets long, so what you actually see walking the avenue is a
+    // 3.8 m x 1.45 m slab of unbroken dark.
+    //
+    // A cabinet side is not blank in life: it is a moulded panel with a reveal
+    // round it, a plinth it stands on, and a lit seam where the front glass wraps
+    // the corner. 24x56 on a 0.6 m x 1.45 m face is the same ~40 px/m as the
+    // front, so the two sit at one density (GOTCHAS 5).
+    const sideT = ctx.flat(pixTex(24, 56, (g) => {
+      const body = '#' + side.toString(16).padStart(6, '0');
+      g.fillStyle = body; g.fillRect(0, 0, 24, 56);
+      g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(0, 0, 24, 1);   // top edge catches the light
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(2, 6, 20, 34);        // the panel reveal
+      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(3, 7, 18, 32);  // and the panel in it
+      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(3, 38, 18, 1);
+      g.fillStyle = '#c9a45e'; g.fillRect(0, 10, 1, 22);                 // the front glass wrapping
+      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(0, 44, 24, 12);       // the plinth, in shadow
+      g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(0, 44, 24, 1);
+      dither(g, 24, 56, 40);
+    }));
+    // THE TOPS ARE THE OTHER FLAT MASS, and the one you actually stand over: a
+    // 1.45 m cabinet against a 1.62 m eye means you look DOWN on six of them in a
+    // row, and six identical solid-colour tops butt into one 3.8 m slab with no
+    // seam anywhere in it. So the top is painted too — lifted off the body,
+    // brushed along its length, and with a dark seam down BOTH edges so each
+    // cabinet reads as its own object where it meets the next.
+    const topBase = new THREE.Color(side).lerp(new THREE.Color(0x8a8478), 0.22);
+    const topT = ctx.flat(pixTex(24, 24, (g) => {
+      g.fillStyle = '#' + topBase.getHexString(); g.fillRect(0, 0, 24, 24);
+      g.fillStyle = 'rgba(255,255,255,0.06)';
+      for (let y = 2; y < 24; y += 4) g.fillRect(1, y, 22, 1);      // brushed metal
+      g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(0, 0, 1, 24); g.fillRect(23, 0, 1, 24);
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(1, 0, 1, 24); g.fillRect(22, 0, 1, 24);
+      dither(g, 24, 24, 26);
+    }));
     const sideM = new THREE.MeshBasicMaterial({ color: side });
-    return [sideM, sideM, sideM, sideM, front, sideM];
+    return [sideT, sideT, topT, sideM, front, sideT];
   });
 
   // SLOT_N is 9 because ROWS below has NINE entries per row. I had this at 10
@@ -574,7 +611,18 @@ export function buildCasino(ctx: CtxBuild): void {
   // 36 m floor at the same 3.2 m centres — the aisle width the user asked for is
   // unchanged, there is simply more room to put banks in before you reach the
   // games.
-  const BANK_Z = [15.6, 12.4, 9.2, 6.0, 2.8];
+  // FOUR rows, not five. The user, from the entry: "need a bit of space on entry
+  // area. maybe instead of slot we kill a row and add seat of some sort." The row
+  // at 15.6 was 2.4 m inside a door you walk through at 18, so the first thing
+  // the room did was put a machine in your face — and 2.4 m is not an entrance,
+  // it is a gap. Killing it opens the front of the house to 4.95 m clear of the
+  // next bank's face, across the full 11 m width, and the seats he asked for go
+  // in it (see THE ENTRY LOUNGE below).
+  //
+  // The row is DELETED, not moved back: shifting all four would have closed up
+  // the games beyond them, and he has already sent this room back once for being
+  // cramped. The floor keeps its 3.2 m centres and its depth.
+  const BANK_Z = [12.4, 9.2, 6.0, 2.8];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -626,6 +674,88 @@ export function buildCasino(ctx: CtxBuild): void {
           label: 'sit at the slot', ok: () => room.inside(),
         });
       }
+    }
+  }
+
+  // ── THE ENTRY LOUNGE ──────────────────────────────────────────────────
+  //
+  // The second half of "kill a row and add seat of some sort". A slot stool is
+  // not a seat you can wait on — it faces a machine, it has no back, and it is
+  // in a bank. What the front of a casino actually has is somewhere to sit that
+  // is NOT playing: you come in, or you are waiting for somebody, or you have
+  // stopped.
+  //
+  // Two banquettes against the side walls, facing the avenue across the entry,
+  // with the middle left completely clear — the door spot is at hd - 0.55 and
+  // the whole point of the row that went was space, so nothing goes in the
+  // centre. Every place is registered with F's ctx.seat(), which is the standing
+  // rule for anything sittable ("for every seat in the game i want to be able to
+  // sit down"), and the seat top is one constant the geometry is built from.
+  {
+    const LOUNGE_Z = 15.3;                       // mid-way between door and bank
+    const SEAT_TOP = 0.44, BENCH_L = 2.6, BENCH_D = 0.55;
+    const BX = hw - 0.40;                        // 3.5 cm off the plaster
+    // WHERE A PERSON SITS ON A BENCH IS NOT ITS BOX CENTRE. A sitter is a plane
+    // with no thickness, so placing it on the middle of a 0.55 m cushion buries
+    // the legs in the front half of that cushion — which is what the first pass
+    // did, and it read as a torso growing out of the upholstery. A body sits
+    // ~0.16 m forward of centre on a bench this deep, and that is a fact about
+    // benches, not a fudge for the sprite: the SEAT is registered there too, so
+    // ctx.seat() and the figure are one point and cannot drift apart. (H's rule
+    // is "place it at the seat you registered" — so the seat has to be right.)
+    const SIT_OFF = 0.16;
+    const plushM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });   // the stool red
+    const buttonM = new THREE.MeshBasicMaterial({ color: 0x521820 });
+    const brassM2 = new THREE.MeshBasicMaterial({ color: 0xc9a45e });
+    for (const sx of [-1, 1]) {
+      const bx2 = sx * BX;
+      // plinth, cushion, and a buttoned back against the wall
+      put(new THREE.Mesh(new THREE.BoxGeometry(BENCH_D, 0.12, BENCH_L), buttonM),
+        bx2, 0.06, LOUNGE_Z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(BENCH_D, 0.14, BENCH_L), plushM),
+        bx2, SEAT_TOP - 0.07, LOUNGE_Z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, BENCH_L), plushM),
+        sx * (hw - 0.16), SEAT_TOP + 0.31, LOUNGE_Z);
+      // BUTTONED, AND PIPED ALONG THE FRONT EDGE. A 2.6 m bench in one colour is
+      // the same fault as the slot flanks at a smaller size — the user has now
+      // called out large untextured masses in this room and in the library, so it
+      // is not a thing to ship twice in one commit. Two rows of buttons break the
+      // back and a brass line catches the front of the cushion.
+      for (const bz2 of [-1.0, -0.5, 0, 0.5, 1.0]) for (const by of [0.20, 0.46]) {
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.06), buttonM),
+          sx * (hw - 0.24), SEAT_TOP + by, LOUNGE_Z + bz2);
+      }
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, BENCH_L), brassM2),
+        bx2 - sx * (BENCH_D / 2 - 0.02), SEAT_TOP - 0.02, LOUNGE_Z);
+      // a brass rail capping the back, so it is not another flat mass
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, BENCH_L), brassM2),
+        sx * (hw - 0.16), SEAT_TOP + 0.64, LOUNGE_Z);
+      // ONE collider for the bench, for the same reason the banks get one each
+      solid(bx2, LOUNGE_Z, BENCH_D + 0.28, BENCH_L);
+      // four places, facing the avenue. Facing is (sin yaw, -cos yaw), so a
+      // bench on +x looks along -x at yaw -PI/2 and the west bench at +PI/2.
+      for (const dz of [-0.975, -0.325, 0.325, 0.975]) {
+        ctx.seat({
+          x: room.wx(bx2 - sx * SIT_OFF), z: room.wz(LOUNGE_Z + dz),
+          yaw: sx > 0 ? -Math.PI / 2 : Math.PI / 2,
+          h: SEAT_TOP,
+          approach: { x: room.wx(bx2 - sx * 0.9), z: room.wz(LOUNGE_Z + dz) },
+          label: 'sit down', ok: () => room.inside(),
+        });
+      }
+    }
+    // Somebody waiting on the east bench, so the seats read as FOR sitting on —
+    // the same job the four slot players do, and the same call: `seated` on the
+    // Look, placed at the seat top this block already declares, no y fudge.
+    sitter({ jacket: '#3a3a44', pants: '#2a2830', skin: '#c9a184', hair: '#3a2a1e',
+      fit: 'coat', cut: 'short', build: 1 },
+    BX - SIT_OFF, LOUNGE_Z - 0.325, SEAT_TOP, -Math.PI / 2);
+    // a standing ashtray between the benches and the door, against the wall
+    for (const sx of [-1, 1]) {
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.62, 8),
+        new THREE.MeshBasicMaterial({ color: 0x6a6258 })), sx * (hw - 0.45), 0.31, LOUNGE_Z + 1.85);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.09, 8), brassM2),
+        sx * (hw - 0.45), 0.66, LOUNGE_Z + 1.85);
     }
   }
 
