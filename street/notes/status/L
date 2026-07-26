@@ -1,1 +1,1 @@
-WORKING | blackjack table plays the costed game (99.701% vs 99.698%); next the felt and cards | G for seats at the felt table — see notes/BLOCKED-L.md, not stopping me
+WORKING | blackjack playable via __blackjack.open(): felt, cards, deal, hole-card turn | G for seats at the felt table — notes/BLOCKED-L.md; it is the last step and not mine
