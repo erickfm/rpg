@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-22-35.png' add some detail to this alley, like a gutter pip some vent stuff on the ground, etc"** → **D**
 - **"'Screenshot from 2026-07-25 21-20-56.png' bodega exit needs work"** → **F**
 - **"'Screenshot from 2026-07-25 21-20-09.png' fence at park looks floating and off"** → **E**
 - **"pews in the church clip into the confession booths, lets get rid of some of the rear pews"** → **G**

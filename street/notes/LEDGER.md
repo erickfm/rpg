@@ -172,3 +172,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | pews in the church clip into the confession booths, lets get rid of so | |
 | OPEN | E | 'Screenshot from 2026-07-25 21-20-09.png' fence at park looks floating | |
 | OPEN | F | 'Screenshot from 2026-07-25 21-20-56.png' bodega exit needs work | |
+| OPEN | D | 'Screenshot from 2026-07-25 21-22-35.png' add some detail to this alle | |
