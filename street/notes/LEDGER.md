@@ -106,3 +106,4 @@ user anything is finished.
 | OPEN | G | these signs block each other can you fix | |
 | OPEN | G | maybe the aces sign belongs on the other end of the casino building? | |
 | OPEN | H | tons of people always get stuck at this cross walk. the walk logic sho | |
+| OPEN | E | side benches have backs which are backwards? | |
