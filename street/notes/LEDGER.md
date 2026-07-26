@@ -175,3 +175,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | F | 'Screenshot from 2026-07-25 21-20-56.png' bodega exit needs work | |
 | OPEN | D | 'Screenshot from 2026-07-25 21-22-35.png' add some detail to this alle | |
 | OPEN | C | neighbors door should be closed when neighbor is not out | |
+| OPEN | C | door handles on my floor dont match other door handles. pls fix | |

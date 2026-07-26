@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"door handles on my floor dont match other door handles. pls fix"** → **C**
 - **"neighbors door should be closed when neighbor is not out"** → **C**
 - **"'Screenshot from 2026-07-25 21-22-35.png' add some detail to this alley, like a gutter pip some vent stuff on the ground, etc"** → **D**
 - **"'Screenshot from 2026-07-25 21-20-56.png' bodega exit needs work"** → **F**
