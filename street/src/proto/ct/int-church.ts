@@ -63,7 +63,17 @@ export function buildChurch(ctx: CtxBuild) {
     // too, so the church was merely joint-tallest. Nothing else in the world
     // comes within 3 m of this now, which is the only way the height reads as a
     // fact about the church rather than as a number in a file.
-    w: 8.5, d: 16, h: 9.5,
+    // WIDER THAN THE BUILDING, on the user's own ruling: "by matching the
+    // exterior i really mean in general positioning. no one is going to take a
+    // ruler and measure the width of the inner and outer." So the rule was
+    // always WHICH SIDE THE DOOR IS ON and roughly where things sit — the door
+    // is centred on this facade and it is centred in here — not dimensional
+    // equality. 8.5 x 16 was me enforcing a constraint nobody set.
+    //
+    // 13.0 x 20.0. The nave is wide enough for its pews to be pews and long
+    // enough that the altar is a walk away, and the narthex sequence the user
+    // likes — low compressed lobby, then the arch — is untouched by either.
+    w: 13.0, d: 20.0, h: 9.5,
     // Cold stone, not shop plaster. The floor is the flagstone the forecourt
     // uses so the threshold reads as continuous; the walls go pale and chalky
     // and the ceiling is nearly white, because height you cannot see the top of
@@ -98,7 +108,11 @@ export function buildChurch(ctx: CtxBuild) {
   });
 
   const { put, solid, wx, wz } = room;
-  const hw = 8.5 / 2, hd = 16 / 2;
+  // DERIVED, not typed. These were `8.5 / 2` and `16 / 2` — the room's size
+  // written a second time — so changing the spec above moved the walls and left
+  // every fitting behind. Same two-authorings fault the door declarations exist
+  // to kill, in the room's own file.
+  const hw = room.W / 2, hd = room.D / 2;
 
   // ── the floor is flagstones, not boards ──
   const flagT = declareSurface(pixTex(64, 64, (g) => {
@@ -112,8 +126,10 @@ export function buildChurch(ctx: CtxBuild) {
     dither(g, 64, 64, 420);
   }), 'ground');
   flagT.wrapS = flagT.wrapT = THREE.RepeatWrapping;
-  flagT.repeat.set(8.5 / 2, 16 / 2);              // GOTCHAS 5: repeat off real metres
-  const flags = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 16), ctx.flat(flagT));
+  // off the ROOM, not off the numbers the room used to be — the flags stopped
+  // 4.5 m short of the new walls and left bare floor round the edges
+  flagT.repeat.set(room.W / 2, room.D / 2);       // GOTCHAS 5: repeat off real metres
+  const flags = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(flagT));
   flags.rotation.x = -Math.PI / 2;
   put(flags, 0, 0.012, 0);
 
@@ -124,9 +140,15 @@ export function buildChurch(ctx: CtxBuild) {
   // whole point of a nave, and the one place in this world where a WIDE gap is
   // correct rather than lazy.
   const woodM = new THREE.MeshBasicMaterial({ color: 0x5a4632 });
-  const AISLE = 1.6, PEW_W = (8.5 - AISLE) / 2 - 0.55;
+  const AISLE = 1.6, PEW_W = (room.W - AISLE) / 2 - 0.55;
   const PEW_CX = AISLE / 2 + PEW_W / 2;
-  for (let i = 0; i < 9; i++) {
+  // ENOUGH ROWS TO FILL THE NAVE. Nine was right for a 16 m church; at 20 m it
+  // left almost six metres of bare floor between the narthex arch and the first
+  // pew, because the rows are laid from the ALTAR end and all the new length
+  // arrived at the other one. Derived so the nave stays full whatever the room
+  // becomes: rows from -hd + 3.2 up to 3.6 short of the narthex face.
+  const PEW_ROWS = Math.max(6, Math.floor(((hd - 3.6) - (-hd + 3.2)) / 1.05) + 1);
+  for (let i = 0; i < PEW_ROWS; i++) {
     const pz = -hd + 3.2 + i * 1.05;
     for (const side of [-1, 1]) {
       const seat = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.08, 0.42), woodM);
@@ -227,7 +249,7 @@ export function buildChurch(ctx: CtxBuild) {
     const stoneD = new THREE.MeshBasicMaterial({ color: 0x6e6a60 });
     const stoneL = new THREE.MeshBasicMaterial({ color: 0x9a9488 });
 
-    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.26, NAR_D), stoneD), 0, NAR_Y + 0.13, zc);
+    put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.26, NAR_D), stoneD), 0, NAR_Y + 0.13, zc);
 
     // THE ARCH, three orders, each stepped back and in. A pointed arch is two
     // struck curves meeting at a point; at 8 px/m the honest way to draw one is
@@ -285,7 +307,7 @@ export function buildChurch(ctx: CtxBuild) {
       dither(g, 48, 64, 60);
     }), 'detail');
     for (const sx of [-1, 1]) {
-      const pw = (8.5 - 2.7) / 2, px = sx * (2.7 / 2 + pw / 2);
+      const pw = (room.W - 2.7) / 2, px = sx * (2.7 / 2 + pw / 2);
       const ct = courseT.clone(); ct.needsUpdate = true;
       // GOTCHAS 5: repeat from real metres, so the courses are the same size
       // on both piers and match the 0.52 m course the texture draws.
@@ -310,9 +332,9 @@ export function buildChurch(ctx: CtxBuild) {
     const platD = CHANCEL_Z - (-hd);
     // the platform, and a lighter nosing so the step reads as a step rather
     // than as a shadow on the flags
-    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, CHANCEL_Y, platD), stoneM),
+    put(new THREE.Mesh(new THREE.BoxGeometry(room.W, CHANCEL_Y, platD), stoneM),
       0, CHANCEL_Y / 2, -hd + platD / 2);
-    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.04, 0.12), stoneLM),
+    put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.04, 0.12), stoneLM),
       0, CHANCEL_Y + 0.02, CHANCEL_Z);
 
     // The altar rail, turned balusters under a dark oak top — and OPEN in the
@@ -446,7 +468,11 @@ export function buildChurch(ctx: CtxBuild) {
 
   // ── the font, by the door, where you are received ────────────────────
   {
-    const FZ = hd - 2.2, FX = 2.5;
+    // The user likes the stoup here — "right at the entrance, which is correct"
+    // — so it stays by the door and gets CLEARANCE instead. It was clipping the
+    // same narthex pier (bowl r 0.44 at z 5.80 against the pier at 5.40). Now in
+    // the middle of the narthex with a metre of air round it.
+    const FZ = hd - 1.25, FX = hw - 1.7;
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.30, 0.16, 8), stoneMx), FX, 1.02, FZ);
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.30, 0.86, 8), stoneMx), FX, 0.47, FZ);
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 8), stoneMx), FX, 0.05, FZ);
@@ -504,7 +530,14 @@ export function buildChurch(ctx: CtxBuild) {
   // stole hung on the outside of the middle door, which is how you know it is
   // in use rather than furniture.
   {
-    const FX = hw - 0.75, FZ = hd - 2.9;
+    // CLEAR OF THE NARTHEX PIER. The user: "the confessional is buried in the
+    // wall... it should stand proud against the wall as a piece of furniture."
+    // It was not in the outer wall — it was inside the pier I added round the
+    // arch two commits later, which spans the width at z = hd - NAR_D. Measured:
+    // box x 3.01..3.99 z 3.75..6.45 against a pier at z 5.40. Moved into the
+    // nave behind the pier, and it stands 0.26 m off the side wall, which is
+    // what "proud, as furniture" means.
+    const FX = hw - 0.75, FZ = hd - 2.6 - 1.9;
     const oakM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
     const oakDM = new THREE.MeshBasicMaterial({ color: 0x372a1c });
     const BOXW = 0.98, BOXH = 2.42, BOXD = 2.70;
