@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"add a slots interface and game where when i sit down i enter the slots interface and i can play slots. fully make a slots game that works well and pays out and everything. high effort here."** → **L**
 - **"'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalks here though? (the WALKING half)"** → **H**
 - **"'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalks here though?"** → **B**
 - **"the side street east-end crossing is being removed — close the walkable ring another way instead"** → **H**
