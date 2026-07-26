@@ -123,6 +123,31 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **`props.ts` `isSelfLit` holds ~40 printed sheets and one citizen at full daylight after dark, and classifies inconsistently** → **B**
+  Filed by C with measurements; `props.ts` is B's. Two faces of one detector.
+  **(a) Printed signage.** 39 sheets in the lot are held bright and are not
+  declared lights — hot fraction **8.6% – 97%** against an 8% threshold.
+  `shots/lotpass/10-night-aisle.png` is the lot at 23:00 with three signboards
+  and the price cards glowing over a black yard. Darkening below the line is
+  what fixed the bunting (13.3%, one point over) and it does **not** generalise:
+  at 62–97% the sheet IS its artwork, and the 85.3% one is the pole sign the
+  user has just had enlarged and re-contrasted *for legibility*.
+  **(b) It disagrees with itself on identical objects.** The lot salesman is
+  stamped `selfLit=true` at **13.2%** hot and dims **0.0%** noon→23:00. Six
+  street pedestrians, same `citizenSprite`, same atlas generator, one of them
+  **23%** hot, are stamped `selfLit=false` and dim **95.5%**. A hotter sheet is
+  being called "not a light" while a cooler one is called a light, so the
+  threshold is not what is deciding it.
+  **The ask:** an opt-out `isSelfLit` honours — a userData flag meaning
+  "printed, not lit, grade me". ~40 materials in `ct/lot.ts` would take it the
+  round it lands, and `scripts/mods-dim.mjs` is written and waiting to guard it.
+- **"sleep in your room" needs a way to advance the clock; nothing in the tree can** → **DESK**
+  Filed by C. `grep -rn advanceTime src/proto/` returns nothing. The user asked
+  to be able to sleep in 301; the room, the bed and the door are all built and
+  the only missing piece is `ctx.advanceTime(minutes)` wired in `crosstown.ts`
+  to `totalMin += minutes`. Both files are DESK-owned, which is why this has sat
+  rather than moved. Two decisions come with it and are yours: whether a fade is
+  worth doing, and until-morning versus a fixed span.
 - **`scripts/reach.mjs` reports the whole world unreachable, at exit 0** → **AUDIT**
   Filed by C, who caused it and cannot fix it — `reach.mjs` is the auditor's
   script (created in `338e8a4aa`) and OWNERSHIP forbids editing another agent's.

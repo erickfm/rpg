@@ -490,3 +490,32 @@ then, because it is red on exactly these and would guard nothing while it is.
 One of the 39 is at 8.6% and *could* be nudged the bunting way. The other 38
 cannot. I have not touched that one, because fixing 1 of 39 buys nothing and
 leaves a second undocumented workaround in the file.
+
+
+---
+
+## CORRECTION, 2026-07-25 — my citizens diagnosis was wrong
+
+The section "My two citizens do not dim, and 14 others do" blames my modules'
+contexts for not receiving `lit`. **That is not the cause**, and I carried the
+wrong explanation for weeks because I never measured the other citizens, only
+mine.
+
+Measured noon → 23:00 on the material tint:
+
+```
+  lot salesman   1.000 -> 1.000    0.0%   selfLit=true    hot 13.2%
+  street x -6    1.000 -> 0.045   95.5%   selfLit=false   hot  0.0%
+  street x  6    1.000 -> 0.045   95.5%   selfLit=false   hot 14.2%
+  street x -6    1.000 -> 0.045   95.5%   selfLit=false   hot 23.0%
+```
+
+Every one of them is `graded=true`, so all were processed by the same pass. The
+street citizens are built by `crowd.ts` from the same `citizenSprite` and the
+same atlas generator as mine. One of them is **23% hot and NOT marked self-lit**,
+while mine is **13.2% hot and IS**. So the 8% threshold is not what decided it,
+and "my context lacks `lit`" was never the story.
+
+This makes it the same blocker as the banners rather than a second one: it is
+`props.ts`'s `isSelfLit`, and it is now filed to **B**, who owns that file, with
+both faces of the evidence in one ledger row. Two blockers collapse into one.
