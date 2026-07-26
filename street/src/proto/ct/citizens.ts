@@ -246,11 +246,28 @@ export function citizenAtlas(o: Look): THREE.Texture {
               g.fillRect(cx - 6, oy + 19, 2, 2); g.fillRect(cx + 4, oy + 19, 2, 2);
             }
           } else if (cut === 'tied') {   // pulled back into a knot
+            // ── THE KNOT HAS TO SIT ON THE HEAD ─────────────────────────────
+            //
+            // "whats up with this kids face? its multi color?" — this is the
+            // smallest citizen (hs 0.91, ball cap), and the knot was drawn
+            // OUTSIDE their skull. The head's silhouette ends at cx+4 and
+            // capTop covers cx-6..cx+5, but the profile knot was
+            // `fillRect(cx + 4, oy + 8, 4, 6)` = cx+4..cx+8: its lower four
+            // rows had nothing behind them at all, so it read as a loose brown
+            // rectangle beside the face, touching only at one corner. A head
+            // made of a red cap, a tan face and a floating brown block is
+            // three colours that do not join up, which is the report.
+            //
+            // Every piece below now lands INSIDE the crown it grows out of,
+            // and the sizes come from the head's own extents rather than from
+            // numbers that happened to look right on one view.
             capTop();
             if (view === 4) { g.fillRect(cx - 6, oy + 5, 12, 7); g.fillRect(cx - 3, oy + 11, 6, 5); }
-            else if (view === 3) g.fillRect(cx + 2, oy + 9, 5, 6);
-            else if (view === 2) g.fillRect(cx + 4, oy + 8, 4, 6);
-            else { g.fillRect(cx - 7, oy + 7, 1, 4); g.fillRect(cx + 6, oy + 7, 1, 4); }
+            else if (view === 3) g.fillRect(cx + 2, oy + 9, 4, 4);   // was 5x6, ran past cx+6
+            else if (view === 2) g.fillRect(cx + 3, oy + 9, 3, 4);   // was at cx+4..cx+8, off the head
+            // the loose strands at the temples: ON the crown's own edge
+            // columns, not one texel outside them on both sides
+            else { g.fillRect(cx - 6, oy + 7, 1, 4); g.fillRect(cx + 5, oy + 7, 1, 4); }
           } else {                        // 'short'
             capTop();
           }
@@ -273,12 +290,20 @@ export function citizenAtlas(o: Look): THREE.Texture {
           // a soft sheen across the top of the skull, which is a HIGHLIGHT on a
           // bald head rather than a side band, so it stays
           if (view <= 2) { g.fillStyle = 'rgba(255,255,255,0.13)'; g.fillRect(cx - 3, oy + 6, 4, 1); }
-          // a trace of hair still clinging round the back and sides
+          // ── a trace of hair, INSIDE THE SKULL'S OWN EXTENTS ────────────
+          //
+          // `capTop` runs cx-6..cx+5 because HAIR has volume and sits proud of
+          // the skull. A bald head has no volume to sit proud of, and this
+          // fringe was borrowing the haired silhouette anyway: cx-6..cx+5
+          // against a skull of cx-5..cx+4, so it hung a texel over each side
+          // on every view. On a head ten texels wide that is a tenth of it,
+          // and in grey against a pale scalp it reads as two blobs stuck on
+          // the sides and a bar across the back — the same "face made of
+          // parts that do not line up" as the knot above.
           g.fillStyle = hair;
-          if (view === 4) g.fillRect(cx - 6, oy + 9, 12, 2);
-          else if (view === 3) g.fillRect(cx - 6, oy + 9, 12, 2);
-          else if (view === 2) g.fillRect(cx + 1, oy + 9, 5, 2);
-          else { g.fillRect(cx - 6, oy + 9, 2, 3); g.fillRect(cx + 4, oy + 9, 2, 3); }
+          if (view === 4 || view === 3) g.fillRect(cx - 5, oy + 9, 10, 2);
+          else if (view === 2) g.fillRect(cx + 1, oy + 9, 4, 2);
+          else { g.fillRect(cx - 5, oy + 9, 2, 3); g.fillRect(cx + 3, oy + 9, 2, 3); }
         }
         // ── headwear / hood ───────────────────────────────────────────
         if (fit === 'cap') { // ball cap over the hair
