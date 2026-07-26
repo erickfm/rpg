@@ -38,3 +38,39 @@ The computed viewpoint worked first time.
 The other three alley rows — the lighting ones and *"alley is better but i
 dont l..."* — are reachable from the same station and I have not judged them.
 The lighting rows need a night pass; this frame is 13:00.
+
+---
+
+# Night pass — measured, but the rows are TRUNCATED so I cannot judge them
+
+    station:   same as above, (19.88, -54.01) facing west
+    alley luminance   day 79.6    night 24.6    (69% darker)
+
+`shots/f-verify-alley-night.png`.
+
+## What the night frame actually shows
+
+The alley goes properly dark — 69% down, against 81% for the open road, which
+is the right relationship: a slot between two buildings keeps a little more
+sky-glow than open tarmac does at head height.
+
+**It carries no light of its own.** What light there is comes from two places:
+spill from the lit shopfront at the far end, and one warm upper window on the
+building across the gap. The downpipe, vents and drain are all visible in
+silhouette rather than lit.
+
+## Why that is a measurement and not a verdict
+
+The two rows are `'...' lighting on this alley back` and `'...' why does the
+lighting catch`, both cut off in `live.sh`. **I do not know whether the
+complaint is that the alley is too dark, that something is wrongly lit, or that
+a light catches a surface it should not.** A 69% figure is compatible with all
+three.
+
+This is the second row tonight I have had to hand back for truncation — the
+kerb was the first — and it is a different problem from a missing station: the
+subject is reachable, the measurement is taken, and the *claim* is unreadable.
+
+**What I would need:** the full row text, or the screenshot filename the user
+attached. Either resolves it in one pass from a station I have already
+computed.
