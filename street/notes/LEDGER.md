@@ -4,6 +4,20 @@ One line per user request. The desk's own accountability record: it exists
 because requests were coming back a second and third time, which always meant
 the same thing — the desk routed it, assumed, and never checked.
 
+**ONE ROW, ONE WRITER — and builders write only their OWN rows, only
+OPEN -> LANDED, only the status and the evidence cell.** Never re-sort, never
+reflow, never touch a row that is not yours. Ten agents appending to one file
+is a conflict machine: G's church and library work sat unlandable behind a
+LEDGER.md conflict where G had moved its pew row to LANDED and E had moved its
+fence row in the same three lines. Both edits were correct and the file still
+would not merge.
+
+If you find yourself resolving a ledger conflict, take the MOST ADVANCED status
+of each row (OPEN < LANDED < CONFIRMED) and keep both sides' evidence — the two
+writers are almost always advancing different rows.
+
+**Only the desk or the auditor may write CONFIRMED.** That has not changed.
+
 **Format is parsed. Keep it.**
 
     | STATUS | owner | request (user's words, trimmed) | evidence |

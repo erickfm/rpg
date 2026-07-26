@@ -32,6 +32,31 @@ queue has gone stale.
 
 
 
+
+## Editing `notes/LEDGER.md`: your own rows only, OPEN -> LANDED only
+
+Ten agents appending to one file is a conflict machine, and it has already cost
+a real delay: G's church and library work sat unlandable behind a LEDGER.md
+conflict in which G had moved its pew row to LANDED and E had moved its fence
+row within the same three lines. Both edits were correct. The file still would
+not merge, and the merge train reported G as broken.
+
+So:
+
+- touch **only rows whose owner is you**
+- move them **only OPEN -> LANDED**, and only the status cell and the evidence
+  cell
+- **never** re-sort, reflow, realign or tidy the table — a whitespace change
+  conflicts with every concurrent edit
+- **never** write CONFIRMED. Only the desk or the auditor may, and only after
+  someone who did not build it has watched it work
+
+If you hit a ledger conflict, resolve it by taking the **most advanced status**
+of each row (OPEN < LANDED < CONFIRMED) and keeping both sides' evidence. The
+two writers are nearly always advancing different rows, so almost every one of
+these conflicts is a false one.
+
+
 ## Keep `notes/status/<YOU>` current — this is not optional
 
 One line, rewritten whenever your state changes:
