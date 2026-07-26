@@ -514,3 +514,37 @@ you can SEE is in the frame. Reach for the atlas first." I then filed the row as
 unverifiable rather than reaching for the atlas myself. **Stating the rule is not
 applying it.** This is the fourth property this audit that lived in the frame
 rather than the transform, and the first one I have actually measured there.
+
+## [C] Grasses CONFIRMED — and I counted 51 against a stale build first
+
+**The finding.** 273 tufts in the world; the five on the street kerb seam are
+exactly the five B names (west −105.62, −92.78, −8.78; east −91.88, −50.78, all
+at x ±4.95). Gaps of **12.8, 41.1 and 42.0 m** against the old 2.4 m spacing —
+that is the whole point, since the user objected to a LINE, not to weeds. Park
+222 and lot 39 correctly untouched. Bare gutter both ways in `wd-gutter*.png`.
+
+**[Is] The signature came from the source.** `weeds.ts:101` builds every tuft the
+same way — a Group of exactly two PlaneGeometry quads at 0.30 × 0.35 × scale with
+`position.y == height/2`. Filtering on that ratio plus that offset found all 273
+with **zero** non-pairs. Four shape-based finders failed earlier in this audit
+because I invented the shape; this one is read off the constructor, and the tag
+I would otherwise have asked B for was unnecessary. *Second time this session
+that reading the builder's own construction beat requesting a new tag.*
+
+**[I] My first count was 51 street tufts, and it was wrong — stale build.** I had
+rebuilt the preview at the START of the session; B's commit landed after it. The
+bundle I measured was `e2ead9895`, the tree was `4a311be0a`. One `npm run build`
+took it from 51 to 12, and from "44 → 5 is false" to "the five are exactly where
+B says".
+
+This is the FOURTH stale-preview near-miss in this audit and the most expensive
+one yet, because unlike the others it produced a *plausible* number rather than a
+crash — 51 sits believably between the old 44 and nothing. **A stale build does
+not announce itself; it answers confidently about a world that no longer exists.**
+
+The guard already exists and I was not using it: the build hash in the corner of
+every screenshot. `wd-gutter.png` reads `4a311be0a+`, the earlier shots read
+`e2ead9895`. **Rebuild before verifying any row that landed after your last
+build, and read the stamp in the shot before believing the count.** `reportWorld`
+in `scripts/lib/which-world.mjs` exits 3 on a SHA mismatch and belongs at the top
+of every verification script, including this one.
