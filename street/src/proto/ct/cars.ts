@@ -191,6 +191,13 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // tyre: wide and shallow, which is what a wheel arch is. It looks tall in
     // TEXELS only because they are not square here — 21 across the panel per
     // metre against 40 up it.
+    // GRAIN THE PANEL, THEN CUT THE ARCH INTO IT — not the other way round.
+    // The dither used to run last, which scattered 120 random texels across the
+    // arch as well as the body and broke its boundary into mottling: that is
+    // the "soft" in the user's "large soft DARK BLOTCH", because a hard edge
+    // reads as an arch and a mottled one reads as a stain. The body still gets
+    // exactly the same grain; only the arch is now clean-edged.
+    dither(g, 96, 20, 120);
     const ARCH_HW = 0.38;                      // half-width, m: tyre + 4 cm
     const ARCH_H = 0.38;                       // height above the rocker, m
     const arx = Math.max(3, Math.round(ARCH_HW * (96 / len)));
@@ -210,7 +217,6 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
       const ax = col((wz + len / 2) / len);
       g.beginPath(); g.ellipse(ax, 20, arx, ary, 0, Math.PI, 0); g.fill();
     }
-    dither(g, 96, 20, 120);
   });
 }
 /** The greenhouse side. Panes are given in CAR-LOCAL METRES and converted with
@@ -643,7 +649,15 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     const PPM_X = 96 / slabLen, PPM_Y = 40;
     const skinW = Math.round(wallLen * PPM_X), skinH = Math.round(SKIN_H * PPM_Y);
     const yRow = (worldY: number) => Math.round((RAIL_T - worldY) * PPM_Y);
-    const bedSkinT = pixTex(skinW, skinH, (g2) => {
+    // ── ONE SKIN PER WALL, for the reason the flank needed one per face ────
+    //
+    // This had the same fault the doors did and on the vehicle the user
+    // actually photographed: `outM` was a single texture handed to the +x wall
+    // and the -x wall both (and to both faces of the tailgate), so the rear
+    // arch sat at the right place on one side of the truck and mirrored about
+    // the bed's centre on the other. Same cause as `[sideT, sideT]`, same fix
+    // — the +x face gets its own paint with the long axis reversed.
+    const bedSkin = (flip: boolean) => pixTex(skinW, skinH, (g2) => {
       g2.fillStyle = body; g2.fillRect(0, 0, skinW, skinH);
       // the same three lines the cab slab carries, at the same WORLD heights,
       // so they run on across the seam instead of stepping at it
@@ -665,13 +679,17 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
       // stamped on the side, which is their words for it exactly: "The arch is
       // a black RECTANGLE, not an arch."
       g2.fillStyle = `#${new THREE.Color(body).multiplyScalar(0.34).getHexString()}`;   // bodyC is declared BELOW this painter
-      const ax = Math.round(((spec.wheelZ - bedMidZ + wallLen / 2) / wallLen) * skinW);
+      const au = (spec.wheelZ - bedMidZ + wallLen / 2) / wallLen;
+      const ax = Math.round((flip ? 1 - au : au) * skinW);
       g2.beginPath();
       // same two metres as the cab flank's, in this face's own density
       g2.ellipse(ax, skinH, Math.max(3, Math.round(0.38 * PPM_X)), Math.max(3, Math.round(0.38 * PPM_Y)), 0, Math.PI, 0);
       g2.fill();
     });
-    bedSkinT.minFilter = THREE.NearestFilter;   // GOTCHAS §4 — see the liner below
+    const bedSkinL = bedSkin(false), bedSkinR = bedSkin(true);
+    // GOTCHAS §4 — see the liner below
+    bedSkinL.minFilter = THREE.NearestFilter;
+    bedSkinR.minFilter = THREE.NearestFilter;
     // The tailgate IS the back of the truck now, so it carries the tail lights
     // and the step bumper. Painted symmetrically and, unlike before, nothing is
     // coplanar with it — the slab's rear face is 1.8 m forward, behind the
@@ -691,7 +709,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     });
     bedRearT.minFilter = THREE.NearestFilter;
     const bodyC = new THREE.Color(body);
-    const outM = flatT(bedSkinT);
+    const outL = flatT(bedSkinL), outR = flatT(bedSkinR);
     const rimM = new THREE.MeshBasicMaterial({ color: bodyC.clone().multiplyScalar(1.16) });
     // ── the liner: NEAR-BLACK, and that is the point ───────────────────────
     //
@@ -728,7 +746,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     for (const s of [-1, 1]) {
       const wall = new THREE.Mesh(
         new THREE.BoxGeometry(WALL_T, SKIN_H, wallLen),
-        s < 0 ? [linerM, outM, rimM, darkM, linerM, linerM] : [outM, linerM, rimM, darkM, linerM, linerM],
+        // the OUTBOARD face of each wall carries the skin: -x for the left
+        // wall, +x for the right one, and only the +x one is mirrored
+        s < 0 ? [linerM, outL, rimM, darkM, linerM, linerM]
+          : [outR, linerM, rimM, darkM, linerM, linerM],
       );
       wall.position.set(s * (HW - WALL_T / 2), (ROCKER + RAIL_T) / 2, bedMidZ);
       g.add(wall);
@@ -779,7 +800,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // tailgate closes the end: the walls stop at half - GATE_T so the two ABUT
     // instead of overlapping
     const gate = new THREE.Mesh(new THREE.BoxGeometry(HW * 2, SKIN_H, GATE_T),
-      [outM, outM, rimM, darkM, flatT(bedRearT), linerM]);
+      [outR, outL, rimM, darkM, flatT(bedRearT), linerM]);
     gate.position.set(0, (ROCKER + RAIL_T) / 2, half - GATE_T / 2);
     g.add(gate);
   } else { // van
