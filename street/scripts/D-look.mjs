@@ -56,7 +56,12 @@ page.on('pageerror', (e) => errors.push(String(e.message)));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);         // GOTCHAS §26
-await setClock(page, 13, 0);          // a DAY hour: settle is not a coin flip (D-walk)
+// The hour is an argument now. Default 13:00 — a DAY hour, where the settle is
+// not a coin flip (D-walk measured that: at a NIGHT hour, 600 ms reads the
+// ungraded world one run in eight). SHOT_HOUR=23 to look after dark; the clock
+// helper returns when the grade is actually on screen rather than after a sleep.
+const HOUR = Number(process.env.SHOT_HOUR ?? 13);
+await setClock(page, HOUR, 0);
 await page.mouse.click(640, 360);
 await page.waitForTimeout(500);
 // the warm-up warp D-walk documents — the first warp of a session lands wrong
