@@ -14,6 +14,47 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+> ## THE PARK: A DEDICATED PASS, GRADED BY YOU, SKEPTICALLY
+>
+> The user, in their own words: *"please have like a really dedicated effort
+> for the park as a whole. make it look nice i want to be impressed. take
+> screenshots yourself and grade it and make sure you are impressed with it.
+> be skeptical."*
+>
+> **That is an instruction about METHOD, and it is the important part.** Ten
+> rounds have shipped without the builder looking properly first. So:
+>
+> 1. **Take your own screenshots** — the loop, the field, the shelter, the
+>    gate, each bench, in daylight AND at night AND in rain.
+> 2. **Grade each one yourself, skeptically.** Not "is it done" but "would
+>    this impress someone who has been disappointed nine times." Write the
+>    grades down.
+> 3. **Fix what you graded badly.** Re-shoot. Re-grade.
+> 4. **Do not report finished until YOU are impressed.** If you are not, say
+>    what you could not solve rather than shipping it.
+>
+> **THE SHELTER, third failure** — `shots/user-shelter3.png`. The roof is a
+> hipped pyramid whose eaves do not land on the posts: the corners float past
+> them and the posts stand at positions the roof does not acknowledge. A bench
+> sits half outside it. My previous ruling stands and its deadline is now:
+> **either it is four identical posts on a square plan with ONE roof seated on
+> their tops and even overhang, built as a single coherent piece — or it is
+> DELETED and replaced with a bench and a tree.** A park with no shelter is
+> fine. This is the third pass; do not attempt a fourth.
+>
+> **GOOD, and worth knowing so you do not undo it:** the path material has
+> landed and the buff surface reads properly as a park path. That was the
+> biggest single win and it worked. The lamps, the ivy on the walls and the
+> boundary shrubs are all reading well too.
+>
+> Still to do from the earlier ruling: the scattered ground wear comes out;
+> the weeds move off the middle of the path to its edges, clustered with bare
+> gaps between.
+>
+> When you are genuinely impressed, tell me, and the auditor will walk it
+> independently before it counts.
+
+
 > ## DESK RULING — STOP ADDING TO THE PARK. FIX THE GROUND FIRST.
 >
 > **0. REMOVE THE GROUND WEAR. Do this before anything else on this list.**
