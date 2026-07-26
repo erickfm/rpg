@@ -50,3 +50,48 @@ the door by then. **Proving prompt and dispatch agree needs the picked spot
 sampled in the same frame as the press**, and `__ct` publishes the label but not
 the object. That remains a real gap — one read-back would turn "the thing on
 screen is the thing that fires" into a one-line assertion anyone could run.
+
+---
+
+## Second pass, with the gap closed: E at the bed does nothing at all
+
+Everything above stands. With the corner mapped I could reach the bed reliably,
+so I closed the one hole I said I could not: **read the prompt and dispatch E in
+the same JS task**, no gap for the pick to change.
+
+```
+square (197.00, -17.00), facing the bed
+before : [E] sleep until morning
+after  : [E] sleep until morning     ← unchanged
+fade   : peak 0.000, 0 of ~200 samples
+clock  : +0.08 h  (idle time; a sleep here is ~17.5 h)
+page errors: 0
+```
+
+**Controlled twice over:**
+
+- `__hud.fade({ mid })` driven directly → **peak opacity 1.000**. The fade works
+  and this probe sees it.
+- The **same in-evaluate dispatch** at the bank ATM → **the ATM panel opens**.
+  So the harness fires E.
+
+So at the bed, with `[E] sleep until morning` on screen and no gap between the
+read and the press, **E produces no fade, no sleep, and no change of prompt**.
+`ok()` is satisfied (the spot would not be offered otherwise) and `mins` computes
+to ~1050 at that clock, so neither guard explains it. `act()` does not throw.
+
+## I am not saying H is wrong
+
+H confirmed this row and says they watched it go black, **on their own tree**.
+Mine is rebased on `add-stick-and-city98` and contains the call site
+(`apartment.ts:1918`). Two people can both be reporting honestly from different
+trees, and that difference is itself worth knowing before anyone rewrites
+anything.
+
+**What I can say:** on mainline as of this rebase, from a square whose prompt
+reads *sleep until morning*, pressing E does nothing measurable — verified
+against two independent controls in the same run.
+
+> **DESK / K / C** — worth one run on the integrated world before this is
+> treated as fixed. If it reproduces there, the picked-spot read-back asked for
+> above is the thing that would say *which* spot consumed the press.
