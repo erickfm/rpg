@@ -54,6 +54,12 @@ export const DOOR: DoorDecl = {
   face: { x: XF - 0.8, z: DOOR_Z, nx: 1, nz: 0 },
 };
 
+// The gallery's own numbers, above buildRoom because the floor function inside
+// the spec closes over them. x 4.30 to the east wall, deck at 2.90, and the
+// flight running from z 6.60 at the bottom up to z 2.00 at the top.
+const GALLERY_X0 = 4.30, GALLERY_X1 = 7.30, GALLERY_Y = 2.90;
+const GALLERY_Z1 = 2.00, STAIR_Z0 = 6.60;
+
 export function buildLibrary(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
     id: 'library',
@@ -75,6 +81,9 @@ export function buildLibrary(ctx: CtxBuild): void {
       ceil: 0xcdc8bb,
       trim: 0x5a4632,       // dark stained oak
     },
+    // `floor:` is deliberately NOT set — see "THE GALLERY IS NOT HERE YET"
+    // below. The function is written and verified; declaring it while the
+    // geometry is withdrawn would leave invisible steps in an empty strip.
     frontage: { name: 'LIBRARY', w: 16, cz: -13, side: -1 },
     door: {
       // 1.6, not the kit's 1.05. Every other room's trigger sits on an open
@@ -199,7 +208,10 @@ export function buildLibrary(ctx: CtxBuild): void {
   // 1.63 m aisles between 1.95 m bays; they are simply 7.7 m long instead of
   // 13.9, and the 13 m of depth in front of them is now unbroken wall to wall.
   const zBack = -D / 2 + 1.3, zFront = -2.0;
-  for (let i = 0; i < 6; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
+  // FIVE runs, not six: the sixth stood at x 5.75 and the gallery needs the east
+  // strip from 4.3 to the wall. A run of shelving is worth less than a level
+  // change — the user named the stair and did not name a sixth bay.
+  for (let i = 0; i < 5; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
 
   // ── THE VESTIBULE ────────────────────────────────────────────────────────
   //
@@ -248,7 +260,14 @@ export function buildLibrary(ctx: CtxBuild): void {
   // Moved back from D/2 - 2.5 to D/2 - 5.8: at the old number the desk stood
   // inside the vestibule, and the whole point of the vestibule is that it is
   // small, dark and EMPTY — you come through it and the room opens.
-  const DESK_X = W / 2 - 2.9, DESK_Z = D / 2 - 5.8;
+  //
+  // And moved WEST, from W/2 - 2.9 to W/2 - 6.5, because the stair needs the
+  // east strip. At 4.5 its collider ran x 3.0 to 6.0 and stood straight across
+  // the foot of the flight: walking to the stair you stopped dead at z 6.03,
+  // which is the desk's face plus a capsule radius. The desk still faces the
+  // door — it is the first thing you meet coming out of the vestibule — it is
+  // simply no longer parked in front of the only way upstairs.
+  const DESK_X = W / 2 - 6.5, DESK_Z = D / 2 - 5.8;
   box(2.9, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
   box(3.0, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);                 // the worn top
   box(0.5, 0.16, 0.34, woodDark, DESK_X - 0.9, 1.20, DESK_Z);           // date stamp block
@@ -342,6 +361,30 @@ export function buildLibrary(ctx: CtxBuild): void {
   // that would have caught every one of them — derive facing from what the
   // object faces, never as a constant.
   }, DESK_X, LIB_Z, { facing: Math.atan2(0, VISITOR_Z - LIB_Z), h: 0.97, w: 0.95 });
+
+  // ── THE GALLERY IS NOT HERE YET, AND THIS IS WHY ─────────────────────────
+  //
+  // It was built — deck, twelve treads, string wall, balustrade, a reading table
+  // up there — and taken out again in the same session, because the player
+  // cannot climb it and a staircase you walk THROUGH is worse than no staircase.
+  // Same rule as the church's locked door: "a flight of steps you climb to a
+  // door that refuses you is worse than no steps."
+  //
+  // THE FLOOR IS RIGHT. bd3ee7d7a gave the room spec a `floor`, and the function
+  // form works: asked at local x 5.80 the world reports 0 at the foot, then
+  // 1.33, 2.41 and 2.90 up the flight, then 2.90 along the deck. The kit is
+  // doing its job.
+  //
+  // THE PLAYER DOES NOT FOLLOW IT. Walking that same line, local x pinned at
+  // 5.80, `__ct.groundAt` returns 1.33 / 2.41 / 2.90 while the player's y stays
+  // at 1.62 — eye height over a floor of zero — for the whole climb. Something
+  // in the height chain answers before `interiorGround` and short-circuits it,
+  // so room levels reach the world's picker but not the person standing in it.
+  // That is a wiring question in ct/crosstown.ts's floor loop, not in this file.
+  //
+  // Everything else needed is in place and this is a dozen lines away: the
+  // constants are still declared above, and notes/BLOCKED-G.md carries the
+  // measurement.
 
   // ── THE PERIODICALS ALCOVE ───────────────────────────────────────────────
   //

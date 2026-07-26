@@ -7,7 +7,52 @@ in prose.
 
 ---
 
-## 1. The library's STAIR needs `buildRoom` to accept a floor function
+## 1. UNBLOCKED, THEN BLOCKED AGAIN ONE LAYER DOWN: room levels do not reach the player
+
+**F delivered the field and it works.** `bd3ee7d7a` gave `RoomSpec` a `floor`,
+both a level list and a function form, and the kit honours it. Verified from the
+library's own flight, asked of the world at local x 5.80:
+
+```
+lz 7.5 -> 0      lz 6.4 -> 0.13   lz 5.0 -> 1.01
+lz 3.5 -> 1.95   lz 2.0 -> 2.90   lz 0.0 -> 2.90   lz -3.0 -> 2.90
+```
+
+That is exactly the ramp the spec describes. `ct/interior.ts` is doing its job
+and the ask in the old version of this entry is closed.
+
+**The player does not follow it.** Walking that same line with local x pinned at
+5.80 — no drift, checked every 0.5 s — `__ct.groundAt` returns 1.33, then 2.41,
+then 2.90, while the player's `y` stays at **1.62 for the whole climb**. 1.62 is
+eye height over a floor of zero: they walk the length of the flight and the deck
+at ground level.
+
+```
+t=0.5s  x 5.80  z  4.49  y 1.62   groundAt 1.33
+t=1.0s  x 5.80  z  2.77  y 1.62   groundAt 2.41
+t=1.5s  x 5.80  z  1.02  y 1.62   groundAt 2.90
+t=3.0s  x 5.80  z -4.34  y 1.62   groundAt 2.90
+```
+
+**Where it goes wrong.** `ct/crosstown.ts` resolves the player's floor as a
+chain: a loop of registered pickers first, then `interiorGround`, then the rest.
+Something in that loop answers non-null for positions inside the interior belt
+and short-circuits before `interiorGround` is ever asked — which is consistent
+with the world's own `groundAt` knowing the right answer while the player does
+not. The library forecourt's `courtGround` is the first thing I would check.
+
+Not mine: `ct/crosstown.ts` is the wiring and `ct/civic.ts` is where the likely
+claimant lives.
+
+**What I did about it.** Built the gallery — deck, twelve treads, string wall,
+balustrade, a table up there — confirmed the floor function, found the player
+walking through all of it, and TOOK THE GEOMETRY BACK OUT. A staircase you walk
+through is the church's locked door with a different roof on it. The constants
+and the verified floor function are still in `ct/int-library.ts` with the
+measurement beside them; it is a dozen lines from working the day the chain is
+fixed.
+
+## 1c. The old ask, now closed — `buildRoom` accepting a floor function
 
 **This is the one the desk called the most important part of the item** — *"the
 stair matters most; they named it, and a level change is what makes an interior
