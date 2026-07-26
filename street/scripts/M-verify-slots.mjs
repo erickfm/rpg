@@ -43,7 +43,31 @@ const money = (n) => `$${n.toFixed(2)}`;
 const panel = () => p.evaluate(() => window.__hud.panel());
 const seated = () => p.evaluate(() => window.__ct.seated());
 const cash = () => p.evaluate(() => window.__inv.cash());
-const press = async (k) => { await p.keyboard.press(k); await p.waitForTimeout(280); };
+// DOWN, HOLD, UP — never `keyboard.press`, which is instantaneous. The `[E]`
+// dispatch is edge-triggered on `input.keys` read ONCE PER FRAME, so a press and
+// release inside a single frame is never observed as held. A frame is 17 ms on an
+// idle machine and far longer under load (GOTCHAS 30), so `press()` worked three
+// runs in four and dropped the first E on the fourth — which then reported
+// "one E puts you on the stool: still standing" against a stool that works.
+const press = async (k) => {
+  await p.keyboard.down(k); await p.waitForTimeout(130);
+  await p.keyboard.up(k); await p.waitForTimeout(200);
+};
+/** WAIT FOR THE EVENT, not for a number of milliseconds. Returns as soon as the
+ *  predicate holds, so a slow frame costs latency rather than a false red — the
+ *  other half of GOTCHAS 30, and the reason the prompt check flaked. */
+const until = async (fn, ms = 2500) => {
+  const t0 = Date.now();
+  for (;;) {
+    if (await fn()) return true;
+    if (Date.now() - t0 > ms) return false;
+    await p.waitForTimeout(80);
+  }
+};
+const promptText = () => p.evaluate(() => {
+  const d = document.getElementById('ct-prompt');
+  return d && d.style.display !== 'none' ? d.textContent : null;
+});
 
 // ── the subject, asked for rather than typed ───────────────────────────────
 const stools = await p.evaluate(() =>
@@ -74,14 +98,13 @@ await p.waitForTimeout(320);
   const before = await panel();
   say(before === null, 'nothing is up before you sit', `__hud.panel() = ${JSON.stringify(before)}`);
   await press('e');
-  const on = await seated();
-  say(on !== null, 'one E puts you on the stool', on ? 'seated' : 'still standing');
-  // give the sit-watcher a few frames; it is polled rather than a callback,
-  // because ctx.seat cannot tell its owner it was taken
-  await p.waitForTimeout(700);
-  const up = await panel();
-  say(up !== null, 'AND THE MACHINE IS UP, on that one press and no second one',
-    `__hud.panel() = ${JSON.stringify(up)}`);
+  const on = await until(async () => (await seated()) !== null);
+  say(on, 'one E puts you on the stool', on ? 'seated' : 'still standing');
+  // the sit-watcher is POLLED rather than a callback, because ctx.seat cannot tell
+  // its owner it was taken — so wait for the panel, do not sleep a guess at it
+  const up = await until(async () => (await panel()) !== null);
+  say(up, 'AND THE MACHINE IS UP, on that one press and no second one',
+    `__hud.panel() = ${JSON.stringify(await panel())}`);
 }
 
 // ── 2. THE MONEY IS REAL, and it is the one wallet ────────────────────────
@@ -100,9 +123,9 @@ say(Math.abs((cash0 - cashFed) - 5) < 0.005, 'feeding it takes exactly $5 out of
   `${money(cash0)} -> ${money(cashFed)}`);
 for (let i = 0; i < 4; i++) { await p.keyboard.press(' '); await p.waitForTimeout(3600); }
 await press('Escape');
-await p.waitForTimeout(500);
+const shut = await until(async () => (await panel()) === null);
 const cashOut = await cash();
-say((await panel()) === null, 'ESC closes the machine', `__hud.panel() = ${JSON.stringify(await panel())}`);
+say(shut, 'ESC closes the machine', `__hud.panel() = ${JSON.stringify(await panel())}`);
 say(cashOut >= cashFed, 'and standing off it pays the meter back into the wallet',
   `${money(cashFed)} while playing -> ${money(cashOut)} after ESC`);
 // the meter must be EMPTY afterwards, or the money exists in two places
@@ -115,26 +138,40 @@ const meter = await p.evaluate(() => {
 say(meter === 0 || meter === null, 'and the credit meter is left at zero',
   meter === null ? 'no __slots affordance to read — taken on the wallet alone' : `meter ${meter}`);
 
-// ── 3. YOU CAN GET OFF THE STOOL ──────────────────────────────────────────
+// ── 3. YOU ARE NOT LEFT ON THE STOOL ──────────────────────────────────────
 //
 // The failure mode I care about most, because it is the one that traps a player
-// in the world: a cabinet that closes onto a seat you cannot leave. C had a
+// in the world: a cabinet that closes onto a seat you cannot leave. C has a
 // "stuck in seat" row for exactly this shape.
-await press('e');
-say((await seated()) === null, 'a further E gets you off the stool',
-  (await seated()) === null ? 'standing' : 'STILL SEATED');
+//
+// ESC DOES BOTH — it closes the machine AND stands you up. L's row says so in as
+// many words (*"`ESC` leaves and pays you out on the way"*) and I had not
+// believed it: my first version asserted that a FURTHER E stands you up, which
+// was true when I first verified this row and is not true now. Mainline has since
+// made ESC leave the stool as well, which is strictly better.
+//
+// AND MY CHECK TURNED THAT IMPROVEMENT INTO A RED. The extra E sat me back DOWN,
+// `__ct.seated()` came back non-null, and the check reported "STILL SEATED" — a
+// player-trapping regression against L's row that did not exist. Then the walk
+// legs measured 0 in all four directions, because I really was seated again with
+// the panel up, which made the false red look corroborated.
+//
+// This is the second time in this one script that I have had to check whether the
+// red was mine (the first was holding `w` into the machine you had been sitting
+// at). Both times the world was right. The protocol's line is exactly right: a
+// rejection costs one message, and a wrong red costs a builder a re-walk and
+// costs me my credibility.
 {
-  // EVERY DIRECTION, NOT ONE. My first version held `w` for 600 ms and reported
-  // 0.000 m — and filed it as a red on L's row until I looked: standing up leaves
-  // you facing the machine you were just sitting at, with the stool behind you, so
-  // FORWARD and BACK are both legitimately blocked and sideways is how you leave a
-  // slot machine in life as well as here. Measured: w 0.000, s 0.168, a 2.285,
-  // d 2.303.
-  //
-  // This is GOTCHAS 48's family and the reason the protocol says a rejection costs
-  // one message but a wrong red costs a builder a re-walk and costs me my
-  // credibility. The claim is "you are not trapped", so it has to ask whether ANY
-  // direction is open.
+  const off = await until(async () => (await seated()) === null);
+  say(off, 'ESC leaves the stool as well as the machine',
+    off ? 'standing, with no second keypress needed' : 'STILL SEATED after ESC');
+  const back = await until(async () => /sit at the slot/i.test((await promptText()) || ''));
+  say(back, 'and the stool offers itself again, so the state really did reset',
+    `prompt: ${JSON.stringify(await promptText())}`);
+  // EVERY DIRECTION, NOT ONE. My first version held `w` for 600 ms, measured
+  // 0.000 m and filed THAT as a red too — standing leaves you facing the machine
+  // with the stool behind, so forward and back are both legitimately blocked and
+  // sideways is how you leave a slot machine in life as well as here.
   const legs = [];
   for (const k of ['w', 's', 'a', 'd']) {
     const q = await p.evaluate(() => window.__ct.pos());
@@ -143,8 +180,8 @@ say((await seated()) === null, 'a further E gets you off the stool',
     const r = await p.evaluate(() => window.__ct.pos());
     legs.push([k, f2(Math.hypot(r[0] - q[0], r[2] - q[2]))]);
   }
-  const best = Math.max(...legs.map((l) => l[1]));
-  say(best > 1.0, 'and you are not trapped — some direction is open',
+  say(Math.max(...legs.map((l) => l[1])) > 1.0,
+    'and you are not trapped — some direction is open',
     legs.map(([k, d]) => `${k} ${d}`).join(' · ')
       + '  (forward is the machine and back is the stool, correctly)');
 }
@@ -158,13 +195,12 @@ say((await seated()) === null, 'a further E gets you off the stool',
   await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [sN.at.x, sN.at.z]);
   await p.waitForTimeout(320);
   await press('e');
-  await p.waitForTimeout(700);
-  say((await panel()) !== null, 'the last stool in the list works the same way',
+  const up2 = await until(async () => (await panel()) !== null);
+  say(up2, 'the last stool in the list works the same way',
     `__hud.panel() = ${JSON.stringify(await panel())}`);
-  await press('Escape'); await p.waitForTimeout(300);
-  await press('e');
-  say((await seated()) === null, 'and you get off that one too',
-    (await seated()) === null ? 'standing' : 'STILL SEATED');
+  await press('Escape');
+  const off2 = await until(async () => (await seated()) === null);
+  say(off2, 'and ESC leaves that one too', off2 ? 'standing' : 'STILL SEATED');
 }
 
 say(errs.length === 0, 'no console errors through any of that',
