@@ -197,3 +197,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | D | 'Screenshot from 2026-07-25 21-44-36.png' the door isnt high lighted? | |
 | OPEN | D | 'Screenshot from 2026-07-25 21-44-52.png' the highlight is not the con | |
 | OPEN | C | 'Screenshot from 2026-07-25 21-45-18.png' whys my 3rd floor neighbor f | |
+| OPEN | D | 'Screenshot from 2026-07-25 21-45-46.png' why is this highlighted for  | |
