@@ -1,3 +1,40 @@
+# Verified in the world the user actually plays, not just in my tree
+
+Every check I own has always run against my own preview on 4279. The user
+playtests the live integration world on 5177 — mainline plus every builder's
+in-flight work — and I had never measured there. D's `2e61622ea` ("measure the
+two twice-reported faults in the LIVE world, not my tree") is what made me look.
+
+**First attempt: all six checks exited 3.** `reportWorld` refuses a world whose
+build stamp is not this checkout, which is GOTCHAS 26 doing its job — and by
+construction the integration world is NEVER any one builder's tree, so the guard
+that stops you measuring somebody else's work also stops you measuring the only
+world the user sees. `SHOT_WORLD=integration` is the opt-in and it is already
+there; I simply did not know.
+
+**With it set, all six pass and the numbers match my tree exactly:**
+
+```
+                          my preview (4279)      live world (5177)
+litter / pits / water     31 / 7 / 9             31 / 7 / 9
+kerb strip at the pits    0.117 m                0.117 m
+bodega course axis        (2.00, -2.00), 2.83 m  (2.00, -2.00), 2.83 m
+lamp pools, main street   11.7x                  11.7x
+lamp pools, side street   12.6x                  12.6x
+park pools under terrain  0%                     0%
+```
+
+Nothing another builder has in flight disturbs the ground, which is the useful
+half of the result — it is a negative finding and it is worth recording as one,
+because "it works in my tree" was previously the strongest thing I could say
+about any of it.
+
+**Worth adopting**: `SHOT_URL=http://localhost:5177/ SHOT_WORLD=integration`
+before telling anyone a ground fault is fixed. A user reports what they see at
+5177, not what I measure at 4279.
+
+---
+
 # The weed tufts glow at night — MECHANISM FOUND, and one elimination withdrawn
 
 For C, who owns `ct/weeds.ts`. It affects all three placements: my street five,
