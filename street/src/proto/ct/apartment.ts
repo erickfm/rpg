@@ -1248,6 +1248,49 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(2), 0, roomWallT);
     wallMesh(3.2, 2.55, AX(-1.6), 2 * ST + 1.275, AZI(5.5), Math.PI, roomWallT);
+    // ── 301's FOURTH wall ────────────────────────────────────────────────
+    // The room papered three walls and forgot the one with its own door in it.
+    // That wall is the stairwell shell's, built by the `wallMesh` runs at
+    // AX(0) which paper BOTH faces in the hall's paper — so standing in your
+    // room looking at your own door, the wall around it was the corridor's tan
+    // stripe while the other three were blue.
+    //
+    // It hid for as long as the door stood permanently open, because the tan
+    // read as the hall seen through the opening — which is exactly what I put
+    // it down to on my first walk of the building. It only became undeniable
+    // once the leaf actually filled its frame: shut, there is no opening left
+    // to explain it.
+    //
+    // A SKIN, not another wall. The shell's box is load-bearing for the
+    // colliders, the jamb reveals and the architrave, and a second box here
+    // would z-fight its face and double the doorway's trim. Three planes on
+    // the room side, around the opening, sampling `roomWallT` the same way
+    // `wallMesh` does so the paper lines up with the walls either side of it.
+    {
+      const SKIN_X = AX(0) - WALL_T / 2 - 0.002;      // just proud of the shell
+      const DZ0 = 3.5 - DOOR_GAP / 2, DZ1 = 3.5 + DOOR_GAP / 2;
+      const HEAD = 2.1;                                // the doorway's own height
+      const skin = (w: number, h: number, lz: number, ly: number, vOff: number) => {
+        const t = roomWallT.clone();
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        t.minFilter = THREE.NearestMipmapLinearFilter;
+        t.anisotropy = 8;
+        t.repeat.set(w / 2.7, h / 2.7);
+        // vOff is where this piece sits WITHIN the 2.7 m storey tile — without
+        // it the over-door strip samples from the tile's bottom and puts a
+        // skirting band above the door.
+        t.offset.set(0, vOff / 2.7);
+        t.needsUpdate = true;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+          new THREE.MeshBasicMaterial({ map: t }));
+        m.position.set(SKIN_X, ly, AZI(lz));
+        m.rotation.y = -Math.PI / 2;                   // faces -x, into the room
+        scene.add(m);
+      };
+      skin(DZ0 - 2, 2.55, (2 + DZ0) / 2, 2 * ST + 1.275, 0);          // south of the door
+      skin(5.5 - DZ1, 2.55, (DZ1 + 5.5) / 2, 2 * ST + 1.275, 0);      // north of it
+      skin(DOOR_GAP, 2.55 - HEAD, 3.5, 2 * ST + HEAD + (2.55 - HEAD) / 2, HEAD);  // over it
+    }
     floorMesh(2 * ST + 0.007, 3.2, 3.5, AX(-1.6), AZI(3.75), woodFloorT);
     floorMesh(2 * ST + 2.55, 3.2, 3.5, AX(-1.6), AZI(3.75), ceilT);
     // ── 301, furnished ───────────────────────────────────────────────────

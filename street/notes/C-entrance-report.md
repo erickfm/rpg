@@ -346,7 +346,7 @@ PEDESTRIAN — a 0.95 x 1.9 citizen sprite standing at x 6.0, which is on the
 walk and 0.43 m clear of the stoop. At 2.4 m a 1.9 m figure simply covers a lot
 of frame. Nothing is clipping.
 
-### NEW, found while checking the shut door — 301's east wall wears the hall's paper
+### NEW, found while checking the shut door — 301's east wall wore the hall's paper — FIXED
 
 `shots/walkup/g-room.png`. Standing in 301 looking at your own door with it
 SHUT, the wall around the door is the corridor's tan stripe while the other
@@ -357,5 +357,15 @@ has one wall in someone else's wallpaper.
 
 The cause is ownership of the surface: that wall is built by the stairwell
 shell's `wallMesh` runs, which paper both faces in the hall's paper, and 301's
-own build papers only the three walls it makes itself. Not fixed here — the two
-door faults were the ask and this is a third thing.
+own build papers only the three walls it makes itself. The room papered three
+walls and forgot the one with its own door in it.
+
+**Fixed.** Three planes of `roomWallT` on the room side, around the opening —
+a SKIN rather than a second wall, because the shell's box is load-bearing for
+the colliders, the jamb reveals and the architrave, and another box there would
+z-fight its face and double the doorway's trim. They sample the paper the way
+`wallMesh` does, including the `vOff` that tells the over-door strip where it
+sits within the 2.7 m storey tile; without it that strip samples from the
+bottom of the tile and puts a skirting band above the door. Hall side
+untouched. With the door open you now get blue up to the frame and the hall's
+tan seen THROUGH the opening, which is the reading that was always intended.
