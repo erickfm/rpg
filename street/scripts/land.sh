@@ -84,10 +84,10 @@ if [ -f "$MAIN/street/.canfail-last.json" ]; then
       `  (${age < 1 ? Math.round(age * 60) + " min" : age.toFixed(0) + " h"} ago, build ${j.build})`);
     if (j.asleep?.length)     console.log(`  ASLEEP: ${j.asleep.join(", ")} — these guard nothing right now`);
     if (j.unprovable?.length) console.log(`  UNSCORED: ${j.unprovable.join(", ")}`);
-    if (stale)                console.log(`  STALE — older than a day. cd street && node scripts/canfail.mjs`);
+    if (stale)                console.log(`  STALE — older than a day. cd street && ./scripts/guards.sh`);
   ' 2>/dev/null || echo "GUARDS: .canfail-last.json unreadable"
 else
   echo "GUARDS: canfail has NEVER run here — no idea whether any guard still detects."
-  echo "        cd street && SHOT_URL=<your port> node scripts/canfail.mjs"
+  echo "        cd street && ./scripts/guards.sh     # builds, serves, aims, tears down"
 fi
 echo

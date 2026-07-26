@@ -206,6 +206,29 @@ if [ "$MODE" = "--verify" ]; then
   done
 fi
 
+# ARE THE GUARDS AWAKE? The merge train typechecks and nothing else, so a check
+# that has stopped detecting the thing it guards lands green and stays green.
+# Five were reported asleep at once and nobody could have learned it from a
+# board — they turned out not to be asleep at all, but the reason nobody could
+# tell either way is that this number lived in somebody's memory.
+GUARD_STAMP="$MAIN/street/.canfail-last.json"
+if [ -f "$GUARD_STAMP" ]; then
+  GUARD_LINE=$(node -e '
+    const j = require(process.argv[1]);
+    const age = (Date.now() - Date.parse(j.when)) / 36e5;
+    const bits = [`${j.caught}/${j.total} guards caught their mutation`,
+                  age < 1 ? `${Math.round(age*60)} min ago` : `${age.toFixed(0)} h ago`];
+    if (j.asleep?.length) bits.push(`ASLEEP: ${j.asleep.join(", ")}`);
+    console.log(bits.join(" · "));
+    process.exit((j.asleep?.length || age > 24) ? 1 : 0);
+  ' "$GUARD_STAMP" 2>/dev/null) && GUARD_RC=0 || GUARD_RC=1
+  echo "GUARDS: ${GUARD_LINE:-stamp unreadable}"
+  [ "$GUARD_RC" = 1 ] && ACTIONS+=("GUARDS are stale or asleep — cd street && ./scripts/guards.sh")
+else
+  echo "GUARDS: canfail has NEVER run here — no idea whether any guard still detects."
+  ACTIONS+=("GUARDS have never been run here — cd street && ./scripts/guards.sh")
+fi
+
 echo
 if [ ${#ACTIONS[@]} -eq 0 ]; then
   echo "ACTIONS: none. Every agent is working, everything green is landed."

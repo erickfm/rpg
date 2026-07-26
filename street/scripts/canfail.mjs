@@ -37,7 +37,38 @@ const ALLEY = 'src/proto/ct/alley.ts';      // D's, split out of street.ts by 23
 const CAT = 'src/proto/ct/cat.ts';          // D's
 const CORNER = 'src/proto/ct/bodega-corner.ts';  // D's, split out of street.ts
 const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
-const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
+// AIM IT OR IT REFUSES. There is no default any more, and that is the fix for
+// the whole class this file kept falling into.
+//
+// The default WAS 4177, which is also `npm run preview`'s port, so on a machine
+// with nine builders it is whoever started one first. Mutations then go into
+// THIS tree while the world being measured belongs to somebody else's, every
+// case passes, and every case is scored SLEPT. That has now cost two separate
+// rounds: an earlier author reported 0/3 SLEPT and it was 3/3 against their own
+// port, and five guards were reported as having STOPPED GUARDING when all five
+// plus crowd-lane CAUGHT once aimed correctly. Nobody was careless either time;
+// the instrument answered a question it had no way to ask.
+//
+// A default that is usually wrong is worse than no default, because it produces
+// a confident number instead of an error. So: no SHOT_URL and no port means
+// exit 2 and nothing is measured.
+//
+//   SHOT_URL=http://localhost:4188/ node scripts/canfail.mjs
+//   node scripts/canfail.mjs 4188 density
+//   ./scripts/guards.sh                       # picks a port, builds, runs it
+const PORT_ARG = process.argv.slice(2).find((a) => /^\d{4}$/.test(a));
+const URL = process.env.SHOT_URL ?? (PORT_ARG ? `http://localhost:${PORT_ARG}/` : null);
+if (!URL) {
+  console.error(`\n  CANFAIL WAS NOT AIMED — nothing was measured.`);
+  console.error(`  This used to default to :4177, which on this machine is whoever started a`);
+  console.error(`  preview first. Measuring another builder's world while mutating THIS tree`);
+  console.error(`  reports every guard as asleep, and that has cost two rounds already.`);
+  console.error(`\n  Aim it at a world built from THIS tree:`);
+  console.error(`    ./scripts/guards.sh                                  # does it for you`);
+  console.error(`    SHOT_URL=http://localhost:<your port>/ node scripts/canfail.mjs`);
+  console.error(`    node scripts/canfail.mjs <port> [case ...]\n`);
+  process.exit(2);                                        // usage, not a finding
+}
 
 // [name, file, needle, replacement, script, args, what the check should say]
 const CASES = [
@@ -735,7 +766,7 @@ const servedModule = async (file) => {
 };
 const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('hex').slice(0, 12));
 
-const only = process.argv.slice(2);
+const only = process.argv.slice(2).filter((a) => a !== PORT_ARG);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
 const results = [];
 
