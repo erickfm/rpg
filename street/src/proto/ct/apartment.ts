@@ -1627,6 +1627,41 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const sheetM = new THREE.MeshBasicMaterial({ color: 0xb3ab97 });
     box(0.70, 0.06, 0.88, -2.55, RY + 0.47, 4.86, sheetM);
     box(0.46, 0.11, 0.30, -2.86, RY + 0.50, 4.74, new THREE.MeshBasicMaterial({ color: 0xd0cabb }), 0.14); // dented pillow
+    // ── sleep ────────────────────────────────────────────────────────────
+    // The user: *"sleep in your room"*. It is the one thing a bed is for and
+    // the room has had a bed since it was furnished.
+    //
+    // UNTIL MORNING, NOT EIGHT HOURS — the desk's ruling, and it is what makes
+    // the verb mean the same thing whenever you use it. Lie down at 23:00 and
+    // you get eight hours; lie down at 04:00 and you get three; either way you
+    // wake at 07:00, which is what "sleep" means to a player. A fixed span
+    // would put you back to bed in the dark half the time.
+    //
+    // RAMPED, NOT SNAPPED, and this is where the desk's ruling and F's kit
+    // needed reconciling rather than one overriding the other. The ruling says
+    // *"no fade — jump the clock"*, which is about not building a full-screen
+    // HUD overlay, and I have not built one. But `ctx.clock.advance` documents
+    // its default 1.5 s ramp as load-bearing: *"everything that reads the clock
+    // reads totalMin fresh every frame, so moving it smoothly means all of them
+    // follow smoothly... snapping is what would fight them: the grade would
+    // jump a full night in one frame and the rain would teleport through its
+    // own schedule."* Passing overSeconds: 0 here would break the sky, the
+    // lamps and the rain schedule to save 1.5 seconds. So: the default ramp,
+    // and no overlay. Both halves of the instruction are satisfied.
+    const WAKE_H = 7;
+    ctx.spot({
+      x: AX(-2.1), z: AZI(4.15), r: 0.9,
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      label: () => 'sleep until morning',
+      act: () => {
+        const { totalMin } = ctx.clock.now();
+        // minutes to the NEXT 07:00. `|| 1440` covers standing on it exactly:
+        // sleeping at 07:00 means the next morning, not a no-op that reads as
+        // a broken interaction.
+        const mins = (((WAKE_H * 60 - (totalMin % 1440)) % 1440) + 1440) % 1440 || 1440;
+        ctx.clock.advance(mins);
+      },
+    });
     // dresser on the north wall, middle drawer permanently out
     const dresserT = surfTex('detail', 28, 32, (g) => {
       g.fillStyle = '#4a3626'; g.fillRect(0, 0, 28, 32);

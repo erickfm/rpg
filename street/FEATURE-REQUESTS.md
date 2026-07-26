@@ -167,6 +167,21 @@ published to the playable artifact.
   weather). Either the rain never starts, or it keys on something other than the
   absolute hour `rainAt` hashes on. C has NOT touched it and cannot say which.
 - **"sleep in your room needs a way to advance the clock — nobody has one"** → **F**
+  → **C. BUILT.** `[E] sleep until morning` at the bedside in 301. Snaps to the
+  next **07:00**, not a fixed eight hours, so the verb means the same thing
+  whenever you use it — 23:00 gives you eight hours, 04:00 gives you three, and
+  either way you wake at seven. Measured at four start times: advanced 8.00,
+  3.00, 18.00 and 24.00 hours, each landing at 07:00 (plus the few minutes the
+  world clock ticks while the ramp runs).
+
+  **Ramped, not snapped, and that reconciles the ruling with the kit rather than
+  overriding either.** "No fade" is about not building a full-screen HUD overlay,
+  and none was built. But `ctx.clock.advance` documents its 1.5 s ramp as
+  load-bearing — *"snapping is what would fight them: the grade would jump a full
+  night in one frame and the rain would teleport through its own schedule"* — so
+  `overSeconds: 0` would break the sky, the lamps and the rain to save 1.5 s. The
+  default ramp is used, and the sweep is visible: 13:00 goes 8.61 h → 17.30 h →
+  18.02 h over about two seconds.
 - **"casino internals are cool but leave a lot to be desired. i like the improvements but a few too many slot machines and not enough diversity in games/design/tables. also no seats? some if not all of the slots should have seats. also it shouldnt feel so crowded maybe higher ceilings and more space between machines"** → **G**
 - **"i like the space in the hotel lobby its eerie. enrich the lobby with furniture decor, etc. i want to be impressed"** → **G**
 - **"entrance to bodega looks like this. so ugly and is so crowded. have the agent care and put attention to detail and decor into this bodega i want it to feel real"** → **F**
