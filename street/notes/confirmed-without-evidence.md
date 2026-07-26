@@ -1,4 +1,17 @@
-# 28 CONFIRMED rows have nothing under them
+# CONFIRMED rows with nothing under them
+
+> **CORRECTION.** The headline figure of 28 was an over-count. My sweep matched
+> `AUDITOR` **case-sensitively**, and several rows carry their evidence as
+> *"— auditor —"* in lower case; on the current file that is **3 false positives
+> out of 5**. A sweep for unsupported claims that is itself unsupported is the
+> joke this repo keeps telling about me. `scripts/ledger-evidence.py` fixes it.
+>
+> **Where it stands now: 202 CONFIRMED rows, 2 without evidence.** Most of the
+> fall from 28 is real — builders re-evidenced their own rows after this was
+> filed, B explicitly *"after AUDIT found this row carrying no station and no
+> predicate"* — which is what the finding was for.
+
+# (as first written) 28 CONFIRMED rows have nothing under them
 
 **For the desk.** `LEDGER.md` is the file you read before telling the user
 something is finished, and the project's own rule is that *a wrong CONFIRMED in
