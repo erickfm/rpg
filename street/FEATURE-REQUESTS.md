@@ -200,7 +200,14 @@ published to the playable artifact.
   reveal, which is what lets it be WIDER than the hole: 0.99 m with the pivot
   0.02 past the jamb gives 0.02 of overlap at each side and no line of sight.
   Checked from both sides and at 23:00 — `shots/walkup/g-room.png`,
-  `g-hall.png`, `gn-room.png`. (2) The 'stand back' refusal is gone; the label
+  `g-hall.png`, `gn-room.png`. **And then a third strip, at the HEAD:** the
+  report named a vertical gap so I fixed the two vertical ones and stopped. The
+  leaf topped out at 7.475 against a doorway head at 7.50, leaving 0.025 m of
+  lit hall straight over the door — invisible at eye height, obvious the moment
+  you look up. Found by measuring the shut leaf's world extent against the
+  opening's rather than trusting the head-on shots I already had. All four
+  edges now: jambs +0.020 each, head +0.050, with the 0.030 undercut at the
+  floor kept. (2) The 'stand back' refusal is gone; the label
   is now only ever *open the door* / *close the door*. What made the refusal
   unnecessary is F's `unstick()` (fp.ts:191), which already sums escape vectors
   from everything the rig is inside and eases it out — so the shut leaf just

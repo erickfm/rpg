@@ -764,7 +764,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // real door meets a face-fixed stop. 0.99 over a 0.95 opening gives
       // 0.02 of overlap at each jamb and no line of sight at either.
       const LW = DOOR_GAP + 0.04;                     // 0.99 m leaf over a 0.95 m gap
-      const g301 = new THREE.BoxGeometry(LW, 2.05, 0.045);
+      // AND THE SAME AT THE HEAD. Widening the leaf closed both jambs and I
+      // stopped there, because the user's report named a VERTICAL strip. It
+      // left a horizontal one: the leaf topped out at 7.475 against a doorway
+      // head at 7.50, so 0.025 m of lit hall showed straight over the door.
+      // Found by measuring the shut leaf's world extent against the opening's
+      // instead of trusting the two head-on screenshots I had already taken —
+      // it is invisible at eye height and obvious the moment you look up.
+      //
+      // 2.12 spans 5.43 to 7.55: 0.05 of overlap onto the head, and the 0.03
+      // undercut at the floor kept, because a door that seals to the boards is
+      // a door that has never been fitted to a real one.
+      const LEAF_H = 2.12;
+      const g301 = new THREE.BoxGeometry(LW, LEAF_H, 0.045);
       g301.translate(-LW / 2, 0, 0);                  // hinge at the +x edge
       const edgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
       // Face 4 is +z, face 5 is -z. Shut, the leaf is rotated a quarter turn,
@@ -783,7 +795,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // DOOR_Z0 to DOOR_Z0+0.95 — covered at both ends instead of short at
       // both ends.
       DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z0 - 0.02; DOOR_LEAF_W = LW;
-      leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.05, DOOR_PIV_Z);
+      leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.09, DOOR_PIV_Z);
       leaf301.rotation.y = doorA;
       scene.add(leaf301);
       const hingeM = new THREE.MeshBasicMaterial({ color: 0x4a4238 });
