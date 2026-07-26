@@ -883,8 +883,50 @@ for (room of rooms) {
   // working, not a fault, and asserting 0.9 m of clear tarmac there would fail
   // for a correct reason. So the road direction is measured and REPORTED but
   // does not decide the check.
+  // DECIDED ON STATIC GEOMETRY, MEASURED BY WALKING — and those are two things.
+  //
+  // The comment above is right that this asks about STATIC geometry: a landing
+  // boxed in by a wall or a prop is a shipped bug, a passer-by standing on it for
+  // a second is not. But the check DECIDED by walking, and walking cannot tell
+  // the two apart — so it was the flakiest thing in this suite. Four consecutive
+  // runs on one unchanged commit gave 109, 114, 114, 111, and every red was in
+  // this family or the door-approach walk. Retrying three times with a 1.6 s wait
+  // was not enough, because a citizen walking the same 2 m lane travels with you.
+  //
+  // AND THE FLAKE ACTIVELY HIDES REAL FAULTS, which is what makes it worth fixing
+  // rather than tolerating: the pawn shop's door-approach failure tonight looked
+  // exactly like this one and was REAL — its own door leaf was blocking the
+  // sight line to the way-out spot. I spent a long time deciding which it was,
+  // twice. A check that cries wolf costs more than it saves.
+  //
+  // So the DECISION now comes from the collider list with the movers differenced
+  // out. `__ct.colliders()` includes citizens — verified: the count is stable at
+  // 486 while individual boxes move between snapshots — so three snapshots ~1.2 s
+  // apart, keeping only boxes identical in all three, gives the static set. Then
+  // "boxed in" is what it says: is there anything solid within 0.9 m of the
+  // landing that way. The WALK still happens and is still reported, because it is
+  // the thing a player actually does; it just no longer decides.
+  const staticCols = await p.evaluate(async () => {
+    const snap = () => window.__ct.colliders().map((c) =>
+      `${c.minX.toFixed(3)},${c.maxX.toFixed(3)},${c.minZ.toFixed(3)},${c.maxZ.toFixed(3)}`);
+    const a = new Set(snap());
+    await new Promise((r) => setTimeout(r, 1200));
+    const b2 = new Set(snap());
+    await new Promise((r) => setTimeout(r, 1200));
+    const c2 = snap();
+    return c2.filter((k) => a.has(k) && b2.has(k)).map((k) => {
+      const [minX, maxX, minZ, maxZ] = k.split(',').map(Number);
+      return { minX, maxX, minZ, maxZ };
+    });
+  });
+  const blockedAt = (x, z) => staticCols.some((c) =>
+    x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ);
   const dirs = room.landing ?? [['out across the side street', 0, false], ['east along the walk', Math.PI / 2, true], ['west along the walk', -Math.PI / 2, true]];
   for (const [k, yaw, mustPass = true] of dirs) {
+    // facing is (sin yaw, -cos yaw), the same convention the rest of this file uses
+    const fx = Math.sin(yaw), fz = -Math.cos(yaw);
+    const hits = [0.3, 0.6, 0.9].filter((d) => blockedAt(back[0] + fx * d, back[2] + fz * d));
+    // and still walk it, for the record
     let best = 0;
     for (let attempt = 0; attempt < 3 && best <= 0.9; attempt++) {
       if (attempt) await p.waitForTimeout(1600);        // let whoever it is walk on
@@ -895,8 +937,11 @@ for (room of rooms) {
       const c = await pos();
       best = Math.max(best, Math.hypot(c[0] - a[0], c[2] - a[2]));
     }
-    if (mustPass) check(`the landing is not boxed in — ${k}`, best > 0.9, `moved ${f2(best)} m (best of 3)`);
-    else console.log(`  note  ${room.id}: ${k} — moved ${f2(best)} m${best <= 0.9 ? ' (something is parked at the kerb)' : ''}`);
+    const detail = `${hits.length ? `STATIC obstruction at ${hits.join(', ')} m` : 'no static obstruction within 0.9 m'}`
+      + ` (${staticCols.length} static boxes); walked ${f2(best)} m`
+      + `${!hits.length && best <= 0.9 ? ' — walk short, but nothing static is there, so a passer-by' : ''}`;
+    if (mustPass) check(`the landing is not boxed in — ${k}`, hits.length === 0, detail);
+    else console.log(`  note  ${room.id}: ${k} — ${detail}`);
   }
 
   // ── the room keeps its light after dark ──────────────────────────────
