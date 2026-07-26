@@ -100,3 +100,20 @@ another builder could have added in a minute, and the desk only discovered it
 by chance while reading a report for another reason.
 
 Delete the file yourself once you are unblocked.
+
+
+## Rulings go in the queue file, not in a message
+
+A decision the desk makes — which of two candidates is the fault, whether to
+revert, which way an object should face — must be written into the builder's
+queue file, not sent as a tmux message.
+
+Messages die. A ruling on the vehicle wheels was delivered twice and lost
+twice: once when the builder's session exited, once when it stalled and the
+message scrolled away. The ATM ruling was lost the same way. Each time the
+builder re-raised the same blocker and the desk answered it again, having
+learned nothing.
+
+The queue file survives session exits, stalls, compaction and restarts. That is
+the entire reason it exists — and it is why a restarted agent can pick up
+exactly where the last one stopped.
