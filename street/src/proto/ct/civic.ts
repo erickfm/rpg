@@ -884,8 +884,13 @@ export function buildCivic(o: {
         hop.position.set(px, 13.5, pz);
         scene.add(hop);
         for (const by of [3.2, 7.4, 11.6]) {
+          // …and the pipe brackets stop at the line too. These reached
+          // zp + 0.01 — ten millimetres into the neighbour, which is nothing to
+          // look at but is the same fault as the coping and would have been
+          // left behind by a fix aimed only at the thing in the screenshot.
+          // A 0.2 m bracket on a centre 0.10 m inside the line is flush.
           const br = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.09, 0.2), pipeM);
-          br.position.set(px, by, pz + 0.05);
+          br.position.set(px, by, zp - 0.10);
           scene.add(br);
         }
       }
@@ -895,13 +900,34 @@ export function buildCivic(o: {
       // and it is the one piece of the library's own stone that comes all
       // the way out to the street line.
       // grained, not flat — same reason as the cheeks
+      // THE CAP SETS THE SETBACK, NOT THE PIER.
+      //
+      // A building's projections must stop at its OWN boundary, and this one
+      // did not. The pier is 0.5 m on a centre 0.25 m inside the party line —
+      // flush, correct. Its CAP is 0.62 m on the same centre, so it hung
+      // 0.06 m past the line and into the neighbour's brick at BOTH ends. That
+      // is the user's "the coping cap floats out over it", and 60 mm is enough
+      // to see because what you see is a stone lip emerging from red brick
+      // with no joint anywhere.
+      //
+      // The library was designed free-standing, with returns and a full
+      // classical kit; on a party wall every projection that overhangs its
+      // width lands inside somebody else's building. So the widest member sets
+      // the setback: the cap's outer face is now ON the line and the pier sits
+      // 60 mm in behind it, which reads as a pier dying into the party wall
+      // rather than merging with it.
+      //
+      // Both ends come out of this one loop over s, which is why both were
+      // wrong by exactly the same 0.06 m and why one edit fixes the pair.
+      const PCAP = 0.62;
+      const pz = zp - s * (PCAP / 2);
       const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.35, 0.5), stoneFace(DRESSED, 0.5, 1.35));
-      pier.position.set(-FACE - 0.25, 0.675, zp - s * 0.25);
+      pier.position.set(-FACE - 0.25, 0.675, pz);
       scene.add(pier);
-      const pcap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.12, 0.62), capM);
-      pcap.position.set(-FACE - 0.25, 1.41, zp - s * 0.25);
+      const pcap = new THREE.Mesh(new THREE.BoxGeometry(PCAP, 0.12, PCAP), capM);
+      pcap.position.set(-FACE - 0.25, 1.41, pz);
       scene.add(pcap);
-      solid({ minX: -FACE - 0.5, maxX: -FACE, minZ: Math.min(zp, zp - s * 0.5), maxZ: Math.max(zp, zp - s * 0.5) });
+      solid({ minX: -FACE - 0.5, maxX: -FACE, minZ: Math.min(zp, pz - 0.25), maxZ: Math.max(zp, pz + 0.25) });
     }
 
     // Two benches, facing each other across the axis with their backs to the
