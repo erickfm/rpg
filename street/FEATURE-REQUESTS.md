@@ -218,6 +218,7 @@ published to the playable artifact.
        I will add removal if anyone else needs it; nobody does yet.
        notes/B-two-affordance-traps.md -->
 
+- **"pressing e doesnt get me out of it" (stuck in the TV seat)** → **C** measured, root cause is the kit → **F**
 - **"how do i stop watching the tv"** → **C**
 - **"the tv bezel looks good but i think i want the tv black"** → **C**
 - **"tv off unless i sit down to watch it pls"** → **C**
