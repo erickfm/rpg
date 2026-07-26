@@ -61,11 +61,14 @@ export const DOOR: DoorDecl = {
 // one; taking the width moves it out with the wall rather than leaving it
 // stranded mid-floor.
 const GALLERY_X0 = 6.90, GALLERY_X1 = 9.90, GALLERY_Y = 2.90;
-// The flight's foot is at STAIR_Z0 and it must stand CLEAR of the vestibule
-// pier, which spans the room at z = D/2 - VEST_D = 6.80. At 6.60 the foot was
+// The flight's foot is at STAIR_Z0. It once had to stand CLEAR of the vestibule
+// pier, which spanned the room at z = D/2 - VEST_D = 6.80: at 6.60 the foot was
 // 0.2 m from that pier — no room to stand and step onto it, so the stair was
-// reachable only in theory. That is what "inaccessible because of walls" was:
-// not the balustrade, the porch I built in front of it.
+// reachable only in theory. That was what "inaccessible because of walls" meant:
+// not the balustrade, the porch built in front of it.
+// THAT PIER IS GONE (the vestibule was deleted below, 2026-07-25), so 5.40 is no
+// longer holding anything off. It stays because 5.40 is also what makes the run
+// 4.80 m for 2.90 of rise; it is now a stair number rather than a clearance one.
 //
 // 5.40 leaves 1.4 m of floor to turn onto the bottom tread, and dropping the
 // top to 0.60 keeps the run at 4.80 m for 2.90 of rise — 31 degrees, still a
@@ -89,11 +92,10 @@ export function buildLibrary(ctx: CtxBuild): void {
     d: 22.0,
     // 6.4, up from 3.6. The tall half of "small dark vestibule, then through into
     // a tall reading room" — that contrast IS the experience of a Carnegie
-    // branch, and it cannot be done with one ceiling height. The room gets the
-    // TALL one and the vestibule gets a dropped soffit below it, further down
-    // this file. Doing it the other way round — a low room with a hole in the
-    // ceiling — would need the kit to grow a second height, and it does not
-    // need to.
+    // branch. It was first done with a dropped soffit over the entry; the user
+    // rejected that (see the deleted vestibule below), so the contrast is now
+    // carried by the DOORWAY — a 4 m opening in a deep reveal under a 6.4 m
+    // ceiling — which is where a real branch gets it anyway.
     h: 6.4,
     palette: {
       floor: 0x6f7a63,      // green-grey lino, the municipal default
@@ -240,7 +242,7 @@ export function buildLibrary(ctx: CtxBuild): void {
   // "Cramped is a statement about shape, not area" is the finding, and it is
   // right. So the stacks take the REAR half only and the front half is one
   // continuous reading floor — which is also what a Carnegie branch actually is:
-  // you come through the vestibule into an open hall with tables in it, and the
+  // you come in through the doors into an open hall with tables in it, and the
   // stacks are behind and around. Same six runs, same 2.15 m spacing, same
   // 1.63 m aisles between 1.95 m bays; they are simply 7.7 m long instead of
   // 13.9, and the 13 m of depth in front of them is now unbroken wall to wall.
@@ -250,44 +252,37 @@ export function buildLibrary(ctx: CtxBuild): void {
   // change — the user named the stair and did not name a sixth bay.
   for (let i = 0; i < 5; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
 
-  // ── THE VESTIBULE ────────────────────────────────────────────────────────
+  // ── THE VESTIBULE — REMOVED, 2026-07-25 ──────────────────────────────────
   //
-  // "Small dark vestibule, then through into a tall reading room lit by the high
-  // arched windows — that low-dark-to-tall-bright contrast is the whole
-  // experience of a Carnegie branch."
+  // The user, on `Screenshot from 2026-07-25 22-05-35.png`, standing in the
+  // middle of the reading room and looking back at the entrance:
   //
-  // Built as a dropped SOFFIT rather than as a second room height. The kit gives
-  // a room one ceiling, and the honest way to get two is not to ask it for a
-  // feature — it is to hang a lower ceiling over the first four metres, which is
-  // what a real vestibule is anyway: a lobby ceiling under the roof of the hall
-  // beyond. The room keeps its 6.4 m and you walk in under 2.6 m of it.
+  //   *"get rid of this weird internal structure inside the library"*
   //
-  // The contrast is doing the work, so the soffit is DARK — the trim's stained
-  // oak rather than the ceiling's cream — and the piers either side of the
-  // opening frame the view through into the bright room. Standing in it you see
-  // a tall lit hall through a low dark hole, which is the whole effect.
-  {
-    const VEST_D = 4.2;                       // how far in the low ceiling reaches
-    const VEST_Y = 2.60;                      // its underside
-    const OPEN_W = 5.6;                       // the hole you walk through
-    const zc = D / 2 - VEST_D / 2;
-    const dark = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
-    const stone = new THREE.MeshBasicMaterial({ color: 0x8a8172 });
-
-    // the soffit itself, and its dark face looking back at you from inside
-    box(W, 0.22, VEST_D, dark, 0, VEST_Y + 0.11, zc);
-    box(OPEN_W, 0.34, 0.14, stone, 0, VEST_Y - 0.17, D / 2 - VEST_D);
-
-    // the piers either side of the opening: they carry the soffit visually and
-    // they are what makes it a doorway into the hall rather than a low ceiling
-    // that merely stops
-    for (const sx of [-1, 1]) {
-      const px = sx * (OPEN_W / 2 + (W / 2 - OPEN_W / 2) / 2);
-      const pw = W / 2 - OPEN_W / 2;
-      box(pw, VEST_Y, 0.34, stone, px, VEST_Y / 2, D / 2 - VEST_D);
-      solid(px, D / 2 - VEST_D, pw, 0.34);
-    }
-  }
+  // It was a dropped soffit 2.6 m over the first 4.2 m of the room, with a
+  // 5.6 m opening in it and a stone pier either side, meant as the low dark
+  // vestibule you come through into the tall bright hall. From INSIDE the
+  // vestibule it worked; the screenshot the user sent is from the other side,
+  // and from there it is what he called it — a flat untextured 2.6 m wall
+  // spanning all 20 m of the room with a rectangular hole in it, standing in
+  // front of the front wall for no reason a player can see. GOTCHAS §41's
+  // rule, from the other end: a thing built to be looked THROUGH was only ever
+  // checked from the side you look through it from.
+  //
+  // Deleted rather than redrawn. GOTCHAS §46 says a complaint about execution
+  // is not a verdict on the thing — but "this weird internal structure" is not
+  // a defect list, it is a man who does not recognise the object at all, and
+  // that is a verdict. Two things follow from the deletion and neither is a
+  // loss:
+  //
+  //   · The low-to-tall contrast now comes from the DOORWAY instead, which is
+  //     where a Carnegie branch actually gets it: a 4 m arched opening in a
+  //     0.9 m thick reveal, below a 6.4 m ceiling. See the entrance below.
+  //   · The 2.6 m soffit was also the reason the hall's own height was
+  //     invisible from the door. It is not any more.
+  //
+  // The piers carried colliders across the room at z = 6.80. Those go with
+  // them, which widens the way in from 5.6 m to the full 20.
 
   // ── THE ISSUE DESK ───────────────────────────────────────────────────────
   //
@@ -451,8 +446,9 @@ export function buildLibrary(ctx: CtxBuild): void {
     {
       // THE BOTTOM OF THE FLIGHT IS OPEN TO THE ROOM. With the balustrade running
       // the full length you could only join the stair at its foot, from a 1.4 m
-      // band behind the vestibule pier — two turns and a corridor you cannot see
-      // from the door. That is "reachable" but not the ask, which was reachable
+      // band behind what was then the vestibule pier — two turns and a corridor
+      // you could not see from the door. That is "reachable" but not the ask,
+      // which was reachable
       // OBVIOUSLY, "without opening a map in your head".
       //
       // Leaving the lowest 1.5 m of the flight unrailed lets you step onto it
