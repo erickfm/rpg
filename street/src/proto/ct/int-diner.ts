@@ -226,6 +226,19 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 8, 8);
     g.fillStyle = '#9aa0a6'; g.fillRect(0, 0, 8, 2);
   }), 'detail');
+  // ONE BOOTH HAS CUSTOMERS IN IT, using H's seated pose.
+  //
+  // A diner with eighteen empty benches reads as closed. Two people facing
+  // each other across a table is the single cheapest thing that says the place
+  // is open, and it is now possible without faking it: before today a seated
+  // figure meant a STANDING sprite squashed down, which is the cardboard the
+  // user complained about.
+  //
+  // The second booth, so it is visible past the counter run without blocking
+  // the door end of the aisle. Both are placed from the SAME expressions the
+  // seat registration uses, so a customer cannot end up sitting beside their
+  // chair if the booth geometry moves.
+  const OCCUPIED = BXS.length > 1 ? BXS[1] : BXS[0];
   for (const bx of BXS) {
     for (const sx of [-1, 1]) {
       const bench = new THREE.Mesh(new THREE.BoxGeometry(BENCH_W, 0.45, BENCH_L), vinylM);
@@ -245,6 +258,17 @@ export function buildDiner(ctx: CtxBuild): void {
         yaw: sx < 0 ? Math.PI / 2 : -Math.PI / 2,   // across the table
         h: 0.45, r: 0.85, ok: room.inside, label: 'take a booth seat',
       });
+      if (bx === OCCUPIED) {
+        // seat top is the bench's 0.45; the hip origin goes there, and
+        // citizenPlane owns the 0.445 m offset from the shoe.
+        room.person(sx < 0
+          ? { jacket: '#7a4a3a', pants: '#3a3a44', skin: '#8a5a3a', hair: '#2e2620',
+              fit: 'coat', accent: '#c8b48a', cut: 'short', build: 1 }
+          : { jacket: '#3a5a7a', pants: '#2e3a48', skin: '#d8b090', hair: '#8a7050',
+              fit: 'plain', accent: '#d8d4c8', cut: 'long', build: -1 },
+          bx + sx * (TABLE_W / 2 + BENCH_W / 2), BZ - BENCH_L / 2 + 0.22,
+          { seated: true, y: 0.45, facing: sx < 0 ? Math.PI / 2 : -Math.PI / 2 });
+      }
     }
     const tbl = new THREE.Mesh(new THREE.BoxGeometry(TABLE_W, 0.07, BENCH_L - 0.25), formicaFor(TABLE_W, BENCH_L - 0.25));
     put(tbl, bx, 0.74, BZ);
