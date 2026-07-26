@@ -1326,3 +1326,47 @@ you have proved a fact about your probe and nothing about the game (§34).
 
 `D-walk`'s churchyard block now does exactly that split: two claims measured on
 `groundAt` at 0.05 m, and one lived claim that walking really carries you up.
+
+## 48. An instrument aimed at the wrong world reports a catastrophe it cannot see
+
+B ran the mutation suite as a routine regression pass and found **five guards
+SLEPT** — the mutation applied, the world deliberately broken, the check passing
+anyway. Four confirmed user requests rested on those guards. It refused to patch
+them with ten minutes of context left, on the grounds that *"a guard repaired in
+a hurry is how you get a check that passes without checking"*.
+
+A then re-ran the same six cases **aimed at a world built from the tree being
+mutated**:
+
+```
+SHOT_URL=http://localhost:4188/ node scripts/canfail.mjs ...
+  6 / 6 CAUGHT
+```
+
+**The guards were never asleep.** `canfail` defaults to a port, the default was
+not the world under test, and it reported that everything it could not see was
+fine.
+
+This is the THIRD instrument of the same family in one session:
+
+| instrument | fault |
+|---|---|
+| `reach.mjs` | seeded its flood fill outside its own grid, declared the whole world unwalkable — **at exit 0** |
+| `footpaint.mjs` | hardcoded `localhost:4184`, so only its author could aim it |
+| `canfail.mjs` | defaulted to a world that was not the one being mutated |
+| `floaters-walk.mjs` | accepted a room argument and ignored it |
+
+**The shape: an instrument that cannot be aimed will answer about whatever it is
+looking at, and say nothing about what you asked.** Worse than a broken check,
+because it produces a specific, credible, wrong number.
+
+Two rules, both cheap:
+
+1. **An instrument must refuse to run unaimed** rather than defaulting. A
+   default target is a silent wrong answer; an error is a loud right one.
+2. **An argument a script accepts and ignores is worse than one it rejects.**
+
+And the human lesson, which is B's: **when a guard reports that other guards
+have stopped guarding, do not repair it in a hurry.** Had B "fixed" five working
+guards, it would have damaged the only mechanism that can detect this class at
+all — while every board stayed green.
