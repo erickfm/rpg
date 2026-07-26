@@ -88,6 +88,24 @@ const MUTATIONS = {
   // The letterbox goes: the face is drawn at 1:1 in the corner of a wide panel
   // instead of scaled to fit, so most of the screen is empty.
   'no-fit': (S) => { S.FACE.w = 32; S.FACE.h = 24; },
+  // THE ATTRACT NEVER STARTS. The cabinet sits at an empty stool looking switched
+  // off instead of calling anyone back — queue item 4's "idle attract state".
+  // Injected into the real FEEL table, which `paintMachine` reads at call time.
+  'no-attract': (S) => { S.FEEL.attract = 1e9; },
+  // THE MACHINE STOPS SAYING IT IS EMPTY. Queue item 3: "If the player is broke,
+  // say so on the machine rather than failing silently." A cabinet that refuses
+  // the button and explains nothing is indistinguishable from a broken one, and
+  // the player's other source of truth — the wallet — is behind the panel they
+  // are looking at.
+  'silent-broke': (S) => {
+    const real = S.paintMachine;
+    S.paintMachine = (g, w, h, v, t) => real(new Proxy(g, {
+      get: (o, k) => (k === 'fillText'
+        ? (str, x, y) => { if (!/INSERT COIN/.test(str)) o.fillText(str, x, y); }
+        : Reflect.get(o, k)),
+      set: (o, k, val) => Reflect.set(o, k, val),
+    }), w, h, v, t);
+  },
   // A NaN creeps into a coordinate. Canvas silently draws nothing, so the reel
   // simply vanishes with no error anywhere.
   nan: (S) => {
@@ -174,6 +192,8 @@ const recorder = () => {
   return { g, ops };
 };
 
+const FEELa = () => S.FEEL.attract;
+const lcg = (seed) => { let x = seed >>> 0; return () => ((x = (x * 1664525 + 1013904223) >>> 0) / 4294967296); };
 const num = (n) => Math.round(n * 100) / 100;
 /** A symbol's fingerprint: every mark it makes, relative to its own centre. */
 const signature = (ops, cx, cy) => ops
@@ -409,6 +429,79 @@ if (mode === 'glass' || mode === 'all') {
       + ' so the glass can blur on it');
   }
 }
+
+  // ── THE MACHINE SAYS WHEN IT IS EMPTY ─────────────────────────────────────
+  //
+  // Queue item 3, in its own words: "If the player is broke, say so on the
+  // machine rather than failing silently." A cabinet that simply refuses the
+  // button is indistinguishable from a broken one, and the player's only other
+  // source of truth — the wallet — is behind the panel they are looking at.
+  {
+    const m = S.createMachine({ rng: lcg(1) });
+    const broke = m.view();
+    const r = recorder();
+    S.paintMachine(r.g, W, H, broke, 0);
+    const said = r.ops.filter((o) => o.op === 'fillText').map((o) => o.text);
+    console.log(`  WITH NO CREDITS the face says: ${said.filter((t) => /INSERT|BET|PLAY/.test(t)).join(' / ')}\n`);
+    check(broke.credits === 0, 'the machine really is empty — the population for this verdict');
+    check(said.some((t) => /INSERT COIN/.test(t)),
+      'and it SAYS so on its own face rather than failing silently');
+    check(!m.play(), 'and the button genuinely refuses rather than staking a credit it does not have');
+  }
+
+  // ── THE ATTRACT ───────────────────────────────────────────────────────────
+  //
+  // Queue item 4 names it: "the stagger, the near miss, the payout count-up, the
+  // idle attract state." Nothing was checking the last one. It is what a floor
+  // of cabinets looks like from the door, and it is the difference between a
+  // machine waiting for you and one that is switched off.
+  {
+    const m = S.createMachine({ rng: lcg(2) });
+    m.insert(50);
+    const face = (idleT, t) => {
+      const r = recorder();
+      S.paintMachine(r.g, W, H, { ...m.view(), idleT }, t);
+      return r.ops;
+    };
+    // THE IDLE TIMES ARE ABSOLUTE, not derived from FEEL.attract.
+    //
+    // They were `FEELa() + 1`, and that made the check follow the bug: setting
+    // `FEEL.attract = 1e9` moved the sample point to 1e9 + 1 along with it, the
+    // attract fired exactly as before, and the mutation SLEPT. A test point
+    // taken from the constant under test cannot fail when that constant moves,
+    // which is the whole failure mode.
+    //
+    // 30 s is the claim instead, and it is a better one: a machine that has not
+    // started calling you back after half a minute at an empty stool is not
+    // attracting, whatever its constant says.
+    const IDLE_BY = 30;
+    const quiet = face(1, 0);                       // freshly touched
+    const calling = face(IDLE_BY, 0);               // left alone
+    const later = face(IDLE_BY + S.FEEL.attractStep * 2, 0);
+    const sameQuiet = face(1, 0);
+
+    const text = (ops) => ops.filter((o) => o.op === 'fillText').map((o) => o.text).join('|');
+    console.log(`  IDLE ${1}s says "${text(quiet).split('|').find((t) => /PLACE YOUR|INSERT COIN|PLAY 1|SEVENS PAY|GOOD LUCK/.test(t))}"`);
+    console.log(`  IDLE ${IDLE_BY}s says "`
+      + `${text(calling).split('|').find((t) => /PLACE YOUR|INSERT COIN|PLAY 1|SEVENS PAY|GOOD LUCK/.test(t))}"\n`);
+    check(S.FEEL.attract >= 2 && S.FEEL.attract <= 20,
+      `it waits ${S.FEEL.attract}s before starting — long enough not to fire between`
+      + ' spins, short enough that somebody who sits down and hesitates sees it');
+
+    check(JSON.stringify(quiet) === JSON.stringify(sameQuiet),
+      'the face is a pure function of the view — same idle time, same pixels');
+    check(JSON.stringify(quiet) !== JSON.stringify(calling),
+      `left alone for ${IDLE_BY}s the machine starts CALLING YOU BACK — it does not`
+      + ' sit there identical to how it looked a second after you touched it');
+    check(JSON.stringify(calling) !== JSON.stringify(later),
+      'and the attract MOVES — the pay-table highlight walks its own lines rather'
+      + ' than freezing on one');
+    // It must not fire between spins, which would make it noise rather than an
+    // invitation: `idleT` resets whenever the player does anything.
+    const spun = m.play();
+    check(spun && m.view().idleT === 0,
+      'pressing SPIN resets the idle clock, so the attract cannot fire between spins');
+  }
 
 console.log(bad === 0 ? `\n  ${mode}: all checks pass.\n` : `\n  ${mode}: ${bad} FAILED.\n`);
 process.exit(bad === 0 ? 0 : 1);
