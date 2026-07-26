@@ -1,1 +1,1 @@
-WORKING | slots CONFIRMED; blackjack built + verified, waiting on one seat | G — notes/BLOCKED-L.md; queue empty otherwise
+WORKING | both games done and checked; only blackjack seats outstanding | G — notes/BLOCKED-L.md, one ctx.seat() call
