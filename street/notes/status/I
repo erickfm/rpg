@@ -1,1 +1,1 @@
-WORKING | unblocked E (seats() has no room/floor field, the 301 bed IS registered); stuck-in-seat fault reproduced and evidenced | F and B to fix the kit-level stand action
+WORKING | stuck-in-seat proved kit-wide: 18 of 24 sampled seats trap the player, threshold 0.81-1.10 m of teleport; check written (scripts/I-seat-exit.mjs, red, unregistered) | desk to decide on registering it; F/kit owns the fix

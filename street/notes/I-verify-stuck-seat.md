@@ -88,6 +88,41 @@ approach I tried at the bus stop was inside the band; I could only get it to
 release me by standing exactly on the seat. A future fix that answers "this seat
 is hard to sit on" by enlarging `r` will make this worse each time.
 
+## It is most of the seats in the world
+
+`scripts/I-seat-exit.mjs` sits in a sample of seats, approaching each from a
+pace behind its own published `at` point, and tries to stand up again. Sampled
+across labels rather than taking the first N, because the first thirty seats in
+the world are all one bank of slot stools and a rate measured on thirty copies
+of one seat is not a rate for the world:
+
+    24 seats sampled across 16 distinct labels
+
+      stood up again :  5
+      ** STUCK       : 18
+      could not sit  :  1   (aim or reach — not a verdict either way)
+
+    stuck on:  sit on the bench, sit down, sit at the stop, sit and wait,
+               sit at the slot, sit at the table, sit in the shelter,
+               sit on the tyres, sit in the client chair, take a booth seat,
+               sit at the terminal, sit at the reading table
+
+**Twelve distinct labels across most of the world's modules — so this is the
+kit, not a seat anyone registered wrong.** And the two populations do not
+overlap at all:
+
+    teleported 0.53 – 0.81 m  ->  every one of them released the player
+    teleported 1.10 – 4.82 m  ->  every one of them trapped him
+
+That brackets the threshold between **0.81 m and 1.10 m**, which is the same
+place the bed's own sweep put it (0.97 stands, 1.12 sticks). Two independent
+measurements, one number.
+
+**The check is deliberately NOT registered in `checks.mjs`.** It is red today,
+and turning the board red for every builder is the desk's call and not mine. It
+is written so that it goes green when the kit is fixed, and it covers all 225
+seats with `--all` rather than the two I found by hand.
+
 ## What I am not claiming
 
 I have not read the kit's sit/stand implementation — `crosstown.ts` and `fp.ts`
