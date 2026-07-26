@@ -32,6 +32,7 @@ const TEXW = 'src/proto/ct/tex-world.ts';   // A's
 const CARS = 'src/proto/ct/cars.ts';        // H's
 const TOWN = 'src/proto/crosstown.ts';      // desk's, but the parking draw lives in it
 const STREET = 'src/proto/ct/street.ts';    // D's
+const ALLEY = 'src/proto/ct/alley.ts';      // D's, split out of street.ts by 23e12c691
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
@@ -115,8 +116,14 @@ const CASES = [
   // dishing the paving you can SEE without registering the floor you WALK gives
   // a player striding flat across a visible bowl — and it looks finished from
   // any screenshot, which is why a camera was never going to catch it.
-  ['alleydish', STREET,
-    '    o.ground((x, z) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));',
+  // REPOINTED at ct/alley.ts. 23e12c691 split the alley out of street.ts and
+  // both needles below went with it, so for a while these two cases matched
+  // NOTHING — canfail said so plainly ("NEEDLE matched 0x, not 1"), which is the
+  // only reason this was caught rather than sitting green and guarding air. A
+  // mutation case is a hard-coded quotation of somebody's source; it is the one
+  // kind of test that a REFACTOR breaks silently and a bug never does.
+  ['alleydish', ALLEY,
+    '    a.ground((x: number, z: number) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));',
     '    /* selftest: the visible half only — no floor registered */',
     'alleydish.mjs', [], 'the player walking flat over a dip they can see'],
 
@@ -126,7 +133,7 @@ const CASES = [
   // that compared either half against a formula instead of against the other
   // would sleep through exactly one of these two, and it would look identical
   // to a passing run.
-  ['alleydish-flat', STREET,
+  ['alleydish-flat', ALLEY,
     '        pos.setZ(i, dishAt(-FACE - 3.3 + pos.getX(i), (AZ0 + AZ1) / 2 - pos.getY(i)));',
     '        pos.setZ(i, 0);   // selftest: flat paving, picker still dishes',
     'alleydish.mjs', [], 'the player sinking into visibly level paving'],
