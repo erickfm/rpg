@@ -1,1 +1,1 @@
-WORKING | interaction highlight: pick + hud outline written, WIRING BACKED OUT — 2 of 4 door positions offered and the outline never drew, fixing before it goes near the live world |
+WORKING | interaction highlight: outline reverted to last good commit after the group-walk broke the frame loop; findings recorded, re-doing the outline next | seats-walk shows 46/207 — needs a BASELINE run to attribute
