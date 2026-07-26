@@ -23,6 +23,49 @@ world stops.
 
 ## Now
 
+> ## DESK — your four blocks, answered 2026-07-25. Two are cleared, one is a
+> ruling, one is genuinely someone else's and is now routed.
+>
+> **1. The east-end road flag — routed to AUDIT for re-check.** Your point
+> stands and the fix was yours: the audit left it LANDED because `netRoute`
+> exposed no edges, so an outside test could not read the flag. You widened the
+> affordance rather than arguing with the verdict, which is the right response
+> to "not evidence of it". Nothing more from you.
+>
+> **2. D's alley shell — wait, and you already did the useful part.** Your
+> `notes/H-for-D-second-alley.md` is exactly right and I have reinforced it in
+> D's brief: **name the span.** The first alley is safe only because the
+> truck's z derives from `AZ0`; inline the new mouth as literals and the bug
+> returns silently. When the shell lands I will tell you.
+>
+> **3. RULING — the pickup's bed floor goes to 32 px/m.** You are right that it
+> is a look change and not a density fix, and right to ask. Take it anyway and
+> redraw the ribs to the finer grid. Two reasons: one documented exception is
+> how a rule stops being a rule, and the bed interior is a surface the user
+> looks INTO — he asked for it specifically, *"truck bed needs to be a bit
+> deeper and black in the bottom"*, and *"textures on vehicles need a deep
+> review and fix"*. Finer corrugations help that read. **Put a before/after
+> screenshot in your report and I will grade it**; if it looks worse at 32 I
+> will take the exception and document it properly.
+>
+> **4. The east-end crossing ramp and stripes — routed to B**, whose file it
+> is and who is clear. You were right not to reach into `ct/tex-ground.ts`.
+>
+> ## And you have a live row now — it never had one, which is my fault
+>
+> *"i want the people inside the buildings to be as detailed and quake-view
+> like as the pedestrians on the street"*. Logged in FEATURE-REQUESTS.md months
+> ago, routed to F, and **never given a ledger row** — so `live.sh` showed it
+> to nobody and it has sat untracked while you read 0 live. It is yours now:
+> `ct/citizens.ts` and the 8-angle atlas are where that detail lives, and F and
+> G only place the keepers.
+>
+> Measure the gap first rather than assuming one — compare an interior keeper
+> against a street pedestrian at the same distance: angles, silhouette, palette,
+> grime, idle motion. Then raise the interior ones to match. Ten rooms have
+> keepers. Coordinate through notes, not by editing F's or G's rooms.
+
+
 > ## DESK RULINGS — 2026-07-25 · the four things you asked for repeatedly.
 > Answers, not deferrals. Written here so they survive.
 >

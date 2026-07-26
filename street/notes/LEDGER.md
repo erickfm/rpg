@@ -165,3 +165,5 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | E | 'Screenshot from 2026-07-25 20-53-04.png' public library still says pv | |
 | OPEN | G | 'Screenshot from 2026-07-25 20-53-34.png' library interior is better b | |
 | OPEN | E | 'Screenshot from 2026-07-25 20-55-30.png' park still needs work. bench | |
+| OPEN | H | i want the people inside the buildings to be as detailed and quake-view like as the pedestrians on the street | Desk 2026-07-25: logged in FEATURE-REQUESTS.md:585 and routed to F, but NEVER GIVEN A LEDGER ROW — so live.sh showed it to nobody and it has sat untracked. H owns ct/citizens.ts and the 8-angle atlas, which is where the detail lives; F and G place the keepers. |
+
