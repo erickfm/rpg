@@ -441,3 +441,52 @@ outside that grid, so the seed cell falls off the array and it reports
 quietly declares the whole world unwalkable. It needs a street seed. It is
 another agent's script and `OWNERSHIP.md` forbids me editing it, so it is filed
 rather than fixed.
+
+
+---
+
+## Measured, 2026-07-25 — the signage blocker, with numbers
+
+The "frontage banners cannot be made to dim from my side" section above has been
+open for weeks as a description. It is now a measurement, because a blocker the
+desk cannot size is a blocker that keeps getting deferred.
+
+Ran props.ts's own `isSelfLit` criteria — opaque texels where `max > 199` and
+`max - min > 26`, tripped at 8% — over every textured sheet in the lot:
+
+```
+  39 sheets are held at full daylight brightness after dark and are NOT
+     declared lights.  2 more are, correctly (my cLight ones).
+  their hot fraction runs 8.6% .. 97%, against an 8% threshold
+
+     97.0%  56x56    a windshield price card
+     85.3%  168x66   THE POLE SIGN — the one the user just had me make legible
+     80.7%  230x30   a fence banner
+     72.4%  230x30   another
+     70.5%  92x18    a starburst card
+```
+
+Seen, not just computed: `shots/lotpass/10-night-aisle.png` is the lot at 23:00
+with three signboards and the price cards glowing over a black yard.
+
+**Why the fix that worked for the bunting cannot work here.** The bunting tripped
+this detector at **13.3%** — marginal, one point of brightness over the line —
+and darkening its red 11 points put the bleached peak at 193 and let it dim,
+costing nothing visible. That was a real fix and it is why I tried the same
+thing first here.
+
+It does not generalise. At 62-97% hot there is no palette nudge: the sheet IS
+its bright artwork. Getting a 97% card under 8% means repainting almost all of
+it dark, and the 85.3% one is the pole sign the user has just had me enlarge and
+re-contrast **for legibility from the far kerb**. Trading that back for night
+grading is the wrong trade and it is not mine to make unilaterally.
+
+**What I need, unchanged, now sized:** one opt-out `isSelfLit` honours — a
+userData flag on the material saying "printed, not lit, grade me". Roughly 40
+sheets in my module alone would take it, and I would apply it the same round it
+lands. `scripts/mods-dim.mjs` is written, works, and stays unregistered until
+then, because it is red on exactly these and would guard nothing while it is.
+
+One of the 39 is at 8.6% and *could* be nudged the bunting way. The other 38
+cannot. I have not touched that one, because fixing 1 of 39 buys nothing and
+leaves a second undocumented workaround in the file.
