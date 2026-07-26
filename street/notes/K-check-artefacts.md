@@ -42,11 +42,20 @@ exit=0 server=200 · exit=0 server=200 · exit=0 server=200 · exit=0 server=200
 with `spawnSync`, so the suite is not putting concurrent load on the server
 either.
 
-My preview *did* die three times tonight, and each death was **silent** — the
+My preview *did* die **four** times tonight, and each death was **silent** — the
 log ends at the startup banner, no crash, no stack, nothing in `dmesg` about
-OOM, and 32 GB free at the time. So it exits rather than crashing. **I would not
-go looking in the checks for it**; on my evidence the cause is outside them, and
-the row's two halves are probably two different problems.
+OOM, and 32 GB free at the time. So it exits rather than crashing.
+
+**And the fourth one settles it: it died with no check running at all.** It was
+alive at the end of one command, and `000` at the start of the next, with
+nothing in between but a `npm run build`. Then a fresh preview ran all eight of
+my checks back to back without a flicker.
+
+So: **the checks are not killing it.** On this evidence the row's two halves are
+two different problems, and looking for the cause inside the suite will cost
+somebody a session. The pattern that fits what I saw is a process being reaped
+between shell invocations rather than anything the suite does — which is an
+environment question, not a project one.
 
 ## 3–5. The artefact classes I found in my own checks, all one root
 
