@@ -55,7 +55,7 @@ and ask F through the desk for what they do not do.
 ### The six that were unowned — ASSIGNED BY THE DESK, 2026-07-25
 
 ```
-src/proto/ct/lot.ts         = C    # editing it all week; every task routes there
+src/proto/ct/lot.ts         = I    # split off C 2026-07-25 — C was carrying 17 live rows
 src/proto/ct/gap.ts         = H    # asked for it; needs it for the alley keep-clear
 src/proto/ct/crowd-net.ts   = H    # already calls it "mine" in its own blocker
 src/proto/ct/traffic.ts     = H
