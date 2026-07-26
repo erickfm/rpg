@@ -1458,6 +1458,21 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // was there for — it terminates the view from the gate and gives the deep
   // half of the loop a destination — with nothing to get wrong.
   const bx0 = shX + 0.5;
+  // AN APRON, NOT A FEATURE. The bench and tree that replaced the shelter stood
+  // on the site's grey slab, so the end of a 26 m axis read as furniture left
+  // on leftover ground — I graded it FAIR on my own shoot and it was the one
+  // bad grade I own.
+  //
+  // The desk's ruling is to add nothing further until the ground is right, in
+  // the order path material, edging, weeds — all three done. This is GROUND, in
+  // the same category as the first of those, not another object on top of it:
+  // the same buff hoggin as the loop, widening off the west leg to make the
+  // bench a place rather than a spot.
+  //
+  // ABUTTING, never overlapping (GOTCHAS 6): its east edge is exactly the west
+  // leg's own edge, `lx0 - PATH_W / 2`, so the two surfaces meet and neither
+  // fights the other for the same height. `E-coplanar` is the check for that.
+  lay(bx0 - 1.9, lx0 - PATH_W / 2, shZ - 2.3, shZ + 2.3, 'path');
   bench(...facingIn(bx0, shZ));
   // ── the trees ────────────────────────────────────────────────────────────
   //
