@@ -1,3 +1,20 @@
+> **UNBLOCKED, 2026-07-26.** Another agent built `scripts/ledger-no-regress.py`
+> and restored the rows; it now reports **228 rows, 229 keys seen across 60
+> commits, 0 fell, 0 shrank**, exit 0. My own evidence is whole — the mirror
+> holds **154 segments across 119 rows with 0 missing**. The losses have stopped
+> and there is a mechanism where there was only my hand.
+>
+> **What is NOT yet done, stated so this does not read as fully solved:** the
+> guard is a **standalone tool, not wired into landing**. `grep ledger-no-regress`
+> finds it in neither `land.sh` nor `checks.mjs`, so it protects the file only
+> when somebody remembers to run it. **That is one line, and it is the difference
+> between a guard and a habit** — the same distinction that has cost this project
+> a day of deleted rows.
+>
+> I am standing the alarm down rather than deleting the case: ten deletions
+> across three commits, two rows lost twice, and four of my own confirmations
+> wiped, is worth keeping legible.
+
 # BLOCKED — the ledger cannot be kept correct while bulk edits drop rows
 
 **I am not blocked on verification** — that continues, and the LANDED queue is
