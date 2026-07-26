@@ -5,6 +5,7 @@ import { pixTex, dither, declareSurface } from './paint';
 import { frontageOf, frontageWorld, alongU } from './tex-world';
 import { doorWorldFor, doorStandFor, doorPointFor, roomWidthFor, doorLeafFor } from './doors';
 import { citizenSprite, type Look } from './citizens';
+import { clockFace } from './clockface';
 import { FACE } from './rng';
 
 // ── the interior kit ──────────────────────────────────────────────────────
@@ -1294,56 +1295,18 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
     },
     clock: (o) => {
-      const R = o.r ?? 0.22, rotY = o.rotY ?? 0;
-      const faceC = o.face ?? 0xe8e4d8, rimC = o.rim ?? 0x3a3630, handC = o.hands ?? 0x22201c;
-      const g = new THREE.Group();
-      g.rotation.y = rotY;
-      // rim, then face a hair in front of it so neither z-fights
-      const rim = new THREE.Mesh(new THREE.CircleGeometry(R, 20),
-        new THREE.MeshBasicMaterial({ color: rimC }));
-      g.add(rim);
-      const face = new THREE.Mesh(new THREE.CircleGeometry(R * 0.88, 20),
-        new THREE.MeshBasicMaterial({ color: faceC }));
-      face.position.z = 0.004;
-      g.add(face);
-      // the twelve hours, long at 12/3/6/9 the way a real dial marks them
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        const quarter = i % 3 === 0;
-        const tick = new THREE.Mesh(
-          new THREE.PlaneGeometry(quarter ? 0.022 : 0.012, quarter ? R * 0.20 : R * 0.12),
-          new THREE.MeshBasicMaterial({ color: rimC }));
-        const rr = R * 0.88 - (quarter ? R * 0.11 : R * 0.07);
-        tick.position.set(Math.sin(a) * rr, Math.cos(a) * rr, 0.006);
-        tick.rotation.z = -a;
-        g.add(tick);
-      }
-      // Hands pivot at one END, so the geometry is pushed up by half its length
-      // before any rotation. A hand rotated about its centre sweeps from the
-      // middle of the dial and reads as a propeller.
-      const hand = (len: number, wdt: number, z: number) => {
-        const geo = new THREE.PlaneGeometry(wdt, len);
-        geo.translate(0, len / 2, 0);
-        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: handC }));
-        m.position.z = z;
-        g.add(m);
-        return m;
-      };
-      const hourH = hand(R * 0.52, 0.020, 0.008);
-      const minH = hand(R * 0.78, 0.013, 0.010);
-      const cap = new THREE.Mesh(new THREE.CircleGeometry(R * 0.06, 8),
-        new THREE.MeshBasicMaterial({ color: rimC }));
-      cap.position.z = 0.012;
-      g.add(cap);
-      place(g, o.lx, o.y, o.lz);
-      // READ hourF EVERY FRAME. No caching and no interpolation of our own:
-      // that is what makes a time JUMP (sleep, a wristwatch set) carry the
-      // hands with it for free. Angles run clockwise, hence the minus.
-      ctx.onFrame((f) => {
-        const h = f.hourF;
-        minH.rotation.z = -((h % 1) * Math.PI * 2);
-        hourH.rotation.z = -(((h % 12) / 12) * Math.PI * 2);
-      }, HOOK.LATE);
+      // A THIN WRAPPER over ct/clockface.ts, which is where the dial and the
+      // hand-driving now live. They moved out because a FACADE clock cannot
+      // call a room primitive — the church tower carries the most visible
+      // clock in the game and it is not inside any buildRoom. One mechanism
+      // for the world, the same argument as the floor picker and the door
+      // descriptor.
+      const cf = clockFace({ r: o.r, face: o.face, rim: o.rim, hands: o.hands });
+      cf.group.rotation.y = o.rotY ?? 0;
+      place(cf.group, o.lx, o.y, o.lz);
+      // LATE, and reading hourF every frame with no cache, so a time jump
+      // (C's sleep) carries the hands with it for free.
+      ctx.onFrame((f) => cf.update(f.hourF), HOOK.LATE);
     },
     sign: (map, w, h, lx, y, lz, rotY = 0) => {
       for (const flip of [0, Math.PI]) {
