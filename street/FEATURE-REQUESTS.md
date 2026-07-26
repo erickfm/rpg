@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-53-27.png' top right part of window frame has graphics glitchy ness"** → **C**
 - **"the street's 27 untextured flat-colour ground surfaces (the STREET half of the flat-colour fix)"** → **D**
 - **"the driveway apron reads as a large flat untextured grey plane (the LOT half of the flat-colour fix)"** → **I**
 - **"what is this shadow geometry here? / park paths read as road, not park path (the CIVIC + PARK half of the flat-colour fix)"** → **E**
