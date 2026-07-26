@@ -13,6 +13,13 @@ investigation and becomes one command.
     python3 scripts/audit-mirror.py save      # after any verification pass
     python3 scripts/audit-mirror.py restore   # merge missing segments back
     python3 scripts/audit-mirror.py check     # what is in the mirror and not the ledger
+    python3 scripts/audit-mirror.py cells     # WHOLE evidence cells that have shrunk
+
+The `cells` mode exists because I protected my own work and not the work I
+verify. L's blackjack evidence was emptied from 3,305 characters to one, and my
+mirror could not help: it carried only '- **AUDITOR' segments, so a BUILDER's
+cell was outside its cover. A row that survives with its evidence gone is a loss
+the row-count guards cannot see.
 
 It never writes a STATUS. A verdict is a judgement and only a person restores it;
 this carries the evidence the judgement rested on. Losing that is what makes a
@@ -67,7 +74,49 @@ def read_mirror():
             out[cur].append(l)
     return {k: v for k, v in out.items() if v}
 
+CELLS = 'notes/audit-cells.tsv'
+
+def read_cells():
+    out = {}
+    try:
+        for l in open(CELLS):
+            parts = l.rstrip('\n').split('\t')
+            if len(parts) == 4:
+                out[(parts[0], parts[1])] = (int(parts[2]), parts[3])
+    except FileNotFoundError:
+        pass
+    return out
+
+def ledger_cells():
+    out = {}
+    for l in open(LEDGER).read().split('\n'):
+        if not l.startswith('| '):
+            continue
+        k = key(l)
+        f = l.split('|')
+        if k and len(f) > 4:
+            out[k] = f[4].strip()
+    return out
+
 mode = sys.argv[1] if len(sys.argv) > 1 else 'check'
+
+if mode == 'cells':
+    prev, now = read_cells(), ledger_cells()
+    merged, shrunk = dict(prev), []
+    for k, cell in now.items():
+        was = prev.get(k, (0, ''))[0]
+        if len(cell) < was * 0.4 and was > 200:
+            shrunk.append((k, was, len(cell)))
+        if len(cell) >= was:
+            merged[k] = (len(cell), cell.replace('\t', ' '))
+    with open(CELLS, 'w') as f:
+        for k, (n, cell) in sorted(merged.items()):
+            f.write(f'{k[0]}\t{k[1]}\t{n}\t{cell}\n')
+    print(f'snapshot of {len(merged)} evidence cell(s) -> {CELLS}')
+    print(f'cells that SHRANK by more than 60%: {len(shrunk)}')
+    for k, was, isnow in shrunk:
+        print(f'   [{k[0]}] {k[1][:46]} — was {was}, now {isnow}')
+    sys.exit(1 if shrunk else 0)
 led, mir = read_ledger(), read_mirror()
 
 if mode == 'save':
