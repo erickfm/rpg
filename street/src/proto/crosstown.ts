@@ -23,6 +23,7 @@ import { buildStreet } from './ct/street';
 import { buildWorld, worldRegistrants } from './ct/world';
 import { COURT } from './ct/civic';
 import { buildCrowd, type Crowd } from './ct/crowd';
+import { pickSpot, SpotOutline } from './fp';
 import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, type Spot, type PlayerRef, type Frame, type FrameHook } from './ct/ctx';
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
@@ -107,6 +108,7 @@ export function makeCrosstown(): Proto {
   // Moved, not changed — same declarations, same values, three lines earlier.
   // (D, for the ATM interaction; flagged, as with the purse field itself.)
   const SPOTS: Spot[] = [];
+  const spotOutline = new SpotOutline();
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
@@ -776,14 +778,22 @@ export function makeCrosstown(): Proto {
       // do; all but three are a seat and its own "stand up", which are
       // mutually exclusive through ok()). Kept as an assertion in
       // scripts/seats-walk.mjs: stand ON a seat, and that is the seat offered.
-      let active: Spot | null = null;
-      let best = Infinity;
-      for (const s of SPOTS) {
-        if (!s.ok()) continue;
-        const d = Math.hypot(px - s.x, pz - s.z);
-        if (d < s.r && d < best) { active = s; best = d; }
-      }
+      // SELECTION BY LOOKING as well as by standing, with an outline so you can
+      // see WHICH thing you have. *"the door for instance to my apt should be
+      // easy to open and close when looking at or by the door frame or the door
+      // itself."*
+      //
+      // The rule this replaces was proximity only, nearest-in-metres wins, so a
+      // spot was reachable from inside one small circle and never because you
+      // faced it. Measured at the No. 227 door: r 1.05, and standing at the
+      // frame is 1.15 m away — outside it. That is the "one magic square".
+      //
+      // Prompt and outline both read the same `picked`, so the thing framed is
+      // always the thing that fires.
+      const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch });
+      const active: Spot | null = picked ? picked.spot : null;
       hud.prompt(active ? `[E] ${active.label()}` : null);
+      spotOutline.show(scene, active);
       // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {

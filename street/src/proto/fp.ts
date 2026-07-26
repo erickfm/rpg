@@ -416,6 +416,14 @@ export interface PickView { x: number; z: number; yaw: number; pitch: number }
 /** Angular half-width, in radians, that counts as "looking at" a spot of
  *  radius `r` seen from `d` metres. Measured rather than guessed: at the
  *  apartment door (r 1.2) this gives 31° at 2 m and 11° at 6 m. */
+/** How far OUTSIDE its own registered radius a spot still counts as "standing
+ *  at it". MEASURED, not chosen: the tightest case a player must reach is the
+ *  No. 227 entry at r 1.05, and the door frame stands 1.15 m from it because the
+ *  facade cushion pushes you off the wall — so anything under 0.10 fails the
+ *  user's own example. 0.60 clears it and is still under half the sacred 2 m
+ *  walk, so it cannot make two spots across a pavement both live. */
+export const REACH_MARGIN = 0.6;
+
 export function lookTolerance(r: number, d: number): number {
   const raw = Math.atan2(r, Math.max(0.35, d));
   return Math.min(0.62, Math.max(0.20, raw));      // ~11.5° … ~35.5°
@@ -440,7 +448,11 @@ export function pickSpot<T extends Pickable>(
     if (!s.ok()) continue;
     const dx = s.x - view.x, dz = s.z - view.z;
     const d = Math.hypot(dx, dz);
-    const near = d < s.r;
+    // Wider than the registered radius: *"easier in general. Widen the
+    // volumes."* Every radius in the world was sized when proximity was the
+    // only way in, so each is really "the circle I must stand in", and they are
+    // tight enough that the No. 227 door could not be reached from its frame.
+    const near = d < s.r + REACH_MARGIN;
     // angle between where you face and where the spot is, on the ground plane
     const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
     const looked = d < reach && offAxis < lookTolerance(s.r, d);
@@ -462,8 +474,103 @@ export function pickSpot<T extends Pickable>(
     // So proximity keeps exactly its old semantics among near candidates —
     // nearest in metres wins — and looking only decides things when nothing is
     // near, where "nearest the centre of the screen" is the whole point.
-    const key = near ? d : 10 + offAxis;
+    // SCREEN CENTRE DECIDES, distance only breaks ties — the ask exactly. This
+    // survives seats-walk's standing assertion (stand ON a seat, get THAT seat)
+    // because a spot you are standing on has offAxis 0 by construction.
+    const key = offAxis + d * 0.02;
     if (key < bestKey) { bestKey = key; best = { spot: s, looked, offAxis, dist: d }; }
   }
   return best;
+}
+
+/**
+ * The selection outline — a silhouette AROUND the selected object.
+ *
+ * *"this outline is not around the object, i wanted to be around the object."*
+ * The first attempt was a screen-space rectangle and it read as a UI crop
+ * marker: axis-aligned, not even tightly bounding the bed, its top edge over the
+ * calendar and its bottom out on the floorboards, enclosing a slab of wall.
+ *
+ * EDGE LINES rather than an inverted hull. This world is blocky and unlit, so
+ * `EdgesGeometry` draws the object's own hard edges — which IS its shape here —
+ * and `LineBasicMaterial` is 1 px on every platform, so the outline is constant
+ * width on screen by construction rather than by correcting for distance, which
+ * is the inverted hull's whole difficulty.
+ *
+ * `depthTest: false` with a high `renderOrder` so it cannot z-fight the surface
+ * it traces. A line coplanar with its own face is exactly the shimmer this world
+ * gets whenever two coplanar faces meet (GOTCHAS §6).
+ */
+export class SpotOutline {
+  private lines: THREE.LineSegments[] = [];
+  private cache = new Map<object, THREE.Mesh | null>();
+  private shown: object | null = null;
+
+  /** Which mesh IS this spot? Resolved once per spot and remembered — the
+   *  traversal is far too expensive to run per frame.
+   *
+   *  Automatic on purpose: `ctx.spot` exists so a module describes its own
+   *  furniture, and a highlight each owner must opt into per prop stays
+   *  half-adopted and leaves the user finding dead objects.
+   *
+   *  "The LARGEST plausible thing standing at the spot": within the spot's own
+   *  reach, tall enough to be an object rather than a decal, short enough not to
+   *  be a wall or a shell. Largest is the correction — smallest-volume was the
+   *  first rule and it outlined SUB-PARTS, measured: the bodega door's JAMB
+   *  (0.07 × 2.35 × 0.12) instead of the leaf, and a bench LEG instead of the
+   *  bench. Inside any prop the smallest box is always a fitting. */
+  private resolve(scene: THREE.Object3D, spot: Pickable & object): THREE.Mesh | null {
+    if (this.cache.has(spot)) return this.cache.get(spot)!;
+    let bestMesh: THREE.Mesh | null = null, bestVol = -1;
+    const bb = new THREE.Box3();
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || !m.geometry) return;
+      bb.setFromObject(m);
+      if (!Number.isFinite(bb.min.x)) return;
+      const h = bb.max.y - bb.min.y;
+      if (h < 0.18 || h > 3.0) return;
+      const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+      if (Math.hypot(cx - spot.x, cz - spot.z) > spot.r + REACH_MARGIN) return;
+      const vol = (bb.max.x - bb.min.x) * h * (bb.max.z - bb.min.z);
+      if (vol < 0.004) return;                          // slivers and trim
+      // CAP THE SPAN, not just the volume. Measured: the No. 227 entry resolved
+      // to something 0.30 × 0.62 × 18.0 — a sill or kerb running the whole
+      // frontage — because a long thin strip passes a volume test comfortably.
+      // Outlining an 18 m strip when the prompt says "enter No. 227" is exactly
+      // the disagreement between prompt and highlight that is worse than having
+      // no highlight at all. Nothing you select is more than a few metres across.
+      const span = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
+      if (span > 3.0) return;
+      if (vol > bestVol) { bestVol = vol; bestMesh = m; }
+    });
+    this.cache.set(spot, bestMesh);
+    return bestMesh;
+  }
+
+  private clear(scene: THREE.Object3D): void {
+    for (const l of this.lines) { scene.remove(l); l.geometry.dispose(); }
+    this.lines.length = 0;
+    this.shown = null;
+  }
+
+  /** Outline `spot`'s object, or clear when it is null. */
+  show(scene: THREE.Object3D, spot: (Pickable & object) | null): void {
+    if (!spot) { if (this.shown) this.clear(scene); return; }
+    if (spot === this.shown) return;                   // already drawn, do nothing
+    this.clear(scene);
+    const mesh = this.resolve(scene, spot);
+    if (!mesh) return;
+    const eg = new THREE.EdgesGeometry(mesh.geometry, 25);
+    const ln = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+      color: 0xfff3c4, depthTest: false, transparent: true, opacity: 0.95,
+    }));
+    ln.renderOrder = 999;
+    mesh.updateWorldMatrix(true, false);
+    ln.matrixAutoUpdate = false;
+    ln.matrix.copy(mesh.matrixWorld);
+    scene.add(ln);
+    this.lines.push(ln);
+    this.shown = spot;
+  }
 }
