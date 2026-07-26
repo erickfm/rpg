@@ -135,6 +135,18 @@ published to the playable artifact.
   designated way to check anything against the BUILT BUNDLE rather than dev, and
   `notes/BLOCKED-C.md` §0 records a whole week of dev-only claims that did not
   describe what ships. Right now nobody can run that tier at all.
+
+  **The patch, and it is TESTED — not a suggestion.** Strip ANSI before matching.
+  Line 119 becomes:
+
+  ```sh
+  PORT="$(sed -E $'s/\033\\[[0-9;]*m//g' "$SRVLOG" | sed -nE 's#.*Local:.*http://[^:]+:([0-9]+)/.*#\1#p' | head -1)"
+  ```
+
+  C ran that against a copy end to end — it pins the tree, builds it, serves it,
+  reads the port and completes `door301` against the pinned build, all seven
+  clauses green. C did not apply it: `scripts/**` says do not edit another
+  agent's script, and this is H's. It is one line whenever H wants it.
 - **`props.ts` `isSelfLit` holds ~40 printed sheets and one citizen at full daylight after dark, and classifies inconsistently** → **B**
   Filed by C with measurements; `props.ts` is B's. Two faces of one detector.
   **(a) Printed signage.** 39 sheets in the lot are held bright and are not
