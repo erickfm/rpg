@@ -1,1 +1,1 @@
-BLOCKED | queue empty, BLOCKED-F filed, ready to compact; logged the repo gc warning without actioning it | desk (/compact)
+DONE | ready to compact; carry-forward says port 4183 but my port is 4185 (4183 serves nothing) | user (/compact)
