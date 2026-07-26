@@ -736,7 +736,37 @@ for (room of rooms) {
   } else if (room.keeper === null) {
     check('is declared unstaffed', true, 'keeper: null — no facing check, by declaration');
   } else {
-    const [kvx, kvz] = room.keeper;
+    // PREFER A STATION THE WORLD PUBLISHES OVER ONE I TYPED.
+    //
+    // The bodega's authored station was [3.90, 1.60] — the wall side, where no
+    // customer can stand. It was consistent with the keeper standing on the
+    // wrong side of his own counter, so the check and the room agreed with
+    // each other and both disagreed with the player. It passed for weeks while
+    // the user kept filing the fault.
+    //
+    // A station I authored, checked against a keeper I authored, in a room I
+    // authored, agrees with itself whatever the player sees. That is not a
+    // test, it is a mirror. So: if the room publishes a spot where a customer
+    // is SERVED, stand there instead — the game raises that prompt, so it
+    // cannot be wrong about where a customer can be. The authored pair stays
+    // as the fallback for rooms that publish nothing, and the run says which
+    // source it used so the weak ones are visible rather than silent.
+    let [kvx, kvz] = room.keeper;
+    let src = 'authored';
+    const served = await p.evaluate(([rcx]) => {
+      const near = window.__ct.spots()
+        .filter((q) => q.x > 400 && Math.abs(q.x - rcx) < 40
+          && /buy|order|serve|till|counter/i.test(q.label || ''));
+      if (!near.length) return null;
+      return [near[0].x, near[0].z, near[0].label];
+    }, [cx]);
+    if (served) { kvx = served[0] - cx; kvz = served[1]; src = `published: ${served[2]}`; }
+    check(`the customer station comes from the world, not from memory`,
+      src !== 'authored',
+      src === 'authored'
+        ? 'no served-spot published in this room — falling back to the AUTHORED pair, '
+          + 'which cannot falsify a keeper authored in the same file (see F-keeper-stations-audit.md)'
+        : src);
     await warp(cx + kvx, kvz, 0, 0);
     await p.waitForTimeout(150);
     // the sprite picks its column from where the CAMERA is, so it needs frames
