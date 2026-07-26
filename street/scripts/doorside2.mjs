@@ -2,8 +2,20 @@
 //
 //   OUTSIDE: __ct.doors() gives the declared facade door point.
 //            Offset = door − centre of that building's frontage (__frontages).
-//   INSIDE:  the room's "out to the street" spot sits in the interior doorway.
-//            Offset = spot − centre of the room's own floor extent.
+//   INSIDE:  the ROOM'S OWN DECLARED DOOR, read from `__ct.roomDims()`, which
+//            publishes `door: {x, z, nx, nz}` in room-local coordinates — so
+//            `door.x` IS the signed offset from the room's centre, with no
+//            arithmetic and no guessing at where the floor slab starts.
+//
+//            It used to measure the "out to the street" SPOT against a floor
+//            extent recovered by scanning for flat meshes. Both halves were
+//            wrong: the spot is placed for standing room, not on the door
+//            centreline, and the scan picked whichever flat mesh was lowest.
+//            The result was `insideOffset = 0` for five of eight rooms and a
+//            verdict of "centred — undecidable" for all five, so the check
+//            reported nothing wrong about rooms whose doors are plainly
+//            off-centre — the diner declares `at: -2.6` and the thrift -2.2.
+//            GOTCHAS 34: a check can pass because it found nothing to check.
 //
 // A room and its facade are two faces of one wall, so these must have OPPOSITE
 // signs. Same sign = the door is on the same hand from both sides, which is the
@@ -34,17 +46,19 @@ const out = await p.evaluate(() => {
     const cur = floors[slab];
     if (!cur || bb.min.y < cur.y) floors[slab] = { y:bb.min.y, x0:bb.min.x, x1:bb.max.x, z0:bb.min.z, z1:bb.max.z };
   });
-  const ways = window.__ct.spots().filter(sp => /out to the street/i.test(sp.label||'') && sp.x > 400);
+  const dims = window.__ct.roomDims ? window.__ct.roomDims() : [];
   const doors = window.__ct.doors ? window.__ct.doors() : [];
   const fronts = globalThis.__frontages || [];
   const res = [];
-  for (let slab=0; slab<8; slab++) {
-    const f = floors[slab]; if (!f) continue;
-    const w = ways.filter(q => Math.floor((q.x-400)/80) === slab)[0];
-    if (!w) { res.push({ room:ROOMS[slab], note:'no way-out spot' }); continue; }
-    const roomCentreX = (f.x0+f.x1)/2;
-    const insideOffset = +(w.x - roomCentreX).toFixed(2);       // along the room's width
-    res.push({ room:ROOMS[slab], insideOffset, roomW:+(f.x1-f.x0).toFixed(1), wayOut:[+w.x.toFixed(2),+w.z.toFixed(2)] });
+  // EVERY room the world publishes, not the first eight slabs. The bound was
+  // `slab < 8` against a hard-coded list of eight names, and the world has ten
+  // rooms now — so tax and thrift fell off the end and the check quietly
+  // stopped covering the two rooms this item is actually about. GOTCHAS 34.
+  for (const rd of dims) {
+    if (!rd.door) { res.push({ room:rd.id, note:'room publishes no door' }); continue; }
+    const insideOffset = +rd.door.x.toFixed(2);   // already local: signed from room centre
+    res.push({ room:rd.id, insideOffset, roomW:+rd.w.toFixed(1),
+               doorAt:[+rd.door.x.toFixed(2), +rd.door.z.toFixed(2)] });
   }
   return { res, doors: doors.map(d=>({ b:d.building, x:+d.point.x.toFixed(2), z:+d.point.z.toFixed(2) })),
            fronts: fronts.map(f=>({ name:f.name, axis:f.axis, c:+((f.loWorld+f.hiWorld)/2).toFixed(2),
