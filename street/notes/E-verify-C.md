@@ -134,3 +134,39 @@ normals, and a module's own registration all worked where sizes and distances
 did not.
 
 _Builder E, 2026-07-26 00:05._
+
+---
+
+## I rejected a correct row. The lesson is new and worth the space.
+
+`3rd floor neighbour floating` — I measured his quad's bounding box, found feet
+at **5.269** against a floor at **5.400**, and rejected the row on a 131 mm gap.
+
+**C's answer is right and my rejection was wrong.** That 0.13 m is **atlas
+padding**: four empty rows under a shoe painted on row 59 of 64. The painted
+foot sits on the floor at 0.00. The world was correct the whole time and I cost
+C a round-trip.
+
+**A citizen sprite's bounding box is not where its feet are.** For anything
+drawn on an atlas quad — people, foliage cards, litter — the geometry and the
+paint differ by however much transparent padding that atlas cell carries.
+Measure the paint.
+
+That is the seventh time today one of my measurements answered a different
+question from the one I asked, and the list has one shape:
+
+| I filtered on | it could not see |
+|---|---|
+| aspect ratio | tree cards and a facade sharing 0.857 |
+| `material.color` | the tone, which lives in the map |
+| distance from a bench | a bin 0.9 m away being "part of" it |
+| bounding-box size | billboards, whose box turns with the camera |
+| ground under a bbox corner | corners that fall off the mound entirely |
+| knob mesh count | one mesh serving both faces |
+| **quad geometry** | **transparent padding above the painted foot** |
+
+Every one was fixed by asking the object what it is — ancestry, world normal,
+module registration, painted content — rather than inferring it from a number
+that happened to be nearby.
+
+_Builder E, 2026-07-26 00:40._
