@@ -111,6 +111,9 @@ const shots = [
   ['e-the-desk', -1.0, 8.0, 0.45, 0],               // toward the circulation desk
   ['f-the-librarian-served', -3.5, 7.4, 0, 0],      // face to face across the counter
   ['f2-the-librarian-behind', -3.5, 2.6, Math.PI, 0], // …and from the reading room
+  ['h-the-computers', 0.5, 8.2, 0.30, 0.05],        // the OPAC bank, from the doors
+  ['i-the-computers-close', 2.2, 4.0, Math.PI / 2, 0.02],
+  ['j-the-desk-from-the-side', 1.0, 5.0, -Math.PI / 2, 0],
   ['g-the-hall-wide', 6.0, 6.0, 0.6, 0],            // the stair and gallery
 ];
 for (const [name, lx, lz, yaw, pitch] of shots) {

@@ -568,15 +568,66 @@ export function buildLibrary(ctx: CtxBuild): void {
   // to stay on the wall it serves, so the DESK moves and the effect is the same
   // — the east half of the room is now clear from the arch to the bottom tread.
   //
-  // It still faces the door and is still the first thing you meet coming out of
-  // the vestibule, which is all a circulation desk has to be.
+  // It still faces the door and is still the first thing you meet coming in,
+  // which is all a circulation desk has to be.
+  //
+  // ── AND IT HAS A BACK NOW, 2026-07-25 ──
+  //
+  // *"librarian orientation is so bad"*
+  // (`Screenshot from 2026-07-25 22-04-43.png`, taken from the reading room).
+  //
+  // She was NOT facing the wrong way and she was NOT on the wrong side: her
+  // facing is derived from the desk (GOTCHAS §33) and the staff side is the
+  // one away from the door, both correct. The fault is that the desk was a
+  // single 2.9 x 0.72 counter with nothing behind it, so "behind the desk" is
+  // a fact about z that the picture cannot carry. From the door she reads
+  // right; from the reading room — where the player spends the whole visit and
+  // where that screenshot was taken — you see a figure standing on open floor
+  // with a counter in front of her and her back to you, which is exactly what
+  // "standing in front of the desk" looks like.
+  //
+  // GOTCHAS §41 again, and it is the third time in this one file: a thing was
+  // verified from ONE side. So the repair is not to move her, it is to give
+  // the room the information — the desk becomes a U with a staff pocket, and
+  // she stands INSIDE it. From the door: behind her counter. From the reading
+  // room: behind her back worktop. There is now no angle from which she is
+  // standing in the open.
   const DESK_X = -(W / 2 - 6.5), DESK_Z = D / 2 - 5.8;
-  box(2.9, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
-  box(3.0, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);                 // the worn top
-  box(0.5, 0.16, 0.34, woodDark, DESK_X - 0.9, 1.20, DESK_Z);           // date stamp block
-  box(0.34, 0.10, 0.26, metal, DESK_X + 0.6, 1.17, DESK_Z);             // a wire tray
-  box(0.30, 0.08, 0.24, metal, DESK_X + 0.6, 1.27, DESK_Z);
-  solid(DESK_X, DESK_Z, 3.0, 0.9);
+  const DESK_W = 3.2, RETURN_D = 2.0;             // the pocket, front face to back
+  const BACK_Z = DESK_Z - RETURN_D;
+  // the front counter, facing the door
+  box(DESK_W, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
+  box(DESK_W + 0.1, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);        // the worn top
+  box(0.5, 0.16, 0.34, woodDark, DESK_X - 1.05, 1.20, DESK_Z);          // date stamp block
+  box(0.34, 0.10, 0.26, metal, DESK_X + 0.75, 1.17, DESK_Z);            // a wire tray
+  box(0.30, 0.08, 0.24, metal, DESK_X + 0.75, 1.27, DESK_Z);
+  // THE RETURNS, and there are two of them with a gap between.
+  //
+  // The west one runs the full depth; the east one is a 0.8 m stub off the
+  // counter, leaving a 0.9 m staff gap at the back-east corner. One return was
+  // not enough: viewed from the east the pocket was open the whole way through
+  // and she stood in the gap with her legs in full view, which is the same
+  // "standing in the open" reading the user reported, surviving on the one
+  // side I had not looked from. GOTCHAS §41 — check EACH side independently.
+  // A stub reads as the counter turning its corner; a full second return would
+  // make it a kiosk with the staff sealed in.
+  {
+    const halfW = DESK_W / 2;
+    const zMidW = (DESK_Z + BACK_Z) / 2 - 0.36;
+    box(0.60, 1.06, RETURN_D - 0.72, wood, DESK_X - halfW + 0.30, 0.53, zMidW);
+    box(0.70, 0.06, RETURN_D - 0.62, woodDark, DESK_X - halfW + 0.30, 1.09, zMidW);
+    const STUB = 0.80, zMidE = DESK_Z - 0.36 - STUB / 2;
+    box(0.60, 1.06, STUB, wood, DESK_X + halfW - 0.30, 0.53, zMidE);
+    box(0.70, 0.06, STUB + 0.10, woodDark, DESK_X + halfW - 0.30, 1.09, zMidE);
+  }
+  // the back worktop — lower than the counter, because it is a work surface and
+  // not a barrier, and because the librarian has to read over it
+  box(DESK_W, 0.74, 0.60, wood, DESK_X, 0.37, BACK_Z);
+  box(DESK_W + 0.1, 0.05, 0.70, woodDark, DESK_X, 0.765, BACK_Z);
+  // ONE COLLIDER OVER THE WHOLE U, so the pocket is staff-only by geometry
+  // rather than by hoping nobody walks in. 3.3 x 2.7 out of a 440 m2 room; the
+  // aisle measurement after this change is in the commit message.
+  solid(DESK_X, (DESK_Z + BACK_Z) / 2 + 0.06, DESK_W + 0.1, RETURN_D + 0.75);
 
   // ── THE CARD CATALOGUE ───────────────────────────────────────────────────
   //
@@ -642,9 +693,15 @@ export function buildLibrary(ctx: CtxBuild): void {
   // Behind the desk, facing the door. Drawn from the 8-angle citizen atlas
   // rather than as a flat plane — the kit exists because the diner's waitress
   // was cardboard from every angle but dead ahead.
-  const STAFF_OFF = 0.75;
-  const LIB_Z = DESK_Z - STAFF_OFF;          // behind the desk, away from the door
-  const VISITOR_Z = DESK_Z + STAFF_OFF;      // where you stand to be served
+  //
+  // IN THE POCKET, not merely on the staff side of a line. She stands midway
+  // between the counter she serves over and the worktop she works at, which is
+  // the one position where every camera in the room has a piece of furniture
+  // between her and it. Derived from the desk's own two faces, so moving the
+  // desk moves her and moving her is impossible without moving the desk.
+  const STAFF_OFF = RETURN_D / 2;
+  const LIB_Z = DESK_Z - STAFF_OFF;          // between counter and back worktop
+  const VISITOR_Z = DESK_Z + 0.75;           // where you stand to be served
   room.person({
     jacket: '#5a6470', pants: '#3f4450', skin: '#c9a184', hair: '#6b5236',
     fit: 'plain', cut: 'short', build: 0,
@@ -664,6 +721,143 @@ export function buildLibrary(ctx: CtxBuild): void {
   // that would have caught every one of them — derive facing from what the
   // object faces, never as a constant.
   }, DESK_X, LIB_Z, { facing: Math.atan2(0, VISITOR_Z - LIB_Z), h: 0.97, w: 0.95 });
+
+  // ── THE COMPUTERS ────────────────────────────────────────────────────────
+  //
+  // *"also i want computers in the library"*, same message as the librarian.
+  //
+  // 1997 is exactly the year for this and the room already had the other half
+  // of the joke written into it: the header of this file says the card
+  // catalogue is here because "in 1997 a branch this size had a terminal ON
+  // ORDER and a hardwood cabinet of 60 drawers still carrying the collection."
+  // The terminals have arrived. The catalogue stays — a branch that has just
+  // been given four PCs does not throw out sixty drawers of cards the same
+  // week, it puts the machines in the middle of the floor and leaves the
+  // cabinet where it is, and the two standing in one room IS the year.
+  //
+  // Beige boxes, CRTs, mechanical keyboards, and a text OPAC: pale characters
+  // on blue, which is what a 1997 branch catalogue actually looked like.
+  const BEIGE = 0xd8d0bc, BEIGE_D = 0xb8b0a0;
+  const beigeM = new THREE.MeshBasicMaterial({ color: BEIGE });
+  const beigeDM = new THREE.MeshBasicMaterial({ color: BEIGE_D });
+  // its own stream, appended rather than woven in: this file's `rnd` already
+  // paints the noticeboard and the floor wear further down, and drawing from it
+  // here would repaint both (GOTCHAS §2, the same argument one scope in).
+  const crnd = (() => { let s = 0x6d15c3; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); })();
+  // 20 x 16 texels over a 0.30 x 0.24 m screen — 67 px/m, where this room's
+  // walls are at 8 and its book spines at 32. Justified the same way the
+  // spines are: a CRT is read from a chair 0.6 m away, and it is the one
+  // object in the world that genuinely IS a fine pixel grid. Below ~60 px/m a
+  // line of text is a single texel and the screen reads as a blue rectangle.
+  const screenTex = (dead: boolean) => declareSurface(pixTex(20, 16, (g) => {
+    if (dead) {                                        // one of them is off
+      g.fillStyle = '#2a2c30'; g.fillRect(0, 0, 20, 16);
+      g.fillStyle = 'rgba(255,255,255,0.05)';          // the room, reflected
+      g.fillRect(2, 2, 16, 5);
+      return;
+    }
+    g.fillStyle = '#16224a'; g.fillRect(0, 0, 20, 16);
+    g.fillStyle = '#c8d4e8'; g.fillRect(1, 1, 18, 1);  // the title bar
+    g.fillStyle = '#16224a'; g.fillRect(3, 1, 2, 1); g.fillRect(9, 1, 3, 1);
+    for (let i = 0; i < 5; i++) {                      // lines of the catalogue
+      const y = 4 + i * 2;
+      g.fillStyle = '#a8b8d8';
+      g.fillRect(2, y, 3 + Math.floor(crnd() * 4), 1);
+      g.fillStyle = '#8898b8';
+      g.fillRect(9, y, 4 + Math.floor(crnd() * 8), 1);
+    }
+    g.fillStyle = '#e8b040'; g.fillRect(2, 14, 2, 1);  // the cursor
+  }), 'sign');
+
+  /** one beige terminal, facing -x, on a surface whose top is at `y` */
+  const terminal = (lx: number, lz: number, y: number, dead: boolean) => {
+    box(0.36, 0.32, 0.38, beigeM, lx, y + 0.16, lz);              // the tube's box
+    box(0.30, 0.26, 0.32, beigeDM, lx - 0.04, y + 0.17, lz);      // its bezel, proud
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.24),
+      new THREE.MeshBasicMaterial({ map: screenTex(dead) }));
+    s.rotation.y = -Math.PI / 2;                                  // +z -> -x
+    put(s, lx - 0.20, y + 0.17, lz);
+    box(0.17, 0.03, 0.42, beigeM, lx - 0.36, y + 0.015, lz);      // the keyboard
+    box(0.09, 0.02, 0.11, beigeDM, lx - 0.36, y + 0.04, lz + 0.30); // and a mouse
+  };
+
+  // ── the public OPAC bank ──
+  //
+  // On the open reading floor rather than against a wall, because the whole
+  // point of a 1997 catalogue terminal is that it is the thing everybody is
+  // queueing at. Screens face WEST, into the room, so you meet them looking at
+  // you as you come through the doors rather than as three grey backs.
+  //
+  // Placed in the strip between the issue desk and the stair, which was the
+  // only large piece of floor in here doing nothing. Checked against both
+  // neighbours rather than eyeballed: the table runs x 3.22..3.98, the desk's
+  // U stops at x -1.85 and the gallery starts at x 6.90, so the walk from the
+  // doors to the bottom tread is 2.9 m clear and the main aisle west of the
+  // bank is 4.5 m.
+  {
+    const BX = 3.60, BZ0 = 2.40, BZ1 = 5.60;
+    const BZC = (BZ0 + BZ1) / 2, BL = BZ1 - BZ0, TOP = 0.74;
+    box(0.76, 0.06, BL, wood, BX, TOP, BZC);                      // the bench top
+    for (const lz of [BZ0 + 0.3, BZC, BZ1 - 0.3]) {               // and its legs
+      for (const dx of [-0.30, 0.30]) box(0.07, TOP, 0.07, woodDark, BX + dx, TOP / 2, lz);
+    }
+    // a low back panel: it gives the bank a BACK, which is what stops three
+    // machines on a table reading as three machines abandoned on a table, and
+    // it hides the cable run the way the real thing does
+    box(0.05, 0.46, BL, woodDark, BX + 0.36, TOP + 0.23, BZC);
+    solid(BX, BZC, 0.9, BL + 0.1);
+
+    // THREE, and one of them is out — the same fact as the dead troffer in the
+    // ceiling. A room where every machine works has a facilities budget.
+    const seats: [number, boolean][] = [[BZ0 + 0.55, false], [BZC, false], [BZ1 - 0.55, true]];
+    for (const [tz, dead] of seats) {
+      terminal(BX + 0.16, tz, TOP + 0.03, dead);
+      // a beige tower on the floor under the bench, which is where they went
+      box(0.20, 0.42, 0.44, beigeDM, BX + 0.20, 0.21, tz);
+    }
+
+    // ── and you can sit at them ──
+    //
+    // The user's standing rule: *"for every seat in the game i want to be able
+    // to sit down."* Chairs west of the bench, facing the screens.
+    //
+    // yaw PI/2 is the CAMERA convention, not the mesh one, because `ctx.seat`
+    // hands its yaw to the rig — GOTCHAS §33, which cost the park benches a
+    // round when the same number was computed for a mesh and spent on a
+    // camera. The rig looks along (sin t, -cos t), so PI/2 looks along +x,
+    // which is at the screens. The reading table's west chairs use the same
+    // number, which is the cross-check: same side, same value.
+    for (const [tz] of seats) {
+      const cx = BX - 1.00;
+      box(0.44, 0.05, 0.44, wood, cx, 0.45, tz);                  // the seat pan
+      box(0.05, 0.5, 0.42, wood, cx - 0.20, 0.70, tz);            // the back
+      for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
+        box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, tz + fz);
+      }
+      ctx.seat({
+        x: room.wx(cx), z: room.wz(tz), yaw: Math.PI / 2, h: 0.45,
+        approach: { x: room.wx(cx - 0.85), z: room.wz(tz) },
+        label: 'sit at the terminal',
+        ok: () => room.inside(),
+      });
+    }
+  }
+
+  // ── the STAFF terminal, on the back worktop ──
+  //
+  // Faces +x rather than -x: it is on the librarian's own bench and she turns
+  // to it, so its screen looks along the counter and not out at the room. The
+  // one thing it must NOT do is stand between her and the person she is
+  // serving, which is what put the whole of this item in the queue.
+  {
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.24),
+      new THREE.MeshBasicMaterial({ map: screenTex(false) }));
+    s.rotation.y = Math.PI / 2;                                   // +z -> +x
+    box(0.36, 0.32, 0.38, beigeM, DESK_X - 0.95, 0.79 + 0.16, BACK_Z);
+    box(0.30, 0.26, 0.32, beigeDM, DESK_X - 0.91, 0.79 + 0.17, BACK_Z);
+    put(s, DESK_X - 0.75, 0.79 + 0.17, BACK_Z);
+    box(0.17, 0.03, 0.42, beigeM, DESK_X - 0.59, 0.79 + 0.015, BACK_Z);
+  }
 
   // ── THE GALLERY, AND THE STAIR UP TO IT ──────────────────────────────────
   //
