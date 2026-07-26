@@ -1,1 +1,1 @@
-WORKING | building the kit clock primitive so every clock reads game time | nobody
+WORKING | clock primitive landed; reported a world-wide re-entry regression to D; next the arrival-heading descriptor | D (re-entry volumes)
