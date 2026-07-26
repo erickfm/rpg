@@ -66,7 +66,9 @@ src/proto/ct/inventory.ts   = K    # the pockets model + the take verb
 src/proto/ct/slots.ts       = L    # the slot machine game — maths, panel, payouts
 src/proto/ct/int-bank.ts    = M    # the FIRST FEDERAL interior + the loan verb
 src/proto/ct/tenancy.ts     = N    # rent, mailboxes, letters, the landlord
-src/proto/ct/jail.ts        = O    # the jail, outside and in
+src/proto/ct/jail.ts        = O    # the jail EXTERIOR, east cap of the side street
+src/proto/ct/int-jail.ts    = O    # the jail ROOM — doors.ts globs ./int-*.ts and
+                                   # world-wired.mjs enforces the id<->filename contract
 src/proto/ct/bank.ts        = A    # assigned 2026-07-25 — split out of street.ts, unowned until now;
                                    # A owns the facade painters and just landed the pawn shop exterior
 ```

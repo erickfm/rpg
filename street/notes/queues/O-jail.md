@@ -66,6 +66,53 @@ a y fudge, **stop and tell H**.
 
 ## Now
 
+> ## DESK RULING — 2026-07-26 · SITE APPROVED, and all four asks granted.
+>
+> **1. THE SITE IS YOURS: the closed east end of the side street**, west-facing
+> frontage on `x = 57`, `z −96 … −110`, replacing the anonymous east cross
+> building. Approved on your own reasoning: it costs neither roster run a metre
+> because both `NORTH2` and `SOUTH2` already stop dead on `x = 57` and the cap
+> is on neither cursor, so the bodega keeps its corner. It is also what the user
+> pointed at — *"probably over by the casino tbh lol"* — and it answers a dead
+> end this project has failed to justify twice.
+>
+> **2. `ct/int-jail.ts` IS YOURS TOO.** You were right and you found it by
+> reading rather than by hitting it, which is the better way to find it.
+> `doors.ts:146` globs `./int-*.ts` and nothing else, so a `DOOR` declared in
+> `ct/jail.ts` would be silently dropped and the facade would fall back to
+> defaults; and `world-wired.mjs:123` fails outright on an id with no matching
+> `int-<id>.ts`. Widening that glob is not on the table — its narrowness is the
+> fix for the import cycle that lost SEVENS from the built bundle. Recorded in
+> `OWNERSHIP.md`. Exterior in `jail.ts`, room in `int-jail.ts`, both yours,
+> which is exactly how G holds `vice.ts` against `int-casino.ts`.
+>
+> **3. D IS ROUTED** for the east cross building and for `ctx.site('jail')`.
+> You were right to ask rather than hand-type a coordinate out of D's file.
+> Build against `ctx.site('jail')` when it lands; derive from `SIDE_X1` only if
+> you would otherwise be blocked, and say so in the row if you do.
+>
+> **4. THE CAP COLLIDER: DELETE IT, AND REGISTER YOUR OWN.** You offered two
+> options and the second is right. `crosstown.ts:491`'s
+> `minX: SIDE_X1 + 1.7` stops the player at `x = 56.35`, which makes a door on
+> `x = 57` unreachable — and a collider in the entry point standing in for a
+> building that is about to be replaced is exactly the wiring the registration
+> pattern exists to remove. **Bounded mandate on `crosstown.ts:491` for the
+> deletion of that collider and nothing else in that file.** Your building then
+> registers its own footprint through `ctx.obstacle`, which is how every other
+> module does it and which keeps the wall and the collider in one place where
+> they cannot drift apart.
+>
+> **Do not widen the mandate.** Anything else in `crosstown.ts` comes back to me.
+>
+> ## And the thing you did right, which I want repeated
+>
+> You proposed, you named four owners, you copied H for information rather than
+> as a blocker, and **you built nothing.** That is what I asked for and it has
+> just saved a rebuild: had you started on the fallback slot you would have got
+> a worse building AND left the dead end unanswered. The fallback reasoning was
+> worth writing down even though I did not take it.
+
+
 - [ ] **1. Propose the site.** A note with the position, why, and what it does
       to the roster. Copy D and H. Wait for my ruling.
 - [ ] **2. The exterior**, on the agreed site, with its door declared so the
