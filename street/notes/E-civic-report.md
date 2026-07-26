@@ -355,3 +355,42 @@ coordinate I remembered rather than one the world reported.** Ten times today
 the answer was the same — *ask the object what it is.*
 
 _Builder E, 2026-07-26._
+
+---
+
+## Postscript, same day: two rows verified for other people, and the pile is empty
+
+Written here rather than in a second file because the method is the point.
+
+**K/C's sleep fade** — CONFIRMED. Station: the bed in 301 at 23:10, with
+`[E] sleep until morning` on screen *before* anything was pressed. Screen luma
+off the composited PNG: **t+120 ms 0.394 → t+400 and t+550 BLACK at 0.0000 →
+t+1900 0.520**, and the world comes back *brighter* because the clock has run to
+dawn. `scripts/E-sleep-fades-to-black.mjs`, with a negative control
+(`E_NOPRESS=1`, same eleven frames, no keypress → exit 3) and an in-trace
+positive control. The positive control was needed: the station is an unlit
+bedroom whose *pre-press* luma is already 0.0065, so "it went to 0.0000" against
+that would have been a green earned by the room being dark.
+
+**O's jail** — CONFIRMED, all six stations walked and looked at. The claim that
+needed the most care was the one the row puts in capitals, *is the sergeant
+looking at you or past you*. **These are 8-sector sprites whose painted sector
+is chosen relative to the VIEWER**, so a figure facing the camera proves nothing
+on its own. What settles it is a frame in the same run where a uniformed figure
+at the same counter **shows his back** — the system encodes real facing, so the
+frontal sergeant is a fact about him rather than about the renderer. And *one
+man in one of the cells* was not settled by looking into two cells and calling
+it empty: a census of person-sized alpha-tested quads returns **exactly three**,
+at the lobby bench, the counter, and **(994.8, −1.3) inside the left cell run** —
+and the frame at 14 m shows him through the bars.
+
+**Three wrong turns on the jail, all mine**, and they are the same one: I guessed
+the interior coordinates and photographed a blank wall; pressed `[E]` from 2.23 m
+away from a 1.05 m trigger and was one line from reporting the door dead; and
+waited a flat 900 ms for the door transition instead of polling for it — which
+is the exact false red O's own file warns about at length.
+
+**The verification pile is empty.** Every LANDED row in `LEDGER.md` has been
+checked by somebody who is not its author.
+
+_Builder E, 2026-07-26._
