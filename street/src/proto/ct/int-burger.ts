@@ -358,4 +358,76 @@ export function buildBurger(ctx: CtxBuild): void {
     fit: 'cap', accent: '#e6dcc6', cut: 'crop', build: 0,
   }, CCX - 1.8, KEEP_AT, { facing: Math.atan2(0, CZ - KEEP_AT), h: 1.0, w: 0.95 });
 
+  // ── the lobby side, because walking in you faced an empty floor ──
+  //
+  // Graded this room from the door with the user's own test - would this
+  // impress someone who has been disappointed - and it does not, for one
+  // reason: between the door and the service counter there is a large bare
+  // tile floor, and the left wall above the wainscot is completely blank. The
+  // counter, the menu boards and the tiling are all good; the room is just
+  // empty where you stand.
+  //
+  // A fast-food lobby is never empty there. It has the two things you use on
+  // the way in and out, and both are instantly nameable, which is the standard
+  // the user set for the alley: "these should be recognizable."
+  {
+    const LW = -hw + 0.05;                       // the wall, and everything hangs off it
+    const steelM = new THREE.MeshBasicMaterial({ color: 0x9a9ea2 });
+    const trimRed = new THREE.MeshBasicMaterial({ color: 0xb8322c });
+
+    // THE TRAY-RETURN BIN: a bin with a swing flap and a tray shelf on top,
+    // which is the silhouette everyone reads as "put your tray here".
+    const BIN_Z = hd - 2.6;
+    const bin = new THREE.Mesh(new THREE.BoxGeometry(0.62, 1.05, 0.58), trimRed);
+    put(bin, LW + 0.42, 0.525, BIN_Z);
+    const flap = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.30),
+      new THREE.MeshBasicMaterial({ color: 0x2a2622 }));
+    flap.rotation.y = Math.PI / 2;
+    put(flap, LW + 0.74, 0.66, BIN_Z);
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.70, 0.05, 0.66), steelM);
+    put(shelf, LW + 0.42, 1.08, BIN_Z);
+    for (let t = 0; t < 3; t++) {                // trays somebody left on it
+      const tray = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.022, 0.34), trimRed);
+      put(tray, LW + 0.42, 1.12 + t * 0.025, BIN_Z + (t % 2 ? 0.03 : -0.02));
+    }
+    solid(LW + 0.42, BIN_Z, 0.62, 0.58);
+
+    // THE CONDIMENT STAND: napkin box, straws, sauce pumps. The things you
+    // stop at, and the reason anyone stands on this side of the room at all.
+    const CON_Z = hd - 4.3;
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.95, 1.15),
+      new THREE.MeshBasicMaterial({ color: 0x6a4a3a }));
+    put(stand, LW + 0.36, 0.475, CON_Z);
+    const stTop = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.05, 1.21), steelM);
+    put(stTop, LW + 0.36, 0.975, CON_Z);
+    const napkin = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.13, 0.22), steelM);
+    put(napkin, LW + 0.36, 1.065, CON_Z - 0.34);
+    for (const [dz, col] of [[0.0, 0xb8322c], [0.26, 0xd8b84a]] as [number, number][]) {
+      const pump = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.30, 8),
+        new THREE.MeshBasicMaterial({ color: col }));
+      put(pump, LW + 0.36, 1.15, CON_Z + dz);
+    }
+    const straws = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.20, 8), steelM);
+    put(straws, LW + 0.36, 1.10, CON_Z + 0.48);
+    solid(LW + 0.36, CON_Z, 0.52, 1.15);
+
+    // …and the blank wall above them. A crew-hiring notice and a tray of
+    // combo posters, which is what that wall carries in every one of these.
+    const posterT = (head: string, sub: string, col: string) =>
+      declareSurface(pixTex(32, 40, (g) => {
+        g.fillStyle = col; g.fillRect(0, 0, 32, 40);
+        g.fillStyle = '#e8e0cc'; g.fillRect(2, 2, 28, 36);
+        g.fillStyle = col; g.fillRect(4, 5, 24, 9);
+        g.fillStyle = '#e8e0cc'; g.font = 'bold 6px monospace';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText(head, 16, 10);
+        g.fillStyle = '#3a352c'; g.font = '5px monospace';
+        g.fillText(sub, 16, 20);
+        g.fillStyle = col; g.fillRect(6, 25, 20, 10);        // the product block
+        dither(g, 32, 40, 30);
+      }), 'sign');
+    room.sign(posterT('NOW', 'HIRING', '#b8322c'), 0.46, 0.58, LW + 0.04, 1.86, hd - 3.4, Math.PI / 2);
+    room.sign(posterT('COMBO', '2.99', '#c8902a'), 0.46, 0.58, LW + 0.04, 1.86, hd - 5.2, Math.PI / 2);
+  }
+
 }
