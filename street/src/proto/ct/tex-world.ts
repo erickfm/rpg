@@ -69,6 +69,48 @@ const DEFAULT_BASE_Y = 4.2;
  * course grid commensurate: a 0.5 m course is 4 px at 1× and 8 px at 2×,
  * landing on the same world lines either way.
  */
+/**
+ * SOOTED BRICK — the world's one bond, at a much lower key.
+ *
+ * Asked for by C, for the light well in `ct/apartment.ts`: that wall paints a
+ * private 32x32 tile at a guessed 1.15 m repeat because `masonry()` had no way
+ * to do a dark wall, and C will drop the private tile once this exists. The
+ * request was precise about what it does and does not fix — the well's stripe
+ * fault was an overlay painted ON TOP of a correct bond, not a bond error — so
+ * this is about getting the well onto the world's one density, not about that
+ * bug.
+ *
+ * The missing piece was never the brick colour, which a caller could always
+ * fill for itself. It was the JOINT. `courses()` hard-coded
+ * `rgba(0,0,0,0.22)`, and on a wall painted at a third of the street's key a
+ * black joint is both invisible and backwards: soot settles on the exposed
+ * brick FACES, and the recessed mortar keeps some of its lime, so pointing in a
+ * tenement well reads LIGHTER than the brick around it. Painting it darker is
+ * why a low-key wall done with the shared bond has always looked wrong, and
+ * why anyone trying it goes back to a private tile.
+ *
+ * So the joint is now an argument, defaulted to exactly what every existing
+ * caller already got, and this is the sooted preset over the top of it.
+ *
+ *     const s = masonry(wM, hM, baseY);
+ *     const tex = s.paint((g) => { sootedBrick(g, s); ...streaks, stains... });
+ *
+ * The caller still owns everything above the bond — the well's streaking and
+ * its dark far window are C's and are not moved here.
+ */
+export function sootedBrick(
+  g: CanvasRenderingContext2D,
+  surf: { W: number; H: number; courses: (g: CanvasRenderingContext2D, joint?: string) => void },
+  base = '#3a2a25',
+) {
+  g.fillStyle = base;
+  g.fillRect(0, 0, surf.W, surf.H);
+  // pale, and weak — pointing seen through soot is a hint of a line, not a
+  // grid. At 0.14 it survives on a #3a2a25 field and disappears on a lit one,
+  // which is the right way round for a wall nothing shines on.
+  surf.courses(g, 'rgba(198,188,170,0.14)');
+}
+
 export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 1) {
   const ppm = WALL_PPM * mult;
   const W = Math.max(1, Math.round(wMeters * ppm));
@@ -80,7 +122,7 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
     /** metres → texels as a raw (possibly 0) count, for offsets */
     at: (v: number) => Math.round(v * ppm),
     /** the brick bond, phased off world Y so it crosses a party wall in step */
-    courses: (g: CanvasRenderingContext2D) => courses(g, W, H, hMeters, baseY, ppm),
+    courses: (g: CanvasRenderingContext2D, joint?: string) => courses(g, W, H, hMeters, baseY, ppm, joint),
     /**
      * Paint it. The canvas size is not the caller's to choose.
      *
@@ -110,7 +152,8 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
 
 /** lay horizontal course lines on the WORLD-Y grid across a canvas of `hM`
  *  metres whose bottom edge sits at world `baseY`. Returns nothing; draws. */
-function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, baseY: number, ppm: number) {
+function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, baseY: number, ppm: number,
+                 joint = 'rgba(0,0,0,0.22)') {
   const perp = Math.max(1, Math.round(PERP_M * ppm));
   // first course line at or above baseY, walked up in world metres so the
   // bond continues onto whatever is built next door
@@ -118,7 +161,7 @@ function courses(g: CanvasRenderingContext2D, W: number, H: number, hM: number, 
   for (let k = k0; (k * COURSE_M - baseY) <= hM; k++) {
     const yW = k * COURSE_M - baseY;              // metres up from the canvas bottom
     const y = Math.round(H - yW * ppm);           // canvas y (0 = top)
-    g.fillStyle = 'rgba(0,0,0,0.22)';
+    g.fillStyle = joint;
     g.fillRect(0, y, W, 1);
     // perps sit between two course lines and half-lap on alternate courses
     const yb = Math.round(H - (yW - COURSE_M) * ppm);
