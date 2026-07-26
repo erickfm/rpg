@@ -25,6 +25,19 @@
 // That opt-in is B's find (notes/B-routed-to-others.md), and it matters: I had
 // verified all four in my own tree and none of them at 5177, which is the only
 // world the user's screenshots come from.
+//
+// AND AGAINST THE ARTIFACT, which is a third world again — the bundle plus an
+// inliner, opened from `file://`, and the thing the user actually publishes:
+//
+//   SHOT_URL=file://$PWD/dist/artifact.html node scripts/D-rulings-hold.mjs
+//
+// No special mode: `page.goto` takes a file URL and `reportWorld` reads the same
+// build stamp out of the HUD, so it prints `build 3238fe7a8` and verifies it
+// like any server. Worth running after anything that moves modules around —
+// GOTCHAS §28 is the entry, and the fault it describes is REAL IN THE BUNDLE and
+// absent in dev, which is the worst way round because the bundle is what ships
+// to the artifact and to Pages. I split `ct/street.ts` into four modules this
+// session; all four rulings hold in the packed artifact, checked.
 import { chromium } from 'playwright';
 import { reportWorld, integrationNoise } from './lib/which-world.mjs';
 
