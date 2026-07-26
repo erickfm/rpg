@@ -1662,3 +1662,45 @@ total I cannot defend.
 *A census you cannot make correct is worth less than a single case you can.* The
 temptation with 549 in hand is to publish it with a caveat; the caveat would not
 survive contact with anyone acting on the number.
+
+## [C] The stale build, and how it was caught
+
+Port 4184 runs `vite preview`, which serves `dist/` and never reloads from
+source. It had been up since 22:11 on `c41170c7a` while HEAD moved on. Three of
+my confirmations were taken against it; I re-ran all three on HEAD (bench backs
+and the window well came back identical, the float row moved).
+
+What caught it was **not a measurement but an impossibility**: `__ct.debugSpots`
+is declared in the same object literal as `advanceClock` and `highlightParity`,
+and the running object had the other two and not it. Two adjacent keys of one
+literal cannot disagree within a build. Full write-up: `notes/stale-preview.md`.
+
+A surprising number invites you to explain it; an impossible one tells you what
+to check. And a stale build does not produce incoherent results — it produces
+perfectly coherent results about the past.
+
+## [I] `groundAt` is not a pure function of x and z
+
+Same page, player never moving, `groundAt(201.95, −16.5)` returned 5.4 and then
+0, because the player's own floor context changed. Read cold it says a citizen is
+floating 5.4 m; walked to, it is standing on the 301/302 hallway floor. Every
+script comparing a height to `groundAt` indoors is reading a context-dependent
+number, and it fails silently by returning 0. `notes/groundat-context.md`.
+
+## [Is] Four instrument corrections, all the same shape
+
+1. **footpaint counted masonry as figures** — the "figures" at (−9.2, −13) are a
+   brownstone stoop. Now headlines 64-row frames only.
+2. **footpaint checked SEATED figures against the floor** — four casino gamblers
+   at exactly 0.00 m from a `sit at the slot` seat 0.64 m high, feet dangling
+   0.165 m, which is what sitting on a stool looks like.
+3. **The sitter-view ray hit the bench's own collider**, returning 0.4 m in both
+   directions for eight of nine seats. A symmetric answer is what a broken ray
+   looks like.
+4. **The sight-gate test crossed the target's own collider**, then counted
+   benches as occluders when D aims the ray 1.1 m up precisely so low furniture
+   is seen over. 62% "leaks" became 8%.
+
+All four are one error: **an instrument that answers about the wrong population,
+confidently.** The tell is an answer that agrees with itself — 0.4 and 0.4, or
+"0 of 9" from a table showing nine identical rows.
