@@ -441,3 +441,43 @@ act on inside my own ownership:
    is twenty minutes.
 
 _Builder E, 2026-07-25 20:40._
+
+---
+
+## Final grade, from the canonical station — 25 July 21:40
+
+The desk has now fixed the station a verdict may rest on: **the gate, arriving
+on foot**, because that is where the user's screenshots come from. Everything
+below is graded from there, after the last three changes landed (mow bands
+widened to 1.5 m, the railing re-seated on its wall, the shelter restored).
+
+| condition | grade | what I see |
+|---|---|---|
+| **daylight** | **GOOD** | Buff path across the foreground, unmistakably not road. Calm 1.5 m mown bands. Hoop rail sitting on its wall. Trees framing, shelter terminating the axis |
+| **night** | **GOOD** | Lamps read, pools land, the field goes properly dark |
+| **rain** | **GOOD** | Path, turf and walls darken together, no dry patches, and the buff path stays distinct from the carriageway even wet |
+
+**One blemish left in that frame and it is not mine:** the grey site slab in the
+immediate foreground still reads as carriageway. That is `openSite` in
+`ct/street.ts`, D's, and it is exactly what I have routed — see
+`notes/E-entrance-band.md`, where I argue it wants a TONE change and not
+stripes.
+
+### Twelve checks, all green on this build
+
+`E-fence` · `E-benchsweep` · `E-field` 1.50 m at 6.4% · `E-mound` 0.37 m,
+1 in 9.5 · `E-overlap` 0/151 · `E-partyline` · `E-seatreach` 9/9 ·
+`E-park-walk` · `E-circuit` 71 m back to the gate · `E-shelter` ·
+`E-coplanar` · `E-drape`.
+
+### Am I impressed?
+
+**Yes, from the gate, with the one caveat above.** That is a change from every
+earlier report in this file, and I want to be precise about what changed rather
+than claiming a conversion: the park is not dramatically different from three
+hours ago. What changed is that the things a player actually does — walk in,
+sit down, walk the loop, stand under the shelter — now all work, and the
+surfaces they happen on read as what they are. The remaining fault is one
+surface I do not own.
+
+_Builder E, 2026-07-25 21:40._
