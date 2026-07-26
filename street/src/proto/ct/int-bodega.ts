@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
 
@@ -434,19 +434,76 @@ export function buildBodega(ctx: CtxBuild): void {
   put(deliGlass, -hw + 1.6, 0.72, hd - 1.5 - 0.37);
   solid(-hw + 1.6, hd - 1.5, 2.2, 0.72);
 
+  // ── the coffee station, which has to SAY coffee station ──
+  //
+  // The user, on this corner: *"what is this"* — which is a diagnosis, not a
+  // question. It was a large plain brown slab with three black cylinders
+  // standing on it, and the desk could not name them either. His rule from the
+  // alley applies indoors: *"for all the trash in the alley i cant tell what
+  // any of it is. these should be recognizable."*
+  //
+  // A black cylinder with a white band is a SHAPE. An urn is a shape plus the
+  // two or three details that identify it: a TAP you draw coffee from, a
+  // domed LID with a handle, a DRIP TRAY under the taps, and a stack of paper
+  // cups beside. Those are what make it nameable in one second from the door.
+  const CF_X = -hw + 1.0, CF_Z = -hd + 1.4, CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
   const urnM = new THREE.MeshBasicMaterial({ color: 0x2e3236 });
-  const coffeeBench = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.92, 0.55), woodM);
-  put(coffeeBench, -hw + 1.0, 0.46, -hd + 1.4);
-  for (const dx of [-0.38, 0, 0.38]) {
-    const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.42, 8), urnM);
-    put(urn, -hw + 1.0 + dx, 1.13, -hd + 1.4);
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.135, 0.05, 8), steelM);
-    put(band, -hw + 1.0 + dx, 1.05, -hd + 1.4);
+  const chromeM = new THREE.MeshBasicMaterial({ color: 0xb8bcc0 });
+
+  // THE COUNTER IT STANDS ON. It was one untextured brown box, which is the
+  // fault A published helpers for: "a flat colour is not a material. an
+  // untextured quad has no grain for the eye to attach to and no joints to
+  // give it scale." A counter reads as a counter because it has a top, an
+  // edge and a front panel. slabTex keeps the colour I already had.
+  const benchTopT = declareSurface(slabTex({
+    wMeters: CF_W, dMeters: CF_D, base: '#6a5442', joint: 0.45, grain: 0.14,
+  }), 'detail');
+  put(new THREE.Mesh(new THREE.BoxGeometry(CF_W, CF_H - 0.06, CF_D * 0.92), woodM),
+    CF_X, (CF_H - 0.06) / 2, CF_Z);                       // the carcass, set back
+  const top = new THREE.Mesh(new THREE.BoxGeometry(CF_W + 0.06, 0.06, CF_D + 0.06),
+    new THREE.MeshBasicMaterial({ map: benchTopT }));
+  put(top, CF_X, CF_H - 0.03, CF_Z);                      // the top, proud: an EDGE
+  const frontT = declareSurface(pixTex(28, 18, (g) => {
+    g.fillStyle = '#5e4a3a'; g.fillRect(0, 0, 28, 18);
+    g.fillStyle = '#6a5442'; g.fillRect(2, 2, 24, 14);    // a recessed panel
+    g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(2, 2, 24, 1);
+    g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(2, 15, 24, 1);
+    dither(g, 28, 18, 40);
+  }), 'detail');
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(CF_W, CF_H - 0.12), ctx.flat(frontT));
+  put(front, CF_X, (CF_H - 0.12) / 2, CF_Z + CF_D / 2 + 0.01);
+
+  for (const dx of [-0.42, 0, 0.42]) {
+    const ux = CF_X + dx;
+    const urn = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.125, 0.40, 10), urnM);
+    put(urn, ux, CF_H + 0.20, CF_Z);
+    // the LID, domed, with a handle on top
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.125, 0.06, 10), chromeM);
+    put(lid, ux, CF_H + 0.43, CF_Z);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 5), urnM);
+    put(knob, ux, CF_H + 0.475, CF_Z);
+    // THE TAP, on the customer side, which is the detail that says urn
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.09, 6), chromeM);
+    put(spout, ux, CF_H + 0.10, CF_Z + 0.13);
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.07, 0.02), chromeM);
+    lever.rotation.x = 0.5;
+    put(lever, ux, CF_H + 0.17, CF_Z + 0.13);
+    // a sight glass up the side, so it is not one flat black
+    const gauge = new THREE.Mesh(new THREE.PlaneGeometry(0.022, 0.24),
+      new THREE.MeshBasicMaterial({ color: 0x6a4a2a }));
+    put(gauge, ux + 0.11, CF_H + 0.21, CF_Z + 0.055);
   }
-  const cups = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.045, 0.3, 8),
-    new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
-  put(cups, -hw + 1.62, 1.07, -hd + 1.4);
-  solid(-hw + 1.0, -hd + 1.4, 1.4, 0.55);
+  // THE DRIP TRAY, under the taps, running the width
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(CF_W - 0.2, 0.018, 0.14), chromeM);
+  put(tray, CF_X, CF_H + 0.035, CF_Z + 0.13);
+
+  // the paper cups, a stack of them, beside the urns
+  for (let i = 0; i < 3; i++) {
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.034, 0.11, 8),
+      new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }));
+    put(cup, CF_X + 0.62, CF_H + 0.055 + i * 0.105, CF_Z - 0.12);
+  }
+  solid(CF_X, CF_Z, CF_W, CF_D);
 
   // ── the handwritten signs ──
   const cardT = (a: string, bl: string) => declareSurface(pixTex(48, 24, (g) => {
