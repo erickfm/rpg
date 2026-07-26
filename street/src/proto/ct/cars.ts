@@ -355,12 +355,30 @@ function carRearTex(body: string, wM = 1.8, hM = 0.5): THREE.Texture {
     dither(g, W, H, Math.round(40 * (W * H) / (48 * 16)));
   });
 }
-function panelTopTex(body: string, seamAt: number): THREE.Texture {
-  return pixTex(48, 48, (g) => {
-    g.fillStyle = body; g.fillRect(0, 0, 48, 48);
-    g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(4, 4, 40, 12);
-    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(0, seamAt, 48, 1);
-    dither(g, 48, 48, 70);
+/** A panel seen from ABOVE — a hood, a boot lid, a roof.
+ *
+ *  The last fixed canvas in the fleet. It was 48 x 48 whatever the panel
+ *  measured, over bodies from 1.70 x 0.80 to 1.70 x 1.50 — so 28.2 px/m across
+ *  and anywhere from 32 to 60 up, the van's roof coming out at ratio 0.47, the
+ *  worst anisotropy left after the flanks were fixed.
+ *
+ *  `seam` is a FRACTION of the panel's length now, not a row index on a
+ *  48-row canvas. The old call sites convert exactly — 40/48, 8/48, 24/48 —
+ *  so no paint moves; it just stops meaning a different distance on every
+ *  body. Same rounding rule as everything else: fix the density, accept a
+ *  fractional canvas.
+ */
+function panelTopTex(body: string, seam: number, wM: number, hM: number): THREE.Texture {
+  const W = Math.max(8, Math.round(wM * PX_PER_M));
+  const H = Math.max(8, Math.round(hM * PX_PER_M));
+  return pixTex(W, H, (g) => {
+    const m = (v: number) => Math.round(v * PX_PER_M);
+    g.fillStyle = body; g.fillRect(0, 0, W, H);
+    // the sheen down the middle of the panel, inset by a hand's width all round
+    g.fillStyle = 'rgba(255,255,255,0.14)';
+    g.fillRect(m(0.13), m(0.13), W - 2 * m(0.13), Math.max(2, Math.round(H * 0.25)));
+    g.fillStyle = 'rgba(0,0,0,0.4)'; g.fillRect(0, Math.round(seam * H), W, 1);
+    dither(g, W, H, Math.round(70 * (W * H) / (48 * 48)));
   });
 }
 function hubcapTex(): THREE.Texture {
@@ -730,30 +748,32 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
   slab.position.set(0, (ROCKER + BELT) / 2, slabZ);
   g.add(slab);
 
-  const roofM = flatT(panelTopTex(body, 24));
-  const hoodM = (seam: number) => [bodyM, bodyM, flatT(panelTopTex(body, seam)), bodyM, bodyM, bodyM];
+  // the roof is sized per CABIN now, so it cannot be one shared material
+  const roofOf = (wM: number, hM: number) => flatT(panelTopTex(body, 0.5, wM, hM));
+  const hoodM = (seam: number, wM: number, hM: number) =>
+    [bodyM, bodyM, flatT(panelTopTex(body, seam, wM, hM)), bodyM, bodyM, bodyM];
 
   if (kind === 'sedan') {
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.9), hoodM(40));
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.9), hoodM(40 / 48, 1.7, half - 0.9));
     hood.position.set(0, BELT + 0.05, -(half + 0.95) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
-    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8));
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.09, half - 1.32), hoodM(8 / 48, 1.7, half - 1.32));
     // 0.885 is BELT plus half the lid thickness, same disguise as the hood
     trunk.position.set(0, BELT + 0.045, (half + 1.35) / 2);
     g.add(trunk);
-    g.add(loftCabin(0.81, 0.74, BELT, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
+    g.add(loftCabin(0.81, 0.74, BELT, 1.46, -1.0, 1.4, -0.35, 0.9, glassM, roofOf(1.48, 1.25), flatT(cabinSideTex(plan.glass, -1.0, 1.4))));
   } else if (kind === 'hatch') {
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40));
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, half - 0.75), hoodM(40 / 48, 1.7, half - 0.75));
     hood.position.set(0, BELT + 0.05, -(half + 0.8) / 2 + 0.02);
     hoodPanel = hood; g.add(hood);
     // no trunk: the rear glass slopes all the way to the tail
-    g.add(loftCabin(0.81, 0.72, BELT, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofM, flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
+    g.add(loftCabin(0.81, 0.72, BELT, 1.44, -0.85, half - 0.15, -0.25, half - 0.95, glassM, roofOf(1.44, half - 0.7), flatT(cabinSideTex(plan.glass, -0.85, half - 0.15))));
   } else if (kind === 'pickup') {
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40));
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.5), hoodM(40 / 48, 1.7, 1.5));
     hood.position.set(0, BELT + 0.05, -half + 0.85);
     hoodPanel = hood; g.add(hood);
     // short cab, near-vertical rear window
-    g.add(loftCabin(0.85, 0.74, BELT, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofM, flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
+    g.add(loftCabin(0.85, 0.74, BELT, 1.5, -1.0, 0.45, -0.45, 0.32, glassM, roofOf(1.48, 0.77), flatT(cabinSideTex(plan.glass, -1.0, 0.45))));
     // ── THE BED: a real open tub, floor BELOW the beltline ────────────────
     //
     // Rebuilt rather than nudged, because the bed has now been asked about
@@ -968,10 +988,10 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     g.add(gate);
   } else { // van
     // tall box greenhouse, stub hood, near-vertical everything
-    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40));
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 0.8), hoodM(40 / 48, 1.7, 0.8));
     hood.position.set(0, BELT + 0.05, -half + 0.5);
     hoodPanel = hood; g.add(hood);
-    g.add(loftCabin(0.85, 0.8, BELT, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofM, flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
+    g.add(loftCabin(0.85, 0.8, BELT, 1.78, -half + 0.85, half - 0.1, -half + 1.35, half - 0.2, glassM, roofOf(1.6, 2 * half - 1.55), flatT(cabinSideTex(plan.glass, -half + 0.85, half - 0.1))));
   }
 
   if (taxi) {
