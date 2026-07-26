@@ -237,6 +237,13 @@ export interface RoomSpec {
    * form for "not mine", exactly as `ctx.ground` does.
    */
   floor?: RoomLevel[] | ((lx: number, lz: number) => number | null);
+  /**
+   * Which way the player looks on arrival, in the room's own frame — 0 is
+   * square into the room, which is what almost every shop wants. Set it only
+   * when a room is laid out ACROSS its width rather than down its depth.
+   * Derived behaviour, not a hand-typed yaw per room: see the arrival block.
+   */
+  arriveYaw?: number;
   chamfer?: {
     corner: 'front-left' | 'front-right' | 'back-left' | 'back-right';
     cut: number;
@@ -1123,14 +1130,41 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   const inset = 1.3 / Math.SQRT2;
   const spotX = CH ? wx(chMx - chSx * inset) : wx(dAt);
   const spotZ = CH ? wz(chMz - chSz * inset) : wz(hd - 0.55);
+  //
+  // WHERE YOU ARRIVE, AND WHICH WAY YOU LOOK, ARE TWO DIFFERENT THINGS.
+  //
+  // The user: *"when i enter bodega i should be facing perpendicular to the
+  // wall door. so looking this way"* — into the store, down the aisles. That
+  // does not contradict the cut corner: the THRESHOLD is angled, so you step
+  // through diagonally, but the ARRIVAL HEADING is square to the shelving.
+  //
+  // Measured all ten rooms by walking in from the street: every one already
+  // arrives at yaw 0, which is fwd (0,0,-1) — square into the room. So the
+  // heading was never the fault. The POSITION was. A chamfered room put the
+  // player at (chMx - inset) along x, which for the bodega is 2.48 of a 4.4
+  // half-width: hard against the side wall, where facing square means facing
+  // the counter rather than down an aisle.
+  //
+  // So a chamfered arrival now also steps toward the room's centreline. Half
+  // way is enough to clear the corner pocket without dumping the player in the
+  // middle of the shop, and it is derived from the room's own half-width, so a
+  // wider room steps further and a narrow one barely moves.
+  const arriveX = CH ? wx((chMx - chSx * inset) * 0.5) : spotX;
   const arriveZ = CH ? wz(chMz - chSz * inset * 1.6) : wz(hd - 1.15);
+  //
+  // The heading is DERIVED, not typed. `spec.arriveYaw` lets a room that is
+  // laid out across its width say so; everything else takes the inward normal
+  // of the front wall, which is what "square to the wall the door is in"
+  // means and which survives the room being rotated or mirrored. A hand-typed
+  // yaw is the class of bug that produced the tax office reversal.
+  const arriveYaw = spec.arriveYaw ?? 0;
   ctx.spot({
     x: spotOnStreet.x, z: spotOnStreet.z, r: doorR,
     ok: () => (spec.door.ok ? spec.door.ok() : player.x() < 100),
     label: () => spec.label,
     // yaw 0 is fwd = (0,0,-1). The door is in the +z wall, so facing away from
     // it — INTO the room — is yaw 0. Facing Math.PI walks you back out.
-    act: () => player.jumpTo(spotX, arriveZ, 0, 0),
+    act: () => player.jumpTo(arriveX, arriveZ, arriveYaw, 0),
   });
   ctx.spot({
     // 1.4 on a cut face, 1.0 on a flat one. A corner entrance is approached
