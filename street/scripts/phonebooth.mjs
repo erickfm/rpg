@@ -52,7 +52,10 @@ console.log(`  colliders in the mouth: ${JSON.stringify(geo.cols)}`);
 await p.evaluate(() => window.__ct.clock(17, 0));
 await settle(p);
 let closest = 9, who = null, samples = 0;
-for (let i = 0; i < 60; i++) {
+// A FULL MINUTE, because that is the bar the desk set: "a booth dropped into a
+// walking lane will have people clipping through it within a minute." Twelve
+// seconds is not that claim tested, it is that claim not yet contradicted.
+for (let i = 0; i < 300; i++) {
   // walkers(), NOT people(). people() returns speeds and scales — no position
   // at all — so the first run of this probe compared NaN and reported "closest
   // approach 9.00 m at null", which is a pass it had not earned.
@@ -66,7 +69,7 @@ for (let i = 0; i < 60; i++) {
   }
   await p.waitForTimeout(200);
 }
-console.log(`\n── the crowd: ${samples} walker samples over 12 s ──`);
+console.log(`\n── the crowd: ${samples} walker samples over 60 s ──`);
 console.log(`  closest approach to the shelter: ${closest.toFixed(2)} m at ${JSON.stringify(who)}`);
 console.log(`  ${closest < 0.36 ? '  <-- INSIDE THE RIG RADIUS: somebody is clipping it' : '  clear of the 0.36 m body radius'}`);
 

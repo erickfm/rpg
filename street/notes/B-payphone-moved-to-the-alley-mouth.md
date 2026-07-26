@@ -49,10 +49,16 @@ the walk, and 5 cm clear of the walk slab's west face — abut, never coincide
 ```
   nearest face to the walk (x = -7.00)    -7.07     CLEAR by 0.07 m
   collider                                x -8.17 … -7.07, entirely outside the lane
-  closest walker in 360 samples           1.86 m    clear of the 0.36 m body radius
+  closest walker, 1800 samples / 60 s     1.07 m    clear of the 0.36 m body radius
   header  at 13:00 / 23:00                1.0 / 1.0
   enamel  at 13:00 / 23:00                1.0 / 0.12
 ```
+
+A full minute of walker samples, not twelve seconds, because a minute is the
+bar the desk set — *"a booth dropped into a walking lane will have people
+clipping through it within a minute"* — and twelve seconds is that claim not yet
+contradicted rather than that claim tested. The closest anybody comes is a
+walker at `(-6, -37.06)`, level with the shelter's north edge and 1.07 m off it.
 
 And it is **walked**, not screenshotted: north up the west pavement at
 x -6.35 past the mouth, zero lateral drift, arrived; then a turn into the mouth,
