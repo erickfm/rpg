@@ -54,9 +54,14 @@ const rows = await p.evaluate(() => {
   const rooms = window.__ct.roomDims();
   const out = [];
   for (const r of rooms) {
-    // match a room to its frontage by id: room ids are lowercase short names
-    const f = fr.find((q) => q.name.toLowerCase().replace(/[^a-z]/g, '').startsWith(r.id)
-      || r.id.startsWith(q.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 5)));
+    // Match a room to its frontage by id. SUBSTRING EITHER WAY, not
+    // startsWith: 'A-1 TAX' normalises to 'atax', which does not START with
+    // 'tax', so a prefix match silently dropped the one building the user
+    // actually complained about and reported it as "no frontage registered".
+    // A checker that quietly excludes its subject is GOTCHAS 34 — the verdict
+    // was free for that room.
+    const norm = (s) => s.toLowerCase().replace(/[^a-z]/g, '');
+    const f = fr.find((q) => norm(q.name).includes(r.id) || r.id.includes(norm(q.name)));
     if (!f) { out.push({ id: r.id, skip: 'no frontage registered' }); continue; }
     // An UNDECLARED frontage has no door to mirror — `doorWorld` is the
     // painter's own fallback guess, so comparing a room against it measures
