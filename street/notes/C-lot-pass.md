@@ -44,3 +44,29 @@ chained across the frontage with span-scaled sag and tied off on real posts,
 banners on the chain-link, rows flanking the aisle, office across the back, the
 gate open in the middle. Five registered lot checks green. All three seats
 offer, seat and stand.
+
+## Checked for floating objects — nothing found, and the probe cannot prove it
+
+The user's most-repeated complaint class is things floating: *"this guy is
+floating"*, *"why are these decorations simply floating in the air in the
+diner"*, the thrift price card, the GOLDEN ACES sign. Worth pointing at my own
+module before being told.
+
+Measured every one of the lot's 419 meshes: world-space lowest corner against
+the deck at y 0.14. 98 came back with a gap.
+
+**All of the ones I inspected are correct**, and the probe cannot tell them
+apart from a real fault: a windshield price card sits at y 1.03 because it is
+on a windshield, a car roof at 0.98 because it is on a car, the office AC unit
+at 1.28 because it is in a wall, a balloon at 1.13 because it is tied to an
+aerial. "Bottom is above the ground" is simply not the same question as
+"nothing is holding it up", and separating the two needs to know what each
+object is attached to, which the scene graph does not record.
+
+So this is a **negative result with a stated limit**, not a clean bill: the ten
+viewpoints above show no floating object in the lot, and the geometric sweep
+adds no evidence either way. The one case where the question WAS decidable —
+the salesman — was decidable because `citizenSprite` declares where its feet
+are, so a call site could be compared against the ground beneath it. Nothing
+else in the lot declares that, and inventing a classifier to guess at it would
+be a harness built for its own sake.
