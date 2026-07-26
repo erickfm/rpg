@@ -171,12 +171,29 @@ export function buildChurch(ctx: CtxBuild) {
   // BEHIND the booth and left three pew rows still inside it. Eleventh sign
   // error of the session and the first one a check found before the user did.
   const REAR_CLEAR = CONF_Z - CONF_D / 2 - 1.2;
+  // A PEW'S SEAT HEIGHT IS ITS TOP FACE, AND IT IS DECLARED ONCE.
+  //
+  // This was the casino stool bug again, pointing the other way, and my own seated
+  // checker found it. The seat board is a 0.08 box that sat at y 0.46, so it spans
+  // 0.42..0.50 and its TOP FACE is 0.50 — while `ctx.seat()` registered **0.54**.
+  // Four centimetres, and it means a PLAYER who sits in a pew FLOATS.
+  //
+  // The tell was that the praying figure was already right: it is placed at 0.50
+  // with the comment "0.46 + the 0.08 seat board's half", and the checker reports
+  // it ON the seat while the registered height disagreed with both. Three numbers
+  // for one surface, two of them agreeing and the authority wrong.
+  //
+  // Declared as the TOP and derived downward, so the board's thickness can change
+  // without the seat height silently moving — the same shape as STOOL_TOP in
+  // ct/int-casino.ts, and for the same reason.
+  const PEW_TOP = 0.50, PEW_T = 0.08;
   const PEW_ROWS = Math.max(6, Math.floor((REAR_CLEAR - (-hd + 3.2)) / 1.05) + 1);
   for (let i = 0; i < PEW_ROWS; i++) {
     const pz = -hd + 3.2 + i * 1.05;
     for (const side of [-1, 1]) {
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.08, 0.42), woodM);
-      put(seat, side * PEW_CX, 0.46, pz);
+      // THE SEAT TOP IS DECLARED ONCE AND THE BOARD DERIVES FROM IT. See PEW_TOP.
+      const seat = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, PEW_T, 0.42), woodM);
+      put(seat, side * PEW_CX, PEW_TOP - PEW_T / 2, pz);
       const back = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.62, 0.07), woodM);
       // the back is on the DOOR side of the seat, so you sit facing -z, down the
       // nave toward the altar
@@ -265,7 +282,7 @@ export function buildChurch(ctx: CtxBuild) {
       // defence in depth at the room level, so this room is not relying on a
       // tiebreak that is undefined even after the kit changes.
       ctx.seat({
-        x: wx(side * PEW_CX), z: wz(pz), yaw: 0, h: 0.54, r: 0.62,
+        x: wx(side * PEW_CX), z: wz(pz), yaw: 0, h: PEW_TOP, r: 0.62,
         approach: { x: wx(side * PEW_CX), z: wz(pz - 0.42) },
         label: 'sit in the pew',
       });
@@ -748,9 +765,10 @@ export function buildChurch(ctx: CtxBuild) {
     // H's SEATED pose, which landed today. This was a standing sprite squashed
     // to h 0.62 to fake sitting - the exact cardboard the user complained
     // about. The origin moves with the pose: seated is the hip and goes on the
-    // SEAT TOP, which is 0.46 + the 0.08 seat board's half, so 0.50.
+    // SEAT TOP, which is PEW_TOP — the same constant ctx.seat() now registers,
+    // rather than the arithmetic written out a second time here.
     // citizenPlane owns the 0.445 m hip offset; no fudge here.
-    seated: true, y: 0.50, facing: Math.PI,
+    seated: true, y: PEW_TOP, facing: Math.PI,
   });
 
   // ── the crucifix, over the altar ──
