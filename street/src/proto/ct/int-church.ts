@@ -677,7 +677,14 @@ export function buildChurch(ctx: CtxBuild) {
   room.person({
     jacket: '#3a3640', pants: '#2e2b33', skin: '#c9a48a', hair: '#7a7068',
     fit: 'coat', accent: '#5a5260', cut: 'short', build: 0,
-  }, -PEW_CX, PRAY_Z, { facing: Math.PI, h: 0.62, w: 0.92 });
+  }, -PEW_CX, PRAY_Z, {
+    // H's SEATED pose, which landed today. This was a standing sprite squashed
+    // to h 0.62 to fake sitting - the exact cardboard the user complained
+    // about. The origin moves with the pose: seated is the hip and goes on the
+    // SEAT TOP, which is 0.46 + the 0.08 seat board's half, so 0.50.
+    // citizenPlane owns the 0.445 m hip offset; no fudge here.
+    seated: true, y: 0.50, facing: Math.PI,
+  });
 
   // ── the crucifix, over the altar ──
   //

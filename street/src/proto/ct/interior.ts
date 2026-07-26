@@ -462,6 +462,16 @@ export interface Room {
     /** which way they face, atan2(vx, vz); 0 = +z. Point them at their work. */
     facing?: number;
     h?: number; w?: number;
+    /**
+     * SEATED, using H's seated pose. Pass the SEAT TOP as `y` — the origin
+     * moves with the pose (standing is the painted shoe and goes on the
+     * floor; seated is the hip, 0.445 m above the shoe, and goes on the seat).
+     * `citizenPlane` owns that offset, so if a figure needs a y fudge to sit
+     * right, the atlas is wrong and it goes to H — not patched here.
+     */
+    seated?: boolean;
+    /** floor-relative height to place at; defaults to 0. Use the seat top. */
+    y?: number;
   }) => void;
   /** true while the player is standing in THIS room */
   inside: () => boolean;
@@ -1265,8 +1275,11 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     cx, cz, W, D, H, wx, wz, group, colliders, doorAt: dAt,
     put: (m, lx, y, lz) => place(m, lx, y, lz),
     person: (look, lx, lz, o = {}) => {
-      const s = citizenSprite(look, { facing: o.facing ?? 0, h: o.h, w: o.w });
-      place(s.mesh, lx, 0, lz);
+      const s = citizenSprite(o.seated ? { ...look, seated: true } : look,
+        { facing: o.facing ?? 0, h: o.h, w: o.w });
+      // Standing goes on the FLOOR, seated goes on the SEAT TOP: the origin
+      // moves with the pose and citizenPlane owns the 0.445 m hip offset.
+      place(s.mesh, lx, o.y ?? 0, lz);
       // the sprite picks its painted view from where YOU are, so it needs the
       // frame. LATE, after the world has moved: it is reacting to the finished
       // position, the same as the billboard pass.
