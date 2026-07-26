@@ -145,21 +145,57 @@ export function buildBodega(ctx: CtxBuild): void {
   // Stock to the ceiling, in runs down the room with aisles between them.
   // 0.95 m of clear aisle: the player is 0.72 across, so you fit and not much
   // else does, which is the whole point. Wider and it is a supermarket.
+  // ── the stock, which is not a colour chart ──
+  //
+  // The user: *"THE SHELVES ARE A COLOUR CHART. Rows of flat coloured
+  // rectangles at even spacing read as a grid, not as groceries. Real bodega
+  // shelves have goods of DIFFERENT SIZES and depths — tall boxes beside short
+  // cans beside bagged things — gaps where stock has sold, items pushed back
+  // and pulled forward, a few facing the wrong way, and price labels on the
+  // shelf edge."*
+  //
+  // Every one of those is a rule this draw now follows, and they are listed in
+  // the order they matter. HEIGHT is first: the old draw gave every item the
+  // full 7 px of shelf, so the eye read one continuous band per shelf and the
+  // colours became a chart. Goods that stop at different heights break the band
+  // before any of the rest is even noticed.
+  //
+  // Deterministic from the index — no Math.random. GOTCHAS 2: one seeded
+  // stream, and its order is load-bearing, so a texture must not draw from it.
   const stockT = declareSurface(pixTex(64, 48, (g) => {
     g.fillStyle = '#7a7263'; g.fillRect(0, 0, 64, 48);
     const cols = ['#b8342a', '#d8b84a', '#3a6a8a', '#4a7a52', '#c86a2a', '#8a4a7a',
       '#d8d0c0', '#6a5a3a', '#2a8a7a', '#b85a5a'];
-    // five shelves, each a tight row of boxes and cans
     for (let sh = 0; sh < 5; sh++) {
-      const y0 = 2 + sh * 9;
-      g.fillStyle = '#5a5348'; g.fillRect(0, y0 + 7, 64, 2);      // the shelf edge
-      let x = 0, i = sh * 7;
+      const y0 = 2 + sh * 9, shelfY = y0 + 7;
+      g.fillStyle = '#5a5348'; g.fillRect(0, shelfY, 64, 2);        // the shelf edge
+      let x = 0, i = sh * 11 + 3;
       while (x < 64) {
-        const w = 3 + ((i * 5) % 4);
-        g.fillStyle = cols[(i * 3) % cols.length];
-        g.fillRect(x, y0, w - 1, 7);
-        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, y0, w - 1, 1);
+        const k = (i * 7 + sh * 5) % 17;
+        // A GAP where stock has sold. Roughly one slot in six, and it is the
+        // single most effective thing here: full shelves are what read as a
+        // chart, and a hole says somebody bought something.
+        if (k === 4 || k === 11) { x += 2 + (k % 3); i++; continue; }
+        const w = 3 + (k % 5);                       // widths 3…7
+        const h = 3 + ((k * 3) % 5);                 // HEIGHTS 3…7: cans and boxes
+        const top = shelfY - h;
+        const pushedBack = k % 5 === 0;              // deeper on the shelf: darker, shorter
+        const wrongWay = k % 7 === 3;                // turned around: plain card back
+        g.fillStyle = wrongWay ? '#9a8468' : cols[(i * 3) % cols.length];
+        g.fillRect(x, top + (pushedBack ? 1 : 0), w - 1, h - (pushedBack ? 1 : 0));
+        if (pushedBack) { g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, top + 1, w - 1, h - 1); }
+        else { g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, top, w - 1, 1); }
+        // a label band on the taller boxes, so they are not flat colour
+        if (h >= 6 && !wrongWay) {
+          g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x, top + 2, w - 1, 1);
+        }
         x += w; i++;
+      }
+      // PRICE LABELS on the shelf edge — white ticks with a dark line, the way
+      // a shelf-edge strip reads at a distance.
+      for (let lx = 1 + (sh * 3) % 5; lx < 64; lx += 9 + (sh % 3)) {
+        g.fillStyle = '#e4e0d4'; g.fillRect(lx, shelfY, 5, 2);
+        g.fillStyle = '#4a443a'; g.fillRect(lx + 1, shelfY + 1, 3, 1);
       }
     }
     dither(g, 64, 48, 60);
@@ -193,16 +229,41 @@ export function buildBodega(ctx: CtxBuild): void {
     put(body, gx, 0.975, GOND_Z);
     // the END CAP: a run's end is the most-seen face in the shop and was the
     // only one with nothing on it. Bagged stock, stacked, facing the door.
-    const capT = declareSurface(pixTex(16, 40, (g) => {
-      g.fillStyle = '#8a8478'; g.fillRect(0, 0, 16, 40);
-      const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a', '#8a5a7a'];
-      for (let r = 0; r < 7; r++) {
-        const h = 4 + (r % 3);
-        g.fillStyle = cols[(r * 3) % cols.length];
-        g.fillRect(1, 38 - r * 5 - h, 14, h);
-        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 38 - r * 5 - 1, 14, 1);
+    // A run's end is the most-seen face in the shop: the dump says these two
+    // sit 1.11 m from where you stop walking in, flanking the aisle. The first
+    // version drew ONE full-width colour per row, which at that distance is a
+    // 0.5 m × 0.22 m slab — seven of them stacked read as colour banding, not
+    // as goods, and that is what I graded myself down for last commit.
+    //
+    // A real end cap is a promo stack: cases of soda and boxes, two or three
+    // across, uneven, with a hand-lettered price card over it. Two or three
+    // ACROSS is the whole fix — width variation is what stops a row being a band.
+    const capT = declareSurface(pixTex(24, 48, (g) => {
+      g.fillStyle = '#8a8478'; g.fillRect(0, 0, 24, 48);
+      const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a', '#8a5a7a', '#c05a3a'];
+      let y = 46;                                    // stack upward from the floor
+      for (let r = 0; r < 9 && y > 9; r++) {
+        const rh = 3 + ((r * 5) % 4);                // 3…6 px: case, box, case
+        const k = (r * 7 + 2) % 13;
+        const across = k % 3 === 0 ? 3 : 2;          // two or three items across
+        const pad = 1;
+        const cw = Math.floor((22 - pad * (across - 1)) / across);
+        for (let c = 0; c < across; c++) {
+          if ((k + c * 5) % 11 === 3) continue;      // a case taken off the stack
+          const x = 1 + c * (cw + pad);
+          const jitter = (k + c) % 3 === 0 ? 1 : 0;  // not a tidy stack
+          g.fillStyle = cols[(r * 3 + c * 2) % cols.length];
+          g.fillRect(x, y - rh + jitter, cw, rh - jitter);
+          g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, y - rh + jitter, cw, 1);
+          g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x, y - 1, cw, 1);
+        }
+        y -= rh + 1;
       }
-      dither(g, 16, 40, 70);
+      // the promo card, hand-lettered, taped over the top of the stack
+      g.fillStyle = '#e8e2d0'; g.fillRect(3, 3, 18, 8);
+      g.fillStyle = '#a8302a';
+      g.fillRect(5, 5, 14, 2); g.fillRect(5, 8, 9, 2);
+      dither(g, 24, 48, 70);
     }), 'detail');
     const cap = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
     put(cap, gx, 0.95, GOND_Z + GOND_L / 2 + 0.012);
