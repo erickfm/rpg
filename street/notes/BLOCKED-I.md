@@ -1,62 +1,75 @@
 # BLOCKED — builder I
 
-## The driveway apron the user pointed at is not in `ct/lot.ts`
+## The lot mouth still reads flat from the road — verified by eye, as B asked
 
-**What I need:** the long ground sheets either side of the lot mouth given real
-grain along the street.
+**What I need:** the ground either side of the lot's driveway given grain along
+the street axis.
 **From whom:** **B**, who owns `ct/tex-ground.ts`. Every surface involved is
 theirs; none is mine.
 
-**The user's complaint is real and I am not disputing it.** He saw *"a large
-flat untextured grey plane"* at the driveway, and `shots/I-apron-out.png` —
-standing inside the lot looking out over the apron, which is the *"drive a car
-off the lot"* view the brief names — shows exactly that: a broad, grainless pale
-band between the textured lot deck and the textured road.
+B has landed `c5389efe5` — *"Lot mouth: along-street grain as a feathered
+overlay, **NOT verified by eye**"* — against my earlier filing. This is that
+verification, and it is **still red**, with a much sharper location than I gave
+the first time.
 
-### Where it actually lives, measured
+### Both viewpoints, measured in the rendered frame
 
-Walking the ground line across the lot mouth at z 2.6 and reporting the topmost
-surface at each x (`scripts/I-flatground.mjs` and the probe in `notes/I-ground.md`):
-
-```
-  x 9.5 … 7.5   mod=tex-ground   map 768x4     60.1 x 124.6 m sheet
-  x 7.0 … 5.5   mod=tex-ground   map 62x275     1.9 x   8.6 m   <- B's apronTex
-  x 5.0 … 1.0   mod=tex-ground   map 768x4     60.1 x 124.6 m sheet
-```
-
-**Not one of them is `mod: lot`.** The apron proper already carries B's own
-`apronTex` and it is fine — 62 × 275 texels over 1.94 × 8.6 m is **32 texels per
-metre**, the world's ground density.
-
-### The number that is the actual finding
-
-The long sheets around it:
+`scripts/I-apron-grain.mjs`. Edge density, at the **same threshold A uses**
+(24 summed over rgb) so the numbers are comparable with `A-slabtex-proof.mjs`,
+where a flat quad is 0% and a real material 9–17%. Bands are read from the SAME
+image, so exposure and night grade cancel, and each view carries its own
+known-good controls.
 
 ```
-  60.0 x 124.5 m   texture 768x10   repeat 1,1   ->  12.80 texels/m in x,  0.08 in z
-  60.1 x 124.6 m   texture  768x4   repeat 1,1   ->  12.77 texels/m in x,  0.03 in z
-  60.0 x 124.5 m   texture  96x14   repeat 1,1   ->   1.60 texels/m in x,  0.11 in z
+  A · from the road, driving IN     (the ground fills the lower half of the frame)
+     roadway        (known good)     5.56%   mean rgb 109,105,97
+     KERB/WALK BAND (in dispute)     1.50%   mean rgb 131,128,119     <-- FLAT
+     lot deck       (known good)     8.38%   mean rgb  80, 78, 79
 
-  the lot deck     32.0 x 30.0 m    repeat 16,15 ->  32.00 texels/m BOTH ways
-  the lot pad      23.2 x 23.2 m    repeat 11.6  ->  32.00 texels/m BOTH ways
+  B · from inside, looking OUT      (the apron edge-on, 26 screen rows)
+     lot deck       (known good)     3.60%
+     APRON BAND     (in dispute)    11.06%   -> reads as a material
+     roadway        (known good)     9.71%
 ```
 
-**0.03 texels per metre against 32.** These sheets are a cross-section painted
-across the street and stretched 124 m along it — which is a reasonable thing to
-do for a kerb profile, and it means there is **no grain whatever in the
-direction you drive**. That is the mechanism behind "flat untextured grey
-plane", and it is one `repeat.y` away from being fixed.
+**So B's apron wedge is fine and is not the problem.** Seen edge-on it carries
+11.06%, above the roadway in the same frame. What is flat is the **walk band
+crossing the mouth, seen from the road** — 1.50%, a third of the worst
+known-good surface beside it, and the palest thing in frame.
 
-I have not touched it. `ct/tex-ground.ts` is B's, and this is a change to a
-sheet that underlies the whole world — the street, the park and the civic block
-all stand on it — so it is a decision for its owner, not a drive-by from the
-car lot.
+`shots/I-band-in.png` is that band at 4×: roughly ninety screen rows of pale
+grey-green carrying **one horizontal joint line** and almost no speckle. That is
+*"a large flat untextured grey plane"*, and it is the frame a driver sees.
 
-### What I did do
+### Why my first filing pointed at the wrong thing
 
-`ct/lot.ts` had exactly **one** flat-colour ground surface, the 0.7 m² office
-door step. It is on `slabTex` now and the module is clean:
-*"every ground-facing surface in 'lot' carries a texture."*
+I reported the cause as the 60 × 124 m sheets at **0.03–0.11 texels per metre
+along z** against 32 on the deck. That measurement is still true, and it is the
+mechanism — but I implied the whole mouth was affected. It is not: the apron
+wedge sits on top of it and is fine. **Only the walk band either side of the
+driveway is bare**, and only along the street axis, which is exactly the axis
+those sheets have no texels in.
 
-**Not blocking me.** I am carrying on with my queue; this is filed so it reaches
-the owner rather than sitting in a report nobody opens.
+### Two cautions, because both nearly cost me a wrong answer
+
+1. **My first band was mis-placed and scored 13.5%** — the highest of the three —
+   which I nearly published as *"the apron reads as a material"*. It straddled
+   the road, the kerb line and the walk, so it was measuring a **kerb edge**.
+   `shots/I-band-apron.png` is the bad band. Cropping it and looking is what
+   caught it; the number alone was confident and wrong.
+2. **Edge density does not predict the complaint on its own.** The lot deck
+   scores 3.60% in view B and nobody has ever complained about it. What makes
+   this band read as blank is the combination of low grain AND being the palest
+   surface in frame (131 against 80 and 67 either side). Worth knowing before
+   anyone tunes to a number.
+
+### Deliberately NOT registered
+
+`I-apron-grain.mjs` is written, has controls, and goes red — and it stays **out
+of `scripts/checks.mjs`** while the surface it fails on belongs to another
+builder. That is C's own rule and it was right: *"reddening the shared suite over
+something I cannot fix would hand the block my problem."* Register it the day it
+goes green.
+
+**Not blocking me.** I am carrying on with the standing quality brief; this is
+filed so it reaches its owner with a viewpoint, a number and a control.
