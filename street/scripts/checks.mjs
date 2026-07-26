@@ -600,6 +600,20 @@ const CHECKS = [
   // 0.95 m trigger, so it arrived without moving and sailed through the wall.
   // Watching a selftest fail to fail is the only thing that finds that. (N)
   ['N-post-waiting', 'is the post waiting in 301\'s box, and does sleeping fill it?', true],
+  // The jail's door and its pavement. Two claims that are easy to break from
+  // the outside: the [E] on x = 57 stops working the moment anything is put
+  // back across the closed end (a collider there ate it once already —
+  // crosstown.ts's own east-end rectangle stopped the player at x 56.35), and
+  // the walk across that end is the thing the SITE was approved on. It goes
+  // 1.70 m -> 1.89 m, so a regression there is a promise broken rather than a
+  // preference lost.
+  //
+  // It asserts the POPULATION first — it aborts with 3 if no door is declared
+  // for JAIL at all, because every verdict below that is free on a world where
+  // the building failed to build (GOTCHAS 34). Its --selftest pushes a slab
+  // across the doorway onto `__ct.colliders()`, the same array the movement
+  // code reads. (O)
+  ['O-jail-walk', 'can you walk into the jail, and did its pavement get wider?', true, ['all'], true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

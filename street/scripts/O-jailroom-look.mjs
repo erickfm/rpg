@@ -15,6 +15,13 @@ await p.goto(URL, { waitUntil: 'networkidle' });
 await reportWorld(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await afterFrames(p, 10); await p.waitForTimeout(1000);
+// Half this world's rooms have only ever been graded at one in the afternoon.
+// The cell slots are meant to DIM with the world — a bright window at two in
+// the morning is the tell that a room is a set — so the hour is a parameter.
+const HOUR = Number(process.env.HOUR ?? 13);
+const TAG = process.env.HOUR ? `-h${HOUR}` : '';
+await p.evaluate(([h]) => window.__ct.clock(h, 0), [HOUR]);
+await afterFrames(p, 8);
 
 // Find the room from the WORLD rather than typing its slab address — a room
 // that moves slab between builds is a room whose hand-typed probe is wrong and
@@ -60,7 +67,7 @@ for (const [n, lx, lz, tlx, tlz, pi] of [
   if (Math.hypot(q[0] - x, q[2] - z) > 0.4) { console.log(`  SKIPPED ${n}: wanted (${x},${z}) stood (${q[0]},${q[2]})`); continue; }
   await p.evaluate(([pi]) => window.__ct.warp(window.__ct.pos()[0], window.__ct.pos()[2], undefined, undefined, pi), [pi]);
   await afterFrames(p, 3);
-  await p.screenshot({ path: `shots/O-room-${n}.png` });
+  await p.screenshot({ path: `shots/O-room-${n}${TAG}.png` });
   console.log(`  O-room-${n}.png at local (${lx}, ${lz})`);
 }
 await b.close();
