@@ -1,1 +1,1 @@
-WORKING | church pews given an approach (0.00 m seat/stand clash gone); verifying others | F, for the kit-level "while seated, E stands" fix — not stopping me
+DONE | live.sh G empty, no LANDED rows left to verify, suites green | desk: church lancet numbers (BLOCKED-G); F: 41 seats still at 0.00 m in burger+diner; desk/O: interiors-walk refuses to run until `jail` is registered
