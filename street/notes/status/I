@@ -1,1 +1,1 @@
-DONE | ledger reconciled onto current mainline; 12 verifier segments intact, I-seat-exit registered, 0 LANDED rows | nothing
+DONE | queue empty, 0 LANDED rows, my work all landed; re-ran the lot: 11 of 11 guards green on current mainline | nothing
