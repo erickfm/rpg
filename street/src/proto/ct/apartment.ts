@@ -2161,112 +2161,225 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       tvText(g, txt, Math.max(1, Math.round((TVW - w) / 2)), y, c, px);
     };
     /**
-     * ONLY ADS, and lots of them. The user: *"make the tv play only lots of
-     * stupid looking ads. like super 90's stupid."* That CANCELS the mixed
-     * schedule this replaces — no test card, no static, no programmes — and
-     * it is the better brief: an ad is three seconds long and cuts hard, so
-     * twenty of them feel like a channel where twenty half-programmes feel
-     * like a mess.
+     * ADS THAT DIFFER IN KIND, NOT IN CONTENT.
      *
-     * They share ONE renderer, which is the period-correct thing as well as
-     * the cheap thing: every ad on daytime television in 1997 was the same
-     * five elements in a different order — a screaming band, a starburst, a
-     * price, a phone number held far too long, and a disclaimer too small to
-     * read. Because they share it, adding the twenty-first is one line.
+     * The user: *"i need much more diversity on the ads, theyre all basically
+     * the same ad just diffr colors almost."* He is exactly right, and it was
+     * my doing: the first pool was twenty sets of copy through ONE renderer —
+     * band at the top, price in the middle, phone at the bottom — so it read
+     * as one ad in twenty palettes. Adding a twenty-first would have changed
+     * nothing, because the eye reads LAYOUT before it reads words.
+     *
+     * So there are ten FORMATS now and each ad declares which it is. A price
+     * card and a testimonial do not resemble each other even in the same two
+     * colours. Pacing varies with them — a two-second sting beside a six-second
+     * list ad does more for variety than any number of new palettes — and so
+     * does REGISTER: a shouting local spot, a brand pretending to be classy, a
+     * public service announcement, a station ident, a legal notice. A quiet
+     * slate between two loud ones makes both louder.
+     *
+     * The street ones stay and appear in SEVERAL formats: the pawn shop as a
+     * price card AND as a testimonial is two different ads.
      */
+    type Fmt = 'price' | 'product' | 'split' | 'list' | 'order'
+             | 'quote' | 'demo' | 'legal' | 'sting' | 'slate';
     type Ad = {
-      name: string; secs?: number;
-      bg: string; ink: string; band: string; bandInk: string;
-      head: string; lines: string[];
-      price?: string; was?: string; phone?: string; burst?: string; tag?: string;
+      name: string; fmt: Fmt; secs: number;
+      bg: string; ink: string; accent: string;
+      head?: string; sub?: string; price?: string; was?: string;
+      phone?: string; hours?: string; lines?: string[]; who?: string; tag?: string;
+    };
+    /** left-aligned and SIZED TO FIT from x. `tvFit` only centres, so anything
+     *  drawn from an offset — list bullets, quote lines, name captions — had
+     *  no fitting at all and ran off the glass: 'FOUR DOLLARS' read 'FOUR DOL'. */
+    const tvAt = (g: CanvasRenderingContext2D, txt: string, x: number, y: number, c: string, maxPx = 5) => {
+      let px = maxPx;
+      while (px > 3 && x + txt.length * px / 3 * 4 > TVW - 2) px -= 1;
+      const max = Math.max(1, Math.floor((TVW - 2 - x) / (px / 3 * 4)));
+      tvText(g, txt.length > max ? txt.slice(0, max) : txt, x, y, c, px);
+    };
+    const fill = (g: CanvasRenderingContext2D, c: string) => { g.fillStyle = c; g.fillRect(0, 0, TVW, TVH); };
+    /** the starburst, for the formats loud enough to deserve one */
+    const burst = (g: CanvasRenderingContext2D, c: string, t: number, cy = TVH / 2) => {
+      g.fillStyle = c;
+      for (let k = 0; k < 12; k++) {
+        g.save(); g.translate(TVW / 2, cy); g.rotate((k / 12) * Math.PI * 2 + t * 0.5);
+        g.fillRect(0, -2, 46, 4); g.restore();
+      }
+    };
+    /** a blocky head, for the testimonial */
+    const face = (g: CanvasRenderingContext2D, x: number, y: number, skin: string, hair: string) => {
+      g.fillStyle = hair; g.fillRect(x, y, 14, 5);
+      g.fillStyle = skin; g.fillRect(x + 1, y + 4, 12, 11);
+      g.fillStyle = '#20160e'; g.fillRect(x + 4, y + 8, 2, 2); g.fillRect(x + 9, y + 8, 2, 2);
+      g.fillRect(x + 5, y + 12, 5, 1);
+    };
+    const RENDER: Record<Fmt, (g: CanvasRenderingContext2D, a: Ad, t: number) => void> = {
+      // just a huge number and the thing it buys. No talking.
+      price: (g, a, t) => {
+        fill(g, a.bg);
+        burst(g, a.accent, t, TVH / 2 - 2);
+        if (a.was) tvFit(g, `WAS ${a.was}`, 4, a.ink, 4);
+        tvFit(g, a.price ?? '', 13, '#00000077', 13);
+        tvFit(g, a.price ?? '', 12, '#fffbe8', 13);
+        tvFit(g, a.head ?? '', 34, a.ink, 5);
+      },
+      // the object on a plain sweep, turning. The width oscillates, which at
+      // this size is exactly what a slow rotation looks like.
+      product: (g, a, t) => {
+        fill(g, a.bg);
+        g.fillStyle = a.accent; g.fillRect(0, 30, TVW, TVH - 30);          // the sweep
+        const w = 8 + Math.abs(Math.cos(t * 1.1)) * 16;
+        g.fillStyle = a.ink;
+        g.fillRect(TVW / 2 - w / 2, 12, w, 20);
+        g.fillStyle = 'rgba(255,255,255,0.28)';
+        g.fillRect(TVW / 2 - w / 2, 12, Math.max(1, w * 0.3), 20);         // a highlight edge
+        tvFit(g, a.head ?? '', 36, '#fffbe8', 5);
+      },
+      // before and after, down the middle
+      split: (g, a) => {
+        fill(g, a.bg);
+        g.fillStyle = '#2a2a2e'; g.fillRect(0, 8, TVW / 2 - 1, 26);
+        g.fillStyle = a.accent; g.fillRect(TVW / 2 + 1, 8, TVW / 2 - 1, 26);
+        g.fillStyle = '#6b6b60'; g.fillRect(6, 16, 18, 12);                // the sad one
+        g.fillStyle = '#fffbe8'; g.fillRect(TVW / 2 + 8, 14, 18, 16);      // the happy one
+        g.fillStyle = '#fff'; g.fillRect(TVW / 2 - 1, 8, 2, 26);           // the divider
+        tvAt(g, 'BEFORE', 3, 2, a.ink, 4); tvAt(g, 'AFTER', TVW / 2 + 6, 2, a.ink, 4);
+        tvFit(g, a.head ?? '', 37, a.ink, 5);
+      },
+      // five bullets, ticking on one at a time
+      list: (g, a, t) => {
+        fill(g, a.bg);
+        g.fillStyle = a.accent; g.fillRect(0, 0, TVW, 9);
+        tvFit(g, a.head ?? '', 2, a.bg, 5);
+        const shown = Math.min((a.lines ?? []).length, 1 + Math.floor(t / 0.9));
+        (a.lines ?? []).slice(0, shown).forEach((ln, i) => {
+          g.fillStyle = a.accent; g.fillRect(3, 13 + i * 7, 3, 3);         // the tick
+          tvAt(g, ln, 9, 12 + i * 7, a.ink, 4);
+        });
+      },
+      // the end card: number, hours, and nothing else
+      order: (g, a, t) => {
+        fill(g, a.bg);
+        tvFit(g, 'ORDER NOW', 3, a.accent, 6);
+        tvFit(g, a.phone ?? '', 15, '#00000077', 10);
+        tvFit(g, a.phone ?? '', 14, '#fffbe8', 10);
+        tvFit(g, a.hours ?? '24 HOURS', 30, a.ink, 4);
+        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'OPERATORS WAITING', 39, a.ink, 3);
+      },
+      // a face, quote marks, a name caption
+      quote: (g, a) => {
+        fill(g, a.bg);
+        face(g, 4, 10, '#d8a878', '#2e2018');
+        g.fillStyle = a.accent;
+        g.fillRect(22, 8, 3, 5); g.fillRect(27, 8, 3, 5);                  // the quote marks
+        // the words go FULL WIDTH under the face, not squeezed into the 40 px
+        // beside it — seven characters was all that ever fitted there.
+        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 27 + i * 7, a.ink, 5));
+        g.fillStyle = a.accent; g.fillRect(0, TVH - 9, TVW, 9);
+        tvAt(g, a.who ?? '', 3, TVH - 8, a.bg, 4);
+      },
+      // a hand doing the same thing to an object, over and over
+      demo: (g, a, t) => {
+        fill(g, a.bg);
+        g.fillStyle = a.accent; g.fillRect(14, 22, 36, 4);                 // the counter
+        g.fillStyle = a.ink; g.fillRect(28, 14, 10, 8);                    // the object
+        const hx = 18 + Math.abs(Math.sin(t * 2.2)) * 22;                  // the hand
+        g.fillStyle = '#d8a878'; g.fillRect(hx, 8, 9, 7);
+        g.fillRect(hx + 2, 15, 5, 4);
+        tvFit(g, a.head ?? '', 30, a.ink, 5);
+        if (a.sub) tvFit(g, a.sub, 38, a.accent, 4);
+      },
+      // a still, with the small print crawling across it
+      legal: (g, a, t) => {
+        fill(g, a.bg);
+        g.fillStyle = a.accent; g.fillRect(TVW / 2 - 13, 8, 26, 14);       // the logo block
+        tvFit(g, a.head ?? '', 26, a.ink, 5);
+        g.fillStyle = '#000'; g.fillRect(0, TVH - 8, TVW, 8);
+        const txt = a.tag ?? '';
+        const x = TVW - ((t * 22) % (TVW + txt.length * 4 + 10));
+        tvText(g, txt, x, TVH - 7, '#9a9a9a', 3);   // crawls, so it may overrun by design
+      },
+      // two seconds, a card, nothing else
+      sting: (g, a, t) => {
+        fill(g, '#000');
+        const k = Math.min(1, t * 3);
+        g.fillStyle = a.accent;
+        g.fillRect(TVW / 2 - 22 * k, TVH / 2 - 9 * k, 44 * k, 18 * k);
+        if (t > 0.35) tvFit(g, a.head ?? '', TVH / 2 - 3, a.bg, 5);
+      },
+      // white on blue. The quiet one, and it is what makes the loud ones loud.
+      slate: (g, a) => {
+        fill(g, a.bg);
+        g.fillStyle = a.accent; g.fillRect(2, 2, TVW - 4, TVH - 4);
+        g.fillStyle = a.bg; g.fillRect(3, 3, TVW - 6, TVH - 6);
+        (a.lines ?? []).forEach((ln, i) => tvFit(g, ln, 8 + i * 8, a.ink, 5));
+      },
     };
     const ADS: Ad[] = [
-      // ── HIS OWN STREET. The joke that makes this world rather than any
-      //    world, and every one of these is a place he can walk to.
-      { name: 'crosstown auto', bg: '#2f7a4a', ink: '#fff8e0', band: '#e0a81c', bandInk: '#2a2118',
-        head: 'CROSSTOWN AUTO', lines: ['NO CREDIT!', 'NO PROBLEM!'], phone: '555-0199', burst: '#3f9a5e', tag: 'ON APPROVED CREDIT' },
-      { name: 'sevens buffet', bg: '#7a1420', ink: '#ffe9a8', band: '#e8c33a', bandInk: '#3a1008',
-        head: 'SEVENS', lines: ['FREE BUFFET', 'ALL YOU CAN EAT'], price: '$0', burst: '#9a2030', tag: 'MUST BE 21' },
-      { name: 'first federal', bg: '#1d3d6b', ink: '#eaf2ff', band: '#c8d8f0', bandInk: '#12294a',
-        head: 'FIRST FEDERAL', lines: ['LOANS TODAY', 'APR 29'], phone: '555-0142', tag: 'RATES MAY VARY' },
-      { name: 'bodega', bg: '#3a2c1e', ink: '#ffeec8', band: '#c04a2a', bandInk: '#fff0d8',
-        head: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK BREAD BEER'], tag: 'NO CHECKS' },
-      { name: 'pawn', bg: '#2a2036', ink: '#ffe08a', band: '#e0b020', bandInk: '#2a2036',
-        head: 'PAWN', lines: ['WE BUY GOLD'], price: 'CASH NOW', burst: '#3a2c4a', tag: 'ID REQUIRED' },
-      { name: 'burger barn', bg: '#a8301c', ink: '#fff4d8', band: '#f0c020', bandInk: '#5a1808',
-        head: 'BURGER BARN', lines: ['TWO FOR ONE'], price: '$2.99', burst: '#c04028', tag: 'WHILE STOCKS LAST' },
-      // ── and generic tat, so it is not only an in-joke
-      { name: 'slice o matic', bg: '#c81e28', ink: '#fffbe8', band: '#ffd21e', bandInk: '#801018',
-        head: 'SLICE O MATIC!', lines: ['IT SLICES!', 'IT DICES!'], was: '$99', price: '$19.99', phone: '555-0800', burst: '#e83040', tag: 'PLUS SHIPPING' },
-      { name: 'miracle mop', bg: '#1a7a8a', ink: '#f0ffff', band: '#ffe83a', bandInk: '#0a3a44',
-        head: 'MIRACLE MOP', lines: ['NEVER WRING'], was: '$39', price: '$19', burst: '#2a9aaa', tag: 'RESULTS VARY' },
-      { name: 'hair in a can', bg: '#4a2a5a', ink: '#ffe8ff', band: '#e0a0f0', bandInk: '#2a1030',
-        head: 'HAIR IN A CAN', lines: ['LOOK YOUNGER', 'IN SECONDS'], price: '$29.99', tag: 'NOT A TREATMENT' },
-      { name: 'ab blaster', bg: '#20304a', ink: '#e8f4ff', band: '#ff6a20', bandInk: '#20304a',
-        head: 'AB BLASTER 3000', lines: ['SIX EASY', 'PAYMENTS!'], was: '$199', price: '$9.99', phone: '555-0800', tag: 'DIET AND EXERCISE' },
-      { name: 'psychic line', bg: '#2a1a4a', ink: '#ffe0a0', band: '#c0a0ff', bandInk: '#1a1030',
-        head: 'PSYCHIC LINE', lines: ['THEY KNOW', 'CALL NOW'], price: '$4 A MIN', phone: '555-0777', burst: '#3a2060', tag: 'ENTERTAINMENT ONLY' },
-      { name: 'mega hits', bg: '#d81880', ink: '#fff0ff', band: '#40e0d0', bandInk: '#701040',
-        head: 'MEGA HITS 97', lines: ['FORTY SONGS', 'TWO TAPES'], price: '$24.99', burst: '#f03898', tag: 'NOT IN STORES' },
-      { name: 'carpet', bg: '#7a4a1a', ink: '#fff0d0', band: '#ffd21e', bandInk: '#5a3010',
-        head: 'CARPET BARN', lines: ['BLOWOUT'], price: '99C A FOOT', burst: '#9a6030', tag: 'INSTALL EXTRA' },
-      { name: 'mattress', bg: '#123a6a', ink: '#f0f8ff', band: '#ff2020', bandInk: '#fff0f0',
-        head: 'MATTRESS KING', lines: ['NO PAYMENTS', 'TIL 98'], burst: '#1a4a84', tag: 'OAC SEE STORE' },
-      { name: 'tan', bg: '#e08a10', ink: '#40200a', band: '#fff0a0', bandInk: '#8a4a00',
-        head: 'TAN U MORE', lines: ['TEN SESSIONS'], price: '$29', tag: 'GOGGLES EXTRA' },
-      { name: 'video hut', bg: '#1a1a2a', ink: '#ffe040', band: '#e02020', bandInk: '#fff0f0',
-        head: 'VIDEO HUT', lines: ['NEW RELEASES'], price: '99C', tag: 'BE KIND REWIND' },
-      { name: 'pizza', bg: '#0a5a2a', ink: '#fff8e0', band: '#e02020', bandInk: '#fff0e0',
-        head: 'PIZZA PIZZA', lines: ['TWO LARGE'], price: '$9.99', phone: '555-0311', burst: '#0a7a3a', tag: 'DELIVERY AREA LIMITED' },
-      { name: 'veg o chop', bg: '#8a1060', ink: '#fff0ff', band: '#ffe83a', bandInk: '#5a0840',
-        head: 'VEG O CHOP', lines: ['BUT WAIT!!', 'THERES MORE'], was: '$59', price: '$14.99', burst: '#aa2080', tag: 'DOUBLE THE OFFER' },
-      { name: 'gold card', bg: '#101018', ink: '#ffd870', band: '#c8a020', bandInk: '#101018',
-        head: 'GOLD CLUB CARD', lines: ['PRE APPROVED', 'YOU ALREADY WON'], phone: '555-0900', tag: 'FEES APPLY' },
-      { name: 'roach motel', bg: '#3a3a1a', ink: '#f0f0c0', band: '#a0c020', bandInk: '#20200a',
-        head: 'ROACH MOTEL', lines: ['THEY CHECK IN', 'THEY DONT'], price: '$4.99', tag: 'USE AS DIRECTED' },
+      // ── his own street, each in more than one format ───────────────────
+      { name: 'crosstown price', fmt: 'price', secs: 3.4, bg: '#2f7a4a', ink: '#fff8e0', accent: '#3f9a5e',
+        was: '$2995', price: '$1395', head: 'CROSSTOWN AUTO' },
+      { name: 'crosstown order', fmt: 'order', secs: 3.8, bg: '#1d4a30', ink: '#cfe8d8', accent: '#e0a81c',
+        phone: '555-0199', hours: 'OPEN TIL NINE' },
+      { name: 'crosstown sting', fmt: 'sting', secs: 2.0, bg: '#2a2118', ink: '#fff8e0', accent: '#e0a81c',
+        head: 'CROSSTOWN' },
+      { name: 'sevens slate', fmt: 'slate', secs: 4.2, bg: '#10203f', ink: '#eaf2ff', accent: '#c8d8f0',
+        lines: ['SEVENS', 'FREE BUFFET', 'MUST BE 21'] },
+      { name: 'sevens quote', fmt: 'quote', secs: 4.4, bg: '#7a1420', ink: '#ffe9a8', accent: '#e8c33a',
+        lines: ['I WON', 'FOUR DOLLARS'], who: 'DENNIS, A LOCAL' },
+      { name: 'first federal legal', fmt: 'legal', secs: 5.0, bg: '#1d3d6b', ink: '#eaf2ff', accent: '#c8d8f0',
+        head: 'FIRST FEDERAL', tag: 'APR 29 PERCENT. RATES MAY VARY. FEES APPLY. NOT A COMMITMENT TO LEND.' },
+      { name: 'first federal slate', fmt: 'slate', secs: 3.6, bg: '#0d2748', ink: '#eaf2ff', accent: '#7f9fd0',
+        lines: ['A LOAN', 'TODAY', 'ASK INSIDE'] },
+      { name: 'pawn price', fmt: 'price', secs: 3.2, bg: '#2a2036', ink: '#ffe08a', accent: '#3a2c4a',
+        price: 'CASH', head: 'WE BUY GOLD' },
+      { name: 'pawn quote', fmt: 'quote', secs: 4.2, bg: '#241b2e', ink: '#ffe08a', accent: '#e0b020',
+        lines: ['THEY TOOK', 'MY WATCH'], who: 'A CUSTOMER' },
+      { name: 'bodega list', fmt: 'list', secs: 5.6, bg: '#3a2c1e', ink: '#ffeec8', accent: '#c04a2a',
+        head: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK', 'BREAD', 'BEER', 'NO CHECKS'] },
+      { name: 'burger split', fmt: 'split', secs: 3.6, bg: '#a8301c', ink: '#fff4d8', accent: '#f0c020',
+        head: 'BURGER BARN' },
+      // ── and the tat, spread across the same formats ────────────────────
+      { name: 'slice demo', fmt: 'demo', secs: 4.6, bg: '#c81e28', ink: '#fffbe8', accent: '#ffd21e',
+        head: 'SLICE O MATIC', sub: 'IT NEVER STOPS' },
+      { name: 'mop split', fmt: 'split', secs: 3.4, bg: '#1a7a8a', ink: '#f0ffff', accent: '#ffe83a',
+        head: 'MIRACLE MOP' },
+      { name: 'hair split', fmt: 'split', secs: 3.4, bg: '#4a2a5a', ink: '#ffe8ff', accent: '#e0a0f0',
+        head: 'HAIR IN A CAN' },
+      { name: 'ab list', fmt: 'list', secs: 5.4, bg: '#20304a', ink: '#e8f4ff', accent: '#ff6a20',
+        head: 'AB BLASTER 3000', lines: ['SIX PAYMENTS', 'NO WAITING', 'FOLDS FLAT', 'FITS ANYWHERE', 'AS SEEN ON TV'] },
+      { name: 'psychic order', fmt: 'order', secs: 3.8, bg: '#2a1a4a', ink: '#ffe0a0', accent: '#c0a0ff',
+        phone: '555-0777', hours: 'FOUR A MINUTE' },
+      { name: 'mega list', fmt: 'list', secs: 5.2, bg: '#d81880', ink: '#fff0ff', accent: '#40e0d0',
+        head: 'MEGA HITS 97', lines: ['FORTY SONGS', 'TWO TAPES', 'NOT IN STORES'] },
+      { name: 'carpet price', fmt: 'price', secs: 3.0, bg: '#7a4a1a', ink: '#fff0d0', accent: '#9a6030',
+        was: '$3', price: '99C', head: 'CARPET BARN' },
+      { name: 'mattress slate', fmt: 'slate', secs: 4.0, bg: '#123a6a', ink: '#f0f8ff', accent: '#6f8fc0',
+        lines: ['MATTRESS KING', 'NO PAYMENTS', 'UNTIL 98'] },
+      { name: 'tan product', fmt: 'product', secs: 3.6, bg: '#e08a10', ink: '#8a4a00', accent: '#c06a00',
+        head: 'TAN U MORE' },
+      { name: 'video sting', fmt: 'sting', secs: 2.0, bg: '#1a1a2a', ink: '#ffe040', accent: '#e02020',
+        head: 'VIDEO HUT' },
+      { name: 'pizza order', fmt: 'order', secs: 3.6, bg: '#0a5a2a', ink: '#fff8e0', accent: '#e02020',
+        phone: '555-0311', hours: 'TIL TWO AM' },
+      { name: 'veg demo', fmt: 'demo', secs: 4.8, bg: '#8a1060', ink: '#fff0ff', accent: '#ffe83a',
+        head: 'VEG O CHOP', sub: 'BUT WAIT' },
+      { name: 'gold legal', fmt: 'legal', secs: 5.0, bg: '#101018', ink: '#ffd870', accent: '#c8a020',
+        head: 'GOLD CLUB CARD', tag: 'PRE APPROVAL IS NOT APPROVAL. ANNUAL FEE. SEE TERMS. THIS IS NOT AN OFFER.' },
+      { name: 'roach product', fmt: 'product', secs: 3.4, bg: '#3a3a1a', ink: '#c8c8a0', accent: '#20200a',
+        head: 'ROACH MOTEL' },
+      // ── and the two that are not selling anything, which is the point ──
+      { name: 'psa', fmt: 'slate', secs: 4.6, bg: '#1a1a1a', ink: '#e8e8e8', accent: '#8a8a8a',
+        lines: ['A MESSAGE', 'FROM THIS', 'STATION'] },
+      { name: 'ident', fmt: 'sting', secs: 2.2, bg: '#0a0a12', ink: '#fff', accent: '#4a6ad0',
+        head: 'CHANNEL 4' },
     ];
-    const drawAd = (g: CanvasRenderingContext2D, a: Ad, t: number) => {
-      g.fillStyle = a.bg; g.fillRect(0, 0, TVW, TVH);
-      // the starburst behind everything, because of course there is one
-      if (a.burst) {
-        g.fillStyle = a.burst;
-        for (let k = 0; k < 12; k++) {
-          const th = (k / 12) * Math.PI * 2 + t * 0.5;
-          g.save(); g.translate(TVW / 2, TVH / 2 + 4); g.rotate(th);
-          g.fillRect(0, -2, 46, 4); g.restore();
-        }
-      }
-      g.fillStyle = a.band; g.fillRect(0, 1, TVW, 9);            // the screaming band
-      tvFit(g, a.head, 3, a.bandInk, 5);
-      let y = 13;
-      for (const ln of a.lines) { tvFit(g, ln, y, a.ink, 4); y += 7; }
-      if (a.was) { tvFit(g, `WAS ${a.was}`, y, a.ink, 4); y += 7; }
-      if (a.price) {
-        // drop shadow, chunky, one pixel off — bad kerning is period-correct
-        tvFit(g, a.price, y + 1, '#00000088', 7); tvFit(g, a.price, y, '#fffbe8', 7);
-        y += 10;
-      }
-      // THE BOTTOM STRAP, held on screen far too long and cycling between the
-      // three things every one of these ever said. Two rows, because
-      // 'OPERATORS ARE STANDING BY' is 25 characters and this screen fits 15.
-      const beat = Math.floor(t / 1.1) % 3;
-      if (beat === 2) {
-        tvFit(g, 'OPERATORS ARE', TVH - 15, '#fffbe8', 4);
-        tvFit(g, 'STANDING BY!!', TVH - 9, '#fffbe8', 4);
-      } else if (Math.floor(t * 2.5) % 2 === 0) {
-        tvFit(g, beat === 0 && a.phone ? a.phone : 'CALL NOW!!!', TVH - 13, '#fffbe8', a.phone && beat === 0 ? 6 : 5);
-      }
-      // the disclaimer, literally too small to read: one row of grey ticks
-      g.fillStyle = 'rgba(255,255,255,0.45)';
-      for (let x = 2; x < TVW - 2; x += 2) g.fillRect(x, TVH - 4, 1, 2);
-      if (a.tag) { /* the text exists; at this size it is a grey bar, as intended */ }
-    };
-    // Every ad is a segment. SHORT, and cut hard — that is what makes twenty
-    // feel endless.
     const SEGMENTS: TvSeg[] = ADS.map((a) => ({
-      name: a.name, secs: a.secs ?? 3.2, live: true,
-      draw: (g, t) => drawAd(g, a, t),
+      name: a.name, secs: a.secs, live: true,
+      draw: (g, t) => RENDER[a.fmt](g, a, t),
     }));
+
     let tvSeg = 0, tvLeft = SEGMENTS[0].secs, tvClock = 0, tvRedraw = 0;
     let tvBag: number[] = [];
     const tvScreenT = surfTex('detail', TVW, TVH, (g) => { g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH); });
@@ -2427,7 +2540,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
           }
           if (tvBag[0] === tvSeg && tvBag.length > 1) [tvBag[0], tvBag[1]] = [tvBag[1], tvBag[0]];
         }
-        tvSeg = tvBag.pop()!; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
+        // NEVER THE SAME FORMAT TWICE RUNNING. The bag already guarantees no
+        // ad repeats until the pack is dealt; this is the other half of *"you
+        // should not be able to predict the next frame's layout"* — two price
+        // cards back to back read as one ad even with different numbers.
+        let pick = tvBag.length - 1;
+        for (let k = tvBag.length - 1; k >= 0; k--) {
+          if (ADS[tvBag[k]].fmt !== ADS[tvSeg].fmt) { pick = k; break; }
+        }
+        tvSeg = tvBag.splice(pick, 1)[0]; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
         tvPaint();
         return;
       }
@@ -2438,8 +2559,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // published like doorTravel and hermit, so a check watches the schedule
     // rather than hashing pixels and guessing
     ctx.onFrame(() => {
-      scene.userData.tv = { seg: SEGMENTS[tvSeg].name, i: tvSeg, left: tvLeft, pool: SEGMENTS.length,
-                            on: tvLit, warming: tvWarm > 0 };
+      scene.userData.tv = { seg: SEGMENTS[tvSeg].name, fmt: ADS[tvSeg].fmt, i: tvSeg,
+                            left: tvLeft, pool: SEGMENTS.length, on: tvLit, warming: tvWarm > 0 };
     }, ORDER.WORLD);
     // ── and somewhere to watch it from ──────────────────────────────────
     // `ctx.seat` already does the whole mechanism the request describes —
