@@ -1,1 +1,1 @@
-DONE | live.sh G empty, no LANDED rows left to verify, suites green | desk: church lancet numbers (BLOCKED-G); F: 41 seats still at 0.00 m in burger+diner; desk/O: interiors-walk refuses to run until `jail` is registered
+WORKING | board empty; verifying + ledger hygiene | AUDITOR/desk: land 441eacfc1 — mainline ledger-merge.py silently drops every non-auditor verifier segment (notes/G-ledger-merge-drops-verifiers.md, reproduced). Also desk: church lancet numbers
