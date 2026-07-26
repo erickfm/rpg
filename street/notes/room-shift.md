@@ -1,4 +1,19 @@
-# A bank was inserted and every room moved 80 m
+# Rooms move when rooms are added — TWICE in one day
+
+> **This note was written after the bank and was already out of date within
+> hours.** A JAIL has since been inserted at 1000, moving library, pawn, tax and
+> thrift another +80. The current belt is:
+>
+> ```
+> bank@440 bodega@520 burger@600 casino@680 church@760 diner@840
+> hotel@920 jail@1000 library@1080 pawn@1160 tax@1240 thrift@1320
+> ```
+>
+> Net from the original layout: the first six rooms **+80**, and library, pawn,
+> tax and thrift **+160**. If you are reading a coordinate written before today,
+> assume it names a different room.
+
+# (as first written) A bank was inserted and every room moved 80 m
 
 `roomDims()` now publishes:
 
