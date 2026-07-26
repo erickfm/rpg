@@ -17,7 +17,8 @@
     "wiring": "node scripts/check-wiring.mjs -v",
     "checks": "node scripts/checks.mjs",
     "walk": "node scripts/D-walk.mjs",
-    "artifact": "node scripts/pack-artifact.mjs && node scripts/check-artifact.mjs"
+    "artifact": "node scripts/pack-artifact.mjs && node scripts/check-artifact.mjs",
+    "ledger": "node scripts/ledger-intact.mjs"
   },
   "dependencies": {
     "three": "^0.185.1"
