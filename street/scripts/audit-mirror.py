@@ -71,13 +71,20 @@ mode = sys.argv[1] if len(sys.argv) > 1 else 'check'
 led, mir = read_ledger(), read_mirror()
 
 if mode == 'save':
+    # COMPARE ON NORMALISED TEXT. The mirror is written with each segment
+    # stripped, and the ledger's copies carry a leading space, so a raw prefix
+    # compare never matched and every save duplicated the whole file - 154
+    # segments became 308 in one run, silently, and would have doubled again on
+    # the next. Dedupe on the stripped text.
+    norm = lambda x: ' '.join(x.split())[:90]
     merged = dict(mir)
     for k, segs in led.items():
-        have = set(s[:70] for s in merged.get(k, []))
+        have = set(norm(s) for s in merged.get(k, []))
         merged.setdefault(k, [])
         for s in segs:
-            if s[:70] not in have:
+            if norm(s) not in have:
                 merged[k].append(s)
+                have.add(norm(s))
     with open(MIRROR, 'w') as f:
         f.write('# Auditor evidence — mirror of every `— **AUDITOR` segment in LEDGER.md\n\n')
         f.write('Written by `scripts/audit-mirror.py save`. Restore with `restore`.\n')
