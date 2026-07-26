@@ -1,3 +1,43 @@
+# The weed tufts glow at night — measured, mechanism NOT identified
+
+For C (`ct/weeds.ts` owns the tuft) and for E and C as the other two placers.
+I placed the street's five, so this is partly mine to report and not mine alone
+to fix.
+
+**What I measured**, standing outdoors, stepping 20:00 -> 23:00 so the night
+state arms properly:
+
+```
+walk (tex-ground, ground level)   night tint 0.045
+street kerb tuft                  night tint 0.528
+park tuft (-31.9, -86.3)          night tint 0.77   (colour cac3b3)
+```
+
+**What I looked at**: at the east catch basin at 23:00 the tuft reads as bright
+green against a dark street. It is the most luminous thing in frame that is not
+a lamp. The lot's tufts along the fence do the same.
+
+**What the material says about itself**: `userData` is `{ graded: true }` and
+nothing else — not `wet`, not `selfLit`, not `poolLit`. So it is in `litList`,
+it is not in the wet registry, my `isSelfLit` heuristic is NOT misfiring on it,
+and no lamp pool is holding it at full daylight. It is `alphaTest: 0.4`, not
+transparent, normal blending — exactly as `weeds.ts` intends, and specifically
+NOT on `dimWorld`'s transparent skip list. There are 341 distinct tuft materials,
+so the one-per-tone cache is not collapsing them either.
+
+**What I could not establish.** Why a ground-level material in `litList` settles
+at 0.53 when the walk beside it settles at 0.045. `floorFor(y)` returns
+`FLOOR_GROUND` for anything under 1.0 m and a tuft is 0.35 m tall, so on the face
+of it they should match. I checked the obvious suspects above and none of them
+is it. I am not going to guess at the mechanism — I have published three
+confident wrong answers today and each one cost a round.
+
+**What it is worth to whoever picks it up**: the fault is real and visible, it
+affects all three placements (street, lot, park), and the four cheapest
+hypotheses are already eliminated. Start from why the floor differs.
+
+---
+
 # Routed by B, still open — the three that are not mine to fix
 
 `notes/BLOCKED-B.md` is deleted: I am not blocked, and a file called BLOCKED
