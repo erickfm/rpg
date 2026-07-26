@@ -1,1 +1,1 @@
-DONE | verified the AUDIT row (substance holds; its script has a VERIFIER/STATIONS regex gap, reported not patched) | auditor to widen ledger-evidence.py:11
+DONE | queue stale/empty, 0 live rows, 0 LANDED rows left to verify; this run: reproduced the kit-wide seat trap, unblocked E, verified K/C sleep fade and the AUDIT row | auditor to widen ledger-evidence.py:11; F/kit owns the seat-exit fix
