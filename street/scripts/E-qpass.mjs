@@ -76,12 +76,24 @@ const STATIONS = [
     what: 'the south party line — the BURGER BARN junction' },
 
   // ── the church, read from the pavement ────────────────────────────────
-  { k: 'church-pavement', at: [5.4, -83.0], yaw: E_, gy: 0.14,
-    what: 'the church from the pavement, through its gate' },
-  { k: 'church-yard', at: [8.6, -83.0], yaw: E_, gy: 0.20,
+  //
+  // THESE COORDINATES WERE GUESSED THE FIRST TIME AND ONE OF THEM WAS WRONG.
+  // `church-tower` stood at z -88 and photographed the BODEGA — I graded a
+  // corner shop as a church until I opened the frame. Measured off the world
+  // instead: the tall meshes on this side sit at x 9.5-11.3, z -73.5…-86, the
+  // tower being the 17 m one at (11.3, -79.5). The gate is on that axis, so
+  // z -79.5 is where a player arrives, not z -83 or -88.
+  //
+  // Same lesson as the rest of today, one level out: I filtered on a
+  // coordinate I remembered rather than one the world reported.
+  { k: 'church-pavement', at: [5.4, -79.5], yaw: E_, gy: 0.14,
+    what: 'the church from the pavement, on the gate axis — the way you arrive' },
+  { k: 'church-yard', at: [8.6, -79.5], yaw: E_, gy: 0.20,
     what: 'inside the churchyard, the flight up to the door' },
-  { k: 'church-tower', at: [5.4, -88.0], yaw: E_, gy: 0.14, pitch: 0.35,
-    what: 'the tower and nave side faces — the stone texture' },
+  { k: 'church-tower', at: [5.4, -79.5], yaw: E_, gy: 0.14, pitch: 0.5,
+    what: 'the tower, 17 m at (11.3, -79.5) — the stone texture up its face' },
+  { k: 'church-nave', at: [5.4, -84.0], yaw: E_, gy: 0.14, pitch: 0.25,
+    what: 'the nave side wall, the face that was flat until I textured it' },
 ];
 
 const b = await chromium.launch();

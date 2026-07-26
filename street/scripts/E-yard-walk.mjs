@@ -35,12 +35,12 @@ const f = (n) => n.toFixed(2);
 // point. Same change as E-walk, E-park-walk and E-onslope, and made after the
 // same fault cost a real diagnosis in the library courtyard.
 const gyAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
-let fails = 0;
+let fails = 0, downgraded = 0;
 const report = (name, ok, detail, tries = 1) => {
   if (!ok) fails++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}  ${detail}${tries > 1 ? `  [${tries} tries]` : ''}`);
 };
-const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
+const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) => {
   let last, tries = 0;
   // 1.1 s was not enough: a citizen standing in a lane is seeded, so it stops
   // you in the same place on every retry unless the wait outlasts its walk.
@@ -57,13 +57,45 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say }) => {
   // a real failure, say what is actually there — and if the answer is
   // nothing, it was a citizen and the retries were unlucky.
   if (!ok(last)) {
-    const near = await page.evaluate(([x, z]) => window.__ct.colliders()
-      .filter((c) => x > c.minX - 0.8 && x < c.maxX + 0.8 && z > c.minZ - 0.8 && z < c.maxZ + 0.8)
-      .map((c) => `x ${c.minX.toFixed(2)}…${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}…${c.maxZ.toFixed(2)}`),
-      [last[0], last[2]]);
+    // WHAT IS STATIC, AND IN FRONT OF ME. Two corrections, both measured in
+    // E-walk today and both applying here unchanged:
+    //
+    //  · `colliders()` PUBLISHES THE CITIZENS — 494 boxes of which 6 move every
+    //    frame, 0.5 x 0.5 m, sliding along z in the pavement lanes. So "is a
+    //    collider there" cannot distinguish a bollard from a person standing in
+    //    the gateway, which is the exact thing this branch exists to decide.
+    //    Snapshot twice and keep only what has not moved.
+    //  · "within 0.8 m in every direction" is not "in my way". The church wall
+    //    is inside that ball for the whole length of the walk past it.
+    const snap = () => page.evaluate(() => window.__ct.colliders()
+      .map((c) => `${c.minX.toFixed(3)},${c.maxX.toFixed(3)},${c.minZ.toFixed(3)},${c.maxZ.toFixed(3)}`));
+    const s1 = await snap();
+    await page.waitForTimeout(500);
+    const s2 = new Set(await snap());
+    const dx = Math.sin(yaw), dz = -Math.cos(yaw);   // the PLAYER travels (sin t, -cos t)
+    const L = 1.6, R = 0.5;
+    const bx = { minX: Math.min(last[0], last[0] + dx * L) - R, maxX: Math.max(last[0], last[0] + dx * L) + R,
+                 minZ: Math.min(last[2], last[2] + dz * L) - R, maxZ: Math.max(last[2], last[2] + dz * L) + R };
+    const near = s1.filter((k) => s2.has(k)).map((k) => k.split(',').map(Number))
+      .filter(([aX, bX2, aZ, bZ]) => aX < bx.maxX && bX2 > bx.minX && aZ < bx.maxZ && bZ > bx.minZ)
+      .map(([aX, bX2, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX2.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`);
+    // A CITIZEN IS NOT A FAILURE OF THE WORLD, on the legs that say so.
+    //
+    // This file had no downgrade at all: the 26 m pavement leg past the church
+    // simply went red whenever somebody was walking down it, which measured
+    // three times in a row today and passed on the next run untouched. The
+    // north leg was already special-cased into a hand-written NOTE, which is
+    // the same judgement made once, by hand, where it could not be reused.
+    // Opt-in per leg, exactly as E-walk does it.
+    if (crowded && !near.length) {
+      console.log(`NOTE  ${name}  ${say(last)}  [${tries + 1} tries]`);
+      console.log('      nothing static in the corridor ahead — the pavement was busy, not blocked');
+      downgraded++;
+      return last;
+    }
     report(name, false, say(last), tries + 1);
-    console.log(near.length ? `      what is there: ${near.join(' | ')}`
-      : '      nothing static within 0.8 m — a citizen was standing in it');
+    console.log(near.length ? `      what is in front of you: ${near.join(' | ')}`
+      : '      nothing static in the corridor ahead — a citizen was standing in it');
     return last;
   }
   report(name, true, say(last), tries + 1);
@@ -95,6 +127,7 @@ console.log(`the churchyard floor is ${WIRED ? 'WIRED' : 'NOT wired'}; the gate 
 
 // 1 ── the 2 m walk past the church stays clear, both ways
 await walk('the walk past the church, south', {
+  crowded: true,
   at: [6.2, -64.0], yaw: 0.0, ms: 8000,
   ok: (p) => p[2] < -88.0,
   say: (p) => `z -64.00 -> ${f(p[2])}, x ${f(p[0])}`,
@@ -147,15 +180,36 @@ if (WIRED && OPEN) {
   await page.waitForTimeout(120);
   await page.keyboard.down('w'); await page.waitForTimeout(1400); await page.keyboard.up('w');
   await page.waitForTimeout(60);
+  // THE FLOOR HERE COMES FROM THE PICKER, NOT FROM `pos()[3]`.
+  //
+  // This file fixed `gyAt` to use `groundAt` and then read `atDoors[3]` and
+  // `out[3]` anyway — the same shared last-written value, two lines below the
+  // comment explaining why not to. It reported "reached x 9.12 at gy 0.45
+  // (sill 0.55)" and failed a flight that carries you to the sill perfectly
+  // well; 0.45 is simply whatever was written last.
+  //
+  // AND NOT CROSS-CHECKED AGAINST `pos()[1]`, which I tried an hour ago and
+  // which is worthless here: it is a CONSTANT. Measured at six places with
+  // floors from 0.14 to 0.99 — pavement, both flights, the mound crest — it
+  // reads 1.62 at every one of them. It is the eye height ABOVE the floor, not
+  // a world y, so it carries no information about how high you are standing.
+  //
+  // Worth writing down because of how it failed: as a term in this assertion
+  // it turned a correct flight red, and in `E-walk` the same term went GREEN —
+  // by coincidence, because that walk ends on the 0.14 pavement where the
+  // constant happens to equal what I was predicting. A check that passes for
+  // the wrong reason is the more expensive of the two.
   const atDoors = await pos();
+  const doorGy = await gyAt(atDoors[0], atDoors[2]);
   report('the flight carries you up to the doors',
-    atDoors[0] > 9.0 && Math.abs(atDoors[3] - SILL) < 0.02,
-    `reached x ${f(atDoors[0])} at gy ${atDoors[3].toFixed(2)} (sill ${SILL})`);
+    atDoors[0] > 9.0 && Math.abs(doorGy - SILL) < 0.02,
+    `reached x ${f(atDoors[0])}, floor there ${doorGy.toFixed(2)} (sill ${SILL})`);
   await page.keyboard.down('s'); await page.waitForTimeout(1200); await page.keyboard.up('s');
   await page.waitForTimeout(60);
   const out = await pos();
-  report('…and back down onto the flags', out[0] < 8.0 && Math.abs(out[3] - 0.14) < 0.02,
-    `x ${f(atDoors[0])} -> ${f(out[0])}, gy ${out[3].toFixed(2)}`);
+  const outGy = await gyAt(out[0], out[2]);
+  report('…and back down onto the flags', out[0] < 8.0 && Math.abs(outGy - 0.14) < 0.02,
+    `x ${f(atDoors[0])} -> ${f(out[0])}, floor there ${outGy.toFixed(2)}, eye ${out[1].toFixed(2)}`);
 
   // the ramp itself: sampled across the flight, and it must not dip
   const prof = [];
@@ -191,5 +245,6 @@ if (WIRED && OPEN) {
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nall walks passed');
+if (downgraded) console.log(`${downgraded} leg(s) downgraded to NOTE — the pavement was busy, nothing static in the way`);
 await browser.close();
 process.exit(fails ? 1 : 0);

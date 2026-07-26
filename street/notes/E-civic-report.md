@@ -209,3 +209,131 @@ you started signal you. And check for strays before blaming the machine.
   head 3.7 m away. Recorded so nobody re-opens it.
 
 _Builder E, 2026-07-25._
+
+---
+
+# Second quality pass — 26 July, graded from player stations
+
+The desk's method instruction, in the user's words: *"take screenshots yourself
+and grade it and make sure you are impressed with it. be skeptical."* So this
+pass is 19 stations × day and night, each one somewhere a player arrives under
+their own steam, shot by `scripts/E-qpass.mjs` and graded by opening every
+frame. **The canonical station for the park is the gate, on foot from the
+pavement** — the desk's ruling, and the one the user's own screenshots use.
+
+**The headline is not about the world.** I ran my own suite first and it
+reported four red areas. **Not one of them was the world.** All four were my
+probes answering a different question from the one asked, and finding that out
+took most of the pass. What the world actually looks like is further down.
+
+## The four reds that were mine, not the world's
+
+| the check said | the truth | why it lied |
+|---|---|---|
+| the library frontage lane is blocked | it is clear; the sacred 2 m holds | `colliders()` **publishes the citizens** |
+| the courtyard floor sits at 0.99 in four places | 48 samples, all 0.14 | it read `pos()[3]`, not the picker |
+| the courtyard descent ends at gy 0.99 | floor 0.14, eye 1.62 — correct | same shared last-written value |
+| the park stopped getting wet | `#ffffff → #a5a7ac` | it sampled two DRY moments, off the wrong mesh |
+
+### `__ct.colliders()` contains moving people — this one is everybody's
+
+**494 colliders; 6 of them move every frame.** They are 0.5 × 0.5 m boxes
+sliding along z in the two pavement lanes, x −6.25…−5.75 and 5.75…6.25. They
+are the pedestrians.
+
+That matters well beyond my file. **Any harness that uses `colliders()` to
+establish "nothing static is here" is unsound**, because a person standing in a
+lane is in that list and looks exactly like a bollard. Mine did, on the check
+guarding §9 — the sacred lane — which is the one that most needs believing when
+it goes red.
+
+I found it by noticing the blocking box was at z −13.84…−13.34 in one run and
+−13.81…−13.31 in the next. **Three centimetres.** Static geometry is
+bit-identical between runs of a seeded world; a person is not.
+
+**The fix, for anyone who wants it:** snapshot `colliders()` twice about half a
+second apart and keep only the boxes present at *identical coordinates* in
+both. Everything that moved, arrived or vanished is alive.
+
+### And three smaller traps, all documented in-file
+
+- **`pos()[3]` is a shared last-written value** with several writers. Use
+  `__ct.groundAt(x, z)` — the picker, GOTCHAS §7. `probeLanding` in `E-walk`
+  was fixed for this weeks ago and *the floor grid beside it was not*, which is
+  how it came to report four broken points in a courtyard that is fine.
+- **`rainAt()` takes the ABSOLUTE hour** and `clock(h, m)` sets the time of
+  **day**. Picking a "wet hour" and setting the clock to it does nothing.
+  `updateRain` also gates on `px < 100`, so a rain check can spin forty game
+  hours indoors and conclude the weather is broken. Drive time and watch
+  `rainLevel`; stand in the park you are asking about.
+- **`pos()[1]` is a CONSTANT, not a world y.** Measured at six places with
+  floors from 0.14 to 0.99 — pavement, both flights, the mound crest — it reads
+  **1.62 at every one**. It is eye height *above* the floor. I added it to two
+  assertions today as an independent second opinion and it is not one: the
+  identical term turned a correct church flight **red** and went **green** in
+  `E-walk`, where the walk happens to end on the 0.14 pavement and the constant
+  matched what I was predicting. Same wrong idea, opposite outcomes, **and the
+  green one is the more expensive** — it would have sat there being cited.
+- **A WebGL canvas is empty to `drawImage`** — the drawing buffer is discarded
+  after compositing unless `preserveDrawingBuffer` is set. My frame guard read
+  one colour off a world that was visibly drawing. Measure the PNG you wrote,
+  not the live canvas.
+
+## Still open, ranked by whether a player can see it
+
+| # | finding | can a player see it? | whose |
+|---|---|---|---|
+| 1 | **The churchyard and the library courtyard have no light source at all.** Measured, not eyeballed: `church-yard-night.png` contains **six distinct colours** in the whole frame. You cannot see the door you are standing at | **Yes — it is the complaint the park already got** | lamps are `ct/props.ts` (B) |
+| 2 | **The canopy soffit over the library doors is a flat untextured near-black slab.** It is directly above the entrance, filling the top of frame at the one station every player stands at | **Yes** | **mine**, `ct/civic.ts` |
+| 3 | **The mowing stripes do not read from the gate.** At the ruled 1.5 m / 6.9% the field reads as a flat olive plane from the canonical station | **Yes — this is the whole point of the feature** | **mine**, but the numbers are a desk ruling |
+| 4 | **The park is walled by tall blank brick on three sides**, so it reads as a yard between buildings rather than a park | **Yes, in every frame** | not mine — the neighbours' backs |
+
+**Finding 3 is a report, not a change.** The desk ruled width and contrast
+explicitly after I raised the conflict, and said *"code presence is NOT the
+test — if you cannot immediately read alternating mown bands, they are not
+working, whatever the source says."* By that test, from the station the desk
+itself made canonical, they are not working. Both frames are in
+`shots/E-qpass/`. I have not touched the numbers; **the ruling is the desk's to
+revisit, and it may reasonably decide the subtlety is correct** — a mown field
+in flat midday light is subtle. But it should decide it having seen the frame.
+
+**Finding 4 is worth a sentence** because it is the largest single thing making
+the park read wrong, and it is nobody's defect — it is what happens when a park
+is inlaid into a block of buildings. Anything that broke that brick up along
+the park boundary would buy more than any further work inside the park.
+
+## What is genuinely good, and worth not undoing
+
+Graded skeptically, these are the things I would defend:
+
+- **The shelter reads correctly.** Four posts on a square plan, one roof seated
+  on their tops with a real overhang and fascia, the posts inboard of the eave,
+  a boarded ceiling you see from underneath, a bench inside it. This is the
+  thing that failed three times; `park-shelter-day.png`.
+- **The path is unmistakably a park path**, not the carriageway. The single
+  biggest win of the whole park effort, and it holds.
+- **The benches face the park**, sitter's back to the boundary.
+- **The boundary railing has its bottom rail**, the pickets run down to meet it,
+  and it sits on its wall — the three faults the user listed, all closed.
+- **The weeds cluster at the path edges** with bare gaps, and none grows down
+  the middle.
+- **No ground wear.** `worn()` is defined and never called; the field is clean
+  mown grass, as ruled.
+- **The library steps and landing carry the flag texture** — A's `plazaTex`
+  adoption landed and it reads as civic paving.
+- **The fanlight is cropped to its arch** and PUBLIC LIBRARY reads from the
+  pavement.
+
+## A station of my own that was wrong
+
+`church-tower` stood at z −88 and **photographed the BODEGA.** I would have
+graded a corner shop as a church if I had not opened the frame. The church is
+at x 9.5–11.3, z −73.5…−86, its tower the 17 m mesh at (11.3, −79.5), and the
+gate is on that axis — measured off the world, not remembered. The stations are
+corrected in `E-qpass.mjs` and the reason is written beside them.
+
+It is the same mistake as the four above, one level out: **I filtered on a
+coordinate I remembered rather than one the world reported.** Ten times today
+the answer was the same — *ask the object what it is.*
+
+_Builder E, 2026-07-26._

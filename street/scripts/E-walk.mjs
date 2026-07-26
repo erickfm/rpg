@@ -369,15 +369,21 @@ const down = await pos();
 // "x -11.61 -> -5.62, gy 0.99", a descent it had just measured as successful,
 // failed on the floor value at the bottom of it.
 //
-// Ask the picker where they ended up, and cross-check with the player's own
-// EYE HEIGHT, which no one else writes. Standing on 0.14 puts the eye at 1.62;
-// stuck up on the landing it would be ~2.47. Two independent readings, because
-// the whole failure here was trusting one shared one.
+// Ask the picker where they ended up. NOT `pos()[1]`: I added that here as a
+// second opinion and it is not one. Measured at six places with floors from
+// 0.14 to 0.99 — pavement, both flights, the mound crest — `pos()[1]` reads
+// 1.62 at every single one. It is the eye height ABOVE the floor, a constant,
+// and it says nothing about how high you are standing.
+//
+// It went GREEN in this file, which is why it is worth a note rather than a
+// silent deletion: this walk ends on the 0.14 pavement, where the constant
+// happens to equal the value I was predicting. The identical term turned a
+// perfectly good church flight RED in E-yard-walk. Same wrong idea, opposite
+// outcomes, and the green one is the more expensive.
 const downGy = await gyAt(down[0], down[2]);
-const eyeOnPaving = Math.abs(down[1] - (0.14 + 1.48)) < 0.12;
 report('…and back down into the courtyard',
-  down[0] > -8.2 && Math.abs(downGy - 0.14) < 0.01 && eyeOnPaving,
-  `x ${f(climbed[0])} -> ${f(down[0])}, floor there ${downGy.toFixed(2)}, eye ${down[1].toFixed(2)}`, 1);
+  down[0] > -8.2 && Math.abs(downGy - 0.14) < 0.01,
+  `x ${f(climbed[0])} -> ${f(down[0])}, floor there ${downGy.toFixed(2)}`, 1);
 
 // the cheek walls still hold you on the flight
 await walk('the cheek walls hold you on the steps', {
