@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"give the tv a bezel and make the tv play only lots of stupid looking ads. like super 90s stupid"** → **C**
 - **"the east-end graph edge still crosses ten metres of carriageway and the paint that marked it is gone"** → **H** (routed by the desk; B has landed its half)
 
   <!-- B: crossings A and B are on the junction now with coordinates and
