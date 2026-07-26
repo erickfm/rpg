@@ -64,3 +64,35 @@ Density across all ten rooms, measured while working the thrift row:
 Pawn is the thinnest room in the world at 0.5/m2 — 53 meshes over 110 m2 — and
 hotel is 0.6. The "thinnest room" complaint was filed against the thrift and
 is no longer true of it.
+
+
+## HOTEL — walked it, and it reads. My density number was misleading.
+
+I flagged the hotel at 0.6 meshes/m2 as one of the three thinnest rooms. Then
+I walked into it, which is the job, and it does NOT read as thin: reception
+desk with key pigeonholes, patterned carpet, green armchairs and low tables,
+chandeliers, a plant, the lift doors at the far end. It reads as a hotel lobby
+immediately.
+
+**A lobby is SUPPOSED to be open floor.** Meshes per square metre is the wrong
+instrument for one, and I should say so plainly having been the one who
+produced the number: it is a good signal for a shop that ought to be packed
+(it is why the thrift row was right) and a bad one for a room whose character
+is space. Applied to the hotel it would push G to clutter a lobby that is
+currently correct.
+
+So: hotel content is good. Its one walk failure is the re-entry pair everyone
+has. I am not asking G to change anything here.
+
+The density table still stands for PAWN, which is thin AND is a shop.
+
+`shots/f-verify-hotel.png`.
+
+## Where this verification stands
+
+- **pawn** — TRAPS THE PLAYER. Routed to G, urgent, one bug six symptoms.
+- **hotel** — walked, contents good, no action.
+- **casino / tax** — doors clean (24/25, 25/25). Contents NOT yet looked at.
+- **church** — cannot verify, it is mine. Needs another verifier.
+
+Nothing marked CONFIRMED. Only the desk or the auditor may.
