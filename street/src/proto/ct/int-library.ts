@@ -740,6 +740,7 @@ export function buildLibrary(ctx: CtxBuild): void {
   const BEIGE = 0xd8d0bc, BEIGE_D = 0xb8b0a0;
   const beigeM = new THREE.MeshBasicMaterial({ color: BEIGE });
   const beigeDM = new THREE.MeshBasicMaterial({ color: BEIGE_D });
+  const matM = new THREE.MeshBasicMaterial({ color: 0x3a4048 });   // the mouse mat
   // its own stream, appended rather than woven in: this file's `rnd` already
   // paints the noticeboard and the floor wear further down, and drawing from it
   // here would repaint both (GOTCHAS §2, the same argument one scope in).
@@ -749,11 +750,32 @@ export function buildLibrary(ctx: CtxBuild): void {
   // spines are: a CRT is read from a chair 0.6 m away, and it is the one
   // object in the world that genuinely IS a fine pixel grid. Below ~60 px/m a
   // line of text is a single texel and the screen reads as a blue rectangle.
-  const screenTex = (dead: boolean) => declareSurface(pixTex(20, 16, (g) => {
-    if (dead) {                                        // one of them is off
+  //
+  // THREE KINDS, and the queue asked for the middle one by name: *"give at
+  // least one screen a lit amber or green catalogue prompt; a dark screen reads
+  // as a box."* A branch in 1997 has both machines standing side by side — the
+  // PC the grant paid for, and the amber serial terminal wired to the same
+  // catalogue that has been there since 1989 — so the pair is the period
+  // rather than an inconsistency.
+  const screenTex = (kind: 'pc' | 'amber' | 'dead') => declareSurface(pixTex(20, 16, (g) => {
+    if (kind === 'dead') {                             // one of them is off
       g.fillStyle = '#2a2c30'; g.fillRect(0, 0, 20, 16);
       g.fillStyle = 'rgba(255,255,255,0.05)';          // the room, reflected
       g.fillRect(2, 2, 16, 5);
+      return;
+    }
+    if (kind === 'amber') {
+      g.fillStyle = '#140f06'; g.fillRect(0, 0, 20, 16);
+      g.fillStyle = '#e8a83c';
+      g.fillRect(2, 2, 11, 1);                         // CATALOGUE ENQUIRY
+      g.fillStyle = '#a8781c';
+      for (let i = 0; i < 4; i++) g.fillRect(2, 6 + i * 2, 4 + Math.floor(crnd() * 9), 1);
+      g.fillStyle = '#e8a83c';
+      g.fillRect(2, 14, 1, 1); g.fillRect(4, 14, 2, 1);  // the prompt and its block cursor
+      // scanlines: an amber CRT is the one screen in this world where they are
+      // literally true rather than an effect
+      g.fillStyle = 'rgba(0,0,0,0.20)';
+      for (let y = 1; y < 16; y += 2) g.fillRect(0, y, 20, 1);
       return;
     }
     g.fillStyle = '#16224a'; g.fillRect(0, 0, 20, 16);
@@ -770,15 +792,16 @@ export function buildLibrary(ctx: CtxBuild): void {
   }), 'sign');
 
   /** one beige terminal, facing -x, on a surface whose top is at `y` */
-  const terminal = (lx: number, lz: number, y: number, dead: boolean) => {
+  const terminal = (lx: number, lz: number, y: number, kind: 'pc' | 'amber' | 'dead') => {
     box(0.36, 0.32, 0.38, beigeM, lx, y + 0.16, lz);              // the tube's box
     box(0.30, 0.26, 0.32, beigeDM, lx - 0.04, y + 0.17, lz);      // its bezel, proud
     const s = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.24),
-      new THREE.MeshBasicMaterial({ map: screenTex(dead) }));
+      new THREE.MeshBasicMaterial({ map: screenTex(kind) }));
     s.rotation.y = -Math.PI / 2;                                  // +z -> -x
     put(s, lx - 0.20, y + 0.17, lz);
     box(0.17, 0.03, 0.42, beigeM, lx - 0.36, y + 0.015, lz);      // the keyboard
-    box(0.09, 0.02, 0.11, beigeDM, lx - 0.36, y + 0.04, lz + 0.30); // and a mouse
+    box(0.20, 0.004, 0.24, matM, lx - 0.36, y + 0.002, lz + 0.30);  // the mat…
+    box(0.09, 0.02, 0.11, beigeDM, lx - 0.36, y + 0.015, lz + 0.30); // …and its mouse
   };
 
   // ── the public OPAC bank ──
@@ -809,11 +832,53 @@ export function buildLibrary(ctx: CtxBuild): void {
 
     // THREE, and one of them is out — the same fact as the dead troffer in the
     // ceiling. A room where every machine works has a facilities budget.
-    const seats: [number, boolean][] = [[BZ0 + 0.55, false], [BZC, false], [BZ1 - 0.55, true]];
-    for (const [tz, dead] of seats) {
-      terminal(BX + 0.16, tz, TOP + 0.03, dead);
+    // The middle one is the amber terminal: the oldest machine gets the middle
+    // position because that is where a thing nobody chose to move ends up.
+    const seats: ['pc' | 'amber' | 'dead', number][] =
+      [['pc', BZ0 + 0.55], ['amber', BZC], ['dead', BZ1 - 0.55]];
+    for (const [kind, tz] of seats) {
+      terminal(BX + 0.16, tz, TOP + 0.03, kind);
       // a beige tower on the floor under the bench, which is where they went
       box(0.20, 0.42, 0.44, beigeDM, BX + 0.20, 0.21, tz);
+    }
+    // THE CABLE RUN, under the back edge of the top. The queue asked for coiled
+    // cables and this is the honest version of that: at 8-16 px/m a flex is
+    // well under a texel, so a modelled coil would be a dark blob rather than a
+    // cable. What IS legible at this scale is the tray they all disappear into,
+    // which is the thing you actually see under a bench of terminals.
+    box(0.10, 0.09, BL - 0.2, woodDark, BX + 0.30, TOP - 0.10, BZC);
+
+    // ── the dot-matrix printer, on its own stand at the end of the run ──
+    //
+    // Its own stand rather than a place on the bench: fan-fold paper feeds from
+    // underneath, which is why these always stood on a trolley of their own,
+    // and the bench is 3.2 m for three seats with nothing spare.
+    {
+      const px = BX, pz = BZ1 + 0.85;
+      box(0.70, 0.06, 0.62, wood, px, 0.72, pz);                  // the stand
+      for (const dx of [-0.28, 0.28]) for (const dz of [-0.25, 0.25]) {
+        box(0.06, 0.72, 0.06, woodDark, px + dx, 0.36, pz + dz);
+      }
+      // FOUR TONES, NOT ONE. The first cut had the body, the hood, the paper
+      // and the fan-fold box all within a few points of the same off-white and
+      // it read as a stack of pale blocks — the printer was in the room and
+      // was not recognisable as a printer. Body beige, hood smoked grey, paper
+      // white, box cardboard: each part reads because its neighbour does not.
+      const smoke = new THREE.MeshBasicMaterial({ color: 0x63635e });
+      const paper = new THREE.MeshBasicMaterial({ color: 0xe8e4d6 });
+      const card = new THREE.MeshBasicMaterial({ color: 0x9a8464 });
+      const slot = new THREE.MeshBasicMaterial({ color: 0x33302a });
+      box(0.46, 0.15, 0.58, beigeDM, px, 0.825, pz);              // the printer's body
+      box(0.30, 0.03, 0.46, slot, px - 0.04, 0.90, pz);           // the paper slot, sunk
+      box(0.26, 0.11, 0.48, smoke, px + 0.06, 0.955, pz);         // the smoked hood over it
+      box(0.02, 0.09, 0.50, slot, px - 0.07, 0.955, pz);          // the tractor strip
+      // the sheet coming out of the top, folding back over the hood
+      box(0.24, 0.012, 0.50, paper, px - 0.10, 0.925, pz);
+      box(0.014, 0.20, 0.50, paper, px - 0.21, 1.01, pz);
+      // and the fan-fold carton it feeds from, on the shelf below
+      box(0.40, 0.30, 0.50, card, px, 0.15, pz);
+      box(0.34, 0.05, 0.44, paper, px, 0.32, pz);                 // the stack in it
+      solid(px, pz, 0.8, 0.72);
     }
 
     // ── and you can sit at them ──
@@ -827,7 +892,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     // camera. The rig looks along (sin t, -cos t), so PI/2 looks along +x,
     // which is at the screens. The reading table's west chairs use the same
     // number, which is the cross-check: same side, same value.
-    for (const [tz] of seats) {
+    for (const [, tz] of seats) {
       const cx = BX - 1.00;
       box(0.44, 0.05, 0.44, wood, cx, 0.45, tz);                  // the seat pan
       box(0.05, 0.5, 0.42, wood, cx - 0.20, 0.70, tz);            // the back
@@ -851,7 +916,7 @@ export function buildLibrary(ctx: CtxBuild): void {
   // serving, which is what put the whole of this item in the queue.
   {
     const s = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.24),
-      new THREE.MeshBasicMaterial({ map: screenTex(false) }));
+      new THREE.MeshBasicMaterial({ map: screenTex('pc') }));
     s.rotation.y = Math.PI / 2;                                   // +z -> +x
     box(0.36, 0.32, 0.38, beigeM, DESK_X - 0.95, 0.79 + 0.16, BACK_Z);
     box(0.30, 0.26, 0.32, beigeDM, DESK_X - 0.91, 0.79 + 0.17, BACK_Z);
