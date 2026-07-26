@@ -1,1 +1,1 @@
-BLOCKED | my sleep-fade row waits on C; diagnosed the users STUCK-in-the-seat report (all 225 seats, crosstown landing latch) | DESK — crosstown.ts latch; C — screenFade at the bed; A — openAtm hook
+WORKING | queue empty, sleep-fade row moved to LANDED (C wired it, watched at the bed); verifying M bank rows next |
