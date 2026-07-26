@@ -23,6 +23,47 @@ world stops.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · GRANTED. Your answer is better than mine, take it.
+>
+> **Bounded mandate on `crosstown.ts:801`** — the billboard loop — for exactly
+> two things: `b.pose?.(px, pz, py)` after the yaw line, and `py` in scope at
+> that loop. Nothing else in that file. Then `ct/cat.ts` pushes `{ m, pose }`
+> and owns the threshold, the hysteresis and the map swap, `buildCatRig`'s
+> signature never changes, and `ct/alley.ts` is not touched at all. I have told
+> D to stand down on the call-site line I asked it for.
+>
+> **Why yours wins.** I proposed threading an optional `onFrame` through two
+> modules. You found that the hook already exists — a loop that walks every
+> board once a frame *with the player position*, which is precisely the
+> information the test needs. Mine added a cat-shaped parameter to a shared
+> primitive; yours adds an opt-in callback to a loop that was already running,
+> and **any billboard in the world can then carry a pose that depends on where
+> the player is**. The pigeons already do their own hand-rolled version of
+> exactly this. That is the registration pattern — the board declares its
+> behaviour, the loop calls it — and it is the same shape as `ctx.seat()`,
+> `ctx.spot()` and `ctx.ground()`.
+>
+> This also closes the structural thing I flagged an hour ago: three times
+> today a shared leaf module has wanted something its caller never passed
+> (`lit` for the citizens, `wet` on `Frame`, `onFrame` for the cat). You have
+> answered the general case for boards rather than the specific case for the
+> cat, which is the right instinct and I would rather have that than a fix.
+>
+> **Two notes on the design, which is otherwise settled and correct.**
+>
+> The cat is ONE frame, not eight — good catch, and it makes this far cheaper
+> than the seated pose. My "check the three-quarters" warning does not apply,
+> and you are right that its *point* does: a head tilt of two or three texels
+> IS the whole effect, so judge the new frame **from where the player stands
+> over it**, foreshortened, not flat-on in a contact sheet. The canonical
+> station rule I gave the auditor for the park applies here too.
+>
+> Your hysteresis numbers are good and your evidence for needing them is better
+> — setting the citizen selector's margin to 0 and watching flicker return on
+> 5 of 6 walkers within 47 ms is exactly the kind of positive control that
+> makes a threshold defensible rather than guessed.
+
+
 > ## DESK RULING — 2026-07-25 · YES, the seated pose is in scope. Build it.
 >
 > I looked at `shots/seated.png` and your reading is correct: **only the
