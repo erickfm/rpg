@@ -375,3 +375,95 @@ export function tube(pts: THREE.Vector3[], radius: number, mat: THREE.Material):
   const curve = new THREE.CatmullRomCurve3(pts);
   return new THREE.Mesh(new THREE.TubeGeometry(curve, pts.length * 2, radius, 5, false), mat);
 }
+
+// ── which [E] you are actually offering ───────────────────────────────────
+//
+// *"in general i want to be able to interact with things a lot easier … the
+// door for instance to my apt should be easy to open and close when looking at
+// or by the door frame or the door itself."*
+//
+// The old rule was ONE line and it was proximity only:
+//
+//     if (d < s.r && d < best) { active = s; best = d; }
+//
+// so a spot was offered when you stood on its tile and never because you were
+// looking straight at it, and with two live candidates the nearer in METRES
+// won even if you were facing the other one. That is what made doors feel like
+// they had one magic square in front of them.
+//
+// THREE CHANGES, and the third is what makes a highlight honest.
+//
+// **Either, not both.** A spot is a candidate if you are NEAR it *or* if you
+// are LOOKING at it from a sensible distance. Standing beside a door without
+// facing it still works — that is the "or by the door frame" half — and so does
+// facing it from across the landing.
+//
+// **The look test is angular, and it widens with closeness.** A door two metres
+// away subtends a lot of screen; the same door at six metres is a thumbnail. A
+// fixed cone would make far things unselectable and near things impossible to
+// look away from, so the tolerance is `atan(r / d)` — the angle the spot's own
+// radius actually covers from where you stand — with a floor so a small spot up
+// close is not a pin-prick, and a ceiling so it never swallows the screen.
+//
+// **The winner is the one nearest the CENTRE OF THE SCREEN, not the nearest in
+// metres.** This is the part the highlight depends on: whatever is outlined has
+// to be the thing that fires, and a player reads "selected" as "the thing I am
+// looking at". Proximity only decides it among things you are not looking at.
+export interface Pickable { x: number; z: number; r: number; ok: () => boolean }
+
+export interface PickView { x: number; z: number; yaw: number; pitch: number }
+
+/** Angular half-width, in radians, that counts as "looking at" a spot of
+ *  radius `r` seen from `d` metres. Measured rather than guessed: at the
+ *  apartment door (r 1.2) this gives 31° at 2 m and 11° at 6 m. */
+export function lookTolerance(r: number, d: number): number {
+  const raw = Math.atan2(r, Math.max(0.35, d));
+  return Math.min(0.62, Math.max(0.20, raw));      // ~11.5° … ~35.5°
+}
+
+/**
+ * Choose the spot an `[E]` should act on, and say WHY it won, so the caller can
+ * outline exactly what it is about to fire.
+ *
+ * `reach` is how far the look test may act — beyond it you must be inside the
+ * spot's own radius. 6 m is a room's width; further than that and you would be
+ * offering doors through walls, which this cannot see (there is no occlusion
+ * test here, and adding one is the obvious next step if it ever bites).
+ */
+export function pickSpot<T extends Pickable>(
+  spots: readonly T[], view: PickView, reach = 6,
+): { spot: T; looked: boolean; offAxis: number; dist: number } | null {
+  let best: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
+  let bestKey = Infinity;
+  const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
+  for (const s of spots) {
+    if (!s.ok()) continue;
+    const dx = s.x - view.x, dz = s.z - view.z;
+    const d = Math.hypot(dx, dz);
+    const near = d < s.r;
+    // angle between where you face and where the spot is, on the ground plane
+    const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
+    const looked = d < reach && offAxis < lookTolerance(s.r, d);
+    if (!near && !looked) continue;
+    // SCREEN CENTRE FIRST. A spot you are looking at beats one you are merely
+    // standing in, and between two you are looking at, the more centred wins.
+    // Distance is the tiebreak, not the rule.
+    // NEAR BEATS LOOKED, ALWAYS, and distance orders the near set.
+    //
+    // My first ordering made `looked` dominant and it was wrong twice over. A
+    // door you were STANDING IN stopped being offered because something across
+    // the street was nearer the centre of the screen — measured, at the No. 227
+    // frame — and it would have broken `seats-walk`'s standing assertion, which
+    // is that standing ON a seat offers THAT seat and not the one 0.67 m away.
+    // That check exists because the bug it guards shipped once already
+    // (`098269aa`), and a new pick that quietly re-opens it is worse than no new
+    // pick at all.
+    //
+    // So proximity keeps exactly its old semantics among near candidates —
+    // nearest in metres wins — and looking only decides things when nothing is
+    // near, where "nearest the centre of the screen" is the whole point.
+    const key = near ? d : 10 + offAxis;
+    if (key < bestKey) { bestKey = key; best = { spot: s, looked, offAxis, dist: d }; }
+  }
+  return best;
+}

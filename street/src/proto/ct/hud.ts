@@ -29,6 +29,25 @@ export interface Hud {
   refreshWallet: () => void;
   /** the [E] hint under the crosshair; null hides it */
   prompt: (text: string | null) => void;
+  /**
+   * Outline whatever the `[E]` would act on, in screen space.
+   *
+   * *"i want to be able to interact with things a lot easier and for them to
+   * have a little outline highlighted for the selection of it."*
+   *
+   * Takes a screen-space rectangle in CSS pixels, or null to clear. The caller
+   * projects, because the camera is not the HUD's business — but the DRAWING is,
+   * which is why this lives here and not in the world: an outline that is part
+   * of the scene has to fight depth, night grading and the fog, and this world
+   * is unlit MeshBasicMaterial where a world-space outline would either be
+   * occluded by the thing it is outlining or float in front of everything.
+   *
+   * Deliberately a thin hard-edged box and not a glow: 8–32 px/m, no lighting,
+   * no bloom anywhere in the world. Two nested 1 px strokes — dark outside,
+   * pale inside — so it reads against both the brick and the sky, which is the
+   * same trick the citizens' rim light uses.
+   */
+  highlight: (rect: { x: number; y: number; w: number; h: number } | null) => void;
 }
 
 export function makeHud(purse: Purse): Hud {
@@ -172,6 +191,23 @@ export function makeHud(purse: Purse): Hud {
       + 'padding:5px 12px;border-radius:5px;pointer-events:none;display:none;letter-spacing:.4px;';
     document.body.appendChild(promptDiv);
   }
+  // ── the selection outline ───────────────────────────────────────────────
+  //
+  // One absolutely-positioned div with two borders rather than a canvas: a rect
+  // is all this ever draws, the browser antialiases nothing on a 1 px border, and
+  // it costs no per-frame paint — only a transform when the selection moves.
+  let hiDiv = document.getElementById('ct-hi') as HTMLDivElement | null;
+  if (!hiDiv) {
+    hiDiv = document.createElement('div');
+    hiDiv.id = 'ct-hi';
+    // dark 1 px outside, pale 1 px inside — legible against brick AND sky, the
+    // same two-tone trick the citizen sprites use for their rim light.
+    hiDiv.style.cssText = 'position:fixed;z-index:9;pointer-events:none;display:none;'
+      + 'border:1px solid rgba(255,255,255,.85);outline:1px solid rgba(0,0,0,.55);'
+      + 'outline-offset:0;box-sizing:border-box;';
+    document.body.appendChild(hiDiv);
+  }
+
   // ── the build stamp ─────────────────────────────────────────────────────
   // Twice this project has lost work to feedback given against a stale build:
   // a bug is reported, it was fixed twenty minutes earlier, and somebody goes
@@ -224,6 +260,21 @@ export function makeHud(purse: Purse): Hud {
       if (text === null) { promptDiv!.style.display = 'none'; return; }
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
+    },
+    highlight: (rect) => {
+      if (!rect) { hiDiv!.style.display = 'none'; return; }
+      // Clamped to a sane on-screen size. An outline is a hint about WHICH thing
+      // is selected, so at two metres it should frame the door and not the
+      // viewport — without a ceiling a spot you are standing inside projects to
+      // something larger than the screen and reads as a bug rather than a
+      // selection.
+      const w = Math.max(28, Math.min(rect.w, 520));
+      const h = Math.max(28, Math.min(rect.h, 520));
+      hiDiv!.style.left = `${Math.round(rect.x - w / 2)}px`;
+      hiDiv!.style.top = `${Math.round(rect.y - h / 2)}px`;
+      hiDiv!.style.width = `${Math.round(w)}px`;
+      hiDiv!.style.height = `${Math.round(h)}px`;
+      hiDiv!.style.display = 'block';
     },
   };
 }
