@@ -22,7 +22,12 @@ const S=[
   // puddles / gutter
   ['P13-gutter',          4.2,-46,  look(4.2,-46, 5.0,-49),    0, -0.55],
   // interior people
-  ['P14-diner-keeper',  600, 1.2,  Math.PI, 0, 0.05],
+  // WAS (600, 1.2) facing Math.PI — that is the CASINO (cx 600), not the diner
+  // (cx 760), so this station never photographed the room its name claims. And
+  // re-aiming it at the diner was not enough: the diner's figures stand at
+  // z 2.02 and the camera faced -z, away from them. A station named for a thing
+  // has to FRAME the thing. Now stood south of them, looking north.
+  ['P14-diner-keeper',  760, -1.0, look(760,-1.0, 761.8, 2.02), 0, 0.02],
   ['P15-lot-office',     26, -30,  look(26,-30, 30,-30),       0, 0.05],
 ];
 const b=await chromium.launch();
@@ -32,8 +37,14 @@ await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4184/');   // GOTCHAS 26
 await p.evaluate(()=>window.__ct.clock(13,0)); await p.waitForTimeout(800);
 for(const [l,x,z,yaw,gy,pitch,hm] of S){
-  await p.evaluate(([x,z,yaw,gy,pitch,hm])=>{ if(hm) window.__ct.clock(hm[0],hm[1]); window.__ct.warp(x,z,yaw,gy,pitch); },[x,z,yaw,gy,pitch,hm??null]);
-  await p.waitForTimeout(hm?900:280); await p.screenshot({path:`shots/pl-${l}.png`});
+  // gy from the world, not a literal 0: every station passed 0 and the pavement
+  // is 0.14, so each of these was shot 14 cm into the ground it stands on.
+  await p.evaluate(([x,z,yaw,pitch,hm])=>{ if(hm) window.__ct.clock(hm[0],hm[1]);
+    window.__ct.warp(x,z,yaw,window.__ct.groundAt(x,z),pitch); },[x,z,yaw,pitch,hm??null]);
+  await p.waitForTimeout(hm?900:280);
+  const at=await p.evaluate(()=>window.__ct.pos().map(v=>+v.toFixed(2)));
+  if(Math.hypot(at[0]-x,at[2]-z)>0.9) console.log(`  ** ${l}: asked (${x}, ${z}), landed (${at[0]}, ${at[2]})`);
+  await p.screenshot({path:`shots/pl-${l}.png`});
   if(hm) await p.evaluate(()=>window.__ct.clock(13,0));
 }
 await b.close(); console.log('ok');

@@ -1740,3 +1740,28 @@ operation it serves is rewriting it.**
 counts auditor segments before and after — because all three failures were
 silent. The file always read plausibly afterwards; the only symptom was the
 CONFIRMED count moving, 124 → 115 → 118.
+
+## [Is] The unread screenshots, and why I did not read them
+
+My queue lists `shots/pl-P5…P15` as unread, citing my own line that *an unread
+screenshot is not an observation*. They were taken at **23:45 yesterday** and
+predate nearly everything that has landed since. **Reading them would have been
+the stale-build error in another costume** — a confident observation about a
+world that no longer exists. I retook every station on the current build instead.
+
+Retaking found two faults in the harness itself, both of which had been quietly
+producing "evidence" for a day:
+
+- **`P14-diner-keeper` was standing in the CASINO.** The station is `(600, 1.2)`;
+  the diner is at `cx 760`, and 600 is the casino. Every P14 shot ever filed
+  under that name photographed a different room.
+- **Re-aiming it at the diner was not enough.** The diner's figures stand at
+  `z 2.02` and the camera faced `-z`, away from them — a shot of an empty back
+  wall, correctly labelled, in the right room. It now stands south of them
+  looking north and frames two seated diners.
+- **Every station passed `gy = 0`** while the pavement is 0.14, so each was shot
+  14 cm into the ground it stands on. Ground now comes from `groundAt`, and each
+  station reports if it did not land where it asked.
+
+**A station named for a thing has to frame the thing.** The name is a claim, and
+nothing checks it — the file is called `diner-keeper` and was neither.
