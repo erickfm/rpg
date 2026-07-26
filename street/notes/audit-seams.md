@@ -1280,3 +1280,31 @@ you already fixed are good — do not disturb them"*. **That restraint is correc
 and I am not going to override it with a measurement.** The proposed one-line
 change needs a yes from the user. *An auditor can say a thing is not broken; it
 cannot say a thing should be different.*
+
+## [C] Legs and feet CONFIRMED — the atlas says the shape, the walk says the sign
+
+**In the atlas** (160×128, 32×64 frames, 5 columns): columns 0/1/3/4 symmetric
+about the ankle, **column 2 — the profile — asymmetric by 4 px**. Exactly right:
+a front or three-quarter view cannot express a toe direction, and the profile is
+the view the complaint was about.
+
+**Walked:** a citizen at 1.11 m/s shot from perpendicular shows two legs, the shoe
+extending forward of its leg, and the toe pointing the way they travel.
+
+**[Is] H's diagnosis is the best sentence in the ledger this session:** *"a foot
+symmetric about the ankle cannot say which way it points, and the eye resolves
+that as backwards."* The user's word was "backwards"; H did not paraphrase it,
+they explained why a symmetric shape **produces** that percept. That is the
+difference between reading a complaint and understanding it — and it is why the
+fix is a shape change rather than a flip.
+
+**[I] My first atlas read measured a 13×12 prop sprite and called all four of its
+columns symmetric.** A confident, well-formatted answer about an object that was
+never the subject. The filter was "atlas-framed billboard, mesh over 0.5 m" and
+the first match won.
+
+**Taking the first match of a broad filter is how you measure the wrong thing.**
+The fix was to enumerate every candidate, print their frame sizes, and select on
+a property the subject actually has — 64-row frames on a 1.9 m mesh. *One extra
+line of output would have shown me the error immediately; instead the error was
+invisible because the output looked exactly like a result.*
