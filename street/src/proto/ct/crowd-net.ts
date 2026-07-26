@@ -144,7 +144,25 @@ export function buildNet(d: NetDims): Net {
   chain(w);
   link(w[w.length - 1], sw);            // west walk turns the SW corner
   chain([sw, ...s]);
-  link(s[s.length - 1], ne);            // up the closed east end
+  // ── THE EAST END IS A CROSSING, WHICHEVER WAY THE KERB QUESTION GOES ────
+  //
+  // This edge runs s-east (54, -109) to ne-corner (54, -97), and the side
+  // street's asphalt spans z -98..-108 — so it crosses TEN METRES OF
+  // CARRIAGEWAY. It was not flagged, which meant walkers on it were legal by
+  // the graph and jaywalking by the world: it was the entire residual in the
+  // in-the-road measurement (18 of ~20000 samples, everything else being
+  // walkers correctly inside a crossing's own lane).
+  //
+  // I raised "does the side street's east end have a pavement?" as a blocker
+  // and it is still open — but this flag does not depend on the answer. The
+  // ring has to get from the south walk to the north walk somehow, and at the
+  // closed end the only way is ACROSS the road. That is a crossing by
+  // definition whether or not there is a kerb at x = 55.
+  //
+  // What still wants the ruling is the GROUND: a crossing here should have a
+  // ramp and painted stripes like the two at the junction, and ct/tex-ground.ts
+  // flags KRAMP on the bodega corner return only. Routed, not invented.
+  link(s[s.length - 1], ne, true);      // up the closed east end — across the road
   chain([ne, ...n]);
   link(n[n.length - 1], e[0]);          // the bodega corner into the east walk
   chain(e);
