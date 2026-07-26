@@ -262,13 +262,26 @@ desks"*. Every part on it is now arithmetically inside it.
 ## Measured, not eyeballed
 
 ```
-scripts/roomaisle.mjs         library 440 m2, clear aisle min 4.85 med 7.70,
-                              0 of 86 samples under the capsule, 87% free floor
-scripts/J-room-furnishing.mjs 353 things, 0.80 per m2, 7th of 10 (1 = thinnest),
+scripts/roomaisle.mjs         library 440 m2, clear aisle min 4.85 med 8.37,
+                              0 of 86 samples under the capsule, 86% free floor
+scripts/J-room-furnishing.mjs 357 things, 0.81 per m2, 5th of 12 (1 = thinnest),
                               from 271 and 0.62 when I started
 scripts/J-library-door.mjs    3 PASS, and its --selftest watched go red
 scripts/E-library-in.mjs      unchanged across all seven commits
 ```
+
+**Republished 2026-07-26 against the BUNDLE** (`vite preview`, build
+`b36c8a513`) — GOTCHAS §44, because the first set was measured before the jail
+and the bank landed. **The two numbers that carry the argument are unchanged:
+the minimum aisle is still 4.85 m and still 0 of 86 samples fall under the
+0.72 m capsule.** The median rose 7.70 → 8.37 and free floor moved 87% → 86%,
+both within where the sample grid happens to fall.
+
+**The figure that really moved is the RANK: 7th of 10 → 5th of 12 — and this
+room did not change.** Jail (1.23) and bank (1.36) landed above it, so the same
+library sits higher in a longer list. A rank is a claim about the other rooms as
+much as about your own, which is the trap in quoting one and the reason F's
+original 0.6 was a diagnosis rather than a target.
 
 And in the ARTIFACT — the single file the user actually opens, which GOTCHAS §37
 says nobody checks a room in:
