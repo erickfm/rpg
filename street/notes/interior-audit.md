@@ -4,6 +4,11 @@ Four agents building ten rooms on a shared kit. Each can only see their own room
 so the failure mode is that the ten do not agree with each other. Everything
 below is measured across all ten and compared, not judged room by room.
 
+> **⚠ CORRECTED — read `## CORRECTIONS` at the foot first.** The casino and
+> library figures in the tables below were measured against a build that was
+> already stale when I wrote them. Both rooms have since been rebuilt much
+> larger, and the corrected numbers change which room is the worst in the set.
+
 Rooms sit on an interior belt at x 440…1160, 80 m apart, `cz 0`
 (`__ct.roomDims()`). Walked all ten at 13:00; shots `int-<room>.png`.
 
@@ -145,3 +150,76 @@ room-level boxes, and **floor texel density** needs the texture's world scale pe
 room; neither is in this pass. Also not covered: whether each room's window agrees
 with the building's real street position — blocked for four rooms by the missing
 frontages above, and worth doing for the other six as a follow-up.
+
+---
+
+# CORRECTIONS
+
+**I measured the casino and the library against a stale bundle.** I rebuilt the
+preview at the start of the session and G's interior work landed after it, so the
+tables above describe rooms that no longer exist. Corrected against build
+`4a311be0a`:
+
+| room | area then → now | median clear aisle then → now |
+|---|---|---|
+| **library** | 163 → **326 m²** | 8.40 → **2.10 m** |
+| **casino** | 95 → **323 m²** | 10.50 → **17.00 m** |
+
+Also corrected: casino frame luminance 76.4 → **57.8** (now the darkest room, not
+the hotel) with warmth 40.5 → 27.8; church luminance 132.2 → **163.3**; casino
+free floor 81% → **70%**, the lowest in the set.
+
+## SEVERITY 1 (new) — the library is now the tightest room in the world
+
+> *"make the library interior larger and more ambitious"*
+
+It got larger — **163 → 326 m², doubled** — and its **median clear aisle fell from
+8.40 m to 2.10 m**, which is now the narrowest of all ten, tighter than the
+bodega's 3.85 m that this audit called severity 1 an hour ago.
+
+**This is the bodega's fault, reproduced in a second room.** Free floor is 81%,
+completely normal; the space was not consumed, it was **cut into strips** by the
+stacks that filled the new footprint. The request was for a bigger library and
+the room did get bigger — but a reader walking it now has less continuous room
+than in any other interior in the world. *Doubling a room and quadrupling its
+subdivision leaves it feeling smaller, and only a shape metric shows that.*
+
+## SEVERITY 1 (new) — the casino interior is twice the building it is in
+
+> *"casino interior is nice but i want more. bigger and more expansive"*
+
+| | interior | exterior footprint | ratio |
+|---|---|---|---|
+| **casino** | 17 × 19 = **323 m²** | 11.55 × 14.30 = **165 m²** | **1.96×** |
+| church | 8.5 × 16 = 136 | 8.00 × 18.00 = 144 | 0.94× |
+| hotel | 11 × 9 = 99 | 12.00 × 14.30 = 172 | 0.58× |
+
+It did become more expansive — and it now needs **twice the floor its building
+covers**. This is the bodega's "wider than its own shopfront" fault at a much
+larger scale: the bodega overran by 2.75 m, the casino overruns by 158 m².
+
+## The "four rooms cannot be checked" claim above was too pessimistic
+
+Three of the four do not need a `__frontages` entry after all — the building's
+own collider has a facade, and the published door sits on it, so the footprint is
+derivable (church 0.94×, hotel 0.58×, casino 1.96× above). **Only the library
+resists**, and for an interesting reason: its door point `(−11, −13)` lies inside
+no collider at all, because it is a recessed civic entrance set ~4 m behind the
+building line at the top of the forecourt steps.
+
+So the recommendation narrows usefully: **the four buildings would still benefit
+from publishing a frontage, but the check is not blocked on it.** What is blocked
+is only the library, and only because a recessed door has no wall directly behind it.
+
+## [I] The same stale-build fault, twice in one session, in opposite directions
+
+Earlier today a stale bundle made me count 51 street weed tufts where the current
+build has 5 — I would have sent correct work back to OPEN. Here the same fault ran
+the other way: it made me publish a report describing two rooms that had already
+been rebuilt, and **call the bodega the worst room in the set when the library is
+worse.** A wrong report is not safer than a wrong verdict; it just fails quietly.
+
+**Rule, now applied to every verification in this audit: rebuild before measuring,
+and read the build stamp in the corner of the shot before believing a number.**
+`scripts/lib/which-world.mjs` exits 3 on a SHA mismatch and belongs at the top of
+every one of these scripts, including the ones I wrote today.
