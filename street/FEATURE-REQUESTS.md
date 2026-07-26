@@ -184,6 +184,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 23-08-52.png' i think the door needs to open the other way to match the other floors"** → **C**
 - **"scripts/floaters-walk.mjs ignores its room argument — a filter that silently does not filter"** → **A**
 - **"the driveway apron reads as a large flat untextured grey plane — MEASURED: it is the 60x124 m ground sheets at 0.03 texels/m along z, not the apron"** → **B**
 - **"'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch an invisible wall here?"** → **B**
