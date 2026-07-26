@@ -331,7 +331,23 @@ export function makeCrosstown(): Proto {
     // ENTIRELY to remove an x-corridor between it and the car beside it, and a
     // 5.2 m truck against a prop mid-block needs most of its own length to do
     // that. The nearest legal spot is still taken, so the spread survives.
-    const fit = nudgeClear(zDrawn, box, [...propColliders, ...carColliders], 4.5);
+    // ── KEEP-CLEAR: BOTH ALLEY MOUTHS, not just the one that was reported ──
+    //
+    // The dumpster alley is protected because the truck's z is DERIVED from
+    // AZ0 above. D's new alley between the pawn shop and No. 227 was NOT: I
+    // measured it and no car overlaps it today, but that is the seed being
+    // kind rather than the rule holding — nothing stops a future draw parking
+    // across it, and then it is the same user report a second time.
+    //
+    // So the mouth goes in the array nudgeClear already clears against, and
+    // the draw routes round it exactly as it does a kerb prop or the bench.
+    // The span is street.ts's A2_Z0/A2_Z1 (alley2Z0 and ALLEY2_W); it is
+    // written out here because street.ts does not export it, and that is worth
+    // fixing — a literal is the fragile shape I warned D about, and it is only
+    // acceptable because the alternative is leaving the mouth unprotected.
+    const A2_MOUTH = { minX: -FACE - 1, maxX: -FACE + 1, minZ: -55.5, maxZ: -53.0 };
+    const fit = nudgeClear(zDrawn, box,
+      [...propColliders, ...carColliders, A2_MOUTH], 4.5);
     if (!fit.ok) console.warn(`[parking] ${kind} at z=${zDrawn.toFixed(2)} leaves a trap-band gap and no clear spot within 3 m`);
     const z = fit.at;
     const ry = (side > 0 ? 0 : Math.PI) + parkYaw(cls);
