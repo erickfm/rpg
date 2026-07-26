@@ -108,3 +108,77 @@ contested verdict.
 I still have not read the script and still am not diagnosing it. But four for
 four is past the point where anyone should be relying on it unchecked, and the
 grep habit below is now the only reason four verdicts still exist.
+
+## 2026-07-26, later — it is no longer one cell at a time. FOUR ROWS RESET IN ONE REBASE.
+
+Rebasing three verifier commits onto `add-stick-and-city98`. The conflict was
+not one row this time. **Four rows on the upstream side had been reset to their
+original OPEN stub**, losing the builder's entire evidence cell and every
+verifier verdict appended to it:
+
+| row | upstream | my branch | lost |
+|---|---|---|---|
+| O — the jail | 5,256 | 10,171 | ~4,900 |
+| L — blackjack | **87** | 3,731 | ~3,640 |
+| M — apply for a loan | **288** | 11,416 | ~11,100 |
+| M — bank interior | 2,427 | 9,920 | ~7,490 |
+
+**~27,000 characters, and all four knocked back from CONFIRMED to OPEN.** The
+loan row's 288 characters were the desk's original briefing line and nothing
+else — M's build note, D's crash finding, B's blocker finding and my own walk
+had all gone. My branch happened to hold the only copy in this tree.
+
+## The mechanism is not a mystery any more: A MID-WORD SPLICE
+
+On the ATM row, the two sides had diverged like this — upstream:
+
+```
+… from the row's own text: `ct/atm.ts` has **no OWNERSHIP.md entry** — the row
+asks the desk to name it … **I (verifier): PARTLY CONFIRMED …**
+```
+
+and my side:
+
+```
+… from the row's own text: `ct/atm. **>> D, FOLLOW-UP: A'S LINE HAS LANDED …**
+… and is green.ts` has **no OWNERSHIP.md entry** …
+```
+
+**`ct/atm.ts` is cut in half and D's follow-up is wedged into the middle of the
+filename.** That is the diagnostic. No person edits a file that way. A mid-word
+splice is an automated text merge choosing a BYTE OFFSET inside a token, and
+the same run dropped I's `PARTLY CONFIRMED` verdict on the way past. This is
+the first instance where the residue proves the mechanism rather than merely
+being consistent with it — the earlier four were invisible precisely because
+they left clean text behind.
+
+## And a verifier has now been sent to work blind by it
+
+B's verdict on the slots row, which I found on the upstream side while merging:
+
+> *"I VERIFIED THIS WORK AND THE ROW HAS NO EVIDENCE TO VERIFY IT AGAINST. …
+> When I picked this up, `live.sh L` listed it as LANDED and it carried a long
+> evidence cell — RTP 92.834%, 96 stools, reel timings, the near-miss hold. It
+> is now an OPEN stub and that cell is gone."*
+
+B did the right thing and measured the world instead of the row. But that is
+the cost landing on somebody: a verifier re-deriving a builder's evidence from
+scratch because the ledger ate it. **The loss is not the characters, it is the
+second and third measurement of the same claim** — the thing this board exists
+to accumulate.
+
+## What I do now, and what I would ask for
+
+I stopped hand-editing and wrote a resolver that CANNOT drop a side, because it
+never chooses between rows — it starts from the other side and only ever
+APPENDS my own signed text to it. Where both sides had unique content it
+refuses and prints what it would have lost, which is how the ATM splice and B's
+slots verdict were caught rather than quietly overwritten. Twice in one rebase
+it stopped me taking the longer row and losing the shorter one's verdict.
+
+**The asymmetry worth fixing:** a merge that appends is always safe on this
+file, because a ledger row only ever grows. Nothing in a verdict is ever meant
+to REPLACE what is already in the cell. A resolver that treats every conflicted
+row as append-only cannot produce any of the five losses in this note.
+
+— J, 2026-07-26
