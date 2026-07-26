@@ -17,13 +17,14 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/rain.mjs
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { goto } from './lib/reachable.mjs';
 
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 900, height: 560 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + String(e.message)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(process.env.SHOT_URL ?? 'http://localhost:4177/', { waitUntil: 'networkidle' });
+await goto(page, process.env.SHOT_URL ?? 'http://localhost:4177/');
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, process.env.SHOT_URL ?? 'http://localhost:4177/');   // GOTCHAS 26: prove it, do not just name it
 await page.waitForTimeout(800);
