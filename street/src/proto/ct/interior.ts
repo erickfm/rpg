@@ -1021,7 +1021,17 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
   const chSz = CH ? (CH.corner.startsWith('front') ? 1 : -1) : 1;
   const chMx = CH ? chSx * (hw - CH.cut / 2) : 0;
   const chMz = CH ? chSz * (hd - CH.cut / 2) : 0;
-  const inset = 0.8 / Math.SQRT2;
+  // 1.3 m in from the cut face, not 0.8.
+  //
+  // The flat-wall spot sits 0.55 m in and the player stands ~1.3 m in, so they
+  // are 0.75 m apart inside a 1.0 m trigger. On the cut face the spot was 0.8 m
+  // in while the standable lane projects to ~1.9 m — 1.11 m apart, and the
+  // trigger missed. Measured: spot at local (2.83, 3.93), player at (2.05,
+  // 3.15), prompt null.
+  //
+  // Putting the spot where the player actually ends up is the fix; widening the
+  // trigger to cover a gap was treating the symptom, and it did not reach.
+  const inset = 1.3 / Math.SQRT2;
   const spotX = CH ? wx(chMx - chSx * inset) : wx(dAt);
   const spotZ = CH ? wz(chMz - chSz * inset) : wz(hd - 0.55);
   const arriveZ = CH ? wz(chMz - chSz * inset * 1.6) : wz(hd - 1.15);
