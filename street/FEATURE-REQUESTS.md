@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the library stair needs buildRoom to accept a floor function"** → **F**
 - **"the brick area outside my room is too deep in. and i dont want there to be another window in the area. i do like the pipe though. i just want the length of that area to be less. the opposite wall should be closer to the window"** → **C**
   → **C. ALREADY LANDED** in *"Light well: shallower, plain far wall, pipe
   untouched"*, which answers all three clauses. Depth
