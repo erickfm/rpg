@@ -512,6 +512,18 @@ const CASES = [
     "const BLOCK = '#b9c4c2';   // the lightbox the user was looking at",
     'A-diner-block-vs-sky.mjs', [], 'a glass block brighter than the sky'],
 
+  // THE JOINERY DECLARATION, reverted to the accident it replaced: hand the
+  // relief the ROSTER colour for every shop, as ct/street.ts does, and the
+  // diner is back to a mustard-brown cornice and cill wrapped round a
+  // stainless front — the fault the whole facade stretch started from, at a
+  // 170 degree hue gap. Nothing guarded that repair until this case existed,
+  // and the next character painter added to tex-world.ts would have
+  // re-introduced it silently.
+  ['joinery-roster', TEXW,
+    "return characterOf(name) === 'diner' ? DINER_STEEL : rosterTrim;",
+    'return rosterTrim;   // the accident: the roster colour for everyone',
+    'A-joinery-matches-fascia.mjs', [], 'mouldings a different material from the fascia they frame'],
+
   // THE CANOPY SEAL, removed — the enclosed pockets come straight back. This is
   // the one whose mutation matters most, because the rim-constrained notches
   // LOOK sufficient and are not: 303 enclosed texels across 11 crowns survived

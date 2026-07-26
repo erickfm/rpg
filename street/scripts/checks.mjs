@@ -388,7 +388,8 @@ const CHECKS = [
   // stopped being collected (GOTCHAS 28).
   ['globorder',            'is any globbed module bound after the glob that reads it?',  true],
 
-  // These two survive because nothing else makes their claim:
+  // These survive because nothing else makes their claim:
+  ['A-joinery-matches-fascia', 'do a shopfront\'s mouldings match the fascia they frame?', 'joinery-roster'],
   ['A-tree-canopy-opaque', 'can you see the wall through the middle of a tree?',         'tree-holes'],
   ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
   // tree-crown above overlaps but does NOT cover this: it samples a box at the
