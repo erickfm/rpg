@@ -101,6 +101,23 @@ ok(reach && reach.ok && reach.d <= reach.r,
 ok(await visiblePrompt() !== null,
   'the prompt is VISIBLE where the door puts you — the user asked for the post ON ENTRY');
 
+// AND THE INTERACTION ITSELF IS SUPPRESSED, not merely its prompt. This is the
+// clause that decides the triage (GOTCHAS §23, real vs visible): a hidden prompt
+// over a working key is a cosmetic fault; a key that does nothing is the feature
+// not being there. Press E blind, from where the door put you.
+{
+  const before = await page.evaluate(() => window.__rent.waiting().length);
+  await page.keyboard.down('e');
+  await page.waitForTimeout(1100);
+  await page.keyboard.up('e');
+  await page.waitForTimeout(500);
+  const after = await page.evaluate(() => ({
+    reading: window.__rent.reading(), waiting: window.__rent.waiting().length }));
+  ok(after.reading !== null || after.waiting < before,
+    `pressing E where the door puts you actually collects the post `
+    + `(${before} waiting before, ${after.waiting} after, panel ${after.reading ? 'open' : 'shut'})`);
+}
+
 // walking to the boxes must reach it, which is the motion anybody would make
 await page.evaluate(() => { const q = window.__ct.pos(); window.__ct.warp(q[0], q[2], Math.PI / 2, q[3], 0); });
 await page.waitForTimeout(200);
