@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"i want to be able to watch tv. and i sit on the bed and literally watch tv. lets make it so you press e and then you transition to sitting on the bed and watch tv and it plays something kinda nonsensical. random. lots of things so it doesnt get to repetative"** → **C**
 - **"'Screenshot from 2026-07-26 00-55-46.png' why is the door backwards?"** → **C**
 - **"i also want an atm interface and an inventory interface. equally try hard"** → **K**
 - **"add a slots interface and game where when i sit down i enter the slots interface and i can play slots. fully make a slots game that works well and pays out and everything. high effort here."** → **L**
