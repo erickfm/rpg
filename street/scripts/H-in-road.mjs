@@ -27,13 +27,16 @@ p.on('pageerror', (e) => console.log('  PAGE ERROR', e.message));
 await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct?.walkers, null, { timeout: 60000 });
 console.log(`measuring ${URL}  build ${await p.evaluate(() => document.body.innerText.match(/[0-9a-f]{9}/)?.[0] ?? '?')}`);
-let samples = 0, onRoad = 0, offCrossing = 0;
+let samples = 0, onRoad = 0, offCrossing = 0, frontage = 0;
+const seenFront = new Set();
 const hits = new Map();
 const t0 = Date.now();
 while (Date.now() - t0 < SECS * 1000) {
   const ws = await p.evaluate(() => window.__ct.walkers().map((q) => [q.x, q.z]));
   for (const [x, z] of ws) {
     samples++;
+    // the jail frontage, the new pavement leg of the ring
+    if (x > 55.2 && x < 57 && z < -96.5 && z > -110) { frontage++; seenFront.add(`${Math.round(z)}`); }
     const inMain = Math.abs(x) <= ROAD_HALF - PAD && z < 12;
     const inSide = z >= SIDE_Z0 + PAD && z <= SIDE_Z1 - PAD && x > -ROAD_HALF;
     if (!inMain && !inSide) continue;
@@ -49,6 +52,7 @@ while (Date.now() - t0 < SECS * 1000) {
 console.log(`\n  ${samples} walker samples over ${SECS} s`);
 console.log(`  in the carriageway at all:            ${onRoad}`);
 console.log(`  in it OUTSIDE a marked crossing:      ${offCrossing}`);
+console.log(`  on the JAIL FRONTAGE (the new leg):    ${frontage}  across ${seenFront.size} distinct z bands`);
 if (offCrossing) {
   console.log('\n  where (3 m bins, worst first):');
   for (const [k, n] of [...hits].sort((a, c) => c[1] - a[1]).slice(0, 10)) console.log(`     (${k})  ${n}`);

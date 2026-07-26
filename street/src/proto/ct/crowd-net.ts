@@ -120,6 +120,23 @@ export function buildNet(d: NetDims): Net {
     N('s-east', EEND_X, SOUTH_Z),
   ];
   const ne = N('ne-corner', EEND_X, NORTH_Z);
+  // ── THE JAIL FRONTAGE, which is what finally closes the ring on foot ──────
+  //
+  // `EEND_X` is SIDE_X1 - IN, i.e. one metre INSIDE the kerb, and that is the
+  // right place for the two walk ends because their own rows (z NORTH_Z and
+  // SOUTH_Z) are pavement across their whole width. It is the WRONG place to
+  // walk between them: measured, the carriageway band z -98..-108 reads ground
+  // 0 from x 52 to 55 and 0.14 only from x 55.5 out, so a straight line up
+  // x = 54 is in the road. That is the edge I deleted.
+  //
+  // O's jail put a real footway on the far kerb — 1.89 m of walk against a
+  // 0.72 m capsule, continuous from z -97 to -109. So the walk centre here is
+  // one metre in from the kerb on the OTHER side: SIDE_X1 + IN. Derived by the
+  // same rule as every other node in this file, not hand-placed, so it follows
+  // the street if the street moves.
+  const EWALK_X = d.SIDE_X1 + IN;
+  const sj = N('se-jail', EWALK_X, SOUTH_Z);
+  const nj = N('ne-jail', EWALK_X, NORTH_Z, 'door');   // the jail's own frontage
   const n = [
     N('n-win1', 38, NORTH_Z, 'window'),
     N('n-mid', 22, NORTH_Z),
@@ -173,8 +190,27 @@ export function buildNet(d: NetDims): Net {
   // is the junction crossing. With the old edge in place the same probe returns
   // 2 hops / 12 m with the road hop AT THE EAST END, so the probe distinguishes.
   //
-  // Do not re-add it. If the east end ever gets a real pavement and ramp, that
+  // Do not re-add it AS IT WAS. If the east end ever gets a real pavement, that
   // is a ground change first and a graph change second, in that order.
+  //
+  // ── AND IT DID. THE RING CLOSES AGAIN, ON PAVEMENT, WITH NO PAINT. ────────
+  //
+  // O's jail landed a west-facing frontage at x 57 with a real footway at its
+  // foot — 1.89 m of walk against a 0.72 m capsule, continuous the whole height
+  // of the closed end — and flagged the graph side to me rather than touching
+  // it. That is the ground change, so this is the graph change.
+  //
+  // Three ORDINARY edges, `road` false, because none of them is a crossing:
+  // out along z = SOUTH_Z to the far kerb, north up the frontage, back in along
+  // z = NORTH_Z. Measured before writing: every metre of that path reads ground
+  // 0.14 (pavement), while x <= 55 in the carriageway band reads 0.
+  //
+  // It is deliberately NOT the short way. The straight line between the two
+  // walk ends is 12 m up the middle of the road; this is ~16 m round three
+  // sides of the frontage, and a walker takes it because it is the only way
+  // that exists rather than because it is quick — which is what a closed end
+  // with a building on it should feel like.
+  chain([s[s.length - 1], sj, nj, ne]);
   chain([ne, ...n]);
   link(n[n.length - 1], e[0]);          // the bodega corner into the east walk
   chain(e);

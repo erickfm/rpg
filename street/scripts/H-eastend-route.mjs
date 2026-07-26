@@ -26,6 +26,6 @@ else {
   console.log(`  road-flagged hops on it: ${out.roadHops.length}  ${JSON.stringify(out.roadHops)}`);
   console.log(straight.length
     ? '  STILL CROSSING AT THE EAST END — the edge is back.'
-    : '  the east end is no longer crossed; the route goes round by the junction.');
+    : `  the east end is not crossed: ${out.hops} hops, ${out.len} m, 0 road hops.`);
 }
 await b.close();
