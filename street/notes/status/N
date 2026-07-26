@@ -1,1 +1,1 @@
-WORKING | queue empty -> ran the full checks suite; 15 reds were a dead preview, not defects. My check now exits 3 on a dead server | nothing
+WORKING | queue empty -> verifying: C's two TV rows both hold (stop-watching prompt, E and Escape exits, black casing) | nothing
