@@ -168,6 +168,12 @@ const CHECKS = [
   // lotwalk asks whether you can get in and you could, by walking round it.
   // Standing in someone's way is not a collision. (I)
   ['I-aisle-clear',    'does anything stand in the aisle or block the view down it?', true],
+  // "the card is inside the mesh instead of on the glass" -- and the class the
+  // user has now named twice: a buried sheet both clips AND is unidentifiable.
+  // Every card was pinned at a constant local z while the greenhouse's front
+  // face varies by kind, so on a van it sat 0.53 m inside the roof. Derived from
+  // the car's own windscreen now, and this is the guard. (I)
+  ['I-cards',          'is every price card ON the glass, or inside the car?', true],
   // C WROTE THIS AND HELD IT BACK ON PURPOSE: "mods-dim stays unregistered
   // until this lands: it is red on this finding, and reddening the shared suite
   // over something I cannot fix would hand the block my problem." The finding

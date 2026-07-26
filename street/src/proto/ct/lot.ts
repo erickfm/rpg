@@ -1625,25 +1625,95 @@ function buildLot(o: {
      *  Beltline is box.min.y, the flank is box.max.x, the cabin front is
      *  box.min.z. A sticker sits low in the front door glass, which is
      *  0.15 m up and 0.35 m back of the cabin's nose on every one of them. */
-    const buyersGuide = (g0: THREE.Group) => {
-      let cabin: THREE.Mesh | null = null;
+    /**
+     * WHERE THIS CAR'S WINDSCREEN ACTUALLY IS, in the car group's own frame.
+     *
+     * The user, on a price card sunk inside a bonnet: *"all that shows is a few
+     * orange pixels poking through the seam where the hood meets the windscreen
+     * … the card is inside the mesh instead of on the glass."* And the right
+     * diagnosis with it: *"if card positions were authored against the older,
+     * narrower bodies, every card is now that much further inside its car …
+     * the fix is one derivation, not forty placements."*
+     *
+     * That is exactly what it was. Every card was pinned at a CONSTANT local
+     * z of −0.92 … −1.00 while the greenhouse's front face varies per kind:
+     *
+     *     kind          glass front z      card at z −0.92
+     *     hatch/pickup     −0.85           0.07 m proud — fine
+     *     sedan            −1.00           0.08 m INSIDE the glass
+     *     van             −1.45            0.53 m INSIDE, up in the roof
+     *
+     * and the card's lower edge sat inside the HOOD as well, which spans
+     * z −2.26 … −0.90 at y 0.84 … 0.94 — the seam the orange pixels came out of.
+     *
+     * THE GREENHOUSE IS THE ONE `BufferGeometry` IN A CAR. Checked against all
+     * eleven cars in the lot, every kind: exactly one each, never zero, never
+     * two. The old finder took *"the last mesh with a 3-material array"*, and a
+     * WHEEL is a 3-material CylinderGeometry — so it had been returning a wheel,
+     * which is the other half of why the stickers were on the floor.
+     *
+     * Everything a sheet needs comes off it and nothing is typed:
+     *   `front` the windscreen, `flank` the door glass, `belt` … `roof` the band
+     *   a sheet may live in, already inset past the hood line.
+     */
+    const glassOf = (g0: THREE.Group) => {
+      g0.updateMatrixWorld(true);
+      const inv = g0.matrixWorld.clone().invert();
+      let gh: THREE.Mesh | null = null;
       g0.traverse((o) => {
-        if ((o as THREE.Mesh).isMesh && Array.isArray((o as THREE.Mesh).material)
-          && ((o as THREE.Mesh).material as THREE.Material[]).length === 3) cabin = o as THREE.Mesh;
+        const m = o as THREE.Mesh;
+        if (m.isMesh && m.geometry && m.geometry.type === 'BufferGeometry') gh = m;
       });
-      if (!cabin) return;                      // no greenhouse, no window, no sticker
-      const c = cabin as THREE.Mesh;
-      c.geometry.computeBoundingBox();
-      const bb = c.geometry.boundingBox!;
+      if (!gh) return null;
+      const g = gh as THREE.Mesh;
+      g.geometry.computeBoundingBox();
+      const bb = g.geometry.boundingBox!.clone()
+        .applyMatrix4(inv.clone().multiply(g.matrixWorld));
+      // the hood top sits ~0.10 above the beltline on every kind, so the band a
+      // sheet may occupy starts above it — that is the clip the user photographed
+      const lo = bb.min.y + 0.13, hi = bb.max.y - 0.03;
+      return { front: bb.min.z, flank: bb.max.x, belt: bb.min.y, roof: bb.max.y,
+        lo, hi, span: Math.max(0.14, hi - lo) };
+    };
+    const buyersGuide = (g0: THREE.Group) => {
+      const gl = glassOf(g0);
+      if (!gl) return;                         // no greenhouse, no window, no sticker
+      const bb = { max: { x: gl.flank }, min: { y: gl.belt, z: gl.front } };
       // BOTH flanks. A real one is in a single window, but sixteen cars are
       // parked nose-out in rows and you walk the aisle down one side of them,
       // so a sticker in the far window is a sticker nobody ever sees — which
       // is exactly what the first pass shipped. Two is cheap; invisible is not.
+      // PROUD OF WHATEVER IS ACTUALLY THERE, not of the greenhouse alone. The
+      // body slab is 1.80 m wide against the greenhouse's 1.62, so a sticker
+      // placed off the glass sits INSIDE the slab's half-width -- harmless on a
+      // level car, because the slab stops at the beltline and the sticker is
+      // above it, and a z-fight on the JACKED one, whose tilt lifts the slab's
+      // box up into the sticker. Measured, not reasoned: `I-cards` reported both
+      // of that car's stickers at exactly 0 m clear.
+      const sy = gl.belt + 0.15, sz = gl.front + 0.35;
+      // EACH FLANK SEPARATELY. A tilted car is not symmetric about its own x,
+      // so one max.x for both sides fixed the +x sticker and left the -x one
+      // still at 0 m clear -- which is what I-cards reported after the first
+      // attempt, and is the reason this tracks both bounds.
+      let widest = { 1: gl.flank, [-1]: gl.flank } as Record<number, number>;
+      g0.traverse((o) => {
+        const c = o as THREE.Mesh;
+        if (!c.isMesh || !c.geometry || c.geometry.type === 'PlaneGeometry') return;
+        c.geometry.computeBoundingBox();
+        const q = c.geometry.boundingBox!.clone()
+          .applyMatrix4(g0.matrixWorld.clone().invert().multiply(c.matrixWorld));
+        if (Math.min(q.max.y - q.min.y, q.max.z - q.min.z) < 0.03) return;
+        if (sy < q.min.y - 0.02 || sy > q.max.y + 0.02) return;      // not at this height
+        if (sz < q.min.z - 0.02 || sz > q.max.z + 0.02) return;      // not at this station
+        widest[1] = Math.max(widest[1], q.max.x);
+        widest[-1] = Math.max(widest[-1], -q.min.x);
+      });
       for (const sx of [-1, 1]) {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.22), guideM);
-        // +6 mm proud of the flank: the glass tapers inward with height, so a
-        // sticker flush at the beltline would sink into it further up.
-        m.position.set(sx * (bb.max.x + 0.006), bb.min.y + 0.15, bb.min.z + 0.35);
+        // +6 mm proud of the widest thing at this height: the glass tapers
+        // inward with height, so a sticker flush at the beltline would sink
+        // into it further up.
+        m.position.set(sx * (widest[sx] + 0.006), sy, sz);
         m.rotation.y = sx * Math.PI / 2;
         g0.add(m);
       }
@@ -1672,11 +1742,23 @@ function buildLot(o: {
     };
 
     /** hang a thing on the windshield of a car group, in the car's own frame */
+    /** hang a thing ON THE GLASS of a car, derived from that car's own
+     *  windscreen. `frac` is where up the usable glass band it sits, 0 at the
+     *  hood line and 1 at the roof — NOT a world height, which is what the
+     *  buried card was. Oversized sheets are scaled to fit the band rather than
+     *  allowed to overhang it, so a short greenhouse gets a smaller card
+     *  instead of one through its roof. */
     const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
-                     y: number, z: number, rz = 0) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+                     frac: number, rz = 0) => {
+      const gl = glassOf(g0);
+      if (!gl) return;
+      const k = Math.min(1, (gl.span * 0.62) / h);
+      const W = w * k, H = h * k;
+      const y = Math.min(Math.max(gl.lo + gl.span * frac, gl.lo + H / 2), gl.hi - H / 2);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(W, H),
         printed(new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide })));
-      m.position.set(0, y, z);
+      // 55 mm proud of the glass, on the nose side of it
+      m.position.set(0, y, gl.front - 0.055);
       m.rotation.y = Math.PI;
       m.rotation.z = rz;
       g0.add(m);
@@ -1829,23 +1911,32 @@ function buildLot(o: {
       g0.add(makeCar(it.kind, it.col, false, NOT_PARKED.get(b)));
       buyersGuide(g0);                                  // every car, by law
       if (n % 3 === 1) balloon(g0, n, n === 4 || n === 13);
+      // A CAR WITH ITS BONNET UP IS NOT BEING SOLD TODAY, so it carries no
+      // windscreen price. That is what a lot actually looks like, and it also
+      // removes the one place this derivation cannot win: an open hood swings
+      // up into the very space in front of the windscreen that a card wants,
+      // so on that car the two are competing for the same volume no matter
+      // where the card is derived from. `I-cards` measured both of its sheets
+      // at exactly 0 m clear of the raised hood.
+      const state = NOT_PARKED.get(b);
+      if (state?.hood) { g0.position.set(x, Y, z); g0.rotation.y = yaw; scene.add(g0); continue; }
       switch (it.treat) {
         case 'soap':
-          onGlass(g0, soapT(it.price!), 1.05, 0.34, 1.06, -0.92);
+          onGlass(g0, soapT(it.price!), 1.05, 0.34, 0.62);
           break;
         case 'burst':
-          onGlass(g0, burstT(it.price!), 0.44, 0.44, 1.02, -0.94);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.78, -1.00, 0.07);
+          onGlass(g0, burstT(it.price!), 0.44, 0.44, 0.60);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#f2ead0', '#25406b'), 0.52, 0.13, 0.13, 0.07);
           break;
         case 'card':
-          onGlass(g0, soapT(it.price!), 0.92, 0.30, 1.08, -0.92);
-          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.80, -1.00);
+          onGlass(g0, soapT(it.price!), 0.92, 0.30, 0.64);
+          if (it.slog) onGlass(g0, slogT(it.slog, '#c0392f', '#f2ead0'), 0.50, 0.13, 0.13);
           break;
         case 'slip':
-          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.78, -0.96, 0.42);
+          onGlass(g0, burstT(it.price!), 0.40, 0.40, 0.46, 0.42);
           break;
         case 'sold':
-          onGlass(g0, soldT(), 0.86, 0.20, 1.00, -0.92, 0.22);
+          onGlass(g0, soldT(), 0.86, 0.20, 0.55, 0.22);
           break;
         case 'bare': break;
       }
