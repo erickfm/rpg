@@ -134,3 +134,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | C | why so many vertical stripes on the brick? | |
 | OPEN | E | graphics clipping between library and burger barn, might want to refin | |
 | OPEN | G | door at the pawn shop makes no sense | |
+| OPEN | A | pawn shop exterior leaves a lot to be desired | |

@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"pawn shop exterior leaves a lot to be desired"** → **A**
 - **"door at the pawn shop makes no sense"** → **G**
 - **"graphics clipping between library and burger barn, might want to refine the library geometry"** → **E**
 - **"why so many vertical stripes on the brick?"** → **C**
