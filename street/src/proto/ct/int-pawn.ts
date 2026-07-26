@@ -533,4 +533,237 @@ export function buildPawn(ctx: CtxBuild): void {
     gl.rotation.x = Math.PI / 2;
     put(gl, lx, room.H - 0.42, CTR_ZC + 0.6);
   }
+  // ── STOCK ON THE CUSTOMER SIDE ─────────────────────────────────────────
+  //
+  // F measured this room at 0.47 objects per square metre, the thinnest of the
+  // ten, and the user's own words are "leaves a lot to be desired". His rule
+  // decides the SHAPE of the answer, not just the amount: "MORE THINGS IS NOT
+  // THE ANSWER ON ITS OWN ... a few considered things arranged and aligned, not
+  // clutter. Density is a diagnosis, not a target."
+  //
+  // MEASURED WHERE THE EMPTINESS ACTUALLY IS before adding anything, because my
+  // repeated failure on this project is building something over the top of
+  // fittings that were already there. The counter runs the full width at
+  // z -2.90, so the customer floor is 13.8 x 6.5 m; the WEST wall carries only
+  // the locked cabinet, at z -1.8..0.6, leaving 3.4 m of bare plaster in front of
+  // it and 2.2 m behind; the EAST wall is covered from z -2.2 to 2.85 by the
+  // shelved stereo and the signs. So everything below goes on the bare west run
+  // and in the front-east corner, and nothing lands on top of anything.
+  //
+  // Three groups, and two of them are hung or leaned against a wall, which costs
+  // the aisle nothing — the thing that made this room feel thin is bare surfaces,
+  // not a shortage of floor furniture.
+  {
+    const WALLX = -hw + 0.09;                    // the west wall's inner face
+    const bx2 = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
+
+    // 1. A CLOCK WALL. The one display a pawn shop is defined by, and it is
+    // aligned by construction: one line, one pitch, six different clocks,
+    // because they came in one at a time and none of them matches.
+    const clockFace = (rim: string, face: string, roman: boolean, hA: number, mA: number) =>
+      declareSurface(pixTex(24, 24, (g) => {
+        g.clearRect(0, 0, 24, 24);
+        g.fillStyle = rim; g.beginPath(); g.arc(12, 12, 11, 0, Math.PI * 2); g.fill();
+        g.fillStyle = face; g.beginPath(); g.arc(12, 12, 9, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#3a3630';
+        // the marks: bars at the quarters, plus the in-betweens on the roman ones
+        for (const [mx, my] of [[11, 3], [11, 19], [3, 11], [19, 11]] as [number, number][]) {
+          g.fillRect(mx, my, 2, 2);
+        }
+        if (roman) for (const [mx, my] of [[6, 5], [16, 5], [6, 17], [16, 17]] as [number, number][]) {
+          g.fillRect(mx, my, 1, 1);
+        }
+        // hands, each clock stopped at its OWN time — a wall of pawned clocks is
+        // never in agreement, and that is the whole character of it. The angles
+        // come in per clock: the first pass wrote that sentence in the comment and
+        // then drew the same two hands on all six, which is a note describing
+        // something the code did not do. Drawn as rect runs from the centre so
+        // they stay on the texel grid at any angle.
+        const hand = (ang: number, len: number, w: number) => {
+          for (let r = 0; r <= len; r++) {
+            g.fillRect(Math.round(12 + Math.sin(ang) * r) - (w >> 1),
+              Math.round(12 - Math.cos(ang) * r) - (w >> 1), w, w);
+          }
+        };
+        hand(hA, 5, 2);
+        hand(mA, 8, 1);
+        g.fillStyle = '#8a7c50'; g.fillRect(11, 11, 2, 2);
+        tag(g, 8, 21);
+      }), 'detail');
+    // rim, face, roman marks, and the hour and minute each one stopped at
+    const T = Math.PI / 6;                       // one hour on a dial
+    const CLOCKS: [string, string, boolean, number, number][] = [
+      ['#5a4a32', '#e8e2cc', true, 2.4 * T, 9.0 * T],
+      ['#8a8478', '#dfe4d8', false, 7.1 * T, 2.0 * T],
+      ['#3a3630', '#e6e0cc', false, 11.6 * T, 5.5 * T],
+      ['#8a7c50', '#e8e4d2', true, 4.8 * T, 11.0 * T],
+      ['#6a5a3a', '#dfd8c0', false, 9.3 * T, 3.5 * T],
+      ['#4a4640', '#e8e2cc', true, 1.2 * T, 7.0 * T],
+    ];
+    CLOCKS.forEach(([rim, face, roman, hA, mA], i) => {
+      const cl = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34),
+        new THREE.MeshBasicMaterial({ map: clockFace(rim, face, roman, hA, mA), alphaTest: 0.5 }));
+      cl.rotation.y = Math.PI / 2;                                // faces +x, into the room
+      put(cl, WALLX + 0.03, 1.98, 1.15 + i * 0.5);
+    });
+
+    // 2. TWO BICYCLES, leaned against the bare west run. A bike is all
+    // silhouette — wheels, a frame triangle, bars and a saddle — so it is a
+    // sprite with alphaTest for the same reason the dead palm and the plant are:
+    // a box cannot do it, and "i cant tell what any of it is" is the standard.
+    const bikeT = (frame: string) => declareSurface(pixTex(56, 36, (g) => {
+      g.clearRect(0, 0, 56, 36);
+      const wheel = (cx3: number) => {
+        g.fillStyle = '#2a2724';
+        for (let a = 0; a < 40; a++) {                            // the tyre, as a ring
+          const t = (a / 40) * Math.PI * 2;
+          g.fillRect(Math.round(cx3 + Math.cos(t) * 10) , Math.round(24 + Math.sin(t) * 10), 2, 2);
+        }
+        g.fillStyle = '#8a8478';                                  // four spokes and a hub
+        for (const t of [0.4, 1.9, 3.5, 5.0]) {
+          for (let r = 2; r < 9; r++) {
+            g.fillRect(Math.round(cx3 + Math.cos(t) * r), Math.round(24 + Math.sin(t) * r), 1, 1);
+          }
+        }
+        g.fillRect(cx3 - 1, 23, 3, 3);
+      };
+      wheel(12); wheel(44);
+      g.fillStyle = frame;                                        // the double triangle
+      const bar = (x0: number, y0: number, x1: number, y1: number) => {
+        const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+        for (let i = 0; i <= n; i++) {
+          g.fillRect(Math.round(x0 + ((x1 - x0) * i) / n), Math.round(y0 + ((y1 - y0) * i) / n), 2, 2);
+        }
+      };
+      bar(12, 24, 26, 10); bar(26, 10, 38, 10); bar(38, 10, 44, 24);
+      bar(26, 10, 30, 24); bar(30, 24, 44, 24); bar(12, 24, 30, 24);
+      g.fillStyle = '#3a3630';
+      g.fillRect(24, 6, 6, 3);                                    // the saddle
+      bar(38, 10, 38, 4); g.fillRect(33, 3, 11, 2);               // stem and bars
+      g.fillStyle = '#8a8478'; g.fillRect(28, 22, 5, 2);          // the chainset
+      tag(g, 20, 16);
+    }), 'detail');
+    [['#6a2a2a', 1.4], ['#2a4a5a', 3.05]].forEach(([col, lz], i) => {
+      const bike = new THREE.Mesh(new THREE.PlaneGeometry(1.58, 1.02),
+        new THREE.MeshBasicMaterial({ map: bikeT(col as string), alphaTest: 0.5,
+          side: THREE.DoubleSide }));
+      bike.rotation.y = Math.PI / 2;                              // along the wall, facing in
+      bike.rotation.x = i ? 0.05 : -0.04;                         // leaned, and not equally
+      put(bike, WALLX + 0.30, 0.51, lz as number);
+      // the collider REACHES THE WALL, so there is no slot behind a leaned bike.
+      // The tax office taught me this one 20 minutes ago: a collider sized to the
+      // object leaves a gap you can stand in (GOTCHAS 9).
+      solid(WALLX + 0.28, lz as number, 0.56, 1.62);
+    });
+
+    // 2b. THE BARE BAND ABOVE 2.3 m, which is the last thing that reads as
+    // unfinished in here. Two wall pieces, both above head height, so they cost
+    // the aisle nothing: the sign that names the business, and a pegboard on the
+    // way to the counter.
+    {
+      // a lit LOANS box, high on the west run — the one sign a pawn shop has
+      // that is not about what it sells
+      const loanT = declareSurface(pixTex(40, 16, (g) => {
+        g.fillStyle = '#241f22'; g.fillRect(0, 0, 40, 16);
+        g.fillStyle = '#e8c25a'; g.fillRect(1, 1, 38, 14);
+        g.fillStyle = '#241f22';
+        // LOANS in a 3x5 block font, drawn as rects so the letters cannot pick up
+        // the grey fringe canvas text antialiasing gives them
+        const F: Record<string, string[]> = {
+          L: ['100', '100', '100', '100', '111'], O: ['111', '101', '101', '101', '111'],
+          A: ['111', '101', '111', '101', '101'], N: ['101', '111', '111', '111', '101'],
+          S: ['111', '100', '111', '001', '111'],
+        };
+        let cx3 = 5;
+        for (const ch of 'LOANS') {
+          const rows = F[ch];
+          for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) {
+            if (rows[r][c] === '1') g.fillRect(cx3 + c * 2, 3 + r * 2, 2, 2);
+          }
+          cx3 += 7;
+        }
+      }), 'sign');
+      // THE BOX GOES BEHIND THE SIGN. First pass put the sign at WALLX + 0.05 and
+      // its 0.07 m backing box at WALLX + 0.02, so the box's front face landed at
+      // +0.055 — 5 mm PROUD of the sign — and the whole thing read as a plain
+      // dark rectangle with no lettering. That is the fault I keep making in this
+      // project: building an enclosure over a fitting I have just placed, which
+      // has now cost the confessional, the font, the votive stand and a library
+      // stair foot. Caught by looking at it, one shot after adding it.
+      bx2(0.07, 0.45, 1.0, new THREE.MeshBasicMaterial({ color: 0x3a3630 }), WALLX + 0.03, 2.48, 2.2);
+      const loan = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.37), ctx.flat(loanT));
+      loan.rotation.y = Math.PI / 2;
+      put(loan, WALLX + 0.10, 2.48, 2.2);          // 3.5 cm clear of the box front
+
+      // a pegboard of power tools on the customer side of the west run, between
+      // the cabinet and the counter, where you pass it walking up
+      const pegT = declareSurface(pixTex(48, 36, (g) => {
+        g.fillStyle = '#9a8a6a'; g.fillRect(0, 0, 48, 36);
+        g.fillStyle = 'rgba(0,0,0,0.22)';
+        for (let y = 3; y < 34; y += 3) for (let x = 3; x < 46; x += 3) g.fillRect(x, y, 1, 1);
+        // a drill, a sander, a circular saw and a jigsaw, hung on one line each
+        const tool = (x: number, y: number, w: number, h: number, body: string, det: string) => {
+          g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 1, y + 1, w, h);
+          g.fillStyle = body; g.fillRect(x, y, w, h);
+          g.fillStyle = det; g.fillRect(x, y + h - 2, w, 2);
+          tag(g, x + 1, y + h);
+        };
+        tool(4, 5, 11, 6, '#8a5a2a', '#3a3630');       // drill body
+        g.fillStyle = '#8a8478'; g.fillRect(15, 7, 5, 2);
+        tool(23, 4, 9, 8, '#3a5a6a', '#2e2a26');       // sander
+        tool(36, 5, 8, 7, '#7a3a2a', '#2e2a26');       // jigsaw
+        tool(5, 20, 13, 9, '#6a6258', '#3a3630');      // circular saw
+        g.fillStyle = '#8a8478'; g.beginPath(); g.arc(18, 26, 5, -1.2, 1.2); g.fill();
+        tool(28, 21, 10, 7, '#8a7c50', '#3a3630');     // a planer
+        dither(g, 48, 36, 22);
+      }), 'detail');
+      const peg = new THREE.Mesh(new THREE.PlaneGeometry(1.30, 0.98), ctx.flat(pegT));
+      peg.rotation.y = Math.PI / 2;
+      put(peg, WALLX + 0.04, 1.62, -2.15);
+    }
+
+    // 3. THE FRONT-EAST CORNER: an amp stack and a golf bag. Two things nobody
+    // came back for, squared into the corner rather than set out in the room.
+    {
+      const AX = hw - 0.55, AZ = hd - 0.72;
+      const vinylBlack = new THREE.MeshBasicMaterial({ color: 0x22201e });
+      const grille = declareSurface(pixTex(28, 20, (g) => {
+        g.fillStyle = '#1e1c1a'; g.fillRect(0, 0, 28, 20);
+        g.fillStyle = '#2e2a26';
+        for (let y = 1; y < 20; y += 2) for (let x = 1; x < 28; x += 2) g.fillRect(x, y, 1, 1);
+        g.fillStyle = '#8a7c50'; g.fillRect(2, 1, 9, 2);          // the maker's badge
+        dither(g, 28, 20, 14);
+      }), 'detail');
+      const grilleM = ctx.flat(grille);
+      // the cab, then the head on top of it — which is what makes it read as an
+      // amp and not a crate
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.58, 0.42),
+        [vinylBlack, vinylBlack, vinylBlack, vinylBlack, grilleM, vinylBlack]), AX, 0.29, AZ);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.22, 0.40),
+        [vinylBlack, vinylBlack, vinylBlack, vinylBlack, grilleM, vinylBlack]), AX, 0.69, AZ);
+      bx2(0.44, 0.05, 0.03, new THREE.MeshBasicMaterial({ color: 0xc9bfa0 }), AX, 0.74, AZ - 0.21);
+      for (const kx of [-0.14, -0.05, 0.04, 0.13]) {              // its knobs
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.03, 6), steelM),
+          AX + kx, 0.74, AZ - 0.215).rotation.x = Math.PI / 2;
+      }
+      // the golf bag, leaned into the corner, with the clubs showing
+      const bagM = new THREE.MeshBasicMaterial({ color: 0x3d5a4a });
+      const bag = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 0.94, 8), bagM);
+      bag.rotation.x = 0.13;
+      put(bag, AX - 0.06, 0.48, AZ - 1.02);
+      for (const [gx2, gh] of [[-0.05, 0.30], [0.02, 0.36], [0.07, 0.26]] as [number, number][]) {
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, gh, 6), steelM),
+          AX - 0.06 + gx2, 1.05 + gh / 2, AZ - 1.10);
+        bx2(0.05, 0.06, 0.04, new THREE.MeshBasicMaterial({ color: 0x8a8478 }),
+          AX - 0.06 + gx2, 1.05 + gh + 0.02, AZ - 1.10);
+      }
+      bx2(0.30, 0.04, 0.05, new THREE.MeshBasicMaterial({ color: 0x2e2a26 }),
+        AX - 0.06, 0.72, AZ - 0.96);                              // the bag's strap
+      // one collider for the corner, reaching BOTH walls
+      const x0c = AX - 0.36, z0c = AZ - 1.30;
+      solid((x0c + (hw - 0.09)) / 2, (z0c + (hd - 0.09)) / 2,
+        (hw - 0.09) - x0c, (hd - 0.09) - z0c);
+    }
+  }
 }

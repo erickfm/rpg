@@ -25,10 +25,10 @@ const hd = d / 2;
 // local -> world: cx + lx, cz + lz.  yaw 0 looks -z (into the room), PI looks +z.
 const S = [
   ['door',    0,   hd - 0.9,  0,            0.02],
-  ['door-e',  0,   hd - 0.9, -Math.PI / 2,  0.0 ],
-  ['door-w',  0,   hd - 0.9,  Math.PI / 2,  0.0 ],
+  ['west',    0,   1.6,      -Math.PI / 2,  0.0 ],   // the bare west run: clocks + bikes
+  ['clocks', -4.6, 2.2,      -Math.PI / 2,  0.10],   // close up on the clock line
+  ['corner',  2.0, 0.6,       Math.atan2((6.35) - 2.0, -((hd - 0.72) - 0.6)), 0.0],
   ['counter', 1.6, -1.6,      Math.PI,      0.0 ],
-  ['back',    0,  -hd + 2.4,  Math.PI,      0.02],
 ];
 
 await p.evaluate(() => window.__ct.clock(13, 0));
