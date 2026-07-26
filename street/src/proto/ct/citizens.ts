@@ -31,6 +31,18 @@ export interface Look {
    *  from a parallel branch that added it for the hermit while this file was
    *  being restructured — both changes were wanted, so both survive. */
   grime?: number;
+  /** SEATED — booths, stools, pews, reading desks.
+   *
+   *  The interiors hand-draw every figure not because nobody read
+   *  CITIZEN-STYLE.md but because this atlas had only a standing pose, so a
+   *  booth had nothing to call. One pose for now; leaning on a counter is a
+   *  different silhouette and waits for the rooms to ask for it.
+   *
+   *  The ORIGIN MOVES with this flag and `citizenPlane` owns it — a caller
+   *  passes the SEAT it already registered, never a hand offset. Five modules
+   *  and ten rooms each applying their own offset is exactly how the 12 cm
+   *  float happened. */
+  seated?: boolean;
 }
 
 /** multiply a hex colour — used so the eyes and the hair shadow stay in the
@@ -48,6 +60,12 @@ export function citizenAtlas(o: Look): THREE.Texture {
   const accent = o.accent || '#8a3a2e';
   const cut: HairCut = o.cut ?? 'short';
   const grime = o.grime ?? 0;
+  const seated = o.seated ?? false;
+  /** how far the upper body drops when sitting: a straight leg is 21 rows
+   *  and a folded one about 13, so the 9 the legs give up is exactly what
+   *  the head, torso and arms come down by — the figure sits INTO the frame
+   *  and the painted shoe still lands on row 59. */
+  const SEAT_DROP = 9;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -73,7 +91,37 @@ export function citizenAtlas(o: Look): THREE.Texture {
         // legs were both drawn at cx-2, i.e. on top of each other.
         const legOff = stride + 1;
         g.fillStyle = pantsC;
-        if (view === 2) {
+        if (seated) {
+          // ── SEATED LEGS: hip 47, knee forward, shin down to the same 59 ──
+          //
+          // Drawn BEFORE the upper body's translate, so these rows are the
+          // frame's own. The feet do not move: a seated person's shoes are on
+          // the floor, which is why the sprite still reaches row 59 and why
+          // nothing about the standing figure's footprint changes.
+          const HIP = oy + 47, KNEE_Y = oy + 47, FOOT = oy + 59;
+          if (view === 2) {
+            // side on: the whole thigh shows, running forward from the hip
+            g.fillStyle = shade(pantsC, 0.62);
+            g.fillRect(cx - 2, HIP, 10, 6);              // far thigh
+            g.fillStyle = pantsC;
+            g.fillRect(cx - 3, HIP + 1, 10, 6);          // near thigh, over it
+            g.fillStyle = shade(pantsC, 0.62);
+            g.fillRect(cx + 4, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
+            g.fillStyle = pantsC;
+            g.fillRect(cx + 3, KNEE_Y + 7, 4, FOOT - KNEE_Y - 7);
+          } else {
+            // FORESHORTENED, and this is the half the leg-only attempt got
+            // wrong: from the front a lap is a WIDE SHORT MASS at hip height,
+            // not two verticals. The knees are the nearest thing to the
+            // viewer, so the thigh reads as width rather than length.
+            const lapW = tw * 2 - 2;
+            g.fillRect(cx - Math.floor(lapW / 2), HIP, lapW, 6);
+            g.fillStyle = shade(pantsC, view >= 3 ? 0.72 : 0.9);
+            g.fillRect(cx - 5, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
+            g.fillRect(cx + 1, KNEE_Y + 6, 4, FOOT - KNEE_Y - 6);
+          }
+          g.fillStyle = pantsC;
+        } else if (view === 2) {
           // Back leg first, in an OPAQUE darker tone, then the front leg over
           // it. It used to be a 35%-black overlay — which with alphaTest 0.5
           // disappears anywhere it is not sitting on top of the front leg, so
@@ -123,6 +171,13 @@ export function citizenAtlas(o: Look): THREE.Texture {
           g.fillRect(cx - 6 - stride, oy + 57, 6, 3);
           g.fillRect(cx + stride, oy + 57, 6, 3);
         }
+        // EVERYTHING BELOW IS THE UPPER BODY, and when seated it all comes
+        // down together. One translate rather than SEAT_DROP added to forty
+        // row literals — and it is only possible because the legs and feet are
+        // already drawn above. The leg-only attempt failed precisely here: the
+        // profile read as sitting and the other four did not, because the head
+        // stayed at standing height (shots/seated.png, before this).
+        if (seated) g.translate(0, SEAT_DROP);
         // ── torso ─────────────────────────────────────────────────────
         const torsoBot = fit === 'coat' ? 45 : 39;
         g.fillStyle = jacket;
@@ -341,6 +396,7 @@ export function citizenAtlas(o: Look): THREE.Texture {
         else if (view === 1) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillRect(cx + 1, oy + 13, 2, 2); }
         else if (view === 2) { g.fillRect(cx - 4, oy + 13, 2, 2); g.fillStyle = skin; g.fillRect(cx - 7, oy + 14, 2, 3); }
         if (view <= 1) { g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(cx - 2, oy + 17, 5, 1); }
+        if (seated) g.translate(0, -SEAT_DROP);   // put the frame back
       }
     }
   });
@@ -385,11 +441,32 @@ export function viewFor(rel: number): [number, boolean] {
  *  ct/crowd.ts — and two copies of a constant disagree eventually. Fixing them
  *  separately would have left the street and the interiors 12 cm apart.
  */
-export function citizenPlane(): THREE.PlaneGeometry {
+export function citizenPlane(seated = false): THREE.PlaneGeometry {
   const H = 1.9;
-  const PAD_ROWS = 4;                        // empty rows under the shoe, see above
+  const PAD_ROWS = 4;                        // empty rows under the shoe
   const geo = new THREE.PlaneGeometry(0.95, H);
-  geo.translate(0, H / 2 - (PAD_ROWS / FH) * H, 0);
+  // ── WHERE THE ORIGIN SITS, AND WHY IT MOVES WHEN SEATED ────────────────
+  //
+  // Standing, the origin is the PAINTED SHOE — not the frame's bottom edge,
+  // which is where `translate(0, 0.95, 0)` put it and why every figure in the
+  // world floated 12 cm. Four empty rows sit under the shoe and they are what
+  // that gap was.
+  //
+  // Seated, the origin is the HIP, at row 47 of 64. The desk's ruling and the
+  // reason for it: a room already knows where its seat is — it registered it —
+  // so it should place a sitter by that seat and never compute an offset.
+  // Five modules and ten rooms each doing their own arithmetic is exactly the
+  // shape of the float this same function exists to have fixed.
+  //
+  //   standing   mesh.position.set(x, groundY, z)
+  //   seated     mesh.position.set(x, seatY,   z)     <- the seat you registered
+  //
+  // The shoe still lands on row 59 either way, so a sitter's feet reach the
+  // floor when the seat is at a sane height, and nothing about the standing
+  // figure's footprint changes.
+  const HIP_ROW = 47, ROWS = 64;
+  const originRow = seated ? HIP_ROW : ROWS - PAD_ROWS;
+  geo.translate(0, H / 2 - (originRow / ROWS) * H + (seated ? 0 : 0), 0);
   return geo;
 }
 
@@ -441,7 +518,9 @@ export function citizenSprite(look: Look, o: {
 } = {}): CitizenSprite {
   const tex = citizenAtlas(look);
   tex.repeat.set(1 / 5, 1 / 2);
-  const geo = citizenPlane();
+  // the plane's origin follows the pose: feet standing, HIP seated, so a room
+  // places a sitter with the seat it already registered and never an offset
+  const geo = citizenPlane(look.seated ?? false);
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     map: tex, alphaTest: 0.5, side: THREE.DoubleSide,
   }));
