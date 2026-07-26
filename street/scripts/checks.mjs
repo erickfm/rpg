@@ -571,6 +571,14 @@ const CHECKS = [
   // --selftest jams the dispenser: the debit stands and the notes vanish, which
   // every screen of the thing sails through looking perfectly correct. (K)
   ['K-atm-walk', 'can you actually use the cash machine, and is the money conserved?', true],
+  // Not my row — F's "wheel arches read as arches", verified from an empty
+  // queue. Registered rather than thrown away because the row's whole history
+  // is THE POPULATION (328 by radius, 86, 83 by colour), and this is the only
+  // predicate that has two unrelated filters agreeing: a tyre is a cylinder
+  // lying on its SIDE, which no barstool can imitate, and F's "carries a map".
+  // Its --selftest lifts every car body 0.6 m off its wheels and requires the
+  // red — the positive control F's evidence names and never watched. ~8 s. (K)
+  ['K-tyre-has-arch', 'does every tyre have bodywork arching over it?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
