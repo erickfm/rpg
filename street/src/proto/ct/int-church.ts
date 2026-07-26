@@ -249,6 +249,108 @@ export function buildChurch(ctx: CtxBuild) {
   // function that ct/interior.ts:1000 hardcodes to `() => 0`, which is the same
   // missing spec field as the library's stair. See notes/BLOCKED-G.md.
 
+  // one stone for the sanctuary furniture, so the tabernacle plinth and the font
+  // read as the same quarry as the chancel step
+  const stoneMx = new THREE.MeshBasicMaterial({ color: 0x9a9284 });
+
+  // ── THE CRUCIFIX, which is what the room is for ──────────────────────
+  //
+  // "Wheres the jesus on the cross" — and the user is right that this was the
+  // single most important omission. A Catholic church's focal point is the
+  // crucifix: everything else in here is arranged around it, every pew faces it,
+  // and without one the sanctuary reads as a pale blank block at the end of a
+  // hall, which is exactly what the screenshot showed.
+  //
+  // On the sanctuary axis, standing clear of the east window rather than on it,
+  // so it SILHOUETTES against the rose — which is the classic arrangement and
+  // also the only one that works here, because the window is a lit texture and
+  // anything laid over it would read as a sticker.
+  {
+    const CRX_Z = -hd + 1.15;
+    const woodC = new THREE.MeshBasicMaterial({ color: 0x3a2a1c });
+    const woodL = new THREE.MeshBasicMaterial({ color: 0x4e3a26 });
+    const flesh = new THREE.MeshBasicMaterial({ color: 0xc9a488 });
+    const cloth = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
+    const Y0 = CHANCEL_Y + 1.55;                 // clear of the altar behind it
+    // the cross: upright and transom, with a lighter face so it is not a hole
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 3.05, 0.10), woodC), 0, Y0 + 1.52, CRX_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.13, 3.05, 0.02), woodL), 0, Y0 + 1.52, CRX_Z - 0.06);
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.15, 0.10), woodC), 0, Y0 + 2.10, CRX_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.12, 0.02), woodL), 0, Y0 + 2.10, CRX_Z - 0.06);
+    // the corpus, read at this scale as head, torso, arms, legs and a loincloth
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.62, 0.14), flesh), 0, Y0 + 1.80, CRX_Z - 0.10);
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.11, 0.11), flesh), 0, Y0 + 2.10, CRX_Z - 0.10);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.20, 0.15), cloth), 0, Y0 + 1.44, CRX_Z - 0.10);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, 0.13), flesh), 0, Y0 + 1.02, CRX_Z - 0.10);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), flesh), 0, Y0 + 2.24, CRX_Z - 0.10);
+    // INRI
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.03), cloth), 0, Y0 + 2.46, CRX_Z - 0.07);
+    solid(0, CRX_Z, 0.5, 0.3);
+  }
+
+  // ── the tabernacle, and the lamp that says it is occupied ────────────
+  //
+  // The tabernacle is behind the altar on the same axis; the sanctuary lamp
+  // hangs beside it and is ALWAYS LIT, which is what it means. It is also the
+  // one warm point in a cold room, so it does more work than its size.
+  {
+    const TAB_Z = -hd + 0.55;
+    const gold = new THREE.MeshBasicMaterial({ color: 0xb8912e });
+    const goldD = new THREE.MeshBasicMaterial({ color: 0x7a6020 });
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.42, 0.36), stoneMx), 0, CHANCEL_Y + 0.21, TAB_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.58, 0.30), goldD), 0, CHANCEL_Y + 0.71, TAB_Z);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.46, 0.02), gold), 0, CHANCEL_Y + 0.71, TAB_Z + 0.16);
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.03), gold), 0, CHANCEL_Y + 1.04, TAB_Z + 0.16);
+
+    // the sanctuary lamp: red glass on a chain, and a glow that never goes out
+    const LX = 1.45, LZ = -hd + 1.6, LY = CHANCEL_Y + 2.05;
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 1.5, 4),
+      new THREE.MeshBasicMaterial({ color: 0x6a5a3a })), LX, LY + 0.95, LZ);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.26, 8),
+      new THREE.MeshBasicMaterial({ color: 0x8e1f2a })), LX, LY, LZ);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 6), new THREE.MeshBasicMaterial({
+      color: 0xff6a4a, transparent: true, opacity: 0.85, depthWrite: false,
+      blending: THREE.AdditiveBlending, fog: false })), LX, LY - 0.02, LZ);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 6), new THREE.MeshBasicMaterial({
+      color: 0xff5a3a, transparent: true, opacity: 0.16, depthWrite: false,
+      blending: THREE.AdditiveBlending, fog: false })), LX, LY - 0.02, LZ);
+  }
+
+  // ── the fourteen Stations of the Cross ───────────────────────────────
+  //
+  // Seven a side down the nave walls, small and dark and evenly spaced. They are
+  // what stops a nave reading as a hall with benches in it: a wall with fourteen
+  // identical marks on it is unmistakably a church even at a glance.
+  {
+    const relief = declareSurface(pixTex(16, 20, (g) => {
+      g.fillStyle = '#6a6258'; g.fillRect(0, 0, 16, 20);
+      g.fillStyle = '#8a8278'; g.fillRect(1, 1, 14, 18);
+      g.fillStyle = '#4a443c'; g.fillRect(3, 3, 10, 14);
+      g.fillStyle = '#9a9288'; g.fillRect(7, 5, 2, 9); g.fillRect(5, 7, 6, 2);  // a cross in each
+      dither(g, 16, 20, 24);
+    }), 'detail');
+    const relM = ctx.flat(relief);
+    for (const sx of [-1, 1]) {
+      for (let i = 0; i < 7; i++) {
+        const sz = 4.6 - i * 1.55;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.52), relM);
+        m.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+        put(m, sx * (hw - 0.06), 2.25, sz);
+      }
+    }
+  }
+
+  // ── the font, by the door, where you are received ────────────────────
+  {
+    const FZ = hd - 2.2, FX = 2.5;
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.30, 0.16, 8), stoneMx), FX, 1.02, FZ);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.30, 0.86, 8), stoneMx), FX, 0.47, FZ);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.06, 8), stoneMx), FX, 0.05, FZ);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.02, 8),
+      new THREE.MeshBasicMaterial({ color: 0x3a4a52 })), FX, 1.11, FZ);   // the water
+    solid(FX, FZ, 0.9, 0.9);
+  }
+
   // ── the side chapel, and the candles nobody is tending ────────────────
   //
   // A votive stand at the back of the north aisle: a rack of lit candles, most
