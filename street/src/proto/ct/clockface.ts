@@ -95,6 +95,22 @@ export function clockFace(o: {
   cap.position.z = R * 0.054;
   group.add(cap);
 
+  // TAG WHAT WE BUILD. Every check that misled me tonight found its subject by
+  // guessing at shape: a station I typed could not falsify a keeper I wrote; a
+  // circle test that took "person-sized plane" caught a mannequin and some
+  // framed photographs; a tyre filter that took "cylinder r 0.18-0.42" caught
+  // diner bar stools and reported 328 tyres where there are 83. And I found
+  // the exterior-clock gap itself by counting HANDS BY SHAPE - thin planes -
+  // which is why I could only see the ones inside rooms.
+  //
+  // The one check that never misled me was C's door faces, which asserts on
+  // `userData.plate`. So: the group carries what it is, and its hands carry
+  // which hand they are. "How many clocks are in the world and do they all
+  // move" becomes a question with an answer, from anywhere, forever.
+  group.userData.clock = true;
+  hourH.userData.clockHand = 'hour';
+  minH.userData.clockHand = 'minute';
+
   return {
     group,
     // BOTH HANDS MOVE, AND THE HOUR HAND CREEPS. At 13:30 it sits halfway
