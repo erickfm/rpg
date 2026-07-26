@@ -258,3 +258,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | J | 'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in lib | |
 | OPEN | J | 'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the  | |
 | OPEN | G | 'Screenshot from 2026-07-25 23-27-45.png' whats wrong with this plant  | |
+| OPEN | G | 'Screenshot from 2026-07-25 23-30-58.png' hotel textures are buggy | |
