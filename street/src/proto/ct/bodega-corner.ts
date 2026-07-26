@@ -52,6 +52,8 @@ export let BAY: {
   faceWidth: number;
   centre: { x: number; z: number };
   normal: { x: number; z: number };
+  tangent: { x: number; z: number };
+  yawAlong: number;
   shell: { x0: number; x1: number; z0: number; z1: number };
   doorWidth: number;
 } | null = null;
@@ -120,6 +122,28 @@ export function buildBodegaCorner(c: {
     centre: { x: BX0 + CHF / 2, z: BZ1 + CHF / 2 },
     /** outward normal of the cut face: south-west, away from the crossing */
     normal: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
+    // ALONG the face, a → b. Published beside the normal because publishing
+    // only the normal is what let the last consumer transpose the two axes.
+    //
+    // The auditor sent B's soldier course back to OPEN for exactly that: *"the
+    // band extends 0.42 m ALONG the face and 2.60 m PERPENDICULAR to it — B's
+    // two numbers, swapped"*, with the diagnosis *"walking finds where a
+    // surface is; it says nothing about which way an object faces. A position
+    // check and an orientation check are different instruments."* The offset
+    // was found by walking into the wall and was right; the orientation had to
+    // be derived by hand from the corner, and the hand got it 90° out.
+    //
+    // Orthogonal to `normal` by construction — `dot(tangent, normal)` is
+    // −0.5 + 0.5 = 0 — so anything laid on this face can take one axis from
+    // each and cannot swap them.
+    tangent: { x: Math.SQRT1_2, z: -Math.SQRT1_2 },
+    /** `rotation.y` for a GROUND DECAL whose local +x should run along the
+     *  face. A plane turned `rotation.x = −π/2` lies in the ground with local
+     *  +x → world +x and local +y → world −z; `rotation.y = θ` then sends +x to
+     *  (cos θ, 0, −sin θ), so θ = π/4 puts it on `tangent` above. Published as
+     *  the number rather than the derivation, because the derivation is the
+     *  step that went wrong. */
+    yawAlong: Math.PI / 4,
     /** the shell the cut is taken out of, before the triangle is removed */
     shell: { x0: BX0, x1: BX1, z0: BZ1, z1: BZ0 },
     /** clear width of the door opening in the cut face */
