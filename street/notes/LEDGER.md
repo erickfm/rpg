@@ -287,3 +287,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | K | i also want an atm interface and an inventory interface. equally try h | |
 | OPEN | C | 'Screenshot from 2026-07-26 00-55-46.png' why is the door backwards? | |
 | OPEN | C | i want to be able to watch tv. and i sit on the bed and literally watc | |
+| OPEN | O | also we need a jail. the jail should be extremely try hard and should  | |
