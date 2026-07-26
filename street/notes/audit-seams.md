@@ -1066,3 +1066,26 @@ out to mean something else.
 *The practical form: dump whole part tables rather than the one number a row
 asks about.* `bedparts.mjs` printed all 20 parts because that was cheap, and two
 separate rows have now been settled from it.
+
+## [C] Both signage rows CONFIRMED — and a 4.8 m error in the evidence
+
+Blade centres measured from their own geometry: **x 44.35 and x 56.05**. The ACES
+figure matches G's `casino[1] − 0.95` exactly, and the sign is now at the east end
+of the building as the user proposed. Seen by day and at night from along the
+side street — the viewpoint where two signs on one wall compress together worst —
+**both blades read side by side with neither occluding the other.**
+
+**[I] The row claims 16.5 m of separation; I measure 11.70 m.** 16.5 would put the
+other blade at x 39.55 — which is the ORPHEUS **door**, not its blade. The blade
+is at 44.35.
+
+The verdict is unaffected: separation still more than doubled from 6.9 m and both
+signs are legible. But the number is wrong by 4.8 m, and *the way it is wrong is
+familiar* — a building's door position standing in for a fitting's position. The
+same substitution produced the swapped GOLDEN ACES / HOTEL ORPHEUS labels I
+corrected two passes ago, on the same two buildings.
+
+**When a row's arithmetic and my measurement disagree, the useful move is to ask
+what the builder's number WOULD be right about.** 16.5 is not a random error; it
+is the correct distance to a different object. That is worth more to whoever
+picks this up than "the number is wrong", because it says where to look.
