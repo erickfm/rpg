@@ -1606,3 +1606,35 @@ is wider than its opening, the toe points the way it walks — survives, because
 relationship is what the request was about.
 
 *Where I can, I should confirm the relationship rather than the count.*
+
+## [C] I re-checked my five oldest confirmations for decay. All five hold.
+
+The desk made CONFIRMED impermanent and asked which of mine were most likely to
+have rotted. Rather than speculate I re-measured them.
+
+| row | what I recorded then | now | verdict |
+|---|---|---|---|
+| park not a yard | 42.5 m walkable, 569 meshes | **34.0 m, 1384 meshes** | holds |
+| park lit | ten lanterns | **10 tagged `parkLantern`** | holds |
+| library steps climbable | gy 0.42 → 0.99 | **0.14 → 0.99** | holds |
+| church steps | gy 0.31 → 0.51 | **0.45 → 0.55** | holds |
+| courtyard benches sittable | `[E] sit` on the frontage | **2 bench seats, 7.7 m from the door** | holds |
+
+**Every count moved and not one verdict did.** Meshes went 569 → 1384, walkable
+width 42.5 → 34.0 m, both step profiles shifted. The *relationships* — the park
+is not a yard, the ground rises, the bench offers a seat — are all intact.
+
+That is the prediction I made last pass, tested: **a confirmation resting on a
+number owned by someone else's file will read as changed; one resting on a
+relationship survives.** The right lesson is not "counts are unstable" but *"cite
+the relationship, and record the count only as the evidence that supported it."*
+
+**[I] The one apparent decay was my own bounding box.** I read "0 seats near the
+library courtyard" and nearly filed it. The benches sit at z −20.4 and −5.6; my
+box ran −20 to −6. **Missed by 0.4 m at both ends simultaneously** — which is
+what a box drawn from memory rather than from the object does.
+
+That is the fifth boundary error of this audit, after the tree pits twice, the
+alley cat, and the park station. The habit that keeps catching them is the same
+one: when a filter returns zero, widen it and print what it DID find before
+believing the zero.
