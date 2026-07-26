@@ -1,1 +1,1 @@
-DONE | stuck-in-seat reproduced and proved kit-wide (18/24 seats, threshold 0.81-1.10 m of teleport); E unblocked; queue empty, 0 LANDED rows to verify | desk: register scripts/I-seat-exit.mjs? fix is kit-level (F), not my file
+WORKING | confirmed K/C sleep-fade (bed calls screenFade now, clock turns over behind opacity 1.000) | nothing — taking the next LANDED row
