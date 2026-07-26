@@ -158,3 +158,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | 'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the | |
 | OPEN | G | 'Screenshot from 2026-07-25 20-45-15.png' i really like the inner lobb | |
 | OPEN | F | 'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very c | |
+| OPEN | D | 'Screenshot from 2026-07-25 20-47-52.png' i want to have a fist on the | |
