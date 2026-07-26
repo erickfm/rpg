@@ -18,6 +18,8 @@
 //   · no row LOST                  — three times today
 //   · no evidence cell SHRANK      — the quiet one: the row is still there and
 //                                    the verifier's paragraph is gone
+//   · no CONTRIBUTION dropped      — quieter still: the length holds and one
+//                                    account has been swapped for another (H)
 //
 // Growth is fine and unreported: rows are meant to accumulate evidence. This
 // only ever complains about loss.
@@ -37,6 +39,16 @@ const argv = process.argv.slice(2);
 const selftest = argv.includes('--selftest');
 const ref = argv.find((a) => !a.startsWith('--')) ?? 'add-stick-and-city98';
 
+/** A CONTRIBUTION SEGMENT. The shrink check above catches a paragraph going
+ *  missing, but not one being SWAPPED for another of similar length — and the
+ *  auditor asked for exactly this: "compare against a per-segment count rather
+ *  than a per-row one". Cells are separated by `||`, and successive accounts
+ *  inside a cell are introduced by `— **NAME` or `**NAME (verifier)`, so
+ *  counting those bounds how many hands are on the row. Deliberately a LOWER
+ *  bound: it undercounts rather than inventing segments, so it can miss a loss
+ *  but will not invent one. — H */
+const SEG = /\|\||—\s*\*\*|\*\*[A-Z][A-Za-z]{0,7}\s*\(?(?:verifier|2nd)/g;
+
 /** every row keyed by its TITLE — field 3 of the pipe table — with the length
  *  of its evidence cell. The title is the only stable identity a row has; the
  *  status changes and the evidence grows. */
@@ -50,7 +62,8 @@ function rowsOf(text) {
     if (!title || /^-+$/.test(title)) continue;
     // the evidence is everything after the title, which may itself contain pipes
     const ev = line.split('|').slice(4).join('|');
-    out.set(title, { status: f[1].trim(), owner: f[2].trim(), ev: ev.length, dup: out.has(title) });
+    out.set(title, { status: f[1].trim(), owner: f[2].trim(), ev: ev.length,
+      seg: (line.match(SEG) || []).length, dup: out.has(title) });
   }
   return out;
 }
@@ -125,6 +138,12 @@ const shrank = [...now.entries()]
   .filter(([t, v]) => base.has(t) && base.get(t).ev > v.ev)
   .map(([t, v]) => ({ t, from: base.get(t).ev, to: v.ev }));
 const added = [...now.keys()].filter((t) => !base.has(t));
+// A row can keep its length and still lose a hand: one account replaced by
+// another of similar size. Only reported when the evidence did NOT shrink,
+// because a shrink already says it louder. (H)
+const lostSeg = [...now.entries()]
+  .filter(([t, v]) => base.has(t) && base.get(t).seg > v.seg && base.get(t).ev <= v.ev)
+  .map(([t, v]) => ({ t, from: base.get(t).seg, to: v.seg }));
 
 console.log(`\nledger vs ${ref}:  ${base.size} rows -> ${now.size}`);
 const fail = [];
@@ -146,6 +165,13 @@ if (shrank.length) {
   }
   fail.push('shrunk evidence');
 }
+if (lostSeg.length) {
+  console.log(`  ${lostSeg.length} ROW(S) LOST A CONTRIBUTION while keeping their length:`);
+  for (const s2 of lostSeg.slice(0, 8)) {
+    console.log(`      ${s2.from} -> ${s2.to} accounts  ${s2.t.slice(0, 52)}`);
+  }
+  fail.push('lost a contribution');
+}
 if (added.length) console.log(`  ${added.length} row(s) added (fine, reported for the record)`);
 
 if (fail.length) {
@@ -155,6 +181,6 @@ if (fail.length) {
   console.log('  empty wants its markers dropped, not its rows paired.');
   process.exit(selftest ? 0 : 1);
 }
-console.log('\n  intact — nothing lost, nothing shrank, no markers, no duplicates');
+console.log('\n  intact — nothing lost, nothing shrank, no contribution dropped, no markers, no duplicates');
 if (selftest) { console.log('\n  SELFTEST FAILED: the guard did not notice a dropped row.'); process.exit(1); }
 process.exit(0);
