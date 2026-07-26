@@ -1,1 +1,1 @@
-DONE | 0 live, 0 awaiting; verified C's TV state machine and filed two affordance traps (one is my addLamp gap)
+DONE | 0 live; C's tv-off CONFIRMED (state machine + lamp removal); off-tone deliberately unverified, user overruled it
