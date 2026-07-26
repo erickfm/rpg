@@ -161,6 +161,13 @@ const CHECKS = [
   // never off the TIES table the source builds them from — reading that back
   // would only prove the table agrees with itself. (I)
   ['I-bunting',        'does the bunting chain, and is every end tied on?',  true],
+  // The user, on a festoon mast I had put 0.2 m inside the aisle edge: "the
+  // aisle a customer walks down and the sight line into the lot from the
+  // entrance are the two things that must stay clear". None of my other checks
+  // could see it -- I-clip asks about OVERLAP and the mast overlapped nothing,
+  // lotwalk asks whether you can get in and you could, by walking round it.
+  // Standing in someone's way is not a collision. (I)
+  ['I-aisle-clear',    'does anything stand in the aisle or block the view down it?', true],
   // C WROTE THIS AND HELD IT BACK ON PURPOSE: "mods-dim stays unregistered
   // until this lands: it is red on this finding, and reddening the shared suite
   // over something I cannot fix would hand the block my problem." The finding

@@ -2250,13 +2250,31 @@ function buildLot(o: {
     const FEST_X0 = X0 + 2.4, FEST_X1 = OFF_X - OFF_D / 2 - 2.4;
     const FEST_SAG = 0.93;                // ~6% of the span; lowest bulb at 3.67 m
     const FEST_SPAN = FEST_X1 - FEST_X0;
-    // The runs sit 0.2 m INSIDE the aisle edge — the boundary between the
-    // drive and the bays, which is where a real lot puts its poles. Measured
-    // against the stock rather than eyeballed: a 4.52 m body raked 0.55 rad
-    // noses to within 6.68 m of the centreline on the north side, so a mast at
-    // 5.8 clears the nearest car by 0.88 m. `scripts/I-clip.mjs` re-checks that
-    // against every car and every fixture, which is why it was worth building.
-    const FEST_Z = [zMid + AISLE_HW - 0.2, zMid - AISLE_HW + 0.2];
+    /**
+     * THE MASTS STAND AGAINST THE WALLS, NOT AT THE AISLE EDGE.
+     *
+     * The user, on a frame taken from beside the office: *"a grey post runs
+     * straight up the middle of his view, a metre in front of his face,
+     * splitting the whole scene … the aisle a customer walks down and the sight
+     * line into the lot from the entrance are the two things that must stay
+     * clear."*
+     *
+     * **That post was mine and it was put there in this session.** I placed
+     * these 0.2 m inside the aisle edge and wrote that this was *"the boundary
+     * between the drive and the bays, which is where a real lot puts its
+     * poles"*. The clearance I checked was to the CARS — 0.88 m, measured, and
+     * true — and a car is not who walks down an aisle. `I-clip` cleared it
+     * because I had only ever asked it about collisions, and standing in
+     * somebody's view is not a collision.
+     *
+     * The aisle is `zMid ± AISLE_HW`, so anything inside that band across the
+     * lot's depth is in the walking route AND in the sight line from the gate.
+     * The masts move outboard of the stock entirely, to 1.3 m off each side
+     * wall: past the rows, out of the aisle, out of the view down it. The runs
+     * come with them and now hang over the backs of the rows, which is where a
+     * real lot strings them anyway — along the boundary, not over the drive.
+     */
+    const FEST_Z = [zN - 1.3, zS + 1.3];
     const cableM = new THREE.MeshBasicMaterial({ color: 0x3a3d42 });
     const mastM = new THREE.MeshBasicMaterial({ color: 0x6e747b });
     // A bulb is a real object by day and a light by night, so it is TWO
