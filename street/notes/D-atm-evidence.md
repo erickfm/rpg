@@ -1,5 +1,44 @@
 # ATM — evidence, not a fourth attempt
 
+> **RESOLVED — read this box before the measurements below.** Everything under
+> this line is the evidence that *drove* the desk's ruling, and it is preserved
+> in the state it was written. It measures a fascia of **0.680 m** and calls it
+> *"a third too short"*. **That is no longer the world.** The ruling was given,
+> applied, and then revised once more by the user, and this note is the one the
+> ledger sends people to — so it cannot go on describing the fault in the present
+> tense with no outcome attached. That is the same defect I had just fixed in
+> `ct/alley.ts`, where a rain measurement stood for months with no "after" beside
+> it and read as an open fault.
+>
+> **Where it landed, re-measured at HEAD after the 0.75 revision:**
+>
+> | | then | now |
+> |---|---|---|
+> | fascia height | 0.680 m | **0.830 m** |
+> | fascia bottom | 0.900 | **0.750** — the number the user named, three times |
+> | fascia top | 1.580 | 1.580 — unchanged, pinned by the screen |
+> | screen centre | 1.370 | 1.370 — unchanged |
+> | keypad centre | 1.100 | 1.100 — unchanged |
+> | recess | 0.170 | 0.170 — unchanged |
+> | body vs wall | 4% apart | **53%** — #414a52 against #9a9ca0 |
+>
+> **The two candidates this note refused to choose between were both real, and
+> the desk ruled on both.** Candidate 2 — the tonal separation — was the fault
+> that mattered: at 4% a genuine 0.17 m recess has nothing to read against, so
+> from where a player walks there was no ATM to see. Candidate 1 was taken as
+> well, by growing the fascia DOWNWARD so nothing pinned had to move.
+>
+> **And the height finding below is now closed the other way.** It says 0.68 is
+> "32% short" of ~1.0 m. The user's final word was a bottom at **0.75**, which
+> with a top pinned at 1.58 gives 0.83 — short of 1.0 by the same arithmetic.
+> I raised that twice and was answered 0.75 twice, so the number is a decision
+> and the "32% short" line is a resolved disagreement, not an outstanding defect.
+> `ct/bank.ts`'s header records which figure is the ruling and which was my
+> reading, so nobody restores 0.68.
+>
+> Auditor CONFIRMED the object at build `e2ead9895`, walked rather than posed.
+
+
 The desk: *"three have missed and each one changed something different, which
 means nobody knows which variable is wrong."* Correct, and my own fault in a
 specific way: I wrote *"looked at attempt three, and it holds"*, which is a
