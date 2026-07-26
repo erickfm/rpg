@@ -1,1 +1,1 @@
-WORKING | finding 2 fixed and closed: the soffit over the library doors now carries grain | nobody
+VERIFIER | AUDIT row: claim holds but its check had a false positive on J's door — fixed the check, left the row for AUDIT to sign | AUDIT
