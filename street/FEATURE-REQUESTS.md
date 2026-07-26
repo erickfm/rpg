@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"gazebo shelter is fucked / bin is in the sign? overall fix the park"** → **E**
 - **"needs grass variation and more random placing. some clustering potentially. this looks so unnatural"** → **E**
 - **"the doors are misaligned. i think the worker doesnt realize they need to confirm the logic independently per side of the car"** → **H**
 - **"textures on vehicles need a deep review and fix"** → **H**
