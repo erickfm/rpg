@@ -43,3 +43,38 @@ deliberately, rather than a loop that treats every target as interchangeable.
 
 I am recording the broken sweep rather than deleting it because "all four are
 fine" is exactly the kind of tidy negative result that would have been believed.
+
+---
+
+# FIXED, and the corrected sweep says less than a broken one would have
+
+Giving `room.inside` 2.6 s to settle before pressing E — instead of 600 ms —
+fixed it:
+
+    sit at the slot     prompt "[E] sit at the slot"     -> E BLOCKED, ESC works
+    FIRST FEDERAL ATM   prompt "[E] into FIRST FEDERAL"  -> no seated state
+
+## What that actually establishes
+
+**The slots finding reproduces**, which is the important part — the same
+verdict, from a different script, on a different run. It was not a one-off.
+
+**And the ATM was never a modal seat.** Look at the prompt my own sweep
+printed: standing at the ATM spot, the live prompt is **`[E] into FIRST
+FEDERAL`** — the door, not the machine. The ATM's `use the machine` spot loses
+to the door spot at that position, so pressing E takes you into the bank. That
+is not a keydown-blocking fault; it is a different thing entirely and possibly
+worth its own look by whoever owns the ATM.
+
+**`apply for a loan` was not reached.** My filter collapsed to two unique
+targets and the loan spot was not among them. Untested.
+
+## So the scope of the confirmed row is exactly one modal
+
+The slot cabinet. Not "all modals", not "hud.ts is broken everywhere". One
+interaction, reproducibly, with ESC advertised on screen as the way out.
+
+**Printing the live prompt beside each verdict is what made this readable** —
+without it, "no seated state" for the ATM would have looked like a null result
+instead of showing me I was standing at a door. One extra column turned an
+ambiguous negative into a specific fact.

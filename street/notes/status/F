@@ -1,1 +1,1 @@
-DONE | modal sweep was broken (room.inside gate needs settling time); only the slots row is settled | nobody
+DONE | corrected sweep: slots reproduces E-blocked; ATM spot resolves to the door; loan untested | nobody
