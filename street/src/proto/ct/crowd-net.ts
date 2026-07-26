@@ -144,25 +144,37 @@ export function buildNet(d: NetDims): Net {
   chain(w);
   link(w[w.length - 1], sw);            // west walk turns the SW corner
   chain([sw, ...s]);
-  // ── THE EAST END IS A CROSSING, WHICHEVER WAY THE KERB QUESTION GOES ────
+  // ── THE EAST END IS NOT A CROSSING AND NOT AN EDGE. THE RING CLOSES AT THE
+  //    JUNCTION INSTEAD. ─────────────────────────────────────────────────────
   //
-  // This edge runs s-east (54, -109) to ne-corner (54, -97), and the side
-  // street's asphalt spans z -98..-108 — so it crosses TEN METRES OF
-  // CARRIAGEWAY. It was not flagged, which meant walkers on it were legal by
-  // the graph and jaywalking by the world: it was the entire residual in the
-  // in-the-road measurement (18 of ~20000 samples, everything else being
-  // walkers correctly inside a crossing's own lane).
+  // There used to be an edge here, s-east (54, -109) to ne-corner (54, -97),
+  // straight up the closed east end. The side street's asphalt spans z
+  // -98..-108, so it crossed TEN METRES OF CARRIAGEWAY. Unflagged, it made
+  // walkers legal by the graph and jaywalking by the world, and it was the
+  // entire residual in the in-the-road measurement (18 of ~20000 samples;
+  // every other sample was a walker correctly inside a crossing's own lane).
   //
-  // I raised "does the side street's east end have a pavement?" as a blocker
-  // and it is still open — but this flag does not depend on the answer. The
-  // ring has to get from the south walk to the north walk somehow, and at the
-  // closed end the only way is ACROSS the road. That is a crossing by
-  // definition whether or not there is a kerb at x = 55.
+  // I flagged it as a crossing, which was the honest reading of an edge that
+  // has to exist — and B painted stripes to match. THE USER DOES NOT WANT THE
+  // PAINT (shots/user-remove-crosswalk.png), so the edge goes instead. That is
+  // the branch the desk offered first and it is the better one: the east end
+  // has no pavement and no ramp, and adding either purely to justify a node
+  // would be building the world around the graph rather than the other way up.
   //
-  // What still wants the ruling is the GROUND: a crossing here should have a
-  // ramp and painted stripes like the two at the junction, and ct/tex-ground.ts
-  // flags KRAMP on the bodega corner return only. Routed, not invented.
-  link(s[s.length - 1], ne, true);      // up the closed east end — across the road
+  // THE RING DOES NOT NEED THIS EDGE. South walk reaches north walk by the
+  // side-street crossing at the corner (`nSide` -> `s[0]`, below), which is
+  // where ct/tex-ground.ts actually flags KRAMP. Dropping this link leaves
+  // s-east and ne-corner as DEAD-END STUBS at the closed end — which is what a
+  // closed end is. Both still sit on pavement (s-east at z -109 is south of the
+  // asphalt, ne-corner at z -97 is north of it); it was only the line between
+  // them that was in the road. Nothing is orphaned: every node stays reachable,
+  // proved by scripts/H-eastend-route.mjs, which routes s-east -> ne-corner and
+  // reads the road flag on every hop: 9 hops / 105.6 m with ONE road hop, and it
+  // is the junction crossing. With the old edge in place the same probe returns
+  // 2 hops / 12 m with the road hop AT THE EAST END, so the probe distinguishes.
+  //
+  // Do not re-add it. If the east end ever gets a real pavement and ramp, that
+  // is a ground change first and a graph change second, in that order.
   chain([ne, ...n]);
   link(n[n.length - 1], e[0]);          // the bodega corner into the east walk
   chain(e);
