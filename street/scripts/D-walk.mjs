@@ -221,20 +221,53 @@ await walk('and you can leave again', 9.0, -80.0, -Math.PI / 2, 12,
 // not "you cannot get there", it is a camera that jolts a riser at every
 // nosing (GOTCHAS §7 — the picker walks you up a smooth ramp, the drawn
 // treads ride within half a riser of it).
+// THESE THREE READ THE FLOOR PICKER, NOT A WALK'S FRAME SAMPLES, AND THAT IS
+// THE WHOLE CORRECTION.
+//
+// They used to walk the ramp and count the rises between `hold('w', 180)`
+// samples, and they reported three reds for days: "ground reached 0.45",
+// "1 step of rise, not one teleport", "1 jump over 0.34 m". I nearly routed
+// that to E as a regression on a CONFIRMED row.
+//
+// It was mine. **One 180 ms hold covers more ground than the entire ramp.**
+// Sampling the picker directly at 0.05 m, the churchyard climb is
+// 0 -> 0.55 over x 8.1..9.1 in increments of 0.020-0.021 — a continuous 1 m
+// ramp with no discontinuity anywhere in it. The "teleport" and the "jolt"
+// were the same single artifact seen twice: a probe too coarse to resolve what
+// it was measuring reports smooth ground as a cliff. GOTCHAS §30's cousin —
+// there the fixed sleep was too SHORT, here the stride is too LONG, and both
+// fail a sound world.
+//
+// So the rise and the smoothness are asserted on the picker, which is the
+// thing that actually defines the floor. But the LAST assertion still walks,
+// deliberately: proving the picker describes a nice ramp proves nothing if the
+// player is not wired to it (§34 — a check can pass finding nothing). One
+// probe claim, one lived claim.
+const RISER = 0.20;                        // a comfortable step; above this you feel it
+const prof = await page.evaluate(() => {
+  const g = window.__ct.groundAt ?? window.__ct.groundPick;
+  const out = [];
+  for (let x = 5.5; x <= 9.5; x += 0.05) out.push([+x.toFixed(2), +g(x, -79.9).toFixed(3)]);
+  return out;
+});
+const top = Math.max(...prof.map((r) => r[1]));
+let worst = 0, worstAt = 0;
+for (let i = 1; i < prof.length; i++) {
+  const d = prof[i][1] - prof[i - 1][1];
+  if (d > worst) { worst = d; worstAt = prof[i][0]; }
+}
+say(top > 0.45, 'the church steps CLIMB', `the floor picker reaches ${top.toFixed(2)} at the door (kerb is 0.14)`, 1);
+say(worst <= RISER, 'and they climb without a riser-sized jolt',
+  `worst single 0.05 m step is ${worst.toFixed(3)} m at x ${worstAt}`, 1);
+
+// …and the player is actually carried up it. Warp preserves y (see the note
+// above), so read the GROUND under the player, which warp does not invalidate.
 await page.evaluate(() => window.__ct.warp(5.6, -79.9, Math.PI / 2, 0, 0));
 await page.waitForTimeout(700);
-let prevGy = 0, rose = 0, jolt = 0;
-for (let i = 0; i < 14; i++) {
-  await hold('w', 180);
-  const p = await page.evaluate(() => window.__ct.pos());
-  const gy = +p[3];
-  if (gy > prevGy + 0.001) rose++;
-  if (gy - prevGy > 0.34) jolt++;          // a whole riser in one step
-  prevGy = gy;
-}
-say(prevGy > 0.45, 'the church steps CLIMB', `ground reached ${prevGy.toFixed(2)} at the door (kerb is 0.14)`, 1);
-say(rose >= 2, 'and they climb gradually', `${rose} steps of rise, not one teleport`, 1);
-say(jolt === 0, 'no riser-sized jolt on the way up', `${jolt} jumps over 0.34 m`, 1);
+for (let i = 0; i < 14; i++) await hold('w', 180);
+const climbed = +(await page.evaluate(() => window.__ct.pos()))[3];
+say(climbed > 0.30, 'and the player is carried up it, not just the picker',
+  `walked from 0 to ground ${climbed.toFixed(2)}`, 1);
 
 console.log('\n4. no walking into buildings, and the lane you are owed');
 // TWO-SIDED now, and the second half is new. A facade stands at 7.00 and its

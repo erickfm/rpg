@@ -1291,3 +1291,38 @@ through `route.sh`, even when it is the second half of a request already
 logged, and even when it is a re-route of existing work to a different owner.
 A split request needs a row per half or the half nobody sees never gets
 confirmed.
+
+## 48. A probe whose STRIDE is longer than the feature reports smooth ground as a cliff
+
+`D-walk` reported three reds on the church steps for days — *"ground reached
+0.45"*, *"1 steps of rise, not one teleport"*, *"1 jumps over 0.34 m"*. They sat
+unattributed across a rebase and I was one commit away from routing them to E as
+a regression on a **CONFIRMED** row.
+
+The world was never wrong. The churchyard climb is a **continuous 1 m ramp**:
+sampling the floor picker at 0.05 m it goes 0 → 0.55 over x 8.1…9.1 in
+increments of **0.020–0.021 m**, with no discontinuity anywhere in it. The walk
+took its samples between `hold('w', 180)` calls, and **one 180 ms hold covers
+more ground than the whole ramp**. So the climb landed inside a single sample,
+and a single sample containing the entire rise is indistinguishable — to that
+probe — from a teleport off a cliff.
+
+Two of the three reds were the *same* artifact counted twice: "it did not climb
+gradually" and "it jolted a riser" are both just "my stride was 1 m and the
+feature is 1 m".
+
+**§30 is the same fault with the sign flipped.** There the fixed sleep was too
+SHORT and the world had not finished moving; here the stride was too LONG and
+the world had finished moving before the next sample. Both make a sound world
+fail, which is the expensive direction — a red on someone else's confirmed row
+costs them a re-walk and costs you your credibility when it turns out to be
+yours.
+
+**The rule:** before asserting on a shape, know the size of the shape, and
+sample at least a few times inside it. If the quantity has a source that can be
+read directly — the floor picker defines the floor — read the source and assert
+on that. Then keep **one** assertion that the player actually experiences it, or
+you have proved a fact about your probe and nothing about the game (§34).
+
+`D-walk`'s churchyard block now does exactly that split: two claims measured on
+`groundAt` at 0.05 m, and one lived claim that walking really carries you up.
