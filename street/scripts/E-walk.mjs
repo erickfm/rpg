@@ -69,15 +69,25 @@ const f = (n) => n.toFixed(2);
 // odd one out is always the lie. Max was tried first and is wrong in one
 // direction: it beats a phantom 0 in a field of 0.14, and then lets a stale
 // 0.55 off the step you sampled a moment ago win on the flags beside it.
-const gyAt = async (x, z) => {
-  const reads = [];
-  for (let i = 0; i < 3; i++) {
-    await warp(x, z, 0);
-    await page.waitForTimeout(40);
-    reads.push((await pos())[3]);
-  }
-  return reads.sort((a, b) => a - b)[1];
-};
+// ASK THE PICKER, do not teleport and read `pos()[3]`.
+//
+// `pos()[3]` is `apt.gy()` — a last-written value with more than one writer,
+// and the citizens query it too. So the number you get back is whoever asked
+// last, which is usually not you. Sampling three times and taking the median
+// does not save you: it is not noise, it is a different question being
+// answered, and the wrong answer is stable.
+//
+// `probeLanding` on line 177 was fixed to use `groundAt` when this bit me
+// before. THE FLOOR GRID BELOW WAS NOT, and it is the half that reports a
+// coordinate list, so its wrong numbers look like evidence. Measured today it
+// claimed the courtyard floor sat at 0.99 at (-10.0, -8.4) and (-9.6, -10.4);
+// the picker says 0.00 and 0.14 at those points. 0.99 is the LANDING height —
+// the value left behind by the previous sample up on the flight.
+//
+// It reported four points as a broken floor, in a courtyard whose floor is
+// fine. GOTCHAS 7 says the floor comes from a picker; this is what it costs to
+// read it from anywhere else.
+const gyAt = (x, z) => page.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
 let fails = 0, downgraded = 0;
 const report = (name, ok, detail, tries) => {
   if (!ok) fails++;
@@ -102,10 +112,63 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) 
   // a real failure, say what is actually there — and if the answer is
   // nothing, it was a citizen and the retries were unlucky.
   if (!ok(last)) {
-    const near = SELFTEST ? [] : await page.evaluate(([x, z]) => window.__ct.colliders()
-      .filter((c) => x > c.minX - 0.8 && x < c.maxX + 0.8 && z > c.minZ - 0.8 && z < c.maxZ + 0.8)
-      .map((c) => `x ${c.minX.toFixed(2)}…${c.maxX.toFixed(2)} z ${c.minZ.toFixed(2)}…${c.maxZ.toFixed(2)}`),
-      [last[0], last[2]]);
+    // WHAT IS IN FRONT OF ME, not what is near me.
+    //
+    // This asked for colliders within 0.8 m of where I stopped, in every
+    // direction, and one match was enough to turn a citizen-block into a hard
+    // FAIL. On a walk whose whole point is to travel ALONG a building, the
+    // building is always within 0.8 m — so the downgrade this file argues for
+    // at length could be defeated by the very wall the lane runs beside.
+    //
+    // It is my standing failure mode again, and the fourth time today: I
+    // filtered on a property that is not stable for the thing I am looking
+    // for. "Near where I stopped" does not mean "stopped me". The wall on my
+    // left is near me for all 17 m and never touches me.
+    //
+    // Measured on the library frontage, which is what sent me here: the walk
+    // stops at a DIFFERENT z every run (-9.35, -11.02, -11.82, -11.99, -12.98,
+    // -14.63) and no collider overlaps the lane rectangle at all. Nothing
+    // static is in it. `colliders()` is a stable 494 and the lane is clear —
+    // the sacred 2 m holds, and every one of those reds was a pedestrian.
+    //
+    // So sweep the CORRIDOR AHEAD: from the stop point, forward along the
+    // direction of travel, one player-width wide. A collider there is a thing
+    // that stopped you. A collider beside or behind you is scenery.
+    // …AND IT HAS TO BE STATIC, WHICH colliders() DOES NOT TELL YOU.
+    //
+    // `__ct.colliders()` publishes the CITIZENS as well as the geometry. That
+    // is the fact this whole branch turns on and it was never true: the
+    // downgrade asks "is a static collider in the way", using a list where a
+    // pedestrian standing in the lane looks exactly like a bollard.
+    //
+    // How I know, rather than how I assume. The library frontage leg failed on
+    // a 0.5 x 0.5 m box at z -13.84…-13.34 in one run and z -13.81…-13.31 in
+    // the next. THREE CENTIMETRES. Static geometry is bit-identical between
+    // runs of a seeded world; a person is not. It was walking, slowly.
+    //
+    // So separate them by the only property that actually distinguishes them:
+    // a static collider does not move. Snapshot twice, half a second apart, and
+    // keep the boxes that are in both AT THE SAME COORDINATES. Anything that
+    // moved, appeared or vanished is alive, and a live thing in your way is
+    // traffic rather than a squeeze in the lane.
+    const snap = () => page.evaluate(() => window.__ct.colliders()
+      .map((c) => `${c.minX.toFixed(3)},${c.maxX.toFixed(3)},${c.minZ.toFixed(3)},${c.maxZ.toFixed(3)}`));
+    const near = SELFTEST ? [] : await (async () => {
+      const a = await snap();
+      await page.waitForTimeout(500);
+      const b = new Set(await snap());
+      const stat = a.filter((k) => b.has(k)).map((k) => k.split(',').map(Number));
+      const dx = Math.sin(yaw), dz = -Math.cos(yaw);   // the PLAYER travels (sin t, -cos t)
+      const L = 1.6, R = 0.5;                          // 1.6 m ahead, half a player wide
+      const [x, z] = [last[0], last[2]];
+      const box = {
+        minX: Math.min(x, x + dx * L) - R, maxX: Math.max(x, x + dx * L) + R,
+        minZ: Math.min(z, z + dz * L) - R, maxZ: Math.max(z, z + dz * L) + R,
+      };
+      return stat
+        .filter(([aX, bX, aZ, bZ]) => aX < box.maxX && bX > box.minX && aZ < box.maxZ && bZ > box.minZ)
+        .map(([aX, bX, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`);
+    })();
     // A CITIZEN IS NOT A FAILURE OF THE WORLD, on the walks that say so.
     //
     // The lane legs drive 17 m along the busiest pavement on the block, and one
@@ -122,13 +185,13 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) 
     // a floor that drops away rather than somebody standing in the road.
     if (crowded && !near.length) {
       console.log(`NOTE  ${name}  ${say(last)}  [${tries + 1} tries]`);
-      console.log('      nothing static within 0.8 m — the pavement was busy, not blocked');
+      console.log('      nothing static in the corridor ahead — the pavement was busy, not blocked');
       downgraded++;
       return last;
     }
     report(name, false, say(last), tries + 1);
-    console.log(near.length ? `      what is there: ${near.join(' | ')}`
-      : '      nothing static within 0.8 m — a citizen was standing in it');
+    console.log(near.length ? `      what is in front of you: ${near.join(' | ')}`
+      : '      nothing static in the corridor ahead — a citizen was standing in it');
     return last;
   }
   report(name, true, say(last), tries + 1);
@@ -300,8 +363,21 @@ const climbed = await walk('walk UP the steps to the doors', {
 await page.keyboard.down('s'); await page.waitForTimeout(1800); await page.keyboard.up('s');
 await page.waitForTimeout(60);
 const down = await pos();
-report('…and back down into the courtyard', down[0] > -8.2 && Math.abs(down[3] - 0.14) < 0.01,
-  `x ${f(climbed[0])} -> ${f(down[0])}, gy ${down[3].toFixed(2)}`, 1);
+// `down[3]` is `pos()[3]` — the shared last-written gy again, and here it is
+// read ONE FRAME after a walk that ended up on the flight, so it hands back
+// 0.99 for a player standing on the 0.14 paving. That is what this reported:
+// "x -11.61 -> -5.62, gy 0.99", a descent it had just measured as successful,
+// failed on the floor value at the bottom of it.
+//
+// Ask the picker where they ended up, and cross-check with the player's own
+// EYE HEIGHT, which no one else writes. Standing on 0.14 puts the eye at 1.62;
+// stuck up on the landing it would be ~2.47. Two independent readings, because
+// the whole failure here was trusting one shared one.
+const downGy = await gyAt(down[0], down[2]);
+const eyeOnPaving = Math.abs(down[1] - (0.14 + 1.48)) < 0.12;
+report('…and back down into the courtyard',
+  down[0] > -8.2 && Math.abs(downGy - 0.14) < 0.01 && eyeOnPaving,
+  `x ${f(climbed[0])} -> ${f(down[0])}, floor there ${downGy.toFixed(2)}, eye ${down[1].toFixed(2)}`, 1);
 
 // the cheek walls still hold you on the flight
 await walk('the cheek walls hold you on the steps', {
