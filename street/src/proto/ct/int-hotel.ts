@@ -410,45 +410,65 @@ export function buildHotel(ctx: CtxBuild): void {
   // vinyl runner is the repair, and this is the wear the repair did not cover.
   // It runs door -> desk and then the length of the room to the lift and the
   // corridor, because that is where the feet actually go.
-  const wornT = declareSurface(pixTex(96, 96, (g) => {
-    // THE SAME WEAVE as the carpet above, walked flat — so it has to be the same
-    // DRAWING at the same SIZE, not a greyed copy of an older one. It was still
-    // the square lattice and four-cell grid after the carpet became a half-drop
-    // damask, which would have put a grid back on the floor along the one path
-    // everybody walks. Same canvas, same 24 px cell, same half-drop, same
-    // diagonal — only the colours are walked out and the noise is heavier.
-    g.fillStyle = '#6a4048'; g.fillRect(0, 0, 96, 96);             // the field, greyed
-    g.strokeStyle = '#74505a'; g.lineWidth = 1;                    // the trellis, rubbed out
-    for (let k = -96; k <= 192; k += 24) {
-      g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 96, 96); g.stroke();
-      g.beginPath(); g.moveTo(k, 96); g.lineTo(k + 96, 0); g.stroke();
-    }
-    const cells: [number, number][] = [];
-    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
-      if ((r + c) % 2) continue;
-      cells.push([(12 + c * 24 + (r % 2) * 12) % 96, 12 + r * 24]);
-    }
-    g.fillStyle = '#6e5a44';
-    for (const [cx2, cy] of cells) for (let t = 0; t <= 5; t++) {
-      const r = 5 - t;
-      g.fillRect(cx2 + t, cy - r, 1, 1); g.fillRect(cx2 - t, cy - r, 1, 1);
-      g.fillRect(cx2 + t, cy + r, 1, 1); g.fillRect(cx2 - t, cy + r, 1, 1);
-    }
-    dither(g, 96, 96, 760);                                        // more noise: it is worn
-  }), 'ground');
-  wornT.wrapS = wornT.wrapT = THREE.RepeatWrapping;
+  // WEAR HAS NO EDGE. That is the whole of the "buggy textures" report, and it
+  // was mine, not a light bug: the user saw "large PALE TRANSLUCENT QUADS ... with
+  // hard straight edges ... one a broad diagonal band running corner to corner
+  // with a crisp edge down the middle of the room".
+  //
+  // MEASURED FIRST, because the two candidates wanted opposite fixes. All six
+  // floor layers in this room are opaque, NormalBlending, opacity 1 — there is no
+  // additive quad and no light-pool plane anywhere on this floor, so it is not
+  // B's per-mesh light-pooling bug. The "diagonal band" is this file's own
+  // 2.4 x 24 m worn-track plane seen in perspective from a corner; the overlaps
+  // are it against the 5.38 x 2.6 m spur.
+  //
+  // The old version was a repeating tile clipped by a rectangle, so every patch
+  // ended on a straight line and read as a second layer laid on the first. A
+  // walked path does not end; it thins out. So each patch is now its OWN
+  // non-repeating texture, sized to the patch at exactly the carpet's density,
+  // and its alpha DISSOLVES over the last 0.6 m on all four sides.
+  //
+  // Dissolved with an ORDERED DITHER, not a smooth alpha ramp: a gradient would
+  // be the off-style blur the kit was already told off for ("a smooth radial
+  // gradient in a world that is entirely hard-edged nearest-filtered texels").
+  // A 4x4 Bayer threshold gives hard texels that thin out — same idea, right
+  // house style. Overlaps now just read as more worn where two paths meet, which
+  // is exactly what the floor by the desk should be.
+  //
+  // Still translucent, deliberately: the carpet IS still there under a walked
+  // track, only flattened and greyed. His "a rug should never be see-through"
+  // is about rugs, and this is not one — the vinyl runner is the opaque object
+  // in this story and it keeps its hard edge, because sheet vinyl has one.
+  const PXM = 96 / CARPET_M;                       // the carpet's own density, exactly
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const worn = (w: number, d: number, lx: number, lz: number) => {
-    const t = wornT.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    // CARPET_M, not 2.4. The wear is the same carpet with the pile flattened, so
-    // its weave has to come round at the same rate as the carpet's — at 2.4 the
-    // track ran a pattern three times finer than the floor it is drawn on, and
-    // two scales of the same motif on one floor is the ceiling's "different
-    // rhythms" fault again, underfoot.
-    t.repeat.set(Math.max(1, Math.round(w / CARPET_M)), Math.max(1, Math.round(d / CARPET_M)));
-    t.needsUpdate = true;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ctx.flat(t));
+    const W = Math.max(8, Math.round(w * PXM)), H = Math.max(8, Math.round(d * PXM));
+    const F = 0.6 * PXM;                           // 0.6 m of dissolve at every edge
+    const t = declareSurface(pixTex(W, H, (g) => {
+      g.clearRect(0, 0, W, H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const edge = Math.min(x, y, W - 1 - x, H - 1 - y);
+        const k = Math.min(1, edge / F);            // 1 well inside, 0 at the border
+        if (k <= (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16) continue;
+        // the carpet's own weave, walked flat: same 24 px cell, same half-drop,
+        // same diagonal trellis, only greyed and with the gold rubbed thin
+        const cyi = Math.round((y - 12) / 24), row = ((cyi % 2) + 2) % 2;
+        const nxi = Math.round((x - 12 - row * 12) / 24);
+        const md = Math.abs(x - (12 + nxi * 24 + row * 12)) + Math.abs(y - (12 + cyi * 24));
+        let col = '#6a4048';                                        // the field, greyed
+        if ((x + y) % 24 === 0 || (x - y + 9600) % 24 === 0) col = '#74505a';
+        if (md === 5) col = '#6e5a44';                              // gold rubbed thin
+        if (md === 0) col = '#7a6a52';
+        g.fillStyle = col; g.fillRect(x, y, 1, 1);
+      }
+    }), 'ground');
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+      new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
     m.rotation.x = -Math.PI / 2;
-    put(m, lx, 0.013, lz);                                         // under the vinyl, over the carpet
+    // under the vinyl, over the carpet. depthWrite false with depthTest on is
+    // what keeps it under: the vinyl is opaque, so it draws first and writes
+    // depth, and the wear then fails the test wherever the repair covers it.
+    put(m, lx, 0.013, lz);
   };
   // ONE path, not two rectangles that miss each other. The old pair was
   // 2.0 wide centred on x -1.2 and 2.2 wide centred on x +1.0: they overlapped
@@ -927,7 +947,18 @@ export function buildHotel(ctx: CtxBuild): void {
   // Drawn as a sprite with alphaTest, the same treatment as the diner's
   // waitress — a plant is all silhouette and a box cannot do it.
   const palmT = declareSurface(pixTex(40, 56, (g) => {
-    g.fillStyle = '#6a4a2a'; g.fillRect(18, 22, 3, 22);          // the trunk
+    // THE TRUNK REACHES THE CROWN. It ran y 22..44 while the crown sat at 8..13,
+    // so 9 texels of a 56-texel plane — 0.26 m of the 1.6 m this thing stands —
+    // had nothing in it but a few frond tips, and the green read as floating
+    // above the pot. Same fault the user reported on the tax office plant, a
+    // different cause: there it was foliage-to-pot, here it is crown-to-trunk.
+    // Neither was two objects drifting apart; both were one texture drawn with a
+    // hole in it. Checked the pot end too — trunk base 44 meets pot rim 43, and
+    // the plane's bottom edge is on the floor, so that join was always sound.
+    g.fillStyle = '#6a4a2a'; g.fillRect(18, 11, 3, 33);          // the trunk
+    g.fillStyle = '#5c3f24'; g.fillRect(18, 11, 1, 33);          // its shaded side
+    g.fillStyle = '#7a5632';                                      // the ringed scars a palm has
+    for (let y = 14; y < 43; y += 4) g.fillRect(17, y, 5, 1);
     // fronds, all of them hanging DOWN — that is the whole difference between
     // a palm and a dead palm, and it is worth more than any amount of brown
     const frond = (x0: number, y0: number, dx: number, n: number, col: string) => {

@@ -314,29 +314,76 @@ export function buildTax(ctx: CtxBuild): void {
 
   // ── the fake plant ──
   //
-  // The room's one ornament, and it is plastic. Drawn upright and evenly
-  // spaced, which is exactly what gives it away — a real plant leans toward
-  // the window and this one has never had a reason to.
-  const plantT = declareSurface(pixTex(36, 48, (g) => {
-    g.fillStyle = '#3a5a34';
-    const leaf = (x0: number, y0: number, dx: number, dy: number, n: number, col: string) => {
+  // THE FOLIAGE WAS NOT JOINED TO THE POT, and the user asked what was wrong
+  // with it rather than calling it a bad plant, which is the tell.
+  //
+  // The desk's guess was that the pot and the foliage are two objects taking y
+  // from two places, and to parent one to the other. Worth checking before
+  // fixing: they are not two objects. It is ONE plane and ONE texture, so
+  // nothing can drift — the gap is DRAWN IN. On the old 36x48 canvas the leaf
+  // sprays ran from y 4 to about y 20 and the pot started at y 31, so 11 texels
+  // of a 48-texel plane — 0.275 m of the 1.2 m it stood — was blank between
+  // them, and no stem was drawn at all. Same visible fault, different cause, and
+  // the fix is not a parent or a nudge: it is to draw the thing joined.
+  //
+  // The pot was correctly on the floor. That part of the report checks out: the
+  // plane sat at y 0.6 with height 1.2, so its bottom edge was exactly 0.
+  //
+  // AND IT HAD TO BECOME RECOGNISABLE. His standard, from the alley: "i cant
+  // tell what any of it is. these should be recognizable." What was there was
+  // two diagonal lines of 3x3 blocks radiating from one point — a wide V, which
+  // reads as an arrow glyph. This is a dracaena: a short trunk out of visible
+  // soil and six blades of DIFFERENT lengths fanning from it, drawn back to
+  // front in three tones so they overlap.
+  //
+  // 40x64 on a 0.9 x 1.44 m plane is ~44 px/m, in line with the other small
+  // objects in this world (GOTCHAS 5) and enough canvas to taper a blade.
+  const plantT = declareSurface(pixTex(40, 64, (g) => {
+    // a blade: from base to tip, narrowing, so it reads as a leaf and not a line
+    const blade = (bx: number, by: number, tx: number, ty: number, w0: number, col: string) => {
       g.fillStyle = col;
-      for (let i = 0; i < n; i++) g.fillRect(Math.round(x0 + dx * i), Math.round(y0 + dy * i), 3, 3);
+      const n = Math.max(Math.abs(tx - bx), Math.abs(ty - by));
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const x = bx + (tx - bx) * t, y = by + (ty - by) * t;
+        const w = Math.max(1, Math.round(w0 * (1 - t * 0.8)));
+        g.fillRect(Math.round(x - w / 2), Math.round(y), w, 2);
+      }
     };
-    leaf(17, 6, -1.5, 1.6, 8, '#3f6238');
-    leaf(18, 6, 1.5, 1.6, 8, '#37552f');
-    leaf(17, 10, -2.2, 1.1, 7, '#456a3c');
-    leaf(18, 10, 2.2, 1.1, 7, '#3f6238');
-    leaf(17, 4, -0.2, 1.8, 8, '#4a7040');
-    g.fillStyle = 'rgba(180,175,150,0.18)'; g.fillRect(8, 4, 20, 26);   // dust on every leaf
-    g.fillStyle = '#5a5a52'; g.fillRect(12, 32, 12, 16);                // the plastic pot
-    g.fillStyle = '#6a6a60'; g.fillRect(11, 31, 14, 3);
-    g.fillStyle = '#2e2a22'; g.fillRect(14, 33, 8, 2);
-    dither(g, 36, 48, 18);
+    // BACK blades first, darkest — the overlap is what stops it reading flat
+    blade(20, 42, 5, 19, 5, '#2f4a2a');
+    blade(20, 42, 34, 24, 5, '#33512d');
+    // middle
+    blade(20, 41, 9, 8, 5, '#3f6238');
+    blade(20, 41, 31, 11, 5, '#456a3c');
+    // front, lightest and shortest, so the eye reads depth
+    blade(20, 40, 16, 5, 6, '#4f7a44');
+    blade(20, 40, 26, 16, 6, '#4a7040');
+    // the trunk, out of the soil and INTO the blades — the join that was missing
+    g.fillStyle = '#5a4a30'; g.fillRect(18, 38, 4, 12);
+    g.fillStyle = '#6a5838'; g.fillRect(18, 38, 1, 12);
+    // dust, on the foliage only: this thing has never been watered or wiped
+    g.fillStyle = 'rgba(180,175,150,0.16)'; g.fillRect(4, 4, 32, 34);
+    // the soil it stands in, above the rim so you can see it
+    g.fillStyle = '#2e2418'; g.fillRect(12, 45, 16, 5);
+    g.fillStyle = '#3a2e20'; g.fillRect(14, 45, 5, 2); g.fillRect(22, 46, 4, 2);
+    // the plastic pot, tapered, with a rim over the soil line
+    for (let y = 47; y < 64; y++) {
+      const inset = Math.round((y - 47) * 0.18);
+      g.fillStyle = y < 52 ? '#5f5f56' : '#585850';
+      g.fillRect(11 + inset, y, 18 - inset * 2, 1);
+    }
+    g.fillStyle = '#6a6a60'; g.fillRect(10, 44, 20, 3);                 // the rim
+    g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(24, 48, 4, 15);        // one side in shadow
+    g.fillStyle = 'rgba(255,255,255,0.06)'; g.fillRect(12, 48, 2, 14);
+    dither(g, 40, 64, 22);
   }), 'detail');
-  const plant = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.2),
+  const plant = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.44),
     new THREE.MeshBasicMaterial({ map: plantT, alphaTest: 0.5, side: THREE.DoubleSide }));
-  put(plant, 5.2, 0.6, -3.5);
+  // 0.72 = half of 1.44, so the pot's base sits ON the floor. Derived from the
+  // plane's own height rather than typed, because that is the number the old one
+  // got right and the next size change is where it would have been lost.
+  put(plant, 5.2, 1.44 / 2, -3.5);
   solid(5.2, -3.5, 0.45, 0.45);
 
   // a skirting, because the room would not have been built without one
