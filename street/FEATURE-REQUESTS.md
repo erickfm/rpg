@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 22-05-14.png' library entrance doesnt match exterior"** → **G**
 - **"'Screenshot from 2026-07-25 22-04-43.png' librarian orientation is so bad. also i want computers in the library"** → **G**
 - **"'Screenshot from 2026-07-25 22-03-52.png' i like the atm, maybe add another on the left and make the rest of the facade match the same vibe. i love the doors of the bank too."** → **A**
 - **"'Screenshot from 2026-07-25 22-02-53.png' can we remove the horiz stripes on the walls with the railing?"** → **C**
