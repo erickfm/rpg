@@ -37,7 +37,7 @@ const hd = R.d / 2, hw = R.w / 2;
 // close enough to be standing on it — and I graded the counter from a frame no
 // player would ever see. GOTCHAS 20: aim from the source.
 const CNT_Z = hd - 7.4;              // ct/int-jail.ts's counter line
-const GATE_CX = 1.4;                 // the way through beside it
+const GATE_CX = 1.95;                // the way through beside it
 const CELL_X1 = -hw + 3.8;           // the barred face of the WEST cell run
 const CELL1_CZ = CNT_Z - 1.9 - 1.7;  // the first cell's centre
 const CELL2_CZ = CELL1_CZ - 3.8;

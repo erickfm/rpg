@@ -326,12 +326,76 @@ export function buildJail(ctx: CtxBuild): void {
   //     a place, not a consequence.
   const CNT_Z = hd - 7.4;              // the counter line
   const CNT_X1 = 0.4;                  // it runs from the -x wall to here
-  const GATE_X0 = 0.6, GATE_X1 = 2.2;  // and the way through is this gap
+  const GATE_X0 = 0.5, GATE_X1 = 2.6;  // and the way through is this gap
   const CNT_H = 1.12;                  // worktop height
 
   const steelM = new THREE.MeshBasicMaterial({ color: 0x51565a });
   const darkSteelM = new THREE.MeshBasicMaterial({ color: 0x33383c });
   const barM = new THREE.MeshBasicMaterial({ color: 0x3d4246 });
+
+  // ── GLAZED BLOCK, because a flat colour is not a material ──────────────
+  //
+  // The queue said it and I broke it: *"Every big surface takes a real
+  // texture… A blank grey wall in a jail will read as unfinished, not as
+  // institutional."* The gate's wall stub was 4.2 x 3.3 m of `color: P.tile`
+  // and nothing else, and so was every pier between the cells — the largest
+  // flat fields in the room, in the two places a player stands closest to
+  // them. `shots/O-room-gate.png` before this commit is 4 square metres of
+  // undifferentiated green.
+  //
+  // What it is now is what these walls actually are: glazed structural block,
+  // laid in a running bond, dark below the dado line and pale above, with the
+  // capping course between. It carries the room's own wainscot colours so the
+  // piers read as part of the room rather than as objects standing in it.
+  const BLOCK_PPM = 16;
+  const blockTex = (wM: number, hM: number) => {
+    const W = Math.max(8, Math.round(wM * BLOCK_PPM)), H = Math.max(8, Math.round(hM * BLOCK_PPM));
+    const bw = Math.max(3, Math.round(0.40 * BLOCK_PPM));    // 400 x 200 block
+    const bh = Math.max(2, Math.round(0.20 * BLOCK_PPM));
+    const DADO = 1.35;                                        // matches the kit's wainscot
+    const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+    return declareSurface(pixTex(W, H, (g) => {
+      for (let row = 0; row * bh < H; row++) {
+        const yTop = H - (row + 1) * bh;
+        const yMid = (row + 0.5) * bh / BLOCK_PPM;            // metres up from the floor
+        const below = yMid < DADO;
+        g.fillStyle = below ? hex(P.tile) : hex(P.wall);
+        g.fillRect(0, yTop, W, bh);
+        // the capping course at the dado line, which is what a real tiled
+        // dado terminates in and what stops the two fields just abutting
+        if (Math.abs(yMid - DADO) < 0.11) { g.fillStyle = '#47564a'; g.fillRect(0, yTop, W, bh); }
+        // joints: a recessed bed joint and half-lapped perpends
+        g.fillStyle = 'rgba(0,0,0,0.24)'; g.fillRect(0, yTop + bh - 1, W, 1);
+        g.fillStyle = below ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.13)';
+        g.fillRect(0, yTop, W, 1);
+        const off = (row % 2) ? 0 : Math.round(bw / 2);
+        for (let x = off; x < W; x += bw) {
+          g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(x, yTop, 1, bh - 1);
+          // per-block tone drift — glazed block is fired and no two match
+          const v = Math.random();
+          g.fillStyle = v < 0.5 ? `rgba(0,0,0,${0.01 + v * 0.06})` : `rgba(255,255,255,${(v - 0.5) * 0.06})`;
+          g.fillRect(x + 1, yTop + 1, bw - 2, bh - 2);
+        }
+      }
+      // scuffing along the bottom, where trolleys and boots reach
+      for (let i = 0; i < W * 6; i++) {
+        const x = Math.random() * W, y = H - Math.pow(Math.random(), 2) * H * 0.22;
+        g.fillStyle = `rgba(28,28,24,${0.04 + Math.random() * 0.12})`;
+        g.fillRect(x, y, 2, 1);
+      }
+      dither(g, W, H, Math.round(W * H * 0.015));
+    }), 'brick');
+  };
+  /** materials for a box whose faces need the block laid at their own real
+   *  size. Texture repeat must derive from the surface's REAL METRES or the
+   *  texels stop being square (GOTCHAS §5) — the same fault that smeared the
+   *  side street's asphalt. Face order is [+x, −x, +y, −y, +z, −z]. */
+  const blockBox = (dx: number, dy: number, dz: number) => {
+    const onX = ctx.flat(blockTex(dz, dy));      // the ±x faces span dz
+    const onZ = ctx.flat(blockTex(dx, dy));      // the ±z faces span dx
+    const cap = new THREE.MeshBasicMaterial({ color: P.ceil });
+    return [onX, onX, cap, cap, onZ, onZ];
+  };
 
   // ── the counter ────────────────────────────────────────────────────────
   const cntT = declareSurface(pixTex(72, 28, (g) => {
@@ -492,30 +556,63 @@ export function buildJail(ctx: CtxBuild): void {
       put(new THREE.Mesh(new THREE.BoxGeometry(0.14, GATE_H, 0.30), steelM), lx, GATE_H / 2, CNT_Z);
     }
     put(new THREE.Mesh(new THREE.BoxGeometry(GATE_W + 0.14, 0.16, 0.30), steelM), GATE_CX, GATE_H, CNT_Z);
-    // the leaf, swung back into the cell-block side and standing against the
-    // wall stub. Hinged at GATE_X1, so it opens toward -z: its far edge is
-    // deeper into the building than its hinge, never in front of it.
-    const HINGE = GATE_X1, LEAF = GATE_W - 0.06;
+    // ── the leaf, STOOD 60 DEGREES OPEN ───────────────────────────────
+    //
+    // Two earlier positions were both correct and both useless, and the reason
+    // is the same each time: an open gate has to be SEEN to be a gate.
+    //
+    //   flat against the stub, hinged on the stub side — geometrically what a
+    //     gate does, and from the lobby it is edge-on AND occluded by the very
+    //     wall it folds against. The frame read as an empty doorway
+    //     (`shots/O-room-gate.png`, twice, before this)
+    //   fully open at 90 degrees — same problem with extra steps
+    //
+    // 60 degrees is what a gate propped open actually looks like, and it is the
+    // angle at which the bars face into the room you are standing in. The
+    // opening was widened 1.6 -> 2.1 m to pay for it, so the leaf never narrows
+    // the way through below what a 0.72 m capsule needs — measured by walking
+    // it, not by eye.
+    //
+    // The leaf is built CLOSED, lying along +x from the hinge, and rotated
+    // open. Building it in the open position and rotating toward closed is what
+    // made the last two versions hard to reason about: the closed position is
+    // the one the geometry means.
+    const HINGE = GATE_X0, LEAF = GATE_W - 0.10;
+    const OPEN = 1.05;                       // 60 degrees, into the cell block
     const leaf = new THREE.Group();
     for (let i = 0; i <= 7; i++) {
       const b = new THREE.Mesh(new THREE.BoxGeometry(0.045, GATE_H - 0.16, 0.045), barM);
-      b.position.set(0, (GATE_H - 0.16) / 2, -(LEAF * i) / 7);
+      b.position.set((LEAF * i) / 7, (GATE_H - 0.16) / 2, 0);
       leaf.add(b);
     }
     for (const y of [0.35, GATE_H - 0.45]) {
-      const r = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, LEAF), barM);
-      r.position.set(0, y, -LEAF / 2);
+      const r = new THREE.Mesh(new THREE.BoxGeometry(LEAF, 0.05, 0.05), barM);
+      r.position.set(LEAF / 2, y, 0);
       leaf.add(r);
     }
-    put(leaf, HINGE, 0, CNT_Z - 0.02);
+    // the lock stile at the free edge, which is the end that closes
+    const stile = new THREE.Mesh(new THREE.BoxGeometry(0.07, GATE_H - 0.16, 0.09), steelM);
+    stile.position.set(LEAF, (GATE_H - 0.16) / 2, 0);
+    leaf.add(stile);
+    leaf.rotation.y = OPEN;
+    put(leaf, HINGE, 0, CNT_Z);
+    // THE COLLIDER FOLLOWS THE SWING, computed from the SAME angle the mesh is
+    // rotated by. I re-derived it by hand once and got the sign of the x term
+    // backwards, which put a 1.06 m solid INSIDE the opening: the leaf swung one
+    // way and the thing that stops you swung the other, so the gate looked open
+    // and was shut. The walk caught it — 5.84 m into a 26 m room — which is why
+    // the room is walked and not looked at. GOTCHAS 33, fourth time in this
+    // building.
+    //
+    // three.js rotates (x, z) about y by t to (x cos t + z sin t,
+    // -x sin t + z cos t). The free edge is at local (LEAF, 0):
+    const tipX = LEAF * Math.cos(OPEN);
+    const tipZ = -LEAF * Math.sin(OPEN);
+    solid(HINGE + tipX / 2, CNT_Z + tipZ / 2, Math.abs(tipX) + 0.10, Math.abs(tipZ) + 0.10);
     // the stub of wall the leaf folds against, so the gate has somewhere to be
     put(new THREE.Mesh(new THREE.BoxGeometry(hw - GATE_X1, room.H, 0.30),
-      new THREE.MeshBasicMaterial({ color: P.tile })), (GATE_X1 + hw) / 2, room.H / 2, CNT_Z);
+      blockBox(hw - GATE_X1, room.H, 0.30)), (GATE_X1 + hw) / 2, room.H / 2, CNT_Z);
     solid((GATE_X1 + hw) / 2, CNT_Z, hw - GATE_X1, 0.36);
-    // and the open leaf itself is solid, so you walk round it rather than
-    // through it — an open gate you can walk through the leaf of is worse
-    // than no gate
-    solid(HINGE, CNT_Z - 0.02 - LEAF / 2, 0.12, LEAF);
   }
 
   // ══ THE CELL BLOCK ══════════════════════════════════════════════════════
@@ -589,7 +686,8 @@ export function buildJail(ctx: CtxBuild): void {
     const midX = backX + inward * (CELL_D / 2);
     // the piers between cells, full height and full depth
     for (const pz of [c.z1 + 0.2, c.z0 - 0.2]) {
-      put(new THREE.Mesh(new THREE.BoxGeometry(CELL_D, room.H, 0.4), wallM), midX, room.H / 2, pz);
+      put(new THREE.Mesh(new THREE.BoxGeometry(CELL_D, room.H, 0.4),
+        blockBox(CELL_D, room.H, 0.4)), midX, room.H / 2, pz);
       solid(midX, pz, CELL_D, 0.4);
     }
     // the cell floor, a shade darker than the corridor's
@@ -636,8 +734,8 @@ export function buildJail(ctx: CtxBuild): void {
       lock.position.set(-side * 0.06, 1.06, DOOR_W2 - 0.06);
       leaf.add(lock);
       put(leaf, faceX, 0, doorZ0);
-      put(new THREE.Mesh(new THREE.BoxGeometry(0.06, room.H - 2.28, DOOR_W2), wallM),
-        faceX, (room.H + 2.28) / 2, cz);
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.06, room.H - 2.28, DOOR_W2),
+        blockBox(0.06, room.H - 2.28, DOOR_W2)), faceX, (room.H + 2.28) / 2, cz);
     }
     // the whole barred face is solid: you look through it, you do not go in
     solid(faceX, cz, 0.12, cw);

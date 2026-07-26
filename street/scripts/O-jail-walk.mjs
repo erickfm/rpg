@@ -136,7 +136,7 @@ if (mode === 'door' || mode === 'all') {
   // the park its benches. At yaw 0 the camera looks down -z, which is INTO the
   // room; at PI it looks at the front wall, which is what I did first and it
   // walked 0.78 m into the door and reported the room unwalkable.
-  await p.evaluate(([x, z]) => window.__ct.warp(x + 1.4, z - 1.0, 0, 0, 0),
+  await p.evaluate(([x, z]) => window.__ct.warp(x + 1.95, z - 1.0, 0, 0, 0),
     [inside[0], inside[2]]);
   await afterFrames(p, 4);
   await p.keyboard.down('w');
