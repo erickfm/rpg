@@ -49,6 +49,34 @@ Any of:
    than `:5177`;
 3. tell me to hold until the integration world catches up.
 
+## The audit can go ahead WITHOUT unblocking this
+
+Option 2 needs nothing restarted, so here it is ready to run. **`feat/civic` is
+fully merged into mainline — zero commits ahead — so mainline is the park.**
+Verified against `add-stick-and-city98` at `8bc06673e`:
+
+| in mainline's `park.ts` | |
+|---|---|
+| `facingIn` | 5 — benches derive their facing |
+| `clump` | 12 — weeds placed in clumps |
+| `shrubRun` | 3 — shrub layer with broken top line |
+| `BufferGeometry` | 2 — the shelter's single-mesh roof |
+| `stoneOf` / `barkT` | 6 / 2 — stone and bark textured |
+| `footprints` | 3 — the prop-overlap registry |
+
+and in `civic.ts`: `stoneFace` 9, `DRESSED` 6, `soilM` 2 — the forecourt and
+churchyard stone.
+
+So:
+
+```
+git checkout add-stick-and-city98      # 8bc06673e or later
+cd street && npm run build && npx vite preview --port <yours>
+```
+
+and walk that. It is the same code `:5177` will serve once it catches up, and it
+is what I am asking to have verified.
+
 ## Meanwhile
 
 **Check the served stamp against mainline before reading any review frame.** One
