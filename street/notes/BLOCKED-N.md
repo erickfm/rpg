@@ -23,6 +23,12 @@ python3 scripts/ledger-no-regress.py         # the alarm — exit 1 while any ro
 python3 scripts/ledger-recover.py bd915e0cb  # recovers the AUDITOR segments only
 ```
 
+**And most of it is not a revert.** `--fix` classifies each regression: only
+**2 of the 11** (O's jail, L's blackjack) can be restored without choosing a
+side. The other nine gained new evidence AFTER the regression, so putting the
+old row back would destroy the newer half — the same operation that caused
+this. Those need the merge rule, not a revert.
+
 `ledger-recover.py` is the right tool and only half the answer: it merges
 ` — **AUDITOR` segments, and most of what was lost is VERIFIER and BUILDER text.
 The rest is the README's own one-line rule — **take the most advanced status of

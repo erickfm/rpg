@@ -39,6 +39,28 @@ nothing contradicts it.
 fade, O's jail, M's loan, L's slots. The evidence is not lost, it is in
 `notes/N-verify-*.md`, but the ledger no longer points at any of it.
 
+## MOST OF IT CANNOT BE FIXED BY PUTTING THE OLD ROW BACK
+
+This is the finding that changed after I built the repair path, and it is the
+one that matters:
+
+```
+python3 scripts/ledger-no-regress.py --fix /tmp/proposed.md
+
+  SAFE  O     also we need a jail…                 restorable, loses nothing
+  SAFE  L     i would like a black jack interface  restorable, loses nothing
+  MERGE K, AUDIT, L-slots, M x2, F, G, desk x2     both sides have text
+```
+
+**Only 2 of the 11 are safely restorable.** On the other nine the row gained
+NEW evidence after the regression, so "just put the old one back" would destroy
+the newer half — which is the same operation, in the same file, that caused
+this in the first place. The README's rule is *keep both sides' evidence*, and
+for those nine that means a real merge and not a revert.
+
+`--fix` writes a proposed copy and touches nothing. The two SAFE rows come out
+as a 4-line diff against the live file, with the row count unchanged at 222.
+
 ## What to run
 
 `ledger-recover.py` is the right tool and it is **only half of the answer here**:
@@ -46,8 +68,10 @@ its `SEG = ' — **AUDITOR'` means it merges *auditor* segments back in, and mos
 of what was lost above is VERIFIER and BUILDER text.
 
 ```bash
-python3 scripts/ledger-no-regress.py         # the alarm; exit 1 while any row is down
-python3 scripts/ledger-recover.py bd915e0cb  # recovers the auditor half
+python3 scripts/ledger-no-regress.py                    # the alarm; exit 1 while a row is down
+python3 scripts/ledger-no-regress.py --fix /tmp/fix.md  # propose the SAFE rows, in place of nothing
+diff notes/LEDGER.md /tmp/fix.md                        # 4 lines, 2 rows
+python3 scripts/ledger-recover.py bd915e0cb             # the auditor segments, for the MERGE nine
 ```
 
 The rest wants the README's own rule applied by hand, and it is one line:

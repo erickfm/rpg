@@ -25,6 +25,20 @@ builder who trusts it rebuilds a confirmed feature. I only caught mine because
 I recognised my own row, which is not a control anybody else has.
 
     python3 scripts/ledger-no-regress.py [how-many-commits] [--shrink N]
+    python3 scripts/ledger-no-regress.py --fix out.md     # propose, never in place
+
+`--fix` writes a REPAIRED COPY and touches nothing. It only proposes the rows it
+can repair without choosing a side:
+
+    SAFE     the current row's evidence is empty, or is contained in the
+             historic one. Restoring the historic row loses nothing
+    MERGE    both sides carry text the other does not. A blind restore would
+             destroy the newer half — which is the exact operation that caused
+             this — so these are listed and left alone
+
+That split is not cosmetic. Of the regressions on the file I wrote this for,
+most were MERGE: the rows had gained new evidence AFTER the regression, so
+"just put the old one back" would have started the next round of this.
 
 Exit 0 clean, 1 a regression, 3 nothing measurable — the family's convention,
 and 3 matters here: an unreadable history is a broken query, not a clean bill
@@ -39,11 +53,32 @@ RANK = {'OPEN': 0, 'LANDED': 1, 'CONFIRMED': 2}
 SHOW = 'street/notes/LEDGER.md'
 LOG  = 'notes/LEDGER.md'
 
-argv = [a for a in sys.argv[1:] if not a.startswith('--')]
+# A FLAG'S VALUE IS NOT A POSITIONAL. Stripping only the `--word` and leaving
+# its argument behind made `--fix out.md` read out.md as the commit count, so
+# `git log -out.md` matched nothing and the script exited 3. It failed loudly,
+# which is the one thing that went right — a silent 0-findings would have read
+# as a repaired ledger (GOTCHAS §34, and §32 on what a 3 means).
+VALUED = {'--shrink', '--fix'}
+argv, skip = [], False
+for a in sys.argv[1:]:
+    if skip:
+        skip = False
+        continue
+    if a in VALUED:
+        skip = True
+        continue
+    if a.startswith('--'):
+        continue
+    argv.append(a)
 N = argv[0] if argv else '60'
 SHRINK = 0.5          # evidence under half its historic best is a regression
 if '--shrink' in sys.argv:
     SHRINK = float(sys.argv[sys.argv.index('--shrink') + 1])
+
+
+def evidence(l):
+    """the row's fifth column onward — everything after | status | agent | request |"""
+    return l.split('|', 4)[4].strip() if l.count('|') > 4 else ''
 
 
 def rows(text):
@@ -57,6 +92,19 @@ def rows(text):
         if len(f) < 5 or not f[2].strip() or not f[3].strip():
             continue
         out[(f[2].strip(), f[3].strip()[:56])] = (f[1].strip(), len(l))
+    return out
+
+
+def lines(text):
+    """the same keys, but keeping the whole line so --fix can propose one"""
+    out = {}
+    for l in text.split('\n'):
+        if not l.startswith('| '):
+            continue
+        f = l.split('|')
+        if len(f) < 5 or not f[2].strip() or not f[3].strip():
+            continue
+        out[(f[2].strip(), f[3].strip()[:56])] = l
     return out
 
 
@@ -104,6 +152,40 @@ for (agent, req), st, was, rev in fell:
 for (agent, req), ln, was, rev in shrank:
     print(f'EVIDENCE LOST {agent:5} {req[:52]}')
     print(f'              now {ln} chars, was {was} at {rev}')
+
+# ── the repair, proposed and never applied ────────────────────────────────
+FIX = sys.argv[sys.argv.index('--fix') + 1] if '--fix' in sys.argv else None
+if FIX:
+    cur_l = lines(open('notes/LEDGER.md').read())
+    safe, merge = [], []
+    hist_cache = {}
+    for entry in fell + [(k, None, None, r) for k, _, _, r in
+                         [(k, 0, 0, rev) for (k, _, _, rev) in shrank]]:
+        k, rev = entry[0], entry[3]
+        if rev not in hist_cache:
+            hist_cache[rev] = lines(subprocess.run(
+                ['git', 'show', f'{rev}:{SHOW}'], capture_output=True, text=True).stdout)
+        old = hist_cache[rev].get(k)
+        now = cur_l.get(k)
+        if not old or not now:
+            continue
+        ev_now, ev_old = evidence(now), evidence(old)
+        if not ev_now or ev_now in ev_old:
+            safe.append((k, old))
+        else:
+            merge.append(k)
+    out = []
+    repl = dict(safe)
+    for l in open('notes/LEDGER.md').read().split('\n'):
+        f = l.split('|')
+        k = (f[2].strip(), f[3].strip()[:56]) if l.startswith('| ') and len(f) >= 5 else None
+        out.append(repl.get(k, l) if k else l)
+    open(FIX, 'w').write('\n'.join(out))
+    print(f'\nwrote {FIX}: {len(safe)} row(s) restorable without choosing a side')
+    for k, _ in safe:
+        print(f'  SAFE  {k[0]:5} {k[1][:50]}')
+    for k in merge:
+        print(f'  MERGE {k[0]:5} {k[1][:50]}   <- both sides have text; do NOT blind-restore')
 
 print(f'\n{len(cur)} rows now · {len(best)} keys seen across {len(revs)} commits'
       f' · {len(fell)} fell · {len(shrank)} shrank')
