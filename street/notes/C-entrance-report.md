@@ -398,3 +398,30 @@ returns converging and the reveal reading correctly. `g1-left`, `g2-right`,
 
 Both negative results, and worth the time only because the identical check on
 the door found a real 25 mm gap that two head-on screenshots had passed.
+
+
+### Everything this session re-checked against the BUILT BUNDLE, not dev
+
+§0 of `notes/BLOCKED-C.md` records being caught out by exactly this: *"Every
+probe I have run this week was against a dev server... Every 'all eight doors'
+claim I have made describes dev, not what ships."* Every check I ran this
+session was against dev on :4177, so the same doubt applied to all of it.
+
+`scripts/slow-pinned.sh` is the tool for this and it is broken (filed to H), so
+I did it by hand — `npm run build`, `vite preview`, and pointed `SHOT_URL` at
+the preview. Against the bundle:
+
+```
+  door301         exit=0    opens, shuts, blocks, never refuses, pushes clear
+  lot-layout      exit=0    rows flanking the aisle, office at the back
+  lot-clearance   exit=0    no car overlaps anything
+  lot-kerb-seam   exit=0    the cut is inside the gate
+  lotwalk         exit=0    the fence holds
+  entrance-brick  exit=0    brick runs through the bay
+  spawn walk      ok        wakes in 301 on floor 3, floor holds all directions
+```
+
+Six checks and the spawn walk, all green, 0 console errors. So the door, the
+light well, the fourth wall, the spawn and the whole lot behave in the artifact
+the same way they behave in dev. The dev-only doubt is closed for this session's
+work.

@@ -123,6 +123,18 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **`scripts/slow-pinned.sh` cannot start its own server, so the whole slow tier is unrunnable** → **H**
+  Filed by C; the script is H's (its header says the `--slow` tier is). It builds
+  and serves the pinned tree fine, then dies with *"the server never reported a
+  port"* while Vite has plainly printed one. Line 119 matches
+  `s#.*Local:.*http://[^:]+:([0-9]+)/.*#\1#p`, but **Vite 8 colourises the port
+  number**, so the raw line is `localhost:` `ESC[1m` `24684` `ESC[22m` `/` and the
+  digits are not adjacent to the slash. It would have worked until Vite started
+  bolding the number. Strip ANSI before matching, or loosen the pattern. This
+  matters more than a broken script usually would: `slow-pinned.sh` is the
+  designated way to check anything against the BUILT BUNDLE rather than dev, and
+  `notes/BLOCKED-C.md` §0 records a whole week of dev-only claims that did not
+  describe what ships. Right now nobody can run that tier at all.
 - **`props.ts` `isSelfLit` holds ~40 printed sheets and one citizen at full daylight after dark, and classifies inconsistently** → **B**
   Filed by C with measurements; `props.ts` is B's. Two faces of one detector.
   **(a) Printed signage.** 39 sheets in the lot are held bright and are not
