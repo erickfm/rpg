@@ -1396,11 +1396,17 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   //
   // Square plan, identical posts, bench centred. Nothing else.
   const SH_H = 1.55;                           // half the square plan, post centres
-  const SH_POST = 0.18;
+  // 0.22, not 0.18. The user's word was "spindly", and 0.18 m of section
+  // carrying 2.4 m is 13:1 — right at the edge where a post stops reading as
+  // something holding a roof up and starts reading as a stick.
+  const SH_POST = 0.22;
   const SH_TOP = 2.40;                         // post top, and the eaves
   const SH_OVER = 0.42;                        // even, all four sides
   const SH_RISE = 0.95;                        // apex above the eaves
-  const SH_SKIRT = 0.14;                       // the eaves' own depth
+  // 0.24, not 0.14. The other half of "a thin skewed slab": a roof seen from
+  // outside is mostly its EDGE, and a 0.14 m fascia at 4 m reads as a knife
+  // edge — which is what a parasol has and a roof does not.
+  const SH_SKIRT = 0.24;                       // the eaves' own depth
   const E = SH_H + SH_OVER;
   // Posts, pads and roof are ONE shelter. Now that the eaves correctly wrap
   // down over the post tops, that seating shows up as four prop-on-prop
