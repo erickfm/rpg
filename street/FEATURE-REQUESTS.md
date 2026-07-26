@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-54-16.png' why is this what is highlighted for opening or closing a door. in general do you think this highlight thing is too hard? maybe we avoid it?"** → **D**
 - **"'Screenshot from 2026-07-25 21-53-27.png' top right part of window frame has graphics glitchy ness"** → **C**
 - **"the street's 27 untextured flat-colour ground surfaces (the STREET half of the flat-colour fix)"** → **D**
 - **"the driveway apron reads as a large flat untextured grey plane (the LOT half of the flat-colour fix)"** → **I**
