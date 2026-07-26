@@ -106,6 +106,34 @@ const MUTATIONS = {
       set: (o, k, val) => Reflect.set(o, k, val),
     }), w, h, v, t);
   },
+  // THE METERS FREEZE. Every number on the face reads 0 while the machine has
+  // credits on it — queue item: "the machine's own state visible: credits, bet,
+  // last win". A meter that does not track is worse than no meter.
+  'frozen-numbers': (S) => {
+    const real = S.paintMachine;
+    S.paintMachine = (g, w, h, v, t) => real(new Proxy(g, {
+      get: (o, k) => (k === 'fillText'
+        ? (str, x, y) => o.fillText(/^[0-9]+$/.test(str) ? '0' : str, x, y)
+        : Reflect.get(o, k)),
+      set: (o, k, val) => Reflect.set(o, k, val),
+    }), w, h, v, t);
+  },
+  // THE PAY TABLE STOPS SCALING WITH THE BET. It prints the one-credit column
+  // whatever you are staking, so a player betting 5 is told a jackpot is worth
+  // 250 when it is worth 1,250. The machine still PAYS correctly, so no money
+  // check can see it — only a check that reads the printed glass.
+  'unscaled-paytable': (S) => {
+    const real = S.paintMachine;
+    S.paintMachine = (g, w, h, v, t) => real(new Proxy(g, {
+      get: (o, k) => (k === 'fillText'
+        ? (str, x, y) => {
+          const row = S.PAYTABLE.find((q) => String(q.pays * v.bet) === str && v.bet > 1);
+          o.fillText(row ? String(row.pays) : str, x, y);
+        }
+        : Reflect.get(o, k)),
+      set: (o, k, val) => Reflect.set(o, k, val),
+    }), w, h, v, t);
+  },
   // A NaN creeps into a coordinate. Canvas silently draws nothing, so the reel
   // simply vanishes with no error anywhere.
   nan: (S) => {
@@ -501,6 +529,84 @@ if (mode === 'glass' || mode === 'all') {
     const spun = m.play();
     check(spun && m.view().idleT === 0,
       'pressing SPIN resets the idle clock, so the attract cannot fire between spins');
+  }
+
+  // ── THE MACHINE'S OWN STATE IS ON ITS FACE ────────────────────────────────
+  //
+  // The queue: "the machine's own state visible: credits, bet, last win." Three
+  // meters, and the only thing that makes them worth having is that they track.
+  // A meter showing a stale number is worse than no meter, because the player
+  // believes it — and no money check can ever see it, since the machine pays
+  // correctly either way.
+  {
+    const states = [];
+    {
+      const m = S.createMachine({ rng: lcg(7) });
+      states.push(['cold', m.view()]);
+      m.insert(37); m.betUp(); m.betUp();
+      states.push(['37 credits, bet raised', m.view()]);
+      m.play();
+      for (let i = 0; i < 400 && m.view().state !== 'idle'; i++) m.tick(1 / 60);
+      states.push(['after a spin', m.view()]);
+    }
+    let checked = 0, wrong = 0;
+    for (const [name, v] of states) {
+      const r = recorder();
+      S.paintMachine(r.g, W, H, v, 0);
+      const texts = r.ops.filter((o) => o.op === 'fillText');
+      // Each meter's value is printed right-aligned inside its own box, so it is
+      // found by the box rather than by hunting for a number that happens to
+      // match — a search for "is the string 37 anywhere on the face" would be
+      // satisfied by the pay table.
+      const near = (mx, mw) => texts.find((o) => Math.abs(o.x - (mx + mw - 4)) < 0.6);
+      const want = [['CREDITS', 22, 108, String(v.credits)],
+        ['BET', 138, 44, String(v.bet)],
+        ['WIN PAID', 190, 108, String(v.paid)]];
+      for (const [label, mx, mw, val] of want) {
+        checked++;
+        const got = near(mx, mw)?.text ?? null;
+        if (got !== val) { wrong++; console.log(`    ${name}: ${label} reads ${got}, machine says ${val}`); }
+      }
+    }
+    console.log(`    ${checked - wrong} of ${checked} meter readings match the machine\n`);
+    check(checked >= 9, `there are ${checked} meter readings across ${states.length} states`);
+    check(wrong === 0,
+      'CREDITS, BET and WIN PAID each read what the machine actually holds —'
+      + ' a meter that does not track is worse than no meter, and the money is'
+      + ' right either way so nothing else can see it');
+  }
+
+  // ── THE PAY TABLE IS PRINTED, AND IT SCALES WITH THE BET ──────────────────
+  //
+  // The queue: "the paytable printed on it". It is the only thing on the face
+  // that makes the odds legible without leaving the game — and it has to show
+  // what YOUR bet pays, not what one credit pays. A player staking 5 who is told
+  // the jackpot is 250 when it is 1,250 has been misinformed by the machine
+  // while being paid correctly by it.
+  {
+    let lines = 0, missing = 0;
+    for (const bet of [1, 5]) {
+      const m = S.createMachine({ rng: lcg(11) });
+      m.insert(500);
+      while (m.view().bet < bet) m.betUp();
+      const v = m.view();
+      const r = recorder();
+      S.paintMachine(r.g, W, H, v, 0);
+      const texts = r.ops.filter((o) => o.op === 'fillText').map((o) => o.text);
+      for (const row of S.PAYTABLE) {
+        lines++;
+        if (!texts.includes(row.line)) { missing++; console.log(`    bet ${v.bet}: "${row.line}" not printed`); continue; }
+        if (!texts.includes(String(row.pays * v.bet))) {
+          missing++;
+          console.log(`    bet ${v.bet}: ${row.line} should print ${row.pays * v.bet}`);
+        }
+      }
+    }
+    console.log(`    ${lines - missing} of ${lines} pay lines printed at the right value\n`);
+    check(lines >= 16, `there are ${lines} pay lines across two bet sizes to check`);
+    check(missing === 0,
+      'every pay line is printed on the glass at the value YOUR bet pays —'
+      + ' scaled, not the one-credit column');
   }
 
 console.log(bad === 0 ? `\n  ${mode}: all checks pass.\n` : `\n  ${mode}: ${bad} FAILED.\n`);
