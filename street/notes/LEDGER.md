@@ -228,3 +228,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | D | shouldnt be able to select things through objects ever | |
 | OPEN | C | 'Screenshot from 2026-07-25 22-02-53.png' can we remove the horiz stri | |
 | OPEN | A | 'Screenshot from 2026-07-25 22-03-52.png' i like the atm, maybe add an | |
+| OPEN | G | 'Screenshot from 2026-07-25 22-04-43.png' librarian orientation is so  | |
