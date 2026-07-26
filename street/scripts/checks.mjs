@@ -121,6 +121,24 @@ const CHECKS = [
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['lot-kerb-seam',    'does the kerb cut line up with the lot gate?',       true],
   ['lot-clearance',    'do any cars clip each other or the furniture?',      true],
+  // ── the lot's two twice-reported faults, guarded so they cannot come back ──
+  // Both of these answer a complaint the user has now made twice, and both were
+  // already correct in the world when I took them: the value here is entirely in
+  // the guarding. (I)
+  //
+  // I-rows adds the clause nothing else asserts — that the two rows RAKE the
+  // same way. Nose-out alone does not make a herringbone; two rows can each be
+  // nose-out and still rake against each other, which reads as two lots meeting
+  // in the middle. Its --selftest turns the south row 180 degrees in the live
+  // scene, which is the reported bug exactly.
+  ['I-rows',           'is every car in both rows nose-out and raked alike?', true],
+  // I-clip covers what lot-clearance structurally cannot see: it compares only
+  // things whose mod is 'lot' and drops any fixture based above 1.4 m, so a car
+  // against the frontage (ce8837e12: a bay came within 1 cm of it after a merge
+  // widened the fleet, found by hand) and a 1.85 m balloon through a banner are
+  // both outside it. This takes each car as a full 3D oriented box against every
+  // solid mesh in the world. It is additive — lot-clearance stays.
+  ['I-clip',           'does any car clip ANYTHING, in any module, at any height?', true],
   ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
