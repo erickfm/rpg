@@ -1,1 +1,1 @@
-BLOCKED | cat look-up: designed, needs a per-frame hook into buildCatRig | DESK/D — buildCatRig takes {scene,boards,AZ1} only, no onFrame; the near-and-above test has nowhere to run and the call site is in D's ct/alley.ts
+BLOCKED | cat look-up: designed; needs ONE line in crosstown.ts:801 boards loop (b.pose?.(px,pz,py)) plus py in scope | DESK — that loop is yours; then ct/cat.ts owns threshold, hysteresis and swap, and ct/alley.ts needs no edit

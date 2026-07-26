@@ -30,17 +30,43 @@ different foreshortened.
 no `onFrame`. The near-and-above test has nowhere to live, and swapping
 `material.map` needs to happen per frame.
 
-Two ways, and the choice is the desk's because one touches a file that is not
-mine:
+**BETTER ANSWER, found after writing the above — the hook already exists and
+nobody has to thread anything through two modules.** `crosstown.ts:801` already
+walks every board once a frame WITH the player position, to yaw them:
 
-- **Pass the hook in.** `buildCatRig` takes `onFrame` like every other module
-  does (`PARALLEL-WORKFLOW.md` §15, the registration pattern). One extra field
-  at the call site in `ct/alley.ts`, which is D's.
-- **Publish and let the caller drive.** `buildCatRig` returns
-  `{ update(px, pz, py) }` and the alley calls it. Same edit to D's file, but
-  the cat keeps its own state.
+```js
+// billboards face the player
+for (const b of boards) {
+  b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
+}
+```
 
-I would take the first — it matches every other per-frame module in the world.
+A board entry is just `{ m }`, pushed by whoever made it. So the whole wiring is
+**one optional line in that loop**:
+
+```js
+for (const b of boards) {
+  b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
+  b.pose?.(px, pz, py);          // <- this, and py in scope
+}
+```
+
+Then `ct/cat.ts` — mine — pushes `{ m, pose }` instead of `{ m }` and owns all
+the rest: the threshold, the hysteresis, the map swap. No edit to `ct/alley.ts`
+at all, and `buildCatRig`'s signature does not change.
+
+**What I need from the desk:** that one line, plus `py` (player eye height) in
+scope at that loop — it currently has `px, pz` only, and "above" is the half of
+the test that stops the cat staring at you from across the alley.
+
+It generalises, which is why I would rather have this than a cat-shaped hook:
+any billboard in the world can then carry a pose that depends on where the
+player is, and the pigeons directly below already do their own version of this
+by hand.
+
+**Why I am not making the edit myself:** `crosstown.ts` is `= DESK` in
+OWNERSHIP.md and my mandate there is bounded to the keep-clear array for the
+alley mouth. This is two lines and outside it.
 
 ## The design, settled, so the next pass writes code and not decisions
 
