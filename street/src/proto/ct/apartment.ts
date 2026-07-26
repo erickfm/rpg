@@ -240,6 +240,22 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   let doorShut = false;           // persists for the session, not per visit
   let doorA = DOOR_A_OPEN;        // where the leaf is right now
   let leaf301: THREE.Group | null = null;
+  // 302's leaf, and the state that makes it follow the neighbour rather than
+  // standing open for ever. The user: *"neighbors door should be closed when
+  // neightbor is not out"*.
+  //
+  // SHUT is pi/2 for the same reason 301's is: the leaf hinges at DOOR_Z0 and
+  // its local -x must map to +z to span the gap, and rotation.y = pi/2 is what
+  // sends it there. OPEN is the pi - 0.28 it already had — swung back against
+  // his own wall, which is where a door in a one-room flat actually lives.
+  const D302_SHUT = Math.PI / 2, D302_OPEN = Math.PI - 0.28;
+  let leaf302: THREE.Mesh | null = null;
+  let d302A = D302_SHUT;            // CLOSED is the default on load, as asked
+  // Starts LONG, not 0. At 0 the very first frame reads "he left a moment ago"
+  // and the tail below swings his door open on load — which is the one state
+  // the user explicitly asked not to see, and he now spawns on this landing so
+  // it is the first thing in front of him every time.
+  let hermitGoneFor = 999;
   let DOOR_PIV_X = 0, DOOR_PIV_Z = 0, DOOR_LEAF_W = 0.91;
 
   // `doorClear` lived here: the swept-volume test that decided whether the
@@ -741,8 +757,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const leaf = new THREE.Mesh(leafGeo,
         [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, texM(doorTexN('302')), texM(doorTexN('302'))]);
       leaf.position.set(x0 + 0.05, yb + 1.05, DOOR_Z0 + 0.04);
-      leaf.rotation.y = Math.PI - 0.28;                              // open, back against his wall
+      leaf.rotation.y = d302A;        // starts SHUT; updateHermitAt drives it
       scene.add(leaf);
+      leaf302 = leaf;
     }
     // ── 301's door ───────────────────────────────────────────────────────
     // There was no door at all — just a hole. Then a leaf standing permanently
@@ -2155,6 +2172,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
 
   const updateHermitAt = (hAbs: number, px: number, pz: number, dt: number) => {
     hermit.visible = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+    // ── his door follows him ───────────────────────────────────────────────
+    // An open door says somebody is there even when the sprite is not, which
+    // is half of why the landing read as though he was out constantly — the
+    // other half was the 0.7 hourly chance, fixed alongside this. They are one
+    // behaviour: the schedule decides, and the door is the visible half of it.
+    //
+    // OPENS WITH HIM, CLOSES AFTER HIM. Arriving together reads as cause and
+    // effect; the tail is what stops the door shutting in his face the instant
+    // the hour rolls over. And it SWINGS — 1.29 rad at 1.4 rad/s is about
+    // nine tenths of a second — so it never snaps between states while you are
+    // stood on the landing looking at it.
+    if (leaf302) {
+      hermitGoneFor = hermit.visible ? 0 : hermitGoneFor + dt;
+      const target = hermit.visible || hermitGoneFor < 1.2 ? D302_OPEN : D302_SHUT;
+      if (d302A !== target) {
+        const step = 1.4 * Math.min(dt, 0.05);
+        d302A += Math.sign(target - d302A) * Math.min(step, Math.abs(target - d302A));
+        leaf302.rotation.y = d302A;
+      }
+    }
     // solid while he is standing there — he is out in the hall now, so
     // without this you walk straight through him. Floor-gated like every
     // other cap, because colliders here are 2D and the hall is stacked 4 deep.
