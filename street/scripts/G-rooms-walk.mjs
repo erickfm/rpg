@@ -64,9 +64,17 @@ const ROOMS = [
     id: 'hotel', label: /ORPHEUS/,
     keeper: [-4.0, 8.75],    // the guest side of the reception desk, near the door
     // "One lamp out" — the queue's own words, and the last line of the brief
-    // that built this room. Four fittings at ceiling height, one a different
-    // colour from the rest.
-    deadFitting: 4,
+    // that built this room. Fittings at ceiling height, one a different colour
+    // from the rest.
+    //
+    // FIVE, not four. The user's "the pendant lights and the recessed panels are
+    // on different rhythms" was two sets of fittings in one ceiling: the kit's
+    // seven flush discs down the centreline and this room's four pendants on a
+    // 2x2. They are now one run of five on one spacing, so the count moved — and
+    // this check earning a FAIL on the pass that moved it is the check doing its
+    // job, not a number to quietly follow. The invariant is unchanged: N of one
+    // fixture, exactly one of them a different colour.
+    deadFitting: 5,
 
     building: 'HOTEL ORPHEUS', at: 0, hasWindow: true,
     // RE-DERIVED for the 26 m lobby. Measured off the new layout: the desk is at
@@ -734,14 +742,22 @@ for (room of rooms) {
   // regenerating the fitting loop erases silently, leaving the place tidier than
   // it was asked to be and nothing to show for it.
   if (room.deadFitting) {
-    const f = await p.evaluate(([cx, want]) => {
+    const f = await p.evaluate(([cx, want, hwv, hdv]) => {
       const s = window.__ct.scene(); s.updateMatrixWorld(true);
       const found = [];
       s.traverse((o) => {
         if (!o.isMesh || !o.geometry) return;
         const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); if (!g.boundingBox) return;
         const bb = g.boundingBox.clone().applyMatrix4(o.matrixWorld);
-        if (Math.abs((bb.min.x + bb.max.x) / 2 - cx) > 8 || Math.abs((bb.min.z + bb.max.z) / 2) > 8) return;
+        // THE ROOM'S OWN FOOTPRINT, not a +/-8 m box. That box was written when
+        // every room here was about 9 m deep; the hotel is 26 and this check
+        // could only see the middle 16 of it, so it counted three of five lamps
+        // and reported the run broken. Two of the four it used to find were
+        // inside 8 m by luck. `hw`/`hd` come from `dims`, which is measured off
+        // the room's own floor plane, so this window cannot go stale again when a
+        // room grows.
+        if (Math.abs((bb.min.x + bb.max.x) / 2 - cx) > hwv
+          || Math.abs((bb.min.z + bb.max.z) / 2) > hdv) return;
         const m = Array.isArray(o.material) ? o.material[0] : o.material;
         if (!m || !m.color) return;
         const w = bb.max.x - bb.min.x, h = bb.max.y - bb.min.y;
@@ -756,10 +772,17 @@ for (room of rooms) {
         // to a ceiling was wrong, and it was wrong because the room got better.
         // The stems, galleries and ceiling roses are all under 0.5 m across and
         // stay out of the width window, so nothing new is swept in.
-        if (bb.min.y > 2.4 && bb.min.y < 3.15 && h < 0.35 && w > 0.5 && w < 0.9) found.push(m.color.getHexString());
+        // 2.25, not 2.4. The pendants dropped when they moved onto the kit's
+        // rhythm — the stem now starts BELOW the kit's own dome instead of at the
+        // plaster — and the bowl's underside landed at 3.4 - 0.88 - 0.12, which
+        // is 2.3999999999999995 in floating point against a `> 2.4` bound. The
+        // check found nothing and said so, which is the right failure; a band
+        // whose edge sits exactly on a real fitting is the fault (GOTCHAS 34: a
+        // check can pass having found nothing, so this one asserts a COUNT).
+        if (bb.min.y > 2.25 && bb.min.y < 3.15 && h < 0.35 && w > 0.5 && w < 0.9) found.push(m.color.getHexString());
       });
       return { n: found.length, cols: [...new Set(found)], want };
-    }, [CX, room.deadFitting]);
+    }, [CX, room.deadFitting, hw, hd]);
     const lit = (h) => { const v = parseInt(h, 16); return 0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255); };
     const dark = f.cols.filter((c) => f.cols.some((o) => lit(o) > lit(c) * 1.5));
     check(`${room.deadFitting} ceiling fittings and one of them out`,

@@ -93,6 +93,23 @@ export const DOOR: DoorDecl = {
   face: { x: VICE_DOOR_X['HOTEL ORPHEUS'], z: -96.0, nx: 0, nz: -1 },
 };
 
+// The room's dimensions, and the ONE rhythm its ceiling is on.
+//
+// The user: "the pendant lights and the recessed panels are on different
+// rhythms". They were, and the kit is half of it: with no `light` spec
+// ct/interior.ts:1000 hangs `round(D / 3.5)` = 7 flush fittings down the
+// centreline, while this file hung 4 pendants of its own in a 2x2 cluster at
+// x +/-2.8. Seven of one thing at 3.71 m and four of another at 4.8 m, in the
+// same ceiling.
+//
+// So there is now one count, one spacing formula and one centreline, declared
+// here and read by BOTH: the kit gets `count` and `dead`, and the pendants hang
+// from the roses the kit draws, on the same z. `lampZ` is the kit's own formula
+// (`-hd + D * ((i + 0.5) / lamps)`) rather than a second one that agrees today.
+const H_W = 11.0, H_D = 26.0, H_H = 3.4;
+const LAMP_N = 5, LAMP_DEAD = 1;
+const lampZ = (i: number) => -H_D / 2 + H_D * ((i + 0.5) / LAMP_N);
+
 export function buildHotel(ctx: CtxBuild): void {
   const DOOR_X = 39.51, WALK_Z = -97.0;
   const room = buildRoom(ctx, {
@@ -113,7 +130,12 @@ export function buildHotel(ctx: CtxBuild): void {
     // building behind it. You come in, the desk is on your left, and the room
     // keeps going past it — lounge, then the lift bay, then a corridor mouth
     // that goes somewhere this game does not model.
-    w: 11.0, d: 26.0, h: 3.4,
+    w: H_W, d: H_D, h: H_H,
+    // The kit's fittings, on the shared rhythm above, with the dead one named
+    // rather than drawn separately. My earlier note here — "one lamp out is not
+    // something the kit can express" — was simply wrong: `dead` is at
+    // ct/interior.ts:998 and takes the index. Four lit, one out, one spacing.
+    light: { count: LAMP_N, dead: [LAMP_DEAD] },
     // THE FACADE'S PALETTE, BROUGHT INSIDE. The user, twice: what is outside is
     // "deep red, gold, black, bulb-lit letters and a lit porte-cochere" and what
     // was in here was "a pale beige room with plain tile ... clean, plain,
@@ -148,7 +170,20 @@ export function buildHotel(ctx: CtxBuild): void {
       // side-street walk is a 2 m band and the building collider eats down to
       // z = -96.3, so stepping BACK from the door cannot clear a 1.05 m
       // trigger without putting you in the road. 1.55 m along it gives 1.57 m.
-      outX: DOOR_X + 1.55, outZ: WALK_Z - 0.25, outYaw: 0, outGy: ctx.KERB_H,
+      // 2.05 ALONG THE WALK, NOT 1.55, and the 0.5 m is a measurement I got wrong
+      // rather than a preference. This note used to read "1.55 m along it gives
+      // 1.57 m" against "a 1.05 m trigger" — but a spot's reach is NOT its
+      // radius: fp.ts:425 adds REACH_MARGIN = 0.6, added when the user asked to
+      // "widen the volumes", so the way-in spot is live out to 1.65 m. The
+      // landing sat at 1.629 — INSIDE its own way-in reach by 2 cm, so you
+      // pressed E to leave, arrived on the pavement already being offered the way
+      // back in, and a second E bounced you straight inside. My own suite has
+      // called this for a while and I had answered it by hand-measuring against
+      // r alone, which is how a real bug survives a real check.
+      //
+      // 2.05 gives hypot(2.05, 0.5) = 2.11 m, clear by 0.46 m — and it is along
+      // the walk, not back into the road, so the 2 m lane is untouched.
+      outX: DOOR_X + 2.05, outZ: WALK_Z - 0.25, outYaw: 0, outGy: ctx.KERB_H,
     },
     // A lobby has a window — it is the one room on my list that wants people
     // outside to see in. East of the door, clear of it by 0.6 m so the kit's
@@ -247,8 +282,21 @@ export function buildHotel(ctx: CtxBuild): void {
   // you looking down; a hotel's is trying to look expensive, so this is a
   // bordered medallion — a repeating centre with a frame around it — rather than
   // an all-over diamond scatter.
-  const carpetT = declareSurface(pixTex(48, 48, (g) => {
-    g.fillStyle = '#5a2430'; g.fillRect(0, 0, 48, 48);
+
+  // The reception desk's own numbers, declared before the floor because the
+  // runner in front of it is laid off them and a floor goes down first. The
+  // desk itself is built from these further down; there is one authoring.
+  const DESK_X = -4.55, DESK_Z = hd - 4.6, DESK_L = 4.4, DESK_D = 0.75;
+
+  // One repeat of the carpet is 5.5 m — the room's own width — on a 96 px canvas,
+  // so 17.5 px/m, next to the kit floor's ~20 (GOTCHAS 5). The canvas doubled
+  // from 48 because the SIZE OF THE MOTIF turned out to be the second half of
+  // "rugs all over": at 48 px over 7.2 m a medallion came out 1.6 m across, and
+  // a 1.6 m gold lozenge with a green ring in it is not a pattern, it is a mat
+  // lying on the floor. Sixteen motifs at 0.6 m read as weave.
+  const CARPET_M = 5.5;
+  const carpetT = declareSurface(pixTex(96, 96, (g) => {
+    g.fillStyle = '#5a2430'; g.fillRect(0, 0, 96, 96);
     // NO BORDER ON THE TILE BOUNDARY. This drew two gold lines across every
     // repeat, and at a 2.4 m repeat those lines land every 2.4 m in both
     // directions — so the eye reads them as the EDGES OF SEPARATE RUGS and
@@ -257,33 +305,63 @@ export function buildHotel(ctx: CtxBuild): void {
     //
     // The motif stays and the frame goes. What is left is a quiet lattice that
     // does not announce where the texture repeats.
-    g.fillStyle = '#6a3a44';
-    for (const v of [0, 24]) { g.fillRect(v, 0, 1, 48); g.fillRect(0, v, 48, 1); }
-    // the medallion in each cell: a lozenge, ring and pip stacked
-    const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
+    // NO ORTHOGONAL LINES AT ALL, and no motif that lines up into a row.
+    //
+    // Tripling the repeat was not enough on its own and the second look proved
+    // it: the floor still read as a grid of squares with a medallion in each,
+    // because the pattern itself was built on a square grid — a lattice at
+    // v = 0 and 24, four medallions on those axes, and a bright fleuron at every
+    // crossing. Any straight line in a floor texture reads as an EDGE, and four
+    // marks in a row read as a border, at any repeat. The size of the tile was
+    // never the whole fault; the squareness of the drawing was.
+    //
+    // What replaces it is a damask: a half-drop diagonal, which is what a real
+    // hotel carpet of this period is. Two medallions on the diagonal with a
+    // smaller secondary between them, so nothing in the pattern is collinear
+    // with anything else and there is no cell to count.
+    g.strokeStyle = '#632b36'; g.lineWidth = 1;                 // the trellis, on 45deg
+    for (let k = -96; k <= 192; k += 24) {
+      g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 96, 96); g.stroke();
+      g.beginPath(); g.moveTo(k, 96); g.lineTo(k + 96, 0); g.stroke();
+    }
+    // THE HALF-DROP. Sixteen motifs on a 24 px cell, every other row shifted by
+    // half a cell, so no two are collinear and there is no row, column or cell
+    // edge anywhere in the drawing. That is the whole difference between a
+    // carpet and a floor covered in mats, and it is why the frame is gone.
+    const main: [number, number][] = [], sec: [number, number][] = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const x = 12 + c * 24 + (r % 2) * 12, y = 12 + r * 24;
+      (((r + c) % 2) ? sec : main).push([x % 96, y]);
+    }
+    // the medallion: a lozenge, ring and pip stacked, 0.6 m across
     g.fillStyle = '#8a6a22';
-    for (const [cx, cy] of cells) for (let t = 0; t <= 7; t++) {
-      const r = 7 - t;
+    for (const [cx, cy] of main) for (let t = 0; t <= 5; t++) {
+      const r = 5 - t;
       g.fillRect(cx + t, cy - r, 1, 1); g.fillRect(cx - t, cy - r, 1, 1);
       g.fillRect(cx + t, cy + r, 1, 1); g.fillRect(cx - t, cy + r, 1, 1);
     }
     g.strokeStyle = '#3d5a4a'; g.lineWidth = 1;                 // a green fighting the gold
-    for (const [cx, cy] of cells) { g.beginPath(); g.arc(cx + 0.5, cy + 0.5, 3, 0, Math.PI * 2); g.stroke(); }
+    for (const [cx, cy] of main) { g.beginPath(); g.arc(cx + 0.5, cy + 0.5, 2, 0, Math.PI * 2); g.stroke(); }
     g.fillStyle = '#d8a83a';
-    for (const [cx, cy] of cells) g.fillRect(cx - 1, cy - 1, 2, 2);
-    // and the motif too many: a fleuron at every border crossing
-    g.fillStyle = '#a8863a';
-    for (const cx of [0, 24, 48]) for (const cy of [0, 24, 48]) {
-      g.fillRect(cx - 3, cy, 7, 1); g.fillRect(cx, cy - 3, 1, 7);
-      g.fillRect(cx - 1, cy - 1, 3, 3);
+    for (const [cx, cy] of main) g.fillRect(cx, cy, 1, 1);
+    // the secondary, deliberately dimmer: a small quatrefoil, close enough to
+    // the field that it fills between the medallions rather than counting
+    g.fillStyle = '#6e4a30';
+    for (const [cx, cy] of sec) {
+      for (const [ox, oy] of [[0, -3], [0, 3], [-3, 0], [3, 0]] as [number, number][]) {
+        g.fillRect(cx + ox - 1, cy + oy - 1, 2, 2);
+      }
+      g.fillRect(cx, cy, 1, 1);
     }
-    dither(g, 48, 48, 130);
+    dither(g, 96, 96, 520);
   }), 'ground');
   carpetT.wrapS = carpetT.wrapT = THREE.RepeatWrapping;
-  // 7.2 m, not 2.4. At a rug-sized repeat every motif reads as a separate
-  // object; at three times that the pattern is a field you walk over. A grand
-  // lobby is "a big quiet field with one or two rugs on it, not a patchwork".
-  carpetT.repeat.set(Math.max(1, Math.round(room.W / 7.2)), Math.max(1, Math.round(room.D / 7.2)));
+  // The repeat is the room's own width, so exactly two across and five down and
+  // no partial tile at any wall — a seam that dies in a corner is the last place
+  // one can still be counted. It is the SIZE OF THE DRAWING, not this number,
+  // that stopped the floor reading as rugs; this only decides how often the
+  // weave comes round.
+  carpetT.repeat.set(Math.max(1, Math.round(room.W / CARPET_M)), Math.max(1, Math.round(room.D / CARPET_M)));
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(carpetT));
   carpet.rotation.x = -Math.PI / 2;
   put(carpet, 0, 0.012, 0);
@@ -303,9 +381,22 @@ export function buildHotel(ctx: CtxBuild): void {
   }), 'ground');
   vinylT.wrapS = vinylT.wrapT = THREE.RepeatWrapping;
   vinylT.repeat.set(1, 3);
-  const vinyl = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 6.8), ctx.flat(vinylT));
+  // SQUARED TO THE DESK, which is the user's "off center and stuff". It was
+  // 2.3 x 6.8 at (-3.75, hd - 6.0): that runs from x -4.90 to -2.60 while the
+  // desk front face is at -4.175, so a third of the runner was UNDER the desk;
+  // and in z it started 2.6 m behind the desk's back end and stopped 0.2 m short
+  // of its front. Two edges, neither of them lining up with anything.
+  //
+  // Both numbers now come off the desk. The runner starts exactly at the desk
+  // face, is centred on the desk's own centre, and overhangs each end by the
+  // same 0.5 m — so standing at the counter you have it square under you, and
+  // from the door its long edge is parallel to the desk and to the wall.
+  // DESK_X/DESK_Z/DESK_L are declared below; hoisted here because the floor has
+  // to be laid before the things that stand on it.
+  const RUN_W = 1.6;
+  const vinyl = new THREE.Mesh(new THREE.PlaneGeometry(RUN_W, DESK_L + 1.0), ctx.flat(vinylT));
   vinyl.rotation.x = -Math.PI / 2;
-  put(vinyl, -3.75, 0.014, hd - 6.0);
+  put(vinyl, DESK_X + DESK_D / 2 + RUN_W / 2, 0.014, DESK_Z);
 
   // ── THE WORN TRACK, which is the detail that sells the room ───────────
   //
@@ -319,30 +410,61 @@ export function buildHotel(ctx: CtxBuild): void {
   // vinyl runner is the repair, and this is the wear the repair did not cover.
   // It runs door -> desk and then the length of the room to the lift and the
   // corridor, because that is where the feet actually go.
-  const wornT = declareSurface(pixTex(48, 48, (g) => {
-    g.fillStyle = '#6a4048'; g.fillRect(0, 0, 48, 48);             // the field, greyed
-    g.fillStyle = '#7a6a48';                                       // gold rubbed thin
-    for (const v of [0, 24]) { g.fillRect(v, 0, 2, 48); g.fillRect(0, v, 48, 2); }
-    const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
+  const wornT = declareSurface(pixTex(96, 96, (g) => {
+    // THE SAME WEAVE as the carpet above, walked flat — so it has to be the same
+    // DRAWING at the same SIZE, not a greyed copy of an older one. It was still
+    // the square lattice and four-cell grid after the carpet became a half-drop
+    // damask, which would have put a grid back on the floor along the one path
+    // everybody walks. Same canvas, same 24 px cell, same half-drop, same
+    // diagonal — only the colours are walked out and the noise is heavier.
+    g.fillStyle = '#6a4048'; g.fillRect(0, 0, 96, 96);             // the field, greyed
+    g.strokeStyle = '#74505a'; g.lineWidth = 1;                    // the trellis, rubbed out
+    for (let k = -96; k <= 192; k += 24) {
+      g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 96, 96); g.stroke();
+      g.beginPath(); g.moveTo(k, 96); g.lineTo(k + 96, 0); g.stroke();
+    }
+    const cells: [number, number][] = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      if ((r + c) % 2) continue;
+      cells.push([(12 + c * 24 + (r % 2) * 12) % 96, 12 + r * 24]);
+    }
     g.fillStyle = '#6e5a44';
     for (const [cx2, cy] of cells) for (let t = 0; t <= 5; t++) {
       const r = 5 - t;
       g.fillRect(cx2 + t, cy - r, 1, 1); g.fillRect(cx2 - t, cy - r, 1, 1);
       g.fillRect(cx2 + t, cy + r, 1, 1); g.fillRect(cx2 - t, cy + r, 1, 1);
     }
-    dither(g, 48, 48, 190);                                        // more noise: it is worn
+    dither(g, 96, 96, 760);                                        // more noise: it is worn
   }), 'ground');
   wornT.wrapS = wornT.wrapT = THREE.RepeatWrapping;
   const worn = (w: number, d: number, lx: number, lz: number) => {
     const t = wornT.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(Math.max(1, Math.round(w / 2.4)), Math.max(1, Math.round(d / 2.4)));
+    // CARPET_M, not 2.4. The wear is the same carpet with the pile flattened, so
+    // its weave has to come round at the same rate as the carpet's — at 2.4 the
+    // track ran a pattern three times finer than the floor it is drawn on, and
+    // two scales of the same motif on one floor is the ceiling's "different
+    // rhythms" fault again, underfoot.
+    t.repeat.set(Math.max(1, Math.round(w / CARPET_M)), Math.max(1, Math.round(d / CARPET_M)));
     t.needsUpdate = true;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ctx.flat(t));
     m.rotation.x = -Math.PI / 2;
     put(m, lx, 0.013, lz);                                         // under the vinyl, over the carpet
   };
-  worn(2.0, 7.0, -1.2, hd - 4.2);        // in from the door, angling toward the desk
-  worn(2.2, 15.0, 1.0, -2.0);            // and the long haul to the lift and the corridor
+  // ONE path, not two rectangles that miss each other. The old pair was
+  // 2.0 wide centred on x -1.2 and 2.2 wide centred on x +1.0: they overlapped
+  // in z by 20 cm and jogged 2.2 m sideways at the join, so the "track" had a
+  // step in it in the middle of an empty floor — a large part of the user's
+  // "off center and stuff".
+  //
+  // The door is at local x 0 and the lift and corridor are at the far end, so
+  // the track people wear is a straight line down the centre, and a spur west to
+  // the counter. The spur meets the runner's edge and the centre track's edge,
+  // so the wear is continuous underfoot rather than three islands.
+  const TRACK_W = 2.4;
+  worn(TRACK_W, room.D - 2.0, 0, 0);                       // door -> lift, straight
+  const SPUR_X0 = DESK_X + DESK_D / 2;                     // the counter face
+  const SPUR_X1 = TRACK_W / 2;                             // the centre track's edge
+  worn(SPUR_X1 - SPUR_X0, 2.6, (SPUR_X0 + SPUR_X1) / 2, DESK_Z);
 
   // ── ENRICHMENT AT THE EDGES, AND THE MIDDLE LEFT ALONE ────────────────
   //
@@ -355,14 +477,25 @@ export function buildHotel(ctx: CtxBuild): void {
     const brass2 = new THREE.MeshBasicMaterial({ color: 0x9a7c3a });
     const oak = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
     const oakD = new THREE.MeshBasicMaterial({ color: 0x372a1c });
-    const plush = new THREE.MeshBasicMaterial({ color: 0x6d2029 });
+    // THE SUITE IS NOT THE WALL. This was 0x6d2029 — byte for byte the wall
+    // colour in this room's own palette — so a sofa and two armchairs standing
+    // against that wall were invisible, and the "seating group" read as a low
+    // table with nothing round it. Found by standing in front of it rather than
+    // by looking down the room, which is the whole reason for the eye-height
+    // pass. Faded bottle-green velvet: what a lobby suite of this period
+    // actually was, and it reads against ox-blood at any distance.
+    const plush = new THREE.MeshBasicMaterial({ color: 0x3f5449 });
     const paper = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
     const bx = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
       put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
 
     // A SOFA AND TWO ARMCHAIRS ROUND A LOW TABLE, in the east corner
     {
-      const SX = hw - 1.5, SZ = hd - 9.5;
+      // Against the wall, not a metre off it. At hw - 1.5 the sofa's back stood
+      // 1.0 m clear of the east wall, which is the "furniture strewn about"
+      // reading in miniature — furniture floating in a room rather than placed
+      // in it. hw - 0.62 puts the back 6 cm off the plaster.
+      const SX = hw - 0.62, SZ = hd - 9.5;
       bx(0.85, 0.42, 2.1, plush, SX, 0.21, SZ);                    // sofa seat
       bx(0.30, 0.52, 2.1, plush, SX + 0.32, 0.62, SZ);             // its back
       bx(0.95, 0.16, 2.2, oakD, SX, 0.06, SZ);                     // the plinth
@@ -378,14 +511,22 @@ export function buildHotel(ctx: CtxBuild): void {
       }
     }
 
-    // A SINGLE CHAIR FACING NOTHING, which is the loneliest object in the room
-    bx(0.62, 0.40, 0.62, plush, -hw + 1.1, 0.20, -2.0);
-    bx(0.62, 0.44, 0.20, plush, -hw + 1.1, 0.57, -2.25);
-    solid(-hw + 1.1, -2.0, 0.8, 0.8);
+    // The SINGLE CHAIR FACING NOTHING that used to stand at (-hw + 1.1, -2.0) is
+    // gone. It was written as the loneliest object in the room and I still like
+    // the idea, but the user's word for this floor was "awful" and his diagnosis
+    // was "furniture strewn about" — and by his own definition a chair on its own
+    // in the middle of a wall, facing nothing, part of no group, IS the scattered
+    // item. The room keeps its emptiness through the empty floor, which is what
+    // he praised, not through one stray chair.
 
     // A LUGGAGE CART WITH NOBODY'S BAGS ON IT
     {
-      const LX = -hw + 1.4, LZ = hd - 8.0;
+      // Tucked hard against the west wall at the desk's front end, where a
+      // luggage cart actually stands — between reception and the door. It was at
+      // (-hw + 1.4, hd - 8.0), which is x -4.1: that is 7 cm PROUD of the desk
+      // face, so it stood in the runner lane you walk to the counter along, in
+      // the open floor rather than against anything.
+      const LX = -hw + 0.85, LZ = hd - 1.2;
       bx(0.72, 0.06, 1.20, brass2, LX, 0.30, LZ);
       for (const p of [-0.5, 0.5]) bx(0.05, 1.55, 0.05, brass2, LX - 0.30, 0.78, LZ + p);
       bx(0.05, 0.05, 1.20, brass2, LX - 0.30, 1.55, LZ);
@@ -405,10 +546,26 @@ export function buildHotel(ctx: CtxBuild): void {
       bx(0.34, 0.05, 0.42, oak, -hw + 0.44, 0.92, PZ2 + 0.42);     // the shelf
       solid(-hw + 0.3, PZ2, 0.6, 1.4);
 
+      // A LEAFLET RACK WITH POCKETS, because leaflets have to stand IN something.
+      //
+      // F swept the world for floating decorations and the only four are here:
+      // six paper slips at local x -5.16 against a rack face at -5.18, so they
+      // overlapped the rack by 5 mm and otherwise hung in the air with nothing
+      // under them. A leaflet is the one object in a room that CANNOT float —
+      // everybody has seen one in a rack — and pasting it to a flat panel is
+      // exactly the mistake.
+      //
+      // So the rack now has a back panel, three pocket lips, and slips that rest
+      // ON those lips: each leaflet's underside is the lip's top face, computed
+      // from one number, so there is no gap to drift.
       const RZ2 = -7.0;                                            // leaflets nobody has taken
-      bx(0.16, 1.05, 0.70, oak, -hw + 0.24, 0.86, RZ2);
-      for (let i = 0; i < 3; i++) for (const lz of [-0.2, 0.2]) {
-        bx(0.05, 0.22, 0.16, paper, -hw + 0.34, 0.55 + i * 0.30, RZ2 + lz);
+      const RK_X = -hw + 0.20, TIERS = [0.55, 0.85, 1.15], LIP_DROP = 0.11;
+      bx(0.10, 1.05, 0.70, oak, RK_X, 0.86, RZ2);                  // the back panel
+      for (const ty of TIERS) {
+        bx(0.16, 0.03, 0.66, oakD, RK_X + 0.13, ty - LIP_DROP - 0.015, RZ2);   // the lip
+        for (const lz of [-0.2, 0.2]) {                            // slips standing on it
+          bx(0.05, 0.22, 0.16, paper, RK_X + 0.10, ty, RZ2 + lz);
+        }
       }
     }
 
@@ -464,7 +621,8 @@ export function buildHotel(ctx: CtxBuild): void {
   // room: at d 9 those were the same place, and at d 26 they are 8.5 m apart.
   // A reception desk you walk past is a reception desk; one in the centre of the
   // floor is an island.
-  const DESK_X = -4.55, DESK_Z = hd - 4.6, DESK_L = 4.4;
+  // (DESK_X / DESK_Z / DESK_L / DESK_D are declared above the floor, because the
+  // runner is laid off them.)
   const deskT = declareSurface(pixTex(24, 56, (g) => {
     g.fillStyle = '#4a2a20'; g.fillRect(0, 0, 24, 56);
     g.fillStyle = '#5c382a';                                    // raised panels
@@ -476,13 +634,13 @@ export function buildHotel(ctx: CtxBuild): void {
   }), 'detail');
   const deskM = ctx.flat(deskT);
   const deskTopM = new THREE.MeshBasicMaterial({ color: 0x5c3826 });
-  put(new THREE.Mesh(new THREE.BoxGeometry(0.75, 1.12, DESK_L),
+  put(new THREE.Mesh(new THREE.BoxGeometry(DESK_D, 1.12, DESK_L),
     [deskM, deskM, deskTopM, deskM, deskM, deskM]), DESK_X, 0.56, DESK_Z);
   // the brass rail along the top — plain colour, no texture. It is 0.06 m
   // thick, well under the 0.3 m that GOTCHAS §4 says can hold no fine detail.
   put(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, DESK_L), brassM),
     DESK_X + 0.33, 1.18, DESK_Z);
-  solid(DESK_X, DESK_Z, 0.75, DESK_L);
+  solid(DESK_X, DESK_Z, DESK_D, DESK_L);
   // the bell, and the register open beside it — the two things on the counter
   put(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.06, 8), brassM),
     DESK_X + 0.1, 1.15, DESK_Z + 1.5);
@@ -711,7 +869,22 @@ export function buildHotel(ctx: CtxBuild): void {
   // the window where lobby seating wants to be, and leaving 1.4 m between the
   // chairs and the east wall. 3.0 was the first try and pushed that lane down to
   // 1.0 m -- walkable, but a squeeze the room did not used to have.
-  const CH_X = 2.6, CH_Z = hd - 5.2;
+  //
+  // AND THE ACTUAL BUG BEHIND "furniture strewn about". The three chairs were
+  // written as absolute local coordinates — (0.5, 2.3), (2.7, 2.3), (1.6, 3.2) —
+  // while their table, their ashtray and their collider were all placed at
+  // CH_X / CH_Z. When the anchor moved east and forward, the table went and the
+  // chairs did not: they ended up FIVE METRES from the table they belong to,
+  // parked against the sofa group with nothing between them, and outside any
+  // collider. That is the screenshot.
+  //
+  // So every piece is now derived from the anchor, and they are ARRANGED: three
+  // mismatched chairs round the low table, west, east and north of it, each
+  // turned to face it, with the fourth side left open toward the window. Facing
+  // is (sin ry, cos ry) — the back is placed at -sin/-cos — so a chair west of
+  // the table faces east at ry = +PI/2. They still do not match each other; that
+  // was always the point. They are just no longer scattered.
+  const CH_X = 3.0, CH_Z = hd - 3.6;
   const chair = (lx: number, lz: number, col: number, back: number, ry: number) => {
     const m = new THREE.MeshBasicMaterial({ color: col });
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.5), m);
@@ -724,9 +897,12 @@ export function buildHotel(ctx: CtxBuild): void {
       put(leg, lx + sx, 0.18, lz + sz);
     }
   };
-  chair(0.5, 2.3, 0x5a6a5c, 0.5, 1.2);      // a green wing-back, the oldest of them
-  chair(2.7, 2.3, 0x7a5a3a, 0.38, -1.1);    // a tan one, lower and newer
-  chair(1.6, 3.2, 0x6a4a52, 0.44, Math.PI); // maroon, facing the window
+  // a green wing-back, the oldest of them, west of the table looking east
+  chair(CH_X - 0.95, CH_Z, 0x5a6a5c, 0.5, Math.PI / 2);
+  // a tan one, lower and newer, east of the table looking west
+  chair(CH_X + 0.95, CH_Z, 0x7a5a3a, 0.38, -Math.PI / 2);
+  // maroon, at the head of the table with its back to the room
+  chair(CH_X, CH_Z - 0.85, 0x6a4a52, 0.44, 0);
   const lowT = declareSurface(pixTex(32, 20, (g) => {
     g.fillStyle = '#5c3826'; g.fillRect(0, 0, 32, 20);
     g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 32, 2);
@@ -741,7 +917,9 @@ export function buildHotel(ctx: CtxBuild): void {
   // an ashtray stand and a folded newspaper nobody has cleared
   put(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.02, 0.22),
     new THREE.MeshBasicMaterial({ color: 0xb0a894 })), CH_X + 0.15, 0.48, CH_Z);
-  solid(CH_X, CH_Z, 3.0, 2.0);
+  // one collider round the whole group, sized to what is actually there now:
+  // chairs reach x CH_X +/- 1.25 and z CH_Z - 1.15 .. CH_Z + 0.35
+  solid(CH_X, CH_Z - 0.4, 2.9, 2.2);
 
   // ── the dead palm ──
   //
@@ -800,26 +978,29 @@ export function buildHotel(ctx: CtxBuild): void {
   photo.rotation.z = 0.035;                                       // crooked, and left that way
   put(photo, 1.2, 1.85, -hd + 0.06);
 
-  // a standing ashtray by the lift — the one piece of furniture in a 1997
-  // lobby that is still doing the job it was bought for
-  put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.62, 8),
-    new THREE.MeshBasicMaterial({ color: 0x6a6258 })), 4.5, 0.31, -0.7);
-  put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.11, 0.09, 8), brassM), 4.5, 0.66, -0.7);
+  // The standing ashtray that stood at (4.5, -0.7) is gone: the cigarette urn by
+  // the lift is 1.9 m away at (4.8, -2.6) and does the identical job. Two
+  // near-identical objects two metres apart on the same wall is exactly what
+  // reads as strewn, and the urn is the better of the two.
 
   // ── a picture rail, chipped ──
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.07, 0.04), mahogM), 0, 2.35, -hd + 0.02);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), -hw + 0.02, 2.35, 0);
   put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, room.D), mahogM), hw - 0.02, 2.35, 0);
 
-  // ── four fittings, and one of them is out ──
+  // ── the pendants, hanging from the kit's own roses ──
   //
-  // The kit hangs its own glow down the centreline and that stays; these are
-  // the lobby's own fixtures, and they are here because the brief asks for one
-  // lamp out — which is not something the kit can express, and is not worth a
-  // kit change when the room can just own its own lamps. The dead one is drawn
-  // DIFFERENTLY, not just unlit: a cold grey shade against three warm ones. An
-  // unlit copy of a lit thing reads as a rendering mistake; a different colour
-  // reads as a dead bulb.
+  // These used to be a SECOND set of fittings on a second grid, and that is the
+  // "different rhythms" the user saw. They are now the same fixture as the
+  // kit's: the kit draws the rose and the diffuser at the ceiling on `lampZ`,
+  // and this hangs the brass stem and the faceted glass bowl below it on the
+  // same z and the same centreline, so a rose and a bowl read as one lamp.
+  //
+  // The dead one is drawn DIFFERENTLY, not just unlit: a cold grey shade against
+  // four warm ones. An unlit copy of a lit thing reads as a rendering mistake; a
+  // different colour reads as a dead bulb. It is index LAMP_DEAD — the same
+  // index the kit was handed — so the grey shade and the blackened tube above it
+  // are the same lamp rather than two different ones being out.
   const glowT = declareSurface(pixTex(32, 32, (g) => {
     const gr = g.createRadialGradient(16, 16, 1, 16, 16, 15);
     gr.addColorStop(0, 'rgba(248,214,140,0.42)');
@@ -830,29 +1011,31 @@ export function buildHotel(ctx: CtxBuild): void {
     map: glowT, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   // "a chandelier or a run of glass fixtures instead of flush ceiling discs".
   // A RUN, not a chandelier, because the brief this room was built to also says
-  // one lamp is out, and four fixtures with one dead tells that story where a
-  // single central chandelier cannot. They hang now — brass stem, brass gallery,
+  // one lamp is out, and five fixtures with one dead tells that story where a
+  // single central chandelier cannot. They hang — brass stem, brass gallery,
   // faceted glass bowl — instead of sitting flush, which is most of what makes a
-  // ceiling read as tall.
+  // ceiling read as tall. A single file down the centre of a 26 m room is also
+  // what a lobby this shape actually had: one run you walk under.
   const litShadeM = new THREE.MeshBasicMaterial({ color: 0xf0d9a0 });
   const deadShadeM = new THREE.MeshBasicMaterial({ color: 0x6e6a62 });
   const galleryM = new THREE.MeshBasicMaterial({ color: 0xd8a83a });
-  const FITTINGS: [number, number, boolean][] = [
-    [-2.8, -2.4, true], [2.8, -2.4, false], [-2.8, 2.4, true], [2.8, 2.4, true],
-  ];
+  const FITTINGS: [number, number, boolean][] = Array.from(
+    { length: LAMP_N }, (_, i) => [0, lampZ(i), i !== LAMP_DEAD]);
   for (const [lx, lz, lit] of FITTINGS) {
-    // the stem: brass, and long enough that the fitting is IN the room
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.52, 6), brassM), lx, room.H - 0.26, lz);
-    // the gallery it hangs from, and the ceiling rose above it
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.10, 0.05, 8), galleryM), lx, room.H - 0.03, lz);
-    put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.06, 6), galleryM), lx, room.H - 0.55, lz);
+    // No ceiling rose here any more — the kit draws one at H - 0.03 with its
+    // dome under it reaching down to H - 0.185, and mine was a second rose in
+    // the same 4 cm of ceiling. The stem starts BELOW that, so the run reads
+    // rose -> stem -> bowl as one fitting.
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.50, 6), brassM), lx, room.H - 0.45, lz);
+    // the gallery the bowl sits in
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.06, 6), galleryM), lx, room.H - 0.73, lz);
     // the bowl: a faceted glass dish, wider and shallower than the old disc
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.40, 0.16, 0.24, 8), lit ? litShadeM : deadShadeM),
-      lx, room.H - 0.70, lz);
+      lx, room.H - 0.88, lz);
     if (lit) {
       const gl = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 2.2), glowM);
       gl.rotation.x = Math.PI / 2;
-      put(gl, lx, room.H - 0.45, lz);
+      put(gl, lx, room.H - 0.63, lz);
     }
   }
 

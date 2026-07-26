@@ -241,10 +241,18 @@ export function buildCasino(ctx: CtxBuild): void {
       // Step out ALONG the walk, east, away from the way-in trigger. The north
       // side-street walk is only the 2 m band z ∈ (-98, -96) and the building
       // collider eats down to -96.3, so there is about a metre of standing
-      // room — you cannot clear a 1.05 m trigger by stepping back from the
-      // door without stepping into the road. Going 1.55 m along it gives
-      // 1.57 m of separation, clear of the kit's doorR + 0.35 check.
-      outX: DOOR_X + 1.55, outZ: WALK_Z - 0.25, outYaw: 0, outGy: ctx.KERB_H,
+      // room — you cannot clear the way-in trigger by stepping back from the
+      // door without stepping into the road.
+      //
+      // 2.05, not 1.55. A SPOT'S REACH IS NOT ITS RADIUS: fp.ts:425 adds
+      // REACH_MARGIN = 0.6 on top of r, from the user's "widen the volumes", so
+      // this r 1.05 spot is live out to 1.65 m. 1.55 along the walk gave 1.629 —
+      // inside by 2 cm — so pressing E to leave landed you already being offered
+      // the way back in and a second E bounced you straight inside. 2.05 gives
+      // hypot(2.05, 0.5) = 2.11 m, clear by 0.46, and still along the walk rather
+      // than back into the road. Same fault and same fix in int-hotel.ts; the
+      // kit's DEFAULT landing has it too, which is written up for F.
+      outX: DOOR_X + 2.05, outZ: WALK_Z - 0.25, outYaw: 0, outGy: ctx.KERB_H,
     },
     // NO window. The kit makes this an omission rather than a special case —
     // `window` is optional and the front wall is built from the runs between

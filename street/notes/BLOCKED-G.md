@@ -1,9 +1,62 @@
 # BLOCKED — builder G
 
-Two items, neither stopping me: I am building the casino residual meanwhile. The
-previous version of this file was deleted by the desk in `bbf6076ae` when the
-library stair unblocked, which was right for that item and took the window ask
-with it — so this is that ask restated plus one new one.
+Three items, none of them stopping me: I am building the hotel and the pawn shop
+meanwhile. The previous version of this file was deleted by the desk in
+`bbf6076ae` when the library stair unblocked, which was right for that item and
+took the window ask with it — so this is that ask restated plus two new ones.
+
+The library items are gone from here: `ct/int-library.ts` moved to builder J.
+
+---
+
+## 0. THE KIT'S DEFAULT LANDING IS INSIDE ITS OWN WAY-IN REACH — one number, F's kit
+
+**This is a shipped behavioural bug in every interior that does not override the
+landing, not a tooling complaint.** You press `[E]` to leave a shop, arrive on
+the pavement already being offered the way back in, and a second `[E]` bounces
+you straight inside.
+
+`ct/interior.ts:1105` puts the flat-frontage landing at
+
+```ts
+{ x: (fr ? fr.side : -1) * (FACE - 1.2), z: spotOnStreet.z + 1.5, ... }
+```
+
+The way-in spot is at `side * (FACE - 0.75)` on `spotOnStreet.z`, so the two are
+`hypot(0.45, 1.5)` = **1.566 m** apart.
+
+**A spot's reach is not its radius.** `fp.ts:425` adds `REACH_MARGIN = 0.6` on
+top of `r` — added deliberately, from the user's *"easier in general. Widen the
+volumes."* So an `r 1.05` door is live out to **1.65 m**, and the landing is
+inside it by **8.4 cm**.
+
+Measured, not argued:
+
+| room | landing → way-in | reach | |
+|---|---|---|---|
+| pawn | 1.566 m | 1.65 m | inside by 0.084 |
+| tax  | 1.563 m | 1.65 m | inside by 0.087 |
+
+**The ask is one number: `+ 1.5` → `+ 2.1`** on that line, which gives
+`hypot(0.45, 2.1)` = 2.148 m and clears by half a metre. It is along the walk,
+so the sacred 2 m lane is untouched.
+
+**Why I am not working around it.** I could declare explicit `outX`/`outZ` in
+`int-pawn.ts` and `int-tax.ts`. That means copying `FACE - 1.2` and
+`spotOnStreet.z` — derived kit geometry — into two rooms, and the next time the
+frontage moves those two rooms are left behind while the other eight follow.
+Same shape as `doorLeafFor()` and `person()`; same answer.
+
+I fixed the two rooms that already own their landing, because there the number
+is mine: `int-hotel.ts` and `int-casino.ts` went from `+1.55` to `+2.05` along
+the walk. **This also means the other builders' rooms have it** — anything using
+the kit default, which is most of them.
+
+**Costing me:** `G-rooms-walk` is 110/114, and all four red are these two checks
+on pawn and tax. They have been red for a while and I had answered them by
+hand-measuring against `r` alone, which is how a real bug survived a real check
+for several sessions. Written up in full because that mistake is worth more than
+the fix.
 
 ---
 
