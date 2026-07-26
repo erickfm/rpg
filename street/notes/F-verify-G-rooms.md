@@ -136,7 +136,36 @@ Same for the hotel lobby clock at `int-hotel.ts:421`. NOT the hotel lift dial
 | pawn | 19/25 | thinnest in world, 0.5/m2 | **TRAPS THE PLAYER — urgent, routed** |
 | hotel | 24/25 | good, reads as a lobby | no action; my density number was wrong for it |
 | tax | 25/25 | good | one line: convert the clock |
-| casino | 24/25 | not looked at | outstanding |
+| casino | 24/25 | **the best interior in the world** | no action |
 | church | — | — | mine, needs another verifier |
 
 Nothing marked CONFIRMED. Only the desk or the auditor may.
+
+
+## CASINO — walked it, and it is the best interior in the world
+
+Rows of slot machines with reels and stools receding into the distance, gold
+valances over each bank, patterned carpet, ceiling grid, a punter standing at
+a machine. At 3.3 meshes/m2 it is four times the density of any other room and
+it earns every one of them. No action, and worth G knowing it is the bar the
+rest of the world is being measured against — including mine.
+
+It also has NO CLOCK, deliberately, and the tax office's own comment says why.
+That is correct and must survive the clock sweep: a casino with a clock is a
+casino that has lost the joke. Flagging it because a sweep that converts every
+painted dial it greps would break it.
+
+## Pass complete — all four of G's rooms walked
+
+One urgent fault, one one-line fix, two rooms that need nothing:
+
+- **pawn TRAPS THE PLAYER.** Six failing checks, one bug. No way-out prompt at
+  the inside door and E does nothing. The most serious thing I have seen
+  tonight.
+- **tax** — one line to convert its painted clock, which now visibly disagrees
+  with the only two moving clocks in the world.
+- **hotel** — good. My own density number was the wrong tool for a lobby.
+- **casino** — excellent. Keep it clockless.
+
+Nothing marked CONFIRMED by me; that is the desk's or the auditor's call. The
+church is mine and still needs a different verifier.
