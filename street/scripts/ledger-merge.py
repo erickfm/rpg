@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+<<<<<<< HEAD
 """Git merge driver for notes/LEDGER.md. Resolves the conflict nobody should hand-fix.
 
     usage (git calls this, you do not):  ledger-merge.py %O %A %B
@@ -90,3 +91,55 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+=======
+"""Resolve LEDGER.md rebase conflicts.
+
+The ledger is one row per line and every agent appends to the same rows, so a
+rebase conflicts on it almost every time. The resolution is always the same
+shape and doing it by hand is how evidence gets dropped:
+
+  * keep MAINLINE's text for a row  — the builder's account is newer than mine
+  * take MY line when it carries auditor evidence mainline lacks
+  * take MY line when it promotes the status and mainline has not
+  * keep rows only one side has
+
+Run with no arguments after a conflicted rebase, then `git add` and continue.
+"""
+import re, sys
+
+PATH = sys.argv[1] if len(sys.argv) > 1 else 'notes/LEDGER.md'
+
+def key(l):
+    m = re.match(r'\|\s*\w+\s*\|\s*(\w+)\s*\|\s*(.{0,60})', l)
+    return (m.group(1), m.group(2).strip()) if m else None
+
+def status(l):
+    m = re.match(r'\|\s*(\w+)\s*\|', l)
+    return m.group(1) if m else ''
+
+def resolve(m):
+    ours = [l for l in m.group(1).split('\n') if l.strip()]
+    mine = [l for l in m.group(2).split('\n') if l.strip()]
+    mymap = {key(l): l for l in mine}
+    out = []
+    for l in ours:
+        alt = mymap.get(key(l))
+        if alt and 'AUDITOR' in alt and 'AUDITOR' not in l:
+            out.append(alt)
+        elif alt and status(alt) == 'CONFIRMED' and status(l) != 'CONFIRMED':
+            out.append(alt)
+        else:
+            out.append(l)
+    seen = {key(x) for x in ours}
+    for k, l in mymap.items():
+        if k not in seen:
+            out.append(l)
+    return '\n'.join(out) + '\n'
+
+s = open(PATH).read()
+s2, n = re.subn(r'<<<<<<< HEAD\n(.*?)=======\n(.*?)>>>>>>> [^\n]*\n', resolve, s, flags=re.S)
+open(PATH, 'w').write(s2)
+left = s2.count('<<<<<<<')
+print(f'  resolved {n} region(s); {left} marker(s) left')
+sys.exit(1 if left else 0)
+>>>>>>> cfd146f6c (Audit: D's seven highlight rows CONFIRMED, walked on a build I checked first)

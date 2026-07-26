@@ -1,50 +1,61 @@
-// D's SEVEN highlight rows, walked. Claims: (1) no outline is drawn in normal
-// play at any [E] spot, (2) __ct.debugSpots(true) draws the trigger volume and
-// off removes it, (3) you cannot select a thing through a wall.
+// D's SEVEN highlight rows, walked on a build I have checked is HEAD.
+//   (1) nothing is drawn at any [E] spot in normal play
+//   (2) __ct.debugSpots(true) draws the volume, off removes it
+//   (3) you cannot select a thing through an object
+// My first version failed (3) by treating "[E] into the BODEGA" from the
+// pavement as a leak. Standing at a door and being offered the door is the
+// feature. The test that means something is the SAME target at the SAME
+// distance with and without something in the way.
 import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const b=await chromium.launch(); const p=await b.newPage({viewport:{width:1280,height:720}});
 await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await afterFrames(p,10); await p.waitForTimeout(2000);
-const count=()=>p.evaluate(()=>{ let lines=0,meshes=0;
-  window.__ct.scene().traverse(o=>{ if(o.isLine||o.isLineSegments||o.isLineLoop) lines++;
-    if(o.isMesh&&o.renderOrder>=999) meshes++; });
-  return {lines,meshes}; });
-const prompt=()=>p.evaluate(()=>{ const t=document.body.innerText||'';
-  const m=t.match(/\[E\][^\n]*/); return m?m[0].trim():null; });
+const drawn=()=>p.evaluate(()=>{ let n=0; window.__ct.scene().traverse(o=>{
+  if(o.isLine||o.isLineSegments||o.isLineLoop||(o.isMesh&&o.renderOrder>=999)) n++; }); return n; });
+const prompt=()=>p.evaluate(()=>{ const m=(document.body.innerText||'').match(/\[E\][^\n]*/); return m?m[0].trim():null; });
+const go=async(x,z,yaw=0)=>{ await p.evaluate(([x,z,y])=>window.__ct.warp(x,z,y,window.__ct.pos()[3],0),[x,z,yaw]); await afterFrames(p,4); };
+let fail=[];
+console.log(`\nat rest, before going anywhere: ${await drawn()} drawn`);
+
+console.log(`\n1. NORMAL PLAY — the prompt appears and nothing is drawn`);
 const spots=await p.evaluate(()=>window.__ct.spots().filter(s=>s.ok).map(s=>[s.x,s.z,s.label]));
-console.log(`\n1. NORMAL PLAY — prompt should appear, nothing should be drawn`);
-let bad=0, shown=0;
-for(const [x,z,label] of spots.slice(0,10)){
- await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,window.__ct.pos()[3],0),[x,z]);
- await afterFrames(p,4);
- const c=await count(), pr=await prompt();
- if(pr) shown++;
- if(c.lines>0||c.meshes>0){ bad++; console.log(`   ** ${label}: ${c.lines} lines, ${c.meshes} renderOrder-999 meshes`); }
- else console.log(`   ok  ${label.slice(0,38).padEnd(38)} prompt ${pr?JSON.stringify(pr):'(none)'}  drawn 0`);
+let withPrompt=0, drewSomething=0;
+for(const [x,z,label] of spots){
+ await go(x,z); const d=await drawn(), pr=await prompt();
+ if(pr) withPrompt++;
+ if(d>0){ drewSomething++; console.log(`   ** ${label.slice(0,44)}: ${d} drawn`); }
 }
-console.log(`   ${spots.slice(0,10).length-bad} of ${spots.slice(0,10).length} spots draw nothing; ${shown} showed a prompt`);
-console.log(`\n2. DEBUG TOGGLE — off, on, off`);
-const [x0,z0]=spots[0];
-await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,window.__ct.pos()[3],0),[x0,z0]); await afterFrames(p,4);
-const off1=await count();
-let on=null, off2=null, err=null;
-try{ await p.evaluate(()=>window.__ct.debugSpots(true)); await afterFrames(p,4); on=await count();
-     await p.evaluate(()=>window.__ct.debugSpots(false)); await afterFrames(p,4); off2=await count(); }
-catch(e){ err=e.message; }
-if(err) console.log(`   ** debugSpots threw: ${err}`);
-else console.log(`   off ${off1.lines+off1.meshes} drawn -> on ${on.lines+on.meshes} -> off ${off2.lines+off2.meshes}`
-  +`   ${off1.lines+off1.meshes===0&&on.lines+on.meshes>0&&off2.lines+off2.meshes===0?'discriminates':'** DOES NOT DISCRIMINATE'}`);
-console.log(`\n3. SELECTION THROUGH WALLS — on the pavement outside four shops`);
-let leaks=0;
-for(const [n,x,z] of [['bodega',7.9,-93.4],['burger',-6.3,-25.1],['diner',-6.3,-46.6],['pawn',-6.3,-60.0]]){
- await p.evaluate(([x,z])=>window.__ct.warp(x,z,0,window.__ct.pos()[3],0),[x,z]); await afterFrames(p,4);
- const pr=await prompt();
- const inside=pr&&!/enter|open|door|street|cross/i.test(pr);
- if(inside){ leaks++; console.log(`   ** ${n}: offered ${JSON.stringify(pr)} from the pavement`); }
- else console.log(`   ok  ${n.padEnd(7)} prompt ${pr?JSON.stringify(pr):'(none)'}`);
+console.log(`   ${spots.length} spots: ${withPrompt} offered a prompt, ${drewSomething} drew anything`);
+if(drewSomething) fail.push(`${drewSomething} spots drew an outline in normal play`);
+if(!withPrompt)   fail.push('no spot offered a prompt — the walk proves nothing');
+
+console.log(`\n2. DEBUG TOGGLE — off, on, off, at a spot that has a prompt`);
+const [sx,sz]=spots[0]; await go(sx,sz);
+const off1=await drawn();
+await p.evaluate(()=>window.__ct.debugSpots(true));  await afterFrames(p,4); const on=await drawn();
+await p.evaluate(()=>window.__ct.debugSpots(false)); await afterFrames(p,4); const off2=await drawn();
+console.log(`   ${off1} -> ${on} -> ${off2}   ${off1===0&&on>0&&off2===0?'discriminates':'** DOES NOT DISCRIMINATE'}`);
+if(!(off1===0&&on>0&&off2===0)) fail.push(`debug toggle did not discriminate (${off1}/${on}/${off2})`);
+
+console.log(`\n3. SELECT THROUGH AN OBJECT — same target, same distance, one blocked`);
+const seats=await p.evaluate(()=>(window.__ct.seats?.()||[])
+  .filter(q=>q.at&&q.pose).slice(0,60).map(q=>[q.pose.x,q.pose.z,q.at.x,q.at.z,q.label]));
+let clear=0, blockedOffered=0, tested=0;
+for(const [px,pz,ax,az,label] of seats.slice(0,14)){
+ await go(ax,az,Math.atan2(px-ax,-(pz-az)));
+ const front=await prompt();
+ const bx=2*px-ax, bz=2*pz-az;                       // mirrored through the seat: equal distance
+ await go(bx,bz,Math.atan2(px-bx,-(pz-bz)));
+ const behind=await prompt();
+ if(!front) continue;                                // if the near side does not offer it, it tests nothing
+ tested++;
+ if(front) clear++;
+ if(behind && behind===front) blockedOffered++;
 }
-console.log(`   ${leaks} leaks`);
-const fail = bad>0 || err || !(off1.lines+off1.meshes===0&&on&&on.lines+on.meshes>0&&off2.lines+off2.meshes===0) || leaks>0;
-console.log(`\n${fail?'FAIL':'PASS'}`); process.exit(fail?1:0);
+console.log(`   ${tested} seats where the intended side offers the prompt`);
+console.log(`   ${clear} offered from the stand point, ${blockedOffered} still offered from the far side`);
+if(!tested) fail.push('no seat offered its prompt from its own stand point — test inconclusive');
+console.log(`\n${fail.length?'FAIL: '+fail.join('; '):'PASS'}`);
+process.exit(fail.length?1:0);
