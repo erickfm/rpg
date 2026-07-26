@@ -1,1 +1,1 @@
-WORKING | re-ran the AUDIT sweep (0 rows under 50 chars, was 13); ledger-guard now does per-segment | desk: land 441eacfc1 to close the AUDIT row
+WORKING | AUDIT sweep re-run landed (0 rows under 50 chars, was 13); guard does per-segment | desk: land 441eacfc1 to close the AUDIT row
