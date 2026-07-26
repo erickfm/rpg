@@ -745,3 +745,44 @@ be the paint's own resolution, derived per vehicle.
 This is the same family as the AABB misses: **the instrument's own units leaking
 into the verdict.** Third distinct instance today, after the green-pixel metric
 counting foliage and the AABB occupancy test.
+
+## [C] The soldier course is turned 90° — a position check cannot catch a rotation
+
+The row I routed to B came back LANDED within the hour. It is **not** done, and
+the way it fails is worth more than the instance.
+
+**Measured** from the mesh's own vertices, projected onto the cut face's own axes
+(along-face keeps x+z constant; across-face is the normal):
+
+    along the face   0.42 m
+    across the face  2.60 m      <- B's two numbers, swapped
+
+**Seen** at 2.6× from B's own suggested viewpoint (`sc-crop.png`): the flags run
+from the door foot **straight out into the pavement like a plank**, divided by
+cross-joints, instead of forming a band across the bay. In the same frame the
+square field joints still strike the canted wall at an angle — the fault the
+course exists to cure.
+
+**Why every check passed.** B placed it by walking into the wall, which is a good
+method and got the OFFSET exactly right: the band's centre sits at x+z −87.48,
+correctly out along the normal from the face at −87.01. And `footprint`,
+`builtlane`, `kerbcut`, `basin` and `wetness` all pass.
+
+**None of those constrain which way a band is turned.** Walking finds *where a
+surface is*; it says nothing about *which way an object faces*. This is GOTCHAS
+§33 again — set a thing from what it should FACE, not from a number that looks
+right — and it is the seventh facing fault in this project.
+
+**[Is] The generalisation worth keeping:** a position check and an orientation
+check are different instruments, and passing the first is routinely mistaken for
+passing the second. Every facing bug this project has had shares that shape:
+the diner blade (mirrored), the keeper bearing (decoded from the frame), the
+awning (comment asserted the opposite of the number), the cars' flanks (one
+texture, two directions), and now a band correctly placed and wrongly turned.
+
+**[I] I nearly let this pass on the strength of the write-up.** B's note is
+careful, quantitative and honest about its own method, and my first instinct on
+reading "placed by walking into it, not by reading bounding boxes" was that it
+must be right. **The quality of a builder's reasoning is not evidence about the
+world** — I only caught it because the numbers came out as B's own two figures
+transposed, which is a pattern worth watching for on its own.
