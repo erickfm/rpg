@@ -284,3 +284,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | H | the side street east-end crossing is being removed — close the walkabl | |
 | OPEN | B | 'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalk | |
 | OPEN | L | add a slots interface and game where when i sit down i enter the slots | |
+| OPEN | K | i also want an atm interface and an inventory interface. equally try h | |
