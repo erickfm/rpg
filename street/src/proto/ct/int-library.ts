@@ -186,6 +186,30 @@ export function buildLibrary(ctx: CtxBuild): void {
     lx: number, y: number, lz: number) =>
     put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), lx, y, lz);
 
+  // ── EVERY CHAIR IN THIS ROOM IS ONE NUMBER: THE TOP OF ITS PAN ──
+  //
+  // Routed to me inside G's evidence cell for "guy sitting in casino is
+  // clipping through his seat", which swept all ten rooms and found mine still
+  // wrong: *"library 3 STILL WRONG — ct/int-library.ts, builder J: registered
+  // 0.45 against a true top of 0.475, sunk 2.5 cm … a one-constant fix at J's
+  // end; not H's pose."* G is right and the diagnosis is exactly theirs, one
+  // room over: ONE STOOL HEIGHT AUTHORED TWICE.
+  //
+  // My pan is 0.05 thick CENTRED at 0.45, so it spans 0.425..0.475 and its top
+  // face is 0.475 — while `ctx.seat({ h })` and the sitter both took 0.45, the
+  // pan's CENTRE. A figure placed correctly on a seat that under-reports itself
+  // by half a pan sinks by half a pan. My own commit for the sitters said "0.45
+  // is passed because it is the seat pan these chairs are built with", which is
+  // the error in one sentence: it is the pan's centre, not the pan's top.
+  //
+  // NO Y FUDGE, per H's rule in notes/H-seated-sprite.md — the atlas is right
+  // and a fudge would mean the atlas is wrong. Instead the TOP FACE is declared
+  // once and the pan is derived DOWNWARD from it, so the mesh, `ctx.seat()` and
+  // every sitter read one number, and the pan can change thickness without the
+  // seat height silently moving.
+  const SEAT_TOP = 0.475, PAN_T = 0.05;
+  const PAN_Y = SEAT_TOP - PAN_T / 2;          // where the pan's CENTRE goes
+
   // ── GRAIN ON THE BIG FLAT FACES ──────────────────────────────────────────
   //
   // The queue's last row: *"any large blank surface left in the room takes A's
@@ -966,7 +990,7 @@ export function buildLibrary(ctx: CtxBuild): void {
   solid(TAB_X, TAB_Z, 2.5, 1.0);
   for (const dx of [-0.9, -0.3, 0.3, 0.9]) {
     const cx = TAB_X + dx, cz = TAB_Z - 0.80;
-    box(0.44, 0.05, 0.44, wood, cx, 0.45, cz);                          // the seat pan
+    box(0.44, PAN_T, 0.44, wood, cx, PAN_Y, cz);                        // the seat pan
     box(0.44, 0.5, 0.05, wood, cx, 0.70, cz - 0.20);                    // the back
     for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
       box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
@@ -974,7 +998,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     ctx.seat({
       // camera yaw 0 looks along −z, into the room. `ctx.seat` hands its yaw to
       // the rig, so this is the CAMERA convention and not the sprite one.
-      x: room.wx(cx), z: room.wz(cz), yaw: 0, h: 0.45,
+      x: room.wx(cx), z: room.wz(cz), yaw: 0, h: SEAT_TOP,
       approach: { x: room.wx(cx), z: room.wz(cz - 0.85) },
       label: 'sit at the table',
       // only offered while you are actually in here, like every kit seat
@@ -1219,7 +1243,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     // number, which is the cross-check: same side, same value.
     for (const [, tz] of seats) {
       const cx = TERM_CX;
-      box(0.44, 0.05, 0.44, wood, cx, 0.45, tz);                  // the seat pan
+      box(0.44, PAN_T, 0.44, wood, cx, PAN_Y, tz);                // the seat pan
       box(0.05, 0.5, 0.42, wood, cx - 0.20, 0.70, tz);            // the back
       for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
         box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, tz + fz);
@@ -1232,7 +1256,7 @@ export function buildLibrary(ctx: CtxBuild): void {
       // reading correctly, because the chair is taken.
       if (Math.abs(tz - TERM_TAKEN_Z) < 0.01) continue;
       ctx.seat({
-        x: room.wx(cx), z: room.wz(tz), yaw: Math.PI / 2, h: 0.45,
+        x: room.wx(cx), z: room.wz(tz), yaw: Math.PI / 2, h: SEAT_TOP,
         approach: { x: room.wx(cx - 0.85), z: room.wz(tz) },
         label: 'sit at the terminal',
         ok: () => room.inside(),
@@ -1495,7 +1519,7 @@ export function buildLibrary(ctx: CtxBuild): void {
     for (const side of [-1, 1] as const) {
       for (const dx of [-1.6, 0, 1.6]) {
         const cx = RT_X + dx, cz = RT_Z + side * 0.95;
-        box(0.44, 0.05, 0.44, wood, cx, 0.45, cz);
+        box(0.44, PAN_T, 0.44, wood, cx, PAN_Y, cz);
         box(0.44, 0.5, 0.05, wood, cx, 0.70, cz + side * 0.20);
         for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
           box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
@@ -1508,7 +1532,7 @@ export function buildLibrary(ctx: CtxBuild): void {
         if (TAKEN.some((t) => t.dx === dx && t.side === side)) continue;
         ctx.seat({
           x: room.wx(cx), z: room.wz(cz),
-          yaw: side < 0 ? Math.PI : 0, h: 0.45,
+          yaw: side < 0 ? Math.PI : 0, h: SEAT_TOP,
           approach: { x: room.wx(cx), z: room.wz(cz + side * 0.85) },
           label: 'sit at the reading table',
           ok: () => room.inside(),
@@ -1532,7 +1556,6 @@ export function buildLibrary(ctx: CtxBuild): void {
   // is wrong, not your room.** No fudge here; 0.45 is the seat pan these
   // chairs are built with, and it is passed as the pan height, not as a
   // number that happens to look right.
-  const SEAT_TOP = 0.45;
   const sitter = (look: Parameters<typeof citizenSprite>[0], lx: number, lz: number, facing: number) => {
     const s = citizenSprite({ ...look, seated: true }, { facing, h: 0.97, w: 0.95 });
     put(s.mesh, lx, SEAT_TOP, lz);
