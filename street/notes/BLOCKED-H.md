@@ -1,83 +1,56 @@
-# BLOCKED — builder H
+# BLOCKED — builder H (verifier)
 
-`scripts/live.sh H`: **1 live, 1 awaiting a check.** Nothing buildable is mine.
-BLOCKED rather than WORKING because I am not building; rather than DONE because
-live.sh is not empty.
+**10 CONFIRMED this stint.** D's unverified rows 12 -> 3, I's 6 -> 4. What is
+left is blocked on other people, and in two specific shapes.
 
-## Read this first: I broke the crowd this session and fixed it
+## 1. Rows whose SUBJECT I cannot locate
 
-Rewriting `citizenPlane` for the seated pose I inverted a sign, putting every
-standing citizen's origin at the crown of its head instead of the shoe —
-**the whole crowd 1.66 m underground.**
+- **big sign should be simpler** — my finder returned a 26 x 17 m building
+  facade at (45.2, 15.5, -95.4) and stood me 78 m back from it.
+- **pole sign panel too small / skewed** — my frames contained brick, a
+  lollipop sign and the WE FINANCE neon, but not the pole sign.
 
-```
-before my rewrite   0.95 - (4/64)*1.9   = +0.831   correct
-my rewrite          0.95 - (60/64)*1.9  = -0.831   inverted
-now                 (60/64)*1.9 - 0.95  = +0.831   correct again
-```
+**What unblocks them:** the sign's identity. A mesh name, or the module
+publishing its position the way `ct/bodega-corner.ts` publishes its bay. Then
+the station is trivial — stand back along the panel's own normal until it
+frames — and both claims are easy to read: one message and the name, no phone
+number (it moved to the fence, so a number ON the fence is correct).
 
-**Fixed and verified in the world: 18 citizens, painted shoe at 0.000 (ten, road
-level), 0.140 (seven, the sidewalk height exactly) and 5.400 (one, upstairs).**
-No value between, which is what a right origin looks like.
+## 2. Rows whose PREDICATE is not stated
 
-**It survived my own verification, and that is the part worth keeping.** My
-seated checks were thorough — all eight sectors, every column's head drop and
-foot row — and every one read the ATLAS FRAMES, never the plane the frames are
-painted on. GOTCHAS 34, which I had cited twice today before walking into it.
-Any future change to `citizenPlane` should force a composed-sprite bounds check.
+- **the street's 27 untextured ground surfaces** — my filter counted 74 because
+  it accepts any box under 0.4 m, which sweeps in bench slats and kerb pieces.
+  Needs D's own predicate; then it is a recount.
+- **cars on the left row face backwards** — needs one sentence: which row is
+  "left" and which way it should face. Not derivable from a transform, and
+  guessing is how it came back twice.
+- **cars clipping into each other** — needs oriented-rectangle overlap, not the
+  radius I used. The fleet publishes `wheelbase`, yaw and the 1.8 m width, so
+  it is buildable the moment the facing convention lands.
+- **shouldnt be able to select things through objects** — needs a REACHABLE
+  station with one solid thing in the line: inside a shop aiming at a street
+  spot, or the off-side of a parked car. My attempts tested from inside a wall,
+  where a player cannot stand and a ray starting in solid may not register.
+- **door re-trigger** — needs an exit affordance or a documented way out. E
+  where you land does nothing, so the regression cannot be observed from
+  outside.
+- **outline traces the object** — needs 3-4 m back from a small object with
+  debug on. At 0.9 m a tight box and a large volume look identical.
 
-`health.mjs` said WORLD OK throughout: it proves `__ct` initialises, not that
-anybody is standing on the ground.
+## The finding worth more than any single row
 
-## 1. AUDITOR — and one of the two things I need is a tool fix
+**Five generic filters today, five wrong sets, zero real faults found:** bench
+slats as ground; two bunting runs merged into a 109 m gap; a radius test on
+4.5 x 1.8 m rectangles; prompts reporting the nearest spot rather than the
+tested one; a building facade as "the big sign".
 
-- **The cat row** (`CHECK`) is built and verified foreshortened from the
-  player's eye; I may not confirm my own work.
-- **The float CONFIRMED is stale.** The auditor's median-0.000 pass predates my
-  regression and would have gone red mid-session. It is repaired, but it
-  deserves a fresh run rather than inheriting the old result.
-- **`scripts/footpaint.mjs` cannot be pointed at another builder's world** — it
-  hardcodes `localhost:4184` and ignores `SHOT_URL`, so I could not re-run it
-  and measured the same quantity by hand instead. Same class as the canfail
-  default port that nearly fooled another builder today. The auditor's script,
-  so I have not touched it.
+Against that, **ten confirmations, every one from standing somewhere and
+looking** — and the two fastest were rows whose builder named the station:
+I's *"verify by standing where a person would sit"* and D's `highlightParity`
+affordance, one attempt each.
 
-## 2. F and G — the live row is theirs now
-
-`grep -l citizenSprite src/proto/ct/int-*.ts` → **0 of 10**. The seated pose,
-the hip origin and the call signature are all published
-(`notes/H-seated-sprite.md`). Until a room calls it the user's want is unmet, so
-I will not mark the row landed — but as one row it reads as H being late for
-work in files I do not own. **Still worth splitting into an H row (done) and an
-F/G row (open).**
-
-## 3. All four desk rulings are discharged — evidence, so they stop being re-issued
-
-- **Bed floor -> 32 px/m** — landed `03853f26a`. Ribs restated in METRES
-  (0.50 m pitch, 0.19 m lit, 0.06 m shadow) so doubling the density changes the
-  sampling and not the pattern.
-- **Before/after** — delivered `39b8826fc`, `shots/bedfloor-ribs.png`, both
-  densities at the same physical size. **Verdict: not worse at 32, and not
-  better — the pattern is identical, which is the correct outcome.** No
-  exception needed; a player will not see a difference in that panel alone.
-- **Alley mouth** — landed `a00cc06ec`, `A2_MOUTH` in the `nudgeClear` array at
-  `crosstown.ts:348`. It measured clear beforehand (nearest car 2.61 m, east
-  kerb) but by LUCK; now by rule.
-- **East-end ramp and stripes** — B landed `c0c906d6c`. Closed, not mine.
-
-## 4. Done this session, needing nothing further
-
-Bed floor at 32 px/m with the ribs restated in metres, and the before/after the
-ruling asked for (`shots/bedfloor-ribs.png` — pattern identical at both
-densities, which is the correct result). D's new alley mouth measured clear and
-then added to the keep-clear array so it stays clear by rule rather than by
-luck; its span is a literal because `street.ts` does not export `A2_Z0/A2_Z1`,
-and exporting it would be an improvement.
-
-## 5. The structural note, fourth instance today
-
-`lit`, `wet`, the cat's per-frame need, and now `footpaint`'s hardcoded port:
-leaf modules and leaf scripts each needing something their caller never passed.
-`b.pose` solved the billboard case generally. The shape underneath is that a
-leaf is BUILT with what it needs and never UPDATED — or in the scripts' case,
-never told which world to look at. The desk has this one.
+So the cheapest change to the backlog is not more verifier time. It is **one
+line per row when it is marked LANDED: where to stand, or what predicate
+settles it.** A row that carries its station is verified in one pass. A row
+that does not costs three and may still be abandoned — which is most of what is
+above.
