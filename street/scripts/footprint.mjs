@@ -40,7 +40,7 @@ const r = await page.evaluate(() => {
   // ground and their own owners
   const onStreet = (z, x) => z < 0 && z > -96 && Math.abs(x) < 7.2;
 
-  const out = { litter: [], pits: [], water: [], crossers: [], sunk: [] };
+  const out = { litter: [], pits: [], water: [], stain: [], crossers: [], sunk: [] };
   const box = (o) => {
     o.updateMatrixWorld(true);
     const b = { minX: Infinity, maxX: -Infinity, minY: Infinity };
@@ -164,15 +164,20 @@ const r = await page.evaluate(() => {
     // The stamp cannot go stale when a dimension moves. glow.mjs learned the
     // same lesson against an exact lens box and reads userData.parkLantern now.
     if (o.userData?.groundProp === 'tree pit') check(o, 'tree pit', out.pits);
-    // puddle / track sheets
-    if (img && ((img.width === 48 && img.height === 32) || (img.width === 16 && img.height === 64))
+    // SPLIT, because these were one bucket and are now opposites. 48x32 was the
+    // standing puddle sheet and must never come back (desk ruling, below);
+    // 16x64 is the gutter grime track, which stays. Counting them together
+    // would let two legitimate stains stand in for the thing being banned.
+    if (img && img.width === 48 && img.height === 32
         && o.material.transparent && o.position.y < 0.3) check(o, 'water', out.water);
+    if (img && img.width === 16 && img.height === 64
+        && o.material.transparent && o.position.y < 0.3) check(o, 'stain', out.stain);
   });
   return out;
 });
 
 const n = (a) => a.length;
-console.log(`\n  on the main street: ${n(r.litter)} litter meshes, ${n(r.pits)} tree pits, ${n(r.water)} water sheets`);
+console.log(`\n  on the main street: ${n(r.litter)} litter meshes, ${n(r.pits)} tree pits, ${n(r.stain)} gutter stains`);
 
 // DID THIS FIND ANYTHING TO CHECK? Every verdict below is an ABSENCE — nothing
 // straddles, nothing is sunk, nothing clips — and an absence is free when the
@@ -205,7 +210,14 @@ console.log(`\n  on the main street: ${n(r.litter)} litter meshes, ${n(r.pits)} 
 //
 // Litter is counted in MESHES, not objects — trash.mjs's 12–20 is the object
 // count and each carries several meshes, which is why the two numbers disagree.
-const FLOOR = { litter: 15, pits: 5, water: 6 };
+// `water` is NOT here any more and must not be re-added: its floor said
+// "at least 6 standing puddles" and the correct number is now zero.
+//
+// stain is 1, not 2. props.ts lays two, but the second is at z -103.6 and this
+// check's window is the main street only (z > -96), so it is out of scope here.
+// I set this to 2 by counting the calls in the source instead of the meshes in
+// the window, and the floor caught me — which is the whole point of it.
+const FLOOR = { litter: 15, pits: 5, stain: 1 };
 let thin = false;
 for (const [what, min] of Object.entries(FLOOR)) {
   const got = r[what].length;
@@ -217,7 +229,7 @@ for (const [what, min] of Object.entries(FLOOR)) {
   thin = true;
 }
 if (thin) process.exitCode = 1;
-else console.log(`  OK   there is a street here to check (${n(r.litter)}/${n(r.pits)}/${n(r.water)} vs floors ${FLOOR.litter}/${FLOOR.pits}/${FLOOR.water})`);
+else console.log(`  OK   there is a street here to check (${n(r.litter)}/${n(r.pits)}/${n(r.stain)} vs floors ${FLOOR.litter}/${FLOOR.pits}/${FLOOR.stain})`);
 
 if (r.pits.length) {
   const inner = Math.min(...r.pits.map((p) => Math.abs(p.x) - (Math.abs(p.maxX) - Math.abs(p.x))));
@@ -241,24 +253,34 @@ if (r.pits.length) {
   // the lines are right. Both are one edit touching one of a pair.
   if (lo <= 0.10 || hi - lo >= 0.002) process.exitCode = 1;
 }
-// THE WATER GOES IN THE GUTTER, which was asked for in those words: "the puddle
-// doesnt make sense here. the gutter should have the water in the gutter". It
-// was built — ct/props.ts places pools at ROAD_HALF - 0.10 back to -0.32, inside
-// a 0.45 m pan — and then nothing asserted it. The sheets were COUNTED on the
-// line above and never questioned, so a pool out in the travel lane, or out on
-// the walk, would have read as nine happy water sheets.
+// STANDING PUDDLES ARE BANNED. This block used to assert that the nine water
+// sheets sat inside the gutter pan. There are no water sheets any more: the
+// desk removed standing water on 2026-07-25 after five passes, the last of
+// which the user saw as a pale smear lighter than the road and straddling the
+// kerb — the glowing puddle they had already rejected twice, plus the
+// footprint fault, in one object.
 //
-// The kerb-straddle test below does not cover this. A pool sitting entirely in
-// the middle of the road straddles nothing.
-// RH and GW are declared inside the page closure above, so they are restated
-// here rather than reached for — the pits block does the same with 5.0625.
+// So the assertion is INVERTED rather than deleted. Deleting it would leave
+// nothing to notice a sixth attempt quietly appearing, and the desk asked
+// specifically that nobody re-add them. Re-adding a 48x32 transparent sheet
+// near the ground turns this red.
+//
+// The gutter STAIN is a different thing and stays: grime that follows the
+// flow, never complained about. Its geometry is still worth asserting, so the
+// pan test below now runs on the stains — the same question asked of the thing
+// that is still there.
 const RH_N = 5.0, GW_N = 0.45;
+console.log(`\n  ${!r.water.length ? 'OK  ' : 'FAIL'} no standing puddles (${r.water.length}) — removed by desk ruling, do not re-add`);
 if (r.water.length) {
-  const pan = r.water.map((w) => +(RH_N - Math.abs(w.x)).toFixed(3));   // 0 at the kerb, + into the road
+  for (const w of r.water.slice(0, 6)) console.log(`      a water sheet at x ${w.x}, z ${w.z}`);
+  process.exitCode = 1;
+}
+if (r.stain.length) {
+  const pan = r.stain.map((w) => +(RH_N - Math.abs(w.x)).toFixed(3));   // 0 at the kerb, + into the road
   const worst = Math.max(...pan);
-  const onWalk = r.water.filter((w) => Math.abs(w.x) > RH_N).length;
-  console.log(`\n  standing water: ${r.water.length} sheets, ${Math.min(...pan)} … ${worst} m in from the kerb line`);
-  console.log(`  ${worst <= GW_N ? 'OK  ' : 'FAIL'} every pool sits in the ${GW_N} m gutter pan, not out in the lane`);
+  const onWalk = r.stain.filter((w) => Math.abs(w.x) > RH_N).length;
+  console.log(`  gutter stains: ${r.stain.length}, ${Math.min(...pan)} … ${worst} m in from the kerb line`);
+  console.log(`  ${worst <= GW_N ? 'OK  ' : 'FAIL'} every stain sits in the ${GW_N} m gutter pan, not out in the lane`);
   console.log(`  ${!onWalk ? 'OK  ' : 'FAIL'} none of it is up on the pavement (${onWalk})`);
   if (worst > GW_N || onWalk) process.exitCode = 1;
 }

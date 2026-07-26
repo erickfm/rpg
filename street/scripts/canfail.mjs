@@ -138,10 +138,16 @@ const CASES = [
     '        pos.setZ(i, 0);   // selftest: flat paving, picker still dishes',
     'alleydish.mjs', [], 'the player sinking into visibly level paving'],
 
+  // RETARGETED. This mutated PUDDLE_C to make the puddles lighter than the road
+  // — the contrast inversion, and the best case in this file. Its subject was
+  // deleted by the desk on 2026-07-25, so it now guards what wetness.mjs still
+  // asserts: that the street STAYS WET after the rain stops. Drying almost
+  // instantly is the failure the user would actually notice, and it is the half
+  // of the weather system that was kept and liked.
   ['wetness', PROPS,
-    'const PUDDLE_C = 0.444;',
-    'const PUDDLE_C = 1.6;',
-    'wetness.mjs', ['probe'], 'puddles LIGHTER than the road they sit in'],
+    'const dryFor = 48 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
+    'const dryFor = 0.24 * (1 + soak * 1.5) * (1 + nightNow * 1.1);',
+    'wetness.mjs', ['probe'], 'the street bone dry on the last drop of rain'],
 
   ['glow', PROPS,
     'halo.position.set(headX, sidewalkY + LAMP_H - 0.31, headZ);',
@@ -166,15 +172,14 @@ const CASES = [
   // of these materials would look like, or an uncapped pool gain — takes it to
   // 1.32 and nothing else in the suite would notice: it is not NaN, not
   // negative, and clamps at render, so the frame merely looks slightly hotter.
-  // The third blinding case. Leaves every puddle in the street and retextures
-  // the sheet so wetness.mjs's predicate stops recognising it — population
-  // 11 -> 2. Worth having even though the check went red before the floor
-  // existed: it went red on `stillFilling`, because the two survivors happened
-  // to saturate, which is the right outcome for the wrong reason.
-  ['wet-blind', PROPS,
-    'const puddleT = declareSurface(pixTex(48, 32, (g) => {',
-    'const puddleT = declareSurface(pixTex(48, 34, (g) => {',
-    'wetness.mjs', ['probe'], 'the puddles still there but invisible to the check that measures them'],
+  // `wet-blind` STOOD HERE AND IS GONE, not retargeted. It retextured the
+  // puddle sheet so wetness.mjs's predicate stopped recognising it — a
+  // blinding case against the pool population floor. Both the sheet and the
+  // floor were removed with standing water, so there is no population left to
+  // blind: the surviving verdicts read surface COLOUR over time, which cannot
+  // silently find nothing. Recorded rather than deleted quietly, because a
+  // case disappearing from this list is exactly what it would look like if
+  // someone had simply given up on it.
 
   ['grade-twice', PROPS,
     '        e.base.r * mul * (1 + (WARM_R - 1) * k),',
@@ -376,10 +381,31 @@ const CASES = [
   // LITTER decals; the pools are PAN_X, "centred in the pan". Third mutation
   // this session I have pointed at the wrong constant, and each time the check
   // was right and my aim was wrong, which is its own argument for running them.
+  // RETARGETED, because the thing it guarded is gone. It used to shove the
+  // pools out of the pan; the desk removed standing water entirely on
+  // 2026-07-25 after five passes, so there are no pools to shove and the old
+  // needle matched 0x — a case that silently stops guarding, which is the
+  // third time this has bitten me after fixing what sat underneath it.
+  //
+  // The assertion is now the OPPOSITE one — that no standing puddle exists —
+  // so the mutation that proves it is a puddle coming BACK. This re-adds one
+  // 48x32 transparent sheet in the gutter, which is exactly what a sixth
+  // attempt would look like, and footprint must go red on it. That is the
+  // enforcement behind "do not re-add them" rather than a comment hoping so.
   ['footprint-water', PROPS,
-    'const PAN_X = ROAD_HALF - 0.22;           // centred in the pan',
-    'const PAN_X = ROAD_HALF - 1.60;           // selftest: out in the lane',
-    'footprint.mjs', [], 'the pools scattered out into the travel lane'],
+    'for (let i = 0; i < 7; i++) { rnd(); rnd(); rnd(); rnd(); rnd(); }',
+    `for (let i = 0; i < 7; i++) { rnd(); rnd(); rnd(); rnd(); rnd(); }
+  {
+    const _t = declareSurface(pixTex(48, 32, (g) => {
+      g.fillStyle = 'rgba(255,255,255,0.9)'; g.fillRect(0, 0, 48, 32);
+    }), 'ground');
+    const _m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 1.2),
+      new THREE.MeshBasicMaterial({ map: _t, transparent: true, depthWrite: false }));
+    _m.rotation.x = -Math.PI / 2;
+    _m.position.set(ROAD_HALF - 0.22, surfaceY(ROAD_HALF - 0.22) + 0.005, -30);
+    scene.add(_m);
+  }`,
+    'footprint.mjs', [], 'a standing puddle re-added after the desk removed them'],
 
   // Needle updated with the fix: PIT_X is derived from TRUNK_X now rather than
   // written as a literal, because the well is centred on the trunk. 5.09 still

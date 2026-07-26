@@ -69,7 +69,9 @@ const read = () => page.evaluate(() => {
     // reflection is AdditiveBlending (2). Reading them together was measuring
     // a mixture of the two and reporting nonsense.
     const im = m.map?.image;
-    const sheet = im && ((im.width === 48 && im.height === 32) || (im.width === 16 && im.height === 64));
+    // 48x32 was the standing puddle and no longer exists (desk ruling,
+    // 2026-07-25). Only the 16x64 gutter stain is left on this path.
+    const sheet = im && im.width === 16 && im.height === 64;
     if (sheet && m.transparent) {
       (m.blending === 2 ? out.refl : out.pud).push(+m.opacity.toFixed(4));
       return;
@@ -117,7 +119,7 @@ if (mode === 'probe' || mode === 'all') {
     samples.push(r);
     const maxP = Math.max(...r.pud);
     console.log(`  +${((i + 1) * 2).toString().padStart(2)}s after the rain stops: ` +
-      `rain ${r.rainOpacity.toFixed(3)}  strongest puddle ${maxP.toFixed(3)}  ` +
+      `rain ${r.rainOpacity.toFixed(3)}  darkest stain ${maxP.toFixed(3)}  ` +
       `road ${r.broad}  gutter ${r.strip}`);
   }
 
@@ -152,73 +154,34 @@ if (mode === 'probe' || mode === 'all') {
   // survivors happened to saturate. Had they not, 2 of 9 would have passed
   // three of the six verdicts.
   //
-  // Nine is what the street has, measured. Floor at 7 leaves room to retune.
-  const POOL_FLOOR = 7;
-  const nPools = samples[3].pud.length;
-  const enough = nPools >= POOL_FLOOR;
-  console.log(`  ${enough ? 'OK  ' : 'FAIL'} there are pools to measure (${nPools}, floor ${POOL_FLOOR})`);
+  // THE POOL FLOOR IS GONE WITH THE POOLS. It read "at least 7 pools to
+  // measure" and the correct number is now zero: the desk removed standing
+  // water on 2026-07-25 after five passes. Everything below that depended on
+  // puddle PHYSICS — crest-late, individual depths, darker-than-the-road —
+  // went with it, because a verdict about water that does not exist is worse
+  // than no verdict. footprint.mjs asserts the removal itself, with a
+  // mutation that re-adds one.
+  //
+  // What survives here is what the desk kept and the user likes: the rain
+  // stops, the street stays wet after it, and the gutter dries slower than
+  // the crown. Those are measured on the SURFACES, which is where the wet
+  // look always actually lived.
+  const enough = true;
   // the gutter holds water longer than the road crown
   const gutterHolds = samples[3].strip !== samples[3].broad;
 
   console.log(`\n  ${rainStopped ? 'OK  ' : 'FAIL'} the rain actually stopped`);
-  console.log(`  ${stillFilling ? 'OK  ' : 'FAIL'} puddles are STILL filling after it stops — they crest late ` +
-    `(mean ${meanAt[0].toFixed(3)} -> ${meanAt[3].toFixed(3)})`);
-  console.log(`  ${stillDark ? 'OK  ' : 'FAIL'} standing water outlasts the storm`);
   console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop`);
-  console.log(`  ${individual ? 'OK  ' : 'FAIL'} puddles fill individually (${spread.size} distinct depths), not in lockstep`);
   console.log(`  ${gutterHolds ? 'OK  ' : 'FAIL'} the gutter and the road crown dry at different rates`);
 
-  // DARKER THAN THE ROAD, AT EVERY HOUR. This replaces an assertion about a
-  // REFLECTION layer that puddle pass five deleted — the check outlived the
-  // feature by a day and was failing for the right reason with the wrong
-  // message, which is its own kind of wrong.
-  //
-  // The contract now is simpler and stronger. The puddle body is tinted to a
-  // fraction of the road's CURRENT colour every frame, so the composite lands
-  // at ~0.55 x road whatever the hour and whatever the weather. The original
-  // bug was that a FIXED dark sheet got overtaken when the wet tint crushed
-  // the road six times darker, and the contrast inverted. Defined relative to
-  // the road, it cannot.
-  const contrastAt = async (h) => {
-    await page.evaluate((hh) => window.__ct.clock(hh, 0), h);
-    await page.waitForTimeout(9000);
-    return page.evaluate(() => {
-      const sc = window.__ct.scene();
-      let road = null; const puds = [];
-      sc.traverse((o) => {
-        const im = o.material?.map?.image; if (!o.isMesh || !im) return;
-        const c = o.material.color, L = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-        if (im.width === 64 && im.height === 64 && !o.material.transparent)
-          road = road === null ? L : Math.min(road, L);       // asphalt is the darkest broad sheet
-        if (im.width === 48 && im.height === 32 && o.material.transparent &&
-            o.material.blending === 1 && o.material.opacity > 0.1)
-          puds.push({ L, op: o.material.opacity });
-      });
-      if (road === null || !puds.length) return null;
-      // ALL NINE, NOT THE FIRST ONE FOUND. This took `!pud` — it read whichever
-      // pool the traversal reached first and judged the whole contract on it.
-      // Nine pools carry different windows and different opacities, and the
-      // claim being made is that NONE of them inverts; the worst is the only
-      // one that can settle that. Same shape as basin.mjs probing one of two
-      // castings: a verdict about a family, measured on one member.
-      const comps = puds.map((q) => q.L * q.op + road * (1 - q.op));
-      return { road: +road.toFixed(4),
-               composite: +Math.max(...comps).toFixed(4),      // the least dark = worst case
-               n: puds.length };
-    });
-  };
-  const dayWet2 = [...Array(48).keys()].find((h) => rainy(h) && (h % 24) >= 11 && (h % 24) <= 16);
-  const wetC = await contrastAt(dayWet2), dryC = await contrastAt(13);
-  const levels = (c) => c ? ((c.road - c.composite) * 255).toFixed(1) : 'n/a';
-  console.log(`\n  puddle against the road, in a storm at ${dayWet2 % 24}:00 — ` +
-    `road ${wetC?.road}, worst of ${wetC?.n} pools ${wetC?.composite} => ${levels(wetC)} levels DARKER`);
-  console.log(`  and on a dry afternoon — road ${dryC?.road}, puddle ${dryC?.composite} ` +
-    `=> ${levels(dryC)} levels DARKER`);
-  const neverInverts = wetC && dryC &&
-    wetC.composite < wetC.road && dryC.composite < dryC.road;
-  console.log(`  ${neverInverts ? 'OK  ' : 'FAIL'} standing water is darker than the road it sits on, wet AND dry`);
-  if (!neverInverts) process.exitCode = 1;
-  if (!enough || !rainStopped || !stillFilling || !stillDark || !streetStillWet || !individual || !gutterHolds) process.exit(1);
+  // The puddle-versus-road contrast block stood here. It was the sharpest
+  // thing in this file — it caught the inversion that four passes had missed —
+  // and it is retired only because its subject is gone. The lesson it proved is
+  // recorded in ct/props.ts where the meshes used to be: anything laid on the
+  // road must be defined RELATIVE to the road's current colour, never as a
+  // fixed dark, or the wet tint overtakes it and the contrast inverts.
+
+  if (!enough || !rainStopped || !streetStillWet || !gutterHolds) process.exit(1);
 }
 
 if (mode === 'shots' || mode === 'all') {
