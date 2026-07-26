@@ -808,8 +808,21 @@ export function makeCrosstown(): Proto {
       feedHeld = feedDown;
 
       // billboards face the player
+      //
+      // …and may also POSE for where the player is. The loop already walks
+      // every board once a frame with the player's position, which is exactly
+      // what a pose test needs, so a board can carry one instead of each
+      // module threading its own per-frame hook down from here. ct/cat.ts is
+      // the first user — she looks up when you stand over her — and the
+      // pigeons below hand-roll the same idea already.
+      //
+      // The cast is because `pose` is not on `Board` yet and `ct/ctx.ts` is not
+      // mine; the field belongs there properly. Bounded desk mandate covers
+      // these two lines and nothing else in this file.
+      const py = rig.pos.y;
       for (const b of boards) {
         b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
+        (b as { pose?: (x: number, z: number, y: number) => void }).pose?.(px, pz, py);
       }
       // the crowd walks itself and the traffic drives itself — ct/crowd.ts and
       // ct/traffic.ts each register a LATE frame hook

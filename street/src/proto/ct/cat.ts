@@ -95,6 +95,55 @@ export function buildCatRig(o: {
     if (c.F2) p(c.F2, [15, 21, 2, 2], [18, 21, 2, 2]);   // ringed tail
   };
 
+  // ── LOOKING UP AT YOU ────────────────────────────────────────────────
+  //
+  // *"can we somehow make it so the cat looks up at you?"* — and the answer is
+  // a POSE, not a pitch on the billboard. A sprite that tips to face a camera
+  // above it lies down flat when you look from a roof and swings as you walk,
+  // and it breaks the eight-angle Quake idiom the whole world is built on,
+  // which is the thing that reads as cheap.
+  //
+  // So: the same body, the same yaw billboarding, one extra frame. Within the
+  // head's ten rows the muzzle comes UP and the ears go BACK, which is what a
+  // cat tipping its chin at you actually does:
+  //
+  //   ears    rotated back — moved outward and dropped a row, so they read as
+  //           swept rather than pricked
+  //   eyes    up two rows, and the pupils with them, so you meet them
+  //   nose    up two rows, and a lighter throat under it: the underside of the
+  //           chin is the part you newly see from above
+  //   whisker rows follow the muzzle
+  //
+  // Body, legs and tail are untouched — only the head changes, which is what
+  // keeps it reading as the same cat.
+  const alertUp = (c: Coat): Draw => (p, g) => {
+    const F = c.F, LI = 'rgba(255,255,255,0.22)', SH = 'rgba(0,0,0,0.25)';
+    // ears swept back: one row lower, one texel further out
+    p(F, [2, 1, 3, 1], [1, 2, 5, 1], [1, 3, 6, 1], [1, 4, 6, 1], [15, 1, 3, 1], [14, 2, 5, 1], [13, 3, 6, 1], [13, 4, 6, 1]);
+    p(PINK, [2, 3, 3, 1], [2, 4, 3, 1], [14, 3, 3, 1], [14, 4, 3, 1]);
+    p(F, [2, 4, 16, 10]);
+    g.clearRect(2, 13, 1, 1); g.clearRect(17, 13, 1, 1);
+    if (c.F2) p(c.F2, [2, 5, 16, 1], [2, 8, 16, 1], [7, 4, 2, 4], [11, 4, 2, 4]);
+    p(LI, [2, 4, 2, 9]); p(SH, [16, 4, 2, 9]);
+    // eyes up two rows and a row taller — the whole read of "meeting your eye"
+    p(c.eye, [4, 6, 4, 5], [12, 6, 4, 5]);
+    p(DARK, [5, 7, 2, 3], [13, 7, 2, 3]);
+    p(GLINT, [5, 7, 1, 1], [13, 7, 1, 1]);
+    // muzzle up, and the throat below it is what you newly see from above
+    p(PINK, [9, 10, 2, 1]); p(DARK, [8, 11, 1, 1], [11, 11, 1, 1]);
+    p(LI, [7, 12, 6, 2]);
+    p(WHISK, [0, 9, 2, 1], [0, 11, 2, 1], [18, 9, 2, 1], [18, 11, 2, 1]);
+    for (const [x, y, w, h] of [[7, 14, 6, 3], [6, 17, 8, 4], [5, 21, 9, 5]] as Block[]) {
+      p(F, [x, y, w, h]); p(LI, [x, y, 2, h]); p(SH, [x + w - 2, y, 2, h]);
+    }
+    if (c.bib) { p('#e6e2d6', [8, 15, 4, 6], [6, 24, 3, 3], [10, 24, 3, 3]); }
+    if (c.spot) p('#e6e2d6', [9, 15, 2, 3]);
+    p(c.paw ?? '#4a4850', [6, 24, 3, 3], [10, 24, 3, 3]);
+    if (c.bib) p('#e6e2d6', [6, 25, 3, 2], [10, 25, 3, 2]);
+    p(F, [13, 21, 7, 2]); p(LI, [13, 22, 7, 1]);
+    if (c.F2) p(c.F2, [15, 21, 2, 2], [18, 21, 2, 2]);
+  };
+
   // CURL — asleep in a ring, head down on the near end, tail all the way round
   const curl = (c: Coat): Draw => (p, g) => {
     const F = c.F, LI = 'rgba(255,255,255,0.16)', SH = 'rgba(0,0,0,0.18)';
@@ -124,8 +173,9 @@ export function buildCatRig(o: {
   // held straight out). The comparison rig is gone; the `curl` template and
   // the coat options are kept because they cost nothing and the next animal
   // in this world will want them.
-  const CAT_DESIGNS: { nm: string; draw: Draw }[] = [
-    { nm: 'black', draw: alert({ F: '#2f2d33', eye: '#d0a83c' }) },
+  const CAT_DESIGNS: { nm: string; draw: Draw; up?: Draw }[] = [
+    { nm: 'black', draw: alert({ F: '#2f2d33', eye: '#d0a83c' }),
+      up: alertUp({ F: '#2f2d33', eye: '#d0a83c' }) },
   ];
 
   // a contact shadow apiece so they sit on the ground instead of hovering
@@ -133,10 +183,20 @@ export function buildCatRig(o: {
     g.fillStyle = '#1d1f23';
     g.beginPath(); g.ellipse(8, 6, 7, 4.5, 0, 0, Math.PI * 2); g.fill();
   });
+  type Pose = (px: number, pz: number, py: number) => void;
+  type Looker = { m: THREE.Mesh; calm: THREE.Texture; up: THREE.Texture;
+    x: number; z: number; isUp: boolean };
+  /** every cat that can look up: its mesh, its two frames, and its own state */
+  const lookers: { m: THREE.Mesh; calm: THREE.Texture; up: THREE.Texture;
+    x: number; z: number; isUp: boolean }[] = [];
   CAT_DESIGNS.forEach((d, i) => {
     const t = pixTex(CW, CH, (g) => {
       const p: CatPx = (c, ...r) => { g.fillStyle = c; for (const q of r) g.fillRect(...q); };
       d.draw(p, g);
+    });
+    const tUp = d.up && pixTex(CW, CH, (g) => {
+      const p: CatPx = (c, ...r) => { g.fillStyle = c; for (const q of r) g.fillRect(...q); };
+      d.up!(p, g);
     });
     // WHERE A CAT ACTUALLY SITS. These used to be laid out on a mechanical row,
     // `-13.0 + i * 0.9` at `AZ1 + 0.6`, which put them against the rear wall AND
@@ -230,6 +290,16 @@ export function buildCatRig(o: {
     m.position.set(cx, 0.02 + gy, cz);
     boards.push({ m });
     scene.add(m);
+    if (tUp) {
+      const look = { m, calm: t, up: tUp, x: cx, z: cz, isUp: false };
+      lookers.push(look);
+      // A POSE ON THE BOARD ENTRY, not a hook threaded in. The billboard loop
+      // already walks every board once a frame with the player's position —
+      // which is exactly what this test needs — so the cat hands it a function
+      // and owns everything inside it. buildCatRig's signature never changes,
+      // ct/alley.ts is untouched, and any other billboard can do the same.
+      (boards[boards.length - 1] as { pose?: Pose }).pose = (px, pz, py) => poseFor(look, px, pz, py);
+    }
     const sh = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.38), new THREE.MeshBasicMaterial({ map: catShadeT, alphaTest: 0.5 }));
     sh.rotation.x = -Math.PI / 2;
     // SAYS WHAT IT IS. A checker looking for "litter the cat might be standing
@@ -243,4 +313,34 @@ export function buildCatRig(o: {
     sh.position.set(cx, 0.012 + gy, cz);
     scene.add(sh);
   });
+
+  // ── SHE LOOKS UP WHEN YOU STAND OVER HER ────────────────────────────────
+  //
+  // Near AND above, both. A cat that watches you from across the alley is
+  // uncanny; the thing being asked for is her noticing you standing over her.
+  //
+  // AND THE THRESHOLDS ARE A BAND, NOT A LINE. A hard switch flickers while
+  // the player shifts their weight on the boundary, which is GOTCHAS §7's
+  // floor-picker all over again — and I have the same fix working in
+  // ct/crowd.ts, where the citizen view-selector holds its sector until the
+  // heading is 0.7 past the boundary. I proved that one is load-bearing by
+  // setting it to 0 and watching A->B->A flicker come back on five of six
+  // walkers within 47 ms, so this gets the same treatment rather than a
+  // tolerance I picked and hoped about.
+  const NEAR_IN = 1.6, NEAR_OUT = 1.95;      // metres, horizontal
+  const HIGH_IN = 0.9, HIGH_OUT = 0.75;      // metres, eye above her head
+  const HEAD_Y = 0.42;                        // her head, above the alley floor
+  function poseFor(c: Looker, px: number, pz: number, py: number) {
+    const d = Math.hypot(px - c.x, pz - c.z);
+    // a caller with no eye height gets the distance test alone rather than a
+    // cat that never looks up
+    const above = Number.isFinite(py) ? py - (c.m.position.y + HEAD_Y) : Infinity;
+    const want = c.isUp
+      ? (d < NEAR_OUT && above > HIGH_OUT)     // leaving: the wider band
+      : (d < NEAR_IN && above > HIGH_IN);      // entering: the tighter one
+    if (want === c.isUp) return;
+    c.isUp = want;
+    (c.m.material as THREE.MeshBasicMaterial).map = want ? c.up : c.calm;
+    (c.m.material as THREE.MeshBasicMaterial).needsUpdate = true;
+  }
 }
