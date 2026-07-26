@@ -91,6 +91,7 @@ const landing = () => p.evaluate(() => window.__ct.landing());
 const results = [];
 const say = (ok, name, detail) => results.push([ok, name, detail]);
 const f2 = (n) => +n.toFixed(2);
+const money = (n) => `$${n.toFixed(2)}`;
 
 // ── the subjects, ASKED FOR rather than remembered ─────────────────────────
 const R = await p.evaluate(() => (window.__ct.roomDims() || []).find((r) => r.id === 'bank'));
@@ -285,6 +286,155 @@ await p.waitForTimeout(160);
   const seat = await p.evaluate(() => (window.__ct.seats ? window.__ct.seats() : [])
     .filter((s) => /coupon table/i.test(s.label || '')).length);
   say(seat === 1, 'the vault has exactly one registered seat', `found ${seat}`);
+}
+
+// ── 6. THE LOAN, applied for and paid back ────────────────────────────────
+//
+// The second request, driven end to end rather than looked at: sit down, read
+// the form, hand it over, collect the cash at the window, pay it back.
+//
+// AND THE BALANCE IS READ OFF A'S ATM ON THE PAVEMENT, not off my own prompt.
+// `__ct` publishes no purse and `crosstown.ts` is not mine to add one to, but
+// the ATM already reports `ctx.purse.cash` and it is somebody else's code, so it
+// is a better witness than anything in this room: it proves the ECONOMY moved,
+// and it proves the machine outside agrees with the desk inside.
+{
+  const atmCash = async () => {
+    const at = await p.evaluate(() => {
+      // `spots()` publishes `label` already EVALUATED, as a string — it is not
+      // the closure. Calling it throws, which is how I found out.
+      const s = (window.__ct.spots() || []).find((q) => /check balance|balance \$/i.test(q.label || ''));
+      return s ? { x: s.x, z: s.z } : null;
+    });
+    if (!at) return null;
+    await p.evaluate(() => window.__ct.warp(-5.0, 20, 0, 0.14, 0));    // clear the latch
+    await p.waitForTimeout(200);
+    await p.evaluate(([x, z]) => window.__ct.warp(x + 0.85, z, -Math.PI / 2, 0.14, 0), [at.x, at.z]);
+    await p.waitForTimeout(240);
+    await press();
+    const t = await prompt();
+    const m = /\$([0-9]+\.[0-9]{2})/.exec(t || '');
+    return m ? +m[1] : null;
+  };
+  const at = async (lx, lz, yaw) => {
+    await warp(wx(lx), wz(lz), yaw, 0);
+    await p.waitForTimeout(240);
+    return prompt();
+  };
+  const DESK_X = 4.4, CLI_Z = 2.62, FORM_X = 3.75, FORM_Z = 1.92;
+  const STAND_Z = CLI_Z + 0.9;
+  const yawTo = (sx, sz, tx, tz) => Math.atan2(tx - sx, -(tz - sz));
+  const atHer = () => at(DESK_X, STAND_Z, yawTo(DESK_X, STAND_Z, DESK_X, 0.95));
+  const atForm = () => at(DESK_X, STAND_Z, yawTo(DESK_X, STAND_Z, FORM_X, FORM_Z));
+
+  // THE CHAIR MUST NOT EAT THE OFFICER. This is the check for the bug this
+  // section found: the seat's prompt is registered at its approach point, and a
+  // spot you are standing on wins the dispatch outright.
+  {
+    const t0 = await at(DESK_X, STAND_Z, yawTo(DESK_X, STAND_Z, DESK_X, 0.95));
+    say(!/sit in the client chair/i.test(t0 || ''),
+      'standing in front of the desk selects the OFFICER, not the chair',
+      `prompt: ${JSON.stringify(t0)}`);
+    const t1 = await at(DESK_X + 1.10, CLI_Z + 0.25, yawTo(DESK_X + 1.10, CLI_Z + 0.25, DESK_X, CLI_Z));
+    say(/sit in the client chair/i.test(t1 || ''),
+      'and the chair is still offered, from its own side',
+      `prompt: ${JSON.stringify(t1)}`);
+  }
+
+  const cash0 = await atmCash();
+  say(cash0 !== null, 'the ATM outside reports a balance, so it can witness this',
+    cash0 === null ? 'no ATM spot found — the rest of this section is unwitnessed'
+      : `opening balance ${money(cash0)}`);
+
+  await p.evaluate(() => window.__ct.clock(14, 20));                   // banking hours
+  await p.waitForTimeout(200);
+
+  let t = await atHer();
+  say(/apply for a loan/i.test(t || ''), 'the loan officer offers an application',
+    `prompt: ${JSON.stringify(t)}`);
+  await press();
+  t = await prompt();
+  say(/hand her the form/i.test(t || '') && /\$200\.00/.test(t || ''),
+    'and then asks for the form, naming the amount and the rate',
+    `prompt: ${JSON.stringify(t)}`);
+
+  // looking DOWN-LEFT at the desk selects the FORM instead of her — the whole
+  // reason the two are separate spots, and it is the aim rule that does it
+  t = await atForm();
+  say(/the application/i.test(t || ''), 'looking at the form on the desk selects the form',
+    `prompt: ${JSON.stringify(t)}`);
+  await press();
+  t = await prompt();
+  say(/\$500\.00/.test(t || ''), 'and E on it moves the amount up',
+    `prompt: ${JSON.stringify(t)}`);
+
+  // $500 wants $25 down and the player has $14.50, so this must be REFUSED and
+  // the refusal must carry BOTH numbers
+  t = await atHer();
+  await press();
+  t = await prompt();
+  say(/declined/i.test(t || '') && /25\.00/.test(t || ''),
+    'a loan you cannot secure is DECLINED, and the refusal says why',
+    `prompt: ${JSON.stringify(t)}`);
+  const cashD = await atmCash();
+  say(cashD === cash0, 'and a decline costs you nothing',
+    `${money(cash0)} -> ${money(cashD)}`);
+
+  // wrap the amount back round to $200, which wants $10 — and that goes through
+  t = await atForm();
+  for (let i = 0; i < 4; i++) await press();
+  t = await prompt();
+  say(/\$200\.00/.test(t || ''), 'the amount wraps back round to the smallest',
+    `prompt: ${JSON.stringify(t)}`);
+  await atHer();
+  await press();
+  t = await prompt();
+  say(/approved/i.test(t || '') && /window 2/i.test(t || ''),
+    'a loan you CAN secure is approved, and sends you to the teller',
+    `prompt: ${JSON.stringify(t)}`);
+  const cashA = await atmCash();
+  say(cashA === cash0, 'and approval alone does not hand you the money',
+    `${money(cash0)} -> ${money(cashA)}`);
+
+  // …the TELLER counts it out, which is the half that makes the counter a
+  // working object rather than scenery
+  t = await at(1.8, -3.5, 0);
+  say(/collect your loan/i.test(t || '') && /200\.00/.test(t || ''),
+    'window 2 offers to count it out', `prompt: ${JSON.stringify(t)}`);
+  await press();
+  const cash1 = await atmCash();
+  say(cash1 !== null && Math.abs(cash1 - (cash0 + 200)) < 0.005,
+    'and the cash lands in the purse, as the ATM outside agrees',
+    `${money(cash0)} -> ${money(cash1)}`);
+
+  // and it is a DEBT: 13.5% on $200 is $227.00, wanted back at the same window
+  t = await at(1.8, -3.5, 0);
+  // EITHER WORDING IS CORRECT and my first version of this assertion was not.
+  // It demanded "pay off your loan — $227.00", but the player is holding $214.50
+  // against a $227.00 debt, so the window correctly offers the PART payment it
+  // can actually take. What matters is that the interest it quoted is the figure
+  // being asked for: 13.5% on $200 is $227.00, and that number has to be on
+  // screen either way.
+  say(/pay .*your loan/i.test(t || '') && /227\.00/.test(t || ''),
+    'the same window wants it back with the interest it quoted',
+    `prompt: ${JSON.stringify(t)}`);
+  await press();
+  const cash2 = await atmCash();
+  say(cash2 !== null && cash2 < cash1 - 200,
+    'a part payment is taken when you cannot cover the whole debt',
+    `${money(cash1)} -> ${money(cash2)}`);
+  t = await at(1.8, -3.5, 0);
+  say(/outstanding|nothing to pay/i.test(t || ''), 'and the balance still stands',
+    `prompt: ${JSON.stringify(t)}`);
+
+  // outside banking hours the desk SAYS SO rather than ignoring you — *"what is
+  // not an answer is a machine that looks usable and ignores you"*
+  await p.evaluate(() => window.__ct.clock(3, 0));
+  await p.waitForTimeout(200);
+  t = await atHer();
+  say(t !== null, 'the loan desk answers at 3 a.m. rather than going silent',
+    `prompt: ${JSON.stringify(t)}`);
+  await p.evaluate(() => window.__ct.clock(14, 20));
 }
 
 // ── 6. and nothing threw or warned while doing any of that ───────────────

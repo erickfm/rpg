@@ -1,1 +1,1 @@
-WORKING | int-bank.ts: room + walk suite landed 21/21 with a selftest; next is the loan desk and the apply-for-a-loan interaction |
+WORKING | int-bank.ts: loan desk + apply-for-a-loan working end to end, 39/39; committing, then the front-half fittings |

@@ -38,6 +38,9 @@ const shots = [
   ['vault-in',  -5.4,     -4.6,       -4.2,     -4.2,      0.00],
   ['east',      hw - 1.6, 1.0,        -hw,      -1.0,      0.02],
   ['back-to-door', 0,     -2.4,       0,        hd,        0.04],
+  ['loandesk',  4.4,      4.2,        4.4,      0.8,      -0.04],
+  ['loandesk-seat', 4.4,  2.62,       4.4,      0.8,      -0.10],
+  ['the-form',  4.0,      2.9,        3.75,     1.9,      -0.34],
 ];
 for (const [tag, sx, sz, tx, tz, pitch] of shots) {
   await setClock(p, 14, 20);

@@ -152,12 +152,10 @@ export function buildBankInterior(ctx: CtxBuild): void {
 
   // ── the palette, named once ────────────────────────────────────────────────
   const BRONZE = 0x7a6a44;          // ct/bank.ts BANK_BRONZE — one bronze, inside and out
-  const BRONZE_LIT = 0x9c8a5c;
   const OAK = 0x6a4f30, OAK_DARK = 0x503a22;
   const STONE_TOP = 0x3e3a34;       // the counter's polished top
   const STEEL = 0xa8acb0, STEEL_DARK = 0x5e6266;
   const bronzeM = new THREE.MeshBasicMaterial({ color: BRONZE });
-  const bronzeLitM = new THREE.MeshBasicMaterial({ color: BRONZE_LIT });
   const steelM = new THREE.MeshBasicMaterial({ color: STEEL });
   const steelDarkM = new THREE.MeshBasicMaterial({ color: STEEL_DARK });
   const oakM = new THREE.MeshBasicMaterial({ color: OAK });
@@ -652,6 +650,13 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const BB_FRONT = BB_Z + BB_D / 2;                      // -5.52
   const LANE = CTR_BACK - BB_FRONT;                      // 0.88 m of staff side
   const TELLER_Z = (CTR_BACK + BB_FRONT) / 2;            // stood in the middle of it
+  // …and SAY SO if it ever stops being wide enough for the person standing in it.
+  // This is the check for the bug I actually shipped into this file once, and it
+  // lives beside the numbers rather than in a harness that might not be run.
+  if (LANE < 0.70) {
+    console.warn(`[interior:bank] the teller lane is ${LANE.toFixed(2)} m — the `
+      + 'counter and the back bench have closed on the person standing between them');
+  }
   const WINDOW_X = [-1.4, 1.8, 5.0];
 
   // the counter front: oak with raised fielded panels, which is the one warm
@@ -745,6 +750,10 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const glassM = new THREE.MeshBasicMaterial({
     color: 0x9fb2b8, transparent: true, opacity: 0.24, side: THREE.DoubleSide });
 
+  // the middle window's grille, kept so the loan spot registered on it can
+  // NAME it: a spot with no object gets a generic box drawn at its coordinate,
+  // and this is the one a player walks up to first.
+  let tellerGrille: THREE.Object3D | undefined;
   WINDOW_X.forEach((wx, i) => {
     const open = i < 2;
     const SCREEN_TOP = 2.30;
@@ -759,8 +768,9 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // the grille, at the height you talk through. A thin box with the painted
     // face on BOTH z faces, so it is right from the teller's side too — and the
     // pattern is symmetric, so §10's mirroring cannot bite it.
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.05),
+    const gr = put(new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.05),
       [bronzeM, bronzeM, bronzeM, bronzeM, grilleM, grilleM]), wx, 1.62, CTR_Z - 0.10);
+    if (i === 1) tellerGrille = gr;
     // the deal tray: a dished slot cut into the top, with a bronze lip at the
     // front edge. This is the part of a teller window you actually use.
     bx(0.52, 0.05, 0.30, new THREE.MeshBasicMaterial({ color: 0x24221e }),
@@ -902,6 +912,359 @@ export function buildBankInterior(ctx: CtxBuild): void {
       fit: 'coat', cut: 'short', build: 1, stride: 2 },
     WINDOW_X[0], CUST_Z,
     { facing: faceAt(WINDOW_X[0], CUST_Z, WINDOW_X[0], CTR_Z), h: 1.04, w: 1.05 });
+
+  // ══ THE LOAN DESK, AND APPLYING FOR A LOAN ═════════════════════════════════
+  //
+  // The second request: *enter the bank and APPLY FOR A LOAN*. It is built as
+  // three interactions in the room rather than as a screen over it, because
+  // every other verb in this world is an `[E]` on an object you can walk up to
+  // and this one should not be the exception:
+  //
+  //   1. THE APPLICATION FORM on the desk — E cycles the amount.
+  //   2. THE LOAN OFFICER across the desk — E hands it over. She approves or
+  //      declines, and the decline says WHY.
+  //   3. WINDOW 2 at the teller line — E collects the cash, and E pays it back.
+  //
+  // The third one is what makes it a bank rather than a vending machine: the
+  // officer approves the loan and the TELLER counts it out, so the two halves of
+  // the room are one system and the counter I built has a job.
+  //
+  // The money is real: `ctx.purse.cash`, the same number the wallet shows on
+  // right-click and the same one A's ATM reads out on the pavement outside. Take
+  // a loan and the ATM says so.
+  //
+  // WHY YOU LOOK AT TWO DIFFERENT THINGS. The form and the officer are separate
+  // spots a foot apart, which works because the `[E]` dispatch sorts on
+  // OFF-AXIS ANGLE first (`fp.ts`, `key = offAxis + d * 0.02`): sitting in the
+  // client chair looking straight ahead you get HER, and looking down-left at
+  // the desk you get the FORM. That is the interaction — you read the form, then
+  // you look up and hand it over — and it is a property of the aim rule rather
+  // than of radii I tuned.
+  {
+    const DESK_X = 4.4, DESK_Z = 1.70, DESK_W = 1.90, DESK_D = 0.90, DESK_H = 0.74;
+    const OFF_Z = 0.82;                     // the officer's chair, the far side
+    const CLI_Z = 2.62;                     // the client's chair, nearer the door
+    // 0.22 rather than 0.35: at 0.35 the form's 0.40 m sheet hung 0.10 m off the
+    // front edge of a 0.90 m desk. Derived off DESK_D so it stays on the desk if
+    // the desk changes size.
+    const FORM_X = DESK_X - 0.65, FORM_Z = DESK_Z + DESK_D / 4;
+
+    // ── the money ────────────────────────────────────────────────────────────
+    //
+    // Five amounts, and the RATE FALLS AS THE AMOUNT RISES, which is both true
+    // of a 1997 personal loan and the reason the amount is worth choosing.
+    // 12.50% on $500 is the headline the rate board quotes.
+    const AMOUNTS = [200, 500, 1000, 2500, 5000];
+    const RATE: Record<number, number> = { 200: 13.5, 500: 12.5, 1000: 11.25, 2500: 9.75, 5000: 8.9 };
+    // FIVE PER CENT DOWN, and the figure is set by the game's own economy rather
+    // than by what sounds like a bank. You start with $14.50 (`crosstown.ts`), so
+    // at ten per cent even the smallest loan is refused and the whole feature
+    // reads as broken on first contact. At five per cent the $200 goes through
+    // today and everything above it is something to save for — which is a
+    // mechanic, where a locked door is not.
+    const DOWN = 0.05;
+    const OPEN_H = 9, CLOSE_H = 16;         // nine to four, and the clock is real
+    const money = (n: number) => `$${n.toFixed(2)}`;
+    const cents = (n: number) => +n.toFixed(2);
+
+    let amountIdx = 0;
+    let stage: 'idle' | 'form' | 'declined' = 'idle';
+    let declined = '';
+    let loan: { principal: number; owed: number; rate: number; collected: boolean } | null = null;
+    const shut = () => {
+      const h = ctx.clock.now().hour;
+      return h < OPEN_H || h >= CLOSE_H;
+    };
+
+    // ── the desk ─────────────────────────────────────────────────────────────
+    const veneerT = declareSurface(pixTex(72, 36, (g) => {
+      g.fillStyle = '#7a5a36'; g.fillRect(0, 0, 72, 36);
+      g.fillStyle = 'rgba(60,40,20,0.22)';                     // the grain, along the length
+      for (let i = 0; i < 30; i++) {
+        const y = (i * 7 + (i % 3) * 2) % 36;
+        g.fillRect(0, y, 72, 1);
+      }
+      g.fillStyle = 'rgba(90,62,32,0.30)';
+      for (let i = 0; i < 8; i++) g.fillRect((i * 11) % 72, (i * 5) % 36, 9, 2);
+      g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 72, 1);
+      dither(g, 72, 36, 30);
+    }), 'detail');
+    const veneerM = ctx.flat(veneerT);
+    const deskSideM = new THREE.MeshBasicMaterial({ color: 0x5a4228 });
+    put(new THREE.Mesh(new THREE.BoxGeometry(DESK_W, DESK_H, DESK_D),
+      [deskSideM, deskSideM, veneerM, deskSideM, deskSideM, deskSideM]),
+      DESK_X, DESK_H / 2, DESK_Z);
+    // the modesty panel on the client side — the one thing that makes a desk you
+    // sit ACROSS look different from a table
+    bx(DESK_W - 0.1, 0.52, 0.04, deskSideM, DESK_X, 0.30, DESK_Z + DESK_D / 2 - 0.03);
+    // and a pedestal of drawers under her end, fronts proud of the carcass
+    for (let d = 0; d < 3; d++) {
+      bx(0.52, 0.19, 0.03, veneerM, DESK_X + 0.58, 0.16 + d * 0.21, DESK_Z - DESK_D / 2 + 0.02);
+      bx(0.18, 0.025, 0.03, bronzeM, DESK_X + 0.58, 0.16 + d * 0.21, DESK_Z - DESK_D / 2 + 0.04);
+    }
+
+    // the blotter, and the desk pad you would actually find under the paperwork
+    bx(0.68, 0.012, 0.44, new THREE.MeshBasicMaterial({ color: 0x2e4438 }),
+      DESK_X - 0.1, DESK_H + 0.006, DESK_Z + 0.06);
+
+    // ── THE APPLICATION FORM ─────────────────────────────────────────────────
+    //
+    // A real object with real printing on it, not a white rectangle: a red rule
+    // across the head, boxed fields, and a signature line at the foot. It is
+    // face up on the client's side of the blotter, which is where a form you are
+    // being asked to fill in actually sits.
+    const formT = declareSurface(pixTex(34, 46, (g) => {
+      g.fillStyle = '#eae5d2'; g.fillRect(0, 0, 34, 46);
+      g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(0, 0, 34, 1);
+      g.fillStyle = '#8a2c22'; g.fillRect(2, 3, 30, 2);
+      wordC(g, 'LOAN', 17, 7, 1, '#2e2a24');
+      g.fillStyle = 'rgba(70,62,50,0.55)';
+      for (let i = 0; i < 5; i++) {                            // boxed fields
+        g.fillRect(3, 15 + i * 5, 28, 1);
+        g.fillRect(3, 15 + i * 5 - 3, 1, 3); g.fillRect(30, 15 + i * 5 - 3, 1, 3);
+      }
+      g.fillStyle = '#8a2c22'; g.fillRect(3, 40, 18, 1);       // the signature line
+      g.fillStyle = 'rgba(70,62,50,0.40)'; g.fillRect(23, 39, 8, 3);
+      dither(g, 34, 46, 8);
+    }), 'sign');
+    // LAID FLAT AND NOT SPUN, and the second half of that is the part worth
+    // writing down because I added a `rotation.z = PI` to "turn it toward the
+    // client" and it would have printed the form upside down for the only person
+    // meant to sign it. `rotation.x = -PI/2` maps the plane's local +y to world
+    // -z, and a reader in the client chair faces -z with their right hand at +x —
+    // which is exactly the plane's own +x. So it already reads correctly from the
+    // chair, and the extra half turn was a mirror the rotation had already paid
+    // for (GOTCHAS 35, the same shape as flipping a back-to-back sign twice).
+    const form = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.40), ctx.flat(formT));
+    form.rotation.x = -Math.PI / 2;
+    const formMesh = put(form, FORM_X, DESK_H + 0.014, FORM_Z);
+    // the pen, on its bead chain, because a bank pen is always chained down
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.13, 6),
+      new THREE.MeshBasicMaterial({ color: 0x22242a })), FORM_X + 0.21, DESK_H + 0.02, FORM_Z)
+      .rotation.set(0, 0.5, Math.PI / 2);
+    for (let i = 0; i < 7; i++) {
+      put(new THREE.Mesh(new THREE.SphereGeometry(0.008, 5, 4), steelM),
+        FORM_X + 0.26 + i * 0.035, DESK_H + 0.019, FORM_Z - 0.03 - i * 0.018);
+    }
+
+    // the nameplate, facing the client — a service sign, which is what a bank
+    // desk actually carries
+    const plateT = declareSurface(pixTex(64, 20, (g) => {
+      g.fillStyle = '#3a3026'; g.fillRect(0, 0, 64, 20);
+      g.fillStyle = '#7a6a44'; g.fillRect(1, 1, 62, 18);
+      g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(1, 1, 62, 1);
+      g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(1, 18, 62, 1);
+      wordC(g, 'LOANS', 32, 4, 2, '#efe4bc');
+      wordC(g, 'NEW ACCOUNTS', 32, 14, 1, '#d8cba0');
+    }), 'sign');
+    room.sign(plateT, 0.42, 0.13,
+      DESK_X - 0.62, DESK_H + 0.08, DESK_Z + DESK_D / 2 + 0.02);
+
+    // a banker's lamp, an adding machine, the phone, a Rolodex, the folders and
+    // a mug — her side of the desk, because that is whose desk it is
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.02, 10), bronzeM),
+      DESK_X + 0.66, DESK_H + 0.01, DESK_Z - 0.22);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.24, 6), bronzeM),
+      DESK_X + 0.66, DESK_H + 0.13, DESK_Z - 0.22);
+    bx(0.24, 0.09, 0.11, new THREE.MeshBasicMaterial({ color: 0x1f4436 }),
+      DESK_X + 0.66, DESK_H + 0.28, DESK_Z - 0.22);            // the green glass shade
+    bx(0.22, 0.05, 0.20, new THREE.MeshBasicMaterial({ color: 0xd8d2c0 }),
+      DESK_X + 0.30, DESK_H + 0.025, DESK_Z - 0.26);           // adding machine
+    bx(0.16, 0.03, 0.12, new THREE.MeshBasicMaterial({ color: 0x54504a }),
+      DESK_X + 0.30, DESK_H + 0.06, DESK_Z - 0.28);
+    bx(0.06, 0.015, 0.16, paperM, DESK_X + 0.30, DESK_H + 0.055, DESK_Z - 0.16);
+    bx(0.22, 0.08, 0.19, new THREE.MeshBasicMaterial({ color: 0x2a2c30 }),
+      DESK_X - 0.72, DESK_H + 0.04, DESK_Z - 0.24);            // the telephone
+    bx(0.20, 0.035, 0.06, new THREE.MeshBasicMaterial({ color: 0x36383c }),
+      DESK_X - 0.72, DESK_H + 0.10, DESK_Z - 0.24);            // the handset on it
+    for (let i = 0; i < 5; i++) {                              // the coiled cord
+      put(new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.008, 4, 8),
+        new THREE.MeshBasicMaterial({ color: 0x36383c })),
+        DESK_X - 0.72, DESK_H + 0.02, DESK_Z - 0.12 + i * 0.035)
+        .rotation.x = Math.PI / 2;
+    }
+    // the Rolodex: a drum of cards on a stand, and it is instantly nameable,
+    // which is the standard this project holds every small object to
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.15, 12), paperM),
+      DESK_X + 0.02, DESK_H + 0.10, DESK_Z - 0.30).rotation.z = Math.PI / 2;
+    for (const sx of [-0.085, 0.085]) {
+      bx(0.02, 0.13, 0.13, steelDarkM, DESK_X + 0.02 + sx, DESK_H + 0.07, DESK_Z - 0.30);
+    }
+    for (let i = 0; i < 4; i++) {                              // the manila folders
+      bx(0.30, 0.014, 0.22, new THREE.MeshBasicMaterial({ color: i % 2 ? 0x9a8a62 : 0x8a7a56 }),
+        DESK_X - 0.34, DESK_H + 0.01 + i * 0.015, DESK_Z - 0.24 + i * 0.006);
+    }
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.033, 0.09, 10),
+      new THREE.MeshBasicMaterial({ color: 0xd8d4c8 })), DESK_X + 0.46, DESK_H + 0.045, DESK_Z + 0.04);
+
+    // ── the two chairs ───────────────────────────────────────────────────────
+    const chair = (cz: number, col: number, backH: number, arms: boolean, faceZ: number) => {
+      const m = new THREE.MeshBasicMaterial({ color: col });
+      bx(0.50, 0.10, 0.48, m, DESK_X, 0.44, cz);
+      // THE BACKREST GOES ON THE SIDE AWAY FROM THE DESK, derived from which way
+      // the sitter faces rather than from a sign copied off the other chair —
+      // that copy is how the park's benches ended up backwards (GOTCHAS 33).
+      bx(0.50, backH, 0.07, m, DESK_X, 0.49 + backH / 2, cz - Math.sign(faceZ) * 0.21);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.40, 6), steelDarkM),
+        DESK_X, 0.22, cz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.03, 10), steelDarkM),
+        DESK_X, 0.03, cz);
+      if (arms) for (const sx of [-0.27, 0.27]) {
+        bx(0.05, 0.05, 0.34, m, DESK_X + sx, 0.63, cz);
+        bx(0.05, 0.14, 0.05, steelDarkM, DESK_X + sx, 0.53, cz - Math.sign(faceZ) * 0.13);
+      }
+    };
+    chair(OFF_Z, 0x3f4a56, 0.54, true, +1);        // hers: she faces +z, at the client
+    chair(CLI_Z, 0x6a5c46, 0.44, false, -1);       // the client's: faces -z, at her
+
+    // ONE collider for the desk and her chair, and a small one for the client's.
+    // The gaps between per-object boxes are under the 0.72 m player and would
+    // only carve slots to wedge into — the diner's booths taught this project
+    // that one and the tax office repeated it.
+    // 0.72 back off the desk's far edge, which is where her chair's base actually
+    // ends — at 0.42 it stopped short and left a 0.25 m sliver of floor behind
+    // the chair. Too narrow for the 0.72 m player to stand in, so harmless, but
+    // it is the same shape of gap that put a standable slot behind the tax
+    // office's bolted-down chairs.
+    const OFF_BACK = DESK_Z - DESK_D / 2 - 0.72;
+    solid(DESK_X, (OFF_BACK + DESK_Z + DESK_D / 2) / 2, 2.10,
+      (DESK_Z + DESK_D / 2) - OFF_BACK);
+    solid(DESK_X, CLI_Z, 0.62, 0.56);
+
+    // ── the loan officer, seated, from the atlas ─────────────────────────────
+    //
+    // SEATED — H's pose, with the SEAT TOP passed as `y`, because the atlas's
+    // seated origin is the hip and the kit owns the 0.445 m offset. And facing
+    // DERIVED from the client's chair: move either chair and her head follows.
+    room.person(
+      { jacket: '#4a4650', pants: '#3a3640', skin: '#5c3a22', hair: '#2a1d14',
+        fit: 'plain', cut: 'tied', build: 0, stride: 2 },
+      DESK_X, OFF_Z,
+      { seated: true, y: 0.44, facing: faceAt(DESK_X, OFF_Z, DESK_X, CLI_Z),
+        h: 0.99, w: 0.97 });
+
+    // ── and the client's chair is sittable, like every seat in this game ─────
+    //
+    // THE APPROACH IS TO THE SIDE, AND THAT IS THE WHOLE OF THIS COMMENT.
+    //
+    // `ctx.seat` registers the "sit down" prompt AT the approach point. I put
+    // that point squarely in front of the desk — where a client naturally stands
+    // — and it ate the loan officer: the `[E]` dispatch sorts on
+    // `offAxis + d * 0.02`, and a spot you are standing ON has offAxis 0 and
+    // d 0, so it beats anything further away however squarely you are looking at
+    // it. Walking up to the desk offered "sit down", pressing E sat you down, and
+    // then the only thing on offer was "stand up". The loan was unreachable from
+    // the one position every player arrives in. GOTCHAS 8, and it took a walk to
+    // find because it looks perfect in a screenshot.
+    //
+    // So you take the chair from its RIGHT, out of the 1.55 m of clear floor
+    // between the desk and the east wall, and the space in front of the desk
+    // belongs to the officer.
+    //
+    // AND THE LABEL NO LONGER PROMISES A CONVERSATION. It said "sit down with the
+    // loan officer", which is a promise this engine cannot keep: the stand-up
+    // spot is registered at the seat itself, so while you are seated it is at
+    // d 0 and NOTHING else can ever win. No seat in this world can carry an
+    // interaction you use while sitting on it. That is worth knowing beyond this
+    // room — it is in my handoff for the desk — and here it means the business is
+    // done standing, exactly like every other counter in the game.
+    ctx.seat({
+      x: room.wx(DESK_X), z: room.wz(CLI_Z), yaw: 0, h: 0.49,
+      r: 0.8, approach: { x: room.wx(DESK_X + 1.10), z: room.wz(CLI_Z + 0.25) },
+      label: 'sit in the client chair', ok: () => room.inside(),
+    });
+
+    // ── 1. THE FORM: E cycles the amount ────────────────────────────────────
+    ctx.spot({
+      x: room.wx(FORM_X), z: room.wz(FORM_Z), r: 0.7, obj: formMesh,
+      ok: () => room.inside() && loan === null,
+      label: () => {
+        const a = AMOUNTS[amountIdx];
+        return `the application — ${money(a)} at ${RATE[a].toFixed(2)}%  ·  E to change`;
+      },
+      act: () => {
+        amountIdx = (amountIdx + 1) % AMOUNTS.length;
+        // a new figure on the form retracts the last refusal rather than leaving
+        // it sitting there as the answer to a question nobody has asked yet
+        if (stage === 'declined') stage = 'form';
+      },
+    });
+
+    // ── 2. THE OFFICER: E applies, and a decline says why ───────────────────
+    //
+    // The refusal carries BOTH numbers — what is wanted and what you have —
+    // because "declined" on its own is indistinguishable from a broken spot, and
+    // this world has already had one report of exactly that shape: *"what is not
+    // an answer is a machine that looks usable and ignores you."*
+    ctx.spot({
+      x: room.wx(DESK_X), z: room.wz(DESK_Z - DESK_D / 2 - 0.30), r: 1.0,
+      ok: () => room.inside(),
+      label: () => {
+        if (loan) {
+          return loan.collected
+            ? `you owe First Federal ${money(loan.owed)} — settle it at a window`
+            : `approved — collect ${money(loan.principal)} at window 2`;
+        }
+        if (shut()) return 'the loan desk takes applications nine to four';
+        if (stage === 'idle') return 'apply for a loan';
+        if (stage === 'declined') return declined;
+        const a = AMOUNTS[amountIdx];
+        return `hand her the form — ${money(a)} at ${RATE[a].toFixed(2)}%`;
+      },
+      act: () => {
+        if (loan || shut()) return;
+        if (stage === 'idle') { stage = 'form'; return; }
+        const a = AMOUNTS[amountIdx], need = cents(a * DOWN);
+        if (ctx.purse.cash < need) {
+          stage = 'declined';
+          declined = `declined — ${money(need)} down on ${money(a)}, you have ${money(ctx.purse.cash)}`;
+          return;
+        }
+        const rate = RATE[a];
+        loan = { principal: a, owed: cents(a * (1 + rate / 100)), rate, collected: false };
+        stage = 'idle';
+      },
+    });
+
+    // ── 3. WINDOW 2: the teller counts it out, and takes it back ────────────
+    //
+    // Registered on the counter at the window the teller is actually standing
+    // behind, and named on the grille so the selection outline draws the window
+    // rather than a generic box at a coordinate.
+    //
+    // It is live even with no loan, and says where the desk is. A teller you can
+    // walk up to and get nothing from is the same fault as a machine that
+    // ignores you, and this is the one spot in the room a player finds first.
+    ctx.spot({
+      x: room.wx(WINDOW_X[1]), z: room.wz(CTR_Z), r: 1.0, obj: tellerGrille,
+      ok: () => room.inside(),
+      label: () => {
+        if (!loan) return 'ask about a loan — the officer\'s desk is by the window';
+        if (!loan.collected) return `collect your loan — ${money(loan.principal)}`;
+        const pay = Math.min(ctx.purse.cash, loan.owed);
+        if (pay < 0.01) return `you owe ${money(loan.owed)} and have nothing to pay it with`;
+        return pay >= loan.owed
+          ? `pay off your loan — ${money(loan.owed)}`
+          : `pay ${money(pay)} off your loan  ·  ${money(loan.owed)} outstanding`;
+      },
+      act: () => {
+        if (!loan) return;
+        if (!loan.collected) {
+          loan.collected = true;
+          ctx.purse.cash = cents(ctx.purse.cash + loan.principal);
+          ctx.refreshWallet();
+          return;
+        }
+        const pay = Math.min(ctx.purse.cash, loan.owed);
+        if (pay < 0.01) return;
+        ctx.purse.cash = cents(ctx.purse.cash - pay);
+        loan.owed = cents(loan.owed - pay);
+        // settled: back to being someone who could borrow again
+        if (loan.owed <= 0.004) { loan = null; stage = 'idle'; }
+        ctx.refreshWallet();
+      },
+    });
+  }
 
   // ── skirting, on the walls that have one ──────────────────────────────────
   const skirtM = new THREE.MeshBasicMaterial({ color: 0x5c4a2e });
