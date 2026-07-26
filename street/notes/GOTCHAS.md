@@ -1176,3 +1176,13 @@ well-formed and the file it names still exists. The only instrument that finds
 these is re-measuring your own claims, which is also how every one of the five
 above turned up.
 
+**A worked example of that gap, found while writing this entry.** My own summary
+note cited the ATM ruling at `ct/street.ts:810`. Correct when written — and wrong
+the moment I split the bank out of that file into `ct/bank.ts`. `citations-resolve`
+passes it, because line 810 still exists: it is the EAST roster loop now. A
+reader following the citation lands on a `for` loop over the block roster and has
+no way to know they were sent somewhere else. **A refactor rots citations INTO
+the file it moved code out of, and the pointer that rots is the one that still
+resolves.** So after moving code, grep your own notes for the file you moved it
+FROM — the check cannot do that half for you.
+
