@@ -218,6 +218,37 @@ function buildLot(o: {
     m.userData.graded = true;
     return m;
   };
+  /**
+   * THIS SHEET IS INK, NOT A LIGHT.
+   *
+   * `props.ts`'s `isSelfLit` calls a sheet a light when more than 8% of its
+   * texels are bright and saturated, and hands it `FLOOR_SIGN = 1.0` — *a light
+   * source does not dim when the sun sets*. On a used car lot that is wrong
+   * about almost everything: the whole typology is saturated ink on white, and
+   * the sheets here run **8.6% to 97% hot**. 54 materials in this module stood
+   * at full daylight brightness over a black yard.
+   *
+   * The heuristic is not at fault and cannot win. A banner in `#e0a81c` yellow
+   * IS a bright saturated sheet; it is simply not a lit one, and printed
+   * signage and lit signage are identical in texels — they differ only in
+   * whether anything is behind them, which a texture cannot show.
+   *
+   * Nor could the palette be nudged under the threshold. That worked for the
+   * bunting, which tripped it at 13.3% and cost nothing to darken 11 points.
+   * At 62–97% hot there is no nudge: the sheet IS its artwork, and the pole
+   * sign at 85.3% is the one the user had enlarged and re-contrasted **for
+   * legibility from the far kerb**. Trading that back for night grading is the
+   * wrong way round — approved work is not repainted to slip under a checker.
+   *
+   * So the owner declares it instead. `m.userData.printed` is B's opt-out
+   * (`props.ts:446`), landed and honoured, and this is the caller stating what
+   * a material IS rather than having it inferred from pixels — the same shape
+   * as `ctx.wet()` and as `notSignage` further down.
+   *
+   * NOT applied to the floodlight lens or the halo. Those are lights, and
+   * dimming a light at night is backwards.
+   */
+  const printed = <T extends THREE.Material>(m: T): T => { m.userData.printed = true; return m; };
   const colliders: AABB[] = [];
   const solid = (b: AABB) => { colliders.push(b); o.obstacle?.(b); return b; };
   const wet = o.wet ?? ((m: THREE.MeshBasicMaterial) => m);
@@ -831,7 +862,7 @@ function buildLot(o: {
     // over the top quarter of the window — invisible until the blinds went in
     // and gave the glass something to be covered up. Both numbers now come
     // off the same texture: window top at (1 - WY/40) * CH.
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.46), flat(boardT));
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 0.46), printed(flat(boardT)));
     board.position.set(cx - CD / 2 - 0.03, Y + 2.42, cz);
     board.rotation.y = -Math.PI / 2;
     scene.add(board);
@@ -913,6 +944,19 @@ function buildLot(o: {
       { facing: -Math.PI / 2, h: 1.02, w: 1.04 },
     );
     salesman.mesh.position.set(cx - CD / 2 - 1.25, Y, cz - 1.05);
+    // HE STANDS IN THE DARK LIKE EVERYONE ELSE. `isSelfLit` classed the
+    // salesman a light and held him at full daylight brightness in a yard
+    // measured at 3% of noon — the only figure in the world that did not
+    // darken, standing next to fourteen who do.
+    //
+    // It is the SAME fault as the banners, not a second one, and C's own
+    // correction says so: the street's citizens come off the same atlas and
+    // one of them is 23% hot and NOT flagged, while this one is 13.2% hot and
+    // IS. The threshold never decided it. An 8-angle citizen is painted ink on
+    // a sheet — which is exactly what `printed` means here — so he declares it
+    // and grades with the masonry.
+    for (const m of (Array.isArray(salesman.mesh.material) ? salesman.mesh.material : [salesman.mesh.material]))
+      if (m) printed(m);
     scene.add(salesman.mesh);
     o.onFrame?.((f) => salesman.update(f.px, f.pz, f.dt));
 
@@ -1000,7 +1044,7 @@ function buildLot(o: {
     // mirror twice and un-does it. That is the exact clause GOTCHAS 35 was
     // written about, and I had it in the banners two rounds ago.
     for (const ry of [-Math.PI / 2, Math.PI / 2]) {
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), flat(signT));
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(SIGN_W, SIGN_H), printed(flat(signT)));
       // CLEAR OF THE MAST, on each face's own side. At +-0.03 the faces sat
       // inside the pole's own radius (0.13 at the top, 0.17 at the foot) and
       // the tube was drawn straight down the middle of the artwork — caught by
@@ -1048,7 +1092,7 @@ function buildLot(o: {
     // the same fault one storey down.
     const ARR_W = 2.6, ARR_H = 1.04;
     for (const ry of [-Math.PI / 2, Math.PI / 2]) {
-      const arrow = new THREE.Mesh(new THREE.PlaneGeometry(ARR_W, ARR_H), flat(arrowT(ry < 0)));
+      const arrow = new THREE.Mesh(new THREE.PlaneGeometry(ARR_W, ARR_H), printed(flat(arrowT(ry < 0))));
       arrow.position.set(px + (ry < 0 ? -0.19 : 0.19), signY - SIGN_H / 2 - 0.9, pz);
       arrow.rotation.y = ry;
       scene.add(arrow);
@@ -1162,7 +1206,7 @@ function buildLot(o: {
         //
         // Verified the way §35 says to: stand on each side in turn and read it.
         const bt = bannerT2(words, bg, ink, gh);
-        const bm = new THREE.MeshBasicMaterial({ map: bt, alphaTest: 0.35 });
+        const bm = printed(new THREE.MeshBasicMaterial({ map: bt, alphaTest: 0.35 }));
         // KNOWN, BLOCKED, AND NAMED. props.ts's isSelfLit reads 13-81% of these
         // sheets as bright-and-saturated — which they are, in #e0a81c yellow on
         // cream — and hands them FLOOR_SIGN = 1.0, so they hold full daylight
@@ -1263,7 +1307,7 @@ function buildLot(o: {
         // Same as the frontage banners above: the rotation is the mirror.
         const bt2 = bannerT2(words, bg, ink2, gh);
         const b2 = new THREE.Mesh(new THREE.PlaneGeometry(words.length * 0.32 + 0.6, hgt),
-          new THREE.MeshBasicMaterial({ map: bt2, alphaTest: 0.35 }));
+          printed(new THREE.MeshBasicMaterial({ map: bt2, alphaTest: 0.35 })));
         b2.position.set(BW_X + dx, Y + hy, zMid);
         b2.rotation.y = ry;
         scene.add(b2);
@@ -1398,7 +1442,7 @@ function buildLot(o: {
       for (let y = 21; y < 26; y += 2) g.fillRect(2, y, 15, 1);
       g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(0, 0, 20, 1);  // tape sheen
     });
-    const guideM = new THREE.MeshBasicMaterial({ map: guideT, side: THREE.DoubleSide });
+    const guideM = printed(new THREE.MeshBasicMaterial({ map: guideT, side: THREE.DoubleSide }));
     /** Tape one inside the front door window, on whatever car this is.
      *
      *  The first cut put it at a fixed (x, y, z) and it hung in mid-air off
@@ -1460,7 +1504,7 @@ function buildLot(o: {
     const onGlass = (g0: THREE.Group, t: THREE.Texture, w: number, h: number,
                      y: number, z: number, rz = 0) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-        new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide }));
+        printed(new THREE.MeshBasicMaterial({ map: t, alphaTest: 0.35, side: THREE.DoubleSide })));
       m.position.set(0, y, z);
       m.rotation.y = Math.PI;
       m.rotation.z = rz;
@@ -1714,7 +1758,7 @@ function buildLot(o: {
       pa.needsUpdate = true;
       flagGeo.computeVertexNormals();
       const flag = new THREE.Mesh(flagGeo,
-        new THREE.MeshBasicMaterial({ map: flagT, side: THREE.DoubleSide }));
+        printed(new THREE.MeshBasicMaterial({ map: flagT, side: THREE.DoubleSide })));
       flag.position.set(fpx + 0.03, Y + FPH - 0.72, fpz + 0.06 + FLAG_W / 2);
       flag.rotation.y = -Math.PI / 2;
       scene.add(flag);
