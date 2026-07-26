@@ -1,1 +1,1 @@
-DONE | queue stale/empty, 0 live rows, 0 LANDED rows left to verify; this run: reproduced the kit-wide seat trap, unblocked E, verified K/C sleep fade and the AUDIT row | auditor to widen ledger-evidence.py:11; F/kit owns the seat-exit fix
+WORKING | republished my stale seat-trap numbers (F fixed it; 3 of 30 now, all slot stools) and evidenced the empty modal-trap row for K | K to unblock keydown for the slot modal
