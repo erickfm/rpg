@@ -219,6 +219,22 @@ export function buildTax(ctx: CtxBuild): void {
     };
     chair(PREP_CZ, 0x4a5560, 0.5);    // the preparer's, blue-grey, with a back
     chair(CLIENT_CZ, 0x6a5f4e, 0.42); // the client's, brown, and lower
+    // AND THE CLIENT'S CHAIR IS SITTABLE, which it was not. The standing rule is
+    // *"for every seat in the game i want to be able to sit down"*, and this room
+    // registered the three waiting chairs by the door and neither of the two
+    // chairs a client actually uses — the ones at the desks, facing the preparer.
+    // `interiors-walk` even calls local (-2.6, -0.75) "the client chair" as its
+    // customer station, so the harness knew about a seat the room did not offer.
+    //
+    // The seat top is read off `chair()` above: a 0.09 box centred at 0.44, so
+    // 0.485. Facing -z, across the desk at the preparer, which is the whole point
+    // of that chair. Approach a stride back from it on the door side, so the sit
+    // spot and the stand spot cannot share a coordinate.
+    ctx.seat({
+      x: room.wx(dx), z: room.wz(CLIENT_CZ), yaw: 0, h: 0.485,
+      approach: { x: room.wx(dx), z: room.wz(CLIENT_CZ + 0.85) },
+      label: 'sit down with the preparer', ok: () => room.inside(),
+    });
     // ONE collider for the desk and both its chairs. The gaps between them are
     // under the 0.72 m player, so per-object boxes would only carve slots to
     // wedge into — the lesson the diner's booths taught.

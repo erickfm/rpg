@@ -86,3 +86,28 @@ counter nobody can use fails, and so does a church, a library and a jail, which
 have no counter at all and never should. `keeper: null` is already the convention
 for an unstaffed room (see the `jail` entry). A room with a keeper and no served
 spot is a different thing from a room with neither, and only the first is a gap.
+
+## Update, 2026-07-26 — the re-run after re-syncing the harness
+
+`interiors-walk` went 303/312 -> 305/313. **The two keeper failures are gone**:
+correcting the stale `keeper` pairs for the hotel and the casino cleared
+*"the keeper is looking at you, not away"* in both. The church landing flake did
+not recur.
+
+**Four `no served-spot published` failures remain, and they are this note.**
+
+**One new failure appeared and it does NOT reproduce:** *"hotel: walked OUT of the
+room going -z"*, reported as ending at world x **-721.4** for a room whose centre
+is 920. I swept containment myself — **6 spread points x 4 directions in each of my
+five rooms, 120 runs, 0 escapes** — and walking -z from the reported start stops
+dead at z -12.60 against a back wall at -13, then does not move for six further
+holds. A plausible mechanism for whoever owns that check: `cx` is a module-scope
+`let` assigned per room on entry (`cx = 400 + Math.floor((inside[0] - 400) / 80)
+* 80 + 40`), so a room whose entry misfires inherits the PREVIOUS room's centre and
+every containment comparison after it is meaningless. Worth a `cx = null` reset
+between rooms so it fails loudly instead of quietly.
+
+Note also that slab centres MOVE when a room is added — my hotel was cx 840 earlier
+tonight and is 920 now, because the jail took a slab. Anything that hardcodes a
+slab centre is stale the moment somebody adds a room; deriving it, as both this
+harness and `G-rooms-walk` do, is what saves it.

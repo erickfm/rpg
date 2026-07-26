@@ -524,6 +524,36 @@ export function buildHotel(ctx: CtxBuild): void {
         bx(0.72, 0.46, 0.22, plush, SX - 1.1, 0.58, SZ + az + (az < 0 ? -0.25 : 0.25));
         solid(SX - 1.1, SZ + az, 0.9, 0.9);
       }
+      // AND YOU CAN SIT ON ALL OF IT. The user's standing rule is *"for every seat
+      // in the game i want to be able to sit down"*, and this room had SIX drawn
+      // sittable objects and ZERO registered seats — measured, not assumed:
+      // `__ct.seats()` returned nothing at all for the hotel while the casino
+      // returned 121 and the church 28. A lobby suite you cannot sit on is the
+      // largest exception left in the world after the pews.
+      //
+      // Seat tops come from the geometry above, not from a guess: the sofa
+      // cushion is a 0.42 box centred 0.21 so its top is 0.42, and an armchair
+      // cushion is a 0.40 box centred 0.20 so its top is 0.40. Every one declares
+      // an `approach` on the OPEN side, 0.9 m out, so the sit spot and the stand
+      // spot never share a coordinate — the 0.00 m trap measured across the world
+      // on C's stuck-seat row.
+      const SOFA_TOP = 0.42, ARM_TOP = 0.40;
+      for (const dz of [-0.52, 0.52]) {                            // two places on the sofa
+        ctx.seat({
+          x: room.wx(SX - 0.10), z: room.wz(SZ + dz), yaw: -Math.PI / 2, h: SOFA_TOP,
+          approach: { x: room.wx(SX - 1.0), z: room.wz(SZ + dz) },
+          label: 'sit on the sofa', ok: () => room.inside(),
+        });
+      }
+      for (const az of [-1.7, 1.7]) {                              // and the armchairs
+        ctx.seat({
+          x: room.wx(SX - 1.1), z: room.wz(SZ + az), h: ARM_TOP,
+          // each faces the low table, which is the way its back is already turned
+          yaw: az < 0 ? Math.PI : 0,
+          approach: { x: room.wx(SX - 1.95), z: room.wz(SZ + az) },
+          label: 'sit in the armchair', ok: () => room.inside(),
+        });
+      }
       bx(0.80, 0.06, 0.80, oak, SX - 1.15, 0.40, SZ);              // the low table
       for (const lx of [-0.3, 0.3]) for (const lz of [-0.3, 0.3]) {
         bx(0.06, 0.38, 0.06, oakD, SX - 1.15 + lx, 0.19, SZ + lz);
@@ -922,6 +952,37 @@ export function buildHotel(ctx: CtxBuild): void {
   chair(CH_X + 0.95, CH_Z, 0x7a5a3a, 0.38, -Math.PI / 2);
   // maroon, at the head of the table with its back to the room
   chair(CH_X, CH_Z - 0.85, 0x6a4a52, 0.44, 0);
+  // …and all three sittable, same rule and same reasoning as the suite above. The
+  // seat box is 0.12 tall centred at 0.42, so the cushion top is 0.48 — read off
+  // `chair()` rather than guessed. `ry` is each chair's own facing, already
+  // derived when they were arranged round the table, so the sitter looks where
+  // the chair looks. Approach 0.85 m along the chair's own facing, which is the
+  // open side of the group in every case.
+  // APPROACHED FROM THE OPEN SIDE OF THE GROUP, not along each chair's own facing.
+  //
+  // My first pass put every approach 0.85 m along the chair's `ry`, which is right
+  // for a chair on its own and wrong for a facing pair: the west and east chairs
+  // look AT each other across 1.9 m, so both approaches landed in the middle of
+  // the group **0.20 m apart** — measured, and the same class as the 0.00 m
+  // sit-spot/stand-spot trap on C's stuck-seat row. Two spots that close is a
+  // pick nobody can aim.
+  //
+  // The group is open toward the window at +z (the head chair closes the -z end),
+  // so that is the side a person walks in from and the side the pair is approached
+  // from. Their approaches are now 1.90 m apart instead of 0.20. The head chair
+  // keeps its own -z approach, which is already its open side.
+  const CHAIR_TOP = 0.48;
+  for (const [clx, clz, ry, ax, az] of [
+    [CH_X - 0.95, CH_Z, Math.PI / 2, CH_X - 0.95, CH_Z + 0.85],
+    [CH_X + 0.95, CH_Z, -Math.PI / 2, CH_X + 0.95, CH_Z + 0.85],
+    [CH_X, CH_Z - 0.85, 0, CH_X, CH_Z - 1.70],
+  ] as [number, number, number, number, number][]) {
+    ctx.seat({
+      x: room.wx(clx), z: room.wz(clz), yaw: ry, h: CHAIR_TOP,
+      approach: { x: room.wx(ax), z: room.wz(az) },
+      label: 'sit in the lobby', ok: () => room.inside(),
+    });
+  }
   const lowT = declareSurface(pixTex(32, 20, (g) => {
     g.fillStyle = '#5c3826'; g.fillRect(0, 0, 32, 20);
     g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 32, 2);
