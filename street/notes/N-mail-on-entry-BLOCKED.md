@@ -89,6 +89,40 @@ lobby is small enough that the boxes could not be anywhere else.
 from the arrival point and its stand is 0.44 m. Anything under **1.2 m** of a
 door's landing spot is currently unreachable on arrival, in every interior.
 
+## AND A ONE-LINE FIX THAT IS C's, if the desk would rather not touch the latch
+
+I dismissed this too quickly the first time and I was wrong to. The latch is
+measured **from where the transition PUT you**, and that point is C's, one line
+in `ct/apartment.ts`:
+
+```js
+act: () => ctx.player.jumpTo(AX(1.2), AZI(1.3), Math.PI, 0),   // (201.2, -18.7)
+```
+
+Every candidate landing inside the lobby, measured against my published stand at
+(201.61, −18.53), checked for colliders against a 0.36 m capsule:
+
+```
+                 distance to the stand   clears the 1.2 m latch   inside a collider
+(201.2, -18.7)   0.44                    NO   <- today            no
+(201.2, -19.6)   1.15                    NO                       no
+(200.6, -19.5)   1.40                    yes                      no
+(200.5, -19.6)   1.54                    yes                      no
+(200.4, -19.5)   1.55                    yes                      no
+(200.4, -19.7)   1.68                    yes                      YES — into the front wall
+```
+
+**`(200.5, −19.6)` works**: just inside the front door and a little to the west
+side, 1.54 m from the boxes, on clear floor. You land, the latch is armed at a
+point 1.54 m from the mailbox trigger, and walking the metre and a half to the
+boxes takes you *further* from the landing — so the latch has already released
+by the time you arrive.
+
+**It is a workaround and I am labelling it one.** The latch's breadth still
+affects every other interior whose first interactable is inside 1.2 m; this only
+moves *my* room out of the blast. If the desk fixes line 932, C should not move
+anything.
+
 ## What I have done
 
 - `scripts/N-mail-on-entry.mjs`, with the control first so a red cannot be read
