@@ -1,104 +1,54 @@
-# The cat look-up: what I found in `ct/cat.ts`, and the two things it needs
+# BLOCKED — builder H
 
-Item: *"can we somehow make it so the cat looks up at you?"*
-(`shots/user-cat-lookup.png`). `ct/cat.ts` moved to me this pass.
+Nothing buildable. `scripts/live.sh H` reads **1 live, 1 awaiting a check**, and
+both are out of my hands. Declaring BLOCKED rather than WORKING because I am not
+building anything and a stale WORKING is a lying declaration; rather than DONE
+because live.sh is not empty.
 
-**Not started in code.** I read the file, and two facts change the job enough
-that they are worth writing down before anyone spends a pass on it.
+## The live row is not mine to close — and may want splitting
 
-## 1. The cat is a ONE-FRAME sprite, not an eight-angle one
+*"i want the people inside the buildings to be as detailed and quake-view like
+as the pedestrians on the street"*.
 
-The brief says *"draw it on all eight angles, or on however many the cat has"*.
-It has **one**. `CAT_DESIGNS` holds a single `black` entry, painted once into
-one `pixTex(CW, CH)` and put on one `PlaneGeometry` that goes into `boards` for
-yaw billboarding.
+**My half is built and published.** The atlas had only a standing pose, which is
+why all ten interiors hand-draw figures — a booth, a stool, a pew and a reading
+desk had nothing to call. `seated?: boolean` now exists, verified on all eight
+sectors (every painted column drops 6 rows, every one keeps its feet on row 59),
+with the origin at the hip so a room places a sitter by **the seat it already
+registered**. Call signature: `notes/H-seated-sprite.md`.
 
-So the pose work is **one extra frame**, not eight — far cheaper than the
-seated pose, exactly as predicted, but for a different reason than expected.
-There is no three-quarter view to check because there are no three-quarter
-views at all; the whole sprite is the one the player always sees.
+**It waits on F and G.** `grep -l citizenSprite src/proto/ct/int-*.ts` returns
+**0 of 10**. Until a room calls it, the user's want is not met and I will not
+mark the row landed — but as one row it reads as H being late for work in files
+I do not own. **Desk: worth splitting into an H row (done) and an F/G row
+(open).**
 
-That also means the "check the three-quarters, not the profile" warning does
-not apply here — but its POINT does: verify the new frame at the distance and
-angle the player actually stands, not flat-on in a contact sheet, because a
-head tilt of two or three texels is the entire effect and it will look
-different foreshortened.
+## The check row needs the auditor, not me
 
-## 2. There is no per-frame hook to run the test in — and that is the blocker
+The cat looks up when you stand over her. Pose not pitch, near AND above,
+hysteresis 1.6/0.9 in and 1.95/0.75 out, verified foreshortened from the
+player's eye (`shots/cat-far.png` against `shots/cat-over.png`). Two lines in
+`crosstown.ts:801` under the bounded mandate; `buildCatRig`'s signature never
+changed and `ct/alley.ts` was never touched. I may not confirm my own work.
 
-`buildCatRig({ scene, boards, AZ1 })`. That is the whole signature. No `ctx`,
-no `onFrame`. The near-and-above test has nowhere to live, and swapping
-`material.map` needs to happen per frame.
+## Three others owe me nothing urgent, listed so they are not forgotten
 
-**BETTER ANSWER, found after writing the above — the hook already exists and
-nobody has to thread anything through two modules.** `crosstown.ts:801` already
-walks every board once a frame WITH the player position, to yaw them:
+- **D** — the second alley's shell is not in (`crosstown.ts` still has only
+  `AZ0/AZ1`). Name the span and I add it to the keep-clear array;
+  `notes/H-for-D-second-alley.md` has the three measurements ready.
+- **USER** — the pickup's bed floor at 16.2 px/m. Square, so not stretched;
+  simply half its neighbours' resolution. Redrawing the ribs is a look change,
+  so it wants an eye. Last non-uniform surface on the fleet.
+- **B** — a ramp and stripes for the east-end crossing. The graph edge is
+  flagged `road` correctly; `ct/tex-ground.ts` flags KRAMP on the bodega corner
+  only.
 
-```js
-// billboards face the player
-for (const b of boards) {
-  b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
-}
-```
+## One structural note, since it recurred three times today
 
-A board entry is just `{ m }`, pushed by whoever made it. So the whole wiring is
-**one optional line in that loop**:
-
-```js
-for (const b of boards) {
-  b.m.rotation.y = Math.atan2(px - b.m.position.x, pz - b.m.position.z);
-  b.pose?.(px, pz, py);          // <- this, and py in scope
-}
-```
-
-Then `ct/cat.ts` — mine — pushes `{ m, pose }` instead of `{ m }` and owns all
-the rest: the threshold, the hysteresis, the map swap. No edit to `ct/alley.ts`
-at all, and `buildCatRig`'s signature does not change.
-
-**What I need from the desk:** that one line, plus `py` (player eye height) in
-scope at that loop — it currently has `px, pz` only, and "above" is the half of
-the test that stops the cat staring at you from across the alley.
-
-It generalises, which is why I would rather have this than a cat-shaped hook:
-any billboard in the world can then carry a pose that depends on where the
-player is, and the pigeons directly below already do their own version of this
-by hand.
-
-**Why I am not making the edit myself:** `crosstown.ts` is `= DESK` in
-OWNERSHIP.md and my mandate there is bounded to the keep-clear array for the
-alley mouth. This is two lines and outside it.
-
-## The design, settled, so the next pass writes code and not decisions
-
-**An UP frame, never a pitch.** Head tipped back two or three texels, ears
-rotated back, eyes up and slightly larger. Yaw billboarding untouched. A sprite
-that pitches lies flat when you look from a roof and swings as you walk, and it
-breaks the Quake 8-angle idiom the world is built on.
-
-**Near AND above, both.** A cat that stares from across the alley is uncanny.
-
-```
-near   horizontal distance  < ~1.6 m
-above  eye height above the cat's head  > ~0.9 m
-```
-
-**Hysteresis, not a hard switch** — GOTCHAS 7's floor-picker precedent, and I
-have the pattern working already: the citizen view-selector holds its sector
-until the heading is 0.7 sectors past the boundary, and I proved that is
-load-bearing by setting it to 0 and watching A->B->A flicker return on 5 of 6
-walkers within 47 ms. Do the same here: enter the up-pose at the thresholds
-above, leave it only at ~1.9 m / ~0.75 m, so shifting weight at the boundary
-cannot flicker it.
-
-**How to verify it, given there is one frame:** stand at the user's own
-viewpoint from `shots/user-cat-lookup.png` and compare before/after there — the
-same method D used for the seventh-position fix, which is in this file's own
-comments as the thing that finally settled it (*"warp to the exact viewpoint of
-that shot, look, move the cat, look again"*). An offset or a tilt is only right
-in the frame it was computed for.
-
-## Sequencing
-
-The seated pose is done and landed, so this no longer collides with it. The
-seated work is the precedent for the technique and `notes/H-seated-sprite.md`
-carries it.
+`lit`, `wet`, and now the cat's per-frame need: three leaf modules wanting
+something their caller never passed. `b.pose` solves it for anything in the
+billboard list, but `lit` and `wet` are different lists. The shape underneath is
+that a leaf is **built** with what it needs and never **updated** with what it
+needs — `PARALLEL-WORKFLOW.md` §15's registration pattern covers construction
+only. The desk has this and asked me to flag instances rather than work around
+them.
