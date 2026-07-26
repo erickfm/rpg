@@ -883,3 +883,44 @@ model, the approach point's axes, the collider fatness, the room's fixtures, and
 now the trigger radius. Each one was disproved by measuring rather than
 reasoning, and each left the room better than it found it. The shape is landed
 and green; only the door's position inside it is outstanding.
+
+
+## Bodega door-in-cut, attempt seven: down to one check, and a contradiction
+
+Everything around it now passes with `door: true`. The sequence, measured:
+
+```
+ok   you can reach the door (all three approaches)
+ok   the [E] prompt is up standing on the painted door
+ok   E puts you inside a room in the interior belt
+ok   you stand where the floor picker says
+ok   the room holds you in, from every direction, everywhere in it
+ok   you cannot walk out through the doorway onto dead ground
+ok   the room has a clear run, and walks end to end both ways
+FAIL walking to the inside of the door raises the way-out prompt   prompt=null
+```
+
+**The numbers say that should not be null.** The way-out spot sits at local
+(2.48, 3.58) with r 1.4 after moving its inset to 1.3 m; the harness's projected
+standing point is (2.29, 3.39). **0.27 m apart inside a 1.4 m trigger.** Its
+`ok()` is `player.x() >= x0 && player.x() < x1` — the slab bounds — which is
+true anywhere inside the room.
+
+So a spot that is live, 0.27 m away, with a trigger five times the distance,
+reports no prompt. That is the whole remaining problem and it is not geometry:
+every geometric theory has now been measured and retired.
+
+**Checked and NOT the cause:** collider fatness (approach clear at 0.6/0.9/1.3/
+1.8 m), the counter (moved back), the trigger radius (1.0 -> 1.4), the spot's
+inset (0.8 -> 1.3 m), the harness's approach axes (projection, regression-free
+on four rooms), and shadowing of `x0` in the chamfer loop (block-scoped, does
+not leak).
+
+**Where I would look next:** whether the way-out spot is being registered at the
+chamfer position at all when `door: true` — i.e. whether `CH` is truthy at the
+point `spotX`/`spotZ` are computed, rather than whether the maths is right. Every
+measurement so far has assumed the spot exists where the formula says; none has
+read it back out of `__ct.spots()` with the flag ON and the player INSIDE.
+
+Seven attempts, seven measurements. The shape is landed and green; only the
+door's position within it is outstanding, and the flag is one line.
