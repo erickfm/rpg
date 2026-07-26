@@ -742,6 +742,16 @@ const CHECKS = [
   // which is the tier's stated basis. No `--selftest`: its mutations would have
   // to break the world, not the module, and `canfail.mjs` is where that belongs.
   ['L-slots-inworld',    'can you sit at a machine in SEVENS and play it?',            false, ['all']],
+  // RED ON PURPOSE, and it is not my bug. Sit at a slot, press ESCAPE, and the
+  // NEXT [E] press anywhere in the world is swallowed — 48 of 96 stools in a
+  // sweep, alternating. Narrowed away from the stool, the casino, the panel
+  // framework and the trigger volumes by controls: closing the same panel with
+  // `__hud.closePanels()` leaves the identical state and does NOT break the next
+  // press; only ESCAPE does. Walking 1.5 s in between does not clear it.
+  // `notes/L-for-C-escape-eats-the-next-E.md`, routed to C with K cc'd.
+  // Registered rather than held back because this file's own closing line is
+  // "It is not gating the build; it is telling you." (L)
+  ['L-every-stool-seats-you', 'does E seat you EVERY time, or only every other time?', false, ['twice']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

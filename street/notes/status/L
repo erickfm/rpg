@@ -1,1 +1,1 @@
-WORKING | both games done and checked; only blackjack seats outstanding | G — notes/BLOCKED-L.md, one ctx.seat() call
+WORKING | found: ESCAPE from a seat eats the next [E]. Routed to C, evidence in notes | nobody — blackjack still needs G seats
