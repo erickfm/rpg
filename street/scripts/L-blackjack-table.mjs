@@ -23,6 +23,7 @@
 //
 //   node scripts/L-blackjack-table.mjs            the table agrees with the proof
 //   node scripts/L-blackjack-table.mjs rules      the fiddly rules, one at a time
+//   node scripts/L-blackjack-table.mjs pace       cards arrive one at a time, in order
 //   node scripts/L-blackjack-table.mjs all
 //   node scripts/L-blackjack-table.mjs --selftest break the table seven ways
 //
@@ -36,7 +37,7 @@ import { fileURLToPath } from 'node:url';
 const SELF = fileURLToPath(import.meta.url);
 register('./lib/L-ts-imports.mjs', import.meta.url);
 
-const MODES = ['agree', 'rules', 'all', '--selftest'];
+const MODES = ['agree', 'rules', 'pace', 'all', '--selftest'];
 // `--selftest` is detected ANYWHERE in argv, not just as the first argument.
 // `scripts/checks.mjs` builds its command as `[script, ...extra, '--selftest']`,
 // so a registration carrying a mode would give this file `all --selftest` — and
@@ -101,6 +102,22 @@ const MUTATIONS = {
   'no-double': (v) => ({ ...v, moves: v.moves.filter((m) => m !== 'double') }),
 };
 
+// The PACING mutations are a different kind: they move numbers in the real
+// `PACE` table, which `createTable` reads when it schedules a card, so they
+// reach the code rather than the view. `PACE`'s own docstring says it is
+// exported for exactly this — and until this mode existed that claim was not
+// true of anything, because no check touched it.
+const PACE_MUTATIONS = {
+  // THE WHOLE HAND ARRIVES AT ONCE. The user's brief is "cards dealt one at a
+  // time face up except the dealer's hole card", and this is the failure of it.
+  'all-at-once': (P) => { P.deal = 0.001; P.gap = 0; },
+  // The dealer resolves its own hand instantly. A dealer you never watch draw
+  // is the tension of blackjack removed.
+  'no-dealer-pause': (P) => { P.dealerDraw = 0; },
+  // The hole card swaps instead of turning.
+  'snap-hole': (P) => { P.holeTurn = 0.001; },
+};
+
 let S;
 try {
   S = { ...await import('../src/proto/ct/blackjack.ts') };
@@ -110,19 +127,23 @@ try {
 }
 
 if (process.env.L_BJT_MUTATE) {
-  const m = MUTATIONS[process.env.L_BJT_MUTATE];
-  if (!m) { console.error(`ABORTED: no mutation "${process.env.L_BJT_MUTATE}"`); process.exit(3); }
-  const make = S.createTable;
-  S.createTable = (opts) => {
-    const tb = make(opts);
-    return { ...tb, view: () => m(tb.view(), S) };
-  };
-  console.log(`  [MUTATED: ${process.env.L_BJT_MUTATE}] — this run is expected to FAIL\n`);
+  const name = process.env.L_BJT_MUTATE;
+  const m = MUTATIONS[name], pm = PACE_MUTATIONS[name];
+  if (!m && !pm) { console.error(`ABORTED: no mutation "${name}"`); process.exit(3); }
+  if (pm) pm(S.PACE);
+  if (m) {
+    const make = S.createTable;
+    S.createTable = (opts) => {
+      const tb = make(opts);
+      return { ...tb, view: () => m(tb.view(), S) };
+    };
+  }
+  console.log(`  [MUTATED: ${name}] — this run is expected to FAIL\n`);
 }
 
 if (mode === '--selftest') {
   let slept = 0;
-  const names = Object.keys(MUTATIONS);
+  const names = [...Object.keys(MUTATIONS), ...Object.keys(PACE_MUTATIONS)];
   for (const name of names) {
     let code = 0, out = '';
     try {
@@ -395,6 +416,162 @@ if (mode === 'rules' || mode === 'all') {
       'the dealer takes no card after a player natural — the hand is already paid,'
       + ' and a dealer that plays on is a table telling the player it might still lose');
   }
+}
+
+if (mode === 'pace' || mode === 'all') {
+  // ── CARDS ARRIVE ONE AT A TIME, IN THE ORDER A TABLE DEALS THEM ───────────
+  //
+  // The user's brief: "cards dealt one at a time face up except the dealer's
+  // hole card... The dealer plays a fixed rule and the player should be able to
+  // see what it is." The rule is asserted elsewhere; this is the DEALING.
+  //
+  // Nothing was checking any of it. `PACE`'s docstring said it was exported so
+  // a check could break the pacing and watch a verdict go red, and that was
+  // untrue of every check in the tree — the felt only READ it, to work out when
+  // to sample the hole-card turn. A claim in a comment that no check backs is
+  // the shape of thing GOTCHAS §27 is about.
+  //
+  // Watched at 1/120 s so the arrival of each card is seen, not inferred: a
+  // sample interval longer than the thing being sampled measures nothing
+  // (GOTCHAS §48), and PACE.gap is 0.20 s.
+  console.log('  THE DEAL, WATCHED AT 1/120 s\n');
+  const STEP = 1 / 120;
+
+  /** Play one hand and record the table time at which each card first appears,
+   *  where it went, and whether it came down face up. */
+  const watchDeal = (rng, act = 'stand') => {
+    const tb = S.createTable({ rng });
+    tb.buyIn(1000);
+    tb.deal();
+    const seen = [];
+    const mark = (v) => {
+      v.hands.forEach((h, hi) => h.cards.forEach((c, ci) => {
+        if (!seen.some((s2) => s2.to === 'player' && s2.hand === hi && s2.i === ci)) {
+          seen.push({ t: v.t, to: 'player', hand: hi, i: ci, down: c.faceDown });
+        }
+      }));
+      v.dealer.cards.forEach((c, ci) => {
+        if (!seen.some((s2) => s2.to === 'dealer' && s2.i === ci)) {
+          seen.push({ t: v.t, to: 'dealer', i: ci, down: c.faceDown, phase: v.phase });
+        }
+      });
+    };
+    for (let g = 0; g < 6000; g++) {
+      const v = tb.view();
+      mark(v);
+      if (v.phase === 'betting' && g) break;
+      if (v.phase === 'player' && v.active >= 0 && v.moves.length) { tb.act(act); continue; }
+      tb.tick(STEP);
+    }
+    return { seen, view: tb.view() };
+  };
+
+  const d = watchDeal(lcg(0x0DEA1));
+  const open4 = d.seen.slice(0, 4);
+  console.log('    the opening four:');
+  for (const c of open4) {
+    console.log(`      ${c.t.toFixed(2)} s  ${c.to}${c.to === 'player' ? '' : '  '}`
+      + `   ${c.down ? 'FACE DOWN' : 'face up'}`);
+  }
+  const gaps = open4.slice(1).map((c, i) => c.t - open4[i].t);
+  console.log(`    gaps between them: ${gaps.map((g) => g.toFixed(2)).join(', ')} s\n`);
+
+  check(open4.length === 4, `four cards open the hand (${open4.length})`);
+  check(open4.map((c) => c.to).join(',') === 'player,dealer,player,dealer',
+    `they arrive PLAYER, DEALER, PLAYER, DEALER — the order a real table deals in`
+    + ` (got ${open4.map((c) => c.to).join(', ')})`);
+  check(gaps.every((g) => g >= S.PACE.gap * 0.9),
+    `and ONE AT A TIME — every gap is at least ${(S.PACE.gap * 0.9).toFixed(2)} s`
+    + ` (smallest ${Math.min(...gaps).toFixed(2)} s)`);
+  check(!open4[0].down && !open4[1].down && !open4[2].down && open4[3].down,
+    'three come down face up and the FOURTH is the hole card — which is why it is'
+    + ' dealt last, and the only card on the table the player cannot see');
+
+  // ── THE DEALER PAUSES BEFORE EACH OF ITS OWN CARDS ────────────────────────
+  //
+  // Not decoration: it is the whole of the tension in blackjack. A dealer that
+  // resolves in one frame is a dealer nobody watches.
+  let hands = 0, draws = 0, tooFast = 0, minPause = Infinity;
+  for (let seed = 1; seed <= 60; seed++) {
+    const r = watchDeal(lcg(seed * 977), 'stand');
+    const own = r.seen.filter((c) => c.to === 'dealer' && c.i >= 2);
+    if (!own.length) continue;
+    hands++;
+    const prior = r.seen.filter((c) => c.to === 'dealer').map((c) => c.t);
+    for (let i = 2; i < prior.length; i++) {
+      draws++;
+      const pause = prior[i] - prior[i - 1];
+      minPause = Math.min(minPause, pause);
+      if (pause < S.PACE.dealerDraw * 0.8) tooFast++;
+    }
+  }
+  console.log(`    ${draws} dealer draws across ${hands} hands;`
+    + ` shortest pause ${Number.isFinite(minPause) ? minPause.toFixed(2) : '-'} s\n`);
+  check(draws >= 30, `there are ${draws} dealer draws to check — free at zero (GOTCHAS §34)`);
+  check(tooFast === 0,
+    `the dealer pauses before every card it takes (${tooFast} came too fast) —`
+    + ` at least ${(S.PACE.dealerDraw * 0.8).toFixed(2)} s, which is the tension`
+    + ' in blackjack and the reason you watch it at all');
+
+  // ── THE HOLE CARD TURNS OVER, AND TAKES TIME DOING IT ─────────────────────
+  //
+  // The felt proves the card is SQUASHED mid-turn; this proves the turn OCCUPIES
+  // real time on the table's own clock. Two halves of one claim, and the felt's
+  // half reads PACE.holeTurn to place its samples, so it cannot notice that
+  // number going to nothing.
+  {
+    const r = watchDeal(lcg(0xC0DE), 'stand');
+    const v = r.view;
+    void v;
+    const tb = S.createTable({ rng: lcg(0xC0DE) });
+    tb.buyIn(1000); tb.deal();
+    let turnAt = -1, downUntil = -1;
+    for (let g = 0; g < 6000; g++) {
+      const w = tb.view();
+      if (w.phase === 'betting' && g) break;
+      if (w.holeTurnT >= 0 && turnAt < 0) turnAt = w.holeTurnT;
+      if (w.dealer.cards.some((c) => c.faceDown)) downUntil = w.t;
+      if (w.phase === 'player' && w.active >= 0 && w.moves.length) { tb.act('stand'); continue; }
+      tb.tick(STEP);
+    }
+    console.log(`    the hole card is face down until ${downUntil.toFixed(2)} s,`
+      + ` and the turn starts at ${turnAt.toFixed(2)} s\n`);
+    check(turnAt >= 0, 'a hole-card turn is scheduled at all');
+    check(S.PACE.holeTurn >= 0.2,
+      `the turn occupies ${S.PACE.holeTurn.toFixed(2)} s of table time — a card that`
+      + ' swaps instantly has not turned over, it has been replaced');
+    check(downUntil >= turnAt - STEP * 2,
+      'and it stays face down right up to the moment it starts turning');
+  }
+
+  // ── THE DEAL IS dt-DRIVEN ─────────────────────────────────────────────────
+  //
+  // Same scripted shoe stepped at 30 fps and at 240 fps must deal the same cards
+  // at the same table times. GOTCHAS §30 and §43 are both this, and a card game
+  // paced by `setTimeout` would fail it.
+  const at30 = [], at240 = [];
+  for (const [fps, into] of [[30, at30], [240, at240]]) {
+    const tb = S.createTable({ rng: lcg(0xF00D) });
+    tb.buyIn(1000); tb.deal();
+    for (let g = 0; g < 8000; g++) {
+      const v = tb.view();
+      v.dealer.cards.forEach((c, ci) => {
+        if (!into.some((x) => x.i === ci)) into.push({ i: ci, t: v.t, r: c.card.r });
+      });
+      if (v.phase === 'betting' && g) break;
+      if (v.phase === 'player' && v.active >= 0 && v.moves.length) { tb.act('stand'); continue; }
+      tb.tick(1 / fps);
+    }
+  }
+  const sameCards = at30.map((c) => c.r).join() === at240.map((c) => c.r).join();
+  const worstT = Math.max(...at30.map((c, i) => Math.abs(c.t - (at240[i]?.t ?? 1e9))));
+  console.log(`    30 fps vs 240 fps: ${at30.length} vs ${at240.length} dealer cards,`
+    + ` worst arrival gap ${worstT.toFixed(3)} s\n`);
+  check(sameCards && at30.length === at240.length,
+    'a slow machine is dealt the same cards — the shoe is not a frame-rate bet');
+  check(worstT < 0.05,
+    `and at the same moments, within ${worstT.toFixed(3)} s — the deal advances by dt,`
+    + ' not by a timer');
 }
 
 console.log(bad === 0 ? `\n  ${mode}: all checks pass.\n` : `\n  ${mode}: ${bad} FAILED.\n`);
