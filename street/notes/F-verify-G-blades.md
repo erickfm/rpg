@@ -138,3 +138,49 @@ The thing that finally worked was not cleverness, it was encoding what a
 *person* needs: stand in front of it, far enough back to look at it without
 craning. Both of those are obvious to anyone standing in a street and neither
 was in my first two versions.
+
+
+---
+
+# BOTH BLADES NOW VERIFIED — the row holds
+
+## Hotel: ORPHEUS, vertical cyan neon, correct
+
+    viewOf({34.9, 12.3, -96.1}, { minR: 6, maxR: 40 })
+      ->  x 48.9  z -96.1  dist 14  pitch 0.65
+
+`shots/f-blade-hotel.png`. **ORPHEUS** reading top-to-bottom in cyan neon, the
+right way round, with a red **VACANCY** sign under it and a run of bulb-chase
+dots down the leading edge. A hotel blade of exactly the right period.
+
+## Casino: SEVENS, horizontal, correct
+
+Verified above at 16 m.
+
+**So `casino + hotel blades read correctly` HOLDS, both halves.** The row had 32
+characters of evidence; it now has two stations, two distances and two
+screenshots.
+
+## One more correction of mine, and it is the same one as always
+
+My first hotel attempt passed `facing: {nx: 0, nz: 1}` — the outward normal I
+had assumed from the casino — and the helper returned **null**. For a moment
+that looked like "the hotel blade cannot be seen", which would have been a
+finding against G.
+
+It was my assumption. Dropping the constraint found a clean view at 14 m
+**along the street from the east**: the hotel blade faces *down the street*, not
+out from the facade, which is what a blade sign is FOR — you read it walking
+toward the building, not standing in front of it.
+
+**The helper was right to abstain rather than hand me a bad frame.** That is the
+behaviour I want from it and the reason it returns null instead of a
+best-effort guess: a tool that always answers teaches you to trust answers that
+are wrong.
+
+## Closing note on viewof.mjs
+
+Three real refinements came out of using it on one row: stand in FRONT (facing),
+do not stand UNDERNEATH (pitch cap), and RETURN NULL rather than guess. All
+three came from a wrong frame, not from thinking about it beforehand. It is in
+`scripts/lib/viewof.mjs` with its limitations written at the top.
