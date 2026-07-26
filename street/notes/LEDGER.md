@@ -225,3 +225,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | G | 'Screenshot from 2026-07-25 21-59-46.png' hotel looks so bad, rugs all | |
 | OPEN | G | 'Screenshot from 2026-07-25 22-00-33.png' need a bit of space on entry | |
 | OPEN | B | 'Screenshot from 2026-07-25 22-01-17.png' front of bodega is a little  | |
+| OPEN | D | shouldnt be able to select things through objects ever | |

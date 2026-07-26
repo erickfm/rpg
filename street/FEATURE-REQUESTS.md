@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"shouldnt be able to select things through objects ever"** → **D**
 - **"'Screenshot from 2026-07-25 22-01-17.png' front of bodega is a little bit too jankily illuminated. like that exact rectangle doesnt look like the other stuff"** → **B**
 - **"'Screenshot from 2026-07-25 22-00-33.png' need a bit of space on entry area. maybe instead of slot we kill a row and add seat of some sort"** → **G**
 - **"'Screenshot from 2026-07-25 21-59-46.png' hotel looks so bad, rugs all over, off center and stuff. furniture strewn about. awful."** → **G**
