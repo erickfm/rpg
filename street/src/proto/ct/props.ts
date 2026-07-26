@@ -202,8 +202,32 @@ export function buildProps(ctx: CtxBuild): Props {
   // pool model is planar — LAMP_R is a radius on the ground, and a wall lamp
   // 2.5 m up pools the same as a street head 5 m up. That is a simplification
   // and it is the one already in use for all 21 lamps.
+  //
+  // IT RETURNS A WAY TO TAKE THE LIGHT BACK OUT, and that is not decoration.
+  // C registered the television in 301 through this, then had to DELETE the
+  // registration rather than switch it off — because until now a head could
+  // only ever be added. Until C spotted it, the set pooled light on the boards
+  // all night with the screen dark, which fights *"make the unilluminated
+  // stuff darker, it should feel scarier at night"* directly, in the one room
+  // he sleeps in. A light that can be turned on and never off is not a light,
+  // it is a decision.
+  //
+  //     const off = (scene.userData as any).addLamp?.(x, z);
+  //     ...
+  //     off?.();          // dark again; call addLamp once more to relight
+  //
+  // The remover is idempotent and safe to call twice — it removes THIS head by
+  // identity, not by position, so two fittings at the same coordinate cannot
+  // put each other out.
   (scene.userData as Record<string, unknown>).addLamp =
-    (x: number, z: number) => { lampHeads.push({ x, z }); };
+    (x: number, z: number, r?: number, core?: number) => {
+      const head = { x, z, r, core };
+      lampHeads.push(head);
+      return () => {
+        const i = lampHeads.indexOf(head);
+        if (i >= 0) lampHeads.splice(i, 1);
+      };
+    };
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.

@@ -219,7 +219,16 @@ published to the playable artifact.
        stools. notes/B-seat-exit-REPRO-for-F-and-C.md -->
 
 - **"pressing e doesnt get me out of it — the player is STUCK in the TV-watching state"** → **C**
-- **"props.ts addLamp has no removal, so a light that should go out has to be deleted instead"** → **B** (mine; raised by C hitting it on the TV)
+- **"props.ts addLamp has no removal, so a light that should go out has to be deleted instead"** → **B** (mine; raised by C hitting it on the TV) ✅ built
+
+  <!-- B: addLamp returns a remover now. Proven as a cycle on a real
+       surface, not on the array: light it (0 -> 3 poolLit, tint 0.0312 ->
+       0.3118), remove it (back to exactly 0.0312), light it again, remove
+       again, and call the remover twice — harmless. Removal is BY IDENTITY,
+       so two fittings at one coordinate cannot put each other out.
+       For C: the TV can hold a lamp while on and drop it when off now,
+       instead of never registering one. 48-shot sweep clean, alley door
+       still POOLED at 0.0787. -->
 
   <!-- B: lampHeads is a build-time list and nothing takes an entry out.
        C had to delete the TV's registration rather than switch it off,
