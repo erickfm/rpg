@@ -347,3 +347,45 @@ diagonal wall.
 
 **It is genuinely mine** and nothing blocks it but a clean run at it. Everything
 it needs is already published; no other builder is in the way.
+
+
+---
+
+## The bodega's door-in-cut: what is proven, and the one thing that is not
+
+`chamfer: { corner, cut, door: true }` builds correctly. Verified directly in the
+running world with the flag on:
+
+```
+published door (local)  { x: 3.40, z: 4.50, nx: -0.707, nz: -0.707 }
+way-out spot            (442.83, 3.93) r 1.0, ok: true
+standing at the door-derived point   prompt = "[E] out to the street"
+```
+
+**The geometry and the spot are right.** The prompt fires where a player
+standing in the cut would be. So the room is not the problem and neither is the
+kit.
+
+`interiors-walk` still reports 20/25 with the flag on, and the five failures
+cascade from one: if "E at the inside door" does not fire, the player never
+leaves and every landing check after it fails on the wrong side of a door they
+never went through.
+
+**What I tried and withdrew.** The harness warps to `(cx + DOOR.x + DOOR.nx*0.9,
+doorLane[1])` — x from the door, z from the standable lane. That is harmless on
+a front wall, where the lane hugs it, and meaningless on a diagonal. Deriving
+BOTH axes from the door looks obviously right and **cost the casino a check**
+(24/25 -> 23/25) while not fixing the bodega. So the lane still matters for the
+eight rectangular rooms and the door model needs to accommodate both, not
+replace one with the other.
+
+That is the whole remaining problem, and it is a harness problem:
+
+> the approach point must be door-derived ALONG the wall's normal and
+> lane-derived ACROSS it, and those are the same axis only when the wall is
+> axis-aligned.
+
+**Everything else is landed and green:** the cut corner itself (bodega 25/25,
+clear run 8.0 -> 6.2 m), the published doorway that fixed three casino failures,
+and the leaf descriptor. `door: true` is one line in `int-bodega.ts` the day the
+approach point is right.
