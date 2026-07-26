@@ -94,3 +94,4 @@ user anything is finished.
 | OPEN | C | gap in the door sucks. also i dont like that it says stand back when y | |
 | OPEN | B | a little too many grasses in the streets. like way too many. should be | |
 | OPEN | D | cat is dead center in alley i need it right to the right of that news  | |
+| OPEN | H | textures on vehicles need a deep review and fix | |
