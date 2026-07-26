@@ -33,6 +33,9 @@ const CARS = 'src/proto/ct/cars.ts';        // H's
 const TOWN = 'src/proto/crosstown.ts';      // desk's, but the parking draw lives in it
 const STREET = 'src/proto/ct/street.ts';    // D's
 const ALLEY = 'src/proto/ct/alley.ts';      // D's, split out of street.ts by 23e12c691
+const CAT = 'src/proto/ct/cat.ts';          // D's
+const CORNER = 'src/proto/ct/bodega-corner.ts';  // D's, split out of street.ts
+const BANK = 'src/proto/ct/bank.ts';        // D's, split out of street.ts
 const URL = process.env.SHOT_URL ?? 'http://localhost:4177/';
 
 // [name, file, needle, replacement, script, args, what the check should say]
@@ -135,6 +138,60 @@ const CASES = [
   // only reason this was caught rather than sitting green and guarding air. A
   // mutation case is a hard-coded quotation of somebody's source; it is the one
   // kind of test that a REFACTOR breaks silently and a bug never does.
+  // RUN THESE AGAINST YOUR OWN PORT, and read the warning below before believing
+  // a SLEPT. This file's default URL is 4177 — which is also `npm run preview`'s
+  // port, so on a machine with nine builders it is whoever started one first.
+  // My first run of the three cases below reported:
+  //
+  //     FAIL rulings-cat     SLEPT
+  //     FAIL rulings-awning  SLEPT
+  //     FAIL rulings-atm     SLEPT      0/3 checks caught their mutation
+  //
+  // and the check was fine. 4177 was serving build 6fdc3d2ca — another
+  // builder's tree — so the mutations went into MY source and the world being
+  // measured never had them. The same three cases against my own port:
+  // 3/3 CAUGHT. `SHOT_URL=http://localhost:<yours>/ node scripts/canfail.mjs`.
+  //
+  // GOTCHAS §32 already records the other face of this: canfail scores CAUGHT on
+  // any non-zero exit, so a wrong-world abort (exit 3) certifies as a catch —
+  // a false GREEN. This is the mirror, a false RED, and it is the more expensive
+  // one: a green you may not look at twice, but a red sends somebody to rewrite
+  // a check that works. I was one step from doing exactly that.
+  //
+  // ── the cases ──
+  //
+  // THE USER'S RULINGS, mutated in the WORLD rather than in the check.
+  //
+  // D-rulings-hold already ships a --selftest, and that is a DIFFERENT
+  // instrument: it inverts the script's own assertions in-process, which proves
+  // the predicates are the right way round and proves nothing about whether the
+  // check would notice the world moving under it. GOTCHAS §27 is explicit —
+  // "never let a check's tolerance be set by an argument, set it by a mutation"
+  // — and the mutation it means is to the thing being measured.
+  //
+  // One case per ruling, each restoring the exact defect the user reported, so
+  // a check that has quietly stopped watching one of the four goes red on that
+  // one alone rather than hiding behind the other three.
+
+  // The sixth cat note: it stood ON the printed paper's corner.
+  ['rulings-cat', CAT,
+    '      [-10.00, -42.35],  // where the pictures agreed, not where arithmetic pointed',
+    '      [-10.60, -41.45],  // selftest: back on the printed paper',
+    'D-rulings-hold.mjs', [], 'the cat standing on the paper the user moved it off'],
+
+  // The sixth facing bug: the awning tipped up at the sky, its raised lip
+  // cutting across the bottom of the BODEGA fascia.
+  ['rulings-awning', CORNER,
+    '    awn.rotation.x = 0.18;    // outer edge LOW: slopes down and away from the face',
+    '    awn.rotation.x = -0.18;   // selftest: tipped back at the sky again',
+    'D-rulings-hold.mjs', [], 'the awning sloping up and hiding the sign again'],
+
+  // The fascia bottom the user named three times.
+  ['rulings-atm', BANK,
+    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.75;',
+    '  const M_KEYS_BOT = KERB_H + 1.04, M_BOT = KERB_H + 0.90;  // selftest: pre-ruling',
+    'D-rulings-hold.mjs', [], 'the fascia bottom back where the ruling moved it from'],
+
   ['alleydish', ALLEY,
     '    a.ground((x: number, z: number) => (dishAt(x, z) < 0 ? dishAt(x, z) : null));',
     '    /* selftest: the visible half only — no floor registered */',
