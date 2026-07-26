@@ -215,3 +215,30 @@ Before you report an item finished:
 Almost every rejected item this session would have been caught by step 2. The
 builder had done what the brief said and never looked at the result the way the
 user would.
+
+## When `live.sh <you>` is empty, you become a VERIFIER
+
+Do not idle and do not invent work. **Verification is the bottleneck in this
+project**, not building: at one point 51 rows sat LANDED and unchecked against
+a single auditor, which meant fifty-one things the user had asked for were
+built, working, and still counted as unfinished.
+
+So when your own rows are done:
+
+1. `scripts/ledger.sh` — take LANDED rows that are **not yours**
+2. Go and **watch the thing happen in the world**. Evidence means somebody
+   watched it, not that a commit exists
+3. Judge from **where a player actually stands**, and say in the finding which
+   station you used. The auditor once withdrew its own CONFIRMED for judging
+   the park from a spot 1.1 m from the war memorial and 11 m from the gate —
+   the canonical station is the gate, arriving on foot
+4. Holds → CONFIRMED, with what you saw. Does not → say so plainly and the desk
+   routes it back
+
+**A rejection from you costs one message. A false CONFIRMED costs the user
+another screenshot**, and he has already had to send several twice.
+
+Two hard rules: **never confirm your own work** — only someone who did not
+build it may — and **never re-sort or reflow `LEDGER.md`**, because eleven
+writers share one file and a whitespace change conflicts with every concurrent
+edit.
