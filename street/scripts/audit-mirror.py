@@ -99,25 +99,24 @@ if mode == 'save':
 
 elif mode == 'restore':
     lines = open(LEDGER).read().split('\n')
-    put, skipped = 0, []
+    put, skipped = 0, []   # skipped kept for the report; nothing is refused now
     for i, l in enumerate(lines):
         k = key(l) if l.startswith('| ') else None
         if not k or k not in mir:
             continue
         add = [s for s in mir[k] if s[:70] not in l]
         if add:
-            # REFUSE A MALFORMED ROW rather than repair one. A well-formed row
-            # splits into exactly 6 fields: ['', status, agent, request,
-            # evidence, '']. Anything else has lost or gained a column, and my
-            # attempts to patch that produced a row with a stray seventh field -
-            # a recovery tool must not corrupt what it is recovering. Report it
-            # and let a person look.
-            f = l.split('|')
-            if len(f) != 6:
-                skipped.append((key(l), len(f)))
-                continue
-            f[4] = f[4].rstrip() + ''.join(' ' + s.strip() for s in add) + ' '
-            lines[i] = '|'.join(f)
+            # TEXT, NOT COLUMNS. Rows are not reliably 4 cells: other verifiers
+            # append their own cell to a row, and one segment contains |x| = 5.25
+            # as maths. 13 of 153 segments carry a pipe, so counting fields
+            # rejects legitimate rows and rebuilding by column corrupts them.
+            # Insert before the row's final separator and leave everything else
+            # exactly as found.
+            base = l.rstrip()
+            tail = ''
+            if base.endswith('|'):
+                base, tail = base[:-1].rstrip(), ' |'
+            lines[i] = base + ''.join(' ' + s.strip() for s in add) + tail
             put += len(add)
     open(LEDGER, 'w').write('\n'.join(lines))
     print(f'restored {put} segment(s) from the mirror; statuses untouched')

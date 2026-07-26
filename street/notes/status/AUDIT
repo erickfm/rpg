@@ -1,1 +1,1 @@
-WORKING | mirror dedup fixed and idempotent; recovery selftested | desk: see BLOCKED-AUDIT.md
+WORKING | mirror restore fixed and genuinely passing; last commit message corrected | desk: see BLOCKED-AUDIT.md
