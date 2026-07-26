@@ -1608,6 +1608,21 @@ function buildLot(o: {
     // park use the SAME weed rather than each drawing a second one. This file
     // keeps only the thing that is actually the lot's: WHERE a weed grows here,
     // which is where a car has never driven.
+    //
+    /** A weed is a textured upright plane and so is a price card, and nothing in
+     *  the geometry tells them apart. `scripts/I-facing.mjs` walks every readable
+     *  sheet in the lot asking whether it faces a wall — the fault the user
+     *  reported on the chairs — and a weed growing against the office step
+     *  answers "yes" while being exactly where a weed belongs.
+     *
+     *  Declared rather than inferred, deliberately. The alternative was a size
+     *  threshold, which would misclassify the first small sign or large tuft
+     *  anyone adds. This is the same move as B's `userData.printed` — a caller
+     *  saying what a thing IS, instead of a checker guessing it from pixels. */
+    const notSignage = <T extends THREE.Object3D>(o: T): T => {
+      o.traverse((c) => { c.userData.notSignage = true; });
+      return o;
+    };
     for (let i = 0; i < 26; i++) {
       const h = (i * 2654435761) >>> 0;
       const edge = i % 4;
@@ -1617,7 +1632,7 @@ function buildLot(o: {
       else if (edge === 2) { wx = X0 + 1.0 + ((h >>> 7) % 2100) / 100; wz = zS + 0.5 + ((h >>> 13) % 60) / 100; }
       else { wx = X1 - 0.5 - ((h >>> 15) % 60) / 100; wz = zS + 0.8 + ((h >>> 17) % 2100) / 100; }
       if (edge === 0 && wz > zMid - AISLE_HW - 0.4 && wz < zMid + AISLE_HW + 0.4) continue;  // not in the gateway
-      scene.add(weedTuft({ x: wx, z: wz, y: Y, scale: 0.7 + ((h >>> 19) % 60) / 100, seed: i }));
+      scene.add(notSignage(weedTuft({ x: wx, z: wz, y: Y, scale: 0.7 + ((h >>> 19) % 60) / 100, seed: i })));
     }
 
     // MORE OF THEM, and in the places a weed actually takes hold. The user:
@@ -1650,7 +1665,7 @@ function buildLot(o: {
       const jx = sx + (((h2 >>> 3) % 24) - 12) / 100;
       const jz = sz + (((h2 >>> 9) % 40) - 20) / 100;
       if (jz > zMid - AISLE_HW - 0.3 && jz < zMid + AISLE_HW + 0.3 && jx < OFF_X - OFF_D / 2 - 0.4) continue;
-      scene.add(weedTuft({ x: jx, z: jz, y: Y, scale: 0.6 + ((h2 >>> 15) % 70) / 100, seed: 100 + k }));
+      scene.add(notSignage(weedTuft({ x: jx, z: jz, y: Y, scale: 0.6 + ((h2 >>> 15) % 70) / 100, seed: 100 + k })));
     }
 
     // THE FLAGPOLE, at the front corner where a lot puts one, south of the

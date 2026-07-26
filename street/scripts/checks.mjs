@@ -139,6 +139,13 @@ const CHECKS = [
   // both outside it. This takes each car as a full 3D oriented box against every
   // solid mesh in the world. It is additive — lot-clearance stays.
   ['I-clip',           'does any car clip ANYTHING, in any module, at any height?', true],
+  // The generalisation of "the chairs are backwards": ANYTHING with a front
+  // ends up backwards eventually, and the lot is full of fronts. Sits in every
+  // seat for real and reads the camera's own yaw back, then marches each
+  // readable sheet's own normal. Its --selftest has two halves because the two
+  // fail independently — a wall dropped into a seated view, and a sign turned
+  // to read into the office wall. (I)
+  ['I-facing',         'does any seat or sign in the lot face a wall?',      true],
   ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
