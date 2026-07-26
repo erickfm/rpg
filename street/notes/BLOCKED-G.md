@@ -37,7 +37,55 @@ looks like. My own harness reads `(await pos())[3]` for landings — the right
 value was already being used ten lines from code I wrote — and I reached for
 `[1]` because it is called `y`.
 
-## 1b. FOUND: the player cannot pass local z 13.00 inside a room
+## 1b. FOUND AND NAMED: `crosstown.ts:509` clamps the world at `maxZ: 13`
+
+**The line is:**
+
+```js
+bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
+```
+
+Interior slabs are placed at `cz = 0` (`ct/interior.ts:472`), so a room's LOCAL z
+is its WORLD z. The player bounds cap that at 13 — which is the north edge of the
+street, where it belongs — and the interior belt inherits it for free.
+
+**It predicts the bisection exactly.** A room's front wall is at `d / 2`:
+
+| d | front wall | inside the bound? | observed |
+|---|---|---|---|
+| 22 / 24 / 26 | 11 / 12 / 13 | yes | reaches the wall, E works |
+| 28 | 14 | no — clamped at 13 | stops 1.0 m short, E still works |
+| 29 | 14.5 | no | stops 1.5 m short, E still works |
+| 30 | 15 | no | stops 2.0 m short, **spot starts at 13.40, stuck** |
+
+Nothing else needs to be true. It is not collision, not the trigger radius, not
+sequencing, and not the room — every one of those was measured and cleared.
+
+**`maxX` already solves this and `maxZ` was never given the same treatment.**
+`maxX: interiorMaxX()` exists precisely because the interior belt extends past
+the street's own extent in x. The belt extends in z too, and nobody noticed
+because until this week no room was deeper than 26 m.
+
+**The fix, two lines, neither of them mine:**
+
+```ts
+// ct/interior.ts  (F) — the mirror of interiorMaxX()
+export function interiorMaxZ(): number {
+  return SLABS.reduce((m, s) => Math.max(m, s.cz + s.d / 2 + 1.5), 13);
+}
+
+// crosstown.ts:509  (DESK)
+bounds: { …, maxZ: interiorMaxZ() },
+```
+
+`ct/crosstown.ts` is DESK-owned and `OWNERSHIP.md` is explicit that a builder may
+read it but must never change existing behaviour there, so this is a report and
+not a patch.
+
+**Meanwhile** the casino ships at 26 m, the deepest room whose front wall lands
+on the bound rather than past it. Rooms can go deeper the day this lands.
+
+## 1b-detail. The bisection behind it
 
 Filed twice as "a room deeper than ~20 m loses its way-out door, and I cannot see
 why", with a theory attached. The theory was wrong and bisecting killed it. Here
