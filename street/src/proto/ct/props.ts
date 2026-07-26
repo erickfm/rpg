@@ -2679,36 +2679,51 @@ export function buildProps(ctx: CtxBuild): Props {
     h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13;
     return ((h >>> 0) % 10000) / 10000;
   };
-  // z ranges to leave alone: the car lot's driveway apron, where the kerb is cut
-  // away and cars cross; and the two catch basins, whose castings own that seam.
-  const weedSkip = (side: number, z: number) =>
-    (side > 0 && Math.abs(z - 2.6) < 5.0)          // the drive and its flares
-    || (side > 0 && Math.abs(z + 92.5) < 0.9)      // east basin
-    || (side < 0 && Math.abs(z + 105) < 0.9)       // west basin
-    || [-21.6, -46.0, -54.3, -68.4].some((lz) => Math.abs(z - lz) < 0.7);   // gutter litter
+  // EACH ONE HAS A REASON. First pass scattered 44 of these every 2.4 m along
+  // both kerbs and the user was right about it: "a little too many grasses in
+  // the streets. like way too many. should be more rare."
+  //
+  // A weed on a city street is an EXCEPTION, not a texture. It grows where
+  // nothing disturbs it — the joint at the foot of a post that no broom reaches
+  // round, the grit collar against a basin casting where the water stands. It
+  // does not grow evenly along a pavement people walk down every day, and an
+  // even line is what made it read as ground cover instead of neglect.
+  //
+  // So placement is DERIVED FROM THE THINGS THAT SHELTER IT rather than from a
+  // loop counter. `lampHeads` is already built above, so a post cannot move out
+  // from under a tuft — and if a lamp is ever removed its weed goes with it.
+  // Every one sits in the kerb seam on the ROAD side, clear of the 2 m walk.
+  //
+  // The lot is C's and the park is E's and both are meant to be weedier than
+  // this. Neither is touched here.
   {
+    const streetLamps = lampHeads.filter((h) => Math.abs(h.x) < 9)
+                                 .sort((p1, p2) => p2.z - p1.z);
+    // EVERY THIRD, not every other. The lamps alternate sides down the block, so
+    // taking every other one put all four tufts on the west kerb — a pattern
+    // again, just a coarser one, and the thing I was trying to avoid. Every
+    // third lands on both sides and leaves longer gaps.
+    const spots: { z: number; side: number; why: string }[] = streetLamps
+      .filter((_, i) => i % 3 === 0)
+      .map((h) => ({ z: h.z + 0.22, side: Math.sign(h.x), why: 'lamp foot' }));
+    // the two catch basin castings: grit and standing water collect against the
+    // frame, and the sweeper cannot get in against it
+    spots.push({ z: -92.5 + 0.62, side: 1, why: 'east basin collar' });
+    spots.push({ z: -105 - 0.62, side: -1, why: 'west basin collar' });
     let wi = 0;
-    for (let z = 4.0; z > -100.0; z -= 2.4) {
-      for (const side of [-1, 1] as const) {
-        wi++;
-        if (weedSkip(side, z)) continue;
-        // Two in three, so the line reads as sporadic rather than as a hedge.
-        if (weedRnd(wi, 7) > 0.66) continue;
-        // hard against the kerb face, on the ROAD side of it: the seam itself,
-        // never up on the 2 m walk
-        const jz = z + (weedRnd(wi, 11) - 0.5) * 1.2;
-        const x = side * (ROAD_HALF - 0.035 - weedRnd(wi, 13) * 0.05);
-        scene.add(weedTuft({
-          // gutterSurfaceY takes the distance OUT FROM THE KERB LINE, not a
-          // coordinate — the pan is cross-sloped, so a tuft 35 mm out sits
-          // higher than one 85 mm out and both sit on the concrete rather than
-          // in it.
-          x, z: jz, y: gutterSurfaceY(ROAD_HALF - Math.abs(x)),
-          tone: 'dark',                       // asphalt and the shaded kerb foot
-          scale: 0.55 + weedRnd(wi, 17) * 0.30,
-          seed: wi,
-        }));
-      }
+    for (const sp of spots) {
+      wi++;
+      if (Math.abs(sp.z - 2.6) < 5.0 && sp.side > 0) continue;   // the lot's drive
+      const x = sp.side * (ROAD_HALF - 0.035 - weedRnd(wi, 13) * 0.05);
+      scene.add(weedTuft({
+        // gutterSurfaceY takes the distance OUT FROM THE KERB LINE, not a
+        // coordinate — the pan is cross-sloped, so a tuft 35 mm out sits higher
+        // than one 85 mm out and both sit on the concrete rather than in it.
+        x, z: sp.z, y: gutterSurfaceY(ROAD_HALF - Math.abs(x)),
+        tone: 'dark',
+        scale: 0.6 + weedRnd(wi, 17) * 0.25,
+        seed: wi * 31,
+      }));
     }
   }
 
