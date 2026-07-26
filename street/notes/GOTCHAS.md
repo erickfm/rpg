@@ -839,6 +839,49 @@ and a `-1/w` against a `+1/w` is the bug. `G-vice-walk` asserts this both ways,
 by pixels and by the transform, so anyone who "fixes" the blades per that clause
 gets a red rather than a shipped mirror.
 
+## 37. A dev-server pass says nothing about what SHIPS — and the tool for that is currently broken
+
+Everything the user opens is one of two builds neither of which is the dev
+server: the bundle (`npm run build`) and the packed single-file artifact
+(`dist/artifact.html`). `notes/BLOCKED-C.md` §0 recorded a whole week of "all
+eight doors reach declaredDoors()" claims that described **dev** — the built
+bundle was dropping three of them to an undefined namespace at collection time,
+and the check said so in its own output.
+
+`scripts/slow-pinned.sh` is the sanctioned way to check against a pinned build.
+**It cannot start its server right now** and dies with *"the server never
+reported a port"* while Vite has plainly printed one — line 119 matches
+`:([0-9]+)/`, but Vite 8 colourises the port, so the raw line is
+
+```
+localhost:  ESC[1m  24684  ESC[22m  /
+```
+
+and the digits are not adjacent to the slash. It worked until Vite started
+bolding the number, then failed for everyone at once. Filed to H; until it
+lands, **the whole slow tier is unrunnable and nobody is checking the bundle.**
+
+Do it by hand instead — it is three commands, and every ordinary check works
+against both:
+
+```bash
+npm run build && npx vite preview --port 4199 --strictPort &
+SHOT_URL=http://localhost:4199/ node scripts/door301.mjs
+
+node scripts/pack-artifact.mjs
+npx vite preview --port 4201 --strictPort --outDir dist &
+SHOT_URL=http://localhost:4201/artifact.html node scripts/door301.mjs
+```
+
+**The deep checks run against the artifact**, which is worth knowing because
+nothing in the tree does it: `check-artifact.mjs` is the only artifact check and
+it stops at *"it opens standalone and draws"* — it would pass just as happily
+with the spawn on the street, a door gapping, or a whole module missing.
+
+Related: §31, which is the same trap one level down — capture `fp` against dev
+and compare it to dist and you will conclude you destroyed 612 textures you
+never touched.
+
 ## 36. Cite commit hashes that are ALREADY MERGED
 
 Your own un-merged commits are renamed by the rebase that lands them. A note
