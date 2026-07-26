@@ -19,7 +19,25 @@ import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
 
 const URL = process.env.SHOT_URL ?? 'http://localhost:4195/';
-const SELFTEST = flags(['--selftest']).selftest;
+// AN ARGUMENT THIS SCRIPT ACCEPTS AND IGNORES IS WORSE THAN ONE IT REJECTS
+// (GOTCHAS §48 — an instrument that cannot be aimed answers about whatever it
+// is looking at). `flags` already refuses an unknown FLAG; it only refuses an
+// unknown POSITIONAL when the caller declares its modes, and this script has
+// none. So `node scripts/N-post-waiting.mjs all` ran the whole suite and exited
+// 0, which is exactly what a mode that worked would do. Measured before fixing.
+//
+// Rejected here rather than by passing `modes: []` to `flags`, because that
+// prints "modes: " with nothing after it — and `scripts/lib/args.mjs` is
+// somebody else's file.
+const ARGS = flags(['--selftest']);
+const SELFTEST = ARGS.selftest;
+if (ARGS.rest.length) {
+  console.error(`\nUNRECOGNISED ARGUMENT: ${ARGS.rest.join(', ')}`);
+  console.error('  This script takes no positional argument. It accepts --selftest.');
+  console.error('  Ignoring it would run the ordinary check and exit 0, which is what');
+  console.error('  a passing run also does — so a typo would read as a result.\n');
+  process.exit(2);
+}
 
 // Population floors, MEASURED and not remembered (GOTCHAS §34). Every absence
 // asserted below is free over an empty set: no letters means no overrun, no
