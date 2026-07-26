@@ -3,6 +3,9 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+// the hard-texel text painter from the casino's facade — one signage hand for
+// both sides of this pair, and it is why the corridor sign is not soft
+import { hardLayer } from './vice';
 import { VICE_DOOR_X } from './vice';
 
 // HOTEL ORPHEUS, the lobby.
@@ -90,7 +93,19 @@ export function buildHotel(ctx: CtxBuild): void {
     // 3.4 m, the tallest room in the belt so far and deliberately so. The
     // casino two doors down is 2.5 m and presses on you; this one has to do
     // the opposite before it can have fallen from anywhere.
-    w: 11.0, d: 9.0, h: 3.4,
+    // WIDTH STAYS, DEPTH GROWS. The width is pinned to the frontage — 12.0 m of
+    // HOTEL ORPHEUS, so the street-facing wall is the building's own width, and
+    // that is half of the "interiors must agree with exteriors" the user has
+    // asked for four times. The DEPTH was never constrained by anything: the
+    // kit tiles slabs along x at SLAB_X0 400 + idx * 80 with every slab on
+    // cz = 0 (ct/interior.ts:44, :471), so there is no neighbour behind a room
+    // at all. 9 m was a number I chose, not a limit I was given.
+    //
+    // 26 m is what a hotel actually is: a modest frontage with a great deal of
+    // building behind it. You come in, the desk is on your left, and the room
+    // keeps going past it — lounge, then the lift bay, then a corridor mouth
+    // that goes somewhere this game does not model.
+    w: 11.0, d: 26.0, h: 3.4,
     // THE FACADE'S PALETTE, BROUGHT INSIDE. The user, twice: what is outside is
     // "deep red, gold, black, bulb-lit letters and a lit porte-cochere" and what
     // was in here was "a pale beige room with plain tile ... clean, plain,
@@ -275,7 +290,11 @@ export function buildHotel(ctx: CtxBuild): void {
   // this size was actually planned: you come in, the room opens to your right,
   // and the desk is the thing you walk ALONG. Deep counter, mahogany front,
   // brass rail on top.
-  const DESK_X = -4.55, DESK_Z = -1.0, DESK_L = 4.4;
+  // The desk sits just inside the door now rather than in the middle of the
+  // room: at d 9 those were the same place, and at d 26 they are 8.5 m apart.
+  // A reception desk you walk past is a reception desk; one in the centre of the
+  // floor is an island.
+  const DESK_X = -4.55, DESK_Z = hd - 4.6, DESK_L = 4.4;
   const deskT = declareSurface(pixTex(24, 56, (g) => {
     g.fillStyle = '#4a2a20'; g.fillRect(0, 0, 24, 56);
     g.fillStyle = '#5c382a';                                    // raised panels
@@ -420,6 +439,50 @@ export function buildHotel(ctx: CtxBuild): void {
   rate.rotation.y = Math.PI / 2;
   put(rate, -hw + 0.06, 1.55, DESK_Z + 2.85);
 
+  // ── the corridor mouth at the far end ────────────────────────────────
+  //
+  // "A corridor mouth that suggests more building." It is a dark opening in the
+  // far wall with a runner going into it and a sign over it, and the whole trick
+  // is that it does not go anywhere: the room ends at the wall behind the dark
+  // panel. What sells it is that you cannot see the end of it — the panel is
+  // black, the runner runs under it, and the last thing lit is 2 m short of it.
+  //
+  // A hotel that ends at its own lobby wall is a stage set. This costs four
+  // boxes and a plane and buys the whole rest of the building.
+  {
+    const MZ = -hd + 0.10, MW = 2.4, MH = 2.55;
+    const jambM = new THREE.MeshBasicMaterial({ color: 0x8a6a22 });
+    const voidM = new THREE.MeshBasicMaterial({ color: 0x120e10 });
+    // the dark itself, a hair in front of the wall
+    put(new THREE.Mesh(new THREE.PlaneGeometry(MW, MH), voidM), 0, MH / 2, MZ + 0.04);
+    // architrave: two jambs and a head, in the same gold as everything else high up
+    for (const sx of [-1, 1]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.16, MH + 0.18, 0.14), jambM),
+        sx * (MW / 2 + 0.08), (MH + 0.18) / 2, MZ + 0.10);
+    }
+    put(new THREE.Mesh(new THREE.BoxGeometry(MW + 0.32, 0.18, 0.14), jambM), 0, MH + 0.09, MZ + 0.10);
+    // the runner going in, so the eye follows it into the dark
+    const runT = declareSurface(pixTex(16, 48, (g) => {
+      g.fillStyle = '#5a1520'; g.fillRect(0, 0, 16, 48);
+      g.fillStyle = '#8a6a22'; g.fillRect(1, 0, 1, 48); g.fillRect(14, 0, 1, 48);
+      dither(g, 16, 48, 40);
+    }), 'ground');
+    runT.wrapT = THREE.RepeatWrapping; runT.repeat.set(1, 3);
+    const run = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 5.0), ctx.flat(runT));
+    run.rotation.x = -Math.PI / 2;
+    put(run, 0, 0.016, MZ + 2.6);
+    // ROOMS 100-140 over the arch, the sign that does the suggesting
+    const sgT = declareSurface(pixTex(40, 10, (g) => {
+      g.fillStyle = '#241a1c'; g.fillRect(0, 0, 40, 10);
+      hardLayer(g, '#d8a83a', (h) => {
+        h.fillStyle = '#d8a83a'; h.font = 'bold 6px monospace';
+        h.textAlign = 'center'; h.textBaseline = 'middle';
+        h.fillText('ROOMS 100-140', 20, 5);
+      });
+    }), 'sign');
+    put(new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.48), ctx.flat(sgT)), 0, MH + 0.42, MZ + 0.12);
+  }
+
   // ── the lift ──
   //
   // East wall. No collider: the room's own wall already stops you 0.36 m short
@@ -439,7 +502,8 @@ export function buildHotel(ctx: CtxBuild): void {
   }), 'detail');
   const lift = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.25), ctx.flat(liftT));
   lift.rotation.y = -Math.PI / 2;                                // faces -x, into the room
-  put(lift, hw - 0.06, 1.13, -2.0);
+  // the lift bay is FURTHER IN, past the lounge — the thing you walk toward
+  put(lift, hw - 0.06, 1.13, -3.5);
 
   // the floor dial over it, stopped between floors — the detail that says the
   // lift has not moved in a while without anyone having to write it down
@@ -477,7 +541,7 @@ export function buildHotel(ctx: CtxBuild): void {
   // the window where lobby seating wants to be, and leaving 1.4 m between the
   // chairs and the east wall. 3.0 was the first try and pushed that lane down to
   // 1.0 m -- walkable, but a squeeze the room did not used to have.
-  const CH_X = 2.6, CH_Z = 2.2;
+  const CH_X = 2.6, CH_Z = hd - 5.2;
   const chair = (lx: number, lz: number, col: number, back: number, ry: number) => {
     const m = new THREE.MeshBasicMaterial({ color: col });
     const seat = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.12, 0.5), m);

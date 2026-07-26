@@ -55,22 +55,25 @@ const ROOMS = [
   },
   {
     id: 'hotel', label: /ORPHEUS/,
-    keeper: [-3.6, -0.65],   // the guest side of the reception desk
+    keeper: [-4.0, 8.75],    // the guest side of the reception desk, near the door
     // "One lamp out" — the queue's own words, and the last line of the brief
     // that built this room. Four fittings at ceiling height, one a different
     // colour from the rest.
     deadFitting: 4,
 
     building: 'HOTEL ORPHEUS', at: 0, hasWindow: true,
-    clearZ: -3.9,
+    // RE-DERIVED for the 26 m lobby. Measured off the new layout: the desk is at
+    // z 8.4 on the west side, the lounge chairs at z 7.8 spanning x 1.1..4.1, the
+    // lift bay at z -3.5 and the corridor mouth in the far wall at z -12.9.
+    clearZ: -6.0,
     frontProbeX: -1.6, backProbeX: -1.6, backProbeZ: 0,
-    doorApproach: [0, 2.4],
+    doorApproach: [0, 10.6],
     lanes: [
-      ['along the reception desk, toward the back', -3.0, 3.0, '-z', 2400, 'z', 5.0],
-      ['…and back toward the door', -3.0, -3.6, '+z', 2400, 'z', 5.0],
-      ['across the lobby in front of the lift', -4.5, -3.9, '+x', 2600, 'x', 7.0],
-      ['between the chairs and the east wall', 4.8, 3.4, '-z', 2000, 'z', 3.0],
-      ['behind the chairs, along the window', 0, 3.85, '+x', 1600, 'x', 2.5],
+      ['down the whole lobby to the corridor mouth', 0, 10.5, '-z', 3800, 'z', 14.0],
+      ['…and back up it to the door', 0, -8.0, '+z', 3800, 'z', 14.0],
+      ['across the lobby in front of the lift', -4.8, -3.5, '+x', 2800, 'x', 8.0],
+      ['along the east wall, past the lounge', 4.9, 6.0, '-z', 3000, 'z', 10.0],
+      ['between the desk and the lounge', -3.0, 8.4, '+x', 1800, 'x', 3.0],
     ],
   },
   {
