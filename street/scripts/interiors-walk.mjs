@@ -132,23 +132,45 @@ const ROOMS = [
   // These sat finished and unreachable for a while: written, committed, and
   // never called from crosstown.ts. Their doors are on the side street rather
   // than the block, so the approaches run along x, not z.
+  // RE-SYNCED BY G, 2026-07-26. These two are copies of MY numbers and they had
+  // gone stale, which is the cost of the copy rather than anybody's mistake: both
+  // rooms GREW when the maxZ depth clamp was lifted — the casino from d 9 to 36
+  // and the hotel from d 9 to 26 — and the hotel's reception desk moved with it.
+  //
+  // What that produced was a FALSE FAILURE against my rooms, not a real one. The
+  // hotel's authored station sat at local (-3.6, -0.65) while its clerk stands at
+  // (-5.17, 8.75) — 9.4 m apart — so the run reported "no atlas figure within 4 m
+  // of the customer spot", which reads as a missing keeper and is in fact a
+  // missing update. Measured both from the world before writing them down.
+  //
+  // The `D` here is dead data — nothing reads it, only `W` is used and only as a
+  // fallback — but a wrong number in a table is a trap for the next reader, so it
+  // is corrected rather than left.
   {
-    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — across the felt from the dealer
-    keeper: [3.1, 1.6],
-    id: 'casino', label: /SEVENS/, W: 10.5, D: 9.0,
+    // across the felt from the dealer, who stands at local (-2.6, -13.95):
+    // the table is at (-2.6, -13.0) and a player stands on the near side of it
+    keeper: [-2.6, -12.0],
+    id: 'casino', label: /SEVENS/, W: 11.0, D: 36.0,
     doorX: 51.29, doorZ: -97.0, at: -3.2, sideStreet: true,
   },
   {
-    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the guest side of the reception desk
-    keeper: [-3.6, -0.65],
-    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 9.0,
+    // the guest side of the reception desk. The desk face is at x -4.175 and the
+    // clerk is behind it at (-5.17, 8.75); this is the same pair
+    // scripts/G-rooms-walk.mjs uses, re-copied now that it has moved.
+    keeper: [-4.0, 8.75],
+    id: 'hotel', label: /ORPHEUS/, W: 11.0, D: 26.0,
     doorX: 39.51, doorZ: -97.0, at: -3.4, sideStreet: true,
   },
   {
-    // room width stays G's explicit 10.0; only the door derives
-    // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the customer side of the counter
+    // NO EXPLICIT W ANY MORE — it DERIVES, per the note just below this table.
+    // It was pinned at 10.0 and the room is 13.8: the pin overrode the derivation
+    // and went stale the moment the room grew, which is the exact failure that
+    // note warns about ("a test asserting a stale number is worse than no test").
+    // Removing it is better than typing 13.8, which can go stale the same way.
+    // The keeper pair is measured and still right: the broker stands at local
+    // (1.6, -3.52) and this is the customer side of his counter, 1.92 m away.
     keeper: [1.6, -1.6],
-    id: 'pawn', label: /PAWN/, D: 8.0, W: 10.0, front: ['PAWN', 15, -60.5, 1],
+    id: 'pawn', label: /PAWN/, D: 8.0, front: ['PAWN', 15, -60.5, 1],
   },
   {
     // G's OWN spot, copied from scripts/G-rooms-walk.mjs — the client chair
