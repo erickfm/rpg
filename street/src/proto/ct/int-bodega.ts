@@ -446,7 +446,18 @@ export function buildBodega(ctx: CtxBuild): void {
   // two or three details that identify it: a TAP you draw coffee from, a
   // domed LID with a handle, a DRIP TRAY under the taps, and a stack of paper
   // cups beside. Those are what make it nameable in one second from the door.
-  const CF_X = -hw + 1.0, CF_Z = -hd + 1.4, CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
+  // WHERE IT IS MATTERS MORE THAN WHAT IS ON IT.
+  //
+  // I gave the urns taps, lids, a drip tray and a cup stack, then finally got
+  // a camera on the corner and it STILL did not read - because it sits in the
+  // back-left corner BEHIND a gondola run. Two of the three urns are occluded
+  // from anywhere on the floor. No amount of detail fixes a thing you cannot
+  // see; the user's test is "stand at the door and name it in one second".
+  //
+  // So it moves to the front-left, ahead of the shelving (the runs start at
+  // GOND_Z + GOND_L/2 going back), which is also where a corner shop actually
+  // puts coffee: by the door, where you pick it up on the way in.
+  const CF_X = -hw + 1.0, CF_Z = hd - 2.2, CF_W = 1.4, CF_D = 0.55, CF_H = 0.92;
   const urnM = new THREE.MeshBasicMaterial({ color: 0x2e3236 });
   const chromeM = new THREE.MeshBasicMaterial({ color: 0xb8bcc0 });
 
@@ -516,7 +527,12 @@ export function buildBodega(ctx: CtxBuild): void {
   }), 'sign');
   // ON the coffee bench (top 0.92) plus the card's own half-height. Placed at
   // a typed 1.62 it hung 0.575 m in the air above it.
-  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, -hw + 1.0, 0.92 + 0.125, -hd + 1.42);
+  // DERIVED FROM THE BENCH, not typed. Moving the coffee station to the front
+  // of the shop left this card behind at the old back-wall coordinates - a
+  // sign standing over nothing, which is the exact floating-prop fault this
+  // room was pulled up for twice. It now reads CF_X/CF_Z/CF_H, so the card
+  // goes wherever the bench goes.
+  room.sign(cardT('COFFEE', '.65'), 0.5, 0.25, CF_X, CF_H + 0.125, CF_Z + 0.02);
   room.sign(cardT('NO', 'LOITERING'), 0.5, 0.25, CTR_X - 0.6, 1.72, CTR_Z);
   room.sign(cardT('ATM INSIDE', 'CASH ONLY'), 0.52, 0.26, 0, 1.9, hd - 0.08);
 
