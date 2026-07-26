@@ -33,13 +33,26 @@ const hits = await page.evaluate(() => {
     // fault; what the user is finding is solid things inside other solid
     // things.
     if (o.geometry.type === 'PlaneGeometry') return;
-    items.push({ bb, c, s, mod: o.userData?.mod ?? '?' });
+    // WHICH PROP IS THIS PART OF. A bench is a Group of a seat, a back, two
+    // cast ends; a noticeboard is a panel on two posts; a shrub run is three
+    // blocks that are MEANT to interpenetrate, because that is what makes a
+    // run read as massed rather than as fence posts. Every one of those is a
+    // prop overlapping ITSELF, and the first version of this counted all of
+    // them — it reported twelve hits of which twelve were correct-by-design,
+    // which is worth exactly as much as reporting none. So each mesh carries
+    // the highest ancestor below the scene, and pairs sharing one are skipped.
+    let root = o;
+    while (root.parent && root.parent.parent) root = root.parent;
+    items.push({ bb, c, s, root, massed: !!o.userData?.massed,
+      mod: o.userData?.mod ?? '?' });
   });
   const out = [];
   for (let i = 0; i < items.length; i++) {
     for (let j = i + 1; j < items.length; j++) {
       const a = items[i], q = items[j];
-      const ox = Math.min(a.bb.max.x, q.bb.max.x) - Math.max(a.bb.min.x, q.bb.min.x);
+      if (a.root === q.root) continue;             // one prop against itself
+      if (a.massed && q.massed) continue;          // shrub blocks massing, by design
+      const ox =Math.min(a.bb.max.x, q.bb.max.x) - Math.max(a.bb.min.x, q.bb.min.x);
       const oy = Math.min(a.bb.max.y, q.bb.max.y) - Math.max(a.bb.min.y, q.bb.min.y);
       const oz = Math.min(a.bb.max.z, q.bb.max.z) - Math.max(a.bb.min.z, q.bb.min.z);
       if (ox <= 0.02 || oy <= 0.02 || oz <= 0.02) continue;
@@ -52,9 +65,17 @@ const hits = await page.evaluate(() => {
         by: +(ox * oy * oz).toFixed(3) });
     }
   }
-  return out.sort((x, y) => y.by - x.by).slice(0, 12);
+  out.sort((x, y) => y.by - x.by);
+  // Report the TOTAL, not the length of the list I print. `slice(0, 12)` with
+  // a "12 shown" line is how a sweep says "I found twelve" when it found two
+  // hundred, and I would have read my own output as all-clear at eleven.
+  return { total: out.length, scanned: items.length, worst: out.slice(0, 12) };
 });
-console.log(hits.length ? `prop-on-prop overlaps: ${hits.length} shown` : 'no prop-on-prop overlap in the park');
-for (const h of hits) console.log('  ', JSON.stringify(h));
+const { total, scanned, worst } = hits;
+console.log(total
+  ? `prop-on-prop overlaps: ${total} across ${scanned} park meshes` +
+    (total > worst.length ? ` (worst ${worst.length} shown)` : '')
+  : `no prop-on-prop overlap in the park — ${scanned} meshes scanned`);
+for (const h of worst) console.log('  ', JSON.stringify(h));
 await b.close();
-process.exit(hits.length ? 1 : 0);
+process.exit(total ? 1 : 0);

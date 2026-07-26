@@ -1044,6 +1044,11 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     const h = 1.1 + rb() * 0.7, w = 0.82;
     const sh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), shrubM);
     sh.position.set(lx1 - 0.2, KERB_H + h / 2, cz);
+    // Same plant, same licence to merge as a run's own blocks: when the flank
+    // runs were extended to the street end they grew over these two, and what
+    // that actually looks like is one lumpier corner shrub — this one is
+    // taller than the run, so it still breaks the top line.
+    sh.userData.massed = true;
     scene.add(sh);
     solid({ minX: lx1 - 0.2 - w / 2, maxX: lx1 - 0.2 + w / 2, minZ: cz - w / 2, maxZ: cz + w / 2 });
   }
@@ -1106,14 +1111,19 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     g.fillStyle = '#6a6456'; g.fillRect(4, 3, 20, 2);
     g.fillStyle = 'rgba(120,110,80,0.5)'; g.fillRect(15, 7, 9, 8);
   });
+  // Grouped for the same reason as the memorial: a panel BOLTED to two posts
+  // has to bite into them, and the sweep should be reading that as one
+  // noticeboard rather than as the very fault it was written to catch.
+  const board = new THREE.Group();
   const nb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 1.0), flat(nbT));
   nb.position.set(nbX, KERB_H + 1.28, nbZ);
-  scene.add(nb);
+  board.add(nb);
   for (const d of [-0.4, 0.4]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, 1.6, 0.09), ironM);
     post.position.set(nbX, KERB_H + 0.8, nbZ + d);
-    scene.add(post);
+    board.add(post);
   }
+  scene.add(board);
   solid({ minX: nbX - 0.3, maxX: nbX + 0.3, minZ: nbZ - 0.55, maxZ: nbZ + 0.55 });
 
   // ── the loop, edged ──────────────────────────────────────────────────────
@@ -1210,15 +1220,22 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     g.fillStyle = 'rgba(46,38,30,0.25)';                          // and its weather
     for (let i = 0; i < 10; i++) g.fillRect(Math.floor(r() * 16), 14, 1, Math.round(r() * 6));
   });
+  // ONE GROUP, because it is one object. A plinth, a shaft standing on it and
+  // a cap over the shaft's top are supposed to interpenetrate — masonry is cut
+  // to sit INTO the course below, not balanced on it. Loose in the scene they
+  // read to `E-overlap` as three props inside each other, and that noise is
+  // what let a real bin-inside-a-noticeboard hide in the same list.
+  const memorial = new THREE.Group();
   const plinth = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.3, 1.15), flat(plinthT));
   plinth.position.set(memX, KERB_H + 0.36 + 0.65, memZ);
-  scene.add(plinth);
+  memorial.add(plinth);
   const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.62, 2.5, 0.62), stoneA);
   shaft.position.set(memX, KERB_H + 1.66 + 1.25, memZ);
-  scene.add(shaft);
+  memorial.add(shaft);
   const capStone = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.42), stoneB);
   capStone.position.set(memX, KERB_H + 4.12, memZ);
-  scene.add(capStone);
+  memorial.add(capStone);
+  scene.add(memorial);
   solid({ minX: memX - 1.25, maxX: memX + 1.25, minZ: memZ - 1.25, maxZ: memZ + 1.25 });
 
   // ── hoop rail, and a shelter at the far end ─────────────────────────────
@@ -1611,6 +1628,12 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
       m.position.set(alongX ? cx + off : cx + (sb() - 0.5) * 0.12,
         KERB_H + hi / 2,
         alongX ? cz + (sb() - 0.5) * 0.12 : cz + off);
+      // Blocks in a run are MEANT to interpenetrate — that overlap is what
+      // makes a run read as one massed shrub instead of a row of crates, and
+      // the ends of adjacent runs merge for the same reason. `E-overlap`
+      // counted every one of them and reported 23 hits of which none was a
+      // fault, which is a sweep that cannot answer the question it exists for.
+      m.userData.massed = true;
       scene.add(m);
     }
     const w = alongX ? len : depth, d = alongX ? depth : len;
