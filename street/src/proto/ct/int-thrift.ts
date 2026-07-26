@@ -470,6 +470,54 @@ export function buildThrift(ctx: CtxBuild): void {
     const g2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.2, 0.18),
       new THREE.MeshBasicMaterial({ color: [0xb8a24e, 0x8a9aa8, 0xa06a72][i] }));
     put(g2, WIN_X + 0.15 + i * 0.28, 0.53, WIN_Z);
+
+  // ── the folded-goods wall, because a thrift store is PACKED ──
+  //
+  // The user: "thrift interior too thin". Measured against every other room
+  // before touching it: at 128 meshes over 106 m2 the thrift is 1.2/m2, which
+  // is denser than the bodega (0.9) and no longer the thinnest room in the
+  // world - pawn (0.5), hotel (0.6) and library (0.6) are now below it. So
+  // this is not the emergency it was when the room had 21 objects. It is still
+  // thin for a THRIFT though: the whole character of one is stock stacked to
+  // the ceiling on every surface that will hold it, and the back wall was bare.
+  //
+  // Four shelves of folded clothes, derived from the WALL (-hd) rather than
+  // typed, so nothing floats if the room grows again - which it has twice.
+  const foldT = declareSurface(pixTex(64, 16, (g) => {
+    g.fillStyle = '#6e6658'; g.fillRect(0, 0, 64, 16);
+    const cols = ['#8a4a4a', '#4a6a8a', '#8a7a4a', '#5a7a5a', '#7a5a7a', '#a8a094', '#6a5a4a'];
+    let x = 0, i = 0;
+    while (x < 64) {
+      const w = 5 + ((i * 3) % 5), h = 4 + ((i * 5) % 6);
+      g.fillStyle = cols[(i * 3) % cols.length];
+      g.fillRect(x, 15 - h, w - 1, h);                 // a stack, bottom-aligned
+      for (let f = 1; f < h; f += 2) {                 // the folds
+        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x, 15 - h + f, w - 1, 1);
+      }
+      x += w; i++;
+    }
+    dither(g, 64, 16, 50);
+  }), 'detail');
+  const SH_W = room.W - 1.4, SH_Z = -hd + 0.16;
+  for (let sh = 0; sh < 4; sh++) {
+    const y = 0.55 + sh * 0.52;
+    const board = new THREE.Mesh(new THREE.BoxGeometry(SH_W, 0.05, 0.30),
+      new THREE.MeshBasicMaterial({ color: 0x6a5a44 }));
+    put(board, 0, y, SH_Z);
+    const ft = foldT.clone(); ft.needsUpdate = true;
+    ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
+    ft.repeat.set(SH_W / 3.2, 1);                      // GOTCHAS 5: from real metres
+    const goods = new THREE.Mesh(new THREE.PlaneGeometry(SH_W, 0.44),
+      new THREE.MeshBasicMaterial({ map: ft }));
+    put(goods, 0, y + 0.245, SH_Z + 0.14);
+  }
+  // uprights, so the run reads as shelving and not as floating boards
+  for (const ux of [-SH_W / 2, 0, SH_W / 2]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.15, 0.32),
+      new THREE.MeshBasicMaterial({ color: 0x5a4a38 }));
+    put(post, ux, 1.07, SH_Z);
+  }
+  solid(0, SH_Z, SH_W, 0.34);
   }
 
   // ── more card signs, because one notice is never the last notice ──
