@@ -414,6 +414,121 @@ const BANK = {
   me: { c: 2, r: 1 },
 } as const;
 
+// ── the numerals ──────────────────────────────────────────────────────────
+//
+// THIS FONT IS C's, copied glyph for glyph from `ct/apartment.ts`'s `DIGIT`,
+// which is private to that module. The user: *"numbered to match the doors
+// upstairs"* — and matching means the same numerals, not merely the same
+// numbers. C's own comment says why they are a bitmap and not `fillText`:
+// *"Anything meant to be READ at this texel density has to be drawn as
+// texels"*, because a canvas font antialiases into smear.
+//
+// A copied table is a table that can drift, so `notes/N-asks.md` asks C to
+// export it. Until then this is the lesser of two wrongs: the alternative is
+// a second, different-looking numeral in the same building.
+const DIGIT: Record<string, number[]> = {
+  '0': [0b1111, 0b1001, 0b1001, 0b1001, 0b1111],
+  '1': [0b0010, 0b0110, 0b0010, 0b0010, 0b0111],
+  '2': [0b1111, 0b0001, 0b1111, 0b1000, 0b1111],
+  '3': [0b1111, 0b0001, 0b0111, 0b0001, 0b1111],
+  '4': [0b1001, 0b1001, 0b1111, 0b0001, 0b0001],
+  '5': [0b1111, 0b1000, 0b1111, 0b0001, 0b1111],
+  '6': [0b1111, 0b1000, 0b1111, 0b1001, 0b1111],
+  '7': [0b1111, 0b0001, 0b0010, 0b0010, 0b0010],
+  '8': [0b1111, 0b1001, 0b1111, 0b1001, 0b1111],
+  '9': [0b1111, 0b1001, 0b1111, 0b0001, 0b1111],
+};
+
+/**
+ * The number plate, and why it is painted DENSER than the bank it hangs on.
+ *
+ * C's door plates upstairs run about 30 px/m and the bank's own face is 32,
+ * so the obvious move is to match the neighbour. It does not work: at 32 px/m
+ * one of C's glyphs is 0.16 m tall and `301` is 0.44 m wide — wider than the
+ * whole 0.28 m mailbox door. The physical plate on a bank of boxes is a third
+ * the size of the one on a flat door, and the numerals shrink with it.
+ *
+ * So what is matched is the GLYPH — five texels tall, four wide, a five-texel
+ * pitch, C's exact bitmap — and the density follows from making that glyph fit
+ * a mailbox. GOTCHAS §4 is a floor and not a ceiling: it forbids detail too
+ * fine for its surface, and this is the same detail on a smaller surface. The
+ * building already goes to 67 px/m on the entrance buzzer.
+ */
+const NUM = { ppm: 145, pad: 2, glyphH: 5, pitch: 5, glyphW: 4, border: 1 } as const;
+
+/** the plate's texel size for `num` — C's 18 x 9 for three digits, plus a rim */
+function plateTexels(num: string) {
+  return {
+    w: NUM.border * 2 + NUM.pad * 2 + num.length * NUM.pitch - (NUM.pitch - NUM.glyphW),
+    h: NUM.border * 2 + NUM.pad * 2 + NUM.glyphH,
+  };
+}
+
+/**
+ * C's door plate, at a mailbox's size.
+ *
+ * The palette is `ct/apartment.ts`'s `doorTexN` verbatim — `#8a7440` brass,
+ * `#a89056` lit top edge, `#5e4e28` shadow under, `#2e2616` ink, and the four
+ * fixing screws — because C's own comment records what happens when it is not:
+ * *"It used to be a near-white rectangle — brighter than anything else indoors,
+ * so it pulled the eye off the door it labels."*
+ *
+ * My first version made exactly that mistake in the negative — a black plate
+ * with bright gold numerals, which was the highest-contrast object on the whole
+ * bank and pulled the eye off the one box with post in it. Standing in the
+ * lobby is what showed it: C's real 102 door plate is visible in the same frame
+ * as the boxes, and the two did not look like they came from the same building.
+ *
+ * The one addition is a DARK RIM. C's plate reads because it is lighter than
+ * its brown door; these sit on brass doors of nearly the same value, so without
+ * an edge the plate dissolves into the box.
+ */
+function plateTex(num: string): THREE.Texture {
+  const { w, h } = plateTexels(num);
+  const b = NUM.border;
+  return declareSurface(pixTex(w, h, (g) => {
+    g.fillStyle = '#241f1a'; g.fillRect(0, 0, w, h);                    // the rim
+    g.fillStyle = '#8a7440'; g.fillRect(b, b, w - 2 * b, h - 2 * b);    // brass
+    g.fillStyle = '#a89056'; g.fillRect(b, b, w - 2 * b, 1);            // lit top edge
+    g.fillStyle = '#5e4e28'; g.fillRect(b, h - b - 1, w - 2 * b, 1);    // shadow under it
+    g.fillStyle = '#6a5a30';                                            // four fixing screws
+    g.fillRect(b + 1, b + 1, 1, 1); g.fillRect(w - b - 2, b + 1, 1, 1);
+    g.fillRect(b + 1, h - b - 2, 1, 1); g.fillRect(w - b - 2, h - b - 2, 1, 1);
+    g.fillStyle = '#2e2616';
+    for (let i = 0; i < num.length; i++) {
+      const rows = DIGIT[num[i]] ?? [];
+      for (let r = 0; r < rows.length; r++) {
+        for (let c = 0; c < NUM.glyphW; c++) {
+          if (rows[r] & (1 << (NUM.glyphW - 1 - c))) {
+            g.fillRect(b + NUM.pad + i * NUM.pitch + c, b + NUM.pad + r, 1, 1);
+          }
+        }
+      }
+    }
+  }), 'detail');
+}
+
+/** How wide and tall that plate is in metres — derived from the glyph, never typed. */
+function plateSize(num: string) {
+  const t = plateTexels(num);
+  return { w: t.w / NUM.ppm, h: t.h / NUM.ppm };
+}
+
+/**
+ * Which flat each painted cell belongs to — a column per floor, reading away
+ * from the street door, and `null` for the four that have never been let.
+ *
+ * Built from the same rule `ct/apartment.ts` builds its own doors from — four
+ * floors, an `01` and an `02` on each landing — rather than from eight typed
+ * strings. C's `DOORS` array is private to that module, so this is the
+ * convention copied and not the list; `notes/N-asks.md` asks for it to be
+ * published, and the moment it is, this function reads it instead.
+ */
+function flatAt(c: number, r: number): string | null {
+  if (r === 1 || r === 2) return `${c + 1}${r === 1 ? '01' : '02'}`;
+  return null;
+}
+
 /** the -x face of the bank: the one turned into the hall, C's material index 1 */
 function bankFace(bx: number): number { return bx - BANK.d / 2; }
 
@@ -671,24 +786,51 @@ export function register(ctx: CtxBuild): void {
   // with a dark slot in it is a lock.
   const esc = add(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.008, 8), brassDark));
   esc.rotation.z = Math.PI / 2;
-  esc.position.set(faceX - DOOR_T - 0.003, me.y - 0.012, me.z + me.w / 2 - 0.055);
+  esc.position.set(faceX - DOOR_T - 0.003, me.y - 0.055, me.z + me.w / 2 - 0.050);
   const slot = add(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.012, 0.004), iron));
-  slot.position.set(faceX - DOOR_T - 0.007, me.y - 0.012, me.z + me.w / 2 - 0.055);
-  // the name card, behind its little window. Nobody can read three digits at
-  // this world's texel density (GOTCHAS §4) and a real one is unreadable from a
-  // pace away anyway — so it is a scrap of card in a frame, and the PROMPT is
-  // what tells you the box is yours.
-  const winF = add(new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.040, 0.088), iron));
-  winF.position.set(faceX - DOOR_T - 0.002, me.y + 0.030, me.z - me.w / 2 + 0.062);
+  slot.position.set(faceX - DOOR_T - 0.007, me.y - 0.055, me.z + me.w / 2 - 0.050);
+  // ── EVERY BOX NUMBERED, TO MATCH THE DOORS UPSTAIRS ─────────────────────
+  //
+  // The user, directly. Eight flats and twelve boxes: the four that get no
+  // plate are the four that have never been let, and leaving them BARE rather
+  // than blank-plated is what makes that legible at a glance — a plate with
+  // nothing on it reads as a plate somebody forgot to fill in.
+  //
+  // Plates go on 301's proud door as well as on C's eleven painted cells, so
+  // the x depends on which one it is. Both are derived from the same face.
+  const PLATE_DY = 0.040;                       // above the cell's centre line
+  for (let c = 0; c < BANK.cols; c++) {
+    for (let r = 0; r < BANK.rows; r++) {
+      const num = flatAt(c, r);
+      if (!num) continue;
+      const q = cell(bank.x, bank.y, bank.z, c, r);
+      const sz = plateSize(num);
+      const mine = c === BANK.me.c && r === BANK.me.r;
+      const p = add(new THREE.Mesh(new THREE.PlaneGeometry(sz.w, sz.h),
+        new THREE.MeshBasicMaterial({ map: plateTex(num) })));
+      // ry = −π/2 faces −x and sends u along +z, which is the viewer's right
+      // from out in the hall — so the numerals read left to right without the
+      // texture being flipped. GOTCHAS §35: the rotation has already done the
+      // mirroring, and flipping as well is what puts it back.
+      p.rotation.y = -Math.PI / 2;
+      p.position.set((mine ? faceX - DOOR_T : faceX) - 0.0015, q.y + PLATE_DY, q.z);
+    }
+  }
+
+  // the name card, behind its little window — a scrap of card with a hand on
+  // it, not letters. The NUMBER is the plate above; this is the thing under it
+  // that says somebody actually lives here.
+  const winF = add(new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.036, 0.086), iron));
+  winF.position.set(faceX - DOOR_T - 0.002, me.y - 0.055, me.z - 0.045);
   const cardT = declareSurface(pixTex(12, 6, (g) => {
     g.fillStyle = '#ded7c0'; g.fillRect(0, 0, 12, 6);
     g.fillStyle = '#4a4335';                       // a hand, not letters
     g.fillRect(2, 2, 7, 1); g.fillRect(2, 4, 5, 1);
   }), 'detail');
-  const card = add(new THREE.Mesh(new THREE.PlaneGeometry(0.078, 0.030),
+  const card = add(new THREE.Mesh(new THREE.PlaneGeometry(0.076, 0.026),
     new THREE.MeshBasicMaterial({ map: cardT })));
   card.rotation.y = -Math.PI / 2;
-  card.position.set(faceX - DOOR_T - 0.007, me.y + 0.030, me.z - me.w / 2 + 0.062);
+  card.position.set(faceX - DOOR_T - 0.007, me.y - 0.055, me.z - 0.045);
 
   // ── THE POST, STICKING OUT ──────────────────────────────────────────────
   //
