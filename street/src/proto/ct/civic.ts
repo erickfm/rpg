@@ -1381,9 +1381,33 @@ export function buildCivic(o: {
     // The railings are PAINTED on an alpha-tested plane rather than built out
     // of 70 little boxes. Symmetrical by construction, so the double-sided
     // mirroring that bit the HOTEL sign (§10) cannot show here.
+    const soilT = pixTex(32, 32, (g) => {
+      const r = clcg(0x6d21b4);
+      g.fillStyle = '#4a4335'; g.fillRect(0, 0, 32, 32);
+      for (let i = 0; i < 210; i++) {
+        const k = r();
+        g.fillStyle = k > 0.72 ? '#5b5340' : k > 0.34 ? '#3e382c' : '#544c3b';
+        g.fillRect(Math.floor(r() * 32), Math.floor(r() * 32), 1 + Math.floor(r() * 2), 1);
+      }
+      for (let i = 0; i < 9; i++) {                      // clods, and a stone or two
+        g.fillStyle = r() < 0.7 ? '#5f573f' : '#6f6a5c';
+        g.fillRect(Math.floor(r() * 32), Math.floor(r() * 32), 2 + Math.floor(r() * 2), 2);
+      }
+      dither(g, 32, 32, 70);
+    });
+    const soilM = (() => {
+      const t = soilT.clone();
+      t.needsUpdate = true;
+      t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(2.0 / 1.0, (SET_C - 1.1) / 1.0);      // one tile per metre
+      return flat(t);
+    })();
     const GATE_W = 2.6, WALL_H = 0.62, RAIL_H = 0.72;
     const gate0 = naveCx - GATE_W / 2, gate1 = naveCx + GATE_W / 2;
-    const capM2 = new THREE.MeshBasicMaterial({ color: 0xb2a892 });
+    // The churchyard's coping, the last of the flat-colour stone the desk
+    // predicted would be here: *"the church forecourt and the park will have
+    // the same."* It did.
+    const capM2 = stoneFace(DRESSED, 1.6, 0.3);
     const railTex = (wM: number) => {
       const W = Math.max(8, Math.round(wM * 16)), H = Math.round(RAIL_H * 16);
       return pixTex(W, H, (g) => {
@@ -1433,7 +1457,9 @@ export function buildCivic(o: {
     const shrubM2 = flat(shrubTex());
     for (const s of [-1, 1]) {
       const px = s < 0 ? YARD_X0 + 1.15 : YARD_X1 - 1.15;
-      const bed = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, SET_C - 1.1), new THREE.MeshBasicMaterial({ color: 0x4a4335 }));
+      // …and the beds are SOIL, which is not a flat brown either. Turned earth
+      // with clods and the odd stone in it, sized from the bed's own metres.
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.26, SET_C - 1.1), soilM);
       bed.position.set(px, KERB_H + 0.13, zFront + (SET_C - 1.1) / 2);
       scene.add(bed);
       for (const [dx, dz, h] of [[-0.5, 0.4, 1.5], [0.45, 1.15, 1.15]] as [number, number, number][]) {

@@ -917,6 +917,32 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     return bx + hx < FOUNT.minX - 0.12 || bx - hx > FOUNT.maxX + 0.12
       || bz + hz < FOUNT.minZ - 0.12 || bz - hz > FOUNT.maxZ + 0.12;
   };
+  // ── WHICH WAY A BENCH FACES IS DERIVED, NEVER TYPED ──────────────────────
+  //
+  // The user, on the eighth orientation bug of the session: *"the park's
+  // path-side benches have their BACKS toward the path, so a person sitting on
+  // them faces AWAY from the park... a bench beside a park path faces INTO the
+  // park — at the field, the trees, the shelter — and its back is to the fence.
+  // That is not just correct, it is the whole reason the bench is there."*
+  //
+  // GOTCHAS §27: derive facing from what the object should FACE, never from a
+  // constant. Every bench had its yaw typed as a literal — `-Math.PI / 2`,
+  // `Math.PI`, `0` — chosen by hand for each leg, which is four chances to get
+  // it wrong and no way to be told that you did. And I did get it wrong, in the
+  // most instructive way: rebuilding the bench moved its local front from -z to
+  // +z, which silently REVERSED every bench whose yaw was not ±π/2. The
+  // literals were still there, still looked deliberate, and now meant the
+  // opposite of what they had.
+  //
+  // So the yaw comes from the geometry: the bench faces the middle of the loop,
+  // wherever the bench is and however the loop is re-cut. A bench added on a
+  // side that does not exist yet cannot come out backwards, because nothing
+  // about its direction is written down.
+  const loopCx = (lx0 + lx1) / 2, loopCz = (lz0 + lz1) / 2;
+  const facingIn = (bx: number, bz: number): [number, number, number] =>
+    // the bench's local +z is its front, so this is the yaw that points +z at
+    // the park's interior
+    [bx, bz, Math.atan2(loopCx - bx, loopCz - bz)];
   const benchRun: [number, number, number][] = [];
   const clearOfGate = (z: number) => Math.abs(z - gateMid) > 2.6;
   const spaced = (from: number, to: number, step: number) => {
@@ -931,12 +957,12 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // showed it — eight in a park with a 110 m circuit. Both legs are stepped
   // over their own length now.
   for (const z of spaced(lz0 + 4.0, lz1 - 4.0, 9.2)) {
-    if (clearOfGate(z)) benchRun.push([lx1 + PATH_W / 2 + 0.42, z, -Math.PI / 2]);
-    benchRun.push([lx0 - PATH_W / 2 - 0.42, z, Math.PI / 2]);
+    if (clearOfGate(z)) benchRun.push(facingIn(lx1 + PATH_W / 2 + 0.42, z));
+    benchRun.push(facingIn(lx0 - PATH_W / 2 - 0.42, z));
   }
   for (const x of spaced(lx0 + 4.5, lx1 - 4.5, 9.4)) {
-    benchRun.push([x, lz0 - 1.05, Math.PI]);
-    benchRun.push([x, lz1 + 1.05, 0]);
+    benchRun.push(facingIn(x, lz0 - 1.05));
+    benchRun.push(facingIn(x, lz1 + 1.05));
   }
   for (const [bx, bz, yaw] of benchRun) {
     if (!clearOfFountain(bx, bz, yaw)) continue;      // it would stand in the fountain
@@ -1024,6 +1050,38 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
 
   // Bins where the benches are, because that is where the litter is.
   // bins beside the benches at BOTH ends of the park, not just the street end
+  // ── NOTHING STANDS INSIDE ANYTHING ELSE ──────────────────────────────────
+  //
+  // The user has found three of these by eye: the bench through the fountain,
+  // the bin inside the noticeboard, and a tree inside the shelter. Three is a
+  // class, not three accidents, so this is a rule rather than a third nudge —
+  // *"Measure box against box."*
+  //
+  // Every prop that stands on the ground registers its footprint here as it is
+  // placed, and anything placed afterwards is tested against the ones already
+  // down. The bin and the noticeboard are the case that shows why it was
+  // needed: `inside(0.23)` and `inside(0.28)` put them 0.05 m apart in x, so
+  // any bin whose z lands near the board's is inside it — and nothing in the
+  // code said so, because each was placed correctly against the KERB and
+  // neither knew about the other.
+  // Declared HERE, above the registry that tests against it, rather than beside
+  // the mesh that draws it 25 lines further down. `claim(nbX…)` referencing it
+  // from up here would otherwise be a temporal dead zone — the exact fault that
+  // silently emptied this module of trees earlier today, and one I am not
+  // repeating in the fix for it.
+  const nbX = inside(0.28), nbZ = gateMid - 2.6;
+  const footprints: AABB[] = [];
+  const claim = (minX: number, maxX: number, minZ: number, maxZ: number) => {
+    const box = { minX, maxX, minZ, maxZ };
+    for (const q of footprints) {
+      if (box.maxX <= q.minX + 0.02 || box.minX >= q.maxX - 0.02) continue;
+      if (box.maxZ <= q.minZ + 0.02 || box.minZ >= q.maxZ - 0.02) continue;
+      return false;                                   // it would stand in something
+    }
+    footprints.push(box);
+    return true;
+  };
+  claim(nbX - 0.4, nbX + 0.4, nbZ - 0.75, nbZ + 0.75);   // the noticeboard, first
   const binAt: [number, number][] = [
     [inside(0.23), gateMid + 3.2], [inside(0.23), lz0 + 6.0],
     [inside(0.23), lz1 - 6.0], [inside(0.23), gateMid - 12.5],
@@ -1031,6 +1089,7 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     [lx0 + 4.8, gateMid + 2.0],          // by the shelter at the far end
   ];
   for (const [bx2, bz] of binAt) {
+    if (!claim(bx2 - 0.3, bx2 + 0.3, bz - 0.3, bz + 0.3)) continue;
     const b2 = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.8, 0.46), flat(binT));
     b2.position.set(bx2, KERB_H + 0.4, bz);
     scene.add(b2);
@@ -1047,7 +1106,6 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     g.fillStyle = '#6a6456'; g.fillRect(4, 3, 20, 2);
     g.fillStyle = 'rgba(120,110,80,0.5)'; g.fillRect(15, 7, 9, 8);
   });
-  const nbX = inside(0.28), nbZ = gateMid - 2.6;
   const nb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.72, 1.0), flat(nbT));
   nb.position.set(nbX, KERB_H + 1.28, nbZ);
   scene.add(nb);
@@ -1289,102 +1347,90 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
                                                           // and so a different repeat
   const roofM = tiled(roofT, 4.0, 1.45);                  // a slope
   const ridgeM = tiled(roofT, 4.0, 0.34);
-  // ── THE SHELTER, REBUILT AS A STRUCTURE ─────────────────────────────────
+  // ── THE SHELTER, THIRD AND LAST ATTEMPT ─────────────────────────────────
   //
-  // The user: *"The roof is a thin skewed slab that does not sit on its posts,
-  // the posts are spindly and inconsistent, and the bench inside is off-centre.
-  // A park shelter is a real structure: four or six posts of consistent square
-  // section, a properly seated hipped or pitched roof with a ridge and even
-  // eaves overhang, a fascia board, and seating arranged symmetrically."*
+  // Ruled on by the desk after two failures: *"EITHER build it as one simple
+  // honest structure — four posts of identical square section on a square plan,
+  // ONE hipped roof that sits ON the post tops with even overhang on all four
+  // sides, and a bench centred under it — OR delete the shelter entirely...
+  // If you go for the roof, build it as a single mesh rather than assembling
+  // slabs, because assembling slabs is what has failed twice."*
   //
-  // Every clause of that was a fault and the middle one was the root: the roof
-  // did not SIT on anything. Two slope boxes floated at a height that happened
-  // to be near the posts, so from any angle where you could see the junction
-  // there was nothing holding them up. A roof is carried, and what carries it is
-  // the thing that was missing — a wall plate on the post heads, with the
-  // rafters bearing on it and the eaves projecting past it.
+  // Taking the roof, and taking the instruction literally, because the
+  // instruction is a diagnosis of my two failures and it is correct. Both times
+  // I assembled the roof out of positioned boxes, and both times the pieces
+  // ended up at angles to each other and off the frame — a slab I place at a
+  // rotation is a slab I can place wrongly, and I did, twice.
   //
-  // So it is built the way one is built, bottom up, every member sized from the
-  // one below it: posts → plate → rafters → ridge → fascia → gable infill.
-  const SH_HX = 1.8, SH_HZ = 1.4;              // half the plan, post centres
-  const SH_POST = 0.18;                        // consistent square section
-  const SH_EAVE_Y = 2.42;                      // top of the posts and the plate
-  const SH_OVER = 0.38;                        // even overhang, all four sides
-  const SH_PITCH = 0.42;                       // ~24°, a shelter not a spire
-  const runX = SH_HX + SH_OVER, runZ = SH_HZ + SH_OVER;
-  const SH_RIDGE_Y = SH_EAVE_Y + 0.12 + runZ * Math.tan(SH_PITCH);
-  // 1 ── four posts, all the same, standing on their own pad
-  for (const dx of [-SH_HX, SH_HX]) for (const dz of [-SH_HZ, SH_HZ]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_EAVE_Y, SH_POST), postM);
-    post.position.set(shX + dx, KERB_H + SH_EAVE_Y / 2, shZ + dz);
+  // THE ROOF IS ONE BufferGeometry. A hip on a square plan is four triangles
+  // from the eaves to a single apex, and the apex is ONE VERTEX shared by all
+  // four — so the slopes cannot be at different angles to each other and cannot
+  // float apart, because there is nothing to hold apart. The eaves ring is four
+  // quads in the same buffer, giving the roof real thickness at its edge, and
+  // every vertex is derived from the post positions rather than typed. It sits
+  // on the post tops by construction: the eaves are AT post-top height.
+  //
+  // Square plan, identical posts, bench centred. Nothing else.
+  const SH_H = 1.55;                           // half the square plan, post centres
+  const SH_POST = 0.18;
+  const SH_TOP = 2.40;                         // post top, and the eaves
+  const SH_OVER = 0.42;                        // even, all four sides
+  const SH_RISE = 0.95;                        // apex above the eaves
+  const SH_SKIRT = 0.14;                       // the eaves' own depth
+  const E = SH_H + SH_OVER;
+  for (const dx of [-SH_H, SH_H]) for (const dz of [-SH_H, SH_H]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_TOP, SH_POST), postM);
+    post.position.set(shX + dx, KERB_H + SH_TOP / 2, shZ + dz);
     scene.add(post);
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.14, 0.09, SH_POST + 0.14), plateM);
-    pad.position.set(shX + dx, KERB_H + 0.045, shZ + dz);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.16, 0.10, SH_POST + 0.16), plateM);
+    pad.position.set(shX + dx, KERB_H + 0.05, shZ + dz);
     scene.add(pad);
     solid({ minX: shX + dx - SH_POST / 2, maxX: shX + dx + SH_POST / 2,
       minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
   }
-  // 2 ── the wall plate: what the roof actually sits on, on the post lines
-  for (const dz of [-SH_HZ, SH_HZ]) {
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(SH_HX * 2 + SH_POST, 0.14, SH_POST), plateM);
-    pl.position.set(shX, KERB_H + SH_EAVE_Y + 0.07, shZ + dz);
-    scene.add(pl);
+  {
+    const y0 = SH_TOP - SH_SKIRT, y1 = SH_TOP, ya = SH_TOP + SH_RISE;
+    const c = [[-E, -E], [E, -E], [E, E], [-E, E]];      // the four eaves corners
+    const pos: number[] = [], uv: number[] = [];
+    const push = (x: number, y: number, z: number, u: number, v: number) => {
+      pos.push(x, y, z); uv.push(u, v);
+    };
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = c[i], [bx, bz] = c[(i + 1) % 4];
+      // the eaves skirt, so the roof has an edge you can see rather than a
+      // paper rim
+      push(ax, y0, az, 0, 0); push(bx, y0, bz, 1, 0); push(bx, y1, bz, 1, 1);
+      push(ax, y0, az, 0, 0); push(bx, y1, bz, 1, 1); push(ax, y1, az, 0, 1);
+      // and the slope up to the shared apex
+      push(ax, y1, az, 0, 0); push(bx, y1, bz, 1, 0); push(0, ya, 0, 0.5, 1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+    geo.computeVertexNormals();
+    const roof = new THREE.Mesh(geo, roofM);
+    roof.position.set(shX, KERB_H, shZ);
+    scene.add(roof);
   }
-  for (const dx of [-SH_HX, SH_HX]) {
-    const pl = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, 0.14, SH_HZ * 2 - SH_POST), plateM);
-    pl.position.set(shX + dx, KERB_H + SH_EAVE_Y + 0.07, shZ);
-    scene.add(pl);
-  }
-  // 3 ── the two slopes, BEARING ON THE PLATE and projecting past it evenly
-  const slopeLen = runZ / Math.cos(SH_PITCH);
-  for (const sgn of [-1, 1]) {
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(runX * 2, 0.11, slopeLen), roofM);
-    sl.position.set(shX,
-      KERB_H + SH_EAVE_Y + 0.14 + (runZ / 2) * Math.tan(SH_PITCH),
-      shZ + sgn * runZ / 2);
-    sl.rotation.x = -sgn * SH_PITCH;
-    scene.add(sl);
-  }
-  const ridge = new THREE.Mesh(new THREE.BoxGeometry(runX * 2 + 0.06, 0.13, 0.30), ridgeM);
-  ridge.position.set(shX, KERB_H + SH_RIDGE_Y, shZ);
-  scene.add(ridge);
-  // 4 ── the fascia, which is most of what says "roof" rather than "sheet"
-  for (const sgn of [-1, 1]) {
-    const f = new THREE.Mesh(new THREE.BoxGeometry(runX * 2, 0.17, 0.06), plateM);
-    f.position.set(shX, KERB_H + SH_EAVE_Y + 0.10, shZ + sgn * (runZ + 0.02));
-    scene.add(f);
-  }
-  // 5 ── the gable infill, so the ends are closed and the pitch reads end-on.
-  //      A triangle, because a stack of boxes stepping up to a ridge is a
-  //      staircase and the eye finds it immediately at this texel size.
-  for (const sgn of [-1, 1]) {
-    const gh = SH_RIDGE_Y - (SH_EAVE_Y + 0.14);
-    const tri = new THREE.BufferGeometry();
-    tri.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
-      -runZ, 0, 0, runZ, 0, 0, 0, gh, 0,
-    ]), 3));
-    tri.setAttribute('uv', new THREE.BufferAttribute(new Float32Array([0, 0, 1, 0, 0.5, 1]), 2));
-    tri.computeVertexNormals();
-    const g2 = new THREE.Mesh(tri, plateM);
-    g2.position.set(shX + sgn * runX, KERB_H + SH_EAVE_Y + 0.14, shZ);
-    g2.rotation.y = Math.PI / 2;
-    scene.add(g2);
-  }
-  // 6 ── ONE BENCH, CENTRED, facing out of the open side. It was against one
-  //      wall and 0.15 m off the middle, which is what "off-centre" meant.
-  const SB_L = SH_HX * 2 - 0.5;
+  // one bench, centred under it, facing out of the park's approach
+  // …and it faces INTO THE PARK, like every other bench. It ran along x and
+  // faced down the wall, which the per-instance facing check caught at dot 0.00
+  // — square to the park rather than away from it, which is why looking at it
+  // had not shown it up. The shelter stands at the park's west end, so the
+  // interior is +x: the bench runs in z and faces east.
+  const SB_L = SH_H * 2 - 0.55;
   for (let i = 0; i < 3; i++) {
-    const sl = new THREE.Mesh(new THREE.BoxGeometry(SB_L, 0.05, 0.15), i % 2 ? woodM2 : woodM);
-    sl.position.set(shX, KERB_H + 0.45, shZ - SH_HZ + 0.42 + i * 0.17);
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, SB_L), i % 2 ? woodM2 : woodM);
+    sl.position.set(shX - 0.17 + i * 0.17, KERB_H + 0.45, shZ);
     scene.add(sl);
   }
-  for (const dx of [-1, 1]) {
-    const end = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.45, 0.52), ironM);
-    end.position.set(shX + dx * (SB_L / 2 - 0.06), KERB_H + 0.225, shZ - SH_HZ + 0.59);
+  for (const dz of [-1, 1]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.45, 0.12), ironM);
+    end.position.set(shX, KERB_H + 0.225, shZ + dz * (SB_L / 2 - 0.06));
     scene.add(end);
   }
-  solid({ minX: shX - SB_L / 2 - 0.1, maxX: shX + SB_L / 2 + 0.1,
-    minZ: shZ - SH_HZ + 0.3, maxZ: shZ - SH_HZ + 0.9 });
+  solid({ minX: shX - 0.32, maxX: shX + 0.32,
+    minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1 });
   // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
   // destination the loop exists for did not — you walk 26 m to the thing that
   // terminates the axis and it turns out to be scenery. It was the only bench
@@ -1396,8 +1442,8 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
   // sits on (§8), so the corridor you press it from has to be outside the box.
   ctx.seat({
-    x: shX, z: shZ - SH_HZ + 0.6, yaw: Math.PI, h: 0.45,
-    approach: { x: shX, z: shZ + 0.55 },
+    x: shX, z: shZ, yaw: Math.atan2(loopCx - shX, loopCz - shZ), h: 0.45,
+    approach: { x: shX + 1.05, z: shZ },
     label: 'sit in the shelter',
   });
 
@@ -1488,8 +1534,13 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
   // -35.80, so the back leg could not be walked — found the day the clamp
   // lifted and the leg could be walked for the first time. Same fault the
   // flank lines had. 1.4 m off the wall clears the path by 0.7 m.
+  // …and the back line skips the shelter, which stands in front of it. A trunk
+  // was rising through the roof — the third prop-on-prop overlap the user found
+  // by eye, and the reason the rule above exists.
   for (let z = site.minZ + 2.2; z < site.maxZ - 2.0; z += 5.4 + tsd() * 1.4) {
-    tree(site.minX + 1.4 + tsd() * 0.4, z, 0x400 + Math.round(z * 3));   // the back wall
+    const tx = site.minX + 1.4 + tsd() * 0.4;
+    if (Math.abs(tx - shX) < 2.6 && Math.abs(z - shZ) < 2.6) continue;
+    tree(tx, z, 0x400 + Math.round(z * 3));                              // the back wall
   }
   // INBOARD of the loop's end legs, not against the flank walls: the first
   // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
