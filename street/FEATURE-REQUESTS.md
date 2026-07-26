@@ -207,6 +207,16 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"props.ts addLamp has no removal, so a light that should go out has to be deleted instead"** → **B** (mine; raised by C hitting it on the TV)
+
+  <!-- B: lampHeads is a build-time list and nothing takes an entry out.
+       C had to delete the TV's registration rather than switch it off,
+       and until then the set pooled light on the boards of 301 all
+       night — against "make the unilluminated stuff darker", asked four
+       times. Confirmed gone: 544 meshes in the 301 belt, 0 poolLit.
+       I will add removal if anyone else needs it; nobody does yet.
+       notes/B-two-affordance-traps.md -->
+
 - **"how do i stop watching the tv"** → **C**
 - **"the tv bezel looks good but i think i want the tv black"** → **C**
 - **"tv off unless i sit down to watch it pls"** → **C**
