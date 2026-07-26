@@ -682,6 +682,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // leaf already hit exactly this and came back with two knobs.
     const knobM = new THREE.MeshBasicMaterial({ color: 0xc9b45e });
     const knobDark = new THREE.MeshBasicMaterial({ color: 0x8f7d3c });
+    // ── ONE KNOB FOR THE WHOLE BUILDING ──────────────────────────────────
+    // The user: *"door handles on my floor dont match other door handles"*.
+    // He is right, and the mismatch was inside this building rather than
+    // against the rest of the world. Three treatments were in play:
+    //
+    //   the six flat doors   rose + stem + ball, modelled, at floor + 1.02
+    //   301                  a plain 0.055 box, at floor + 1.07
+    //   302                  a PAINTED 3x3 square and no geometry at all
+    //
+    // 302 was the only door in the walk-up with a painted handle, and 301 and
+    // 302 are the two you stand between every time you leave your flat — so
+    // his floor was the one place all three met.
+    //
+    // On the world's tone, checked before changing anything: #c9b45e is not
+    // just ours. It is in ct/interior.ts, bodega-corner.ts and int-thrift.ts as
+    // well, so ours is the one the others copied and the brass stays. The real
+    // outliers elsewhere are int-library's grey steel LEVER at 1.02 and
+    // int-pawn's olive painted bar — those are F's and are the desk's to route.
+    //
+    // `axis` is which way the knob sticks out: 'x' for the flat door planes,
+    // 'z' for the two hung leaves, whose local +z becomes world x once the
+    // leaf is swung. Same parts, same height, same brass either way.
+    const doorKnob = (parent: THREE.Object3D, lx: number, ly: number, lz: number,
+                      dir: number, axis: 'x' | 'z') => {
+      const put = (m: THREE.Mesh, out: number) => {
+        m.position.set(lx + (axis === 'x' ? dir * out : 0), ly,
+                       lz + (axis === 'z' ? dir * out : 0));
+        if (axis === 'x') m.rotation.z = Math.PI / 2; else m.rotation.x = Math.PI / 2;
+        parent.add(m);
+      };
+      const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.012, 8), knobDark);
+      put(rose, 0.012);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.055, 6), knobM);
+      put(stem, 0.040);
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), knobM);
+      ball.position.set(lx + (axis === 'x' ? dir * 0.076 : 0), ly,
+                        lz + (axis === 'z' ? dir * 0.076 : 0));
+      parent.add(ball);
+    };
     // wallN is the centreline `casing` measures from. It puts its trim at
     // wallN +- (WALL_T / 2 + T / 2), so it is picked to land a few mm PROUD of
     // the leaf rather than behind it.
@@ -695,17 +734,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // at hall distance — a knob with no backplate looks stuck on.
       const nx = Math.sin(ry) < 0 ? -1 : 1;          // which way the door faces
       const off = (num.endsWith('01') ? -1 : 1) * (DOOR_W / 2 - 0.13);
-      const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.048, 0.048, 0.012, 8), knobDark);
-      rose.rotation.z = Math.PI / 2;
-      rose.position.set(wx + nx * 0.012, baseY + 1.02, wz + off);
-      scene.add(rose);
-      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 0.055, 6), knobM);
-      stem.rotation.z = Math.PI / 2;
-      stem.position.set(wx + nx * 0.040, baseY + 1.02, wz + off);
-      scene.add(stem);
-      const ball = new THREE.Mesh(new THREE.SphereGeometry(0.036, 8, 6), knobM);
-      ball.position.set(wx + nx * 0.076, baseY + 1.02, wz + off);
-      scene.add(ball);
+      doorKnob(scene, wx, baseY + 1.02, wz + off, nx, 'x');
       // Report finding 2, the last of it: these six doors had their casing
       // PAINTED INTO doorTexN, so beside 301's and 302's real architrave they
       // read flat — consistent with each other, inconsistent with the two
@@ -755,11 +784,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       leafGeo.translate(-(DOOR_W - 0.2) / 2, 0, 0);                  // hinge at the +x edge
       const leafEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
       const leaf = new THREE.Mesh(leafGeo,
-        [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, texM(doorTexN('302')), texM(doorTexN('302'))]);
+        [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, texM(doorTexN('302', false)), texM(doorTexN('302', false))]);
       leaf.position.set(x0 + 0.05, yb + 1.05, DOOR_Z0 + 0.04);
       leaf.rotation.y = d302A;        // starts SHUT; updateHermitAt drives it
       scene.add(leaf);
       leaf302 = leaf;
+      // the same knob every other door in the building has, on BOTH faces —
+      // GOTCHAS 41, the mirror is where the bug hides, and a handle on one
+      // side only is exactly the class that survives a one-sided check. Local
+      // y puts it at floor + 1.02 like the rest: the leaf sits at yb + 1.05.
+      for (const dir of [1, -1]) doorKnob(leaf, -(DOOR_W - 0.2) + 0.13, -0.03, 0, dir, 'z');
     }
     // ── 301's door ───────────────────────────────────────────────────────
     // There was no door at all — just a hole. Then a leaf standing permanently
@@ -803,10 +837,9 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const roomM = texM(doorTexInner());
       leaf301 = new THREE.Group();
       leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, hallM, roomM]));
-      const knob = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.055, 0.1),
-        new THREE.MeshBasicMaterial({ color: 0xc9b45e }));
-      knob.position.set(-LW + 0.09, -0.02, 0);
-      leaf301.add(knob);
+      // was a plain 0.055 box at -0.02; now the building's own knob, at the
+      // same floor + 1.02 as every other door and on BOTH faces
+      for (const dir of [1, -1]) doorKnob(leaf301, -LW + 0.13, -0.07, 0, dir, 'z');
       // THE PIVOT sits 0.02 PAST the jamb now, not 0.02 inside it, so the
       // shut leaf spans DOOR_Z0-0.02 to DOOR_Z0+0.97 across a gap that runs
       // DOOR_Z0 to DOOR_Z0+0.95 — covered at both ends instead of short at
