@@ -666,3 +666,40 @@ nobody inherits a number I do not trust.
 **[I] The sign of "outward" bit twice in one day** — crate back faces (max z, not
 min, because the bodega frontage faces −z) and the awning normal. On this street
 "outward" is per-frontage data (`__frontages.outward`), never an axis to assume.
+
+## [C] Bodega corner: D's half CONFIRMED, the paving routed to B
+
+**Visual** — walked to D's own check point (6.4, −97.4). The corner reads as a
+proper cut corner: 45° canted bay, recessed door, **OPEN neon in the door's upper
+panel rather than over glass**, and one fascia line / opening / reveal / cill /
+stallriser across both wings. The brick piers either side are structure.
+
+**Collision — no fault found.** Four points stood cleanly, the door measures 3.0 m
+of back-off and 6.0 m across, and the collider corner (6.75, −93.75) sits exactly
+on the chamfer line through the door — both satisfy x+z = −87 — so it is
+inscribed within the cut, not protruding into it.
+
+**[I] My occupancy map produced 126 false "walk-through" cells and I nearly filed
+them.** The test was: is this point inside a collider, and is there a mesh above
+it? Sound in principle, and wrong here, because *"is there a mesh above it"* was
+answered from **AABBs** — and the canted bay's bounding box covers the entire
+square corner it was cut from. **This is the third AABB-inflation miss of the
+audit** (the pickup hood at 2.139 m; the citizen quads; now this).
+
+The rule that would have caught all three: **an AABB answers "could this object
+reach here", never "is this object here".** For anything rotated or cut, it
+over-reports by construction. When a test's conclusion depends on occupancy
+rather than extent, it needs vertices or a raycast, not a box.
+
+**[R] The one piece still standing is B's, so I routed it rather than sitting on
+it.** The corner paving is scored as a square 90° arris while the building cuts
+at 45°, so the joints run into the bay's foot instead of meeting it — visible in
+`bc-corner.png`. D established that no ground plane runs under the bodega, so
+nothing clips; the joints simply do not know the bay is there. `ct/tex-ground.ts`,
+B's file. New OPEN row filed with the evidence.
+
+**[Is] Second untracked request found today.** D added their own row after finding
+this had sat in `FEATURE-REQUESTS.md` since the block was re-cast with no ledger
+row; the diner facade was the same. **A request with no row is invisible to a
+process built on rows** — and both were found by someone tripping over them, not
+by the process. Worth the desk reconciling FEATURE-REQUESTS against LEDGER once.
