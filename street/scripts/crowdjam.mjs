@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 import { afterFrames } from './lib/frames.mjs';
 const SECS=Number(process.env.SECS||60), HZ=4;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL||'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(6.0,-40,0,0.14,0)); await afterFrames(p,10); await p.waitForTimeout(1500);
 const api=await p.evaluate(()=>{const w=window.__ct.walkers, q=window.__ct.people;

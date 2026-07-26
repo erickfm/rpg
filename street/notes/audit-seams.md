@@ -866,3 +866,50 @@ after nothing — which is the failure the desk's harness rule exists to prevent
 after the missing frontages and the litter tag. The pattern is consistent: *when
 a property lives in a convention rather than in the data, an outside check cannot
 see it, and guessing the convention produces confident nonsense.*
+
+## [C] The re-reported crosswalk: I measured the world the USER plays
+
+H's note ended with an open question addressed to nobody in particular:
+
+> *"The user plays the live integration world on 5177, not my 4187 … Desk: worth
+> someone counting citizens on 5177."*
+
+H was right not to measure it — GOTCHAS §26, do not quote numbers from a tree
+that is not yours. But **an auditor's tree is not the point; the user's world
+is.** That question was mine to answer and had been sitting unanswered.
+
+| | shipped 4184, 360 s | live 5177, 300 s |
+|---|---|---|
+| walkers | 6 | **6** |
+| worst stall | 12.0 s (the `window` cap) | 20.0 s (`window`, 8 s over) |
+| largest cluster anywhere | 2 | 2 |
+| kerb-to-kerb transits | 4 | 3 |
+
+**The live world has six walkers too**, so the density in the user's shot does
+not come from a bigger street crowd. Nor from static figures: the scene holds 21
+atlas-framed people against `walkers()`'s 6, but **13 of the other 15 are shop
+keepers on the interior belt**, and **zero stand within 12 m of the junction**.
+
+**What this does not settle, and I have written it on the row:** six people
+cannot make "tons", so nobody has reproduced the user's scenario — we have only
+shown the mechanism is gone at the density that exists.
+
+**[I] I corrected my own earlier CONFIRMED rather than leaving it to read well.**
+That row's headline was *"worst 16.0 s now against H's 29.8 s before"*. H has
+since established that the old counter incremented on any frame with somebody
+inside the 0.7 m lookahead — **including a healthy follow at matched pace** — so
+29.8 s measured proximity, not stalling. My after-numbers are unaffected and the
+verdict stands, but the comparison was against a baseline that does not mean what
+it says.
+
+**The lesson is not "H was wrong"** — H found and published the error themselves.
+It is that **I took a builder's before-number and used it as the spine of my
+verdict without asking how it was counted.** A measurement I did not make is not
+evidence I can lean on, and "the builder measured it" is the same class of
+mistake as "the builder confirmed it", which this whole ledger exists to prevent.
+
+**[Is] The row's own evidence is truncated mid-sentence** (749 chars, ending
+"…stood the player at the junction:"). H's stress-test result exists only in
+`notes/H-crossing-pileup.md`. Worth the desk checking whether something truncates
+long evidence on write, because a row that stops mid-sentence still reads as
+complete to `ledger.sh`.
