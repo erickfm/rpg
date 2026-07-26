@@ -24,6 +24,20 @@ const key = (r) => (cells(r)[3] ?? r).trim();
 const rank = (r) => RANK[(cells(r)[1] ?? '').trim()] ?? 0;
 
 const lines = readFileSync(P, 'utf8').split('\n');
+// EVERY ROW KEY ALREADY IN THE FILE OUTSIDE THE CONFLICT, so an "upstream-only"
+// row is not appended a second time when it already lives elsewhere. Without this
+// the script duplicated two rows across successive rebases, and a duplicated row
+// is worse than a conflict: `live.sh` counts it twice and the two copies drift.
+const outsideKeys = new Set();
+{
+  let depth = 0;
+  for (const L of lines) {
+    if (L.startsWith('<<<<<<<')) { depth = 1; continue; }
+    if (L.startsWith('=======') && depth) continue;
+    if (L.startsWith('>>>>>>>')) { depth = 0; continue; }
+    if (!depth && /^\|\s*(OPEN|LANDED|CONFIRMED)\s*\|/.test(L)) outsideKeys.add(key(L));
+  }
+}
 const out = [];
 let i = 0, merged = 0, kept = 0;
 while (i < lines.length) {
@@ -52,11 +66,22 @@ while (i < lines.length) {
     console.log(`  kept the superset      ${key(r).slice(0, 52)}`);
   }
   const seen = new Set(mine.map(key));
-  for (const r of up) if (!seen.has(key(r))) { out.push(r); kept++; console.log(`  upstream-only          ${key(r).slice(0, 52)}`); }
+  for (const r of up) {
+    if (seen.has(key(r))) continue;
+    if (outsideKeys.has(key(r))) { console.log(`  dropped a DUPLICATE    ${key(r).slice(0, 52)}`); continue; }
+    out.push(r); kept++; console.log(`  upstream-only          ${key(r).slice(0, 52)}`);
+  }
 }
 const text = out.join('\n');
 if (/^(<<<<<<<|=======|>>>>>>>)/m.test(text)) {
   console.error('REFUSING TO WRITE: conflict markers remain'); process.exit(1);
 }
+const finalKeys = out.filter((L) => /^\|\s*(OPEN|LANDED|CONFIRMED)\s*\|/.test(L)).map(key);
+const dupes = finalKeys.filter((k, i) => finalKeys.indexOf(k) !== i);
+if (dupes.length) {
+  console.error(`REFUSING TO WRITE: ${dupes.length} duplicated row key(s) would remain:`);
+  for (const d of new Set(dupes)) console.error(`   ${d.slice(0, 60)}`);
+  process.exit(1);
+}
 writeFileSync(P, text);
-console.log(`\n${merged} row(s) merged, ${kept} taken whole, 0 markers left.`);
+console.log(`\n${merged} row(s) merged, ${kept} taken whole, ${finalKeys.length} rows, no duplicates, 0 markers left.`);
