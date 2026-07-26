@@ -10,8 +10,19 @@ await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const rooms=await p.evaluate(()=>window.__ct.roomDims());
 const doors=await p.evaluate(()=>window.__ct.doors());
-const NAME={bodega:/BODEGA/i,burger:/BURGER/i,casino:/ACES/i,church:/BRIGID/i,diner:/DINER/i,
+// The casino was /ACES/i and the building is now called SEVENS, so this matched
+// nothing and the room dropped out of the table as "no exterior frontage
+// published" - a dead string reported as a measurement, which is the exact
+// hazard G named when it did the rename. A pattern that matches nothing must say
+// so rather than quietly shrink the population.
+const NAME={bodega:/BODEGA/i,burger:/BURGER/i,casino:/SEVENS|ACES/i,church:/BRIGID/i,diner:/DINER/i,
             hotel:/ORPHEUS/i,library:/LIBRARY/i,pawn:/PAWN/i,tax:/TAX/i,thrift:/THRIFT/i};
+// and prove every pattern still matches something, so the next rename cannot
+// silently drop a room the way this one nearly did.
+const buildings=doors.map(d=>d.building);
+const dead=Object.entries(NAME).filter(([,re])=>!buildings.some(b=>re.test(b))).map(([k])=>k);
+if(dead.length){ console.error(`CANNOT ANSWER — these patterns match no building: ${dead.join(', ')}`);
+  console.error(`  buildings present: ${buildings.join(', ')}`); process.exit(3); }
 const ext=await p.evaluate((ds)=>ds.map(d=>{
   const cs=window.__ct.colliders(); let best=null,bestA=0;
   for(const c of cs){ const a=(c.maxX-c.minX)*(c.maxZ-c.minZ);
