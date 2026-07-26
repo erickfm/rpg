@@ -21,6 +21,7 @@ import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
 import { giveRandom, pocketsFull } from './inventory';
+import { screenFade } from './hud';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -1904,7 +1905,17 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         // sleeping at 07:00 means the next morning, not a no-op that reads as
         // a broken interaction.
         const mins = (((WAKE_H * 60 - (totalMin % 1440)) % 1440) + 1440) % 1440 || 1440;
-        ctx.clock.advance(mins);
+        // THE FADE. This row read CONFIRMED while the fade never fired: the
+        // bed advanced the clock and nothing else, so K's capability worked
+        // and nothing called it. A and D both reproduced it — the control
+        // `__hud.fade({mid})` peaks at opacity 1.000 while pressing E on the
+        // bed peaked at 0.000 and still ramped the clock 16.5 hours.
+        //
+        // `overSeconds: 0` because the clock now moves BEHIND a black screen:
+        // ramping it over 1.5 s was there so the jump was not jarring, and
+        // that is exactly what the fade is for. The shape is K's, verbatim
+        // from notes/K-screen-fade.md.
+        void screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) });
       },
     });
     // ── PACKAGES ON THE LANDINGS ─────────────────────────────────────────
@@ -2258,7 +2269,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     }));
     let tvSeg = 0, tvLeft = SEGMENTS[0].secs, tvClock = 0, tvRedraw = 0;
     let tvBag: number[] = [];
-    const tvScreenT = surfTex('detail', TVW, TVH, (g) => SEGMENTS[0].draw(g, 0));
+    const tvScreenT = surfTex('detail', TVW, TVH, (g) => { g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH); });
     const tvScreenM = flatOf2(tvScreenT);
     // ── THE BEZEL ────────────────────────────────────────────────────────
     // The user: *"give the tv a bezel"*. A glowing rectangle on a wall is a
@@ -2308,23 +2319,73 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       box(0.020, 0.020, 0.008, TV_X + 0.04 + k * 0.032, BY, FZ + 0.006, caseM);
     box(0.012, 0.012, 0.008, TV_X + 0.19, BY, FZ + 0.006,
       new THREE.MeshBasicMaterial({ color: 0xd83a2a }));                 // standby LED
-    // IT IS A LIGHT SOURCE, not just a bright texture. The desk: *"it is a
-    // small CRT in a dark room, so the screen should be the brightest thing in
-    // the frame and cast a little light."* props.ts publishes `addLamp(x, z)`
-    // for exactly this, and its pool model is planar so the set's own height
-    // is not a parameter.
-    (scene.userData as Record<string, unknown> & { addLamp?: (x: number, z: number) => void })
-      .addLamp?.(AX(-1.56), AZI(2.34));
+    // NO `addLamp` HERE, and that is a decision rather than an omission.
+    // props.ts's lamp registry is build-time only — `addLamp(x, z)` pushes a
+    // head and nothing removes it — so a TV registered as a lamp pools light
+    // on the floor of 301 all night whether or not the set is on. That is
+    // precisely what *"make the unilluminated stuff darker, it should feel
+    // scarier at night"* is against, and the user has now asked for the set to
+    // be off by default.
+    //
+    // The screen is still the brightest thing in the room while it is on,
+    // because its material is bright and ungraded. What it does NOT do is
+    // throw a pool onto the boards. A SWITCHABLE lamp would give us both; that
+    // is B's registry and worth asking for rather than faking here.
+    // ── OFF UNLESS HE SITS DOWN ──────────────────────────────────────────
+    // The user: *"tv off unless i sit down to watch it pls"*. A set playing to
+    // an empty room is wallpaper, and it also threw light into 301 all night,
+    // which fights *"make the unilluminated stuff darker. it should feel
+    // scarier at night"*.
+    //
+    // HOW THE MODULE KNOWS HE IS SEATED, since `ctx` publishes no such query:
+    // the bed is a COLLIDER (AX -3.05..-1.15, AZI 4.40..5.32) and the seat is
+    // inside it, so the player cannot stand there. Being AT the seat's x/z
+    // therefore means one thing only. `__ct.seated()` exists but it is a test
+    // affordance on the entry point, not something a module can reach; a real
+    // `ctx.seated()` would be better and is worth asking F for.
+    const TV_SEAT_X = AX(-2.10), TV_SEAT_Z = AZI(4.42);
+    let tvLit = false, tvWarm = 0;
+    // A DEAD SCREEN IS NOT BLACK. Pure black reads as a hole cut in the wall;
+    // a switched-off CRT is dark grey-green with the room faintly in it.
+    const tvDead = (g: CanvasRenderingContext2D) => {
+      g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH);
+      g.fillStyle = 'rgba(255,255,255,0.045)';                 // a soft sheen
+      for (let k = 0; k < TVH; k++) g.fillRect(Math.max(0, 26 - k), k, 16, 1);
+      g.fillStyle = 'rgba(0,0,0,0.30)';                        // darker at the corners
+      g.fillRect(0, 0, TVW, 2); g.fillRect(0, TVH - 2, TVW, 2);
+      g.fillRect(0, 0, 2, TVH); g.fillRect(TVW - 2, 0, 2, TVH);
+    };
     const tvPaint = () => {
       const cv = tvScreenT.image as HTMLCanvasElement;
       const g = cv.getContext('2d')!;
       SEGMENTS[tvSeg].draw(g, tvClock);
       tvScreenT.needsUpdate = true;
     };
-    ctx.onFrame(({ dt }) => {
+    ctx.onFrame(({ dt, px, pz }) => {
       // Only while somebody is on this floor. A canvas redrawn 8 times a
       // second for a room nobody is in is pure cost.
       if (Math.abs(lastGy - 2 * ST) > 0.5) return;
+      const seated = Math.abs(px - TV_SEAT_X) < 0.20 && Math.abs(pz - TV_SEAT_Z) < 0.20;
+      if (seated !== tvLit) {
+        tvLit = seated;
+        if (seated) { tvWarm = 0.5; tvBag = []; tvLeft = 0.01; }   // a fresh pack each sitting
+        else { const g = (tvScreenT.image as HTMLCanvasElement).getContext('2d')!;
+               tvDead(g); tvScreenT.needsUpdate = true; }
+      }
+      if (!tvLit) return;
+      // A MOMENT OF COMING ON. Half a second of dark glass before the first ad
+      // reads as a set warming up; snapping straight to a full picture reads
+      // as a texture swap, which is what it would be.
+      if (tvWarm > 0) {
+        tvWarm -= dt;
+        const g = (tvScreenT.image as HTMLCanvasElement).getContext('2d')!;
+        g.fillStyle = '#1b211d'; g.fillRect(0, 0, TVW, TVH);
+        const k = Math.max(0, 1 - tvWarm / 0.5);
+        g.fillStyle = `rgba(220,235,225,${(0.10 + 0.35 * k).toFixed(3)})`;
+        g.fillRect(0, Math.round(TVH / 2 - k * TVH / 2), TVW, Math.max(1, Math.round(k * TVH)));
+        tvScreenT.needsUpdate = true;
+        return;
+      }
       tvClock += dt; tvLeft -= dt;
       if (tvLeft <= 0) {
         // A SHUFFLED BAG, not a random pick. Picking uniformly at random from
@@ -2353,7 +2414,8 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // published like doorTravel and hermit, so a check watches the schedule
     // rather than hashing pixels and guessing
     ctx.onFrame(() => {
-      scene.userData.tv = { seg: SEGMENTS[tvSeg].name, i: tvSeg, left: tvLeft, pool: SEGMENTS.length };
+      scene.userData.tv = { seg: SEGMENTS[tvSeg].name, i: tvSeg, left: tvLeft, pool: SEGMENTS.length,
+                            on: tvLit, warming: tvWarm > 0 };
     }, ORDER.WORLD);
     // ── and somewhere to watch it from ──────────────────────────────────
     // `ctx.seat` already does the whole mechanism the request describes —
