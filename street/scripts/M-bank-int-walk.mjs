@@ -91,7 +91,9 @@ const landing = () => p.evaluate(() => window.__ct.landing());
 const results = [];
 const say = (ok, name, detail) => results.push([ok, name, detail]);
 const f2 = (n) => +n.toFixed(2);
-const money = (n) => `$${n.toFixed(2)}`;
+// Tolerate a missing reading rather than throwing inside a formatter, which
+// is how a check dies at EXIT 1 without saying what it could not measure.
+const money = (n) => (n === null || n === undefined ? '(no reading)' : `$${n.toFixed(2)}`);
 
 // ── the subjects, ASKED FOR rather than remembered ─────────────────────────
 const R = await p.evaluate(() => (window.__ct.roomDims() || []).find((r) => r.id === 'bank'));
