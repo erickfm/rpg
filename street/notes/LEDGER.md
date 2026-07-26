@@ -144,3 +144,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | F | entrance to bodega looks like this. so ugly and is so crowded. have th | |
 | OPEN | G | i like the space in the hotel lobby its eerie. enrich the lobby with f | |
 | OPEN | G | casino internals are cool but leave a lot to be desired. i like the im | |
+| OPEN | F | sleep in your room needs a way to advance the clock — nobody has one | |
