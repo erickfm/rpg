@@ -192,3 +192,37 @@ Content verdict on E's work: good, no action. And the same caveat I gave the
 hotel applies here — at 0.6 meshes/m2 the library is on my "thin" list, but a
 reading room is supposed to be open floor. My density table should not be used
 to push clutter into it. It is a shop metric.
+
+## A false alarm I caught before filing it
+
+With an empty queue I wrote a quick "can you get out of every room" sweep,
+since not being able to leave was the worst fault found tonight. It reported:
+
+    TRAPPED IN: burger, casino, church, diner, hotel, library, pawn, tax, thrift
+
+Nine of ten rooms. **I did not file it**, because it contradicted an instrument
+that had already answered the same question. `interiors-walk` runs a way-out
+leg per room, and only pawn fails it. So one of the two was wrong, and the one
+to distrust is the new unvalidated script, not the calibrated check. Asked it
+directly:
+
+    ok   diner: walking to the inside of the door raises the way-out prompt
+    ok   diner: E at the inside door puts you back on the street
+
+The diner is fine. My sweep is broken — and the tell is in its own output: the
+ONE room it passed was the bodega, the only room whose door is at 45 degrees,
+which is the case I wrote carefully. My flat-wall start position is wrong,
+which is the mirror image of the bug I fixed in `interiors-walk` earlier
+tonight, where maths written for flat walls broke on the cut one.
+
+**PAWN IS STILL REAL.** It is confirmed twice, independently: six failures in
+`interiors-walk`, and a careful hand-walk that got in and could not get out.
+Nothing here softens that.
+
+I am recording the false alarm rather than deleting it because the near-miss is
+the point. Filing "nine rooms trap the player" would have sent G and the desk
+chasing a fault in the world that lives in a script I wrote ten minutes
+earlier — the same shape as the tax office, where I named an innocent file and
+only caught it by measuring before anyone acted. A throwaway script is not an
+instrument, and a result that disagrees with a calibrated check needs the new
+thing doubted first.
