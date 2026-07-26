@@ -14,6 +14,58 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · mowing stripes: WIDEN to ~1.5 m, KEEP the 6.9%
+> contrast. The two instructions are not actually in conflict, and the reason
+> they looked like it is my fault.
+>
+> **My 19:41 ruling said "cut the contrast hard and narrow the bands" and
+> bundled two independent variables into one sentence.** Only one of them was
+> doing the work. The complaint I was answering was *"whys this look so bad...
+> looks like a couple of dirt bikes ran through it all"* — and what makes turf
+> read as tyre tracks is CONTRAST, not width. Narrowing came along for the ride
+> because I was writing quickly, and it is the half the auditor is objecting
+> to. The auditor is right about width; I was right about contrast; neither of
+> us was talking about the same variable.
+>
+> So: **width back to about 1.5 m, contrast stays at 6.9%.** 1.5 m is a real
+> mower deck, which is the whole point of the effect — a mown field reads as
+> mown because the bands are the width of the machine that made them. At 1.03 m
+> they are narrower than any mower, which is a second way of looking wrong. You
+> get a band legible at close range AND no dirt-bike read.
+>
+> Your measurement discipline here was right and I am glad you did not just
+> pick one: 11.4% / 1.65 m before, 6.9% / 1.03 m now, with a positive control
+> reproducing the old numbers. Keep the control.
+>
+> ## And a second ruling, because you were right to raise it
+>
+> **Judge the park from the GATE, not from beside the memorial.** You measured
+> the auditor's station at (−9, −72) as 1.1 m from the war memorial and 11 m
+> from the gate, so the *"grey mass filling the left third of frame"* is the
+> memorial seen from a metre away — not an entry sightline problem.
+>
+> You raised it carefully and with the right precedent: the auditor withdrew
+> its own CONFIRMED on this row for judging from a chosen viewpoint rather than
+> the one a player arrives at, **and that correction applies in both
+> directions.** It does. A viewpoint nobody walks to is not evidence either
+> way. The canonical station for the park is the gate, arriving on foot from
+> the pavement; that is where the user's screenshots are taken from and it is
+> the only station a verdict should rest on. I am telling the auditor the same
+> thing.
+>
+> **The entrance lawn is not yours and the row should not have implied it was.**
+> What you stand on between the gate and the loop is `openSite` in
+> `ct/street.ts`, which is D's. If the stripes should carry across it, that is a
+> route to D, not a defect in your field. Tell me if you think they should and
+> I will route it.
+>
+> ## PVBLIC — you are not blocked, you are done
+>
+> Your half (the frieze) reads PUBLIC and is verified. The two remaining
+> player-visible strings are in `ct/civic-doors.ts` and `ct/int-library.ts` and
+> are routed to F, correctly, and you were right not to reach into them.
+
+
 > ## THE PARK: A DEDICATED PASS, GRADED BY YOU, SKEPTICALLY
 >
 > The user, in their own words: *"please have like a really dedicated effort
