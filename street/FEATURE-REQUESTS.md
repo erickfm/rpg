@@ -157,10 +157,13 @@ published to the playable artifact.
   **0.20 m** and leaves you outside every collider. One rule, not two; the
   swept-volume test `doorClear` was deleted with the refusal it served.
 - **"there should be a bit of a gap out of the window and then just a brick wall. almost like a little room outside the window that is just brick"** → **C**
-  → **C. BUILT.** This is the ask the two rows below were circling; resolved in
-  the third row down. The well is real geometry now — 1.9 m x 2.4 m of sooted
-  brick with both side returns, a floor three storeys down in the dark, a dead
-  window opposite, a drainpipe and a fire escape landing.
+  → **C. BUILT, then refined.** The well is real geometry — 1.9 m across and
+  **1.2 m deep** of sooted brick, with both side returns, a floor three storeys
+  down in the dark, a drainpipe down the corner and a fire escape landing.
+  Refined on the user's follow-up: depth halved from 2.4 so it reads as a gap
+  and then brick rather than a long shaft, and the dark window on the far wall
+  removed — it was the desk's suggestion rather than the user's, and the far
+  wall wants to be plain. The drainpipe is untouched, as asked.
 - **"just do what i want for this bespoke minor window ask"** → **C**
   → **C.** Same ask as the row below; resolved there.
 - **"would like a view out of my window but the view it just a small gap and then brick wall lol"** → **C**

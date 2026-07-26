@@ -1363,7 +1363,12 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // sheet again — the same fault as the painting, in geometry. A real
     // tenement well is NARROW, and narrow is also what puts both side walls in
     // frame converging away from you, which is the whole cue for depth.
-    const WELL_D = 2.4;                    // glass to the far wall
+    // SHALLOW. The user wants *"a bit of a gap and then brick"*, not a long
+    // shaft — the brick should feel close enough to touch from the window.
+    // Halved from 2.4. The returns still read: from 1.86 m back the cone
+    // through a 1.3 m opening is 2.18 m wide at this distance and the well is
+    // 1.9 m across, so both side walls stay in frame.
+    const WELL_D = 1.2;                    // glass to the far wall
     const WELL_HW = 0.95;                  // half width, in z — 1.9 m across
     const WELL_FLOOR = 1.15;               // three storeys down, in shadow
     const WELL_TOP = 12.4;                 // above the head of our own opening
@@ -1407,23 +1412,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     wellFloor.position.set(AX(FAR_LX + WELL_D / 2), WELL_FLOOR, AZI(WIN_LZ));
     wellFloor.rotation.x = -Math.PI / 2;
     scene.add(wellFloor);
-    // ── what sells it: a dead window opposite, a drainpipe, a landing ──
-    // The window opposite is at OUR height and dead black. Somebody's back
-    // room, and it has not been opened in years.
-    const deadWinT = surfTex('detail', 20, 24, (g) => {
-      g.fillStyle = '#171a1c'; g.fillRect(0, 0, 20, 24);
-      g.fillStyle = 'rgba(120,140,150,0.07)'; g.fillRect(2, 2, 7, 9);   // the faintest sheen
-      g.fillStyle = '#2c2622'; g.fillRect(0, 0, 20, 2); g.fillRect(0, 22, 20, 2);
-      g.fillRect(0, 0, 2, 24); g.fillRect(18, 0, 2, 24);
-      g.fillRect(9, 2, 2, 20);
-      dither(g, 20, 24, 16);
-    });
-    const deadWin = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.05), texM(deadWinT));
-    deadWin.position.set(AX(FAR_LX + 0.03), WIN_Y - 0.08, AZI(WIN_LZ + 0.30));
-    deadWin.rotation.y = Math.PI / 2;
-    scene.add(deadWin);
-    const lintelM = new THREE.MeshBasicMaterial({ color: 0x6b625a });
-    box(0.08, 0.06, 1.0, FAR_LX + 0.05, WIN_Y - 0.08 - 0.56, WIN_LZ + 0.30, lintelM);   // its sill
+    // ── the drainpipe ────────────────────────────────────────────────────
+    // There was a dark window on the far wall here. It came out: it was the
+    // desk's suggestion rather than the user's ask, and the far wall is meant
+    // to be plain brick.
     // the drainpipe, down the corner where the far wall meets the return —
     // the one vertical in a wall of horizontals, and what tells you the well
     // keeps going down past where you can see
