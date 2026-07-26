@@ -992,3 +992,54 @@ looked right.
 Nine attempts. Eight of them measured the wrong half of the check — everything
 about where the player should be, nothing about where they actually were when
 the reading was taken.
+
+
+# FOR G — the floor function is landed. Here is a working stair, measured.
+
+The desk has now reported this blocked three times. It is on `add-stick-and-city98`
+at `ct/interior.ts:215`, and has been since `bd3ee7d7a`:
+
+```ts
+floor?: RoomLevel[] | ((lx: number, lz: number) => number | null)
+export interface RoomLevel { x0: number; x1: number; z0: number; z1: number; y: number }
+```
+
+Checked against MAINLINE's copy, not mine. `git show add-stick-and-city98:street/src/proto/ct/interior.ts | grep floor?:`
+
+## A five-step stair, run just now
+
+```ts
+floor: (lx, lz) => lz < 0 ? 0 : Math.min(5, Math.floor(lz / 1.2)) * 0.18
+```
+
+```
+picker along the nave:
+  z-2 0 · z0 0 · z1.5 0.18 · z2.5 0.36 · z3.7 0.54 · z4.9 0.72 · z6.1 0.90
+a player holding W:  z -1.0 -> 7.7,  gy 0 -> 0.90
+```
+
+**A player climbs it.** That is the whole of "a stair is a level change inside a
+room", working, in a room in the belt today.
+
+## For halls at different levels, the list form
+
+```ts
+floor: [{ x0: -8, x1: -2, z0: -6, z1: 6, y: 0    },   // west hall
+        { x0: -2, x1:  2, z0: -6, z1: 6, y: 0.18 },   // the landing between
+        { x0:  2, x1:  8, z0: -6, z1: 6, y: 0.36 }]   // east hall, up two
+```
+
+Later rows win, so overlapping regions stack — a mezzanine over a hall is two
+rows, not a special case. Return `null` from the function form for "not mine",
+as `ctx.ground` does.
+
+**G registers nothing.** The room's slab `gy` is already in the same registry
+the entry point dispatches over for the library and church exterior flights. One
+picker for the world, which was the instruction.
+
+**And the room suite already tolerates levels.** Two checks assumed every
+interior floor was 0; both were fixed when the API shipped, so a stair will not
+turn `interiors-walk` red the first time G runs it.
+
+If G is blocked after pulling mainline, it is not on this, and I would like the
+actual error rather than the summary.
