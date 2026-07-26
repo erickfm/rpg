@@ -1371,3 +1371,33 @@ the ledger honest about which claims have actually been checked.
 stretches; the crowd does 3–5. A builder understating their own result is the
 opposite of the failure this ledger was built for, and it is worth recording in
 the same breath as the misses.
+
+## [C] Truck clear of the alley; the kid's head joins up
+
+**Truck — CONFIRMED.** West-kerb pickup spans z −32.49…−27.58, **4.51 m clear** of
+the alley mouth at AZ0 −37; east-kerb hatch 2.88 m clear; **no car overlaps the
+mouth.** The derivation is the better part: the truck's z is computed from the
+alley itself, so **the arrangement cannot drift back over the mouth if the alley
+ever moves.** A placement that stays correct under a change it did not anticipate
+is worth more than one that happens to be correct now.
+
+**Kid's head — CONFIRMED on the fault class.** At 460%: the cap meets the head at
+a shared edge and overhangs slightly (right — a cap has volume), the ear sits
+inside the silhouette, and the knot **joins the head's edge** rather than floating
+beside it. One coherent shape.
+
+**[I] Two failed selectors before I got a picture of a person at all.** First I
+took "the shortest atlas billboard in the world" and photographed **a wall** —
+the object was 1.05 m and not a citizen. Then I took "the shortest walker sprite"
+and found **all six identical at 1.9 m**, because the per-person height scale is
+applied to the mesh transform and not to the geometry, so `geometry.boundingBox`
+cannot see it.
+
+**A selector that returns something is not a selector that returned the right
+thing.** Both attempts produced a confident answer; only looking at the output
+revealed that one was masonry and the other was six copies of the same number.
+
+**[R] I recorded the limit rather than papering over it:** I verified the fault
+class on a citizen wearing the cap, not on **p1 by name**. The row says the kid is
+p1; my instruments cannot tell the six walkers apart by height, so that
+identification is the builder's and I have not independently confirmed it.
