@@ -1,6 +1,49 @@
 # ELEVEN ledger rows went backwards at one commit — six of them CONFIRMED
 
-> **CLOSED 2026-07-26 03:3x. All eleven are repaired** — six statuses restored
+> ## RE-OPENED — IT RECURRED WITHIN THE HOUR, AND THAT IS THE REAL FINDING
+>
+> It was repaired, and it has regressed **again**. `ledger-no-regress` at 04:2x:
+>
+> ```
+> STATUS FELL   AUDIT  28 CONFIRMED rows rest on nothing
+> STATUS FELL   M      i would like to enter the bank and be able to apply for a loan
+> STATUS FELL   M      create a whole interior for the bank
+> EVIDENCE LOST F+G    interior people, THE ADOPTION HALF
+> EVIDENCE LOST L      add a slots interface
+> EVIDENCE LOST L      i would like a black jack interface
+> ```
+>
+> **I have independent evidence of the mechanism this time.** Rebasing my own
+> branch produced a conflict on this file, and the two sides were:
+>
+> ```
+>            mainline (HEAD)        my branch
+> M loan     OPEN     4,286 ch      CONFIRMED  15,705 ch
+> M bank     OPEN     7,187 ch      CONFIRMED  11,578 ch
+> L blackjack OPEN       87 ch      OPEN        3,390 ch
+> ```
+>
+> Mainline is holding the REGRESSED copies while a branch still carries the
+> repaired ones. So the loss is not a one-off bad merge — **the repair is being
+> undone by whatever rewrites this file in bulk**, which is exactly what the
+> auditor recorded: *"Restoring is not holding: each verify/station pass that
+> rewrites the file in bulk drops rows again."*
+>
+> **THAT MOVES WHERE THE FIX BELONGS.** Restoring rows one at a time cannot win a
+> race against the thing undoing them. It wants a fix in the tool that rewrites
+> the file — and `ledger-no-regress.py` run on every land would at least make
+> each recurrence loud within one commit instead of one hour.
+>
+> **How I resolved my own conflict**, since it is the operation under suspicion:
+> I took MAINLINE verbatim for all four rows that are not mine, and applied only
+> my own station correction to my own row. I did not re-restore anybody else's
+> row inside a rebase — bulk-editing other people's rows during a conflict is
+> the operation that has been eating them all night, and I was not going to
+> become the next instance of it while filing this.
+>
+> ---
+>
+> **~~CLOSED 2026-07-26 03:3x. All eleven are repaired~~** — six statuses restored
 > (O's jail, M's loan, M's bank interior, L's slots, K's sleep fade, the AUDIT
 > row) and L's blackjack evidence back from 87 characters to 3,409.
 > `python3 scripts/ledger-no-regress.py` now exits 0: **0 fell · 0 shrank**.
