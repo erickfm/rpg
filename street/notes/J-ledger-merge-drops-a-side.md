@@ -91,3 +91,20 @@ ledger.
 ALSO appended in the same window. That is not the rare case — during a
 verification sweep it is the normal case, because the rows being worked are
 exactly the rows that collide.
+
+## A fourth instance, 2026-07-26 — and now it is a rate, not a run of bad luck
+
+F's keeper-orientation row, verifying it. Same shape, same silent success
+message, 2,430 characters gone. Restored from my own commit.
+
+**Four conflicts, four drops.** That is not "sometimes"; across every LEDGER.md
+conflict I have hit while verifying, the resolver has kept one side and
+discarded the other, every single time. If the intended behaviour is to keep
+both, it is not doing it. If the intended behaviour is to prefer one side, then
+during a verification sweep — when the rows that conflict are by definition the
+rows two people are working — that policy silently deletes half of every
+contested verdict.
+
+I still have not read the script and still am not diagnosing it. But four for
+four is past the point where anyone should be relying on it unchecked, and the
+grep habit below is now the only reason four verdicts still exist.
