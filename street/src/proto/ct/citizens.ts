@@ -61,11 +61,19 @@ export function citizenAtlas(o: Look): THREE.Texture {
   const cut: HairCut = o.cut ?? 'short';
   const grime = o.grime ?? 0;
   const seated = o.seated ?? false;
-  /** how far the upper body drops when sitting: a straight leg is 21 rows
-   *  and a folded one about 13, so the 9 the legs give up is exactly what
-   *  the head, torso and arms come down by — the figure sits INTO the frame
-   *  and the painted shoe still lands on row 59. */
-  const SEAT_DROP = 9;
+  /** How far the upper body drops when sitting — and this number is set by
+   *  THE SEATS THAT EXIST, not by the frame.
+   *
+   *  I first derived 9 from the sprite alone (a straight leg is 21 rows, a
+   *  folded one about 13) and it was wrong for the world: hip at row 47 puts
+   *  hip-to-foot at 0.356 m, while the seats in this world measure 0.46 m on
+   *  48 of them, then 0.50, 0.48, 0.47. A sitter placed on a real bench would
+   *  have hung 10.4 cm in the air — which is the 12 cm float again, in the one
+   *  function that exists because of it.
+   *
+   *  Hip row 44 gives (59-44)/64 * 1.9 = 0.445 m, inside half a texel of the
+   *  commonest seat. Measured against the world, not reasoned from the sheet. */
+  const SEAT_DROP = 6;
   const build = o.build ?? 0;
   const strideMax = o.stride ?? 3;
   const tw = 7 + build;            // torso half-width: 6, 7 or 8
@@ -98,7 +106,7 @@ export function citizenAtlas(o: Look): THREE.Texture {
           // frame's own. The feet do not move: a seated person's shoes are on
           // the floor, which is why the sprite still reaches row 59 and why
           // nothing about the standing figure's footprint changes.
-          const HIP = oy + 47, KNEE_Y = oy + 47, FOOT = oy + 59;
+          const HIP = oy + 38 + SEAT_DROP, KNEE_Y = HIP, FOOT = oy + 59;
           if (view === 2) {
             // side on: the whole thigh shows, running forward from the hip
             g.fillStyle = shade(pantsC, 0.62);
@@ -464,7 +472,7 @@ export function citizenPlane(seated = false): THREE.PlaneGeometry {
   // The shoe still lands on row 59 either way, so a sitter's feet reach the
   // floor when the seat is at a sane height, and nothing about the standing
   // figure's footprint changes.
-  const HIP_ROW = 47, ROWS = 64;
+  const HIP_ROW = 44, ROWS = 64;   // 0.445 m above the shoe — see SEAT_DROP
   const originRow = seated ? HIP_ROW : ROWS - PAD_ROWS;
   geo.translate(0, H / 2 - (originRow / ROWS) * H + (seated ? 0 : 0), 0);
   return geo;

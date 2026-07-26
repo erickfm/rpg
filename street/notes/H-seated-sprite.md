@@ -21,7 +21,7 @@ room.add(diner);
 | pose | origin is | place it at |
 |---|---|---|
 | standing | the painted shoe | the floor |
-| **seated** | **the hip** | **the seat top** |
+| **seated** | **the hip, 0.445 m above the shoe** | **the seat top** |
 
 That is the desk's ruling and the reason is worth knowing, because it is the
 same bug twice: *"five modules and ten rooms each applying their own offset is
@@ -44,23 +44,28 @@ after that was *"verify all eight angles, not one — the profile passing is wha
 made the leg-only fold look plausible"*, so here is the structural check rather
 than my eye:
 
+**Corrected after measuring against the world's actual seats** — I first set
+the drop to 9 from the sprite alone, which put hip-to-foot at 0.356 m against
+seats that measure **0.46 m on 48 of them** (then 0.50, 0.48, 0.47). A sitter on
+a real bench would have hung **10.4 cm** in the air: the 12 cm float again, in
+the very function that exists because of it. The drop is 6, hip row 44,
+hip-to-foot 0.445 m — inside half a texel of the commonest seat.
+
 ```
 col   standTop  seatTop  drop   standFoot  seatFoot
- 0        5       14      9        59         59
- 1        5       14      9        59         59
- 2        5       14      9        59         59
- 3        5       14      9        59         59
- 4        5       14      9        59         59
+ 0        5       11      6        59         59
+ 1        5       11      6        59         59
+ 2        5       11      6        59         59
+ 3        5       11      6        59         59
+ 4        5       11      6        59         59
 
 all 8 sectors  s0(col0) s1(col1) s2(col2) s3(col3) s4(col4)
                s5(col3 mirrored) s6(col2 mirrored) s7(col1 mirrored)
-               every one drop=9
+               every one drop=6
 ```
 
-**Every angle drops by 9 rows and no angle's feet move.** The 9 is not a taste
-number: a straight leg is 21 rows and a folded one about 13, so the upper body
-comes down by exactly what the legs give up — the figure sits INTO the frame
-instead of off the bottom of it.
+**Every angle drops by 6 rows and no angle's feet move.** The 6 is set by the
+seats that exist, not by the frame — measured, not derived from the sheet.
 
 ## Scope, so nobody waits on more
 
