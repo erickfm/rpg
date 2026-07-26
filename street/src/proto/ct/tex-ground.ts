@@ -893,20 +893,31 @@ function alley2FloorTex(deep: number, wide: number): THREE.Texture {
     // move every tree in the world.
     let s = 0x6d2b79f5 >>> 0;
     const nx = () => { s = Math.imul(s ^ (s >>> 15), 0x2c1b3c6d) >>> 0; return (s >>> 9) / 0x7fffff; };
-    g.fillStyle = '#33353a'; g.fillRect(0, 0, w, h);
-    // the worn crown: lighter and smoother down the middle third
-    const mid = h / 2, wear = h * 0.19;
+    // #2e3034 IS THE FIRST ALLEY'S BASE, taken deliberately. The user: "i dont
+    // like the color of the alley way. i prefer the look of the other alley."
+    // The brief I built to said make this one read DIFFERENT, and I expressed
+    // that in COLOUR, which was the wrong axis — it landed as near-black with a
+    // cool cast and read as wet asphalt at night. Same palette, same value as
+    // the alley he likes; the difference lives in the WEAR PATTERN below and in
+    // what is lying on the floor, not in the tone.
+    g.fillStyle = '#2e3034'; g.fillRect(0, 0, w, h);
+    // the worn crown: lighter and smoother down the middle, and this is where
+    // "the back of a walk-up" is actually said — every tenant walks this line
+    const mid = h / 2, wear = h * 0.22;
     for (let y = 0; y < h; y++) {
       const t = Math.max(0, 1 - Math.abs(y - mid) / wear);
       if (t <= 0) continue;
-      g.fillStyle = `rgba(126,128,132,${(0.05 + t * 0.20).toFixed(3)})`;
+      g.fillStyle = `rgba(150,150,148,${(0.04 + t * 0.17).toFixed(3)})`;
       g.fillRect(0, y, w, 1);
     }
-    // grime at both flanks, heavier than the first alley's even scatter
+    // grime at the flanks. MUCH lighter than the first cut, which laid 0.40
+    // alpha of near-black over 30% of the width from BOTH edges and is most of
+    // why the floor went dark: on a 2.5 m slot that is 1.5 m of the 2.5 m
+    // painted down toward black.
     for (let y = 0; y < h; y++) {
-      const e = Math.max(0, 1 - (Math.min(y, h - 1 - y) / (h * 0.30)));
+      const e = Math.max(0, 1 - (Math.min(y, h - 1 - y) / (h * 0.22)));
       if (e <= 0) continue;
-      g.fillStyle = `rgba(22,21,19,${(e * 0.40).toFixed(3)})`;
+      g.fillStyle = `rgba(28,27,25,${(e * 0.16).toFixed(3)})`;
       g.fillRect(0, y, w, 1);
     }
     // JOINTS, which is what gives it scale: slabs across the alley every 1.2 m
@@ -923,24 +934,24 @@ function alley2FloorTex(deep: number, wide: number): THREE.Texture {
     // side the texture's v=0 edge lands on, and the gully below is placed from
     // the SAME expression so the two cannot disagree.
     const cz = Math.round(h * 0.18), cw = Math.max(3, Math.round(0.30 * WPM));
-    g.fillStyle = 'rgba(14,14,16,0.62)'; g.fillRect(0, cz, w, cw);
-    g.fillStyle = 'rgba(8,8,9,0.55)';    g.fillRect(0, cz + Math.floor(cw / 2) - 1, w, 2);
-    g.fillStyle = 'rgba(150,152,156,0.20)'; g.fillRect(0, cz - 1, w, 1);   // lit arris
+    g.fillStyle = 'rgba(20,20,21,0.34)'; g.fillRect(0, cz, w, cw);
+    g.fillStyle = 'rgba(12,12,13,0.34)'; g.fillRect(0, cz + Math.floor(cw / 2) - 1, w, 2);
+    g.fillStyle = 'rgba(158,158,155,0.20)'; g.fillRect(0, cz - 1, w, 1);   // lit arris
     // standing damp in the channel, and silt where it has dried at the edges
     for (let i = 0; i < Math.round(deep * 0.7); i++) {
       const px = nx() * w, len = (0.4 + nx() * 1.4) * WPM;
-      g.fillStyle = `rgba(6,7,9,${(0.10 + nx() * 0.18).toFixed(3)})`;
+      g.fillStyle = `rgba(14,15,15,${(0.07 + nx() * 0.11).toFixed(3)})`;
       g.fillRect(px, cz, len, cw);
     }
     // grain per SQUARE METRE, the correction the facades and the first alley
     // both took — a flat count leaves a big floor bald
-    dither(g, w, h, Math.round(deep * wide * 26));
+    dither(g, w, h, Math.round(deep * wide * 22));   // the first alley's density exactly
     // spills and stains, sized in metres, kept OFF the worn crown so the story
     // the floor tells stays legible
     for (let i = 0; i < 11; i++) {
       const cx = nx() * w;
       const edge = nx() < 0.5 ? h * (0.06 + nx() * 0.20) : h * (0.74 + nx() * 0.20);
-      g.fillStyle = `rgba(0,0,0,${(0.16 + nx() * 0.18).toFixed(3)})`;
+      g.fillStyle = `rgba(0,0,0,${(0.14 + nx() * 0.14).toFixed(3)})`;
       g.beginPath();
       g.ellipse(cx, edge, (0.25 + nx() * 0.55) * WPM, (0.14 + nx() * 0.3) * WPM,
                 nx() * Math.PI, 0, Math.PI * 2);
