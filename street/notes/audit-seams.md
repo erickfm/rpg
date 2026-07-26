@@ -1089,3 +1089,36 @@ corrected two passes ago, on the same two buildings.
 what the builder's number WOULD be right about.** 16.5 is not a random error; it
 is the correct distance to a different object. That is worth more to whoever
 picks this up than "the number is wrong", because it says where to look.
+
+## [C] Night lighting CONFIRMED — on the walk and the star count, not on B's ratio
+
+All three parts of the request are visibly delivered at 22:00: broad soft pools
+under the heads, genuinely dark pavement between them, and **453 of 38,400 upper-
+sky pixels brighter than 90** against a sky mean of 13.8 — a real star field.
+
+**[I] I could not reproduce B's 11.7×, and I said so on the row instead of
+finding a number that agreed.** Two attempts, both non-comparable:
+
+- **frame brightness looking down → 4.0×.** Mixes kerb, walk and road in one
+  view, and moves with whatever the camera happens to frame.
+- **per-mesh colour on the walk → 596×.** Compares *different objects* — a dark
+  prop against a bright sheet — not one surface lit two ways.
+
+`0.0450` turns up exactly where B says mid-block is, so their figure is real and
+their units are the world's. I simply could not identify the matching under-head
+surface to divide by.
+
+**The temptation was to pick whichever of my two numbers sat nearer 11.7 and call
+it agreement.** 4.0 is the same order; it would have passed unchallenged. But
+neither measures what B measured, and *a number that happens to be close is not
+corroboration* — it is two different quantities that landed near each other.
+
+The confirmation stands on what I did observe: the walk and the star count. **An
+auditor who cannot reproduce a builder's metric can still confirm the request,
+because the request was never a ratio — it was "it should feel scarier at
+night".**
+
+**[Is] Fourth untracked request, and the first a builder found themselves.** B
+records that this one had no ledger row at all. My reconciliation caught nine;
+this is a tenth, which suggests the drift is ongoing rather than historical, and
+strengthens the case for the check to be a script rather than an audit pass.
