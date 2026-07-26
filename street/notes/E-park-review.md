@@ -104,6 +104,36 @@ changed, this is the area that will show it most.
 
 → **B**, with these numbers. I have not touched `props.ts`.
 
+## The whole-park pass, walked end to end in daylight and at night
+
+Twelve stations round the loop, each looking along the path and out at the
+boundary, at 13:20 and again at 22:20. `shots/E-loopwalk/`, `night-` prefixed
+for the second lap. What the two laps show is different, which is why the desk
+asked for both: daylight shows shape and tone, night shows what the lamps do to
+pale things and what vanishes entirely.
+
+**Daylight — nothing outstanding.** The field reads as mown grass with faint
+worn tracks; the path reads as hoggin against the road; the shrub layer breaks
+the wall base along all three walls with a broken top line; weeds sit in clumps
+at the edges with the walking line clean; the shelter reads as a structure; every
+bench faces the park. The three faults I found on this lap are fixed and listed
+above — the shrub slabs, the flat-colour stone, the bark.
+
+**Night — one fault, and it is not mine.** The weed tufts are the brightest
+thing in the frame. Measured at 23:30 they run 13–22× the luminance of the
+ground they stand on, all with `graded: true`, which is `POOL_GAIN 12` from the
+lanterns rather than a dimming failure — the same mechanism as the shelter roof
+and as B's floating litter. It is very visible now precisely because the user
+asked for weeds along every path edge, and that is where the lanterns are.
+
+I have not worked around it from here. The fix is on the object side in
+`ct/props.ts` and the auditor's own note already says what it should be —
+*"grade the object by the factor its ground already gets, target a kept-fraction
+ratio near 1"*. Reaching into another module's lighting from the park would
+give this one area a private exception to a rule the whole street shares.
+
+→ **B**, and it is now the park's most visible defect after dark.
+
 ## Walked
 
 `E-park-walk` 16/16 after the shrubs went in — the new runs are colliders and

@@ -13,10 +13,15 @@ page.on('pageerror', (e) => errs.push(e.message));
 await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
-await page.evaluate(() => window.__ct.clock(13, 20));
+// DAYLIGHT AND NIGHT, because the desk asked for both and they fail
+// differently: daylight shows shape and tone, night shows what the lamps do to
+// pale objects and what disappears entirely.
+const HOUR = Number(process.env.E_HOUR ?? 13);
+await page.evaluate(([h]) => window.__ct.clock(h, 20), [HOUR]);
 
 // the loop, from park.ts: legs at x -32.5 / -13.25, ends at z -92 / -74, cham 2.6
 const L = { x0: -32.5, x1: -13.25, z0: -92.0, z1: -74.0 };
+const TAG = HOUR > 6 && HOUR < 19 ? '' : 'night-';
 const stations = [];
 for (let i = 0; i < 4; i++) {                     // street leg, south to north
   const t = i / 3;
@@ -37,11 +42,11 @@ for (let i = 0; i < 2; i++) {                     // south end, back to street
 for (const s of stations) {
   await page.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0.14, 0.02), [s.x, s.z, s.yaw]);
   await page.waitForTimeout(950);
-  await page.screenshot({ path: `shots/E-loopwalk/${s.tag}-along.png` });
+  await page.screenshot({ path: `shots/E-loopwalk/${TAG}${s.tag}-along.png` });
   await page.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0.14, 0.06),
     [s.x, s.z, s.yaw - Math.PI / 2]);
   await page.waitForTimeout(750);
-  await page.screenshot({ path: `shots/E-loopwalk/${s.tag}-out.png` });
+  await page.screenshot({ path: `shots/E-loopwalk/${TAG}${s.tag}-out.png` });
 }
 console.log(`${stations.length} stations walked`);
 console.log(errs.length ? `PAGE ERRORS: ${errs.join(' | ')}` : 'no page errors on the lap');
