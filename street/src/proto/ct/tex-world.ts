@@ -1487,8 +1487,17 @@ export const pawnFront = (brick: string, wM: number) => {
     g.fillStyle = '#e8dcc0'; g.fillText('PAWN', W * 0.42, fy + fh / 2);
     g.font = `bold ${m(0.3)}px monospace`;
     g.fillStyle = '#c9bfa0'; g.fillText('LOANS  GOLD  TOOLS', W * 0.72, fy + fh / 2 + m(0.06));
-    // the three balls, hung off the board so they cast onto it
-    const bx0 = m(1.0), by0 = fy + fh * 0.5, br = m(0.19);
+    // THE THREE BALLS BELONG OVER THE DOOR, and they were 1 m from the left
+    // end of the board — a constant from before this frontage had a declared
+    // door, sitting wherever the board happened to start. The user named it.
+    //
+    // Derived from `doorAlongU`, not fixed, so they follow the door if the room
+    // ever moves it — the same repair the diner's glass block needed, and the
+    // reason that one is worth copying rather than re-deriving. Clamped so the
+    // cluster cannot hang off the end of the board on a narrow frontage.
+    const ballsC = m(doorAlongU('PAWN', wM, F.doorCentreM));
+    const bx0 = Math.min(Math.max(ballsC - m(0.21), m(0.5)), W - m(1.0));
+    const by0 = fy + fh * 0.5, br = m(0.19);
     for (const [ox2, oy2] of [[0, -0.28], [0.42, -0.28], [0.21, 0.14]] as [number, number][]) {
       g.fillStyle = 'rgba(0,0,0,0.35)';
       g.beginPath(); g.ellipse(bx0 + m(ox2) + 1, by0 + m(oy2) + 1, br, br, 0, 0, Math.PI * 2); g.fill();
@@ -1501,30 +1510,160 @@ export const pawnFront = (brick: string, wM: number) => {
     g.fillStyle = '#1d1a16'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
     const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
-    glazed(g, surf, gx, gy, gw, gh, '#2b2622');
-    // ONE bulb over a shelf of pledged goods — instruments, tools, a guitar
-    // neck. Dim, because nothing in here is a display, it is storage.
-    g.fillStyle = '#8a7a4e'; g.fillRect(gx, gy, gw, m(0.18));
-    g.fillStyle = 'rgba(138,122,78,0.20)'; g.fillRect(gx, gy + m(0.18), gw, m(0.4));
+    glazed(g, surf, gx, gy, gw, gh, '#463c31');
+    // THIS WINDOW IS A DISPLAY, NOT STORAGE, and the comment that used to sit
+    // here said the opposite — "dim, because nothing in here is a display, it
+    // is storage" — with the lighting to match. The user has overruled that
+    // reading directly: a pawn shop's window is its whole character and should
+    // be the most crowded on the block.
+    //
+    // Measured, it was the LEAST readable: of the glazing texels, the share
+    // that read at all (max channel > 120) was
+    //
+    //     A-1 TAX 43.9  ·  THRIFT 40.8  ·  DINER 40.2  ·  BURGER 33.6
+    //     the quiet default shops 7.6 - 14.9
+    //     PAWN 4.8            <- darkest window on the street
+    //
+    // and yet PAWN carried 33 distinct tones, more than every front except the
+    // tax office and the thrift. The inventory was all being drawn and then
+    // buried under a dark room, a dim bulb and an inner cage at 0.62 alpha.
+    // Nothing here needed redrawing; it needed the light turning on.
+    g.fillStyle = '#c9a45e'; g.fillRect(gx, gy, gw, m(0.20));                       // the strip over the window
+    g.fillStyle = 'rgba(201,164,94,0.34)'; g.fillRect(gx, gy + m(0.20), gw, m(0.55));
+    g.fillStyle = 'rgba(201,164,94,0.16)'; g.fillRect(gx, gy + m(0.75), gw, m(0.9));
     let sd = 0x51a3f7;
     const r = () => ((sd = (Math.imul(sd, 1664525) + 1013904223) >>> 0) / 4294967296);
-    // two shelves, both crowded — a pawnshop window is inventory, not display
-    for (const sy of [gy + m(1.15), gy + m(2.25)]) {
-      g.fillStyle = '#3e372c'; g.fillRect(gx, sy, gw, m(0.1));
-      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(gx, sy + m(0.1), gw, m(0.1));      // under the shelf
-      for (let x = gx + m(0.3); x < gx + gw - m(0.4); x += m(0.58)) {
-        const hgt = m(0.4) + Math.round(r() * m(0.45));
-        g.fillStyle = GOODS[Math.floor(r() * GOODS.length)];
-        g.fillRect(x, sy - hgt, m(0.34), hgt);
-        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, sy - hgt, m(0.34), m(0.06));
+    // THE WINDOW IS THE SHOP. It used to be two shelves of coloured blocks off a
+    // `GOODS` palette, and at 16 px/m a row of same-width rectangles reads as
+    // BOOK SPINES — measured from the pavement, this front looked like a
+    // bookshop somebody had barred. A pawn shop's window is its whole
+    // character, so the inventory is drawn as objects rather than as stock.
+    //
+    // THE CONTENTS ARE G's, NOT MINE. `ct/int-pawn.ts` already builds this
+    // shop's interior and says what is in it — a glass case with rings on the
+    // top shelf and watches on the lower "each on its own tag", and a back wall
+    // read "left to right: the tools, the guitars, the brass", the guitars dead
+    // centre because they are what you come in for. Painting my own display
+    // would be the two-things-compute-it fault in a new place, so this depicts
+    // G's.
+    //
+    // AND IT IS MIRRORED, which is the part that is easy to get wrong. G's
+    // order is what a customer sees standing INSIDE facing the back wall. From
+    // the pavement you are looking the other way through the same wall, so it
+    // reads brass, guitars, tools — the same handedness rule `mirror-walk`
+    // measures for doors, applied to the display.
+    const tag = (x: number, y: number) => {                        // handwritten price ticket
+      g.fillStyle = '#d8d0b8'; g.fillRect(x, y, m(0.17), m(0.11));
+      g.fillStyle = 'rgba(60,50,36,0.75)'; g.fillRect(x + m(0.03), y + m(0.04), m(0.11), Math.max(1, m(0.03)));
+    };
+    // DENSITY IS THE POINT, and it is what three passes of recolouring did not
+    // fix. Measured after lifting every object colour, this window still read
+    // 9.1% against 33-44% for the other character fronts — because a handful of
+    // objects spread over 13.7 m of glazing is not a crowded window however
+    // brightly they are painted. The zones stay (they carry G's order) and each
+    // one is now FILLED.
+    const third = gw / 3;
+    // ── BRASS, on stands (G's right-hand end, so our left) ──────────────────
+    for (let bx = gx + m(0.3); bx < gx + third - m(0.5); bx += m(0.72)) {
+      const by = gy + m(1.62) + (r() < 0.5 ? 0 : m(0.16));
+      g.fillStyle = '#8a7550'; g.fillRect(bx + m(0.20), by, Math.max(1, m(0.06)), m(0.50));
+      g.fillStyle = GOLD; g.fillRect(bx + m(0.05), by - m(0.38), m(0.30), m(0.38));
+      g.fillStyle = '#e8cf96'; g.fillRect(bx + m(0.05), by - m(0.38), m(0.30), m(0.08));
+      g.fillStyle = GOLD;
+      g.beginPath(); g.ellipse(bx + m(0.36), by - m(0.26), m(0.13), m(0.17), 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(0,0,0,0.30)';
+      g.beginPath(); g.ellipse(bx + m(0.39), by - m(0.26), m(0.07), m(0.11), 0, 0, Math.PI * 2); g.fill();
+      if (r() < 0.6) tag(bx + m(0.06), by - m(0.06));
+    }
+    // ── GUITARS, dead centre, a wall of necks ───────────────────────────────
+    {
+      let i = 0;
+      for (let cx2 = gx + third + m(0.12); cx2 < gx + 2 * third - m(0.4); cx2 += m(0.5), i++) {
+        const ty = gy + m(0.58) + (i % 2) * m(0.10);
+        g.fillStyle = '#8a6a45'; g.fillRect(cx2, ty, Math.max(1, m(0.09)), m(1.10));
+        g.fillStyle = '#6a5236'; g.fillRect(cx2 - m(0.03), ty, m(0.15), m(0.10));
+        g.fillStyle = 'rgba(240,230,205,0.55)';
+        for (let fr = 1; fr < 5; fr++) g.fillRect(cx2, ty + fr * m(0.21), Math.max(1, m(0.09)), 1);
+        const bodyC = ['#c4763c', '#a35d84', '#5a8ec4', '#c9a45e'][i % 4];
+        g.fillStyle = bodyC;
+        g.beginPath(); g.ellipse(cx2 + m(0.04), ty + m(1.34), m(0.24), m(0.28), 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.16)';
+        g.beginPath(); g.ellipse(cx2 - m(0.04), ty + m(1.26), m(0.10), m(0.11), 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = '#1a1512';
+        g.beginPath(); g.ellipse(cx2 + m(0.04), ty + m(1.34), m(0.07), m(0.08), 0, 0, Math.PI * 2); g.fill();
+        if (i % 3 === 0) tag(cx2 + m(0.14), ty + m(1.60));
       }
     }
-    for (let x = gx + m(0.4); x < gx + gw - m(0.5); x += m(0.85)) {                   // stacked on the floor
-      const hgt = m(0.3) + Math.round(r() * m(0.4));
-      g.fillStyle = GOODS[Math.floor(r() * GOODS.length)];
-      g.fillRect(x, gy + gh - m(0.35) - hgt, m(0.4), hgt);
+    // ── TOOLS on a pegboard, filling the last third ─────────────────────────
+    {
+      const tx0 = gx + 2 * third + m(0.10), tw = third - m(0.30), ty0 = gy + m(0.62);
+      g.fillStyle = '#6a6154'; g.fillRect(tx0, ty0, tw, m(1.35));
+      g.fillStyle = 'rgba(0,0,0,0.16)';
+      for (let y = ty0 + m(0.1); y < ty0 + m(1.3); y += m(0.13))
+        for (let x = tx0 + m(0.1); x < tx0 + tw - m(0.1); x += m(0.13)) g.fillRect(x, y, 1, 1);
+      let k = 0;
+      for (let x = tx0 + m(0.16); x < tx0 + tw - m(0.28); x += m(0.42), k++) {
+        const kind = k % 4;
+        if (kind === 0) {                                            // saw
+          g.fillStyle = '#cfc8ba'; g.fillRect(x, ty0 + m(0.16), m(0.09), m(0.55));
+          g.fillStyle = '#9a7c52'; g.fillRect(x - m(0.03), ty0 + m(0.71), m(0.16), m(0.15));
+        } else if (kind === 1) {                                     // drill
+          g.fillStyle = '#7d857c'; g.fillRect(x, ty0 + m(0.20), m(0.28), m(0.20));
+          g.fillStyle = '#9a7c52'; g.fillRect(x + m(0.07), ty0 + m(0.40), m(0.12), m(0.24));
+        } else if (kind === 2) {                                     // wrench
+          g.fillStyle = '#cfc8ba'; g.fillRect(x + m(0.06), ty0 + m(0.18), m(0.08), m(0.50));
+          g.fillStyle = '#b8b0a4'; g.fillRect(x + m(0.02), ty0 + m(0.14), m(0.16), m(0.09));
+        } else {                                                     // a boxed set
+          g.fillStyle = '#8a5a3a'; g.fillRect(x, ty0 + m(0.26), m(0.30), m(0.34));
+          g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(x, ty0 + m(0.26), m(0.30), m(0.06));
+        }
+        if (k % 2 === 0) tag(x + m(0.02), ty0 + m(0.94));
+      }
+    }
+    // ── A TV STACK and boxed gear along the floor, the whole width ──────────
+    {
+      let k = 0;
+      for (let vx = gx + m(0.35); vx < gx + gw - m(0.75); vx += m(0.86), k++) {
+        const stack = 1 + (k % 3 === 0 ? 1 : 0);
+        for (let sIdx = 0; sIdx < stack; sIdx++) {
+          const vy = gy + gh - m(0.35) - m(0.46) * (sIdx + 1);
+          g.fillStyle = '#7a7466'; g.fillRect(vx, vy, m(0.58), m(0.44));
+          g.fillStyle = '#20262a'; g.fillRect(vx + m(0.05), vy + m(0.05), m(0.38), m(0.30));
+          g.fillStyle = 'rgba(150,172,190,0.22)'; g.fillRect(vx + m(0.05), vy + m(0.05), m(0.38), m(0.09));
+          g.fillStyle = '#a8a294'; g.fillRect(vx + m(0.47), vy + m(0.09), m(0.07), m(0.22));
+        }
+        if (k % 2 === 0) tag(vx + m(0.06), gy + gh - m(0.30));
+      }
+    }
+    // ── THE GLASS CASE, rings above and watches below, each tagged ──────────
+    {
+      const cy0 = gy + m(2.10), ch = m(0.50);
+      g.fillStyle = 'rgba(30,32,34,0.80)'; g.fillRect(gx + m(0.2), cy0, gw - m(0.4), ch);
+      g.fillStyle = '#6a6458'; g.fillRect(gx + m(0.2), cy0 + ch / 2, gw - m(0.4), 1);
+      g.fillStyle = 'rgba(255,255,255,0.26)'; g.fillRect(gx + m(0.2), cy0, gw - m(0.4), 1);
+      for (let x = gx + m(0.32); x < gx + gw - m(0.45); x += m(0.34)) {
+        g.fillStyle = GOLD;                                                  // a ring, above
+        g.fillRect(x + m(0.02), cy0 + m(0.09), m(0.10), Math.max(1, m(0.05)));
+        g.fillStyle = r() < 0.34 ? '#c8d0d8' : '#e8cf96';                    // a watch, below
+        g.fillRect(x + m(0.02), cy0 + m(0.30), m(0.11), m(0.10));
+        g.fillStyle = '#9a9488'; g.fillRect(x + m(0.04), cy0 + m(0.40), m(0.07), Math.max(1, m(0.03)));
+      }
     }
     g.fillStyle = '#211d19'; g.fillRect(gx, gy + gh - m(0.35), gw, m(0.35));          // floor
+    // BARS ON THE INSIDE OF THE GLASS AS WELL AS OUTSIDE — the detail that says
+    // pawn shop before you read the sign. These go on FIRST, behind the
+    // mullions and the outer grille, at a different pitch and much darker,
+    // because an inner cage seen through glass is a silhouette rather than a
+    // lit object. Two layers at different pitches is what stops a barred window
+    // reading as one flat printed grid.
+    for (let x = gx + m(0.42); x < gx + gw - m(0.05); x += m(0.63)) {
+      g.fillStyle = 'rgba(10,9,8,0.34)'; g.fillRect(x, gy, Math.max(1, m(0.05)), gh);
+    }
+    g.fillStyle = 'rgba(10,9,8,0.30)'; g.fillRect(gx, gy + m(1.30), gw, Math.max(1, m(0.05)));
+    // MULLIONS, which this front simply never had — the brief lists them and
+    // every other shopfront on the block divides its glazing. One sheet of
+    // glass reads as a hole (`mullions`' own comment says so).
+    mullions(g, surf, gx, gy, gw, gh, Math.max(2, Math.round(wM / 3.8)), '#2e2a24');
     // the grille, IN FRONT of the glass — a separate plane, so it gets its own
     // highlight and throws its own shadow onto everything behind it
     for (let x = gx + m(0.2); x < gx + gw - m(0.05); x += m(0.46)) {
@@ -1542,6 +1681,27 @@ export const pawnFront = (brick: string, wM: number) => {
     const dcM = doorAlongU('PAWN', wM, F.doorCentreM);
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = '#332c24'; g.fillRect(dx - m(0.07), gy, dw + m(0.14), gh);
+    // THE LEAF STAYS SOLID. The brief asks for "a transom over the door", and a
+    // transom is a fixed light ABOVE the door — not a pane in it. That
+    // distinction is load-bearing here: `ct/int-pawn.ts` reasons explicitly
+    // that "this shop's door is a SOLID dark panel with no glazing at all --
+    // which is right, it is a pawn shop... A shop that bars its windows does
+    // not put a pane in its door." Glazing this leaf would put the shopfront
+    // and the room back to inventing different doors, which is the exact thing
+    // the coordination was for.
+    //
+    // So: a transom over it, on the SAME line as the glazing's upper rail so
+    // the horizontals run through, and the leaf below it stays shut and solid.
+    g.fillStyle = 'rgba(0,0,0,0.42)'; g.fillRect(dx, gy + m(0.55), dw, Math.max(1, m(0.08)));
+    g.fillStyle = '#2b2622'; g.fillRect(dx, gy + m(0.63), dw, m(0.42));            // the fixed light
+    g.fillStyle = 'rgba(150,172,190,0.16)'; g.fillRect(dx, gy + m(0.63), dw, m(0.16));
+    g.fillStyle = STEEL;                                                           // barred, like the window
+    for (let bxx = dx + m(0.16); bxx < dx + dw - m(0.08); bxx += m(0.26)) g.fillRect(bxx, gy + m(0.63), Math.max(1, m(0.05)), m(0.42));
+    g.fillStyle = '#40453f'; g.fillRect(dx, gy + m(1.05), dw, Math.max(1, m(0.07)));
+    // the leaf: solid, panelled, with the heavy kick plate it already had
+    g.fillStyle = '#3a3228'; g.fillRect(dx, gy + m(1.12), dw, gh - m(1.12));
+    g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(dx + m(0.12), gy + m(1.28), dw - m(0.24), m(0.85));
+    g.fillStyle = 'rgba(255,255,255,0.07)'; g.fillRect(dx + m(0.12), gy + m(1.28), dw - m(0.24), 1);
     g.fillStyle = '#4a4034'; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.9));
     g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.9), dw, m(0.06));
     g.fillStyle = GOLD; g.fillRect(dx + dw - m(0.2), gy + m(1.5), m(0.08), m(0.28));
