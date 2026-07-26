@@ -168,7 +168,15 @@ export function buildProps(ctx: CtxBuild): Props {
   // Cost: a few dozen objects against eight lamps, once a frame, and only
   // after dusk — by day the night curve is 0 and the whole pass returns
   // immediately. No per-vertex or per-pixel work anywhere.
-  const lampHeads: { x: number; z: number }[] = [];
+  // A LAMP HEAD, and its pool may be a street lamp's or a doorway fitting's.
+  // `r`/`core` default to LAMP_R/LAMP_CORE where they are absent, so every
+  // existing push is unchanged; only the auto-registered wall fittings in
+  // dimWorld carry the short ones.
+  const lampHeads: { x: number; z: number; r?: number; core?: number }[] = [];
+  /** a bulkhead over a back door is a 60 W fitting, not sodium on a pole */
+  const FITTING_R = 2.6, FITTING_CORE = 0.7, FITTING_MAX = 1.6;
+  /** materials already taken as auto-sources, so one sheet cannot seed two */
+  const LAMP_SEEN = new WeakSet<THREE.Material>();
   // ── DECLARING A LIGHT, from any module ──────────────────────────────────
   //
   // `lampHeads` is what updateLit pools from, and it was private. That is the
@@ -684,6 +692,49 @@ export function buildProps(ctx: CtxBuild): Props {
                        // the bright texels are carrying the light and should not
                        // take the whole wet lerp.
                        wetK: selfLit ? wetKFor(wy.y) * 0.5 : wetKFor(wy.y) });
+        // ── A FITTING THAT SAYS IT IS A LIGHT SHOULD CAST ONE ────────────
+        //
+        // "lighting on this alley back door looks messed up like it gets
+        // cropped by door." shots/user-alley-door-light-crop.png is exact: a
+        // warm dome of light on the brick, and the door under it DEAD BLACK,
+        // the glow stopping at its top edge.
+        //
+        // MEASURED, at the door itself (scripts/alleydoor.mjs) — it is at
+        // (19.40, 1.06, -55.45) and directly above it, at y 2.15, sits a
+        // 1.5 x 1.5 m selfLit quad held at tint 1.0. That quad IS the dome.
+        // It is a DECAL: nothing near that door is a registered lamp, so
+        // updateLit hands out nothing, and everything around it sits at the
+        // night floor. The glow does not stop at the door because the door
+        // rejects it — it stops because it was never light, only paint.
+        //
+        // I published `scene.userData.addLamp` so any module could declare a
+        // light, and told D to add one line. Grep, today: one definition, ZERO
+        // callers. That is the desk's point exactly — receive by DEFAULT, or a
+        // prop is born broken and stays broken until somebody remembers.
+        //
+        // So a small self-lit mesh IS a lamp, and no longer has to say so.
+        //
+        // WHY IT IS NOT A STREET LAMP, which is the part that keeps this safe:
+        // a bulkhead over a back door is a 60 W fitting, not sodium on a pole.
+        // It gets a DOORWAY pool — 2.6 m against LAMP_R's 7.0 — so the census
+        // below adds local light at doorways without lifting the street, which
+        // the user has asked four times to keep dark.
+        //
+        // SIZE-BOUNDED for the same reason: a lit WINDOW is a sheet metres
+        // across and must never become a source. Measured over the whole world
+        // at 22:30, this predicate takes 37 meshes and leaves 76 self-lit
+        // sheets excluded as too big.
+        if (selfLit && !LAMP_SEEN.has(m)) {
+          const w = bx.max.x - bx.min.x, h = bx.max.y - bx.min.y, d = bx.max.z - bx.min.z;
+          const small = Math.max(w, h, d) <= FITTING_MAX;
+          if (small && wy.y >= 0.5 && wy.y <= 6.0
+              // and not a second head on a lamp that already has one — the
+              // street lamps' own lenses are self-lit and would double up
+              && !lampHeads.some((q) => Math.hypot(q.x - wy.x, q.z - wy.z) < 1.2)) {
+            LAMP_SEEN.add(m);
+            lampHeads.push({ x: wy.x, z: wy.z, r: FITTING_R, core: FITTING_CORE });
+          }
+        }
       }
     });
     // ── and stand a splash sheet against every wall on the building line ──
@@ -868,11 +919,16 @@ export function buildProps(ctx: CtxBuild): Props {
         const qz = e.bz0 !== undefined ? Math.min(Math.max(h.z, e.bz0), e.bz1!) : pz;
         const dx = qx - h.x, dz = qz - h.z;
         const d2 = dx * dx + dz * dz;
-        if (d2 >= LAMP_R * LAMP_R) continue;
+        // PER-HEAD radius. A street lamp lights a stretch of pavement; a
+        // bulkhead over a back door lights the doorway and nothing else, and
+        // giving them the same 7 m reach is how "light the door" becomes
+        // "light the alley", which the desk ruled out in as many words.
+        const R = h.r ?? LAMP_R, CORE = h.core ?? LAMP_CORE;
+        if (d2 >= R * R) continue;
         const d = Math.sqrt(d2);
         // full strength across the core, then the shoulder — the whole point
         // of the change is that this is flat, not a peak
-        const f = d <= LAMP_CORE ? 1 : 1 - (d - LAMP_CORE) / (LAMP_R - LAMP_CORE);
+        const f = d <= CORE ? 1 : 1 - (d - CORE) / (R - CORE);
         if (f > best) best = f;
       }
       // smoothstep, not a square: squared only reaches 0.23 two metres from
