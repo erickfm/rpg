@@ -1,1 +1,1 @@
-WORKING | AUDIT sweep re-run landed (0 rows under 50 chars, was 13); guard does per-segment | desk: land 441eacfc1 to close the AUDIT row
+DONE | 0 live, LANDED pile empty; AUDIT sweep re-run landed | desk: land 441eacfc1 to close the AUDIT row; register ledger-guard.mjs in checks.mjs
