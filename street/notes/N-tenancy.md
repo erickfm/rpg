@@ -8,9 +8,23 @@ One new file, `src/proto/ct/tenancy.ts`. Nothing in `ct/apartment.ts` (C's) or
 `ct/inventory.ts` / `ct/hud.ts` (K's) is edited. Guarded by
 `scripts/N-post-waiting.mjs`, registered in `scripts/checks.mjs`.
 
-**Where to stand to see it:** come in the front door of No. 227. The `[E]` reads
-*"open your mailbox — 3 letters"* before you have taken a step, and the post is
-sticking out of 301's box on the middle row of C's bank, third from the door.
+**Where to stand to see it:** warp to `__rent.box().stand` — the position the
+world publishes, `gy` included. The `[E]` reads *"open your mailbox — 3
+letters"* the moment you are there, and the post is sticking out of 301's box on
+the middle row of C's bank, third from the door.
+
+> **CORRECTED 2026-07-26.** This said *"come in the front door of No. 227 … before
+> you have taken a step"*, and that is true of a **warp** and false of a **walk**.
+> Walking in through the door leaves you inside `crosstown.ts:932`'s landing
+> latch — 1.2 m — and the bank of boxes is 1.03 m from where the door puts you,
+> so **neither the prompt nor the key works until you have moved 1.2 m away and
+> come back.** The spot is live throughout; the interaction is what is held off.
+> Finding, the exact line and a held-back guard: `notes/N-mail-on-entry-BLOCKED.md`.
+>
+> I found it by re-measuring my own claims with an empty queue, which is the only
+> instrument that finds this class (GOTCHAS §44). It had been wrong here and in
+> the ledger for four hours, and the verifier who confirmed the row read it
+> correctly from the published position — a warp — so nothing contradicted it.
 
 ---
 
