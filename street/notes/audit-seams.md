@@ -477,3 +477,40 @@ on the street trucks and appears in `af-apron.png`. Set dressing.
 `geometry.boundingBox` height and reported "nothing over 1.0 m tall" while a
 transformed corner sat at 2.139. The geometry was 0.1 m thick and raked 54 deg.
 When a world AABB and a geometry bbox disagree, the transform is the answer.
+
+## [C] "this guy is floating": CONFIRMED — I built the instrument I said I lacked
+
+Last session I recorded that this row was **unverifiable by my instrument**,
+because the float lives in the atlas and mesh-bottom-vs-`groundAt` can never see
+it. That was true, and it was also the wrong place to stop. `footpaint.mjs` reads
+each figure's OWN atlas frame, finds the **lowest opaque pixel**, converts it to a
+world height and compares that to the ground. *It is the painted shoe that has to
+touch, not the quad.*
+
+| frame | n | atlas padding | painted foot vs ground | off-ground |
+|---|---|---|---|---|
+| **64-row (citizens)** | **18** | median 0.119 | **median 0.000, max 0.000** | **0 of 18** |
+| 2-row (not people) | 2 | 0 | 2.56 | 2 |
+
+**The proof needs all three numbers, and any one alone gives the wrong verdict:**
+
+- quad bottom vs ground — off on **20 of 20**. My old check. Would have failed it.
+- atlas padding — **unchanged**, still 4 empty rows of 64. Would have failed it.
+- painted foot vs ground — **0.000**. The only one the user can see.
+
+H did not repaint the atlas. They dropped the quad by exactly the padding, so the
+quad now hangs below ground and the painted shoe lands on it. That is why the
+two obvious checks both say "broken" about a thing that is fixed.
+
+**[Is] The two 2.56 m outliers were never people.** Splitting the sample by frame
+height separated them at once: 2-row frames, part of the park pergola
+(`pf-float.png`), up where they belong. **A population that mixes citizens with
+whatever else carries an atlas frame will report floating figures that are not
+figures** — the split is what makes "0 off-ground" mean something.
+
+**[R] Closing the loop on my own rule.** I wrote last session that "for a
+billboarded sprite, position and orientation are in the transform, but everything
+you can SEE is in the frame. Reach for the atlas first." I then filed the row as
+unverifiable rather than reaching for the atlas myself. **Stating the rule is not
+applying it.** This is the fourth property this audit that lived in the frame
+rather than the transform, and the first one I have actually measured there.
