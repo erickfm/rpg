@@ -205,6 +205,60 @@ other view is three-quarter and hides it. **The stair had been checked for
 whether you can CLIMB it and never for what it looks like from where you start
 climbing.**
 
+## Two more rows, routed mid-session
+
+### "discontinuous railing in library" (23-26-31)
+
+The STAIR handrail was ten HORIZONTAL boxes at ten descending heights. Consecutive
+caps sat 0.222 m apart vertically and were 0.09 m tall, so there was **0.13 m of
+air between each one and the next** — his "row of disconnected T shapes", exactly.
+
+He also handed me the reference: *"the GALLERY balustrade at the left of that
+shot is fine … you have a working reference twenty pixels away from the broken
+one."* It is the same construction now, off one `RAIL_X` and one `RAIL_H`.
+
+**And the ends actually join, which is the half a rail-only fix would have left.**
+Measured before touching it: the stair rail's top sat at y 3.84 / x 7.07 and the
+gallery rail sits at y 3.88 / x 6.99 — 4 cm below and 8 cm inboard, so the two
+members *passed each other*. Checked from below, from the gallery above, and at
+both ends. Walked up and down; the rail sits a constant **0.60 m below eye
+height** the whole rake, so it can never meet a head.
+
+Then the sweep he asked for, which found two more of the same shape:
+
+- the **issue desk's west return** did not reach the counter — a 0.36 m hole in
+  the body and 0.26 m in the top, at the corner. You could see through the desk.
+- the **gallery deck** stopped 0.10 m short of the back wall while the floor
+  picker answered for the full band, so you could stand on 10 cm of gallery that
+  was not drawn.
+
+### "whjats going on here in the library" (23-27-24) — routed to me as "your computers"
+
+**The object in that shot is the PERIODICALS RACK, not the terminals.** Matched
+against his own screenshot and against the world: three raked pale panels on
+trestles in the west alcove, the bookcase and globe beside them, and no beige
+CRT anywhere in frame — because my terminals are LIVE-not-landed and the world
+he is playing does not contain them.
+
+That is not a reason to discount the report. **It is the report.** He named the
+object as a completely different object, which is the test he set: *"if you
+cannot name the object in one second it is not done."* And all three of his
+diagnoses were literally true of the racks — a raked plane with no body, 24° of
+rake, a 1.5 m face on a 0.42 m rail. The "venetian blind" was the texture.
+
+The fix is his own observation, and it is the most useful line in the message:
+*"The bookshelf and the blue display case in the same shot are working fine …
+they read instantly."* So the periodicals became a wall case of the same build
+as the stacks with **covers facing out** instead of spines. One newspaper stand
+survives beside it with a body, at 12° instead of 24.
+
+His terminal checklist, applied separately to the real terminals: deep box ✓,
+upright ✓, lit amber screen ✓, chunky keyboard ✓, chair ✓ — **the coiled cable
+was missing** (I had answered it with a cable tray; true of the coil, not of the
+0.4 m drop, which reads fine) and **the keyboard overhung the bench by
+0.065 m**, so the desk grew from 0.76 to 0.92 — *"a proper run of catalogue
+desks"*. Every part on it is now arithmetically inside it.
+
 ## Measured, not eyeballed
 
 ```
