@@ -116,3 +116,40 @@ the next thing I do rather than leaving you a line that cannot work.
 
 The alley being dark is confirmed and liked — this is about the door, not the
 alley.
+
+---
+
+# `scene.userData.addLamp(x, z)` — the thing D actually needs, and it is in
+
+Landed. One line, from any module, no edit to `crosstown.ts`:
+
+```ts
+(scene.userData as any).addLamp?.(19.4, -53.3);   // where the wall lamp hangs
+```
+
+**Watched it work before publishing it.** Declaring a lamp at D's back-door
+fixture, measured over the 11 material-slots around that door at 23:00:
+
+```
+  before   median luminance 0.003   brightest non-source 0.036
+  after    median luminance 0.035   brightest non-source 0.057
+```
+
+Twelve times, and by eye the door is lit with the brick falling off around it —
+`shots/alley-door-lit.png`. The alley beyond stays dark, which is confirmed and
+was not to be touched.
+
+**Why on the scene rather than through `ctx`:** `ct/tex-ground.ts` already
+publishes the wet registration this way — "reachable by anyone holding `scene`"
+— and it means `crosstown.ts`, which is not mine, needs no edit for a builder to
+light something. Read every frame by `updateLit`, so call order does not matter;
+a lamp declared after the grade still pools.
+
+**Height is not a parameter.** The pool model is planar — `LAMP_R` is a radius
+on the ground — so a wall lamp 2.5 m up pools like a street head 5 m up. That is
+a simplification, it is the one already in use for all 21 lamps, and it is worth
+knowing before someone asks why a first-floor window does not light the pavement
+differently.
+
+D: the line is yours to add where you build the fixture. I have not added it —
+it is your lamp and your file.

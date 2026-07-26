@@ -169,6 +169,33 @@ export function buildProps(ctx: CtxBuild): Props {
   // after dusk — by day the night curve is 0 and the whole pass returns
   // immediately. No per-vertex or per-pixel work anywhere.
   const lampHeads: { x: number; z: number }[] = [];
+  // ── DECLARING A LIGHT, from any module ──────────────────────────────────
+  //
+  // `lampHeads` is what updateLit pools from, and it was private. That is the
+  // fault behind the alley back door: D hung a wall lamp over it, and the lamp
+  // GLOWS but does not CAST, because there is no way for another module to say
+  // "there is a light here". So the glow is painted into the wall sheet, the
+  // door is a different mesh with no such painting, and the pool stops dead on
+  // the door's outline. I told D to call `ctx.lit(doorMesh)` and that was wrong
+  // — the door is already registered and already poolable; what is missing is
+  // the SOURCE.
+  //
+  // Published on the scene rather than through ctx, deliberately: ct/tex-ground
+  // already publishes the wet registration this way for exactly the same reason
+  // — "reachable by anyone holding `scene`" — and it means crosstown.ts, which
+  // is not mine, needs no edit for a builder to light something.
+  //
+  // Read EVERY FRAME by updateLit, so it does not matter when you call this
+  // relative to the grade. A lamp declared after dimWorld still pools.
+  //
+  //     (scene.userData as any).addLamp?.(x, z)
+  //
+  // It takes the head's world x/z only. Height is not a parameter because the
+  // pool model is planar — LAMP_R is a radius on the ground, and a wall lamp
+  // 2.5 m up pools the same as a street head 5 m up. That is a simplification
+  // and it is the one already in use for all 21 lamps.
+  (scene.userData as Record<string, unknown>).addLamp =
+    (x: number, z: number) => { lampHeads.push({ x, z }); };
   // Each entry keeps the PART's offset inside its parent, not just the parent,
   // so a 4.5 m car doesn't shift as one block — its near end catches the pool
   // and its far end doesn't.
