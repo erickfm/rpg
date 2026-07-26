@@ -559,4 +559,24 @@ export function buildThrift(ctx: CtxBuild): void {
     jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
     fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,
   }, TILL_CX, KEEP_AT, { facing: Math.atan2(0, TILL_Z - KEEP_AT), h: 0.95, w: 0.94 });
+  // ── the till, which is also what makes the keeper check honest ──
+  //
+  // Same reason as the burger barn's order spot: the harness's authored
+  // customer station cannot falsify a keeper authored in the same file, and a
+  // published serve spot is the world's own answer to where a customer stands.
+  // Derived from the till case, on the shopper's side of it.
+  ctx.spot({
+    x: room.wx(TILL_CX), z: room.wz(TILL_Z + 1.05), r: 1.0,
+    ok: room.inside,
+    label: () => (ctx.purse.cash >= 4
+      ? 'buy a coat at the till — $4.00'
+      : 'a coat is $4.00 — you’re short'),
+    act: () => {
+      if (ctx.purse.cash < 4) return;
+      ctx.purse.cash -= 4;
+      ctx.purse.inv['COAT'] = (ctx.purse.inv['COAT'] ?? 0) + 1;
+      ctx.refreshWallet();
+    },
+  });
+
 }

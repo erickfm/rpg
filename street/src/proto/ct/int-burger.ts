@@ -430,4 +430,35 @@ export function buildBurger(ctx: CtxBuild): void {
     room.sign(posterT('COMBO', '2.99', '#c8902a'), 0.46, 0.58, LW + 0.04, 1.86, hd - 5.2, Math.PI / 2);
   }
 
+  // ── you can order at the counter ──
+  //
+  // Not decoration: this is the spot that makes the keeper check MEAN
+  // something. Its authored customer station could not falsify a keeper
+  // authored in the same file - the bodega's version of that agreed with
+  // itself for weeks while the user kept filing the fault. A published serve
+  // spot is the world's own answer to "where does a customer stand", and the
+  // harness now prefers it over anything I type.
+  //
+  // Derived from the counter, on the CUSTOMER side of it. CZ is the counter
+  // line and the room opens toward +z, so a customer stands at CZ + 1.05.
+  {
+    const order = (lx: number, item: string, price: number, what: string) => {
+      ctx.spot({
+        x: room.wx(lx), z: room.wz(CZ + 1.05), r: 1.0,
+        ok: room.inside,
+        label: () => (ctx.purse.cash >= price
+          ? `order ${what} — $${price.toFixed(2)}`
+          : `${what} $${price.toFixed(2)} — you’re short`),
+        act: () => {
+          if (ctx.purse.cash < price) return;
+          ctx.purse.cash -= price;
+          ctx.purse.inv[item] = (ctx.purse.inv[item] ?? 0) + 1;
+          ctx.refreshWallet();
+        },
+      });
+    };
+    order(CCX - 1.8, 'BARN BURGER', 1.89, 'a barn burger');
+    order(CCX + 0.9, 'FRIES', 0.99, 'fries');
+  }
+
 }
