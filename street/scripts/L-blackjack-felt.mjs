@@ -73,6 +73,22 @@ const MUTATIONS = {
   },
   // The face is drawn 1:1 in a corner instead of scaled to fit.
   'no-fit': (S) => { S.FELT.w = 32; S.FELT.h = 26; },
+  // THE SHOE STOPS SAYING HOW MANY DECKS.
+  //
+  // It REMOVES the placard rather than moving RULES.decks, and the difference
+  // matters: the check reads its expectation from RULES too, so a mutation that
+  // moved the constant would move the expectation with it and sleep. That is
+  // exactly the fault I had just fixed in the slots' attract check — a test
+  // point taken from the thing under test cannot fail when that thing moves.
+  'silent-shoe': (S) => {
+    const real = S.paintTable;
+    S.paintTable = (g, w, h, v) => real(new Proxy(g, {
+      get: (o, k) => (k === 'fillText'
+        ? (str, x, y) => { if (!/DECKS/.test(str)) o.fillText(str, x, y); }
+        : Reflect.get(o, k)),
+      set: (o, k, val) => Reflect.set(o, k, val),
+    }), w, h, v);
+  },
   // A NaN in a coordinate. Canvas draws NOTHING for one and reports nothing, so
   // a card would simply not appear and no error would say why.
   //
@@ -451,6 +467,14 @@ if (mode === 'felt' || mode === 'all') {
     check(texts.includes('BLACKJACK PAYS 3 TO 2'), 'the felt prints what a blackjack pays');
     check(texts.includes(S.dealerRule()),
       `and the dealer's rule, derived from RULES rather than typed beside it: "${S.dealerRule()}"`);
+    // "Real cards, real deck, shuffled — and if you shoe it, say how many." He
+    // asked for the deck count to be SAID, and it was said in a comment, a
+    // commit message and a ledger cell — everywhere except where a player can
+    // see it. Six decks and one deck are different games and the difference is
+    // invisible from the outside.
+    check(texts.includes(`${S.RULES.decks} DECKS`),
+      `and the SHOE SAYS HOW MANY DECKS are in it — "${S.RULES.decks} DECKS", on the`
+      + ' table, read from RULES so the placard and the shoe cannot disagree');
   }
 }
 

@@ -1015,8 +1015,20 @@ export function paintTable(g: Paint2D, w: number, h: number, v: TableView): void
   g.fillStyle = T.railHi; g.fillRect(LAYOUT.shoe.x - 12, LAYOUT.shoe.y - 16, 24, 30);
   g.fillStyle = T.rail; g.fillRect(LAYOUT.shoe.x - 10, LAYOUT.shoe.y - 14, 20, 26);
   g.fillStyle = T.back; g.fillRect(LAYOUT.shoe.x - 8, LAYOUT.shoe.y - 12, 16, 20);
-  g.fillStyle = T.dim; g.font = '6px monospace'; g.textAlign = 'center';
-  g.fillText(String(Math.max(0, v.shoeLeft)), LAYOUT.shoe.x, LAYOUT.shoe.y + 22);
+  // HOW MANY DECKS ARE IN IT, said on the table.
+  //
+  // The user asked for this in as many words — *"Real cards, real deck, shuffled
+  // — and if you shoe it, say how many"* — and I had said it in a comment, in a
+  // commit message and in the ledger, which is everywhere except the one place
+  // a player can see. A shoe with an unstated deck count is exactly the thing he
+  // was guarding against: six decks and one deck are different games and the
+  // difference is invisible from the outside.
+  //
+  // Read from RULES, so the placard and the shoe cannot disagree.
+  g.fillStyle = T.gold; g.font = 'bold 6px monospace'; g.textAlign = 'center';
+  g.fillText(`${RULES.decks} DECKS`, LAYOUT.shoe.x, LAYOUT.shoe.y + 22);
+  g.fillStyle = T.dim; g.font = '6px monospace';
+  g.fillText(String(Math.max(0, v.shoeLeft)), LAYOUT.shoe.x, LAYOUT.shoe.y + 30);
 
   // ── the dealer ──
   if (v.dealer.cards.length) {
