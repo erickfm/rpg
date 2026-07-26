@@ -172,7 +172,12 @@ export function buildCasino(ctx: CtxBuild): void {
     //
     // The clamp is not in this file or in ct/interior.ts — the room's wall
     // colliders derive correctly from hd. notes/BLOCKED-G.md has the trace.
-    w: 11.0, d: 26.0, h: 2.9,
+    // CEILING 3.6, UP FROM 2.9 — and this OVERRULES my own earlier reasoning.
+    // I argued at length that a low ceiling is what makes a casino feel
+    // boundless, and defended 2.9 against the kit's docstring. The user has now
+    // asked directly for higher, so the argument is settled and the number
+    // changes. It was a defensible call and it is no longer mine to make.
+    w: 11.0, d: 26.0, h: 3.6,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {
       // From the DECLARATION above, not typed again here. Hand-typing it
@@ -433,6 +438,8 @@ export function buildCasino(ctx: CtxBuild): void {
     ['#2c4a7a', 0x241e22],   // blue topper, same cabinet
     ['#7a5a2c', 0x4a4038],   // an older cream-bodied machine, kept on
   ];
+  const stoolTopM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
+  const stoolPoleM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
   const slotGeo = new THREE.BoxGeometry(0.6, 1.45, 0.6);
   const slotMats = SKINS.map(([topper, side], i) => {
     const front = ctx.flat(slotSkin(
@@ -486,9 +493,11 @@ export function buildCasino(ctx: CtxBuild): void {
   // either side of the centreline and still leaves 1.18 m between the outer bank
   // and the wall.
   const AVENUE = 1.5;                                  // half-width of the centre lane
-  // EIGHT rows now, not five, over 30 m of depth — the avenue is longer and the
-  // banks keep coming, which is the whole "no sense of where it ends".
-  const BANK_Z = [10.4, 8.0, 5.6, 3.2, 0.8, -1.6, -4.0];
+  // FIVE rows at 3.2 m centres, down from seven at 2.4. "A casino floor is
+  // crowded with PEOPLE, not with furniture you cannot walk between" — the gap
+  // between bank colliders goes from 1.10 m to 1.90 m, which is the difference
+  // between edging past a machine and walking between two of them.
+  const BANK_Z = [9.6, 6.4, 3.2, 0.0, -3.2];
   let rowN = 0;
   for (const bz of BANK_Z) {
     for (const sx of [-1, 1]) {
@@ -505,6 +514,25 @@ export function buildCasino(ctx: CtxBuild): void {
       // apart and the player is 0.72 m across, so per-machine boxes would only
       // carve slots you wedge into — the same lesson the diner's booths taught.
       solid(x0 + ((SLOT_N - 1) * SLOT_PITCH) / 2, bz, bankW, 1.3);
+
+      // A STOOL AT EVERY MACHINE, and every one of them sittable. The user:
+      // "casino slots have stools" and, standing since the seat kit landed,
+      // "for every seat in the game i want to be able to sit down". Low, round
+      // and fixed, on a single column with a foot ring — which is what a slot
+      // stool is, and why it does not look like a chair.
+      for (const face of [1, -1]) for (let i = 0; i < SLOT_N; i++) {
+        const sx2 = x0 + i * SLOT_PITCH, sz2 = bz + face * 1.02;
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.07, 10), stoolTopM), sx2, 0.64, sz2);
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.60, 8), stoolPoleM), sx2, 0.30, sz2);
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.03, 10), stoolPoleM), sx2, 0.03, sz2);
+        put(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.017, 4, 10), stoolPoleM), sx2, 0.22, sz2)
+          .rotation.x = Math.PI / 2;
+        ctx.seat({
+          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: 0.64,
+          approach: { x: room.wx(sx2), z: room.wz(sz2 + face * 0.75) },
+          label: 'sit at the slot', ok: () => room.inside(),
+        });
+      }
     }
   }
 
