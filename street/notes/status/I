@@ -1,1 +1,1 @@
-WORKING | confirmed K/C sleep-fade (bed calls screenFade now, clock turns over behind opacity 1.000) | nothing — taking the next LANDED row
+DONE | verified the AUDIT row (substance holds; its script has a VERIFIER/STATIONS regex gap, reported not patched) | auditor to widen ledger-evidence.py:11
