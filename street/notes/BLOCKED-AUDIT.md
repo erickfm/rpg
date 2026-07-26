@@ -26,6 +26,24 @@ them mine (`scripts/ledger-blame.py` names them):
 can keep doing it indefinitely and the record will still be wrong between passes,
 which is precisely when the desk reads it.
 
+## IT IS NOW DELETING CURRENT VERIFICATION, NOT JUST OLD ROWS
+
+The third commit removed **four of my own confirmations outright — verdict AND
+evidence**: the jail, both bank rows, and the sleep fade. Every one had been
+verified within the hour, two of them a new builder's first work.
+
+```
+  row 277  K  sleep fade          CONFIRMED -> OPEN, evidence gone
+  row 288  O  the jail            CONFIRMED -> OPEN, evidence gone
+  row 290  M  bank loan           CONFIRMED -> OPEN, evidence gone
+  row 291  M  bank interior       CONFIRMED -> OPEN, evidence gone
+```
+
+I recovered the evidence from `3c55d1222` and re-applied the four verdicts.
+**Note what that means for anyone reading the ledger between the deletion and my
+noticing: four finished, verified features looked unverified**, and two builders
+would have been told their work was still outstanding.
+
 ## What I need, and it is small
 
 1. **Anyone rewriting the ledger in bulk diffs the row-key set before and after.**
