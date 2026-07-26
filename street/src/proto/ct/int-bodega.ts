@@ -407,6 +407,82 @@ export function buildBodega(ctx: CtxBuild): void {
   const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.03), steelM);
   put(bracket, room.doorAt, 2.15, hd - 0.12);
 
+  // ── the last four off the user's decor list ──
+  //
+  // *"a hand-lettered sign taped to the cooler, a lottery machine, a coffee
+  // station, cigarettes behind the counter, a bell on the door, a cat, a
+  // radio, a calendar from a food distributor."* The other four were already
+  // here; these are the ones that were not.
+  //
+  // Every position below is DERIVED from the thing it sits on or hangs from,
+  // never typed — the diner's wall props floated because they were typed, and
+  // the COFFEE card above hung 0.575 m over its bench for the same reason.
+
+  // Taped to the cooler glass. The cooler plane is at -hd + 0.06, so the tape
+  // sits just proud of it; drift the cooler back and the sign follows.
+  const COOL_Z = -hd + 0.06;
+  room.sign(cardT('ICE COLD', '2 / $3'), 0.62, 0.31, -1.7, 1.62, COOL_Z + 0.03);
+
+  // The lottery machine, floor-standing by the door where the queue forms.
+  // Kept clear of the counter (which spans CTR_Z +/- 1.3) and of the cut
+  // corner, which eats z >= hd - 2.
+  const LOT_X = hw - 0.34, LOT_Z = CTR_Z + 1.9;
+  const lotBody = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.35, 0.6),
+    new THREE.MeshBasicMaterial({ color: 0x8a2a2a }));
+  put(lotBody, LOT_X, 0.675, LOT_Z);
+  const lotFaceT = declareSurface(pixTex(24, 32, (g) => {
+    g.fillStyle = '#7a2424'; g.fillRect(0, 0, 24, 32);
+    g.fillStyle = '#2a2f38'; g.fillRect(3, 4, 18, 12);            // the screen
+    for (let i = 0; i < 5; i++) {
+      g.fillStyle = ['#e0c84a', '#4ac8d8', '#e8e4d8'][i % 3];
+      g.fillRect(5 + i * 3, 7 + (i % 3), 2, 5);
+    }
+    g.fillStyle = '#e8dcc0'; g.fillRect(3, 19, 18, 9);            // the ticket shelf
+    for (let i = 0; i < 4; i++) {
+      g.fillStyle = ['#e07a3a', '#3a8a5a', '#c8b04a'][i % 3];
+      g.fillRect(4 + i * 4.5, 21, 4, 5);
+    }
+    dither(g, 24, 32, 50);
+  }), 'detail');
+  const lotFace = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 1.2), ctx.flat(lotFaceT));
+  lotFace.rotation.y = -Math.PI / 2;                              // faces into the shop
+  put(lotFace, LOT_X - 0.31, 0.72, LOT_Z);
+  solid(LOT_X, LOT_Z, 0.44, 0.6);
+
+  // The radio, on the counter behind the register where the keeper can reach
+  // it. Counter top is 1.02 + the 0.05 of ctrTop, so 1.07 is the surface.
+  const CTR_TOP = 1.07;
+  const radioM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
+  const radio = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.17, 0.13), radioM);
+  put(radio, CTR_X - 0.2, CTR_TOP + 0.085, CTR_Z - 1.05);
+  const spk = new THREE.Mesh(new THREE.CircleGeometry(0.055, 8),
+    new THREE.MeshBasicMaterial({ color: 0x74695a }));
+  put(spk, CTR_X - 0.28, CTR_TOP + 0.085, CTR_Z - 1.05);
+  spk.rotation.y = -Math.PI / 2;
+  // ONE antenna, not two. Two of them at the same tilt read as a pair of grey
+  // sticks lying on the counter rather than as a radio — graded off my own
+  // shot from the customer side, shots/f-bodega-counter.png.
+  const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.2, 4), steelM);
+  ant.rotation.z = 0.35;
+  put(ant, CTR_X - 0.14, CTR_TOP + 0.17, CTR_Z - 1.05);
+
+  // The calendar from a food distributor, on the side wall clear of the
+  // cigarette rack (2.5 m wide, centred on CTR_Z).
+  const calT = declareSurface(pixTex(32, 40, (g) => {
+    g.fillStyle = '#e8e0cc'; g.fillRect(0, 0, 32, 40);
+    g.fillStyle = '#2a5a8a'; g.fillRect(0, 0, 32, 13);
+    g.fillStyle = '#e8e0cc'; g.font = 'bold 6px monospace';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('MARINO', 16, 5); g.fillText('FOODS', 16, 11);
+    g.fillStyle = '#8a8478'; g.fillRect(2, 16, 28, 1);
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 7; c++) {
+      g.fillStyle = (r * 7 + c) % 9 === 4 ? '#b8342a' : '#6a6458';
+      g.fillRect(3 + c * 4, 19 + r * 4, 2, 2);
+    }
+    dither(g, 32, 40, 30);
+  }), 'sign');
+  room.sign(calT, 0.42, 0.53, hw - 0.07, 1.68, CTR_Z - 2.0, -Math.PI / 2);
+
   // ── the cat ──
   //
   // Asleep on the counter, which is where it is not supposed to be. Drawn from
