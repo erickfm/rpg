@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"tons of people always get stuck at this cross walk. the walk logic should allow people to walk around things"** → **H**
 - **"maybe the aces sign belongs on the other end of the casino building?"** → **G**
 - **"these signs block each other can you fix"** → **G**
 - **"align these crates so they fit better against this wall"** → **D**

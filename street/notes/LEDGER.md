@@ -105,3 +105,4 @@ user anything is finished.
 | OPEN | D | align these crates so they fit better against this wall | |
 | OPEN | G | these signs block each other can you fix | |
 | OPEN | G | maybe the aces sign belongs on the other end of the casino building? | |
+| OPEN | H | tons of people always get stuck at this cross walk. the walk logic sho | |
