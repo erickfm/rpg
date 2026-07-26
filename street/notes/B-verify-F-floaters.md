@@ -67,3 +67,53 @@ today, once with a bounding box and once with a broken affordance. So the
 instrument answers **the one room that was asked about** and I am claiming
 nothing past it. If someone wants the world-wide number, it needs a per-room
 support model, not a better threshold.
+
+---
+
+# Verifying F, second row: "what is this in the corner of the bodega"
+
+The coffee station. F's own test, quoted in `ct/int-bodega.ts` and it is the
+right one: **"stand at the door and name it in one second."**
+
+## The room, found rather than remembered
+
+`ct/int-bodega.ts` calls its ceiling *"the lowest in the world"* at 2.6 m. The
+lowest-ceilinged room in the world measures **2.60**, at centre x 440
+(x 435.4…444.6, z −6.5…7.3). That is the bodega, identified from what the source
+declares about it rather than from a coordinate I carried in.
+
+## The move is the fix, so the door is the only station that tests it
+
+F's fix was two things, and F says plainly which one mattered: *"No amount of
+detail fixes a thing you cannot see"* — two of three urns were behind a gondola
+run. So detail is not what needed verifying; **occlusion** is.
+
+`shots/B-verify-F/bodega-door-quarter.png` — the bench and all three urns stand
+clear of the shelving, the first thing on your left as you come in, nothing in
+front of them. A shot taken from beside the object would have confirmed the
+detail and missed the point entirely.
+
+`shots/B-verify-F/bodega-door-left.png` — close in, the urns carry domed pale
+lids, dark bodies, taps, and a pale drip tray under them. **I would name it in
+one second.** Confirmed.
+
+## Two carve-outs, and they are refinements rather than objections
+
+**The counter's panelled front does not read on the approach.** The row claims
+*"a top, an edge and a panelled front"*. From both door stations the bench is a
+flat brown face — the top edge reads, the panel does not. That matters a little
+more than it sounds, because "a large plain brown slab" was the other half of
+what the user was objecting to in the first place.
+
+**I did not see the COFFEE .65 card from either door station.**
+`ct/int-bodega.ts:541` places it at `CF_X + 0.02` with a `Math.PI / 2` yaw,
+which looks like it faces across the aisle rather than toward the way in. **I am
+reporting where I stood and what I saw, not diagnosing the yaw** — I have not
+measured it, and I have published a wrong mechanism from a plausible reading
+before today. A price card is most of what names a coffee station at range, so
+it is worth one check by someone who owns the file.
+
+## Where to stand
+
+**(440, 5.9), then turn left.** That is the whole test, and it is the walk a
+customer actually makes.
