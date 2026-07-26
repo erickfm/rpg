@@ -55,6 +55,12 @@ interface Slab {
    *  authorings of one number, which is the same defect the door declarations
    *  exist to kill. Published so a harness can ASK. */
   w: number; d: number; cx: number; cz: number;
+  /** WHERE THE DOORWAY ACTUALLY IS, in room-local metres, with the inward
+   *  normal. Published because a harness that ASSUMES the front wall cannot
+   *  follow a door round a corner: the bodega's belongs in its cut face, and
+   *  five checks located it from the front wall and went red on a room that was
+   *  correct. Same fix as `w`/`d` — the room states it, nobody remembers it. */
+  door: { x: number; z: number; nx: number; nz: number };
 }
 const SLABS: Slab[] = [];
 
@@ -96,8 +102,9 @@ export function interiorMaxX(): number {
 export function interiorRoomIds(): string[] { return SLABS.map((s) => s.id); }
 /** every built room's resolved geometry, for harnesses that would otherwise
  *  keep their own copy of it going stale. See `Slab`. */
-export function interiorRooms(): { id: string; w: number; d: number; cx: number; cz: number }[] {
-  return SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz }));
+export function interiorRooms(): { id: string; w: number; d: number; cx: number; cz: number;
+  door: { x: number; z: number; nx: number; nz: number } }[] {
+  return SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, door: s.door }));
 }
 
 /**
@@ -1034,7 +1041,11 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     hx + Math.cos(SWING) * leafW / 2, DOOR_H / 2,
     hz - Math.sin(SWING) * leafW / 2);
 
-  SLABS.push({ id: spec.id, x0, x1, gy: () => 0, w: W, d: D, cx, cz });
+  SLABS.push({ id: spec.id, x0, x1, gy: () => 0, w: W, d: D, cx, cz,
+    // in the cut face when the door lives there, otherwise mid front wall
+    door: CH
+      ? { x: chMx, z: chMz, nx: -chSx / Math.SQRT2, nz: -chSz / Math.SQRT2 }
+      : { x: dAt, z: hd, nx: 0, nz: -1 } });
 
   return {
     cx, cz, W, D, H, wx, wz, group, colliders, doorAt: dAt,

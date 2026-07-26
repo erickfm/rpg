@@ -472,11 +472,26 @@ for (room of rooms) {
   // nearest standable spot to the DOORWAY, not merely to its x — picking by x
   // alone can start you at the back of the room behind a counter, walk you two
   // metres into it, and report the door broken.
-  const nearDoor = (lx, lz) => Math.hypot(lx - room.at, lz - (hd - 1.3));
+  // ASK THE ROOM WHERE ITS DOORWAY IS. This computed it as (room.at, hd - 1.3)
+  // — the middle of the FRONT WALL — which is right for eight rooms and wrong
+  // for any room whose door is in a cut corner. The bodega's belongs in its
+  // canted face, and with it there five checks located the door on the wrong
+  // wall and reported a correct room as broken. Same fix as the room
+  // dimensions, which used to be hand-carried here until a stale `W: 10.0`
+  // made this file accuse the pawn shop of leaking: the room states it.
+  const DOOR = (built && built.door) || { x: room.at, z: hd, nx: 0, nz: -1 };
+  // a stride inside the opening, along its own inward normal
+  const inX = DOOR.x + DOOR.nx * 1.3, inZ = DOOR.z + DOOR.nz * 1.3;
+  const nearDoor = (lx, lz) => Math.hypot(lx - inX, lz - inZ);
   const doorLane = standables.reduce((best, c) =>
     (best === null || nearDoor(c[0], c[1]) < nearDoor(best[0], best[1]) ? c : best), null);
   if (doorLane) {
-    await warp(cx + room.at, doorLane[1], Math.PI, 0);
+    await warp(cx + DOOR.x + DOOR.nx * 0.9, doorLane[1],
+      // yaw 0 is -z (see ctx.Seat), so facing along the INWARD normal is
+      // atan2(nx, nz) — which is Math.PI for a front-wall door, exactly what
+      // this warped to before. Negating it turned every room to face the back
+      // wall and cost diner 25->20 and thrift 29->24 in one edit.
+      Math.atan2(DOOR.nx, DOOR.nz), 0);
     await p.waitForTimeout(150);
     await hold('w', 3000);
     const doorRun = await pos();
@@ -543,7 +558,12 @@ for (room of rooms) {
 
   // ── 5. the way out, and NOT straight back in ──
   // start from the standable spot nearest the door and walk at it
-  await warp(cx + room.at, doorLane ? doorLane[1] : lane.z, Math.PI, 0);
+  await warp(cx + DOOR.x + DOOR.nx * 0.9, doorLane ? doorLane[1] : lane.z,
+    // yaw 0 is -z (see ctx.Seat), so facing along the INWARD normal is
+      // atan2(nx, nz) — which is Math.PI for a front-wall door, exactly what
+      // this warped to before. Negating it turned every room to face the back
+      // wall and cost diner 25->20 and thrift 29->24 in one edit.
+      Math.atan2(DOOR.nx, DOOR.nz), 0);
   await p.waitForTimeout(150);
   await hold('w', 2600);
   const dPrompt = await prompt();
