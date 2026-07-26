@@ -1,1 +1,1 @@
-BLOCKED | queue empty; found 11 ledger rows regressed at bd915e0cb, 6 CONFIRMED features now reading as unbuilt work | DESK — notes/N-ledger-regression-ALARM.md, they are other builders' rows and I may not edit them
+DONE | my queue is empty and my row is CONFIRMED; raised BLOCKED-N.md as a DESK ACTION, not a block on me | DESK — 11 rows regressed at bd915e0cb, 6 finished features now read as unbuilt
