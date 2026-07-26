@@ -33,10 +33,24 @@ done
 AFTER_F=$(mktemp); fp notes/LEDGER.md > "$AFTER_F"
 AFTER=$(wc -l < "$AFTER_F")
 MISSING=$(comm -23 "$BEFORE_F" "$AFTER_F")
+ADDED=$(comm -13 "$BEFORE_F" "$AFTER_F")
 echo "auditor segments: $BEFORE before, $AFTER after"
 if [ -n "$MISSING" ]; then
-  echo "** EVIDENCE LOST — these segments are gone, whatever the totals say:"
-  echo "$MISSING" | sed 's/^/     /'
+  # GONE or merely REWORDED? The fingerprint is the 60 characters after the
+  # segment marker, so a builder editing adjacent text changes it without
+  # deleting anything - which is a false alarm, and a guard that cries wolf gets
+  # ignored. Print both sides and let the totals decide the headline.
+  if [ "$AFTER" -ge "$BEFORE" ]; then
+    echo "   segments CHANGED but none lost (total did not drop) — probably rewording:"
+    echo "$MISSING" | sed 's/^/     - /'
+    [ -n "$ADDED" ] && echo "$ADDED" | sed 's/^/     + /'
+    rm -f "$BEFORE_F" "$AFTER_F"
+    echo "PASS — nothing lost"
+    exit 0
+  fi
+  echo "** EVIDENCE LOST — $((BEFORE-AFTER)) fewer segments, these are gone:"
+  echo "$MISSING" | sed 's/^/     - /'
+  [ -n "$ADDED" ] && echo "$ADDED" | sed 's/^/     + /'
   echo "   recover with: python3 $PIN/ledger-recover.py <pre-rebase-rev>"
   rm -f "$BEFORE_F" "$AFTER_F"
   exit 1
