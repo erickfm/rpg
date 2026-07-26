@@ -397,3 +397,390 @@ export function playRound(
 // implementation still lands somewhere in the nineties and looks plausible. All
 // four penalties match their published values to a tenth of a point, which is
 // not something a wrong strategy table does by accident.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PART TWO: THE TABLE YOU SIT AT.
+//
+// `playRound` above plays a whole hand in one call, which is what the proof
+// needs and is useless to a player: you cannot decide anything, and nothing
+// takes any time. This is the same rules dealt one card at a time, advanced by
+// a `dt`, with the decisions handed back to whoever is sitting there.
+//
+// TWO IMPLEMENTATIONS OF ONE GAME IS THE OBVIOUS DANGER HERE, and it is the
+// exact two-authorings fault this project keeps paying for. The table below
+// could quietly settle a push as a loss, or let you double after three cards,
+// and the RTP script would keep reporting 99.546% about the OTHER
+// implementation.
+//
+// Reusing `value`, `isBlackjack`, `dealerDraws` and `RULES` closes most of it —
+// every rule that is a fact lives in one place. What it cannot close is the
+// FLOW: who draws when, and who beats whom at the end. So that is closed by
+// measurement instead. `scripts/L-blackjack-table.mjs` sits a basic-strategy
+// player at THIS table, through its own public API, deals it a million hands,
+// and requires the return to match `playRound`'s to within sampling error. If
+// the interface plays a different game from the one that was costed, the two
+// numbers separate and the check goes red.
+//
+// The user's brief for the feel: "cards dealt one at a time face up except the
+// dealer's hole card, hit, stand, double, split if you want to go that far. The
+// dealer plays a fixed rule and the player should be able to see what it is."
+
+/** How the table paces itself, in seconds. Published and mutable for the same
+ *  reason `FEEL` is in `ct/slots.ts` — a check has to be able to break the
+ *  pacing and watch a verdict go red, and while these were private consts the
+ *  mutations could not reach the code that reads them. */
+export const PACE = {
+  /** one card's flight from the shoe to its place */
+  deal: 0.26,
+  /** between one card landing and the next leaving the shoe */
+  gap: 0.20,
+  /** the hole card turning over. The user named this one. */
+  holeTurn: 0.50,
+  /** the dealer's pause before each card it draws for itself. This is the
+   *  tension in blackjack and it is worth more than any of the others: a dealer
+   *  that resolves instantly is a dealer you never watch. */
+  dealerDraw: 0.60,
+  /** how long the result sits on screen before the chips move */
+  settle: 0.90,
+  /** chips a second, once they start moving */
+  payRate: 14,
+};
+
+export type Phase = 'betting' | 'dealing' | 'player' | 'dealer' | 'settle' | 'paying';
+export type Outcome = 'win' | 'lose' | 'push' | 'blackjack' | 'bust' | null;
+
+/** One card on the felt, and when it got there — the painter needs both. */
+export interface Placed {
+  readonly card: Card;
+  /** table time the card left the shoe. The glass animates from this. */
+  readonly t0: number;
+  readonly faceDown: boolean;
+}
+
+export interface HandView {
+  readonly cards: readonly Placed[];
+  readonly value: HandValue;
+  readonly bet: number;
+  readonly done: boolean;
+  readonly outcome: Outcome;
+  readonly blackjack: boolean;
+}
+
+export interface TableView {
+  readonly phase: Phase;
+  /** chips in front of the player. Not money — see `cashOut`. */
+  readonly chips: number;
+  readonly bet: number;
+  readonly hands: readonly HandView[];
+  /** which hand is acting, or −1 */
+  readonly active: number;
+  readonly dealer: HandView;
+  /** table time, for the glass */
+  readonly t: number;
+  /** when the hole card started turning, or −1 */
+  readonly holeTurnT: number;
+  /** what the player may do right now, in button order */
+  readonly moves: readonly Move[];
+  /** what the table is saying */
+  readonly says: string;
+  /** chips paid so far this settlement — counts up, like the slot's meter */
+  readonly paid: number;
+  readonly staked: number;
+  readonly returned: number;
+  readonly shoeLeft: number;
+}
+
+export interface Table {
+  view(): TableView;
+  tick(dt: number): void;
+  /** raise or lower the stake between hands */
+  betBy(d: number): void;
+  /** deal a round. False if it cannot — no chips, or a hand in progress. */
+  deal(): boolean;
+  act(m: Move): boolean;
+  buyIn(chips: number): void;
+  cashOut(): number;
+  settled(): boolean;
+}
+
+const BETS = [1, 2, 5, 10, 25];
+
+/**
+ * A table. Holds a shoe, the chips in front of you and a hand in progress;
+ * knows nothing about money, panels, seats or the world.
+ *
+ * Same shape as `createMachine` in `ct/slots.ts` on purpose — chips exist only
+ * between sitting down and standing up, `cashOut` empties the rail, and
+ * whatever wires it up is required to call that when the player leaves. It is
+ * what makes "two games, one wallet" true rather than hoped for.
+ */
+export function createTable(opts: { rng?: Rng } = {}): Table {
+  const shoe = makeShoe(opts.rng ?? Math.random);
+  let phase: Phase = 'betting';
+  let chips = 0, betIx = 0, t = 0;
+  let staked = 0, returned = 0;
+  let hands: { cards: Placed[]; bet: number; done: boolean; outcome: Outcome; bj: boolean }[] = [];
+  let dealer: Placed[] = [];
+  let active = -1, holeTurnT = -1, splitAces = false;
+  let queue: (() => void)[] = [];      // what happens when the last card lands
+  let ready = 0;                       // table time at which the felt is still again
+  let owed = 0, paid = 0, payRamp = 0, phaseT = 0;
+
+  const hv = (cards: Placed[], bet: number, done: boolean, outcome: Outcome, bj: boolean): HandView => ({
+    cards, bet, done, outcome, blackjack: bj,
+    // The hole card is not part of the total the player can see. Showing the
+    // dealer's real total while one card is face down is the single most common
+    // way a blackjack interface lies to its player, and it is a one-line
+    // mistake: `value(dealer)` rather than `value(the cards that are face up)`.
+    value: value(cards.filter((c) => !c.faceDown).map((c) => c.card)),
+  });
+
+  /** Put a card on the felt, timed so it leaves the shoe after everything
+   *  already in flight has landed. */
+  const place = (to: Placed[], faceDown = false): Card => {
+    const c = shoe.draw();
+    const t0 = Math.max(t, ready);
+    to.push({ card: c, t0, faceDown });
+    ready = t0 + PACE.deal + PACE.gap;
+    return c;
+  };
+
+  const canDouble = (h: typeof hands[0]) =>
+    h.cards.length === 2 && chips >= h.bet && (hands.length === 1 || RULES.doubleAfterSplit);
+  const canSplit = (h: typeof hands[0]) =>
+    h.cards.length === 2 && hands.length < RULES.maxHands && chips >= h.bet
+    && cardValue(h.cards[0].card.r) === cardValue(h.cards[1].card.r);
+
+  const movesFor = (): Move[] => {
+    // Nothing is offered while a card is still in the air. `act` guards on this
+    // too; the view needs it as well or the buttons light up mid-deal.
+    if (phase !== 'player' || active < 0 || t < ready) return [];
+    const h = hands[active];
+    if (h.done) return [];
+    // A split ace takes exactly one card and then stands, which is a RULE and
+    // not a convention — `playRound` enforces it by breaking out of its loop,
+    // and this is the same rule stated where the player can see it.
+    if (splitAces && hands.length > 1) return [];
+    const out: Move[] = ['hit', 'stand'];
+    if (canDouble(h)) out.push('double');
+    if (canSplit(h)) out.push('split');
+    return out;
+  };
+
+  /**
+   * Move to the first hand that still needs playing, or to the dealer.
+   *
+   * SCANS FROM ZERO, not from `active + 1`. Starting past the current hand is
+   * the obvious way to write it and is wrong after a SPLIT: the hand you just
+   * split is still yours to play, and skipping it would deal you two hands and
+   * let you act on only the second. `done` is what says a hand is finished, so
+   * a scan from the start cannot skip one that is not.
+   */
+  const advance = () => {
+    for (let i = 0; i < hands.length; i++) {
+      const h = hands[i];
+      if (h.done) continue;
+      const v = value(h.cards.map((c) => c.card));
+      // A split ace takes exactly one card; 21 and a bust need no decision.
+      if (splitAces && hands.length > 1) { h.done = true; continue; }
+      if (v.bust || v.total === 21) { h.done = true; continue; }
+      active = i; return;
+    }
+    active = -1;
+    phase = 'dealer';
+    phaseT = 0;
+    // The hole card turns as the dealer takes over — the moment the user named.
+    holeTurnT = Math.max(t, ready);
+    dealer = dealer.map((c) => ({ ...c, faceDown: false }));
+    ready = holeTurnT + PACE.holeTurn;
+  };
+
+  const settle = () => {
+    const dv = value(dealer.map((c) => c.card));
+    owed = 0;
+    for (const h of hands) {
+      const pv = value(h.cards.map((c) => c.card));
+      if (h.outcome) { owed += h.outcome === 'blackjack' ? h.bet * (1 + RULES.blackjackPays)
+        : h.outcome === 'push' ? h.bet : 0; continue; }
+      if (pv.bust) { h.outcome = 'bust'; continue; }
+      if (dv.bust || pv.total > dv.total) { h.outcome = 'win'; owed += h.bet * 2; }
+      else if (pv.total < dv.total) { h.outcome = 'lose'; }
+      else { h.outcome = 'push'; owed += h.bet; }
+    }
+    phase = 'settle'; phaseT = 0; paid = 0; payRamp = 0;
+  };
+
+  const says = (): string => {
+    if (phase === 'betting') return chips < BETS[betIx] ? 'BUY IN TO PLAY' : 'PLACE YOUR BET';
+    if (phase === 'dealing') return '';
+    if (phase === 'player') {
+      const h = hands[active];
+      if (!h) return '';
+      const v = value(h.cards.map((c) => c.card));
+      return hands.length > 1 ? `HAND ${active + 1} — ${v.total}${v.soft ? ' SOFT' : ''}` : '';
+    }
+    if (phase === 'dealer') return dealerRule();
+    const bj = hands.some((h) => h.outcome === 'blackjack');
+    if (bj) return 'BLACKJACK — PAYS 3 TO 2';
+    const w = hands.filter((h) => h.outcome === 'win').length;
+    const l = hands.filter((h) => h.outcome === 'lose' || h.outcome === 'bust').length;
+    const p = hands.filter((h) => h.outcome === 'push').length;
+    if (hands.length === 1) {
+      return w ? 'YOU WIN' : p ? 'PUSH' : hands[0].outcome === 'bust' ? 'BUST' : 'DEALER WINS';
+    }
+    return `${w} WON  ${l} LOST${p ? `  ${p} PUSHED` : ''}`;
+  };
+
+  const view = (): TableView => ({
+    phase, chips, bet: BETS[betIx], active, t, holeTurnT,
+    hands: hands.map((h) => hv(h.cards, h.bet, h.done, h.outcome, h.bj)),
+    dealer: hv(dealer, 0, phase !== 'player' && phase !== 'dealing', null, isBlackjack(dealer.map((c) => c.card))),
+    moves: movesFor(), says: says(), paid, staked, returned,
+    shoeLeft: shoe.remaining(),
+  });
+
+  const tick = (dt: number) => {
+    if (!(dt > 0)) return;
+    // Not clamped, for the same reason `ct/slots.ts` does not clamp: every
+    // animation here is a function of `t0` and the table time, so a long frame
+    // lands in the right place rather than somewhere behind.
+    t += dt; phaseT += dt;
+    if (t < ready) return;             // something is still in the air
+
+    if (phase === 'dealing') {
+      const q = queue.shift();
+      if (q) { q(); return; }
+      // Everything is down. Check for naturals BEFORE anyone acts — the peek.
+      const pbj = isBlackjack(hands[0].cards.map((c) => c.card));
+      const dbj = isBlackjack(dealer.map((c) => c.card));
+      if (pbj || dbj) {
+        holeTurnT = t;
+        dealer = dealer.map((c) => ({ ...c, faceDown: false }));
+        ready = t + PACE.holeTurn;
+        hands[0].bj = pbj; hands[0].done = true;
+        hands[0].outcome = pbj && dbj ? 'push' : pbj ? 'blackjack' : 'lose';
+        phase = 'dealer'; phaseT = 0;
+        return;
+      }
+      phase = 'player'; active = -1; advance();
+      if (phase === 'player' && active < 0) advance();
+      return;
+    }
+
+    if (phase === 'dealer') {
+      // One card at a time, with a pause before each. The pause IS the game
+      // here — a dealer that resolves instantly is a dealer you never watch.
+      if (phaseT < PACE.dealerDraw) return;
+      const alive = hands.some((h) => !value(h.cards.map((c) => c.card)).bust && h.outcome !== 'lose');
+      if (alive && dealerDraws(value(dealer.map((c) => c.card)))) {
+        place(dealer); phaseT = 0; return;
+      }
+      settle();
+      return;
+    }
+
+    if (phase === 'settle') {
+      if (phaseT < PACE.settle) return;
+      if (owed <= 0) { phase = 'betting'; hands = []; dealer = []; return; }
+      phase = 'paying'; payRamp = 0; paid = 0;
+      return;
+    }
+
+    if (phase === 'paying') {
+      payRamp = Math.min(owed, payRamp + PACE.payRate * dt);
+      const whole = Math.min(owed, Math.floor(payRamp));
+      chips += whole - paid; paid = whole;
+      if (payRamp >= owed) {
+        chips += owed - paid; paid = owed; returned += owed;
+        phase = 'betting'; hands = []; dealer = [];
+      }
+      return;
+    }
+  };
+
+  const act = (m: Move): boolean => {
+    if (phase !== 'player' || active < 0 || t < ready) return false;
+    const h = hands[active];
+    if (h.done || !movesFor().includes(m)) return false;
+    if (m === 'stand') { h.done = true; advance(); return true; }
+    if (m === 'hit') {
+      place(h.cards);
+      const after = value(h.cards.map((c) => c.card));
+      if (after.bust || after.total === 21) { h.done = true; queueAdvance(); }
+      return true;
+    }
+    if (m === 'double') {
+      chips -= h.bet; staked += h.bet; h.bet *= 2;
+      place(h.cards);
+      h.done = true; queueAdvance();
+      return true;
+    }
+    if (m === 'split') {
+      splitAces = h.cards[0].card.r === 1;
+      const moved = h.cards.pop()!;
+      chips -= h.bet; staked += h.bet;
+      const second = { cards: [moved], bet: h.bet, done: false, outcome: null as Outcome, bj: false };
+      hands.splice(active + 1, 0, second);
+      // One card to each of the two hands, in order, so the felt shows the
+      // split being dealt out rather than two hands appearing.
+      place(h.cards);
+      place(second.cards);
+      // Re-decide once both cards are down: for aces that means both hands are
+      // finished, and for anything else it means playing the FIRST of the two.
+      queueAdvance();
+      return true;
+    }
+    return false;
+  };
+
+  /** Advance once the cards in flight have landed, rather than immediately —
+   *  otherwise a bust jumps to the dealer while the card that busted you is
+   *  still in the air, which is the single ugliest thing this table could do. */
+  const queueAdvance = () => {
+    const at = ready;
+    const hook = () => { if (t >= at) { advance(); return true; } return false; };
+    pending.push(hook);
+  };
+  const pending: (() => boolean)[] = [];
+  const tickPending = () => { for (let i = pending.length - 1; i >= 0; i--) if (pending[i]()) pending.splice(i, 1); };
+
+  return {
+    view,
+    tick: (dt) => { tick(dt); tickPending(); },
+    betBy: (d) => {
+      if (phase !== 'betting') return;
+      betIx = Math.max(0, Math.min(BETS.length - 1, betIx + d));
+    },
+    deal: () => {
+      if (phase !== 'betting') return false;
+      const bet = BETS[betIx];
+      if (chips < bet) return false;
+      if (shoe.remaining() <= 12) shoe.shuffle();     // the cut card, between rounds only
+      chips -= bet; staked += bet;
+      hands = [{ cards: [], bet, done: false, outcome: null, bj: false }];
+      dealer = []; active = -1; holeTurnT = -1; splitAces = false;
+      ready = t; phase = 'dealing'; phaseT = 0;
+      // Player, dealer, player, dealer-face-down. The order a real table deals
+      // in, and the reason the hole card is the LAST thing on the felt.
+      queue = [
+        () => place(hands[0].cards),
+        () => place(dealer),
+        () => place(hands[0].cards),
+        () => place(dealer, true),
+      ];
+      return true;
+    },
+    act,
+    buyIn: (n) => { if (n > 0 && phase === 'betting') chips += Math.floor(n); },
+    cashOut: () => {
+      // Same contract as the slot machine's: whatever is ON THE RAIL always
+      // comes back, whenever you stand up. A bet already in the middle of a
+      // hand is gone, exactly as it is at a real table.
+      const n = chips; chips = 0;
+      phase = 'betting'; hands = []; dealer = []; active = -1;
+      owed = 0; paid = 0; payRamp = 0;
+      return n;
+    },
+    settled: () => phase === 'betting',
+  };
+}
