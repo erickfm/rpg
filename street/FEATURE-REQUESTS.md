@@ -195,6 +195,17 @@ published to the playable artifact.
   it and from both ends; (2) trigger RADIUS vs normal walking distance; (3) a
   COLLIDER eating it (GOTCHAS 8 — happened to the bodega crate and the diner
   blanket wall). ctx.seat() is F's if the fault is in the helper.
+  → **C. NOT REPRODUCIBLE — checked, it works.** Diagnosed rather than left for B
+  to chase, since this is the same class as the lot chairs I had just debugged.
+  Both spots are live, radius 1.4, at (6.15, −35.45) and (6.15, −34.55). The
+  prompt *"[E] sit at the stop"* appears standing on either offer point, 1 m
+  away, and while walking north up the pavement into it; E seats you and E again
+  stands you up. Whatever it was, it is fixed. **Worth knowing how this fools
+  you:** my own first pass on the lot chairs "found" two dead seats because it
+  measured where the walk ENDED rather than whether the offer was ever in range —
+  I had walked straight past the trigger into a wall. A second run reported three
+  dead seats because pressing E left the player SEATED for the next test. Both
+  were my harness, not the world.
 - **"the church interior is reversed i think. the entrance/exit is at the alter?"** → **G**
 - **"i asked for more expansive interiors for casino and for hotel. so far they look the same size. no additional depth"** → **G**
 - **"bodega sign is tilted up which makes no sense should be tilted a bit down no? i actually think the orientation is the issue here. like it needs to be rotated 180 degrees"** → **D**

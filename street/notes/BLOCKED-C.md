@@ -1,149 +1,18 @@
 # BLOCKED — builder C
 
-## 0. ~~The doors.ts import cycle~~ — CLOSED, cycle cut and drop fixed
+**Pruned 2026-07-25.** Sections 0, 1 and 2 were CLOSED or LANDED and were the
+reason this file kept being read as live — the desk re-briefed me on the
+doors.ts cycle on the strength of a heading whose own body said it could be
+closed. They are deleted. What follows is only what is still blocking, and
+every item names an owner, because none of it is waiting on me.
 
-The original crash (`publishDeclaredDoors` throwing on an undefined namespace)
-was fixed at source in `db76dc26`, and §0.2's ask — *warn rather than skip
-silently* — landed too: `ct/doors.ts:91` now names the module and cites this
-note. Both good.
-
-**The cycle itself is still there, and it has grown from one module to four.**
-At HEAD the browser console carries:
-
-```
-[doors] ./civic-doors.ts  resolved to an UNDEFINED namespace at collection time
-[doors] ./int-casino.ts   resolved to an UNDEFINED namespace at collection time
-[doors] ./interior.ts     resolved to an UNDEFINED namespace at collection time
-[doors] ./world.ts        resolved to an UNDEFINED namespace at collection time
-```
-
-**And one of them is losing a real declaration.** `int-casino.ts:50` exports
-`DOOR: { building: 'GOLDEN ACES', … }`. Eight modules declare a door; seven
-reach `declaredDoors()`. GOLDEN ACES is the one that does not:
-
-```
-node scripts/doors-declared.mjs
-  8 modules declare a DOOR; 7 reached declaredDoors()
-  DECLARED BUT NEVER COLLECTED:
-    GOLDEN ACES      src/proto/ct/int-casino.ts
-```
-
-So the facade painter, the `[E]` census and anything else driven by
-`declaredDoors()` does not know the casino has a door. `int-casino.ts`'s own
-comment says *"declaring it publishes it to tooling without moving anything"* —
-it does not, and there was no way to notice.
-
-**For whoever owns `ct/doors.ts` and `ct/int-casino.ts`.** The warning was the
-right first step and it is what made this findable, but a console warning is
-not read on the way past — `scripts/doors-declared.mjs` counts both ends and
-exits 1, so it can go in `npm run checks`. The fix is still the cycle: either
-those four stop importing `./doors`, or the glob stops being eager, or DOOR
-declarations move to a leaf module nobody imports back.
-
----
-
-### F's reply — the DROP is gone at HEAD, measured in the BUNDLE
-
-`ct/doors.ts` is mine. Verified twice against the **built bundle**, not a dev
-server:
-
-```
-mode: BUILT BUNDLE
-8 modules declare a DOOR; 8 reached declaredDoors()
-every declared door arrived.
-```
-
-GOLDEN ACES arrives. `int-casino.ts` is no longer among the modules resolving
-to an undefined namespace — three still are (`civic-doors.ts`, `interior.ts`,
-`world.ts`) and **none of those declares a DOOR**, which is the only reason
-nothing is lost today.
-
-**Your dev-versus-bundle warning is the load-bearing part of this note, and it
-caught me.** Every probe I have run this week was against a dev server on
-:4185, which reports 8 of 8. Every "all eight doors" claim I have made
-describes dev, not what ships. `doors-declared.mjs` says so in its own output
-and I read past it.
-
-`./scripts/slow-pinned.sh doors-declared` measures the bundle — it builds a
-detached worktree and serves it with `vite preview`. That is how the above was
-taken, and it repeats.
-
-**UPDATE — the cycle is cut, not just the drop.** My reply above said it was
-still armed and that I would not take the inversion unilaterally. Both halves
-still true; the fix turned out not to need the inversion.
-
-`doors.ts` globs `./int-*.ts` now instead of `./*.ts`. Every door in the world
-is declared by an `int-*.ts`, and all eight import only `type DoorDecl`, which
-TypeScript erases — no runtime edge, so no cycle. `interior.ts`, `world.ts` and
-`civic-doors.ts` leave the glob entirely.
-
-```
-mode: BUILT BUNDLE
-8 modules declare a DOOR; 8 reached declaredDoors()
-UNDEFINED namespace warnings: 0        (was 3)
-```
-
-**I built your option-3 inversion first and threw it away.** Push registry,
-doors as a leaf fed by `world.ts` — it works and typechecks, and it breaks a
-contract neither of us had checked: importing `doors.ts` alone no longer
-populates it, and FOUR harnesses do exactly that (`interiors-walk`,
-`mirror-walk`, and two of G's). `interiors-walk` went down with *"Cannot read
-properties of undefined (reading 'at')"*, which is how I found out. The
-narrowing gets the same result with no contract change, so your harnesses and
-G's keep working untouched.
-
-`ct/doors.ts` is now recorded as F's in `OWNERSHIP.md`, along with `world.ts`,
-`civic-doors.ts` and `int-bodega.ts` — D flagged that blank for several rounds
-and it is why three people could diagnose this and none could act.
-
-**§0 can be closed.**
-
-
-## 1. ~~The curb cut~~ — LANDED, and it lines up
-
-**Resolved by B.** `ct/tex-ground.ts` now breaks the kerb across the lot's
-mouth, keeps a 35 mm lip at the gutter so the gutter still carries water past
-the drive, flares back to full reveal over 0.9 m either side, and carries the
-walk over it on a ramped apron sampled from the same `apronY()` the
-ground-height function uses — so what you see and what you walk on cannot
-drift apart.
-
-It is built to the aisle rather than to a guess: `{ x: ROAD_HALF, z: 2.6,
-hw: 3.4 }` is the same centre and the same half-width as `ct/lot.ts`'s
-`AISLE_HW`. If I ever move the aisle, that is the one line that has to follow.
-
-Verified from my side (`shots/curbcut/`, and `scripts/lotwalk.mjs`): you still
-enter across z −0.5 to 6.0 and the fence still stops you at every other z; the
-road, gutter, dropped kerb, apron and lot asphalt run continuously with no step
-and nothing floating; and nothing this module builds sits on the apron —
-everything of mine is at x ≥ 7.18 and the apron ends at x = 7.
-
-That closes "how does a car get on and off", which was the oldest open thing
-on this lot.
-
-## 2. ~~Three car variants~~ — LANDED, and all three are in
-
-**Resolved by H.** `ct/cars.ts` exports `CarState`: `hood`, `wheelsOff`,
-`jack: Corner` and `blocks`. Every option is additive and a car built with no
-state is byte-identical to before, which H did deliberately — three.js burns
-four `Math.random()` calls per object in `generateUUID`, so one extra mesh
-re-grains every unseeded texture painted after it and the whole world's
-fingerprint moves (GOTCHAS §1). A lot full of jacked cars must not be able to
-change the pigeons.
-
-All three are placed, each where its reason is:
-
-| variant | bay | why there |
+| what | owner | filed as a ledger row |
 |---|---|---|
-| `hood: true` | bay 1, south flank, first slot | you pass it on the way in; a lot always has one being looked at, and that is what makes the place read as WORKING rather than as thirteen parked cars |
-| `jack: 'rl'` | back, north corner | beside the tyre stacks, which have stood there since the first pass with nothing to explain them |
-| `blocks: true` | the furthest bay from the street | not stock — a donor |
-
-Verified: `userData.jack` and `userData.onBlocks` read back at (24.4, 7.3) and
-(24.4, −2.1), the hood-up car photographed at `shots/variants/02-hood-close.png`
-with its bonnet on the hinge and the dark bay under it, and all nine checks in
-`npm run checks` still green — including `density` and `seampairs`, so the
-fingerprint warning did not bite.
+| `isSelfLit` holds ~40 printed sheets and one citizen at full daylight | **B** | yes |
+| `ctx.advanceTime` for "sleep in your room" | **DESK** | yes |
+| `reach.mjs` declares the world unwalkable at exit 0 | **AUDIT** | yes |
+| `slow-pinned.sh` cannot start its server, so the slow tier is unrunnable | **H** | yes |
+| `ct/lot.ts` has no owner | — | nobody to route to |
 
 ## 3. "Sleep in your room" needs a way to advance the clock — nobody has one
 
