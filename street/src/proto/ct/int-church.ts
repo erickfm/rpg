@@ -333,40 +333,22 @@ export function buildChurch(ctx: CtxBuild) {
   // read as the same quarry as the chancel step
   const stoneMx = new THREE.MeshBasicMaterial({ color: 0x9a9284 });
 
-  // ── THE CRUCIFIX, which is what the room is for ──────────────────────
+  // ── THE CRUCIFIX IS FURTHER DOWN, AND THERE IS ONLY ONE ──────────────
   //
-  // "Wheres the jesus on the cross" — and the user is right that this was the
-  // single most important omission. A Catholic church's focal point is the
-  // crucifix: everything else in here is arranged around it, every pew faces it,
-  // and without one the sanctuary reads as a pale blank block at the end of a
-  // hall, which is exactly what the screenshot showed.
+  // I built a second, freestanding one here — a 3 m cross standing clear of the
+  // east window so it would silhouette against the rose. There was already a
+  // wall-mounted crucifix over the altar, so the sanctuary had TWO, superimposed
+  // on the same axis at different depths and different heights.
   //
-  // On the sanctuary axis, standing clear of the east window rather than on it,
-  // so it SILHOUETTES against the rose — which is the classic arrangement and
-  // also the only one that works here, because the window is a lit texture and
-  // anything laid over it would read as a sticker.
-  {
-    const CRX_Z = -hd + 1.15;
-    const woodC = new THREE.MeshBasicMaterial({ color: 0x3a2a1c });
-    const woodL = new THREE.MeshBasicMaterial({ color: 0x4e3a26 });
-    const flesh = new THREE.MeshBasicMaterial({ color: 0xc9a488 });
-    const cloth = new THREE.MeshBasicMaterial({ color: 0xd8d2c0 });
-    const Y0 = CHANCEL_Y + 1.55;                 // clear of the altar behind it
-    // the cross: upright and transom, with a lighter face so it is not a hole
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.16, 3.05, 0.10), woodC), 0, Y0 + 1.52, CRX_Z);
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.13, 3.05, 0.02), woodL), 0, Y0 + 1.52, CRX_Z - 0.06);
-    put(new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.15, 0.10), woodC), 0, Y0 + 2.10, CRX_Z);
-    put(new THREE.Mesh(new THREE.BoxGeometry(1.55, 0.12, 0.02), woodL), 0, Y0 + 2.10, CRX_Z - 0.06);
-    // the corpus, read at this scale as head, torso, arms, legs and a loincloth
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.62, 0.14), flesh), 0, Y0 + 1.80, CRX_Z - 0.10);
-    put(new THREE.Mesh(new THREE.BoxGeometry(1.24, 0.11, 0.11), flesh), 0, Y0 + 2.10, CRX_Z - 0.10);
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.20, 0.15), cloth), 0, Y0 + 1.44, CRX_Z - 0.10);
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.72, 0.13), flesh), 0, Y0 + 1.02, CRX_Z - 0.10);
-    put(new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), flesh), 0, Y0 + 2.24, CRX_Z - 0.10);
-    // INRI
-    put(new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.03), cloth), 0, Y0 + 2.46, CRX_Z - 0.07);
-    solid(0, CRX_Z, 0.5, 0.3);
-  }
+  // That is what the user was looking at when he said "the crucifix has come
+  // apart... the figure is not on the cross": two crosses and two corpora at
+  // four different z, read from the nave as one broken object. Not a parenting
+  // bug — a duplicate. Mine is gone; the wall-mounted one below is correct and
+  // its corpus is already proud of its own cross on the same axis.
+  //
+  // The lesson is the cheap one: before adding the centrepiece a room is
+  // missing, grep the file for it. "wheres the jesus on the cross" was answered
+  // twice because two people read the same complaint.
 
   // ── the tabernacle, and the lamp that says it is occupied ────────────
   //
@@ -388,12 +370,27 @@ export function buildChurch(ctx: CtxBuild) {
       new THREE.MeshBasicMaterial({ color: 0x6a5a3a })), LX, LY + 0.95, LZ);
     put(new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.26, 8),
       new THREE.MeshBasicMaterial({ color: 0x8e1f2a })), LX, LY, LZ);
-    put(new THREE.Mesh(new THREE.SphereGeometry(0.10, 8, 6), new THREE.MeshBasicMaterial({
-      color: 0xff6a4a, transparent: true, opacity: 0.85, depthWrite: false,
-      blending: THREE.AdditiveBlending, fog: false })), LX, LY - 0.02, LZ);
-    put(new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 6), new THREE.MeshBasicMaterial({
-      color: 0xff5a3a, transparent: true, opacity: 0.16, depthWrite: false,
-      blending: THREE.AdditiveBlending, fog: false })), LX, LY - 0.02, LZ);
+    // THE FLAME IS INSIDE THE GLASS, and there is no halo sphere round it.
+    //
+    // This was an additive sphere of radius 0.34 wrapped around a 0.15 vessel —
+    // at eight segments that reads as a flat pink disc facing you with a red cup
+    // floating in the middle of it, which is exactly what the user described. A
+    // low-poly additive sphere is a billboard whether you meant one or not.
+    //
+    // So: a small flame INSIDE the cup, sized under the vessel's own radius, and
+    // the light it throws is a patch on the sanctuary floor below rather than a
+    // ball in the air. A lamp is a thing with light in it, not a thing with a
+    // glow around it.
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.10, 8),
+      new THREE.MeshBasicMaterial({
+        color: 0xffb070, transparent: true, opacity: 0.95, depthWrite: false,
+        blending: THREE.AdditiveBlending, fog: false })), LX, LY + 0.02, LZ);
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5),
+      new THREE.MeshBasicMaterial({
+        color: 0xff6a4a, transparent: true, opacity: 0.10, depthWrite: false,
+        blending: THREE.AdditiveBlending, fog: false }));
+    pool.rotation.x = -Math.PI / 2;
+    put(pool, LX, CHANCEL_Y + 0.02, LZ);
   }
 
   // ── the fourteen Stations of the Cross ───────────────────────────────
@@ -517,9 +514,17 @@ export function buildChurch(ctx: CtxBuild) {
       }
     }
   }), 'sign');
-  // the east window belongs at the far end, over the altar, not on the wall you
-  // came in through
-  room.sign(roseT, 2.4, 3.6, 0, 3.4, -hd + 0.09);
+  // The east window belongs at the far end over the altar — and HIGH. At centre
+  // 3.4 it spanned y 1.6 to 5.2, which is exactly the masonry the crucifix needs:
+  // the cross sat over glass, and the user is right that the window is the one
+  // place it must not go. It is the same fault as the church's own pillars
+  // blocking its lancets, which he has already flagged once.
+  //
+  // Centre 6.6 puts it at y 4.8 to 8.4 in a 9.5 m wall — up in the gable, where
+  // a rose actually is — and leaves the whole lower wall solid. The eye now runs
+  // altar, cross, light, which is the order the crucifix comment below asks for
+  // and could not have while the two overlapped.
+  room.sign(roseT, 2.4, 3.6, 0, 6.6, -hd + 0.09);
 
   // ── …and the light it throws on the stone ─────────────────────────────
   //
@@ -597,27 +602,33 @@ export function buildChurch(ctx: CtxBuild) {
   // Built rather than painted, because a cross read from an angle has to stay a
   // cross: two boxes make it solid from every heading, where a plane would go
   // edge-on and vanish exactly when you walked up the nave to look at it.
-  const CRX_Z = -hd + 0.16, CRX_Y = 2.35;
+  // SCALED UP. The brief asks for "a LARGE one... so it is the first thing you
+  // see down the nave", and at 1.5 m tall on a 9.5 m wall it read as modest —
+  // correct in every other way and too small to be the focal point. 2.6 m of
+  // cross, centred at 3.05, now fills the masonry between the altar and the
+  // rose. Every dimension below is scaled from the same factor rather than
+  // re-typed, so the corpus cannot drift off the cross.
+  const CRX_Z = -hd + 0.16, CRX_Y = 3.05, K = 1.74;
   const woodDark = new THREE.MeshBasicMaterial({ color: 0x4a3a28 });
-  const upright = new THREE.Mesh(new THREE.BoxGeometry(0.13, 1.5, 0.09), woodDark);
+  const upright = new THREE.Mesh(new THREE.BoxGeometry(0.13 * K, 1.5 * K, 0.09), woodDark);
   put(upright, 0, CRX_Y, CRX_Z);
-  const crossarm = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.13, 0.09), woodDark);
-  put(crossarm, 0, CRX_Y + 0.36, CRX_Z);
+  const crossarm = new THREE.Mesh(new THREE.BoxGeometry(0.86 * K, 0.13 * K, 0.09), woodDark);
+  put(crossarm, 0, CRX_Y + 0.36 * K, CRX_Z);
   // the corpus: pale against the dark wood, small enough to read as a figure
   // rather than a shape, and inset so the cross stays proud of it
   const skinM = new THREE.MeshBasicMaterial({ color: 0xc9b49a });
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.42, 0.07), skinM);
-  put(torso, 0, CRX_Y + 0.26, CRX_Z + 0.07);
-  const arms = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.07, 0.06), skinM);
-  put(arms, 0, CRX_Y + 0.37, CRX_Z + 0.07);
-  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.34, 0.06), skinM);
-  put(legs, 0, CRX_Y - 0.05, CRX_Z + 0.07);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.12, 0.07), skinM);
-  put(head, 0, CRX_Y + 0.53, CRX_Z + 0.07);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.17 * K, 0.42 * K, 0.07), skinM);
+  put(torso, 0, CRX_Y + 0.26 * K, CRX_Z + 0.07);
+  const arms = new THREE.Mesh(new THREE.BoxGeometry(0.62 * K, 0.07 * K, 0.06), skinM);
+  put(arms, 0, CRX_Y + 0.37 * K, CRX_Z + 0.07);
+  const legs = new THREE.Mesh(new THREE.BoxGeometry(0.11 * K, 0.34 * K, 0.06), skinM);
+  put(legs, 0, CRX_Y - 0.05 * K, CRX_Z + 0.07);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.11 * K, 0.12 * K, 0.07), skinM);
+  put(head, 0, CRX_Y + 0.53 * K, CRX_Z + 0.07);
   // INRI, the small board above the head
-  const inri = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.07, 0.05),
+  const inri = new THREE.Mesh(new THREE.BoxGeometry(0.17 * K, 0.07 * K, 0.05),
     new THREE.MeshBasicMaterial({ color: 0xbdb08c }));
-  put(inri, 0, CRX_Y + 0.63, CRX_Z + 0.07);
+  put(inri, 0, CRX_Y + 0.63 * K, CRX_Z + 0.07);
 
   // ── a rack of votive candles by the door, the one warm thing ──
   //
