@@ -67,6 +67,18 @@ const SETTLE_MS = 18000;
 // against 65 stepped, and -83.5% against -65.4%. NOSTEP=1 restores the old
 // behaviour for comparison; nothing should trust it.
 const STEP = process.env.NOSTEP !== '1';
+// STAND OUTSIDE BEFORE ANY OF THIS. ct/props.ts cuts the weather when the player
+// is indoors — `if (px > 100) rainLevel = 0; // it NEVER rains indoors` — and
+// the spawn is now room 301 at x 198.6. This instrument stepped the clock
+// through twelve hours from inside a building and correctly reported "saw no wet
+// surface at all", which is the right refusal and the wrong reason: nothing is
+// wrong with the world, the sweep was simply not standing in it.
+//
+// wetness.mjs and rain.mjs had the identical fault the same day. All three used
+// to pass because the spawn used to be on the street.
+await p.evaluate(() => window.__ct.warp(6.2, -50, 0, 0.14, 0));
+await p.waitForTimeout(300);
+
 const sample = async (h) => {
   if (STEP) {
     const from = h - Number(process.env.STEP_HOURS ?? 12);   // walk this many hours in
