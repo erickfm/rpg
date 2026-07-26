@@ -287,12 +287,28 @@ And in the ARTIFACT — the single file the user actually opens, which GOTCHAS �
 says nobody checks a room in:
 
 ```
-J-library-door   3 PASS in dist/artifact.html   identical to the preview run
-J-gallery-walk   5 PASS in dist/artifact.html   identical to the preview run
+J-library-door   4 PASS in dist/artifact.html   identical to the preview run
+J-gallery-walk   7 PASS in dist/artifact.html   identical to the preview run
+J-library-room   6 PASS in dist/artifact.html   identical to the preview run
+J-library-people 4 PASS in dist/artifact.html   identical to the preview run
 nightgrade 910 930 -11 11   0 materials break §22, no DoubleSide cut-out in the
                             sorted queue
 footpaint                   4 of 4 figures' PAINTED feet on the floor
 ```
+
+**Re-run 2026-07-26 against the PACKED ARTIFACT, build `f0c824b85`** — the same
+SHA the pack reported, which is how you know the artifact and the preview were
+the same world (GOTCHAS §26). All four checks pass there, not just the two the
+first pass covered, and `J-library-room` and `J-library-people` are new since.
+
+**Worth re-running specifically because the room CHANGED since the last artifact
+pass.** The sitters now carry `userData.citizen`, and a tag is exactly the kind
+of thing a bundler cannot break but a refactor can — so the question is not "did
+Rollup drop it" but "is it still there in the file the user opens". It is:
+`J-library-people` reads **4 tagged, 3 seated, 0 untagged** from the artifact,
+the same as from the preview. The door still measures **2.50 m** there, so the
+`DOOR.leaf` declaration continues to survive the eager glob (GOTCHAS §28) — the
+fault that cost GOLDEN ACES its door is still not present here.
 
 That matters for this room in particular: the door's whole geometry is built
 from `DOOR.leaf`, collected through the eager glob that GOTCHAS §28 records
