@@ -302,26 +302,42 @@ function cabinSideTex(glass: [number, number][], zbf: number, zbr: number): THRE
     g.fillStyle = '#d8dade'; g.fillRect(0, 14, 96, 1);
   });
 }
-function carFrontTex(body: string): THREE.Texture {
-  return pixTex(48, 16, (g) => {
-    g.fillStyle = body; g.fillRect(0, 0, 48, 16);
-    g.fillStyle = '#d8dade'; g.fillRect(0, 12, 48, 3);
-    g.fillStyle = '#1a1c20'; g.fillRect(14, 4, 20, 5);
+/** The nose. Same one density as the flanks — the face is 1.80 m across and
+ *  the panel 0.50 m tall, so every feature below is stated in METRES and the
+ *  canvas follows, rather than 48x16 standing in for whatever the body is. */
+function carFrontTex(body: string, wM = 1.8, hM = 0.5): THREE.Texture {
+  const W = Math.round(wM * PX_PER_M), H = Math.round(hM * PX_PER_M);
+  const m = (v: number) => Math.round(v * PX_PER_M);
+  return pixTex(W, H, (g) => {
+    const cx = W / 2;
+    g.fillStyle = body; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d8dade'; g.fillRect(0, H - m(0.125), W, m(0.09));   // bumper
+    const gw = m(0.75), gh = m(0.16), gy = m(0.125);                    // grille
+    g.fillStyle = '#1a1c20'; g.fillRect(Math.round(cx - gw / 2), gy, gw, gh);
     g.fillStyle = 'rgba(255,255,255,0.2)';
-    for (let x = 15; x < 33; x += 3) g.fillRect(x, 4, 1, 5);
+    for (let x = Math.round(cx - gw / 2) + 1; x < Math.round(cx + gw / 2); x += m(0.09))
+      g.fillRect(x, gy, 1, gh);
+    const lw = m(0.26);                                                 // headlamps
     g.fillStyle = '#e8e4c0';
-    g.fillRect(4, 4, 7, 5); g.fillRect(37, 4, 7, 5);
-    dither(g, 48, 16, 40);
+    g.fillRect(m(0.15), gy, lw, gh); g.fillRect(W - m(0.15) - lw, gy, lw, gh);
+    dither(g, W, H, Math.round(40 * (W * H) / (48 * 16)));
   });
 }
-function carRearTex(body: string): THREE.Texture {
-  return pixTex(48, 16, (g) => {
-    g.fillStyle = body; g.fillRect(0, 0, 48, 16);
-    g.fillStyle = '#d8dade'; g.fillRect(0, 12, 48, 3);
+/** The tail, on the same density and stated the same way as the nose. */
+function carRearTex(body: string, wM = 1.8, hM = 0.5): THREE.Texture {
+  const W = Math.round(wM * PX_PER_M), H = Math.round(hM * PX_PER_M);
+  const m = (v: number) => Math.round(v * PX_PER_M);
+  return pixTex(W, H, (g) => {
+    const cx = W / 2;
+    g.fillStyle = body; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d8dade'; g.fillRect(0, H - m(0.125), W, m(0.09));   // bumper
+    const lw = m(0.34), lh = m(0.13), ly = m(0.125);                    // tail lights
     g.fillStyle = '#8a1c1c';
-    g.fillRect(3, 4, 9, 4); g.fillRect(36, 4, 9, 4);
-    g.fillStyle = '#c9c4b0'; g.fillRect(19, 5, 10, 5);
-    dither(g, 48, 16, 40);
+    g.fillRect(m(0.11), ly, lw, lh); g.fillRect(W - m(0.11) - lw, ly, lw, lh);
+    const pw = m(0.375);                                                // number plate
+    g.fillStyle = '#c9c4b0';
+    g.fillRect(Math.round(cx - pw / 2), ly + m(0.03), pw, m(0.16));
+    dither(g, W, H, Math.round(40 * (W * H) / (48 * 16)));
   });
 }
 function panelTopTex(body: string, seamAt: number): THREE.Texture {
