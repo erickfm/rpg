@@ -118,14 +118,28 @@ if (mode === 'door' || mode === 'all') {
     const t0 = performance.now();
     const tick = () => {
       if (window.__ct.pos()[0] > 400) return res(true);
-      if (performance.now() - t0 > 8000) return res(false);
+      // 25 s, not 8. A door transition is driven by the render loop and this
+      // world now carries eleven registered modules; on a machine running the
+      // rest of the suite a frame is over a second (GOTCHAS 30). At 8 s this
+      // timed out ONCE on a door that works — and reported it as a RED rather
+      // than as "nothing measured", which is the expensive direction: a false
+      // red on a confirmed row costs somebody a re-walk.
+      if (performance.now() - t0 > 25000) return res(false);
       requestAnimationFrame(tick);
     };
     tick();
   }));
+  // A TIMEOUT IS AN ABORT, NOT A FAILURE. GOTCHAS 32: exit 3 means the check
+  // never ran and nothing follows about the world; exit 1 means it ran and the
+  // world is wrong. Scoring a timeout as a red conflates the two, and the
+  // reader cannot tell a broken door from a busy machine.
+  if (!crossed) {
+    console.error('ABORT: E did not cross within 25 s — the machine is loaded, or the door is dead.');
+    console.error('       Nothing below measures the room. Re-run before believing anything.');
+    await b.close(); process.exit(3);
+  }
   const inside = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
-  ok(crossed && inside[0] > 400, `E puts you INSIDE — x ${inside[0]}, the interior slab belt is x >= 400`);
-  if (!crossed) { console.error('ABORT: never got inside, so nothing below measures the room'); await b.close(); process.exit(3); }
+  ok(inside[0] > 400, `E puts you INSIDE — x ${inside[0]}, the interior slab belt is x >= 400`);
 
   // WALK THE LENGTH OF THE ROOM — down the line the gate is on, not down the
   // middle. The middle is the counter, and the counter is SUPPOSED to stop
@@ -160,13 +174,16 @@ if (mode === 'door' || mode === 'all') {
     const t0 = performance.now();
     const tick = () => {
       if (window.__ct.pos()[0] < 400) return res(true);
-      if (performance.now() - t0 > 8000) return res(false);
+      if (performance.now() - t0 > 25000) return res(false);
       requestAnimationFrame(tick);
     };
     tick();
   }));
+  if (!left) {
+    console.error('ABORT: E from inside did not leave within 25 s — loaded machine, or a dead way out.');
+    await b.close(); process.exit(3);
+  }
   const out = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
-  if (!left) { console.error('ABORT: E from inside never left the room'); await b.close(); process.exit(3); }
   ok(out[0] < 100, `E from inside puts you back on the STREET — (${out[0]}, ${out[2]})`);
   ok(out[0] > KERB && out[0] < FX, `and on the PAVEMENT, not in the road — ${KERB} < ${out[0]} < ${FX}`);
   // the way out must clear the way in, or a second E bounces you straight back
