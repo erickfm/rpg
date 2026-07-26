@@ -105,8 +105,22 @@ const bad = [];
 for (const x of declared) {
   const d = x.dec;
   // The stamp records the metres masonry() was given; compare with the face it
-  // actually reached — DIVIDED BY THE REPEAT. 2 % tolerance absorbs the canvas
-  // rounding masonry() does (it rounds W and H to whole texels), nothing more.
+  // actually reached — DIVIDED BY THE REPEAT.
+  //
+  // WHAT THE 2 % IS NOT. This used to say the tolerance "absorbs the canvas
+  // rounding masonry() does (it rounds W and H to whole texels), nothing
+  // more". It does not and it cannot: both sides of the comparison below are
+  // METRES — the covered face against the metres the painter was handed — and
+  // the canvas size appears nowhere in the expression. masonry()'s rounding
+  // moves the achieved DENSITY by up to 1.79% and moves this number by
+  // exactly zero.
+  //
+  // Worth correcting rather than tidying, because I believed that sentence: it
+  // sent me looking for a face that rounding might one day push past 2 %, and
+  // there is no such face and never can be. The 2 % is slack against callers
+  // whose painted metres differ slightly from the mesh they land on, which is
+  // a different thing entirely and the thing this check exists to bound.
+  // (A's correction; the arithmetic here is unchanged.)
   //
   // The repeat is not optional and leaving it out is a false positive I shipped.
   // ct/civic.ts's church tower is 5 m across the front and 3.7 m deep, so its

@@ -135,12 +135,20 @@ export function sootedBrick(
  *     worst drift                            0.211 px/m  (0.95 m face at 16 -> 15 px)
  *     worst drift as a share of declared     1.79%
  *
- * That 1.79% matters because `scripts/density.mjs` checks a face against its
- * DECLARED ppm within 2%, so rounding noise alone was within a whisker of
- * turning that check red on a surface behaving exactly as ruled. The stamp
- * therefore carries the ACHIEVED density as well, and a checker can tell
- * "authored at the wrong density" — a real fault — from "rounded to whole
- * texels", which is correct by ruling.
+ * I FIRST WROTE THAT THIS ENDANGERED `scripts/density.mjs`, whose tolerance is
+ * 2%, and that was wrong. That check compares METRES TO METRES —
+ * `|face/repeat - wMeters| / wMeters` — and canvas rounding does not appear in
+ * that expression at all, so it contributes exactly nothing to it and no face
+ * can be pushed red by rounding however unlucky. I took the claim from
+ * density.mjs's own comment, which says its 2% "absorbs the canvas rounding
+ * masonry() does"; that comment is wrong in the same way and is corrected in
+ * the same commit as this.
+ *
+ * `ppmW`/`ppmH` are still worth stamping, for the reason that survives: `ppm`
+ * is what was ASKED FOR and they are what the whole-texel canvas ACHIEVED, so
+ * anything measuring real density off a mesh has the intended and the achieved
+ * value side by side instead of inferring one from the other. That is a
+ * smaller claim than the one I made and it is the true one.
  */
 export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 1) {
   const ppm = WALL_PPM * mult;
@@ -173,11 +181,14 @@ export function masonry(wMeters: number, hMeters: number, baseY: number, mult = 
     paint: (draw: (g: CanvasRenderingContext2D) => void) => {
       const t = pixTex(W, H, draw);
       // `ppm` is what was ASKED FOR; `ppmW`/`ppmH` are what the whole-texel
-      // canvas actually achieved. They differ by up to 1.79% purely from the
-      // rounding the desk's ruling requires, and density.mjs's tolerance
-      // against the declared value is 2% — so a checker that wants to catch a
-      // face authored at the WRONG density should compare the mesh against
-      // ppmW/ppmH and reserve the declared value for "what was intended".
+      // canvas actually ACHIEVED. They differ by up to 1.79% purely from the
+      // rounding the desk's ruling requires. Anything measuring real density
+      // off a mesh now has the intended and the achieved value side by side
+      // rather than inferring one from the other.
+      //
+      // NOT because density.mjs is at risk from it — I claimed that and it is
+      // false; see the docstring above. That check compares metres to metres
+      // and rounding cannot reach it.
       t.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H,
                              ppmW: W / wMeters, ppmH: H / hMeters };
       // and say what it IS, not only how dense it is — see declareSurface().
