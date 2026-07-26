@@ -813,10 +813,19 @@ export function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: n
  *  crossings as graph edges for a while and the ground has never marked any of
  *  them — the two at the junction read as crossings only because the bodega
  *  corner has a kerb ramp. So "make it look like the two at the junction"
- *  could not be done literally; there was nothing to copy. Built to be reused:
- *  the two junction crossings can take the same paint whenever the desk wants
- *  it, and until they do the east end is the only striped one, which is the
- *  one thing about this that is NOT consistent. Flagged, not decided.
+ *  could not be done literally; there was nothing to copy. Until the junction
+ *  crossings are painted too, the east end is the only striped one, which is
+ *  the one thing about this that is NOT consistent. Flagged, not decided.
+ *
+ *  HOW REUSABLE THIS ACTUALLY IS, stated precisely because I first wrote that
+ *  the junction pair "can take the same paint on one call" and that is only
+ *  half true. The bars repeat along Z, so this paints a crossing over an
+ *  EAST-WEST carriageway — which the side-street crossing at the junction also
+ *  is, and that one is a straight second call. The crossing across the main
+ *  street's mouth is not: the main street runs north-south, so its bars have to
+ *  repeat along X, and this wants a plan rotation before it can lay that one.
+ *  Small change, but it is a change, and claiming otherwise would have handed
+ *  the desk a five-minute job that is not.
  *
  *  Sized from real metres at the world's 32 px/m like every other surface here
  *  (GOTCHAS 5), and transparent so the asphalt shows between the bars rather
