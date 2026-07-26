@@ -295,8 +295,29 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       g.fillStyle = 'rgba(0,0,0,0.075)';
       for (let x = 6; x < 64; x += 8) g.fillRect(x, 0, 2, 64);
       dither(g, 64, 64, 90);
-      g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, 0, 64, 5);  // ceiling shadow each storey
-      g.fillStyle = 'rgba(0,0,0,0.1)'; g.fillRect(0, 5, 64, 4);
+      // THE BAND IS GONE. The user: it reads as a stripe across the stairwell
+      // wall behind the handrail, and he is right.
+      //
+      // It was a "ceiling shadow each storey" — 5 texels at 0.22 black plus 4
+      // more at 0.1, at the TOP of the tile. That is defensible on a wall one
+      // storey tall. But this tile is one 2.7 m storey and the stairwell walls
+      // are the full 10.65 m, so it repeated at 2.7, 5.4 and 8.1 m — painting a
+      // dark horizontal band across open wall at every storey line, including
+      // mid-flight where there is no ceiling above it to cast anything.
+      //
+      // On the flights that band crosses the handrail's diagonal at a different
+      // angle, which is exactly the visual noise he is objecting to: the rail
+      // already gives that wall its strong line and a horizontal stripe
+      // competing with it reads as a glitch rather than as trim.
+      //
+      // NOTHING DERIVES A HEIGHT FROM IT — it was paint, not geometry. The rail
+      // is a polyline of its own (railPts) and the skirting below is a separate
+      // band in this same tile, so cutting this moves neither.
+      //
+      // The skirting STAYS: it lands at every storey too, but there IS a floor
+      // at each of those lines on the full-height walls, so it is describing
+      // something real. And the vertical stripe stays — that is the period
+      // paper and it is not what he objected to.
       g.fillStyle = '#3e3024'; g.fillRect(0, 58, 64, 6);
       g.fillStyle = 'rgba(255,255,255,0.14)'; g.fillRect(0, 58, 64, 1);
     });
