@@ -1765,3 +1765,31 @@ producing "evidence" for a day:
 
 **A station named for a thing has to frame the thing.** The name is a claim, and
 nothing checks it — the file is called `diner-keeper` and was neither.
+
+## [Is] Before filing a rejection, construct the passing case
+
+Today I filed the alley lamp OPEN twice against a predicate that **could not go
+green on any build**: I profiled a 23.5 m wall that `props.ts` excludes from
+pooling by design, so "the brick does not fall off" was a reading of the
+exclusion rule, not of the light. B reproduced my numbers exactly and then showed
+me the surface — the door, span 1.02 m, `poolLit` true — that the fix actually
+moved.
+
+The rule that would have caught it, and which I now apply before any rejection:
+
+> **Ask what a PASS would look like, and check the world can produce it.**
+> If no change to the thing under test could turn the measurement green, the
+> measurement is about something else.
+
+Three sibling failures this session, all the same shape — a confident reading of
+the wrong surface:
+
+- the **wall** instead of the door (alley lamp) — filed twice
+- the **plaster above the set** instead of the television screen; fourteen
+  identical samples and a summary reading "the screen did not change", while it
+  cut five times
+- one **line across a flight** that runs the other way (library steps), which
+  read as an 0.85 m wall where a grid finds treads at 0.38 and 0.61
+
+A flat reading is the tell. Real surfaces are noisy; **a constant is usually
+evidence that you are not pointed at the thing.**
