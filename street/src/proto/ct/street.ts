@@ -1580,7 +1580,26 @@ export function buildStreet(o: {
     // runs 3.15–4.04 m and the glass head is at 2.91, so it hangs at 2.99 —
     // recheck this whenever SHOP_BAND_H moves, or it covers the name again.
     awn.position.set(0, 2.99, 0.35);
-    awn.rotation.x = -0.18;   // slopes down and away from the face
+    // THE SIXTH FACING BUG, and this one had a comment claiming the opposite of
+    // what the number did. *"bodega sign is tilted up which makes no sense
+    // should be tilted a bit down no? … like it needs to be rotated 180
+    // degrees"*.
+    //
+    // Derived from what the awning should FACE rather than by flipping a sign
+    // until it looked better (GOTCHAS §33). The bay's local +z is OUT from the
+    // shopfront, so `rotation.x = θ` sends the outer edge (0, 0, +0.45) to
+    // (0, −0.45 sin θ, 0.45 cos θ) and the top face's normal (0, 1, 0) to
+    // (0, cos θ, sin θ). An awning has to shed water and shade the glass, so
+    // its outer edge must be the LOW one and its top face must look up and OUT,
+    // over the pavement — which is θ POSITIVE.
+    //
+    // At −0.18 the outer edge stood 81 mm HIGH and the top face looked up and
+    // BACK at the wall: a sign tipped toward the sky, and the raised lip cut
+    // across the bottom of the BODEGA fascia behind it — the comment two lines
+    // up used to warn about that exact occlusion without noticing it had
+    // already happened. At +0.18 the outer edge drops 81 mm to 2.91 and the
+    // wall edge rises to 3.07, which still clears the fascia's foot at 3.15.
+    awn.rotation.x = 0.18;    // outer edge LOW: slopes down and away from the face
     bay.add(awn);
     const openT = declareSurface(pixTex(24, 12, (g) => {
       g.fillStyle = '#141416'; g.fillRect(0, 0, 24, 12);
@@ -1667,15 +1686,36 @@ export function buildStreet(o: {
     // texture artefact was the heap texture's circle grid wrapped over a
     // sphere; there is no texture here to wrap.
     const crateM = flat(crateT);
+    // WHERE THEY STAND, and the wall they stand against is not one plane.
+    //
+    // *"align these crates so they fit better against this wall"*, with
+    // `shots/user-crates4.png`. Measured rather than eyeballed, and the fault
+    // was not the crates being untidy — it was that they STRADDLED A STEP IN
+    // THE WALL and so could not be flush against both halves at once:
+    //
+    //   x 9.00 … 10.405  the corner block's brick pier — flat shell face, z −96.0
+    //   x 10.405 …       the wing's shopfront, whose plinth and stallriser cap
+    //                    stand 105–120 mm PROUD, so its face is z −96.12
+    //
+    // The two crates sat at −96.28 and −96.25 — a 30 mm stagger between them,
+    // and both backs at about −96.0, which put 100 mm of each crate INSIDE the
+    // wing's plinth. Sunk into the base band on one side of the step and adrift
+    // on the other is exactly the "doesn't fit" the user is pointing at.
+    //
+    // So both go on ONE stretch, the wing's, at ONE z, with their backs 15 mm
+    // clear of the proud face — 15 mm rather than 0 because coplanar faces
+    // z-fight in this world (GOTCHAS §6) and because a crate leaning on a
+    // plinth is what this is meant to read as.
+    //
+    // NOT further west, however tempting: the bodega's `[E]` spot is at
+    // (7.47, −95.53) with r 1.8, and the brick-pier stretch is only 1.4 m wide,
+    // so two crates on it reach x 9.13 — inside that circle. Crates across the
+    // door's approach is precisely what made the bodega un-enterable once
+    // already (GOTCHAS §8), and it is not worth re-testing for 70 cm.
+    const CRATE_Z = -96.41;                  // back face −96.135, wall face −96.12
     for (const [cxx, czz, shades] of [
-      // NOT in front of the canted bay. They used to stand at x 7.9 and 9.3,
-      // straight across the door's approach, and their collider is what made
-      // the bodega impossible to enter: you were stopped at x = 7.13 walking
-      // east and x = 10.07 walking west, with the [E] spot stranded inside
-      // the box between. Crates belong against the side-street frontage,
-      // where they dress the shop without standing in its doorway.
-      [10.05, -96.28, ['#d8892a', '#c2701f', '#e6a044', '#b0621c']],
-      [10.95, -96.25, ['#9a3a2c', '#842f24', '#b45140', '#6f2820']],
+      [10.75, CRATE_Z, ['#d8892a', '#c2701f', '#e6a044', '#b0621c']],
+      [11.45, CRATE_Z, ['#9a3a2c', '#842f24', '#b45140', '#6f2820']],
     ] as [number, number, string[]][]) {
       const crate = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.4, 0.55),
         [crateM, crateM, flat(fruitTop()), crateM, crateM, crateM]);
@@ -1700,7 +1740,12 @@ export function buildStreet(o: {
         fruit(cxx + u * 0.195 + jx, RIM + 0.03 + 0.055 * (1 - d * 0.5), czz + v * 0.155 + jz, r, i * 3 + Math.floor(i / 4));
       }
       fruit(cxx + 0.255, RIM + 0.015, czz - 0.175, 0.055, 2);   // tumbled onto the rim
-      fruit(cxx - 0.375, sidewalkY + 0.052, czz + 0.285, 0.052, 1); // …and one on the pavement
+      // …and one on the pavement, IN FRONT of the crate. It used to be at
+      // czz + 0.285, which is behind the back face — so with the crate flush to
+      // the wall the loose fruit was buried in the plinth, and before the crate
+      // moved it was buried in the shell. A fruit that rolls out of a crate
+      // rolls toward the walk, where somebody can see it.
+      fruit(cxx - 0.375, sidewalkY + 0.052, czz - 0.40, 0.052, 1);
     }
   }
   // south-west corner building closes the side street's west end
