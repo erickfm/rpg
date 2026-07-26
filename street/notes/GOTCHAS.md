@@ -1370,3 +1370,39 @@ And the human lesson, which is B's: **when a guard reports that other guards
 have stopped guarding, do not repair it in a hurry.** Had B "fixed" five working
 guards, it would have damaged the only mechanism that can detect this class at
 all — while every board stayed green.
+
+## 49. PUBLISHED is not ADOPTED — and a row can be CONFIRMED and untrue at once
+
+The sleep-fade row read **CONFIRMED**. A went and tried it:
+
+```
+CONTROL  window.__hud.fade({ mid })   peak opacity 1.000, 21 of 26 samples black
+BED      [E] sleep until morning      peak opacity 0.000,  0 of 25, clock +16.5 h
+```
+
+**The capability worked and its only caller never called it.** The clock ramped
+sixteen hours with no fade at all. Two verifiers found it independently, and
+neither would have if they had checked that the fade *existed* rather than that
+*going to sleep faded*.
+
+This project now runs on published capabilities with separate adopters —
+`ctx.seat`, `ctx.spot`, `ctx.ground`, `ctx.advanceTime`, `citizenSprite`'s
+seated pose, K's pockets, K's panel framework, K's screen fade. **Every one of
+them can be built, correct, tested, and reach nobody.** The seated pose sat at
+`0 of 10 int-*.ts` for hours while its row read as delivered.
+
+So:
+
+1. **A row is the USER'S SENTENCE, not the capability.** *"when the player goes
+   to sleep i want the screen to fade to black"* is only true when going to
+   sleep fades the screen. Verify the sentence, from where the player stands.
+2. **Split the row when the work splits** — one for the capability, one for the
+   adoption, on their own owners. H asked for exactly that split on the seated
+   pose and was right: *"as one row it reads as H being late for work in files I
+   do not own."*
+3. **The publisher's own check cannot see this.** K's fade passed every test K
+   could write, because K does not own the bed.
+
+The cheapest guard is the control A took FIRST: prove the capability works
+directly, then prove the real path invokes it. If only the first passes, you
+have found this bug.
