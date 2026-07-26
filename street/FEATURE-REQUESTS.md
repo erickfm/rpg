@@ -186,7 +186,19 @@ published to the playable artifact.
 ## Inbox
 - **"neighbor just disappears when he goes away why not make him go in his apt and then close the door"** → **C**
 - **"i think the selection options are a bit too wide. i feel like i select stuff without even looking at it"** → **D**
-- **"'Screenshot from 2026-07-25 23-39-02.png' we gotta move this phone thing elsewhere or be done with it entirely"** → **B**
+- **"'Screenshot from 2026-07-25 23-39-02.png' we gotta move this phone thing elsewhere or be done with it entirely"** → **B** ✅ built
+
+  <!-- B: MOVED, per the desk's ruling, to the ALLEY MOUTH — and rebuilt as a
+       shelter with real depth (0.30 m -> 0.62 m, eight parts, a visible side
+       wall and a canopy that projects). The mouth was chosen because it is the
+       only one of the three candidates where depth is physically available:
+       the walk is 1.94 m and walkers run at x -6.00 +/- 0.55, so anything
+       against the shopfronts may be 0.45 m deep at most. Measured: nearest
+       face to the walk -7.07, CLEAR by 0.07 m; closest walker in 360 samples
+       1.86 m; header held at 1.0 at 23:00 while the enamel drops to 0.12.
+       Walked past and walked to. notes/B-payphone-moved-to-the-alley-mouth.md
+       -->
+
 - **"instead of calling the casino golden aces call it SEVENS"** → **G**
 - **"'Screenshot from 2026-07-25 23-30-58.png' hotel textures are buggy"** → **G**
 - **"'Screenshot from 2026-07-25 23-27-45.png' whats wrong with this plant in the tax service place"** → **G**
@@ -206,11 +218,35 @@ published to the playable artifact.
 - **"'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in library"** → **J** ✅ built
 - **"'Screenshot from 2026-07-25 23-25-21.png' whats going on with this cars its like up in a weird way also i hate this pole thats in the way"** → **I**
 - **"'Screenshot from 2026-07-25 23-24-37.png' whats going on here? looks like an issue with the sale sign, itsa like embedded in the car"** → **I**
-- **"'Screenshot from 2026-07-25 23-09-56.png' dont like how this curb is discontinuous and only 3 slabs, its unrealistic"** → **B**
+- **"'Screenshot from 2026-07-25 23-09-56.png' dont like how this curb is discontinuous and only 3 slabs, its unrealistic"** → **B** ✅ built
+
+  <!-- B: BOTH FAULTS ARE THE CAR LOT'S DRIVEWAY APRON, which is mine. Found by
+       recovering his pose from the traffic cones in the shot. Measured there
+       before touching anything: joints ACROSS the walk read at 6.95 m and then
+       not again until 1.25 m — a 5.70 m hole — while joints ALONG it read 18
+       times in the same strip, identical at 13:00 and 22:30 so it is not the
+       night grade. apronTex scored in ONE direction: three ribbons 8.6 m long
+       with a joint only at each end. Three slabs, exactly as he says. Scored
+       both ways now, on the walk's own flag lines so the pavement runs through
+       the drive. And the kerb: it sits at its lip for 7.40 m, which is correct
+       for a curb cut, but the face uv cropped kerbTex at a fixed world height
+       so the depressed run showed a 1.5 cm slice out of the MIDDLE of the
+       profile — no top edge, no grit line, nothing to see. It maps the sheet's
+       full height now. notes/B-the-apron-was-the-report.md -->
+
 - **"five mutation guards have STOPPED GUARDING — three are A's, and canfail is not in any gate"** → **A**
 - **"'Screenshot from 2026-07-25 23-08-52.png' i think the door needs to open the other way to match the other floors"** → **C**
 - **"scripts/floaters-walk.mjs ignores its room argument — a filter that silently does not filter"** → **A**
-- **"the driveway apron reads as a large flat untextured grey plane — MEASURED: it is the 60x124 m ground sheets at 0.03 texels/m along z, not the apron"** → **B**
+- **"the driveway apron reads as a large flat untextured grey plane"** → **B** ✅ built
+
+  <!-- B: THE HEADLINE ON THIS ROW WAS MY OWN BAD MEASUREMENT and I have cut it.
+       There are no "60x124 m ground sheets at 0.03 texels/m": those are the
+       kerb face, arris, gutter pan and red paint — four ribbons that wrap the
+       whole block, 0.15 m tall, whose BOUNDING BOX is 60 x 124 m. I divided a
+       texture size by a bounding box. Every walk sheet in the world measures
+       exactly 32 texels/m in both axes (scripts/kerbwalk.mjs). The apron's real
+       fault was its scoring, fixed with the row above. -->
+
 - **"'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch an invisible wall here?"** → **B**
 - **"'Screenshot from 2026-07-25 22-06-38.png' lighting on this alley back door looks messed up like it gets cropped by door."** → **B**
 - **"'Screenshot from 2026-07-25 22-05-35.png' get rid of this weird internal structure inside the library"** → **J** ✅ built
