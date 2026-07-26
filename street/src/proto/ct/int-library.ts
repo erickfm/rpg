@@ -181,7 +181,24 @@ export function buildLibrary(ctx: CtxBuild): void {
   // and it is the number that matters — 1.63 m of aisle between 1.95 m bays is
   // "too narrow to see over" for a 1.6 m eye, which is what makes the stacks
   // read as stacks rather than as shelving against a wall.
-  const zBack = -D / 2 + 1.3, zFront = D / 2 - 7.4;
+  // THE STACKS STOP AT z -2.0 AND THE ROOM BREATHES AGAIN.
+  //
+  // The auditor, on this room at build 4a311be0a: it did double, 163 -> 326 m²,
+  // but its median clear aisle fell from 8.40 m to 2.10 m — the NARROWEST of all
+  // ten interiors, tighter than the bodega's 3.85 m which that audit ranked
+  // severity 1. Free floor was a normal 81%, so the space was not consumed: it
+  // was cut into strips. Six runs spanning the full 13.9 m of new depth meant
+  // that at nearly every depth in the room, the widest continuous thing you
+  // could stand in was one 1.63 m aisle.
+  //
+  // "Cramped is a statement about shape, not area" is the finding, and it is
+  // right. So the stacks take the REAR half only and the front half is one
+  // continuous reading floor — which is also what a Carnegie branch actually is:
+  // you come through the vestibule into an open hall with tables in it, and the
+  // stacks are behind and around. Same six runs, same 2.15 m spacing, same
+  // 1.63 m aisles between 1.95 m bays; they are simply 7.7 m long instead of
+  // 13.9, and the 13 m of depth in front of them is now unbroken wall to wall.
+  const zBack = -D / 2 + 1.3, zFront = -2.0;
   for (let i = 0; i < 6; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
 
   // ── THE VESTIBULE ────────────────────────────────────────────────────────
@@ -271,7 +288,10 @@ export function buildLibrary(ctx: CtxBuild): void {
   // to sit down."* Four chairs, four seats, registered through `ctx.seat` in
   // WORLD coordinates — the same call the park benches use — so they behave
   // like every other seat in the world rather than like library-only furniture.
-  const TAB_X = W / 2 - 3.0, TAB_Z = -D / 2 + 3.2;
+  // The reading tables move OUT of the stacks and into the open floor they now
+  // face. At -D/2 + 3.2 they sat among the runs, which is a study carrel; on the
+  // open floor they are the reading room, which is what the room is for.
+  const TAB_X = W / 2 - 3.0, TAB_Z = 1.2;
   box(1.5, 0.08, 2.4, wood, TAB_X, 0.74, TAB_Z);
   for (const dx of [-0.62, 0.62]) for (const dz of [-1.05, 1.05]) {
     box(0.09, 0.74, 0.09, woodDark, TAB_X + dx, 0.37, TAB_Z + dz);
