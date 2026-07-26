@@ -838,6 +838,44 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       seg(0, g0, 0, H);                 // cut face, one side of the door
       seg(g1, 1, 0, H);                 // …and the other
       seg(g0, g1, DOOR_H, H);           // the header over the opening
+      //
+      // AND SOMETHING TO SEE THROUGH IT.
+      //
+      // The user, on his fourth report of this room: the prompt reads "[E] out
+      // to the street" while he stands at "a BLANK CORNER OF WALL. No door, no
+      // frame, no threshold, no daylight." He was right, and the opening above
+      // is why it was so confusing — the hole IS cut. But rooms are parked out
+      // at x >= 400, so what lies beyond the hole is empty scene, which renders
+      // the same pale tone as the plaster. An opening onto nothing reads as
+      // wall. "An exit prompt with no visible door is worse than a locked
+      // door, because he cannot tell whether the game is broken or he is."
+      //
+      // A flat-wall room gets its leaf and glazing from the doorway builder.
+      // The cut face never had that, so it gets the same three things here:
+      // DAYLIGHT beyond, a FRAME around, and a THRESHOLD underfoot.
+      const ox = sx / Math.SQRT2, oz = sz / Math.SQRT2;    // outward, off the cut
+      const dcx = ax + (bx - ax) * 0.5, dcz = az + (bz - az) * 0.5;
+      // daylight: a bright panel a little way outside, so the opening reads as
+      // an opening from anywhere in the room rather than only head-on.
+      const sky = new THREE.Mesh(new THREE.PlaneGeometry(dW * 1.9, DOOR_H * 1.25),
+        new THREE.MeshBasicMaterial({ color: 0xd8e2ea, side: THREE.DoubleSide }));
+      sky.rotation.y = rotY;
+      place(sky, dcx + ox * 0.5, DOOR_H * 0.6, dcz + oz * 0.5);
+      // the frame: two jambs and a head, proud of the face on the inside
+      const frameM = new THREE.MeshBasicMaterial({ color: LEAF?.frame.colour ?? 0x5a4a34 });
+      for (const t of [g0, g1]) {
+        const jx = ax + (bx - ax) * t, jz = az + (bz - az) * t;
+        const j = new THREE.Mesh(new THREE.BoxGeometry(0.10, DOOR_H, T * 1.6), frameM);
+        j.rotation.y = rotY;
+        place(j, jx - ox * 0.02, DOOR_H / 2, jz - oz * 0.02);
+      }
+      const head = new THREE.Mesh(new THREE.BoxGeometry(dW + 0.2, 0.12, T * 1.6), frameM);
+      head.rotation.y = rotY;
+      place(head, dcx - ox * 0.02, DOOR_H + 0.06, dcz - oz * 0.02);
+      // the threshold, so the floor tells you where the room stops
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(dW + 0.2, 0.03, 0.26), frameM);
+      sill.rotation.y = rotY;
+      place(sill, dcx, 0.015, dcz);
     } else {
       seg(0, 1, 0, H);
     }
