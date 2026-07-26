@@ -1832,9 +1832,37 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
     // arbitrary height is what makes a door look pasted onto a frontage.
     g.fillStyle = 'rgba(0,0,0,0.34)'; g.fillRect(dx, gy + m(0.78), dw, Math.max(1, m(0.08)));
     g.fillStyle = STEEL; g.fillRect(dx, gy + m(0.86), dw, 1);
-    g.fillStyle = STEEL; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.85));
-    g.fillStyle = HI; g.fillRect(dx, gy + gh - m(0.85), dw, m(0.07));
-    g.fillStyle = CREAM; g.fillRect(dx + m(0.12), gy + m(1.15), dw - m(0.24), m(0.1));
+    // THE LEAF ITSELF. Its bottom 0.85 m was one flat fill of STEEL with a
+    // cream stripe on it, which from the pavement read as a pale grey slab —
+    // the weakest thing left on this front after the glass block moved, and
+    // conspicuous because it sits dead centre of what you walk up to.
+    //
+    // An aluminium diner door is not a panel, it is a FRAME: two stiles, a
+    // lock rail, a kick plate that has been kicked, and a push bar you can see
+    // is a bar. All of that is horizontal banding at 16 px/m, which is exactly
+    // what this density can carry — unlike the three stacked letters that had
+    // to come off the blade sign.
+    const bot = gy + gh - m(0.85);
+    g.fillStyle = STEEL; g.fillRect(dx, bot, dw, m(0.85));
+    g.fillStyle = HI; g.fillRect(dx, bot, dw, m(0.07));                            // lock rail, lit on top
+    g.fillStyle = STEEL_D; g.fillRect(dx, bot + m(0.07), dw, m(0.05));             // and its shadow
+    // the stiles: the frame either side, darker than the panel between them
+    g.fillStyle = STEEL_D; g.fillRect(dx, gy + m(0.12), Math.max(1, m(0.1)), gh - m(0.12));
+    g.fillStyle = STEEL_D; g.fillRect(dx + dw - Math.max(1, m(0.1)), gy + m(0.12), Math.max(1, m(0.1)), gh - m(0.12));
+    // kick plate — scuffed, and grubbier at the very bottom where feet reach
+    g.fillStyle = '#83888b'; g.fillRect(dx + m(0.06), gy + gh - m(0.42), dw - m(0.12), m(0.36));
+    g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(dx + m(0.06), gy + gh - m(0.42), dw - m(0.12), 1);
+    g.fillStyle = 'rgba(34,30,26,0.28)'; g.fillRect(dx + m(0.06), gy + gh - m(0.16), dw - m(0.12), m(0.10));
+    // the push bar, across the leaf at hand height, with the shadow that makes
+    // it stand off rather than be painted on
+    g.fillStyle = CREAM; g.fillRect(dx + m(0.1), gy + m(1.15), dw - m(0.2), m(0.09));
+    g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillRect(dx + m(0.1), gy + m(1.24), dw - m(0.2), m(0.05));
+    for (const sx of [dx + m(0.12), dx + dw - m(0.18)]) {                          // its two brackets
+      g.fillStyle = STEEL_D; g.fillRect(sx, gy + m(1.10), m(0.06), m(0.19));
+    }
+    // hours card taped inside the glass, small and off-centre like every one
+    g.fillStyle = '#e8e2d2'; g.fillRect(dx + m(0.16), gy + m(0.98), m(0.34), m(0.13));
+    g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(dx + m(0.16), gy + m(1.11), m(0.34), m(0.03));
     // chrome kick rail — the shiniest thing at street level, and dulled at the
     // very bottom where the pavement throws grit at it
     const ry = gy + gh, rh = H - ry - m(0.05);

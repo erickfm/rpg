@@ -56,12 +56,21 @@ const r = await p.evaluate((shift) => {
   cx.drawImage(img, 0, 0);
   const d = cx.getImageData(0, 0, c.width, c.height).data;
   const ppm = c.width / f.frontageM;
-  // Sample INSIDE the door's 0.85 m steel panel: 0.80 m above the pavement.
-  // Two rows either side of that were wrong on the way here and each failed
-  // loudly enough to be caught only because the run WIDTH was printed —
-  // 0.45 m lands on the kick rail, which is bright neutral for the full
-  // 11.3 m, and the check duly "found a door" 11 m wide.
-  const y = Math.round(c.height - 0.80 * ppm);
+  // Sample INSIDE the door's plain steel panel, between the kick plate below
+  // and the lock rail above: 1.00 m above the pavement.
+  //
+  // Three rows have been wrong here, and the way each failed is the useful
+  // part. 0.45 m lands on the KICK RAIL, which is bright neutral for the full
+  // 11.3 m, so the check cheerfully "found a door" 11 m wide — caught only
+  // because the run width is printed. 0.80 m worked until the leaf got a kick
+  // plate, at which point the row landed on it, the predicate stopped matching
+  // and the check ABORTED with 3 rather than reporting a failure. That is the
+  // right outcome and the reason the abort path exists (GOTCHAS 32, 34): the
+  // door had not moved, the check had simply gone blind, and a 1 there would
+  // have sent someone hunting a door alignment bug that does not exist.
+  //
+  // So the row moves, not the tolerance.
+  const y = Math.round(c.height - 1.00 * ppm);
   const runs = [];
   let s = -1;
   for (let x = 0; x <= c.width; x++) {
