@@ -383,8 +383,195 @@ export function buildTax(ctx: CtxBuild): void {
   // 0.72 = half of 1.44, so the pot's base sits ON the floor. Derived from the
   // plane's own height rather than typed, because that is the number the old one
   // got right and the next size change is where it would have been lost.
-  put(plant, 5.2, 1.44 / 2, -3.5);
-  solid(5.2, -3.5, 0.45, 0.45);
+  // z -3.93, not -3.5: at -3.5 its collider stopped 0.43 m short of the back
+  // wall and left a slot behind the pot. Still the same corner, just against the
+  // wall the way a pot plant in a corner actually stands.
+  put(plant, 5.2, 1.44 / 2, -3.93);
+  solid(5.2, -3.93, 0.45, 0.5);
+
+  // ── A WORKING OFFICE, not a furnished one ─────────────────────────────
+  //
+  // The user, on the plant shot: "the tax office is nearly empty - bare walls,
+  // bare floor, one bin, one plant", and F measured it among the three thinnest
+  // rooms in the world. His rule with it, which decides everything below: "MORE
+  // THINGS IS NOT THE ANSWER ON ITS OWN ... a few considered things arranged and
+  // aligned, not clutter. Density is a diagnosis, not a target."
+  //
+  // So I checked his list against what is already here rather than building it
+  // twice. Present and NOT rebuilt: the desks with a chair on each side (the
+  // preparer's and the client's, both), the filing cabinet run, the wall clock,
+  // the strip lights, the pinboard. Genuinely missing: STACKED FORMS, a FRAMED
+  // LICENCE, a NOTICE ABOUT DEADLINES.
+  //
+  // And the shape of the emptiness matters more than the count. The door is at
+  // local x -4.2 in the front wall, the desks sit at z -2.1..-0.2 and the
+  // cabinets along the back — so the whole FRONT-EAST quarter, about 8 x 4 m, is
+  // bare carpet, and every wall above 1.6 m is bare plaster. That is where these
+  // go, and they go against walls in rows, because a row of linked chairs is
+  // aligned by construction.
+  {
+    const boxM = new THREE.MeshBasicMaterial({ color: 0x8a7a5c });      // manila
+    const boxLidM = new THREE.MeshBasicMaterial({ color: 0x9a8a6a });
+    const chairM = new THREE.MeshBasicMaterial({ color: 0x4a5560 });
+    const frameM = new THREE.MeshBasicMaterial({ color: 0x4a4038 });
+    const bx = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) =>
+      put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m), x, y, z);
+
+    // A WAITING ROW against the front wall, east of the door, facing the desks.
+    // Linked chairs on a common rail is the one piece of furniture that cannot
+    // be "strewn about" — it is bolted into a line. Clear of the way-out spot at
+    // (-4.2, 3.7): the nearest chair is at x 0.6, 4.8 m away.
+    const WAIT_Z = hd - 0.62;
+    bx(2.62, 0.06, 0.08, steelM, 1.25, 0.10, WAIT_Z - 0.18);           // the rail
+    for (const cx of [0.6, 1.25, 1.9]) {
+      bx(0.52, 0.10, 0.46, chairM, cx, 0.42, WAIT_Z);                  // the seat
+      bx(0.52, 0.42, 0.07, chairM, cx, 0.68, WAIT_Z - 0.20);           // the back
+      for (const sx of [-0.2, 0.2]) bx(0.04, 0.38, 0.04, steelM, cx + sx, 0.19, WAIT_Z + 0.16);
+      // every seat sittable, which is the standing rule for anything you can sit
+      // on — "for every seat in the game i want to be able to sit down"
+      ctx.seat({
+        x: room.wx(cx), z: room.wz(WAIT_Z + 0.04), yaw: 0, h: 0.47,
+        approach: { x: room.wx(cx), z: room.wz(WAIT_Z - 0.85) },
+        label: 'sit and wait', ok: () => room.inside(),
+      });
+    }
+    // The collider reaches THE WALL, not just the back of the chairs. At 0.75
+    // deep it stopped 0.30 m short of the plaster and left a slot you could
+    // stand in behind a bolted-down row — GOTCHAS 9, and roomaisle caught it as
+    // a 0.5 m minimum the moment I measured. Spans z 3.20 -> hd.
+    solid(1.25, (3.20 + hd) / 2, 2.9, hd - 3.20);
+
+    // the low table the waiting row shares, with the forms nobody has filled in
+    bx(0.72, 0.04, 0.52, frameM, 3.1, 0.44, WAIT_Z - 0.04);
+    for (const sx of [-0.3, 0.3]) for (const sz of [-0.18, 0.18]) {
+      bx(0.05, 0.42, 0.05, steelM, 3.1 + sx, 0.21, WAIT_Z - 0.04 + sz);
+    }
+    bx(0.26, 0.03, 0.34, paperM, 3.02, 0.475, WAIT_Z - 0.04);
+    bx(0.22, 0.02, 0.30, paperM, 3.3, 0.475, WAIT_Z + 0.06);
+    solid(3.1, (3.34 + hd) / 2, 0.9, hd - 3.34);          // to the wall, same reason
+
+    // STACKED FORMS — the thing a tax office has more of than anything else.
+    // Boxed and stacked on the floor at the end of the cabinet run, where the
+    // overflow actually goes, and squared to the back wall.
+    // x 2.85 and 3.65, so the first stack's collider butts against the cabinet
+    // run's east end at 2.5 and the second against the first — no 0.5 m slot
+    // between a stack and the cabinets, which is where one was.
+    for (const [sx, n] of [[2.85, 3], [3.65, 2]] as [number, number][]) {
+      for (let i = 0; i < n; i++) {
+        bx(0.62, 0.30, 0.42, boxM, sx, 0.15 + i * 0.31, -hd + 0.34);
+        bx(0.64, 0.03, 0.44, boxLidM, sx, 0.31 + i * 0.31, -hd + 0.34);
+        // the label everybody writes on the end of a box of forms
+        bx(0.24, 0.10, 0.02, paperM, sx, 0.18 + i * 0.31, -hd + 0.34 + 0.22);
+      }
+      solid(sx, -hd + 0.34, 0.7, 0.5);
+    }
+
+    // A WATER COOLER in the bare front-east corner. Recognisable in one second,
+    // which is the standard he set on the alley — "i cant tell what any of it is.
+    // these should be recognizable" — and a 1997 office has one.
+    {
+      const CX2 = hw - 0.55, CZ2 = 2.5;
+      bx(0.42, 0.92, 0.42, new THREE.MeshBasicMaterial({ color: 0xd8d4c8 }), CX2, 0.46, CZ2);
+      bx(0.30, 0.06, 0.30, steelM, CX2, 0.95, CZ2);                    // the collar
+      // the bottle: blue, and visibly a bottle rather than a box — narrow neck
+      const water = new THREE.MeshBasicMaterial({ color: 0x7ba8c4 });
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.14, 0.44, 10), water), CX2, 1.20, CZ2);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.17, 0.14, 10), water), CX2, 1.49, CZ2);
+      bx(0.06, 0.10, 0.06, new THREE.MeshBasicMaterial({ color: 0x3a5a6a }), CX2 - 0.24, 0.62, CZ2);
+      // the cone cups, in their tube on the side
+      bx(0.09, 0.26, 0.09, paperM, CX2 + 0.24, 0.74, CZ2);
+      // to the east wall in x, so there is no 0.19 m slot behind it
+      solid((5.075 + (hw - 0.09)) / 2, CZ2, (hw - 0.09) - 5.075, 0.55);
+    }
+
+    // THE FRAMED LICENCE AND THE DEADLINE NOTICE, on the east wall — the one
+    // wall in this room with nothing on it at all. Hung on ONE line at one
+    // height, because two frames at two heights is the "off center and stuff"
+    // the hotel just had to answer for.
+    //
+    // Lettering is drawn from a 3x5 block font rather than with fillText: this
+    // room's text has to be crisp at 1.7 m and canvas text ANTIALIASES, which is
+    // what made the casino blade blurry. A rect per texel cannot have a fringe.
+    const F35: Record<string, string[]> = {
+      A: ['111', '101', '111', '101', '101'], P: ['111', '101', '111', '100', '100'],
+      R: ['111', '101', '111', '110', '101'], I: ['111', '010', '010', '010', '111'],
+      L: ['100', '100', '100', '100', '111'], D: ['110', '101', '101', '101', '110'],
+      U: ['101', '101', '101', '101', '111'], E: ['111', '100', '111', '100', '111'],
+      '1': ['010', '110', '010', '010', '111'], '5': ['111', '100', '111', '001', '111'],
+      ' ': ['000', '000', '000', '000', '000'],
+    };
+    const word = (g: CanvasRenderingContext2D, s: string, x: number, y: number, px: number, col: string) => {
+      g.fillStyle = col;
+      let cx2 = x;
+      for (const ch of s) {
+        const rows = F35[ch] ?? F35[' '];
+        for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) {
+          if (rows[r][c] === '1') g.fillRect(cx2 + c * px, y + r * px, px, px);
+        }
+        cx2 += 4 * px;
+      }
+      return cx2 - x - px;                       // the drawn width, so it can be centred
+    };
+
+    // the deadline notice: the one piece of paper in the room a client reads
+    const dueT = declareSurface(pixTex(48, 34, (g) => {
+      g.fillStyle = '#e8e2cc'; g.fillRect(0, 0, 48, 34);
+      g.fillStyle = '#8a2c22'; g.fillRect(0, 0, 48, 3); g.fillRect(0, 31, 48, 3);
+      word(g, 'APR 15', 5, 8, 2, '#2e2a24');
+      word(g, 'DUE', 17, 21, 2, '#8a2c22');
+      dither(g, 48, 34, 12);
+    }), 'sign');
+    const due = new THREE.Mesh(new THREE.PlaneGeometry(0.74, 0.52), ctx.flat(dueT));
+    due.rotation.y = -Math.PI / 2;                                     // faces -x, into the room
+    put(due, hw - 0.07, 1.70, 0.4);
+    bx(0.04, 0.60, 0.82, frameM, hw - 0.04, 1.70, 0.4);
+
+    // the licence, beside it on the same line: a certificate is mostly seal,
+    // rule and signature, and none of it is meant to be read from the floor
+    const licT = declareSurface(pixTex(40, 34, (g) => {
+      g.fillStyle = '#dfe0d4'; g.fillRect(0, 0, 40, 34);
+      g.fillStyle = '#b8ae90'; g.fillRect(2, 2, 36, 30);
+      g.fillStyle = '#e8e4d2'; g.fillRect(4, 4, 32, 26);
+      g.fillStyle = 'rgba(70,62,50,0.55)';
+      for (let ly = 8; ly < 22; ly += 3) g.fillRect(7, ly, 26 - ((ly * 5) % 7), 1);
+      g.fillStyle = '#8a7a3a'; g.beginPath(); g.arc(11, 26, 3, 0, Math.PI * 2); g.fill();
+      g.fillStyle = 'rgba(60,52,42,0.7)'; g.fillRect(18, 26, 15, 1);   // the signature
+      dither(g, 40, 34, 10);
+    }), 'sign');
+    const lic = new THREE.Mesh(new THREE.PlaneGeometry(0.60, 0.50), ctx.flat(licT));
+    lic.rotation.y = -Math.PI / 2;
+    put(lic, hw - 0.07, 1.70, -0.9);
+    bx(0.04, 0.58, 0.68, frameM, hw - 0.04, 1.70, -0.9);
+
+    // a coat stand by the door, because everybody who comes in here in April is
+    // wearing a coat. Just outside the way-out spot's reach, against the wall.
+    {
+      const KX = -2.3, KZ = hd - 0.5;
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.72, 6), steelM), KX, 0.86, KZ);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.03, 10),
+        new THREE.MeshBasicMaterial({ color: DARKSTEEL })), KX, 0.02, KZ);
+      // Arms with HOOKS on them, and a coat hanging. A bare pole with three
+      // 0.20 x 0.03 stubs read as a stanchion — I could not name it in one
+      // second from the door, which is his test. The thing that makes a coat
+      // stand a coat stand is a coat.
+      for (const a of [0, 2.09, 4.19]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.045, 0.045), steelM);
+        arm.rotation.y = a;
+        put(arm, KX + Math.cos(a) * 0.15, 1.68, KZ + Math.sin(a) * 0.15);
+        // the hook turned up at the end of each arm
+        const hook = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.05), steelM);
+        put(hook, KX + Math.cos(a) * 0.29, 1.73, KZ + Math.sin(a) * 0.29);
+      }
+      // somebody's overcoat, on the arm facing the room: shoulders, then body,
+      // in the drab brown every coat in this world's crowd is
+      const coatM = new THREE.MeshBasicMaterial({ color: 0x5a4a3a });
+      bx(0.38, 0.15, 0.20, coatM, KX + 0.20, 1.55, KZ);
+      bx(0.33, 0.74, 0.17, coatM, KX + 0.20, 1.10, KZ);
+      bx(0.33, 0.05, 0.18, new THREE.MeshBasicMaterial({ color: 0x4a3c2e }),
+        KX + 0.20, 1.46, KZ);                                          // the belt line
+      solid(KX, (3.50 + hd) / 2, 0.45, hd - 3.50);        // to the wall, same reason
+    }
+  }
 
   // a skirting, because the room would not have been built without one
   put(new THREE.Mesh(new THREE.BoxGeometry(room.W, 0.11, 0.03),

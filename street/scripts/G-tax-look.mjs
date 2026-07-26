@@ -24,11 +24,14 @@ const { cx, cz, d } = room;
 const hd = d / 2;
 // local -> world: cx + lx, cz + lz.  yaw 0 looks -z (into the room), PI looks +z.
 const S = [
-  ['door',    0,   hd - 0.9,  0,            0.02],
-  ['door-e',  0,   hd - 0.9, -Math.PI / 2,  0.0 ],
-  ['door-w',  0,   hd - 0.9,  Math.PI / 2,  0.0 ],
-  ['desk',    0,  -1.0,       0,            0.0 ],
-  ['plant',   3.0, -1.0,      Math.atan2(5.2 - 3.0, -(-3.5 - (-1.0))), 0.0],
+  ['door',    -4.2, hd - 1.1,  0,            0.02],   // just inside the real door
+  ['door-e',  -4.2, hd - 1.1,  Math.PI / 2,  0.0 ],
+  ['wait',     0,   0.0,       0,            0.0 ],   // from the middle, at the waiting row
+  ['waitback', 1.2, -1.0,      Math.PI,      0.0 ],   // looking back at the front wall
+  ['east',     1.0, -0.2,      Math.PI / 2,  0.0 ],   // the east wall: licence + notice
+  ['west',     1.0, -0.2,     -Math.PI / 2,  0.0 ],   // the west wall: pinboard, coat stand
+  ['forms',    3.7, -1.4,      0,            0.0 ],   // the boxed forms at the cabinets
+  ['plant',    3.0, -1.0,      Math.atan2(5.2 - 3.0, -(-3.5 - (-1.0))), 0.0],
 ];
 
 await p.evaluate(() => window.__ct.clock(13, 0));

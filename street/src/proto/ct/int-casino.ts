@@ -507,6 +507,28 @@ export function buildCasino(ctx: CtxBuild): void {
     ['#2c4a7a', 0x241e22],   // blue topper, same cabinet
     ['#7a5a2c', 0x4a4038],   // an older cream-bodied machine, kept on
   ];
+  // THE STOOL'S SEAT HEIGHT IS ITS TOP FACE, AND IT IS DECLARED ONCE.
+  //
+  // The user: the seated figure is intersecting the stool. It was, by 3.5 cm, and
+  // MEASURED the cause is neither H's atlas nor the placement rule — it is this
+  // file having authored one stool height twice. The cushion is a 0.07 m cylinder
+  // and it was placed at y 0.64, so it spans 0.605..0.675 and its TOP FACE is at
+  // 0.675 — while `ctx.seat({ h: 0.64 })` and the sitter both took 0.64, which is
+  // the cylinder's CENTRE. A sitter placed correctly on a seat that under-reports
+  // itself by half a cushion sinks by half a cushion.
+  //
+  // THE PROOF THAT THE POSE IS FINE, and it is why I have added no y fudge:
+  // the entry banquette in this same room registers SEAT_TOP as the true top of
+  // its cushion, a figure is placed there by the same one-line rule, and it
+  // measures ON the seat to within a millimetre. Same atlas, same helper, same
+  // room — the only difference is whether the seat told the truth about itself.
+  // So H's hip offset (0.445 m) is right and needs no change; nothing to report
+  // upstream, and no other room inherits a bad number from this.
+  //
+  // Declared as TOP and derived downward, so the cushion's thickness can change
+  // without the seat height silently moving.
+  const STOOL_T = 0.07, STOOL_TOP = 0.675;
+  const GSTOOL_T = 0.08, GSTOOL_TOP = 0.76;          // the taller stool at the games
   const stoolTopM = new THREE.MeshBasicMaterial({ color: 0x6a1f28 });
   const stoolPoleM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
   const slotGeo = new THREE.BoxGeometry(0.6, 1.45, 0.6);
@@ -663,13 +685,15 @@ export function buildCasino(ctx: CtxBuild): void {
       // stool is, and why it does not look like a chair.
       for (const face of [1, -1]) for (let i = 0; i < SLOT_N; i++) {
         const sx2 = x0 + i * SLOT_PITCH, sz2 = bz + face * 1.02;
-        put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.07, 10), stoolTopM), sx2, 0.64, sz2);
+        // THE SEAT IS THE TOP FACE, NOT THE CENTRE OF THE CUSHION. See STOOL_TOP.
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, STOOL_T, 10), stoolTopM),
+          sx2, STOOL_TOP - STOOL_T / 2, sz2);
         put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.60, 8), stoolPoleM), sx2, 0.30, sz2);
         put(new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.03, 10), stoolPoleM), sx2, 0.03, sz2);
         put(new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.017, 4, 10), stoolPoleM), sx2, 0.22, sz2)
           .rotation.x = Math.PI / 2;
         ctx.seat({
-          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: 0.64,
+          x: room.wx(sx2), z: room.wz(sz2), yaw: face > 0 ? Math.PI : 0, h: STOOL_TOP,
           approach: { x: room.wx(sx2), z: room.wz(sz2 + face * 0.75) },
           label: 'sit at the slot', ok: () => room.inside(),
         });
@@ -764,10 +788,12 @@ export function buildCasino(ctx: CtxBuild): void {
   // people in it — the same reason the hotel lobby is left empty in the middle.
   // Four is enough that the seats are visibly FOR sitting on, which is the ask.
   //
-  // Placed on the stool tops this file draws at 0.64, off the same BANK_Z and
-  // SLOT_PITCH the stools use, so a player sits on a stool rather than near one.
+  // Placed on STOOL_TOP — the stool's real top face, the same number ctx.seat()
+  // now registers — off the same BANK_Z and SLOT_PITCH the stools use, so a
+  // player sits on a stool rather than near one, and at the height the stool
+  // actually is rather than the height it used to claim.
   {
-    const seatY = 0.64, x0e = AVENUE + 0.3, x0w = -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH;
+    const seatY = STOOL_TOP, x0e = AVENUE + 0.3, x0w = -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH;
     const PLAYERS: [number, number, number, Parameters<typeof citizenSprite>[0]][] = [
       [x0e + 1 * SLOT_PITCH, BANK_Z[1], 1,
         { jacket: '#5a4a3a', pants: '#3a3630', skin: '#c9a184', hair: '#6b5236', fit: 'plain', cut: 'short', build: 0 }],
@@ -1065,13 +1091,14 @@ export function buildCasino(ctx: CtxBuild): void {
     // tables had none. Taller than a slot stool because a gaming table is
     // higher, and placed round each table's own centre so they follow it.
     const gameStool = (gx: number, gz: number, yaw: number) => {
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.08, 10), stoolTopM), gx, 0.72, gz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, GSTOOL_T, 10), stoolTopM),
+        gx, GSTOOL_TOP - GSTOOL_T / 2, gz);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.68, 8), stoolPoleM), gx, 0.34, gz);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.03, 10), stoolPoleM), gx, 0.03, gz);
       put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.017, 4, 10), stoolPoleM), gx, 0.24, gz)
         .rotation.x = Math.PI / 2;
       ctx.seat({
-        x: room.wx(gx), z: room.wz(gz), yaw, h: 0.72,
+        x: room.wx(gx), z: room.wz(gz), yaw, h: GSTOOL_TOP,   // the TOP face, not the centre
         approach: { x: room.wx(gx + Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
         label: 'sit at the table', ok: () => room.inside(),
       });
