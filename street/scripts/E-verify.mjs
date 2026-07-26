@@ -170,7 +170,24 @@ const exec = (script) => new Promise((resolve) => {
   p.on('close', (code) => resolve({ code, out }));
 });
 
-let failed = 0;
+// EXIT 3 IS "I COULD NOT ANSWER", AND THIS FILE WAS CALLING IT A FAILURE.
+//
+// GOTCHAS 32 draws the line and every child here observes it: 1 means the check
+// ran and the world is wrong, 3 means the check never got a measurement and
+// nothing follows about the world. This runner collapsed the two — `code !== 0`
+// — and then printed "1 of 24 areas failed — do not land this".
+//
+// It cost exactly what you would expect. On a machine at load 45 the world
+// renders wholly black frames; `soffit` and `circuit` both detected that and
+// exited 3 saying so, and this file reported them as faults in the park and the
+// library. Somebody reading the summary goes looking for a broken soffit that
+// is fine, which is the expensive direction — the same trade the crowded-lane
+// downgrade exists for.
+//
+// Three buckets now, and INCONCLUSIVE does not gate landing: a check that could
+// not run is not evidence either way, and pretending otherwise is how a real
+// red gets waved through as "probably the machine again".
+let failed = 0, inconclusive = 0, misused = 0;
 for (const a of run) {
   process.stdout.write(`── ${a.name}: ${a.what}\n`);
   const { code, out } = await exec(a.script);
@@ -189,12 +206,38 @@ for (const a of run) {
       console.log(`   ${line.trim()}`);
     }
   }
-  if (code !== 0) { failed++; console.log(`   ^ ${a.name} FAILED`); }
+  // A CRASH DOES NOT ANNOUNCE ITSELF. Exit 3 is the polite refusal, but a
+  // browser that dies under load exits 1 with a stack trace and no verdict —
+  // and that is indistinguishable from a real red by status alone. `circuit`
+  // did exactly this in the run that prompted these buckets: it came back
+  // "FAILED" in the sweep and PASSES standalone at exit 0, having walked the
+  // whole 71 m loop.
+  //
+  // So the second test is on the OUTPUT, not the status: a child that never
+  // printed a single `FAIL` line did not find a fault, whatever it exited
+  // with. It died, or it refused. Either way it is not evidence about the
+  // world, and calling it one sends somebody hunting a bug that is not there.
+  const saidFail = /^\s*FAIL/m.test(out);
+  if (code === 3) { inconclusive++; console.log(`   ^ ${a.name} COULD NOT ANSWER (exit 3) — not a fault, not a pass`); }
+  else if (code !== 0 && code !== 2 && !saidFail) {
+    inconclusive++;
+    console.log(`   ^ ${a.name} DIED WITHOUT A VERDICT (exit ${code}, no FAIL line) — it crashed or was killed, not a fault`);
+  }
+  else if (code === 2) { misused++; console.log(`   ^ ${a.name} WAS ASKED WRONG (exit 2) — a bad flag or mode, nothing was checked`); }
+  else if (code !== 0) { failed++; console.log(`   ^ ${a.name} FAILED`); }
   console.log('');
 }
 
+if (inconclusive) console.log(`${inconclusive} of ${run.length} areas could not be measured — re-run them before reading anything into it`);
+if (misused) console.log(`${misused} of ${run.length} areas were invoked wrongly — fix the call, they checked nothing`);
+// "all N areas walk" must not be printable when some of them did not run. The
+// first cut of these buckets printed exactly that under a run where one area
+// had refused to answer, which is the claim-completeness-you-do-not-have fault
+// this file's own header warns about, one more time.
 console.log(failed
   ? `${failed} of ${run.length} areas failed — do not land this`
+  : inconclusive || misused
+  ? `no area reported a fault, but ${inconclusive + misused} of ${run.length} did not run — this is NOT a green`
   : `all ${run.length} areas walk`);
 if (orphans.length) console.log(`${orphans.length} export(s) published with no reader`);
 process.exit(failed || orphans.length ? 1 : 0);
