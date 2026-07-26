@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 20-53-04.png' public library still says pvblic library??"** → **E**
 - **"also i would like a very narrow, long, and detailed alley in between the pawn shop and my apt building."** → **D**
 - **"also i think the neighbor is out looking into my apt way too often"** → **C**
 - **"in general i want to be able to interact with things a lot easier and for them to have a little outline highlighted for the selection of it. the door for instance to my apt should be easy to open and close when looking at or by the door frame or the door itself."** → **D**
