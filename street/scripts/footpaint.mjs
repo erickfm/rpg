@@ -101,12 +101,27 @@ const bad=r.filter(o=>Math.abs(o.gap)>0.03);
 // (shots/sunk-side.png). A headline over that population is not about figures at
 // all. Citizens are the 64-row frames; the rest is scenery and is reported as
 // scenery. GOTCHAS 34, and the fourth summary-over-the-wrong-population today.
-const CIT = r.filter(o => o.rows === 64);
+// SEATED FIGURES ARE NOT FLOATING FIGURES. Four casino gamblers read 0.165 m
+// off the floor and each sits at EXACTLY 0.00 m from a "sit at the slot" seat
+// whose pose height is 0.64 — a bar stool. Feet that dangle above the floor are
+// what sitting on a stool looks like; "the painted shoe must touch the ground"
+// is a claim about STANDING people only. Checking them against the floor is the
+// same error as checking a quad bottom instead of a painted foot.
+const SEATS = await p.evaluate(() => (window.__ct.seats?.() || [])
+  .map(q => [q.pose?.x ?? q.x, q.pose?.z ?? q.z, q.pose?.h ?? null]).filter(a => a[0] != null));
+const seatAt = (x, z) => SEATS.find(([sx, sz]) => Math.hypot(sx - x, sz - z) < 0.15);
+const ALL64 = r.filter(o => o.rows === 64);
+const SEATED = ALL64.filter(o => seatAt(o.x, o.z));
+const CIT = ALL64.filter(o => !seatAt(o.x, o.z));
 const citBad = CIT.filter(o => Math.abs(o.footY - o.g) > 0.03);
-console.log(`\nCITIZENS (64-row frames): ${CIT.length}`);
+console.log(`\nCITIZENS, STANDING (64-row frames, not on a seat): ${CIT.length}`);
 console.log(`  painted foot more than 3 cm off the ground: ${citBad.length} of ${CIT.length}`);
 for (const o of citBad) console.log(`   ** (${o.x}, ${o.z}) foot ${o.footY} ground ${o.g}${o.gCold!==undefined?` (cold read said ${o.gCold})`:''} gap ${(o.footY-o.g).toFixed(3)}`);
-console.log(`  other atlas-framed meshes (scenery, NOT figures): ${r.length - CIT.length}`);
+console.log(`\n  SEATED figures (on a registered seat): ${SEATED.length}`);
+for (const o of SEATED) { const st = seatAt(o.x, o.z);
+  console.log(`   (${o.x}, ${o.z}) painted foot ${o.footY} above a floor at ${o.g}` +
+              ` — dangling ${(o.footY - o.g).toFixed(3)} on a seat ${st[2] ?? '?'} m high`); }
+console.log(`\n  other atlas-framed meshes (scenery, NOT figures): ${r.length - ALL64.length}`);
 console.log(`\nall atlas-framed meshes, scenery included, more than 3 cm off: ${bad.length} of ${r.length}`);
 for(const o of bad.slice(0,8)) console.log(`   ** (${o.x}, ${o.z}) quad bottom ${o.quadBottom} foot ${o.footY} ground ${o.g}  gap ${o.gap>0?'+':''}${o.gap}`);
 // SPLIT BY FRAME HEIGHT: a 64-row frame is a citizen; anything else is not,
