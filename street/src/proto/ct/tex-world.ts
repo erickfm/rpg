@@ -485,6 +485,45 @@ function characterOf(name: string): Character {
   return 'default';
 }
 
+/** the diner's stainless, hoisted out of `dinerFront` because the MOULDINGS
+ *  need the same value and two copies is how they drifted apart. */
+const DINER_STEEL = '#9aa0a4';
+
+/**
+ * WHAT COLOUR THIS SHOP'S JOINERY IS — the projecting cornice, bed mould and
+ * cill that `shopfrontRelief` stands off the wall.
+ *
+ * `ct/street.ts` passes the ROSTER colour, and for four of the six characters
+ * that is also the colour their painter puts on the fascia, so the mouldings
+ * belong to the band they frame. `dinerFront` is the exception: it never
+ * receives `awning` at all and paints stainless from a constant, so the diner
+ * wore a mustard-brown cornice and cill around a steel front — measured at a
+ * 170° hue gap where five of the seven fronts measure 0-1°
+ * (`scripts/A-diner-relief-palette.mjs`, and `notes/A-diner-facade-look.md`
+ * has the table). It is the single most visible thing wrong with the front the
+ * user keeps coming back to.
+ *
+ * The fix is not to pass a different colour in from `ct/street.ts`. It is the
+ * same argument as the frontage descriptor one file over: **the painter is
+ * the thing that knows what its fascia is made of**, so it publishes that, and
+ * nobody outside gets to guess. That also keeps this repair inside the file
+ * that owns shopfronts rather than spending the cross-file mandate on it.
+ *
+ * `null` means "the roster colour is right for this one" — which is the
+ * answer for every character except the diner, and saying so explicitly is
+ * what stops the next painter inheriting the accident silently.
+ *
+ * A-1 TAX reads as a mismatch on the same measurement (175°) and is
+ * DELIBERATELY left alone. Its navy is the shop's identity colour and its
+ * cream band is a cloth banner hung on the brick, not a fascia — navy joinery
+ * under a cloth banner is coherent, nobody has complained about it, and
+ * GOTCHAS 23 is explicit that a defect being real is not the same as it
+ * mattering. Recorded rather than churned.
+ */
+function joineryOf(name: string, rosterTrim: string): string {
+  return characterOf(name) === 'diner' ? DINER_STEEL : rosterTrim;
+}
+
 /**
  * Where the door sits along the glazed span, 0…1, DETERMINISTIC per building.
  * Only the block default varies; the five characters place their door by
@@ -868,7 +907,10 @@ export function shopfrontRelief(o: {
   // material ONCE, by the elevation of the first mesh it sees wearing it. Share
   // one between the cornice and the plinth and the whole set gets graded as if
   // it lived at whichever height came first.
-  const tint = new THREE.Color(o.trim || '#4a4034');
+  // NOT `o.trim` directly — the painter decides what its own joinery is made
+  // of. See joineryOf(): ct/street.ts hands us the roster colour, which is
+  // right for every character but the diner.
+  const tint = new THREE.Color(joineryOf(o.name, o.trim) || '#4a4034');
   const mat = (c: THREE.Color | number) => new THREE.MeshBasicMaterial({ color: c });
   const put = (w: number, h: number, d: number, x: number, y: number, m: THREE.Material) => {
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
@@ -1547,7 +1589,9 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf(nm, wM);
-  const STEEL = '#9aa0a4', STEEL_D = '#6e747a', CREAM = '#e8e2d2', VINYL = '#8a2f34';
+  // STEEL is DINER_STEEL, hoisted to module scope so shopfrontRelief's
+  // mouldings and this fascia cannot drift to different greys.
+  const STEEL = DINER_STEEL, STEEL_D = '#6e747a', CREAM = '#e8e2d2', VINYL = '#8a2f34';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
