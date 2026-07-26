@@ -122,8 +122,11 @@ shadows. Still dark, because a diner window IS dark below the worktop.
   and "two failures then delete" cuts both ways — this has had no failed
   attempt yet, and it wants a decision about what a 1997 diner door is rather
   than another pass of shading.
-- **Three bays of mullions over 8.45 m** still looks coarse to me. No
-  measurement, so it stays a judgement and not a finding.
+- ~~**Three bays of mullions over 8.45 m** looks coarse to me.~~ **MEASURED
+  AND WRONG** — see `A-mullion-bays.md`. The diner's bays are 2.82 m, ninth of
+  sixteen on the block; A-1 TAX (3.92 m) and THRIFT (3.80 m) are the widest. I
+  had this filed as a judgement rather than a finding, which sounded careful
+  and still left a wrong impression in a document somebody else may act on.
 - **Night.** Everything above is 13:30.
 - Neither new script is registered in `checks.mjs` and neither has a selftest,
   for the reason in their headers. `A-diner-block-vs-sky` has at least been

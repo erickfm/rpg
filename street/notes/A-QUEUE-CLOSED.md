@@ -56,8 +56,13 @@ order. Twelve queue-mapped checks re-run for this note: all exit 0.
   office's identity colour under a cloth banner, and the thrift is bright
   because it is FULL of white price cards. GOTCHAS 23 — real is not the same as
   visible. Recorded, not churned.
-- **The diner's mullions** — 3 bays over 8.45 m still looks coarse to me. I have
-  no measurement, so it stays a judgement and not a finding.
+- ~~**The diner's mullions**~~ — **MEASURED AND WRONG**, see
+  `A-mullion-bays.md`. 2.82 m bays, ninth of sixteen; the tax office and thrift
+  are the widest. The real finding underneath is that every painter sizes bays
+  off the FRONTAGE width and draws them across the GLAZING width, so bay width
+  is uncontrolled at 2.38-3.92 m. Recorded, not churned — the obvious units fix
+  makes the diner coarser, so it needs a chosen target pane width, not a
+  correction.
 
 ## Handoff notes from this stretch
 
