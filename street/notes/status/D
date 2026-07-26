@@ -1,1 +1,1 @@
-DONE | ATM cabinet now reachable (A landed the line); D-walk followed the world and is green |
+DONE | M bank check CRASHES at HEAD — A ATM rewire broke its label-matching atmCash(); routed to M with the one-line fix |
