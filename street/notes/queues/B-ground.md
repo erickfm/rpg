@@ -16,6 +16,36 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+> ## DESK RULING — REMOVE STANDING PUDDLES. Written here so it survives.
+>
+> `shots/user-puddlebad2.png`: the puddle is a PALE smear, lighter than the
+> surface around it, soft-edged, and straddling the kerb line. That is the
+> glowing puddle the user rejected twice, plus the footprint fault, in one
+> object.
+>
+> **This is the fifth attempt.** Buried under the pan → invisible from contrast
+> inversion → moved to the gutter → a dark band down the sidewalk → this. When
+> I approved your reflection recommendation I said plainly: one more pass at
+> the simplest version, and **if it misses, remove standing puddles entirely
+> and keep only the wet sheen on the road**, which the user has never once
+> complained about.
+>
+> It missed. So remove them.
+>
+> Take out the standing puddle meshes. Keep everything else in the weather
+> system — the wet-look darkening, the wetness that outlasts the rain, the
+> rain itself, the wet walls. Those are all confirmed and liked.
+>
+> This is not a failure of your work; your contrast-inversion diagnosis was the
+> best piece of debugging on this project. It is a feature that has cost five
+> passes and never once landed, and the honest thing is to stop paying for it.
+> Say so in your handoff so nobody re-adds them.
+>
+> If you believe a sixth attempt would land, tell me your specific reason and
+> I will take it back to the user rather than overrule you — but do not simply
+> try again.
+
+
 - [ ] **Bench pass four: the bezel is eating the ad, and the legs are
       coplanar with the seat.** The user: *"it should not be cutting off the
       actual ad for tonys pizza also theres some strange graphical bug on the
