@@ -85,6 +85,16 @@ export interface Seat {
   ok?: () => boolean;
   /** prompt override. Defaults to 'sit down'. */
   label?: string;
+  /**
+   * prompt shown WHILE SEATED. Defaults to 'stand up'.
+   *
+   * A bench is momentary and 'stand up' is right for it. A seat that puts you
+   * in a STATE — watching television, playing a machine, using a terminal —
+   * wants a verb for the activity, because what the player wants to stop is
+   * the activity and not the posture. The user sat down to watch TV, read
+   * 'stand up', did not connect the two, and had to ask how to get out.
+   */
+  standLabel?: string;
 }
 
 /**

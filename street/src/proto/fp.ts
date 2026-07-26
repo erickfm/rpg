@@ -262,6 +262,14 @@ export class FPRig {
     // early return rather than a `seated` check threaded through the movement
     // code, where one missed branch would let you shuffle off the stool.
     if (this.seat) {
+      // THE ESCAPE HATCH. This world had no cancel, back or escape binding of
+      // any kind — E was the only interaction key there is — so a seated state
+      // had exactly one way out, and the first time it failed the player was
+      // trapped and had to ask. A state with one exit is a trap.
+      //
+      // Escape also drops pointer lock, which is the right shape: it is the
+      // key you press when you want out of whatever you are in.
+      if (input.keys.has('escape')) { this.stand(); return; }
       this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
       const sgy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
       const sy = sgy + this.seat.h + SIT_EYE;

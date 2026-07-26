@@ -108,6 +108,8 @@ export function makeCrosstown(): Proto {
   // Moved, not changed — same declarations, same values, three lines earlier.
   // (D, for the ATM interaction; flagged, as with the purse field itself.)
   const SPOTS: Spot[] = [];
+  /** pose -> what the prompt says while you are on it. See `seat` below. */
+  const SEAT_EXIT = new Map<SeatPose, string>();
   const spotOutline = new SpotOutline();
   // THE SELECTION OUTLINE IS DEBUG-ONLY AND OFF BY DEFAULT.
   // *"yea get rid of outline unless debug is true, we'll probably want that for
@@ -230,13 +232,21 @@ export function makeCrosstown(): Proto {
         label: () => s.label ?? 'sit down',
         act: () => rig.sit(pose),
       });
-      SPOTS.push({
-        // centred on the SEAT, because that is where you are while on it
-        x: s.x, z: s.z, r: 0.5,
-        ok: () => rig.seatedOn === pose,
-        label: () => 'stand up',
-        act: () => rig.stand(),
-      });
+      // THE EXIT IS NO LONGER A SPOT YOU HAVE TO WIN.
+      //
+      // It used to be registered here as an ordinary spot and left to the E
+      // resolver, which meant standing up was decided by a proximity contest
+      // it happened to win because a seated player is 0 m from it. C measured
+      // the blast radius: of 225 seats in the world, 149 have a non-stand spot
+      // INSIDE the 0.5 m stand radius, and 12+ have one at EXACTLY 0.00 m —
+      // any seat registered without `approach` puts its sit spot and its stand
+      // spot on the same coordinate. The user got stuck and could not get out
+      // with E.
+      //
+      // So the exit is now a STATE EXIT handled in the dispatch below: while
+      // seated, E stands, full stop — no selection, no proximity, no aim cone.
+      // What is kept here is only the LABEL.
+      SEAT_EXIT.set(pose, s.standLabel ?? 'stand up');
     },
     onFrame: (fn, order = ORDER.PROPS) => { HOOKS.push({ fn, order }); },
     player,
@@ -961,12 +971,23 @@ export function makeCrosstown(): Proto {
       };
       const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch }, 6, canSee);
       const active: Spot | null = picked ? picked.spot : null;
-      hud.prompt(active ? `[E] ${active.label()}` : null);
+      // WHILE SEATED THE PROMPT IS THE EXIT, and it does not depend on
+      // selection either — the label must not be able to disappear while the
+      // key that works is still E. A state with an invisible exit reads as
+      // being stuck, which is exactly what happened.
+      hud.prompt(rig.seated
+        ? `[E] ${SEAT_EXIT.get(rig.seatedOn!) ?? 'stand up'}`
+        : (active ? `[E] ${active.label()}` : null));
       spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {
-        if (active) {
+        if (rig.seated) {
+          // FIRST, AND UNCONDITIONALLY. Standing up is a state exit, not a
+          // world interaction: it fires regardless of what is near, what is in
+          // front, or where he is looking.
+          rig.stand();
+        } else if (active) {
           // LATCH ONLY WHAT MOVED YOU. The hysteresis is for TRANSITIONS — a
           // door that just put you somewhere else must not immediately pull you
           // back. Latching every spot would break the ones you use repeatedly

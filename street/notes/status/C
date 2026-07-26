@@ -1,1 +1,1 @@
-BLOCKED | seat exit is a proximity contest, 149/225 seats — cannot fix in my file | F on crosstown.ts:236 (notes/C-seat-exit-URGENT-for-F.md)
+WORKING | seat exit + escape hatch landed; found a SECOND trap - modals swallow keydown | panel owner on hud.ts BLOCKED gate

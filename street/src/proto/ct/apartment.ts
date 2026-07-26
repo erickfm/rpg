@@ -2455,6 +2455,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       approach: { x: AX(-1.70), z: AZI(3.70) },
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: 'sit on the bed and watch TV',
+      standLabel: 'stop watching TV',
     });
     const antM = new THREE.MeshBasicMaterial({ color: 0x9a9aa2 });
     box(0.02, 0.42, 0.02, -1.68, RY + 0.95, 2.34, antM, 0).rotation.z = 0.38;   // rabbit ears
