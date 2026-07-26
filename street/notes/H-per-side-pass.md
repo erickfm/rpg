@@ -162,3 +162,32 @@ through each face's own UVs. Target: every face ratio 1.00 ± 0.02.
 
 **Do not disturb:** the wells (now x0.18), the bed floor's darkening, the arch
 paint, or the NearestFilter in `flatT`.
+
+---
+
+# A note for A and the desk: the fleet took the RULE, not the number
+
+`scripts/density.mjs` reports the world's declared masonry densities as
+**8 px/m on 213 faces, 16 on 40, 32 on 1**. The vehicle fleet is now uniformly
+**32 px/m**. That is a deliberate difference and not a drift, but it should be
+written down rather than discovered later:
+
+- **What the fleet adopted is A's discipline** — derive every canvas from the
+  surface's real metres at one density, round by DENSITY and accept a
+  fractional canvas — which is what the desk ruled and what A has been told to
+  match. Nothing about that ruling implies a shared *value*.
+- **A car cannot use 8 px/m.** A flank is 0.50 m from rocker to beltline; at
+  8 px/m that is FOUR texels tall, which is GOTCHAS 4 territory — a surface
+  that thin cannot hold a shut line, a handle and an arch, and any dither on it
+  aliases. At 32 it is 16 rows, which is what the doors and arches need.
+- **32 was already the fleet's own density** before this pass: the pickup's
+  flank and bed skin used it, so the vehicle in the user's screenshot did not
+  shift and the cab/bed seam stayed matched. I raised the other panels to meet
+  it rather than inventing a number.
+
+So: buildings at 8, vehicles at 32, and the ratio is the ratio of how close you
+stand to them. **The check that matters is per-surface isotropy, not a single
+world-wide ppm** — every face on every vehicle is now ratio 0.98–1.02, and
+`density.mjs` passes its 254 masonry faces within 2%. If a future rule does
+want one number across the whole world, the fleet is the place it will hurt
+first, and it should be argued about before it is applied.
