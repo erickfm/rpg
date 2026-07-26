@@ -184,6 +184,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the library"** → **J**
 - **"'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in library"** → **J**
 - **"'Screenshot from 2026-07-25 23-25-21.png' whats going on with this cars its like up in a weird way also i hate this pole thats in the way"** → **I**
 - **"'Screenshot from 2026-07-25 23-24-37.png' whats going on here? looks like an issue with the sale sign, itsa like embedded in the car"** → **I**
