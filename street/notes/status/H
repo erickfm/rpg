@@ -1,1 +1,1 @@
-WORKING | confirmed C seat-exit row; its fp.ts Escape is why the slot is escapable | nothing
+DONE | 0 live; last LANDED is the modal-prompt fault I filed, fix not built | desk: prompt must not claim E while a panel owns the keyboard
