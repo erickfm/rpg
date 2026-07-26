@@ -2038,12 +2038,45 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     return best;
   };
 
-  // he keeps his own hours — mostly afternoons, rarely at night
+  // He keeps his own hours — mostly afternoons, rarely at night.
+  //
+  // The user: *"i think the neighbor is out looking into my apt way too
+  // often."* That is frequency, not a bug, and he stays: a neighbour
+  // occasionally in the hall is one of the few signs of life on that landing.
+  //
+  // TWO THINGS CHECKED FIRST, because either would have caused it and they
+  // need different fixes. He is NOT triggered by the player — no door event,
+  // no landing entry — he is a pure hash of the ABSOLUTE GAME HOUR, so he
+  // cannot be waiting for you and never could. And the hash does give one
+  // decision per hour rather than per frame, so it does not flicker. Neither
+  // was the fault.
+  //
+  // The fault was just the number: 0.7 every hour from 12:00 to 18:00. One
+  // real second is one game minute, so an hour is a minute of play — walk out,
+  // do something, come back, and you have crossed two or three hours at
+  // seven-in-ten each. He was present for most of the afternoon, which is
+  // exactly "wallpaper rather than an event".
+  //
+  // 0.16 at the peak, and then a REAL COOLDOWN on top: he cannot appear if he
+  // appeared in any of the previous HERMIT_GAP hours. That is what stops
+  // clustering — a bare probability will happily give you him twice running,
+  // which is the thing that reads as broken. Still stateless and deterministic
+  // (it re-asks the same hash for the earlier hours), so it needs no memory and
+  // survives a clock jump or a sleep.
+  //
+  // Net: about 0.16 x (1 - 0.16)^6 ~= 5.6% of afternoon hours, so roughly one
+  // sighting in three or four afternoons rather than most hours of every one.
   let hermitForce = -1;
-  const hermitIn = (hAbs: number): boolean => {
-    const h = hAbs % 24;
-    const chance = h >= 12 && h < 18 ? 0.7 : h >= 8 && h < 22 ? 0.22 : 0.04;
+  const HERMIT_GAP = 6;                    // hours he stays in after being seen
+  const hermitRaw = (hAbs: number): boolean => {
+    const h = ((hAbs % 24) + 24) % 24;
+    const chance = h >= 12 && h < 18 ? 0.16 : h >= 8 && h < 22 ? 0.06 : 0.015;
     return ((((hAbs + 7) * 2654435761) >>> 0) % 1000) < chance * 1000;
+  };
+  const hermitIn = (hAbs: number): boolean => {
+    if (!hermitRaw(hAbs)) return false;
+    for (let k = 1; k <= HERMIT_GAP; k++) if (hermitRaw(hAbs - k)) return false;
+    return true;
   };
 
   // floor-aware stair guards (2D colliders, so they follow the floor)
