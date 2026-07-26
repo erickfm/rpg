@@ -31,6 +31,30 @@ queue has gone stale.
 ---
 
 
+
+## Keep `notes/status/<YOU>` current — this is not optional
+
+One line, rewritten whenever your state changes:
+
+    STATE | what I am on right now | who or what I am waiting on
+
+`STATE` is `WORKING`, `BLOCKED` or `DONE`. Full protocol and examples:
+`notes/status/README.md`.
+
+The user asked for this by name: *"i want you to be able to somehow know if any
+worker is blocked at any time."* Until now the desk could only INFER your state
+from the outside — spinner, commits, a BLOCKED file it might not read for an
+hour. Inference cannot see the one case that matters most: **a worker that
+knows it is stuck.** Waiting on another builder's export looks exactly like
+thinking hard, and that has cost this project hours twice.
+
+`scripts/board.sh` prints your declaration beside what your pane is actually
+doing and flags the disagreements — `WORKING` with no spinner and no commit for
+25 minutes means you died mid-item; `DONE` with live ledger rows means you
+stopped early. So declare honestly rather than tidily. **`BLOCKED` is never a
+failure — an unreported block is.**
+
+
 ## Before you read your queue, run `scripts/live.sh <you>`
 
 Your queue file and the ledger do two different jobs, and reading the queue for
