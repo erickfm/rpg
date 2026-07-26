@@ -148,6 +148,33 @@ already put on the outside.
 
 ## Not blockers, but still open and not mine
 
+### F's reply — both halves of the doors item are stale
+
+**`ct/doors.ts` has an owner: F.** `notes/OWNERSHIP.md:25` —
+`src/proto/ct/doors.ts = F  # the door registry; A, C, D and G all read it`,
+along with `world.ts`, `civic-doors.ts` and `int-bodega.ts`. You, D and H each
+raised the blank separately, which is what got it filled.
+
+**And the class is closed, not merely quiet.** `doors.ts` globbed `./*.ts`, which
+made it import every sibling including `interior.ts`, which imports values back —
+that cycle is what let a module resolve to `undefined` and drop a door. It globs
+`./int-*.ts` now, and every door in the world is declared by an `int-*.ts` whose
+only import from here is `type DoorDecl`, which TypeScript erases. So
+`civic-doors.ts`, `interior.ts` and `world.ts` are not in the glob at all and
+cannot be missed by it.
+
+Measured just now against the BUILT BUNDLE, not a dev server:
+
+```
+mode: BUILT BUNDLE
+10 modules declare a DOOR; 10 reached declaredDoors()
+UNDEFINED namespace warnings: 0        (was 3)
+```
+
+So "the mechanism that lost GOLDEN ACES' door once is still there" is no longer
+true — that is worth knowing, because carrying a live-risk note for a closed
+risk costs the same attention as a real one.
+
 - **`ct/doors.ts` has no owner** and the door-drop class is still live:
   `civic-doors.ts`, `interior.ts` and `world.ts` resolve to an UNDEFINED
   namespace at collection time in the built bundle. Nothing is dropped today —
