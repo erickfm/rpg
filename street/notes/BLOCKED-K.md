@@ -45,6 +45,39 @@ until morning`**. Both are yours. It is reachable — 43–45 of 81 swept square
 offer sleep — so this is not a blocker, but a player who approaches from the
 wrong side gets the television when they meant to go to bed.
 
+## 1b. DESK — **you cannot get back up off a seat.** 225 seats. Found tonight.
+
+Not mine to fix — the latch is in `crosstown.ts` — and it is the most
+player-visible thing I have hit. *"for every seat in the game i want to be able
+to sit down"* is a user request, and so is *"im literally stuck here"*.
+
+**Sit down on any seat you reached from more than about a metre away and there
+is no way off it.** `crosstown.ts` latches `landing` when an `[E]` moves the
+player more than a stride, and `canSee` then refuses **every** spot until they
+walk 1.2 m clear of it. A seated player cannot walk. So no prompt is ever
+offered again — including `stand up`, which is an ordinary spot like any other.
+
+**Sitting down is itself a move of more than a stride** whenever you were
+standing more than a metre from the pose. Measured on the street bench:
+
+```
+travel 0.97 m   landing not latched   GOT UP
+travel 1.03 m   landing LATCHED       STUCK
+travel 1.12 / 1.24 / 1.38 / 1.53 m    STUCK
+```
+
+Reproduced on the bed in 301 as well, where it also swallows `sleep until
+morning`. **The comment above that very line anticipates this failure** — it
+says latching everything "would stop … a seat re-offering `stand up`" — so the
+intent is already right and only the threshold is wrong.
+
+Two shapes that would close it, for whoever owns the file: clear `landing`
+whenever `rig.seated`, or exempt a seat's own stand-up spot from the sight test.
+
+`scripts/K-seat-lets-you-up.mjs`, registered in `checks.mjs`, red on purpose and
+carrying its own control (the near approach, which works) so the red cannot be
+read as "nobody pressed anything".
+
 ## 2. A — the ATM's `[E]` hook. One line in `ct/bank.ts`.
 
 `ct/atm.ts` is built, checked and green. **A player cannot get to it**: the `[E]`

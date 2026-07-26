@@ -600,6 +600,24 @@ const CHECKS = [
   // Its --selftest lifts every car body 0.6 m off its wheels and requires the
   // red — the positive control F's evidence names and never watched. ~8 s. (K)
   ['K-tyre-has-arch', 'does every tyre have bodywork arching over it?', true],
+  // RED ON PURPOSE, and the most player-visible thing I have found: SIT DOWN ON
+  // ANY OF THE WORLD'S 225 SEATS FROM MORE THAN A METRE AWAY AND YOU CANNOT GET
+  // BACK UP. crosstown.ts latches `landing` when an [E] moves you more than a
+  // stride and `canSee` then refuses every spot until you walk 1.2 m clear —
+  // and a seated player cannot walk. Sitting is itself a move of more than a
+  // stride. Measured on the bench: 0.97 m of travel gets up, 1.03 m and beyond
+  // are stuck. The comment above that line anticipates exactly this failure.
+  // Carries its own control (the near approach, which works) so the red cannot
+  // be read as "nobody pressed anything". crosstown.ts is DESK-OWNED and
+  // untouched. (K)
+  ['K-seat-lets-you-up', 'can you get back UP off a seat you sat down on?', false],
+  // Verifying C's "tv off unless i sit down to watch it pls". C published the
+  // predicate, so this asks the two questions an author cannot ask of their own
+  // work: does the boolean agree with the PICTURE, and does it hold on STANDING
+  // BACK UP — the path that turns a state machine back into a toggle. Its
+  // --selftest pins scene.userData.tv.on true and requires the red. Currently
+  // red on the stand-up half, for the seat bug above and not for the TV. (K)
+  ['K-tv-off-unless-seated', 'is the television off unless you are sitting down?', true],
   // "letters waiting at the mailboxes when he comes in off the street". The
   // clause worth registering is the LAST one: rent is a clock feature, and this
   // world's clock ramps eight hours in a second and a half every time the
