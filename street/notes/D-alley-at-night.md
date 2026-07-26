@@ -1,4 +1,4 @@
-# The alley at night, measured — and nothing is wrong with it
+# The alley after dark and in the rain, measured — and nothing is wrong with it
 
 A null result, filed with its numbers. `ct/alley.ts`'s own `tag()` comment ends:
 
@@ -73,3 +73,62 @@ SHOT_HOUR=23 SHOT_URL=http://localhost:4181/ node scripts/D-look.mjs mouth drain
 The default stays a DAY hour on purpose: `D-walk` measured that at a night hour a
 600 ms settle reads the ungraded world one run in eight, and `lib/clock.mjs`
 returns when the grade is actually on screen rather than after a sleep.
+
+
+---
+
+# In the rain: it soaks, and it correctly does NOT puddle
+
+Second condition, same method, and both halves came back null. Filed so the
+investigation is not repeated.
+
+## It soaks, and the file said otherwise
+
+`ct/alley.ts` carried a measurement in the present tense with no "after" beside
+it — *"road 67.1 → 28.0, −58%; alley floor 54.4 → 51.1, −6%. The street soaked
+and the alley stayed dry, in the same downpour."* Read today that says the fault
+is open. Re-measured from material colours, standing in the alley, 13:00 dry
+against 14:00 raining:
+
+```
+road planes   -12.1%
+alley floor   -12.1%     the same, to three figures
+```
+
+The `wet()` call registers the floor with `updateRain` and it works. The comment
+now records the repair as well as the fault.
+
+## No water gathers at the drain, and that is CORRECT
+
+Counted at 14:00 with the rain on: **69 flat translucent ground sheets elsewhere
+in the world — 38 props, 24 lot, 6 vice — and 0 in the alley.** The five sheets
+inside the alley box are the litter's own contact shadows, at the five litter
+positions, not puddles.
+
+The alley is the one place in this world with a deliberately designed low point,
+so "no puddle at the low point" looks like a gap. **It is the design, and the
+design is already written down four lines above the drain:**
+
+> *"What a yard gully actually leaves is DAMP — the paving stays wet longest
+> where the water sits longest, so it darkens toward the drain smoothly and has
+> no edges at all."*
+
+A gully that works does not pond. Standing water at a functioning drain would
+contradict both the rationale the user approved and the radial wash that replaced
+the sixteen-stroke starburst they rejected. **So: do not add puddles to the
+alley.** That is the finding — a decision recorded, not a defect.
+
+## Two ways the measurement was wrong first
+
+- **Ask the world which hours rain.** `props.ts` publishes `rainAt` on
+  `scene.userData` so nothing mirrors the formula. I took "a rainy day hour" from
+  another builder's note and used 15:00, which is DRY; the first comparison was
+  dry against dry and correctly showed 0.0%.
+- **Never measure the road by pixels.** Cars and pedestrians cross the frame: the
+  same dry hour read **57** in one pass and **32.9** in another, a spread of 24
+  with nothing changed. The alley read 42.9 three times running because it has no
+  traffic. GOTCHAS §29 — say whether the number describes an empty world or a
+  lived one — and a road luminance is a lived number whether you meant it or not.
+
+The control is what caught it: three dry hours against each other *before* any
+rain comparison. Spread 0.0 in the alley, spread 24 on the road.
