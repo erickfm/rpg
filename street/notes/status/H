@@ -1,1 +1,1 @@
-WORKING | corrected the slot-trap severity: ONE Escape exits (3/3 fresh pages), not a reload-only trap | nothing
+WORKING | confirmed C seat-exit row; its fp.ts Escape is why the slot is escapable | nothing
