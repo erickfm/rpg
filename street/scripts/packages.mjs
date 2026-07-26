@@ -92,19 +92,50 @@ rep('a night wipes the landings', before === 8 && after < 8,
 await force(true);
 await p.waitForTimeout(300);
 const g = (await list()).find((q) => q.floor === 0 && q.present);
-await p.evaluate(([x, z]) => window.__ct.warp(x - 0.75, z, Math.PI / 2, 0, 0), [g.x, g.z]);
+if (!g) { console.error('\nno ground-floor parcel even when forced — nothing to steal.'); await b.close(); process.exit(3); }
+// STAND IN THE HALL, not in the flat. The hall runs x 200.0..202.4 and the
+// west parcels sit at x 200.25, so `x - 0.75` puts you through the wall at
+// 199.5 with the parcel unreachable and the sight ray blocked by masonry —
+// which reads exactly like a broken spot. Approach from the hall side.
+await p.evaluate(([x, z, f]) => window.__ct.warp(x + f * 0.62, z, f > 0 ? -Math.PI / 2 : Math.PI / 2, 0, 0),
+  [g.x, g.z, g.x < 201.2 ? 1 : -1]);
 await p.waitForTimeout(700);
 const pr = await prompt();
-rep('a parcel on the ground floor offers to be taken', !!pr && /take the package/.test(pr),
+rep('a parcel on the ground floor offers to be stolen', !!pr && /steal/.test(pr),
   pr ?? 'no prompt — check the sight ray regression before blaming the spot');
+const wallet = async () => {
+  await p.mouse.click(550, 360, { button: 'right' });
+  await p.waitForTimeout(420);
+  const t = await p.evaluate(() => document.body.innerText.replace(/\s+/g, ' ').trim());
+  await p.mouse.click(550, 360, { button: 'right' });
+  await p.waitForTimeout(320);
+  return t;
+};
+let walletBefore = '', walletAfter = '';
 if (pr) {
+  walletBefore = await wallet();
   await p.keyboard.press('KeyE');
   await p.waitForTimeout(600);
   const gone = (await list()).find((q) => q.num === g.num);
   rep('taking it removes it from the landing', !gone.present, `${g.num} present=${gone.present}`);
   await p.waitForTimeout(900);
+  walletAfter = await wallet();
   const still = (await list()).find((q) => q.num === g.num);
   rep('and it does not come back the same day', !still.present, `${g.num} still gone`);
+  // AND THE PLAYER IS ACTUALLY CARRYING IT. A steal that removes the parcel
+  // and gives nothing is the half-feature, and it would pass every assertion
+  // above. The purse is a closure in crosstown.ts with no read affordance, so
+  // this reads the wallet the player reads — right-click flips it out.
+  // What this actually reads is the HUD line K's giveRandom posts, not the
+  // pocket list — the purse has no read affordance. That line is still proof:
+  // it names the item on a successful give and says "no room" on a refusal,
+  // so requiring a change AND the absence of "no room" separates the two.
+  const gained = walletAfter !== walletBefore && !/no room/.test(walletAfter);
+  // the ADDED text, not a regex guess at what an item line looks like — my
+  // first attempt matched the strapline and quoted it as the item.
+  const line = walletAfter.split(' ').filter((w, i) => walletBefore.split(' ')[i] !== w).join(' ');
+  rep('and the player is actually given an item', gained,
+    line ? `the HUD posted: "${line.trim()}"` : 'no item line posted');
 }
 await force(null);
 await b.close();

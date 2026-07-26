@@ -20,6 +20,7 @@ import { ENTRANCE } from './tex-world';
 import { citizenSprite, type CitizenSprite } from './citizens';
 import { FACE } from './rng';
 import { ORDER, type CtxBuild } from './ctx';
+import { giveRandom, pocketsFull } from './inventory';
 
 // ── No. 227 — the player's walk-up ────────────────────────────────────────
 // Four stories, a switchback stair, your place (301) on the third floor,
@@ -1890,7 +1891,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // That is what makes "every night they go away" free: the day index is an
     // input, so a new day IS a new set, and it works identically whether the
     // player walked through midnight or slept through it. Nothing to clear.
-    const PKG_CHANCE = 0.10;                 // per door per day — see scripts/packages.mjs
+    const PKG_CHANCE = 0.08;                 // per door per day — see scripts/packages.mjs
     const PKG_W = 0.28, PKG_H = 0.26, PKG_D = 0.34;
     // margin from the jamb: half the parcel, plus enough that it reads as
     // beside the door rather than against it
@@ -1913,7 +1914,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         h ^= num.charCodeAt(i);
         h = Math.imul(h, 16777619) >>> 0;
       }
-      return (h % 100000) / 100000;
+      // FINAL AVALANCHE. Without it this ran at 16% per door against a
+      // declared 10% — FNV over three characters and a small sequential day
+      // index does not spread its low bits, and `% 100000` reads exactly
+      // those. Measured over 40 days x 8 doors before and after.
+      h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0;
+      h ^= h >>> 13; h = Math.imul(h, 3266489917) >>> 0;
+      h = (h ^ (h >>> 16)) >>> 0;
+      return h / 4294967296;
     };
     const pkgTaken = new Set<string>();      // `${day}:${num}`, so it clears itself
     let pkgForce = -1;                       // test hook: 1 all, 0 none, -1 the roll
@@ -1939,12 +1947,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         x: sx, z: sz, r: 0.95,
         ok: () => q.present && q.side === 1
           && Math.abs(lastGy - q.d.floor * ST) < 0.5,
-        label: () => `take the package at ${q.d.num}`,
+        // WHOSE package it is, because that is the whole charm of it: you see
+        // him in the hall. And the refusal is readable BEFORE the key is
+        // pressed rather than after — K's note is explicit about that, and it
+        // is the difference between a full pack and a broken prompt.
+        label: () => (pocketsFull(ctx.purse)
+          ? 'pockets full — you cannot carry it'
+          : `steal ${q.d.num}'s package`),
         act: () => {
-          pkgTaken.add(key());
-          // K's `ct/inventory.ts` publishes the random-item call; see
-          // notes/C-for-K.md. THE TAKE IS STUBBED until it lands — the parcel
-          // leaves the landing and the player gets no item yet.
+          // GATED ON `taken`. If the pockets are full the parcel stays on the
+          // landing: destroying what you could not pick up is the one failure
+          // K warned about, and it would read as the package evaporating.
+          const got = giveRandom(ctx);
+          if (got.taken) pkgTaken.add(key());
         },
       });
       const [ox, , oz] = pkgPos(q.d, -1);
@@ -1952,8 +1967,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         x: ox, z: oz, r: 0.95,
         ok: () => q.present && q.side === -1
           && Math.abs(lastGy - q.d.floor * ST) < 0.5,
-        label: () => `take the package at ${q.d.num}`,
-        act: () => { pkgTaken.add(key()); },
+        label: () => (pocketsFull(ctx.purse)
+          ? 'pockets full — you cannot carry it'
+          : `steal ${q.d.num}'s package`),
+        act: () => { const got = giveRandom(ctx); if (got.taken) pkgTaken.add(key()); },
       });
     }
     ctx.onFrame(({ px, pz }) => {
