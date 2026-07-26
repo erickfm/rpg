@@ -95,23 +95,21 @@ const money = (n) => `$${n.toFixed(2)}`;
 
 // ── the subjects, ASKED FOR rather than remembered ─────────────────────────
 const R = await p.evaluate(() => (window.__ct.roomDims() || []).find((r) => r.id === 'bank'));
-const stand = await p.evaluate(async () => {
-  const dm = await import('/src/proto/ct/doors.ts');
-  const decl = dm.declaredDoors().find((d) => d.building === 'FIRST FEDERAL');
-  const s = dm.doorStandFor('FIRST FEDERAL');
-  return decl && s ? { ...s, at: decl.at, leafW: decl.leaf && decl.leaf.clearW,
-    doorWorld: dm.doorWorldFor('FIRST FEDERAL') } : null;
+// AIMED AT EITHER BUILD. This used to `import('/src/proto/ct/doors.ts')`, which
+// only resolves on the dev server — so the whole suite died against the BUNDLE
+// with "failed to fetch dynamically imported module", and the bundle is what
+// ships (GOTCHAS 37). `__ct.doors()` is the same registry published by the world,
+// and the door's LOCAL x comes off `roomDims()`, which the kit publishes for
+// exactly this reason. Nothing here is a second authoring of either.
+const stand = await p.evaluate(() => {
+  const d = (window.__ct.doors() || []).find((q) => q.building === 'FIRST FEDERAL');
+  return d && d.stand ? { ...d.stand, widthM: d.widthM, point: d.point } : null;
 });
-// GOTCHAS 32/34: an empty subject set is an ABORT, not a pass. Every verdict
-// below is free if the room was never built or the door never declared.
-if (!R) { console.error('ABORT: no room with id "bank" in __ct.roomDims()'); await b.close(); process.exit(3); }
-if (!stand) { console.error('ABORT: FIRST FEDERAL declares no door in ct/doors.ts'); await b.close(); process.exit(3); }
-
 const hw = R.w / 2, hd = R.d / 2;
 const wx = (lx) => R.cx + lx, wz = (lz) => R.cz + lz;
 console.log(`room ${R.w.toFixed(2)} x ${R.d.toFixed(2)} at (${R.cx.toFixed(1)}, ${R.cz.toFixed(1)})`);
-console.log(`door declared at local x ${stand.at.toFixed(2)}, world z ${stand.doorWorld.toFixed(2)}, `
-  + `leaf ${stand.leafW} m; stand (${stand.x.toFixed(2)}, ${stand.z.toFixed(2)})\n`);
+console.log(`door published at local x ${R.door.x.toFixed(2)}, world z `
+  + `${stand.point.z.toFixed(2)}; stand (${stand.x.toFixed(2)}, ${stand.z.toFixed(2)})\n`);
 
 // ── --selftest: BREAK THE WORLD ON PURPOSE AND REQUIRE THIS TO GO RED ──────
 //
@@ -206,7 +204,7 @@ for (const [what, sx, sz, yaw, key] of approaches) {
 // 1.2 m and a check that asserts otherwise is asserting against the fix. What a
 // player actually does is walk in, turn round, and walk back at the doors.
 {
-  await warp(wx(stand.at), wz(hd - 1.15), 0, 0);
+  await warp(wx(R.door.x), wz(hd - 1.15), 0, 0);
   await p.waitForTimeout(200);
   const arrive = await landing();
   say(true, 'on arrival the re-entry hysteresis is armed (by design, not a fault)',
@@ -218,7 +216,7 @@ for (const [what, sx, sz, yaw, key] of approaches) {
   say(back.seen.some((t) => /out to the street/i.test(t)),
     'the way out offers itself walking back at the doors',
     `prompts seen: ${back.seen.length ? [...new Set(back.seen)].join(' / ') : 'none'}`);
-  await warp(wx(stand.at), wz(hd - 0.55), Math.PI, 0);     // stand on it, facing it
+  await warp(wx(R.door.x), wz(hd - 0.55), Math.PI, 0);     // stand on it, facing it
   await p.waitForTimeout(220);
   await press();
   const q = await pos();
@@ -234,28 +232,86 @@ for (const [what, sx, sz, yaw, key] of approaches) {
 
 // ── 3. YOU CANNOT GET BEHIND THE TELLER LINE ──────────────────────────────
 //
-// The one thing a teller line has to do. Walked at all three windows, because a
-// counter sealed at its middle and open at its ends is the classic version of
-// this bug — and because checking one instance of a mirrored/repeated thing
+// The one thing a teller line has to do. Walked at all three windows and at both
+// ENDS, because a counter sealed in the middle and open at its ends is the
+// classic version of this bug, and checking one instance of a repeated thing
 // proves nothing about the others (GOTCHAS 41).
 //
-// The counter's own front face is read off the room rather than typed: it is
-// the deepest z a player can reach on the counter's x span, which is what the
-// walk measures anyway.
-const WINDOW_X = [-1.4, 1.8, 5.0];
-for (const wxl of WINDOW_X) {
-  await warp(wx(wxl), wz(-1.6), 0, 0);
-  await p.waitForTimeout(160);
+// TWO CLAIMS PER STATION, and separating them took two false results to see:
+//
+//   A. YOU CANNOT REACH THE BACK WALL. The threshold comes from the ROOM's own
+//      depth, so it is independent of the thing under test and it FALSIFIES:
+//      take the counter's collider away and the player walks to the back wall
+//      and this goes red. This is the containment claim.
+//   B. YOU STOP AT THE COUNTER'S FACE, within 0.16 m. This one is derived FROM
+//      the collider, so it cannot falsify containment — what it catches is the
+//      walk being stopped by SOMETHING ELSE, which happened: when I added the
+//      queue rope, two of three windows went on passing under the mutation
+//      because the rope was catching the walk 1.1 m short of the counter. The
+//      check was measuring a velvet rope and reporting a teller line
+//      (GOTCHAS 34).
+//
+// My first attempt merged them into one, deriving the expectation from the
+// collider under test — which is a tautology dressed as a measurement: "the
+// collider stops you where the collider is". Under the mutation it did not go
+// red, it went to EXIT 3, because the check's own subject had been removed. That
+// is the correct exit code and it is useless as a selftest.
+const TELLER = await p.evaluate(([cx, cz, hw]) => {
+  const cs = window.__ct.colliders().filter((c) =>
+    c.minX > cx - hw - 1 && c.maxX < cx + hw + 1 && c.maxZ < cz - 3.5 && c.maxZ > cz - 5
+    && c.maxX - c.minX > 8);
+  return cs.length === 1 ? { front: cs[0].maxZ - cz, w: cs[0].maxX - cs[0].minX } : null;
+}, [R.cx, R.cz, hw]);
+const RADIUS = 0.36;                                    // fp.ts
+// A MISSING COUNTER COLLIDER IS A FAULT, NOT AN UNMEASURABLE WORLD. The room is
+// there and it is the subject; the counter failing to register is exactly what
+// this section exists to catch, so it is a FAIL and not an exit 3.
+say(TELLER !== null, 'the teller line registers exactly one wide collider',
+  TELLER ? `${TELLER.w.toFixed(2)} m wide, face at local z ${TELLER.front.toFixed(2)}`
+    : 'none found in the bank slab');
+if (TELLER) {
+  console.log(`teller line: ${TELLER.w.toFixed(2)} m wide, front face at local z `
+    + `${TELLER.front.toFixed(2)}, so a player must stop at `
+    + `${(TELLER.front + RADIUS).toFixed(2)}\n`);
+}
+// THE WALK STARTS NORTH OF THE QUEUE ROPE, ALWAYS — not "north of the counter
+// when there is one". Falling back to the middle of the lobby left windows 1 and
+// 2 behind the rope, and under the mutation the rope caught them 2 m short and
+// they passed. A station whose falsifiability depends on another object being
+// absent is not a station.
+//
+// -3.15 is the 1.28 m gap between the rope's north face (-2.52) and the
+// counter's (-3.96), and the guard below refuses to measure from it if the rig
+// has to push the player out of something to put them there.
+const START_Z = -3.15;
+const NO_GO = -hd + 1.5;             // this close to the back wall is behind the line
+// Each station carries its own start z, because the EAST CORNER cannot be
+// approached from -3.15: the waiting row's brochure table stands at x 6.06…7.18,
+// z -3.03…-2.23, so a player put at (6.4, -3.15) is displaced 0.24 m by the rig
+// before the walk begins. The start-point guard below is what found that — I had
+// written the station from the room's plan, not from what is standing in it.
+for (const [what, xl, zl] of [['window 1', -1.4, START_Z], ['window 2', 1.8, START_Z],
+                              ['window 3', 5.0, START_Z], ['the west end', -3.2, START_Z],
+                              ['the east corner', 6.6, -3.52]]) {
+  await warp(wx(xl), wz(zl), 0, 0);
+  await p.waitForTimeout(200);
+  // A CHECK MUST VERIFY IT IS WHERE IT THINKS IT IS before it presses anything
+  // (GOTCHAS 20). The rig pushes a capsule out of anything solid, so a start
+  // point inside a collider silently becomes a different start point — and a
+  // containment walk that begins somewhere else is a fact about the probe.
+  const p0 = await pos();
+  const slip = Math.hypot(p0.x - wx(xl), p0.z - wz(zl));
+  say(slip < 0.06, `the walk at ${what} starts where it means to`,
+    `displaced ${f2(slip)} m from (${xl}, ${zl})`);
   const q = await walk('w', 3500);
   const lz = q.z - R.cz;
-  say(lz > -4.2, `the counter holds at window x ${wxl}`, `stopped at local z ${f2(lz)}`);
-}
-// …and at the two ENDS, which is where a slot would be
-for (const [what, xl] of [['the counter\'s west end', -3.2], ['the east wall end', 6.4]]) {
-  await warp(wx(xl), wz(-1.6), 0, 0);
-  await p.waitForTimeout(160);
-  const q = await walk('w', 3500);
-  say(q.z - R.cz > -4.2, `no slot past ${what}`, `stopped at local z ${f2(q.z - R.cz)}`);
+  say(lz > NO_GO, `you cannot get behind the line at ${what}`,
+    `stopped at local z ${f2(lz)}; behind the line is anything under ${f2(NO_GO)}`);
+  if (TELLER) {
+    say(Math.abs(lz - (TELLER.front + RADIUS)) < 0.16,
+      `and you stop AT the counter's own face at ${what}, not short of it`,
+      `stopped ${f2(lz)}, the face plus a radius is ${f2(TELLER.front + RADIUS)}`);
+  }
 }
 
 // ── 4. THE VAULT IS A ROOM YOU CAN WALK INTO ─────────────────────────────
@@ -349,48 +405,63 @@ await p.waitForTimeout(160);
   await p.evaluate(() => window.__ct.clock(14, 20));                   // banking hours
   await p.waitForTimeout(200);
 
+  const panelUp = () => p.evaluate(() => window.__hud.panel());
+
   let t = await atHer();
   say(/apply for a loan/i.test(t || ''), 'the loan officer offers an application',
     `prompt: ${JSON.stringify(t)}`);
-  await press();
-  t = await prompt();
-  say(/hand her the form/i.test(t || '') && /\$200\.00/.test(t || ''),
-    'and then asks for the form, naming the amount and the rate',
-    `prompt: ${JSON.stringify(t)}`);
 
-  // looking DOWN-LEFT at the desk selects the FORM instead of her — the whole
-  // reason the two are separate spots, and it is the aim rule that does it
-  t = await atForm();
-  say(/the application/i.test(t || ''), 'looking at the form on the desk selects the form',
-    `prompt: ${JSON.stringify(t)}`);
+  // ── the application is K's SHARED CABINET, not a prompt of my own ─────────
+  //
+  // The queue asked for that by name: a loan application on a
+  // different-looking panel would stand out immediately in a world with three
+  // other full-screen interfaces. `__hud.panel()` reports which cabinet is up
+  // by its own id, so this is the world's answer and not mine.
   await press();
-  t = await prompt();
-  say(/\$500\.00/.test(t || ''), 'and E on it moves the amount up',
-    `prompt: ${JSON.stringify(t)}`);
+  say((await panelUp()) === 'ct-loan', 'and E opens the shared panel, not a prompt',
+    `__hud.panel() = ${JSON.stringify(await panelUp())}`);
+  // THE WORLD IS FROZEN BEHIND IT — the framework's promise, checked rather
+  // than trusted, because a cabinet you can walk out from behind is worse than
+  // no cabinet
+  {
+    const before = await pos();
+    await p.keyboard.down('w'); await p.waitForTimeout(420); await p.keyboard.up('w');
+    const after = await pos();
+    say(Math.hypot(after.x - before.x, after.z - before.z) < 0.02,
+      'and the world is frozen behind it — W moves the selection, not the player',
+      `moved ${f2(Math.hypot(after.x - before.x, after.z - before.z))} m`);
+  }
 
-  // $500 wants $25 down and the player has $14.50, so this must be REFUSED and
-  // the refusal must carry BOTH numbers
-  t = await atHer();
-  await press();
-  t = await prompt();
-  say(/declined/i.test(t || '') && /25\.00/.test(t || ''),
-    'a loan you cannot secure is DECLINED, and the refusal says why',
-    `prompt: ${JSON.stringify(t)}`);
+  // W walked the amount up twice already (once above, once in the freeze test),
+  // so this is $1000 — which wants $50 down against $14.50 and must be REFUSED.
+  await p.keyboard.press('w'); await p.waitForTimeout(200);
+  await p.keyboard.press('Enter'); await p.waitForTimeout(260);
+  say((await panelUp()) === 'ct-loan', 'a refusal keeps the sheet up so you can read it',
+    `__hud.panel() = ${JSON.stringify(await panelUp())}`);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  say((await panelUp()) === null, 'and ESC always closes it', `__hud.panel() = ${JSON.stringify(await panelUp())}`);
   const cashD = await atmCash();
-  say(cashD === cash0, 'and a decline costs you nothing',
-    `${money(cash0)} -> ${money(cashD)}`);
-
-  // wrap the amount back round to $200, which wants $10 — and that goes through
-  t = await atForm();
-  for (let i = 0; i < 4; i++) await press();
-  t = await prompt();
-  say(/\$200\.00/.test(t || ''), 'the amount wraps back round to the smallest',
+  say(cashD === cash0, 'a refusal costs you nothing', `${money(cash0)} -> ${money(cashD)}`);
+  t = await atHer();
+  say(/apply for a loan/i.test(t || ''), 'and the desk still offers to try again',
     `prompt: ${JSON.stringify(t)}`);
-  await atHer();
+
+  // …and the FORM on the desk opens the SAME sheet, which is the other half of
+  // why they are two spots: the person and the paper are both the way in
+  t = await atForm();
+  say(/loan application/i.test(t || ''), 'the form on the desk is the other way in',
+    `prompt: ${JSON.stringify(t)}`);
   await press();
-  t = await prompt();
+  say((await panelUp()) === 'ct-loan', 'and it opens the same cabinet',
+    `__hud.panel() = ${JSON.stringify(await panelUp())}`);
+
+  // wind the amount back down to $200, which wants $10 — that one goes through
+  for (let i = 0; i < 4; i++) { await p.keyboard.press('s'); await p.waitForTimeout(120); }
+  await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  t = await atHer();
   say(/approved/i.test(t || '') && /window 2/i.test(t || ''),
-    'a loan you CAN secure is approved, and sends you to the teller',
+    'a loan you CAN secure is approved, and the desk sends you to the teller',
     `prompt: ${JSON.stringify(t)}`);
   const cashA = await atmCash();
   say(cashA === cash0, 'and approval alone does not hand you the money',

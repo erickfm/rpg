@@ -3,6 +3,14 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+// K's shared panel cabinet. SAFE TO IMPORT FROM A ROOM, and worth saying why
+// rather than hoping: `ct/doors.ts` globs `./int-*.ts` EAGERLY, and any room in
+// an import cycle with it resolves to an undefined namespace and has its DOOR
+// dropped SILENTLY — in the BUILT BUNDLE only, which is the worst way round and
+// is how SEVENS was lost (GOTCHAS 28). `ct/hud.ts` imports three.js and the
+// build stamp and nothing else, so there is no path back. Verified against the
+// bundle with scripts/doors-declared.mjs, not assumed.
+import { makePanel, UI } from './hud';
 
 // FIRST FEDERAL, inside.
 //
@@ -1014,8 +1022,6 @@ export function buildBankInterior(ctx: CtxBuild): void {
     const cents = (n: number) => +n.toFixed(2);
 
     let amountIdx = 0;
-    let stage: 'idle' | 'form' | 'declined' = 'idle';
-    let declined = '';
     let loan: { principal: number; owed: number; rate: number; collected: boolean } | null = null;
     const shut = () => {
       const h = ctx.clock.now().hour;
@@ -1037,12 +1043,23 @@ export function buildBankInterior(ctx: CtxBuild): void {
     }), 'detail');
     const veneerM = ctx.flat(veneerT);
     const deskSideM = new THREE.MeshBasicMaterial({ color: 0x5a4228 });
+    // VENEER ON EVERY FACE YOU CAN SEE, flat colour only underneath. The client
+    // side of this desk was `deskSideM` — a 1.9 x 0.74 m plate of one brown,
+    // which is the biggest surface in the room a player is ever within arm's
+    // reach of, and the queue's rule is blunt about it: *"a flat colour is not a
+    // material"*.
     put(new THREE.Mesh(new THREE.BoxGeometry(DESK_W, DESK_H, DESK_D),
-      [deskSideM, deskSideM, veneerM, deskSideM, deskSideM, deskSideM]),
+      [veneerM, veneerM, veneerM, deskSideM, veneerM, veneerM]),
       DESK_X, DESK_H / 2, DESK_Z);
-    // the modesty panel on the client side — the one thing that makes a desk you
-    // sit ACROSS look different from a table
-    bx(DESK_W - 0.1, 0.52, 0.04, deskSideM, DESK_X, 0.30, DESK_Z + DESK_D / 2 - 0.03);
+    // THE MODESTY PANEL STANDS PROUD, which is the whole point of it. I first put
+    // it at `DESK_D / 2 - 0.03` — three centimetres INSIDE a solid box, so it was
+    // building an object inside another object and could never be seen. That is
+    // the same mistake as an enclosure over a fitting, which has now cost this
+    // project a confessional, a font and a LOANS sign, and it is the reason to
+    // look at a thing after adding it.
+    bx(DESK_W - 0.16, 0.46, 0.03, veneerM, DESK_X, 0.29, DESK_Z + DESK_D / 2 + 0.015);
+    bx(DESK_W - 0.16, 0.02, 0.035, new THREE.MeshBasicMaterial({ color: 0x8a6a44 }),
+      DESK_X, 0.52, DESK_Z + DESK_D / 2 + 0.017);          // its lit top edge
     // and a pedestal of drawers under her end, fronts proud of the carcass
     for (let d = 0; d < 3; d++) {
       bx(0.52, 0.19, 0.03, veneerM, DESK_X + 0.58, 0.16 + d * 0.21, DESK_Z - DESK_D / 2 + 0.02);
@@ -1220,28 +1237,187 @@ export function buildBankInterior(ctx: CtxBuild): void {
       label: 'sit in the client chair', ok: () => room.inside(),
     });
 
-    // ── 1. THE FORM: E cycles the amount ────────────────────────────────────
-    ctx.spot({
-      x: room.wx(FORM_X), z: room.wz(FORM_Z), r: 0.7, obj: formMesh,
-      ok: () => room.inside() && loan === null,
-      label: () => {
-        const a = AMOUNTS[amountIdx];
-        return `the application — ${money(a)} at ${RATE[a].toFixed(2)}%  ·  E to change`;
+    // ── THE APPLICATION, on K's shared panel ────────────────────────────────
+    //
+    // My queue is explicit and it is right: *"K is building one shared full-screen
+    // panel framework in ct/hud.ts for the ATM, the inventory and the slot
+    // machine. Use it — a loan application on a different-looking panel would
+    // stand out immediately."* So the cabinet, the freeze, the one-at-a-time rule,
+    // ESC and the typeface are all K's, and what is mine is the paper inside the
+    // glass.
+    //
+    // `chrome: 'cloth'` rather than `'machine'`, following the pockets: a machine
+    // is a thing you WALK UP TO and this is a thing you are HOLDING — a form
+    // across a desk. The ATM on the pavement outside is the machine; this is its
+    // paperwork.
+    //
+    // AND THE FORM IS THE INTERFACE. The amount, the term, the rate, the monthly
+    // payment, the security wanted and the cash you actually have are all on one
+    // sheet, and the decision is STAMPED across it. A loan you are refused should
+    // show you the two numbers that refused you, on the paper, rather than in a
+    // prompt you have to remember.
+    const TERM_MONTHS = 24;
+    const owedOn = (a: number) => cents(a * (1 + RATE[a] / 100));
+    let stamp: 'none' | 'approved' | 'declined' = 'none';
+
+    const panel = makePanel({
+      id: 'ct-loan', w: 300, h: 214, chrome: 'cloth',
+      title: 'LOAN APPLICATION',
+      hint: () => (stamp === 'approved'
+        ? 'ESC  step back'
+        : 'W / S  amount   ·   ENTER  submit   ·   ESC  step back'),
+      draw: (g, w, h) => {
+        const a = AMOUNTS[amountIdx], rate = RATE[a];
+        const owed = owedOn(a), need = cents(a * DOWN), have = ctx.purse.cash;
+        const INK = '#2e2a24', DIM = '#6a6458', RED = '#8a2c22';
+        g.fillStyle = '#eae5d2'; g.fillRect(0, 0, w, h);
+        g.fillStyle = 'rgba(0,0,0,0.06)'; g.fillRect(0, h - 3, w, 3);
+        // the letterhead
+        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, w, 22);
+        g.textBaseline = 'middle'; g.textAlign = 'left';
+        g.font = UI.font(11, true); g.fillStyle = '#e8ecf0';
+        g.fillText('FIRST FEDERAL', 8, 11);
+        g.font = UI.font(8); g.fillStyle = '#9fb4c8'; g.textAlign = 'right';
+        g.fillText('SAVINGS & LOAN', w - 8, 11);
+        g.textAlign = 'left'; g.fillStyle = DIM;
+        g.fillText('APPLICATION FOR AN UNSECURED PERSONAL LOAN', 8, 33);
+        g.fillStyle = RED; g.fillRect(8, 41, w - 16, 1);
+
+        // The rows. The AMOUNT is the only one you can touch and it says so with a
+        // caret and a tint, not with a colour change nobody reads as interactive.
+        const rows: [string, string, boolean][] = [
+          ['AMOUNT', money(a), true],
+          ['TERM', `${TERM_MONTHS} MONTHS`, false],
+          ['RATE', `${rate.toFixed(2)} % APR`, false],
+          ['MONTHLY', money(cents(owed / TERM_MONTHS)), false],
+          ['TOTAL DUE', money(owed), false],
+        ];
+        rows.forEach(([k, v, live], i) => {
+          const y = 54 + i * 17;
+          if (live) {
+            g.fillStyle = 'rgba(31,58,90,0.10)'; g.fillRect(6, y - 8, w - 12, 16);
+            g.font = UI.font(9, true); g.fillStyle = '#1f3a5a';
+            g.fillText('>', 8, y);
+          }
+          g.font = UI.font(9, live); g.fillStyle = live ? '#1f3a5a' : DIM;
+          g.fillText(k, live ? 18 : 12, y);
+          // the dotted leader, which is what makes a column of pairs read as a form
+          g.fillStyle = 'rgba(106,100,88,0.45)';
+          for (let dx = 100; dx < w - 76; dx += 4) g.fillRect(dx, y, 1, 1);
+          g.textAlign = 'right'; g.font = UI.font(10, true);
+          g.fillStyle = live ? INK : '#4a4640';
+          g.fillText(v, w - 10, y);
+          g.textAlign = 'left';
+        });
+
+        // What they want off you against what you have. THE COMPARISON IS THE
+        // DECISION, so it is on the sheet before you submit rather than only in
+        // the refusal afterwards — you can see why the answer will be no.
+        g.fillStyle = 'rgba(106,100,88,0.5)'; g.fillRect(8, 146, w - 16, 1);
+        g.font = UI.font(8); g.fillStyle = DIM;
+        g.fillText(`SECURITY REQUIRED (${Math.round(DOWN * 100)} %)`, 10, 158);
+        g.textAlign = 'right'; g.font = UI.font(9, true); g.fillStyle = INK;
+        g.fillText(money(need), w - 10, 158);
+        g.textAlign = 'left'; g.font = UI.font(8); g.fillStyle = DIM;
+        g.fillText('CASH ON HAND', 10, 172);
+        g.textAlign = 'right'; g.font = UI.font(9, true);
+        g.fillStyle = have >= need ? '#2f6a3a' : RED;
+        g.fillText(money(have), w - 10, 172);
+        g.textAlign = 'left';
+
+        // the signature line with a scrawl on it: a form nobody has signed reads
+        // as a form nobody has filled in
+        g.fillStyle = 'rgba(60,52,42,0.55)'; g.fillRect(10, 196, 108, 1);
+        g.fillStyle = 'rgba(40,36,30,0.75)';
+        for (let i = 0; i < 26; i++) {
+          g.fillRect(14 + i * 3.4, 190 + Math.round(Math.sin(i * 0.9) * 3), 3, 1);
+        }
+        g.font = UI.font(7); g.fillStyle = DIM;
+        g.fillText('APPLICANT', 10, 206);
+        g.textAlign = 'right'; g.fillText('OFFICER USE ONLY', w - 10, 206);
+        g.textAlign = 'left';
+
+        // THE STAMP: the answer and the reason, rotated across the middle
+        if (stamp !== 'none') {
+          const ok = stamp === 'approved';
+          const col = ok ? '47,106,58' : '138,44,34';
+          // LEFT OF THE FIGURE COLUMN, not across the middle. Centred, it lay over
+          // "13.50 % APR" — and the rate is the number the whole sheet is about,
+          // so a stamp that hides it is a stamp that hides the point. At 0.40 w
+          // with a 90-wide half it ends at x 210 and the figures start at 240, so
+          // every one of them stays readable under the answer.
+          g.save();
+          g.translate(w * 0.40, 126); g.rotate(-0.11);
+          g.strokeStyle = `rgba(${col},0.85)`; g.lineWidth = 3;
+          g.strokeRect(-90, -21, 180, 42);
+          g.textAlign = 'center';
+          g.font = UI.font(20, true); g.fillStyle = `rgba(${col},0.9)`;
+          g.fillText(ok ? 'APPROVED' : 'DECLINED', 0, -3);
+          g.font = UI.font(8, true); g.fillStyle = `rgba(${col},0.95)`;
+          g.fillText(ok ? 'COLLECT AT WINDOW 2' : `SHORT BY ${money(cents(need - have))}`, 0, 13);
+          g.restore();
+          g.textAlign = 'left';
+        }
       },
-      act: () => {
-        amountIdx = (amountIdx + 1) % AMOUNTS.length;
-        // a new figure on the form retracts the last refusal rather than leaving
-        // it sitting there as the answer to a question nobody has asked yet
-        if (stage === 'declined') stage = 'form';
+      key: (k) => {
+        if (stamp === 'approved') return;                  // signed, and done
+        if (k === 'w' || k === 'arrowup' || k === 'd' || k === 'arrowright') {
+          amountIdx = Math.min(AMOUNTS.length - 1, amountIdx + 1); stamp = 'none';
+        } else if (k === 's' || k === 'arrowdown' || k === 'a' || k === 'arrowleft') {
+          amountIdx = Math.max(0, amountIdx - 1); stamp = 'none';
+        } else if (k === 'enter' || k === ' ') {
+          submit();
+        } else return;
+        panel.repaint();
+      },
+      // …and the wheel, because the pockets established that the wheel is how you
+      // move a selection inside one of these cabinets
+      wheel: (dir) => {
+        if (stamp === 'approved') return;
+        amountIdx = Math.max(0, Math.min(AMOUNTS.length - 1, amountIdx - dir));
+        stamp = 'none';
+        panel.repaint();
       },
     });
 
-    // ── 2. THE OFFICER: E applies, and a decline says why ───────────────────
+    /**
+     * The decision, and it is deliberately legible rather than a credit model.
+     * The desk's steer: *"keep it simple and a little sleazy … an approval that is
+     * too easy, and interest that is obviously bad for you, is more in keeping
+     * than a real credit model"*. 13.50% APR on two hundred dollars is that, and
+     * the block already has a pawn shop and a used car lot on it.
+     */
+    function submit(): void {
+      if (loan || shut()) return;
+      const a = AMOUNTS[amountIdx], need = cents(a * DOWN);
+      if (ctx.purse.cash < need) { stamp = 'declined'; return; }
+      loan = { principal: a, owed: owedOn(a), rate: RATE[a], collected: false };
+      stamp = 'approved';
+    }
+
+    // ── the two ways to open it ─────────────────────────────────────────────
     //
-    // The refusal carries BOTH numbers — what is wanted and what you have —
-    // because "declined" on its own is indistinguishable from a broken spot, and
-    // this world has already had one report of exactly that shape: *"what is not
-    // an answer is a machine that looks usable and ignores you."*
+    // The FORM on the desk and the OFFICER across it both open the same sheet.
+    // Two spots rather than one, and the aim rule keeps them apart for free:
+    // standing at the desk looking straight ahead gets HER, looking down-left at
+    // the paper gets the FORM. Both, because a player who walks up and looks at
+    // the desk should not have to guess that the PERSON is the interactive thing.
+    const openApplication = () => {
+      if (loan || shut()) return;
+      stamp = 'none';
+      panel.open();
+      panel.repaint();
+    };
+    ctx.spot({
+      x: room.wx(FORM_X), z: room.wz(FORM_Z), r: 0.7, obj: formMesh,
+      ok: () => room.inside() && loan === null,
+      label: () => (shut()
+        ? 'the applications are put away until nine'
+        : 'read the loan application'),
+      act: openApplication,
+    });
+
+    // ── the officer ─────────────────────────────────────────────────────────
     ctx.spot({
       x: room.wx(DESK_X), z: room.wz(DESK_Z - DESK_D / 2 - 0.30), r: 1.0,
       ok: () => room.inside(),
@@ -1252,27 +1428,12 @@ export function buildBankInterior(ctx: CtxBuild): void {
             : `approved — collect ${money(loan.principal)} at window 2`;
         }
         if (shut()) return 'the loan desk takes applications nine to four';
-        if (stage === 'idle') return 'apply for a loan';
-        if (stage === 'declined') return declined;
-        const a = AMOUNTS[amountIdx];
-        return `hand her the form — ${money(a)} at ${RATE[a].toFixed(2)}%`;
+        return 'apply for a loan';
       },
-      act: () => {
-        if (loan || shut()) return;
-        if (stage === 'idle') { stage = 'form'; return; }
-        const a = AMOUNTS[amountIdx], need = cents(a * DOWN);
-        if (ctx.purse.cash < need) {
-          stage = 'declined';
-          declined = `declined — ${money(need)} down on ${money(a)}, you have ${money(ctx.purse.cash)}`;
-          return;
-        }
-        const rate = RATE[a];
-        loan = { principal: a, owed: cents(a * (1 + rate / 100)), rate, collected: false };
-        stage = 'idle';
-      },
+      act: openApplication,
     });
 
-    // ── 3. WINDOW 2: the teller counts it out, and takes it back ────────────
+    // ── WINDOW 2: the teller counts it out, and takes it back ───────────────
     //
     // Registered on the counter at the window the teller is actually standing
     // behind, and named on the grille so the selection outline draws the window
@@ -1306,7 +1467,7 @@ export function buildBankInterior(ctx: CtxBuild): void {
         ctx.purse.cash = cents(ctx.purse.cash - pay);
         loan.owed = cents(loan.owed - pay);
         // settled: back to being someone who could borrow again
-        if (loan.owed <= 0.004) { loan = null; stage = 'idle'; }
+        if (loan.owed <= 0.004) loan = null;
         ctx.refreshWallet();
       },
     });
