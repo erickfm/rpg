@@ -512,4 +512,24 @@ post tops), field (1.50 m bands at 6.5%), overlap (0 across 151 meshes), fence
 −27.8,−93.5, the refresh has not happened yet — compare the build stamp in its
 own banner against mainline before concluding anything.
 
+### RESOLVED, 22:35 — the refresh has happened
+
+`:5177` is now on `a8a9b9634` and `E-benchsweep` says *"all 9 park benches:
+level, clear and facing in"*. The seven faults above are gone from the world the
+auditor walks. **Nothing in this section is outstanding — it is kept only so
+that a stale-world reading is recognised next time rather than re-diagnosed.**
+
+Everything green on `:5177` at that build:
+
+| | |
+|---|---|
+| `E-benchsweep` | 9/9 level, clear, facing in |
+| `E-shelter` | four identical posts, eaves 0.67 m below their tops |
+| `E-field` | 1.50 m bands at 6.4% contrast |
+| `E-mound` | 0.37 m relief, nowhere steeper than 1 in 9.5 |
+| `E-overlap` | 0 across 150 park meshes |
+| `E-fence` | centred on its wall, base on the coping, clear of the pavement |
+| `E-partyline` | nothing the library owns crosses either party line |
+| `E-seatreach` | 9/9 reachable, approached from the front |
+
 _Builder E, 2026-07-25 22:30._
