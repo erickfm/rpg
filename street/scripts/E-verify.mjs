@@ -88,6 +88,12 @@ const AREAS = [
   // history. Exits 3 rather than failing when the [E] does not land.
   { name: 'sleepfade', script: 'scripts/E-sleep-fades-to-black.mjs',
     what: "the bed fades the screen to black, holds it, and gives the world back (K/C's row)" },
+  // LOOKS ONLY — it writes the frames O's jail row asks to be judged on and
+  // asserts nothing, so it cannot fail this suite. Listed anyway: the header
+  // claims this file is everything I have walked, and a verification that
+  // lives only in my shell history is one nobody can re-run.
+  { name: 'jail', script: 'scripts/E-verify-jail.mjs',
+    what: "O's jail, six stations — LOOKS ONLY, writes frames for a human" },
 ];
 
 // ── is what my modules PUBLISH actually read? ────────────────────────────
