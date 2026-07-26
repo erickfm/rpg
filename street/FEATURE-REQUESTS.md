@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"gap in the door sucks. also i dont like that it says stand back when you wanna close the door. it should always be able to open/close"** → **C**
 - **"there should be a bit of a gap out of the window and then just a brick wall. almost like a little room outside the window that is just brick"** → **C**
 - **"just do what i want for this bespoke minor window ask"** → **C**
   → **C.** Same ask as the row below; resolved there.

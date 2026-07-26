@@ -91,3 +91,4 @@ user anything is finished.
 | OPEN | C | would like a view out of my window but the view it just a small gap an | |
 | OPEN | C | just do what i want for this bespoke minor window ask | |
 | OPEN | C | there should be a bit of a gap out of the window and then just a brick | |
+| OPEN | C | gap in the door sucks. also i dont like that it says stand back when y | |
