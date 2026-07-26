@@ -152,19 +152,25 @@ export function buildCasino(ctx: CtxBuild): void {
     // shrink — it stops being wider than its own front door and becomes what a
     // casino actually is, a normal-width entrance with an enormous floor going
     // back from it.
-    // DEPTH 19, NOT 30, AND THE REASON IS A FAULT I COULD NOT LAND. At 30 m the
-    // way-out door stops working on foot: walk toward it from anywhere inside
-    // and you come to rest at local z 13.00 every time, from either direction,
-    // while the trigger sits at 14.45. Widening the trigger to r 1.75 did not
-    // help, and the only collider spanning the doorway is the threshold at
-    // 15.18 — so it is not collision and I have not found what it is. You could
-    // enter and not leave on foot; entry drops you inside the trigger, so it
-    // looked fine until you walked away and came back.
+    // DEPTH 19, NOT 30, AND THE REASON IS A FAULT THAT IS NOT MINE TO FIX.
+    // Re-tested at 30 m after b948e9370 raised the possibility that this class
+    // of "prompt reads null" is harness SEQUENCING rather than the world. It is
+    // not, here. Instrumented from a fresh page with nothing run before it —
+    // enter, walk to mid-room, turn, walk back at the door:
     //
-    // 19 m is the depth this room passed 30/30 on. Shipping a room you cannot
-    // walk out of, to make it deeper, is not a trade worth taking, and the
-    // measurement is in notes/BLOCKED-G.md for whoever owns the kit's door
-    // spots.
+    //   z 7.04  8.03  9.08  10.12  11.17  12.21  13.00  13.00
+    //   came to rest at 13.00, pressed E, still inside at (600.00, 13.00)
+    //
+    // The way-out spot is at hd - 0.55 = 14.45 with r 1.05, so it starts at
+    // 13.40 and the player cannot get within 0.40 m of it. You can enter this
+    // room and not leave it. Nothing explains the stop: the only colliders
+    // across the doorway are the front wall at z 15.00-15.18 and the threshold
+    // at 15.18-15.36, and the room's own wall colliders derive correctly from
+    // hd. It is not the trigger radius either — 1.75 covers 12.70-16.20 and
+    // changed nothing, while breaking the outside landing.
+    //
+    // 19 m is the depth this room passes 30/30 on and the depth it ships at.
+    // notes/BLOCKED-G.md carries the trace for whoever owns the movement code.
     w: 11.0, d: 19.0, h: 2.9,
     palette: { floor: 0x4a2a2c, wall: 0x5a3234, ceil: 0x2b2428, trim: 0x8a6a2c },
     door: {

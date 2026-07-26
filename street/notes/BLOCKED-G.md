@@ -37,6 +37,48 @@ looks like. My own harness reads `(await pos())[3]` for landings — the right
 value was already being used ten lines from code I wrote — and I reached for
 `[1]` because it is called `y`.
 
+## 1b. A room deeper than ~20 m loses its way-out door — re-tested, still real
+
+Filed once, then re-tested after `b948e9370` found that a sibling "prompt reads
+null" fault was harness SEQUENCING rather than the world. Its lesson is to
+instrument the thing itself instead of reconstructing it, so I did. **It is not
+sequencing here.**
+
+From a fresh page with nothing run before it — enter the casino at d 30, walk to
+mid-room, turn, walk back at the door, sampling every 300 ms:
+
+```
+z 7.04  8.03  9.08  10.12  11.17  12.21  13.00  13.00
+came to rest at 13.00; pressed E; still inside at (600.00, 13.00)
+```
+
+Smooth approach, hard stop at 13.00, and **E does nothing there**. The way-out
+spot is at `hd - 0.55` = 14.45 with r 1.05, so it begins at 13.40 and the player
+cannot get within 0.40 m of it. You can enter this room and not leave it on foot.
+
+**What I have ruled out.** The only colliders across the doorway are the front
+wall at z 15.00–15.18 and the threshold at 15.18–15.36 — nothing sits at 13.36.
+The room's wall colliders derive correctly from `hd` (`ct/interior.ts:778`). The
+trigger radius is not it: 1.75 covers 12.70–16.20, changed nothing, and breaks
+the outside landing, which the kit correctly warns about. And the prompt DOM read
+is unreliable — it returns null in rooms where E demonstrably works, the church
+included — so the **E test above is the real evidence**, not the prompt.
+
+**Not my code.** The stop is in whatever bounds the player inside the interior
+belt — `ct/crosstown.ts`'s movement, or the belt — not in the room. The casino
+ships at 19 m, which passes 30/30.
+
+**I said the hotel should be checked, so I checked it, and it is FINE.** At d 26
+it walks to z 12.78 against a way-out spot at 12.45 r 1.05, and E puts you on the
+street at (41.06, -97.25). So this is **not a depth ceiling** — a 26 m room comes
+to rest at its own front wall exactly as it should, while the 30 m casino stops
+2 m short of its. Whatever bounds the player is not simply "z ≤ 13 from the
+centre", and the hotel needs nothing.
+
+That also kills the tidiest theory and is worth saying: I had written "rooms
+deeper than ~20 m lose their door" and one measurement retired it. The fault is
+narrower than the rule I reached for, and I do not yet know its shape.
+
 ## 2. Window numbers for the library and the church
 
 The user's instruction was *"the interior windows must agree with the exterior E
