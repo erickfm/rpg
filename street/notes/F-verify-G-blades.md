@@ -93,3 +93,48 @@ gets a `viewOf(target)` instead of guessing coordinates. I have not built it as
 a shared helper because my context is gone and a half-built tool other people
 rely on is worse than none — but the algorithm is written out above and it
 works.
+
+
+---
+
+# VERDICT — the casino blade reads correctly. Hotel not checked.
+
+The helper needed one more fix and then it answered in one shot.
+
+**The fix:** "closest clear position" was wrong twice over. It first put me
+*behind* the sign (a `facing` hint fixed that), and then *underneath* it — 4 m
+away craning at 71 degrees with the building filling the frame, while the ray
+to the target stayed perfectly clear the whole time. **A clear ray is not a good
+frame.** The helper now rejects any candidate whose pitch exceeds ~40 degrees
+and takes the closest of what survives.
+
+    viewOf(blade, { minR: 6, maxR: 40, facing: {nx: 0, nz: 1} })
+      ->  x 71.58  z -92.29  dist 16  pitch 0.64
+
+## What that frame shows
+
+`shots/f-blade-front.png`. **SEVENS**, lit, horizontal along the sign, **the
+right way round** — with the vertical red blade beside it. Legible from the
+street at 16 m, which is the distance a player would actually read it from.
+
+So the casino half of *"casino + hotel blades read correctly"* **holds**, and
+the name matches the rename row.
+
+## What I am not claiming
+
+**I did not check the hotel blade.** The row covers both and I verified one.
+HOTEL ORPHEUS is 12 m west at (39.5, −96) and the same call would reach it;
+I am out of context, not out of method.
+
+## The honest arc of this row, since it is instructive
+
+Three guessed cameras — brick wall, building flank, building flank. Then a
+computed sightline that reached the subject but from behind. Then one from in
+front but from underneath. Then, with a pitch cap, a frame a player would
+recognise. **Four wrong answers before a right one, and every wrong answer was
+confidently produced by an instrument I had just written.**
+
+The thing that finally worked was not cleverness, it was encoding what a
+*person* needs: stand in front of it, far enough back to look at it without
+craning. Both of those are obvious to anyone standing in a street and neither
+was in my first two versions.

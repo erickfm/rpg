@@ -13,7 +13,8 @@
 //   1. walk a ring of candidate positions around the target
 //   2. step along the ray from eye height to the target
 //   3. reject the position if that ray passes through any tall mesh's box
-//   4. keep the survivor that makes the target BIGGEST in frame
+//   4. of those, keep the closest — biggest in frame
+//   5. and if the target has a FRONT, only consider positions in front of it
 //
 // KNOWN LIMITATION, found the first time I used it and left in deliberately:
 // "closest clear position" can put you BEHIND the thing. Aimed at a blade sign
@@ -63,8 +64,21 @@ export const VIEWOF_SRC = `
       var ox = t.x + Math.cos(a * Math.PI / 180) * r;
       var oz = t.z + Math.sin(a * Math.PI / 180) * r;
       if (!clear(ox, oz)) continue;
-      // CLOSEST clear position wins: the target is biggest in frame, which is
-      // the whole point - a sightline you cannot read is not a sightline.
+      // IF THE TARGET HAS A FRONT, STAND IN FRONT OF IT. Without this the
+      // helper happily picks the closest clear spot, which for a sign can be
+      // directly behind it - you get a beautiful large frame of the back of
+      // the thing and cannot tell reversed lettering from your own angle.
+      if (o.facing) {
+        var vx = ox - t.x, vz = oz - t.z;
+        if (vx * o.facing.nx + vz * o.facing.nz <= 0) continue;
+      }
+      // NOT the closest. A clear RAY is not a good FRAME: at 4 m from
+      // something 13.5 m up you are craning at 71 degrees with the building
+      // filling the view, and the ray to the target is perfectly clear the
+      // whole time. Reject anything you would have to stand underneath, then
+      // take the closest of what is left.
+      var pitch = Math.atan2(t.y - eye, r);
+      if (pitch > (o.maxPitch || 0.7)) continue;      // ~40 degrees
       if (!best || r < best.r) best = { r: r, x: ox, z: oz };
     }
   }
