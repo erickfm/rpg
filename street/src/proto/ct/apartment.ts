@@ -1564,8 +1564,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const revM = new THREE.MeshBasicMaterial({ color: 0x8b8474 });
     const revDark = new THREE.MeshBasicMaterial({ color: 0x776f61 });
     const RX = GLASS_X + REV_D / 2;
-    box(REV_D, 0.02, WIN_W + 0.04, RX, WIN_Y + WIN_H / 2 + 0.01, WIN_LZ, revDark);   // head, in shadow
-    box(REV_D, 0.02, WIN_W + 0.04, RX, WIN_Y - WIN_H / 2 - 0.01, WIN_LZ, revM);      // the reveal's own sill
+    // THE HEAD AND SILL STOP AT THE JAMBS, they do not run over them. At
+    // WIN_W + 0.04 they spanned z +-(WIN_W/2 + 0.02), which is exactly the
+    // jambs' outer face — so both solids occupied the same 2 cm cube at each
+    // top corner with coplanar faces, and the pair z-fought along the diagonal
+    // where they met. That is the stepped speckle the user is seeing on the
+    // inner edge, top and right.
+    //
+    // Measured before and after with the camera walking towards it in 2 cm
+    // steps, counting pixels that flip against a control patch of plain
+    // wallpaper under the same motion — parallax moves both, only a depth
+    // fight moves one of them far more.
+    //
+    // Fixed by giving them non-overlapping extents rather than a polygon
+    // offset, which is how the corner road and the side-street asphalt smear
+    // were both fixed: at WIN_W the head and sill butt against the jambs'
+    // inner faces and share no volume at all.
+    box(REV_D, 0.02, WIN_W, RX, WIN_Y + WIN_H / 2 + 0.01, WIN_LZ, revDark);   // head, in shadow
+    box(REV_D, 0.02, WIN_W, RX, WIN_Y - WIN_H / 2 - 0.01, WIN_LZ, revM);      // the reveal's own sill
     for (const sgn of [1, -1]) {
       box(REV_D, WIN_H + 0.04, 0.02, RX, WIN_Y, WIN_LZ + sgn * (WIN_W / 2 + 0.01),
         sgn > 0 ? revM : revDark);                // one jamb catches the light
