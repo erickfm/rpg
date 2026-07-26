@@ -1123,3 +1123,56 @@ below 20 fps does not merely see fewer frames, they see the whole world run in
 slow motion — people stand at windows half again as long, traffic crawls. If the
 world is ever reported as "sluggish" rather than "choppy", this clamp is the
 first place to look.
+
+## 44. A measurement written as a FAULT is read as an open fault forever
+
+We record numbers in comments and notes constantly, and almost always at the
+moment something is wrong — that is when anyone bothers to measure. Then the
+thing gets fixed, and the measurement stays exactly as it was written, in the
+present tense, with no outcome beside it.
+
+**It does not read as history. It reads as an open defect**, because nothing in
+it says otherwise, and the next person pays for the whole investigation again.
+
+Five of these in one session, all mine, found only by re-testing my own claims:
+
+| where | what it said | what was true |
+|---|---|---|
+| `ct/alley.ts` | *"road −58%, alley −6% … the street soaked and the alley stayed dry"* | both −12.1%, fixed by the `wet()` call three lines below it |
+| `notes/D-atm-evidence.md` | *"THE FASCIA IS A THIRD TOO SHORT"*, 0.680 m | 0.830 m, after a desk ruling and a user revision |
+| `FEATURE-REQUESTS.md` | *"visual half BLOCKED on helpers A has not exported"* | exported long since; my own `BLOCKED-D` had been withdrawn on that basis |
+| `FEATURE-REQUESTS.md` | *"built, waiting on D's roster"* | the roster placed it; 491 lot meshes in the world |
+| `notes/D-shop-resize.md` | *"the fifth number cannot hold with the other two"* | it can — I had dropped a term from the stack |
+
+**The ATM one is the expensive shape**: the ledger row says *"read
+notes/D-atm-evidence.md before touching the object"*, so a record actively routed
+people to a note describing a fault that had been ruled on twice. An object with
+four attempts and a ruling behind it was one reader away from a fifth attempt.
+
+**And a stale BLOCKED is worse than no entry at all.** A blank makes somebody
+ask; *"blocked on A"* tells the desk to route elsewhere and wait.
+
+### What to do instead
+
+- **Write the "after" in the same place as the "before".** Not in the commit
+  message, not in a new note — beside the number, where the next reader's eye
+  already is. Keep the original: it is the evidence that justified the fix, and
+  deleting it loses why the shape is what it is.
+- **Past tense for a closed fault.** *"It was a fixed 12.8 m and its neighbours
+  are 16–19 m"* cannot be misread; *"the alley stays dry"* cannot be read any
+  other way than as now.
+- **If you correct a status, correct it everywhere it lives.** I fixed the
+  bodega BLOCKED in the ledger and left it standing in `FEATURE-REQUESTS.md` for
+  several rounds. Half a correction is most of the way to none, because the two
+  files are read by different people for different reasons — and the desk routes
+  from the master log, not from the ledger.
+
+### Why a check cannot do this for you
+
+`scripts/citations-resolve.mjs` catches a pointer into a file that no longer has
+that line, and `hashes-resolve` catches a commit nobody else can reach. **Neither
+can catch a number that is simply no longer true**, because the note is
+well-formed and the file it names still exists. The only instrument that finds
+these is re-measuring your own claims, which is also how every one of the five
+above turned up.
+
