@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-46-19.png' the tree is transparent where it shouldnt be"** → **B**
 - **"'Screenshot from 2026-07-25 21-45-46.png' why is this highlighted for the thrift store?"** → **D**
 - **"'Screenshot from 2026-07-25 21-45-18.png' whys my 3rd floor neighbor floating on the 2nd floor?"** → **C**
 - **"'Screenshot from 2026-07-25 21-44-52.png' the highlight is not the contour of the full bed but simply the frame?"** → **D**
