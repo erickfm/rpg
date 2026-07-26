@@ -29,6 +29,32 @@ sitting unused since B published it.
 > One import and one material per surface. B wrote it to E's dimensions; this is
 > not a day's work, it is a line.
 
+### The exact change, and I checked that it works on a BOX
+
+B's painters return a texture for a *plane*, and civic's two offenders are **box
+top faces in a materials array** — so "one line" needed proving before I sent
+anyone to do it. Measured, off the geometry rather than assumed: a
+`BoxGeometry`'s **+Y face UVs span the full 0..1 on both axes**
+(`spansU [0,1]`, `spansV [0,1]`). `plazaTex` is `ClampToEdgeWrapping` and
+mapped 1:1 with no repeat, so it covers that face exactly.
+
+```ts
+import { plazaTex } from './tex-ground';
+
+// the materials array is [+x, -x, +y, -y, +z, -z] — index 2 is the top
+const top = new THREE.MeshBasicMaterial({ map: plazaTex(minX, maxX, minZ, maxZ) });
+const mats = [side, side, top, side, side, side];
+```
+
+Pass the slab's **world extents** in metres; the canvas is sized from them at
+32 px/m, so the flags come out 1.5 m whatever the slab measures.
+
+**One thing not to worry about:** the box's top-face V axis need not run the
+same way as world Z. It does not matter here — `plazaTex` lays its joints on a
+square grid at the same pitch both ways, so the flag pattern is symmetric under
+that flip. It would matter for `apronTex`, whose joints deliberately run across
+the direction of travel.
+
 ## What is NOT this class, so nobody should be routed for it
 
 **Park paths are already textured.** `ct/park.ts:140` defines
