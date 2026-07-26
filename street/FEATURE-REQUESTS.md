@@ -428,7 +428,17 @@ published to the playable artifact.
 - **"'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very cramped and also the door is not on the corner"** → **F**
 - **"'Screenshot from 2026-07-25 20-45-15.png' i really like the inner lobby like area to the church its v realistic imo. i like the hjoly waterr at the entrence but its clipping a bit. also the confession box is completely clipping the wall. in general the church needs to be a bit bigger. you can make it wider than it actually is outside too. by matching the exterior i really mean in general positioning. no one is going to take a ruler and measure the width of the inner and outer."** → **G**
 - **"'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the church might be off."** → **G**
-- **`rainLevel` and `wetness` stay 0 even at an hour `rainAt()` reports as raining** → **B**  <!-- B: NO LEDGER ROW EXISTS FOR THIS. Routed to B in the inbox and tracked nowhere, so live.sh has never listed it and nobody would ever have built it. I am NOT marking it built — I have not verified rainLevel/wetness against a raining hour on a current build. Needs a row before it needs a fix. -->
+- **`rainLevel` and `wetness` stay 0 even at an hour `rainAt()` reports as raining** → **B** ✅ built (does not reproduce)
+
+  <!-- B: it HAS a ledger row now — it had none, which is why nothing
+       ever chased it. MEASURED: rainAt() calls hours 0,1,10,14,16,17,21
+       raining; at 0:30 indoors at the spawn (x 198.6) rainLevel and
+       wetness are 0.0000, and OUTDOORS at x -6 they are 0.9803 and
+       0.9726. It rains. The 0 indoors is updateRain's own rule — it
+       never rains indoors, cut above x 100 — and the player SPAWNS
+       indoors, so a probe reading from spawn gets 0 forever and it looks
+       exactly like this bug. I made the same mistake myself today on the
+       same signal. node scripts/rainlive.mjs prints both side by side. -->
   Noticed by C while wiring `Frame.wet`; `props.ts` is B's, so filed rather than
   chased. `scene.userData.rainAt(62)` returns **true**, but `rainLevel` and
   `wetness` both read **0.000** for ten seconds at that hour — jumped to it, and
