@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"in general i want to be able to interact with things a lot easier and for them to have a little outline highlighted for the selection of it. the door for instance to my apt should be easy to open and close when looking at or by the door frame or the door itself."** → **D**
 - **"'Screenshot from 2026-07-25 20-47-52.png' i want to have a fist on the right side of the watch here. it actually should be really minimal considering it would be the top of the fist. no fingers would actually show so i kinda expect a square larger in width than the wrist attached to the right side of the wrist."** → **D**
 - **"'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very cramped and also the door is not on the corner"** → **F**
 - **"'Screenshot from 2026-07-25 20-45-15.png' i really like the inner lobby like area to the church its v realistic imo. i like the hjoly waterr at the entrence but its clipping a bit. also the confession box is completely clipping the wall. in general the church needs to be a bit bigger. you can make it wider than it actually is outside too. by matching the exterior i really mean in general positioning. no one is going to take a ruler and measure the width of the inner and outer."** → **G**
