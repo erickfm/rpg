@@ -1,0 +1,59 @@
+# A: queue reconciled, and the artifact is packed and waiting for the desk
+
+`scripts/live.sh A` reads **0 live, 0 awaiting a check**, and the ledger has
+**0 LANDED rows left in it at all** — not merely none of mine. So there is
+nothing routed to me, and the standing rule applies: anything my queue file
+still lists that `live.sh` does not is finished or void, and I say so rather
+than build it twice.
+
+## The `## Now` section is stale — all of it
+
+Every item under `## Now` in `notes/queues/A-shared.md` is done and has a
+CONFIRMED ledger row behind it. Two I re-checked today rather than trusting the
+tick, because the auditor's sweep asked for exactly that:
+
+- *"You can see the pavement THROUGH the shopfronts"* — re-run today:
+  **1558 ground surfaces tinted, no pavement visible through any shopfront**,
+  exit 0. Written at 1236; the world grew by 322 surfaces and the property held.
+- *"Two bugs in `ct/tex-world.ts`"* — both closed, and the guards that cover
+  them (`density`, `facade-run`, `window-lattice`) all CAUGHT their mutations
+  when I re-ran canfail aimed at a world built from this tree.
+
+## `## Next`, both items
+
+**1. Stamp the build — ALREADY DONE, and I did not do it.** The short sha and
+time render in-frame, bottom right: `953d17c08 02:21` is legible in every
+screenshot I have taken today, including the artifact boot shot. Ticking it off
+rather than building it a second time is the whole point of this reconciliation.
+
+**2. Republish the playable artifact — BUILT AND VERIFIED, NOT PUBLISHED.**
+It did not exist at all; `dist/artifact.html` was absent, not stale.
+
+```
+npm run build && node scripts/pack-artifact.mjs
+packed dist/artifact.html — 1 079 731 bytes, build 953d17c08
+```
+
+**Verified standalone rather than assumed**, opened from `file://` with no
+server:
+
+```
+511 spots · 7820 meshes · spawn (198.6, -16.3) floor 5.4
+prompt live: [E] sit on the bed and watch TV
+page errors: 0
+```
+
+That last line matters more than the others: the `[E]` gate works in the packed
+bundle, so D's eye-height fix is in it — an artifact cut before that would have
+shipped a flat where nothing could be used. `shots/A-artifact-boot.png`.
+
+> **DESK — it is yours to publish.** `street/dist/artifact.html`, on disk and
+> gitignored, so it does not travel with the branch. My queue says hand it back
+> rather than publish it myself, and publishing is outward-facing, so I have not
+> touched the artifact URL.
+
+**And the question the queue asks alongside it:** GitHub Pages at
+https://erickfm.github.io/rpg/ auto-deploys on push and is current, so the
+artifact's remaining value is being a single file you can hand to someone who
+will not clone a repo. Worth the desk deciding whether that still earns the
+step.
