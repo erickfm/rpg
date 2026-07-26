@@ -82,18 +82,30 @@ await page.waitForTimeout(150);
 // so any distance-per-second bar is a bet on how busy the machine is. Poll the
 // position and stop when the target is reached or progress stalls — §30's own
 // prescription, and the same fix `lotwalk.mjs` needed.
+//
+// AND IT RETRIES, because a CONTROL that fails spuriously is the worst kind of
+// red: it discredits the real verdict standing beside it. Under four-way load
+// one run in three read 0.00 m — the keydown never reached a starved page at
+// all. Three attempts, best distance wins, and a failure now means the keys
+// genuinely are not arriving, which is exactly what this control is for.
 const WALK_TARGET = 1.0;
-const walkFrom = await page.evaluate(() => { const q = window.__ct.pos(); return [q[0], q[2]]; });
-await page.keyboard.down('w');
-let WALK = 0, stalled = 0;
-for (let i = 0; i < 60; i++) {
-  await page.waitForTimeout(120);
-  const now = await travelled(walkFrom);
-  if (now - WALK < 0.01) stalled++; else stalled = 0;
-  WALK = now;
-  if (WALK >= WALK_TARGET || stalled >= 6) break;      // there, or against a wall
+let WALK = 0;
+for (let attempt = 0; attempt < 3 && WALK < WALK_TARGET; attempt++) {
+  await warp();
+  await page.waitForTimeout(200);
+  const walkFrom = await page.evaluate(() => { const q = window.__ct.pos(); return [q[0], q[2]]; });
+  await page.keyboard.down('w');
+  let d = 0, stalled = 0;
+  for (let i = 0; i < 60; i++) {
+    await page.waitForTimeout(120);
+    const now = await travelled(walkFrom);
+    if (now - d < 0.01) stalled++; else stalled = 0;
+    d = now;
+    if (d >= WALK_TARGET || stalled >= 10) break;      // there, or against a wall
+  }
+  await page.keyboard.up('w');
+  WALK = Math.max(WALK, d);
 }
-await page.keyboard.up('w');
 ok(WALK >= WALK_TARGET,
   `CONTROL: a held W with no fade really walks (${WALK.toFixed(2)} m, walked until it got there`
   + ` rather than for a fixed time — the sim runs at ~0.66x wall clock headless)`);
