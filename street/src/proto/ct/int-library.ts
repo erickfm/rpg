@@ -57,8 +57,20 @@ export const DOOR: DoorDecl = {
 // The gallery's own numbers, above buildRoom because the floor function inside
 // the spec closes over them. x 4.30 to the east wall, deck at 2.90, and the
 // flight running from z 6.60 at the bottom up to z 2.00 at the top.
-const GALLERY_X0 = 4.30, GALLERY_X1 = 7.30, GALLERY_Y = 2.90;
-const GALLERY_Z1 = 2.00, STAIR_Z0 = 6.60;
+// The gallery hugs the east wall of a 20 m room. It was 4.30..7.30 in a 14.8 m
+// one; taking the width moves it out with the wall rather than leaving it
+// stranded mid-floor.
+const GALLERY_X0 = 6.90, GALLERY_X1 = 9.90, GALLERY_Y = 2.90;
+// The flight's foot is at STAIR_Z0 and it must stand CLEAR of the vestibule
+// pier, which spans the room at z = D/2 - VEST_D = 6.80. At 6.60 the foot was
+// 0.2 m from that pier — no room to stand and step onto it, so the stair was
+// reachable only in theory. That is what "inaccessible because of walls" was:
+// not the balustrade, the porch I built in front of it.
+//
+// 5.40 leaves 1.4 m of floor to turn onto the bottom tread, and dropping the
+// top to 0.60 keeps the run at 4.80 m for 2.90 of rise — 31 degrees, still a
+// real stair.
+const GALLERY_Z1 = 0.60, STAIR_Z0 = 5.40;
 
 export function buildLibrary(ctx: CtxBuild): void {
   const room = buildRoom(ctx, {
@@ -66,6 +78,14 @@ export function buildLibrary(ctx: CtxBuild): void {
     label: 'into the PVBLIC LIBRARY',
     // "Make the library interior larger and more ambitious. More halls and stair
     // ways." 11 m deep was one room; 22 m is a building you walk through.
+    // WIDER THAN THE BUILDING, on the user's ruling: "you can make it wider than
+    // it actually is outside too... no one is going to take a ruler and measure
+    // the width of the inner and outer." The room took roomWidthFor(16) = 14.8
+    // from its frontage; a gallery down one side of that leaves the floor below
+    // it narrow, which is the shape complaint the auditor measured. 20 m gives
+    // the stacks their runs AND the gallery its strip without either squeezing
+    // the other.
+    w: 20.0,
     d: 22.0,
     // 6.4, up from 3.6. The tall half of "small dark vestibule, then through into
     // a tall reading room" — that contrast IS the experience of a Carnegie
@@ -284,7 +304,16 @@ export function buildLibrary(ctx: CtxBuild): void {
   // which is the desk's face plus a capsule radius. The desk still faces the
   // door — it is the first thing you meet coming out of the vestibule — it is
   // simply no longer parked in front of the only way upstairs.
-  const DESK_X = W / 2 - 6.5, DESK_Z = D / 2 - 5.8;
+  // WEST OF THE AXIS. At W/2 - 6.5 the desk sat at x 2.0..5.0, z 4.75..5.65 —
+  // straight across the route from the arch to the stair, so walking at the
+  // gallery you stopped dead on the counter. The user's instruction was "if the
+  // stair is behind the desk, move the stair, not the walls"; here the stair has
+  // to stay on the wall it serves, so the DESK moves and the effect is the same
+  // — the east half of the room is now clear from the arch to the bottom tread.
+  //
+  // It still faces the door and is still the first thing you meet coming out of
+  // the vestibule, which is all a circulation desk has to be.
+  const DESK_X = -(W / 2 - 6.5), DESK_Z = D / 2 - 5.8;
   box(2.9, 1.06, 0.72, wood, DESK_X, 0.53, DESK_Z);
   box(3.0, 0.06, 0.82, woodDark, DESK_X, 1.09, DESK_Z);                 // the worn top
   box(0.5, 0.16, 0.34, woodDark, DESK_X - 0.9, 1.20, DESK_Z);           // date stamp block
@@ -409,10 +438,41 @@ export function buildLibrary(ctx: CtxBuild): void {
       box(GW, 0.06, run + 0.02, wood, GCX, ty, tz);
       box(GW, rise, 0.05, woodDark, GCX, ty - rise / 2, tz - run / 2);
     }
-    // the string wall on the open side, so you cannot step off the flight
-    box(0.14, GALLERY_Y + 0.9, STAIR_Z0 - GALLERY_Z1, woodDark,
-      GALLERY_X0 + 0.07, (GALLERY_Y + 0.9) / 2 - 0.4, (STAIR_Z0 + GALLERY_Z1) / 2);
-    solid(GALLERY_X0 + 0.07, (STAIR_Z0 + GALLERY_Z1) / 2, 0.22, STAIR_Z0 - GALLERY_Z1);
+    // AN OPEN BALUSTRADE ON THE FLIGHT, NOT A WALL. This was a solid
+    // 0.14 x 3.80 x 4.60 slab of dark timber down the open side of the stair —
+    // "the largest object in his view and a featureless untextured rectangle",
+    // and the thing that made the gallery read as inaccessible: it hid the
+    // flight from the room, so the best object in here was something you could
+    // look at and not reach.
+    //
+    // The rail does the job the wall was there for — you still cannot step off
+    // the flight, because the collider stays — and you can now SEE the stair
+    // from the floor, which is what makes it reachable without hunting.
+    {
+      // THE BOTTOM OF THE FLIGHT IS OPEN TO THE ROOM. With the balustrade running
+      // the full length you could only join the stair at its foot, from a 1.4 m
+      // band behind the vestibule pier — two turns and a corridor you cannot see
+      // from the door. That is "reachable" but not the ask, which was reachable
+      // OBVIOUSLY, "without opening a map in your head".
+      //
+      // Leaving the lowest 1.5 m of the flight unrailed lets you step onto it
+      // sideways off the open floor, which is what an open-string stair in a
+      // public hall actually is. The rail still guards the part with a drop.
+      const OPEN_FOOT = 1.5;
+      const zc2 = (STAIR_Z0 + GALLERY_Z1) / 2, len2 = STAIR_Z0 - GALLERY_Z1;
+      const rise2 = GALLERY_Y / len2;
+      for (let bz = GALLERY_Z1 + 0.24; bz < STAIR_Z0 - OPEN_FOOT; bz += 0.34) {
+        const yb = GALLERY_Y - (bz - GALLERY_Z1) * rise2;   // follows the flight
+        box(0.07, 0.88, 0.07, woodDark, GALLERY_X0 + 0.07, yb + 0.44, bz);
+      }
+      // the handrail itself, raked along the same gradient
+      for (let i = 0; i < 10; i++) {
+        const t = i / 9, bz = GALLERY_Z1 + t * (len2 - OPEN_FOOT);
+        const yb = GALLERY_Y - (bz - GALLERY_Z1) * rise2;
+        box(0.10, 0.09, len2 / 9 + 0.04, wood, GALLERY_X0 + 0.07, yb + 0.94, bz);
+      }
+      solid(GALLERY_X0 + 0.07, zc2 - OPEN_FOOT / 2, 0.22, len2 - OPEN_FOOT);
+    }
 
     // the balustrade you look down from, and a collider so the drop is guarded
     const RAIL_Y = GALLERY_Y + 0.98;
