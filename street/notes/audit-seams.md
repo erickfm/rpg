@@ -1518,3 +1518,38 @@ This is the same family as the four tree-pit failures and the AABB misses: **the
 instrument agreed with itself and was wrong.** The pattern across all of them is
 that a measurement aligned to the wrong axis, or built on the wrong primitive,
 fails *silently and plausibly* — never with an error, always with a number.
+
+## [C] REGRESSION: every interior keeper is ~1.6 m under its floor
+
+Ten of ten, measured on the **painted foot** rather than the quad:
+
+    bodega -1.66  burger -1.66  casino -1.63  church -1.21  diner -1.61
+    hotel  -1.66  library -1.61  pawn  -1.66  tax    -1.65  thrift -1.58
+
+A 1.8 m figure sunk 1.6 m is invisible, and they are: the librarian is absent
+from three stations in her room, and the tax preparer — **photographed behind his
+desk earlier today from the identical viewpoint with the identical script** — is
+gone from that frame while every stick of furniture still renders.
+
+**It appeared between `98042722a` and `44c89d448`.** One offset in one place:
+every room is wrong by nearly the same amount, and the church differs only
+because its floor sits at 0.18 rather than 0.
+
+**I have withdrawn the CONFIRMED on "interior people on the 8-angle atlas".** I
+confirmed it when they were visible; they are not now, and a false CONFIRMED is
+worse than an OPEN — that is the whole reason this ledger exists.
+
+**[I] I nearly missed it twice, in opposite directions.**
+
+First I measured every keeper as "SUNK 1.7–1.8 m" from its **bounding box** and
+almost filed a world-wide fault — which would have been wrong, because the quad
+deliberately hangs below the floor so the painted shoe lands on it. That is the
+floating-citizen finding, mine, from earlier in this same audit.
+
+Then, having caught that, I nearly dismissed the whole thing as the same quad
+artefact — and it is not. **`footpaint.mjs` exists precisely to tell those two
+apart, and it says the painted foot is 1.6 m down.**
+
+*The same instrument error can produce a false alarm and a false all-clear on
+consecutive attempts.* What settled it was neither measurement but the pair of
+photographs: same script, same station, one figure present and then absent.
