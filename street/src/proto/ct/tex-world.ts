@@ -489,6 +489,12 @@ function characterOf(name: string): Character {
  *  need the same value and two copies is how they drifted apart. */
 const DINER_STEEL = '#9aa0a4';
 
+/** the gap between the diner's glass-block panel and its glazing — a real
+ *  pier, wide enough to read as one at 16 px/m. `layoutOf` sets the glazing
+ *  span from it and `dinerFront` paints the block against the same number, so
+ *  there is no second place that decides where the block ends. */
+const DINER_PIER = 0.25;
+
 /**
  * WHAT COLOUR THIS SHOP'S JOINERY IS — the projecting cornice, bed mould and
  * cill that `shopfrontRelief` stands off the wall.
@@ -548,12 +554,35 @@ function layoutOf(name: string, wMeters: number): Layout {
   const ow = wMeters - 2 * B.ox;                       // the opening cut in the brick
   let glazingStartM = B.ox + B.gi;
   let glazingEndM = glazingStartM + (ow - 2 * B.gi);
-  // the diner spends its left end on a glass-block panel, so its glazing —
-  // and therefore its door — starts past it
+  // The diner spends one end on a glass-block panel, so its glazing — and
+  // therefore its door — starts past it.
+  //
+  // WHICH end is decided by where the ROOM put the door, not by a constant.
+  // It used to be always the low-u end, chosen back when this painter also
+  // chose the door and put it at the far end. The room now declares the door
+  // at the OTHER end, and nothing re-derived the block against it: measured,
+  // the door's left 0.44 m hung over the block, and the two abutted with a
+  // 0.06 m gap, so the left 3.1 m of the front read as one pale slab with a
+  // scratch in it. `notes/A-diner-facade-look.md` has the colour runs.
+  //
+  // That is GOTCHAS 33's shape exactly — a thing with a side was placed by
+  // copying, and nothing recomputed which way it should face when its
+  // neighbour moved. So derive it, and it keeps working if the room moves
+  // again.
   if (k === 'diner') {
     const bw = Math.min(2.2, ow * 0.22);
-    glazingStartM = B.ox + 0.2 + bw + 0.25;
-    glazingEndM = B.ox + ow - 0.2;
+    // Undeclared keeps the old geometry EXACTLY: this is also the fallback a
+    // shop with no room behind it gets, and it should not move because the
+    // diner happens to have one.
+    const declared = declaredAlongU(name, wMeters);
+    const blockLow = declared === null ? true : declared > wMeters / 2;
+    if (blockLow) {
+      glazingStartM = B.ox + 0.2 + bw + DINER_PIER;
+      glazingEndM = B.ox + ow - 0.2;
+    } else {
+      glazingStartM = B.ox + 0.2;
+      glazingEndM = B.ox + ow - 0.2 - bw - DINER_PIER;
+    }
   }
   const gw = glazingEndM - glazingStartM;
   const dw = B.dw;
@@ -704,11 +733,19 @@ const toWorld = (p: Placement, alongU: number) =>
   p.uDir > 0 ? p.loWorld + alongU : p.hiWorld - alongU;
 
 export function registerFrontage(name: string, wMeters: number, p: Placement): FrontageWorld {
-  const L = layoutOf(name, wMeters);          // the fallback, deliberately unresolved
+  // THE PLACEMENT GOES IN FIRST, and the order is load-bearing. `layoutOf`
+  // now asks `declaredAlongU` which end the diner's glass block belongs on,
+  // and that cannot resolve a world coordinate without a placement to resolve
+  // it against. Built before this line, the diner's layout silently takes the
+  // undeclared fallback — which is the old, wrong side — while the painter,
+  // running later with the placement in hand, takes the right one. Two
+  // answers, no error, and the published glazing span would describe a front
+  // nobody paints.
+  FRONTAGES.set(name, { ...p, frontageM: wMeters } as FrontageWorld);   // so declaredAlongU can resolve
+  const L = layoutOf(name, wMeters);
   const a = toWorld(p, L.glazingStartM), b = toWorld(p, L.glazingEndM);
   // the room's number wins; the painter's own layout is only the fallback for
   // a shop that has no room behind it
-  FRONTAGES.set(name, { ...p, frontageM: wMeters } as FrontageWorld);   // so declaredAlongU can resolve
   const along = declaredAlongU(name, wMeters);
   const f: FrontageWorld = {
     ...p,
@@ -876,7 +913,6 @@ export function shopfrontRelief(o: {
    *  local +z points out at the street */
   rotY: number;
 }): void {
-  const F = frontageOf(o.name, o.wMeters);
   // Publish where this frontage actually is, while we still have the placement
   // in hand. rotY tells us the axis, the outward normal and — the only piece of
   // handedness in the system — which way canvas u runs. Those four values were
@@ -892,6 +928,19 @@ export function shopfrontRelief(o: {
     : near(Math.PI) ? { axis: 'x', loWorld: o.x - half, hiWorld: o.x + half, facePos: o.z, outward: -1, uDir: -1 }
     : null;
   if (place) registerFrontage(o.name, o.wMeters, place);
+  // …AND ONLY THEN ask what the frontage looks like. `frontageOf` was called
+  // at the top of this function, before the registration below it, so it could
+  // never see a room's declaration — `declaredAlongU` needs a placement to
+  // resolve a world coordinate against and there was none yet.
+  //
+  // That was harmless while the diner's glass block sat on a fixed end,
+  // because the declared and undeclared layouts differed only in the door and
+  // nothing here reads the door. It stopped being harmless the moment the
+  // block's END became a function of the declaration: the mouldings would have
+  // framed the glazing where the painter USED to put it, at the other end of
+  // the shop from the glass the painter actually draws. One mesh fewer and 165
+  // textures repainted in the fingerprint, which is how it was caught.
+  const F = frontageOf(o.name, o.wMeters);
   const g = new THREE.Group();
   g.position.set(o.x, 0, o.z);
   g.rotation.y = o.rotY;
@@ -1613,28 +1662,87 @@ const dinerFront = (brick: string, nm: string, wM: number) => {
     const ox = m(B.ox), oy = fy + fh + m(B.og), ow = W - m(2 * B.ox), oh = H - oy - m(0.05);
     g.fillStyle = '#26221c'; g.fillRect(ox, oy, ow, oh);
     reveal(g, surf, ox, oy, ow, oh);
-    // glass block at the left end: lit, translucent, shows nothing through it
-    const bw = Math.min(m(2.2), Math.round(ow * 0.22));
+    // THE GLASS BLOCK SITS WHERE THE GLAZING IS NOT, and the glazing span is
+    // `layoutOf`'s. This used to recompute the block's position and width from
+    // scratch — a second place deciding the same fact — and when the room
+    // declared its door at the block's end, the block did not know. Reading
+    // the published span instead means the two cannot disagree: whichever end
+    // is left over IS the block.
     const gy = oy + m(B.gi), gh = oh - m(B.sg);
-    g.fillStyle = '#b9c4c2'; g.fillRect(ox + m(0.2), gy, bw, gh);
+    const gx = m(F.glazingStartM), gw = m(F.glazingEndM - F.glazingStartM);
+    const blockLow = F.glazingStartM > B.ox + 0.5;      // glazing starts late => block precedes it
+    const bx0 = blockLow ? ox + m(0.2) : gx + gw + m(DINER_PIER);
+    const bx1 = blockLow ? gx - m(DINER_PIER) : ox + ow - m(0.2);
+    // THE BLOCK WAS BRIGHTER THAN THE SKY. #b9c4c2 measures luma 203 against a
+    // daylight sky at about 163, so a panel that is supposed to be translucent
+    // glass read as a lit slab — the single brightest thing on the street, on a
+    // block whose whole palette is muted 1997. Moving it to the far end fixed
+    // where it was; it did not fix what it looked like, and walking up from the
+    // thrift the same white wall was simply waiting at the other end.
+    //
+    // This is glass block seen from OUTSIDE on an overcast afternoon: green-grey,
+    // darker than the sky, lighter at the head where it catches more of it.
+    // The value here is MEASURED, not chosen: `scripts/A-diner-block-vs-sky.mjs`
+    // reads the block's modal tone off this canvas and the sky off the scene
+    // background, and the base colour was set until the first is below the
+    // second. My first attempt at it was reasoned rather than measured — I
+    // picked a base at luma 151 against a sky I assumed was 163, and the real
+    // numbers were a 169 block against a 149 sky, because the per-cell
+    // highlight and the room glow below both lift the modal tone well above
+    // the base fill. It was still the brightest thing on the street and I
+    // would have committed it saying otherwise.
+    const BLOCK = '#6f7b76';
+    g.fillStyle = BLOCK; g.fillRect(bx0, gy, bx1 - bx0, gh);
+    // it is lit from the room behind, so the light falls off downward
+    for (let i = 0; i < gh; i++) {
+      g.fillStyle = `rgba(206,216,210,${0.12 * (1 - i / gh)})`;
+      g.fillRect(bx0, gy + i, bx1 - bx0, 1);
+    }
     for (let y = gy; y < gy + gh; y += m(0.42)) {
-      for (let x = ox + m(0.2); x < ox + m(0.2) + bw; x += m(0.42)) {
-        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x, y, m(0.36), m(0.36));
-        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x, y + m(0.36), m(0.42), m(0.05));
-        g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x + m(0.36), y, m(0.05), m(0.42));
+      for (let x = bx0; x < bx1; x += m(0.42)) {
+        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(x, y, m(0.36), m(0.36));
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, y + m(0.36), m(0.42), m(0.05));
+        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x + m(0.36), y, m(0.05), m(0.42));
       }
     }
+    // grime, heaviest at the foot where the pavement throws it up. Nothing on
+    // this street is clean and the block was the one surface pretending to be.
+    g.fillStyle = 'rgba(58,54,44,0.20)'; g.fillRect(bx0, gy + gh - m(0.5), bx1 - bx0, m(0.5));
+    g.fillStyle = 'rgba(58,54,44,0.12)'; g.fillRect(bx0, gy + gh - m(0.95), bx1 - bx0, m(0.45));
+    // THE PIER between block and glazing, so the two panels are separated by
+    // something rather than butting up. Two bright neutrals 0.06 m apart read
+    // as one slab with a scratch in it, which is what the user was looking at.
+    {
+      const px = blockLow ? bx1 : gx + gw;
+      g.fillStyle = '#2a2620'; g.fillRect(px, gy, m(DINER_PIER), gh);
+      g.fillStyle = SH; g.fillRect(px, gy, Math.max(1, m(0.06)), gh);
+      g.fillStyle = HI; g.fillRect(px + m(DINER_PIER) - Math.max(1, m(0.06)), gy, Math.max(1, m(0.06)), gh);
+    }
     // the window: counter, stools, a row of booths behind
-    const gx = ox + m(B.gi) + bw + m(0.25), gw = ow - (gx - ox) - m(B.gi);
     glazed(g, surf, gx, gy, gw, gh, '#3a2f26');
     g.fillStyle = '#d8b46a'; g.fillRect(gx, gy, gw, m(0.3));                       // warm ceiling
     g.fillStyle = 'rgba(216,180,106,0.28)'; g.fillRect(gx, gy + m(0.3), gw, m(0.55));
     g.fillStyle = CREAM; g.fillRect(gx, gy + m(1.55), gw, m(0.16));                // the counter top
     g.fillStyle = STEEL_D; g.fillRect(gx, gy + m(1.71), gw, m(0.12));
-    g.fillStyle = '#1e1a16'; g.fillRect(gx, gy + m(1.83), gw, m(0.55));            // under the counter
+    // UNDER THE COUNTER. This was one flat #1e1a16 across the whole glazing —
+    // 7.8 m of it on a 12 m front, the largest single tone on the shop and the
+    // third thing measurably wrong with it. It is still dark, because it is the
+    // shadow under a counter and a diner window IS dark below the worktop; what
+    // it now has is the two things that live down there.
+    g.fillStyle = '#1e1a16'; g.fillRect(gx, gy + m(1.83), gw, m(0.55));
+    // the counter's own base, kicked back so its toe is in deeper shadow
+    g.fillStyle = '#241f19'; g.fillRect(gx, gy + m(1.83), gw, m(0.26));
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(gx, gy + m(2.24), gw, m(0.14));
+    // and the chrome foot rail, which is the one thing that catches light under
+    // there — it is what makes the row of stools read as a counter you sit at
+    g.fillStyle = STEEL_D; g.fillRect(gx, gy + m(2.06), gw, Math.max(1, m(0.09)));
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(gx, gy + m(2.06), gw, 1);
     for (let x = gx + m(0.45); x < gx + gw - m(0.3); x += m(0.85)) {               // stools
       g.fillStyle = VINYL; g.fillRect(x, gy + m(1.34), m(0.34), m(0.22));
       g.fillStyle = STEEL; g.fillRect(x + m(0.13), gy + m(1.56), m(0.08), m(0.5));
+      // the pedestal below the seat, and the shadow it drops on the floor
+      g.fillStyle = '#15120f'; g.fillRect(x + m(0.13), gy + m(2.15), m(0.08), m(0.23));
+      g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + m(0.04), gy + m(2.33), m(0.26), m(0.05));
     }
     g.fillStyle = '#2a221c';                                                        // booths at the back
     for (let x = gx + m(0.3); x < gx + gw - m(0.6); x += m(1.9)) g.fillRect(x, gy + m(0.85), m(1.1), m(0.5));
