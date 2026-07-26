@@ -506,7 +506,13 @@ for (room of rooms) {
   const doorLane = standables.reduce((best, c) =>
     (best === null || nearDoor(c[0], c[1]) < nearDoor(best[0], best[1]) ? c : best), null);
   if (doorLane) {
-    await warp(cx + DOOR.x + DOOR.nx * 0.9, doorLane[1],
+    // ALONG the normal from the lane, ACROSS it from the door: project the
+    // standable lane onto the normal line through the doorway. On a front wall
+    // (n = 0,-1) that is exactly (DOOR.x, lane.z), which is what this did
+    // before; on the bodega's cut it slides along the 45 degree face instead of
+    // standing at the door's x and the lane's z, which is out in the shop.
+    const _d = (doorLane[0] - DOOR.x) * DOOR.nx + (doorLane[1] - DOOR.z) * DOOR.nz;
+    await warp(cx + DOOR.x + DOOR.nx * _d, DOOR.z + DOOR.nz * _d,
       // yaw 0 is -z (see ctx.Seat), so facing along the INWARD normal is
       // atan2(nx, nz) — which is Math.PI for a front-wall door, exactly what
       // this warped to before. Negating it turned every room to face the back

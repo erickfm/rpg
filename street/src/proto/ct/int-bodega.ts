@@ -209,7 +209,17 @@ export function buildBodega(ctx: CtxBuild): void {
   //
   // The lottery and the cigarettes are the one part of the shop the customer
   // cannot reach, which is exactly why they are the part worth drawing.
-  const CTR_X = hw - 1.5, CTR_Z = hd - 2.6;
+  // BACK FROM THE CORNER, because the door is in the corner now.
+  //
+  // At `hd - 2.6` the counter's collider spanned z 1.6…4.2 and the cut door's
+  // approach runs through (2.76, 3.86) — so the entrance opened straight into
+  // the till. Measured, not guessed: walking out along the doorway's own normal
+  // was blocked at 0.6, 0.9, 1.3 and 1.8 m and clear only at 2.5.
+  //
+  // A corner shop puts its counter where it can watch the door, not across it.
+  // `hd - 4.6` keeps it on the same wall, still facing the entrance, with the
+  // corner itself left as the way in.
+  const CTR_X = hw - 1.5, CTR_Z = hd - 4.6;
   const ctrTopT = declareSurface(pixTex(64, 16, (g) => {
     g.fillStyle = '#b0a692'; g.fillRect(0, 0, 64, 16);
     g.fillStyle = 'rgba(90,70,50,0.22)';

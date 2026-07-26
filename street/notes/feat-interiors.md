@@ -851,3 +851,35 @@ contents the user has already approved — so it is rearranging, not adding.
 Four wrong theories reached this one, each disproved by measuring: the harness's
 door model, the approach point's axes, the collider fatness, and now the layout.
 `door: true` is one line the day the aisle points at the corner.
+
+
+## Bodega door-in-cut, attempt six: the corner is clear, the trigger still misses
+
+Three real improvements landed and the flag is still off. What changed:
+
+- **the counter moved back.** At `hd - 2.6` its collider spanned z 1.6…4.2 and
+  the cut door's approach runs through (2.76, 3.86) — the entrance opened
+  straight into the till. At `hd - 4.6` it still faces the door and no longer
+  crosses it. **The approach is now completely clear**: no collider at 0.6, 0.9,
+  1.3 or 1.8 m along the doorway's normal, where every one of those was blocked
+  before.
+- **the harness projects the lane onto the door's normal**, so the approach
+  point is door-derived ALONG the wall and lane-derived ACROSS it. On a flat
+  wall that is identical to what it did before — verified, diner 25/25, thrift
+  29/29, church 25/25 — and on a diagonal it slides along the face instead of
+  standing at the door's x and the lane's z.
+- **a cut-face entrance gets a 1.4 m trigger** rather than 1.0.
+
+**Still 20/25 with `door: true`, and the cause is now arithmetic rather than
+mystery.** The way-out spot sits at local (2.83, 3.93); the projected standing
+point lands at (2.05, 3.15). That is 1.10 m apart — the reason the 1.0 m trigger
+missed. Widening to 1.4 did not fix it either, which says the standing point and
+the spot are being derived from the cut face with two different insets, and one
+of them is wrong. That is a ten-line problem for someone with a fresh window,
+not a mystery.
+
+**Six attempts, six measurements, five theories retired:** the harness's door
+model, the approach point's axes, the collider fatness, the room's fixtures, and
+now the trigger radius. Each one was disproved by measuring rather than
+reasoning, and each left the room better than it found it. The shape is landed
+and green; only the door's position inside it is outstanding.

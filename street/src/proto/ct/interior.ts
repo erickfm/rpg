@@ -1034,7 +1034,11 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     act: () => player.jumpTo(spotX, arriveZ, 0, 0),
   });
   ctx.spot({
-    x: spotX, z: spotZ, r: 1.0,
+    // 1.4 on a cut face, 1.0 on a flat one. A corner entrance is approached
+    // diagonally and from a wider arc — the natural standing point works out
+    // ~1.1 m from the spot, which a 1.0 m trigger misses by a hand's breadth.
+    // Measured: prompt=null at (2.05, 3.15) against a spot at (2.83, 3.93).
+    x: spotX, z: spotZ, r: CH ? 1.4 : 1.0,
     ok: () => player.x() >= x0 && player.x() < x1,
     label: () => 'out to the street',
     act: () => player.jumpTo(outAt.x, outAt.z, outAt.yaw, outAt.gy),
