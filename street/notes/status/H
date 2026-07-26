@@ -1,1 +1,1 @@
-DONE | 0 live; last LANDED is the modal-prompt fault I filed, fix not built | desk: prompt must not claim E while a panel owns the keyboard
+DONE | 0 live, LANDED pile empty; ledger intact 230/230 | desk: merging verifier commits promptly stops the replay cost
