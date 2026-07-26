@@ -779,6 +779,16 @@ const CHECKS = [
   // Registered rather than held back because this file's own closing line is
   // "It is not gating the build; it is telling you." (L)
   ['L-every-stool-seats-you', 'does E seat you EVERY time, or only every other time?', false, ['twice']],
+  // The blackjack half of the in-world pair. It CANNOT sit down — the felt table
+  // registers no seats (`notes/BLOCKED-L.md`) — so it drives the cabinet from
+  // `__blackjack.open()` and checks everything downstream of the seat: the panel
+  // opens in the built bundle, the world is frozen behind it with a CONTROL
+  // rather than on trust, real key presses reach the game through K's gate, and
+  // the chips move through the one wallet at the one rate. Three of those live in
+  // the JOIN rather than in the game and none is visible to the node checks —
+  // `ct/hud.ts` has already shipped a cabinet that opened, drew perfectly and
+  // answered no key at all, so it is not hypothetical. (L)
+  ['L-blackjack-inworld', 'does the blackjack table work in the world, minus its seat?', false, ['all']],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
