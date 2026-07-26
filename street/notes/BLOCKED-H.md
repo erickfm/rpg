@@ -1,61 +1,60 @@
 # BLOCKED — builder H
 
-`scripts/live.sh H` reads **0 live, 1 awaiting a check**. I have nothing routed
-to me that is not already built, and the four things I am waiting on are all
-owed by someone else. Declaring BLOCKED rather than DONE because live.sh is not
-empty, and rather than WORKING because I am not building anything — an
-unreported block is the failure, not the block.
+**Item:** *"i want the people inside the buildings to be as detailed and
+quake-view like as the pedestrians on the street"* — routed to me because I own
+`ct/citizens.ts` and the 8-angle atlas.
 
-## 1. AUDITOR — the east-end road flag, and the blocker is now gone
+## What I found, and it is not what the routing assumed
 
-The one CHECK row. The audit left it LANDED for a good reason: *"`netRoute`
-exposes no net, nodes or edges, so an outside test cannot read an edge's road
-flag"*, and it noted correctly that nothing being stranded there is consistent
-with the fix but is not evidence of it — the flag governs lateral allowance,
-not whether anyone gets stuck. That was my affordance being too thin.
+The row says *"H owns the atlas, which is where the detail lives; F and G place
+the keepers"* — implying the primitive exists and the work is adoption. **It
+does not, for the case that matters.**
 
-**Fixed: `netRoute` now returns the edges it walked**, each with `road`, `half`
-and `len`, plus a `crossings` count. It discriminates both ways:
+`citizenSprite` is shipped and five modules use it (`apartment`, `interior`,
+`lot`, `park`, `weeds`). All ten `ct/int-*.ts` interiors still hand-draw
+figures. That is not because nobody read `CITIZEN-STYLE.md` — **it is because
+the atlas has only a STANDING pose**, and `Look` carries `jacket pants skin
+hair fit accent cut build stride grime` and nothing else. A diner booth, a
+casino stool, a church pew and a library reading table have nothing to call.
 
-```
-s-east   -> ne-corner   road=true   half=1.30   the fix
-n-corner -> w-corner    road=true   half=1.30   main crossing, for contrast
-w-win1   -> w-alley     road=false  half=0.55   a plain walk
-```
+So the missing half of "as detailed as the pedestrians" is not the detail. It
+is the POSE.
 
-I may not mark my own work CONFIRMED. Ready for re-check.
+## I tried it, and a leg-only fold is not enough — see `shots/seated.png`
 
-## 2. D — the second alley's shell has not landed
+I added `seated?: boolean` and folded the lower body: thigh forward from the
+hip, shin down from the knee, foreshortened on the front and back views. The
+render is in `shots/seated.png`, standing above seated, all five views.
 
-`crosstown.ts` still declares only `AZ0 = -37, AZ1 = -43.5`. The desk asked me
-to check that walkers and parked cars do not path or park across the new alley
-between the pawn shop and No. 227; I cannot until it exists.
+**It fails on four views of five.** The profile reads as sitting. Views 0, 1, 3
+and 4 look like a standing figure with odd shins, because I moved only the legs
+— and **a seated person's whole upper body drops by about a thigh's length.**
+Keeping the head at standing height is what makes it read as standing.
 
-`notes/H-for-D-second-alley.md` says what I will measure and, more usefully,
-the one thing that makes it pass by construction: **name the span.** The first
-alley is safe only because the truck's z is derived from `AZ0`
-(`truckZ0 = AZ0 + ALLEY_SIGHT + carHalf.pickup + PARK_SPREAD/2`). Inline the
-new mouth as literals and the same bug returns silently. Named, I add it to the
-keep-clear array — mine now — and `nudgeClear` handles it identically.
+I reverted it rather than ship it. A half-working pose is worse than none here:
+F and G would call it in good faith and get standing keepers in their booths,
+and the fault would surface as a user report about the interiors again.
 
-## 3. USER — the pickup's bed floor, the last non-uniform density
+## What it actually needs, and why I stopped
 
-Every face on every vehicle is square-texel at 32 px/m, 0 off square. The bed
-floor is the exception at **16.2 x 16.1**: square, so nothing is stretched —
-simply half the resolution of the walls around it, with its ribs drawn to that
-grid. Doubling it means redrawing the ribs, which is a **look change, not a
-density fix**, so it wants an eye rather than my judgement.
+The head, torso and arms are drawn at fixed rows near the top of the frame.
+Seating means offsetting that whole block down by ~8-10 rows and folding the
+legs into the space it vacates — a change through the middle of the atlas
+painter, not a branch at the end of it. It also wants a decision I should not
+take alone:
 
-## 4. B — a ramp and stripes for the east-end crossing
+- **Does the seated figure keep its origin at the feet?** `citizenPlane()`
+  translates so the origin is the painted shoe, which is what stopped the
+  world-wide 12 cm float. A seated figure has no shoe on the ground; a caller
+  places it by SEAT height. Either the origin moves for this pose, or callers
+  offset by hand — and hand-offsetting is exactly how the float happened.
+- **How many poses?** Seated covers booths, stools, pews and desks. Leaning on
+  a counter is a different silhouette again and half the keepers do that.
 
-The graph edge is flagged `road` now, which is correct: it crosses ten metres
-of the side street's carriageway. But a crossing there should look like the two
-at the junction, and `ct/tex-ground.ts` flags KRAMP on the bodega corner return
-only. Not my file.
+**What I need:** confirmation that a real seated pose is in scope for me — it
+is a day of atlas work and a `citizenPlane` decision, not the swap the routing
+assumed — or a decision to close the row as F/G adoption of the standing sprite
+only, which gets the interiors detailed but leaves everyone standing up.
 
----
-
-**Delivered this pass, so nobody waits on me:** F has the single answer that the
-BODEGA keeper is the one facing away (`notes/H-for-F-which-keeper.md`, and it
-leads with *leave the burger keeper alone, it is already correct and would be
-inverted if fixed to match*), and D has the note above.
+Nothing else of mine is live. `scripts/live.sh H` otherwise shows one CHECK row
+(the east-end road flag, blocker cleared, awaiting re-audit).
