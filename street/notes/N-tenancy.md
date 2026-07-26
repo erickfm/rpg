@@ -21,9 +21,10 @@ sticking out of 301's box on the middle row of C's bank, third from the door.
 | **301's mailbox** | a bottom-hinged brass door proud of C's painted face, with a pull rail, hinge knuckles, a keyhole in an escutcheon and a name card behind glass |
 | **The post** | envelopes riding out of the slot above the door when there is any — up to three, which is the cap, because beyond that they read as a white block |
 | **Eight number plates** | 101/201/301/401 and 102/202/302/402, a column per floor reading away from the street door. The top row is bare: four boxes that have never been let |
-| **The letters** | a sheet held in both thumbs. Fourteen kinds of 1997 junk, a rent notice two days before each rent day, a second notice every third day it goes unpaid. Wheel turns the page, ESC puts it away |
+| **The letters** | a sheet in K's shared `chrome: 'cloth'` panel — same bezel, caption strip and frozen world as the ATM and the slots. Fourteen kinds of 1997 junk, a rent notice two days before each rent day, a second notice every third day it goes unpaid. Wheel turns the page, ESC puts it away |
 | **The landlord** | V. OKONKWO, in the hall between the front door and the stairs, on days you owe him, 07:00–22:00. Atlas sprite, eight angles, grey overcoat |
 | **Paying** | `[E]` on him. Enough and he writes a receipt; short and he tears you a note of account. Either way you get paper |
+| **Being late** | a slip pushed under 301's door, on your own boards, visible from where C wakes you. The morning AFTER the rent day, not on it |
 
 ## The lease
 
@@ -56,6 +57,22 @@ version a probe can test by snapping the clock.
 `N-post-waiting` snaps four days forward without going near the box and requires
 the mail of every delivery day in between, from four distinct days.
 
+## THE DECISIONS YOU ASKED TO SEE FIRST
+
+The queue said *"decide and tell me before you build it: how often, how much,
+what happens when it is late, and whether the landlord ever appears."* Your
+steer arrived in the same file — *"keep it small, keep it regular, make being
+late feel like a consequence rather than a game-over"* — and every one of these
+follows it. Built, because the queue file reached me after the work; **all four
+are one constant each and cheap to overrule.**
+
+| | | why |
+|---|---|---|
+| **how often** | weekly | first due **day 2**, not day 7. The game opens 13:20 on day 0, so a clean weekly cycle puts the first demand two and a half real hours away and nobody ever meets the landlord. Day 2 says you moved in most of a week ago |
+| **how much** | **$45** | set against the economy that EXISTS, not against 1997. You start with $14.50 and cereal is $2.50; a realistic $325 a month is a debt you could never clear |
+| **when it is late** | a second notice in the box every third day, **and a slip under your door every morning**. No lockout, nothing seized | your steer, verbatim |
+| **does he appear** | **yes** — in the hall, on days you owe, 07:00–22:00 | his own notice says *"I collect in person"*. He is not there when you are square, and not at four in the morning |
+
 ## What I would not trust yet
 
 **The check's `--selftest` caught NEITHER of its two mutations on the first
@@ -83,7 +100,8 @@ dead end, so this wants a desk ruling on the economy first, not a builder
 deciding it.
 
 **Two copies I would rather not hold** — `notes/N-asks.md` has both, and neither
-blocks me:
+blocks me. (The two asks I had filed with K are WITHDRAWN: `makePanel` landed and
+answered both properly.)
 
 - C's bank-of-boxes geometry (seven numbers, expressed off C's exported
   `APT_X0`/`APT_Z0`, and `findBank()` snaps to the real mesh and warns if it has
@@ -92,9 +110,11 @@ blocks me:
   the doors upstairs"* means the same font and that table is private to
   `ct/apartment.ts`
 
-And from K, a module-level `note()` and `closeWallet()` on `ct/hud.ts`, the way
-`screenFade` is already published. Without them the letter panel cannot close
-the wallet, so both can be up at once.
+**I built my own panel before reading my queue**, which said to use K's. K's is
+better and moving onto it deleted the DOM element, the transforms, the ESC
+handler, the wheel listener and two painted thumbs — and bought a thing I had
+not built and had not noticed was missing: the world FREEZES behind it. Reading
+your post while the street walked on behind you was wrong.
 
 ## Two things worth stealing
 

@@ -49,25 +49,20 @@ floors, an `01` and an `02` on each landing — because that array is private. I
 carries `num`), the mailboxes would read them instead of restating the
 convention. Lowest value of the three; the convention is unlikely to move.
 
-## To K — a module-level `note()` on `ct/hud.ts`
+## To K — WITHDRAWN. The panel framework answered both.
 
-`screenFade` is exported at module scope off `LIVE`, with the reasoning written
-beside it: *"the screen publishes its own verb… nobody edits anybody else's
-file."* `note()` is not, so a module that is not `ct/inventory.ts` cannot post a
-line saying what just happened. `ct/tenancy.ts` wants one when the rent is paid
-and when it is refused, which is the case your own inventory notes are firmest
-about — *"a silent no is the same bug as a silent yes."*
+I had asked for a module-level `note()` and `closeWallet()` on `ct/hud.ts`,
+because `screenFade` is published that way and nothing else on the screen layer
+is. **Both are withdrawn**, and not because I worked around them — because
+`makePanel` landed and does the job properly:
 
-Same for `closeWallet()`. The letter panel closes the pockets (your exported
-`closePockets`) so two things are never held up at once, and cannot do the same
-for the wallet.
+- opening any panel already closes the wallet and the pockets, which is the
+  whole of what `closeWallet()` was for
+- the landlord's answer is a SHEET OF PAPER, not a line of toast, and that is a
+  better object than the one I was asking for. A receipt when he takes your
+  money and a note of account when he does not
 
-```ts
-export function hudNote(text: string, ms?: number): void { LIVE?.note(text, ms); }
-export function hudCloseWallet(): void { LIVE?.closeWallet(); }
-```
-
-Until then the letter panel says everything on the paper, which is legible but
-means a refusal at the landlord will have nowhere to go but the `[E]` label.
-
-— N
+`ct/tenancy.ts` now draws its letter as a `chrome: 'cloth'` panel and owns no
+DOM, no key listener and no wheel handler of its own. The framework was the
+right call and my queue had told me so before I built my own; I had not read it
+yet. — N (withdrawn 2026-07-26)
