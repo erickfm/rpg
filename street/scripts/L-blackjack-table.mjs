@@ -311,6 +311,84 @@ if (mode === 'rules' || mode === 'all') {
   check(pushes > 1200, `pushes happen (${pushes}) — the push-settles-correctly verdict is not free`);
   check(dealerBust > 4000, `the dealer busts (${dealerBust}) — ~28% of hands, as it must`);
   check(stalled === 0, `and no hand stalled (${stalled})`);
+
+  // ── THE RAIL IS WHOLE CHIPS, ALWAYS ───────────────────────────────────────
+  //
+  // Blackjack pays 3:2, so an odd stake pays a half chip. Twenty hands of
+  // playtesting left the rail on 101.5 and cashing that out put 25.375 into a
+  // wallet that paints two decimal places. Every stake is even now, but the
+  // invariant is what matters, not the constant that currently satisfies it —
+  // so it is asserted across a run rather than by reading the BETS array.
+  {
+    const tb3 = S.createTable({ rng: lcg(0x5A1E) });
+    tb3.buyIn(200_000);
+    let fractional = 0, sawBJ = 0, sawDouble = 0;
+    for (let i = 0; i < 20_000; i++) {
+      if (!tb3.deal()) break;
+      for (let g = 0; g < 4000; g++) {
+        const v = tb3.view();
+        if (!Number.isInteger(v.chips)) fractional++;
+        if (v.phase === 'betting' && g) break;
+        if (v.hands.some((h) => h.blackjack)) sawBJ++;
+        if (v.hands.some((h) => h.bet > v.bet)) sawDouble++;
+        if (v.phase === 'player' && v.active >= 0 && v.moves.length) {
+          const h = v.hands[v.active];
+          let m = S.basicStrategy(h.cards.map((c) => c.card), v.dealer.cards[0].card,
+            { canDouble: v.moves.includes('double'), canSplit: v.moves.includes('split') });
+          if (!v.moves.includes(m)) m = m === 'double' ? 'hit' : m === 'split' ? 'hit' : 'stand';
+          tb3.act(m);
+          continue;
+        }
+        tb3.tick(0.25);
+      }
+    }
+    const out = tb3.cashOut();
+    console.log(`    20,000 more hands: ${fractional} frames with a fractional rail,`
+      + ` cashed out ${out}\n`);
+    check(sawBJ > 0 && sawDouble > 0,
+      `naturals and doubles both occurred (${sawBJ} / ${sawDouble} frames) — the`
+      + ' two payouts that can produce a half chip');
+    check(fractional === 0,
+      `the rail is a whole number of chips in every frame (${fractional} were not)`
+      + ' — 3:2 on an odd stake pays a half chip, and a fractional rail becomes'
+      + ' float money in the one wallet');
+    check(Number.isInteger(out), `and cashing out hands back a whole number (${out})`);
+  }
+
+  // ── THE DEALER DOES NOT PLAY A HAND THAT IS ALREADY OVER ──────────────────
+  //
+  // On a player natural the peek settles the hand and pays 3:2 before anyone
+  // acts, so the dealer must not then deal itself cards. It did — and the money
+  // was RIGHT, because settle() skips a hand whose outcome is already set, so
+  // the 300,000-hand agreement check could never have seen it. Only watching a
+  // hand play out could.
+  {
+    const tb4 = S.createTable({ rng: lcg(0xBEEF) });
+    tb4.buyIn(200_000);
+    let naturals = 0, drewAnyway = 0;
+    for (let i = 0; i < 20_000 && naturals < 400; i++) {
+      if (!tb4.deal()) break;
+      let settled = null;
+      for (let g = 0; g < 4000; g++) {
+        const v = tb4.view();
+        if (v.phase === 'betting' && g) break;
+        if ((v.phase === 'settle' || v.phase === 'paying') && !settled) settled = v;
+        if (v.phase === 'player' && v.active >= 0 && v.moves.length) { tb4.act('stand'); continue; }
+        tb4.tick(0.25);
+      }
+      if (!settled) continue;
+      if (settled.hands.some((h) => h.blackjack)) {
+        naturals++;
+        // The dealer holds two cards at the deal; a third means it played on.
+        if (settled.dealer.cards.length > 2) drewAnyway++;
+      }
+    }
+    console.log(`    ${naturals} player naturals watched; the dealer drew on ${drewAnyway}\n`);
+    check(naturals >= 100, `${naturals} naturals to check — free at zero (GOTCHAS §34)`);
+    check(drewAnyway === 0,
+      'the dealer takes no card after a player natural — the hand is already paid,'
+      + ' and a dealer that plays on is a table telling the player it might still lose');
+  }
 }
 
 console.log(bad === 0 ? `\n  ${mode}: all checks pass.\n` : `\n  ${mode}: ${bad} FAILED.\n`);

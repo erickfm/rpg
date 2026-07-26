@@ -509,7 +509,25 @@ export interface Table {
   settled(): boolean;
 }
 
-const BETS = [1, 2, 5, 10, 25];
+/**
+ * THE STAKES, AND WHY THEY ARE ALL EVEN.
+ *
+ * A blackjack pays 3:2, so an ODD bet pays a half chip — and it did: twenty
+ * hands of playtesting left the rail reading `101.5`, and `cashOut` handed that
+ * to `ctx.purse.cash` as `25.375`, a third of a cent the wallet paints as
+ * $25.38 while holding something else. That is float money in the one account,
+ * which is precisely the fault `ct/slots.ts` fixed by paying in whole credits.
+ *
+ * A real table solves it with a MINIMUM, which is what a minimum is partly for:
+ * every stake here is even, so 3:2 is always a whole number of chips, and so is
+ * a double (2x) and a split (two equal bets). At 25c a chip this is a 50c
+ * table, which is what a 1997 neighbourhood floor would have had.
+ *
+ * The alternative — rounding the payout down — would have quietly shortchanged
+ * the player on every natural, which is the same swindle as 6:5 wearing a
+ * different hat.
+ */
+const BETS = [2, 4, 10, 20, 50];
 
 /**
  * A table. Holds a shoe, the chips in front of you and a hand in progress;
@@ -683,7 +701,17 @@ export function createTable(opts: { rng?: Rng } = {}): Table {
       // One card at a time, with a pause before each. The pause IS the game
       // here — a dealer that resolves instantly is a dealer you never watch.
       if (phaseT < PACE.dealerDraw) return;
-      const alive = hands.some((h) => !value(h.cards.map((c) => c.card)).bust && h.outcome !== 'lose');
+      // THE DEALER ONLY PLAYS IF SOMETHING IS STILL UNDECIDED.
+      //
+      // `!h.outcome` is the whole of it, and it was `h.outcome !== 'lose'`,
+      // which let the dealer draw after a PLAYER NATURAL: the peek had already
+      // settled the hand and paid 3:2, and the dealer then dealt itself cards to
+      // reach a total nobody was going to compare against. The money was right —
+      // `settle` skips a hand whose outcome is already set — so nothing in the
+      // 300,000-hand agreement check could see it. Found by playing twenty hands
+      // and reading the log: hand 18 showed `Ks Ad` paid as a blackjack against
+      // a dealer holding THREE cards.
+      const alive = hands.some((h) => !h.outcome && !value(h.cards.map((c) => c.card)).bust);
       if (alive && dealerDraws(value(dealer.map((c) => c.card)))) {
         place(dealer); phaseT = 0; return;
       }
