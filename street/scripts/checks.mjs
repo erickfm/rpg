@@ -654,6 +654,24 @@ const CHECKS = [
   // across the doorway onto `__ct.colliders()`, the same array the movement
   // code reads. (O)
   ['O-jail-walk', 'can you walk into the jail, and did its pavement get wider?', true, ['all'], true],
+  // Answers the live desk row "make the exteriors match the interiors" for one
+  // building. It asserts ONLY what GOTCHAS 45 says is constrained — that the
+  // room's door and the facade's door are one world point, that the [E] IS that
+  // point rather than a second copy of it, and that the leaf is declared once.
+  // It deliberately does NOT compare floor area, depth, ceiling height or width
+  // against the frontage: enforcing those is the rule the desk spent a whole
+  // GOTCHAS entry retracting, and it cost the bodega, the casino and the hotel
+  // their depth.
+  //
+  // NO SELFTEST, and that is a statement rather than an omission. Its subject
+  // is a DECLARATION collected at import time, and nothing outside the bundle
+  // can move it. The only mutations a harness has — overriding `__ct.doors()`
+  // or `__ct.spots()` — break the CHECK'S VIEW while leaving the world intact,
+  // which GOTCHAS 34 says proves nothing. A selftest that passed on one of
+  // those would be worse than the honest `no selftest` this prints, because it
+  // would certify the check as mutation-proof when it is not. Whoever exposes a
+  // writable door registry can close it. (O)
+  ['O-jail-door-agree', 'does the jail\'s door agree with itself, outside and in?', false],
 
   // ── THE CASINO GAMES (L) ────────────────────────────────────────────────
   //

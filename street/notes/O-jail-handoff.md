@@ -167,3 +167,35 @@ down.**
 - **The graph edge at the east end**, above. H's.
 
 — O
+
+---
+
+## The jail against "make the exteriors match the interiors"
+
+There is a live desk row asking that of the whole world. The jail is the newest
+building on the block, so it is answered for here rather than assumed:
+`scripts/O-jail-door-agree.mjs`, registered in `checks.mjs`. **5 checks, 0
+disagreed.**
+
+```
+the [E] sits 0.000 m from the door's own published stand point
+the outward normal is (-1, 0) — west, down the side street
+inside, the door is at local x 0.00 — centred, as it is on the facade
+declared by FACE: a world point and an outward normal
+the trigger spans the declared opening — r 1.05 against a 2.40 m leaf
+```
+
+**It asserts only what GOTCHAS §45 says is constrained.** Not floor area, not
+depth, not ceiling height, not width against the frontage — enforcing those is
+the rule the desk spent a whole entry retracting, and it cost the bodega, the
+casino and the hotel their depth. The jail's room is 12.8 × 26 inside a 14 m
+frontage and that is *supposed* to be free.
+
+**It carries no selftest, and that is a statement.** Its subject is a
+declaration collected at import time; nothing outside the bundle can move it.
+The only mutations a harness has — overriding `__ct.doors()` or `__ct.spots()` —
+break the check's VIEW while leaving the world intact, which GOTCHAS §34 says
+proves nothing. A selftest that passed on one of those would be worse than the
+`no selftest` the board now prints, because it would certify the check as
+mutation-proof when it is not. **Whoever exposes a writable door registry can
+close it**, and that is the one thing that would.
