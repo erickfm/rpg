@@ -26,7 +26,14 @@ await goto(p, URL);
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 30000 });
 await reportWorld(p, URL);
 
-// the bodega, by its declared "lowest ceiling in the world"
+// THE BODEGA, BY ITS DECLARED DEPTH — not by "the lowest ceiling in the world".
+//
+// That superlative was true when I wrote this and is not any more: M has since
+// built ct/int-bank.ts, and this probe walked straight into FIRST FEDERAL and
+// reported its teller as the bodega keeper. A finder keyed on "the -est in the
+// world" is a claim about every OTHER room, so anyone adding a room can falsify
+// it without touching mine. ct/int-bodega.ts declares `d: 12.6, h: 2.6`; the
+// depth is the room's own fact and nobody else's.
 const room = await p.evaluate(() => {
   const s = window.__ct.scene(); s.updateMatrixWorld(true);
   const m = [];
@@ -52,7 +59,19 @@ const room = await p.evaluate(() => {
       if ((q.x1 - q.x0) * (q.z1 - q.z0) > 8 && (ceil === null || q.y0 < ceil)) ceil = q.y0;
     }
     if (ceil === null) continue;
-    if (!best || ceil < best.ceil) {
+    // THE FLOOR's depth, not the mesh cluster's bounding box. The cluster
+    // includes signage, awnings and anything overhanging, so the bank measured
+    // 13.74 against its floor's 12.0 and beat the bodega's 12.6 — picking the
+    // wrong room by 1.1 m of shopfront.
+    let fl = null;
+    for (const q of inR) {
+      const a = (q.x1 - q.x0) * (q.z1 - q.z0);
+      if (q.y1 <= 0.35 && (!fl || a > (fl.x1 - fl.x0) * (fl.z1 - fl.z0))) fl = q;
+    }
+    if (!fl) continue;
+    const depth = fl.z1 - fl.z0;
+    const err = Math.abs(depth - 12.6) + Math.abs(ceil - 2.6) * 4;
+    if (!best || err < best.err) {
       // THE KEEPER IS THE FIGURE BEHIND A COUNTER, which is a positional
       // definition and not "the first figure I matched". A counter is a box
       // topping out between 0.85 and 1.20 m with a horizontal run over 1.5 m;
@@ -71,7 +90,7 @@ const room = await p.evaluate(() => {
         }
         return { fx: +fx.toFixed(2), fz: +fz.toFixed(2), d: +d.toFixed(2), counter: at };
       }).sort((a, c) => a.d - c.d);
-      best = { ceil, x0: Math.min(...inR.map((q) => q.x0)), x1: Math.max(...inR.map((q) => q.x1)),
+      best = { err, ceil, depth: +depth.toFixed(2), x0: Math.min(...inR.map((q) => q.x0)), x1: Math.max(...inR.map((q) => q.x1)),
                z0: Math.min(...inR.map((q) => q.z0)), z1: Math.max(...inR.map((q) => q.z1)),
                counters: counters.length, figs: scored };
     }
@@ -79,7 +98,7 @@ const room = await p.evaluate(() => {
   return best;
 });
 
-console.log(`\nbodega (lowest ceiling in the world, ${room.ceil.toFixed(2)} m):` +
+console.log(`\nbodega (by ct/int-bodega.ts's own d: 12.6, h: 2.6 -> depth ${room.depth}, ceiling ${room.ceil.toFixed(2)}):` +
   ` x ${room.x0.toFixed(1)}..${room.x1.toFixed(1)}  z ${room.z0.toFixed(1)}..${room.z1.toFixed(1)}`);
 console.log(`  ${room.counters} counter-height runs, ${room.figs.length} standing figures`);
 for (const f of room.figs) {

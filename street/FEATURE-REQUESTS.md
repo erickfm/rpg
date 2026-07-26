@@ -207,6 +207,16 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"every interior room moved +80 m in x when ct/int-bank.ts was inserted — every ledger station naming an interior coordinate now points at the wrong room"** → **DESK** (found by B verifying)
+
+  <!-- B: measured at build 4b7070163. bodega 440->520, casino 600->680,
+       diner 760->840, tax 1080->1160, thrift 1160->1240, and so on. The
+       world is right; the stations are stale. I corrected my own five.
+       Found because a probe keyed on "the lowest ceiling in the world"
+       walked into the new bank and reported its teller as the bodega
+       keeper — a superlative is a claim about every OTHER room.
+       notes/B-the-interiors-moved.md -->
+
 - **"give the tv a bezel and make the tv play only lots of stupid looking ads. like super 90s stupid"** → **C**
 - **"the east-end graph edge still crosses ten metres of carriageway and the paint that marked it is gone"** → **H** (routed by the desk; B has landed its half)
 
