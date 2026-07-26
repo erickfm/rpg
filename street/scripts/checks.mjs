@@ -530,6 +530,11 @@ const CHECKS = [
   // because the deck's soffit hides it, and the only symptom was a player
   // climbing the west side stopping dead partway up.
   ['J-gallery-walk', 'can you climb to the library gallery, walk it, and get back down?', true],
+  // The three library claims that had NO automated predicate, written after the
+  // auditor's sweep of 28 CONFIRMED rows resting on nothing. Fast tier, 6 s.
+  // Four of its five verdicts have a mutation I watched go red; the facing one
+  // does not and the script says so rather than faking one.
+  ['J-library-room', 'is the partition still gone, the librarian behind her desk, the computers lit?', true],
   // The pockets. Registered in the same commit as the feature, per GOTCHAS §27,
   // and it guards the one rule of `ct/inventory.ts` that a picture cannot check:
   // TAKING SOMETHING CHANGES THE WORLD. A pickup that leaves the object standing
