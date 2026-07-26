@@ -481,3 +481,35 @@ surfaces they happen on read as what they are. The remaining fault is one
 surface I do not own.
 
 _Builder E, 2026-07-25 21:40._
+
+---
+
+## For the auditor: `:5177` is behind, and here is exactly how — 25 July 22:30
+
+If you walk the integration world before it refreshes, `E-benchsweep` will
+report **7 faults** and every one is already fixed in mainline. Do not file
+them.
+
+`:5177` was serving `a1fe2f5a8`; my HEAD and mainline were at `549ef0f46`, and
+mainline carries the fix (`benchBoxes` appears 3× in `park.ts`). So this is
+latency, not a drop and not another builder's prop — which was worth checking,
+because the integrated world contains everyone's work and a fault that appears
+only there can be real.
+
+The seven, and what each becomes:
+
+| on `:5177` | |
+|---|---|
+| 5 × `bench -28.0,-93.0 … at -27.8,-93.5` | the litter bin standing in the bench. Fixed by registering benches with `park.ts`'s own `claim()` footprint registry, which they had never been in |
+| 2 × `bench -35.9,-83.0 … at ±1.2` | the shelter bench's own cast ends against its own slats. Fixed by grouping it, like every other bench |
+
+Everything else already agrees on both worlds: shelter (eaves 0.67 m below the
+post tops), field (1.50 m bands at 6.5%), overlap (0 across 151 meshes), fence
+(centred on its wall, clear of the pavement).
+
+**The check to run after the refresh is `E-benchsweep`**, and it should say
+*"all 9 park benches: level, clear and facing in"*. If it still shows the bin at
+−27.8,−93.5, the refresh has not happened yet — compare the build stamp in its
+own banner against mainline before concluding anything.
+
+_Builder E, 2026-07-25 22:30._
