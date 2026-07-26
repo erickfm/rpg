@@ -77,7 +77,23 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
-await page.goto(URL, { waitUntil: 'networkidle' });
+// A DEAD SERVER IS NOTHING MEASURED, NOT A FAILURE — exit 3, not 1 (GOTCHAS
+// §32). `page.goto` throws ERR_CONNECTION_REFUSED before `reportWorld` can
+// arbitrate, and node turns an unhandled throw into exit 1: the same code as
+// "measured, and the world is wrong". That is the ambiguity §32 was written
+// about, and it is not hypothetical here — my preview died partway through a
+// full `npm run checks` run and fifteen checks went red, mine among them, on a
+// world none of them could see. All five I re-ran were green the moment a
+// server was back.
+try {
+  await page.goto(URL, { waitUntil: 'networkidle' });
+} catch (e) {
+  console.error(`\nNOTHING IS SERVING ${URL}  (${e.message.split('\n')[0]})`);
+  console.error('  No measurement was taken. This is exit 3, not a red — nothing');
+  console.error('  at all follows about the world.\n');
+  await browser.close();
+  process.exit(3);
+}
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 20000 });
 await reportWorld(page, URL);          // exit 3 rather than measure the wrong build
 

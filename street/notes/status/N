@@ -1,1 +1,1 @@
-DONE | queue empty; ledger regression CLOSED (0 fell, 0 shrank), AUDIT row verified | DESK — economy ruling on late rent, notes/N-queue-reconciled.md
+WORKING | queue empty -> ran the full checks suite; 15 reds were a dead preview, not defects. My check now exits 3 on a dead server | nothing
