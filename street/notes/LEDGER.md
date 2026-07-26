@@ -92,3 +92,4 @@ user anything is finished.
 | OPEN | C | just do what i want for this bespoke minor window ask | |
 | OPEN | C | there should be a bit of a gap out of the window and then just a brick | |
 | OPEN | C | gap in the door sucks. also i dont like that it says stand back when y | |
+| OPEN | B | a little too many grasses in the streets. like way too many. should be | |
