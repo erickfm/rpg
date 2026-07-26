@@ -277,6 +277,26 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     face: number;       // which way it opens into the hall: +1 is +x
     hung: boolean;      // a real swinging opening (301, 302) rather than a panel
   };
+  /**
+   * WHICH FACE POINTS WHICH WAY — the fourth attribute of a door, and the one
+   * that did not come with the handing fix.
+   *
+   * The user, standing in his own flat: *"the 301 number plate is facing him"*.
+   * A flat number goes on the HALL side so people in the corridor can find the
+   * door; from inside your own home you never see your own number. The leaf's
+   * two faces were swapped, and this is the fourth face/handedness fault of the
+   * night — GOTCHAS 23, anything with a front ends up backwards.
+   *
+   * So it is DERIVED rather than flipped. A BoxGeometry's materials run
+   * [+x, -x, +y, -y, +z, -z]; rotating the leaf by `a` about y sends local +z
+   * to world (sin a, 0, cos a), so at the SHUT angle its world x-component is
+   * `sin(shut)`. The hall lies in the `face` direction the door already
+   * declares. If those agree, local +z is the hall side.
+   *
+   * Returns the pair in material order, so a caller cannot get it half right.
+   */
+  const leafFaces = <T,>(shut: number, face: number, hall: T, room: T): [T, T] =>
+    (Math.sign(Math.sin(shut)) === Math.sign(face) ? [hall, room] : [room, hall]);
   const DOORS: WalkupDoor[] = [];
   for (let f = 0; f < 4; f++) {
     for (const side of ['01', '02'] as const) {
@@ -899,8 +919,15 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const leafGeo = new THREE.BoxGeometry(DOOR_W - 0.2, 2.05, 0.045);
       leafGeo.translate(-(DOOR_W - 0.2) / 2, 0, 0);                  // hinge at the +x edge
       const leafEdgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
+      // 302 carried its NUMBER on both faces — the same fault as 301's, and it
+      // would have been found by anyone who ever stood in the hermit's doorway.
+      // Same rule, so the two hung doors cannot disagree.
+      const d302 = DOORS.find((d) => d.num === '302')!;
+      const hall302 = texM(doorTexN('302', false)), room302 = texM(doorTexInner());
+      hall302.userData.plate = true; room302.userData.plate = false;
+      const [f302a, f302b] = leafFaces(D302_SHUT, d302.face, hall302, room302);
       const leaf = new THREE.Mesh(leafGeo,
-        [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, texM(doorTexN('302', false)), texM(doorTexN('302', false))]);
+        [leafEdgeM, leafEdgeM, leafEdgeM, leafEdgeM, f302a, f302b]);
       leaf.position.set(x0 + 0.05, yb + 1.05, DOOR_Z0 + 0.04);
       leaf.rotation.y = d302A;        // starts SHUT; updateHermitAt drives it
       scene.add(leaf);
@@ -956,8 +983,14 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // index 4 and the room only ever sees the plain inner leaf.
       const hallM = texM(doorTexN('301', false));
       const roomM = texM(doorTexInner());
+      // stamped so scripts/doorfaces.mjs can assert which way the NUMBER points
+      // without reading pixels — the plate is the thing that must only ever
+      // face the hall.
+      hallM.userData.plate = true; roomM.userData.plate = false;
       leaf301 = new THREE.Group();
-      leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, hallM, roomM]));
+      const d301 = DOORS.find((d) => d.num === '301')!;
+      const [f301a, f301b] = leafFaces(DOOR_A_SHUT, d301.face, hallM, roomM);
+      leaf301.add(new THREE.Mesh(g301, [edgeM, edgeM, edgeM, edgeM, f301a, f301b]));
       // was a plain 0.055 box at -0.02; now the building's own knob, at the
       // same floor + 1.02 as every other door and on BOTH faces
       for (const dir of [1, -1]) doorKnob(leaf301, -LW + 0.13, -0.07, 0, dir, 'z');
