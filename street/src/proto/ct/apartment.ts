@@ -242,33 +242,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   let leaf301: THREE.Group | null = null;
   let DOOR_PIV_X = 0, DOOR_PIV_Z = 0, DOOR_LEAF_W = 0.91;
 
-  /** Is the player clear of the volume the leaf sweeps on its way shut?
-   *
-   *  A door that shuts THROUGH you is worse than one that never shuts, and
-   *  the swing here is nearly 170 degrees, so this is not a corner case — the
-   *  natural place to stand and look at the door is inside the arc.
-   *
-   *  The tip travels on a circle of radius LEAF_W about the pivot, so the
-   *  swept volume is an annular sector: everything within LEAF_W of the pivot
-   *  whose bearing lies between the open and the shut pose. The rig is a
-   *  0.36 m cylinder, so it is that radius grown by RIG. Outside the radius
-   *  the bearing does not matter, which is what lets you stand a pace back
-   *  and shut the door from anywhere. */
-  const doorClear = (px: number, pz: number): boolean => {
-    const dx = px - DOOR_PIV_X, dz = pz - DOOR_PIV_Z;
-    const d = Math.hypot(dx, dz);
-    if (d > DOOR_LEAF_W + 0.36) return true;          // a pace back: always fine
-    if (d < 0.12) return false;                        // standing on the hinge
-    // The tip of the leaf at angle a points along (-cos a, sin a), so a
-    // bearing b corresponds to the angle a = PI - b. Map the player into the
-    // leaf's own angle and ask whether it falls inside the travel.
-    let a = Math.PI - Math.atan2(dz, dx);
-    while (a > Math.PI) a -= 2 * Math.PI;
-    while (a < -Math.PI) a += 2 * Math.PI;
-    const lo = Math.min(DOOR_A_OPEN, DOOR_A_SHUT) - 0.12;
-    const hi = Math.max(DOOR_A_OPEN, DOOR_A_SHUT) + 0.12;
-    return a < lo || a > hi;
-  };
+  // `doorClear` lived here: the swept-volume test that decided whether the
+  // door was allowed to close. It is gone with the refusal it served — the
+  // player being in the way is now resolved by fp.ts's unstick() rather than
+  // by declining the interaction.
+
   const setCap = (c: AABB, on: boolean, x0: number, x1: number, z0: number, z1: number) => {
     if (on) { c.minX = x0; c.maxX = x1; c.minZ = z0; c.maxZ = z1; }
     else { c.minX = c.maxX = c.minZ = c.maxZ = 999; }
@@ -771,7 +749,21 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // open, which is honest but is also why the room never read as YOURS. It
     // now swings, on an [E] spot, and the collider follows it.
     {
-      const LW = DOOR_W - 0.2;                        // 0.91 m leaf in a 0.95 m gap
+      // THE LEAF HAS TO COVER THE CLEAR OPENING, WITH OVERLAP. It was 0.91 in
+      // a 0.95 gap with the pivot 0.02 off the jamb, which left a 2 cm strip
+      // of daylight at the hinge AND another at the strike — the user sees the
+      // hinge one from inside (shots/user-301door2.png), and from the hall the
+      // strike one is just as open. A leaf narrower than its opening cannot be
+      // shut, only nearly shut.
+      //
+      // It closes onto the WALL FACE, not into the reveal: the pivot is at
+      // AX(-0.09) and the wall's room-side face is at AX(-0.07), so the shut
+      // leaf lies flat against the plaster rather than inside the jamb. That
+      // is what makes overlap possible at all — the leaf can be WIDER than the
+      // hole because it never has to fit inside it, which is exactly how a
+      // real door meets a face-fixed stop. 0.99 over a 0.95 opening gives
+      // 0.02 of overlap at each jamb and no line of sight at either.
+      const LW = DOOR_GAP + 0.04;                     // 0.99 m leaf over a 0.95 m gap
       const g301 = new THREE.BoxGeometry(LW, 2.05, 0.045);
       g301.translate(-LW / 2, 0, 0);                  // hinge at the +x edge
       const edgeM = new THREE.MeshBasicMaterial({ color: 0x6b5138 });
@@ -786,13 +778,11 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         new THREE.MeshBasicMaterial({ color: 0xc9b45e }));
       knob.position.set(-LW + 0.09, -0.02, 0);
       leaf301.add(knob);
-      // THE PIVOT, and the two clearances that come off it. The hinge used to
-      // sit 0.04 from the jamb, which is exactly LW + 0.04 = DOOR_GAP — the
-      // tip arrived flush ON the far jamb with nothing between them. At 0.02
-      // the shut leaf spans DOOR_Z0+0.02 to DOOR_Z0+0.93 inside a gap that
-      // ends at DOOR_Z0+0.95, so there is 2 cm at the strike and 2 cm at the
-      // hinge and it clips neither end of its travel.
-      DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z0 + 0.02; DOOR_LEAF_W = LW;
+      // THE PIVOT sits 0.02 PAST the jamb now, not 0.02 inside it, so the
+      // shut leaf spans DOOR_Z0-0.02 to DOOR_Z0+0.97 across a gap that runs
+      // DOOR_Z0 to DOOR_Z0+0.95 — covered at both ends instead of short at
+      // both ends.
+      DOOR_PIV_X = AX(-0.09); DOOR_PIV_Z = DOOR_Z0 - 0.02; DOOR_LEAF_W = LW;
       leaf301.position.set(DOOR_PIV_X, 2 * ST + 1.05, DOOR_PIV_Z);
       leaf301.rotation.y = doorA;
       scene.add(leaf301);
@@ -809,13 +799,22 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       ctx.spot({
         x: DOOR_PIV_X - 0.55, z: DOOR_PIV_Z + 1.45, r: 0.95,
         ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
-        label: () => (doorShut ? 'open the door'
-          : doorClear(ctx.player.x(), ctx.player.z()) ? 'close the door'
-            : 'step clear of the door'),
-        act: () => {
-          if (!doorShut && !doorClear(ctx.player.x(), ctx.player.z())) return;
-          doorShut = !doorShut;
-        },
+        // IT NEVER REFUSES. The user: *"it should always be able to
+        // open/close."* This used to read 'step clear of the door' and do
+        // nothing when you stood in the swing, which is safe and makes the
+        // door feel broken — refusing an interaction is the one outcome a
+        // player reads as a bug rather than as a rule.
+        //
+        // The reason the refusal existed is now handled a layer down, by
+        // machinery that did not exist when this was written: F's unstick()
+        // runs every frame, sums the escape vectors from everything the rig is
+        // inside, and eases the player out along the minimum translation
+        // (fp.ts:191). The shut leaf publishes doorShutCap like any other
+        // collider, so a player standing in the swept volume is pushed clear
+        // by the same code that handles a collider appearing under them
+        // anywhere else. One rule, not two.
+        label: () => (doorShut ? 'open the door' : 'close the door'),
+        act: () => { doorShut = !doorShut; },
       });
     }
     // the hermit — a big quiet man; you only ever catch him at his door.
@@ -1980,7 +1979,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // bug rather than as a draught.
     setCap(doorShutCap,
       doorA > DOOR_A_SHUT - 0.10 && Math.abs(lastGy - 2 * ST) < 0.5,
-      AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2), AZI(3.5 + DOOR_GAP / 2));
+      AX(-0.16), AX(0.06), AZI(3.5 - DOOR_GAP / 2) - 0.02, AZI(3.5 + DOOR_GAP / 2) + 0.02);
   };
 
   const updateHermitAt = (hAbs: number, px: number, pz: number, dt: number) => {

@@ -238,21 +238,46 @@ const ux = (PIV[0] - SPOT[0]) / Math.hypot(PIV[0] - SPOT[0], PIV[1] - SPOT[1]);
 const uz = (PIV[1] - SPOT[1]) / Math.hypot(PIV[0] - SPOT[0], PIV[1] - SPOT[1]);
 const IN = [SPOT[0] + ux * 0.9, SPOT[1] + uz * 0.9];
 say(`  test point is ${Math.hypot(IN[0] - SPOT[0], IN[1] - SPOT[1]).toFixed(2)} m from the spot (r 0.95)`
-  + ` and ${Math.hypot(IN[0] - PIV[0], IN[1] - PIV[1]).toFixed(2)} m from the pivot (leaf 0.91)`);
+  + ` and ${Math.hypot(IN[0] - PIV[0], IN[1] - PIV[1]).toFixed(2)} m from the pivot (leaf 0.99)`);
 await warp(IN[0], IN[1], at(PIV[0] - IN[0], PIV[1] - IN[1]), 0.0);
 await page.waitForTimeout(400);
-expect('standing in the swing, prompt refuses', await prompt(), '[E] step clear of the door');
+// THE CONTRACT CHANGED, AND THIS IS THE NEW ONE. It used to assert that the
+// door REFUSED here — 'step clear of the door', and E doing nothing. The user:
+// *"it should always be able to open/close ... the interaction should never
+// refuse — that is the whole point of the request."* Refusing is the safe
+// answer and it makes the door feel broken.
+//
+// So the assertion inverts: standing squarely in the swing, it must offer to
+// close and it must actually close. What keeps that safe is a layer down —
+// F's unstick() eases the player out of anything they end up inside — so the
+// property worth checking is no longer "did it refuse" but "did it shut AND
+// did it leave you somewhere legal".
+expect('standing in the swing, it still offers', await prompt(), '[E] close the door');
 await shot('08-in-the-swing');
+const before = await page.evaluate(() => window.__ct.pos());
 await press();
-expect('E from inside the swing does nothing', await shut(), false);
+expect('E from inside the swing DOES shut it', await shut(), true);
+// give unstick its few frames — it eases out at 3 m/s rather than teleporting
+await page.waitForTimeout(900);
+const after = await page.evaluate(() => window.__ct.pos());
+const moved = Math.hypot(after[0] - before[0], after[2] - before[2]);
+const inside = await page.evaluate(() => {
+  const p = window.__ct.pos();
+  return window.__ct.colliders().some((c) => c && isFinite(c.minX) && c.minX < 500
+    && p[0] > c.minX - 0.36 && p[0] < c.maxX + 0.36
+    && p[2] > c.minZ - 0.36 && p[2] < c.maxZ + 0.36);
+});
+say(`  the closing leaf pushed the player ${moved.toFixed(2)} m clear`);
+expect('and left them somewhere legal, not inside the shut leaf', inside, false);
+await shot('09-pushed-clear');
 
-// back at the spot: outside the arc, must work
+// and from a pace back it still works, which is the ordinary case
 await warp(SPOT[0], SPOT[1], at(PIV[0] - SPOT[0], PIV[1] - SPOT[1]), 0.02);
 await page.waitForTimeout(400);
-expect('a pace back, prompt offers close', await prompt(), '[E] close the door');
+expect('a pace back, prompt offers open', await prompt(), '[E] open the door');
 await press();
-expect('E from a pace back shuts it', await shut(), true);
-await shot('09-shut-from-back');
+expect('E from a pace back opens it again', await shut(), false);
+await shot('09b-open-from-back');
 
 // ── 5. the poster ──────────────────────────────────────────────────────────
 await page.evaluate(() => window.__ct.warp(200 - 1.05, -20 + 3.55, 0.03, 5.4, 0.0));
@@ -322,4 +347,4 @@ if (FAIL.length) {
   process.exit(1);
 }
 if (SELFTEST) { console.error('\nSELFTEST FAILED — the doorway was blocked and this did not notice.'); process.exit(2); }
-console.log('all seven behaviours hold: opens, shuts, blocks, refuses to shut on you.');
+console.log('the door holds: opens, shuts, blocks the doorway, never refuses, and pushes you clear.');

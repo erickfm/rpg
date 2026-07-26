@@ -139,6 +139,21 @@ published to the playable artifact.
 - **"cat is dead center in alley i need it right to the right of that news paper on the ground"** → **D**
 - **"a little too many grasses in the streets. like way too many. should be more rare"** → **B**
 - **"gap in the door sucks. also i dont like that it says stand back when you wanna close the door. it should always be able to open/close"** → **C**
+  → **C. BOTH FIXED.** (1) The leaf was 0.91 m in a 0.95 m clear opening with
+  its pivot 0.02 inside the jamb, so there was a 2 cm see-through strip at the
+  hinge AND another at the strike — a leaf narrower than its opening cannot be
+  shut, only nearly shut. It closes onto the WALL FACE rather than into the
+  reveal, which is what lets it be WIDER than the hole: 0.99 m with the pivot
+  0.02 past the jamb gives 0.02 of overlap at each side and no line of sight.
+  Checked from both sides and at 23:00 — `shots/walkup/g-room.png`,
+  `g-hall.png`, `gn-room.png`. (2) The 'stand back' refusal is gone; the label
+  is now only ever *open the door* / *close the door*. What made the refusal
+  unnecessary is F's `unstick()` (fp.ts:191), which already sums escape vectors
+  from everything the rig is inside and eases it out — so the shut leaf just
+  publishes its collider like anything else and the closing door pushes you
+  clear. Measured: shutting it while standing squarely in the swing moves you
+  **0.20 m** and leaves you outside every collider. One rule, not two; the
+  swept-volume test `doorClear` was deleted with the refusal it served.
 - **"there should be a bit of a gap out of the window and then just a brick wall. almost like a little room outside the window that is just brick"** → **C**
 - **"just do what i want for this bespoke minor window ask"** → **C**
   → **C.** Same ask as the row below; resolved there.
