@@ -39,7 +39,9 @@ const GW = 0.45;       // gutter pan width — 18 in, mid-range for a combinatio
 const GY_K = 0.006;    // gutter surface at the kerb (the flow line, lowest)
 const GY_R = 0.018;    // gutter surface where it meets asphalt — a 2.7% cross-slope
 const KBOT = -0.04;    // kerb face runs below grade so no angle can see under it
-const KTEX = 0.15;     // world height the kerb texture spans, from KBOT up
+// (KTEX, the fixed world height the face sheet used to be clipped to, is gone —
+//  see the uv note in buildGround for why a depressed kerb must compress the
+//  profile rather than crop it.)
 const SEG = 3.0;       // cast joint spacing in kerb + gutter (10 ft)
 const SEG_K = 12.0;    // the kerb sheet carries four of those joints, so the
                        // chipping doesn't repeat every 3 m down the block
@@ -261,8 +263,7 @@ export function apronTex(minX: number, maxX: number, minZ: number, maxZ: number)
                              : `rgba(226,221,208,${(v - 0.55) * 0.30})`;
       g.fillRect(x, y, 1, 1);
     }
-    // tyre track staining down the middle of the drive, and grime at the kerb
-    // lip where the water and grit collect
+    // grime at the kerb lip where the water and grit collect
     const gr = g.createLinearGradient(0, 0, w, 0);
     gr.addColorStop(0, 'rgba(38,35,30,0.20)');               // kerb edge, dirtiest
     gr.addColorStop(0.45, 'rgba(38,35,30,0.03)');
@@ -275,19 +276,60 @@ export function apronTex(minX: number, maxX: number, minZ: number, maxZ: number)
       b.addColorStop(1, 'rgba(44,40,34,0)');
       g.fillStyle = b; g.fillRect(x - r, y - r, r * 2, r * 2);
     }
-    // SCORING JOINTS, across the direction of travel: constant-x lines running
-    // the full depth, spaced ~0.65 m so a 1.94 m apron carries two of them plus
-    // its edges. 2 px is 6 cm, the same joint width the walk uses.
-    g.fillStyle = 'rgba(0,0,0,0.28)';
-    const step = Math.round(0.65 * WPM);
-    for (let x = step; x < w - 2; x += step) g.fillRect(x, 0, 2, h);
-    // and the two edge joints where the pour meets the walk either side, which
-    // is what says "this slab was poured on its own"
-    g.fillRect(0, 0, 2, h);
+    // ── SCORING ───────────────────────────────────────────────────────────
+    //
+    // "dont like how this curb is discontinuous and only 3 slabs, its
+    // unrealistic" (shots/user-kerb-discontinuous.png) is a literal and exact
+    // description of what this function used to draw, and it is what he was
+    // standing on: the apron is 8.60 m of pavement — a 6.8 m opening plus a
+    // 0.9 m flare each side — and it carried joints in ONE direction only,
+    // three ribbons running its whole length with a single joint at each end.
+    //
+    // Measured at his own pose (scripts/jointfade.mjs, east walk at z = 8
+    // looking south): joints ACROSS the walk read at 6.95 m and then not again
+    // until 1.25 m — a 5.70 m hole, the whole middle of the frame — while the
+    // joints ALONG it read 18 times in the same strip. Identical at noon and at
+    // 22:30, so it is not the night grade. THREE RIBBONS. THREE SLABS.
+    //
+    // My earlier note filed this as I's stretched-cross-section finding. It is
+    // not: every walk sheet in the world measures exactly 32 texels/m in both
+    // axes. That number came from taking the bounding box of a kerb ribbon that
+    // wraps a corner and dividing by it, which measures nothing.
+    //
+    // So it gets scored like the pour it is. The x lines land on the WALK'S OWN
+    // flag lines — integer world x, the grid ct/tex-ground's walkU already
+    // cuts — so the pavement's joints run through the drive instead of
+    // restarting at it. The z lines mark the two flare shoulders, which is
+    // where the slope actually changes, and divide the opening between them.
+    const J = 'rgba(0,0,0,0.28)';                            // 2 px = 6 cm, as the walk
+    g.fillStyle = J;
+    for (let wx = Math.ceil(minX); wx < maxX; wx++) {
+      const px = Math.round(((wx - minX) / (maxX - minX)) * w);
+      if (px > 2 && px < w - 4) g.fillRect(px, 0, 2, h);
+    }
+    g.fillRect(0, 0, 2, h);                                  // the pour's own edges
     g.fillRect(w - 2, 0, 2, h);
-    // the apron's own transverse joint at the flare shoulders, one each end
-    g.fillRect(0, 1, w, 2);
-    g.fillRect(0, h - 3, w, 2);
+    // the flare shoulders: canvas y runs from maxZ at 0 to minZ at h, and the
+    // wings are DRIVE_F deep at each end (see apronY, which ramps between them)
+    const flare = Math.round(DRIVE_F * WPM);
+    const zs = [0, flare];
+    const bays = Math.max(1, Math.round((h - 2 * flare) / (1.4 * WPM)));
+    for (let k = 1; k <= bays; k++) zs.push(flare + Math.round(((h - 2 * flare) * k) / bays));
+    zs.push(h - 2);
+    for (const y of zs) g.fillRect(0, Math.min(y, h - 2), w, 2);
+    // TYRE TRACKS, and they run the way the car does — across the apron in x,
+    // at the wheel track either side of the opening's centre. Two dark bands
+    // crossing the joints is the other half of what stops this reading as
+    // ribbons, and it is the mark a drive actually carries.
+    const mid = h / 2, halfTrack = Math.round(0.80 * WPM), tw = Math.round(0.22 * WPM);
+    for (const c0 of [mid - halfTrack, mid + halfTrack]) {
+      const tg = g.createLinearGradient(0, c0 - tw, 0, c0 + tw);
+      tg.addColorStop(0, 'rgba(30,27,23,0)');
+      tg.addColorStop(0.5, 'rgba(30,27,23,0.22)');
+      tg.addColorStop(1, 'rgba(30,27,23,0)');
+      g.fillStyle = tg;
+      g.fillRect(0, c0 - tw, w, tw * 2);
+    }
   });
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;   // 1:1, no repeat — see above
   return declareSurface(t, 'ground');
@@ -1321,13 +1363,33 @@ export function buildGround(o: GroundOpts): Ground {
     const pT = p.h - rise(p.h), qT = q.h - rise(q.h); // top of the vertical face (chamfer above)
     const pu = p.s / SEG, qu = q.s / SEG;             // gutter: a joint every 3 m
     const pk = p.s / SEG_K, qk = q.s / SEG_K;         // kerb + arris: a 12 m sheet
-    // vertical face, bottom below grade
-    const pvT = (pT - KBOT) / KTEX, qvT = (qT - KBOT) / KTEX;
+    // VERTICAL FACE, bottom below grade. Mapped to the sheet's FULL height
+    // whatever the reveal is, rather than clipped at a fixed world height.
+    //
+    // "dont like how this curb is discontinuous" (shots/user-kerb-discontinuous
+    // .png, and shots/cut-road-across-day.png is the same thing seen head on):
+    // the kerb runs red-painted from the left, VANISHES for 7.40 m across the
+    // car lot's cut, and comes back on the right. Measured with
+    // scripts/curbcut.mjs, off the built geometry rather than off the source.
+    //
+    // The geometry is not the fault — a depressed kerb at a driveway really is
+    // a 3.5 cm lip, and DRIVE_H is period-correct. The fault is that this uv
+    // clipped the sheet at (pT - KBOT) / KTEX, so a depressed kerb showed a
+    // 1.5 cm slice out of the MIDDLE of the profile: no light top edge, no dark
+    // grit line, a mid-grey sliver against a mid-grey gutter. Nothing to see is
+    // exactly what he reported.
+    //
+    // kerbTex is drawn as a kerb's whole profile — pale just under the arris,
+    // stained toward the road, dark below grade — so it belongs on whatever
+    // height the kerb has, compressed, not cropped. On a full-reveal kerb
+    // (pT - KBOT) is exactly KTEX and this is the SAME uv it always had; only
+    // the ramped runs change, which is the whole of what was wrong. The red
+    // kerb paint below has always mapped 0..1 this way.
     V(facePos, p.x, KBOT, p.z); T(faceUv, pk, 0);
-    V(facePos, p.x, pT, p.z); T(faceUv, pk, pvT);
-    V(facePos, q.x, qT, q.z); T(faceUv, qk, qvT);
+    V(facePos, p.x, pT, p.z); T(faceUv, pk, 1);
+    V(facePos, q.x, qT, q.z); T(faceUv, qk, 1);
     V(facePos, p.x, KBOT, p.z); T(faceUv, pk, 0);
-    V(facePos, q.x, qT, q.z); T(faceUv, qk, qvT);
+    V(facePos, q.x, qT, q.z); T(faceUv, qk, 1);
     V(facePos, q.x, KBOT, q.z); T(faceUv, qk, 0);
     // the arris: a chamfer back into the walk, on its own sheet mapped across
     // its FULL width — never one stretched texel row of the face
