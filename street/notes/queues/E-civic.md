@@ -14,6 +14,41 @@ then commit, then re-read this file before starting the next.
 
 ## Now
 
+> ## DESK RULING — STOP ADDING TO THE PARK. FIX THE GROUND FIRST.
+>
+> `shots/user-parkjank.png`. The user: *"so much of this park just looks
+> jank."* That is the tenth time they have criticised it, and the pattern in
+> those ten is worth naming: **every round has added a feature to a base that
+> is still wrong, so each new thing lands on bad ground and reads badly with
+> it.** Depth, lamps, topography, stripes, shrubs, weeds, benches, a shelter, a
+> memorial, a bandstand — and the path is still made of ROAD.
+>
+> So: add nothing further until the ground is right. In this order, and commit
+> each alone so the user can see it move:
+>
+> **1. THE PATH MATERIAL.** It is still the same dark asphalt as the
+> carriageway, which I flagged as the single biggest win two passes ago and
+> which has not landed. A park path is buff hoggin, gravel, or pale slabs — at
+> darkest a browner, finer tarmac. It must NOT be the road material. Half of
+> what reads as jank in that screenshot is that the park appears to have a
+> street running through it. Do this one first and alone.
+>
+> **2. THE PATH EDGING.** Stark near-white against near-black. Once the path
+> tone lifts, the edge should be a quiet kerb, not a stripe.
+>
+> **3. THE WEEDS ARE IN THE MIDDLE OF THE PATH**, in a line, evenly spaced.
+> Nothing grows down the centre of a path people walk on. They belong in the
+> joints and at the EDGES, clustered, with bare gaps — as already briefed.
+> Right now they make the path look abandoned rather than used.
+>
+> **4. THE TREE at the right of that shot is enormous and leaning across the
+> path**, clipping. Trees are builder B's; measure it and tell me and I will
+> route it rather than you reaching into that file.
+>
+> Then stop and tell me. I will have the auditor walk it before anything else
+> is added. **No new features until the user says the park looks right.**
+
+
 - [ ] **The park: topography, a real loop, and grass that reads as a field.**
       The user: *"park is nicer with trees but i was hoping to get some
       topographical changes. also a loop around the field in the middle would
