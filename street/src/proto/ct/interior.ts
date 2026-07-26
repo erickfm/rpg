@@ -395,6 +395,33 @@ export interface Room {
    */
   sign: (map: THREE.Texture, w: number, h: number,
     lx: number, y: number, lz: number, rotY?: number) => void;
+  /**
+   * A CLOCK THAT TELLS THE TIME. The user: *"make sure all the clocks
+   * throughout the world (library, diner, etc. tell the time accurately)"*.
+   *
+   * That is a property of the world, not a bug in one clock: every face must
+   * agree with game time and therefore with every other face and with the
+   * wristwatch. So this is a kit primitive in the shape of `person()` and
+   * `ctx.seat()` — the caller says WHERE and WHAT KIND, and the kit registers
+   * the frame hook and drives the hands. A room that hand-rolls a clock drifts
+   * from the others the first time anyone touches it.
+   *
+   *     room.clock({ lx: 0, y: 2.4, lz: -hd + 0.1 })          // on the back wall
+   *     room.clock({ lx: 2, y: 1.1, lz: 0, r: 0.13, rotY: Math.PI / 2 })
+   *
+   * BOTH HANDS MOVE, and the hour hand CREEPS — at 13:30 it sits halfway
+   * between 1 and 2, which is the thing that gives a fake clock away. It reads
+   * `hourF` every frame and caches nothing, so when C's sleep advances time the
+   * hands follow the jump without knowing sleep exists.
+   */
+  clock: (opts: {
+    lx: number; y: number; lz: number;
+    /** face radius in metres; 0.22 is a shop wall clock */
+    r?: number;
+    /** which way the face looks; 0 faces +z, like sign() */
+    rotY?: number;
+    face?: number; rim?: number; hands?: number;
+  }) => void;
   /** a collider in LOCAL coordinates, centred on (lx,lz) */
   solid: (lx: number, lz: number, w: number, d: number) => AABB;
   /** every collider this room has registered — hand these to the rig */
@@ -1210,6 +1237,58 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
       // frame. LATE, after the world has moved: it is reacting to the finished
       // position, the same as the billboard pass.
       ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
+    },
+    clock: (o) => {
+      const R = o.r ?? 0.22, rotY = o.rotY ?? 0;
+      const faceC = o.face ?? 0xe8e4d8, rimC = o.rim ?? 0x3a3630, handC = o.hands ?? 0x22201c;
+      const g = new THREE.Group();
+      g.rotation.y = rotY;
+      // rim, then face a hair in front of it so neither z-fights
+      const rim = new THREE.Mesh(new THREE.CircleGeometry(R, 20),
+        new THREE.MeshBasicMaterial({ color: rimC }));
+      g.add(rim);
+      const face = new THREE.Mesh(new THREE.CircleGeometry(R * 0.88, 20),
+        new THREE.MeshBasicMaterial({ color: faceC }));
+      face.position.z = 0.004;
+      g.add(face);
+      // the twelve hours, long at 12/3/6/9 the way a real dial marks them
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2;
+        const quarter = i % 3 === 0;
+        const tick = new THREE.Mesh(
+          new THREE.PlaneGeometry(quarter ? 0.022 : 0.012, quarter ? R * 0.20 : R * 0.12),
+          new THREE.MeshBasicMaterial({ color: rimC }));
+        const rr = R * 0.88 - (quarter ? R * 0.11 : R * 0.07);
+        tick.position.set(Math.sin(a) * rr, Math.cos(a) * rr, 0.006);
+        tick.rotation.z = -a;
+        g.add(tick);
+      }
+      // Hands pivot at one END, so the geometry is pushed up by half its length
+      // before any rotation. A hand rotated about its centre sweeps from the
+      // middle of the dial and reads as a propeller.
+      const hand = (len: number, wdt: number, z: number) => {
+        const geo = new THREE.PlaneGeometry(wdt, len);
+        geo.translate(0, len / 2, 0);
+        const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: handC }));
+        m.position.z = z;
+        g.add(m);
+        return m;
+      };
+      const hourH = hand(R * 0.52, 0.020, 0.008);
+      const minH = hand(R * 0.78, 0.013, 0.010);
+      const cap = new THREE.Mesh(new THREE.CircleGeometry(R * 0.06, 8),
+        new THREE.MeshBasicMaterial({ color: rimC }));
+      cap.position.z = 0.012;
+      g.add(cap);
+      place(g, o.lx, o.y, o.lz);
+      // READ hourF EVERY FRAME. No caching and no interpolation of our own:
+      // that is what makes a time JUMP (sleep, a wristwatch set) carry the
+      // hands with it for free. Angles run clockwise, hence the minus.
+      ctx.onFrame((f) => {
+        const h = f.hourF;
+        minH.rotation.z = -((h % 1) * Math.PI * 2);
+        hourH.rotation.z = -(((h % 12) / 12) * Math.PI * 2);
+      }, HOOK.LATE);
     },
     sign: (map, w, h, lx, y, lz, rotY = 0) => {
       for (const flip of [0, Math.PI]) {

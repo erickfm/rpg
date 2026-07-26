@@ -584,20 +584,14 @@ export function buildLibrary(ctx: CtxBuild): void {
     new THREE.MeshBasicMaterial({ map: noticeT }));
   put(board, -W / 2 + 0.06, 1.75, D / 2 - 5.4).rotation.y = Math.PI / 2;
 
-  // the clock, high on the back wall where a civic room always puts it
-  const clockT = declareSurface(pixTex(24, 24, (g) => {
-    g.fillStyle = '#3a352c'; g.fillRect(0, 0, 24, 24);
-    g.fillStyle = '#e8e4d6'; g.fillRect(2, 2, 20, 20);
-    g.fillStyle = '#3a352c';
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      g.fillRect(12 + Math.round(Math.sin(a) * 8), 12 - Math.round(Math.cos(a) * 8), 1, 1);
-    }
-    g.fillRect(12, 6, 1, 7); g.fillRect(12, 12, 5, 1);
-  }), 'sign');
-  const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.42),
-    new THREE.MeshBasicMaterial({ map: clockT }));
-  put(clock, 0, 2.6, -D / 2 + 0.06);
+  // The clock, high on the back wall where a civic room always puts it.
+  //
+  // Was a PAINTED FACE - hands baked into a 24x24 texture at a fixed hour, so
+  // it disagreed with the diner, with every other clock, and with the wrist.
+  // The user: "make sure all the clocks throughout the world (library, diner,
+  // etc. tell the time accurately)". Now the kit's primitive, which reads
+  // hourF every frame, so all of them agree by construction.
+  room.clock({ lx: 0, y: 2.6, lz: -D / 2 + 0.06, r: 0.21 });
 
   // ── THE FLOOR, WORN WHERE PEOPLE WALK ────────────────────────────────────
   //

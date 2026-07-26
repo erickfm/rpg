@@ -329,12 +329,6 @@ export function buildDiner(ctx: CtxBuild): void {
 
   // and above them, the things that accumulate on a diner wall: a clock, and
   // two framed photographs of the place nobody has taken down
-  const clockT = declareSurface(pixTex(20, 20, (g) => {
-    g.fillStyle = '#cfc7b6'; g.fillRect(0, 0, 20, 20);
-    g.fillStyle = '#e8e4d8'; g.fillRect(2, 2, 16, 16);
-    g.fillStyle = '#2a2622'; g.fillRect(9, 5, 1, 5); g.fillRect(10, 9, 4, 1);
-    for (const [x, y] of [[9, 2], [9, 17], [2, 9], [17, 9]]) { g.fillStyle = '#2a2622'; g.fillRect(x, y, 2, 1); }
-  }), 'detail');
   // HUNG ON THE WALL, derived from the wall.
   //
   // The user, with a screenshot: *"the small white item and the little frame
@@ -348,9 +342,12 @@ export function buildDiner(ctx: CtxBuild): void {
   // the wall: `hw` is the inner face, and a frame sits a couple of centimetres
   // proud of it. Nothing about the furniture should enter into it.
   const WALL_X = wallSide * (hw - 0.03);
-  const clock = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.34), ctx.flat(clockT));
-  clock.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-  put(clock, WALL_X, 2.15, 0.3);
+  // THE CLOCK TELLS THE TIME. It was a painted face with the hands baked in at
+  // a fixed hour, so it disagreed with the library, with the wristwatch, and
+  // with itself an hour later. The kit primitive reads hourF every frame.
+  // Still derived from the wall, per the floating-props fix above.
+  room.clock({ lx: WALL_X, y: 2.15, lz: 0.3, r: 0.17,
+    rotY: wallSide > 0 ? -Math.PI / 2 : Math.PI / 2 });
 
   const photoT = (warm: boolean) => declareSurface(pixTex(20, 16, (g) => {
     g.fillStyle = '#5a4632'; g.fillRect(0, 0, 20, 16);
