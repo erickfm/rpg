@@ -377,6 +377,21 @@ const CASES = [
   // Needle updated with the fix: PIT_X is derived from TRUNK_X now rather than
   // written as a literal, because the well is centred on the trunk. 5.09 still
   // shoves it flush into the kerb, which is the state this case exists to catch.
+  // THE EXACT ERROR THE AUDITOR REJECTED. The soldier course edging the bodega's
+  // cut corner was laid 90° to the face, because after `rotation.x = -PI/2` the
+  // plan spin happens in the already-rotated frame and the sign reads backwards.
+  // Flipping it here puts the band's long axis back along the face NORMAL —
+  // square across the joint it exists to terminate — and footprint must say so.
+  //
+  // Worth having as a case rather than as a memory: my own first probe asserted
+  // the wrong one of `dx+dz==0` and `dx-dz==0` and certified the broken version
+  // as correct. A mutation cannot be fooled by an inverted comparison; it either
+  // goes red or it does not.
+  ['course-across', PROPS,
+    'soldierCourse(scene, cx, cz, -yaw, BAY.faceWidth, 0.42, KERB_H,',
+    'soldierCourse(scene, cx, cz, yaw, BAY.faceWidth, 0.42, KERB_H,',
+    'footprint.mjs', [], 'the bodega course laid across the face it edges, as the auditor found it'],
+
   ['footprint-pits', PROPS,
     'const PIT_X = TRUNK_X;',
     'const PIT_X = 5.09;',

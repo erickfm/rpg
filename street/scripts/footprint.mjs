@@ -269,6 +269,50 @@ console.log(`  ${!r.sunk.length ? 'OK  ' : 'FAIL'} nothing sits below the ground
 for (const s of r.sunk.slice(0, 8)) console.log(`      ${s.label} at z ${s.z}: y ${s.minY} under ground ${s.ground}`);
 const clips = [...new Map((r.clips ?? []).map((c) => [`${c.kind}${c.x}${c.z}`, c])).values()];
 console.log(`  ${!clips.length ? 'OK  ' : 'FAIL'} no litter is inside a building or a prop (${clips.length})`);
+
+// ── the bodega's cut corner keeps its soldier course ────────────────────────
+//
+// The auditor rejected this once already, for being laid 90° to the face it
+// edges, so it is worth being able to fail rather than being looked at again.
+//
+// Two ways it can regress silently. The placement is inside `if (BAY)` in
+// ct/props.ts — BAY is published by ct/bodega-corner.ts and is null until the
+// corner is built — so if that publication ever moves or the build order
+// changes, the course simply is not there and the paving fault comes back with
+// nothing saying so. And the orientation is derived from atan2 over the
+// published endpoints, which is one sign away from the error that was rejected.
+//
+// PARALLEL MEANS `dx + dz == 0` HERE. The bay face satisfies x + z = const, so
+// a band running along it has equal and OPPOSITE components. My first probe
+// asserted `dx - dz == 0` and cheerfully reported the perpendicular band as
+// parallel — a check whose comparison is inverted is worse than no check,
+// because it turns a doubt into a false pass. The verdict below says which of
+// the two it is testing, in words, for that reason.
+const course = await page.evaluate(() => {
+  let f = null;
+  window.__ct.scene().traverse((o) => {
+    if (f || !o.isMesh || o.geometry?.type !== 'PlaneGeometry') return;
+    const g = o.geometry.parameters;
+    if (Math.abs(g.height - 0.42) > 0.02 || g.width < 1.2) return;
+    o.updateMatrixWorld(true);
+    const P = o.position.constructor;
+    const a = new P(-g.width / 2, 0, 0).applyMatrix4(o.matrixWorld);
+    const c = new P(g.width / 2, 0, 0).applyMatrix4(o.matrixWorld);
+    f = { dx: c.x - a.x, dz: c.z - a.z, len: g.width,
+          xPlusZ: +((a.x + a.z + c.x + c.z) / 2).toFixed(2) };
+  });
+  return f;
+});
+if (!course) {
+  console.log('  FAIL the bodega corner has NO soldier course — BAY null, or the placement is gone');
+  process.exitCode = 1;
+} else {
+  const along = Math.abs(course.dx + course.dz) < 0.15;   // along (1,-1), like the face
+  console.log(`  ${along ? 'OK  ' : 'FAIL'} the bodega course runs ALONG the cut, not across it`
+    + ` (axis ${course.dx.toFixed(2)},${course.dz.toFixed(2)}; along the face means dx+dz≈0)`);
+  console.log(`  ${course.len > 2.5 ? 'OK  ' : 'FAIL'} it spans the face it edges (${course.len.toFixed(2)} m)`);
+  if (!along || course.len <= 2.5) process.exitCode = 1;
+}
 for (const c of clips.slice(0, 8)) console.log(`      ${c.kind} at ${c.x}, ${c.z}`);
 if (r.crossers.length || r.sunk.length || clips.length) process.exitCode = 1;
 
