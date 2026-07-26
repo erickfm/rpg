@@ -117,3 +117,26 @@ learned nothing.
 The queue file survives session exits, stalls, compaction and restarts. That is
 the entire reason it exists — and it is why a restarted agent can pick up
 exactly where the last one stopped.
+
+
+## Grade your own work before you report it done
+
+The user's instruction, given about the park after ten disappointing rounds,
+and it applies to everything:
+
+> *"take screenshots yourself and grade it and make sure you are impressed with
+> it. be skeptical."*
+
+Before you report an item finished:
+
+1. **Take your own screenshots** of it, from where a PLAYER stands — standing
+   eye height, walking distance, and every angle it can be seen from.
+2. **Grade them skeptically.** Not "did I do what the brief said" but "would
+   this impress someone who has been disappointed before."
+3. **Fix what you graded badly, re-shoot, re-grade.**
+4. **If you are not impressed, do not report it done.** Say what you could not
+   solve instead.
+
+Almost every rejected item this session would have been caught by step 2. The
+builder had done what the brief said and never looked at the result the way the
+user would.
