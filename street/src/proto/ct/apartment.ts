@@ -2100,7 +2100,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // `pixTex` hands back a CanvasTexture, so the canvas is `t.image` and
     // redrawing it plus `needsUpdate` is the whole of the animation. No new
     // texture per frame — that would leak one every 120 ms.
-    const TVW = 48, TVH = 36;
+    const TVW = 64, TVH = 48;
     type TvSeg = { name: string; secs: number; live?: boolean;
                    draw: (g: CanvasRenderingContext2D, t: number) => void };
     const scr = (g: CanvasRenderingContext2D) => { g.fillStyle = '#0b0d12'; g.fillRect(0, 0, TVW, TVH); };
@@ -2120,6 +2120,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         '6':['111','100','111','101','111'], '7':['111','001','001','001','001'], '8':['111','101','111','101','111'],
         '9':['111','101','111','001','111'], '-':['000','000','111','000','000'], ' ':['000','000','000','000','000'],
         '$':['111','110','111','011','111'], '!':['010','010','010','000','010'],
+        J:['001','001','001','101','111'], K:['101','110','100','110','101'],
+        Q:['111','101','101','111','011'], X:['101','101','010','101','101'],
+        Z:['111','001','010','100','111'], '.':['000','000','000','000','010'],
+        '%':['101','001','010','100','101'], ',':['000','000','000','010','100'],
       };
       g.fillStyle = c;
       let cx = x;
@@ -2145,39 +2149,158 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       const w = txt.length * px / 3 * 4;
       tvText(g, txt, Math.max(1, Math.round((TVW - w) / 2)), y, c, px);
     };
-    const SEGMENTS: TvSeg[] = [
-      { name: 'test card', secs: 7, draw: (g) => {
-        const bars = ['#c8c8c8', '#c8c800', '#00c8c8', '#00c800', '#c800c8', '#c80000', '#0000c8'];
-        bars.forEach((c, i) => { g.fillStyle = c; g.fillRect(Math.round(i * TVW / 7), 0, Math.ceil(TVW / 7), 26); });
-        g.fillStyle = '#111'; g.fillRect(0, 26, TVW, TVH - 26);
-        tvFit(g, 'CROSSTOWN 4', 28, '#d8d8d8', 5);
-      } },
-      // THE ONE THAT REFERENCES HIS OWN WORLD, which is the whole joke: the
-      // lot's palette and its real phone number, on the telly in his room.
-      { name: 'crosstown auto', secs: 8, draw: (g, t) => {
-        g.fillStyle = '#2f7a4a'; g.fillRect(0, 0, TVW, TVH);
-        g.fillStyle = '#e0a81c'; g.fillRect(2, 3, TVW - 4, 13);
-        tvFit(g, 'CROSSTOWN', 4, '#2a2118', 4);
-        tvFit(g, 'AUTO', 10, '#2a2118', 5);
-        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'WE FINANCE', 19, '#fff8e0', 4);
-        tvFit(g, '555-0199', 27, '#fff8e0', 5);
-      } },
-      { name: 'static', secs: 3, live: true, draw: (g, t) => {
-        scr(g);
-        for (let i = 0; i < 340; i++) {
-          const x = (Math.sin(i * 12.9898 + t * 90) * 43758.5453) % 1;
-          const y = (Math.sin(i * 78.233 + t * 57) * 43758.5453) % 1;
-          const v = 40 + Math.floor(((Math.sin(i * 3.1 + t * 130) + 1) / 2) * 190);
-          g.fillStyle = `rgb(${v},${v},${v})`;
-          g.fillRect(Math.abs(x) * TVW | 0, Math.abs(y) * TVH | 0, 1, 1);
-        }
-      } },
+    /**
+     * ONLY ADS, and lots of them. The user: *"make the tv play only lots of
+     * stupid looking ads. like super 90's stupid."* That CANCELS the mixed
+     * schedule this replaces — no test card, no static, no programmes — and
+     * it is the better brief: an ad is three seconds long and cuts hard, so
+     * twenty of them feel like a channel where twenty half-programmes feel
+     * like a mess.
+     *
+     * They share ONE renderer, which is the period-correct thing as well as
+     * the cheap thing: every ad on daytime television in 1997 was the same
+     * five elements in a different order — a screaming band, a starburst, a
+     * price, a phone number held far too long, and a disclaimer too small to
+     * read. Because they share it, adding the twenty-first is one line.
+     */
+    type Ad = {
+      name: string; secs?: number;
+      bg: string; ink: string; band: string; bandInk: string;
+      head: string; lines: string[];
+      price?: string; was?: string; phone?: string; burst?: string; tag?: string;
+    };
+    const ADS: Ad[] = [
+      // ── HIS OWN STREET. The joke that makes this world rather than any
+      //    world, and every one of these is a place he can walk to.
+      { name: 'crosstown auto', bg: '#2f7a4a', ink: '#fff8e0', band: '#e0a81c', bandInk: '#2a2118',
+        head: 'CROSSTOWN AUTO', lines: ['NO CREDIT', 'NO PROBLEM'], phone: '555-0199', burst: '#3f9a5e', tag: 'ON APPROVED CREDIT' },
+      { name: 'sevens buffet', bg: '#7a1420', ink: '#ffe9a8', band: '#e8c33a', bandInk: '#3a1008',
+        head: 'SEVENS', lines: ['FREE BUFFET', 'ALL YOU CAN EAT'], price: '$0', burst: '#9a2030', tag: 'MUST BE 21' },
+      { name: 'first federal', bg: '#1d3d6b', ink: '#eaf2ff', band: '#c8d8f0', bandInk: '#12294a',
+        head: 'FIRST FEDERAL', lines: ['LOANS TODAY', 'APR 29'], phone: '555-0142', tag: 'RATES MAY VARY' },
+      { name: 'bodega', bg: '#3a2c1e', ink: '#ffeec8', band: '#c04a2a', bandInk: '#fff0d8',
+        head: 'CORNER BODEGA', lines: ['OPEN LATE', 'MILK BREAD BEER'], tag: 'NO CHECKS' },
+      { name: 'pawn', bg: '#2a2036', ink: '#ffe08a', band: '#e0b020', bandInk: '#2a2036',
+        head: 'PAWN', lines: ['WE BUY GOLD'], price: 'CASH NOW', burst: '#3a2c4a', tag: 'ID REQUIRED' },
+      { name: 'burger barn', bg: '#a8301c', ink: '#fff4d8', band: '#f0c020', bandInk: '#5a1808',
+        head: 'BURGER BARN', lines: ['TWO FOR ONE'], price: '$2.99', burst: '#c04028', tag: 'WHILE STOCKS LAST' },
+      // ── and generic tat, so it is not only an in-joke
+      { name: 'slice o matic', bg: '#c81e28', ink: '#fffbe8', band: '#ffd21e', bandInk: '#801018',
+        head: 'SLICE O MATIC', lines: ['IT SLICES', 'IT DICES'], price: '$19.99', phone: '555-0800', burst: '#e83040', tag: 'PLUS SHIPPING' },
+      { name: 'miracle mop', bg: '#1a7a8a', ink: '#f0ffff', band: '#ffe83a', bandInk: '#0a3a44',
+        head: 'MIRACLE MOP', lines: ['NEVER WRING'], was: '$39', price: '$19', burst: '#2a9aaa', tag: 'RESULTS VARY' },
+      { name: 'hair in a can', bg: '#4a2a5a', ink: '#ffe8ff', band: '#e0a0f0', bandInk: '#2a1030',
+        head: 'HAIR IN A CAN', lines: ['LOOK YOUNGER', 'IN SECONDS'], price: '$29.99', tag: 'NOT A TREATMENT' },
+      { name: 'ab blaster', bg: '#20304a', ink: '#e8f4ff', band: '#ff6a20', bandInk: '#20304a',
+        head: 'AB BLASTER 3000', lines: ['SIX EASY', 'PAYMENTS'], price: '$9.99', phone: '555-0800', tag: 'DIET AND EXERCISE' },
+      { name: 'psychic line', bg: '#2a1a4a', ink: '#ffe0a0', band: '#c0a0ff', bandInk: '#1a1030',
+        head: 'PSYCHIC LINE', lines: ['THEY KNOW', 'CALL NOW'], price: '$4 A MIN', phone: '555-0777', burst: '#3a2060', tag: 'ENTERTAINMENT ONLY' },
+      { name: 'mega hits', bg: '#d81880', ink: '#fff0ff', band: '#40e0d0', bandInk: '#701040',
+        head: 'MEGA HITS 97', lines: ['FORTY SONGS', 'TWO TAPES'], price: '$24.99', burst: '#f03898', tag: 'NOT IN STORES' },
+      { name: 'carpet', bg: '#7a4a1a', ink: '#fff0d0', band: '#ffd21e', bandInk: '#5a3010',
+        head: 'CARPET BARN', lines: ['BLOWOUT'], price: '99C A FOOT', burst: '#9a6030', tag: 'INSTALL EXTRA' },
+      { name: 'mattress', bg: '#123a6a', ink: '#f0f8ff', band: '#ff2020', bandInk: '#fff0f0',
+        head: 'MATTRESS KING', lines: ['NO PAYMENTS', 'TIL 98'], burst: '#1a4a84', tag: 'OAC SEE STORE' },
+      { name: 'tan', bg: '#e08a10', ink: '#40200a', band: '#fff0a0', bandInk: '#8a4a00',
+        head: 'TAN U MORE', lines: ['TEN SESSIONS'], price: '$29', tag: 'GOGGLES EXTRA' },
+      { name: 'video hut', bg: '#1a1a2a', ink: '#ffe040', band: '#e02020', bandInk: '#fff0f0',
+        head: 'VIDEO HUT', lines: ['NEW RELEASES'], price: '99C', tag: 'BE KIND REWIND' },
+      { name: 'pizza', bg: '#0a5a2a', ink: '#fff8e0', band: '#e02020', bandInk: '#fff0e0',
+        head: 'PIZZA PIZZA', lines: ['TWO LARGE'], price: '$9.99', phone: '555-0311', burst: '#0a7a3a', tag: 'DELIVERY AREA LIMITED' },
+      { name: 'veg o chop', bg: '#8a1060', ink: '#fff0ff', band: '#ffe83a', bandInk: '#5a0840',
+        head: 'VEG O CHOP', lines: ['BUT WAIT', 'THERES MORE'], price: '$14.99', burst: '#aa2080', tag: 'DOUBLE THE OFFER' },
+      { name: 'gold card', bg: '#101018', ink: '#ffd870', band: '#c8a020', bandInk: '#101018',
+        head: 'GOLD CLUB CARD', lines: ['PRE APPROVED', 'YOU ALREADY WON'], phone: '555-0900', tag: 'FEES APPLY' },
+      { name: 'roach motel', bg: '#3a3a1a', ink: '#f0f0c0', band: '#a0c020', bandInk: '#20200a',
+        head: 'ROACH MOTEL', lines: ['THEY CHECK IN', 'THEY DONT'], price: '$4.99', tag: 'USE AS DIRECTED' },
     ];
+    const drawAd = (g: CanvasRenderingContext2D, a: Ad, t: number) => {
+      g.fillStyle = a.bg; g.fillRect(0, 0, TVW, TVH);
+      // the starburst behind everything, because of course there is one
+      if (a.burst) {
+        g.fillStyle = a.burst;
+        for (let k = 0; k < 12; k++) {
+          const th = (k / 12) * Math.PI * 2 + t * 0.5;
+          g.save(); g.translate(TVW / 2, TVH / 2 + 4); g.rotate(th);
+          g.fillRect(0, -2, 46, 4); g.restore();
+        }
+      }
+      g.fillStyle = a.band; g.fillRect(0, 1, TVW, 9);            // the screaming band
+      tvFit(g, a.head, 3, a.bandInk, 5);
+      let y = 13;
+      for (const ln of a.lines) { tvFit(g, ln, y, a.ink, 4); y += 7; }
+      if (a.was) { tvFit(g, `WAS ${a.was}`, y, a.ink, 4); y += 7; }
+      if (a.price) {
+        // drop shadow, chunky, one pixel off — bad kerning is period-correct
+        tvFit(g, a.price, y + 1, '#00000088', 7); tvFit(g, a.price, y, '#fffbe8', 7);
+        y += 10;
+      }
+      // held on screen far too long, and blinking
+      if (a.phone && Math.floor(t * 2.5) % 2 === 0) tvFit(g, a.phone, TVH - 13, '#fffbe8', 6);
+      else if (!a.phone && Math.floor(t * 2.5) % 2 === 0) tvFit(g, 'CALL NOW!!', TVH - 13, '#fffbe8', 5);
+      // the disclaimer, literally too small to read: one row of grey ticks
+      g.fillStyle = 'rgba(255,255,255,0.45)';
+      for (let x = 2; x < TVW - 2; x += 2) g.fillRect(x, TVH - 4, 1, 2);
+      if (a.tag) { /* the text exists; at this size it is a grey bar, as intended */ }
+    };
+    // Every ad is a segment. SHORT, and cut hard — that is what makes twenty
+    // feel endless.
+    const SEGMENTS: TvSeg[] = ADS.map((a) => ({
+      name: a.name, secs: a.secs ?? 3.2, live: true,
+      draw: (g, t) => drawAd(g, a, t),
+    }));
     let tvSeg = 0, tvLeft = SEGMENTS[0].secs, tvClock = 0, tvRedraw = 0;
+    let tvBag: number[] = [];
     const tvScreenT = surfTex('detail', TVW, TVH, (g) => SEGMENTS[0].draw(g, 0));
     const tvScreenM = flatOf2(tvScreenT);
-    box(0.46, 0.38, 0.40, -1.56, RY + 0.55, 2.34,
-      [tvBodyM, tvBodyM, tvBodyM, tvBodyM, tvScreenM, tvBodyM]);   // screen faces the bed
+    // ── THE BEZEL ────────────────────────────────────────────────────────
+    // The user: *"give the tv a bezel"*. A glowing rectangle on a wall is a
+    // poster; a glowing rectangle behind a chunky surround is a television.
+    // The screen used to BE the whole front face, which is exactly the poster.
+    //
+    // So: a fat beige box, the glass recessed 15 mm inside it and smaller than
+    // the face on all four sides, a darker band under it carrying a badge and
+    // three buttons, and a standby LED. The surround is a separate, dull
+    // material so the night grade dims it while the screen stays bright — the
+    // bezel must frame the glow, not swallow it.
+    const TV_X = -1.56, TV_Y = RY + 0.58, TV_Z = 2.34;
+    const CASE_W = 0.52, CASE_H = 0.46, CASE_D = 0.40;
+    const SCR_W = 0.36, SCR_H = 0.26, SCR_Y = TV_Y + 0.045;
+    const TV_FRONT = TV_Z + CASE_D / 2;                 // the plane of the surround
+    const caseM = new THREE.MeshBasicMaterial({ color: 0x9a9080 });      // beige plastic
+    const caseDarkM = new THREE.MeshBasicMaterial({ color: 0x6a6256 });
+    // THE BODY STOPS SHORT OF THE FACE. A solid box the full depth has an
+    // opaque front, and a screen recessed behind it is simply not drawn — the
+    // set read as a blank beige slab. So the carcass ends 0.06 m back and the
+    // surround is four RAILS around an open aperture, which is what a bezel
+    // physically is.
+    const BODY_D = CASE_D - 0.06, BODY_Z = TV_Z - 0.03;
+    box(CASE_W, CASE_H, BODY_D, TV_X, TV_Y, BODY_Z, caseM);
+    const WELL_Z = BODY_Z + BODY_D / 2;                 // the face the glass sits on
+    box(SCR_W + 0.02, SCR_H + 0.02, 0.012, TV_X, SCR_Y, WELL_Z + 0.004,
+      new THREE.MeshBasicMaterial({ color: 0x14141a }));                 // the dark well
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(SCR_W, SCR_H), tvScreenM);
+    screen.position.set(AX(TV_X), SCR_Y, AZI(WELL_Z + 0.012));
+    scene.add(screen);
+    // the four rails, standing proud of the glass so the screen sits INSIDE
+    const RAIL_D = 0.06, RAIL_Z = WELL_Z + RAIL_D / 2 + 0.012;
+    const topH = (TV_Y + CASE_H / 2) - (SCR_Y + SCR_H / 2);
+    const botH = (SCR_Y - SCR_H / 2) - (TV_Y - CASE_H / 2);
+    const sideW = (CASE_W - SCR_W) / 2;
+    box(CASE_W, topH, RAIL_D, TV_X, SCR_Y + SCR_H / 2 + topH / 2, RAIL_Z, caseM);
+    box(CASE_W, botH, RAIL_D, TV_X, SCR_Y - SCR_H / 2 - botH / 2, RAIL_Z, caseM);
+    box(sideW, SCR_H, RAIL_D, TV_X - SCR_W / 2 - sideW / 2, SCR_Y, RAIL_Z, caseM);
+    box(sideW, SCR_H, RAIL_D, TV_X + SCR_W / 2 + sideW / 2, SCR_Y, RAIL_Z, caseM);
+    // and the furniture of the thing, on the bottom rail's own face
+    const FZ = RAIL_Z + RAIL_D / 2 + 0.002;
+    const BY = SCR_Y - SCR_H / 2 - botH / 2;
+    box(CASE_W - 0.06, 0.055, 0.010, TV_X, BY, FZ, caseDarkM);
+    box(0.10, 0.020, 0.008, TV_X - 0.16, BY, FZ + 0.006,
+      new THREE.MeshBasicMaterial({ color: 0xc8c0ae }));                 // brand badge
+    for (let k = 0; k < 3; k++)
+      box(0.020, 0.020, 0.008, TV_X + 0.04 + k * 0.032, BY, FZ + 0.006, caseM);
+    box(0.012, 0.012, 0.008, TV_X + 0.19, BY, FZ + 0.006,
+      new THREE.MeshBasicMaterial({ color: 0xd83a2a }));                 // standby LED
     // IT IS A LIGHT SOURCE, not just a bright texture. The desk: *"it is a
     // small CRT in a dark room, so the screen should be the brightest thing in
     // the frame and cast a little light."* props.ts publishes `addLamp(x, z)`
@@ -2197,11 +2320,22 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       if (Math.abs(lastGy - 2 * ST) > 0.5) return;
       tvClock += dt; tvLeft -= dt;
       if (tvLeft <= 0) {
-        // shuffle without an immediate repeat — a pool this small would show
-        // one within seconds otherwise, which is the "repetative" complaint.
-        let n = tvSeg;
-        while (n === tvSeg && SEGMENTS.length > 1) n = Math.floor(Math.random() * SEGMENTS.length);
-        tvSeg = n; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
+        // A SHUFFLED BAG, not a random pick. Picking uniformly at random from
+        // twenty showed a repeat by the ninth ad in a two-minute sitting —
+        // the birthday problem, not a small pool — and a repeat is exactly the
+        // thing the user asked not to see. Dealing the whole pack before
+        // reshuffling guarantees all twenty first, and reshuffling only when
+        // it is empty means the seam between packs is the only place two can
+        // land near each other.
+        if (!tvBag.length) {
+          tvBag = SEGMENTS.map((_, k) => k);
+          for (let k = tvBag.length - 1; k > 0; k--) {
+            const j = Math.floor(Math.random() * (k + 1));
+            [tvBag[k], tvBag[j]] = [tvBag[j], tvBag[k]];
+          }
+          if (tvBag[0] === tvSeg && tvBag.length > 1) [tvBag[0], tvBag[1]] = [tvBag[1], tvBag[0]];
+        }
+        tvSeg = tvBag.pop()!; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
         tvPaint();
         return;
       }
