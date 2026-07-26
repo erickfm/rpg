@@ -1638,3 +1638,27 @@ That is the fifth boundary error of this audit, after the tree pits twice, the
 alley cat, and the park station. The habit that keeps catching them is the same
 one: when a filter returns zero, widen it and print what it DID find before
 believing the zero.
+
+## [I] Three overlap censuses, none usable — and what that is worth knowing
+
+I tried three times to count prop-on-prop overlap in the park:
+
+- **mesh level → 556 overlaps.** A bench's slats against its own frame.
+- **top-level group → 549.** Worst pair shares a centre and overlaps 4.69 m, so
+  `scene.children` does not isolate logical props either.
+- **targeted pair → usable.** The closest bench-to-pedestal in the park, 0.51 m,
+  looked at directly: adjacent, not intersecting.
+
+**The first two are not weak measurements, they are measurements of a different
+thing** — "how many boxes intersect" rather than "how many objects clip". Every
+compound object in this world (a bench, a memorial's plinth and shaft, a panel on
+its posts) is *supposed* to have parts that overlap.
+
+E's `E-overlap` solves it by discriminating design from defect, which needs
+knowledge of what each object is. **I do not have that knowledge and cannot fake
+it with a threshold** — so the honest output is one pair I can see rather than a
+total I cannot defend.
+
+*A census you cannot make correct is worth less than a single case you can.* The
+temptation with 549 in hand is to publish it with a caveat; the caveat would not
+survive contact with anyone acting on the number.
