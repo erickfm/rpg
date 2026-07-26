@@ -1524,7 +1524,10 @@ export const taxFront = (brick: string, wM: number) => {
   const surf = masonry(wM, SHOP_BAND_H, 0, SHOP_MULT);
   const { W, H } = surf, m = surf.m;
   const F = frontageOf('A-1 TAX', wM);
-  const NAVY = '#2c4a7a', GOLD = '#b89a4e', BLIND = '#cfd2c8', ALU = '#8f938f';
+  // BLIND was #cfd2c8 — luma 209 against a 149 sky, the brightest large
+  // surface on the block after the burger barn's menu. Set by measurement now,
+  // not by eye: see the comment on the blind run below.
+  const NAVY = '#2c4a7a', GOLD = '#b89a4e', BLIND = '#7d8178', ALU = '#8f938f';
   return surf.paint((g) => {
     g.fillStyle = brick; g.fillRect(0, 0, W, H);
     surf.courses(g);
@@ -1560,11 +1563,49 @@ export const taxFront = (brick: string, wM: number) => {
     reveal(g, surf, ox, oy, ow, oh);
     const gx = ox + m(B.gi), gy = oy + m(B.gi), gw = ow - m(2 * B.gi), gh = oh - m(B.sg);
     glazed(g, surf, gx, gy, gw, gh, '#3a4038');
-    // vertical blinds, half shut and not quite even — the whole character
+    // VERTICAL BLINDS, half shut — but not across the whole window, and not
+    // brighter than the sky.
+    //
+    // Measured against every other shopfront on the street, this front was the
+    // outlier and it was the outlier twice over: the slat tone came out at
+    // luma 209 against a daylight sky at 149, and one tone covered 46.8% of
+    // the band's mid rows. Nothing else on the block is above 85. A wall of
+    // even pale stripes at that brightness reads as a barcode, which is what
+    // it looked like from the pavement.
+    //
+    // Both halves are wrong for the same physical reason: outside is BRIGHTER
+    // than inside. A slat lit by an office fluorescent, seen from a sunlit
+    // street, is a mid grey — the paleness was painting it as if it were lit
+    // from the camera's side. And a blind that is "permanently half-shut" is
+    // never drawn evenly across a 12 m window; one panel is always pulled
+    // back, which is also where the depth comes from.
     const step = m(0.22);
+    // The drawn-back panel goes at the end FURTHEST FROM THE DOOR, derived
+    // rather than fixed, so it keeps working if the room moves its door —
+    // the same lesson the diner's glass block taught two commits ago.
+    const dcM = doorAlongU('A-1 TAX', wM, F.doorCentreM);
+    const openLow = m(dcM) > gx + gw / 2;
+    const openW = Math.min(m(2.6), gw * 0.24);
+    const oX0 = openLow ? gx : gx + gw - openW;
+    const oX1 = oX0 + openW;
+    // what you see where they are pulled back: a desk under the window, a
+    // chair behind it, a filing cabinet, and the strip light on the ceiling
+    g.fillStyle = '#2e3330'; g.fillRect(oX0, gy, openW, gh);
+    g.fillStyle = '#5a5f52'; g.fillRect(oX0, gy, openW, m(0.22));                     // lit ceiling
+    g.fillStyle = '#463d31'; g.fillRect(oX0 + m(0.2), gy + m(1.5), openW - m(0.4), m(0.14));  // desk top
+    g.fillStyle = '#241f1a'; g.fillRect(oX0 + m(0.3), gy + m(1.64), openW - m(0.6), m(0.7));  // its shadow side
+    g.fillStyle = '#3a3f42'; g.fillRect(oX0 + m(0.45), gy + m(0.95), m(0.5), m(0.55));        // chair back
+    g.fillStyle = '#4a463c'; g.fillRect(oX1 - m(0.75), gy + m(0.75), m(0.55), m(1.5));        // filing cabinet
+    g.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let k = 1; k < 4; k++) g.fillRect(oX1 - m(0.75), gy + m(0.75) + k * m(0.37), m(0.55), Math.max(1, m(0.05)));
     for (let x = gx; x < gx + gw; x += step) {
+      if (x + step > oX0 && x < oX1) continue;                 // pulled back here
       const lean = (Math.floor((x - gx) / step) % 5 === 0) ? m(0.05) : 0;
-      g.fillStyle = BLIND; g.fillRect(x, gy, Math.max(1, step - m(0.07)) , gh);
+      // slats do not all hang at one angle; a few catch the light and a few
+      // are edge-on, which is what stops the run reading as a printed pattern
+      const turn = Math.floor((x - gx) / step) % 7;
+      g.fillStyle = turn === 3 ? '#6d7168' : turn === 6 ? '#8b8f84' : BLIND;
+      g.fillRect(x, gy, Math.max(1, step - m(0.07)), gh);
       g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(x + step - m(0.09) + lean, gy, Math.max(1, m(0.06)), gh);
     }
     g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(gx, gy, gw, m(0.5));           // strip light above them
@@ -1589,9 +1630,9 @@ export const taxFront = (brick: string, wM: number) => {
       g.fillStyle = '#8a2c22'; g.fillText(n, nx + m(0.55), ny + m(0.28));
     });
     // aluminium door, its own reveal, kick plate scuffed
-    // where the ROOM says its door is, falling back to this painter's own
-    // layout only if no room has spoken for this frontage
-    const dcM = doorAlongU('A-1 TAX', wM, F.doorCentreM);
+    // where the ROOM says its door is — resolved ONCE, up at the blind run,
+    // because the drawn-back panel is placed relative to it and two calls
+    // would be two chances to disagree
     const dw = m(F.doorWidthM), dx = m(dcM - F.doorWidthM / 2);
     g.fillStyle = ALU; g.fillRect(dx - m(0.08), gy, dw + m(0.16), gh);
     g.fillStyle = SH; g.fillRect(dx - m(0.08), gy, m(0.08), gh);
