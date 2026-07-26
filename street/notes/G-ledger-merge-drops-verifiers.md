@@ -84,3 +84,22 @@ auditor's own lesson, and it survived the rebase that ate the cell:
 containment and length; the shared one's docstring already said *"Evidence is
 APPEND-ONLY, so never choose a side."* Two tools with different semantics on a
 file every agent appends to is worse than one imperfect tool. I deleted mine.
+
+## Consequence for the auditor's own sweep row
+
+Verified `AUDIT`'s row *"28 CONFIRMED rows rest on nothing"* on build
+`cf3823704` by re-running its station: **207 CONFIRMED, 1 flagged**, against
+171 / 28 when written. The finding and the method hold. Two limits, both measured:
+
+1. **The last flagged row is a FALSE POSITIVE, so the true count is 0.** J's
+   library-entrance row carries 2665 characters ending in a signed verifier
+   account by C with a station in it. It is flagged only because
+   `ledger-evidence.py`'s `MARK` matches vocabulary — `CONFIRMED by|VERIFIED|
+   STATION:|desk ruling|CHECK FROM|verified by|PREDICATE` — and C used none of
+   those words. It measures phrasing, not substance, and that cuts both ways.
+2. **The count can improve while individual verifiers' evidence is destroyed** —
+   the bug above. So "28 → 1" is partly appends that landed and partly appends
+   that were deleted, and the metric cannot presently tell them apart.
+
+Landing `441eacfc1` and then counting per SEGMENT rather than per ROW would close
+both.
