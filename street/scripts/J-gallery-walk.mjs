@@ -11,12 +11,15 @@
 // DRIVING THE PLAYER (CLAUDE.md: anything involving movement, collision or
 // floors must be verified by actually walking it).
 //
-// Five verdicts, in the order they can fail:
+// Six verdicts, in the order they can fail:
 //
 //   population  the room has a raised level at all. Every verdict below is
 //               about a climb, and a climb you cannot find passes for free on
 //               a world that failed to build one (GOTCHAS §34).
 //   climb       holding W at the foot of the flight puts you ON the deck.
+//   clearance   the handrail never comes up to meet your head. Measured WHILE
+//               CLIMBING against the live rail — this is the figure the
+//               verifier could not settle from outside.
 //   traverse    from the top you can walk the deck's length. This is what the
 //               gallery's new wall shelving could break, and it is the whole
 //               of "inaccessible because of walls".
@@ -123,6 +126,48 @@ console.log(`deck x≈${deckX.toFixed(2)}  z ${deckZ0.toFixed(2)}..${deckZ1.toFi
 console.log(`flight foot at (${foot.x.toFixed(2)}, ${foot.z.toFixed(2)}), climbing toward `
   + `${climbTowardMinusZ ? '-z' : '+z'}`);
 
+// THE RAKING HANDRAIL, found rather than assumed, so this can measure against
+// it while the player climbs.
+//
+// C's verification of the handrail row confirmed the geometry independently —
+// "exactly ONE raking handrail, 4.10 m at 31.1 degrees, and ZERO short level
+// caps" — and then said what it could NOT settle: *"Not verified: the
+// 'constant 0.60 m below eye height the whole rake' figure, which needs the
+// walk J's own script does."* That was my claim, derived from the constants,
+// and a number only its author can produce is not evidence. So the walk
+// measures it now.
+//
+// Picked by SECTION, not by position: the stringers under the treads are also
+// raked boxes, and they are 0.36 m deep in section where the rail is 0.09.
+const findRail = () => p.evaluate(([cx, cz, w, d]) => {
+  let best = null;
+  window.__ct.scene().traverse((o) => {
+    if (!o.isMesh || o.geometry?.type !== 'BoxGeometry') return;
+    if (Math.abs(o.rotation.x) < 0.10) return;             // not raked
+    const g = o.geometry.parameters;
+    if (g.height > 0.15 || g.width > 0.15 || g.depth < 3) return;   // a rail's section
+    const q = o.getWorldPosition(o.position.clone());
+    if (Math.abs(q.x - cx) > w / 2 || Math.abs(q.z - cz) > d / 2) return;
+    best = { x: q.x, y: q.y, z: q.z, pitch: o.rotation.x, len: g.depth, h: g.height };
+  });
+  return best;
+}, [room.cx, room.cz, room.w, room.d]);
+let rail = await findRail();
+if (!rail) {
+  console.error('ABORT  no raking handrail found on the flight — nothing to measure against');
+  await b.close(); process.exit(3);                        // GOTCHAS §32 / §34
+}
+console.log(`handrail ${rail.len.toFixed(2)} m at `
+  + `${(Math.abs(rail.pitch) * 180 / Math.PI).toFixed(1)}°, section ${rail.h.toFixed(2)} m`);
+// a box at rotation.x = p has its local +z along (0, -sin p, cos p), so the
+// centreline height at a given world z is exact rather than interpolated
+const railYAt = (z) => rail.y - Math.sin(rail.pitch) * ((z - rail.z) / Math.cos(rail.pitch));
+
+const EYE = 1.62;                             // the rig's standing eye, from fp.ts
+// the railed run's own ends, so the sampler below knows when the player is on it
+const zTopOfRail = rail.z - Math.cos(rail.pitch) * rail.len / 2;
+const zBotOfRail = rail.z + Math.cos(rail.pitch) * rail.len / 2;
+
 if (SELFTEST) {
   // TWO mutations in the LIVE collider array — the same array the movement code
   // reads, so there is nothing to rebuild. One must break the climb and one
@@ -132,14 +177,49 @@ if (SELFTEST) {
   // GOTCHAS §27's warning is about the mutation that does not actually break
   // the thing: a wall narrower than the walkway is stepped around, the walk
   // still arrives, and the selftest passes while proving nothing.
-  await p.evaluate(([fx, fz, dx, dz0, dz1]) => {
-    window.__ct.colliders().push({                 // a wall across the flight's foot
-      minX: fx - 2.2, maxX: fx + 2.2, minZ: fz - 0.30, maxZ: fz + 0.30 });
-    window.__ct.colliders().push({                 // …and one across the deck's middle
+  await p.evaluate(([fx, tz, dx, dz0, dz1, ry]) => {
+    // (1) a wall across the TOP of the flight, not its foot. At the foot the
+    //     player never gets onto the railed run, so the clearance verdict below
+    //     would go red on its POPULATION guard — red for the wrong reason,
+    //     which is a selftest that proves nothing about what it claims to test
+    //     (GOTCHAS §27). At the top, the player climbs, samples the rail all
+    //     the way, and still fails to reach the deck.
+    window.__ct.colliders().push({
+      minX: fx - 2.2, maxX: fx + 2.2, minZ: tz - 0.45, maxZ: tz + 0.15 });
+    // (2) …and one across the deck's middle, for the traverse
+    window.__ct.colliders().push({
       minX: dx - 2.2, maxX: dx + 2.2,
       minZ: (dz0 + dz1) / 2 - 0.30, maxZ: (dz0 + dz1) / 2 + 0.30 });
-  }, [foot.x, foot.z, deckX, deckZ0, deckZ1]);
-  console.log('SELFTEST: the flight\'s foot and the deck\'s middle are walled — both must go red');
+    // (3) and the rail comes UP TO HEAD HEIGHT, which is the only mutation that
+    //     tests the clearance verdict for the reason it exists
+    window.__ct.scene().traverse((o) => {
+      if (!o.isMesh || o.geometry?.type !== 'BoxGeometry') return;
+      if (Math.abs(o.rotation.x) < 0.10) return;
+      const g = o.geometry.parameters;
+      if (g.height > 0.15 || g.width > 0.15 || g.depth < 3) return;
+      o.position.y += ry;
+    });
+  }, [foot.x, zTopOfRail, deckX, deckZ0, deckZ1, 0.55]);
+  console.log('SELFTEST: the flight\'s TOP is walled, the deck\'s middle is walled, '
+    + 'and the handrail is raised 0.55 m to head height — three verdicts must go red');
+}
+
+// RE-READ THE RAIL, LIVE, immediately before the walk that measures against it.
+//
+// The first version captured it once at startup and measured the snapshot — and
+// the selftest RAISED THE RAIL 0.55 m TO HEAD HEIGHT AND THE VERDICT STAYED
+// GREEN AT 0.59 m, because the number it compared against was the pre-mutation
+// one. That is GOTCHAS §27's warning word for word: "a mutation that does not
+// actually break the thing proves nothing, and looks exactly like a check that
+// works." I only found it by watching the selftest fail to fail.
+//
+// Re-reading is also the more correct thing in its own right: the clearance
+// claim is about the rail that is in the world when the player walks under it,
+// not about one read taken before anything else happened.
+rail = await findRail();
+if (!rail) {
+  console.error('ABORT  the handrail vanished between discovery and the walk');
+  await b.close(); process.exit(3);
 }
 
 // ── climb ───────────────────────────────────────────────────────────────────
@@ -150,11 +230,39 @@ await p.evaluate(([x, z, yaw]) => window.__ct.warp(x, z, yaw, 0, 0),
   [foot.x, startZ, climbTowardMinusZ ? 0 : Math.PI]);
 await p.waitForTimeout(300);
 const before = await pos();
-const afterClimb = await walk('w', async () => (await pos())[3] >= top - 0.04);
+// sample the rail against the player's eye at every poll of the climb, so the
+// clearance is measured WHERE THE PLAYER IS rather than computed from the
+// constants the rail was built from
+const clearances = [];
+const sampleClearance = async () => {
+  const q = await pos();
+  const zMin = Math.min(zTopOfRail, zBotOfRail), zMax = Math.max(zTopOfRail, zBotOfRail);
+  if (q[2] < zMin || q[2] > zMax) return;                  // off the railed run
+  clearances.push({ z: +q[2].toFixed(2), gap: +((q[3] + EYE) - (railYAt(q[2]) + rail.h / 2)).toFixed(3) });
+};
+const afterClimb = await walk('w', async () => {
+  await sampleClearance();
+  return (await pos())[3] >= top - 0.04;
+});
 report('holding W at the foot of the flight puts you on the gallery',
   afterClimb[3] >= top - 0.10,
   `gy ${before[3].toFixed(2)} -> ${afterClimb[3].toFixed(2)} (deck is ${top.toFixed(2)})`);
 await p.screenshot({ path: 'shots/J-lib/walk-1-on-the-gallery.png' });
+
+// ── the rail never comes up to meet your head ───────────────────────────────
+//
+// The population first (GOTCHAS §34): a clearance that is never sampled is a
+// clearance that passes for free, and this one samples only while the player is
+// ON the railed run.
+const gaps = clearances.map((c) => c.gap);
+const minGap = gaps.length ? Math.min(...gaps) : null;
+const maxGap = gaps.length ? Math.max(...gaps) : null;
+report('the handrail stays clear of your head the whole rake',
+  gaps.length >= 4 && minGap !== null && minGap > 0.30,
+  gaps.length < 4
+    ? `only ${gaps.length} samples on the railed run — too few to say anything`
+    : `${gaps.length} samples, rail top to eye ${minGap.toFixed(2)}…${maxGap.toFixed(2)} m`
+      + ` (spread ${(maxGap - minGap).toFixed(3)} m, so it is a constant, not a taper)`);
 
 // ── traverse ────────────────────────────────────────────────────────────────
 // keep going the same way and see how much of the deck you cover. The far end
@@ -199,5 +307,8 @@ report('no console errors', errs.length === 0, errs.slice(0, 2).join(' | ') || '
 
 console.log(fails ? `\n${fails} FAILED` : '\nall good');
 await b.close();
-if (SELFTEST) process.exit(fails >= 2 ? 0 : 2);
+// THREE mutations, three verdicts that must go red. Raised from 2 when the
+// clearance verdict was added — a selftest bar that does not move with the
+// check lets a verdict quietly stop being falsifiable.
+if (SELFTEST) process.exit(fails >= 3 ? 0 : 2);
 process.exit(fails ? 1 : 0);
