@@ -98,10 +98,17 @@ The ledger is one row per line and every agent appends to the same rows, so a
 rebase conflicts on it almost every time. The resolution is always the same
 shape and doing it by hand is how evidence gets dropped:
 
-  * keep MAINLINE's text for a row  — the builder's account is newer than mine
-  * take MY line when it carries auditor evidence mainline lacks
-  * take MY line when it promotes the status and mainline has not
+  * start from MAINLINE's row — the builder's account is newer than mine
+  * APPEND any auditor segment my side has that mainline's row lacks
+  * take the stronger status
   * keep rows only one side has
+
+Evidence is APPEND-ONLY, so never choose a side. Choosing lost a row's evidence
+once, and then four passes at a stroke when mainline already carried an older
+auditor segment and was already CONFIRMED: my newer, longer line looked like the
+weaker candidate and was dropped. The commits then became empty and git silently
+skipped them. Nothing looked wrong afterwards - every row still read plausibly
+and only the CONFIRMED count moved, 124 to 115.
 
 Run with no arguments after a conflicted rebase, then `git add` and continue.
 """
@@ -117,6 +124,23 @@ def status(l):
     m = re.match(r'\|\s*(\w+)\s*\|', l)
     return m.group(1) if m else ''
 
+SEG = ' — **AUDITOR'
+
+def segments(l):
+    return [SEG + p for p in l.split(SEG)[1:]]
+
+def merge(theirs, mine):
+    """Mainline's row, plus any auditor segment of mine it does not already
+    carry. Never drops either side's account."""
+    out = theirs.rstrip().rstrip('|').rstrip()
+    add = [s for s in segments(mine) if s[:70] not in theirs]
+    if add:
+        out += ''.join(s.rstrip().rstrip('|').rstrip() for s in add)
+    out += ' |'
+    if status(mine) == 'CONFIRMED' and status(out) != 'CONFIRMED':
+        out = '| CONFIRMED |' + out[out.index('|', 1) + 1:]
+    return out
+
 def resolve(m):
     ours = [l for l in m.group(1).split('\n') if l.strip()]
     mine = [l for l in m.group(2).split('\n') if l.strip()]
@@ -124,12 +148,7 @@ def resolve(m):
     out = []
     for l in ours:
         alt = mymap.get(key(l))
-        if alt and 'AUDITOR' in alt and 'AUDITOR' not in l:
-            out.append(alt)
-        elif alt and status(alt) == 'CONFIRMED' and status(l) != 'CONFIRMED':
-            out.append(alt)
-        else:
-            out.append(l)
+        out.append(merge(l, alt) if alt else l)
     seen = {key(x) for x in ours}
     for k, l in mymap.items():
         if k not in seen:
