@@ -1262,3 +1262,32 @@ The same reading error nearly happened twice more:
 Strong language about how something looks is a bug report. A statement that the
 thing itself is unwanted is a verdict. They are different messages and only the
 second one licenses removal.
+
+## 47. The desk's own direct dispatches are the ones that go unlogged
+
+`scripts/route.sh` exists so a request cannot be dispatched without being
+logged — it writes `FEATURE-REQUESTS.md`, appends a LEDGER row, sends the brief
+and verifies it landed, in one command, precisely because the desk skipped the
+logging step during a fast stretch.
+
+It does not help when the desk sends a brief by raw `tmux send-keys`, which is
+what happens for follow-ups, rebriefs and re-routes. Four real pieces of work
+were dispatched that way in one session and none had a ledger row:
+
+```
+B  the printed-signage night opt-out   built, landed, invisible
+B  the east-end crossing               built, landed, invisible
+B  the new alley's ground              built, landed, invisible
+A  the world-wide flat-colour class    routed, never tracked
+```
+
+`live.sh B` read **0 live** while B was building three of the user's requests,
+and B declared `DONE` truthfully by the only record it had. The same shape as
+H reading 0 live with an untracked request in `FEATURE-REQUESTS.md`.
+
+**Rule: raw `tmux send-keys` is for STATUS and RULINGS only** — things already
+recorded elsewhere. Anything that asks a builder to make something new goes
+through `route.sh`, even when it is the second half of a request already
+logged, and even when it is a re-route of existing work to a different owner.
+A split request needs a row per half or the half nobody sees never gets
+confirmed.
