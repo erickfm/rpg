@@ -387,9 +387,14 @@ const CASES = [
   // the wrong one of `dx+dz==0` and `dx-dz==0` and certified the broken version
   // as correct. A mutation cannot be fooled by an inverted comparison; it either
   // goes red or it does not.
+  // NEEDLE MOVED WITH THE FIX. This flipped the sign of a hand-derived atan2;
+  // ct/bodega-corner.ts now publishes `yawAlong` and props.ts uses it directly,
+  // so there is no derivation left to break. Turning the published axis a
+  // quarter turn reproduces the same defect — the band across the joint it
+  // exists to terminate — against the code as it now stands.
   ['course-across', PROPS,
-    'soldierCourse(scene, cx, cz, -yaw, BAY.faceWidth, 0.42, KERB_H,',
-    'soldierCourse(scene, cx, cz, yaw, BAY.faceWidth, 0.42, KERB_H,',
+    'soldierCourse(scene, cx, cz, BAY.yawAlong, BAY.faceWidth, 0.42, KERB_H,',
+    'soldierCourse(scene, cx, cz, BAY.yawAlong + Math.PI / 2, BAY.faceWidth, 0.42, KERB_H,',
     'footprint.mjs', [], 'the bodega course laid across the face it edges, as the auditor found it'],
 
   ['footprint-pits', PROPS,

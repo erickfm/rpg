@@ -2704,10 +2704,16 @@ export function buildProps(ctx: CtxBuild): Props {
     // stand it clear of the wall along the published face normal
     const cx = BAY.centre.x + BAY.normal.x * HALF;
     const cz = BAY.centre.z + BAY.normal.z * HALF;
-    // the band runs ALONG the face: from a to b, not across it. Sign of this
-    // was the defect the auditor rejected, so it is derived rather than typed.
-    const yaw = Math.atan2(BAY.b.z - BAY.a.z, BAY.b.x - BAY.a.x);
-    soldierCourse(scene, cx, cz, -yaw, BAY.faceWidth, 0.42, KERB_H, (t) => wet(flat(t)));
+    // ALONG-FACE AXIS TAKEN FROM THE PUBLICATION, not derived here. I had this
+    // as `atan2(b - a)`, and deriving it is the step that went 90° out: the
+    // auditor's words were "the band extends 0.42 m ALONG the face and 2.60 m
+    // PERPENDICULAR to it — B's two numbers, swapped".
+    //
+    // 0b8aad148 publishes `yawAlong` and `tangent` for exactly that reason —
+    // "publishing one axis of a pair is half a fact" — so the hand-derivation
+    // goes. Nothing about the cut's direction is computed in this file now.
+    soldierCourse(scene, cx, cz, BAY.yawAlong, BAY.faceWidth, 0.42, KERB_H,
+                  (t) => wet(flat(t)));
   }
 
   // ── weeds in the kerb seam ──────────────────────────────────────────────
