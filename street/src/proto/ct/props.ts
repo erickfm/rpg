@@ -2070,7 +2070,19 @@ export function buildProps(ctx: CtxBuild): Props {
   for (const dz of [-0.45, 0.45]) {
     seat({
       x: (BX_SEAT0 + BX_SEAT1) / 2, z: BENCH_Z + dz,
-      yaw: -Math.PI / 2, h: 0.45, r: 0.95,
+      // r 1.40, not 0.95. MEASURED against how a player actually walks past:
+      // the free lane here is only 1.27 m (bench back at 5.73, shopfronts at
+      // 7.0) and the spot sits at x 6.15, so at 0.95 the margin was 0.25 m
+      // mid-lane, 0.94 m hugging the bench and 0.99 m — a MISS — standing one
+      // pace past it. A trigger sized for standing right against the object is
+      // missed by someone walking by at normal distance, which is what the user
+      // hit: "cannot be sat on from the street".
+      //
+      // 1.40 covers the whole width of the lane and both ends of the bench.
+      // Larger than the 0.62-0.66 the interior seats use, deliberately: those
+      // are reached in a room where you walk up to a chair, this one is passed
+      // at walking pace on a pavement.
+      yaw: -Math.PI / 2, h: 0.45, r: 1.40,
       approach: { x: BENCH_MAX_X + 0.42, z: BENCH_Z + dz },
       label: 'sit at the stop',
     });
