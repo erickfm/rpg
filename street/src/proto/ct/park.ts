@@ -702,21 +702,39 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     return pixTex(RW, RH, (g) => {
       g.clearRect(0, 0, RW, RH);
       g.fillStyle = '#3a3f39';
+      // THE PICKETS REACH THE BOTTOM EDGE, and the bottom rail is AT it.
+      //
+      // They used to stop 3 texels short of it and the bottom rail sat above
+      // that, so the last 0.17 m of this plane was empty air standing on the
+      // coping — the user's "the pickets do not meet anything at the bottom".
+      // The gap closes by CONSTRUCTION now: the rail is the bottom row, so a
+      // picket cannot end above it whatever RH rounds to.
       const pitch = Math.max(3, Math.round(0.17 * 12));
-      for (let x = 2; x < RW; x += pitch) g.fillRect(x, 2, 2, RH - 3);
+      for (let x = 2; x < RW; x += pitch) g.fillRect(x, 2, 2, RH - 2);
       g.fillRect(0, 0, RW, 2);                      // top rail
-      g.fillRect(0, RH - 4, RW, 2);                 // bottom rail
+      g.fillRect(0, RH - 2, RW, 2);                 // bottom rail, ON the coping
       g.fillStyle = '#4a5049';                      // and the rust that follows
-      for (let x = 2; x < RW; x += pitch * 3) g.fillRect(x, RH - 10, 2, 7);
+      for (let x = 2; x < RW; x += pitch * 3) g.fillRect(x, RH - 9, 2, 6);
     });
   };
   const railM = (lenM: number) => new THREE.MeshBasicMaterial({
     map: railTex(lenM), alphaTest: 0.5, side: THREE.DoubleSide,
   });
-  // ct/street.ts stands its boundary wall on the PAVEMENT side of the line
-  // (x -7.00…-6.64), so the railings belong at its centre — they were 0.18 m
-  // inside the park, floating clear of the wall they are supposed to top.
-  const RAIL_X = site.maxX + WALL_T / 2;
+  // MEASURED, not assumed — and the assumption was backwards.
+  //
+  // This said street.ts stands its wall on the PAVEMENT side of the line, at
+  // x -7.00…-6.64, and put the railings at `site.maxX + WALL_T / 2`. Read out
+  // of the built world, the wall is at **x -7.36 … -7.00**: the PARK side. So
+  // the railings stood at -6.82, which is 0.36 m off the wall's centre and
+  // 0.18 m clear of the wall altogether, out over the pavement. That is the
+  // user's "the railing is offset from the wall beneath it", it is why the two
+  // lines disagree along the whole run, and it was also quietly encroaching
+  // the 2 m lane that is supposed to be sacred.
+  //
+  // The wall's TOP does agree with the 0.62 assumed here (measured 0.76 =
+  // KERB_H + 0.62), so this is my error and not a seam bug — nothing to route
+  // to D. The centre now comes off the same edge the wall is built from.
+  const RAIL_X = site.maxX - WALL_T / 2;
   for (const [rz0, rz1] of [[site.minZ + 0.3, gz0], [gz1, site.maxZ - 0.3]] as [number, number][]) {
     const len = rz1 - rz0;
     if (len <= 0.2) continue;
