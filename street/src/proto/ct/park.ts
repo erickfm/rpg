@@ -1558,6 +1558,17 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
     if (Math.abs(tx - bx0) < 1.3 && Math.abs(z - shZ) < 1.6) continue;
     tree(tx, z, 0x400 + Math.round(z * 3));                              // the back wall
   }
+  // AND A TREE OVER THE BENCH. The desk's replacement for the shelter was "a
+  // bench and a TREE", and I placed the bench and then told the tree run to
+  // step around it — so the axis from the gate terminated in three benches in
+  // a row against a wall with nothing over them, which reads as a bus stop,
+  // not as the destination the shelter used to be.
+  //
+  // Set BESIDE the bench rather than on it: a tree you sit under is offset so
+  // its trunk is not in your back and its canopy still reaches over you. This
+  // is the one thing standing at the deep end now, so it is deliberate rather
+  // than drawn from the boundary run's spacing.
+  tree(bx0 - 1.5, shZ - 0.7, 0xE55);
   // INBOARD of the loop's end legs, not against the flank walls: the first
   // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
   // 1.5 m width, and the loop stopped being walkable. 1.7 m inside the path

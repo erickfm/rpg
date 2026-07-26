@@ -353,3 +353,47 @@ GOTCHAS 24 asks that a script be named for what it asserts; these announce
 that they assert nothing.
 
 _Builder E, 2026-07-25 19:20._
+
+---
+
+## The dedicated pass, graded by me, skeptically — 25 July 19:55
+
+The user's instruction was about METHOD: *"take screenshots yourself and grade
+it and make sure you are impressed with it. be skeptical."* Twelve shots, four
+stations × daylight / night / rain, in `shots/E-grade/`. Graded against *"would
+this impress someone who has been disappointed nine times"* — not "is it done".
+
+| station | grade | what I actually see |
+|---|---|---|
+| **Field, daylight** | **GOOD** | Clean mown grass, fine stripes, no wear. This is the biggest change and it is the one that was worst. The dirt-bike churn is gone |
+| **Gate, daylight** | **MIXED** | The buff path reads properly as a park path against the road — the desk is right that this was the big win. But the immediate foreground is the grey site slab and it still reads as carriageway. **Not mine** (`openSite`, `ct/street.ts`) and it is the first thing you see |
+| **Path edge** | **GOOD** | Weeds now straddle the edge in clumps with bare gaps. Nothing down the middle |
+| **Deep end** | **POOR, then FAIR** | Graded POOR on the first shoot and fixed inside this pass — see below |
+| **Night, all four** | **GOOD** | Lamps read, pools land, the field goes properly dark. The weed tufts are still the brightest things after dark → **B**, `POOL_GAIN` |
+| **Rain, all four** | **GOOD** | Field, path and props darken together; no dry patches |
+
+### The one I graded badly and fixed inside the pass
+
+**The deep end, where the shelter was.** The desk's replacement was *"a bench
+and a TREE"*. I placed the bench and then told the tree run to step AROUND it,
+so the axis from the gate terminated in three benches in a row against a wall
+with nothing over them — a bus stop, not a destination. A tree now stands
+beside and over that bench. Re-shot and re-graded: FAIR. Not better than a
+shelter that worked, but honest and with nothing to get wrong.
+
+### Not impressed yet, and precisely why
+
+Two things, and only one is mine to fix:
+
+1. **The grey site slab.** It is the perimeter band, the gate apron and the
+   ground at the deep end — most of the park's floor that is not grass or my
+   loop path — and it reads as carriageway. Everything I have fixed today
+   sits ON it. `openSite` in `ct/street.ts`, **D's**. Until it lifts, the park
+   still looks like it has a road running through it, which is exactly the
+   sentence the user used about the path.
+2. **The deep end is FAIR, not good.** The shelter did a job — it terminated a
+   26 m axis — and a bench under a tree does that less well. I am not
+   attempting a fourth shelter, so this is a real loss I am accepting rather
+   than papering over.
+
+_Builder E, 2026-07-25 19:55._
