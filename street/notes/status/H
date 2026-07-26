@@ -1,1 +1,1 @@
-WORKING | VERIFIER: confirmed O jail (11/11 + kerb profile measured independently) | nothing
+WORKING | published scripts/ledger-guard.mjs for the AUDIT blocker (missing/dup/SHORTER) | desk: register it in checks.mjs / land.sh
