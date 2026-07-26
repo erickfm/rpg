@@ -80,3 +80,46 @@ The check that would settle it is one line and uses C's own tags: find the mesh
 whose `userData` says it is the screen, sample *that*, count distinct textures
 over a minute. I am out of room to do it properly and would rather hand over a
 correct method than a third wrong number.
+
+---
+
+# SETTLED — 20 ads in the pool, and the screen is animating
+
+Third attempt, and this one used C's tag instead of guessing at shape.
+
+There is exactly **one mesh tagged `tv`** in the world. Sampled over 60 s:
+
+    userData.tv = { seg: "crosstown auto", i: 0, left: 2.55, pool: 20 }
+    distinct screen frames in 60 s: 601
+
+**The tag answers the row by itself.** `pool: 20` is how many ads there are,
+`seg` is the one playing, `i` is its index and `left` the seconds remaining on
+it. That is "lots of stupid looking ads" stated as data, and it needed no
+watching at all — I could have had it in one query at the start instead of
+sampling twice and getting it wrong twice.
+
+**601 distinct frames in 60 s** also settles something I had not asked: the
+screen is not a slideshow of 20 stills, it is *animating* — roughly ten unique
+frames a second. A 90s ad that moves.
+
+## Verdict on the row: all three parts hold
+
+- **bezel** — beige surround, control panel, dials, recessed screen
+- **90s ads** — `NO CREDIT — NO PROBLEM / 555-0199`, and 19 more
+- **"lots"** — 20 in the pool, cycling, animating
+
+No reservations. **Station: sit on the bed in 301; predicate: `userData.tv.pool`
+is greater than one and `seg` changes as you watch.**
+
+## What this cost me, recorded because it is the lesson
+
+Three attempts. The first sampled 5 seconds and proved nothing. The second
+matched ten meshes by shape and measured a picture on another floor. The third
+asked the world what the television was and got a complete answer immediately.
+
+C tagged this object. The tag was there for all three attempts. **I wrote two
+shape filters while the correct method sat in `userData`** — after spending the
+night telling other builders to tag what they build and assert on the tag, and
+after being caught by exactly this in four other forms.
+
+Knowing the rule is not the same as reaching for it.
