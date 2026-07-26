@@ -8,8 +8,13 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/parking.mjs [probe|dist|shots|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { flags } from './lib/args.mjs';
 
-const mode = process.argv[2] ?? 'probe';
+// An unrecognised mode matched no branch, ran nothing and exited 0 — the
+// same shape as an ignored flag, and `lib/args.mjs` has had `opts.modes`
+// for it since 05694164a. Adopting rather than re-solving it.
+const mode = flags([], process.argv.slice(2), { modes: ['dist', 'probe', 'shots', 'all'] })
+  .rest[0] ?? 'probe';
 
 if (mode === 'dist' || mode === 'all') {
   // Replicates ct/rng.ts's LCG and the draw in crosstown.ts, so we can see the

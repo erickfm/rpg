@@ -22,8 +22,20 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { installMats, blindSpot } from './lib/materials.mjs';
-const ARG = process.argv.slice(2).map(Number);
-const BOX = ARG.length === 4 ? ARG : null;
+// THE SAME FAULT floaters-walk.mjs HAD, found by sweeping for its shape rather
+// than by waiting for someone to hit it. `people-walk.mjs diner` mapped to
+// [NaN], failed `length === 4`, fell through to null and walked the WHOLE
+// WORLD while the caller believed they had scoped it to one room.
+//
+// An argument a script accepts and ignores is worse than one it rejects: the
+// rejection costs one message, the silent widening costs you a result you
+// believe. So a room name works, and anything unusable exits 2.
+//
+//     node scripts/people-walk.mjs                # everywhere
+//     node scripts/people-walk.mjs diner          # one room, by name
+//     node scripts/people-walk.mjs 6 32 -12 16    # a box: x0 x1 z0 z1
+const RAW = process.argv.slice(2);
+const NUM = RAW.map(Number);
 const b = await chromium.launch();
 const p = await b.newPage();
 const errs = []; p.on('pageerror', (e) => errs.push(String(e.message)));
@@ -32,6 +44,32 @@ await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 await installMats(p);
 await blindSpot(p);
+
+// Resolved here rather than at the top because a room name needs the world.
+let BOX = null;
+if (RAW.length === 4 && NUM.every(Number.isFinite)) {
+  BOX = NUM;
+} else if (RAW.length === 1 && !Number.isFinite(NUM[0])) {
+  const want = RAW[0].toLowerCase();
+  const rooms = await p.evaluate(() => window.__ct.roomDims());
+  const hit = rooms.find((r) => r.id.toLowerCase() === want)
+           ?? rooms.find((r) => r.id.toLowerCase().includes(want));
+  if (!hit) {
+    console.error(`\n  NO SUCH ROOM: "${RAW[0]}". Nothing was measured.`);
+    console.error(`  rooms: ${rooms.map((r) => r.id).sort().join(', ')}\n`);
+    await b.close();
+    process.exit(2);
+  }
+  const m = 0.5;
+  BOX = [hit.cx - hit.w / 2 - m, hit.cx + hit.w / 2 + m,
+         hit.cz - hit.d / 2 - m, hit.cz + hit.d / 2 + m];
+  console.log(`scope: room "${hit.id}" — ${hit.w} x ${hit.d} m centred (${hit.cx}, ${hit.cz})`);
+} else if (RAW.length) {
+  console.error(`\n  CANNOT USE THESE ARGUMENTS: ${RAW.join(' ')}. Nothing was measured.`);
+  console.error('  give nothing (everywhere), one room name, or four numbers x0 x1 z0 z1\n');
+  await b.close();
+  process.exit(2);
+}
 
 const r = await p.evaluate(([BOX]) => {
   const V = window.__ct.scene().position.constructor;

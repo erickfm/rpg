@@ -3,6 +3,7 @@
 // Usage: SHOT_URL=http://localhost:4187/ node scripts/truck.mjs [shots|fleet]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { flags } from './lib/args.mjs';
 // GOTCHAS 34 SHAPE ONE, and no-silent-pass caught it in this file: an unknown
 // mode used to fall through to the default and exit 0. Ask for `fleet`, get the
 // single-truck shots instead, with nothing said. This produces no assertions —
@@ -10,7 +11,11 @@ import { reportWorld } from './lib/which-world.mjs';
 // WRONG OUTPUT under a name the caller chose, and a shot you did not ask for is
 // worse than an error, because you will compare against it.
 const MODES = ['shots', 'fleet'];
-const mode = process.argv[2] ?? 'shots';
+// An unrecognised mode matched no branch, ran nothing and exited 0 — the
+// same shape as an ignored flag, and `lib/args.mjs` has had `opts.modes`
+// for it since 05694164a. Adopting rather than re-solving it.
+const mode = flags([], process.argv.slice(2), { modes: ['shots', 'fleet'] })
+  .rest[0] ?? 'shots';
 if (!MODES.includes(mode)) {
   console.error(`INCONCLUSIVE — unknown mode "${mode}". This takes ${MODES.join(' | ')}, ` +
     'and running the default instead would give you frames you did not ask for.');

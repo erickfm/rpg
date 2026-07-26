@@ -23,14 +23,54 @@ await p.goto(process.env.SHOT_URL ?? 'http://localhost:4185/', { waitUntil: 'net
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, process.env.SHOT_URL ?? 'http://localhost:4185/');   // GOTCHAS 26: prove it, do not just name it
 
-// A BOX may be given to point it somewhere else: `x0 x1 z0 z1`. The default
-// stays interiors-only (x >= 400) so the reading above is unchanged, but the
-// check is not interior-specific — an exterior prop sits on ground that other
-// builders move, which is if anything the likelier way a typed y goes stale.
+// SCOPE. The default stays interiors-only (x >= 400) so the reading above is
+// unchanged, but the check is not interior-specific — an exterior prop sits on
+// ground that other builders move, which is if anything the likelier way a
+// typed y goes stale.
 //
-//     node scripts/floaters-walk.mjs 6 32 -12 16      # the car lot
-const ARG = process.argv.slice(2).map(Number);
-const BOX = ARG.length === 4 ? ARG : null;
+//     node scripts/floaters-walk.mjs                  # every interior
+//     node scripts/floaters-walk.mjs diner            # one room, by name
+//     node scripts/floaters-walk.mjs 6 32 -12 16      # a box: x0 x1 z0 z1
+//
+// IT USED TO TAKE A ROOM NAME AND IGNORE IT. `floaters-walk.mjs diner` mapped
+// to [NaN], failed the `length === 4` test, fell through to the interiors-wide
+// default and printed the HOTEL's rows. Every number it gave was true of the
+// world and none of it was true of the diner, so the only way to catch it was
+// to already know what the diner contains. F found it that way.
+//
+// An argument a script accepts and ignores is worse than one it rejects: a
+// rejected argument costs you one message, an ignored one silently widens the
+// run and you believe you scoped it. So an unusable argument now exits 2 and
+// prints the rooms that do exist, and a room NAME — the thing anyone would
+// reach for first — actually works.
+const RAW = process.argv.slice(2);
+const NUM = RAW.map(Number);
+let BOX = null, SCOPE = 'every interior (x >= 400)';
+if (RAW.length === 4 && NUM.every(Number.isFinite)) {
+  BOX = NUM;
+  SCOPE = `box x ${BOX[0]}..${BOX[1]}, z ${BOX[2]}..${BOX[3]}`;
+} else if (RAW.length === 1 && !Number.isFinite(NUM[0])) {
+  const want = RAW[0].toLowerCase();
+  const rooms = await p.evaluate(() => window.__ct.roomDims());
+  const hit = rooms.find((r) => r.id.toLowerCase() === want)
+           ?? rooms.find((r) => r.id.toLowerCase().includes(want));
+  if (!hit) {
+    console.error(`\n  NO SUCH ROOM: "${RAW[0]}". Nothing was measured.`);
+    console.error(`  rooms: ${rooms.map((r) => r.id).sort().join(', ')}\n`);
+    await b.close();
+    process.exit(2);
+  }
+  const m = 0.5;                                   // a little past the walls
+  BOX = [hit.cx - hit.w / 2 - m, hit.cx + hit.w / 2 + m,
+         hit.cz - hit.d / 2 - m, hit.cz + hit.d / 2 + m];
+  SCOPE = `room "${hit.id}" — ${hit.w} x ${hit.d} m centred (${hit.cx}, ${hit.cz})`;
+} else if (RAW.length) {
+  console.error(`\n  CANNOT USE THESE ARGUMENTS: ${RAW.join(' ')}. Nothing was measured.`);
+  console.error('  give nothing (every interior), one room name, or four numbers x0 x1 z0 z1\n');
+  await b.close();
+  process.exit(2);
+}
+console.log(`scope: ${SCOPE}`);
 const found = await p.evaluate(([BOX]) => {
   const V = window.__ct.scene().position.constructor;
   const B = window.__ct.scene().constructor;

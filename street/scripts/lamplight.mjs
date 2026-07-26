@@ -6,8 +6,13 @@
 // Usage: SHOT_URL=http://localhost:4279/ node scripts/lamplight.mjs [shots|probe|all]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
+import { flags } from './lib/args.mjs';
 
-const mode = process.argv[2] ?? 'all';
+// An unrecognised mode matched no branch, ran nothing and exited 0 — the
+// same shape as an ignored flag, and `lib/args.mjs` has had `opts.modes`
+// for it since 05694164a. Adopting rather than re-solving it.
+const mode = flags([], process.argv.slice(2), { modes: ['shots', 'probe', 'all'] })
+  .rest[0] ?? 'all';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
