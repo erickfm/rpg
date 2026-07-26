@@ -584,12 +584,30 @@ for (room of rooms) {
 
   // ── 5. the way out, and NOT straight back in ──
   // start from the standable spot nearest the door and walk at it
-  await warp(cx + DOOR.x + DOOR.nx * 0.9, doorLane ? doorLane[1] : lane.z,
-    // yaw 0 is -z (see ctx.Seat), so facing along the INWARD normal is
-      // atan2(nx, nz) — which is Math.PI for a front-wall door, exactly what
-      // this warped to before. Negating it turned every room to face the back
-      // wall and cost diner 25->20 and thrift 29->24 in one edit.
-      Math.atan2(DOOR.nx, DOOR.nz), 0);
+  // A DOOR AT 45 DEGREES. Nine rooms have their door in a flat wall, where the
+  // inward normal is (0, +-1); the bodega's is in a CUT CORNER, where it is
+  // (+-0.707, +-0.707). Both legs below were written for the flat case and are
+  // wrong for the cut one — which is what made me switch `door: true` off in
+  // ct/int-bodega.ts for days rather than fix six lines of my own harness.
+  //
+  // The heading. We walk OUTWARD, so d = -n. With yaw 0 = -z the convention is
+  // d = (sin y, -cos y), so sin y = -nx and cos y = nz, giving
+  //
+  //     y = atan2(-nx, nz)
+  //
+  // For every flat-wall door nx = 0 and atan2(-0, nz) === atan2(0, nz), so
+  // this is a NO-OP for the other nine rooms — it cannot repeat the regression
+  // that cost diner 25->20 and thrift 29->24. At 45 degrees it flips the x
+  // component the old form had backwards, which walked the player diagonally
+  // AWAY from the door and then reported the door missing.
+  //
+  // And the start point: offsetting x by nx*0.9 while taking z from the lane
+  // only lands next to the door when nz carries the whole normal. Step off the
+  // door along BOTH axes.
+  const cut = Math.abs(DOOR.nx) > 0.01 && Math.abs(DOOR.nz) > 0.01;
+  await warp(cx + DOOR.x + DOOR.nx * 0.9,
+    cut ? built.cz + DOOR.z + DOOR.nz * 0.9 : (doorLane ? doorLane[1] : lane.z),
+      Math.atan2(-DOOR.nx, DOOR.nz), 0);
   await p.waitForTimeout(150);
   await hold('w', 2600);
   const dPrompt = await prompt();
