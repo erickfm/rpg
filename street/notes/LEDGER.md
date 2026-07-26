@@ -107,6 +107,6 @@ user anything is finished.
 | OPEN | G | maybe the aces sign belongs on the other end of the casino building? | |
 | OPEN | H | tons of people always get stuck at this cross walk. the walk logic sho | |
 | OPEN | E | side benches have backs which are backwards? | |
-| OPEN | B | for the bench i have no way to sit at the bench from the street cause  | |
+| LANDED | B | for the bench i have no way to sit at the bench from the street cause the e option doesnt come up | RADIUS, not side and not a collider. Sit spots were already on the pavement behind the bench (x 6.15, ok=true, nothing else registered nearby to mask them). The free lane there is 1.27 m and r was 0.95, giving 0.25 m of margin mid-lane, 0.94 hugging the bench and 0.99 — a MISS — one pace past it. r is 1.40 now: pavement 0.51, north end 1.25, south end 1.25 all fire. From the roadway it stays out at 1.61 ON PURPOSE — the bench sits hard against the kerb (BX_FRONT = ROAD_HALF + 0.07) so there is no ground to stand on there; walking it, the player moves 0.17 m and stops, while the same walk 15 m south goes straight up onto the pavement. A prompt offered from the middle of the road is a seat you cannot reach. Verified end to end: walk the pavement, press E, seated() returns {x 5.32, z -35.45, yaw -pi/2}. Not a fault in F's ctx.seat(). CHECK FROM: walk south down the east pavement from z -31 and press E as you draw level with the bench. |
 | OPEN | G | put this librarian behind the desk | |
 | OPEN | C | the brick area outside my room is too deep in. and i dont want there t | |
