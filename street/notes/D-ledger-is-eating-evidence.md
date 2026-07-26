@@ -5,12 +5,21 @@ shape makes the loss invisible.
 
 ## What happened
 
-Two verifier notes of mine were added, committed, and later **silently removed**:
+**FOUR** verifier notes of mine were added, committed, and later **silently
+removed**. I found the first two by chance and went looking for the rest:
 
 | note | added in | state now |
 |---|---|---|
 | O's jail row — the 2.1 m frontage overhang and the flat-colour apron | `4238f4088` | **gone** |
 | K's sleep-fade row — the third-tree confirmation | (earlier commit) | **gone** |
+| M's bank-interior row — the ranking correction | (earlier commit) | **gone, and it was a CORRECTION OF A FALSE CLAIM inside a CONFIRMED row** |
+| M's loan row — that its check crashed | (earlier commit) | gone, and now moot: M has fixed the check, 54/54 |
+
+**The third one is the one that matters.** A verifier note is usually
+corroboration, and losing it costs a re-walk. That one was a *correction* — the
+bank row claims a superlative that is false against the very table it cites —
+and losing it left a CONFIRMED row wrong with nothing marking it. That is
+precisely the state the auditor's sweep was called to find.
 
 Both commits are still ancestors of HEAD. The content is not. It went in a
 later conflict resolution — one where whoever resolved took a whole row from one
