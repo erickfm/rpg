@@ -1432,7 +1432,38 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
       }
     }
   });
-  const barkM = new THREE.MeshBasicMaterial({ color: 0x4a3d2e });
+  // BARK, not a brown column. The flat-colour audit the desk asked for caught
+  // the stone — the memorial, the fountain, the copings, the edging — and I
+  // stopped there. The tree trunks are the most-seen vertical surface in the
+  // park, one is in nearly every frame of it, and they were a single brown with
+  // no grain at all. B's sentence applies to a trunk exactly as it does to a
+  // paving slab: with nothing for the eye to attach to it reads as a tint.
+  //
+  // Vertical fissures, because that is what bark is at this distance: broken
+  // dark runs down the length of it with the odd pale one, and no horizontal
+  // detail to fight the trunk's own direction.
+  const barkT = pixTex(16, 48, (g) => {
+    const r = clcg(0x2b8d41);
+    g.fillStyle = '#4a3d2e'; g.fillRect(0, 0, 16, 48);
+    for (let i = 0; i < 26; i++) {
+      const x = Math.floor(r() * 16), y = Math.floor(r() * 48);
+      const len = 5 + Math.floor(r() * 18), w = 1 + (r() < 0.25 ? 1 : 0);
+      g.fillStyle = r() < 0.62 ? '#3b3124' : '#584a37';
+      g.fillRect(x, y, w, Math.min(len, 48 - y));
+    }
+    for (let i = 0; i < 5; i++) {                       // a few pale weathered runs
+      g.fillStyle = 'rgba(126,112,88,0.30)';
+      g.fillRect(Math.floor(r() * 16), Math.floor(r() * 48), 1, 6 + Math.floor(r() * 12));
+    }
+    dither(g, 16, 48, 60);
+  });
+  const barkM = (() => {
+    const t = barkT.clone();
+    t.needsUpdate = true;
+    t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(1, 2.2);                               // ~3 m of trunk per tile
+    return flat(t);
+  })();
   const tree = (x: number, z: number, seed: number) => {
     const t2 = clcg(seed);
     const h = 6.6 + t2() * 2.8, spread = 4.4 + t2() * 2.0, trunk = 2.6 + t2() * 1.0;
