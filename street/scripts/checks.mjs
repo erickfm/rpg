@@ -181,6 +181,12 @@ const CHECKS = [
   // from two viewpoints, joints and grain separately, with known-good control
   // bands read from the same image. (I)
   ['I-apron-grain',    'does the ground at the lot mouth read as a material?', false],
+  // F moved "wheel arches read as arches" back from CONFIRMED because nothing
+  // could decide it: the first check compared a world-space tyre top against a
+  // car-local arch line, and the replacement fixed the frame but selected "any
+  // cylinder of radius 0.18-0.42", which is also a diner bar stool. This decides
+  // it by taking the population from the CAR rather than from a radius. (I)
+  ['I-archcheck',      'does every tyre have bodywork over it, or is it bare?', true],
   // C WROTE THIS AND HELD IT BACK ON PURPOSE: "mods-dim stays unregistered
   // until this lands: it is red on this finding, and reddening the shared suite
   // over something I cannot fix would hand the block my problem." The finding
