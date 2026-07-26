@@ -397,12 +397,30 @@ export interface Placement {
 /**
  * The frontage in CANVAS space — metres from u = 0, the painters' own terms.
  *
- * DEPRECATED outside this file. The positional fields are LOCAL OFFSETS, and
- * local offsets are exactly what let the tax office's interior door and its
- * facade door disagree: each side authored its own number in its own space and
- * the mirror between them travelled as an assumption. `frontageWorld()` is the
- * replacement. These stay only so that migrating `ct/interior.ts` is a choice
- * F makes rather than a build I broke — see BLOCKED-A.md.
+ * DEPRECATED outside this file, and the migration it was waiting on is DONE.
+ *
+ * The positional fields are LOCAL OFFSETS, and local offsets are exactly what
+ * let the tax office's interior door and its facade door disagree: each side
+ * authored its own number in its own space and the mirror between them
+ * travelled as an assumption. `frontageWorld()` is the replacement.
+ *
+ * This used to say the fields stay "so that migrating `ct/interior.ts` is a
+ * choice F makes rather than a build I broke — see BLOCKED-A.md", and that
+ * pointer had gone dead: `BLOCKED-A.md` was deleted when the block cleared
+ * (`notes/A-relief.md`) and nothing replaced the sentence, so the stated reason
+ * for keeping a deprecated shape survived the reason itself. A citation to a
+ * file that is not there is worse than no citation — the reader cannot tell
+ * whether the constraint still holds or merely outlived its note.
+ *
+ * It does not hold. `ct/interior.ts` imports `frontageOf`, `frontageWorld` and
+ * `alongU` and nothing else; NO module outside this file imports `Frontage`,
+ * so the positional fields have no external consumer left. Verify in one line
+ * before trusting that:
+ *
+ *     grep -rn "import {[^}]*Frontage[^W]" src/proto/
+ *
+ * The interface stays because `Layout` extends it and `frontageOf` returns
+ * that — it is this file's own shape now, not a compatibility shim.
  */
 export interface Frontage {
   /** full width of the shopfront, metres */
