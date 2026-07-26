@@ -45,6 +45,21 @@ still shows them unchecked and `## Done` still reads *"nothing yet — you are n
 that is the desk's bookkeeping, and the map from each item to its commit is in
 **"Every item in `notes/queues/G-interiors2.md`, and where it landed"** below.
 
+**Verified in the BUILT BUNDLE at `9c03d3f3e`** — `doors-declared` 10 of 10,
+`G-rooms-walk` 114/114, `G-vice-walk` 18/18, the church nave walks 11.68 m in
+dist against 11.70 in dev, and the library's gallery climbs gy 0.25 → 2.90 in
+both. Everything I have built this session is in the world the user plays, not
+only in mine.
+
+*I nearly filed a dev/dist divergence that was not there.* The first dist run of
+the church reported 1.90 m and the player still on the street, which reads
+exactly like the door-drop class that lost the GOLDEN ACES door. It was my probe:
+I pressed E and sampled 1000 ms later, and `dist` is slower to complete the
+transition than the dev server. At 1400 ms both builds enter identically —
+`after E = (680.00, 6.85)` in each. **A bundle is not just different code, it is
+different timing, and a settle that is generous on the dev server can be too
+short on the built one.**
+
 **The user has the alignment fix.** Checked in the world he actually plays,
 `:5177`, not in mine: its build `811fe7f1c` contains `37a358e7c` (the centring
 commit), and walking it there gets 1.37 m into the casino and 4.00 m into the
