@@ -153,6 +153,14 @@ const CHECKS = [
   // stripes are 0.09 x 5.0 m planes raked 0.55 rad, and measured as axis-aligned
   // boxes each reads 11.59 m2 instead of 0.45. (I)
   ['I-flatground',     'is any ground surface in the lot flat colour?',      true],
+  // "the garlands are disconnected". The lot's own file calls the bunting the
+  // single most identifying thing about the typology, so it gets a guard. Two
+  // clauses because there are two ways it reads as disconnected and they fail
+  // apart: a GAP mid-run (a polyline whose pieces do not meet) and a FREE END
+  // (a run tied to nothing). Endpoints come off each segment's world matrix,
+  // never off the TIES table the source builds them from — reading that back
+  // would only prove the table agrees with itself. (I)
+  ['I-bunting',        'does the bunting chain, and is every end tied on?',  true],
   ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],
