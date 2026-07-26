@@ -1610,17 +1610,41 @@ function buildLot(o: {
     // stacks, which have stood there since the first pass with nothing to
     // explain them. The one on blocks is the furthest bay from the street:
     // not stock, a donor.
+    //
+    /* ── ONE ROW HELD EVERY DAMAGED CAR ON THE LOT ─────────────────────────
+     * Found while grading the walk, not by a check. Bay indices alternate
+     * north/south from the street — 0 N, 1 S, 2 N, 3 S — so `1`, `BAY.length-3`
+     * (9) and `BAY.length-1` (11) are ALL ODD AND ALL SOUTH, and the empty bay
+     * at 3 was south as well. The left row was the hood-up car, the gap, the
+     * jacked car and the wreck on blocks; the right row was six clean cars.
+     * Nobody asked for that and it reads as two different businesses.
+     *
+     * And the comment above was not true of the world. It says the jacked car
+     * is *"at the back beside the tyre stacks"*. Measured: bay 9 stands at
+     * (22.4, −3.4) and the stacks are at (28.4, 11.6) — **16.2 m away, across
+     * the aisle, at the opposite corner of the yard.** The reason had been
+     * written down and then not honoured, which is worse than not writing it,
+     * because it reads as deliberate.
+     *
+     * So the jack moves to the NORTH back corner, 4.6 m from the stacks, where
+     * the sentence is simply true; the empty bay moves to the north flank; and
+     * the two derelicts now sit as a matched pair at the back, which is where a
+     * lot actually keeps them — the clean stock up front where customers look,
+     * the donor and the one on the jack behind it.
+     */
     const NOT_PARKED = new Map<number, CarState>([
-      [1, { hood: true }],
-      [BAY.length - 3, { jack: 'rl' }],
-      [BAY.length - 1, { blocks: true }],
+      [1, { hood: true }],                    // S, first bay you pass
+      [BAY.length - 2, { jack: 'rl' }],       // N back corner, beside the tyre stacks
+      [BAY.length - 1, { blocks: true }],     // S back corner, the donor
     ]);
 
     let n = 0;
     for (let b = 0; b < BAY.length && n < STOCK.length; b++) {
       // one empty bay in the near half, where a car sold this morning. The
-      // bay line and the oil stain are still there; the car is not.
-      if (b === 3) continue;
+      // bay line and the oil stain are still there; the car is not. On the
+      // NORTH flank (2, not 3) so the gap and the hood-up car are not both on
+      // the same side — see the note above.
+      if (b === 2) continue;
       const { x, z, yaw } = BAY[b];
       const it = STOCK[n];
       n++;
