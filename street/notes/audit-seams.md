@@ -593,3 +593,37 @@ seeing.
 
 **Standing rule for the rest of this audit: rebuild before verifying any row that
 landed after the last build, and read the stamp before believing the number.**
+
+## [C] Crowd jam CONFIRMED — and the positive control caught my blind spot
+
+**The finding.** 240 s at 4 Hz. Worst stationary run **16.0 s**, a `window` act
+mid-block, against H's before-figure of **29.8 s** parked on a crossing endpoint.
+All six walkers moved 87–250 m. **Largest pile-up anywhere: 2** within 1.5 m.
+
+**[I] My first two runs were an empty set and read exactly like a pass.** Ninety
+seconds of sampling, a clean "no jam at the crossing" — over a window in which
+**nobody crossed**: 0 of 2172 samples had a walker in the roadway. The report
+would have been true, confidently stated, and about nothing.
+
+What saved it was writing the control to fail loudly rather than to agree with
+me: *"did anyone actually cross during the sample?"* printed **0** and said so.
+Extending to 240 s gave 3 crossings and 222 roadway samples, and two walkers
+standing on the very endpoints H names.
+
+**Why the short sample missed.** Both crossings are at the junction
+(`crowd-net.ts:152` — only the bodega corner has a kerb ramp), and six walkers
+spread over ~110 m of block reach it rarely. **The rarer the event, the longer
+the window has to be before absence means anything** — and I had no way to know
+that without asking the question directly.
+
+This is the third empty-set near-miss of the audit (litter-inside-a-collider over
+zero pieces; doors-swallowed before the control; this). The pattern is the same
+every time: **the check produced the number I expected, from no observations.**
+A positive control is not a nicety on a green result — it is the only thing that
+distinguishes "nothing is wrong" from "nothing was looked at".
+
+**[Is] Residual, reported rather than smoothed over.** A single uninterrupted
+`window` act measures 16–18 s across four runs against `WAIT.window = [5, 12]`
+(crowd.ts:257). My still-threshold is 0.08 m/s so ~2 s of easing at each end may
+explain it; I cannot separate the two with this instrument and have said so on
+the row rather than either ignoring it or calling it a defect.
