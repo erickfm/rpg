@@ -65,9 +65,16 @@ evidence about yours"* — so this asked the live scene directly, using
 `lot-clearance`'s own car identification.
 
 ```
-  left row backwards   north row mean yaw 0.650, south row 2.472
-                       sum 3.122 against PI = 3.142  ->  MIRRORED, the fix is live
-                       (a copied row would show a DIFFERENCE near 0; it is 1.822)
+  left row backwards   lot-layout's OWN nose-out test, run against :5177:
+                       11 cars, 11 NOSE-OUT, 0 presenting a tail to the aisle
+                       north row hz -0.853, south row hz +0.853 — symmetric
+
+                       (I first checked only that the rows were MIRRORED — yaws
+                       summing to PI. That was insufficient and I nearly left it
+                       there: two rows both nose-IN also sum to PI and would have
+                       passed. The nose-out test is the one that answers the
+                       user's actual complaint, which is about which END faces
+                       the aisle.)
 
   cars clipping        11 cars, oriented boxes in each car's own frame
                        closest pair gap 0.422 m  ->  NO OVERLAP
