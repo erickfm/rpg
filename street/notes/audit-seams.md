@@ -434,3 +434,46 @@ arithmetic — cheaper than a disagreement.
 because they are textured; appearance is texMean x tint, so the body tone D
 changed cannot be read off `material.color` at all. The five niche tones are
 untextured and therefore readable. Fourth time this has mattered.
+
+## [C] The pickup bed: CONFIRMED — and the tag I asked for was never needed
+
+**[R] Withdrawing my own request for `userData.variant = 'pickup'`.** I filed it as
+the one line that would "close this permanently". It was unnecessary. `wheelZ` is
+unique per kind (sedan 1.45, hatch 1.2, **pickup 1.65**, van 1.5) and `cars.ts:813`
+already publishes `userData.wheelbase`, so **wheelbase 3.30 is the pickup** — all
+four found without touching src. *Before asking a builder to publish a property,
+check whether it is already published under another name.* Two of the four tags I
+requested this audit may be like this; I will check the others before they cost
+anyone a commit.
+
+**Tyre in the bed cavity: no.** H built real wheel housings.
+
+```
+Cylinder  x 0.70..0.94   y 0.017..0.663  z 1.31..1.99   rear tyre
+Box       x 0.66..0.70   y 0.500..0.720  z 1.22..2.08   housing inner panel
+Box       x 0.66..0.90   y 0.720..0.760  z 1.22..2.08   housing cap
+```
+
+Panel face flush at 0.70, cap clearing the tyre top by **0.057** (the same figure
+as the confirmed wheel-arch row), housing overrunning the tyre by 0.09 at each
+end. Enclosed on every side, identical on all four pickups, and seen: the bed is
+a clean grey tub, the faint step in it IS the housing.
+
+**[I] I nearly filed the exact opposite finding.** I built the cavity box from the
+source constants — `HW 0.9`, `WALL_T 0.16`, so x +-0.74 — and got "tyre intrudes
+4 cm, all four trucks, both sides". That cavity does not exist over the axle,
+where the housings narrow it to +-0.66. **The constants described the bed; they
+did not describe the bed AT THE AXLE.** A source-derived envelope is a hypothesis
+about the geometry, not the geometry. Measuring the real meshes killed it in one
+run — and had I not looked first, I would have sent a correctly-fixed row back to
+OPEN with confident arithmetic behind it.
+
+**Block outside the silhouette: none, 0 of 23 vehicles.** The one apparent outlier
+at 2.139 m is a `1.7 x 0.1 x 1.5` slab rotated 0.950 rad at the hood position —
+**an open bonnet on the car lot's display truck**, which has 20 parts against 16
+on the street trucks and appears in `af-apron.png`. Set dressing.
+
+**[Is] Rotation inflates an AABB; ask the vertices.** My first check filtered on
+`geometry.boundingBox` height and reported "nothing over 1.0 m tall" while a
+transformed corner sat at 2.139. The geometry was 0.1 m thick and raked 54 deg.
+When a world AABB and a geometry bbox disagree, the transform is the answer.
