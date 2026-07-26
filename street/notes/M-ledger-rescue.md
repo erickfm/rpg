@@ -139,6 +139,29 @@ touches, and reports the rest. One line finds them all:
 
     awk -F'|' '/^\| /{if (NF-1 != 5) print NF-1, $2, $4}' notes/LEDGER.md
 
+## A RUNNING TALLY, because the count is the argument
+
+Each of these is a row that was **weaker or shorter than a version already in
+this repository's history**, found on a rebase or a re-read, and restored:
+
+| when | rows | what had gone |
+|---|---|---|
+| rebase A | 4 | H's republished numbers, the auditor's crossing evidence, **L's whole verdict** (`CONFIRMED` → `OPEN`, cell emptied), D's ATM follow-up |
+| `ledger-merge.py` | 1 | 5,168 characters of L's row, silently, while printing `0 marker(s) left` |
+| rebase B | 3 | my `LANDED (M)` evidence on both bank rows, and my `VERIFIER (M)` segment on L's — mainline's rows were LONGER and still not supersets |
+| a bulk edit | 2 | both bank rows walked `CONFIRMED` → `OPEN` and shortened from 10,195 / 8,124 to 4,286 / 6,004 |
+
+**Ten restorations across four events, on my rows alone**, and the auditor is
+independently tracking eight more on other people's — *"the FIFTH record loss
+today"*, *"the sixth row lost today"*, *"rows seven and eight"*, and it says
+plainly that it cannot rule out its own rebase as the cause. Neither can I rule
+out mine. **The source is not the point; the frequency is.**
+
+The last event is the one that should decide it: **no conflict was involved.** My
+rows arrived from mainline already weaker, so no resolver ran and nothing flagged
+anything. A merge-time tool cannot catch that class at all — only a check that
+compares a row against its own history can.
+
 ## What would stop it, for whoever owns the tooling
 
 I am not proposing to build any of these — `scripts/**` says do not edit another
