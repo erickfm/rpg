@@ -864,11 +864,28 @@ master record had a gap, which is what this section closes.)_
 **In flight**
 - "park should be deeper" → **E**
 - "turn hardware and cafe into a used car lot" → **D** (roster) + **C** (the
-  lot itself, `ct/lot.ts` — built, waiting on D's roster)
+  lot itself, `ct/lot.ts`). **BOTH DONE.** This line said "built, waiting on D's
+  roster" long after the roster placed it — `street.ts` carries `'lot'` in EAST
+  and calls `placeLot`, and the ledger has C's half CONFIRMED as walked into,
+  with 491 lot meshes in the world. The depth is `depth: w`, taken from the
+  frontage, so the lot is square by construction rather than by a constant
+  somebody has to keep in step.
 - "the front facade of the casino and the hotel are so low effort and boring...
   meant to be some of the most insane" → **G**, extracted into `ct/vice.ts`
 - "strange corner for bodega, also collision is odd in this same corner" →
-  **D** — visual half BLOCKED on helpers A has not exported
+  **D. DONE**, and the BLOCKED note this line carried for a long time was stale —
+  it said "visual half BLOCKED on helpers A has not exported" long after `HI`,
+  `reveal`, `proud`, `glazed` and `mullions` were all exported from
+  `ct/tex-world.ts`. A stale BLOCKED costs more than no entry: it tells the desk
+  to route elsewhere and wait. Broken out, because the item reads as four faults
+  and is not: the **OPEN neon** was already over the door; the **shopfront
+  rhythm** was already one fascia, one opening, one reveal depth, one cill and
+  one stallriser; the "**panels at different widths**" were my own misreading of
+  the corner's brick piers, which are structure and are what a cut corner looks
+  like; and the **collision** half is separately CONFIRMED as the bodega entry
+  blocker, walked from three approaches. The one piece that was real — the corner
+  paving scored as a square 90° arris against a bay that cuts at 45° — was routed
+  to **B** and has landed as a soldier course. Auditor CONFIRMED D's half.
 - "what is this it looks bad" (catch basin) → **B**
 - trash programme → **B**: three rig rounds. Approved and shipping: coffee cup,
   fountain cup, folded newspaper (reworked grimier/thinner), flattened
