@@ -113,3 +113,52 @@ rule decides whether a hubcap and a van flank can share a density at all.
 ## Untouched, as instructed
 
 The wheel wells, the bed floor and the arch paint colour.
+
+---
+
+# The last density work: the HORIZONTAL panels
+
+The masonry ruling is settled — **round by DENSITY, accept a fractional
+canvas** — and A has been told to match, so nothing already landed is re-done.
+Every VERTICAL face on every vehicle is now 32 px/m with square texels. What is
+left is the panels you look down on, and this is the plan so the next session
+does not have to re-derive it.
+
+## What is still wrong
+
+```
+panelTopTex   fixed 48 x 48   bodies 1.70 x 0.80 … 1.70 x 1.50
+              -> 28.2 px/m across, 32 … 60 up.  The van's roof is ratio 0.47,
+                 the worst left in the fleet.
+bed floor     24 x 29 over 1.48 x 1.80  ->  16.2 x 16.1
+              square, but HALF the density of everything around it, so the
+              ribs are twice the size of any feature on the walls beside them.
+```
+
+## Why it is not a one-line change like the flank was
+
+`panelTopTex(body, seamAt)` takes the seam as a **row index on a 48-row
+canvas** — `hoodM(40)`, `hoodM(8)`, `roof 24`. Derive the canvas from metres
+and every one of those numbers means something different. The call sites also
+do not currently pass their panel's dimensions; the box is built separately
+from the material.
+
+## The shape of the fix
+
+1. `panelTopTex(body, seamFrac, wM, hM)` — seam as a FRACTION of the panel's
+   length, not a row. The existing calls convert exactly: 40/48 = 0.833,
+   8/48 = 0.167, 24/48 = 0.5, so the paint does not move.
+2. Canvas `round(wM * PX_PER_M) x round(hM * PX_PER_M)`, same as the flank.
+3. Each call site passes its own box's width and depth — that is the part that
+   has to be done carefully, since the `hoodM(seam)` helper is shared and the
+   boxes are built a few lines away from it.
+4. The bed floor: same treatment, and its rib spacing restated in metres so it
+   matches the walls rather than being twice their scale.
+
+**Verify with `scripts/`-free probes already used this session:** the density
+table (canvas px against the face's real metres, per material index) and the
+per-side shut-line read, both of which are size-agnostic because they go
+through each face's own UVs. Target: every face ratio 1.00 ± 0.02.
+
+**Do not disturb:** the wells (now x0.18), the bed floor's darkening, the arch
+paint, or the NearestFilter in `flatT`.
