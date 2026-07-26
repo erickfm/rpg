@@ -1327,7 +1327,43 @@ you have proved a fact about your probe and nothing about the game (§34).
 `D-walk`'s churchyard block now does exactly that split: two claims measured on
 `groundAt` at 0.05 m, and one lived claim that walking really carries you up.
 
-## 48. An instrument aimed at the wrong world reports a catastrophe it cannot see
+## 49. PUBLISHED is not ADOPTED — and a row can be CONFIRMED and untrue at once
+
+The sleep-fade row read **CONFIRMED**. A went and tried it:
+
+```
+CONTROL  window.__hud.fade({ mid })   peak opacity 1.000, 21 of 26 samples black
+BED      [E] sleep until morning      peak opacity 0.000,  0 of 25, clock +16.5 h
+```
+
+**The capability worked and its only caller never called it.** The clock ramped
+sixteen hours with no fade at all. Two verifiers found it independently, and
+neither would have if they had checked that the fade *existed* rather than that
+*going to sleep faded*.
+
+This project now runs on published capabilities with separate adopters —
+`ctx.seat`, `ctx.spot`, `ctx.ground`, `ctx.advanceTime`, `citizenSprite`'s
+seated pose, K's pockets, K's panel framework, K's screen fade. **Every one of
+them can be built, correct, tested, and reach nobody.** The seated pose sat at
+`0 of 10 int-*.ts` for hours while its row read as delivered.
+
+So:
+
+1. **A row is the USER'S SENTENCE, not the capability.** *"when the player goes
+   to sleep i want the screen to fade to black"* is only true when going to
+   sleep fades the screen. Verify the sentence, from where the player stands.
+2. **Split the row when the work splits** — one for the capability, one for the
+   adoption, on their own owners. H asked for exactly that split on the seated
+   pose and was right: *"as one row it reads as H being late for work in files I
+   do not own."*
+3. **The publisher's own check cannot see this.** K's fade passed every test K
+   could write, because K does not own the bed.
+
+The cheapest guard is the control A took FIRST: prove the capability works
+directly, then prove the real path invokes it. If only the first passes, you
+have found this bug.
+
+## 50. An instrument aimed at the wrong world reports a catastrophe it cannot see
 
 B ran the mutation suite as a routine regression pass and found **five guards
 SLEPT** — the mutation applied, the world deliberately broken, the check passing
@@ -1371,38 +1407,39 @@ have stopped guarding, do not repair it in a hurry.** Had B "fixed" five working
 guards, it would have damaged the only mechanism that can detect this class at
 all — while every board stayed green.
 
-## 49. PUBLISHED is not ADOPTED — and a row can be CONFIRMED and untrue at once
+## 51. The player SPAWNS INSIDE 301, and a warp that changes STOREY takes ~1.5 s
 
-The sleep-fade row read **CONFIRMED**. A went and tried it:
+Two facts that cost me a dozen wrong readings in one sitting, both about the gap
+between *telling the world where you are* and *the world agreeing*.
+
+**A fresh page does not start you on the street.** It starts you in room 301 at
+`(198.60, −16.30)`, `gy 5.4`. So the very first prompt any probe reads is
+whatever is live in the flat — for me, `[E] sit on the bed and watch TV`. Read
+that while believing you are outside and it looks like a spot **194 m away** has
+won the pick, which is a spectacular-looking bug in the selection code and is
+nothing at all.
+
+**And `warp` does not land instantly when it crosses a floor.** The floor picker
+has hysteresis (§7), so the storey — and therefore every `ok()` gated on it, and
+therefore the prompt — takes about **1.5 s** to settle. Measured, warping from
+301 (`gy 5.4`) to the street door (`gy 0.14`):
 
 ```
-CONTROL  window.__hud.fade({ mid })   peak opacity 1.000, 21 of 26 samples black
-BED      [E] sleep until morning      peak opacity 0.000,  0 of 25, clock +16.5 h
+  at load   [E] sit on the bed and watch TV    (198.60, −16.30)  gy 5.4
+  +100 ms   ""                                 (5.50, −44.00)    gy 0.14
+  +900 ms   ""                                 (5.39, −44.00)    gy 0.14
+  +1500 ms  [E] enter No. 227                  (5.39, −44.00)    gy 0.14
 ```
 
-**The capability worked and its only caller never called it.** The clock ramped
-sixteen hours with no fade at all. Two verifiers found it independently, and
-neither would have if they had checked that the fade *existed* rather than that
-*going to sleep faded*.
+Position is right after one frame. **The prompt is not.** A 300 ms settle — which
+is plenty for a warp *within* one floor, and is what every one of my other
+scripts uses — reads the empty string and reports "nothing is offered here". I
+concluded that a station in somebody else's row did not work, twice, before
+noticing that my own probe was reading a HUD that had not caught up.
 
-This project now runs on published capabilities with separate adopters —
-`ctx.seat`, `ctx.spot`, `ctx.ground`, `ctx.advanceTime`, `citizenSprite`'s
-seated pose, K's pockets, K's panel framework, K's screen fade. **Every one of
-them can be built, correct, tested, and reach nobody.** The seated pose sat at
-`0 of 10 int-*.ts` for hours while its row read as delivered.
-
-So:
-
-1. **A row is the USER'S SENTENCE, not the capability.** *"when the player goes
-   to sleep i want the screen to fade to black"* is only true when going to
-   sleep fades the screen. Verify the sentence, from where the player stands.
-2. **Split the row when the work splits** — one for the capability, one for the
-   adoption, on their own owners. H asked for exactly that split on the seated
-   pose and was right: *"as one row it reads as H being late for work in files I
-   do not own."*
-3. **The publisher's own check cannot see this.** K's fade passed every test K
-   could write, because K does not own the bed.
-
-The cheapest guard is the control A took FIRST: prove the capability works
-directly, then prove the real path invokes it. If only the first passes, you
-have found this bug.
+**The rule:** after any warp that changes `pos()[3]`, wait for the prompt to
+*stop changing* rather than for a fixed time — or at minimum allow 1.5 s. Within
+a single floor, 260 ms is fine. This is §30's family — a fixed sleep shorter than
+the thing it waits for — and the reason it bites here specifically is that the
+delay is invisible: nothing about the position readout suggests the HUD is
+lagging behind it.
