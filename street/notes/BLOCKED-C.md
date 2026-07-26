@@ -1,6 +1,6 @@
 # BLOCKED — builder C
 
-## 0. The doors.ts import cycle: the crash is fixed, the DROP is not
+## 0. ~~The doors.ts import cycle~~ — CLOSED, cycle cut and drop fixed
 
 The original crash (`publishDeclaredDoors` throwing on an undefined namespace)
 was fixed at source in `db76dc26`, and §0.2's ask — *warn rather than skip
@@ -409,3 +409,35 @@ are not mine; my carve-out there is the interior belt. The desk has granted
 bounded mandates for exactly this shape before — `ctx.seat()`, `ctx.site()`,
 `ctx.ground()` were each one — so this is a ruling, not an investigation, and
 the patch above is the whole of it.
+
+
+---
+
+## Re-checked 2026-07-25 — what is still actually blocking
+
+A blocker file that lists resolved blockers misdirects the desk, so this is a
+sweep of every section above against the tree as it stands today rather than
+against what was true when each was written. The desk re-briefed me on §0 this
+week on the strength of its heading, which is what prompted this.
+
+| § | status today | how it was checked |
+|---|---|---|
+| 0 · doors.ts cycle | **CLOSED** — heading now says so | `doors.ts` globs `./int-*.ts`; 8 of 8 doors reach `declaredDoors()` in the BUILT bundle, 0 undefined-namespace warnings |
+| 1 · curb cut | closed already | landed |
+| 2 · car variants | closed already | landed |
+| 3 · advance the clock | **STILL BLOCKED** | `grep -rn advanceTime src/proto/` returns nothing — no clock-advancing call exists anywhere |
+| kit gap (same shape) | **STILL BLOCKED** | as above |
+| who owns `ct/lot.ts` | **STILL BLOCKED** | `OWNERSHIP.md` lists it under "Still unowned"; the auditor deliberately left it blank rather than guess, so this needs the desk |
+| banners never dim | **STILL BLOCKED** | `props.ts` has `isSelfLit` and no opt-out of any name — the sheets it mis-classifies still cannot be excluded from my side |
+| my citizens do not dim | **STILL BLOCKED** | unchanged; needs `lit` in my modules' context, or `citizenSprite` registering its own sprite |
+
+So: one section closed, five still real. Nothing in here is waiting on me.
+
+**A separate thing the desk should know**, not a blocker of mine but caused by
+my spawn change: `scripts/reach.mjs` seeds its flood fill at `__ct.pos()` and
+its grid is the street world only (x −46…62). The spawn is now at x 198.6,
+outside that grid, so the seed cell falls off the array and it reports
+"1 of 63072 cells reachable" — **at exit 0**, so it never goes red; it just
+quietly declares the whole world unwalkable. It needs a street seed. It is
+another agent's script and `OWNERSHIP.md` forbids me editing it, so it is filed
+rather than fixed.
