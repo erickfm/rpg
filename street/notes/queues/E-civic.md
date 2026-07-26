@@ -16,6 +16,22 @@ then commit, then re-read this file before starting the next.
 
 > ## DESK RULING — STOP ADDING TO THE PARK. FIX THE GROUND FIRST.
 >
+> **0. REMOVE THE GROUND WEAR. Do this before anything else on this list.**
+> `shots/user-parkmud.png` — the user: *"looks like a couple of dirt bikes ran
+> through it all."* That is exactly what it looks like: irregular dark brown
+> patches scattered across the whole field.
+>
+> **That is my brief's fault, not yours.** I asked for *"worn dirt on the
+> desire lines, a bald patch under the heaviest tree"* and it has been applied
+> as random blotches over the entire lawn. A desire line is a COHERENT TRACK
+> from somewhere to somewhere — the corner people cut, the line from the gate
+> to the bench — not scattered wear.
+>
+> So: **take the wear out entirely.** Leave clean mown grass. If it wants wear
+> later it gets ONE or TWO deliberate tracks between two real destinations,
+> and nothing else. Clean grass reads far better than a churned field, and the
+> user is asking for effort, which here means restraint.
+>
 > `shots/user-parkjank.png`. The user: *"so much of this park just looks
 > jank."* That is the tenth time they have criticised it, and the pattern in
 > those ten is worth naming: **every round has added a feature to a base that
