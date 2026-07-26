@@ -533,6 +533,13 @@ const CHECKS = [
   // been watched going red on it. ~6 s, no walking; it warps to the [E] the
   // world reports rather than to a coordinate this file remembers. (K)
   ['K-pocket-loop', 'can you take a newspaper, and does it leave the ground?', true],
+  // The panel, which is a different claim about a different thing — that one is
+  // about the world changing, this one is about the screen. Reads whether a
+  // panel is out from the ELEMENT'S OWN RECTANGLE rather than from a flag the
+  // module sets, because a boolean going true would pass just as happily with
+  // the canvas parked off the bottom of the viewport. Its --selftest moves the
+  // selection behind the assertion's back and requires the red. ~8 s. (K)
+  ['K-pocket-panel', 'does the pockets panel open, and does G drop what you CHOSE?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.

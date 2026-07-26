@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SHA, DIRTY, AT } from 'virtual:build-stamp';
-import { bindHud, POCKETS, slots } from './inventory';
+import { bindHud, closePockets, POCKETS, refreshPockets, slots } from './inventory';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -26,6 +26,10 @@ export interface Hud {
   watch: (want: boolean, mins: number) => void;
   /** right-click: flip the wallet out / away */
   toggleWallet: () => void;
+  /** put the wallet away. `ct/inventory.ts` calls this when the POCKETS open:
+   *  both are held objects centred at the bottom of the frame, so two out at
+   *  once would be one drawn over the other. One thing in your hands at a time. */
+  closeWallet: () => void;
   /** repaint the wallet if it happens to be open (after a buy, after feeding) */
   refreshWallet: () => void;
   /** the [E] hint under the crosshair; null hides it */
@@ -319,12 +323,21 @@ export function makeHud(purse: Purse): Hud {
     },
     toggleWallet: () => {
       walletOpen = !walletOpen;
-      if (walletOpen) drawWallet();
+      if (walletOpen) { closePockets(); drawWallet(); }
       walletWrap!.style.transform = walletOpen
         ? 'translateX(-50%) translateY(0) rotate(2deg)'
         : 'translateX(-50%) translateY(150%) rotate(2deg)';
     },
-    refreshWallet: () => { if (walletOpen) drawWallet(); },
+    closeWallet: () => {
+      if (!walletOpen) return;
+      walletOpen = false;
+      walletWrap!.style.transform = 'translateX(-50%) translateY(150%) rotate(2deg)';
+    },
+    // ONE SIGNAL, BOTH VIEWS. Everything in the world that changes the purse
+    // already calls this — the bodega counter, the ATM, feeding the birds — so
+    // the pockets panel refreshes off the same call rather than needing every
+    // one of those callers to learn that a second view exists.
+    refreshWallet: () => { if (walletOpen) drawWallet(); refreshPockets(); },
     prompt: (text) => {
       if (text === null) { promptDiv!.style.display = 'none'; return; }
       promptDiv!.textContent = text;
