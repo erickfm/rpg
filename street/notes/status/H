@@ -1,1 +1,1 @@
-BLOCKED | nothing buildable; seated pose + cat both landed, interior row needs the ROOMS to call the sprite | F and G — none of the 10 int-*.ts calls citizenSprite yet (signature in notes/H-seated-sprite.md); D — alley shell not landed; USER — bed-floor look call; B — east-end ramp+stripes
+WORKING | alley-mouth check on D's new alley, then bed floor to 32 px/m | 
