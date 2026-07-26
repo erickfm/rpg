@@ -1,1 +1,1 @@
-DONE | queue empty, 0 LANDED rows, my work all landed; re-ran the lot: 11 of 11 guards green on current mainline | nothing
+DONE | confirmed B rain row (station + both failure modes reproduced; rainLevel cuts indoors, wetness only decays) | nothing
