@@ -1,1 +1,1 @@
-WORKING | VERIFIER: M's loan walks end to end; its own check still yields 0 verdicts, left LANDED | nobody
+DONE | VERIFIER: L slots CONFIRMED on the bundle, RTP re-derived independently | nothing — LANDED column is the AUDIT row only
