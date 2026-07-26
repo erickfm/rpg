@@ -15,6 +15,16 @@ it.** Moving it back to LANDED is the honest thing and it costs one re-walk. A
 CONFIRMED row that is quietly false is worse than an OPEN one, because nobody
 is looking at it any more.
 
+**EVIDENCE GOES STALE — IF YOUR OWN WORK INVALIDATES IT, UPDATE THE CELL.**
+H found the lot-facing row recording *"yaws the world no longer has"*: the
+numbers were true when written and a later pass by the same builder moved the
+cars. A verifier then chases a world that has gone, and reports a fault that is
+only a fault against the old numbers.
+
+This is the same principle as CONFIRMED not being permanent, one step earlier.
+Measurements in an evidence cell are a claim about a specific build. If you
+move the thing the numbers describe, republish them in the same commit.
+
 **WHEN YOU MOVE A ROW TO LANDED, SAY WHERE TO STAND.** One line: the
 station a verifier should judge it from, or the predicate that settles it.
 
