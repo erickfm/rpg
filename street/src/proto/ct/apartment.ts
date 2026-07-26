@@ -278,11 +278,32 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const D302_SHUT = Math.PI / 2, D302_OPEN = Math.PI - 0.28;
   let leaf302: THREE.Mesh | null = null;
   let d302A = D302_SHUT;            // CLOSED is the default on load, as asked
-  // Starts LONG, not 0. At 0 the very first frame reads "he left a moment ago"
-  // and the tail below swings his door open on load — which is the one state
-  // the user explicitly asked not to see, and he now spawns on this landing so
-  // it is the first thing in front of him every time.
-  let hermitGoneFor = 999;
+  // ── how the neighbour comes and goes ─────────────────────────────────────
+  // The user: *"neighbor just disappears when he goes away why not make him go
+  // in his apt and then close the door"*. He is right, and the fix is not a
+  // better fade — it is that he was a BOOLEAN. `visible` went false and a man
+  // stopped existing on a landing, which is a worse artefact than the
+  // frequency problem that started this.
+  //
+  // So he is a small sequence now, in order, and the door is a CONSEQUENCE of
+  // where he is in it rather than a second thing to keep in agreement:
+  //
+  //     in -> opening -> out -> loiter -> back -> closing -> in
+  //     shut    swings     walks   stands   walks   swings     shut
+  //
+  // Two things fall out of that for free. The door is shut whenever he is not
+  // there BY CONSTRUCTION, which is the state the desk asked for and which
+  // used to need its own bookkeeping and a 1.2 s tail. And he cannot vanish
+  // mid-move, because only `in` reads the schedule — once he is out of it the
+  // sequence runs to its end whatever the hour does.
+  type HermitPhase = 'in' | 'opening' | 'out' | 'loiter' | 'back' | 'closing';
+  let hermitPhase: HermitPhase = 'in';   // SHUT and empty on load, as asked
+  const HERMIT_X_IN = 2.52;              // behind his own door, inside the flat
+  const HERMIT_X_OUT = 1.95;             // where he stands on the landing
+  const HERMIT_WALK = 0.62;              // m/s — a big man, in no hurry
+  const HERMIT_MIN_DWELL = 4;            // s he is out for at minimum
+  let hermitX = HERMIT_X_IN;
+  let hermitDwell = 0;
   let DOOR_PIV_X = 0, DOOR_PIV_Z = 0, DOOR_LEAF_W = 0.91;
 
   // `doorClear` lived here: the swept-volume test that decided whether the
@@ -2336,8 +2357,59 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // another landing he was visible and not solid — two halves of one figure
     // disagreeing about whether he was there.
     const onHisLanding = Math.abs(lastGy - 2 * ST) < 0.5;
-    hermit.visible = onHisLanding
-      && (hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1);
+    // THE SCHEDULE IS ONLY CONSULTED IN `in` AND `loiter`. Everywhere else the
+    // sequence is already running and finishes on its own, which is the
+    // "do not let him vanish mid-sequence" rule expressed as control flow
+    // rather than as a guard somebody has to remember.
+    const wantsOut = hermitForce === -1 ? hermitIn(hAbs) : hermitForce === 1;
+    const HZ = AZI(3.5);
+    // HE WAITS RATHER THAN WALKING THROUGH YOU. Same class of fault as the
+    // crossing the user got stuck at: a mover that does not look before it
+    // moves. He simply does not take the step this frame, and takes it when
+    // you move aside.
+    const blockedAt = (nx: number) => Math.hypot(px - AX(nx), pz - HZ) < 0.72;
+    const dOpen = Math.abs(d302A - D302_OPEN) < 0.04;
+    const dShut = Math.abs(d302A - D302_SHUT) < 0.04;
+    switch (hermitPhase) {
+      case 'in':
+        if (wantsOut) { hermitPhase = 'opening'; hermitX = HERMIT_X_IN; hermitDwell = 0; }
+        break;
+      case 'opening':                                    // he waits for his own door
+        if (dOpen) hermitPhase = 'out';
+        break;
+      case 'out': {
+        const nx = hermitX - HERMIT_WALK * dt;
+        if (!blockedAt(nx)) hermitX = Math.max(HERMIT_X_OUT, nx);
+        if (hermitX <= HERMIT_X_OUT + 1e-4) { hermitPhase = 'loiter'; hermitDwell = 0; }
+        break;
+      }
+      case 'loiter':
+        hermitDwell += dt;
+        if (!wantsOut && hermitDwell >= HERMIT_MIN_DWELL) hermitPhase = 'back';
+        break;
+      case 'back': {
+        const nx = hermitX + HERMIT_WALK * dt;
+        if (!blockedAt(nx)) hermitX = Math.min(HERMIT_X_IN, nx);
+        if (hermitX >= HERMIT_X_IN - 1e-4) hermitPhase = 'closing';
+        break;
+      }
+      case 'closing':                                    // shut BEHIND him, not with him
+        if (dShut) hermitPhase = 'in';
+        break;
+    }
+    // `in` is the only phase he is not drawn in — and by then a shut door is
+    // in front of him, so there is no frame where a visible man blinks out.
+    hermit.position.x = AX(hermitX);
+    hermit.visible = hermitPhase !== 'in' && onHisLanding;
+    // PUBLISHED, so a harness watches the sequence rather than guessing it from
+    // a sprite's x. Same move as `scene.userData.doorTravel` and props.ts's
+    // `wetness`: the world states what it knows.
+    // `wants` is the SCHEDULE, `phase` is where the sequence has got to. They
+    // are different questions and a rarity measurement wants the first: step
+    // the clock hour by hour and `phase` still reads 'out' long after the hour
+    // turned, because he is mid-walk. Sampling phase that way reported him out
+    // 65% of hours when the schedule says a small fraction of that.
+    scene.userData.hermit = { phase: hermitPhase, x: hermitX, door: d302A, visible: hermit.visible, wants: wantsOut };
     // ── his door follows him ───────────────────────────────────────────────
     // An open door says somebody is there even when the sprite is not, which
     // is half of why the landing read as though he was out constantly — the
@@ -2350,8 +2422,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // nine tenths of a second — so it never snaps between states while you are
     // stood on the landing looking at it.
     if (leaf302) {
-      hermitGoneFor = hermit.visible ? 0 : hermitGoneFor + dt;
-      const target = hermit.visible || hermitGoneFor < 1.2 ? D302_OPEN : D302_SHUT;
+      // No tail and no timer any more. `closing` is entered only once he is
+      // back through the opening, so "after him" is a fact about the sequence
+      // rather than 1.2 s of hoping.
+      const target = hermitPhase === 'in' || hermitPhase === 'closing' ? D302_SHUT : D302_OPEN;
       if (d302A !== target) {
         const step = 1.4 * Math.min(dt, 0.05);
         d302A += Math.sign(target - d302A) * Math.min(step, Math.abs(target - d302A));
@@ -2361,8 +2435,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // solid while he is standing there — he is out in the hall now, so
     // without this you walk straight through him. Floor-gated like every
     // other cap, because colliders here are 2D and the hall is stacked 4 deep.
-    setCap(hermitCap, hermit.visible && Math.abs(lastGy - 2 * ST) < 0.5,
-      AX(1.69), AX(2.21), AZI(3.24), AZI(3.76));
+    // HIS COLLIDER WALKS WITH HIM, and it is withheld if you are already
+    // standing where it would appear. A cap that materialises around the
+    // player is the depenetration bug from the other side: he would shove you
+    // rather than wait for you, which is exactly what he is not supposed to do.
+    const capIn = Math.abs(px - AX(hermitX)) < 0.42 && Math.abs(pz - AZI(3.5)) < 0.42;
+    setCap(hermitCap, hermit.visible && !capIn && Math.abs(lastGy - 2 * ST) < 0.5,
+      AX(hermitX - 0.26), AX(hermitX + 0.26), AZI(3.24), AZI(3.76));
     if (!hermit.visible) return;
     // The sprite does the turning and the column now, and it needs the
     // player's position to do it — which is why this takes px/pz where it used
