@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the doors are misaligned. i think the worker doesnt realize they need to confirm the logic independently per side of the car"** → **H**
 - **"textures on vehicles need a deep review and fix"** → **H**
 - **"cat is dead center in alley i need it right to the right of that news paper on the ground"** → **D**
 - **"a little too many grasses in the streets. like way too many. should be more rare"** → **B**

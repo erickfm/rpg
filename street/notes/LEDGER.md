@@ -95,3 +95,4 @@ user anything is finished.
 | OPEN | B | a little too many grasses in the streets. like way too many. should be | |
 | OPEN | D | cat is dead center in alley i need it right to the right of that news  | |
 | OPEN | H | textures on vehicles need a deep review and fix | |
+| OPEN | H | the doors are misaligned. i think the worker doesnt realize they need  | |
