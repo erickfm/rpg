@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import type { CtxBuild } from './ctx';
+import { ORDER as HOOK, type CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
+import { citizenSprite } from './citizens';
 import { type DoorDecl } from './doors';
 // the hard-texel text painter, so a sign in here is as crisp as one on the
 // street — same reason ct/int-hotel.ts imports it
@@ -282,6 +283,60 @@ export function buildLibrary(ctx: CtxBuild): void {
   // strip from 4.3 to the wall. A run of shelving is worth less than a level
   // change — the user named the stair and did not name a sixth bay.
   for (let i = 0; i < 5; i++) stack(-W / 2 + 2.4 + i * 2.15, zBack, zFront, 0x2a01 + i * 131);
+
+  // ── SHELVING AGAINST A WALL, one face of books ───────────────────────────
+  //
+  // The free-standing `stack` above is a double-sided bay you walk between.
+  // This is the other kind, and a Carnegie hall has both: a run fixed to a
+  // wall, books facing the room, no aisle behind it. It costs no floor at all,
+  // which is the whole reason it is the first thing to reach for when a room
+  // measures thin — see the density note at the foot of this file.
+  //
+  // `along` is the axis the run extends on and `face` is which way the books
+  // look on the other one. Both are given rather than derived because the two
+  // callers below sit on walls at right angles to each other, and a run that
+  // guesses its own facing is GOTCHAS §33 waiting to happen.
+  const wallRun = (lx: number, lz: number, len: number,
+    along: 'x' | 'z', face: -1 | 1, seed: number, base = 0) => {
+    const ax = along === 'x';
+    const size = (u: number, v: number) => (ax ? [u, v] : [v, u]) as [number, number];
+    const at = (u: number, v: number) => (ax ? [lx + u, lz + v] : [lx + v, lz + u]) as [number, number];
+    const [kw, kd] = size(len, BAY_D);
+    const [k0, k1] = at(0, 0);
+    box(kw, 0.1, kd, woodDark, k0, base + 0.05, k1);                   // the kick
+    for (const e of [-len / 2, len / 2]) {                             // the ends
+      const [ew, ed] = size(0.06, BAY_D);
+      const [e0, e1] = at(e, 0);
+      box(ew, BAY_H, ed, wood, e0, base + BAY_H / 2, e1);
+    }
+    const [bw, bd] = size(len, 0.06);                                  // the back board
+    const [b0, b1] = at(0, -face * (BAY_D / 2 - 0.03));
+    box(bw, BAY_H, bd, wood, b0, base + BAY_H / 2, b1);
+    for (let i = 0; i < 4; i++) {
+      const y = base + 0.30 + i * 0.42;
+      const [sw, sd] = size(len, BAY_D);
+      const [s0, s1] = at(0, 0);
+      box(sw, 0.04, sd, wood, s0, y, s1);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.36),
+        new THREE.MeshBasicMaterial({ map: shelfTex(len, 0.36, seed + i * 11) }));
+      // a PlaneGeometry faces +z. For a run extending along x the books look
+      // along ±z, which is rotation 0 or PI; along z they look along ±x, which
+      // is ±PI/2. Written as the four cases rather than one clever expression,
+      // because this is exactly the arithmetic §33 keeps catching.
+      m.rotation.y = ax ? (face > 0 ? 0 : Math.PI) : (face > 0 ? Math.PI / 2 : -Math.PI / 2);
+      const [p0, p1] = at(0, face * (BAY_D / 2 - 0.02));
+      put(m, p0, y + 0.20, p1);
+    }
+    solid(ax ? lx : lx, ax ? lz : lz, ...(ax ? [len + 0.08, BAY_D + 0.08] : [BAY_D + 0.08, len + 0.08]) as [number, number]);
+  };
+
+  // THE BACK WALL'S EAST BAY. The five free-standing runs above occupy x -7.6
+  // to 1.0 and stop 1.3 m short of the back wall, which is not enough to walk
+  // behind them — so shelving goes where the stacks are NOT, on the clear span
+  // east of them. Measured against the gallery's own constant rather than
+  // typed: the deck's west edge is GALLERY_X0, so the run stops 0.3 m short.
+  wallRun((2.2 + (GALLERY_X0 - 0.3)) / 2, -D / 2 + BAY_D / 2 + 0.06,
+    (GALLERY_X0 - 0.3) - 2.2, 'x', 1, 0x71a3);
 
   // ── THE VESTIBULE — REMOVED, 2026-07-25 ──────────────────────────────────
   //
@@ -954,6 +1009,28 @@ export function buildLibrary(ctx: CtxBuild): void {
       box(GW, 0.06, run + 0.02, wood, GCX, ty, tz);
       box(GW, rise, 0.05, woodDark, GCX, ty - rise / 2, tz - run / 2);
     }
+    // ── AND THE STRINGERS THAT CARRY THEM ──
+    //
+    // Found by doing what the queue asks — *"walk both floors, and grade them
+    // skeptically"* — and standing at the FOOT of the flight, which is the one
+    // place a player looks at a stair from and the one place I had not shot.
+    // From there a tread is a 3 m plank with nothing under it and nothing at
+    // its ends, and twelve of them read as a cascade of shelves hanging in the
+    // air. Every other view is three-quarter and hides it, which is why this
+    // survived: the stair had been checked for whether you can CLIMB it, never
+    // for what it looks like from where you start climbing.
+    //
+    // Two raked boards under the tread ends, on the flight's own gradient, so
+    // changing GALLERY_Y or STAIR_Z0 moves them with everything else.
+    {
+      const drop = GALLERY_Y, tread = STAIR_Z0 - GALLERY_Z1;
+      const pitch = Math.atan2(drop, tread), len = Math.hypot(drop, tread);
+      for (const sx of [-1, 1]) {
+        const s = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.36, len), woodDark);
+        s.rotation.x = pitch;
+        put(s, GCX + sx * (GW / 2 - 0.04), drop / 2 - 0.20, (STAIR_Z0 + GALLERY_Z1) / 2);
+      }
+    }
     // AN OPEN BALUSTRADE ON THE FLIGHT, NOT A WALL. This was a solid
     // 0.14 x 3.80 x 4.60 slab of dark timber down the open side of the stair —
     // "the largest object in his view and a featureless untextured rectangle",
@@ -1004,6 +1081,187 @@ export function buildLibrary(ctx: CtxBuild): void {
     for (const lx of [-0.6, 0.6]) for (const lz of [-0.25, 0.25]) {
       box(0.07, 0.72, 0.07, woodDark, GCX + 0.5 + lx, GALLERY_Y + 0.36, deckCZ + 1.4 + lz);
     }
+
+    // AND SHELVES, which is what a gallery in a Carnegie branch is FOR. It ran
+    // round the room to reach the high books; a gallery with a rail and a table
+    // is a viewing platform, and the user climbed it once to look down and had
+    // no second reason to go up. Two runs against the east wall, books facing
+    // the rail, split so the deck reads as having a middle.
+    //
+    // Their colliders cost the ground floor nothing: the balustrade already
+    // stops you at GALLERY_X0 + 0.09 down there, so everything under this deck
+    // is behind a wall at floor level either way.
+    const SHELF_X = W / 2 - BAY_D / 2 - 0.06;
+    for (const [z0, z1, seed] of [[deckZ0 + 0.5, -6.4, 0x9a11], [-5.4, -1.4, 0x9a22]] as [number, number, number][]) {
+      wallRun(SHELF_X, (z0 + z1) / 2, z1 - z0, 'z', -1, seed, GALLERY_Y);
+    }
+  }
+
+  // ── THE READING ROOM'S OWN TABLE, AND THE PEOPLE AT IT ───────────────────
+  //
+  // Routed by the desk from F's measurement: the library reads at 0.62 things
+  // per m², one of the three thinnest interiors in the world, beside the pawn
+  // shop and the hotel. And with it, the correction that matters more than the
+  // number: *"density is a DIAGNOSIS, not a target — a big quiet civic room
+  // with a few well-placed things beats a cluttered one"*, read beside
+  // `roomaisle`, because the two pull against each other and this room has
+  // already been cut into strips once.
+  //
+  // So the answer is not to scatter objects. It is that a 440 m² reading hall
+  // had ONE four-seat table in it, which is not a reading room — it is a
+  // corridor with a table. A Carnegie hall's centrepiece is a RANK of long
+  // tables under the windows, and that is one object, in one place, that a
+  // player reads as the point of the room.
+  //
+  // Placed in the west-centre, the largest piece of floor doing nothing, and
+  // checked against all four of its neighbours rather than eyeballed:
+  //
+  //   the stacks end at z -2.00      the north chairs sit at z -0.35   1.65 m
+  //   the issue desk starts at 3.20  the south chairs sit at z  1.55   1.65 m
+  //   the alcove chair is at x -7.8  the table's west end is at -6.40  0.85 m
+  //   the wear decal runs x ±0.75 from z 3.80 — no overlap at all
+  //
+  // It is an ISLAND, not a run: nothing about it divides the floor, which is
+  // the failure mode the auditor measured when this room doubled in area and
+  // its clear aisle fell to 2.10 m.
+  const RT_X = -4.0, RT_Z = 0.6, RT_LEN = 4.8, RT_D = 1.10;
+  {
+    box(RT_LEN, 0.08, RT_D, wood, RT_X, 0.74, RT_Z);
+    for (const dx of [-RT_LEN / 2 + 0.3, 0, RT_LEN / 2 - 0.3]) {
+      for (const dz of [-RT_D / 2 + 0.15, RT_D / 2 - 0.15]) {
+        box(0.09, 0.74, 0.09, woodDark, RT_X + dx, 0.37, RT_Z + dz);
+      }
+    }
+    // the brass reading lamps down the spine — the one detail that says
+    // "reading room" rather than "canteen", and they are lit surfaces in a
+    // world where nothing is lit, so the shades do the work
+    const shade = new THREE.MeshBasicMaterial({ color: 0x2f5744 });
+    const brass = new THREE.MeshBasicMaterial({ color: 0xa8863c });
+    const glow = new THREE.MeshBasicMaterial({ color: 0xe8dcb0 });
+    for (const dx of [-1.5, 0, 1.5]) {
+      box(0.10, 0.34, 0.10, brass, RT_X + dx, 0.95, RT_Z);
+      box(0.44, 0.11, 0.24, shade, RT_X + dx, 1.17, RT_Z);
+      box(0.38, 0.02, 0.18, glow, RT_X + dx, 1.11, RT_Z);
+    }
+    solid(RT_X, RT_Z, RT_LEN + 0.2, RT_D + 0.2);
+
+    // SIX CHAIRS, THREE A SIDE, and every one of them registered. The user's
+    // standing rule is *"for every seat in the game i want to be able to sit
+    // down"*, and a rank of reading chairs you cannot use is the exact thing
+    // that rule exists to stop.
+    //
+    // yaw is the CAMERA convention because `ctx.seat` hands it to the rig
+    // (GOTCHAS §33). A chair north of the table faces +z, which is camera yaw
+    // PI; south faces -z, which is 0. Derived from the side rather than typed
+    // per chair, so the two sides cannot disagree.
+    for (const side of [-1, 1] as const) {
+      for (const dx of [-1.6, 0, 1.6]) {
+        const cx = RT_X + dx, cz = RT_Z + side * 0.95;
+        box(0.44, 0.05, 0.44, wood, cx, 0.45, cz);
+        box(0.44, 0.5, 0.05, wood, cx, 0.70, cz + side * 0.20);
+        for (const fx of [-0.18, 0.18]) for (const fz of [-0.18, 0.18]) {
+          box(0.05, 0.45, 0.05, woodDark, cx + fx, 0.225, cz + fz);
+        }
+        ctx.seat({
+          x: room.wx(cx), z: room.wz(cz),
+          yaw: side < 0 ? Math.PI : 0, h: 0.45,
+          approach: { x: room.wx(cx), z: room.wz(cz + side * 0.85) },
+          label: 'sit at the reading table',
+          ok: () => room.inside(),
+        });
+      }
+    }
+  }
+
+  // ── PEOPLE, SEATED, FROM THE ATLAS ───────────────────────────────────────
+  //
+  // The queue's *"adopt citizenSprite … the reading tables and the new
+  // terminals want sitters"*, and behind it the user's own line: *"i want the
+  // people inside the buildings to be as detailed and quake-view like as the
+  // pedestrians on the street."*
+  //
+  // `room.person` places at the FLOOR, which is right for a keeper and wrong
+  // for a sitter, so these go through `citizenSprite` directly — the call
+  // H wrote up in `notes/H-seated-sprite.md`. One rule and it is H's, in
+  // bold: **the seated origin is the HIP, so place it at the SEAT TOP, and if
+  // you find yourself adding a y fudge, stop and tell H — that means the atlas
+  // is wrong, not your room.** No fudge here; 0.45 is the seat pan these
+  // chairs are built with, and it is passed as the pan height, not as a
+  // number that happens to look right.
+  const SEAT_TOP = 0.45;
+  const sitter = (look: Parameters<typeof citizenSprite>[0], lx: number, lz: number, facing: number) => {
+    const s = citizenSprite({ ...look, seated: true }, { facing, h: 0.97, w: 0.95 });
+    put(s.mesh, lx, SEAT_TOP, lz);
+    ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
+  };
+  // A reader at the long table, on the far side, facing back across it — so
+  // walking up to the table you meet a face and not a back. Facing is the
+  // MESH/sprite convention here (`atan2(vx, vz)`, 0 = +z), which is NOT the
+  // camera one two blocks above; they differ by the z-flip in GOTCHAS §33 and
+  // this is the one place in the file where both appear within twenty lines.
+  sitter({ jacket: '#6a5a48', pants: '#3a3f46', skin: '#8a5f3c', hair: '#241c14',
+    fit: 'plain', cut: 'short', build: 0 }, RT_X - 1.6, RT_Z - 0.95, 0);
+  // …and a second at the far end, reading, turned the other way
+  sitter({ jacket: '#4a5a52', pants: '#443c34', skin: '#e0b48c', hair: '#a8925c',
+    fit: 'plain', cut: 'long', build: 1 }, RT_X + 1.6, RT_Z + 0.95, Math.PI);
+
+  // ── THE THINGS THAT SAY THE ROOM IS USED ─────────────────────────────────
+  //
+  // Not density — four objects will not move a per-m² figure and are not meant
+  // to. These are the props that say somebody works here: a trolley of returns
+  // waiting to be shelved, a globe nobody has updated since the Soviet Union,
+  // a bin, and a stand full of umbrellas because it has been raining.
+  {
+    // the returns trolley, parked at the open east end of the issue desk
+    const TR_X = -0.9, TR_Z = 4.2;
+    box(0.52, 0.06, 0.86, wood, TR_X, 0.80, TR_Z);
+    box(0.52, 0.06, 0.86, wood, TR_X, 0.42, TR_Z);
+    for (const dx of [-0.22, 0.22]) for (const dz of [-0.38, 0.38]) {
+      box(0.05, 0.80, 0.05, woodDark, TR_X + dx, 0.40, TR_Z + dz);
+      box(0.07, 0.07, 0.07, metal, TR_X + dx, 0.035, TR_Z + dz);   // its castors
+    }
+    for (const [y, len] of [[0.86, 0.66], [0.48, 0.78]] as [number, number][]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.30),
+        new THREE.MeshBasicMaterial({ map: shelfTex(len, 0.30, 0x3f10 + Math.round(y * 100)) }));
+      m.rotation.y = Math.PI / 2;
+      put(m, TR_X + 0.20, y + 0.15, TR_Z);
+    }
+    solid(TR_X, TR_Z, 0.62, 0.96);
+
+    // the globe, on the floor west of the reading table
+    const GL_X = -7.0, GL_Z = -0.9;
+    box(0.34, 0.05, 0.34, woodDark, GL_X, 0.025, GL_Z);
+    box(0.07, 0.66, 0.07, woodDark, GL_X, 0.36, GL_Z);
+    box(0.40, 0.06, 0.40, new THREE.MeshBasicMaterial({ color: 0xa8863c }), GL_X, 0.72, GL_Z);
+    const globeT = declareSurface(pixTex(24, 12, (g) => {
+      g.fillStyle = '#5b7f96'; g.fillRect(0, 0, 24, 12);              // the sea
+      g.fillStyle = '#8a9a62';
+      g.fillRect(2, 3, 5, 6); g.fillRect(9, 2, 7, 5); g.fillRect(13, 7, 4, 4);
+      g.fillRect(19, 4, 4, 3);
+      g.fillStyle = 'rgba(255,255,255,0.18)'; g.fillRect(0, 0, 24, 1);
+      dither(g, 24, 12, 26);
+    }), 'detail');
+    const gl = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.36, 0.36),
+      new THREE.MeshBasicMaterial({ map: globeT }));
+    put(gl, GL_X, 0.94, GL_Z);
+    gl.rotation.y = 0.6;
+    solid(GL_X, GL_Z, 0.46, 0.46);
+
+    // a bin by the desk, and a stand of umbrellas by the doors
+    box(0.32, 0.44, 0.32, metal, -0.9, 0.22, 5.5);
+    box(0.34, 0.03, 0.34, woodDark, -0.9, 0.45, 5.5);
+    const UM_X = 2.3, UM_Z = D / 2 - 1.2;
+    box(0.30, 0.52, 0.30, metal, UM_X, 0.26, UM_Z);
+    for (const [dx, dz, c] of [[-0.06, -0.05, 0x3a3f52], [0.05, 0.04, 0x5a3a34],
+      [0.02, -0.07, 0x3f4a3a]] as [number, number, number][]) {
+      box(0.05, 0.86, 0.05, new THREE.MeshBasicMaterial({ color: c }), UM_X + dx, 0.43, UM_Z + dz);
+    }
+    solid(UM_X, UM_Z, 0.4, 0.4);
+
+    // and what the readers left on the table
+    box(0.30, 0.04, 0.22, new THREE.MeshBasicMaterial({ color: 0xe4dfcd }), RT_X - 1.6, 0.80, RT_Z - 0.30);
+    box(0.24, 0.14, 0.18, woodDark, RT_X + 1.0, 0.85, RT_Z + 0.20);
+    box(0.22, 0.12, 0.16, wood, RT_X + 1.0, 0.98, RT_Z + 0.20);
   }
 
   // ── THE PERIODICALS ALCOVE ───────────────────────────────────────────────
