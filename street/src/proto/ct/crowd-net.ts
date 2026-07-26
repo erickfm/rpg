@@ -61,12 +61,25 @@ export interface Net {
   edges: Edge[];
   /** adjacency: node index -> [{to, edge}] */
   adj: { to: number; edge: number }[][];
-  /** shortest route between two nodes, as node indices, start included */
-  route: (from: number, to: number) => number[];
+  /** Shortest route between two nodes, as node indices, start included.
+   *
+   *  `avoid` is what makes walking ROUND something possible. Without it a
+   *  re-plan is pointless: Dijkstra on an unchanged graph returns the same path
+   *  through the same blocked node, so a walker that gives up and re-plans
+   *  walks straight back into what stopped it. Nodes in `avoid` are treated as
+   *  unavailable — except the two ends, since refusing to route to where you
+   *  are going is not an alternative route, it is no route. */
+  route: (from: number, to: number, avoid?: Set<number>) => number[];
   /** the nearest node to a point */
   nearest: (x: number, z: number) => number;
   /** is this edge a crossing? indices as returned in a route */
   isCrossing: (a: number, b: number) => boolean;
+  /** How far either side of an edge's centre line a walker may stray. A walk is
+   *  2 m wide with a kerb on one side and a shopfront on the other, so it is
+   *  narrow. A CROSSING is not: it is as wide as the painted stripes, and
+   *  giving it that width is what lets several people cross abreast instead of
+   *  queueing through one node. */
+  halfOf: (a: number, b: number) => number;
 }
 
 export function buildNet(d: NetDims): Net {
@@ -163,7 +176,7 @@ export function buildNet(d: NetDims): Net {
 
   /** Dijkstra. The graph is ~25 nodes, so a linear scan for the next node is
    *  cheaper than a heap and much easier to read. */
-  const route = (from: number, to: number): number[] => {
+  const route = (from: number, to: number, avoid?: Set<number>): number[] => {
     const dist = nodes.map(() => Infinity);
     const prev = nodes.map(() => -1);
     const done = nodes.map(() => false);
@@ -174,6 +187,7 @@ export function buildNet(d: NetDims): Net {
       if (u < 0 || u === to) break;
       done[u] = true;
       for (const { to: v, edge } of adj[u]) {
+        if (avoid?.has(v) && v !== to && v !== from) continue;
         const d = dist[u] + edges[edge].len;
         if (d < dist[v]) { dist[v] = d; prev[v] = u; }
       }
@@ -197,6 +211,10 @@ export function buildNet(d: NetDims): Net {
       const i = edgeAt.get(`${a}|${b}`);
       return i === undefined ? false : edges[i].road;
     },
+    halfOf: (a, b) => {
+      const i = edgeAt.get(`${a}|${b}`);
+      return i !== undefined && edges[i].road ? CROSS_HALF : STRAY;
+    },
   };
 }
 
@@ -204,3 +222,14 @@ export function buildNet(d: NetDims): Net {
  *  how far a citizen may stray either side of the walk's centre line, given the
  *  2 m walk, the kerb on one side and the building on the other. */
 export const STRAY = Math.min(IN, FACE - (ROAD_HALF + IN)) - 0.45;
+
+/** The same allowance for a CROSSING, which is wide where a walk is not.
+ *  Pedestrians piled up at the junction because both crossings are a single
+ *  edge between a single pair of nodes, so every trip across the street was
+ *  funnelled through one point and people met head-on in it by construction.
+ *  2.6 m of width is three lanes at the 0.9 m a walker occupies, which is what
+ *  "give the crossing width and let walkers pick a lane" comes to. It is a
+ *  lateral allowance rather than extra nodes on purpose: the ramp in the kerb
+ *  is at ONE place (ct/tex-ground.ts flags KRAMP on the bodega corner return),
+ *  so the ends must stay put even though the middle spreads out. */
+export const CROSS_HALF = 1.3;

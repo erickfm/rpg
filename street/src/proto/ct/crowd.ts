@@ -110,7 +110,12 @@ export interface Crowd {
   /** where everybody is standing right now. Read by ct/traffic.ts, which will
    *  not drive through a person — so this has to be live positions, not the
    *  build-time cast. */
-  walkers: () => { x: number; z: number }[];
+  /** test affordance: where each person is AND what they are doing, because
+   *  x/z alone cannot tell a citizen waiting 20 s for the 42 from one jammed
+   *  against a crossing — and "pedestrians pile up and get stuck" is exactly
+   *  that distinction. `wait` is the errand timer, `doing` the errand, `jam`
+   *  the seconds this walker has been unable to make progress. */
+  walkers: () => { x: number; z: number; wait: number; doing: string; jam: number; ghost: boolean }[];
   /** test affordance: which atlas column each person is showing and whether it
    *  is mirrored, with the billboard's yaw and their direction of travel. This
    *  is what makes "does the painted toe point the way they walk" checkable —
@@ -235,6 +240,9 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     }
   };
 
+  /** seconds of getting nowhere before a walker stops waiting and goes round */
+  const JAM_GIVE_UP = 2.0;
+
   // ── having somewhere to be ──────────────────────────────────────────────
   //
   // A destination and a reason for it. The old sim gave everybody the same
@@ -291,6 +299,33 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
     // always hug the same side of the walk
     c.bias = (rnd() - 0.5) * 2 * STRAY;
   };
+  /** Blocked here: take another path, rather than waiting for the world to
+   *  clear. The node we cannot reach is struck out of the graph FOR THIS
+   *  WALKER, and the same destination is re-routed around it — which is the
+   *  whole point. Clearing the route and re-planning (what this used to do)
+   *  runs Dijkstra over an unchanged graph and returns the identical path
+   *  through the identical blockage, so the walker walks back into it and jams
+   *  again; that loop is the pile-up not dispersing once it forms.
+   *
+   *  If there is no way round — a dead-end shopfront, the closed east end — the
+   *  fallback is to give up on this errand and pick a new one, which is at
+   *  least motion. */
+  const reroute = (c: Citizen) => {
+    c.jam = 0;
+    const blocked = c.route[0];
+    const dest = c.route[c.route.length - 1];
+    const from = c.at >= 0 ? c.at : net.nearest(c.lane, c.z);
+    if (blocked === undefined || dest === undefined) { c.route = []; return; }
+    const alt = net.route(from, dest, new Set([blocked]));
+    if (alt.length > 1 && alt[1] !== blocked) {
+      c.route = alt.slice(1);
+      c.at = from;
+      c.pick = c.bias;                 // the committed offset failed with it
+    } else {
+      c.route = [];                    // no way round: somewhere else to be
+    }
+  };
+
   const arrive = (c: Citizen) => {
     const act = net.nodes[c.at]?.act ?? 'none';
     const [lo, hi] = WAIT[act];
@@ -335,7 +370,8 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // the line, so a few seconds of prop avoidance walked people off the
         // kerb and into the roadway. Measuring the offset from the edge makes
         // straying off the walk impossible by construction.
-        const A = net.nodes[c.at >= 0 ? c.at : c.route[0]];
+        const ai = c.at >= 0 ? c.at : c.route[0];
+        const A = net.nodes[ai];
         const B = net.nodes[c.route[0]];
         let dx = B.x - A.x, dz = B.z - A.z;
         const len = Math.hypot(dx, dz) || 1;
@@ -348,7 +384,10 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // deadlocking.
         const ahead = citizens.find((q) => q !== c
           && Math.hypot(q.lane - (c.lane + dx * 0.7), q.z - (c.z + dz * 0.7)) < 0.62);
-        if (ahead) c.jam += dt; else c.jam = Math.max(0, c.jam - dt * 2);
+        // `jam` is time spent GETTING NOWHERE, and it used to be time spent
+        // with anybody ahead at all — which counted a perfectly good follow at
+        // matched pace as a jam. It is now set below, once we know whether this
+        // frame actually moved.
         // ── who gives way ─────────────────────────────────────────────────
         //
         // ASYMMETRIC, on purpose. Both-bear-right is symmetric, and a symmetric
@@ -369,12 +408,32 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // how the starvation showed up).
         let held = false, follow = 0;
         if (ahead) {
+          // SOMEBODY PARKED IS NOT SOMEBODY TO NEGOTIATE WITH. This is the
+          // pile-up. Giving way is for two people who both want to move; a
+          // citizen standing at a window for twelve seconds, or hesitating in a
+          // doorway for eight, is furniture. The old test could not tell them
+          // apart — a stopped walker read as `theirs <= 1e-4`, i.e. as a
+          // head-on meeting — so one of the pair stood for as long as the other
+          // one's errand lasted, and whoever came up behind THEM stood too. Six
+          // people and two errands is all it takes.
+          //
+          // The user's diagnosis is the fix: the walk logic should allow people
+          // to walk around things. A parked walker is a thing to walk around,
+          // so we neither hold nor follow — we fall through to the offset search
+          // below, which is already the "go round it" manoeuvre.
+          const parked = ahead.wait > 0;
           const mine = Math.hypot(c.vx, c.vz), theirs = Math.hypot(ahead.vx, ahead.vz);
           const headOn = mine > 1e-4 && theirs > 1e-4
             && (c.vx * ahead.vx + c.vz * ahead.vz) / (mine * theirs) < 0;
-          if (headOn || theirs <= 1e-4) {
+          if (parked) {
+            // nothing: go round
+          } else if (headOn || theirs <= 1e-4) {
             const lowerYields = (c.id + ahead.id) % 2 === 0;
             held = lowerYields ? c.id < ahead.id : c.id > ahead.id;
+            // …but not for ever. A yield is meant to last the second it takes
+            // the other one to pass. If it has not resolved in JAM_GIVE_UP, the
+            // rule has failed for this pair and standing longer will not fix it.
+            if (c.jam > JAM_GIVE_UP * 0.5) held = false;
           } else {
             follow = theirs / dt;                     // their speed, to match
           }
@@ -388,10 +447,16 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
         // the oscillation: the candidate list is ordered, so a walker would
         // snap back to its preferred side the instant that side cleared, which
         // is the moment the other walker had just moved out of it.
-        const want = ahead ? Math.max(0.3, c.bias) : c.bias;
+        // How wide is what we are walking on? A walk is narrow; a crossing is
+        // as wide as its stripes, and the candidates spread to fill it, so
+        // people cross abreast in lanes instead of single file through a node.
+        const half = net.halfOf(ai, c.route[0]);
+        const k = half / STRAY;
+        const want = (ahead ? Math.max(0.3, c.bias) : c.bias) * k;
         let placed = false;
-        for (const off of [c.pick, want, want + 0.4, want - 0.8, 0, want + 0.8, want - 0.4]) {
-          const o2 = Math.max(-STRAY, Math.min(STRAY, off));
+        for (const off of [c.pick, want, want + 0.4 * k, want - 0.8 * k, 0,
+          want + 0.8 * k, want - 0.4 * k]) {
+          const o2 = Math.max(-half, Math.min(half, off));
           const nt = t + step;
           const nx = A.x + dx * nt + rx * o2;
           const nz2 = A.z + dz * nt + rz * o2;
@@ -403,15 +468,26 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
             break;
           }
         }
-        if (!placed) {
-          // nothing clear either side: STAND. Never advance into somebody, and
-          // never shove through a prop. If it stays blocked long enough, take a
-          // different route from here rather than waiting forever — which is
-          // also what stops two people meeting head-on in a doorway from
-          // standing there for good.
+        // ── did this frame actually get anywhere? ─────────────────────────
+        //
+        // THE ESCAPE HATCH USED TO LIVE INSIDE `!placed`, AND THAT IS WHY
+        // PEOPLE STUCK FOR EVER. A held walker sets step = 0, so the very first
+        // candidate offset — its own current position — is clear, `placed` goes
+        // true, and the re-plan below was never reached. Its jam timer counted
+        // up the whole time: the watch that found this measured one walker at
+        // 29.8 s of a 60 s minute, standing, with `placed` true every frame.
+        //
+        // So progress is measured, not inferred from which branch we fell down.
+        // An escalation, not a single rule: give way for half a second, then
+        // stop giving way and try to go ROUND (the offset search), and only if
+        // that is still getting nowhere take a different path entirely. Firing
+        // the last two together would reroute a walker on the very frame it
+        // first tried to step round somebody, which throws away the cheap fix.
+        const got = Math.hypot(vx, vz);
+        if (got < c.sp * dt * 0.35) {
           c.jam += dt;
-          if (c.jam > 2.5) { c.route = []; c.jam = 0; }
-        }
+          if (c.jam > JAM_GIVE_UP) reroute(c);
+        } else c.jam = Math.max(0, c.jam - dt * 2);
         if (Math.hypot(B.x - c.lane, B.z - c.z) < 0.45) {
           c.at = c.route.shift()!;
           if (!c.route.length) arrive(c);              // that was the destination
@@ -483,7 +559,8 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       sp: c.sp, cad: c.cad, hs: c.mesh.scale.y, ws: c.mesh.scale.x,
       footY: c.mesh.position.y,
     })),
-    walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z })),
+    walkers: () => citizens.map((c) => ({ x: c.lane, z: c.z, wait: +c.wait.toFixed(2),
+      doing: c.doing, jam: +c.jam.toFixed(2), ghost: !!c.ghost })),
     // the DIRECTION OF TRAVEL, not a ±1 axis code: since the crowd routes over
     // a graph, people walk east and west too, and the feet check has to compare
     // the painted toe against an arbitrary heading
