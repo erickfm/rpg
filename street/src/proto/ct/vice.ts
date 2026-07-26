@@ -720,7 +720,19 @@ export function buildVice(o: {
       // rooftop pylon still stands behind it and is still the skyline mark at
       // 26 m; this is the tallest thing on the building line, which is the read
       // you get walking toward it rather than seeing it over the rooftops.
-      const BL_X = casino[0] + 0.95, BL_Y0 = 5.6, BL_Y1 = 21.4;
+      // THE FAR END OF ITS OWN FRONTAGE, which is the user's fix and a better one
+      // than staggering projection and height: it solves the occlusion with
+      // distance instead of with a compromise, and it is what a real operator
+      // would do with the sign they paid for.
+      //
+      // It was `casino[0] + 0.95` — x 46.40, the WEST end of a building that runs
+      // 45.45 to 57.00 — which put it 6.9 m from HOTEL ORPHEUS' blade at 39.51,
+      // on adjacent buildings, at the same projection and nearly the same height.
+      // Two blades competing for one corner, and neither reading.
+      //
+      // `casino[1] - 0.95` is x 56.05: 16.5 m of clear air between them, each
+      // building with its own sign over its own frontage.
+      const BL_X = casino[1] - 0.95, BL_Y0 = 5.6, BL_Y1 = 21.4;
       const BL_Z1 = FACE_Z - 1.35;
       const blCz = (FACE_Z + BL_Z1) / 2, blD = FACE_Z - BL_Z1;
       const cab = new THREE.Mesh(new THREE.BoxGeometry(0.34, BL_Y1 - BL_Y0, blD), boardM);
