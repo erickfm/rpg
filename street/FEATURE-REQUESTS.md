@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"also i think the neighbor is out looking into my apt way too often"** → **C**
 - **"in general i want to be able to interact with things a lot easier and for them to have a little outline highlighted for the selection of it. the door for instance to my apt should be easy to open and close when looking at or by the door frame or the door itself."** → **D**
 - **"'Screenshot from 2026-07-25 20-47-52.png' i want to have a fist on the right side of the watch here. it actually should be really minimal considering it would be the top of the fist. no fingers would actually show so i kinda expect a square larger in width than the wrist attached to the right side of the wrist."** → **D**
 - **"'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very cramped and also the door is not on the corner"** → **F**
