@@ -1666,8 +1666,19 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // lamps and the rain schedule to save 1.5 seconds. So: the default ramp,
     // and no overlay. Both halves of the instruction are satisfied.
     const WAKE_H = 7;
+    // WHERE IT STANDS MATTERS AS MUCH AS WHAT IT DOES. At AX(-2.1)/r 0.9 this
+    // sat close enough to 301's door spot to win the prompt from it: door301
+    // pressed E expecting to shut the door and got "sleep until morning"
+    // instead, and every clause after that cascaded. Two spots a metre and a
+    // half apart is not enough when one of them is where you stand to work the
+    // door.
+    //
+    // Moved to the far side of the bed, by the pillow end — which is where you
+    // would stand to get into it anyway — and the radius tightened. That is
+    // 1.98 m from the door spot instead of 1.49, and clear of both the bed
+    // collider (z -15.60..-14.68) and the radiator (x 196.9..197.06).
     ctx.spot({
-      x: AX(-2.1), z: AZI(4.15), r: 0.9,
+      x: AX(-2.6), z: AZI(4.2), r: 0.75,
       ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
       label: () => 'sleep until morning',
       act: () => {
