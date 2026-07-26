@@ -1,1 +1,1 @@
-WORKING | selection-width LANDED both halves (32->19% offered, off-aim 48->24%); D-sightline-pairs coverage 6->3 unexplained, 0 leaks |
+DONE | selection width landed both halves; the coverage question I left open is settled (probe artifact, 12 pairs hold) | nobody

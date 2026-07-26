@@ -80,7 +80,15 @@ import { installSee } from './lib/D-see.mjs';
 const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
 const RADII = [1.2, 1.0, 1.5];   // inside r + REACH_MARGIN for every spot
 const MIN_PAIRS = 6;             // discovering nothing is a FAILURE, not a pass
-const CAP = 26;
+// HOW MANY PAIRS TO ATTEMPT. Raised from 26 after the pick tightened and the
+// score fell 6 -> 3: not because selection narrowed, but because most
+// candidates are not LIVE from a ring station (a seat wants you seated, an
+// interior wants you to have walked in through its door), so the budget was
+// being spent on spots that could never be scored. Measured at the clear
+// station: of 40 candidates, 13 had ok() true and ALL 13 WERE OFFERED — zero
+// live-but-not-offered, so the tighter aim-free rule cost no coverage here at
+// all. The cap is the limiter, not the pick.
+const CAP = 70;
 
 const b = await chromium.launch();
 const page = await b.newPage();
