@@ -823,3 +823,46 @@ at side st north x 10.5**, where a citizen leaves **0.56 m**.
 fix belongs in the crowd or in an unstick, not in the map — and `crowd.ts`
 already computes how wide the thing it is walking on is, so "do not come to rest
 where the lane is under 1.22 m" is expressible where the knowledge already lives.
+
+## [C] Tax service door: aligned — and a measurement I am NOT reporting
+
+**The exterior alignment is correct.** The published door point and the
+frontage's `doorWorld` agree exactly at z −20.127, and the `[E]` stand point is
+square in front. Aiming the camera at that position puts the door painted on the
+facade **within ~2 px of frame centre** (`tx-face.png`). Aligned.
+
+This was one of the nine untracked rows I filed, and it appears to have been
+fixed at some point with the ledger never hearing about it — which is the case
+for filing them OPEN rather than guessing.
+
+**[I] I built a cross-check, got six clean-looking numbers, and am binning them.**
+The interior audit listed "does the interior door agree with the exterior
+doorway" as not covered, so I measured the door's position as a FRACTION along
+the room's street wall against the exterior door's fraction along its frontage:
+
+| shop | exterior | interior | |
+|---|---|---|---|
+| THRIFT | 69.5% | 69.5% | exact |
+| PAWN | 50.0% | 61.6% | off 12% |
+| A-1 TAX | 14.4% | 28.0% | off 14% |
+| DINER | 74.1% | 37.0% | off 37% |
+| BODEGA | 40.1% | 76.7% | off 37% |
+| BURGER | 74.3% | 34.3% | off 40% |
+
+**That table is not evidence and I am not filing it as findings.** It rests on an
+assumption I never established: that the room's local +x maps onto the frontage's
+low-to-high direction. If that mapping flips per room — and the rooms sit on a
+belt with no published orientation — the "errors" are my arithmetic, not the
+world. *One shop matching to 0.1% while five miss by 12–40% is far more like a
+mapping artifact than like five independently broken rooms*, and a real fault
+distribution rarely has one perfect member.
+
+**What would make it checkable:** the rooms need to publish which wall faces the
+street, the same one line the four frontage-less buildings needed. Until then
+this check cannot be run, and running it anyway would have sent three builders
+after nothing — which is the failure the desk's harness rule exists to prevent.
+
+**[R] Recorded as the third "cannot answer without a declaration" of this audit**,
+after the missing frontages and the litter tag. The pattern is consistent: *when
+a property lives in a convention rather than in the data, an outside check cannot
+see it, and guessing the convention produces confident nonsense.*
