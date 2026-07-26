@@ -42,3 +42,41 @@ declares itself to be never did.
 
 C: no fault found. I am reporting the limit of my own sampling rather than
 rounding one ad up to "lots".
+
+---
+
+# ADDENDUM — my 60-second sample measured the wrong mesh. Still unsettled.
+
+I said the predicate was "sample the screen texture every 5 s for a minute and
+count distinct ones", so I ran it. It returned **1 distinct texture over 60
+seconds**, which would mean the ad never changes.
+
+**I am not filing that**, because I checked what my selector actually caught
+before reporting it. My filter — small mapped plane in room 301 — matched **ten
+meshes**, and `traverse` leaves the variable holding the LAST one: a 0.55 × 0.55
+plane at **y 7.83**, which is a different floor of the building. I sampled a
+picture on someone else's wall for a minute and learned that it does not
+animate.
+
+Seventh instrument error of the session, same family as all the others: I
+identified the subject by shape and got a confident number about the wrong
+object.
+
+## And the fix was already there, which is the annoying part
+
+Every one of those ten meshes came back **`tagged: true`**. C has tagged them.
+I had the correct method available, ignored it, and wrote a shape filter — the
+exact thing I have spent the night telling other builders not to do, including
+in the previous section of this very note.
+
+## Where the row actually stands
+
+- **bezel — verified.** Beige surround, control panel, dials, recessed screen.
+- **one 90s ad — verified.** `NO CREDIT — NO PROBLEM / 555-0199`.
+- **"lots of ads" — STILL UNSETTLED BY ME.** Two attempts, both measuring
+  something other than the television.
+
+The check that would settle it is one line and uses C's own tags: find the mesh
+whose `userData` says it is the screen, sample *that*, count distinct textures
+over a minute. I am out of room to do it properly and would rather hand over a
+correct method than a third wrong number.
