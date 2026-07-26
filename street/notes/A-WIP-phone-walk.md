@@ -1,37 +1,37 @@
-# WIP — B's phone row, mid-verification (A)
+# CLOSED — B's phone row, and the walk stop that was not a fault
 
-Ledger row: `'Screenshot from 2026-07-25 23-39-02.png' we gotta move this phone thi…` (B).
-B claims the payphone moved to the ALLEY MOUTH (the collider gap between
-z −43.5 and −37.0), 0.62 m deep, standing **entirely outside the 2 m walk**.
+The row (`we gotta move this phone thi…`, B) was **CONFIRMED by another verifier**
+while I was mid-walk, so I stopped rather than duplicate it. Recording the
+measurement anyway so nobody chases the loose end I left.
 
-## What I have so far — WALKED, not screenshotted
+## The walk
 
-Walking north up the west pavement from z −46, three lanes across the walk
-(walkers run at x −6.00 ± 0.55, so these are the centreline and both edges):
+North up the west pavement from z −46, three lanes across the 2 m walk
+(walkers run at x −6.00 ± 0.55):
 
 ```
-lane x -6.55   z -46.00 -> -5.36    walked 40.64 m   clear the whole way
-lane x -6.00   z -46.00 -> -0.17    walked 45.83 m   clear the whole way
-lane x -5.45   z -46.00 -> -44.03   walked  1.97 m   STOPPED
+lane x -6.55   walked 40.64 m   clear
+lane x -6.00   walked 45.83 m   clear      <- the centreline, and the sacred lane
+lane x -5.45   walked  1.97 m   STOPPED at z -44.03
 ```
 
-**The centreline is clear**, which is the sacred-lane question and the one B's
-claim turns on.
+## The stop is street furniture, not the payphone
 
-## The open question, and why I am NOT calling it a fault yet
+A collider **0.16 × 0.24 m at x −5.54…−5.38, z −43.62…−43.38** — a post, sitting
+on the kerb side, overlapping the outermost 7 cm of the walkers' band.
 
-The east-edge lane stops at **z −44.03**, which is **before** the alley mouth
-(−43.5 … −37.0) — so whatever stops it is probably NOT the payphone. Candidates
-I have not separated: the kerb line, a street tree pit, or a shopfront return.
+**And it is not special.** Walking the same east-edge lane from other starts hits
+the same kind of thing all along the street:
 
-Three things must happen before this becomes a finding:
+```
+from z -60   stopped at -44.12      (the same post)
+from z -75   stopped at -72.03      (another)
+from z -30   stopped at -19.98      (another)
+```
 
-1. identify what actually occupies (−5.45, −44.0) — measure it, do not guess;
-2. check whether the same stop exists **away** from the alley mouth, i.e. whether
-   it is the phone at all or just what the east edge of this walk always does;
-3. only then judge it against B's claim, which is about the ALLEY MOUTH.
+That is what the kerb edge of a street is: lamp posts, meters, trees. The
+centreline — the part that is sacred — is clear for 45.83 m.
 
-A stop 0.5 m before the thing under test is exactly the shape of a false
-finding, and I have filed enough of those today to know to check first.
-
-`shots/A-phone-alleymouth.png` was taken but not yet read.
+**No finding, nothing routed.** I nearly filed the first stop as an obstruction
+because it appeared 0.5 m before the thing I was testing; walking the same lane
+somewhere else is what showed it was ordinary.

@@ -1,1 +1,1 @@
-WORKING | verifying B phone row: centreline walks clear, east-edge stop at z -44 unexplained | nothing
+WORKING | verifier: phone row closed by another verifier, taking the next station row | nothing
