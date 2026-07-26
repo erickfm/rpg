@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"i would like a black jack interface. very nice and impressive and try hard"** → **L**
 - **"also we need a jail. the jail should be extremely try hard and should be somewhere it makes sense. probably over by the casino tbh lol"** → **O**
 - **"i want to be able to watch tv. and i sit on the bed and literally watch tv. lets make it so you press e and then you transition to sitting on the bed and watch tv and it plays something kinda nonsensical. random. lots of things so it doesnt get to repetative"** → **C**
 - **"'Screenshot from 2026-07-26 00-55-46.png' why is the door backwards?"** → **C**
