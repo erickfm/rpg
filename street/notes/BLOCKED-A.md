@@ -61,3 +61,21 @@ are box TOP faces in a materials array and I was reading `mats[0]`. B's number
 stands — it was measured by someone who knew the module. I have also not built
 a check on that predicate, because a guard I have had wrong three times would
 file false faults against other people's modules.
+
+## I tried to preview it and abandoned that too
+
+To make the decision easy I tried to apply `slabTex` to the real civic surfaces
+at runtime — no source change, just a screenshot of what adoption buys. **I
+could not reliably locate them: fourth failed attempt.** The probe came back
+holding cars again (1.8 x 4.5 m boxes at y 0.59 in green, red, blue and yellow)
+because my guess at the library's x range was wrong.
+
+Recording it rather than trying a fifth time. The same predicate has now failed
+four ways — roofs, interior rooms, cars, and `mats[0]` on box faces — and a
+preview would not change who makes this call anyway. **The owners can see their
+own surfaces without a probe; I cannot see them without one.** That asymmetry
+is most of the argument for routing this to them rather than to me.
+
+What the desk already has is enough to decide on: the helper is measured
+(colour drift 1-4, edge density 0 -> 9-17%), proven on a box top face, and the
+exact snippet is in `notes/A-flat-ground-routing.md`.
