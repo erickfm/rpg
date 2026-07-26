@@ -665,7 +665,29 @@ export function buildBodega(ctx: CtxBuild): void {
   // angle, not that the angle is right. A figure facing a wall still turns.
   //
   // Derived from the counter so it cannot drift if the counter moves.
-  const KEEP_AT = CTR_X - 0.55;   // behind the counter
+  // THE KEEPER STANDS BEHIND HIS COUNTER, FACING THE ROOM.
+  //
+  // He did not. This is the user's original complaint and it survived several
+  // rounds of "fixed" because the arithmetic looked right in isolation: the
+  // comment said "behind the counter" and the facing was derived from the
+  // counter rather than typed, which is the rule. Both were wrong about WHICH
+  // SIDE.
+  //
+  // The counter is centred at CTR_X (local 2.90) with the side wall at
+  // hw = 4.40. `CTR_X - 0.55` puts the keeper at 2.35 — between the counter
+  // and the room, which is the CUSTOMER'S side. Facing him toward the counter
+  // from there points him at the wall and shows the room his back, from
+  // everywhere a customer can stand.
+  //
+  // B verified it from a station the game itself validates: (441.50, 0.40),
+  // the frame with the `[E] buy cereal` prompt up, so the world agrees a
+  // customer stands there — and the keeper's silhouette is all hair, no face.
+  //
+  // So: the far side of the counter, and facing back into the room. Both
+  // derived from CTR_X, both with the sign the geometry actually requires.
+  // `atan2(vx, vz)` with vx = -1 is -PI/2, which looks along -x: past the
+  // counter, into the shop, at whoever is buying.
+  const KEEP_AT = CTR_X + 0.55;   // the far side — 3.45, clear of the 4.40 wall
   room.person({
     jacket: '#4a5a6a', pants: '#3a3a42', skin: '#a0703e', hair: '#2a2622',
     fit: 'plain', accent: '#d8d4c8', cut: 'short', build: 1,

@@ -19,8 +19,21 @@ const ROOMS = [
   {
     // the bodega's door is on a CHAMFER, so its [E] spot is not on an axis —
     // the harness reads it from ct/doors.ts like everything else
-    // `keeper` is where a PLAYER STANDS to be served — the customer side of the corner counter.
-    keeper: [3.90, 1.60],
+    // `keeper` is where a PLAYER STANDS to be served — the customer side of the
+    // corner counter.
+    //
+    // WAS [3.90, 1.60], which is the WALL side: between the keeper and the side
+    // wall at 4.40, where no customer can be. It was only ever consistent with
+    // the keeper standing on the room side of his own counter, which is the
+    // fault the user reported and B verified — from the room side you saw his
+    // back. Both the harness and the room agreed with each other and disagreed
+    // with the player.
+    //
+    // The world publishes the right answer and I should have used it: the buy
+    // spots sit at local x ~ 1.75, and B's station (441.50, 0.40) is the frame
+    // where `[E] buy cereal` is up, so the game itself says a customer stands
+    // there. Room side, and now the keeper faces it.
+    keeper: [1.50, 0.40],
     id: 'bodega', label: /BODEGA/, D: 11.0, front: ['BODEGA', 10, -95, 1], chamfer: true,
   },
   {
