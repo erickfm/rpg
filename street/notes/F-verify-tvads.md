@@ -123,3 +123,40 @@ night telling other builders to tag what they build and assert on the tag, and
 after being caught by exactly this in four other forms.
 
 Knowing the rule is not the same as reaching for it.
+
+
+---
+
+# RE-VERIFIED LATER — the set is BLACK now, and the pool is proven to cycle
+
+Checked again after the row came back as CHECK, because my earlier evidence
+might have gone stale — and it had.
+
+    userData.tv = { seg: "psychic line", i: 10, left: 2.23,
+                    pool: 20, on: true, warming: false }
+
+**Three things changed, all improvements:**
+
+1. **The casing is black.** The user's follow-up said *"the tv bezel looks good
+   but i think i want the tv black"*. It is. `shots/f-verify-tv-now.png`.
+2. **The tag grew `on` and `warming`.** The set models being switched on and
+   warming up, which is a 90s portable detail nobody asked for and which is
+   exactly right for the period.
+3. **A different ad is playing** — `psychic line`, index **10** of the pool,
+   where my earlier sample caught `crosstown auto` at index **0**.
+
+## That third point settles what I could not settle before
+
+I spent three attempts trying to prove the ads cycle, and failed twice by
+sampling the wrong mesh. **Two observations hours apart, on the tagged object,
+showing indices 0 and 10 of a pool of 20, prove it directly.** The pool is real
+and it advances.
+
+It is a better proof than the one I was trying to construct, and it cost
+nothing but coming back later and reading the tag again. Time is an instrument
+I had not thought to use.
+
+## Verdict
+
+Bezel, black casing, 20 ads, cycling, animating, with on/warming state.
+**No reservations on any part of this row.**
