@@ -229,6 +229,13 @@ const CHECKS = [
   // the whole complaint. Registered so the answer keeps being checked rather
   // than being true once. --selftest inverts all four. (D)
   ['D-old-rows-hold',   'do my four oldest CONFIRMED rows still hold?',        true],
+  // I narrowed selection twice in one session on the user's "the selection
+  // options are a bit to wide", and THIRTEEN of my own CONFIRMED rows rest on a
+  // prompt firing. Narrowing what is offered is allowed to change the world; it
+  // is not allowed to quietly falsify a row nobody looks at any more. Stands on
+  // each door's PUBLISHED stand point — never one I choose — and on the ATM,
+  // the bus stop and the flat door. (D)
+  ['D-confirmed-prompts', 'do the prompts my CONFIRMED rows rest on still fire?', true],
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
