@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
-import { pixTex, dither } from './paint';
+import { pixTex, dither, slabTex } from './paint';
 import { weedTuft } from './weeds';
 
 // What stands IN the park. `ct/street.ts` owns the SITE — the ground, the two
@@ -137,19 +137,31 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
   const LIFT = 0.006;
   // 32 px/m, the ground art's density, and the canvas is sized from the
   // surface's real metres so the texels stay square whatever shape it is.
+  // THE PATHS GO THROUGH A's `slabTex`. This is a CHARACTER swap, not a fix for
+  // a bare quad — the paths have been textured since park.ts:140 and the
+  // complaint was never that they had no texture, it was that they read as
+  // ROAD. `slabTex` keeps the colour I already chose (A measured worst channel
+  // drift of 1 to 4 across three real cases) and replaces hand-rolled speckle
+  // with grain at the world's density, which is what gives a surface scale.
+  //
+  // `joint: 0` because hoggin has no joints — it is gravel rolled into clay,
+  // not slabs — and `grain: 0.18` reads as that aggregate rather than as
+  // stone. The dirt branch keeps its own painter: it draws the grass creeping
+  // in at the edges, which is a thing about worn ground and not about paving.
+  const pathTex = (wM: number, dM: number) =>
+    slabTex({ wMeters: wM, dMeters: dM, base: PATH, joint: 0, grain: 0.18 });
   const surfaceTex = (wM: number, dM: number, kind: 'path' | 'dirt') => {
+    if (kind === 'path') return pathTex(wM, dM);
     const PW = Math.max(8, Math.round(wM * 32)), PH = Math.max(8, Math.round(dM * 32));
     return pixTex(PW, PH, (g) => {
-      const r = clcg(kind === 'path' ? 0x51c0de : 0x2b7f31);
-      g.fillStyle = kind === 'path' ? PATH : DIRT;
+      const r = clcg(0x2b7f31);
+      g.fillStyle = DIRT;
       g.fillRect(0, 0, PW, PH);
       // the aggregate: hoggin is gravel rolled into clay, so it reads as
       // speckle at two scales rather than as a flat colour
       for (let i = 0; i < Math.round(PW * PH * 0.02); i++) {
         const k = r();
-        g.fillStyle = kind === 'path'
-          ? (k > 0.72 ? PATH_L : k > 0.34 ? PATH_D : PATH)
-          : (k > 0.6 ? DIRT_D : DIRT);
+        g.fillStyle = k > 0.6 ? DIRT_D : DIRT;
         g.fillRect(Math.floor(r() * PW), Math.floor(r() * PH), 1 + Math.floor(r() * 2), 1);
       }
       // …and the edges go first: grass creeps in from both sides in patches
@@ -196,16 +208,8 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
           if (r() < 0.55) g.fillRect(PW - bite, y, bite, 1);
         }
       }
-      if (kind === 'path') {
-        // THE TAR REPAIR IS GONE. The user called these "black rectangles ...
-        // that read as holes or missing texture", I re-coloured it browner and
-        // called it fixed, and it is still a distinct rectangle sitting on a
-        // path they have now criticised ten times. The desk's ruling is to stop
-        // adding features to a base that is still wrong, and a cold-patch
-        // repair is a feature. Hoggin is not patched with tarmac anyway — it is
-        // raked and rolled, so a repair in it does not read as a rectangle at
-        // all. Removing it costs nothing and removes one more thing to explain.
-      }
+      // (the tar repair that used to sit here is gone, and the path branch
+      //  now returns before this point — see `pathTex` above)
       dither(g, PW, PH, Math.round(wM * dM * 8));
     });
   };
