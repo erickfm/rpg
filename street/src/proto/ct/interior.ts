@@ -820,14 +820,25 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     // …and a stepped run of AABBs along it, because one box cannot be a 45°
     // face. Steps of ~0.35 m with the capsule at 0.36 leave nothing to slip
     // through, and the last one overlaps each wall it meets.
-    const steps = Math.max(2, Math.ceil(len / 0.35));
+    // SMALL BOXES ALONG THE LINE, not bounding squares of segments.
+    //
+    // This sampled the diagonal in ~0.35 m segments and gave each one the
+    // bounding square of its endpoints plus T/2 — which for a 45 degree run is
+    // (L/root2 + T) across, far fatter than the wall it represents. The two
+    // flanking the doorway bulged into the room and made the point a stride
+    // inside it unstandable (measured: freeAtTarget false), so the opening read
+    // as sealed while looking open.
+    //
+    // A chain of T-sized boxes every 0.12 m is thin, continuous against the
+    // 0.36 m capsule, and hugs the line instead of boxing it.
+    const steps = Math.max(2, Math.ceil(len / 0.12));
     for (let i = 0; i < steps; i++) {
       const t0 = i / steps, t1 = (i + 1) / steps;
       if (gap > 0 && t1 > g0 && t0 < g1) continue;   // leave the doorway open
       const x0 = ax + (bx - ax) * t0, z0 = az + (bz - az) * t0;
       const x1 = ax + (bx - ax) * t1, z1 = az + (bz - az) * t1;
-      wall(Math.min(x0, x1) - T / 2, Math.max(x0, x1) + T / 2,
-           Math.min(z0, z1) - T / 2, Math.max(z0, z1) + T / 2);
+      const px = (x0 + x1) / 2, pz2 = (z0 + z1) / 2;
+      wall(px - T / 2, px + T / 2, pz2 - T / 2, pz2 + T / 2);
     }
   }
   // …and the doorway is stopped OUTSIDE the threshold, not in it.
