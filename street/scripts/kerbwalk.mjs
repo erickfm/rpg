@@ -26,7 +26,7 @@ await reportWorld(p, URL);
 const out = await p.evaluate(() => {
   const scene = window.__ct.scene();
   scene.updateMatrixWorld(true);
-  const walks = [], ribbons = [];
+  const walks = [], ribbons = [], ribbonsSkipped = [];
 
   scene.traverse((n) => {
     if (!n.isMesh || !n.geometry) return;
@@ -40,6 +40,44 @@ const out = await p.evaluate(() => {
 
     // ── A: any horizontal sheet big enough to be pavement ──────────────────
     if (w > 0.5 && d > 0.5 && h < 0.6) {
+      // IS THIS A SHEET AT ALL, OR A RIBBON WRAPPING THE BLOCK?
+      //
+      // This is the guard the first version of this script did not have, and
+      // its absence is the whole of notes/B-kerb-and-flags-one-root.md being
+      // wrong. The kerb face, the arris, the gutter pan and the red paint are
+      // four strips ~0.15 m tall that run right round the roadway — so each
+      // one's BOUNDING BOX is 60 x 124 m while the strip itself is about 37 m2.
+      // Dividing a texture size by that box gives "0.03 texels per metre",
+      // which I reported to the desk as a measurement of the pavement. It is
+      // not a measurement of anything.
+      //
+      // A sheet fills its own footprint; a ribbon fills a fraction of a per
+      // cent of it. So sum the triangles and compare.
+      // The area is the TRIANGLES' OWN 3D area, not their footprint on the
+      // ground. My first attempt projected onto xz, and a kerb face is
+      // VERTICAL — it projects to nothing, fell into the "area is zero, assume
+      // it is a sheet" branch, and came straight back into the table it was
+      // supposed to be kept out of. It also has to follow the index buffer:
+      // reading a PlaneGeometry as raw triples reported the alley floor at
+      // 0 m2 and threw away a real surface.
+      const pos = g.attributes.position, idx = g.index;
+      const nTri = idx ? idx.count / 3 : pos ? pos.count / 3 : 0;
+      const vi = (t, k) => (idx ? idx.getX(t * 3 + k) : t * 3 + k);
+      let area = 0;
+      for (let t = 0; t < nTri; t++) {
+        const a = vi(t, 0), b2 = vi(t, 1), c2 = vi(t, 2);
+        const ux = pos.getX(b2) - pos.getX(a), uy = pos.getY(b2) - pos.getY(a), uz = pos.getZ(b2) - pos.getZ(a);
+        const vx = pos.getX(c2) - pos.getX(a), vy = pos.getY(c2) - pos.getY(a), vz = pos.getZ(c2) - pos.getZ(a);
+        area += Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) / 2;
+      }
+      const fill = nTri ? area / (w * d) : 1;
+      if (fill < 0.05) {
+        ribbonsSkipped.push({ w: +w.toFixed(1), d: +d.toFixed(1), fill: +fill.toFixed(4),
+                              area: +area.toFixed(1),
+                              tex: mats[0]?.map?.image
+                                ? `${mats[0].map.image.width}x${mats[0].map.image.height}` : 'none' });
+        return;
+      }
       for (const m of mats) {
         if (!m || !m.map || !m.map.image) continue;
         const iw = m.map.image.width, ih = m.map.image.height;
@@ -78,7 +116,7 @@ const out = await p.evaluate(() => {
                           +bb.min.z.toFixed(1), +bb.max.z.toFixed(1)] });
     }
   });
-  return { walks, ribbons };
+  return { walks, ribbons, ribbonsSkipped };
 });
 
 console.log('\n── A. every horizontal textured sheet on the ground ──');
@@ -91,6 +129,14 @@ for (const r of out.walks.sort((a, b) => b.w * b.d - a.w * a.d)) {
     ` ${r.tex.padStart(9)} rep ${JSON.stringify(r.rep).padEnd(16)} -> ${String(r.tx).padStart(7)} / ${String(r.tz).padStart(7)} tex/m${flag}`);
 }
 console.log(`\n  ${out.walks.length} sheets, ${bad.length} below 8 texels/m on an axis`);
+console.log(`\n── NOT sheets, and no density is reported for them ──`);
+console.log('  A ribbon that wraps the block has a 60 x 124 m bounding box and a few');
+console.log('  dozen square metres of surface. Dividing a texture size by that box is');
+console.log('  what produced my "0.03 texels/m along z", which measured nothing.');
+for (const r of out.ribbonsSkipped) {
+  console.log(`  ${String(r.w).padStart(6)} x ${String(r.d).padStart(6)} m bbox, ` +
+    `${String(r.area).padStart(7)} m2 of actual surface (${(r.fill * 100).toFixed(2)}% fill), map ${r.tex}`);
+}
 
 console.log('\n── B. the kerb ribbons: is the run continuous? ──');
 for (const r of out.ribbons) {
