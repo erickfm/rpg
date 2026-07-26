@@ -5,8 +5,11 @@ shape makes the loss invisible.
 
 ## What happened
 
-**FOUR** verifier notes of mine were added, committed, and later **silently
-removed**. I found the first two by chance and went looking for the rest:
+**SIX** verifier notes of mine were added, committed, and later **silently
+removed** — the jail row twice. I found the first two by chance, went looking
+for the rest, and have now stopped looking by hand: `scripts/D-my-evidence-intact.mjs`
+(registered) carries a manifest of what I published and where, and goes red when
+any of it disappears. It caught the sixth loss on its first run.
 
 | note | added in | state now |
 |---|---|---|

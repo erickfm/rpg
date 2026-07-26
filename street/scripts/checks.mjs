@@ -252,6 +252,13 @@ const CHECKS = [
   // OPEN over "AUDITOR CONFIRMED" has been rolled back. Held back until it was
   // green (C's mods-dim rule) — the two rows it found are settled. (D)
   ['D-ledger-status-vs-evidence', 'does every row\'s status agree with its evidence?', true],
+  // SIX verifier notes of mine have been added, committed, and later silently
+  // removed by ledger conflict resolutions — the jail row twice. Re-attaching by
+  // hand each time is a chore that hides the frequency; this makes the loss go
+  // red. Two of the eight are CORRECTIONS rather than corroboration, which is
+  // why it is worth a tier: losing corroboration costs a re-walk, losing a
+  // correction leaves a false claim standing under a status nobody re-reads. (D)
+  ['D-my-evidence-intact', 'is the evidence D published still on its rows?',      true],
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
