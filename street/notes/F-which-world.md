@@ -8,7 +8,25 @@
 That is GOTCHAS 26 firing on me: *prove which world your script measured.*
 Every measurement I have published tonight came from `http://localhost:4185/`.
 
-## Why I still believe tonight's numbers, and the reasoning rather than the conclusion
+## SETTLED — the port IS my tree. health.mjs cried wolf.
+
+`interiors-walk` prints the world's own build id beside my HEAD:
+
+    HEAD:            d34d46932
+    world reports:   d34d46932+   (uncommitted changes, as expected)
+
+**Exact match**, and the `+` is correctly flagging my one uncommitted file. So
+`http://localhost:4185/` is serving my tree and **every measurement I published
+tonight is sound.** health.mjs's "that server is not yours" is a false alarm.
+
+I left the reasoning below as I first wrote it, because it was the right way to
+hold the question before I had proof — believing my numbers for a stated reason
+while refusing to assert it. But reasoning is not evidence, and the evidence
+took one command I should have run first.
+
+---
+
+## The reasoning I used before I had the proof
 
 The strong evidence is that **the server tracked my edits, repeatedly and
 specifically**:
