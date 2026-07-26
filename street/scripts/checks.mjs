@@ -469,6 +469,19 @@ const CHECKS = [
   // These survive because nothing else makes their claim:
   ['A-joinery-matches-fascia', 'do a shopfront\'s mouldings match the fascia they frame?', 'joinery-roster'],
   ['A-tree-canopy-opaque', 'can you see the wall through the middle of a tree?',         'tree-holes'],
+  // Registered RED, deliberately, and it is the only red in here. The player
+  // spawns in 301 and cannot use anything in it: the [E] sight ray is built
+  // from a hardcoded eye at y 1.6 while the player's eye in that room is 7.02,
+  // so it starts 5.4 m under the floor and the floor stops it. Not the arrival
+  // latch — the probe walks 1.48 m clear of it first and comes back to stand
+  // 0.23 m from a live spot with a reach of 1.35.
+  //
+  // A check that goes green the day it is written tells you nothing about the
+  // day it was needed. This one is red now and turns green when crosstown.ts
+  // builds the eye from the player's floor, which is why it asserts the SYMPTOM
+  // — is the thing you are standing next to offered — rather than the eye
+  // arithmetic it would otherwise keep failing on after the fix.
+  ['A-eye-height-holds', 'can the player use anything in the room they spawn in?', false],
   ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
   // tree-crown above overlaps but does NOT cover this: it samples a box at the
   // crown's centre (x within +/-8 of centre, y 22..30), so it cannot see the
