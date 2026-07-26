@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the brick area outside my room is too deep in. and i dont want there to be another window in the area. i do like the pipe though. i just want the length of that area to be less. the opposite wall should be closer to the window"** → **C**
 - **"put this librarian behind the desk"** → **G**
 - **"for the bench i have no way to sit at the bench from the street cause the e option doesnt come up"** → **B**
 - **"side benches have backs which are backwards?"** → **E**

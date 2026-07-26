@@ -109,3 +109,4 @@ user anything is finished.
 | OPEN | E | side benches have backs which are backwards? | |
 | OPEN | B | for the bench i have no way to sit at the bench from the street cause  | |
 | OPEN | G | put this librarian behind the desk | |
+| OPEN | C | the brick area outside my room is too deep in. and i dont want there t | |
