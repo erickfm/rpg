@@ -104,3 +104,4 @@ user anything is finished.
 | OPEN | G | the church interior is reversed i think. the entrance/exit is at the a | |
 | OPEN | D | align these crates so they fit better against this wall | |
 | OPEN | G | these signs block each other can you fix | |
+| OPEN | G | maybe the aces sign belongs on the other end of the casino building? | |
