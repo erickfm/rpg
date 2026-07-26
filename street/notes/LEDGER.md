@@ -169,3 +169,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | D | 'Screenshot from 2026-07-25 21-16-51.png' this outline is not around t | |
 | OPEN | H | 'Screenshot from 2026-07-25 21-17-58.png' can we somehow make it so th | |
 | OPEN | F | make sure all the clocks throughout the world (library, diner, etc. te | |
+| OPEN | G | pews in the church clip into the confession booths, lets get rid of so | |

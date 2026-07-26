@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"pews in the church clip into the confession booths, lets get rid of some of the rear pews"** → **G**
 - **"make sure all the clocks throughout the world (library, diner, etc. tell the time accurately)"** → **F**
 - **"'Screenshot from 2026-07-25 21-17-58.png' can we somehow make it so the cat looks up at you?"** → **H**
 - **"'Screenshot from 2026-07-25 21-16-51.png' this outline is not around the object, i wanted to be around the object"** → **D**
