@@ -972,6 +972,74 @@ export function buildProps(ctx: CtxBuild): Props {
   // grid — see the walk sheet's phase in ct/tex-ground.ts.
   const TREE_SHIFT: Record<number, number> = { 1: -4 };
   let treeIdx = 0;
+
+  // ── the crown underside ─────────────────────────────────────────────────
+  //
+  // Foliage seen from BELOW: in shade, so darker than the sheet's lit top, and
+  // with the branch structure showing through rather than a flat green disc.
+  // One texture per tree variant, cached, because 7 trees share 4 palettes.
+  const underCache = new Map<number, THREE.Texture>();
+  const crownUnderTex = (v: number): THREE.Texture => {
+    const hit = underCache.get(v % 4);
+    if (hit) return hit;
+    const D = 64;
+    // DETERMINISTIC. rnd() here would shift the seeded stream and move every
+    // tree and pigeon in the world (GOTCHAS 2).
+    let s2 = Math.imul(v + 7, 2246822519) >>> 0;
+    const rr = () => { s2 = (Math.imul(s2, 1664525) + 1013904223) >>> 0; return s2 / 4294967296; };
+    const PAL = [['#22401f', '#1a3319', '#2c5226'], ['#2c3d1f', '#22301a', '#3a4f28'],
+                 ['#26401f', '#1d3119', '#33532a'], ['#1f3d26', '#17301e', '#2a5233']][v % 4];
+    const t = declareSurface(pixTex(D, D, (g) => {
+      g.clearRect(0, 0, D, D);
+      const c = D / 2;
+      // the mass, ragged at the rim only — notches that reach inside are what
+      // punched holes in the front sheet and the same mistake is available here
+      g.fillStyle = PAL[0];
+      g.beginPath(); g.ellipse(c, c, c - 3, c - 3, 0, 0, Math.PI * 2); g.fill();
+      for (let i = 0; i < 26; i++) {
+        const a = (i / 26) * Math.PI * 2 + rr() * 0.3, d = 1.0 + rr() * 0.10;
+        g.fillStyle = PAL[0];
+        g.beginPath();
+        g.ellipse(c + Math.cos(a) * (c - 3) * d * 0.94, c + Math.sin(a) * (c - 3) * d * 0.94,
+                  2 + rr() * 3, 2 + rr() * 3, 0, 0, Math.PI * 2);
+        g.fill();
+      }
+      // branches radiating from the trunk, which is what you actually see
+      // looking up through a canopy
+      g.strokeStyle = '#3a2b1e'; g.lineCap = 'round';
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + rr() * 0.6;
+        g.lineWidth = 2.4 - (i % 3) * 0.5;
+        g.beginPath(); g.moveTo(c, c);
+        g.lineTo(c + Math.cos(a) * (c - 6) * (0.6 + rr() * 0.35),
+                 c + Math.sin(a) * (c - 6) * (0.6 + rr() * 0.35));
+        g.stroke();
+      }
+      // clumping, so it is not a flat disc of one green
+      for (let i = 0; i < 34; i++) {
+        const a = rr() * Math.PI * 2, d = rr() * (c - 6);
+        g.fillStyle = rr() < 0.5 ? PAL[1] : PAL[2];
+        g.beginPath();
+        g.ellipse(c + Math.cos(a) * d, c + Math.sin(a) * d,
+                  3 + rr() * 6, 3 + rr() * 5, rr() * Math.PI, 0, Math.PI * 2);
+        g.fill();
+      }
+      dither(g, D, D, 260);
+    }), 'detail');
+    underCache.set(v % 4, t);
+    return t;
+  };
+  const crownUnder = (x: number, y: number, z: number, r: number, v: number) => {
+    const m = new THREE.Mesh(new THREE.CircleGeometry(r, 14),
+      new THREE.MeshBasicMaterial({ map: crownUnderTex(v), alphaTest: 0.5,
+                                    side: THREE.DoubleSide }));
+    m.rotation.x = -Math.PI / 2;          // lies flat; edge-on from every side view
+    m.position.set(x, y, z);
+    m.userData.crownUnder = true;
+    scene.add(m);
+    lit(m);
+    return m;
+  };
   for (let z = -2; z > -L + 8; z -= 14) {
     const s = Math.round(z / 14) % 2 === 0 ? 1 : -1;
     const tx = s * TRUNK_X;                        // the trunk, inboard of the lane
@@ -983,6 +1051,26 @@ export function buildProps(ctx: CtxBuild): Props {
     const tree = board(treeSprite(treeIdx, H), TREE_W * TREE_PX, H * TREE_PX, tx, pz2);
     tree.position.y = sidewalkY;
     lit(tree);
+    // THE CANOPY HAD NO UNDERSIDE, which is the fault the user has now reported
+    // twice — "tree looks transparent in parts that probably shouldnt be
+    // transparent?" — and the second shot is taken looking straight UP.
+    //
+    // MEASURED BEFORE GUESSING, because the obvious suspect was wrong. The
+    // canopy sheet's alpha histogram puts only 0.30% of its texels in the
+    // 0.3-0.7 band that alphaTest 0.5 turns into holes, so dithered edges are
+    // NOT what he is seeing. What he is seeing is geometry: crosstown.ts:840
+    // spins every board on Y alone, so a billboard always faces you
+    // horizontally and NEVER tilts. Stand under one and look up and you are
+    // looking at a vertical card edge-on with sky all round it. Measured from
+    // underneath: 21 of 37 canopies showed sky overhead, several at 100%.
+    //
+    // So the missing thing is a surface that faces DOWN. This is that: a crown
+    // underside, level, at the height the sheet paints its crown, sized just
+    // inside the silhouette so the billboard still owns every side view. It is
+    // not "make the canopy bigger" — from any angle but underneath it is
+    // edge-on and contributes nothing.
+    crownUnder(tx, sidewalkY + (H - 26) * TREE_PX, pz2,
+               TREE_W * TREE_PX * 0.40, treeIdx);
     const pit = new THREE.Mesh(pitGeo, pitMat);
     // tagged for scripts/footprint.mjs — see the note by `drop`. Anything of
     // mine that sits on the ground near the building line gets checked against
