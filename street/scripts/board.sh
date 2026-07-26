@@ -105,7 +105,13 @@ for qf in street/notes/queues/*.md; do
   flag=""
   case "$decl" in
     BLOCKED) flag="BLOCKED — needs a desk decision: ${waiting:-unspecified}";;
-    DONE)    [ "$live" -gt 0 ] && flag="says DONE but $live live rows remain — it stopped early";;
+    # DONE with live rows means STOPPED EARLY — but only if it has actually
+    # stopped. A worker dispatched a moment ago is running on the new row and
+    # simply has not rewritten its line yet, and flagging that fires an alert
+    # the desk can do nothing about. Believe the pane over the declaration in
+    # both directions: idle is what makes DONE a problem.
+    DONE)    [ "$live" -gt 0 ] && [ "$outside" = idle ] \
+               && flag="says DONE but $live live rows remain — it stopped early";;
     WORKING) [ "$outside" = idle ] && [ "$mins" -ge "$STALL_MIN" ] \
                && flag="says WORKING, not running, nothing committed for ${mins}m — died or stalled mid-item";;
     —)       flag="has never declared a status — cannot be trusted to say when it is stuck";;
