@@ -1,3 +1,32 @@
+# CORRECTION — the five guards do NOT sleep. Read this first.
+
+**Every one of the five CAUGHT its mutation when run individually**, minutes
+after I filed the alarm below:
+
+```
+  footprint       CAUGHT      kerbcut         CAUGHT
+  window-lattice  CAUGHT      density         CAUGHT      facade-run  CAUGHT
+```
+
+So the checks are fine and A has nothing to chase. **The failure is in the FULL
+RUN, not in the cases** — five of 43 report SLEPT when the suite runs end to end
+and all five pass alone. That is an interaction or an environment fault in
+`canfail` itself: most likely the preview or the build going stale partway
+through a long run, which this session has seen repeatedly (my preview dropped
+eight times, and `reportWorld` refuses a stale `dist` for exactly this reason).
+
+**What is still true and still worth fixing:** a full-suite run currently reports
+five false failures, which is its own kind of broken. A suite that cries wolf
+gets ignored, and then a real sleep goes unnoticed — the fault I thought I had
+found. The next person on this should make `canfail` verify the world is alive
+and current BETWEEN cases rather than only at the start.
+
+I have left the original alarm below unedited, because the reasoning in it is
+sound and only the conclusion was wrong, and because a note that quietly rewrites
+itself is worse than one that shows its correction.
+
+---
+
 # FIVE mutation cases now SLEEP — two of them mine, three A's
 
 Found by running the full suite on current mainline as a regression pass, not by
