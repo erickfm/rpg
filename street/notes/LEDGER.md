@@ -237,3 +237,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | A | five mutation guards have STOPPED GUARDING — three are A's, and canfai | |
 | OPEN | B | 'Screenshot from 2026-07-25 23-09-56.png' dont like how this curb is d | |
 | OPEN | I | 'Screenshot from 2026-07-25 23-24-37.png' whats going on here? looks l | |
+| OPEN | I | 'Screenshot from 2026-07-25 23-25-21.png' whats going on with this car | |
