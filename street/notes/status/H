@@ -1,1 +1,1 @@
-BLOCKED | cat look-up: designed; needs ONE line in crosstown.ts:801 boards loop (b.pose?.(px,pz,py)) plus py in scope | DESK — that loop is yours; then ct/cat.ts owns threshold, hysteresis and swap, and ct/alley.ts needs no edit
+WORKING | cat look-up implemented and gated; NOT yet judged foreshortened from the player's eye | 
