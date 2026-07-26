@@ -12,6 +12,26 @@ conflicts at merge; it has happened three times on this project.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · "match the exterior" NEVER meant the dimensions.
+> The user, unprompted: *"by matching the exterior i really mean in general
+> positioning. no one is going to take a ruler and measure the width of the
+> inner and outer."* And: *"you can make it wider than it actually is outside
+> too."*
+>
+> What must match is **the door's situation** — which side it is on, and a cut
+> corner outside meaning you walk in diagonally. What is NOT constrained:
+> width, depth, ceiling height, floor area. **Take the room you need.**
+>
+> I enforced dimensional equality he never asked for, and it cost the bodega,
+> the casino and the hotel their depth — three rooms he then sent back for
+> being cramped. Full entry: GOTCHAS 45.
+>
+> And from the auditor: **"cramped" is a statement about SHAPE, not area.** The
+> library doubled to 326 m² while its clear aisle fell to 2.10 m, narrowest of
+> all ten rooms, because the footprint got cut into strips. Measure the largest
+> continuous free run with `scripts/roomaisle.mjs`, not the square metres.
+
+
 > ## DESK RULING — 2026-07-25 · masonry rounding, settled.
 >
 > **Fix the DENSITY, accept a fractional canvas rounded to whole texels.** H

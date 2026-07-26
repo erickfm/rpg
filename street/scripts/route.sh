@@ -86,10 +86,21 @@ PANE=$(tmux capture-pane -p -t "$SESSION:$WIN")
 # because the box legitimately contains Claude Code's own hints ("Press up to
 # edit queued messages") and, if the message was queued behind current work,
 # genuinely does hold text that WILL be processed.
+#
+# LOOK TWICE BEFORE WARNING. A busy agent redraws its footer a beat after the
+# message is accepted, so a single capture can land in the gap where the box
+# shows neither a spinner nor the "queued" hint yet. That raced once and cried
+# wolf on a dispatch that had in fact been queued and was picked up normally —
+# and a false alarm here is expensive, because the desk's honest response to
+# one is to send the brief again, which double-queues it.
+warn() {
+  echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE '^\s*❯\s*\S' \
+    && ! echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE 'Press up to edit'
+}
 if echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])'; then
   echo "dispatched: $AGENT (window $WIN) is working"
-elif echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE '^\s*❯\s*\S' \
-     && ! echo "$PANE" | grep -vE '^\s*$' | tail -4 | grep -qE 'Press up to edit'; then
+elif warn && { sleep 4; PANE=$(tmux capture-pane -p -t "$SESSION:$WIN"); \
+       ! echo "$PANE" | grep -qE 'esc to inter|…[[:space:]]*\((thinking|[0-9]+[ms])' && warn; }; then
   echo "WARNING: $AGENT still has text at its prompt — the dispatch may not have submitted."
 else
   echo "NOTE: $AGENT submitted but is not spinning — it may have finished already (window $WIN)."

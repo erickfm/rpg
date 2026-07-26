@@ -1186,3 +1186,45 @@ the file it moved code out of, and the pointer that rots is the one that still
 resolves.** So after moving code, grep your own notes for the file you moved it
 FROM — the check cannot do that half for you.
 
+
+## 45. "Match the exterior" means WHICH SIDE THE DOOR IS ON — not the dimensions
+
+The user, 2026-07-25, unprompted, after four builders had spent days making
+interiors fit their facades:
+
+> *"by matching the exterior i really mean in general positioning. no one is
+> going to take a ruler and measure the width of the inner and outer."*
+
+And in the same message, of the church: *"you can make it wider than it
+actually is outside too."*
+
+So every "the interior must match the facade" instruction in this project — and
+there have been many, because the user has raised it about the bodega three
+times, the hotel, the casino and the diner — has always been about **the door's
+situation**, and never about area:
+
+- the door is hard right on the facade → it is hard right inside
+- the entrance is on a **cut corner** → you walk in diagonally and the two
+  walls open away from you left and right
+- there are two storeys of windows outside → there is an upstairs
+
+What is NOT constrained: width, depth, ceiling height, floor area. **Take the
+room you need.**
+
+The desk enforced dimensional equality that was never asked for, and it cost
+the bodega, the casino and the hotel their depth — three rooms the user then
+sent back for being cramped, which is the exact opposite of what the constraint
+was supposed to protect. It also produced the worst single reversal of the
+project: *"instead of doing what i asked which is change the exterior to match
+the interior you changed the interior to match the exterior. thats annoying."*
+
+The authority runs **room → facade**. The room declares its door and the
+painter follows. If the room needs a chamfered entry, the room declares a
+chamfered entry.
+
+One corollary worth keeping, from the auditor's library measurement:
+**"cramped" is a statement about SHAPE, not area.** The library doubled from
+163 to 326 m² and its median clear aisle *fell* to 2.10 m — the narrowest of
+all ten rooms — because the new footprint got cut into strips by stacks. Free
+floor was a normal 81%. Measure the largest continuous free run
+(`scripts/roomaisle.mjs`), not the square metres, before calling a room fixed.

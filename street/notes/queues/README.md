@@ -30,6 +30,32 @@ queue has gone stale.
 
 ---
 
+
+## Before you read your queue, run `scripts/live.sh <you>`
+
+Your queue file and the ledger do two different jobs, and reading the queue for
+the wrong one is what has been wasting your time:
+
+    notes/LEDGER.md            IS IT STILL LIVE?   status, one row per request
+    notes/queues/<you>.md      WHAT AM I BUILDING? the brief, the ruling, the why
+
+`scripts/live.sh <you>` prints the ledger rows still open for you. **That is
+the authoritative list of what to build.** Read the queue file for HOW — the
+brief, the user's own words, the desk's rulings — not to work out WHETHER.
+
+This exists because two builders reported the same thing on the same round. B
+accounted for all 16 unchecked items in its queue as done, void or superseded.
+F took five consecutive items and found every one already delivered, and put
+the cost exactly: *"I am spending most of each pass proving that finished work
+is finished, and a builder cannot tell a stale item from a live one by reading
+it."* Both were right, and both were right to stop and say so rather than
+build it again.
+
+**If your queue file lists something `live.sh` does not, it is finished or
+void.** File a one-line note naming it. Do not build it a second time, and do
+not assume the desk knows.
+
+
 ## A queue file is a claim, and it goes stale
 
 This has now bitten twice in one session, both times the same way: **the desk
