@@ -958,3 +958,37 @@ why it took eight passes to notice the question was wrong.
 Also found and reverted: there are TWO warps to the inside of the door and I had
 converted only one. Fixing the second did not fix the check, so it went back
 rather than shipping unverified.
+
+
+## Attempt nine: FOUND IT. The player is 3.15 m away by the time the prompt is read.
+
+Instrumented the harness at the failing read itself, which is what attempt eight
+said to do:
+
+```
+[dbg] AT READ pos=(-0.15, 5.31) gy=0 spots=[{x:2.48, z:3.58, r:1.4, ok:true}]
+```
+
+**The player is not where they were warped.** The warp puts them at (2.29,
+3.38); by the time the prompt is read they are at (-0.15, 5.31) — 3.15 m from a
+1.4 m trigger, and hard against the FRONT WALL at z 5.5.
+
+Between the two there is a `hold('w', 3000)`: the check before this one walks
+the player at the doorway for three seconds to prove it does not open onto dead
+ground. Its heading is `atan2(DOOR.nx, DOOR.nz)`, which for a front-wall door
+(n = 0,-1) gives PI and walks you at the door, and for the cut face walks you
+somewhere else entirely — across the shop to the front wall.
+
+So the way-out prompt was never being read at the cut door. It was being read
+wherever a three-second walk on a front-wall heading happened to end.
+
+**The fix is the walk's heading, not the prompt, the spot, or the position** —
+all three of which are correct and were verified correct over eight passes. The
+yaw convention here is `0 = -z`, so the direction vector is `(sin y, -cos y)`,
+and walking AT a wall whose inward normal is `n` needs `(sin y, -cos y) = -n`.
+For the front wall that is PI, which is why the existing formula has always
+looked right.
+
+Nine attempts. Eight of them measured the wrong half of the check — everything
+about where the player should be, nothing about where they actually were when
+the reading was taken.
