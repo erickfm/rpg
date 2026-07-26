@@ -30,7 +30,7 @@ failure mode.
 | queue item | state |
 |---|---|
 | Stamp the build | **done** — `ct/hud.ts:197` paints `SHA + DIRTY + HH:MM` from `virtual:build-stamp`; visible in every screenshot this session |
-| Republish the playable artifact | **packed and verified** — `dist/artifact.html`, 892,625 bytes, build `a432b8e14`; `check-artifact`: `__ct` up, 5154 meshes, mean luminance 61.3, opens standalone. **Handed to the desk to publish**, per the queue's own instruction |
+| Republish the playable artifact | **packed and verified, and REPACKED since** — `dist/artifact.html`, 902,517 bytes, build `5a4047002`; `check-artifact`: `__ct` up, 5443 meshes, mean luminance 64.6, opens standalone. **Handed to the desk to publish.** It had gone **67 commits stale** while waiting, which is the same stale-build failure GOTCHAS 40 records — repack before publishing if it has been sitting again |
 
 On whether the artifact still earns its keep — the queue asked, so: *marginally,
 as a fixed shareable snapshot.* Pages auto-deploys and is current, the user
