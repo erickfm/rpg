@@ -45,8 +45,16 @@ const data = await page.evaluate(() => {
     if (o.geometry.type === 'PlaneGeometry') return;      // foliage, tufts, decals
     // local up, carried into the world: tells tilt apart from position
     const up = new V3(0, 1, 0).transformDirection(o.matrixWorld);
+    // WHICH PROP THIS BELONGS TO, by ancestry rather than by distance. Every
+    // park bench is built into its own THREE.Group and added to the scene
+    // whole, so identity was available all along and this check was using
+    // proximity instead — which is why a litter bin 0.9 m away was classified
+    // as part of the bench and never tested against it.
+    let root = o;
+    while (root.parent && root.parent.parent) root = root.parent;
+    if (!root.userData.__id) root.userData.__id = ++window.__eSweepId || (window.__eSweepId = 1);
     const g = o.geometry.parameters || {};
-    parts.push({ x: c.x, z: c.z, top: bb.max.y, bot: bb.min.y,
+    parts.push({ rid: root.userData.__id, x: c.x, z: c.z, top: bb.max.y, bot: bb.min.y,
       minX: bb.min.x, maxX: bb.max.x, minZ: bb.min.z, maxZ: bb.max.z,
       sy: sz.y, upY: up.y, massed: !!o.userData?.massed,
       gw: g.width ?? 0, gh: g.height ?? 0 });
@@ -131,8 +139,13 @@ for (const s of data.seats) {
   // by what they ARE rather than by how close they are, which needs the parts
   // tagged at build time in park.ts. NOT DONE — I am naming it rather than
   // leaving a check that reports clean over the fault it was written for.
-  const mine = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) < 1.4 && p.top < 1.6);
-  const others = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) >= 1.4
+  // MINE = the bench's own Group. OTHERS = everything else within reach that
+  // is not massing and is not structure you sit among. The old rule — anything
+  // inside 1.4 m is "mine" — could not see the fault it was written for.
+  const seed = data.parts.filter((p) => Math.hypot(p.x - s.x, p.z - s.z) < 0.6 && p.top < 1.6)[0];
+  const mine = seed ? data.parts.filter((p) => p.rid === seed.rid) : [];
+  const others = data.parts.filter((p) => (!seed || p.rid !== seed.rid)
+    && Math.hypot(p.x - s.x, p.z - s.z) < 3.2
     && Math.hypot(p.x - s.x, p.z - s.z) < 3.2 && !p.massed
     // STRUCTURE YOU SIT AMONG IS NOT CLUTTER INSIDE THE BENCH. The shelter's
     // posts and roof stand around and over its bench by design — that is what a

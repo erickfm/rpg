@@ -850,6 +850,13 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // nothing from the desk. The trigger sits ON the pan with its approach out
   // on the path, because the bench's own collider would otherwise hold you
   // further away than `r`.
+  // EVERY BENCH REGISTERS ITS FOOTPRINT. The `claim()` registry below was
+  // built for the bin-versus-noticeboard case and benches were never added to
+  // it — so a bin could be, and was, placed standing inside a bench. That is
+  // the fault the user photographed, and it is the same class the registry
+  // exists to prevent. `claim` is declared after the benches are built, so
+  // they bank their boxes here and the registry is seeded with them.
+  const benchBoxes: AABB[] = [];
   const bench = (bx: number, bz: number, yaw: number) => {
     // ── REBUILT, AFTER B'S BUS BENCH ─────────────────────────────────────────
     //
@@ -924,6 +931,9 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const along = Math.abs(Math.round(Math.cos(yaw)));
     const hx = along ? L / 2 : SEAT_D, hz = along ? SEAT_D : L / 2;
     solid({ minX: bx - hx, maxX: bx + hx, minZ: bz - hz, maxZ: bz + hz });
+    // banked for the footprint registry: a bin may not stand in this
+    benchBoxes.push({ minX: bx - hx - 0.1, maxX: bx + hx + 0.1,
+      minZ: bz - hz - 0.1, maxZ: bz + hz + 0.1 });
     // THE FACING, named so it cannot collide with anything outside. The rewrite
     // dropped the old locals `fx`/`fz` and this line kept using them — so `fx`
     // silently resolved to the FOUNTAIN's `fx`, declared 90 lines further down.
@@ -1153,7 +1163,8 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // silently emptied this module of trees earlier today, and one I am not
   // repeating in the fix for it.
   const nbX = inside(0.28), nbZ = gateMid - 2.6;
-  const footprints: AABB[] = [];
+  // SEEDED WITH THE BENCHES, which are already down by the time this exists.
+  const footprints: AABB[] = [...benchBoxes];
   const claim = (minX: number, maxX: number, minZ: number, maxZ: number) => {
     const box = { minX, maxX, minZ, maxZ };
     for (const q of footprints) {
@@ -1649,17 +1660,23 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // — square to the park rather than away from it, which is why looking at it
   // had not shown it up. The shelter stands at the park's west end, so the
   // interior is +x: the bench runs in z and faces east.
+  // ONE GROUP, like every other bench. This one is built inline rather than
+  // through `bench()`, so its slats and its own cast ends had no shared
+  // ancestor and `E-benchsweep` read them as two props intersecting. A bench
+  // overlapping itself is how it is built.
+  const shelterBench = new THREE.Group();
   const SB_L = SH_H * 2 - 0.55;
   for (let i = 0; i < 3; i++) {
     const sl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, SB_L), i % 2 ? woodM2 : woodM);
     sl.position.set(shX - 0.17 + i * 0.17, KERB_H + 0.45, shZ);
-    scene.add(sl);
+    shelterBench.add(sl);
   }
   for (const dz of [-1, 1]) {
     const end = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.45, 0.12), ironM);
     end.position.set(shX, KERB_H + 0.225, shZ + dz * (SB_L / 2 - 0.06));
-    scene.add(end);
+    shelterBench.add(end);
   }
+  scene.add(shelterBench);
   solid({ minX: shX - 0.32, maxX: shX + 0.32,
     minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1 });
   // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
