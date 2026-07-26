@@ -857,6 +857,38 @@ export function buildCasino(ctx: CtxBuild): void {
       solid(VX, -3.4, 0.9, 4.4);
     }
 
+    // STOOLS AT THE GAMES, and every one of them sittable. My own grading last
+    // commit: "a blackjack pit nobody can sit at is the same omission the user
+    // just caught on the slots", and all 120 reel machines had one while the
+    // tables had none. Taller than a slot stool because a gaming table is
+    // higher, and placed round each table's own centre so they follow it.
+    const gameStool = (gx: number, gz: number, yaw: number) => {
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.08, 10), stoolTopM), gx, 0.72, gz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.68, 8), stoolPoleM), gx, 0.34, gz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.03, 10), stoolPoleM), gx, 0.03, gz);
+      put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.017, 4, 10), stoolPoleM), gx, 0.24, gz)
+        .rotation.x = Math.PI / 2;
+      ctx.seat({
+        x: room.wx(gx), z: room.wz(gz), yaw, h: 0.72,
+        approach: { x: room.wx(gx + Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
+        label: 'sit at the table', ok: () => room.inside(),
+      });
+    };
+    // roulette: five round its open side
+    for (let i = 0; i < 5; i++) {
+      const a = -1.15 + i * 0.575;
+      gameStool(-3.1 + Math.sin(a) * 1.55, 0.2 + Math.cos(a) * 1.55, a + Math.PI);
+    }
+    // craps: three a side down the long table
+    for (const sx of [-1, 1]) for (const dz of [-0.85, 0, 0.85]) {
+      gameStool(3.0 + sx * 1.35, 0.2 + dz, sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+    }
+    // poker: six round it, which is what a poker table seats
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      gameStool(-3.0 + Math.sin(a) * 1.65, -3.6 + Math.cos(a) * 1.65, a + Math.PI);
+    }
+
     // KENO — a lit board on the west wall, the only thing up there with numbers
     {
       const kenoT = declareSurface(pixTex(64, 26, (g) => {
