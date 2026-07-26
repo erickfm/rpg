@@ -1,1 +1,1 @@
-WORKING | published scripts/ledger-guard.mjs for the AUDIT blocker (missing/dup/SHORTER) | desk: register it in checks.mjs / land.sh
+DONE | 0 live; last LANDED row is AUDIT own sweep accounting (my 1 re-evidenced) | desk: register ledger-guard.mjs in checks.mjs; one line at the prompt
