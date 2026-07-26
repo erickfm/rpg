@@ -48,6 +48,33 @@ export interface Hud {
    */
   note: (text: string, ms?: number) => void;
   /**
+   * FADE THE SCREEN TO BLACK, do something, and fade back.
+   *
+   * *"when the player goes to sleep i want the screen to fade to black"* — and
+   * it is deliberately NOT a sleep verb. It is a screen fade with a callback in
+   * the middle, because passing out, a cut to somewhere else and the bus all
+   * want exactly this, and `ct/apartment.ts` owns the sleeping.
+   *
+   *     await ctx.hud.fade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) });
+   *
+   * `mid` runs WHILE THE SCREEN IS BLACK, never before the fade starts. That
+   * ordering is the whole thing: advance the clock first and the fade-in shows
+   * a room that has already changed, which reads as a loading screen rather
+   * than as sleeping. And black is HELD for a beat between the two halves — a
+   * fade straight from black back to bright is a blink, not a night.
+   *
+   * Nothing moves or interacts while it runs. Keys already HELD when it starts
+   * are released as well as blocked, so walking into your own bed does not walk
+   * you across the room in the dark.
+   *
+   * Resolves when the screen is back. A second call while one is running is
+   * ignored and returns the one in flight — two overlapping fades would fight
+   * over the same opacity.
+   */
+  fade: (o?: { mid?: () => void; outMs?: number; holdMs?: number; inMs?: number }) => Promise<void>;
+  /** is a fade running right now? For anything that must not act mid-cut. */
+  fading: () => boolean;
+  /**
    * Outline whatever the `[E]` would act on, in screen space.
    *
    * *"i want to be able to interact with things a lot easier and for them to
@@ -67,6 +94,30 @@ export interface Hud {
    */
   highlight: (rect: { x: number; y: number; w: number; h: number } | null) => void;
 }
+
+/**
+ * The live HUD, for the one thing a world module legitimately needs from the
+ * screen layer: `screenFade`.
+ *
+ * `ct/ctx.ts` is DESK-OWNED and does not carry the HUD, and asking for a field
+ * on it would block a user request on a coordination step. So the screen
+ * publishes its own verb the same way `ct/inventory.ts` publishes `takeable` —
+ * the kit does the work, the caller states intent, and nobody edits anybody
+ * else's file:
+ *
+ *     import { screenFade } from './hud';
+ *     act: () => screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) }),
+ */
+let LIVE: Hud | null = null;
+export function screenFade(o?: { mid?: () => void; outMs?: number; holdMs?: number; inMs?: number }): Promise<void> {
+  // No HUD means no screen to fade, and the caller's `mid` must still happen —
+  // a sleep that silently did not pass the night because a screen effect was
+  // missing would be the effect breaking the gameplay it was added to dress.
+  if (!LIVE) { o?.mid?.(); return Promise.resolve(); }
+  return LIVE.fade(o);
+}
+/** is the screen mid-cut? Anything that must not fire during one asks here. */
+export function screenFading(): boolean { return LIVE ? LIVE.fading() : false; }
 
 export function makeHud(purse: Purse): Hud {
   let watchShown = -1;
@@ -281,6 +332,50 @@ export function makeHud(purse: Purse): Hud {
     document.body.appendChild(hiDiv);
   }
 
+  // ── the fade ────────────────────────────────────────────────────────────
+  //
+  // Above EVERYTHING, including the HUD: z-index 20 against the night wash's 5,
+  // the held objects' 11 and the build stamp's 12. You are asleep — a watch
+  // floating over the black would say otherwise, and a screenshot taken mid-cut
+  // should show nothing, which is also the honest thing for a screenshot to do.
+  //
+  // `pointer-events: none` so it cannot steal pointer lock on the way past.
+  let fadeDiv = document.getElementById('ct-fade') as HTMLDivElement | null;
+  if (!fadeDiv) {
+    fadeDiv = document.createElement('div');
+    fadeDiv.id = 'ct-fade';
+    fadeDiv.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:20;';
+    document.body.appendChild(fadeDiv);
+  }
+  let fading: Promise<void> | null = null;
+
+  // ── holding the player still while it runs ──────────────────────────────
+  //
+  // `src/main.ts` owns the input Set and `src/proto/fp.ts` owns the rig, and
+  // BOTH ARE DESK-OWNED. So this does not reach into either: it takes the
+  // events before they get there.
+  //
+  //   · a CAPTURE listener on `window` runs before main.ts's own listeners,
+  //     which are on `window` (keydown/keyup/mouseup) and `document`
+  //     (mousemove) in the bubble phase. `stopImmediatePropagation()` there and
+  //     the key never reaches the Set.
+  //   · KEYUP AND MOUSEUP ARE DELIBERATELY LEFT ALONE. Swallowing a release
+  //     while blocking the press is how you strand a key in the Set held-down
+  //     forever — the player would wake up walking.
+  //   · and a press already held when the fade starts is in the Set ALREADY, so
+  //     blocking new ones does nothing for it. Those get a synthetic keyup,
+  //     which is main.ts's own documented way of clearing one.
+  const HELD = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
+    'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+  const swallow = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
+  const lockInput = (): (() => void) => {
+    for (const k of HELD) window.dispatchEvent(new KeyboardEvent('keyup', { key: k === ' ' ? ' ' : k }));
+    window.dispatchEvent(new MouseEvent('mouseup', { button: 2 }));   // and the wallet's right button
+    const kinds = ['keydown', 'mousedown', 'mousemove', 'wheel'];
+    for (const k of kinds) window.addEventListener(k, swallow, true);
+    return () => { for (const k of kinds) window.removeEventListener(k, swallow, true); };
+  };
+
   // ── the build stamp ─────────────────────────────────────────────────────
   // Twice this project has lost work to feedback given against a stale build:
   // a bug is reported, it was fixed twenty minutes earlier, and somebody goes
@@ -343,6 +438,57 @@ export function makeHud(purse: Purse): Hud {
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
     },
+    fading: () => fading !== null,
+    // WAIT FOR THE TRANSITION TO SAY IT IS DONE, not for a timer that thinks
+    // it knows when. GOTCHAS §30 is about render-loop time, and a CSS
+    // transition looks like the exception — it advances on the compositor's own
+    // clock, so surely a matching `setTimeout` measures the same thing. It does
+    // not, because the transition does not START until a frame is served: I set
+    // the opacity in a `requestAnimationFrame` so that 0 lands before 1, and on
+    // a loaded machine that frame is late. Timing the middle from t0 therefore
+    // ran the world change at **opacity 0.842** — a caller's clock jumping in
+    // full view of the player, which is the exact fault this whole feature is
+    // dressing. Under the check's own load, 21 samples arrived where 120 were
+    // due; the fade was fine and the schedule was fiction.
+    //
+    // `transitionend` is the event. The timeout beside it is a FALLBACK, not
+    // the schedule: if the tab is hidden or the event is dropped, a fade that
+    // never finishes would leave the screen black and the player locked out,
+    // which is far worse than one that ends early.
+    fade: (o = {}) => {
+      if (fading) return fading;                 // two fades would fight one opacity
+      const outMs = o.outMs ?? 850, holdMs = o.holdMs ?? 750, inMs = o.inMs ?? 1000;
+      const unlock = lockInput();
+      const settled = (ms: number, then: () => void) => {
+        let called = false;
+        const fin = () => {
+          if (called) return;
+          called = true;
+          fadeDiv!.removeEventListener('transitionend', onEnd);
+          clearTimeout(bail);
+          then();
+        };
+        const onEnd = (e: TransitionEvent) => { if (e.propertyName === 'opacity') fin(); };
+        fadeDiv!.addEventListener('transitionend', onEnd);
+        const bail = setTimeout(fin, ms + 1500) as unknown as number;
+      };
+      fading = new Promise<void>((done) => {
+        fadeDiv!.style.transition = `opacity ${outMs}ms ease-in`;
+        // a frame's grace so the browser has the 0 before it is given the 1;
+        // setting both in one tick is a cut, not a fade
+        requestAnimationFrame(() => { fadeDiv!.style.opacity = '1'; });
+        settled(outMs, () => {
+          // BLACK. Everything that changes the world happens in here.
+          try { o.mid?.(); } catch (e) { console.error('[hud.fade] mid threw:', e); }
+          setTimeout(() => {
+            fadeDiv!.style.transition = `opacity ${inMs}ms ease-out`;
+            fadeDiv!.style.opacity = '0';
+            settled(inMs, () => { unlock(); fading = null; done(); });
+          }, holdMs);
+        });
+      });
+      return fading;
+    },
     note: (text, ms = 2400) => {
       noteDiv!.textContent = text;
       noteDiv!.style.opacity = '1';
@@ -370,5 +516,15 @@ export function makeHud(purse: Purse): Hud {
   // that has no business holding the HUD. One binding here, rather than the
   // screen layer threaded through every takeable in the world.
   bindHud(hud);
+  LIVE = hud;
+  // Test affordance, same shape and same reason as `__ct` and `__inv`: a fade
+  // is a promise over CSS time and there is no other way to start one, or to
+  // ask whether one is running, from outside. `scripts/K-sleep-fade.mjs` reads
+  // the OPACITY off the element rather than this flag — a boolean going true is
+  // not the same claim as the screen actually being black.
+  (window as unknown as { __hud: unknown }).__hud = {
+    fade: (o?: Parameters<Hud['fade']>[0]) => hud.fade(o),
+    fading: () => hud.fading(),
+  };
   return hud;
 }

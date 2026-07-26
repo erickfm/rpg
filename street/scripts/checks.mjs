@@ -540,6 +540,16 @@ const CHECKS = [
   // the canvas parked off the bottom of the viewport. Its --selftest moves the
   // selection behind the assertion's back and requires the red. ~8 s. (K)
   ['K-pocket-panel', 'does the pockets panel open, and does G drop what you CHOSE?', true],
+  // "when the player goes to sleep i want the screen to fade to black". Reads
+  // the overlay's COMPUTED OPACITY rather than a fading() flag, and carries two
+  // controls because its central verdict is an absence: a held W with no fade
+  // (proving the driver's keys reach the page at all) and a whole fade with no
+  // keys (proving the residual drift is collider settling, which cost me a
+  // round reading 0.13 m as a broken input lock). --selftest advances the clock
+  // BEFORE the fade instead of inside it — the caller mistake the ordering rule
+  // exists to prevent — and requires the red. ~14 s; green 4 of 4 run at
+  // once, which is the test that matters for anything on a transition. (K)
+  ['K-sleep-fade', 'does the screen fade to black, and does the world change while it is?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
