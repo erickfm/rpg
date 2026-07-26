@@ -1593,7 +1593,7 @@ export function buildProps(ctx: CtxBuild): Props {
       wetness += (1 - wetness) * Math.min(1, dt * 0.55);
       soak = Math.min(1, soak + dt / 100);
     } else {
-      const dryFor = 0.24 * (1 + soak * 1.5) * (1 + nightNow * 1.1);
+      const dryFor = 48 * (1 + soak * 1.5) * (1 + nightNow * 1.1);
       wetness = Math.max(0, wetness - dt / dryFor);
       soak = Math.max(0, soak - dt / (dryFor * 2));
     }

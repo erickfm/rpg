@@ -71,6 +71,34 @@ A whole-run wrong-world now exits 3 before scoring anything, rather than
 producing a screenful of false reds. On a dev server it says so and does not
 pretend to have proved what HMR gives by construction.
 
+### 1b. …and the proof that actually applies here
+
+The bundle comparison only works against a **preview** server. Measured: both
+4177 and 4188 serve `/src/main.ts` — they are **dev** servers, so that proof
+would have been skipped exactly where the problem was reported, which would have
+made it decoration.
+
+A Vite dev server hands back the transformed module for any source path, so the
+real proof is a hash compare on the file the case mutates:
+
+```
+GET http://localhost:4188/src/proto/ct/tex-world.ts     460 902 bytes
+```
+
+If the served module is byte-identical before and after the mutation, the server
+never saw the edit and the case is `NOT-RUN`. Generic, one GET, no per-case
+witness string to drift out of step with somebody's source — and it is checked
+*before* spending a browser, because a case that cannot be scored should not cost
+a minute to not score.
+
+**My first version of this fix was itself broken**, and it is worth recording
+because it is the same fault class: the entry-point pattern anchored the
+extension to the closing quote, so it missed a dev server's
+`/src/main.ts?t=1785047070979`, returned null, and — since "no entry" was fatal —
+would have exited 3 against **every** dev server. canfail broken outright by the
+change meant to make it trustworthy. Caught by running it against both ports
+before believing it.
+
 ### 2. Nobody would have learned this from a green board
 
 `checks.mjs` only runs canfail cases under `--selftest`, and **`land.sh` did not

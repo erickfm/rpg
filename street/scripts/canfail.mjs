@@ -24,6 +24,7 @@
 // before I noticed. A tool whose safety rule pushes you into a worse habit has
 // only moved the failure.
 import { execSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 const PROPS = 'src/proto/ct/props.ts';
@@ -699,17 +700,40 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 // compare and costs nothing. A DEV server serves source rather than a hashed
 // asset; there the mutation reaches the world through HMR by construction, and
 // this says so rather than pretending to have proved it.
-const entryOf = (html) => (html.match(/src="([^"]+\.(?:js|ts|tsx))"/) ?? [])[1] ?? null;
+// The query string matters: a dev server serves `/src/main.ts?t=1785047070979`,
+// and a pattern anchoring the extension to the closing quote misses it and
+// returns null. My first version did, and since "no entry" was fatal it would
+// have exited 3 against EVERY dev server — canfail broken outright by the fix
+// meant to make it trustworthy. Caught by running it against 4177 and 4188
+// before believing it, which is the whole lesson of this note.
+const entryOf = (html) =>
+  (html.match(/src="([^"?]+\.(?:js|ts|tsx))(?:\?[^"]*)?"/) ?? [])[1] ?? null;
 const localEntry = () => {
   try { return entryOf(readFileSync('dist/index.html', 'utf8')); } catch { return null; }
 };
+// UNREACHABLE and UNRECOGNISED are different answers. Nothing serving is exit 3
+// — the check never ran. A page we cannot parse is merely unproven, and must
+// not take the suite down with it.
 const servedEntry = async () => {
   try {
     const r = await fetch(URL, { cache: 'no-store' });
-    return entryOf(await r.text());
-  } catch { return null; }
+    return { up: true, entry: entryOf(await r.text()) };
+  } catch { return { up: false, entry: null }; }
 };
 const HASHED = (e) => !!e && /\/assets\/.*-[\w-]{6,}\.js$/.test(e);
+// THE DEV-SERVER PROOF, and it is the one that matters here: both ports on this
+// machine serve `/src/main.ts`, so the bundle comparison above would be skipped
+// exactly where the problem was reported. A Vite dev server will hand back the
+// transformed module for any source path, so "did my edit reach the world" is a
+// hash compare on the file the case actually mutates — generic, one GET, and no
+// per-case witness string to keep in step with somebody's source.
+const servedModule = async (file) => {
+  try {
+    const r = await fetch(`${URL.replace(/\/$/, '')}/${file}`, { cache: 'no-store' });
+    return r.ok ? await r.text() : null;
+  } catch { return null; }
+};
+const digest = (t) => (t === null ? null : createHash('sha1').update(t).digest('hex').slice(0, 12));
 
 const only = process.argv.slice(2);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
@@ -718,14 +742,20 @@ const results = [];
 // the bundle with NOTHING mutated, to tell an inert mutation from a real one
 sh('npm run build');
 const PRISTINE = localEntry();
-const SERVED0 = await servedEntry();
-const DEV = SERVED0 !== null && !HASHED(SERVED0);
-if (SERVED0 === null) {
+const S0 = await servedEntry();
+if (!S0.up) {
   console.error(`\n  NOTHING IS SERVING ${URL} — nothing can be measured.`);
   process.exit(3);                                            // GOTCHAS 32
 }
-if (DEV) console.log(`  ${URL} is a DEV server (${SERVED0}) — source reaches it via HMR.`);
-else if (SERVED0 !== PRISTINE) {
+const SERVED0 = S0.entry;
+// Anything that is not a content-hashed bundle is treated as unproven, and the
+// bundle comparison is simply not run. That covers a dev server, where the
+// mutation reaches the world through HMR by construction.
+const DEV = !HASHED(SERVED0);
+if (DEV) {
+  console.log(`  ${URL} serves ${SERVED0 ?? 'an unrecognised page'} — not a hashed bundle,`);
+  console.log(`  so a mutation reaches it via HMR and the built-vs-served proof is skipped.`);
+} else if (SERVED0 !== PRISTINE) {
   console.error(`\n  MEASURING THE WRONG WORLD — nothing was measured, and no case is scored.`);
   console.error(`    ${URL} serves ${SERVED0}`);
   console.error(`    this tree built  ${PRISTINE}`);
@@ -733,6 +763,10 @@ else if (SERVED0 !== PRISTINE) {
   console.error(`  Fix: point SHOT_URL at a server for THIS tree.\n`);
   process.exit(3);
 }
+
+// what each mutated file looks like SERVED, before anything is touched
+const PRIS = {};
+for (const f of [...new Set(run.map((c) => c[1]))]) PRIS[f] = digest(await servedModule(f));
 
 for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
@@ -746,6 +780,16 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     writeFileSync(file, src.replace(needle, repl));
     try { sh('npm run build'); }
     catch { results.push([name, 'BUILD', 'mutation did not compile — rewrite it']); restore(); continue; }
+    // DID IT REACH THE WORLD? Checked BEFORE spending a browser on it, because
+    // a case that cannot be scored should not cost a minute to not score.
+    if (DEV && PRIS[file] !== null) {
+      const now = digest(await servedModule(file));
+      if (now !== null && now === PRIS[file]) {
+        results.push([name, 'NOT-RUN',
+          `${expect} — ${URL} still serves the UNMUTATED ${file}; nothing was measured`]);
+        restore(); continue;
+      }
+    }
     let red = false, out = '';
     try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
     catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
@@ -754,7 +798,7 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     // this, "the server is not ours" and "the mutation does nothing" both wore
     // the SLEPT badge, and neither is a fault in the check.
     if (!red && !DEV) {
-      const mine = localEntry(), theirs = await servedEntry();
+      const mine = localEntry(), theirs = (await servedEntry()).entry;
       if (mine === PRISTINE) {
         results.push([name, 'INERT', `${expect} — mutation compiles to identical bytes; retarget the CASE`]);
         continue;
