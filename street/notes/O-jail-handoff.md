@@ -229,3 +229,36 @@ was right when it was built and quietly stopped being right is invisible until
 somebody photographs it, and this project has paid for that twice — the desk
 routing fixes for faults already fixed, and 47 minutes of playtesting a world
 226 commits stale.
+
+
+---
+
+## CORRECTION: the jail's room DID move four other rooms, 80 m each
+
+Written where the wrong claim was made rather than in a new file, because
+GOTCHAS §44 is that a measurement stays as first written and reads as current
+forever.
+
+**I said the jail took the last slab and moved no existing room. That was
+wrong.** Measured by building the world with `ct/int-jail.ts` present and with
+it moved out of the tree:
+
+```
+             without     with     moved
+  hotel          920      920       —
+  jail             —     1000      new
+  library       1000     1080     +80
+  pawn          1080     1160     +80
+  tax           1160     1240     +80
+  thrift        1240     1320     +80
+```
+
+**I reasoned about the wrong glob.** `jail.ts` — the exterior — does sort last
+in `ct/world.ts`'s `./*.ts`. The ROOM is `int-jail.ts`, which sorts inside
+`ct/interior.ts`'s `./int-*.ts`, where "int-jail" falls between "int-hotel" and
+"int-library". Two globs, two orderings; I checked the one that did not matter.
+
+The desk has an open row — *"~15 CONFIRMED rows cite interior coordinates that
+now name a different room"* — and this is a direct cause of part of it. The
+repair rule and the structural argument are in
+`notes/O-for-desk-slab-shift.md`.
