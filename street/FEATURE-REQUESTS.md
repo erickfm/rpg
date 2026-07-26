@@ -280,9 +280,9 @@ published to the playable artifact.
 - **"i also want an atm interface and an inventory interface. equally try hard"** → **K**
 - **"add a slots interface and game where when i sit down i enter the slots interface and i can play slots. fully make a slots game that works well and pays out and everything. high effort here."** → **L**
 - **"'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalks here though? (the WALKING half)"** → **H**
-- **"'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalks here though?"** → **B**
+- **"'Screenshot from 2026-07-26 00-51-15.png' maybe we could add crosswalks here though?"** → **B** ✅ built
 - **"the side street east-end crossing is being removed — close the walkable ring another way instead"** → **H**
-- **"'Screenshot from 2026-07-26 00-50-34.png' remove this cross walk"** → **B**
+- **"'Screenshot from 2026-07-26 00-50-34.png' remove this cross walk"** → **B** ✅ built
 - **"'Screenshot from 2026-07-26 00-49-48.png' left door in casino is reversed"** → **G**
 - **"the bodega keeper still shows his back from the counter — H's sector-4 reading is right and the turn was never made"** → **F / H** (found by B verifying, not B's file)
 
@@ -372,8 +372,8 @@ published to the playable artifact.
        exactly 32 texels/m in both axes (scripts/kerbwalk.mjs). The apron's real
        fault was its scoring, fixed with the row above. -->
 
-- **"'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch an invisible wall here?"** → **B**
-- **"'Screenshot from 2026-07-25 22-06-38.png' lighting on this alley back door looks messed up like it gets cropped by door."** → **B**
+- **"'Screenshot from 2026-07-25 22-07-32.png' why does the lighting catch an invisible wall here?"** → **B** ✅ built
+- **"'Screenshot from 2026-07-25 22-06-38.png' lighting on this alley back door looks messed up like it gets cropped by door."** → **B** ✅ built
 - **"'Screenshot from 2026-07-25 22-05-35.png' get rid of this weird internal structure inside the library"** → **J** ✅ built
 - **"'Screenshot from 2026-07-25 22-05-14.png' library entrance doesnt match exterior"** → **J** ✅ built
 - **"'Screenshot from 2026-07-25 22-04-43.png' librarian orientation is so bad. also i want computers in the library"** → **J** ✅ built
@@ -390,12 +390,12 @@ published to the playable artifact.
 - **"'Screenshot from 2026-07-25 22-03-52.png' i like the atm, maybe add another on the left and make the rest of the facade match the same vibe. i love the doors of the bank too."** → **A**
 - **"'Screenshot from 2026-07-25 22-02-53.png' can we remove the horiz stripes on the walls with the railing?"** → **C**
 - **"shouldnt be able to select things through objects ever"** → **D**
-- **"'Screenshot from 2026-07-25 22-01-17.png' front of bodega is a little bit too jankily illuminated. like that exact rectangle doesnt look like the other stuff"** → **B**
+- **"'Screenshot from 2026-07-25 22-01-17.png' front of bodega is a little bit too jankily illuminated. like that exact rectangle doesnt look like the other stuff"** → **B** ✅ built
 - **"'Screenshot from 2026-07-25 22-00-33.png' need a bit of space on entry area. maybe instead of slot we kill a row and add seat of some sort"** → **G**
 - **"'Screenshot from 2026-07-25 21-59-46.png' hotel looks so bad, rugs all over, off center and stuff. furniture strewn about. awful."** → **G**
 - **"yea get rid of outline unless debug is true, we'll probably want that for debug"** → **D**
 - **"'Screenshot from 2026-07-25 21-57-05.png' what is this in the corner of the bodega?"** → **F**
-- **"'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont like the color of the alley way. i prefer the look of the other alley"** → **B**
+- **"'Screenshot from 2026-07-25 21-55-19.png' alley is better but i dont like the color of the alley way. i prefer the look of the other alley"** → **B** ✅ built
 - **"'Screenshot from 2026-07-25 21-54-16.png' why is this what is highlighted for opening or closing a door. in general do you think this highlight thing is too hard? maybe we avoid it?"** → **D**
 - **"'Screenshot from 2026-07-25 21-53-27.png' top right part of window frame has graphics glitchy ness"** → **C**
 - **"the street's 27 untextured flat-colour ground surfaces (the STREET half of the flat-colour fix)"** → **D**
@@ -404,7 +404,7 @@ published to the playable artifact.
 - **"when i enter bodega i should be facing perpendicular to the wall door. so looking this way (ref shot down the aisles)"** → **F**
 - **"'Screenshot from 2026-07-25 21-47-13.png' benches still tilted and clipping trash or whatever that is"** → **E**
 - **"'Screenshot from 2026-07-25 21-46-49.png' whys the gazeobo structure look chopped? also should be taller a lil bit"** → **E**
-- **"'Screenshot from 2026-07-25 21-46-19.png' the tree is transparent where it shouldnt be"** → **B**
+- **"'Screenshot from 2026-07-25 21-46-19.png' the tree is transparent where it shouldnt be"** → **B** ✅ built
 - **"'Screenshot from 2026-07-25 21-45-46.png' why is this highlighted for the thrift store?"** → **D**
 - **"'Screenshot from 2026-07-25 21-45-18.png' whys my 3rd floor neighbor floating on the 2nd floor?"** → **C**
 - **"'Screenshot from 2026-07-25 21-44-52.png' the highlight is not the contour of the full bed but simply the frame?"** → **D**
@@ -428,7 +428,7 @@ published to the playable artifact.
 - **"'Screenshot from 2026-07-25 20-47-21.png' interior of bodega is very cramped and also the door is not on the corner"** → **F**
 - **"'Screenshot from 2026-07-25 20-45-15.png' i really like the inner lobby like area to the church its v realistic imo. i like the hjoly waterr at the entrence but its clipping a bit. also the confession box is completely clipping the wall. in general the church needs to be a bit bigger. you can make it wider than it actually is outside too. by matching the exterior i really mean in general positioning. no one is going to take a ruler and measure the width of the inner and outer."** → **G**
 - **"'Screenshot from 2026-07-25 20-17-52.png' orientation of things in the church might be off."** → **G**
-- **`rainLevel` and `wetness` stay 0 even at an hour `rainAt()` reports as raining** → **B**
+- **`rainLevel` and `wetness` stay 0 even at an hour `rainAt()` reports as raining** → **B**  <!-- B: NO LEDGER ROW EXISTS FOR THIS. Routed to B in the inbox and tracked nowhere, so live.sh has never listed it and nobody would ever have built it. I am NOT marking it built — I have not verified rainLevel/wetness against a raining hour on a current build. Needs a row before it needs a fix. -->
   Noticed by C while wiring `Frame.wet`; `props.ts` is B's, so filed rather than
   chased. `scene.userData.rainAt(62)` returns **true**, but `rainLevel` and
   `wetness` both read **0.000** for ten seconds at that hour — jumped to it, and
@@ -509,7 +509,7 @@ published to the playable artifact.
   reads the port and completes `door301` against the pinned build, all seven
   clauses green. C did not apply it: `scripts/**` says do not edit another
   agent's script, and this is H's. It is one line whenever H wants it.
-- **`props.ts` `isSelfLit` holds ~40 printed sheets and one citizen at full daylight after dark, and classifies inconsistently** → **B**
+- **`props.ts` `isSelfLit` holds ~40 printed sheets and one citizen at full daylight after dark, and classifies inconsistently** → **B** ✅ built
   Filed by C with measurements; `props.ts` is B's. Two faces of one detector.
   **(a) Printed signage.** 39 sheets in the lot are held bright and are not
   declared lights — hot fraction **8.6% – 97%** against an 8% threshold.
@@ -557,7 +557,7 @@ published to the playable artifact.
   wall came in. Judged from standing at the window
   (`shots/walkup/w3-standing.png`) and from the glass (`w2-at-glass.png`).
 - **"put this librarian behind the desk"** → **G**
-- **"for the bench i have no way to sit at the bench from the street cause the e option doesnt come up"** → **B**
+- **"for the bench i have no way to sit at the bench from the street cause the e option doesnt come up"** → **B** ✅ built
 - **"side benches have backs which are backwards?"** → **E**
 - **"tons of people always get stuck at this cross walk. the walk logic should allow people to walk around things"** → **H**
 - **"maybe the aces sign belongs on the other end of the casino building?"** → **G**
@@ -588,7 +588,7 @@ published to the playable artifact.
 - **"the doors are misaligned. i think the worker doesnt realize they need to confirm the logic independently per side of the car"** → **H**
 - **"textures on vehicles need a deep review and fix"** → **H**
 - **"cat is dead center in alley i need it right to the right of that news paper on the ground"** → **D**
-- **"a little too many grasses in the streets. like way too many. should be more rare"** → **B**
+- **"a little too many grasses in the streets. like way too many. should be more rare"** → **B** ✅ built
 - **"gap in the door sucks. also i dont like that it says stand back when you wanna close the door. it should always be able to open/close"** → **C**
   → **C. BOTH FIXED.** (1) The leaf was 0.91 m in a 0.95 m clear opening with
   its pivot 0.02 inside the jamb, so there was a 2 cm see-through strip at the
@@ -717,7 +717,7 @@ published to the playable artifact.
   light by looking at the sheet — bright *and* chromatic — and my enamel cream
   cleared that test by two points, so the plate was graded a light source and
   stayed the brightest thing on a night street. Night luminance 152 → 55.
-- **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**
+- **"whats going on with the shadow geometry here? i need an explanation for these shadow geometries"** → **B**  <!-- B: NOT MINE. Routed to B here, but the ledger row for this is CONFIRMED and owned by E. Left unmarked deliberately rather than claimed — one of us has the wrong owner and it is worth the desk deciding which. -->
 - **"atm needs a bit more detail like a tiny bit more also needs to be a bit lower to the ground and i want the atm to be inlaid and slanted in"** → **D**
 - **"especially more of this kind of thing in the park"** → **E**
 - **"big fan of these grass textures put em in more places and especially more of this kind of thing in the park"** → **C**
@@ -733,7 +733,7 @@ published to the playable artifact.
 - **"the paths and the graphics in the park need a big deep review"** → **AUDIT**
 - **"the park is a bit better but i think needs some shrubs on the edges. also the paths and the graphics in the park need a big deep review"** → **E**
 - **"what is this block that sticks out from the wheels of all vehicles. please fix"** → **H**
-- **"cup trash a bit too common and cups are too big"** → **B**
+- **"cup trash a bit too common and cups are too big"** → **B** ✅ built
 - **"the inner clipping of the tires in the pickup was never fixed"** → **H**
 - **"put the cat like directly in front of where im looking in this screenshot as opposed to the inner corner"** → **D**
 - **"two cups in one small frame, one under the bench and one in the gutter, and
@@ -746,8 +746,8 @@ published to the playable artifact.
 - **"cat needs to be more to the right side of the alley"** → **D**
 - **"it was better before this is too much and ugly i was thinking something slanted inlaid"** → **D**
 - **"i want the atm to be inlaid into the building and more detailed"** → **D**
-- **"i like the thought, to make a drive entrance. however it looks graphically bugged"** → **B**
-- **"tree in the dirt looks janky, i think we need to make the dirt patch a lil bigger on the curb side"** → **B**
+- **"i like the thought, to make a drive entrance. however it looks graphically bugged"** → **B** ✅ built
+- **"tree in the dirt looks janky, i think we need to make the dirt patch a lil bigger on the curb side"** → **B** ✅ built
 - **"this looks bad with the lines on the ground, also move the cat to the right"** → **D**
 - **"also make me spawn in my room"** → **C**
   → **C. FIXED — you now wake up in 301.** The coordinate had been exported and
@@ -805,7 +805,7 @@ published to the playable artifact.
   z −0.7…6.3, 8 of 27 samples). lot-frontage: nothing encroaches the 2 m walk.
   lot-layout: rows flanking the aisle at centre z 2.60, office across the back.
 - **"this looks bad because th efront of the bank doesnt match the side fix this"** → **D**
-- **"so it should not be cutting off the actual ad for tonys pizza also theres some strange graphical bug on the legs you see its like the same plane as the wood"** → **B**
+- **"so it should not be cutting off the actual ad for tonys pizza also theres some strange graphical bug on the legs you see its like the same plane as the wood"** → **B** ✅ built
 - **"i want to be able to close this door and also what is this poster on the wall?"** → **C**
   → **C. FIXED.** 301's door is an `[E]` open/close with the leaf swinging and
   the collider following it; door301 holds **all seven behaviours** — opens,
@@ -818,7 +818,7 @@ published to the playable artifact.
 - **"the entrence to the tax service is not aligned with the door of the facade"** → **F**
 - **"the glas here needs to be cropped to fit within the arch. like the windows above the doors i mean / the name is obscured"** → **E**
 - **"I WANT TO BE ABLE TO WALK UP THOSE STAIRS"** → **F**
-- **"make this look nicer, i dont think we need the bottom wood part. also the tonys pizza part i think needsa to have a bezel"** → **B**
+- **"make this look nicer, i dont think we need the bottom wood part. also the tonys pizza part i think needsa to have a bezel"** → **B** ✅ built
 - **"these people are stuck"** → **H**
 - **"i like the triangles but it also just looks low effort do a high effort sleazy used car lot. make it make sense like how does one even enter, drive a car off the lot. do some research into what old sleazy used car lots looked like"** → **C**
   → **C. FIXED.** There is a kerb cut with the walk ramping over it and a gate on
@@ -826,11 +826,11 @@ published to the playable artifact.
   a car can leave across all of it. Plus the period vocabulary: banners
   zip-tied to the chain-link, the pole sign, windshield price cards, tyre
   stacks, bunting and weeds in the cracks.
-- **"also i think these are puddles and they look awful honestly / trash cannot be clipping through stuff like this"** → **B**
+- **"also i think these are puddles and they look awful honestly / trash cannot be clipping through stuff like this"** → **B** ✅ built
 - **"in general we should not encrouch the already cramped sidewalk"** → **AUDIT**
 - **"park border with sidewalk looks fucked up, we gotta fix this. in general we should not encrouch the already cramped sidewalk"** → **E**
 - **"this is a part of the bodega corner that needs to be fixed i flagged this to you a while ago but its still here"** → **A**
-- **"hm i think the tonys pizza sign should go on the back of the bench also i think the bench back should lean back a lil"** → **B**
+- **"hm i think the tonys pizza sign should go on the back of the bench also i think the bench back should lean back a lil"** → **B** ✅ built
 - **"what is this black stripe on the back of the pick up truck"** → **H**
 - **"what up with this car and its wheels? THEY LOOK SO WEIRD"** → **H**
 - **"deeper used car lot like make it square"** → **D**
@@ -841,7 +841,7 @@ published to the playable artifact.
 - **"whats up with this kids face? its multi color?"** → **H**
 - **"right side of bank facade should match front, also all buildings need to be much deeper other wise it loks like a fake building"** → **D**
 - **"theres still a diner entrance by the bank. i think we have to make sure all press e to enter options are aligned with the doors on the facades"** → **F**
-- **"make street light a bit more broad in their emitted light (like a wider beam) and make the unilluminated stuff darker. it should feel scarier at night i want to be able to see stars sometimes"** → **B**
+- **"make street light a bit more broad in their emitted light (like a wider beam) and make the unilluminated stuff darker. it should feel scarier at night i want to be able to see stars sometimes"** → **B** ✅ built
 - **"this red guy glitches back and forth as he walks sometimes idk why"** → **H**
 - **"i want the people inside the buildings to be as detailed and quake-view like as the pedestrians on the street / make the jump a tiny bit higher"** → **F**
 - **"pickup looks great but the wheels need to not clip through, maybe we need to have some inlaid wheel things pickups have / on the car idk if the doors make sense"** → **H**
@@ -956,7 +956,7 @@ commit, as asked.
   to widen a 0.90 m walking squeeze to 1.10 m, moving the TREE kerb-ward to
   `TRUNK_X = 5.46` and leaving the pit at `PIT_X = 5.56`. Dirt is 0.18 m
   kerb-side against 0.38 m building-side.
-- **"the car lot apron is a large flat untextured grey plane"** → **B**. Three
+- **"the car lot apron is a large flat untextured grey plane"** → **B**. Three ✅ built
   parts: texture it at the world's density with its own cross-travel scoring;
   make it RAMP from walk level to road level with flared wings; abut rather than
   overlap the sidewalk paving (GOTCHAS 6). Plus: check whether the fence base
@@ -974,7 +974,7 @@ commit, as asked.
 - **"the thrift EXTERIOR is lazy and chopped off"** → **builder A**. F has built
   the window display the glass looks into — a dressed form and the better stock
   on a plinth at the front wall, deliberately the one tidy corner in the room.
-- **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B**
+- **"i dont like how close the tree bases are to the edge here i think ideal would be with a bit of clearence on the curb side. also the puddle doesnt make sense here. the gutter should have the water in the gutter"** → **B** ✅ built
   — **B: both halves landed and measured.** Clearance on the kerb side was
   0.218 m of walk between the kerb chamfer and the pit edge, the same at all
   seven pits. **SUPERSEDED BY THE USER'S OWN LATER INSTRUCTION** — "make the
