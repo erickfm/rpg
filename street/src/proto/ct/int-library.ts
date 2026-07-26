@@ -1553,12 +1553,25 @@ export function buildLibrary(ctx: CtxBuild): void {
   // H wrote up in `notes/H-seated-sprite.md`. One rule and it is H's, in
   // bold: **the seated origin is the HIP, so place it at the SEAT TOP, and if
   // you find yourself adding a y fudge, stop and tell H — that means the atlas
-  // is wrong, not your room.** No fudge here; 0.45 is the seat pan these
-  // chairs are built with, and it is passed as the pan height, not as a
-  // number that happens to look right.
+  // is wrong, not your room.** No fudge here: `SEAT_TOP` is the TOP of the
+  // pan, declared once beside the pan itself, and that is what H's rule asks
+  // for. (This comment used to say "0.45 is the seat pan these chairs are
+  // built with". 0.45 was the pan's CENTRE, not its top, and the readers sat
+  // 2.5 cm into their chairs for it. Left in as the reason `SEAT_TOP` exists.)
   const sitter = (look: Parameters<typeof citizenSprite>[0], lx: number, lz: number, facing: number) => {
     const s = citizenSprite({ ...look, seated: true }, { facing, h: 0.97, w: 0.95 });
     put(s.mesh, lx, SEAT_TOP, lz);
+    // TAG THEM AS PEOPLE, exactly as `room.person` does. These figures do not
+    // go through the kit — a sitter is placed at the seat top, not the floor —
+    // so nothing else sets this, and `ct/interior.ts` says in as many words
+    // that the tag "is the only thing that knows which meshes are people",
+    // because a shape test also catches the thrift's mannequin and the diner's
+    // framed photographs. Without it these readers are 8-angle citizens that
+    // no world-level people check can see: a sweep asking "does every figure
+    // turn?" or "is every seated figure on its seat" skips them silently, and
+    // a check that skips a figure reports GREEN rather than reporting nothing.
+    s.mesh.userData.citizen = true;
+    s.mesh.userData.seated = true;
     ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
   };
   // A reader at the long table, on the far side, facing back across it — so
