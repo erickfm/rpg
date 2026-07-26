@@ -726,6 +726,58 @@ export interface Ground {
  * not guess. Parts carry userData.basinPart so a check can find them by name
  * rather than by size (park.mjs went blind once matching on exact dimensions).
  */
+/** A SOLDIER COURSE ALONG A CUT CORNER.
+ *
+ *  Routed by the auditor from D's bodega work: the walk's joints are a square
+ *  1 m grid and the bodega cuts its corner at 45°, so the joints run diagonally
+ *  INTO the foot of the canted bay instead of meeting it. Nothing clips — D
+ *  measured that no ground plane extends under the building — the grid simply
+ *  does not know the bay is there.
+ *
+ *  A cut corner wants its paving cut to match, and the way that is done in the
+ *  street is a soldier course: one row of flags laid PARALLEL to the face, so
+ *  the field joints die against a band instead of striking the wall at an
+ *  angle. Same trick as a border course round a manhole.
+ *
+ *  The bay face is measured, not guessed: the two shopfront mullions at
+ *  (7.56, -94.47) and (8.53, -95.44) both satisfy `x + z = -86.91`, which is
+ *  the 45° cut line.
+ *
+ *  4 mm proud rather than coplanar. GOTCHAS §6 says abut, never overlap, and a
+ *  band laid exactly on the flags would z-fight the whole length; a real
+ *  granite course stands a little proud of the paving it edges, so the honest
+ *  drawing and the safe one agree. */
+function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: number,
+                       len: number, wide: number, y: number,
+                       /** the builder's `wet(flat(...))`; module scope cannot see
+                        *  either, and floorDrain above takes the same treatment */
+                       dress: (t: THREE.Texture) => THREE.Material): void {
+  // joints ACROSS the band, one per 0.5 m of run, so they read as laid flags
+  const PX = Math.round(WPM);                       // the world's one density
+  const w = Math.max(8, Math.round(len * PX)), h = Math.max(6, Math.round(wide * PX));
+  const t = pixTex(w, h, (g) => {
+    g.fillStyle = '#807d76';                        // a shade cooler than the walk
+    g.fillRect(0, 0, w, h);
+    for (let i = 0; i < w * h * 0.09; i++) {
+      const x = Math.random() * w, y2 = Math.random() * h, v = Math.random();
+      g.fillStyle = v < 0.5 ? `rgba(56,53,47,${0.05 + v * 0.20})`
+                            : `rgba(220,215,203,${(v - 0.5) * 0.26})`;
+      g.fillRect(x, y2, 1, 1);
+    }
+    g.fillStyle = 'rgba(0,0,0,0.26)';
+    const step = Math.round(0.5 * PX);
+    for (let x = step; x < w - 1; x += step) g.fillRect(x, 0, 2, h);   // transverse joints
+    g.fillRect(0, 0, w, 2); g.fillRect(0, h - 2, w, 2);                // the two long edges
+  });
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(len, wide), dress(declareSurface(t, 'ground')));
+  m.rotation.x = -Math.PI / 2;
+  m.rotation.z = -yaw;                 // after the flat rotation, z spins it in plan
+  m.position.set(cx, y + 0.004, cz);
+  m.userData.mod = 'tex-ground';
+  scene.add(m);
+}
+
 export function floorDrain(scene: THREE.Scene, x: number, y: number, z: number, size = 0.60,
                            /** Pass `ctx.wet` to have the casting darken with the ground it
                             *  sits in. Optional and identity by default, because this is
@@ -887,6 +939,25 @@ export function buildGround(o: GroundOpts): Ground {
     scene.add(skirt);
   }
   slab(8.5, 57, o.SIDE_Z0 + CH, -96);                          // north side-street walk
+  // ── the bodega's cut corner ──────────────────────────────────────────────
+  // The bay face is the line x + z = -86.91, measured off its two shopfront
+  // mullions. Centre the course on the middle of that run and push it 0.24 m
+  // clear of the wall along the face normal, so it edges the flags rather than
+  // butting the brick. See soldierCourse's note.
+  {
+    const C = -86.91;                              // x + z on the bay face
+    const midX = 8.045, midZ = -94.955;            // midpoint of the measured run
+    // Walked into the corner to find the wall rather than reading bounding
+    // boxes: the cant is built from axis-aligned boxes so its 45° face is not
+    // any box edge. The player stops at x+z = -87.58 and carries a ~0.40 m
+    // radius, putting the face at -87.01 — the mullion line, so the flags do
+    // run right up to the wall. A 0.42 m band with its inner edge on the wall
+    // wants its centre at x+z = -87.31, which is 0.40 m out along the normal.
+    const off = 0.40 / Math.SQRT2;
+    soldierCourse(scene, midX - off, midZ - off, Math.PI / 4, 2.60, 0.42, KERB_H,
+                  (t) => wet(flat(t)));
+    void C;
+  }
   slab(-ROAD_HALF - CH, 55 + CH, o.SIDE_Z1 - 2, -108 - CH);    // south side-street walk
   slab(55 + CH, 57, o.SIDE_Z1 - 2, o.SIDE_Z0 + CH);            // east end of the side street
 
