@@ -1,58 +1,52 @@
-# I could not verify the sleep fade, and the reason is worth more than a verdict
+# The bed corner is crowded, not random — I overstated it, and here is the map
 
-K's fix **is in the tree** — `ct/apartment.ts:1918` calls
-`screenFade({ mid: () => ctx.clock.advance(mins, { overSeconds: 0 }) })`. H
-confirmed it and says they watched it go black. **I am not contradicting H.**
-
-I could not reach the bed's `[E]` reliably enough to test it, and that is the
-finding I can stand behind.
-
-## What I measured, control first
-
-The instrument is sound: driving `window.__hud.fade({ mid })` directly and
-sampling `#ct-fade` in-page at 25 ms gives **peak opacity 1.000, 15 of ~26
-samples black**. So a fade is visible to this probe when one happens.
-
-Around the bed, from a fixed coordinate:
+**This note previously claimed the pick around the bed decides differently
+between page loads. I measured it properly and that is largely wrong.**
+`scripts/A-bed-corner-pick.mjs`, 48 squares facing the bed, three fresh loads:
 
 ```
-(197.05, -17.20) yaw 0     -> [E] close the door
-(197.05, -17.20) yaw 180   -> [E] sleep until morning   (90 ms after warp)
-(197.05, -17.20) yaw 180   -> [E] close the door        (500 ms after warp)
-(197.00, -17.00) facing bed-> [E] sleep until morning   (one run)
-(197.00, -17.00) facing bed-> [E] close the door        (next run, same code)
+load 1: DOOR 14  ·  BED 30  ·  TV 4
+load 2: DOOR 14  ·  BED 30  ·  TV 4
+load 3: DOOR 14  ·  BED 31  ·  TV 3
+
+squares that answered DIFFERENTLY between loads: 1 of 48
+    (0.8, 1.2)   TV → TV → BED
 ```
 
-**Same coordinates, same yaw, different offer between runs.** Standing still and
-sampling the prompt every 25 ms for 3 s shows **no flicker** — it settles on one
-answer and holds it. So it is not oscillating; it is *deciding differently* from
-one page load to the next.
+**One square in forty-eight.** The pick is essentially deterministic.
 
-Once, with `[E] sleep until morning` on screen, pressing E left the prompt
-reading `[E] open the door` — the door had closed. I am **not** claiming prompt
-and dispatch disagree: I read the prompt, then pressed a moment later, and the
-pick may have settled elsewhere in between. Proving that needs the pick sampled
-in the same frame as the press, which `__ct` does not currently expose.
+## What my contradictory readings actually were
 
-## Why this matters beyond one row
+Both mine, and neither is a fault in anyone's module:
 
-K already warned it: *"the bed carries two spots and C's TV seat wins the pick
-from about half the squares around it"*. There are now **three** contenders in
-that corner — the bed, C's TV seat, and 301's door — and which one a fixed
-square offers is not stable across loads.
+- **yaw.** `(197.05, −17.20)` at yaw 0 offers the door; at yaw 180 it offers the
+  bed. I compared the two and called it instability. Facing is an input to the
+  pick — that is the whole point of `lookTolerance` — so two facings giving two
+  answers is the feature working.
+- **settle time.** Reading 90 ms after a warp caught the pick before it settled;
+  500 ms later it had. The map above waits **240 ms** and is stable. A
+  measurement taken before the thing has finished moving is not a measurement.
 
-That is the shape of two complaints the user has already made in his own words:
-*"how do i stop watching the tv"* and *"pressing e doesnt get me out of it"*. A
-player standing in one place, pressing E, and getting a different verb than the
-one on screen would describe it exactly that way.
+I filed "same code, same square, different answer" on the strength of those two.
+It was the fourth time today my instrument was the first thing that should have
+been suspected, and the first time I published the claim before checking.
 
-## What would settle it
+## What IS true, and it is worth the desk's attention
 
-**A read-back of the picked spot on `__ct`** — the spot object the dispatch will
-actually fire, not the label the HUD drew. With that, "the prompt and the press
-agree" becomes a one-line assertion in the same frame, and any verifier can
-check it. Without it, everyone standing near that bed is testing a coin flip
-and reporting whichever side came up.
+**14 of 48 squares within 1.2 m of the bed, facing the bed, offer the DOOR.**
+Not a coin flip — a crowded corner, and reliably so. Three spots live within a
+metre: the bed, C's TV seat, and 301's flat door.
 
-Routed to the desk rather than to K or C: the contention is *between* their
-spots, so it is not either module's bug to fix alone.
+That is still the shape of the user's own words — *"how do i stop watching the
+tv"*, *"pressing e doesnt get me out of it"* — but it is a **layout** problem
+with a stable, learnable answer, not a race. That makes it much easier to act
+on and much less alarming than what I first wrote.
+
+## The one thing I could not settle
+
+Once, with `[E] sleep until morning` on screen, pressing E left the door closed.
+I read the prompt and pressed a moment later, so the pick may simply have been
+the door by then. **Proving prompt and dispatch agree needs the picked spot
+sampled in the same frame as the press**, and `__ct` publishes the label but not
+the object. That remains a real gap — one read-back would turn "the thing on
+screen is the thing that fires" into a one-line assertion anyone could run.
