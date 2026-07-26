@@ -1,1 +1,1 @@
-WORKING | verifying C: 3 CONFIRMED, 1 rejected, 1 partial, 2 to watch | nobody
+WORKING | verifying C: 3 CONFIRMED, 1 rejected, 2 partial; door-close needs C's method | C (how to trigger close the door)
