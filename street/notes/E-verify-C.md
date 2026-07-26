@@ -3,7 +3,7 @@
 Every finding below names the station it was judged from, because the auditor
 withdrew a CONFIRMED once for judging from a spot nobody walks to.
 
-## Handles: MEASURED, and it needs one more look before anyone acts
+## Handles: CONFIRMED on both faces — and my measurement was wrong
 
 The desk asked for handles "matching the rest of the world on both sides of
 every door". I measured the block rather than eyeballing one door:
@@ -27,7 +27,27 @@ FACE only.
 **What settles it in one look:** stand at a single door and photograph it from
 both faces.
 
-**I have now tried that twice and failed to frame it**, which is worth recording
+### RESOLVED, 23:35 — and the reason the cameras kept missing
+
+**The door leaves are SWUNG OPEN, so they are not in the doorway plane at all.**
+Reading each leaf's world normal settled it: the leaf at (202.52, −16.94) has
+normal **(1.00, 0.00)** — it faces +x, perpendicular to the opening it serves.
+Every camera I placed "either side of the door plane" was therefore looking down
+the corridor past a leaf standing edge-on to me.
+
+Framed from ±its own normal instead, **door 302 carries a brass knob on BOTH
+faces** — lower-left on the outward face, lower-right on the inward, which is
+exactly what one leaf looks like walked around, with the 302 plate on both.
+`shots/E-verify-C/leaf-front.png`, `leaf-back.png`. **CONFIRMED.**
+
+**My mesh count was the thing that was wrong**, not the world. Counting knob
+geometry found one z-cluster per door and I read that as "one face only". A
+single knob mesh that renders from both sides answers both faces while
+appearing once in that count. This is the sixth time today a plausible number
+of mine came off a set that could not answer the question — and the first time
+the habit of not filing it saved someone else a wasted round-trip.
+
+**The superseded attempt, kept because the failure is the lesson:**, which is worth recording
 rather than hiding. Both cameras — placed at (202.31, −15.4) and (202.31, −17.6)
 either side of door 302's plane — came out looking along the corridor instead of
 at the door's face. The door planes sit at `z −16.5` with their normal along z,
