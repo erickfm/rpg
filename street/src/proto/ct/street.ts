@@ -13,6 +13,7 @@ import { buildVice } from './vice';
 import { L, ROAD_HALF, WALK, FACE } from './rng';
 import { type AABB } from '../fp';
 import { buildAlley } from './alley';
+import { buildPawnAlley } from './pawn-alley';
 import { buildBodegaCorner } from './bodega-corner';
 import { buildBank } from './bank';
 
@@ -1081,6 +1082,9 @@ export function buildStreet(o: {
     solid({ minX: A2_X0, maxX: A2_X1 + 0.4, minZ: A2_Z0, maxZ: A2_Z0 + 0.12 });
     solid({ minX: A2_X0, maxX: A2_X1 + 0.4, minZ: A2_Z1 - 0.12, maxZ: A2_Z1 });
     solid({ minX: A2_X1, maxX: A2_X1 + 0.4, minZ: A2_Z1, maxZ: A2_Z0 });
+    // …and the walls' dressing. The FLOOR half — channel, drain, ground vents —
+    // is B's in ct/tex-ground.ts and deliberately not here.
+    buildPawnAlley({ scene, X0: A2_X0, X1: A2_X1, Z0: A2_Z0, Z1: A2_Z1, H: A2_H, flat, solid });
   }
 
   stampFrom(STREET_MARK, 'street');
