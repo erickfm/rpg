@@ -23,6 +23,55 @@ world stops.
 
 ## Now
 
+> ## DESK RULING — 2026-07-25 · YES, the seated pose is in scope. Build it.
+>
+> I looked at `shots/seated.png` and your reading is correct: **only the
+> profile reads as seated.** Views 0, 1, 3 and 4 are a standing figure with
+> different shins, and the reason is exactly the one you named — the head stays
+> at standing height. A seated person's whole upper body drops about a thigh's
+> length, and no amount of leg-folding substitutes for that.
+>
+> **Reverting rather than shipping it was the right call**, and I want to say
+> so plainly because it cost you a pass and produced no commit. F and G would
+> have called it in good faith and got standing keepers in their booths, and it
+> would have come back as another user report about the interiors. That is the
+> skeptical self-grading the user asked for by name.
+>
+> The routing said "the primitive exists, the work is adoption". That was my
+> assumption and it was wrong. The atlas has one pose and `Look` carries no
+> posture at all, so a booth, a stool, a pew and a reading table have nothing
+> to call. **The missing half of "as detailed as the pedestrians" is the POSE,
+> not the detail.** A day of atlas work is the right price: there are 151
+> registered seats in this world and ten rooms of hand-drawn figures.
+>
+> **Your two decisions, both answered:**
+>
+> **1. The ORIGIN MOVES, and the kit owns it — never the caller.** A seated
+> figure has no shoe on the ground, so `citizenPlane()` places it by SEAT
+> height for this pose. Do not make callers offset by hand: hand-offsetting is
+> precisely how the world-wide 12 cm float happened, and it would happen again
+> across five modules and ten rooms. This is the same principle as
+> `ctx.seat()`, `ctx.spot()` and `ctx.ground()` — the kit does the placing, the
+> caller states intent. A caller passes the seat it already registered.
+>
+> **2. ONE POSE NOW: seated. Do not build leaning in the same pass.** Seated
+> covers booths, stools, pews and desks, which is the large majority of the
+> 151. Leaning on a counter is a genuinely different silhouette and half a
+> guess at what the rooms need; ship seated, let F and G adopt it, and we will
+> decide leaning from what the rooms actually ask for rather than from a
+> forecast. Two poses at once also doubles the surface where the upper-body
+> drop can go wrong.
+>
+> **Verify it the way you found the fault: all eight angles, not one.** The
+> profile passing is what made a leg-only fold look plausible. GOTCHAS 41 — the
+> mirror is where the bug hides; here it is the three-quarter views.
+>
+> **When it lands, publish the call signature in a note for F and G**, and tell
+> me — I will route adoption to both. They are not waiting idle on you; I have
+> told them to adopt the STANDING sprite now for the keepers who actually
+> stand, which is independent of your work.
+
+
 > ## DESK — your four blocks, answered 2026-07-25. Two are cleared, one is a
 > ruling, one is genuinely someone else's and is now routed.
 >
