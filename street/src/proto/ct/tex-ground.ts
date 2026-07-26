@@ -79,15 +79,48 @@ const DRIVE_F = 0.9;     // flared wing either side, as the pedestrian ramp
 const DRIVES: { x: number; z: number; hw: number }[] = [
   { x: ROAD_HALF, z: 2.6, hw: 3.4 },     // the car lot, east kerb
 ];
+
+// ── PEDESTRIAN RAMPS ON A STRAIGHT RUN ────────────────────────────────────
+//
+// `revealAt` can only dip a FILLET — it ramps the kerb round a corner arc, and
+// that was enough while every crossing in the world met the kerb at a corner.
+// The junction crossings do not: the desk asked for them SET BACK to where the
+// kerb is genuinely parallel, past the corner radius, because that is what a
+// real junction does when its corner is rounded. So the kerb has to be able to
+// drop mid-run, which is exactly what the driveway cut already does.
+//
+// Same mechanism, different profile, and one list so a future reader does not
+// find two ways to cut a kerb. A pedestrian ramp keeps a smaller lip than a
+// driveway (a wheel has to climb a drive; a foot does not) and is only as wide
+// as the crossing it serves.
+//
+// AXIS, and it is why this is not a two-line change: the main street's kerbs
+// run along z and the side street's along x. `driveReveal` keyed on x and
+// varied along z with that assumption baked in, so a cut on the side street's
+// kerb would have been silently ignored.
+const PED_H = 0.022;     // a 1 in lip at the gutter — period-correct, and it
+                         // keeps the gutter carrying water past the crossing
+const PED_F = 0.75;      // flared wing either side
+interface KerbCut { x: number; z: number; hw: number; axis: 'x' | 'z'; lip: number; flare: number }
+const CUTS: KerbCut[] = [
+  ...DRIVES.map((d) => ({ ...d, axis: 'z' as const, lip: DRIVE_H, flare: DRIVE_F })),
+];
+/** register a pedestrian ramp; called from buildGround where the crossings are
+ *  laid, so the paint and the dropped kerb cannot drift apart */
+function pedCut(x: number, z: number, hw: number, axis: 'x' | 'z'): void {
+  CUTS.push({ x, z, hw, axis, lip: PED_H, flare: PED_F });
+}
 /** kerb reveal at a point on a STRAIGHT run — full height everywhere except
- *  across a driveway, where it drops to a lip and flares back up */
+ *  across a cut, where it drops to a lip and flares back up */
 function driveReveal(x: number, z: number, KERB_H: number): number {
-  for (const d of DRIVES) {
-    if (Math.abs(x - d.x) > 1) continue;           // this kerb line only
-    const e = Math.abs(z - d.z);
-    if (e <= d.hw) return DRIVE_H;
-    if (e >= d.hw + DRIVE_F) continue;
-    return DRIVE_H + (KERB_H - DRIVE_H) * ((e - d.hw) / DRIVE_F);
+  for (const d of CUTS) {
+    // the run this cut is ON, then how far along it we are
+    const off = d.axis === 'z' ? Math.abs(x - d.x) : Math.abs(z - d.z);
+    if (off > 1) continue;                          // this kerb line only
+    const e = d.axis === 'z' ? Math.abs(z - d.z) : Math.abs(x - d.x);
+    if (e <= d.hw) return d.lip;
+    if (e >= d.hw + d.flare) continue;
+    return d.lip + (KERB_H - d.lip) * ((e - d.hw) / d.flare);
   }
   return KERB_H;
 }
@@ -639,7 +672,14 @@ const KR = [0, 2.0, 2.0, 2.0, 3.5, 0];      // fillet radius per vertex
 // straight kerb ENDS at x = 53 and the crossing at x = 54 lands inside both
 // corner arcs. The fillet ramp is exactly the right mechanism, and the desk's
 // "give it the same treatment" is literally correct.
-const KRAMP = [false, false, true, true, true, false];
+// 2 and 3 — the CLOSED EAST END — carried ramps ONLY because a crossing was
+// put there, and the user has now asked for that crossing to go
+// (shots/user-remove-crosswalk.png). A dropped kerb at a dead end serving
+// nothing is a dip in the kerb for no reason, and he has separately complained
+// about the kerb being discontinuous. So they go with the paint, and the east
+// end is a continuous kerb again. Index 4, the bodega corner, keeps its ramp —
+// it now serves two real crossings instead of none.
+const KRAMP = [false, false, false, false, true, false];
 // Which vertices are the main-street / side-street JUNCTION. The two at x=55
 // are the closed east end of the side street, not an intersection, so they
 // are not corner approaches and carry no red kerb (see the paint rules above).
@@ -686,8 +726,18 @@ function buildPath(KERB_H: number): { pts: Sample[]; fillets: Fillet[] } {
     // a driveway's flare is only 0.9 m long — at 1 m spacing the ramp down to
     // the lip would be a single step. Subdivide finely on any run that passes
     // one.
-    const nearDrive = DRIVES.some((d) => Math.abs(d.x - cx) < 1 &&
-      Math.min(cz, ez) - (d.hw + DRIVE_F + 1) < d.z && d.z < Math.max(cz, ez) + (d.hw + DRIVE_F + 1));
+    // EVERY cut, not just the driveways. A ped ramp's flare is 0.75 m, so at
+    // 1 m sampling the drop to the lip would be a single step — the same fault
+    // this line was written to avoid for driveways, and it would have come back
+    // silently the moment a cut was added on the other axis.
+    const nearDrive = CUTS.some((d) => {
+      const runOff = d.axis === 'z' ? Math.abs(d.x - cx) : Math.abs(d.z - cz);
+      if (runOff >= 1) return false;
+      const a = d.axis === 'z' ? cz : cx, b = d.axis === 'z' ? ez : ex;
+      const at = d.axis === 'z' ? d.z : d.x;
+      const pad = d.hw + d.flare + 1;
+      return Math.min(a, b) - pad < at && at < Math.max(a, b) + pad;
+    });
     const n = Math.max(1, Math.round(runL / (nearDrive ? 0.2 : 1)));
     for (let k = 0; k <= n; k++) {
       const u = k / n;
@@ -876,22 +926,72 @@ export function crossingStripes(scene: THREE.Scene, cx: number, z0: number, z1: 
                                 halfW: number, y: number,
                                 /** the builder's `wet(flat(...))` — road paint gets
                                  *  wet with the road it is painted on */
-                                dress: (t: THREE.Texture) => THREE.Material): void {
+                                dress: (t: THREE.Texture) => THREE.Material,
+                                /** WHICH WAY THE PEDESTRIAN WALKS. The bars run
+                                 *  across their path and repeat along it, so the
+                                 *  axis decides the whole layout — and this
+                                 *  function used to assume 'z' silently. I claimed
+                                 *  once that it was reusable for both junction
+                                 *  crossings "on one call"; it was not, because the
+                                 *  main street runs north-south and its crossing is
+                                 *  walked east-west. `cx`/`z0`/`z1` are read in the
+                                 *  travel frame: z0..z1 is the span the walker
+                                 *  crosses, cx the centre line of the crossing. */
+                                travel: 'x' | 'z' = 'z'): void {
   const len = Math.abs(z1 - z0), w = halfW * 2;
   const cw = Math.max(8, Math.round(w * WPM)), ch = Math.max(8, Math.round(len * WPM));
   const BAR = 0.45, PITCH = 1.0;                    // bar depth and spacing, in metres
   const t = pixTex(cw, ch, (g) => {
     g.clearRect(0, 0, cw, ch);
     const bar = Math.round(BAR * WPM), pitch = Math.round(PITCH * WPM);
-    // start half a gap in, so neither kerb gets a half-bar jammed against it
-    for (let p = Math.round((pitch - bar) / 2); p + bar <= ch; p += pitch) {
-      g.fillStyle = 'rgba(214,210,196,0.92)';       // road white, not paper white
+    // WORN, NOT FRESH — the desk, and it was right: the first version came out
+    // a clean cream against a dark grimy road and read as painted that morning.
+    // Everything else on this street is filthy, so a crisp crossing is the one
+    // object that looks newer than the world it is in.
+    //
+    // Four kinds of wear, and they are different physical things rather than
+    // four strengths of the same noise:
+    //   · the base is thinner overall, so asphalt shows through everywhere
+    //   · WHEEL TRACKS eat two bands across every bar, where tyres actually run
+    //   · each bar is a different age — repainting is done a bar at a time
+    //   · the ENDS lift first, at the kerb, where water and grit sit
+    //
+    // DETERMINISTIC, from a local hash — not rnd() (GOTCHAS 2: one seeded
+    // stream and its call order is load-bearing) and not Math.random (the
+    // scenedump harness seeds it, so a draw here would move other things).
+    const hsh = (i: number) => { const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); };
+    let k = 0;
+    for (let p = Math.round((pitch - bar) / 2); p + bar <= ch; p += pitch, k++) {
+      // bar-to-bar age: some were touched up last year, some were not
+      const age = 0.60 + hsh(k) * 0.22;
+      g.fillStyle = `rgba(206,202,188,${age.toFixed(3)})`;   // road white, greyed
       g.fillRect(0, p, cw, bar);
-      // worn: traffic eats the middle of a bar where the wheels track
-      g.fillStyle = 'rgba(214,210,196,0.55)';
-      g.fillRect(Math.round(cw * 0.30), p, Math.round(cw * 0.16), bar);
-      g.fillStyle = 'rgba(214,210,196,0.62)';
-      g.fillRect(Math.round(cw * 0.62), p, Math.round(cw * 0.13), bar);
+      // WHEEL TRACKS. A vehicle crosses the bars square, so the tracks run the
+      // length of the bar and sit where the wheels of a 1.7 m track land —
+      // taken as a fraction of the carriageway, not a fixed pixel count, so it
+      // stays right on both crossings whatever the road measures.
+      for (const t of [0.28, 0.72]) {
+        g.fillStyle = `rgba(206,202,188,${(age * 0.45).toFixed(3)})`;
+        g.fillRect(Math.round(cw * (t - 0.075)), p, Math.max(2, Math.round(cw * 0.15)), bar);
+      }
+      // the ends lift first — the last 8% at each kerb is half gone
+      const end = Math.max(1, Math.round(cw * 0.08));
+      g.fillStyle = `rgba(206,202,188,${(age * 0.55).toFixed(3)})`;
+      g.fillRect(0, p, end, bar);
+      g.fillRect(cw - end, p, end, bar);
+      // and holidays: small patches scrubbed back to nothing, so the bar has a
+      // ragged edge rather than a ruled one
+      for (let i = 0; i < 5; i++) {
+        const hx = Math.floor(hsh(k * 17 + i) * cw);
+        const hy = p + Math.floor(hsh(k * 31 + i + 5) * bar);
+        const hw2 = 1 + Math.floor(hsh(k * 53 + i) * 3);
+        g.clearRect(hx, hy, hw2, 1 + Math.floor(hsh(k * 71 + i) * 2));
+      }
+      // a chip out of one end of most bars
+      if (hsh(k * 97) > 0.35) {
+        const cy = p + Math.floor(hsh(k * 113) * (bar - 2));
+        g.clearRect(hsh(k * 131) > 0.5 ? 0 : cw - 3, cy, 3, 2);
+      }
     }
   });
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
@@ -903,7 +1003,16 @@ export function crossingStripes(scene: THREE.Scene, cx: number, z0: number, z1: 
   mat.depthWrite = false;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, len), mat);
   m.rotation.x = -Math.PI / 2;
-  m.position.set(cx, y + 0.004, (z0 + z1) / 2);
+  // Lay it in the travel frame. Rotating in PLAN rather than rebuilding the
+  // canvas keeps one texture path and one worn pattern for every crossing in
+  // the world, which is what stops the junction reading as a different kind of
+  // paint from the rest of the street.
+  if (travel === 'x') {
+    m.rotation.z = Math.PI / 2;
+    m.position.set((z0 + z1) / 2, y + 0.004, cx);
+  } else {
+    m.position.set(cx, y + 0.004, (z0 + z1) / 2);
+  }
   m.userData.mod = 'tex-ground';
   m.userData.groundProp = 'crossing stripes';
   scene.add(m);
@@ -1231,6 +1340,21 @@ export function buildGround(o: GroundOpts): Ground {
   // updateRain every frame, so register what you do not paint yourself.
   scene.userData.registerWet = wet;
   const mark = scene.children.length;   // see ct/props.ts — stamped at the end
+
+  // ── where the junction crossings land, declared BEFORE the kerb is built ──
+  //
+  // Order matters and it is not obvious: `buildPath` samples `driveReveal` for
+  // every vertex it emits, so a ramp registered after it exists in the list and
+  // in nothing you can see. The paint is laid further down from these same four
+  // numbers, so the dropped kerb and the stripes cannot drift apart — which is
+  // the whole of "aligned with the kerb ramps, or put ramps where they land".
+  const XA_Z = -90.2, XA_HW = 1.3;         // across the MAIN street, walked E-W
+  const XB_X = 10.6, XB_HW = 1.3;          // across the SIDE street, walked N-S
+  pedCut(-ROAD_HALF, XA_Z, XA_HW, 'z');    // west kerb of the main street
+  pedCut(ROAD_HALF, XA_Z, XA_HW, 'z');     // east kerb
+  pedCut(XB_X, o.SIDE_Z0, XB_HW, 'x');     // north kerb of the side street
+  pedCut(XB_X, o.SIDE_Z1, XB_HW, 'x');     // south kerb
+
   const { pts, fillets } = buildPath(KERB_H);
 
   // ── apply the red-kerb rules to this particular block ──────────────────
@@ -1633,7 +1757,38 @@ export function buildGround(o: GroundOpts): Ground {
   // 53.8 lands the far edge at 54.9 — abutting that kerb rather than climbing
   // over it (GOTCHAS 6). 20 cm off H's centreline, well inside the corridor
   // their walkers use.
-  crossingStripes(scene, 53.8, -107.4, -98.6, 1.1, 0, (t) => wet(flat(t)));
+  // ── THE JUNCTION CROSSINGS ────────────────────────────────────────────
+  //
+  // The stripes used to be at the side street's DEAD EAST END (x 53.8, spanning
+  // z -107.4..-98.6). The user: *"remove that crossing"*
+  // (shots/user-remove-crosswalk.png) — confirmed by position before deleting
+  // anything, since the junction has legitimate ones: the only painted crossing
+  // mesh in the world measured x 52.70..54.90, z -107.40..-98.60, and SEVENS
+  // stands at x 45.45..57.00 with its face at z -96, which is the marquee in
+  // his shot. Unambiguous.
+  //
+  // And it moves HERE, which is the same move rather than the opposite one:
+  // *"a wide open intersection, citizens waiting on the kerb, and NO crossings
+  // anywhere on it."* The paint goes where people already stand.
+  //
+  // TWO, NOT FOUR. The junction is a T — the main street runs on north and the
+  // side street dead-ends east — so there are only two arms anybody crosses to
+  // get anywhere: over the main street to reach the west pavement, and over the
+  // side street to reach the south one. A fourth arm would be a crossing to a
+  // kerb nobody walks to, and a 1997 corner gets paint where the traffic
+  // engineer had a reason, not for symmetry.
+  //
+  // SET BACK PAST THE CORNER ARC, which the desk asked for and the geometry
+  // forces. The bodega return is a 3.5 m radius, so the kerb is not parallel to
+  // anything until z = -94.5 on the main street and x = 8.5 on the side street.
+  // A crossing laid against a curve has one end square and the other splayed.
+  //
+  // AND CLEAR OF THE GULLY. The east catch basin sits at (5, -92.5) and its
+  // casting runs z -93..-92 — stripes over a casting z-fight it and read as
+  // paint laid over ironwork, which is not what a crossing is. The window south
+  // of it is only 1 m wide, so the crossing goes north of it.
+  crossingStripes(scene, XA_Z, -ROAD_HALF, ROAD_HALF, XA_HW, 0, (t) => wet(flat(t)), 'x');
+  crossingStripes(scene, XB_X, o.SIDE_Z1, o.SIDE_Z0, XB_HW, 0, (t) => wet(flat(t)), 'z');
 
   // The lot mouth: the kerb cut at z 2.6 (DRIVES above). Wide enough to cover
   // the carriageway the player looks down when driving out, long enough along

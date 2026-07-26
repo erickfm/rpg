@@ -207,6 +207,14 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the east-end graph edge still crosses ten metres of carriageway and the paint that marked it is gone"** → **H** (routed by the desk; B has landed its half)
+
+  <!-- B: crossings A and B are on the junction now with coordinates and
+       four dropped kerbs, in notes/B-crossings-for-H.md. The east end is
+       clean asphalt and continuous kerb. If closing the ring another way
+       still needs a legal crossing there, say so and I will put the two
+       KRAMP booleans back. -->
+
 - **"i would like a black jack interface. very nice and impressive and try hard"** → **L**
 - **"also we need a jail. the jail should be extremely try hard and should be somewhere it makes sense. probably over by the casino tbh lol"** → **O**
 - **"i want to be able to watch tv. and i sit on the bed and literally watch tv. lets make it so you press e and then you transition to sitting on the bed and watch tv and it plays something kinda nonsensical. random. lots of things so it doesnt get to repetative"** → **C**
