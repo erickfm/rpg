@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 21-44-52.png' the highlight is not the contour of the full bed but simply the frame?"** → **D**
 - **"'Screenshot from 2026-07-25 21-44-36.png' the door isnt high lighted?"** → **D**
 - **"door handles on my floor dont match other door handles. pls fix"** → **C**
 - **"neighbors door should be closed when neighbor is not out"** → **C**
