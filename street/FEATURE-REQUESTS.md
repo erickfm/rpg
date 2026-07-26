@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"i need much more diversity on the ads, theyre all basically the same ad just diffr colors almost"** → **C**
 - **"a casino slot stool opens a modal and hud.ts BLOCKS keydown while a panel is open — neither E nor Escape reaches the world"** → **K**
 - **"one missing ATM line now blocks three rows, and two of them are already green"** → **A** (measured by B from three directions)
 
