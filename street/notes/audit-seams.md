@@ -786,3 +786,40 @@ reading "placed by walking into it, not by reading bounding boxes" was that it
 must be right. **The quality of a builder's reasoning is not evidence about the
 world** — I only caught it because the numbers came out as B's own two figures
 transposed, which is a pattern worth watching for on its own.
+
+## [C] "im literally stuck here": the map is clean, the crowd is not
+
+Swept the whole world rather than hunting the one spot: gridded 100 × 138 m at
+0.4 m and flood-filled it **as a disc of radius 0.36**, the player's own
+footprint, not as points.
+
+**8592 m² in ONE connected region.** There is nowhere you can walk into and not
+walk out of. That is a real negative result, and it relocates the fault.
+
+**[I] One of my four "pockets" was the instrument.** Re-tested at 0.1 m, the
+314 m² region at (57.6, −114.2) reaches straight out — my 0.4 m sampling had
+**closed a gate that is genuinely open**. The other three are the churchyard's
+two side strips and a park bed, behind continuous railings; colliders here are
+2D AABBs with no height, so jumping cannot enter them either.
+
+*A grid coarser than the gap it is looking for will invent walls.* I only caught
+it by re-testing at a resolution finer than the smallest opening that matters —
+which for a 0.72 m player means the grid must be well under 0.72 m, and 0.4 was
+not.
+
+**[Is] The churchyard gate is real and E's CONFIRMED stands.** The railing runs
+x 7.00–7.30 over z −77.95…−68.00, and a *second* section covers −86.00…−81.05,
+leaving a 3.1 m opening at z −81…−78 — exactly where the church door sits at
+(9.6, −79.5). I nearly recorded a conflict with that row before reading the
+second collider.
+
+**Where the user actually got stuck.** A citizen box is 0.5 m wide and people are
+solid, so wherever a fixture leaves under **1.22 m** (0.72 player + 0.50 citizen)
+one pedestrian standing still closes the walk below the player's own width:
+**24 of 1380 lane samples**, ~16 excluding the world's end cap. Tightest **1.06 m
+at side st north x 10.5**, where a citizen leaves **0.56 m**.
+
+**A wall alone never traps anyone in this world. A wall plus a person does.** The
+fix belongs in the crowd or in an unstick, not in the map — and `crowd.ts`
+already computes how wide the thing it is walking on is, so "do not come to rest
+where the lane is under 1.22 m" is expressible where the knowledge already lives.

@@ -2,110 +2,131 @@
 
 > *"in general we should not encroach the already cramped sidewalk"*
 
-**Headline: the lane holds. No fixture anywhere on the block leaves less than
-1.15 m, and 97.5% of it is clear at 1.40 m or better.** The desk's worry —
-"a lot of new furniture has landed today from five different builders who cannot
-see each other's work" — is not borne out by measurement.
+Player capsule **0.72 m** across (RADIUS 0.36). GOTCHAS §9: the 2 m lane is
+sacred. Measured, not eyeballed: at every 0.25 m along each lane, take the
+nominal walk band, subtract every collider crossing it, keep the **largest
+continuous free run**. 1380 samples per population.
 
-## Method
+**Two populations, reported separately.** 406 colliders, of which **13 are people**
+(`crowd.ts:153`, boxes deliberately ±0.25 so the player can pass, and they
+move — a pinch there is transient). The user's rule is about **fixtures**,
+which never move, so a pinch there is permanent.
 
-Player capsule **0.72 m** across (`RADIUS 0.36`). GOTCHAS §9: the 2 m lane is
-sacred. At every 0.25 m along each lane I take the nominal walk band, subtract
-every collider crossing it, and keep the **largest continuous free run** — not
-"does a thing touch the walk", but "how much unbroken width is left to walk
-through". 1380 samples per population, four lanes:
-
-| lane | band | extent |
-|---|---|---|
-| west walk | x −7.25…−5.25 (2.00 m) | z −108…15 |
-| east walk | x 5.25…7.25 (2.00 m) | z −96…15 |
-| side st north | z −97.75…−96.25 (**1.50 m**) | x 8…56 |
-| side st south | z −110.25…−108.25 (2.00 m) | x −6…56 |
-
-**Note the side street north is only 1.50 m wide to begin with** — it starts
-below the sacred 2 m, before anything is placed on it.
-
-## Two populations, and why they must not be conflated
-
-364 colliders, of which **12 are people**. `crowd.ts:153` makes every citizen
-solid with a box that **follows them**, and the author sized it deliberately:
-
-    // ±0.25, not ±0.30: bodies read the tiniest bit too wide to slip past.
-    // With the rig's 0.36 m radius that puts the gap needed to squeeze by a
-    // person at 0.61 m instead of 0.72 m.
-
-My first scan mixed them in and produced six "impassable" pinches at 0.63 m,
-spaced ~16 m apart. That spacing is `crowd.ts`'s own `const z = 4 - i * 16`.
-They were pedestrians, caught mid-stride, and a second run put them elsewhere.
-**A pinch caused by a person is transient; a pinch caused by a fixture is
-permanent, and only the second is what the user's rule is about.**
-
-## FIXTURES — the user's rule
+## FIXTURES ONLY — the user's rule
 
 | band | samples | % |
 |---|---|---|
-| IMPASSABLE <0.72 | 8 | 0.6% |
-| URGENT 0.72–0.80 | **0** | 0.0% |
-| PROBLEM 0.80–1.00 | **0** | 0.0% |
-| tight 1.00–1.40 | 26 | 1.9% |
-| clear ≥1.40 | 1346 | **97.5%** |
+| IMPASSABLE  <0.72 | 8 | 0.6% |
+| URGENT  0.72–0.80 | 0 | 0.0% |
+| PROBLEM 0.80–1.00 | 0 | 0.0% |
+| tight   1.00–1.40 | 26 | 1.9% |
+| clear ≥1.40 | 1346 | 97.5% |
 
-**All 8 impassable samples are one object** — `x −7…7, z 14.2…20.2`, the
-street's closed north end cap, which is the world boundary and not encroachment.
-My scan range simply ran 1 m past the end of the street. Excluding it, **nothing
-on the block is impassable and nothing is even under 1.00 m.**
+Stretches under 1.40 m: **17**
 
-### Every fixture under 1.40 m, ranked
+- **0.25 m** — east walk, z 14.3…15.0 (1.0 m long), between `(untagged)` [street] and kerb / lane edge
+  - left  `x -7…7  z 14.2…20.2`
+- **0.25 m** — west walk, z 14.3…15.0 (1.0 m long), between kerb / lane edge and `(untagged)` [street]
+  - right `x -7…7  z 14.2…20.2`
+- **1.06 m** — side st north, x 10.5…11.8 (1.5 m long), between kerb / lane edge and `(untagged)` [street]
+  - right `x 10.44…11.06  z -96.7…-96.1`
+- **1.15 m** — east walk, z -35.8…-34.3 (1.8 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.07…5.73  z -35.9…-34.1`
+  - right `x 6.88…26.7  z -53…-35`
+- **1.15 m** — east walk, z -93.0…-93.0 (0.3 m long), between `(untagged)` [props] and `unmatched`
+  - left  `x 5.15…5.55  z -93.2…-92.8`
+  - right `x 6.7…18.4  z -94…-86`
+- **1.15 m** — side st north, x 45.0…45.0 (0.3 m long), between `(untagged)` [props] and `(untagged)` [vice]
+  - left  `x 44.8…45.2  z -97.9…-97.5`
+  - right `x 33.45…45.45  z -96.3…-82`
+- **1.20 m** — side st north, x 20.0…20.0 (0.3 m long), between `(untagged)` [props] and kerb / lane edge
+  - left  `x 19.8…20.2  z -97.9…-97.5`
+- **1.27 m** — side st north, x 13.5…13.5 (0.3 m long), between `(untagged)` and kerb / lane edge
+  - left  `x 13.38…13.62  z -97.7…-97.5`
+- **1.27 m** — side st north, x 31.5…31.5 (0.3 m long), between `(untagged)` and kerb / lane edge
+  - left  `x 31.38…31.62  z -97.7…-97.5`
+- **1.33 m** — east walk, z -51.0…-51.0 (0.3 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.15…5.55  z -51.2…-50.8`
+  - right `x 6.88…26.7  z -53…-35`
+- **1.33 m** — east walk, z -23.0…-23.0 (0.3 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.15…5.55  z -23.2…-22.8`
+  - right `x 6.88…30.5  z -35…-22`
+- **1.33 m** — side st south, x 34.0…34.0 (0.3 m long), between `facing` [street] and `(untagged)` [props]
+  - left  `x 23…35  z -131.6…-109.9`
+  - right `x 33.8…34.2  z -108.5…-108.1`
+- **1.33 m** — west walk, z -65.0…-65.0 (0.3 m long), between `facing` [street] and `(untagged)` [props]
+  - left  `x -24.8…-6.88  z -68…-55.5`
+  - right `x -5.55…-5.15  z -65.2…-64.8`
+- **1.33 m** — west walk, z -37.0…-37.0 (0.3 m long), between `facing` [street] and `(untagged)` [props]
+  - left  `x -28.6…-6.88  z -37…-21`
+  - right `x -5.55…-5.15  z -37.2…-36.8`
+- **1.34 m** — east walk, z -57.5…-57.5 (0.3 m long), between `unmatched` and `facing` [street]
+  - left  `x 5.38…5.54  z -57.6…-57.4`
+  - right `x 6.88…28.6  z -68…-53`
+- **1.34 m** — east walk, z -29.5…-29.5 (0.3 m long), between `unmatched` and `facing` [street]
+  - left  `x 5.38…5.54  z -29.6…-29.4`
+  - right `x 6.88…30.5  z -35…-22`
+- **1.34 m** — west walk, z -43.5…-43.5 (0.3 m long), between `facing` [street] and `unmatched`
+  - left  `x -30.5…-6.88  z -55.5…-43.5`
+  - right `x -5.54…-5.38  z -43.6…-43.4`
 
-| clear | what | where | owner |
-|---|---|---|---|
-| **1.15 m** | **Tony's Pizza bus bench**, 1.80 m long, at the kerb (`x 5.07…5.73`) | east walk z −35.8…−34.3, 1.8 m long | `props` |
-| 1.15 m | building line on the narrow side street | side st north x 45.0 | `vice` |
-| 1.15 m | lamp post | east walk z −93.0 | `props` |
-| 1.19 m | building facing | side st north x 9.8…10.3 | `street` |
-| 1.20 m | lamp post | side st north x 20.0 | `props` |
-| 1.22 m | building facing | side st north x 10.8…11.3 | `street` |
-| 1.27 m | untagged mass 1.21 × 5.15 × 2.75 | side st north x 13.5, x 31.5 | — |
-| 1.33 m | lamp post | east walk z −51.0, −23.0; west walk z −65.0; side st south x 34.0 | `props` |
+## WITH PEOPLE — what a player meets
 
-Lamp posts are a 0.14 m column on a 0.28 × 0.28 base (`lampPart: "halo"`) and
-cost 1.20–1.33 m wherever they stand. The **bus bench is the single tightest
-fixture on the block** at 1.15 m, and it is still 0.43 m wider than the player.
+| band | samples | % |
+|---|---|---|
+| IMPASSABLE  <0.72 | 18 | 1.3% |
+| URGENT  0.72–0.80 | 2 | 0.1% |
+| PROBLEM 0.80–1.00 | 0 | 0.0% |
+| tight   1.00–1.40 | 26 | 1.9% |
+| clear ≥1.40 | 1334 | 96.7% |
 
-**Nothing needs routing.** Every instance clears the 1.00 m threshold the desk
-set as "a problem". I am reporting the ranking so the next thing placed near the
-bench or on the 1.5 m side street is placed knowing what is already there.
+Stretches under 1.40 m: **23**
 
-### The instrument is not simply failing to see
+- **0.25 m** — east walk, z 14.3…15.0 (1.0 m long), between `(untagged)` [street] and kerb / lane edge
+  - left  `x -7…7  z 14.2…20.2`
+- **0.25 m** — west walk, z 14.3…15.0 (1.0 m long), between kerb / lane edge and `(untagged)` [street]
+  - right `x -7…7  z 14.2…20.2`
+- **0.50 m** — west walk, z 2.8…3.0 (0.5 m long), between `(untagged)` and kerb / lane edge
+  - left  `x -6.25…-5.75  z 2.7…3.2`
+- **0.63 m** — east walk, z -44.8…-44.5 (0.5 m long), between `(untagged)` and `facing` [street]
+  - left  `x 5.75…6.25  z -44.8…-44.3`
+  - right `x 6.88…26.7  z -53…-35`
+- **0.63 m** — east walk, z -13.3…-13.0 (0.5 m long), between `(untagged)` and `facing` [street]
+  - left  `x 5.75…6.25  z -13.4…-12.9`
+  - right `x 6.88…22.9  z -22…-9`
+- **0.63 m** — west walk, z -61.0…-60.8 (0.5 m long), between `facing` [street] and `(untagged)`
+  - left  `x -24.8…-6.88  z -68…-55.5`
+  - right `x -6.25…-5.75  z -61.2…-60.7`
+- **0.63 m** — west walk, z -28.5…-28.3 (0.5 m long), between `facing` [street] and `(untagged)`
+  - left  `x -28.6…-6.88  z -37…-21`
+  - right `x -6.25…-5.75  z -28.7…-28.2`
+- **0.75 m** — east walk, z -77.0…-76.8 (0.5 m long), between `(untagged)` and `(untagged)` [civic]
+  - left  `x 5.75…6.25  z -77…-76.5`
+  - right `x 7…7.3  z -78…-68`
+- **1.06 m** — side st north, x 10.5…11.8 (1.5 m long), between kerb / lane edge and `(untagged)` [street]
+  - right `x 10.44…11.06  z -96.7…-96.1`
+- **1.15 m** — east walk, z -35.8…-34.3 (1.8 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.07…5.73  z -35.9…-34.1`
+  - right `x 6.88…26.7  z -53…-35`
+- **1.15 m** — east walk, z -93.0…-93.0 (0.3 m long), between `(untagged)` [props] and `unmatched`
+  - left  `x 5.15…5.55  z -93.2…-92.8`
+  - right `x 6.7…18.4  z -94…-86`
+- **1.15 m** — side st north, x 45.0…45.0 (0.3 m long), between `(untagged)` [props] and `(untagged)` [vice]
+  - left  `x 44.8…45.2  z -97.9…-97.5`
+  - right `x 33.45…45.45  z -96.3…-82`
+- **1.20 m** — side st north, x 20.0…20.0 (0.3 m long), between `(untagged)` [props] and kerb / lane edge
+  - left  `x 19.8…20.2  z -97.9…-97.5`
+- **1.27 m** — side st north, x 13.5…13.5 (0.3 m long), between `(untagged)` and kerb / lane edge
+  - left  `x 13.38…13.62  z -97.7…-97.5`
+- **1.27 m** — side st north, x 31.5…31.5 (0.3 m long), between `(untagged)` and kerb / lane edge
+  - left  `x 31.38…31.62  z -97.7…-97.5`
+- **1.33 m** — east walk, z -51.0…-51.0 (0.3 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.15…5.55  z -51.2…-50.8`
+  - right `x 6.88…26.7  z -53…-35`
+- **1.33 m** — east walk, z -23.0…-23.0 (0.3 m long), between `(untagged)` [props] and `facing` [street]
+  - left  `x 5.15…5.55  z -23.2…-22.8`
+  - right `x 6.88…30.5  z -35…-22`
+- **1.33 m** — side st south, x 34.0…34.0 (0.3 m long), between `facing` [street] and `(untagged)` [props]
+  - left  `x 23…35  z -131.6…-109.9`
+  - right `x 33.8…34.2  z -108.5…-108.1`
 
-GOTCHAS §34 — a check can pass having found nothing. The same scan, unchanged,
-reported **0.63 m** for pedestrians and **0.25 m** for the end cap. It registers
-narrow gaps when narrow gaps exist, so "97.5% clear" is a measurement and not a
-silent no-op.
-
-## Should this be a permanent test rather than an audit?
-
-**Yes** — and it is nearly written; `scripts/laneaudit.mjs` already computes the
-minimum clear width per lane. Builder A owns `scripts/**` and would only need to
-assert it. But two exclusions decide whether it is useful or muted within a week:
-
-1. **It must exclude people, or it will flap.** Citizens move every frame. My
-   own two runs disagreed — 0.63 m in one, clear in the next. A lane assertion
-   that includes them fails randomly, and a randomly-failing test gets ignored.
-   Filter on the exact ±0.25 footprint, or better, have `crowd.ts` tag its boxes.
-2. **It must clip the lane to the walkable street, or it fails on the world's
-   own boundary.** The end cap at z 14.2 is not encroachment.
-
-Suggested assertion: fixtures only, **fail under 1.00 m, warn under 1.20 m**.
-That puts today's worst case (the bus bench at 1.15 m) in the warn band, which is
-right — it is not a bug, but it is the place with least room to give.
-
-## What this audit did NOT cover
-
-- **Overhead clearance.** Everything here is a plan-view (xz) measurement, because
-  colliders are xz AABBs. A projecting fascia, blade sign or awning that a player
-  walks *under* cannot be seen by this method at all. If the concern about
-  "fascias and stallrisers standing proud" is about head height rather than
-  footprint, that is a different scan and this one says nothing about it.
-- **The park interior.** The west walk beside the park is measured, but the park's
-  own paths are not a 2 m lane and were out of scope here.

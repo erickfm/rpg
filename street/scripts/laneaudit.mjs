@@ -65,6 +65,18 @@ const runs=(mode)=>{ const bad=[]; let r=null;
    else {if(r)bad.push(r); r={lane:o.lane,a0:o.at,a1:o.at,min:o.clear,at:o};} }
   else { if(r){bad.push(r);r=null;} } }
  if(r)bad.push(r); return bad.sort((a,b)=>a.min-b.min);};
+// A citizen box is 0.5 m wide (crowd.ts:153). Where a FIXTURE leaves less than
+// 0.72 + 0.50 = 1.22 m, one pedestrian standing there can close the walk to
+// less than the player's own width - which is a way to be stuck that no static
+// sweep can see.
+{const F=out.filter(o=>o.mode==='fixtures');
+ const block=F.filter(o=>o.clear<1.22);
+ console.log(`\nPINNABLE: fixture clearance under 1.22 m (0.72 player + 0.50 citizen): ${block.length} of ${F.length} samples`);
+ const byLane={}; for(const o of block)(byLane[o.lane]??=[]).push(o.at);
+ for(const [k,v] of Object.entries(byLane)) console.log(`   ${k}: ${v.length} samples, from ${Math.min(...v).toFixed(1)} to ${Math.max(...v).toFixed(1)}`);
+ const worst=F.slice().sort((a,b)=>a.clear-b.clear).filter(o=>o.clear>0.8)[0];
+ if(worst) console.log(`   tightest real fixture gap: ${worst.clear} m at ${worst.lane} ${worst.at}`);
+}
 let md=`# Sidewalk lane audit — the whole block\n\n`;
 md+=`> *"in general we should not encroach the already cramped sidewalk"*\n\n`;
 md+=`Player capsule **0.72 m** across (RADIUS 0.36). GOTCHAS §9: the 2 m lane is\n`;
