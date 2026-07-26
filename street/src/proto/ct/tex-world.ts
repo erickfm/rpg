@@ -1005,11 +1005,36 @@ export function shopInteriorTex(name: string, wMeters: number, hMeters: number):
  * painted features rather than beside them — the same single-authoring the
  * descriptor exists for.
  *
- * DEPTH BUDGET: nothing here projects more than 0.30 m, because
- * `ct/street.ts` already reserves that — its footprint colliders start at
- * `FACE - 0.3`. So this adds no collision and needs no collider change.
- * If a future piece wants to project further, that is a conversation with
- * whoever owns the collision, not a bigger number here.
+ * DEPTH BUDGET — and the reason it is safe is NOT the one this comment used to
+ * give. It said "nothing here projects more than 0.30 m, because ct/street.ts
+ * already reserves that — its footprint colliders start at FACE - 0.3". I
+ * repeated that for a whole session without checking it. Measured:
+ *
+ *     footprint collider starts   0.12 m out from the facade plane
+ *     deepest relief piece        0.20 m  (the CORNICE)
+ *
+ * So the deepest pieces DO reach past the collider, and the 0.30 figure is not
+ * the reserve. What actually makes this safe is HEIGHT, exactly as the blade
+ * sign below argues for itself:
+ *
+ *     PLINTH  0.09 deep at y 0.06        within the 0.12 collider
+ *     CILL    0.11      at y ~0.37       within
+ *     JAMB    0.12      at glazing       exactly at the edge
+ *     BED     0.13      at y ~3.1        past it, and over your head
+ *     CORNICE 0.20      at y ~4.15       past it, and well over your head
+ *
+ * Every piece a walking player can reach is inside the collider; every piece
+ * that exceeds it is above head height. That is a real invariant and it is the
+ * one to preserve — so the rule for a new piece is not "keep it under 0.30 m",
+ * it is **keep it within 0.12 m if a body can reach it, and any depth you like
+ * above about 2.5 m**. GOTCHAS 9: the 2 m walk lane is sacred, and a number
+ * quoted from memory is not a clearance.
+ *
+ * NOT FULLY VERIFIED: the same probe read RADIO's deepest piece as 0.61 m,
+ * which no constant here can produce. Three earlier versions of that probe were
+ * wrong (they swept in building shells, the 126 m pavement plane, and mouldings
+ * from the far side of the street), so I do not trust the outlier and have not
+ * filed it as a fault. Worth a look by someone building the probe properly.
  */
 export function shopfrontRelief(o: {
   scene: THREE.Scene;
