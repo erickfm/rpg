@@ -977,7 +977,17 @@ export function alley2Ground(scene: THREE.Scene, x0: number, x1: number,
   m.rotation.x = -Math.PI / 2;
   m.position.set((x0 + x1) / 2 - J / 2, y, (z0 + z1) / 2);
   m.userData.mod = 'tex-ground';
-  m.userData.groundProp = 'alley2 floor';
+  // NOT `groundProp`. That tag means "a thing standing on the ground", and
+  // footprint.mjs tests everything carrying it for intersection with the
+  // world's solids. A FLOOR is the ground, and it intersects everything that
+  // stands on it by definition — the moment D dressed this alley, their
+  // downpipe and fire escape (based at y -0.007, just under this plane) made
+  // the floor look like it was clipping through two props.
+  //
+  // I fixed the symptom first, insetting from the walls, and the joint is
+  // right for its own reason. But the tag was the actual error: it put a
+  // surface into a test written for objects.
+  m.userData.alleyFloor = 2;
   scene.add(m);
   // The channel's line, matching the texture's 0.18 across the width.
   const cz = zN + wide * 0.18;
