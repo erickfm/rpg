@@ -277,3 +277,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | C | i want all the neighbors in the building to have a small chance of get | |
 | OPEN | K | stealing a package gives you a random item that goes in your inventory | |
 | OPEN | K | when the player goes to sleep i want the screen to fade to black | |
+| OPEN | G | guy sitting in casino is clipping through his seat | |

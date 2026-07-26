@@ -207,6 +207,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"guy sitting in casino is clipping through his seat"** → **G**
 - **"a 14.9 x 15.8 m ground sheet in the car lot carries one 64x64 tile — 4.3 texels/m, an eighth of the mandate on both axes"** → **DESK** (found by B, not B's file)
 
   <!-- B: turned up by the corrected density sweep (scripts/kerbwalk.mjs). At
