@@ -3,6 +3,8 @@ import type { CtxBuild } from './ctx';
 import { pixTex, dither, declareSurface } from './paint';
 import { buildRoom } from './interior';
 import { type DoorDecl } from './doors';
+import { citizenSprite } from './citizens';
+import { ORDER as HOOK } from './ctx';
 import { tube, VICE_DOOR_X } from './vice';
 
 // GOLDEN ACES, inside.
@@ -251,6 +253,30 @@ export function buildCasino(ctx: CtxBuild): void {
   });
 
   const { put, solid } = room;
+
+  // ── PEOPLE ON THE SEATS ───────────────────────────────────────────────
+  //
+  // H landed the seated pose (`notes/H-seated-sprite.md`) and the desk is right
+  // that the slot-seat ask "is not really done until someone is sitting on
+  // them". `seated: true` is a field on the LOOK, not on the options, so the
+  // pose itself needs nothing from the kit.
+  //
+  // The PLACEMENT does: `room.person()` puts every figure at y = 0, and a seated
+  // origin is the hip. So this uses `room.put` — the published equivalent of the
+  // kit's internal `place` — with the seat's own top, plus the same LATE frame
+  // hook `person()` registers. Public surfaces only; nothing copied out of
+  // ct/interior.ts.
+  //
+  // NO Y FUDGE ANYWHERE. H's rule: "a caller passes the SEAT it already
+  // registered, never a hand offset", because five modules each applying their
+  // own is how the 12 cm float happened. The number below is the stool top this
+  // file already draws at, not a nudge.
+  const sitter = (look: Parameters<typeof citizenSprite>[0],
+                  lx: number, lz: number, seatTop: number, facing: number) => {
+    const s = citizenSprite({ ...look, seated: true }, { facing, h: 1.0, w: 1.0 });
+    put(s.mesh, lx, seatTop, lz);
+    ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
+  };
   const hw = room.W / 2, hd = room.D / 2;
 
   // ── the way in, matched to the doorway you came through ───────────────
@@ -347,7 +373,15 @@ export function buildCasino(ctx: CtxBuild): void {
   // kit owns the floor mesh and the floor picker, and this is a decal on top,
   // not a replacement. 48 texels over 2.4 m is ~20 px/m, matching the kit
   // floor and the diner checker (GOTCHAS §5: density comes from real metres).
-  const TILE = 2.4;
+  // 7.2, not 2.4 — THE SAME FAULT AND THE SAME FIX AS THE HOTEL'S. The user
+  // said "rugs all over" of the lobby and this floor runs the same idea: a
+  // medallion repeating at about a rug's size. Fixing one room and not the other
+  // is the worst outcome, so both move together.
+  //
+  // A casino carpet SHOULD be busy — that is the brief for this room, "doing far
+  // too much" — but busy is the motif, not the tiling. Tripling the repeat keeps
+  // every pattern and stops the floor announcing its own seams.
+  const TILE = 7.2;
   const carpetT = declareSurface(pixTex(48, 48, (g) => {
     g.fillStyle = '#4a1f24'; g.fillRect(0, 0, 48, 48);
     const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
@@ -366,9 +400,14 @@ export function buildCasino(ctx: CtxBuild): void {
     // and a cream pip in the middle of that
     g.fillStyle = '#c9a45e';
     for (const [cx, cy] of cells) g.fillRect(cx - 1, cy - 1, 2, 2);
-    // stars where the lattice crosses — the fourth motif, one too many
+    // The fourth motif, one too many — but NOT on the seam. These sat at 0, 24
+    // and 48, so two of the three rows landed exactly on the tile boundary and
+    // drew a cross at every repeat corner. That is the hotel's gold border in a
+    // different shape: a mark on the seam tells the eye where one rug ends and
+    // the next begins. Moved to 12 and 36, inside the tile, where they read as
+    // pattern instead of as edges.
     g.fillStyle = '#a8863a';
-    for (const cx of [0, 24, 48]) for (const cy of [0, 24, 48]) {
+    for (const cx of [12, 36]) for (const cy of [12, 36]) {
       g.fillRect(cx - 3, cy, 7, 1); g.fillRect(cx, cy - 3, 1, 7);
     }
     dither(g, 48, 48, 150);
@@ -579,6 +618,31 @@ export function buildCasino(ctx: CtxBuild): void {
           label: 'sit at the slot', ok: () => room.inside(),
         });
       }
+    }
+  }
+
+  // FOUR PLAYERS, NOT A HUNDRED AND TWENTY. A machine at every stool would read
+  // as a crowd, and this floor's whole effect is that it is too big for the
+  // people in it — the same reason the hotel lobby is left empty in the middle.
+  // Four is enough that the seats are visibly FOR sitting on, which is the ask.
+  //
+  // Placed on the stool tops this file draws at 0.64, off the same BANK_Z and
+  // SLOT_PITCH the stools use, so a player sits on a stool rather than near one.
+  {
+    const seatY = 0.64, x0e = AVENUE + 0.3, x0w = -AVENUE - 0.3 - (SLOT_N - 1) * SLOT_PITCH;
+    const PLAYERS: [number, number, number, Parameters<typeof citizenSprite>[0]][] = [
+      [x0e + 1 * SLOT_PITCH, BANK_Z[1], 1,
+        { jacket: '#5a4a3a', pants: '#3a3630', skin: '#c9a184', hair: '#6b5236', fit: 'plain', cut: 'short', build: 0 }],
+      [x0e + 4 * SLOT_PITCH, BANK_Z[3], -1,
+        { jacket: '#7a3a34', pants: '#3f4650', skin: '#e6bb92', hair: '#8c5a2e', fit: 'coat', cut: 'short', build: 1 }],
+      [x0w + 2 * SLOT_PITCH, BANK_Z[0], -1,
+        { jacket: '#3a4a5a', pants: '#2e2b33', skin: '#8a6a52', hair: '#2a2018', fit: 'plain', cut: 'short', build: 0 }],
+      [x0w + 5 * SLOT_PITCH, BANK_Z[2], 1,
+        { jacket: '#6a5a2a', pants: '#3a3630', skin: '#d8b48a', hair: '#9a8a6a', fit: 'coat', cut: 'short', build: 2 }],
+    ];
+    for (const [px, bz, face, look] of PLAYERS) {
+      // the stool sits at bz + face * 1.02 and the player faces the machine
+      sitter(look, px, bz + face * 1.02, seatY, face > 0 ? Math.PI : 0);
     }
   }
 

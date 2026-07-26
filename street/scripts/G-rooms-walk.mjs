@@ -210,6 +210,27 @@ const prompt = () => p.evaluate(() => {
   return d && d.style.display !== 'none' ? d.textContent : null;
 });
 const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
+/** Wait for a room transition to COMPLETE, rather than guessing at it.
+ *
+ *  `press()` waits a flat 260 ms, which is the GOTCHAS §30 fault in my own
+ *  harness: a fixed sleep for something the render loop drives. It held up in
+ *  dev on an idle machine and failed everywhere else — eight checks red against
+ *  the BUILT BUNDLE, and the same two red in dev the moment four seated sprites
+ *  were added to the casino. Both looked like a world that would not let you
+ *  leave a room; measured by hand, dev and dist land on the identical spot.
+ *
+ *  Polls until the player crosses the interior/street boundary, or gives up
+ *  loudly after 3 s rather than reporting whatever it saw mid-flight.
+ */
+const settleCross = async (wasInside) => {
+  for (let i = 0; i < 60; i++) {
+    const q = await pos();
+    if ((q[0] > 100) !== wasInside) return true;
+    await p.waitForTimeout(50);
+  }
+  console.log('  note  transition did not complete in 3 s — the reading below is mid-flight');
+  return false;
+};
 const press = async () => { await p.keyboard.down('e'); await p.waitForTimeout(90); await p.keyboard.up('e'); await p.waitForTimeout(260); };
 const hold = async (k, ms) => { await p.keyboard.down(k); await p.waitForTimeout(ms); await p.keyboard.up(k); await p.waitForTimeout(120); };
 
@@ -808,13 +829,18 @@ for (room of rooms) {
     /out to the street/.test(dPrompt ?? ''), `prompt=${JSON.stringify(dPrompt)}`);
 
   await press();
+  await settleCross(true);                 // was inside; wait until we are out
   const back = await pos();
   check('E at the inside door puts you back on the street', back[0] < 100, `pos=${back.slice(0, 3).map(f2)}`);
   check('you land on the raised walk, not in the road', Math.abs(back[3] - KERB_H) < 0.001, `gy=${back[3]}`);
+  // the PROMPT lags the position by a frame or two — settleCross returns as soon
+  // as the player crosses, and the way-in trigger has not re-evaluated yet
+  await p.waitForTimeout(400);
   const afterPrompt = await prompt();
   check('you are NOT standing in the re-entry trigger after stepping out',
     !room.label.test(afterPrompt ?? ''), `prompt=${JSON.stringify(afterPrompt)}`);
   await press();
+  await p.waitForTimeout(400);             // it must NOT cross; give it time to try
   const sucked = await pos();
   check('a second E on the landing does not suck you straight back in',
     sucked[0] < 100, `pos=${sucked.slice(0, 3).map(f2)}`);

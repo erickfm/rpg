@@ -249,10 +249,15 @@ export function buildHotel(ctx: CtxBuild): void {
   // an all-over diamond scatter.
   const carpetT = declareSurface(pixTex(48, 48, (g) => {
     g.fillStyle = '#5a2430'; g.fillRect(0, 0, 48, 48);
-    // the border frame, two golds so it has a highlight and a shadow side
-    g.fillStyle = '#8a6a22';
-    for (const v of [0, 24]) { g.fillRect(v, 0, 2, 48); g.fillRect(0, v, 48, 2); }
-    g.fillStyle = '#d8a83a';
+    // NO BORDER ON THE TILE BOUNDARY. This drew two gold lines across every
+    // repeat, and at a 2.4 m repeat those lines land every 2.4 m in both
+    // directions — so the eye reads them as the EDGES OF SEPARATE RUGS and
+    // counts thirty of them. "Rugs all over" is exactly what a bordered tile
+    // does. A carpet is one field; only a rug has an edge.
+    //
+    // The motif stays and the frame goes. What is left is a quiet lattice that
+    // does not announce where the texture repeats.
+    g.fillStyle = '#6a3a44';
     for (const v of [0, 24]) { g.fillRect(v, 0, 1, 48); g.fillRect(0, v, 48, 1); }
     // the medallion in each cell: a lozenge, ring and pip stacked
     const cells: [number, number][] = [[12, 12], [36, 12], [12, 36], [36, 36]];
@@ -275,7 +280,10 @@ export function buildHotel(ctx: CtxBuild): void {
     dither(g, 48, 48, 130);
   }), 'ground');
   carpetT.wrapS = carpetT.wrapT = THREE.RepeatWrapping;
-  carpetT.repeat.set(Math.round(room.W / 2.4), Math.round(room.D / 2.4));
+  // 7.2 m, not 2.4. At a rug-sized repeat every motif reads as a separate
+  // object; at three times that the pattern is a field you walk over. A grand
+  // lobby is "a big quiet field with one or two rugs on it, not a patchwork".
+  carpetT.repeat.set(Math.max(1, Math.round(room.W / 7.2)), Math.max(1, Math.round(room.D / 7.2)));
   const carpet = new THREE.Mesh(new THREE.PlaneGeometry(room.W, room.D), ctx.flat(carpetT));
   carpet.rotation.x = -Math.PI / 2;
   put(carpet, 0, 0.012, 0);
