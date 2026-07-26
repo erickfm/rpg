@@ -129,6 +129,35 @@ not go green, the guard that could not see a swap.
 What I can say with certainty is only that the rows were present at a named
 revision and absent from `add-stick-and-city98` afterwards.
 
+### SETTLED: it is not the rebase, and here are the two commits
+
+`scripts/ledger-blame.py` walks mainline commit by commit and names the first
+commit each row is missing from. Over 90 commits, **exactly two dropped rows,
+and neither is mine** — my commits are all prefixed `Audit:`.
+
+```
+  856d62122  Every interior moved +80 m in x — stations across the ledger
+        lost: [E] what is the shadow geometry here?
+
+  e62112945  VERIFY C's TV row: confirmed — and one number in it cannot b…
+        lost: [C] tv off unless i sit down to watch it pls     (LANDED)
+        lost: [E] what is the shadow geometry here?
+        lost: [C] the tv bezel looks good but i think i want the tv black
+        lost: [C] how do i stop watching the tv
+```
+
+**Both are BULK EDITS to the ledger** — one rewriting stations across every row
+after the interior belt moved, one a verify pass. That is the shape: an agent
+rewriting many rows programmatically drops some, and nothing notices because the
+file still parses and still looks like a ledger.
+
+**Six rows in one day**, the sixth (`how do i stop watching the tv`) found only
+by this tool. I have restored all six.
+
+**My rebase is exonerated by evidence rather than by argument**, which is the
+only way I was willing to take it — I had written that it should be treated as
+unknown until something tested it.
+
 ### What would settle it
 
 - **Run `scripts/ledger-lost.py` on every land**, not after an incident. It takes
