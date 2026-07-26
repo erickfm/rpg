@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"i like the space in the hotel lobby its eerie. enrich the lobby with furniture decor, etc. i want to be impressed"** → **G**
 - **"entrance to bodega looks like this. so ugly and is so crowded. have the agent care and put attention to detail and decor into this bodega i want it to feel real"** → **F**
 - **"church entrance geometry is fucked / the church itself leaves a lot to be desired. also this church is catholic wheres the jesus on the cross?"** → **G**
 - **"pawn shop exterior leaves a lot to be desired"** → **A**
