@@ -3,9 +3,29 @@
 // 0.000 everywhere). This reads the ATLAS: find the lowest OPAQUE pixel of each
 // citizen's own frame, convert it to a world height, and compare THAT to the
 // ground. It is the painted shoe that has to touch, not the quad.
+// AIM IT. This hardcoded `http://localhost:4184/`, the AUDITOR's port, so it
+// could only ever measure the auditor's build — every other builder runs on its
+// own port from 4178 up, and H could not point this at the world it had just
+// repaired. An instrument that cannot be aimed is an instrument only its author
+// can use.
+//
+// GOTCHAS 26 is this exact family: `24163f69` found 55 of 60 scripts here
+// running a bare `p.goto('…:4184/')`. This one survived that sweep.
+//
+//   node scripts/footpaint.mjs                      # unchanged, still 4184
+//   node scripts/footpaint.mjs 4181                 # a port
+//   SHOT_URL=http://localhost:4181/ node scripts/footpaint.mjs
+//
+// The default is deliberately what it used today, so nothing that already calls
+// it changes behaviour.
 import { chromium } from 'playwright';
+const ARG = process.argv[2];
+const URL = process.env.SHOT_URL
+  ?? (ARG && /^\d+$/.test(ARG) ? `http://localhost:${ARG}/` : ARG)
+  ?? 'http://localhost:4184/';
+console.log(`footpaint: measuring ${URL}`);
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(URL,{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(3000);
 const r=await p.evaluate(()=>{

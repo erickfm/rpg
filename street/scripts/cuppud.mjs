@@ -4,7 +4,7 @@
 // isMesh finds zero and then every downstream check passes off an empty set.
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.evaluate(()=>window.__ct.warp(4.78,-60.15,0,0.14,0));
 await p.waitForTimeout(2500);

@@ -5,7 +5,7 @@
 // WHICH ATLAS FRAME they show, not in the transform. Read the map offset.
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 const read = () => p.evaluate(() => {
   const out=[];

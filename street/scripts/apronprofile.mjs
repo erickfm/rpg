@@ -2,7 +2,7 @@
 // Sample groundAt across the driveway line, and across a plain kerb for contrast.
 import { chromium } from 'playwright';
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 const scan=async(z)=>p.evaluate((z)=>{const o=[];for(let x=1;x<=13;x+=0.25)o.push([+x.toFixed(2),+window.__ct.groundAt(x,z).toFixed(3)]);return o;},z);
 for(const [n,z] of [['DRIVEWAY z=2.6',2.6],['plain kerb z=-20',-20]]){

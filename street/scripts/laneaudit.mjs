@@ -17,7 +17,7 @@ const LANES=[
  {id:'side st south',  axis:'x', x0:-110.25,x1:-108.25,a0:-6,  a1:56},
 ];
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const res=await p.evaluate(([LANES,STEP])=>{

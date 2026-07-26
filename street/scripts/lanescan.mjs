@@ -8,7 +8,7 @@
 import { chromium } from 'playwright';
 const STEP=0.25, Z0=-102, Z1=15;
 const b=await chromium.launch(); const p=await b.newPage();
-await p.goto('http://localhost:4184/',{waitUntil:'networkidle'});
+await p.goto(process.env.SHOT_URL ?? 'http://localhost:4184/',{waitUntil:'networkidle'});
 await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const out=await p.evaluate(([STEP,Z0,Z1])=>{
