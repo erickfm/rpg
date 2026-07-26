@@ -890,7 +890,20 @@ const MOW_LIGHT = '#79805a', MOW_DARK = '#6b7350', MOW_BAND = 1.5;
     // time, and world.ts caught it per-module — so the park lost every object
     // after the benches: the fountain, the memorial, the shelter, the trees and
     // the shrubs. A green typecheck and a park with no trees in it.
-    const faceX = Math.round(Math.sin(yaw)), faceZ = Math.round(-Math.cos(yaw));
+    // +cos, not -cos. THE NINTH ORIENTATION BUG, and the one GOTCHAS 27 was
+    // written for: this world's forward is (sin yaw, cos yaw) — `E-benchface`
+    // uses it, the shelter's hand-set approach agrees with it, and the seat
+    // yaws come from `facingIn`, which is atan2 in that same order. With the
+    // sign flipped the APPROACH landed behind the bench, so the way to sit
+    // down was to walk round the back of it.
+    //
+    // It hid because it only shows where cos(yaw) rounds to ±1: the four
+    // benches on the park's z sides. The five on the x sides have cos ≈ 0,
+    // faceZ rounds to 0 either way, and they were always right. Four of nine
+    // wrong is exactly the "verify each instance rather than assuming the
+    // mirror" half of the rule — and on ONE of the four there is a collider
+    // behind the bench, which is the user's *"cannot sit on a bench"*.
+    const faceX = Math.round(Math.sin(yaw)), faceZ = Math.round(Math.cos(yaw));
     ctx.seat({
       x: bx, z: bz, yaw, h: 0.45,
       approach: { x: bx + faceX * 0.95, z: bz + faceZ * 0.95 },
