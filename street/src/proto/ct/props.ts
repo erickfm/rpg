@@ -223,7 +223,14 @@ export function buildProps(ctx: CtxBuild): Props {
   // Static geometry does not need the moving-root machinery at all, so when
   // `wx/wz` are present the pool branch uses them directly. Cars keep the old
   // path; nothing about them changes.
-  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial; base: THREE.Color; pool: boolean; floor: number; wetK: number; wx?: number; wz?: number }
+  interface Lit { root: THREE.Object3D; ox: number; oz: number; m: THREE.MeshBasicMaterial;
+                  base: THREE.Color; pool: boolean; floor: number; wetK: number;
+                  wx?: number; wz?: number;
+                  // the mesh's world AABB in plan, and how much of the pool it can
+                  // take. See the note at `poolable` — these exist so a pool is
+                  // sampled at the nearest point of a surface rather than at its
+                  // centre, which is what made pools stop at invisible seams.
+                  bx0?: number; bx1?: number; bz0?: number; bz1?: number; sizeW?: number }
   const litList: Lit[] = [];
   const litSeen = new Set<THREE.Material>();
   // WHAT COUNTS AS GLASS. The night grading skips translucent materials on
@@ -585,7 +592,31 @@ export function buildProps(ctx: CtxBuild): Props {
         // splash, which is per-lamp and correctly placed.
         const bx = new THREE.Box3().setFromObject(o);
         const span = Math.max(bx.max.x - bx.min.x, bx.max.z - bx.min.z);
-        const poolable = wy.y < 4.5 && Number.isFinite(span) && span < 6;
+        // ── THE SPAN CLIFF, AND WHY IT IS NOW A TAPER ────────────────────
+        //
+        // This read `span < 6`, a hard cutoff, and it is the third of the
+        // user's three lighting reports: "a warm light pool on the brick that
+        // stops dead at a straight vertical line with nothing there to stop
+        // it". A wall built as two meshes, one 5.9 m and one 6.1 m, had one
+        // half pooling and the other not — and the seam between them is
+        // invisible, because both halves carry the same brick.
+        //
+        // The cutoff exists for a real reason and I am not deleting it: one
+        // material carries ONE tint, so a 92 m road ribbon cannot hold a
+        // gradient. Pool it and the whole street lifts uniformly, which would
+        // flatten the pools the user likes — I did exactly that once with a
+        // shared-material fix and had to revert it.
+        //
+        // So: a smooth taper instead of a step. Full weight up to 6 m, nothing
+        // beyond 12, smoothstep between. Two halves of a wall either side of
+        // 6 m now differ by a hair instead of by everything, and the 92 m
+        // ribbons stay at zero exactly as before.
+        const SPAN_FULL = 6, SPAN_NONE = 12;
+        const tw = Number.isFinite(span)
+          ? 1 - Math.min(1, Math.max(0, (span - SPAN_FULL) / (SPAN_NONE - SPAN_FULL)))
+          : 0;
+        const sizeW = tw * tw * (3 - 2 * tw);
+        const poolable = wy.y < 4.5 && sizeW > 0;
         const selfLit = isSelfLit(m);
         // Say so on the material. A sheet held at FLOOR_SIGN is graded and
         // deliberately kept bright, which from outside is indistinguishable
@@ -600,6 +631,7 @@ export function buildProps(ctx: CtxBuild): Props {
                        // for the elevation floor. The pool branch needs the same
                        // point and was using o.position instead.
                        wx: wy.x, wz: wy.z,
+                       bx0: bx.min.x, bx1: bx.max.x, bz0: bx.min.z, bz1: bx.max.z, sizeW,
                        pool: poolable && !selfLit && !noLamp,
                        floor: selfLit ? FLOOR_SIGN : floorFor(wy.y),
                        // SELF-LIT MEANS "DO NOT DIM ME", NOT "DO NOT WET ME".
@@ -796,7 +828,13 @@ export function buildProps(ctx: CtxBuild): Props {
       const pz = e.wz !== undefined ? e.wz : e.root.position.z - e.ox * sa + e.oz * ca;
       let best = 0;
       for (const h of lampHeads) {
-        const dx = px - h.x, dz = pz - h.z;
+        // NEAREST POINT ON THE SURFACE, not its centre. A 5 m wall whose centre
+        // is 6 m from a lamp has an end 3.5 m away and is plainly lit there;
+        // sampling the centre called the whole thing unlit. Falling back to the
+        // point form for anything without a box (cars, which move).
+        const qx = e.bx0 !== undefined ? Math.min(Math.max(h.x, e.bx0), e.bx1!) : px;
+        const qz = e.bz0 !== undefined ? Math.min(Math.max(h.z, e.bz0), e.bz1!) : pz;
+        const dx = qx - h.x, dz = qz - h.z;
         const d2 = dx * dx + dz * dz;
         if (d2 >= LAMP_R * LAMP_R) continue;
         const d = Math.sqrt(d2);
@@ -807,7 +845,7 @@ export function buildProps(ctx: CtxBuild): Props {
       }
       // smoothstep, not a square: squared only reaches 0.23 two metres from
       // the head, too faint to read as lit at all
-      const k = night * (best * best * (3 - 2 * best));
+      const k = night * (best * best * (3 - 2 * best)) * (e.sizeW ?? 1);
       // dark by default, and the lamp gives it back — capped so a pool reads
       // as lit rather than blown out
       const mul = Math.min(1, amb * (1 + k * POOL_GAIN));

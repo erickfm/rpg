@@ -58,13 +58,19 @@ const r = await page.evaluate(() => {
     const lo = bb.min.clone().applyMatrix4(o.matrixWorld);
     const hi = bb.max.clone().applyMatrix4(o.matrixWorld);
     const span = Math.max(Math.abs(hi.x - lo.x), Math.abs(hi.z - lo.z));
-    const tooWide = !(span < 6), tooHigh = !(y < 4.5);
+    // The gate is a TAPER now, not a step: full weight to 6 m, nothing past
+    // 12, smoothstep between. Measuring the old `span < 6` here would have this
+    // script reporting a rule the code no longer has.
+    const tw = 1 - Math.min(1, Math.max(0, (span - 6) / 6));
+    const sizeW = tw * tw * (3 - 2 * tw);
+    const tooWide = sizeW <= 0, tooHigh = !(y < 4.5);
     const mm = Array.isArray(o.material) ? o.material : [o.material];
     for (const mat of mm) {
       if (!mat?.color) continue;
       rows.push({ mod: mod ?? '(unattributed)', tooWide, tooHigh,
                   selfLit: !!mat.userData?.selfLit, noLamp: !!mat.userData?.noLight,
                   poolable: !tooWide && !tooHigh && !mat.userData?.selfLit && !mat.userData?.noLight,
+                  partial: sizeW > 0 && sizeW < 1,
                   span: +span.toFixed(1), x: +x.toFixed(1), z: +z.toFixed(1) });
     }
   });
@@ -81,6 +87,7 @@ const r = await page.evaluate(() => {
            unreg: rows.filter((q) => !q.poolable).length,
            wide: rows.filter((q) => q.tooWide).length,
            high: rows.filter((q) => q.tooHigh).length,
+           partial: rows.filter((q) => q.partial).length,
            widest: rows.filter((q) => q.tooWide).sort((a, b) => b.span - a.span).slice(0, 5),
            mods: Object.entries(by).sort((a, b) => b[1].unreg - a[1].unreg)
                    .map(([k, v]) => ({ mod: k, ...v })) };
@@ -88,7 +95,8 @@ const r = await page.evaluate(() => {
 
 console.log(`\n  ${r.lamps} lamps. Of ${r.total} material-slots standing inside a 7 m pool,`);
 console.log(`  ${r.unreg} CANNOT receive it — ${(r.unreg / r.total * 100).toFixed(0)}% of everything a lamp shines on.\n`);
-console.log(`  excluded for SPAN >= 6 m: ${r.wide}   for HEIGHT >= 4.5 m: ${r.high}`);
+console.log(`  excluded for SPAN >= 12 m: ${r.wide}   for HEIGHT >= 4.5 m: ${r.high}`);
+console.log(`  partially weighted (6-12 m span, the old cliff's blast radius): ${r.partial}`);
 console.log('  widest things a lamp shines on and cannot light:');
 for (const w of r.widest) console.log(`    ${w.mod} span ${w.span} m at (${w.x}, ${w.z})`);
 console.log('\n  module            in a pool   cannot receive');
