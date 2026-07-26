@@ -381,17 +381,39 @@ if (found) {
   const before = await prompt();
   say(before.includes('FIRST FEDERAL'), 'the ATM offers itself',
     JSON.stringify(before), 1);
+  // THE ATM IS A CABINET NOW, NOT A LINE OF TEXT — and the two clauses that used
+  // to live here asserted the old contract, so they went red the moment A wired
+  // K's machine to this wall. That was the world moving on, not a regression:
+  // the prompt reads `use the machine` instead of `check balance`, and pressing
+  // E opens the shared full-screen panel.
+  //
+  // ONE OF THE OLD CLAUSES WAS ALSO WRONG BY DESIGN NOW, which is the more
+  // interesting half. It asserted the ATM's balance EQUALS the cash your
+  // shopping left — $2.00 from $14.50 less five cereal. K deliberately gave the
+  // machine its own `purse.account`, separate from `purse.cash`, on the grounds
+  // that *"a machine whose balance IS your cash can only tell you what your
+  // wallet already says"*. So the numbers are supposed to differ, and a check
+  // demanding they match would be arguing with a decision rather than guarding
+  // a fault. It is deleted rather than adjusted.
+  const before2 = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
+    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
+        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
   await page.keyboard.press('e');
-  await page.waitForTimeout(420);
-  const after = await prompt();
-  const m = after.match(/\$([0-9]+\.[0-9]{2})/);
-  say(/balance/.test(after) && !!m, 'and it answers with a balance',
-    JSON.stringify(after), 1);
-  // 5 or 6 cereal bought above at $2.50 from $14.50 leaves $2.00 or -$0.50;
-  // the shop refuses the sixth, so $2.00 is the only reachable figure.
-  say(!!m && Math.abs(parseFloat(m[1]) - 2.0) < 0.005,
-    'and the balance is the money the shopping actually left',
-    m ? `$${m[1]} — $14.50 less five cereal at $2.50` : 'no figure', 1);
+  await page.waitForTimeout(900);
+  const after2 = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
+    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
+        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
+  say(after2 > before2, 'and pressing E opens the machine',
+    `${before2} full-screen panels -> ${after2}`, 1);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  const closed = await page.evaluate(() => [...document.querySelectorAll('canvas,div')]
+    .filter((e) => { const r = e.getBoundingClientRect(), st = getComputedStyle(e);
+      return r.width > 300 && r.height > 200 && st.display !== 'none' && st.visibility !== 'hidden'
+        && +st.opacity !== 0 && (st.position === 'fixed' || st.position === 'absolute'); }).length);
+  say(closed === before2, 'and ESC gets you back out of it', `${after2} -> ${closed}`, 1);
 }
 
 await browser.close();
