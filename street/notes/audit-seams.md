@@ -391,3 +391,46 @@ That second call is downstream of the ATM: I confirmed it from a viewpoint I
 chose rather than where a player stands, and the user's verdict overturned mine.
 An auditor can settle whether an artefact exists. It cannot settle whether
 something looks good.
+
+## [C] The ATM, attempt 4: CONFIRMED — and the method is the finding
+
+This is the row I got wrong. I confirmed attempt 3 from square-on, 1.4 m out,
+centred, and the user overturned me. So the method changed rather than the
+standard: **I walked the pavement past it looking AHEAD.** The walk band at
+z 7.29 is x -5.0 to -7.2, so a player is at about x -6.2 — that is the viewpoint,
+and it is not one I get to choose.
+
+All four named properties, measured:
+
+| ask | measured |
+|---|---|
+| inlaid | 0.170 m recess, 5 pieces, lit side `#8a8d92` / shadowed `#6b7076` / back `#23282d` |
+| slanted | three rakes — screen 8.1, keypad 33.7, apron -21.3 deg |
+| lower | screen 1.30-1.72, keypad 1.18-1.30 world = **1.04-1.58 m above the pavement** |
+| more detail | 8 parts; CRT with text, card slot + indicator, 3x4 keypad, cash slot |
+
+**Why three attempts were rejected and this one is not.** At 4% body-to-wall
+separation the recess had nothing to read against, so from where a player walks
+there was no ATM to see — the geometry was right and invisible, which is
+GOTCHAS 23 (real is not the same as visible). In `aw-pass-3m.png`, 3 m out,
+walking, looking straight ahead and NOT at it, the dark body now reads plainly as
+a unit set into a pale wall. That is the change. A checklist of four satisfied
+properties would not have told me this; the walking shot did.
+
+**[I] My own separation figure was garbage and I nearly cited it.** `atmmeasure`
+reported "68% at best" against the wall — but the filter picked the nearest
+object with width <= 0.6 m, which is a *narrow* object, i.e. a pillar, 1.7 m
+away. It never looked at a wall. Discarded. **A number computed by the wrong
+filter is not a weak measurement, it is a different measurement**, and it read
+as corroboration of D's claim purely because it happened to point the same way.
+
+**[I] D's 0.900 m and my 1.080 m were never in conflict.** The machine FACE runs
+apron-bottom 0.82 to screen-top 1.72 = 0.900 exactly; my figure included the
+niche lip and sill. Same object, different bounds. I record this because my first
+reaction was "the builder's number is wrong", and reconciling took one line of
+arithmetic — cheaper than a disagreement.
+
+**[Is] `material.color` is a TINT.** screen, keys and apron all report `#ffffff`
+because they are textured; appearance is texMean x tint, so the body tone D
+changed cannot be read off `material.color` at all. The five niche tones are
+untextured and therefore readable. Fourth time this has mattered.
