@@ -196,24 +196,66 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
   const CIT_R = 0.28;          // the same footprint clearAt tests with
   const UNSTICK = 1.4;         // m/s — walk out, do not teleport
   const PATIENCE = 1.2;        // s of getting nowhere before falling back
-  const escapeFrom = (c: AABB, x: number, z: number) => {
+  /** Push out of a box — and PREFER THE PAVEMENT when there is a choice.
+   *
+   *  The plain minimum translation is what F's `fp.ts` does for the rig, and it
+   *  is right for a capsule that may stand anywhere. A citizen may NOT stand
+   *  anywhere: it belongs on the 2 m walk. Pushing it out of a car parked at
+   *  the kerb by the shortest route pushes it INTO THE ROAD about half the
+   *  time, because the shortest way out of a kerbside box is usually
+   *  roadward — and the queue's diagnosis of the user's shot is exactly that,
+   *  "a walker shoved off the kerb to get round a bin is a bug in the
+   *  avoidance, not in the graph".
+   *
+   *  So all four exits are scored, not just measured: the cost is how far the
+   *  push is PLUS how far it leaves you from the line you were walking. A
+   *  slightly longer push that keeps you on the pavement wins.
+   */
+  const escapeFrom = (c: AABB, x: number, z: number,
+    /** the walk line to stay near: the edge being walked, if there is one */
+    line?: { ax: number; az: number; bx: number; bz: number }) => {
     const left = x - (c.minX - CIT_R);
     const right = (c.maxX + CIT_R) - x;
     const back = z - (c.minZ - CIT_R);
     const front = (c.maxZ + CIT_R) - z;
     if (left <= 0 || right <= 0 || back <= 0 || front <= 0) return null;   // outside
-    const d = Math.min(left, right, back, front);
-    if (d === left) return { dx: -left, dz: 0 };
-    if (d === right) return { dx: right, dz: 0 };
-    if (d === back) return { dx: 0, dz: -back };
-    return { dx: 0, dz: front };
+    const opts = [{ dx: -left, dz: 0 }, { dx: right, dz: 0 },
+      { dx: 0, dz: -back }, { dx: 0, dz: front }];
+    if (!line) {
+      const d = Math.min(left, right, back, front);
+      if (d === left) return opts[0];
+      if (d === right) return opts[1];
+      if (d === back) return opts[2];
+      return opts[3];
+    }
+    const offLine = (px: number, pz: number) => {
+      const vx = line.bx - line.ax, vz = line.bz - line.az;
+      const L2 = vx * vx + vz * vz;
+      const t = L2 < 1e-9 ? 0
+        : Math.max(0, Math.min(1, ((px - line.ax) * vx + (pz - line.az) * vz) / L2));
+      return Math.hypot(px - (line.ax + t * vx), pz - (line.az + t * vz));
+    };
+    let best = opts[0], bestCost = Infinity;
+    for (const o2 of opts) {
+      // 1.4 weights "stay on the walk" above "move the least". Below about 1
+      // the shortest push still wins next to a kerbside car, which is the
+      // case this exists for.
+      const cost = Math.hypot(o2.dx, o2.dz) + 1.4 * offLine(x + o2.dx, z + o2.dz);
+      if (cost < bestCost) { bestCost = cost; best = o2; }
+    }
+    return best;
   };
   /** push a citizen out of anything it is inside, and if that gets nowhere put it
    *  back on the last node it legally stood on */
   const unstick = (c: Citizen, dt: number) => {
+    // the line this walker should be on, so a push can prefer to keep it there
+    const la = c.at >= 0 ? net.nodes[c.at] : null;
+    const lb = c.route.length ? net.nodes[c.route[0]] : null;
+    const line = la && lb ? { ax: la.x, az: la.z, bx: lb.x, bz: lb.z }
+      : la ? { ax: la.x, az: la.z, bx: la.x, bz: la.z } : undefined;
     let px = 0, pz = 0;
     for (const b of o.citAvoid) {
-      const e = escapeFrom(b, c.lane, c.z);
+      const e = escapeFrom(b, c.lane, c.z, line);
       if (e) { px += e.dx; pz += e.dz; }
     }
     if (px === 0 && pz === 0) {                 // legal: remember it
@@ -233,7 +275,7 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
       // position, because a walker shoved off the kerb wants to be back ON the
       // pavement network, not a metre further along the gutter.
       const home = c.at >= 0 ? net.nodes[c.at] : null;
-      const to = home && !o.citAvoid.some((b) => escapeFrom(b, home.x, home.z))
+      const to = home && !o.citAvoid.some((b) => escapeFrom(b, home.x, home.z, undefined))
         ? { x: home.x, z: home.z } : c.good;
       c.lane = to.x; c.z = to.z;
       c.route = []; c.pick = 0; c.stuckT = 0;   // and re-plan from there
@@ -488,7 +530,42 @@ export function buildCrowd(ctx: CtxBuild, o: CrowdOpts): Crowd {
           c.jam += dt;
           if (c.jam > JAM_GIVE_UP) reroute(c);
         } else c.jam = Math.max(0, c.jam - dt * 2);
-        if (Math.hypot(B.x - c.lane, B.z - c.z) < 0.45) {
+        // ── ARRIVING IS MEASURED ALONG THE EDGE, NOT AS THE CROW FLIES ────
+        //
+        // THIS WAS MY BUG AND IT IS THE ONE THAT PUT PEOPLE IN THE ROAD.
+        // The test used to be `hypot(B - position) < 0.45`. That works only
+        // while a walker stays near the edge's centre line, and I then gave
+        // crossings 1.3 m of lateral offset so people could cross abreast. A
+        // walker committed to a wide lane is NEVER within 0.45 m of the node
+        // it is heading for, so it never arrives — it walks straight past B
+        // and on along the edge's direction for ever, out into the
+        // carriageway and off the end of the block, until a collider stops it
+        // dead. That is "these people are stuck": they are not stuck at all,
+        // they have overshot and been halted by the first thing they hit.
+        //
+        // Found by direction, not by guessing: the escapees were travelling
+        // (-0.21, -0.96), and the side crossing n-bodega -> s-win1 runs
+        // (-0.26, -0.96).
+        //
+        // Projecting onto the edge makes arrival independent of how far off
+        // the line somebody is walking, which is the property the lateral
+        // offset needs and the euclidean test never had.
+        const tNow = (c.lane - A.x) * dx + (c.z - A.z) * dz;
+        if (tNow >= len - 0.45) {
+          // COMING OFF A CROSSING, COME BACK TO THE WALK. Arriving by
+          // projection means a walker can reach the node while still 1.3 m off
+          // the line, which is fine mid-route — the next edge just starts from
+          // its own projection — but at a DESTINATION it would stand there,
+          // and a crossing's 1.3 m off the line is the middle of the road.
+          // So the perpendicular offset is clamped back to a walk's width the
+          // moment the node is reached.
+          const off = (c.lane - B.x) * rx + (c.z - B.z) * rz;
+          const keep = Math.max(-STRAY, Math.min(STRAY, off));
+          if (off !== keep) {
+            c.lane += (keep - off) * rx;
+            c.z += (keep - off) * rz;
+            c.pick = keep;
+          }
           c.at = c.route.shift()!;
           if (!c.route.length) arrive(c);              // that was the destination
           // …or stop HERE, part way, if this spot is worth stopping at. Waiting
