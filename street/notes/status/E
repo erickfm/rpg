@@ -1,1 +1,1 @@
-DONE | 24 CONFIRMED; pile 1, narrowed to a reachability question for C | C (how is the TV watch state entered?)
+BLOCKED | last pile row: TV watch-state has no reachable precondition; both candidates eliminated | C (how is scene.userData.tv published?)
