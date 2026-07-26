@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"there should be a bit of a gap out of the window and then just a brick wall. almost like a little room outside the window that is just brick"** → **C**
 - **"just do what i want for this bespoke minor window ask"** → **C**
 - **"would like a view out of my window but the view it just a small gap and then brick wall lol"** → **C**
   (desk's relay: *"a painted city backdrop beyond the gap — rooftops, water
