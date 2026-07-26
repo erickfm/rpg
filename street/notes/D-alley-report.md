@@ -102,7 +102,9 @@ is the second vocabulary the brief forbids. Re-checked this run — still privat
 
 **Signs — G's now.** The queue says to tell you if the marquee moved with the
 casino, and it did: `ct/vice.ts` builds GOLDEN ACES and HOTEL ORPHEUS, and
-`ct/street.ts:503` records that it no longer does. My structural fix landed
+`ct/street.ts:877` records that it no longer does. (Cited as `:503` until now —
+correct when written, rotted by my own splits into an unrelated line that still
+resolves; GOTCHAS §44.) My structural fix landed
 before the split and has been superseded by it. Hand (a) and (b) to G.
 
 **Window lights.** `facadeTex` was handed to me but lives in `tex-world.ts`,

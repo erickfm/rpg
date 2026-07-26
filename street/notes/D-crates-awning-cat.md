@@ -145,10 +145,16 @@ The ATM's ledger row is **LANDED, awaiting the auditor**, not open: both halves
 of the desk's ruling are at HEAD and were measured there today —
 `scripts/atmmeasure.mjs` reports 8 parts, screen rake 8.1°, keypad 33.7°, and a
 tonal separation from the wall of 29–173 levels against the 4% it had before.
-The one place it departs from the ruling as worded is written down at
-`ct/street.ts:822`: the desk suggested a fascia bottom near 0.75, which would
-have given 0.83 m because the top is pinned at 1.58 by the screen height, so it
-went to 0.68 and reached the 0.90 m the ruling was aiming at.
+The one place it departed from the ruling as worded is written down at
+`ct/bank.ts:146` — **and both the citation and the number below were stale until
+now, in one sentence.** The pointer said `ct/street.ts:822`, which was right
+until I split the bank out of that file; line 822 is `placeBldZ`'s shell-centre
+calculation today, so it still resolves and sends the reader somewhere unrelated
+(GOTCHAS §44). And the outcome had moved on: the desk suggested a bottom near
+0.75, I took 0.68 because the top is pinned at 1.58 by the screen height and only
+0.68 reaches the 0.90 m the ruling was aiming at — **then the user said 0.75 a
+third time, so it is 0.75 and the fascia is 0.83 m.** A number the user repeats
+is a decision.
 
 **`notes/queues/D-alley.md` is stale** and worth a pass by the desk. Every item
 under `## Now` is either landed (cat, grate, ATM, open-site depths — `placeLot`
@@ -158,8 +164,20 @@ GOLDEN ACES marquee). Both `## Next` items I still own are assessed in
 `notes/D-bodega-corner.md` and `notes/D-shop-resize.md`, and both conclude with
 a number rather than a task.
 
-One stale reference left deliberately: `ct/sidestreet.ts:84` justifies its first
-tree from *"the bodega's fruit crates sit at x 9.74…11.26"*, which is now
-10.44…11.76. The file has no owner in `OWNERSHIP.md` and the constraint it
-protects is unaffected — the tree it is reasoning about is on the SOUTH walk at
-z −109.6, and the first NORTH-side tree is at x 21, nine metres clear.
+**FOR THE DESK — a stale number I caused, in a file I may not edit.**
+`ct/sidestreet.ts:84` justifies its first tree from *"the bodega's fruit crates
+sit at x 9.74…11.26"*. They span **x 10.44…11.76** now — centres 10.75 and 11.45,
+half-width 0.31, 0.70 m further east — because *"align these crates so they fit
+better against this wall"* put both on one z against the wing's plinth.
+
+I tried to correct it under GOTCHAS §44 (*if you correct a status, correct it
+everywhere it lives*) and `scripts/ownership.sh D` refused: **"1 file(s) out of
+bounds"**. The file has no owner in `OWNERSHIP.md`, but unowned is still outside
+my boundary, and negotiating with a check that is doing its job is §27 from the
+author's side. Reverted; flagged here instead.
+
+**The constraint it protects is unaffected either way.** A tree at 11 would now
+stand INSIDE the crate span rather than 0.24 m clear of it, but the tree it is
+reasoning about is on the SOUTH walk at z −109.6, the first NORTH-side tree is at
+x 21, and 13 is clear of 11.76 regardless. A wrong number behind a right decision
+— which is the kind that survives longest, because nothing it guards ever fails.
