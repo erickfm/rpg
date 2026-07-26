@@ -3,9 +3,10 @@ import { pixTex, dither, declareSurface } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
 import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
          paperTex, scrapTex } from './tex-world';
-import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER } from './tex-ground';
+import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse } from './tex-ground';
 import { ORDER, type CtxBuild } from './ctx';
 import { weedTuft } from './weeds';
+import { BAY } from './bodega-corner';
 
 // ── everything standing on the sidewalk, and the weather over it ──────────
 //
@@ -2678,6 +2679,36 @@ export function buildProps(ctx: CtxBuild): Props {
   // between the legs, which stand at x 5.13 and 5.52 and z -35.78 and -34.22
   drop('coffee cup', 5.32, -35.30, 0.70);
   drop('folded newspaper', 5.30, -34.80, -0.50);
+
+  // ── the bodega's cut corner: a soldier course along the cant ─────────────
+  //
+  // The auditor routed this: the walk is scored on a square 1 m grid and the
+  // bodega cuts its corner at 45°, so the joints ran into the bay's foot. A cut
+  // corner wants its paving cut to match, which in the street means one row of
+  // flags laid PARALLEL to the face so the field joints die against a band.
+  //
+  // BUILT HERE, NOT IN ct/tex-ground.ts, because of build order. `BAY` is
+  // published by ct/bodega-corner.ts and is null until the corner exists —
+  // buildGround runs at crosstown.ts:66 and buildStreet at :121, so the ground
+  // cannot see it. buildProps runs at :225, after both. The helper still lives
+  // in tex-ground beside the other paving; only the placement moved.
+  //
+  // The first version of this hand-typed the cut from two mullions I measured
+  // and then walked into the wall to locate — 0.40 m of offset arithmetic and a
+  // rotation sign I got backwards, which the auditor caught. None of that is
+  // needed now: the bay publishes its own endpoints, centre and normal, so if
+  // the corner is ever re-cut the course follows it instead of sitting where
+  // the corner used to be.
+  if (BAY) {
+    const HALF = 0.42 / 2;                       // the course's own half-width
+    // stand it clear of the wall along the published face normal
+    const cx = BAY.centre.x + BAY.normal.x * HALF;
+    const cz = BAY.centre.z + BAY.normal.z * HALF;
+    // the band runs ALONG the face: from a to b, not across it. Sign of this
+    // was the defect the auditor rejected, so it is derived rather than typed.
+    const yaw = Math.atan2(BAY.b.z - BAY.a.z, BAY.b.x - BAY.a.x);
+    soldierCourse(scene, cx, cz, -yaw, BAY.faceWidth, 0.42, KERB_H, (t) => wet(flat(t)));
+  }
 
   // ── weeds in the kerb seam ──────────────────────────────────────────────
   //

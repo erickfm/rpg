@@ -747,7 +747,7 @@ export interface Ground {
  *  band laid exactly on the flags would z-fight the whole length; a real
  *  granite course stands a little proud of the paving it edges, so the honest
  *  drawing and the safe one agree. */
-function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: number,
+export function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: number,
                        len: number, wide: number, y: number,
                        /** the builder's `wet(flat(...))`; module scope cannot see
                         *  either, and floorDrain above takes the same treatment */
@@ -950,29 +950,6 @@ export function buildGround(o: GroundOpts): Ground {
     scene.add(skirt);
   }
   slab(8.5, 57, o.SIDE_Z0 + CH, -96);                          // north side-street walk
-  // ── the bodega's cut corner ──────────────────────────────────────────────
-  // The bay face is the line x + z = -86.91, measured off its two shopfront
-  // mullions. Centre the course on the middle of that run and push it 0.24 m
-  // clear of the wall along the face normal, so it edges the flags rather than
-  // butting the brick. See soldierCourse's note.
-  {
-    const C = -86.91;                              // x + z on the bay face
-    const midX = 8.045, midZ = -94.955;            // midpoint of the measured run
-    // Walked into the corner to find the wall rather than reading bounding
-    // boxes: the cant is built from axis-aligned boxes so its 45° face is not
-    // any box edge. The player stops at x+z = -87.58 and carries a ~0.40 m
-    // radius, putting the face at -87.01 — the mullion line, so the flags do
-    // run right up to the wall. A 0.42 m band with its inner edge on the wall
-    // wants its centre at x+z = -87.31, which is 0.40 m out along the normal.
-    // PER-COORDINATE, not a distance along the normal. Shifting each of x and z
-    // by `off` moves the line x+z by 2*off, so 0.20 here is the 0.40 of x+z the
-    // band needs — and 0.40/SQRT2 put it at -87.48, a 0.17 m gap between the
-    // course and the wall it edges.
-    const off = 0.20;
-    soldierCourse(scene, midX - off, midZ - off, Math.PI / 4, 2.60, 0.42, KERB_H,
-                  (t) => wet(flat(t)));
-    void C;
-  }
   slab(-ROAD_HALF - CH, 55 + CH, o.SIDE_Z1 - 2, -108 - CH);    // south side-street walk
   slab(55 + CH, 57, o.SIDE_Z1 - 2, o.SIDE_Z0 + CH);            // east end of the side street
 
