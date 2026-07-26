@@ -37,7 +37,12 @@ const URL = process.env.SHOT_URL
   ?? (ARG && /^\d+$/.test(ARG) ? `http://localhost:${ARG}/` : ARG)
   ?? 'http://localhost:4188/';
 
-const GATE_EYE = 1.6;          // crosstown.ts, the hardcoded ray origin
+// FIXED, and this constant had to move with it. crosstown.ts:921 now reads
+// `apt.gy() + 1.6` where it read a bare 1.6, so the gate's eye tracks the floor
+// the player is on. Comparing against a flat 1.6 would keep printing a 5.42 m
+// error in 301 that no longer exists — my own stale number, in my own script,
+// about the fault I filed. The diagnostic is the gate's rule, not a constant.
+const gateEye = (gy) => gy + 1.6;
 const TOL = 0.5;               // a step's worth of slop; 5.4 m is not slop
 const b = await chromium.launch();
 const p = await b.newPage({ viewport: { width: 900, height: 560 } });
@@ -65,7 +70,7 @@ const rows = [];
   const v = await p.evaluate(() => window.__ct.pos());
   const trueEye = v[3] + v[1];
   rows.push({ id: 'apartment 301 (spawn)', gy: +v[3].toFixed(2),
-              trueEye: +trueEye.toFixed(2), err: +(trueEye - GATE_EYE).toFixed(2) });
+              trueEye: +trueEye.toFixed(2), err: +(trueEye - gateEye(v[3])).toFixed(2) });
 }
 for (const q of places) {
   // READ AFTER THE FRAME, NOT IN THE SAME TICK. `warp(x, z)` leaves gy alone and
@@ -79,10 +84,10 @@ for (const q of places) {
   const r = await p.evaluate(() => { const v = window.__ct.pos(); return { rigY: v[1], gy: v[3] }; });
   const trueEye = r.gy + r.rigY;
   rows.push({ ...q, gy: +r.gy.toFixed(2), trueEye: +trueEye.toFixed(2),
-              err: +(trueEye - GATE_EYE).toFixed(2) });
+              err: +(trueEye - gateEye(r.gy)).toFixed(2) });
 }
 
-console.log(`\nthe gate builds its ray from y ${GATE_EYE}; the player's eye is gy + rig.pos.y\n`);
+console.log(`\nthe gate builds its ray from apt.gy() + 1.6; the player's eye is gy + rig.pos.y\n`);
 console.log(`  ${'where'.padEnd(24)} ${'floor'.padStart(6)} ${'true eye'.padStart(9)} ${'error'.padStart(7)}`);
 for (const r of rows) {
   const bad = Math.abs(r.err) > TOL;
@@ -180,7 +185,7 @@ if (!reach.length) {
 if (!offered) {
   console.error(`\nMEASURED WRONG — the player spawns in 301 and CANNOT USE ANYTHING IN IT.`);
   console.error(`  ${reach.length} live [E] spot(s) are within reach and none is offered at any facing.`);
-  console.error(`  Diagnosis above: the sight ray is built from y ${GATE_EYE} while the player's eye`);
+  console.error(`  Diagnosis above: the sight ray's origin does not match the player's eye`);
   console.error(`  is ${rows[0].trueEye} — it starts ${rows[0].err} m under the floor and is stopped by it.`);
   console.error(`  crosstown.ts should build the eye from the player's floor, not a constant.`);
   process.exit(1);
