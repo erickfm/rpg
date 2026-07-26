@@ -63,6 +63,20 @@ await p.waitForTimeout(400);
 const panelUp = () => p.evaluate(() => window.__hud?.panel?.() ?? null);
 const view = () => p.evaluate(() => window.__slots?.view?.() ?? null);
 const press = async (k) => { await p.keyboard.down(k); await p.waitForTimeout(80); await p.keyboard.up(k); await p.waitForTimeout(160); };
+/** Wait for a CONDITION, and report a timeout as a failed verdict rather than
+ *  as a thrown exception — a check that dies is a check with no result.
+ *
+ *  Every fixed sleep in this file that stood in for something the render loop
+ *  drives has now been replaced by one of these. The three that were left cost
+ *  a full red run: 250 ms after a warp is plenty on an idle machine and not
+ *  enough on one that has just run a build and three suites, so the [E] spot was
+ *  not live yet when the key was pressed and "pressing E seats the player"
+ *  failed on a world where it works. GOTCHAS §30, in the probe rather than in
+ *  the thing probed. */
+const until = async (fn, what, ms = 10000) => {
+  try { await p.waitForFunction(fn, { timeout: ms }); return true; }
+  catch { console.log(`      (timed out waiting for ${what})`); return false; }
+};
 
 const CREDIT = await p.evaluate(() => window.__slots.credit());
 console.log(`\n  a credit is $${CREDIT.toFixed(2)}\n`);
@@ -117,11 +131,15 @@ if (mode === 'sit' || mode === 'all') {
   const seat = slotSeats[Math.floor(slotSeats.length / 2)];
   // Stand where the seat says to stand, which is the seat's OWN approach point.
   await p.evaluate((s) => window.__ct.warp(s.at.x, s.at.z, 0, window.__ct.pos().gy ?? 0, 0), seat);
-  await p.waitForTimeout(250);
+  // Wait for the world to OFFER the seat rather than sleeping and hoping.
+  await until(() => {
+    const d = document.getElementById('ct-prompt');
+    return !!d && d.style.display !== 'none' && /sit at the slot/.test(d.textContent ?? '');
+  }, 'the stool to offer itself');
   const before = await panelUp();
   await press('e');                                  // sit
-  await p.waitForTimeout(400);
-  const seated = await p.evaluate(() => !!window.__ct.seated());
+  const seated = await until(() => !!window.__ct.seated(), 'the player to be seated');
+  await until(() => window.__hud.panel() === 'ct-slots', 'the machine to open');
   const after = await panelUp();
   console.log(`  sat at the stool at (${seat.pose.x.toFixed(2)}, ${seat.pose.z.toFixed(2)})`);
   console.log(`  panel before: ${before ?? 'none'}    after: ${after ?? 'none'}\n`);
@@ -134,6 +152,7 @@ if (mode === 'sit' || mode === 'all') {
   // ── the reels really turn, in the world ────────────────────────────────────
   await p.evaluate(() => window.__slots.insert(50));
   await press(' ');
+  await until(() => window.__slots.view().state === 'spinning', 'the reels to start');
   const a = await view();
   await p.waitForTimeout(220);
   const c = await view();
@@ -162,9 +181,12 @@ if (mode === 'money' || mode === 'all') {
   if (mode === 'money') {
     const seat = slotSeats[Math.floor(slotSeats.length / 2)];
     await p.evaluate((s) => window.__ct.warp(s.at.x, s.at.z, 0, window.__ct.pos().gy ?? 0, 0), seat);
-    await p.waitForTimeout(250);
+    await until(() => {
+      const d = document.getElementById('ct-prompt');
+      return !!d && d.style.display !== 'none' && /sit at the slot/.test(d.textContent ?? '');
+    }, 'the stool to offer itself');
     await press('e');
-    await p.waitForTimeout(300);
+    await until(() => window.__hud.panel() === 'ct-slots', 'the machine to open');
   }
   await p.waitForFunction(() => window.__slots.view().state === 'idle', { timeout: 30000 });
   // Empty the meter first so the arithmetic below starts from a known place.
@@ -192,7 +214,7 @@ if (mode === 'money' || mode === 'all') {
   // machine.
   const held = (await view()).credits;
   await press('Escape');
-  await p.waitForTimeout(300);
+  await until(() => window.__hud.panel() === null, 'the machine to close');
   const c2 = await p.evaluate(() => window.__slots.cash());
   const left = (await view()).credits;
   console.log(`  left the machine holding ${held} credits; meter now ${left}`);

@@ -342,6 +342,38 @@ if (mode === 'feel' || mode === 'all') {
   check(live.frames.every((f) => !f.teasing[0] && !f.teasing[1]),
     'and neither of them ever crawls');
 
+  // EVERY live spin, not one scripted one.
+  //
+  // This exists because a twenty-spin playtest in the world reported the hold
+  // never firing, on three spins that were live — and the machine was right and
+  // the playtest was wrong. It sampled `teasing` at the instant reel 2 came to
+  // rest, and the crawl starts a MEDIAN 0.38 s after that (up to 0.81 s, because
+  // reel 3 can only rest at moments one revolution apart and may take an extra
+  // turn). One sample at a boundary measured nothing, which is GOTCHAS §48's
+  // stride problem in time rather than in space.
+  //
+  // A single scripted spin could never have caught that either. So: play three
+  // thousand real spins, and require the crawl on every live one and on no dead
+  // one.
+  {
+    const mm = S.createMachine({ rng: lcg(99) });
+    mm.insert(1_000_000);
+    let liveN = 0, heldN = 0, falseN = 0;
+    for (let n = 0; n < 3000; n++) {
+      mm.play();
+      const wasLive = S.isLive(mm.view().reels.map((r) => r.stop));
+      let saw = false;
+      while (mm.view().state === 'spinning') { mm.tick(1 / 120); if (mm.view().reels[2].teasing) saw = true; }
+      while (mm.view().state !== 'idle') mm.tick(1 / 120);
+      if (wasLive) { liveN++; if (saw) heldN++; } else if (saw) falseN++;
+    }
+    console.log(`    across 3,000 spins: ${liveN} live, reel 3 crawled on ${heldN};`
+      + ` ${falseN} dead spins teased\n`);
+    check(liveN > 300, `${liveN} live spins in 3,000 — the population this rests on`);
+    check(heldN === liveN, `reel 3 is held on EVERY live spin (${heldN}/${liveN}), not most`);
+    check(falseN === 0, `and never on a dead one (${falseN}) — the tease is not decoration`);
+  }
+
   // ── the payout counts up ───────────────────────────────────────────────────
   const jack = [idxOf(0, 'SEVEN'), idxOf(1, 'SEVEN'), idxOf(2, 'SEVEN')];
   const mJack = S.createMachine({ rng: scripted(jack) });

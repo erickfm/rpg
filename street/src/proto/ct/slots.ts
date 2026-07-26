@@ -413,6 +413,9 @@ export interface MachineView {
    *  honesty — a player can check it against the printed 92.83%. */
   readonly staked: number;
   readonly returned: number;
+  /** seconds the machine has been sitting idle with nobody pressing anything.
+   *  The glass goes into ATTRACT past `FEEL.attract`. */
+  readonly idleT: number;
 }
 
 export interface Machine {
@@ -544,6 +547,13 @@ export const FEEL = {
  *  spins and cashing out floored a credit away. A meter that ticks in whole
  *  numbers is both arithmetically exact and what the real thing does. */
   payMin: 12, payMax: 90, payOver: 1.8,
+  /** ATTRACT. Seconds of nobody touching it before the machine starts calling
+   *  you back — the pay table walks a highlight down its own lines and the
+   *  message cycles. Every machine on a real floor does this, and it is the
+   *  difference between a cabinet that is waiting for you and one that is off.
+   *  Six seconds: long enough not to fire between spins, short enough that a
+   *  player who sits down and hesitates sees it. */
+  attract: 6, attractStep: 0.7,
 };
 
 /**
@@ -565,7 +575,7 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
 
   let credits = 0, betIx = 0, state: MachineState = 'idle';
   let t = 0;                                    // seconds since the handle went
-  let staked = 0, returned = 0;
+  let staked = 0, returned = 0, idleT = 0;
   let win: Win | null = null, owed = 0, payRate = 0, payRamp = 0, paid = 0;
 
   /**
@@ -626,7 +636,7 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
   };
 
   const view = (): MachineView => ({
-    state, credits, bet: BETS[betIx], win, paid, staked, returned,
+    state, credits, bet: BETS[betIx], win, paid, staked, returned, idleT,
     reels: reels.map((r) => {
       const tt = t;
       const tCrawl = r.rampT + r.cruiseT + r.crawlT;
@@ -706,7 +716,7 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
     const bet = BETS[betIx];
     if (credits < bet) return false;
     credits -= bet; staked += bet;
-    win = null; paid = 0; payRamp = 0; owed = 0; t = 0; state = 'spinning';
+    win = null; paid = 0; payRamp = 0; owed = 0; t = 0; idleT = 0; state = 'spinning';
 
     // ALL THREE STOPS, DRAWN NOW, BEFORE ANYTHING MOVES. See FEEL.hold above — this
     // is the line between an anticipation and a rigged reel.
@@ -729,6 +739,7 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
     // of scheduling rather than integrating. A backgrounded tab that comes back
     // to a finished spin is the correct outcome, not a glitch to guard against.
     t += dt;
+    idleT = state === 'idle' ? idleT + dt : 0;
 
     if (state === 'spinning') {
       let last = 0;
@@ -763,9 +774,9 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
 
   return {
     view, tick, play,
-    betUp: () => { if (state === 'idle') betIx = Math.min(BETS.length - 1, betIx + 1); },
-    betDown: () => { if (state === 'idle') betIx = Math.max(0, betIx - 1); },
-    insert: (n: number) => { if (n > 0) credits += Math.floor(n); },
+    betUp: () => { if (state === 'idle') { betIx = Math.min(BETS.length - 1, betIx + 1); idleT = 0; } },
+    betDown: () => { if (state === 'idle') { betIx = Math.max(0, betIx - 1); idleT = 0; } },
+    insert: (n: number) => { if (n > 0) { credits += Math.floor(n); idleT = 0; } },
     cashOut: () => {
       // Deliberately NOT gated on `settled()`. Standing up mid-spin has to give
       // the money back — refusing would be a machine that eats your credits
@@ -1023,7 +1034,7 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   g.fillStyle = P.gold; g.font = 'bold 17px monospace'; g.textAlign = 'center';
   g.fillText('SEVENS', FACE.w / 2, 25);
   // bulbs round it, three-phase chase — the same trick the marquee outside uses
-  const phase = Math.floor(t * 6) % 3;
+  const phase = Math.floor(t * (v.state === 'idle' && v.idleT > FEEL.attract ? 11 : 6)) % 3;
   for (let i = 0; i < 30; i++) {
     g.fillStyle = i % 3 === phase ? P.lampOn : P.lampOff;
     g.fillRect(12 + i * 10, 2, 3, 3);
@@ -1037,11 +1048,17 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   // the face that makes the odds legible at all.
   g.fillStyle = P.glass; g.fillRect(10, 38, 300, 48);
   g.strokeStyle = P.goldLo; g.lineWidth = 1; g.strokeRect(10.5, 38.5, 299, 47);
+  // ATTRACT: with nobody touching it, the machine walks a highlight down its own
+  // pay lines. It is the cheapest possible animation and it is exactly what a
+  // real floor looks like from the door — a room of cabinets all quietly
+  // advertising themselves at slightly different phases.
+  const attract = v.state === 'idle' && !v.win && v.idleT > FEEL.attract;
+  const walk = attract ? Math.floor((v.idleT - FEEL.attract) / FEEL.attractStep) % PAYTABLE.length : -1;
   g.font = '8px monospace';
   PAYTABLE.forEach((p, i) => {
     const col = i < 4 ? 0 : 1, row = i % 4;
     const px = 18 + col * 150, py = 51 + row * 11;
-    const winning = v.win?.line === p.line;
+    const winning = v.win?.line === p.line || i === walk;
     g.textAlign = 'left';
     g.fillStyle = winning ? P.lampOn : P.cream;
     g.fillText(p.line, px, py);
@@ -1107,10 +1124,15 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   g.fillStyle = P.glass; g.fillRect(22, SAY_BAND[0], 276, SAY_BAND[1]);
   g.fillStyle = P.caseLo; g.fillRect(22, SAY_BAND[0], 276, 1);
   g.textAlign = 'center'; g.font = '7px monospace';
-  g.fillStyle = v.win ? P.lampOn : P.meterDim;
+  g.fillStyle = v.win || attract ? P.lampOn : P.meterDim;
   const say = v.win
     ? `${v.win.line}   PAYS ${v.win.pays * v.bet}`
-    : v.state === 'spinning' ? '' : v.credits < v.bet ? 'INSERT COIN' : 'PLACE YOUR BET';
+    : v.state === 'spinning' ? ''
+      : v.credits < v.bet ? 'INSERT COIN'
+        : attract
+          // the three things a machine shouts at an empty stool
+          ? ['PLAY 1 TO 5 CREDITS', 'SEVENS PAY 250', 'GOOD LUCK'][walk % 3]
+          : 'PLACE YOUR BET';
   if (say) g.fillText(say, FACE.w / 2, SAY_Y);
 
   g.restore();
