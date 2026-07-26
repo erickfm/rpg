@@ -20,6 +20,25 @@ export interface WetSurface { m: THREE.MeshBasicMaterial; base: THREE.Color }
  *  enumerating them — see the note at the bottom of this file. */
 export interface Spot {
   x: number; z: number; r: number;
+  /**
+   * WHAT THIS SPOT IS ABOUT — the object the prompt names, so the selection
+   * highlight can draw the same thing the prompt describes.
+   *
+   * This exists because they were resolved SEPARATELY and disagreed, in three
+   * distinct ways in three minutes of walking: the 301 door had a prompt and no
+   * highlight at all, the bed's highlight enclosed its frame and left the
+   * mattress outside, and the thrift store's prompt drew an outline around a
+   * MILK CRATE several metres away on the pavement. One cause: the prompt read
+   * the spot and the highlight went looking for "the largest plausible mesh near
+   * these coordinates", which at a shopfront is whatever litter happens to be
+   * standing there.
+   *
+   * Optional, and the fallback is deliberately DUMB rather than clever: a spot
+   * with no object gets a plain box drawn at its own position. A guess is what
+   * produced the crate, and an obviously generic marker is honest where a
+   * confident wrong answer is not.
+   */
+  obj?: THREE.Object3D;
   /** what the prompt says when you are in range */
   label: () => string;
   /** is this spot live right now (right floor, right side of a door…) */

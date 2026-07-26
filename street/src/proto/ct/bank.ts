@@ -4,7 +4,7 @@ import { FACE } from './rng';
 import { masonry, SHOP_BAND_H, SHOP_MULT, wallHeight, facadeTex, FLOOR_M } from './tex-world';
 import { type BldSpec } from './civic';
 import type { AABB } from '../fp';
-import type { CtxBuild } from './ctx';
+import type { CtxBuild, Spot } from './ctx';
 
 /** FIRST FEDERAL — the bank, and the ATM in its wall.
  *
@@ -297,7 +297,13 @@ export function buildBank(k: {
   };
 
   /** The niche: a 0.15 m recess with a two-plane RAKED fascia inside it. */
-  const atmNiche = (zc: number) => {
+  const atmNiche = (zc: number): THREE.Group => {
+    // Collected into a GROUP so the [E] spot can NAME it. The selection outline
+    // draws whatever the spot names, and a spot that names nothing gets a plain
+    // box — which is honest, but this is the machine, so it can have its own
+    // contour. This is the one-line-per-spot follow-through every owner needs.
+    const atmGroup = new THREE.Group();
+    scene.add(atmGroup);
     const xF = -FACE;                       // facade plane; -x goes into the wall
     const hOpen = ATM_TOP - ATM_SILL, yMid = (ATM_TOP + ATM_SILL) / 2;
     // A LIT TOP EDGE AND SHADOWED SIDES, which is what says "cut into" rather
@@ -322,7 +328,7 @@ export function buildBank(k: {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       b.position.set(x, y, z);
       b.userData.atmPart = 'niche';
-      scene.add(b);
+      atmGroup.add(b);
     };
     const t = 0.02;
     add(ATM_R, t, ATM_W + t * 2, xF - ATM_R / 2, ATM_TOP + t / 2, zc, head);
@@ -350,11 +356,12 @@ export function buildBank(k: {
       mesh.position.set(xF - (dTop + dBot) / 2, (yTop + yBot) / 2, zc);
       mesh.userData.atmPart = which;
       mesh.userData.atmTilt = +(theta * 180 / Math.PI).toFixed(1);
-      scene.add(mesh);
+      atmGroup.add(mesh);
     };
     panel('screen', M_TOP, M_SCREEN_BOT, D_TOP, D_SCREEN_BOT);
     panel('keys', M_SCREEN_BOT, M_KEYS_BOT, D_SCREEN_BOT, D_KEYS_BOT);
     panel('apron', M_KEYS_BOT, M_BOT, D_KEYS_BOT, D_BOT);
+    return atmGroup;
   };
 
   const bankWall = (wM: number, hM: number, floors: number) => {
@@ -405,14 +412,18 @@ export function buildBank(k: {
     // runs from `z` back to `z - w`, so u maps to `z - u * w`.
     const atmZ = z - 0.36 * w;
     let readAt = -1e9;
-    o.spot({
+    // Registered here but the machine is BUILT further down, so the object is
+    // attached after the fact — `ctx.spot` keeps the same object reference, so
+    // filling `obj` in later is the same spot the dispatch already holds.
+    const atmSpot: Spot = {
       x: -FACE, z: atmZ, r: 1.25,
       ok: () => true,
       label: () => (performance.now() - readAt < 6000
         ? `FIRST FEDERAL — balance $${o.purse.cash.toFixed(2)}`
         : 'FIRST FEDERAL — check balance'),
       act: () => { readAt = performance.now(); o.refreshWallet(); },
-    });
+    };
+    o.spot(atmSpot);
     const dep = depthOf('FIRST FEDERAL'), cx = -(FACE + dep / 2);
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // THE HOLE NEEDS alphaTest, or `clearRect` buys nothing: an untested
@@ -519,7 +530,8 @@ export function buildBank(k: {
         flat(bankReturn(dep, SHOP_BAND_H, 'right')), flat(bankReturn(dep, SHOP_BAND_H, 'left'))]);
     band.position.set(cx, SHOP_BAND_H / 2, cz);
     scene.add(band);
-    atmNiche(atmZ);
+    // the outline draws the MACHINE now, not a generic box at the spot
+    atmSpot.obj = atmNiche(atmZ);
     solid({ minX: -FACE - dep, maxX: -FACE + 0.3, minZ: cz - w / 2, maxZ: cz + w / 2 });
     // A recessed entrance, because a bank door is not a glass hole in a band.
     // Same trick as the bodega's canted bay: the leaf sits back behind the

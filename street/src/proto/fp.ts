@@ -484,93 +484,109 @@ export function pickSpot<T extends Pickable>(
 }
 
 /**
- * The selection outline — a silhouette AROUND the selected object.
+ * The selection outline — the SAME object the prompt names, contoured.
  *
- * *"this outline is not around the object, i wanted to be around the object."*
- * The first attempt was a screen-space rectangle and it read as a UI crop
- * marker: axis-aligned, not even tightly bounding the bed, its top edge over the
- * calendar and its bottom out on the floorboards, enclosing a slab of wall.
+ * Three reports on this, each a different fault, and the last two share a root:
  *
- * EDGE LINES rather than an inverted hull. This world is blocky and unlit, so
- * `EdgesGeometry` draws the object's own hard edges — which IS its shape here —
- * and `LineBasicMaterial` is 1 px on every platform, so the outline is constant
- * width on screen by construction rather than by correcting for distance, which
- * is the inverted hull's whole difficulty.
+ *   1. *"this outline is not around the object"* — it was a screen-space
+ *      rectangle, an axis-aligned crop marker enclosing wall and window.
+ *   2. *"the door isnt high lighted?"* — a prompt with NO outline at all, which
+ *      is the worst disagreement because the player cannot tell whether the
+ *      feature is broken or the thing is not interactable.
+ *   3. *"the highlight is not the CONTOUR of the full bed but simply the frame"*
+ *      — the mattress, duvet and pillows standing outside the outline.
  *
- * `depthTest: false` with a high `renderOrder` so it cannot z-fight the surface
- * it traces. A line coplanar with its own face is exactly the shimmer this world
- * gets whenever two coplanar faces meet (GOTCHAS §6).
+ * **2 and 3 are the same bug.** The outliner resolved a single CHILD MESH and
+ * traced that: for the bed it found the frame, for the door it found nothing at
+ * all. The prompt and the highlight were agreeing on the SPOT and disagreeing
+ * about what the OBJECT is. So the object is resolved once, as a whole, and both
+ * the "which" and the "what" now come from the same place.
+ *
+ * Two rules fall out of that and are enforced below rather than hoped for:
+ *
+ * · **Every descendant is outlined**, so a bed outlines as a bed — frame,
+ *   mattress and pillows — rather than as a crate around one.
+ * · **A prompt ALWAYS draws something.** If no mesh can be resolved, a box at
+ *   the spot is drawn instead. A highlight that is merely the wrong shape can be
+ *   improved; one that is absent tells the player the feature is broken.
+ *
+ * Edge lines rather than an inverted hull: this world is blocky and unlit, so
+ * `EdgesGeometry` gives the object's real hard edges, and `LineBasicMaterial` is
+ * 1 px everywhere — constant screen thickness by construction rather than by
+ * correcting for distance, which is the hull's real difficulty.
  */
 export class SpotOutline {
-  private lines: THREE.LineSegments[] = [];
-  private cache = new Map<object, THREE.Mesh | null>();
+  private group: THREE.Group | null = null;
+  private cache = new Map<object, THREE.Object3D | null>();
   private shown: object | null = null;
+  private mat = new THREE.LineBasicMaterial({
+    color: 0xfff3c4, depthTest: false, transparent: true, opacity: 0.95,
+  });
 
-  /** Which mesh IS this spot? Resolved once per spot and remembered — the
-   *  traversal is far too expensive to run per frame.
+  /** THE OBJECT IS THE SPOT'S OWN — one source of truth for prompt and outline.
    *
-   *  Automatic on purpose: `ctx.spot` exists so a module describes its own
-   *  furniture, and a highlight each owner must opt into per prop stays
-   *  half-adopted and leaves the user finding dead objects.
+   *  This used to hunt the scene for "the largest plausible mesh near these
+   *  coordinates", which is how the thrift store's prompt came to outline a MILK
+   *  CRATE standing on the pavement, the bed outlined only its frame, and the
+   *  301 door outlined nothing at all. Three different symptoms, one cause: two
+   *  code paths deciding independently what the player had selected.
    *
-   *  "The LARGEST plausible thing standing at the spot": within the spot's own
-   *  reach, tall enough to be an object rather than a decal, short enough not to
-   *  be a wall or a shell. Largest is the correction — smallest-volume was the
-   *  first rule and it outlined SUB-PARTS, measured: the bodega door's JAMB
-   *  (0.07 × 2.35 × 0.12) instead of the leaf, and a bench LEG instead of the
-   *  bench. Inside any prop the smallest box is always a fitting. */
-  private resolve(scene: THREE.Object3D, spot: Pickable & object): THREE.Mesh | null {
-    if (this.cache.has(spot)) return this.cache.get(spot)!;
-    let bestMesh: THREE.Mesh | null = null, bestVol = -1;
-    const bb = new THREE.Box3();
-    scene.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (!m.isMesh || !m.geometry) return;
-      bb.setFromObject(m);
-      if (!Number.isFinite(bb.min.x)) return;
-      const h = bb.max.y - bb.min.y;
-      if (h < 0.18 || h > 3.0) return;
-      const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
-      if (Math.hypot(cx - spot.x, cz - spot.z) > spot.r + REACH_MARGIN) return;
-      const vol = (bb.max.x - bb.min.x) * h * (bb.max.z - bb.min.z);
-      if (vol < 0.004) return;                          // slivers and trim
-      // CAP THE SPAN, not just the volume. Measured: the No. 227 entry resolved
-      // to something 0.30 × 0.62 × 18.0 — a sill or kerb running the whole
-      // frontage — because a long thin strip passes a volume test comfortably.
-      // Outlining an 18 m strip when the prompt says "enter No. 227" is exactly
-      // the disagreement between prompt and highlight that is worse than having
-      // no highlight at all. Nothing you select is more than a few metres across.
-      const span = Math.max(bb.max.x - bb.min.x, bb.max.z - bb.min.z);
-      if (span > 3.0) return;
-      if (vol > bestVol) { bestVol = vol; bestMesh = m; }
-    });
-    this.cache.set(spot, bestMesh);
-    return bestMesh;
+   *  There is no hunting left. A spot either declares its object or it does not,
+   *  and the fallback is a plain box AT THE SPOT — deliberately generic, because
+   *  a confident wrong answer is what produced the crate. */
+  private resolve(spot: Pickable & object): THREE.Object3D | null {
+    const o = (spot as { obj?: THREE.Object3D }).obj;
+    return o ?? null;
   }
 
   private clear(scene: THREE.Object3D): void {
-    for (const l of this.lines) { scene.remove(l); l.geometry.dispose(); }
-    this.lines.length = 0;
+    if (this.group) {
+      scene.remove(this.group);
+      this.group.traverse((o) => { const l = o as THREE.LineSegments; if (l.isLineSegments) l.geometry.dispose(); });
+      this.group = null;
+    }
     this.shown = null;
   }
 
   /** Outline `spot`'s object, or clear when it is null. */
   show(scene: THREE.Object3D, spot: (Pickable & object) | null): void {
     if (!spot) { if (this.shown) this.clear(scene); return; }
-    if (spot === this.shown) return;                   // already drawn, do nothing
+    if (spot === this.shown) return;
     this.clear(scene);
-    const mesh = this.resolve(scene, spot);
-    if (!mesh) return;
-    const eg = new THREE.EdgesGeometry(mesh.geometry, 25);
-    const ln = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
-      color: 0xfff3c4, depthTest: false, transparent: true, opacity: 0.95,
-    }));
-    ln.renderOrder = 999;
-    mesh.updateWorldMatrix(true, false);
-    ln.matrixAutoUpdate = false;
-    ln.matrix.copy(mesh.matrixWorld);
-    scene.add(ln);
-    this.lines.push(ln);
+    const root = this.resolve(spot);
+    const g = new THREE.Group();
+    // COLLECT FIRST, BUILD AFTER. My first attempt at the ancestor walk added
+    // lines to the scene from inside a traverse of that same scene, which threw
+    // in the frame loop and cost two spots their prompt entirely.
+    const meshes: THREE.Mesh[] = [];
+    if (root) root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry) meshes.push(m); });
+    for (const m of meshes) {
+      let eg: THREE.EdgesGeometry;
+      try { eg = new THREE.EdgesGeometry(m.geometry, 25); } catch { continue; }
+      if (eg.getAttribute('position')?.count === 0) { eg.dispose(); continue; }
+      const ln = new THREE.LineSegments(eg, this.mat);
+      ln.renderOrder = 999;
+      m.updateWorldMatrix(true, false);
+      ln.matrixAutoUpdate = false;
+      ln.matrix.copy(m.matrixWorld);
+      g.add(ln);
+    }
+    if (g.children.length === 0) {
+      // NOTHING RESOLVED — draw a box at the spot rather than nothing. This is
+      // the parity rule: a prompt always draws a highlight, so the player can
+      // never be left unable to tell a broken feature from an inert object.
+      const w = Math.min(1.6, Math.max(0.5, spot.r));
+      const eg = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 1.9, w), 1);
+      const ln = new THREE.LineSegments(eg, this.mat);
+      ln.renderOrder = 999;
+      ln.position.set(spot.x, 0.95, spot.z);
+      g.add(ln);
+    }
+    scene.add(g);
+    this.group = g;
     this.shown = spot;
   }
+
+  /** For the parity audit: does this spot name real geometry, or fall back? */
+  resolves(spot: Pickable & object): boolean { return this.resolve(spot) !== null; }
 }

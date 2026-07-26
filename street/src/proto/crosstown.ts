@@ -711,6 +711,18 @@ export function makeCrosstown(): Proto {
       widthM: d.width ?? null,
     })),
     spots: () => SPOTS.map((sp) => ({ x: sp.x, z: sp.z, r: sp.r, label: sp.label(), ok: sp.ok() })),
+    // The acceptance test for the selection highlight, asked of the WORLD rather
+    // than of a copy of it: every registered [E], whether it names an object,
+    // and therefore whether its outline is the real contour or the generic
+    // fallback box. A parity check that kept its own list of doors would be
+    // testing the list.
+    highlightParity: () => SPOTS.map((sp) => ({
+      label: sp.label(),
+      // every spot draws SOMETHING — the fallback guarantees it — so this is
+      // the sharper question: does it draw the object, or a box standing in?
+      outlined: true,
+      contoured: spotOutline.resolves(sp),
+    })),
     seats: () => SEATS,
     camY: () => cam.position.y,
     yaw: () => rig.yaw,
