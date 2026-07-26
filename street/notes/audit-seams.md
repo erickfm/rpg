@@ -1441,3 +1441,31 @@ does not follow: the flag governs lateral allowance, not whether anyone gets
 stuck. **Fourth "cannot answer without a declaration" of this audit** — after the
 missing frontages, the litter tag and the room orientation. One accessor for the
 net makes this and every future graph claim checkable.
+
+## [C] The ATM fascia lands on the user's number; the self-lit fix is inert
+
+**Fascia — CONFIRMED.** The apron spans **0.75…1.04 m above the pavement** — the
+bottom at **0.75 exactly**, the number asked for three times — with the screen top
+pinned at 1.58, giving an 0.83 m fascia. Rakes and the 0.170 recess unchanged.
+
+**[Is] The interesting part is how the disagreement resolved.** D shipped 0.68 on
+a defensible reading — the same ruling asked for "0.9–1.0 m of fascia", and with
+the top pinned only 0.68 reaches 0.90. Then: *"raised twice and answered 0.75
+twice, so the number is a decision and it wins over my reading of the target."*
+
+**A stated number from the user outranks a builder's inference about what it was
+for**, and D applied that without being told. The inference may even have been
+right about the intent; it was still the wrong thing to ship against an explicit,
+repeated instruction.
+
+**Self-lit — measured, NOT confirmed.** **141 materials carry `selfLit`; ZERO
+carry `printed`.** B's new respect for `m.userData.printed` has nothing to act on,
+exactly as B says — *"inert until `lot.ts` opts in"*. Leaving it LANDED is the
+honest status: the mechanism is complete, the fault is still in the world, and it
+needs C rather than B.
+
+**[I] The tint trap, sixth time.** My first census counted materials with
+luminance > 0.75 and returned **393** — every textured material in the world.
+Six occurrences now: interior floors, litter, vehicle paint, weather, the hotel
+palette, and this. *The rule is simple and I keep re-learning it: on this street
+`material.color` is a tint, so it can only ever measure UNtextured things.*
