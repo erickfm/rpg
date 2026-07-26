@@ -345,3 +345,17 @@ appears to clip into the doorcase and the stoop in `23-stoop-near`. It is a
 PEDESTRIAN — a 0.95 x 1.9 citizen sprite standing at x 6.0, which is on the
 walk and 0.43 m clear of the stoop. At 2.4 m a 1.9 m figure simply covers a lot
 of frame. Nothing is clipping.
+
+### NEW, found while checking the shut door — 301's east wall wears the hall's paper
+
+`shots/walkup/g-room.png`. Standing in 301 looking at your own door with it
+SHUT, the wall around the door is the corridor's tan stripe while the other
+three walls of the room are the blue paper. With the door open you never notice
+it — the tan reads as the hall seen through the opening, which is what I put it
+down to on the first pass. Shut, there is no opening to explain it and the room
+has one wall in someone else's wallpaper.
+
+The cause is ownership of the surface: that wall is built by the stairwell
+shell's `wallMesh` runs, which paper both faces in the hall's paper, and 301's
+own build papers only the three walls it makes itself. Not fixed here — the two
+door faults were the ask and this is a third thing.
