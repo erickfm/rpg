@@ -1,1 +1,1 @@
-WORKING | seat exit + escape hatch landed; found a SECOND trap - modals swallow keydown | panel owner on hud.ts BLOCKED gate
+DONE | escape hatch shipped first; seat exit landed; cannot reproduce on 5177 (world moved past dd35b833e) | hud.ts blockInput has no recovery — panel owner
