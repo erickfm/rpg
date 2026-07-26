@@ -76,12 +76,21 @@ the raised lip was cutting across the bottom of the BODEGA fascia in every shot
 taken from the crossing. A warning about a fault that has already happened reads
 exactly like a warning about one that has not.
 
-**Audited for a second offender, and there is none.** Every mesh in the world
-carrying a tilt about x or z above head height, with its module and its declared
-surface: 46 of them, and **exactly one is a `sign`** — this awning. The rest are
-stair flights, banner stays, flagpoles and braces in `civic`, `vice`, `walkup`
-and `lot`. So the signs item's *"audit every other sign for the same"* half has
-an answer: no other sign in the world is tilted at all.
+**Audited for a second offender — then RE-audited, because the instrument was
+blind.** The first pass looked for meshes carrying a non-zero `rotation.x` or
+`rotation.z`: 46 above head height, exactly one declaring surface `sign`. **That
+method cannot see a baked rake**, and I proved it on my own ATM later the same
+session — its screen and keypad are raked 8.1° and 33.7° and both report
+`rotation.z = 0`, because the rake lives in the geometry rather than the
+transform. So the audit that concluded "no other sign is tilted" was run with an
+instrument that could not have found the counter-example sitting in my own file.
+
+Redone by **world normal** rather than by transform: 86 sign-surfaced meshes,
+106 distinct sign faces, 9 of them more than 4° off vertical. All nine are
+deliberate — the ATM's three raked panels (+8.1 screen, +33.7 keypad, −25.8
+apron), this awning's front and back faces at ∓10.3, and B's leaning bench ad at
+(5.6, −35). The conclusion survives: no sign in the world is wrongly tilted up.
+It was right by luck, on a count that was wrong — 46/1 against 86/106.
 
 ---
 
