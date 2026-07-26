@@ -712,6 +712,26 @@ export function makeCrosstown(): Proto {
       scene.add(c);
       return c;                    // the OBJECT: a count tells a probe nothing it can check
     },
+    // test affordance: IS THE RE-ENTRY HYSTERESIS HOLDING RIGHT NOW, and how
+    // far must you walk to clear it?
+    //
+    // H is blocked verifying the re-entry fix and the reason is that the fix is
+    // INVISIBLE FROM OUTSIDE: "pressing E where you land does nothing and the
+    // regression cannot be observed from outside." That is the fix working —
+    // every spot is suppressed until you are 1.2 m clear of where a door put
+    // you, or a door drops you on its own far-side trigger and pulls you
+    // straight back. But a null prompt is also what a BROKEN world produces,
+    // and from the HUD alone the two are the same reading.
+    //
+    // So the state is published rather than inferred, the same way colliders()
+    // and groundAt() publish theirs: a capability nobody can drive from a
+    // harness is a capability nobody can prove works. Returns null when
+    // nothing is suppressed, otherwise the arrival point and how much further
+    // you must walk to re-arm.
+    landing: () => (landing
+      ? { x: landing.x, z: landing.z,
+          clearIn: Math.max(0, 1.2 - Math.hypot(rig.pos.x - landing.x, rig.pos.z - landing.z)) }
+      : null),
     hermit: (v: boolean | null) => apt.forceHermit(v),
     atlases: () => crowd.atlases(),
     // test affordance: who is on the block, how big and how fast

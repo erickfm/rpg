@@ -26,6 +26,19 @@
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 
+//   SHOT_URL=http://localhost:PORT/ node scripts/D-outline-debug-only.mjs [--selftest]
+//
+// `--selftest` re-asserts every claim INVERTED against the same readings and
+// requires all of them to be caught. I proved this check fails by setting
+// `let debugSpots = true` in crosstown.ts and reverting, which is a story in a
+// commit message; this is the same proof, repeatable by anyone, in 20 seconds.
+for (const a of process.argv.slice(2)) {
+  if (a !== '--selftest') {
+    console.error(`unknown argument ${JSON.stringify(a)} — this script takes --selftest and nothing else`);
+    process.exit(2);
+  }
+}
+const SELFTEST = process.argv.includes('--selftest');
 const URL = process.env.SHOT_URL ?? 'http://localhost:4181/';
 const WANT_STATIONS = 6;
 
@@ -84,6 +97,7 @@ for (const c of cand) {
 console.log(`\n  ${stations.length} stations where an [E] is being offered\n`);
 
 let pass = 0, fail = 0;
+const readings = [];              // kept so --selftest can re-score the SAME data
 const say = (ok, what, detail) => {
   console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${what}: ${detail}`);
   ok ? pass++ : fail++;
@@ -111,17 +125,20 @@ for (const st of stations) {
 
   const offBefore = await outlineLines();
   const p1 = await prompt();
+  readings.push({ label: st.label, offBefore, p1 });
   say(p1 !== '' && offBefore === 0, `normal play at "${st.label}"`,
     `prompt "${p1 || '(none)'}", ${offBefore} outline lines drawn`);
 
   await page.evaluate(() => window.__ct.debugSpots(true));
   await page.waitForTimeout(240);
   const on = await outlineLines();
+  readings[readings.length - 1].on = on;
   say(on > 0, `debug ON at "${st.label}"`, `${on} outline lines drawn`);
 
   await page.evaluate(() => window.__ct.debugSpots(false));
   await page.waitForTimeout(240);
   const offAfter = await outlineLines();
+  readings[readings.length - 1].offAfter = offAfter;
   say(offAfter === 0, `debug OFF again at "${st.label}"`, `${offAfter} outline lines drawn`);
 }
 
@@ -136,6 +153,28 @@ for (const c of cand.slice(0, 40)) {
 }
 say(anywhere === 0, 'nothing drawn anywhere in normal play',
   `${anywhere} outline lines across ${Math.min(40, cand.length)} live spots`);
+
+if (SELFTEST) {
+  // Assert the DEFECTS against the same readings. Each must be caught, or this
+  // check measures less than it claims (GOTCHAS §27, §34).
+  console.log('\nselftest — asserting the defects, which must FAIL');
+  const before = fail;
+  let want = 0;
+  for (const r of readings) {
+    say(r.offBefore > 0, `the outline is back in normal play at "${r.label}" (the bug)`, `${r.offBefore} lines`);
+    say(r.on === 0, `the debug flag draws nothing at "${r.label}" (the bug)`, `${r.on} lines`);
+    say(r.offAfter > 0, `the flag cannot be turned off again at "${r.label}" (the bug)`, `${r.offAfter} lines`);
+    want += 3;
+  }
+  say(anywhere > 0, 'outlines are drawn somewhere in normal play (the bug)', `${anywhere} lines`);
+  want += 1;
+  const caught = fail - before;
+  await b.close();
+  console.log(caught === want
+    ? `\nSELFTEST PASSED — all ${want} inverted claims were caught`
+    : `\nSELFTEST FAILED — only ${caught} of ${want} caught, so this measures less than it claims`);
+  process.exit(caught === want ? 0 : 1);
+}
 
 await b.close();
 console.log(`\n  ${pass} pass, ${fail} fail`);

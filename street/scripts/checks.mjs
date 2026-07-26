@@ -194,6 +194,24 @@ const CHECKS = [
   // moves one of the four, this goes red and somebody updates it ON PURPOSE,
   // which is the behaviour I want. ~10 s. (D)
   ['D-rulings-hold',   "do the user's four rulings on the block still hold?", true],
+  // H counted 74 of these where A counted 35 and my own first cut counted 73 —
+  // three filters, three sets, none agreeing, all correct by their own lights.
+  // The disagreement was never about measurement: "ground-facing" is not the
+  // question, "can you stand on it" is. Registered because the row was closed
+  // on the ANSWER (the street has no paving) and an unpublished predicate makes
+  // that an argument rather than a recount — the desk's new policy, and this
+  // row is the example it was written from. Goes red if the street ever grows a
+  // real paving surface, which is exactly when the slabTex row is live again.
+  // --selftest inverts all three verdicts and requires each to be caught. (D)
+  ['D-paving-vs-trim',  'is anything the street calls ground actually paving?', true],
+  // The user killed the selection outline as a player feature and kept it for
+  // debug: "get rid of outline unless debug is true". Two claims that pull
+  // opposite ways, so neither can be checked by looking. Counts lines wearing
+  // SpotOutline's own 0xfff3c4 rather than reading a screenshot, which could not
+  // tell a missing outline from a dark one. The DEFAULT is asserted before the
+  // script touches the flag, because from the second station on "nothing is
+  // drawn" would be true only because the script turned it off. (D)
+  ['D-outline-debug-only', 'is the outline out of play and alive behind debug?', true],
   ['windowlights',     'are the flats dark at noon and lit at nine?',        true],
   ['shells',           'is a building a building, or a stage flat?',         true],
   ['alleycheck',       'is the alley a room, or a gap between two boxes?',   true],
