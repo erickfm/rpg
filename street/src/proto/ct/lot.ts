@@ -426,11 +426,22 @@ function buildLot(o: {
     // a lot office's blinds are ever in. Drawn as 2-texel slats with a 1-texel
     // gap: at this density a slat is two pixels wide on screen and reads; at
     // the old density it would have been a third of one.
+    // OPACITY IS WHAT MAKES A BLIND A BLIND. At 0.88 the slats buried the room
+    // that was deliberately painted behind them and the window read, from the
+    // aisle and from the step, as **bars on a cell** — high-contrast full-height
+    // stripes with nothing visible between them. A venetian you cannot see any
+    // room through is a fence.
+    //
+    // 0.58, and the turned one at 0.34: enough that the slats are plainly there
+    // and plainly hanging badly, little enough that the desk, the chair and the
+    // lamp behind them come through as shapes. The pulled-aside gap widens with
+    // it, because a lot office keeps one corner clear to watch the yard — which
+    // is the reason the room behind was painted in the first place.
     for (let x = WX + 1; x < WX + WW - 1; x += 3) {
-      const open = x > WX + 30 && x < WX + 40;                     // a gap, pulled aside
+      const open = x > WX + 26 && x < WX + 42;                     // a gap, pulled aside
       if (open) continue;
       const skew = (x % 9 === 1) ? 1 : 0;                          // one slat turned
-      g.fillStyle = skew ? 'rgba(226,222,206,0.60)' : 'rgba(214,210,194,0.88)';
+      g.fillStyle = skew ? 'rgba(226,222,206,0.34)' : 'rgba(214,210,194,0.58)';
       g.fillRect(x, WY + 1, 2, WH - 2);
     }
     g.fillStyle = '#8d8878'; g.fillRect(WX, WY, WW, 2);            // the blind track
