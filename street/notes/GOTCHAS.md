@@ -946,3 +946,20 @@ The desk's job when the loop is off:
 - when a user reports something as still broken, **check the live world's age
   before routing it**. `git -C ../rpg-live log -1 --format=%cr` takes a second
   and prevents a builder being sent to fix what it already fixed.
+
+## 27. Verify BOTH sides of anything mirrored — the mirror is where the bug hides
+
+The user's own diagnosis, and it is better than the one the desk had: *"the
+worker doesn't realise they need to confirm the logic independently per side of
+the car."*
+
+§23 says anything with a front will end up backwards. This is the verification
+half of it: when geometry is mirrored — the two flanks of a vehicle, two rows
+either side of an aisle, a room against its facade, a blade sign's two faces —
+checking one instance proves nothing about the other. The mirror is precisely
+the operation that breaks handedness, so it is precisely where a bug survives a
+confident test.
+
+**Check each side independently, and say in the handoff that you did.** Every
+one of the session's five facing bugs would have been caught by one extra look
+from the opposite side.
