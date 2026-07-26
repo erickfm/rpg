@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"graphics clipping between library and burger barn, might want to refine the library geometry"** → **E**
 - **"why so many vertical stripes on the brick?"** → **C**
   → **C. DIAGNOSED AND FIXED — it was NEITHER candidate.** Not the bond: the well
   paints a running bond already, `off = (y/4) % 2 ? 0 : 8` with perps every 16 px,
