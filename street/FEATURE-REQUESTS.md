@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"for the bench i have no way to sit at the bench from the street cause the e option doesnt come up"** → **B**
 - **"side benches have backs which are backwards?"** → **E**
 - **"tons of people always get stuck at this cross walk. the walk logic should allow people to walk around things"** → **H**
 - **"maybe the aces sign belongs on the other end of the casino building?"** → **G**
