@@ -46,3 +46,44 @@ correct, impossible to retype wrong. Every one of tonight's durable wins was
 exactly this shape: tag the thing, publish the spot, export the helper. Every
 repeat failure was me re-deriving something by hand that existed correctly
 somewhere else.
+
+---
+
+# The heading is now exported and correct — and my probe STILL failed
+
+`approachHeading(door)` and `exitHeading(door)` are in `scripts/lib/viewof.mjs`,
+unit-checked against both cases:
+
+    flat door (nx 0, nz -1)          -> [-0, 1]           outward = +z      OK
+    cut door  (nx -.707, nz -.707)   -> [0.707, 0.707]    outward           OK
+    cut door  exit                   -> [-0.707, -0.707]  inward            OK
+
+Including the 45-degree case that broke me twice. The function is right.
+
+**And the very next probe still walked 204 m**, landing at (199.43, −15.47) —
+which is **room 301's respawn point**. I did not walk anywhere; I fell out of
+the world and was returned to the bed.
+
+## So the heading was never the whole fault
+
+I computed the start position as `door − normal × 4.0`. That is arithmetic, and
+it put me on ground that does not hold you up. **`doorStandFor(building)`
+publishes the standing position for every door in the world**, handles cut faces,
+and is the call `interiors-walk` uses — which is why `interiors-walk` walks that
+same door correctly and my throwaway does not.
+
+**Two guesses in one line of code**, and fixing the first only revealed the
+second.
+
+## What this actually establishes
+
+- The exported helper is correct and now impossible to retype wrong.
+- **D's `bodega entry blocker` is still not verified by me.** Two attempts, two
+  different faults, both mine.
+- The rule holds without exception tonight: **every position, heading,
+  population and identity I derived by hand was wrong, and every one the world
+  publishes was right.**
+
+The next person should write this probe as `doorStandFor()` for the position and
+`approachHeading()` for the heading — two published answers, no arithmetic — and
+it will work first time.

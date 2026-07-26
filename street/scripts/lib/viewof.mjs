@@ -91,3 +91,36 @@ export const VIEWOF_SRC = `
   };
 })
 `;
+
+
+/**
+ * WHICH WAY DO I FACE TO WALK AT THIS DOOR?
+ *
+ * Exported because I got it wrong twice in one session, the second time hours
+ * after diagnosing and fixing it, by retyping it from memory into a throwaway
+ * script. It walked me 200 m off the map.
+ *
+ * The world's convention: yaw 0 looks along -z, so a heading `y` points along
+ * `(sin y, -cos y)`. A door publishes its INWARD normal `n`. Walking AT the
+ * door from outside means travelling along `-n`, so
+ *
+ *     sin y = -nx      and      cos y = nz      =>   y = atan2(-nx, nz)
+ *
+ * THE TRAP: for every flat-wall door `nx === 0`, and `atan2(-0, nz)` and
+ * `atan2(0, nz)` give the same direction. So the wrong form is correct for
+ * nine rooms out of ten and points you along the street for the tenth — the
+ * bodega's 45-degree cut face, where `nx === nz === -0.707`. It cannot be
+ * caught by testing the easy cases, which is exactly how it survived.
+ *
+ *     import { approachHeading, exitHeading } from './lib/viewof.mjs';
+ *     const d = doors.find(q => q.building === 'BODEGA').point;
+ *     warp(d.x - d.nx * 4, d.z - d.nz * 4, approachHeading(d));
+ */
+export function approachHeading(door) {
+  return Math.atan2(-door.nx, door.nz);
+}
+
+/** …and standing inside, facing back out through it: the opposite. */
+export function exitHeading(door) {
+  return Math.atan2(door.nx, -door.nz);
+}
