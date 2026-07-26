@@ -33,7 +33,11 @@ const ROOMS = [
     // rather than leaning on a station I typed, which is the fault that let the
     // bodega keeper face his own wall for weeks.
     keeper: null,
-    id: 'jail', label: /JAIL/, D: 26.0, chamfer: true,
+    // LABEL IS THE PROMPT TEXT, NOT THE ROOM ID. The door says "into the HOUSE
+    // OF DETENTION"; I wrote /JAIL/ from the id and every prompt-based check
+    // failed - six of them - against a door that works perfectly. I stood at
+    // (54.5, -103) and the prompt was up.
+    id: 'jail', label: /JAIL|HOUSE OF DETENTION/, D: 26.0, chamfer: true,
   },
   {
     // ADDED because the suite refused to run without them - the world published
