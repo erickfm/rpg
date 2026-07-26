@@ -132,6 +132,14 @@ const CHECKS = [
   // actually leaves the purse. Its --selftest inverts three known truths and
   // requires all three to fail.
   ['D-walk',           'can you still walk the world, and does it answer?',  true],
+  // The four things the user RULED on, guarded by value rather than by shape.
+  // Registered because a ruling reverting quietly is not hypothetical: I shipped
+  // the ATM fascia bottom at 0.68 against a stated 0.75 on my own reading of the
+  // sentence it came in, and it took the user saying 0.75 a third time to settle
+  // it. Nothing in this file would have noticed. If a future note legitimately
+  // moves one of the four, this goes red and somebody updates it ON PURPOSE,
+  // which is the behaviour I want. ~10 s. (D)
+  ['D-rulings-hold',   "do the user's four rulings on the block still hold?", true],
   ['windowlights',     'are the flats dark at noon and lit at nine?',        true],
   ['shells',           'is a building a building, or a stage flat?',         true],
   ['alleycheck',       'is the alley a room, or a gap between two boxes?',   true],
