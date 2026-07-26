@@ -81,6 +81,8 @@ const AREAS = [
     what: 'the weeds cluster with gaps, and none grows down the middle of a path' },
   { name: 'circuit', script: 'scripts/E-circuit.mjs',
     what: 'the loop is continuous: set off from the gate and arrive back' },
+  { name: 'soffit', script: 'scripts/E-soffit-has-grain.mjs',
+    what: 'the ceiling over the library doors carries grain, not one flat tone' },
   { name: 'partyline', script: 'scripts/E-partyline.mjs',
     what: "nothing the library projects crosses either neighbour's party line" },
   // Not mine to own, but mine to have verified — and a check that decided

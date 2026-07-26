@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { AABB } from '../fp';
 import { BUILD, type CtxBuild } from './ctx';
 import type { Seat } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { FACE } from './rng';
 import { plazaTex } from './tex-ground';
 import { masonry } from './tex-world';
@@ -785,9 +785,34 @@ export function buildCivic(o: {
     };
     const slice = (px0: number, px1: number, py0: number, py1: number) =>
       pixTex(px1 - px0, py1 - py0, (g) => { g.translate(-px0, -py0); paint(g); });
-    const side = stoneM(), roof = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
+    const side = stoneM();
+    // THE SOFFIT OVER THE DOORS WAS A FLAT COLOUR, and it is the one surface in
+    // this building every player looks straight at.
+    //
+    // `#2b2d33` was one `MeshBasicMaterial` shared by the +y AND -y faces of
+    // every mass box. On the tall masses the -y face is underground and nobody
+    // cares; on the entrance bay — `box(BAY_W, LIB_H - BAY_H, …)`, the mass
+    // that bridges over the recess — the -y face is the ceiling above the
+    // doors, three metres over your head at the station where you press E. It
+    // read as a black trapezoid capping the entrance.
+    //
+    // Found by grading my own screenshots rather than by measuring: it is the
+    // second finding in notes/E-civic-report.md, ranked by what a player can
+    // see. Identified by raycasting the pixel and reading the materials array —
+    // index 2 and 3 are +y and -y — because "which mesh is that dark shape"
+    // is not a question a name search answers.
+    //
+    // THE COLOUR IS UNCHANGED. `slabTex` fills the tone you pass it and adds
+    // grain at the world's density; the fault was never the colour, it was that
+    // a flat quad has no grain for the eye to attach to and so no scale. Sized
+    // per box from its own real metres, so the density is right on each one
+    // rather than stretched to fit the biggest.
+    const capFor = (wm: number) => flat(slabTex({
+      wMeters: 3.4, dMeters: wm, base: '#2b2d33', joint: 0, grain: 0.11,
+    }));
     const box = (w: number, h: number, cx: number, cy: number, czz: number, face: THREE.Material) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w), [face, side, roof, roof, side, side]);
+      const cap = capFor(w);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(3.4, h, w), [face, side, cap, cap, side, side]);
       m.position.set(XF - 1.7 + cx, cy, czz);
       scene.add(m);
     };
