@@ -1,1 +1,1 @@
-DONE | 0 live, LANDED pile empty; ledger intact 230/230 | desk: merging verifier commits promptly stops the replay cost
+DONE | 0 live | URGENT: b5c45fca0 dropped 8 rows from the base incl 4 user requests; my branch has all 8 - see notes/H-URGENT-eight-rows-lost-upstream.md
