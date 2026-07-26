@@ -130,3 +130,64 @@ Stretches under 1.40 m: **23**
   - left  `x 23…35  z -131.6…-109.9`
   - right `x 33.8…34.2  z -108.5…-108.1`
 
+
+---
+
+## Does this want a permanent test rather than an audit? YES — and it already exists
+
+The queue asked me to say. The answer is yes, emphatically, and the work is
+done: **`scripts/builtlane.mjs`**. It is not a report — it asserts, and it
+**exits non-zero**. Run today against the current build:
+
+```
+  245 colliders, 239 static (6 moving — citizens and traffic, dropped)
+  446 cross-sections sampled every 0.5 m
+  PASS  no static geometry seals the walk: narrowest is 1.12 m at z -92.5, east walk
+  the lane is still 2 m of nothing                                        exit 0
+```
+
+**Why an audit is the wrong shape for this rule.** An audit finds the instances
+once. This rule is broken by *addition* — a bench, a planter, a sandwich board,
+a stallriser standing proud — and five builders who cannot see each other's work
+are adding to the same 2 m every day. A found instance is worth one fix; an
+assertion is worth every future one.
+
+**It already has the two properties that make a check worth registering,** and I
+say so having spent this session finding checks that had neither:
+
+- **It refuses to measure the wrong world.** Pointed at the default port it
+  stopped and said so — *"MEASURING THE WRONG WORLD … that server is not
+  yours"* — rather than returning another builder's numbers. That is the exact
+  failure that cost me three confirmations today.
+- **It cannot pass vacuously.** It asserts that the walk was sampled at all
+  (446 cross-sections), that the world has colliders to measure (239 static),
+  and that the narrowest reading is *bounded by geometry rather than by the
+  band* (1.12 m against a 2.72 m unbounded band). Seven of the checks I swept
+  earlier could report catastrophe and still exit 0; this one cannot pass
+  having found nothing.
+
+**What it needs is registration**, so it runs every build rather than when
+somebody remembers. `scripts/**` is A's, so that is A's line to add — this is a
+routing note, not a request for new work.
+
+## Correction to the table above: the 8 IMPASSABLE samples are not encroachment
+
+The table reports **8 samples at 0.25 m** around z 14.3…15.0, attributed to an
+`(untagged) [street]` collider at `x -7…7, z 14.2…20.2`. Re-measured:
+
+```
+  that collider spans x -7.00 .. 7.00 — 14 m, the ENTIRE street width
+  (-6.2, 14.5) BLOCKED   (0, 14.5) BLOCKED   (6.2, 14.5) BLOCKED
+  (-6.2, 21.0) free      (0, 21.0) free      (6.2, 21.0) free
+```
+
+It blocks the carriageway and both walks equally. **It is the closed north end
+of the street**, not furniture standing in a sidewalk — there is no sidewalk
+there to encroach. My sweep took "collider crossing the walk band" as the
+definition of encroachment, and a wall across the whole world satisfies it.
+That reconciles this file with `builtlane`, which puts the narrowest genuine
+pinch at **1.12 m**: the two disagreed only about whether the end of the world
+counts as a bench.
+
+**The ranked fixture list below is unaffected** — every entry in it is real
+furniture, and the tightest, the bus bench at 1.15 m, still stands.
