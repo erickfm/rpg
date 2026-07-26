@@ -32,8 +32,25 @@ Two things that would distinguish it from the alternatives, if useful:
 
 - if the stripes are on the **upper wall**, it is `facadeTex` → `courses()`, mine
 - if they are on a **shopfront band**, the band is painted at `SHOP_MULT` (2x),
-  so the same bond is drawn at 16 px/m and the perps are twice as frequent per
-  metre of wall — still mine, but a different lever (the mult, not the alpha)
+  so the same bond is drawn at 16 px/m — still mine, but a different lever
+  (the mult, not the alpha)
+
+  > **CORRECTION.** This bullet used to end "…and the perps are twice as
+  > frequent per metre of wall". **That is wrong and I am sorry, because it is
+  > a wrong steer on the bug you are actually chasing.** `courses()` computes
+  > `perp = round(PERP_M * ppm)` — a pitch in TEXELS — and then steps the loop
+  > by it, so the spacing is `PERP_M` **metres at every density**: 9 px at
+  > 8 px/m and 18 px at 16 px/m are both 1.125 m. Doubling the mult doubles the
+  > RESOLUTION the perps are drawn at, not how many there are per metre of
+  > wall. So a shop band is not the denser case and you should not go looking
+  > at it for that reason.
+  >
+  > I tried to confirm this by measuring perpend pitch off the painted
+  > canvases and the probe was too noisy to serve — it catches window edges and
+  > other dark columns as well as perps, and returned medians that match
+  > neither prediction. The claim above is from the code, which is unambiguous
+  > here; I am flagging the failed measurement rather than dressing the
+  > reasoning up as one.
 - if they are on the **entrance bay or a civic face**, those are yours and E's
 
 ## Why this is a note and not a fix
