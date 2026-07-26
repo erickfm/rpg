@@ -39,6 +39,23 @@ import type { AABB } from '../fp';
  *                  ╲ canted bay, A→B
  *                BX0 = FACE
  */
+/** The canted bay's geometry, in world coordinates, filled in when the corner
+ *  is built. `null` before that — read it from a module that runs after
+ *  `buildStreet`, which every interior does.
+ *
+ *  This exists so nothing has to hand-type the cut. See the block that assigns
+ *  it for why that matters here specifically. */
+export let BAY: {
+  a: { x: number; z: number };
+  b: { x: number; z: number };
+  cut: number;
+  faceWidth: number;
+  centre: { x: number; z: number };
+  normal: { x: number; z: number };
+  shell: { x0: number; x1: number; z0: number; z1: number };
+  doorWidth: number;
+} | null = null;
+
 export function buildBodegaCorner(c: {
   scene: THREE.Scene;
   /** BODEGA's roster entry. The roster is `ct/street.ts`'s to read; this only
@@ -68,6 +85,46 @@ export function buildBodegaCorner(c: {
     // one 45° axis instead of reading off-kilter against each other.
     const CHF = WALK;
     const CFW = CHF * Math.SQRT2;                    // 2.55 m of canted bay
+
+  // ── what this bay IS, published rather than reported ──────────────────────
+  //
+  // `ct/int-bodega.ts` carries the comment *"D reported the geometry: the cut
+  // face runs A (7, −94) to B (9, −96)"* and a hand-derived `cut: 2.0`. Both
+  // are correct today and both were typed out of a note, which is the defect
+  // this project has now hit six times — GOTCHAS §20, *"aim from the source,
+  // not from memory"*, after a stale diner z, a hand-typed room offset and a
+  // hand-typed DZ. The user's live request is that the INTERIOR MATCH this cut,
+  // so the interior is about to depend on these numbers harder than anything
+  // has yet, and the bay has already been re-cut once.
+  //
+  // So it is published. GOTCHAS §22 names the pattern approvingly — *"if your
+  // module can publish its own footprint, `ct/lot.ts` exports `LOT.bounds`, do
+  // that instead of writing coordinates into a document"*. Same idea, one level
+  // down: an interior that reads this cannot drift from the exterior, and if
+  // the corner is ever re-cut the mismatch becomes a compile-time fact rather
+  // than a screenshot somebody has to notice.
+  BAY = {
+    // the cut face, in WORLD coordinates and in the order you meet them walking
+    // the frontage: A on the main street's east face, B on the side street's
+    // north face. NOT "left/right" — those are the terms that make mirroring
+    // gettable-wrong (GOTCHAS §33).
+    a: { x: BX0, z: BZ1 + CHF },
+    b: { x: BX0 + CHF, z: BZ1 },
+    /** how far the corner is cut back along EACH wall. One sidewalk width, so
+     *  the bay, its door and the kerb corner share a 45° axis. */
+    cut: CHF,
+    /** the canted face's own width — `cut * √2`, the diagonal of the square the
+     *  two walks share. This is the number an interior's chamfer wants. */
+    faceWidth: CFW,
+    /** midpoint of the cut face, which is the door's centre line */
+    centre: { x: BX0 + CHF / 2, z: BZ1 + CHF / 2 },
+    /** outward normal of the cut face: south-west, away from the crossing */
+    normal: { x: -Math.SQRT1_2, z: -Math.SQRT1_2 },
+    /** the shell the cut is taken out of, before the triangle is removed */
+    shell: { x0: BX0, x1: BX1, z0: BZ1, z1: BZ0 },
+    /** clear width of the door opening in the cut face */
+    doorWidth: 1.3,
+  };
     const SHOP = SHOP_BAND_H, BH = 3.4 + bod.floors * 2.4, TOP = SHOP + BH;
     const roofM = new THREE.MeshBasicMaterial({ color: 0x2b2d33 });
     // The corner's footprint FOLLOWS THE CUT. The shell is the rectangle
