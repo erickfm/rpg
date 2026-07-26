@@ -68,6 +68,20 @@ function doorPlan(kind: CarKind, half: number): DoorPlan {
 // the wheel proportion (notes/BLOCKED-H.md); with the literal in place it would
 // have silently shrunk the arch relative to the tyre instead, which is the
 // same class of bug as the fixed 10-texel radius that made the arch 40% too
+/** ── ONE DENSITY FOR ALL VEHICLE BODYWORK ────────────────────────────────
+ *
+ *  A's masonry discipline, applied to the fleet: every bodywork canvas is
+ *  sized from its panel's real metres at this one density, so a feature stated
+ *  in metres is the same size on every panel of every vehicle and nothing is
+ *  stretched relative to its neighbour.
+ *
+ *  32 px/m because it is what the pickup's flank and bed skin already used —
+ *  so the vehicle in the user's screenshot does not change density at all, and
+ *  the cab/bed seam stays matched. Square texels: the same number across and
+ *  up, which is what removes the "stretched" reading.
+ */
+const PX_PER_M = 32;
+
 // wide on a sedan and about right on a pickup from one line of code.
 function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, panelH: number,
   arches: number[] = [-wheelZ, wheelZ],
@@ -90,22 +104,65 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
    *  mirror is applied at the ONE place every feature's column comes from, so
    *  a feature added later cannot forget it. */
   flip = false): THREE.Texture {
-  return pixTex(96, 20, (g) => {
+  // ── ONE DENSITY, AND THE CANVAS COMES FROM THE PANEL'S REAL METRES ──────
+  //
+  // This canvas was a fixed 96 x 20 whatever the panel measured, which is the
+  // root of the "texel density is visibly inconsistent" report. Two separate
+  // problems came out of that one line:
+  //
+  //   * ACROSS vehicles, px/m varied with body length — a van's flank was
+  //     20.9 px/m against a pickup's 32.0, so the same feature was drawn half
+  //     the size on one car and full size on the next.
+  //   * WITHIN a panel, 96 across and 20 up over 4.5 m x 0.50 m is 21.3 x 40.0
+  //     — texels about twice as tall as they are wide. That anisotropy is the
+  //     "stretched" reading, and it is why a 0.38 m arch radius came out 12
+  //     texels wide and 15 tall from a single number.
+  //
+  // A's masonry rule is: derive every canvas from the surface's real metres at
+  // ONE density. THE ROUNDING RULE I AM APPLYING, since the question of how the
+  // masonry helper rounds is still unanswered: fix the DENSITY and accept a
+  // fractional canvas, rounded to whole texels. That way a feature stated in
+  // metres is the same size on every panel of every vehicle, and the only cost
+  // is that a canvas edge lands up to half a texel off — invisible, and far
+  // cheaper than the alternative (fix the canvas, accept a fractional density)
+  // which reintroduces exactly the per-vehicle variation being removed.
+  //
+  // 32 px/m is chosen because it is what the pickup's flank and its bed skin
+  // already use, so the vehicle the user photographed does not change density
+  // at all and the bed/cab seam stays matched.
+  const W = Math.max(8, Math.round(len * PX_PER_M));
+  const H = Math.max(4, Math.round(panelH * PX_PER_M));
+  return pixTex(W, H, (g) => {
     /** 0..1 along the panel -> this face's texel column, mirrored if this is
      *  the flank whose UVs run backwards */
-    const col = (u: number) => Math.round((flip ? 1 - u : u) * 96);
+    const col = (u: number) => Math.round((flip ? 1 - u : u) * W);
     /** car-local metres -> this face's texels */
     const tx = (z: number) => col((z - faceZ0) / len);
-    g.fillStyle = body; g.fillRect(0, 0, 96, 20);
-    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, 0, 96, 3);
-    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, 16, 96, 4);
+    /** a height ABOVE THE ROCKER, in metres -> a row. Every band below used to
+     *  be a literal row index that only meant anything while the panel was
+     *  exactly 0.50 m and the canvas exactly 20 tall. */
+    const yr = (mAboveRocker: number) => Math.round((1 - mAboveRocker / panelH) * H);
+    const band = (m0: number, m1: number) => {
+      const a = yr(m1), b = yr(m0);
+      return [a, Math.max(1, b - a)] as const;
+    };
+    g.fillStyle = body; g.fillRect(0, 0, W, H);
+    // the beltline highlight: the top 75 mm of the panel
+    const [byTop, bhTop] = band(panelH - 0.075, panelH);
+    g.fillStyle = 'rgba(255,255,255,0.22)'; g.fillRect(0, byTop, W, bhTop);
+    // the rocker shadow: the bottom 100 mm
+    const [byLo, bhLo] = band(0, 0.1);
+    g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(0, byLo, W, bhLo);
     if (taxi) { // checker band instead of chrome
-      for (let x = 0; x < 96; x += 6) {
-        g.fillStyle = (x / 6) % 2 ? '#141416' : '#e8e4d8';
-        g.fillRect(x, 6, 6, 4);
+      const [cy, ch] = band(0.25, 0.35);
+      const step = Math.max(2, Math.round(0.19 * PX_PER_M));   // 190 mm squares
+      for (let x = 0; x < W; x += step) {
+        g.fillStyle = (Math.round(x / step)) % 2 ? '#141416' : '#e8e4d8';
+        g.fillRect(x, cy, step, ch);
       }
     } else {
-      g.fillStyle = '#d8dade'; g.fillRect(0, 8, 96, 1);
+      const [cy] = band(0.28, 0.31);
+      g.fillStyle = '#d8dade'; g.fillRect(0, cy, W, Math.max(1, Math.round(0.03 * PX_PER_M)));
     }
     // Shut lines run the FULL height of this face — which is sill to window
     // base, because that is exactly what the flank spans — and each is a PAIR:
@@ -114,12 +171,12 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     if (plan) {
       for (const z of plan.shut) {
         const x = tx(z);
-        if (x < 1 || x > 94) continue;
-        g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x, 0, 1, 20);
+        if (x < 1 || x > W - 2) continue;
+        g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(x, 0, 1, H);
         // the highlight sits down the shut's TRAILING side — which is the
         // other texel column once the face is mirrored, or the two flanks
         // would catch the light from opposite directions
-        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x + (flip ? -1 : 1), 0, 1, 20);
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(x + (flip ? -1 : 1), 0, 1, H);
       }
       // a handle just under the window line, one per door, set toward the
       // door's trailing edge the way a real one is
@@ -127,7 +184,11 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
       for (let i = 0; i + 1 < plan.shut.length; i++) {
         const a = tx(plan.shut[i]), b = tx(plan.shut[i + 1]);
         const hx = Math.round(b - (b - a) * 0.3);
-        if (hx > 2 && hx < 92) g.fillRect(hx - 2, 3, 4, 2);
+        // just under the window line, and sized in millimetres rather than in
+        // texels so it is the same handle on a van as on a hatch
+        const [hy, hh] = band(panelH - 0.13, panelH - 0.06);
+        const hw = Math.max(2, Math.round(0.13 * PX_PER_M));
+        if (hx > 2 && hx < W - 4) g.fillRect(hx - Math.round(hw / 2), hy, hw, hh);
       }
     }
     // ── wheel arches: REVERTED to the pre-arch paint, deliberately ──────
@@ -197,11 +258,11 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     // the "soft" in the user's "large soft DARK BLOTCH", because a hard edge
     // reads as an arch and a mottled one reads as a stain. The body still gets
     // exactly the same grain; only the arch is now clean-edged.
-    dither(g, 96, 20, 120);
+    dither(g, W, H, Math.round(120 * (W * H) / (96 * 20)));
     const ARCH_HW = 0.38;                      // half-width, m: tyre + 4 cm
     const ARCH_H = 0.38;                       // height above the rocker, m
-    const arx = Math.max(3, Math.round(ARCH_HW * (96 / len)));
-    const ary = Math.max(3, Math.round(ARCH_H * (20 / panelH)));   // 20 rows over panelH metres
+    const arx = Math.max(3, Math.round(ARCH_HW * PX_PER_M));
+    const ary = Math.max(3, Math.round(ARCH_H * PX_PER_M));   // square texels: one number both ways
     // ── the well is NOT the same black as the tyre ───────────────────────
     //
     // It was #0a0b0e against a tyre of #101114 — indistinguishable. So the gap
@@ -215,7 +276,7 @@ function bodySideTex(body: string, len: number, wheelZ: number, taxi: boolean, p
     g.fillStyle = `#${well.getHexString()}`;
     for (const wz of arches) {
       const ax = col((wz + len / 2) / len);
-      g.beginPath(); g.ellipse(ax, 20, arx, ary, 0, Math.PI, 0); g.fill();
+      g.beginPath(); g.ellipse(ax, H, arx, ary, 0, Math.PI, 0); g.fill();
     }
   });
 }
@@ -646,7 +707,7 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     // Painted at the same texel density as the cab slab beside it (that face is
     // 96 texels over slabLen, and 20 over its 0.5 m), so the bed's paint is not
     // finer or coarser than the cab's.
-    const PPM_X = 96 / slabLen, PPM_Y = 40;
+    const PPM_X = PX_PER_M, PPM_Y = PX_PER_M;   // one density, square texels
     const skinW = Math.round(wallLen * PPM_X), skinH = Math.round(SKIN_H * PPM_Y);
     const yRow = (worldY: number) => Math.round((RAIL_T - worldY) * PPM_Y);
     // ── ONE SKIN PER WALL, for the reason the flank needed one per face ────
