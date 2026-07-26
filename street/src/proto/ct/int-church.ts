@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { CtxBuild } from './ctx';
-import { pixTex, dither, declareSurface } from './paint';
+import { pixTex, dither, declareSurface, slabTex } from './paint';
 import { buildRoom } from './interior';
 
 // ST BRIGID'S — the inside, because the user asked to go in and could not.
@@ -363,7 +363,22 @@ export function buildChurch(ctx: CtxBuild) {
   // function the kit did not have. Both are fixed: the ends are right and
   // bd3ee7d7a gave rooms levels, so this is the step you actually walk up.
   {
-    const stoneM = new THREE.MeshBasicMaterial({ color: 0x9a9284 });
+    // FLAGGED, not flat. Verifying A's row - "123 ground-facing surfaces
+    // across the world are untextured flat colour" - I measured the world and
+    // the single largest untextured ground surface in it was THIS: 96 m2 of
+    // #9a9284 at (680, -8), the chancel platform. Mine.
+    //
+    // I had already seen these plinths in my own untextured-box sweep and
+    // written them off as "floor plinths, seen from above and walked on. Not
+    // slabs." That was right about whether they read as a WALL and wrong for
+    // this row, which is precisely about the floor. A's point holds: a flat
+    // colour has no joints to give it scale, and a chancel is flagstone.
+    const stoneM = new THREE.MeshBasicMaterial({
+      map: declareSurface(slabTex({
+        wMeters: room.W, dMeters: CHANCEL_Z - (-hd), base: '#9a9284',
+        joint: 0.9, grain: 0.12,
+      }), 'detail'),
+    });
     const stoneLM = new THREE.MeshBasicMaterial({ color: 0xa8a094 });
     const platD = CHANCEL_Z - (-hd);
     // the platform, and a lighter nosing so the step reads as a step rather
