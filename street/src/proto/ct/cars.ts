@@ -525,7 +525,28 @@ function busRollTex(): THREE.Texture {
 export function makeBus(): THREE.Group {
   const body = '#b9b2a2';          // municipal cream, weathered
   const band = '#3f5a52';          // muted transit-authority green
-  const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+  // ── GOTCHAS §4, APPLIED TO THE WHOLE FLEET AT ONE PLACE ────────────────
+  //
+  // "textures on back of truck are janky". `pixTex` hands back
+  // NearestMipmapNearest, which is right for a big flat wall and wrong for a
+  // vehicle: at the grazing angles you see a parked car's flank and tailgate
+  // from, the mipmap drops detail into a lower level and the dither in it
+  // turns into a crawling checkerboard. That is the same failure that produced
+  // three separate "the kerb looks bad" reports before the rule was written
+  // down, and the fix there was the same — NearestFilter, so there is nothing
+  // to crawl.
+  //
+  // The bed skin, the tailgate, the bed floor and the bus roll sign each set
+  // this by hand already, which is the tell that it belonged one level up: a
+  // panel added later would have gone back to mipmapping and nobody would have
+  // noticed until it shimmered. Every textured vehicle material is built
+  // through `flatT`, so it goes here and cannot be forgotten.
+  const flatT = (m: THREE.Texture) => {
+    m.minFilter = THREE.NearestFilter;
+    m.generateMipmaps = false;
+    m.needsUpdate = true;
+    return new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+  };
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
   darkM.userData.noLight = true;
   const g = new THREE.Group();
@@ -616,7 +637,28 @@ export interface CarState {
 export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: CarState = {}): THREE.Group {
   let hoodPanel: THREE.Mesh | null = null;
   const body = taxi ? '#c9a12e' : CAR_COLORS[colorIdx % CAR_COLORS.length];
-  const flatT = (m: THREE.Texture) => new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+  // ── GOTCHAS §4, APPLIED TO THE WHOLE FLEET AT ONE PLACE ────────────────
+  //
+  // "textures on back of truck are janky". `pixTex` hands back
+  // NearestMipmapNearest, which is right for a big flat wall and wrong for a
+  // vehicle: at the grazing angles you see a parked car's flank and tailgate
+  // from, the mipmap drops detail into a lower level and the dither in it
+  // turns into a crawling checkerboard. That is the same failure that produced
+  // three separate "the kerb looks bad" reports before the rule was written
+  // down, and the fix there was the same — NearestFilter, so there is nothing
+  // to crawl.
+  //
+  // The bed skin, the tailgate, the bed floor and the bus roll sign each set
+  // this by hand already, which is the tell that it belonged one level up: a
+  // panel added later would have gone back to mipmapping and nobody would have
+  // noticed until it shimmered. Every textured vehicle material is built
+  // through `flatT`, so it goes here and cannot be forgotten.
+  const flatT = (m: THREE.Texture) => {
+    m.minFilter = THREE.NearestFilter;
+    m.generateMipmaps = false;
+    m.needsUpdate = true;
+    return new THREE.MeshBasicMaterial({ map: m, side: THREE.DoubleSide });
+  };
   const bodyM = new THREE.MeshBasicMaterial({ color: new THREE.Color(body) });
   const glassM = new THREE.MeshBasicMaterial({ color: 0x1c2836, side: THREE.DoubleSide });
   const darkM = new THREE.MeshBasicMaterial({ color: 0x0e0f12 });
@@ -776,8 +818,19 @@ export function makeCar(kind: CarKind, colorIdx: number, taxi = false, state: Ca
     const bedRearT = pixTex(gateW, gateH, (g2) => {
       g2.fillStyle = body; g2.fillRect(0, 0, gateW, gateH);
       g2.fillStyle = 'rgba(255,255,255,0.22)'; g2.fillRect(0, 0, gateW, 2);        // rail cap
+      // CENTRED, and centred by construction rather than by two fractions that
+      // nearly agree. 0.42 and 0.16 of a 58-wide gate put the latch on texel 28
+      // of a canvas whose centre is 29 — one texel off, which a mirror test
+      // finds and the eye reads as "the back of the truck is not symmetrical".
+      // The lights either side were symmetric all along; this was the odd one.
       g2.fillStyle = 'rgba(0,0,0,0.3)';                                           // latch
-      g2.fillRect(Math.round(gateW * 0.42), yRow(0.72), Math.round(gateW * 0.16), 3);
+      // …and the width must share the canvas's PARITY or it cannot be centred
+      // at all: 0.16 of a 58-wide gate is 9 texels, and a 9-wide feature on an
+      // even canvas always lands half a texel off — the mirror test sees three
+      // texels of asymmetry and no amount of re-centring fixes it. Round the
+      // width to even so the two halves can actually match.
+      const latchW = Math.round(gateW * 0.16 / 2) * 2;
+      g2.fillRect(Math.round((gateW - latchW) / 2), yRow(0.72), latchW, 3);
       const lw = Math.max(3, Math.round(gateW * 0.17)), lh = 4;
       g2.fillStyle = '#8a1c1c';
       g2.fillRect(Math.round(gateW * 0.07), yRow(0.58), lw, lh);
