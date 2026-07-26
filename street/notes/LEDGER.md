@@ -112,3 +112,4 @@ user anything is finished.
 | OPEN | G | put this librarian behind the desk | |
 | OPEN | C | the brick area outside my room is too deep in. and i dont want there t | |
 | OPEN | F | the library stair needs buildRoom to accept a floor function | |
+| OPEN | AUDIT | confirm the remaining LANDED rows | |
