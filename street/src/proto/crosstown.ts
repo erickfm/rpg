@@ -27,7 +27,7 @@ import { ORDER, BUILD, type Site, type Board, type CtxBuild, type WetSurface, ty
 import { buildApartment, SPAWN } from './ct/apartment';
 import { makeHud, type Purse } from './ct/hud';
 import { buildProps } from './ct/props';
-import { interiorGround, interiorMaxX, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
+import { interiorGround, interiorMaxX, interiorMaxZ, interiorColliders, interiorRoomIds, interiorRooms } from './ct/interior';
 import { publishDeclaredDoors, declaredDoors, doorPointFor, doorStandFor } from './ct/doors';
 
 // ═══════════════════════════════ the world ════════════════════════════════
@@ -507,7 +507,12 @@ export function makeCrosstown(): Proto {
     // That check holds and is worth keeping written down. The number is
     // derived rather than typed because that is the part that cannot go stale:
     // the next site to deepen would need someone to remember this line again.
-    bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6, maxZ: 13 },
+    // maxZ ASKS THE BELT, the way maxX always has. 13 is the end of the
+    // street; a room deeper than 26 m reaches past it and the player was
+    // clamped short of its own front wall, unable to reach the way-out spot at
+    // `hd - 0.55`. Measured by G on the casino at d 30 (BLOCKED-G 1b).
+    bounds: { minX: westBound(), maxX: interiorMaxX(), minZ: -110.6,
+      maxZ: Math.max(13, interiorMaxZ()) },
     colliders, speed: 3.3, run: 6.8, bob: 0.045,
     groundY: (x, z) => groundPick(x, z),
   });

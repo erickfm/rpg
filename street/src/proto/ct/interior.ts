@@ -88,6 +88,30 @@ export function interiorMaxX(): number {
 }
 
 /**
+ * The far Z edge of the interior belt — how deep the DEEPEST room reaches.
+ *
+ * `crosstown.ts` bounds the player with `maxZ: 13`, which is the end of the
+ * STREET. Rooms sit centred on z 0, so a room deeper than 26 m has `hd > 13`
+ * and the player is clamped SHORT OF ITS OWN FRONT WALL — you can enter it and
+ * not leave it on foot, because the way-out spot sits at `hd - 0.55`, past the
+ * bound.
+ *
+ * Builder G measured it exactly (BLOCKED-G 1b): the casino at d 30 comes to
+ * rest at 13.00 against a spot beginning at 13.40, while the hotel at d 26
+ * reaches its wall and is fine. That is not a depth ceiling, which is what the
+ * rule they first reached for said — it is this constant, and 26 m is simply
+ * where a room stops fitting inside the street's bound.
+ *
+ * The X bound has always asked the belt how wide it is. This is the same
+ * question on the other axis, and it was missing.
+ */
+export function interiorMaxZ(): number {
+  let far = 0;
+  for (const s of SLABS) far = Math.max(far, s.cz + s.d / 2);
+  return far + 1.0;                 // clear of the front wall and its threshold
+}
+
+/**
  * Floor height inside the interior belt, or null if this point is not in any
  * room. `crosstown.ts` consults this before its own street logic — a room
  * owns the floor within its slab, so a builder can put a step or a mezzanine
