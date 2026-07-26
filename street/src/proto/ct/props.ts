@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { pixTex, dither, declareSurface } from './paint';
 import { L, ROAD_HALF, FACE, rnd } from './rng';
-import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite, payphoneTex,
+import { treeSprite, TREE_W, treePitTex, hydrantSprite, pigeonSprite,
          paperTex, scrapTex } from './tex-world';
 import { gutterSurfaceY, GUTTER_W, KERB_CHAMFER as CHAMFER, soldierCourse,
          alley2Ground } from './tex-ground';
@@ -419,7 +419,26 @@ export function buildProps(ctx: CtxBuild): Props {
         // never-handed-to-dimWorld are the same picture from out there, which
         // is why that check's un-boxed number was 417 and answered nothing.
         m.userData.graded = true;
-        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(), pool, floor: FLOOR_GROUND, wetK: 0 });
+        // A LIGHT REGISTERED THROUGH lit() WAS BEING DIMMED LIKE MASONRY.
+        //
+        // This path hard-coded FLOOR_GROUND and never asked whether the thing
+        // it was grading emits. dimWorld does ask — but dimWorld skips anything
+        // already in litSeen, and everything handed to lit() is in litSeen by
+        // the line above. So props.lit(x) has been the one way into the night
+        // grade that CANNOT hold a light bright. The payphone's backlit header
+        // graded to 0.0933 at 23:00 with the enamel beside it, which is the
+        // opposite of what it is for.
+        //
+        // It honours the DECLARATION only, not isSelfLit's heuristic. Running
+        // the heuristic here would be a wider change than it looks: lit() is
+        // called on the bus bench group, whose TONY'S PIZZA ad is bright
+        // saturated ink and would start burning at full daylight after dark —
+        // the exact false positive the `printed` opt-out exists to undo. One
+        // flag, set by the owner who knows, and nothing else moves.
+        const emits = !!m.userData?.lightSource;
+        if (emits) m.userData.selfLit = true;
+        litList.push({ root, ox: o.position.x, oz: o.position.z, m, base: c.clone(),
+                       pool: pool && !emits, floor: emits ? FLOOR_SIGN : FLOOR_GROUND, wetK: 0 });
       }
     });
   };
@@ -478,6 +497,19 @@ export function buildProps(ctx: CtxBuild): Props {
   // opposite flag and stays C's — set by hand where something really is a light.
   const isSelfLit = (m: THREE.MeshBasicMaterial): boolean => {
     if (m.userData?.printed) return false;
+    // …and the same declaration the other way. `printed` says "these bright
+    // texels are ink, grade me"; `lightSource` says "this really is lit, hold
+    // me". Both exist because a texture cannot tell you which it is, and the
+    // alternative is tuning artwork until it squeaks over a threshold — which
+    // is exactly what the desk told C not to do, and rightly.
+    //
+    // The payphone's backlit header is the first user: a small acrylic panel
+    // with a blue field and cream letters. It reads 0.0% hot, because the blue
+    // is not bright and the cream is not saturated, so the heuristic would
+    // grade it down to FLOOR_GROUND with the enamel around it — and the desk's
+    // note on moving the phone says plainly that a payphone SHOULD glow a
+    // little. Declared, not nudged.
+    if (m.userData?.lightSource) return true;
     const t = m.map;
     const img = t?.image as HTMLCanvasElement | undefined;
     if (!img || typeof img.getContext !== 'function') return false;
@@ -1554,25 +1586,125 @@ export function buildProps(ctx: CtxBuild): Props {
 
   // ── the payphone ────────────────────────────────────────────────────────
   //
-  // It stood at z = -11, which is inside the library's entrance bay — it was
-  // standing in the doorway. Moved north to the MERIDIAN frontage (z -5 … 5),
-  // which is the same stretch of walk so it stays where the player expects
-  // it, and MERIDIAN is exactly the bland modern slab that gets a payphone
-  // bolted to it. Clear of the lamp at z = -9 and of the doors.
+  // MOVED TO THE ALLEY MOUTH, and rebuilt as a shelter with real depth.
   //
-  // Also SLIMMED, from 0.9 m deep to 0.3. It is a wall-mounted phone on a
-  // backboard, not a booth, and the old depth ate half the two-metre walk:
-  // its collider reached x = -5.95, which with the rig's 0.36 m radius blocked
-  // everything out to -5.59 and closed the only through-lane on this side
-  // (the lamps already block from -6.11). At 0.3 m it sits entirely inside
-  // the wall's own collider shadow and costs the walk nothing. The face you
-  // actually look at is unchanged: 0.9 m wide, 2.3 m tall.
-  const PHONE_Z = -3.0;
-  const phone = new THREE.Mesh(new THREE.BoxGeometry(0.30, 2.3, 0.9), flat(payphoneTex()));
-  phone.position.set(-(FACE - 0.15), sidewalkY + 1.15, PHONE_Z);
-  scene.add(phone);
-  lit(phone);
-  obstacle({ minX: -FACE, maxX: -(FACE - 0.30), minZ: PHONE_Z - 0.55, maxZ: PHONE_Z + 0.55 });
+  // The user, on shots/user-phone-booth.png, offered to move it or delete it.
+  // The desk ruled MOVE, and named three candidates — the bodega corner, the
+  // alley mouth, or beside the bus bench. The alley mouth, for three reasons
+  // and the third is the one that decided it:
+  //
+  //  · it is the classic spot, and it gives the alley entrance a reason for
+  //    somebody to be standing there
+  //  · ct/crowd-net.ts already has a node called `w-alley` at (-6, -40) with
+  //    no `act` on it — the one stop on the west walk with nothing to do
+  //  · IT IS THE ONLY ONE OF THE THREE WHERE DEPTH IS FREE. The desk asked for
+  //    real depth and a visible side wall, and the walk is 2 m with walkers
+  //    running at x = -6 ± 0.55 (STRAY in crowd-net), so anything against the
+  //    shopfronts may be 0.45 m deep at the absolute most. The alley mouth is
+  //    a gap in the building line — measured, no collider between z -43.5 and
+  //    -37.0 — so a 0.62 m shelter stands entirely OUTSIDE the walk and costs
+  //    the sacred lane nothing at all.
+  //
+  // Where it was: dead centre of the MERIDIAN window, covering the blinds and
+  // cutting the facade in half, and 0.30 m deep so that head-on it had no
+  // side to see and read as a printed panel leaning on the wall. Both of the
+  // user's complaints in one object, and both were placement and depth.
+  //
+  // It stands on the ALLEY FLOOR (y ~ 0.005), which is 0.14 m below the walk,
+  // and 5 cm clear of the walk slab's west face — abut, never coincide
+  // (GOTCHAS 6): a booth flush against x = -7 would z-fight the kerb slab down
+  // its whole height.
+  const PHONE_X = -7.62, PHONE_Z = -37.35;
+  const P_W = 1.00, P_D = 0.62, P_H = 2.30;
+  const P_Y = 0.005;                       // the alley floor, NOT sidewalkY
+
+  // enamelled steel: pale institutional grey-blue, a darker kick at the
+  // bottom where boots and mops have been, rivets down the corners
+  const boothPanel = declareSurface(pixTex(32, 74, (g) => {
+    g.fillStyle = '#9aa0a4'; g.fillRect(0, 0, 32, 74);
+    g.fillStyle = '#7d8489'; g.fillRect(0, 60, 32, 14);            // kick panel
+    g.fillStyle = '#6d7479'; g.fillRect(0, 59, 32, 1);
+    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(0, 0, 1, 74);
+    g.fillStyle = 'rgba(0,0,0,0.16)'; g.fillRect(31, 0, 1, 74);
+    for (let y = 3; y < 74; y += 9) {                              // rivets
+      g.fillStyle = 'rgba(0,0,0,0.20)'; g.fillRect(2, y, 1, 1); g.fillRect(29, y, 1, 1);
+    }
+    // DETERMINISTIC LOCAL HASH, not rnd() and not Math.random(). GOTCHAS 2:
+    // there is ONE seeded rnd() stream and its call ORDER is load-bearing, so
+    // drawing 66 numbers here would shuffle every pigeon and every piece of
+    // litter built after this line. This sheet has to look the same either way.
+    const h = (i: number) => { const s = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return s - Math.floor(s); };
+    for (let i = 0; i < 22; i++) {
+      const x = Math.floor(h(i) * 30), y = Math.floor(h(i + 91) * 70);
+      g.fillStyle = `rgba(46,44,40,${0.06 + h(i + 173) * 0.14})`;
+      g.fillRect(x, y, 1 + Math.floor(h(i + 257) * 4), 1);
+    }
+    dither(g, 32, 74, 90);
+  }), 'detail');
+
+  // the backlit header. Cream on blue, and DECLARED a light source rather
+  // than drawn hot enough to trip the heuristic — see isSelfLit above.
+  const boothHead = declareSurface(pixTex(30, 9, (g) => {
+    g.fillStyle = '#2f5490'; g.fillRect(0, 0, 30, 9);
+    g.fillStyle = '#3f68a8'; g.fillRect(1, 1, 28, 3);              // the tube behind it
+    g.fillStyle = '#f2eee0'; g.font = 'bold 6px monospace'; g.textAlign = 'center';
+    g.fillText('PHONE', 15, 7);
+    g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(0, 8, 30, 1);
+  }), 'detail');
+
+  // the instrument: dark chassis, steel keypad plate, coin box, handset on
+  // its hook down the left with the armoured cord under it
+  const boothPhone = declareSurface(pixTex(22, 38, (g) => {
+    g.fillStyle = '#20242a'; g.fillRect(0, 0, 22, 38);
+    g.fillStyle = '#2b3037'; g.fillRect(1, 1, 20, 36);
+    g.fillStyle = '#9ba1a6'; g.fillRect(9, 4, 11, 13);             // keypad plate
+    g.fillStyle = '#3a3f46';
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) g.fillRect(10 + c * 3, 5 + r * 3, 2, 2);
+    g.fillStyle = '#7e848a'; g.fillRect(9, 19, 11, 5);             // coin plate
+    g.fillStyle = '#15181c'; g.fillRect(12, 20, 5, 1);             // slot
+    g.fillStyle = '#8d9298'; g.fillRect(9, 27, 11, 8);             // instruction card
+    g.fillStyle = '#4a4f55'; for (let y = 29; y < 34; y += 2) g.fillRect(10, y, 8, 1);
+    g.fillStyle = '#14171b'; g.fillRect(2, 3, 5, 16);              // handset on the hook
+    g.fillStyle = '#23272d'; g.fillRect(3, 5, 3, 12);
+    g.fillStyle = '#181b20';                                        // armoured cord
+    for (let y = 20; y < 34; y += 2) g.fillRect(3 + (y % 4 === 0 ? 0 : 1), y, 3, 1);
+    dither(g, 22, 38, 40);
+  }), 'detail');
+
+  const box = (w: number, h: number, d: number, x: number, y: number, z: number,
+               m: THREE.Material) => {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(x, y, z);
+    b.userData.payphone = true;      // findable by name, not by size — park.mjs
+    scene.add(b);
+    return b;
+  };
+  const panel = flat(boothPanel);
+  const backZ = PHONE_Z + P_D / 2 - 0.03;
+  const frontZ = PHONE_Z - P_D / 2;
+  // back slab, two side wings, and a canopy that projects past both
+  const parts = [
+    box(P_W, P_H, 0.06, PHONE_X, P_Y + P_H / 2, backZ, panel),
+    box(0.06, P_H - 0.22, P_D - 0.06, PHONE_X - (P_W / 2 - 0.03), P_Y + (P_H - 0.22) / 2, PHONE_Z + 0.03, panel),
+    box(0.06, P_H - 0.22, P_D - 0.06, PHONE_X + (P_W / 2 - 0.03), P_Y + (P_H - 0.22) / 2, PHONE_Z + 0.03, panel),
+    box(P_W + 0.10, 0.17, P_D + 0.09, PHONE_X, P_Y + P_H - 0.085, PHONE_Z - 0.03, panel),
+    // the shelf you put a coffee on, and the directory swinging under it
+    box(0.66, 0.05, 0.24, PHONE_X, P_Y + 1.02, backZ - 0.15, panel),
+    box(0.20, 0.26, 0.06, PHONE_X + 0.20, P_Y + 0.87, backZ - 0.15, panel),
+  ];
+  // the instrument, proud of the back slab so it is an object bolted on rather
+  // than a picture printed on it
+  parts.push(box(0.44, 0.76, 0.15, PHONE_X, P_Y + 1.52, backZ - 0.10, flat(boothPhone)));
+  // and the header, on the canopy's front face and only there
+  const headM = flat(boothHead);
+  headM.userData.lightSource = true;
+  parts.push(box(P_W - 0.04, 0.24, 0.05, PHONE_X, P_Y + P_H - 0.30, frontZ - 0.015, headM));
+  for (const p of parts) lit(p);
+  // The collider is the shelter's own footprint and NOTHING MORE. It ends at
+  // x = -7.07, so the walk (x -7.00 … -5.06) is untouched and no walker can be
+  // pushed toward the road by it.
+  obstacle({ minX: PHONE_X - P_W / 2 - 0.05, maxX: PHONE_X + P_W / 2 + 0.05,
+             minZ: PHONE_Z - P_D / 2 - 0.05, maxZ: PHONE_Z + P_D / 2 + 0.05 });
 
   // weather: the rain comes and goes by the hour, and the ground
   // remembers it — every registered wet surface darkens as it comes in
