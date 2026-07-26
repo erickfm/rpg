@@ -109,6 +109,14 @@ export function makeCrosstown(): Proto {
   // (D, for the ATM interaction; flagged, as with the purse field itself.)
   const SPOTS: Spot[] = [];
   const spotOutline = new SpotOutline();
+  // THE SELECTION OUTLINE IS DEBUG-ONLY AND OFF BY DEFAULT.
+  // *"yea get rid of outline unless debug is true, we'll probably want that for
+  // debug."* In normal play the prompt alone says what you have, which is how it
+  // worked before this item and is not a regression. Turn it on from a console
+  // or a probe with `__ct.debugSpots(true)` — chosen because every test
+  // affordance in this file is already a function on `__ct` (`clock`, `hermit`,
+  // `bus`, `drive`), so it needs no new mechanism and no new place to look.
+  let debugSpots = false;
   const purse: Purse = { cash: 14.5, inv: { CEREAL: 3 } }; // some cash, a box of cereal
   const hud = makeHud(purse);
   // Modules that answer for a patch of floor. Asked in declared order, first
@@ -634,6 +642,12 @@ export function makeCrosstown(): Proto {
       if (pitch !== undefined) rig.pitch = pitch;
     },
     clock: (h: number, m = 0) => { totalMin = h * 60 + m; clockRamp = 0; clockRampRate = 0; },
+    /** DEBUG: draw the [E] trigger volume of whatever is currently selected —
+     *  its registered radius, and the reach-margin ring on the floor. OFF by
+     *  default. A diagnosis tool for "the prompt did not come up" and "I got the
+     *  wrong thing", not a player feature; see `SpotOutline` for why it draws a
+     *  volume and not an object outline. */
+    debugSpots: (on: boolean) => { debugSpots = on; if (!on) spotOutline.show(scene, null); },
     // test affordance for the ctx.clock verb, the same way colliders() and
     // groundAt() expose their registries — a capability nobody can drive from
     // a harness is a capability nobody can prove works.
@@ -822,7 +836,7 @@ export function makeCrosstown(): Proto {
       const picked = pickSpot(SPOTS, { x: px, z: pz, yaw: rig.yaw, pitch: rig.pitch });
       const active: Spot | null = picked ? picked.spot : null;
       hud.prompt(active ? `[E] ${active.label()}` : null);
-      spotOutline.show(scene, active);
+      spotOutline.show(scene, debugSpots ? active : null);
       // E dispatch (edge-triggered)
       const feedDown = input.keys.has('e');
       if (feedDown && !feedHeld) {

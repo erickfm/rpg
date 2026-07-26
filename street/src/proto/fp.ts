@@ -517,30 +517,46 @@ export function pickSpot<T extends Pickable>(
  */
 export class SpotOutline {
   private group: THREE.Group | null = null;
-  private cache = new Map<object, THREE.Object3D | null>();
   private shown: object | null = null;
   private mat = new THREE.LineBasicMaterial({
     color: 0xfff3c4, depthTest: false, transparent: true, opacity: 0.95,
   });
 
-  /** WHAT the player has selected. The spot's own declared object, and nothing
-   *  else — no search, no ray, no nearest-mesh guess.
+  /** DEBUG VIEW: the spot's own trigger VOLUME, which is what this always drew.
    *
-   *  Every version of this that GUESSED produced a confidently wrong answer, and
-   *  the last one was the worst because it looked deliberate: a wireframe cube
-   *  standing on the floorboards in the middle of the room, nowhere near the
-   *  door it was offering. That was the `ctx.spot()` PROXIMITY VOLUME drawn as
-   *  geometry, which is also what the three earlier reports had been all along —
-   *  the bed's "frame" was the volume sitting low at the bed base, the thrift's
-   *  "crate" was the volume standing where a crate happens to be, and the 301
-   *  door drew nothing because its volume was not where the door is.
+   *  Four user reports killed it as a player feature and the diagnosis was the
+   *  same for all four — *"the highlight is a wireframe CUBE sitting on the
+   *  floorboards, nowhere near the door it is offering"*. It was never outlining
+   *  the object; it was drawing the `ctx.spot()` proximity volume, because a
+   *  spot carries a position and a radius and never carried the thing.
    *
-   *  So: a spot that has not declared its object draws NOTHING. That is correct
-   *  and honest. A missing outline reads as a feature not yet reaching that
-   *  object; a wrong one reads as a broken game.
+   *  His ruling: *"get rid of outline unless debug is true, we'll probably want
+   *  that for debug."* Which is exactly right, and it is why this code stays:
+   *  **what made it a bad player feature is what makes it a good debug view.**
+   *  Seeing where every `[E]` volume actually sits, how big it is, and which one
+   *  you are standing in is the fastest way to diagnose "the prompt did not come
+   *  up" or "I got the wrong thing" — the two complaints this whole item began
+   *  with.
+   *
+   *  So it now draws the volume HONESTLY: a cylinder of the spot's real radius,
+   *  not a cube, because the test is `hypot(dx, dz) < r + REACH_MARGIN` and a
+   *  box would misreport the corners. The wider reach ring is drawn too, since
+   *  that margin is the thing that made doors reachable and is worth seeing.
    */
-  private resolve(spot: Pickable & object): THREE.Object3D | null {
-    return (spot as { obj?: THREE.Object3D }).obj ?? null;
+  private volume(spot: Pickable): THREE.Group {
+    const g = new THREE.Group();
+    const ring = (r: number, y: number, h: number, colour: number, op: number) => {
+      const eg = new THREE.EdgesGeometry(new THREE.CylinderGeometry(r, r, h, 16, 1, true), 1);
+      const ln = new THREE.LineSegments(eg, new THREE.LineBasicMaterial({
+        color: colour, depthTest: false, transparent: true, opacity: op,
+      }));
+      ln.renderOrder = 999;
+      ln.position.set(spot.x, y, spot.z);
+      g.add(ln);
+    };
+    ring(spot.r, 0.9, 1.8, 0xfff3c4, 0.95);                       // the registered radius
+    ring(spot.r + REACH_MARGIN, 0.06, 0.02, 0x7fd4ff, 0.55);      // the reach margin, on the floor
+    return g;
   }
 
   private clear(scene: THREE.Object3D): void {
@@ -552,41 +568,18 @@ export class SpotOutline {
     this.shown = null;
   }
 
-  /** Outline `spot`'s object, or clear when it is null. */
+  /** Draw the spot's trigger volume, or clear when null. DEBUG ONLY — the
+   *  caller passes null in normal play, which is the shipped behaviour. */
   show(scene: THREE.Object3D, spot: (Pickable & object) | null): void {
     if (!spot) { if (this.shown) this.clear(scene); return; }
     if (spot === this.shown) return;
     this.clear(scene);
-    const root = this.resolve(spot);
-    const g = new THREE.Group();
-    // COLLECT FIRST, BUILD AFTER. My first attempt at the ancestor walk added
-    // lines to the scene from inside a traverse of that same scene, which threw
-    // in the frame loop and cost two spots their prompt entirely.
-    const meshes: THREE.Mesh[] = [];
-    if (root) root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry) meshes.push(m); });
-    for (const m of meshes) {
-      let eg: THREE.EdgesGeometry;
-      try { eg = new THREE.EdgesGeometry(m.geometry, 25); } catch { continue; }
-      if (eg.getAttribute('position')?.count === 0) { eg.dispose(); continue; }
-      const ln = new THREE.LineSegments(eg, this.mat);
-      ln.renderOrder = 999;
-      m.updateWorldMatrix(true, false);
-      ln.matrixAutoUpdate = false;
-      ln.matrix.copy(m.matrixWorld);
-      g.add(ln);
-    }
-    if (g.children.length === 0) {
-      // NOTHING DECLARED — draw nothing, deliberately. A box at the spot is the
-      // trigger volume, and drawing that is what put a wireframe cube on the
-      // floorboards in the middle of a room.
-      this.shown = spot;
-      return;
-    }
+    const g = this.volume(spot);
     scene.add(g);
     this.group = g;
     this.shown = spot;
   }
 
-  /** For the parity audit: does this spot name real geometry, or fall back? */
-  resolves(spot: Pickable & object): boolean { return this.resolve(spot) !== null; }
+  /** For the audit: a debug volume is drawn for every live spot, always. */
+  resolves(_spot: Pickable & object): boolean { return true; }
 }
