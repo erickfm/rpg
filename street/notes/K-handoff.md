@@ -16,100 +16,87 @@ built twice. Two things are outstanding and neither is mine — `notes/BLOCKED-K
 
 ## What landed
 
-### 1. The pockets model, and a newspaper you can take (`ct/inventory.ts`)
+**The pockets** (`ct/inventory.ts`) — one model, not two: `Purse` in `ct/hud.ts`
+has held them since the wallet shipped. Six slots, a slot is a KIND.
+`takeable(ctx, {obj, id})` is one line in any owner's file; the four newspapers
+are **adopted** through the `userData.litter` tag `props.ts` already publishes,
+so B's file was never edited. Taking removes the object from the world; `G` puts
+it back with its `[E]` following it. Full pockets **refuse**, visibly, three ways.
 
-`ORDER 45`, joins the world through `ct/world.ts`'s glob. **One model, not two:**
-`Purse { cash, inv }` in `ct/hud.ts` has held the pockets since the wallet
-shipped and everything here reads and writes that same object.
+**The API for C's packages** (`notes/K-inventory-api.md`) — `giveRandom(ctx)`
+over a 1997 mail-order table with the disappointment weighted.
 
-- `takeable(ctx, { obj, id })` — the published call, one line in your own file.
-- Six pockets; a slot is a KIND, stacking to the item's own limit.
-- **Full pockets REFUSE.** Dropping the oldest destroys something the player
-  chose to carry in response to an action meant to gain something.
-- The four newspapers are **adopted** by the `userData.litter` tag `ct/props.ts`
-  already publishes — B's file was not edited.
-- Taking it **removes it from the world**; `G` puts it back at your feet and its
-  `[E]` follows it there.
+**The sleep fade** (`notes/K-screen-fade.md`) — `screenFade({ mid })`, general
+rather than sleep-specific. C has wired it; the bed measures 575 minutes of
+clock with the overlay at peak opacity 1.000.
 
-### 2. The API for C's packages — `notes/K-inventory-api.md`
+**The panel framework** (`notes/K-panel-framework.md`) — `makePanel` + `UI`,
+built once because three full-screen interfaces were in flight with three
+authors. Open/close, one-at-a-time, world frozen, ESC always works, one bezel and
+typeface. L is building the slots on it and M's loan application already uses it.
 
-`giveRandom(ctx)` → `{ id, def, taken }`, over a 1997 mail-order table with the
-disappointment weighted. Two things the caller must do: gate the **label** on
-`pocketsFull`, gate the **destroy** on `got.taken`.
+**FIRST FEDERAL** (`ct/atm.ts`, `notes/K-atm.md`) — card, PIN, menu, balance,
+notes counted, take your cash, receipt (NO PAPER), take your card. A has wired
+the `[E]`, so it is reachable from the pavement.
 
-### 3. The sleep fade — `notes/K-screen-fade.md`
+**The pockets on the framework** — same cabinet in canvas, items drawn as
+objects, and a pane that holds one thing up at 3×.
 
-`screenFade({ mid })` from `ct/hud.ts`. A general capability, not a sleep effect.
-`mid` runs **while the screen is black**; black is **held**; nothing moves or
-interacts through it, including a key already held when it starts. **Overturns
-the desk's earlier NO FADE ruling**, correctly.
+## Checks — seven, all registered, all with selftests except the two deliberate reds
 
-### 4. The panel framework — `notes/K-panel-framework.md`
-
-`makePanel` + `UI`, on the desk's instruction, because three full-screen
-interfaces were in flight with three authors. Every caller gets open/close,
-one-thing-at-a-time, the world frozen behind it, ESC always working, and one
-bezel/palette/typeface. **L is building the slots on it.**
-
-### 5. FIRST FEDERAL — `ct/atm.ts`, `notes/K-atm.md`
-
-Card, PIN, menu, balance, notes counted out, take your cash, receipt (NO PAPER),
-take your card. Amber CRT, eight buttons with the menu lined up against them.
-Money moves `purse.account` → `purse.cash`, the same wallet the bodega spends.
-**Draws nothing A built** and needs one line from A to be reachable.
-
-### 6. The pockets raised onto the framework
-
-Same cabinet as the ATM in canvas rather than plastic, items drawn as objects,
-six slots at a glance, and a pane holding one thing up at 3× with whether it can
-be put down — said **before** you press the key.
-
-## Checks — four, all registered in `checks.mjs`, all with selftests
-
-| | asserts | its mutation |
+| | asserts | state |
 |---|---|---|
-| `K-pocket-loop` | take → it leaves the ground → drop → it comes back | the taken paper forced back to visible |
-| `K-pocket-panel` | the panel opens, and G drops what you CHOSE | the selection moved behind the assertion's back |
-| `K-sleep-fade` | the screen goes black and the world changes while it is | the clock advanced BEFORE the fade |
-| `K-atm-walk` | the money is conserved end to end | the dispenser jammed — debit stands, notes vanish |
+| `K-pocket-loop` | take → it leaves the ground → drop → it comes back | green |
+| `K-pocket-panel` | the panel opens, and G drops what you CHOSE | green |
+| `K-atm-walk` | the money is conserved, opened through the world's own `[E]` | green |
+| `K-sleep-fade` | the screen goes black **and the bed actually does it** | green |
+| `K-tyre-has-arch` | verifying F: every tyre has bodywork over it | green |
+| `K-seat-lets-you-up` | you can get back UP off a seat | **RED — real bug** |
+| `K-tv-off-unless-seated` | verifying C: the TV is off unless seated | **RED — same bug** |
 
-All four green, all four selftests red on their mutations, `K-sleep-fade` green
-**4 of 4 run concurrently** (GOTCHAS §30). `node scripts/health.mjs` WORLD OK,
-`check-wiring` 29 of 29.
+## The thing worth reading first: you cannot get up off a seat
 
-**The world did not move**, checked at every step: `fp` before/after, textures
-and structure hashes identical each time, only walkers differing.
+Found while verifying C's television row, and the user hit it himself the same
+hour. **All 225 seats.** `crosstown.ts` latches `landing` when an `[E]` moves you
+more than a stride; `canSee` then refuses every spot until you walk 1.2 m clear;
+**a seated player cannot walk.** Sitting is itself a move of more than a stride.
+Measured on the bench: **0.97 m of travel gets up, 1.03 m and beyond are stuck.**
+`crosstown.ts` is desk-owned and untouched — the diagnosis is in the row and in
+`notes/BLOCKED-K.md`, with the two shapes that close it.
 
-## Five things the checks caught, all mine
+## The lesson I paid for twice
 
-1. **The framework killed its own gate.** Two capture listeners on `window` fire
-   in registration order, so the generic input blocker ran first and
-   `stopImmediatePropagation()`d the key dispatcher out of existence. The ATM
-   opened, drew perfectly, and answered no key **including ESC**.
-2. **A synthetic `KeyboardEvent` on `window` is not a key.** Window is then the
-   TARGET, so capture and bubble fire in registration order and `main.ts` wins.
-   My probe reported the fade's input lock broken; the lock was fine.
-3. **A CSS transition starts on a FRAME, not when you set the property.** Timing
-   the middle of the fade from t0 ran the world change at **opacity 0.842**.
-4. **`wheel` on `window` is passive by default**, so its `preventDefault` is
-   refused — one console warning per event, seen only by a "no page errors" line.
-5. **A visibility predicate that was right for one presentation** (a held object
-   parks off the viewport) was **silently wrong for the other** (a cabinet is
-   always centred and only fades). Both checks would have gone on passing while
-   measuring nothing.
+**A check that proves a kit works is not a check that the kit is USED.**
+`K-sleep-fade` was green while the world had no fade in it, which is why a
+CONFIRMED row was untrue and had to be re-opened. `K-atm-walk` was green on a
+machine no player could reach, for the same reason. Both now press the world's
+own `[E]`.
+
+And three false reds, all mine, all one root — a wall clock or a fixed count
+standing in for render-loop progress (GOTCHAS §30/§43). **A control that fails
+spuriously is the worst kind of red: it discredits the real verdict beside it.**
+
+## Verification done for other builders
+
+- **F, wheel arches** — reproduced by an unrelated filter (a tyre is a cylinder
+  lying on its SIDE, which no barstool can imitate): 84 by axis against F's 83 by
+  skin, 84/84 arched. Watched it fail by lifting every car body.
+- **F, interior keepers** — the bodega keeper faces the customer today; B's
+  station coordinates were stale. **Only 3 of 11 rooms publish a service `[E]`**,
+  so the row is decidable in three rooms and undecidable in eight until a keeper
+  declares itself. The **thrift keeper is not on screen at all** — filed as a
+  limit, not a fault.
+- **C, the television** — everything measurable holds; the stand-up half is
+  blocked by the seat bug, and I did not file that against C.
 
 ## Outstanding — `notes/BLOCKED-K.md`
 
-- **A:** one line in `ct/bank.ts` (`act: () => openAtm()`) and the ATM is
-  reachable from the world.
-- **Desk:** `src/proto/ct/atm.ts` has no row in `OWNERSHIP.md`. `ownership.sh`
-  passes it by default rather than by decision.
-- **Not blocking:** `ctx.player` publishes no facing, so a dropped thing lands at
-  the player's **feet** rather than in front of them. One field on `PlayerRef`
-  (`yaw: () => number`) fixes it.
-- **Wants a ruling, not an assumption:** the watch's forearm is bare skin —
-  `drawWatch` never reads the `player.sleeve`/`cuff` the config carries for it.
-  That watch has had two unasked-for redraws reverted, so I have not touched it.
-  `notes/K-queue-item-4-is-stale.md`.
+1. **DESK** — the seat latch in `crosstown.ts`. 225 seats, a live user report.
+2. **DESK** — `src/proto/ct/atm.ts` still has no row in `OWNERSHIP.md`.
+3. **M/D** — my ATM label change broke `M-bank-int-walk.mjs`; the fix is to read
+   the money as data (`notes/K-money-is-data.md`). Their script, not mine.
+4. Not blocking: `ctx.player` publishes no facing, so a dropped item lands at
+   your feet; and the watch's forearm is bare skin because `drawWatch` never
+   reads the `sleeve`/`cuff` the config carries — that one wants a ruling.
 
 — K
