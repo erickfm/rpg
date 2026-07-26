@@ -703,9 +703,20 @@ export function buildLibrary(ctx: CtxBuild): void {
   // make it a kiosk with the staff sealed in.
   {
     const halfW = DESK_W / 2;
-    const zMidW = (DESK_Z + BACK_Z) / 2 - 0.36;
-    box(0.60, 1.06, RETURN_D - 0.72, wood, DESK_X - halfW + 0.30, 0.53, zMidW);
-    box(0.70, 0.06, RETURN_D - 0.62, woodDark, DESK_X - halfW + 0.30, 1.09, zMidW);
+    // THE WEST RETURN RUNS FROM ONE MEMBER TO THE OTHER, ends derived rather
+    // than a length guessed from RETURN_D. It was `RETURN_D - 0.72` centred on
+    // a hand-computed midpoint, which left a 0.36 m hole in the counter body
+    // and a 0.26 m gap in its top exactly at the corner — you could see through
+    // the desk. Found in the sweep the user asked for after the stair handrail:
+    // *"he notices unbroken lines, so it is worth a sweep of every rail, kerb
+    // and coping in your room while you have your eye in."* He was right that
+    // there was another one, and it was the same shape: two members that come
+    // close instead of meeting.
+    const wFront = DESK_Z - 0.36;               // the front counter's back face
+    const wBack = BACK_Z + 0.30;                // the back worktop's front face
+    const wLen = wFront - wBack, wMid = (wFront + wBack) / 2;
+    box(0.60, 1.06, wLen, wood, DESK_X - halfW + 0.30, 0.53, wMid);
+    box(0.70, 0.06, wLen, woodDark, DESK_X - halfW + 0.30, 1.09, wMid);
     const STUB = 0.80, zMidE = DESK_Z - 0.36 - STUB / 2;
     box(0.60, 1.06, STUB, wood, DESK_X + halfW - 0.30, 0.53, zMidE);
     box(0.70, 0.06, STUB + 0.10, woodDark, DESK_X + halfW - 0.30, 1.09, zMidE);
@@ -1068,8 +1079,19 @@ export function buildLibrary(ctx: CtxBuild): void {
   // the deck, treads, balustrade and soffit all follow.
   {
     const GW = GALLERY_X1 - GALLERY_X0, GCX = (GALLERY_X0 + GALLERY_X1) / 2;
-    const deckZ0 = -D / 2 + 0.1, deckZ1 = GALLERY_Z1;
+    // THE DECK REACHES THE BACK WALL. It stopped at -D/2 + 0.1, leaving a
+    // 0.1 m slot between the deck and the wall — and the floor picker answers
+    // for the whole x band, so you could stand on 10 cm of gallery that was
+    // not drawn. Found in the same sweep as the handrail: the user notices
+    // unbroken lines, and a floor that stops short of its wall is one.
+    // ABUTS, does not overlap (GOTCHAS §6).
+    const deckZ0 = -D / 2, deckZ1 = GALLERY_Z1;
     const deckD = deckZ1 - deckZ0, deckCZ = (deckZ0 + deckZ1) / 2;
+    // ONE LINE FOR BOTH BALUSTRADES. The stair's rail and the gallery's used
+    // to sit on different x and different y, which is how their junction came
+    // to be 8 cm apart. Now there is one x and one height above the walking
+    // surface, and the two members meet by construction.
+    const RAIL_X = GALLERY_X0 + 0.09, RAIL_H = 0.98;
 
     // the deck, with a dark soffit under it — from the reading room below its
     // underside is all you see of it
@@ -1141,27 +1163,66 @@ export function buildLibrary(ctx: CtxBuild): void {
       // public hall actually is. The rail still guards the part with a drop.
       const OPEN_FOOT = 1.5;
       const zc2 = (STAIR_Z0 + GALLERY_Z1) / 2, len2 = STAIR_Z0 - GALLERY_Z1;
-      const rise2 = GALLERY_Y / len2;
-      for (let bz = GALLERY_Z1 + 0.24; bz < STAIR_Z0 - OPEN_FOOT; bz += 0.34) {
-        const yb = GALLERY_Y - (bz - GALLERY_Z1) * rise2;   // follows the flight
-        box(0.07, 0.88, 0.07, woodDark, GALLERY_X0 + 0.07, yb + 0.44, bz);
+      // ── ONE RAKING MEMBER, NOT TEN CAPS ──
+      //
+      // The user, on `shots/user-library-railing.png`:
+      //
+      //   *"the STAIR's handrail is not a rail at all. Each post has its own
+      //   short horizontal cap sitting on top of it, and the caps do not touch
+      //   each other — going up the flight you get a row of disconnected T
+      //   shapes with gaps of air between them."*
+      //
+      // Exactly right, and the arithmetic says why. It was ten HORIZONTAL boxes
+      // at ten descending heights: consecutive ones sat 0.222 m apart
+      // vertically and were only 0.09 m tall, so there was 0.13 m of air
+      // between each cap and the next. A stepped handrail is the same fault in
+      // a different disguise.
+      //
+      // He also gave me the reference: *"the GALLERY balustrade at the left of
+      // that shot is fine — balusters with a continuous top rail — so you have
+      // a working reference twenty pixels away from the broken one."* So this
+      // is now the same construction, off the same three constants.
+      //
+      // AND THE ENDS ACTUALLY JOIN, which is the half that would have survived
+      // a fix to the rail alone. Measured before: the stair rail's top sat at
+      // y 3.84 and x 7.07 while the gallery rail sits at y 3.88 and x 6.99 —
+      // 4 cm below it and 8 cm inboard, so the two members passed each other.
+      // GOTCHAS §41 and his own warning: *"a junction that looks right from
+      // below can be an inch apart from above."* Both now derive from RAIL_X
+      // and RAIL_H, so they cannot miss.
+      const surfaceAt = (z: number) => GALLERY_Y * (STAIR_Z0 - z) / len2;
+      const zBot = STAIR_Z0 - OPEN_FOOT, zTop = GALLERY_Z1;
+      const yBot = surfaceAt(zBot) + RAIL_H, yTop = GALLERY_Y + RAIL_H;
+      // balusters, each one reaching the UNDERSIDE of the rail rather than
+      // stopping 5 cm short of it as they did
+      const BAL_H = RAIL_H - 0.045;
+      for (let bz = zTop + 0.24; bz < zBot; bz += 0.34) {
+        box(0.07, BAL_H, 0.07, woodDark, RAIL_X, surfaceAt(bz) + BAL_H / 2, bz);
       }
-      // the handrail itself, raked along the same gradient
-      for (let i = 0; i < 10; i++) {
-        const t = i / 9, bz = GALLERY_Z1 + t * (len2 - OPEN_FOOT);
-        const yb = GALLERY_Y - (bz - GALLERY_Z1) * rise2;
-        box(0.10, 0.09, len2 / 9 + 0.04, wood, GALLERY_X0 + 0.07, yb + 0.94, bz);
-      }
-      solid(GALLERY_X0 + 0.07, zc2 - OPEN_FOOT / 2, 0.22, len2 - OPEN_FOOT);
+      // the newel the rail dies into at the foot of the railed section — a
+      // handrail that simply stops in mid-air is the same complaint again
+      box(0.12, RAIL_H + 0.20, 0.12, wood, RAIL_X, surfaceAt(zBot) + (RAIL_H + 0.20) / 2, zBot);
+      // THE RAIL: one box, rotated to the flight's own pitch, running 0.12 past
+      // each end so it penetrates the newel below and the gallery rail above
+      // rather than merely touching them.
+      const pitch = Math.atan2(yTop - yBot, zBot - zTop);
+      const railLen = Math.hypot(zBot - zTop, yTop - yBot);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.09, railLen + 0.24), wood);
+      rail.rotation.x = pitch;
+      put(rail, RAIL_X, (yBot + yTop) / 2, (zBot + zTop) / 2);
+      solid(RAIL_X, zc2 - OPEN_FOOT / 2, 0.22, len2 - OPEN_FOOT);
     }
 
-    // the balustrade you look down from, and a collider so the drop is guarded
-    const RAIL_Y = GALLERY_Y + 0.98;
-    box(0.10, 0.09, deckD, wood, GALLERY_X0 + 0.09, RAIL_Y, deckCZ);
+    // the balustrade you look down from, and a collider so the drop is guarded.
+    // Its balusters now reach the rail's underside exactly, from the same
+    // BAL_H the flight's use — they were 1.5 cm short, which is invisible and
+    // is still the same defect the stair was reported for.
+    const GBAL_H = RAIL_H - 0.045;
+    box(0.10, 0.09, deckD, wood, RAIL_X, GALLERY_Y + RAIL_H, deckCZ);
     for (let bz = deckZ0 + 0.25; bz < deckZ1 - 0.2; bz += 0.30) {
-      box(0.06, 0.86, 0.06, woodDark, GALLERY_X0 + 0.09, GALLERY_Y + 0.49, bz);
+      box(0.06, GBAL_H, 0.06, woodDark, RAIL_X, GALLERY_Y + GBAL_H / 2, bz);
     }
-    solid(GALLERY_X0 + 0.09, deckCZ, 0.24, deckD);
+    solid(RAIL_X, deckCZ, 0.24, deckD);
 
     // a table up there, because a gallery with nothing on it is a walkway
     box(1.5, 0.06, 0.7, wood, GCX + 0.5, GALLERY_Y + 0.72, deckCZ + 1.4);
@@ -1408,16 +1469,32 @@ export function buildLibrary(ctx: CtxBuild): void {
       }
       dither(g, 40, 28, 40);
     }), 'detail');
+    // THE RACKS HAVE BODIES NOW, 2026-07-25.
+    //
+    // They were a 0.06 m rail on two thin legs with a raked plane floating
+    // above it, and from the alcove — the one place you would ever stand to
+    // read them — three of them read as tilted grey panels hanging in the air.
+    // Found by grading the room from angles I had never shot, which is what the
+    // queue's closing line asks for.
+    //
+    // A newspaper stand is a CASE: a sloping top you read off, a solid body
+    // under it, and a shelf below for back numbers. Same papers, same slope,
+    // same footprint — what changes is that there is something holding it up.
     for (let i = 0; i < 3; i++) {
       const rz = -1.6 + i * 1.9;
-      // the rail and its sloping face
-      box(0.42, 0.06, 1.5, woodDark, AX, 1.02, rz);
+      box(0.40, 0.62, 1.5, wood, AX, 0.72, rz);                  // the case body
+      box(0.44, 0.05, 1.56, woodDark, AX, 1.05, rz);             // its capping rail
       const face = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.62), ctx.flat(paperT));
       face.rotation.y = Math.PI / 2; face.rotation.x = -0.42;
       put(face, AX + 0.20, 1.24, rz);
-      box(0.09, 1.0, 0.09, wood, AX, 0.5, rz - 0.68);
-      box(0.09, 1.0, 0.09, wood, AX, 0.5, rz + 0.68);
-      solid(AX, rz, 0.5, 1.5);
+      // the raked lid the papers lie on, so the plane above has a surface under
+      // it rather than being a card in mid-air
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.66, 1.5), woodDark);
+      lid.rotation.x = -0.42; lid.rotation.y = Math.PI / 2;
+      put(lid, AX + 0.23, 1.24, rz);
+      box(0.36, 0.04, 1.42, woodDark, AX, 0.30, rz);             // the back-numbers shelf
+      box(0.30, 0.10, 1.20, wood, AX, 0.36, rz);                 // …and what is on it
+      solid(AX, rz, 0.5, 1.6);
     }
     // a chair to read them in, turned into the alcove rather than facing the room
     box(0.46, 0.06, 0.46, wood, AX + 1.15, 0.44, 0.9);
@@ -1426,6 +1503,47 @@ export function buildLibrary(ctx: CtxBuild): void {
       box(0.05, 0.44, 0.05, woodDark, AX + 1.15 + lx, 0.22, 0.9 + lz);
     }
     solid(AX + 1.15, 0.9, 0.5, 0.5);
+
+    // ── AND SOMETHING ON THE WALL ABOVE THEM ──
+    //
+    // Standing in the alcove, everything above 1.3 m was 5 m of blank cream
+    // plaster — the largest untouched surface left in the room once the deck's
+    // soffit took its grain. The queue's own warning is that the user "has
+    // flagged large blank internal masses in this room TWICE", so an empty wall
+    // is not a neutral background here, it is the complaint waiting to happen.
+    //
+    // A FRAMED BOROUGH MAP, which is what is actually on that wall in a branch
+    // library, and it dates the room as hard as the card catalogue does: the
+    // streets are the ones the player has been walking, and the block is drawn
+    // as this world draws blocks.
+    const mapT = declareSurface(pixTex(56, 40, (g) => {
+      g.fillStyle = '#d8d2be'; g.fillRect(0, 0, 56, 40);                 // the paper
+      g.fillStyle = '#b8bfa8';                                            // parks
+      g.fillRect(4, 26, 13, 10); g.fillRect(38, 5, 14, 9);
+      g.fillStyle = '#c4beaa';                                            // the blocks
+      for (const [bx, by, bw, bh] of [[4, 4, 12, 8], [20, 4, 14, 8], [4, 15, 12, 8],
+        [20, 15, 14, 8], [38, 15, 14, 8], [20, 26, 14, 10], [38, 26, 14, 10]] as [number, number, number, number][]) {
+        g.fillRect(bx, by, bw, bh);
+        g.fillStyle = 'rgba(0,0,0,0.10)'; g.fillRect(bx, by + bh - 1, bw, 1);
+        g.fillStyle = '#c4beaa';
+      }
+      g.fillStyle = '#8a8578';                                            // the streets
+      for (const x of [17, 35]) g.fillRect(x, 2, 2, 36);
+      for (const y of [12, 23]) g.fillRect(2, y, 52, 2);
+      g.fillStyle = '#7a3b30'; g.fillRect(24, 17, 3, 3);                  // YOU ARE HERE
+      g.fillStyle = '#3a3630'; g.fillRect(2, 2, 52, 1); g.fillRect(2, 37, 52, 1);
+      g.fillRect(2, 2, 1, 36); g.fillRect(53, 2, 1, 36);
+      dither(g, 56, 40, 90);
+    }), 'sign');
+    const MAP_W = 1.9, MAP_H = 1.36, MAP_Z = 0.3, MAP_Y = 2.9;
+    // the frame first, as a box proud of the wall, so the map has a rebate and
+    // an edge rather than being a sticker — the same reason the doorcase got
+    // pilasters instead of paint
+    box(0.07, MAP_H + 0.16, MAP_W + 0.16, woodDark, -W / 2 + 0.05, MAP_Y, MAP_Z);
+    const mp = new THREE.Mesh(new THREE.PlaneGeometry(MAP_W, MAP_H),
+      new THREE.MeshBasicMaterial({ map: mapT }));
+    mp.rotation.y = Math.PI / 2;                                          // faces +x
+    put(mp, -W / 2 + 0.10, MAP_Y, MAP_Z);
   }
 
   // ── BACK OF HOUSE, AND IT DOES NOT OPEN ──────────────────────────────────

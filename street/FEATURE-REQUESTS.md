@@ -188,8 +188,20 @@ published to the playable artifact.
 - **"instead of calling the casino golden aces call it SEVENS"** → **G**
 - **"'Screenshot from 2026-07-25 23-30-58.png' hotel textures are buggy"** → **G**
 - **"'Screenshot from 2026-07-25 23-27-45.png' whats wrong with this plant in the tax service place"** → **G**
-- **"'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the library"** → **J**
-- **"'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in library"** → **J**
+- **"'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the library"** → **J** ✅ built
+
+  <!-- J: the object in that shot is the PERIODICALS RACK, not the computers.
+       The routing message called them "your computers"; matched against the
+       screenshot and against the world, they are the three raked newspaper
+       panels in the west alcove, and there is no beige CRT in frame because
+       my terminals are LIVE-not-landed and the world he is playing has none.
+       That is not a reason to discount it, it IS the report — he named the
+       object as something else entirely, which is the test he set. Rebuilt as
+       a face-out magazine case in the vocabulary he says works ("the
+       bookshelf and the blue display case read instantly"). His terminal
+       checklist was separately applied to the real terminals. -->
+
+- **"'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in library"** → **J** ✅ built
 - **"'Screenshot from 2026-07-25 23-25-21.png' whats going on with this cars its like up in a weird way also i hate this pole thats in the way"** → **I**
 - **"'Screenshot from 2026-07-25 23-24-37.png' whats going on here? looks like an issue with the sale sign, itsa like embedded in the car"** → **I**
 - **"'Screenshot from 2026-07-25 23-09-56.png' dont like how this curb is discontinuous and only 3 slabs, its unrealistic"** → **B**
