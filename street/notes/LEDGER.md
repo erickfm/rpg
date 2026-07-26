@@ -240,3 +240,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | I | 'Screenshot from 2026-07-25 23-25-21.png' whats going on with this car | |
 | OPEN | J | 'Screenshot from 2026-07-25 23-26-31.png' discontinuous railing in lib | |
 | OPEN | J | 'Screenshot from 2026-07-25 23-27-24.png' whjats going on here in the  | |
+| OPEN | G | 'Screenshot from 2026-07-25 23-27-45.png' whats wrong with this plant  | |
