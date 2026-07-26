@@ -1,1 +1,1 @@
-DONE | escape hatch shipped first; seat exit landed; cannot reproduce on 5177 (world moved past dd35b833e) | hud.ts blockInput has no recovery — panel owner
+DONE | escape hatch + seat exit + TV work all landed and green | hud.ts blockInput has no recovery when a fade hangs — panel owner
