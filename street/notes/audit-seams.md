@@ -943,3 +943,39 @@ fractions were the first), and both had the same shape: *a number that is easy t
 compute standing in for the question actually asked.* The question was "does the
 side match the front", which needs two faces of the SAME building compared, not a
 census of everything flat in the world.
+
+## [C] Expansive interiors CONFIRMED — and the overrun moved instead of leaving
+
+Casino **95 → 209 m²**, hotel **99 → 286 m²**, measured against where they stood
+when the user complained. The hotel is now the most open room in the world:
+median aisle 11.0 m, minimum 5.27, 96% free floor, and it reads as a grand lobby.
+
+**Also worth recording: the library recovered.** I filed it at severity 1 with a
+median aisle of **2.10 m**, the tightest room in the world. It now measures
+**9.7 m** on the same instrument. The fault I found mid-flight was acted on.
+
+**[I] The finding that only a cross-check could produce.** G reasoned *"depth was
+the free axis: slabs tile along X at SLAB_W 80 with every one on cz = 0, so
+nothing was ever behind these rooms."* Every word is true — **of the interior
+belt.** The belt has 80 m of clear space behind each room.
+
+But the constraint was never the belt. It is the building on the street, and the
+hotel's is **14.3 m deep**. So:
+
+| | before | now |
+|---|---|---|
+| casino | 1.96× footprint | **1.27×** |
+| hotel | 0.58× footprint | **1.67×** |
+
+The overrun I filed on the casino was **reduced there and reproduced in the
+hotel**, by a change that was locally correct and globally wrong. *A builder
+working inside one room can verify everything about it and still be measuring the
+wrong container* — which is the exact case for auditing ten rooms as a set rather
+than ten times individually.
+
+**[Is] Two rows by the same builder pulled against each other.** "More expansive
+interiors" wanted depth; "interior doesn't match the exterior" wants the room to
+fit its building. G satisfied the first in a way that worsens the second, and
+neither row's own evidence could show it, because each is true within its own
+frame. **When one builder holds two rows that trade against each other, only
+something outside both can see the trade.**
