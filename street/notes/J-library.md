@@ -1,4 +1,12 @@
-# J — the library interior, first three rows
+# J — the library interior: the queue is EMPTY
+
+All six rows in `notes/queues/J-civic-int.md` are built, walked and
+committed — the four under `## Now` and both under `## Then`. Seven commits,
+one per item. Scroll to **"After the queue file arrived"** for rows 3's
+remainder, 4's two details, and the two Then rows; the first section is the
+three Inbox messages I started on before the queue existed.
+
+
 
 Builder J, worktree `../rpg-civicint`, branch `feat/civicint`, port **4192**
 (not 4191 — builder I's dev server was already on it; `ss -ltn` before you
@@ -89,18 +97,135 @@ already had the other half of the joke in it: the header says the card
 catalogue is here because a branch this size had "a terminal ON ORDER". It has
 arrived; the sixty drawers stay, and the two standing in one room is the date.
 
+## After the queue file arrived
+
+It landed while I was committing the third Inbox row, and had more in it than
+those three messages. The rest, in the order I did it.
+
+### Row 3's remainder — a mat, cables, a printer, and an amber prompt
+
+The middle terminal is now an **amber serial terminal** — black screen, amber
+lines, block cursor, scanlines. A branch in 1997 has both machines side by
+side: the PC the grant paid for and the amber terminal wired to the catalogue
+since 1989, so the pair is the period rather than an inconsistency. Mats under
+the mice; a **dot-matrix printer** on its own stand at the end of the run with
+the fan-fold carton it feeds from.
+
+"Coiled cables" I did NOT model, and the reason is a measurement rather than a
+preference: at 8–16 px/m a flex is well under a texel, so a modelled coil is a
+dark blob. What IS legible at this scale is the **cable tray** they all
+disappear into, so that is what is there.
+
+The printer was built twice. The first had body, hood, paper and carton all
+within a few points of the same off-white and read as a stack of pale blocks —
+a printer that was in the room and not recognisable as one. Four tones now.
+
+### Row 4's two details — both checked rather than assumed
+
+- *"the jambs show a stepped stipple down both sides … z-fighting shimmers as
+  you move"* — **gone.** Walked the doorway at 9.6, 8.6, 7.4, 5.5 and 3.0 m
+  (`shots/J-lib/jamb-*.png`); the doorcase and its pilasters now cover the
+  kit's raw jamb geometry and the edges are clean at every distance. C is
+  diagnosing the same artefact at the 301 window — mine is closed by covering
+  it, which may or may not help theirs.
+- *"glazing you can see the forecourt through"* — the daylight panel.
+
+### Row 2's librarian, decoded rather than eyeballed
+
+Using H's method from `notes/H-atlas-facing.md`
+(`sector = repeat.x < 0 ? 9 - off : off`):
+
+| standing at | sector | reading |
+|---|---|---|
+| the borrower's spot at the counter | 0.00 | **looking at you** |
+| the reading room | 4.00 | her back |
+| the east | 2.00, unmirrored | profile |
+| the west | 6.00, **mirrored** | profile |
+
+One profile and its mirror from the two sides is exactly the signature H's note
+predicts for a keeper facing ACROSS the ±x sweep, and sector 0 from the
+borrower's spot is the row's own test — *"stand where a borrower stands, you
+should see her face over the desk."*
+
+### Then: adopt `citizenSprite`
+
+Two readers **seated** at the long reading table, through `citizenSprite`
+directly rather than `room.person`, which places at the floor. H's rule is the
+whole of it: the seated origin is the HIP, so place at the SEAT TOP, and a y
+fudge means the atlas is wrong and not your room. **No fudge** — 0.45 is passed
+because it is the seat pan these chairs are built with. Verified structurally
+rather than by eye:
+
+```
+librarian, standing   origin y 0.000   plane spans -0.115 .. 1.728
+reader,    seated     origin y 0.450   plane spans -0.126 .. 1.717
+```
+
+Both sets of feet land in the same place; the atlas did the offset.
+
+### Then: flat colour
+
+Five faces take A's `slabTex`, ranked by how much of one tone a player is
+looking at: the gallery deck's **underside** (3.0 × 11.5 m — 34.5 m², and from
+the reading floor it is most of what the gallery IS), the deck's top, the
+reading table's top, the issue counter's front, the OPAC bench's top.
+
+**One face at a time, sized from that face's metres.** A `BoxGeometry`'s six
+faces each span the full 0..1 of the map, so handing one texture to the whole
+box stretches a 3 m top and a 0.16 m edge across the same canvas — GOTCHAS §5,
+the asphalt that came out 21 m × 0.33 m. `joint: 0` throughout, because these
+are timber and not paving, and the colours are the ones already there.
+
+### The density finding, routed to me mid-session
+
+F measured the library at 0.6 things per m², one of the three thinnest rooms in
+the world. `scripts/J-room-furnishing.mjs` reproduces it independently at
+**0.62**, with pawn 0.22 and hotel 0.27 below it — F's ranking exactly. Two
+rules agreeing is worth more than either, and the script says out loud what it
+counts, because a density with no rule is an opinion.
+
+The answer was not to scatter objects. It was that a 440 m² reading hall had
+ONE four-seat table in it, which is not a reading room — it is a corridor with a
+table. So: a **rank of reading tables** with brass lamps and six registered
+seats, placed as an ISLAND in the largest piece of floor doing nothing;
+**shelving against walls**, which costs no floor at all and is the first thing
+to reach for when a room measures thin, including two runs along the gallery
+(a gallery in a Carnegie branch is for reaching the high books — ours was a
+viewing platform, so you climbed it once and had no second reason to go up);
+and the props that say somebody works here.
+
+### And the stair got stringers
+
+Found by doing what the queue asks — *"walk both floors, and grade them
+skeptically"* — and standing at the **foot** of the flight, which is the one
+place a player looks at a stair from and the one place it had never been shot.
+From there a tread was a 3 m plank with nothing under it and nothing at its
+ends, and twelve of them read as a cascade of shelves hanging in the air. Every
+other view is three-quarter and hides it. **The stair had been checked for
+whether you can CLIMB it and never for what it looks like from where you start
+climbing.**
+
 ## Measured, not eyeballed
 
 ```
-scripts/roomaisle.mjs        library 440 m2, clear aisle min 5.00 med 11.85,
-                             0 of 86 samples under the capsule, 90% free floor
-                             (14.9 before the bank and the desk U; the auditor's
-                              "cramped" finding was 2.10)
-scripts/J-library-door.mjs   3 PASS, and its --selftest watched go red
-scripts/E-library-in.mjs     unchanged across all three commits
+scripts/roomaisle.mjs         library 440 m2, clear aisle min 4.85 med 7.70,
+                              0 of 86 samples under the capsule, 87% free floor
+scripts/J-room-furnishing.mjs 353 things, 0.80 per m2, 7th of 10 (1 = thinnest),
+                              from 271 and 0.62 when I started
+scripts/J-library-door.mjs    3 PASS, and its --selftest watched go red
+scripts/E-library-in.mjs      unchanged across all seven commits
 ```
 
-## For the desk — three things
+**Read the two aisle numbers together, because the median alone misleads.** It
+fell from 11.85 to 7.70 and that is the price of the furniture, paid
+deliberately. But the **minimum is 4.85 m** — second only to the hotel's 5.27,
+and nearly seven times the 0.72 m capsule — where pawn and church carry medians
+of 13.37 and 13.00 with minima of **0.0 and 1.6**. Those rooms are wide with a
+pinch point in them; this one has no pinch point anywhere, and 0 of 86 samples
+are under the capsule. The auditor's original finding on this room was a
+2.10 m median, the narrowest of all ten.
+
+## For the desk — four things
 
 1. **There is no queue file.** `notes/queues/J-civic-int.md` does not exist. I
    worked the three library rows straight out of `FEATURE-REQUESTS.md`'s Inbox,
@@ -118,6 +243,22 @@ scripts/E-library-in.mjs     unchanged across all three commits
    comment saying so. A routing row naming the wrong builder does not read as
    stale, it reads as work somebody else is doing. Move them to a Done section
    if you would rather.
+
+4. **`notes/J-seat-dispatch.md` — 126 of 229 seats in the WORLD fail
+   `seats-walk`, and it is not the library.** `pickSpot` ranks by
+   `offAxis + d * 0.02`, so the seat under your feet (≈90° off-axis by
+   definition) loses to one a metre away that you happen to be facing.
+   `fp.ts:493` says this is safe *"because a spot you are standing on has
+   offAxis 0 by construction"* — true only at the `d < 1e-4` guard on the line
+   above it. `fp.ts` is DESK-owned and `seats-walk` is D's, so it is filed, not
+   touched, and I have not tuned the library's seat radii to make somebody
+   else's check go quiet. 217 of 229 seats have a neighbour within 1.5 m, so
+   this is the normal case rather than an edge one.
+
+   **Also on the port:** the queue says 4191 and builder I's dev server was
+   already listening on it. I used **4192**. Worth a line in whatever assigns
+   them — `ss -ltn` before claiming a port, or two builders measure each
+   other's worlds (GOTCHAS §26).
 
 ## Pre-existing reds I did NOT fix, and why
 
