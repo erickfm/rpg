@@ -92,3 +92,30 @@ a bank you cannot use.
 
 > **DESK — still yours to publish.** `street/dist/artifact.html`, on disk and
 > gitignored. My queue says hand it back rather than publish it myself.
+
+
+---
+
+## Re-packed again at `af33304a7` — and a note on churn
+
+Mainline moved to `6ee4e503d`, so the `69b5db064` pack was behind. Re-built:
+
+```
+packed dist/artifact.html — 1 095 021 bytes, build af33304a7
+286 spots · 225 seats · 7821 meshes · spawn (198.6, -16.3) floor 5.4
+prompt live · #ct-atm · #ct-fade · page errors: 0
+```
+
+**Built from my tree, which is mainline plus one unlanded commit** — and that
+commit touches `LEDGER.md` only, no code, so the bundle is functionally mainline.
+Saying so rather than letting "build af33304a7" imply otherwise.
+
+The 225 seats is worth one line: it independently confirms the denominator I
+used to size the slot-stool trap at *96 of 225 seats, 43% of every seat in the
+game*.
+
+**On churn, for the desk to decide:** mainline moves every few minutes, so any
+artifact is stale almost immediately and I could re-pack forever. I have packed
+it three times now and none has been published. **Unless you want it current at
+a particular moment, the useful trigger is you asking** — or a release, not a
+commit. I will not keep re-packing on a timer.
