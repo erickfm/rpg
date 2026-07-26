@@ -714,7 +714,18 @@ export function buildCivic(o: {
       const FR = yOf(10.6), FRH = Math.round(1.7 * pm);
       g.fillStyle = STONE_L; g.fillRect(0, FR, LW, FRH);
       g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(0, FR, LW, 1); g.fillRect(0, FR + FRH - 1, LW, 1);
-      engrave(g, 'PVBLIC LIBRARY', Math.round(LW / 2), FR + Math.round(FRH / 2), 9);
+      // PUBLIC, not PVBLIC. The V was deliberate and defensible — Roman
+      // inscriptional capitals have no U, and real Beaux-Arts civic buildings
+      // do carry PVBLIC LIBRARY on the frieze. The user has now read it as a
+      // typo twice, and that settles it: if the reference is correct but every
+      // reader thinks it is a mistake, it is a mistake.
+      //
+      // No re-centring needed, and I checked rather than assumed: `engrave`
+      // sets `textAlign = 'center'` on a MONOSPACE font, so U and V share an
+      // advance width and the string re-centres itself about `LW / 2`. That
+      // would NOT hold in a proportional face, which is what the desk was
+      // right to flag.
+      engrave(g, 'PUBLIC LIBRARY', Math.round(LW / 2), FR + Math.round(FRH / 2), 9);
       g.fillStyle = STONE_D; g.fillRect(0, CO, LW, 3);
       g.fillStyle = STONE_L;
       for (let x = 2; x < LW; x += 6) g.fillRect(x, CO + 3, 3, 5);
