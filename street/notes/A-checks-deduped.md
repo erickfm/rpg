@@ -88,12 +88,38 @@ duplicate, so the check was not loosened to make this pass.
 `check-seethrough`, `mirror-walk`, `frontage-honours`, `tree-crown`,
 `shop-interior`, `checks-registered` and `gotchas-numbers`.
 
-**It did not finish.** `D-walk` wedges and the runner's 180 s per-check timeout
-does not fire on it — it sat there for well over ten minutes across repeated
-polls. That is not mine and I have not touched it, but somebody should know:
-a check that hangs past its own timeout stops the suite behind it, so
-everything after `D-walk` in the table is currently unreachable in a default
-run. Worth a look by whoever owns it.
+**It did not finish, and my first explanation of why was WRONG.** I wrote here
+and in a commit message that `D-walk` *wedges* and that the runner's 180 s
+timeout *does not fire* on it, so everything after it in the table is
+unreachable. Retracted — both halves were false, and I am glad nobody acted on
+it first.
+
+I went looking for the mechanism and my hypothesis was that `spawnSync`'s
+timeout SIGTERMs the node child while playwright's chromium survives as a
+grandchild holding the inherited pipe, so `spawnSync` can never return.
+**Measured, and it is not that**: a probe that spawns exactly that shape
+returns at 3.0 s with `signal=SIGTERM err=ETIMEDOUT`. The pipe theory was
+tidy and wrong.
+
+What is actually true, measured:
+
+```
+D-walk alone, idle machine    89 s, exit 0, all walks pass
+D-walk x4 concurrently        still running past ~10 minutes each
+```
+
+So it does not hang: it is **slow, and load-sensitive** — GOTCHAS 30's own
+subject. And the reason nothing appeared after it in my log is that **I killed
+that run myself** with `pkill`. I then read my own kill as evidence of a wedge.
+
+The finding that survives is smaller and real: at 89 s idle, `D-walk` is the
+longest check in the FAST tier, and it needs only ~2x contention to blow the
+180 s ceiling. The file's own precedent points one way — `lotwalk` was moved to
+the slow tier at **36 s**, with the reasoning that "SLOW is a runtime tier, not
+an importance tier" — and D-walk is 2.5x that. **I have not moved it**: that
+removes D's walked coverage from the default run, which is a coverage decision
+about someone else's check, not a runtime one I get to take. Flagging it for
+the desk with the numbers instead.
 
 Two earlier full-suite attempts were discarded rather than reported, because I
 edited `checks.mjs` and `src/` while they ran — a verdict from a world that
