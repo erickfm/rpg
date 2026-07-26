@@ -1704,3 +1704,17 @@ number, and it fails silently by returning 0. `notes/groundat-context.md`.
 All four are one error: **an instrument that answers about the wrong population,
 confidently.** The tell is an answer that agrees with itself — 0.4 and 0.4, or
 "0 of 9" from a table showing nine identical rows.
+
+## [R] Park canopies are still transparent from underneath — for E
+
+The user reported *"the tree is transparent when you look up through it"*. B
+diagnosed it exactly — boards spun on Y alone are edge-on from below — and fixed
+its street trees with a level crown disc. **The park canopies still show it.**
+
+`shots/sky-tree7.png`: standing under the park tree at (−33.5, −90.7) looking
+straight up, the boards are thin green slivers forming an X with sky between
+them. Measured against a station 3.5 m to the side (same canyon, same sky),
+park canopies read 52–93% sky directly overhead; the worst lets through 93%.
+
+The fix B describes has an obvious counterpart here. Ledger row annotated rather
+than reopened, because the row is B's and B's own seven are not what I measured.
