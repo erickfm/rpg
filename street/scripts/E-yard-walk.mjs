@@ -69,16 +69,21 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) 
     //    is inside that ball for the whole length of the walk past it.
     const snap = () => page.evaluate(() => window.__ct.colliders()
       .map((c) => `${c.minX.toFixed(3)},${c.maxX.toFixed(3)},${c.minZ.toFixed(3)},${c.maxZ.toFixed(3)}`));
+    // THREE samples over ~1.8 s — see the note in E-walk: half a second does
+    // not outlast a citizen who has stopped to look in a window.
     const s1 = await snap();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(900);
     const s2 = new Set(await snap());
+    await page.waitForTimeout(900);
+    const s3 = new Set(await snap());
     const dx = Math.sin(yaw), dz = -Math.cos(yaw);   // the PLAYER travels (sin t, -cos t)
     const L = 1.6, R = 0.5;
     const bx = { minX: Math.min(last[0], last[0] + dx * L) - R, maxX: Math.max(last[0], last[0] + dx * L) + R,
                  minZ: Math.min(last[2], last[2] + dz * L) - R, maxZ: Math.max(last[2], last[2] + dz * L) + R };
-    const near = s1.filter((k) => s2.has(k)).map((k) => k.split(',').map(Number))
+    const near = s1.filter((k) => s2.has(k) && s3.has(k)).map((k) => k.split(',').map(Number))
       .filter(([aX, bX2, aZ, bZ]) => aX < bx.maxX && bX2 > bx.minX && aZ < bx.maxZ && bZ > bx.minZ)
-      .map(([aX, bX2, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX2.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`);
+      .map(([aX, bX2, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX2.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`
+        + ` (${(bX2 - aX).toFixed(2)}x${(bZ - aZ).toFixed(2)}${(bX2 - aX).toFixed(2) === '0.50' && (bZ - aZ).toFixed(2) === '0.50' ? ' — CITIZEN-SIZED' : ''})`);
     // A CITIZEN IS NOT A FAILURE OF THE WORLD, on the legs that say so.
     //
     // This file had no downgrade at all: the 26 m pavement leg past the church

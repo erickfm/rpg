@@ -52,8 +52,16 @@ const STATIONS = [
     what: 'across the stripes, where banding reads strongest' },
   { k: 'park-shelter', at: [-30.5, -83.0], yaw: W, gy: 0.24,
     what: 'the shelter from the loop, its posts and eaves' },
-  { k: 'park-shelter-under', at: [-34.9, -84.6], yaw: N, gy: 0.24,
-    what: 'stood under the shelter — the boarded ceiling' },
+  // STOOD UNDER IT, LOOKING UP. The first cut of this station stood at
+  // z -84.6 and faced yaw N — which is -z, AWAY from a shelter sitting at
+  // z -83.0. It photographed a lamp post and two benches and I nearly graded
+  // the shelter's ceiling from a frame the shelter is not in.
+  //
+  // The same z-flip, one more time. The player at yaw t looks along
+  // (sin t, -cos t): to look from z -85.5 towards z -83 you want +z, which is
+  // yaw S, not N. Pitch up, because the underside is the half a player sees.
+  { k: 'park-shelter-under', at: [-34.9, -85.5], yaw: S, gy: 0.24, pitch: 0.30,
+    what: 'stood under the shelter looking up — the boarded ceiling' },
   { k: 'park-bench-row', at: [-18.6, -88.5], yaw: S, gy: 0.24,
     what: 'a path-side bench: does the sitter face the park' },
   { k: 'park-fence-out', at: [-5.2, -75.0], yaw: W, gy: 0.14,

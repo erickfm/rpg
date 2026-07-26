@@ -63,12 +63,6 @@ await page.evaluate(() => window.__ct.clock(13, 20));
 const pos = () => page.evaluate(() => window.__ct.pos());
 const warp = (x, z, yaw, gy = 0.14) => page.evaluate(([x, z, yaw, gy]) => window.__ct.warp(x, z, yaw, gy, 0), [x, z, yaw, gy]);
 const f = (n) => n.toFixed(2);
-// `apt.gy()` is a last-written value with more than one writer, so a single
-// read can catch somebody else's frame. Sample three times and take the
-// MEDIAN — the floor under a point does not change between frames, so the
-// odd one out is always the lie. Max was tried first and is wrong in one
-// direction: it beats a phantom 0 in a field of 0.14, and then lets a stale
-// 0.55 off the step you sampled a moment ago win on the flags beside it.
 // ASK THE PICKER, do not teleport and read `pos()[3]`.
 //
 // `pos()[3]` is `apt.gy()` — a last-written value with more than one writer,
@@ -154,10 +148,17 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) 
     const snap = () => page.evaluate(() => window.__ct.colliders()
       .map((c) => `${c.minX.toFixed(3)},${c.maxX.toFixed(3)},${c.minZ.toFixed(3)},${c.maxZ.toFixed(3)}`));
     const near = SELFTEST ? [] : await (async () => {
+      // THREE samples over ~1.8 s, not two over 0.5 s. A walking citizen is
+      // gone from its box in half a second, but a PAUSED one is not, and this
+      // leg went NOTE / FAIL / NOTE on identical geometry until the window
+      // outlasted the pause. Residual limit, stated rather than hidden: a
+      // citizen standing still for the whole window still reads as static.
       const a = await snap();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(900);
       const b = new Set(await snap());
-      const stat = a.filter((k) => b.has(k)).map((k) => k.split(',').map(Number));
+      await page.waitForTimeout(900);
+      const c2 = new Set(await snap());
+      const stat = a.filter((k) => b.has(k) && c2.has(k)).map((k) => k.split(',').map(Number));
       const dx = Math.sin(yaw), dz = -Math.cos(yaw);   // the PLAYER travels (sin t, -cos t)
       const L = 1.6, R = 0.5;                          // 1.6 m ahead, half a player wide
       const [x, z] = [last[0], last[2]];
@@ -167,7 +168,11 @@ const walk = async (name, { at, yaw, key = 'w', ms, ok, say, crowded = false }) 
       };
       return stat
         .filter(([aX, bX, aZ, bZ]) => aX < box.maxX && bX > box.minX && aZ < box.maxZ && bZ > box.minZ)
-        .map(([aX, bX, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`);
+        // print the SIZE too: a citizen is exactly 0.50 x 0.50 (crowd.ts:167),
+        // so anything that shape in the corridor is a person who stood still
+        // rather than a squeeze in the lane.
+        .map(([aX, bX, aZ, bZ]) => `x ${aX.toFixed(2)}…${bX.toFixed(2)} z ${aZ.toFixed(2)}…${bZ.toFixed(2)}`
+          + ` (${(bX - aX).toFixed(2)}x${(bZ - aZ).toFixed(2)}${(bX - aX).toFixed(2) === '0.50' && (bZ - aZ).toFixed(2) === '0.50' ? ' — CITIZEN-SIZED' : ''})`);
     })();
     // A CITIZEN IS NOT A FAILURE OF THE WORLD, on the walks that say so.
     //
@@ -267,7 +272,16 @@ report('back out of the courtyard to the street', out[0] > -6.0, `x ${f(inCourt[
 
 // …and the courtyard is a way THROUGH as well as a way in: step inside the
 // mouth and walk its length, which the blanket wall never allowed
+// CROWDED, and on the same evidence as the lane legs rather than to quiet a
+// red: this leg reached z -19.68 in one run today and stopped at -15.31 in
+// another, on identical geometry. This file's own header names the courtyard
+// mouth as the place a citizen stands and reads exactly like a wall.
+//
+// The downgrade cannot hide a real squeeze — it only fires when nothing STATIC
+// (snapshot-stable) sits in the corridor ahead, so a bollard or a mis-set
+// footprint still goes red here.
 await walk('walk the length of the courtyard, inside the mouth', {
+  crowded: true,
   at: [-7.8, -6.4], yaw: 0.0, ms: 5000,
   ok: (p) => p[2] < -16.0,
   say: (p) => `z -6.40 -> ${f(p[2])} at x ${f(p[0])}`,
@@ -396,9 +410,16 @@ if (SELFTEST) {
   // The rigged leg must have come back as a NOTE and not as a red. Either other
   // outcome is a broken selftest: a FAIL means the downgrade did not fire, and
   // a clean pass means the rig did not take.
-  const ok = downgraded === 1 && fails === 0;
+  //
+  // `>= 1`, NOT `=== 1`. There is more than one `crowded` leg now, and a second
+  // one downgrading is a statement about how busy the pavement happened to be
+  // — not about the branch under test. Pinning the exact count made the
+  // selftest fail for a reason that has nothing to do with the code it checks,
+  // which is the same class of fault as everything else fixed today: asserting
+  // a property that is not stable for the thing being asked about.
+  const ok = downgraded >= 1 && fails === 0;
   console.log(`\nselftest: ${downgraded} downgraded, ${fails} failed — ${ok ? 'PASS' : 'BROKEN'}`);
-  if (!ok) console.log('  a rigged crowded leg must produce exactly one NOTE and no FAIL');
+  if (!ok) console.log('  a rigged crowded leg must produce a NOTE and no FAIL');
   await browser.close();
   process.exit(ok ? 0 : 2);
 }

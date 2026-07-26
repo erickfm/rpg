@@ -324,6 +324,24 @@ Graded skeptically, these are the things I would defend:
 - **The fanlight is cropped to its arch** and PUBLIC LIBRARY reads from the
   pavement.
 
+## Two things I checked and did NOT file
+
+Worth recording, because a rejected finding costs one paragraph and a false one
+costs somebody a day.
+
+- **The park at night is the best frame in the whole set.** Ten lanterns in
+  three ranks throwing warm pools down the full length, stars, the shelter in
+  silhouette, the noticeboard lit. `park-gate-approach-night.png`. That is the
+  row the ledger already confirms, and it holds from the canonical station —
+  which is exactly what makes finding 1 stark: the same block, fifty metres
+  away, has courtyards with no light in them at all.
+- **The heavy dark band along the bottom of the railing frames is NOT an
+  untextured surface.** It reads like one at a glance, and I nearly filed it.
+  `railTex` in both files draws pickets, a top rail, a bottom rail and rust on
+  a 12 px/m canvas; what the frame shows is the wall coping seen from 3 m with
+  the railing edge-on above it. Checked in the source after seeing it, not
+  instead of seeing it.
+
 ## A station of my own that was wrong
 
 `church-tower` stood at z −88 and **photographed the BODEGA.** I would have
