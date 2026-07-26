@@ -395,8 +395,22 @@ for (room of rooms) {
   check('you spawn facing INTO the room, not at the wall you came through',
     afterF[2] < beforeF[2] - 0.05, `forward moved z ${f2(beforeF[2])} → ${f2(afterF[2])}`);
   const gyIn = (await pos())[3];
-  check('floor height inside is 0 — not sunk, not floating',
-    Math.abs(gyIn) < 0.001, `gy=${gyIn}`);
+  // ASK THE PICKER WHAT THE FLOOR IS HERE, do not assume 0.
+  //
+  // Rooms can have LEVELS now — buildRoom takes a `floor`, so G can build the
+  // library's stairs and the church has a chancel step. "Every interior floor
+  // is 0" was true when it was written and became a bug the moment a room had
+  // a dais: this reported the church sunk on its own altar step, and would have
+  // gone red on G's stair the first time they ran it.
+  //
+  // The question that survives a level change is the one cc2d8bb56 asked of the
+  // exterior: does the rig stand where the GROUND says, at the point it is
+  // standing? That is true on a flat floor and on the fourth step alike.
+  const pIn = await pos();
+  const groundIn = await p.evaluate(([x, z]) => window.__ct.groundAt(x, z), [pIn[0], pIn[2]]);
+  check('you stand where the floor picker says — not sunk, not floating',
+    groundIn !== null && Math.abs(gyIn - groundIn) < 0.001,
+    `rig gy=${f2(gyIn)}, groundAt=${groundIn === null ? 'null' : f2(groundIn)}`);
   // gy is what the rig stands ON; prove the floor MESH agrees with it, or you
   // are standing on an invisible plane a few centimetres off the lino.
   const floorY = await p.evaluate((cx) => {
@@ -411,9 +425,15 @@ for (room of rooms) {
     });
     return best;
   }, cx);
+  // …and the mesh check has to allow for levels too: it finds the LOWEST floor
+  // plane in the slab, which is the nave's, while the rig may legitimately be
+  // standing on a dais above it. What it is really guarding is "you are not on
+  // an invisible plane a few centimetres off the lino", so it compares against
+  // the picker's answer at the rig's own position and only requires the mesh to
+  // be at or below that.
   check('the floor mesh is where the rig thinks the floor is',
-    floorY !== null && Math.abs(floorY - gyIn) < 0.03,
-    `floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${gyIn}`);
+    floorY !== null && floorY <= gyIn + 0.03 && (gyIn - floorY) < 0.6,
+    `lowest floor mesh y=${floorY === null ? 'not found' : f2(floorY)}, rig gy=${f2(gyIn)}`);
 
   // ── 3. you cannot get out of the room, from ANYWHERE in it ──
   //
