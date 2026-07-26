@@ -707,6 +707,42 @@ Rules that would have caught all four:
 - test by standing where a player stands and asking "is it looking at me or
   away from me" — every one of these was obvious the moment someone did
 
+### And a tenth one that OBEYED all three rules and was still backwards
+
+The park benches. Facing was derived from what the bench should face — the
+loop's centre, via `atan2` — not copied from a sibling. It was still wrong,
+because **this world has two yaw conventions and they differ by a z-flip**:
+
+| | forward direction |
+|---|---|
+| a MESH at `rotation.y = t` | `( sin t,  cos t )` |
+| the PLAYER/camera at yaw `t` | `( sin t, -cos t )` |
+
+three.js cameras look down local −z and meshes are authored facing +z, and
+nothing in this codebase reconciles them. **`camera = PI - mesh`.**
+
+`facingIn` returned the MESH value, which was right for the bench body — the
+backrest genuinely sat on the wall side. The same number went to `ctx.seat`,
+whose yaw is consumed by the camera. So the bench faced the park and the
+person sitting on it faced the wall. `civic.ts` had it right; `park.ts` was
+the outlier.
+
+Why it survived two "fixed" reports: **`E-benchface` shared the mistake.** It
+scored `pose.yaw` with the mesh convention and returned 9/9 green twice.
+Correcting the script alone flipped it to *"4 of 9 benches face out"* — and
+only four, because the five benches on the park's x sides have `cos ≈ 0` and
+are right under either convention. A convention error hides on every axis
+where the term it corrupts happens to be zero.
+
+So, added to the rules above:
+- **when you compute a heading, say out loud whether it is for a MESH or for
+  the CAMERA**, because the same number means opposite things
+- a check that derives facing from a yaw is only as good as its convention;
+  give it a POSITIVE CONTROL that flips the world and watch it go red (§27)
+- and the one that actually found this: **do the player's action.** Sitting on
+  the bench showed brick wall filling the frame. Nothing short of sitting in
+  it had caught it in three attempts.
+
 ## 34. A check can pass because it found NOTHING TO CHECK
 
 §27 says a check you have never watched fail is one you will argue with. This is

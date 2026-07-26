@@ -243,3 +243,69 @@ which is what a hoop rail is. `park.ts` around the `hoop()` helper.
 - weed tufts at 13–22× their ground after dark, `POOL_GAIN 12` → **B**
 
 _Builder E, 2026-07-25 18:15._
+
+---
+
+## Third pass, 25 July 18:55 — the bench fault the user reported was real
+
+The desk's list had *"path-side benches whose backs face the park"* on it, and
+I had twice reported it 9/9 green. **The user was right and my green was
+false.** Ranked the way `AUDIT-TRIAGE.md` ranks — by whether a player can see
+it — this was the most visible open fault in the park, because sitting on a
+bench is a thing the player deliberately does.
+
+| finding | can a player see it? | status |
+|---|---|---|
+| **The sitter faced the boundary wall** | **Yes — it is the entire content of the screen when you sit down** | **FIXED.** Sitting on the bench at −28,−93 showed brick filling the frame. It now shows the field, the trees and the church beyond |
+| Four benches approached from behind, one unreachable | Yes — that bench could not be sat on at all | FIXED, and `E-seatreach` now checks both halves |
+| Mowing at 11.4% contrast in 1.65 m bands | Yes — the user photographed it | FIXED to 6.9% in 1.03 m bands, measured on the texture |
+| Shelter roof floating 0.20 m over its posts | Yes | FIXED, and it was never fixed before despite two reports saying so |
+
+### The mistake underneath all four: I verified the artefact, not the effect
+
+Every one of these was "done" in my own notes on the strength of the right
+identifier being present in `park.ts`. The roof was a single `BufferGeometry`.
+The benches did call `facingIn`. The stripes were in the file. All true, and
+all four were broken anyway.
+
+The bench one is the sharpest case because a check AGREED with me.
+`E-benchface` scored the seat's yaw with the mesh convention and returned 9/9
+twice. It is now written up as **GOTCHAS 33's tenth case** — the one that
+obeyed all three of that rule's existing recommendations and was still
+backwards, because this world has two yaw conventions differing by a z-flip
+and the same number means opposite things depending on who consumes it.
+
+What actually found it was doing the player's action: **sit in it and look.**
+That is the user's own instruction from the earlier report, and had I followed
+it the first time it would have cost one screenshot.
+
+### The loop, walked end to end at last
+
+The queue item asks for it in these words — *"set off from the gate and arrive
+back at it without retracing"* — and nothing was testing it. `E-circuit` now
+holds W and steers round all four legs: **4/4, 71 m walked, back within 1.02 m
+of where it set off.**
+
+Three of that script's own bugs are recorded in its header, because each would
+otherwise have been filed as a fault in the park rather than in the check:
+`pos()` is `[x, HEIGHT, z, groundY]`; it first steered in the mesh convention
+and set off backwards on the one leg where that shows; and it took the loop's
+corners from the bounding box of the park's SEATS, which includes the
+shelter's bench 3.4 m off the loop. It now derives the loop from the hoop
+rail, which sits exactly 1.0 m off each leg, and reports the 184 hoops it used.
+
+### Checked and NOT a fault
+
+- **`civic.ts` seats** use `(sin, −cos)` for both facing and approach, so the
+  courtyard benches were always right. `park.ts` was the outlier, not the rule.
+- **The stepped conifers** along the flanks are existing world planting.
+- **The hoop rail** is the user's *"grey chevron/bracket shapes"*. At 1.15 m
+  centres each hoop reads as a dropped bracket; at 0.72 m the run closes into
+  one piece of municipal edging.
+
+### Still not mine
+
+- the perimeter band reading as carriageway, and the dark diagonal streaks → **D**
+- weed tufts at 13–22× their ground after dark, `POOL_GAIN 12` → **B**
+
+_Builder E, 2026-07-25 18:55._
