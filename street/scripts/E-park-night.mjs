@@ -26,3 +26,10 @@ await shot('c-the-mound', -19.0, -84.6, -Math.PI / 2, -0.03);
 await shot('d-the-shelter', -32.0, -83.0, -Math.PI / 2, 0.04);
 console.log(errs.length ? `PAGE ERRORS: ${JSON.stringify(errs)}` : 'no page errors');
 await b.close();
+
+// SAY SO. This script takes pictures and asserts NOTHING, and three times
+// today I read a silent run of one as a pass — that is how a shelter roof
+// floated 0.20 m over its posts through two rebuilds and how the mowing sat
+// at 11.4% contrast after being reported fixed. GOTCHAS 24: name a script
+// for what it ASSERTS. This one asserts nothing, so it says so out loud.
+console.log('LOOKS ONLY — asserts nothing. Open the shots in shots/ and judge them.');

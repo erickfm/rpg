@@ -309,3 +309,47 @@ rail, which sits exactly 1.0 m off each leg, and reports the 184 hoops it used.
 - weed tufts at 13–22× their ground after dark, `POOL_GAIN 12` → **B**
 
 _Builder E, 2026-07-25 18:55._
+
+---
+
+## Fourth pass, 25 July 19:20 — no new faults, and the three I checked and cleared
+
+The queue's standing item is *"take a quality pass on what you own … ranked by
+whether a player can see it. Do not fix them all; the desk prioritises."* So
+this is a report, not a change list. **Nothing new is broken.** Everything the
+user raised is fixed and now verifies on `:5177` itself rather than on my tree.
+
+### Checked, and NOT faults — worth recording so nobody re-opens them
+
+| candidate | why I looked | verdict |
+|---|---|---|
+| **Shrubs read as green boxes** | one looked like a hard-edged slab in the memorial close-up, and the user has complained about shrubs twice | **Not a fault.** That was one block at 1.5 m from an odd angle. Along the loop, where a player actually walks, the runs read as a low massed hedge with a broken top line and the stepped conifers rising out of them |
+| **The memorial is the brightest thing in frame** | it is near-white in a world graded muted | **No evidence, and probably correct.** A Portland-stone memorial IS pale, the user has never raised it, and my measurement did not support it — see below |
+| **Other modules' seats face walls** | I had just found the park's sitters facing brick | **Number not trustworthy, dropped.** It flagged 64 of 79 seats, which was my ray hitting each bench's OWN collider. Not reported, because a number I do not believe is worse than silence |
+
+### A measurement that was worthless, and why
+
+I tried to rank park meshes by rendered brightness using `material.color`. It
+returned 1.000 for the memorial and a 0.896 mean, and both are meaningless:
+**every textured mesh has a white `color` and carries its tone in the map.**
+The filter also caught tree cards (`sx: 0`) rather than the memorial.
+
+Same trap as the mowing scan that crossed a bench: a plausible number,
+measured off the wrong thing. The rule that keeps working is the one from
+`E-field` — measure the artefact that actually decides what a player sees, or
+sample the rendered frame, and never the property that merely sounds right.
+
+### Eleven of my scripts assert nothing, and now they say so
+
+`E-shelter`, `E-field` and `E-mound` were all photograph-only, and I read a
+silent run of each as a pass. That is exactly how the roof floated 0.20 m over
+its posts through two rebuilds and how the mowing stayed at 11.4% contrast
+after being reported fixed. Those three now measure.
+
+The remaining eleven are legitimately look-only — CLAUDE.md is clear that
+screenshots are for LOOKING — but a silent run of one must not be mistakable
+for a green. Each now ends by printing **`LOOKS ONLY — asserts nothing`**.
+GOTCHAS 24 asks that a script be named for what it asserts; these announce
+that they assert nothing.
+
+_Builder E, 2026-07-25 19:20._

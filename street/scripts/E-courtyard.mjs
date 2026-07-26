@@ -50,3 +50,10 @@ for (const [name, x, z, yaw, gy, pitch] of SHOTS) {
 }
 console.log('shots ->', OUT);
 await browser.close();
+
+// SAY SO. This script takes pictures and asserts NOTHING, and three times
+// today I read a silent run of one as a pass — that is how a shelter roof
+// floated 0.20 m over its posts through two rebuilds and how the mowing sat
+// at 11.4% contrast after being reported fixed. GOTCHAS 24: name a script
+// for what it ASSERTS. This one asserts nothing, so it says so out loud.
+console.log('LOOKS ONLY — asserts nothing. Open the shots in shots/ and judge them.');
