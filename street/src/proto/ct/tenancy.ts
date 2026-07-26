@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { declareSurface, pixTex } from './paint';
 import { APT_X0, APT_Z0 } from './apartment';
-import { closePockets } from './inventory';
 import { citizenSprite } from './citizens';
+import { UI, makePanel, type Panel } from './hud';
 
 // ── TENANCY ───────────────────────────────────────────────────────────────
 //
@@ -591,15 +591,29 @@ function findBank(scene: THREE.Scene): { x: number; y: number; z: number; found:
 
 // ── the letter, held open in front of you ─────────────────────────────────
 //
-// The wallet is a bifold gripped in both thumbs and the pockets are a square of
-// duck canvas held the same way, both sliding up from the bottom of the frame.
-// A letter is the third of those and it moves like its siblings — same z-index
-// band, same transition, same parked transform. A modal dialogue box would be
-// a different game's furniture, and the user has already replaced one corner
-// popup with an object you hold.
+// ON K's SHARED PANEL FRAMEWORK, not on a cabinet of my own. I built one first
+// — a canvas sliding up from the bottom of the frame with two thumbs on the
+// near corners, copied from the pockets — and it was the wrong call twice over.
+// The desk had already said so in my queue (*"K is building one shared
+// full-screen panel framework; if rent needs a screen, use that rather than
+// rolling your own"*), and K's own reasoning is better than mine was:
+//
+//   *"Three panels built three times is three different-looking UIs in one
+//    small hand-made world, and that is the kind of thing this user spots in
+//    one screenshot."*
+//
+// What moving onto it deleted, all of which I had written or was about to:
+// the DOM element, the open/close transforms, the ESC handler, the wheel
+// listener, the two thumbs, and the pair of asks I had filed with K for a way
+// to close the wallet. `chrome: 'cloth'` is the framework's own word for a
+// thing you HOLD rather than stand at, which is what a letter is.
+//
+// And it buys one thing I had not built at all: THE WORLD FREEZES behind it.
+// Reading your post while the street walks on behind you was not something I
+// had noticed was wrong.
 
-const L_W = 216, L_H = 240;
-const SHEET = { x: 12, y: 6, w: 192, h: 196 };
+/** the sheet's own size, in canvas texels. The bezel is the framework's. */
+const SHEET = { w: 192, h: 178 };
 /**
  * The widest line the sheet can hold, MEASURED rather than remembered.
  *
@@ -608,143 +622,110 @@ const SHEET = { x: 12, y: 6, w: 192, h: 196 };
  * the right-hand edge of the page — visible in the first screenshot of it and
  * in nothing else, because a clipped line still renders perfectly.
  */
-const COLS = Math.floor((192 - 20) / (8 * 0.6));      // = 35
+const COLS = Math.floor((SHEET.w - 20) / (8 * 0.6));      // = 35
 
-let wrap: HTMLDivElement | null = null;
-let cv: HTMLCanvasElement | null = null;
-let open = false;
 let page = 0;
-let keysBound = false;
 /** what you are reading: the pile you last took out of the box */
 let reading: Letter[] = [];
 /** set by `register`, so the notice can print a live figure */
 let CTX: CtxBuild | null = null;
+let PANEL: Panel | null = null;
 
 const fill = (g: CanvasRenderingContext2D, c: string, x: number, y: number, w: number, h: number) => {
   g.fillStyle = c; g.fillRect(x, y, w, h);
 };
 
-function buildPanel(): void {
-  if (wrap) return;
-  const found = document.getElementById('ct-letter') as HTMLDivElement | null;
-  if (found) { wrap = found; cv = found.firstChild as HTMLCanvasElement; }
-  else {
-    wrap = document.createElement('div');
-    wrap.id = 'ct-letter';
-    wrap.style.cssText = 'position:fixed;left:50%;bottom:-10px;z-index:11;pointer-events:none;'
-      + 'transform:translateX(-50%) translateY(150%) rotate(1.2deg);transition:transform .18s ease-out;';
-    cv = document.createElement('canvas');
-    cv.style.cssText = 'width:432px;height:480px;image-rendering:pixelated;display:block;';
-    wrap.appendChild(cv);
-    document.body.appendChild(wrap);
-  }
-  cv.width = L_W; cv.height = L_H;
-}
-
-function paintLetter(): void {
-  if (!cv) return;
-  const g = cv.getContext('2d')!;
-  g.clearRect(0, 0, L_W, L_H);
+/** Paint the SHEET. The framework has already drawn everything around it, and
+ *  the origin is the screen's own top left. */
+function drawLetter(g: CanvasRenderingContext2D, w: number, h: number): void {
   const l = reading[page];
   if (!l) return;
 
-  // the sheet. Cheap paper gone slightly yellow, a drop shadow so it sits in
-  // front of the room rather than on it, and the crease it was folded on —
-  // everything that comes through a letterbox has been folded into thirds.
-  fill(g, 'rgba(20,17,13,0.55)', SHEET.x + 3, SHEET.y + 4, SHEET.w, SHEET.h);
-  fill(g, l.kind === 'junk' ? '#ddd8c4' : '#e6e1cd', SHEET.x, SHEET.y, SHEET.w, SHEET.h);
-  fill(g, '#f2eeda', SHEET.x, SHEET.y, SHEET.w, 2);
-  fill(g, '#c8c2ab', SHEET.x, SHEET.y + SHEET.h - 3, SHEET.w, 3);
+  // cheap paper gone slightly yellow, and the crease it was folded on
+  fill(g, l.kind === 'junk' ? '#ddd8c4' : '#e6e1cd', 0, 0, w, h);
+  fill(g, '#f2eeda', 0, 0, w, 2);
+  fill(g, '#c8c2ab', 0, h - 3, w, 3);
   // The fold, at the thirds — everything that comes through a letterbox has
   // been folded. FAINT: the first version was a 0.28 grey line with a highlight
   // under it, which crosses the body at whatever line it lands on and reads as
   // a STRIKETHROUGH rather than as a crease. There is no arrangement of body
   // text that guarantees it falls in a gap, so the fix is to make it a shade of
   // paper rather than a mark on it.
-  for (const cy of [SHEET.y + SHEET.h / 3, SHEET.y + (SHEET.h * 2) / 3]) {
-    fill(g, 'rgba(120,112,90,0.11)', SHEET.x, Math.round(cy), SHEET.w, 1);
-  }
+  for (const cy of [h / 3, (h * 2) / 3]) fill(g, 'rgba(120,112,90,0.11)', 0, Math.round(cy), w, 1);
 
   // the sender, across the top, under a rule
-  g.textAlign = 'left';
-  g.fillStyle = '#2b2620'; g.font = 'bold 8px monospace';
-  g.fillText(l.from.slice(0, COLS), SHEET.x + 10, SHEET.y + 20);
-  fill(g, '#8d8672', SHEET.x + 10, SHEET.y + 26, SHEET.w - 20, 1);
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
+  g.fillText(l.from.slice(0, COLS), 10, 14);
+  fill(g, '#8d8672', 10, 20, w - 20, 1);
 
   // the body, in the typewriter it would have been typed on
-  g.fillStyle = '#332d25'; g.font = '8px monospace';
-  let y = SHEET.y + 42;
-  for (const line of l.lines) { g.fillText(line.slice(0, COLS), SHEET.x + 10, y); y += 12; }
+  g.fillStyle = '#332d25'; g.font = UI.font(8);
+  let y = 36;
+  for (const line of l.lines) { g.fillText(line.slice(0, COLS), 10, y); y += 12; }
 
-  // A rent notice quotes the figure that is actually outstanding, read off the
-  // clock at the moment you unfold it rather than baked in when it was written.
+  // Anything from the landlord quotes the figure that is actually outstanding,
+  // read off the clock at the moment you unfold it rather than baked in when it
+  // was written.
   if (l.kind !== 'junk' && CTX) {
     const day = Math.floor(CTX.clock.now().totalMin / 1440);
     const bal = owed(day);
     y += 6;
-    fill(g, '#c9c3ac', SHEET.x + 10, y - 10, SHEET.w - 20, 16);
-    g.fillStyle = '#2b2620'; g.font = 'bold 8px monospace';
+    fill(g, '#c9c3ac', 10, y - 10, w - 20, 16);
+    g.fillStyle = '#2b2620'; g.font = UI.font(8, true);
     // WHAT THIS BAND MAY NOT SAY is "PAID IN FULL", which is what the first
     // version printed the moment `owed()` came back 0 — including on the day
     // the notice arrives, two days BEFORE any money is due. A notice that
     // congratulates you for paying rent you have not been asked for yet is
     // worse than no band at all: it is the feature telling you it is finished
     // with you. Nothing outstanding and paid up are different sentences.
-    g.fillText(bal > 0 ? `OUTSTANDING NOW: $${bal.toFixed(2)}` : 'NOTHING OUTSTANDING TODAY',
-      SHEET.x + 14, y + 1);
+    g.fillText(bal > 0 ? `OUTSTANDING NOW: $${bal.toFixed(2)}` : 'NOTHING OUTSTANDING TODAY', 14, y + 1);
     // the stamp. Rotated, off-square and half off the edge of the text, the way
     // a rubber stamp lands on a desk.
     if (bal > 0) {
       g.save();
-      g.translate(SHEET.x + SHEET.w - 52, SHEET.y + SHEET.h - 46);
+      g.translate(w - 52, h - 34);
       g.rotate(-0.17);
       g.strokeStyle = 'rgba(150,46,38,0.75)'; g.lineWidth = 2;
       g.strokeRect(-30, -12, 60, 24);
-      g.fillStyle = 'rgba(150,46,38,0.85)'; g.font = 'bold 9px monospace';
+      g.fillStyle = 'rgba(150,46,38,0.85)'; g.font = UI.font(9, true);
       g.textAlign = 'center';
       g.fillText('PAST DUE', 0, 3);
       g.restore();
       g.textAlign = 'left';
     }
   }
+}
 
-  // WHERE YOU ARE IN THE PILE, pencilled in the bottom margin of the sheet
-  // rather than on a band under it. The band version sat in the last 20 px of
-  // the frame and the HUD's own caption block is already there — two pieces of
-  // furniture fighting for the same strip of screen, which is the fault the
-  // pockets panel had solved by giving its caption a band of its own. There is
-  // no room at the bottom of this screen, so the note goes on the paper.
-  g.textAlign = 'right';
-  g.fillStyle = '#8d8672'; g.font = '7px monospace';
-  g.fillText(reading.length > 1
-    ? `${page + 1}/${reading.length} · scroll · esc`
-    : 'esc', SHEET.x + SHEET.w - 10, SHEET.y + SHEET.h - 10);
-  g.textAlign = 'left';
-
-  // thumbs, on the near corners, running off the bottom of the frame — the
-  // wallet's gesture and the pockets', because it is the same pair of hands.
-  const thumb = (tx: number) => {
-    fill(g, '#c9946a', tx, SHEET.y + SHEET.h - 26, 24, L_H - (SHEET.y + SHEET.h - 26));
-    fill(g, '#d8a67d', tx, SHEET.y + SHEET.h - 26, 24, 3);
-    g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(tx + 6, SHEET.y + SHEET.h - 18, 11, 13);
-  };
-  thumb(SHEET.x - 6); thumb(SHEET.x + SHEET.w - 18);
+function buildPanel(): void {
+  if (PANEL) return;
+  PANEL = makePanel({
+    id: 'ct-letter', w: SHEET.w, h: SHEET.h, chrome: 'cloth',
+    // No title stamped in the bezel: the sender is printed at the top of the
+    // paper, where a letter puts it, and a second name above the sheet would
+    // be the building labelling your post for you.
+    hint: () => (reading.length > 1
+      ? `${page + 1} of ${reading.length}   scroll to turn`
+      : 'the only one today'),
+    draw: drawLetter,
+    // The wheel turns the page, the same gesture the pockets use to choose.
+    // ESC is the framework's and needs no line here.
+    wheel: (d) => { page = (page + (d > 0 ? 1 : reading.length - 1)) % reading.length; PANEL?.repaint(); },
+    key: (k) => {
+      if (k === 'arrowright' || k === 'arrowdown') page = (page + 1) % reading.length;
+      else if (k === 'arrowleft' || k === 'arrowup') page = (page + reading.length - 1) % reading.length;
+      else return;
+      PANEL?.repaint();
+    },
+  });
 }
 
 function showLetters(pile: Letter[]): void {
-  if (!wrap || !pile.length) return;
+  if (!pile.length) return;
   reading = pile;
   page = 0;
-  open = true;
-  closePockets();               // one thing in your hands at a time
-  paintLetter();
-  wrap.style.transform = 'translateX(-50%) translateY(0) rotate(1.2deg)';
-}
-
-function closeLetter(): void {
-  if (!open || !wrap) return;
-  open = false;
-  wrap.style.transform = 'translateX(-50%) translateY(150%) rotate(1.2deg)';
+  buildPanel();
+  PANEL?.open();
 }
 
 // ── the world ─────────────────────────────────────────────────────────────
@@ -916,26 +897,10 @@ export function register(ctx: CtxBuild): void {
     for (let i = 0; i < SHOW; i++) envs[i].visible = i < Math.min(n, SHOW);
   });
 
-  if (!keysBound) {
-    keysBound = true;
-    window.addEventListener('keydown', (e) => {
-      if (!open || e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      const k = e.key.toLowerCase();
-      if (k === 'escape' || k === 'q') { closeLetter(); return; }
-      if (k === 'i') { closeLetter(); return; }        // reaching for the pockets
-      if (k === 'arrowright' || k === 'arrowdown') { page = (page + 1) % reading.length; paintLetter(); }
-      if (k === 'arrowleft' || k === 'arrowup') { page = (page + reading.length - 1) % reading.length; paintLetter(); }
-    });
-    // the wheel turns the page, the same gesture the pockets use to choose,
-    // and only while a letter is actually out — outside that the wheel is left
-    // alone, since nothing else in this world uses it.
-    window.addEventListener('wheel', (e) => {
-      if (!open || reading.length < 2) return;
-      e.preventDefault();
-      page = (page + (e.deltaY > 0 ? 1 : reading.length - 1)) % reading.length;
-      paintLetter();
-    }, { passive: false });
-  }
+  // NO KEY LISTENERS HERE. The framework owns ESC, the wheel and the arrows,
+  // and it swallows everything else while the sheet is up — so pressing E again
+  // cannot re-trigger the box you are standing at, which my own listener did
+  // nothing about.
 
   // ── THE LANDLORD ────────────────────────────────────────────────────────
   //
@@ -1138,7 +1103,7 @@ export function register(ctx: CtxBuild): void {
        *  project quotes one. */
       lane: (APT_X0 + 2.395) - (LL_X + LL_HALF_X),
     }),
-    reading: () => (open ? { page, of: reading.length } : null),
+    reading: () => (PANEL?.isOpen() ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),
     /**
      * A FIXTURE, not a fake: put `n` dollars in the purse so the paying path
