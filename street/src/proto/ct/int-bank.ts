@@ -111,6 +111,22 @@ const RW = 14.0, RD = 12.0, RH = 3.6;
 const facadeUtoLocalX = (u: number) =>
   FR_SIDE * (FR_Z0 - u * FR_W - FR_CZ) * (RW / FR_W);
 
+/**
+ * WHAT FIRST FEDERAL LENDS, AND AT WHAT PRICE — declared once, at module scope,
+ * because TWO things in this room quote it: the loan officer at her desk and the
+ * RATE BOARD on the east wall. Those are exactly the two consumers that come to
+ * disagree if each carries its own copy, which is the fault this project has now
+ * paid for four times over — the door position, the door leaf, the ATM's u, the
+ * facade's window. One authoring, both readers.
+ *
+ * The rate FALLS AS THE AMOUNT RISES, which is true of a 1997 personal loan and
+ * is the reason the amount is worth choosing at all.
+ */
+const AMOUNTS = [200, 500, 1000, 2500, 5000];
+const RATE: Record<number, number> = { 200: 13.5, 500: 12.5, 1000: 11.25, 2500: 9.75, 5000: 8.9 };
+/** the headline the board quotes: an unsecured personal loan of $500 */
+const HEADLINE_RATE = RATE[500];
+
 export function buildBankInterior(ctx: CtxBuild): void {
   // ct/bank.ts paints its two ground-floor windows with `win(W * 0.18, 2.2)`
   // and `win(W * 0.82, 2.2)`, and their canvas span y 1.36…3.46 of a 4.2 m band
@@ -201,9 +217,32 @@ export function buildBankInterior(ctx: CtxBuild): void {
     '&': ['110', '101', '110', '101', '011'], ':': ['000', '010', '000', '010', '000'],
     ' ': ['000', '000', '000', '000', '000'],
   };
+  /** the width `word` will draw `s` at, before drawing it */
+  const wordW = (s: string, px: number) => s.length * 4 * px - px;
+  /**
+   * AND IT COMPLAINS WHEN THE TEXT WILL NOT FIT.
+   *
+   * This room letters six things, and I shipped one of them clipped: the queue
+   * sign's "PLEASE WAIT" wanted 86 texels on a 72-texel canvas, so it drew
+   * "LEASE WAI" and looked deliberate. That is the same defect as the facade's
+   * "BUY ERE AY ERE" — a glyph run silently walking off the edge of a canvas —
+   * and it is invisible in code and obvious in a screenshot only if you happen
+   * to be able to read it at that distance.
+   *
+   * `g.canvas.width` is right there, so the guard costs nothing and it covers
+   * every sign in the file rather than the one I caught.
+   */
+  const fits = (g: CanvasRenderingContext2D, s: string, px: number, x0: number) => {
+    const w = wordW(s, px);
+    if (x0 >= 0 && x0 + w <= g.canvas.width) return true;
+    console.warn(`[interior:bank] "${s}" needs ${w} texels at x ${x0} on a `
+      + `${g.canvas.width}-texel canvas — it will be CLIPPED`);
+    return false;
+  };
   /** draw `s` at (x, y) with `px`-sized texels; returns the width it drew */
   const word = (g: CanvasRenderingContext2D, s: string, x: number, y: number,
                 px: number, col: string) => {
+    fits(g, s, px, x);
     g.fillStyle = col;
     let cx = x;
     for (const ch of s.toUpperCase()) {
@@ -217,10 +256,8 @@ export function buildBankInterior(ctx: CtxBuild): void {
   };
   /** the same, centred on `cx` */
   const wordC = (g: CanvasRenderingContext2D, s: string, cx: number, y: number,
-                 px: number, col: string) => {
-    const w = s.length * 4 * px - px;
-    return word(g, s, Math.round(cx - w / 2), y, px, col);
-  };
+                 px: number, col: string) =>
+    word(g, s, Math.round(cx - wordW(s, px) / 2), y, px, col);
 
   // ── the floor: TERRAZZO, with brass divider strips ─────────────────────────
   //
@@ -237,8 +274,16 @@ export function buildBankInterior(ctx: CtxBuild): void {
   const terrazzoT = declareSurface(pixTex(64, 64, (g) => {
     g.fillStyle = '#9a968c'; g.fillRect(0, 0, 64, 64);
     // the aggregate: three chip tones, coarse enough to see from standing height
-    for (const [col, n, s] of [['#c4beac', 210, 2], ['#7a766c', 170, 2],
-                               ['#b0a894', 150, 1], ['#5e5a52', 90, 1]] as [string, number, number][]) {
+    // THE CHIPS ARE THE RIGHT SIZE AND WERE THE WRONG CONTRAST. At 26.7 px/m a
+    // 1-texel chip is a 3.7 cm aggregate, which is real terrazzo — but #5e5a52
+    // against a #9a968c screed is 40% darker, and at the grazing angles you see a
+    // floor from standing height those dark texels string together into
+    // diagonals that read as SCRATCHES rather than as stone. Same family as
+    // GOTCHAS 4: the fault is not the detail, it is detail at a contrast the
+    // sampling cannot hold. Range pulled in to about half, and the darkest tone
+    // thinned out, so it reads as aggregate from a metre and as tone from four.
+    for (const [col, n, s] of [['#a8a498', 210, 2], ['#8a867c', 170, 2],
+                               ['#9e9a8e', 150, 1], ['#7c786e', 60, 1]] as [string, number, number][]) {
       g.fillStyle = col;
       for (let i = 0; i < n; i++) {
         g.fillRect((i * 23 + n) % 64, (i * 41 + n * 7) % 64, s, s);
@@ -876,15 +921,23 @@ export function buildBankInterior(ctx: CtxBuild): void {
       wordC(g, 'FIRST FEDERAL', 79, 4, 3, '#c9ccd0');
       wordC(g, 'SAVINGS & LOAN', 80, 24, 1, '#8a8f93');
     }), 'sign');
-    const name = new THREE.Mesh(new THREE.PlaneGeometry(3.9, 0.83), ctx.flat(nameT));
-    put(name, CTR_CX, 2.20, -hd + 0.06);
-    bx(4.02, 0.95, 0.04, new THREE.MeshBasicMaterial({ color: 0x24282c }),
-      CTR_CX, 2.20, -hd + 0.03);
+    // 3.05, NOT 2.20, and the reason is a collision that only shows up in a
+    // photograph: the window number plates stand 1.5 m in front of this wall with
+    // their tops at 2.705, and at 2.20 the sign spanned 1.785…2.615 — so the "2"
+    // plate sat squarely across the middle of the lettering from anywhere in the
+    // lobby. Two objects that never touch and still read as one mess.
+    const NAME_H = 0.62, NAME_Y = 3.05;             // spans 2.74…3.36, clear of 2.705
+    const name = new THREE.Mesh(new THREE.PlaneGeometry(3.9, NAME_H), ctx.flat(nameT));
+    put(name, CTR_CX, NAME_Y, -hd + 0.06);
+    bx(4.02, NAME_H + 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0x24282c }),
+      CTR_CX, NAME_Y, -hd + 0.03);
   }
   // A CLOCK THAT TELLS THE TIME — through the kit, so it agrees with the
   // wristwatch and with every other face in the world. A bank has a clock
   // everybody in the queue can see, and this one is where they can see it.
-  room.clock({ lx: CTR_CX, y: 3.02, lz: -hd + 0.08, r: 0.26 });
+  // …and the clock moves EAST, off the sign it was sitting on top of. Over the
+  // closed window, where the queue can see it, which is where a bank hangs one.
+  room.clock({ lx: 5.95, y: 2.72, lz: -hd + 0.08, r: 0.24 });
 
   // ── the people ────────────────────────────────────────────────────────────
   //
@@ -949,13 +1002,6 @@ export function buildBankInterior(ctx: CtxBuild): void {
     // the desk changes size.
     const FORM_X = DESK_X - 0.65, FORM_Z = DESK_Z + DESK_D / 4;
 
-    // ── the money ────────────────────────────────────────────────────────────
-    //
-    // Five amounts, and the RATE FALLS AS THE AMOUNT RISES, which is both true
-    // of a 1997 personal loan and the reason the amount is worth choosing.
-    // 12.50% on $500 is the headline the rate board quotes.
-    const AMOUNTS = [200, 500, 1000, 2500, 5000];
-    const RATE: Record<number, number> = { 200: 13.5, 500: 12.5, 1000: 11.25, 2500: 9.75, 5000: 8.9 };
     // FIVE PER CENT DOWN, and the figure is set by the game's own economy rather
     // than by what sounds like a bank. You start with $14.50 (`crosstown.ts`), so
     // at ten per cent even the smallest loan is refused and the whole feature
@@ -1266,8 +1312,324 @@ export function buildBankInterior(ctx: CtxBuild): void {
     });
   }
 
+  // ══ THE PUBLIC HALF ════════════════════════════════════════════════════════
+  //
+  // Everything between the doors and the counter. The standing rule here is the
+  // user's own, given about the tax office: *"MORE THINGS IS NOT THE ANSWER ON
+  // ITS OWN … a few considered things arranged and aligned, not clutter. Density
+  // is a diagnosis, not a target."*
+  //
+  // So this is not a scatter. It is the five things a branch lobby has that the
+  // room did not, each against a wall or on an axis:
+  //
+  //   · a WRITING ISLAND, because you fill your slip in before you queue
+  //   · a QUEUE LINE, because you queue after that
+  //   · a WAITING ROW with the RATE BOARD over it, because you wait after that
+  //   · a BROCHURE RACK and two PLANTS at the doors, because that is what is
+  //     the first thing you see and the last
+  //   · the NOTICE BY THE DOOR that says what the hours are — which is the same
+  //     nine-to-four the loan desk enforces, so the room explains its own rule
+  {
+    // ── the writing island ──────────────────────────────────────────────────
+    //
+    // Free-standing, square to the room, on the centre-left where it does not
+    // stand between the doors and either the counter or the vault. Slip holders,
+    // a blotter, and TWO PENS ON CHAINS, which is the detail that makes a
+    // waist-high box unmistakably a bank writing desk.
+    const ISL_X = -2.4, ISL_Z = 1.20, ISL_W = 1.70, ISL_D = 0.80, ISL_H = 1.06;
+    {
+      const front = panelMat(ISL_W), top = topMat(ISL_W);
+      put(new THREE.Mesh(new THREE.BoxGeometry(ISL_W, ISL_H - 0.05, ISL_D),
+        [front, front, top, front, front, front]), ISL_X, (ISL_H - 0.05) / 2, ISL_Z);
+      put(new THREE.Mesh(new THREE.BoxGeometry(ISL_W + 0.08, 0.05, ISL_D + 0.08),
+        [top, top, top, top, top, top]), ISL_X, ISL_H - 0.025, ISL_Z);
+      // the slip holders: two raked trays, one each side, with the slips in them
+      const slipT = declareSurface(pixTex(30, 20, (g) => {
+        g.fillStyle = '#e8e3d0'; g.fillRect(0, 0, 30, 20);
+        g.fillStyle = '#3a6a8a'; g.fillRect(0, 0, 30, 2);
+        g.fillStyle = 'rgba(70,62,50,0.45)';
+        for (let i = 0; i < 4; i++) g.fillRect(3, 6 + i * 3, 24 - ((i * 5) % 7), 1);
+        dither(g, 30, 20, 6);
+      }), 'sign');
+      const slipM = ctx.flat(slipT);
+      for (const [sx, sz] of [[-0.52, -0.20], [0.52, 0.20]] as [number, number][]) {
+        bx(0.34, 0.03, 0.24, steelDarkM, ISL_X + sx, ISL_H + 0.015, ISL_Z + sz);
+        const tray = new THREE.Mesh(new THREE.PlaneGeometry(0.30, 0.21), slipM);
+        tray.rotation.x = -Math.PI / 2 + 0.30;        // raked, so you can read them
+        put(tray, ISL_X + sx, ISL_H + 0.045, ISL_Z + sz);
+        // …and a low back on the tray so the slips have something to lean on
+        bx(0.34, 0.07, 0.02, steelDarkM, ISL_X + sx, ISL_H + 0.05, ISL_Z + sz - 0.12);
+      }
+      bx(0.52, 0.012, 0.36, new THREE.MeshBasicMaterial({ color: 0x2e4438 }),
+        ISL_X, ISL_H + 0.008, ISL_Z);                 // the blotter between them
+      // TWO PENS ON CHAINS, anchored to the top. The chain is the object.
+      for (const sx of [-0.20, 0.24]) {
+        const anchor = ISL_X + sx;
+        bx(0.05, 0.02, 0.05, bronzeM, anchor, ISL_H + 0.02, ISL_Z + 0.28);
+        for (let i = 0; i < 8; i++) {
+          put(new THREE.Mesh(new THREE.SphereGeometry(0.008, 5, 4), steelM),
+            anchor + (sx < 0 ? 1 : -1) * i * 0.026, ISL_H + 0.022, ISL_Z + 0.26 - i * 0.016);
+        }
+        const pen = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.004, 0.12, 6),
+          new THREE.MeshBasicMaterial({ color: 0x22242a }));
+        pen.rotation.set(0, sx < 0 ? 0.8 : -0.8, Math.PI / 2);
+        put(pen, anchor + (sx < 0 ? 0.24 : -0.24), ISL_H + 0.026, ISL_Z + 0.14);
+      }
+      solid(ISL_X, ISL_Z, ISL_W + 0.2, ISL_D + 0.2);
+    }
+
+    // ── the queue line ──────────────────────────────────────────────────────
+    //
+    // Three chrome posts and a maroon rope, run ACROSS the front of the counter
+    // rather than down the room, with a sign on the middle post. It marks where
+    // the queue forms and it has a real collider, because a rope you walk
+    // through is worse than no rope — you go round either end, and both ends
+    // leave more than three metres of clear lane.
+    const Q_Z = -2.60, Q_X = [-1.4, 0.4, 2.2];
+    {
+      const ropeM = new THREE.MeshBasicMaterial({ color: 0x6a2430 });
+      for (const qx of Q_X) {
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.03, 12), steelDarkM),
+          qx, 0.015, Q_Z);
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.034, 0.96, 8), steelM),
+          qx, 0.48, Q_Z);
+        put(new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), steelM), qx, 0.99, Q_Z);
+        bx(0.05, 0.05, 0.05, bronzeM, qx, 0.88, Q_Z);          // the rope eye
+      }
+      // the rope, slung between them with a real sag — TWO segments per bay, so
+      // it dips instead of running dead straight, which is the only thing that
+      // makes a rope read as rope
+      for (let i = 0; i + 1 < Q_X.length; i++) {
+        const a = Q_X[i], b = Q_X[i + 1], mid = (a + b) / 2;
+        for (const [x0, x1, y0, y1] of [[a, mid, 0.88, 0.76], [mid, b, 0.76, 0.88]] as
+             [number, number, number, number][]) {
+          const len = Math.hypot(x1 - x0, y1 - y0);
+          const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, len, 6), ropeM);
+          seg.rotation.z = Math.PI / 2 - Math.atan2(y1 - y0, x1 - x0);
+          put(seg, (x0 + x1) / 2, (y0 + y1) / 2, Q_Z);
+        }
+      }
+      // ONE collider along the run, not three posts with walkable rope between
+      solid((Q_X[0] + Q_X[Q_X.length - 1]) / 2, Q_Z, Q_X[Q_X.length - 1] - Q_X[0] + 0.4, 0.20);
+      // 96 x 28, sized off the LONGEST LINE rather than picked: "PLEASE WAIT" at
+      // 2 px is 86 texels and "FOR THE NEXT TELLER" at 1 px is 75, so 72 clipped
+      // both and drew "LEASE WAI / OR THE NEXT TELLE".
+      const waitT = declareSurface(pixTex(96, 28, (g) => {
+        g.fillStyle = '#2a2e32'; g.fillRect(0, 0, 96, 28);
+        g.fillStyle = '#d8d4c4'; g.fillRect(1, 1, 94, 26);
+        g.fillStyle = '#8a2c22'; g.fillRect(1, 1, 94, 2);
+        wordC(g, 'PLEASE WAIT', 48, 6, 2, '#2e2a24');
+        wordC(g, 'FOR THE NEXT TELLER', 48, 18, 1, '#5a564e');
+      }), 'sign');
+      room.sign(waitT, 0.72, 0.21, Q_X[1], 1.12, Q_Z);
+    }
+
+    // ── the waiting row, and the rate board over it ──────────────────────────
+    //
+    // Linked chairs on a common rail, against the east wall — the one piece of
+    // furniture that cannot be strewn about, because it is bolted into a line.
+    // Its collider REACHES THE WALL: sized to the chairs it would leave a 0.4 m
+    // slot behind a bolted-down row, which is exactly what the tax office had.
+    const WAIT_X = 6.30, WAIT_Z = [-0.55, -1.20, -1.85];
+    {
+      const chairM = new THREE.MeshBasicMaterial({ color: 0x4a5560 });
+      bx(0.08, 0.06, 1.62, steelM, WAIT_X + 0.18, 0.10, WAIT_Z[1]);        // the rail
+      for (const wz of WAIT_Z) {
+        bx(0.48, 0.10, 0.50, chairM, WAIT_X, 0.42, wz);                    // the seat
+        bx(0.07, 0.44, 0.50, chairM, WAIT_X + 0.20, 0.68, wz);             // the back
+        for (const sz of [-0.20, 0.20]) bx(0.04, 0.38, 0.04, steelM, WAIT_X - 0.16, 0.19, wz + sz);
+        // every seat in this game is sittable, and you take it from IN FRONT —
+        // clear of the row's own collider, which reaches the wall behind it
+        ctx.seat({
+          x: room.wx(WAIT_X - 0.04), z: room.wz(wz), yaw: -Math.PI / 2, h: 0.47,
+          r: 0.85, approach: { x: room.wx(WAIT_X - 0.95), z: room.wz(wz) },
+          label: 'sit and wait', ok: () => room.inside(),
+        });
+      }
+      const rowBack = WAIT_X - 0.24;
+      solid((rowBack + hw + 0.18) / 2, WAIT_Z[1], (hw + 0.18) - rowBack, 2.0);
+      // a low table with the brochures nobody reads, at the end of the row
+      bx(0.46, 0.04, 0.62, oakDarkM, WAIT_X - 0.02, 0.44, WAIT_Z[2] - 0.78);
+      for (const sx of [-0.16, 0.16]) for (const sz of [-0.22, 0.22]) {
+        bx(0.05, 0.42, 0.05, steelM, WAIT_X - 0.02 + sx, 0.21, WAIT_Z[2] - 0.78 + sz);
+      }
+      bx(0.22, 0.02, 0.30, paperM, WAIT_X - 0.02, 0.475, WAIT_Z[2] - 0.84);
+      bx(0.20, 0.02, 0.28, new THREE.MeshBasicMaterial({ color: 0xd8cfae }),
+        WAIT_X + 0.04, 0.492, WAIT_Z[2] - 0.72);
+      solid((rowBack + hw + 0.18) / 2, WAIT_Z[2] - 0.78, (hw + 0.18) - rowBack, 0.8);
+
+      // ── THE RATE BOARD ────────────────────────────────────────────────────
+      //
+      // The single most 1997 object in the building. Nothing dates a room faster
+      // than the numbers a savings bank was quoting in it, and 12.50% on an
+      // unsecured personal loan is the figure the loan desk actually charges —
+      // read off RATE[500] rather than typed here, so the board and the officer
+      // cannot come to disagree the way the ATM and the facade once did.
+      const rows: [string, string][] = [
+        ['MORTGAGE 30 YR', '7.75'],
+        ['AUTO 48 MO', '9.25'],
+        ['PERSONAL', HEADLINE_RATE.toFixed(2)],
+        ['PASSBOOK SAVINGS', '4.10'],
+        ['6 MONTH CD', '5.15'],
+      ];
+      const boardT = declareSurface(pixTex(120, 74, (g) => {
+        g.fillStyle = '#1e2226'; g.fillRect(0, 0, 120, 74);
+        g.fillStyle = '#2a3036'; g.fillRect(2, 2, 116, 70);
+        g.fillStyle = 'rgba(255,255,255,0.10)'; g.fillRect(2, 2, 116, 1);
+        wordC(g, 'TODAYS RATES', 60, 5, 2, '#e8c25a');
+        g.fillStyle = '#e8c25a'; g.fillRect(8, 15, 104, 1);
+        rows.forEach(([what, num], i) => {
+          const y = 20 + i * 10;
+          word(g, what, 8, y, 1, '#cfd3d6');
+          const w = num.length * 4 - 1;
+          word(g, num, 112 - w, y, 1, '#8fe0a0');           // the figures, in green
+          g.fillStyle = 'rgba(255,255,255,0.06)';           // the slot each card sits in
+          g.fillRect(8, y + 6, 104, 1);
+        });
+        g.fillStyle = '#8a8f93'; g.fillRect(8, 68, 40, 1);
+        word(g, 'APR', 52, 66, 1, '#8a8f93');
+        dither(g, 120, 74, 30);
+      }), 'sign');
+      const board = new THREE.Mesh(new THREE.PlaneGeometry(2.10, 1.30), ctx.flat(boardT));
+      board.rotation.y = -Math.PI / 2;                       // faces -x, into the room
+      put(board, hw - 0.07, 2.02, WAIT_Z[1]);
+      bx(0.05, 1.42, 2.22, new THREE.MeshBasicMaterial({ color: 0x14171a }),
+        hw - 0.035, 2.02, WAIT_Z[1]);                        // the frame, BEHIND the face
+    }
+
+    // ── the brochure rack, and two plants at the doors ───────────────────────
+    {
+      const RACK_X = -5.0, RACK_Z = hd - 0.24;
+      const brochT = declareSurface(pixTex(56, 64, (g) => {
+        g.fillStyle = '#4a4238'; g.fillRect(0, 0, 56, 64);
+        // three shelves of leaflets, each a different stock, standing up in slots
+        const cols = ['#c8ccd0', '#d8c8a4', '#b8ccc0', '#d0c0c8'];
+        for (let r = 0; r < 3; r++) {
+          const y = 4 + r * 20;
+          g.fillStyle = '#3a342c'; g.fillRect(2, y + 15, 52, 3);          // the shelf lip
+          for (let c = 0; c < 4; c++) {
+            const x = 4 + c * 13;
+            g.fillStyle = 'rgba(0,0,0,0.30)'; g.fillRect(x + 1, y + 1, 10, 14);
+            g.fillStyle = cols[(r + c) % 4]; g.fillRect(x, y, 10, 15);
+            g.fillStyle = 'rgba(60,54,44,0.55)';                          // a title block
+            g.fillRect(x + 1, y + 2, 8, 2);
+            for (let l = 0; l < 3; l++) g.fillRect(x + 1, y + 6 + l * 3, 7 - l, 1);
+          }
+        }
+        dither(g, 56, 64, 26);
+      }), 'detail');
+      const brochM = ctx.flat(brochT);
+      put(new THREE.Mesh(new THREE.BoxGeometry(1.02, 1.42, 0.30),
+        [oakDarkM, oakDarkM, oakDarkM, oakDarkM, oakDarkM, brochM]),
+        RACK_X, 0.71, RACK_Z);
+      solid(RACK_X, (RACK_Z - 0.15 + hd) / 2, 1.1, hd - (RACK_Z - 0.15));
+
+      // TWO PLANTS FLANKING THE DOORS. One texture, one plane, so the foliage
+      // cannot come adrift from the pot — which is the fault the tax office's
+      // plant was reported for, and it was drawn in rather than a drift.
+      const ficusT = declareSurface(pixTex(48, 76, (g) => {
+        const blade = (bx0: number, by: number, tx: number, ty: number, w0: number, col: string) => {
+          g.fillStyle = col;
+          const n = Math.max(Math.abs(tx - bx0), Math.abs(ty - by));
+          for (let i = 0; i <= n; i++) {
+            const t = i / n;
+            const x = bx0 + (tx - bx0) * t, y = by + (ty - by) * t;
+            const w = Math.max(1, Math.round(w0 * (1 - t * 0.7)));
+            g.fillRect(Math.round(x - w / 2), Math.round(y), w, 2);
+          }
+        };
+        // a ficus is a TRUNK with sprays, so the trunk goes down first and the
+        // leaves are hung ON it — drawn back to front in three tones so they
+        // overlap and the thing has depth
+        g.fillStyle = '#4a3a26'; g.fillRect(22, 26, 4, 30);
+        g.fillStyle = '#5a4830'; g.fillRect(22, 26, 1, 30);
+        for (const [y0, spread, tone] of [[30, 15, '#2c4426'], [22, 18, '#33512d'],
+                                          [14, 15, '#3f6238'], [7, 11, '#4f7a44']] as
+             [number, number, string][]) {
+          for (const dir of [-1, 1]) {
+            blade(24, y0, 24 + dir * spread, y0 - 5, 5, tone);
+            blade(24, y0 + 3, 24 + dir * (spread - 5), y0 + 7, 4, tone);
+          }
+        }
+        // the brass planter, tapered, with a rolled rim over visible bark chip
+        g.fillStyle = '#2e2418'; g.fillRect(16, 54, 16, 4);
+        for (let y = 56; y < 76; y++) {
+          const inset = Math.round((y - 56) * 0.16);
+          g.fillStyle = y < 60 ? '#8a7a4e' : '#7a6a44';
+          g.fillRect(14 + inset, y, 20 - inset * 2, 1);
+        }
+        g.fillStyle = '#9c8a5c'; g.fillRect(13, 53, 22, 4);                 // the rim
+        g.fillStyle = 'rgba(255,255,255,0.16)'; g.fillRect(15, 58, 3, 16);
+        g.fillStyle = 'rgba(0,0,0,0.26)'; g.fillRect(28, 58, 4, 16);
+        dither(g, 48, 76, 20);
+      }), 'detail');
+      for (const px of [-2.4, 2.4]) {
+        const plant = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 1.46),
+          new THREE.MeshBasicMaterial({ map: ficusT, alphaTest: 0.5, side: THREE.DoubleSide }));
+        // half the plane's own height, so the planter's base sits ON the floor
+        // whatever the plane is resized to
+        put(plant, px, 1.46 / 2, hd - 0.85);
+        solid(px, hd - 0.85, 0.52, 0.52);
+      }
+
+      // the bin in the corner nobody looks at
+      {
+        const BIN_X = -6.5, BIN_Z = hd - 0.55;
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.17, 0.62, 12),
+          new THREE.MeshBasicMaterial({ color: 0x6a6458 })), BIN_X, 0.31, BIN_Z);
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.06, 12), steelM),
+          BIN_X, 0.65, BIN_Z);
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.02, 10),
+          new THREE.MeshBasicMaterial({ color: 0x2a2824 })), BIN_X, 0.685, BIN_Z);
+        solid(BIN_X - 0.1, (BIN_Z - 0.22 + hd) / 2, 0.6, hd - (BIN_Z - 0.22));
+      }
+    }
+
+    // ── the notice by the door ───────────────────────────────────────────────
+    //
+    // MEMBER FDIC and the hours, framed on the front wall inside the doors. It
+    // earns its place twice: it is what a 1997 branch actually hangs there, and
+    // it is where the room TELLS YOU the rule the loan desk enforces — nine to
+    // four. A rule a player can only discover by being refused is a bug wearing
+    // a mechanic's clothes.
+    {
+      // 96 wide, and I did not work that out — the overflow guard above did, on
+      // the first build after I added it: "MEMBER FDIC needs 86 texels on a
+      // 72-texel canvas". That is the SECOND sign in this room the guard caught
+      // clipping in the twenty minutes after it was written, and neither was
+      // visible in the code. It paid for itself twice before it was committed.
+      const noticeT = declareSurface(pixTex(96, 52, (g) => {
+        g.fillStyle = '#dfdccc'; g.fillRect(0, 0, 96, 52);
+        g.fillStyle = '#1f3a5a'; g.fillRect(0, 0, 96, 12);
+        wordC(g, 'MEMBER FDIC', 48, 4, 2, '#e8ecf0');
+        wordC(g, 'DEPOSITS INSURED', 48, 16, 1, '#4a4640');
+        wordC(g, 'TO 100000', 48, 23, 1, '#4a4640');
+        g.fillStyle = '#8a2c22'; g.fillRect(20, 31, 56, 1);
+        wordC(g, 'LOBBY 9 TO 4', 48, 35, 1, '#2e2a24');
+        wordC(g, 'SAT 9 TO 12', 48, 43, 1, '#2e2a24');
+        dither(g, 96, 52, 18);
+      }), 'sign');
+      const notice = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.45), ctx.flat(noticeT));
+      notice.rotation.y = Math.PI;                    // faces -z, into the room
+      put(notice, -1.55, 1.62, hd - 0.05);
+      bx(0.70, 0.53, 0.04, oakDarkM, -1.55, 1.62, hd - 0.02);
+    }
+
+    // ── two camera domes, because this is a bank ─────────────────────────────
+    for (const [dx, dz] of [[-1.6, 3.2], [4.6, -1.4]] as [number, number][]) {
+      const dome = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: 0x2a2c30, side: THREE.DoubleSide }));
+      dome.rotation.x = Math.PI;                      // hung, so the dome faces DOWN
+      put(dome, dx, room.H - 0.06, dz);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.04, 10),
+        new THREE.MeshBasicMaterial({ color: 0xd8d4c8 })), dx, room.H - 0.03, dz);
+    }
+  }
+
   // ── skirting, on the walls that have one ──────────────────────────────────
   const skirtM = new THREE.MeshBasicMaterial({ color: 0x5c4a2e });
   bx(room.W, 0.12, 0.03, skirtM, 0, 0.06, hd - 0.015);            // front wall
   bx(0.03, 0.12, room.D, skirtM, hw - 0.015, 0.06, 0);            // east wall
+  // the west wall only as far as the vault, which is concrete and has none
+  bx(0.03, 0.12, hd - V_Z1, skirtM, -hw + 0.015, 0.06, (V_Z1 + hd) / 2);
 }

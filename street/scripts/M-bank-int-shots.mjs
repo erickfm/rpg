@@ -41,6 +41,9 @@ const shots = [
   ['loandesk',  4.4,      4.2,        4.4,      0.8,      -0.04],
   ['loandesk-seat', 4.4,  2.62,       4.4,      0.8,      -0.10],
   ['the-form',  4.0,      2.9,        3.75,     1.9,      -0.34],
+  ['waiting',   3.6,      -1.2,       hw,       -1.2,      0.06],
+  ['island',    -0.6,     3.2,        -2.4,     1.2,      -0.10],
+  ['queue',     0.4,      0.4,        0.4,      -hd,       0.00],
 ];
 for (const [tag, sx, sz, tx, tz, pitch] of shots) {
   await setClock(p, 14, 20);
