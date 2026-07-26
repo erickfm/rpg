@@ -550,6 +550,16 @@ const CHECKS = [
   // exists to prevent — and requires the red. ~14 s; green 4 of 4 run at
   // once, which is the test that matters for anything on a transition. (K)
   ['K-sleep-fade', 'does the screen fade to black, and does the world change while it is?', true],
+  // "i also want an atm interface". The MONEY is the point, so the money is
+  // what it asserts: the account falls by exactly what you asked for, the cash
+  // rises by exactly what you took, and the two are conserved end to end. It
+  // also checks the panel framework's promises from a caller's side — the world
+  // frozen behind it, digits reaching the machine rather than main.ts's
+  // prototype switcher, ESC costing you nothing — because a promise the kit
+  // makes to three builders should be checked once rather than trusted thrice.
+  // --selftest jams the dispenser: the debit stands and the notes vanish, which
+  // every screen of the thing sails through looking perfectly correct. (K)
+  ['K-atm-walk', 'can you actually use the cash machine, and is the money conserved?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
