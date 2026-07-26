@@ -424,6 +424,13 @@ export interface PickView { x: number; z: number; yaw: number; pitch: number }
  *  walk, so it cannot make two spots across a pavement both live. */
 export const REACH_MARGIN = 0.6;
 
+/** How far outside its radius a spot is still "being touched" — the only case
+ *  that is offered WITHOUT the player aiming at it. A quarter of REACH_MARGIN,
+ *  and set by the user's own example: the No. 227 spot has r 1.05 with its door
+ *  frame 1.15 m away, so 0.15 is the smallest value that keeps *"standing
+ *  beside it, not looking"* working. See the note in `pickSpot`. */
+export const TOUCH_MARGIN = 0.15;
+
 export function lookTolerance(r: number, d: number): number {
   const raw = Math.atan2(r, Math.max(0.35, d));
   // THE CEILING CAME DOWN FROM 35.5° TO 15°, on the user's report: *"i think
@@ -496,10 +503,38 @@ export function pickSpot<T extends Pickable>(
     // volumes."* Every radius in the world was sized when proximity was the
     // only way in, so each is really "the circle I must stand in", and they are
     // tight enough that the No. 227 door could not be reached from its frame.
-    const near = d < s.r + REACH_MARGIN;
+    // AIM-FREE PROXIMITY IS NOW ONLY FOR WHAT YOU ARE TOUCHING.
+    //
+    // This was `d < s.r + REACH_MARGIN` — 0.6 m of slack, and no reference to
+    // where the player was pointing at all. Tightening the look cone from 35.5°
+    // to 15° halved the median off-axis angle but left 43% of winners more than
+    // 15° off his aim, and the worst sample in 264 was a spot **180° behind
+    // him**. Those were never the cone: they were this line. *"i feel like i
+    // select stuff without even looking at it."*
+    //
+    // So proximity keeps its aim-free pass only within TOUCH_MARGIN, which is a
+    // quarter of the old slack, and everything further away has to be aimed at.
+    // The value is not chosen, it is the user's own earlier example run
+    // backwards: the No. 227 spot has r 1.05 and the door frame stands 1.15 m
+    // from it, because the facade cushion pushes you off the wall — so anything
+    // under 0.10 fails *"standing beside it, not looking"*, which he asked for
+    // first and which must keep working. 0.15 clears that by 0.05 m and is the
+    // smallest value that does.
+    //
+    // REACH_MARGIN is NOT gone: it still sets how far outside its radius a spot
+    // can be selected when you ARE looking at it, which is what made doors easy
+    // to open at a distance. What changed is that the slack now costs a glance.
+    const touching = d < s.r + TOUCH_MARGIN;
     // angle between where you face and where the spot is, on the ground plane
     const offAxis = d < 1e-4 ? 0 : Math.abs(Math.atan2(fx * dz - fz * dx, fx * dx + fz * dz));
+    // UNCHANGED: looking still reaches as far as it ever did. I briefly added a
+    // clause here capping `looked` at `s.r + REACH_MARGIN`, which collapses the
+    // aimed reach back onto the proximity radius and would have killed
+    // selection at 3 and 5 m — the half of the feature he asked for by name and
+    // that D-look-selects exists to hold. Narrowing the AIM-FREE pass is the
+    // job; narrowing the aimed one is the opposite of the job.
     const looked = d < reach && offAxis < lookTolerance(s.r, d);
+    const near = touching;
     if (!near && !looked) continue;
     // WIDE AND VISIBLE, not narrow and blind. The volumes stay generous and the
     // look-at stays forgiving; sight is what gates them. Tested last because it

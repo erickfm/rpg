@@ -177,7 +177,17 @@ const at = async (st, sp) => {
     const p = window.__ct.pos();
     return window.__dSee([p[0], p[3] + 1.6, p[2]], [sx, window.__ct.groundAt(sx, sz) + 1.1, sz]);
   }, [sp.x, sp.z]);
-  return { see: await prompt(), t: now.t, who: now.who };
+  // ok() IS READ HERE, AT THIS STATION, not after the loop.
+  //
+  // It used to be read once the control loop had finished, which means it was
+  // read wherever the loop happened to STOP — and `ok()` is evaluated where the
+  // player is. When the aim cone and the touch margin tightened, more clear
+  // stations failed to offer, so the loop ran to its last candidate and the
+  // ok() check was answered from a position that had never been the control.
+  // Scored spots fell 6 -> 3 and the extras landed in "not-live", which reads
+  // as the world having gone quiet when it was the probe changing the subject.
+  const live = await page.evaluate((l) => (window.__ct.spots().find((s) => s.label === l) || {}).ok === true, sp.label);
+  return { see: await prompt(), t: now.t, who: now.who, live };
 };
 
 let pass = 0, fail = 0, invalid = 0, skipped = 0, moved = 0, ambiguous = 0;
@@ -195,8 +205,7 @@ for (const sp of pairs.slice(0, CAP)) {
     if (r.see === want) { ctl = r; break; }
     ctl = ctl || r;
   }
-  const live = await page.evaluate((l) => (window.__ct.spots().find((s) => s.label === l) || {}).ok === true, sp.label);
-  if (!live) { skipped++; console.log(`  skip     ${sp.label}  —  ok() false where we stand; not a sightline question`); continue; }
+  if (!ctl || !ctl.live) { skipped++; console.log(`  skip     ${sp.label}  —  ok() false at the control station; not a sightline question`); continue; }
   if (!ctl || ctl.see !== want) {
     invalid++;
     console.log(`  INVALID  ${sp.label}`);
