@@ -329,7 +329,9 @@ export function buildLibrary(ctx: CtxBuild): void {
   // callers below sit on walls at right angles to each other, and a run that
   // guesses its own facing is GOTCHAS §33 waiting to happen.
   const wallRun = (lx: number, lz: number, len: number,
-    along: 'x' | 'z', face: -1 | 1, seed: number, base = 0) => {
+    along: 'x' | 'z', face: -1 | 1, seed: number, base = 0,
+    /** what is ON the shelves — spines by default, covers for periodicals */
+    tex: (wM: number, hM: number, seed: number) => THREE.Texture = shelfTex) => {
     const ax = along === 'x';
     const size = (u: number, v: number) => (ax ? [u, v] : [v, u]) as [number, number];
     const at = (u: number, v: number) => (ax ? [lx + u, lz + v] : [lx + v, lz + u]) as [number, number];
@@ -350,7 +352,7 @@ export function buildLibrary(ctx: CtxBuild): void {
       const [s0, s1] = at(0, 0);
       box(sw, 0.04, sd, wood, s0, y, s1);
       const m = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.36),
-        new THREE.MeshBasicMaterial({ map: shelfTex(len, 0.36, seed + i * 11) }));
+        new THREE.MeshBasicMaterial({ map: tex(len, 0.36, seed + i * 11) }));
       // a PlaneGeometry faces +z. For a run extending along x the books look
       // along ±z, which is rotation 0 or PI; along z they look along ±x, which
       // is ±PI/2. Written as the four cases rather than one clever expression,
@@ -868,6 +870,7 @@ export function buildLibrary(ctx: CtxBuild): void {
   const beigeM = new THREE.MeshBasicMaterial({ color: BEIGE });
   const beigeDM = new THREE.MeshBasicMaterial({ color: BEIGE_D });
   const matM = new THREE.MeshBasicMaterial({ color: 0x3a4048 });   // the mouse mat
+  const cableM = new THREE.MeshBasicMaterial({ color: 0x2c2c2e });  // and the flex
   // its own stream, appended rather than woven in: this file's `rnd` already
   // paints the noticeboard and the floor wear further down, and drawing from it
   // here would repaint both (GOTCHAS §2, the same argument one scope in).
@@ -926,9 +929,13 @@ export function buildLibrary(ctx: CtxBuild): void {
       new THREE.MeshBasicMaterial({ map: screenTex(kind) }));
     s.rotation.y = -Math.PI / 2;                                  // +z -> -x
     put(s, lx - 0.20, y + 0.17, lz);
-    box(0.17, 0.03, 0.42, beigeM, lx - 0.36, y + 0.015, lz);      // the keyboard
-    box(0.20, 0.004, 0.24, matM, lx - 0.36, y + 0.002, lz + 0.30);  // the mat…
-    box(0.09, 0.02, 0.11, beigeDM, lx - 0.36, y + 0.015, lz + 0.30); // …and its mouse
+    // KEYBOARD AND MAT SIT INSIDE THE DESK. At -0.36 from the tube the
+    // keyboard's front edge cleared the bench by -0.065 m, i.e. it did not:
+    // it hung over the front. Both are pulled in to -0.42 against a bench that
+    // is now 0.92 deep, which puts 0.10 m of desk in front of the keyboard.
+    box(0.17, 0.03, 0.42, beigeM, lx - 0.42, y + 0.015, lz);      // the keyboard
+    box(0.20, 0.004, 0.24, matM, lx - 0.42, y + 0.002, lz + 0.30);  // the mat…
+    box(0.09, 0.02, 0.11, beigeDM, lx - 0.42, y + 0.015, lz + 0.30); // …and its mouse
   };
 
   // ── the public OPAC bank ──
@@ -959,16 +966,22 @@ export function buildLibrary(ctx: CtxBuild): void {
   const TERM_TAKEN_Z = BZ0 + 0.55;
   {
     const TOP = BENCH_TOP;
-    boxFace(0.76, 0.06, BL, wood, BX, TOP, BZC,                   // the bench top
-      FACE_PY, 0.76, BL, '#6b5334');
+    // 0.92 m deep, not 0.76. The user: *"check they are not clipping their
+    // desks"* — measured, the keyboard's front edge overhung the bench by
+    // 0.065 m, and *"a 15-inch CRT sits ON a desk with room in front of it for
+    // a keyboard"*. A monitor 0.36 deep plus a keyboard 0.17 plus clearance
+    // does not fit in 0.76, so the desk grows rather than the kit being
+    // shuffled: "make the desk a proper run of catalogue desks".
+    boxFace(0.92, 0.06, BL, wood, BX, TOP, BZC,                   // the bench top
+      FACE_PY, 0.92, BL, '#6b5334');
     for (const lz of [BZ0 + 0.3, BZC, BZ1 - 0.3]) {               // and its legs
-      for (const dx of [-0.30, 0.30]) box(0.07, TOP, 0.07, woodDark, BX + dx, TOP / 2, lz);
+      for (const dx of [-0.38, 0.38]) box(0.07, TOP, 0.07, woodDark, BX + dx, TOP / 2, lz);
     }
     // a low back panel: it gives the bank a BACK, which is what stops three
     // machines on a table reading as three machines abandoned on a table, and
     // it hides the cable run the way the real thing does
-    box(0.05, 0.46, BL, woodDark, BX + 0.36, TOP + 0.23, BZC);
-    solid(BX, BZC, 0.9, BL + 0.1);
+    box(0.05, 0.46, BL, woodDark, BX + 0.42, TOP + 0.23, BZC);
+    solid(BX, BZC, 1.06, BL + 0.1);
 
     // THREE, and one of them is out — the same fact as the dead troffer in the
     // ceiling. A room where every machine works has a facilities budget.
@@ -977,16 +990,24 @@ export function buildLibrary(ctx: CtxBuild): void {
     const seats: ['pc' | 'amber' | 'dead', number][] =
       [['pc', BZ0 + 0.55], ['amber', BZC], ['dead', BZ1 - 0.55]];
     for (const [kind, tz] of seats) {
-      terminal(BX + 0.16, tz, TOP + 0.03, kind);
+      terminal(BX + 0.22, tz, TOP + 0.03, kind);
       // a beige tower on the floor under the bench, which is where they went
-      box(0.20, 0.42, 0.44, beigeDM, BX + 0.20, 0.21, tz);
+      box(0.20, 0.42, 0.44, beigeDM, BX + 0.26, 0.21, tz);
+      // THE COILED CABLE, which the user lists among the five things that make
+      // one of these read as a terminal. I answered it with a cable TRAY last
+      // time on the grounds that a flex is sub-texel — true of the coil, and
+      // not of the drop: the run from the back of the monitor down behind the
+      // bench to the tower is 0.4 m of dark against beige and reads fine. The
+      // tray stays under the bench; this is what you can see from a chair.
+      box(0.05, 0.44, 0.05, cableM, BX + 0.40, TOP - 0.14, tz + 0.12);
+      box(0.05, 0.05, 0.16, cableM, BX + 0.40, TOP + 0.06, tz + 0.16);
     }
     // THE CABLE RUN, under the back edge of the top. The queue asked for coiled
     // cables and this is the honest version of that: at 8-16 px/m a flex is
     // well under a texel, so a modelled coil would be a dark blob rather than a
     // cable. What IS legible at this scale is the tray they all disappear into,
     // which is the thing you actually see under a bench of terminals.
-    box(0.10, 0.09, BL - 0.2, woodDark, BX + 0.30, TOP - 0.10, BZC);
+    box(0.10, 0.09, BL - 0.2, woodDark, BX + 0.38, TOP - 0.10, BZC);
 
     // ── the dot-matrix printer, on its own stand at the end of the run ──
     //
@@ -1458,43 +1479,101 @@ export function buildLibrary(ctx: CtxBuild): void {
   // corner with no children in it reads as closed.
   {
     const AX = -W / 2 + 1.05;
-    // the sloping newspaper rack: papers laid on a rail, spines toward you
-    const paperT = declareSurface(pixTex(40, 28, (g) => {
-      g.fillStyle = '#8a8578'; g.fillRect(0, 0, 40, 28);
-      for (let i = 0; i < 5; i++) {
-        const y = 1 + i * 5.4;
-        g.fillStyle = i % 2 ? '#d8d2c2' : '#cfc8b6'; g.fillRect(2, y, 36, 4);
-        g.fillStyle = '#6a6458'; g.fillRect(3, y + 1, 14, 1);      // the masthead
-        g.fillStyle = '#8a8478'; g.fillRect(3, y + 2, 30, 1);
-      }
-      dither(g, 40, 28, 40);
+    // ── REBUILT AS A FACE-OUT CASE, 2026-07-25 ──
+    //
+    // The user, and he filed it as `user-library-computers.png` because he
+    // could not tell what it was:
+    //
+    //   *"three enormous pale grey slabs, tilted back at about thirty degrees,
+    //   overhanging small tables that are far too narrow for them. They read
+    //   as drawing boards, or venetian blinds propped on trestles — anything
+    //   but a terminal. Whats going on here"*
+    //
+    // He is describing THIS, not the terminals — the terminals are in a build
+    // he has not been given yet. And naming it as a completely different
+    // object is the whole finding, against his own test: *"stand where a
+    // borrower would walk up, at normal eye height, and if you cannot name the
+    // object in one second it is not done."*
+    //
+    // Every one of his three diagnoses was literally true of it: a raked plane
+    // with no body (a slab), 0.42 rad of rake (24°, he said thirty), and a
+    // 1.5 m face on a 0.42 m rail (overhanging a table too narrow for it). The
+    // "venetian blind" was the texture — five horizontal pale stripes.
+    //
+    // THE FIX IS HIS OWN OBSERVATION, and it is the most useful line in the
+    // message: *"The bookshelf and the blue display case in the same shot are
+    // working fine, which is worth noting: they read instantly."* So the
+    // periodicals stop being a shape this world has no vocabulary for and
+    // become the shape it reads best — a case of the same build as the stacks,
+    // with COVERS facing out instead of spines. A magazine rack in a library
+    // is face-out anyway; that is what distinguishes it from the book stacks
+    // standing four metres away.
+    //
+    // Second attempt at this object. If it misses again it goes (START-HERE:
+    // two failures, then delete) — but it is not a redraw of the same idea, it
+    // is the same idea in a vocabulary that is measured to work.
+    // the newspaper on the one stand that survives. It was five even
+    // horizontal stripes, which is a venetian blind and he said so; a folded
+    // broadsheet is a big masthead, a headline block and a picture.
+    const paperT = declareSurface(pixTex(32, 24, (g) => {
+      g.fillStyle = '#8a8578'; g.fillRect(0, 0, 32, 24);
+      g.fillStyle = '#ddd7c6'; g.fillRect(2, 2, 28, 20);          // the sheet
+      g.fillStyle = '#3a352c'; g.fillRect(4, 4, 24, 2);           // the masthead
+      g.fillStyle = 'rgba(58,53,44,0.55)'; g.fillRect(4, 8, 15, 2);   // the headline
+      g.fillStyle = 'rgba(58,53,44,0.28)';
+      for (let y = 12; y < 21; y += 2) g.fillRect(4, y, 11, 1);   // columns of type
+      g.fillStyle = 'rgba(58,53,44,0.40)'; g.fillRect(18, 11, 10, 9);  // the picture
+      dither(g, 32, 24, 34);
     }), 'detail');
-    // THE RACKS HAVE BODIES NOW, 2026-07-25.
-    //
-    // They were a 0.06 m rail on two thin legs with a raked plane floating
-    // above it, and from the alcove — the one place you would ever stand to
-    // read them — three of them read as tilted grey panels hanging in the air.
-    // Found by grading the room from angles I had never shot, which is what the
-    // queue's closing line asks for.
-    //
-    // A newspaper stand is a CASE: a sloping top you read off, a solid body
-    // under it, and a shelf below for back numbers. Same papers, same slope,
-    // same footprint — what changes is that there is something holding it up.
-    for (let i = 0; i < 3; i++) {
-      const rz = -1.6 + i * 1.9;
-      box(0.40, 0.62, 1.5, wood, AX, 0.72, rz);                  // the case body
-      box(0.44, 0.05, 1.56, woodDark, AX, 1.05, rz);             // its capping rail
-      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.62), ctx.flat(paperT));
-      face.rotation.y = Math.PI / 2; face.rotation.x = -0.42;
-      put(face, AX + 0.20, 1.24, rz);
-      // the raked lid the papers lie on, so the plane above has a surface under
-      // it rather than being a card in mid-air
-      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.66, 1.5), woodDark);
-      lid.rotation.x = -0.42; lid.rotation.y = Math.PI / 2;
-      put(lid, AX + 0.23, 1.24, rz);
-      box(0.36, 0.04, 1.42, woodDark, AX, 0.30, rz);             // the back-numbers shelf
-      box(0.30, 0.10, 1.20, wood, AX, 0.36, rz);                 // …and what is on it
-      solid(AX, rz, 0.5, 1.6);
+    const magT = (wM: number, hM: number, seed: number) => {
+      const r = (() => { let q = seed >>> 0; return () => ((q = (Math.imul(q, 1664525) + 1013904223) >>> 0) / 4294967296); })();
+      // 32 px/m, the same as the book spines beside it, so the two cases are
+      // one density. A cover is ~0.21 m across = 7 texels, which is enough for
+      // a masthead band, a picture block and two cover lines and is not enough
+      // for anything finer — so nothing finer is drawn.
+      const PPM = 32, Wp = Math.max(8, Math.round(wM * PPM)), Hp = Math.max(8, Math.round(hM * PPM));
+      const MAST = ['#8a3b30', '#2f4f6a', '#6a6234', '#4a3f5c', '#35564a', '#7d5a3c'];
+      return declareSurface(pixTex(Wp, Hp, (g) => {
+        g.fillStyle = '#241a12'; g.fillRect(0, 0, Wp, Hp);        // the dark of the case
+        let x = 1;
+        while (x < Wp - 2) {
+          const w = 6 + Math.floor(r() * 2);                       // ~0.20 m covers
+          if (x + w > Wp - 1) break;
+          g.fillStyle = ['#d8d2c2', '#cfd4d8', '#e0d6c0', '#c8cfc4'][Math.floor(r() * 4)];
+          g.fillRect(x, 1, w, Hp - 2);                             // the cover
+          g.fillStyle = MAST[Math.floor(r() * MAST.length)];
+          g.fillRect(x, 1, w, 2);                                  // its masthead
+          g.fillStyle = 'rgba(60,52,38,0.40)';
+          g.fillRect(x + 1, 5, w - 2, Hp - 8);                     // the picture
+          g.fillStyle = 'rgba(60,52,38,0.30)';
+          g.fillRect(x + 1, Hp - 3, w - 3, 1);                     // a cover line
+          x += w + 1;                                              // the gap between
+        }
+        dither(g, Wp, Hp, Math.round(wM * hM * 8));
+      }), 'detail');
+    };
+    // ONE case, against the wall, where three slabs stood in the open. Its
+    // length is the alcove's own strip and its build is `wallRun` — the same
+    // painter, kick, ends, shelves and back board as the stacks, which is the
+    // point: it reads because they read.
+    wallRun(-W / 2 + BAY_D / 2 + 0.06, 0.0, 5.2, 'z', 1, 0x4c11, 0, magT);
+    // ONE newspaper stand survives, and only one: a broadsheet on a rake is a
+    // real object in a real branch and the fault was three of them standing in
+    // the open with nothing under them. This one has a BODY, sits at 12°
+    // rather than 24, is no wider than what holds it up, and stands beside a
+    // case that names the corner — so it is read as "the paper next to the
+    // magazines" rather than as an unexplained slab.
+    {
+      const rz = -1.9;
+      box(0.52, 0.86, 1.1, wood, AX, 0.43, rz);                  // the body
+      box(0.56, 0.05, 1.16, woodDark, AX, 0.88, rz);             // its capping rail
+      const lid = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.52, 1.1), woodDark);
+      lid.rotation.x = -0.21; lid.rotation.y = Math.PI / 2;       // 12°, not 24
+      put(lid, AX + 0.14, 1.02, rz);
+      const face = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.52), ctx.flat(paperT));
+      face.rotation.y = Math.PI / 2; face.rotation.x = -0.21;
+      put(face, AX + 0.17, 1.02, rz);
+      solid(AX, rz, 0.6, 1.2);
     }
     // a chair to read them in, turned into the alcove rather than facing the room
     box(0.46, 0.06, 0.46, wood, AX + 1.15, 0.44, 0.9);
