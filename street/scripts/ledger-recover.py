@@ -21,8 +21,17 @@ old_txt = subprocess.run(['git', 'show', f'{OLD}:street/{PATH}'],
                          capture_output=True, text=True).stdout
 
 def key(l):
-    m = re.match(r'\|\s*\w+\s*\|\s*(\w+)\s*\|\s*(.{0,60})', l)
-    return (m.group(1), m.group(2).strip()) if m else None
+    """Identify a row by (agent, request), taken from the COLUMNS.
+
+    This used a 60-character regex slice, which spills past the request column
+    into the builder's evidence - so the same row with newer builder text read
+    as a DIFFERENT row and my side got appended as a duplicate instead of
+    merged. The selftest caught it; the real file never would have, because a
+    duplicated row still reads plausibly."""
+    f = l.split('|')
+    if len(f) < 4 or not f[1].strip() or not f[2].strip():
+        return None
+    return (f[2].strip(), f[3].strip()[:60])
 
 def status(l):
     m = re.match(r'\|\s*(\w+)\s*\|', l)
