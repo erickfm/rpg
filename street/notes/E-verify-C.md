@@ -210,11 +210,24 @@ dark brick wall that pooled and a pale wall that did not can read the same
 number, and my bins mixed both — 4 m read 0.413, 5 m read 0.222, 6 m read 0.471.
 That is base colour talking, not a cliff.
 
-**The correct instrument is the KEPT FRACTION**: sample each mesh at noon and
-again at night and compare *night ÷ noon per mesh*, which cancels the base
-colour and leaves only what the lighting did. Then plot that against span and
-look for a step at 6 m versus a ramp to 12 m. That is a real test of the stated
-fix and it is maybe twenty lines.
+**I proposed the KEPT FRACTION as the fix — sample each mesh at noon and at
+night, compare night ÷ noon per mesh — and then I built it. IT IS THE SAME
+INSTRUMENT.** The kept fractions came back identical to the absolute values
+(4 m → 0.413, 5 m → 0.223, 6 m → 0.471) because **noon reads 1.0000 for every
+textured mesh**: the tone lives in the map, `material.color` is white, and
+`dimWorld` multiplies that down. So night tint already *was* the kept fraction
+and my "control for base colour" controlled for nothing.
+
+**What the numbers actually show, and why they still do not settle the row:**
+kept rises with span across the band the row is about — 5 m 0.223, 6 m 0.471,
+7 m 0.948, 8 m 0.919 — with no step at 6 m. That is not a cliff, but it is not
+proof of the taper either, because the population is heterogeneous: different
+modules, self-lit signs and glass all sit in those bins, and several have n ≤ 3.
+
+**The test that would settle it is narrow, not broad:** find the ONE wall pair
+the row names — two adjacent meshes of 5.9 m and 6.1 m carrying the SAME brick —
+and compare those two to each other. Same material, same lamp, one variable.
+Everything I tried instead averaged that signal away.
 
 Recording the failed approach rather than deleting it, because the next verifier
 will reach for the same obvious number.
