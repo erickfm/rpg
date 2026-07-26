@@ -1043,3 +1043,29 @@ turn `interiors-walk` red the first time G runs it.
 
 If G is blocked after pulling mainline, it is not on this, and I would like the
 actual error rather than the summary.
+
+
+## The gap the desk kept pointing at: `floor` answered the height and drew NOTHING
+
+Three "still blocked" reports against an API that is demonstrably on mainline
+made me look for what I was wrong about rather than repeat myself, and there
+was something: **the kit could express a floor HEIGHT and not a STAIR.** You
+walked up an invisible ramp.
+
+Every `RoomLevel` is now built as a plinth — a box from the room floor to its own
+height across its own footprint. Measured, three rows:
+
+```
+declared   z 2.0…3.2 y 0.18 · z 3.2…4.4 y 0.36 · z 4.4…8.0 y 0.54
+built      h 0.18 @ z 2.6  · h 0.36 @ z 3.8  · h 0.54 @ z 6.2
+picker     z1 0 · z2.5 0.18 · z3.8 0.36 · z5.5 0.54
+```
+
+Geometry and floor from ONE declaration, so they cannot drift apart. A dais is
+one row; a stair is six thin rows, because stacked plinths of rising height are
+a stair.
+
+**The function form still draws nothing and cannot** — a closure has no extent
+to build from. That is the trade, and it is now stated at the call site:
+regions if you want to see it, a function if you are shaping ground whose
+geometry you have already built yourself.

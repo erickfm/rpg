@@ -1095,6 +1095,32 @@ const dAt = spec.door.at ?? (FW ? localOf(alongU(FW, FW.doorWorld)) : 0);
     hz - Math.sin(SWING) * leafW / 2);
 
   // the room's own floor picker, in world coords, answering for THIS slab. One
+  // ── the levels are BUILT, not just answered ──
+  //
+  // `floor` told the picker how high the ground was and drew nothing, so a
+  // player walked up an invisible ramp. That is a fair reading of "the kit
+  // cannot express a stair": it could express a floor HEIGHT and not a STAIR.
+  //
+  // Every RoomLevel is now a plinth — a box from the room floor up to its own
+  // height, across its own footprint. A dais is one row and looks like a dais;
+  // a stair is six thin rows and looks like a stair, because stacked plinths of
+  // rising height ARE a stair. Nothing to keep in step with the picker, because
+  // it is the same list.
+  //
+  // The function form draws nothing and cannot: a closure has no extent to
+  // build from. That is the trade — regions if you want to see it, a function
+  // if you are shaping ground you have already built yourself.
+  if (Array.isArray(spec.floor)) {
+    for (const L of spec.floor) {
+      if (L.y <= 0.001) continue;
+      const bw = L.x1 - L.x0, bd = L.z1 - L.z0;
+      if (bw <= 0.001 || bd <= 0.001) continue;
+      const m = new THREE.Mesh(new THREE.BoxGeometry(bw, L.y, bd),
+        [wallMat(bw), wallMat(bw), trimM, trimM, wallMat(bw), wallMat(bw)]);
+      place(m, (L.x0 + L.x1) / 2, L.y / 2, (L.z0 + L.z1) / 2);
+    }
+  }
+
   // registry for the world: this is the same `gy` the entry point already
   // dispatches over for the exterior flights.
   const levelAt = (wxx: number, wzz: number): number => {
