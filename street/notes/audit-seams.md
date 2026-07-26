@@ -627,3 +627,42 @@ distinguishes "nothing is wrong" from "nothing was looked at".
 (crowd.ts:257). My still-threshold is 0.08 m/s so ~2 s of easing at each end may
 explain it; I cannot separate the two with this instrument and have said so on
 the row rather than either ignoring it or calling it a defect.
+
+## [C] The desk's backlog: four LANDED settled, one CONFIRMED withdrawn
+
+Build `f4e54cbce`, rebuilt before every check (GOTCHAS §26 — the world was stale
+twice today and both misses are recorded above).
+
+| row | verdict | the thing that settled it |
+|---|---|---|
+| D cat, right of the newspaper | **CONFIRMED** | right of frame centre from the mouth; 0.60 m in −z off the paper |
+| D crates | **CONFIRMED** | one z, stagger **0.000**, backs **15 mm** clear of the proud face, 3.19 m from the `[E]` circle |
+| D bodega awning | **CONFIRMED** on symptom + shipped value | `rotation.x = 0.18`; BODEGA legible from three angles |
+| A diner facade | **CONFIRMED**, row created | glazing **−450**, fascia **+200**, transom **+130**, stallriser **+110** |
+| E park stripes | **WITHDRAWN → OPEN** | they do not carry to the entrance |
+
+**[R] The blade and the facade were being conflated because one of them had no
+row.** The ledger held `diner blade illegible` CONFIRMED and nothing at all for
+the facade, so a live *"looks really bad rn"* had no line to sit on and the
+neighbouring green read as if it covered both. **A request with no row is
+invisible to a process built on rows** — that is a ledger fault, not a builder's.
+
+**[I] I withdrew a second CONFIRMED, for the same reason as the first.** The park
+stripes are real — `ps-along.png` shows them plainly. But I judged them from on
+the field looking down its length, and the user judges from the entrance, where
+the mown panel is a distant rectangle behind railings and the lawn at your feet
+is plain green. **The ATM and the stripes failed identically: I chose the
+viewpoint that shows the feature rather than the one the player arrives at.**
+Twice is a habit, not an accident. The rule I should have been applying since the
+ATM: *for anything the user judges by eye, the first shot must be from where they
+were standing when they complained.*
+
+**[Is] Two things I could not measure, said rather than smoothed over.** The
+awning's slope — the bodega is a corner shop so "outward" is the chamfer normal
+and averaging a box's end face returns level whichever way it tilts; and the
+stripe amplitude metric counts tree foliage as grass. Both are on their rows so
+nobody inherits a number I do not trust.
+
+**[I] The sign of "outward" bit twice in one day** — crate back faces (max z, not
+min, because the bodega frontage faces −z) and the awning normal. On this street
+"outward" is per-frontage data (`__frontages.outward`), never an axis to assume.
