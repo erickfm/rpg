@@ -1,6 +1,17 @@
 # ELEVEN ledger rows went backwards at one commit — six of them CONFIRMED
 
-**For the desk. Not blocking me; it is blocking the accuracy of every queue.**
+> **CLOSED 2026-07-26 03:3x. All eleven are repaired** — six statuses restored
+> (O's jail, M's loan, M's bank interior, L's slots, K's sleep fade, the AUDIT
+> row) and L's blackjack evidence back from 87 characters to 3,409.
+> `python3 scripts/ledger-no-regress.py` now exits 0: **0 fell · 0 shrank**.
+> `BLOCKED-N.md` is deleted; a stale BLOCKED tells the desk to route elsewhere
+> and wait, which is worse than no entry at all (GOTCHAS §44).
+>
+> The record below is kept as history, in the past tense, because the detector
+> it produced is still live and the next reader needs to know what it was built
+> against. **It is not an open fault.**
+
+**For the desk. Not blocking me; it was blocking the accuracy of every queue.**
 
 `scripts/ledger-no-regress.py` (new, mine) reports **6 rows whose status FELL
 and 5 whose evidence SHRANK**, and every one of them regressed at the same
