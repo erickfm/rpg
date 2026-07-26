@@ -87,6 +87,58 @@ already complete, because the versions holding the missing evidence were only in
 the **reflog**. If you are recovering from a rebase, scan
 `git reflog --format=%h`, not `git log --all`.
 
+## THE FOURTH TIME, AND IT FOUND THE REAL DEFECT: 77 OF 222 ROWS ARE MALFORMED
+
+I stopped hand-resolving and wrote `scripts/M-ledger-keep-longest.py` — same idea
+as `ledger-merge.py`, but it takes the **union** rather than a side, and it
+**prints every length change and exits 1 if any segment vanishes**, which is the
+loudness the other one lacks. It immediately told me two things I had wrong.
+
+**First, that mainline was RIGHT this time and I would have been wrong.** Rebase B
+had HEAD longer on every row and my own two rows CONFIRMED at 6,854 and 6,009
+against my LANDED 3,631 and 2,377. Had I applied rebase A's resolution — take
+mine — I would have destroyed somebody's confirmation of my own work. **No fixed
+preference survives both rebases**, which is the whole argument for the union.
+
+**Second, and this is the actual bug: a row can be LONGER and still not be a
+superset.** HEAD's version of my rows had `CONFIRMED` and more text and was
+missing my `LANDED (M)` evidence entirely — somebody confirming a row REPLACED
+the builder's account instead of appending to it. Same for L's row: it had grown
+by a desk note while dropping my `VERIFIER (M)` segment. Longest-wins is right
+about which row to START from and wrong to stop there. The tool grafts the
+missing segments back: 8,159 → 11,668 on L's row, 6,854 → 10,195 on mine.
+
+### And my own segment was outside the table
+
+The tool reported `VERIFIER (M)` as lost and refused to graft it, and **it was
+right about both**. My earlier append had gone in AFTER the row's closing pipe:
+
+    | … | … | … | evidence — L | — **VERIFIER (M) CONFIRMED …** — M
+                              ↑ the cell ended here          ↑ no terminator
+
+So my verification was a phantom fifth column. That is why it kept disappearing:
+every resolver that parses the evidence cell correctly could not see it.
+
+### The census, which is the part for the desk
+
+Once I had a pipe-counter I ran it over the whole file. A well-formed row is
+`| status | agent | request | evidence |` — **five pipes**:
+
+    pipes -> rows:  5: 145 · 6: 41 · 7: 22 · 8: 4 · 9: 6 · 10: 1 · 12: 2 · 13: 1
+    malformed: 77 of 222
+
+**More than a third of the ledger has stray pipes in its evidence.** An unescaped
+`|` inside a Markdown cell splits it, so those rows render with phantom columns,
+and every `cut -d'|' -f4` in the repo reads a truncated cell. `ledger.sh` survives
+only because it reads field 2, which sits before the damage.
+
+**I have not bulk-fixed them** — 222 rows of other builders' text, and the fix is
+either escaping `\|` or moving evidence out of table cells, which is a format
+decision and the desk's. My resolver repairs the **terminator** only, on rows it
+touches, and reports the rest. One line finds them all:
+
+    awk -F'|' '/^\| /{if (NF-1 != 5) print NF-1, $2, $4}' notes/LEDGER.md
+
 ## What would stop it, for whoever owns the tooling
 
 I am not proposing to build any of these — `scripts/**` says do not edit another

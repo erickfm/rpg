@@ -1,1 +1,1 @@
-DONE | bank rows LANDED awaiting a check; L's slots verified; BLOCKED-M has two asks for F; ledger resolver drops rows quietly, written up |
+WORKING | wrote a union ledger resolver after 4 conflicts; found 77/222 rows malformed; re-reading the queue next |
