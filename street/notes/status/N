@@ -1,1 +1,1 @@
-DONE | queue empty, row CONFIRMED, check green; ledger alarm now carries a SAFE/MERGE split and a proposed fix | DESK — BLOCKED-N.md: 11 rows regressed, only 2 are a safe revert
+WORKING | queue empty -> verifying: AUDIT bare-rows row — population reproduces, backlog is cleared | DESK — 1 ledger row still down (L blackjack evidence), BLOCKED-N.md

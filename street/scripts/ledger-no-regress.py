@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
 """Rows that went BACKWARDS: a status that fell, or evidence that shrank.
 
+    STATUS FELL     CONFIRMED or LANDED came back as something lower
+    EVIDENCE LOST   the row kept its status and lost its text
+
+Both compare a row against ANOTHER VERSION of itself. A third assertion —
+"the status contradicts the row's own evidence" — was written and deleted;
+see the block where it used to live for the two false positives that killed
+it and why no wording saves it.
+
 THE GAP THIS FILLS, and I checked the neighbours before writing it (GOTCHAS 24):
 
     ledger-lost.py       a row that DISAPPEARED
@@ -109,6 +117,36 @@ def lines(text):
 
 
 cur = rows(open('notes/LEDGER.md').read())
+
+# ── WHY THERE IS NO "STATUS CONTRADICTS ITS OWN EVIDENCE" CLAUSE ──────────
+#
+# I wrote one and deleted it the same hour. It flagged a CONFIRMED row whose
+# evidence contained an explicit self-demotion — `MOVED BACK FROM CONFIRMED`,
+# `moves to LANDED`, `RE-OPENED BY THE DESK`. On the real file it found two rows
+# and BOTH WERE FALSE POSITIVES:
+#
+#   F  wheel arches   F demoted it, and then *"VERIFIER (A): THE ROW IS
+#                     DECIDABLE, and it HOLDS"* and an auditor confirmation
+#                     followed IN THE SAME CELL. CONFIRMED is correct.
+#   K  sleep fade     *"AUDITOR: status re-applied. My verdict and its evidence
+#                     were BOTH removed by a bulk edit … the status was not
+#                     reversed by anyone's judgement."* CONFIRMED is correct.
+#
+# The clause was not mistuned, it was measuring the wrong thing. **A ledger row
+# is APPEND-ONLY HISTORY.** GOTCHAS 44 tells authors in as many words to write
+# the "after" beside the "before" and to keep the original, so every mature row
+# contains the sentences describing states it is no longer in. A substring test
+# against that text will always be reading the past and reporting it as the
+# present, and no wording of the phrase list fixes it — the signal wanted is
+# the LAST verdict in the cell, and picking that out is guesswork.
+#
+# So: two attempts, then delete (START-HERE). Recorded here rather than removed
+# silently, because the check is an obvious one to reach for — I reached for it —
+# and the next person deserves the two false positives for free.
+#
+# The three assertions that remain all compare a row against ANOTHER VERSION of
+# itself, which is the only comparison this file supports honestly.
+
 revs = subprocess.run(['git', 'log', f'-{N}', '--format=%h', '--', LOG],
                       capture_output=True, text=True).stdout.split()
 
