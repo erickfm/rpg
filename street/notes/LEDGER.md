@@ -223,3 +223,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | F | 'Screenshot from 2026-07-25 21-57-05.png' what is this in the corner o | |
 | OPEN | D | yea get rid of outline unless debug is true, we'll probably want that  | |
 | OPEN | G | 'Screenshot from 2026-07-25 21-59-46.png' hotel looks so bad, rugs all | |
+| OPEN | G | 'Screenshot from 2026-07-25 22-00-33.png' need a bit of space on entry | |
