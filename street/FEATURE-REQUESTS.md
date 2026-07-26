@@ -207,6 +207,16 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"a 14.9 x 15.8 m ground sheet in the car lot carries one 64x64 tile — 4.3 texels/m, an eighth of the mandate on both axes"** → **DESK** (found by B, not B's file)
+
+  <!-- B: turned up by the corrected density sweep (scripts/kerbwalk.mjs). At
+       (22, 0.152, 3.2), 235 m2, rep [1,1] on a 64x64 map. It is the lowest
+       real density left on any ground surface in the world and the only one
+       genuinely stretched — the four "60x124 m at 0.03" meshes I reported
+       earlier were kerb ribbons and that number was never a measurement.
+       Not my file; routed rather than touched.
+       notes/B-ground-density-corrected-for-I.md -->
+
 - **"when the player goes to sleep i want the screen to fade to black"** → **K**
 - **"stealing a package gives you a random item that goes in your inventory (the INVENTORY half of C's package feature)"** → **K**
 - **"i want all the neighbors in the building to have a small chance of getting a package. every night all the packages go away. the packages never go in front of the door only on the sides of the door. you have an option to steal the package if you steal you get a random item and then it goes in your inventory."** → **C**
