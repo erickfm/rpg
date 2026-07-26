@@ -33,11 +33,18 @@ const prompt = () => p.evaluate(() => {
     && /\[E\]/.test(x.textContent || '') && getComputedStyle(x).display !== 'none');
   return e ? e.textContent.trim() : null;
 });
+// GOTCHAS 30: no fixed sleep decides whether we sat. On a cold load the first
+// press landed before the world was ready and the whole run went red with
+// "could not sit" while every assertion under it was fine.
 const sitAt = async (x, z, gy) => {
   await p.evaluate(([a, c, g]) => window.__ct.warp(a, c, 0, g, -0.05), [x, z, gy]);
-  await p.waitForTimeout(500);
-  await p.keyboard.press('KeyE');
-  await p.waitForTimeout(700);
+  await p.waitForTimeout(400);
+  for (let k = 0; k < 4; k++) {
+    if (await seated()) return true;
+    await p.keyboard.press('KeyE');
+    const t0 = Date.now();
+    while (Date.now() - t0 < 900) { if (await seated()) return true; await p.waitForTimeout(80); }
+  }
   return seated();
 };
 

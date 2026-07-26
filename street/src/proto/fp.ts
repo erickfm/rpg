@@ -78,6 +78,22 @@ export class FPRig {
   private look = new THREE.Vector3();
 
   constructor(cam: THREE.PerspectiveCamera, spawn: { x: number; z: number; yaw: number }, o: FPOpts) {
+    // THE ESCAPE HATCH, AT THE LOWEST LEVEL THIS FILE CAN REACH.
+    //
+    // The user: *"i cant get up, ANYTHING i do, once i sit down to watch tv."*
+    // Not just E — everything. So the polled `input.keys` path cannot be
+    // trusted to carry the way out: `ct/hud.ts`'s `blockInput` swallows keydown
+    // in the CAPTURE phase with `stopImmediatePropagation`, and anything that
+    // leaves that gate up (a panel that does not close, a fade that does not
+    // resolve) takes the whole input set with it, including the escape binding
+    // in the seated block below.
+    //
+    // So this listens for itself, in capture, and sets a flag the update loop
+    // honours. It is deliberately dumb: no state of its own beyond one boolean,
+    // nothing to get stuck in, and it costs a comparison per keypress.
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.seat) this.forceUp = true;
+    }, true);
     this.cam = cam;
     this.yaw = spawn.yaw;
     this.height = o.height ?? 1.62;
@@ -96,6 +112,8 @@ export class FPRig {
   }
 
   /** are you sitting on something right now */
+  /** set by the capture-phase Escape listener; consumed by update(). */
+  private forceUp = false;
   get seated(): boolean { return this.seat !== null; }
   /** the seat you are on, so a caller can tell WHICH one to offer standing up */
   get seatedOn(): SeatPose | null { return this.seat; }
@@ -269,7 +287,7 @@ export class FPRig {
       //
       // Escape also drops pointer lock, which is the right shape: it is the
       // key you press when you want out of whatever you are in.
-      if (input.keys.has('escape')) { this.stand(); return; }
+      if (input.keys.has('escape') || this.forceUp) { this.forceUp = false; this.stand(); return; }
       this.crouchT += (0 - this.crouchT) * Math.min(1, dt * 9);
       const sgy = this.groundY ? this.groundY(this.pos.x, this.pos.z) : 0;
       const sy = sgy + this.seat.h + SIT_EYE;
