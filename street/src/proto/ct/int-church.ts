@@ -44,7 +44,12 @@ export function buildChurch(ctx: CtxBuild) {
   const room = buildRoom(ctx, {
     id: 'church',
     label: 'into ST BRIGID\'S',
-    w: 8.5, d: 16, h: 6.4,
+    // 9.5, up from 6.4. "Much taller than anything else you can enter" was the
+    // instruction and 6.4 did not deliver it — the library reading room is 6.4
+    // too, so the church was merely joint-tallest. Nothing else in the world
+    // comes within 3 m of this now, which is the only way the height reads as a
+    // fact about the church rather than as a number in a file.
+    w: 8.5, d: 16, h: 9.5,
     // Cold stone, not shop plaster. The floor is the flagstone the forecourt
     // uses so the threshold reads as continuous; the walls go pale and chalky
     // and the ceiling is nearly white, because height you cannot see the top of
@@ -108,7 +113,9 @@ export function buildChurch(ctx: CtxBuild) {
       const seat = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.08, 0.42), woodM);
       put(seat, side * PEW_CX, 0.46, pz);
       const back = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.62, 0.07), woodM);
-      put(back, side * PEW_CX, 0.75, pz - 0.24);
+      // the back is on the DOOR side of the seat, so you sit facing -z, down the
+      // nave toward the altar
+      put(back, side * PEW_CX, 0.75, pz + 0.24);
       for (const end of [-PEW_W / 2 + 0.05, PEW_W / 2 - 0.05]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.46, 0.4), woodM);
         put(leg, side * PEW_CX + end, 0.23, pz);
@@ -125,12 +132,12 @@ export function buildChurch(ctx: CtxBuild) {
       // A pew is not a wall. You step into the row and sit, so only the back
       // rail blocks — which is what stops you walking through the bank and is
       // the only part that should.
-      solid(side * PEW_CX, pz - 0.24, PEW_W, 0.16);
+      solid(side * PEW_CX, pz + 0.24, PEW_W, 0.16);
       // …and you can sit in it. The user asked that EVERY seat in the game be
       // sittable, and a church full of benches you cannot use would be the
       // largest exception in the world.
       ctx.seat({
-        x: wx(side * PEW_CX), z: wz(pz), yaw: Math.PI, h: 0.54, r: 0.62,
+        x: wx(side * PEW_CX), z: wz(pz), yaw: 0, h: 0.54, r: 0.62,
         label: 'sit in the pew',
       });
     }
@@ -145,15 +152,113 @@ export function buildChurch(ctx: CtxBuild) {
   put(dais, 0, 0.09, hd - 2.2);
   const altar = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.95, 0.75),
     new THREE.MeshBasicMaterial({ color: 0xb0a894 }));
-  put(altar, 0, 0.18 + 0.475, hd - 2.4);
-  solid(0, hd - 2.4, 2.2, 0.75);
+  // -hd + 2.4, NOT hd - 2.4. The kit cuts the door into the front wall at local
+  // +hd and puts the way-out spot at hd - 0.55, so the FAR end of a room is
+  // negative z. At hd - 2.4 this altar stood 2.4 m from the door: you walked in
+  // and were on it, every pew faced away down the nave, and the 16 m of length
+  // this room's own comment calls "the whole effect" was behind you. It also
+  // blocked the entrance outright -- 0.51 m in and you were against the altar's
+  // collider, which is what "the church is locked" turned into once the door
+  // opened.
+  put(altar, 0, 0.18 + 0.475, -hd + 2.4);
+  solid(0, -hd + 2.4, 2.2, 0.75);
   const cloth = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.3, 0.8),
     new THREE.MeshBasicMaterial({ color: 0xd8d0bc }));
-  put(cloth, 0, 0.18 + 0.82, hd - 2.4);
+  put(cloth, 0, 0.18 + 0.82, -hd + 2.4);
   for (const dx of [-0.7, 0.7]) {
     const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.34, 6),
       new THREE.MeshBasicMaterial({ color: 0xb8a24e }));
-    put(stick, dx, 0.18 + 0.95 + 0.17, hd - 2.4);
+    put(stick, dx, 0.18 + 0.95 + 0.17, -hd + 2.4);
+  }
+
+  // ── the chancel step is NOT here, and this is why ────────────────────
+  //
+  // "Altar and chancel step" is in the brief and I built one: a raised sanctuary
+  // floor across the width with an altar rail. It went in on top of the
+  // ENTRANCE, and walking in stopped dead — 0.49 m and you are against a rail.
+  //
+  // I had the room's ends backwards. Measured rather than assumed once it broke:
+  // the way-out spot is at local z 7.45 and the altar's collider is at z 5.22 to
+  // 5.97, so the door and the altar are at the SAME end of this nave, with the
+  // pews running away from both. I had reasoned "altar at hd - 2.4, therefore the
+  // door is at -hd" from the file's own prose about a 16 m nave, and the prose
+  // and the geometry do not agree.
+  //
+  // That disagreement is E's room to settle, not mine to guess at on a room I
+  // was handed an hour ago — moving an altar is a bigger decision than adding a
+  // step. So the step is not here, the entrance is clear, and this is written
+  // down where the next person will find it.
+  //
+  // It is also blocked twice over: a step you can walk UP needs the floor
+  // function that ct/interior.ts:1000 hardcodes to `() => 0`, which is the same
+  // missing spec field as the library's stair. See notes/BLOCKED-G.md.
+
+  // ── the side chapel, and the candles nobody is tending ────────────────
+  //
+  // A votive stand at the back of the north aisle: a rack of lit candles, most
+  // of them burnt down, in front of a small painted statue on a bracket. It is
+  // the one warm thing in the room, which is what makes the rest read as cold.
+  {
+    const CX = -hw + 0.95, CZ = hd - 2.6;
+    const ironM = new THREE.MeshBasicMaterial({ color: 0x3a3630 });
+    const waxM = new THREE.MeshBasicMaterial({ color: 0xe8dfc4 });
+    const flameM = new THREE.MeshBasicMaterial({
+      color: 0xffd88a, transparent: true, opacity: 0.9, depthWrite: false,
+      blending: THREE.AdditiveBlending, fog: false });
+    // the stand
+    put(new THREE.Mesh(new THREE.BoxGeometry(1.30, 0.06, 0.34), ironM), CX, 0.86, CZ);
+    for (const dx of [-0.6, 0.6]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.86, 0.05), ironM), CX + dx, 0.43, CZ);
+    }
+    // the candles: five rows of unequal stubs, and only some alight
+    let ci = 0;
+    for (let gx = -0.55; gx <= 0.56; gx += 0.135) {
+      for (const gz of [-0.09, 0.09]) {
+        const burn = [0.16, 0.09, 0.21, 0.05, 0.13, 0.07][ci % 6];
+        const lit = ci % 3 !== 1;                       // two in three still going
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, burn, 6), waxM),
+          CX + gx, 0.89 + burn / 2, CZ + gz);
+        if (lit) {
+          put(new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 4), flameM),
+            CX + gx, 0.89 + burn + 0.045, CZ + gz);
+        }
+        ci++;
+      }
+    }
+    // the statue on its bracket above them
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.10, 0.26),
+      new THREE.MeshBasicMaterial({ color: 0x8a8274 })), CX, 1.42, CZ - 0.16);
+    put(new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.52, 8),
+      new THREE.MeshBasicMaterial({ color: 0xc8c2b2 })), CX, 1.73, CZ - 0.16);
+    put(new THREE.Mesh(new THREE.SphereGeometry(0.085, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xd8d2c4 })), CX, 2.04, CZ - 0.16);
+    solid(CX, CZ, 1.4, 0.5);
+  }
+
+  // ── the confessional ──────────────────────────────────────────────────
+  //
+  // Back of the south aisle, where it belongs: a dark oak box with three bays —
+  // priest in the middle behind a curtain, a kneeler either side — and a violet
+  // stole hung on the outside of the middle door, which is how you know it is
+  // in use rather than furniture.
+  {
+    const FX = hw - 0.75, FZ = hd - 2.9;
+    const oakM = new THREE.MeshBasicMaterial({ color: 0x4a3826 });
+    const oakDM = new THREE.MeshBasicMaterial({ color: 0x372a1c });
+    const BOXW = 0.98, BOXH = 2.42, BOXD = 2.70;
+    put(new THREE.Mesh(new THREE.BoxGeometry(BOXW, BOXH, BOXD), oakM), FX, BOXH / 2, FZ);
+    // the cornice, which is what stops it reading as a wardrobe
+    put(new THREE.Mesh(new THREE.BoxGeometry(BOXW + 0.14, 0.12, BOXD + 0.14), oakDM),
+      FX, BOXH + 0.06, FZ);
+    // three bays down the aisle face: two kneeler openings and the priest's
+    for (const [dz, tall] of [[-0.92, false], [0, true], [0.92, false]] as [number, boolean][]) {
+      put(new THREE.Mesh(new THREE.BoxGeometry(0.05, tall ? 1.95 : 1.55, 0.74), oakDM),
+        FX - BOXW / 2 - 0.02, (tall ? 1.95 : 1.55) / 2 + 0.16, FZ + dz);
+    }
+    // the violet stole over the middle door
+    put(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.62, 0.11),
+      new THREE.MeshBasicMaterial({ color: 0x5a3a6a })), FX - BOXW / 2 - 0.05, 1.42, FZ + 0.22);
+    solid(FX, FZ, BOXW + 0.2, BOXD);
   }
 
   // ── the east window, which is the light in the room ──
@@ -174,7 +279,9 @@ export function buildChurch(ctx: CtxBuild) {
       }
     }
   }), 'sign');
-  room.sign(roseT, 2.4, 3.6, 0, 3.4, hd - 0.09);
+  // the east window belongs at the far end, over the altar, not on the wall you
+  // came in through
+  room.sign(roseT, 2.4, 3.6, 0, 3.4, -hd + 0.09);
 
   // ── one person, four rows back, and she is the difference ──
   //
@@ -199,7 +306,7 @@ export function buildChurch(ctx: CtxBuild) {
   room.person({
     jacket: '#3a3640', pants: '#2e2b33', skin: '#c9a48a', hair: '#7a7068',
     fit: 'coat', accent: '#5a5260', cut: 'short', build: 0,
-  }, -PEW_CX, PRAY_Z, { facing: 0, h: 0.62, w: 0.92 });
+  }, -PEW_CX, PRAY_Z, { facing: Math.PI, h: 0.62, w: 0.92 });
 
   // ── a rack of votive candles by the door, the one warm thing ──
   const rack = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.34),
