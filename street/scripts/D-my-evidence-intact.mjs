@@ -43,6 +43,7 @@ const MINE = [
   ['a casino slot stool opens a modal',    'THE TRAP NO LONGER REPRODUCES',   'CORRECTION: a CONFIRMED bug that is over'],
   ['i need much more diversity on the ads','silently fixed the shuffle fault','corroboration: ten formats, and my old fault is gone'],
   ['pressing e doesnt get me out of it',   '149 of 225 seats',                'corroboration: the resolver bypass is correct'],
+  ['`rainLevel` and `wetness` stay 0',     'THIRD TODAY',                     'corroboration: the rain report is a spawn artefact'],
 ];
 
 const rows = readFileSync('notes/LEDGER.md', 'utf8').split('\n').filter((l) => l.startsWith('|'));
