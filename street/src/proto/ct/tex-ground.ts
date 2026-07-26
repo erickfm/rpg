@@ -772,7 +772,18 @@ function soldierCourse(scene: THREE.Scene, cx: number, cz: number, yaw: number,
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   const m = new THREE.Mesh(new THREE.PlaneGeometry(len, wide), dress(declareSurface(t, 'ground')));
   m.rotation.x = -Math.PI / 2;
-  m.rotation.z = -yaw;                 // after the flat rotation, z spins it in plan
+  // SIGN MATTERS AND I HAD IT BACKWARDS. After `rotation.x = -PI/2` the plane's
+  // local +X still runs along world +X, and `rotation.z` then spins it in plan —
+  // but in the ALREADY-ROTATED frame, so the sense is inverted from what reading
+  // it left-to-right suggests. `-yaw` put the band's long axis along (1, 1): the
+  // face NORMAL, square across the very joint it is meant to edge. The auditor
+  // caught it and sent the row back.
+  //
+  // The bay face satisfies `x + z = -86.91`, so it runs along (1, -1) and the
+  // band's long axis must too — i.e. `dx + dz == 0`, not `dx - dz == 0`. Worth
+  // stating as the test, because my first probe asserted the wrong one of those
+  // two and cheerfully reported the perpendicular band as parallel.
+  m.rotation.z = yaw;
   m.position.set(cx, y + 0.004, cz);
   m.userData.mod = 'tex-ground';
   scene.add(m);
@@ -953,7 +964,11 @@ export function buildGround(o: GroundOpts): Ground {
     // radius, putting the face at -87.01 — the mullion line, so the flags do
     // run right up to the wall. A 0.42 m band with its inner edge on the wall
     // wants its centre at x+z = -87.31, which is 0.40 m out along the normal.
-    const off = 0.40 / Math.SQRT2;
+    // PER-COORDINATE, not a distance along the normal. Shifting each of x and z
+    // by `off` moves the line x+z by 2*off, so 0.20 here is the 0.40 of x+z the
+    // band needs — and 0.40/SQRT2 put it at -87.48, a 0.17 m gap between the
+    // course and the wall it edges.
+    const off = 0.20;
     soldierCourse(scene, midX - off, midZ - off, Math.PI / 4, 2.60, 0.42, KERB_H,
                   (t) => wet(flat(t)));
     void C;
