@@ -207,6 +207,17 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the stuck seat reproduces deterministically — while seated the prompt reads SIT, not STAND, and that spot is dead"** → **F** (repro by B; C could not get one)
+
+  <!-- B: build 1ddaf50ec, bed in 301. Sit, then E three more times:
+       seated stays true, position unmoved, CLOCK UNMOVED — so nothing
+       else fired either; it is a dead selection, not a mis-selection.
+       The prompt on screen while seated is "[E] sit on the bed and
+       watch TV", guarded by !rig.seated, so E resolves to a spot that
+       refuses to act. Census re-counted: 149 of 225 matches C exactly,
+       but the EXACTLY-0.00 m tier is 69, not "12+" — all casino slot
+       stools. notes/B-seat-exit-REPRO-for-F-and-C.md -->
+
 - **"pressing e doesnt get me out of it — the player is STUCK in the TV-watching state"** → **C**
 - **"props.ts addLamp has no removal, so a light that should go out has to be deleted instead"** → **B** (mine; raised by C hitting it on the TV)
 
