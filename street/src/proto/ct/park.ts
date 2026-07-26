@@ -1457,23 +1457,151 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // A bench under a tree at the end of the axis does the same job the shelter
   // was there for — it terminates the view from the gate and gives the deep
   // half of the loop a destination — with nothing to get wrong.
+  // ── THE SHELTER, RESTORED ────────────────────────────────────────────────
+  //
+  // I deleted this on a ruling of "third attempt or delete", and the desk has
+  // withdrawn that ruling: the user liked the shelter and was complaining about
+  // its EXECUTION, not the thing itself. So every past complaint is a DEFECT
+  // LIST, not a verdict, and the list is: no z-fighting on the roof, posts
+  // meeting the roof and the deck squarely, nothing intersecting the bin or the
+  // noticeboard, and a floor you can actually stand under.
+  //
+  // Restored from the deleted block rather than rebuilt from memory — the
+  // geometry it had was measured correct (four identical posts, tops equal to
+  // 0.01 m, one BufferGeometry roof whose eaves hang 0.50 m below the plate)
+  // and rebuilding would have risked losing that while trying to keep it.
+  //
+  // THE FLOOR IS THE APRON. It was already here, laid when the shelter was
+  // gone, and it is exactly what the defect list asks for: the same buff
+  // hoggin as the loop, abutting the west leg's own edge so the two surfaces
+  // meet without fighting for a height (GOTCHAS 6). A shelter standing on the
+  // site's grey slab is a shelter with no floor under it.
   const bx0 = shX + 0.5;
-  // AN APRON, NOT A FEATURE. The bench and tree that replaced the shelter stood
-  // on the site's grey slab, so the end of a 26 m axis read as furniture left
-  // on leftover ground — I graded it FAIR on my own shoot and it was the one
-  // bad grade I own.
+  lay(shX - 2.6, lx0 - PATH_W / 2, shZ - 2.6, shZ + 2.6, 'path');
+  const SH_H = 1.55;                           // half the square plan, post centres
+  // 0.22, not 0.18. The user's word was "spindly", and 0.18 m of section
+  // carrying 2.4 m is 13:1 — right at the edge where a post stops reading as
+  // something holding a roof up and starts reading as a stick.
+  const SH_POST = 0.22;
+  const SH_TOP = 2.40;                         // post top, and the eaves
+  const SH_OVER = 0.42;                        // even, all four sides
+  const SH_RISE = 0.95;                        // apex above the eaves
+  // 0.24, not 0.14. The other half of "a thin skewed slab": a roof seen from
+  // outside is mostly its EDGE, and a 0.14 m fascia at 4 m reads as a knife
+  // edge — which is what a parasol has and a roof does not.
+  const SH_SKIRT = 0.24;                       // the eaves' own depth
+  const E = SH_H + SH_OVER;
+  // Posts, pads and roof are ONE shelter. Now that the eaves correctly wrap
+  // down over the post tops, that seating shows up as four prop-on-prop
+  // overlaps in `E-overlap` — the fix reading as the fault it fixed.
+  const shelterG = new THREE.Group();
+  for (const dx of [-SH_H, SH_H]) for (const dz of [-SH_H, SH_H]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(SH_POST, SH_TOP, SH_POST), postM);
+    post.position.set(shX + dx, KERB_H + SH_TOP / 2, shZ + dz);
+    shelterG.add(post);
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(SH_POST + 0.16, 0.10, SH_POST + 0.16), plateM);
+    pad.position.set(shX + dx, KERB_H + 0.05, shZ + dz);
+    shelterG.add(pad);
+    solid({ minX: shX + dx - SH_POST / 2, maxX: shX + dx + SH_POST / 2,
+      minZ: shZ + dz - SH_POST / 2, maxZ: shZ + dz + SH_POST / 2 });
+  }
+  {
+    // THE ROOF HAS TO TOUCH THE POST TOPS, and the first two attempts did not.
+    //
+    // Putting the eaves at the post-top height LOOKS right in the source and
+    // is wrong in the world: the eaves are at the OVERHANG radius E, the posts
+    // stand inboard at SH_H, and the slope has already climbed by the time it
+    // gets there. Measured, that left the underside 0.20 m clear of all four
+    // posts — the roof floating over them, which is exactly the "thin skewed
+    // slab that does not sit on its posts" the user has now said twice.
+    //
+    // A hipped roof's rafters cross the wall plate and keep going DOWN past
+    // it, so the eaves hang below the post top rather than level with it. So
+    // fix the slope from the apex through the post top and let the overhang
+    // fall where it falls: at r = SH_H the surface is exactly SH_TOP.
+    const ya = SH_TOP + SH_RISE;
+    const y1 = SH_TOP - (SH_RISE / SH_H) * SH_OVER;
+    const y0 = y1 - SH_SKIRT;
+    const c = [[-E, -E], [E, -E], [E, E], [-E, E]];      // the four eaves corners
+    const pos: number[] = [], uv: number[] = [];
+    const push = (x: number, y: number, z: number, u: number, v: number) => {
+      pos.push(x, y, z); uv.push(u, v);
+    };
+    for (let i = 0; i < 4; i++) {
+      const [ax, az] = c[i], [bx, bz] = c[(i + 1) % 4];
+      // the eaves skirt, so the roof has an edge you can see rather than a
+      // paper rim
+      push(ax, y0, az, 0, 0); push(bx, y0, bz, 1, 0); push(bx, y1, bz, 1, 1);
+      push(ax, y0, az, 0, 0); push(bx, y1, bz, 1, 1); push(ax, y1, az, 0, 1);
+      // and the slope up to the shared apex
+      push(ax, y1, az, 0, 0); push(bx, y1, bz, 1, 0); push(0, ya, 0, 0.5, 1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+    geo.computeVertexNormals();
+    // FOUR FACES THE SAME COLOUR IS NOT A PYRAMID, IT IS AN UMBRELLA.
+    //
+    // Seating the roof on the posts fixed the geometry and it still read as a
+    // parasol, because a hipped roof's whole form is that its faces catch the
+    // light differently — and under `MeshBasicMaterial` nothing does that for
+    // you. Flat tone across all four slopes gives a silhouette with no
+    // interior, which the eye files as fabric.
+    //
+    // The buffer is non-indexed, so `computeVertexNormals` has already left
+    // each triangle's three vertices carrying that triangle's own normal:
+    // shading per vertex here IS shading per face. Same sun and the same
+    // clamped-lambert shape the field uses, so the two agree.
+    const nrm = geo.attributes.normal;
+    const shade = new Float32Array(pos.length);
+    for (let i = 0; i < nrm.count; i++) {
+      const d = nrm.getX(i) * SUN.x + nrm.getY(i) * SUN.y + nrm.getZ(i) * SUN.z;
+      const k = Math.max(0.70, Math.min(1.22, 0.90 + 0.60 * d));
+      shade[i * 3] = k; shade[i * 3 + 1] = k; shade[i * 3 + 2] = k * 0.99;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+    const shadedRoofM = roofM.clone();          // not the shared slope material
+    shadedRoofM.vertexColors = true;
+    const roof = new THREE.Mesh(geo, shadedRoofM);
+    roof.position.set(shX, KERB_H, shZ);
+    shelterG.add(roof);
+    scene.add(shelterG);
+  }
+  // one bench, centred under it, facing out of the park's approach
+  // …and it faces INTO THE PARK, like every other bench. It ran along x and
+  // faced down the wall, which the per-instance facing check caught at dot 0.00
+  // — square to the park rather than away from it, which is why looking at it
+  // had not shown it up. The shelter stands at the park's west end, so the
+  // interior is +x: the bench runs in z and faces east.
+  const SB_L = SH_H * 2 - 0.55;
+  for (let i = 0; i < 3; i++) {
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, SB_L), i % 2 ? woodM2 : woodM);
+    sl.position.set(shX - 0.17 + i * 0.17, KERB_H + 0.45, shZ);
+    scene.add(sl);
+  }
+  for (const dz of [-1, 1]) {
+    const end = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.45, 0.12), ironM);
+    end.position.set(shX, KERB_H + 0.225, shZ + dz * (SB_L / 2 - 0.06));
+    scene.add(end);
+  }
+  solid({ minX: shX - 0.32, maxX: shX + 0.32,
+    minZ: shZ - SB_L / 2 - 0.1, maxZ: shZ + SB_L / 2 + 0.1 });
+  // …AND YOU CAN SIT ON IT. Eleven benches on the loop take [E] and the one
+  // destination the loop exists for did not — you walk 26 m to the thing that
+  // terminates the axis and it turns out to be scenery. It was the only bench
+  // in the park built by hand rather than through `bench()`, which is exactly
+  // how it missed the registration every other one gets for free.
   //
-  // The desk's ruling is to add nothing further until the ground is right, in
-  // the order path material, edging, weeds — all three done. This is GROUND, in
-  // the same category as the first of those, not another object on top of it:
-  // the same buff hoggin as the loop, widening off the west leg to make the
-  // bench a place rather than a spot.
-  //
-  // ABUTTING, never overlapping (GOTCHAS 6): its east edge is exactly the west
-  // leg's own edge, `lx0 - PATH_W / 2`, so the two surfaces meet and neither
-  // fights the other for the same height. `E-coplanar` is the check for that.
-  lay(bx0 - 1.9, lx0 - PATH_W / 2, shZ - 2.3, shZ + 2.3, 'path');
-  bench(...facingIn(bx0, shZ));
+  // Facing +z, out of the open side toward the park, and the approach point is
+  // 0.95 m in front of the slats — INSIDE the shelter but clear of the bench's
+  // own collider, which ends at shZ - 0.4. A collider eats the [E] trigger it
+  // sits on (§8), so the corridor you press it from has to be outside the box.
+  ctx.seat({
+    // PI - mesh yaw: the sitter's convention, not the mesh's. See bench().
+    x: shX, z: shZ, yaw: Math.PI - Math.atan2(loopCx - shX, loopCz - shZ), h: 0.45,
+    approach: { x: shX + 1.05, z: shZ },
+    label: 'sit in the shelter',
+  });
   // ── the trees ────────────────────────────────────────────────────────────
   //
   // *"bare lawn, three blank brick walls"* — and this is what fixes the walls.
@@ -1570,7 +1698,7 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
     // gone and a TREE is half of what replaced it, so the exclusion shrinks to
     // the bench itself — the deep end of the axis now terminates in a tree
     // standing over a bench, which is what the shelter was there to do.
-    if (Math.abs(tx - bx0) < 1.3 && Math.abs(z - shZ) < 1.6) continue;
+    if (Math.abs(tx - shX) < 2.6 && Math.abs(z - shZ) < 2.6) continue;   // the shelter
     tree(tx, z, 0x400 + Math.round(z * 3));                              // the back wall
   }
   // AND A TREE OVER THE BENCH. The desk's replacement for the shelter was "a
@@ -1583,7 +1711,10 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   // its trunk is not in your back and its canopy still reaches over you. This
   // is the one thing standing at the deep end now, so it is deliberate rather
   // than drawn from the boundary run's spacing.
-  tree(bx0 - 1.5, shZ - 0.7, 0xE55);
+  // NOT inside the shelter. This tree was planted when the shelter was gone
+  // and would now stand in it; moved clear of the 2 m post ring, where it still
+  // shades the deep end without touching anything.
+  tree(shX - 3.9, shZ - 2.9, 0xE55);
   // INBOARD of the loop's end legs, not against the flank walls: the first
   // cut planted them at site.maxZ - 2.0, which is inside the north end leg's
   // 1.5 m width, and the loop stopped being walkable. 1.7 m inside the path
@@ -1836,7 +1967,7 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.0;
   };
   around(memX, memZ, 1.15, 7);                                   // the memorial plinth
   around(fx, fz, 0.75, 5);                                       // the fountain
-  for (const dz of [-1.0, 1.0]) around(bx0, shZ + dz, 0.2, 2);   // the bench that replaced the shelter
+  for (const dx of [-1.55, 1.55]) for (const dz of [-1.55, 1.55]) around(shX + dx, shZ + dz, 0.2, 2);   // the shelter posts
   for (const [bx, bz] of benchRun) around(bx, bz, 0.95, 3);      // every bench's feet
 
   // ── signs of use ─────────────────────────────────────────────────────────
