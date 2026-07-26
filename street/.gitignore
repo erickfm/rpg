@@ -1,3 +1,6 @@
 shots/
 .canfail-state.json
 .canfail-backup-*
+
+# canfail freshness stamp — a run artefact, and ten writers would conflict on it
+.canfail-last.json

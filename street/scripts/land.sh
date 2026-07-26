@@ -63,4 +63,31 @@ echo
 if [ "$DRY" != "--dry" ]; then
   ( cd "$MAIN/street" && npm run build 2>&1 | grep -E '✓ built|error' )
 fi
+
+# ARE THE GUARDS AWAKE? The merge train typechecks and nothing more, so a check
+# that has stopped detecting the thing it guards lands green and stays green.
+# Five were reported asleep at once and NOBODY WOULD HAVE LEARNED IT FROM A
+# BOARD — checks.mjs does not run canfail and this script did not read it.
+#
+# canfail is far too slow to gate a land (a build and a browser per case), so
+# this REPORTS rather than blocks: how stale the last full run is, what it
+# said, and loudly if it has never run here. A number you can see is the
+# difference between a guard that sleeps for an hour and one that sleeps for a
+# week.
+echo
+if [ -f "$MAIN/street/.canfail-last.json" ]; then
+  node -e '
+    const j = require("'"$MAIN"'/street/.canfail-last.json");
+    const age = (Date.now() - Date.parse(j.when)) / 36e5;
+    const stale = age > 24;
+    console.log(`GUARDS: ${j.caught}/${j.total} caught their mutation` +
+      `  (${age < 1 ? Math.round(age * 60) + " min" : age.toFixed(0) + " h"} ago, build ${j.build})`);
+    if (j.asleep?.length)     console.log(`  ASLEEP: ${j.asleep.join(", ")} — these guard nothing right now`);
+    if (j.unprovable?.length) console.log(`  UNSCORED: ${j.unprovable.join(", ")}`);
+    if (stale)                console.log(`  STALE — older than a day. cd street && node scripts/canfail.mjs`);
+  ' 2>/dev/null || echo "GUARDS: .canfail-last.json unreadable"
+else
+  echo "GUARDS: canfail has NEVER run here — no idea whether any guard still detects."
+  echo "        cd street && SHOT_URL=<your port> node scripts/canfail.mjs"
+fi
 echo

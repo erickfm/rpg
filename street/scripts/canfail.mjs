@@ -671,9 +671,68 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   process.on(sig, () => { restore(); process.exit(130); });
 }
 
+
+// ── IS "SLEPT" EVEN PROVABLE? ────────────────────────────────────────────────
+//
+// A SLEPT verdict says "the mutation was applied and the check passed anyway".
+// This file never verified the first half. It mutates source, runs `npm run
+// build`, and then measures whatever SHOT_URL happens to serve — and if that
+// server is not serving THIS build, the world under test never had the
+// mutation and every case reports SLEPT. The header above already records one
+// author losing a round to that (0/3 SLEPT against 4177, 3/3 against their own
+// port), and it happened again: five guards were reported as having stopped
+// guarding, and all five plus crowd-lane CAUGHT when re-run aimed correctly.
+//
+// A false RED is the expensive direction. It sends someone to rewrite a check
+// that works, and the rewrite is how a guard that DID work stops working.
+//
+// So the two halves of the honest question are mechanised rather than left to
+// the reader, because they want opposite fixes:
+//
+//   served bundle != our bundle   the world measured is not the world we built.
+//                                 NOTHING WAS MEASURED. Never a SLEPT.
+//   our bundle unchanged by the   the mutation compiled to identical bytes, so
+//   mutation                      it cannot produce a defect. The CASE is
+//                                 wrong and wants retargeting, not the check.
+//
+// Vite content-hashes the entry bundle, so "did the build change" is a string
+// compare and costs nothing. A DEV server serves source rather than a hashed
+// asset; there the mutation reaches the world through HMR by construction, and
+// this says so rather than pretending to have proved it.
+const entryOf = (html) => (html.match(/src="([^"]+\.(?:js|ts|tsx))"/) ?? [])[1] ?? null;
+const localEntry = () => {
+  try { return entryOf(readFileSync('dist/index.html', 'utf8')); } catch { return null; }
+};
+const servedEntry = async () => {
+  try {
+    const r = await fetch(URL, { cache: 'no-store' });
+    return entryOf(await r.text());
+  } catch { return null; }
+};
+const HASHED = (e) => !!e && /\/assets\/.*-[\w-]{6,}\.js$/.test(e);
+
 const only = process.argv.slice(2);
 const run = CASES.filter((c) => !only.length || only.includes(c[0]));
 const results = [];
+
+// the bundle with NOTHING mutated, to tell an inert mutation from a real one
+sh('npm run build');
+const PRISTINE = localEntry();
+const SERVED0 = await servedEntry();
+const DEV = SERVED0 !== null && !HASHED(SERVED0);
+if (SERVED0 === null) {
+  console.error(`\n  NOTHING IS SERVING ${URL} — nothing can be measured.`);
+  process.exit(3);                                            // GOTCHAS 32
+}
+if (DEV) console.log(`  ${URL} is a DEV server (${SERVED0}) — source reaches it via HMR.`);
+else if (SERVED0 !== PRISTINE) {
+  console.error(`\n  MEASURING THE WRONG WORLD — nothing was measured, and no case is scored.`);
+  console.error(`    ${URL} serves ${SERVED0}`);
+  console.error(`    this tree built  ${PRISTINE}`);
+  console.error(`  Every case would report SLEPT, and every one would be a false red.`);
+  console.error(`  Fix: point SHOT_URL at a server for THIS tree.\n`);
+  process.exit(3);
+}
 
 for (const [name, file, needle, repl, script, args, expect] of run) {
   const src = readFileSync(file, 'utf8');
@@ -691,6 +750,20 @@ for (const [name, file, needle, repl, script, args, expect] of run) {
     try { out = sh(`SHOT_URL=${URL} node scripts/${script} ${args.join(' ')}`); }
     catch (e) { red = true; out = String(e.stdout || '') + String(e.stderr || ''); }
     if (!red && /^FAIL/m.test(out)) red = true;
+    // Only a mutation that CHANGED THE WORLD can be slept through. Without
+    // this, "the server is not ours" and "the mutation does nothing" both wore
+    // the SLEPT badge, and neither is a fault in the check.
+    if (!red && !DEV) {
+      const mine = localEntry(), theirs = await servedEntry();
+      if (mine === PRISTINE) {
+        results.push([name, 'INERT', `${expect} — mutation compiles to identical bytes; retarget the CASE`]);
+        continue;
+      }
+      if (theirs !== mine) {
+        results.push([name, 'NOT-RUN', `${expect} — ${URL} served ${theirs}, we built ${mine}`]);
+        continue;
+      }
+    }
     results.push([name, red ? 'CAUGHT' : 'SLEPT', expect]);
   } finally { restore(); }
 }
@@ -699,10 +772,15 @@ sh('npm run build');   // leave the tree serving the real world again
 
 console.log(`\ncan my checks fail?   (mutation must go red)\n`);
 for (const [name, verdict, note] of results) {
-  const mark = verdict === 'CAUGHT' ? 'OK  ' : 'FAIL';
+  const mark = verdict === 'CAUGHT' ? 'OK  ' : verdict === 'SLEPT' ? 'FAIL' : '????';
   console.log(`  ${mark} ${name.padEnd(11)} ${verdict.padEnd(7)} ${note}`);
 }
 const bad = results.filter((r) => r[1] !== 'CAUGHT');
+const unprovable = results.filter((r) => r[1] === 'INERT' || r[1] === 'NOT-RUN');
+if (unprovable.length) {
+  console.log(`\n${unprovable.length} case(s) could not be scored — NOT sleeping guards:`);
+  for (const [n, v, why] of unprovable) console.log(`  ${v.padEnd(8)} ${n} — ${why}`);
+}
 console.log(`\n${results.length - bad.length}/${results.length} checks caught their mutation`);
 // Not "is the tree clean" — it may legitimately be dirty and that is the point
 // now. The question is whether the file came back byte-for-byte as it was.
@@ -713,4 +791,23 @@ if (stillWrong.length) {
   process.exit(3);
 }
 console.log('every mutated file restored byte-for-byte');
+
+// A STAMP, so a sleeping guard is discoverable without running this again.
+// The whole reason five guards could be reported as asleep is that nothing on
+// the routine path knows when this last ran or what it said: checks.mjs does
+// not run canfail and land.sh does not gate on it, so every dashboard stays
+// green while a guard guards nothing. `land.sh` reads this file and says so.
+// Only written for a FULL run — a three-case run says nothing about the suite.
+if (!only.length) {
+  writeFileSync('.canfail-last.json', JSON.stringify({
+    when: new Date().toISOString(),
+    build: (() => { try { return execSync('git rev-parse --short=9 HEAD').toString().trim(); }
+                    catch { return null; } })(),
+    url: URL,
+    caught: results.length - bad.length,
+    total: results.length,
+    asleep: results.filter((r) => r[1] === 'SLEPT').map((r) => r[0]),
+    unprovable: unprovable.map((r) => `${r[0]}:${r[1]}`),
+  }, null, 2) + '\n');
+}
 process.exit(bad.length ? 1 : 0);
