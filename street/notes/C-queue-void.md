@@ -47,3 +47,27 @@ test that makes every `[E]` above the ground floor unselectable. It is the most
 user-facing thing I know of that is currently broken — you cannot open your own
 apartment door in the live world — and the patch is written and tested. It
 needs D, or a mandate.
+
+## Cross-checked against the inbox, not just against `live.sh`
+
+`live.sh` reads `LEDGER.md`. If a request were routed to C in
+`FEATURE-REQUESTS.md` and never given a ledger row, it would be invisible to
+`live.sh` and I would sit idle holding real work — which is exactly what
+happened to this queue before, for about twenty rounds. So "empty" is checked
+from the other end too:
+
+```
+  every request in the Inbox routed to C, matched by screenshot name
+    23-08-52  door needs to open the other way   1 row   LANDED
+    22-02-53  remove the horiz stripes           1 row   CONFIRMED
+    21-53-27  window frame graphics glitchiness  1 row   CONFIRMED
+    21-45-18  3rd floor neighbour floating       1 row   CONFIRMED
+```
+
+Four for four, nothing orphaned. **Match on the screenshot filename, not on
+the request wording** — `LEDGER.md` truncates the request cell at ~72
+characters, so grepping for "stripes on the walls" returns 0 rows for a row
+that is right there reading "can we remove the horiz stri". I did that a
+moment ago and briefly thought I had found an orphaned request. The timestamp
+in the filename is the only part of a request that survives into both files
+intact.
