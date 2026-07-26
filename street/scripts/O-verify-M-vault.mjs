@@ -1,17 +1,16 @@
-// VERIFYING M's bank interior — I did not build it, so I may.
+// IS M's VAULT A ROOM YOU CAN WALK INTO? — the claim only walking settles.
 //
-// M measured the LOAN thoroughly and measured it well: the cash is read off
-// A's ATM on the pavement rather than off M's own prompt, which is somebody
-// else's code reading the same number. Repeating that would teach nobody
-// anything.
+// My first version of this walked at the room's back CORNERS, found an
+// enclosure at (+x, −z), and nearly filed it as the vault. It is the working
+// side of the teller line: three sides blocked with one way out describes both,
+// so a corner walk cannot tell them apart. `notes/O-verify-M-bank.md` has that
+// near-miss in full.
 //
-// So this tests the one claim in M's row that ONLY WALKING CAN SETTLE, and
-// which this project insists is never taken from a screenshot:
-//
-//   *"A VAULT YOU CAN WALK INTO … a sill you step over"*
-//
-// A strongroom you can see into and not enter is a very different object from
-// one you can stand inside, and the difference is invisible in a still.
+// This one aims at the DOOR instead, and finds the door by asking the floor
+// rather than by knowing where it is: sweep the back wall and find the x where
+// you can walk FURTHEST past the wall line. A doorway is exactly the place the
+// wall lets you through, so the deepest penetration IS the opening — and it
+// follows M if the vault ever moves.
 //
 //   SHOT_URL=http://localhost:PORT/ node scripts/O-verify-M-vault.mjs
 import { chromium } from 'playwright';
@@ -32,94 +31,84 @@ await afterFrames(p, 6);
 let bad = 0, n = 0;
 const ok = (c, m) => { n++; console.log(`${c ? 'OK  ' : 'NO  '} ${m}`); if (!c) bad++; };
 
-// ── population first (GOTCHAS 34): is there a bank room at all? ───────────
 const R = await p.evaluate(() => (window.__ct.roomDims() ?? []).find((r) => r.id === 'bank') ?? null);
-if (!R) { console.error('ABORT: no room with id "bank" — nothing below measures M\'s work'); await b.close(); process.exit(3); }
-console.log(`the bank: ${R.w} x ${R.d} centred (${R.cx}, ${R.cz})`);
+if (!R) { console.error('ABORT: no room with id "bank"'); await b.close(); process.exit(3); }
 const hw = R.w / 2, hd = R.d / 2;
+console.log(`the bank: ${R.w} x ${R.d} centred (${R.cx}, ${R.cz})`);
 
-/** hold a key until progress stops, rather than for a fixed time — a fixed
- *  hold is a bet on how busy the machine is (GOTCHAS 30), and it fails in the
- *  direction that reports a walkable room as a wall. */
-const walk = async (key, maxSteps = 90) => {
-  const start = await p.evaluate(() => window.__ct.pos());
+const walk = async (key, maxSteps = 70) => {
+  const s = await p.evaluate(() => window.__ct.pos());
   await p.keyboard.down(key);
   let last = null, still = 0;
-  for (let i = 0; i < maxSteps && still < 6; i++) {
+  for (let i = 0; i < maxSteps && still < 5; i++) {
     await afterFrames(p, 3);
     const q = await p.evaluate(() => window.__ct.pos());
     if (last && Math.hypot(q[0] - last[0], q[2] - last[2]) < 0.01) still++; else still = 0;
     last = q;
   }
   await p.keyboard.up(key);
-  const end = await p.evaluate(() => window.__ct.pos());
-  return { start, end, moved: Math.hypot(end[0] - start[0], end[2] - start[2]) };
+  const e = await p.evaluate(() => window.__ct.pos());
+  return { start: s, end: e, moved: Math.hypot(e[0] - s[0], e[2] - s[2]) };
 };
 
-// ── find the vault by ASKING the world where it is ────────────────────────
-//
-// M says back-LEFT corner. "Left" is the term GOTCHAS 33 warns about, so it is
-// not the thing to aim from: instead sweep the room's floor for the corner
-// with the most solid around it and walk at each candidate. Two candidates,
-// both walked, and the finding says which.
-const CORNERS = [
-  ['back-left  (−x, −z)', -hw + 1.6, -hd + 1.6],
-  ['back-right (+x, −z)', hw - 1.6, -hd + 1.6],
-];
-const results = [];
-for (const [name, lx, lz] of CORNERS) {
-  // stand in the MIDDLE of the room and walk at the corner, so the walk is a
-  // real approach and not a spawn already inside it
-  await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [R.cx, R.cz]);
+/** stand somewhere and PROVE you are there before doing anything (GOTCHAS 20:
+ *  a check must verify it is where it thinks it is before it presses a key) */
+const standAt = async (x, z, yaw) => {
+  await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0, 0), [x, z, yaw]);
   await afterFrames(p, 5);
-  const here = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
-  if (Math.hypot(here[0] - R.cx, here[2] - R.cz) > 0.6) {
-    console.log(`  SKIPPED ${name}: could not stand in the middle of the room`); continue;
-  }
-  // aim at the corner and walk
-  const yaw = Math.atan2((R.cx + lx) - here[0], -((R.cz + lz) - here[2]));
-  await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0, 0), [here[0], here[2], yaw]);
-  await afterFrames(p, 4);
-  const w = await walk('w');
-  const dToCorner = Math.hypot(w.end[0] - (R.cx + lx), w.end[2] - (R.cz + lz));
-  results.push({ name, moved: +w.moved.toFixed(2), dToCorner: +dToCorner.toFixed(2),
-                 end: w.end.map((v) => +v.toFixed(2)) });
-  console.log(`  ${name}: walked ${w.moved.toFixed(2)} m, stopped ${dToCorner.toFixed(2)} m from the corner`);
-  await p.screenshot({ path: `shots/O-verify-M-${name.split(' ')[0]}.png` });
+  const q = await p.evaluate(() => window.__ct.pos());
+  return Math.hypot(q[0] - x, q[2] - z) < 0.6;
+};
+
+// ── sweep the back wall for the deepest penetration ───────────────────────
+//
+// Walk toward the back (−z) from 3.6 m in front of the wall, at 0.5 m intervals
+// across the room. Where there is wall you stop at it; where there is a doorway
+// you carry on past it. Yaw 0 looks down −z — the camera's forward is
+// (sin t, −cos t), which is the convention GOTCHAS 33 says to state out loud.
+console.log('\n── sweeping the back wall for an opening ──');
+const sweep = [];
+for (let lx = -hw + 0.8; lx <= hw - 0.8; lx += 0.5) {
+  const x = R.cx + lx, z0 = R.cz - hd + 3.6;
+  if (!(await standAt(x, z0, 0))) continue;
+  const w = await walk('w', 40);
+  sweep.push({ lx: +lx.toFixed(1), past: +(z0 - w.end[2]).toFixed(2), endZ: +w.end[2].toFixed(2) });
 }
+if (!sweep.length) { console.error('ABORT: could not stand anywhere along the back wall'); await b.close(); process.exit(3); }
+const deepest = sweep.reduce((a, s) => (s.past > a.past ? s : a), sweep[0]);
+const median = [...sweep].sort((a, z) => a.past - z.past)[Math.floor(sweep.length / 2)].past;
+console.log(sweep.map((s) => `${s.lx}:${s.past}`).join('  '));
+console.log(`deepest at lx ${deepest.lx} (${deepest.past} m) against a median of ${median} m`);
 
-const best = results.sort((a, z) => a.dToCorner - z.dToCorner)[0];
-ok(!!best && best.dToCorner < 2.6,
-  `one of the back corners is REACHABLE ON FOOT from the middle of the room — ` +
-  `${best?.name} stopped ${best?.dToCorner} m from it after ${best?.moved} m of walking`);
+const hasOpening = deepest.past - median > 0.8;
+ok(hasOpening,
+  `there IS an opening in the back wall — ${deepest.past} m past the wall line at lx ` +
+  `${deepest.lx}, against ${median} m at the median bay. A flat wall has no such column`);
 
-// ── is it a ROOM INSIDE A ROOM, or just a corner? ─────────────────────────
-//
-// The claim that makes this different from every other interior is *"Every
-// other interior here is one space; this one has a room inside it."* A corner
-// dressed as a vault has no enclosure; a strongroom does. So from where the
-// walk stopped, try to walk out in the two directions that lead back into the
-// banking hall and see whether something stands between.
-if (best) {
-  await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [best.end[0], best.end[2]]);
-  await afterFrames(p, 5);
-  const walls = [];
-  for (const [label, yaw] of [['toward +x', Math.PI / 2], ['toward -x', -Math.PI / 2],
-                              ['toward +z', Math.PI], ['toward -z', 0]]) {
-    await p.evaluate(([x, z, y]) => window.__ct.warp(x, z, y, 0, 0), [best.end[0], best.end[2], yaw]);
-    await afterFrames(p, 4);
-    const w = await walk('w', 40);
-    walls.push({ label, moved: +w.moved.toFixed(2) });
-    await p.evaluate(([x, z]) => window.__ct.warp(x, z, 0, 0, 0), [best.end[0], best.end[2]]);
-    await afterFrames(p, 4);
+// ── stand in it and test the enclosure, from the DOORWAY not a corner ─────
+if (hasOpening) {
+  const vx = R.cx + deepest.lx, vz = deepest.endZ + 0.4;
+  console.log(`\n── inside, at (${vx.toFixed(2)}, ${vz.toFixed(2)}) ──`);
+  const dirs = [];
+  for (const [label, yaw] of [['+x', Math.PI / 2], ['-x', -Math.PI / 2],
+                              ['-z deeper', 0], ['+z back out', Math.PI]]) {
+    if (!(await standAt(vx, vz, yaw))) { console.log(`  could not stand to face ${label}`); continue; }
+    const w = await walk('w', 30);
+    dirs.push({ label, moved: +w.moved.toFixed(2) });
   }
-  console.log(`  from inside, travel in each direction: ${JSON.stringify(walls)}`);
-  const blocked = walls.filter((w) => w.moved < 1.4).length;
-  ok(blocked >= 2,
-    `it is ENCLOSED — ${blocked} of 4 directions stop you inside 1.4 m, which is a ` +
-    `room inside a room rather than a dressed corner`);
-  ok(walls.some((w) => w.moved > 2.0),
-    'and it is not a sealed box — at least one direction leads back out');
+  console.log(`  travel by direction: ${JSON.stringify(dirs)}`);
+  const out = dirs.find((d) => d.label.startsWith('+z'));
+  const sides = dirs.filter((d) => !d.label.startsWith('+z'));
+  ok(sides.filter((d) => d.moved < 1.6).length >= 2,
+    `ENCLOSED on the sides — ${sides.filter((d) => d.moved < 1.6).length} of ${sides.length} stop you inside 1.6 m`);
+  ok(!!out && out.moved > 2.0,
+    `and the way in is the way out — ${out?.moved} m back into the hall`);
+
+  await standAt(vx, vz, Math.PI);
+  await p.screenshot({ path: 'shots/O-verify-M-vault-inside-out.png' });
+  await standAt(vx, vz, 0);
+  await p.screenshot({ path: 'shots/O-verify-M-vault-inside-in.png' });
+  console.log('  shots/O-verify-M-vault-inside-{in,out}.png');
 }
 
 console.log(`\n${n} checks, ${bad} disagreed`);

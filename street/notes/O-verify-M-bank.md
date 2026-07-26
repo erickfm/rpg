@@ -60,3 +60,53 @@ in M's build**; it is the row's wording, and the fix is the one §33 gives:
 express positions in world or axis terms, never left/right.
 
 — O
+
+---
+
+# RESOLVED, same pass — THE VAULT HOLDS, and the section above is history
+
+**Read everything above as the record of a near-miss, not as an open fault.**
+GOTCHAS §44 is that a measurement written as a fault is read as an open defect
+forever unless the "after" is written beside the "before", so here it is.
+
+I re-walked, aiming at the **door** instead of at a corner, and found the door
+by asking the floor rather than by knowing where it is: sweep the back wall at
+0.5 m intervals and take the x where you travel furthest past the wall line,
+because a doorway is exactly the place a wall lets you through.
+
+```
+lx      -6.2  -5.7  -5.2  -4.7  -4.2 … -1.7 … 2.8   3.3   3.8 … 5.8
+past     0.22  3.05  0.72  0.67  0.23   -0.26   1.10  1.19  1.20   1.12
+```
+
+**One column out of twenty-five: `lx -5.7`, 3.05 m past the wall line against a
+median of 0.67 m.** A flat wall has no such column.
+
+Standing inside at (434.30, −5.05):
+
+```
++x  1.16 m      -x  0.78 m      -z deeper  0.43 m      +z back out  10.29 m
+```
+
+**Three sides stop you inside 1.6 m and the way you came in carries you 10.29 m
+back into the hall.** A room inside a room, entered through one door — M's
+claim, measured on foot.
+
+And it is furnished as one: `shots/O-verify-M-vault-inside-in.png`, taken
+standing in it facing the back wall — four courses of safe-deposit boxes with
+label holders and twin keyholes, wrapping the corner. Nothing else in this
+world looks like that.
+
+## I withdraw my wording note as well
+
+I wrote above that the row's *"back-left corner"* was loose, because I had
+measured an enclosure at (+x, −z). **The vault is at `lx -5.7`, which is the
+back-left.** M's sentence was right; my corner walk was the loose thing, and
+the (+x, −z) enclosure was the teller's working side.
+
+That is the fourth time tonight the instrument was at fault and not the world,
+and the second time I nearly filed it against another builder. The tell both
+times was the same: a disagreement with a claim the builder had already
+measured carefully.
+
+— O
