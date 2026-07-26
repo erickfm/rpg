@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 import { BUILD, type CtxBuild, type Spot } from './ctx';
-import type { Hud, Purse } from './hud';
+import {
+  hudNote, makePanel, onPurseChange, registerHeldObject, setPocketInfo, UI,
+  type Panel, type Purse,
+} from './hud';
 
 // ── POCKETS ───────────────────────────────────────────────────────────────
 //
@@ -333,203 +336,160 @@ export function giveRandom(ctx: CtxBuild, table: string[] = PACKAGE_TABLE): { id
 
 // ── the screen ────────────────────────────────────────────────────────────
 //
-// Set by `makeHud()`. Held as a module local rather than threaded through every
-// call because a takeable is registered at BUILD time and posts its line at
-// PLAY time, and the caller registering it has no business holding the HUD.
-let HUD: Hud | null = null;
-export function bindHud(h: Hud): void { HUD = h; }
-function note(text: string): void { HUD?.note(text); }
-
+// A takeable is registered at BUILD time and posts its line at PLAY time, and
+// the module registering it has no business holding the HUD — so the line goes
+// through `hudNote`, which ct/hud.ts publishes for exactly this.
+const note = hudNote;
 // ── THE PANEL ─────────────────────────────────────────────────────────────
 //
 // Your pockets, held open in front of you. A view onto exactly the same
 // `Purse.inv` the wallet's left leaf lists — two views, one set of pockets.
 //
-// WHY IT IS CLOTH AND NOT A MENU. The wallet was a corner popup once and the
-// user replaced it with an object you hold: *"an open bifold gripped in both
-// thumbs, centred and sliding up into first-person view"*. This is that idiom
-// applied to cloth — six sewn pockets, the same thumbs on the near corners, the
-// same slide, cut by the bottom of the frame so it reads as YOURS. A grid of
-// squares floating in a corner would be a different game's furniture.
+// *"i also want an atm interface and an inventory interface. equally try hard."*
+// This is the second ask on it, and the word in it is INTERFACE: it was a grid
+// with a caption, and what it owes is items drawn as OBJECTS, a layout you read
+// at a glance, and one thing you can look at closely.
 //
-// WHY ITS OWN KEY AND NOT THE WALLET'S. The desk asked me to decide and say
-// which. They are two different questions — *how much money have I got* and
-// *what am I carrying* — and making one a second press of the other turns a
-// glance into a sequence. So: **right-click is the wallet, `i` is the pockets**,
-// one gesture each. They cannot fight for the screen because they are MUTUALLY
-// EXCLUSIVE: opening either closes the other. Both are drawn centred at the
-// bottom of the frame, so two open at once would simply be one on top of the
-// other, and "hold two objects up in front of your face at the same time" is
-// not a thing hands do anyway.
+// IT IS BUILT ON `makePanel` FROM ct/hud.ts, the same cabinet the ATM and the
+// slots machine stand in — so the freeze, the one-at-a-time rule, ESC and the
+// typeface are the shared ones and cannot drift from theirs. What is different
+// is the material: `chrome: 'cloth'`, because this is not a machine you walk up
+// to, it is canvas you are holding, and the wallet established that idiom when
+// the user replaced a corner popup with an object gripped in both thumbs.
 //
-// WHY THE MOUSE WHEEL SELECTS. Every key is spoken for: `main.ts` spends every
-// DIGIT switching prototypes, and the rig has WASD, E, C, shift, space, the
-// arrows, Z, X, `[` and `]`. The wheel is genuinely unused anywhere in `src/`,
-// it survives pointer lock, and picking from a row by scrolling is the idiom
-// this borrows from anyway.
+// WHY ITS OWN KEY AND NOT THE WALLET'S. Right-click is the wallet, `i` is the
+// pockets — one gesture each, because "how much money have I got" and "what am
+// I carrying" are two questions and making one a second press of the other
+// turns a glance into a sequence.
+//
+// WHY THE WHEEL SELECTS. `src/main.ts` spends every DIGIT switching prototypes
+// and the rig has WASD E C shift space arrows Z X [ ]. The wheel is unused
+// anywhere in src/, survives pointer lock, and picking along a row by scrolling
+// is the idiom this borrows from anyway.
 
-// The caption gets its OWN band under the grid rather than sharing the last
-// row's space. First cut put it at the foot of the cloth and the item name
-// printed straight across the bottom row of pockets — legible in a still, a
-// mess the moment a pocket under it had something in it.
-const PANEL_W = 200, PANEL_H = 168;
-const COLS = 3;                              // 3 × 2 = POCKETS
-const CELL_W = 52, CELL_H = 42, GAP = 6;
-const GRID_X = 16, GRID_Y = 14;
-const CLOTH_X = 12, CLOTH_Y = 8, CLOTH_W = 176, CLOTH_H = 130;
+const COLS = 3;                                  // 3 × 2 = POCKETS
+const CELL = 56, CELL_H = 48, GAP = 6;
+const GRID_X = 8, GRID_Y = 8;
+const GRID_W = COLS * CELL + 2 * GAP;            // 180
+const PANEL_W = 310, PANEL_H = 150;
+/** the pane on the right where one thing is held up to the light */
+const LOOK_X = GRID_X + GRID_W + 10, LOOK_W = PANEL_W - LOOK_X - 8;
 
-let panelWrap: HTMLDivElement | null = null;
-let panelCv: HTMLCanvasElement | null = null;
-let panelOpen = false;
+let panel: Panel | null = null;
 let sel = 0;
 /** the purse the panel is a view onto. Set by `register`. */
 let PURSE: Purse | null = null;
 
-function buildPanel(): void {
-  if (panelWrap) return;
-  const found = document.getElementById('ct-pockets') as HTMLDivElement | null;
-  if (found) {
-    panelWrap = found;
-    panelCv = found.firstChild as HTMLCanvasElement;
-  } else {
-    panelWrap = document.createElement('div');
-    panelWrap.id = 'ct-pockets';
-    // Same construction as the wallet in ct/hud.ts, deliberately: same z-index
-    // band, same transition, same translateY parking spot off the bottom. A
-    // sibling should move like its sibling.
-    panelWrap.style.cssText = 'position:fixed;left:50%;bottom:-10px;z-index:11;pointer-events:none;'
-      + 'transform:translateX(-50%) translateY(150%) rotate(-1.5deg);transition:transform .18s ease-out;';
-    panelCv = document.createElement('canvas');
-    panelCv.style.cssText = 'width:378px;height:317px;image-rendering:pixelated;display:block;';
-    panelWrap.appendChild(panelCv);
-    document.body.appendChild(panelWrap);
-  }
-  panelCv.width = PANEL_W; panelCv.height = PANEL_H;
+/** draw an item's 24 px icon at `k`× — crisp, because everything in the icons
+ *  is an integer `fillRect` and the scale is an integer too. */
+function icon(g: CanvasRenderingContext2D, id: string, x: number, y: number, k: number): void {
+  g.save();
+  g.translate(x, y);
+  g.scale(k, k);
+  (itemOf(id).icon ?? PARCEL)(g);
+  g.restore();
 }
 
-function paintPanel(): void {
-  if (!panelCv || !PURSE) return;
-  const g = panelCv.getContext('2d')!;
-  const p = PURSE;
-  g.clearRect(0, 0, PANEL_W, PANEL_H);
-
-  // the cloth. Canvas duck, worn, with a stitched border — not leather, so it
-  // cannot be mistaken for the wallet at a glance from the same position.
-  const cx0 = CLOTH_X, cy0 = CLOTH_Y, cw = CLOTH_W, ch = CLOTH_H;
-  box(g, '#2a2620', cx0 - 3, cy0 - 3, cw + 6, ch + 6);          // edge shadow
-  box(g, '#7a7360', cx0, cy0, cw, ch);                          // duck
-  box(g, '#8a8370', cx0, cy0, cw, 3);                           // top light
-  box(g, '#5f5947', cx0, cy0 + ch - 4, cw, 4);
-  g.strokeStyle = 'rgba(222,210,180,0.20)'; g.setLineDash([3, 3]);
-  g.strokeRect(cx0 + 4.5, cy0 + 4.5, cw - 9, ch - 9); g.setLineDash([]);
-
+function paintPanel(g: CanvasRenderingContext2D): void {
+  const p = PURSE!;
   const held = slots(p);
+
+  // ── the six pockets, read at a glance ──
   for (let i = 0; i < POCKETS; i++) {
-    const gx = GRID_X + (i % COLS) * (CELL_W + GAP);
+    const gx = GRID_X + (i % COLS) * (CELL + GAP);
     const gy = GRID_Y + Math.floor(i / COLS) * (CELL_H + GAP);
-    // the pocket: a patch sewn on, so it sits PROUD of the cloth rather than
-    // being a hole cut in it — a hole would read as a slot in a menu. It has to
-    // be a good two tones off the cloth or the six of them merge into one
-    // rectangle, which is what the first cut did.
-    box(g, '#3f3b2e', gx, gy, CELL_W, CELL_H);                  // the seam
-    box(g, '#4e4939', gx + 1, gy + 1, CELL_W - 2, CELL_H - 2);  // the patch
-    box(g, '#6d6754', gx + 1, gy + 1, CELL_W - 2, 2);           // the hem, catching the light
+    // a patch SEWN ON, sitting proud of the cloth rather than a hole cut in
+    // it — a hole reads as a slot in a menu. Two tones off the cloth, or the
+    // six of them merge into one rectangle, which is what the first cut did.
+    box(g, '#3f3b2e', gx, gy, CELL, CELL_H);
+    box(g, '#4e4939', gx + 1, gy + 1, CELL - 2, CELL_H - 2);
+    box(g, '#6d6754', gx + 1, gy + 1, CELL - 2, 2);            // the hem
     const id = held[i];
     if (id) {
-      const def = itemOf(id);
-      g.save();
-      g.translate(gx + (CELL_W - 24) / 2, gy + (CELL_H - 24) / 2 + 1);
-      (def.icon ?? PARCEL)(g);
-      g.restore();
+      icon(g, id, gx + (CELL - 36) / 2, gy + (CELL_H - 36) / 2, 1.5);
       const n = p.inv[id] ?? 0;
-      if (n > 1) {                                              // the count, bottom right
-        g.fillStyle = '#1e1b16'; g.font = 'bold 8px monospace'; g.textAlign = 'right';
-        g.fillText(`${n}`, gx + CELL_W - 3, gy + CELL_H - 3);
-        g.fillStyle = '#e8e2d0';
-        g.fillText(`${n}`, gx + CELL_W - 4, gy + CELL_H - 4);
+      if (n > 1) {
+        g.font = UI.font(8, true); g.textAlign = 'right'; g.textBaseline = 'alphabetic';
+        g.fillStyle = '#1e1b16'; g.fillText(`${n}`, gx + CELL - 4, gy + CELL_H - 5);
+        g.fillStyle = UI.ink; g.fillText(`${n}`, gx + CELL - 5, gy + CELL_H - 6);
       }
     }
     if (i === sel) {
-      // The selection. Two nested strokes, dark outside and pale inside — the
-      // SAME two-tone trick `hud.highlight` uses on the world, so "selected"
-      // means one thing whether it is a door out there or a pocket in here.
-      g.strokeStyle = 'rgba(0,0,0,0.55)'; g.lineWidth = 1;
-      g.strokeRect(gx - 1.5, gy - 1.5, CELL_W + 3, CELL_H + 3);
-      g.strokeStyle = 'rgba(255,255,255,0.85)';
-      g.strokeRect(gx - 0.5, gy - 0.5, CELL_W + 1, CELL_H + 1);
+      // the SAME two-tone stroke `hud.highlight` puts round a door out in the
+      // world, so "selected" means one thing whether it is out there or in here
+      g.lineWidth = 1;
+      g.strokeStyle = 'rgba(0,0,0,0.55)'; g.strokeRect(gx - 1.5, gy - 1.5, CELL + 3, CELL_H + 3);
+      g.strokeStyle = 'rgba(255,255,255,0.85)'; g.strokeRect(gx - 0.5, gy - 0.5, CELL + 1, CELL_H + 1);
     }
   }
 
-  // the caption — its OWN band, under the grid, on a darker strip so the text
-  // is never read against a pocket
-  const bandY = GRID_Y + 2 * CELL_H + GAP + 4;                  // 14 + 84 + 6 + 4 = 108
-  box(g, '#5f5947', cx0 + 6, bandY, cw - 12, 24);
-  box(g, '#4e4939', cx0 + 6, bandY, cw - 12, 1);
+  // how full you are. The six pockets are drawn, so the empties are already
+  // the information — this is only the number for the wallet to agree with.
+  g.fillStyle = UI.dim; g.font = UI.font(7); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  g.fillText(`${held.length} of ${POCKETS} pockets`, GRID_X + 1, GRID_Y + 2 * CELL_H + GAP + 12);
+
+  // ── the pane where you LOOK AT ONE THING ──
+  //
+  // The half that makes this an interface rather than a grid: the selected
+  // thing held up on its own, three times the size it is in the pocket, with
+  // what it is and what you can do with it under it.
+  const ly = GRID_Y;
+  // FULL HEIGHT, not the grid's. At the grid's height the wrapped blurb printed
+  // straight over "G put it down" — two lines of prose and a verb competing for
+  // the same eight pixels, which is the sort of thing that reads as broken
+  // rather than as tight.
+  const lh = PANEL_H - 2 * GRID_Y;
+  box(g, '#3f3b2e', LOOK_X - 1, ly - 1, LOOK_W + 2, lh + 2);
+  box(g, '#5a5443', LOOK_X, ly, LOOK_W, lh);                  // a lighter inner lining
+  box(g, '#665f4c', LOOK_X, ly, LOOK_W, 2);
+
   const id = held[sel];
-  g.textAlign = 'center';
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   if (id) {
     const def = itemOf(id);
-    g.fillStyle = '#f0ead6'; g.font = 'bold 8px monospace';
-    g.fillText(def.name.toUpperCase(), PANEL_W / 2, bandY + 10);
-    g.fillStyle = '#c2ba9f'; g.font = '7px monospace';
+    icon(g, id, LOOK_X + (LOOK_W - 72) / 2, ly + 8, 3);
+    g.fillStyle = UI.shout; g.font = UI.font(8, true);
+    g.fillText(def.name.toUpperCase(), LOOK_X + LOOK_W / 2, ly + 96);
+    // the blurb, wrapped by hand — two short lines beat one clipped one
+    g.fillStyle = UI.dim; g.font = UI.font(7);
+    const words = (def.blurb || '').split(' ');
+    let ln = '', row = 0;
+    for (const w of words) {
+      const t = ln ? `${ln} ${w}` : w;
+      if (g.measureText(t).width > LOOK_W - 8 && ln) {
+        g.fillText(ln, LOOK_X + LOOK_W / 2, ly + 108 + row * 9); ln = w; row++;
+        if (row > 2) break;
+      } else ln = t;
+    }
+    if (row <= 2) g.fillText(ln, LOOK_X + LOOK_W / 2, ly + 108 + row * 9);
     // SAY IT BEFORE THE KEY, not after. Only a thing that came off the ground
     // has an object to put back — a cereal box bought over a counter never had
-    // one — and the first cut let you select it, press G, and be told no. That
-    // is the same fault as an ungated "steal the package" prompt on full
-    // pockets, and it gets the same fix: the refusal is in the caption you are
-    // already reading. Found by K-pocket-panel, which could not write its own
-    // discriminating test until this was visible.
-    g.fillText(canDrop(id) ? def.blurb || 'G to drop it' : 'nothing to put it back as', PANEL_W / 2, bandY + 20);
+    // one — and the first cut let you select it, press G, and be told no.
+    g.fillStyle = canDrop(id) ? UI.ink : '#8d8672';
+    g.font = UI.font(7, canDrop(id));
+    // Short enough to FIT: "nothing to put it back as" is 25 characters and the
+    // pane is 104 px, so it printed clipped at both ends. A caption that runs
+    // off its own box reads as a rendering bug rather than as an explanation.
+    g.fillText(canDrop(id) ? 'G  put it down' : 'cannot be put back',
+      LOOK_X + LOOK_W / 2, ly + lh - 8);
   } else {
-    g.fillStyle = '#c2ba9f'; g.font = '8px monospace';
-    g.fillText(held.length ? 'empty pocket' : 'your pockets are empty', PANEL_W / 2, bandY + 10);
-    g.fillStyle = '#9a927e'; g.font = '7px monospace';
-    g.fillText('scroll to choose · G to drop', PANEL_W / 2, bandY + 20);
+    g.fillStyle = '#8d8672'; g.font = UI.font(8);
+    g.fillText(held.length ? 'empty' : 'nothing', LOOK_X + LOOK_W / 2, ly + 52);
+    g.fillStyle = '#7a7460'; g.font = UI.font(7);
+    g.fillText('pocket', LOOK_X + LOOK_W / 2, ly + 62);
   }
-  // NO "n/6" NUMBER HERE, and that is the point of the thing being physical:
-  // six pockets are DRAWN, two with something in them and four plainly empty.
-  // The wallet carries the figure because a list of what you have cannot show
-  // you what you have not. Printing it here as well put it on the same line as
-  // the blurb, and the fix is to delete it rather than find it another corner.
-
-  // Thumbs on the near corners — the wallet's own gesture, its own skin tones.
-  // Run OFF THE BOTTOM of the canvas rather than stopping short of it: a limb
-  // cut by the frame reads as your own, and one floating with air under it
-  // reads as a disembodied thumb. Same reasoning as the watch's forearm.
-  const thumb = (tx: number) => {
-    box(g, '#c9946a', tx, cy0 + ch - 22, 26, PANEL_H - (cy0 + ch - 22));
-    box(g, '#d8a67d', tx, cy0 + ch - 22, 26, 3);
-    g.fillStyle = 'rgba(255,255,255,0.1)'; g.fillRect(tx + 7, cy0 + ch - 14, 12, 14);
-  };
-  thumb(cx0 - 8); thumb(cx0 + cw - 18);
 }
 
-/** Repaint if it happens to be out. Called from `hud.refreshWallet()`, which is
- *  the one signal in the world that says "the purse changed" — one signal, both
- *  views, so the panel cannot drift from the wallet. */
-export function refreshPockets(): void { if (panelOpen) paintPanel(); }
+/** Repaint if it is out. Driven by `onPurseChange`, the one signal in the world
+ *  that says the purse moved — so the pockets cannot drift from the wallet. */
+export function refreshPockets(): void { panel?.repaint(); }
 
-/** Put the pockets away. `ct/hud.ts` calls this when the WALLET opens. */
-export function closePockets(): void {
-  if (!panelOpen || !panelWrap) return;
-  panelOpen = false;
-  panelWrap.style.transform = 'translateX(-50%) translateY(150%) rotate(-1.5deg)';
-}
+/** Put the pockets away. The HUD calls this when the wallet or a cabinet opens. */
+export function closePockets(): void { panel?.close(); }
 
-export function togglePockets(): void {
-  if (!panelWrap || !PURSE) return;
-  panelOpen = !panelOpen;
-  if (panelOpen) {
-    HUD?.closeWallet();                        // mutually exclusive, see above
-    sel = Math.min(sel, POCKETS - 1);
-    paintPanel();
-  }
-  panelWrap.style.transform = panelOpen
-    ? 'translateX(-50%) translateY(0) rotate(-1.5deg)'
-    : 'translateX(-50%) translateY(150%) rotate(-1.5deg)';
-}
+export function togglePockets(): void { panel?.toggle(); }
 
-export function pocketsOpen(): boolean { return panelOpen; }
+export function pocketsOpen(): boolean { return panel?.isOpen() ?? false; }
 
 /** Which pocket is chosen, and what is in it (null if that pocket is empty). */
 export function selected(p: Purse): string | null { return slots(p)[sel] ?? null; }
@@ -666,39 +626,51 @@ let keysBound = false;
 
 export function register(ctx: CtxBuild): void {
   PURSE = ctx.purse;
-  buildPanel();
 
-  // I opens the pockets, G drops. Chosen because `ct/../main.ts` already spends
-  // every DIGIT on switching prototypes and W A S D E C SHIFT SPACE Z X [ ] on
-  // the rig, so the free keys are few — and these two are the ones every other
-  // game in this genre uses, which is worth more than cleverness.
+  // THE CABINET IS THE SHARED ONE. Everything about being on screen — the
+  // freeze behind it, one thing out at a time, ESC, the typeface — comes from
+  // `makePanel` and is identical to the ATM's and the slots'. Only the material
+  // is ours: canvas, because this is not a machine you walk up to.
+  panel = makePanel({
+    id: 'ct-pockets', w: PANEL_W, h: PANEL_H, scale: 2, chrome: 'cloth',
+    title: 'POCKETS',
+    hint: () => 'scroll  choose   ·   G  put it down',
+    draw: (g) => paintPanel(g),
+    key: (k) => {
+      if (k === 'i') { panel?.close(); return; }
+      if (k !== 'g') return;
+      const id = selected(ctx.purse);
+      if (id) dropId(ctx, id);
+      else note('that pocket is empty');
+      panel?.repaint();
+    },
+    wheel: (dir) => {
+      sel = (sel + (dir > 0 ? 1 : POCKETS - 1)) % POCKETS;
+      panel?.repaint();
+    },
+  });
+
+  // The wallet and the pockets are both things in your hands, so each puts the
+  // other away; the framework closes registered held objects whenever anything
+  // comes out. And the wallet's own "n/6 pockets" line reads from here rather
+  // than ct/hud.ts importing this file — see the note above `setPocketInfo`.
+  registerHeldObject(() => panel?.close());
+  setPocketInfo(() => ({ used: slots(ctx.purse).length, max: POCKETS }));
+  onPurseChange(() => panel?.repaint());
+
+  // `i` OPENS IT, and that binding lives out here because a panel that is shut
+  // hears nothing — the framework's gate only runs while something is up. G
+  // outside the panel drops the last thing you picked up; inside it drops what
+  // you chose, and the difference is on screen at the moment you press it,
+  // which is the only kind of modal key that is not a trap.
   if (!keysBound) {
     keysBound = true;
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (k === 'i') { togglePockets(); return; }
-      if (k === 'escape' && panelOpen) { closePockets(); return; }
-      if (k !== 'g') return;
-      // WITH THE POCKETS OPEN, G DROPS WHAT YOU CHOSE; with them shut it drops
-      // the last thing you picked up. Same key, and the difference is visible
-      // on screen at the moment you press it — which is the only kind of modal
-      // key that is not a trap.
-      if (panelOpen) {
-        const id = selected(ctx.purse);
-        if (id) { if (dropId(ctx, id)) paintPanel(); }
-        else note('that pocket is empty');
-      } else dropLast(ctx);
+      if (k === 'i') togglePockets();
+      else if (k === 'g') dropLast(ctx);
     });
-    // Selection. `passive: false` because the page must not scroll under the
-    // panel; outside it the wheel is left entirely alone, since nothing else in
-    // this world uses it and swallowing it would be taking something for nothing.
-    window.addEventListener('wheel', (e) => {
-      if (!panelOpen) return;
-      e.preventDefault();
-      sel = (sel + (e.deltaY > 0 ? 1 : POCKETS - 1)) % POCKETS;
-      paintPanel();
-    }, { passive: false });
   }
 
   // ── adopting the newspapers ─────────────────────────────────────────────

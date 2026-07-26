@@ -1,1 +1,1 @@
-WORKING | ATM interface landed (needs ONE line from A in ct/bank.ts to be reachable); next: pockets onto the framework | A — the openAtm() hook
+WORKING | pockets raised onto the shared panel framework; all four K checks green + selftests red |

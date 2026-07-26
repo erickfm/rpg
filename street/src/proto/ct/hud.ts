@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { SHA, DIRTY, AT } from 'virtual:build-stamp';
-import { bindHud, closePockets, POCKETS, refreshPockets, slots } from './inventory';
 
 // ── the sky the clock drags around, the watch, and the wallet ─────────────
 //
@@ -112,6 +111,39 @@ export interface Hud {
   highlight: (rect: { x: number; y: number; w: number; h: number } | null) => void;
 }
 
+// ── what the screen layer lets other modules PLUG IN ──────────────────────
+//
+// This file used to `import { slots, POCKETS, closePockets, refreshPockets,
+// bindHud } from './inventory'`, and that had to go the moment the pockets
+// wanted anything back out of here: `ct/hud.ts` and `ct/inventory.ts` would
+// have imported each other, and BOTH are collected by `ct/world.ts`'s eager
+// glob. GOTCHAS §28 is exactly that — a module in an import cycle can resolve
+// to an undefined namespace at collection time and be silently dropped, in the
+// BUILT BUNDLE ONLY, which is the worst way round.
+//
+// So the dependency runs one way now: the screen kit knows nothing about
+// pockets, and anything that wants to appear on the screen registers itself.
+// The kit is a kit; it should not have a list of its customers.
+
+/** what the wallet prints beside your things: "2/6 pockets" */
+let pocketInfo: (() => { used: number; max: number }) | null = null;
+export function setPocketInfo(fn: () => { used: number; max: number }): void { pocketInfo = fn; }
+
+/** things held in the player's hands that must go away when something else
+ *  comes out. Registered rather than named, so the kit needs no list. */
+const HELD_CLOSERS: (() => void)[] = [];
+export function registerHeldObject(close: () => void): void { HELD_CLOSERS.push(close); }
+function closeHeld(): void { for (const c of HELD_CLOSERS) c(); }
+
+/** ONE SIGNAL FOR "THE PURSE CHANGED", which every view listens to. Everything
+ *  in the world that spends or earns already calls `ctx.refreshWallet()`, so a
+ *  second view costs those callers nothing. */
+const PURSE_WATCH: (() => void)[] = [];
+export function onPurseChange(fn: () => void): void { PURSE_WATCH.push(fn); }
+
+/** post a line on the transient strip from anywhere. */
+export function hudNote(text: string, ms?: number): void { LIVE?.note(text, ms); }
+
 // ── holding the player still ──────────────────────────────────────────────
 //
 // `src/main.ts` owns the input Set and `src/proto/fp.ts` owns the rig, and BOTH
@@ -134,7 +166,13 @@ export interface Hud {
 const HELD_KEYS = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
   'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
 const BLOCKED = ['keydown', 'mousedown', 'mousemove', 'wheel'];
-const swallow = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
+// `wheel` on `window` is PASSIVE BY DEFAULT — the browser assumes a root-level
+// wheel listener is a scroll observer and refuses its `preventDefault`, with a
+// console warning per event. So every registration here is explicit about it.
+// Found by a check that counts console errors; without that it would have been
+// a silent line in a log nobody reads.
+const CAP = { capture: true, passive: false } as const;
+const swallow = (e: Event) => { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); };
 
 /** Let go of anything the player is holding down. */
 function releaseHeld(): void {
@@ -145,7 +183,7 @@ function releaseHeld(): void {
 /** Freeze the world. Returns the undo — always call it, on every exit path. */
 function blockInput(): () => void {
   releaseHeld();
-  for (const k of BLOCKED) window.addEventListener(k, swallow, true);
+  for (const k of BLOCKED) window.addEventListener(k, swallow, CAP);
   return () => { for (const k of BLOCKED) window.removeEventListener(k, swallow, true); };
 }
 
@@ -270,7 +308,7 @@ function gateUp(on: boolean): void {
   if (on === gateOn) return;
   gateOn = on;
   for (const k of BLOCKED) {
-    if (on) window.addEventListener(k, gate, true);
+    if (on) window.addEventListener(k, gate, CAP);
     else window.removeEventListener(k, gate, true);
   }
 }
@@ -398,7 +436,7 @@ export function makePanel(spec: PanelSpec): Panel {
       // with your wallet still out is not a state this world should have.
       closePanels();
       LIVE?.closeWallet();
-      closePockets();
+      closeHeld();
       open = true;
       livePanel = { spec, close: () => api.close() };
       releaseHeld();                     // let go of anything already held down
@@ -610,7 +648,8 @@ export function makeHud(purse: Purse): Hud {
     // caption bar sits: a line under six items would be printed behind it.
     g.textAlign = 'left';
     g.fillStyle = '#9a927e'; g.font = '6px monospace';
-    g.fillText(`${slots(purse).length}/${POCKETS} pockets`, lx, wy + 36);
+    const pi = pocketInfo?.();
+    if (pi) g.fillText(`${pi.used}/${pi.max} pockets`, lx, wy + 36);
     g.fillStyle = '#e8e2d0'; g.font = '7px monospace';
     let iy = wy + 47;
     for (const [k, n] of Object.entries(purse.inv)) { if (n > 0) { g.fillText(`${k} x${n}`, lx, iy); iy += 10; } }
@@ -724,7 +763,7 @@ export function makeHud(purse: Purse): Hud {
     },
     toggleWallet: () => {
       walletOpen = !walletOpen;
-      if (walletOpen) { closePockets(); drawWallet(); }
+      if (walletOpen) { closePanels(); closeHeld(); drawWallet(); }
       walletWrap!.style.transform = walletOpen
         ? 'translateX(-50%) translateY(0) rotate(2deg)'
         : 'translateX(-50%) translateY(150%) rotate(2deg)';
@@ -738,7 +777,7 @@ export function makeHud(purse: Purse): Hud {
     // already calls this — the bodega counter, the ATM, feeding the birds — so
     // the pockets panel refreshes off the same call rather than needing every
     // one of those callers to learn that a second view exists.
-    refreshWallet: () => { if (walletOpen) drawWallet(); refreshPockets(); },
+    refreshWallet: () => { if (walletOpen) drawWallet(); for (const f of PURSE_WATCH) f(); },
     prompt: (text) => {
       if (text === null) { promptDiv!.style.display = 'none'; return; }
       promptDiv!.textContent = text;
@@ -817,11 +856,6 @@ export function makeHud(purse: Purse): Hud {
       hiDiv!.style.display = 'block';
     },
   };
-  // `ct/inventory.ts` posts its own lines — "pocketed the folded newspaper",
-  // "pockets full" — from a `[E]` that was registered at build time by a module
-  // that has no business holding the HUD. One binding here, rather than the
-  // screen layer threaded through every takeable in the world.
-  bindHud(hud);
   LIVE = hud;
   // Test affordance, same shape and same reason as `__ct` and `__inv`: a fade
   // is a promise over CSS time and there is no other way to start one, or to

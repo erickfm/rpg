@@ -35,11 +35,22 @@ const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'}  ${msg}`); if
 
 // on screen = any part of the element inside the viewport, and BIG enough to be
 // a panel rather than a sliver
+//
+// OPACITY IS PART OF "SHOWN" NOW, and it has to be. The held wallet parks itself
+// off the bottom of the viewport, so a rectangle test alone answered it; a
+// `makePanel` cabinet is always centred and only FADES in, so by position alone
+// it is on screen the moment it is built. A predicate that was right about one
+// presentation and silently wrong about the other is GOTCHAS §34 — the check
+// would have gone on passing while measuring nothing.
 const onScreen = (id) => page.evaluate((q) => {
   const el = document.getElementById(q);
   if (!el) return { there: false, shown: false, h: 0 };
   const r = el.getBoundingClientRect();
-  return { there: true, shown: r.top < window.innerHeight - 40 && r.height > 100, h: Math.round(r.height) };
+  const o = parseFloat(getComputedStyle(el).opacity || '0');
+  return {
+    there: true, h: Math.round(r.height), o: +o.toFixed(2),
+    shown: o > 0.5 && r.top < window.innerHeight - 40 && r.height > 100,
+  };
 }, id);
 // the transition is 180 ms of CSS, so POLL for the rectangle rather than sleep
 // on it — GOTCHAS §30, the same reason the take is polled and not slept on.
@@ -47,7 +58,8 @@ const settle = (id, want) => page.waitForFunction(([q, w]) => {
   const el = document.getElementById(q);
   if (!el) return false;
   const r = el.getBoundingClientRect();
-  return (r.top < window.innerHeight - 40 && r.height > 100) === w;
+  const o = parseFloat(getComputedStyle(el).opacity || '0');
+  return (o > 0.5 && r.top < window.innerHeight - 40 && r.height > 100) === w;
 }, [id, want], { timeout: 5000 }).catch(() => {});
 
 // RIGHT-CLICK IS HELD, NOT CLICKED. `main.ts` turns the right button into a
@@ -61,8 +73,11 @@ const settle = (id, want) => page.waitForFunction(([q, w]) => {
 const rightClick = async () => {
   await page.mouse.move(640, 360);
   await page.mouse.down({ button: 'right' });
-  await settle('ct-wallet', true);
+  // held across frames, not clicked — but NOT waited on for a result, because
+  // "the wallet does not appear" is now one of the outcomes being tested
+  await page.waitForTimeout(320);
   await page.mouse.up({ button: 'right' });
+  await page.waitForTimeout(200);
 };
 
 if (!(await page.evaluate(() => typeof window.__inv === 'object' && window.__inv !== null))) {
@@ -100,19 +115,32 @@ ok(opened.shown, `i brings the pockets out (${opened.h} px on screen)`);
 
 // ── one thing in your hands at a time ────────────────────────────────────
 //
-// Both are held objects centred at the bottom of the frame, so two out at once
-// is one drawn over the other. Checked BOTH WAYS round, because a mutual
-// exclusion enforced on one side only is the ordinary way this breaks —
-// GOTCHAS §41, verify both sides of anything mirrored.
+// Two claims, and they are different since the pockets moved onto the panel
+// framework — this block used to test only the second and now goes red if
+// either breaks.
+//
+// FIRST, THE FREEZE: with a cabinet up, the world behind it hears nothing, and
+// the wallet is part of the world behind it. A right-click must do NOTHING.
+// (Before the framework it opened the wallet and closed the pockets, which was
+// the old exclusion; the new answer is stronger and the old assertion was
+// stale, not the code.)
 await rightClick();
-const both = { pockets: await onScreen('ct-pockets'), wallet: await onScreen('ct-wallet') };
-ok(both.wallet.shown, 'right-click brings the wallet out');
-ok(!both.pockets.shown, '…and that PUT THE POCKETS AWAY (they do not stack)');
+const frozen = { pockets: await onScreen('ct-pockets'), wallet: await onScreen('ct-wallet') };
+ok(!frozen.wallet.shown, 'a right-click with the pockets up does NOT open the wallet — the world is frozen');
+ok(frozen.pockets.shown, '…and the pockets are still the thing in your hands');
+
+// SECOND, THE EXCLUSION, checked from the other side (GOTCHAS §41 — a mutual
+// rule enforced on one side only is the ordinary way this breaks). Put the
+// pockets away, take the wallet out, then press i: the wallet must go.
+await page.keyboard.press('i');
+await settle('ct-pockets', false);
+await rightClick();
+ok((await onScreen('ct-wallet')).shown, 'with nothing up, right-click brings the wallet out');
 await page.keyboard.press('i');
 await settle('ct-pockets', true);
 const back = { pockets: await onScreen('ct-pockets'), wallet: await onScreen('ct-wallet') };
 ok(back.pockets.shown, 'i brings the pockets back');
-ok(!back.wallet.shown, '…and that put the WALLET away — exclusion holds both ways');
+ok(!back.wallet.shown, '…and that put the WALLET away — one thing in your hands');
 
 // ── the wheel chooses ────────────────────────────────────────────────────
 const sel0 = await page.evaluate(() => window.__inv.sel());

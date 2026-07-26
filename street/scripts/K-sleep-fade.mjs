@@ -135,7 +135,8 @@ const armed = await page.evaluate((selftest) => {
     const w = document.getElementById(q);
     if (!w) return false;
     const r = w.getBoundingClientRect();
-    return r.top < window.innerHeight - 40 && r.height > 100;
+    const o = parseFloat(getComputedStyle(w).opacity || '0');
+    return o > 0.5 && r.top < window.innerHeight - 40 && r.height > 100;
   };
   window.__k = p.then(() => {
     clearInterval(tick);
