@@ -66,6 +66,7 @@ for (let i = 0; pick.length < Math.min(N, seats.length); i++) {
 }
 
 const E = async () => { await p.keyboard.down('e'); await p.waitForTimeout(100); await p.keyboard.up('e'); await p.waitForTimeout(1100); };
+const ESC = async () => { await p.keyboard.down('Escape'); await p.waitForTimeout(100); await p.keyboard.up('Escape'); await p.waitForTimeout(1100); };
 const st = () => p.evaluate(() => ({ s: !!window.__ct.seated(), pos: window.__ct.pos().slice(0, 3) }));
 const reload = async () => {                    // the ONLY way out of a stuck seat
   await p.close();
@@ -78,7 +79,7 @@ const reload = async () => {                    // the ONLY way out of a stuck s
 console.log(`\n  ${seats.length} seats in the world, testing ${pick.length} sampled across ${byLabel.size} distinct labels`);
 console.log(`  each is approached from a pace behind its own published \`at\` point — how a player arrives\n`);
 
-const stuck = [], fine = [], nosit = [];
+const stuck = [], fine = [], escOnly = [], nosit = [];
 for (const s of pick) {
   // stand back from `at`, along the pose->at direction, into the trap band
   const dx = s.at.x - s.pose.x, dz = s.at.z - s.pose.z, L = Math.hypot(dx, dz) || 1;
@@ -102,13 +103,21 @@ for (const s of pick) {
   const tp = Math.hypot(sat.pos[0] - before.pos[0], sat.pos[2] - before.pos[2]);
   await E();
   const after = await st();
-  if (after.s) { stuck.push({ ...s, tp }); await reload(); }
-  else fine.push({ ...s, tp });
+  if (!after.s) { fine.push({ ...s, tp }); continue; }
+  // ESCAPE IS A SECOND EXIT NOW (f110b7f5a), and for a seat that opens a modal
+  // it is the ONLY one — E is the panel's own key there. Reporting "stuck" for a
+  // seat Escape releases would be a stale verdict, so the three outcomes are
+  // kept apart: E freed it, only Escape freed it, or nothing did.
+  await ESC();
+  const esc = await st();
+  if (!esc.s) { escOnly.push({ ...s, tp }); continue; }
+  stuck.push({ ...s, tp }); await reload();
 }
 
 const f = (v) => v.toFixed(2);
-console.log(`  stood up again : ${fine.length}`);
-console.log(`  ** STUCK       : ${stuck.length}`);
+console.log(`  E stood him up      : ${fine.length}`);
+console.log(`  only ESCAPE freed   : ${escOnly.length}`);
+console.log(`  ** TRAPPED, no key  : ${stuck.length}`);
 console.log(`  could not sit  : ${nosit.length}  (aim or reach, not a verdict either way)\n`);
 
 if (stuck.length) {
@@ -123,8 +132,14 @@ if (fine.length) {
   const tps = fine.map((q) => q.tp).sort((a, c) => a - c);
   console.log(`     teleport distance on the ones that released: min ${f(tps[0])} m, max ${f(tps[tps.length - 1])} m`);
 }
+if (escOnly.length) {
+  const byL = new Map();
+  for (const q of escOnly) byL.set(q.label, (byL.get(q.label) ?? 0) + 1);
+  console.log('\n  SEATS E WILL NOT LEAVE — Escape is the only way out:');
+  for (const [k, v] of [...byL].sort((a, c) => c[1] - a[1])) console.log(`     ${String(v).padStart(3)}  ${JSON.stringify(k)}`);
+}
 console.log(stuck.length
-  ? `\nFAIL  ${stuck.length} of ${fine.length + stuck.length} seats trap the player. Reloading is the only exit.`
-  : `\nevery seat tested let the player stand up again.`);
+  ? `\nFAIL  ${stuck.length} of ${fine.length + escOnly.length + stuck.length} seats trap the player with no key out at all.`
+  : `\nno seat traps the player: ${fine.length} released by E, ${escOnly.length} by Escape.`);
 await b.close();
 process.exit(stuck.length ? 1 : 0);

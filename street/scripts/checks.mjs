@@ -414,6 +414,17 @@ const CHECKS = [
   ['steps-walk',       'can both civic flights actually be climbed?',        true, [], true],
   ['civic-doors-walk', 'do the doors at the top of the flights answer?',     true, [], true],
   ['seats-walk',       'does every seat seat you — on ITSELF, not a neighbour?', true, [], true],
+  // The complement of seats-walk: that one asks whether a seat SEATS you, this
+  // asks whether you can get OUT of it, which is the half the user reported —
+  // "pressing e doesnt get me out of it". It approaches each seat from a pace
+  // behind its own published `at`, because the fault only ever appeared when
+  // sitting TELEPORTED the player, and a probe that warps onto the pose cannot
+  // see it — which is why three verifiers reported it would not reproduce.
+  // HELD BACK UNTIL NOW, red the whole time: 18 of 24 seats trapped the player
+  // before F's e090a74fa, then 3 of 30 (all slot stools) until K's 9017f4318.
+  // C's rule is register it the day it goes green, and it is green — 24 released
+  // by E, 3 by Escape, 0 trapped. ~6 min for 32 seats, so SLOW. (I)
+  ['I-seat-exit',      'can you get out of every seat you sit in?',           false, [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', true, [], true],
   // 395 s — SLOW tier, and by a distance. It walks 177 trap positions, which is
   // what the user's "im literally stuck here" request cost to guard properly.
