@@ -34,7 +34,17 @@ def key(l):
     f = l.split('|')
     if len(f) < 4 or not f[1].strip() or not f[2].strip():
         return None
-    return (f[2].strip(), f[3].strip()[:60])
+    # THE FULL REQUEST, NOT A 60-CHARACTER SLICE. The slice was left over from
+    # the regex version, where it stopped the match spilling into the evidence
+    # column. Splitting on `|` already does that — f[3] IS the request — so the
+    # truncation bought nothing and cost rows: TWO ROWS WHOSE REQUESTS AGREE FOR
+    # SIXTY CHARACTERS COLLAPSED TO ONE KEY IN `mymap`, and the first was
+    # silently dropped. Reproduced with a pair differing only after char 60:
+    # one survived, one vanished, and the file read perfectly well afterwards.
+    #
+    # That is the shape the auditor kept reporting — five rows gone, source
+    # unknown, "I cannot rule out my own rebase". They were right not to.
+    return (f[2].strip(), f[3].strip())
 
 def status(l):
     m = re.match(r'\|\s*(\w+)\s*\|', l)
@@ -74,14 +84,28 @@ def merge(theirs, mine):
 def resolve(m):
     ours = [l for l in m.group(1).split('\n') if l.strip()]
     mine = [l for l in m.group(2).split('\n') if l.strip()]
-    mymap = {key(l): l for l in mine}
+    # NON-ROW LINES ARE NEVER KEYED. `key()` returns None for a heading, a blank
+    # or anything malformed, so putting them in a dict collapses every one of
+    # them onto the single key None — all but the last are dropped, and a
+    # heading in `ours` then matches that survivor and gets merge()d into it.
+    # Keep them out of the map and carry them through untouched.
+    mymap = {}
+    for l in mine:
+        k = key(l)
+        if k is not None and k not in mymap:
+            mymap[k] = l
+    unkeyed = [l for l in mine if key(l) is None]
     out = []
     for l in ours:
-        alt = mymap.get(key(l))
+        k = key(l)
+        alt = mymap.get(k) if k is not None else None
         out.append(merge(l, alt) if alt else l)
     seen = {key(x) for x in ours}
     for k, l in mymap.items():
         if k not in seen:
+            out.append(l)
+    for l in unkeyed:                      # headings and blanks only I have
+        if l not in out:
             out.append(l)
     return '\n'.join(out) + '\n'
 

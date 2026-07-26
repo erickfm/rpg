@@ -15,6 +15,8 @@ cat > "$T" <<'FIX'
 | CONFIRMED | B | a row mainline confirmed earlier | builder text v1 — **AUDITOR CONFIRMED old segment.** — **AUDITOR CONFIRMED my NEW segment.** |
 | CONFIRMED | D | a row only I have | — **AUDITOR CONFIRMED mine alone.** |
 | CONFIRMED | E | a row a NON-auditor verified | builder text — **2nd VERIFIER (A) CONFIRMED: the verifier segment.** |
+| LANDED | Z | a very long request identical for the first sixty characters then AAAA | one |
+| LANDED | Z | a very long request identical for the first sixty characters then BBBB | two |
 >>>>>>> abc1234 (my commit)
 FIX
 python3 scripts/ledger-merge.py "$T" > /dev/null
@@ -31,6 +33,13 @@ chk "a row only mainline has is kept"     "grep -q 'a row only mainline has' '$T
 # segments at all and was dropped whole. Three of A's verifier accounts went
 # that way in one session. A ledger with one recognised author is not a ledger.
 chk "a NON-auditor verifier segment survives" "grep -q '2nd VERIFIER (A) CONFIRMED: the verifier segment' '$T'"
+# ROW LOSS, THE FAULT THIS FILE EXISTS TO PREVENT AND STILL HAD. Rows were
+# keyed on the request TRUNCATED TO 60 CHARACTERS, so two rows agreeing that
+# far collapsed to one key and the first was silently dropped. Five rows went
+# missing on the real ledger before anyone could name the cause, and the file
+# read perfectly well afterwards each time — which is why it needs a test and
+# not an inspection.
+chk "two rows sharing 60 chars BOTH survive" "[ \$(grep -c 'AAAA\|BBBB' '$T') -eq 2 ]"
 chk "no markers left"                     "! grep -q '^<<<<<<<' '$T'"
 rm -f "$T"
 [ $fail -eq 0 ] && echo "PASS" || echo "FAIL"
