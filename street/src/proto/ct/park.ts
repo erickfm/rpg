@@ -159,6 +159,43 @@ export function buildPark(ctx: CtxBuild, site: Site, gate?: [number, number]) {
         if (r() < 0.5) g.fillRect(0, y, d, 1 + Math.floor(r() * 3));
         else g.fillRect(PW - d, y, d, 1 + Math.floor(r() * 3));
       }
+      if (kind === 'dirt') {
+        // A WORN PATH HAS NO EDGE. This is the user's "shadow geometry" and the
+        // audit's most-visible finding: these strips read as hard-edged brown
+        // BANDS cutting across the grass. Nibbling the edge in patches, which is
+        // what the loop above does, still leaves a boundary - it just makes it a
+        // ragged one.
+        //
+        // It is D's alley mistake in grass. Their words, on sixteen strokes
+        // radiating from a drain: "I drew the FLOW rather than the mark the flow
+        // leaves." A desire line is not a strip of dirt laid on a lawn, it is
+        // grass that gets thinner until there is none, and the thing to draw is
+        // the THINNING.
+        //
+        // D washed theirs into the floor's own texture with a canvas gradient.
+        // These cannot go into the field's texture - they drape over the mound
+        // and need their own subdivided geometry - but they do not need alpha
+        // either: the strip lies on grass, so fading its edges TO THE GRASS
+        // COLOUR is what fading to transparent would look like, without a
+        // transparent material. That matters, because `transparent: true` puts a
+        // surface on dimWorld's skip list (GOTCHAS 22) and this one would then
+        // sit at full daylight brightness after dark.
+        const GRASS = '#727a56';                  // between MOW_LIGHT and MOW_DARK
+        const wash = g.createLinearGradient(0, 0, PW, 0);
+        wash.addColorStop(0.00, GRASS);
+        wash.addColorStop(0.30, 'rgba(114,122,86,0)');
+        wash.addColorStop(0.70, 'rgba(114,122,86,0)');
+        wash.addColorStop(1.00, GRASS);
+        g.fillStyle = wash;
+        g.fillRect(0, 0, PW, PH);
+        // and the fade line itself wanders, so the two edges are not parallel
+        for (let y = 0; y < PH; y++) {
+          const bite = Math.round((0.10 + r() * 0.16) * PW);
+          g.fillStyle = 'rgba(114,122,86,0.5)';
+          if (r() < 0.55) g.fillRect(0, y, bite, 1);
+          if (r() < 0.55) g.fillRect(PW - bite, y, bite, 1);
+        }
+      }
       if (kind === 'path') {
         // A REPAIR, NOT A HOLE. The user, on the same frame: *"black rectangles
         // sitting on the path mid-right that read as holes or missing
