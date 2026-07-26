@@ -72,9 +72,22 @@ const CASES = [
   // The density stamp is what pattern #1 is verified against. Claim a face was
   // painted for a width it was not, and density.mjs must notice the canvas does
   // not fit the face it landed on.
+  // NEEDLE RE-QUOTED, not redesigned. A's stamp gained `ppmW`/`ppmH` and wrapped
+  // onto two lines, so the single-line quotation stopped matching and this case
+  // was guarding NOTHING — `density.mjs` had no mutation behind it and would
+  // have looked exactly as green as one that did. canfail said so plainly
+  // ("RESTORE FAILED ... does not hold its original text"), which is the only
+  // reason it surfaced. Fifth stale needle this week; a mutation case is a
+  // hard-coded quotation of somebody's source, and a REFACTOR breaks it
+  // silently where a bug never would (GOTCHAS 24's neighbour).
+  //
+  // The mutation is unchanged in meaning: claim the masonry was painted for a
+  // width 1.4x what it was mapped to. This is A's case in my file — the
+  // quotation is repaired, the property under test is untouched, and A should
+  // say if the case wants retiring rather than repairing.
   ['density', TEXW,
-    't.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H };',
-    't.userData.masonry = { ppm, mult, wMeters: wMeters * 1.4, hMeters, baseY, W, H };',
+    't.userData.masonry = { ppm, mult, wMeters, hMeters, baseY, W, H,',
+    't.userData.masonry = { ppm, mult, wMeters: wMeters * 1.4, hMeters, baseY, W, H,',
     'density.mjs', [], 'masonry painted for a width it was not mapped to'],
 
   // Restores the fencepost the user photographed as "chopped off at points":
