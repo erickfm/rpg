@@ -2086,8 +2086,149 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       dither(g, 32, 24, 24);
     });
     const tvBodyM = new THREE.MeshBasicMaterial({ color: 0x26262c });
+    // ── THE SCREEN IS ALIVE ─────────────────────────────────────────────
+    // The user: *"i want to be able to watch tv. and i sit on the bed and
+    // literally watch tv"*, and on the content: *"kinda nonsensical. random.
+    // lots of things so it doesnt get to repetative."*
+    //
+    // So it is not one loop — it is a POOL of short segments that shuffle,
+    // cut every few seconds. Short is what makes a small pool feel like a
+    // channel; a long segment makes three feel like three. This commit is the
+    // MECHANISM plus three segments, which is what the desk asked for; the
+    // pool is meant to grow and growing it is one entry in this array.
+    //
+    // `pixTex` hands back a CanvasTexture, so the canvas is `t.image` and
+    // redrawing it plus `needsUpdate` is the whole of the animation. No new
+    // texture per frame — that would leak one every 120 ms.
+    const TVW = 48, TVH = 36;
+    type TvSeg = { name: string; secs: number; live?: boolean;
+                   draw: (g: CanvasRenderingContext2D, t: number) => void };
+    const scr = (g: CanvasRenderingContext2D) => { g.fillStyle = '#0b0d12'; g.fillRect(0, 0, TVW, TVH); };
+    const tvText = (g: CanvasRenderingContext2D, txt: string, x: number, y: number, c: string, px = 4) => {
+      // 3x5 block glyphs, the same way the pole sign and the door numbers are
+      // drawn — real fonts do not survive a 48 px canvas.
+      const F: Record<string, string[]> = {
+        A:['111','101','111','101','101'], B:['110','101','110','101','110'], C:['111','100','100','100','111'],
+        D:['110','101','101','101','110'], E:['111','100','110','100','111'], F:['111','100','110','100','100'],
+        G:['111','100','101','101','111'], H:['101','101','111','101','101'], I:['111','010','010','010','111'],
+        L:['100','100','100','100','111'], M:['101','111','111','101','101'], N:['101','111','111','111','101'],
+        O:['111','101','101','101','111'], P:['111','101','111','100','100'], R:['111','101','111','110','101'],
+        S:['111','100','111','001','111'], T:['111','010','010','010','010'], U:['101','101','101','101','111'],
+        V:['101','101','101','101','010'], W:['101','101','111','111','101'], Y:['101','101','010','010','010'],
+        '0':['111','101','101','101','111'], '1':['010','110','010','010','111'], '2':['111','001','111','100','111'],
+        '3':['111','001','111','001','111'], '4':['101','101','111','001','001'], '5':['111','100','111','001','111'],
+        '6':['111','100','111','101','111'], '7':['111','001','001','001','001'], '8':['111','101','111','101','111'],
+        '9':['111','101','111','001','111'], '-':['000','000','111','000','000'], ' ':['000','000','000','000','000'],
+        '$':['111','110','111','011','111'], '!':['010','010','010','000','010'],
+      };
+      g.fillStyle = c;
+      let cx = x;
+      for (const ch of txt.toUpperCase()) {
+        const rows = F[ch] ?? F[' '];
+        for (let r = 0; r < 5; r++) for (let q = 0; q < 3; q++)
+          if (rows[r][q] === '1') g.fillRect(cx + q * (px / 3), y + r * (px / 5), px / 3, px / 5);
+        cx += px / 3 * 4;
+      }
+    };
+    /** centred, and SIZED TO FIT — 'CROSSTOWN' at px 5 is 60 px on a 48 px
+     *  screen, so the first version read 'CROSST'. Everything on this screen
+     *  is seen from across a small room, so it either fits or it is not
+     *  written. */
+    const tvFit = (g: CanvasRenderingContext2D, txt: string, y: number, c: string, maxPx = 6) => {
+      let px = maxPx;
+      while (px > 3 && (txt.length * px / 3 * 4) > TVW - 4) px -= 1;
+      // px 3 is the floor — below that the glyphs stop being glyphs. If it
+      // STILL does not fit, the line is too long and gets cut here rather
+      // than running off the edge, which is what 'WE FINANCE ANYONE' did.
+      const max = Math.floor((TVW - 4) / (px / 3 * 4));
+      if (txt.length > max) txt = txt.slice(0, max);
+      const w = txt.length * px / 3 * 4;
+      tvText(g, txt, Math.max(1, Math.round((TVW - w) / 2)), y, c, px);
+    };
+    const SEGMENTS: TvSeg[] = [
+      { name: 'test card', secs: 7, draw: (g) => {
+        const bars = ['#c8c8c8', '#c8c800', '#00c8c8', '#00c800', '#c800c8', '#c80000', '#0000c8'];
+        bars.forEach((c, i) => { g.fillStyle = c; g.fillRect(Math.round(i * TVW / 7), 0, Math.ceil(TVW / 7), 26); });
+        g.fillStyle = '#111'; g.fillRect(0, 26, TVW, TVH - 26);
+        tvFit(g, 'CROSSTOWN 4', 28, '#d8d8d8', 5);
+      } },
+      // THE ONE THAT REFERENCES HIS OWN WORLD, which is the whole joke: the
+      // lot's palette and its real phone number, on the telly in his room.
+      { name: 'crosstown auto', secs: 8, draw: (g, t) => {
+        g.fillStyle = '#2f7a4a'; g.fillRect(0, 0, TVW, TVH);
+        g.fillStyle = '#e0a81c'; g.fillRect(2, 3, TVW - 4, 13);
+        tvFit(g, 'CROSSTOWN', 4, '#2a2118', 4);
+        tvFit(g, 'AUTO', 10, '#2a2118', 5);
+        if (Math.floor(t * 2) % 2 === 0) tvFit(g, 'WE FINANCE', 19, '#fff8e0', 4);
+        tvFit(g, '555-0199', 27, '#fff8e0', 5);
+      } },
+      { name: 'static', secs: 3, live: true, draw: (g, t) => {
+        scr(g);
+        for (let i = 0; i < 340; i++) {
+          const x = (Math.sin(i * 12.9898 + t * 90) * 43758.5453) % 1;
+          const y = (Math.sin(i * 78.233 + t * 57) * 43758.5453) % 1;
+          const v = 40 + Math.floor(((Math.sin(i * 3.1 + t * 130) + 1) / 2) * 190);
+          g.fillStyle = `rgb(${v},${v},${v})`;
+          g.fillRect(Math.abs(x) * TVW | 0, Math.abs(y) * TVH | 0, 1, 1);
+        }
+      } },
+    ];
+    let tvSeg = 0, tvLeft = SEGMENTS[0].secs, tvClock = 0, tvRedraw = 0;
+    const tvScreenT = surfTex('detail', TVW, TVH, (g) => SEGMENTS[0].draw(g, 0));
+    const tvScreenM = flatOf2(tvScreenT);
     box(0.46, 0.38, 0.40, -1.56, RY + 0.55, 2.34,
-      [tvBodyM, tvBodyM, tvBodyM, tvBodyM, flatOf2(tvT), tvBodyM]);   // screen faces the bed
+      [tvBodyM, tvBodyM, tvBodyM, tvBodyM, tvScreenM, tvBodyM]);   // screen faces the bed
+    // IT IS A LIGHT SOURCE, not just a bright texture. The desk: *"it is a
+    // small CRT in a dark room, so the screen should be the brightest thing in
+    // the frame and cast a little light."* props.ts publishes `addLamp(x, z)`
+    // for exactly this, and its pool model is planar so the set's own height
+    // is not a parameter.
+    (scene.userData as Record<string, unknown> & { addLamp?: (x: number, z: number) => void })
+      .addLamp?.(AX(-1.56), AZI(2.34));
+    const tvPaint = () => {
+      const cv = tvScreenT.image as HTMLCanvasElement;
+      const g = cv.getContext('2d')!;
+      SEGMENTS[tvSeg].draw(g, tvClock);
+      tvScreenT.needsUpdate = true;
+    };
+    ctx.onFrame(({ dt }) => {
+      // Only while somebody is on this floor. A canvas redrawn 8 times a
+      // second for a room nobody is in is pure cost.
+      if (Math.abs(lastGy - 2 * ST) > 0.5) return;
+      tvClock += dt; tvLeft -= dt;
+      if (tvLeft <= 0) {
+        // shuffle without an immediate repeat — a pool this small would show
+        // one within seconds otherwise, which is the "repetative" complaint.
+        let n = tvSeg;
+        while (n === tvSeg && SEGMENTS.length > 1) n = Math.floor(Math.random() * SEGMENTS.length);
+        tvSeg = n; tvLeft = SEGMENTS[tvSeg].secs; tvRedraw = 0;
+        tvPaint();
+        return;
+      }
+      if (!SEGMENTS[tvSeg].live) return;         // a still segment is painted once
+      tvRedraw -= dt;
+      if (tvRedraw <= 0) { tvRedraw = 0.11; tvPaint(); }
+    }, ORDER.WORLD);
+    // published like doorTravel and hermit, so a check watches the schedule
+    // rather than hashing pixels and guessing
+    ctx.onFrame(() => {
+      scene.userData.tv = { seg: SEGMENTS[tvSeg].name, i: tvSeg, left: tvLeft, pool: SEGMENTS.length };
+    }, ORDER.WORLD);
+    // ── and somewhere to watch it from ──────────────────────────────────
+    // `ctx.seat` already does the whole mechanism the request describes —
+    // press E, the camera settles at seat height facing a given yaw, press E
+    // again to stand. Building a second seating system beside it would be the
+    // two-pocket-models mistake in a different file.
+    //
+    // The seat is the near edge of the bed, the yaw faces the TV (yaw 0 is -z
+    // and the set is at z 2.34 against a bed at 4.86), and `h` is the mattress
+    // top rather than the frame.
+    ctx.seat({
+      x: AX(-2.10), z: AZI(4.42), yaw: 0, h: 0.45, r: 0.70,
+      approach: { x: AX(-1.70), z: AZI(3.70) },
+      ok: () => ctx.player.x() > 100 && Math.abs(lastGy - 2 * ST) < 0.5,
+      label: 'sit on the bed and watch TV',
+    });
     const antM = new THREE.MeshBasicMaterial({ color: 0x9a9aa2 });
     box(0.02, 0.42, 0.02, -1.68, RY + 0.95, 2.34, antM, 0).rotation.z = 0.38;   // rabbit ears
     box(0.02, 0.38, 0.02, -1.44, RY + 0.93, 2.34, antM, 0).rotation.z = -0.44;
