@@ -462,7 +462,31 @@ export function buildProps(ctx: CtxBuild): Props {
         if (mx > 199 && mx - mn > 26) hot++;          // bright, and not grey
       }
     } catch { /* zero-sized or unreadable — treat as ordinary masonry */ }
-    const v = n > 0 && hot / n > 0.08;
+    // 0.20, RAISED FROM 0.08, and the bodega corner is why. The user:
+    // "that exact rectangle doesnt look like the other stuff" — a hard-edged
+    // bright rectangle on the facade covering the fascia and the brick round
+    // the door, with no falloff, while the brick beside it graded normally.
+    //
+    // MEASURED, not guessed. That sheet is **0.083 hot** — it squeaked over
+    // the old bar — so 92% of it is masonry being held at FLOOR_SIGN because
+    // 8% of it is a lit window. One material carries one tint, so holding the
+    // sheet for its lit texels holds the brick with them, and the rectangle is
+    // the texture's own outline. That is the shape he is objecting to.
+    //
+    // The bar is safe at 0.20 because the population is bimodal, counted at
+    // 23:00 over all 86 selfLit sheets:
+    //
+    //     under 0.15 hot   17     mostly masonry — the rectangles
+    //     0.15 - 0.30       5
+    //     0.30 - 0.50       5
+    //     over 0.50        59     neon, signage, lit window sheets
+    //
+    // Nothing that is genuinely a light source lives near the bar. And the
+    // upper-floor lit windows are NOT at risk from this: the three sheets up
+    // there measure 0.0 hot and are stamped by hand in ct/street.ts:387, so
+    // they never consult this heuristic at all. "Lit windows and signs must
+    // NOT dim" is confirmed and stays true.
+    const v = n > 0 && hot / n > 0.20;
     sheetLit.set(key, v);
     return v;
   };
