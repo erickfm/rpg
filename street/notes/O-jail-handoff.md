@@ -199,3 +199,33 @@ proves nothing. A selftest that passed on one of those would be worse than the
 `no selftest` the board now prints, because it would certify the check as
 mutation-proof when it is not. **Whoever exposes a writable door registry can
 close it**, and that is the one thing that would.
+
+---
+
+## Re-checked on the current world (build `a1834dcd9`)
+
+The jail was built when the world had eight registered modules. It now has
+eleven-plus — traffic, crowd, the slots, blackjack and the tenancy system have
+all landed around it since, and GOTCHAS §40 is about exactly the cost of not
+looking again. So it was re-run and re-shot rather than assumed:
+
+```
+scripts/O-jail-walk.mjs all          11 checks, 0 failed
+scripts/O-jail-door-agree.mjs         5 checks, 0 disagreed
+```
+
+And looked at, because a green check is not a picture:
+
+- **from 40 m down the side street** — the building still closes the street and
+  still reads as stone-over-brick against the warm shopfronts either side
+- **the threshold** — counter, glazed screen, speak-hole, the sergeant behind
+  it, the gate standing 60° open, the corridor and cells beyond
+
+**No regression.** Nothing about the jail has moved and nothing that landed
+around it has disturbed it.
+
+Worth stating because the opposite result is the expensive one: a building that
+was right when it was built and quietly stopped being right is invisible until
+somebody photographs it, and this project has paid for that twice — the desk
+routing fixes for faults already fixed, and 47 minutes of playtesting a world
+226 commits stale.

@@ -1,1 +1,1 @@
-WORKING | re-measured + restored my AUDIT sweep verdict (dropped by a merge, 9th loss); ledger guard passing |
+DONE | jail CONFIRMED and re-verified no-regression on the current world (11/11, 5/5); queue empty, no LANDED rows |
