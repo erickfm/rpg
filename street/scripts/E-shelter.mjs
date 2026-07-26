@@ -30,7 +30,13 @@ const shelter = await page.evaluate(() => {
     // an upper one this caught B's 3.4 m lamp columns standing nearby and
     // reported six posts of two different heights, which is a fault in the
     // locator being read as a fault in the shelter.
-    if (s.y > 2.0 && s.y < 3.0 && s.x < 0.4 && s.z < 0.4) posts.push({ x: c.x, z: c.z, top: bb.max.y });
+    // 2.0–3.6, not 2.0–3.0. The posts went to 3.00 m when the shelter was raised
+    // and the upper bound excluded them exactly, so this exited 3 — "cannot
+    // answer" rather than a false green, which is the behaviour I want and the
+    // reason the bound is stated as a range around the real thing rather than
+    // pinned to today's number. B's lamp columns are 3.40, so the window has to
+    // clear the posts without reaching them: theirs are 0.11 square, mine 0.24.
+    if (s.y > 2.0 && s.y < 3.2 && s.x < 0.4 && s.z < 0.4) posts.push({ x: c.x, z: c.z, top: bb.max.y });
     if (s.x > 3 && s.z > 3 && bb.max.y > 2.5) roofs.push({ bb, minY: bb.min.y, maxY: bb.max.y, cx: c.x, cz: c.z });
   });
   if (!posts.length || !roofs.length) return { posts, roofs: roofs.length };

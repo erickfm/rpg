@@ -1510,14 +1510,29 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
   // 0.22, not 0.18. The user's word was "spindly", and 0.18 m of section
   // carrying 2.4 m is 13:1 — right at the edge where a post stops reading as
   // something holding a roof up and starts reading as a stick.
-  const SH_POST = 0.22;
-  const SH_TOP = 2.40;                         // post top, and the eaves
-  const SH_OVER = 0.42;                        // even, all four sides
-  const SH_RISE = 0.95;                        // apex above the eaves
+  const SH_POST = 0.24;
+  // 3.00, not 2.40. *"should be taller a lil bit"* — and the number that
+  // matters is not the post top, it is the EAVES, because the eaves are the
+  // low point and the thing you stand under. At 2.40 the skirt bottom sat at
+  // 2.04 m world, which is a hand's breadth over a standing player. It is now
+  // 2.47 m: clear air.
+  const SH_TOP = 3.00;                         // post top, and the eaves
+  // 0.55, and the overhang is half of what "chopped" means: the posts have to
+  // sit INBOARD of the eave, so the roof reads as terminating past them rather
+  // than being cut off at them.
+  const SH_OVER = 0.55;                        // even, all four sides
+  // 1.05. Raising the posts without re-pitching gives a taller FLAT lid, which
+  // reads more chopped rather than less. The pitch goes 0.613 to 0.677 with the
+  // raise, so the roof gets steeper as it gets higher.
+  const SH_RISE = 1.05;                        // apex above the eaves
   // 0.24, not 0.14. The other half of "a thin skewed slab": a roof seen from
   // outside is mostly its EDGE, and a 0.14 m fascia at 4 m reads as a knife
   // edge — which is what a parasol has and a roof does not.
-  const SH_SKIRT = 0.24;                       // the eaves' own depth
+  // 0.30: the FASCIA. The other half of "chopped" — a roof seen from outside
+  // is mostly its edge, and an edge with no depth is a plate that has been cut
+  // square. This is the board that runs round the perimeter and gives the roof
+  // a thickness you can see when you look up at it.
+  const SH_SKIRT = 0.30;                       // the eaves' own depth, the fascia
   const E = SH_H + SH_OVER;
   // Posts, pads and roof are ONE shelter. Now that the eaves correctly wrap
   // down over the post tops, that seating shows up as four prop-on-prop
@@ -1593,6 +1608,39 @@ const MOW_LIGHT = '#767d58', MOW_DARK = '#6f7653', MOW_BAND = 1.5;
     const roof = new THREE.Mesh(geo, shadedRoofM);
     roof.position.set(shX, KERB_H, shZ);
     shelterG.add(roof);
+
+    // ── THE UNDERSIDE IS WHAT YOU ACTUALLY LOOK AT ──────────────────────────
+    //
+    // You stand in a shelter and look UP. Until now that was the raw back of
+    // the roof slopes: one flat tone across the whole ceiling, which is the
+    // same fault B named on the forecourt — an untextured surface has no grain
+    // and no joints, so it reads as a tint rather than as a thing.
+    //
+    // Boarded, across the span, at the eaves line so it closes the roof rather
+    // than floating inside it. The boards run in one direction like real
+    // ceiling boarding, with a rafter every 0.62 m across them — that pitch is
+    // what gives the ceiling scale when you are two metres under it.
+    const CEIL = E * 2;
+    const ceilT = pixTex(Math.round(CEIL * 16), Math.round(CEIL * 16), (g) => {
+      const px = Math.round(CEIL * 16), r = clcg(0x5ad13b);
+      g.fillStyle = '#6b5f4a'; g.fillRect(0, 0, px, px);
+      const board = Math.max(3, Math.round(0.16 * 16));
+      for (let y = 0; y < px; y += board) {
+        g.fillStyle = r() > 0.5 ? '#75684f' : '#635844';
+        g.fillRect(0, y, px, board - 1);
+        g.fillStyle = 'rgba(38,30,22,0.45)';       // the shadow in each joint
+        g.fillRect(0, y + board - 1, px, 1);
+      }
+      const raft = Math.max(4, Math.round(0.62 * 16));
+      for (let x = 0; x < px; x += raft) {         // rafters across the boards
+        g.fillStyle = '#584e3d'; g.fillRect(x, 0, Math.max(2, Math.round(0.07 * 16)), px);
+      }
+      dither(g, px, px, Math.round(px * px * 0.01));
+    });
+    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(CEIL, CEIL), flat(ceilT));
+    ceil.rotation.x = Math.PI / 2;                 // facing DOWN, at the player
+    ceil.position.set(shX, KERB_H + SH_TOP - (SH_RISE / SH_H) * SH_OVER - SH_SKIRT + 0.005, shZ);
+    shelterG.add(ceil);
     scene.add(shelterG);
   }
   // one bench, centred under it, facing out of the park's approach
