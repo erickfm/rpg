@@ -180,11 +180,31 @@ function releaseHeld(): void {
   window.dispatchEvent(new MouseEvent('mouseup', { button: 2 }));   // and the wallet's right button
 }
 
-/** Freeze the world. Returns the undo — always call it, on every exit path. */
+/**
+ * Freeze the world. Returns the undo — always call it, on every exit path.
+ *
+ * **ESCAPE IS NEVER SWALLOWED**, by this or by anything else in this file, and
+ * that is not a nicety — it is the difference between a modal and a trap. C
+ * found the user's *"pressing e doesnt get me out of it"* on a casino slot
+ * stool: sitting opened a panel, the panel's gate ate every keydown, and so
+ * neither `E` nor `Escape` ever reached the world. **Both of that night's fixes
+ * — a state-exit for standing up, and the first Escape binding this world has
+ * ever had — were downstream of a swallowed event and neither could be
+ * reached.** A fix below the layer that eats the input is not a fix.
+ *
+ * So the cancel key is exempt at the swallow itself, in the one place every
+ * blocker in this file goes through.
+ */
+const isCancel = (e: Event) => e.type === 'keydown' && (e as KeyboardEvent).key.toLowerCase() === 'escape';
+
 function blockInput(): () => void {
   releaseHeld();
-  for (const k of BLOCKED) window.addEventListener(k, swallow, CAP);
-  return () => { for (const k of BLOCKED) window.removeEventListener(k, swallow, true); };
+  const guard = (e: Event) => {
+    if (isCancel(e)) { closePanels(); return; }     // always a way out
+    swallow(e);
+  };
+  for (const k of BLOCKED) window.addEventListener(k, guard, CAP);
+  return () => { for (const k of BLOCKED) window.removeEventListener(k, guard, true); };
 }
 
 // ══ THE PANEL FRAMEWORK ═══════════════════════════════════════════════════
@@ -261,10 +281,30 @@ export interface PanelSpec {
   wheel?: (dir: 1 | -1) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  /**
+   * UNDO WHATEVER PUT THE PLAYER HERE. Called on EVERY close, before `onClose`,
+   * including the Escape the framework handles for you and the automatic close
+   * when another panel opens.
+   *
+   * If your panel is opened by SITTING DOWN — a slot stool, a blackjack chair,
+   * a desk — this is where you stand them up. **A panel that is entered from a
+   * state and does not leave it is a trap**, and it is the trap the user hit:
+   * the stool seated him, the panel swallowed his keys, and closing the panel
+   * left him seated with nothing offered.
+   *
+   * `openedFromSeat` on `open()` is the structural half — see there.
+   */
+  release?: () => void;
 }
 
 export interface Panel {
-  open: () => void;
+  /**
+   * Bring it up. `release` undoes whatever put the player here and is called on
+   * EVERY close — pass it when the undo depends on how you opened it (a stool
+   * seated them; the same panel opened from a doorway did not). A standing
+   * `release` on the spec covers the simple case.
+   */
+  open: (o?: { release?: () => void }) => void;
   close: () => void;
   toggle: () => void;
   isOpen: () => boolean;
@@ -290,7 +330,15 @@ let backdrop: HTMLDivElement | null = null;
 // swallows exactly what `blockInput` does, so the freeze is already in here.
 function gate(e: Event): void {
   const p = livePanel;
-  if (!p) return;
+  // A DESYNCED GATE IS A TRAP. If the gate is somehow installed with no panel
+  // behind it — a caller threw mid-open, two panels raced, a close half ran —
+  // the world is frozen and nothing can unfreeze it. So the cancel key tears
+  // the whole apparatus down rather than being swallowed by a listener that has
+  // nothing to close. This costs one branch and removes a class of stuck.
+  if (!p) {
+    if (isCancel(e)) { gateUp(false); backdropUp(false); }
+    return;
+  }
   if (e.type === 'keydown') {
     const k = (e as KeyboardEvent).key.toLowerCase();
     // ESC ALWAYS CLOSES, from every panel, whatever the caller does. A player
@@ -331,6 +379,19 @@ function backdropUp(on: boolean): void {
   backdrop.style.opacity = on ? '1' : '0';
 }
 
+/**
+ * EVERY PANEL EVER BUILT, so a guard can open all of them rather than the ones
+ * whoever wrote the guard happened to know about.
+ *
+ * There are five callers now — the slots, blackjack, the ATM, the pockets and
+ * M's loan desk — and the trap this file just fixed was in the one nobody had
+ * checked. A guard that enumerates panels by hand tests the panels its author
+ * remembered; this one cannot miss a new one, because registering IS how a panel
+ * comes into existence.
+ */
+const ALL_PANELS: { id: string; panel: Panel }[] = [];
+export function everyPanel(): { id: string; panel: Panel }[] { return ALL_PANELS.slice(); }
+
 /** Put away whatever cabinet is up. Called on every open, and by the HUD when
  *  the wallet or the pockets come out. */
 export function closePanels(): void { livePanel?.close(); }
@@ -367,6 +428,10 @@ export function makePanel(spec: PanelSpec): Panel {
   cv.width = CW; cv.height = CH;
 
   let open = false;
+  /** how to undo whatever put the player in front of this panel */
+  let exit: (() => void) | null = null;
+  /** were they sitting down when it came up? then closing it stands them up */
+  let seatedAtOpen = false;
 
   const paint = () => {
     const g = cv.getContext('2d')!;
@@ -425,11 +490,26 @@ export function makePanel(spec: PanelSpec): Panel {
     g.fillText('ESC', SX + spec.w - 4, cy + 9);
   };
 
+  // WHAT THE PLAYER PRESSED ESCAPE ON, and when. A caller that re-opens its
+  // panel from a per-frame hook — which is the natural way to write "the slots
+  // screen is up while you are sitting at the slots" — would otherwise re-open
+  // it the same frame the player closed it, and Escape would do nothing
+  // FOREVER while looking like it was handled. The latch is short: long enough
+  // that the re-open loses the race, short enough that deliberately opening it
+  // again a moment later still works.
+  let dismissedAt = -1e9;
+  const DISMISS_LOCKOUT = 500;
+
   const api: Panel = {
     isOpen: () => open,
     repaint: () => { if (open) paint(); },
-    open: () => {
+    open: (o) => {
       if (open) return;
+      // A PANEL THE PLAYER JUST DISMISSED DOES NOT COME STRAIGHT BACK. See
+      // `dismissedAt` — without this, Escape is a no-op against any caller
+      // that opens from a frame hook, and the player is trapped by a modal
+      // that technically closes.
+      if (performance.now() - dismissedAt < DISMISS_LOCKOUT) return;
       // ONE THING IN YOUR HANDS AT A TIME, and that includes the two held
       // objects that predate this framework. The wallet and the pockets sit at
       // the bottom of the same frame a cabinet fills; stepping up to a machine
@@ -438,6 +518,26 @@ export function makePanel(spec: PanelSpec): Panel {
       LIVE?.closeWallet();
       closeHeld();
       open = true;
+      // THE WAY OUT IS RECORDED AT THE MOMENT THE WAY IN HAPPENS. `release` on
+      // the spec is the standing one; `open({ release })` is for a caller whose
+      // undo depends on HOW it was opened — a stool knows it seated you, the
+      // same panel opened from a doorway did not.
+      exit = o?.release ?? spec.release ?? null;
+      // AND THE STRUCTURAL HALF, which needs no caller to remember anything:
+      // if the player is SEATED when a panel comes up, closing it stands them
+      // back up. A `release` a caller has to pass is a `release` one of five
+      // callers will forget, and the one that forgets traps the player —
+      // *"the framework should not be able to open a panel that cannot be
+      // closed."*
+      //
+      // It reaches for `__ct.stand()`, which is an entry-point TEST affordance,
+      // and I would rather it did not: the right shape is `ctx.stand()` beside
+      // `ctx.seat()`, and that is `ct/ctx.ts`, which is DESK-OWNED. Asked for in
+      // `notes/BLOCKED-K.md`. Until then this is the only lever that makes the
+      // guarantee unconditional, and an unconditional guarantee is the whole
+      // point — the alternative is a comment telling five builders to be
+      // careful.
+      seatedAtOpen = !!(window as unknown as { __ct?: { seated?: () => unknown } }).__ct?.seated?.();
       livePanel = { spec, close: () => api.close() };
       releaseHeld();                     // let go of anything already held down
       gateUp(true);                      // …and the gate is the freeze, see above
@@ -450,6 +550,7 @@ export function makePanel(spec: PanelSpec): Panel {
     close: () => {
       if (!open) return;
       open = false;
+      dismissedAt = performance.now();
       wrap!.style.opacity = '0';
       wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
       if (livePanel && livePanel.spec === spec) {
@@ -457,10 +558,24 @@ export function makePanel(spec: PanelSpec): Panel {
         gateUp(false);
         backdropUp(false);
       }
-      spec.onClose?.();
+      // RELEASE BEFORE onClose, and inside a try, because THIS is the callback
+      // that un-traps the player. A caller whose release throws must not be
+      // able to leave the world frozen behind a closed panel — that is exactly
+      // the shape of the bug this exists to prevent, one layer up.
+      const undo = exit; exit = null;
+      try { undo?.(); } catch (err) { console.error(`[panel ${spec.id}] release threw:`, err); }
+      if (seatedAtOpen) {
+        seatedAtOpen = false;
+        try {
+          const ct = (window as unknown as { __ct?: { seated?: () => unknown; stand?: () => void } }).__ct;
+          if (ct?.seated?.()) ct.stand?.();
+        } catch (err) { console.error(`[panel ${spec.id}] could not stand the player up:`, err); }
+      }
+      try { spec.onClose?.(); } catch (err) { console.error(`[panel ${spec.id}] onClose threw:`, err); }
     },
     toggle: () => (open ? api.close() : api.open()),
   };
+  ALL_PANELS.push({ id: spec.id, panel: api });
   return api;
 }
 
@@ -868,6 +983,14 @@ export function makeHud(purse: Purse): Hud {
     /** which cabinet is up, by its DOM id, or null */
     panel: () => panelUp(),
     closePanels: () => closePanels(),
+    /** every panel in the world, so a guard cannot miss one. See `everyPanel`. */
+    panels: () => everyPanel().map((q) => q.id),
+    openPanel: (id: string) => {
+      const q = everyPanel().find((r) => r.id === id);
+      if (!q) return false;
+      q.panel.open();
+      return true;
+    },
   };
   return hud;
 }

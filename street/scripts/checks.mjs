@@ -625,6 +625,21 @@ const CHECKS = [
   // --selftest pins scene.userData.tv.on true and requires the red. Currently
   // red on the stand-up half, for the seat bug above and not for the TV. (K)
   ['K-tv-off-unless-seated', 'is the television off unless you are sitting down?', true],
+  // THE GUARD FOR THE TRAP THE USER ACTUALLY HIT — "pressing e doesnt get me out
+  // of it". A slot stool opened a modal, the modal's gate swallowed every
+  // keydown, and BOTH of that night's fixes lived downstream of the swallowed
+  // event so neither could be reached. This tests the layer that eats the input,
+  // on EVERY panel from the framework's own registry rather than the ones its
+  // author remembered — six today and a new one cannot escape it by being new.
+  // Per panel: open, confirm the world IS frozen (that part is correct and
+  // wanted), press Escape, confirm it closed and the player can walk. Carries a
+  // control (walking with nothing open) so "got the world back" is not free. Its
+  // --selftest swallows Escape in capture BEFORE the panel opens, which is the
+  // real bug's ordering, and every panel then reports the player walking 0.00 m.
+  // Installing the mutation after the panel was up did NOT reproduce it and the
+  // selftest sailed through — GOTCHAS §27's "a mutation that does not break the
+  // thing proves nothing". (K)
+  ['K-no-panel-traps', 'can the player always get out of a panel?', true],
   // "letters waiting at the mailboxes when he comes in off the street". The
   // clause worth registering is the LAST one: rent is a clock feature, and this
   // world's clock ramps eight hours in a second and a half every time the

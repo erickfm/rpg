@@ -45,6 +45,18 @@ until morning`**. Both are yours. It is reachable — 43–45 of 81 swept square
 offer sleep — so this is not a blocker, but a player who approaches from the
 wrong side gets the television when they meant to go to bed.
 
+## 1a. DESK — `ctx.stand()`, one field beside `ctx.seat()`
+
+The panel framework now guarantees that closing a panel stands the player up if
+they were seated when it opened — the structural half of the modal-trap fix, and
+the half that means no caller has to remember anything. **It reaches for
+`window.__ct.stand()`, which is an entry-point TEST affordance**, because
+`ct/ctx.ts` publishes `ctx.seat()` and no way to undo it.
+
+It works today. It should not have to. `ctx.stand()` beside `ctx.seat()` is one
+field, and it turns a production path that goes through a debug hook into an
+ordinary one. `notes/K-panel-exit-contract.md` has the rest.
+
 ## 1b. DESK — **you cannot get back up off a seat.** 225 seats. Found tonight.
 
 Not mine to fix — the latch is in `crosstown.ts` — and it is the most
