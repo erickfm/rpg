@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"church entrance geometry is fucked / the church itself leaves a lot to be desired. also this church is catholic wheres the jesus on the cross?"** → **G**
 - **"pawn shop exterior leaves a lot to be desired"** → **A**
 - **"door at the pawn shop makes no sense"** → **G**
 - **"graphics clipping between library and burger barn, might want to refine the library geometry"** → **E**
