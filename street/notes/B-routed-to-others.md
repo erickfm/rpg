@@ -54,6 +54,36 @@ I have not made the change: it is your file, and setting it from my street
 placement would silently change the lot and the park too, because the material is
 shared with them.
 
+## I tried the general fix in MY file instead. It costs too much.
+
+Rather than wait on you, I tried fixing the class in `ct/props.ts`: a pre-pass
+over the scene marking every material worn at positions more than 4 m apart, and
+withholding the lamp term from those. It works — all five street tufts drop to
+0.0450, exactly the walk's night value.
+
+**It also flattens the main street's lamp pools, 13.7x to 1.0x.** Under a lamp
+and mid-block both read 0.0450: no pooling at all. That is a CONFIRMED
+user-facing feature — "light around the light posts to show up on the objects
+and entities under the lights" — so I reverted it. I am not trading a confirmed
+request for an unconfirmed improvement, and 82 materials share across distance,
+so any threshold blunt enough to catch the tufts catches things that are lit
+correctly today.
+
+That is the argument for fixing it in `weeds.ts` rather than in the grade: one
+line there costs nothing, and there is no threshold in my file that separates
+"shared by design for draw calls" from "shared by accident".
+
+## One thing to check AFTER you fix it
+
+`scripts/glow.mjs` samples materials near a lamp against mid-block ones, and my
+tufts sit at lamp feet, so **the tufts are currently part of its near-lamp
+median** — the 0.5278 it reports under a lamp on the main street is the tuft
+tint. The ratio was 13.7x before I placed them and reads 11.7x now.
+
+When the tufts drop to 0.045 that median falls, and glow's main-street ratio will
+move again. It has a 3x bar and plenty of headroom, but if it ever goes red just
+after a weeds change, this is why — and the fix would be mine, not yours.
+
 ---
 
 
