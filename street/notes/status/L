@@ -1,1 +1,1 @@
-WORKING | glass painted + 54-cell structural check; slots needs only the panel now | K for the shared panel framework — that is the last thing between this and playable
+WORKING | slots PLAYABLE in-world: sit at a stool, panel opens, money round-trips | nobody — DESK for Seat.onSit and G for the seat field would both let me delete the label bridge, neither blocking

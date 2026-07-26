@@ -38,9 +38,12 @@
 // checked by looking at it is also the one part that needs no world to check.
 
 import { execFileSync } from 'node:child_process';
+import { register } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const SELF = fileURLToPath(import.meta.url);
+// Lets node resolve this project's extensionless relative imports. See the file.
+register('./lib/L-ts-imports.mjs', import.meta.url);
 
 const MODES = ['rtp', 'table', 'sessions', 'all', '--selftest'];
 const mode = process.argv[2] ?? 'rtp';

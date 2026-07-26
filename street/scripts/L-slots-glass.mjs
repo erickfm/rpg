@@ -25,9 +25,12 @@
 // 3 nothing measured.
 
 import { execFileSync } from 'node:child_process';
+import { register } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const SELF = fileURLToPath(import.meta.url);
+// Lets node resolve this project's extensionless relative imports. See the file.
+register('./lib/L-ts-imports.mjs', import.meta.url);
 const MODES = ['glass', 'symbols', 'all', '--selftest'];
 const mode = process.argv[2] ?? 'glass';
 if (!MODES.includes(mode)) {

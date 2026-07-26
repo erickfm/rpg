@@ -583,7 +583,12 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
    * through a wall, and a reel has nothing to collide with.
    */
   const reels = [0, 1, 2].map((i) => ({
-    pos: i * 7.3,       // parked differently on each reel: three reading 0 is a reset
+    // Parked on a DETENT, and differently on each reel. It was `i * 7.3`, so a
+    // machine nobody had spun yet showed all three reels stopped half a symbol
+    // off the payline — which reads as broken rather than as characterful, and
+    // is the first thing a player sees. A real machine at rest sits on its
+    // detents; only the WHICH varies.
+    pos: i * 7,
     stop: 0,
     start: 0,           // pos when the handle went
     rampT: FEEL.rampT, cruiseT: 0, crawlT: 0,
@@ -807,7 +812,7 @@ export function createMachine(opts: { rng?: Rng; bets?: readonly number[] } = {}
 // importing `tube` from `ct/vice.ts` instead of drawing its own letters.
 
 /** The logical size everything below is drawn at. The caller scales. */
-export const FACE = { w: 320, h: 240 } as const;
+export const FACE = { w: 320, h: 256 } as const;
 
 const P = {
   case: '#241e22', caseHi: '#3a3038', caseLo: '#15111a',
@@ -825,9 +830,19 @@ const P = {
 /** The three reel windows, and the row grid inside them. Derived once so the
  *  painter and any check agree on where the payline is. */
 export const GLASS = {
-  x: 22, y: 96, w: 276, h: 90,
+  x: 22, y: 92, w: 276, h: 90,
   reelW: 84, gap: 12, rowH: 30,
 } as const;
+// The face's vertical plan, in one place, because it was not in one place and
+// the machine's own message printed across the bottom of the reel glass. Six
+// pixels of clearance is not a layout; a named band is.
+// 256 tall, not 240. At 240 the bands were touching: the machine's own message
+// printed across the bottom edge of the reel glass because there were six pixels
+// between them and it needed twelve. Sixteen more pixels of cabinet is free —
+// the panel is scaled by K's frame either way — and buying the room is a better
+// answer than shaving type until it fits.
+const SAY_Y = 196, SAY_BAND = [186, 14] as const;
+const METER_Y = 204, METER_H = 21, BTN_Y = 230, BTN_H = 14;
 const REEL_X = [0, 1, 2].map((i) => GLASS.x + i * (GLASS.reelW + GLASS.gap));
 const PAYLINE_Y = GLASS.y + GLASS.h / 2;
 
@@ -837,8 +852,10 @@ const PAYLINE_Y = GLASS.y + GLASS.h / 2;
  *  be driven by a RECORDING context in node and asserted on without a browser.
  *  A real context satisfies it; nothing here needs a DOM. */
 export interface Paint2D {
-  fillStyle: string; strokeStyle: string; font: string;
-  textAlign: string; globalAlpha: number; lineWidth: number;
+  fillStyle: string | CanvasGradient | CanvasPattern;
+  strokeStyle: string | CanvasGradient | CanvasPattern;
+  font: string;
+  textAlign: CanvasTextAlign; globalAlpha: number; lineWidth: number;
   fillRect(x: number, y: number, w: number, h: number): void;
   strokeRect(x: number, y: number, w: number, h: number): void;
   fillText(s: string, x: number, y: number): void;
@@ -875,16 +892,26 @@ const bars = (g: Paint2D, cx: number, cy: number, n: number) => {
 };
 
 const seven = (g: Paint2D, cx: number, cy: number) => {
-  // A blocky 7: top bar, then the diagonal stepped down in whole pixels. Drawn
-  // as steps rather than as a rotated rect because everything else in this
-  // world is axis-aligned pixels and a smooth diagonal would read as imported.
-  const top = cy - 12;
-  g.fillStyle = P.redLo; g.fillRect(cx - 10, top + 1, 21, 21);      // its own shadow
-  g.fillStyle = P.red; g.fillRect(cx - 11, top, 21, 5);
-  for (let i = 0; i < 9; i++) {
-    g.fillRect(cx + 6 - i * 1.7, top + 5 + i * 2, 6, 2);
+  // A blocky 7: a top bar, then the stem stepped down in whole pixels. Steps
+  // rather than a rotated rect because everything else in this world is
+  // axis-aligned pixels and a smooth diagonal would read as imported.
+  //
+  // THE SHADOW FOLLOWS THE GLYPH. It was a solid 21x21 square dropped in behind
+  // it, which filled the whole counter of the 7 and made it read as a red blob
+  // rather than a numeral — visible the moment the machine was looked at, and
+  // invisible to a check that only asks whether the mark is distinct from the
+  // other five. Some things really do need a screenshot; GOTCHAS §1 says they
+  // cannot PROVE anything, not that you should not look.
+  const top = cy - 13, W = 22, STEM = 6;
+  const strokes: [number, number, number, number][] = [[cx - W / 2, top, W, 6]];
+  for (let i = 0; i < 10; i++) {
+    strokes.push([cx + W / 2 - STEM - i * 1.25, top + 6 + i * 2, STEM, 2]);
   }
-  g.fillStyle = P.redHi; g.fillRect(cx - 11, top, 21, 1);           // lit top edge
+  g.fillStyle = P.redLo;
+  for (const [x, y, w2, h2] of strokes) g.fillRect(x + 1, y + 1, w2, h2);
+  g.fillStyle = P.red;
+  for (const [x, y, w2, h2] of strokes) g.fillRect(x, y, w2, h2);
+  g.fillStyle = P.redHi; g.fillRect(cx - W / 2, top, W, 1);         // lit top edge
 };
 
 const cherry = (g: Paint2D, cx: number, cy: number) => {
@@ -1008,12 +1035,12 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   // On the machine itself, where it belongs. A player should be able to see what
   // a triple bar is worth without leaving the game, and it is the only thing on
   // the face that makes the odds legible at all.
-  g.fillStyle = P.glass; g.fillRect(10, 40, 300, 50);
-  g.strokeStyle = P.goldLo; g.lineWidth = 1; g.strokeRect(10.5, 40.5, 299, 49);
-  g.font = '7px monospace';
+  g.fillStyle = P.glass; g.fillRect(10, 38, 300, 48);
+  g.strokeStyle = P.goldLo; g.lineWidth = 1; g.strokeRect(10.5, 38.5, 299, 47);
+  g.font = '8px monospace';
   PAYTABLE.forEach((p, i) => {
     const col = i < 4 ? 0 : 1, row = i % 4;
-    const px = 18 + col * 150, py = 52 + row * 11;
+    const px = 18 + col * 150, py = 51 + row * 11;
     const winning = v.win?.line === p.line;
     g.textAlign = 'left';
     g.fillStyle = winning ? P.lampOn : P.cream;
@@ -1044,13 +1071,14 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   // what you are betting, what the last spin paid. The WIN meter counting up is
   // the payout ramp made visible, and it is the reason the ramp exists.
   const meter = (mx: number, mw: number, label: string, value: string, lit: boolean) => {
-    g.fillStyle = P.meter; g.fillRect(mx, 192, mw, 22);
-    g.strokeStyle = P.caseLo; g.lineWidth = 1; g.strokeRect(mx + 0.5, 192.5, mw - 1, 21);
+    g.fillStyle = P.meter; g.fillRect(mx, METER_Y, mw, METER_H);
+    g.strokeStyle = P.caseLo; g.lineWidth = 1;
+    g.strokeRect(mx + 0.5, METER_Y + 0.5, mw - 1, METER_H - 1);
     g.fillStyle = P.meterDim; g.font = '6px monospace'; g.textAlign = 'left';
-    g.fillText(label, mx + 4, 200);
+    g.fillText(label, mx + 4, METER_Y + 8);
     g.fillStyle = lit ? P.lampOn : P.meterInk;
     g.font = 'bold 11px monospace'; g.textAlign = 'right';
-    g.fillText(value, mx + mw - 4, 211);
+    g.fillText(value, mx + mw - 4, METER_Y + 18);
   };
   meter(22, 108, 'CREDITS', String(v.credits), false);
   meter(138, 44, 'BET', String(v.bet), false);
@@ -1059,12 +1087,12 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   // ── the button deck ──
   const btn = (bx: number, bw: number, label: string, live: boolean) => {
     g.fillStyle = live ? P.gold : P.caseHi;
-    g.fillRect(bx, 220, bw, 14);
+    g.fillRect(bx, BTN_Y, bw, BTN_H);
     g.fillStyle = live ? P.goldHi : P.case;
-    g.fillRect(bx, 220, bw, 1);
+    g.fillRect(bx, BTN_Y, bw, 1);
     g.fillStyle = live ? P.ink : '#6a6258';
     g.font = 'bold 7px monospace'; g.textAlign = 'center';
-    g.fillText(label, bx + bw / 2, 229);
+    g.fillText(label, bx + bw / 2, BTN_Y + 9);
   };
   const idle = v.state === 'idle';
   btn(22, 62, 'BET ONE', idle);
@@ -1073,12 +1101,17 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
   btn(234, 64, 'CASH OUT', idle && v.credits > 0);
 
   // ── what the machine is saying ──
+  // ITS OWN LIT STRIP, not text floating over whatever is behind it. Centred on
+  // the face means centred under the middle reel, so an unbacked line reads as
+  // belonging to that reel rather than to the machine.
+  g.fillStyle = P.glass; g.fillRect(22, SAY_BAND[0], 276, SAY_BAND[1]);
+  g.fillStyle = P.caseLo; g.fillRect(22, SAY_BAND[0], 276, 1);
   g.textAlign = 'center'; g.font = '7px monospace';
   g.fillStyle = v.win ? P.lampOn : P.meterDim;
   const say = v.win
     ? `${v.win.line}   PAYS ${v.win.pays * v.bet}`
     : v.state === 'spinning' ? '' : v.credits < v.bet ? 'INSERT COIN' : 'PLACE YOUR BET';
-  if (say) g.fillText(say, FACE.w / 2, 188);
+  if (say) g.fillText(say, FACE.w / 2, SAY_Y);
 
   g.restore();
 }
@@ -1101,3 +1134,246 @@ export function paintMachine(g: Paint2D, w: number, h: number, v: MachineView, t
 // The line it draws is also the right one for its own sake: `exactRTP` is a
 // property OF the machine and the pay-table screen will want it. A bankroll
 // simulation is a CLAIM ABOUT the machine, and claims belong with the checks.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PART FOUR: THE MACHINERY AROUND IT.
+//
+// Everything above is the GAME and knows nothing about this world. This part is
+// the join: a panel to draw in, a wallet to pay from, a seat that opens it. It
+// is deliberately the smallest section in the file, and every line of it is
+// something blackjack will do identically.
+//
+// NOT ONE LINE OF IT IS MINE TO HAVE BUILT:
+//
+//   · the cabinet, the freeze, ESC and the typeface are K's `makePanel`
+//     (`ct/hud.ts`, `notes/K-panel-framework.md`) — three full-screen
+//     interfaces were in flight at once and three authors' bezels would have
+//     been visible in one screenshot;
+//   · the money is `ctx.purse`, the one wallet, with `ct/int-bodega.ts` as the
+//     only precedent for spending from it;
+//   · the seat is G's, registered in `ct/int-casino.ts`;
+//   · and the module reaches the world through `ct/world.ts`'s glob, so there
+//     is no line in `crosstown.ts` to add and none to forget.
+
+import type { CtxBuild } from './ctx';
+import { BUILD, ORDER as HOOK } from './ctx';
+import type { Panel } from './hud';
+
+/** After the interiors, because the seat this attaches to is built with them. */
+export const ORDER = BUILD.INTERIOR + 5;
+
+/**
+ * WHAT A CREDIT IS WORTH, and it is authored exactly once.
+ *
+ * A quarter machine, because that is what a 1997 neighbourhood casino floor
+ * IS, and because it makes the numbers read right at both ends: a $20 note buys
+ * 80 credits and a real sitting, and the 250x jackpot pays $62.50 — a good
+ * night on this street rather than a life change. At a dollar a credit the same
+ * jackpot is $250 and the room becomes somewhere else.
+ *
+ * Proposed to K in `notes/L-for-K-money-and-the-panel.md` §2 because the wallet
+ * and the ATM are K's and a rate invented in two files is a rate that will
+ * disagree. K has not ruled yet; this is the proposal, in one constant, and if
+ * the answer is a different number it is a one-line change here and nowhere
+ * else.
+ */
+export const CREDIT = 0.25;
+
+/** What one press of INSERT feeds in. A note, not a coin — nobody plays a slot
+ *  machine a quarter at a time, and a machine that takes twenty presses to load
+ *  is a machine nobody sits at twice. */
+export const BILL = 5;
+
+/**
+ * The label G's stools publish for themselves, in `ct/int-casino.ts`:
+ *
+ *     label: 'sit at the slot', ok: () => room.inside(),
+ *
+ * MATCHING ON IT IS A BRIDGE, AND IT IS MEANT TO BE DELETED. The user's
+ * requirement is that the seat IS the trigger — "when i sit down i enter the
+ * slots interface" — and `ctx.seat()` has no way to tell its owner it was
+ * taken. I have asked the desk for `onSit`/`onStand`, two optional fields and
+ * two lines in the existing registration, in `notes/L-for-DESK-seat-opens-a-game.md`.
+ *
+ * Until that lands, this reads which seat the player is on and matches G's own
+ * published string. It is indirect, and I took it over the alternative on
+ * purpose: the alternative is deriving the stool positions from `AVENUE`,
+ * `SLOT_PITCH`, `SLOT_N` and `BANK_Z`, which is five of G's constants copied
+ * into my file — and the comments in his own file record that layout moving
+ * five separate times. A copied number detaches silently; a copied label breaks
+ * loudly, because the prompt the player reads is the same string.
+ *
+ * When `onSit` lands this constant and `watchSeat` below both go, replaced by
+ * one field on G's existing `ctx.seat({ … })` call.
+ */
+const SLOT_SEAT_LABEL = 'sit at the slot';
+
+interface SeatRow { pose: object; label: string }
+interface CtWindow { __ct?: { seated: () => object | null; seats: () => SeatRow[] } }
+
+/** The slot stool the player is sitting on, or null.
+ *
+ *  Returns the POSE OBJECT rather than a boolean, and by IDENTITY rather than by
+ *  position: `crosstown.ts` hands out the pose itself, so this cannot be
+ *  confused by two stools at the same coordinates the way a distance test would,
+ *  and the caller can tell one stool from the next one along. */
+function seatedSlot(): object | null {
+  const ct = (globalThis as unknown as CtWindow).__ct;
+  if (!ct) return null;
+  const pose = ct.seated();
+  if (!pose) return null;
+  const seat = ct.seats().find((s) => s.pose === pose);
+  return seat?.label === SLOT_SEAT_LABEL ? pose : null;
+}
+
+/**
+ * `ct/hud.ts` is reached by a DYNAMIC import, and for two reasons that happen to
+ * point the same way.
+ *
+ * The first is GOTCHAS §28. `ct/world.ts` collects modules from an eager glob,
+ * and a module in a runtime import cycle with that graph can resolve to an
+ * undefined namespace in the Rollup bundle while working perfectly in the dev
+ * server — which is how GOLDEN ACES shipped missing, and how a whole week of
+ * "all eight doors arrive" claims turned out to describe dev only. A dynamic
+ * import is not part of the static graph, so it cannot take part in that cycle.
+ * `ct/int-casino.ts` avoids the same trap by deriving its door stand-off rather
+ * than importing a value from `./doors`.
+ *
+ * The second is that it keeps THE GAME importable by node. `ct/hud.ts` reaches
+ * `virtual:build-stamp`, a Vite virtual module that does not exist outside the
+ * bundler, so a static import of it would make this whole file unloadable
+ * outside a browser — and the maths, the reel physics and the glass are all
+ * checked by node scripts that import this module directly. A statically-linked
+ * panel would have cost three checks to save one line.
+ */
+export function register(ctx: CtxBuild): void {
+  const machine = createMachine();
+  let panel: Panel | null = null;
+  let clock = 0, lastT = -1;
+  /**
+   * The stool the player has ALREADY walked away from without leaving it.
+   *
+   * ESC closes every panel in this world and must keep doing so — a player who
+   * cannot get out of a machine is stuck. But sitting down is what opens this
+   * one, and the player is still sitting down afterwards, so the frame hook
+   * below reopened it on the very next frame and ESC did nothing at all. It
+   * closed, paid out, and sprang back up; measured, not reasoned about — the
+   * in-world check caught it as "ESC closes the machine: FAIL" while every
+   * money verdict beside it passed, because the close really had happened.
+   *
+   * So a dismissal is remembered against the stool it was made at. Stand up, or
+   * move to a different machine, and it offers itself again. Same stool, same
+   * sitting: it stays shut and you get the ordinary "stand up" prompt back.
+   */
+  let dismissed: object | null = null;
+
+  /** Credits in, dollars out, and the wallet is the only account. */
+  const cashOut = () => {
+    const n = machine.cashOut();
+    if (n <= 0) return;
+    ctx.purse.cash += n * CREDIT;
+    ctx.refreshWallet();
+  };
+  const insert = () => {
+    if (!machine.settled()) return;
+    const spend = Math.min(BILL, ctx.purse.cash);
+    const credits = Math.floor(spend / CREDIT);
+    if (credits <= 0) return;
+    ctx.purse.cash -= credits * CREDIT;      // charged for what was CREDITED,
+    ctx.refreshWallet();                     // never for the rounding
+    machine.insert(credits);
+  };
+
+  void import('./hud').then(({ makePanel }) => {
+  panel = makePanel({
+    id: 'ct-slots',
+    w: FACE.w, h: FACE.h, scale: 2,
+    chrome: 'machine',
+    // The building's OTHER line, not 'SEVENS' — the face below already carries
+    // SEVENS on its own topper with the bulbs chasing round it, and stamping it
+    // into the bezel as well would say it twice on one machine. Both strings are
+    // the facade's; `ct/vice.ts` paints SEVENS and LOOSEST SLOTS on the front.
+    title: 'LOOSEST SLOTS',
+    hint: () => (machine.settled()
+      ? 'SPACE spin · B bet · M max · I insert $5 · C cash out'
+      : '…'),
+    draw: (g, w, h) => paintMachine(g, w, h, machine.view(), clock),
+    key: (k) => {
+      if (k === ' ' || k === 'enter') machine.play();
+      else if (k === 'b') machine.betUp();
+      else if (k === 'v') machine.betDown();
+      else if (k === 'm') { for (let i = 0; i < 8; i++) machine.betUp(); }
+      else if (k === 'i') insert();
+      else if (k === 'c') cashOut();
+      panel?.repaint();
+    },
+    // THE MONEY COMES BACK, ALWAYS. ESC closes every panel in this world without
+    // the caller writing a line, which is right and is also the one way a player
+    // could have walked away from a full meter. Cashing out on close makes
+    // "what you win is in your wallet when you stand up" true by construction
+    // rather than by remembering to press a button.
+    onClose: () => { dismissed = seatedSlot(); cashOut(); },
+  });
+  });
+
+  /**
+   * The tick, and the reason it is not `f.dt`.
+   *
+   * `Frame.dt` is clamped to 0.05 by `src/main.ts:107` so one long frame cannot
+   * teleport a body through a wall — correct for the world and wrong here, where
+   * it would mean the reels visibly slow down whenever the 3D scene is
+   * struggling (GOTCHAS §43: below 20 fps sim time runs at 0.659x wall). A
+   * machine you sit at is an interface, not physics. `Frame.t` is documented as
+   * "wall time, for anything that animates on its own clock", so this takes its
+   * own delta from that and gets one clock shared with the world rather than a
+   * second `requestAnimationFrame` loop running beside it.
+   *
+   * K's framework never repaints on its own — "a panel that repaints on a timer
+   * is a panel that flickers" — so a moving machine has to ask, and only while
+   * it is actually up.
+   */
+  // Registered SYNCHRONOUSLY even though the panel it drives arrives a tick
+  // later: `crosstown.ts` sorts HOOKS by declared ORDER once, at build time, so
+  // a hook pushed after that sort runs last regardless of what it asked for.
+  // It no-ops until the panel exists.
+  ctx.onFrame((f) => {
+    if (!panel) return;
+    // THE SEAT IS THE TRIGGER. Sitting down opens it; standing up is impossible
+    // while it is open, because the panel has the keyboard.
+    const stool = seatedSlot();
+    if (stool === null) dismissed = null;          // off the stool: offer it again
+    if (!panel!.isOpen()) {
+      lastT = -1;
+      if (stool !== null && stool !== dismissed) { lastT = f.t; clock = 0; panel!.open(); }
+      return;
+    }
+    // Left the seat some other way — a room transition stands you up directly
+    // (`crosstown.ts:653`), which is the same path that would miss an `onStand`
+    // hook. Closing here cashes out through `onClose`.
+    if (stool === null) { panel!.close(); return; }
+    const dt = lastT < 0 ? 0 : Math.max(0, f.t - lastT);
+    lastT = f.t;
+    clock += dt;
+    machine.tick(dt);
+    panel!.repaint();
+  }, HOOK.LATE);
+
+  // The station, for `scripts/` and for anyone who wants to look at the machine
+  // without walking to the casino. Named for what it is; `__hud.panel()` will
+  // report `ct-slots` while it is up.
+  (globalThis as unknown as Record<string, unknown>).__slots = {
+    open: () => panel?.open(),
+    close: () => panel?.close(),
+    view: () => machine.view(),
+    insert: (n: number) => machine.insert(n),
+    play: () => machine.play(),
+    rtp: () => exactRTP(),
+    /** The ONE wallet, read through the same `ctx.purse` the bodega spends
+     *  from. Published here rather than asking for a new station affordance in
+     *  a file I do not own — and reading it through this module is the honest
+     *  way round anyway, since the claim being checked is that MY machine moves
+     *  THAT money. */
+    cash: () => ctx.purse.cash,
+    credit: () => CREDIT,
+  };
+}
