@@ -548,3 +548,48 @@ every screenshot. `wd-gutter.png` reads `4a311be0a+`, the earlier shots read
 build, and read the stamp in the shot before believing the count.** `reportWorld`
 in `scripts/lib/which-world.mjs` exits 3 on a SHA mismatch and belongs at the top
 of every verification script, including this one.
+
+## [C] Bench sit CONFIRMED; doors clean; the interior report corrected
+
+**Bench (B) — CONFIRMED.** Mapped a 10 × 8 grid around it, warping to each cell,
+pressing E and reading `seated()`. `[E] sit at the stop` fires across x 6.0–6.8
+over ~2.4 m of z — the whole pavement zone including the lane centre — and the
+prompt is on screen while simply walking past (`bn-345.png`). 0 of 40 roadway
+cells seat the player, and the three cells hard against the bench are not
+standable, which corroborates B's *reason* and not merely their conclusion.
+
+**[R] Flagged an interpretation rather than burying it.** The user said *"from the
+street"*. Roadway or pavement are different requests, and B declined the roadway
+deliberately. I confirmed on the pavement reading because the prompt now appears
+unprompted while walking — but the ambiguity is written into the row, not
+resolved silently in my favour.
+
+**Doors — nothing wrong, and the check can prove it.** All 10 published doors:
+none swallowed by a collider, ≥1.3 m to back away, ≥4.1 m across, camera lands
+within 0.00 m at every one. GOTCHAS §8 has not recurred. **Positive control:** the
+centre of the world's largest collider (19.8 × 18.0 m) reads as inside, so the
+zero is a measurement rather than a detector that cannot see.
+
+## [I] The stale-build fault, twice in one day, in BOTH directions
+
+This is the pattern worth keeping. The same root cause produced two opposite
+failures within an hour:
+
+- **Toward a false negative** — I counted 51 street weed tufts and was about to
+  send correct work back to OPEN. The current build has 5, exactly where B said.
+- **Toward a false positive** — I published `interior-audit.md` calling the
+  bodega the worst room in the set, measured against rooms that had already been
+  rebuilt. The library is worse, at 2.10 m against the bodega's 3.85 m.
+
+**A stale build does not announce itself.** Both numbers were plausible: 51 sits
+believably between the old 44 and nothing, and a 163 m² library is exactly what
+the file said last week. Neither crashed, neither looked odd.
+
+The guard was in every screenshot the whole time — the build hash in the corner.
+`wd-gutter.png` reads `4a311be0a+`; my earlier shots read `e2ead9895`. I had that
+evidence on screen and did not read it, which is GOTCHAS §20 ("an unread
+screenshot is not an observation") applied to a field I *did* look at without
+seeing.
+
+**Standing rule for the rest of this audit: rebuild before verifying any row that
+landed after the last build, and read the stamp before believing the number.**
