@@ -764,6 +764,36 @@ export function frontageOf(name: string, wMeters: number): Layout {
   return { ...L, doorCentreM: along, doorOffsetM: along - wMeters / 2 };
 }
 
+/**
+ * WIDTH IS NOT A CONTRACT. `frontageM` is how wide the FACADE is. It is not a
+ * size a room has to match, and nothing here asks it to.
+ *
+ * The desk ruled this on 2026-07-25 (GOTCHAS 45) after enforcing dimensional
+ * equality the user never asked for, which cost the bodega, the casino and the
+ * hotel their depth — three rooms he then sent back for being cramped. His
+ * words: *"by matching the exterior i really mean in general positioning. no
+ * one is going to take a ruler and measure the width of the inner and outer"*
+ * and *"you can make it wider than it actually is outside too."*
+ *
+ * What must match is the door's SITUATION — which side it is on. This
+ * descriptor delivers that through `alongU()`, a position along the frontage
+ * that a room converts into its own local space at its own scale, so the door
+ * keeps its side and its proportion whatever width the room takes.
+ *
+ * Measured, and rooms already exercise it — 0 of 6 match their frontage:
+ *
+ *     bodega  8.8 m room against a  6.05 m frontage   145%
+ *     burger 14.8              16                      93%
+ *     pawn   13.8              15                      92%
+ *     tax    11.8              13                      91%
+ *     thrift 11.3            12.5                      90%
+ *     diner  10.8              12                      90%
+ *
+ * So this needed no change for the ruling; it is written down because the
+ * failure the ruling corrects is somebody reading `frontageM` as a target and
+ * "fixing" a room to match it. It is a fact about the facade, and rooms are
+ * free of it. TAKE THE ROOM YOU NEED.
+ */
 export interface FrontageWorld extends Placement {
   frontageM: number;
   /** DOOR CENTRE IN WORLD COORDINATES on `axis`. Not an offset, not a side. */
