@@ -979,3 +979,36 @@ fit its building. G satisfied the first in a way that worsens the second, and
 neither row's own evidence could show it, because each is true within its own
 frame. **When one builder holds two rows that trade against each other, only
 something outside both can see the trade.**
+
+## [C] Building depth CONFIRMED — checked against "ALL", not against the two named
+
+The row names two shells that went 3.4 → 14 m. The user's word was **all**, so I
+measured every building mass in the world instead of the two:
+
+- **22 masses (h ≥ 8 m), and ZERO with a footprint dimension under 5 m.** The
+  complaint was about 3.4 m.
+- Median shallowest dimension **12 m**, max 18.
+- The two rebuilt shells are **14 m** deep, matching D's re-measurement.
+
+The four masses whose smallest dimension is ~6 m are **narrow-fronted, not
+shallow** — the bodega's 6.05 m frontage has 19.7 m behind it — plus the street's
+own end cap. Seen along the side street: solid multi-storey masses with receding
+window lines and real returns.
+
+**[I] The evidence had the two buildings' names swapped, and I nearly repeated
+it.** D's note reads "GOLDEN ACES … at x 39.5, HOTEL ORPHEUS … at x 51.2".
+`doors()` puts GOLDEN ACES at **51.29** and HOTEL ORPHEUS at **39.5**, and my own
+footprints agree with the doors, not the note. The dimensions are right; only the
+labels are crossed.
+
+It matters because I had just written a finding about *the hotel* overrunning its
+footprint. Had I taken the note's labels, that finding would have named the
+casino — **a correct measurement attached to the wrong building is worse than no
+measurement**, because it survives review and sends the fix to the wrong file.
+Checking a name against the published door costs one lookup.
+
+**[Is] Where this leaves the footprint finding.** Both shells are now 14 m deep,
+so the hotel's 26 m lobby is inside a 14 m building and the casino's 19 m room is
+inside a 14 m building — **the deepening did not close the gap I filed**, because
+the interiors grew further than the shells did. The two rows remain in tension
+and the numbers are on both.
