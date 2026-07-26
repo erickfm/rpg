@@ -359,6 +359,47 @@ half:
 3. A failed run was **overwriting the good frame with a black one**. The
    screenshot is buffered and only written when it drew.
 
+### And I fingerprinted it, which turned up something everyone should know
+
+The project's standard is `fp before` → change → `fp after` → `fpdiff`, and
+*"textures and structure must match; 4–6 pigeons drifting is the noise floor."*
+I ran it properly, isolating my commit by checking out its parent's `civic.ts`
+and rebuilding.
+
+**The verdict on my change: it moved nothing.** 8361 objects both sides.
+`structure` differs on **exactly 3 meshes**, and only in material colour —
+`2b2d33|2b2d33` → `ffffff|ffffff`, which is what a textured `MeshBasicMaterial`
+looks like when the tone moves into the map. `places` differs on 7, and
+fpdiff itself labels them: *every one has a partner within 5 cm: DRIFT
+(pigeons), not a move.*
+
+**But `textures` reported 945 of 1419 differing, and that number is not what it
+looks like.** Control, because a number like that demands one: fingerprint the
+**same** build twice → `textures=880196e3` both times, byte-identical. So
+scenedump is deterministic and the 945 really are caused by my three lines.
+
+**The cause is by design, and it is not confined to me.** `scenedump` seeds
+`Math.random` *"so texture pixels are reproducible for the fingerprint. Test-
+harness only — the shipped world keeps its live grain."* The art layer paints
+with unseeded `Math.random`, so **any call that consumes draws shifts the noise
+of every texture built after it.** `slabTex` does exactly that, and **six
+modules already call it** — bodega, park, library interior, lot, civic, church
+interior.
+
+**What that means for reading `fp`, and it is worth the desk's attention:**
+
+> the `textures` hash is a CHANGE-detector, not a REGRESSION-detector, for any
+> commit that adds or removes a texture. It will show hundreds of differences
+> for three honest lines, and **those differences are invisible to a player** —
+> in the shipped world that grain is re-randomised on every single load.
+
+So the two hashes that answer *"did the world move"* are **`structure` and
+`places`**. Mine say 3 material colours and 7 pigeons. That is a clean pass, and
+reading the texture count as a fail would have sent me unpicking a correct
+change. Flagging rather than fixing: making `slabTex` deterministic from a local
+hash — the way B did for the crossings, explicitly avoiding `Math.random`
+*"because the scenedump harness seeds it"* — is a change to A's file, not mine.
+
 ## Two things I checked and did NOT file
 
 Worth recording, because a rejected finding costs one paragraph and a false one
