@@ -161,6 +161,13 @@ const CHECKS = [
   // never off the TIES table the source builds them from — reading that back
   // would only prove the table agrees with itself. (I)
   ['I-bunting',        'does the bunting chain, and is every end tied on?',  true],
+  // C WROTE THIS AND HELD IT BACK ON PURPOSE: "mods-dim stays unregistered
+  // until this lands: it is red on this finding, and reddening the shared suite
+  // over something I cannot fix would hand the block my problem." The finding
+  // was `isSelfLit` holding ~40 printed sheets at full daylight brightness, and
+  // it has landed — the lot now reports 715 dim, 43 declared lights, 0 holding
+  // without saying why. So the check comes in, as its author intended. (I)
+  ['mods-dim',         'does everything in the lot and walk-up actually dim?', true],
   ['note-hashes',      'do my notes cite commits others can resolve?',       true, ['notes/C-*.md', 'notes/BLOCKED-C.md']],
   ['people-walk',      'is every figure drawn from the 8-angle atlas?',      false],
   ['entrance-brick',   'does the brick run through No. 227\'s entrance bay?', true],

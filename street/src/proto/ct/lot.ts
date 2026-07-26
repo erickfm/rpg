@@ -1996,7 +1996,15 @@ function buildLot(o: {
       for (let x = 2; x < 16; x += 4) g.fillRect(x, 0, 1, 12);
       g.fillStyle = 'rgba(255,255,255,0.35)'; g.fillRect(0, 0, 16, 2);
     });
-    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.26), flat(lensT));
+    // THE LENS IS PART OF THE LIGHT, and it was the last material in this
+    // module holding daylight brightness with nothing saying why. It is the
+    // glass face of a fixture that is ON after dark — the one surface here
+    // that SHOULD stay bright — so it declares itself the same way its own
+    // halo and pool do, rather than being left for a heuristic to guess at.
+    const lensM = flat(lensT);
+    lensM.userData.cLight = true;
+    lensM.userData.selfLit = true; lensM.userData.graded = true;
+    const lens = new THREE.Mesh(new THREE.PlaneGeometry(0.44, 0.26), lensM);
     const [lx, lz] = off(0.52);
     lens.position.set(lx, Y + 5.94, lz);
     lens.rotation.y = -Math.PI / 2 + aim;
@@ -2006,7 +2014,24 @@ function buildLot(o: {
     // halo at the lens and a pool thrown across the asphalt — both stepped
     // into hard rings rather than blurred, because nothing else in this world
     // is a smooth gradient. Both fade in with the night.
-    const stepDisc = (n: number, R: number) => surfTex('detail', n, n, (g) => {
+    /**
+     * A STEP IS A SIZE IN METRES, NOT A FRACTION OF THE DISC.
+     *
+     * Five rings is right for a 2 m halo and wrong for a 13 m pool: spread over
+     * the floodlight's throw, the same five steps become **bands 1.3 m across**,
+     * and at the grazing angle you actually walk at they read as hard-edged
+     * grey chevrons lying on the asphalt. I found them while grading my own new
+     * festoon pools and assumed they were mine; they are not, they are in
+     * `shots/I-n-back-out.png` from before the festoon existed, and they have
+     * been on this yard as long as the floodlight has.
+     *
+     * The aesthetic is deliberate and stays — *"stepped into hard rings rather
+     * than blurred, because nothing else in this world is a smooth gradient"*.
+     * What was wrong is only that the step count did not scale, so `steps` is
+     * now chosen by the caller from the disc's real size and every pool in the
+     * lot has bands of roughly the same width on the ground.
+     */
+    const stepDisc = (n: number, R: number, steps = 5) => surfTex('detail', n, n, (g) => {
       const C = n / 2;
       const disc = (r: number, fill: string) => {
         g.fillStyle = fill;
@@ -2015,11 +2040,16 @@ function buildLot(o: {
           if (dx * dx + dy * dy <= r * r) g.fillRect(x, y, 1, 1);
         }
       };
-      disc(R, 'rgba(255,236,186,0.07)');
-      disc(R * 0.74, 'rgba(255,240,198,0.11)');
-      disc(R * 0.52, 'rgba(255,244,212,0.17)');
-      disc(R * 0.32, 'rgba(255,248,226,0.24)');
-      disc(R * 0.16, 'rgba(255,252,238,0.32)');
+      // same endpoints the five hand-written rings had — 0.07 at the rim to
+      // 0.32 at the core, over radii R down to 0.16R — just sampled `steps`
+      // times instead of exactly five, so the old call sites are unchanged.
+      for (let i = 0; i < steps; i++) {
+        const u = i / (steps - 1);                      // 0 at the rim, 1 at the core
+        const r = R * (1 - u * 0.84);
+        const a = 0.07 + u * 0.25;
+        const cr = 255, cg = Math.round(236 + u * 16), cb = Math.round(186 + u * 52);
+        disc(r, `rgba(${cr},${cg},${cb},${a.toFixed(3)})`);
+      }
     });
     const haloM = new THREE.MeshBasicMaterial({
       map: stepDisc(24, 11), transparent: true, opacity: 0, depthWrite: false,
@@ -2046,7 +2076,7 @@ function buildLot(o: {
     halo.position.set(ax, Y + 5.9, az);
     scene.add(halo);
     const poolM = new THREE.MeshBasicMaterial({
-      map: stepDisc(32, 15), transparent: true, opacity: 0, depthWrite: false,
+      map: stepDisc(64, 30, 12), transparent: true, opacity: 0, depthWrite: false,
       blending: THREE.AdditiveBlending, color: 0xb9a882,
     });
     poolM.userData.cLight = true;
@@ -2066,6 +2096,150 @@ function buildLot(o: {
       // which is the only thing a stain has to do.
       const k = 1 - 0.47 * f.night;
       for (const d of decals) d.m.color.copy(d.base).multiplyScalar(k);
+    });
+
+    // ── FESTOON LIGHTING: the thing that made the night wrong ────────────
+    //
+    // Walked the lot at 21:30 and graded it against the brief — *"a high
+    // effort sleazy used car lot … do some research into what old sleazy used
+    // car lots looked like"* — and the night was the worst thing in it. The
+    // yard was a black rectangle with one floodlight, two neon signs and
+    // eleven dark lumps where the stock is.
+    //
+    // **That is backwards for this typology.** A used car lot is the LOUDEST
+    // LIT THING on its block after dark; the whole business model is that the
+    // stock is visible from the road at 9 p.m. and the office is still open.
+    // The single most identifying piece of it — the one every photograph of a
+    // 1990s lot has and this one did not — is overhead FESTOON: bare bulbs on
+    // a sagging cable, strung the length of the yard over the rows.
+    //
+    // It also does NOT contradict *"make the unilluminated stuff darker, it
+    // should feel scarier at night"*, which is the request the `printed` pass
+    // served. That asks for a bigger RANGE between lit and unlit, and this is
+    // the lit half of it: the bulbs and their wash are declared lights, and
+    // everything they do not reach stays exactly as dark as it now is.
+    //
+    // NOT the bunting. The bunting is plastic pennants on the FRONTAGE fence,
+    // running along z and seen from the street; this runs along x, over the
+    // aisle, and is only seen once you are inside. Two different objects doing
+    // two different jobs, which is why the sag, the height and the anchors are
+    // all worked out separately below rather than shared.
+    const FEST_H = 4.6;                   // mast top: clear of a 1.5 m car and a person
+    // 2.4 back off the office, not 1.2. At 1.2 the far mast of the south run
+    // stood 0.153 m INSIDE the back-corner car — those two are raked 1.15 rad
+    // and throw far more of themselves along x than the main rows do, so the
+    // corner is the one place a fixture at the aisle edge does not fit.
+    // Caught by `lot-clearance` and `I-clip` on the first run after I added
+    // them, which is the entire reason for building that check before this.
+    const FEST_X0 = X0 + 2.4, FEST_X1 = OFF_X - OFF_D / 2 - 2.4;
+    const FEST_SAG = 0.93;                // ~6% of the span; lowest bulb at 3.67 m
+    const FEST_SPAN = FEST_X1 - FEST_X0;
+    // The runs sit 0.2 m INSIDE the aisle edge — the boundary between the
+    // drive and the bays, which is where a real lot puts its poles. Measured
+    // against the stock rather than eyeballed: a 4.52 m body raked 0.55 rad
+    // noses to within 6.68 m of the centreline on the north side, so a mast at
+    // 5.8 clears the nearest car by 0.88 m. `scripts/I-clip.mjs` re-checks that
+    // against every car and every fixture, which is why it was worth building.
+    const FEST_Z = [zMid + AISLE_HW - 0.2, zMid - AISLE_HW + 0.2];
+    const cableM = new THREE.MeshBasicMaterial({ color: 0x3a3d42 });
+    const mastM = new THREE.MeshBasicMaterial({ color: 0x6e747b });
+    // A bulb is a real object by day and a light by night, so it is TWO
+    // meshes: an opaque glass bead that the world's grader dims like anything
+    // else, and an additive halo that is invisible at noon and comes up with
+    // f.night. Painting one mesh brighter would have made a bulb that glows in
+    // daylight, which is the `isSelfLit` mistake in a different hat.
+    const glassM = new THREE.MeshBasicMaterial({ color: 0xd8cfae });
+    const bulbHaloM = new THREE.MeshBasicMaterial({
+      map: stepDisc(16, 7), transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0xffe9b0,
+    });
+    bulbHaloM.userData.cLight = true;
+    bulbHaloM.userData.selfLit = true; bulbHaloM.userData.graded = true;
+    // ONE POOL PER BULB, not one stretched pool per run. The first version put
+    // a single disc across the whole 18.5 m run, and a radial disc scaled that
+    // far apart stops being a pool: its steps spread into metre-wide bands and
+    // it read as HARD-EDGED GREY POLYGONS lying on the asphalt, which is worse
+    // than the dark yard it was meant to fix. A festoon throws a chain of small
+    // overlapping pools, one under each bulb, and that is both what it looks
+    // like and what the floodlight beside it already does.
+    const washM = new THREE.MeshBasicMaterial({
+      map: stepDisc(24, 11), transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x9d8f6c,
+    });
+    washM.userData.cLight = true;
+    washM.userData.selfLit = true; washM.userData.graded = true;
+    const bulbGeo = new THREE.SphereGeometry(0.075, 6, 4);
+    // 0.52, not 0.95. At 0.95 the near bulbs read as glowing PATCHES ON THE
+    // BRICK rather than as points of light — a bare bulb's corona is a hand's
+    // width, and a metre-wide disc a few metres from the eye is a lamp shade.
+    // Smaller and brighter is the same amount of light and the right shape.
+    const haloGeo = new THREE.PlaneGeometry(0.52, 0.52);
+    // 2.8 m and faint, deliberately. stepDisc draws HARD concentric rings --
+    // right for this world, and at 4.2 m across, seen at the grazing angle you
+    // actually walk at, twenty overlapping copies of those rings interfered
+    // into a visible LATTICE of chevrons on the asphalt. Smaller rings at lower
+    // opacity brighten the ground under each bulb without patterning it.
+    const poolGeo = new THREE.PlaneGeometry(2.8, 2.8);
+    const halos: THREE.Mesh[] = [];
+    for (const fz2 of FEST_Z) {
+      for (const mx of [FEST_X0, FEST_X1]) {
+        const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, FEST_H, 6), mastM);
+        mast.position.set(mx, Y + FEST_H / 2, fz2);
+        scene.add(mast);
+        solid({ minX: mx - 0.12, maxX: mx + 0.12, minZ: fz2 - 0.12, maxZ: fz2 + 0.12 });
+      }
+      // the cable, as a catenary sampled the same way the bunting samples its
+      // swags — u in 0..1, dropped by 4·sag·u·(1−u)
+      const at = (u: number) => Y + FEST_H - FEST_SAG * 4 * u * (1 - u);
+      const N = 24;
+      for (let s = 0; s < N; s++) {
+        const u0 = s / N, u1 = (s + 1) / N;
+        const x0 = FEST_X0 + FEST_SPAN * u0, x1 = FEST_X0 + FEST_SPAN * u1;
+        const y0 = at(u0), y1 = at(u1);
+        const len = Math.hypot(x1 - x0, y1 - y0);
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(len, 0.025, 0.025), cableM);
+        seg.position.set((x0 + x1) / 2, (y0 + y1) / 2, fz2);
+        seg.rotation.z = Math.atan2(y1 - y0, x1 - x0);
+        scene.add(seg);
+      }
+      // bulbs every ~1.55 m, hanging a short drop below the cable
+      const NB = Math.max(4, Math.round(FEST_SPAN / 1.55));
+      for (let i = 0; i <= NB; i++) {
+        const u = i / NB;
+        const bx = FEST_X0 + FEST_SPAN * u, by = at(u) - 0.16;
+        const drop = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.14, 0.014), cableM);
+        drop.position.set(bx, by + 0.09, fz2);
+        scene.add(drop);
+        const bulb = new THREE.Mesh(bulbGeo, glassM);
+        bulb.position.set(bx, by, fz2);
+        scene.add(bulb);
+        const h = new THREE.Mesh(haloGeo, bulbHaloM);
+        h.position.set(bx, by, fz2);
+        halos.push(h);
+        scene.add(h);
+        // the light it actually throws: a pool on the asphalt under it, wide
+        // enough to overlap its neighbours so the run reads as a continuous
+        // lit strip rather than as beads on a string
+        const pl = new THREE.Mesh(poolGeo, washM);
+        pl.rotation.x = -Math.PI / 2;
+        pl.position.set(bx, Y + 0.010, fz2);
+        scene.add(pl);
+      }
+
+    }
+    o.onFrame?.((f) => {
+      bulbHaloM.opacity = 0.92 * f.night;
+      // 0.42: enough that the asphalt under each run reads as LIT, which is
+      // what makes the stock read as silhouettes standing on a bright yard
+      // instead of dark lumps in a dark one. That contrast is the look.
+      washM.opacity = 0.17 * f.night;
+      // TURN EACH HALO TO THE PLAYER, or a bulb seen from along the run is a
+      // disc edge-on and vanishes — which is most of the aisle, since the runs
+      // point the way you walk. Yaw only, off `Frame.px/pz`: there is no
+      // camera on ctx, and for a viewer standing on the ground yaw is the
+      // whole of it. A plane's own normal is local +z, so atan2(dx, dz) aims it.
+      for (const h of halos)
+        h.rotation.y = Math.atan2(f.px - h.position.x, f.pz - h.position.z);
     });
 
     // NOTHING here registers the perimeter. The site's low wall, its flanks
