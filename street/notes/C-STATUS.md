@@ -54,3 +54,35 @@ eye height and missed by two head-on screenshots), and it found that
 to withdraw after measuring — the lot chairs twice, an office sign overlap, and
 an arrow direction. The pattern: my sign-offs are reliable when I measure and
 unreliable when I look.
+
+## Measured in the LIVE world (:5177), not mine — 2026-07-25 19:00
+
+The two twice-reported faults kept coming back, so I stopped checking my own
+tree and checked the world the user actually plays. The registered lot checks
+**refuse** that URL on purpose — `:5177` serves build `d1f8bbdb9` while this
+checkout is `0bab02ef5`, and *"numbers from another builder's tree are not
+evidence about yours"* — so this asked the live scene directly, using
+`lot-clearance`'s own car identification.
+
+```
+  left row backwards   north row mean yaw 0.650, south row 2.472
+                       sum 3.122 against PI = 3.142  ->  MIRRORED, the fix is live
+                       (a copied row would show a DIFFERENCE near 0; it is 1.822)
+
+  cars clipping        11 cars, oriented boxes in each car's own frame
+                       closest pair gap 0.422 m  ->  NO OVERLAP
+                       the same 0.422 m lot-clearance reports here, independently
+
+  301 door             door301 runs against :5177 and is green on all clauses
+  spawn                walks: wakes in 301 on floor 3, floor holds all four ways
+```
+
+Both twice-reported faults are fixed **in the world being played**.
+
+**The probe was wrong twice before it was right, and both errors would have
+reported a fault that is not there.** First it found 72 "cars" (it was counting
+fences and banners) and produced meaningless yaw means. Then its SAT took the
+MINIMUM per-axis gap when separation requires the MAXIMUM — any axis that
+separates means separated — and it reported the closest pair overlapping by
+3.585 m, more than a car is wide, on cars 4.5 m long and 4.4 m apart. Fixing the
+sign gave 0.422 m, matching the registered check exactly.
