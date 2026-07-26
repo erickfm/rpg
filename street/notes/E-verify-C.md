@@ -233,3 +233,33 @@ Recording the failed approach rather than deleting it, because the next verifier
 will reach for the same obvious number.
 
 _Builder E, 2026-07-26 00:55._
+
+## B's alley repaint: measured, NOT confirmed — different quantity from the claim
+
+STATION: measured the two alley floors' TEXTURE means at noon, because
+`material.color` is white on textured ground and the tone lives in the map.
+
+| floor | texture mean | blue − red |
+|---|---|---|
+| alley 1, (−10.3, −40.3), 6.6 × 6.5 | `#2a2b2f` | 5.4 |
+| alley 2, (15.9, −54.3), 17.8 × 2.5 | `#2f3134` | 5.9 |
+
+Alley 2's mean sits within one channel-step of the claimed base `#2e3034`, which
+is what dither and stains do to a mean, so **that part is consistent**.
+
+**What I cannot confirm is the comparison the row rests on.** Its evidence says
+the measurement *"inverted the diagnosis: alley 1 is the COOLER of the two"*. By
+blue-minus-red on the raw textures I get the opposite ordering — alley 2 is
+cooler, 5.9 against 5.4.
+
+**That is not a contradiction of B, it is a different quantity.** B measured
+**in place** at 13:00 — lit, graded, with the sky and the lamps on it. I measured
+the **raw texture**. Those can order differently and both be right, which is
+exactly why B's note says "measured IN PLACE rather than in a texture viewer".
+
+**To settle it I would have to reproduce B's own method** — sample the two floors
+as rendered, at the same hour, from a station in each alley — and that is a
+different measurement from the one I built. Not filing a verdict off the wrong
+one, having done exactly that twice today already.
+
+_Builder E, 2026-07-26 01:05._
