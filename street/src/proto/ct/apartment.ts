@@ -2173,7 +2173,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // ── HIS OWN STREET. The joke that makes this world rather than any
       //    world, and every one of these is a place he can walk to.
       { name: 'crosstown auto', bg: '#2f7a4a', ink: '#fff8e0', band: '#e0a81c', bandInk: '#2a2118',
-        head: 'CROSSTOWN AUTO', lines: ['NO CREDIT', 'NO PROBLEM'], phone: '555-0199', burst: '#3f9a5e', tag: 'ON APPROVED CREDIT' },
+        head: 'CROSSTOWN AUTO', lines: ['NO CREDIT!', 'NO PROBLEM!'], phone: '555-0199', burst: '#3f9a5e', tag: 'ON APPROVED CREDIT' },
       { name: 'sevens buffet', bg: '#7a1420', ink: '#ffe9a8', band: '#e8c33a', bandInk: '#3a1008',
         head: 'SEVENS', lines: ['FREE BUFFET', 'ALL YOU CAN EAT'], price: '$0', burst: '#9a2030', tag: 'MUST BE 21' },
       { name: 'first federal', bg: '#1d3d6b', ink: '#eaf2ff', band: '#c8d8f0', bandInk: '#12294a',
@@ -2186,13 +2186,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         head: 'BURGER BARN', lines: ['TWO FOR ONE'], price: '$2.99', burst: '#c04028', tag: 'WHILE STOCKS LAST' },
       // ── and generic tat, so it is not only an in-joke
       { name: 'slice o matic', bg: '#c81e28', ink: '#fffbe8', band: '#ffd21e', bandInk: '#801018',
-        head: 'SLICE O MATIC', lines: ['IT SLICES', 'IT DICES'], price: '$19.99', phone: '555-0800', burst: '#e83040', tag: 'PLUS SHIPPING' },
+        head: 'SLICE O MATIC!', lines: ['IT SLICES!', 'IT DICES!'], was: '$99', price: '$19.99', phone: '555-0800', burst: '#e83040', tag: 'PLUS SHIPPING' },
       { name: 'miracle mop', bg: '#1a7a8a', ink: '#f0ffff', band: '#ffe83a', bandInk: '#0a3a44',
         head: 'MIRACLE MOP', lines: ['NEVER WRING'], was: '$39', price: '$19', burst: '#2a9aaa', tag: 'RESULTS VARY' },
       { name: 'hair in a can', bg: '#4a2a5a', ink: '#ffe8ff', band: '#e0a0f0', bandInk: '#2a1030',
         head: 'HAIR IN A CAN', lines: ['LOOK YOUNGER', 'IN SECONDS'], price: '$29.99', tag: 'NOT A TREATMENT' },
       { name: 'ab blaster', bg: '#20304a', ink: '#e8f4ff', band: '#ff6a20', bandInk: '#20304a',
-        head: 'AB BLASTER 3000', lines: ['SIX EASY', 'PAYMENTS'], price: '$9.99', phone: '555-0800', tag: 'DIET AND EXERCISE' },
+        head: 'AB BLASTER 3000', lines: ['SIX EASY', 'PAYMENTS!'], was: '$199', price: '$9.99', phone: '555-0800', tag: 'DIET AND EXERCISE' },
       { name: 'psychic line', bg: '#2a1a4a', ink: '#ffe0a0', band: '#c0a0ff', bandInk: '#1a1030',
         head: 'PSYCHIC LINE', lines: ['THEY KNOW', 'CALL NOW'], price: '$4 A MIN', phone: '555-0777', burst: '#3a2060', tag: 'ENTERTAINMENT ONLY' },
       { name: 'mega hits', bg: '#d81880', ink: '#fff0ff', band: '#40e0d0', bandInk: '#701040',
@@ -2208,7 +2208,7 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       { name: 'pizza', bg: '#0a5a2a', ink: '#fff8e0', band: '#e02020', bandInk: '#fff0e0',
         head: 'PIZZA PIZZA', lines: ['TWO LARGE'], price: '$9.99', phone: '555-0311', burst: '#0a7a3a', tag: 'DELIVERY AREA LIMITED' },
       { name: 'veg o chop', bg: '#8a1060', ink: '#fff0ff', band: '#ffe83a', bandInk: '#5a0840',
-        head: 'VEG O CHOP', lines: ['BUT WAIT', 'THERES MORE'], price: '$14.99', burst: '#aa2080', tag: 'DOUBLE THE OFFER' },
+        head: 'VEG O CHOP', lines: ['BUT WAIT!!', 'THERES MORE'], was: '$59', price: '$14.99', burst: '#aa2080', tag: 'DOUBLE THE OFFER' },
       { name: 'gold card', bg: '#101018', ink: '#ffd870', band: '#c8a020', bandInk: '#101018',
         head: 'GOLD CLUB CARD', lines: ['PRE APPROVED', 'YOU ALREADY WON'], phone: '555-0900', tag: 'FEES APPLY' },
       { name: 'roach motel', bg: '#3a3a1a', ink: '#f0f0c0', band: '#a0c020', bandInk: '#20200a',
@@ -2235,9 +2235,16 @@ export function buildApartment(ctx: CtxBuild): Apartment {
         tvFit(g, a.price, y + 1, '#00000088', 7); tvFit(g, a.price, y, '#fffbe8', 7);
         y += 10;
       }
-      // held on screen far too long, and blinking
-      if (a.phone && Math.floor(t * 2.5) % 2 === 0) tvFit(g, a.phone, TVH - 13, '#fffbe8', 6);
-      else if (!a.phone && Math.floor(t * 2.5) % 2 === 0) tvFit(g, 'CALL NOW!!', TVH - 13, '#fffbe8', 5);
+      // THE BOTTOM STRAP, held on screen far too long and cycling between the
+      // three things every one of these ever said. Two rows, because
+      // 'OPERATORS ARE STANDING BY' is 25 characters and this screen fits 15.
+      const beat = Math.floor(t / 1.1) % 3;
+      if (beat === 2) {
+        tvFit(g, 'OPERATORS ARE', TVH - 15, '#fffbe8', 4);
+        tvFit(g, 'STANDING BY!!', TVH - 9, '#fffbe8', 4);
+      } else if (Math.floor(t * 2.5) % 2 === 0) {
+        tvFit(g, beat === 0 && a.phone ? a.phone : 'CALL NOW!!!', TVH - 13, '#fffbe8', a.phone && beat === 0 ? 6 : 5);
+      }
       // the disclaimer, literally too small to read: one row of grey ticks
       g.fillStyle = 'rgba(255,255,255,0.45)';
       for (let x = 2; x < TVW - 2; x += 2) g.fillRect(x, TVH - 4, 1, 2);
