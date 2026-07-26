@@ -81,9 +81,26 @@ export function buildLibrary(ctx: CtxBuild): void {
       ceil: 0xcdc8bb,
       trim: 0x5a4632,       // dark stained oak
     },
-    // `floor:` is deliberately NOT set — see "THE GALLERY IS NOT HERE YET"
-    // below. The function is written and verified; declaring it while the
-    // geometry is withdrawn would leave invisible steps in an empty strip.
+    // ── THE LEVEL CHANGE, which is the whole point of the item ────────────
+    //
+    // "A STAIR to a gallery running round the reading room with a balustrade you
+    // look down from", and the desk: "a level change is what makes an interior
+    // read as a building rather than a room."
+    //
+    // bd3ee7d7a gave the spec this field. Function form rather than the level
+    // list because a flight is a ramp, not a stack of boxes: the picker walks
+    // you smoothly up it and the drawn treads ride within half a riser, which is
+    // what ct/apartment.ts and the civic steps both do. null means "not mine",
+    // so the rest of the room stays flat without being enumerated.
+    //
+    // 2.90 m of rise over a 4.60 m run is 32°, a real stair, and the deck clears
+    // the 1.95 m bays under it by nearly a metre.
+    floor: (lx, lz) => {
+      if (lx < GALLERY_X0 || lx > GALLERY_X1) return null;
+      if (lz <= GALLERY_Z1) return GALLERY_Y;
+      if (lz <= STAIR_Z0) return GALLERY_Y * (STAIR_Z0 - lz) / (STAIR_Z0 - GALLERY_Z1);
+      return null;
+    },
     frontage: { name: 'LIBRARY', w: 16, cz: -13, side: -1 },
     door: {
       // 1.6, not the kit's 1.05. Every other room's trigger sits on an open
@@ -362,29 +379,55 @@ export function buildLibrary(ctx: CtxBuild): void {
   // object faces, never as a constant.
   }, DESK_X, LIB_Z, { facing: Math.atan2(0, VISITOR_Z - LIB_Z), h: 0.97, w: 0.95 });
 
-  // ── THE GALLERY IS NOT HERE YET, AND THIS IS WHY ─────────────────────────
+  // ── THE GALLERY, AND THE STAIR UP TO IT ──────────────────────────────────
   //
-  // It was built — deck, twelve treads, string wall, balustrade, a reading table
-  // up there — and taken out again in the same session, because the player
-  // cannot climb it and a staircase you walk THROUGH is worse than no staircase.
-  // Same rule as the church's locked door: "a flight of steps you climb to a
-  // door that refuses you is worse than no steps."
-  //
-  // THE FLOOR IS RIGHT. bd3ee7d7a gave the room spec a `floor`, and the function
-  // form works: asked at local x 5.80 the world reports 0 at the foot, then
-  // 1.33, 2.41 and 2.90 up the flight, then 2.90 along the deck. The kit is
-  // doing its job.
-  //
-  // THE PLAYER DOES NOT FOLLOW IT. Walking that same line, local x pinned at
-  // 5.80, `__ct.groundAt` returns 1.33 / 2.41 / 2.90 while the player's y stays
-  // at 1.62 — eye height over a floor of zero — for the whole climb. Something
-  // in the height chain answers before `interiorGround` and short-circuits it,
-  // so room levels reach the world's picker but not the person standing in it.
-  // That is a wiring question in ct/crosstown.ts's floor loop, not in this file.
-  //
-  // Everything else needed is in place and this is a dozen lines away: the
-  // constants are still declared above, and notes/BLOCKED-G.md carries the
-  // measurement.
+  // The floor FUNCTION in the spec above is what you walk on; this is what you
+  // see. They are two authorings of one shape, so the drawing derives from the
+  // same five constants rather than being typed to match: change GALLERY_Y and
+  // the deck, treads, balustrade and soffit all follow.
+  {
+    const GW = GALLERY_X1 - GALLERY_X0, GCX = (GALLERY_X0 + GALLERY_X1) / 2;
+    const deckZ0 = -D / 2 + 0.1, deckZ1 = GALLERY_Z1;
+    const deckD = deckZ1 - deckZ0, deckCZ = (deckZ0 + deckZ1) / 2;
+
+    // the deck, with a dark soffit under it — from the reading room below its
+    // underside is all you see of it
+    box(GW, 0.10, deckD, wood, GCX, GALLERY_Y - 0.05, deckCZ);
+    box(GW, 0.16, deckD, woodDark, GCX, GALLERY_Y - 0.18, deckCZ);
+    box(0.16, 0.34, deckD, woodDark, GALLERY_X0 + 0.08, GALLERY_Y - 0.28, deckCZ);
+    for (const pz of [deckZ0 + 1.2, deckCZ, deckZ1 - 1.2]) {
+      box(0.18, GALLERY_Y - 0.34, 0.18, woodDark, GALLERY_X0 + 0.09, (GALLERY_Y - 0.34) / 2, pz);
+      solid(GALLERY_X0 + 0.09, pz, 0.26, 0.26);
+    }
+
+    // the treads, riding the ramp the picker walks — ct/civic.ts's rule: answer
+    // the smooth gradient and let the drawn steps sit within half a riser, or
+    // the camera jolts at every nosing
+    const N = 12, run = (STAIR_Z0 - GALLERY_Z1) / N, rise = GALLERY_Y / N;
+    for (let i = 0; i < N; i++) {
+      const tz = STAIR_Z0 - (i + 0.5) * run, ty = (i + 0.5) * rise;
+      box(GW, 0.06, run + 0.02, wood, GCX, ty, tz);
+      box(GW, rise, 0.05, woodDark, GCX, ty - rise / 2, tz - run / 2);
+    }
+    // the string wall on the open side, so you cannot step off the flight
+    box(0.14, GALLERY_Y + 0.9, STAIR_Z0 - GALLERY_Z1, woodDark,
+      GALLERY_X0 + 0.07, (GALLERY_Y + 0.9) / 2 - 0.4, (STAIR_Z0 + GALLERY_Z1) / 2);
+    solid(GALLERY_X0 + 0.07, (STAIR_Z0 + GALLERY_Z1) / 2, 0.22, STAIR_Z0 - GALLERY_Z1);
+
+    // the balustrade you look down from, and a collider so the drop is guarded
+    const RAIL_Y = GALLERY_Y + 0.98;
+    box(0.10, 0.09, deckD, wood, GALLERY_X0 + 0.09, RAIL_Y, deckCZ);
+    for (let bz = deckZ0 + 0.25; bz < deckZ1 - 0.2; bz += 0.30) {
+      box(0.06, 0.86, 0.06, woodDark, GALLERY_X0 + 0.09, GALLERY_Y + 0.49, bz);
+    }
+    solid(GALLERY_X0 + 0.09, deckCZ, 0.24, deckD);
+
+    // a table up there, because a gallery with nothing on it is a walkway
+    box(1.5, 0.06, 0.7, wood, GCX + 0.5, GALLERY_Y + 0.72, deckCZ + 1.4);
+    for (const lx of [-0.6, 0.6]) for (const lz of [-0.25, 0.25]) {
+      box(0.07, 0.72, 0.07, woodDark, GCX + 0.5 + lx, GALLERY_Y + 0.36, deckCZ + 1.4 + lz);
+    }
+  }
 
   // ── THE PERIODICALS ALCOVE ───────────────────────────────────────────────
   //
