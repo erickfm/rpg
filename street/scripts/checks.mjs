@@ -217,6 +217,12 @@ const CHECKS = [
   // real paving surface, which is exactly when the slabTex row is live again.
   // --selftest inverts all three verdicts and requires each to be caught. (D)
   ['D-paving-vs-trim',  'is anything the street calls ground actually paving?', true],
+  // Four of my own CONFIRMED rows that the auditor's sweep found resting on
+  // nothing — one on 17 characters, one on 52. They still hold; what they did
+  // not have was anything that would go red if they stopped holding, which is
+  // the whole complaint. Registered so the answer keeps being checked rather
+  // than being true once. --selftest inverts all four. (D)
+  ['D-old-rows-hold',   'do my four oldest CONFIRMED rows still hold?',        true],
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
