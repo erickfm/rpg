@@ -1295,6 +1295,51 @@ function buildLot(o: {
       }
     }
 
+    // ── the two SIDE walls ───────────────────────────────────────────────
+    // Graded from the gate mouth and this was the biggest thing left: standing
+    // in the entrance, **over half the frame is blank brick.** The back wall
+    // earns its keep — a ghost sign and a banner, below — and the two flanks
+    // carried nothing at all for 23 m each. A lot that has dressed every inch
+    // of its frontage does not then leave the walls its stock is parked against
+    // bare; the walls are where the overflow of slogans goes.
+    //
+    // Same rule as the back wall, and for the same reason: **the wall is not
+    // mine and is not touched.** These hang 8 cm proud of it (GOTCHAS §6 —
+    // coplanar surfaces must abut, never overlap). Derived from the site's own
+    // z bounds rather than the 14.2 / −9.0 I measured, so they stay on the wall
+    // if the site is ever re-cut.
+    //
+    // ONE SHEET EACH, not the frontage's two. A frontage banner is read from
+    // both sides and needs a ghost on its back; a banner flat against a wall
+    // has no back to see, and a second sheet there would be an invisible
+    // texture and a lie in the material count.
+    //
+    // NOT A MATCHED PAIR — the same note the user made about the chairs:
+    // *"dead straight and perfectly parallel reads as placed rather than
+    // used."* Different copy, different colours, different heights, different
+    // depths into the lot, because two banners hung a year apart by the same
+    // man in a hurry do not line up.
+    const sideBanners: [string, string, string, number, number, number][] = [
+      // words, bg, ink, wall z sign (+1 north / -1 south), centre x, height
+      ['TRADE INS WELCOME', '#25406b', '#f2ead0', 1, X0 + 9.5, 3.35],
+      ['DRIVE IT TODAY', '#c0392f', '#f2ead0', -1, X0 + 13.4, 3.05],
+    ];
+    for (const [words, bg, ink, side, bx, by] of sideBanners) {
+      // the frontage's own proportions, so a wall banner is the same OBJECT at
+      // a bigger size rather than a differently-shaped one: 0.17 m of width per
+      // character there against 0.62 m tall, scaled up by 1.85
+      const K = 1.85;
+      const w = (words.length * 0.17 + 0.5) * K, h = 0.62 * K;
+      const wallZ = side > 0 ? zN : zS;
+      const m = printed(new THREE.MeshBasicMaterial({ map: bannerT2(words, bg, ink), alphaTest: 0.35 }));
+      const b2 = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+      b2.position.set(bx, Y + by, wallZ - side * 0.08);
+      // a plane's own normal is local +z, so the north wall's banner turns to
+      // face −z and the south wall's does not turn at all
+      b2.rotation.y = side > 0 ? Math.PI : 0;
+      scene.add(b2);
+    }
+
     // ── the back wall ────────────────────────────────────────────────────
     // The queue said to check this once the layout changed, and the answer was
     // no: with the office at the far end, the back wall is now the thing you
