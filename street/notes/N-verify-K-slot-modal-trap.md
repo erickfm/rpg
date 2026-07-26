@@ -1,7 +1,7 @@
 # VERIFY the slot-stool modal trap — the MECHANISM still holds, the CONCLUSION no longer does
 
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `7eaa56db4`.
+desk or the auditor may. Built bundle on 4195, HEAD `68853e856`.
 
 The row (evidenced by I, on build `5d997cbe5`) ends:
 

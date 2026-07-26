@@ -5,7 +5,7 @@ desk or the auditor may. Measured on the ledger file itself, so no world build
 is involved.
 
 The row: *"28 CONFIRMED rows rest on nothing — no auditor evidence, no verifier
-named, no station"*, swept at build `75f8b9abe`.
+named, no station"*, swept at build `75f8b9abe` — **that SHA is the auditor's own and does not resolve from `add-stick-and-city98`; I quote it as the row does and could not find a landed twin by patch-id, so it identifies their run and not a commit anybody can fetch.**
 
 ## ✅ The population reproduces exactly
 

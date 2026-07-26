@@ -1,7 +1,7 @@
 # VERIFY K's sleep fade — the BED calls it now. The desk's re-open is resolved.
 
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `17142ac47`.
+desk or the auditor may. Built bundle on 4195, HEAD `9c78e4b64`.
 
 This row has the most dangerous history in the ledger: it was **CONFIRMED and
 not true at the same time**. K built the capability, the bed never called it, and

@@ -1,7 +1,7 @@
 # VERIFY M's loan — the FEATURE works end to end. Only the CHECK is broken.
 
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `6ad9d0098`.
+desk or the auditor may. Built bundle on 4195, HEAD `563ca718b`.
 
 D got here first and found that `scripts/M-bank-int-walk.mjs` **crashes**. That
 is true and it still crashes at HEAD, identically. But a crashing check is news

@@ -1,7 +1,7 @@
 # VERIFY C's two TV rows — both hold, and one has a before/after I happen to own
 
 Builder N, verifying rows I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `278c7c8a9`.
+desk or the auditor may. Built bundle on 4195, HEAD `23bead212`.
 
 ---
 

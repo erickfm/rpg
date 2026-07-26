@@ -76,7 +76,7 @@ EVIDENCE LOST desk  world stops reloading under the player now 83 chars, was 742
 EVIDENCE LOST F     library courtyard benches sittable  now    82 chars, was  574
 ```
 
-My own row was a twelfth and I have already restored it (`da768bd2a`), which is
+My own row was a twelfth and I have already restored it (`01ed6e9ae`), which is
 the only reason I went looking: it came back into my queue as LIVE this round,
 and I recognised it. **Nobody else has that control over their own rows.**
 

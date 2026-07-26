@@ -1,7 +1,7 @@
 # VERIFY C's four-claim seat-exit row — all four hold, and claim 1 has quietly closed claim 4
 
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `09f7dcbb7`.
+desk or the auditor may. Built bundle on 4195, HEAD `2dd620ec1`.
 `scripts/C-seatexit.mjs` exits 0, 4 of 4, on my build.
 
 ## The four, measured rather than re-read

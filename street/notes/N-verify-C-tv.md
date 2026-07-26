@@ -3,7 +3,7 @@
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
 desk or the auditor may. This is the evidence for whoever does.
 
-Built bundle (`vite preview` 4195, build `a2059390d`), not the dev server —
+Built bundle (`vite preview` 4195, build `39081e928`), not the dev server —
 GOTCHAS §28.
 
 ## The predicate, at C's own station

@@ -1,7 +1,7 @@
 # VERIFY L's slots — sitting opens it, the money is conserved to the cent, and you get off the stool
 
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
-desk or the auditor may. Built bundle on 4195, HEAD `ee2c2aaa7`.
+desk or the auditor may. Built bundle on 4195, HEAD `7dcf38698`.
 
 Driven by hand at L's own station: `window.__ct.seats().filter(s => s.label ===
 'sit at the slot')` returns **96**, warp to `.at`, press E.

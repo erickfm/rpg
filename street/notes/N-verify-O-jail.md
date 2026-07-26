@@ -3,7 +3,7 @@
 Builder N, verifying a row I did not build. **Not marked CONFIRMED** — only the
 desk or the auditor may do that. This is the evidence for whoever does.
 
-Measured against the BUILT BUNDLE (`vite preview`, port 4195, build `40236f47d`),
+Measured against the BUILT BUNDLE (`vite preview`, port 4195, the commit *"LEDGER: my tenancy row OPEN -> LANDED, with the station named"* (**no hash: it was rewritten in a conflict resolution and has no landed twin, so the SUBJECT is the only pointer that survives — GOTCHAS §36**)),
 not the dev server — GOTCHAS §28.
 
 ## The stations, in O's own order
