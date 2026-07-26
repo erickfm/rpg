@@ -22,6 +22,25 @@ INTERVAL=${1:-120}
 
 while true; do
   ts=$(date '+%H:%M:%S')
+
+  # Refresh the world the user plays, on a SLOW cadence.
+  #
+  # Two failures pull against each other here. Integrating every 15 s made the
+  # world reload constantly and the user said it was unplayable (§24). Turning
+  # it off entirely left them playtesting a build 47 minutes and 226 commits
+  # old, reporting faults that were already fixed (§26). Manual refresh did not
+  # hold either — the desk forgot, twice, and a BUILDER had to measure the
+  # staleness and raise a blocker to get it noticed.
+  #
+  # So: bounded staleness. Every ~10 minutes, which is rare enough to play
+  # through and recent enough that nobody reports a fixed bug.
+  REFRESH_EVERY=$(( 600 / INTERVAL )); [ "$REFRESH_EVERY" -lt 1 ] && REFRESH_EVERY=1
+  TICK=$(( ${TICK:-0} + 1 ))
+  if [ $(( TICK % REFRESH_EVERY )) -eq 0 ]; then
+    if "$MAIN/street/scripts/pull-latest.sh" 2>/dev/null | grep -q updated; then
+      echo "[$ts] live world refreshed — the user should reload the tab"
+    fi
+  fi
   out=$("$MAIN/street/scripts/land.sh" 2>&1)
   if echo "$out" | grep -q '✓'; then
     echo "[$ts] LANDED:"
