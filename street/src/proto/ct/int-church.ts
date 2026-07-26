@@ -181,6 +181,18 @@ export function buildChurch(ctx: CtxBuild) {
       // the back is on the DOOR side of the seat, so you sit facing -z, down the
       // nave toward the altar
       put(back, side * PEW_CX, 0.75, pz + 0.24);
+      // A LIGHTER TOP RAIL, so eighteen pews are eighteen pews at nave length.
+      //
+      // Graded my own nave from the entrance and logged this: up close the
+      // pews are correct - individual seats, backs, and 18 of them sittable -
+      // but seen down the length of the room the identical brown backs merge
+      // into two solid masses and the bank reads as a block, not as seating.
+      // What separates them at distance is the highlight along each top edge,
+      // which is where a pew is worn pale by hands and elbows. One rail per
+      // pew, and the rhythm comes back.
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(PEW_W, 0.05, 0.10),
+        new THREE.MeshBasicMaterial({ color: 0x8a6a44 }));
+      put(rail, side * PEW_CX, 1.065, pz + 0.24);
       for (const end of [-PEW_W / 2 + 0.05, PEW_W / 2 - 0.05]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.46, 0.4), woodM);
         put(leg, side * PEW_CX + end, 0.23, pz);
