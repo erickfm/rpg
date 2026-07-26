@@ -476,11 +476,20 @@ export function buildCivic(o: {
     if (f.cheek > 0) {                       // cheeks, stepping down one per tread
       for (const s of [-1, 1]) {
         const vc = s * (f.width / 2 + f.cheek / 2);
+        // TEXTURED, like the treads beside them. These cheeks are the
+        // forecourt "patches": B measured 26 civic ground meshes with no map
+        // at all, and a flat colour has no grain or joints for the eye to hold
+        // against paving that has both, so it reads as a translucent patch
+        // rather than as stone. The treads and risers two lines up were always
+        // grained; their own side walls were not, which is why the fault
+        // survived a pass that "textured the forecourt".
+        const cheekM = stoneFace(DRESSED, f.cheek, tread);
+        const cheekTopM = stoneFace(DRESSED, f.cheek, Math.max(0.3, f.uBack - f.uTop));
         for (let k = 0; k < f.n; k++) {
           put(f.uNose + k * tread, f.uNose + (k + 1) * tread, vc - f.cheek / 2, vc + f.cheek / 2,
-            f.yBase + (k + 1) * rise + 0.5, stoneM());
+            f.yBase + (k + 1) * rise + 0.5, cheekM);
         }
-        put(f.uTop, f.uBack, vc - f.cheek / 2, vc + f.cheek / 2, f.yTop + 0.5, stoneM());
+        put(f.uTop, f.uBack, vc - f.cheek / 2, vc + f.cheek / 2, f.yTop + 0.5, cheekTopM);
       }
     }
     return {
@@ -885,7 +894,8 @@ export function buildCivic(o: {
       // read the mouth as a way IN — without them the notch is just a gap,
       // and it is the one piece of the library's own stone that comes all
       // the way out to the street line.
-      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.35, 0.5), stoneM());
+      // grained, not flat — same reason as the cheeks
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.35, 0.5), stoneFace(DRESSED, 0.5, 1.35));
       pier.position.set(-FACE - 0.25, 0.675, zp - s * 0.25);
       scene.add(pier);
       const pcap = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.12, 0.62), capM);
@@ -937,7 +947,7 @@ export function buildCivic(o: {
     const shrubM = flat(shrubTex());
     for (const s of [-1, 1]) {
       const pz = cz + s * 2.9, px = XBOT - 0.45;
-      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.52, 0.86), stoneM());
+      const pl = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.52, 0.86), stoneFace(DRESSED, 0.86, 0.52));
       pl.position.set(px, KERB_H + 0.26, pz);
       scene.add(pl);
       const rim = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.09, 0.96), capM);
@@ -1427,7 +1437,7 @@ export function buildCivic(o: {
     for (const [wx0, wx1] of [[YARD_X0, gate0 - 0.25], [gate1 + 0.25, YARD_X1]]) {
       const w = wx1 - wx0;
       if (w <= 0) continue;
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, 0.3), stoneM());
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, WALL_H, 0.3), stoneFace(DRESSED, w, WALL_H));
       wall.position.set((wx0 + wx1) / 2, WALL_H / 2, zStreet - 0.15);
       scene.add(wall);
       const cap = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, 0.4), capM2);
@@ -1439,7 +1449,7 @@ export function buildCivic(o: {
       solidLocal(wx0, wx1, zStreet - 0.3, zStreet);
     }
     for (const gx of [gate0 - 0.25, gate1 + 0.25]) {             // the gate piers
-      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.55, 0.5), stoneM());
+      const pier = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.55, 0.5), stoneFace(DRESSED, 0.5, 1.55));
       pier.position.set(gx, 0.775, zStreet - 0.25);
       scene.add(pier);
       const pc = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.14, 0.62), capM2);
