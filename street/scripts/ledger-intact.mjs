@@ -21,6 +21,11 @@
 //   · no CONTRIBUTION dropped      — quieter still: the length holds and one
 //                                    account has been swapped for another (H)
 //
+// Losses are attributed: a row THIS BRANCH never touched cannot have been
+// shrunk by it, so those are reported as the ref moving on rather than as
+// damage. Without that, a branch that is both ahead and behind blames itself
+// for everybody else's newer paragraphs. (H)
+//
 // Growth is fine and unreported: rows are meant to accumulate evidence. This
 // only ever complains about loss.
 //
@@ -130,6 +135,29 @@ if (!selftest) {
   }
 }
 
+// WHOSE LOSS IS IT? The behind-check above is binary, and the common case is
+// NEITHER: my branch has commits the ref lacks AND the ref has moved on. Then
+// `merged === head` is false, the staleness guard cannot fire, and every
+// paragraph the ref gained since the merge base is reported as MY deletion.
+// That went red on me over three rows I had never opened, and it had already
+// cost the auditor a pass. So work out which rows THIS BRANCH actually touched
+// and only hold it responsible for those. (H)
+let mineTouched = null;               // null = could not tell, so blame nothing
+if (!selftest) {
+  try {
+    const mb = execSync(`git merge-base ${ref} HEAD`, { encoding: 'utf8' }).trim();
+    const diff = execSync(`git diff ${mb} HEAD -- ${LEDGER}`, { encoding: 'utf8', maxBuffer: 1 << 28 });
+    mineTouched = new Set();
+    for (const l of diff.split('\n')) {
+      if (!/^[+-]\| /.test(l)) continue;
+      const f = l.slice(1).split('|');
+      if (f.length >= 5) mineTouched.add(f[3].trim());
+    }
+  } catch { mineTouched = null; }
+}
+/** did this branch touch the row, or is an apparent loss the ref's later work? */
+const isMine = (t) => mineTouched === null || mineTouched.has(t);
+
 const base = rowsOf(baseText), now = rowsOf(nowText);
 const markers = nowText.split('\n').filter((l) => /^(<<<<<<<|=======|>>>>>>>)/.test(l)).length;
 const dups = [...now.entries()].filter(([, v]) => v.dup).map(([t]) => t);
@@ -159,11 +187,22 @@ if (lost.length) {
   fail.push('lost rows');
 }
 if (shrank.length) {
-  console.log(`  ${shrank.length} EVIDENCE CELL(S) SHRANK — somebody's paragraph went missing:`);
-  for (const s of shrank.slice(0, 8)) {
-    console.log(`      -${String(s.from - s.to).padStart(5)} chars (${s.from} -> ${s.to})  ${s.t.slice(0, 48)}`);
+  const ours = shrank.filter((x) => isMine(x.t));
+  const theirs = shrank.filter((x) => !isMine(x.t));
+  if (ours.length) {
+    console.log(`  ${ours.length} EVIDENCE CELL(S) SHRANK — somebody's paragraph went missing:`);
+    for (const s of ours.slice(0, 8)) {
+      console.log(`      -${String(s.from - s.to).padStart(5)} chars (${s.from} -> ${s.to})  ${s.t.slice(0, 48)}`);
+    }
+    fail.push('shrunk evidence');
   }
-  fail.push('shrunk evidence');
+  if (theirs.length) {
+    console.log(`  ${theirs.length} cell(s) are SHORTER but this branch never touched them —`);
+    console.log(`  that is ${ref} moving on, not a loss of yours. Rebase to take it:`);
+    for (const s of theirs.slice(0, 6)) {
+      console.log(`      -${String(s.from - s.to).padStart(5)} chars  ${s.t.slice(0, 48)}`);
+    }
+  }
 }
 if (lostSeg.length) {
   console.log(`  ${lostSeg.length} ROW(S) LOST A CONTRIBUTION while keeping their length:`);
