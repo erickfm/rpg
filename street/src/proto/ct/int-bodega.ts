@@ -168,10 +168,44 @@ export function buildBodega(ctx: CtxBuild): void {
   const GOND_Z = -0.35;
   const AISLE = 0.95;
   const GOND_W = 0.62;
-  const gondXs = [-hw + 1.5, -hw + 1.5 + GOND_W + AISLE, -hw + 1.5 + 2 * (GOND_W + AISLE)];
+  // THE DOOR LOOKS DOWN AN AISLE, not into the end of a run.
+  //
+  // The user, with a screenshot: *"THE FIRST THING YOU SEE WALKING INTO THE
+  // BODEGA IS A BLANK GREY SLAB filling the middle of the view."* It was a
+  // gondola carcass — a 0.62 x 1.95 x 7.8 steel box whose near END sat at
+  // z 3.55, 0.8 m in front of where the player comes to rest, on the door's
+  // centreline. Untextured, because only the two long FACES ever carried stock.
+  // "a grey wall a metre away", precisely.
+  //
+  // Two things were wrong and both are fixed here. The runs are shifted so the
+  // door's centreline falls in an AISLE — walk in and you see down the shop,
+  // which is the second half of what the user asked for — and the near end of
+  // every run now carries an end cap rather than bare steel.
+  const PITCH = GOND_W + AISLE;
+  const doorLine = room.doorAt ?? 0;
+  const raw = [-hw + 1.5, -hw + 1.5 + PITCH, -hw + 1.5 + 2 * PITCH];
+  // slide the whole set so the nearest AISLE centre lands on the door line
+  const nearest = raw.reduce((b, g) => Math.abs(g + PITCH / 2 - doorLine) < Math.abs(b + PITCH / 2 - doorLine) ? g : b);
+  const shift = doorLine - (nearest + PITCH / 2);
+  const gondXs = raw.map((g) => g + shift);
   for (const gx of gondXs) {
     const body = new THREE.Mesh(new THREE.BoxGeometry(GOND_W, 1.95, GOND_L), steelM);
     put(body, gx, 0.975, GOND_Z);
+    // the END CAP: a run's end is the most-seen face in the shop and was the
+    // only one with nothing on it. Bagged stock, stacked, facing the door.
+    const capT = declareSurface(pixTex(16, 40, (g) => {
+      g.fillStyle = '#8a8478'; g.fillRect(0, 0, 16, 40);
+      const cols = ['#b8452f', '#3f6a8a', '#c8a33a', '#4a7a4a', '#8a5a7a'];
+      for (let r = 0; r < 7; r++) {
+        const h = 4 + (r % 3);
+        g.fillStyle = cols[(r * 3) % cols.length];
+        g.fillRect(1, 38 - r * 5 - h, 14, h);
+        g.fillStyle = 'rgba(0,0,0,0.18)'; g.fillRect(1, 38 - r * 5 - 1, 14, 1);
+      }
+      dither(g, 16, 40, 70);
+    }), 'detail');
+    const cap = new THREE.Mesh(new THREE.PlaneGeometry(GOND_W - 0.04, 1.8), ctx.flat(capT));
+    put(cap, gx, 0.95, GOND_Z + GOND_L / 2 + 0.012);
     for (const sx of [-1, 1]) {
       const st = stockT.clone();
       st.wrapS = st.wrapT = THREE.RepeatWrapping;
