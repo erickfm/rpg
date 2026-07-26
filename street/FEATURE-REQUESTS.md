@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the street's 27 untextured flat-colour ground surfaces (the STREET half of the flat-colour fix)"** → **D**
 - **"the driveway apron reads as a large flat untextured grey plane (the LOT half of the flat-colour fix)"** → **I**
 - **"what is this shadow geometry here? / park paths read as road, not park path (the CIVIC + PARK half of the flat-colour fix)"** → **E**
 - **"when i enter bodega i should be facing perpendicular to the wall door. so looking this way (ref shot down the aisles)"** → **F**

@@ -204,3 +204,4 @@ At 4x and 8x the shipped crowd the crossing is genuinely BUSY — 14 and 17 kerb
 | OPEN | F | when i enter bodega i should be facing perpendicular to the wall door. | |
 | OPEN | E | what is this shadow geometry here? / park paths read as road, not park | |
 | OPEN | I | the driveway apron reads as a large flat untextured grey plane (the LO | |
+| OPEN | D | the street's 27 untextured flat-colour ground surfaces (the STREET hal | |
