@@ -10,11 +10,16 @@ await p.waitForFunction(()=>window.__ct!==undefined,{timeout:15000});
 await p.waitForTimeout(2500);
 const rooms=await p.evaluate(()=>window.__ct.roomDims());
 const doors=await p.evaluate(()=>window.__ct.doors());
-// The casino was /ACES/i and the building is now called SEVENS, so this matched
-// nothing and the room dropped out of the table as "no exterior frontage
-// published" - a dead string reported as a measurement, which is the exact
-// hazard G named when it did the rename. A pattern that matches nothing must say
-// so rather than quietly shrink the population.
+// THE CASINO IS CALLED SEVENS. This map keyed the casino on /ACES/i, and the
+// rename to SEVENS left it matching nothing — so `ext.find(...)` returned
+// undefined, the casino printed "no exterior frontage published — UNDECIDABLE"
+// and dropped out of the count, which read `decidable rooms: 4` instead of 5.
+// A room silently leaving a check is not a smaller check, it is a check that
+// says nothing about that room while still printing a number.
+//
+// G caught exactly this shape in casinodoor.mjs and bigtwo.mjs when doing the
+// rename and called it out as the real hazard of a bare `ACES`; this file was
+// missed. Matching BOTH names so the check survives the next rename too.
 const NAME={bodega:/BODEGA/i,burger:/BURGER/i,casino:/SEVENS|ACES/i,church:/BRIGID/i,diner:/DINER/i,
             hotel:/ORPHEUS/i,library:/LIBRARY/i,pawn:/PAWN/i,tax:/TAX/i,thrift:/THRIFT/i};
 // and prove every pattern still matches something, so the next rename cannot
