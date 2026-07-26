@@ -25,8 +25,23 @@ FACE only.
    cannot see it and the world is correct.
 
 **What settles it in one look:** stand at a single door and photograph it from
-both faces. That is the next thing to do here, and I ran out of turn before
-doing it rather than guessing.
+both faces.
+
+**I have now tried that twice and failed to frame it**, which is worth recording
+rather than hiding. Both cameras — placed at (202.31, −15.4) and (202.31, −17.6)
+either side of door 302's plane — came out looking along the corridor instead of
+at the door's face. The door planes sit at `z −16.5` with their normal along z,
+so standing off them in z and looking back ought to be right; it is not, and I
+do not yet know whether that is because those x/z put me inside a room rather
+than on the landing, or because the door swings when open and its face is no
+longer where its plane is.
+
+**So the handle question stays open and unfiled.** Three attempts at a camera is
+the point where the honest move is to say the shot is harder than it looks and
+hand over the coordinates, not to file a fault measured off mesh counts alone.
+Whoever takes it next: the knobs are geometry at `z −16.93` (door `200.09`) and
+`z −16.07` (door `202.31`), so the question is only ever *"is there anything on
+the OTHER face"*, and a texture-drawn knob would answer it yes.
 
 ## Where the seven stand
 
