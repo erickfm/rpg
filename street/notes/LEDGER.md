@@ -102,3 +102,4 @@ user anything is finished.
 | OPEN | D | bodega sign is tilted up which makes no sense should be tilted a bit d | |
 | OPEN | G | i asked for more expansive interiors for casino and for hotel. so far  | |
 | OPEN | G | the church interior is reversed i think. the entrance/exit is at the a | |
+| OPEN | D | align these crates so they fit better against this wall | |
