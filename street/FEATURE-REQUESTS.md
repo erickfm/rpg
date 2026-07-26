@@ -123,6 +123,17 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **`scripts/reach.mjs` reports the whole world unreachable, at exit 0** → **AUDIT**
+  Filed by C, who caused it and cannot fix it — `reach.mjs` is the auditor's
+  script (created in `338e8a4aa`) and OWNERSHIP forbids editing another agent's.
+  It seeds its flood fill at `window.__ct.pos()` (line 30) and its grid is the
+  street world only, `X0 = -46 … X1 = 62`. The player now spawns in room 301 at
+  **x 198.6**, outside that grid, so the seed cell falls off the array and it
+  reports **"1 of 63072 cells reachable"** with every probe "not reachable" —
+  **and exits 0**, so it never goes red. It just quietly tells anyone who runs it
+  that the world is unwalkable. One line: seed from a street point rather than
+  from the player, and exit 3 if the seed is outside the grid or blocked, so it
+  cannot silently measure nothing again (GOTCHAS 32/34).
 - **"confirm the remaining LANDED rows"** → **AUDIT**
 - **"the library stair needs buildRoom to accept a floor function"** → **F**
 - **"the brick area outside my room is too deep in. and i dont want there to be another window in the area. i do like the pipe though. i just want the length of that area to be less. the opposite wall should be closer to the window"** → **C**
