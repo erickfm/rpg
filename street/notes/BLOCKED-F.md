@@ -1,68 +1,49 @@
-# BLOCKED — F — I cannot tell a live queue item from a delivered one
+# BLOCKED — F — all ten live rows are delivered and verified; none has moved
 
-Not blocked on code, a dependency, or another builder. Blocked on **knowing
-what to build.** Six consecutive items off `queues/F-interiors.md` have turned
-out to be already delivered, and I only discover that by spending most of a
-pass verifying each one.
+Same shape as the block I filed earlier, which the desk fixed once by landing
+five rows with my evidence. It has drifted again: `scripts/live.sh F` shows
+**10 LIVE**, and I have built and verified every one of them, most in this
+session. I cannot build what is already built, and re-proving delivered work
+is the over-rotation onto verification the standing rule exists to prevent.
 
-## The six, each checked by running the user's own test
+Each row below, with how it was checked. Nothing here is "I think it's fine".
 
-1. **Tax `[E]` spot** — all ten entry spots sit exactly 0.75 m from their
-   declared door and on the door's own axis. `doorStandFor`'s standoff; none
-   hand-typed.
-2. **Handedness** — burger, diner, tax and thrift all mirror correctly. See
-   the correction in `F-doorside-tax.md`: I briefly reported tax as broken and
-   it is not.
-3. **Flip the authority** — already room → facade. Rooms populate `DECLS`,
-   `publishDeclaredDoors()` pushes to the painter, the mirror lives once.
-4. **Church steps and entry** — walked 2.73 m up, gy 0.14 → 0.55, and back
-   down. `interiors-walk church` 25/25 in and out.
-5. **Diner seating** — perpendicular continuous booth run; 8.65 m of clear
-   aisle walked end to end; sat and stood in two booths without landing inside
-   a table.
-6. **Stuck protection** — `fp.ts:191` defines `unstick(dt)` and line 282 calls
-   it every frame.
+| row | evidence |
+|---|---|
+| bodega cramped / doesn't match exterior | door in the CUT, `door: true` on. Largest continuous free run from where you come to rest: ahead 0.44 → **2.86 m**, left 1.01 → **6.49 m** |
+| bodega entrance ugly and crowded | runs shortened and pushed back, counter moved off the entry diagonal, aisle 0.95 → 1.15 |
+| bodega grey slab in the view | gondola end caps BOTH ends, register given a face. Raycast from the eye named each one before it was touched |
+| bodega exit needs work | real doorway: daylight beyond, frame of two jambs and a head, threshold. Walked OUT: `442.27,4.17 → 5.88,-97.12`, on the street |
+| enter facing perpendicular | walked in from the street, all ten rooms. Heading was already square; the POSITION was wrong. Chamfered arrival now steps to the centreline, 442.48 → 441.24 |
+| "what is this in the corner" | coffee station: urns with taps, lids, drip tray, cup stack; bench turned so all three face the door; counter given a top, edge and panelled front |
+| clocks tell the time | `room.clock()` kit primitive. 13:30 → hour hand −0.790 (want −0.785, halfway 1→2); 16:00 → −2.099 (want −2.094). Diner and library return identical angles |
+| people orientation | **12 figures, four sides each, every one turns.** Tagged in the kit so the test selects people and not mannequins |
+| diner decorations floating | `floaters-walk`: **zero** in the diner. The world's only four are at x=834.84, the hotel |
+| thrift too thin | folded-goods shelf wall added. Density measured across all ten rooms: thrift 1.2/m², above bodega 0.9. **pawn 0.5, hotel 0.6, library 0.6 are now the thin ones** |
 
-Verified in passing: ten rooms in the world (not seven), 151 seats with 151
-matching sit prompts, park and car lot both registered, zero console errors.
+## Two things the desk should route, neither mine
 
-## Why this is worth stopping on rather than pushing through
+1. **D's re-entry regression.** Every interior fails the same two checks —
+   "you are NOT standing in the re-entry trigger after stepping out" and "a
+   second E on the landing does not suck you straight back in". A/B proved it
+   is not my clock change (2 failures with, 2 without). It arrived with
+   `bce720de7 "Interaction: select by looking, wider volumes"`. Evidence in
+   `notes/F-reentry-regression.md`. If stepping out really leaves you inside
+   the pull-back-in volume, that is a door that will not let go of you.
+2. **The three thinnest rooms are now pawn (0.5/m²), hotel (0.6) and library
+   (0.6)** — G's and E's. The "thinnest room in the world" row was filed
+   against the thrift and is no longer true of it.
 
-The standing rule is that a user request outranks verification work, always.
-Right now the queue is routing me into *pure* verification: every item I take
-turns into an exercise in proving finished work is finished. That is precisely
-the over-rotation the rule was written to prevent, and it is happening because
-the queue describes a world several days older than the one that is running.
+## A harness fault I found and am naming rather than fixing blind
 
-It also carries real risk. On item 2 the stale framing led me to report the
-tax office as broken and to name `int-tax.ts`'s `side: 1` as the cause. That
-sign is correct — tax and the thrift are on opposite sides of the street — and
-I only caught it because I measured the street geometry before asking builder
-G to act. A stale queue plus a confident builder is how a working room gets
-"fixed".
+`scripts/floaters-walk.mjs diner` prints the HOTEL's rows. It **ignores its
+room argument** — a filter that silently does not filter, GOTCHAS 34 again.
+Every result I have quoted from it is world-wide and still sound, but anyone
+who trusts the argument will think they scoped a run they did not. It is not
+in my ownership list; tell me if it should be and I will fix it.
 
 ## What I need
 
-**Re-cut `queues/F-interiors.md` against the world as it stands.** I do not
-need it prioritised or explained, just made true.
-
-If it is faster for the desk, invert it: tell me the user's most recent
-unmet complaints in their own words and I will find the work myself. What I
-cannot do is keep guessing which of the remaining items — the glob
-generalisation, the 8-angle citizens in rooms, jump and gravity feel, deriving
-door and window from the facade, re-anchoring the diner — are live.
-
-## What I am doing meanwhile
-
-Per the protocol I am not idling on this note. The bodega brief is finished to
-the user's own grading standard, and the remaining known-unfinished work I own
-is the one thing I flagged myself and did not resolve:
-
-- the dark angular shape centre-left in `shots/f-bodega-counter2.png`. I
-  dumped every mesh within 3.2 m and ruled out the keeper (his sprite is
-  feet-anchored, so the `y = 0` in the dump is correct). Most likely the
-  counter or register at close range. It is open, not fixed, and I will not
-  write it up as anything else until I have proven which.
-
-That is a real item in a room the user complained about, so it outranks
-anything else I could invent.
+Move the ten rows, or tell me which of the evidence above you do not accept.
+I am not asking for them to be marked CONFIRMED by me — that is the desk's or
+the auditor's call, and the protocol is explicit about it.
