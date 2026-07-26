@@ -703,3 +703,45 @@ this had sat in `FEATURE-REQUESTS.md` since the block was re-cast with no ledger
 row; the diner facade was the same. **A request with no row is invisible to a
 process built on rows** — and both were found by someone tripping over them, not
 by the process. Worth the desk reconciling FEATURE-REQUESTS against LEDGER once.
+
+## [C] Per-side car paint CONFIRMED — checked per side, as the user asked
+
+The user's own diagnosis named the method: *"confirm the logic independently per
+side of the car."* Checking one side is how the fault survived, so the audit had
+to do the thing the fix was about.
+
+**Where the check has to live.** The body is one `BoxGeometry` with a 6-slot
+material array — which is precisely the shape of `[sideT, sideT]`. There is no
+"flank mesh" to find; my first two attempts looked for one and returned
+**CANNOT ANSWER**, correctly. The check belongs at the material GROUP: derive
+`u → z` from that group's own vertices, read that group's own map, convert its
+dark columns to world z.
+
+| kind | features | own texture per flank | flanks agree |
+|---|---|---|---|
+| sedan | 9 | yes | yes |
+| pickup | 7 | yes | yes |
+| hatch | 10 | yes | yes |
+| van | 7 | yes | yes |
+
+Sedan shuts −1.008 / 0.164 / 1.055 against −0.961 / 0.211 / 1.102, bracketing
+H's −0.98 / 0.19 / 1.08. The rear shut sits at ~1.05–1.10, not 1.40.
+
+**[I] I nearly filed a false fault on the hatch, and the shape of the numbers is
+what saved it.** My first pass printed "hatch: SIDES DISAGREE, 8 of 10". But the
+per-feature differences were **perfectly uniform** — sedan all 47 mm, van all 48,
+pickup all 31–32, hatch 79 with two at half a texel.
+
+*A real misalignment varies per feature. A constant offset across every single
+feature is the instrument, not the world.* I read each column at its centre
+`(x+0.5)/W`, and the two faces' UVs run in opposite world directions, so the same
+painted edge is reported one column apart on the two sides.
+
+**The rule:** a fixed metric tolerance is wrong for a quantity **quantised by
+texel size**. 60 mm passed the sedan (47 mm texel) and failed the hatch (79 mm
+texel) for reasons that had nothing to do with either car. The tolerance has to
+be the paint's own resolution, derived per vehicle.
+
+This is the same family as the AABB misses: **the instrument's own units leaking
+into the verdict.** Third distinct instance today, after the green-pixel metric
+counting foliage and the AABB occupancy test.
