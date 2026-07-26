@@ -957,9 +957,19 @@ export function register(ctx: CtxBuild): void {
     held: () => HELD.map((l) => ({ day: l.day, kind: l.kind, from: l.from })),
     /** the population floor, GOTCHAS §34: 0 junk kinds means the table is gone */
     junkKinds: () => JUNK.length,
-    /** where the box actually IS, so a probe never hand-types it (§20) */
-    box: () => ({ x: door.position.x, y: door.position.y, z: door.position.z,
-      stand: { x: STAND_X, z: me.z }, snapped: bank.found }),
+    /**
+     * Where the box actually IS, so a probe never hand-types it (§20).
+     *
+     * WORLD position, not `door.position`. The two are equal today because the
+     * group sits at the origin, and reporting the local one meant a probe that
+     * dragged the group three metres down the lobby was told the box had not
+     * moved. My own mutation test found that: it broke the world exactly as
+     * intended and the check stayed green, which is GOTCHAS §27 in one line.
+     */
+    box: () => {
+      const w = door.getWorldPosition(new THREE.Vector3());
+      return { x: w.x, y: w.y, z: w.z, stand: { x: STAND_X, z: me.z }, snapped: bank.found };
+    },
     envelopes: () => envs.filter((e) => e.visible).length,
     reading: () => (open ? { page, of: reading.length } : null),
     pay: () => payRent(ctx, Math.floor(ctx.clock.now().totalMin / 1440)),

@@ -585,6 +585,21 @@ const CHECKS = [
   // Its --selftest lifts every car body 0.6 m off its wheels and requires the
   // red — the positive control F's evidence names and never watched. ~8 s. (K)
   ['K-tyre-has-arch', 'does every tyre have bodywork arching over it?', true],
+  // "letters waiting at the mailboxes when he comes in off the street". The
+  // clause worth registering is the LAST one: rent is a clock feature, and this
+  // world's clock ramps eight hours in a second and a half every time the
+  // player sleeps, straight past the eleven o'clock post. A delivery that
+  // accumulated per frame would drop a day every single night and nothing else
+  // in this suite would notice, because the box would still have post in it. So
+  // it snaps four days forward without going near the box and requires the mail
+  // of every delivery day in between.
+  //
+  // Its --selftest drags the box 3 m down the lobby and walls the approach. The
+  // first version of both mutations was CAUGHT BY NEITHER — the probe reported
+  // a local position the drag did not touch, and the walk set out 0.90 m from a
+  // 0.95 m trigger, so it arrived without moving and sailed through the wall.
+  // Watching a selftest fail to fail is the only thing that finds that. (N)
+  ['N-post-waiting', 'is the post waiting in 301\'s box, and does sleeping fill it?', true],
 ];
 
 // A PER-CHECK TIMEOUT AND A LINE AS EACH ONE STARTS.
