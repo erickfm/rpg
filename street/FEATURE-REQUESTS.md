@@ -125,6 +125,7 @@ published to the playable artifact.
 ## Inbox
 - **"there should be a bit of a gap out of the window and then just a brick wall. almost like a little room outside the window that is just brick"** → **C**
 - **"just do what i want for this bespoke minor window ask"** → **C**
+  → **C.** Same ask as the row below; resolved there.
 - **"would like a view out of my window but the view it just a small gap and then brick wall lol"** → **C**
   (desk's relay: *"a painted city backdrop beyond the gap — rooftops, water
   towers, fire escapes, a slice of sky, lit windows at night ... nobody is ever
@@ -258,14 +259,29 @@ published to the playable artifact.
   screenshotted: WASD in all four directions holds at floor 3, and bed → door →
   hall → switchback → lobby steps 5.40, 4.05, 2.70, 1.35, 0.00.
 - **"make sure none of the cars in the lot are clipping into each other"** → **C**
+  → **C. FIXED.** Measured box against box at real dimensions with an OBB/SAT
+  test (`scripts/lot-clearance.mjs`), not centre spacing — the fleet is MIXED,
+  so a gap that clears two sedans overlaps a pickup. Rotation derived first,
+  then measured. Now: 18 cars, **closest pair 0.422 m**, **closest
+  car-to-fixture 0.290 m** — no overlap anywhere, and inside the 30-60 cm
+  honest gap asked for. The fence, office, pole sign and cones are checked as
+  fixtures by the same test.
 - **"park is nicer with tres but i was hoping to get some topographical changes. also a loop around the field in the middle would be good. also find some way to represent a grass field"** → **E**
 - **"inside of the thrift store leaves a lot to be desired as well"** → **F**
 - **"tax person looks like they are backwards"** → **G**
 - **"facade of the thrift store building is lazy and chopped off at points"** → **A**
 - **"cat is too much in the corner and the grate in the center is such a lazy design. make it match some of our other grate designs"** → **D**
 - **"the chairs are backwards"** → **C**
+  → **C. FIXED.** Both chairs face OUT at the stock, and they are no longer a
+  matched pair: **0.50 rad apart with one pushed back 0.31 m**. Asserted by
+  lot-layout. Both are registered with `ctx.seat()` and verified end to end —
+  offer, sit, stand up.
 - **"atm too high and doesnt work"** → **D**
 - **"cars facing wrong way on left side of car lot"** → **C**
+  → **C. FIXED AT THE SOURCE.** Each car's heading is derived from which side of
+  the aisle its bay is on, `mirrorYaw(θ) = π − θ`, because a far row is a MIRROR
+  of the near row and not a copy — adding 180° to one row as a constant is
+  exactly what would break again next time. lot-layout: **18 of 18 nose-out**.
 - **"wheel arches"** → **AUDIT**
 - **"make sure all requests have been accomplished to the quality i would expect"** → **AUDIT**
 - **"make the exteriors match the interiors"** → **F**
@@ -283,9 +299,18 @@ published to the playable artifact.
 - **"make the exteriors match the interiors"** → **A**
 - **"instead of doing what i asked which is change the exterior to match the interior you changed the interior to match the exterior. thats annoying"** → **F**
 - **"i like the feel and the vibe, i dont like the execution why is there just signs floating? also why can i not walk in. i would like lines of cars on the right and left as i enter with the actual office in the back of the lot"** → **C**
+  → **C. FIXED.** The chain-link exists and the banners hang on it rather than in
+  mid-air. lotwalk: the frontage stops you everywhere except the gate (opening
+  z −0.7…6.3, 8 of 27 samples). lot-frontage: nothing encroaches the 2 m walk.
+  lot-layout: rows flanking the aisle at centre z 2.60, office across the back.
 - **"this looks bad because th efront of the bank doesnt match the side fix this"** → **D**
 - **"so it should not be cutting off the actual ad for tonys pizza also theres some strange graphical bug on the legs you see its like the same plane as the wood"** → **B**
 - **"i want to be able to close this door and also what is this poster on the wall?"** → **C**
+  → **C. FIXED.** 301's door is an `[E]` open/close with the leaf swinging and
+  the collider following it; door301 holds **all seven behaviours** — opens,
+  shuts, blocks the doorway while shut, and refuses to shut on you. The poster
+  was redrawn as one readable thing rather than an unidentifiable field of
+  colour.
 - **"i cant sit at the benches at the library"** → **E**
 - **"make the exteriors match the interiors"** → **F**
 - **"make the exteriors match the interiors"** → **A**
@@ -295,6 +320,11 @@ published to the playable artifact.
 - **"make this look nicer, i dont think we need the bottom wood part. also the tonys pizza part i think needsa to have a bezel"** → **B**
 - **"these people are stuck"** → **H**
 - **"i like the triangles but it also just looks low effort do a high effort sleazy used car lot. make it make sense like how does one even enter, drive a car off the lot. do some research into what old sleazy used car lots looked like"** → **C**
+  → **C. FIXED.** There is a kerb cut with the walk ramping over it and a gate on
+  the cut; lot-kerb-seam confirms the cut lies **entirely inside the gate**, so
+  a car can leave across all of it. Plus the period vocabulary: banners
+  zip-tied to the chain-link, the pole sign, windshield price cards, tyre
+  stacks, bunting and weeds in the cracks.
 - **"also i think these are puddles and they look awful honestly / trash cannot be clipping through stuff like this"** → **B**
 - **"in general we should not encrouch the already cramped sidewalk"** → **AUDIT**
 - **"park border with sidewalk looks fucked up, we gotta fix this. in general we should not encrouch the already cramped sidewalk"** → **E**
@@ -452,6 +482,9 @@ commit, as asked.
   `footprint-pits`, `footprint-water`, `footprint-blind`). Left in the Inbox
   for the desk to move — flagging it here so it does not read as outstanding.
 - **"car lot needs to be deeper. i like your initial aesathetic but i want it refined and a try hard version of it. get the typical car price signs yknow?"** → **C**
+  → **C. FIXED.** 23.2 m of depth with the rows receding to the office across the
+  back, so you see cars behind cars. The windshield price cards are in — the
+  user has since confirmed the $695 card reads.
 - **"im literally stuck here. i think we need some sort of stuck protection or something smarter around collision and blocking"** → **F** ✅ `fp.ts` depenetration: sums an escape from everything overlapping, eases out at bounded speed, falls back to last-good after 0.45 s. 177/177 traps escaped (`scripts/unstick-walk.mjs`).
 
 ## Done — 2026-07-25, builder A (the facades)
