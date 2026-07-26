@@ -1208,9 +1208,26 @@ export function register(ctx: CtxBuild): void {
      * moved. My own mutation test found that: it broke the world exactly as
      * intended and the check stayed green, which is GOTCHAS §27 in one line.
      */
+    /**
+     * Where the box is, AND THE STOREY YOU HAVE TO BE ON TO USE IT.
+     *
+     * `stand` used to be x and z only. Verifier J confirmed this row and said
+     * plainly what they could not do: *"warping to his spot left `ok()` false
+     * because I did not resolve the STOREY … a published spot plus the wrong
+     * floor looks exactly like a spot that does not work."*
+     *
+     * That is my defect and not J's. Every one of my three [E]s is gated on
+     * the floor and MUST be — the mailbox and the slip under 301's door sit
+     * within a metre of each other in x and z and are separated only by which
+     * storey you stand on (GOTCHAS §7). A caller cannot know that from two
+     * coordinates, so the third one is published: warp with `stand.gy` and the
+     * spot is live. Publish your own footprint rather than making the reader
+     * derive it.
+     */
     box: () => {
       const w = door.getWorldPosition(new THREE.Vector3());
-      return { x: w.x, y: w.y, z: w.z, stand: { x: STAND_X, z: me.z }, snapped: bank.found };
+      return { x: w.x, y: w.y, z: w.z,
+        stand: { x: STAND_X, z: me.z, gy: 0 }, snapped: bank.found };
     },
     envelopes: () => envs.filter((e) => e.visible).length,
     /** the two slips he hands over, so the overrun check can measure them too:
@@ -1218,10 +1235,15 @@ export function register(ctx: CtxBuild): void {
     slips: () => [receipt(0, RENT.amount), shortSlip(0)].map((l) => ({ from: l.from, lines: l.lines })),
     /** the slip under 301's door: where it is and whether it is on the floor */
     slip: () => ({ x: SLIP.x, z: SLIP.z, y: SLIP.y,
+      /** stand HERE to be offered it — floor 3, and the storey is the point */
+      stand: { x: SLIP.x - 0.55, z: SLIP.z, gy: 2 * ST0 },
       down: slipDown(ctx.clock.now().totalMin), visible: slip.visible }),
     /** the landlord: where he is, whether he is in the hall, and his box */
     landlord: () => ({
       x: LL_X, z: LL_Z, in: landlordIn(ctx.clock.now().totalMin),
+      /** stand HERE to be offered him — the LOBBY floor, which is what J could
+       *  not resolve from x and z alone */
+      stand: { x: LL_X, z: LL_Z - 0.6, gy: 0 },
       visible: landlord.mesh.visible,
       solid: llBox.minX < 900,
       /** the clear lane past him, against the 0.72 m player. GOTCHAS §29:

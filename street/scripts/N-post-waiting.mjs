@@ -562,6 +562,54 @@ ok(/mailbox|read your mail/.test(stations.box?.label ?? ''),
 ok(/rent/.test(stations.man?.label ?? ''),
   `at the foot of the stairs it offers the LANDLORD ("${stations.man?.label ?? 'nothing'}")`);
 
+// ── 11d. can a STRANGER aim at my three, from what I publish alone? ───────
+//
+// Verifier J confirmed this row and said plainly what they could not do:
+// *"warping to his spot left `ok()` false because I did not resolve the
+// STOREY … a published spot plus the wrong floor looks exactly like a spot
+// that does not work."*
+//
+// That was my defect. All three of my [E]s are gated on the floor and must be
+// — the mailbox and the slip sit within a metre of each other in x and z and
+// are separated only by which storey you stand on (GOTCHAS §7) — and I was
+// publishing two coordinates out of the three a caller needs.
+//
+// So each accessor now publishes `stand: {x, z, gy}`, and this is the clause
+// that keeps it true: warp using ONLY what the accessor gives, touch nothing
+// else, and require the spot to be live. It is deliberately written the way a
+// stranger would write it, because a stranger is who it is for.
+const aimed = await page.evaluate(() => {
+  // DAY 5. Clause 11b picks day 3's slip up off the floor, and aiming at a
+  // subject an earlier clause consumed reports "NOTHING OFFERED" — which is
+  // indistinguishable from the defect this clause exists to catch. Third time
+  // this file has been wrong about the world because this file changed it, so
+  // the population is asserted BEFORE the aim rather than assumed after it.
+  window.__ct.clock(0, 0); window.__ct.advanceClock(5 * 1440 + 13 * 60, 0);
+  const go = (st, re) => {
+    window.__ct.warp(st.x, st.z, 0, st.gy, 0);
+    const live = window.__ct.spots().filter((q) => q.ok && re.test(q.label)
+      && Math.hypot(q.x - st.x, q.z - st.z) <= q.r);
+    return { gy: st.gy, label: live[0]?.label ?? null };
+  };
+  return {
+    box: go(window.__rent.box().stand, /mailbox|read your mail/),
+    man: go(window.__rent.landlord().stand, /rent|nothing is owed/),
+    slip: go(window.__rent.slip().stand, /slip of paper/),
+    // the population, so a missing subject reads as a missing subject
+    there: { slip: window.__rent.slip().down, man: window.__rent.landlord().in },
+  };
+});
+await page.waitForTimeout(200);
+ok(aimed.there.slip && aimed.there.man,
+  `there is something to aim AT (slip on the floor ${aimed.there.slip}, `
+  + `landlord in the hall ${aimed.there.man}) — otherwise every aim below is free`);
+for (const [k, v] of Object.entries(aimed)) {
+  if (k === 'there') continue;
+  ok(v.label !== null,
+    `${k}: warping to the published stand (gy ${v.gy}) makes it LIVE — `
+    + `"${v.label ?? 'NOTHING OFFERED'}"`);
+}
+
 // ── 12. paying him. LAST, because it is the only thing here that MOVES ────
 //
 // `paidPeriods` is session state with no reset, so a payment made early is a
