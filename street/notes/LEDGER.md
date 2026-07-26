@@ -97,3 +97,4 @@ user anything is finished.
 | OPEN | D | cat is dead center in alley i need it right to the right of that news  | |
 | OPEN | H | textures on vehicles need a deep review and fix | |
 | OPEN | H | the doors are misaligned. i think the worker doesnt realize they need  | |
+| OPEN | E | needs grass variation and more random placing. some clustering potenti | |
