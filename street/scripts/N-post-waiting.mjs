@@ -418,6 +418,104 @@ ok(gone.reading !== null, 'picking it up unfolds it');
 ok(!gone.slip.down && !gone.slip.visible, 'and it LEAVES THE FLOOR — no ghost behind it');
 await page.keyboard.press('Escape');
 
+// ── 11c. do my [E]s swallow anybody else's, and can mine be reached? ──────
+//
+// C's finding, and C's sentence: *"there is no assertion anywhere that two
+// spots from different modules do not swallow each other."* My landlord's
+// trigger was 1.15 m and sat 0.38 m from where 101's landing parcel lands, so
+// its circle CONTAINED the parcel's entirely — and it had already cost C's own
+// check a false red.
+//
+// TWO CLAIMS, and they are not the same one. Writing only the first is how I
+// nearly shipped a false green in the other direction.
+//
+//   containment  nothing else's centre is inside one of MINE. This is C's
+//                finding exactly: it is what makes my spot the BULLY, and it
+//                is the half I can actually be at fault for
+//   reachability standing where a player stands for each of mine, MINE is what
+//                the world offers. This is the half that matters to a player,
+//                and containment does not decide it — selection is
+//                nearest-live-wins, so any spot is reachable by standing on it
+//
+// The symmetric test (`d < max(r_mine, r_theirs)`) looks like the rigorous
+// version and is not: my slip sits 0.91 m from 301's parcel, inside C's 0.95 m
+// radius, and is still what you are offered every time because you meet it
+// coming out of your own room. Failing on that would be failing on somebody
+// else's radius for a fault no player can experience — GOTCHAS §23, real is
+// not the same as visible. So the margins are PRINTED and the lived claim is
+// what is asserted.
+const swallow = await page.evaluate(() => {
+  // rent is owed and it is daytime, so all three of mine are live at once
+  window.__ct.clock(0, 0); window.__ct.advanceClock(3 * 1440 + 13 * 60, 0);
+  const MINE = /mailbox|read your mail|rent is|pay the rent|slip of paper/;
+  const all = window.__ct.spots();
+  const mine = all.filter((q) => MINE.test(q.label));
+  const bad = [], near = [];
+  for (const m of mine) {
+    let closest = null;
+    for (const o of all) {
+      if (MINE.test(o.label)) continue;
+      const d = Math.hypot(m.x - o.x, m.z - o.z);
+      if (d < m.r) bad.push({ mine: m.label, r: m.r, theirs: o.label, d: +d.toFixed(2) });
+      if (!closest || d < closest.d) closest = { theirs: o.label, d: +d.toFixed(2), r: o.r };
+    }
+    near.push({ mine: m.label, r: m.r, theirs: closest?.theirs, d: closest?.d, theirR: closest?.r });
+  }
+  return { mine: mine.length, all: all.length, bad, near };
+});
+await page.waitForTimeout(200);
+ok(swallow.mine >= 3,
+  `${swallow.mine} of my [E]s are live at once against ${swallow.all} in the world `
+  + '(floor 3, the mailbox, the man and the slip)');
+ok(swallow.bad.length === 0,
+  `none of my triggers contains another module's centre (${swallow.bad.length} swallowed)`);
+for (const b of swallow.bad) console.log(`      "${b.mine}" (r ${b.r}) contains "${b.theirs}" at ${b.d} m`);
+for (const n of swallow.near) {
+  console.log(`      margin: "${n.mine}" (r ${n.r}) nearest is "${n.theirs}" (r ${n.theirR}) at ${n.d} m`);
+}
+
+// …and the lived half. Stand where a player stands for each of the three and
+// require the world to offer MINE — not "one of mine exists", which is what the
+// earlier clauses asked and which a swallowed spot would also satisfy.
+const stations = await page.evaluate(() => {
+  // DAY 5, not day 3: clause 11b picked day 3's slip up off the floor, and a
+  // station test run on a day whose subject an earlier clause consumed measures
+  // nothing and says "nothing offered" — which reads exactly like a swallowed
+  // spot. Second time this file has been wrong about the world because this
+  // file had changed it.
+  window.__ct.clock(0, 0); window.__ct.advanceClock(5 * 1440 + 13 * 60, 0);
+  const s = window.__rent.slip(), l = window.__rent.landlord(), bx = window.__rent.box();
+  const nearestAt = (x, z, yaw, gy) => {
+    window.__ct.warp(x, z, yaw, gy, 0);
+    let best = null;
+    for (const q of window.__ct.spots()) {
+      if (!q.ok) continue;
+      const d = Math.hypot(q.x - x, q.z - z);
+      if (d <= q.r && (!best || d < best.d)) best = { label: q.label, d: +d.toFixed(2) };
+    }
+    return best;
+  };
+  return {
+    // waking up and turning to your own door
+    slip: nearestAt(s.x - 0.55, s.z, Math.PI / 2, s.y),
+    // coming in off the street, at the bank of boxes
+    box: nearestAt(bx.stand.x, bx.stand.z, Math.PI / 2, 0),
+    // meeting him at the foot of the stairs
+    // 0.6 m out, INSIDE his 0.95 m trigger. The first version stood at 1.0 m,
+    // outside it, and reported "nothing offered" — a station that is not in the
+    // volume it is testing measures the absence of its own reach.
+    man: nearestAt(l.x, l.z - 0.6, Math.PI, 0),
+  };
+});
+await page.waitForTimeout(200);
+ok(/slip of paper/.test(stations.slip?.label ?? ''),
+  `in your own doorway the world offers the SLIP, not a neighbour's parcel `
+  + `("${stations.slip?.label ?? 'nothing'}")`);
+ok(/mailbox|read your mail/.test(stations.box?.label ?? ''),
+  `at the bank of boxes it offers YOUR BOX ("${stations.box?.label ?? 'nothing'}")`);
+ok(/rent/.test(stations.man?.label ?? ''),
+  `at the foot of the stairs it offers the LANDLORD ("${stations.man?.label ?? 'nothing'}")`);
+
 // ── 12. paying him. LAST, because it is the only thing here that MOVES ────
 //
 // `paidPeriods` is session state with no reset, so a payment made early is a

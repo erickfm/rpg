@@ -920,8 +920,26 @@ export function register(ctx: CtxBuild): void {
   // other person in this building: the hermit is a yellowed undershirt, long
   // grown-out hair and `grime: 1`. This is a pressed grey overcoat, short hair,
   // clean. Two men in one walk-up should not read as the same texture.
+  //
+  // WHERE HE STANDS, and why he moved. C measured it and filed it before it
+  // bit anybody (`notes/C-package-vs-rent-for-N.md`): he was at `APT_Z0 + 4.4`
+  // with a 1.15 m trigger, which put 101's landing parcel — at (200.25, −15.69),
+  // derived from that door's own frame — 0.38 m from his centre and therefore
+  // ENTIRELY INSIDE his circle. It worked, because selection is nearest-wins
+  // and you approach the parcel. It worked the way GOTCHAS §8 describes things
+  // working right up until they do not, and it had already cost C's own check a
+  // false red.
+  //
+  // C offered to bias the parcel to the far side of its jamb. Declined: the
+  // parcel is derived from a door that has been there for weeks and the man is
+  // three hours old, so the man moves. He is at the FOOT OF THE STAIRS now,
+  // 2.32 m from the parcel — further apart than the two radii added together,
+  // so neither circle reaches the other's centre and they do not even overlap.
+  //
+  // It is a better place for him anyway. His own notice says *"I am in the hall
+  // or on the stairs"*, and you cannot go up to your flat without passing him.
   const LL_X = APT_X0 + 0.62;      // west side of the lobby, off the wall
-  const LL_Z = APT_Z0 + 4.4;       // mid-hall — between the front door and the stairs
+  const LL_Z = APT_Z0 + 6.6;       // at the foot of the stairs, clear of 101's door
   const LL_FACING = Math.PI;       // atan2(vx, vz): π looks −z, at the front door
   const landlord = citizenSprite(
     { jacket: '#3f4048', pants: '#2b2f36', skin: '#5a3a22', hair: '#1c1410',
@@ -1024,7 +1042,11 @@ export function register(ctx: CtxBuild): void {
 
   ctx.spot({
     // He is the object, so the prompt and the highlight name the same man.
-    x: LL_X, z: LL_Z, r: 1.15,
+    // r 0.95, not the 1.15 it was. C's second question — *"1.15 is the largest
+    // radius on that landing and I do not know whether it is deliberate"* — and
+    // the honest answer is that it was not: I picked it because a man is wide.
+    // The door's is 0.95 and the parcel's is 0.95, so this is 0.95.
+    x: LL_X, z: LL_Z, r: 0.95,
     obj: landlord.mesh,
     ok: () => landlordIn(ctx.clock.now().totalMin) && ctx.player.gy() < 0.5,
     // THE FIGURE IS IN THE PROMPT, both ways round. K's rule, and it is the
