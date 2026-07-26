@@ -1578,3 +1578,31 @@ line because the next raised floor will inherit it silently.
 genuinely were gone — and restoring it on the same evidence standard is the other
 half of that discipline. **A status that only ever moves one way is not a
 measurement, it is a ratchet.**
+
+## [C] Which of my CONFIRMED rows are most likely to have decayed
+
+The desk has made it a standing rule that CONFIRMED is not permanent. Having just
+had one row invalidated and repaired under me, here is where I would look first,
+ranked by how much the ground under them has moved:
+
+**1. Anything I confirmed inside a room that has since been RESIZED.** The library
+went 14.8 → 20 m wide, the casino 10.5 → 17 → 11, the hotel 9 → 26 m deep. Rooms
+that change size move everything in them. At risk: *library steps climbable*,
+*library courtyard benches sittable*, *church steps + churchyard*, *interior
+people on the 8-angle atlas* (already broke once).
+
+**2. Anything in the park.** It has been rebuilt at least three times during this
+audit — topography, paths, shelter deleted, benches reseated. At risk: *park lit*
+(20 light sources, ten lanterns), *park not a yard* (42.5 m walkable, 569 meshes).
+Both are counts, and counts are exactly what a rebuild changes.
+
+**3. Anything about the crowd.** H has changed arrival, avoidance, depenetration
+and the sprite baseline in this session alone. Already broke once.
+
+**The pattern: a confirmation decays when it rests on a NUMBER owned by someone
+else's file.** "20 light sources" is E's to change; "42.5 m walkable" is E's;
+"8 distinct frames" is H's. A confirmation resting on a *relationship* — the leaf
+is wider than its opening, the toe points the way it walks — survives, because the
+relationship is what the request was about.
+
+*Where I can, I should confirm the relationship rather than the count.*
