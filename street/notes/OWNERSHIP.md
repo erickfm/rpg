@@ -60,7 +60,7 @@ src/proto/ct/gap.ts         = H    # asked for it; needs it for the alley keep-c
 src/proto/ct/crowd-net.ts   = H    # already calls it "mine" in its own blocker
 src/proto/ct/traffic.ts     = H
 src/proto/ct/sidestreet.ts  = H
-src/proto/ct/hud.ts         = DESK # screen-space, not world — route through me
+src/proto/ct/hud.ts         = D    # screen-space: the watch, the wrist, the wallet
 ```
 
 The auditor deliberately left these blank rather than guess, and was right to:
