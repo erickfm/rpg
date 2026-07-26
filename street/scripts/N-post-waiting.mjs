@@ -14,6 +14,32 @@
 // box would still have post in it.
 //
 // Usage: SHOT_URL=http://localhost:4195/ node scripts/N-post-waiting.mjs [--selftest]
+//
+// AND IT RUNS AGAINST THE ARTIFACT, which is the build the user actually
+// opens. GOTCHAS §37: everything he opens is one of two builds neither of
+// which is the dev server, `scripts/slow-pinned.sh` cannot start its server,
+// and `check-artifact.mjs` stops at "it opens standalone and draws". So this
+// was run by hand against the packed single file and is green there:
+//
+//   npm run build && node scripts/pack-artifact.mjs
+//   npx vite preview --port <A PORT YOU OWN> --strictPort --outDir dist &
+//   SHOT_URL=http://localhost:<port>/artifact.html node scripts/N-post-waiting.mjs
+//
+//   -> all green, and --selftest still 2 of 2 CAUGHT
+//
+// That matters for THIS module specifically: `ct/tenancy.ts` imports
+// apartment, inventory, citizens and hud, which is exactly the shape §28 says
+// can resolve to an undefined namespace at collection time and be dropped from
+// the eager glob — IN THE BUILT OUTPUT ONLY. Clause 0 asks the world whether
+// the module is there rather than assuming it from the file existing, and
+// against the artifact that question is not rhetorical.
+//
+// PICK A PORT YOU OWN, and let reportWorld arbitrate rather than your eyes. I
+// used 4201 because GOTCHAS §37 prints it as an example, another builder was
+// already on it, my `--strictPort` preview failed to start, and a hand-rolled
+// probe cheerfully reported that my module was intact IN SOMEBODY ELSE'S
+// ARTIFACT. reportWorld caught it and the ad-hoc probe did not, which is the
+// entire argument for §26 in one afternoon.
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
 import { flags } from './lib/args.mjs';
