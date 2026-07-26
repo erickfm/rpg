@@ -1,1 +1,1 @@
-DONE | my queue is empty and my row is CONFIRMED; raised BLOCKED-N.md as a DESK ACTION, not a block on me | DESK — 11 rows regressed at bd915e0cb, 6 finished features now read as unbuilt
+DONE | queue empty, row CONFIRMED, check green; ledger alarm now carries a SAFE/MERGE split and a proposed fix | DESK — BLOCKED-N.md: 11 rows regressed, only 2 are a safe revert
