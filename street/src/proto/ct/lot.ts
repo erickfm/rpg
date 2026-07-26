@@ -2533,7 +2533,7 @@ function buildLot(o: {
     // actually walk at, twenty overlapping copies of those rings interfered
     // into a visible LATTICE of chevrons on the asphalt. Smaller rings at lower
     // opacity brighten the ground under each bulb without patterning it.
-    const poolGeo = new THREE.PlaneGeometry(2.8, 2.8);
+    const poolGeo = new THREE.PlaneGeometry(3.6, 3.6);
     const halos: THREE.Mesh[] = [];
     for (const fz2 of FEST_Z) {
       for (const mx of [FEST_X0, FEST_X1]) {
@@ -2574,9 +2574,17 @@ function buildLot(o: {
         // the light it actually throws: a pool on the asphalt under it, wide
         // enough to overlap its neighbours so the run reads as a continuous
         // lit strip rather than as beads on a string
+        // THE POOL FALLS INBOARD, not under the bulb. Moving the masts out to
+        // the walls to clear the aisle took the light with them, and the night
+        // walk after that change shows the bulbs lighting BRICK while the stock
+        // and the drive went darker than before -- the aisle was fixed and the
+        // yard was worse. A lamp at 4.6 m over an open yard does not light a
+        // 2.8 m disc directly beneath itself; it washes the ground in front of
+        // it. So the pool sits 42% of the way from the mast line to the aisle
+        // centre, which puts it across the row the run hangs over.
         const pl = new THREE.Mesh(poolGeo, washM);
         pl.rotation.x = -Math.PI / 2;
-        pl.position.set(bx, Y + 0.010, fz2);
+        pl.position.set(bx, Y + 0.010, fz2 + (zMid - fz2) * 0.42);
         scene.add(pl);
       }
 
@@ -2586,7 +2594,7 @@ function buildLot(o: {
       // 0.42: enough that the asphalt under each run reads as LIT, which is
       // what makes the stock read as silhouettes standing on a bright yard
       // instead of dark lumps in a dark one. That contrast is the look.
-      washM.opacity = 0.17 * f.night;
+      washM.opacity = 0.21 * f.night;
       // TURN EACH HALO TO THE PLAYER, or a bulb seen from along the run is a
       // disc edge-on and vanishes — which is most of the aisle, since the runs
       // point the way you walk. Yaw only, off `Frame.px/pz`: there is no
