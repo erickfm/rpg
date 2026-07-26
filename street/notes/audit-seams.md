@@ -913,3 +913,33 @@ mistake as "the builder confirmed it", which this whole ledger exists to prevent
 `notes/H-crossing-pileup.md`. Worth the desk checking whether something truncates
 long evidence on write, because a row that stops mid-sentence still reads as
 complete to `ledger.sh`.
+
+## [C] Two rejections closed, and a number I refused to quote
+
+**Bodega soldier course — CONFIRMED, my own rejection closed.** Re-measured with
+the instrument that caught it: **2.83 m along the cut face, 0.42 m across**,
+where the rejected version was 0.42 along and 2.60 across. It spans x+z
+−87.59…−87.00, hugging the face and standing 0.41 m out, still 4 mm proud. Seen
+from the same viewpoint as the rejection: the flags run parallel to the bay's
+foot and **the field joints now die against the band** instead of striking the
+canted wall.
+
+*Worth noting the loop closed in about an hour, and it closed because the
+rejection carried the measurement that made the fault reproducible.* A rejection
+that says "looks wrong" cannot do that.
+
+**The bank front/side — CONFIRMED, and it was raised twice, so it got a wider
+check than the one colour a builder named.** `#53382e` is on zero building faces
+world-wide, the hotel/casino flank now carries brick with courses and windows
+matching its front, and FIRST FEDERAL's return carries the same pale stone and
+panel joints as its front.
+
+**[I] My own sweep produced "143 flat-colour elevations" and I binned it.** The
+filter takes whole building MESHES, so a solid block box counts as one
+"elevation" and its roof tone reads as a flat face — it would have manufactured
+143 faults out of ordinary geometry. **This is the second time this session I
+have built a plausible-looking metric and thrown it away** (the interior door
+fractions were the first), and both had the same shape: *a number that is easy to
+compute standing in for the question actually asked.* The question was "does the
+side match the front", which needs two faces of the SAME building compared, not a
+census of everything flat in the world.
