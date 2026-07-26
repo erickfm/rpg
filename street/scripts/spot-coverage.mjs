@@ -86,7 +86,15 @@ const found = await p.evaluate((inject) => {
       Math.hypot(t.at.x - s.x, t.at.z - s.z) < 0.35 ||
       Math.hypot(t.pose.x - s.x, t.pose.z - s.z) < 0.35)],
     ['interiors-walk', (s) => rooms.some((rm) => Math.abs(s.x - rm.cx) < rm.w / 2 + 3)],
-    ['civic-doors-walk', (s) => /doors of the/i.test(s.label)],
+    // `doors of the` matches NO spot label — its only occurrence anywhere is a
+    // comment in ct/int-bank.ts quoting the user, so this row attributed zero
+    // spots to civic-doors-walk and the table reported the cheerful version of
+    // the truth: nothing uncovered, because nothing counted (GOTCHAS §34).
+    // civic-doors-walk climbs both civic flights and tries their doors; the
+    // world publishes those two as `into ST BRIGID'S` and `into the PUBLIC
+    // LIBRARY`. Matched on the BUILDING NAMES, which the roster owns, rather
+    // than on a verb phrase belonging to whoever last worded the interaction.
+    ['civic-doors-walk', (s) => /ST BRIGID|PUBLIC LIBRARY/i.test(s.label)],
     ['door301', (s) => a0 <= a1 && s.x >= a0 - 4 && s.x <= a1 + 4],
   ];
 

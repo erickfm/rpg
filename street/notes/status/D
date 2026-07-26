@@ -1,1 +1,1 @@
-DONE | new registered check D-dead-prompt-literals; found 2 genuine dead couplings (libboard, spot-coverage) |
+DONE | repaired 2 dead couplings (libboard, spot-coverage); D-dead-prompt-literals green and registered |

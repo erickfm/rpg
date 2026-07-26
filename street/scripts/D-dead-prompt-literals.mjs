@@ -120,6 +120,15 @@ for (const f of readdirSync('scripts').filter((f) => f.endsWith('.mjs'))) {
     if (/\(the bug\)|selftest/i.test(window2)) return;
     for (const re of MATCHERS) {
       for (const m of code.matchAll(re)) {
+        // A NEGATED MATCH THAT FINDS NOTHING IS HARMLESS BY CONSTRUCTION.
+        // `filter(q => !/stand up|stop watching/.test(q.label))` excludes what
+        // it matches, so an alternative that matches nothing simply excludes
+        // nothing — and G wrote `stop watching` FORWARD, against C's open row
+        // for that very prompt. Flagging it would be telling a builder off for
+        // anticipating a feature. Only positive matches — a find(), an
+        // includes(), an === — can silently select nothing and pass.
+        const before = code.slice(Math.max(0, m.index - 3), m.index);
+        if (/[!]\s*$/.test(before)) continue;
         const lit = m[1];
         if (lit.includes('${')) continue;                 // interpolated, not a literal
         for (const alt of lit.split('|')) {

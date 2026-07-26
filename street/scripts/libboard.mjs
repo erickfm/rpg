@@ -12,7 +12,12 @@ await p.evaluate(() => window.__ct.clock(13, 0));
 await p.waitForTimeout(900);
 // stand at the library's door spot and look at the facade
 const info = await p.evaluate(() => {
-  const s = window.__ct.spots().find(q => /PVBLIC LIBRARY/i.test(q.label||''));
+  // PUBLIC, not PVBLIC. ct/civic.ts:744 changed the frieze after the user read
+  // the V as a typo twice — "if the reference is correct but every reader thinks
+  // it is a mistake, it is a mistake" — and this find() has returned undefined
+  // ever since, so the whole check has been measuring nothing. The label the
+  // world publishes is `into the PUBLIC LIBRARY`.
+  const s = window.__ct.spots().find(q => /PUBLIC LIBRARY/i.test(q.label||''));
   if (!s) return null;
   // small board-like meshes within 4 m of the door, between waist and head height
   const sc = window.__ct.scene(); sc.updateMatrixWorld(true);
