@@ -263,9 +263,36 @@ export function buildChurch(ctx: CtxBuild) {
     }
     // the piers either side of the arch carry the narthex ceiling and stop you
     // walking round it
+    //
+    // COURSED, not a flat fill. Each pier is 2.9 x 4.2 m and you look straight
+    // at both of them every time you turn back down the nave, so 12 m2 of one
+    // solid colour reads as a blank slab — the same fault the user named in
+    // the bodega ("a blank grey slab") and that a sweep for untextured boxes
+    // found here. Stone that shows its courses is what stops it.
+    const courseT = declareSurface(pixTex(48, 64, (g) => {
+      g.fillStyle = '#8a8478'; g.fillRect(0, 0, 48, 64);
+      const H = 8;                                   // a course is ~0.52 m
+      for (let r = 0; r * H < 64; r++) {
+        const y = r * H, off = (r % 2) * 8;          // alternate courses break joint
+        for (let x = -off; x < 48; x += 16) {
+          const k = (r * 7 + x) % 11;
+          g.fillStyle = ['#8e887c', '#847e72', '#918b7f', '#888276'][k % 4];
+          g.fillRect(x + 1, y + 1, 14, H - 2);       // the block
+          g.fillStyle = 'rgba(255,255,255,0.05)'; g.fillRect(x + 1, y + 1, 14, 1);
+        }
+        g.fillStyle = '#6e6a60'; g.fillRect(0, y, 48, 1);   // the bed joint
+      }
+      dither(g, 48, 64, 60);
+    }), 'detail');
     for (const sx of [-1, 1]) {
       const pw = (8.5 - 2.7) / 2, px = sx * (2.7 / 2 + pw / 2);
-      put(new THREE.Mesh(new THREE.BoxGeometry(pw, NAR_Y, 0.26), stone), px, NAR_Y / 2, zFace);
+      const ct = courseT.clone(); ct.needsUpdate = true;
+      // GOTCHAS 5: repeat from real metres, so the courses are the same size
+      // on both piers and match the 0.52 m course the texture draws.
+      ct.wrapS = ct.wrapT = THREE.RepeatWrapping;
+      ct.repeat.set(pw / 3.0, NAR_Y / 4.2);
+      put(new THREE.Mesh(new THREE.BoxGeometry(pw, NAR_Y, 0.26),
+        new THREE.MeshBasicMaterial({ map: ct })), px, NAR_Y / 2, zFace);
       solid(px, zFace, pw, 0.30);
     }
   }
