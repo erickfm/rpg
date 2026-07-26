@@ -750,4 +750,55 @@ export function buildChurch(ctx: CtxBuild) {
     new THREE.MeshBasicMaterial({ color: 0x4a4038 }));
   put(stand, -hw + 0.9, 0.39, hd - 5.4);
   solid(-hw + 0.9, hd - 5.4, 0.9, 0.36);
+  // ── the clerestory, because the upper nave was blank plaster ──
+  //
+  // Graded my own nave from the entrance and named this: between the stations
+  // of the cross and the ceiling there was a large flat pale expanse either
+  // side, and the ceiling another. Same fault the user named in the bodega,
+  // an untextured field with nothing to give it scale.
+  //
+  // The fix is not texture, it is WINDOWS. A nave this tall has a row of high
+  // ones — that is what a church's upper wall is — and they light the space
+  // from above instead of leaving it flat. Lancets: tall, narrow, pointed,
+  // paired between the bays, in the rose's palette so the room's glass agrees
+  // with itself.
+  {
+    const lancetT = declareSurface(pixTex(16, 40, (g) => {
+      g.fillStyle = '#14120f'; g.fillRect(0, 0, 16, 40);
+      const cols = ['#2f4a7a', '#7a2f38', '#8a6a2a', '#2f6a4a', '#5a2f6a'];
+      for (let y = 2; y < 38; y += 4) {
+        for (let x = 2; x < 14; x += 4) {
+          // the pointed head: narrow the opening as it rises
+          const halfAt = y < 10 ? 2 + y * 0.5 : 7;
+          if (Math.abs(x + 2 - 8) > halfAt) continue;
+          g.fillStyle = cols[(x * 5 + y * 3) % cols.length];
+          g.fillRect(x, y, 3, 3);
+        }
+      }
+    }), 'sign');
+    const stoneM = new THREE.MeshBasicMaterial({ color: 0x8a8478 });
+    // Spaced along the NAVE only — clear of the narthex at the door end and of
+    // the chancel at the altar end, both of which have their own glass.
+    const Z0 = -hd + 4.0, Z1 = hd - 5.0;
+    const BAYS = 4;
+    for (let i = 0; i < BAYS; i++) {
+      const cz2 = Z0 + ((Z1 - Z0) * (i + 0.5)) / BAYS;
+      for (const sx of [-1, 1]) {
+        for (const dz of [-0.55, 0.55]) {            // paired lancets per bay
+          const gl = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.75),
+            new THREE.MeshBasicMaterial({ map: lancetT.clone() }));
+          gl.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
+          put(gl, sx * (hw - 0.07), 6.15, cz2 + dz);
+          // a stone surround, so it reads as an opening in a wall and not a
+          // poster hung on one
+          const surr = new THREE.Mesh(new THREE.BoxGeometry(0.10, 2.05, 0.86), stoneM);
+          put(surr, sx * (hw - 0.02), 6.15, cz2 + dz);
+        }
+        // the pier between each pair of bays, which is what a clerestory sits on
+        const pier = new THREE.Mesh(new THREE.BoxGeometry(0.14, 2.6, 0.34), stoneM);
+        put(pier, sx * (hw - 0.05), 6.15, cz2);
+      }
+    }
+  }
+
 }
