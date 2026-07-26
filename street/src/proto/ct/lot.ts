@@ -1861,11 +1861,22 @@ function buildLot(o: {
     // wheel off, one with the hood open*, and *a car up on blocks — the one
     // that is not for sale.*
     //
-    // Keyed by BAY, not by position in STOCK. STOCK has sixteen entries and
-    // the plan yields thirteen bays, so anything written into the last three
-    // rows of that table is never placed — I did exactly that first, and the
-    // three variants simply did not appear. A bay always exists; a stock row
-    // past the end of the bays does not.
+    // Keyed by BAY, not by position in STOCK, because a bay always exists and a
+    // stock row past the end of the bays does not. I wrote the three variants
+    // into the tail of STOCK first and they simply never appeared.
+    //
+    // THE NUMBERS IN THIS COMMENT WERE WRONG and are now measured, because the
+    // whole point of it is to stop someone writing into rows that never place:
+    // it said *"sixteen entries and the plan yields thirteen bays … the last
+    // three rows"*. Counted in the built world — 6 bay lines a side, so 5 bays
+    // each plus the two back corners — the plan yields **12 bay slots**, one is
+    // deliberately left empty, and **11 cars** are placed. So it is the last
+    // **FIVE** rows of STOCK that never appear, not the last three.
+    //
+    // That matters beyond bookkeeping: rows 11–15 include ALL THREE `bare`
+    // cars, so no car on this lot is without a price or a SOLD. Real, and
+    // invisible — recorded here rather than "fixed" by reshuffling the table,
+    // which would move which car stands in which bay for no user-facing gain.
     //
     // Each one goes where its reason is. Bay 1 is the south flank's first
     // slot, the one you pass on the way in — a lot always has a car being
