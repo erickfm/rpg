@@ -1,1 +1,1 @@
-WORKING | int-bank.ts: FIRST FEDERAL lobby is built and walkable, committing it now, then the loan desk |
+WORKING | int-bank.ts: room + walk suite landed 21/21 with a selftest; next is the loan desk and the apply-for-a-loan interaction |

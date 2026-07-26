@@ -714,7 +714,13 @@ export function buildBankInterior(ctx: CtxBuild): void {
       CTR_CX, 0.16, CTR_FRONT + 0.06);
     // SEALED, front face to back wall, in ONE box. Per-window boxes would carve
     // slots to wedge into, which is what the diner's booths taught this project.
-    solid(CTR_CX, (CTR_FRONT + -hd - 0.18) / 2, CTR_W, CTR_FRONT - (-hd - 0.18));
+    //
+    // It stops AT the back wall's inner face (-hd) rather than running through it
+    // to -hd - T. Both hold the player, but overlapping the kit's own wall box
+    // made this collider indistinguishable from it by predicate — my selftest
+    // removed both and reported the player escaping 7 m past the back wall, which
+    // is a true statement about a mutation I did not mean to make.
+    solid(CTR_CX, (CTR_FRONT + -hd) / 2, CTR_W, CTR_FRONT - (-hd));
   }
 
   // ── the three windows ─────────────────────────────────────────────────────
