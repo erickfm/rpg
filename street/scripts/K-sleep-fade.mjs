@@ -30,6 +30,17 @@ await reportWorld(page, URL);
 const fails = [];
 const ok = (cond, msg) => { console.log(`${cond ? 'OK  ' : 'FAIL'}  ${msg}`); if (!cond) fails.push(msg); };
 
+// WHAT STOREY IS 301 ON — read BEFORE anything moves, because the floor picker
+// has HYSTERESIS (GOTCHAS §7) and `groundAt` answers relative to the storey you
+// are already on. The controls below put the player out on the street at gy 0;
+// warping back to 301's coordinates after that and asking `groundAt` returns
+// the GROUND floor, so you land 5.4 m under the room and nothing in it is
+// reachable. My sweep found 45 offering positions run on its own and ZERO run
+// inside this check, and that was the whole difference. The player spawns in
+// 301, so its floor is simply what the rig reports before the first warp.
+const SPAWN = await page.evaluate(() => window.__ct.pos());
+const ROOM_GY = SPAWN[3];
+
 if (!(await page.evaluate(() => typeof window.__hud === 'object' && window.__hud !== null))) {
   console.log('__hud absent — nothing measured'); await browser.close(); process.exit(3);
 }
@@ -214,6 +225,67 @@ const after = await page.evaluate(([x, z]) => {
   return Math.hypot(q[0] - x, q[2] - z);
 }, [wasAt[0], wasAt[2]]);
 ok(after > 0.3, `and you can walk again when it is over (${after.toFixed(2)} m on a held W)`);
+
+// ══ AND THE VERB ACTUALLY USES IT ════════════════════════════════════════
+//
+// THE GAP THAT MADE A CONFIRMED ROW UNTRUE, and it was mine. Everything above
+// tests the CAPABILITY: call `hud.fade` and the screen goes black. It was green
+// while the world had no fade in it at all, because `ct/apartment.ts`'s
+// "sleep until morning" advances the clock and never calls it. The desk
+// re-opened the row on exactly that — *"CONFIRMED and not true at the same
+// time"* — and A and D reproduced it independently.
+//
+// A check that proves a kit works is not a check that the kit is USED.
+//
+// IT IS RED ON PURPOSE UNTIL `ct/apartment.ts` CALLS `screenFade`. That is C's
+// file and one line; `notes/K-screen-fade.md` has the shape. A red row naming
+// the missing call site is worth more than a green suite that agrees with the
+// bug.
+if (!SELFTEST) {
+  const bed = await page.evaluate(() => window.__ct.spots().find((q) => /sleep/i.test(q.label)) ?? null);
+  ok(!!bed, 'the world offers a sleep verb at all');
+  if (bed) {
+    // WHERE TO STAND IS FOUND BY SWEEPING, not assumed. The bed now carries a
+    // second spot — C's "sit on the bed and watch TV" — and from half the
+    // positions around it that one wins the pick, so a station derived from the
+    // sleep spot's own coordinates gets you the TV instead. Ask the world which
+    // squares actually offer the prompt, the way scripts/doorsweep.mjs does.
+    let at = null;
+    for (let dx = -1.4; dx <= 1.4 && !at; dx += 0.35) {
+      for (let dz = -1.4; dz <= 1.4 && !at; dz += 0.35) {
+        const x = bed.x + dx, z = bed.z + dz;
+        await page.evaluate(([X, Z, BX, BZ, GY]) => window.__ct.warp(X, Z, Math.atan2(BX - X, -(BZ - Z)), GY), [x, z, bed.x, bed.z, ROOM_GY]);
+        await page.waitForTimeout(160);
+        const pr = await page.evaluate(() => {
+          const e = document.getElementById('ct-prompt');
+          return e && e.style.display !== 'none' ? e.textContent : null;
+        });
+        if (pr && /sleep/i.test(pr)) at = { x: +x.toFixed(2), z: +z.toFixed(2) };
+      }
+    }
+    ok(!!at, at ? `a player can reach the sleep prompt (standing at ${at.x}, ${at.z})`
+      : 'NO position around the bed offers "sleep until morning" — the TV seat wins every pick');
+    if (at) {
+      const t0 = await page.evaluate(() => window.__ct.clockNow().totalMin);
+      const watch = page.evaluate(() => new Promise((res) => {
+        const fx = document.getElementById('ct-fade');
+        let peak = 0, n = 0;
+        const t = setInterval(() => { peak = Math.max(peak, parseFloat(getComputedStyle(fx).opacity || '0')); n++; }, 25);
+        setTimeout(() => { clearInterval(t); res({ peak: +peak.toFixed(3), n }); }, 3600);
+      }));
+      await page.keyboard.down('e');
+      await page.waitForTimeout(220);
+      await page.keyboard.up('e');
+      const seen = await watch;
+      const moved = +((await page.evaluate(() => window.__ct.clockNow().totalMin)) - t0).toFixed(1);
+      console.log(`      the bed: clock moved ${moved} min, peak overlay opacity ${seen.peak} over ${seen.n} samples`);
+      ok(moved > 60, `pressing E at the bed advances the clock (${moved} min)`);
+      ok(seen.peak >= 0.99,
+        `…AND THE SCREEN GOES BLACK WHILE IT DOES (peak ${seen.peak}) —`
+        + ' RED UNTIL ct/apartment.ts calls screenFade({ mid }); notes/K-screen-fade.md');
+    }
+  }
+}
 
 if (errors.length) { console.log('page errors:'); for (const e of errors) console.log('  ' + e); }
 ok(errors.length === 0, 'no page errors');

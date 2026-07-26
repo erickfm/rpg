@@ -573,6 +573,14 @@ const CHECKS = [
   // BEFORE the fade instead of inside it — the caller mistake the ordering rule
   // exists to prevent — and requires the red. ~14 s; green 4 of 4 run at
   // once, which is the test that matters for anything on a transition. (K)
+  // RED ON PURPOSE, and the red is the point. Everything in this file about the
+  // CAPABILITY was green while the world had no fade in it at all: ct/apartment.ts
+  // advances the clock at the bed and never calls screenFade, which is why the
+  // desk re-opened a CONFIRMED row as "not true at the same time". A check that
+  // proves a kit works is not a check that the kit is USED, and that gap was
+  // mine. It now presses the bed's own [E] — from a station found by SWEEPING,
+  // because the TV seat wins the pick from half the squares around the bed — and
+  // watches the screen rather than the clock. Goes green on one line in C's file.
   ['K-sleep-fade', 'does the screen fade to black, and does the world change while it is?', true],
   // "i also want an atm interface". The MONEY is the point, so the money is
   // what it asserts: the account falls by exactly what you asked for, the cash
