@@ -1,1 +1,1 @@
-WORKING | verified C seat-exit: numbers reproduce, room attribution stale (burger/church/diner, not casino) | nothing
+WORKING | M bank-walk cannot run: A ATM prompt no longer carries the balance; routed to M | nothing
