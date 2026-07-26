@@ -41,8 +41,22 @@ export const DOOR = {
 };
 
 export function buildChurch(ctx: CtxBuild) {
+  // The sanctuary floor, 0.18 m up, at the ALTAR end. `RoomSpec.floor` arrived in
+  // bd3ee7d7a and this is the second thing to use it after the library's stair.
+  //
+  // The step is RAMPED over 0.36 m rather than being a hard 0.18 lip, which is
+  // ct/civic.ts's rule for its flights: answer the smooth gradient and let the
+  // drawn nosing ride within half a riser of it, or the camera jolts as you
+  // cross. On a single low step that matters more, not less — a hard 0.18 at
+  // walking pace is a visible hop.
+  const CHANCEL_Z = -4.60, CHANCEL_Y = 0.18;
   const room = buildRoom(ctx, {
     id: 'church',
+    floor: (lx, lz) => {
+      if (lz > CHANCEL_Z) return null;                       // the nave, flat
+      if (lz > CHANCEL_Z - 0.36) return CHANCEL_Y * (CHANCEL_Z - lz) / 0.36;
+      return CHANCEL_Y;                                      // the sanctuary
+    },
     label: 'into ST BRIGID\'S',
     // 9.5, up from 6.4. "Much taller than anything else you can enter" was the
     // instruction and 6.4 did not deliver it — the library reading room is 6.4
@@ -54,10 +68,11 @@ export function buildChurch(ctx: CtxBuild) {
     // uses so the threshold reads as continuous; the walls go pale and chalky
     // and the ceiling is nearly white, because height you cannot see the top of
     // is height you do not feel.
-    // THE CHANCEL STEP, and the first user of the kit's new `floor`. The dais
-    // at the altar end was a box you walked into; now it is a level you walk
-    // ONTO, answered by the same picker the exterior flights use.
-    floor: [{ x0: -3.2, x1: 3.2, z0: 8 - 3.5, z1: 8, y: 0.18 }],
+    // (The kit's `floor` demo line that used to sit here put the dais at
+    // z 4.5..8 — the DOOR end. Measured before removing it: gy 0.18 at lz 7.5
+    // and 6.0, gy 0 at the altar on -5.6. It landed after the altar had been
+    // moved to the far end, so the step was under the entrance and the
+    // sanctuary was flat. The real one is the `floor` function above.)
     palette: { floor: 0x6e6a62, wall: 0xa8a294, ceil: 0xbdb8ab, trim: 0x8a8274 },
     door: {
       x: 8.85, z: -79.5, r: 1.2,
@@ -175,7 +190,44 @@ export function buildChurch(ctx: CtxBuild) {
     put(stick, dx, 0.18 + 0.95 + 0.17, -hd + 2.4);
   }
 
-  // ── the chancel step is NOT here, and this is why ────────────────────
+  // ── the chancel, at the altar end where it belongs ───────────────────
+  //
+  // "Altar and chancel step." Built once before at the wrong end of the nave —
+  // I had the kit's convention backwards, it landed across the ENTRANCE, and
+  // walking in stopped dead after 0.49 m. It was also blocked then on a floor
+  // function the kit did not have. Both are fixed: the ends are right and
+  // bd3ee7d7a gave rooms levels, so this is the step you actually walk up.
+  {
+    const stoneM = new THREE.MeshBasicMaterial({ color: 0x9a9284 });
+    const stoneLM = new THREE.MeshBasicMaterial({ color: 0xa8a094 });
+    const platD = CHANCEL_Z - (-hd);
+    // the platform, and a lighter nosing so the step reads as a step rather
+    // than as a shadow on the flags
+    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, CHANCEL_Y, platD), stoneM),
+      0, CHANCEL_Y / 2, -hd + platD / 2);
+    put(new THREE.Mesh(new THREE.BoxGeometry(8.5, 0.04, 0.12), stoneLM),
+      0, CHANCEL_Y + 0.02, CHANCEL_Z);
+
+    // The altar rail, turned balusters under a dark oak top — and OPEN in the
+    // middle, with no collider across the opening. A rail you cannot pass is a
+    // fence, and the brief asks for a step you climb, not a barrier you look
+    // over. The two runs get colliders; the 1.7 m gap on the centreline does
+    // not, so you walk up the aisle and onto the sanctuary.
+    const railM = new THREE.MeshBasicMaterial({ color: 0x5a4028 });
+    const balM = new THREE.MeshBasicMaterial({ color: 0xb0a894 });
+    for (const sx of [-1, 1]) {
+      const x0 = sx * 0.85, x1 = sx * (hw - 0.15), w2 = Math.abs(x1 - x0);
+      put(new THREE.Mesh(new THREE.BoxGeometry(w2, 0.09, 0.16), railM),
+        (x0 + x1) / 2, CHANCEL_Y + 0.92, CHANCEL_Z - 0.30);
+      for (let bx = Math.min(x0, x1) + 0.18; bx < Math.max(x0, x1) - 0.10; bx += 0.26) {
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, 0.74, 6), balM),
+          bx, CHANCEL_Y + 0.51, CHANCEL_Z - 0.30);
+      }
+      solid((x0 + x1) / 2, CHANCEL_Z - 0.30, w2, 0.22);
+    }
+  }
+
+  // ── the note that used to be here ────────────────────────────────────
   //
   // "Altar and chancel step" is in the brief and I built one: a raised sanctuary
   // floor across the width with an altar rail. It went in on top of the
