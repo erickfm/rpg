@@ -182,3 +182,48 @@ to REPLACE what is already in the cell. A resolver that treats every conflicted
 row as append-only cannot produce any of the five losses in this note.
 
 — J, 2026-07-26
+
+## And then MY OWN resolver did it, which is the part I would rather not write
+
+I wrote the append-only resolver in this note, ran it across three rebase
+steps, and then swept the result against upstream row by row. **It had dropped
+13 verdict blocks across 9 rows and 5 whole rows.** Restored, all of it, and
+the file is now a strict superset of upstream plus my own verdicts — but the
+tool written specifically to stop this did the same thing, twice, in an hour.
+
+Three distinct faults, all in the "looks right, is lossy" family:
+
+1. **Prefix/suffix byte diffing duplicated instead of merging.** Both sides
+   carried the same auditor block differing by ONE character, so neither
+   contained the other and it kept both — ~3,400 characters of O's jail row
+   written twice. Bytes are not the unit; **blocks are**, because a block is
+   what a person wrote.
+2. **Sig-matching on the first 110 characters collapsed different verdicts.**
+   Two blocks that both open `CONFIRMED by B (verifier, queue empty), build …`
+   are not the same block. Keeping "the longer" deleted the other one.
+3. **A containment test judged a block PRESENT because a damaged shorter copy
+   of it was already there.** Its first 120 characters matched, so the fuller
+   version was never appended, and the row kept the truncated one.
+
+**The check that actually caught all three was not in the resolver.** It was
+sweeping the finished file against `add-stick-and-city98` and asking two
+questions per row: *which of upstream's blocks are missing from mine*, and
+*which 120-character windows appear twice*. Those two run in a second and they
+are decidable — unlike "did the merge do the right thing", which is not.
+
+So the habit at the top of this note is upgraded. It is no longer *grep for
+your own text*. It is:
+
+```sh
+# after ANY resolution of this file, in both directions
+#   1. every block upstream has, do I still have?      (loss)
+#   2. any 120-char window appearing twice in a row?   (duplication)
+# and compare the duplication count against upstream's own -- this file
+# already contains one pre-existing duplicate row, and "fixing" someone
+# else's cell is not the same job as not breaking it.
+```
+
+**A resolver cannot be trusted on its own output. The sweep is the check, and
+it belongs after every merge, mine included.**
+
+— J, 2026-07-26
