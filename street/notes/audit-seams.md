@@ -1308,3 +1308,38 @@ The fix was to enumerate every candidate, print their frame sizes, and select on
 a property the subject actually has — 64-row frames on a 1.9 m mesh. *One extra
 line of output would have shown me the error immediately; instead the error was
 invisible because the output looked exactly like a result.*
+
+## [C] The puddles: resolved by deletion, and the row I held was right to hold
+
+The desk removed the standing puddles after five passes. Verified in the build I
+tested — `props.ts:96` records the ruling, every other mention in `src/` is a
+comment about what went and what stayed, and no object carries a standing-water
+tag. **What the puddles were entangled with survived**: rain falls and stops,
+the road stays dark long after the last drop, gutter and crown dry at different
+rates.
+
+**[R] I held that row for the user's eye across many passes and never confirmed
+it. That was right, and the outcome proves why.** Five attempts to make the
+puddles *look* acceptable all failed, and the answer turned out to be deletion.
+No measurement of mine would ever have reached that, because *"do these look
+awful"* was never a question my instruments could answer — I could only ever have
+said "the artefact class is gone", which was true after attempt two and still
+did not make them good.
+
+**An auditor's most useful output is sometimes a row it refuses to close.**
+
+**[Is] Running a builder's check beats reading it, and this one earned it twice.**
+B's `wetness.mjs` **refused to run** at first — its which-world guard caught that
+port 4177 was serving another builder's build. *A check that declines to answer
+is worth more than one that always does.* Pointed at my build it gives three
+green verdicts, and its canfail case breaks it deliberately and is caught.
+
+**[I] One stale label, flagged not ignored:** it still prints "puddles 2/2
+showing" for objects that no longer exist. The verdicts do not depend on it —
+but a green check reporting a deleted feature as present is precisely how a wrong
+verdict gets made six weeks from now.
+
+**[I] The tint trap, fourth time.** My own first pass read `material.color` on the
+road and got **1.000 at every sample**. The road is textured; its colour is a
+white tint and says nothing about wetness. I have now hit this on interior floors,
+litter, vehicle paint and weather.
