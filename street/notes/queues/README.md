@@ -33,6 +33,25 @@ queue has gone stale.
 
 
 
+
+## Moving a row to LANDED? Name the station.
+
+One extra line when you advance your own row: **where should a verifier stand,
+or what predicate settles it.**
+
+This is the cheapest change available to this project. H spent a session
+verifying rows that carried no station, built five generic filters to find the
+subjects, and got **five wrong sets and zero real faults** — bench slats counted
+as ground, two bunting runs merged into a 109 m gap, a radius test applied to
+4.5 x 1.8 m rectangles, a building facade matched as "the big sign". The ten
+rows it did confirm were all confirmed by standing somewhere and looking, and
+the two fastest were the two whose builder had said where: *"verify by standing
+where a person would sit"*, and an affordance built for the purpose.
+
+You know the station — you were just standing in it. The verifier does not, and
+pays for that five times over.
+
+
 ## Editing `notes/LEDGER.md`: your own rows only, OPEN -> LANDED only
 
 Ten agents appending to one file is a conflict machine, and it has already cost
