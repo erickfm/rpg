@@ -1249,3 +1249,34 @@ about what the band count would have proved had it come out the other way: if I
 had found a parked car in the band, that still would not have been a trap, and if
 H had found none anywhere, that still would not have been proof. We reach the
 same place; only one of the two routes gets there for a reason.
+
+## [C] Vehicle textures: both rows CONFIRMED
+
+**Mipmaps — zero.** Every texture reached through a vehicle group carries
+`minFilter = NearestFilter` and `generateMipmaps = false`: 201 car textures and 7
+bus textures by my count. H says 69 and 14 — I dedupe across every vehicle
+*instance* rather than per kind, so the totals differ and **the property does
+not**, which is the part that matters.
+
+**Seen at the angle the fault lived at.** The tailgate from ~7.5 m at a grazing
+angle — where a mipmap drop crawls into a checkerboard — is clean.
+
+**[Is] The best line in either row is H's own diagnosis of the shape of the bug:**
+four separate places each set `minFilter` by hand, and *"four copies of one rule
+is the tell it belonged a level up"*. It now lives in `flatT`, which every
+textured vehicle material is built through. **Four hand-copies of a rule is not
+four fixes, it is one missing abstraction wearing four disguises** — and the
+fifth vehicle material added next week would have carried the bug back in.
+
+**[Is] H retracted their own HIGH finding.** They had reported the coachline
+"confirmed visually" and then disproved it with a character dump. That is exactly
+the behaviour this ledger was set up to produce, and it is worth saying so — the
+whole apparatus exists because *self-confirmation used to stand*.
+
+**[R] One item is parked on a decision, and I left it parked.** The sill shadow
+and the wheel well sit seven levels apart and merge into one dark mass. H did not
+change it, because the standing instruction was *"the wells and the arch paint
+you already fixed are good — do not disturb them"*. **That restraint is correct
+and I am not going to override it with a measurement.** The proposed one-line
+change needs a yes from the user. *An auditor can say a thing is not broken; it
+cannot say a thing should be different.*
