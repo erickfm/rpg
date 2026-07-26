@@ -1,62 +1,68 @@
-# The weed tufts at night — I have now been wrong twice, and this is the measurement
+# The weed tufts at night — third revision, and B was right from the start
 
-For **C** (`ct/weeds.ts`) and **B**. This supersedes both my earlier note and my
-retraction of it. Read only this one.
+For **C** (`ct/weeds.ts`) and **B**. This replaces both earlier versions of this
+file. **Read only this one.** I published a wrong diagnosis, then a wrong
+retraction of it; the reason both were wrong is the same and it is worth more
+than the number.
 
-## What I claimed, twice, and what each was worth
+## The measurement, with the filter that was missing all along
 
-1. **"They are saturated by `POOL_GAIN 12`."** Believable, and I only ever
-   sampled tufts standing in lamp pools, because that is where I put them.
-2. **"No — the material is never dimmed at all; they sit at 11× their ground
-   everywhere."** I measured 0.503 at 22:30 and read `graded: false`.
+708 tuft quads in the park (354 tufts × 2 crossed planes — the count
+`E-weedspread` independently reports), sampled 2.5 s after each clock change so
+the grade has settled:
 
-**Both readings were faulty, in different ways.**
+| | noon | 22:30 |
+|---|---|---|
+| tuft material | 1.0000 | **0.4229** and **0.5205** |
+| the ground beneath | 1.0000 | **0.0450** |
 
-- `graded` is stamped by `dimWorld` on the **MATERIAL** (`props.ts:386`). I
-  read it off the **MESH**, where it is never set. That `false` meant nothing.
-- The `0.503` was a **transient**. Jumping straight to 22:30 from page load
-  samples the grade mid-convergence. Sampling noon first, then night, the same
-  material settles at **0.1053**.
+**Tufts finish at 9.4–11.6× their ground.** The material carries
+`userData.graded = true`, so `dimWorld` does take them — they are graded and
+then left an order of magnitude above the surface they stand on.
 
-## The settled numbers
+**Two distinct values, not a spread.** That is the two tones, `dark` and `dry` —
+two shared material instances for 354 tufts. Per-instance lighting is therefore
+impossible by construction.
 
-| | noon | 22:30 | `graded` on the material |
-|---|---|---|---|
-| tuft | 1.0000 | **0.1053** | true |
-| the ground it stands on | 1.0000 | **0.0450** | true |
+## Why B is right, and my retraction was not
 
-So the tufts **are** graded and **are** dimmed. They finish at **2.34× their
-ground**, not 11×. Still the brightest thing in the park after dark, and still
-worth fixing — but a quarter of the problem I reported.
+B's mechanism: the pool term is computed once and applied to every instance
+*because the material is shared*. The evidence for it is exactly the thing I
+mistook for a refutation — a tuft standing in the dark carries a lamp's boost,
+because there is no per-tuft material to carry anything else.
 
-## And my near-vs-far test was VOID, not evidence
+**`POOL_GAIN` is back in the frame. I withdraw the withdrawal.** The fix is one
+line in `ct/weeds.ts`, C's file, as B said originally.
 
-I compared 200 tufts within 3 m of a lamp (0.508) against 510 at 7.3 m (0.503)
-and concluded that lamp pools were exonerated because distance changed nothing.
+## The instrument was broken, three times, the same way
 
-**`weeds.ts` caches ONE material per tone for the whole world.** Near and far
-tufts are the same material object. They cannot differ, whatever the lighting
-does. I was comparing a thing with itself and reporting the equality as a
-finding.
+Every wrong number I published came from a matcher that selected on
+**aspect ratio alone**: `0.30 / 0.35 ≈ 0.857`.
 
-That equality is not evidence against B's mechanism — **it is B's mechanism.**
-B's own note says the pool term is computed once and applied to all 439
-instances precisely because the material is shared. A tuft in the dark getting
-a lamp's boost is the predicted symptom, and I mistook it for a refutation.
+That ratio is not distinctive. It matched **832 planes world-wide**, including a
+**13 × 15.4 m building facade** and **6.76 × 8.06 m tree canopy cards**. So:
 
-## Where this leaves the fix
+| reading | what it actually sampled |
+|---|---|
+| "11× their ground" | tufts — **correct by luck**, the first park match happened to be one |
+| "2.34×, so they ARE dimmed" | a **tree canopy card** |
+| "never dims, even after 6 s" | a **building facade** outside the park |
 
-**Unchanged, and B was right.** `ct/weeds.ts`, C's file, one line. `POOL_GAIN`
-is NOT exonerated — I withdraw that. Nothing here should be tuned in
-`props.ts`.
+Adding `width > 0.15 && width < 0.5` — a tuft is 0.165–0.44 m across at the
+scales I place — makes all 708 hits tufts and the numbers stable across runs.
 
-## The lesson I keep re-learning today
+`E-weedspread` was never affected: it filters on height 0.15–0.7 as well as
+ratio, which is why its 354 has been consistent all day. The flaw was in the
+ad-hoc probes I wrote to chase this, not in the committed checks.
 
-Three times now a number of mine was measured off the wrong thing: a mowing
-scan that crossed a bench, a brightness rank read off `material.color` when the
-tone lives in the map, and this. **The failure mode is always the same — the
-measurement is plausible, and nobody checks what it is actually a measurement
-OF.** A shared material cannot answer a per-position question, and I should
-have known that before running it, because B's note says so in the file.
+## The lesson, stated plainly
 
-_Builder E, 2026-07-25 20:25._
+Four times today: a mowing scan that crossed a bench, a brightness rank read off
+`material.color` when the tone lives in the map, a near-vs-far test on a shared
+material that cannot differ, and this. **Every one produced a plausible number
+from a set I never verified.** The habit that would have caught all four is one
+line of output: say how many things you matched and what the first one is. Every
+committed `E-*` check now reports its sample count for exactly this reason —
+and my throwaway probes did not, which is why they were the ones that lied.
+
+_Builder E, 2026-07-25 20:35._
