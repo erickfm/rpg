@@ -1069,3 +1069,47 @@ a stair.
 to build from. That is the trade, and it is now stated at the call site:
 regions if you want to see it, a function if you are shaping ground whose
 geometry you have already built yourself.
+
+
+# STATE AT THE CONTEXT LIMIT — read this before picking up the queue
+
+The desk's resume priority was: clock verb, bodega entrance slab, thrift floor
+area. **Two of the three are already done.** Checked, not remembered:
+
+| item | state |
+|---|---|
+| **`ctx.clock` verb** (C blocked, "sleep in your room") | **SHIPPED** — `ctx.clock.now()` / `ctx.clock.advance(minutes, { overSeconds })`. Ramped, so the night curve sweeps: 9 h sleep runs 13:00 -> 22:02 with night 0 -> 0.331 -> 1. Test affordances `__ct.advanceClock` / `__ct.clockNow`. |
+| **thrift floor area** | **DONE** — d 6.5 -> 9.4, 73 m2 -> 106, every fixture kept. 29/29. |
+| **bodega entrance grey slab** | **OPEN, and it is the real next item.** |
+
+## The bodega, where to start
+
+The user: *"THE FIRST THING YOU SEE WALKING INTO THE BODEGA IS A BLANK GREY SLAB
+filling the middle of the view."* I have **not** identified it yet.
+
+- A screenshot from the player's eye at the entrance is at
+  `shots/f-bodega-entry.png` — the method the desk made a standing rule.
+- The player enters and comes to rest at room-local **(0.00, 4.35)** facing in.
+- I dumped every mesh with a dimension over 1 m ahead of that point and got only
+  the FRONT WALL behind the player, so the slab is either under 1 m in every
+  dimension, or something I filtered out. **Do not repeat that dump** — look at
+  the screenshot first.
+- **Prime suspect: the chamfer panel I added.** `chamfer: { corner:
+  'front-right', cut: 2.0 }` builds a diagonal wall across that corner using
+  `wallMat`, and it is the newest large flat surface in the room. If the entry
+  sightline crosses it, that is a grey slab a metre away.
+
+Then the rest of that brief, none of it started: shelves varied in size/depth/
+spacing with gaps and shelf-edge labels; the aisle widened so entering gives a
+VIEW down the shop; decor (cooler sign, lottery machine, coffee station,
+cigarettes behind the counter, door bell, cat, radio, distributor calendar).
+
+## Everything else outstanding
+
+- `door: true` on the bodega chamfer is OFF. Nine attempts; attempt nine found
+  the cause — a 3 s walk between the warp and the prompt read, on a heading
+  computed for a front wall, carries the player 3.15 m away. Fix is that walk's
+  heading: yaw is `0 = -z`, direction is `(sin y, -cos y)`, and walking AT a
+  wall of inward normal `n` needs `(sin y, -cos y) = -n`.
+- Everything else in my queue reconciled as landed. No other builder's blocker
+  names my files.
