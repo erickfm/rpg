@@ -164,3 +164,82 @@ from "not deployed".
 none of them reaches the loop or the sacred lane.
 
 _Builder E, 2026-07-25._
+
+---
+
+## Second pass, 25 July 18:15 — and the first pass was wrong about the shelter
+
+The desk reported four park items still live. I had recorded all four as done,
+and assumed the report was reading the stalled `:5177`. **That was right for
+three of them and wrong for the fourth**, and the fourth is the one the user
+has now raised twice.
+
+### How I got it wrong: I verified by identifier instead of by measurement
+
+My evidence that the pass had landed was a table of `grep -c` counts —
+`BufferGeometry` 2, `facingIn` 5, `clump` 12. Every count was correct. The
+shelter roof was still broken anyway, because *"the file contains a
+single-mesh roof"* and *"the roof sits on its posts"* are different claims and
+I checked the first one. This is the desk's own ruling from the grass —
+**code presence is not the test** — and I reproduced it two days later on the
+next item.
+
+### THE SHELTER: the roof floated 0.20 m clear of all four posts
+
+Arithmetic I never did. The eaves were set to the post-top height, which reads
+as obviously correct in the source. But the eaves are at the OVERHANG radius
+`E = 1.97`, the posts stand inboard at `SH_H = 1.55`, and the slope has
+already climbed by the time it gets there:
+
+| | |
+|---|---|
+| roof surface at the post ring | 2.60 |
+| post top | 2.40 |
+| **gap, all four posts** | **0.20 m** |
+
+That is the user's *"thin skewed slab that does not sit on its posts"*,
+unchanged, through two rebuilds and a ruling. Fixed by fixing the slope from
+the apex THROUGH the post top and letting the overhang fall where it falls —
+which is how a hipped roof is actually framed, with the eaves hanging 0.40 m
+below the plate rather than level with it.
+
+**Seating it was not enough.** It still read as a parasol, because all four
+faces were one flat tone and under `MeshBasicMaterial` nothing shades them —
+a silhouette with no interior is what the eye files as fabric. The four faces
+now shade off the park's sun, which is the same sun the field's relief uses;
+there is one `SUN` for the module now rather than two.
+
+`E-shelter` took four photographs and asserted nothing, which is how a 0.20 m
+gap survived a script named after it. It now measures post count, post-top
+equality and eaves-below-plate, and exits 3 if it locates no shelter at all.
+
+### The other three, measured rather than asserted
+
+| item | measured | result |
+|---|---|---|
+| bin in the noticeboard, and other overlaps | `E-overlap` | **10 left, all one signature**: B's lamp collar on B's lamp column, 0.005 m³, once per lamp. Zero prop-inside-prop in what I own |
+| bench backs to the path | `E-benchface` | **9/9 face into the park**, each derived, none assumed from its mirror |
+| weeds evenly spaced | `E-weedspread` | **102 clumps of 1–11 tufts, 1.27 m apart**, 57 with a clear metre beside them; sizes 0.55–1.45 |
+
+**`E-overlap` was reporting 23 hits of which none was a fault** — shrub blocks
+in a run, the memorial's plinth/shaft/cap, the noticeboard's panel on its
+posts. All three are things that are SUPPOSED to interpenetrate. Worse, it
+printed the top 12 under a "12 shown" line, so I could not have told 12 from
+200. It now reports the total, skips a prop measured against itself, and the
+park's masonry is grouped so that test can see it.
+
+### The grey chevrons: answered
+
+*"grey chevron/bracket shapes lying on the grass near the path — tell me what
+those are."* They are **the hoop rail** — low bent-bar edging along the field
+side of the loop. The user's reading was fair: at 1.15 m centres each hoop
+stands alone against the turf and looks like a bracket somebody dropped. At
+0.72 m centres the run closes up and reads as one piece of municipal edging,
+which is what a hoop rail is. `park.ts` around the `hoop()` helper.
+
+### Still not mine, still open
+
+- the site ground reading as carriageway, and the dark diagonal streaks → **D**
+- weed tufts at 13–22× their ground after dark, `POOL_GAIN 12` → **B**
+
+_Builder E, 2026-07-25 18:15._
