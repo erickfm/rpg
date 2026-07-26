@@ -23,6 +23,7 @@ user anything is finished.
 
 | STATUS | owner | request | evidence |
 |---|---|---|---|
+| LANDED | B | "make street light a bit more broad in their emitted light (like a wider beam) and make the unilluminated stuff darker. it should feel scarier at night i want to be able to see stars sometimes" | **HAD NO LEDGER ROW AT ALL** — routed to B in FEATURE-REQUESTS and never tracked, so nobody could see it was done. All three parts walked at night on build 98042722a. (1) WIDER BEAM: `LAMP_R` 7.0 with a full-strength core to 1.8 m, chosen against the 16.4 m head spacing so consecutive pools still fall 2.4 m short of each other — wider, not continuous. (2) DARKER UNLIT: per-surface night floors; main street reads 0.5278 under a head against 0.0450 mid-block, an 11.7x range (side street 12.6x). `shots/night-street.png`. (3) STARS: dome present and player-anchored, `shots/night-stars.png`. The word "sometimes" is honoured literally — stars are gated on WEATHER, `clear = max(0, 1 - rainLevel*2.4)`. Watched it: in a night storm outdoors, rainLevel 0.942 -> dome visible FALSE, opacity 0.0038. NOTE this request asks for the OPPOSITE of B's own queued finding "lamp spacing leaves the middle of the block dark" — the user wants the gaps dark. That finding should be dropped, not fixed. |
 | CONFIRMED | F | wheel arches read as arches | +0.057 m arch above tyre, walked from the kerb |
 | CONFIRMED | E | library steps climbable | gy 0.42 → 0.99 |
 | CONFIRMED | E | church steps + churchyard | gy 0.31 → 0.51, in through the gate |
