@@ -284,7 +284,7 @@ both. Everything that moved, arrived or vanished is alive.
 | # | finding | can a player see it? | whose |
 |---|---|---|---|
 | 1 | **The churchyard and the library courtyard have no light source at all.** Measured, not eyeballed: `church-yard-night.png` contains **six distinct colours** in the whole frame. You cannot see the door you are standing at | **Yes — it is the complaint the park already got** | lamps are `ct/props.ts` (B) |
-| 2 | **The canopy soffit over the library doors is a flat untextured near-black slab.** It is directly above the entrance, filling the top of frame at the one station every player stands at | **Yes** | **mine**, `ct/civic.ts` |
+| 2 | ~~The ceiling over the library doors is a flat untextured near-black slab~~ — **FIXED, same day.** See below | — | was mine |
 | 3 | **The mowing stripes do not read from the gate.** At the ruled 1.5 m / 6.9% the field reads as a flat olive plane from the canonical station | **Yes — this is the whole point of the feature** | **mine**, but the numbers are a desk ruling |
 | 4 | **The park is walled by tall blank brick on three sides**, so it reads as a yard between buildings rather than a park | **Yes, in every frame** | not mine — the neighbours' backs |
 
@@ -323,6 +323,41 @@ Graded skeptically, these are the things I would defend:
   adoption landed and it reads as civic paving.
 - **The fanlight is cropped to its arch** and PUBLIC LIBRARY reads from the
   pavement.
+
+## Finding 2, closed
+
+`#2b2d33` was one `MeshBasicMaterial` shared by the **+y and −y faces of every
+library mass box**. On the tall masses the −y face is underground and nobody
+sees it; on the entrance bay — the mass that bridges the recess — it is the
+ceiling three metres above your head **at the exact spot you stand to press E**.
+
+Found it by raycasting the pixel and reading the materials array (index 2 and 3
+are +y and −y). There is no `canopy` in `ct/civic.ts`; a name search finds
+nothing, which is why "what is that dark shape" has to be asked of the frame.
+
+**The colour is unchanged** — `slabTex` fills the tone you pass it and adds
+grain at the world's density, sized per box from its own metres. **Grain 0.11,
+not 0.16:** A's note says above 0.14 adds pebbles, and a pebbled stone soffit is
+wrong. Measured in-frame at **14.6–17.3%** edge density, inside the 9–17% band A
+published, against **1 tone / 0.0%** for a flat quad.
+`scripts/E-soffit-has-grain.mjs`, with a control that paints a flat fill and
+must go red.
+
+**And the check took three tries to become honest**, which is the more useful
+half:
+
+1. A flat 900 ms settle **measured sky** on one run in three — the warp had not
+   reached the captured frame, and the top 9% of a frame from anywhere else is
+   one uniform tone. It reported *the soffit is flat*.
+2. Under load this world renders **wholly black frames**, and a black frame
+   scores 1 tone / 0% in the soffit band. **The fault the check looks for and
+   the fault it suffers produce the same number.** Five runs in a row blamed the
+   soffit for frames in which nothing had drawn. It now measures the whole frame
+   as well — a flat soffit still has lit doors and stone beneath it, a dead
+   capture does not — and **exits 3 rather than filing a fault it cannot
+   support**.
+3. A failed run was **overwriting the good frame with a black one**. The
+   screenshot is buffered and only written when it drew.
 
 ## Two things I checked and did NOT file
 
