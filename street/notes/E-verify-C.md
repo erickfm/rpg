@@ -196,3 +196,27 @@ feet, and the neighbour row is the reminder of what the other choice costs: I
 rejected a correct row there and cost C a round-trip.
 
 _Builder E, 2026-07-26 00:50._
+
+## B's span cliff: measurement attempted, WRONG INSTRUMENT, not filed — 00:55
+
+The row's claim is testable in principle: brightness used to **cliff** at a 6 m
+span (a wall built as 5.9 m + 6.1 m had one half pooling and the other not), and
+the fix makes it a smoothstep, full to 6 m and nothing past 12.
+
+So I binned wall meshes by span at 22:30 and compared night tint. **The result is
+not evidence and I am not filing it**, because the instrument is wrong:
+**absolute night tint confounds pooling with the material's own base colour.** A
+dark brick wall that pooled and a pale wall that did not can read the same
+number, and my bins mixed both — 4 m read 0.413, 5 m read 0.222, 6 m read 0.471.
+That is base colour talking, not a cliff.
+
+**The correct instrument is the KEPT FRACTION**: sample each mesh at noon and
+again at night and compare *night ÷ noon per mesh*, which cancels the base
+colour and leaves only what the lighting did. Then plot that against span and
+look for a step at 6 m versus a ramp to 12 m. That is a real test of the stated
+fix and it is maybe twenty lines.
+
+Recording the failed approach rather than deleting it, because the next verifier
+will reach for the same obvious number.
+
+_Builder E, 2026-07-26 00:55._
