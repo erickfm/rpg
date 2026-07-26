@@ -13,7 +13,24 @@ import { bindHud, closePockets, POCKETS, refreshPockets, slots } from './invento
 // here is presentational: is the wallet out, which minute is on the LCD.
 
 /** The player's pockets — the wallet is a view onto this, nothing more. */
-export interface Purse { cash: number; inv: Record<string, number> }
+export interface Purse {
+  cash: number;
+  inv: Record<string, number>;
+  /**
+   * What the BANK has, as opposed to what is in your pocket.
+   *
+   * Optional because `crosstown.ts` builds the purse and is desk-owned, so this
+   * cannot be given a default there without a coordination step; `ct/atm.ts`
+   * seeds it on first use instead. Everything else about it is ordinary.
+   *
+   * It has to be a separate number from `cash` or the ATM has nothing to do:
+   * withdrawing money moves it from here to there, and a machine whose balance
+   * IS your cash can only ever tell you what your own wallet already says.
+   */
+  account?: number;
+  /** is your bank card in the wallet? Optional, defaults to yes. */
+  card?: boolean;
+}
 
 export interface Hud {
   /** sky colour at hour h. A SHARED colour, rewritten in place every call. */
@@ -93,6 +110,320 @@ export interface Hud {
    * same trick the citizens' rim light uses.
    */
   highlight: (rect: { x: number; y: number; w: number; h: number } | null) => void;
+}
+
+// ── holding the player still ──────────────────────────────────────────────
+//
+// `src/main.ts` owns the input Set and `src/proto/fp.ts` owns the rig, and BOTH
+// ARE DESK-OWNED. So this does not reach into either: it takes the events
+// before they get there.
+//
+//   · a CAPTURE listener on `window` runs before main.ts's own listeners,
+//     which are on `window` (keydown/keyup/mouseup) and `document`
+//     (mousemove) in the bubble phase. `stopImmediatePropagation()` there and
+//     the key never reaches the Set.
+//   · KEYUP AND MOUSEUP ARE DELIBERATELY LEFT ALONE. Swallowing a release
+//     while blocking the press is how you strand a key in the Set held-down
+//     forever — the player would wake up walking.
+//   · and a press already held when the lock goes on is in the Set ALREADY, so
+//     blocking new ones does nothing for it. Those get a synthetic keyup,
+//     which is main.ts's own documented way of clearing one.
+//
+// Shared by the fade and by every panel, because "the world is frozen behind
+// it" is the same requirement in both and two implementations of it would drift.
+const HELD_KEYS = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
+  'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
+const BLOCKED = ['keydown', 'mousedown', 'mousemove', 'wheel'];
+const swallow = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
+
+/** Let go of anything the player is holding down. */
+function releaseHeld(): void {
+  for (const k of HELD_KEYS) window.dispatchEvent(new KeyboardEvent('keyup', { key: k }));
+  window.dispatchEvent(new MouseEvent('mouseup', { button: 2 }));   // and the wallet's right button
+}
+
+/** Freeze the world. Returns the undo — always call it, on every exit path. */
+function blockInput(): () => void {
+  releaseHeld();
+  for (const k of BLOCKED) window.addEventListener(k, swallow, true);
+  return () => { for (const k of BLOCKED) window.removeEventListener(k, swallow, true); };
+}
+
+// ══ THE PANEL FRAMEWORK ═══════════════════════════════════════════════════
+//
+// THREE full-screen interfaces are being built at once — the slots machine
+// (builder L), the ATM, and the pockets — by three people. Three panels built
+// three times is three different-looking UIs in one small hand-made world, and
+// that is the kind of thing this user spots in one screenshot.
+//
+// So the cabinet is built ONCE, here, and published. A caller supplies the
+// SCREEN — what is inside the glass — and gets everything around it for free
+// and identical to everyone else's:
+//
+//     const atm = makePanel({
+//       id: 'ct-atm', w: 260, h: 180, chrome: 'machine',
+//       title: 'FIRST FEDERAL',
+//       hint: () => 'ESC  step back',
+//       draw: (g, w, h) => { …the amber screen… },
+//       key: (k) => { …one keystroke… },
+//     });
+//     atm.open();
+//
+// What the framework owes you, all of it the same for all three:
+//
+//   · OPEN AND CLOSE, and ONE AT A TIME — opening any panel puts away every
+//     other, including the wallet and the pockets. Two cabinets held up at once
+//     is one drawn over the other.
+//   · THE WORLD FROZEN BEHIND IT. You cannot walk, look, interact or open
+//     anything else while a panel is up, and a key you were already holding is
+//     released rather than merely blocked.
+//   · A CLEAN EXIT. ESC always closes, from every panel, without the caller
+//     writing a line — a player who cannot find the way out of a machine is
+//     the worst failure available to an interface like this.
+//   · ONE BEZEL AND ONE TYPEFACE, so the three read as coming from the same
+//     machine shop.
+//
+// What is YOURS: everything inside the glass. The framework never draws in
+// your screen area and never interprets a key you have handled.
+
+/** The shared look. Three authors picking three greys is the thing this stops. */
+export const UI = {
+  /** moulded beige-grey plastic, the colour of every machine made in 1997 */
+  case: '#8e8a80', caseHi: '#a5a199', caseLo: '#6b6860', caseEdge: '#4a4842',
+  /** the recess the screen sits in */
+  well: '#2a2b2e', wellLo: '#1a1b1d',
+  /** canvas duck, for the panels you HOLD rather than stand at */
+  cloth: '#7a7360', clothHi: '#8a8370', clothLo: '#5f5947',
+  /** type */
+  ink: '#e8e2d0', dim: '#9a927e', shout: '#f0ead6',
+  /** the two screen phosphors this world's machines come in */
+  amber: '#e0a63c', amberDim: '#8a6620', green: '#9cab8b', greenDark: '#1c2a1c',
+  /** one type scale. `px` is canvas pixels; panels are drawn at 1 px = 1 texel */
+  font: (px: number, bold = false) => `${bold ? 'bold ' : ''}${px}px ui-monospace, Menlo, monospace`,
+} as const;
+
+export interface PanelSpec {
+  /** DOM id. Also what `__hud.panel()` reports, so make it recognisable. */
+  id: string;
+  /** the SCREEN's size in canvas pixels — the bezel is added around it */
+  w: number; h: number;
+  /** css pixels per canvas pixel. 2 unless the art needs otherwise. */
+  scale?: number;
+  /** moulded plastic (a machine you stand at) or canvas (a thing you hold) */
+  chrome?: 'machine' | 'cloth';
+  /** stamped into the bezel above the screen. Keep it short and shouty. */
+  title?: string;
+  /** the caption strip along the bottom. Say how to leave. */
+  hint?: () => string;
+  /** paint the screen. Origin is the screen's top left; `w`/`h` are yours. */
+  draw: (g: CanvasRenderingContext2D, w: number, h: number) => void;
+  /** a keystroke, already lower-cased. ESC is handled for you. */
+  key?: (k: string, e: KeyboardEvent) => void;
+  /** the wheel: +1 forward, −1 back */
+  wheel?: (dir: 1 | -1) => void;
+  onOpen?: () => void;
+  onClose?: () => void;
+}
+
+export interface Panel {
+  open: () => void;
+  close: () => void;
+  toggle: () => void;
+  isOpen: () => boolean;
+  /** redraw the screen. Call it whenever your own state changes. */
+  repaint: () => void;
+}
+
+const BEZEL = 14, CAPTION = 18, TITLE_H = 14;
+let livePanel: { spec: PanelSpec; close: () => void } | null = null;
+let gateOn = false;
+let backdrop: HTMLDivElement | null = null;
+
+// One capture-phase gate for every panel. It HANDLES first and swallows after,
+// so a panel's own keys work while the world behind it hears nothing. Keyup and
+// mouseup are absent from this list on purpose — see `releaseHeld`.
+//
+// IT IS ALSO THE ONLY BLOCKER A PANEL INSTALLS, and that took a bug to learn.
+// The first version called `blockInput()` as well, for the freeze — and since
+// both are capture listeners on `window`, they fire in REGISTRATION ORDER, so
+// the plain swallow ran first and `stopImmediatePropagation()`d the gate out of
+// existence. The ATM opened, drew perfectly, and answered no key at all,
+// including ESC: a cabinet you could not use and could not leave. The gate
+// swallows exactly what `blockInput` does, so the freeze is already in here.
+function gate(e: Event): void {
+  const p = livePanel;
+  if (!p) return;
+  if (e.type === 'keydown') {
+    const k = (e as KeyboardEvent).key.toLowerCase();
+    // ESC ALWAYS CLOSES, from every panel, whatever the caller does. A player
+    // who cannot get out of a machine is stuck in the world, and no individual
+    // author should be able to forget this.
+    if (k === 'escape') p.close();
+    else p.spec.key?.(k, e as KeyboardEvent);
+  } else if (e.type === 'wheel') {
+    p.spec.wheel?.((e as WheelEvent).deltaY > 0 ? 1 : -1);
+  }
+  swallow(e);
+}
+
+function gateUp(on: boolean): void {
+  if (on === gateOn) return;
+  gateOn = on;
+  for (const k of BLOCKED) {
+    if (on) window.addEventListener(k, gate, true);
+    else window.removeEventListener(k, gate, true);
+  }
+}
+
+function backdropUp(on: boolean): void {
+  if (!backdrop) {
+    backdrop = document.getElementById('ct-panelback') as HTMLDivElement | null;
+    if (!backdrop) {
+      backdrop = document.createElement('div');
+      backdrop.id = 'ct-panelback';
+      // Not black — the world is still there, you have just stopped looking at
+      // it. A vignette rather than a flat wash so the middle of the screen,
+      // where the cabinet is, stays the brightest thing.
+      backdrop.style.cssText = 'position:fixed;inset:0;z-index:14;pointer-events:none;opacity:0;'
+        + 'transition:opacity .18s linear;background:radial-gradient(ellipse at center,'
+        + 'rgba(4,6,10,.42) 0%,rgba(4,6,10,.72) 100%);';
+      document.body.appendChild(backdrop);
+    }
+  }
+  backdrop.style.opacity = on ? '1' : '0';
+}
+
+/** Put away whatever cabinet is up. Called on every open, and by the HUD when
+ *  the wallet or the pockets come out. */
+export function closePanels(): void { livePanel?.close(); }
+/** Which panel is up, if any. */
+export function panelUp(): string | null { return livePanel ? livePanel.spec.id : null; }
+
+/**
+ * Build a panel. See `PanelSpec` — you draw the screen, this draws the machine.
+ */
+export function makePanel(spec: PanelSpec): Panel {
+  const scale = spec.scale ?? 2;
+  const chrome = spec.chrome ?? 'machine';
+  const titleH = spec.title ? TITLE_H : 0;
+  const CW = spec.w + BEZEL * 2;
+  const CH = spec.h + BEZEL * 2 + titleH + CAPTION;
+  const SX = BEZEL, SY = BEZEL + titleH;
+
+  let wrap = document.getElementById(spec.id) as HTMLDivElement | null;
+  let cv: HTMLCanvasElement;
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = spec.id;
+    wrap.style.cssText = 'position:fixed;left:50%;top:50%;z-index:15;pointer-events:none;'
+      + 'transform:translate(-50%,-50%) scale(.94);opacity:0;'
+      + 'transition:opacity .16s linear, transform .16s ease-out;';
+    cv = document.createElement('canvas');
+    cv.style.cssText = `width:${CW * scale}px;height:${CH * scale}px;image-rendering:pixelated;display:block;`
+      + 'filter:drop-shadow(0 6px 14px rgba(0,0,0,.65));';
+    wrap.appendChild(cv);
+    document.body.appendChild(wrap);
+  } else {
+    cv = wrap.firstChild as HTMLCanvasElement;
+  }
+  cv.width = CW; cv.height = CH;
+
+  let open = false;
+
+  const paint = () => {
+    const g = cv.getContext('2d')!;
+    g.clearRect(0, 0, CW, CH);
+    const machine = chrome === 'machine';
+    const body = machine ? UI.case : UI.cloth;
+    const hi = machine ? UI.caseHi : UI.clothHi;
+    const lo = machine ? UI.caseLo : UI.clothLo;
+
+    g.fillStyle = UI.caseEdge; g.fillRect(0, 0, CW, CH);
+    g.fillStyle = body; g.fillRect(1, 1, CW - 2, CH - 2);
+    g.fillStyle = hi; g.fillRect(1, 1, CW - 2, 2);                 // moulding catches the light
+    g.fillStyle = lo; g.fillRect(1, CH - 4, CW - 2, 3);
+
+    if (machine) {
+      // four screws, because a machine has fixings and a menu does not
+      g.fillStyle = UI.caseLo;
+      for (const [sx, sy] of [[5, 5], [CW - 8, 5], [5, CH - 8], [CW - 8, CH - 8]]) {
+        g.fillRect(sx, sy, 3, 3);
+        g.fillStyle = UI.caseEdge; g.fillRect(sx, sy + 1, 3, 1);
+        g.fillStyle = UI.caseLo;
+      }
+    } else {
+      g.strokeStyle = 'rgba(222,210,180,0.20)'; g.setLineDash([3, 3]);
+      g.strokeRect(4.5, 4.5, CW - 9, CH - 9); g.setLineDash([]);   // stitching
+    }
+
+    if (spec.title) {
+      g.fillStyle = machine ? UI.caseEdge : UI.clothLo;
+      g.font = UI.font(9, true); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+      g.fillText(spec.title, CW / 2, BEZEL + 9);
+      g.fillStyle = machine ? UI.caseHi : UI.clothHi;
+      g.fillText(spec.title, CW / 2, BEZEL + 8);                   // stamped, not printed
+    }
+
+    // the screen sits in a recess, and the recess is what makes it read as set
+    // INTO the machine rather than stuck onto it
+    g.fillStyle = UI.wellLo; g.fillRect(SX - 3, SY - 3, spec.w + 6, spec.h + 6);
+    g.fillStyle = UI.well; g.fillRect(SX - 2, SY - 2, spec.w + 4, spec.h + 4);
+
+    g.save();
+    g.beginPath(); g.rect(SX, SY, spec.w, spec.h); g.clip();
+    g.translate(SX, SY);
+    try { spec.draw(g, spec.w, spec.h); }
+    catch (e) { console.error(`[panel ${spec.id}] draw threw:`, e); }
+    g.restore();
+
+    // the caption strip: how to leave, always, on every panel
+    const cy = SY + spec.h + 5;
+    g.fillStyle = machine ? UI.caseLo : UI.clothLo;
+    g.fillRect(SX, cy, spec.w, CAPTION - 6);
+    g.fillStyle = UI.dim; g.font = UI.font(7); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+    g.fillText(spec.hint ? spec.hint() : '', SX + 4, cy + 9);
+    g.textAlign = 'right';
+    g.fillStyle = UI.ink;
+    g.fillText('ESC', SX + spec.w - 4, cy + 9);
+  };
+
+  const api: Panel = {
+    isOpen: () => open,
+    repaint: () => { if (open) paint(); },
+    open: () => {
+      if (open) return;
+      // ONE THING IN YOUR HANDS AT A TIME, and that includes the two held
+      // objects that predate this framework. The wallet and the pockets sit at
+      // the bottom of the same frame a cabinet fills; stepping up to a machine
+      // with your wallet still out is not a state this world should have.
+      closePanels();
+      LIVE?.closeWallet();
+      closePockets();
+      open = true;
+      livePanel = { spec, close: () => api.close() };
+      releaseHeld();                     // let go of anything already held down
+      gateUp(true);                      // …and the gate is the freeze, see above
+      backdropUp(true);
+      paint();
+      wrap!.style.opacity = '1';
+      wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      spec.onOpen?.();
+    },
+    close: () => {
+      if (!open) return;
+      open = false;
+      wrap!.style.opacity = '0';
+      wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
+      if (livePanel && livePanel.spec === spec) {
+        livePanel = null;
+        gateUp(false);
+        backdropUp(false);
+      }
+      spec.onClose?.();
+    },
+    toggle: () => (open ? api.close() : api.open()),
+  };
+  return api;
 }
 
 /**
@@ -349,32 +680,7 @@ export function makeHud(purse: Purse): Hud {
   }
   let fading: Promise<void> | null = null;
 
-  // ── holding the player still while it runs ──────────────────────────────
-  //
-  // `src/main.ts` owns the input Set and `src/proto/fp.ts` owns the rig, and
-  // BOTH ARE DESK-OWNED. So this does not reach into either: it takes the
-  // events before they get there.
-  //
-  //   · a CAPTURE listener on `window` runs before main.ts's own listeners,
-  //     which are on `window` (keydown/keyup/mouseup) and `document`
-  //     (mousemove) in the bubble phase. `stopImmediatePropagation()` there and
-  //     the key never reaches the Set.
-  //   · KEYUP AND MOUSEUP ARE DELIBERATELY LEFT ALONE. Swallowing a release
-  //     while blocking the press is how you strand a key in the Set held-down
-  //     forever — the player would wake up walking.
-  //   · and a press already held when the fade starts is in the Set ALREADY, so
-  //     blocking new ones does nothing for it. Those get a synthetic keyup,
-  //     which is main.ts's own documented way of clearing one.
-  const HELD = ['w', 'a', 's', 'd', 'c', 'e', 'shift', ' ',
-    'arrowup', 'arrowdown', 'arrowleft', 'arrowright'];
-  const swallow = (e: Event) => { e.stopImmediatePropagation(); e.preventDefault(); };
-  const lockInput = (): (() => void) => {
-    for (const k of HELD) window.dispatchEvent(new KeyboardEvent('keyup', { key: k === ' ' ? ' ' : k }));
-    window.dispatchEvent(new MouseEvent('mouseup', { button: 2 }));   // and the wallet's right button
-    const kinds = ['keydown', 'mousedown', 'mousemove', 'wheel'];
-    for (const k of kinds) window.addEventListener(k, swallow, true);
-    return () => { for (const k of kinds) window.removeEventListener(k, swallow, true); };
-  };
+  const lockInput = blockInput;
 
   // ── the build stamp ─────────────────────────────────────────────────────
   // Twice this project has lost work to feedback given against a stale build:
@@ -525,6 +831,9 @@ export function makeHud(purse: Purse): Hud {
   (window as unknown as { __hud: unknown }).__hud = {
     fade: (o?: Parameters<Hud['fade']>[0]) => hud.fade(o),
     fading: () => hud.fading(),
+    /** which cabinet is up, by its DOM id, or null */
+    panel: () => panelUp(),
+    closePanels: () => closePanels(),
   };
   return hud;
 }
