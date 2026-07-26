@@ -1306,66 +1306,6 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     // people on the far pavement, cars nose-to-tail at both kerbs, the centre
     // line, a shopfront with an awning, the alley mouth straight across, and
     // one window lit in the afternoon because somebody else is in.
-    // LOOK UP, NOT ACROSS. The old picture gave rows 13-30 of 40 to the brick
-    // opposite and left four rows at the very bottom for anything else, so
-    // standing up you got a slice of sky and then a wall — which is exactly
-    // what the user reported, and it was an accurate description of what was
-    // painted.
-    //
-    // The window opens onto a light well and it still does; nothing moved.
-    // What changed is where the interest is. A narrow well between two tall
-    // buildings has one genuinely good thing in it, and it is ABOVE the wall
-    // opposite: rooftops, water towers on their legs, a slice of sky. So the
-    // wall is pushed down to the bottom third and the top two thirds are the
-    // skyline, with a fire escape zigzagging down the near flank to carry the
-    // eye between them.
-    //
-    // Sizing is set by where the eye is, not by taste. The window centre is at
-    // WIN_Y and a standing eye is 7.02, so the middle of the glass is what you
-    // see from across the room — which is why the water towers and the roofline
-    // sit at rows 20-30 of 64 rather than up in the frame.
-    const winT = surfTex('detail', 64, 64, (g) => {
-      g.fillStyle = '#8a97a2'; g.fillRect(0, 0, 64, 64);            // sky, the fog colour
-      // ── the far skyline, over the top of the well ──
-      g.fillStyle = '#6c737e';                                       // distant blocks, hazed back
-      g.fillRect(3, 24, 13, 8); g.fillRect(20, 27, 9, 5); g.fillRect(46, 22, 15, 10);
-      g.fillStyle = '#5d6470';
-      g.fillRect(31, 25, 12, 7); g.fillRect(16, 29, 6, 3);
-      // water tower: a barrel on legs with a conical hat, the one thing that
-      // says which city this is
-      const tower = (x: number, w: number, top: number, h: number, body: string) => {
-        g.fillStyle = body; g.fillRect(x, top + 3, w, h);
-        g.fillStyle = '#4e4238';                                     // the hat
-        for (let i = 0; i < 3; i++) g.fillRect(x + i, top + i, w - i * 2, 1);
-        g.fillStyle = '#3f3a34';                                     // legs down to the roof
-        for (const lx of [x + 1, x + w - 2]) g.fillRect(lx, top + 3 + h, 1, 4);
-        g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(x, top + 3 + Math.floor(h / 2), w, 1);
-      };
-      tower(7, 9, 12, 8, '#6b5a48');
-      tower(48, 6, 17, 5, '#5f5142');
-      g.fillStyle = '#4a4b50';                                       // a vent stack and an aerial
-      g.fillRect(37, 20, 2, 5); g.fillRect(28, 22, 1, 5);
-      // ── the wall opposite: the bottom third, where a well's wall belongs ──
-      g.fillStyle = '#6e5347'; g.fillRect(3, 32, 58, 29);
-      g.fillStyle = 'rgba(0,0,0,0.16)';
-      for (let y = 33; y < 61; y += 3) g.fillRect(3, y, 58, 1);     // brick courses
-      g.fillStyle = '#2e3a46';                                       // their windows
-      for (let wy = 35; wy < 57; wy += 8) for (let wx = 7; wx < 56; wx += 12) g.fillRect(wx, wy, 6, 6);
-      g.fillStyle = '#c9a45e'; g.fillRect(31, 43, 6, 6);            // one lit, somebody else in
-      g.fillStyle = '#a8823f'; g.fillRect(19, 51, 6, 6);            // and one further down
-      g.fillStyle = '#8d6b4e'; g.fillRect(43, 35, 6, 6);            // one with the blind down
-      // ── the fire escape, zigzagging down the flank ──
-      g.fillStyle = '#3a3a3c';
-      for (const ly of [39, 48, 57]) g.fillRect(24, ly, 22, 1);     // landings
-      for (const ly of [39, 48, 57]) for (let x = 24; x < 46; x += 3) g.fillRect(x, ly - 3, 1, 3);  // rails
-      for (let i = 0; i < 8; i++) { g.fillRect(26 + i * 2, 40 + i, 3, 1); g.fillRect(44 - i * 2, 49 + i, 3, 1); }
-      // the well floor, which never sees the sun
-      g.fillStyle = 'rgba(0,0,0,0.45)'; g.fillRect(3, 57, 58, 4);
-      dither(g, 64, 64, 90);
-      g.fillStyle = '#3a2c22'; g.fillRect(0, 0, 64, 3); g.fillRect(0, 61, 64, 3);
-      g.fillRect(0, 0, 3, 64); g.fillRect(61, 0, 3, 64);            // frame
-      g.fillRect(31, 3, 2, 58); g.fillRect(3, 31, 58, 2);           // glazing bars
-    });
     // ── the window's reveal, sill and architrave ─────────────────────────
     // Report finding 2: the one window in the building was a flat plane stuck
     // on the inside of a 0.14 m wall. Every DOORWAY here shows its thickness
@@ -1382,10 +1322,128 @@ export function buildApartment(ctx: CtxBuild): Apartment {
     const WIN_LX = -3.2;                          // the wall's centreline
     const GLASS_X = WIN_LX - 0.062;               // the wall's OUTER face
     const REV_D = 0.11;                           // what is left in front of it
-    const win = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, WIN_H), texM(winT));
-    win.position.set(AX(GLASS_X), WIN_Y, AZI(WIN_LZ));
-    win.rotation.y = Math.PI / 2;
-    scene.add(win);
+    // THE GLASS IS NOW GLASS. It used to be the picture — a painted view on an
+    // opaque plane at the outer face, which is why the well behind it could
+    // never read as a space no matter what was painted on it. A faint tinted
+    // sheet lets the built well show through and still catches the light
+    // enough that you can tell there is something in the opening.
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, WIN_H),
+      new THREE.MeshBasicMaterial({ color: 0x9fb0bb, transparent: true, opacity: 0.13,
+        depthWrite: false, side: THREE.DoubleSide }));
+    glass.position.set(AX(GLASS_X), WIN_Y, AZI(WIN_LZ));
+    glass.rotation.y = Math.PI / 2;
+    scene.add(glass);
+    // and the glazing bars, which were painted into that same texture and had
+    // to become real when it went — a window with no bars reads as a hole
+    const barM = new THREE.MeshBasicMaterial({ color: 0x3a2c22 });
+    box(0.035, WIN_H, 0.05, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM);
+    box(0.035, 0.05, WIN_W, GLASS_X + 0.02, WIN_Y, WIN_LZ, barM);
+    // ── THE LIGHT WELL, as a real space ──────────────────────────────────
+    // The user, in their own words: *"a bit of a gap out of the window and
+    // then just a brick wall, almost like a little room outside the window
+    // that is just brick."* They want the well. It was painted on the glass as
+    // a picture; now it is built, and you look THROUGH the opening into it.
+    //
+    // What was wrong was never the brick. It was that a flat picture 6 cm
+    // behind the glass reads as an accidental gap: no depth, no side returns,
+    // nothing to say the far wall is a far wall rather than a sheet of card
+    // pressed to the window. So this has the three things that make a well a
+    // room you cannot get into — 2.3 m of air between the glass and the far
+    // wall, brick RETURNING on both sides so it reads enclosed, and a floor
+    // three storeys down in the dark.
+    //
+    // Nothing lights it. Everything here is MeshBasic, so brightness is
+    // whatever the texture is painted at, and this is painted at about a third
+    // of the room's brick — almost no light reaches the bottom of a tenement
+    // well and that gloom IS the character of them. It is also why the far
+    // window opposite is nearly black: it is a real window, it just never sees
+    // the sun and nobody ever opens it.
+    // WIDTH IS WHAT MAKES IT A ROOM. At 3.24 m across, the far wall exactly
+    // filled the cone you can see through a 1.3 m opening from across the
+    // room, so the returns fell outside the view and it read as a flat brick
+    // sheet again — the same fault as the painting, in geometry. A real
+    // tenement well is NARROW, and narrow is also what puts both side walls in
+    // frame converging away from you, which is the whole cue for depth.
+    const WELL_D = 2.4;                    // glass to the far wall
+    const WELL_HW = 0.95;                  // half width, in z — 1.9 m across
+    const WELL_FLOOR = 1.15;               // three storeys down, in shadow
+    const WELL_TOP = 12.4;                 // above the head of our own opening
+    const FAR_LX = WIN_LX - WELL_D;
+    const WELL_H = WELL_TOP - WELL_FLOOR;
+    const sootT = surfTex('brick', 32, 32, (g) => {
+      g.fillStyle = '#3a2a25'; g.fillRect(0, 0, 32, 32);          // dark, sooted brick
+      g.fillStyle = 'rgba(0,0,0,0.30)';
+      for (let y = 3; y < 32; y += 4) g.fillRect(0, y, 32, 1);    // courses
+      for (let y = 0; y < 32; y += 4) {
+        const off = (y / 4) % 2 ? 0 : 8;
+        for (let x = off; x < 32; x += 16) g.fillRect(x, y, 1, 4); // perpends
+      }
+      // soot and damp streaks: a well is stained down its whole height
+      g.fillStyle = 'rgba(0,0,0,0.30)';
+      for (const sx of [2, 11, 19, 27]) g.fillRect(sx, 0, 2, 32);
+      g.fillStyle = 'rgba(90,100,86,0.10)'; g.fillRect(6, 14, 5, 18);  // a patch of damp
+      dither(g, 32, 32, 34);
+    });
+    const wellM = (uw: number, uh: number) => {
+      const t = sootT.clone();
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(uw / 1.15, uh / 1.15);
+      t.needsUpdate = true;
+      return new THREE.MeshBasicMaterial({ map: t });
+    };
+    // the far wall, and the two returns that make it enclosed rather than a gap
+    const farWall = new THREE.Mesh(new THREE.PlaneGeometry(WELL_HW * 2, WELL_H), wellM(WELL_HW * 2, WELL_H));
+    farWall.position.set(AX(FAR_LX), WELL_FLOOR + WELL_H / 2, AZI(WIN_LZ));
+    farWall.rotation.y = Math.PI / 2;
+    scene.add(farWall);
+    for (const sgn of [1, -1]) {
+      const side = new THREE.Mesh(new THREE.PlaneGeometry(WELL_D, WELL_H), wellM(WELL_D, WELL_H));
+      side.position.set(AX(FAR_LX + WELL_D / 2), WELL_FLOOR + WELL_H / 2, AZI(WIN_LZ + sgn * WELL_HW));
+      side.rotation.y = sgn > 0 ? Math.PI : 0;         // both faces turned INWARD
+      scene.add(side);
+    }
+    // the floor of it, which you only half see — that is the point
+    const wellFloor = new THREE.Mesh(new THREE.PlaneGeometry(WELL_D, WELL_HW * 2),
+      new THREE.MeshBasicMaterial({ color: 0x1b1614 }));
+    wellFloor.position.set(AX(FAR_LX + WELL_D / 2), WELL_FLOOR, AZI(WIN_LZ));
+    wellFloor.rotation.x = -Math.PI / 2;
+    scene.add(wellFloor);
+    // ── what sells it: a dead window opposite, a drainpipe, a landing ──
+    // The window opposite is at OUR height and dead black. Somebody's back
+    // room, and it has not been opened in years.
+    const deadWinT = surfTex('detail', 20, 24, (g) => {
+      g.fillStyle = '#171a1c'; g.fillRect(0, 0, 20, 24);
+      g.fillStyle = 'rgba(120,140,150,0.07)'; g.fillRect(2, 2, 7, 9);   // the faintest sheen
+      g.fillStyle = '#2c2622'; g.fillRect(0, 0, 20, 2); g.fillRect(0, 22, 20, 2);
+      g.fillRect(0, 0, 2, 24); g.fillRect(18, 0, 2, 24);
+      g.fillRect(9, 2, 2, 20);
+      dither(g, 20, 24, 16);
+    });
+    const deadWin = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1.05), texM(deadWinT));
+    deadWin.position.set(AX(FAR_LX + 0.03), WIN_Y - 0.08, AZI(WIN_LZ + 0.30));
+    deadWin.rotation.y = Math.PI / 2;
+    scene.add(deadWin);
+    const lintelM = new THREE.MeshBasicMaterial({ color: 0x6b625a });
+    box(0.08, 0.06, 1.0, FAR_LX + 0.05, WIN_Y - 0.08 - 0.56, WIN_LZ + 0.30, lintelM);   // its sill
+    // the drainpipe, down the corner where the far wall meets the return —
+    // the one vertical in a wall of horizontals, and what tells you the well
+    // keeps going down past where you can see
+    const pipeM = new THREE.MeshBasicMaterial({ color: 0x33302c });
+    const pipe = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.075, 0.075, WELL_H - 0.4, 6), pipeM);
+    pipe.position.set(AX(FAR_LX + 0.14), WELL_FLOOR + (WELL_H - 0.4) / 2, AZI(WIN_LZ - WELL_HW + 0.16));
+    scene.add(pipe);
+    for (const by of [3.1, 5.9, 8.7]) {                 // its fixing bands
+      box(0.20, 0.05, 0.20, FAR_LX + 0.14, by, WIN_LZ - WELL_HW + 0.16, pipeM);
+    }
+    // a fire escape landing one storey down, so the eye has somewhere to fall
+    const escM = new THREE.MeshBasicMaterial({ color: 0x2b2a2c });
+    box(0.62, 0.04, 1.25, FAR_LX + 0.34, WIN_Y - 2.55, WIN_LZ + 0.10, escM);
+    for (let i = 0; i < 6; i++) {                        // its railing
+      box(0.03, 0.42, 0.03, FAR_LX + 0.62, WIN_Y - 2.55 + 0.23, WIN_LZ - 0.48 + i * 0.22, escM);
+    }
+    box(0.05, 0.04, 1.25, FAR_LX + 0.62, WIN_Y - 2.55 + 0.44, WIN_LZ + 0.10, escM);
+
     // the four returns, in the wall's own paint but shaded: a reveal in the
     // same flat colour as the wall face reads as a hole cut in card
     const revM = new THREE.MeshBasicMaterial({ color: 0x8b8474 });
