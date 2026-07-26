@@ -68,12 +68,25 @@ for (const d of doors) {
 }
 
 // ── the two named non-door prompts these rows also rest on ──────────────────
-for (const want of ['FIRST FEDERAL — check balance', 'sit at the stop', 'enter No. 227']) {
+// MATCH THE NOUN, NOT THE VERB — which is the lesson of the three checks this
+// broke, mine included.
+//
+// This used to name the ATM prompt in full: `FIRST FEDERAL — check balance`.
+// When A wired K's cabinet to the bank wall the verb became `use the machine`
+// and this check went red, having proved nothing about the world. The same
+// rename crashed M's whole bank run and reddened two clauses of D-walk.
+//
+// The building name comes from the ROSTER and changes only when the street
+// does; the verb belongs to whoever wrote the interaction and can change any
+// afternoon. So the subject is matched on the stable half and the prompt is
+// reported rather than dictated.
+for (const want of [/FIRST FEDERAL/, /sit at the stop/, /enter No\. 227/]) {
+  const src = want.source;
   const sp = await page.evaluate((w) => {
-    const s = window.__ct.spots().find((x) => x.label === w);
-    return s ? { x: s.x, z: s.z, gy: window.__ct.groundAt(s.x, s.z) } : null;
-  }, want);
-  if (!sp) { say(false, `"${want}" is still registered`, 'the spot is GONE'); continue; }
+    const s = window.__ct.spots().find((x) => new RegExp(w).test(x.label));
+    return s ? { x: s.x, z: s.z, label: s.label, gy: window.__ct.groundAt(s.x, s.z) } : null;
+  }, src);
+  if (!sp) { say(false, `a spot matching /${src}/ is still registered`, 'GONE from the registry'); continue; }
   // STAND WHERE A PERSON COULD, not on the spot itself.
   //
   // My first cut warped ONTO the spot, and the ATM failed: at (−7.0, 7.29) the
@@ -97,11 +110,11 @@ for (const want of ['FIRST FEDERAL — check balance', 'sit at the stop', 'enter
       if (!r) continue;
       await page.waitForTimeout(260);
       const p = await prompt();
-      if (p === `[E] ${want}`) { seen = p; from = { d, ...r }; }
+      if (want.test(p)) { seen = p; from = { d, ...r }; }
     }
     if (from) break;
   }
-  say(!!from, `"${want}" still fires from somewhere a person can stand`,
+  say(!!from, `"${sp.label}" still fires from somewhere a person can stand`,
     from ? `"${seen}" at ${from.d} m out, (${from.px.toFixed(2)}, ${from.pz.toFixed(2)})` : 'NOT OFFERED from any of 32 stations');
 }
 

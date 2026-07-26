@@ -236,6 +236,13 @@ const CHECKS = [
   // each door's PUBLISHED stand point — never one I choose — and on the ATM,
   // the bus stop and the flat door. (D)
   ['D-confirmed-prompts', 'do the prompts my CONFIRMED rows rest on still fire?', true],
+  // A wired K's ATM to the bank wall in one line; the label went from
+  // "check balance" to "use the machine" and THREE checks broke, none of them
+  // A's — M's whole bank run crashed, and two of mine went red. The common
+  // shape is a check reaching for a subject through somebody else's WORDING,
+  // which belongs to whoever last wrote the interaction. This finds literals
+  // tested against a label that no longer match anything the world says. (D)
+  ['D-dead-prompt-literals', 'do checks still match wording the world still uses?', true],
   // The user killed the selection outline as a player feature and kept it for
   // debug: "get rid of outline unless debug is true". Two claims that pull
   // opposite ways, so neither can be checked by looking. Counts lines wearing
