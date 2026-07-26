@@ -47,6 +47,64 @@ const report = (n, ok, d) => { if (!ok) fails++; console.log(`${ok ? 'PASS' : 'F
 // full rather than filtered down to four, so that if the shape of the front
 // changes this prints something a reader can argue with instead of quietly
 // matching nothing (GOTCHAS 34).
+// POSITIVE CONTROL: `E_NUDGE=1` slides one pier 0.6 m into its bay, which is
+// the user's fault re-created — a pillar crossing a window. Every clearance
+// claim below MUST go red. This is the mutation, not a rig of the arithmetic:
+// the box really moves in the scene, so what is tested is the measurement and
+// not my opinion of it. GOTCHAS 27 — a check nobody has watched fail is one
+// you will argue with, and this one exists to close a USER complaint.
+if (process.env.E_NUDGE) {
+  const moved = await page.evaluate(() => {
+    const s = window.__ct.scene();
+    s.updateMatrixWorld(true);
+    // ALL THREE STAGES of the pier at z -82.9, not one of them. Moving a single
+    // stage leaves the pier in pieces and trips the "four piers" assertion
+    // first, so the CLEARANCE predicate - the one that answers the user - never
+    // runs and never gets tested. Move the whole pier and the front still has
+    // four of them; what changes is the width of the bay beside it.
+    const stages = [];
+    s.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const e = o.matrixWorld.elements;
+      if (Math.abs(e[12] - 9.5) > 0.4 || Math.abs(e[14] + 82.9) > 0.4) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      const h = o.geometry.boundingBox.max.y - o.geometry.boundingBox.min.y;
+      if (h > 4) stages.push(o);
+    });
+    if (!stages.length) return null;
+    const best = stages[0];
+    const before = best.matrixWorld.elements[14];
+    // MOVE IT IN WORLD TERMS. `position` is LOCAL, and this pier hangs off a
+    // GROUP rotated so that local z is not the facade axis at all - the first
+    // cut just did `position.z -= 0.6`, the mesh did not move a millimetre in
+    // world space, and every clearance claim came back green off an unmutated
+    // world. The control caught itself, which is the entire reason to make a
+    // control announce whether it took.
+    //
+    // So: name the world position I want, then convert it back through the
+    // parent's inverse. Works whatever the group is doing.
+    const V = best.position.constructor;
+    for (const o of stages) {
+      const target = new V().setFromMatrixPosition(o.matrixWorld);
+      target.z -= 0.6;
+      o.parent.updateMatrixWorld(true);
+      o.position.copy(target.applyMatrix4(o.parent.matrixWorld.clone().invert()));
+      o.updateMatrixWorld(true);
+    }
+    const after = best.matrixWorld.elements[14];
+    return { stages: stages.length, before: +before.toFixed(3), after: +after.toFixed(3),
+             moved: Math.abs(after - before) > 0.3,
+             parent: best.parent ? best.parent.type : 'none' };
+  });
+  if (!moved) { console.log('CONTROL: could not find the pier to move — the control did not run'); await b.close(); process.exit(3); }
+  console.log(`CONTROL: pier world z ${moved.before} -> ${moved.after} (parent ${moved.parent}, ${moved.stages} stages moved)`);
+  if (!moved.moved) {
+    console.log('CONTROL DID NOT TAKE: the mesh did not move in world space, so a green below proves nothing.');
+    await b.close(); process.exit(3);
+  }
+  console.log('CONTROL: the pier really moved 0.6 m into its bay — every clearance claim MUST go red');
+}
+
 const front = await page.evaluate(() => {
   const s = window.__ct.scene();
   s.updateMatrixWorld(true);
@@ -58,13 +116,30 @@ const front = await page.evaluate(() => {
     if (cx < 5 || cx > 22 || cz < -95 || cz > -68) return;
     if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
     const bb = o.geometry.boundingBox; if (!bb) return;
-    const w = (bb.max.x - bb.min.x) * o.scale.x;
-    const h = (bb.max.y - bb.min.y) * o.scale.y;
-    const d = (bb.max.z - bb.min.z) * o.scale.z;
+    // WORLD extents, from the eight corners through matrixWorld — NOT the
+    // geometry box scaled, which is what I did first. That reads LOCAL axes and
+    // is simply wrong for anything rotated: it reported these piers as 0.10 m
+    // wide slivers. It is the bounding-box trap from my own notes, where a box
+    // that turns with something hides what it really spans.
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const px of [bb.min.x, bb.max.x]) {
+      for (const py of [bb.min.y, bb.max.y]) {
+        for (const pz of [bb.min.z, bb.max.z]) {
+          const m = o.matrixWorld.elements;
+          const wx = m[0] * px + m[4] * py + m[8] * pz + m[12];
+          const wy = m[1] * px + m[5] * py + m[9] * pz + m[13];
+          const wz = m[2] * px + m[6] * py + m[10] * pz + m[14];
+          if (wx < x0) x0 = wx; if (wx > x1) x1 = wx;
+          if (wy < y0) y0 = wy; if (wy > y1) y1 = wy;
+          if (wz < z0) z0 = wz; if (wz > z1) z1 = wz;
+        }
+      }
+    }
     boxes.push({
       cx: +cx.toFixed(2), cy: +cy.toFixed(2), cz: +cz.toFixed(2),
-      w: +w.toFixed(2), h: +h.toFixed(2), d: +d.toFixed(2),
-      z0: +(cz - d / 2).toFixed(2), z1: +(cz + d / 2).toFixed(2),
+      w: +(x1 - x0).toFixed(2), h: +(y1 - y0).toFixed(2), d: +(z1 - z0).toFixed(2),
+      x1: +x1.toFixed(2),
+      z0: +z0.toFixed(2), z1: +z1.toFixed(2),
     });
   });
   return boxes;
@@ -73,38 +148,69 @@ const front = await page.evaluate(() => {
 // A buttress on this front is TALL, NARROW ALONG THE FACADE, and SHALLOW —
 // it is a pier standing proud of a wall. The nave and tower are the same
 // height but many metres deep; the copings are wide and flat.
+// THE FILTER IS PRINTED BEFORE IT IS TRUSTED. My first cut guessed the shape
+// (4-16 m tall, 0.5-1.6 m along the facade, under 1.6 m proud) and matched
+// NOTHING, then reported "the front has no piers" as though that were a fact
+// about the church. It was a fact about my guess. So dump the tall meshes and
+// let the numbers pick the filter.
+const tall = front.filter((x) => x.h >= 3).sort((a, b) => b.h - a.h).slice(0, 14);
+console.log('tall meshes on the church block (h, then footprint):');
+for (const x of tall) {
+  console.log(`   h ${x.h.toFixed(1).padStart(5)}  x-depth ${x.w.toFixed(2)}  z-width ${x.d.toFixed(2)}  at (${x.cx}, ${x.cz})`);
+}
 const buttresses = front
   .filter((x) => x.h >= 4 && x.h <= 16 && x.d >= 0.5 && x.d <= 1.6 && x.w <= 1.6)
   .sort((a, b) => a.cz - b.cz);
-console.log(`meshes on the church block: ${front.length}; buttress-shaped: ${buttresses.length}`);
-for (const x of buttresses) {
-  console.log(`   pier at z ${x.cz.toFixed(2)} — ${x.d.toFixed(2)} m along the facade (z ${x.z0}…${x.z1}), ${x.h.toFixed(1)} m tall, standing ${x.w.toFixed(2)} m proud`);
+console.log(`meshes on the church block: ${front.length}; buttress stages: ${buttresses.length}`);
+
+// A BUTTRESS IS NOT ONE BOX, IT IS THREE. Measured: each pier is stacked
+// stages - 0.92 m wide x 6.4 m tall, then 0.76 x 11.4, then 0.60 x 15.4 - which
+// is what "buttresses stepping down the front" means. My first predicate
+// counted stages and asked for four, and got twelve.
+//
+// AND THE STEPPING IS THE WHOLE POINT HERE. The lancets sit 9.2-13.4 m up,
+// where the base stage has already ended. Testing the 0.92 m base against a
+// window four metres above it measures a clearance that does not exist in
+// either direction - it is the wrong slice of the building.
+const LANCET_LO = 9.2, LANCET_HI = 13.4;
+const piers = new Map();
+for (const b of buttresses) {
+  const k = b.cz.toFixed(1);
+  if (!piers.has(k)) piers.set(k, []);
+  piers.get(k).push(b);
+}
+const cols = [...piers.entries()]
+  .map(([k, stages]) => {
+    // the stages that actually reach the window band, widest first
+    const reach = stages.filter((s) => s.h >= LANCET_LO).sort((a, b) => b.d - a.d);
+    const at = reach[0] ?? stages.sort((a, b) => b.d - a.d)[0];
+    return { cz: +k, atBand: at, base: stages.sort((a, b) => b.d - a.d)[0] };
+  })
+  .sort((a, b) => a.cz - b.cz);
+console.log(`piers: ${cols.length}, each of ${[...piers.values()][0]?.length ?? 0} stages`);
+for (const c of cols) {
+  console.log(`   pier z ${c.cz.toFixed(2)}  base ${c.base.d.toFixed(2)} m wide  ->  ${c.atBand.d.toFixed(2)} m at lancet height (z ${c.atBand.z0}…${c.atBand.z1})`);
 }
 
-// THE PREDICATE. The front is set out on bays: four piers, three bays, every
-// opening centred in its bay. So the gaps BETWEEN consecutive piers are the
-// bays, and a lancet 1.30 m wide centred in a side bay must clear the pier
-// faces. Source says 1.76 m clear in the side bays and 0.23 m each side.
 const LANCET_W = 1.30;
-const gaps = [];
-for (let i = 1; i < buttresses.length; i++) {
-  const a = buttresses[i - 1], c = buttresses[i];
-  gaps.push({ from: a.z1, to: c.z0, clear: +(c.z0 - a.z1).toFixed(2) });
-}
-console.log(`bays between consecutive piers: ${gaps.map((g) => g.clear.toFixed(2) + ' m').join(', ')}`);
-
 report('the front has four piers, so it has three bays',
-  buttresses.length === 4, `${buttresses.length} buttress-shaped piers found`);
+  cols.length === 4, `${cols.length} piers found`);
 
-if (gaps.length >= 3) {
-  const side = [gaps[0], gaps[gaps.length - 1]];
-  const worst = Math.min(...side.map((g) => (g.clear - LANCET_W) / 2));
+if (cols.length === 4) {
+  const bay = (i) => +(cols[i + 1].atBand.z0 - cols[i].atBand.z1).toFixed(2);
+  const bays = [bay(0), bay(1), bay(2)];
+  console.log(`bays at lancet height: ${bays.map((b) => b.toFixed(2) + ' m').join(', ')}`);
+  const side = [bays[0], bays[2]];
+  const worst = Math.min(...side.map((b) => (b - LANCET_W) / 2));
   report('a 1.30 m lancet centred in each side bay clears the piers',
     worst > 0.05,
-    `tightest side bay leaves ${worst.toFixed(2)} m each side (source predicts 0.23)`);
-  report('…and the two side bays are the same width, so the front is symmetric',
-    Math.abs(side[0].clear - side[1].clear) < 0.02,
-    `${side[0].clear.toFixed(2)} m vs ${side[1].clear.toFixed(2)} m`);
+    `tightest side bay leaves ${worst.toFixed(2)} m each side, measured where the window is`);
+  report('…and the two side bays match, so the front is symmetric',
+    Math.abs(side[0] - side[1]) < 0.02,
+    `${side[0].toFixed(2)} m vs ${side[1].toFixed(2)} m`);
+  report('the centre bay is the widest, so the doorway is in the middle one',
+    bays[1] > bays[0] && bays[1] > bays[2],
+    `centre ${bays[1].toFixed(2)} m against sides ${side.map((b) => b.toFixed(2)).join(' / ')} m`);
 }
 
 // ── and LOOK at it, from the pavement, which is where the user was ───────
@@ -130,9 +236,14 @@ const shoot = async (k, x, z, yaw, pitch, what) => {
 };
 
 console.log('\nthe west front from the pavement:');
-await shoot('front-far', 5.4, -79.5, Math.PI / 2, 0.30, 'the whole front — piers and lancets together');
-await shoot('front-lancet-n', 5.4, -76.0, Math.PI / 2, 0.42, 'the north side bay and its lancet');
-await shoot('front-lancet-s', 5.4, -83.0, Math.PI / 2, 0.42, 'the south side bay and its lancet');
+// FROM THE FAR PAVEMENT. The first stations stood at x 5.4, which is 3.5 m
+// from a wall whose windows start 9.2 m up — you cannot see a lancet from
+// there, and the frames showed a doorway and two blurred piers. The lancets
+// are 9.2-13.4 m up, so the station has to be back across the street.
+await shoot('front-far', -5.4, -79.5, Math.PI / 2, 0.42, 'the whole west front from the far pavement — piers and lancets together');
+await shoot('front-lancet-n', -5.4, -76.0, Math.PI / 2, 0.45, 'the north side bay and its lancet');
+await shoot('front-lancet-s', -5.4, -83.0, Math.PI / 2, 0.45, 'the south side bay and its lancet');
+await shoot('front-near', 5.4, -79.5, Math.PI / 2, 0.30, 'and the doorway close up, where a player actually stands');
 
 console.log(fails ? `\n${fails} FAILED` : '\nthe piers stand on the bay divisions and the lancets clear them');
 await b.close();

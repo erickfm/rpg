@@ -83,6 +83,8 @@ const AREAS = [
     what: 'the loop is continuous: set off from the gate and arrive back' },
   { name: 'soffit', script: 'scripts/E-soffit-has-grain.mjs',
     what: 'the ceiling over the library doors carries grain, not one flat tone' },
+  { name: 'churchfront', script: 'scripts/E-church-front.mjs',
+    what: "the church piers stand on the bay divisions and the lancets clear them (a user request)" },
   { name: 'partyline', script: 'scripts/E-partyline.mjs',
     what: "nothing the library projects crosses either neighbour's party line" },
   // Not mine to own, but mine to have verified — and a check that decided
