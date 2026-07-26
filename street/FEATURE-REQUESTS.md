@@ -123,6 +123,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"bodega sign is tilted up which makes no sense should be tilted a bit down no? i actually think the orientation is the issue here. like it needs to be rotated 180 degrees"** → **D**
 - **"gazebo shelter is fucked / bin is in the sign? overall fix the park"** → **E**
 - **"needs grass variation and more random placing. some clustering potentially. this looks so unnatural"** → **E**
 - **"the doors are misaligned. i think the worker doesnt realize they need to confirm the logic independently per side of the car"** → **H**

@@ -99,3 +99,4 @@ user anything is finished.
 | OPEN | H | the doors are misaligned. i think the worker doesnt realize they need  | |
 | OPEN | E | needs grass variation and more random placing. some clustering potenti | |
 | OPEN | E | gazebo shelter is fucked / bin is in the sign? overall fix the park | |
+| OPEN | D | bodega sign is tilted up which makes no sense should be tilted a bit d | |
