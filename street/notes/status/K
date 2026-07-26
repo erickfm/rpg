@@ -1,1 +1,1 @@
-BLOCKED | verifying; FOUND: you cannot get back UP off any of the 225 seats if you sat from >1m | DESK — crosstown.ts landing latch; C — screenFade at the bed; A — openAtm hook
+BLOCKED | my sleep-fade row waits on C; diagnosed the users STUCK-in-the-seat report (all 225 seats, crosstown landing latch) | DESK — crosstown.ts latch; C — screenFade at the bed; A — openAtm hook
