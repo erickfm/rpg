@@ -51,6 +51,43 @@ identical end state** — `seated:false, panel:null` in both — and only the Es
 path breaks the next E. Walking does not clear it, so it is not a stale trigger
 volume or a landing latch (`__ct.landing()` reads `null` throughout).
 
+## Three more discriminators, added after the first pass
+
+**It is E-SPECIFICALLY, not "the first keydown after Escape".** Holding `w` in
+between moves the player 0.38 m — input reaches the world perfectly — and the
+following E is *still* swallowed. So the gate is gone and the freeze has lifted;
+it is the `[E]` dispatch alone that misses.
+
+**It is not `DISMISS_LOCKOUT`.** `ct/hud.ts:500` refuses to re-open a panel
+within 500 ms of a dismissal, which was my first suspect and is the right shape.
+It is not this: waiting **1.2 s** after Escape, and separately walking for 1.5 s,
+both still swallow the next E. It also would not explain the SEAT failing — the
+lockout gates `panel.open()`, and what actually fails is `rig.sit()`.
+
+**The world is entirely healthy at the moment of the failing press**, which is
+what makes this an input-layer fault rather than a world one. Measured at the
+stool immediately before pressing:
+
+```
+2nd: before E   seated=false  panel=null  landing=null   "[E] sit at the slot"
+    spots within 1 m:  0m ok=true · 0.34m ok=true · 0.64m ok=true · 0.72m ok=true
+2nd: after E    seated=false  panel=null  landing=null   "[E] sit at the slot"
+    …identical. Nothing moved.
+```
+
+The spot is live, selected and prompting; there is no landing latch; the player
+is standing in the right place. The key simply does not arrive at the dispatch.
+
+**Exactly ONE press is lost** — the one after it always works. That is the
+signature of an edge-trigger that has missed its edge: `crosstown.ts:984` fires
+on `feedDown && !feedHeld`, and `:1015` sets `feedHeld = feedDown` each frame.
+
+**I have deliberately stopped there.** I can see the shape but I have not traced
+which side leaves `input.keys` or `feedHeld` in that state, and guessing inside
+`main.ts`, `crosstown.ts` and `ct/hud.ts` — three files, none of them mine — is
+how a confident wrong answer gets written down. The controls above should point
+at it quickly for whoever owns that path.
+
 ## Why I think it is yours rather than K's, and how sure I am
 
 `f110b7f5a` — *"ESCAPE HATCH FIRST: force-stand from any seated state, at the
