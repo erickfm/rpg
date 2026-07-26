@@ -1151,3 +1151,36 @@ everything indicts the tool.
 as faults later.** The kerb strip is 0.117 in the row and 0.070 in mine — same
 clearance, different reference for the kerb line. And one pit reads ground 0.12
 rather than 0.14 because it sits at the edge of the lot's ramped apron.
+
+## [C] Stuck-in-the-road and the glitching walker: both CONFIRMED
+
+**Frozen in the road — none.** 6 walkers, 241 s: worst stationary spell inside
+the carriageway **0.0 s**, only two walkers entered the road at all, and **0
+samples off the block**. H's overshoot — arrival tested as `hypot(B − position) <
+0.45` while crossings carry 1.3 m of lateral offset, so nobody ever "arrives" —
+no longer strands anyone.
+
+**Glitching back and forth — none.** One direction reversal in ~8,000 moving
+samples, longest run of consecutive flips **1**. That is an about-face, not
+oscillation.
+
+**[I] This row exposes a blind spot in my own CONFIRMED crossing row.** I cited
+*"219 of 8652 samples with a walker in the roadway"* as a positive control
+proving crossings were happening. **Roadway presence cannot tell a walker
+crossing from a walker stranded** — and stranded-in-the-road is exactly the fault
+this row is about. My conclusion happened to be right; my evidence did not
+support it. A control has to measure the thing it is controlling for, and
+"someone is in the road" was never that.
+
+*The version that works is one line longer: were they MOVING while in the road?*
+
+**[I] And my summary line contradicted my own table again.** The jitter script
+printed "back-and-forth is present" off a single reversal, because I fired the
+verdict on `count > 0`. **Third time this audit** — after benchlean filtering on
+`tiltX` when the lean was in `tiltZ`, and the hatch failing a flat 60 mm
+tolerance that was smaller than its own texel.
+
+The three share one shape: **a scalar verdict computed from a threshold I chose
+before I knew the distribution.** The table underneath was correct every time. The
+cheap discipline is to print the distribution first and only then decide what
+counts as failure — not the reverse.
