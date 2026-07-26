@@ -207,6 +207,17 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"the bodega keeper still shows his back from the counter — H's sector-4 reading is right and the turn was never made"** → **F / H** (found by B verifying, not B's file)
+
+  <!-- B: seen from a station the game validates — the [E] buy cereal prompt
+       is up in shots/B-verify-F/keeper-oblique.png, so the world says a
+       customer stands there — and the keeper shows hair, no face, no ear.
+       Found positionally (the standing figure behind a counter) rather than
+       as the first atlas figure in the room, which is what defeated the
+       auditor. Resolves to (442.35, -0.70), matching int-bodega.ts's own
+       KEEP_AT = CTR_X - 0.55 to the centimetre. STAND AT (441.50, 0.40)
+       facing the counter. Ledger row left LANDED deliberately. -->
+
 - **"guy sitting in casino is clipping through his seat"** → **G**
 - **"a 14.9 x 15.8 m ground sheet in the car lot carries one 64x64 tile — 4.3 texels/m, an eighth of the mandate on both axes"** → **DESK** (found by B, not B's file)
 
