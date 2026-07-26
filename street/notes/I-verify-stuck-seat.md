@@ -13,7 +13,11 @@ A warp-in never does.
 
 ## The reproduction
 
-Fresh page per trial, no carried state, build `2bda13fcc`:
+Fresh page per trial, no carried state. **Re-run under the which-world guard on
+my own build (`4da29b700+`) and the numbers came back identical** — I found my
+first pass had been pointed at port 4194, which serves another builder's tree,
+because my ad-hoc probes never called the guard that the registered checks do.
+That is the whole reason the guard exists and I had walked straight past it:
 
     room 301 bed, stepping back from its own approach point (198.3, -16.3):
 
