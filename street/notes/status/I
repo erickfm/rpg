@@ -1,1 +1,1 @@
-DONE | 0 live rows and 0 LANDED rows anywhere; verified O's jail and C's TV state machine this round | 
+WORKING | reproduced the stuck-in-seat fault (teleport >1.0 m into any seat traps the player); evidence in LEDGER + notes/I-verify-stuck-seat.md | F and B to fix — kit-level, not my file
