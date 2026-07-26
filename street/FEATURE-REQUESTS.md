@@ -157,6 +157,7 @@ being built, and to **Done** (dated) once verified in a screenshot and
 published to the playable artifact.
 
 ## Inbox
+- **"'Screenshot from 2026-07-25 22-02-53.png' can we remove the horiz stripes on the walls with the railing?"** → **C**
 - **"shouldnt be able to select things through objects ever"** → **D**
 - **"'Screenshot from 2026-07-25 22-01-17.png' front of bodega is a little bit too jankily illuminated. like that exact rectangle doesnt look like the other stuff"** → **B**
 - **"'Screenshot from 2026-07-25 22-00-33.png' need a bit of space on entry area. maybe instead of slot we kill a row and add seat of some sort"** → **G**
