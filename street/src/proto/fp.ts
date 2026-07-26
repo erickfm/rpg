@@ -523,20 +523,24 @@ export class SpotOutline {
     color: 0xfff3c4, depthTest: false, transparent: true, opacity: 0.95,
   });
 
-  /** THE OBJECT IS THE SPOT'S OWN — one source of truth for prompt and outline.
+  /** WHAT the player has selected. The spot's own declared object, and nothing
+   *  else — no search, no ray, no nearest-mesh guess.
    *
-   *  This used to hunt the scene for "the largest plausible mesh near these
-   *  coordinates", which is how the thrift store's prompt came to outline a MILK
-   *  CRATE standing on the pavement, the bed outlined only its frame, and the
-   *  301 door outlined nothing at all. Three different symptoms, one cause: two
-   *  code paths deciding independently what the player had selected.
+   *  Every version of this that GUESSED produced a confidently wrong answer, and
+   *  the last one was the worst because it looked deliberate: a wireframe cube
+   *  standing on the floorboards in the middle of the room, nowhere near the
+   *  door it was offering. That was the `ctx.spot()` PROXIMITY VOLUME drawn as
+   *  geometry, which is also what the three earlier reports had been all along —
+   *  the bed's "frame" was the volume sitting low at the bed base, the thrift's
+   *  "crate" was the volume standing where a crate happens to be, and the 301
+   *  door drew nothing because its volume was not where the door is.
    *
-   *  There is no hunting left. A spot either declares its object or it does not,
-   *  and the fallback is a plain box AT THE SPOT — deliberately generic, because
-   *  a confident wrong answer is what produced the crate. */
+   *  So: a spot that has not declared its object draws NOTHING. That is correct
+   *  and honest. A missing outline reads as a feature not yet reaching that
+   *  object; a wrong one reads as a broken game.
+   */
   private resolve(spot: Pickable & object): THREE.Object3D | null {
-    const o = (spot as { obj?: THREE.Object3D }).obj;
-    return o ?? null;
+    return (spot as { obj?: THREE.Object3D }).obj ?? null;
   }
 
   private clear(scene: THREE.Object3D): void {
@@ -572,15 +576,11 @@ export class SpotOutline {
       g.add(ln);
     }
     if (g.children.length === 0) {
-      // NOTHING RESOLVED — draw a box at the spot rather than nothing. This is
-      // the parity rule: a prompt always draws a highlight, so the player can
-      // never be left unable to tell a broken feature from an inert object.
-      const w = Math.min(1.6, Math.max(0.5, spot.r));
-      const eg = new THREE.EdgesGeometry(new THREE.BoxGeometry(w, 1.9, w), 1);
-      const ln = new THREE.LineSegments(eg, this.mat);
-      ln.renderOrder = 999;
-      ln.position.set(spot.x, 0.95, spot.z);
-      g.add(ln);
+      // NOTHING DECLARED — draw nothing, deliberately. A box at the spot is the
+      // trigger volume, and drawing that is what put a wireframe cube on the
+      // floorboards in the middle of a room.
+      this.shown = spot;
+      return;
     }
     scene.add(g);
     this.group = g;

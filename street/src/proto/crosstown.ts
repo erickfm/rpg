@@ -718,9 +718,10 @@ export function makeCrosstown(): Proto {
     // testing the list.
     highlightParity: () => SPOTS.map((sp) => ({
       label: sp.label(),
-      // every spot draws SOMETHING — the fallback guarantees it — so this is
-      // the sharper question: does it draw the object, or a box standing in?
-      outlined: true,
+      // A spot draws an outline if and only if it DECLARED its object. There is
+      // no fallback any more: drawing the trigger volume is what put a wireframe
+      // cube on the floorboards.
+      outlined: spotOutline.resolves(sp),
       contoured: spotOutline.resolves(sp),
     })),
     seats: () => SEATS,
