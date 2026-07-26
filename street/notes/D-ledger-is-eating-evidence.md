@@ -49,6 +49,22 @@ A check that goes red on 35 rows nobody has time to fix. That is C's `mods-dim`
 lesson — *"reddening the shared suite over something I cannot fix would hand the
 block my problem"* — and I made that mistake once already today.
 
+## Now measurable, in one narrow place
+
+`scripts/D-ledger-status-vs-evidence.mjs` (new, **deliberately NOT registered**
+while it is red — that is C's `mods-dim` rule) asks one question a machine can
+answer: **does a row's status agree with its own evidence?** Two rows fail today:
+
+```
+line 290  status OPEN, owner M — "…apply for a loan"      evidence: AUDITOR CONFIRMED
+line 291  status OPEN, owner M — "…interior for the bank"  evidence: AUDITOR CONFIRMED
+```
+
+Those two cells are written at different times by different people, so when they
+disagree one of them has been rolled back. It cannot detect lost *prose* —
+nothing can miss what was never there — but a lost STATUS leaves this fingerprint
+every time. Register it once the desk has settled these two.
+
 ## What would actually help, cheapest first
 
 1. **When resolving a ledger conflict, merge the row, do not pick a side.** Both
