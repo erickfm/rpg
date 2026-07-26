@@ -35,19 +35,37 @@ I reverted it rather than ship it. A half-working pose is worse than none here:
 F and G would call it in good faith and get standing keepers in their booths,
 and the fault would surface as a user report about the interiors again.
 
-## What it actually needs, and why I stopped
+## What it actually needs — and the design is now settled, only the doing is left
 
 The head, torso and arms are drawn at fixed rows near the top of the frame.
-Seating means offsetting that whole block down by ~8-10 rows and folding the
-legs into the space it vacates — a change through the middle of the atlas
-painter, not a branch at the end of it. It also wants a decision I should not
-take alone:
+Seating means dropping that whole block and folding the legs into the space it
+vacates. The arithmetic works out cleanly and keeps the feet where they are:
 
-- **Does the seated figure keep its origin at the feet?** `citizenPlane()`
-  translates so the origin is the painted shoe, which is what stopped the
-  world-wide 12 cm float. A seated figure has no shoe on the ground; a caller
-  places it by SEAT height. Either the origin moves for this pose, or callers
-  offset by hand — and hand-offsetting is exactly how the float happened.
+```
+standing   hip row 38   foot row 59   legs 21 rows, straight
+seated     hip row 47   foot row 59   thigh forward from 47, shin down to 59
+           upper body (head, torso, arms, hair, face) all +9 rows
+```
+
+A folded leg needs about 13 rows, not 21, which is exactly the 9 the upper body
+gives up — so the figure sits down INTO the frame without leaving it, and the
+painted shoe still lands on row 59 where `citizenPlane()` expects it.
+
+**The cheap way to do it:** the painter draws the legs and feet FIRST, then the
+torso, arms, head and hair. So the upper-body drop does not need every `oy + N`
+rewritten — a `g.translate(0, 9)` after the feet block and a matching
+`translate(0, -9)` at the end of the frame moves all of it at once. Two edits
+plus the folded-leg block, which I already wrote and can lift back out of
+`shots/seated.png`'s commit.
+
+What is still not mine to decide:
+
+- ~~Does the seated figure keep its origin at the feet?~~ **I raised this and it
+  is not a question — I had it backwards. A SEATED PERSON'S FEET ARE ON THE
+  FLOOR.** So `citizenPlane()`'s feet-origin stays exactly as it is, nothing
+  about the 12 cm float fix is disturbed, and the caller places the SEAT to meet
+  the figure's hip rather than placing the figure by seat height. That removes
+  the decision I said I needed and it removes the hand-offsetting risk with it.
 - **How many poses?** Seated covers booths, stools, pews and desks. Leaning on
   a counter is a different silhouette again and half the keepers do that.
 
