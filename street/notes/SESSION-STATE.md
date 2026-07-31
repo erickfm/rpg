@@ -134,12 +134,15 @@ stations, not on a regression. Sending D after it wastes an agent.
 ## Documentation defects — know these before you trust a file
 
 1. **Queue checkboxes are not maintained.** K reports *"queue closed, all four
-   items done"* while `K-inventory.md` still shows 4 unticked boxes. Same for
-   most queues. **The ledger is the source of truth for WHETHER; the queue is
-   only HOW.** Never read an unticked box as open work.
-2. **`notes/` holds 394 files in one flat directory** (`archive/` has 10).
-   Nobody can find anything in it. Anything still live should be linked from
-   *this* file or it is effectively lost.
+   items done"* while `queues/K-inventory.md` still shows 4 unticked boxes.
+   Same for most queues. **The ledger is the source of truth for WHETHER; the
+   queue is only HOW.** Never read an unticked box as open work.
+2. **`notes/` was 394 files in one flat directory — now 45.** The other 349
+   were finished handoff and verification notes and moved to `archive/`
+   (2026-07-30), which now has 359 files and an `archive/INDEX.md` listing every
+   one with its heading. Nothing was deleted. **A note at the top level of
+   `notes/` is live; one in `archive/` is history.** Keep it that way: when a
+   note's work is done, move it down.
 3. **31% of AUDIT's build SHAs don't resolve.** A citation is not evidence if
    the reader cannot reach it.
 4. **CONFIRMED is neither permanent nor proof.** GOTCHAS 49: a row can be
