@@ -1544,3 +1544,28 @@ worthless output. §48 was about a measuring script pointed at port 4177 instead
 of the world under test. This is the same failure one level up — the *builder*
 pointed at the wrong tree. Check what you are standing on before you trust
 anything you measure from it.
+
+## 53. An agent that backgrounds its own work and waits will never finish
+
+One agent on the twelve-room exit check burned **245,000 tokens across two
+wake-ups and delivered nothing** — no commit, no note, no partial table. Both
+times it stopped with the same report: *"waiting for the background suite to
+finish; will continue once notified."* The suite was not running. Nothing was
+ever going to wake it.
+
+It was not confused about the task and it was not blocked on a hard problem. It
+had correctly instrumented the `canSee` raycast and had obeyed a mid-flight
+correction to strip debug logging out of two desk-owned files. **It simply never
+came back to collect its own result.**
+
+**Every brief to a worker must say: run everything synchronously; the dev server
+may be a background process, test runs may not be.** And it must say: *a partial
+result beats a complete one you did not finish* — an agent that believes it must
+deliver everything will wait forever rather than hand back nine rows of twelve.
+
+**The desk's half of this:** stop it, do not resume it a third time. Two stalls
+on the same pattern is the pattern. Re-brief a fresh agent with the constraint
+written in — cold context and a tighter brief beats an agent that has already
+learned a losing habit inside its own transcript. This is the cheap version of
+the lesson that cost the account its usage: *an agent exists only while it holds
+an item*, and one that is not producing is not holding it.
