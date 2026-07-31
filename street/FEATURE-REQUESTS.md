@@ -1684,3 +1684,30 @@ No world code is stranded. Every headline request is CONFIRMED except one —
 call.** That is the eleventh instance of the project's oldest structural bug:
 finished work that cannot reach the world because the line that wires it lives
 in someone else's file.
+
+
+## Three asks that were built but never logged here (backfilled 2026-07-30)
+
+Found by auditing every LEDGER row against this file. All three were briefed
+straight into a queue file while spawning a builder, bypassing `route.sh` —
+GOTCHAS 47, the desk's own direct dispatches go unlogged. **All three were
+built and are CONFIRMED**; nothing was lost except the entry in this file,
+which is the file the user reads to see whether he was heard.
+
+> *"create a whole interior for the bank. it should be very nice inside."*
+
+Routed to **M**. The bank was facade-only. LEDGER:292, CONFIRMED.
+
+> *"i would like to enter the bank and be able to apply for a loan"*
+
+Routed to **M**. LEDGER:291, CONFIRMED.
+
+> *"looks really bad rn"* — the diner FACADE, not the blade.
+
+Routed to **A**. LEDGER:124, CONFIRMED for the depth treatment.
+
+**Why this matters more than three lines.** This file is the record of the
+user's own words; the ledger is the record of work. When a request reaches the
+ledger without passing through here, the user loses the ability to see and
+reprioritise it — he cannot reprioritise a queue he cannot see. The fix is not
+to remember harder: it is to route through `route.sh`, which writes both.
