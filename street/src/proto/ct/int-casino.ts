@@ -6,6 +6,15 @@ import { type DoorDecl } from './doors';
 import { citizenSprite } from './citizens';
 import { ORDER as HOOK } from './ctx';
 import { tube, VICE_DOOR_X, leafPair } from './vice';
+// SEAT_LABEL, not a hand-typed copy of its string. blackjack.ts's own docstring
+// on this constant names this exact table — TX = -2.6, TZ = -13.0, the only
+// felt on this floor with a dealer standing at it — as the seat it has been
+// waiting on. Importing the constant instead of retyping
+// 'sit at the blackjack table' is what stops this from drifting the way
+// SEAT_LABEL and 'sit at the table' already had. No cycle: blackjack.ts
+// imports only ./ctx, ./hud (dynamically) and ./slots (dynamically), never
+// this file.
+import { SEAT_LABEL as BLACKJACK_SEAT } from './blackjack';
 
 // SEVENS, inside.
 //
@@ -1086,7 +1095,18 @@ export function buildCasino(ctx: CtxBuild): void {
     // just caught on the slots", and all 120 reel machines had one while the
     // tables had none. Taller than a slot stool because a gaming table is
     // higher, and placed round each table's own centre so they follow it.
-    const gameStool = (gx: number, gz: number, yaw: number) => {
+    //
+    // LABEL IS A PARAMETER, not a constant baked into the helper. It was
+    // 'sit at the table' unconditionally, which is what silently made every
+    // stool on this floor — roulette's, craps's, poker's AND blackjack's —
+    // carry the identical string. blackjack.ts bridges on its own
+    // `SEAT_LABEL` and nothing else, so before this it had no seat anywhere
+    // to open from: sitting at the felt table did nothing, and relabelling
+    // every stool here would have opened blackjack at the roulette wheel
+    // instead. Only the felt table below (TX = -2.6, TZ = -13.0, the one
+    // with a dealer standing at it) passes the blackjack label; roulette,
+    // craps and poker keep the shared 'sit at the table' they always had.
+    const gameStool = (gx: number, gz: number, yaw: number, label = 'sit at the table') => {
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, GSTOOL_T, 10), stoolTopM),
         gx, GSTOOL_TOP - GSTOOL_T / 2, gz);
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.68, 8), stoolPoleM), gx, 0.34, gz);
@@ -1096,7 +1116,7 @@ export function buildCasino(ctx: CtxBuild): void {
       ctx.seat({
         x: room.wx(gx), z: room.wz(gz), yaw, h: GSTOOL_TOP,   // the TOP face, not the centre
         approach: { x: room.wx(gx + Math.sin(yaw) * 0.8), z: room.wz(gz + Math.cos(yaw) * 0.8) },
-        label: 'sit at the table', ok: () => room.inside(),
+        label, ok: () => room.inside(),
       });
     };
     // roulette: five round its open side
@@ -1112,6 +1132,19 @@ export function buildCasino(ctx: CtxBuild): void {
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
       gameStool(-3.0 + Math.sin(a) * 1.65, -3.6 + Math.cos(a) * 1.65, a + Math.PI);
+    }
+    // BLACKJACK: four seats on the player side of the felt table at
+    // (TX, TZ) = (-2.6, -13.0), facing the dealer who already stands at
+    // TZ - 0.95, i.e. at LOWER z than the seats. A blackjack table seats
+    // players in a row on ONE side only — the dealer's side is the house's,
+    // not the player's — so these sit on the +z side of the felt (away from
+    // the dealer, clear of the table's own 1.9 x 1.2 collider, which ends at
+    // TZ + 0.6) and face yaw 0 (-z, toward lower z), which is toward both the
+    // table and the dealer beyond it. The default approach point this yaw
+    // produces is a further 0.8 m out along +z — open floor between the pit
+    // rope and the felt, not inside the table.
+    for (const dx of [-0.55, -0.18, 0.18, 0.55]) {
+      gameStool(TX + dx, TZ + 0.85, 0, BLACKJACK_SEAT);
     }
 
     // KENO — a lit board on the west wall, the only thing up there with numbers
