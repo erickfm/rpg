@@ -1513,3 +1513,34 @@ Only the fourth test answers it: **every line, against every blob reachable
 from every ref, across all of `street/src`, regardless of path.** Anything less
 confidently reports a false verdict in whichever direction you were already
 leaning.
+
+## 52. A fresh agent worktree does NOT start on this project
+
+Every subagent spawned with worktree isolation on 2026-07-31 — four for four —
+was handed a worktree checked out at **the repo's initial commit (a bare
+README)** or at **`origin/main`**, which is 3,299 commits behind. Not one
+started on `add-stick-and-city98`, where the project actually lives.
+
+Two of them noticed and reset themselves. One could not write to the checkout
+at all and had to stage its entire deliverable — a full audit plus three ledger
+edits — in a file for the desk to apply by hand.
+
+**Every brief to a worktree agent must open with this**, because an agent that
+does not notice will happily build against an empty repo and report success:
+
+```sh
+git log --oneline -3          # do you see recent CROSSTOWN work?
+git reset --hard add-stick-and-city98
+(cd street && npm install)    # the reset deletes the node_modules symlink, §13
+```
+
+The `npm install` is not optional and is the part people miss: the hard reset
+removes the `node_modules` symlink, and the dev server then fails to start with
+an error that looks nothing like the actual cause.
+
+**The deeper point, which is the same one §48 makes about instruments:** a
+worker aimed at the wrong world produces confident, well-evidenced, completely
+worthless output. §48 was about a measuring script pointed at port 4177 instead
+of the world under test. This is the same failure one level up — the *builder*
+pointed at the wrong tree. Check what you are standing on before you trust
+anything you measure from it.
