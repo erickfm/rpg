@@ -20,11 +20,35 @@ await page.goto(URL, { waitUntil: 'networkidle' });
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(page, URL);
 
-const seats = await page.evaluate(() => {
+// EVERY SEAT I OWN, NOT JUST THE PARK'S.
+//
+// This filtered to the park box and E-verify advertised it as "every seat can
+// actually be reached" — so a green here said nothing about the LIBRARY
+// COURTYARD benches, which are the subject of a user request in their own
+// right: *"i cant sit at the benches at the library"* (FEATURE-REQUESTS.md:836).
+// Nine seats checked, two ignored, and the description claimed all of them.
+// Same shape as this suite's own worst habit: an entry point that promises
+// completeness and quietly covers a subset (GOTCHAS 34, one level up).
+const AREAS = [
+  { name: 'park', minX: -39, maxX: -7, minZ: -99, maxZ: -67 },
+  { name: 'library courtyard', minX: -13, maxX: -5, minZ: -22, maxZ: -4 },
+];
+// POSITIVE CONTROL: `E_EMPTY=1` points the library box at open road, where
+// there are no seats. The per-area guard MUST exit 3. Without this the guard is
+// a line nobody has watched run, and it is the line standing between "the
+// library benches are fine" and "I did not look at the library benches".
+if (process.env.E_EMPTY) {
+  AREAS[1] = { name: 'library courtyard', minX: 300, maxX: 320, minZ: -22, maxZ: -4 };
+  console.log('CONTROL: library box aimed at empty road — this MUST exit 3');
+}
+const seats = await page.evaluate((areas) => {
   const all = window.__ct.seats?.() ?? [];
-  const park = all.filter((s) => s.pose.x > -39 && s.pose.x < -7 && s.pose.z > -99 && s.pose.z < -67);
+  const mine = all.filter((s) => areas.some((a) =>
+    s.pose.x > a.minX && s.pose.x < a.maxX && s.pose.z > a.minZ && s.pose.z < a.maxZ));
   const cols = window.__ct.colliders?.() ?? [];
-  return park.map((s) => {
+  return mine.map((s) => {
+    const area = areas.find((a) =>
+      s.pose.x > a.minX && s.pose.x < a.maxX && s.pose.z > a.minZ && s.pose.z < a.maxZ);
     // RADIUS 0.36 is the player. A trigger you can only reach by standing
     // inside a wall is not reachable.
     const blocked = cols.some((c) =>
@@ -37,15 +61,26 @@ const seats = await page.evaluate(() => {
     const fx = Math.sin(s.pose.yaw), fz = -Math.cos(s.pose.yaw);
     const dx = s.at.x - s.pose.x, dz = s.at.z - s.pose.z;
     const len = Math.hypot(dx, dz) || 1;
-    return { x: +s.pose.x.toFixed(2), z: +s.pose.z.toFixed(2), blocked,
+    return { x: +s.pose.x.toFixed(2), z: +s.pose.z.toFixed(2), blocked, area: area.name,
       infront: +((fx * dx + fz * dz) / len).toFixed(2), label: s.label };
   });
-});
+}, AREAS);
 
-if (seats.length < 5) {
-  console.log(`only ${seats.length} park seats found — EXIT 3, the locator is wrong, not the park`);
-  await b.close(); process.exit(3);
+// PER AREA, so one area emptying cannot hide behind the other's count. The old
+// guard was `seats.length < 5` over a single box; with two areas a total is not
+// enough — the library's two could vanish and eleven-minus-two still clears any
+// total you would pick.
+const byArea = Object.fromEntries(AREAS.map((a) => [a.name, seats.filter((s) => s.area === a.name).length]));
+console.log(`seats found: ${Object.entries(byArea).map(([k, v]) => `${v} in the ${k}`).join(', ')}`);
+for (const [name, n] of Object.entries(byArea)) {
+  if (n === 0) {
+    console.log(`EXIT 3: no seats found in the ${name} — the locator is wrong, or they are gone.`);
+    console.log('Either way this run cannot say they are reachable.');
+    await b.close(); process.exit(3);
+  }
 }
+
+
 let bad = 0;
 for (const s of seats) {
   const why = s.blocked ? 'UNREACHABLE — a collider covers the trigger'
@@ -53,7 +88,7 @@ for (const s of seats) {
   if (why) bad++;
   console.log(`  ${why ? 'FAIL' : 'PASS'}  seat ${s.x},${s.z}  in-front ${s.infront}${why ? '  ' + why : ''}`);
 }
-console.log(bad ? `\n${bad} of ${seats.length} park seats cannot be used as intended`
-  : `\nall ${seats.length} park seats are reachable, and approached from the front`);
+console.log(bad ? `\n${bad} of ${seats.length} seats cannot be used as intended`
+  : `\nall ${seats.length} seats I own are reachable, and approached from the front`);
 await b.close();
 process.exit(bad ? 1 : 0);
