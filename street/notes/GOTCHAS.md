@@ -1473,3 +1473,43 @@ cost every row after it, and somebody else would have had to find out.
 **The mechanical half:** a formula you retype is a formula you will eventually
 retype wrong. If a convention has bitten twice, it belongs in a shared helper or
 in a comment where the next person cannot miss it — not in your memory.
+
+## 51. The dangling objects are the only copy of every rejected design
+
+This repo carries ~2,138 dangling commits. **Do not `git prune` them and do not
+`git gc --prune=now`.** `gc.pruneExpire` is set to `never` in `.git/config` for
+exactly this reason — the default two-week expiry would have deleted them
+automatically.
+
+Most are disposable: 1,775 `live-snapshot` commits from `live-integrate.sh`
+(every 15 s, and their own subject says `[not for merge]`). But **43 blobs hold
+source lines that exist nowhere else in reachable history** — every one of them
+held by a `git stash` autosave or a bare `wip` commit.
+
+They are not unfinished work. They are **abandoned iterations**: the clearest
+example is a cat silhouette from `street.ts`, 85 unique lines of hand-drawn
+pixel art, which `ct/cat.ts` explains is one of *"the first six"* the user
+narrowed to two — *"the rest were dropped."* On a hand-authored, taste-driven
+world, the rejected alternatives are worth keeping. They cost nothing: the repo
+packs to 52 MB with all of them in it.
+
+**The methodological trap, which cost two wrong answers before the right one.**
+Asking "did this land?" has three tempting cheap tests and both of the first two
+are wrong here:
+
+1. **By commit subject** — wrong. A rebase that resolves a conflict keeps the
+   subject and changes the content. It also silently skips every commit whose
+   subject is `wip`, which was 148 of them.
+2. **By `patch-id`** — still wrong. A WIP snapshot finished later in a different
+   shape has no matching patch-id, yet its work is fully in the world. 293 of
+   363 "failed" this test and almost all of them had landed.
+3. **By content, against the file's own history** — *still* wrong, and this is
+   the project-specific one. This codebase moves code between files constantly:
+   `cat.ts` was extracted out of `street.ts`, `bodega.ts` was split into
+   `bodega-corner.ts` and `int-bodega.ts`. Comparing a blob against its own
+   path's history reports relocated code as missing.
+
+Only the fourth test answers it: **every line, against every blob reachable
+from every ref, across all of `street/src`, regardless of path.** Anything less
+confidently reports a false verdict in whichever direction you were already
+leaning.
