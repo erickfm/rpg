@@ -21,7 +21,22 @@ scripts**. No world code is stranded. Every headline feature the user asked for
 this run is CONFIRMED in the ledger and reachable in the world, with one
 exception, named below.
 
-**Ledger at close: 214 CONFIRMED · 1 LANDED · 14 OPEN** (229 rows).
+**Ledger at close: 214 CONFIRMED · 1 LANDED · 14 OPEN · 2 VOID** (231 rows).
+
+**Seven of the user's asks are outstanding.** The other 8 open rows are
+internal housekeeping — verification debt and instrument faults — and the 2
+VOID rows are explicit duplicates. The seven are: blackjack, interior people,
+exteriors-match-interiors, the used auto lot, gravity, the pickup tyre clip,
+and the church pillars (LANDED, awaiting a check). All seven are listed with
+their owners under "Open work" below.
+
+**Counting caveat, learned the hard way.** Do not reconcile
+`FEATURE-REQUESTS.md` against `LEDGER.md` by string matching — it inflates the
+outstanding count every time, because **the ledger paraphrases**: the user's
+*"atm needs a bit more detail… a bit lower to the ground"* is filed as *"ATM
+inlaid, slanted, lower, more detail"*. Three separate attempts reported 67, 44
+and 26 phantom missing asks. The ledger's own OPEN/LANDED rows are the
+authoritative count of what is outstanding.
 
 ---
 
