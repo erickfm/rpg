@@ -53,7 +53,42 @@ working, sixteen agents *existing*.
 
 ---
 
-## Loose on disk (none of it is world code)
+## Disk layout after the 2026-07-30 clean-up
+
+Everything below **landed** — all 16 feature branches are fully merged into
+`add-stick-and-city98`, so nothing is stranded anywhere.
+
+**Three worktrees remain**, the ones a restart needs first:
+
+| worktree | branch | for |
+|---|---|---|
+| `rpg` | `add-stick-and-city98` | the desk, and the base everything merges into |
+| `rpg-interiors2` | `feat/interiors2` | **slot 1 — G**, the blackjack seat |
+| `rpg-audit` | `audit/seams` | **slot 2 — AUDIT**, the verification debt |
+| `rpg-live` | `live` | the integration world on 5177 |
+
+**The other 14 worktrees were removed. Their branches were not** — `feat/alley`,
+`feat/bankint`, `feat/civic`, `feat/civicint`, `feat/entrance`, `feat/ground`,
+`feat/interiors`, `feat/inv`, `feat/jail`, `feat/lot`, `feat/slots`,
+`feat/split-2b`, `feat/tenancy`, `feat/traffic` all still exist and all are
+merged. Recreate any of them in one command:
+
+```sh
+git worktree add ../rpg-<name> feat/<name> && (cd ../rpg-<name> && npm install)
+```
+
+Do not recreate more than the cap allows. Slots 3–5 want **fresh** worktrees
+scoped to their item, not fourteen resurrected ones.
+
+Also cleaned: `.git` packed from 355 MB to 52 MB; `street/=`, an empty file a
+shell typo committed back in the sleep-fade verify run, deleted; N's scratch
+moved out of `street/` root into `archive/scratch-n/`. **`street/shots/` (50 MB)
+was deliberately left alone** — ledger evidence cites those screenshot paths by
+name, so clearing it would hollow out CONFIRMED rows.
+
+---
+
+## What was loose before the clean-up (all now committed and landed)
 
 | worktree | agent | state |
 |---|---|---|
