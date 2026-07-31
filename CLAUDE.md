@@ -8,10 +8,15 @@ else in reading order.
 
 Read these; everything else is history or reference.
 
+0. **`street/notes/SESSION-STATE.md`** — **read this first, always.** What is
+   unfinished right now and who has it. Everything below is how the project
+   works; this is where it currently stands
 1. **`street/START-HERE.md`** — orientation, which agent you are, how to run things
 2. **`street/notes/GOTCHAS.md`** — landmines. Read before your first change
 3. **`street/notes/OWNERSHIP.md`** — which files are yours
-4. **`street/notes/queues/<agent>.md`** — your actual tasks
+4. **`street/notes/queues/<agent>.md`** — your actual tasks. **Unticked boxes do
+   NOT mean open work** — most queues were never ticked off. The ledger says
+   whether; the queue only says how
 
 Reference, for looking things up rather than reading: `street/PARALLEL-WORKFLOW.md`
 (the multi-agent process) and `street/FEATURE-REQUESTS.md` (every request in the
@@ -27,6 +32,11 @@ see.
 Builders take tasks from `street/notes/queues/<agent>.md`. The desk writes those
 files; builders only read them, and report completion in a handoff note under
 `street/notes/`.
+
+**At most 5 agents run at once — normally 3 builders + 1 auditor.** A
+sixteen-agent run exhausted the account's usage on 2026-07-30 and took the whole
+fleet down. An agent exists only while it holds an item; when its queue empties
+it gets shut down, not parked. `street/PARALLEL-WORKFLOW.md` §10 is binding.
 
 **Screenshots are for LOOKING, never for PROVING.** Two runs of identical code
 differ ~20% of pixels. To prove a change didn't move the world:

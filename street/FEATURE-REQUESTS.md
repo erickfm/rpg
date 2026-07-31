@@ -1645,3 +1645,42 @@ sleeping through a week fills the box the same way walking through one does.
 Guarded by `scripts/N-post-waiting.mjs`. See `notes/N-tenancy.md`.
 
 Still open: the landlord himself, and paying him.
+
+
+## A cap on the fleet, and a handoff that loses nothing
+
+> *"yea, i actually ran out of usage cause we had like a million builders. lets
+> just make sure we doc everything and dont let anything fall through the
+> cracks. you'll handoff your work and we'll set a limit on agents going
+> forward. probs 5 or less? idk what do you think?"*
+
+**Kept at the desk — no builder was spawned for it, which is the point.**
+
+The sixteen-agent run exhausted the account's usage and every agent died at
+once. Answer to the question: **5 is the right ceiling, and the normal shape is
+4 — three builders plus one auditor.** The number matters less than the rule
+that came with it: *an agent exists only while it holds an item.* When the
+fleet died, 11 of the 16 were reporting DONE with empty queues and were still
+alive and still burning. The spend was not sixteen agents working, it was
+sixteen agents existing.
+
+Written down in three places, and the cap is binding rather than advisory:
+
+- `PARALLEL-WORKFLOW.md` §10 — the ceiling, the per-item lifecycle rule, the
+  1-auditor-per-3-builders ratio, and an honest note on what sixteen actually
+  bought (not speed — the failure modes scaled with fleet size, not with work).
+  §3 and "why start at two" corrected, since the old *"raise it until merging
+  lags"* advice is what reached sixteen.
+- `CLAUDE.md` and `START-HERE.md` — the cap, and `SESSION-STATE.md` promoted to
+  the first thing anyone reads.
+- `notes/SESSION-STATE.md` — rewritten as the handoff: every open row with its
+  owner, the seven that have **no** owner, everything uncommitted on disk, and
+  which of the user's headline requests are genuinely done.
+
+The finding that mattered most while writing it: **nothing was lost.** Both
+unlanded commits and all seven dirty files are notes and verification scripts.
+No world code is stranded. Every headline request is CONFIRMED except one —
+**blackjack, which is built and unreachable for want of a single `ctx.seat()`
+call.** That is the eleventh instance of the project's oldest structural bug:
+finished work that cannot reach the world because the line that wires it lives
+in someone else's file.

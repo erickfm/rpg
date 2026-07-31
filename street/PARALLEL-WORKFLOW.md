@@ -47,7 +47,11 @@ free. That one's already fine.
 
 ---
 
-## 3. Topology: one desk, at most two builders
+## 3. Topology: one desk, a handful of builders
+
+> Sizing lives in **§10**, which is binding: **5 concurrent agents maximum,
+> normally 3 builders + 1 auditor.** The diagram below shows two because two is
+> where you start; it is not the ceiling and it is not a target.
 
 ```
               Erick
@@ -85,8 +89,13 @@ Bounded, no writes, no steering required.
 
 Not review bandwidth (see §1) — integration bandwidth. Two is where the desk can
 comfortably rebase, verify, and fold in handoff notes each round. Raise it as
-soon as the desk is idle waiting on builders; the ceiling is wherever merging
-and verifying starts lagging, and we find that empirically rather than guessing.
+soon as the desk is idle waiting on builders.
+
+**We since found the ceiling empirically, and it is lower than this section
+originally implied.** The old advice said to keep raising until merging and
+verifying lag. Followed literally, that reached sixteen — and what lagged first
+was not merging, it was *usage*: the run ended by exhausting the account, with
+every agent dying at once. **The answer is 5, and §10 is now binding.**
 
 ---
 
@@ -373,13 +382,38 @@ Two known ways feedback goes bad here:
 
 ## 10. Scaling rules
 
+> **HARD CEILING: 5 concurrent agents. Normal shape: 4 — three builders plus
+> one auditor.** Set 2026-07-30 after a sixteen-agent run exhausted the
+> account's usage and took the whole fleet down at once. This is a budget
+> limit, not a taste one; it is not to be exceeded because the backlog looks
+> big.
+
+- **An agent exists only while it holds an item.** Queue empties → shut it
+  down. Do not park idle agents in tmux. This is the rule that actually
+  controls cost: when the fleet died, **11 of 16 agents were reporting DONE
+  with empty queues** and were all still alive, still burning. The spend was
+  not sixteen agents *working*, it was sixteen agents *existing*.
 - **Start at one** (desk only). Add a builder when there is a genuinely
   independent chunky request *and* the module split has landed.
-- **Add a second builder** only if Erick is idle waiting on both.
-- **Drop back to one** whenever the unplaytested merge queue exceeds two, or
-  when the session is mostly tuning.
+- **Add builders one at a time**, only when Erick is idle waiting on all the
+  current ones. Stop at three plus the auditor.
+- **Drop back** whenever the unplaytested merge queue exceeds two, or when the
+  session is mostly tuning.
 - **Never spin up an agent for a request smaller than its brief.** If writing
   the brief takes longer than the change, the desk just does it.
+- **One auditor is enough at three builders — and was nowhere near enough at
+  fifteen.** Verification was the bottleneck all run (51 rows against one
+  auditor), which is what forced idle builders into verifier duty and produced
+  the confirmed-without-evidence problem. At 3:1 the ratio works.
+
+### What sixteen actually bought
+
+Not speed. The failure modes scaled with fleet size rather than with work
+volume: two builders independently rebuilt already-delivered work; four
+requests were briefed straight into queue files and never logged; long briefs
+were swallowed as tmux pastes; 28 CONFIRMED rows named no evidence at all. The
+desk's briefing quality was the constraint, and it degrades with every agent
+added. Fewer agents, better briefed, is strictly faster here.
 
 ---
 

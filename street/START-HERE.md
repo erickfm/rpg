@@ -7,10 +7,11 @@ project. This page gets you productive; everything else is linked from it.
 
 | | | |
 |---|---|---|
+| **notes/SESSION-STATE.md** | **read first** | where the project stands *right now* — what is unfinished, who has it |
 | **START-HERE.md** | you are here | orientation + how to run things |
 | **notes/GOTCHAS.md** | 120 lines | landmines. read before your first change |
 | **notes/OWNERSHIP.md** | 53 lines | which files are yours |
-| **notes/queues/\<you\>.md** | short | your actual tasks |
+| **notes/queues/\<you\>.md** | short | your actual tasks — but **unticked boxes ≠ open work**, most queues were never ticked off. The ledger says whether, the queue says how |
 | **notes/CITIZEN-STYLE.md** | read before drawing ANY person | the 8-angle atlas, with examples |
 
 Two more exist as **reference**, not reading: `PARALLEL-WORKFLOW.md` (the
