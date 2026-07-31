@@ -325,6 +325,20 @@ export function buildThrift(ctx: CtxBuild): void {
   // is not. Short garments below, long above, and the two blocks touching is
   // the whole tell — there is no gap because a gap would be wasted.
   const dblT = declareSurface(pixTex(24, 20, (g) => {
+    // BUG (found by eye 2026-07-31): the columns below never reach the bottom
+    // of the canvas — height is 12..19 out of 20, so every column leaves a
+    // strip of UNFILLED (alpha-0) canvas beneath it. `dither()` still runs over
+    // the full 24×20 rect, and its low-alpha fillRect blends against that
+    // transparent strip the way canvas 2D always composites source-over onto
+    // alpha 0: the OUTPUT is the source colour at the source alpha, i.e. a
+    // scatter of literally pure #000000 and #ffffff texels. This material has
+    // no `alphaTest`/`transparent`, so the renderer never reads that alpha
+    // channel back out — it just shows the pure black/white RGB — which is why
+    // the hem read as a ragged black-and-white fringe instead of fabric in
+    // shadow. Filling the canvas first means dither always blends against an
+    // OPAQUE colour, so the gap below each garment reads as the intended
+    // shadow beneath a packed second-tier rail, with ordinary subtle grain.
+    g.fillStyle = '#2b241e'; g.fillRect(0, 0, 24, 20);
     const cols = ['#6a5a4a', '#4a5a62', '#7a6a52', '#5a4a52', '#3a4a3a'];
     for (let i = 0; i < 24; i++) {
       g.fillStyle = cols[i % cols.length];
@@ -348,6 +362,11 @@ export function buildThrift(ctx: CtxBuild): void {
   const COAT_X = 3.4, COAT_Z0 = -2.3, COAT_Z1 = 0.9;
   const COAT_L = COAT_Z1 - COAT_Z0, COAT_CZ = (COAT_Z0 + COAT_Z1) / 2;
   const coatT = declareSurface(pixTex(20, 28, (g) => {
+    // Same fault as `dblT` above, on the same defect report: columns reach
+    // 20..27 of 28, dither runs over the full canvas, and the unfilled strip
+    // below each column comes out as pure black/white texels rather than
+    // shadow. Fill first so dither always has an opaque colour to blend into.
+    g.fillStyle = '#201d1f'; g.fillRect(0, 0, 20, 28);
     const cols = ['#3a3a42', '#4a4238', '#2f3a3a', '#52463a', '#38323a'];
     for (let i = 0; i < 20; i++) {
       g.fillStyle = cols[i % cols.length];
