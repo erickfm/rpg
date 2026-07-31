@@ -166,6 +166,35 @@ stations, not on a regression. Sending D after it wastes an agent.
 
 ---
 
+## Is the list of the user's asks complete? (reconciled 2026-07-30)
+
+**Yes — nothing was lost.** Checked both directions:
+
+- `FEATURE-REQUESTS.md` is **1,686 lines and has only ever grown** — line count
+  verified at every commit that touched it. Never truncated.
+- **246 asks** are recorded there as bullet quotes. **229 carry an inline
+  `→ **builder**`**; the other 17 are routed either on a continuation line or by
+  their `## Done — routed to X` section heading. **Zero are unrouted.**
+- Reverse direction: of **226 distinct LEDGER request texts**, three were the
+  user's own words and were **missing from the log** — the bank interior, the
+  bank loan, and the diner facade *"looks really bad rn"*. All three were built
+  and are CONFIRMED; only the log entry was absent. **Backfilled.** The other 60
+  unmatched rows are internal desk/auditor findings and belong to the ledger
+  only.
+
+**But the two records are NOT in sync, and neither is complete alone.** The
+ledger is not a superset of the request log: early asks (2026-07-24/25) were
+tracked in the log's own `## Done` sections before the ledger existed, so a
+2026-07-24 ask can be finished, correct, and have no ledger row at all. Do not
+read "no ledger row" as "never done" for anything from those two days.
+
+One live disagreement to be aware of: **"make the exteriors match the
+interiors"** is marked ✅ done in the log (`FEATURE-REQUESTS.md:1063`, for A's
+four facades) *and* is an OPEN ledger row. Both are true — A's four are done,
+the general request is not, and the user has asked five times.
+
+---
+
 ## Documentation defects — know these before you trust a file
 
 1. **Queue checkboxes are not maintained.** K reports *"queue closed, all four
