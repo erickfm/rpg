@@ -23,7 +23,29 @@ exception, named below.
 
 **Ledger at close: 214 CONFIRMED · 1 LANDED · 14 OPEN · 2 VOID** (231 rows).
 
-**Seven of the user's asks are outstanding.** The other 8 open rows are
+> ### ⚠ THE "SEVEN OUTSTANDING" FIGURE BELOW IS AN UNDERCOUNT — RETRACTED 2026-07-30
+>
+> It counts **only what the ledger admits is open**. The user's reply to it:
+> *"i made a bunch about shadow textures and shadow geometry. its all still
+> there but not noted in your missing. i expect dozens of remaining asks
+> outstanding."*
+>
+> He is right, and there are **three shadow-geometry rows all marked
+> CONFIRMED** — so a still-visible defect never appeared in any open count.
+> That is GOTCHAS 49 at scale: **the CONFIRMED pile is not evidence of done.**
+>
+> The reason it could go unnoticed for so long was measured the same day:
+> **`npm run sweep`, the routine instrument, photographs 1 of the world's 12
+> rooms and 0 of its 3 sites.** Every station in `bugsweep.mjs` is on the main
+> street corridor. The park, civic block, library, church, casino, hotel, bank,
+> jail, car lot and every shop interior are **never photographed**, so the sweep
+> reports "48 shots, zero errors" while most of the world is unobserved.
+>
+> **Do not quote a number of outstanding asks until the sweep covers the world
+> and someone has looked at the shots.** The honest answer today is: at least 7,
+> probably many more, and the instrument that would tell us is blind.
+
+**Seven of the user's asks are outstanding *by the ledger's own account*.** The other 8 open rows are
 internal housekeeping — verification debt and instrument faults — and the 2
 VOID rows are explicit duplicates. The seven are: blackjack, interior people,
 exteriors-match-interiors, the used auto lot, gravity, the pickup tyre clip,
