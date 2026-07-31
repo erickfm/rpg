@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { BUILD, type CtxBuild } from './ctx';
 import { pixTex, declareSurface, dither } from './paint';
 import { masonry, WALK_PROJECTION } from './tex-world';
+import { plazaTex, walkTex } from './tex-ground';
 
 // ── CITY OF CROSSTOWN · HOUSE OF DETENTION ────────────────────────────────
 //
@@ -65,13 +66,46 @@ export const ORDER = BUILD.SITE;
  * `ct/int-jail.ts` imports this; nothing in the room repeats a number.
  */
 export const JAIL = {
-  /** the facade plane. Both roster runs end on it. */
-  FACE_X: 57.0,
+  /** the SITE's own front edge. Both roster runs end on it, and it is what
+   *  gets checked against `ctx.site('jail').minX` at build time — NOT the
+   *  building's own face any more (see `FORE` below). */
+  SITE_X: 57.0,
+  /**
+   * THE WALKABILITY FIX (`notes/O-jail-site-walkable.md`). The building used
+   * to start flush on `SITE_X` and run the full offered depth, so the
+   * building's solid mass and the site's own bounds were nearly the same
+   * rectangle — `ctx.obstacle` covered x 56.88…69 of a published site
+   * 57…75, and `scripts/bugsweep.mjs`'s site stations (computed as fixed
+   * fractions of the site's own bounding box, the same shape it uses for the
+   * genuinely-open park and lot) landed INSIDE the building at 18% and 50%
+   * along it. `fp.ts`'s `unstick()` could not always find a way out of a
+   * deep interior point within its 0.45 s patience and reverted the whole
+   * move — measured landing the player back at the used car lot, 113 m away.
+   *
+   * FORE sets the building back from the site's edge into a real walkable
+   * forecourt, so the site is no longer "almost entirely building": a paved
+   * plaza in front, a solid civic block, and — because DEPTH below no longer
+   * eats the whole 18 m offered — a real fenced yard behind it. Measured
+   * empirically against the sweep's own three sample points (18%, 50%, 82%
+   * along the site's long axis) with the full world's other 522 colliders in
+   * play, not just calculated: FORE 4.0 / DEPTH 4.0 leaves both the 18% and
+   * 50% points on open ground with 0.28–1.76 m of clearance, no push
+   * required at all — see the worked table in the handoff note.
+   */
+  FORE: 4.0,
   /** the frontage, which is exactly the side street's own section: 2 m north
    *  walk + 10 m carriageway + 2 m south walk */
   Z_S: -110.0, Z_N: -96.0,
-  /** how far back it runs. Nothing is out there; the fog closes behind it. */
-  DEPTH: 12.0,
+  /** how far back the BUILDING runs, from its own face (SITE_X + FORE), not
+   *  from the site's edge. Shortened from the original 12.0 as part of the
+   *  walkability fix above — the interior room is a wholly separate
+   *  coordinate space (`ct/int-jail.ts`, x > 400) sized on its own terms, so
+   *  a shallower exterior shell costs the room nothing. What used to be
+   *  wasted, unreachable depth behind the building (12…75 was offered to 18,
+   *  built to 12) is now a real yard: SITE_X+FORE+DEPTH (65) to the site's
+   *  own back edge (75) — 10 m, not 6, and reachable because nothing pinches
+   *  the walk down to zero width to get there any more. */
+  DEPTH: 4.0,
   /** heights, from the street surface up */
   BASE_H: 4.6,          // the stone ground floor, and the sally port is in it
   UPPER_H: 6.6,         // two brick floors of 3.3
@@ -98,13 +132,20 @@ export const JAIL = {
   RECESS: 0.55,
 } as const;
 
+/** the building's own facade plane — `SITE_X + FORE`, i.e. set back from the
+ *  site's front edge into the forecourt. Exported separately from `JAIL`
+ *  because `int-jail.ts` and `JAIL_DOOR` both need the BUILDING's face, not
+ *  the site's, and typing `JAIL.SITE_X + JAIL.FORE` at every call site is
+ *  exactly the two-authorings fault `JAIL_DOOR` itself exists to avoid. */
+export const JAIL_FACE_X = JAIL.SITE_X + JAIL.FORE;
+
 /** the door, as a world POINT and an OUTWARD NORMAL — the general form
  *  `ct/doors.ts` takes, which is what `ct/int-casino.ts` uses for the same
  *  reason: this building fronts no roster axis, so "signed metres along the
  *  frontage" cannot describe it. The room declares this; the facade below
  *  builds its opening from the same object. */
 export const JAIL_DOOR = {
-  x: JAIL.FACE_X, z: (JAIL.Z_S + JAIL.Z_N) / 2, nx: -1, nz: 0,
+  x: JAIL_FACE_X, z: (JAIL.Z_S + JAIL.Z_N) / 2, nx: -1, nz: 0,
 } as const;
 
 /** total height to the top of the parapet */
@@ -157,18 +198,23 @@ export function register(ctx: CtxBuild): void {
       + 'ct/street.ts owns the block layout; ask the desk, do not hand-type it.');
     return;
   }
-  if (Math.abs(site.minX - JAIL.FACE_X) > 0.01 || Math.abs(site.minZ - JAIL.Z_S) > 0.01
+  if (Math.abs(site.minX - JAIL.SITE_X) > 0.01 || Math.abs(site.minZ - JAIL.Z_S) > 0.01
       || Math.abs(site.maxZ - JAIL.Z_N) > 0.01) {
     console.warn(`[jail] the published site has MOVED: x ${site.minX} z ${site.minZ}…${site.maxZ}, `
-      + `against the approved x ${JAIL.FACE_X} z ${JAIL.Z_S}…${JAIL.Z_N}. Following the site.`);
+      + `against the approved x ${JAIL.SITE_X} z ${JAIL.Z_S}…${JAIL.Z_N}. Following the site.`);
   }
-  const FX = site.minX;
+  // FX is the BUILDING's face, not the site's edge — set back by JAIL.FORE
+  // into a walkable forecourt (see JAIL.FORE's own comment for why). Still
+  // fully derived from the live site, never hand-typed: move the side street
+  // and both the forecourt and the building follow it.
+  const FX = site.minX + JAIL.FORE;
   const Z_S = site.minZ;
   const Z_N = site.maxZ;
   const W = Z_N - Z_S;                       // 14.0
   const CZ = (Z_S + Z_N) / 2;                // -103.0, the street's centre line
   const BX = FX + JAIL.DEPTH;                // the back of the building
   const DEP = BX - FX;
+  const SX = site.minX;                      // the site's own front edge, for the forecourt below
 
   /** everything this module adds, stamped with its owner so an audit does not
    *  have to infer whose face it is looking at from geography — `ct/street.ts`
@@ -647,6 +693,61 @@ export function register(ctx: CtxBuild): void {
     poolM.opacity = 0.42 * night;
   });
 
+  // ── THE FORECOURT and THE YARD — the ground `JAIL.FORE` and the shorter
+  // `JAIL.DEPTH` actually free up, dressed rather than left bare ───────────
+  //
+  // Appended at the END of the module's build, per GOTCHAS §2: this is a NEW
+  // `rnd()`-consuming block and jail.ts already sorts last in its band, so
+  // nothing upstream shifts.
+  //
+  // The forecourt (site edge `SX` to the building's own face `FX`) is granite
+  // civic paving, not the ordinary walk sheet — `plazaTex` is what the library
+  // steps use for exactly this reason, cooler and greyer than `walkTex` so an
+  // approach to a civic building reads as a different pour than the sidewalk
+  // it continues from.
+  const forecourt = new THREE.Mesh(new THREE.PlaneGeometry(FX - SX, W),
+    new THREE.MeshBasicMaterial({ map: plazaTex(SX, FX, Z_S, Z_N) }));
+  forecourt.rotation.x = -Math.PI / 2;
+  forecourt.position.set((SX + FX) / 2, ctx.sidewalkY + 0.006, CZ);
+  add(forecourt);
+
+  // The yard (the building's back `BX` to the site's own back edge) is plain
+  // worn concrete — `walkTex`, the same sheet the sidewalk wears, because an
+  // exercise yard is poured utility concrete, not dressed stone. A low fence
+  // caps it at the far end rather than leaving the site's own edge undressed
+  // — the desk's own site comment says nothing is out there and the fog
+  // closes behind it, which used to mean the player could never find out;
+  // now they can walk right up to the fence and see for themselves.
+  const SMX = site.maxX;
+  const yard = new THREE.Mesh(new THREE.PlaneGeometry(SMX - BX, W),
+    new THREE.MeshBasicMaterial({ map: walkTex(BX, SMX, Z_S, Z_N) }));
+  yard.rotation.x = -Math.PI / 2;
+  yard.position.set((BX + SMX) / 2, ctx.sidewalkY + 0.006, CZ);
+  add(yard);
+
+  const FENCE_X = SMX - 0.35;
+  const fenceM = new THREE.MeshBasicMaterial({ color: 0x2a2c2e, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
+  const FENCE_H = 2.4;
+  const fence = new THREE.Mesh(new THREE.PlaneGeometry(W, FENCE_H), fenceM);
+  fence.rotation.y = Math.PI / 2;
+  fence.position.set(FENCE_X, FENCE_H / 2, CZ);
+  add(fence);
+  // fence posts, every 3.5 m, a touch taller than the mesh they carry
+  for (let pz = Z_S + 1.0; pz <= Z_N - 1.0 + 0.01; pz += 3.5) {
+    box(0.10, FENCE_H + 0.2, 0.10, steelDkM, FENCE_X, (FENCE_H + 0.2) / 2, pz);
+  }
+  // IT COLLIDES. First cut left it decorative — "the site already ends in
+  // the void beyond SMX, a real collider buys nothing" — and
+  // `scripts/O-jail-walk-fix.mjs` caught that reasoning being wrong the first
+  // time it actually walked the yard on foot: a player walks straight through
+  // a fence they can see, which reads as broken geometry, not as open ground.
+  // GOTCHAS §27 — a check that is only run once, by hand, on a mutation that
+  // does not test the real path, is decoration; this is the version that
+  // walked it. Thin (0.1 m either side of the panel) and well clear of the
+  // sweep's own "back" station at x 71.76, so it caps the yard without
+  // reopening the walkability bug this file exists to fix.
+  ctx.obstacle({ minX: FENCE_X - 0.1, maxX: FENCE_X + 0.1, minZ: Z_S, maxZ: Z_N });
+
   // ── collision, registered by the module that draws the building ─────────
   //
   // The desk's ruling: `crosstown.ts:491` held a hand-written collider standing
@@ -657,9 +758,21 @@ export function register(ctx: CtxBuild): void {
   //
   // The front face is cut to `WALK_PROJECTION`, not to the legacy 0.30 — the
   // difference is 0.18 m of pavement per facade, which `ct/street.ts:196` calls
-  // the single biggest encroachment on the block. That takes the walk across
+  // the single biggest encroachment on the block. That took the walk across
   // the closed end from 1.70 m to 1.88 m against a 0.72 m capsule, raw gap,
-  // capsule not subtracted (GOTCHAS §29). The jail arrives and the pavement
-  // gets wider.
+  // capsule not subtracted (GOTCHAS §29) — before the walkability fix moved
+  // the building back into a forecourt (`notes/O-jail-site-walkable.md`),
+  // which widens it far further still: the walk down the middle of the street
+  // now runs open all the way to the building's own face, `JAIL.FORE` (4 m)
+  // past where it used to stop.
+  //
+  // ONE OBSTACLE FOR THE BUILDING ITSELF — `FX - PROUD` to `BX` — not for the
+  // forecourt or the yard either side of it, and a second, thin one for the
+  // fence capping the yard (registered just above, beside the fence it
+  // belongs to, not hand-typed twice here). That is the walkability fix
+  // itself: the old collider ran `site.minX` to `BX` and covered nearly the
+  // whole published site; this one covers only the building's own footprint,
+  // now a third of the site rather than two-thirds of it, and the forecourt
+  // and yard drawn above are open ground with nothing registered over them.
   ctx.obstacle({ minX: FX - PROUD, maxX: BX, minZ: Z_S, maxZ: Z_N });
 }
