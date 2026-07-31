@@ -21,7 +21,15 @@ scripts**. No world code is stranded. Every headline feature the user asked for
 this run is CONFIRMED in the ledger and reachable in the world, with one
 exception, named below.
 
-**Ledger at close: 214 CONFIRMED · 1 LANDED · 14 OPEN · 2 VOID** (231 rows).
+**Ledger 2026-07-31: 214 CONFIRMED · 1 LANDED · 18 OPEN · 2 VOID** (235 rows).
+
+The OPEN count went 14 → 18 in one day and that is **good news, not regression**:
+the sweep now photographs 12/12 rooms and 3/3 sites (it photographed 1/12 and
+0/3 until 2026-07-31), and the first look at the new shots found four real
+defects that had been invisible — the jail site collider, the thrift hem, the
+diner pastry case, and the car-lot bay slabs. **Expect the count to keep rising
+as the new coverage is reviewed.** A rising OPEN count here means the
+instrument started working, not that the world got worse.
 
 > ### ⚠ THE "SEVEN OUTSTANDING" FIGURE BELOW IS AN UNDERCOUNT — RETRACTED 2026-07-30
 >
@@ -62,15 +70,23 @@ authoritative count of what is outstanding.
 
 ---
 
-## The one thing to fix first
+## Blackjack — DONE 2026-07-31
 
-**Blackjack is built, checked, and a player cannot reach it.** It needs
-**one `ctx.seat()` call, from G, and nothing else** — L built the interface and
-verified it in-world, but no seat in the casino opens it, so the user has never
-been able to play the thing he asked for. Ledger row is `OPEN | L`; the note is
-`notes/L-for-DESK-seat-opens-a-game.md`.
+The user can play it. Verified against the **built bundle**, not just dev: deal,
+hit, stand, Escape exits, chips return to the wallet, movement resumes, and the
+roulette/craps/poker stools correctly do NOT open it. Zero console errors.
 
-It is a one-line change in G's file. It should not wait for a fleet.
+**The diagnosis in this file was wrong twice, which is worth keeping.** The row
+said it needed "one `ctx.seat()` call from G". The desk then measured it at
+runtime and said it was a label mismatch. Both were close but wrong: the felt
+table with the dealer already standing at it **registered no seats at all**, and
+`gameStool()` hard-coded `'sit at the table'` for the other three games. The fix
+gave `gameStool()` a label parameter and put four stools on the player side of
+the felt table carrying blackjack's own `SEAT_LABEL`.
+
+**The lesson: a row's stated cause is a hypothesis, not a finding.** Twice in
+two days a row's account of *why* something was broken did not survive contact
+with the running world. Re-measure before briefing.
 
 ---
 
