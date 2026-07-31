@@ -126,10 +126,16 @@ export function buildJail(ctx: CtxBuild): void {
       // `ct/int-casino.ts` and `ct/int-hotel.ts`; this is the same fix.
       // hypot(0.25, 2.2) = 2.21 m, clear by 0.56.
       //
-      // And it lands ON THE PAVEMENT, not in the road: the walk here runs
-      // x 55.0…56.88, so x = 56.0 is 1.0 m clear of the kerb and 0.88 m clear
-      // of the building. Facing west, down the length of the street.
-      outX: 56.0, outZ: JAIL_DOOR.z + 2.2, outYaw: -Math.PI / 2, outGy: ctx.KERB_H,
+      // DERIVED FROM THE DOOR, not hand-typed. This used to be the literal
+      // 56.0 — 0.88 m clear of the OLD building face at x 56.88, back when the
+      // building was flush against the site's own edge. The walkability fix
+      // (`notes/O-jail-site-walkable.md`) set the building back into a
+      // forecourt, which moved `JAIL_DOOR.x` with it; a literal here would have
+      // silently landed the player 5 m from a door that had moved, the exact
+      // "typed twice" fault this room's own door declaration exists to avoid
+      // (GOTCHAS §20). Same 0.88 m clearance, now measured off the door that
+      // actually exists.
+      outX: JAIL_DOOR.x - 0.88, outZ: JAIL_DOOR.z + 2.2, outYaw: -Math.PI / 2, outGy: ctx.KERB_H,
     },
     // NO WINDOW, and it is the one room in the world where that needs no
     // excuse. The elevation outside gives the street two barred slots 3 m up

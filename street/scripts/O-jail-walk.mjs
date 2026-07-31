@@ -197,6 +197,12 @@ if (mode === 'door' || mode === 'all') {
 if (mode === 'lane' || mode === 'all') {
   console.log('\n── the pavement across the closed end ──');
   // The claim the site was approved on: this walk got WIDER, not narrower.
+  // Scan out to 70, not 60 — the walkability fix (notes/O-jail-site-walkable.md)
+  // set the building back into a forecourt, so the first collider along this
+  // line now sits at ~61 (the building's own face), not ~57. A scan bounded at
+  // 60 would find nothing and read every raw gap as null, which is a scan that
+  // stopped short, not a wall that vanished (GOTCHAS §34: an absence over a
+  // scan range that does not reach the thing is not evidence of anything).
   const reach = await p.evaluate(([kerb, radius]) => {
     const cols = window.__ct.colliders();
     const blocked = (x, z) => cols.some((c) =>
@@ -204,7 +210,7 @@ if (mode === 'lane' || mode === 'all') {
     const out = {};
     for (const [name, z] of [['north walk', -97.0], ['centre', -103.0], ['south walk', -109.0]]) {
       let stop = null;
-      for (let x = kerb; x <= 60; x += 0.01) if (blocked(x, z)) { stop = +x.toFixed(2); break; }
+      for (let x = kerb; x <= 70; x += 0.01) if (blocked(x, z)) { stop = +x.toFixed(2); break; }
       out[name] = stop;
     }
     return out;
