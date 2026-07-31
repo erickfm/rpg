@@ -175,9 +175,34 @@ export function buildDiner(ctx: CtxBuild): void {
     g.fillStyle = '#d8c8a0'; g.fillRect(3, 16, 8, 5);
     g.fillStyle = '#6a4a2a'; g.fillRect(13, 16, 8, 5);
   }), 'detail');
-  const pie = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.5),
-    new THREE.MeshBasicMaterial({ map: pieT, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
-  put(pie, CL / 2 - 0.7, 1.3, CZ);
+  // BUG (found by eye 2026-07-31): this was a closed BoxGeometry — 6 faces —
+  // carrying a `transparent` material with `side: DoubleSide` and a flat 0.9
+  // opacity multiplier on top. DoubleSide is for a single open PLANE that
+  // might be seen from its back (GOTCHAS §10); on a fully enclosed box every
+  // face already faces outward on its own, so DoubleSide only un-culls the
+  // FAR faces along the same view ray — the inside of the back wall, the far
+  // edge of the top — and three.js does not depth-sort triangles within one
+  // mesh, so those extra layers land in whatever order the GPU happens to
+  // draw them (GOTCHAS §22: "DoubleSide geometry picks up sorting artifacts
+  // … the far face painting over the near one"). Two or three copies of the
+  // same ~90%-opaque pastry texture then stack out of order, which is what
+  // read as a milky, near-opaque haze with the pies washed to faint blocks —
+  // not a badly tuned opacity value, genuinely doubled transparent geometry.
+  //
+  // Every other display case in this codebase (int-thrift.ts's till case, the
+  // bodega deli case, the bank teller screen, the jail visiting glass) is a
+  // single PLANE for exactly this reason — and each of those keeps DoubleSide,
+  // because a lone plane has no second face to sort against itself; the
+  // artifact above is specific to a closed box's OWN faces competing. So this
+  // stays visible from either side (the sweep's own "far" station looks at it
+  // from the staff side of the counter) while dropping the redundant opacity
+  // multiplier, so the texture's own alpha (0.35 on the glass, 1.0 on the
+  // pies, painted in above) is the only thing controlling translucency. Fixes
+  // it without touching the room shell, the counter, or anything a player
+  // collides with.
+  const pie = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55),
+    new THREE.MeshBasicMaterial({ map: pieT, transparent: true, side: THREE.DoubleSide }));
+  put(pie, CL / 2 - 0.7, 1.3, CZ + 0.25);
 
   // ── the bank of booths under the window ──
   //
