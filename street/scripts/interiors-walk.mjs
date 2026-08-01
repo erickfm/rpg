@@ -56,6 +56,26 @@ const ROOMS = [
     // rather than leaning on a station I typed, which is the fault that let the
     // bodega keeper face his own wall for weeks.
     keeper: null,
+    // `east: true` — the jail's own file (`ct/jail.ts`) is unambiguous: the
+    // door's outward normal is `nx: -1` (`JAIL_DOOR`), and `ct/street.ts`
+    // says so in its own words, "the jail takes a WEST-FACING [door]". The
+    // road is in -x from the door, not +x.
+    //
+    // Every other room in this list gets `east` computed automatically from
+    // its `front:` tuple (`if (side > 0) r.east = true;`, above). The jail
+    // has no `front:` — it is a `chamfer:`-style door read from ct/doors.ts —
+    // so `r.east` was silently staying `undefined`, and every check below
+    // that branches on it (`off`, the kerb approach heading, "out to the
+    // road") defaulted to the OTHER building's convention: +x.
+    //
+    // Measured, not guessed (`scripts/O-jail-landing-probe.mjs`): from the
+    // landing at (60.12, -100.8), walking +x moved 0.35 m before the
+    // building's own collider (ctx.obstacle 60.88..65 in ct/jail.ts) — the
+    // player was being walked back INTO THE BUILDING and called boxed in.
+    // Walking -x (this fix) moved 6.19 m, clean, out past the site edge and
+    // onto the road (gy 0.14 -> 0). Nothing in ct/jail.ts changed — the
+    // forecourt was open the whole time; the harness was aiming the wrong way.
+    east: true,
     // LABEL IS THE PROMPT TEXT, NOT THE ROOM ID. The door says "into the HOUSE
     // OF DETENTION"; I wrote /JAIL/ from the id and every prompt-based check
     // failed - six of them - against a door that works perfectly. I stood at
