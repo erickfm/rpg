@@ -1601,3 +1601,35 @@ Two rules come out of it:
    `ct/street.ts:962` says *"the jail takes a WEST-FACING door"*, and the
    building's collider runs eastward **from the door face**. Any one alone would
    have been weak; together they are decisive.
+
+## 55. A false ledger row survived three corrections and then ate a builder
+
+The row `OPEN | F+G | interior people, THE ADOPTION HALF: 0 of 10 int-*.ts call
+citizenSprite` was **false when written and false for days after**. All twelve
+interior files call the atlas; a one-line grep shows it.
+
+Three separate agents measured this and reported the row stale — see
+`notes/archive/M-interior-people-adoption.md` and commits `88e790882`,
+`b5ebb9a60`, `788e73773`. **The row was never corrected.** The desk then read
+it, believed it, wrote it into a status report for the user, and spent a builder
+on it.
+
+**A stale correction that nobody applies is worse than no correction**: it
+creates a written record that the thing was checked, while the wrong number goes
+on being quoted. GOTCHAS 49 says a row can be CONFIRMED and untrue; this is its
+mirror — **a row can be OPEN and already done.** Both directions cost real work.
+
+**The desk's rule from this: when a builder reports a row stale, correct the row
+in the same tick, or it will be re-routed.** Filing the correction as a note is
+not correcting it.
+
+**What saved the item** is that the builder refused to re-measure a claim it
+could see was already true, and went looking for the *real* bar instead — does
+each person read correctly to a player standing in the room? That found two
+things no grep could: five casino figures untagged and therefore invisible to
+every people-sweep, and the thrift keeper standing 5 cm **inside the back wall**,
+invisible to an actual player, with a shelf run through her only standing spot.
+
+The general form is worth keeping: **"is the capability called?" and "does the
+result read right to the player?" are different questions, and only the second
+one is what the user asked for.**
