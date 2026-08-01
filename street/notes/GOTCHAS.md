@@ -1569,3 +1569,35 @@ written in — cold context and a tighter brief beats an agent that has already
 learned a losing habit inside its own transcript. This is the cheap version of
 the lesson that cost the account its usage: *an agent exists only while it holds
 an item*, and one that is not producing is not holding it.
+
+## 54. A silently-undefined field makes a test walk the wrong way and blame the world
+
+The third false catastrophe from a mis-aimed instrument, and the subtlest.
+GOTCHAS 48 was an instrument pointed at the wrong *world*; this one is pointed
+at the right world and walks the wrong *direction*.
+
+`scripts/interiors-walk.mjs` checks that you can leave a room's front door by
+walking away from it. It takes the direction from `room.east`, which nine of ten
+rooms get for free from their `front:` tuple. **The jail has no `front:`** — its
+door is declared through `ct/doors.ts` with `chamfer: true`, the same path the
+bodega's 45° door uses. So `room.east` was `undefined`, the probe defaulted to
+`+x`, and `+x` from the jail's west-facing door runs straight into the jail's
+own footprint. The suite reported `FAIL: the landing is not boxed in — out to
+the road, moved 0.39 m` and the desk filed a defect against a world that was
+fine.
+
+**No exception was thrown and nothing was logged.** An absent field became a
+default became a confident measurement of a wall.
+
+Two rules come out of it:
+
+1. **A derived direction must fail loudly when it cannot be derived.** If
+   `room.east` is undefined the check should error, not guess. A guess produces
+   a number, and a number gets believed.
+2. **When an agent makes a failing test pass by editing the test, verify from
+   the source, not from the agent.** That is the standard way a real defect
+   disappears. Here it was legitimate, and what established it was three things
+   in the world rather than the agent's account: `JAIL_DOOR` declares `nx: -1`,
+   `ct/street.ts:962` says *"the jail takes a WEST-FACING door"*, and the
+   building's collider runs eastward **from the door face**. Any one alone would
+   have been weak; together they are decisive.
