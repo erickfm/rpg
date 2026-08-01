@@ -517,26 +517,44 @@ export function buildThrift(ctx: CtxBuild): void {
     }
     dither(g, 64, 16, 50);
   }), 'detail');
-  const SH_W = room.W - 1.4, SH_Z = -hd + 0.16;
-  for (let sh = 0; sh < 4; sh++) {
-    const y = 0.55 + sh * 0.52;
-    const board = new THREE.Mesh(new THREE.BoxGeometry(SH_W, 0.05, 0.30),
-      new THREE.MeshBasicMaterial({ color: 0x6a5a44 }));
-    put(board, 0, y, SH_Z);
-    const ft = foldT.clone(); ft.needsUpdate = true;
-    ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
-    ft.repeat.set(SH_W / 3.2, 1);                      // GOTCHAS 5: from real metres
-    const goods = new THREE.Mesh(new THREE.PlaneGeometry(SH_W, 0.44),
-      new THREE.MeshBasicMaterial({ map: ft }));
-    put(goods, 0, y + 0.245, SH_Z + 0.14);
+  // ONE run centred on x=0 used to span the ENTIRE back wall — including the
+  // till at TILL_CX (2.2), which is also built against this wall (SH_Z lands
+  // inside the till's own 0.5 m gap to the wall). The shelf's goods plane and
+  // its solid collider both covered the keeper's only possible standing spot,
+  // so she was walled in on one side and shelved over on the other — never
+  // drawn, from any angle a customer can reach. Found the same way as the
+  // KEEP_AT fix above: a scene traversal for her `userData.citizen` mesh
+  // showed no standable line-of-sight point anywhere in the room.
+  //
+  // Split the run around the till instead of through it, with a 0.3 m margin
+  // either side of its 2.6 m counter (0.9…3.5) so the goods don't touch the
+  // register or brush the keeper's sprite.
+  const SH_Z = -hd + 0.16;
+  const TILL_GAP0 = TILL_CX - 1.3 - 0.3, TILL_GAP1 = TILL_CX + 1.3 + 0.3;
+  const runs: [number, number][] = [[-(room.W - 1.4) / 2, TILL_GAP0], [TILL_GAP1, (room.W - 1.4) / 2]];
+  for (const [x0, x1] of runs) {
+    const w = x1 - x0, cx2 = (x0 + x1) / 2;
+    if (w <= 0.4) continue;               // too thin to bother shelving
+    for (let sh = 0; sh < 4; sh++) {
+      const y = 0.55 + sh * 0.52;
+      const board = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.30),
+        new THREE.MeshBasicMaterial({ color: 0x6a5a44 }));
+      put(board, cx2, y, SH_Z);
+      const ft = foldT.clone(); ft.needsUpdate = true;
+      ft.wrapS = ft.wrapT = THREE.RepeatWrapping;
+      ft.repeat.set(w / 3.2, 1);                        // GOTCHAS 5: from real metres
+      const goods = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.44),
+        new THREE.MeshBasicMaterial({ map: ft }));
+      put(goods, cx2, y + 0.245, SH_Z + 0.14);
+    }
+    // uprights, so the run reads as shelving and not as floating boards
+    for (const ux of [x0, cx2, x1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.15, 0.32),
+        new THREE.MeshBasicMaterial({ color: 0x5a4a38 }));
+      put(post, ux, 1.07, SH_Z);
+    }
+    solid(cx2, SH_Z, w, 0.34);
   }
-  // uprights, so the run reads as shelving and not as floating boards
-  for (const ux of [-SH_W / 2, 0, SH_W / 2]) {
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 2.15, 0.32),
-      new THREE.MeshBasicMaterial({ color: 0x5a4a38 }));
-    put(post, ux, 1.07, SH_Z);
-  }
-  solid(0, SH_Z, SH_W, 0.34);
   }
 
   // ── more card signs, because one notice is never the last notice ──
@@ -573,7 +591,20 @@ export function buildThrift(ctx: CtxBuild): void {
   // angle, not that the angle is right. A figure facing a wall still turns.
   //
   // Derived from the counter so it cannot drift if the counter moves.
-  const KEEP_AT = TILL_Z - 0.55;   // behind the counter
+  //
+  // THIS OFFSET USED TO BE 0.55, WHICH PUT HER INSIDE THE BACK WALL. The gap
+  // between the till (TILL_Z = -hd + 0.5) and the wall's inner face (-hd) is
+  // only 0.5 m, and the wall itself is 0.18 m of solid collider beyond that
+  // (`interior.ts`'s `T`) — so 0.55 landed her at -hd - 0.05, five centimetres
+  // into the wall's own volume. A billboard has no back face to catch this on
+  // a screenshot the way a boxy prop would: she was never clipping, she was
+  // never drawn at all, painted over by the wall's own plaster from every
+  // angle a customer can stand at. Verified live with a scene traversal for
+  // `userData.citizen` meshes and a line-of-sight camera search
+  // (`scripts/interior-people-close.mjs`) — no standable point in the room
+  // could see her before this change. 0.4 leaves 0.1 m clear on both sides:
+  // behind the till's own back face and in front of the wall.
+  const KEEP_AT = TILL_Z - 0.4;   // behind the counter, still inside the room
   room.person({
     jacket: '#6a5a48', pants: '#4a4a52', skin: '#c9a48a', hair: '#c8c4bc',
     fit: 'coat', accent: '#8a7a62', cut: 'short', build: 0,

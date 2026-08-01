@@ -292,6 +292,14 @@ export function buildCasino(ctx: CtxBuild): void {
                   lx: number, lz: number, seatTop: number, facing: number) => {
     const s = citizenSprite({ ...look, seated: true }, { facing, h: 1.0, w: 1.0 });
     put(s.mesh, lx, seatTop, lz);
+    // TAG IT, same as room.person() does (ct/interior.ts). This bypasses the
+    // kit wrapper on purpose — a sitter needs the SEAT TOP, not the floor —
+    // but every people-sweep in the world keys off userData.citizen/.seated
+    // to tell a figure from the thrift's mannequin, and skipping the tag here
+    // made these five (the lounge waiter + four slot players) invisible to
+    // every one of those checks while reading as present in the room.
+    s.mesh.userData.citizen = true;
+    s.mesh.userData.seated = true;
     ctx.onFrame((f) => s.update(f.px, f.pz, f.dt), HOOK.LATE);
   };
   const hw = room.W / 2, hd = room.D / 2;
