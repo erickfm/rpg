@@ -267,8 +267,29 @@ export interface PanelSpec {
   w: number; h: number;
   /** css pixels per canvas pixel. 2 unless the art needs otherwise. */
   scale?: number;
-  /** moulded plastic (a machine you stand at) or canvas (a thing you hold) */
-  chrome?: 'machine' | 'cloth';
+  /**
+   * moulded plastic (a machine you stand at), canvas (a thing you hold), or
+   * `'none'` — no bezel, no screws, no title stamp, no caption band. Draws
+   * ONLY what `draw()` paints, full-bleed.
+   *
+   * `'none'` is for a caller whose `draw()` ALREADY renders a complete,
+   * self-contained fascia — the slot machine's cabinet, the blackjack felt
+   * and rail, the ATM's buttons and CRT recess, the library terminal's own
+   * monitor bezel all fill their own canvas edge to edge. For those, the
+   * framework's plastic case was a SECOND cabinet drawn around a picture of a
+   * first one — exactly the *"i never want there to be menus popping up
+   * unless they are embedded to look as if they are in the actual game"* law
+   * item 0c is named for. `'none'` retires the second cabinet; the caller's
+   * own fascia is the only frame the player ever sees.
+   *
+   * The one thing every panel promises — a caption showing how to leave —
+   * still happens: `'none'` prints `hint()` and `ESC` in plain, unboxed text
+   * over the bottom edge of the caller's own screen, because a machine that
+   * hands you no way out is the worst bug this project ships (see the
+   * framework's own rules), and it costs nothing else the design law is
+   * against — no beige plastic, no title bar, no floating box.
+   */
+  chrome?: 'machine' | 'cloth' | 'none';
   /**
    * Override the shared `UI.case*` plastic for THIS panel only. Every other
    * 'machine' panel (slots, blackjack, pockets) keeps the one moulded-beige
@@ -413,26 +434,52 @@ export function panelUp(): string | null { return livePanel ? livePanel.spec.id 
 export function makePanel(spec: PanelSpec): Panel {
   const scale = spec.scale ?? 2;
   const chrome = spec.chrome ?? 'machine';
-  const titleH = spec.title ? TITLE_H : 0;
-  const CW = spec.w + BEZEL * 2;
-  const CH = spec.h + BEZEL * 2 + titleH + CAPTION;
-  const SX = BEZEL, SY = BEZEL + titleH;
+  // FRAMELESS: no bezel, no title band, no caption band — the caller's own
+  // `draw()` fills the whole canvas. See `PanelSpec.chrome`.
+  const frameless = chrome === 'none';
+  const titleH = !frameless && spec.title ? TITLE_H : 0;
+  const bezel = frameless ? 0 : BEZEL;
+  const captionH = frameless ? 0 : CAPTION;
+  const CW = spec.w + bezel * 2;
+  const CH = spec.h + bezel * 2 + titleH + captionH;
+  const SX = bezel, SY = bezel + titleH;
 
   let wrap = document.getElementById(spec.id) as HTMLDivElement | null;
   let cv: HTMLCanvasElement;
+  let cap: HTMLDivElement | null = null;
   if (!wrap) {
     wrap = document.createElement('div');
     wrap.id = spec.id;
+    // A FRAMELESS PANEL DOES NOT GROW INTO VIEW. The pop-scale-in and the drop
+    // shadow are what make the machine/cloth chrome read as a card laid over
+    // the game; a screen the player is looking dead-on already does not swell
+    // toward them when it lights up, so frameless panels only cross-fade.
     wrap.style.cssText = 'position:fixed;left:50%;top:50%;z-index:15;pointer-events:none;'
-      + 'transform:translate(-50%,-50%) scale(.94);opacity:0;'
-      + 'transition:opacity .16s linear, transform .16s ease-out;';
+      + (frameless
+        ? 'transform:translate(-50%,-50%);opacity:0;transition:opacity .22s linear;'
+        : 'transform:translate(-50%,-50%) scale(.94);opacity:0;'
+          + 'transition:opacity .16s linear, transform .16s ease-out;');
     cv = document.createElement('canvas');
     cv.style.cssText = `width:${CW * scale}px;height:${CH * scale}px;image-rendering:pixelated;display:block;`
-      + 'filter:drop-shadow(0 6px 14px rgba(0,0,0,.65));';
+      + (frameless ? '' : 'filter:drop-shadow(0 6px 14px rgba(0,0,0,.65));');
     wrap.appendChild(cv);
+    if (frameless) {
+      // THE ONE THING EVERY PANEL STILL OWES YOU: how to leave. Printed
+      // OUTSIDE the canvas rather than over it — a frameless caller's `draw()`
+      // fills the WHOLE screen, corners included (the library terminal's own
+      // taskbar clock sits bottom-right, exactly where a baked-in ESC hint
+      // collided with it, measured on the first screenshot of this). A
+      // caption below the glass can never fight content the caller owns, the
+      // same reasoning that keeps `ct-note`/`ct-prompt` off the 3-D scene.
+      cap = document.createElement('div');
+      cap.style.cssText = 'text-align:center;margin-top:8px;font:13px/1.4 ui-monospace,Menlo,monospace;'
+        + 'color:rgba(232,226,208,.85);text-shadow:0 1px 3px rgba(0,0,0,.85);letter-spacing:.3px;';
+      wrap.appendChild(cap);
+    }
     document.body.appendChild(wrap);
   } else {
     cv = wrap.firstChild as HTMLCanvasElement;
+    cap = wrap.lastChild !== cv ? (wrap.lastChild as HTMLDivElement) : null;
   }
   cv.width = CW; cv.height = CH;
 
@@ -445,6 +492,29 @@ export function makePanel(spec: PanelSpec): Panel {
   const paint = () => {
     const g = cv.getContext('2d')!;
     g.clearRect(0, 0, CW, CH);
+
+    if (frameless) {
+      // NO CASE, NO SCREWS, NO TITLE, NO RECESS, NO CAPTION BAND — the
+      // caller's own `draw()` IS the fascia, full-bleed. See `PanelSpec.chrome`.
+      g.save();
+      g.beginPath(); g.rect(0, 0, spec.w, spec.h); g.clip();
+      try { spec.draw(g, spec.w, spec.h); }
+      catch (e) { console.error(`[panel ${spec.id}] draw threw:`, e); }
+      g.restore();
+
+      // THE ONE THING EVERY PANEL STILL OWES YOU: how to leave — in `cap`,
+      // below the glass, never on it. See why at `cap`'s creation above.
+      if (cap) {
+        const label = spec.hint?.() ?? '';
+        // A caller's own hint sometimes already says how to leave —
+        // `library-pc.ts` prints 'ESC step back' itself, because it also
+        // uses TAB for a second, narrower kind of "back" and wanted the two
+        // told apart. Appending a second ESC there would just repeat it.
+        cap.textContent = !label ? 'ESC' : /esc\b/i.test(label) ? label : `${label}   ·   ESC`;
+      }
+      return;
+    }
+
     const machine = chrome === 'machine';
     const tint = spec.caseTint;
     const body = machine ? (tint?.body ?? UI.case) : UI.cloth;
@@ -555,7 +625,7 @@ export function makePanel(spec: PanelSpec): Panel {
       backdropUp(true);
       paint();
       wrap!.style.opacity = '1';
-      wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
+      if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(1)';
       spec.onOpen?.();
     },
     close: () => {
@@ -563,7 +633,7 @@ export function makePanel(spec: PanelSpec): Panel {
       open = false;
       dismissedAt = performance.now();
       wrap!.style.opacity = '0';
-      wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
+      if (!frameless) wrap!.style.transform = 'translate(-50%,-50%) scale(.94)';
       if (livePanel && livePanel.spec === spec) {
         livePanel = null;
         gateUp(false);
