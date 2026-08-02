@@ -838,12 +838,80 @@ export function register(ctx: CtxBuild): void {
   add(yard);
 
   const FENCE_X = SMX - 0.35;
-  const fenceM = new THREE.MeshBasicMaterial({ color: 0x2a2c2e, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
   const FENCE_H = 2.4;
+  // ── THE YARD FENCE — and why it was the user's "shadow fence" ───────────
+  //
+  // Item 114, his FIFTH report of the class: *"shadow fence still here. shadow
+  // geometry in general needs to be removed."* This was it, and the line below
+  // used to be its whole implementation:
+  //
+  //     new THREE.MeshBasicMaterial({ color: 0x2a2c2e, transparent: true,
+  //                                   opacity: 0.75, side: THREE.DoubleSide })
+  //
+  // A 14 x 2.4 m plane, flat charcoal, NO MAP. The comment on the posts below
+  // has always said they are "a touch taller than the mesh they carry" — but
+  // the mesh was never drawn, so what stood here was a translucent grey sheet
+  // with four posts in front of it. Standing in the yard it is the ONLY
+  // untextured surface in frame, among grained brick, banded stone and jointed
+  // paving, so the eye does not read it as a fence at all: it reads as a
+  // shadow cast across the back of the yard. That is the user's word, exactly.
+  //
+  // THE CURE IS THE ONE ct/lot.ts ALREADY PROVED, and its `linkPanel`
+  // (`ct/lot.ts:311-333`) writes the reasoning out in full: **`alphaTest`
+  // WITHOUT `transparent: true`.** A cut-out discards the fragment rather than
+  // blending it, so `transparent` buys a chain-link fence nothing and costs it
+  // two things — the sorted transparent queue, and, the one that shows, a
+  // material that reads as a pale sheet instead of as wire you see through.
+  // Dropping the flag also takes this surface OUT of the translucent-plane
+  // population the item is sweeping: there is now no standing translucent
+  // plane on the jail site at all, rather than a better-looking one.
+  //
+  // COPIED, NOT IMPORTED, and deliberately: `linkPanel` and its `linkT` are
+  // locals inside ct/lot.ts's build function (`:290` and `:311`), not exports,
+  // and hoisting them to ct/paint.ts is a lot.ts edit that item 114 does not
+  // name. Cited rather than silently re-derived, per BUILDER-BRIEF §8, and a
+  // follow-up to hoist one shared `linkPanel` is in my handoff note.
+  //
+  // Drawn as texels, one texel wide, tile wrapping on 24 so the diamonds run
+  // continuously across the panel — a stroked diagonal antialiases to grey
+  // mush and NearestFilter then magnifies the mush (ct/lot.ts:286-289).
+  const MESH_M = 0.3;          // one tile of diamonds per 0.3 m — ct/lot.ts:311
+  const linkT = declareSurface(pixTex(24, 24, (g) => {
+    g.clearRect(0, 0, 24, 24);
+    // Darker and cooler than the car lot's galvanised #7c848d. This fence is
+    // weathered institutional steel at the back of a jail yard, not a
+    // dealer's frontage he wants you to look at, and against this yard's pale
+    // concrete a lot-bright wire would pull the eye to the least interesting
+    // thing in the view.
+    g.fillStyle = '#5a626a';
+    for (let i = 0; i < 24; i++) for (const off of [0, 8, 16]) {
+      // TWO texels of wire, not one: at 0.3 m per tile a single-texel diagonal
+      // is sub-pixel from across the yard, alphaTest drops it, and the fence
+      // is simply not there — ct/lot.ts:295-301, which is that bug's own note.
+      for (const w of [0, 1]) {
+        g.fillRect(((i + off + w) % 24), i, 1, 1);
+        g.fillRect((((off - i + w) % 24) + 24) % 24, i, 1, 1);
+      }
+    }
+  }), 'detail');
+  linkT.wrapS = linkT.wrapT = THREE.RepeatWrapping;
+  // DERIVED from the panel's own run and height, never typed — BUILDER-BRIEF
+  // §7b. Move the fence or resize the yard and the diamonds stay 0.3 m.
+  linkT.repeat.set(W / MESH_M, FENCE_H / MESH_M);
+  linkT.needsUpdate = true;
+  const fenceM = new THREE.MeshBasicMaterial({ map: linkT, alphaTest: 0.4, side: THREE.DoubleSide });
   const fence = new THREE.Mesh(new THREE.PlaneGeometry(W, FENCE_H), fenceM);
   fence.rotation.y = Math.PI / 2;
   fence.position.set(FENCE_X, FENCE_H / 2, CZ);
   add(fence);
+  // TOP AND BOTTOM RAILS. ct/lot.ts:606-610 is the lesson: a chain-link fence
+  // is not read from its mesh — the mesh is near-invisible at any distance —
+  // it is read from its FRAMEWORK. This had posts and nothing else, which is
+  // half a fence; the rails are what stop the wire reading as a floating haze
+  // and give the run a hard silhouette line against the sky.
+  for (const [ry, t] of [[FENCE_H, 0.06], [0.05, 0.05]] as [number, number][]) {
+    box(t, t, W, steelDkM, FENCE_X, ry, CZ);
+  }
   // fence posts, every 3.5 m, a touch taller than the mesh they carry
   for (let pz = Z_S + 1.0; pz <= Z_N - 1.0 + 0.01; pz += 3.5) {
     box(0.10, FENCE_H + 0.2, 0.10, steelDkM, FENCE_X, (FENCE_H + 0.2) / 2, pz);
