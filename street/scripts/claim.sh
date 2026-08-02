@@ -40,12 +40,162 @@ cd "$(dirname "$0")/.." || exit 1
 COMMON=$(git rev-parse --git-common-dir 2>/dev/null) || COMMON=.git
 case "$COMMON" in /*) ;; *) COMMON="$PWD/$COMMON";; esac
 SHARED=$(dirname "$COMMON")/street/notes
-Q="$SHARED/QUEUE.md"
-LOCK="$SHARED/.queue.lock"
+# `$SHARED` is the MAIN tree's notes/, deliberately — see above. `$PWD` is this
+# builder's OWN street/ (line 28 cd's there), and the two being different trees
+# is the whole subject of the file-existence check further down.
+MAIN_STREET=$(dirname "$SHARED")
+# CLAIM_QUEUE is a TEST HOOK and nothing else: it lets the path check below be
+# exercised end to end against a scratch queue with a deliberately-broken row,
+# instead of vandalising the live one that three other builders are claiming
+# from. The lock moves with it, so a test run cannot take the real queue's lock
+# and stall the fleet.
+Q="${CLAIM_QUEUE:-$SHARED/QUEUE.md}"
+LOCK="$(dirname "$Q")/.queue.lock"
 [ -f "$Q" ] || { echo "no queue at $Q"; exit 1; }
 
 mode=${1:-}
 [ -z "$mode" ] && { echo "usage: claim.sh <your-name>  |  claim.sh --stale [minutes]  |  claim.sh --release <item-id> [your-name]"; exit 2; }
+
+# ── DOES THE ITEM'S NAMED FILE EXIST IN THE TREE YOU ARE STANDING IN? ──────
+#
+# Three items in one session named a file the builder could not find, and each
+# cost a whole claim to discover. Two were the desk ranking against mainline
+# while the builder held an older snapshot; one was a genuinely wrong filename
+# (item 51 said `scripts/L-games-in-artifact.mjs`; the file is at
+# `scripts/probes/L-games-in-artifact.mjs`, and `scripts/checks.mjs:857` has
+# been printing that same wrong path for days).
+#
+# THIS DOES NOT REPLACE MEASURING. An item can name a file that exists and still
+# be wrong about it — that happened on the very next claim, where item 47 named
+# `ct/cars.ts` and every line of the work was actually in `crosstown.ts`. This
+# only catches the case where the work cannot even begin, and it is a WARNING,
+# never a failure: the item is already claimed by the time it runs, and exiting
+# non-zero here would strand a DOING row with nobody told to pick it up.
+#
+# THE FILE COLUMN IS PROSE, NOT A PATH LIST. Real rows look like
+#   `crosstown.ts:1125 (canSee) + groundPick`
+#   `ct/cars.ts + crosstown.ts + fp.ts (read-only)`
+#   `scripts/claim.sh (or a new ranking check)`
+# so parentheticals are dropped, `+` and `,` are separators, a trailing `:1125`
+# is stripped, and anything left without a file extension is prose and ignored.
+#
+# AND THE COLUMN USES SHORT NAMES. `ct/cars.ts` is really `src/proto/ct/cars.ts`
+# and `crosstown.ts` is `src/proto/crosstown.ts`. A check that demanded exact
+# paths would warn on nearly every row, and a warning that fires every time is
+# one nobody reads. So a token resolves if any file's path ENDS with it, which
+# accepts every short name in the queue today and still rejects
+# `scripts/L-games-in-artifact.mjs` — no path ends with that.
+
+# Every file in a tree, one per line, relative to it. `git ls-files` misses
+# untracked work and `find` walks node_modules, so: tracked files plus
+# untracked-but-not-ignored, which is exactly "files that are really there".
+claim_tree_files() {
+  ( cd "$1" 2>/dev/null && git ls-files --cached --others --exclude-standard 2>/dev/null )
+}
+
+# Resolve ONE token against a file list on stdin-substitute $2. Prints the
+# resolved path, or nothing.
+claim_resolve() {
+  _tok=$1; _list=$2
+  [ -e "$PWD/$_tok" ] && { printf '%s\n' "$_tok"; return 0; }
+  # ends-with, anchored at a path separator so `cars.ts` cannot match
+  # `supercars.ts`
+  _hit=$(printf '%s\n' "$_list" | grep -E "(^|/)$(printf '%s' "$_tok" | sed 's/[.[\*^$]/\\&/g')\$" | head -2)
+  [ -n "$_hit" ] && { printf '%s\n' "$_hit" | head -1; return 0; }
+  return 1
+}
+
+claim_check_paths() {
+  _col=$1
+  # parentheticals out, separators to spaces
+  _toks=$(printf '%s' "$_col" | sed 's/([^)]*)//g; s/[+,]/ /g')
+  # street/, plus the repo root above it as `../…` — the queue does name
+  # `CLAUDE.md`, which lives a level up. `street/` is dropped from the second
+  # listing or every hit is reported twice, once by each spelling.
+  _mine=$(claim_tree_files "$PWD"
+    claim_tree_files "$PWD/.." | grep -v '^street/' | sed 's|^|../|')
+  _main=''
+  _bad=0; _out=''
+  for _t in $_toks; do
+    _t=${_t%%:*}                       # `fp.ts:446` -> `fp.ts`
+    _t=$(printf '%s' "$_t" | sed 's/[.,;:`*]*$//; s/^[`*]*//')
+    # A KNOWN EXTENSION, not merely "has a dot". `process.exit` and `r.status`
+    # are prose about code and both matched a bare `\.[A-Za-z0-9]+$`; they were
+    # two of the three warnings on the first sweep of the whole queue, and a
+    # check that cries wolf twice in twenty-one rows is one nobody reads.
+    case "$_t" in
+      *.ts|*.tsx|*.js|*.mjs|*.cjs|*.sh|*.md|*.json|*.html|*.css|*.tsv|*.patch|*.yml|*.yaml|*.txt|*.png) ;;
+      *) continue;;
+    esac
+    printf '%s' "$_t" | grep -qE '^[A-Za-z0-9_][A-Za-z0-9_./-]*$' || continue
+    if _r=$(claim_resolve "$_t" "$_mine"); then
+      [ "$_r" = "$_t" ] && _out="$_out
+  ok        $_t" || _out="$_out
+  ok        $_t  ->  $_r"
+      continue
+    fi
+    _bad=$((_bad + 1))
+    # Not here. Is it in the MAIN tree? That is the "desk ranked against
+    # mainline, builder holds a snapshot" case, and it has a different fix.
+    [ -z "$_main" ] && _main=$(claim_tree_files "$MAIN_STREET")
+    if [ "$MAIN_STREET" != "$PWD" ] && printf '%s\n' "$_main" \
+      | grep -qE "(^|/)$(printf '%s' "$_t" | sed 's/[.[\*^$]/\\&/g')\$"; then
+      _out="$_out
+  MISSING   $_t
+            It IS in the main tree but not in yours — your worktree is BEHIND.
+            Fix: git reset --hard add-stick-and-city98 && (cd street && npm install)"
+      continue
+    fi
+    # Same basename somewhere else? Then the item has a stale PATH, which is the
+    # single most useful thing this check can say (item 51 was exactly this).
+    _base=${_t##*/}
+    _near=$(printf '%s\n' "$_mine" | grep -E "(^|/)$(printf '%s' "$_base" | sed 's/[.[\*^$]/\\&/g')\$" | head -3)
+    if [ -n "$_near" ]; then
+      _out="$_out
+  MISSING   $_t
+            The item's PATH is stale. A file of that name is at:"
+      for _n in $_near; do _out="$_out
+              $_n"; done
+      continue
+    fi
+    # No exact basename. A NAME near it? `ct/bodega.ts` does not exist and
+    # `ct/bodega-corner.ts` and `ct/int-bodega.ts` both do — that was a live
+    # DOING row when this check was written, and naming the neighbours is what
+    # turns "missing" into something the builder can act on.
+    _stem=${_base%.*}; _ext=${_base##*.}
+    _near=$(printf '%s\n' "$_mine" | grep -E "(^|/)[A-Za-z0-9_.-]*$(printf '%s' "$_stem" | sed 's/[.[\*^$]/\\&/g')[A-Za-z0-9_.-]*\.$_ext\$" | head -4)
+    if [ -n "$_near" ]; then
+      _out="$_out
+  MISSING   $_t
+            No file of that NAME exists. Did the item mean one of:"
+      for _n in $_near; do _out="$_out
+              $_n"; done
+    else
+      _out="$_out
+  MISSING   $_t
+            No file of that name anywhere in this tree."
+    fi
+  done
+  [ -z "$_out" ] && return 0
+  if [ "$_bad" -eq 0 ]; then
+    printf '  files named by this item — all present:%s\n\n' "$_out"
+    return 0
+  fi
+  printf '\n  ┌─ THIS ITEM NAMES A FILE THAT IS NOT THERE ─────────────────────\n'
+  printf '%s\n' "$_out" | sed 's/^/  │/'
+  printf '  └─ MEASURE FIRST. The desk guesses filenames and is wrong often\n'
+  printf '     enough that BUILDER-BRIEF §6a exists. If the item cannot begin,\n'
+  printf '     say so in done.sh and hand it back — that is a success, not a\n'
+  printf '     failure. Do NOT invent a file to make the row true.\n\n'
+  return 1
+}
+
+# --check-paths: run just the resolver over a file(s) column, for testing it
+# without claiming anything. Takes no lock and touches no queue.
+if [ "$mode" = "--check-paths" ]; then
+  claim_check_paths "${2:-}"
+  exit 0
+fi
 
 # ── take the lock, and never leave it behind ──────────────────────────────
 # All three modes below read or rewrite the shared file, so all three need it.
@@ -222,6 +372,9 @@ sed -i "${ln}s/| *TODO *|/| $stamp |/" "$Q" || exit 1
 echo "=== claimed item $num ==="
 sed -n "${ln}p" "$Q" | sed 's/^| *[0-9a-z]* *| *[^|]* *|/  file(s):/' | sed 's/ *| */\n  /'
 echo
+# Does what it names actually exist here? A warning, never a failure — the row
+# is already DOING by now.
+claim_check_paths "$(sed -n "${ln}p" "$Q" | awk -F'|' '{print $4}')" || true
 echo "  Rules for HOW: notes/BUILDER-BRIEF.md (read it once)"
 echo "  Your port:     pick a free one in 4180-4199, and always pass SHOT_URL"
 echo "  When finished: ./scripts/done.sh $who \"<one line on what you did>\""

@@ -204,6 +204,24 @@ export function buildApartment(ctx: CtxBuild): Apartment {
   const RUN = 2.2;                              // horizontal, per half flight
   const RISER = RISE / STEPS, TREAD = RUN / STEPS;
   const STAIR_Z0 = 8.4, STAIR_Z1 = STAIR_Z0 + RUN;
+  /** The CENTRELINE of each half-flight, in lobby-local x. Flight A (up from the
+   *  lobby) runs at 0.6, flight B (the return) at 1.8, either side of the core
+   *  wall that separates them — the collider at `AX(1.04)…AX(1.36)` below.
+   *
+   *  Named because two things have to agree on it and did not: the tread meshes
+   *  place themselves here, and the No. 227 door has to LAND you here. It landed
+   *  you at `AX(1.2)` instead — dead centre of the core wall's own x-span — so
+   *  holding W from the front door of the player's home walked you into the wall
+   *  between the flights and stopped 0.39 m short of the bottom step, measured.
+   *  Nothing was wrong with the staircase; the arithmetic mean of the two
+   *  flights is not a place, it is the wall. (w28, item 53.)
+   *
+   *  The band that actually climbs is `AX(0.41)…AX(0.67)`, walked at 1 cm
+   *  resolution (`scripts/probes/w28-227-landing.mjs`): above it you clip the
+   *  core wall's south-west corner, below it the west lobby wall. 0.6 sits
+   *  +0.07 / −0.19 inside that, and the bound is a static collider corner — no
+   *  frame time enters it, so the margin is a fact rather than an average. */
+  const FLIGHT_A_X = 0.6, FLIGHT_B_X = 1.8;
   const LAND_Z1 = 13.2;                         // the shaft's south wall
   // ── the top landing ──────────────────────────────────────────────────────
   // At floor 3 the shaft's west half is where flight A WOULD carry on up to a
@@ -621,10 +639,10 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // landing and there is no half-step at either end of the flight
       for (let i = 0; i < STEPS; i++) {
         const a = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, TREAD + 0.05), treadMats);
-        a.position.set(AX(0.6), f * ST + (i + 1) * RISER - 0.09, AZI(STAIR_Z0 + (i + 0.5) * TREAD));
+        a.position.set(AX(FLIGHT_A_X), f * ST + (i + 1) * RISER - 0.09, AZI(STAIR_Z0 + (i + 0.5) * TREAD));
         scene.add(a);
         const b = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.18, TREAD + 0.05), treadMats);
-        b.position.set(AX(1.8), f * ST + RISE + (i + 1) * RISER - 0.09, AZI(STAIR_Z1 - (i + 0.5) * TREAD));
+        b.position.set(AX(FLIGHT_B_X), f * ST + RISE + (i + 1) * RISER - 0.09, AZI(STAIR_Z1 - (i + 0.5) * TREAD));
         scene.add(b);
       }
       const LAND_D = LAND_Z1 - STAIR_Z1;
@@ -2985,7 +3003,13 @@ export function buildApartment(ctx: CtxBuild): Apartment {
       // identification, so the prompt says that rather than the long-dead
       // THE WHITMORE it carried before the nameplate came off.
       label: () => 'enter No. 227',
-      act: () => ctx.player.jumpTo(AX(1.2), AZI(1.3), Math.PI, 0),
+      // LAND ON FLIGHT A, not on the mean of the two flights. `AX(1.2)` is the
+      // arithmetic middle of the lobby and therefore the middle of the CORE WALL
+      // (`AX(1.04)…AX(1.36)`), so walking forward from the front door of the
+      // player's own home walked him into that wall and stopped 0.39 m short of
+      // the bottom step. `yaw = PI` faces +z, straight up the shaft, and from
+      // `FLIGHT_A_X` that is the flight — measured, walked, not warped.
+      act: () => ctx.player.jumpTo(AX(FLIGHT_A_X), AZI(1.3), Math.PI, 0),
     });
     ctx.spot({
       x: AX(1.2), z: AZI(0.4), r: 0.95,
