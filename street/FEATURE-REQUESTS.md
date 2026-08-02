@@ -2594,3 +2594,13 @@ to one side.
   `translateX(-50%)`, so a wider canvas shifts the watch face RIGHT (undoing the move he
   just asked for) and shrinks every pixel unless the fixed `width:484px` scales with it.
   Three coupled numbers and a result the desk cannot see without running it.
+
+- **"when i jump off of stuff i teleport straight down. please fix this"** (2026-08-02)
+  → **routed as queue item 112, top of the queue.** A regression from the collider-height
+  work: before it, nothing could be stood on, so nothing could be stepped off. Cause
+  located: `fp.ts:553` `airY = Math.max(0, airY + vy*dt)` — `airY` is height above THE
+  GROUND, and world Y is `groundY(x,z) + airY`. Standing on a roof, the ground IS the
+  roof and `airY` is 0; step off and `groundY` returns the street in the same frame, so
+  the player arrives at street level instantly. Second effect: `:549` gates jumping on
+  `airY === 0`, which is true the instant you step off — so stepping off a car also
+  hands back a fresh jump in mid-air.
