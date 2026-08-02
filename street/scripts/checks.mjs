@@ -440,7 +440,7 @@ const CHECKS = [
   // like a constant when it does. It walks the whole route rather than warping
   // (a check that warped instead of walking is how the storey picker went its
   // whole life untested), so it is slow — hence the slow tier.
-  ['w21-roof-climb',   'can you still climb onto the pickup, and get back off it?', false, [], true],
+  ['w21-roof-climb',   'can you still climb onto the pickup, and get back off it?', 'roof-unreachable', [], true],
   // THE FIFTH FACING BUG, and the first thing to guard the class rather than one
   // instance of it. Five have shipped from a typed or mirrored yaw — the burger
   // barn guy, the librarian, the casino sitter, the park benches, the tax office
@@ -617,13 +617,13 @@ const CHECKS = [
   // before F's e090a74fa, then 3 of 30 (all slot stools) until K's 9017f4318.
   // C's rule is register it the day it goes green, and it is green — 24 released
   // by E, 3 by Escape, 0 trapped. ~6 min for 32 seats, so SLOW. (I)
-  ['I-seat-exit',      'can you get out of every seat you sit in?',           false, [], true],
+  ['I-seat-exit',      'can you get out of every seat you sit in?',           ['seat-traps', 'seat-nosit'], [], true],
   ['interiors-walk',   'can you enter every room, and does each hold you in?', true, [], true],
   // 395 s — SLOW tier, and by a distance. It walks 177 trap positions, which is
   // what the user's "im literally stuck here" request cost to guard properly.
   // Asserted since it was written and registered nowhere until now, so those
   // 177 escapes have been proving themselves to nobody.
-  ['unstick-walk',     'can the player still always get out of a trap?',      false, [], true],
+  ['unstick-walk',     'can the player still always get out of a trap?',      'unstick-off', [], true],
   // G's two suites, 132 checks the runner has never seen. Both walk, so both are
   // SLOW by the rule above — a runtime tier, not an importance tier. Measured on
   // an idle dev server: G-vice-walk 47 s, G-rooms-walk 158 s. The second is the
@@ -664,9 +664,9 @@ const CHECKS = [
   // crowd-net 93 s, corner-traffic 141 s and up to ~7 min when it has to retry
   // (it discards any run the car spent yielding, because a held run says
   // nothing about the arc).
-  ['corner-traffic',   'do cars actually turn the corner, and yield?',       false, [], true],
-  ['crowd-net',        'do people route the block, cross only at crossings?', false, [], true],
-  ['side-walk',        'are both side-street walks clear, doors reachable?',  false, [], true],
+  ['corner-traffic',   'do cars actually turn the corner, and yield?',       'corner-lean-into', [], true],
+  ['crowd-net',        'do people route the block, cross only at crossings?', 'crowd-net-inroad', [], true],
+  ['side-walk',        'are both side-street walks clear, doors reachable?',  'sidewalk-sealed', [], true],
   ['jitter',           'does a walker flip-flop when it passes somebody?',    ['jitter-reversals'], [], true],
   ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
 
