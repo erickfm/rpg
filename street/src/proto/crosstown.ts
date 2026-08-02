@@ -838,6 +838,228 @@ export function makeCrosstown(): Proto {
     }
   }
 
+  // ── item 54: A SECOND ROUTE, ON A CAR THAT HAS NO BED ───────────────────
+  //
+  // *"i want the collision to be a bit more accurate to the objects. the cars
+  // for instance. we should be able to jump on the cars."*
+  //
+  // Item 29 tiered the pickup. The other three kinds got nothing, and w21 said
+  // why: between the pavement at 0.14 and the beltline at 0.84 a sedan, hatch
+  // and van have no flat panel at all. Its follow-up costed a route off the
+  // TYRE (top 0.663) at a 28 mm first step, and the desk killed that for being
+  // tighter than the pickup's 21 mm.
+  //
+  // MEASURED, THE TYRE ROUTE IS NOT TIGHT — IT IS IMPOSSIBLE, and the reason is
+  // a rule neither pass had looked at. `blocked()` pads every collider by
+  // RADIUS; `standTop()` pads by NOTHING and says so on purpose (fp.ts:249, "a
+  // roof does not extend past its own edges"). So to stand on a tier you must
+  // be inside its own footprint AND RADIUS clear of the face of every tier
+  // still walling you at that height. The tyre spans |x| 0.78..1.02 under a
+  // body whose collider is ±1.05 and solid to 0.94, so a standing centre would
+  // have to be at |x| ≥ 1.41 — 0.39 m OUTSIDE the tyre it is meant to be
+  // standing on. No height tuning reaches that. (Derived from the world's own
+  // RADIUS by scripts/probes/w29-ledge-band.mjs, which reproduces all five of
+  // the pickup's tiers as a control.)
+  //
+  // The same rule is why the sedan cannot simply be given a chunkier bumper: a
+  // ledge abutting the nose loses RADIUS = 0.36 m of itself to the hood tier
+  // standing over it, so it would have to jut two-thirds of a metre out of the
+  // front of the car before there was anything left to stand on. The step has
+  // to be somewhere the body is not — and behind the tail is the one such
+  // place that is neither the road nor the sacred 2 m sidewalk lane.
+  //
+  // So: a hitched flatbed TRAILER, deck at 0.50 m. That is not a number picked
+  // to be reachable — it is the same deck height the pickup's bed floor has
+  // shipped at since item 1, and it is imported from `PICKUP_BED.floorY` below
+  // rather than retyped, because "the one flat height on this street a standing
+  // jump gains from the road" is exactly the property both surfaces are for.
+  //
+  //   road 0.00 → deck 0.50 → boot lid 0.93 → cab roof 1.46 → hood 0.94 → road
+  //
+  // Margins at `main.ts:107`'s dt clamp, where a hop gains 0.4714 + TOP_EPS =
+  // 0.5514 m: 51 mm, 121 mm, 21 mm. The last is the roof hop and it is
+  // NUMERICALLY THE SAME HOP the pickup already ships — both are a 0.53 m rise —
+  // so this route is nowhere tighter than the tightest thing already standing.
+  // scripts/w29-sedan-climb.mjs is what catches it if anyone retunes the jump.
+  const sedan = parkedFleet.find((p) => p.kind === 'sedan');
+  if (sedan) {
+    const sz = sedan.car.position.z, sx = sedan.car.position.x;
+    // Same convention as the truck above: every car collider in this file is a
+    // fixed ±1.05 × ±carHalf box at any yaw, so `dir` only has to answer "which
+    // world end is the boot", which needs the SIGN of cos(ry), not its value.
+    const dir = Math.cos(sedan.car.rotation.y) >= 0 ? 1 : -1;
+    const localZ = (a: number, b: number): [number, number] =>
+      dir === 1 ? [sz + a, sz + b] : [sz - b, sz - a];
+    const halfW = sedan.cb.maxX - sx;      // read back off the box, never retyped
+
+    // ── the panels, READ OFF THE DRAWN MESH ───────────────────────────────
+    //
+    // The pickup could import `PICKUP_CAB`/`PICKUP_BED` because item 29 hoisted
+    // them. The sedan's equivalents — roof 1.46, screen foot -1.0, boot lid
+    // -1.32 — are still LOCALS inside `makeCar`'s sedan branch (ct/cars.ts:849-
+    // 857), and that file is held by another builder (queue item 46), so I
+    // cannot hoist them. Copying them here with a citation is the sanctioned
+    // fallback (BUILDER-BRIEF §8) and I did not take it, because reading them
+    // off the geometry that was actually built is strictly better: it is the
+    // panel itself, not a second description of it, so it cannot drift if the
+    // loft is ever retuned. A follow-up to hoist a `SEDAN_CAB` the way
+    // `PICKUP_CAB` was hoisted is still worth having; this does not need it.
+    const belt = sedan.car.userData.belt as number;
+    const bbOf = (m: THREE.Mesh) => {
+      m.updateMatrix();
+      m.geometry.computeBoundingBox();
+      return m.geometry.boundingBox!.clone().applyMatrix4(m.matrix);
+    };
+    const parts = sedan.car.children
+      .filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true && !!(c as THREE.Mesh).geometry)
+      .map((m) => ({ m, bb: bbOf(m) }));
+    // A LID ON THE BELT is a flat panel whose top sits just above the beltline:
+    // the hood and the boot lid, and on this body nothing else — the slab tops
+    // out exactly AT the belt, the greenhouse runs far above it and the wheels
+    // are well below. Verified against all four kinds by
+    // scripts/probes/w29-sedan-panels.mjs, which is also the guard if a future
+    // kind grows a third one.
+    const lids = parts.filter((p) => p.bb.max.y > belt + 0.02 && p.bb.max.y < belt + 0.20)
+      .sort((a, b) => a.bb.min.z - b.bb.min.z);
+    const cabin = parts.reduce((a, b) => (b.bb.max.y > a.bb.max.y ? b : a));
+
+    if (lids.length !== 2) {
+      // Refuse rather than guess. A tier seamed off the wrong panel is a
+      // standable shelf inside the cabin, which is the exact defect
+      // PICKUP_COWL_Z exists to prevent.
+      console.warn(`[sedan-climb] expected 2 belt lids, found ${lids.length} — no tiers built`);
+    } else {
+      const hoodLid = lids[0].bb, bootLid = lids[1].bb;
+      type Top = AABB & { tag: string };
+      const tops: Top[] = [];
+      const top = (tag: string, z: [number, number], maxY: number): Top => {
+        const t: Top = { tag, minX: sedan.cb.minX, maxX: sedan.cb.maxX, minZ: z[0], maxZ: z[1], maxY };
+        tops.push(t);
+        return t;
+      };
+
+      // ── tier 1: the hood, nose back to the panel's OWN rear edge ────────
+      //
+      // Stopping at the hood mesh's own edge is what PICKUP_COWL_Z had to be
+      // derived to do: one centimetre further back and this is a standable
+      // shelf at 0.94 m inside the cabin, under the windscreen.
+      const [hoodMinZ, hoodMaxZ] = localZ(-sedan.half, hoodLid.max.z);
+      sedan.cb.minZ = hoodMinZ; sedan.cb.maxZ = hoodMaxZ;
+      sedan.cb.maxY = hoodLid.max.y;
+      (sedan.cb as Top).tag = 'sedan-hood';
+      tops.push(sedan.cb as Top);
+
+      // ── tier 2: the cabin, whose top IS the roof ────────────────────────
+      //
+      // One box over the greenhouse, at the roof's own height, spanning lid to
+      // lid. It overfills the sloped screen by up to 0.53 m at its foot and
+      // reaches past the roof plate on each side — the same price of an
+      // axis-aligned box on a welded loft the pickup's cab tier pays at 0.47 m,
+      // and the same reason: a narrower box would notch the car's GROUND
+      // footprint, which `nudgeClear`'s trap-band rule was already run against.
+      top('sedan-cab-roof', localZ(hoodLid.max.z, bootLid.min.z), cabin.bb.max.y);
+
+      // ── tier 3: the boot lid ───────────────────────────────────────────
+      top('sedan-boot-lid', localZ(bootLid.min.z, sedan.half), bootLid.max.y);
+
+      // ── tier 4: the trailer deck — the step the body cannot provide ─────
+      //
+      // Deck collider starts at the car's own tail, not at the deck plank, so
+      // the car and the trailer present ONE continuous solid at ground level.
+      // A gap here would be 0.65 m of exactly the 0.40–0.95 m band `ct/gap.ts`
+      // calls a trap, manufactured between two things I am adding on purpose.
+      // The 0.30 m of tier that overhangs the drawbar is the same wart as the
+      // pickup's hood tier covering its own 0.15 m skin, and it is under the
+      // A-frame rather than over thin air.
+      const DECK_Y = PICKUP_BED.floorY;         // 0.50 — imported, not retyped
+      const DRAW_L = 0.30;                      // drawbar seen between car and deck
+      const DECK_L = 1.50;
+      const deckZ0 = sedan.half + DRAW_L, deckZ1 = deckZ0 + DECK_L;
+      top('sedan-trailer-deck', localZ(sedan.half, deckZ1), DECK_Y);
+
+      // ── the trailer itself, as a child of the car it is hitched to ──────
+      //
+      // A child, so it inherits the car's placement and yaw and cannot drift
+      // from it — and so it is built in the car's own local frame, which is the
+      // frame every number above is already in. Added AFTER settleParking, like
+      // the truck's tiers, so the car's final z is known.
+      const trailer = new THREE.Group();
+      const steelM = new THREE.MeshBasicMaterial({ color: 0x3c4046 });
+      const tyreM = new THREE.MeshBasicMaterial({ color: 0x101114 });
+      // A weathered plank deck, painted at the same nearest-neighbour density
+      // as everything else on the block.
+      const plankT = pixTex(32, 48, (g) => {
+        g.fillStyle = '#6b5c46'; g.fillRect(0, 0, 32, 48);
+        for (let i = 0; i < 6; i++) {
+          g.fillStyle = ['#7a6a52', '#63553f', '#71624b', '#5c4f3a', '#75664e', '#685a44'][i];
+          g.fillRect(0, i * 8, 32, 7);
+          g.fillStyle = 'rgba(0,0,0,0.28)'; g.fillRect(0, i * 8 + 7, 32, 1);
+        }
+        g.fillStyle = 'rgba(0,0,0,0.18)';
+        for (let i = 0; i < 24; i++) g.fillRect((i * 11) % 32, (i * 7) % 48, 2, 1);
+      });
+      const deckM = new THREE.MeshBasicMaterial({ map: plankT });
+      const DECK_T = 0.06, DECK_HW = 0.9;
+      const deck = new THREE.Mesh(
+        new THREE.BoxGeometry(DECK_HW * 2, DECK_T, DECK_L),
+        [steelM, steelM, deckM, steelM, steelM, steelM],
+      );
+      deck.position.set(0, DECK_Y - DECK_T / 2, deckZ0 + DECK_L / 2);
+      trailer.add(deck);
+      // the A-frame drawbar, reaching from under the deck to the car's tail
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, DRAW_L + 0.35), steelM);
+      bar.position.set(0, DECK_Y - 0.14, sedan.half - 0.05 + (DRAW_L + 0.35) / 2);
+      trailer.add(bar);
+      // the axle, and two wheels tucked under the deck (top 0.44, below it)
+      const axle = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.06, 0.06), steelM);
+      axle.position.set(0, 0.22, deckZ0 + DECK_L * 0.5);
+      trailer.add(axle);
+      for (const s of [-1, 1]) {
+        const w = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), tyreM);
+        w.rotation.z = Math.PI / 2;
+        w.position.set(s * 0.95, 0.22, deckZ0 + DECK_L * 0.5);
+        trailer.add(w);
+      }
+      // a low tail board with the lamps, at the very back so it shadows none of
+      // the standing band. NO collider, for the pickup tailgate's reason: a
+      // wall here would be a 0.12 m lip you cannot see and can only trip on.
+      const board = new THREE.Mesh(new THREE.BoxGeometry(DECK_HW * 2, 0.12, 0.05), steelM);
+      board.position.set(0, DECK_Y + 0.06, deckZ1 - 0.03);
+      trailer.add(board);
+      for (const s of [-1, 1]) {
+        const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.04),
+          new THREE.MeshBasicMaterial({ color: 0x8e2a24 }));
+        lamp.position.set(s * 0.7, DECK_Y + 0.06, deckZ1 - 0.005);
+        trailer.add(lamp);
+      }
+      if (dir < 0) trailer.rotation.y = Math.PI;   // local +z is the boot end
+      sedan.car.add(trailer);
+      props.lit(trailer);          // hitched in a lamp pool? then it catches it
+
+      // ── does the trailer manufacture a trap anywhere? ───────────────────
+      //
+      // It lengthens this car's ground footprint by 1.8 m, and `nudgeClear`
+      // (settleParking, above) already ran and cannot see it. So the trap rule
+      // runs again HERE, against the finished world, using ct/gap.ts's own
+      // `corridor()` rather than a second copy of the band — a warning, because
+      // the seed does not put anything within reach of it today and a silent
+      // pass is how the first version of settleParking shipped a trap.
+      const deckBox = tops[tops.length - 1];
+      for (const c of colliders) {
+        if (c === deckBox || c === sedan.cb) continue;
+        const w = corridor(deckBox, c);
+        if (w !== null && w > ENTERABLE && w < PASSABLE) {
+          console.warn(`[sedan-climb] trailer leaves a ${w.toFixed(2)} m trap-band gap`);
+        }
+      }
+
+      for (const t of tops) {
+        if (t === (sedan.cb as Top)) continue;
+        colliders.push(t); citAvoid.push(t);
+      }
+    }
+  }
+
   props.dimWorld(scene);
 
   // YOU WAKE UP IN YOUR ROOM. "also make me spawn in my room" — the coordinate
