@@ -701,6 +701,27 @@ const CASES = [
     'mine.push(obstacle({ minX: px - 0.12, maxX: px + 0.12, minZ: tz - 1.6, maxZ: tz + 1.6 }));',
     'side-walk.mjs', [], 'both side-street walks sealed shut at every tree'],
 
+  // THE WALK LINE MOVED INTO THE ROADWAY. `IN` is "one metre in from the kerb:
+  // the middle of a 2 m walk", so every node in the network is derived from it;
+  // -1.0 puts the whole pedestrian network a metre INSIDE the road, which is
+  // what crowd-net.mjs's registered question ("do people route the block, cross
+  // only at crossings?") exists to catch.
+  //
+  // SAME CONSTANT AS `crowd-lane`, DELIBERATELY THE OTHER WAY. crowd-lane takes
+  // IN to 1.95 — walkers against the shopfronts, sealing the 2 m lane — and is
+  // aimed at crowd-walk.mjs. This takes it the other way, off the kerb, and is
+  // aimed at crowd-net.mjs. The two checks own different halves of the same
+  // constant and a case for one proves nothing about the other.
+  //
+  // Measured: `stepped off the kerb away from a crossing` at x=-2.55 (the road
+  // is |x| < 5), worst lingering 44.3 s against a 4 s bar, longest freeze 64.5 s
+  // against 30 s, and two walkers who never got anywhere. It discriminates — the
+  // end-to-end routing, the overlap test and the errand variety stayed OK.
+  ['crowd-net-inroad', 'src/proto/ct/crowd-net.ts',
+    'const IN = 1.0;',
+    'const IN = -1.0;',
+    'crowd-net.mjs', [], 'the whole pedestrian network laid a metre inside the roadway'],
+
   // ── H's four. Every mutation here is one I performed by hand and watched go
   // red this session; encoding them makes it repeatable rather than a claim in
   // a commit message.

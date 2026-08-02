@@ -665,7 +665,7 @@ const CHECKS = [
   // (it discards any run the car spent yielding, because a held run says
   // nothing about the arc).
   ['corner-traffic',   'do cars actually turn the corner, and yield?',       false, [], true],
-  ['crowd-net',        'do people route the block, cross only at crossings?', false, [], true],
+  ['crowd-net',        'do people route the block, cross only at crossings?', 'crowd-net-inroad', [], true],
   ['side-walk',        'are both side-street walks clear, doors reachable?',  'sidewalk-sealed', [], true],
   ['jitter',           'does a walker flip-flop when it passes somebody?',    ['jitter-reversals'], [], true],
   ['crowd-walk',       'do people yield to the player and keep the 2 m lane?', 'crowd-lane', [], true],
