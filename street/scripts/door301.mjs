@@ -49,6 +49,16 @@ const ARGS = flags(['--selftest']);   // unknown flags exit 2, not silently igno
 const SELFTEST = ARGS.selftest;
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
+// DOOR301_CPU=8 throttles the renderer to an eighth of this machine's speed,
+// through the same CDP knob `scripts/probes/w21-apex.mjs` uses. It exists
+// because this script's failures were all FRAME-COUNT failures wearing a
+// wall-clock disguise, and the only honest way to find those is to make frames
+// expensive on purpose rather than wait for a loaded machine to do it for you.
+if (process.env.DOOR301_CPU) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.DOOR301_CPU) });
+  console.log(`  [CPU THROTTLED x${process.env.DOOR301_CPU}]`);
+}
 const errors = [];
 page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
 page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + m.text()); });
@@ -125,12 +135,64 @@ const prompt = () => page.evaluate(() => {
   return el ? el.textContent.trim() : null;
 });
 
-const shot = (n) => page.screenshot({ path: `${outDir}/${n}.png` });
+// The screenshot timeout scales with the throttle. This is INSTRUMENT PLUMBING,
+// not an assertion: at x8 a 1280x720 capture of this scene simply takes longer
+// than Playwright's 30 s default and the script died mid-run with a TimeoutError
+// that says nothing about the door. None of the `expect()` tolerances below move
+// — widening one of those to make an intermittent failure stop showing is the
+// thing this item exists to forbid.
+const SHOT_MS = 30000 * Math.max(1, Number(process.env.DOOR301_CPU ?? 1));
+// DOOR301_NOSHOTS=1 runs every assertion and writes no PNGs. It is for SOAKING
+// — ten runs at CPU x8 — and it takes nothing away from the verdict, because no
+// verdict in this file is a screenshot: CLAUDE.md, "screenshots are for LOOKING,
+// never for PROVING". At x8 the headless software renderer dies capturing a
+// 1280x720 WebGL frame ("Creation of StagingBuffer's SharedImage failed") and
+// takes the browser with it, so without this the soak measures Chromium's GPU
+// emulation instead of the door.
+const NOSHOTS = process.env.DOOR301_NOSHOTS === '1';
+const shot = (n) => (NOSHOTS ? Promise.resolve()
+  : page.screenshot({ path: `${outDir}/${n}.png`, timeout: SHOT_MS }));
 
 // Install a one-number signature of the leaf's pose, so the swing can be
 // waited on rather than slept through.
+//
+// ── THE SIGNATURE WAS INVARIANT TO THE ONLY MOTION IT HAD TO SEE (item 56) ──
+//
+// It used to return `e.reduce((a, v) => a + v*v, 0)` — the sum of squares of the
+// world matrix. That is the matrix's Frobenius norm, and for a door swinging on
+// its hinge it is A CONSTANT: the leaf rotates about its own origin, so the
+// translation terms never move, and the rotation block's norm is 3 whatever the
+// angle. The signature is mathematically incapable of changing while the door
+// swings, and `press()` reported `moved=false` on every press at every speed —
+// on runs that PASSED.
+//
+// So the "wait for the leaf to move, then wait for it to stop" machinery below
+// never armed, and `press()` silently degraded to a fixed 1500 ms wall-clock
+// wait (its START_CAP). That is the flake, and it is the very thing the comment
+// on `press()` says was fixed: at x1 those 1500 ms are ~36 frames and the door
+// finishes by luck; at CPU x4 they are ~6 frames and the collider is read on a
+// door that is still opening. Byte-identical build, green then red, exactly as
+// w26 saw.
+//
+// The replacement transforms a fixed LOCAL point (1, 0, 0) into world space, so
+// it carries the rotation basis (e[0], e[2]) as well as the translation and
+// changes the moment the hinge does. Measured: `moved=true` in 2–3 frames.
+
 await page.evaluate(([px, pz, fy]) => {
+  // FIND THE LEAF ONCE. This used to `updateMatrixWorld(true)` on the whole
+  // scene and `traverse()` every mesh in it — on EVERY rAF of the settle loop.
+  // On an idle machine that is invisible; at CPU x4 it was costing 2.25 SECONDS
+  // per frame, so the instrument was dominating the thing it measured and the
+  // settle loop could not collect its four still frames before RUN_CAP. Caching
+  // the mesh and updating only its own branch takes the same reading for a
+  // fraction of the cost.
+  let leaf = null;
   window.__leafSig = () => {
+    if (leaf && leaf.parent) {
+      leaf.updateWorldMatrix(true, false);
+      const e = leaf.matrixWorld.elements;
+      return (e[12] + e[0]) * 1e3 + (e[14] + e[2]);
+    }
     const s = window.__ct.scene(); s.updateMatrixWorld(true); let best = null;
     s.traverse((o) => {
       if (!o.isMesh) return;
@@ -140,9 +202,13 @@ await page.evaluate(([px, pz, fy]) => {
       const e = o.matrixWorld.elements;
       if (Math.abs(e[13] - (fy + 1.05)) > 0.3) return;
       const d = Math.hypot(e[12] - px, e[14] - pz);
-      if (!best || d < best.d) best = { d, e };
+      if (!best || d < best.d) best = { d, o };
     });
-    return best ? best.e.reduce((a, v) => a + v * v, 0) : NaN;
+    if (!best) return NaN;
+    leaf = best.o;                       // …and every later call takes the cheap path
+    const e = leaf.matrixWorld.elements;
+    // world position of the leaf's local (1, 0, 0) — rotation AND translation
+    return (e[12] + e[0]) * 1e3 + (e[14] + e[2]);
   };
 }, [PIV[0], PIV[1], FLOOR]);
 
@@ -166,22 +232,65 @@ await page.evaluate(([px, pz, fy]) => {
 // The refusal case — E inside the swing, where nothing may move — is the same
 // code path: no motion inside START_CAP is the ANSWER there, not a timeout.
 const press = async () => {
-  await page.keyboard.press('e');
+  // HOLD E ACROSS RENDERED FRAMES. THIS IS THE FLAKE (item 56).
+  //
+  // `keyboard.press('e')` puts the keydown and the keyup in the same tick of
+  // wall-clock time, and the world's `[E]` dispatch is an EDGE read taken once
+  // per RENDERED FRAME. On a warm, idle machine a frame is 16 ms and the tap is
+  // seen; when a frame runs long — a cold shader compile, a loaded box, another
+  // builder's suite on the same machine — the whole press begins and ends
+  // inside one frame and is never observed at all. The door then does not move,
+  // `press()`'s own start-detector correctly reports "no motion", and the run
+  // reports `after E, doorway blocked: false` on a door that is working
+  // perfectly. Re-run on a quiet machine and it is green on the identical
+  // bytes, which is exactly what w26 saw.
+  //
+  // This is BUILDER-BRIEF §5, the single most documented instrument bug in this
+  // project, and it was still here. Reproduced deliberately at CPU x4, where it
+  // fails every run; the fix is to hold the key until the page has actually
+  // PAINTED twice, which is frames rather than milliseconds and so cannot be
+  // outrun by a slow one.
+  // …and press it only once the world is OFFERING something, which is the other
+  // half of the same mistake. Every caller below warps and then sleeps a fixed
+  // 400–500 ms before pressing. On an idle machine that is thirty frames; at
+  // CPU x4 it can be two, and the spot under the cursor has not been picked
+  // yet, so E arrives before there is anything to press. Waiting for the PROMPT
+  // is waiting for the event (GOTCHAS §30) and is instant when it is already up.
+  const offered = await page.waitForFunction(() => {
+    const el = [...document.querySelectorAll('*')].find((e) => !e.children.length
+      && /\[E\]/.test(e.textContent || '') && getComputedStyle(e).display !== 'none');
+    return !!el;
+  }, { timeout: 10000 }).then(() => true).catch(() => false);
+  if (!offered) console.warn('  [press] nothing was offering an [E] when the key was sent');
+
+  await page.keyboard.down('e');
+  await page.evaluate(() => new Promise((res) => {
+    let n = 0;
+    const tick = () => (++n >= 3 ? res() : requestAnimationFrame(tick));
+    requestAnimationFrame(tick);
+  }));
+  await page.keyboard.up('e');
   const r = await page.evaluate(() => new Promise((res) => {
-    const t0 = performance.now(), START_CAP = 1500, RUN_CAP = 8000;
+    // CAPS IN FRAMES, NOT MILLISECONDS. The swing is driven by the render loop,
+    // which this file's own comment says — and then both caps were wall-clock
+    // anyway. At CPU x4 the 1500 ms START_CAP was SIX frames and the 8000 ms
+    // RUN_CAP was four, so a perfectly good door "failed to start" and a
+    // perfectly good swing "never settled". Counting frames makes the caps mean
+    // the same thing at every speed, which is the entire lesson of this item.
+    const t0 = performance.now(), START_FRAMES = 90, RUN_FRAMES = 600;
     const sig0 = window.__leafSig();
     let last = sig0, still = 0, f = 0, moved = false;
     const tick = () => {
       const v = window.__leafSig(); f++;
       if (!moved) {
         if (Number.isFinite(v) && Math.abs(v - sig0) > 1e-9) moved = true;
-        else if (performance.now() - t0 > START_CAP)
+        else if (f > START_FRAMES)
           return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: false, capped: false });
       } else {
         still = (Number.isFinite(v) && Math.abs(v - last) < 1e-9) ? still + 1 : 0;
         if (still >= 4)
           return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: true, capped: false });
-        if (performance.now() - t0 > RUN_CAP)
+        if (f > RUN_FRAMES)
           return res({ ms: +(performance.now() - t0).toFixed(0), frames: f, moved: true, capped: true });
       }
       last = v;
@@ -190,6 +299,11 @@ const press = async () => {
     requestAnimationFrame(tick);
   }));
   if (r.capped) console.warn(`  [press] the leaf was still moving after ${r.ms} ms (${r.frames} frames) — not settled`);
+  // Always say what the press DID. A flaky check that prints only its verdict
+  // makes the next person reproduce the flake before they can even see it;
+  // `moved:false` versus `capped:true` is the whole diagnosis and it costs one
+  // line.
+  console.log(`  [press] moved=${r.moved} frames=${r.frames} ms=${r.ms}${r.capped ? ' CAPPED' : ''}`);
   return r;
 };
 
