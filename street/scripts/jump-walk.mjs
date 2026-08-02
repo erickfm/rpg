@@ -38,6 +38,17 @@ await p.goto(URL, { waitUntil: 'networkidle' });
 await p.waitForFunction(() => window.__ct !== undefined, { timeout: 15000 });
 await reportWorld(p, URL);   // GOTCHAS 26: prove it, do not just name it
 
+// CPU_THROTTLE=8 is this file's own regression test, and the reason it exists:
+// run it idle, run it throttled, and the apexes must agree. They did not before
+// the fixed 1100 ms window came out — at x40 the same hop read 0.390 m. Applied
+// AFTER load so the world still boots in reasonable time.
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
+if (THROTTLE > 1) {
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+  console.log(`CPU throttled x${THROTTLE}`);
+}
+
 const pos = () => p.evaluate(() => window.__ct.pos());
 const camY = () => p.evaluate(() => window.__ct.camY());
 const groundAt = (x, z) => p.evaluate(([x, z]) => window.__ct.groundAt(x, z), [x, z]);
@@ -50,7 +61,20 @@ const warp = (x, z, yaw, gy) => p.evaluate(([x, z, yaw, gy]) => (
     ? window.__ct.warp(x, z, yaw)
     : window.__ct.warp(x, z, yaw, gy, 0)
 ), [x, z, yaw, gy ?? null]);
-const jump = async () => { await p.keyboard.down(' '); await p.waitForTimeout(60); await p.keyboard.up(' '); };
+/** Wait for `n` RENDERED frames. Every wait in the MEASUREMENT path goes
+ *  through here or through a settle below — see the note under `peakDuring`. */
+const frames = (n) => p.evaluate((n) => new Promise((resolve) => {
+  let seen = 0;
+  const tick = () => (++seen >= n ? resolve() : requestAnimationFrame(tick));
+  requestAnimationFrame(tick);
+}), n);
+
+// The `[E]`-style hazard, for space: the impulse at fp.ts:488 is an edge read
+// once per rendered frame, so the hold has to span a rendered frame, not 60 ms
+// of wall clock. Under load a frame is longer than the hold and the hop never
+// starts. Three frames, so a frame that begins before the keydown lands still
+// leaves two.
+const jump = async () => { await p.keyboard.down(' '); await frames(3); await p.keyboard.up(' '); };
 
 // ── measuring a jump without a hand-typed baseline ──────────────────────────
 //
@@ -69,11 +93,17 @@ const jump = async () => { await p.keyboard.down(' '); await p.waitForTimeout(60
 //     holds the walk-up's floor-3 spawn eye — 7.02, apartment.ts:104 — until the
 //     first update overwrites it, and 7.02 - (0.14 + 1.62) is exactly 5.260.
 //
-// So: the baseline is now MEASURED at rest rather than assumed, the settle waits
-// for FRAMES rather than milliseconds, and the apex is sampled in-page on
-// requestAnimationFrame so it can neither miss the peak nor catch a stale frame.
-// No eye-height constant appears in this file any more — the rest camera cancels
-// it, whatever it is.
+//  3. A FIXED WALL-CLOCK WINDOW. The fix for (2) left `waitForTimeout(1100)`
+//     around the sample, which is the same fault pointing the other way: it
+//     ends the measurement early instead of starting it late. See the block
+//     above `peakDuring`.
+//
+// So: the baseline is now MEASURED at rest rather than assumed, every wait in
+// the measurement path is counted in rendered FRAMES or in world state rather
+// than milliseconds, and the apex is sampled in-page on requestAnimationFrame
+// so it can neither miss the peak nor catch a stale frame. No eye-height
+// constant appears in this file any more — the rest camera cancels it, whatever
+// it is.
 
 /** Block until the camera is the same for 6 consecutive rendered frames, then
  *  hand back that height. Throws rather than returning a half-settled number:
@@ -91,8 +121,35 @@ const settleAndRest = () => p.evaluate(() => new Promise((resolve, reject) => {
   requestAnimationFrame(tick);
 }));
 
-/** Peak camera height while `act` runs, sampled every rendered frame in-page. */
-const peakDuring = async (act) => {
+// ── why there is no wall-clock wait left here ───────────────────────────────
+//
+// This used to end the sample after a fixed 1100 ms, which is fine at 60 fps
+// and wrong the moment the machine is loaded: `dt` is CLAMPED at 0.05 s
+// (src/main.ts:107), so a slow frame advances the simulation by at most 50 ms
+// however long it actually took. Twenty browsers on one box and the hop needs
+// far more than 1100 ms of wall clock to finish the 0.571 s it thinks it is
+// flying — the window closes mid-ascent and the peak so far gets reported as
+// the apex. Measured on this world, one spot, pavement:
+//
+//     fixed 1100 ms   x1 0.4750   x8 0.4750   x20 0.4750   x40 0.3900   x80 0.2950
+//     settled frames  x1 0.4750   x8 0.4750   x20 0.4750   x40 0.4750   x80 0.4750
+//
+// (scripts/probes/jump-apex-under-throttle.mjs). The 0.390 and 0.295 are not
+// hops; they are frames 4 and 3 of one, and 0.390 is the same family of reading
+// as w25's 0.1632 m and this file's own 5.260 m.
+//
+// So the sample now ends when the HOP ends: the camera has left the ground and
+// come back to a height it holds for six consecutive rendered frames. That is a
+// statement about the world's state, so it cannot be truncated by load, and it
+// throws rather than returning a partial peak if the hop never started or never
+// landed.
+const APEX_SETTLE_FRAMES = 6;
+const APEX_FRAME_BUDGET = 3000;          // frames, not ms — ~50 s at 60 fps, and
+                                         // still 3000 frames at 1 fps
+
+/** Peak camera height over the whole hop, sampled every rendered frame in-page.
+ *  `rest` is the settled ground-level camera height this hop starts from. */
+const peakDuring = async (rest, act) => {
   await p.evaluate(() => {
     window.__jwPeak = -Infinity;
     window.__jwSampling = true;
@@ -104,10 +161,55 @@ const peakDuring = async (act) => {
     requestAnimationFrame(f);
   });
   await act();
-  await p.waitForTimeout(1100);          // the whole hop is ~0.571 s of hang
+  await p.evaluate(([rest, settleFrames, budget]) => new Promise((resolve, reject) => {
+    let rose = false, last = null, stable = 0, n = 0;
+    const f = () => {
+      const y = window.__ct.camY();
+      if (y > rest + 0.02) rose = true;
+      if (last !== null && Math.abs(y - last) < 1e-4) stable++; else stable = 0;
+      last = y;
+      // Landed: risen, then held one height for `settleFrames` frames, and that
+      // height is below the peak — so this is the ground and not a frame that
+      // happened to hover at the apex. Deliberately NOT "back at `rest`": a spot
+      // that lands you on a different storey is a real finding this file exists
+      // to report, and it must reach the CHANGED FLOOR check, not die here.
+      if (rose && stable >= settleFrames && y < window.__jwPeak - 0.005) return resolve();
+      if (++n > budget) return reject(new Error(rose
+        ? `the hop never landed within ${budget} frames`
+        : `the camera never left the ground within ${budget} frames — the jump keypress was not observed`));
+      requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+  }), [rest, APEX_SETTLE_FRAMES, APEX_FRAME_BUDGET]);
   return p.evaluate(() => { window.__jwSampling = false; return window.__jwPeak; });
 };
 
+// ── the lowest apex the physics can produce ─────────────────────────────────
+//
+// Not a band anyone chose: run the world's own integrator at the coarsest step
+// it will ever take. `dt` is clamped at DT_CLAMP, so every real frame steps by
+// at most that, and a coarser step loses more to Euler — this is the floor.
+// A reading below it is arithmetically impossible and is therefore the
+// instrument, which is exactly the failure this file has produced twice.
+//
+// COPIED, not imported, with citations — none of the three is exported today
+// (BUILDER-BRIEF §8). Follow-up queued in the handoff note: hoist them into a
+// shared module so this derivation cannot drift from the world.
+const DT_CLAMP = 0.05;   // src/main.ts:107          Math.min(clock.getDelta(), 0.05)
+const JUMP_V0  = 4.0;    // src/proto/fp.ts:488      this.vy = 4.0
+const GRAVITY  = 14;     // src/proto/fp.ts:491      this.vy -= 14 * dt
+const APEX_FLOOR = (() => {
+  let vy = JUMP_V0, airY = 0, peak = 0;
+  for (let i = 0; i < 200 && (vy !== 0 || airY > 0); i++) {
+    vy -= GRAVITY * DT_CLAMP;                        // fp.ts:491-492, same order
+    airY = Math.max(0, airY + vy * DT_CLAMP);
+    peak = Math.max(peak, airY);
+    if (airY === 0 && vy < 0) vy = 0;
+  }
+  return peak;
+})();
+
+console.log(`apex floor ${APEX_FLOOR.toFixed(3)} m, derived from dt<=${DT_CLAMP}s, v0=${JUMP_V0}, g=${GRAVITY}`);
 const fails = [];
 const ok = (cond, msg) => { console.log(`  ${cond ? 'OK  ' : 'FAIL'} ${msg}`); if (!cond) fails.push(msg); };
 
@@ -149,23 +251,30 @@ const jumpHere = async (what) => {
   // height WITHIN its storey and does not include `gy`, so upstairs it read the
   // 5.4 m of building as a 5.875 m hop. Caught by the check going red on two
   // rows whose jump was fine — measure the instrument too.
-  const eye0 = await camY();
-  await jump();
-  let apex = 0;
-  for (let t = 0; t < 900; t += 30) { await p.waitForTimeout(30); apex = Math.max(apex, await camY()); }
-  await p.waitForTimeout(700);
+  //
+  // SETTLED, not sampled once. A single `camY()` read can land on a frame the
+  // walk or the storey pick has not finished with — the same unsynchronised
+  // read that produced 5.260 m — so the baseline waits for six consecutive
+  // rendered frames at one height and throws rather than hand back a
+  // half-settled number.
+  const rest = await settleAndRest();
+  const apex = await peakDuring(rest, jump);
   const after = await pos();
-  const rise = apex - eye0;
+  const rise = apex - rest;
   const sameFloor = Math.abs(after[3] - before[3]) < 0.001;
   console.log(`${what.padEnd(24)} gy ${before[3].toFixed(2)} -> ${after[3].toFixed(2)}  apex +${rise.toFixed(3)} m  ${sameFloor ? 'same floor' : 'CHANGED FLOOR'}`);
   if (!sameFloor) fails.push(`${what}: jumping changed the floor from ${before[3].toFixed(2)} to ${after[3].toFixed(2)}`);
-  if (rise < 0.45 || rise > 0.8) fails.push(`${what}: apex ${rise.toFixed(3)} m is outside the intended 0.6 m hop`);
+  // Two separate questions, and the old single band answered neither cleanly:
+  // its 0.45 floor sits BELOW the 0.475 the physics cannot go under, so a hop
+  // truncated at frame 4 reads exactly 0.450 and passes as healthy.
+  if (rise < APEX_FLOOR - 1e-3) fails.push(`${what}: apex ${rise.toFixed(3)} m is under ${APEX_FLOOR.toFixed(3)} m, which the physics cannot reach even at the ${DT_CLAMP} s dt clamp — this is the instrument, not the world`);
+  else if (rise > 0.8) fails.push(`${what}: apex ${rise.toFixed(3)} m is outside the intended 0.6 m hop`);
   return { before, after, rise };
 };
 
 for (const [what, x, z, gy] of spots) {
   await warp(x, z, 0, gy);
-  await p.waitForTimeout(350);
+  await frames(6);
   await jumpHere(what);
 }
 
