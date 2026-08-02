@@ -42,6 +42,38 @@ export const BANK_DOOR = {
   glazing: 'full' as const,
 };
 
+/**
+ * THE ATM CABINET'S PALETTE, DECLARED ONCE — READ BY BOTH THE CABINET AND
+ * THE INTERFACE.
+ *
+ * *"i hate the look of the atm. i want it to look more like the graphics of
+ * the atm we already designed"* — there are two ATMs (this cabinet, in the
+ * bank facade, and `ct/atm.ts`'s `[E]` interface) and they used to disagree
+ * on sight. `ct/atm.ts` fixed that by copying these twelve values out of
+ * `atmPanelTex` below VERBATIM, matched by eye rather than read from here,
+ * because they were inline literals inside a closure with nothing to
+ * `export`. Correct the day it was written, and exactly the kind of "one
+ * fact authored twice" the bank DOOR above already had — see `BANK_DOOR`'s
+ * own docstring for the general shape of this fault. Named and exported so
+ * `ct/atm.ts` can import instead of duplicate; it still owns the decision of
+ * when to switch its own copy over to this import (out of scope here —
+ * `ct/atm.ts` is not this item's file).
+ */
+export const ATM_PALETTE = {
+  body: '#414a52',                                // the gunmetal cabinet body
+  bezel: '#1c2026',                                // CRT surround
+  glass: '#0d1418',                                // CRT glass, near black
+  phosphor: '#3f6a4a',                             // the green tube itself
+  textDim: 'rgba(180,255,190,0.32)',               // dim phosphor text
+  textLit: 'rgba(180,255,190,0.5)',                // bright phosphor text/cursor
+  slot: '#2b3036',                                 // card/cash slot housing
+  slotDark: '#0a0c0e',                             // slot opening
+  lit: '#63c27a',                                  // the lit card-slot arrow
+  shelf: '#363d44',                                // keypad shelf
+  keyHi: '#c6cbcf',                                // a worn (pale) key face
+  keyLo: '#aab0b6',                                // an unworn key face
+} as const;
+
 /** FIRST FEDERAL — the bank, and the ATM in its wall.
  *
  *  Third cut of the split my queue file asks for. The alley and the canted
@@ -360,46 +392,46 @@ export function buildBank(k: {
       // #414a52 against #9a9ca0 is 74 against 156 — a 53% separation, and cooler
       // as well as darker, so it reads as METAL set into STONE rather than as
       // more stone. Nothing warm: the library next door is the warm building.
-      g.fillStyle = '#414a52'; g.fillRect(0, 0, W, H);
+      g.fillStyle = ATM_PALETTE.body; g.fillRect(0, 0, W, H);
       if (which === 'screen') {
         // the CRT is most of this panel — it is the object, not a detail
         const sx = px(0.055), sy = px(0.045), sw = W - px(0.19), sh = H - px(0.09);
-        g.fillStyle = '#1c2026'; g.fillRect(sx, sy, sw, sh);
-        g.fillStyle = '#0d1418'; g.fillRect(sx + px(0.012), sy + px(0.012), sw - px(0.024), sh - px(0.024));
-        g.fillStyle = '#3f6a4a'; g.fillRect(sx + px(0.024), sy + px(0.024), sw - px(0.048), sh - px(0.048));
+        g.fillStyle = ATM_PALETTE.bezel; g.fillRect(sx, sy, sw, sh);
+        g.fillStyle = ATM_PALETTE.glass; g.fillRect(sx + px(0.012), sy + px(0.012), sw - px(0.024), sh - px(0.024));
+        g.fillStyle = ATM_PALETTE.phosphor; g.fillRect(sx + px(0.024), sy + px(0.024), sw - px(0.048), sh - px(0.048));
         // WHAT IS ON THE SCREEN is the one thing that differs between the two.
         // Machine 0 sits on a menu — two lines of options. Machine 1 is idle on
         // its greeting: one wider line centred, and a cursor block after it.
-        g.fillStyle = 'rgba(180,255,190,0.32)';
+        g.fillStyle = ATM_PALETTE.textDim;
         if (v === 0) {
           g.fillRect(sx + px(0.05), sy + px(0.06), px(0.20), px(0.016));
           g.fillRect(sx + px(0.05), sy + px(0.10), px(0.13), px(0.016));
         } else {
           g.fillRect(sx + px(0.05), sy + px(0.075), px(0.26), px(0.016));
-          g.fillStyle = 'rgba(180,255,190,0.5)';
+          g.fillStyle = ATM_PALETTE.textLit;
           g.fillRect(sx + px(0.33), sy + px(0.075), px(0.022), px(0.016));
         }
         g.fillStyle = 'rgba(255,255,255,0.07)';
         g.fillRect(sx + px(0.024), sy + px(0.024), px(0.06), sh - px(0.048));
         // CARD SLOT down the right edge, with its lit arrow
         const cx = W - px(0.115);
-        g.fillStyle = '#2b3036'; g.fillRect(cx, sy + px(0.03), px(0.075), sh - px(0.12));
-        g.fillStyle = '#0a0c0e'; g.fillRect(cx + px(0.016), sy + px(0.05), px(0.043), sh - px(0.16));
-        g.fillStyle = '#63c27a';
+        g.fillStyle = ATM_PALETTE.slot; g.fillRect(cx, sy + px(0.03), px(0.075), sh - px(0.12));
+        g.fillStyle = ATM_PALETTE.slotDark; g.fillRect(cx + px(0.016), sy + px(0.05), px(0.043), sh - px(0.16));
+        g.fillStyle = ATM_PALETTE.lit;
         g.fillRect(cx + px(0.012), sy + px(0.012), px(0.05), px(0.012));
         for (let i = 0; i < 4; i++) g.fillRect(cx + px(0.032) + i, sy + px(0.002) + i, 1, px(0.03) - 2 * i);
       } else if (which === 'keys') {
         // SEPARATE KEYS, not one grey block: each in its own well with a lit
         // top edge and a shadow under it, which is what makes them read as keys
         // on a shelf you are looking down at.
-        g.fillStyle = '#363d44'; g.fillRect(0, 0, W, H);   // shelf, under the body tone
+        g.fillStyle = ATM_PALETTE.shelf; g.fillRect(0, 0, W, H);   // shelf, under the body tone
         const kw = px(0.072), kh = px(0.026), gx = px(0.022), gy = px(0.012);
         const k0x = W / 2 - (3 * kw + 2 * gx) / 2, k0y = px(0.012);
         for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
           const x = k0x + c * (kw + gx), y = k0y + r * (kh + gy);
           g.fillStyle = '#31363c'; g.fillRect(x - px(0.005), y - px(0.004), kw + px(0.01), kh + px(0.008));
           // wear falls where the hand rests, and not identically on two machines
-          g.fillStyle = c === (v === 0 ? 1 : 2) ? '#c6cbcf' : '#aab0b6';
+          g.fillStyle = c === (v === 0 ? 1 : 2) ? ATM_PALETTE.keyHi : ATM_PALETTE.keyLo;
           g.fillRect(x, y, kw, kh);
           g.fillStyle = 'rgba(255,255,255,0.30)'; g.fillRect(x, y, kw, px(0.005));
           g.fillStyle = 'rgba(0,0,0,0.38)'; g.fillRect(x, y + kh - px(0.005), kw, px(0.005));
@@ -407,12 +439,12 @@ export function buildBank(k: {
       } else {
         // CASH SLOT with a shutter LIP standing proud of the mouth, and a
         // receipt slot beside it
-        g.fillStyle = '#2b3036'; g.fillRect(px(0.05), px(0.02), W - px(0.10), px(0.055));
-        g.fillStyle = '#0a0c0e'; g.fillRect(px(0.07), px(0.032), W - px(0.14), px(0.03));
+        g.fillStyle = ATM_PALETTE.slot; g.fillRect(px(0.05), px(0.02), W - px(0.10), px(0.055));
+        g.fillStyle = ATM_PALETTE.slotDark; g.fillRect(px(0.07), px(0.032), W - px(0.14), px(0.03));
         g.fillStyle = '#9aa1a8'; g.fillRect(px(0.06), px(0.014), W - px(0.12), px(0.012)); // the lip
         g.fillStyle = 'rgba(255,255,255,0.28)'; g.fillRect(px(0.06), px(0.014), W - px(0.12), px(0.004));
-        g.fillStyle = '#2b3036'; g.fillRect(px(0.06), px(0.088), px(0.22), px(0.03));
-        g.fillStyle = '#0a0c0e'; g.fillRect(px(0.072), px(0.096), px(0.196), px(0.014));
+        g.fillStyle = ATM_PALETTE.slot; g.fillRect(px(0.06), px(0.088), px(0.22), px(0.03));
+        g.fillStyle = ATM_PALETTE.slotDark; g.fillRect(px(0.072), px(0.096), px(0.196), px(0.014));
       }
       dither(g, W, H, Math.round(wM * hM * 30));
     }), 'sign');
