@@ -2488,3 +2488,15 @@ to one side.
   Concrete defects visible in the frame: **SEVENS is clipped at both ends** (reads
   "EVEN"), the marquee's second line is clipped (**"$1 BLACKJA"**), and a black vertical
   bar floats over the left edge of the facade. Plus the standing direction: Vegas.
+
+- **"when i try to enter the casino there's like a distance far away i can enter (i dont
+  like this), then a distance i can't enter, then when im at the door i can enter again.
+  make sure we review these things. this just seems messy and idk how you are missing
+  this sort of stuff"** (2026-08-02) → **routed as queue items 98 (the bug) and 99 (the
+  instrument that would have caught it).**
+  **Why it was missed, plainly:** every check in this project **warps to a coordinate
+  and presses E**. `scripts/interiors-walk.mjs` alone has 13 `warp()` calls. Nothing
+  ever walks an approach and watches the prompt continuously, so a discontinuous prompt
+  band — offered, not offered, offered — cannot be seen by any instrument we own. A
+  builder hit the same class last night: a check that warped had never once tested the
+  thing it was named for.
