@@ -975,7 +975,19 @@ export function makeHud(purse: Purse): Hud {
     // one of those callers to learn that a second view exists.
     refreshWallet: () => { if (walletOpen) drawWallet(); for (const f of PURSE_WATCH) f(); },
     prompt: (text) => {
-      if (text === null) { promptDiv!.style.display = 'none'; return; }
+      // THE DOUBLE CAPTION. `crosstown.ts`'s per-frame loop calls this every
+      // frame from whatever the player is standing on or seated at — it does
+      // not know a panel is up, and never has: item 0c gave frameless panels
+      // (atm, slots, blackjack, library-pc) their OWN caption line, a plain
+      // DOM div anchored just above the panel canvas's bottom edge, but never
+      // silenced this one. While SEATED the two land almost exactly on top of
+      // each other — measured on the built slots panel, `[E] stand up]` at
+      // y 603.8-632.0 versus the panel's own caption at y 610.9-629.1, a
+      // near-total overlap — because both are captions that read "how do I
+      // leave", one owned by the world and one by the machine. `panelUp()` is
+      // this same module's own registry of what is open; nothing outside
+      // hud.ts needs to know the fix happened.
+      if (text === null || panelUp()) { promptDiv!.style.display = 'none'; return; }
       promptDiv!.textContent = text;
       promptDiv!.style.display = 'block';
     },
