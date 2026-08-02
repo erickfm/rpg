@@ -530,8 +530,21 @@ export function pickSpot<T extends Pickable>(
    *  bed. */
   visible?: (s: T) => boolean,
 ): { spot: T; looked: boolean; offAxis: number; dist: number } | null {
-  let best: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
-  let bestKey = Infinity;
+  // TWO TIERS, NOT ONE KEY. `bestNear`/`bestLooked` are tracked separately and
+  // combined at the end, because a single `offAxis + d*0.02` key — what this
+  // used to be — does NOT give near candidates priority despite the comment
+  // below claiming it does. Reproduced live (scripts/w9-reach-repro.mjs):
+  // standing exactly ON the apartment door's own stand-point (d=0, touching)
+  // but facing the bed across the room, the bed's small offAxis beat the
+  // door's ~180 deg offAxis outright — *"i dont want to be so far from the bed
+  // and the option is still to sit on the bed and watch tv"*, seen from the
+  // door's side. A door you are standing in is not "near the centre of the
+  // screen" when your back is to it, so it needs a real priority tier, not a
+  // combined score that a large offAxis term can always outweigh.
+  let bestNear: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
+  let bestNearKey = Infinity;
+  let bestLooked: { spot: T; looked: boolean; offAxis: number; dist: number } | null = null;
+  let bestLookedKey = Infinity;
   const fx = Math.sin(view.yaw), fz = -Math.cos(view.yaw);
   for (const s of spots) {
     if (!s.ok()) continue;
@@ -579,10 +592,13 @@ export function pickSpot<T extends Pickable>(
     // is the expensive one — a raycast per candidate, only for candidates that
     // have already passed the cheap tests.
     if (visible && !visible(s)) continue;
-    // SCREEN CENTRE FIRST. A spot you are looking at beats one you are merely
-    // standing in, and between two you are looking at, the more centred wins.
-    // Distance is the tiebreak, not the rule.
-    // NEAR BEATS LOOKED, ALWAYS, and distance orders the near set.
+    // NEAR BEATS LOOKED, ALWAYS — enforced by TIER now, not by hoping a single
+    // key orders that way. `near` candidates are ranked by distance ONLY
+    // (offAxis plays no part: you can be touching something with your back to
+    // it, and that must still win over something merely aimed at — that is
+    // the whole of *"a door you are standing in should beat furniture across
+    // the room"*). `looked` candidates are ranked by screen centre first,
+    // distance as the tiebreak, exactly as before.
     //
     // My first ordering made `looked` dominant and it was wrong twice over. A
     // door you were STANDING IN stopped being offered because something across
@@ -592,17 +608,15 @@ export function pickSpot<T extends Pickable>(
     // That check exists because the bug it guards shipped once already
     // (`098269aa`), and a new pick that quietly re-opens it is worse than no new
     // pick at all.
-    //
-    // So proximity keeps exactly its old semantics among near candidates —
-    // nearest in metres wins — and looking only decides things when nothing is
-    // near, where "nearest the centre of the screen" is the whole point.
-    // SCREEN CENTRE DECIDES, distance only breaks ties — the ask exactly. This
-    // survives seats-walk's standing assertion (stand ON a seat, get THAT seat)
-    // because a spot you are standing on has offAxis 0 by construction.
-    const key = offAxis + d * 0.02;
-    if (key < bestKey) { bestKey = key; best = { spot: s, looked, offAxis, dist: d }; }
+    if (near) {
+      if (d < bestNearKey) { bestNearKey = d; bestNear = { spot: s, looked, offAxis, dist: d }; }
+    } else {
+      const key = offAxis + d * 0.02;
+      if (key < bestLookedKey) { bestLookedKey = key; bestLooked = { spot: s, looked, offAxis, dist: d }; }
+    }
   }
-  return best;
+  // near wins outright over looked-only — see the tier comment above.
+  return bestNear ?? bestLooked;
 }
 
 /**
