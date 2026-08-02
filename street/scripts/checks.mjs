@@ -199,6 +199,14 @@ const CHECKS = [
   // shared `flags(['--selftest'])` helper. See `notes/M-selftest-blindspot.md`.
   ['M-bank-int-walk',  'can you enter the bank, use the vault, and get a loan?', true, [], true],
   ['checks-registered','is every self-testing script actually registered?', false],
+  // The other half of the question above, and nothing was asking it: that guard
+  // catches a selftest with no registry row (runs never), this one catches a
+  // registry row with no selftest (runs always, never watched go red). The
+  // second is the shape that let health.mjs print WORLD BROKEN and exit 0 for
+  // months. Both are `false` here for the same reason — they read scripts/, not
+  // the world, so there is nothing to mutate — and both say so in their own
+  // EXEMPT list rather than staying quiet about it.
+  ['checks-can-fail',  'does every registered check declare a way to go red?', false],
   ['doors-declared',   'does every declared DOOR reach declaredDoors()?',    true],
   ['lot-layout',       'aisle in, cars either side, office at the back?',    true],
   ['lot-kerb-seam',    'does the kerb cut line up with the lot gate?',       true],

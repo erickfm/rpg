@@ -155,6 +155,35 @@ export interface RoomDims {
    */
   y: number;
   door: { x: number; z: number; nx: number; nz: number };
+  /**
+   * IS THIS ROOM A SLAB IN THE INTERIOR BELT, reached by pressing `[E]` at a
+   * door on the street?
+   *
+   * This exists because `roomDims()` quietly became TWO registries answering
+   * TWO questions, and one caller could not tell them apart.
+   *
+   * `interiorRooms()` used to mean "every kit room in the belt" — flat at y 0,
+   * centred on an 80 m slab at x >= 400, cz 0, entered from the pavement. Every
+   * harness that reads it was written against those four facts. Then `apt301`
+   * declared itself here (correctly — `scripts/seat-facing.mjs` keys entirely
+   * off this registry and the bed in 301 was being classified `outdoor`), and
+   * the list stopped meaning that. The flat is at cx 198.4, cz -16.25, y 5.4,
+   * three storeys up a stair shaft with no street door at all.
+   *
+   * `scripts/interiors-walk.mjs` has a coverage guard that refuses to run when
+   * the world publishes a room its hand-written `ROOMS` list does not test —
+   * a good guard, and the reason the bank and the library got tested at all.
+   * But it was asking `roomDims()` for "rooms I must street-walk" and getting
+   * back "rooms that exist", so `apt301` made it exit 2 for EVERY room, and
+   * `scripts/checks.mjs` rendered that as a wall of twelve room failures. The
+   * check could not start, and printed as though the world were broken.
+   *
+   * So the registry states which question each room answers instead of making
+   * callers guess from `cx >= 400`. The distinction is not new — it is the one
+   * `DECLARED` was created for, and the one `interiorRoomIds()` above already
+   * makes for its own different question. It was simply never published.
+   */
+  belt: boolean;
 }
 
 /**
@@ -183,8 +212,11 @@ export interface RoomDims {
  * it into the registry would hand its ground to a one-height `gy` and shove
  * the world's east bound 80 m further out.
  */
-const DECLARED: RoomDims[] = [];
-export function declareRoom(r: RoomDims): void {
+// `Omit<…, 'belt'>`: a room does not get to SAY whether it is in the belt.
+// Declaring yourself here is what makes you off-belt, so `interiorRooms()`
+// derives the flag and a caller cannot contradict it.
+const DECLARED: Omit<RoomDims, 'belt'>[] = [];
+export function declareRoom(r: Omit<RoomDims, 'belt'>): void {
   if (DECLARED.some((d) => d.id === r.id) || SLABS.some((s) => s.id === r.id)) {
     console.warn(`[interior] a room called '${r.id}' is already registered — ignored`);
     return;
@@ -198,8 +230,14 @@ export function declareRoom(r: RoomDims): void {
 export function interiorRooms(): RoomDims[] {
   // y is 0 for the whole belt: a slab's floor sits on the world plane and any
   // level change inside it is `spec.floor`, which is the room's own business.
-  return [...SLABS.map((s) => ({ id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, y: 0, door: s.door })),
-          ...DECLARED];
+  // `belt` is DERIVED from which list the room came out of, not stored on each
+  // room — a room built by the kit is in the belt by construction, and a room
+  // that had to `declareRoom` itself is one the kit could not express (see the
+  // note above `DECLARED`). Deriving it means a new room cannot get the flag
+  // wrong by typing it, and a future kit room gets `belt: true` for free.
+  return [...SLABS.map((s) => ({
+            id: s.id, w: s.w, d: s.d, cx: s.cx, cz: s.cz, y: 0, door: s.door, belt: true })),
+          ...DECLARED.map((r) => ({ ...r, belt: false }))];
 }
 
 /**
