@@ -688,7 +688,12 @@ const CHECKS = [
   // builds the eye from the player's floor, which is why it asserts the SYMPTOM
   // — is the thing you are standing next to offered — rather than the eye
   // arithmetic it would otherwise keep failing on after the fix.
-  ['A-eye-height-holds', 'can the player use anything in the room they spawn in?', false],
+  // WAS `false` — no declared failing path, one of the 23 the item-70 inventory
+  // found running on every suite with nothing ever having watched them go red.
+  // The `eye-gate-flat` case restores the original bug (the sight gate aiming
+  // from a bare 1.6 instead of the floor the player stands on) and this row is
+  // required to go red. Item 72.
+  ['A-eye-height-holds', 'can the player use anything in the room they spawn in?', ['eye-gate-flat']],
   ['A-diner-block-vs-sky', 'is the diner glass block darker than the sky, as glass is?', 'diner-block-glare'],
   // tree-crown above overlaps but does NOT cover this: it samples a box at the
   // crown's centre (x within +/-8 of centre, y 22..30), so it cannot see the
