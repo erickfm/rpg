@@ -1810,3 +1810,27 @@ object from both faces**. GOTCHAS 45 needs a second clause.
 
 Routed with the whole class in view, not just the bank: the same question must
 be asked of all twelve rooms, since nothing has ever checked it.
+
+
+## The ATM's two looks do not agree
+
+> *"i hate the look of the atm. i want it to look more like the graphics of the
+> atm we already designed"*
+
+**There are two ATMs and they are drawn in different palettes** — photographed
+both on build `caa3f18ce`:
+
+| | |
+|---|---|
+| **the cabinets** on the bank facade (`shots/atm-cabinet.png`) | two charcoal machines, **green** screens, pale keypads, inset in a stone recess |
+| **the interface** that opens when you use one (`shots/atm-panel.png`) | a **beige** bezel with an **amber** CRT, numbered side buttons, CARD and CASH slots, FIRST FEDERAL SAVINGS |
+
+Green-on-charcoal versus amber-on-beige. Use the machine and its screen changes
+colour, which is the same class of fault he had just caught on the bank door —
+one object that does not agree with itself.
+
+**Desk: which one is "the atm we already designed" is a coin toss from the
+transcript, so ASK rather than guess.** He praised the facade ATM earlier
+(*"i like the atm, maybe add another on the left"*), which argues the cabinets
+are the keeper — but "graphics" more naturally describes the 2D interface. A
+wrong guess means redoing a design pass, so it is worth one question.
