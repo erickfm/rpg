@@ -1970,3 +1970,26 @@ player's own home and the one door he uses every day.
 two-sided thing** — after `doorside2.mjs` (which measured door *position* while
 the user was complaining about door *appearance*) and `bedcavity.mjs` (which
 measured a truck that no longer existed).
+
+
+## Scroll to zoom, with a limit
+
+> *"i want scroll to be zoom. it shouldnt be able to zoom too much though."*
+
+Queued at rank 5. Nothing handles the wheel in the world today — `grep` for
+`'wheel'` in `src/` returns only `ct/hud.ts`, and what it does there matters:
+
+- `hud.ts:168` lists `wheel` in `BLOCKED`, the events a panel swallows while it
+  is open;
+- `hud.ts:359` gives panels their own wheel hook, `p.spec.wheel?.(...)`.
+
+**So the convention already exists and the world half is simply missing.** A
+zoom that scrolls the world while the ATM or the slots are open would be a bug,
+and `hud.ts` already prevents it for free.
+
+The camera is `new THREE.PerspectiveCamera(88, ...)` at `crosstown.ts:39` — 88°
+is a deliberately wide, slightly fish-eyed 1997 look, so **88 must remain the
+resting value** and zoom pulls in from it.
+
+*"Shouldn't be able to zoom too much"* is the whole spec: a clamp, and one that
+errs tight. This is a first-person street, not a sniper scope.
