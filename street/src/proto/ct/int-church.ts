@@ -29,15 +29,37 @@ import { buildRoom } from './interior';
 // empty, dim and quiet, and the temptation is to fill it — but the thrift store
 // two doors down is the room that earns its density, and this one earns the
 // opposite. Pews, a floor, a window, an altar, and a great deal of air.
+/**
+ * THE DOOR, as one fact: a world point and an outward normal — the general
+ * form `ct/doors.ts` takes, and the same fix `ct/int-jail.ts`'s `JAIL_DOOR` /
+ * `standOf` already applies one file over. Measured off the flight the player
+ * actually climbs — the landing tops out at x 9.1…9.6 over z −81.7…−77.2, so
+ * the doors are at the far edge of that, facing back down the steps toward
+ * the street.
+ *
+ * Before this, -79.5 was typed three times below (`cz`, `face.z`, and the
+ * room's own `door.z`/`outZ`) and 9.6 was typed once here and twice more,
+ * 0.75 m and 2.4 m out along the same normal, as the unrelated-looking
+ * literals 8.85 and 7.2 — two authorings of one fact that happened to still
+ * agree, the exact shape queue item 8 named. Nothing below retypes it.
+ */
+const CHURCH_FACE = { x: 9.6, z: -79.5, nx: -1, nz: 0 } as const;
+
+/** where you stand to work the door, offset from the face along its own
+ *  outward normal — same derivation as `ct/int-jail.ts`'s `standOf`, kept
+ *  local rather than imported: a runtime edge back to a sibling `int-*.ts`
+ *  is a real risk here (GOTCHAS §28 — see the note by `import('./hud')`
+ *  elsewhere in this file's siblings), and the whole function is two lines. */
+const standOff = (standoff: number) =>
+  ({ x: CHURCH_FACE.x + CHURCH_FACE.nx * standoff, z: CHURCH_FACE.z + CHURCH_FACE.nz * standoff });
+
 export const DOOR = {
   building: 'ST BRIGID',
-  w: 12, cz: -79.5, side: 1, at: 0, width: 1.4,
   // A CUT FACE, like the bodega's: the church sits back behind its own forecourt
   // rather than on the shopfront line, so its door is not on the building band
-  // at all. Measured off the flight the player actually climbs — the landing
-  // tops out at x 9.1…9.6 over z −81.7…−77.2, so the doors are at the far edge
-  // of that, facing back down the steps toward the street.
-  face: { x: 9.6, z: -79.5, nx: -1, nz: 0 },
+  // at all.
+  w: 12, cz: CHURCH_FACE.z, side: 1, at: 0, width: 1.4,
+  face: CHURCH_FACE,
 };
 
 export function buildChurch(ctx: CtxBuild) {
@@ -90,7 +112,10 @@ export function buildChurch(ctx: CtxBuild) {
     // sanctuary was flat. The real one is the `floor` function above.)
     palette: { floor: 0x6e6a62, wall: 0xa8a294, ceil: 0xbdb8ab, trim: 0x8a8274 },
     door: {
-      x: 8.85, z: -79.5, r: 1.2,
+      // 0.75 m off the face — DERIVED, not the literal 8.85 this used to
+      // carry beside -79.5 typed a third time. See `CHURCH_FACE`/`standOff`
+      // above.
+      ...standOff(0.75), r: 1.2,
       // OUT ONTO THE FLIGHT, clear of the way IN.
       //
       // This first read `outX: 8.6` — 0.25 m from the door spot, which has a
@@ -101,10 +126,11 @@ export function buildChurch(ctx: CtxBuild) {
       // player, not inferred — walked out, read the prompt, pressed E, ended up
       // back in the nave.
       //
-      // 7.2 is 1.65 m from the door spot, so you land OUTSIDE it, on the flight,
-      // facing down the steps toward the street. The way back in is one step
-      // forward, which is what a door should cost.
-      outX: 7.2, outZ: -79.5, outYaw: -Math.PI / 2,
+      // 2.4 m off the face (DERIVED — this was the unrelated-looking literal
+      // 7.2) is 1.65 m from the door spot, so you land OUTSIDE it, on the
+      // flight, facing down the steps toward the street. The way back in is
+      // one step forward, which is what a door should cost.
+      outX: standOff(2.4).x, outZ: standOff(2.4).z, outYaw: -Math.PI / 2,
       at: 0, width: 1.4,
     },
     // ONE light source, and it is not a fitting. A church is lit by its

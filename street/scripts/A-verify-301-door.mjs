@@ -21,6 +21,14 @@
 // "the door is stuck" look identical after a single E: closed, then open again,
 // then closed. A door that only shuts is not the thing the user asked for.
 //
+// SECOND STATION, added for queue item 1: this room-side cycle is not the
+// whole door. It only ever warped to x 199.3 — inside 301 — so it could not
+// see that the door was unopenable from the LANDING once shut: the interior
+// spot's r0.95 reach died at x 200.31, short of the hall floor (which starts
+// past the wall at x 200.07) and blocked further still by the shut leaf
+// itself. Shut the door from the room, walk out via a hall-side spot, and
+// confirm the SAME "open the door" prompt is offered and works there too.
+//
 //   node scripts/A-verify-301-door.mjs [port]
 import { chromium } from 'playwright';
 import { reportWorld } from './lib/which-world.mjs';
@@ -93,5 +101,52 @@ if (ok) {
   console.log(`MEASURED WRONG — expected close -> open -> close, got:`);
   console.log(`  ${JSON.stringify(seen)}`);
 }
+
+// ── STATION 2: the hall side ────────────────────────────────────────────
+// Room cycle above left the door OPEN (close -> open -> close means it is
+// back where it started). Shut it from the room, THEN warp to whichever
+// registered door-spot sits on the far side of the wall from the one we
+// just used, and see whether the landing can reopen it.
+console.log('\n-- hall side --');
+await pressE();                              // room spot: 'close the door' -> shuts it
+const hallSeen = [];
+const hallStep = async (tag) => {
+  const t = await prompt();
+  hallSeen.push(t);
+  console.log(`  ${tag.padEnd(22)} ${t ? `[E] ${t}` : 'no prompt'}`);
+  await p.screenshot({ path: `shots/A-301-hall-${tag.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.png` });
+};
+
+const hallSpot = await p.evaluate((roomX) => {
+  const cands = window.__ct.spots().filter((q) => /the door/i.test(q.label));
+  return cands.find((q) => Math.abs(q.x - roomX) > 0.1) ?? null;
+}, spot.x);
+if (!hallSpot) {
+  console.error('CANNOT ANSWER — only one door-spot registered; no hall-side station exists.');
+  await b.close();
+  process.exit(3);
+}
+console.log(`"the door" (hall side) at (${hallSpot.x.toFixed(2)}, ${hallSpot.z.toFixed(2)}) r${hallSpot.r}`);
+await p.evaluate(([x, z, gy]) => window.__ct.warp(x, z, -Math.PI / 2, gy, 0), [hallSpot.x, hallSpot.z, gy]);
+await p.waitForTimeout(500);
+const hallAt = await p.evaluate(() => window.__ct.pos().map((v) => +v.toFixed(2)));
+console.log(`standing at (${hallAt[0]}, ${hallAt[2]}) floor ${hallAt[3]}\n`);
+
+await hallStep('door shut, on the landing');       // this is the exact bug: used to be "no prompt"
+await pressE();
+await hallStep('after E from the hall');
+await pressE();
+await hallStep('after 2nd E from the hall');
+
+const [h0, h1, h2] = hallSeen;
+const hallOk = /open/i.test(h0 ?? '') && /close/i.test(h1 ?? '') && /open/i.test(h2 ?? '');
+console.log('');
+if (hallOk) {
+  console.log('MEASURED FINE — the door opens and closes from the hall side too.');
+} else {
+  console.log('MEASURED WRONG — expected open -> close -> open from the landing, got:');
+  console.log(`  ${JSON.stringify(hallSeen)}`);
+}
+
 await b.close();
-process.exit(ok ? 0 : 1);
+process.exit(ok && hallOk ? 0 : 1);
