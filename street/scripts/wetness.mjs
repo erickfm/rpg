@@ -34,6 +34,17 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push('console: ' + 
 await goto(page, aim('http://localhost:4177/'));
 await page.waitForFunction(() => window.__ct !== undefined, { timeout: 10000 });
 await reportWorld(page, aim('http://localhost:4177/'));   // GOTCHAS 26: prove it, do not just name it
+
+// CPU_THROTTLE=20 is how the SLEPT was finally reproduced on purpose. canfail
+// runs this under a full `npm run build` and a browser per case, and the whole
+// defect only exists when frames are slow — an idle box catches the mutation
+// every time and tells you nothing. Applied after load so the world still boots.
+const THROTTLE = Number(process.env.CPU_THROTTLE ?? 1);
+if (THROTTLE > 1) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: THROTTLE });
+  console.log(`CPU throttled x${THROTTLE}`);
+}
 await page.waitForTimeout(500);
 
 // same predicate ct/props.ts uses, so we pick hours the world agrees are wet
@@ -58,14 +69,23 @@ const rainy = (h) => rainyFromWorld(h);   // asked, not mirrored — see below
 let wetH = -1, dryH = -1;
 for (let h = 0; h < 48; h++) { if (wetH < 0 && rainy(h)) wetH = h; if (dryH < 0 && !rainy(h)) dryH = h; }
 
+/** Wait for `n` RENDERED frames. Every wait that measures DRYING goes through
+ *  here — see the block above the sample ladder for why milliseconds are the
+ *  wrong unit for this file. */
+const waitFrames = (n) => page.evaluate((n) => new Promise((resolve) => {
+  let seen = 0;
+  const tick = () => (++seen >= n ? resolve() : requestAnimationFrame(tick));
+  requestAnimationFrame(tick);
+}), n);
+
 const read = () => page.evaluate(() => {
   const sc = window.__ct.scene();
-  // `wetness` is the world's OWN answer to "how wet is the ground" (0 dry … 1),
-  // published by ct/props.ts:1010. Read alongside the surfaces rather than
-  // instead of them: the scalar says what the simulation believes, the colours
-  // say what the player can see, and the check below wants both to agree.
+  // `wetness` is the world's own published state — ct/props.ts:1010, "how wet
+  // the GROUND is; lags rain". Every surface colour below is computed from it,
+  // so reading it names the quantity the verdicts are actually about instead of
+  // inferring it from two hex strings.
   const out = { pud: [], refl: [], strip: null, broad: null, rainOpacity: 0,
-    wetness: sc.userData.wetness ?? 0 };
+                wetness: +(sc.userData.wetness ?? -1).toFixed(4) };
   sc.traverse((o) => {
     if (!o.isMesh || !o.material) return;
     const m = o.material;
@@ -111,43 +131,6 @@ if (mode === 'probe' || mode === 'all') {
   // it ramp to 0.999 in four seconds.
   await page.evaluate(() => window.__ct.warp(6.2, -50, 0, 0.14, 0));
   await page.waitForTimeout(300);
-
-  // ── THE DRY REFERENCE, AND WHY THIS FILE NEEDED ONE ──────────────────────
-  //
-  // The verdict below used to be `last.broad !== wet.broad` — "the surface is
-  // no longer what it was mid-storm". THAT IS WHAT DRYING DOES. It went green
-  // on a bone-dry street, and it slept through five canfail runs before the
-  // harness could score it.
-  //
-  // To ask "is the street WET" you need to know what dry looks like, and the
-  // reference has to be taken AT THE SAME HOUR: props colours a surface
-  // `base * ambient` when dry and multiplies it toward WET_WALL when wet
-  // (ct/props.ts:1022-1030), so the hour's own light changes the colour by more
-  // than the rain does. Comparing across hours would measure the sun.
-  //
-  // Taking it HERE is what makes it free: `wetness` starts at 0 on load
-  // (ct/props.ts:185) and the spawn is indoors, where props forces rainLevel to
-  // 0, so nothing has soaked yet. Measured: wetness is exactly 0 at this point,
-  // and the reference reads 3c3c3c against 141618 after the storm. Waiting for
-  // a dry reference the honest way instead would take minutes — drying is
-  // `48 * (1 + soak * 1.5) * ...` seconds by design.
-  await page.evaluate((h) => window.__ct.clock(h, 0), dryH);
-  await page.waitForTimeout(1500);
-  const dryRef = await read();
-  if (!(dryRef.wetness <= 0.004)) {
-    console.error(`\n  FAIL the dry reference was taken on a street that is already wet ` +
-      `(wetness ${dryRef.wetness}) — every verdict below would be measured against a wet baseline`);
-    process.exit(1);
-  }
-  // Relative luminance, so "wet" is a DIRECTION (darker) rather than merely a
-  // different hex. A tint that lightened the road would be the inversion bug
-  // this file was written for, and `!==` could not tell the two apart.
-  const lum = (hex) => {
-    const n = parseInt(hex, 16);
-    return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
-  };
-  console.log(`  dry reference at hour ${dryH}: road ${dryRef.broad}, gutter ${dryRef.strip}, wetness ${dryRef.wetness}`);
-
   await page.evaluate((h) => window.__ct.clock(h, 0), wetH);
   await page.waitForTimeout(5000);                       // let it come down
   const wet = await read();
@@ -155,15 +138,37 @@ if (mode === 'probe' || mode === 'all') {
   console.log(`  during the storm: rain opacity ${rainingNow}, ` +
     `puddles ${wet.pud.filter((o) => o > 0.02).length}/${wet.pud.length} showing`);
 
+  // ── the ladder is counted in FRAMES, and that is the whole fix ─────────────
+  //
+  // This used to be seven waits of 2000 ms, and it made `wetness` the one guard
+  // in canfail.mjs that SLEPT — non-deterministically, CAUGHT/CAUGHT/SLEPT/
+  // SLEPT/CAUGHT across five identical invocations, which a previous pass
+  // recorded but could not explain.
+  //
+  // The explanation is `dt`, clamped at 0.05 s in src/main.ts:107. Drying is
+  // `wetness -= dt / dryFor` per frame (ct/props.ts:1925), so the street dries
+  // in SIMULATED time, and under load a wall-clock second buys far less than a
+  // second of it. canfail runs a full `npm run build` and a browser per case,
+  // so its runs are exactly the loaded ones: the same 14 s ladder that reaches
+  // a bone-dry street on an idle box stops short of it under load, every
+  // verdict passes, and the guard reports itself healthy against a world whose
+  // drying rate has been scaled by 200x.
+  //
+  // Frames are not a perfect clock either — one frame is between ~1/60 s and
+  // the 0.05 s clamp, so the time base is uncertain by about 3x. It does not
+  // need to be better than that: the mutation this must catch changes the rate
+  // by 200x, so a 3x band leaves nearly two orders of magnitude of margin, and
+  // unlike milliseconds it cannot be truncated to nothing.
+  const LADDER_FRAMES = 60;                 // per rung, 7 rungs
   await page.evaluate((h) => window.__ct.clock(h, 0), dryH);
   const samples = [];
   for (let i = 0; i < 7; i++) {
-    await page.waitForTimeout(2000);
+    await waitFrames(LADDER_FRAMES);
     const r = await read();
     samples.push(r);
     const maxP = Math.max(...r.pud);
-    console.log(`  +${((i + 1) * 2).toString().padStart(2)}s after the rain stops: ` +
-      `rain ${r.rainOpacity.toFixed(3)}  darkest stain ${maxP.toFixed(3)}  ` +
+    console.log(`  +${((i + 1) * LADDER_FRAMES).toString().padStart(3)} frames after the rain stops: ` +
+      `rain ${r.rainOpacity.toFixed(3)}  wetness ${r.wetness.toFixed(4)}  darkest stain ${maxP.toFixed(3)}  ` +
       `road ${r.broad}  gutter ${r.strip}`);
   }
 
@@ -179,29 +184,36 @@ if (mode === 'probe' || mode === 'all') {
   // water minutes after the last drop — and the mean is what states it.
   const meanAt = samples.map((s) => s.pud.reduce((a2, b2) => a2 + b2, 0) / s.pud.length);
   const stillFilling = meanAt[3] > meanAt[0] + 0.005;
-  // ── AND THE STREET MUST NOT BE BONE DRY THE MOMENT IT STOPS ─────────────
+  // ── "not bone dry on the last drop", which this verdict did not say ────────
   //
-  // Asked against the DRY reference, not against the storm. The old form
-  // (`!== wet.broad`) was satisfied by any change at all, and drying is a
-  // change, so it could only fail if the street stayed EXACTLY as wet as it was
-  // mid-downpour — the opposite of what it is named for.
+  // It used to be `last.broad !== wet.broad || last.strip !== wet.strip` — the
+  // surfaces at the end of the window differ from the surfaces during the
+  // storm. That is a test for the street having CHANGED, and a street that
+  // flashes bone dry the instant the rain stops changes more than one that
+  // stays wet. I watched it pass, three times, on a world drying 200x too
+  // fast, printing `road 3c3c3c gutter 3c3c3c` — the ungraded base colour —
+  // under the words "the street is still wet". A verdict that its own failure
+  // mode satisfies is the sleeping guard this item is about; it happened to sit
+  // inside the guard rather than beside it.
   //
-  // Two legs, because they fail for different reasons and a wet street needs
-  // both: the simulation still believes the ground is wet, AND the surfaces the
-  // player looks at are still visibly darker than dry. Reading only the scalar
-  // would pass a world whose tint had stopped being applied; reading only the
-  // colour would pass a world that had frozen the tint on.
+  // What it should say is the user's request: "make wetness last a lil after it
+  // stops". So state it about the world's own `wetness`, over a bound DERIVED
+  // from the drying law rather than picked. Drying is
+  // `wetness -= dt / dryFor` (ct/props.ts:1925) with `dt` capped at DT_CLAMP
+  // (src/main.ts:107) and `dryFor` at its FASTEST when soak and night are both
+  // zero, i.e. DRY_FOR_MIN (ct/props.ts:1924). So over a window of N frames no
+  // healthy world can shed more than N * DT_CLAMP / DRY_FOR_MIN, whatever the
+  // frame rate. Measured here: the real world sheds ~0.13 against a 0.44 bound,
+  // and the mutated one sheds everything.
   //
-  // 0.02 of luminance is the threshold. Measured margin is 0.13-0.15 on both
-  // surfaces (scripts/probes/w29-wetref.mjs), so this sits an order of
-  // magnitude below the real signal and far above the ~0.004 quantisation of an
-  // 8-bit channel — it is not a threshold tuned until the test went green.
-  // 0.004 is ct/props.ts's own early-out epsilon for "effectively dry".
-  const last = samples[samples.length - 1];
-  const darkerRoad = lum(dryRef.broad) - lum(last.broad);
-  const darkerGutter = lum(dryRef.strip) - lum(last.strip);
-  const streetStillWet = last.wetness > 0.004 &&
-                         darkerRoad > 0.02 && darkerGutter > 0.02;
+  // COPIED, not imported, with citations — neither is exported (BUILDER-BRIEF
+  // §8). Same follow-up as scripts/jump-walk.mjs: hoist them.
+  const DT_CLAMP = 0.05;       // src/main.ts:107          Math.min(clock.getDelta(), 0.05)
+  const DRY_FOR_MIN = 48;      // src/proto/ct/props.ts:1924   dryFor = 48 * (1+soak*1.5) * (1+nightNow*1.1)
+  const maxDrop = (7 * LADDER_FRAMES) * DT_CLAMP / DRY_FOR_MIN;
+  const wetnessAt = samples.map((s) => s.wetness);
+  const dropped = wetnessAt[0] - wetnessAt[wetnessAt.length - 1];
+  const streetStillWet = wetnessAt[wetnessAt.length - 1] >= 0 && dropped <= maxDrop;
   const stillDark = maxAt[maxAt.length - 1] > 0.05;
   // individual fill: they must not move in lockstep
   const spread = new Set(samples[3].pud.filter((o) => o > 0.02).map((o) => o.toFixed(3)));
@@ -235,9 +247,8 @@ if (mode === 'probe' || mode === 'all') {
   const gutterHolds = samples[3].strip !== samples[3].broad;
 
   console.log(`\n  ${rainStopped ? 'OK  ' : 'FAIL'} the rain actually stopped`);
-  console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop ` +
-    `(wetness ${last.wetness.toFixed(3)}; road ${darkerRoad.toFixed(4)} and gutter ` +
-    `${darkerGutter.toFixed(4)} darker than dry, need >0.02)`);
+  console.log(`  ${streetStillWet ? 'OK  ' : 'FAIL'} the street is still wet, not bone dry on the last drop` +
+    ` (wetness ${wetnessAt[0].toFixed(4)} -> ${wetnessAt[wetnessAt.length - 1].toFixed(4)}, shed ${dropped.toFixed(4)} of at most ${maxDrop.toFixed(4)})`);
   console.log(`  ${gutterHolds ? 'OK  ' : 'FAIL'} the gutter and the road crown dry at different rates`);
 
   // The puddle-versus-road contrast block stood here. It was the sharpest
