@@ -2729,3 +2729,13 @@ to one side.
   closes. So after using the ATM the player is left unlocked, mouse-look degrades to the
   drag-to-look fallback, and it persists until he happens to click. Not room-specific;
   the room is just where he ended up.
+
+- **"no so its not on the atm the atm works great. its in the room. my room. its not on
+  click either"** (2026-08-02) → **the desk's pointer-lock diagnosis was WRONG; item 134
+  retired and the report folded into item 128.** Checked afterwards: nothing in
+  `ct/apartment.ts` touches camera, pitch, yaw or mouse, so the room does not override
+  look. Working hypothesis, his to confirm: **the mouse complaint and the performance
+  complaint are one bug** — mouse-look is sampled once per rendered frame, so long frames
+  turn the camera in jumps, which feels like a broken mouse in exactly the room where he
+  already reported drops. That is now the second desk diagnosis disproved on this one
+  report; both are written into item 128 so nobody repeats them.
