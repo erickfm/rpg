@@ -136,6 +136,27 @@ export class FPRig {
   // are already above a collider's top, which is exactly the question
   // blocked() is asking a few lines earlier in the same frame.
   private lastWorldY = 0;
+  // ── what was holding you up at the end of last frame ──────────────────────
+  //
+  // `support` is the floor height the camera actually stood on — `gy` AFTER the
+  // collider-top pick below, not the raw terrain — and `heldByTop` says whether
+  // a COLLIDER TOP was what put it there rather than the terrain. Together they
+  // are what lets the step-off convert a floor that drops away into a real fall
+  // (see the block that reads them in update()).
+  //
+  // `heldByTop` is the whole reason the kerb is untouched by that block: a kerb,
+  // a stoop, a stair and a storey change are all `groundY` terrain, so
+  // `heldByTop` is false across every one of them and the conversion never runs.
+  // Only car roofs, beds, rails and boot lids — things with a `maxY` collider —
+  // can start a fall.
+  private support = 0;
+  private heldByTop = false;
+  // Where you were standing, so the step-off can tell "the floor fell away from
+  // under my feet" (a fall) from "I was moved somewhere the floor is lower" (a
+  // teleport — `__ct.warp`, a door, a seat exit). Without this a probe that
+  // warps off a car roof is handed a phantom 1.4 m fall.
+  private lastX = 0;
+  private lastZ = 0;
   private jumpHeld = false; // holding the key doesn't re-jump; release first
   private crouchT = 0; // 0 standing, 1 crouched — eased so the camera dips smoothly
   private bobT = 0;
@@ -190,6 +211,10 @@ export class FPRig {
     this.pos = new THREE.Vector3(spawn.x, this.height, spawn.z);
     this.lastGood = { x: spawn.x, z: spawn.z };
     this.lastWorldY = this.groundY ? this.groundY(spawn.x, spawn.z) : 0;
+    // Spawn standing on the terrain, never on a top: a stale `support` from
+    // before the rig existed is exactly the phantom fall `lastX`/`lastZ` guard.
+    this.support = this.lastWorldY;
+    this.lastX = spawn.x; this.lastZ = spawn.z;
     cam.position.copy(this.pos);
   }
 
@@ -209,6 +234,9 @@ export class FPRig {
     this.yaw = pose.yaw;
     // cancel anything mid-flight, or you land after standing up
     this.airY = 0; this.vy = 0; this.jumpHeld = false;
+    // A chair is not a surface you stepped off — forget whatever was holding you
+    // up, so standing back up cannot read it as a floor that dropped away.
+    this.heldByTop = false;
   }
 
   /**
@@ -261,6 +289,11 @@ export class FPRig {
     if (to) { this.pos.x = to.x; this.pos.z = to.z; }
     this.seat = null;
     this.standFrom = null;
+    // Getting up MOVES you, by up to the 1.4 m search ring above. Re-base the
+    // step-off state on where you now are, or the first frame back on your feet
+    // compares this spot's floor against the one you sat down from.
+    this.heldByTop = false;
+    this.lastX = this.pos.x; this.lastZ = this.pos.z;
   }
 
   /**
@@ -559,8 +592,58 @@ export class FPRig {
     // standable top under the terrain (there is no such case today, but
     // nothing here assumes there cannot be) must not sink you into the
     // ground.
+    const terrain = gy;
     const top = this.standTop(this.pos.x, this.pos.z, atY);
     if (top !== null && top > gy) gy = top;
+
+    // ── STEPPING OFF A SURFACE IS A FALL, NOT THE FLOOR MOVING ───────────────
+    //
+    // The user: *"when i jump off of stuff i teleport straight down."*
+    //
+    // `airY` is height ABOVE THE GROUND, and world Y is `gy + airY`. So the
+    // instant you clear the edge of the pickup's cab roof, `gy` goes 1.415 ->
+    // 0.000 in ONE frame while `airY` is still 0, and the camera goes with it.
+    // **There was no fall to have: the player was never falling, the floor moved
+    // out from under him and took him along.** Measured before this block
+    // existed, walking off the bed floor: a single frame swallowed 0.514 m of a
+    // 0.590 m descent — 87% of it — against a gravity budget of 0.035 m for the
+    // first clamped frame (g*dt^2, g = 14, dt clamped to 0.05 in main.ts:107).
+    //
+    // THE FIX IS TO KEEP THE HEIGHT YOU HAD AND LET GRAVITY TAKE IT. Adding the
+    // lost floor to `airY` leaves world Y (`gy + airY`) exactly where it was, so
+    // nothing moves this frame; `airY` is now positive, so the integrator above
+    // runs next frame and brings you down at the same 14 m/s^2 a jump uses.
+    // Both halves of the item come out of that one line, because the player is
+    // now genuinely IN THE AIR: the jump gate above is `airY === 0 && vy === 0`,
+    // which used to be true the instant you stepped off — handing you a fresh
+    // 4.0 m/s jump in mid-air (measured: the camera rose 0.310 m after leaving
+    // the bed). With `airY` positive it is false, and the second jump is gone.
+    //
+    // ONLY DROPS, NEVER RISES — deliberately asymmetric. A rise is a LANDING,
+    // and landing already works: `standTop` credits a top only once your feet
+    // are within TOP_EPS of it, so the pop is bounded by that 0.08 m and settles
+    // as `airY` runs out. Subtracting on the way up would re-time every climb in
+    // scripts/w21-roof-climb.mjs for no defect anyone has reported.
+    //
+    // ONLY OFF A COLLIDER TOP, NEVER OFF TERRAIN — which is what keeps the kerb
+    // feeling exactly as it does today, bit for bit: `heldByTop` is false for
+    // every kerb, stoop, stair and storey change, so this block does not run for
+    // any of them. That is the item's "walking off a kerb still feels as it does
+    // now", satisfied by not touching the path at all rather than by re-tuning it.
+    //
+    // AND ONLY IF YOU WALKED THERE. `this.run` is 42 m/s, so the most any legal
+    // frame can carry you is `run * dt` — derived here rather than typed, so it
+    // still holds if the speed is ever retuned. Anything further is a teleport
+    // (`__ct.warp`, a door, a seat exit), where the floor changing is the point
+    // and a fall would be a phantom.
+    const walked = Math.hypot(this.pos.x - this.lastX, this.pos.z - this.lastZ);
+    if (this.heldByTop && gy < this.support - 1e-6 && walked <= this.run * dt + 1e-3) {
+      this.airY += this.support - gy;
+    }
+    this.support = gy;
+    this.heldByTop = top !== null && top > terrain;
+    this.lastX = this.pos.x; this.lastZ = this.pos.z;
+
     const grounded = this.airY === 0;
     const y = this.height - this.crouchT * 0.68 + gy + this.airY + (moving && grounded ? Math.sin(this.bobT) * this.bob : 0);
     this.cam.position.set(this.pos.x, y, this.pos.z);
