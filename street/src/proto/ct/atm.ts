@@ -23,6 +23,79 @@ import { makePanel, UI, type Panel, type Purse } from './hud';
 
 export const ORDER = BUILD.PROPS + 6;
 
+// ── the cabinet's own palette, READ rather than reinvented ─────────────────
+//
+// *"i hate the look of the atm. i want it to look more like the graphics of
+// the atm we already designed"* — there are two ATMs (the charcoal-and-green
+// cabinets on the bank facade, and this interface) and they used to disagree,
+// the exact class of fault he had just caught on the bank door: one object
+// that does not agree with itself. The desk asked, and the answer was the
+// CABINETS — this file is the one that has to change.
+//
+// Every value below is copied VERBATIM out of `ct/bank.ts`'s own
+// `atmPanelTex`/`atmNiche` (A's file, the machine in the wall), not matched
+// by eye, so a fresh guess at "charcoal" and "phosphor green" cannot drift a
+// half-step from what is actually built. Cited by line, as of `40ee8400a`:
+//
+//   CAB_BODY      bank.ts:324  '#414a52'                  the gunmetal cabinet body
+//   CAB_BEZEL     bank.ts:328  '#1c2026'                   CRT surround
+//   CAB_GLASS     bank.ts:329  '#0d1418'                   CRT glass, near black
+//   CAB_PHOSPHOR  bank.ts:330  '#3f6a4a'                   the green tube itself
+//   CAB_TEXT_DIM  bank.ts:336  rgba(180,255,190,0.32)      dim phosphor text
+//   CAB_TEXT_LIT  bank.ts:340  rgba(180,255,190,0.5)       bright phosphor text/cursor
+//   CAB_SLOT      bank.ts:347  '#2b3036'                   card/cash slot housing
+//   CAB_SLOT_DARK bank.ts:348  '#0a0c0e'                   slot opening
+//   CAB_LIT       bank.ts:349  '#63c27a'                   the lit card-slot arrow
+//   CAB_SHELF     bank.ts:356  '#363d44'                   keypad shelf
+//   CAB_KEY_HI    bank.ts:363  '#c6cbcf'                   a worn (pale) key face
+//   CAB_KEY_LO    bank.ts:363  '#aab0b6'                   an unworn key face
+//
+// NOT AN IMPORT, and that is a finding rather than a shortcut. `ct/bank.ts`
+// never names these — they are inline literals inside a closure, not
+// module-level constants — so there is nothing today to `export` and
+// `import`. Turning them into a shared, named palette means adding an
+// export to a file OWNERSHIP.md gives to A, and this row's own brief draws
+// the line at reading A's file to source the palette, not editing it — the
+// user explicitly wants the cabinets untouched, and OWNERSHIP.md's one
+// file/one owner rule does not carve out "just an export" the way it does
+// for the desk-owned shared modules. So: reported here rather than forced.
+// The fragility that leaves behind is real and has a precedent already on
+// record — `ct/vice.ts` declares GOLD/RED for the hotel and `int-hotel.ts`
+// duplicates two of the three as literals rather than importing them, and
+// the ledger already flags it as agreeing today with nothing keeping it
+// agreeing. Recommended follow-up for the desk: ask A to hoist this file's
+// own ATM colours into a named, exported `ATM_PALETTE` in `bank.ts`, so this
+// block can become an import and stop being a second copy of the truth.
+const CAB_BODY = '#414a52';
+const CAB_BEZEL = '#1c2026';
+const CAB_GLASS = '#0d1418';
+const CAB_PHOSPHOR = '#3f6a4a';
+const CAB_TEXT_DIM = 'rgba(180,255,190,0.32)';
+const CAB_TEXT_LIT = 'rgba(180,255,190,0.5)';
+const CAB_SLOT = '#2b3036';
+const CAB_SLOT_DARK = '#0a0c0e';
+const CAB_LIT = '#63c27a';
+const CAB_SHELF = '#363d44';
+const CAB_KEY_HI = '#c6cbcf';
+const CAB_KEY_LO = '#aab0b6';
+/** Highlight/shadow variants of the ONE sourced body colour, for the plastic
+ *  edges the cabinet conveys with real 3D shading and this flat panel has to
+ *  fake with paint. Derived arithmetically from CAB_BODY rather than picked
+ *  by eye, so the only judgement call here is "how much", not "which colour". */
+function shade(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = (shift: number) => Math.min(255, Math.max(0, ((n >> shift) & 255) + amt));
+  return `#${((1 << 24) + (c(16) << 16) + (c(8) << 8) + c(0)).toString(16).slice(1)}`;
+}
+const CAB_BODY_HI = shade(CAB_BODY, 24);
+const CAB_BODY_LO = shade(CAB_BODY, -20);
+const CAB_BODY_EDGE = shade(CAB_BODY, -36);
+/** ink for the printed button numbers — the cabinet's own keys carry no
+ *  labels to cite, so these are the same one-source derivation as above,
+ *  dark enough on a lit key and light enough on an unlit one. */
+const CAB_INK_LIT = shade(CAB_BODY, -46);
+const CAB_INK_DIM = shade(CAB_BODY, 40);
+
 /** What the bank holds for you before you have ever touched the machine. */
 const OPENING_BALANCE = 312.4;
 /** Notes it will actually give you. A machine has a stock of twenties. */
@@ -135,65 +208,70 @@ function drawScreen(g: CanvasRenderingContext2D): void {
     for (const side of [0, 1]) {
       const bx = side ? W - BTN_W - 1 : 1;
       const live = side ? !!r[i]?.right : !!r[i]?.left;
-      g.fillStyle = UI.caseEdge; g.fillRect(bx, BTN_Y[i], BTN_W, BTN_H);
-      g.fillStyle = live ? '#b9b5aa' : UI.caseLo;
+      g.fillStyle = CAB_BODY_EDGE; g.fillRect(bx, BTN_Y[i], BTN_W, BTN_H);
+      g.fillStyle = live ? CAB_KEY_HI : CAB_SHELF;
       g.fillRect(bx + 1, BTN_Y[i], BTN_W - 2, BTN_H - 2);
-      g.fillStyle = live ? '#d6d2c6' : UI.case;
+      g.fillStyle = live ? '#eef2ee' : CAB_BODY_HI;
       g.fillRect(bx + 1, BTN_Y[i], BTN_W - 2, 2);
       // the number you actually press, since there is no cursor in this world
-      g.fillStyle = live ? '#2a2b2e' : '#7c7970';
+      g.fillStyle = live ? CAB_INK_LIT : CAB_INK_DIM;
       g.font = UI.font(7, true); g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(String(side ? i + 5 : i + 1), bx + BTN_W / 2, BTN_Y[i] + BTN_H / 2);
     }
   }
 
-  // the CRT: amber on near-black, with a bezel of its own and scanlines
-  g.fillStyle = '#101114'; g.fillRect(CRT.x - 2, CRT.y - 2, CRT.w + 4, CRT.h + 4);
-  g.fillStyle = '#16181c'; g.fillRect(CRT.x, CRT.y, CRT.w, CRT.h);
+  // the CRT: green phosphor on near-black, with a bezel of its own and
+  // scanlines — CAB_BEZEL/CAB_GLASS/CAB_PHOSPHOR, read off the cabinet's own
+  // tube rather than kept as the amber this used to be.
+  g.fillStyle = CAB_BEZEL; g.fillRect(CRT.x - 2, CRT.y - 2, CRT.w + 4, CRT.h + 4);
+  g.fillStyle = CAB_GLASS; g.fillRect(CRT.x, CRT.y, CRT.w, CRT.h);
+  // the phosphor itself — the cabinet fills nearly the whole glass with it
+  // (bank.ts's `atmPanelTex`, a few percent of margin either side)
+  g.fillStyle = CAB_PHOSPHOR; g.fillRect(CRT.x + 3, CRT.y + 3, CRT.w - 6, CRT.h - 6);
   g.save();
   g.beginPath(); g.rect(CRT.x, CRT.y, CRT.w, CRT.h); g.clip();
   g.translate(CRT.x, CRT.y);
 
-  const line = (s: string, y: number, c: string = UI.amber, size = 9, align: CanvasTextAlign = 'center') => {
+  const line = (s: string, y: number, c: string = CAB_TEXT_LIT, size = 9, align: CanvasTextAlign = 'center') => {
     g.fillStyle = c; g.font = UI.font(size, true); g.textAlign = align; g.textBaseline = 'alphabetic';
     g.fillText(s, align === 'center' ? CRT.w / 2 : align === 'left' ? 6 : CRT.w - 6, y);
   };
 
-  line('FIRST FEDERAL', 14, UI.amberDim, 8);
-  g.fillStyle = UI.amberDim; g.fillRect(6, 18, CRT.w - 12, 1);
+  line('FIRST FEDERAL', 14, CAB_TEXT_DIM, 8);
+  g.fillStyle = CAB_TEXT_DIM; g.fillRect(6, 18, CRT.w - 12, 1);
 
   if (screen === 'idle') {
-    line(p.card === false ? 'NO CARD' : 'WELCOME', BODY, UI.amber, 15);
-    line(p.card === false ? 'SEE YOUR BRANCH FOR A NEW ONE' : 'PLEASE INSERT YOUR CARD', SUB, UI.amber, 8);
+    line(p.card === false ? 'NO CARD' : 'WELCOME', BODY, CAB_TEXT_LIT, 15);
+    line(p.card === false ? 'SEE YOUR BRANCH FOR A NEW ONE' : 'PLEASE INSERT YOUR CARD', SUB, CAB_TEXT_LIT, 8);
   } else if (screen === 'pin') {
-    line('ENTER YOUR PIN', HEAD, UI.amber, 10);
-    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, UI.amber, 18);
-    line('THEN PRESS ENTER', SUB, UI.amberDim, 7);
+    line('ENTER YOUR PIN', HEAD, CAB_TEXT_LIT, 10);
+    line(''.padStart(pin.length, '*').padEnd(4, '_').split('').join(' '), BODY, CAB_TEXT_LIT, 18);
+    line('THEN PRESS ENTER', SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'menu') {
-    line('SELECT A SERVICE', HEAD, UI.amber, 10);
+    line('SELECT A SERVICE', HEAD, CAB_TEXT_LIT, 10);
   } else if (screen === 'balance') {
-    line('AVAILABLE BALANCE', HEAD, UI.amberDim, 8);
-    line(money(acct(p)), BODY, UI.amber, 20);
-    line(`IN POCKET ${money(p.cash)}`, SUB, UI.amberDim, 7);
+    line('AVAILABLE BALANCE', HEAD, CAB_TEXT_DIM, 8);
+    line(money(acct(p)), BODY, CAB_TEXT_LIT, 20);
+    line(`IN POCKET ${money(p.cash)}`, SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'withdraw') {
-    line('SELECT AMOUNT', HEAD, UI.amber, 10);
+    line('SELECT AMOUNT', HEAD, CAB_TEXT_LIT, 10);
     if (message) line(message, BODY, '#e06a3c', 10);
   } else if (screen === 'wait') {
-    line('PLEASE WAIT', BODY, UI.amber, 15);
-    line('COUNTING NOTES', SUB, UI.amberDim, 8);
+    line('PLEASE WAIT', BODY, CAB_TEXT_LIT, 15);
+    line('COUNTING NOTES', SUB, CAB_TEXT_DIM, 8);
   } else if (screen === 'cash') {
-    line('CASH READY', HEAD, UI.amber, 10);
-    line(money(pending), BODY, UI.amber, 20);
-    line('TAKE IT FROM THE MOUTH BELOW', SUB, UI.amberDim, 7);
+    line('CASH READY', HEAD, CAB_TEXT_LIT, 10);
+    line(money(pending), BODY, CAB_TEXT_LIT, 20);
+    line('TAKE IT FROM THE MOUTH BELOW', SUB, CAB_TEXT_DIM, 7);
   } else if (screen === 'receipt') {
-    line(message || '', HEAD, UI.amber, 10);
-    line('DO YOU WANT A RECEIPT?', BODY, UI.amber, 11);
+    line(message || '', HEAD, CAB_TEXT_LIT, 10);
+    line('DO YOU WANT A RECEIPT?', BODY, CAB_TEXT_LIT, 11);
     if (message === 'NO PAPER') line('NO PAPER IN THIS MACHINE', SUB, '#e06a3c', 8);
   } else if (screen === 'card') {
-    line('TAKE YOUR CARD', BODY, UI.amber, 15);
+    line('TAKE YOUR CARD', BODY, CAB_TEXT_LIT, 15);
   } else if (screen === 'thanks') {
-    line('THANK YOU', BODY, UI.amber, 16);
-    line('FIRST FEDERAL SAVINGS', SUB, UI.amberDim, 8);
+    line('THANK YOU', BODY, CAB_TEXT_LIT, 16);
+    line('FIRST FEDERAL SAVINGS', SUB, CAB_TEXT_DIM, 8);
   }
 
   // the menu items, lined up against the buttons — the whole point of the
@@ -201,8 +279,8 @@ function drawScreen(g: CanvasRenderingContext2D): void {
   const r2 = rows(p);
   for (let i = 0; i < 4; i++) {
     const y = BTN_Y[i] + BTN_H / 2 + 3 - CRT.y;
-    if (r2[i]?.left) line(`◀ ${r2[i].left}`, y, UI.amber, 9, 'left');
-    if (r2[i]?.right) line(`${r2[i].right} ▶`, y, UI.amber, 9, 'right');
+    if (r2[i]?.left) line(`◀ ${r2[i].left}`, y, CAB_TEXT_LIT, 9, 'left');
+    if (r2[i]?.right) line(`${r2[i].right} ▶`, y, CAB_TEXT_LIT, 9, 'right');
   }
 
   // scanlines last, over everything, so the text sits IN the tube
@@ -213,20 +291,20 @@ function drawScreen(g: CanvasRenderingContext2D): void {
   // under the CRT: the card slot and the cash mouth, which is where the
   // machine tells you something is physically happening
   const fy = CRT.y + CRT.h + 8;
-  g.fillStyle = UI.caseLo; g.fillRect(40, fy, 92, 12);
-  g.fillStyle = '#26282c'; g.fillRect(43, fy + 3, 86, 5);
-  g.fillStyle = screen === 'idle' || screen === 'thanks' ? '#4a4842' : '#6ad07a';
+  g.fillStyle = CAB_SLOT; g.fillRect(40, fy, 92, 12);
+  g.fillStyle = CAB_SLOT_DARK; g.fillRect(43, fy + 3, 86, 5);
+  g.fillStyle = screen === 'idle' || screen === 'thanks' ? CAB_BODY_LO : CAB_LIT;
   g.fillRect(43, fy + 9, 86, 2);                        // the slot's little lamp
-  g.fillStyle = UI.dim; g.font = UI.font(6); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  g.fillStyle = CAB_KEY_LO; g.font = UI.font(6); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   g.fillText('CARD', 86, fy + 20);
 
-  g.fillStyle = UI.caseLo; g.fillRect(168, fy, 92, 14);
-  g.fillStyle = '#1a1b1d'; g.fillRect(171, fy + 3, 86, 8);
+  g.fillStyle = CAB_SLOT; g.fillRect(168, fy, 92, 14);
+  g.fillStyle = CAB_SLOT_DARK; g.fillRect(171, fy + 3, 86, 8);
   if (screen === 'cash') {                              // notes in the mouth
     g.fillStyle = '#6a8a5a'; g.fillRect(176, fy + 4, 76, 6);
     g.fillStyle = '#7a9a68'; g.fillRect(176, fy + 4, 76, 2);
   }
-  g.fillStyle = UI.dim; g.fillText('CASH', 214, fy + 20);
+  g.fillStyle = CAB_KEY_LO; g.fillText('CASH', 214, fy + 20);
 }
 
 // ── keys ──────────────────────────────────────────────────────────────────
@@ -290,6 +368,9 @@ export function register(ctx: CtxBuild): void {
 
   panel = makePanel({
     id: 'ct-atm', w: W, h: H, scale: 2, chrome: 'machine',
+    // The one caller of `caseTint`: this cabinet exists twice, on the bank
+    // facade and in here, and it has to be the same charcoal both times.
+    caseTint: { body: CAB_BODY, hi: CAB_BODY_HI, lo: CAB_BODY_LO, edge: CAB_BODY_EDGE },
     title: 'FIRST FEDERAL SAVINGS',
     hint: () => (screen === 'pin' ? 'digits, then ENTER' : 'press the numbered buttons'),
     draw: (g) => drawScreen(g),

@@ -269,6 +269,15 @@ export interface PanelSpec {
   scale?: number;
   /** moulded plastic (a machine you stand at) or canvas (a thing you hold) */
   chrome?: 'machine' | 'cloth';
+  /**
+   * Override the shared `UI.case*` plastic for THIS panel only. Every other
+   * 'machine' panel (slots, blackjack, pockets) keeps the one moulded-beige
+   * look on purpose — one bezel, one shop — so this is not a styling knob,
+   * it is an escape hatch for the one caller whose screen has to match an
+   * object drawn somewhere else in the world rather than an in-house look.
+   * Falls back to `UI.case`/`caseHi`/`caseLo`/`caseEdge` for anything unset.
+   */
+  caseTint?: { body?: string; hi?: string; lo?: string; edge?: string };
   /** stamped into the bezel above the screen. Keep it short and shouty. */
   title?: string;
   /** the caption strip along the bottom. Say how to leave. */
@@ -437,22 +446,24 @@ export function makePanel(spec: PanelSpec): Panel {
     const g = cv.getContext('2d')!;
     g.clearRect(0, 0, CW, CH);
     const machine = chrome === 'machine';
-    const body = machine ? UI.case : UI.cloth;
-    const hi = machine ? UI.caseHi : UI.clothHi;
-    const lo = machine ? UI.caseLo : UI.clothLo;
+    const tint = spec.caseTint;
+    const body = machine ? (tint?.body ?? UI.case) : UI.cloth;
+    const hi = machine ? (tint?.hi ?? UI.caseHi) : UI.clothHi;
+    const lo = machine ? (tint?.lo ?? UI.caseLo) : UI.clothLo;
+    const edge = machine ? (tint?.edge ?? UI.caseEdge) : UI.caseEdge;
 
-    g.fillStyle = UI.caseEdge; g.fillRect(0, 0, CW, CH);
+    g.fillStyle = edge; g.fillRect(0, 0, CW, CH);
     g.fillStyle = body; g.fillRect(1, 1, CW - 2, CH - 2);
     g.fillStyle = hi; g.fillRect(1, 1, CW - 2, 2);                 // moulding catches the light
     g.fillStyle = lo; g.fillRect(1, CH - 4, CW - 2, 3);
 
     if (machine) {
       // four screws, because a machine has fixings and a menu does not
-      g.fillStyle = UI.caseLo;
+      g.fillStyle = lo;
       for (const [sx, sy] of [[5, 5], [CW - 8, 5], [5, CH - 8], [CW - 8, CH - 8]]) {
         g.fillRect(sx, sy, 3, 3);
-        g.fillStyle = UI.caseEdge; g.fillRect(sx, sy + 1, 3, 1);
-        g.fillStyle = UI.caseLo;
+        g.fillStyle = edge; g.fillRect(sx, sy + 1, 3, 1);
+        g.fillStyle = lo;
       }
     } else {
       g.strokeStyle = 'rgba(222,210,180,0.20)'; g.setLineDash([3, 3]);
@@ -460,10 +471,10 @@ export function makePanel(spec: PanelSpec): Panel {
     }
 
     if (spec.title) {
-      g.fillStyle = machine ? UI.caseEdge : UI.clothLo;
+      g.fillStyle = machine ? edge : UI.clothLo;
       g.font = UI.font(9, true); g.textAlign = 'center'; g.textBaseline = 'alphabetic';
       g.fillText(spec.title, CW / 2, BEZEL + 9);
-      g.fillStyle = machine ? UI.caseHi : UI.clothHi;
+      g.fillStyle = machine ? hi : UI.clothHi;
       g.fillText(spec.title, CW / 2, BEZEL + 8);                   // stamped, not printed
     }
 
@@ -481,7 +492,7 @@ export function makePanel(spec: PanelSpec): Panel {
 
     // the caption strip: how to leave, always, on every panel
     const cy = SY + spec.h + 5;
-    g.fillStyle = machine ? UI.caseLo : UI.clothLo;
+    g.fillStyle = machine ? lo : UI.clothLo;
     g.fillRect(SX, cy, spec.w, CAPTION - 6);
     g.fillStyle = UI.dim; g.font = UI.font(7); g.textAlign = 'left'; g.textBaseline = 'alphabetic';
     g.fillText(spec.hint ? spec.hint() : '', SX + 4, cy + 9);
