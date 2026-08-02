@@ -2480,3 +2480,11 @@ to one side.
   lobby chairs against the red; the clerk reading as a head with no body behind the
   counter; and the sign over the far door looking MIRRORED — which `ct/int-hotel.ts:259`
   records as a fault that has already happened once in this exact file.
+
+- **"[screenshot] sevens casino front looks so messed up. take influence from vegas
+  thanks."** (2026-08-02) → **routed as queue item 97.** Ninth report this sitting, and
+  the THIRD user complaint about this same facade — `ct/vice.ts:117` records "the blur
+  the user reported on the marquee" and `:141` records *"the LEFT leaf is reversed"*.
+  Concrete defects visible in the frame: **SEVENS is clipped at both ends** (reads
+  "EVEN"), the marquee's second line is clipped (**"$1 BLACKJA"**), and a black vertical
+  bar floats over the left edge of the facade. Plus the standing direction: Vegas.
