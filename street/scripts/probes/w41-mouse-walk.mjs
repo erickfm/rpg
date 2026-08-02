@@ -97,15 +97,21 @@ const padKey = async (i) => {
 };
 
 // ── the hand only appears over something that does something ─────────────
+// The two cursors are told apart by their HOTSPOT, which is the one part of the
+// declaration that is readable — both are `url(data:image/png;base64,...)` and
+// the payloads are megabytes of identical-looking base64.
+const isArrow = (c) => /^url\(/.test(c) && /\)\s*0 0, default$/.test(c);
+const isHand = (c) => /^url\(/.test(c) && /\)\s*9 0, pointer$/.test(c);
+
 const dead = await pageXY(150, 20);                 // middle of the header band
 await page.mouse.move(dead.x, dead.y);
 await page.waitForTimeout(80);
-ok((await page.evaluate(() => document.body.style.cursor)) !== 'pointer',
-   'the cursor is plain over the tube where nothing is pressable');
+const curDead = await page.evaluate(() => document.body.style.cursor);
+ok(isArrow(curDead), 'over dead glass the cursor is the pixel-drawn Win98 ARROW');
 
 // ── INSERT CARD, by clicking it ──────────────────────────────────────────
 const cur1 = await softKey(0, false);
-ok(cur1 === 'pointer', `the cursor turns to a hand over a live button (${cur1})`);
+ok(isHand(cur1), 'and over a live button it is the pixel-drawn Win98 HAND');
 ok((await st()).screen === 'pin', 'clicking INSERT CARD in the world took the card');
 
 // ── the PIN, on the on-screen pad ────────────────────────────────────────

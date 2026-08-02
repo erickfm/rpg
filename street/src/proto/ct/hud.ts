@@ -466,8 +466,89 @@ function cursorAs(shape: string): void {
   cursorShape = shape;
   document.body.style.cursor = shape;
 }
+
+// *"the mouse cursor should be like a lil hand almost like win98 cursor"*.
+//
+// PIXEL-DRAWN, not a font glyph and not the browser's `pointer` — the whole
+// world is 1997 pixel art and the one place a modern OS cursor would appear is
+// the moment the player is closest to the screen and looking hardest at it.
+//
+// TWO of them, which is what Windows 98 actually did and what makes `hot`
+// worth having: the arrow everywhere, the pointing hand over something that
+// will do something if you click it. So the cursor answers "is this a control"
+// before the player commits, and a hand over a dead key would be the machine
+// lying about itself.
+//
+// 16 x 16 at 2x = 32 x 32, which is the size browsers are safe to honour; over
+// that Chrome starts refusing the image and falls back, so the art is authored
+// to fit rather than scaled up and hoped for. `pointer`/`default` are named as
+// the fallback after the url for exactly that case.
+const ARROW_ART = [
+  'X               ',
+  'XX              ',
+  'X.X             ',
+  'X..X            ',
+  'X...X           ',
+  'X....X          ',
+  'X.....X         ',
+  'X......X        ',
+  'X.......X       ',
+  'X........X      ',
+  'X.....XXXX      ',
+  'X..X..X         ',
+  'X.X X..X        ',
+  'XX   X..X       ',
+  'X     X..X      ',
+  '       XX       ',
+];
+const HAND_ART = [
+  '    XX          ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..X         ',
+  '   X..XXX       ',
+  '   X..X..XX     ',
+  'XX X..X..X.X    ',
+  'X.XX..X..X.X    ',
+  'X..X.......X    ',
+  'X..........X    ',
+  ' X.........X    ',
+  ' X.........X    ',
+  '  X........X    ',
+  '  X.......X     ',
+  '   XXXXXXX      ',
+];
+/** `X` is the black outline, `.` the white fill, a space transparent. */
+function cursorUrl(art: string[]): string {
+  const S = 2, N = 16;
+  const c = document.createElement('canvas');
+  c.width = N * S; c.height = N * S;
+  const g = c.getContext('2d')!;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const ch = art[y]?.[x] ?? ' ';
+      if (ch === ' ') continue;
+      g.fillStyle = ch === 'X' ? '#000000' : '#ffffff';
+      g.fillRect(x * S, y * S, S, S);
+    }
+  }
+  return c.toDataURL('image/png');
+}
+/** Built once, on first use — `document` exists by then, and a module-load-time
+ *  canvas would run in every harness that only imports this file for `UI`. */
+let ARROW_URL: string | null = null;
+let HAND_URL: string | null = null;
 /** hovering something pressable, or not */
-function cursorHand(over: boolean): void { cursorAs(over ? 'pointer' : 'default'); }
+function cursorHand(over: boolean): void {
+  if (over) {
+    HAND_URL ??= cursorUrl(HAND_ART);
+    cursorAs(`url(${HAND_URL}) 9 0, pointer`);      // hotspot: the fingertip
+  } else {
+    ARROW_URL ??= cursorUrl(ARROW_ART);
+    cursorAs(`url(${ARROW_URL}) 0 0, default`);     // hotspot: the point
+  }
+}
 /** give the page its own cursor back */
 function cursorRelease(): void { cursorShape = null; document.body.style.cursor = ''; }
 
