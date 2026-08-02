@@ -2543,3 +2543,16 @@ to one side.
 - **"[screenshot] bench texture is off and sitting looks nonsensical"** (2026-08-02,
   jail interior bench) → **sitting folded into item 93 (now its THIRD sighting: church
   pew, casino stool, jail bench); the bench TEXTURE queued as item 106.**
+
+- **"[screenshot] interior jail textures look off. again why aren't we catching these?
+  what's causing them and do we need to set a rule against them so they aren't
+  created?"** (2026-08-02) → **answered with numbers and routed as item 107 (the
+  world-wide sweep) plus a new standing rule in BUILDER-BRIEF §7b.**
+  **Why we are not catching them:** the density checker (`scripts/masonry.mjs`) only
+  sweeps faces tagged `userData.masonry`. Pillars, doors, benches and floor tiles are not
+  masonry, so nothing checks them. **343 texture creations exist against 267 density
+  declarations** — ~76 textured surfaces never declare a density at all, so there is
+  nothing to compare them against. And `masonry.mjs:22` records an earlier version
+  reporting "42 of 109 masonry faces as wrong when none were", which biased it toward
+  silence. **The cause:** a texture's repeat accepted as a default or typed by hand
+  instead of derived from the face it lands on.

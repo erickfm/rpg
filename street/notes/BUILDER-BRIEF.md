@@ -265,3 +265,34 @@ In your `done.sh` line and your handoff note at `notes/<name>-<topic>.md`:
 4. Whether you derived a value or copied it, and why.
 
 **Reporting something you could not do is worth more than a silent workaround.**
+
+---
+
+## 7b. A TEXTURE'S DENSITY COMES FROM THE FACE IT LANDS ON. ALWAYS.
+
+The user, 2026-08-02, on the jail interior: *"why aren't we catching these? what's
+causing them and do we need to set a rule against them so they aren't created?"*
+
+**Yes. This is the rule.**
+
+Every textured surface **declares** its density and **derives** its repeat from
+its own dimensions. Never accept the default repeat, and never type a repeat by
+hand. `declareSurface` and `masonry(w, h, …).ppm` / `ppmW` / `ppmH` exist for
+exactly this — use them.
+
+**What it costs when you don't.** Fixed four separate times in two days:
+
+- a texture painted for 4 m stretched over a **14 m** jail wall — 4.57 px/m against a declared 16
+- 0.2 m screen-wall end caps wearing a **9.65 m** run — 770 px/m
+- five trim boxes sharing one 1 m canvas — an 0.08 m sill drawing at 200 px/m
+- a bench's boards tiling as repeated blocks
+
+**Why it keeps reaching the user.** `scripts/masonry.mjs` only sweeps faces
+tagged `userData.masonry`. A pillar, a door, a bench, a floor tile is not
+masonry, so **nothing checks it**. And the world holds **343 texture creations
+against 267 declarations** — about 76 surfaces have no declared density at all,
+so there is nothing to check them against.
+
+**So: if you create a texture, declare its density. If you apply one, derive the
+repeat.** A surface that cannot state its own px/m is a surface no check can ever
+defend, and the user finds those by eye — he has now done so five times.
